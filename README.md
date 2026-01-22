@@ -39,6 +39,17 @@ Next.js 16.0 기반의 실시간 마크다운 문서 관리 시스템입니다. 
 - **문서 인덱싱**: 전체 위키 문서 자동/수동 인덱싱
 - **출처 표시**: 답변에 참고한 문서 출처 제공
 
+### 📜 버전 히스토리
+- **자동 버전 저장**: 파일 저장 시 자동으로 버전 히스토리 생성
+- **변경 이력 조회**: 파일별 버전 목록 및 변경 요약
+- **버전 복원**: 이전 버전으로 복원 가능
+- **버전 비교**: 두 버전 간 diff 비교
+
+### 💬 댓글 시스템
+- **문서별 댓글**: 각 문서에 댓글 작성 가능
+- **답글 지원**: 계층형 댓글 구조
+- **수정/삭제**: 댓글 편집 및 삭제 기능
+
 ### 🔔 알림 시스템
 - **Context API 기반**: 안정적인 상태 관리
 - **타입별 알림**: 성공, 오류, 정보, 경고
@@ -222,6 +233,36 @@ POST /api/ask
 }
 ```
 
+### 버전 히스토리 (`/api/versions`)
+```typescript
+GET /api/versions?filePath=...              // 버전 목록
+GET /api/versions?filePath=...&versionId=.. // 특정 버전 조회
+GET /api/versions?filePath=...&versionId=..&compareWith=..  // 버전 비교
+```
+
+### 댓글 (`/api/comments`)
+```typescript
+GET /api/comments?filePath=...              // 댓글 목록
+GET /api/comments?filePath=...&asTree=true  // 트리 구조로 조회
+
+POST /api/comments
+{
+  filePath: string,
+  author: string,
+  content: string,
+  parentId?: string   // 답글인 경우
+}
+
+PUT /api/comments
+{
+  filePath: string,
+  commentId: string,
+  content: string
+}
+
+DELETE /api/comments?filePath=...&commentId=...
+```
+
 ## 🎨 디자인 시스템
 
 ### 색상 팔레트
@@ -254,10 +295,11 @@ POST /api/ask
 - [ ] 마크다운 템플릿
 - [ ] 태그 시스템
 
-### Phase 2: 협업 기능
+### Phase 2: 협업 기능 (진행 중)
 - [ ] 다중 사용자 지원
 - [ ] 버전 관리 (Git 연동)
-- [ ] 댓글 시스템
+- [x] 버전 히스토리 (로컬)
+- [x] 댓글 시스템
 - [ ] 실시간 공동 편집
 
 ### Phase 3: 확장 기능

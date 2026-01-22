@@ -11,8 +11,9 @@ import WikiModals from '@/components/WikiModals';
 import { WikiAppProps } from '@/types/components';
 import { useResize } from '@/hooks/useResize';
 import { FileNode } from '@/types';
-import { Folder24Regular, ChatHelp24Regular } from '@fluentui/react-icons';
+import { Folder24Regular, ChatHelp24Regular, Search24Regular } from '@fluentui/react-icons';
 import GeminiChat from '@/components/GeminiChat';
+import AIChat from '@/components/AIChat';
 
 // README.md 파일 찾기 헬퍼 함수
 const findReadmeFile = (nodes: FileNode[]): string | null => {
@@ -39,8 +40,8 @@ const WikiAppWithTreeData: React.FC<{
 }> = ({ sidebarWidth, isResizing, resizerProps }) => {
   const { selectFile } = useTreeDataContext();
   const { files, loadFile } = useWikiContext();
-  // sidebarType: 'tree' | 'gemini'
-  const [sidebarType, setSidebarType] = useState<'tree' | 'gemini'>('tree');
+  // sidebarType: 'tree' | 'gemini' | 'ai'
+  const [sidebarType, setSidebarType] = useState<'tree' | 'gemini' | 'ai'>('tree');
 
   // 초기 README.md 자동 로드
   useEffect(() => {
@@ -69,9 +70,16 @@ const WikiAppWithTreeData: React.FC<{
           <Folder24Regular />
         </button>
         <button
+          style={{ width: 44, height: 44, borderRadius: 12, background: sidebarType === 'ai' ? '#6264a7' : 'transparent', color: sidebarType === 'ai' ? '#fff' : '#6264a7', border: 'none', marginBottom: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}
+          onClick={() => setSidebarType('ai')}
+          title="AI 검색 (RAG)"
+        >
+          <Search24Regular />
+        </button>
+        <button
           style={{ width: 44, height: 44, borderRadius: 12, background: sidebarType === 'gemini' ? '#6264a7' : 'transparent', color: sidebarType === 'gemini' ? '#fff' : '#6264a7', border: 'none', marginBottom: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}
           onClick={() => setSidebarType('gemini')}
-          title="Gemini 질문"
+          title="Gemini 대화"
         >
           <ChatHelp24Regular />
         </button>
@@ -90,6 +98,20 @@ const WikiAppWithTreeData: React.FC<{
           className={`w-1 bg-gray-200 cursor-col-resize hover:bg-gray-300 transition-colors ${
             isResizing ? 'bg-blue-400' : ''
           }`}
+          {...resizerProps}
+        />
+      )}
+      {sidebarType === 'ai' && (
+        <div style={{ width: sidebarWidth, minWidth: sidebarWidth, maxWidth: sidebarWidth, background: '#fff', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', height: '100vh' }}>
+          <AIChat onFileSelect={async (path) => {
+            selectFile(path);
+            await loadFile(path);
+          }} />
+        </div>
+      )}
+      {sidebarType === 'ai' && (
+        <div
+          className={`w-1 bg-gray-200 cursor-col-resize hover:bg-gray-300 transition-colors ${isResizing ? 'bg-blue-400' : ''}`}
           {...resizerProps}
         />
       )}

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { normalizeMarkdownFileName } from "@/utils/fileUtils";
 import { logger, PerformanceTimer } from "@/utils/errorUtils";
+import { saveVersion } from "@/lib/versionHistory";
 
 const ROOT_DIR = path.join(process.cwd(), "docs", "wiki");
 
@@ -158,7 +159,19 @@ export async function POST(req: Request) {
 
     case "write":
       fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      // 이전 내용 읽기 (버전 비교용)
+      let previousContent: string | null = null;
+      if (fs.existsSync(targetPath)) {
+        previousContent = fs.readFileSync(targetPath, "utf-8");
+      }
       fs.writeFileSync(targetPath, content, "utf-8");
+      // 버전 히스토리 저장
+      try {
+        const relativePath = path.relative(ROOT_DIR, targetPath);
+        await saveVersion(relativePath, content, previousContent ? 'update' : 'create', previousContent);
+      } catch (versionError) {
+        logger.warn('버전 히스토리 저장 실패', versionError instanceof Error ? { message: versionError.message } : undefined);
+      }
       return new Response("File saved");
 
     case "create":
@@ -166,7 +179,15 @@ export async function POST(req: Request) {
         return new Response("File already exists", { status: 409 });
       }
       fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-      fs.writeFileSync(targetPath, content || `# ${name}\n\n내용을 작성하세요.`, "utf-8");
+      const newContent = content || `# ${name}\n\n내용을 작성하세요.`;
+      fs.writeFileSync(targetPath, newContent, "utf-8");
+      // 버전 히스토리 저장 (새 파일)
+      try {
+        const relativePath = path.relative(ROOT_DIR, targetPath);
+        await saveVersion(relativePath, newContent, 'create', null);
+      } catch (versionError) {
+        logger.warn('버전 히스토리 저장 실패', versionError instanceof Error ? { message: versionError.message } : undefined);
+      }
       return new Response("File created");
 
     case "createFolder":
