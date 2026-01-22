@@ -263,6 +263,51 @@ PUT /api/comments
 DELETE /api/comments?filePath=...&commentId=...
 ```
 
+### 사용자 관리 (`/api/users`)
+```typescript
+GET /api/users                    // 전체 사용자 목록
+GET /api/users?id=...             // 특정 사용자 조회
+GET /api/users?activity=true      // 활동 로그 조회
+
+POST /api/users
+{
+  action?: 'login',      // 로그인 시
+  username: string,
+  displayName?: string,  // 신규 생성 시 필수
+  email?: string,
+  role?: 'admin' | 'editor' | 'viewer'
+}
+
+PUT /api/users
+{
+  id: string,
+  displayName?: string,
+  email?: string,
+  role?: string
+}
+
+DELETE /api/users?id=...
+```
+
+### Git 연동 (`/api/git`)
+```typescript
+// 상태 조회
+GET /api/git?action=status        // 변경된 파일 목록
+GET /api/git?action=log&limit=20  // 커밋 히스토리
+GET /api/git?action=diff          // 변경 내용
+GET /api/git?action=branch        // 브랜치 목록
+GET /api/git?action=remote        // 리모트 설정
+
+// Git 작업 실행
+POST /api/git
+{
+  action: 'add' | 'commit' | 'push' | 'pull' | 'checkout' | 'init',
+  message?: string,     // commit 시 필수
+  files?: string[],     // add 시 특정 파일 지정
+  branch?: string       // push, pull, checkout 시 사용
+}
+```
+
 ## 🎨 디자인 시스템
 
 ### 색상 팔레트
@@ -296,11 +341,13 @@ DELETE /api/comments?filePath=...&commentId=...
 - [ ] 태그 시스템
 
 ### Phase 2: 협업 기능 (진행 중)
-- [ ] 다중 사용자 지원
-- [ ] 버전 관리 (Git 연동)
+- [x] 다중 사용자 지원 (로컬 세션 기반)
+- [x] 버전 관리 (Git 연동)
 - [x] 버전 히스토리 (로컬)
 - [x] 댓글 시스템
 - [ ] 실시간 공동 편집
+
+> **📌 Git 연동 마이그레이션 예정**: 현재 Git 연동은 개인 GitHub 저장소를 사용하고 있습니다. 추후 사내 Git 서버(GitLab, Bitbucket 등)로 마이그레이션될 예정입니다. `/api/git` 엔드포인트의 remote URL 설정을 변경하여 쉽게 전환할 수 있습니다.
 
 ### Phase 3: 확장 기능
 - [ ] 플러그인 시스템
