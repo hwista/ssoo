@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir, readdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import { indexDocuments } from '@/lib/vectorStore';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'docs/wiki/uploads');
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -117,16 +118,36 @@ export async function POST(request: NextRequest) {
       }))
     }, null, 2));
 
+    // 벡터 인덱싱 (선택적 - API 키가 있을 때만)
+    let indexed = false;
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const relativePath = path.relative(process.cwd(), filePath);
+        const documents = chunks.map((chunk, index) => ({
+          content: chunk,
+          filePath: relativePath,
+          fileName: sanitizedName,
+          chunkIndex: index,
+          createdAt: new Date().toISOString()
+        }));
+        await indexDocuments(documents);
+        indexed = true;
+      } catch (indexError) {
+        console.error('벡터 인덱싱 실패 (업로드는 성공):', indexError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: '마크다운 업로드 완료',
+      message: indexed ? '마크다운 업로드 및 인덱싱 완료' : '마크다운 업로드 완료',
       data: {
         id: metadata.id,
         originalName: file.name,
         savedName: sanitizedName,
         textLength: text.length,
         chunksCount: chunks.length,
-        mdFile: sanitizedName
+        mdFile: sanitizedName,
+        indexed
       }
     });
 

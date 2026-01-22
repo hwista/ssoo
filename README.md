@@ -30,8 +30,14 @@ Next.js 16.0 기반의 실시간 마크다운 문서 관리 시스템입니다. 
 ### 📤 파일 업로드
 - **마크다운 업로드**: .md, .markdown, .txt 파일 지원
 - **드래그 앤 드롭**: 간편한 파일 업로드 UI
-- **텍스트 청크 분할**: 검색용 청크 자동 생성 (Vector 검색 준비)
-- **메타데이터 저장**: 업로드 파일 정보 JSON 저장
+- **텍스트 청크 분할**: 검색용 청크 자동 생성
+- **자동 벡터 인덱싱**: 업로드 시 자동으로 Vector DB에 인덱싱
+
+### 🔍 AI 검색 (RAG)
+- **Vector 검색**: LanceDB + Gemini Embedding 기반 유사도 검색
+- **AI 답변 생성**: Gemini 1.5 Flash 모델 기반 RAG 답변
+- **문서 인덱싱**: 전체 위키 문서 자동/수동 인덱싱
+- **출처 표시**: 답변에 참고한 문서 출처 제공
 
 ### 🔔 알림 시스템
 - **Context API 기반**: 안정적인 상태 관리
@@ -186,6 +192,36 @@ GET /api/watch
 Response: Server-Sent Events 스트림
 ```
 
+### Vector 검색 (`/api/search`)
+```typescript
+POST /api/search
+{
+  query: string,      // 검색 쿼리
+  limit?: number      // 결과 개수 (기본값: 5)
+}
+
+GET /api/search       // 인덱스 상태 조회
+```
+
+### 문서 인덱싱 (`/api/index`)
+```typescript
+POST /api/index
+{
+  reindex?: boolean   // 전체 재인덱싱 여부
+}
+
+GET /api/index        // 인덱스 상태 및 문서 목록
+```
+
+### AI 답변 (`/api/ask`)
+```typescript
+POST /api/ask
+{
+  question: string,   // 질문
+  limit?: number      // 참고 문서 개수 (기본값: 5)
+}
+```
+
 ## 🎨 디자인 시스템
 
 ### 색상 팔레트
@@ -209,11 +245,11 @@ Response: Server-Sent Events 스트림
 
 ## 🔮 향후 계획
 
-### Phase 1: 고도화 기능 (진행 중)
+### Phase 1: 고도화 기능 (완료)
 - [x] 블록 기반 에디터 (Tiptap)
 - [x] 마크다운 파일 업로드
-- [ ] Vector 검색 엔진 (LanceDB + Gemini Embedding)
-- [ ] AI 검색 답변 생성
+- [x] Vector 검색 엔진 (LanceDB + Gemini Embedding)
+- [x] AI 검색 답변 생성 (RAG)
 - [ ] 파일 내용 검색
 - [ ] 마크다운 템플릿
 - [ ] 태그 시스템
