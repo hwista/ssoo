@@ -554,6 +554,106 @@ DELETE /api/tags?filePath=...&tagId=...
 ```
 </details>
 
+### 플러그인
+
+<details>
+<summary><code>/api/plugins</code> - 플러그인 관리</summary>
+
+```typescript
+// 전체 플러그인 목록
+GET /api/plugins
+
+// 특정 플러그인 조회
+GET /api/plugins?id=word-count
+
+// 훅 실행
+POST /api/plugins
+{
+  action: 'executeHook',
+  hook: 'onContentChange',
+  context: { content: string, filePath?: string }
+}
+
+// 플러그인 활성화/비활성화
+POST /api/plugins
+{ action: 'setEnabled', pluginId: string, enabled: boolean }
+
+// 플러그인 순서 변경
+POST /api/plugins
+{ action: 'setOrder', pluginId: string, order: number }
+```
+
+**기본 제공 플러그인:**
+| ID | 이름 | 설명 |
+|----|------|------|
+| word-count | 단어 수 카운터 | 단어/문자/줄 수 표시 |
+| reading-time | 읽기 시간 | 예상 읽기 시간 계산 |
+| toc | 목차 추출 | 헤딩 기반 목차 생성 |
+| link-extractor | 링크 추출 | 문서 내 링크 목록 |
+| code-stats | 코드 통계 | 코드 블록 통계 |
+</details>
+
+### 실시간 협업
+
+<details>
+<summary><code>/api/collaborate</code> - 공동 편집</summary>
+
+```typescript
+// 세션 상태 조회
+GET /api/collaborate?filePath=...
+
+// 활성 세션 목록
+GET /api/collaborate?listActive=true
+
+// 세션 참가
+POST /api/collaborate
+{ action: 'join', filePath, userId, userName, content }
+
+// 세션 나가기
+POST /api/collaborate
+{ action: 'leave', filePath, userId }
+
+// 커서 업데이트
+POST /api/collaborate
+{ action: 'updateCursor', filePath, userId, position, selection? }
+
+// 편집 작업
+POST /api/collaborate
+{ action: 'operation', filePath, userId, type, position, content?, length? }
+
+// 콘텐츠 동기화
+POST /api/collaborate
+{ action: 'sync', filePath, userId, content }
+```
+</details>
+
+---
+
+## 🎨 디자인 시스템
+
+### 테마
+
+| 모드 | 설명 |
+|------|------|
+| Light | 밝은 테마 (기본값) |
+| Dark | 어두운 테마 |
+| System | 시스템 설정 따름 |
+
+```typescript
+// 테마 사용법
+import { useTheme } from '@/contexts/ThemeContext';
+
+const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme();
+```
+
+### 색상 팔레트
+DELETE /api/tags?id=...
+
+// 파일에서 태그 제거
+DELETE /api/tags?filePath=...&tagId=...
+```
+</details>
+
 ---
 
 ## 🎨 디자인 시스템
@@ -607,12 +707,18 @@ DELETE /api/tags?filePath=...&tagId=...
 - [x] 마크다운 템플릿 (10종)
 - [x] 태그 시스템
 
-### Phase 4: 고급 기능
+### Phase 4: 고급 기능 ✅
 
-- [ ] 실시간 공동 편집
-- [ ] 플러그인 시스템
-- [ ] 테마 커스터마이징
+- [x] 테마 커스터마이징 (다크/라이트/시스템)
+- [x] 플러그인 시스템 (5개 기본 플러그인)
+- [x] 실시간 공동 편집 (협업 세션)
+
+### Phase 5: 추가 기능
+
 - [ ] 모바일 앱
+- [ ] 알림 시스템 (이메일/슬랙)
+- [ ] 권한 관리 고도화
+- [ ] 외부 스토리지 연동
 
 ---
 
