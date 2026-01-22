@@ -87,6 +87,20 @@
 - **댓글 시스템**: 문서별 댓글 및 답글 지원
 - **사용자 관리**: 역할 기반 권한 (admin/editor/viewer)
 - **활동 로그**: 사용자 활동 추적
+- **실시간 공동 편집**: 다중 사용자 동시 편집 지원
+
+### 🔔 알림 시스템
+
+> 이메일 및 Microsoft Teams로 알림 전송
+
+| 채널 | 설명 |
+|------|------|
+| 🔔 앱 내 알림 | 실시간 알림 센터 |
+| 📧 이메일 | SMTP 기반 이메일 발송 |
+| 💬 Teams | Webhook 기반 Teams 알림 |
+
+**알림 이벤트:**
+- 문서 변경 / 댓글 / 멘션 / 협업 초대 / 권한 변경
 
 ### 🔎 파일 내용 검색
 
@@ -177,6 +191,9 @@
 │   │   ├── 📄 git/route.ts           # Git 연동
 │   │   ├── 📄 templates/route.ts     # 마크다운 템플릿
 │   │   ├── 📄 tags/route.ts          # 태그 시스템
+│   │   ├── 📄 notifications/route.ts # 알림 시스템
+│   │   ├── 📄 collaborate/route.ts   # 실시간 협업
+│   │   ├── 📄 plugins/route.ts       # 플러그인
 │   │   └── 📄 watch/route.ts         # 실시간 감시
 │   ├── 📂 wiki/                      # 위키 페이지
 │   └── 📄 layout.tsx                 # 루트 레이아웃
@@ -194,7 +211,12 @@
 │   ├── 📄 TemplateSelector.tsx       # 템플릿 선택
 │   ├── 📄 TagManager.tsx             # 태그 관리
 │   ├── 📄 VersionHistory.tsx         # 버전 히스토리
-│   └── 📄 Comments.tsx               # 댓글
+│   ├── 📄 Comments.tsx               # 댓글
+│   ├── 📄 NotificationCenter.tsx     # 알림 센터
+│   ├── 📄 NotificationSettings.tsx   # 알림 설정
+│   ├── 📄 PluginManager.tsx          # 플러그인 관리
+│   ├── 📄 CollaborationIndicator.tsx # 협업 표시기
+│   └── 📄 ThemeToggle.tsx            # 테마 토글
 │
 ├── 📂 lib/                           # 유틸리티
 │   ├── 📄 embeddings.ts              # Gemini 임베딩
@@ -204,11 +226,19 @@
 │   ├── 📄 users.ts                   # 사용자 관리
 │   ├── 📄 templates.ts               # 템플릿 정의
 │   ├── 📄 tags.ts                    # 태그 관리
-│   └── 📄 markdownConverter.ts       # MD 변환
+│   ├── 📄 plugins.ts                 # 플러그인 시스템
+│   ├── 📄 collaboration.ts           # 실시간 협업
+│   ├── 📄 markdownConverter.ts       # MD 변환
+│   └── 📂 notifications/             # 알림 시스템
+│       ├── 📄 types.ts               # 알림 타입 정의
+│       ├── 📄 email.ts               # 이메일 발송
+│       ├── 📄 teams.ts               # Teams 연동
+│       └── 📄 manager.ts             # 알림 관리자
 │
 ├── 📂 contexts/                      # React Context
-│   ├── 📄 NotificationContext.tsx    # 알림 상태
-│   └── 📄 UserContext.tsx            # 사용자 상태
+│   ├── 📄 NotificationContext.tsx    # UI 알림 상태
+│   ├── 📄 UserContext.tsx            # 사용자 상태
+│   └── 📄 ThemeContext.tsx           # 테마 상태
 │
 ├── 📂 docs/wiki/                     # 위키 문서 저장소
 ├── 📂 data/                          # 메타데이터 저장
@@ -593,6 +623,87 @@ POST /api/plugins
 | code-stats | 코드 통계 | 코드 블록 통계 |
 </details>
 
+### 알림 시스템
+
+<details>
+<summary><code>/api/notifications</code> - 알림 관리</summary>
+
+```typescript
+// 알림 목록 조회
+GET /api/notifications?userId=...&limit=50&unreadOnly=false
+
+// 통계 조회
+GET /api/notifications?userId=...&action=stats
+
+// 설정 조회
+GET /api/notifications?userId=...&action=preferences
+
+// 알림 생성
+POST /api/notifications
+{
+  action: 'create',
+  type: 'document_changed' | 'comment_added' | 'mention' | ...,
+  title: string,
+  message: string,
+  recipientId: string,
+  channels?: ['in_app', 'email', 'teams']
+}
+
+// 읽음 처리
+POST /api/notifications
+{ action: 'markAsRead', notificationId: string }
+
+// 모든 알림 읽음
+POST /api/notifications
+{ action: 'markAllAsRead', userId: string }
+
+// 설정 업데이트
+POST /api/notifications
+{
+  action: 'updatePreferences',
+  userId: string,
+  preferences: {
+    channels: { in_app: boolean, email: boolean, teams: boolean },
+    email?: { address: string, digestFrequency: 'instant' | 'daily' },
+    teams?: { webhookUrl: string }
+  }
+}
+
+// 테스트 이메일 전송
+POST /api/notifications
+{ action: 'testEmail', email: string }
+
+// 테스트 Teams 메시지 전송
+POST /api/notifications
+{ action: 'testTeams', webhookUrl?: string }
+```
+
+**알림 유형:**
+| 유형 | 설명 |
+|------|------|
+| document_changed | 문서 변경됨 |
+| comment_added | 새 댓글 |
+| comment_reply | 댓글 답글 |
+| mention | 멘션됨 |
+| collaboration_invite | 협업 초대 |
+| permission_changed | 권한 변경 |
+| system | 시스템 알림 |
+
+**환경 변수 설정:**
+```bash
+# 이메일 (SMTP)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=user@example.com
+SMTP_PASS=password
+SMTP_FROM_ADDRESS=noreply@example.com
+SMTP_FROM_NAME=LSWiki
+
+# Microsoft Teams
+TEAMS_WEBHOOK_URL=https://outlook.office.com/webhook/...
+```
+</details>
+
 ### 실시간 협업
 
 <details>
@@ -713,12 +824,12 @@ DELETE /api/tags?filePath=...&tagId=...
 - [x] 플러그인 시스템 (5개 기본 플러그인)
 - [x] 실시간 공동 편집 (협업 세션)
 
-### Phase 5: 추가 기능
+### Phase 5: 확장 및 통합 (진행중)
 
-- [ ] 모바일 앱
-- [ ] 알림 시스템 (이메일/슬랙)
-- [ ] 권한 관리 고도화
-- [ ] 외부 스토리지 연동
+- [x] 알림 시스템 (이메일/Microsoft Teams)
+- [ ] 모바일 앱 (PWA)
+- [ ] 권한 관리 고도화 (RBAC)
+- [ ] 외부 스토리지 연동 (S3, Azure Blob)
 
 ---
 
