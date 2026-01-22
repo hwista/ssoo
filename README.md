@@ -1,144 +1,215 @@
-# 📚 Markdown Wiki System
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16.0-black?style=for-the-badge&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind-3.0-38B2AC?style=for-the-badge&logo=tailwind-css" alt="Tailwind" />
+</p>
 
-Next.js 16.0 기반의 실시간 마크다운 문서 관리 시스템입니다. 파일 탐색기 스타일의 직관적인 인터페이스와 VS Code 스타일의 시각적 피드백을 제공합니다.
+<h1 align="center">📚 Markdown Wiki System</h1>
 
-## 🎯 주요 기능
+<p align="center">
+  <strong>Next.js 16.0 기반의 실시간 마크다운 문서 관리 시스템</strong><br/>
+  파일 탐색기 스타일의 직관적인 인터페이스 • VS Code 스타일의 시각적 피드백 • AI 기반 검색
+</p>
+
+<p align="center">
+  <a href="#-주요-기능">주요 기능</a> •
+  <a href="#-기술-스택">기술 스택</a> •
+  <a href="#-설치-및-실행">설치</a> •
+  <a href="#-api-레퍼런스">API</a> •
+  <a href="#-로드맵">로드맵</a>
+</p>
+
+---
+
+## 📋 목차
+
+- [주요 기능](#-주요-기능)
+- [기술 스택](#-기술-스택)
+- [프로젝트 구조](#-프로젝트-구조)
+- [설치 및 실행](#-설치-및-실행)
+- [사용법](#-사용법)
+- [API 레퍼런스](#-api-레퍼런스)
+- [디자인 시스템](#-디자인-시스템)
+- [로드맵](#-로드맵)
+- [기여하기](#-기여하기)
+
+---
+
+## ✨ 주요 기능
 
 ### 📁 파일 시스템 관리
-- **리사이저블 사이드바**: 드래그로 조절 가능한 파일 트리
-- **실시간 파일 탐색**: 파일/폴더 생성, 삭제, 이름 변경
-- **컨텍스트 메뉴**: 우클릭으로 접근하는 파일 관리 기능
-- **검색 기능**: 트리 내 실시간 파일 검색
 
-### ✨ 시각적 피드백 시스템
-- **NEW 뱃지**: 새로 생성된 파일/폴더 (🟢 녹색 텍스트 + 🔴 빨간 뱃지)
-- **UPDATE 뱃지**: 수정된 파일/폴더 (🔵 파란색 텍스트 + 🟡 노란 뱃지)
-- **자동 스크롤**: 생성/수정된 항목으로 자동 포커스
-- **VS Code 스타일**: 볼드체, 확대 폰트, 색상 구분
+| 기능 | 설명 |
+|------|------|
+| 리사이저블 사이드바 | 드래그로 조절 가능한 파일 트리 |
+| 실시간 파일 탐색 | 파일/폴더 생성, 삭제, 이름 변경 |
+| 컨텍스트 메뉴 | 우클릭으로 접근하는 파일 관리 기능 |
+| 검색 기능 | 트리 내 실시간 파일 검색 |
 
-### 📝 에디터 기능
-- **블록 에디터 (Tiptap)**: Notion 스타일의 블록 기반 편집기
-  - 슬래시(/) 명령어: 제목, 리스트, 코드블록, 테이블 등 빠른 삽입
-  - 실시간 서식 툴바: 굵게, 기울임, 취소선, 하이라이트 등
-  - 테이블, 체크리스트, 코드 블록(문법 강조) 지원
-  - HTML ↔ 마크다운 자동 변환
-- **마크다운 편집**: 실시간 편집 및 저장
-- **미리보기**: GitHub Flavored Markdown 지원
-- **내부 링크**: .md 파일 간 링크 네비게이션
-- **고정 레이아웃**: 반응형 에디터 영역
+### 📝 블록 에디터 (Tiptap)
 
-### 📤 파일 업로드
-- **마크다운 업로드**: .md, .markdown, .txt 파일 지원
-- **드래그 앤 드롭**: 간편한 파일 업로드 UI
-- **텍스트 청크 분할**: 검색용 청크 자동 생성
-- **자동 벡터 인덱싱**: 업로드 시 자동으로 Vector DB에 인덱싱
+> Notion 스타일의 블록 기반 편집기
+
+- **슬래시(/) 명령어**: 제목, 리스트, 코드블록, 테이블 등 빠른 삽입
+- **실시간 서식 툴바**: 굵게, 기울임, 취소선, 하이라이트
+- **테이블 & 체크리스트**: 구조화된 문서 작성
+- **코드 블록**: 문법 강조 지원
+- **HTML ↔ 마크다운**: 자동 변환
 
 ### 🔍 AI 검색 (RAG)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  📄 문서 업로드  →  🔢 Vector 임베딩  →  💾 LanceDB 저장   │
+│                                                             │
+│  🔍 질문 입력   →  🎯 유사도 검색    →  🤖 AI 답변 생성   │
+└─────────────────────────────────────────────────────────────┘
+```
+
 - **Vector 검색**: LanceDB + Gemini Embedding 기반 유사도 검색
 - **AI 답변 생성**: Gemini 1.5 Flash 모델 기반 RAG 답변
 - **문서 인덱싱**: 전체 위키 문서 자동/수동 인덱싱
 - **출처 표시**: 답변에 참고한 문서 출처 제공
 
-### 📜 버전 히스토리
-- **자동 버전 저장**: 파일 저장 시 자동으로 버전 히스토리 생성
-- **변경 이력 조회**: 파일별 버전 목록 및 변경 요약
-- **버전 복원**: 이전 버전으로 복원 가능
-- **버전 비교**: 두 버전 간 diff 비교
+### 📜 버전 관리
 
-### 💬 댓글 시스템
-- **문서별 댓글**: 각 문서에 댓글 작성 가능
-- **답글 지원**: 계층형 댓글 구조
-- **수정/삭제**: 댓글 편집 및 삭제 기능
+| 기능 | 설명 |
+|------|------|
+| 자동 버전 저장 | 파일 저장 시 자동으로 버전 히스토리 생성 |
+| 변경 이력 조회 | 파일별 버전 목록 및 변경 요약 |
+| 버전 복원 | 이전 버전으로 복원 가능 |
+| 버전 비교 | 두 버전 간 diff 비교 |
+| Git 연동 | add, commit, push, pull 지원 |
 
-### 🔔 알림 시스템
-- **Context API 기반**: 안정적인 상태 관리
-- **타입별 알림**: 성공, 오류, 정보, 경고
-- **자동 닫기**: 설정 가능한 자동 해제 타이머
-- **우아한 애니메이션**: 우상단 슬라이드 효과
+### 💬 협업 기능
 
-### 🎨 사용자 경험
-- **일관된 디자인**: 통일된 곡률(rounded-md)과 패딩
-- **키보드 단축키**: Esc로 편집 모드 종료
-- **인라인 편집**: 파일명 즉시 수정
-- **드래그 앤 드롭**: 리사이저 핸들
+- **댓글 시스템**: 문서별 댓글 및 답글 지원
+- **사용자 관리**: 역할 기반 권한 (admin/editor/viewer)
+- **활동 로그**: 사용자 활동 추적
+
+### 🎨 시각적 피드백
+
+| 상태 | 표시 |
+|------|------|
+| 🟢 NEW | 새로 생성된 항목 (녹색 텍스트 + 빨간 뱃지) |
+| 🔵 UPDATE | 수정된 항목 (파란색 텍스트 + 노란 뱃지) |
+| 🔄 초기화 | 모든 표시 지우기 |
+
+---
 
 ## 🏗️ 기술 스택
 
-### 프론트엔드
-- **Next.js 16.0**: App Router, Server Components
-- **React 18+**: Hooks, Context API, TypeScript
-- **Tailwind CSS**: 유틸리티 퍼스트 스타일링
-- **Fluent UI**: Microsoft 디자인 시스템 컴포넌트
-- **Tiptap (ProseMirror)**: 블록 기반 리치 텍스트 에디터
-- **React Markdown**: remark-gfm 플러그인
-- **Turndown / Marked**: HTML ↔ 마크다운 변환
+<table>
+<tr>
+<td valign="top" width="50%">
 
-### 백엔드
-- **Next.js API Routes**: RESTful 파일 시스템 API
-- **Node.js fs**: 파일 시스템 직접 조작
-- **SSE (Server-Sent Events)**: 실시간 파일 변경 감지
+### Frontend
+| 기술 | 버전 | 용도 |
+|------|------|------|
+| Next.js | 16.0 | App Router, RSC |
+| React | 18+ | UI 라이브러리 |
+| TypeScript | 5.0 | 타입 안정성 |
+| Tailwind CSS | 3.0 | 스타일링 |
+| Tiptap | 2.0 | 블록 에디터 |
+| Fluent UI | - | 디자인 시스템 |
 
-### 개발 도구
-- **TypeScript**: 엄격한 타입 체크
-- **ESLint**: 코드 품질 관리
-- **Turbopack**: 빠른 개발 서버
+</td>
+<td valign="top" width="50%">
+
+### Backend & AI
+| 기술 | 용도 |
+|------|------|
+| Next.js API Routes | RESTful API |
+| LanceDB | Vector DB |
+| Gemini Embedding | 텍스트 임베딩 |
+| Gemini 1.5 Flash | RAG 답변 생성 |
+| Node.js fs | 파일 시스템 |
+| SSE | 실시간 감지 |
+
+</td>
+</tr>
+</table>
+
+---
 
 ## 📦 프로젝트 구조
 
 ```
-markdown-wiki/
-├── app/                          # Next.js App Router
-│   ├── api/                      # API 엔드포인트
-│   │   ├── file/route.ts         # 파일 CRUD 작업
-│   │   ├── files/route.ts        # 파일 목록 조회
-│   │   ├── upload/route.ts       # 마크다운 파일 업로드
-│   │   └── watch/route.ts        # 실시간 파일 감시
-│   ├── wiki/page.tsx             # 메인 위키 페이지
-│   ├── layout.tsx                # 루트 레이아웃
-│   └── globals.css               # 전역 스타일
-├── components/                   # 재사용 가능한 컴포넌트
-│   ├── ui/                       # 기본 UI 컴포넌트
-│   │   ├── button.tsx
-│   │   ├── card.tsx
-│   │   └── input.tsx
-│   ├── editor/                   # 블록 에디터 컴포넌트
-│   │   ├── BlockEditor.tsx       # Tiptap 블록 에디터
-│   │   ├── EditorToolbar.tsx     # 서식 툴바
-│   │   ├── SlashCommand.tsx      # 슬래시 명령어 확장
-│   │   └── editor.css            # 에디터 스타일
-│   ├── TreeComponent.tsx         # 파일 트리 컴포넌트
-│   ├── WikiEditor.tsx            # 위키 에디터 (블록/마크다운 전환)
-│   ├── FileUpload.tsx            # 파일 업로드 컴포넌트
-│   ├── CreateFileModal.tsx       # 파일 생성 모달
-│   ├── MessageModal.tsx          # 메시지 모달
-│   ├── Notification.tsx          # 개별 알림 컴포넌트
-│   └── NotificationContainer.tsx # 알림 컨테이너
-├── lib/                          # 유틸리티 라이브러리
-│   └── markdownConverter.ts      # HTML ↔ 마크다운 변환
-├── contexts/                     # React Context
-│   └── NotificationContext.tsx   # 알림 상태 관리
-├── hooks/                        # 커스텀 훅
-│   └── useMessage.ts             # 메시지 모달 훅
-├── docs/                         # 문서 루트 폴더
-│   ├── wiki/                     # 위키 시스템 문서 저장소 (파일 관리 대상)
-│   │   └── uploads/              # 업로드된 마크다운 파일
-│   └── development/              # 개발 관련 문서
-├── data/                         # 업로드 메타데이터 저장
-└── public/                       # 정적 자산
+📁 lswiki0906/
+├── 📂 app/                           # Next.js App Router
+│   ├── 📂 api/                       # API 엔드포인트
+│   │   ├── 📄 file/route.ts          # 파일 CRUD
+│   │   ├── 📄 files/route.ts         # 파일 목록
+│   │   ├── 📄 upload/route.ts        # 마크다운 업로드
+│   │   ├── 📄 search/route.ts        # Vector 검색
+│   │   ├── 📄 index/route.ts         # 문서 인덱싱
+│   │   ├── 📄 ask/route.ts           # AI 답변 (RAG)
+│   │   ├── 📄 versions/route.ts      # 버전 히스토리
+│   │   ├── 📄 comments/route.ts      # 댓글
+│   │   ├── 📄 users/route.ts         # 사용자 관리
+│   │   ├── 📄 git/route.ts           # Git 연동
+│   │   └── 📄 watch/route.ts         # 실시간 감시
+│   ├── 📂 wiki/                      # 위키 페이지
+│   └── 📄 layout.tsx                 # 루트 레이아웃
+│
+├── 📂 components/                    # 컴포넌트
+│   ├── 📂 ui/                        # 기본 UI
+│   ├── 📂 editor/                    # 블록 에디터
+│   │   ├── 📄 BlockEditor.tsx        # Tiptap 에디터
+│   │   ├── 📄 EditorToolbar.tsx      # 서식 툴바
+│   │   └── 📄 SlashCommand.tsx       # 슬래시 명령어
+│   ├── 📄 WikiApp.tsx                # 메인 앱
+│   ├── 📄 TreeComponent.tsx          # 파일 트리
+│   ├── 📄 AIChat.tsx                 # AI 채팅
+│   ├── 📄 VersionHistory.tsx         # 버전 히스토리
+│   └── 📄 Comments.tsx               # 댓글
+│
+├── 📂 lib/                           # 유틸리티
+│   ├── 📄 embeddings.ts              # Gemini 임베딩
+│   ├── 📄 vectorStore.ts             # LanceDB 래퍼
+│   ├── 📄 versionHistory.ts          # 버전 관리
+│   ├── 📄 comments.ts                # 댓글 관리
+│   ├── 📄 users.ts                   # 사용자 관리
+│   └── 📄 markdownConverter.ts       # MD 변환
+│
+├── 📂 contexts/                      # React Context
+│   ├── 📄 NotificationContext.tsx    # 알림 상태
+│   └── 📄 UserContext.tsx            # 사용자 상태
+│
+├── 📂 docs/wiki/                     # 위키 문서 저장소
+├── 📂 data/                          # 메타데이터 저장
+└── 📄 package.json
 ```
+
+---
 
 ## 🚀 설치 및 실행
 
-### 개발 환경 요구사항
+### 요구사항
+
 - Node.js 18.0 이상
 - npm 또는 yarn
+- Gemini API Key (AI 검색 사용 시)
 
 ### 설치
+
 ```bash
+# 저장소 클론
+git clone https://github.com/choishiam0906/lswiki0906.git
+cd lswiki0906
+
 # 의존성 설치
 npm install
 
-# 개발 서버 실행
+# 환경 변수 설정 (AI 검색 사용 시)
+echo "GEMINI_API_KEY=your_api_key" > .env.local
+```
+
+### 실행
+
+```bash
+# 개발 서버
 npm run dev
 
 # 프로덕션 빌드
@@ -148,34 +219,54 @@ npm run build
 npm start
 ```
 
-### 브라우저 접속
+### 접속
+
 ```
 http://localhost:3000/wiki
 ```
 
+---
+
 ## 📖 사용법
 
 ### 파일/폴더 관리
-1. **생성**: 좌측 "새로 만들기" 버튼 또는 트리 우클릭
-2. **편집**: 파일 선택 후 "편집" 버튼
-3. **이름 변경**: 파일/폴더 우클릭 → "이름 변경"
-4. **삭제**: 파일 선택 후 "삭제" 버튼 또는 우클릭
 
-### 시각적 표시
-- 🟢 **NEW**: 새로 생성된 항목
-- 🔵 **UPDATE**: 수정된 항목
-- 🔄 **초기화**: 모든 표시 지우기
+| 작업 | 방법 |
+|------|------|
+| 생성 | 좌측 "새로 만들기" 버튼 또는 트리 우클릭 |
+| 편집 | 파일 선택 후 "편집" 버튼 |
+| 이름 변경 | 파일/폴더 우클릭 → "이름 변경" |
+| 삭제 | 파일 선택 후 "삭제" 버튼 또는 우클릭 |
 
 ### 키보드 단축키
-- `Esc`: 편집 모드 종료
-- `Enter`: 인라인 편집 확정
-- `Esc`: 인라인 편집 취소
 
-## 🔧 API 엔드포인트
+| 단축키 | 기능 |
+|--------|------|
+| `Esc` | 편집 모드 종료 |
+| `Enter` | 인라인 편집 확정 |
+| `/` | 슬래시 명령어 (에디터) |
 
-### 파일 작업 (`/api/file`)
+### 슬래시 명령어 (블록 에디터)
+
+```
+/h1, /h2, /h3     → 제목 삽입
+/bullet, /number  → 리스트 삽입
+/code             → 코드 블록
+/table            → 테이블
+/quote            → 인용구
+/todo             → 체크리스트
+```
+
+---
+
+## 🔧 API 레퍼런스
+
+### 파일 작업
+
+<details>
+<summary><code>POST /api/file</code> - 파일 CRUD</summary>
+
 ```typescript
-POST /api/file
 {
   action: 'read' | 'write' | 'delete' | 'rename',
   path: string,
@@ -183,12 +274,13 @@ POST /api/file
   newPath?: string     // rename 시 필요
 }
 ```
+</details>
 
-### 파일 목록 (`/api/files`)
+<details>
+<summary><code>GET /api/files</code> - 파일 목록</summary>
+
 ```typescript
-GET /api/files
-Response: FileNode[]
-
+// Response
 interface FileNode {
   name: string;
   type: 'file' | 'directory';
@@ -196,55 +288,70 @@ interface FileNode {
   children?: FileNode[];
 }
 ```
+</details>
 
-### 실시간 감시 (`/api/watch`)
-```typescript
-GET /api/watch
-Response: Server-Sent Events 스트림
-```
+### AI 검색
 
-### Vector 검색 (`/api/search`)
+<details>
+<summary><code>POST /api/search</code> - Vector 검색</summary>
+
 ```typescript
-POST /api/search
 {
   query: string,      // 검색 쿼리
   limit?: number      // 결과 개수 (기본값: 5)
 }
-
-GET /api/search       // 인덱스 상태 조회
 ```
+</details>
 
-### 문서 인덱싱 (`/api/index`)
+<details>
+<summary><code>POST /api/ask</code> - AI 답변 생성</summary>
+
 ```typescript
-POST /api/index
-{
-  reindex?: boolean   // 전체 재인덱싱 여부
-}
-
-GET /api/index        // 인덱스 상태 및 문서 목록
-```
-
-### AI 답변 (`/api/ask`)
-```typescript
-POST /api/ask
 {
   question: string,   // 질문
   limit?: number      // 참고 문서 개수 (기본값: 5)
 }
 ```
+</details>
 
-### 버전 히스토리 (`/api/versions`)
+<details>
+<summary><code>POST /api/index</code> - 문서 인덱싱</summary>
+
 ```typescript
-GET /api/versions?filePath=...              // 버전 목록
-GET /api/versions?filePath=...&versionId=.. // 특정 버전 조회
-GET /api/versions?filePath=...&versionId=..&compareWith=..  // 버전 비교
+{
+  reindex?: boolean   // 전체 재인덱싱 여부
+}
 ```
+</details>
 
-### 댓글 (`/api/comments`)
+### 버전 관리
+
+<details>
+<summary><code>GET /api/versions</code> - 버전 히스토리</summary>
+
 ```typescript
-GET /api/comments?filePath=...              // 댓글 목록
-GET /api/comments?filePath=...&asTree=true  // 트리 구조로 조회
+// 버전 목록
+GET /api/versions?filePath=...
 
+// 특정 버전 조회
+GET /api/versions?filePath=...&versionId=...
+
+// 버전 비교
+GET /api/versions?filePath=...&versionId=...&compareWith=...
+```
+</details>
+
+### 댓글
+
+<details>
+<summary><code>/api/comments</code> - 댓글 CRUD</summary>
+
+```typescript
+// 조회
+GET /api/comments?filePath=...
+GET /api/comments?filePath=...&asTree=true
+
+// 생성
 POST /api/comments
 {
   filePath: string,
@@ -253,6 +360,7 @@ POST /api/comments
   parentId?: string   // 답글인 경우
 }
 
+// 수정
 PUT /api/comments
 {
   filePath: string,
@@ -260,122 +368,169 @@ PUT /api/comments
   content: string
 }
 
+// 삭제
 DELETE /api/comments?filePath=...&commentId=...
 ```
+</details>
 
-### 사용자 관리 (`/api/users`)
+### 사용자 관리
+
+<details>
+<summary><code>/api/users</code> - 사용자 CRUD</summary>
+
 ```typescript
-GET /api/users                    // 전체 사용자 목록
-GET /api/users?id=...             // 특정 사용자 조회
-GET /api/users?activity=true      // 활동 로그 조회
+// 조회
+GET /api/users                    // 전체 목록
+GET /api/users?id=...             // 특정 사용자
+GET /api/users?activity=true      // 활동 로그
 
+// 생성/로그인
 POST /api/users
 {
-  action?: 'login',      // 로그인 시
+  action?: 'login',
   username: string,
-  displayName?: string,  // 신규 생성 시 필수
+  displayName?: string,
   email?: string,
   role?: 'admin' | 'editor' | 'viewer'
 }
 
+// 수정
 PUT /api/users
-{
-  id: string,
-  displayName?: string,
-  email?: string,
-  role?: string
-}
+{ id: string, ...updates }
 
+// 삭제
 DELETE /api/users?id=...
 ```
+</details>
 
-### Git 연동 (`/api/git`)
+### Git 연동
+
+<details>
+<summary><code>/api/git</code> - Git 작업</summary>
+
 ```typescript
 // 상태 조회
-GET /api/git?action=status        // 변경된 파일 목록
+GET /api/git?action=status        // 변경 파일
 GET /api/git?action=log&limit=20  // 커밋 히스토리
 GET /api/git?action=diff          // 변경 내용
 GET /api/git?action=branch        // 브랜치 목록
 GET /api/git?action=remote        // 리모트 설정
 
-// Git 작업 실행
+// 작업 실행
 POST /api/git
 {
   action: 'add' | 'commit' | 'push' | 'pull' | 'checkout' | 'init',
-  message?: string,     // commit 시 필수
-  files?: string[],     // add 시 특정 파일 지정
-  branch?: string       // push, pull, checkout 시 사용
+  message?: string,
+  files?: string[],
+  branch?: string
 }
 ```
+</details>
+
+---
 
 ## 🎨 디자인 시스템
 
 ### 색상 팔레트
-- **성공**: 녹색 (`green-500`, `green-600`)
-- **경고**: 노란색 (`yellow-500`)
-- **오류**: 빨간색 (`red-500`)
-- **정보**: 파란색 (`blue-500`, `blue-600`)
-- **중성**: 회색 (`gray-200`, `gray-300`, `gray-500`)
+
+| 용도 | 색상 | Tailwind |
+|------|------|----------|
+| 성공 | 🟢 녹색 | `green-500`, `green-600` |
+| 경고 | 🟡 노란색 | `yellow-500` |
+| 오류 | 🔴 빨간색 | `red-500` |
+| 정보 | 🔵 파란색 | `blue-500`, `blue-600` |
+| 중성 | ⚪ 회색 | `gray-200` ~ `gray-500` |
 
 ### 컴포넌트 규칙
-- **곡률**: 모든 요소 `rounded-md` 통일
-- **패딩**: 주요 컨테이너 `p-6` 표준
-- **간격**: 버튼 그룹 `gap-2`, 섹션 간 `mb-4`
-- **타이포그래피**: 제목 `text-2xl font-bold`, 본문 `text-sm`
 
-### 상태 표시
-- **선택**: `bg-blue-100 text-blue-800`
-- **호버**: `hover:bg-gray-100`
-- **새 항목**: `text-green-600 font-bold text-base`
-- **수정 항목**: `text-blue-600 font-bold text-base`
+| 속성 | 값 |
+|------|-----|
+| 곡률 | `rounded-md` |
+| 패딩 | `p-6` (컨테이너) |
+| 간격 | `gap-2` (버튼), `mb-4` (섹션) |
+| 제목 | `text-2xl font-bold` |
+| 본문 | `text-sm` |
 
-## 🔮 향후 계획
+---
 
-### Phase 1: 고도화 기능 (완료)
+## 🔮 로드맵
+
+### Phase 1: 고도화 기능 ✅
+
 - [x] 블록 기반 에디터 (Tiptap)
 - [x] 마크다운 파일 업로드
-- [x] Vector 검색 엔진 (LanceDB + Gemini Embedding)
-- [x] AI 검색 답변 생성 (RAG)
+- [x] Vector 검색 엔진 (LanceDB + Gemini)
+- [x] AI 답변 생성 (RAG)
 - [ ] 파일 내용 검색
 - [ ] 마크다운 템플릿
 - [ ] 태그 시스템
 
-### Phase 2: 협업 기능 (진행 중)
-- [x] 다중 사용자 지원 (로컬 세션 기반)
+### Phase 2: 협업 기능 ✅
+
+- [x] 다중 사용자 지원 (로컬 세션)
 - [x] 버전 관리 (Git 연동)
 - [x] 버전 히스토리 (로컬)
 - [x] 댓글 시스템
 - [ ] 실시간 공동 편집
 
-> **📌 Git 연동 마이그레이션 예정**: 현재 Git 연동은 개인 GitHub 저장소를 사용하고 있습니다. 추후 사내 Git 서버(GitLab, Bitbucket 등)로 마이그레이션될 예정입니다. `/api/git` 엔드포인트의 remote URL 설정을 변경하여 쉽게 전환할 수 있습니다.
+> ⚠️ **Git 마이그레이션 예정**
+> 현재 Git 연동은 개인 GitHub 저장소를 사용하고 있습니다.
+> 추후 **사내 Git 서버**(GitLab, Bitbucket 등)로 마이그레이션될 예정입니다.
+> `/api/git` 엔드포인트의 remote URL 설정을 변경하여 쉽게 전환할 수 있습니다.
 
 ### Phase 3: 확장 기능
+
 - [ ] 플러그인 시스템
 - [ ] 테마 커스터마이징
 - [ ] 모바일 앱
 - [ ] REST API 확장
 
-## 📄 관련 문서
-
-- [개발 표준 가이드](./DEVELOPMENT_STANDARDS.md) - 코딩 규칙과 프로젝트 구조
-- [API 문서](./docs/development/api.md) - REST API 명세와 사용 예제
-- [컴포넌트 가이드](./docs/development/components.md) - UI 컴포넌트 상세 문서
-- [디자인 시스템](./docs/development/design-system.md) - 색상, 타이포그래피, 레이아웃 가이드
-- [배포 가이드](./docs/development/deployment.md) - 다양한 플랫폼 배포 방법
+---
 
 ## 🤝 기여하기
 
-1. 이 저장소를 포크합니다
-2. 기능 브랜치를 생성합니다 (`git checkout -b feature/AmazingFeature`)
-3. 변경사항을 커밋합니다 (`git commit -m 'Add some AmazingFeature'`)
-4. 브랜치에 푸시합니다 (`git push origin feature/AmazingFeature`)
-5. Pull Request를 생성합니다
-
-## 📝 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 있습니다. 자세한 내용은 [LICENSE](./LICENSE) 파일을 참조하세요.
+1. 이 저장소를 **Fork** 합니다
+2. 기능 브랜치를 생성합니다
+   ```bash
+   git checkout -b feature/AmazingFeature
+   ```
+3. 변경사항을 커밋합니다
+   ```bash
+   git commit -m 'Add some AmazingFeature'
+   ```
+4. 브랜치에 푸시합니다
+   ```bash
+   git push origin feature/AmazingFeature
+   ```
+5. **Pull Request**를 생성합니다
 
 ---
 
-**Made with ❤️ and Next.js 16.0**
-"# lswiki0906" 
+## 📄 관련 문서
+
+| 문서 | 설명 |
+|------|------|
+| [개발 표준 가이드](./DEVELOPMENT_STANDARDS.md) | 코딩 규칙과 프로젝트 구조 |
+| [API 문서](./docs/development/api.md) | REST API 명세와 사용 예제 |
+| [컴포넌트 가이드](./docs/development/components.md) | UI 컴포넌트 상세 문서 |
+| [디자인 시스템](./docs/development/design-system.md) | 색상, 타이포그래피, 레이아웃 |
+| [배포 가이드](./docs/development/deployment.md) | 다양한 플랫폼 배포 방법 |
+
+---
+
+## 📝 라이선스
+
+이 프로젝트는 **MIT 라이선스** 하에 있습니다.
+자세한 내용은 [LICENSE](./LICENSE) 파일을 참조하세요.
+
+---
+
+<p align="center">
+  <strong>Made with ❤️ and Next.js 16.0</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/choishiam0906/lswiki0906">
+    <img src="https://img.shields.io/github/stars/choishiam0906/lswiki0906?style=social" alt="GitHub Stars" />
+  </a>
+</p>
