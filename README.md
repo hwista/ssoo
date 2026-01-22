@@ -17,10 +17,21 @@ Next.js 16.0 기반의 실시간 마크다운 문서 관리 시스템입니다. 
 - **VS Code 스타일**: 볼드체, 확대 폰트, 색상 구분
 
 ### 📝 에디터 기능
+- **블록 에디터 (Tiptap)**: Notion 스타일의 블록 기반 편집기
+  - 슬래시(/) 명령어: 제목, 리스트, 코드블록, 테이블 등 빠른 삽입
+  - 실시간 서식 툴바: 굵게, 기울임, 취소선, 하이라이트 등
+  - 테이블, 체크리스트, 코드 블록(문법 강조) 지원
+  - HTML ↔ 마크다운 자동 변환
 - **마크다운 편집**: 실시간 편집 및 저장
 - **미리보기**: GitHub Flavored Markdown 지원
 - **내부 링크**: .md 파일 간 링크 네비게이션
 - **고정 레이아웃**: 반응형 에디터 영역
+
+### 📤 파일 업로드
+- **마크다운 업로드**: .md, .markdown, .txt 파일 지원
+- **드래그 앤 드롭**: 간편한 파일 업로드 UI
+- **텍스트 청크 분할**: 검색용 청크 자동 생성 (Vector 검색 준비)
+- **메타데이터 저장**: 업로드 파일 정보 JSON 저장
 
 ### 🔔 알림 시스템
 - **Context API 기반**: 안정적인 상태 관리
@@ -40,7 +51,10 @@ Next.js 16.0 기반의 실시간 마크다운 문서 관리 시스템입니다. 
 - **Next.js 16.0**: App Router, Server Components
 - **React 18+**: Hooks, Context API, TypeScript
 - **Tailwind CSS**: 유틸리티 퍼스트 스타일링
+- **Fluent UI**: Microsoft 디자인 시스템 컴포넌트
+- **Tiptap (ProseMirror)**: 블록 기반 리치 텍스트 에디터
 - **React Markdown**: remark-gfm 플러그인
+- **Turndown / Marked**: HTML ↔ 마크다운 변환
 
 ### 백엔드
 - **Next.js API Routes**: RESTful 파일 시스템 API
@@ -60,6 +74,7 @@ markdown-wiki/
 │   ├── api/                      # API 엔드포인트
 │   │   ├── file/route.ts         # 파일 CRUD 작업
 │   │   ├── files/route.ts        # 파일 목록 조회
+│   │   ├── upload/route.ts       # 마크다운 파일 업로드
 │   │   └── watch/route.ts        # 실시간 파일 감시
 │   ├── wiki/page.tsx             # 메인 위키 페이지
 │   ├── layout.tsx                # 루트 레이아웃
@@ -69,18 +84,29 @@ markdown-wiki/
 │   │   ├── button.tsx
 │   │   ├── card.tsx
 │   │   └── input.tsx
+│   ├── editor/                   # 블록 에디터 컴포넌트
+│   │   ├── BlockEditor.tsx       # Tiptap 블록 에디터
+│   │   ├── EditorToolbar.tsx     # 서식 툴바
+│   │   ├── SlashCommand.tsx      # 슬래시 명령어 확장
+│   │   └── editor.css            # 에디터 스타일
 │   ├── TreeComponent.tsx         # 파일 트리 컴포넌트
+│   ├── WikiEditor.tsx            # 위키 에디터 (블록/마크다운 전환)
+│   ├── FileUpload.tsx            # 파일 업로드 컴포넌트
 │   ├── CreateFileModal.tsx       # 파일 생성 모달
 │   ├── MessageModal.tsx          # 메시지 모달
 │   ├── Notification.tsx          # 개별 알림 컴포넌트
 │   └── NotificationContainer.tsx # 알림 컨테이너
+├── lib/                          # 유틸리티 라이브러리
+│   └── markdownConverter.ts      # HTML ↔ 마크다운 변환
 ├── contexts/                     # React Context
 │   └── NotificationContext.tsx   # 알림 상태 관리
 ├── hooks/                        # 커스텀 훅
 │   └── useMessage.ts             # 메시지 모달 훅
 ├── docs/                         # 문서 루트 폴더
 │   ├── wiki/                     # 위키 시스템 문서 저장소 (파일 관리 대상)
-│   └── development/              # 개발 관련 문서 (API, 컴포넌트 가이드 등)
+│   │   └── uploads/              # 업로드된 마크다운 파일
+│   └── development/              # 개발 관련 문서
+├── data/                         # 업로드 메타데이터 저장
 └── public/                       # 정적 자산
 ```
 
@@ -183,11 +209,14 @@ Response: Server-Sent Events 스트림
 
 ## 🔮 향후 계획
 
-### Phase 1: 고도화 기능
+### Phase 1: 고도화 기능 (진행 중)
+- [x] 블록 기반 에디터 (Tiptap)
+- [x] 마크다운 파일 업로드
+- [ ] Vector 검색 엔진 (LanceDB + Gemini Embedding)
+- [ ] AI 검색 답변 생성
 - [ ] 파일 내용 검색
 - [ ] 마크다운 템플릿
 - [ ] 태그 시스템
-- [ ] 북마크 기능
 
 ### Phase 2: 협업 기능
 - [ ] 다중 사용자 지원

@@ -4,7 +4,8 @@ import React, { useState, useCallback, useRef } from 'react';
 import { Button, ButtonProps } from '@/components/ui/button';
 import { Input as FluentInput, Menu, MenuList, MenuItem } from '@fluentui/react-components';
 import { makeStyles, shorthands } from '@fluentui/react-components';
-import { Document24Regular, Folder24Regular, Settings24Regular, Add24Regular, ArrowSync24Regular } from '@fluentui/react-icons';
+import { Document24Regular, Folder24Regular, Settings24Regular, Add24Regular, ArrowSync24Regular, ArrowUpload24Regular } from '@fluentui/react-icons';
+import FileUpload from '@/components/FileUpload';
 import { useWikiContext } from '@/contexts/WikiContext';
 import { useTreeDataContext } from '@/contexts/TreeDataContext';
 import TreeComponent from '@/components/TreeComponent';
@@ -103,6 +104,7 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
 
   // 로컬 상태
   const [searchQuery, setSearchQuery] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
   
   // Refs
   const menuIdCounterRef = useRef(0);
@@ -377,6 +379,9 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
           <button style={{ background: '#e1dfdd', color: '#323130', border: 'none', borderRadius: 6, padding: '8px', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={refreshFileTree}>
             <ArrowSync24Regular />
           </button>
+          <button style={{ background: '#e1dfdd', color: '#323130', border: 'none', borderRadius: 6, padding: '8px', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setShowUploadModal(true)} title="마크다운 파일 업로드">
+            <ArrowUpload24Regular />
+          </button>
         </div>
         <input
           type="text"
@@ -496,6 +501,37 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
         initialPath={createModal.initialPath}
         treeData={files}
       />
+      {/* 마크다운 업로드 모달 */}
+      {showUploadModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}
+          onClick={() => setShowUploadModal(false)}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500, width: '90%' }}>
+            <FileUpload
+              onUploadComplete={(result) => {
+                showNotification(`${result.originalName} 업로드 완료`, 'success');
+                refreshFileTree();
+              }}
+              onError={(error) => {
+                showNotification(error, 'error');
+              }}
+              onClose={() => setShowUploadModal(false)}
+            />
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

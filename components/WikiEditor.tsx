@@ -3,11 +3,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Card, Button, Text, Input, Dialog, DialogSurface, DialogBody, DialogTitle, Breadcrumb, BreadcrumbItem, Tooltip } from '@fluentui/react-components';
-import { Eye24Regular, Save24Regular, Edit24Regular, Dismiss24Regular, SaveCopy24Regular } from '@fluentui/react-icons';
-import MarkdownToolbar from '@/components/MarkdownToolbar';
-import LinkModal from '@/components/LinkModal';
-import ImageModal from '@/components/ImageModal';
+import { Card, Button, Text, Dialog, DialogSurface, DialogBody, DialogTitle, Tooltip } from '@fluentui/react-components';
+import { Eye24Regular, Save24Regular, Edit24Regular, Dismiss24Regular, SaveCopy24Regular, TextT24Regular, Document24Regular } from '@fluentui/react-icons';
+import { BlockEditor, BlockEditorRef } from '@/components/editor';
+import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useWikiContext } from '@/contexts/WikiContext';
 import { useTreeDataContext } from '@/contexts/TreeDataContext';
 import { logger } from '@/utils/errorUtils';
@@ -54,18 +53,34 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
     }
   });
 
-  const [showPreviewModal, setShowPreviewModal] = useState(false); // 미리보기 모달 상태
-  
-  // 모달 상태
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [showImageModal, setShowImageModal] = useState(false);
-  
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [editorMode, setEditorMode] = useState<'block' | 'markdown'>('block');
+  const [htmlContent, setHtmlContent] = useState('');
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+  const blockEditorRef = useRef<BlockEditorRef>(null);
+
   // 파일 내용 변경 시 에디터 리셋
   useEffect(() => {
     resetContent(content);
+    setHtmlContent(content ? markdownToHtmlSync(content) : '');
   }, [content, resetContent]);
+
+  // BlockEditor 콘텐츠 변경 핸들러
+  const handleBlockEditorChange = useCallback((html: string) => {
+    setHtmlContent(html);
+    updateContent(htmlToMarkdown(html));
+  }, [updateContent]);
+
+  // 에디터 모드 전환
+  const handleEditorModeChange = useCallback((mode: 'block' | 'markdown') => {
+    if (mode === 'block' && editorMode === 'markdown') {
+      setHtmlContent(markdownToHtmlSync(editorContent));
+    } else if (mode === 'markdown' && editorMode === 'block') {
+      updateContent(htmlToMarkdown(htmlContent));
+    }
+    setEditorMode(mode);
+  }, [editorMode, editorContent, htmlContent, updateContent]);
 
   // 상태 변화 로깅
   useEffect(() => {
@@ -131,122 +146,39 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
     updateContent(newContent);
   }, [updateContent]);
 
-  // 링크 삽입 핸들러
-  const handleInsertLink = useCallback(() => {
-    setShowLinkModal(true);
-  }, []);
-
-  // 이미지 삽입 핸들러  
-  const handleInsertImage = useCallback(() => {
-    setShowImageModal(true);
-  }, []);
-
-  // 링크 삽입 완료 핸들러
-  const handleLinkInsert = useCallback((text: string, url: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-  const beforeText = editorContent.substring(0, start);
-  const afterText = editorContent.substring(end);
-    
-    const linkMarkdown = `[${text}](${url})`;
-    const newContent = beforeText + linkMarkdown + afterText;
-    
-    handleContentChange(newContent);
-    
-    // 커서 위치 조정
-    setTimeout(() => {
-      const newPosition = start + linkMarkdown.length;
-      textarea.setSelectionRange(newPosition, newPosition);
-      textarea.focus();
-    }, 0);
-  }, [editorContent, handleContentChange]);
-
-  // 이미지 삽입 완료 핸들러
-  const handleImageInsert = useCallback((alt: string, url: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-  const beforeText = editorContent.substring(0, start);
-  const afterText = editorContent.substring(end);
-    
-    const imageMarkdown = `![${alt}](${url})`;
-    const newContent = beforeText + imageMarkdown + afterText;
-    
-    handleContentChange(newContent);
-    
-    // 커서 위치 조정
-    setTimeout(() => {
-      const newPosition = start + imageMarkdown.length;
-      textarea.setSelectionRange(newPosition, newPosition);
-      textarea.focus();
-    }, 0);
-  }, [editorContent, handleContentChange]);
-
-  // 자동저장 토글 변경 시 즉시 카운트다운 시작
-  useEffect(() => {
-    // 변경 감지시 자동 저장 스케줄 (간소화 버전)
-    if (autoSaveEnabled && hasUnsavedChanges && isEditing) {
-      // 30초 카운트다운은 훅에서 관리
-    }
-  }, [autoSaveEnabled, hasUnsavedChanges, isEditing]);
 
   // 편집 모드 토글
   const toggleEditMode = useCallback(() => {
-    console.log('🔄 toggleEditMode 호출됨', { isEditing, hasUnsavedChanges });
-    
     if (isEditing && hasUnsavedChanges) {
-      // 저장하지 않은 변경사항이 있으면 확인
       if (confirm('저장하지 않은 변경사항이 있습니다. 정말로 편집을 취소하시겠습니까?')) {
-        console.log('📝 편집 취소 확인됨');
-  resetContent(content); // 원래 내용으로 되돌리기 및 히스토리 리셋
+        resetContent(content);
+        setHtmlContent(markdownToHtmlSync(content));
         setIsEditing(false);
       }
     } else {
-      console.log('🔄 편집 모드 토글:', !isEditing);
       setIsEditing(!isEditing);
-      
-      // 편집 모드로 전환 시 textarea에 포커스
       if (!isEditing) {
         setTimeout(() => {
-          textareaRef.current?.focus();
+          editorMode === 'block' ? blockEditorRef.current?.focus() : textareaRef.current?.focus();
         }, 100);
       }
     }
-  }, [isEditing, hasUnsavedChanges, content, setIsEditing, resetContent]);
+  }, [isEditing, hasUnsavedChanges, content, setIsEditing, resetContent, editorMode]);
 
   // 키보드 단축키 처리
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      if (e.key === 's') {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        if (hasUnsavedChanges) {
-          saveFile();
-        }
-      } else if (e.key === 'e') {
+        if (isEditing && hasUnsavedChanges) saveFile();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
         e.preventDefault();
         toggleEditMode();
       }
-    }
-  }, [hasUnsavedChanges, saveFile, toggleEditMode]);
-
-  // 컴포넌트 언마운트 시 타이머 정리
-  useEffect(() => {
-    return () => {
-      // useEditor가 내부적으로 타이머를 관리하므로 여기서는 별도 정리 불필요
     };
-  }, []);
-
-  // 컴포넌트 언마운트 시 타이머 정리
-  useEffect(() => {
-    return () => {
-      // cleanup placeholder
-    };
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isEditing, hasUnsavedChanges, saveFile, toggleEditMode]);
 
   // 브라우저 종료 시 경고
   useEffect(() => {
@@ -298,7 +230,17 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
           )}
         </div>
         {/* 우측: 버튼 영역 */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isEditing && (
+            <div style={{ display: 'flex', gap: 4, marginRight: 8 }}>
+              <Tooltip content="블록 에디터" relationship="label">
+                <Button appearance={editorMode === 'block' ? 'primary' : 'subtle'} size="small" icon={<Document24Regular />} onClick={() => handleEditorModeChange('block')} />
+              </Tooltip>
+              <Tooltip content="마크다운" relationship="label">
+                <Button appearance={editorMode === 'markdown' ? 'primary' : 'subtle'} size="small" icon={<TextT24Regular />} onClick={() => handleEditorModeChange('markdown')} />
+              </Tooltip>
+            </div>
+          )}
           {isEditing && (
             <>
               <Tooltip content="미리보기" relationship="label">
@@ -311,13 +253,13 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
                 <Button appearance="primary" icon={<Save24Regular />} onClick={() => saveFile()} disabled={isSaving} />
               </Tooltip>
               <Tooltip content="편집 취소" relationship="label">
-                <Button appearance="subtle" icon={<Dismiss24Regular />} onClick={() => { if (hasUnsavedChanges) { if (confirm('저장하지 않은 변경사항이 있습니다. 정말로 편집을 취소하시겠습니까?')) { resetContent(content); setIsEditing(false); } } else { setIsEditing(false); } }} style={{ color: '#dc2626' }} />
+                <Button appearance="subtle" icon={<Dismiss24Regular />} onClick={() => { if (hasUnsavedChanges) { if (confirm('변경사항을 취소하시겠습니까?')) { resetContent(content); setHtmlContent(markdownToHtmlSync(content)); setIsEditing(false); } } else { setIsEditing(false); } }} style={{ color: '#dc2626' }} />
               </Tooltip>
             </>
           )}
           {!isEditing && (
             <Tooltip content="편집" relationship="label">
-              <Button appearance="primary" icon={<Edit24Regular />} onClick={() => { toggleEditMode(); }} disabled={isSaving} />
+              <Button appearance="primary" icon={<Edit24Regular />} onClick={() => toggleEditMode()} disabled={isSaving} />
             </Tooltip>
           )}
         </div>
@@ -326,23 +268,27 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
       {/* 에디터 본문 */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {isEditing ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {/* 마크다운 툴바 */}
-            <MarkdownToolbar
-              textareaRef={textareaRef}
-              onContentChange={handleContentChange}
-              onInsertLink={handleInsertLink}
-              onInsertImage={handleInsertImage}
-            />
-            {/* 텍스트 에디터 */}
-            <textarea
-              ref={textareaRef}
-              value={editorContent}
-              onChange={(e) => handleContentChange(e.target.value)}
-              style={{ flex: 1, width: '100%', padding: 16, fontFamily: 'monospace', fontSize: 14, border: '1px solid #e5e7eb', borderRadius: 6, outline: 'none', resize: 'none', background: '#fff' }}
-              placeholder="내용을 입력하세요..."
-              spellCheck={false}
-            />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {editorMode === 'block' ? (
+              <BlockEditor
+                ref={blockEditorRef}
+                content={htmlContent}
+                onChange={handleBlockEditorChange}
+                onSave={saveFile}
+                editable={true}
+                placeholder='/를 입력하여 블록 추가'
+                className="flex-1"
+              />
+            ) : (
+              <textarea
+                ref={textareaRef}
+                value={editorContent}
+                onChange={(e) => handleContentChange(e.target.value)}
+                style={{ flex: 1, width: '100%', padding: 16, fontFamily: 'monospace', fontSize: 14, border: '1px solid #e5e7eb', borderRadius: 6, outline: 'none', resize: 'none', background: '#fff' }}
+                placeholder="마크다운 내용을 입력하세요..."
+                spellCheck={false}
+              />
+            )}
           </div>
         ) : (
           <div style={{ flex: 1, overflow: 'auto' }}>
@@ -379,15 +325,12 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
             {/* 편집 모드일 때만 추가 정보 표시 */}
             {isEditing && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <Text>자동저장(30초)</Text>
-                <Button appearance={autoSaveEnabled ? 'primary' : 'outline'} onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}>{autoSaveEnabled ? 'ON' : 'OFF'}</Button>
+                <Text>모드: {editorMode === 'block' ? '블록' : '마크다운'}</Text>
+                <Text>자동저장</Text>
+                <Button appearance={autoSaveEnabled ? 'primary' : 'outline'} size="small" onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}>{autoSaveEnabled ? 'ON' : 'OFF'}</Button>
                 {autoSaveEnabled && autoSaveCountdown > 0 && (
-                  <Text style={{ color: '#2563eb' }}>{autoSaveCountdown}초 후 자동저장</Text>
+                  <Text style={{ color: '#2563eb' }}>{autoSaveCountdown}초</Text>
                 )}
-                {autoSaveEnabled && autoSaveCountdown === 0 && hasUnsavedChanges && (
-                  <Text style={{ color: '#059669' }}>자동저장 대기중</Text>
-                )}
-                <Text>Ctrl+S: 저장 | Ctrl+E: 편집 모드 토글</Text>
               </div>
             )}
           </div>
@@ -420,18 +363,6 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
         </Dialog>
       )}
 
-      {/* 링크 삽입 모달 */}
-      <LinkModal
-        isOpen={showLinkModal}
-        onClose={() => setShowLinkModal(false)}
-        onInsert={handleLinkInsert}
-      />
-      {/* 이미지 삽입 모달 */}
-      <ImageModal
-        isOpen={showImageModal}
-        onClose={() => setShowImageModal(false)}
-        onInsert={handleImageInsert}
-      />
     </div>
   );
 };
