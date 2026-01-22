@@ -88,6 +88,31 @@
 - **사용자 관리**: 역할 기반 권한 (admin/editor/viewer)
 - **활동 로그**: 사용자 활동 추적
 
+### 🔎 파일 내용 검색
+
+- **텍스트 검색**: 전체 위키 문서에서 키워드 검색
+- **대소문자 구분**: 옵션으로 대소문자 구분 검색
+- **결과 하이라이트**: 검색어가 포함된 라인 하이라이트
+- **파일별 그룹화**: 검색 결과를 파일별로 정리
+
+### 📋 마크다운 템플릿
+
+> 10가지 기본 템플릿으로 빠른 문서 작성
+
+| 카테고리 | 템플릿 |
+|----------|--------|
+| 📄 문서 | 빈 문서, 기본 문서, FAQ |
+| 📋 회의 | 회의록, 데일리 스탠드업 |
+| 📊 프로젝트 | 프로젝트 계획서, 릴리즈 노트 |
+| 🔧 기술 | API 문서, 트러블슈팅, 코드 리뷰 체크리스트 |
+
+### 🏷️ 태그 시스템
+
+- **태그 생성/관리**: 10가지 색상 팔레트
+- **파일-태그 매핑**: 파일에 여러 태그 부착
+- **태그별 필터링**: 특정 태그가 적용된 파일 조회
+- **통계**: 태그별 파일 수 확인
+
 ### 🎨 시각적 피드백
 
 | 상태 | 표시 |
@@ -136,19 +161,22 @@
 ## 📦 프로젝트 구조
 
 ```
-📁 lswiki0906/
+📁 LSWIKI/
 ├── 📂 app/                           # Next.js App Router
 │   ├── 📂 api/                       # API 엔드포인트
 │   │   ├── 📄 file/route.ts          # 파일 CRUD
 │   │   ├── 📄 files/route.ts         # 파일 목록
 │   │   ├── 📄 upload/route.ts        # 마크다운 업로드
 │   │   ├── 📄 search/route.ts        # Vector 검색
+│   │   ├── 📄 text-search/route.ts   # 텍스트 검색
 │   │   ├── 📄 index/route.ts         # 문서 인덱싱
 │   │   ├── 📄 ask/route.ts           # AI 답변 (RAG)
 │   │   ├── 📄 versions/route.ts      # 버전 히스토리
 │   │   ├── 📄 comments/route.ts      # 댓글
 │   │   ├── 📄 users/route.ts         # 사용자 관리
 │   │   ├── 📄 git/route.ts           # Git 연동
+│   │   ├── 📄 templates/route.ts     # 마크다운 템플릿
+│   │   ├── 📄 tags/route.ts          # 태그 시스템
 │   │   └── 📄 watch/route.ts         # 실시간 감시
 │   ├── 📂 wiki/                      # 위키 페이지
 │   └── 📄 layout.tsx                 # 루트 레이아웃
@@ -162,6 +190,9 @@
 │   ├── 📄 WikiApp.tsx                # 메인 앱
 │   ├── 📄 TreeComponent.tsx          # 파일 트리
 │   ├── 📄 AIChat.tsx                 # AI 채팅
+│   ├── 📄 TextSearch.tsx             # 텍스트 검색
+│   ├── 📄 TemplateSelector.tsx       # 템플릿 선택
+│   ├── 📄 TagManager.tsx             # 태그 관리
 │   ├── 📄 VersionHistory.tsx         # 버전 히스토리
 │   └── 📄 Comments.tsx               # 댓글
 │
@@ -171,6 +202,8 @@
 │   ├── 📄 versionHistory.ts          # 버전 관리
 │   ├── 📄 comments.ts                # 댓글 관리
 │   ├── 📄 users.ts                   # 사용자 관리
+│   ├── 📄 templates.ts               # 템플릿 정의
+│   ├── 📄 tags.ts                    # 태그 관리
 │   └── 📄 markdownConverter.ts       # MD 변환
 │
 ├── 📂 contexts/                      # React Context
@@ -427,6 +460,100 @@ POST /api/git
 ```
 </details>
 
+### 텍스트 검색
+
+<details>
+<summary><code>GET /api/text-search</code> - 파일 내용 검색</summary>
+
+```typescript
+GET /api/text-search?q=검색어&caseSensitive=false&limit=20
+
+// Response
+{
+  success: true,
+  query: string,
+  results: [{
+    filePath: string,
+    fileName: string,
+    matches: [{
+      line: number,
+      content: string,
+      highlight: string    // **검색어** 형식으로 하이라이트
+    }],
+    totalMatches: number
+  }],
+  totalFiles: number,
+  totalMatches: number
+}
+```
+</details>
+
+### 템플릿
+
+<details>
+<summary><code>/api/templates</code> - 마크다운 템플릿</summary>
+
+```typescript
+// 전체 템플릿 목록 (카테고리별)
+GET /api/templates
+
+// 특정 템플릿 조회
+GET /api/templates?id=meeting-notes
+
+// 카테고리별 조회
+GET /api/templates?category=meeting
+
+// 템플릿 적용 (변수 치환)
+POST /api/templates
+{
+  templateId: string,
+  variables?: Record<string, string>
+}
+```
+</details>
+
+### 태그
+
+<details>
+<summary><code>/api/tags</code> - 태그 시스템</summary>
+
+```typescript
+// 전체 태그 목록
+GET /api/tags
+
+// 파일의 태그 조회
+GET /api/tags?filePath=...
+
+// 태그별 파일 목록
+GET /api/tags?tagId=...
+
+// 태그 통계
+GET /api/tags?stats=true
+
+// 태그 생성
+POST /api/tags
+{ name: string, color: string, description?: string }
+
+// 파일에 태그 추가
+POST /api/tags
+{ action: 'addToFile', filePath: string, tagId: string }
+
+// 파일 태그 설정 (복수)
+POST /api/tags
+{ action: 'setFileTags', filePath: string, tagIds: string[] }
+
+// 태그 수정
+PUT /api/tags
+{ id: string, name?: string, color?: string, description?: string }
+
+// 태그 삭제
+DELETE /api/tags?id=...
+
+// 파일에서 태그 제거
+DELETE /api/tags?filePath=...&tagId=...
+```
+</details>
+
 ---
 
 ## 🎨 디자인 시스템
@@ -461,9 +588,6 @@ POST /api/git
 - [x] 마크다운 파일 업로드
 - [x] Vector 검색 엔진 (LanceDB + Gemini)
 - [x] AI 답변 생성 (RAG)
-- [ ] 파일 내용 검색
-- [ ] 마크다운 템플릿
-- [ ] 태그 시스템
 
 ### Phase 2: 협업 기능 ✅
 
@@ -471,19 +595,24 @@ POST /api/git
 - [x] 버전 관리 (Git 연동)
 - [x] 버전 히스토리 (로컬)
 - [x] 댓글 시스템
-- [ ] 실시간 공동 편집
 
 > ✅ **사내 GitLab 사용 중**
 > 현재 Git 연동은 사내 GitLab 서버를 사용하고 있습니다.
 > - **저장소**: `http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git`
 > - `/api/git` 엔드포인트를 통해 add, commit, push, pull 등의 작업을 수행할 수 있습니다.
 
-### Phase 3: 확장 기능
+### Phase 3: 확장 기능 ✅
 
+- [x] 파일 내용 검색 (텍스트 검색)
+- [x] 마크다운 템플릿 (10종)
+- [x] 태그 시스템
+
+### Phase 4: 고급 기능
+
+- [ ] 실시간 공동 편집
 - [ ] 플러그인 시스템
 - [ ] 테마 커스터마이징
 - [ ] 모바일 앱
-- [ ] REST API 확장
 
 ---
 
