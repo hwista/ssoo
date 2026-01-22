@@ -196,8 +196,8 @@
 
 ```bash
 # 저장소 클론
-git clone https://github.com/choishiam0906/lswiki0906.git
-cd lswiki0906
+git clone http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git
+cd LSWIKI
 
 # 의존성 설치
 npm install
@@ -473,10 +473,10 @@ POST /api/git
 - [x] 댓글 시스템
 - [ ] 실시간 공동 편집
 
-> ⚠️ **Git 마이그레이션 예정**
-> 현재 Git 연동은 개인 GitHub 저장소를 사용하고 있습니다.
-> 추후 **사내 Git 서버**(GitLab, Bitbucket 등)로 마이그레이션될 예정입니다.
-> `/api/git` 엔드포인트의 remote URL 설정을 변경하여 쉽게 전환할 수 있습니다.
+> ✅ **사내 GitLab 사용 중**
+> 현재 Git 연동은 사내 GitLab 서버를 사용하고 있습니다.
+> - **저장소**: `http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git`
+> - `/api/git` 엔드포인트를 통해 add, commit, push, pull 등의 작업을 수행할 수 있습니다.
 
 ### Phase 3: 확장 기능
 
@@ -530,7 +530,7 @@ POST /api/git
 </p>
 
 <p align="center">
-  <a href="https://github.com/choishiam0906/lswiki0906">
-    <img src="https://img.shields.io/github/stars/choishiam0906/lswiki0906?style=social" alt="GitHub Stars" />
+  <a href="http://10.125.31.72:8010/LSITC_WEB/LSWIKI">
+    <img src="https://img.shields.io/badge/GitLab-LSWIKI-orange?style=for-the-badge&logo=gitlab" alt="GitLab" />
   </a>
 </p>
