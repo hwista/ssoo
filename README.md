@@ -102,6 +102,25 @@
 **알림 이벤트:**
 - 문서 변경 / 댓글 / 멘션 / 협업 초대 / 권한 변경
 
+### 🔐 권한 관리 (RBAC)
+
+> 역할 기반 접근 제어 시스템
+
+| 역할 | 권한 |
+|------|------|
+| 👑 관리자 | 모든 기능 접근 |
+| 🔧 매니저 | 팀 관리, 문서 전체 편집 |
+| ✏️ 편집자 | 문서 생성/편집 |
+| 👁️ 뷰어 | 읽기 전용, 댓글 작성 |
+| 👤 게스트 | 공개 문서만 접근 |
+
+**주요 기능:**
+- 역할 기반 권한 상속
+- 리소스별 세분화된 ACL
+- 그룹 기반 권한 관리
+- 임시 권한 (만료일 지정)
+- 권한 변경 감사 로그
+
 ### 🔎 파일 내용 검색
 
 - **텍스트 검색**: 전체 위키 문서에서 키워드 검색
@@ -192,6 +211,7 @@
 │   │   ├── 📄 templates/route.ts     # 마크다운 템플릿
 │   │   ├── 📄 tags/route.ts          # 태그 시스템
 │   │   ├── 📄 notifications/route.ts # 알림 시스템
+│   │   ├── 📄 permissions/route.ts   # 권한 관리 (RBAC)
 │   │   ├── 📄 collaborate/route.ts   # 실시간 협업
 │   │   ├── 📄 plugins/route.ts       # 플러그인
 │   │   └── 📄 watch/route.ts         # 실시간 감시
@@ -216,7 +236,9 @@
 │   ├── 📄 NotificationSettings.tsx   # 알림 설정
 │   ├── 📄 PluginManager.tsx          # 플러그인 관리
 │   ├── 📄 CollaborationIndicator.tsx # 협업 표시기
-│   └── 📄 ThemeToggle.tsx            # 테마 토글
+│   ├── 📄 ThemeToggle.tsx            # 테마 토글
+│   ├── 📄 PermissionEditor.tsx       # 권한 설정 UI
+│   └── 📄 RoleManager.tsx            # 역할 관리 UI
 │
 ├── 📂 lib/                           # 유틸리티
 │   ├── 📄 embeddings.ts              # Gemini 임베딩
@@ -229,11 +251,16 @@
 │   ├── 📄 plugins.ts                 # 플러그인 시스템
 │   ├── 📄 collaboration.ts           # 실시간 협업
 │   ├── 📄 markdownConverter.ts       # MD 변환
-│   └── 📂 notifications/             # 알림 시스템
-│       ├── 📄 types.ts               # 알림 타입 정의
-│       ├── 📄 email.ts               # 이메일 발송
-│       ├── 📄 teams.ts               # Teams 연동
-│       └── 📄 manager.ts             # 알림 관리자
+│   ├── 📂 notifications/             # 알림 시스템
+│   │   ├── 📄 types.ts               # 알림 타입 정의
+│   │   ├── 📄 email.ts               # 이메일 발송
+│   │   ├── 📄 teams.ts               # Teams 연동
+│   │   └── 📄 manager.ts             # 알림 관리자
+│   └── 📂 permissions/               # 권한 관리 (RBAC)
+│       ├── 📄 types.ts               # 권한 타입 정의
+│       ├── 📄 roles.ts               # 역할 정의
+│       ├── 📄 policies.ts            # 권한 정책
+│       └── 📄 manager.ts             # 권한 관리자
 │
 ├── 📂 contexts/                      # React Context
 │   ├── 📄 NotificationContext.tsx    # UI 알림 상태
@@ -623,6 +650,85 @@ POST /api/plugins
 | code-stats | 코드 통계 | 코드 블록 통계 |
 </details>
 
+### 권한 관리 (RBAC)
+
+<details>
+<summary><code>/api/permissions</code> - 역할 기반 접근 제어</summary>
+
+```typescript
+// 역할 목록 조회
+GET /api/permissions?action=roles
+
+// 특정 역할 상세 조회
+GET /api/permissions?action=role&roleId=editor
+
+// 사용자 역할 조회
+GET /api/permissions?action=userRole&userId=...
+
+// 사용자 권한 요약
+GET /api/permissions?action=summary&userId=...
+
+// 권한 검사
+GET /api/permissions?action=check&userId=...&resourceType=file&resourceAction=update&resourceId=...
+
+// 허용된 액션 목록
+GET /api/permissions?action=allowedActions&userId=...&resourceType=file
+
+// 리소스 권한 조회
+GET /api/permissions?action=resourcePermissions&resourceType=file&resourceId=...
+
+// 그룹 목록
+GET /api/permissions?action=groups
+
+// 감사 로그
+GET /api/permissions?action=auditLogs&limit=50
+
+// 역할 할당
+POST /api/permissions
+{ action: 'assignRole', userId, role, assignedBy, expiresAt? }
+
+// 역할 회수
+POST /api/permissions
+{ action: 'revokeRole', userId, revokedBy }
+
+// 리소스 권한 부여
+POST /api/permissions
+{
+  action: 'grantPermission',
+  resourceType, resourceId,
+  principalType: 'user' | 'role' | 'group',
+  principalId, actions, grantedBy,
+  scope?, expiresAt?, inheritFromParent?
+}
+
+// 리소스 권한 회수
+POST /api/permissions
+{ action: 'revokePermission', resourceType, resourceId, principalType, principalId, revokedBy }
+
+// 그룹 생성
+POST /api/permissions
+{ action: 'createGroup', groupId, name, createdBy, description? }
+
+// 그룹 삭제
+POST /api/permissions
+{ action: 'deleteGroup', groupId, deletedBy }
+```
+
+**역할 계층:**
+| 역할 | 우선순위 | 설명 |
+|------|----------|------|
+| 👑 admin | 100 | 모든 권한 |
+| 🔧 manager | 80 | 팀 관리 권한 |
+| ✏️ editor | 60 | 문서 편집 권한 |
+| 👁️ viewer | 40 | 읽기 전용 |
+| 👤 guest | 20 | 공개 문서만 접근 |
+
+**권한 범위:**
+- `own`: 본인이 생성한 리소스만
+- `team`: 같은 팀 내 리소스
+- `all`: 모든 리소스
+</details>
+
 ### 알림 시스템
 
 <details>
@@ -827,8 +933,8 @@ DELETE /api/tags?filePath=...&tagId=...
 ### Phase 5: 확장 및 통합 (진행중)
 
 - [x] 알림 시스템 (이메일/Microsoft Teams)
+- [x] 권한 관리 고도화 (RBAC)
 - [ ] 모바일 앱 (PWA)
-- [ ] 권한 관리 고도화 (RBAC)
 - [ ] 외부 스토리지 연동 (S3, Azure Blob)
 
 ---
