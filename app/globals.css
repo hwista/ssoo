@@ -1,0 +1,526 @@
+@import url('https://unpkg.com/@fluentui/react-components/dist/fluentui.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* 리사이저 핸들 스타일 개선 */
+.resize-handle {
+  width: 4px;
+  background: #e5e7eb;
+  cursor: col-resize;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.resize-handle:hover {
+  background: #9ca3af;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 30px;
+  background: repeating-linear-gradient(
+    to bottom,
+    #6b7280 0px,
+    #6b7280 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  border-radius: 1px;
+  opacity: 0.7;
+}
+
+.resize-handle:hover::after {
+  opacity: 1;
+  background: repeating-linear-gradient(
+    to bottom,
+    #374151 0px,
+    #374151 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* 커스텀 스크롤바 스타일 */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f3f4f6;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* 트리 항목 긴 텍스트 처리 */
+.tree-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* 트리 뷰 컨테이너의 최소 너비 설정 */
+.tree-container {
+  min-width: max-content;
+}
+
+/* 선택된 파일 하이라이트 */
+.file-selected {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+/* 폴더 상태 표시 아이콘 애니메이션 */
+.folder-toggle-icon {
+  transition: all 0.15s ease-in-out;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.folder-toggle-icon:hover {
+  color: #374151;
+  transform: scale(1.1);
+}
+
+/* 폴더 행 전체 호버 효과 */
+.folder-row:hover .folder-toggle-icon {
+  color: #4b5563;
+}
+
+/* 리사이징 중 텍스트 선택 방지 */
+.resizing {
+  user-select: none;
+  pointer-events: none;
+}
+
+.resizing * {
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 트리 컨트롤 버튼 스타일 */
+.tree-control-btn {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(209, 213, 219, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+}
+
+.tree-control-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+/* 플로팅 버튼 컨테이너 */
+.floating-controls {
+  position: sticky;
+  top: 8px;
+  right: 8px;
+  z-index: 30;
+  pointer-events: none;
+  float: right;
+  clear: both;
+}
+
+.floating-controls > * {
+  pointer-events: auto;
+}
+
+/* 트리 컨테이너 스크롤 시 플로팅 효과 */
+.tree-floating-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.tree-floating-controls > * {
+  pointer-events: auto;
+}
+
+/* 검색 결과 하이라이트 */
+.search-highlight {
+  background-color: #fef3c7;
+  color: #d97706;
+  font-weight: 500;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* 트리 내부 검색 바 스타일 */
+.tree-search-bar {
+  backdrop-filter: blur(8px);
+  background: rgba(249, 250, 251, 0.95);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tree-search-input:focus {
+  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* 컨텍스트 메뉴 스타일 - 애니메이션 임시 제거로 중복 렌더링 방지 */
+
+/* 애니메이션 임시 주석 처리
+.context-menu {
+  animation: context-menu-appear 0.15s ease-out;
+}
+
+@keyframes context-menu-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+*/
+
+/* 컨텍스트 메뉴 호버 효과 */
+.context-menu-item {
+  transition: all 0.1s ease;
+}
+
+.context-menu-item:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  transform: translateX(2px);
+}
+
+.context-menu-item.danger:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* ========================================
+   다크 모드 스타일
+   ======================================== */
+
+/* 기본 다크 모드 배경 */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #111827;
+  color: #f3f4f6;
+}
+
+/* 리사이저 핸들 다크 모드 */
+.dark .resize-handle {
+  background: #374151;
+}
+
+.dark .resize-handle:hover {
+  background: #4b5563;
+}
+
+.dark .resize-handle::after {
+  background: repeating-linear-gradient(
+    to bottom,
+    #9ca3af 0px,
+    #9ca3af 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.dark .resize-handle:hover::after {
+  background: repeating-linear-gradient(
+    to bottom,
+    #d1d5db 0px,
+    #d1d5db 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* 스크롤바 다크 모드 */
+.dark .scrollbar-thin {
+  scrollbar-color: #4b5563 #1f2937;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* 선택된 파일 다크 모드 */
+.dark .file-selected {
+  background-color: #1e3a5f;
+  color: #93c5fd;
+}
+
+/* 폴더 아이콘 다크 모드 */
+.dark .folder-toggle-icon {
+  color: #9ca3af;
+}
+
+.dark .folder-toggle-icon:hover {
+  color: #d1d5db;
+}
+
+.dark .folder-row:hover .folder-toggle-icon {
+  color: #e5e7eb;
+}
+
+/* 트리 컨트롤 버튼 다크 모드 */
+.dark .tree-control-btn {
+  background: rgba(31, 41, 55, 0.95);
+  border: 1px solid rgba(75, 85, 99, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dark .tree-control-btn:hover {
+  background: rgba(31, 41, 55, 0.98);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* 검색 하이라이트 다크 모드 */
+.dark .search-highlight {
+  background-color: #78350f;
+  color: #fcd34d;
+}
+
+/* 트리 검색 바 다크 모드 */
+.dark .tree-search-bar {
+  background: rgba(31, 41, 55, 0.95);
+  border-bottom: 1px solid rgba(75, 85, 99, 0.8);
+}
+
+.dark .tree-search-input:focus {
+  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* 컨텍스트 메뉴 다크 모드 */
+.dark .context-menu-item:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.dark .context-menu-item.danger:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* 입력 필드 다크 모드 */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #f3f4f6;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6b7280;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* 버튼 다크 모드 */
+.dark button {
+  color: inherit;
+}
+
+/* 카드/패널 다크 모드 */
+.dark .bg-white {
+  background-color: #1f2937 !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #111827 !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #1f2937 !important;
+}
+
+/* 테두리 다크 모드 */
+.dark .border,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: #374151 !important;
+}
+
+.dark .border-b {
+  border-bottom-color: #374151 !important;
+}
+
+.dark .border-t {
+  border-top-color: #374151 !important;
+}
+
+.dark .border-l {
+  border-left-color: #374151 !important;
+}
+
+.dark .border-r {
+  border-right-color: #374151 !important;
+}
+
+/* 텍스트 색상 다크 모드 */
+.dark .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+.dark .text-gray-600 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-700 {
+  color: #e5e7eb !important;
+}
+
+.dark .text-gray-800 {
+  color: #f3f4f6 !important;
+}
+
+.dark .text-gray-900 {
+  color: #f9fafb !important;
+}
+
+/* 호버 상태 다크 모드 */
+.dark .hover\:bg-gray-50:hover {
+  background-color: #374151 !important;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: #374151 !important;
+}
+
+/* 그림자 다크 모드 */
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* 에디터 다크 모드 */
+.dark .ProseMirror {
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
+
+.dark .ProseMirror code {
+  background-color: #374151;
+  color: #fbbf24;
+}
+
+.dark .ProseMirror pre {
+  background-color: #111827;
+  border-color: #374151;
+}
+
+.dark .ProseMirror blockquote {
+  border-left-color: #4b5563;
+  color: #9ca3af;
+}
+
+.dark .ProseMirror table {
+  border-color: #374151;
+}
+
+.dark .ProseMirror th,
+.dark .ProseMirror td {
+  border-color: #374151;
+}
+
+.dark .ProseMirror th {
+  background-color: #374151;
+}
+
+/* 마크다운 미리보기 다크 모드 */
+.dark .markdown-preview {
+  color: #f3f4f6;
+}
+
+.dark .markdown-preview h1,
+.dark .markdown-preview h2,
+.dark .markdown-preview h3,
+.dark .markdown-preview h4,
+.dark .markdown-preview h5,
+.dark .markdown-preview h6 {
+  color: #f9fafb;
+}
+
+.dark .markdown-preview a {
+  color: #60a5fa;
+}
+
+.dark .markdown-preview code {
+  background-color: #374151;
+  color: #fbbf24;
+}
+
+.dark .markdown-preview pre {
+  background-color: #111827;
+  border-color: #374151;
+}
+
+.dark .markdown-preview blockquote {
+  border-left-color: #4b5563;
+  background-color: #1f2937;
+  color: #9ca3af;
+}
+
+.dark .markdown-preview table {
+  border-color: #374151;
+}
+
+.dark .markdown-preview th {
+  background-color: #374151;
+  border-color: #4b5563;
+}
+
+.dark .markdown-preview td {
+  border-color: #374151;
+}
+
+.dark .markdown-preview hr {
+  border-color: #374151;
+}

@@ -1,5 +1,0 @@
-{
-  "extends": "./typedoc.json",
-  "entryPoints": ["src/modules/pms"],
-  "out": "../../docs/pms/reference/typedoc/server"
-}

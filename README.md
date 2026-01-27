@@ -1,495 +1,988 @@
-# SSOO (삼삼오오)
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16.0-black?style=for-the-badge&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind-3.0-38B2AC?style=for-the-badge&logo=tailwind-css" alt="Tailwind" />
+</p>
 
-> SI/SM 조직의 **Opportunity–Project–System** 통합 업무 허브
+<h1 align="center">📚 Markdown Wiki System</h1>
 
-**"삼삼오오(3355) 모여서 일한다"** — 핸드오프에 의한 맥락 단절과 수작업 보고 비용을 최소화하는 사내 업무 허브
+<p align="center">
+  <strong>Next.js 16.0 기반의 실시간 마크다운 문서 관리 시스템</strong><br/>
+  파일 탐색기 스타일의 직관적인 인터페이스 • VS Code 스타일의 시각적 피드백 • AI 기반 검색
+</p>
+
+<p align="center">
+  <a href="#-주요-기능">주요 기능</a> •
+  <a href="#-기술-스택">기술 스택</a> •
+  <a href="#-설치-및-실행">설치</a> •
+  <a href="#-api-레퍼런스">API</a> •
+  <a href="#-로드맵">로드맵</a>
+</p>
 
 ---
 
 ## 📋 목차
 
-- [프로젝트 개요](#-프로젝트-개요)
+- [주요 기능](#-주요-기능)
 - [기술 스택](#-기술-스택)
 - [프로젝트 구조](#-프로젝트-구조)
-- [시작하기](#-시작하기)
-- [개발 명령어](#-개발-명령어)
+- [설치 및 실행](#-설치-및-실행)
+- [사용법](#-사용법)
+- [API 레퍼런스](#-api-레퍼런스)
 - [디자인 시스템](#-디자인-시스템)
-- [아키텍처 결정](#-아키텍처-결정)
-- [문서](#-문서)
+- [로드맵](#-로드맵)
+- [기여하기](#-기여하기)
 
 ---
 
-## 🎯 프로젝트 개요
+## ✨ 주요 기능
 
-### 해결하려는 문제
+### 📁 파일 시스템 관리
 
-1. **영업/AM → PM 인계 시 히스토리 단절** — PM이 "왜/무엇/누가/전제/리스크"를 모르고 시작
-2. **기회(파이프라인) 가시성 부족** — PM은 다음 프로젝트를 사전에 알기 어려움
-3. **수작업 보고 비용** — 각자 PPT 작성 → 취합 → 보고 반복
-
-### 핵심 개념
-
-| 개념 | 설명 |
+| 기능 | 설명 |
 |------|------|
-| **Opportunity** | 계약 전 기회 (Project의 `status_code=opportunity`로 표현) |
-| **Project** | 단일 엔티티로 기회+실행 통합 (`status_code` + `stage_code`) |
-| **Handoff** | 역할 간 인계 트랙 (영업→PM, PM→SM 등) |
-| **System** | 운영 자산 (프로젝트와 독립적으로도 존재 가능) |
-| **Customer** | 고객 및 플랜트/사이트 |
+| 리사이저블 사이드바 | 드래그로 조절 가능한 파일 트리 |
+| 실시간 파일 탐색 | 파일/폴더 생성, 삭제, 이름 변경 |
+| 컨텍스트 메뉴 | 우클릭으로 접근하는 파일 관리 기능 |
+| 검색 기능 | 트리 내 실시간 파일 검색 |
 
----
+### 📝 블록 에디터 (Tiptap)
 
-## 🛠 기술 스택
+> Notion 스타일의 블록 기반 편집기
 
-### 왜 이 스택인가?
+- **슬래시(/) 명령어**: 제목, 리스트, 코드블록, 테이블 등 빠른 삽입
+- **실시간 서식 툴바**: 굵게, 기울임, 취소선, 하이라이트
+- **테이블 & 체크리스트**: 구조화된 문서 작성
+- **코드 블록**: 문법 강조 지원
+- **HTML ↔ 마크다운**: 자동 변환
 
-| 선택 | 이유 |
-|------|------|
-| **TypeScript 풀스택** | 단일 언어로 Server/Web/Mobile/Desktop 전체 커버, 타입 공유 가능 |
-| **Monorepo (pnpm + Turborepo)** | 코드 재사용, 통합 버전 관리, 독립 배포 가능 |
-| **NestJS** | 엔터프라이즈급 구조, 모듈화, 테스트 용이 |
-| **Next.js** | SSR/SSG 지원, React 생태계, Vercel 배포 최적화 |
-| **Prisma** | 타입 안전 ORM, 마이그레이션 관리, 다양한 DB 지원 |
-| **PostgreSQL** | 안정성, JSON 지원, 확장성 |
-
-### 상세 스택
+### 🔍 AI 검색 (RAG)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    TypeScript (단일 언어)                    │
-├─────────────┬─────────────┬──────────────┬──────────────────┤
-│ apps/server │  apps/web-pms       │ apps/mobile  │   apps/desktop   │
-│   NestJS    │  Next.js    │ React Native │    Electron      │
-│  (백엔드)    │ (프론트엔드) │   (나중에)    │     (나중에)      │
-├─────────────┴─────────────┴──────────────┴──────────────────┤
-│                      packages/ (공유)                        │
-│  @ssoo/types (타입) │ @ssoo/database (Prisma) │ @ssoo/ui    │
+│  📄 문서 업로드  →  🔢 Vector 임베딩  →  💾 LanceDB 저장   │
+│                                                             │
+│  🔍 질문 입력   →  🎯 유사도 검색    →  🤖 AI 답변 생성   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-| 패키지 | 버전 | 용도 |
-|--------|------|------|
-| Node.js | ≥20.0.0 | 런타임 |
-| pnpm | 9.x | 패키지 매니저 |
-| Turborepo | 2.x | 빌드 오케스트레이션 |
-| NestJS | 10.x | 백엔드 프레임워크 |
-| Next.js | 15.x | 프론트엔드 프레임워크 |
-| Prisma | 6.x | ORM |
-| PostgreSQL | 15+ | 데이터베이스 |
+- **Vector 검색**: LanceDB + Gemini Embedding 기반 유사도 검색
+- **AI 답변 생성**: Gemini 1.5 Flash 모델 기반 RAG 답변
+- **문서 인덱싱**: 전체 위키 문서 자동/수동 인덱싱
+- **출처 표시**: 답변에 참고한 문서 출처 제공
+
+### 📜 버전 관리
+
+| 기능 | 설명 |
+|------|------|
+| 자동 버전 저장 | 파일 저장 시 자동으로 버전 히스토리 생성 |
+| 변경 이력 조회 | 파일별 버전 목록 및 변경 요약 |
+| 버전 복원 | 이전 버전으로 복원 가능 |
+| 버전 비교 | 두 버전 간 diff 비교 |
+| Git 연동 | add, commit, push, pull 지원 |
+
+### 💬 협업 기능
+
+- **댓글 시스템**: 문서별 댓글 및 답글 지원
+- **사용자 관리**: 역할 기반 권한 (admin/editor/viewer)
+- **활동 로그**: 사용자 활동 추적
+- **실시간 공동 편집**: 다중 사용자 동시 편집 지원
+
+### 🔔 알림 시스템
+
+> 이메일 및 Microsoft Teams로 알림 전송
+
+| 채널 | 설명 |
+|------|------|
+| 🔔 앱 내 알림 | 실시간 알림 센터 |
+| 📧 이메일 | SMTP 기반 이메일 발송 |
+| 💬 Teams | Webhook 기반 Teams 알림 |
+
+**알림 이벤트:**
+- 문서 변경 / 댓글 / 멘션 / 협업 초대 / 권한 변경
+
+### 🔐 권한 관리 (RBAC)
+
+> 역할 기반 접근 제어 시스템
+
+| 역할 | 권한 |
+|------|------|
+| 👑 관리자 | 모든 기능 접근 |
+| 🔧 매니저 | 팀 관리, 문서 전체 편집 |
+| ✏️ 편집자 | 문서 생성/편집 |
+| 👁️ 뷰어 | 읽기 전용, 댓글 작성 |
+| 👤 게스트 | 공개 문서만 접근 |
+
+**주요 기능:**
+- 역할 기반 권한 상속
+- 리소스별 세분화된 ACL
+- 그룹 기반 권한 관리
+- 임시 권한 (만료일 지정)
+- 권한 변경 감사 로그
+
+### 🔎 파일 내용 검색
+
+- **텍스트 검색**: 전체 위키 문서에서 키워드 검색
+- **대소문자 구분**: 옵션으로 대소문자 구분 검색
+- **결과 하이라이트**: 검색어가 포함된 라인 하이라이트
+- **파일별 그룹화**: 검색 결과를 파일별로 정리
+
+### 📋 마크다운 템플릿
+
+> 10가지 기본 템플릿으로 빠른 문서 작성
+
+| 카테고리 | 템플릿 |
+|----------|--------|
+| 📄 문서 | 빈 문서, 기본 문서, FAQ |
+| 📋 회의 | 회의록, 데일리 스탠드업 |
+| 📊 프로젝트 | 프로젝트 계획서, 릴리즈 노트 |
+| 🔧 기술 | API 문서, 트러블슈팅, 코드 리뷰 체크리스트 |
+
+### 🏷️ 태그 시스템
+
+- **태그 생성/관리**: 10가지 색상 팔레트
+- **파일-태그 매핑**: 파일에 여러 태그 부착
+- **태그별 필터링**: 특정 태그가 적용된 파일 조회
+- **통계**: 태그별 파일 수 확인
+
+### 🎨 시각적 피드백
+
+| 상태 | 표시 |
+|------|------|
+| 🟢 NEW | 새로 생성된 항목 (녹색 텍스트 + 빨간 뱃지) |
+| 🔵 UPDATE | 수정된 항목 (파란색 텍스트 + 노란 뱃지) |
+| 🔄 초기화 | 모든 표시 지우기 |
 
 ---
 
-## 📁 프로젝트 구조
+## 🏗️ 기술 스택
+
+<table>
+<tr>
+<td valign="top" width="50%">
+
+### Frontend
+| 기술 | 버전 | 용도 |
+|------|------|------|
+| Next.js | 16.0 | App Router, RSC |
+| React | 18+ | UI 라이브러리 |
+| TypeScript | 5.0 | 타입 안정성 |
+| Tailwind CSS | 3.0 | 스타일링 |
+| Tiptap | 2.0 | 블록 에디터 |
+| Fluent UI | - | 디자인 시스템 |
+
+</td>
+<td valign="top" width="50%">
+
+### Backend & AI
+| 기술 | 용도 |
+|------|------|
+| Next.js API Routes | RESTful API |
+| LanceDB | Vector DB |
+| Gemini Embedding | 텍스트 임베딩 |
+| Gemini 1.5 Flash | RAG 답변 생성 |
+| Node.js fs | 파일 시스템 |
+| SSE | 실시간 감지 |
+
+</td>
+</tr>
+</table>
+
+---
+
+## 📦 프로젝트 구조
 
 ```
-hwista-ssoo/
+📁 LSWIKI/
+├── 📂 app/                           # Next.js App Router
+│   ├── 📂 api/                       # API 엔드포인트
+│   │   ├── 📄 file/route.ts          # 파일 CRUD
+│   │   ├── 📄 files/route.ts         # 파일 목록
+│   │   ├── 📄 upload/route.ts        # 마크다운 업로드
+│   │   ├── 📄 search/route.ts        # Vector 검색
+│   │   ├── 📄 text-search/route.ts   # 텍스트 검색
+│   │   ├── 📄 index/route.ts         # 문서 인덱싱
+│   │   ├── 📄 ask/route.ts           # AI 답변 (RAG)
+│   │   ├── 📄 versions/route.ts      # 버전 히스토리
+│   │   ├── 📄 comments/route.ts      # 댓글
+│   │   ├── 📄 users/route.ts         # 사용자 관리
+│   │   ├── 📄 git/route.ts           # Git 연동
+│   │   ├── 📄 templates/route.ts     # 마크다운 템플릿
+│   │   ├── 📄 tags/route.ts          # 태그 시스템
+│   │   ├── 📄 notifications/route.ts # 알림 시스템
+│   │   ├── 📄 permissions/route.ts   # 권한 관리 (RBAC)
+│   │   ├── 📄 collaborate/route.ts   # 실시간 협업
+│   │   ├── 📄 plugins/route.ts       # 플러그인
+│   │   └── 📄 watch/route.ts         # 실시간 감시
+│   ├── 📂 wiki/                      # 위키 페이지
+│   └── 📄 layout.tsx                 # 루트 레이아웃
 │
-├── apps/                        # 실행 가능한 애플리케이션
-│   ├── server/                  # NestJS 백엔드 API
-│   │   ├── src/
-│   │   │   ├── main.ts          # 엔트리포인트
-│   │   │   ├── app.module.ts    # 루트 모듈
-│   │   │   ├── health/          # Health Check API
-│   │   │   └── project/         # Project CRUD API
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   │
-│   ├── web-pms/                 # Next.js 프론트엔드
-│   └── web-dms/                 # 도큐먼트 관리 시스템
-│       ├── src/app/             # App Router
-│       │   ├── layout.tsx       # 루트 레이아웃
-│       │   ├── page.tsx         # 메인 페이지
-│       │   └── globals.css      # 전역 스타일
-│       ├── package.json
-│       └── tsconfig.json
+├── 📂 components/                    # 컴포넌트
+│   ├── 📂 ui/                        # 기본 UI
+│   ├── 📂 editor/                    # 블록 에디터
+│   │   ├── 📄 BlockEditor.tsx        # Tiptap 에디터
+│   │   ├── 📄 EditorToolbar.tsx      # 서식 툴바
+│   │   └── 📄 SlashCommand.tsx       # 슬래시 명령어
+│   ├── 📄 WikiApp.tsx                # 메인 앱
+│   ├── 📄 TreeComponent.tsx          # 파일 트리
+│   ├── 📄 AIChat.tsx                 # AI 채팅
+│   ├── 📄 TextSearch.tsx             # 텍스트 검색
+│   ├── 📄 TemplateSelector.tsx       # 템플릿 선택
+│   ├── 📄 TagManager.tsx             # 태그 관리
+│   ├── 📄 VersionHistory.tsx         # 버전 히스토리
+│   ├── 📄 Comments.tsx               # 댓글
+│   ├── 📄 NotificationCenter.tsx     # 알림 센터
+│   ├── 📄 NotificationSettings.tsx   # 알림 설정
+│   ├── 📄 PluginManager.tsx          # 플러그인 관리
+│   ├── 📄 CollaborationIndicator.tsx # 협업 표시기
+│   ├── 📄 ThemeToggle.tsx            # 테마 토글
+│   ├── 📄 PermissionEditor.tsx       # 권한 설정 UI
+│   └── 📄 RoleManager.tsx            # 역할 관리 UI
 │
-├── packages/                    # 공유 패키지
-│   ├── types/                   # @ssoo/types - 공통 타입 정의
-│   │   └── src/
-│   │       ├── index.ts         # 엔트리포인트
-│   │       ├── project.ts       # Project 타입/DTO
-│   │       ├── user.ts          # User 타입/DTO
-│   │       ├── customer.ts      # Customer 타입/DTO
-│   │       └── common.ts        # 공통 타입 (ApiResponse 등)
-│   │
-│   └── database/                # @ssoo/database - Prisma 클라이언트
-│       ├── prisma/
-│       │   └── schema.prisma    # DB 스키마 정의
-│       └── src/
-│           └── index.ts         # Prisma 클라이언트 export
+├── 📂 lib/                           # 유틸리티
+│   ├── 📄 embeddings.ts              # Gemini 임베딩
+│   ├── 📄 vectorStore.ts             # LanceDB 래퍼
+│   ├── 📄 versionHistory.ts          # 버전 관리
+│   ├── 📄 comments.ts                # 댓글 관리
+│   ├── 📄 users.ts                   # 사용자 관리
+│   ├── 📄 templates.ts               # 템플릿 정의
+│   ├── 📄 tags.ts                    # 태그 관리
+│   ├── 📄 plugins.ts                 # 플러그인 시스템
+│   ├── 📄 collaboration.ts           # 실시간 협업
+│   ├── 📄 markdownConverter.ts       # MD 변환
+│   ├── 📂 notifications/             # 알림 시스템
+│   │   ├── 📄 types.ts               # 알림 타입 정의
+│   │   ├── 📄 email.ts               # 이메일 발송
+│   │   ├── 📄 teams.ts               # Teams 연동
+│   │   └── 📄 manager.ts             # 알림 관리자
+│   └── 📂 permissions/               # 권한 관리 (RBAC)
+│       ├── 📄 types.ts               # 권한 타입 정의
+│       ├── 📄 roles.ts               # 역할 정의
+│       ├── 📄 policies.ts            # 권한 정책
+│       └── 📄 manager.ts             # 권한 관리자
 │
-├── docs/                        # 서비스 문서
-│   ├── README.md                # 서비스 정의/컨셉
-│   ├── database/                # DB 설계 문서
-│   └── service/                 # 업무 흐름/액션 문서
+├── 📂 contexts/                      # React Context
+│   ├── 📄 NotificationContext.tsx    # UI 알림 상태
+│   ├── 📄 UserContext.tsx            # 사용자 상태
+│   └── 📄 ThemeContext.tsx           # 테마 상태
 │
-├── package.json                 # 루트 워크스페이스 설정
-├── pnpm-workspace.yaml          # pnpm 워크스페이스 정의
-├── turbo.json                   # Turborepo 태스크 설정
-├── tsconfig.base.json           # 공통 TypeScript 설정
-├── .env.example                 # 환경변수 예시
-└── .gitignore
+├── 📂 docs/wiki/                     # 위키 문서 저장소
+├── 📂 data/                          # 메타데이터 저장
+└── 📄 package.json
 ```
 
 ---
 
-## 🚀 시작하기
+## 🚀 설치 및 실행
 
-### 사전 요구사항
+### 요구사항
 
-- **Node.js** ≥ 20.0.0
-- **pnpm** ≥ 9.0.0
-- **PostgreSQL** ≥ 15 (또는 Docker)
+- Node.js 18.0 이상
+- npm 또는 yarn
+- Gemini API Key (AI 검색 사용 시)
 
-### 1. 저장소 클론 및 의존성 설치
+### 설치
 
 ```bash
 # 저장소 클론
-git clone https://github.com/hwista/sooo.git
-cd sooo
-
-# pnpm 설치 (없는 경우)
-npm install -g pnpm
+git clone http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git
+cd LSWIKI
 
 # 의존성 설치
-pnpm install
+npm install
+
+# 환경 변수 설정 (AI 검색 사용 시)
+echo "GEMINI_API_KEY=your_api_key" > .env.local
 ```
 
-### 2. 환경변수 설정
+### 실행
 
 ```bash
-# .env 파일 생성
-cp .env.example .env
+# 개발 서버
+npm run dev
 
-# .env 파일 편집 (DATABASE_URL 등 설정)
+# 프로덕션 빌드
+npm run build
+
+# 프로덕션 실행
+npm start
 ```
 
-`.env` 파일 예시:
-```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ssoo_dev?schema=public"
-PORT=4000
-NODE_ENV=development
-CORS_ORIGIN=http://localhost:3000
+### 접속
+
 ```
-
-### 3. 데이터베이스 설정
-
-```bash
-# PostgreSQL 실행 (Docker 사용 시)
-docker run --name ssoo-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ssoo_dev -p 5432:5432 -d postgres:15
-
-# Prisma 클라이언트 생성
-pnpm --filter @ssoo/database db:generate
-
-# DB 스키마 적용
-pnpm --filter @ssoo/database db:push
-```
-
-### 4. 개발 서버 실행
-
-```bash
-# 전체 실행 (server + web-pms 동시)
-pnpm dev
-
-# 또는 개별 실행
-pnpm dev:server   # 백엔드: http://localhost:4000
-pnpm dev:web-pms      # 프론트엔드: http://localhost:3000
-```
-
-### 5. 동작 확인
-
-```bash
-# Health Check API
-curl http://localhost:4000/api/health
-
-# 웹 브라우저에서 확인
-open http://localhost:3000
+http://localhost:3000/wiki
 ```
 
 ---
 
-## ⚠️ 보안 프로그램 환경에서의 설치
+## 📖 사용법
 
-사내 보안 프로그램(DLP, EDR 등)이 설치 과정에서 다양한 문제를 일으킬 수 있습니다.
+### 파일/폴더 관리
 
-### 문제 1: spawn EPERM 에러
-
-`pnpm`, `npx` 명령어 실행 시 프로세스 생성이 차단되는 경우:
-
-```
-Error: spawn EPERM
-    at ChildProcess.spawn (node:internal/child_process:420:11)
-```
-
-**해결**: `node`로 직접 스크립트 실행
-
-### 문제 2: SSL 인증서 에러
-
-사내 프록시/방화벽이 SSL을 가로채는 경우:
-
-```
-Error: self-signed certificate in certificate chain
-```
-
-**해결**: SSL 검증 임시 비활성화
-```powershell
-$env:NODE_TLS_REJECT_UNAUTHORIZED=0
-```
-
----
-
-### 🔧 보안 환경 전체 설치 가이드
-
-아래는 보안 프로그램 환경에서 테스트된 전체 설치 과정입니다:
-
-```powershell
-# 1. 프로젝트 폴더로 이동
-cd c:\WorkSpace\dev\source\hwista-ssoo
-
-# 2. 의존성 설치 (빌드 스크립트 무시)
-pnpm install --ignore-scripts
-
-# 3. 환경변수 파일 생성
-copy .env.example .env
-
-# 4. SSL 검증 비활성화 (사내 프록시 환경)
-$env:NODE_TLS_REJECT_UNAUTHORIZED=0
-
-# 5. Prisma 클라이언트 생성
-cd packages/database
-node ./node_modules/prisma/build/index.js generate
-
-# 6. 공유 패키지 빌드 (types)
-cd ../types
-node ./node_modules/typescript/lib/tsc.js --project tsconfig.json
-
-# 7. database 패키지 빌드
-cd ../database
-node ./node_modules/typescript/lib/tsc.js --project tsconfig.json
-
-# 8. 서버 빌드 및 실행
-cd ../../apps/server
-node ./node_modules/typescript/lib/tsc.js --project tsconfig.json
-node dist/main.js
-
-# 9. 웹 실행 (새 터미널에서)
-cd c:\WorkSpace\dev\source\hwista-ssoo\apps\web-pms
-node ./node_modules/next/dist/bin/next dev --port 3000
-```
-
-### 실행 확인
-
-```
-✅ Server: http://localhost:4000/api/health
-   → {"success":true,"data":{"status":"ok","service":"ssoo-server","version":"0.0.1"}}
-
-✅ Web PMS: http://localhost:3000
-   → SSOO 메인 페이지 + Server Status 연동 확인
-```
-
-### 주의사항
-
-- `NODE_TLS_REJECT_UNAUTHORIZED=0`은 **개발 환경에서만** 사용하세요.
-- 관리자 권한 PowerShell로 실행하면 일부 문제가 해결되기도 합니다.
-- 보안팀에 Node.js 개발 도구 예외 등록을 요청하는 것이 근본적인 해결책입니다.
-- `--watch` 모드가 EPERM 에러를 발생시키면, 빌드 후 `node dist/main.js`로 실행하세요.
-
----
-
-## 📦 개발 명령어
-
-### 루트 레벨 명령어
-
-| 명령어 | 설명 |
-|--------|------|
-| `pnpm install` | 전체 의존성 설치 |
-| `pnpm dev` | 전체 개발 서버 실행 |
-| `pnpm build` | 전체 빌드 |
-| `pnpm lint` | 전체 린트 검사 |
-| `pnpm clean` | 빌드 결과물 삭제 |
-
-### 앱별 명령어
-
-```bash
-# Server만 실행/빌드
-pnpm dev:server
-pnpm build:server
-
-# Web만 실행/빌드
-pnpm dev:web-pms
-pnpm build:web-pms
-
-# 특정 앱 + 의존 패키지만 빌드
-pnpm build --filter=server...
-```
-
-### Database 명령어
-
-```bash
-# Prisma 클라이언트 생성
-pnpm --filter @ssoo/database db:generate
-
-# 스키마를 DB에 반영 (개발용)
-pnpm --filter @ssoo/database db:push
-
-# 마이그레이션 생성 및 적용
-pnpm --filter @ssoo/database db:migrate
-
-# Prisma Studio (DB GUI)
-pnpm --filter @ssoo/database db:studio
-```
-
-### 패키지별 빌드
-
-```bash
-# 공통 타입 빌드
-pnpm --filter @ssoo/types build
-
-# 데이터베이스 패키지 빌드
-pnpm --filter @ssoo/database build
-```
-
----
-
-## 🏗 아키텍처 결정
-
-### Monorepo를 선택한 이유
-
-| 장점 | 설명 |
+| 작업 | 방법 |
 |------|------|
-| **타입 공유** | Server ↔ Web PMS 간 DTO/Entity 타입 100% 동기화 |
-| **원자적 변경** | API 변경 시 Server + Web PMS를 하나의 PR로 처리 |
-| **의존성 통일** | 모든 앱이 같은 버전의 라이브러리 사용 |
-| **독립 배포** | 각 앱별로 필요할 때만 개별 배포 가능 |
+| 생성 | 좌측 "새로 만들기" 버튼 또는 트리 우클릭 |
+| 편집 | 파일 선택 후 "편집" 버튼 |
+| 이름 변경 | 파일/폴더 우클릭 → "이름 변경" |
+| 삭제 | 파일 선택 후 "삭제" 버튼 또는 우클릭 |
 
-### 코드 공유 흐름
+### 키보드 단축키
+
+| 단축키 | 기능 |
+|--------|------|
+| `Esc` | 편집 모드 종료 |
+| `Enter` | 인라인 편집 확정 |
+| `/` | 슬래시 명령어 (에디터) |
+
+### 슬래시 명령어 (블록 에디터)
 
 ```
-┌──────────────────┐
-│  @ssoo/types     │ ◄── 모든 앱에서 import
-│  (공통 타입)      │
-└────────┬─────────┘
-         │
-    ┌────┴────┐
-    │         │
-    ▼         ▼
-┌────────┐  ┌────────┐
-│ server │  │ web-pms │
-│ NestJS │  │ Next.js │
-└────────┘  └────────┘
+/h1, /h2, /h3     → 제목 삽입
+/bullet, /number  → 리스트 삽입
+/code             → 코드 블록
+/table            → 테이블
+/quote            → 인용구
+/todo             → 체크리스트
 ```
-
-### 배포 전략
-
-| 앱 | 빌드 결과 | 배포 대상 |
-|-----|----------|----------|
-| server | Docker Image | Cloud Run, ECS, EC2 |
-| web-pms | Static/SSR | Vercel, Netlify, S3+CloudFront |
-| mobile (예정) | APK/IPA | App Store, Play Store |
-| desktop (예정) | .exe/.dmg | GitHub Releases |
 
 ---
 
-## 📚 문서
+## 🔧 API 레퍼런스
 
-| 문서 | 경로 | 설명 |
-|------|------|------|
-| **개발 가이드** | [docs/pms/getting-started.md](docs/pms/getting-started.md) | 개발 환경 설정 가이드 |
-| **진행 상황** | [docs/pms/planning/backlog.md](docs/pms/planning/backlog.md) | Phase별 태스크 및 완료 현황 |
-| **UI 설계** | [docs/pms/design/README.md](docs/pms/design/README.md) | 페이지 레이아웃, 보안, 디자인 시스템 |
-| **디자인 시스템** | [docs/pms/design/design-system.md](docs/pms/design/design-system.md) | 타이포그래피, 색상, 버튼 표준 |
-| 서비스 정의 | [docs/README.md](docs/README.md) | 서비스 컨셉, 핵심 개념, MVP 로드맵 |
-| DB 설계 규칙 | [docs/pms/guides/rules.md](docs/pms/guides/rules.md) | 테이블 네이밍, 컬럼 규칙 |
-| DB 가이드 | [docs/pms/guides/database-guide.md](docs/pms/guides/database-guide.md) | 데이터베이스 사용 가이드 |
-| 업무 흐름 | [docs/pms/domain/workflows/](docs/pms/domain/workflows/) | 프로젝트 라이프사이클, 인증 흐름 등 |
-| 액션 명세 | [docs/pms/domain/actions/](docs/pms/domain/actions/) | 로그인, 프로젝트 관리 등 상세 명세 |
+### 파일 작업
+
+<details>
+<summary><code>POST /api/file</code> - 파일 CRUD</summary>
+
+```typescript
+{
+  action: 'read' | 'write' | 'delete' | 'rename',
+  path: string,
+  content?: string,    // write 시 필요
+  newPath?: string     // rename 시 필요
+}
+```
+</details>
+
+<details>
+<summary><code>GET /api/files</code> - 파일 목록</summary>
+
+```typescript
+// Response
+interface FileNode {
+  name: string;
+  type: 'file' | 'directory';
+  path: string;
+  children?: FileNode[];
+}
+```
+</details>
+
+### AI 검색
+
+<details>
+<summary><code>POST /api/search</code> - Vector 검색</summary>
+
+```typescript
+{
+  query: string,      // 검색 쿼리
+  limit?: number      // 결과 개수 (기본값: 5)
+}
+```
+</details>
+
+<details>
+<summary><code>POST /api/ask</code> - AI 답변 생성</summary>
+
+```typescript
+{
+  question: string,   // 질문
+  limit?: number      // 참고 문서 개수 (기본값: 5)
+}
+```
+</details>
+
+<details>
+<summary><code>POST /api/index</code> - 문서 인덱싱</summary>
+
+```typescript
+{
+  reindex?: boolean   // 전체 재인덱싱 여부
+}
+```
+</details>
+
+### 버전 관리
+
+<details>
+<summary><code>GET /api/versions</code> - 버전 히스토리</summary>
+
+```typescript
+// 버전 목록
+GET /api/versions?filePath=...
+
+// 특정 버전 조회
+GET /api/versions?filePath=...&versionId=...
+
+// 버전 비교
+GET /api/versions?filePath=...&versionId=...&compareWith=...
+```
+</details>
+
+### 댓글
+
+<details>
+<summary><code>/api/comments</code> - 댓글 CRUD</summary>
+
+```typescript
+// 조회
+GET /api/comments?filePath=...
+GET /api/comments?filePath=...&asTree=true
+
+// 생성
+POST /api/comments
+{
+  filePath: string,
+  author: string,
+  content: string,
+  parentId?: string   // 답글인 경우
+}
+
+// 수정
+PUT /api/comments
+{
+  filePath: string,
+  commentId: string,
+  content: string
+}
+
+// 삭제
+DELETE /api/comments?filePath=...&commentId=...
+```
+</details>
+
+### 사용자 관리
+
+<details>
+<summary><code>/api/users</code> - 사용자 CRUD</summary>
+
+```typescript
+// 조회
+GET /api/users                    // 전체 목록
+GET /api/users?id=...             // 특정 사용자
+GET /api/users?activity=true      // 활동 로그
+
+// 생성/로그인
+POST /api/users
+{
+  action?: 'login',
+  username: string,
+  displayName?: string,
+  email?: string,
+  role?: 'admin' | 'editor' | 'viewer'
+}
+
+// 수정
+PUT /api/users
+{ id: string, ...updates }
+
+// 삭제
+DELETE /api/users?id=...
+```
+</details>
+
+### Git 연동
+
+<details>
+<summary><code>/api/git</code> - Git 작업</summary>
+
+```typescript
+// 상태 조회
+GET /api/git?action=status        // 변경 파일
+GET /api/git?action=log&limit=20  // 커밋 히스토리
+GET /api/git?action=diff          // 변경 내용
+GET /api/git?action=branch        // 브랜치 목록
+GET /api/git?action=remote        // 리모트 설정
+
+// 작업 실행
+POST /api/git
+{
+  action: 'add' | 'commit' | 'push' | 'pull' | 'checkout' | 'init',
+  message?: string,
+  files?: string[],
+  branch?: string
+}
+```
+</details>
+
+### 텍스트 검색
+
+<details>
+<summary><code>GET /api/text-search</code> - 파일 내용 검색</summary>
+
+```typescript
+GET /api/text-search?q=검색어&caseSensitive=false&limit=20
+
+// Response
+{
+  success: true,
+  query: string,
+  results: [{
+    filePath: string,
+    fileName: string,
+    matches: [{
+      line: number,
+      content: string,
+      highlight: string    // **검색어** 형식으로 하이라이트
+    }],
+    totalMatches: number
+  }],
+  totalFiles: number,
+  totalMatches: number
+}
+```
+</details>
+
+### 템플릿
+
+<details>
+<summary><code>/api/templates</code> - 마크다운 템플릿</summary>
+
+```typescript
+// 전체 템플릿 목록 (카테고리별)
+GET /api/templates
+
+// 특정 템플릿 조회
+GET /api/templates?id=meeting-notes
+
+// 카테고리별 조회
+GET /api/templates?category=meeting
+
+// 템플릿 적용 (변수 치환)
+POST /api/templates
+{
+  templateId: string,
+  variables?: Record<string, string>
+}
+```
+</details>
+
+### 태그
+
+<details>
+<summary><code>/api/tags</code> - 태그 시스템</summary>
+
+```typescript
+// 전체 태그 목록
+GET /api/tags
+
+// 파일의 태그 조회
+GET /api/tags?filePath=...
+
+// 태그별 파일 목록
+GET /api/tags?tagId=...
+
+// 태그 통계
+GET /api/tags?stats=true
+
+// 태그 생성
+POST /api/tags
+{ name: string, color: string, description?: string }
+
+// 파일에 태그 추가
+POST /api/tags
+{ action: 'addToFile', filePath: string, tagId: string }
+
+// 파일 태그 설정 (복수)
+POST /api/tags
+{ action: 'setFileTags', filePath: string, tagIds: string[] }
+
+// 태그 수정
+PUT /api/tags
+{ id: string, name?: string, color?: string, description?: string }
+
+// 태그 삭제
+DELETE /api/tags?id=...
+
+// 파일에서 태그 제거
+DELETE /api/tags?filePath=...&tagId=...
+```
+</details>
+
+### 플러그인
+
+<details>
+<summary><code>/api/plugins</code> - 플러그인 관리</summary>
+
+```typescript
+// 전체 플러그인 목록
+GET /api/plugins
+
+// 특정 플러그인 조회
+GET /api/plugins?id=word-count
+
+// 훅 실행
+POST /api/plugins
+{
+  action: 'executeHook',
+  hook: 'onContentChange',
+  context: { content: string, filePath?: string }
+}
+
+// 플러그인 활성화/비활성화
+POST /api/plugins
+{ action: 'setEnabled', pluginId: string, enabled: boolean }
+
+// 플러그인 순서 변경
+POST /api/plugins
+{ action: 'setOrder', pluginId: string, order: number }
+```
+
+**기본 제공 플러그인:**
+| ID | 이름 | 설명 |
+|----|------|------|
+| word-count | 단어 수 카운터 | 단어/문자/줄 수 표시 |
+| reading-time | 읽기 시간 | 예상 읽기 시간 계산 |
+| toc | 목차 추출 | 헤딩 기반 목차 생성 |
+| link-extractor | 링크 추출 | 문서 내 링크 목록 |
+| code-stats | 코드 통계 | 코드 블록 통계 |
+</details>
+
+### 권한 관리 (RBAC)
+
+<details>
+<summary><code>/api/permissions</code> - 역할 기반 접근 제어</summary>
+
+```typescript
+// 역할 목록 조회
+GET /api/permissions?action=roles
+
+// 특정 역할 상세 조회
+GET /api/permissions?action=role&roleId=editor
+
+// 사용자 역할 조회
+GET /api/permissions?action=userRole&userId=...
+
+// 사용자 권한 요약
+GET /api/permissions?action=summary&userId=...
+
+// 권한 검사
+GET /api/permissions?action=check&userId=...&resourceType=file&resourceAction=update&resourceId=...
+
+// 허용된 액션 목록
+GET /api/permissions?action=allowedActions&userId=...&resourceType=file
+
+// 리소스 권한 조회
+GET /api/permissions?action=resourcePermissions&resourceType=file&resourceId=...
+
+// 그룹 목록
+GET /api/permissions?action=groups
+
+// 감사 로그
+GET /api/permissions?action=auditLogs&limit=50
+
+// 역할 할당
+POST /api/permissions
+{ action: 'assignRole', userId, role, assignedBy, expiresAt? }
+
+// 역할 회수
+POST /api/permissions
+{ action: 'revokeRole', userId, revokedBy }
+
+// 리소스 권한 부여
+POST /api/permissions
+{
+  action: 'grantPermission',
+  resourceType, resourceId,
+  principalType: 'user' | 'role' | 'group',
+  principalId, actions, grantedBy,
+  scope?, expiresAt?, inheritFromParent?
+}
+
+// 리소스 권한 회수
+POST /api/permissions
+{ action: 'revokePermission', resourceType, resourceId, principalType, principalId, revokedBy }
+
+// 그룹 생성
+POST /api/permissions
+{ action: 'createGroup', groupId, name, createdBy, description? }
+
+// 그룹 삭제
+POST /api/permissions
+{ action: 'deleteGroup', groupId, deletedBy }
+```
+
+**역할 계층:**
+| 역할 | 우선순위 | 설명 |
+|------|----------|------|
+| 👑 admin | 100 | 모든 권한 |
+| 🔧 manager | 80 | 팀 관리 권한 |
+| ✏️ editor | 60 | 문서 편집 권한 |
+| 👁️ viewer | 40 | 읽기 전용 |
+| 👤 guest | 20 | 공개 문서만 접근 |
+
+**권한 범위:**
+- `own`: 본인이 생성한 리소스만
+- `team`: 같은 팀 내 리소스
+- `all`: 모든 리소스
+</details>
+
+### 알림 시스템
+
+<details>
+<summary><code>/api/notifications</code> - 알림 관리</summary>
+
+```typescript
+// 알림 목록 조회
+GET /api/notifications?userId=...&limit=50&unreadOnly=false
+
+// 통계 조회
+GET /api/notifications?userId=...&action=stats
+
+// 설정 조회
+GET /api/notifications?userId=...&action=preferences
+
+// 알림 생성
+POST /api/notifications
+{
+  action: 'create',
+  type: 'document_changed' | 'comment_added' | 'mention' | ...,
+  title: string,
+  message: string,
+  recipientId: string,
+  channels?: ['in_app', 'email', 'teams']
+}
+
+// 읽음 처리
+POST /api/notifications
+{ action: 'markAsRead', notificationId: string }
+
+// 모든 알림 읽음
+POST /api/notifications
+{ action: 'markAllAsRead', userId: string }
+
+// 설정 업데이트
+POST /api/notifications
+{
+  action: 'updatePreferences',
+  userId: string,
+  preferences: {
+    channels: { in_app: boolean, email: boolean, teams: boolean },
+    email?: { address: string, digestFrequency: 'instant' | 'daily' },
+    teams?: { webhookUrl: string }
+  }
+}
+
+// 테스트 이메일 전송
+POST /api/notifications
+{ action: 'testEmail', email: string }
+
+// 테스트 Teams 메시지 전송
+POST /api/notifications
+{ action: 'testTeams', webhookUrl?: string }
+```
+
+**알림 유형:**
+| 유형 | 설명 |
+|------|------|
+| document_changed | 문서 변경됨 |
+| comment_added | 새 댓글 |
+| comment_reply | 댓글 답글 |
+| mention | 멘션됨 |
+| collaboration_invite | 협업 초대 |
+| permission_changed | 권한 변경 |
+| system | 시스템 알림 |
+
+**환경 변수 설정:**
+```bash
+# 이메일 (SMTP)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=user@example.com
+SMTP_PASS=password
+SMTP_FROM_ADDRESS=noreply@example.com
+SMTP_FROM_NAME=LSWiki
+
+# Microsoft Teams
+TEAMS_WEBHOOK_URL=https://outlook.office.com/webhook/...
+```
+</details>
+
+### 실시간 협업
+
+<details>
+<summary><code>/api/collaborate</code> - 공동 편집</summary>
+
+```typescript
+// 세션 상태 조회
+GET /api/collaborate?filePath=...
+
+// 활성 세션 목록
+GET /api/collaborate?listActive=true
+
+// 세션 참가
+POST /api/collaborate
+{ action: 'join', filePath, userId, userName, content }
+
+// 세션 나가기
+POST /api/collaborate
+{ action: 'leave', filePath, userId }
+
+// 커서 업데이트
+POST /api/collaborate
+{ action: 'updateCursor', filePath, userId, position, selection? }
+
+// 편집 작업
+POST /api/collaborate
+{ action: 'operation', filePath, userId, type, position, content?, length? }
+
+// 콘텐츠 동기화
+POST /api/collaborate
+{ action: 'sync', filePath, userId, content }
+```
+</details>
 
 ---
 
 ## 🎨 디자인 시스템
 
-> 일관된 UI/UX를 위한 디자인 표준
+### 테마
 
-### 타이포그래피
+| 모드 | 설명 |
+|------|------|
+| Light | 밝은 테마 (기본값) |
+| Dark | 어두운 테마 |
+| System | 시스템 설정 따름 |
 
-| 레벨 | 크기 | 가중치 | 용도 | 클래스명 |
-|------|------|----------|------|----------|
-| **H1** | 28px | Bold | 페이지 제목 | `heading-1` |
-| **H2** | 24px | Semibold | 섹션 제목 | `heading-2` |
-| **H3** | 20px | Semibold | 하위 제목 | `heading-3` |
-| **Body** | 14px | Regular | 본문 | `body-text` |
+```typescript
+// 테마 사용법
+import { useTheme } from '@/contexts/ThemeContext';
 
-### 아이콘 크기
+const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme();
+```
 
-각 텍스트 레벨에 맞는 아이콘 크기를 사용합니다:
-- H1용: `icon-h1` (28px)
-- H2용: `icon-h2` (24px)
-- H3용: `icon-h3` (20px)
-- Body용: `icon-body` (16px)
+### 색상 팔레트
+DELETE /api/tags?id=...
 
-### 버튼 색상 체계
-
-| 변형 | 색상 | 용도 |
-|------|------|------|
-| **Primary** | 파란색 | 생성, 저장, 확인 등 주요 액션 |
-| **Secondary** | 회색 | 취소, 닫기, 일반 작업 |
-| **Outline** | 테두리 | 필터, 정렬 등 보조 액션 |
-| **Destructive** | 빨간색 | 삭제, 위험한 작업 |
-
-**표준 버튼 높이**: 40px (`h-button-h`)
-
-### 관련 문서
-
-- [디자인 시스템 가이드](docs/pms/ui-design/design-system.md) - 상세 가이드 및 코드 예시
-- [UI Design 문서](docs/pms/ui-design/README.md) - 전체 UI 설계 문서
+// 파일에서 태그 제거
+DELETE /api/tags?filePath=...&tagId=...
+```
+</details>
 
 ---
 
-## 🔐 인증 시스템
+## 🎨 디자인 시스템
 
-### 구현된 기능
+### 색상 팔레트
 
-| 기능 | 설명 | 상태 |
-|------|------|------|
-| **로그인** | ID/Password 기반 JWT 인증 | ✅ 완료 |
-| **토큰 갱신** | Access Token 만료 시 자동 Refresh | ✅ 완료 |
-| **로그아웃** | 서버/클라이언트 토큰 초기화 | ✅ 완료 |
-| **계정 잠금** | 5회 로그인 실패 시 30분 잠금 | ✅ 완료 |
+| 용도 | 색상 | Tailwind |
+|------|------|----------|
+| 성공 | 🟢 녹색 | `green-500`, `green-600` |
+| 경고 | 🟡 노란색 | `yellow-500` |
+| 오류 | 🔴 빨간색 | `red-500` |
+| 정보 | 🔵 파란색 | `blue-500`, `blue-600` |
+| 중성 | ⚪ 회색 | `gray-200` ~ `gray-500` |
 
-### 토큰 설정
+### 컴포넌트 규칙
 
-| 토큰 | 만료 시간 | 용도 |
-|------|----------|------|
-| Access Token | 15분 | API 요청 인증 |
-| Refresh Token | 7일 | Access Token 갱신 |
-
-### 테스트 계정
-
-```
-ID: admin
-PW: admin123!
-Role: admin
-```
-
-### 관련 문서
-
-- [사용자 인증 워크플로우](docs/pms/domain/workflows/user_authentication.md)
-- [로그인 액션 상세](docs/pms/domain/actions/user_login.md)
+| 속성 | 값 |
+|------|-----|
+| 곡률 | `rounded-md` |
+| 패딩 | `p-6` (컨테이너) |
+| 간격 | `gap-2` (버튼), `mb-4` (섹션) |
+| 제목 | `text-2xl font-bold` |
+| 본문 | `text-sm` |
 
 ---
 
 ## 🔮 로드맵
 
-| 단계 | 목표 | 상태 |
-|------|------|------|
-| **MVP-0** | 마스터 허브 (Customer/Project/User) | 🔄 진행 중 |
-| **MVP-1** | 상태/단계 + 전환/종료 이벤트 | ⏳ 예정 |
-| **MVP-2** | 핸드오프 트랙/로그 | ⏳ 예정 |
-| **MVP-3** | 산출물/종료조건 | ⏳ 예정 |
-| **MVP-4** | 태스크/이슈/리스크 + 자동 리포트 | ⏳ 예정 |
+### Phase 1: 고도화 기능 ✅
+
+- [x] 블록 기반 에디터 (Tiptap)
+- [x] 마크다운 파일 업로드
+- [x] Vector 검색 엔진 (LanceDB + Gemini)
+- [x] AI 답변 생성 (RAG)
+
+### Phase 2: 협업 기능 ✅
+
+- [x] 다중 사용자 지원 (로컬 세션)
+- [x] 버전 관리 (Git 연동)
+- [x] 버전 히스토리 (로컬)
+- [x] 댓글 시스템
+
+> ✅ **사내 GitLab 사용 중**
+> 현재 Git 연동은 사내 GitLab 서버를 사용하고 있습니다.
+> - **저장소**: `http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git`
+> - `/api/git` 엔드포인트를 통해 add, commit, push, pull 등의 작업을 수행할 수 있습니다.
+
+### Phase 3: 확장 기능 ✅
+
+- [x] 파일 내용 검색 (텍스트 검색)
+- [x] 마크다운 템플릿 (10종)
+- [x] 태그 시스템
+
+### Phase 4: 고급 기능 ✅
+
+- [x] 테마 커스터마이징 (다크/라이트/시스템)
+- [x] 플러그인 시스템 (5개 기본 플러그인)
+- [x] 실시간 공동 편집 (협업 세션)
+
+### Phase 5: 확장 및 통합 (진행중)
+
+- [x] 알림 시스템 (이메일/Microsoft Teams)
+- [x] 권한 관리 고도화 (RBAC)
+- [ ] 모바일 앱 (PWA)
+- [ ] 외부 스토리지 연동 (S3, Azure Blob)
 
 ---
 
-## 📝 라이센스
+## 🤝 기여하기
 
-Private - 내부 사용 전용
+1. 이 저장소를 **Fork** 합니다
+2. 기능 브랜치를 생성합니다
+   ```bash
+   git checkout -b feature/AmazingFeature
+   ```
+3. 변경사항을 커밋합니다
+   ```bash
+   git commit -m 'Add some AmazingFeature'
+   ```
+4. 브랜치에 푸시합니다
+   ```bash
+   git push origin feature/AmazingFeature
+   ```
+5. **Pull Request**를 생성합니다
+
+---
+
+## 📄 관련 문서
+
+| 문서 | 설명 |
+|------|------|
+| [개발 표준 가이드](./DEVELOPMENT_STANDARDS.md) | 코딩 규칙과 프로젝트 구조 |
+| [API 문서](./docs/development/api.md) | REST API 명세와 사용 예제 |
+| [컴포넌트 가이드](./docs/development/components.md) | UI 컴포넌트 상세 문서 |
+| [디자인 시스템](./docs/development/design-system.md) | 색상, 타이포그래피, 레이아웃 |
+| [배포 가이드](./docs/development/deployment.md) | 다양한 플랫폼 배포 방법 |
+
+---
+
+## 📝 라이선스
+
+이 프로젝트는 **MIT 라이선스** 하에 있습니다.
+자세한 내용은 [LICENSE](./LICENSE) 파일을 참조하세요.
+
+---
+
+<p align="center">
+  <strong>Made with ❤️ and Next.js 16.0</strong>
+</p>
+
+<p align="center">
+  <a href="http://10.125.31.72:8010/LSITC_WEB/LSWIKI">
+    <img src="https://img.shields.io/badge/GitLab-LSWIKI-orange?style=for-the-badge&logo=gitlab" alt="GitLab" />
+  </a>
+</p>

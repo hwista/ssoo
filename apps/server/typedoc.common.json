@@ -1,5 +1,0 @@
-{
-  "extends": "./typedoc.json",
-  "entryPoints": ["src/modules/common"],
-  "out": "../../docs/common/reference/typedoc/server"
-}
