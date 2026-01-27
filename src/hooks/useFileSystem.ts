@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { FileNode } from '@/types';
-import { fileSystemService } from '@/services';
+import { fileSystemService } from '@/server/services';
 import { logger } from '@/lib/utils/errorUtils';
 
 export interface UseFileSystemOptions {

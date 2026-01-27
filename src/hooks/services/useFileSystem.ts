@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { fileSystemService, type ServiceResult, type GetTreeOptions } from '@/services';
+import { fileSystemService, type ServiceResult, type GetTreeOptions } from '@/server/services';
 import type { FileNode } from '@/types';
 
 export interface UseFileSystemState {

@@ -28,12 +28,6 @@
       ],
       "@/server/*": [
         "./server/*"
-      ],
-      "@/services": [
-        "./services/index.ts"
-      ],
-      "@/services/*": [
-        "./services/*"
       ]
     }
   },
