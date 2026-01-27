@@ -1,0 +1,183 @@
+# DMS 패키지 명세서
+
+> 📅 기준일: 2026-01-27  
+> 📦 패키지명: `markdown-wiki` v0.1.0
+
+---
+
+## 1. 개요
+
+| 항목 | 값 |
+|------|-----|
+| **프로젝트명** | markdown-wiki |
+| **경로** | `apps/web/dms/` |
+| **용도** | 문서 관리 시스템 (Document Management System) |
+| **포트** | 3001 |
+| **원본 저장소** | GitLab `http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git` |
+
+---
+
+## 2. 코어 프레임워크
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `next` | ^15.1.0 | React 프레임워크 (App Router) |
+| `react` | 19.2.0 | UI 라이브러리 |
+| `react-dom` | 19.2.0 | React DOM 렌더링 |
+| `typescript` | ^5 | 타입 시스템 |
+
+---
+
+## 3. UI 컴포넌트
+
+### 3.1 디자인 시스템
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `tailwindcss` | ^3.4.0 | 유틸리티 CSS |
+| `tailwind-merge` | ^2.6.0 | 클래스 병합 유틸리티 |
+| `tailwind-variants` | ^3.1.1 | Tailwind 변형 관리 |
+| `class-variance-authority` | ^0.7.1 | 컴포넌트 변형 관리 |
+| `clsx` | ^2.1.1 | 조건부 클래스 결합 |
+
+### 3.2 MUI (Material UI)
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `@mui/material` | ^7.3.4 | 핵심 UI 컴포넌트 |
+| `@mui/lab` | ^7.0.1-beta.18 | 실험적 컴포넌트 |
+| `@mui/x-tree-view` | ^8.15.0 | 트리 뷰 컴포넌트 |
+| `@emotion/react` | ^11.14.0 | MUI 스타일 엔진 |
+| `@emotion/styled` | ^11.14.1 | MUI 스타일 컴포넌트 |
+
+### 3.3 Fluent UI
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `@fluentui/react` | ^8.125.1 | Fluent UI v8 |
+| `@fluentui/react-components` | ^9.72.7 | Fluent UI v9 |
+
+### 3.4 아이콘
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `lucide-react` | ^0.548.0 | 아이콘 라이브러리 |
+
+---
+
+## 4. 리치 텍스트 에디터 (Tiptap)
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `@tiptap/react` | ^3.16.0 | React 바인딩 |
+| `@tiptap/starter-kit` | ^3.16.0 | 기본 에디터 번들 |
+| `@tiptap/pm` | ^3.16.0 | ProseMirror 코어 |
+| `@tiptap/suggestion` | ^3.16.0 | 슬래시 명령어 |
+| `@tiptap/extension-code-block-lowlight` | ^3.16.0 | 코드 하이라이트 |
+| `@tiptap/extension-highlight` | ^3.16.0 | 텍스트 하이라이트 |
+| `@tiptap/extension-image` | ^3.16.0 | 이미지 삽입 |
+| `@tiptap/extension-link` | ^3.16.0 | 링크 처리 |
+| `@tiptap/extension-placeholder` | ^3.16.0 | 플레이스홀더 |
+| `@tiptap/extension-table` | ^3.16.0 | 테이블 기본 |
+| `@tiptap/extension-table-cell` | ^3.16.0 | 테이블 셀 |
+| `@tiptap/extension-table-header` | ^3.16.0 | 테이블 헤더 |
+| `@tiptap/extension-table-row` | ^3.16.0 | 테이블 행 |
+| `@tiptap/extension-task-item` | ^3.16.0 | 체크리스트 항목 |
+| `@tiptap/extension-task-list` | ^3.16.0 | 체크리스트 |
+| `lowlight` | ^3.3.0 | 코드 구문 강조 |
+| `tippy.js` | ^6.3.7 | 툴팁 (에디터 메뉴) |
+
+---
+
+## 5. 마크다운 처리
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `marked` | ^17.0.1 | 마크다운 파서 |
+| `react-markdown` | ^10.1.0 | 마크다운 렌더링 |
+| `remark-gfm` | ^4.0.1 | GitHub Flavored Markdown |
+| `turndown` | ^7.2.2 | HTML → 마크다운 변환 |
+
+---
+
+## 6. AI / Vector 검색 (RAG)
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `@google/generative-ai` | ^0.24.1 | Google Gemini API |
+| `@lancedb/lancedb` | ^0.23.0 | 벡터 데이터베이스 |
+
+---
+
+## 7. 파일 처리 & 서버
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `formidable` | ^3.5.4 | 파일 업로드 파싱 |
+| `multer` | ^2.0.2 | 멀티파트 파일 업로드 |
+| `chokidar` | ^4.0.3 | 파일 시스템 감시 |
+| `nodemailer` | ^7.0.12 | 이메일 발송 |
+
+---
+
+## 8. 내부 패키지
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| (없음) | - | 모노레포 패키지 미연동 |
+
+---
+
+## 9. 개발 의존성
+
+| 패키지 | 버전 | 용도 |
+|--------|------|------|
+| `eslint` | ^9 | 코드 린팅 |
+| `eslint-config-next` | ^15.1.0 | Next.js ESLint 설정 |
+| `autoprefixer` | ^10.4.21 | CSS 벤더 프리픽스 |
+| `postcss` | ^8.5.6 | CSS 후처리 |
+| `@tailwindcss/typography` | ^0.5.19 | 타이포그래피 플러그인 |
+
+---
+
+## 10. 스크립트
+
+```json
+{
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start"
+}
+```
+
+> ✅ Next.js 15.x로 다운그레이드 후 `--webpack` 플래그 불필요
+
+---
+
+## 11. 알려진 이슈
+
+### 11.1 잘못된 CSS Import
+
+```css
+/* globals.css Line 1 - 404 에러 */
+@import url('https://unpkg.com/@fluentui/react-components/dist/fluentui.css');
+```
+
+Fluent UI v9는 CSS-in-JS 방식이므로 이 import는 작동하지 않음.
+
+### 11.2 UI 라이브러리 혼용
+
+- **MUI** (Material UI v7)
+- **Fluent UI** v8 + v9
+- **Tailwind CSS**
+
+3개의 UI 시스템이 혼용되어 있어 스타일 충돌 가능성 있음.
+
+---
+
+## 변경 이력
+
+| 날짜 | 내용 |
+|------|------|
+| 2026-01-27 | 초기 작성 - GitLab subtree 기준 |
+| 2026-01-27 | PMS 호환성을 위해 다운그레이드: Next.js 16→15, tailwind-merge 3→2 |
