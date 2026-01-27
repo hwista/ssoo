@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { WikiContextType, CreateFileParams, RenamingState, CreateModalState, ContextMenuState } from '@/types/wiki';
 import { FileNode } from '@/types';
 import { useFileSystem } from '@/hooks/services/useFileSystem';
-import { useNotification } from '@/contexts/NotificationContext';
+import { useToast } from '@/lib/toast';
 import { fileApi, getErrorMessage } from '@/lib/utils/apiClient';
 import { logger, safeAsync, PerformanceTimer } from '@/lib/utils/errorUtils';
 
@@ -24,7 +24,7 @@ export const useWikiContext = (): WikiContextType => {
 export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 서비스 레이어 및 기존 훅 사용
   const { files, refreshFileTree, loadFileTree } = useFileSystem();
-  const { showSuccess, showError } = useNotification();
+  const { showSuccess, showError } = useToast();
 
   // 상태 정의
   const [content, setContent] = useState('');

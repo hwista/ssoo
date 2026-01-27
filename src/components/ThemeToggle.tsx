@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   WeatherSunny24Regular,
   WeatherMoon24Regular,
   Desktop24Regular,
   ChevronDown24Regular
 } from '@fluentui/react-icons';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useThemeStore } from '@/stores/theme-store';
 
 interface ThemeToggleProps {
   showLabel?: boolean;
@@ -15,8 +15,13 @@ interface ThemeToggleProps {
 }
 
 export default function ThemeToggle({ showLabel = false, compact = false }: ThemeToggleProps) {
-  const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme, toggleTheme, initializeTheme } = useThemeStore();
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // 초기화
+  useEffect(() => {
+    initializeTheme();
+  }, [initializeTheme]);
 
   const themeOptions = [
     { value: 'light', label: '라이트', icon: WeatherSunny24Regular },

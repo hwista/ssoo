@@ -3,8 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { WikiProvider, useWikiContext } from '@/contexts/WikiContext';
 import { TreeDataProvider, useTreeDataContext } from '@/contexts/TreeDataContext';
-import { NotificationProvider } from '@/contexts/NotificationContext';
-import NotificationContainer from '@/components/NotificationContainer';
 import WikiSidebar from '@/components/WikiSidebar';
 import WikiEditor from '@/components/WikiEditor';
 import WikiModals from '@/components/WikiModals';
@@ -133,9 +131,6 @@ const WikiAppWithTreeData: React.FC<{
 
       {/* 모달 컨테이너 */}
       <WikiModals />
-
-      {/* 알림 컨테이너 */}
-      <NotificationContainer />
     </div>
   );
 };
@@ -168,15 +163,13 @@ const WikiApp: React.FC<WikiAppProps> = () => {
   });
 
   return (
-    <NotificationProvider>
-      <WikiProvider>
-        <WikiAppContent
-          sidebarWidth={sidebarWidth}
-          isResizing={isResizing}
-          resizerProps={resizerProps}
-        />
-      </WikiProvider>
-    </NotificationProvider>
+    <WikiProvider>
+      <WikiAppContent
+        sidebarWidth={sidebarWidth}
+        isResizing={isResizing}
+        resizerProps={resizerProps}
+      />
+    </WikiProvider>
   );
 };
 

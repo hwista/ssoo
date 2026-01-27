@@ -1,11 +1,11 @@
 import React from 'react';
 import { Card, Text, Input, Button, Spinner } from '@fluentui/react-components';
 import { ChatHelp24Regular } from '@fluentui/react-icons';
-import { useGeminiChat } from '@/contexts/GeminiChatContext';
+import { useGeminiStore } from '@/stores/gemini-store';
 import { useResize } from '@/hooks/useResize';
 
 const GeminiChat: React.FC = () => {
-  const { question, setQuestion, answer, setAnswer, loading, setLoading } = useGeminiChat();
+  const { question, setQuestion, answer, setAnswer, loading, setLoading } = useGeminiStore();
   const { size: responseHeight, isResizing, resizerProps } = useResize({
     initial: 200,
     min: 100,
