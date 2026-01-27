@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Button, ButtonProps } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { useTreeDataContext } from '@/contexts/TreeDataContext';
 import TreeComponent from '@/components/TreeComponent';
 import CreateFileModal from '@/components/CreateFileModal';
 import { useMessage } from '@/hooks/useMessage';
-import { logger } from '@/utils/errorUtils';
+import { logger } from '@/lib/utils/errorUtils';
 import type { FileNode } from '@/types';
 import { WikiSidebarProps } from '@/types/components';
 

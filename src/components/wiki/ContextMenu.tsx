@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 import React, { memo } from 'react';
 import { ContextMenuState, FileType } from '@/types';
-import { logger } from '@/utils/errorUtils';
+import { logger } from '@/lib/utils/errorUtils';
 
 interface ContextMenuProps {
   contextMenu: ContextMenuState | null;

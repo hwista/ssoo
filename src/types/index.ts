@@ -71,4 +71,4 @@ export type {
 } from './common';
 
 // 기존 errorUtils 타입들도 re-export (일관성을 위해)
-export type { LogLevel, ErrorContext } from '../utils/errorUtils';
+export type { LogLevel, ErrorContext } from '@/lib/utils/errorUtils';

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useTreeData - 트리 구조 데이터 관리를 위한 커스텀 훅
  * 
  * 기능:
@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { FileNode } from '@/types';
-import { logger } from '@/utils/errorUtils';
+import { logger } from '@/lib/utils/errorUtils';
 
 export interface UseTreeDataOptions {
   initialExpandedFolders?: Set<string>;

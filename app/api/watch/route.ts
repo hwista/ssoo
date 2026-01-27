@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import * as chokidar from 'chokidar';
 import path from 'path';
-import { logger } from '@/utils/errorUtils';
+import { logger } from '@/lib/utils/errorUtils';
 
 const ROOT_DIR = path.join(process.cwd(), "docs");
 

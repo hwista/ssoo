@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -9,8 +9,8 @@ import { BlockEditor, BlockEditorRef } from '@/components/editor';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useWikiContext } from '@/contexts/WikiContext';
 import { useTreeDataContext } from '@/contexts/TreeDataContext';
-import { logger } from '@/utils/errorUtils';
-import { isMarkdownFile } from '@/utils/fileUtils';
+import { logger } from '@/lib/utils/errorUtils';
+import { isMarkdownFile } from '@/lib/utils/fileUtils';
 import { WikiEditorProps } from '@/types/components';
 import { useEditor } from '@/hooks/useEditor';
 

@@ -1,12 +1,12 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { WikiContextType, CreateFileParams, RenamingState, CreateModalState, ContextMenuState } from '@/types/wiki';
 import { FileNode } from '@/types';
 import { useFileSystem } from '@/hooks/services/useFileSystem';
 import { useNotification } from '@/contexts/NotificationContext';
-import { fileApi, getErrorMessage } from '@/utils/apiClient';
-import { logger, safeAsync, PerformanceTimer } from '@/utils/errorUtils';
+import { fileApi, getErrorMessage } from '@/lib/utils/apiClient';
+import { logger, safeAsync, PerformanceTimer } from '@/lib/utils/errorUtils';
 
 // Context 생성
 const WikiContext = createContext<WikiContextType | null>(null);

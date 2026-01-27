@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
-import { normalizePath } from '@/utils/pathUtils';
-import { logger } from '@/utils/errorUtils';
+import { normalizePath } from '@/lib/utils/pathUtils';
+import { logger } from '@/lib/utils/errorUtils';
 import type { FileNode } from '@/types';
 import { Button } from '@fluentui/react-components';
 

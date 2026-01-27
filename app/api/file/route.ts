@@ -1,7 +1,7 @@
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
-import { normalizeMarkdownFileName } from "@/utils/fileUtils";
-import { logger, PerformanceTimer } from "@/utils/errorUtils";
+import { normalizeMarkdownFileName } from "@/lib/utils/fileUtils";
+import { logger, PerformanceTimer } from "@/lib/utils/errorUtils";
 import { saveVersion } from "@/lib/versionHistory";
 
 const ROOT_DIR = path.join(process.cwd(), "docs", "wiki");

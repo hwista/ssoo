@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 import { useState, useCallback } from 'react';
 import { FileNode, FileType } from '@/types';
-import { filesApi, fileApi, getErrorMessage } from '@/utils/apiClient';
-import { logger, PerformanceTimer } from '@/utils/errorUtils';
+import { filesApi, fileApi, getErrorMessage } from '@/lib/utils/apiClient';
+import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 
 export const useFileOperations = () => {
   const [treeData, setTreeData] = useState<FileNode[]>([]);

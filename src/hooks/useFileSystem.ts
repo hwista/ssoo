@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useFileSystem - 파일 시스템 관련 로직을 관리하는 커스텀 훅
  * 
  * 기능:
@@ -13,7 +13,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { FileNode } from '@/types';
 import { fileSystemService } from '@/services';
-import { logger } from '@/utils/errorUtils';
+import { logger } from '@/lib/utils/errorUtils';
 
 export interface UseFileSystemOptions {
   onSuccess?: (message: string) => void;

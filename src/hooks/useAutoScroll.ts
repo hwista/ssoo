@@ -1,5 +1,5 @@
-import { useCallback, useState, useRef, useEffect } from 'react';
-import { logger } from '@/utils/errorUtils';
+﻿import { useCallback, useState, useRef, useEffect } from 'react';
+import { logger } from '@/lib/utils/errorUtils';
 
 export interface UseAutoScrollOptions {
   /** 스크롤 동기화 활성화 여부 */

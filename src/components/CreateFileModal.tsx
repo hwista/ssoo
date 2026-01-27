@@ -1,12 +1,12 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { FileNode } from '@/types';
 import TreeComponent from './TreeComponent';
 import MessageModal from './MessageModal';
 import { useMessage } from '@/hooks/useMessage';
-import { normalizePath } from '@/utils/pathUtils';
-import { logger } from '@/utils/errorUtils';
+import { normalizePath } from '@/lib/utils/pathUtils';
+import { logger } from '@/lib/utils/errorUtils';
 import { Button, Input, Dropdown, Option, Card, Text } from '@fluentui/react-components';
 
 interface CreateFileModalProps {

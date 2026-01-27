@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useEditor - 에디터 상태 및 기능을 관리하는 커스텀 훅
  * 
  * 기능:
@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { logger } from '@/utils/errorUtils';
+import { logger } from '@/lib/utils/errorUtils';
 
 export interface EditorCursorPosition {
   line: number;
