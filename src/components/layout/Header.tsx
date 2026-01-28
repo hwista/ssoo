@@ -52,7 +52,7 @@ export function Header() {
   }, [openTab]);
 
   return (
-    <header className="h-[60px] flex items-center justify-between px-4 bg-[#003366]">
+    <header className="h-header-h flex items-center justify-between px-4 bg-ssoo-primary">
       {/* 왼쪽: AI 검색 */}
       <div className="flex items-center flex-1 max-w-md gap-2">
         <div className="relative flex-1">
@@ -107,7 +107,7 @@ export function Header() {
         {/* 새 도큐먼트 */}
         <button
           onClick={handleNewDocument}
-          className="flex items-center gap-1 h-9 px-3 bg-white text-[#003366] text-sm font-medium rounded-md hover:bg-gray-100 transition-colors"
+          className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-sm font-medium rounded-md hover:bg-gray-100 transition-colors"
         >
           <Plus className="w-4 h-4" />
           <span>새 도큐먼트</span>

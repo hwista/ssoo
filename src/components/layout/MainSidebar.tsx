@@ -26,11 +26,11 @@ export function MainSidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full bg-gray-100 border-r border-gray-200 flex flex-col overflow-hidden"
+      className="fixed left-0 top-0 h-full bg-ssoo-content-bg border-r border-ssoo-content-border flex flex-col overflow-hidden"
       style={{ width: LAYOUT_SIZES.sidebar.width }}
     >
       {/* 로고 영역 */}
-      <div className="h-[60px] flex items-center px-4 bg-[#003366]">
+      <div className="h-header-h flex items-center px-4 bg-ssoo-primary">
         <div className="flex items-center gap-2">
           <FolderTree className="w-6 h-6 text-white" />
           <span className="text-lg font-bold text-white">DMS</span>
@@ -38,11 +38,11 @@ export function MainSidebar() {
       </div>
 
       {/* 문서 타입 전환 드롭다운 */}
-      <div className="px-3 py-2 border-b border-gray-200">
+      <div className="px-3 py-2 border-b border-ssoo-content-border">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="w-full flex items-center justify-between h-9 px-3 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between h-control-h px-3 bg-white border border-ssoo-content-border rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <span>{DOCUMENT_TYPE_LABELS[documentType]}</span>
               <ChevronDown className="w-4 h-4 text-gray-500" />

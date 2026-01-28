@@ -19,16 +19,17 @@ export const BREAKPOINTS = {
 /**
  * 레이아웃 사이즈 설정
  * - DMS는 사이드바 접기 없음 (항상 펼침)
+ * - PMS 디자인 표준 적용
  */
 export const LAYOUT_SIZES = {
   sidebar: {
-    width: 280, // DMS 사이드바 너비 (고정)
+    width: 340, // 사이드바 펼침 너비 (PMS 표준)
   },
   header: {
-    height: 60, // 헤더 높이
+    height: 60, // 헤더 높이 (PMS 표준)
   },
   tabBar: {
-    height: 53, // 탭바 높이
+    height: 53, // 탭바 높이 (PMS 표준)
     tabMinWidth: 120,
     tabMaxWidth: 200,
   },
