@@ -101,7 +101,7 @@ export function MainSidebar() {
       </div>
 
       {/* 검색 + 새로고침 */}
-      <div className="p-2 border-b border-ssoo-content-border flex-shrink-0">
+      <div className="p-2 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-1">
           <SidebarSearch />
           <button
