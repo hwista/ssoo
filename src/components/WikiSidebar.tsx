@@ -8,6 +8,8 @@ import { Document24Regular, Folder24Regular, Settings24Regular, Add24Regular, Ar
 import FileUpload from '@/components/FileUpload';
 import { useWikiContext } from '@/contexts/WikiContext';
 import { useTreeStore } from '@/stores/tree-store';
+import { useWikiUIStore } from '@/stores/wiki-ui-store';
+import { useWikiItemsStore } from '@/stores/wiki-items-store';
 import TreeComponent from '@/components/TreeComponent';
 import CreateFileModal from '@/components/CreateFileModal';
 import { useMessage } from '@/hooks/useMessage';
@@ -80,24 +82,30 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
   // WikiContext에서 파일 시스템 액션 가져오기
   const {
     files,
-    contextMenu,
-    createModal,
-    newlyCreatedItems,
-    updatedItems,
-    renamingItem,
-    
-    // 액션들
-    setContextMenu,
-    setCreateModal,
     refreshFileTree,
-    setRenamingItem,
     loadFile,
     createFile,
     deleteFile,
     renameFile,
-    addUpdatedItem,
     showNotification
   } = useWikiContext();
+
+  // UI Store에서 UI 상태 가져오기
+  const {
+    contextMenu,
+    setContextMenu,
+    createModal,
+    setCreateModal,
+    renamingItem,
+    setRenamingItem,
+  } = useWikiUIStore();
+
+  // Items Store에서 생성/업데이트 아이템 상태 가져오기
+  const {
+    newlyCreatedItems,
+    updatedItems,
+    addUpdatedItem,
+  } = useWikiItemsStore();
 
   // 메시지 처리 hook
   const { showError } = useMessage();

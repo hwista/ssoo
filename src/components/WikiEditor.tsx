@@ -9,6 +9,7 @@ import { BlockEditor, BlockEditorRef } from '@/components/editor';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useWikiContext } from '@/contexts/WikiContext';
 import { useTreeStore } from '@/stores/tree-store';
+import { useWikiEditorStore } from '@/stores/wiki-editor-store';
 import { logger } from '@/lib/utils/errorUtils';
 import { isMarkdownFile } from '@/lib/utils/fileUtils';
 import { WikiEditorProps } from '@/types/components';
@@ -16,16 +17,18 @@ import { useEditor } from '@/hooks/useEditor';
 
 const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
   const { selectedFile } = useTreeStore();
+  const { showNotification } = useWikiContext();
+  
+  // Editor Store에서 상태 가져오기
   const {
     content,
     isEditing,
     setIsEditing,
-    saveFile: contextSaveFile,
-    saveFileKeepEditing: contextSaveFileKeepEditing,
-    showNotification,
     fileMetadata,
-    refreshFileMetadata
-  } = useWikiContext();
+    saveFile: storeSaveFile,
+    saveFileKeepEditing: storeSaveFileKeepEditing,
+    refreshFileMetadata,
+  } = useWikiEditorStore();
 
   // 훅 기반 에디터 상태
   const {
@@ -43,11 +46,11 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
   } = useEditor(content, {
     onSave: async (c: string) => {
       if (!selectedFile) return;
-      await contextSaveFile(selectedFile, c);
+      await storeSaveFile(selectedFile, c);
     },
     onAutoSave: async (c: string) => {
       if (!selectedFile) return;
-      await contextSaveFileKeepEditing(selectedFile, c);
+      await storeSaveFileKeepEditing(selectedFile, c);
       await refreshFileMetadata(selectedFile);
       showNotification('자동 저장 완료', 'success');
     }
@@ -130,7 +133,7 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
       return;
     }
     try {
-      await contextSaveFileKeepEditing(selectedFile, editorContent);
+      await storeSaveFileKeepEditing(selectedFile, editorContent);
       markAsSaved();
       await refreshFileMetadata(selectedFile);
       showNotification('임시 저장 완료 (편집 계속)', 'success');
@@ -139,7 +142,7 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
       logger.error('임시 저장 중 오류', error);
       showNotification('임시 저장 실패', 'error');
     }
-  }, [selectedFile, editorContent, contextSaveFileKeepEditing, markAsSaved, refreshFileMetadata, showNotification]);
+  }, [selectedFile, editorContent, storeSaveFileKeepEditing, markAsSaved, refreshFileMetadata, showNotification]);
 
   // 내용 변경 핸들러
   const handleContentChange = useCallback((newContent: string) => {
