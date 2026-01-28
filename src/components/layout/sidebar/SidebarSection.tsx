@@ -27,7 +27,7 @@ export function SidebarSection({
   headerAction,
 }: SidebarSectionProps) {
   return (
-    <div className="border-b border-gray-200">
+    <div className="border-b border-ssoo-content-border">
       <div className="flex items-center w-full px-3 py-2 hover:bg-ssoo-sitemap-bg transition-colors">
         <button
           onClick={onToggle}

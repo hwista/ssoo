@@ -18,7 +18,7 @@ export function SidebarOpenTabs() {
 
   if (openTabs.length === 0) {
     return (
-      <div className="px-3 py-2 text-xs text-gray-400">
+      <div className="px-3 py-2 text-xs text-muted-foreground">
         열린 페이지가 없습니다.
       </div>
     );
@@ -35,14 +35,14 @@ export function SidebarOpenTabs() {
             className={`group flex items-center gap-2 w-full h-control-h px-3 text-sm rounded-md transition-colors ${
               isActive
                 ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
-                : 'text-gray-700 hover:bg-ssoo-sitemap-bg'
+                : 'text-foreground hover:bg-ssoo-sitemap-bg'
             }`}
           >
             <button
               onClick={() => activateTab(tab.id)}
               className="flex items-center gap-2 flex-1 min-w-0"
             >
-              <FileText className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+              <FileText className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-muted-foreground'}`} />
               <span className="truncate">{tab.title}</span>
             </button>
             {tab.closable && (
@@ -51,9 +51,9 @@ export function SidebarOpenTabs() {
                   e.stopPropagation();
                   closeTab(tab.id);
                 }}
-                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded transition-opacity"
+                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-ssoo-sitemap-bg rounded transition-opacity"
               >
-                <X className="w-3 h-3 text-gray-500" />
+                <X className="w-3 h-3 text-muted-foreground" />
               </button>
             )}
           </div>
