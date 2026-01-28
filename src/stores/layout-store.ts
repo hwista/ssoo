@@ -1,6 +1,6 @@
 /**
  * DMS Layout Store
- * 레이아웃 상태 관리
+ * 레이아웃 상태 관리 + 사이드바 폴더 확장 상태
  */
 import { create } from 'zustand';
 import type { DeviceType, DocumentType, SidebarSection, AISearchType } from '@/types/layout';
@@ -12,6 +12,8 @@ interface LayoutStoreState {
   expandedSections: SidebarSection[];
   searchQuery: string;
   aiSearchType: AISearchType;
+  // 파일 트리 폴더 확장 상태
+  expandedFolders: Set<string>;
 }
 
 interface LayoutStoreActions {
@@ -23,6 +25,11 @@ interface LayoutStoreActions {
   clearSearch: () => void;
   setAISearchType: (type: AISearchType) => void;
   initializeDeviceType: () => void;
+  // 폴더 확장 관련
+  toggleFolder: (path: string) => void;
+  expandFolder: (path: string) => void;
+  collapseFolder: (path: string) => void;
+  collapseAllFolders: () => void;
 }
 
 interface LayoutStore extends LayoutStoreState, LayoutStoreActions {}
@@ -37,6 +44,7 @@ export const useLayoutStore = create<LayoutStore>()((set, get) => ({
   expandedSections: DEFAULT_EXPANDED_SECTIONS,
   searchQuery: '',
   aiSearchType: 'rag',
+  expandedFolders: new Set<string>(),
 
   // Actions
   setDeviceType: (type: DeviceType) => {
@@ -79,5 +87,40 @@ export const useLayoutStore = create<LayoutStore>()((set, get) => ({
       const isMobile = window.innerWidth < BREAKPOINTS.mobile;
       set({ deviceType: isMobile ? 'mobile' : 'desktop' });
     }
+  },
+
+  // 폴더 확장 액션
+  toggleFolder: (path: string) => {
+    set((state) => {
+      const newExpanded = new Set(state.expandedFolders);
+      if (newExpanded.has(path)) {
+        newExpanded.delete(path);
+      } else {
+        newExpanded.add(path);
+      }
+      return { expandedFolders: newExpanded };
+    });
+  },
+
+  expandFolder: (path: string) => {
+    set((state) => {
+      if (state.expandedFolders.has(path)) return state;
+      const newExpanded = new Set(state.expandedFolders);
+      newExpanded.add(path);
+      return { expandedFolders: newExpanded };
+    });
+  },
+
+  collapseFolder: (path: string) => {
+    set((state) => {
+      if (!state.expandedFolders.has(path)) return state;
+      const newExpanded = new Set(state.expandedFolders);
+      newExpanded.delete(path);
+      return { expandedFolders: newExpanded };
+    });
+  },
+
+  collapseAllFolders: () => {
+    set({ expandedFolders: new Set() });
   },
 }));
