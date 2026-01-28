@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { WikiProvider, useWikiContext } from '@/contexts/WikiContext';
 import { useTreeStore } from '@/stores/tree-store';
+import { useWikiEditorStore } from '@/stores/wiki-editor-store';
 import WikiSidebar from '@/components/WikiSidebar';
 import WikiEditor from '@/components/WikiEditor';
 import WikiModals from '@/components/WikiModals';
@@ -36,20 +36,20 @@ const WikiAppContent: React.FC<{
   isResizing: boolean;
   resizerProps: React.HTMLAttributes<HTMLDivElement>;
 }> = ({ sidebarWidth, isResizing, resizerProps }) => {
-  const { selectFile, setFiles } = useTreeStore();
-  const { files, loadFile } = useWikiContext();
+  const { files, selectFile, loadFileTree, isInitialized } = useTreeStore();
+  const { loadFile } = useWikiEditorStore();
   // sidebarType: 'tree' | 'gemini' | 'ai'
   const [sidebarType, setSidebarType] = useState<'tree' | 'gemini' | 'ai'>('tree');
   
   // 초기 로드 플래그 - 한 번만 실행되도록 보장
   const initialLoadDone = useRef(false);
 
-  // WikiContext의 files를 tree-store에 동기화
+  // 앱 초기화: 파일 트리 로드
   useEffect(() => {
-    if (files.length > 0) {
-      setFiles(files);
+    if (!isInitialized) {
+      loadFileTree();
     }
-  }, [files, setFiles]);
+  }, [isInitialized, loadFileTree]);
 
   // 초기 README.md 자동 로드 (한 번만 실행)
   useEffect(() => {
@@ -151,13 +151,11 @@ const WikiApp: React.FC<WikiAppProps> = () => {
   });
 
   return (
-    <WikiProvider>
-      <WikiAppContent
-        sidebarWidth={sidebarWidth}
-        isResizing={isResizing}
-        resizerProps={resizerProps}
-      />
-    </WikiProvider>
+    <WikiAppContent
+      sidebarWidth={sidebarWidth}
+      isResizing={isResizing}
+      resizerProps={resizerProps}
+    />
   );
 };
 

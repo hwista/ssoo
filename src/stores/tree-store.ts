@@ -2,7 +2,8 @@
 
 import { create } from 'zustand';
 import { FileNode } from '@/types';
-import { logger } from '@/lib/utils/errorUtils';
+import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
+import { fileSystemService } from '@/server/services';
 
 interface TreeState {
   // 데이터
@@ -12,9 +13,18 @@ interface TreeState {
   expandedFolders: Set<string>;
   selectedFile: string | null;
   searchTerm: string;
+  
+  // 로딩 상태
+  isLoading: boolean;
+  isInitialized: boolean;
+  error: string | null;
 }
 
 interface TreeActions {
+  // 파일 트리 로드
+  loadFileTree: () => Promise<{ success: boolean; error?: string }>;
+  refreshFileTree: () => Promise<void>;
+  
   // 데이터 설정
   setFiles: (files: FileNode[]) => void;
   
@@ -102,6 +112,74 @@ export const useTreeStore = create<TreeStore>((set, get) => ({
   expandedFolders: new Set<string>(),
   selectedFile: null,
   searchTerm: '',
+  isLoading: false,
+  isInitialized: false,
+  error: null,
+
+  // 파일 트리 로드
+  loadFileTree: async () => {
+    // 이미 초기화됨 - 중복 방지
+    if (get().isInitialized) {
+      logger.debug('파일 트리 이미 로드됨, 건너뜀');
+      return { success: true };
+    }
+    
+    const timer = new PerformanceTimer('파일 트리 로드');
+    set({ isLoading: true, error: null });
+    
+    try {
+      const result = await fileSystemService.getFileTree(undefined, { includeHidden: false });
+      
+      if (result.success && result.data) {
+        set({ 
+          files: result.data, 
+          isLoading: false, 
+          isInitialized: true,
+          error: null 
+        });
+        logger.info('파일 트리 로드 성공', { fileCount: result.data.length });
+        timer.end({ success: true });
+        return { success: true };
+      } else {
+        const errorMsg = result.error || '파일 트리 로드 실패';
+        set({ isLoading: false, error: typeof errorMsg === 'string' ? errorMsg : '파일 트리 로드 실패' });
+        timer.end({ success: false });
+        return { success: false, error: typeof errorMsg === 'string' ? errorMsg : '파일 트리 로드 실패' };
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : '파일 트리 로드 실패';
+      logger.error('파일 트리 로드 중 오류', error);
+      set({ isLoading: false, error: errorMsg });
+      timer.end({ success: false });
+      return { success: false, error: errorMsg };
+    }
+  },
+
+  // 파일 트리 새로고침
+  refreshFileTree: async () => {
+    const timer = new PerformanceTimer('파일 트리 새로고침');
+    set({ isLoading: true, error: null });
+    
+    try {
+      const result = await fileSystemService.getFileTree(undefined, { includeHidden: false });
+      
+      if (result.success && result.data) {
+        set({ files: result.data, isLoading: false, error: null });
+        logger.info('파일 트리 새로고침 성공', { fileCount: result.data.length });
+        timer.end({ success: true });
+      } else {
+        const errorMsg = result.error || '파일 트리 새로고침 실패';
+        set({ isLoading: false, error: typeof errorMsg === 'string' ? errorMsg : '파일 트리 새로고침 실패' });
+        logger.error('파일 트리 새로고침 실패', { error: errorMsg });
+        timer.end({ success: false });
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : '파일 트리 새로고침 실패';
+      logger.error('파일 트리 새로고침 중 오류', error);
+      set({ isLoading: false, error: errorMsg });
+      timer.end({ success: false });
+    }
+  },
 
   // 데이터 설정
   setFiles: (files) => set({ files }),

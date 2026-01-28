@@ -6,10 +6,12 @@ import { Input as FluentInput, Menu, MenuList, MenuItem } from '@fluentui/react-
 import { makeStyles, shorthands } from '@fluentui/react-components';
 import { Document24Regular, Folder24Regular, Settings24Regular, Add24Regular, ArrowSync24Regular, ArrowUpload24Regular } from '@fluentui/react-icons';
 import FileUpload from '@/components/FileUpload';
-import { useWikiContext } from '@/contexts/WikiContext';
 import { useTreeStore } from '@/stores/tree-store';
 import { useWikiUIStore } from '@/stores/wiki-ui-store';
 import { useWikiItemsStore } from '@/stores/wiki-items-store';
+import { useWikiEditorStore } from '@/stores/wiki-editor-store';
+import { useFileOperations } from '@/hooks/useFileOperations';
+import { useToast } from '@/lib/toast';
 import TreeComponent from '@/components/TreeComponent';
 import CreateFileModal from '@/components/CreateFileModal';
 import { useMessage } from '@/hooks/useMessage';
@@ -79,16 +81,22 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
     findNodeByPath
   } = useTreeStore();
 
-  // WikiContext에서 파일 시스템 액션 가져오기
-  const {
-    files,
-    refreshFileTree,
-    loadFile,
-    createFile,
-    deleteFile,
-    renameFile,
-    showNotification
-  } = useWikiContext();
+  // tree-store에서 파일 데이터 가져오기
+  const { files, refreshFileTree } = useTreeStore();
+  
+  // wiki-editor-store에서 파일 로드 가져오기
+  const { loadFile } = useWikiEditorStore();
+  
+  // useFileOperations에서 CRUD 작업 가져오기
+  const { createFile, deleteFile, renameFile } = useFileOperations();
+  
+  // Toast 알림
+  const { showSuccess, showError: showErrorToast } = useToast();
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    if (type === 'success') showSuccess('알림', message);
+    else if (type === 'error') showErrorToast('오류', message);
+    else showSuccess('정보', message);
+  };
 
   // UI Store에서 UI 상태 가져오기
   const {

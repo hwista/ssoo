@@ -7,9 +7,9 @@ import { Card, Button, Text, Dialog, DialogSurface, DialogBody, DialogTitle, Too
 import { Eye24Regular, Save24Regular, Edit24Regular, Dismiss24Regular, SaveCopy24Regular, TextT24Regular, Document24Regular } from '@fluentui/react-icons';
 import { BlockEditor, BlockEditorRef } from '@/components/editor';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
-import { useWikiContext } from '@/contexts/WikiContext';
 import { useTreeStore } from '@/stores/tree-store';
 import { useWikiEditorStore } from '@/stores/wiki-editor-store';
+import { useToast } from '@/lib/toast';
 import { logger } from '@/lib/utils/errorUtils';
 import { isMarkdownFile } from '@/lib/utils/fileUtils';
 import { WikiEditorProps } from '@/types/components';
@@ -17,7 +17,14 @@ import { useEditor } from '@/hooks/useEditor';
 
 const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
   const { selectedFile } = useTreeStore();
-  const { showNotification } = useWikiContext();
+  const { showSuccess, showError: showErrorToast } = useToast();
+  
+  // showNotification 래퍼 (기존 인터페이스 유지)
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    if (type === 'success') showSuccess('알림', message);
+    else if (type === 'error') showErrorToast('오류', message);
+    else showSuccess('정보', message);
+  };
   
   // Editor Store에서 상태 가져오기
   const {
