@@ -8,18 +8,29 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-        outline: "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        // Primary: 네이비 블루 - CUD/중요 작업
+        default:
+          "bg-ssoo-primary text-white shadow hover:bg-ssoo-primary-hover",
+        // Secondary: 보조색 - 일반 작업
+        secondary:
+          "bg-ssoo-secondary text-white shadow-sm hover:bg-ssoo-primary",
+        // Outline: 테두리만
+        outline:
+          "border border-ssoo-content-border bg-white text-ssoo-primary shadow-sm hover:bg-ssoo-sitemap-bg",
+        // Destructive: 삭제/위험 (LS Red)
+        destructive:
+          "bg-ls-red text-white shadow-sm hover:bg-ls-red-hover",
+        // Ghost: 배경 없음
+        ghost: "text-ssoo-primary hover:bg-ssoo-content-bg",
+        // Link: 링크 스타일
+        link: "text-ssoo-sitemap-title underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
-        icon: "h-9 w-9",
+        // 표준 높이: 36px (h-control-h)
+        default: "h-control-h px-4 py-2",
+        sm: "h-control-h-sm px-3 text-xs",
+        lg: "h-control-h-lg px-6 text-base",
+        icon: "h-control-h w-control-h",
       },
     },
     defaultVariants: {
