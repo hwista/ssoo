@@ -10,6 +10,36 @@
 
 **목표**: PMS 레이아웃 구조를 DMS에 적용하여 일관성 확보
 
+#### ✅ Step 1-4: 레이아웃 컴포넌트 생성 완료
+
+**생성된 컴포넌트:**
+| 컴포넌트 | 경로 | 설명 |
+|----------|------|------|
+| `AppLayout` | `layout/AppLayout.tsx` | PMS 스타일 메인 레이아웃 |
+| `Header` | `layout/Header.tsx` | AI 검색 드롭다운 + 새 도큐먼트 |
+| `MainSidebar` | `layout/MainSidebar.tsx` | 문서 타입 전환 + 파일 검색 |
+| `TabBar` | `layout/TabBar.tsx` | 문서 탭 관리 |
+| `ContentArea` | `layout/ContentArea.tsx` | 탭별 콘텐츠 렌더링 |
+| `SidebarSearch` | `layout/sidebar/SidebarSearch.tsx` | 파일 검색 |
+| `SidebarOpenTabs` | `layout/sidebar/SidebarOpenTabs.tsx` | 열린 문서 목록 |
+| `SidebarFileTree` | `layout/sidebar/SidebarFileTree.tsx` | 파일 트리 (TreeComponent 활용) |
+
+**생성된 Store:**
+| Store | 경로 | 설명 |
+|-------|------|------|
+| `tab-store` | `stores/tab-store.ts` | 탭 상태 관리 (persist) |
+| `layout-store` | `stores/layout-store.ts` | 레이아웃 상태 (문서 타입, AI 검색 타입) |
+
+**생성된 Type:**
+| Type | 경로 | 내용 |
+|------|------|------|
+| `layout.ts` | `types/layout.ts` | TabItem, DocumentType, AISearchType 등 |
+
+#### ✅ Step 6: 페이지 연결
+
+- `(main)/layout.tsx` 생성 - AppLayout 적용
+- `(main)/wiki/page.tsx` 수정 - WikiApp → WikiEditor 직접 렌더링
+
 #### 레이아웃 구조 통일 (PMS와 동일)
 ```
 ┌───────────────────────────────────────────────────┐
