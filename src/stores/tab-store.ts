@@ -1,10 +1,19 @@
 /**
  * DMS Tab Store
- * 문서 탭 상태 관리
+ * 문서 탭 상태 관리 + 책갈피 기능
  */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TabItem, OpenTabOptions } from '@/types/layout';
+
+// 책갈피 타입
+export interface BookmarkItem {
+  id: string;
+  title: string;
+  path: string;
+  icon?: string;
+  addedAt: Date;
+}
 
 // Home 탭 상수 (닫기 불가)
 export const HOME_TAB = {
@@ -33,6 +42,7 @@ interface TabStoreState {
   tabs: TabItem[];
   activeTabId: string | null;
   maxTabs: number;
+  bookmarks: BookmarkItem[];
 }
 
 interface TabStoreActions {
@@ -43,6 +53,10 @@ interface TabStoreActions {
   closeAllTabs: () => void;
   updateTabTitle: (tabId: string, title: string) => void;
   getActiveTab: () => TabItem | undefined;
+  // 책갈피 관련
+  addBookmark: (bookmark: Omit<BookmarkItem, 'addedAt'>) => void;
+  removeBookmark: (bookmarkId: string) => void;
+  isBookmarked: (id: string) => boolean;
 }
 
 interface TabStore extends TabStoreState, TabStoreActions {}
@@ -54,6 +68,7 @@ export const useTabStore = create<TabStore>()(
       tabs: [createHomeTab()],
       activeTabId: HOME_TAB.id,
       maxTabs: 15,
+      bookmarks: [],
 
       // Actions
       openTab: (options: OpenTabOptions): string => {
@@ -189,6 +204,29 @@ export const useTabStore = create<TabStore>()(
         const { tabs, activeTabId } = get();
         return tabs.find((t) => t.id === activeTabId);
       },
+
+      // 책갈피 관련 액션
+      addBookmark: (bookmark: Omit<BookmarkItem, 'addedAt'>): void => {
+        const { bookmarks } = get();
+        if (bookmarks.some((b) => b.id === bookmark.id)) return;
+
+        set({
+          bookmarks: [
+            ...bookmarks,
+            { ...bookmark, addedAt: new Date() },
+          ],
+        });
+      },
+
+      removeBookmark: (bookmarkId: string): void => {
+        set((state) => ({
+          bookmarks: state.bookmarks.filter((b) => b.id !== bookmarkId),
+        }));
+      },
+
+      isBookmarked: (id: string): boolean => {
+        return get().bookmarks.some((b) => b.id === id);
+      },
     }),
     {
       name: 'dms-tab-store',
@@ -196,6 +234,7 @@ export const useTabStore = create<TabStore>()(
       partialize: (state) => ({
         tabs: state.tabs,
         activeTabId: state.activeTabId,
+        bookmarks: state.bookmarks,
       }),
       // Date 역직렬화
       onRehydrateStorage: () => (state) => {
@@ -204,6 +243,12 @@ export const useTabStore = create<TabStore>()(
             ...tab,
             openedAt: new Date(tab.openedAt),
             lastActiveAt: new Date(tab.lastActiveAt),
+          }));
+        }
+        if (state?.bookmarks) {
+          state.bookmarks = state.bookmarks.map((bookmark) => ({
+            ...bookmark,
+            addedAt: new Date(bookmark.addedAt),
           }));
         }
       },

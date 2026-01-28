@@ -28,7 +28,7 @@ interface LayoutStoreActions {
 interface LayoutStore extends LayoutStoreState, LayoutStoreActions {}
 
 // 기본 펼쳐진 섹션
-const DEFAULT_EXPANDED_SECTIONS: SidebarSection[] = ['openTabs', 'fileTree'];
+const DEFAULT_EXPANDED_SECTIONS: SidebarSection[] = ['bookmarks', 'openTabs', 'fileTree'];
 
 export const useLayoutStore = create<LayoutStore>()((set, get) => ({
   // Initial State

@@ -1,23 +1,17 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
 import TreeComponent from '@/components/TreeComponent';
 import { useTreeStore, useLayoutStore, useTabStore } from '@/stores';
 import type { FileNode } from '@/types';
 
-interface SidebarFileTreeProps {
-  isExpanded: boolean;
-  onToggle: () => void;
-}
-
 /**
- * 사이드바 파일 트리
+ * 사이드바 전체 파일 트리
  * - 기존 TreeComponent 활용
  * - 검색 필터 적용
  * - 파일 선택 시 탭으로 열기
  */
-export function SidebarFileTree({ isExpanded, onToggle }: SidebarFileTreeProps) {
+export function SidebarFileTree() {
   const { files, selectedFile, selectFile } = useTreeStore();
   const { searchQuery } = useLayoutStore();
   const { openTab } = useTabStore();
@@ -84,43 +78,25 @@ export function SidebarFileTree({ isExpanded, onToggle }: SidebarFileTreeProps) 
     });
   }, []);
 
-  return (
-    <div className="border-b border-ssoo-content-border">
-      {/* 섹션 헤더 */}
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-ssoo-primary hover:bg-ssoo-sitemap-bg transition-colors"
-      >
-        {isExpanded ? (
-          <ChevronDown className="w-4 h-4" />
-        ) : (
-          <ChevronRight className="w-4 h-4" />
-        )}
-        <span>파일 탐색기</span>
-      </button>
+  if (filteredFiles.length === 0) {
+    return (
+      <div className="px-3 py-2 text-xs text-gray-400">
+        {searchQuery ? '검색 결과가 없습니다.' : '파일이 없습니다.'}
+      </div>
+    );
+  }
 
-      {/* 파일 트리 */}
-      {isExpanded && (
-        <div className="px-1 pb-4">
-          {filteredFiles.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-gray-400">
-              {searchQuery ? '검색 결과가 없습니다' : '파일이 없습니다'}
-            </div>
-          ) : (
-            <TreeComponent
-              treeData={filteredFiles}
-              selectedFile={selectedFile}
-              onFileSelect={handleFileSelect}
-              showSearch={false}
-              showExpandCollapseButtons={false}
-              expandedFolders={expandedFolders}
-              onToggleFolder={toggleFolder}
-              enableContextMenu={false}
-              className="px-2 pt-0.5"
-            />
-          )}
-        </div>
-      )}
-    </div>
+  return (
+    <TreeComponent
+      treeData={filteredFiles}
+      selectedFile={selectedFile}
+      onFileSelect={handleFileSelect}
+      showSearch={false}
+      showExpandCollapseButtons={false}
+      expandedFolders={expandedFolders}
+      onToggleFolder={toggleFolder}
+      enableContextMenu={false}
+      className="px-2 pt-0.5"
+    />
   );
 }

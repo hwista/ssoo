@@ -59,7 +59,7 @@ export const AI_SEARCH_TYPE_LABELS: Record<AISearchType, string> = {
 /**
  * 사이드바 섹션
  */
-export type SidebarSection = 'openTabs' | 'fileTree';
+export type SidebarSection = 'bookmarks' | 'openTabs' | 'fileTree';
 
 /**
  * 탭 아이템 (문서 탭)
