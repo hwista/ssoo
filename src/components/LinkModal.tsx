@@ -75,7 +75,7 @@ const LinkModal: React.FC<LinkModalProps> = ({
             </Button>
             <Button
               type="submit"
-              variant="primary"
+              variant="default"
             >
               삽입
             </Button>

@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Input, Button, Card, Text, Spinner } from '@fluentui/react-components';
-import { Send24Regular, Bot24Regular, Person24Regular, Document24Regular } from '@fluentui/react-icons';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
+import { Send, Bot, User, FileText } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -97,105 +100,64 @@ const AIChat: React.FC<AIChatProps> = ({ onFileSelect }) => {
   };
 
   return (
-    <Card style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: 0 }}>
+    <Card className="h-full flex flex-col p-0">
       {/* 헤더 */}
-      <div style={{
-        padding: '12px 16px',
-        borderBottom: '1px solid #e5e7eb',
-        backgroundColor: '#f9fafb'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Bot24Regular style={{ color: '#6264a7' }} />
-          <Text size={400} weight="semibold">AI 어시스턴트</Text>
+      <div className="px-4 py-3 border-b bg-gray-50">
+        <div className="flex items-center gap-2">
+          <Bot className="h-5 w-5 text-indigo-600" />
+          <span className="font-semibold">AI 어시스턴트</span>
         </div>
-        <Text size={200} style={{ color: '#6b7280' }}>
+        <p className="text-xs text-muted-foreground">
           위키 문서 기반으로 질문에 답변합니다
-        </Text>
+        </p>
       </div>
 
       {/* 메시지 영역 */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: 16,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16
-      }}>
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {messages.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 32, color: '#9ca3af' }}>
-            <Bot24Regular style={{ fontSize: 48, marginBottom: 16 }} />
-            <Text block>질문을 입력하면 위키 문서를 기반으로 답변해드립니다.</Text>
+          <div className="text-center p-8 text-muted-foreground">
+            <Bot className="h-12 w-12 mx-auto mb-4" />
+            <p>질문을 입력하면 위키 문서를 기반으로 답변해드립니다.</p>
           </div>
         )}
 
         {messages.map(message => (
           <div
             key={message.id}
-            style={{
-              display: 'flex',
-              gap: 12,
-              flexDirection: message.role === 'user' ? 'row-reverse' : 'row'
-            }}
+            className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
             {/* 아바타 */}
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              backgroundColor: message.role === 'user' ? '#6264a7' : '#e5e7eb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+              message.role === 'user' ? 'bg-indigo-600' : 'bg-gray-200'
+            }`}>
               {message.role === 'user' ? (
-                <Person24Regular style={{ color: '#fff' }} />
+                <User className="h-5 w-5 text-white" />
               ) : (
-                <Bot24Regular style={{ color: '#6264a7' }} />
+                <Bot className="h-5 w-5 text-indigo-600" />
               )}
             </div>
 
             {/* 메시지 내용 */}
-            <div style={{
-              maxWidth: '80%',
-              backgroundColor: message.role === 'user' ? '#6264a7' : '#f3f4f6',
-              color: message.role === 'user' ? '#fff' : '#1f2937',
-              padding: 12,
-              borderRadius: 12,
-              borderTopLeftRadius: message.role === 'user' ? 12 : 4,
-              borderTopRightRadius: message.role === 'user' ? 4 : 12
-            }}>
-              <Text style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Text>
+            <div className={`max-w-[80%] p-3 rounded-xl ${
+              message.role === 'user' 
+                ? 'bg-indigo-600 text-white rounded-tr-sm' 
+                : 'bg-gray-100 text-gray-900 rounded-tl-sm'
+            }`}>
+              <p className="whitespace-pre-wrap text-sm">{message.content}</p>
 
               {/* 소스 문서 */}
               {message.sources && message.sources.length > 0 && (
-                <div style={{
-                  marginTop: 12,
-                  paddingTop: 12,
-                  borderTop: '1px solid rgba(0,0,0,0.1)'
-                }}>
-                  <Text size={200} style={{ color: '#6b7280', marginBottom: 8, display: 'block' }}>
-                    참고 문서:
-                  </Text>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="mt-3 pt-3 border-t border-black/10">
+                  <p className="text-xs text-gray-500 mb-2">참고 문서:</p>
+                  <div className="flex flex-col gap-1">
                     {message.sources.map((source, idx) => (
                       <div
                         key={idx}
                         onClick={() => handleSourceClick(source.filePath)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          padding: '4px 8px',
-                          backgroundColor: 'rgba(255,255,255,0.5)',
-                          borderRadius: 4,
-                          cursor: 'pointer',
-                          fontSize: 12
-                        }}
+                        className="flex items-center gap-1.5 px-2 py-1 bg-white/50 rounded cursor-pointer text-xs"
                       >
-                        <Document24Regular style={{ width: 14, height: 14, color: '#6264a7' }} />
-                        <span style={{ color: '#4b5563' }}>{source.fileName}</span>
+                        <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                        <span className="text-gray-600">{source.fileName}</span>
                       </div>
                     ))}
                   </div>
@@ -206,38 +168,20 @@ const AIChat: React.FC<AIChatProps> = ({ onFileSelect }) => {
         ))}
 
         {isLoading && (
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              backgroundColor: '#e5e7eb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Bot24Regular style={{ color: '#6264a7' }} />
+          <div className="flex gap-3">
+            <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center">
+              <Bot className="h-5 w-5 text-indigo-600" />
             </div>
-            <div style={{
-              backgroundColor: '#f3f4f6',
-              padding: 12,
-              borderRadius: 12,
-              borderTopLeftRadius: 4
-            }}>
-              <Spinner size="tiny" />
-              <Text size={200} style={{ marginLeft: 8 }}>답변 생성 중...</Text>
+            <div className="bg-gray-100 p-3 rounded-xl rounded-tl-sm flex items-center gap-2">
+              <Spinner size="sm" />
+              <span className="text-xs">답변 생성 중...</span>
             </div>
           </div>
         )}
 
         {error && (
-          <div style={{
-            padding: 12,
-            backgroundColor: '#fef2f2',
-            borderRadius: 8,
-            border: '1px solid #fecaca'
-          }}>
-            <Text style={{ color: '#dc2626' }}>{error}</Text>
+          <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+            <p className="text-red-600 text-sm">{error}</p>
           </div>
         )}
 
@@ -245,26 +189,21 @@ const AIChat: React.FC<AIChatProps> = ({ onFileSelect }) => {
       </div>
 
       {/* 입력 영역 */}
-      <div style={{
-        padding: 16,
-        borderTop: '1px solid #e5e7eb',
-        backgroundColor: '#f9fafb'
-      }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+      <div className="p-4 border-t bg-gray-50">
+        <div className="flex gap-2">
           <Input
             placeholder="질문을 입력하세요..."
             value={input}
-            onChange={(e, data) => setInput(data.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            style={{ flex: 1 }}
+            className="flex-1"
             disabled={isLoading}
           />
           <Button
-            appearance="primary"
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            icon={<Send24Regular />}
           >
+            <Send className="h-4 w-4 mr-1" />
             전송
           </Button>
         </div>

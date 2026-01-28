@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  WeatherSunny24Regular,
-  WeatherMoon24Regular,
-  Desktop24Regular,
-  ChevronDown24Regular
-} from '@fluentui/react-icons';
+  Sun,
+  Moon,
+  Monitor,
+  ChevronDown
+} from 'lucide-react';
 import { useThemeStore } from '@/stores/theme-store';
 
 interface ThemeToggleProps {
@@ -24,13 +24,13 @@ export default function ThemeToggle({ showLabel = false, compact = false }: Them
   }, [initializeTheme]);
 
   const themeOptions = [
-    { value: 'light', label: '라이트', icon: WeatherSunny24Regular },
-    { value: 'dark', label: '다크', icon: WeatherMoon24Regular },
-    { value: 'system', label: '시스템', icon: Desktop24Regular },
+    { value: 'light', label: '라이트', icon: Sun },
+    { value: 'dark', label: '다크', icon: Moon },
+    { value: 'system', label: '시스템', icon: Monitor },
   ] as const;
 
   const currentOption = themeOptions.find(opt => opt.value === theme) || themeOptions[0];
-  const CurrentIcon = resolvedTheme === 'dark' ? WeatherMoon24Regular : WeatherSunny24Regular;
+  const CurrentIcon = resolvedTheme === 'dark' ? Moon : Sun;
 
   if (compact) {
     // 컴팩트 모드: 아이콘만 표시, 클릭 시 토글
@@ -58,7 +58,7 @@ export default function ThemeToggle({ showLabel = false, compact = false }: Them
             {currentOption.label}
           </span>
         )}
-        <ChevronDown24Regular className="w-4 h-4 text-gray-400" />
+        <ChevronDown className="w-4 h-4 text-gray-400" />
       </button>
 
       {showDropdown && (

@@ -1,10 +1,10 @@
 ﻿'use client';
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { normalizePath } from '@/lib/utils/pathUtils';
 import { logger } from '@/lib/utils/errorUtils';
 import type { FileNode } from '@/types';
-import { Button } from '@fluentui/react-components';
 
 interface TreeComponentProps {
   // 트리 데이터와 기본 동작
@@ -435,8 +435,8 @@ const TreeComponent: React.FC<TreeComponentProps> = ({
             
             {showExpandCollapseButtons && (
               <div style={{ display: 'flex', gap: 4 }}>
-                <Button onClick={expandAll} title="전체 펼치기" size="small" appearance="subtle">▼</Button>
-                <Button onClick={collapseAll} title="전체 접기" size="small" appearance="subtle">▶</Button>
+                <Button onClick={expandAll} title="전체 펼치기" size="sm" variant="ghost">▼</Button>
+                <Button onClick={collapseAll} title="전체 접기" size="sm" variant="ghost">▶</Button>
               </div>
             )}
           </div>

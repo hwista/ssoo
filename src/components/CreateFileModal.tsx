@@ -7,7 +7,10 @@ import MessageModal from './MessageModal';
 import { useMessage } from '@/hooks/useMessage';
 import { normalizePath } from '@/lib/utils/pathUtils';
 import { logger } from '@/lib/utils/errorUtils';
-import { Button, Input, Dropdown, Option, Card, Text } from '@fluentui/react-components';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Dropdown, Option } from '@/components/ui/dropdown';
 
 interface CreateFileModalProps {
   isOpen: boolean;
@@ -232,20 +235,22 @@ export default function CreateFileModal({
   return (
     <>
       {/* 메인 모달 */}
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-        <Card style={{ background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.12)', width: 600, minHeight: 480, maxHeight: '90vh', height: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <Card className="bg-white rounded-xl shadow-2xl w-[600px] min-h-[480px] max-h-[90vh] flex flex-col">
           {/* 헤더 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 24, borderBottom: '1px solid #eee' }}>
-            <Text size={500} weight="semibold">➕ 새로 만들기</Text>
-            <Button appearance="subtle" onClick={handleClose} icon={<span style={{ fontSize: 20 }}>✕</span>} />
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <span className="text-lg font-semibold">➕ 새로 만들기</span>
+            <Button variant="ghost" onClick={handleClose}>
+              <span className="text-xl">✕</span>
+            </Button>
           </div>
-          <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+          <div className="flex flex-1 min-h-0">
             {/* 왼쪽: 폴더 트리 */}
-            <div style={{ width: '50%', borderRight: '1px solid #eee', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              <div style={{ padding: 16, borderBottom: '1px solid #eee' }}>
-                <Text size={300} weight="semibold">📂 위치 선택</Text>
+            <div className="w-1/2 border-r border-gray-200 flex flex-col min-h-0">
+              <div className="p-4 border-b border-gray-200">
+                <span className="text-sm font-semibold">📂 위치 선택</span>
               </div>
-              <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+              <div className="flex-1 overflow-auto min-h-0">
                 <TreeComponent
                   treeData={[{ name: '루트 폴더', type: 'directory', path: '', children: treeData }]}
                   selectedFile={currentPath}
@@ -262,65 +267,66 @@ export default function CreateFileModal({
               </div>
             </div>
             {/* 오른쪽: 파일 정보 입력 */}
-            <div style={{ width: '50%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              <div style={{ padding: 16, borderBottom: '1px solid #eee' }}>
-                <Text size={300} weight="semibold">📝 항목 정보</Text>
+            <div className="w-1/2 flex flex-col min-h-0">
+              <div className="p-4 border-b border-gray-200">
+                <span className="text-sm font-semibold">📝 항목 정보</span>
               </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: 24, minHeight: 0, maxHeight: 'calc(90vh - 120px)' }}>
+              <div className="flex-1 overflow-y-auto p-6 min-h-0 max-h-[calc(90vh-120px)]">
                 {/* 타입 선택 라디오 버튼 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Text size={300} weight="semibold">🎯 생성할 항목</Text>
-                  <div style={{ display: 'flex', gap: 24, marginTop: 8 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input type="radio" name="createType" value="file" checked={currentMode === 'file'} onChange={e => setCurrentMode(e.target.value as 'file' | 'folder')} style={{ marginRight: 8 }} />
-                      <Text size={300}>📄 파일</Text>
+                <div className="mb-4">
+                  <span className="text-sm font-semibold">🎯 생성할 항목</span>
+                  <div className="flex gap-6 mt-2">
+                    <label className="flex items-center cursor-pointer">
+                      <input type="radio" name="createType" value="file" checked={currentMode === 'file'} onChange={e => setCurrentMode(e.target.value as 'file' | 'folder')} className="mr-2" />
+                      <span className="text-sm">📄 파일</span>
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input type="radio" name="createType" value="folder" checked={currentMode === 'folder'} onChange={e => setCurrentMode(e.target.value as 'file' | 'folder')} style={{ marginRight: 8 }} />
-                      <Text size={300}>📁 폴더</Text>
+                    <label className="flex items-center cursor-pointer">
+                      <input type="radio" name="createType" value="folder" checked={currentMode === 'folder'} onChange={e => setCurrentMode(e.target.value as 'file' | 'folder')} className="mr-2" />
+                      <span className="text-sm">📁 폴더</span>
                     </label>
                   </div>
                 </div>
                 {/* 현재 경로 표시 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Text size={300} weight="semibold">📍 생성 위치</Text>
-                  <Card style={{ padding: 8, background: '#f9fafb', border: '1px solid #eee', fontSize: 14, color: '#555', marginTop: 4 }}>
-                    <Text>{currentPath || '루트 폴더'}</Text>
+                <div className="mb-4">
+                  <span className="text-sm font-semibold">📍 생성 위치</span>
+                  <Card className="p-2 bg-gray-50 border border-gray-200 text-sm text-gray-600 mt-1">
+                    <span>{currentPath || '루트 폴더'}</span>
                   </Card>
                 </div>
                 {/* 파일/폴더명 입력 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Text size={300} weight="semibold">{currentMode === 'file' ? '📄 파일명' : '📁 폴더명'}</Text>
+                <div className="mb-4">
+                  <span className="text-sm font-semibold">{currentMode === 'file' ? '📄 파일명' : '📁 폴더명'}</span>
                   <Input
                     type="text"
                     value={fileName}
-                    onChange={(_, data) => setFileName(data.value)}
+                    onChange={(e) => setFileName(e.target.value)}
                     placeholder={currentMode === 'file' ? '파일명을 입력하세요' : '폴더명을 입력하세요'}
-                    appearance="outline"
                     autoFocus
+                    className="mt-1"
                   />
                   {/* 실시간 검증 메시지 */}
                   {!fileName.trim() ? (
-                    <Text size={200} style={{ marginTop: 4, color: '#888' }}>ℹ️ 필수 입력항목입니다</Text>
+                    <span className="text-xs text-gray-500 mt-1 block">ℹ️ 필수 입력항목입니다</span>
                   ) : !fileNameValidation.isValid ? (
-                    <Text size={200} style={{ marginTop: 4, color: '#dc2626' }}>❌ {fileNameValidation.message}</Text>
+                    <span className="text-xs text-red-600 mt-1 block">❌ {fileNameValidation.message}</span>
                   ) : isDuplicate ? (
-                    <Text size={200} style={{ marginTop: 4, color: '#dc2626' }}>❌ 이미 같은 이름의 {currentMode === 'file' ? '파일' : '폴더'}이 존재합니다</Text>
+                    <span className="text-xs text-red-600 mt-1 block">❌ 이미 같은 이름의 {currentMode === 'file' ? '파일' : '폴더'}이 존재합니다</span>
                   ) : (
-                    <Text size={200} style={{ marginTop: 4, color: '#059669' }}>✅ 사용 가능한 이름입니다</Text>
+                    <span className="text-xs text-green-600 mt-1 block">✅ 사용 가능한 이름입니다</span>
                   )}
                 </div>
                 {/* 확장자 선택 (파일인 경우만) */}
                 {currentMode === 'file' && (
-                  <div style={{ marginBottom: 16 }}>
-                    <Text size={300} weight="semibold">🏷️ 파일 형식</Text>
+                  <div className="mb-4">
+                    <span className="text-sm font-semibold">🏷️ 파일 형식</span>
                     <Dropdown
                       value={selectedExtension}
-                      onOptionSelect={(_, data) => { if (data.optionValue) setSelectedExtension(data.optionValue); }}
+                      onValueChange={(value) => { if (value) setSelectedExtension(value); }}
+                      className="mt-1"
                     >
                       {FILE_EXTENSIONS.map(ext => (
-                        <Option key={ext.value} value={ext.value} text={ext.label}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <Option key={ext.value} value={ext.value}>
+                          <span className="inline-flex items-center gap-2">
                             <span>{ext.icon}</span>
                             <span>{ext.label}</span>
                           </span>
@@ -330,21 +336,21 @@ export default function CreateFileModal({
                   </div>
                 )}
                 {/* 미리보기 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Text size={300} weight="semibold">👀 미리보기</Text>
-                  <Card style={{ padding: 12, background: '#eff6ff', border: '1px solid #93c5fd', marginTop: 4 }}>
-                    <Text size={200} style={{ color: '#2563eb' }}>
+                <div className="mb-4">
+                  <span className="text-sm font-semibold">👀 미리보기</span>
+                  <Card className="p-3 bg-blue-50 border border-blue-300 mt-1">
+                    <span className="text-xs text-blue-600">
                       생성될 경로: {(() => { const normalizedPath = normalizePath(currentPath || ''); return normalizedPath ? `${normalizedPath}/${fullFileName}` : fullFileName; })()}
-                    </Text>
+                    </span>
                   </Card>
                 </div>
               </div>
             </div>
           </div>
           {/* 하단 버튼 */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: 24, borderTop: '1px solid #eee' }}>
-            <Button appearance="outline" onClick={onClose}>취소</Button>
-            <Button appearance="primary" onClick={handleSubmit} disabled={!fileName.trim() || !fileNameValidation.isValid || isDuplicate} title={!fileName.trim() ? '이름을 입력해주세요' : !fileNameValidation.isValid ? fileNameValidation.message : isDuplicate ? '중복된 이름입니다' : `${currentMode === 'file' ? '파일' : '폴더'} 생성하기`}>
+          <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+            <Button variant="outline" onClick={onClose}>취소</Button>
+            <Button variant="default" onClick={handleSubmit} disabled={!fileName.trim() || !fileNameValidation.isValid || isDuplicate} title={!fileName.trim() ? '이름을 입력해주세요' : !fileNameValidation.isValid ? fileNameValidation.message : isDuplicate ? '중복된 이름입니다' : `${currentMode === 'file' ? '파일' : '폴더'} 생성하기`}>
               {currentMode === 'file' ? '파일 만들기' : '폴더 만들기'}
             </Button>
           </div>

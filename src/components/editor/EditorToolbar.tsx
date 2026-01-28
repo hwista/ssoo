@@ -2,27 +2,29 @@
 
 import React, { useCallback, useState } from 'react';
 import { Editor } from '@tiptap/react';
-import { Button, Tooltip, Divider } from '@fluentui/react-components';
+import { Button } from '@/components/ui/button';
+import { SimpleTooltip } from '@/components/ui/tooltip';
+import { Divider } from '@/components/ui/divider';
 import {
-  TextBold24Regular,
-  TextItalic24Regular,
-  TextStrikethrough24Regular,
-  Code24Regular,
-  TextHeader124Regular,
-  TextHeader224Regular,
-  TextHeader324Regular,
-  TextBulletList24Regular,
-  TextNumberListLtr24Regular,
-  TextQuote24Regular,
-  Link24Regular,
-  Image24Regular,
-  Table24Regular,
-  CheckmarkSquare24Regular,
-  Highlight24Regular,
-  ArrowUndo24Regular,
-  ArrowRedo24Regular,
-  LineHorizontal124Regular,
-} from '@fluentui/react-icons';
+  Bold,
+  Italic,
+  Strikethrough,
+  Code,
+  Heading1,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  Quote,
+  Link,
+  Image,
+  Table,
+  CheckSquare,
+  Highlighter,
+  Undo,
+  Redo,
+  Minus,
+} from 'lucide-react';
 
 interface EditorToolbarProps {
   editor: Editor;
@@ -69,21 +71,17 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
     tooltip: string;
     children: React.ReactNode;
   }) => (
-    <Tooltip content={tooltip} relationship="label">
+    <SimpleTooltip content={tooltip}>
       <Button
-        appearance={isActive ? 'primary' : 'subtle'}
-        size="small"
+        variant={isActive ? 'default' : 'ghost'}
+        size="sm"
         onClick={onClick}
         disabled={disabled}
-        style={{
-          minWidth: 32,
-          padding: '4px 8px',
-          backgroundColor: isActive ? '#2563eb' : undefined,
-        }}
+        className={`min-w-8 px-2 ${isActive ? 'bg-blue-600 text-white' : ''}`}
       >
         {children}
       </Button>
-    </Tooltip>
+    </SimpleTooltip>
   );
 
   return (
@@ -94,17 +92,17 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
         disabled={!editor.can().undo()}
         tooltip="실행 취소 (Ctrl+Z)"
       >
-        <ArrowUndo24Regular />
+        <Undo className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
         tooltip="다시 실행 (Ctrl+Y)"
       >
-        <ArrowRedo24Regular />
+        <Redo className="h-4 w-4" />
       </ToolbarButton>
 
-      <Divider vertical style={{ height: 24 }} />
+      <Divider orientation="vertical" className="h-6 mx-1" />
 
       {/* 텍스트 스타일 */}
       <ToolbarButton
@@ -112,38 +110,38 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
         isActive={editor.isActive('bold')}
         tooltip="굵게 (Ctrl+B)"
       >
-        <TextBold24Regular />
+        <Bold className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleItalic().run()}
         isActive={editor.isActive('italic')}
         tooltip="기울임 (Ctrl+I)"
       >
-        <TextItalic24Regular />
+        <Italic className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleStrike().run()}
         isActive={editor.isActive('strike')}
         tooltip="취소선"
       >
-        <TextStrikethrough24Regular />
+        <Strikethrough className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleHighlight().run()}
         isActive={editor.isActive('highlight')}
         tooltip="형광펜"
       >
-        <Highlight24Regular />
+        <Highlighter className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleCode().run()}
         isActive={editor.isActive('code')}
         tooltip="인라인 코드"
       >
-        <Code24Regular />
+        <Code className="h-4 w-4" />
       </ToolbarButton>
 
-      <Divider vertical style={{ height: 24 }} />
+      <Divider orientation="vertical" className="h-6 mx-1" />
 
       {/* 헤딩 */}
       <ToolbarButton
@@ -151,24 +149,24 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
         isActive={editor.isActive('heading', { level: 1 })}
         tooltip="제목 1"
       >
-        <TextHeader124Regular />
+        <Heading1 className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
         isActive={editor.isActive('heading', { level: 2 })}
         tooltip="제목 2"
       >
-        <TextHeader224Regular />
+        <Heading2 className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
         isActive={editor.isActive('heading', { level: 3 })}
         tooltip="제목 3"
       >
-        <TextHeader324Regular />
+        <Heading3 className="h-4 w-4" />
       </ToolbarButton>
 
-      <Divider vertical style={{ height: 24 }} />
+      <Divider orientation="vertical" className="h-6 mx-1" />
 
       {/* 리스트 */}
       <ToolbarButton
@@ -176,24 +174,24 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
         isActive={editor.isActive('bulletList')}
         tooltip="글머리 기호"
       >
-        <TextBulletList24Regular />
+        <List className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
         isActive={editor.isActive('orderedList')}
         tooltip="번호 매기기"
       >
-        <TextNumberListLtr24Regular />
+        <ListOrdered className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleTaskList().run()}
         isActive={editor.isActive('taskList')}
         tooltip="체크리스트"
       >
-        <CheckmarkSquare24Regular />
+        <CheckSquare className="h-4 w-4" />
       </ToolbarButton>
 
-      <Divider vertical style={{ height: 24 }} />
+      <Divider orientation="vertical" className="h-6 mx-1" />
 
       {/* 블록 요소 */}
       <ToolbarButton
@@ -201,23 +199,23 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
         isActive={editor.isActive('blockquote')}
         tooltip="인용구"
       >
-        <TextQuote24Regular />
+        <Quote className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
         isActive={editor.isActive('codeBlock')}
         tooltip="코드 블록"
       >
-        <Code24Regular />
+        <Code className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().setHorizontalRule().run()}
         tooltip="구분선"
       >
-        <LineHorizontal124Regular />
+        <Minus className="h-4 w-4" />
       </ToolbarButton>
 
-      <Divider vertical style={{ height: 24 }} />
+      <Divider orientation="vertical" className="h-6 mx-1" />
 
       {/* 링크 */}
       <div className="relative">
@@ -226,7 +224,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
           isActive={editor.isActive('link')}
           tooltip="링크 삽입"
         >
-          <Link24Regular />
+          <Link className="h-4 w-4" />
         </ToolbarButton>
         {showLinkInput && (
           <div className="absolute top-full left-0 mt-1 p-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 flex gap-2">
@@ -238,10 +236,10 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
               className="px-2 py-1 border border-gray-300 rounded text-sm w-48"
               onKeyDown={(e) => e.key === 'Enter' && setLink()}
             />
-            <Button size="small" appearance="primary" onClick={setLink}>
+            <Button size="sm" onClick={setLink}>
               확인
             </Button>
-            <Button size="small" onClick={() => setShowLinkInput(false)}>
+            <Button size="sm" variant="ghost" onClick={() => setShowLinkInput(false)}>
               취소
             </Button>
           </div>
@@ -254,7 +252,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
           onClick={() => setShowImageInput(!showImageInput)}
           tooltip="이미지 삽입"
         >
-          <Image24Regular />
+          <Image className="h-4 w-4" />
         </ToolbarButton>
         {showImageInput && (
           <div className="absolute top-full left-0 mt-1 p-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 flex gap-2">
@@ -266,10 +264,10 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
               className="px-2 py-1 border border-gray-300 rounded text-sm w-48"
               onKeyDown={(e) => e.key === 'Enter' && addImage()}
             />
-            <Button size="small" appearance="primary" onClick={addImage}>
+            <Button size="sm" onClick={addImage}>
               확인
             </Button>
-            <Button size="small" onClick={() => setShowImageInput(false)}>
+            <Button size="sm" variant="ghost" onClick={() => setShowImageInput(false)}>
               취소
             </Button>
           </div>
@@ -281,7 +279,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
         onClick={addTable}
         tooltip="테이블 삽입"
       >
-        <Table24Regular />
+        <Table className="h-4 w-4" />
       </ToolbarButton>
     </div>
   );

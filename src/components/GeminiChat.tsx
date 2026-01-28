@@ -1,6 +1,9 @@
 import React from 'react';
-import { Card, Text, Input, Button, Spinner } from '@fluentui/react-components';
-import { ChatHelp24Regular } from '@fluentui/react-icons';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { MessageCircleQuestion } from 'lucide-react';
 import { useGeminiStore } from '@/stores/gemini-store';
 import { useResize } from '@/hooks/useResize';
 
@@ -38,46 +41,37 @@ const GeminiChat: React.FC = () => {
   };
 
   return (
-    <Card style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: 24, gap: 16, background: '#fff' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <ChatHelp24Regular style={{ fontSize: 28, color: '#6264a7' }} />
-        <Text size={500} weight="semibold">Gemini에게 질문하기</Text>
+    <Card className="h-full flex flex-col p-6 gap-4 bg-white">
+      <div className="flex items-center gap-2.5 mb-2">
+        <MessageCircleQuestion className="h-7 w-7 text-indigo-600" />
+        <h3 className="text-lg font-semibold">Gemini에게 질문하기</h3>
       </div>
       <Input
         value={question}
-        onChange={(_, data) => setQuestion(data.value)}
+        onChange={(e) => setQuestion(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="궁금한 점을 입력하세요..."
-        style={{ marginBottom: 8 }}
-        appearance="outline"
-        size="large"
+        className="mb-2"
         autoFocus
       />
-      <Button appearance="primary" onClick={handleAsk} disabled={loading || !question.trim()} style={{ alignSelf: 'flex-start' }}>
+      <Button onClick={handleAsk} disabled={loading || !question.trim()} className="self-start">
         질문하기
       </Button>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div className="flex-1 flex flex-col min-h-0">
         <div
-          style={{
-            height: responseHeight,
-            marginTop: 16,
-            background: '#f3f2f1',
-            borderRadius: 8,
-            padding: 16,
-            overflowY: 'auto',
-            resize: 'vertical',
-          }}
+          style={{ height: responseHeight }}
+          className="mt-4 bg-gray-100 rounded-lg p-4 overflow-y-auto resize-y"
         >
           {loading ? (
             <Spinner label="Gemini가 답변 중..." />
           ) : answer ? (
-            <Text size={400} style={{ color: '#323130', whiteSpace: 'pre-wrap' }}>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">
               {answer}
-            </Text>
+            </p>
           ) : (
-            <Text size={300} style={{ color: '#888' }}>
+            <p className="text-sm text-gray-500">
               답변이 여기에 표시됩니다.
-            </Text>
+            </p>
           )}
         </div>
         <div

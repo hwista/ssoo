@@ -2,7 +2,6 @@
 
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { FluentProvider, webLightTheme } from "@fluentui/react-components";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -25,15 +24,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <FluentProvider theme={webLightTheme}>
-          {children}
-          <Toaster 
-            position="top-right"
-            richColors
-            closeButton
-            duration={4000}
-          />
-        </FluentProvider>
+        {children}
+        <Toaster 
+          position="top-right"
+          richColors
+          closeButton
+          duration={4000}
+        />
       </body>
     </html>
   );

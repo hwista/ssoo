@@ -2,9 +2,8 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Button, ButtonProps } from '@/components/ui/button';
-import { Input as FluentInput, Menu, MenuList, MenuItem } from '@fluentui/react-components';
-import { makeStyles, shorthands } from '@fluentui/react-components';
-import { Document24Regular, Folder24Regular, Settings24Regular, Add24Regular, ArrowSync24Regular, ArrowUpload24Regular } from '@fluentui/react-icons';
+import { Input } from '@/components/ui/input';
+import { FileText, Folder, Settings, Plus, RefreshCw, Upload } from 'lucide-react';
 import FileUpload from '@/components/FileUpload';
 import { useTreeStore } from '@/stores/tree-store';
 import { useWikiUIStore } from '@/stores/wiki-ui-store';
@@ -18,53 +17,6 @@ import { useMessage } from '@/hooks/useMessage';
 import { logger } from '@/lib/utils/errorUtils';
 import type { FileNode } from '@/types';
 import { WikiSidebarProps } from '@/types/components';
-
-const useStyles = makeStyles({
-  sidebar: {
-    ...shorthands.padding('0'),
-    ...shorthands.borderRight('1px', 'solid', '#e5e7eb'),
-    backgroundColor: '#f3f2f1',
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    minWidth: 0, // minWidth를 0으로 설정하여 width prop에 따라 유동적으로 변경
-    maxWidth: '100vw', // maxWidth를 화면 전체로 설정
-    boxShadow: '2px 0 8px rgba(0,0,0,0.04)',
-  },
-  logoArea: {
-    ...shorthands.padding('20px', '0'),
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    borderBottom: '1px solid #e5e7eb',
-    background: '#fff',
-  },
-  navArea: {
-    ...shorthands.padding('16px', '0'),
-    borderBottom: '1px solid #e5e7eb',
-    background: '#f3f2f1',
-  },
-  searchArea: {
-    ...shorthands.padding('12px', '16px'),
-    borderBottom: '1px solid #e5e7eb',
-    background: '#f3f2f1',
-  },
-  treeArea: {
-    flex: 1,
-    overflow: 'auto',
-    background: '#f8f8f8',
-    padding: '8px 0',
-    width: '100%', // 내부 영역도 width: 100%로 설정
-  },
-  userArea: {
-    ...shorthands.padding('16px'),
-    borderTop: '1px solid #e5e7eb',
-    background: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  },
-});
 
 const WikiSidebar: React.FC<WikiSidebarProps> = ({
   width,
@@ -363,40 +315,30 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
     closeContextMenu();
   }, [closeContextMenu]);
 
-  const styles = useStyles();
-
   return (
-    <nav className={styles.sidebar} style={{ width, minWidth: width, maxWidth: width }} onClick={handleBackgroundClick}>
+    <nav 
+      className="p-0 border-r border-gray-200 bg-[#f3f2f1] flex flex-col h-screen shadow-[2px_0_8px_rgba(0,0,0,0.04)]"
+      style={{ width, minWidth: width, maxWidth: width }} 
+      onClick={handleBackgroundClick}
+    >
       {/* 상단 로고 및 앱 이름 */}
-      <div className={styles.logoArea}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          background: 'linear-gradient(90deg, #e9eafc 0%, #f3f2f1 100%)',
-          borderRadius: 16,
-          boxShadow: '0 2px 12px rgba(98,100,167,0.08)',
-          padding: '16px 24px',
-          margin: '8px 0',
-          width: '90%',
-          justifyContent: 'center',
-        }}>
-          <img src="/lsitc.png" alt="회사 로고" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }} />
-          <span style={{ fontWeight: 700, fontSize: 22, color: '#6264a7', letterSpacing: '1px', lineHeight: 1.2 }}>WIKI</span>
+      <div className="py-5 flex flex-col items-center border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-4 bg-gradient-to-r from-[#e9eafc] to-[#f3f2f1] rounded-2xl shadow-sm p-4 my-2 w-[90%] justify-center">
+          <img src="/lsitc.png" alt="회사 로고" className="w-10 h-10 rounded-lg object-contain bg-white shadow-sm" />
+          <span className="font-bold text-[22px] text-[#6264a7] tracking-wide">WIKI</span>
         </div>
       </div>
-      {/* 주요 네비게이션 메뉴 삭제됨 */}
       {/* 검색 및 액션 영역 */}
-      <div className={styles.searchArea}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <button style={{ background: '#6264a7', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => setCreateModal({ isOpen: true, mode: 'file', initialPath: '' })}>
-            <Add24Regular /> 새로 만들기
+      <div className="p-3 border-b border-gray-200 bg-[#f3f2f1]">
+        <div className="flex gap-2 mb-2">
+          <button className="bg-[#6264a7] text-white border-none rounded-md px-4 py-2 font-medium flex items-center gap-1.5 cursor-pointer" onClick={() => setCreateModal({ isOpen: true, mode: 'file', initialPath: '' })}>
+            <Plus className="h-5 w-5" /> 새로 만들기
           </button>
-          <button style={{ background: '#e1dfdd', color: '#323130', border: 'none', borderRadius: 6, padding: '8px', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={refreshFileTree}>
-            <ArrowSync24Regular />
+          <button className="bg-[#e1dfdd] text-[#323130] border-none rounded-md p-2 flex items-center cursor-pointer" onClick={refreshFileTree}>
+            <RefreshCw className="h-5 w-5" />
           </button>
-          <button style={{ background: '#e1dfdd', color: '#323130', border: 'none', borderRadius: 6, padding: '8px', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setShowUploadModal(true)} title="마크다운 파일 업로드">
-            <ArrowUpload24Regular />
+          <button className="bg-[#e1dfdd] text-[#323130] border-none rounded-md p-2 flex items-center cursor-pointer" onClick={() => setShowUploadModal(true)} title="마크다운 파일 업로드">
+            <Upload className="h-5 w-5" />
           </button>
         </div>
         <input
@@ -404,15 +346,15 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
           placeholder="파일 검색..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid #e1dfdd', padding: '0 12px', marginBottom: 8, fontSize: 15 }}
+          className="w-full h-9 rounded-md border border-[#e1dfdd] px-3 mb-2 text-base"
         />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={{ background: '#e1dfdd', color: '#323130', border: 'none', borderRadius: 6, padding: '6px 12px', fontWeight: 500, cursor: 'pointer' }} onClick={expandAll}>모두 열기</button>
-          <button style={{ background: '#e1dfdd', color: '#323130', border: 'none', borderRadius: 6, padding: '6px 12px', fontWeight: 500, cursor: 'pointer' }} onClick={collapseAll}>모두 닫기</button>
+        <div className="flex gap-2">
+          <button className="bg-[#e1dfdd] text-[#323130] border-none rounded-md px-3 py-1.5 font-medium cursor-pointer" onClick={expandAll}>모두 열기</button>
+          <button className="bg-[#e1dfdd] text-[#323130] border-none rounded-md px-3 py-1.5 font-medium cursor-pointer" onClick={collapseAll}>모두 닫기</button>
         </div>
       </div>
       {/* 파일 트리 영역 */}
-      <div className={styles.treeArea}>
+      <div className="flex-1 overflow-auto bg-[#f8f8f8] py-2 w-full">
         <TreeComponent
           treeData={filteredFiles}
           selectedFile={selectedFile}
@@ -433,19 +375,19 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
         />
       </div>
       {/* 하단 사용자 정보 및 설정 */}
-      <div className={styles.userArea}>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#6264a7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16 }}>U</div>
-        <span style={{ fontWeight: 500, color: '#323130' }}>사용자명</span>
-        <button style={{ background: 'none', border: 'none', color: '#6264a7', borderRadius: 6, padding: 6, cursor: 'pointer' }}>
-          <Settings24Regular />
+      <div className="p-4 border-t border-gray-200 bg-white flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-[#6264a7] flex items-center justify-center text-white font-bold text-base">U</div>
+        <span className="font-medium text-[#323130]">사용자명</span>
+        <button className="bg-transparent border-none text-[#6264a7] rounded-md p-1.5 cursor-pointer">
+          <Settings className="h-5 w-5" />
         </button>
       </div>
 
       {/* 컨텍스트 메뉴 */}
       {contextMenu?.visible && (
         <div
+          className="fixed z-[9999] min-w-[180px] max-w-[240px] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden"
           style={{
-            position: 'fixed',
             left: (() => {
               const menuWidth = 180;
               return contextMenu.x + menuWidth > window.innerWidth ? window.innerWidth - menuWidth - 8 : contextMenu.x;
@@ -454,58 +396,44 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
               const menuHeight = 180;
               return contextMenu.y + menuHeight > window.innerHeight ? window.innerHeight - menuHeight - 8 : contextMenu.y;
             })(),
-            zIndex: 9999,
-            minWidth: 180,
-            background: '#fff',
-            borderRadius: 14,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-            border: '1px solid #e5e7eb',
-            padding: 0,
-            overflow: 'hidden',
-            transition: 'box-shadow 0.2s',
-            maxWidth: 240,
           }}
         >
-          <Menu open={true} positioning={{ position: 'below', align: 'start' }}>
-            <MenuList style={{ padding: 0 }}>
-              {contextMenu.type === 'folder' && (
-                <>
-                  <MenuItem style={{ padding: '12px 22px', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f3f4f6', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'none'} onClick={() => handleCreate('file', contextMenu.target?.path)}>
-                    <span style={{fontSize:18}}>📄</span> <span>새 파일</span>
-                  </MenuItem>
-                  <MenuItem style={{ padding: '12px 22px', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f3f4f6', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'none'} onClick={() => handleCreate('folder', contextMenu.target?.path)}>
-                    <span style={{fontSize:18}}>📁</span> <span>새 폴더</span>
-                  </MenuItem>
-                  <MenuItem style={{ padding: '12px 22px', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f3f4f6', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'none'} onClick={() => handleRenameStart(contextMenu.target?.path || '', contextMenu.target?.name || '')}>
-                    <span style={{fontSize:18}}>✏️</span> <span>이름 변경</span>
-                  </MenuItem>
-                  <MenuItem style={{ padding: '12px 22px', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, color: '#e53e3e', background: 'none', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#ffe5e5'} onMouseLeave={e => e.currentTarget.style.background = 'none'} onClick={() => handleDelete(contextMenu.target?.path || '')}>
-                    <span style={{fontSize:18}}>🗑️</span> <span>삭제</span>
-                  </MenuItem>
-                </>
-              )}
-              {contextMenu.type === 'file' && (
-                <>
-                  <MenuItem style={{ padding: '12px 22px', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f3f4f6', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'none'} onClick={() => handleRenameStart(contextMenu.target?.path || '', contextMenu.target?.name || '')}>
-                    <span style={{fontSize:18}}>✏️</span> <span>이름 변경</span>
-                  </MenuItem>
-                  <MenuItem style={{ padding: '12px 22px', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, color: '#e53e3e', background: 'none', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#ffe5e5'} onMouseLeave={e => e.currentTarget.style.background = 'none'} onClick={() => handleDelete(contextMenu.target?.path || '')}>
-                    <span style={{fontSize:18}}>🗑️</span> <span>삭제</span>
-                  </MenuItem>
-                </>
-              )}
-              {contextMenu.type === 'empty' && (
-                <>
-                  <MenuItem style={{ padding: '12px 22px', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f3f4f6', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'none'} onClick={() => handleCreate('file')}>
-                    <span style={{fontSize:18}}>📄</span> <span>새 파일</span>
-                  </MenuItem>
-                  <MenuItem style={{ padding: '12px 22px', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f3f4f6', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'} onMouseLeave={e => e.currentTarget.style.background = 'none'} onClick={() => handleCreate('folder')}>
-                    <span style={{fontSize:18}}>📁</span> <span>새 폴더</span>
-                  </MenuItem>
-                </>
-              )}
-            </MenuList>
-          </Menu>
+          {contextMenu.type === 'folder' && (
+            <>
+              <button className="w-full px-5 py-3 text-[15px] flex items-center gap-2 border-b border-gray-100 cursor-pointer hover:bg-gray-100 text-left bg-transparent" onClick={() => handleCreate('file', contextMenu.target?.path)}>
+                <span className="text-lg">📄</span> <span>새 파일</span>
+              </button>
+              <button className="w-full px-5 py-3 text-[15px] flex items-center gap-2 border-b border-gray-100 cursor-pointer hover:bg-gray-100 text-left bg-transparent" onClick={() => handleCreate('folder', contextMenu.target?.path)}>
+                <span className="text-lg">📁</span> <span>새 폴더</span>
+              </button>
+              <button className="w-full px-5 py-3 text-[15px] flex items-center gap-2 border-b border-gray-100 cursor-pointer hover:bg-gray-100 text-left bg-transparent" onClick={() => handleRenameStart(contextMenu.target?.path || '', contextMenu.target?.name || '')}>
+                <span className="text-lg">✏️</span> <span>이름 변경</span>
+              </button>
+              <button className="w-full px-5 py-3 text-[15px] flex items-center gap-2 cursor-pointer hover:bg-red-50 text-red-600 text-left bg-transparent border-none" onClick={() => handleDelete(contextMenu.target?.path || '')}>
+                <span className="text-lg">🗑️</span> <span>삭제</span>
+              </button>
+            </>
+          )}
+          {contextMenu.type === 'file' && (
+            <>
+              <button className="w-full px-5 py-3 text-[15px] flex items-center gap-2 border-b border-gray-100 cursor-pointer hover:bg-gray-100 text-left bg-transparent" onClick={() => handleRenameStart(contextMenu.target?.path || '', contextMenu.target?.name || '')}>
+                <span className="text-lg">✏️</span> <span>이름 변경</span>
+              </button>
+              <button className="w-full px-5 py-3 text-[15px] flex items-center gap-2 cursor-pointer hover:bg-red-50 text-red-600 text-left bg-transparent border-none" onClick={() => handleDelete(contextMenu.target?.path || '')}>
+                <span className="text-lg">🗑️</span> <span>삭제</span>
+              </button>
+            </>
+          )}
+          {contextMenu.type === 'empty' && (
+            <>
+              <button className="w-full px-5 py-3 text-[15px] flex items-center gap-2 border-b border-gray-100 cursor-pointer hover:bg-gray-100 text-left bg-transparent" onClick={() => handleCreate('file')}>
+                <span className="text-lg">📄</span> <span>새 파일</span>
+              </button>
+              <button className="w-full px-5 py-3 text-[15px] flex items-center gap-2 cursor-pointer hover:bg-gray-100 text-left bg-transparent border-none" onClick={() => handleCreate('folder')}>
+                <span className="text-lg">📁</span> <span>새 폴더</span>
+              </button>
+            </>
+          )}
         </div>
       )}
       {/* 파일 생성 모달 */}

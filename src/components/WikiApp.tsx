@@ -9,7 +9,7 @@ import WikiModals from '@/components/WikiModals';
 import { WikiAppProps } from '@/types/components';
 import { useResize } from '@/hooks/useResize';
 import { FileNode } from '@/types';
-import { Folder24Regular, ChatHelp24Regular, Search24Regular } from '@fluentui/react-icons';
+import { Folder, Search, MessageCircle } from 'lucide-react';
 import GeminiChat from '@/components/GeminiChat';
 import AIChat from '@/components/AIChat';
 
@@ -72,21 +72,21 @@ const WikiAppContent: React.FC<{
           onClick={() => setSidebarType('tree')}
           title="파일트리"
         >
-          <Folder24Regular />
+          <Folder className="h-6 w-6" />
         </button>
         <button
           style={{ width: 44, height: 44, borderRadius: 12, background: sidebarType === 'ai' ? '#6264a7' : 'transparent', color: sidebarType === 'ai' ? '#fff' : '#6264a7', border: 'none', marginBottom: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}
           onClick={() => setSidebarType('ai')}
           title="AI 검색 (RAG)"
         >
-          <Search24Regular />
+          <Search className="h-6 w-6" />
         </button>
         <button
           style={{ width: 44, height: 44, borderRadius: 12, background: sidebarType === 'gemini' ? '#6264a7' : 'transparent', color: sidebarType === 'gemini' ? '#fff' : '#6264a7', border: 'none', marginBottom: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}
           onClick={() => setSidebarType('gemini')}
           title="Gemini 대화"
         >
-          <ChatHelp24Regular />
+          <MessageCircle className="h-6 w-6" />
         </button>
       </div>
       {/* 파일트리 사이드바 or GeminiChat */}

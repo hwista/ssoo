@@ -1,6 +1,70 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-01-27
+> 최종 업데이트: 2026-01-28
+
+---
+
+## 2026-01-28
+
+### 리팩터링 - Phase 2-F: Fluent UI 제거 완료 ✅
+
+**목표**: DMS에서 Fluent UI 완전 제거 및 Tailwind CSS + Radix UI + Lucide 아이콘으로 통일
+
+#### 제거된 패키지 (96개)
+```bash
+npm uninstall @fluentui/react @fluentui/react-components @fluentui/react-icons
+```
+
+#### 신규 추가 UI 컴포넌트 (8개)
+| 컴포넌트 | 경로 | 설명 |
+|----------|------|------|
+| `Button` | `components/ui/button.tsx` | CVA 기반 (shadcn/ui 스타일) |
+| `Card` | `components/ui/card.tsx` | Card, CardHeader, CardTitle, CardDescription, CardFooter |
+| `Input` | `components/ui/input.tsx` | 네이티브 input 래퍼 |
+| `Dialog` | `components/ui/dialog.tsx` | Radix Dialog + DialogSurface, DialogBody alias |
+| `Dropdown` | `components/ui/dropdown.tsx` | Radix Dropdown + Fluent 호환 API |
+| `Tooltip` | `components/ui/tooltip.tsx` | Radix Tooltip + SimpleTooltip |
+| `Progress` | `components/ui/progress.tsx` | Radix Progress (ProgressBar alias) |
+| `Spinner` | `components/ui/spinner.tsx` | SVG 스피너 |
+| `Divider` | `components/ui/divider.tsx` | 구분선 (Separator alias) |
+| `Menu` | `components/ui/menu.tsx` | Radix Context Menu |
+
+#### 변환된 컴포넌트 (13개)
+| 컴포넌트 | 주요 변경 |
+|----------|----------|
+| `EditorToolbar.tsx` | 18개 Fluent 아이콘 → Lucide |
+| `WikiEditor.tsx` | Card, Button, Dialog, Tooltip → 로컬 UI |
+| `WikiSidebar.tsx` | makeStyles/shorthands 제거, Menu → 네이티브 버튼 |
+| `WikiApp.tsx` | Folder24Regular 등 → Lucide |
+| `TextSearch.tsx` | Search24Regular 등 → Lucide |
+| `ThemeToggle.tsx` | WeatherSunny/Moon → Sun/Moon |
+| `CreateFileModal.tsx` | Card, Button, Input, Dropdown → 로컬 UI |
+| `AIChat.tsx` | Input, Button, Card, Spinner → 로컬 UI |
+| `FileUpload.tsx` | Card, ProgressBar, Spinner → 로컬 UI |
+| `GeminiChat.tsx` | Card, Input, Button → 로컬 UI |
+| `LinkModal.tsx` | variant="primary" → variant="default" |
+| `SearchPanel.tsx` | Input, Button, Card, Spinner → 로컬 UI |
+| `TreeComponent.tsx` | Button props 수정 (size="sm", variant="ghost") |
+
+#### Radix UI 패키지 추가 (6개)
+- `@radix-ui/react-tooltip`
+- `@radix-ui/react-dialog`
+- `@radix-ui/react-dropdown-menu`
+- `@radix-ui/react-progress`
+- `@radix-ui/react-context-menu`
+- `@radix-ui/react-slot`
+
+#### Button 컴포넌트 API 변경
+| 기존 (Fluent UI) | 신규 (shadcn/ui 스타일) |
+|------------------|-------------------------|
+| `appearance="primary"` | `variant="default"` |
+| `appearance="outline"` | `variant="outline"` |
+| `appearance="subtle"` | `variant="ghost"` |
+| `size="small"` | `size="sm"` |
+
+#### layout.tsx 변경
+- `FluentProvider` 제거
+- `webLightTheme` import 제거
 
 ---
 

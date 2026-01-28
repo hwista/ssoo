@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Input, Button, Card, Text, Spinner } from '@fluentui/react-components';
-import { Search24Regular, Document24Regular, ArrowSync24Regular } from '@fluentui/react-icons';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
+import { Search, FileText, RefreshCw } from 'lucide-react';
 
 interface SearchResult {
   id: string;
@@ -115,100 +118,73 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onFileSelect }) => {
   }, [checkIndexStatus]);
 
   return (
-    <Card style={{ padding: 16 }}>
-      <div style={{ marginBottom: 16 }}>
-        <Text size={500} weight="semibold" block style={{ marginBottom: 8 }}>
-          AI 검색
-        </Text>
+    <Card className="p-4">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold mb-2">AI 검색</h3>
 
         {indexStatus && (
-          <Text size={200} style={{ color: '#6b7280' }}>
+          <p className="text-xs text-muted-foreground">
             인덱싱된 문서: {indexStatus.count}개
-          </Text>
+          </p>
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <Input
-          placeholder="검색어를 입력하세요..."
-          value={query}
-          onChange={(e, data) => setQuery(data.value)}
-          onKeyDown={handleKeyDown}
-          style={{ flex: 1 }}
-          contentBefore={<Search24Regular />}
-        />
+      <div className="flex gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="검색어를 입력하세요..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="pl-10"
+          />
+        </div>
         <Button
-          appearance="primary"
           onClick={handleSearch}
           disabled={isSearching || !query.trim()}
         >
-          {isSearching ? <Spinner size="tiny" /> : '검색'}
+          {isSearching ? <Spinner size="sm" /> : '검색'}
         </Button>
         <Button
-          appearance="secondary"
+          variant="secondary"
           onClick={handleIndex}
           disabled={isIndexing}
           title="문서 인덱싱"
         >
-          {isIndexing ? <Spinner size="tiny" /> : <ArrowSync24Regular />}
+          {isIndexing ? <Spinner size="sm" /> : <RefreshCw className="h-4 w-4" />}
         </Button>
       </div>
 
       {error && (
-        <div style={{
-          padding: 12,
-          backgroundColor: '#fef2f2',
-          borderRadius: 8,
-          marginBottom: 16
-        }}>
-          <Text style={{ color: '#dc2626' }}>{error}</Text>
+        <div className="p-3 bg-red-50 rounded-lg mb-4">
+          <p className="text-red-600 text-sm">{error}</p>
         </div>
       )}
 
       {results.length > 0 && (
         <div>
-          <Text size={300} weight="semibold" block style={{ marginBottom: 8, color: '#6b7280' }}>
+          <p className="text-xs font-semibold text-muted-foreground mb-2">
             검색 결과 ({results.length}건)
-          </Text>
+          </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {results.map((result, index) => (
               <div
                 key={result.id}
                 onClick={() => handleResultClick(result.filePath)}
-                style={{
-                  padding: 12,
-                  backgroundColor: '#f9fafb',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  border: '1px solid #e5e7eb',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f0f0ff';
-                  e.currentTarget.style.borderColor = '#6264a7';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f9fafb';
-                  e.currentTarget.style.borderColor = '#e5e7eb';
-                }}
+                className="p-3 bg-gray-50 rounded-lg cursor-pointer border border-gray-200 transition-all hover:bg-indigo-50 hover:border-indigo-400"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Document24Regular style={{ color: '#6264a7' }} />
-                  <Text weight="semibold" size={300}>{result.fileName}</Text>
-                  <Text size={200} style={{ color: '#9ca3af', marginLeft: 'auto' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <FileText className="h-4 w-4 text-indigo-600" />
+                  <span className="font-semibold text-sm">{result.fileName}</span>
+                  <span className="text-xs text-gray-400 ml-auto">
                     유사도: {(1 - result.score).toFixed(3)}
-                  </Text>
+                  </span>
                 </div>
-                <Text size={200} style={{
-                  color: '#4b5563',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden'
-                }}>
+                <p className="text-xs text-gray-600 line-clamp-2">
                   {result.content.substring(0, 200)}...
-                </Text>
+                </p>
               </div>
             ))}
           </div>
@@ -216,8 +192,8 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onFileSelect }) => {
       )}
 
       {!isSearching && results.length === 0 && query && (
-        <div style={{ textAlign: 'center', padding: 24, color: '#9ca3af' }}>
-          <Text>검색 결과가 없습니다</Text>
+        <div className="text-center p-6 text-muted-foreground">
+          <p>검색 결과가 없습니다</p>
         </div>
       )}
     </Card>

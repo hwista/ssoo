@@ -3,8 +3,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Card, Button, Text, Dialog, DialogSurface, DialogBody, DialogTitle, Tooltip } from '@fluentui/react-components';
-import { Eye24Regular, Save24Regular, Edit24Regular, Dismiss24Regular, SaveCopy24Regular, TextT24Regular, Document24Regular } from '@fluentui/react-icons';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { SimpleTooltip } from '@/components/ui/tooltip';
+import { Dialog, DialogSurface, DialogBody, DialogTitle } from '@/components/ui/dialog';
+import { Eye, Save, Edit, X, Copy, Type, FileText } from 'lucide-react';
 import { BlockEditor, BlockEditorRef } from '@/components/editor';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useTreeStore } from '@/stores/tree-store';
@@ -208,9 +211,9 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
 
   if (!selectedFile) {
     return (
-      <Card style={{ padding: 32, minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Text size={400} weight="semibold">파일을 선택해주세요</Text>
-        <Text size={300}>왼쪽 사이드바에서 파일을 클릭하여 내용을 확인하고 편집할 수 있습니다.</Text>
+      <Card className="p-8 min-h-[200px] flex flex-col items-center justify-center">
+        <span className="text-lg font-semibold">파일을 선택해주세요</span>
+        <span className="text-sm text-gray-500">왼쪽 사이드바에서 파일을 클릭하여 내용을 확인하고 편집할 수 있습니다.</span>
       </Card>
     );
   }
@@ -229,48 +232,62 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
         </div>*/}
         {/* 중앙: 파일명 및 상태 */}
         <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
-          <Text size={600} weight="semibold" style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>
+          <span className="text-xl font-semibold inline-block max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap">
             {selectedFile.split('/').pop()}
-          </Text>
+          </span>
           {hasUnsavedChanges && (
-            <Text size={200} style={{ marginLeft: 8, color: '#d97706', background: '#fff7ed', borderRadius: 4, padding: '2px 8px' }}>수정됨</Text>
+            <span className="ml-2 text-xs text-amber-600 bg-amber-50 rounded px-2 py-0.5">수정됨</span>
           )}
           {isSaving && (
-            <Text size={200} style={{ marginLeft: 8, color: '#2563eb', background: '#eff6ff', borderRadius: 4, padding: '2px 8px' }}>저장 중...</Text>
+            <span className="ml-2 text-xs text-blue-600 bg-blue-50 rounded px-2 py-0.5">저장 중...</span>
           )}
         </div>
         {/* 우측: 버튼 영역 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {isEditing && (
             <div style={{ display: 'flex', gap: 4, marginRight: 8 }}>
-              <Tooltip content="블록 에디터" relationship="label">
-                <Button appearance={editorMode === 'block' ? 'primary' : 'subtle'} size="small" icon={<Document24Regular />} onClick={() => handleEditorModeChange('block')} />
-              </Tooltip>
-              <Tooltip content="마크다운" relationship="label">
-                <Button appearance={editorMode === 'markdown' ? 'primary' : 'subtle'} size="small" icon={<TextT24Regular />} onClick={() => handleEditorModeChange('markdown')} />
-              </Tooltip>
+              <SimpleTooltip content="블록 에디터">
+                <Button variant={editorMode === 'block' ? 'default' : 'ghost'} size="sm" onClick={() => handleEditorModeChange('block')}>
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </SimpleTooltip>
+              <SimpleTooltip content="마크다운">
+                <Button variant={editorMode === 'markdown' ? 'default' : 'ghost'} size="sm" onClick={() => handleEditorModeChange('markdown')}>
+                  <Type className="h-4 w-4" />
+                </Button>
+              </SimpleTooltip>
             </div>
           )}
           {isEditing && (
             <>
-              <Tooltip content="미리보기" relationship="label">
-                <Button appearance="subtle" icon={<Eye24Regular />} onClick={() => setShowPreviewModal(true)} />
-              </Tooltip>
-              <Tooltip content="임시저장" relationship="label">
-                <Button appearance="secondary" icon={<SaveCopy24Regular />} onClick={tempSave} disabled={isSaving} />
-              </Tooltip>
-              <Tooltip content="저장" relationship="label">
-                <Button appearance="primary" icon={<Save24Regular />} onClick={() => saveFile()} disabled={isSaving} />
-              </Tooltip>
-              <Tooltip content="편집 취소" relationship="label">
-                <Button appearance="subtle" icon={<Dismiss24Regular />} onClick={() => { if (hasUnsavedChanges) { if (confirm('변경사항을 취소하시겠습니까?')) { resetContent(content); setHtmlContent(markdownToHtmlSync(content)); setIsEditing(false); } } else { setIsEditing(false); } }} style={{ color: '#dc2626' }} />
-              </Tooltip>
+              <SimpleTooltip content="미리보기">
+                <Button variant="ghost" onClick={() => setShowPreviewModal(true)}>
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </SimpleTooltip>
+              <SimpleTooltip content="임시저장">
+                <Button variant="secondary" onClick={tempSave} disabled={isSaving}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </SimpleTooltip>
+              <SimpleTooltip content="저장">
+                <Button variant="default" onClick={() => saveFile()} disabled={isSaving}>
+                  <Save className="h-4 w-4" />
+                </Button>
+              </SimpleTooltip>
+              <SimpleTooltip content="편집 취소">
+                <Button variant="ghost" className="text-red-600" onClick={() => { if (hasUnsavedChanges) { if (confirm('변경사항을 취소하시겠습니까?')) { resetContent(content); setHtmlContent(markdownToHtmlSync(content)); setIsEditing(false); } } else { setIsEditing(false); } }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </SimpleTooltip>
             </>
           )}
           {!isEditing && (
-            <Tooltip content="편집" relationship="label">
-              <Button appearance="primary" icon={<Edit24Regular />} onClick={() => toggleEditMode()} disabled={isSaving} />
-            </Tooltip>
+            <SimpleTooltip content="편집">
+              <Button variant="default" onClick={() => toggleEditMode()} disabled={isSaving}>
+                <Edit className="h-4 w-4" />
+              </Button>
+            </SimpleTooltip>
           )}
         </div>
       </div>
@@ -303,13 +320,13 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
         ) : (
           <div style={{ flex: 1, overflow: 'auto' }}>
             {isMarkdownFile(selectedFile) ? (
-              <Card style={{ margin: 16, padding: 16 }}>
+              <Card className="m-4 p-4">
                 <div className="prose max-w-none">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{editorContent || content}</ReactMarkdown>
                 </div>
               </Card>
             ) : (
-              <Card style={{ margin: 16, padding: 16 }}>
+              <Card className="m-4 p-4">
                 <pre style={{ fontFamily: 'monospace', fontSize: 14, whiteSpace: 'pre-wrap', margin: 0 }}>{editorContent || content}</pre>
               </Card>
             )}
@@ -319,27 +336,27 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
 
       {/* 스테이터스바 - 읽기 모드와 편집 모드 공통 */}
       {selectedFile && (
-        <Card style={{ padding: 12, borderTop: '1px solid #e5e7eb', fontSize: 12, color: '#6b7280', borderRadius: 0 }}>
+        <Card className="p-3 border-t border-gray-200 text-xs text-gray-500 rounded-none">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {/* 왼쪽: 기본 파일 정보 (공통) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <Text>라인: {editorContent.split('\n').length}</Text>
-              <Text>문자: {editorContent.length}</Text>
+              <span>라인: {editorContent.split('\n').length}</span>
+              <span>문자: {editorContent.length}</span>
               {fileMetadata.createdAt && (
-                <Text>생성: {fileMetadata.createdAt.toLocaleDateString()} {fileMetadata.createdAt.toLocaleTimeString()}</Text>
+                <span>생성: {fileMetadata.createdAt.toLocaleDateString()} {fileMetadata.createdAt.toLocaleTimeString()}</span>
               )}
               {lastSaveTime && (
-                <Text>마지막 저장: {lastSaveTime.toLocaleDateString()} {lastSaveTime.toLocaleTimeString()}</Text>
+                <span>마지막 저장: {lastSaveTime.toLocaleDateString()} {lastSaveTime.toLocaleTimeString()}</span>
               )}
             </div>
             {/* 편집 모드일 때만 추가 정보 표시 */}
             {isEditing && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <Text>모드: {editorMode === 'block' ? '블록' : '마크다운'}</Text>
-                <Text>자동저장</Text>
-                <Button appearance={autoSaveEnabled ? 'primary' : 'outline'} size="small" onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}>{autoSaveEnabled ? 'ON' : 'OFF'}</Button>
+                <span>모드: {editorMode === 'block' ? '블록' : '마크다운'}</span>
+                <span>자동저장</span>
+                <Button variant={autoSaveEnabled ? 'default' : 'outline'} size="sm" onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}>{autoSaveEnabled ? 'ON' : 'OFF'}</Button>
                 {autoSaveEnabled && autoSaveCountdown > 0 && (
-                  <Text style={{ color: '#2563eb' }}>{autoSaveCountdown}초</Text>
+                  <span className="text-blue-600">{autoSaveCountdown}초</span>
                 )}
               </div>
             )}
@@ -349,19 +366,19 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
 
       {/* 미리보기 모달 */}
       {showPreviewModal && (
-        <Dialog open={showPreviewModal} onOpenChange={(_, data) => setShowPreviewModal(data.open)}>
+        <Dialog open={showPreviewModal} onOpenChange={(open) => setShowPreviewModal(open)}>
           <DialogSurface>
-            <DialogBody style={{ position: 'relative', width: '100%', maxWidth: 600, minWidth: 320, maxHeight: '70vh', minHeight: 200, padding: 24, background: '#fff', borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', margin: '0 auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <DialogBody className="relative w-full max-w-[600px] min-w-[320px] max-h-[70vh] min-h-[200px] p-6 bg-white rounded-2xl shadow-2xl mx-auto flex flex-col justify-center">
               <Button
-                appearance="subtle"
+                variant="ghost"
                 onClick={() => setShowPreviewModal(false)}
-                style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, fontSize: 20, zIndex: 2 }}
+                className="absolute top-4 right-4 w-9 h-9 text-xl z-10"
                 aria-label="닫기"
               >✖</Button>
-              <DialogTitle style={{ textAlign: 'center', fontWeight: 600, fontSize: 18, marginBottom: 16 }}>
+              <DialogTitle className="text-center font-semibold text-lg mb-4">
                 👁️ 미리보기 - {selectedFile?.split('/').pop()}
               </DialogTitle>
-              <div style={{ overflowY: 'auto', maxHeight: '50vh', minHeight: 120, padding: 8, background: '#fafafa', borderRadius: 8 }}>
+              <div className="overflow-y-auto max-h-[50vh] min-h-[120px] p-2 bg-gray-50 rounded-lg">
                 {isMarkdownFile(selectedFile || '') ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{editorContent}</ReactMarkdown>
                 ) : (

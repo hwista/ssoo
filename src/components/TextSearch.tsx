@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Search24Regular, Document24Regular, Dismiss24Regular } from '@fluentui/react-icons';
+import { Search, FileText, X } from 'lucide-react';
 
 interface SearchMatch {
   line: number;
@@ -97,7 +97,7 @@ export default function TextSearch({ onFileSelect, onClose }: TextSearchProps) {
       {/* 헤더 */}
       <div className="flex items-center justify-between p-4 border-b">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Search24Regular />
+          <Search className="h-6 w-6" />
           파일 내용 검색
         </h2>
         {onClose && (
@@ -105,7 +105,7 @@ export default function TextSearch({ onFileSelect, onClose }: TextSearchProps) {
             onClick={onClose}
             className="p-1 hover:bg-gray-100 rounded"
           >
-            <Dismiss24Regular />
+            <X className="h-6 w-6" />
           </button>
         )}
       </div>
@@ -172,7 +172,7 @@ export default function TextSearch({ onFileSelect, onClose }: TextSearchProps) {
                     className="flex items-center gap-2 p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
                     onClick={() => toggleExpand(result.filePath)}
                   >
-                    <Document24Regular className="text-blue-500 flex-shrink-0" />
+                    <FileText className="h-5 w-5 text-blue-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div
                         className="font-medium text-blue-600 hover:underline truncate cursor-pointer"

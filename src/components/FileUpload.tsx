@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { Button, Card, Text, ProgressBar, Spinner } from '@fluentui/react-components';
-import { ArrowUpload24Regular, Document24Regular, Checkmark24Regular, Dismiss24Regular } from '@fluentui/react-icons';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ProgressBar } from '@/components/ui/progress';
+import { Spinner } from '@/components/ui/spinner';
+import { Upload, FileText, Check, X } from 'lucide-react';
 
 interface UploadResult {
   id: string;
@@ -130,13 +133,13 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, onError, onCl
   };
 
   return (
-    <Card style={{ padding: 24 }}>
+    <Card className="p-6">
       <input
         ref={fileInputRef}
         type="file"
         accept=".md,.markdown,.txt"
         onChange={handleFileSelect}
-        style={{ display: 'none' }}
+        className="hidden"
       />
 
       {!uploadResult && !isUploading && !error && (
@@ -146,88 +149,70 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, onError, onCl
           onDragOver={handleDragOver}
           onDrop={handleDrop}
           onClick={handleClick}
-          style={{
-            border: `2px dashed ${isDragging ? '#6264a7' : '#e5e7eb'}`,
-            borderRadius: 12,
-            padding: 48,
-            textAlign: 'center',
-            cursor: 'pointer',
-            backgroundColor: isDragging ? '#f0f0ff' : '#fafafa',
-            transition: 'all 0.2s ease'
-          }}
+          className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${
+            isDragging ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 bg-gray-50'
+          }`}
         >
-          <ArrowUpload24Regular style={{ fontSize: 48, color: isDragging ? '#6264a7' : '#9ca3af', marginBottom: 16 }} />
-          <Text size={500} weight="semibold" block style={{ marginBottom: 8 }}>
+          <Upload className={`h-12 w-12 mx-auto mb-4 ${isDragging ? 'text-indigo-600' : 'text-gray-400'}`} />
+          <p className="text-lg font-semibold mb-2">
             마크다운 파일을 드래그하거나 클릭하여 업로드
-          </Text>
-          <Text size={300} style={{ color: '#6b7280' }}>
+          </p>
+          <p className="text-sm text-muted-foreground">
             최대 10MB, .md .markdown .txt 형식 지원
-          </Text>
+          </p>
         </div>
       )}
 
       {isUploading && (
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <Spinner size="large" style={{ marginBottom: 16 }} />
-          <Text size={400} weight="semibold" block style={{ marginBottom: 16 }}>
-            마크다운 파일 업로드 중...
-          </Text>
-          <ProgressBar value={uploadProgress / 100} style={{ marginBottom: 8 }} />
-          <Text size={200} style={{ color: '#6b7280' }}>{uploadProgress}%</Text>
+        <div className="text-center p-8">
+          <Spinner size="lg" className="mx-auto mb-4" />
+          <p className="font-semibold mb-4">마크다운 파일 업로드 중...</p>
+          <ProgressBar value={uploadProgress} className="mb-2" />
+          <p className="text-sm text-muted-foreground">{uploadProgress}%</p>
         </div>
       )}
 
       {error && (
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <Dismiss24Regular style={{ fontSize: 48, color: '#dc2626', marginBottom: 16 }} />
-          <Text size={400} weight="semibold" block style={{ color: '#dc2626', marginBottom: 16 }}>
-            {error}
-          </Text>
-          <Button appearance="primary" onClick={resetUpload}>
-            다시 시도
-          </Button>
+        <div className="text-center p-8">
+          <X className="h-12 w-12 mx-auto mb-4 text-red-600" />
+          <p className="font-semibold text-red-600 mb-4">{error}</p>
+          <Button onClick={resetUpload}>다시 시도</Button>
         </div>
       )}
 
       {uploadResult && (
-        <div style={{ padding: 24 }}>
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <Checkmark24Regular style={{ fontSize: 48, color: '#16a34a', marginBottom: 16 }} />
-            <Text size={500} weight="semibold" block style={{ color: '#16a34a' }}>
-              업로드 완료
-            </Text>
+        <div className="p-6">
+          <div className="text-center mb-6">
+            <Check className="h-12 w-12 mx-auto mb-4 text-green-600" />
+            <p className="text-lg font-semibold text-green-600">업로드 완료</p>
           </div>
 
-          <div style={{ backgroundColor: '#f9fafb', borderRadius: 8, padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <Document24Regular />
-              <Text weight="semibold">{uploadResult.originalName}</Text>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <FileText className="h-5 w-5" />
+              <span className="font-semibold">{uploadResult.originalName}</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginTop: 16 }}>
-              <div style={{ textAlign: 'center' }}>
-                <Text size={600} weight="semibold" block>{uploadResult.textLength.toLocaleString()}</Text>
-                <Text size={200} style={{ color: '#6b7280' }}>문자</Text>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="text-center">
+                <p className="text-2xl font-semibold">{uploadResult.textLength.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">문자</p>
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <Text size={600} weight="semibold" block>{uploadResult.chunksCount}</Text>
-                <Text size={200} style={{ color: '#6b7280' }}>청크</Text>
+              <div className="text-center">
+                <p className="text-2xl font-semibold">{uploadResult.chunksCount}</p>
+                <p className="text-xs text-muted-foreground">청크</p>
               </div>
             </div>
 
-            <Text size={200} block style={{ marginTop: 16, color: '#6b7280' }}>
+            <p className="text-xs text-muted-foreground mt-4">
               저장 위치: uploads/{uploadResult.mdFile}
-            </Text>
+            </p>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, marginTop: 24, justifyContent: 'center' }}>
-            <Button appearance="primary" onClick={resetUpload}>
-              다른 파일 업로드
-            </Button>
+          <div className="flex gap-3 mt-6 justify-center">
+            <Button onClick={resetUpload}>다른 파일 업로드</Button>
             {onClose && (
-              <Button appearance="secondary" onClick={onClose}>
-                닫기
-              </Button>
+              <Button variant="secondary" onClick={onClose}>닫기</Button>
             )}
           </div>
         </div>
