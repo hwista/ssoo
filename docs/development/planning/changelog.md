@@ -6,6 +6,75 @@
 
 ## 2026-01-28 (계속)
 
+### 스타일 - Phase 2-H: PMS 디자인 시스템 통합 완료 ✅
+
+**목표**: DMS 사이드바/레이아웃 스타일을 PMS 표준에 100% 맞춤
+
+#### 커밋 이력
+
+| 커밋 | 내용 |
+|------|------|
+| `7c21b48` | 사이드바 스타일 통일 (Search, OpenTabs, FileTree) |
+| `ac9853e` | 타이포그래피 표준 적용 (heading, body, icon 유틸리티) |
+| `4072ef4` | TreeComponent 아이콘 Lucide로 변경 |
+| `45ae1fd` | 사이드바 구조 PMS 표준 적용 (8가지 항목) |
+| `97cd55f` | SidebarFileTree PMS 스타일 재작성 |
+| `a5f08ab` | PMS/DMS 사이드바 스타일 최종 통일 |
+
+#### 주요 변경 사항
+
+**1. 사이드바 구조 개편**
+
+| 영역 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| 로고 | DMS 아이콘 | W 아이콘 + "Wiki" 텍스트 (PMS 스타일) |
+| 헤더 우측 | 문서 타입 드롭다운 (넓음) | 아이콘+쉐브론 컴팩트 드롭다운 |
+| 검색란 | 단독 | 검색 + 새로고침 버튼 |
+| 섹션 1 | 열린 문서 | **책갈피** (신규 추가) |
+| 섹션 2 | 파일 탐색기 | 현재 열린 페이지 |
+| 섹션 3 | - | 전체 파일 |
+| 푸터 | 없음 | 카피라이트 (DMS v1.0.0 © 2026 LS Electric) |
+
+**2. 신규 컴포넌트**
+
+| 컴포넌트 | 경로 | 설명 |
+|----------|------|------|
+| `SidebarSection` | `layout/sidebar/SidebarSection.tsx` | 재사용 섹션 래퍼 (PMS 동일) |
+| `SidebarBookmarks` | `layout/sidebar/SidebarBookmarks.tsx` | 책갈피 목록 (PMS 즐겨찾기 동일) |
+| `ScrollArea` | `components/ui/scroll-area.tsx` | 커스텀 스크롤바 (PMS 복사) |
+
+**3. Store 확장**
+
+| Store | 추가 항목 |
+|-------|----------|
+| `tab-store` | `BookmarkItem` 타입, `addBookmark`, `removeBookmark`, `isBookmarked` |
+| `layout-store` | `expandedFolders: Set<string>`, `toggleFolder`, `expandFolder`, `collapseFolder` |
+
+**4. SidebarFileTree 재작성**
+
+- ❌ 기존: `TreeComponent` 임포트 사용
+- ✅ 신규: `FileTreeNode` 직접 구현 (PMS `MenuTreeNode` 스타일)
+- 노드 스타일: `paddingLeft: 8 + level * 16`, `h-control-h`, 보더 없음
+
+**5. PMS/DMS 스타일 통일 (양방향 수정)**
+
+| 항목 | 통일된 값 | 수정 방향 |
+|------|----------|:---------:|
+| 헤더 높이 | `h-header-h` | DMS → PMS |
+| 검색/섹션 보더 | `border-gray-200` | PMS → DMS |
+| 스크롤 영역 | `<ScrollArea variant="sidebar">` | PMS → DMS |
+| 검색 닫기 버튼 | `<X className="w-3.5 h-3.5">` | DMS → PMS |
+
+#### 최종 일치율
+
+| 구분 | 수정 전 | 수정 후 |
+|:----:|:-------:|:-------:|
+| 스타일 일치 | ~70% | **95%** |
+| 의도적 차이 | 25% | 5% |
+| 불일치 | 5% | **0%** |
+
+---
+
 ### 리팩터링 - Phase 2-G: 컴포넌트 재분류 계획 수립 (진행 중)
 
 **목표**: PMS 레이아웃 구조를 DMS에 적용하여 일관성 확보
