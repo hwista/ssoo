@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { WikiProvider, useWikiContext } from '@/contexts/WikiContext';
-import { TreeDataProvider, useTreeDataContext } from '@/contexts/TreeDataContext';
+import { useTreeStore } from '@/stores/tree-store';
 import WikiSidebar from '@/components/WikiSidebar';
 import WikiEditor from '@/components/WikiEditor';
 import WikiModals from '@/components/WikiModals';
@@ -30,31 +30,38 @@ const findReadmeFile = (nodes: FileNode[]): string | null => {
   return null;
 };
 
-// TreeDataContext를 사용하는 내부 컴포넌트
-const WikiAppWithTreeData: React.FC<{
+// 메인 Wiki 컴포넌트 (tree-store 사용)
+const WikiAppContent: React.FC<{
   sidebarWidth: number;
   isResizing: boolean;
   resizerProps: React.HTMLAttributes<HTMLDivElement>;
 }> = ({ sidebarWidth, isResizing, resizerProps }) => {
-  const { selectFile } = useTreeDataContext();
+  const { selectFile, setFiles } = useTreeStore();
   const { files, loadFile } = useWikiContext();
   // sidebarType: 'tree' | 'gemini' | 'ai'
   const [sidebarType, setSidebarType] = useState<'tree' | 'gemini' | 'ai'>('tree');
+  
+  // 초기 로드 플래그 - 한 번만 실행되도록 보장
+  const initialLoadDone = useRef(false);
 
-  // 초기 README.md 자동 로드
+  // WikiContext의 files를 tree-store에 동기화
   useEffect(() => {
-    const loadInitialFile = async () => {
-      if (files.length > 0) {
-        const readmePath = findReadmeFile(files);
-        if (readmePath) {
-          selectFile(readmePath);
-          await loadFile(readmePath);
-        }
-      }
-    };
+    if (files.length > 0) {
+      setFiles(files);
+    }
+  }, [files, setFiles]);
 
-    loadInitialFile();
-  }, [files, selectFile, loadFile]);
+  // 초기 README.md 자동 로드 (한 번만 실행)
+  useEffect(() => {
+    if (initialLoadDone.current || files.length === 0) return;
+    
+    const readmePath = findReadmeFile(files);
+    if (readmePath) {
+      initialLoadDone.current = true;
+      selectFile(readmePath);
+      loadFile(readmePath);
+    }
+  }, [files]); // selectFile, loadFile 제거 - 함수 참조 변경으로 인한 무한루프 방지
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -132,25 +139,6 @@ const WikiAppWithTreeData: React.FC<{
       {/* 모달 컨테이너 */}
       <WikiModals />
     </div>
-  );
-};
-
-// TreeDataProvider를 사용하기 위한 내부 컴포넌트
-const WikiAppContent: React.FC<{
-  sidebarWidth: number;
-  isResizing: boolean;
-  resizerProps: React.HTMLAttributes<HTMLDivElement>;
-}> = ({ sidebarWidth, isResizing, resizerProps }) => {
-  const { files } = useWikiContext();
-
-  return (
-    <TreeDataProvider files={files}>
-      <WikiAppWithTreeData
-        sidebarWidth={sidebarWidth}
-        isResizing={isResizing}
-        resizerProps={resizerProps}
-      />
-    </TreeDataProvider>
   );
 };
 

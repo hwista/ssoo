@@ -7,7 +7,7 @@ import { makeStyles, shorthands } from '@fluentui/react-components';
 import { Document24Regular, Folder24Regular, Settings24Regular, Add24Regular, ArrowSync24Regular, ArrowUpload24Regular } from '@fluentui/react-icons';
 import FileUpload from '@/components/FileUpload';
 import { useWikiContext } from '@/contexts/WikiContext';
-import { useTreeDataContext } from '@/contexts/TreeDataContext';
+import { useTreeStore } from '@/stores/tree-store';
 import TreeComponent from '@/components/TreeComponent';
 import CreateFileModal from '@/components/CreateFileModal';
 import { useMessage } from '@/hooks/useMessage';
@@ -66,7 +66,7 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
   width,
   className = ""
 }) => {
-  // TreeDataContext에서 트리 상태 가져오기
+  // tree-store에서 트리 상태 가져오기
   const {
     selectedFile,
     expandedFolders,
@@ -75,7 +75,7 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
     collapseAll,
     selectFile,
     findNodeByPath
-  } = useTreeDataContext();
+  } = useTreeStore();
 
   // WikiContext에서 파일 시스템 액션 가져오기
   const {

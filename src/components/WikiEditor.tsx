@@ -8,14 +8,14 @@ import { Eye24Regular, Save24Regular, Edit24Regular, Dismiss24Regular, SaveCopy2
 import { BlockEditor, BlockEditorRef } from '@/components/editor';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useWikiContext } from '@/contexts/WikiContext';
-import { useTreeDataContext } from '@/contexts/TreeDataContext';
+import { useTreeStore } from '@/stores/tree-store';
 import { logger } from '@/lib/utils/errorUtils';
 import { isMarkdownFile } from '@/lib/utils/fileUtils';
 import { WikiEditorProps } from '@/types/components';
 import { useEditor } from '@/hooks/useEditor';
 
 const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
-  const { selectedFile } = useTreeDataContext();
+  const { selectedFile } = useTreeStore();
   const {
     content,
     isEditing,

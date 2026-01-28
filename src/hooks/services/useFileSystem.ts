@@ -278,14 +278,8 @@ export function useFileSystem(): UseFileSystemState & UseFileSystemActions {
     updateState({ lastOperation: null });
   }, [updateState]);
 
-  // 초기 로드 (한 번만 실행하도록 수정)
-  useEffect(() => {
-    const initialLoad = async () => {
-      await loadFileTree();
-    };
-    initialLoad();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 컴포넌트 마운트시에만 실행
+  // 초기 자동 로드 제거 - WikiContext에서 명시적으로 호출하도록 변경
+  // 이전: useEffect에서 자동 loadFileTree() → WikiContext와 중복 호출 문제 발생
 
   return {
     // 상태

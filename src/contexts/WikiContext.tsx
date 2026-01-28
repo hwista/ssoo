@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { WikiContextType, CreateFileParams, RenamingState, CreateModalState, ContextMenuState } from '@/types/wiki';
 import { FileNode } from '@/types';
 import { useFileSystem } from '@/hooks/services/useFileSystem';
@@ -25,6 +25,9 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 서비스 레이어 및 기존 훅 사용
   const { files, refreshFileTree, loadFileTree } = useFileSystem();
   const { showSuccess, showError } = useToast();
+  
+  // 초기화 플래그 - 한 번만 실행되도록 보장 (React Strict Mode 대응)
+  const initializedRef = useRef(false);
 
   // 상태 정의
   const [content, setContent] = useState('');
@@ -248,8 +251,11 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [refreshFileMetadata]);
 
-  // 초기 로딩 시 파일 트리 로드
+  // 초기 로딩 시 파일 트리 로드 (한 번만 실행)
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    
     const initializeApp = async () => {
       try {
         const result = await loadFileTree();
@@ -263,7 +269,7 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initializeApp();
-  }, [loadFileTree]);
+  }, []); // loadFileTree 의존성 제거 - 초기화는 한 번만
 
   // 파일 생성 함수
   const createFile = useCallback(async (params: CreateFileParams) => {
