@@ -13,6 +13,7 @@ interface SidebarOpenTabsProps {
  * - Home 탭 제외
  * - 탭 클릭 시 활성화
  * - 닫기 버튼
+ * - PMS 디자인 표준 적용
  */
 export function SidebarOpenTabs({ isExpanded, onToggle }: SidebarOpenTabsProps) {
   const { tabs, activeTabId, activateTab, closeTab } = useTabStore();
@@ -21,11 +22,11 @@ export function SidebarOpenTabs({ isExpanded, onToggle }: SidebarOpenTabsProps) 
   const openTabs = tabs.filter((tab) => tab.id !== HOME_TAB.id);
 
   return (
-    <div className="border-b border-gray-200">
+    <div className="border-b border-ssoo-content-border">
       {/* 섹션 헤더 */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200/50 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-ssoo-primary hover:bg-ssoo-sitemap-bg transition-colors"
       >
         {isExpanded ? (
           <ChevronDown className="w-4 h-4" />
@@ -34,7 +35,7 @@ export function SidebarOpenTabs({ isExpanded, onToggle }: SidebarOpenTabsProps) 
         )}
         <span>열린 문서</span>
         {openTabs.length > 0 && (
-          <span className="ml-auto text-xs text-gray-400">
+          <span className="ml-auto text-xs text-gray-500">
             {openTabs.length}
           </span>
         )}
@@ -54,17 +55,17 @@ export function SidebarOpenTabs({ isExpanded, onToggle }: SidebarOpenTabsProps) 
               return (
                 <div
                   key={tab.id}
-                  className={`group flex items-center gap-2 px-3 py-1.5 mx-2 rounded cursor-pointer ${
+                  className={`group flex items-center gap-1 h-control-h px-2 mx-2 rounded-md cursor-pointer ${
                     isActive
-                      ? 'bg-[#003366]/10 text-[#003366]'
-                      : 'hover:bg-gray-200/50 text-gray-600'
+                      ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
+                      : 'hover:bg-ssoo-sitemap-bg text-gray-700'
                   }`}
                 >
                   <button
                     onClick={() => activateTab(tab.id)}
                     className="flex items-center gap-2 flex-1 min-w-0"
                   >
-                    <FileText className="w-4 h-4 flex-shrink-0" />
+                    <FileText className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
                     <span className="text-sm truncate">{tab.title}</span>
                   </button>
                   {tab.closable && (
@@ -73,7 +74,7 @@ export function SidebarOpenTabs({ isExpanded, onToggle }: SidebarOpenTabsProps) 
                         e.stopPropagation();
                         closeTab(tab.id);
                       }}
-                      className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-gray-300/50 rounded transition-opacity"
+                      className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded transition-opacity"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>

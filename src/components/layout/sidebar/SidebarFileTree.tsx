@@ -85,11 +85,11 @@ export function SidebarFileTree({ isExpanded, onToggle }: SidebarFileTreeProps) 
   }, []);
 
   return (
-    <div>
+    <div className="border-b border-ssoo-content-border">
       {/* 섹션 헤더 */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200/50 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-ssoo-primary hover:bg-ssoo-sitemap-bg transition-colors"
       >
         {isExpanded ? (
           <ChevronDown className="w-4 h-4" />

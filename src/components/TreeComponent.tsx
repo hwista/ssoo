@@ -324,16 +324,16 @@ const TreeComponent: React.FC<TreeComponentProps> = ({
       <div key={node.path}>
         <div
           data-file-path={node.path}
-          className={`flex items-center py-1 px-2 cursor-pointer rounded transition-colors duration-150 ${
+          className={`flex items-center gap-1 h-control-h px-2 cursor-pointer rounded-md transition-colors duration-150 group ${
             isSelected 
-              ? 'bg-blue-100 text-blue-800' 
+              ? 'bg-ssoo-content-border text-ssoo-primary font-medium' 
               : isNewlyCreated
-                ? 'text-green-600 hover:bg-green-50'
+                ? 'text-green-600 hover:bg-ssoo-sitemap-bg'
                 : isUpdated
-                  ? 'text-blue-600 hover:bg-blue-50'
-                  : 'hover:bg-gray-100'
+                  ? 'text-blue-600 hover:bg-ssoo-sitemap-bg'
+                  : 'text-gray-700 hover:bg-ssoo-sitemap-bg'
           }`}
-          style={{ paddingLeft: `${level * 20 + 8}px` }}
+          style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => {
             // 폴더인 경우 선택만, 파일인 경우 선택 + 로드
             if (onFileSelect) {
@@ -344,17 +344,20 @@ const TreeComponent: React.FC<TreeComponentProps> = ({
         >
           {node.type === 'directory' && (
             <span 
-              className="mr-1 text-gray-500 select-none cursor-pointer hover:text-gray-700 p-1 -m-1 rounded"
+              className={`flex-shrink-0 select-none cursor-pointer transition-transform ${
+                isSelected ? 'text-ssoo-primary' : 'text-gray-400'
+              } ${isExpanded ? 'rotate-90' : ''}`}
               onClick={(e) => {
                 e.stopPropagation(); // 부모 클릭 이벤트 차단
                 toggleFolder(node.path);
               }}
               title={isExpanded ? '접기' : '펼치기'}
             >
-              {isExpanded ? '▼' : '▶'}
+              ▶
             </span>
           )}
-          {icon && <span className="mr-2">{icon}</span>}
+          {node.type !== 'directory' && <span className="w-4 h-4 flex-shrink-0" />}
+          {icon && <span className={`flex-shrink-0 ${isSelected ? '' : ''}`}>{icon}</span>}
           {isRenaming ? (
             <input
               type="text"
