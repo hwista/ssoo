@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useLayoutStore, useTreeStore } from '@/stores';
 import { LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types/layout';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { SidebarSearch } from './sidebar/SidebarSearch';
 import { SidebarSection } from './sidebar/SidebarSection';
 import { SidebarBookmarks } from './sidebar/SidebarBookmarks';
@@ -100,7 +101,7 @@ export function MainSidebar() {
       </div>
 
       {/* 검색 + 새로고침 */}
-      <div className="p-2 border-b border-ssoo-content-border flex-shrink-0">
+      <div className="p-2 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-1">
           <SidebarSearch />
           <button
@@ -117,7 +118,7 @@ export function MainSidebar() {
       </div>
 
       {/* 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto">
+      <ScrollArea variant="sidebar" className="flex-1">
         {/* 책갈피 */}
         <SidebarSection
           title="책갈피"
@@ -147,7 +148,7 @@ export function MainSidebar() {
         >
           <SidebarFileTree />
         </SidebarSection>
-      </div>
+      </ScrollArea>
 
       {/* 하단 카피라이트 (PMS 스타일) */}
       <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-3 py-2">
