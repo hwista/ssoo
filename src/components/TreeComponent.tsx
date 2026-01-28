@@ -1,5 +1,6 @@
 ﻿'use client';
 import React, { useState, useEffect } from 'react';
+import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, Image } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { normalizePath } from '@/lib/utils/pathUtils';
@@ -260,32 +261,37 @@ const TreeComponent: React.FC<TreeComponentProps> = ({
     });
   };
 
-  // 파일 아이콘 가져오기
-  const getFileIcon = (node: FileNode) => {
-    if (!showFileIcons) return '';
+  // 파일 아이콘 컴포넌트 가져오기 (PMS 스타일)
+  const getFileIconComponent = (node: FileNode, isExpanded: boolean, isSelected: boolean) => {
+    if (!showFileIcons) return null;
+    
+    const iconClass = `w-4 h-4 flex-shrink-0 ${isSelected ? 'text-ssoo-primary' : 'text-gray-500'}`;
     
     if (node.type === 'directory') {
-      return '📁';
+      return isExpanded 
+        ? <FolderOpen className={iconClass} />
+        : <Folder className={iconClass} />;
     }
     
     const extension = node.name.split('.').pop()?.toLowerCase();
     switch (extension) {
       case 'md':
-        return '📝';
-      case 'txt':
-        return '📄';
+        return <FileText className={iconClass} />;
       case 'js':
       case 'ts':
-        return '📜';
+      case 'jsx':
+      case 'tsx':
+        return <FileCode className={iconClass} />;
       case 'json':
-        return '⚙️';
+        return <FileJson className={iconClass} />;
       case 'png':
       case 'jpg':
       case 'jpeg':
       case 'gif':
-        return '🖼️';
+      case 'svg':
+        return <Image className={iconClass} />;
       default:
-        return '📄';
+        return <File className={iconClass} />;
     }
   };
 
@@ -297,6 +303,7 @@ const TreeComponent: React.FC<TreeComponentProps> = ({
     
     const isExpanded = expandedFolders.has(node.path);
     const isSelected = selectedFile === node.path;
+    const hasChildren = node.type === 'directory' && node.children && node.children.length > 0;
     
     // 새로 생성된 항목 체크 시 경로 정규화
     const normalizedNodePath = normalizePath(node.path);
@@ -312,13 +319,8 @@ const TreeComponent: React.FC<TreeComponentProps> = ({
     // 이름 변경 중인지 확인
     const isRenaming = renamingItem?.path === node.path;
     
-    const icon = getFileIcon(node);
-    
-    // 디버깅용 로그
-    if (isNewlyCreated) {
-      console.log('새로 생성된 항목 렌더링:', node.path, 'isNewlyCreated:', isNewlyCreated);
-      console.log('data-file-path 속성:', node.path);
-    }
+    // 아이콘 컴포넌트 가져오기
+    const IconComponent = getFileIconComponent(node, isExpanded, isSelected);
     
     return (
       <div key={node.path}>
@@ -342,22 +344,24 @@ const TreeComponent: React.FC<TreeComponentProps> = ({
           }}
           onContextMenu={enableContextMenu ? (e) => onContextMenu?.(e, node) : undefined}
         >
-          {node.type === 'directory' && (
-            <span 
-              className={`flex-shrink-0 select-none cursor-pointer transition-transform ${
+          {/* 폴더 확장/축소 아이콘 (PMS 스타일) */}
+          {node.type === 'directory' && hasChildren ? (
+            <ChevronRight
+              className={`w-4 h-4 flex-shrink-0 transition-transform cursor-pointer ${
                 isSelected ? 'text-ssoo-primary' : 'text-gray-400'
               } ${isExpanded ? 'rotate-90' : ''}`}
               onClick={(e) => {
-                e.stopPropagation(); // 부모 클릭 이벤트 차단
+                e.stopPropagation();
                 toggleFolder(node.path);
               }}
-              title={isExpanded ? '접기' : '펼치기'}
-            >
-              ▶
-            </span>
+            />
+          ) : (
+            <span className="w-4 h-4 flex-shrink-0" />
           )}
-          {node.type !== 'directory' && <span className="w-4 h-4 flex-shrink-0" />}
-          {icon && <span className={`flex-shrink-0 ${isSelected ? '' : ''}`}>{icon}</span>}
+
+          {/* 파일/폴더 아이콘 */}
+          {IconComponent}
+
           {isRenaming ? (
             <input
               type="text"
@@ -380,15 +384,16 @@ const TreeComponent: React.FC<TreeComponentProps> = ({
                 }
               }}
               autoFocus
-              className="flex-1 min-w-0 text-sm bg-white border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="flex-1 min-w-0 text-sm bg-white border border-ssoo-content-border rounded px-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-ssoo-primary"
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
             <span 
-              className={`truncate flex-1 min-w-0 ${
-                isNewlyCreated ? 'font-bold text-base' : 
-                isUpdated ? 'font-bold text-base' : 
-                'text-sm'
+              className={`flex-1 truncate text-sm ${
+                isSelected ? 'text-ssoo-primary' : 
+                isNewlyCreated ? 'font-medium' : 
+                isUpdated ? 'font-medium' : 
+                'text-gray-700'
               }`} 
               title={node.name}
             >
@@ -396,17 +401,18 @@ const TreeComponent: React.FC<TreeComponentProps> = ({
             </span>
           )}
           {isNewlyCreated && !isRenaming && (
-            <span className="ml-2 px-1.5 py-0.5 text-xs font-bold text-white bg-red-500 rounded-sm select-none">
+            <span className="ml-1 px-1.5 py-0.5 text-xs font-medium text-white bg-ls-red rounded select-none">
               NEW
             </span>
           )}
           {isUpdated && !isNewlyCreated && !isRenaming && (
-            <span className="ml-2 px-1.5 py-0.5 text-xs font-bold text-white bg-yellow-500 rounded-sm select-none">
-              UPDATE
+            <span className="ml-1 px-1.5 py-0.5 text-xs font-medium text-white bg-ls-sub-blue rounded select-none">
+              수정됨
             </span>
           )}
         </div>
         
+        {/* 자식 노드 */}
         {node.type === 'directory' && isExpanded && node.children && (
           <div>
             {sortTree(node.children)
