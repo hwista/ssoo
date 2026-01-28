@@ -120,7 +120,7 @@ export function Header() {
         >
           <Bell className="w-5 h-5 text-white" />
           {/* 알림 뱃지 (임시) */}
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-ls-red rounded-full" />
         </button>
 
         {/* 사용자 프로필 */}
