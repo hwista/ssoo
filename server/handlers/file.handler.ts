@@ -7,7 +7,6 @@ import fs from "fs";
 import path from "path";
 import { normalizeMarkdownFileName } from "@/lib/utils/fileUtils";
 import { logger, PerformanceTimer } from "@/lib/utils/errorUtils";
-import { saveVersion } from "@/lib/versionHistory";
 
 const ROOT_DIR = path.join(process.cwd(), "docs", "wiki");
 
@@ -193,13 +192,7 @@ export async function writeFile(filePath: string, content: string): Promise<Hand
     
     fs.writeFileSync(targetPath, content, "utf-8");
     
-    // 버전 히스토리 저장
-    try {
-      const relativePath = path.relative(ROOT_DIR, targetPath);
-      await saveVersion(relativePath, content, previousContent ? 'update' : 'create', previousContent);
-    } catch (versionError) {
-      logger.warn('버전 히스토리 저장 실패', versionError instanceof Error ? { message: versionError.message } : undefined);
-    }
+    // TODO: 버전 히스토리 - Git 기반으로 대체 예정
     
     return { success: true, data: { message: "File saved" } };
   } catch (error) {
@@ -231,13 +224,7 @@ export async function createFile(
     const newContent = content || `# ${name}\n\n내용을 작성하세요.`;
     fs.writeFileSync(targetPath, newContent, "utf-8");
     
-    // 버전 히스토리 저장
-    try {
-      const relativePath = path.relative(ROOT_DIR, targetPath);
-      await saveVersion(relativePath, newContent, 'create', null);
-    } catch (versionError) {
-      logger.warn('버전 히스토리 저장 실패', versionError instanceof Error ? { message: versionError.message } : undefined);
-    }
+    // TODO: 버전 히스토리 - Git 기반으로 대체 예정
     
     return { success: true, data: { message: "File created" } };
   } catch (error) {
