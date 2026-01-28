@@ -24,7 +24,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center p-8">
-          <h1 className="text-2xl font-bold mb-2">모바일 버전 준비 중</h1>
+          <h1 className="heading-1 mb-2">모바일 버전 준비 중</h1>
           <p className="text-gray-600">데스크톱에서 접속해주세요.</p>
         </div>
       </div>

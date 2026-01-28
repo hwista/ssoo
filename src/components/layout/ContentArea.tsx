@@ -40,15 +40,15 @@ export function ContentArea({ children }: ContentAreaProps) {
           
           {/* 빠른 액션 */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-[#003366] cursor-pointer transition-colors">
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-ssoo-primary cursor-pointer transition-colors">
               <h3 className="font-medium text-gray-900 mb-1">새 문서 작성</h3>
               <p className="text-sm text-gray-500">새로운 문서를 작성합니다</p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-[#003366] cursor-pointer transition-colors">
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-ssoo-primary cursor-pointer transition-colors">
               <h3 className="font-medium text-gray-900 mb-1">AI 검색</h3>
               <p className="text-sm text-gray-500">AI로 문서를 검색합니다</p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-[#003366] cursor-pointer transition-colors">
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-ssoo-primary cursor-pointer transition-colors">
               <h3 className="font-medium text-gray-900 mb-1">최근 문서</h3>
               <p className="text-sm text-gray-500">최근 열어본 문서</p>
             </div>
