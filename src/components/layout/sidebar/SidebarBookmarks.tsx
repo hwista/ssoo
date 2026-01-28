@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, X, Bookmark } from 'lucide-react';
+import { FileText, X } from 'lucide-react';
 import { useTabStore } from '@/stores';
 
 /**
@@ -13,7 +13,7 @@ export function SidebarBookmarks() {
 
   if (bookmarks.length === 0) {
     return (
-      <div className="px-3 py-2 text-xs text-muted-foreground">
+      <div className="px-3 py-2 text-xs text-gray-400">
         책갈피가 없습니다.
       </div>
     );
@@ -46,21 +46,22 @@ export function SidebarBookmarks() {
             className={`flex items-center gap-2 w-full h-control-h px-3 text-sm rounded-md transition-colors group ${
               isActive
                 ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
-                : 'text-foreground hover:bg-ssoo-sitemap-bg'
+                : 'text-gray-700 hover:bg-ssoo-sitemap-bg'
             }`}
           >
             <button
               onClick={() => handleClick(bookmark)}
               className="flex items-center gap-2 flex-1 min-w-0"
             >
-              <FileText className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-muted-foreground'}`} />
+              <FileText className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
               <span className="truncate">{bookmark.title}</span>
             </button>
             <button
               onClick={(e) => handleRemove(e, bookmark.id)}
-              className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-ssoo-sitemap-bg rounded transition-opacity"
+              className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded transition-opacity flex-shrink-0"
+              title="책갈피 해제"
             >
-              <X className="w-3 h-3 text-muted-foreground" />
+              <X className="w-3 h-3 text-gray-500" />
             </button>
           </div>
         );

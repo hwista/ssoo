@@ -14,7 +14,7 @@ interface FileTreeNodeProps {
  * 파일 확장자에 따른 아이콘 컴포넌트 반환
  */
 function getFileIcon(name: string, isSelected: boolean) {
-  const iconClass = `w-4 h-4 flex-shrink-0 ${isSelected ? 'text-ssoo-primary' : 'text-muted-foreground'}`;
+  const iconClass = `w-4 h-4 flex-shrink-0 ${isSelected ? 'text-ssoo-primary' : 'text-gray-500'}`;
   const extension = name.split('.').pop()?.toLowerCase();
   
   switch (extension) {
@@ -53,7 +53,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
   // 선택 상태 확인
   const isSelected = selectedFile === node.path;
   
-  const iconClass = `w-4 h-4 flex-shrink-0 ${isSelected ? 'text-ssoo-primary' : 'text-muted-foreground'}`;
+  const iconClass = `w-4 h-4 flex-shrink-0 ${isSelected ? 'text-ssoo-primary' : 'text-gray-500'}`;
 
   const handleClick = () => {
     if (isFolder) {
@@ -99,14 +99,14 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
         className={`flex items-center gap-1 w-full h-control-h px-2 text-sm rounded-md transition-colors cursor-pointer group ${
           isSelected 
             ? 'bg-ssoo-content-border text-ssoo-primary font-medium' 
-            : 'hover:bg-ssoo-sitemap-bg text-foreground'
+            : 'hover:bg-ssoo-sitemap-bg text-gray-700'
         }`}
         style={{ paddingLeft: `${8 + level * 16}px` }}
       >
         {/* 폴더 확장/축소 아이콘 */}
         {isFolder && hasChildren ? (
           <ChevronRight
-            className={`w-4 h-4 flex-shrink-0 text-muted-foreground transition-transform ${
+            className={`w-4 h-4 flex-shrink-0 text-gray-400 transition-transform ${
               isExpanded ? 'rotate-90' : ''
             }`}
           />
@@ -122,7 +122,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
         )}
 
         {/* 파일/폴더명 */}
-        <span className={`flex-1 truncate ${isSelected ? 'text-ssoo-primary' : 'text-foreground'}`}>
+        <span className={`flex-1 truncate ${isSelected ? 'text-ssoo-primary' : 'text-gray-700'}`}>
           {node.name}
         </span>
 
@@ -130,7 +130,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
         {!isFolder && (
           <button
             onClick={handleBookmarkToggle}
-            className={`opacity-0 group-hover:opacity-100 p-0.5 hover:bg-ssoo-sitemap-bg rounded transition-opacity ${
+            className={`opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded transition-opacity ${
               bookmarked ? 'opacity-100' : ''
             }`}
           >
@@ -138,7 +138,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
               className={`w-3.5 h-3.5 ${
                 bookmarked
                   ? 'fill-ssoo-primary text-ssoo-primary'
-                  : 'text-muted-foreground'
+                  : 'text-gray-400'
               }`}
             />
           </button>
@@ -206,7 +206,7 @@ export function SidebarFileTree() {
 
   if (displayTree.length === 0) {
     return (
-      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+      <div className="px-3 py-4 text-sm text-gray-400 text-center">
         {searchQuery ? '검색 결과가 없습니다.' : '파일이 없습니다.'}
       </div>
     );
