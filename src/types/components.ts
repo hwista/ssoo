@@ -3,10 +3,22 @@
  * 
  * Phase 2.1.5에서 모든 컴포넌트의 Props 인터페이스를 중앙화하여
  * 타입 안전성과 개발 효율성을 향상시킵니다.
+ * Phase 6에서 레거시 컴포넌트 정리됨
  */
 
 import { ReactNode } from 'react';
-import { FileNode, ContextMenuItem } from './wiki';
+import { FileNode } from './fileSystem';
+
+// ContextMenuItem 인라인 정의 (wiki.ts 삭제됨)
+export interface ContextMenuItem {
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  shortcut?: string;
+  disabled?: boolean;
+  danger?: boolean;
+  onClick: () => void;
+}
 
 // =============================================================================
 // 이벤트 핸들러 타입 표준화

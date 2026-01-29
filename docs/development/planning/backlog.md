@@ -10,20 +10,26 @@
 |----|------|----------|------|------|
 | DMS-INT-01 | 모노레포 통합 | P1 | - | ✅ 완료 |
 | DMS-INT-02 | PMS 디자인 시스템 적용 | P1 | - | ✅ 완료 |
-| DMS-INT-03 | **Phase 3: PMS 패턴 동기화** | P1 | - | 🔄 **진행중** |
+| DMS-INT-03 | Phase 3~5: PMS 패턴 동기화 | P1 | - | ✅ 완료 |
 | DMS-DOC-02 | 문서별 Backlog/Changelog 섹션 도입 | P1 | - | ✅ 완료 |
+| DMS-REF-01 | **루트 컴포넌트 정리** | P2 | - | 🔄 **대기** |
 
 ---
 
-## 📋 Phase 3: PMS 패턴 동기화 상세
+## 📋 루트 컴포넌트 정리 (DMS-REF-01)
 
-> ⚠️ **상세 내용은 모노레포 통합 문서 참조**  
-> 📄 `docs/dms/architecture/package-integration-plan.md` → Phase 3 섹션
+> 16개 파일을 적절한 디렉토리로 이동 필요
 
-### 요약
-- ContentArea를 PMS `pageComponents` 패턴으로 변경
-- 페이지 컴포넌트 (WikiHomePage, WikiViewerPage, AISearchPage) 생성
-- 페이지가 자체적으로 데이터 로드하도록 책임 분리
+| 파일 | 권장 위치 | 우선순위 |
+|------|----------|----------|
+| `WikiApp.tsx` | 삭제 (AppLayout 대체) | P1 |
+| `WikiSidebar.tsx` | 삭제 (MainSidebar 대체) | P1 |
+| `WikiEditor.tsx` | `editor/` | P2 |
+| `AIChat.tsx` | `pages/ai/` | P2 |
+| `GeminiChat.tsx` | `pages/ai/` | P2 |
+| `SearchPanel.tsx` | `layout/sidebar/` | P2 |
+| `TextSearch.tsx` | `layout/sidebar/` | P2 |
+| 기타 | `common/` | P3 |
 
 ---
 

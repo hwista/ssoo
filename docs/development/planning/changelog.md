@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-01-29 (계속)
+
+### 종합 검증 및 분석
+
+#### PMS-DMS 비교 분석 완료
+- 분석 문서 작성: `docs/dms/architecture/pms-dms-comparison-analysis.md`
+- 4가지 관점에서 종합 분석:
+  1. 패키지 차이 분석
+  2. 소스 디렉토리 구조 차이
+  3. 앱 초기화 흐름 차이
+  4. 코드 패턴/네이밍 룰 차이
+
+#### 즉시 조치 항목 수정
+| 항목 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| package.json name | `markdown-wiki` | `web-dms` |
+| dev 포트 | 기본(3000) | 3001 |
+| lint 스크립트 | 없음 | `"lint": "next lint"` |
+| Root Layout lang | `en` | `ko` |
+
+#### 주요 발견 사항
+- ✅ 최상위 디렉토리 구조 100% 일치
+- ✅ Store 네이밍 컨벤션 통일 완료
+- ✅ pageComponents 패턴 동일 구조
+- ⚠️ 루트 컴포넌트 16개 파일 정리 필요 (DMS-REF-01 백로그 추가)
+
+---
+
+### Phase 5 완료: 라우트 정리 ✅
+
+#### 루트 진입점 변경
+- `/wiki` → `/` 메인 진입점 변경
+- HOME_TAB path: `/`
+- 문서 탭 경로: `/doc/{filePath}`
+
+#### Middleware 추가
+- PMS 패턴 적용: 알 수 없는 경로 → `/` 리다이렉트
+- 정적 파일 제외: `_next`, 확장자 있는 파일, `favicon.ico`
+
+#### 최종 라우트 구조
+```
+src/app/
+├── layout.tsx         # Root (Toaster)
+└── (main)/
+    ├── layout.tsx     # AppLayout
+    └── page.tsx       # 루트 페이지 (/)
+```
+
+---
+
+### Phase 4 완료: API 레이어 정리 ✅
+
+- apiClient.ts 확장 (userApi, searchApi, uploadApi, aiApi)
+- 직접 fetch 호출 제거 (7개 파일)
+- AppLayout children prop 제거
+
+---
+
+### Phase 3 완료: PMS 패턴 동기화 ✅
+
+- pageComponents 패턴 적용
+- WikiHomePage, WikiViewerPage, AISearchPage 생성
+- SidebarFileTree 단순화
+
+---
+
 ## 2026-01-29
 
 ### Phase 3 시작: PMS 패턴 동기화 분석
