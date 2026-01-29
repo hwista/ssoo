@@ -10,7 +10,6 @@ import { Dialog, DialogSurface, DialogBody, DialogTitle } from '@/components/ui/
 import { Eye, Save, Edit, X, Copy, Type, FileText } from 'lucide-react';
 import { BlockEditor, BlockEditorRef } from '@/components/editor';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
-import { useTreeStore } from '@/stores/tree-store';
 import { useWikiEditorStore } from '@/stores/wiki-editor-store';
 import { useToast } from '@/lib/toast';
 import { logger } from '@/lib/utils/errorUtils';
@@ -19,7 +18,6 @@ import { WikiEditorProps } from '@/types/components';
 import { useEditor } from '@/hooks/useEditor';
 
 const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
-  const { selectedFile } = useTreeStore();
   const { showSuccess, showError: showErrorToast } = useToast();
   
   // showNotification 래퍼 (기존 인터페이스 유지)
@@ -32,6 +30,7 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
   // Editor Store에서 상태 가져오기
   const {
     content,
+    currentFilePath,  // tree-store의 selectedFile 대신 사용
     isEditing,
     setIsEditing,
     fileMetadata,
@@ -55,13 +54,13 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
     markAsSaved
   } = useEditor(content, {
     onSave: async (c: string) => {
-      if (!selectedFile) return;
-      await storeSaveFile(selectedFile, c);
+      if (!currentFilePath) return;
+      await storeSaveFile(currentFilePath, c);
     },
     onAutoSave: async (c: string) => {
-      if (!selectedFile) return;
-      await storeSaveFileKeepEditing(selectedFile, c);
-      await refreshFileMetadata(selectedFile);
+      if (!currentFilePath) return;
+      await storeSaveFileKeepEditing(currentFilePath, c);
+      await refreshFileMetadata(currentFilePath);
       showNotification('자동 저장 완료', 'success');
     }
   });
@@ -99,28 +98,28 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
   useEffect(() => {
     console.log('📊 WikiEditor 상태 변화:', { 
       isEditing, 
-      selectedFile, 
+      currentFilePath, 
       hasContent: !!content,
       setIsEditingType: typeof setIsEditing 
     });
-  }, [isEditing, selectedFile, content, setIsEditing]);
+  }, [isEditing, currentFilePath, content, setIsEditing]);
 
   // 파일 내용이 변경될 때 로컬 상태 동기화
   useEffect(() => {
-    console.log('📄 파일 로드(훅):', { selectedFile, length: content.length });
-  }, [content, selectedFile]);
+    console.log('📄 파일 로드(훅):', { currentFilePath, length: content.length });
+  }, [content, currentFilePath]);
 
   // 선택된 파일이 변경될 때 편집 모드 해제
   useEffect(() => {
-    if (selectedFile) {
+    if (currentFilePath) {
       setIsEditing(false);
       // hasUnsavedChanges는 이제 useEditor 훅에서 관리되므로 여기서 설정할 필요 없음
     }
-  }, [selectedFile, setIsEditing]);
+  }, [currentFilePath, setIsEditing]);
 
   // 파일 저장 함수 (편집 모드 종료)
   const saveFile = useCallback(async () => {
-    if (!selectedFile) {
+    if (!currentFilePath) {
       showNotification('저장 실패: 선택된 파일이 없습니다', 'error');
       return;
     }
@@ -131,28 +130,28 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
     } catch (e) {
       logger.error('파일 저장 실패', e);
     }
-  }, [selectedFile, save, setIsEditing, showNotification]);
+  }, [currentFilePath, save, setIsEditing, showNotification]);
 
   // 자동 저장 함수 (30초 간격, 편집 모드 유지, 카운트다운 포함)
   // (스케줄러 간소화) useEditor 내부 타이머에 의존, 별도 scheduleAutosave 제거
 
   // 임시 저장 함수 (편집 모드 유지)
   const tempSave = useCallback(async () => {
-    if (!selectedFile) {
+    if (!currentFilePath) {
       showNotification('저장 실패: 선택된 파일이 없습니다', 'error');
       return;
     }
     try {
-      await storeSaveFileKeepEditing(selectedFile, editorContent);
+      await storeSaveFileKeepEditing(currentFilePath, editorContent);
       markAsSaved();
-      await refreshFileMetadata(selectedFile);
+      await refreshFileMetadata(currentFilePath);
       showNotification('임시 저장 완료 (편집 계속)', 'success');
-      logger.info('임시 저장 성공 (편집 모드 유지)', { selectedFile });
+      logger.info('임시 저장 성공 (편집 모드 유지)', { currentFilePath });
     } catch (error) {
       logger.error('임시 저장 중 오류', error);
       showNotification('임시 저장 실패', 'error');
     }
-  }, [selectedFile, editorContent, storeSaveFileKeepEditing, markAsSaved, refreshFileMetadata, showNotification]);
+  }, [currentFilePath, editorContent, storeSaveFileKeepEditing, markAsSaved, refreshFileMetadata, showNotification]);
 
   // 내용 변경 핸들러
   const handleContentChange = useCallback((newContent: string) => {
@@ -209,7 +208,7 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
     };
   }, [hasUnsavedChanges]);
 
-  if (!selectedFile) {
+  if (!currentFilePath) {
     return (
       <Card className="p-8 min-h-[200px] flex flex-col items-center justify-center">
         <span className="text-lg font-semibold">파일을 선택해주세요</span>
@@ -233,7 +232,7 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
         {/* 중앙: 파일명 및 상태 */}
         <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
           <span className="text-xl font-semibold inline-block max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap">
-            {selectedFile.split('/').pop()}
+            {currentFilePath.split('/').pop()}
           </span>
           {hasUnsavedChanges && (
             <span className="ml-2 text-xs text-amber-600 bg-amber-50 rounded px-2 py-0.5">수정됨</span>
@@ -319,7 +318,7 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
           </div>
         ) : (
           <div style={{ flex: 1, overflow: 'auto' }}>
-            {isMarkdownFile(selectedFile) ? (
+            {isMarkdownFile(currentFilePath) ? (
               <Card className="m-4 p-4">
                 <div className="prose max-w-none">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{editorContent || content}</ReactMarkdown>
@@ -335,7 +334,7 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
       </div>
 
       {/* 스테이터스바 - 읽기 모드와 편집 모드 공통 */}
-      {selectedFile && (
+      {currentFilePath && (
         <Card className="p-3 border-t border-gray-200 text-xs text-gray-500 rounded-none">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {/* 왼쪽: 기본 파일 정보 (공통) */}
@@ -376,10 +375,10 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
                 aria-label="닫기"
               >✖</Button>
               <DialogTitle className="text-center font-semibold text-lg mb-4">
-                👁️ 미리보기 - {selectedFile?.split('/').pop()}
+                👁️ 미리보기 - {currentFilePath?.split('/').pop()}
               </DialogTitle>
               <div className="overflow-y-auto max-h-[50vh] min-h-[120px] p-2 bg-gray-50 rounded-lg">
-                {isMarkdownFile(selectedFile || '') ? (
+                {isMarkdownFile(currentFilePath || '') ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{editorContent}</ReactMarkdown>
                 ) : (
                   <pre style={{ fontFamily: 'monospace', fontSize: 14, whiteSpace: 'pre-wrap', margin: 0 }}>{editorContent}</pre>

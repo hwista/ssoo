@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, Image, Bookmark } from 'lucide-react';
 import { useTreeStore, useLayoutStore, useTabStore } from '@/stores';
+import { useWikiEditorStore } from '@/stores/wiki-editor-store';
 import type { FileNode } from '@/types';
 
 interface FileTreeNodeProps {
@@ -43,15 +44,15 @@ function getFileIcon(name: string, isSelected: boolean) {
  */
 function FileTreeNode({ node, level }: FileTreeNodeProps) {
   const { expandedFolders, toggleFolder } = useLayoutStore();
-  const { selectedFile } = useTreeStore();
+  const { currentFilePath } = useWikiEditorStore();  // tree-store 대신 wiki-editor-store 사용
   const { openTab, addBookmark, removeBookmark, isBookmarked } = useTabStore();
   
   const isExpanded = expandedFolders.has(node.path);
   const isFolder = node.type === 'directory';
   const hasChildren = node.children && node.children.length > 0;
   
-  // 선택 상태 확인
-  const isSelected = selectedFile === node.path;
+  // 선택 상태 확인 (currentFilePath 기반)
+  const isSelected = currentFilePath === node.path;
   
   const iconClass = `w-4 h-4 flex-shrink-0 ${isSelected ? 'text-ssoo-primary' : 'text-gray-500'}`;
 

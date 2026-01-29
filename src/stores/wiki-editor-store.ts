@@ -15,6 +15,7 @@ interface FileMetadata {
 interface EditorState {
   // 상태
   content: string;
+  currentFilePath: string | null;  // 현재 로드된 파일 경로
   isEditing: boolean;
   fileMetadata: FileMetadata;
   isLoading: boolean;
@@ -45,6 +46,7 @@ type EditorStore = EditorState & EditorActions;
 
 const initialState: EditorState = {
   content: '',
+  currentFilePath: null,
   isEditing: false,
   fileMetadata: {
     createdAt: null,
@@ -66,7 +68,7 @@ export const useWikiEditorStore = create<EditorStore>((set, get) => ({
 
   loadFile: async (path) => {
     const timer = new PerformanceTimer('파일 로드');
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, currentFilePath: path });
     
     try {
       await safeAsync(async () => {
