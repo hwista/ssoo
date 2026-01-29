@@ -46,6 +46,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   className = '',
 }, ref) => {
   const editor = useEditor({
+    immediatelyRender: false, // SSR hydration mismatch 방지
     extensions: [
       StarterKit.configure({
         codeBlock: false, // CodeBlockLowlight 사용
