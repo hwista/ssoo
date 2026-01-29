@@ -82,7 +82,7 @@ export function AISearchPage() {
     openTab({
       id: `file-${result.path.replace(/\//g, '-')}`,
       title: result.title,
-      path: `/wiki/${encodeURIComponent(result.path)}`,
+      path: `/doc/${encodeURIComponent(result.path)}`,
       icon: 'FileText',
       closable: true,
       activate: true,

@@ -48,8 +48,8 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
     return 'ai-search';
   }
   
-  // 문서 탭 (/wiki/...)
-  if (tab.path.startsWith('/wiki/')) {
+  // 문서 탭 (/doc/...)
+  if (tab.path.startsWith('/doc/')) {
     return 'wiki';
   }
   

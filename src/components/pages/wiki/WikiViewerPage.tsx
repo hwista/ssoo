@@ -27,12 +27,12 @@ export function WikiViewerPage() {
     return tabs.find((tab) => tab.id === activeTabId);
   }, [tabs, activeTabId]);
 
-  // 탭 경로에서 파일 경로 추출 (/wiki/path/to/file.md → path/to/file.md)
+  // 탭 경로에서 파일 경로 추출 (/doc/path/to/file.md → path/to/file.md)
   const filePath = useMemo(() => {
     if (!activeTab?.path) return null;
     
-    // /wiki/ 접두사 제거
-    const path = activeTab.path.replace(/^\/wiki\//, '');
+    // /doc/ 접두사 제거
+    const path = activeTab.path.replace(/^\/doc\//, '');
     
     // URL 디코딩
     try {

@@ -19,7 +19,7 @@ export interface BookmarkItem {
 export const HOME_TAB = {
   id: 'home',
   title: '홈',
-  path: '/wiki',
+  path: '/',
   icon: 'Home',
   closable: false,
 } as const;

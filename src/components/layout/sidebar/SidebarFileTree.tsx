@@ -64,7 +64,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
       openTab({
         id: `file-${node.path.replace(/\//g, '-')}`,
         title: node.name,
-        path: `/wiki/${encodeURIComponent(node.path)}`,
+        path: `/doc/${encodeURIComponent(node.path)}`,
         icon: 'FileText',
         closable: true,
         activate: true,
@@ -82,7 +82,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
       addBookmark({
         id: bookmarkId,
         title: node.name,
-        path: `/wiki/${encodeURIComponent(node.path)}`,
+        path: `/doc/${encodeURIComponent(node.path)}`,
         icon: 'FileText',
       });
     }
