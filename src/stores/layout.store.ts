@@ -14,6 +14,9 @@ interface LayoutStoreState {
   aiSearchType: AISearchType;
   // 파일 트리 폴더 확장 상태
   expandedFolders: Set<string>;
+  // 컴팩트 모드 (사이드바/사이드카 접힘)
+  isCompactMode: boolean;
+  sidebarOpen: boolean; // 컴팩트 모드에서 사이드바 오버레이 열림 상태
 }
 
 interface LayoutStoreActions {
@@ -30,6 +33,10 @@ interface LayoutStoreActions {
   expandFolder: (path: string) => void;
   collapseFolder: (path: string) => void;
   collapseAllFolders: () => void;
+  // 컴팩트 모드 관련
+  setCompactMode: (isCompact: boolean) => void;
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
 }
 
 interface LayoutStore extends LayoutStoreState, LayoutStoreActions {}
@@ -45,6 +52,8 @@ export const useLayoutStore = create<LayoutStore>()((set, get) => ({
   searchQuery: '',
   aiSearchType: 'rag',
   expandedFolders: new Set<string>(),
+  isCompactMode: false,
+  sidebarOpen: false,
 
   // Actions
   setDeviceType: (type: DeviceType) => {
@@ -122,5 +131,22 @@ export const useLayoutStore = create<LayoutStore>()((set, get) => ({
 
   collapseAllFolders: () => {
     set({ expandedFolders: new Set() });
+  },
+
+  // 컴팩트 모드 액션
+  setCompactMode: (isCompact: boolean) => {
+    set({ 
+      isCompactMode: isCompact,
+      // 컴팩트 모드로 전환 시 사이드바 닫기
+      sidebarOpen: isCompact ? false : get().sidebarOpen,
+    });
+  },
+
+  toggleSidebar: () => {
+    set((state) => ({ sidebarOpen: !state.sidebarOpen }));
+  },
+
+  setSidebarOpen: (open: boolean) => {
+    set({ sidebarOpen: open });
   },
 }));

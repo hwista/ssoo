@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { 
   ChevronDown, 
+  ChevronLeft,
   RefreshCw, 
   Bookmark, 
   Layers, 
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useLayoutStore, useTreeStore } from '@/stores';
 import { LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types/layout';
+import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SidebarSearch } from './sidebar/SidebarSearch';
 import { SidebarSection } from './sidebar/SidebarSection';
@@ -34,14 +36,31 @@ const DOCUMENT_TYPE_ICONS: Record<DocumentType, React.ComponentType<{ className?
 };
 
 /**
+ * MainSidebar Props
+ */
+interface MainSidebarProps {
+  /** 컴팩트 모드 (오버레이로 표시) */
+  isCompactMode?: boolean;
+  /** 사이드바 열림 상태 */
+  isOpen?: boolean;
+  /** 닫기 핸들러 */
+  onClose?: () => void;
+}
+
+/**
  * DMS 메인 사이드바 (PMS 표준 적용)
  * - 로고: W 아이콘 + Wiki 텍스트
  * - 문서 타입 선택: 헤더 영역 (사이드바 접기 버튼 위치)
  * - 검색 + 새로고침
  * - 책갈피 / 현재 열린 페이지 / 전체 파일
  * - 하단 카피라이트
+ * - 컴팩트 모드: 오버레이로 표시 + 그립 버튼
  */
-export function MainSidebar() {
+export function MainSidebar({ 
+  isCompactMode = false, 
+  isOpen = true,
+  onClose,
+}: MainSidebarProps) {
   const { documentType, setDocumentType, expandedSections, toggleSection, searchQuery, setSearchQuery, clearSearch } = useLayoutStore();
   const { refreshFileTree } = useTreeStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -59,9 +78,33 @@ export function MainSidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full bg-ssoo-content-bg border-r border-ssoo-content-border flex flex-col overflow-hidden"
+      className={cn(
+        'fixed left-0 top-0 h-full bg-ssoo-content-bg border-r border-ssoo-content-border flex flex-col overflow-hidden',
+        'transition-transform duration-300 ease-in-out',
+        // 컴팩트 모드에서 오버레이
+        isCompactMode && 'z-30 shadow-xl',
+        isCompactMode && !isOpen && '-translate-x-full'
+      )}
       style={{ width: LAYOUT_SIZES.sidebar.width }}
     >
+      {/* 컴팩트 모드: 닫기 그립 버튼 */}
+      {isCompactMode && isOpen && (
+        <button
+          onClick={onClose}
+          className={cn(
+            'absolute right-0 top-1/2 -translate-y-1/2 translate-x-full z-10',
+            'flex items-center justify-center',
+            'w-5 h-12 rounded-r-md',
+            'bg-ssoo-content-bg hover:bg-ssoo-content-border/50 border border-l-0 border-ssoo-content-border',
+            'transition-all duration-300 ease-in-out',
+            'shadow-sm'
+          )}
+          aria-label="사이드바 접기"
+        >
+          <ChevronLeft className="h-4 w-4 text-gray-500" />
+        </button>
+      )}
+
       {/* 헤더 영역: 로고 + 문서 타입 선택 */}
       <div className="h-header-h flex items-center justify-between px-3 bg-ssoo-primary">
         {/* 로고 (PMS 스타일) */}

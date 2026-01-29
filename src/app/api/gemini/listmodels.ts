@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
-  const apiKey = 'AIzaSyBiQlQTNkQF3uO7V5ttiQm6oDCa2obGkHk';
+  const apiKey = 'AIzaSyALzfS49bMESWCkFkTOq20S0mzgwVesQGw';
   const url = 'https://generativelanguage.googleapis.com/v1/models?key=' + apiKey;
   try {
     const res = await fetch(url, { method: 'GET' });

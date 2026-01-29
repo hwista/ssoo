@@ -1,18 +1,19 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
-import { useTabStore } from '@/stores';
-import { useWikiEditorStore } from '@/stores';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useTabStore, useWikiEditorStore } from '@/stores';
+import { DocPageTemplate } from '@/components/templates';
+import { DocViewer, type TocItem } from '@/components/common/page';
+import { markdownToHtmlSync } from '@/lib/markdownConverter';
 import WikiEditor from '@/components/WikiEditor';
 
 /**
  * Wiki 문서 뷰어/에디터 페이지
  * 
- * 핵심 역할:
- * 1. 활성 탭의 path에서 파일 경로 추출
- * 2. 마운트 시 자동으로 loadFile() 호출
- * 3. WikiEditor 컴포넌트 렌더링
+ * Phase 7 업데이트:
+ * - 공통 레이아웃: DocPageTemplate (Breadcrumb + Header + Sidecar)
+ * - 뷰어 모드: DocViewer 슬롯 삽입
+ * - 에디터 모드: WikiEditor 슬롯 삽입
  * 
  * PMS 패턴:
  * - SidebarFileTree는 openTab()만 호출
@@ -20,7 +21,15 @@ import WikiEditor from '@/components/WikiEditor';
  */
 export function WikiViewerPage() {
   const { activeTabId, tabs } = useTabStore();
-  const { loadFile, isLoading, error, content } = useWikiEditorStore();
+  const { loadFile, isLoading, error, content, isEditing, setIsEditing, fileMetadata } = useWikiEditorStore();
+  
+  // 에디터 모드 상태 (로컬)
+  const [mode, setMode] = useState<'viewer' | 'editor'>('viewer');
+
+  // Store의 isEditing과 동기화
+  useEffect(() => {
+    setMode(isEditing ? 'editor' : 'viewer');
+  }, [isEditing]);
 
   // 활성 탭 찾기
   const activeTab = useMemo(() => {
@@ -42,52 +51,133 @@ export function WikiViewerPage() {
     }
   }, [activeTab?.path]);
 
-  // 파일 경로가 변경되면 파일 로드
+  // 파일 경로가 변경되면 파일 로드 + 뷰어 모드로 전환
   useEffect(() => {
     if (filePath) {
       console.log('📂 WikiViewerPage: 파일 로드 시작', { filePath });
       loadFile(filePath);
+      setMode('viewer');
+      setIsEditing(false);
     }
-  }, [filePath, loadFile]);
+  }, [filePath, loadFile, setIsEditing]);
 
-  // 로딩 상태
-  if (isLoading) {
-    return (
-      <main className="flex-1 flex items-center justify-center bg-white">
-        <div className="flex items-center gap-2 text-gray-500">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span>문서 로딩 중...</span>
-        </div>
-      </main>
-    );
-  }
+  // HTML 콘텐츠 변환 (뷰어용)
+  const htmlContent = useMemo(() => {
+    if (!content) return '';
+    return markdownToHtmlSync(content);
+  }, [content]);
 
-  // 에러 상태
-  if (error) {
-    return (
-      <main className="flex-1 flex items-center justify-center bg-white">
-        <div className="text-center p-6">
-          <p className="text-red-500 mb-2">파일을 불러올 수 없습니다</p>
-          <p className="text-gray-500 text-sm">{error}</p>
-          <p className="text-gray-400 text-xs mt-2">경로: {filePath}</p>
-        </div>
-      </main>
-    );
-  }
+  // 목차 추출 (헤딩 기반)
+  const toc = useMemo((): TocItem[] => {
+    if (!content) return [];
+    
+    const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+    const items: TocItem[] = [];
+    let match;
+    let index = 0;
+    
+    while ((match = headingRegex.exec(content)) !== null) {
+      items.push({
+        id: `heading-${index++}`,
+        level: match[1].length,
+        text: match[2].trim(),
+      });
+    }
+    
+    return items;
+  }, [content]);
+
+  // 메타데이터 구성
+  const metadata = useMemo(() => {
+    return {
+      author: 'admin', // TODO: 실제 작성자 정보
+      createdAt: fileMetadata.createdAt || undefined,
+      updatedAt: fileMetadata.modifiedAt || undefined,
+      lineCount: content ? content.split('\n').length : 0,
+      charCount: content ? content.length : 0,
+    };
+  }, [content, fileMetadata]);
+
+  // 액션 핸들러
+  const handleEdit = useCallback(() => {
+    setMode('editor');
+    setIsEditing(true);
+  }, [setIsEditing]);
+
+  const handleDelete = useCallback(() => {
+    // TODO: 삭제 확인 모달 + 삭제 로직
+    if (confirm(`'${filePath}'를 삭제하시겠습니까?`)) {
+      console.log('삭제:', filePath);
+    }
+  }, [filePath]);
+
+  const handleSearch = useCallback((query: string) => {
+    // TODO: 문서 내 검색 하이라이트
+    console.log('검색:', query);
+  }, []);
+
+  const handleTocClick = useCallback((id: string) => {
+    // 해당 헤딩으로 스크롤
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
+
+  const handlePathClick = useCallback((path: string) => {
+    // TODO: 해당 폴더로 트리 이동
+    console.log('폴더 이동:', path);
+  }, []);
+
+  // 저장 핸들러 (에디터 모드용)
+  const handleSave = useCallback(() => {
+    // TODO: 저장 로직
+    console.log('저장');
+  }, []);
+
+  // 취소 핸들러 (에디터 → 뷰어)
+  const handleCancel = useCallback(() => {
+    setMode('viewer');
+    setIsEditing(false);
+  }, [setIsEditing]);
 
   // 파일 경로가 없을 때
   if (!filePath) {
     return (
-      <main className="flex-1 flex items-center justify-center bg-white">
-        <p className="text-gray-500">사이드바에서 파일을 선택해주세요.</p>
+      <main className="flex-1 flex items-center justify-center bg-ssoo-content-bg/30">
+        <p className="text-ssoo-primary/70">사이드바에서 파일을 선택해주세요.</p>
       </main>
     );
   }
 
-  // 에디터 렌더링
+  // 공통 템플릿 + 슬롯 구조
   return (
-    <main className="flex-1 overflow-auto bg-white">
-      <WikiEditor className="h-full" />
+    <main className="flex-1 overflow-hidden bg-ssoo-content-bg/30">
+      <DocPageTemplate
+        filePath={filePath}
+        mode={mode}
+        metadata={metadata}
+        onEdit={handleEdit}
+        onSave={handleSave}
+        onCancel={handleCancel}
+        onDelete={handleDelete}
+        onPathClick={handlePathClick}
+        loading={isLoading}
+        error={error}
+        onRetry={() => filePath && loadFile(filePath)}
+      >
+        {/* 슬롯: 뷰어 또는 에디터 */}
+        {mode === 'viewer' ? (
+          <DocViewer 
+            content={htmlContent} 
+            toc={toc}
+            onTocClick={handleTocClick}
+            onSearch={handleSearch}
+          />
+        ) : (
+          <WikiEditor className="h-full" />
+        )}
+      </DocPageTemplate>
     </main>
   );
 }

@@ -1,5 +1,34 @@
 import TurndownService from 'turndown';
-import { marked } from 'marked';
+import { marked, Renderer } from 'marked';
+
+/**
+ * 텍스트를 slug로 변환 (URL-safe ID 생성)
+ */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s가-힣-]/g, '') // 특수문자 제거 (한글, 영문, 숫자, 공백, 하이픈만 유지)
+    .replace(/\s+/g, '-') // 공백을 하이픈으로
+    .replace(/-+/g, '-') // 중복 하이픈 제거
+    .replace(/^-|-$/g, ''); // 앞뒤 하이픈 제거
+}
+
+// 헤딩 인덱스 추적 (중복 id 방지)
+let headingCounter = 0;
+
+/**
+ * 커스텀 renderer - 헤딩에 id 부여
+ */
+function createCustomRenderer(): Partial<Renderer> {
+  return {
+    heading({ tokens, depth }): string {
+      const text = tokens.map(t => ('text' in t ? t.text : '')).join('');
+      const id = `heading-${headingCounter++}`;
+      return `<h${depth} id="${id}">${text}</h${depth}>\n`;
+    },
+  };
+}
 
 // HTML을 Markdown으로 변환
 const turndownService = new TurndownService({
@@ -101,6 +130,7 @@ export async function markdownToHtml(markdown: string): Promise<string> {
 
 /**
  * 동기 방식으로 Markdown을 HTML로 변환
+ * 헤딩에 자동으로 id 부여 (heading-0, heading-1, ...)
  */
 export function markdownToHtmlSync(markdown: string): string {
   if (!markdown || markdown.trim() === '') {
@@ -108,6 +138,14 @@ export function markdownToHtmlSync(markdown: string): string {
   }
 
   try {
+    // 헤딩 카운터 리셋
+    headingCounter = 0;
+    
+    // 커스텀 renderer 설정
+    marked.use({
+      renderer: createCustomRenderer(),
+    });
+    
     marked.setOptions({
       gfm: true,
       breaks: true,
