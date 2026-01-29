@@ -1,10 +1,44 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-01-28
+> 최종 업데이트: 2026-01-29
+
+---
+
+## 2026-01-29
+
+### Phase 3 시작: PMS 패턴 동기화 분석
+
+#### 분석 완료
+- PMS vs DMS 초기화 흐름 전체 비교 분석
+- 핵심 차이점 식별:
+  - ContentArea: PMS는 `pageComponents` 동적 로딩, DMS는 조건부 분기
+  - 데이터 로딩: PMS는 페이지가 자체 로드, DMS는 loadFile() 호출 누락
+- 필요한 페이지 컴포넌트 목록 정의
+
+#### 문서 작성
+- `docs/development/architecture/phase3-pms-sync-plan.md` - Phase 3 상세 계획
+- `docs/pms/architecture/app-initialization-flow.md` (모노레포 루트) - PMS 앱 초기화 흐름
+
+#### 결정사항
+- **Option A 채택**: PMS 패턴과 동기화 (일관성 및 통합 준비)
+- 페이지 컴포넌트 생성 후 ContentArea 리팩토링 진행
+
+#### 필요한 페이지 컴포넌트
+| 컴포넌트 | 경로 | 우선순위 |
+|----------|------|----------|
+| `WikiHomePage` | `/wiki` | ⭐⭐⭐ |
+| `WikiViewerPage` | `/wiki/:path` | ⭐⭐⭐ |
+| `AISearchPage` | `/ai-search` | ⭐⭐ |
 
 ---
 
 ## 2026-01-28 (계속)
+
+### 문서 - 정합성 보정 착수
+
+- `apps/web/dms/docs/development/AGENTS.md` 신규 작성 (인수인계 기준)
+- `apps/web/dms/docs/development/verification-report.md` 정본 경로 및 표준 섹션 반영
+- `apps/web/dms/docs/development/architecture/package-spec.md` 의존성 목록 정합성 정리
 
 ### 스타일 - Phase 2-H: PMS 디자인 시스템 통합 완료 ✅
 

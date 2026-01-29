@@ -10,72 +10,72 @@
   /* ----------------------------------------
      SSOO 테마 색상
      ---------------------------------------- */
-  --ssoo-primary: #003876;
-  --ssoo-primary-hover: #235a98;
+  --ssoo-primary: #34104A;
+  --ssoo-primary-hover: #4A1A68;
   --ssoo-secondary: #FAFAFA;
   --ssoo-background: #FAFAFA;
-  --ssoo-content-border: #9FC1E7;
-  --ssoo-content-background: #DEE7F1;
-  --ssoo-sitemap-title: #003876;
-  --ssoo-sitemap-bullet: #9FC1E7;
-  --ssoo-sitemap-background: #F6FBFF;
-
+  --ssoo-content-border: #BFC6F4;
+  --ssoo-content-background: #E9ECFB;
+  --ssoo-sitemap-title: #2A2E8A;
+  --ssoo-sitemap-bullet: #BFC6F4;
+  --ssoo-sitemap-background: #FAFBFF;
+  
   /* ----------------------------------------
      LS CI 색상 팔레트
      ---------------------------------------- */
   --ls-red: #FA002D;
   --ls-blue: #0A1E5A;
-  --ls-green: #00A651;
-  --ls-sub-blue: #0066B3;
+  --ls-green: #009BB4;
+  --ls-sub-blue: #0569A0;
   --ls-gray: #7D8282;                     /* GRAY - RGB(125, 130, 130) - PMS 표준 */
-  --ls-silver: #888888;
-  --ls-gold: #B0A083;
+  --ls-silver: #87827D;
+  --ls-gold: #7D0D0D;
 
   /* ----------------------------------------
      shadcn/ui 기본 변수 (Light 테마)
      ---------------------------------------- */
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
+  --background: 210 33% 98.8%;
+  --foreground: 213 100% 23%;
   --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
+  --card-foreground: 213 100% 23%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
+  --popover-foreground: 213 100% 23%;
+  --primary: 213 100% 23%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 213 63% 37%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 213 33% 90%;
+  --muted-foreground: 213 50% 35%;
+  --accent: 200 100% 32%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 353 98% 49%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 213 100% 23%;
   --radius: 0.5rem;
 }
 
 .dark {
-  --background: 222.2 84% 4.9%;
+  --background: 213 50% 10%;
   --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
+  --card: 213 50% 12%;
   --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
+  --popover: 213 50% 12%;
   --popover-foreground: 210 40% 98%;
-  --primary: 210 40% 98%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
+  --primary: 213 80% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 213 50% 25%;
   --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
+  --muted: 213 50% 20%;
   --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
+  --accent: 200 80% 45%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 40%;
   --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 212.7 26.8% 83.9%;
+  --border: 213 50% 25%;
+  --input: 213 50% 25%;
+  --ring: 213 80% 50%;
 }
 
 /* ============================================
