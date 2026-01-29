@@ -43,13 +43,13 @@ const DOCUMENT_TYPE_ICONS: Record<DocumentType, React.ComponentType<{ className?
  */
 export function MainSidebar() {
   const { documentType, setDocumentType, expandedSections, toggleSection, searchQuery, setSearchQuery, clearSearch } = useLayoutStore();
-  const { refreshFiles } = useTreeStore();
+  const { refreshFileTree } = useTreeStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refreshFiles();
+      await refreshFileTree();
     } finally {
       setTimeout(() => setIsRefreshing(false), 500);
     }
@@ -69,7 +69,7 @@ export function MainSidebar() {
           <div className="w-9 h-9 bg-white rounded flex items-center justify-center">
             <span className="text-ssoo-primary font-bold text-lg">W</span>
           </div>
-          <span className="font-semibold text-white text-lg">Wiki</span>
+          <span className="font-semibold text-white text-lg">WIKI</span>
         </div>
 
         {/* 문서 타입 선택 드롭다운 (헤더 AI 검색 스타일) */}

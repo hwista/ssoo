@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Search, FileText, X } from 'lucide-react';
+import { searchApi } from '@/lib/utils/apiClient';
 
 interface SearchMatch {
   line: number;
@@ -40,24 +41,25 @@ export default function TextSearch({ onFileSelect, onClose }: TextSearchProps) {
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        q: query.trim(),
-        caseSensitive: caseSensitive.toString(),
-        limit: '30'
-      });
+      const response = await searchApi.textSearch(query.trim(), caseSensitive, false);
 
-      const response = await fetch(`/api/text-search?${params}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '검색 실패');
+      if (!response.success) {
+        throw new Error(response.error || '검색 실패');
       }
 
-      setResults(data.results);
-      setTotalMatches(data.totalMatches);
+      // API 응답을 SearchResult 타입으로 변환
+      const searchResults: SearchResult[] = (response.data?.results || []).map(r => ({
+        filePath: r.path,
+        fileName: r.path.split('/').pop() || '',
+        matches: [],
+        totalMatches: 1
+      }));
+      
+      setResults(searchResults);
+      setTotalMatches(searchResults.length);
 
       // 첫 3개 파일은 자동 확장
-      const initialExpanded = new Set<string>(data.results.slice(0, 3).map((r: SearchResult) => r.filePath));
+      const initialExpanded = new Set<string>(searchResults.slice(0, 3).map((r: SearchResult) => r.filePath));
       setExpandedFiles(initialExpanded);
 
     } catch (err) {

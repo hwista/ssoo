@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { Send, Bot, User, FileText } from 'lucide-react';
+import { aiApi } from '@/lib/utils/apiClient';
 
 interface Message {
   id: string;
@@ -57,23 +58,17 @@ const AIChat: React.FC<AIChatProps> = ({ onFileSelect }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: input.trim(), limit: 5 })
-      });
+      const response = await aiApi.ask(input.trim());
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'AI 응답 실패');
+      if (!response.success) {
+        throw new Error(response.error || 'AI 응답 실패');
       }
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: data.answer,
-        sources: data.sources,
+        content: response.data?.answer || '',
+        sources: response.data?.sources as Message['sources'],
         timestamp: new Date()
       };
 

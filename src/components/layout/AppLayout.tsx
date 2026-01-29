@@ -7,16 +7,15 @@ import { Header } from './Header';
 import { TabBar } from './TabBar';
 import { ContentArea } from './ContentArea';
 
-interface AppLayoutProps {
-  children?: React.ReactNode;
-}
-
 /**
  * DMS 메인 앱 레이아웃
  * - Desktop: Sidebar + Header + TabBar + Content
  * - Mobile: 별도 UI (추후 개발)
+ * 
+ * Note: PMS 패턴 동기화로 children은 더 이상 사용하지 않음.
+ * ContentArea가 내부적으로 pageComponents로 페이지 렌더링.
  */
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout() {
   const { deviceType } = useLayoutStore();
 
   // 모바일은 별도 UI (추후 개발)
@@ -48,7 +47,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <TabBar />
 
         {/* Content */}
-        <ContentArea>{children}</ContentArea>
+        <ContentArea />
       </div>
     </div>
   );

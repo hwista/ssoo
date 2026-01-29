@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { Search, FileText, RefreshCw } from 'lucide-react';
+import { searchApi, SearchResult as ApiSearchResult } from '@/lib/utils/apiClient';
 
+// UI에서 사용하는 검색 결과 타입
 interface SearchResult {
   id: string;
   content: string;
@@ -14,6 +16,18 @@ interface SearchResult {
   filePath: string;
   chunkIndex: number;
   score: number;
+}
+
+// API 응답을 UI 타입으로 변환
+function mapApiResultToUIResult(apiResult: ApiSearchResult, index: number): SearchResult {
+  return {
+    id: `${apiResult.path}-${index}`,
+    content: apiResult.content,
+    fileName: apiResult.title || apiResult.path.split('/').pop() || '',
+    filePath: apiResult.path,
+    chunkIndex: index,
+    score: apiResult.score,
+  };
 }
 
 interface SearchPanelProps {
@@ -36,19 +50,15 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onFileSelect }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, limit: 10 })
-      });
+      const response = await searchApi.search(query, 10);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '검색 실패');
+      if (!response.success) {
+        throw new Error(response.error || '검색 실패');
       }
 
-      setResults(data.results);
+      // API 결과를 UI 타입으로 변환
+      const mappedResults = (response.data?.results || []).map(mapApiResultToUIResult);
+      setResults(mappedResults);
     } catch (err) {
       setError(err instanceof Error ? err.message : '검색 중 오류가 발생했습니다');
       setResults([]);
@@ -60,11 +70,10 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onFileSelect }) => {
   // 인덱스 상태 확인
   const checkIndexStatus = useCallback(async () => {
     try {
-      const response = await fetch('/api/search');
-      const data = await response.json();
+      const response = await searchApi.getIndexStatus();
 
-      if (response.ok) {
-        setIndexStatus({ count: data.indexedDocuments, status: data.status });
+      if (response.success && response.data) {
+        setIndexStatus({ count: response.data.indexedDocuments, status: response.data.status });
       }
     } catch (err) {
       console.error('인덱스 상태 확인 실패:', err);
@@ -77,20 +86,14 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onFileSelect }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/index', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reindex: true })
-      });
+      const response = await searchApi.indexDocuments(true);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '인덱싱 실패');
+      if (!response.success) {
+        throw new Error(response.error || '인덱싱 실패');
       }
 
       await checkIndexStatus();
-      alert(data.message);
+      alert(response.data?.message || '인덱싱 완료');
     } catch (err) {
       setError(err instanceof Error ? err.message : '인덱싱 중 오류가 발생했습니다');
     } finally {

@@ -5,6 +5,7 @@ import { Search, Loader2, FileText, ExternalLink } from 'lucide-react';
 import { useTabStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { searchApi, aiApi } from '@/lib/utils/apiClient';
 
 interface SearchResult {
   path: string;
@@ -36,34 +37,36 @@ export function AISearchPage() {
     setResults([]);
 
     try {
-      const endpoint = searchType === 'vector' ? '/api/search' : '/api/ask';
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query.trim() }),
-      });
-
-      if (!response.ok) {
-        throw new Error('검색 요청 실패');
-      }
-
-      const data = await response.json();
-      
-      if (searchType === 'vector' && data.results) {
-        setResults(data.results.map((r: { path?: string; title?: string; content?: string; score?: number }) => ({
-          path: r.path || '',
-          title: r.title || r.path?.split('/').pop() || '제목 없음',
-          snippet: r.content?.substring(0, 200) || '',
-          score: r.score || 0,
-        })));
-      } else if (searchType === 'gemini' && data.answer) {
-        // Gemini 답변은 단일 결과로 표시
-        setResults([{
-          path: '',
-          title: 'AI 답변',
-          snippet: data.answer,
-          score: 1,
-        }]);
+      if (searchType === 'vector') {
+        const response = await searchApi.search(query.trim());
+        
+        if (!response.success) {
+          throw new Error(response.error || '검색 요청 실패');
+        }
+        
+        if (response.data?.results) {
+          setResults(response.data.results.map((r) => ({
+            path: r.path || '',
+            title: r.title || r.path?.split('/').pop() || '제목 없음',
+            snippet: r.content?.substring(0, 200) || '',
+            score: r.score || 0,
+          })));
+        }
+      } else {
+        const response = await aiApi.ask(query.trim());
+        
+        if (!response.success) {
+          throw new Error(response.error || 'AI 요청 실패');
+        }
+        
+        if (response.data?.answer) {
+          setResults([{
+            path: '',
+            title: 'AI 답변',
+            snippet: response.data.answer,
+            score: 1,
+          }]);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '검색 중 오류 발생');

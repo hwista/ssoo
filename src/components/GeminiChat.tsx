@@ -6,6 +6,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { MessageCircleQuestion } from 'lucide-react';
 import { useGeminiStore } from '@/stores/gemini-store';
 import { useResize } from '@/hooks/useResize';
+import { aiApi } from '@/lib/utils/apiClient';
 
 const GeminiChat: React.FC = () => {
   const { question, setQuestion, answer, setAnswer, loading, setLoading } = useGeminiStore();
@@ -21,15 +22,14 @@ const GeminiChat: React.FC = () => {
     setLoading(true);
     setAnswer('');
     try {
-      const res = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question })
-      });
-      const data = await res.json();
-      setAnswer(data.answer);
+      const response = await aiApi.geminiChat(question);
+      if (response.success && response.data) {
+        setAnswer(response.data.response);
+      } else {
+        setAnswer('Gemini API 오류: ' + (response.error || '알 수 없는 오류'));
+      }
     } catch (err) {
-      setAnswer('Gemini API 오류: ' + (typeof err === 'object' && err !== null && 'message' in err ? (err as any).message : String(err)));
+      setAnswer('Gemini API 오류: ' + (typeof err === 'object' && err !== null && 'message' in err ? (err as Error).message : String(err)));
     }
     setLoading(false);
   };

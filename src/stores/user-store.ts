@@ -2,16 +2,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { userApi, User } from '@/lib/utils/apiClient';
 
-// 사용자 인터페이스
-interface User {
-  id: string;
-  username: string;
-  displayName: string;
-  email?: string;
-  avatar?: string;
-  role: 'admin' | 'editor' | 'viewer';
-}
+export type { User };
 
 interface UserState {
   user: User | null;
@@ -43,39 +36,29 @@ export const useUserStore = create<UserStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const response = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'login', username })
-          });
+          const response = await userApi.login(username);
 
-          const data = await response.json();
-
-          if (!response.ok) {
+          if (!response.success) {
             // 사용자가 없으면 새로 생성
-            if (response.status === 404) {
-              const createResponse = await fetch('/api/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  username,
-                  displayName: username,
-                  role: 'editor'
-                })
+            if (response.error?.includes('404')) {
+              const createResponse = await userApi.create({
+                username,
+                displayName: username,
+                role: 'editor'
               });
 
-              const createData = await createResponse.json();
-
-              if (createResponse.ok) {
-                set({ user: createData.user, isLoading: false });
+              if (createResponse.success && createResponse.data) {
+                set({ user: createResponse.data.user, isLoading: false });
                 return true;
               }
             }
 
-            throw new Error(data.error || '로그인 실패');
+            throw new Error(response.error || '로그인 실패');
           }
 
-          set({ user: data.user, isLoading: false });
+          if (response.data) {
+            set({ user: response.data.user, isLoading: false });
+          }
           return true;
 
         } catch (err) {
@@ -98,19 +81,15 @@ export const useUserStore = create<UserStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const response = await fetch('/api/users', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: user.id, ...updates })
-          });
+          const response = await userApi.updateProfile(user.id, updates);
 
-          const data = await response.json();
-
-          if (!response.ok) {
-            throw new Error(data.error || '프로필 업데이트 실패');
+          if (!response.success) {
+            throw new Error(response.error || '프로필 업데이트 실패');
           }
 
-          set({ user: data.user, isLoading: false });
+          if (response.data) {
+            set({ user: response.data.user, isLoading: false });
+          }
           return true;
 
         } catch (err) {

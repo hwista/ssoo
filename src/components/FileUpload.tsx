@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { ProgressBar } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { Upload, FileText, Check, X } from 'lucide-react';
+import { uploadApi } from '@/lib/utils/apiClient';
 
 interface UploadResult {
   id: string;
@@ -75,22 +76,27 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete, onError, onCl
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 100);
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
+      const response = await uploadApi.uploadFile(file);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || '업로드 실패');
+      if (!response.success) {
+        throw new Error(response.error || '업로드 실패');
       }
 
-      setUploadResult(result.data);
-      onUploadComplete?.(result.data);
+      // uploadApi 반환 타입과 UploadResult 타입 매핑
+      const uploadResult: UploadResult = {
+        id: response.data?.filename || '',
+        originalName: file.name,
+        savedName: response.data?.filename || '',
+        textLength: 0,
+        chunksCount: 0,
+        mdFile: response.data?.path || ''
+      };
+      
+      setUploadResult(uploadResult);
+      onUploadComplete?.(uploadResult);
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '업로드 중 오류가 발생했습니다';
