@@ -61,27 +61,5 @@ export const AI_SEARCH_TYPE_LABELS: Record<AISearchType, string> = {
  */
 export type SidebarSection = 'bookmarks' | 'openTabs' | 'fileTree';
 
-/**
- * 탭 아이템 (문서 탭)
- */
-export interface TabItem {
-  id: string;
-  title: string;
-  path: string;
-  icon?: string;
-  closable: boolean;
-  openedAt: Date;
-  lastActiveAt: Date;
-}
-
-/**
- * 탭 열기 옵션
- */
-export interface OpenTabOptions {
-  id?: string;
-  title: string;
-  path: string;
-  icon?: string;
-  closable?: boolean;
-  activate?: boolean;
-}
+// Tab 관련 타입은 ./tab.ts에서 import
+// (PMS 컨벤션: 도메인별 타입 파일 분리)

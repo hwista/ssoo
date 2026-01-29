@@ -10,7 +10,7 @@ import { Dialog, DialogSurface, DialogBody, DialogTitle } from '@/components/ui/
 import { Eye, Save, Edit, X, Copy, Type, FileText } from 'lucide-react';
 import { BlockEditor, BlockEditorRef } from '@/components/editor';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
-import { useWikiEditorStore } from '@/stores/wiki-editor-store';
+import { useWikiEditorStore } from '@/stores';
 import { useToast } from '@/lib/toast';
 import { logger } from '@/lib/utils/errorUtils';
 import { isMarkdownFile } from '@/lib/utils/fileUtils';

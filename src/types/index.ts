@@ -49,6 +49,23 @@ export type {
   ControlProps
 } from './ui';
 
+// Tab 관련 타입 (PMS 컨벤션: 도메인별 분리)
+export type {
+  TabItem,
+  OpenTabOptions,
+  TabStoreState,
+  TabStoreActions
+} from './tab';
+
+// 레이아웃 타입
+export type {
+  DeviceType,
+  DocumentType,
+  AISearchType,
+  SidebarSection
+} from './layout';
+export { BREAKPOINTS, LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, AI_SEARCH_TYPE_LABELS } from './layout';
+
 // 공통 기본 타입
 export type {
   Optional,

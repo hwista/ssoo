@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTabStore } from '@/stores';
-import { useWikiEditorStore } from '@/stores/wiki-editor-store';
+import { useWikiEditorStore } from '@/stores';
 import WikiEditor from '@/components/WikiEditor';
 
 /**

@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { useTreeStore } from '@/stores/tree-store';
-import { useWikiEditorStore } from '@/stores/wiki-editor-store';
+import { useTreeStore, useWikiEditorStore } from '@/stores';
 import WikiSidebar from '@/components/WikiSidebar';
 import WikiEditor from '@/components/WikiEditor';
 import WikiModals from '@/components/WikiModals';

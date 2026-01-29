@@ -4,7 +4,7 @@
  */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { TabItem, OpenTabOptions } from '@/types/layout';
+import type { TabItem, OpenTabOptions } from '@/types/tab';
 
 // 책갈피 타입
 export interface BookmarkItem {

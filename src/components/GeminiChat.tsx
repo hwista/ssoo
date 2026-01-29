@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { MessageCircleQuestion } from 'lucide-react';
-import { useGeminiStore } from '@/stores/gemini-store';
+import { useGeminiStore } from '@/stores';
 import { useResize } from '@/hooks/useResize';
 import { aiApi } from '@/lib/utils/apiClient';
 

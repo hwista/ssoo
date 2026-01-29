@@ -7,7 +7,7 @@ import {
   Monitor,
   ChevronDown
 } from 'lucide-react';
-import { useThemeStore } from '@/stores/theme-store';
+import { useThemeStore } from '@/stores';
 
 interface ThemeToggleProps {
   showLabel?: boolean;

@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, Image, Bookmark } from 'lucide-react';
 import { useTreeStore, useLayoutStore, useTabStore } from '@/stores';
-import { useWikiEditorStore } from '@/stores/wiki-editor-store';
+import { useWikiEditorStore } from '@/stores';
 import type { FileNode } from '@/types';
 
 interface FileTreeNodeProps {

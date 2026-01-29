@@ -5,9 +5,7 @@ import { FileNode } from '@/types';
 import { CreateFileParams } from '@/types/wiki';
 import { fileApi, getErrorMessage } from '@/lib/utils/apiClient';
 import { logger, safeAsync, PerformanceTimer } from '@/lib/utils/errorUtils';
-import { useTreeStore } from '@/stores/tree-store';
-import { useWikiEditorStore } from '@/stores/wiki-editor-store';
-import { useWikiItemsStore } from '@/stores/wiki-items-store';
+import { useTreeStore, useWikiEditorStore, useWikiItemsStore } from '@/stores';
 
 /**
  * 파일 시스템 CRUD 작업을 위한 훅
