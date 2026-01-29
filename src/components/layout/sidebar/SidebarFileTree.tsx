@@ -43,7 +43,7 @@ function getFileIcon(name: string, isSelected: boolean) {
  */
 function FileTreeNode({ node, level }: FileTreeNodeProps) {
   const { expandedFolders, toggleFolder } = useLayoutStore();
-  const { selectedFile, selectFile } = useTreeStore();
+  const { selectedFile } = useTreeStore();
   const { openTab, addBookmark, removeBookmark, isBookmarked } = useTabStore();
   
   const isExpanded = expandedFolders.has(node.path);
@@ -59,9 +59,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
     if (isFolder) {
       toggleFolder(node.path);
     } else {
-      selectFile(node.path);
-      
-      // 탭으로 열기
+      // PMS 패턴: 사이드바는 탭만 열고, 페이지 컴포넌트(WikiViewerPage)가 loadFile() 호출
       openTab({
         id: `file-${node.path.replace(/\//g, '-')}`,
         title: node.name,

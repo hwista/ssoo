@@ -1,21 +1,79 @@
 'use client';
 
+import { lazy, Suspense, useMemo } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useTabStore, HOME_TAB } from '@/stores';
 
-interface ContentAreaProps {
-  children?: React.ReactNode;
+/**
+ * 페이지 컴포넌트 매핑 (PMS 패턴)
+ * - React.lazy로 동적 import
+ * - 코드 분할로 초기 로딩 최적화
+ */
+const pageComponents = {
+  // Home 대시보드
+  home: lazy(() => import('@/components/pages/wiki/WikiHomePage')),
+  // AI 검색
+  'ai-search': lazy(() => import('@/components/pages/ai/AISearchPage')),
+  // 문서 뷰어/에디터
+  wiki: lazy(() => import('@/components/pages/wiki/WikiViewerPage')),
+};
+
+/**
+ * 로딩 컴포넌트
+ */
+function LoadingFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center bg-white">
+      <div className="flex items-center gap-2 text-gray-500">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span>로딩 중...</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 탭 경로에서 페이지 타입 결정
+ */
+function getPageType(tab: { id: string; path: string } | undefined): keyof typeof pageComponents | null {
+  if (!tab) return null;
+  
+  // Home 탭
+  if (tab.id === HOME_TAB.id) {
+    return 'home';
+  }
+  
+  // AI 검색 탭
+  if (tab.path.startsWith('/ai-search')) {
+    return 'ai-search';
+  }
+  
+  // 문서 탭 (/wiki/...)
+  if (tab.path.startsWith('/wiki/')) {
+    return 'wiki';
+  }
+  
+  return null;
 }
 
 /**
  * DMS 콘텐츠 영역
- * - 활성 탭에 따라 콘텐츠 렌더링
- * - Home 탭: 대시보드 / 환영 화면
- * - 문서 탭: WikiEditor/Viewer
- * - AI 검색 탭: AI 결과 페이지
+ * 
+ * PMS 패턴:
+ * - pageComponents 매핑으로 동적 페이지 로딩
+ * - Suspense로 로딩 상태 처리
+ * - 각 페이지 컴포넌트가 자체적으로 데이터 로드
  */
-export function ContentArea({ children }: ContentAreaProps) {
+export function ContentArea() {
   const { activeTabId, tabs } = useTabStore();
-  const activeTab = tabs.find((tab) => tab.id === activeTabId);
+  
+  // 활성 탭 찾기
+  const activeTab = useMemo(() => {
+    return tabs.find((tab) => tab.id === activeTabId);
+  }, [tabs, activeTabId]);
+
+  // 페이지 타입 결정
+  const pageType = getPageType(activeTab);
 
   // 탭이 없을 때
   if (!activeTab) {
@@ -26,65 +84,24 @@ export function ContentArea({ children }: ContentAreaProps) {
     );
   }
 
-  // Home 탭
-  if (activeTab.id === HOME_TAB.id) {
+  // 알 수 없는 페이지 타입
+  if (!pageType) {
     return (
-      <main className="flex-1 overflow-auto bg-white p-6">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            문서 관리 시스템
-          </h1>
-          <p className="text-gray-600 mb-8">
-            문서를 검색하거나 사이드바에서 파일을 선택하여 시작하세요.
-          </p>
-          
-          {/* 빠른 액션 */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-ssoo-primary cursor-pointer transition-colors">
-              <h3 className="font-medium text-gray-900 mb-1">새 문서 작성</h3>
-              <p className="text-sm text-gray-500">새로운 문서를 작성합니다</p>
-            </div>
-            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-ssoo-primary cursor-pointer transition-colors">
-              <h3 className="font-medium text-gray-900 mb-1">AI 검색</h3>
-              <p className="text-sm text-gray-500">AI로 문서를 검색합니다</p>
-            </div>
-            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-ssoo-primary cursor-pointer transition-colors">
-              <h3 className="font-medium text-gray-900 mb-1">최근 문서</h3>
-              <p className="text-sm text-gray-500">최근 열어본 문서</p>
-            </div>
-          </div>
-        </div>
-      </main>
+      <div className="flex-1 flex items-center justify-center bg-white">
+        <p className="text-gray-500">
+          알 수 없는 페이지입니다. (경로: {activeTab.path})
+        </p>
+      </div>
     );
   }
 
-  // AI 검색 탭
-  if (activeTab.path.startsWith('/ai-search')) {
-    // TODO: AI 검색 결과 페이지 컴포넌트 연결
-    return (
-      <main className="flex-1 overflow-auto bg-white p-6">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            AI 검색 결과
-          </h2>
-          <p className="text-gray-600">
-            검색 기능 구현 예정 (탭 경로: {activeTab.path})
-          </p>
-        </div>
-      </main>
-    );
-  }
+  // 페이지 컴포넌트 선택
+  const PageComponent = pageComponents[pageType];
 
-  // 일반 문서 탭 - children 또는 기본 메시지
+  // Suspense로 동적 로딩
   return (
-    <main className="flex-1 overflow-auto bg-white">
-      {children || (
-        <div className="flex items-center justify-center h-full">
-          <p className="text-gray-500">
-            문서 로딩 중... (경로: {activeTab.path})
-          </p>
-        </div>
-      )}
-    </main>
+    <Suspense fallback={<LoadingFallback />}>
+      <PageComponent />
+    </Suspense>
   );
 }
