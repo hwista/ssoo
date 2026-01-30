@@ -1,7 +1,3 @@
-/**
- * DMS Tab Store
- * 문서 탭 상태 관리 + 책갈피 기능
- */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TabItem, OpenTabOptions } from '@/types/tab';
