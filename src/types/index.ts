@@ -16,25 +16,6 @@ export type {
   FileTree
 } from './fileSystem';
 
-// UI 컴포넌트 타입
-export type {
-  NotificationData,
-  NotificationAction,
-  ContextMenuState,
-  ContextMenuItem,
-  CreateDialogState,
-  CreateFileParams,
-  ValidationRules,
-  ValidationResult,
-  MessageType,
-  MessageConfig,
-  MessageState,
-  ThemeConfig,
-  LayoutState,
-  BaseComponentProps,
-  ControlProps
-} from './ui';
-
 // Tab 관련 타입 (PMS 컨벤션: 도메인별 분리)
 export type {
   TabItem,

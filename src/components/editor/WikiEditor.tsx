@@ -14,8 +14,11 @@ import { useWikiEditorStore } from '@/stores';
 import { useToast } from '@/lib/toast';
 import { logger } from '@/lib/utils/errorUtils';
 import { isMarkdownFile } from '@/lib/utils/fileUtils';
-import { WikiEditorProps } from '@/types/components';
 import { useEditor } from '@/hooks/useEditor';
+
+interface WikiEditorProps {
+  className?: string;
+}
 
 const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
   const { showSuccess, showError: showErrorToast } = useToast();
