@@ -3,7 +3,6 @@
 import { create } from 'zustand';
 import { fileApi, getErrorMessage } from '@/lib/utils/apiClient';
 import { logger, safeAsync, PerformanceTimer } from '@/lib/utils/errorUtils';
-import { useToast } from '@/lib/toast';
 
 // 파일 메타데이터 타입
 interface FileMetadata {
