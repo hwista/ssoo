@@ -1,9 +1,9 @@
-/**
- * 타입 통합 Export
- * 모든 타입을 한 곳에서 import 가능
- */
+// ============================================
+// Types Index
+// 타입 통합 export
+// ============================================
 
-// 파일 타입 (PMS menu.ts 대응)
+// File (PMS menu.ts 대응)
 export type {
   FileNode,
   FileType,
@@ -17,7 +17,7 @@ export type {
   BookmarkItem,
 } from './file';
 
-// Tab 관련 타입 (PMS 컨벤션: 도메인별 분리)
+// Tab
 export type {
   TabItem,
   OpenTabOptions,
@@ -25,7 +25,7 @@ export type {
   TabStoreActions
 } from './tab';
 
-// 레이아웃 타입
+// Layout
 export type {
   DeviceType,
   DocumentType,
@@ -33,7 +33,7 @@ export type {
 } from './layout';
 export { BREAKPOINTS, LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, AI_SEARCH_TYPE_LABELS } from './layout';
 
-// 사이드바 타입 (PMS 컨벤션: 별도 파일 분리)
+// Sidebar
 export type {
   SidebarSection,
   SidebarState,
@@ -43,6 +43,3 @@ export {
   SIDEBAR_SECTION_ICONS,
   SIDEBAR_SECTION_LABELS,
 } from './sidebar';
-
-// 기존 errorUtils 타입들도 re-export (일관성을 위해)
-export type { LogLevel, ErrorContext } from '@/lib/utils/errorUtils';

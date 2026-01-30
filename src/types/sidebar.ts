@@ -5,8 +5,8 @@
 
 /**
  * 사이드바 섹션 타입
- * - DMS는 PMS와 달리 search, favorites, menuTree, admin 없음
  * - 파일 시스템 기반: bookmarks, openTabs, fileTree
+ * - PMS의 search는 플로팅 패널용, DMS는 고정 UI로 섹션 불필요
  */
 export type SidebarSection = 'bookmarks' | 'openTabs' | 'fileTree';
 
