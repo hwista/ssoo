@@ -42,8 +42,8 @@
   --primary-foreground: 0 0% 100%;
   --secondary: 213 63% 37%;
   --secondary-foreground: 0 0% 100%;
-  --muted: 213 33% 90%;
-  --muted-foreground: 213 50% 35%;
+  --muted: 270 30% 96%;
+  --muted-foreground: 270 20% 55%;
   --accent: 200 100% 32%;
   --accent-foreground: 0 0% 100%;
   --destructive: 353 98% 49%;
@@ -65,8 +65,8 @@
   --primary-foreground: 0 0% 100%;
   --secondary: 213 50% 25%;
   --secondary-foreground: 210 40% 98%;
-  --muted: 213 50% 20%;
-  --muted-foreground: 215 20.2% 65.1%;
+  --muted: 270 20% 22%;
+  --muted-foreground: 270 18% 70%;
   --accent: 200 80% 45%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 62.8% 40%;
@@ -233,7 +233,7 @@ a:hover {
 }
 
 /* ============================================
-   커스텀 스크롤바 (DMS 테마 색상)
+   커스텀 스크롤바 (PMS 톤앤매너 정렬)
    ============================================ */
 
 /* 기본 스크롤바 스타일 (전체 앱에 적용) */
@@ -243,19 +243,18 @@ a:hover {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--ssoo-content-background);
+  background: hsl(var(--muted) / 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--ssoo-primary);
-  opacity: 0.4;
+  background: hsl(var(--muted-foreground) / 0.3);
   border-radius: 4px;
   transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ssoo-primary-hover);
+  background: hsl(var(--muted-foreground) / 0.5);
 }
 
 ::-webkit-scrollbar-corner {
@@ -265,7 +264,7 @@ a:hover {
 /* Firefox 스크롤바 */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--ssoo-primary) var(--ssoo-content-background);
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) hsl(var(--muted) / 0.3);
 }
 
 @layer utilities {
@@ -300,6 +299,12 @@ a:hover {
     scrollbar-width: auto;
   }
 
+  /* 넓은 스크롤바 (12px) */
+  .scrollbar-wide::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
   /* Primary 색상 스크롤바 */
   .scrollbar-primary::-webkit-scrollbar-thumb {
     background: hsl(var(--primary) / 0.4);
@@ -309,6 +314,75 @@ a:hover {
   }
   .scrollbar-primary {
     scrollbar-color: hsl(var(--primary) / 0.4) hsl(var(--muted) / 0.3);
+  }
+
+  /* Accent 색상 스크롤바 */
+  .scrollbar-accent::-webkit-scrollbar-thumb {
+    background: hsl(var(--accent) / 0.4);
+  }
+  .scrollbar-accent::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent) / 0.6);
+  }
+  .scrollbar-accent {
+    scrollbar-color: hsl(var(--accent) / 0.4) hsl(var(--muted) / 0.3);
+  }
+
+  /* 투명 트랙 스크롤바 */
+  .scrollbar-transparent::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-transparent {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  /* 호버 시에만 보이는 스크롤바 */
+  .scrollbar-on-hover::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+  .scrollbar-on-hover:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+  .scrollbar-on-hover:hover::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* 둥근 스크롤바 */
+  .scrollbar-rounded::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+  }
+  .scrollbar-rounded::-webkit-scrollbar-track {
+    border-radius: 9999px;
+  }
+
+  /* 사이드바용 스크롤바 (더 미니멀) */
+  .scrollbar-sidebar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 9999px;
+  }
+  .scrollbar-sidebar:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* 테이블/그리드용 스크롤바 */
+  .scrollbar-table::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-table::-webkit-scrollbar-track {
+    background: hsl(var(--border) / 0.5);
+  }
+  .scrollbar-table::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+  .scrollbar-table::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 }
 
@@ -547,19 +621,19 @@ a:hover {
 
 /* 스크롤바 다크 모드 */
 .dark .scrollbar-thin {
-  scrollbar-color: #4b5563 #1f2937;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) hsl(var(--muted) / 0.3);
 }
 
 .dark .scrollbar-thin::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: hsl(var(--muted) / 0.3);
 }
 
 .dark .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: hsl(var(--muted-foreground) / 0.3);
 }
 
 .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: hsl(var(--muted-foreground) / 0.5);
 }
 
 /* 선택된 파일 다크 모드 */

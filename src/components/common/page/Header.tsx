@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Edit, Trash2, History, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { LoadingSpinner } from '@/components/common/StateDisplay';
 
 /**
  * HeaderAction 액션 버튼 정의
@@ -144,7 +145,7 @@ export function Header({
                 className="h-control-h"
               >
                 {saving ? (
-                  <span className="h-4 w-4 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <LoadingSpinner className="mr-1.5" />
                 ) : (
                   <Save className="h-4 w-4 mr-1.5" />
                 )}
@@ -173,14 +174,14 @@ export function Header({
             variant={action.variant || 'ghost'}
             size="default"
             onClick={action.onClick}
-            disabled={action.disabled || action.loading}
-            className="h-control-h"
-          >
-            {action.loading ? (
-              <span className="h-4 w-4 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            ) : action.icon ? (
-              <span className="mr-1.5">{action.icon}</span>
-            ) : null}
+          disabled={action.disabled || action.loading}
+          className="h-control-h"
+        >
+          {action.loading ? (
+            <LoadingSpinner className="mr-1.5" />
+          ) : action.icon ? (
+            <span className="mr-1.5">{action.icon}</span>
+          ) : null}
             {action.label}
           </Button>
         ))}

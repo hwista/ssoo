@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Search, Loader2, FileText, ExternalLink } from 'lucide-react';
+import { Search, FileText, ExternalLink } from 'lucide-react';
+import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { useTabStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -137,7 +138,7 @@ export function AISearchPage() {
           />
           <Button onClick={handleSearch} disabled={isSearching || !query.trim()}>
             {isSearching ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <LoadingSpinner />
             ) : (
               <Search className="w-4 h-4" />
             )}

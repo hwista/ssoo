@@ -106,6 +106,12 @@ src/app/
 - `apps/web/dms/docs/development/verification-report.md` 정본 경로 및 표준 섹션 반영
 - `apps/web/dms/docs/development/architecture/package-spec.md` 의존성 목록 정합성 정리
 
+### UI - 로딩 스피너 공통화
+
+- `StateDisplay` 기준 Loader2 스피너 도입
+- `ContentArea`, `DocPageTemplate`, `Header` 로딩 UI 통일
+- AI 검색 버튼 로딩 스피너를 공통 컴포넌트로 교체
+
 ### 스타일 - Phase 2-H: PMS 디자인 시스템 통합 완료 ✅
 
 **목표**: DMS 사이드바/레이아웃 스타일을 PMS 표준에 100% 맞춤

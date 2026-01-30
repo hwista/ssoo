@@ -1,8 +1,8 @@
 'use client';
 
 import { lazy, Suspense, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useTabStore, HOME_TAB } from '@/stores';
+import { LoadingState } from '@/components/common/StateDisplay';
 
 /**
  * 페이지 컴포넌트 매핑 (PMS 패턴)
@@ -24,10 +24,7 @@ const pageComponents = {
 function LoadingFallback() {
   return (
     <div className="flex-1 flex items-center justify-center bg-white">
-      <div className="flex items-center gap-2 text-gray-500">
-        <Loader2 className="w-5 h-5 animate-spin" />
-        <span>로딩 중...</span>
-      </div>
+      <LoadingState message="로딩 중..." fullHeight />
     </div>
   );
 }

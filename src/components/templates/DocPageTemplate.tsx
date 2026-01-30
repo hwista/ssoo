@@ -5,13 +5,14 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebarStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/types/layout';
-import { 
+import {
   Breadcrumb, 
   Header,
   Sidecar,
   type HeaderProps,
   type SidecarProps,
 } from '../common/page';
+import { LoadingState } from '@/components/common/StateDisplay';
 
 // 본문 영역 최대 너비 (Viewer와 동일)
 const DOCUMENT_WIDTH = 975;
@@ -161,10 +162,7 @@ export function DocPageTemplate({
         <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
         <Header mode={mode} />
         <div className="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg">
-          <div className="flex items-center gap-2 text-gray-600">
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-ssoo-primary border-t-transparent" />
-            <span>문서를 불러오는 중...</span>
-          </div>
+          <LoadingState message="문서를 불러오는 중..." />
         </div>
       </div>
     );
