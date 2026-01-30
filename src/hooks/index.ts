@@ -13,3 +13,6 @@ export type {
   UseEditorOptions, 
   UseEditorReturn 
 } from './useEditor';
+
+// Tab
+export { useOpenTabWithConfirm } from './useOpenTabWithConfirm';

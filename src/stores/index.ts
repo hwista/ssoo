@@ -13,3 +13,6 @@ export { useFileStore } from './file.store';
 
 // Editor (문서 편집 상태)
 export { useEditorStore } from './editor.store';
+
+// UI
+export { useConfirmStore } from './confirm.store';

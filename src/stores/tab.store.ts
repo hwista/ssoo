@@ -6,7 +6,7 @@ import type { TabItem, OpenTabOptions } from '@/types/tab';
 export const HOME_TAB = {
   id: 'home',
   title: '홈',
-  path: '/',
+  path: '/home',
   icon: 'Home',
   closable: false,
 } as const;
@@ -37,7 +37,9 @@ interface TabStoreActions {
   activateTab: (tabId: string) => void;
   closeOtherTabs: (tabId: string) => void;
   closeAllTabs: () => void;
+  closeOldestTab: () => void;
   updateTabTitle: (tabId: string, title: string) => void;
+  reorderTabs: (fromIndex: number, toIndex: number) => void;
   getActiveTab: () => TabItem | undefined;
 }
 
@@ -49,7 +51,7 @@ export const useTabStore = create<TabStore>()(
       // Initial State - Home 탭으로 시작
       tabs: [createHomeTab()],
       activeTabId: HOME_TAB.id,
-      maxTabs: 15,
+      maxTabs: 16,
 
       // Actions
       openTab: (options: OpenTabOptions): string => {
@@ -80,20 +82,10 @@ export const useTabStore = create<TabStore>()(
           return tabId;
         }
 
-        // 최대 탭 수 초과 시 가장 오래된 탭 닫기
-        let currentTabs = get().tabs;
+        // 최대 탭 수 초과 시 - 열지 않고 빈 문자열 반환 (컴포넌트에서 확인 처리)
+        const currentTabs = get().tabs;
         if (currentTabs.length >= maxTabs) {
-          const closableTabs = currentTabs.filter((t) => t.closable);
-          if (closableTabs.length > 0) {
-            const sorted = closableTabs.sort(
-              (a, b) => a.lastActiveAt.getTime() - b.lastActiveAt.getTime()
-            );
-            const oldest = sorted[0];
-            if (oldest) {
-              get().closeTab(oldest.id);
-              currentTabs = get().tabs;
-            }
-          }
+          return ''; // 초과 시 빈 문자열 반환
         }
 
         const now = new Date();
@@ -181,6 +173,28 @@ export const useTabStore = create<TabStore>()(
         }));
       },
 
+      reorderTabs: (fromIndex: number, toIndex: number): void => {
+        set((state) => {
+          const newTabs = [...state.tabs];
+          const removed = newTabs.splice(fromIndex, 1)[0];
+          if (!removed) return state;
+          newTabs.splice(toIndex, 0, removed);
+          return { tabs: newTabs };
+        });
+      },
+
+      closeOldestTab: (): void => {
+        const { tabs } = get();
+        // closable한 탭 중 가장 오래된 탭 찾기 (openedAt 기준)
+        const closableTabs = tabs.filter((t) => t.closable);
+        if (closableTabs.length === 0) return;
+
+        const oldestTab = closableTabs.reduce((oldest, tab) =>
+          tab.openedAt < oldest.openedAt ? tab : oldest
+        );
+        get().closeTab(oldestTab.id);
+      },
+
       getActiveTab: (): TabItem | undefined => {
         const { tabs, activeTabId } = get();
         return tabs.find((t) => t.id === activeTabId);
@@ -188,7 +202,7 @@ export const useTabStore = create<TabStore>()(
     }),
     {
       name: 'dms-tab-store',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         tabs: state.tabs,
         activeTabId: state.activeTabId,

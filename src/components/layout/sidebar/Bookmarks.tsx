@@ -2,6 +2,7 @@
 
 import { FileText, X } from 'lucide-react';
 import { useTabStore, useFileStore } from '@/stores';
+import { useOpenTabWithConfirm } from '@/hooks';
 
 /**
  * 사이드바 책갈피 목록
@@ -9,8 +10,9 @@ import { useTabStore, useFileStore } from '@/stores';
  * - PMS 즐겨찾기와 동일한 기능
  */
 export function Bookmarks() {
-  const { openTab, activeTabId } = useTabStore();
+  const { activeTabId } = useTabStore();
   const { bookmarks, removeBookmark } = useFileStore();
+  const openTabWithConfirm = useOpenTabWithConfirm();
 
   if (bookmarks.length === 0) {
     return (
@@ -20,8 +22,8 @@ export function Bookmarks() {
     );
   }
 
-  const handleClick = (bookmark: typeof bookmarks[0]) => {
-    openTab({
+  const handleClick = async (bookmark: typeof bookmarks[0]) => {
+    await openTabWithConfirm({
       id: bookmark.id,
       title: bookmark.title,
       path: bookmark.path,

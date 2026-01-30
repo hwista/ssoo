@@ -51,6 +51,8 @@ export interface TabStoreActions {
   activateTab: (tabId: string) => void;
   closeOtherTabs: (tabId: string) => void;
   closeAllTabs: () => void;
+  closeOldestTab: () => void; // 가장 오래된 탭 닫기 (탭 초과 시 사용)
   updateTabTitle: (tabId: string, title: string) => void;
+  reorderTabs: (fromIndex: number, toIndex: number) => void;
   getActiveTab: () => TabItem | undefined;
 }

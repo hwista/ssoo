@@ -3,6 +3,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +26,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        {/* 전역 Confirm Dialog */}
+        <ConfirmDialog />
+        {/* 전역 Toast */}
         <Toaster 
           position="top-right"
           richColors

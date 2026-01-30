@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, Image, Bookmark } from 'lucide-react';
 import { useFileStore, useSidebarStore, useTabStore } from '@/stores';
 import { useEditorStore } from '@/stores';
+import { useOpenTabWithConfirm } from '@/hooks';
 import type { FileNode } from '@/types';
 
 interface FileTreeNodeProps {
@@ -45,7 +46,7 @@ function getFileIcon(name: string, isSelected: boolean) {
 function FileTreeNode({ node, level }: FileTreeNodeProps) {
   const { expandedFolders, toggleFolder } = useSidebarStore();
   const { currentFilePath } = useEditorStore();
-  const { openTab } = useTabStore();
+  const openTabWithConfirm = useOpenTabWithConfirm();
   const { addBookmark, removeBookmark, isBookmarked } = useFileStore();
   
   const isExpanded = expandedFolders.has(node.path);
@@ -57,12 +58,12 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
   
   const iconClass = `w-4 h-4 flex-shrink-0 ${isSelected ? 'text-ssoo-primary' : 'text-gray-500'}`;
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (isFolder) {
       toggleFolder(node.path);
     } else {
       // PMS 패턴: 사이드바는 탭만 열고, 페이지 컴포넌트(WikiViewerPage)가 loadFile() 호출
-      openTab({
+      await openTabWithConfirm({
         id: `file-${node.path.replace(/\//g, '-')}`,
         title: node.name,
         path: `/doc/${encodeURIComponent(node.path)}`,

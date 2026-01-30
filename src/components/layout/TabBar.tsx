@@ -9,12 +9,15 @@ import { useRef, useState, useEffect, useCallback } from 'react';
  * - 열린 문서 탭 목록 표시
  * - 탭 활성화, 닫기
  * - 스크롤 네비게이션
+ * - 드래그로 탭 순서 변경
  */
 export function TabBar() {
-  const { tabs, activeTabId, activateTab, closeTab } = useTabStore();
+  const { tabs, activeTabId, activateTab, closeTab, reorderTabs } = useTabStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // 스크롤 상태 체크
   const checkScrollState = useCallback(() => {
@@ -39,6 +42,38 @@ export function TabBar() {
         behavior: 'smooth',
       });
     }
+  }, []);
+
+  // 드래그 앤 드롭 핸들러
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+    // Home 탭은 드래그 불가
+    if (tabs[index]?.id === HOME_TAB.id) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  }, [tabs]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    // Home 탭 위치로는 드롭 불가
+    if (tabs[index]?.id === HOME_TAB.id) return;
+    if (draggedIndex !== null && index !== draggedIndex) {
+      setDragOverIndex(index);
+    }
+  }, [draggedIndex, tabs]);
+
+  const handleDragEnd = useCallback(() => {
+    if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
+      reorderTabs(draggedIndex, dragOverIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }, [draggedIndex, dragOverIndex, reorderTabs]);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverIndex(null);
   }, []);
 
   // 탭 아이콘 결정
@@ -71,10 +106,12 @@ export function TabBar() {
         onScroll={checkScrollState}
         className="flex-1 flex items-end overflow-x-auto scrollbar-hide"
       >
-        {tabs.map((tab) => {
+        {tabs.map((tab, index) => {
           const IconComponent = getTabIcon(tab);
           const isActive = tab.id === activeTabId;
           const isHomeTab = tab.id === HOME_TAB.id;
+          const isDragging = draggedIndex === index;
+          const isDragOver = dragOverIndex === index;
 
           // Home 탭 전용 스타일
           if (isHomeTab) {
@@ -101,11 +138,16 @@ export function TabBar() {
           return (
             <div
               key={tab.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragLeave={handleDragLeave}
               className={`flex-shrink-0 flex items-center gap-1.5 px-3 h-control-h border-r border-gray-200 transition-colors cursor-pointer group ${
                 isActive
                   ? 'bg-ssoo-content-border border-b-2 border-b-ls-red'
                   : 'hover:bg-gray-100'
-              }`}
+              } ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'border-l-2 border-l-ssoo-primary' : ''}`}
             >
               <button
                 onClick={() => activateTab(tab.id)}
