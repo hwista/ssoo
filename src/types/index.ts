@@ -16,20 +16,6 @@ export type {
   FileTree
 } from './fileSystem';
 
-// API 관련 타입
-export type {
-  ApiResponse,
-  PaginationInfo,
-  ApiRequestOptions,
-  FileAction,
-  FileApiRequest,
-  SearchApiRequest,
-  SearchResult,
-  SearchMatch,
-  ApiState,
-  ApiCache
-} from './api';
-
 // UI 컴포넌트 타입
 export type {
   NotificationData,
