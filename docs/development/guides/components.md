@@ -510,6 +510,22 @@ addNotification('success', '저장 완료', '파일이 저장되었습니다.');
 
 ---
 
+## 로딩 스피너 표준
+
+DMS는 PMS 기준에 맞춰 로딩 스피너를 공통으로 사용합니다.
+
+| 컴포넌트 | 용도 | 사용 위치 |
+|----------|------|----------|
+| `LoadingState` | 페이지/섹션 로딩 | `ContentArea`, `DocPageTemplate` |
+| `LoadingSpinner` | 버튼/인라인 로딩 | 헤더 액션, AI 검색 버튼 |
+
+**가이드**
+- 페이지/템플릿 로딩: `LoadingState` 사용
+- 버튼 내부 로딩: `LoadingSpinner` 사용
+- 개별 컴포넌트 커스텀 스피너는 지양
+
+---
+
 ## 관련 문서
 
 - [hooks.md](hooks.md) - 커스텀 훅 가이드

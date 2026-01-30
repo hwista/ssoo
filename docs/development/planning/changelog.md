@@ -111,6 +111,7 @@ src/app/
 - `StateDisplay` 기준 Loader2 스피너 도입
 - `ContentArea`, `DocPageTemplate`, `Header` 로딩 UI 통일
 - AI 검색 버튼 로딩 스피너를 공통 컴포넌트로 교체
+- 가이드 문서에 로딩 스피너 표준 추가
 
 ### 스타일 - Phase 2-H: PMS 디자인 시스템 통합 완료 ✅
 
