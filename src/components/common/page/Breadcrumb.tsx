@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronRight, FileText, Folder } from 'lucide-react';
+import { ChevronRight, Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -50,11 +50,6 @@ export function Breadcrumb({
     return segments.slice(0, index + 1).join('/');
   };
 
-  // 파일인지 폴더인지 판단 (마지막 세그먼트가 확장자를 가지면 파일)
-  const isFile = (segment: string): boolean => {
-    return /\.[a-zA-Z0-9]+$/.test(segment);
-  };
-
   if (segments.length === 0) {
     return null;
   }
@@ -80,25 +75,22 @@ export function Breadcrumb({
       {segments.map((segment, index) => {
         const isLast = index === segments.length - 1;
         const segmentPath = getPathUpTo(index);
-        const isFileSegment = isFile(segment);
 
         return (
           <React.Fragment key={segmentPath}>
             <ChevronRight className="mx-1 h-3.5 w-3.5 text-gray-400 shrink-0" />
             
             {isLast ? (
-              // 마지막 세그먼트는 클릭 불가
-              <span className="flex items-center text-ssoo-primary font-medium shrink-0">
-                {isFileSegment && <FileText className="h-3.5 w-3.5 mr-1" />}
+              // 마지막 세그먼트는 클릭 불가, 볼드 (PMS 스타일)
+              <span className="text-ssoo-primary font-medium shrink-0">
                 {segment}
               </span>
             ) : (
-              // 중간 세그먼트는 클릭 가능
+              // 중간 세그먼트는 클릭 가능 (아이콘 없이 텍스트만)
               <button
                 onClick={() => onPathClick?.(segmentPath)}
-                className="flex items-center hover:text-ssoo-primary hover:underline transition-colors shrink-0"
+                className="hover:text-ssoo-primary hover:underline transition-colors shrink-0"
               >
-                <Folder className="h-3.5 w-3.5 mr-1" />
                 {segment}
               </button>
             )}
