@@ -16,11 +16,11 @@ import { logger } from '@/lib/utils/errorUtils';
 import { isMarkdownFile } from '@/lib/utils/fileUtils';
 import { useEditor } from '@/hooks/useEditor';
 
-interface WikiEditorProps {
+interface MarkdownEditorProps {
   className?: string;
 }
 
-const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
+const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ className = '' }) => {
   const { showSuccess, showError: showErrorToast } = useToast();
   
   // showNotification 래퍼 (기존 인터페이스 유지)
@@ -396,4 +396,4 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
   );
 };
 
-export default WikiEditor;
+export default MarkdownEditor;

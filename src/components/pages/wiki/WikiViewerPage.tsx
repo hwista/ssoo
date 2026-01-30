@@ -5,7 +5,7 @@ import { useTabStore, useEditorStore } from '@/stores';
 import { DocPageTemplate } from '@/components/templates';
 import { Viewer, type TocItem } from '@/components/common/page';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
-import { WikiEditor } from '@/components/editor';
+import { MarkdownEditor } from '@/components/editor';
 
 /**
  * Wiki 문서 뷰어/에디터 페이지
@@ -175,7 +175,7 @@ export function WikiViewerPage() {
             onSearch={handleSearch}
           />
         ) : (
-          <WikiEditor className="h-full" />
+          <MarkdownEditor className="h-full" />
         )}
       </DocPageTemplate>
     </main>
