@@ -3,7 +3,7 @@
  * 모든 타입을 한 곳에서 import 가능
  */
 
-// 파일 시스템 타입
+// 파일 타입 (PMS menu.ts 대응)
 export type {
   FileNode,
   FileType,
@@ -13,8 +13,9 @@ export type {
   FileEntry,
   DirectoryEntry,
   FileTreeNode,
-  FileTree
-} from './fileSystem';
+  FileTree,
+  BookmarkItem,
+} from './file';
 
 // Tab 관련 타입 (PMS 컨벤션: 도메인별 분리)
 export type {

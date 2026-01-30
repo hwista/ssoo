@@ -1,7 +1,7 @@
 'use client';
 
 import { FileText, X } from 'lucide-react';
-import { useTabStore } from '@/stores';
+import { useTabStore, useFileStore } from '@/stores';
 
 /**
  * 사이드바 책갈피 목록
@@ -9,7 +9,8 @@ import { useTabStore } from '@/stores';
  * - PMS 즐겨찾기와 동일한 기능
  */
 export function Bookmarks() {
-  const { bookmarks, removeBookmark, openTab, activeTabId } = useTabStore();
+  const { openTab, activeTabId } = useTabStore();
+  const { bookmarks, removeBookmark } = useFileStore();
 
   if (bookmarks.length === 0) {
     return (

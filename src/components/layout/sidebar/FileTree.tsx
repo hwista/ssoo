@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, Image, Bookmark } from 'lucide-react';
-import { useTreeStore, useSidebarStore, useTabStore } from '@/stores';
+import { useFileStore, useSidebarStore, useTabStore } from '@/stores';
 import { useWikiEditorStore } from '@/stores';
 import type { FileNode } from '@/types';
 
@@ -44,8 +44,9 @@ function getFileIcon(name: string, isSelected: boolean) {
  */
 function FileTreeNode({ node, level }: FileTreeNodeProps) {
   const { expandedFolders, toggleFolder } = useSidebarStore();
-  const { currentFilePath } = useWikiEditorStore();  // tree-store 대신 wiki-editor-store 사용
-  const { openTab, addBookmark, removeBookmark, isBookmarked } = useTabStore();
+  const { currentFilePath } = useWikiEditorStore();
+  const { openTab } = useTabStore();
+  const { addBookmark, removeBookmark, isBookmarked } = useFileStore();
   
   const isExpanded = expandedFolders.has(node.path);
   const isFolder = node.type === 'directory';
@@ -195,7 +196,7 @@ function filterTree(nodes: FileNode[], query: string): FileNode[] {
  * 사이드바 전체 파일 트리 (PMS MenuTree 스타일)
  */
 export function FileTree() {
-  const { files } = useTreeStore();
+  const { files } = useFileStore();
   const { searchQuery } = useSidebarStore();
   
   const displayTree = useMemo(() => {

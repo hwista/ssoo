@@ -12,15 +12,15 @@ import {
   BookOpen,
   Code,
 } from 'lucide-react';
-import { useLayoutStore, useSidebarStore, useTreeStore } from '@/stores';
+import { useLayoutStore, useSidebarStore, useFileStore } from '@/stores';
 import { LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types/layout';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { SidebarSearch } from '../sidebar/SidebarSearch';
-import { SidebarSection } from '../sidebar/SidebarSection';
-import { SidebarBookmarks } from '../sidebar/SidebarBookmarks';
-import { SidebarOpenTabs } from '../sidebar/SidebarOpenTabs';
-import { SidebarFileTree } from '../sidebar/SidebarFileTree';
+import { Search as SidebarSearch } from '../Sidebar/Search';
+import { Section as SidebarSection } from '../Sidebar/Section';
+import { Bookmarks as SidebarBookmarks } from '../Sidebar/Bookmarks';
+import { OpenTabs as SidebarOpenTabs } from '../Sidebar/OpenTabs';
+import { FileTree as SidebarFileTree } from '../Sidebar/FileTree';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,7 +63,7 @@ export function MainSidebar({
 }: MainSidebarProps) {
   const { documentType, setDocumentType } = useLayoutStore();
   const { expandedSections, toggleSection, searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
-  const { refreshFileTree } = useTreeStore();
+  const { refreshFileTree } = useFileStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {

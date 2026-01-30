@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { AppLayout } from '@/components/layout';
-import { useLayoutStore, useTreeStore } from '@/stores';
+import { useLayoutStore, useFileStore } from '@/stores';
 
 /**
  * (main) 그룹 레이아웃
@@ -18,7 +18,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const { initializeDeviceType } = useLayoutStore();
-  const { refreshFileTree } = useTreeStore();
+  const { refreshFileTree } = useFileStore();
 
   // 초기화
   useEffect(() => {

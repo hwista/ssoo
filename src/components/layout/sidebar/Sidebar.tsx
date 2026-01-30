@@ -12,7 +12,7 @@ import {
   BookOpen,
   Code,
 } from 'lucide-react';
-import { useLayoutStore, useSidebarStore, useTreeStore } from '@/stores';
+import { useLayoutStore, useSidebarStore, useFileStore } from '@/stores';
 import { LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types/layout';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -63,7 +63,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { documentType, setDocumentType } = useLayoutStore();
   const { expandedSections, toggleSection, searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
-  const { refreshFileTree } = useTreeStore();
+  const { refreshFileTree } = useFileStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
