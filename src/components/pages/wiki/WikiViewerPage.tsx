@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useTabStore, useWikiEditorStore } from '@/stores';
+import { useTabStore, useEditorStore } from '@/stores';
 import { DocPageTemplate } from '@/components/templates';
 import { Viewer, type TocItem } from '@/components/common/page';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
@@ -21,7 +21,7 @@ import { WikiEditor } from '@/components/editor';
  */
 export function WikiViewerPage() {
   const { activeTabId, tabs } = useTabStore();
-  const { loadFile, isLoading, error, content, isEditing, setIsEditing, fileMetadata } = useWikiEditorStore();
+  const { loadFile, isLoading, error, content, isEditing, setIsEditing, fileMetadata } = useEditorStore();
   
   // 에디터 모드 상태 (로컬)
   const [mode, setMode] = useState<'viewer' | 'editor'>('viewer');

@@ -57,7 +57,7 @@ const initialState: EditorState = {
   error: null,
 };
 
-export const useWikiEditorStore = create<EditorStore>((set, get) => ({
+export const useEditorStore = create<EditorStore>((set, get) => ({
   ...initialState,
 
   setContent: (content) => set({ content }),

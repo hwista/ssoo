@@ -10,7 +10,7 @@ import { Dialog, DialogSurface, DialogBody, DialogTitle } from '@/components/ui/
 import { Eye, Save, Edit, X, Copy, Type, FileText } from 'lucide-react';
 import { BlockEditor, BlockEditorRef } from '@/components/editor';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
-import { useWikiEditorStore } from '@/stores';
+import { useEditorStore } from '@/stores';
 import { useToast } from '@/lib/toast';
 import { logger } from '@/lib/utils/errorUtils';
 import { isMarkdownFile } from '@/lib/utils/fileUtils';
@@ -40,7 +40,7 @@ const WikiEditor: React.FC<WikiEditorProps> = ({ className = '' }) => {
     saveFile: storeSaveFile,
     saveFileKeepEditing: storeSaveFileKeepEditing,
     refreshFileMetadata,
-  } = useWikiEditorStore();
+  } = useEditorStore();
 
   // 훅 기반 에디터 상태
   const {

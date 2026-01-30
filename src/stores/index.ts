@@ -11,5 +11,5 @@ export { useTabStore, HOME_TAB } from './tab.store';
 // Data (PMS menu.store 대응)
 export { useFileStore } from './file.store';
 
-// Wiki
-export { useWikiEditorStore } from './wiki-editor.store';
+// Editor (문서 편집 상태)
+export { useEditorStore } from './editor.store';

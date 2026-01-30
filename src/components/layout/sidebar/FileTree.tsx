@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, Image, Bookmark } from 'lucide-react';
 import { useFileStore, useSidebarStore, useTabStore } from '@/stores';
-import { useWikiEditorStore } from '@/stores';
+import { useEditorStore } from '@/stores';
 import type { FileNode } from '@/types';
 
 interface FileTreeNodeProps {
@@ -44,7 +44,7 @@ function getFileIcon(name: string, isSelected: boolean) {
  */
 function FileTreeNode({ node, level }: FileTreeNodeProps) {
   const { expandedFolders, toggleFolder } = useSidebarStore();
-  const { currentFilePath } = useWikiEditorStore();
+  const { currentFilePath } = useEditorStore();
   const { openTab } = useTabStore();
   const { addBookmark, removeBookmark, isBookmarked } = useFileStore();
   
