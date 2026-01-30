@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils';
 import { useLayoutStore } from '@/stores';
 
 /**
- * DocContent Props
- * PMS PageContent 참조 - 문서 본문 + Sidecar
+ * Content Props
+ * PMS Content 참조 - 문서 본문 + Sidecar
  */
-export interface DocContentProps {
+export interface ContentProps {
   /** 자식 요소 (문서 본문) */
   children: React.ReactNode;
   /** Sidecar 컴포넌트 */
@@ -24,30 +24,30 @@ export interface DocContentProps {
 }
 
 /**
- * DocContent 컴포넌트
+ * Content 컴포넌트
  * 
  * 문서 본문과 Sidecar를 담는 컨테이너
- * - 가로 모드: Sidecar 펼침 (토글 가능)
+ * - 가로 모드: Sidecar 펌침 (토글 가능)
  * - 세로 모드: Sidecar 무조건 접힘
  * 
  * @example
  * ```tsx
- * <DocContent
- *   sidecar={<DocSidecar metadata={metadata} />}
+ * <Content
+ *   sidecar={<Sidecar metadata={metadata} />}
  *   sidecarWidth={280}
  * >
  *   <article>문서 본문...</article>
- * </DocContent>
+ * </Content>
  * ```
  */
-export function DocContent({
+export function Content({
   children,
   sidecar,
   sidecarWidth = 280,
   sidecarOpen: controlledOpen,
   onSidecarToggle,
   className,
-}: DocContentProps) {
+}: ContentProps) {
   const deviceType = useLayoutStore((s) => s.deviceType);
   const isVertical = deviceType === 'mobile'; // 세로 모드
 

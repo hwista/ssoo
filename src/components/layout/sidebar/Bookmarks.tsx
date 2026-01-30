@@ -8,7 +8,7 @@ import { useTabStore } from '@/stores';
  * - 각 항목에 삭제 버튼 포함
  * - PMS 즐겨찾기와 동일한 기능
  */
-export function SidebarBookmarks() {
+export function Bookmarks() {
   const { bookmarks, removeBookmark, openTab, activeTabId } = useTabStore();
 
   if (bookmarks.length === 0) {

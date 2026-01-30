@@ -4,16 +4,16 @@ import * as React from 'react';
 import { Search, ZoomIn, ZoomOut, List, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import type { TocItem } from './DocSidecar';
+import type { TocItem } from './Sidecar';
 
 // 문서 본문 최대 너비 (DocPageTemplate과 동일)
 const DOCUMENT_WIDTH = 975;
 
 /**
- * DocViewer Props
+ * Viewer Props
  * 문서 뷰어 컴포넌트 - 읽기 전용 렌더링 + 툴바
  */
-export interface DocViewerProps {
+export interface ViewerProps {
   /** 문서 콘텐츠 (HTML) */
   content: string;
   /** 목차 (마크다운 헤딩 기반) */
@@ -31,7 +31,7 @@ const ZOOM_LEVELS = [75, 100, 125, 150, 175, 200];
 const DEFAULT_ZOOM = 100;
 
 /**
- * DocViewer 컴포넌트
+ * Viewer 컴포넌트
  * 
  * 문서를 읽기 전용으로 렌더링
  * - 상단 툴바: 검색, 줌, 목차
@@ -41,7 +41,7 @@ const DEFAULT_ZOOM = 100;
  * 
  * @example
  * ```tsx
- * <DocViewer 
+ * <Viewer 
  *   content={htmlContent} 
  *   toc={headings}
  *   onTocClick={(id) => scrollTo(id)}
@@ -49,13 +49,13 @@ const DEFAULT_ZOOM = 100;
  * />
  * ```
  */
-export function DocViewer({
+export function Viewer({
   content,
   toc,
   onTocClick,
   onSearch,
   className,
-}: DocViewerProps) {
+}: ViewerProps) {
   // 줌 레벨 상태
   const [zoomLevel, setZoomLevel] = React.useState(DEFAULT_ZOOM);
   

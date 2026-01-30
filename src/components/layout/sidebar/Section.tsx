@@ -2,7 +2,7 @@
 
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
-interface SidebarSectionProps {
+interface SectionProps {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   isExpanded: boolean;
@@ -18,14 +18,14 @@ interface SidebarSectionProps {
  * - 아이콘 + 제목
  * - 선택적 추가 액션 버튼
  */
-export function SidebarSection({
+export function Section({
   title,
   icon: Icon,
   isExpanded,
   onToggle,
   children,
   headerAction,
-}: SidebarSectionProps) {
+}: SectionProps) {
   return (
     <div className="border-b border-gray-200">
       <div className="flex items-center w-full px-3 py-2 hover:bg-ssoo-sitemap-bg transition-colors">

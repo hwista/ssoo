@@ -5,12 +5,12 @@ import { ChevronRight } from 'lucide-react';
 import { useLayoutStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/types/layout';
 import { cn } from '@/lib/utils';
-import { MainSidebar } from './MainSidebar';
+import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { TabBar } from './TabBar';
 import { ContentArea } from './ContentArea';
 
-// 본문 영역 최소 너비 (DocViewer와 동일)
+// 본문 영역 최소 너비 (Viewer와 동일)
 const DOCUMENT_MIN_WIDTH = 975;
 
 /**
@@ -84,7 +84,7 @@ export function AppLayout() {
       )}
 
       {/* Sidebar - 컴팩트 모드에서는 오버레이 */}
-      <MainSidebar 
+      <Sidebar 
         isCompactMode={isCompactMode}
         isOpen={!isCompactMode || sidebarOpen}
         onClose={() => setSidebarOpen(false)}

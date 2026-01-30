@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 /**
- * DocHeader 액션 버튼 정의
+ * HeaderAction 액션 버튼 정의
  */
-export interface DocHeaderAction {
+export interface HeaderAction {
   /** 버튼 라벨 */
   label: string;
   /** 아이콘 */
@@ -24,10 +24,10 @@ export interface DocHeaderAction {
 }
 
 /**
- * DocHeader Props
- * PMS PageHeader 참조 - 문서 특화
+ * Header Props
+ * PMS Header 참조 - 문서 특화
  */
-export interface DocHeaderProps {
+export interface HeaderProps {
   /** 모드: viewer | editor | create */
   mode: 'viewer' | 'editor' | 'create';
   
@@ -44,21 +44,21 @@ export interface DocHeaderProps {
   saving?: boolean;
   
   /** 추가 액션 버튼 */
-  extraActions?: DocHeaderAction[];
+  extraActions?: HeaderAction[];
   
   /** 추가 className */
   className?: string;
 }
 
 /**
- * DocHeader 컴포넌트
+ * Header 컴포넌트
  * 
  * 문서 페이지의 헤더 (액션 버튼 + 검색)
  * 
  * @example
  * ```tsx
  * // 뷰어 모드
- * <DocHeader
+ * <Header
  *   mode="viewer"
  *   onEdit={() => setMode('editor')}
  *   onDelete={handleDelete}
@@ -66,7 +66,7 @@ export interface DocHeaderProps {
  * />
  * 
  * // 에디터 모드
- * <DocHeader
+ * <Header
  *   mode="editor"
  *   onSave={handleSave}
  *   onCancel={() => setMode('viewer')}
@@ -74,7 +74,7 @@ export interface DocHeaderProps {
  * />
  * ```
  */
-export function DocHeader({
+export function Header({
   mode,
   onEdit,
   onDelete,
@@ -84,7 +84,7 @@ export function DocHeader({
   saving = false,
   extraActions,
   className,
-}: DocHeaderProps) {
+}: HeaderProps) {
   return (
     <div
       className={cn(

@@ -7,7 +7,7 @@ import { useLayoutStore } from '@/stores';
  * 사이드바 파일 검색
  * - PMS 디자인 표준 적용
  */
-export function SidebarSearch() {
+export function Search() {
   const { searchQuery, setSearchQuery, clearSearch } = useLayoutStore();
 
   return (

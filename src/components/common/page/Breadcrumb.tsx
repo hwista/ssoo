@@ -5,10 +5,10 @@ import { ChevronRight, FileText, Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * DocBreadcrumb Props
+ * Breadcrumb Props
  * PMS Breadcrumb 확장 - 파일 경로 특화
  */
-export interface DocBreadcrumbProps {
+export interface BreadcrumbProps {
   /** 파일 경로 (예: 'docs/architecture/tech-stack.md') */
   filePath: string;
   /** 경로 세그먼트 클릭 시 해당 폴더로 이동 */
@@ -18,24 +18,24 @@ export interface DocBreadcrumbProps {
 }
 
 /**
- * DocBreadcrumb 컴포넌트
+ * Breadcrumb 컴포넌트
  * 
  * 파일 경로를 브레드크럼으로 표시합니다.
  * 루트는 폴더 아이콘만 표시 (PMS와 동일)
  * 
  * @example
  * ```tsx
- * <DocBreadcrumb 
+ * <Breadcrumb 
  *   filePath="docs/architecture/tech-stack.md"
  *   onPathClick={(path) => openFolder(path)}
  * />
  * ```
  */
-export function DocBreadcrumb({
+export function Breadcrumb({
   filePath,
   onPathClick,
   className,
-}: DocBreadcrumbProps) {
+}: BreadcrumbProps) {
   // 경로를 세그먼트로 분리
   const segments = React.useMemo(() => {
     if (!filePath) return [];

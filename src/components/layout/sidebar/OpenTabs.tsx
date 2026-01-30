@@ -10,7 +10,7 @@ import { useTabStore, HOME_TAB } from '@/stores';
  * - 닫기 버튼
  * - PMS 디자인 표준 적용
  */
-export function SidebarOpenTabs() {
+export function OpenTabs() {
   const { tabs, activeTabId, activateTab, closeTab } = useTabStore();
 
   // Home 탭 제외

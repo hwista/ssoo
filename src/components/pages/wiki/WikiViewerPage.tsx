@@ -3,16 +3,16 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTabStore, useWikiEditorStore } from '@/stores';
 import { DocPageTemplate } from '@/components/templates';
-import { DocViewer, type TocItem } from '@/components/common/page';
+import { Viewer, type TocItem } from '@/components/common/page';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
-import WikiEditor from '@/components/WikiEditor';
+import { WikiEditor } from '@/components/editor';
 
 /**
  * Wiki 문서 뷰어/에디터 페이지
  * 
  * Phase 7 업데이트:
  * - 공통 레이아웃: DocPageTemplate (Breadcrumb + Header + Sidecar)
- * - 뷰어 모드: DocViewer 슬롯 삽입
+ * - 뷰어 모드: Viewer 슬롯 삽입
  * - 에디터 모드: WikiEditor 슬롯 삽입
  * 
  * PMS 패턴:
@@ -168,7 +168,7 @@ export function WikiViewerPage() {
       >
         {/* 슬롯: 뷰어 또는 에디터 */}
         {mode === 'viewer' ? (
-          <DocViewer 
+          <Viewer 
             content={htmlContent} 
             toc={toc}
             onTocClick={handleTocClick}

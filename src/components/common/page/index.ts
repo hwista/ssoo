@@ -4,9 +4,20 @@
 // PMS common/page 패턴 참조
 // ============================================
 
-export { DocBreadcrumb, type DocBreadcrumbProps } from './DocBreadcrumb';
-export { DocHeader, type DocHeaderProps, type DocHeaderAction } from './DocHeader';
-export { DocContent, type DocContentProps } from './DocContent';
-export { DocSidecar, type DocSidecarProps, type TocItem } from './DocSidecar';
-export { DocViewer, type DocViewerProps } from './DocViewer';
-export { LineNumbers, countLines, type LineNumbersProps } from './LineNumbers';
+export { Breadcrumb } from './Breadcrumb';
+export type { BreadcrumbProps } from './Breadcrumb';
+
+export { Header } from './Header';
+export type { HeaderProps, HeaderAction } from './Header';
+
+export { Content } from './Content';
+export type { ContentProps } from './Content';
+
+export { Sidecar } from './Sidecar';
+export type { SidecarProps, SidecarMetadata, TocItem } from './Sidecar';
+
+export { Viewer } from './Viewer';
+export type { ViewerProps } from './Viewer';
+
+export { LineNumbers, countLines } from './LineNumbers';
+export type { LineNumbersProps } from './LineNumbers';

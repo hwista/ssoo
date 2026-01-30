@@ -19,7 +19,7 @@ export interface TocItem {
 /**
  * 문서 메타데이터
  */
-export interface DocMetadata {
+export interface SidecarMetadata {
   /** 작성자 */
   author?: string;
   /** 생성일 */
@@ -35,11 +35,11 @@ export interface DocMetadata {
 }
 
 /**
- * DocSidecar Props
+ * Sidecar Props
  */
-export interface DocSidecarProps {
+export interface SidecarProps {
   /** 문서 메타데이터 */
-  metadata?: DocMetadata;
+  metadata?: SidecarMetadata;
   /** 태그 목록 */
   tags?: string[];
   /** 추가 className */
@@ -60,13 +60,13 @@ function formatDate(date: Date | string | undefined): string {
 }
 
 /**
- * DocSidecar 컴포넌트
+ * Sidecar 컴포넌트
  * 
  * 문서 메타정보 + 목차를 표시하는 우측 패널
  * 
  * @example
  * ```tsx
- * <DocSidecar
+ * <Sidecar
  *   metadata={{
  *     author: 'admin',
  *     createdAt: new Date(),
@@ -78,11 +78,11 @@ function formatDate(date: Date | string | undefined): string {
  * />
  * ```
  */
-export function DocSidecar({
+export function Sidecar({
   metadata,
   tags,
   className,
-}: DocSidecarProps) {
+}: SidecarProps) {
   return (
     <div className={cn('p-4 space-y-6', className)}>
       {/* 문서 정보 섹션 */}

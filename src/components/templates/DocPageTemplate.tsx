@@ -6,14 +6,14 @@ import { cn } from '@/lib/utils';
 import { useLayoutStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/types/layout';
 import { 
-  DocBreadcrumb, 
-  DocHeader,
-  DocSidecar,
-  type DocHeaderProps,
-  type DocSidecarProps,
+  Breadcrumb, 
+  Header,
+  Sidecar,
+  type HeaderProps,
+  type SidecarProps,
 } from '../common/page';
 
-// 본문 영역 최대 너비 (DocViewer와 동일)
+// 본문 영역 최대 너비 (Viewer와 동일)
 const DOCUMENT_WIDTH = 975;
 
 /**
@@ -25,11 +25,11 @@ export interface DocPageTemplateProps {
   filePath: string;
   /** 현재 모드 */
   mode: 'viewer' | 'editor' | 'create';
-  /** 콘텐츠 슬롯 (DocViewer 또는 DocEditor) */
+  /** 콘텐츠 슬롯 (Viewer 또는 Editor) */
   children: React.ReactNode;
   
   /** Sidecar 관련 */
-  metadata?: DocSidecarProps['metadata'];
+  metadata?: SidecarProps['metadata'];
   tags?: string[];
   sidecarWidth?: number;
   
@@ -62,12 +62,12 @@ export interface DocPageTemplateProps {
  * ```tsx
  * // 뷰어 모드
  * <DocPageTemplate filePath="docs/readme.md" mode="viewer">
- *   <DocViewer content={htmlContent} />
+ *   <Viewer content={htmlContent} />
  * </DocPageTemplate>
  * 
  * // 에디터 모드
  * <DocPageTemplate filePath="docs/readme.md" mode="editor" onSave={save}>
- *   <DocEditor content={markdownContent} onChange={setContent} />
+ *   <PageEditor content={markdownContent} onChange={setContent} />
  * </DocPageTemplate>
  * ```
  */
@@ -135,8 +135,8 @@ export function DocPageTemplate({
     const errorMessage = typeof error === 'string' ? error : error.message;
     return (
       <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
-        <DocBreadcrumb filePath={filePath} onPathClick={onPathClick} />
-        <DocHeader mode={mode} />
+        <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
+        <Header mode={mode} />
         <div className="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg">
           <div className="text-center">
             <p className="text-destructive mb-4">{errorMessage}</p>
@@ -158,8 +158,8 @@ export function DocPageTemplate({
   if (loading) {
     return (
       <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
-        <DocBreadcrumb filePath={filePath} onPathClick={onPathClick} />
-        <DocHeader mode={mode} />
+        <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
+        <Header mode={mode} />
         <div className="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg">
           <div className="flex items-center gap-2 text-gray-600">
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-ssoo-primary border-t-transparent" />
@@ -173,10 +173,10 @@ export function DocPageTemplate({
   return (
     <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
       {/* 브레드크럼 */}
-      <DocBreadcrumb filePath={filePath} onPathClick={onPathClick} />
+      <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
 
       {/* 헤더 - 모드에 따라 액션 변경 */}
-      <DocHeader
+      <Header
         mode={mode}
         onEdit={onEdit}
         onSave={onSave}
@@ -254,7 +254,7 @@ export function DocPageTemplate({
               flexShrink: canSideBySide ? 0 : undefined,
             }}
           >
-            <DocSidecar
+            <Sidecar
               metadata={metadata}
               tags={tags}
             />

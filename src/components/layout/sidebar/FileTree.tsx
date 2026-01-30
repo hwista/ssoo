@@ -192,9 +192,9 @@ function filterTree(nodes: FileNode[], query: string): FileNode[] {
 }
 
 /**
- * 사이드바 전체 파일 트리 (PMS SidebarMenuTree 스타일)
+ * 사이드바 전체 파일 트리 (PMS MenuTree 스타일)
  */
-export function SidebarFileTree() {
+export function FileTree() {
   const { files } = useTreeStore();
   const { searchQuery } = useLayoutStore();
   
