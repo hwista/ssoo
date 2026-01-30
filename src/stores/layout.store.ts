@@ -3,7 +3,8 @@
  * 레이아웃 상태 관리 + 사이드바 폴더 확장 상태
  */
 import { create } from 'zustand';
-import type { DeviceType, DocumentType, SidebarSection, AISearchType } from '@/types/layout';
+import type { DeviceType, DocumentType, AISearchType } from '@/types/layout';
+import type { SidebarSection } from '@/types/sidebar';
 import { BREAKPOINTS } from '@/types/layout';
 
 interface LayoutStoreState {

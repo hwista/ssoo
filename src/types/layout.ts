@@ -1,5 +1,5 @@
 // ============================================
-// DMS Layout Types
+// Layout Types
 // 레이아웃 관련 타입 정의
 // ============================================
 
@@ -23,13 +23,15 @@ export const BREAKPOINTS = {
  */
 export const LAYOUT_SIZES = {
   sidebar: {
-    width: 340, // 사이드바 펼침 너비 (PMS 표준)
+    expandedWidth: 340, // 사이드바 펼침 너비 (PMS 표준)
+    // DMS는 collapsedWidth 없음 (접기 기능 없음)
   },
   header: {
     height: 60, // 헤더 높이 (PMS 표준)
   },
   tabBar: {
-    height: 53, // 탭바 높이 (PMS 표준)
+    height: 36, // 탭 컨트롤 높이 (PMS 표준)
+    containerHeight: 53, // 탭바 컨테이너 높이 (패딩 포함)
     tabMinWidth: 120,
     tabMaxWidth: 200,
   },
@@ -56,10 +58,4 @@ export const AI_SEARCH_TYPE_LABELS: Record<AISearchType, string> = {
   rag: 'RAG 검색 (문서 기반)',
 } as const;
 
-/**
- * 사이드바 섹션
- */
-export type SidebarSection = 'bookmarks' | 'openTabs' | 'fileTree';
-
-// Tab 관련 타입은 ./tab.ts에서 import
-// (PMS 컨벤션: 도메인별 타입 파일 분리)
+// SidebarSection은 ./sidebar.ts로 분리 (PMS 컨벤션)

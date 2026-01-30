@@ -32,7 +32,7 @@ export function AppLayout() {
   React.useEffect(() => {
     const checkCompactMode = () => {
       // 사이드바를 제외한 가용 너비 계산
-      const availableWidth = window.innerWidth - LAYOUT_SIZES.sidebar.width;
+      const availableWidth = window.innerWidth - LAYOUT_SIZES.sidebar.expandedWidth;
       // 본문 최소 너비보다 작으면 컴팩트 모드
       const shouldBeCompact = availableWidth < DOCUMENT_MIN_WIDTH;
       setCompactMode(shouldBeCompact);
@@ -95,7 +95,7 @@ export function AppLayout() {
         ref={contentRef}
         className="flex flex-col flex-1 min-w-0 transition-all duration-300"
         style={{ 
-          marginLeft: isCompactMode ? 0 : LAYOUT_SIZES.sidebar.width 
+          marginLeft: isCompactMode ? 0 : LAYOUT_SIZES.sidebar.expandedWidth 
         }}
       >
         {/* Header */}

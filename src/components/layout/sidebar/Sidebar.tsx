@@ -85,7 +85,7 @@ export function Sidebar({
         isCompactMode && 'z-30 shadow-xl',
         isCompactMode && !isOpen && '-translate-x-full'
       )}
-      style={{ width: LAYOUT_SIZES.sidebar.width }}
+      style={{ width: LAYOUT_SIZES.sidebar.expandedWidth }}
     >
       {/* 컴팩트 모드: 닫기 그립 버튼 */}
       {isCompactMode && isOpen && (

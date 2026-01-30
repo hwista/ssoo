@@ -77,7 +77,7 @@ export function DocPageTemplate({
   children,
   metadata,
   tags,
-  sidecarWidth = LAYOUT_SIZES.sidebar.width, // 메인 사이드바와 동일한 너비
+  sidecarWidth = LAYOUT_SIZES.sidebar.expandedWidth, // 메인 사이드바와 동일한 너비
   onEdit,
   onSave,
   onCancel,
