@@ -8,18 +8,18 @@ import { markdownToHtmlSync } from '@/lib/markdownConverter';
 import { MarkdownEditor } from '@/components/editor';
 
 /**
- * Wiki 문서 뷰어/에디터 페이지
+ * 마크다운 문서 뷰어/에디터 페이지
  * 
  * Phase 7 업데이트:
  * - 공통 레이아웃: DocPageTemplate (Breadcrumb + Header + Sidecar)
  * - 뷰어 모드: Viewer 슬롯 삽입
- * - 에디터 모드: WikiEditor 슬롯 삽입
+ * - 에디터 모드: MarkdownEditor 슬롯 삽입
  * 
  * PMS 패턴:
  * - SidebarFileTree는 openTab()만 호출
  * - 이 페이지 컴포넌트가 자체적으로 데이터 로드
  */
-export function WikiViewerPage() {
+export function MarkdownViewerPage() {
   const { activeTabId, tabs } = useTabStore();
   const { loadFile, isLoading, error, content, isEditing, setIsEditing, fileMetadata } = useEditorStore();
   
@@ -182,4 +182,4 @@ export function WikiViewerPage() {
   );
 }
 
-export default WikiViewerPage;
+export default MarkdownViewerPage;

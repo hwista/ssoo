@@ -4,11 +4,11 @@ import { FileText, Search, Clock, Plus } from 'lucide-react';
 import { useTabStore } from '@/stores';
 
 /**
- * Wiki 홈 대시보드 페이지
+ * DMS 홈 대시보드 페이지
  * - 빠른 액션 버튼
  * - 최근 문서 (향후 확장)
  */
-export function WikiHomePage() {
+export function HomePage() {
   const { openTab } = useTabStore();
 
   // AI 검색 탭 열기
@@ -91,4 +91,4 @@ export function WikiHomePage() {
   );
 }
 
-export default WikiHomePage;
+export default HomePage;

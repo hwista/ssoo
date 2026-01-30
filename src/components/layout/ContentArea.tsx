@@ -11,11 +11,11 @@ import { useTabStore, HOME_TAB } from '@/stores';
  */
 const pageComponents = {
   // Home 대시보드
-  home: lazy(() => import('@/components/pages/wiki/WikiHomePage')),
+  home: lazy(() => import('@/components/pages/home/HomePage')),
   // AI 검색
   'ai-search': lazy(() => import('@/components/pages/ai/AISearchPage')),
-  // 문서 뷰어/에디터
-  wiki: lazy(() => import('@/components/pages/wiki/WikiViewerPage')),
+  // 마크다운 뷰어/에디터
+  markdown: lazy(() => import('@/components/pages/markdown/MarkdownViewerPage')),
 };
 
 /**
@@ -50,7 +50,7 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
   
   // 문서 탭 (/doc/...)
   if (tab.path.startsWith('/doc/')) {
-    return 'wiki';
+    return 'markdown';
   }
   
   return null;
