@@ -16,11 +16,11 @@ import { useLayoutStore, useSidebarStore, useTreeStore } from '@/stores';
 import { LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types/layout';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search } from './Search';
-import { Section } from './Section';
-import { Bookmarks } from './Bookmarks';
-import { OpenTabs } from './OpenTabs';
-import { FileTree } from './FileTree';
+import { SidebarSearch } from '../sidebar/SidebarSearch';
+import { SidebarSection } from '../sidebar/SidebarSection';
+import { SidebarBookmarks } from '../sidebar/SidebarBookmarks';
+import { SidebarOpenTabs } from '../sidebar/SidebarOpenTabs';
+import { SidebarFileTree } from '../sidebar/SidebarFileTree';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,9 +36,9 @@ const DOCUMENT_TYPE_ICONS: Record<DocumentType, React.ComponentType<{ className?
 };
 
 /**
- * Sidebar Props
+ * MainSidebar Props
  */
-interface SidebarProps {
+interface MainSidebarProps {
   /** 컴팩트 모드 (오버레이로 표시) */
   isCompactMode?: boolean;
   /** 사이드바 열림 상태 */
@@ -48,7 +48,7 @@ interface SidebarProps {
 }
 
 /**
- * DMS 사이드바 (PMS 표준 적용)
+ * DMS 메인 사이드바 (PMS 표준 적용)
  * - 로고: W 아이콘 + Wiki 텍스트
  * - 문서 타입 선택: 헤더 영역 (사이드바 접기 버튼 위치)
  * - 검색 + 새로고침
@@ -56,11 +56,11 @@ interface SidebarProps {
  * - 하단 카피라이트
  * - 컴팩트 모드: 오버레이로 표시 + 그립 버튼
  */
-export function Sidebar({ 
+export function MainSidebar({ 
   isCompactMode = false, 
   isOpen = true,
   onClose,
-}: SidebarProps) {
+}: MainSidebarProps) {
   const { documentType, setDocumentType } = useLayoutStore();
   const { expandedSections, toggleSection, searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
   const { refreshFileTree } = useTreeStore();
@@ -147,7 +147,7 @@ export function Sidebar({
       {/* 검색 + 새로고침 */}
       <div className="p-2 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-1">
-          <Search />
+          <SidebarSearch />
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -164,34 +164,34 @@ export function Sidebar({
       {/* 스크롤 영역 */}
       <ScrollArea variant="sidebar" className="flex-1">
         {/* 책갈피 */}
-        <Section
+        <SidebarSection
           title="책갈피"
           icon={Bookmark}
           isExpanded={expandedSections.includes('bookmarks')}
           onToggle={() => toggleSection('bookmarks')}
         >
-          <Bookmarks />
-        </Section>
+          <SidebarBookmarks />
+        </SidebarSection>
 
         {/* 현재 열린 페이지 */}
-        <Section
+        <SidebarSection
           title="현재 열린 페이지"
           icon={Layers}
           isExpanded={expandedSections.includes('openTabs')}
           onToggle={() => toggleSection('openTabs')}
         >
-          <OpenTabs />
-        </Section>
+          <SidebarOpenTabs />
+        </SidebarSection>
 
         {/* 전체 파일 */}
-        <Section
+        <SidebarSection
           title="전체 파일"
           icon={FolderTree}
           isExpanded={expandedSections.includes('fileTree')}
           onToggle={() => toggleSection('fileTree')}
         >
-          <FileTree />
-        </Section>
+          <SidebarFileTree />
+        </SidebarSection>
       </ScrollArea>
 
       {/* 하단 카피라이트 (PMS 스타일) */}

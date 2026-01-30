@@ -1,14 +1,14 @@
 'use client';
 
 import { Search as SearchIcon, X } from 'lucide-react';
-import { useLayoutStore } from '@/stores';
+import { useSidebarStore } from '@/stores';
 
 /**
  * 사이드바 파일 검색
  * - PMS 디자인 표준 적용
  */
 export function Search() {
-  const { searchQuery, setSearchQuery, clearSearch } = useLayoutStore();
+  const { searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
 
   return (
     <div className="relative flex-1">

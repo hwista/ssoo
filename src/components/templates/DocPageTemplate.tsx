@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useLayoutStore } from '@/stores';
+import { useSidebarStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/types/layout';
 import { 
   Breadcrumb, 
@@ -90,7 +90,7 @@ export function DocPageTemplate({
   className,
 }: DocPageTemplateProps) {
   // 컴팩트 모드 (사이드바가 접힌 상태 = 본문 영역 < 975px)
-  const isCompactMode = useLayoutStore((s) => s.isCompactMode);
+  const isCompactMode = useSidebarStore((s) => s.isCompactMode);
 
   // 컨테이너 ref (너비 측정용)
   const containerRef = React.useRef<HTMLDivElement>(null);

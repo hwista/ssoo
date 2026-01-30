@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { ChevronRight } from 'lucide-react';
-import { useLayoutStore } from '@/stores';
+import { useLayoutStore, useSidebarStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/types/layout';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './Sidebar';
@@ -23,7 +23,8 @@ const DOCUMENT_MIN_WIDTH = 975;
  * ContentArea가 내부적으로 pageComponents로 페이지 렌더링.
  */
 export function AppLayout() {
-  const { deviceType, isCompactMode, sidebarOpen, setCompactMode, toggleSidebar, setSidebarOpen } = useLayoutStore();
+  const { deviceType } = useLayoutStore();
+  const { isCompactMode, sidebarOpen, setCompactMode, toggleSidebar, setSidebarOpen } = useSidebarStore();
 
   // 컨텐츠 영역 크기 측정
   const contentRef = React.useRef<HTMLDivElement>(null);

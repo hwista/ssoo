@@ -12,11 +12,13 @@ export type SidebarSection = 'bookmarks' | 'openTabs' | 'fileTree';
 
 /**
  * 사이드바 상태
- * - DMS는 접기 기능 없음 (isCollapsed, activeFloatSection 없음)
  */
 export interface SidebarState {
   expandedSections: SidebarSection[]; // 펼쳐진 섹션들
   searchQuery: string; // 파일 검색어
+  expandedFolders: Set<string>; // 펼쳐진 폴더 경로들
+  isCompactMode: boolean; // 컴팩트 모드 여부
+  sidebarOpen: boolean; // 컴팩트 모드에서 사이드바 열림 상태
 }
 
 /**
@@ -30,6 +32,17 @@ export interface SidebarActions {
   // 검색
   setSearchQuery: (query: string) => void;
   clearSearch: () => void;
+  
+  // 폴더 확장
+  toggleFolder: (path: string) => void;
+  expandFolder: (path: string) => void;
+  collapseFolder: (path: string) => void;
+  collapseAllFolders: () => void;
+  
+  // 컴팩트 모드
+  setCompactMode: (isCompact: boolean) => void;
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
 }
 
 /**
