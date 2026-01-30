@@ -76,26 +76,5 @@ export {
   SIDEBAR_SECTION_LABELS,
 } from './sidebar';
 
-// 공통 기본 타입
-export type {
-  Optional,
-  RequiredFields,
-  DeepPartial,
-  Timestamp,
-  ISODateString,
-  SortOrder,
-  LoadingState,
-  ActionStatus,
-  EventHandler,
-  AsyncEventHandler,
-  CancellableEventHandler,
-  FilterOptions,
-  SortOptions,
-  AsyncState,
-  Permission,
-  Role,
-  UserPermissions
-} from './common';
-
 // 기존 errorUtils 타입들도 re-export (일관성을 위해)
 export type { LogLevel, ErrorContext } from '@/lib/utils/errorUtils';

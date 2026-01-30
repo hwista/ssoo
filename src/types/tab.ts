@@ -14,8 +14,8 @@
 export interface TabItem {
   id: string;
   title: string;
-  path: string;
   icon?: string;
+  path: string;          // DMS 필수 (파일 경로 기반)
   closable: boolean;
   openedAt: Date;
   lastActiveAt: Date;
@@ -27,8 +27,8 @@ export interface TabItem {
 export interface OpenTabOptions {
   id?: string;
   title: string;
-  path: string;
   icon?: string;
+  path: string;          // DMS 필수
   closable?: boolean;
   activate?: boolean;
 }
