@@ -1,9 +1,7 @@
-'use client';
-
+import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from "next/font/google";
+import { Providers } from './providers';
 import "./globals.css";
-import { Toaster } from "sonner";
-import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,6 +13,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const metadata: Metadata = {
+  title: 'SSOO - 문서 허브',
+  description: '위키, 시스템 개발문서, 블로그 통합 문서 관리 시스템',
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,16 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        {/* 전역 Confirm Dialog */}
-        <ConfirmDialog />
-        {/* 전역 Toast */}
-        <Toaster 
-          position="top-right"
-          richColors
-          closeButton
-          duration={4000}
-        />
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

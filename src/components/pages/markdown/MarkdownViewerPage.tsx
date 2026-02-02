@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTabStore, useEditorStore } from '@/stores';
 import { DocPageTemplate } from '@/components/templates';
-import { Viewer, type TocItem } from '@/components/common/page';
+import { Viewer } from '@/components/common/viewer';
+import { type TocItem } from '@/components/common/page';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
-import { MarkdownEditor } from '@/components/editor';
+import { MarkdownEditor } from '@/components/common/editor';
 
 /**
  * 마크다운 문서 뷰어/에디터 페이지

@@ -8,7 +8,7 @@ import { useTabStore } from '@/stores';
  * - 빠른 액션 버튼
  * - 최근 문서 (향후 확장)
  */
-export function HomePage() {
+export function HomeDashboardPage() {
   const { openTab } = useTabStore();
 
   // AI 검색 탭 열기
@@ -91,4 +91,4 @@ export function HomePage() {
   );
 }
 
-export default HomePage;
+export default HomeDashboardPage;

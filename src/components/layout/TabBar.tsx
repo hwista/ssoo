@@ -3,6 +3,7 @@
 import { useTabStore, HOME_TAB } from '@/stores';
 import { X, ChevronLeft, ChevronRight, Home, FileText } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { LAYOUT_SIZES } from '@/types';
 
 /**
  * DMS 탭바 컴포넌트
@@ -89,7 +90,10 @@ export function TabBar() {
   }
 
   return (
-    <div className="h-[53px] flex items-end bg-gray-50 border-b border-gray-200">
+    <div
+      className="flex items-end bg-gray-50 border-b border-gray-200"
+      style={{ height: LAYOUT_SIZES.tabBar.containerHeight }}
+    >
       {/* 왼쪽 스크롤 버튼 */}
       {showLeftArrow && (
         <button

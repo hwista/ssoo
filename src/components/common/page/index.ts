@@ -1,7 +1,6 @@
 // ============================================
 // Page Common Components
-// 문서 시스템 공통 컴포넌트 (Phase 7)
-// PMS common/page 패턴 참조
+// 페이지 레이아웃 빌딩블록 (DocPageTemplate 구성요소)
 // ============================================
 
 export { Breadcrumb } from './Breadcrumb';
@@ -16,8 +15,6 @@ export type { ContentProps } from './Content';
 export { Sidecar } from './Sidecar';
 export type { SidecarProps, SidecarMetadata, TocItem } from './Sidecar';
 
-export { Viewer } from './Viewer';
-export type { ViewerProps } from './Viewer';
+// Viewer, LineNumbers는 common/viewer/로 이동됨
+// import { Viewer } from '@/components/common/viewer';
 
-export { LineNumbers, countLines } from './LineNumbers';
-export type { LineNumbersProps } from './LineNumbers';

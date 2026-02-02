@@ -3,8 +3,8 @@
 import { useState, useCallback } from 'react';
 import { Search, Plus, Bell, User, ChevronDown, Bot, FileSearch } from 'lucide-react';
 import { useLayoutStore, useTabStore } from '@/stores';
-import type { AISearchType } from '@/types/layout';
-import { AI_SEARCH_TYPE_LABELS } from '@/types/layout';
+import type { AISearchType } from '@/types';
+import { AI_SEARCH_TYPE_LABELS } from '@/types';
 import {
   DropdownMenu,
   DropdownMenuContent,

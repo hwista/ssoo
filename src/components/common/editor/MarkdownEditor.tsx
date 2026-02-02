@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { Dialog, DialogSurface, DialogBody, DialogTitle } from '@/components/ui/dialog';
 import { Eye, Save, Edit, X, Copy, Type, FileText } from 'lucide-react';
-import { BlockEditor, BlockEditorRef } from '@/components/editor';
+import { BlockEditor, BlockEditorRef } from './BlockEditor';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useEditorStore } from '@/stores';
 import { useToast } from '@/lib/toast';

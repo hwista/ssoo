@@ -13,7 +13,7 @@ import {
   Code,
 } from 'lucide-react';
 import { useLayoutStore, useSidebarStore, useFileStore } from '@/stores';
-import { LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types/layout';
+import { LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search } from './Search';

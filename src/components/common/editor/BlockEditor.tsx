@@ -184,4 +184,4 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
 
 BlockEditor.displayName = 'BlockEditor';
 
-export default BlockEditor;
+export { BlockEditor };

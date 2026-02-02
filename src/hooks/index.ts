@@ -1,11 +1,10 @@
 /**
- * hooks/index.ts - 커스텀 훅 통합 export
- * 
- * Phase 3.1에서 구현된 커스텀 훅들을 중앙에서 관리합니다.
- * Phase 6에서 레거시 훅 정리됨
+ * Custom Hooks
+ *
+ * 애플리케이션 전체에서 사용하는 커스텀 훅
  */
 
-// 에디터 관련 훅 (유일하게 활성)
+// 에디터 관련 훅 (DMS 전용)
 export { useEditor } from './useEditor';
 export type { 
   EditorCursorPosition,

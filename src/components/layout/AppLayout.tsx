@@ -3,9 +3,9 @@
 import * as React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useLayoutStore, useSidebarStore } from '@/stores';
-import { LAYOUT_SIZES } from '@/types/layout';
+import { LAYOUT_SIZES } from '@/types';
 import { cn } from '@/lib/utils';
-import { Sidebar } from './Sidebar';
+import { Sidebar } from './sidebar';
 import { Header } from './Header';
 import { TabBar } from './TabBar';
 import { ContentArea } from './ContentArea';

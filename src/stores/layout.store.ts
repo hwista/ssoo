@@ -1,26 +1,14 @@
 import { create } from 'zustand';
-import type { DeviceType, DocumentType, AISearchType } from '@/types/layout';
-import { BREAKPOINTS } from '@/types/layout';
+import type { DeviceType, DocumentType, AISearchType, LayoutState, LayoutActions } from '@/types';
+import { BREAKPOINTS } from '@/types';
+
+interface LayoutStore extends LayoutState, LayoutActions {}
 
 // 현재 디바이스 타입 감지 (PMS 패턴)
 const detectDeviceType = (): DeviceType => {
   if (typeof window === 'undefined') return 'desktop';
   return window.innerWidth < BREAKPOINTS.mobile ? 'mobile' : 'desktop';
 };
-
-interface LayoutStoreState {
-  deviceType: DeviceType;
-  documentType: DocumentType;
-  aiSearchType: AISearchType;
-}
-
-interface LayoutStoreActions {
-  setDeviceType: (type: DeviceType) => void;
-  setDocumentType: (type: DocumentType) => void;
-  setAISearchType: (type: AISearchType) => void;
-}
-
-interface LayoutStore extends LayoutStoreState, LayoutStoreActions {}
 
 export const useLayoutStore = create<LayoutStore>()((set) => ({
   // Initial State

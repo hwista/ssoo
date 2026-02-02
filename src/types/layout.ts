@@ -58,4 +58,22 @@ export const AI_SEARCH_TYPE_LABELS: Record<AISearchType, string> = {
   rag: 'RAG 검색 (문서 기반)',
 } as const;
 
+/**
+ * 앱 레이아웃 상태
+ */
+export interface LayoutState {
+  deviceType: DeviceType;
+  documentType: DocumentType;
+  aiSearchType: AISearchType;
+}
+
+/**
+ * 앱 레이아웃 액션
+ */
+export interface LayoutActions {
+  setDeviceType: (type: DeviceType) => void;
+  setDocumentType: (type: DocumentType) => void;
+  setAISearchType: (type: AISearchType) => void;
+}
+
 // SidebarSection은 ./sidebar.ts로 분리 (PMS 컨벤션)

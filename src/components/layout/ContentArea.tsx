@@ -11,11 +11,9 @@ import { LoadingState } from '@/components/common/StateDisplay';
  */
 const pageComponents = {
   // Home 대시보드
-  home: lazy(() => import('@/components/pages/home/HomePage')),
-  // AI 검색
-  'ai-search': lazy(() => import('@/components/pages/ai/AISearchPage')),
+  home: lazy(() => import('@/components/pages/home/HomeDashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
   // 마크다운 뷰어/에디터
-  markdown: lazy(() => import('@/components/pages/markdown/MarkdownViewerPage')),
+  markdown: lazy(() => import('@/components/pages/markdown/MarkdownViewerPage').then(m => ({ default: m.MarkdownViewerPage }))),
 };
 
 /**
@@ -38,11 +36,6 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
   // Home 탭
   if (tab.id === HOME_TAB.id) {
     return 'home';
-  }
-  
-  // AI 검색 탭
-  if (tab.path.startsWith('/ai-search')) {
-    return 'ai-search';
   }
   
   // 문서 탭 (/doc/...)

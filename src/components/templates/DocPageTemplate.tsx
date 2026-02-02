@@ -4,7 +4,7 @@ import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebarStore } from '@/stores';
-import { LAYOUT_SIZES } from '@/types/layout';
+import { LAYOUT_SIZES } from '@/types';
 import {
   Breadcrumb, 
   Header,
@@ -12,7 +12,7 @@ import {
   type HeaderProps,
   type SidecarProps,
 } from '../common/page';
-import { LoadingState } from '@/components/common/StateDisplay';
+import { LoadingState, ErrorState } from '@/components/common/StateDisplay';
 
 // 본문 영역 최대 너비 (Viewer와 동일)
 const DOCUMENT_WIDTH = 975;
@@ -133,23 +133,12 @@ export function DocPageTemplate({
 
   // 에러 상태
   if (error) {
-    const errorMessage = typeof error === 'string' ? error : error.message;
     return (
       <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
         <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
         <Header mode={mode} />
         <div className="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg">
-          <div className="text-center">
-            <p className="text-destructive mb-4">{errorMessage}</p>
-            {onRetry && (
-              <button
-                onClick={onRetry}
-                className="text-sm text-ssoo-primary hover:underline"
-              >
-                다시 시도
-              </button>
-            )}
-          </div>
+          <ErrorState error={error} onRetry={onRetry} />
         </div>
       </div>
     );
