@@ -25,37 +25,32 @@
 
 ```
 apps/web/dms/
-├── app/                        # Next.js App Router
-│   ├── api/                    # API Routes (19개)
-│   │   ├── file/               # 파일 CRUD
-│   │   ├── files/              # 파일 트리
-│   │   ├── search/             # Vector 검색
-│   │   ├── ask/                # AI 답변 (RAG)
-│   │   ├── watch/              # 실시간 감시 (SSE)
-│   │   └── ...
-│   └── page.tsx                # 메인 페이지
+├── src/
+│   ├── app/                        # Next.js App Router
+│   │   ├── api/                    # API Routes
+│   │   │   ├── file/               # 단일 파일 CRUD
+│   │   │   └── files/              # 파일 트리 조회
+│   │   └── page.tsx                # 메인 페이지
+│   │
+│   ├── components/                 # React 컴포넌트
+│   │   ├── common/                 # 공통 (ConfirmDialog, StateDisplay)
+│   │   ├── layout/                 # 레이아웃 (AppLayout, Header, Sidebar)
+│   │   ├── pages/                  # 페이지별 (home, markdown, wiki)
+│   │   ├── templates/              # 템플릿 (DocPageTemplate)
+│   │   └── ui/                     # 기본 UI (Button, Card, Dialog)
+│   │
+│   ├── hooks/                      # 커스텀 훅
+│   │   ├── useEditor.ts            # 에디터 상태 관리
+│   │   └── useOpenTabWithConfirm.ts # 탭 열기 확인
+│   │
+│   ├── stores/                     # Zustand 상태 관리
+│   ├── lib/                        # 유틸리티
+│   ├── types/                      # TypeScript 타입
+│   └── middleware.ts               # Next.js 미들웨어
 │
-├── components/                 # React 컴포넌트 (35개)
-│   ├── editor/                 # Tiptap 블록 에디터
-│   ├── ui/                     # 기본 UI (Button, Card, Input)
-│   ├── WikiApp.tsx             # 메인 앱 컨테이너
-│   └── TreeComponent.tsx       # 파일 트리
-│
-├── hooks/                      # 커스텀 훅 (9개)
-│   ├── useFileSystem.ts        # 파일 CRUD
-│   ├── useTreeData.ts          # 트리 상태
-│   └── useEditor.ts            # 에디터 상태
-│
-├── contexts/                   # React Context
-│   ├── WikiContext.tsx         # 위키 상태
-│   └── NotificationContext.tsx # 알림 상태
-│
-├── services/                   # 서비스 레이어
-├── lib/                        # 유틸리티 (AI, Vector DB)
-├── types/                      # TypeScript 타입
-├── docs/                       # 개발 문서 (정본)
-│   ├── development/            # 개발 가이드
-│   └── wiki/                   # 위키 콘텐츠
+├── docs/                           # 개발 문서 (정본)
+│   ├── development/                # 개발 가이드
+│   └── wiki/                       # 위키 콘텐츠
 └── package.json
 ```
 
@@ -67,36 +62,17 @@ apps/web/dms/
 
 | 기능 | 설명 |
 |------|------|
-| 파일 트리 | 계층적 폴더/파일 구조, 검색, 컨텍스트 메뉴 |
-| 실시간 감시 | SSE 기반 파일 변경 자동 감지 |
-| 인라인 편집 | 파일명 즉시 수정 |
-| 시각적 피드백 | NEW/UPDATE 뱃지 표시 |
+| 파일 트리 | 계층적 폴더/파일 구조, 검색 |
+| 파일 CRUD | 생성, 수정, 삭제, 이름 변경 |
+| 탭 관리 | 다중 문서 탭 열기/닫기 |
 
-### 블록 에디터
+### 마크다운 에디터
 
 | 기능 | 설명 |
 |------|------|
-| 슬래시 명령 | `/h1`, `/code`, `/table` 등 빠른 삽입 |
-| 서식 툴바 | 굵게, 기울임, 하이라이트 |
-| 코드 블록 | 구문 강조 지원 |
+| 실시간 미리보기 | 마크다운 편집 중 미리보기 |
 | 자동 저장 | 주기적 자동 저장 |
-
-### AI 검색 (RAG)
-
-| 기능 | 설명 |
-|------|------|
-| Vector 검색 | LanceDB + Gemini Embedding |
-| AI 답변 | Gemini 1.5 Flash 기반 RAG |
-| 문서 인덱싱 | 전체 위키 자동/수동 인덱싱 |
-
-### 협업
-
-| 기능 | 설명 |
-|------|------|
-| 버전 히스토리 | 파일별 변경 이력 |
-| 댓글 | 문서 내 코멘트 |
-| 권한 관리 | RBAC (admin/editor/viewer) |
-| 알림 | 이메일, Teams 연동 |
+| Undo/Redo | 실행 취소/다시 실행 |
 
 ---
 

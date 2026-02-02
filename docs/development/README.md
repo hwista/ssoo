@@ -1,6 +1,6 @@
 # DMS 개발 문서
 
-> 최종 업데이트: 2026-01-28  
+> 최종 업데이트: 2026-02-02  
 > 정본 위치: `apps/web/dms/docs/development/`
 
 마크다운 위키 시스템(DMS)의 개발 관련 문서입니다.
@@ -25,17 +25,17 @@
 
 | 문서 | 설명 |
 |------|------|
+| [**AGENTS.md**](AGENTS.md) | **에이전트 학습 가이드 (필독)** |
 | [architecture/tech-stack.md](architecture/tech-stack.md) | 기술 스택 |
 | [architecture/package-spec.md](architecture/package-spec.md) | 패키지 구조 및 의존성 |
 | [domain/service-overview.md](domain/service-overview.md) | 서비스 개요 |
 | [design/design-system.md](design/design-system.md) | 디자인 시스템 |
-| [guides/hooks.md](guides/hooks.md) | 커스텀 훅 가이드 (9개) |
-| [guides/components.md](guides/components.md) | 컴포넌트 가이드 (35개) |
-| [guides/api.md](guides/api.md) | API 엔드포인트 가이드 (19개) |
+| [guides/hooks.md](guides/hooks.md) | 커스텀 훅 가이드 |
+| [guides/components.md](guides/components.md) | 컴포넌트 가이드 |
+| [guides/api.md](guides/api.md) | API 엔드포인트 가이드 |
 | [planning/roadmap.md](planning/roadmap.md) | 개발 로드맵 |
 | [planning/backlog.md](planning/backlog.md) | 백로그 |
 | [planning/changelog.md](planning/changelog.md) | 변경 이력 |
-| [AGENTS.md](AGENTS.md) | 인수인계 기준/현재 상태 |
 
 ---
 
