@@ -89,7 +89,7 @@ export function Header({
   return (
     <div
       className={cn(
-        'flex items-center justify-between px-4 py-3',
+        'flex items-center justify-between px-4 py-2 min-h-[52px]',
         'bg-white border border-gray-200 rounded-lg', // PMS 표준과 동일
         className
       )}

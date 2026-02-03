@@ -23,7 +23,7 @@ export function Search() {
       {searchQuery && (
         <button
           onClick={clearSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
+          className="absolute right-2 top-1/2 -translate-y-1/2 h-control-h-sm w-control-h-sm flex items-center justify-center hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
         >
           <X className="w-3.5 h-3.5" />
         </button>

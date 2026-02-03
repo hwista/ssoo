@@ -6,20 +6,23 @@
  * 
  * 구조:
  * - page/: 레이아웃 빌딩블록 (Breadcrumb, Header, Content, Sidecar)
- * - viewer/: 읽기 슬롯 컴포넌트 (Viewer, ViewerToolbar, ViewerContent)
+ * - viewer/: 읽기 슬롯 컴포넌트 (Viewer, Toolbar, Content)
  * - editor/: 편집 슬롯 컴포넌트 (MarkdownEditor, BlockEditor, EditorToolbar)
  * - StateDisplay: 로딩/에러/빈 상태 표시
  * - ConfirmDialog: 확인 다이얼로그
  */
 
 // 페이지 레이아웃 빌딩블록
-export * from './page';
+export { Breadcrumb, Header, Content, Sidecar } from './page';
+export type { BreadcrumbProps, HeaderProps, HeaderAction, ContentProps, SidecarProps, SidecarMetadata, TocItem } from './page';
 
 // Viewer 슬롯 컴포넌트 (문서 읽기)
-export * from './viewer';
+export { Viewer, Toolbar as ViewerToolbar, Content as ViewerContent, LineNumbers, countLines, DOCUMENT_WIDTH, ZOOM_LEVELS, DEFAULT_ZOOM } from './viewer';
+export type { ViewerProps, ToolbarProps, ContentProps as ViewerContentProps, LineNumbersProps } from './viewer';
 
 // Editor 슬롯 컴포넌트 (문서 편집)
-export * from './editor';
+export { MarkdownEditor, BlockEditor, EditorToolbar } from './editor';
+export type { BlockEditorProps, BlockEditorRef } from './editor';
 
 // 상태 표시
 export { LoadingState, LoadingSpinner, ErrorState, EmptyState } from './StateDisplay';

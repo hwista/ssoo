@@ -40,12 +40,11 @@ export const LAYOUT_SIZES = {
 /**
  * 문서 타입 (사이드바 전환용)
  */
-export type DocumentType = 'wiki' | 'system-docs' | 'blog';
+export type DocumentType = 'wiki' | 'dev';
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  wiki: '위키 문서',
-  'system-docs': '시스템 개발문서',
-  blog: '블로그',
+  wiki: 'Wiki',
+  dev: 'Dev',
 } as const;
 
 /**

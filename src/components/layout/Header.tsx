@@ -71,7 +71,7 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center gap-1 h-control-h px-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-colors"
+              className="flex items-center gap-1 h-control-h px-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-colors cursor-pointer"
             >
               {aiSearchType === 'gemini' ? (
                 <Bot className="w-4 h-4" />
@@ -81,22 +81,26 @@ export function Header() {
               <ChevronDown className="w-3 h-3" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
+          <DropdownMenuContent
+            align="start"
+            sideOffset={0}
+            className="w-48 bg-ssoo-primary text-white border-white/20"
+          >
             <DropdownMenuItem
               onClick={() => setAISearchType('gemini')}
-              className={aiSearchType === 'gemini' ? 'bg-gray-100' : ''}
+              className={`text-white focus:bg-white/10 focus:text-white ${aiSearchType === 'gemini' ? 'bg-white/10' : ''}`}
             >
               <Bot className="w-4 h-4 mr-2" />
               Gemini AI
-              <span className="ml-auto text-xs text-gray-500">일반 질문</span>
+              <span className="ml-auto text-xs text-white/70">일반 질문</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setAISearchType('rag')}
-              className={aiSearchType === 'rag' ? 'bg-gray-100' : ''}
+              className={`text-white focus:bg-white/10 focus:text-white ${aiSearchType === 'rag' ? 'bg-white/10' : ''}`}
             >
               <FileSearch className="w-4 h-4 mr-2" />
               RAG 검색
-              <span className="ml-auto text-xs text-gray-500">문서 기반</span>
+              <span className="ml-auto text-xs text-white/70">문서 기반</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -115,7 +119,7 @@ export function Header() {
 
         {/* 알림 */}
         <button
-          className="relative p-2 hover:bg-white/10 rounded-md transition-colors"
+          className="relative h-control-h w-control-h flex items-center justify-center hover:bg-white/10 rounded-md transition-colors"
           title="알림"
         >
           <Bell className="w-5 h-5 text-white" />
@@ -124,7 +128,7 @@ export function Header() {
         </button>
 
         {/* 사용자 프로필 */}
-        <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-white/10 rounded-md transition-colors">
+        <button className="flex items-center gap-2 h-control-h px-2 hover:bg-white/10 rounded-md transition-colors">
           <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
             <User className="w-4 h-4 text-white" />
           </div>

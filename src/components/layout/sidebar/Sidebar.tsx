@@ -8,7 +8,6 @@ import {
   Bookmark, 
   Layers, 
   FolderTree,
-  FileText,
   BookOpen,
   Code,
 } from 'lucide-react';
@@ -31,8 +30,7 @@ import {
 // 문서 타입별 아이콘
 const DOCUMENT_TYPE_ICONS: Record<DocumentType, React.ComponentType<{ className?: string }>> = {
   wiki: BookOpen,
-  'system-docs': Code,
-  blog: FileText,
+  dev: Code,
 };
 
 /**
@@ -120,20 +118,28 @@ export function Sidebar({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center gap-1 h-control-h px-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-colors"
+              className="flex items-center gap-1 h-control-h px-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-colors cursor-pointer"
             >
               <DocumentTypeIcon className="w-4 h-4" />
               <ChevronDown className="w-3 h-3" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent
+            align="end"
+            sideOffset={0}
+            className="w-40 bg-ssoo-primary text-white border-white/20"
+          >
             {(Object.keys(DOCUMENT_TYPE_LABELS) as DocumentType[]).map((type) => {
               const TypeIcon = DOCUMENT_TYPE_ICONS[type];
+              const isActiveType = documentType === type;
               return (
                 <DropdownMenuItem
                   key={type}
                   onClick={() => setDocumentType(type)}
-                  className={documentType === type ? 'bg-gray-100' : ''}
+                  className={cn(
+                    'text-white focus:bg-white/10 focus:text-white',
+                    isActiveType && 'bg-white/10'
+                  )}
                 >
                   <TypeIcon className="w-4 h-4 mr-2" />
                   {DOCUMENT_TYPE_LABELS[type]}
@@ -151,7 +157,7 @@ export function Sidebar({
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="p-2 hover:bg-ssoo-sitemap-bg rounded-lg transition-colors disabled:opacity-50"
+            className="h-control-h w-control-h flex items-center justify-center hover:bg-ssoo-sitemap-bg rounded-lg transition-colors disabled:opacity-50"
             title="새로고침"
           >
             <RefreshCw

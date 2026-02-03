@@ -51,7 +51,7 @@ export function OpenTabs() {
                   e.stopPropagation();
                   closeTab(tab.id);
                 }}
-                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded transition-opacity"
+                className="opacity-0 group-hover:opacity-100 h-control-h-sm w-control-h-sm flex items-center justify-center hover:bg-gray-200 rounded transition-opacity"
               >
                 <X className="w-3 h-3 text-gray-500" />
               </button>

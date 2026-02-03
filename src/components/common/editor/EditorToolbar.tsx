@@ -85,7 +85,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
   );
 
   return (
-    <div className="editor-toolbar flex flex-wrap items-center gap-1 p-2 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+    <div className="editor-toolbar flex flex-wrap items-center gap-1 px-4 py-2 min-h-[52px] bg-gray-50 border-b border-gray-200 rounded-t-lg">
       {/* Undo/Redo */}
       <ToolbarButton
         onClick={() => editor.chain().focus().undo().run()}

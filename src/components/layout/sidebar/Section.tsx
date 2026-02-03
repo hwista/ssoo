@@ -28,17 +28,17 @@ export function Section({
 }: SectionProps) {
   return (
     <div className="border-b border-gray-200">
-      <div className="flex items-center w-full px-3 py-2 hover:bg-ssoo-sitemap-bg transition-colors">
+      <div className="flex items-center w-full h-control-h px-3 hover:bg-ssoo-sitemap-bg transition-colors">
         <button
           onClick={onToggle}
-          className="flex items-center gap-2 flex-1"
+          className="flex items-center gap-2 flex-1 h-full"
         >
           <Icon className="w-4 h-4 text-ssoo-primary" />
           <span className="text-sm font-medium text-ssoo-primary">{title}</span>
         </button>
         <div className="flex items-center gap-1">
           {headerAction}
-          <button onClick={onToggle} className="p-0.5">
+          <button onClick={onToggle} className="h-control-h-sm w-control-h-sm flex items-center justify-center">
             {isExpanded ? (
               <ChevronDown className="w-4 h-4 text-ssoo-primary" />
             ) : (

@@ -172,7 +172,7 @@ export function TabBar() {
                     e.stopPropagation();
                     closeTab(tab.id);
                   }}
-                  className={`p-0.5 opacity-0 group-hover:opacity-100 rounded transition-opacity ${
+                  className={`h-control-h-sm w-control-h-sm flex items-center justify-center opacity-0 group-hover:opacity-100 rounded transition-opacity ${
                     isActive ? 'hover:bg-ssoo-primary/20' : 'hover:bg-gray-200'
                   }`}
                 >
