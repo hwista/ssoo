@@ -11,9 +11,9 @@ export const ZOOM_LEVELS = [75, 100, 125, 150, 175, 200];
 export const DEFAULT_ZOOM = 100;
 
 /**
- * ViewerToolbar Props
+ * Toolbar Props
  */
-export interface ViewerToolbarProps {
+export interface ToolbarProps {
   /** 문서 최대 너비 */
   maxWidth: number;
   
@@ -39,11 +39,11 @@ export interface ViewerToolbarProps {
 }
 
 /**
- * ViewerToolbar 컴포넌트
+ * Toolbar 컴포넌트
  * 
  * Viewer 상단 툴바 - 목차, 검색, 줌 컨트롤
  */
-export function ViewerToolbar({
+export function Toolbar({
   maxWidth,
   toc,
   onTocClick,
@@ -59,7 +59,7 @@ export function ViewerToolbar({
   onZoomIn,
   onZoomOut,
   onZoomReset,
-}: ViewerToolbarProps) {
+}: ToolbarProps) {
   // 목차 호버 상태
   const [tocHovered, setTocHovered] = React.useState(false);
 
@@ -77,7 +77,7 @@ export function ViewerToolbar({
   return (
     <div className="flex justify-center shrink-0 px-4">
       <div 
-        className="flex items-center justify-between w-full px-4 py-3"
+        className="flex items-center justify-between w-full px-4 py-2 min-h-[52px]"
         style={{ maxWidth }}
       >
         {/* 좌측: 목차 + 검색 */}
@@ -119,8 +119,8 @@ export function ViewerToolbar({
                           key={item.id}
                           onClick={() => handleTocItemClick(item.id)}
                           className={cn(
-                            'block w-full text-left text-sm hover:text-ssoo-primary',
-                            'hover:bg-white rounded px-2 py-1.5 transition-colors',
+                            'flex h-control-h w-full items-center text-left text-sm hover:text-ssoo-primary',
+                            'hover:bg-white rounded px-2 transition-colors',
                             'truncate',
                             item.level === 1 && 'font-semibold text-gray-900',
                             item.level === 2 && 'font-medium text-gray-700',
@@ -162,7 +162,7 @@ export function ViewerToolbar({
                   <button
                     type="button"
                     onClick={onSearchClose}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-control-h-sm w-control-h-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
                     title="검색 지우기"
                   >
                     <X className="h-4 w-4" />
@@ -182,7 +182,7 @@ export function ViewerToolbar({
                   variant="ghost"
                   size="default"
                   onClick={() => onNavigateResult('prev')}
-                  className="h-control-h w-8 p-0"
+                  className="h-control-h-sm w-control-h-sm p-0"
                   disabled={searchResultCount === 0}
                   title="이전 결과"
                 >
@@ -193,7 +193,7 @@ export function ViewerToolbar({
                   variant="ghost"
                   size="default"
                   onClick={() => onNavigateResult('next')}
-                  className="h-control-h w-8 p-0"
+                  className="h-control-h-sm w-control-h-sm p-0"
                   disabled={searchResultCount === 0}
                   title="다음 결과"
                 >
@@ -211,7 +211,7 @@ export function ViewerToolbar({
             size="default"
             onClick={onZoomOut}
             disabled={zoomLevel === ZOOM_LEVELS[0]}
-            className="h-control-h w-8 p-0"
+            className="h-control-h-sm w-control-h-sm p-0"
             title="축소"
           >
             <ZoomOut className="h-4 w-4" />
@@ -230,7 +230,7 @@ export function ViewerToolbar({
             size="default"
             onClick={onZoomIn}
             disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-            className="h-control-h w-8 p-0"
+            className="h-control-h-sm w-control-h-sm p-0"
             title="확대"
           >
             <ZoomIn className="h-4 w-4" />

@@ -7,9 +7,9 @@ import { cn } from '@/lib/utils';
 export const DOCUMENT_WIDTH = 975;
 
 /**
- * ViewerContent Props
+ * Content Props
  */
-export interface ViewerContentProps {
+export interface ContentProps {
   /** 문서 콘텐츠 (HTML) */
   content: string;
   /** 줌 레벨 (퍼센트) */
@@ -23,20 +23,20 @@ export interface ViewerContentProps {
 }
 
 /**
- * ViewerContent 컴포넌트
+ * Content 컴포넌트
  * 
  * 문서 본문 렌더링 영역
  * - 최대 너비 975px
  * - prose 스타일 적용
  * - 줌 레벨 적용
  */
-export function ViewerContent({
+export function Content({
   content,
   zoomLevel,
   maxWidth = DOCUMENT_WIDTH,
   contentRef,
   className,
-}: ViewerContentProps) {
+}: ContentProps) {
   return (
     <div className={cn('flex-1 flex justify-center overflow-hidden px-4', className)}>
       {/* 문서 컨테이너 - 고정 너비 + 내부 스크롤 */}

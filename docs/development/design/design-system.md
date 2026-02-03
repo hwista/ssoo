@@ -160,6 +160,25 @@ font-family:
 
 ## 5. 컴포넌트 스타일 가이드
 
+### 컨트롤 높이 표준
+
+| 크기 | Tailwind 클래스 | 실제 높이 | 용도 |
+|------|----------------|----------|------|
+| **Small** | `h-control-h-sm` | 32px | 인라인 아이콘 버튼, 밀집 UI |
+| **Default** | `h-control-h` | 36px | **표준** - 버튼, 입력, 탭, 메뉴 |
+| **Large** | `h-control-h-lg` | 44px | 강조가 필요한 CTA |
+
+**인라인 아이콘 버튼**
+- 닫기/즐겨찾기/검색 클리어 등: `h-control-h-sm w-control-h-sm`
+
+**드롭다운/컨텍스트 메뉴**
+- 메뉴 항목 높이: `h-control-h` (표준 컨트롤과 동일)
+
+**컨트롤 컨테이너**
+- 표준 컨트롤(36px)을 담는 바/패널: `min-h-[52px] px-4 py-2` (36px + 상하 8px)
+- 적용 대상: 문서 Header, viewer/Toolbar, editor/EditorToolbar, 기타 툴바류
+- 예외: TabBar 컨테이너는 레이아웃 규칙(53px)
+
 ### 5.1 버튼
 
 ```tsx

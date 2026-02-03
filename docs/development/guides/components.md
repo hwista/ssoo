@@ -18,6 +18,10 @@ src/components/
 │   ├── editor/                # 에디터 관련
 │   ├── page/                  # 페이지 컴포넌트
 │   └── viewer/                # 뷰어 컴포넌트
+│       ├── Viewer.tsx         # 뷰어 본체
+│       ├── Toolbar.tsx        # 뷰어 툴바
+│       ├── Content.tsx        # 뷰어 본문
+│       └── LineNumbers.tsx    # 줄번호
 ├── layout/                    # 레이아웃 컴포넌트
 │   ├── AppLayout.tsx          # 앱 전체 레이아웃
 │   ├── ContentArea.tsx        # 콘텐츠 영역
@@ -40,6 +44,14 @@ src/components/
     ├── scroll-area.tsx
     └── tooltip.tsx
 ```
+
+---
+
+## 네이밍 규칙
+
+- **폴더가 컨텍스트를 제공하므로 접두어를 제거**합니다.
+- 예: `common/viewer/Toolbar.tsx`, `common/viewer/Content.tsx`
+- 예외: 전역 공유 컴포넌트는 이름 충돌을 피하도록 명확한 이름 사용
 
 ---
 

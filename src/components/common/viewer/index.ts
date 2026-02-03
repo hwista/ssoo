@@ -7,14 +7,14 @@
 export { Viewer } from './Viewer';
 export type { ViewerProps } from './Viewer';
 
-export { ViewerToolbar } from './ViewerToolbar';
-export type { ViewerToolbarProps } from './ViewerToolbar';
+export { Toolbar } from './Toolbar';
+export type { ToolbarProps } from './Toolbar';
 
-export { ViewerContent, DOCUMENT_WIDTH } from './ViewerContent';
-export type { ViewerContentProps } from './ViewerContent';
+export { Content, DOCUMENT_WIDTH } from './Content';
+export type { ContentProps } from './Content';
 
 export { LineNumbers, countLines } from './LineNumbers';
 export type { LineNumbersProps } from './LineNumbers';
 
 // 상수 re-export
-export { ZOOM_LEVELS, DEFAULT_ZOOM } from './ViewerToolbar';
+export { ZOOM_LEVELS, DEFAULT_ZOOM } from './Toolbar';

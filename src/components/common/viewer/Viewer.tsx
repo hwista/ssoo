@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import type { TocItem } from '../page/Sidecar';
-import { ViewerToolbar, ZOOM_LEVELS, DEFAULT_ZOOM } from './ViewerToolbar';
-import { ViewerContent, DOCUMENT_WIDTH } from './ViewerContent';
+import { Toolbar, ZOOM_LEVELS, DEFAULT_ZOOM } from './Toolbar';
+import { Content, DOCUMENT_WIDTH } from './Content';
 
 /**
  * Viewer Props
@@ -221,7 +221,7 @@ export function Viewer({
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* 툴바 */}
-      <ViewerToolbar
+      <Toolbar
         maxWidth={DOCUMENT_WIDTH}
         toc={toc}
         onTocClick={handleTocClick}
@@ -240,7 +240,7 @@ export function Viewer({
       />
 
       {/* 본문 */}
-      <ViewerContent
+      <Content
         content={displayContent}
         zoomLevel={zoomLevel}
         contentRef={contentRef}
