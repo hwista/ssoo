@@ -1,6 +1,6 @@
 # DMS 개발 가이드
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-02-03
 
 DMS 개발 시 참고해야 할 가이드 문서입니다.
 
@@ -10,6 +10,7 @@ DMS 개발 시 참고해야 할 가이드 문서입니다.
 
 | 문서 | 설명 |
 |------|------|
+| [getting-started.md](getting-started.md) | **개발 환경 설정** - 설치, 환경변수, 실행 |
 | [api.md](api.md) | API 엔드포인트 - 파일 CRUD, 트리 조회 |
 | [components.md](components.md) | 컴포넌트 가이드 - 폴더 구조, 네이밍 규칙 |
 | [hooks.md](hooks.md) | 커스텀 훅 - useEditor, useOpenTabWithConfirm |
