@@ -2,7 +2,7 @@
 
 > DMS(도큐먼트 관리 시스템) 로컬 개발 환경 구성 방법
 
-**마지막 업데이트**: 2026-02-03
+**마지막 업데이트**: 2026-02-04
 
 ---
 
@@ -11,9 +11,15 @@
 1. [사전 요구사항](#사전-요구사항)
 2. [설치 방법](#설치-방법)
 3. [환경 변수 설정](#환경-변수-설정)
-4. [개발 서버 실행](#개발-서버-실행)
-5. [문서 저장소 설정](#문서-저장소-설정)
-6. [문제 해결](#문제-해결)
+4. [문서 저장소 설정](#문서-저장소-설정)
+5. [의존성 설치](#의존성-설치)
+6. [개발 서버 실행](#개발-서버-실행)
+7. [포트 설정](#포트-설정)
+8. [개발 명령어](#개발-명령어)
+9. [문제 해결](#문제-해결)
+10. [다음 단계](#다음-단계)
+11. [관련 문서 / 지원](#관련-문서--지원)
+12. [Changelog](#changelog)
 
 ---
 
@@ -58,14 +64,13 @@ DMS는 **독립 프로젝트**로 설계되어 있습니다:
 
 ### 방법 1: 모노레포에서 실행 (권장)
 
-모노레포(`hwista-ssoo`)를 이미 클론한 경우:
+모노레포(`sooo`)를 이미 클론한 경우:
 
 ```bash
 # 모노레포 루트로 이동
-cd hwista-ssoo
+cd sooo
 
-# 전체 의존성 설치
-pnpm install
+# 전체 의존성 설치는 [의존성 설치](#의존성-설치) 섹션 참조
 
 # DMS 개발 서버 실행
 pnpm dev:web-dms
@@ -79,8 +84,7 @@ DMS 디렉토리에서 직접 실행:
 # DMS 디렉토리로 이동
 cd apps/web/dms
 
-# 의존성 설치 (npm 사용)
-npm install
+# 의존성 설치는 [의존성 설치](#의존성-설치) 섹션 참조
 
 # 개발 서버 실행
 npm run dev
@@ -131,6 +135,50 @@ NODE_ENV=development
 
 ---
 
+## 문서 저장소 설정
+
+### 기본 저장소
+
+DMS는 위키 문서를 로컬 파일시스템에 저장합니다:
+
+```
+apps/web/dms/docs/wiki/     # 위키 콘텐츠 저장소
+```
+
+### 데이터 저장소
+
+Vector DB 및 메타데이터:
+
+```
+apps/web/dms/data/          # LanceDB, 메타데이터
+```
+
+### 초기 데이터
+
+DMS는 별도의 시드 데이터가 필요 없습니다. 앱 실행 시 자동으로 필요한 디렉토리가 생성됩니다.
+
+---
+
+## 의존성 설치
+
+### 모노레포에서 설치 (권장)
+
+```bash
+# 모노레포 루트에서
+cd sooo
+pnpm install
+```
+
+### DMS 단독 설치
+
+```bash
+# DMS 디렉토리에서
+cd apps/web/dms
+npm install
+```
+
+---
+
 ## 개발 서버 실행
 
 ### 명령어
@@ -157,36 +205,14 @@ http://localhost:3001
 - Environments: .env.local
 ```
 
-### 포트 설정
+---
+
+## 포트 설정
 
 | 서비스 | 포트 | URL |
 |--------|------|-----|
 | **DMS 프론트엔드** | 3001 | http://localhost:3001 |
 | **API Routes** | 3001 | http://localhost:3001/api/* |
-
----
-
-## 문서 저장소 설정
-
-### 기본 저장소
-
-DMS는 위키 문서를 로컬 파일시스템에 저장합니다:
-
-```
-apps/web/dms/docs/wiki/     # 위키 콘텐츠 저장소
-```
-
-### 데이터 저장소
-
-Vector DB 및 메타데이터:
-
-```
-apps/web/dms/data/          # LanceDB, 메타데이터
-```
-
-### 초기 데이터
-
-DMS는 별도의 시드 데이터가 필요 없습니다. 앱 실행 시 자동으로 필요한 디렉토리가 생성됩니다.
 
 ---
 
@@ -218,11 +244,14 @@ pnpm --filter web-dms dev # 필터 방식
 
 **해결**:
 ```bash
-# Windows
+# Linux / macOS / WSL
+lsof -ti:3001 | xargs kill -9
+
+# Windows (PowerShell)
 Get-Process -Id (Get-NetTCPConnection -LocalPort 3001).OwningProcess | Stop-Process -Force
 
-# Mac/Linux
-lsof -ti:3001 | xargs kill -9
+# Windows (CMD)
+for /f "tokens=5" %a in ('netstat -ano ^| findstr :3001') do taskkill /PID %a /F
 ```
 
 ### 2. LanceDB 오류
@@ -231,8 +260,16 @@ lsof -ti:3001 | xargs kill -9
 
 **해결**:
 ```bash
-# data 폴더 삭제 후 재시작
+# Linux / macOS / WSL
 rm -rf apps/web/dms/data
+npm run dev
+
+# Windows (PowerShell)
+Remove-Item -Recurse -Force apps/web/dms/data
+npm run dev
+
+# Windows (CMD)
+rmdir /s /q apps\web\dms\data
 npm run dev
 ```
 
@@ -258,8 +295,19 @@ curl -H "Content-Type: application/json" \
 
 **해결**:
 ```bash
-# 캐시 정리 후 재설치
+# Linux / macOS / WSL
 rm -rf node_modules package-lock.json
+npm cache clean --force
+npm install
+
+# Windows (PowerShell)
+Remove-Item -Recurse -Force node_modules, package-lock.json -ErrorAction SilentlyContinue
+npm cache clean --force
+npm install
+
+# Windows (CMD)
+rmdir /s /q node_modules 2>nul
+del package-lock.json 2>nul
 npm cache clean --force
 npm install
 ```
@@ -268,10 +316,34 @@ npm install
 
 **해결**:
 ```bash
-# TypeScript 재컴파일
+# Linux / macOS / WSL
 rm -rf .next
 npm run build
+
+# Windows (PowerShell)
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+npm run build
+
+# Windows (CMD)
+rmdir /s /q .next 2>nul
+npm run build
 ```
+
+### 6. SSL 인증서 오류 (회사 네트워크/프록시 환경)
+
+**증상**: `npm install` 시 `ECONNRESET`, `self-signed certificate` 오류
+
+**해결 (명령어별 임시 적용)**:
+```bash
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm install
+```
+
+**해결 (영구 적용)** - `~/.bashrc` 또는 `~/.zshrc`에 추가:
+```bash
+export NODE_TLS_REJECT_UNAUTHORIZED=0
+```
+
+> ⚠️ 이 설정은 보안을 약화시키므로 개발 환경에서만 사용하세요.
 
 ---
 
@@ -280,6 +352,7 @@ npm run build
 개발 환경 설정이 완료되었습니다! 이제:
 
 1. **위키 접속**: http://localhost:3001 접속
+
 2. **문서 작성**: 좌측 트리에서 "새로 만들기"
 
 3. **개발 문서 확인**:
@@ -294,11 +367,21 @@ npm run build
 
 ---
 
-## 관련 문서
+## 관련 문서 / 지원
+
+### 관련 문서
 
 - [DMS README](../../README.md) - 프로젝트 개요
 - [AGENTS.md](./AGENTS.md) - 에이전트 학습 가이드
 - [모노레포 통합 가이드](../../../../docs/dms/architecture/git-subtree-integration.md)
+- [서비스 개요](./domain/service-overview.md)
+- [기술 스택](./architecture/tech-stack.md)
+
+### 지원
+
+문제가 계속되면:
+- GitHub Issues: https://github.com/hwista/sooo/issues
+- 내부 문의: 개발팀
 
 ---
 
@@ -306,4 +389,6 @@ npm run build
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-04 | SSL 인증서 오류 해결법 추가 (회사 네트워크 환경) |
+| 2026-02-04 | OS별 CLI 명령어 구분, 문서 구조 표준화 |
 | 2026-02-03 | DMS 개발 환경 설정 가이드 최초 작성 |
