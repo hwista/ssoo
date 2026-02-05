@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Toolbar } from './Toolbar';
 import { Content } from './Content';
 import { useEditor } from '@/hooks/useEditor';
-import { useEditorStore } from '@/stores';
+import { useEditorStore, useTabStore } from '@/stores';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useToast } from '@/lib/toast';
 
@@ -52,6 +52,9 @@ export function Editor({ className }: EditorProps) {
     saveFileKeepEditing: storeSaveFileKeepEditing,
     refreshFileMetadata,
   } = useEditorStore();
+
+  // 탭 스토어 (새 문서 저장 시 탭 업데이트용)
+  const { activeTabId, updateTab, closeTab, openTab } = useTabStore();
 
   // 에디터 모드 (block | markdown)
   const [editorMode, setEditorMode] = React.useState<EditorMode>('block');
@@ -125,7 +128,7 @@ export function Editor({ className }: EditorProps) {
   // =====================
   const handleSave = React.useCallback(async () => {
     if (isCreateMode) {
-      // TODO: 새 문서 저장 - 파일 경로 입력 다이얼로그 필요
+      // 새 문서 저장 - 파일 경로 입력 다이얼로그
       const newFileName = prompt('파일 이름을 입력하세요 (예: docs/새문서.md)');
       if (!newFileName) return;
       
@@ -133,7 +136,13 @@ export function Editor({ className }: EditorProps) {
         await storeSaveFile(newFileName, editorContent);
         setIsEditing(false);
         showSuccess('생성 완료', '새 문서가 생성되었습니다.');
-        // TODO: 탭 경로 업데이트
+        
+        // 탭 경로 업데이트: /wiki/new → /doc/{newFileName}
+        if (activeTabId) {
+          const newPath = `/doc/${encodeURIComponent(newFileName)}`;
+          const title = newFileName.split('/').pop() || newFileName;
+          updateTab(activeTabId, { path: newPath, title });
+        }
       } catch (error) {
         showError('생성 실패', '문서 생성 중 오류가 발생했습니다.');
       }
@@ -151,7 +160,7 @@ export function Editor({ className }: EditorProps) {
     } catch (error) {
       showError('저장 실패', '파일 저장 중 오류가 발생했습니다.');
     }
-  }, [isCreateMode, currentFilePath, editorContent, storeSaveFile, save, setIsEditing, showSuccess, showError]);
+  }, [isCreateMode, currentFilePath, editorContent, storeSaveFile, save, setIsEditing, showSuccess, showError, activeTabId, updateTab]);
 
   // 임시 저장 (편집 모드 유지)
   const handleTempSave = React.useCallback(async () => {
@@ -182,10 +191,17 @@ export function Editor({ className }: EditorProps) {
         return;
       }
     }
+    
+    // 새 문서 작성 취소 시 탭 닫기
+    if (isCreateMode && activeTabId) {
+      closeTab(activeTabId);
+      return;
+    }
+    
     resetContent(content);
     setHtmlContent(markdownToHtmlSync(content));
     setIsEditing(false);
-  }, [hasUnsavedChanges, content, resetContent, setIsEditing]);
+  }, [hasUnsavedChanges, content, resetContent, setIsEditing, isCreateMode, activeTabId, closeTab]);
 
   // =====================
   // 키보드 단축키

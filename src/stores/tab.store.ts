@@ -39,6 +39,7 @@ interface TabStoreActions {
   closeAllTabs: () => void;
   closeOldestTab: () => void;
   updateTabTitle: (tabId: string, title: string) => void;
+  updateTab: (tabId: string, updates: Partial<Pick<TabItem, 'title' | 'path' | 'icon'>>) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   getActiveTab: () => TabItem | undefined;
 }
@@ -169,6 +170,14 @@ export const useTabStore = create<TabStore>()(
         set((state) => ({
           tabs: state.tabs.map((t) =>
             t.id === tabId ? { ...t, title } : t
+          ),
+        }));
+      },
+
+      updateTab: (tabId: string, updates: Partial<Pick<TabItem, 'title' | 'path' | 'icon'>>): void => {
+        set((state) => ({
+          tabs: state.tabs.map((t) =>
+            t.id === tabId ? { ...t, ...updates } : t
           ),
         }));
       },
