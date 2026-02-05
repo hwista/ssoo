@@ -3,8 +3,8 @@ import type { SidebarState, SidebarActions, SidebarSection } from '@/types';
 
 interface SidebarStore extends SidebarState, SidebarActions {}
 
-// 기본 펼쳐진 섹션
-const DEFAULT_EXPANDED_SECTIONS: SidebarSection[] = ['bookmarks', 'openTabs', 'fileTree'];
+// 기본 펼쳐진 섹션 (PMS 패턴: openTabs는 닫힌 채로 시작)
+const DEFAULT_EXPANDED_SECTIONS: SidebarSection[] = ['bookmarks', 'fileTree'];
 
 export const useSidebarStore = create<SidebarStore>()((set, get) => ({
   // Initial State
