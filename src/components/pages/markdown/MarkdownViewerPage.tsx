@@ -4,17 +4,26 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTabStore, useEditorStore } from '@/stores';
 import { DocPageTemplate } from '@/components/templates';
 import { Viewer } from '@/components/common/viewer';
+import { Editor } from '@/components/common/editor';
 import { type TocItem } from '@/components/common/page';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
-import { MarkdownEditor } from '@/components/common/editor';
+
+/**
+ * 페이지 모드
+ * - viewer: 문서 읽기
+ * - editor: 기존 문서 편집
+ * - create: 새 문서 작성
+ */
+type PageMode = 'viewer' | 'editor' | 'create';
 
 /**
  * 마크다운 문서 뷰어/에디터 페이지
  * 
- * Phase 7 업데이트:
+ * Phase 8 업데이트:
+ * - 에디터 모드: 새 Editor 컴포넌트 (Viewer 패턴)
+ * - 생성 모드: /wiki/new 경로에서 새 문서 작성
  * - 공통 레이아웃: DocPageTemplate (Breadcrumb + Header + Sidecar)
  * - 뷰어 모드: Viewer 슬롯 삽입
- * - 에디터 모드: MarkdownEditor 슬롯 삽입
  * 
  * PMS 패턴:
  * - SidebarFileTree는 openTab()만 호출
@@ -22,24 +31,34 @@ import { MarkdownEditor } from '@/components/common/editor';
  */
 export function MarkdownViewerPage() {
   const { activeTabId, tabs } = useTabStore();
-  const { loadFile, isLoading, error, content, isEditing, setIsEditing, fileMetadata } = useEditorStore();
+  const { loadFile, isLoading, error, content, isEditing, setIsEditing, fileMetadata, setContent, reset } = useEditorStore();
   
   // 에디터 모드 상태 (로컬)
-  const [mode, setMode] = useState<'viewer' | 'editor'>('viewer');
+  const [mode, setMode] = useState<PageMode>('viewer');
 
-  // Store의 isEditing과 동기화
+  // Store의 isEditing과 동기화 (create 모드는 제외)
   useEffect(() => {
-    setMode(isEditing ? 'editor' : 'viewer');
-  }, [isEditing]);
+    if (mode !== 'create') {
+      setMode(isEditing ? 'editor' : 'viewer');
+    }
+  }, [isEditing, mode]);
 
   // 활성 탭 찾기
   const activeTab = useMemo(() => {
     return tabs.find((tab) => tab.id === activeTabId);
   }, [tabs, activeTabId]);
 
+  // 새 문서 작성 모드인지 확인
+  const isCreateMode = useMemo(() => {
+    return activeTab?.path === '/wiki/new';
+  }, [activeTab?.path]);
+
   // 탭 경로에서 파일 경로 추출 (/doc/path/to/file.md → path/to/file.md)
   const filePath = useMemo(() => {
     if (!activeTab?.path) return null;
+    
+    // 새 문서 작성 모드
+    if (activeTab.path === '/wiki/new') return null;
     
     // /doc/ 접두사 제거
     const path = activeTab.path.replace(/^\/doc\//, '');
@@ -52,15 +71,26 @@ export function MarkdownViewerPage() {
     }
   }, [activeTab?.path]);
 
+  // 새 문서 작성 모드 진입
+  useEffect(() => {
+    if (isCreateMode) {
+      console.log('📄 새 문서 작성 모드');
+      reset(); // 에디터 상태 초기화
+      setContent('# 새 문서\n\n내용을 입력하세요...');
+      setMode('create');
+      setIsEditing(true);
+    }
+  }, [isCreateMode, reset, setContent, setIsEditing]);
+
   // 파일 경로가 변경되면 파일 로드 + 뷰어 모드로 전환
   useEffect(() => {
-    if (filePath) {
+    if (filePath && !isCreateMode) {
       console.log('📂 WikiViewerPage: 파일 로드 시작', { filePath });
       loadFile(filePath);
       setMode('viewer');
       setIsEditing(false);
     }
-  }, [filePath, loadFile, setIsEditing]);
+  }, [filePath, isCreateMode, loadFile, setIsEditing]);
 
   // HTML 콘텐츠 변환 (뷰어용)
   const htmlContent = useMemo(() => {
@@ -136,14 +166,19 @@ export function MarkdownViewerPage() {
     console.log('저장');
   }, []);
 
-  // 취소 핸들러 (에디터 → 뷰어)
+  // 취소 핸들러 (에디터/생성 → 뷰어)
   const handleCancel = useCallback(() => {
+    if (isCreateMode) {
+      // 새 문서 작성 취소 시 탭 닫기
+      // TODO: 탭 닫기 로직
+      console.log('새 문서 작성 취소');
+    }
     setMode('viewer');
     setIsEditing(false);
-  }, [setIsEditing]);
+  }, [isCreateMode, setIsEditing]);
 
-  // 파일 경로가 없을 때
-  if (!filePath) {
+  // 파일 경로가 없고, 생성 모드도 아닐 때
+  if (!filePath && !isCreateMode) {
     return (
       <main className="flex-1 flex items-center justify-center bg-ssoo-content-bg/30">
         <p className="text-ssoo-primary/70">사이드바에서 파일을 선택해주세요.</p>
@@ -155,13 +190,13 @@ export function MarkdownViewerPage() {
   return (
     <main className="flex-1 overflow-hidden bg-ssoo-content-bg/30">
       <DocPageTemplate
-        filePath={filePath}
-        mode={mode}
+        filePath={filePath || '새 문서.md'}
+        mode={mode === 'create' ? 'editor' : mode}
         metadata={metadata}
         onEdit={handleEdit}
         onSave={handleSave}
         onCancel={handleCancel}
-        onDelete={handleDelete}
+        onDelete={isCreateMode ? undefined : handleDelete}
         onPathClick={handlePathClick}
         loading={isLoading}
         error={error}
@@ -176,7 +211,7 @@ export function MarkdownViewerPage() {
             onSearch={handleSearch}
           />
         ) : (
-          <MarkdownEditor className="h-full" />
+          <Editor className="h-full" />
         )}
       </DocPageTemplate>
     </main>
