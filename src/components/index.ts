@@ -25,4 +25,4 @@
  */
 
 // Layout components - 앱 전역 레이아웃
-export * from './layout';
+export { AppLayout, Header, Sidebar, TabBar, ContentArea } from './layout';
