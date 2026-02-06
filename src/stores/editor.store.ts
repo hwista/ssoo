@@ -11,6 +11,14 @@ interface FileMetadata {
   size: number | null;
 }
 
+// 에디터 핸들러 (Editor 컴포넌트에서 등록)
+interface EditorHandlers {
+  save: () => Promise<void>;
+  tempSave: () => Promise<void>;
+  cancel: () => void;
+  autoSaveToggle: () => void;
+}
+
 interface EditorState {
   // 상태
   content: string;
@@ -19,6 +27,16 @@ interface EditorState {
   fileMetadata: FileMetadata;
   isLoading: boolean;
   error: string | null;
+  
+  // 에디터 UI 상태 (Header와 공유)
+  hasUnsavedChanges: boolean;
+  isAutoSaveEnabled: boolean;
+  autoSaveCountdown: number;
+  lastSaveTime: Date | null;
+  isSaving: boolean;
+  
+  // 에디터 핸들러 (Editor 컴포넌트에서 등록)
+  editorHandlers: EditorHandlers | null;
 }
 
 interface EditorActions {
@@ -26,6 +44,17 @@ interface EditorActions {
   setContent: (content: string) => void;
   setIsEditing: (editing: boolean) => void;
   setError: (error: string | null) => void;
+  
+  // 에디터 UI 상태 업데이트
+  setHasUnsavedChanges: (hasChanges: boolean) => void;
+  setIsAutoSaveEnabled: (enabled: boolean) => void;
+  setAutoSaveCountdown: (countdown: number) => void;
+  setLastSaveTime: (time: Date | null) => void;
+  setIsSaving: (saving: boolean) => void;
+  
+  // 에디터 핸들러 등록/해제
+  setEditorHandlers: (handlers: EditorHandlers) => void;
+  clearEditorHandlers: () => void;
   
   // 파일 로드
   loadFile: (path: string) => Promise<void>;
@@ -54,6 +83,16 @@ const initialState: EditorState = {
   },
   isLoading: false,
   error: null,
+  
+  // 에디터 UI 상태
+  hasUnsavedChanges: false,
+  isAutoSaveEnabled: false,
+  autoSaveCountdown: 0,
+  lastSaveTime: null,
+  isSaving: false,
+  
+  // 에디터 핸들러
+  editorHandlers: null,
 };
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -64,6 +103,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setIsEditing: (editing) => set({ isEditing: editing }),
   
   setError: (error) => set({ error }),
+  
+  // 에디터 UI 상태 업데이트
+  setHasUnsavedChanges: (hasChanges) => set({ hasUnsavedChanges: hasChanges }),
+  setIsAutoSaveEnabled: (enabled) => set({ isAutoSaveEnabled: enabled }),
+  setAutoSaveCountdown: (countdown) => set({ autoSaveCountdown: countdown }),
+  setLastSaveTime: (time) => set({ lastSaveTime: time }),
+  setIsSaving: (saving) => set({ isSaving: saving }),
+  
+  // 에디터 핸들러 등록/해제
+  setEditorHandlers: (handlers) => set({ editorHandlers: handlers }),
+  clearEditorHandlers: () => set({ editorHandlers: null }),
 
   loadFile: async (path) => {
     const timer = new PerformanceTimer('파일 로드');

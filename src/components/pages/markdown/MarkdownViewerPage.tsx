@@ -31,7 +31,24 @@ type PageMode = 'viewer' | 'editor' | 'create';
  */
 export function MarkdownViewerPage() {
   const { activeTabId, tabs } = useTabStore();
-  const { loadFile, isLoading, error, content, isEditing, setIsEditing, fileMetadata, setContent, reset } = useEditorStore();
+  const { 
+    loadFile, 
+    isLoading, 
+    error, 
+    content, 
+    isEditing, 
+    setIsEditing, 
+    fileMetadata, 
+    setContent, 
+    reset,
+    // 에디터 상태 (Header에 전달)
+    hasUnsavedChanges,
+    isAutoSaveEnabled,
+    autoSaveCountdown,
+    lastSaveTime,
+    isSaving,
+    editorHandlers,
+  } = useEditorStore();
   
   // 에디터 모드 상태 (로컬)
   const [mode, setMode] = useState<PageMode>('viewer');
@@ -160,22 +177,30 @@ export function MarkdownViewerPage() {
     console.log('폴더 이동:', path);
   }, []);
 
-  // 저장 핸들러 (에디터 모드용)
+  // 저장 핸들러 (에디터 모드용) - Store의 핸들러 사용
   const handleSave = useCallback(() => {
-    // TODO: 저장 로직
-    console.log('저장');
-  }, []);
+    editorHandlers?.save();
+  }, [editorHandlers]);
 
-  // 취소 핸들러 (에디터/생성 → 뷰어)
+  // 임시저장 핸들러
+  const handleTempSave = useCallback(() => {
+    editorHandlers?.tempSave();
+  }, [editorHandlers]);
+
+  // 취소 핸들러 (에디터/생성 → 뷰어) - Store의 핸들러 사용
   const handleCancel = useCallback(() => {
-    if (isCreateMode) {
-      // 새 문서 작성 취소 시 탭 닫기
-      // TODO: 탭 닫기 로직
-      console.log('새 문서 작성 취소');
+    if (editorHandlers) {
+      editorHandlers.cancel();
+    } else {
+      setMode('viewer');
+      setIsEditing(false);
     }
-    setMode('viewer');
-    setIsEditing(false);
-  }, [isCreateMode, setIsEditing]);
+  }, [editorHandlers, setIsEditing]);
+
+  // 자동저장 토글 핸들러 - Editor의 핸들러 사용
+  const handleAutoSaveToggle = useCallback(() => {
+    editorHandlers?.autoSaveToggle();
+  }, [editorHandlers]);
 
   // 파일 경로가 없고, 생성 모드도 아닐 때
   if (!filePath && !isCreateMode) {
@@ -196,11 +221,19 @@ export function MarkdownViewerPage() {
         onEdit={handleEdit}
         onSave={handleSave}
         onCancel={handleCancel}
+        onTempSave={handleTempSave}
         onDelete={isCreateMode ? undefined : handleDelete}
         onPathClick={handlePathClick}
         loading={isLoading}
         error={error}
         onRetry={() => filePath && loadFile(filePath)}
+        // 에디터 상태 (Header에 전달)
+        saving={isSaving}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isAutoSaveEnabled={isAutoSaveEnabled}
+        onAutoSaveToggle={handleAutoSaveToggle}
+        autoSaveCountdown={autoSaveCountdown}
+        lastSaveTime={lastSaveTime}
       >
         {/* 슬롯: 뷰어 또는 에디터 */}
         {mode === 'viewer' ? (

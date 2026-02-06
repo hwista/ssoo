@@ -51,6 +51,14 @@ export function Editor({ className }: EditorProps) {
     saveFile: storeSaveFile,
     saveFileKeepEditing: storeSaveFileKeepEditing,
     refreshFileMetadata,
+    // 에디터 상태 공유용
+    setEditorHandlers,
+    clearEditorHandlers,
+    setHasUnsavedChanges: setStoreHasUnsavedChanges,
+    setIsAutoSaveEnabled: setStoreIsAutoSaveEnabled,
+    setAutoSaveCountdown: setStoreAutoSaveCountdown,
+    setLastSaveTime: setStoreLastSaveTime,
+    setIsSaving: setStoreIsSaving,
   } = useEditorStore();
 
   // 탭 스토어 (새 문서 저장 시 탭 업데이트용)
@@ -87,6 +95,29 @@ export function Editor({ className }: EditorProps) {
       showSuccess('자동 저장', '자동 저장이 완료되었습니다.');
     },
   });
+
+  // =====================
+  // Store에 에디터 상태 동기화
+  // =====================
+  React.useEffect(() => {
+    setStoreHasUnsavedChanges(hasUnsavedChanges);
+  }, [hasUnsavedChanges, setStoreHasUnsavedChanges]);
+
+  React.useEffect(() => {
+    setStoreIsAutoSaveEnabled(isAutoSaveEnabled);
+  }, [isAutoSaveEnabled, setStoreIsAutoSaveEnabled]);
+
+  React.useEffect(() => {
+    setStoreAutoSaveCountdown(autoSaveCountdown);
+  }, [autoSaveCountdown, setStoreAutoSaveCountdown]);
+
+  React.useEffect(() => {
+    setStoreLastSaveTime(lastSaveTime);
+  }, [lastSaveTime, setStoreLastSaveTime]);
+
+  React.useEffect(() => {
+    setStoreIsSaving(isSaving);
+  }, [isSaving, setStoreIsSaving]);
 
   // 파일 내용 변경 시 에디터 리셋
   React.useEffect(() => {
@@ -204,6 +235,48 @@ export function Editor({ className }: EditorProps) {
   }, [hasUnsavedChanges, content, resetContent, setIsEditing, isCreateMode, activeTabId, closeTab]);
 
   // =====================
+  // 자동저장 토글 핸들러
+  // =====================
+  const handleAutoSaveToggle = React.useCallback(() => {
+    setAutoSaveEnabled(!isAutoSaveEnabled);
+  }, [isAutoSaveEnabled, setAutoSaveEnabled]);
+
+  // =====================
+  // Store에 핸들러 등록 (Header에서 사용)
+  // Ref를 사용하여 핸들러 변경 시 Store를 업데이트하지 않음
+  // =====================
+  const handlersRef = React.useRef({
+    save: handleSave,
+    tempSave: handleTempSave,
+    cancel: handleCancel,
+    autoSaveToggle: handleAutoSaveToggle,
+  });
+
+  // 핸들러가 변경되면 ref 업데이트 (Store 업데이트 없음)
+  React.useEffect(() => {
+    handlersRef.current = {
+      save: handleSave,
+      tempSave: handleTempSave,
+      cancel: handleCancel,
+      autoSaveToggle: handleAutoSaveToggle,
+    };
+  }, [handleSave, handleTempSave, handleCancel, handleAutoSaveToggle]);
+
+  // 마운트 시 한 번만 Store에 핸들러 등록
+  React.useEffect(() => {
+    setEditorHandlers({
+      save: () => handlersRef.current.save(),
+      tempSave: () => handlersRef.current.tempSave(),
+      cancel: () => handlersRef.current.cancel(),
+      autoSaveToggle: () => handlersRef.current.autoSaveToggle(),
+    });
+    
+    return () => {
+      clearEditorHandlers();
+    };
+  }, [setEditorHandlers, clearEditorHandlers]);
+
+  // =====================
   // 키보드 단축키
   // =====================
   React.useEffect(() => {
@@ -243,22 +316,11 @@ export function Editor({ className }: EditorProps) {
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      {/* 툴바 */}
+      {/* 툴바 - 모드 전환만 */}
       <Toolbar
         maxWidth={DOCUMENT_WIDTH}
         mode={editorMode}
         onModeChange={handleModeChange}
-        onSave={handleSave}
-        onTempSave={handleTempSave}
-        onCancel={handleCancel}
-        saving={isSaving}
-        hasUnsavedChanges={hasUnsavedChanges}
-        isAutoSaveEnabled={isAutoSaveEnabled}
-        onAutoSaveToggle={() => setAutoSaveEnabled(!isAutoSaveEnabled)}
-        autoSaveCountdown={autoSaveCountdown}
-        lastSaveTime={lastSaveTime}
-        lineCount={editorContent.split('\n').length}
-        charCount={editorContent.length}
       />
 
       {/* 본문 */}

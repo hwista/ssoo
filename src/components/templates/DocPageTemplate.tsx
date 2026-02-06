@@ -38,9 +38,20 @@ export interface DocPageTemplateProps {
   onEdit?: () => void;
   onSave?: () => void;
   onCancel?: () => void;
+  onTempSave?: () => void;
   onDelete?: () => void;
   onHistory?: () => void;
   onPathClick?: (path: string) => void;
+  
+  /** 저장 상태 */
+  saving?: boolean;
+  hasUnsavedChanges?: boolean;
+  
+  /** 자동저장 */
+  isAutoSaveEnabled?: boolean;
+  onAutoSaveToggle?: () => void;
+  autoSaveCountdown?: number;
+  lastSaveTime?: Date | null;
   
   /** 로딩/에러 상태 */
   loading?: boolean;
@@ -82,9 +93,16 @@ export function DocPageTemplate({
   onEdit,
   onSave,
   onCancel,
+  onTempSave,
   onDelete,
   onHistory,
   onPathClick,
+  saving = false,
+  hasUnsavedChanges = false,
+  isAutoSaveEnabled = false,
+  onAutoSaveToggle,
+  autoSaveCountdown = 0,
+  lastSaveTime,
   loading = false,
   error,
   onRetry,
@@ -168,8 +186,15 @@ export function DocPageTemplate({
         onEdit={onEdit}
         onSave={onSave}
         onCancel={onCancel}
+        onTempSave={onTempSave}
         onDelete={onDelete}
         onHistory={onHistory}
+        saving={saving}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isAutoSaveEnabled={isAutoSaveEnabled}
+        onAutoSaveToggle={onAutoSaveToggle}
+        autoSaveCountdown={autoSaveCountdown}
+        lastSaveTime={lastSaveTime}
       />
 
       {/* 콘텐츠 영역 - 너비 측정용 ref */}
