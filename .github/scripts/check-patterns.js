@@ -6,6 +6,7 @@
  * 1. 와일드카드 export 금지
  * 2. any 타입 사용 금지 (타입 정의 제외)
  * 3. console.log 잔류 금지 (개발용)
+ * 4. 디렉토리명 prefix 사용 금지 (DMS)
  * 
  * @usage node .github/scripts/check-patterns.js [files...]
  */
@@ -37,6 +38,47 @@ const RULES = [
     severity: 'warning',
     exclude: ['node_modules', 'dist', '.next', 'scripts/', '.github/scripts/', '*.config.*'],
     filePattern: /\.(ts|tsx|js|jsx)$/,
+  },
+];
+
+// 디렉토리 prefix 검증 규칙 (파일명 기반)
+const NAMING_RULES = [
+  {
+    name: 'directory-prefix',
+    message: '파일명에 디렉토리명 prefix 사용 금지: 예) editor/EditorToolbar.tsx → editor/Toolbar.tsx',
+    severity: 'error',
+    // DMS 컴포넌트 디렉토리만 검사
+    pathPattern: /apps\/web\/dms\/src\/components\//,
+    exclude: ['node_modules', 'dist', '.next', 'index.ts', 'index.tsx'],
+    filePattern: /\.(tsx)$/,
+    check: (filePath) => {
+      const parts = filePath.split(path.sep);
+      const fileName = parts[parts.length - 1];
+      const dirName = parts[parts.length - 2];
+      
+      // index 파일은 무시
+      if (fileName === 'index.ts' || fileName === 'index.tsx') {
+        return null;
+      }
+      
+      // 디렉토리명의 첫 글자를 대문자로
+      const dirPrefix = dirName.charAt(0).toUpperCase() + dirName.slice(1);
+      const fileBaseName = fileName.replace(/\.(tsx?)$/, '');
+      
+      // 파일명이 디렉토리명으로 시작하고, 디렉토리명 자체가 아닌 경우
+      // 예: editor/EditorToolbar.tsx (위반), editor/Editor.tsx (허용)
+      if (fileBaseName.startsWith(dirPrefix) && fileBaseName !== dirPrefix) {
+        return {
+          file: filePath,
+          line: 0,
+          rule: 'directory-prefix',
+          severity: 'error',
+          message: `파일명 '${fileName}'이 디렉토리명 '${dirName}' prefix를 사용함. '${fileBaseName.replace(dirPrefix, '')}.tsx'로 변경 권장`,
+          code: filePath,
+        };
+      }
+      return null;
+    },
   },
 ];
 
@@ -108,8 +150,30 @@ function main() {
   const allIssues = [];
 
   for (const filePath of args) {
+    // 코드 패턴 검사
     const issues = checkFile(filePath, RULES);
     allIssues.push(...issues);
+    
+    // 파일 명명 규칙 검사
+    for (const rule of NAMING_RULES) {
+      // 경로 패턴 확인
+      if (rule.pathPattern && !rule.pathPattern.test(filePath)) {
+        continue;
+      }
+      // 파일 패턴 확인
+      if (rule.filePattern && !rule.filePattern.test(filePath)) {
+        continue;
+      }
+      // 제외 패턴 확인
+      if (rule.exclude && shouldExclude(filePath, rule.exclude)) {
+        continue;
+      }
+      
+      const issue = rule.check(filePath);
+      if (issue) {
+        allIssues.push(issue);
+      }
+    }
   }
 
   // 결과 출력
