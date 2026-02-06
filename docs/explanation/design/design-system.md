@@ -176,9 +176,11 @@ font-family:
 
 ### 컨트롤 컨테이너 원칙 (⚠️ 중요)
 
-**원칙: 컨테이너 없이 컨트롤만 사용**
+**원칙: 요청한 컨트롤만 생성, 컨테이너로 감싸지 않음**
 
-대부분의 경우 컨트롤(`h-control-h`, `h-control-h-sm` 등)만 직접 사용하고, 별도의 컨테이너를 만들지 않습니다.
+AI가 컨트롤(버튼, 입력, 토글 등) 생성 요청을 받았을 때:
+- **요청한 컨트롤만 출력** - 컨테이너는 요청하지 않았으므로 추가하지 않음
+- 컨테이너가 필요하다고 판단되면 → **예외 보고 후 사용자 승인 필요**
 
 ```tsx
 // ✅ 올바른 예시: 컨테이너 없이 직접 배치
@@ -187,8 +189,8 @@ font-family:
   <Input className="h-control-h" />
 </div>
 
-// ❌ 금지 예시: 불필요한 컨테이너에 높이 지정
-<div className="h-control-h flex items-center">  {/* 컨테이너에 컨트롤 높이? */}
+// ❌ 금지 예시: 요청하지 않은 컨테이너에 높이 지정
+<div className="h-control-h flex items-center">  {/* 요청 안 함 */}
   <ToggleGroup>...</ToggleGroup>
 </div>
 ```
