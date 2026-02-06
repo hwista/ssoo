@@ -273,6 +273,36 @@ node .github/scripts/sdd-verify.js --quick
   @planner → @architect → @dba → @developer → @tester → @reviewer
 ```
 
+### 🔒 프로토콜 강제 호출
+
+> **중요**: `SDD 실행` 키워드 하나로 전체 프로세스가 실행됩니다.
+
+#### 마스터 키워드: `SDD 실행`
+
+```
+@orchestrator SDD 실행. [요청 내용]
+```
+
+→ 브리핑 → 확인 → 작업 → 검증 → 진행현황 → 커밋 제안 **전체 프로세스** 자동 실행
+
+#### 부분 실행 키워드
+
+| 키워드 | 실행 단계 | 정의 위치 |
+|--------|----------|----------|
+| `SDD 실행` | **전체** (1~5단계) | copilot-instructions.md > 마스터 키워드 |
+| `브리핑 필수` | 1번만 | copilot-instructions.md > 작업 시작 프로토콜 |
+| `검증 실행` | 3번만 | copilot-instructions.md > 검증 실행 순서 |
+| `진행현황` | 4번만 | copilot-instructions.md > 작업 완료 프로토콜 |
+| `커밋 전 확인` | 5번만 | copilot-instructions.md > 작업 종료 시 필수 출력 |
+
+#### 프로토콜 미이행 시 대응
+
+에이전트가 프로토콜을 따르지 않으면:
+
+```
+프로토콜 미이행. copilot-instructions.md의 "SDD 실행" 프로세스 전체를 따라주세요.
+```
+
 ---
 
 ## 🚀 실전 작업 가이드
@@ -518,6 +548,8 @@ node .github/scripts/check-patterns.js [files...]
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-06 | 마스터 키워드 `SDD 실행` 도입 - 전체 프로세스 단일 트리거 |
+| 2026-02-06 | 에이전트 프로토콜 강제 호출 가이드 추가 (강제 키워드, 미이행 시 대응) |
 | 2026-02-05 | 00-quick-start.md 추가 - 사람용 빠른 시작 가이드 (AI에게 뭐라고 말하면 되나요?) |
 | 2026-02-05 | 코어 스크립트를 .github/scripts/로 통일 (check-patterns.js, check-docs.js 추가) |
 | 2026-02-05 | 작업 완료 프로토콜 순서 수정 (검증→문서 최신화→커밋), 문서 전수 최신화 강조 |
