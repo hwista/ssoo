@@ -32,7 +32,7 @@
 │  2. 작업 수행                                                            │
 │     → 승인된 계획대로 실행                                               │
 │     → 에이전트 전환 시 "## 🔄 에이전트 전환" 표시                         │
-│     → 코드 변경 시: 빌드 테스트 필수 (tsc --noEmit 또는 pnpm build)       │
+│     → 코드 변경 시: 빌드 테스트 필수 (project.instructions.md 참조)       │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  3. 문서화 작업                                                          │
 │     → 작업 유형별 문서 매핑 기준에 따라 대상 문서 탐색                    │
@@ -84,6 +84,14 @@
 | **요청 요약** | [사용자 요청 한 줄 요약] |
 | **작업 유형** | [신규 개발 / 버그 수정 / 리팩토링 / 문서화] |
 | **영향 범위** | [수정할 파일/모듈 목록] |
+
+### 참조 인스트럭션
+> **작업 경로에 따라 해당 서비스 인스트럭션을 반드시 참조**
+
+| 경로 패턴 | 인스트럭션 파일 | 확인 |
+|----------|----------------|------|
+| [작업 경로 1] | [해당 인스트럭션] | ✅/❌ |
+| [작업 경로 2] | [해당 인스트럭션] | ✅/❌ |
 
 ### 영향 범위 탐색 결과
 > **탐색 방법**: grep/semantic_search로 코드+문서 전체 탐색
@@ -142,7 +150,7 @@
 
 ---
 
-### � 문서화 작업 매핑 기준 (Step 3)
+### 📝 문서화 작업 매핑 기준 (Step 3)
 
 > **작업 유형에 따라 대상 문서를 자동 탐색하고 업데이트합니다.**
 
@@ -174,9 +182,25 @@ grep -r "[규칙명|키워드]" --include="*.md" .
 | 탐색 결과 **문서 없음** | Diátaxis 분류 후 신규 생성 |
 | 탐색 결과 **다수 문서** | 전체 수정 + 영향 범위 목록 제시 |
 
+#### 문서 계층 원칙 검증 (필수)
+
+> **문서 작성/수정 시 반드시 계층 원칙 준수 여부를 확인합니다.**
+
+| 검증 항목 | 확인 내용 |
+|----------|----------|
+| **레포 특화 여부** | 이 내용이 특정 프로젝트에만 해당하는가? |
+| **배치 위치** | 코어(범용) vs 서비스(레포특화) vs 레포독스(배포용) |
+| **중복 여부** | 동일 내용이 다른 계층에 이미 존재하는가? |
+| **역참조 여부** | 코어→서비스, 깃헙독스→레포독스 참조 금지 |
+
+**위반 시 조치**:
+- 레포 특화 내용 → `instructions/project.instructions.md` 또는 해당 서비스 인스트럭션으로 이동
+- 중복 내용 → 원본 위치 명시 또는 하나로 통합
+- 역참조 → 참조 방향 수정 또는 내용 이동
+
 ---
 
-### �🔄 작업 진행 프로토콜 (중간 표시)
+### 🔄 작업 진행 프로토콜 (중간 표시)
 
 작업 진행 중 **에이전트 전환** 또는 **주요 단계 완료** 시 표시:
 
@@ -405,12 +429,9 @@ git add -A && git commit -m "[type]([scope]): [description]"
 
 ## 프로젝트 개요
 
-| 항목 | 값 |
-|------|-----|
-| **프로젝트명** | SSOO (삼삼오오) |
-| **목적** | SI/SM 조직의 Opportunity-Project-System 통합 업무 허브 |
-| **구조** | 모노레포 (pnpm workspace + Turborepo) |
-| **아키텍처** | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms) |
+> **레포 특화 내용은 `instructions/project.instructions.md` 참조**
+
+이 섹션은 각 프로젝트에 맞게 커스터마이즈해야 합니다.
 
 ---
 
@@ -457,17 +478,12 @@ git add -A && git commit -m "[type]([scope]): [description]"
 
 ### 6. 패키지 경계 준수
 
-```
-apps/server ──→ packages/database
-     ↓                 ↓
-apps/web/pms ──→ packages/types
+> 구체적인 패키지 구조는 `instructions/project.instructions.md` 참조
 
-apps/web/dms (독립 - @ssoo/* 참조 금지)
-```
-
-- apps → packages 방향만 허용
-- 역방향 참조 절대 금지
-- DMS는 독립 프로젝트 (npm 사용, 모노레포 패키지 미참조)
+**범용 원칙**:
+- 애플리케이션 → 패키지 방향만 참조 허용
+- 역방향 참조 절대 금지 (패키지가 앱을 참조 ❌)
+- 순환 참조 금지
 
 ### 7. 기존 코드 기반 일관성 유지
 
@@ -523,25 +539,9 @@ apps/web/dms (독립 - @ssoo/* 참조 금지)
 
 ## 🛠️ 기술 스택
 
-### 백엔드 (apps/server)
-- NestJS 10.x, TypeScript 5.x, Prisma 6.x
-- PostgreSQL 15+ (Multi-Schema: common, pms)
-- JWT 인증, bcrypt, class-validator
-- Swagger/OpenAPI (@nestjs/swagger)
+> **레포 특화 내용은 `instructions/project.instructions.md` 참조**
 
-### 프론트엔드 (apps/web/pms)
-- Next.js 15.x (App Router), React 19.x, TypeScript 5.x
-- Tailwind CSS 3.x, shadcn/ui (Radix primitives)
-- Zustand 5.x (상태 관리), TanStack Query 5.x (서버 상태)
-- TanStack Table 8.x (테이블), React Hook Form + Zod (폼/검증)
-
-### DMS (apps/web/dms)
-- Next.js 15.x, React 19.x (npm 독립)
-- Tiptap 에디터, MUI Tree View
-
-### 패키지
-- `@ssoo/database`: Prisma 스키마, 트리거, 시드
-- `@ssoo/types`: 공유 타입 정의
+각 프로젝트의 기술 스택은 해당 프로젝트 인스트럭션에 정의됩니다.
 
 ---
 
@@ -554,9 +554,8 @@ apps/web/dms (독립 - @ssoo/* 참조 금지)
 | 유틸 | camelCase | `formatDate.ts` |
 | 타입/인터페이스 | PascalCase | `User`, `ProjectDto` |
 | 상수 | UPPER_SNAKE_CASE | `DEFAULT_PAGE_SIZE` |
-| NestJS 클래스 | PascalCase + 접미사 | `UserService`, `AuthController` |
-| DTO | PascalCase + Dto | `CreateUserDto` |
-| DB 테이블 | snake_case + 스키마 접두사 | `cm_user_m`, `pr_project_m` |
+
+> **레포 특화 네이밍 규칙 (클래스, DB 테이블 등)은 `instructions/project.instructions.md` 참조**
 
 ### 디렉토리-파일 명명 규칙 (Prefix 생략)
 
@@ -600,18 +599,6 @@ hooks → lib/api → stores
 - 상위 → 하위만 참조 가능
 - 역방향 참조 금지 (ui → pages ❌)
 - 순환 참조 금지
-
-### 백엔드 모듈 구조
-
-```
-modules/
-├── common/           # 공용 모듈 (auth, user, health)
-├── pms/              # PMS 도메인 모듈
-│   ├── project/
-│   ├── menu/
-│   └── pms.module.ts
-└── (dms/)            # 미래 확장
-```
 
 ---
 
@@ -699,13 +686,14 @@ export * from './components';
 1. **와일드카드 export** (`export * from`)
 2. **any 타입 사용** - unknown 또는 구체적 타입 사용
 3. **역방향 의존성** - ui가 pages 참조, packages가 apps 참조
-4. **DMS에서 @ssoo/* 패키지 import**
-5. **미사용 코드 커밋** - Dead Code는 삭제
-6. **BaseService 등 불필요한 추상화**
-7. **문서 업데이트 없이 코드만 커밋**
-8. **추정/추측으로 판단** - 증거 없이 "~일 것 같음" 금지
-9. **요청하지 않은 컨테이너 생성** - 컨트롤 요청 시 컨트롤만 생성
-10. **디렉토리명 prefix 사용** - `editor/EditorToolbar.tsx` → `editor/Toolbar.tsx`
+4. **미사용 코드 커밋** - Dead Code는 삭제
+5. **BaseService 등 불필요한 추상화**
+6. **문서 업데이트 없이 코드만 커밋**
+7. **추정/추측으로 판단** - 증거 없이 "~일 것 같음" 금지
+8. **요청하지 않은 컨테이너 생성** - 컨트롤 요청 시 컨트롤만 생성
+9. **디렉토리명 prefix 사용** - `editor/EditorToolbar.tsx` → `editor/Toolbar.tsx`
+
+> **레포 특화 금지 사항은 `instructions/project.instructions.md` 참조**
 
 ---
 
@@ -778,7 +766,7 @@ export * from './components';
 
 ---
 
-## � 품질 체크포인트 프레임워크
+## 🏆 품질 체크포인트 프레임워크
 
 > **깃헙독스의 핵심 역할**: 품질에 영향을 끼치는 모든 영역에 대해 "정의해야 할 것"을 명시
 > 세부 규칙은 레포독스(docs/)에, 규칙이 필요하다는 사실 자체는 깃헙독스(.github/)에서 관리
@@ -828,16 +816,14 @@ export * from './components';
 
 ---
 
-## �📚 상세 규칙 참조
+## 📚 상세 규칙 참조
 
-경로별 상세 규칙은 다음 파일들을 참조:
+경로별 상세 규칙은 `.github/instructions/` 폴더의 파일들을 참조:
 
-- `server.instructions.md` - NestJS 백엔드 규칙
-- `pms.instructions.md` - PMS 프론트엔드 규칙
-- `dms.instructions.md` - DMS 프론트엔드 규칙
-- `database.instructions.md` - 데이터베이스/Prisma 규칙
-- `types.instructions.md` - 타입 패키지 규칙
-- `testing.instructions.md` - 테스트 작성 규칙
+- `project.instructions.md` - 프로젝트 개요, 기술 스택, 패키지 경계
+- 각 서비스/도메인별 인스트럭션 파일 (경로 기반 자동 적용)
+
+> **작업 경로에 따라 해당 인스트럭션을 반드시 확인하세요.**
 
 ---
 
@@ -916,9 +902,12 @@ export * from './components';
 2. 깃헙독스 변경 시 **레포독스도 함께 업데이트**
 3. check-docs.js가 **동기화 여부 검증** (향후 구현)
 
-### 레포독스 정본 위치 (모노레포 특수성)
+### 레포독스 정본 위치 (레포 특화)
 
-> SSOO 모노레포에서는 레포독스가 **두 곳**에 존재합니다.
+> **이 섹션은 레포 특화 내용입니다. 새 프로젝트에서는 수정/삭제하세요.**
+
+<!-- REPO-SPECIFIC-START -->
+SSOO 모노레포에서는 레포독스가 **두 곳**에 존재합니다.
 
 | 위치 | 역할 | 내용 |
 |------|------|------|
@@ -934,6 +923,7 @@ export * from './components';
 - DMS 작업 시 → `apps/web/dms/docs/` 참조
 - 모노레포 전체 구조 파악 시 → `docs/dms/` 참조
 - `docs/dms/`에서 상세 내용 → `apps/web/dms/docs/` 링크
+<!-- REPO-SPECIFIC-END -->
 
 ### 🔴 문서 역할 구분 요약
 
@@ -1026,6 +1016,10 @@ docs/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-06 | 레포 특화 내용 분리 (project.instructions.md 신설, 프로젝트 개요/기술스택/패키지경계 이동) |
+| 2026-02-06 | 브리핑 양식에 "참조 인스트럭션" 항목 추가 (작업 경로→인스트럭션 매핑) |
+| 2026-02-06 | 문서화 단계에 계층 원칙 검증 추가 (레포 특화/배치 위치/중복/역참조 확인) |
+| 2026-02-06 | 빌드 명령어 플레이스홀더화 (project.instructions.md 참조) |
 | 2026-02-06 | SDD 실행 프로세스 6단계로 확장 (문서화 단계 신설, 검증 4단계화) |
 | 2026-02-06 | 브리핑에 영향 범위 탐색 결과 양식 추가 (grep/semantic_search 쿼리 명시) |
 | 2026-02-06 | 문서화 작업 매핑 기준 섹션 신설 (작업 유형별 문서 위치/탐색 방법) |
