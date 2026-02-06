@@ -43,6 +43,11 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
     return 'markdown';
   }
   
+  // 새 문서 작성 (/wiki/new)
+  if (tab.path === '/wiki/new') {
+    return 'markdown';
+  }
+  
   return null;
 }
 
