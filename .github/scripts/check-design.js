@@ -50,6 +50,10 @@ const DESIGN_RULES = [
               'min-h-\\[52px\\]',  // 표준 툴바 컨테이너
               'h-\\[53px\\]',      // TabBar
               'min-h-\\[44px\\]',  // 모달 헤더
+              'group.*h-control-h', // 인터랙티브 리스트 아이템 (hover 효과)
+              'h-control-h.*group', // 인터랙티브 리스트 아이템 (hover 효과)
+              'flex items-center.*h-control-h.*hover:', // 클릭 가능한 리스트 아이템
+              'h-control-h.*border-b', // 패널/섹션 헤더
             ];
             
             const isAllowed = allowedPatterns.some(allowed => 
@@ -132,9 +136,11 @@ const DESIGN_RULES = [
       // 예외 승인 패턴 (주석에 명시)
       const allowedOverridePattern = /design\/font-override|font-override/;
       
-      // 인라인 font-family 스타일 감지
+      // 인라인 폰트 스타일 감지 (font-family만 - font-size, font-weight는 허용)
       const customFontPatterns = isCssFile
-        ? [/font-family:\s*[^;]+;/gi]
+        ? [
+            /font-family:\s*[^;]+;/gi,
+          ]
         : [
             /font-\[['"]?[^'"\]]+['"]?\]/g,  // font-['custom']
             /fontFamily:\s*['"][^'"]+['"]/g,  // fontFamily: "custom"
@@ -147,10 +153,30 @@ const DESIGN_RULES = [
       const isConfigFile = filePath.includes('tailwind.config');
       const isGlobalCss = filePath.includes('globals.css');
       
+      // CSS에서 허용되는 컨텍스트 (body 정의, prose 등)
+      let inBodyBlock = false;
+      let inLayerBase = false;
+      
       lines.forEach((line, index) => {
         // 주석 무시
         if (line.trim().startsWith('//') || line.trim().startsWith('*') || line.trim().startsWith('/*')) {
           return;
+        }
+        
+        // CSS 파일에서 @layer base 및 body 블록 추적
+        if (isCssFile) {
+          if (line.includes('@layer base')) {
+            inLayerBase = true;
+          }
+          if (inLayerBase && line.includes('body')) {
+            inBodyBlock = true;
+          }
+          if (inBodyBlock && line.includes('}')) {
+            inBodyBlock = false;
+          }
+          if (line.trim() === '}' && inLayerBase && !line.includes('{')) {
+            // 간단한 블록 종료 추적 (완벽하지 않지만 기본적인 케이스 처리)
+          }
         }
         
         // 예외 승인 패턴 확인 (현재 줄 또는 이전 줄에 주석)
@@ -159,6 +185,11 @@ const DESIGN_RULES = [
         }
         // CSS 파일의 경우 이전 줄 주석도 확인
         if (isCssFile && index > 0 && allowedOverridePattern.test(lines[index - 1])) {
+          return;
+        }
+        
+        // globals.css의 body에서 font-family 정의는 허용 (전역 정의 위치)
+        if (isGlobalCss && inBodyBlock) {
           return;
         }
         
@@ -182,7 +213,7 @@ const DESIGN_RULES = [
                   line: index + 1,
                   rule: 'non-standard-font',
                   severity: 'warning',
-                  message: '개별 폰트 정의 금지. font-sans/font-mono 사용 또는 예외 승인 필요 (design-system.md 참조)',
+                  message: '개별 폰트 속성 정의 금지. Tailwind 클래스 또는 전역 정의 사용, 예외 시 design/font-override 주석 필요',
                   code: line.trim(),
                 });
               }
@@ -291,9 +322,9 @@ function main() {
     console.log(`\n총: ${errors.length} 오류, ${warnings.length} 경고, ${infos.length} 정보\n`);
   }
 
-  // 오류가 있으면 exit 1 (현재는 없으나 향후 확장 대비)
-  if (errors.length > 0) {
-    console.log('❌ 디자인 검증 실패: 오류를 수정 후 다시 시도하세요\n');
+  // 오류 또는 경고가 있으면 exit 1
+  if (errors.length > 0 || warnings.length > 0) {
+    console.log('❌ 디자인 검증 실패: 문제를 수정하거나 예외 승인(design/font-override 주석) 후 다시 시도하세요\n');
     process.exit(1);
   }
 

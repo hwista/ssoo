@@ -1,4 +1,4 @@
-﻿# 레이아웃 시스템 (Layout System)
+# 레이아웃 시스템 (Layout System)
 
 SSOO 프론트엔드의 레이아웃 구조 및 컴포넌트 문서입니다.
 

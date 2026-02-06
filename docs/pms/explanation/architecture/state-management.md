@@ -1,4 +1,4 @@
-﻿# 상태 관리 (State Management)
+# 상태 관리 (State Management)
 
 Zustand를 사용한 클라이언트 상태 관리 문서입니다.
 

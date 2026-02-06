@@ -1,4 +1,4 @@
-﻿# SSOO 변경 이력 (Changelog) - 인덱스
+# SSOO 변경 이력 (Changelog) - 인덱스
 
 > 전체 변경 이력 요약 및 영역별 문서 링크
 

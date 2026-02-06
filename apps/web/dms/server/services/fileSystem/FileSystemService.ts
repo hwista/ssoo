@@ -31,8 +31,10 @@ class FileSystemService {
   private log(level: 'info' | 'error', message: string, error?: unknown): void {
     const prefix = `[${this.name}]`;
     if (level === 'error') {
+      // eslint-disable-next-line no-console -- 서버 로깅
       console.error(prefix, message, error);
     } else {
+      // eslint-disable-next-line no-console -- 서버 로깅
       console.log(prefix, message);
     }
   }

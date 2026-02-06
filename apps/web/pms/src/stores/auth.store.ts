@@ -101,7 +101,6 @@ export const useAuthStore = create<AuthState>()(
             }
           } catch {
             // 401 에러 - Access Token 만료, refresh 시도
-            console.log('[AuthStore] Access token expired, trying refresh...');
           }
         }
 
@@ -119,14 +118,12 @@ export const useAuthStore = create<AuthState>()(
                 }
               }
             }
-          } catch (err) {
-            const message = err instanceof Error ? err.message : 'Unknown error';
-            console.log('[AuthStore] Refresh token failed:', message);
+          } catch {
+            // Refresh token failed
           }
         }
 
         // 모든 시도 실패 - 인증 초기화
-        console.log('[AuthStore] All auth attempts failed, clearing auth');
         get().clearAuth();
       },
 

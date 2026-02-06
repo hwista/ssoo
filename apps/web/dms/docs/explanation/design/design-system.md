@@ -86,14 +86,15 @@
 
 ### 3.1 폰트 스택
 
+> **PMS/DMS 통합 표준**: 두 앱 모두 동일한 시스템 폰트를 사용합니다.
+
 ```css
-/* 기본 폰트 (font-sans) */
+/* 기본 폰트 (font-sans) - 시스템 폰트 */
 font-family: 
-  "Pretendard Variable", Pretendard, 
   -apple-system, BlinkMacSystemFont, 
-  system-ui, Roboto, "Segoe UI", 
-  "Apple SD Gothic Neo", "Noto Sans KR", 
-  sans-serif;
+  'Segoe UI', Roboto, Oxygen, 
+  Ubuntu, Cantarell, 'Open Sans', 
+  'Helvetica Neue', sans-serif;
 
 /* 코드 폰트 (font-mono) */
 font-family: 

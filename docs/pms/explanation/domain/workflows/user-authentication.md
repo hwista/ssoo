@@ -1,4 +1,4 @@
-﻿# Workflow — 사용자 인증 (User Authentication)
+# Workflow — 사용자 인증 (User Authentication)
 
 ## 구현 상태
 

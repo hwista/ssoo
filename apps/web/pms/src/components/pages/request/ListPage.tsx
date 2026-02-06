@@ -124,12 +124,12 @@ export function RequestListPage() {
     alert('선택된 항목을 삭제합니다.');
   };
 
-  const handleSearch = useCallback((values: FilterValues) => {
-    console.log('검색:', values);
+  const handleSearch = useCallback((_values: FilterValues) => {
+    // TODO: 검색 기능 구현
   }, []);
 
   const handleReset = useCallback(() => {
-    console.log('검색 초기화');
+    // TODO: 검색 초기화 구현
   }, []);
 
   const handleRowClick = useCallback((row: RequestItem) => {

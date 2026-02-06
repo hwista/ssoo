@@ -124,20 +124,14 @@ export const useMenuStore = create<MenuStore>()((set, get) => ({
     set({ isLoading: true });
     try {
       const accessToken = useAuthStore.getState().accessToken;
-      console.log('[MenuStore] refreshMenu called, accessToken:', accessToken ? 'exists' : 'null');
       
       if (!accessToken) {
-        console.warn('[MenuStore] No access token available for menu refresh');
         set({ isLoading: false });
         return;
       }
       
       const response = await apiClient.get('/menus/my');
-      
-      console.log('[MenuStore] Menu API response status:', response.status);
-      
       const result = response.data;
-      console.log('[MenuStore] Menu API result:', result);
       
       if (result.success) {
         get().setMenus(

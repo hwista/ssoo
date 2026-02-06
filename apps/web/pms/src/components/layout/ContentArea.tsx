@@ -6,12 +6,12 @@ import { LoadingState } from '@/components/common/StateDisplay';
 
 // 페이지 컴포넌트 동적 import (named export 사용)
 const pageComponents: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
-  '/home': lazy(() => import('@/components/pages/home/HomeDashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
-  '/request': lazy(() => import('@/components/pages/request/RequestListPage').then(m => ({ default: m.RequestListPage }))),
-  '/request/create': lazy(() => import('@/components/pages/request/RequestCreatePage').then(m => ({ default: m.RequestCreatePage }))),
-  '/proposal': lazy(() => import('@/components/pages/proposal/ProposalListPage').then(m => ({ default: m.ProposalListPage }))),
-  '/execution': lazy(() => import('@/components/pages/execution/ExecutionListPage').then(m => ({ default: m.ExecutionListPage }))),
-  '/transition': lazy(() => import('@/components/pages/transition/TransitionListPage').then(m => ({ default: m.TransitionListPage }))),
+  '/home': lazy(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
+  '/request': lazy(() => import('@/components/pages/request/ListPage').then(m => ({ default: m.RequestListPage }))),
+  '/request/create': lazy(() => import('@/components/pages/request/CreatePage').then(m => ({ default: m.RequestCreatePage }))),
+  '/proposal': lazy(() => import('@/components/pages/proposal/ListPage').then(m => ({ default: m.ProposalListPage }))),
+  '/execution': lazy(() => import('@/components/pages/execution/ListPage').then(m => ({ default: m.ExecutionListPage }))),
+  '/transition': lazy(() => import('@/components/pages/transition/ListPage').then(m => ({ default: m.TransitionListPage }))),
 };
 
 /**

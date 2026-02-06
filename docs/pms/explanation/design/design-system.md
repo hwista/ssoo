@@ -267,6 +267,49 @@ hover:underline
 
 ---
 
+## 폰트 스택
+
+> **핵심 원칙**: 폰트는 전역에서 정의하고, 개별 컴포넌트는 상속받습니다.
+
+### 기본 폰트 (font-sans) - 시스템 폰트
+
+```css
+font-family: 
+  -apple-system, BlinkMacSystemFont, 
+  'Segoe UI', Roboto, Oxygen, 
+  Ubuntu, Cantarell, 'Open Sans', 
+  'Helvetica Neue', sans-serif;
+```
+
+### 코드 폰트 (font-mono)
+
+```css
+font-family: 
+  "Fira Code", "JetBrains Mono", 
+  "SF Mono", Monaco, Consolas, 
+  monospace;
+```
+
+### 정의 위치
+
+| 파일 | 역할 | 수정 가능 |
+|------|------|----------|
+| `globals.css` | `body`에 폰트 정의 | ✅ 유일한 정의 위치 |
+| 컴포넌트 | 상속받음 | ❌ 개별 정의 금지 |
+
+### 금지되는 패턴
+
+```tsx
+// ❌ 금지: 컴포넌트에서 직접 폰트 정의
+style={{ fontFamily: 'Arial, sans-serif' }}
+className="font-['Roboto']"
+
+// ✅ 허용: Tailwind 클래스 사용
+className="font-mono"  // 코드용
+```
+
+---
+
 ## 타이포그래피
 
 ### H1 - 페이지 제목

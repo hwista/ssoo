@@ -7,33 +7,31 @@ import { useTabStore } from '@/stores';
 import { ColumnDef } from '@tanstack/react-table';
 import type { FilterValues } from '@/components/common/page/Header';
 
-interface ProposalItem {
+interface TransitionItem {
   id: string;
-  proposalNo: string;
-  title: string;
+  transitionNo: string;
+  projectName: string;
   customerName: string;
   status: string;
-  createdAt: string;
-  amount: string;
+  handoffDate: string;
+  operationType: string;
 }
 
-const sampleData: ProposalItem[] = [
-  { id: '1', proposalNo: 'PRP-2026-001', title: '시스템 구축 제안', customerName: '삼성전자', status: '작성중', createdAt: '2026-01-15', amount: '50,000,000' },
-  { id: '2', proposalNo: 'PRP-2026-002', title: '유지보수 계약 제안', customerName: 'LG전자', status: '제출완료', createdAt: '2026-01-16', amount: '12,000,000' },
-  { id: '3', proposalNo: 'PRP-2026-003', title: '클라우드 마이그레이션', customerName: 'SK하이닉스', status: '협상중', createdAt: '2026-01-17', amount: '80,000,000' },
+const sampleData: TransitionItem[] = [
+  { id: '1', transitionNo: 'TRN-2026-001', projectName: 'ERP 시스템', customerName: '삼성전자', status: '전환중', handoffDate: '2026-01-31', operationType: '유지보수' },
+  { id: '2', transitionNo: 'TRN-2025-002', projectName: '인사관리 시스템', customerName: 'LG전자', status: '완료', handoffDate: '2025-12-31', operationType: '운영' },
+  { id: '3', transitionNo: 'TRN-2026-003', projectName: '재고관리 시스템', customerName: 'SK하이닉스', status: '대기', handoffDate: '2026-02-28', operationType: '유지보수' },
 ];
 
 const statusOptions = [
-  { label: '작성중', value: 'drafting' },
-  { label: '제출완료', value: 'submitted' },
-  { label: '협상중', value: 'negotiating' },
-  { label: '수주', value: 'won' },
-  { label: '실주', value: 'lost' },
+  { label: '대기', value: 'waiting' },
+  { label: '전환중', value: 'transitioning' },
+  { label: '완료', value: 'completed' },
 ];
 
-const columns: ColumnDef<ProposalItem>[] = [
-  { accessorKey: 'proposalNo', header: '제안번호', size: 130 },
-  { accessorKey: 'title', header: '제안명', size: 200 },
+const columns: ColumnDef<TransitionItem>[] = [
+  { accessorKey: 'transitionNo', header: '전환번호', size: 130 },
+  { accessorKey: 'projectName', header: '프로젝트명', size: 200 },
   { accessorKey: 'customerName', header: '고객사', size: 120 },
   {
     accessorKey: 'status',
@@ -42,11 +40,9 @@ const columns: ColumnDef<ProposalItem>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
       const colorMap: Record<string, string> = {
-        '작성중': 'bg-yellow-100 text-yellow-800',
-        '제출완료': 'bg-blue-100 text-blue-800',
-        '협상중': 'bg-green-100 text-green-800',
-        '수주': 'bg-purple-100 text-purple-800',
-        '실주': 'bg-gray-100 text-gray-800',
+        '대기': 'bg-yellow-100 text-yellow-800',
+        '전환중': 'bg-blue-100 text-blue-800',
+        '완료': 'bg-green-100 text-green-800',
       };
       return (
         <span className={`px-2 py-1 rounded text-xs font-medium ${colorMap[status] || 'bg-gray-100'}`}>
@@ -55,11 +51,11 @@ const columns: ColumnDef<ProposalItem>[] = [
       );
     },
   },
-  { accessorKey: 'amount', header: '제안금액', size: 120 },
-  { accessorKey: 'createdAt', header: '작성일', size: 100 },
+  { accessorKey: 'operationType', header: '운영유형', size: 100 },
+  { accessorKey: 'handoffDate', header: '전환일', size: 100 },
 ];
 
-export function ProposalListPage() {
+export function TransitionListPage() {
   const { openTab } = useTabStore();
   const [data] = useState(sampleData);
   const [page, setPage] = useState(1);
@@ -67,10 +63,10 @@ export function ProposalListPage() {
 
   const handleCreate = () => {
     openTab({
-      menuCode: 'proposal.create',
-      menuId: 'proposal.create',
-      title: '제안 등록',
-      path: '/proposal/create',
+      menuCode: 'transition.create',
+      menuId: 'transition.create',
+      title: '전환 등록',
+      path: '/transition/create',
     });
   };
 
@@ -78,26 +74,26 @@ export function ProposalListPage() {
     alert('선택된 항목을 삭제합니다.');
   };
 
-  const handleSearch = useCallback((values: FilterValues) => {
-    console.log('검색:', values);
+  const handleSearch = useCallback((_values: FilterValues) => {
+    // TODO: 검색 기능 구현
   }, []);
 
   const handleReset = useCallback(() => {
-    console.log('검색 초기화');
+    // TODO: 검색 초기화 구현
   }, []);
 
-  const handleRowClick = useCallback((row: ProposalItem) => {
+  const handleRowClick = useCallback((row: TransitionItem) => {
     openTab({
-      menuCode: `proposal.${row.id}`,
-      menuId: `proposal.${row.id}`,
-      title: `${row.proposalNo} - ${row.title}`,
-      path: `/proposal/${row.id}`,
+      menuCode: `transition.${row.id}`,
+      menuId: `transition.${row.id}`,
+      title: `${row.transitionNo} - ${row.projectName}`,
+      path: `/transition/${row.id}`,
     });
   }, [openTab]);
 
   return (
     <ListPageTemplate
-      breadcrumb={['제안', '제안 목록']}
+      breadcrumb={['전환', '전환 목록']}
       header={{
         collapsible: true,
         actions: [
@@ -114,8 +110,8 @@ export function ProposalListPage() {
           },
         ],
         filters: [
-          { key: 'proposalNo', type: 'text', placeholder: '제안번호' },
-          { key: 'title', type: 'text', placeholder: '제안명' },
+          { key: 'transitionNo', type: 'text', placeholder: '전환번호' },
+          { key: 'projectName', type: 'text', placeholder: '프로젝트명' },
           { key: 'customerName', type: 'text', placeholder: '고객사' },
           { key: 'status', type: 'select', placeholder: '상태', options: statusOptions },
         ],

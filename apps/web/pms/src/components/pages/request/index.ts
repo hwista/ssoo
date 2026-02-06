@@ -1,2 +1,2 @@
-export { RequestListPage } from './RequestListPage';
-export { RequestCreatePage } from './RequestCreatePage';
+export { RequestListPage } from './ListPage';
+export { RequestCreatePage } from './CreatePage';

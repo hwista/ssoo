@@ -1,1 +1,1 @@
-export { TransitionListPage } from './TransitionListPage';
+export { TransitionListPage } from './ListPage';

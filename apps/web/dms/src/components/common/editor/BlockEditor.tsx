@@ -17,7 +17,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import BlockToolbar from './BlockToolbar';
 import SlashCommand from './SlashCommand';
-import './editor.css';
+// editor.css 스타일은 globals.css로 통합됨
 
 const lowlight = createLowlight(common);
 
@@ -114,7 +114,17 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
     editable,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none focus:outline-none min-h-[200px] p-4',
+        // Viewer의 article과 동일한 스타일
+        class: [
+          'py-6 px-8',
+          'prose prose-base max-w-none font-sans',
+          'prose-headings:scroll-mt-4',
+          // 줄 간격, margin 통일
+          'prose-p:my-2 prose-p:leading-relaxed prose-li:leading-relaxed',
+          'prose-pre:bg-ssoo-content-bg prose-pre:text-ssoo-primary prose-pre:border-0 prose-pre:font-mono',
+          'prose-code:text-ssoo-primary prose-code:bg-ssoo-content-bg prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:border-0 prose-code:font-mono',
+          'focus:outline-none min-h-[200px]',
+        ].join(' '),
       },
     },
     onUpdate: ({ editor }) => {
@@ -158,7 +168,8 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
       editor?.commands.setContent(newContent);
     },
     focus: () => {
-      editor?.commands.focus();
+      // 'start': 문서 시작으로 포커스 (스크롤 아래로 내려가는 문제 방지)
+      editor?.commands.focus('start', { scrollIntoView: false });
     },
   }), [editor]);
 
@@ -175,6 +186,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
       {editable && (
         <BlockToolbar editor={editor} />
       )}
+      {/* prose는 .ProseMirror에 직접 적용됨 (globals.css) */}
       <div className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white">
         <EditorContent editor={editor} />
       </div>

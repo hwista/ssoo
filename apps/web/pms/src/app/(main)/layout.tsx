@@ -45,9 +45,7 @@ export default function MainLayout({
   // 인증 상태 확인 - 앱 시작 시 항상 서버에서 토큰 유효성 검증
   useEffect(() => {
     const check = async () => {
-      console.log('[MainLayout] Starting auth check...');
       await checkAuth();
-      console.log('[MainLayout] Auth check completed, isAuthenticated:', useAuthStore.getState().isAuthenticated);
       setIsChecking(false);
     };
     check();
@@ -57,7 +55,6 @@ export default function MainLayout({
   useEffect(() => {
     // isChecking이 끝나고, 인증된 상태이며, 메뉴가 비어있을 때만 로드
     if (!isChecking && !authLoading && isAuthenticated && generalMenus.length === 0) {
-      console.log('[MainLayout] Loading menu...');
       refreshMenu();
     }
   }, [isChecking, authLoading, isAuthenticated, generalMenus.length, refreshMenu]);
