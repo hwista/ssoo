@@ -174,10 +174,47 @@ font-family:
 **드롭다운/컨텍스트 메뉴**
 - 메뉴 항목 높이: `h-control-h` (표준 컨트롤과 동일)
 
-**컨트롤 컨테이너**
-- 표준 컨트롤(36px)을 담는 바/패널: `min-h-[52px] px-4 py-2` (36px + 상하 8px)
-- 적용 대상: 문서 Header, viewer/Toolbar, editor/EditorToolbar, 기타 툴바류
-- 예외: TabBar 컨테이너는 레이아웃 규칙(53px)
+### 컨트롤 컨테이너 원칙 (⚠️ 중요)
+
+**원칙: 컨테이너 없이 컨트롤만 사용**
+
+대부분의 경우 컨트롤(`h-control-h`, `h-control-h-sm` 등)만 직접 사용하고, 별도의 컨테이너를 만들지 않습니다.
+
+```tsx
+// ✅ 올바른 예시: 컨테이너 없이 직접 배치
+<div className="flex items-center gap-2">
+  <Button className="h-control-h">버튼</Button>
+  <Input className="h-control-h" />
+</div>
+
+// ❌ 금지 예시: 불필요한 컨테이너에 높이 지정
+<div className="h-control-h flex items-center">  {/* 컨테이너에 컨트롤 높이? */}
+  <ToggleGroup>...</ToggleGroup>
+</div>
+```
+
+**허용된 컨테이너 사용 케이스**:
+
+| 케이스 | 컨테이너 규격 | 예시 |
+|--------|-------------|------|
+| 툴바 바/패널 | `min-h-[52px] px-4 py-2` | Header, viewer/Toolbar |
+| TabBar | 레이아웃 규칙 (53px) | TabBar.tsx |
+| 모달/다이얼로그 | 별도 규정 | ConfirmDialog |
+
+**컨테이너 없이 구현할 수 없는 경우**:
+
+→ 반드시 예외 보고 후 진행 ([예외 보고 프로세스](.github/copilot-instructions.md))
+
+```markdown
+## ⚠️ 디자인 규칙 예외 요청
+
+| 항목 | 내용 |
+|------|------|
+| **위반 규칙** | 디자인 > 컨테이너 원칙 |
+| **위반 파일** | [파일 경로] |
+| **위반 사유** | [왜 컨테이너가 필요한지] |
+| **적용할 컨테이너 규격** | [min-h, padding 등] |
+```
 
 ### 5.1 버튼
 
@@ -350,3 +387,12 @@ font-family:
 
 - [components.md](../guides/components.md) - 컴포넌트 상세 가이드
 - [tech-stack.md](../architecture/tech-stack.md) - UI 라이브러리 정보
+
+---
+
+## Changelog
+
+| 날짜 | 변경 내용 |
+|------|----------|
+| 2026-02-06 | 컨트롤 컨테이너 원칙 추가 (컨테이너 없이 컨트롤만 사용, 예외 보고 프로세스) |
+| 2026-02-02 | 최초 작성 - 디자인 시스템 문서화 |
