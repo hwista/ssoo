@@ -1,6 +1,6 @@
 'use client';
 
-import { Extension } from '@tiptap/core';
+import { Extension, Editor, Range } from '@tiptap/core';
 import { ReactRenderer } from '@tiptap/react';
 import Suggestion, { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion';
 import tippy, { Instance as TippyInstance } from 'tippy.js';
@@ -16,7 +16,7 @@ interface CommandItem {
   title: string;
   description: string;
   icon: string;
-  command: (props: { editor: any; range: any }) => void;
+  command: (props: { editor: Editor; range: Range }) => void;
 }
 
 const commands: CommandItem[] = [
@@ -274,7 +274,7 @@ const SlashCommand = Extension.create({
     return {
       suggestion: {
         char: '/',
-        command: ({ editor, range, props }: { editor: any; range: any; props: CommandItem }) => {
+        command: ({ editor, range, props }: { editor: Editor; range: Range; props: CommandItem }) => {
           props.command({ editor, range });
         },
       } as Partial<SuggestionOptions>,

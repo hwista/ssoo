@@ -56,6 +56,8 @@ export function Content({
             'py-6 px-8',
             'prose prose-base max-w-none font-sans',
             'prose-headings:scroll-mt-4',
+            // 줄 간격, margin 통일
+            'prose-p:my-2 prose-p:leading-relaxed prose-li:leading-relaxed',
             // 코드 블록 스타일
             'prose-pre:bg-ssoo-content-bg prose-pre:text-ssoo-primary prose-pre:border-0 prose-pre:font-mono',
             // 인라인 코드

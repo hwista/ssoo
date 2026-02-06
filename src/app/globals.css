@@ -160,7 +160,9 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+      Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   }
   :root {
     --background: 0 0% 100%;
@@ -444,6 +446,7 @@ a:hover {
 .file-selected {
   background-color: #dbeafe;
   color: #1d4ed8;
+  /* design/font-override: 선택 상태 시각적 강조 */
   font-weight: 500;
 }
 
@@ -523,6 +526,7 @@ a:hover {
 .search-highlight {
   background-color: #fef3c7;
   color: #d97706;
+  /* design/font-override: 검색 결과 시각적 강조 */
   font-weight: 500;
   padding: 0 2px;
   border-radius: 2px;
@@ -789,6 +793,172 @@ a:hover {
 .dark .shadow-md,
 .dark .shadow-lg {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================
+   ProseMirror 에디터 스타일 (Tiptap)
+   - 기본 타이포그래피는 editorProps에서 prose 적용
+   - 여기서는 ProseMirror 고유 기능만 정의
+   ============================================ */
+
+/* 기본 에디터 레이아웃 */
+.ProseMirror {
+  @apply outline-none;
+}
+
+/* 헤딩 스타일 (prose 보완 - font-weight 명시) */
+.ProseMirror h1 {
+  @apply text-3xl font-bold leading-tight mt-6 mb-2;
+}
+
+.ProseMirror h2 {
+  @apply text-2xl font-semibold leading-snug mt-5 mb-2;
+}
+
+.ProseMirror h3 {
+  @apply text-xl font-semibold leading-snug mt-4 mb-2;
+}
+
+.ProseMirror h4 {
+  @apply text-lg font-semibold leading-normal mt-4 mb-2;
+}
+
+/* Placeholder 스타일 (ProseMirror 고유) */
+.ProseMirror p.is-editor-empty:first-child::before,
+.ProseMirror.is-editor-empty::before {
+  @apply text-gray-400 float-left h-0 pointer-events-none;
+  content: attr(data-placeholder);
+}
+
+/* Task List - 체크리스트 (prose에 없음, ProseMirror 고유) */
+.ProseMirror ul[data-type="taskList"] {
+  @apply list-none p-0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  @apply flex items-start gap-2;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  @apply flex-shrink-0 mt-1;
+}
+
+.ProseMirror ul[data-type="taskList"] li > div {
+  @apply flex-1;
+}
+
+.ProseMirror ul[data-type="taskList"] li input[type="checkbox"] {
+  @apply cursor-pointer w-4 h-4 accent-blue-600;
+}
+
+/* 코드 블록 구문 강조 (hljs - ProseMirror 고유) */
+.ProseMirror pre .hljs-comment,
+.ProseMirror pre .hljs-quote {
+  @apply text-gray-500;
+}
+
+.ProseMirror pre .hljs-variable,
+.ProseMirror pre .hljs-template-variable,
+.ProseMirror pre .hljs-attribute,
+.ProseMirror pre .hljs-tag,
+.ProseMirror pre .hljs-regexp,
+.ProseMirror pre .hljs-link,
+.ProseMirror pre .hljs-name,
+.ProseMirror pre .hljs-selector-id,
+.ProseMirror pre .hljs-selector-class {
+  @apply text-red-400;
+}
+
+.ProseMirror pre .hljs-number,
+.ProseMirror pre .hljs-meta,
+.ProseMirror pre .hljs-built_in,
+.ProseMirror pre .hljs-builtin-name,
+.ProseMirror pre .hljs-literal,
+.ProseMirror pre .hljs-type,
+.ProseMirror pre .hljs-params {
+  @apply text-amber-400;
+}
+
+.ProseMirror pre .hljs-string,
+.ProseMirror pre .hljs-symbol,
+.ProseMirror pre .hljs-bullet {
+  @apply text-emerald-400;
+}
+
+.ProseMirror pre .hljs-title,
+.ProseMirror pre .hljs-section {
+  @apply text-blue-400;
+}
+
+.ProseMirror pre .hljs-keyword,
+.ProseMirror pre .hljs-selector-tag {
+  @apply text-purple-400;
+}
+
+/* 테이블 선택/리사이즈 (ProseMirror 고유) */
+.ProseMirror .selectedCell:after {
+  @apply bg-blue-600/10 absolute inset-0 pointer-events-none z-[2];
+  content: '';
+}
+
+.ProseMirror .column-resize-handle {
+  @apply bg-blue-600 absolute -right-0.5 -bottom-0.5 top-0 w-1 pointer-events-none;
+}
+
+/* 이미지 선택 (ProseMirror 고유) */
+.ProseMirror img.ProseMirror-selectednode {
+  @apply outline-[3px] outline outline-blue-600;
+}
+
+/* 하이라이트 스타일 (prose에 없음) */
+.ProseMirror mark {
+  @apply bg-yellow-200 py-0.5;
+}
+
+/* 슬래시 커맨드 메뉴 스타일 */
+.slash-command-menu {
+  @apply min-w-[200px] max-w-xs;
+}
+
+.slash-command-menu button {
+  @apply border-none bg-transparent cursor-pointer;
+}
+
+.slash-command-menu button:focus {
+  @apply outline-none;
+}
+
+/* 포커스/선택 스타일 */
+.ProseMirror:focus {
+  @apply outline-none;
+}
+
+.ProseMirror ::selection {
+  @apply bg-blue-600/20;
+}
+
+/* Tippy 팝업 스타일 */
+.tippy-box[data-theme~='light-border'] {
+  @apply bg-white border border-gray-200 rounded-lg shadow-lg;
+}
+
+/* 반응형 */
+@media (max-width: 640px) {
+  .ProseMirror {
+    @apply p-3;
+  }
+
+  .ProseMirror h1 {
+    @apply text-2xl;
+  }
+
+  .ProseMirror h2 {
+    @apply text-xl;
+  }
+
+  .ProseMirror h3 {
+    @apply text-lg;
+  }
 }
 
 /* 에디터 다크 모드 */
