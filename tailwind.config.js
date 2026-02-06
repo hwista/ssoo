@@ -7,18 +7,15 @@ module.exports = {
   theme: {
   	extend: {
   		fontFamily: {
-  			// design-system.md 표준 폰트 스택
+  			// design-system.md 표준 폰트 스택 (시스템 폰트 우선)
   			sans: [
-  				'"Pretendard Variable"', 'Pretendard',
   				'-apple-system', 'BlinkMacSystemFont',
   				'system-ui', 'Roboto', '"Segoe UI"',
-  				'"Apple SD Gothic Neo"', '"Noto Sans KR"',
-  				'sans-serif',
+  				'"Noto Sans KR"', 'sans-serif',
   			],
   			mono: [
-  				'"Fira Code"', '"JetBrains Mono"',
-  				'"SF Mono"', 'Monaco', 'Consolas',
-  				'monospace',
+  				'ui-monospace', 'SFMono-Regular', 'Menlo',
+  				'Monaco', 'Consolas', 'monospace',
   			],
   		},
   		fontSize: {
