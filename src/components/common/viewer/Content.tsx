@@ -54,12 +54,12 @@ export function Content({
         <article
           className={cn(
             'py-6 px-8',
-            'prose prose-base max-w-none',
+            'prose prose-base max-w-none font-sans',
             'prose-headings:scroll-mt-4',
             // 코드 블록 스타일
-            'prose-pre:bg-ssoo-content-bg prose-pre:text-ssoo-primary prose-pre:border-0',
+            'prose-pre:bg-ssoo-content-bg prose-pre:text-ssoo-primary prose-pre:border-0 prose-pre:font-mono',
             // 인라인 코드
-            'prose-code:text-ssoo-primary prose-code:bg-ssoo-content-bg prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:border-0'
+            'prose-code:text-ssoo-primary prose-code:bg-ssoo-content-bg prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:border-0 prose-code:font-mono'
           )}
           style={{
             fontSize: `${zoomLevel}%`,

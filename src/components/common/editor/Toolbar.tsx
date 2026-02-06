@@ -66,30 +66,28 @@ export function Toolbar({
         {/* 좌측: 모드 전환 + 문서 정보 */}
         <div className="flex items-center gap-4">
           {/* 에디터 모드 전환 */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            <SimpleTooltip content="블록 에디터">
-              <Button
-                variant={mode === 'block' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onModeChange('block')}
-                className="h-control-h gap-1.5"
-              >
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">블록</span>
-              </Button>
-            </SimpleTooltip>
-            <SimpleTooltip content="마크다운">
-              <Button
-                variant={mode === 'markdown' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onModeChange('markdown')}
-                className="h-control-h gap-1.5"
-              >
-                <Type className="h-4 w-4" />
-                <span className="hidden sm:inline">마크다운</span>
-              </Button>
-            </SimpleTooltip>
-          </div>
+          <SimpleTooltip content="블록 에디터">
+            <Button
+              variant={mode === 'block' ? 'default' : 'ghost'}
+              size="default"
+              onClick={() => onModeChange('block')}
+              className="gap-1.5"
+            >
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">블록</span>
+            </Button>
+          </SimpleTooltip>
+          <SimpleTooltip content="마크다운">
+            <Button
+              variant={mode === 'markdown' ? 'default' : 'ghost'}
+              size="default"
+              onClick={() => onModeChange('markdown')}
+              className="gap-1.5"
+            >
+              <Type className="h-4 w-4" />
+              <span className="hidden sm:inline">마크다운</span>
+            </Button>
+          </SimpleTooltip>
 
           {/* 문서 정보 */}
           <div className="hidden md:flex items-center gap-3 text-sm text-gray-500">
@@ -144,7 +142,7 @@ export function Toolbar({
               size="default"
               onClick={onTempSave}
               disabled={saving || !hasUnsavedChanges}
-              className="h-control-h gap-1.5"
+              className="gap-1.5"
             >
               <Copy className="h-4 w-4" />
               <span className="hidden sm:inline">임시저장</span>
@@ -158,7 +156,7 @@ export function Toolbar({
               size="default"
               onClick={onSave}
               disabled={saving}
-              className="h-control-h gap-1.5"
+              className="gap-1.5"
             >
               <Save className="h-4 w-4" />
               <span>{saving ? '저장 중...' : '저장'}</span>
@@ -172,7 +170,7 @@ export function Toolbar({
               size="default"
               onClick={onCancel}
               disabled={saving}
-              className="h-control-h text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
               <X className="h-4 w-4" />
               <span className="hidden sm:inline">취소</span>

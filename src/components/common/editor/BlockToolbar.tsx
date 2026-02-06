@@ -26,11 +26,11 @@ import {
   Minus,
 } from 'lucide-react';
 
-interface EditorToolbarProps {
+interface BlockToolbarProps {
   editor: Editor;
 }
 
-const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
+const BlockToolbar: React.FC<BlockToolbarProps> = ({ editor }) => {
   const [linkUrl, setLinkUrl] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
@@ -285,4 +285,4 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
   );
 };
 
-export default EditorToolbar;
+export default BlockToolbar;
