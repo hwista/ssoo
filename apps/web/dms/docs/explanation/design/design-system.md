@@ -87,7 +87,7 @@
 ### 3.1 폰트 스택
 
 ```css
-/* 기본 폰트 */
+/* 기본 폰트 (font-sans) */
 font-family: 
   "Pretendard Variable", Pretendard, 
   -apple-system, BlinkMacSystemFont, 
@@ -95,14 +95,58 @@ font-family:
   "Apple SD Gothic Neo", "Noto Sans KR", 
   sans-serif;
 
-/* 코드 폰트 */
+/* 코드 폰트 (font-mono) */
 font-family: 
   "Fira Code", "JetBrains Mono", 
   "SF Mono", Monaco, Consolas, 
   monospace;
 ```
 
-### 3.2 텍스트 스케일
+### 3.2 폰트 적용 규칙
+
+> **핵심 원칙**: 폰트는 전역에서 정의하고, 개별 컴포넌트는 상속받는다.
+
+#### 정의 위치
+
+| 파일 | 역할 | 수정 가능 |
+|------|------|----------|
+| `tailwind.config.js` | `fontFamily.sans`, `fontFamily.mono` 정의 | ✅ 유일한 정의 위치 |
+| `globals.css` | `body`에 `font-sans` 적용 | ✅ 전역 적용 |
+| 컴포넌트 | 상속받음 | ❌ 개별 정의 금지 |
+
+#### 허용되는 클래스
+
+| 클래스 | 용도 |
+|--------|------|
+| `font-sans` | 일반 텍스트 (기본, 생략 가능) |
+| `font-mono` | 코드, 마크다운 에디터 |
+
+#### 금지되는 패턴
+
+```tsx
+// ❌ 금지: 컴포넌트에서 직접 폰트 정의
+style={{ fontFamily: 'Arial, sans-serif' }}
+className="font-['Roboto']"
+
+// ❌ 금지: CSS 파일에서 개별 폰트 정의
+.my-component {
+  font-family: Arial, sans-serif;
+}
+
+// ✅ 허용: Tailwind 클래스 사용
+className="font-mono"  // 코드용
+className="font-sans"  // 명시적 일반 텍스트
+```
+
+#### 예외 처리
+
+제3자 컴포넌트나 특수 요구사항이 있는 경우:
+
+1. 예외 보고 템플릿으로 사용자 승인 필요
+2. 승인 후 `// eslint-disable-line design/font-override` 주석 추가
+3. 이유를 코드 주석에 명시
+
+### 3.3 텍스트 스케일
 
 | 이름 | 크기 | Tailwind | 용도 |
 |------|------|----------|------|

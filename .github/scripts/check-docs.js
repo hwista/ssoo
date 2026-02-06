@@ -71,6 +71,22 @@ const ADR_PATTERN = /^adr-\d{3}-[a-z0-9]+(-[a-z0-9]+)*\.md$/;
 // 특수 파일 (대문자 허용)
 const SPECIAL_FILES = ['CHANGELOG.md', 'AGENTS.md', 'README.md', 'LICENSE.md'];
 
+// 컴포넌트-문서 매핑 (주요 컴포넌트 폴더 → 대응 문서 필수)
+const COMPONENT_DOC_MAPPING = [
+  {
+    name: 'DMS Editor',
+    componentDir: 'apps/web/dms/src/components/common/editor',
+    docPath: 'docs/dms/explanation/architecture/editor.md',
+    severity: 'warning',
+  },
+  {
+    name: 'DMS Viewer',
+    componentDir: 'apps/web/dms/src/components/common/viewer',
+    docPath: 'docs/dms/explanation/architecture/viewer.md',
+    severity: 'warning',
+  },
+];
+
 // ============================================================
 // 유틸리티
 // ============================================================
@@ -315,6 +331,37 @@ function findAllDocs() {
   return files;
 }
 
+/**
+ * 컴포넌트-문서 매핑 검증
+ * 주요 컴포넌트 폴더가 존재하면 대응 문서가 있어야 함
+ */
+function checkComponentDocs() {
+  const results = [];
+
+  for (const mapping of COMPONENT_DOC_MAPPING) {
+    const componentPath = path.join(PROJECT_ROOT, mapping.componentDir);
+    const docPath = path.join(PROJECT_ROOT, mapping.docPath);
+
+    // 컴포넌트 폴더가 존재하는지 확인
+    if (!fs.existsSync(componentPath)) {
+      continue; // 컴포넌트 폴더 없으면 스킵
+    }
+
+    // 대응 문서가 존재하는지 확인
+    if (!fs.existsSync(docPath)) {
+      results.push({
+        component: mapping.name,
+        componentDir: mapping.componentDir,
+        docPath: mapping.docPath,
+        severity: mapping.severity,
+        message: `컴포넌트 '${mapping.name}' 폴더가 존재하지만 대응 문서가 없습니다`,
+      });
+    }
+  }
+
+  return results;
+}
+
 // ============================================================
 // 메인
 // ============================================================
@@ -368,6 +415,24 @@ function main() {
       console.log(`  ${color}${icon} [${error.type}] ${error.message}${RESET}`);
     }
     console.log();
+  }
+
+  // 컴포넌트-문서 매핑 검증
+  const componentDocResults = checkComponentDocs();
+  if (componentDocResults.length > 0) {
+    console.log('📦 컴포넌트-문서 매핑 검증:\n');
+    for (const result of componentDocResults) {
+      const color = result.severity === 'error' ? RED : YELLOW;
+      const icon = result.severity === 'error' ? '✗' : '⚠';
+      console.log(`  ${color}${icon} [component-doc] ${result.message}${RESET}`);
+      console.log(`    컴포넌트: ${result.componentDir}`);
+      console.log(`    필요 문서: ${result.docPath}\n`);
+      if (result.severity === 'error') {
+        totalErrors++;
+      } else {
+        totalWarnings++;
+      }
+    }
   }
 
   // 요약

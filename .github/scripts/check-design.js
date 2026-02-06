@@ -116,6 +116,84 @@ const DESIGN_RULES = [
       return issues;
     },
   },
+  {
+    name: 'non-standard-font',
+    description: '개별 폰트 정의 감지',
+    severity: 'warning',
+    // 전역: DMS + PMS 컴포넌트 및 스타일 (TSX + CSS)
+    pathPattern: /apps\/web\/(dms|pms)\/src\/(components|app)\//,
+    filePattern: /\.(tsx|css)$/,
+    exclude: ['node_modules', 'dist', '.next'],
+    check: (content, filePath) => {
+      const issues = [];
+      const lines = content.split('\n');
+      const isCssFile = filePath.endsWith('.css');
+      
+      // 예외 승인 패턴 (주석에 명시)
+      const allowedOverridePattern = /design\/font-override|font-override/;
+      
+      // 인라인 font-family 스타일 감지
+      const customFontPatterns = isCssFile
+        ? [/font-family:\s*[^;]+;/gi]
+        : [
+            /font-\[['"]?[^'"\]]+['"]?\]/g,  // font-['custom']
+            /fontFamily:\s*['"][^'"]+['"]/g,  // fontFamily: "custom"
+          ];
+      
+      // 허용된 폰트 클래스
+      const allowedFontClasses = ['font-sans', 'font-mono', 'font-serif'];
+      
+      // 허용된 파일 (전역 정의 위치)
+      const isConfigFile = filePath.includes('tailwind.config');
+      const isGlobalCss = filePath.includes('globals.css');
+      
+      lines.forEach((line, index) => {
+        // 주석 무시
+        if (line.trim().startsWith('//') || line.trim().startsWith('*') || line.trim().startsWith('/*')) {
+          return;
+        }
+        
+        // 예외 승인 패턴 확인 (현재 줄 또는 이전 줄에 주석)
+        if (allowedOverridePattern.test(line)) {
+          return;
+        }
+        // CSS 파일의 경우 이전 줄 주석도 확인
+        if (isCssFile && index > 0 && allowedOverridePattern.test(lines[index - 1])) {
+          return;
+        }
+        
+        // globals.css의 font-sans 적용은 허용
+        if (isGlobalCss && line.includes('font-sans')) {
+          return;
+        }
+        
+        customFontPatterns.forEach(pattern => {
+          const matches = line.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              // 허용된 클래스가 아닌 경우만 경고
+              if (!allowedFontClasses.some(allowed => match.includes(allowed))) {
+                // tailwind.config.js는 정의 위치로 허용
+                if (isConfigFile) {
+                  return;
+                }
+                issues.push({
+                  file: filePath,
+                  line: index + 1,
+                  rule: 'non-standard-font',
+                  severity: 'warning',
+                  message: '개별 폰트 정의 금지. font-sans/font-mono 사용 또는 예외 승인 필요 (design-system.md 참조)',
+                  code: line.trim(),
+                });
+              }
+            });
+          }
+        });
+      });
+      
+      return issues;
+    },
+  },
 ];
 
 function shouldExclude(filePath, excludePatterns) {

@@ -15,7 +15,7 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
-import EditorToolbar from './EditorToolbar';
+import BlockToolbar from './BlockToolbar';
 import SlashCommand from './SlashCommand';
 import './editor.css';
 
@@ -173,7 +173,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   return (
     <div className={`block-editor flex flex-col h-full ${className}`}>
       {editable && (
-        <EditorToolbar editor={editor} />
+        <BlockToolbar editor={editor} />
       )}
       <div className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white">
         <EditorContent editor={editor} />
