@@ -20,6 +20,3 @@ export type { BlockEditorProps, BlockEditorRef } from './BlockEditor';
 
 export { default as EditorToolbar } from './EditorToolbar';
 export { default as SlashCommand } from './SlashCommand';
-
-// 레거시 (deprecated - 향후 제거 예정)
-export { default as MarkdownEditor } from './MarkdownEditor';
