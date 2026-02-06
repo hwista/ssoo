@@ -4,6 +4,8 @@
  * 
  * DMS 컴포넌트의 디자인 규칙 준수 여부를 검증:
  * 1. 컨트롤 높이가 컨테이너에 잘못 적용된 경우 감지
+ *    - AI가 컨트롤 생성 요청 시 요청하지 않은 컨테이너를 추가하면 위반
+ *    - 예외 승인 없이 컨테이너 사용 시 경고
  * 2. 허용된 컨테이너 패턴 외 사용 시 경고
  * 
  * @usage node .github/scripts/check-design.js [files...]
@@ -18,7 +20,8 @@ const DESIGN_RULES = [
     name: 'control-height-on-container',
     description: '컨트롤 높이 클래스가 컨테이너에 적용됨',
     severity: 'warning',
-    pathPattern: /apps\/web\/dms\/src\/components\//,
+    // 전역: DMS + PMS 컴포넌트
+    pathPattern: /apps\/web\/(dms|pms)\/src\/components\//,
     filePattern: /\.(tsx)$/,
     exclude: ['node_modules', 'dist', '.next'],
     check: (content, filePath) => {
@@ -59,7 +62,7 @@ const DESIGN_RULES = [
                 line: index + 1,
                 rule: 'control-height-on-container',
                 severity: 'warning',
-                message: '컨트롤 높이(h-control-h)를 컨테이너에 적용함. 컨트롤에만 직접 사용하거나 예외 보고 필요',
+                message: '요청하지 않은 컨테이너에 컨트롤 높이 적용됨. 컨트롤만 생성하거나 예외 보고(사용자 승인) 필요',
                 code: line.trim(),
               });
             }
@@ -76,7 +79,8 @@ const DESIGN_RULES = [
     name: 'non-standard-container-height',
     description: '비표준 컨테이너 높이 사용',
     severity: 'info',
-    pathPattern: /apps\/web\/dms\/src\/components\//,
+    // 전역: DMS + PMS 컴포넌트
+    pathPattern: /apps\/web\/(dms|pms)\/src\/components\//,
     filePattern: /\.(tsx)$/,
     exclude: ['node_modules', 'dist', '.next'],
     check: (content, filePath) => {

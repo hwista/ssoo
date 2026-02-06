@@ -69,7 +69,20 @@ hooks → lib/api → stores
 
 ---
 
+## UI 디자인 규칙
+
+> **전역 규칙**: [copilot-instructions.md](.github/copilot-instructions.md) 참조
+> **세부 값**: [design-system.md](apps/web/dms/docs/explanation/design/design-system.md) 참조
+
+- 요청한 컨트롤만 생성 (컨테이너 금지)
+- 컨트롤 높이 표준 준수 (`h-control-h`)
+- 폰트/타이포그래피 표준 준수
+
+---
+
 ## 네이밍 규칙
+
+> **전역 규칙**: [copilot-instructions.md](.github/copilot-instructions.md) 참조
 
 | 유형 | 규칙 | 예시 |
 |------|------|------|
@@ -78,42 +91,6 @@ hooks → lib/api → stores
 | 유틸리티 | camelCase | `pathUtils.ts` |
 | 스토어 | kebab-case (store 접미사) | `tab.store.ts` |
 | 상수 | SCREAMING_SNAKE_CASE | `HOME_TAB`, `MAX_TABS` |
-
-### 디렉토리-파일 명명 규칙 (Prefix 생략)
-
-**규칙**: 디렉토리 하위에 컴포넌트가 존재할 경우, 디렉토리명을 파일명 prefix로 사용하지 않음
-
-```
-✅ 올바른 예시:
-components/
-├── editor/
-│   ├── Editor.tsx       # ✅ (EditorEditor.tsx ❌)
-│   ├── Toolbar.tsx      # ✅ (EditorToolbar.tsx ❌)
-│   ├── Content.tsx      # ✅ (EditorContent.tsx ❌)
-│   └── index.ts
-├── viewer/
-│   ├── Viewer.tsx       # ✅ (ViewerViewer.tsx ❌)
-│   ├── Toolbar.tsx      # ✅ (ViewerToolbar.tsx ❌)
-│   └── index.ts
-└── sidebar/
-    ├── Sidebar.tsx      # ✅
-    ├── TreeView.tsx     # ✅
-    └── index.ts
-
-❌ 금지 예시:
-components/
-├── editor/
-│   ├── EditorToolbar.tsx    # ❌ prefix 중복
-│   └── EditorContent.tsx    # ❌ prefix 중복
-```
-
-**이유**: 
-- `import { Toolbar } from './editor'`처럼 디렉토리 컨텍스트가 이미 명확
-- 불필요한 반복 제거, 코드 간결화
-- 파일 이동 시 리네이밍 불필요
-
-**예외 허용 케이스**:
-- 동일 디렉토리 내 유사 컴포넌트 구분 필요 시 (사용자 승인 필요)
 
 ---
 

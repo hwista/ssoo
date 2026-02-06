@@ -47,8 +47,8 @@ const NAMING_RULES = [
     name: 'directory-prefix',
     message: '파일명에 디렉토리명 prefix 사용 금지: 예) editor/EditorToolbar.tsx → editor/Toolbar.tsx',
     severity: 'error',
-    // DMS 컴포넌트 디렉토리만 검사
-    pathPattern: /apps\/web\/dms\/src\/components\//,
+    // 전역: DMS + PMS 컴포넌트 디렉토리
+    pathPattern: /apps\/web\/(dms|pms)\/src\/components\//,
     exclude: ['node_modules', 'dist', '.next', 'index.ts', 'index.tsx'],
     filePattern: /\.(tsx)$/,
     check: (filePath) => {

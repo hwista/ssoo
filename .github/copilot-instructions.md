@@ -409,6 +409,33 @@ apps/web/dms (독립 - @ssoo/* 참조 금지)
 | DTO | PascalCase + Dto | `CreateUserDto` |
 | DB 테이블 | snake_case + 스키마 접두사 | `cm_user_m`, `pr_project_m` |
 
+### 디렉토리-파일 명명 규칙 (Prefix 생략)
+
+**규칙**: 디렉토리 하위 컴포넌트는 디렉토리명을 파일명 prefix로 사용하지 않음
+
+```
+✅ 올바른 예시:
+components/
+├── editor/
+│   ├── Editor.tsx       # ✅ (EditorEditor.tsx ❌)
+│   ├── Toolbar.tsx      # ✅ (EditorToolbar.tsx ❌)
+│   ├── Content.tsx      # ✅ (EditorContent.tsx ❌)
+│   └── index.ts
+├── viewer/
+│   ├── Viewer.tsx       # ✅
+│   ├── Toolbar.tsx      # ✅ (ViewerToolbar.tsx ❌)
+│   └── index.ts
+
+❌ 금지 예시:
+components/editor/EditorToolbar.tsx  # prefix 중복
+```
+
+**이유**: 
+- `import { Toolbar } from './editor'`처럼 디렉토리 컨텍스트가 명확
+- 불필요한 반복 제거, 파일 이동 시 리네이밍 불필요
+
+**예외**: 동일 디렉토리 내 유사 컴포넌트 구분 필요 시 (사용자 승인 필요)
+
 ---
 
 ## 📁 레이어 아키텍처
@@ -439,6 +466,51 @@ modules/
 
 ---
 
+## 🎨 UI 디자인 규칙
+
+> 세부 디자인 값(높이, 색상, 폰트 등)은 각 도메인의 `design-system.md` 참조
+> 이 섹션은 **강제 규칙**만 정의
+
+### 요청한 것만 생성 (컨테이너 금지)
+
+**원칙**: 컨트롤(버튼, 입력, 토글 등) 생성 요청 시 → **컨트롤만 생성**, 요청하지 않은 컨테이너로 감싸지 않음
+
+```tsx
+// 요청: "블록/마크다운 전환 버튼 2개 만들어줘"
+
+// ✅ 올바른 출력: 요청한 컨트롤만
+<Button className="h-control-h">블록</Button>
+<Button className="h-control-h">마크다운</Button>
+
+// ❌ 금지된 출력: 요청하지 않은 컨테이너 추가
+<div className="bg-gray-100 rounded-lg p-1">
+  <Button>블록</Button>
+  <Button>마크다운</Button>
+</div>
+```
+
+**컨테이너가 필요하다고 판단되면**: 예외 보고 후 사용자 승인 필요
+
+### 컨트롤 높이 표준 준수
+
+모든 UI 컨트롤은 정의된 높이 표준을 따라야 함:
+- 세부 값은 `docs/*/design/design-system.md` 참조
+- 컨테이너가 아닌 **컨트롤 자체**에 높이 클래스 적용
+
+### 폰트/타이포그래피 표준 준수
+
+전역 폰트 스타일은 도메인별 `design-system.md`에 정의된 표준을 따름:
+- 에디터, 뷰어 등 모든 UI에서 동일한 폰트 패밀리/크기 사용
+- 임의 폰트 변경 금지 → 변경 필요 시 예외 보고
+
+### 검증 스크립트
+
+`check-design.js`가 다음을 감지:
+- 컨테이너에 컨트롤 높이 적용 → 경고
+- 예외 승인 없이 커밋 시 → 리뷰 대상
+
+---
+
 ## ✅ Export 규칙
 
 ```typescript
@@ -463,6 +535,8 @@ export * from './components';
 6. **BaseService 등 불필요한 추상화**
 7. **문서 업데이트 없이 코드만 커밋**
 8. **추정/추측으로 판단** - 증거 없이 "~일 것 같음" 금지
+9. **요청하지 않은 컨테이너 생성** - 컨트롤 요청 시 컨트롤만 생성
+10. **디렉토리명 prefix 사용** - `editor/EditorToolbar.tsx` → `editor/Toolbar.tsx`
 
 ---
 
@@ -673,6 +747,9 @@ docs/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-06 | 전역 UI 디자인 규칙 추가 (컨테이너 금지, 컨트롤 높이, 폰트 표준) |
+| 2026-02-06 | 전역 디렉토리-파일 명명규칙 추가 (prefix 생략) |
+| 2026-02-06 | check-*.js 스크립트 경로 필터 확장 (DMS → DMS+PMS) |
 | 2026-02-06 | 품질 체크포인트 프레임워크 추가 (품질 도메인 체크리스트, 예외 보고 프로세스, 신규 규칙 트리거) |
 | 2026-02-06 | 3단계 검증 스크립트 전체 실행 필수화 (sdd-verify, check-docs, check-patterns) |
 | 2026-02-06 | 패턴 준수 체크리스트 확장 (코드 설계, 기존 코드 일관성, 상태 관리 등 9개 항목) |
