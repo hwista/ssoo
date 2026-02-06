@@ -225,6 +225,55 @@ const DESIGN_RULES = [
       return issues;
     },
   },
+  {
+    name: 'hardcoded-control-height',
+    description: 'UI 컴포넌트에서 하드코딩된 컨트롤 높이 사용',
+    severity: 'warning',
+    // UI 컴포넌트 파일만 검사
+    pathPattern: /apps\/web\/(dms|pms)\/src\/components\/ui\//,
+    filePattern: /\.(tsx)$/,
+    exclude: ['node_modules', 'dist', '.next', '.stories.tsx'],
+    check: (content, filePath) => {
+      const issues = [];
+      const lines = content.split('\n');
+      
+      // 하드코딩된 높이 패턴 (컨트롤에 자주 사용되는 크기)
+      // h-8 (32px), h-9 (36px), h-10 (40px) 등
+      // 표준: h-control-h (36px), h-control-h-sm (32px), h-control-h-lg (44px)
+      const hardcodedHeightPattern = /\bh-(8|9|10|11|12)\b/g;
+      
+      // 허용 예외: 아이콘 크기 (h-4, h-5, h-6 등)
+      // 허용 예외: 큰 컨테이너 (h-24 이상)
+      
+      lines.forEach((line, index) => {
+        // 주석 무시
+        if (line.trim().startsWith('//') || line.trim().startsWith('*')) {
+          return;
+        }
+        
+        // 예외 승인 패턴
+        if (/design\/height-override/.test(line)) {
+          return;
+        }
+        
+        const matches = line.match(hardcodedHeightPattern);
+        if (matches) {
+          matches.forEach(match => {
+            issues.push({
+              file: filePath,
+              line: index + 1,
+              rule: 'hardcoded-control-height',
+              severity: 'warning',
+              message: `하드코딩된 높이 ${match} 사용. 표준 클래스 사용 권장: h-control-h-sm (32px), h-control-h (36px), h-control-h-lg (44px)`,
+              code: line.trim(),
+            });
+          });
+        }
+      });
+      
+      return issues;
+    },
+  },
 ];
 
 function shouldExclude(filePath, excludePatterns) {
