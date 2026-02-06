@@ -17,7 +17,7 @@
 | **작업 시작** | `## 🎯 작업 시작 브리핑` | copilot-instructions.md 참조 |
 | **에이전트 전환** | `## 🔄 에이전트 전환` | 아래 템플릿 참조 |
 | **작업 완료** | `## 📊 작업 진행 현황` | copilot-instructions.md 참조 |
-| **커밋 전** | 3단계 검증 스크립트 실행 | 전체 통과 필수 |
+| **커밋 전** | 4단계 검증 스크립트 실행 | 전체 통과 필수 |
 
 ### 위반 시 대응
 
@@ -293,10 +293,11 @@
 측정 → 분석 → 개선 → 재측정 → ... → 100% 수렴
 ```
 
-**측정 도구 (3단계 필수)**:
+**측정 도구 (4단계 필수)**:
 1. `node .github/scripts/sdd-verify.js` - SDD 구조 검증
 2. `node .github/scripts/check-docs.js --all` - 문서 검증
 3. `node .github/scripts/check-patterns.js [파일]` - 코드 패턴 검증
+4. `node .github/scripts/check-design.js [파일]` - 디자인 패턴 검증
 
 **수렴 판정**:
 | 점수 | 상태 | 조치 |
@@ -314,7 +315,8 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-06 | 4단계 검증으로 확장 (check-design.js 추가) |
 | 2026-02-06 | 에이전트 표시 프로토콜 추가 (시작/전환 시 표시 필수) |
 | 2026-02-06 | 기존 코드 참조 규칙 강화 (일관성 검증 체크리스트) |
-| 2026-02-06 | 3단계 검증 도구 명시 (sdd-verify, check-docs, check-patterns) |
+| 2026-02-06 | 4단계 검증 도구 명시 (sdd-verify, check-docs, check-patterns, check-design) |
 | 2026-02-05 | 초기 버전 - 에이전트 공통 워크플로우 정의 |
