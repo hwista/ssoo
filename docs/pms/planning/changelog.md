@@ -38,9 +38,14 @@
 
 | 시간 | 커밋 | 영역 | 변경 내용 |
 |------|------|------|----------|
+| - | - | 성능 | **icons.ts wildcard import 제거**: `import * as LucideIcons`(3,740모듈) → 명시적 25개 아이콘 import. 초기 모듈 4,626→1,442 (-69%) |
 | - | - | 버그 | **auth.store.ts Hydration 처리 추가**: `_hasHydrated` 상태 + `onRehydrateStorage` 콜백으로 SSR→CSR 전환 시 상태 불일치 해결 |
 | - | - | 버그 | **checkAuth 안전한 에러 처리**: 외부 try-catch로 네트워크 오류 등 예상치 못한 예외 시 `isLoading: true` 고정 방지 |
-| - | - | 개선 | **layout.tsx Hydration 대기 로직**: Hydration 완료 전까지 checkAuth 호출 대기로 무한 대기 현상 해결 |
+| - | - | 리팩 | **(main)/layout.tsx 인라인 로그인 폼 제거**: 기존 (auth)/login 페이지 활용, AppLayout dynamic import로 청크 분리 |
+| - | - | 버그 | **middleware.ts `/login` 경로 허용 추가**: 미인증 시 리다이렉드 작동 |
+| - | - | 신규 | **global-error.tsx 추가**: ChunkLoadError 자동 새로고침 + 폴백 UI |
+| - | - | 신규 | **(main)/error.tsx 추가**: 인증 후 영역 에러 바운더리 (자동 복구) |
+| - | - | 개선 | **(main)/layout.tsx 로딩 타임아웃 추가**: 15초 초과 시 자동 새로고침, 재실패 시 로그인 페이지로 이동 |
 
 ### 2026-01-30
 

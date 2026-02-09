@@ -9,8 +9,8 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 허용된 경로 목록 (오직 메인 페이지만 허용)
-  const allowedPaths = ['/'];
+  // 허용된 경로 목록
+  const allowedPaths = ['/', '/login'];
 
   // 허용된 경로면 통과
   if (allowedPaths.some((path) => pathname === path)) {

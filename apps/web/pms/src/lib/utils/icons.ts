@@ -1,4 +1,30 @@
-import * as LucideIcons from 'lucide-react';
+import {
+  Home,
+  Search,
+  Star,
+  Layers,
+  FolderTree,
+  Settings,
+  Folder,
+  FolderOpen,
+  FileText,
+  ChevronRight,
+  ChevronLeft,
+  X,
+  LayoutDashboard,
+  MessageSquare,
+  Lightbulb,
+  Rocket,
+  ArrowRightLeft,
+  Shield,
+  List,
+  Users,
+  UserCog,
+  Menu,
+  Code,
+  Building2,
+  Network,
+} from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import type { ForwardRefExoticComponent, RefAttributes } from 'react';
 
@@ -7,8 +33,42 @@ type IconComponent = ForwardRefExoticComponent<
   Omit<LucideProps, 'ref'> & RefAttributes<SVGSVGElement>
 >;
 
-// 아이콘 맵 (타입 안전한 접근을 위해)
-const iconMap: Record<string, IconComponent | undefined> = LucideIcons as unknown as Record<string, IconComponent | undefined>;
+/**
+ * 사용 중인 아이콘만 명시적으로 등록
+ * 
+ * ⚠️ 새 아이콘 추가 시 이 맵에 등록 필요
+ * DB 메뉴 시드(05_menu_data.sql)에 아이콘 추가 시 여기도 함께 추가
+ */
+const iconMap: Record<string, IconComponent> = {
+  // Sidebar 섹션
+  Home,
+  Search,
+  Star,
+  Layers,
+  FolderTree,
+  Settings,
+  // MenuTree 기본값
+  Folder,
+  FolderOpen,
+  FileText,
+  ChevronRight,
+  ChevronLeft,
+  X,
+  // DB 메뉴 아이콘 (seeds/05_menu_data.sql)
+  LayoutDashboard,
+  MessageSquare,
+  Lightbulb,
+  Rocket,
+  ArrowRightLeft,
+  Shield,
+  List,
+  Users,
+  UserCog,
+  Menu,
+  Code,
+  Building2,
+  Network,
+};
 
 /**
  * Lucide 아이콘 이름으로 컴포넌트 가져오기

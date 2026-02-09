@@ -996,6 +996,123 @@ a:hover {
 }
 
 /* 마크다운 미리보기 다크 모드 */
+
+/* ============================================
+   Live Preview - 옵시디언 스타일 마크다운 문법 표시
+   커서가 위치한 블록에만 마크다운 구문을 표시
+   (LivePreview 확장이 .live-preview-active 클래스 부여)
+   ============================================ */
+
+/* --- 블록 레벨 구문 (헤딩, 인용문) --- */
+
+/* 헤딩 접두사 */
+.ProseMirror h1.live-preview-active::before {
+  content: '# ';
+  @apply text-gray-400/70 font-normal;
+}
+
+.ProseMirror h2.live-preview-active::before {
+  content: '## ';
+  @apply text-gray-400/70 font-normal;
+}
+
+.ProseMirror h3.live-preview-active::before {
+  content: '### ';
+  @apply text-gray-400/70 font-normal;
+}
+
+.ProseMirror h4.live-preview-active::before {
+  content: '#### ';
+  @apply text-gray-400/70 font-normal;
+}
+
+/* 인용문 접두사 */
+.ProseMirror blockquote.live-preview-active > p::before {
+  content: '> ';
+  @apply text-gray-400/70 font-normal;
+  font-style: normal;
+}
+
+/* --- 인라인 마크 구문 --- */
+
+/* 굵게 (**) */
+.ProseMirror .live-preview-active strong::before,
+.ProseMirror .live-preview-active strong::after {
+  content: '**';
+  @apply text-gray-400/70;
+  font-weight: normal;
+}
+
+/* 기울임 (*) */
+.ProseMirror .live-preview-active em::before,
+.ProseMirror .live-preview-active em::after {
+  content: '*';
+  @apply text-gray-400/70;
+  font-style: normal;
+}
+
+/* 취소선 (~~) */
+.ProseMirror .live-preview-active s::before,
+.ProseMirror .live-preview-active s::after {
+  content: '~~';
+  @apply text-gray-400/70;
+  text-decoration: none;
+}
+
+/* 인라인 코드 (`) */
+.ProseMirror .live-preview-active code::before,
+.ProseMirror .live-preview-active code::after {
+  content: '`';
+  @apply text-gray-400/70;
+}
+
+/* 코드 블록 내부 코드는 제외 */
+.ProseMirror .live-preview-active pre code::before,
+.ProseMirror .live-preview-active pre code::after {
+  content: none;
+}
+
+/* 형광펜 (==) */
+.ProseMirror .live-preview-active mark::before,
+.ProseMirror .live-preview-active mark::after {
+  content: '==';
+  @apply text-gray-400/70;
+}
+
+/* 링크 [text](url) */
+.ProseMirror .live-preview-active a::before {
+  content: '[';
+  @apply text-gray-400/70;
+}
+
+.ProseMirror .live-preview-active a::after {
+  content: '](' attr(href) ')';
+  @apply text-gray-400/70 text-xs;
+}
+
+/* --- 다크 모드 Live Preview --- */
+
+.dark .ProseMirror .live-preview-active strong::before,
+.dark .ProseMirror .live-preview-active strong::after,
+.dark .ProseMirror .live-preview-active em::before,
+.dark .ProseMirror .live-preview-active em::after,
+.dark .ProseMirror .live-preview-active s::before,
+.dark .ProseMirror .live-preview-active s::after,
+.dark .ProseMirror .live-preview-active code::before,
+.dark .ProseMirror .live-preview-active code::after,
+.dark .ProseMirror .live-preview-active mark::before,
+.dark .ProseMirror .live-preview-active mark::after,
+.dark .ProseMirror .live-preview-active a::before,
+.dark .ProseMirror .live-preview-active a::after,
+.dark .ProseMirror h1.live-preview-active::before,
+.dark .ProseMirror h2.live-preview-active::before,
+.dark .ProseMirror h3.live-preview-active::before,
+.dark .ProseMirror h4.live-preview-active::before,
+.dark .ProseMirror blockquote.live-preview-active > p::before {
+  @apply text-gray-500/70;
+}
+
+/* 마크다운 미리보기 다크 모드 */
 .dark .markdown-preview {
   color: #f3f4f6;
 }
