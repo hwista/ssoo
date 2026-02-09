@@ -208,10 +208,10 @@ export function Toolbar({
         <div className="flex items-center gap-0.5">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={onZoomOut}
             disabled={zoomLevel === ZOOM_LEVELS[0]}
-            className="h-control-h w-control-h p-0"
+            className="p-0"
             title="축소"
           >
             <ZoomOut className="h-4 w-4" />
@@ -227,10 +227,10 @@ export function Toolbar({
           
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={onZoomIn}
             disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-            className="h-control-h w-control-h p-0"
+            className="p-0"
             title="확대"
           >
             <ZoomIn className="h-4 w-4" />

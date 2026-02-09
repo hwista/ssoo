@@ -998,118 +998,36 @@ a:hover {
 /* 마크다운 미리보기 다크 모드 */
 
 /* ============================================
-   Live Preview - 옵시디언 스타일 마크다운 문법 표시
-   커서가 위치한 블록에만 마크다운 구문을 표시
-   (LivePreview 확장이 .live-preview-active 클래스 부여)
+   Live Preview - 소스 블록 스타일링
+   활성 블록은 codeBlock(language='livepreview')으로 변환됨
+   비활성 블록은 WYSIWYG 렌더링 유지
    ============================================ */
 
-/* --- 블록 레벨 구문 (헤딩, 인용문) --- */
-
-/* 헤딩 접두사 */
-.ProseMirror h1.live-preview-active::before {
-  content: '# ';
-  @apply text-gray-400/70 font-normal;
+/* 소스 블록: 일반 codeBlock과 다른 스타일 (배경 강조 + 밝은 테마) */
+.ProseMirror pre:has(code.language-livepreview) {
+  background-color: rgba(59, 130, 246, 0.06) !important;
+  color: inherit !important;
+  border-radius: 4px !important;
+  padding: 0.75rem 1rem !important;
+  margin-left: -8px !important;
+  margin-right: -8px !important;
 }
 
-.ProseMirror h2.live-preview-active::before {
-  content: '## ';
-  @apply text-gray-400/70 font-normal;
+.ProseMirror pre:has(code.language-livepreview) code {
+  color: inherit !important;
+  background: transparent !important;
+  font-size: 0.9rem !important;
 }
 
-.ProseMirror h3.live-preview-active::before {
-  content: '### ';
-  @apply text-gray-400/70 font-normal;
+/* 에디터 내 링크 클릭 방지 — pointer-events 차단 */
+.ProseMirror a[href] {
+  pointer-events: none;
 }
 
-.ProseMirror h4.live-preview-active::before {
-  content: '#### ';
-  @apply text-gray-400/70 font-normal;
-}
-
-/* 인용문 접두사 */
-.ProseMirror blockquote.live-preview-active > p::before {
-  content: '> ';
-  @apply text-gray-400/70 font-normal;
-  font-style: normal;
-}
-
-/* --- 인라인 마크 구문 --- */
-
-/* 굵게 (**) */
-.ProseMirror .live-preview-active strong::before,
-.ProseMirror .live-preview-active strong::after {
-  content: '**';
-  @apply text-gray-400/70;
-  font-weight: normal;
-}
-
-/* 기울임 (*) */
-.ProseMirror .live-preview-active em::before,
-.ProseMirror .live-preview-active em::after {
-  content: '*';
-  @apply text-gray-400/70;
-  font-style: normal;
-}
-
-/* 취소선 (~~) */
-.ProseMirror .live-preview-active s::before,
-.ProseMirror .live-preview-active s::after {
-  content: '~~';
-  @apply text-gray-400/70;
-  text-decoration: none;
-}
-
-/* 인라인 코드 (`) */
-.ProseMirror .live-preview-active code::before,
-.ProseMirror .live-preview-active code::after {
-  content: '`';
-  @apply text-gray-400/70;
-}
-
-/* 코드 블록 내부 코드는 제외 */
-.ProseMirror .live-preview-active pre code::before,
-.ProseMirror .live-preview-active pre code::after {
-  content: none;
-}
-
-/* 형광펜 (==) */
-.ProseMirror .live-preview-active mark::before,
-.ProseMirror .live-preview-active mark::after {
-  content: '==';
-  @apply text-gray-400/70;
-}
-
-/* 링크 [text](url) */
-.ProseMirror .live-preview-active a::before {
-  content: '[';
-  @apply text-gray-400/70;
-}
-
-.ProseMirror .live-preview-active a::after {
-  content: '](' attr(href) ')';
-  @apply text-gray-400/70 text-xs;
-}
-
-/* --- 다크 모드 Live Preview --- */
-
-.dark .ProseMirror .live-preview-active strong::before,
-.dark .ProseMirror .live-preview-active strong::after,
-.dark .ProseMirror .live-preview-active em::before,
-.dark .ProseMirror .live-preview-active em::after,
-.dark .ProseMirror .live-preview-active s::before,
-.dark .ProseMirror .live-preview-active s::after,
-.dark .ProseMirror .live-preview-active code::before,
-.dark .ProseMirror .live-preview-active code::after,
-.dark .ProseMirror .live-preview-active mark::before,
-.dark .ProseMirror .live-preview-active mark::after,
-.dark .ProseMirror .live-preview-active a::before,
-.dark .ProseMirror .live-preview-active a::after,
-.dark .ProseMirror h1.live-preview-active::before,
-.dark .ProseMirror h2.live-preview-active::before,
-.dark .ProseMirror h3.live-preview-active::before,
-.dark .ProseMirror h4.live-preview-active::before,
-.dark .ProseMirror blockquote.live-preview-active > p::before {
-  @apply text-gray-500/70;
+/* 다크 모드 */
+.dark .ProseMirror pre:has(code.language-livepreview) {
+  background-color: rgba(96, 165, 250, 0.08) !important;
+  color: inherit !important;
 }
 
 /* 마크다운 미리보기 다크 모드 */

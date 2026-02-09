@@ -62,7 +62,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-blue-600 hover:underline cursor-pointer',
+          class: 'text-blue-600 hover:underline cursor-text',
         },
       }),
       Image.configure({
@@ -189,7 +189,22 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
         <BlockToolbar editor={editor} />
       )}
       {/* prose는 .ProseMirror에 직접 적용됨 (globals.css) */}
-      <div className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white">
+      <div
+        className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white"
+        onMouseDown={(e) => {
+          // Ctrl/Cmd+Click: pointer-events:none을 우회하여 링크 찾기
+          if (e.ctrlKey || e.metaKey) {
+            const elements = document.elementsFromPoint(e.clientX, e.clientY);
+            const link = elements.find(
+              (el) => el.tagName === 'A' && el.getAttribute('href'),
+            ) as HTMLElement | undefined;
+            if (link) {
+              e.preventDefault();
+              window.open(link.getAttribute('href')!, '_blank');
+            }
+          }
+        }}
+      >
         <EditorContent editor={editor} />
       </div>
     </div>
