@@ -11,6 +11,7 @@ import { Client } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
 // .env 로드
 dotenv.config();
@@ -30,7 +31,8 @@ async function main() {
   await client.connect();
   console.log('✅ Connected to database\n');
 
-  const triggersDir = path.join(__dirname, '../prisma/triggers');
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  const triggersDir = path.join(currentDir, '../prisma/triggers');
   
   // 트리거 파일 목록 (순서대로)
   const triggerFiles = [
