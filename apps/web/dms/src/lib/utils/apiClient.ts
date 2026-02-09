@@ -51,6 +51,28 @@ export interface FileApiRequest {
 }
 
 /**
+ * AI 검색 결과 타입
+ */
+export interface AiSearchResultItem {
+  id: string;
+  title: string;
+  excerpt: string;
+  path: string;
+  score: number;
+}
+
+export interface AiSearchResponse {
+  query: string;
+  results: AiSearchResultItem[];
+}
+
+export interface AiAskResponse {
+  query: string;
+  answer: string;
+  sources: AiSearchResultItem[];
+}
+
+/**
  * HTTP 요청을 수행하는 기본 클라이언트 함수
  */
 async function request<T = unknown>(
@@ -226,6 +248,24 @@ export const fileApi = {
       body: actionData
     });
   }
+};
+
+/**
+ * AI API 클라이언트
+ */
+export const aiApi = {
+  ask: async (query: string): Promise<ApiResponse<AiAskResponse>> => {
+    return request('/api/ask', {
+      method: 'POST',
+      body: { query },
+    });
+  },
+  search: async (query: string): Promise<ApiResponse<AiSearchResponse>> => {
+    return request('/api/search', {
+      method: 'POST',
+      body: { query },
+    });
+  },
 };
 
 /**

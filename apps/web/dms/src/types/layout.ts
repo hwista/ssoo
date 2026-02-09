@@ -50,11 +50,11 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
 /**
  * AI 검색 타입
  */
-export type AISearchType = 'gemini' | 'rag';
+export type AISearchType = 'question' | 'search';
 
 export const AI_SEARCH_TYPE_LABELS: Record<AISearchType, string> = {
-  gemini: 'Gemini AI',
-  rag: 'RAG 검색 (문서 기반)',
+  question: '질문',
+  search: '검색',
 } as const;
 
 /**
