@@ -17,6 +17,7 @@ interface AuthState {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  _hasHydrated: boolean;
 
   // Actions
   login: (loginId: string, password: string) => Promise<void>;
@@ -26,6 +27,7 @@ interface AuthState {
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: AuthUser) => void;
   clearAuth: () => void;
+  setHasHydrated: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -37,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isLoading: false,
       isAuthenticated: false,
+      _hasHydrated: false,
 
       // Actions
       login: async (loginId: string, password: string) => {
@@ -91,40 +94,45 @@ export const useAuthStore = create<AuthState>()(
 
         set({ isLoading: true });
 
-        // Access Token으로 사용자 정보 확인 시도
-        if (accessToken) {
-          try {
-            const meResponse = await authApi.me(accessToken);
-            if (meResponse.success && meResponse.data) {
-              set({ user: meResponse.data, isAuthenticated: true, isLoading: false });
-              return;
+        try {
+          // Access Token으로 사용자 정보 확인 시도
+          if (accessToken) {
+            try {
+              const meResponse = await authApi.me(accessToken);
+              if (meResponse.success && meResponse.data) {
+                set({ user: meResponse.data, isAuthenticated: true, isLoading: false });
+                return;
+              }
+            } catch {
+              // 401 에러 - Access Token 만료, refresh 시도
             }
-          } catch {
-            // 401 에러 - Access Token 만료, refresh 시도
           }
-        }
 
-        // Access Token 실패 시 Refresh Token으로 재인증 시도
-        if (refreshToken) {
-          try {
-            const success = await get().refreshTokens();
-            if (success) {
-              const newAccessToken = get().accessToken;
-              if (newAccessToken) {
-                const meResponse = await authApi.me(newAccessToken);
-                if (meResponse.success && meResponse.data) {
-                  set({ user: meResponse.data, isAuthenticated: true, isLoading: false });
-                  return;
+          // Access Token 실패 시 Refresh Token으로 재인증 시도
+          if (refreshToken) {
+            try {
+              const success = await get().refreshTokens();
+              if (success) {
+                const newAccessToken = get().accessToken;
+                if (newAccessToken) {
+                  const meResponse = await authApi.me(newAccessToken);
+                  if (meResponse.success && meResponse.data) {
+                    set({ user: meResponse.data, isAuthenticated: true, isLoading: false });
+                    return;
+                  }
                 }
               }
+            } catch {
+              // Refresh token failed
             }
-          } catch {
-            // Refresh token failed
           }
-        }
 
-        // 모든 시도 실패 - 인증 초기화
-        get().clearAuth();
+          // 모든 시도 실패 - 인증 초기화
+          get().clearAuth();
+        } catch {
+          // 네트워크 오류 등 예상치 못한 오류 - 인증 초기화
+          get().clearAuth();
+        }
       },
 
       refreshTokens: async () => {
@@ -165,6 +173,10 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
         });
       },
+
+      setHasHydrated: (state: boolean) => {
+        set({ _hasHydrated: state });
+      },
     }),
     {
       name: 'ssoo-auth',
@@ -175,6 +187,9 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

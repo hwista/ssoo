@@ -25,7 +25,7 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading: authLoading, checkAuth, login } = useAuthStore();
+  const { isAuthenticated, isLoading: authLoading, checkAuth, login, _hasHydrated } = useAuthStore();
   const { refreshMenu, generalMenus } = useMenuStore();
   const [isChecking, setIsChecking] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -42,14 +42,17 @@ export default function MainLayout({
     },
   });
 
-  // 인증 상태 확인 - 앱 시작 시 항상 서버에서 토큰 유효성 검증
+  // 인증 상태 확인 - Hydration 완료 후 서버에서 토큰 유효성 검증
   useEffect(() => {
+    // Hydration이 완료되지 않았으면 대기
+    if (!_hasHydrated) return;
+    
     const check = async () => {
       await checkAuth();
       setIsChecking(false);
     };
     check();
-  }, [checkAuth]);
+  }, [_hasHydrated, checkAuth]);
 
   // 인증 성공 후 메뉴 로드
   useEffect(() => {
@@ -71,8 +74,8 @@ export default function MainLayout({
     }
   };
 
-  // 로딩 중
-  if (isChecking || authLoading) {
+  // 로딩 중 (Hydration 대기 또는 인증 확인 중)
+  if (!_hasHydrated || isChecking || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

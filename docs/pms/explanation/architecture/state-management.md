@@ -467,6 +467,7 @@ function MyComponent() {
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-09 | auth.store.ts에 Hydration 패턴 추가 (`_hasHydrated`, `onRehydrateStorage`) - SSR→CSR 전환 시 상태 불일치 해결 |
 | 2026-02-02 | useConfirmStore 추가, maxTabs 16으로 수정, expandedMenuIds 타입 수정, SidebarSection에서 search 제거 |
 | 2026-01-22 | Sidebar 섹션 타입에 search 추가 정합화 |
 | 2026-01-21 | 메뉴 응답 필드명 정합화 (menuId/icon/menuLevel/parentMenuId) |

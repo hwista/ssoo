@@ -34,6 +34,14 @@
 
 ## 📅 최근 변경 요약
 
+### 2026-02-09
+
+| 시간 | 커밋 | 영역 | 변경 내용 |
+|------|------|------|----------|
+| - | - | 버그 | **auth.store.ts Hydration 처리 추가**: `_hasHydrated` 상태 + `onRehydrateStorage` 콜백으로 SSR→CSR 전환 시 상태 불일치 해결 |
+| - | - | 버그 | **checkAuth 안전한 에러 처리**: 외부 try-catch로 네트워크 오류 등 예상치 못한 예외 시 `isLoading: true` 고정 방지 |
+| - | - | 개선 | **layout.tsx Hydration 대기 로직**: Hydration 완료 전까지 checkAuth 호출 대기로 무한 대기 현상 해결 |
+
 ### 2026-01-30
 
 | 시간 | 커밋 | 영역 | 변경 내용 |

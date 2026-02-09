@@ -308,6 +308,8 @@ location.reload();
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-09 | auth.store.ts Hydration 처리 추가 (`_hasHydrated`, `onRehydrateStorage`) - SSR→CSR 전환 시 무한 대기 해결 |
+| 2026-02-09 | checkAuth 안전한 에러 처리 - 네트워크 오류 시 `isLoading: true` 고정 방지 |
 | 2026-01-20 | 인증 시스템 문서 최초 작성 |
 | 2026-01-20 | 인증 가드 any 타입 제거 (IMM-03) |
 | 2026-01-23 | 로그인/Refresh 레이트 리밋 적용(5회/분, 10회/분), 비밀번호 정책 강화(8자 이상, 영문+숫자+특수문자) |
