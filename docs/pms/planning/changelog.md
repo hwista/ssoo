@@ -47,7 +47,7 @@
 | - | - | 신규 | **global-error.tsx 추가**: ChunkLoadError 자동 새로고침 + 폴백 UI |
 | - | - | 신규 | **(main)/error.tsx 추가**: 인증 후 영역 에러 바운더리 (자동 복구) |
 | - | - | 개선 | **(main)/layout.tsx 로딩 타임아웃 추가**: 15초 초과 시 자동 새로고침, 재실패 시 로그인 페이지로 이동 |
-| - | - | DB | **프로젝트 단계별 상세 테이블 추가**: request/proposal/execution/transition 상세 + 히스토리 트리거 도입 |
+| - | - | DB | **프로젝트 단계별 상세 테이블 추가**: request/proposal/execution/transition 상세 + 히스토리 트리거 도입, UNIT 코드 그룹 시드 추가 |
 | - | - | 문서 | **프로젝트 단계별 상세/전환 흐름 문서화**: concepts, lifecycle, 실행 종료 스펙 업데이트 |
 
 ### 2026-01-30

@@ -35,7 +35,7 @@ set display_name_ko=excluded.display_name_ko,
 -- PROJECT_DONE_RESULT (상태별 종료 결과)
 -- request done: accepted(채용), rejected(거절), hold(보류)
 -- proposal done: won(수주), lost(실주), hold(보류)
--- execution done: completed(완료), cancelled(취소), hold(보류)
+-- execution done: completed(완료), transfer_pending(운영 전환 필요), linked(프로젝트 연계), cancelled(취소), hold(보류)
 -- transition done: transferred(전환완료), cancelled(취소)
 insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
@@ -46,12 +46,14 @@ values
 ('PROJECT_DONE_RESULT','won','수주','Won','계약 성사 (수행 전환 예정).',20,now(),now()),
 ('PROJECT_DONE_RESULT','lost','실주','Lost','무산/패배.',25,now(),now()),
 -- 수행 단계 결과
-('PROJECT_DONE_RESULT','completed','완료','Completed','프로젝트 정상 완료 (전환 단계 전환 예정).',30,now(),now()),
-('PROJECT_DONE_RESULT','cancelled','취소','Cancelled','프로젝트 취소.',35,now(),now()),
+('PROJECT_DONE_RESULT','completed','완료','Completed','프로젝트 정상 완료.',30,now(),now()),
+('PROJECT_DONE_RESULT','transfer_pending','전환 필요','Transfer Pending','운영 전환 필요 (transition 단계 전환).',35,now(),now()),
+('PROJECT_DONE_RESULT','linked','연계','Linked','다음 프로젝트 연계.',40,now(),now()),
+('PROJECT_DONE_RESULT','cancelled','취소','Cancelled','프로젝트 취소.',45,now(),now()),
 -- 전환 단계 결과
-('PROJECT_DONE_RESULT','transferred','전환완료','Transferred','운영/유지보수 전환 완료.',40,now(),now()),
+('PROJECT_DONE_RESULT','transferred','전환완료','Transferred','운영/유지보수 전환 완료.',50,now(),now()),
 -- 공통
-('PROJECT_DONE_RESULT','hold','보류','Hold','보류 (추후 재개 가능).',50,now(),now())
+('PROJECT_DONE_RESULT','hold','보류','Hold','보류 (추후 재개 가능).',60,now(),now())
 on conflict (code_group, code_value) do update
 set display_name_ko=excluded.display_name_ko,
     display_name_en=excluded.display_name_en,
