@@ -49,6 +49,10 @@ async function main() {
     '12_cm_menu_h_trigger.sql',
     '13_cm_role_menu_h_trigger.sql',
     '14_cm_user_menu_h_trigger.sql',
+    '15_pr_project_request_d_h_trigger.sql',
+    '16_pr_project_proposal_d_h_trigger.sql',
+    '17_pr_project_execution_d_h_trigger.sql',
+    '18_pr_project_transition_d_h_trigger.sql',
   ];
 
   let successCount = 0;

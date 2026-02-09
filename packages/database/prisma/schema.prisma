@@ -459,6 +459,10 @@ model Project {
 
   // Relations
   currentOwner          User?    @relation("ProjectOwner", fields: [currentOwnerUserId], references: [id], onDelete: SetNull)
+  requestDetail         ProjectRequestDetail?
+  proposalDetail        ProjectProposalDetail?
+  executionDetail       ProjectExecutionDetail?
+  transitionDetail      ProjectTransitionDetail?
   projectStatuses       ProjectStatus[]
   projectDeliverables   ProjectDeliverable[]
   projectCloseConditions ProjectCloseCondition[]
@@ -511,6 +515,136 @@ model ProjectStatus {
   @@index([expectedStartAt, expectedEndAt], name: "ix_pr_project_status_m_dates")
   @@index([updatedAt], name: "ix_pr_project_status_m_updated_at")
   @@map("pr_project_status_m")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Request Detail (요청 상세) - pr_project_request_d
+// ============================================
+model ProjectRequestDetail {
+  projectId           BigInt   @id @map("project_id")
+
+  requestSourceCode   String?  @map("request_source_code")
+  requestChannelCode  String?  @map("request_channel_code")
+  requestSummary      String?  @map("request_summary")
+  requestReceivedAt   DateTime? @map("request_received_at") @db.Date
+  requestPriorityCode String?  @map("request_priority_code")
+  requestOwnerUserId  BigInt?  @map("request_owner_user_id")
+
+  // Common columns
+  isActive            Boolean  @default(true) @map("is_active")
+  memo                String?
+  createdBy           BigInt?  @map("created_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedBy           BigInt?  @map("updated_by")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  lastSource          String?  @map("last_source")
+  lastActivity        String?  @map("last_activity")
+  transactionId       String?  @map("transaction_id") @db.Uuid
+
+  // Relations
+  project             Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([requestOwnerUserId], name: "ix_pr_project_request_d_owner")
+  @@map("pr_project_request_d")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Proposal Detail (제안 상세) - pr_project_proposal_d
+// ============================================
+model ProjectProposalDetail {
+  projectId            BigInt   @id @map("project_id")
+
+  proposalOwnerUserId  BigInt?  @map("proposal_owner_user_id")
+  proposalDueAt        DateTime? @map("proposal_due_at") @db.Date
+  proposalSubmittedAt  DateTime? @map("proposal_submitted_at") @db.Date
+  proposalVersion      Int?     @map("proposal_version")
+  estimateAmount       BigInt?  @map("estimate_amount")
+  estimateUnitCode     String?  @map("estimate_unit_code")
+  proposalScopeSummary String?  @map("proposal_scope_summary")
+  decisionDeadlineAt   DateTime? @map("decision_deadline_at") @db.Date
+
+  // Common columns
+  isActive             Boolean  @default(true) @map("is_active")
+  memo                 String?
+  createdBy            BigInt?  @map("created_by")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedBy            BigInt?  @map("updated_by")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  lastSource           String?  @map("last_source")
+  lastActivity         String?  @map("last_activity")
+  transactionId        String?  @map("transaction_id") @db.Uuid
+
+  // Relations
+  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([proposalOwnerUserId], name: "ix_pr_project_proposal_d_owner")
+  @@index([proposalDueAt], name: "ix_pr_project_proposal_d_due")
+  @@map("pr_project_proposal_d")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Execution Detail (실행 상세) - pr_project_execution_d
+// ============================================
+model ProjectExecutionDetail {
+  projectId          BigInt   @id @map("project_id")
+
+  contractSignedAt   DateTime? @map("contract_signed_at") @db.Date
+  contractAmount     BigInt?  @map("contract_amount")
+  contractUnitCode   String?  @map("contract_unit_code")
+  billingTypeCode    String?  @map("billing_type_code")
+  deliveryMethodCode String?  @map("delivery_method_code")
+  nextProjectId      BigInt?  @map("next_project_id")
+
+  // Common columns
+  isActive           Boolean  @default(true) @map("is_active")
+  memo               String?
+  createdBy          BigInt?  @map("created_by")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedBy          BigInt?  @map("updated_by")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  lastSource         String?  @map("last_source")
+  lastActivity       String?  @map("last_activity")
+  transactionId      String?  @map("transaction_id") @db.Uuid
+
+  // Relations
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([nextProjectId], name: "ix_pr_project_execution_d_next_project")
+  @@map("pr_project_execution_d")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Transition Detail (전환 상세) - pr_project_transition_d
+// ============================================
+model ProjectTransitionDetail {
+  projectId            BigInt   @id @map("project_id")
+
+  operationOwnerUserId BigInt?  @map("operation_owner_user_id")
+  operationReservedAt  DateTime? @map("operation_reserved_at") @db.Date
+  operationStartAt     DateTime? @map("operation_start_at") @db.Date
+  transitionDueAt      DateTime? @map("transition_due_at") @db.Date
+  transitionSummary    String?  @map("transition_summary")
+
+  // Common columns
+  isActive             Boolean  @default(true) @map("is_active")
+  memo                 String?
+  createdBy            BigInt?  @map("created_by")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedBy            BigInt?  @map("updated_by")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  lastSource           String?  @map("last_source")
+  lastActivity         String?  @map("last_activity")
+  transactionId        String?  @map("transaction_id") @db.Uuid
+
+  // Relations
+  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([operationOwnerUserId], name: "ix_pr_project_transition_d_owner")
+  @@map("pr_project_transition_d")
   @@schema("pms")
 }
 
@@ -889,6 +1023,143 @@ model ProjectStatusHistory {
   @@index([eventAt], name: "ix_pr_project_status_h_event_at")
   @@index([transactionId], name: "ix_pr_project_status_h_tx")
   @@map("pr_project_status_h")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Request Detail History - pr_project_request_d_h
+// ============================================
+model ProjectRequestDetailHistory {
+  projectId           BigInt   @map("project_id")
+  historySeq          BigInt   @map("history_seq")
+
+  eventType           String   @map("event_type") @db.Char(1)
+  eventAt             DateTime @map("event_at")
+
+  requestSourceCode   String?  @map("request_source_code")
+  requestChannelCode  String?  @map("request_channel_code")
+  requestSummary      String?  @map("request_summary")
+  requestReceivedAt   DateTime? @map("request_received_at") @db.Date
+  requestPriorityCode String?  @map("request_priority_code")
+  requestOwnerUserId  BigInt?  @map("request_owner_user_id")
+
+  isActive            Boolean  @map("is_active")
+  memo                String?
+  createdBy           BigInt?  @map("created_by")
+  createdAt           DateTime @map("created_at")
+  updatedBy           BigInt?  @map("updated_by")
+  updatedAt           DateTime @map("updated_at")
+  lastSource          String?  @map("last_source")
+  lastActivity        String?  @map("last_activity")
+  transactionId       String?  @map("transaction_id") @db.Uuid
+
+  @@id([projectId, historySeq], name: "pk_pr_project_request_d_h")
+  @@index([eventAt], name: "ix_pr_project_request_d_h_event_at")
+  @@index([transactionId], name: "ix_pr_project_request_d_h_tx")
+  @@map("pr_project_request_d_h")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Proposal Detail History - pr_project_proposal_d_h
+// ============================================
+model ProjectProposalDetailHistory {
+  projectId            BigInt   @map("project_id")
+  historySeq           BigInt   @map("history_seq")
+
+  eventType            String   @map("event_type") @db.Char(1)
+  eventAt              DateTime @map("event_at")
+
+  proposalOwnerUserId  BigInt?  @map("proposal_owner_user_id")
+  proposalDueAt        DateTime? @map("proposal_due_at") @db.Date
+  proposalSubmittedAt  DateTime? @map("proposal_submitted_at") @db.Date
+  proposalVersion      Int?     @map("proposal_version")
+  estimateAmount       BigInt?  @map("estimate_amount")
+  estimateUnitCode     String?  @map("estimate_unit_code")
+  proposalScopeSummary String?  @map("proposal_scope_summary")
+  decisionDeadlineAt   DateTime? @map("decision_deadline_at") @db.Date
+
+  isActive             Boolean  @map("is_active")
+  memo                 String?
+  createdBy            BigInt?  @map("created_by")
+  createdAt            DateTime @map("created_at")
+  updatedBy            BigInt?  @map("updated_by")
+  updatedAt            DateTime @map("updated_at")
+  lastSource           String?  @map("last_source")
+  lastActivity         String?  @map("last_activity")
+  transactionId        String?  @map("transaction_id") @db.Uuid
+
+  @@id([projectId, historySeq], name: "pk_pr_project_proposal_d_h")
+  @@index([eventAt], name: "ix_pr_project_proposal_d_h_event_at")
+  @@index([transactionId], name: "ix_pr_project_proposal_d_h_tx")
+  @@map("pr_project_proposal_d_h")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Execution Detail History - pr_project_execution_d_h
+// ============================================
+model ProjectExecutionDetailHistory {
+  projectId          BigInt   @map("project_id")
+  historySeq         BigInt   @map("history_seq")
+
+  eventType          String   @map("event_type") @db.Char(1)
+  eventAt            DateTime @map("event_at")
+
+  contractSignedAt   DateTime? @map("contract_signed_at") @db.Date
+  contractAmount     BigInt?  @map("contract_amount")
+  contractUnitCode   String?  @map("contract_unit_code")
+  billingTypeCode    String?  @map("billing_type_code")
+  deliveryMethodCode String?  @map("delivery_method_code")
+  nextProjectId      BigInt?  @map("next_project_id")
+
+  isActive           Boolean  @map("is_active")
+  memo               String?
+  createdBy          BigInt?  @map("created_by")
+  createdAt          DateTime @map("created_at")
+  updatedBy          BigInt?  @map("updated_by")
+  updatedAt          DateTime @map("updated_at")
+  lastSource         String?  @map("last_source")
+  lastActivity       String?  @map("last_activity")
+  transactionId      String?  @map("transaction_id") @db.Uuid
+
+  @@id([projectId, historySeq], name: "pk_pr_project_execution_d_h")
+  @@index([eventAt], name: "ix_pr_project_execution_d_h_event_at")
+  @@index([transactionId], name: "ix_pr_project_execution_d_h_tx")
+  @@map("pr_project_execution_d_h")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Transition Detail History - pr_project_transition_d_h
+// ============================================
+model ProjectTransitionDetailHistory {
+  projectId            BigInt   @map("project_id")
+  historySeq           BigInt   @map("history_seq")
+
+  eventType            String   @map("event_type") @db.Char(1)
+  eventAt              DateTime @map("event_at")
+
+  operationOwnerUserId BigInt?  @map("operation_owner_user_id")
+  operationReservedAt  DateTime? @map("operation_reserved_at") @db.Date
+  operationStartAt     DateTime? @map("operation_start_at") @db.Date
+  transitionDueAt      DateTime? @map("transition_due_at") @db.Date
+  transitionSummary    String?  @map("transition_summary")
+
+  isActive             Boolean  @map("is_active")
+  memo                 String?
+  createdBy            BigInt?  @map("created_by")
+  createdAt            DateTime @map("created_at")
+  updatedBy            BigInt?  @map("updated_by")
+  updatedAt            DateTime @map("updated_at")
+  lastSource           String?  @map("last_source")
+  lastActivity         String?  @map("last_activity")
+  transactionId        String?  @map("transaction_id") @db.Uuid
+
+  @@id([projectId, historySeq], name: "pk_pr_project_transition_d_h")
+  @@index([eventAt], name: "ix_pr_project_transition_d_h_event_at")
+  @@index([transactionId], name: "ix_pr_project_transition_d_h_tx")
+  @@map("pr_project_transition_d_h")
   @@schema("pms")
 }
 

@@ -59,6 +59,18 @@
 \echo 'Installing: cm_user_menu_h trigger...'
 \i 14_cm_user_menu_h_trigger.sql
 
+\echo 'Installing: pr_project_request_d_h trigger...'
+\i 15_pr_project_request_d_h_trigger.sql
+
+\echo 'Installing: pr_project_proposal_d_h trigger...'
+\i 16_pr_project_proposal_d_h_trigger.sql
+
+\echo 'Installing: pr_project_execution_d_h trigger...'
+\i 17_pr_project_execution_d_h_trigger.sql
+
+\echo 'Installing: pr_project_transition_d_h trigger...'
+\i 18_pr_project_transition_d_h_trigger.sql
+
 \echo '=========================================='
 \echo 'All triggers installed successfully!'
 \echo '=========================================='
