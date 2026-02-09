@@ -1,6 +1,6 @@
 # DMS API 가이드
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-02-09
 
 DMS 프로젝트의 API 엔드포인트에 대한 가이드입니다.
 
@@ -16,6 +16,8 @@ DMS는 Next.js App Router의 Route Handlers를 사용합니다.
 |----------|-----------|------|
 | **파일 관리** | `/api/file` | 단일 파일 CRUD |
 | | `/api/files` | 파일 트리 조회 |
+| **AI** | `/api/search` | 문서 기반 검색 |
+| | `/api/ask` | 문서 기반 질문 |
 
 ---
 
@@ -45,7 +47,30 @@ X-File-Path: docs/README.md
     "size": 1234,
     "createdAt": "2026-02-02T10:00:00.000Z",
     "modifiedAt": "2026-02-02T12:00:00.000Z",
-    "accessedAt": "2026-02-02T12:30:00.000Z"
+    "accessedAt": "2026-02-02T12:30:00.000Z",
+    "document": {
+      "title": "README",
+      "summary": "",
+      "tags": [],
+      "sourceLinks": [],
+      "createdAt": "2026-02-02T10:00:00.000Z",
+      "updatedAt": "2026-02-09T09:00:00.000Z",
+      "fileHashes": {
+        "content": "sha256...",
+        "sources": {}
+      },
+      "chunkIds": [],
+      "embeddingModel": "",
+      "sourceFiles": [],
+      "acl": {
+        "owners": [],
+        "editors": [],
+        "viewers": []
+      },
+      "versionHistory": [],
+      "templateId": "default",
+      "author": "admin"
+    }
   }
 }
 ```
@@ -173,6 +198,103 @@ GET /api/files
     }
   ]
 }
+
+---
+
+## 4. POST /api/search
+
+문서 기반 키워드 검색을 수행합니다.
+
+### Request
+
+```json
+{
+  "query": "검색어"
+}
+```
+
+### Response
+
+```json
+{
+  "query": "검색어",
+  "results": [
+    {
+      "id": "docs/wiki/guide.md",
+      "title": "Guide",
+      "excerpt": "...",
+      "path": "guide.md",
+      "score": 2
+    }
+  ]
+}
+```
+
+---
+
+## 5. POST /api/ask
+
+문서 기반 질문을 처리합니다.
+
+### Request
+
+```json
+{
+  "query": "질문 내용"
+}
+```
+
+### Response
+
+```json
+{
+  "query": "질문 내용",
+  "answer": "관련 문서 2건을 찾았습니다...",
+  "sources": [
+    {
+      "id": "docs/wiki/guide.md",
+      "title": "Guide",
+      "excerpt": "...",
+      "path": "guide.md",
+      "score": 3
+    }
+  ]
+}
+```
+
+---
+
+## 문서 메타데이터(JSON) 구조
+
+각 마크다운 문서는 동일한 이름의 JSON 파일이 함께 생성됩니다.
+
+예: `docs/wiki/guide.md` → `docs/wiki/guide.json`
+
+```json
+{
+  "title": "Guide",
+  "summary": "",
+  "tags": [],
+  "sourceLinks": [],
+  "createdAt": "2026-02-09T09:00:00.000Z",
+  "updatedAt": "2026-02-09T09:00:00.000Z",
+  "fileHashes": {
+    "content": "sha256...",
+    "sources": {}
+  },
+  "chunkIds": [],
+  "embeddingModel": "",
+  "sourceFiles": [],
+  "acl": {
+    "owners": [],
+    "editors": [],
+    "viewers": []
+  },
+  "versionHistory": [],
+  "templateId": "default",
+  "author": "admin"
+}
+```
 ```
 
 ---

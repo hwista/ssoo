@@ -44,6 +44,50 @@ export interface FileMetadata {
 }
 
 /**
+ * AI 문서 메타데이터
+ */
+export interface DocumentAcl {
+  owners: string[];
+  editors: string[];
+  viewers: string[];
+}
+
+export interface SourceFileMeta {
+  name: string;
+  path: string;
+  type: string;
+  size: number;
+  url?: string;
+}
+
+export interface DocumentVersionEntry {
+  id: string;
+  createdAt: string;
+  author: string;
+  summary: string;
+}
+
+export interface DocumentMetadata {
+  title: string;
+  summary: string;
+  tags: string[];
+  sourceLinks: string[];
+  createdAt: string;
+  updatedAt: string;
+  fileHashes: {
+    content: string;
+    sources: Record<string, string>;
+  };
+  chunkIds: string[];
+  embeddingModel: string;
+  sourceFiles: SourceFileMeta[];
+  acl: DocumentAcl;
+  versionHistory: DocumentVersionEntry[];
+  templateId: string;
+  author: string;
+}
+
+/**
  * 파일 이벤트 (실시간 감시용)
  */
 export interface FileEvent {

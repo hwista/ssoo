@@ -5,7 +5,8 @@
 
 import fs from "fs";
 import path from "path";
-import { normalizeMarkdownFileName } from "@/lib/utils/fileUtils";
+import crypto from "crypto";
+import { normalizeMarkdownFileName, isMarkdownFile } from "@/lib/utils/fileUtils";
 import { logger, PerformanceTimer } from "@/lib/utils/errorUtils";
 
 const ROOT_DIR = path.join(process.cwd(), "docs", "wiki");
@@ -19,6 +20,48 @@ export interface FileMetadata {
   createdAt: string;
   modifiedAt: string;
   accessedAt: string;
+  document?: DocumentMetadata;
+}
+
+export interface DocumentAcl {
+  owners: string[];
+  editors: string[];
+  viewers: string[];
+}
+
+export interface SourceFileMeta {
+  name: string;
+  path: string;
+  type: string;
+  size: number;
+  url?: string;
+}
+
+export interface DocumentVersionEntry {
+  id: string;
+  createdAt: string;
+  author: string;
+  summary: string;
+}
+
+export interface DocumentMetadata {
+  title: string;
+  summary: string;
+  tags: string[];
+  sourceLinks: string[];
+  createdAt: string;
+  updatedAt: string;
+  fileHashes: {
+    content: string;
+    sources: Record<string, string>;
+  };
+  chunkIds: string[];
+  embeddingModel: string;
+  sourceFiles: SourceFileMeta[];
+  acl: DocumentAcl;
+  versionHistory: DocumentVersionEntry[];
+  templateId: string;
+  author: string;
 }
 
 export interface FileData {
@@ -92,6 +135,80 @@ function getFileMetadata(filePath: string): FileMetadata {
   };
 }
 
+/**
+ * 메타데이터 JSON 파일 경로 생성
+ */
+function getDocumentMetadataPath(filePath: string): string {
+  const parsed = path.parse(filePath);
+  return path.join(parsed.dir, `${parsed.name}.json`);
+}
+
+function extractTitleFromContent(content: string, filePath: string): string {
+  const headingMatch = content.match(/^#\s+(.+)$/m);
+  if (headingMatch?.[1]) {
+    return headingMatch[1].trim();
+  }
+  return path.parse(filePath).name;
+}
+
+function hashContent(content: string): string {
+  return crypto.createHash('sha256').update(content).digest('hex');
+}
+
+function buildDefaultDocumentMetadata(
+  content: string,
+  filePath: string,
+  fileMeta: FileMetadata,
+  existing?: DocumentMetadata
+): DocumentMetadata {
+  const now = new Date().toISOString();
+
+  return {
+    title: extractTitleFromContent(content, filePath),
+    summary: existing?.summary ?? '',
+    tags: existing?.tags ?? [],
+    sourceLinks: existing?.sourceLinks ?? [],
+    createdAt: existing?.createdAt ?? fileMeta.createdAt,
+    updatedAt: now,
+    fileHashes: {
+      content: hashContent(content),
+      sources: existing?.fileHashes?.sources ?? {},
+    },
+    chunkIds: existing?.chunkIds ?? [],
+    embeddingModel: existing?.embeddingModel ?? '',
+    sourceFiles: existing?.sourceFiles ?? [],
+    acl: existing?.acl ?? { owners: [], editors: [], viewers: [] },
+    versionHistory: existing?.versionHistory ?? [],
+    templateId: existing?.templateId ?? 'default',
+    author: existing?.author ?? 'admin',
+  };
+}
+
+function readDocumentMetadata(filePath: string): DocumentMetadata | null {
+  const metadataPath = getDocumentMetadataPath(filePath);
+  if (!fs.existsSync(metadataPath)) return null;
+
+  try {
+    const raw = fs.readFileSync(metadataPath, 'utf-8');
+    return JSON.parse(raw) as DocumentMetadata;
+  } catch (error) {
+    logger.warn('문서 메타데이터 파싱 실패', error, { metadataPath });
+    return null;
+  }
+}
+
+function writeDocumentMetadata(filePath: string, metadata: DocumentMetadata): void {
+  const metadataPath = getDocumentMetadataPath(filePath);
+  fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+}
+
+function ensureDocumentMetadata(content: string, filePath: string, fileMeta: FileMetadata): DocumentMetadata {
+  const existing = readDocumentMetadata(filePath);
+  const metadata = buildDefaultDocumentMetadata(content, filePath, fileMeta, existing ?? undefined);
+  writeDocumentMetadata(filePath, metadata);
+  return metadata;
+}
+
 // ============================================================================
 // Handlers
 // ============================================================================
@@ -130,6 +247,9 @@ export async function readFile(filePath: string): Promise<HandlerResult<FileData
     logger.info('파일 읽기 시작', { filePath, finalPath });
     const content = fs.readFileSync(finalPath, "utf-8");
     const metadata = getFileMetadata(finalPath);
+    if (isMarkdownFile(finalPath)) {
+      metadata.document = ensureDocumentMetadata(content, finalPath, metadata);
+    }
     
     logger.info('파일 읽기 성공', { 
       filePath, 
@@ -163,6 +283,10 @@ export async function getMetadata(filePath: string): Promise<HandlerResult<{ met
 
   try {
     const metadata = getFileMetadata(targetPath);
+    if (isMarkdownFile(targetPath)) {
+      const content = fs.readFileSync(targetPath, 'utf-8');
+      metadata.document = ensureDocumentMetadata(content, targetPath, metadata);
+    }
     logger.info('메타데이터 조회 성공', { filePath, metadata });
     return { success: true, data: { metadata } };
   } catch (error) {
@@ -191,6 +315,13 @@ export async function writeFile(filePath: string, content: string): Promise<Hand
     }
     
     fs.writeFileSync(targetPath, content, "utf-8");
+
+    if (isMarkdownFile(targetPath)) {
+      const fileMeta = getFileMetadata(targetPath);
+      const existing = readDocumentMetadata(targetPath) ?? undefined;
+      const metadata = buildDefaultDocumentMetadata(content, targetPath, fileMeta, existing);
+      writeDocumentMetadata(targetPath, metadata);
+    }
     
     // TODO: 버전 히스토리 - Git 기반으로 대체 예정
     
@@ -223,6 +354,10 @@ export async function createFile(
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     const newContent = content || `# ${name}\n\n내용을 작성하세요.`;
     fs.writeFileSync(targetPath, newContent, "utf-8");
+
+    const fileMeta = getFileMetadata(targetPath);
+    const metadata = buildDefaultDocumentMetadata(newContent, targetPath, fileMeta, undefined);
+    writeDocumentMetadata(targetPath, metadata);
     
     // TODO: 버전 히스토리 - Git 기반으로 대체 예정
     
@@ -300,6 +435,12 @@ export async function renameFile(
     
     // 파일 내용을 보존하는 안전한 rename 연산
     fs.renameSync(oldFullPath, newFullPath);
+
+    const oldMetaPath = getDocumentMetadataPath(oldFullPath);
+    const newMetaPath = getDocumentMetadataPath(newFullPath);
+    if (fs.existsSync(oldMetaPath)) {
+      fs.renameSync(oldMetaPath, newMetaPath);
+    }
     
     logger.info('파일/폴더 이름 변경 성공', { from: oldFullPath, to: newFullPath });
     
@@ -331,6 +472,10 @@ export async function deleteFile(filePath: string): Promise<HandlerResult<{ mess
       fs.rmSync(targetPath, { recursive: true, force: true });
     } else {
       fs.unlinkSync(targetPath);
+      const metaPath = getDocumentMetadataPath(targetPath);
+      if (fs.existsSync(metaPath)) {
+        fs.unlinkSync(metaPath);
+      }
     }
     return { success: true, data: { message: "File/Folder deleted" } };
   } catch (error) {

@@ -1,6 +1,6 @@
 # 레이아웃 시스템
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-02-09
 
 DMS의 레이아웃 구조와 컴포넌트를 정의합니다.
 
@@ -210,6 +210,46 @@ function getPageType(tab) {
   return null;
 }
 ```
+
+---
+
+## 문서형 콘텐츠 폭 규칙
+
+문서형 페이지(문서 뷰어/에디터 및 유사 기능)는 **본문 최대 너비 975px** 규칙을 따릅니다.
+
+### 목적
+
+- 긴 가로 폭을 제한해 읽기/입력 가독성을 확보
+- 사이드카와의 균형 유지
+- 문서형/정보형 페이지 레이아웃 일관성 확보
+
+### 적용 기준
+
+- `DocPageTemplate`를 사용하는 모든 문서형 페이지
+- 마크다운 뷰어/에디터 외의 기능 페이지도 동일한 폭 규칙 준수
+
+### 구현 패턴
+
+```tsx
+import { DocPageTemplate } from '@/components/templates';
+import { DOCUMENT_WIDTH } from '@/components/common/viewer/Content';
+
+<DocPageTemplate filePath="ai/search" mode="viewer">
+  <div className="flex h-full justify-center overflow-hidden px-4">
+    <div
+      className="flex h-full w-full flex-col rounded-lg border border-ssoo-content-border bg-white"
+      style={{ maxWidth: DOCUMENT_WIDTH }}
+    >
+      {/* 페이지별 콘텐츠 */}
+    </div>
+  </div>
+</DocPageTemplate>
+```
+
+### 참고
+
+- 문서 뷰어/에디터의 기준 폭: `components/common/viewer/Content.tsx`의 `DOCUMENT_WIDTH = 975`
+- 내부 영역은 필요 시 자체 스크롤을 제공하도록 구성
 
 ---
 

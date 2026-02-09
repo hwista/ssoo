@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { fileApi, getErrorMessage } from '@/lib/utils/apiClient';
+import type { DocumentMetadata } from '@/types';
 import { logger, safeAsync, PerformanceTimer } from '@/lib/utils/errorUtils';
 
 // 파일 메타데이터 타입
@@ -25,6 +26,7 @@ interface EditorState {
   currentFilePath: string | null;  // 현재 로드된 파일 경로
   isEditing: boolean;
   fileMetadata: FileMetadata;
+  documentMetadata: DocumentMetadata | null;
   isLoading: boolean;
   error: string | null;
   
@@ -81,6 +83,7 @@ const initialState: EditorState = {
     modifiedAt: null,
     size: null,
   },
+  documentMetadata: null,
   isLoading: false,
   error: null,
   
@@ -145,9 +148,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
               modifiedAt: new Date(fileData.metadata.modifiedAt),
               size: fileData.metadata.size,
             },
+            documentMetadata: fileData.metadata.document || null,
           });
         } else {
-          set({ fileMetadata: initialState.fileMetadata });
+          set({ fileMetadata: initialState.fileMetadata, documentMetadata: null });
         }
         
         logger.info('파일 로드 성공', { path, hasMetadata: !!fileData.metadata });
@@ -260,6 +264,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
             modifiedAt: new Date(metadataResponse.metadata.modifiedAt),
             size: metadataResponse.metadata.size,
           },
+          documentMetadata: metadataResponse.metadata.document || null,
         });
       }
     } catch (error) {
