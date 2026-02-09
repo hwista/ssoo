@@ -39,6 +39,7 @@ export function MarkdownViewerPage() {
     isEditing, 
     setIsEditing, 
     fileMetadata, 
+    documentMetadata,
     setContent, 
     reset,
     // 에디터 상태 (Header에 전달)
@@ -137,14 +138,19 @@ export function MarkdownViewerPage() {
 
   // 메타데이터 구성
   const metadata = useMemo(() => {
+    const wordCount = content ? content.trim().split(/\s+/).filter(Boolean).length : 0;
     return {
-      author: 'admin', // TODO: 실제 작성자 정보
+      author: documentMetadata?.author || 'admin',
       createdAt: fileMetadata.createdAt || undefined,
       updatedAt: fileMetadata.modifiedAt || undefined,
       lineCount: content ? content.split('\n').length : 0,
       charCount: content ? content.length : 0,
+      wordCount,
+      attachments: documentMetadata?.sourceFiles || [],
     };
-  }, [content, fileMetadata]);
+  }, [content, documentMetadata, fileMetadata]);
+
+  const tags = useMemo(() => documentMetadata?.tags || [], [documentMetadata]);
 
   // 액션 핸들러
   const handleEdit = useCallback(() => {
@@ -218,6 +224,7 @@ export function MarkdownViewerPage() {
         filePath={filePath || '새 문서.md'}
         mode={mode === 'create' ? 'editor' : mode}
         metadata={metadata}
+        tags={tags}
         onEdit={handleEdit}
         onSave={handleSave}
         onCancel={handleCancel}

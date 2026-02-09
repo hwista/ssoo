@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { User, Calendar, FileText, Tag } from 'lucide-react';
+import { User, Calendar, FileText, Tag, Paperclip } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { SourceFileMeta } from '@/types';
 
 /**
  * 목차 아이템
@@ -32,6 +33,8 @@ export interface SidecarMetadata {
   charCount?: number;
   /** 단어 수 */
   wordCount?: number;
+  /** 첨부 파일 */
+  attachments?: SourceFileMeta[];
 }
 
 /**
@@ -83,6 +86,8 @@ export function Sidecar({
   tags,
   className,
 }: SidecarProps) {
+  const attachments = metadata?.attachments ?? [];
+
   return (
     <div className={cn('p-4 space-y-6', className)}>
       {/* 문서 정보 섹션 */}
@@ -158,6 +163,32 @@ export function Sidecar({
                 {tag}
               </span>
             ))}
+          </div>
+        </section>
+      )}
+
+      {attachments.length > 0 && (
+        <section>
+          <h3 className="flex items-center text-sm font-semibold text-ssoo-primary mb-3">
+            <Paperclip className="h-4 w-4 mr-1.5" />
+            첨부 파일
+          </h3>
+          <div className="space-y-2">
+            {attachments.map((attachment) => {
+              const link = attachment.url || `/api/file?path=${encodeURIComponent(attachment.path)}`;
+              return (
+                <a
+                  key={`${attachment.path}-${attachment.name}`}
+                  href={link}
+                  className="flex items-center justify-between rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary transition-colors hover:border-ssoo-primary"
+                >
+                  <span className="truncate">{attachment.name}</span>
+                  <span className="text-ssoo-primary/60">
+                    {(attachment.size / 1024).toFixed(1)} KB
+                  </span>
+                </a>
+              );
+            })}
           </div>
         </section>
       )}
