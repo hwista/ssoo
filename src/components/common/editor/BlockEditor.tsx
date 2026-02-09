@@ -17,6 +17,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import BlockToolbar from './BlockToolbar';
 import SlashCommand from './SlashCommand';
+import { LivePreview } from './extensions/LivePreview';
 // editor.css 스타일은 globals.css로 통합됨
 
 const lowlight = createLowlight(common);
@@ -109,6 +110,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
         },
       }),
       SlashCommand,
+      LivePreview,
     ],
     content: content || '',
     editable,

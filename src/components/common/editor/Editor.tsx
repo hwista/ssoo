@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Toolbar } from './Toolbar';
 import { Content } from './Content';
 import { useEditor } from '@/hooks/useEditor';
 import { useEditorStore, useTabStore } from '@/stores';
@@ -11,11 +10,6 @@ import { useToast } from '@/lib/toast';
 
 // 문서 본문 최대 너비 (Viewer와 동일)
 export const DOCUMENT_WIDTH = 975;
-
-/**
- * Editor Mode
- */
-export type EditorMode = 'block' | 'markdown';
 
 /**
  * Editor Props
@@ -29,9 +23,10 @@ export interface EditorProps {
 /**
  * Editor 컴포넌트
  * 
- * 문서 편집기 (Viewer 패턴 적용)
- * - 상단 툴바: 에디터 모드 전환, 저장, 취소
- * - 본문: BlockEditor 또는 Markdown textarea
+ * 문서 편집기 (옵시디언 스타일 라이브 프리뷰)
+ * - 본문: BlockEditor + LivePreview 확장
+ * - 커서 위치 블록에 마크다운 문법 표시
+ * - 다른 블록은 WYSIWYG 렌더링 유지
  * 
  * @example
  * ```tsx
@@ -63,9 +58,6 @@ export function Editor({ className }: EditorProps) {
 
   // 탭 스토어 (새 문서 저장 시 탭 업데이트용)
   const { activeTabId, updateTab, closeTab, openTab } = useTabStore();
-
-  // 에디터 모드 (block | markdown)
-  const [editorMode, setEditorMode] = React.useState<EditorMode>('block');
   
   // HTML 콘텐츠 (BlockEditor용)
   const [htmlContent, setHtmlContent] = React.useState('');
@@ -126,29 +118,11 @@ export function Editor({ className }: EditorProps) {
   }, [content, resetContent]);
 
   // =====================
-  // 모드 전환 핸들러
-  // =====================
-  const handleModeChange = React.useCallback((mode: EditorMode) => {
-    if (mode === 'block' && editorMode === 'markdown') {
-      // Markdown → Block: HTML로 변환
-      setHtmlContent(markdownToHtmlSync(editorContent));
-    } else if (mode === 'markdown' && editorMode === 'block') {
-      // Block → Markdown: Markdown으로 변환
-      updateContent(htmlToMarkdown(htmlContent));
-    }
-    setEditorMode(mode);
-  }, [editorMode, editorContent, htmlContent, updateContent]);
-
-  // =====================
   // 콘텐츠 변경 핸들러
   // =====================
   const handleBlockEditorChange = React.useCallback((html: string) => {
     setHtmlContent(html);
     updateContent(htmlToMarkdown(html));
-  }, [updateContent]);
-
-  const handleMarkdownChange = React.useCallback((markdown: string) => {
-    updateContent(markdown);
   }, [updateContent]);
 
   // 새 문서 작성 모드 여부
@@ -316,20 +290,10 @@ export function Editor({ className }: EditorProps) {
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      {/* 툴바 - 모드 전환만 */}
-      <Toolbar
-        maxWidth={DOCUMENT_WIDTH}
-        mode={editorMode}
-        onModeChange={handleModeChange}
-      />
-
-      {/* 본문 */}
+      {/* 본문 - 라이브 프리뷰 에디터 */}
       <Content
-        mode={editorMode}
         htmlContent={htmlContent}
-        markdownContent={editorContent}
         onBlockEditorChange={handleBlockEditorChange}
-        onMarkdownChange={handleMarkdownChange}
         maxWidth={DOCUMENT_WIDTH}
       />
     </div>

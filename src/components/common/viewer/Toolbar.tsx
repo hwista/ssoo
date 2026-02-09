@@ -211,7 +211,7 @@ export function Toolbar({
             size="sm"
             onClick={onZoomOut}
             disabled={zoomLevel === ZOOM_LEVELS[0]}
-            className="h-control-h-sm w-control-h-sm p-0"
+            className="h-control-h w-control-h p-0"
             title="축소"
           >
             <ZoomOut className="h-4 w-4" />
@@ -219,7 +219,7 @@ export function Toolbar({
           
           <button
             onClick={onZoomReset}
-            className="px-2 h-control-h-sm text-sm hover:bg-gray-100 rounded transition-colors min-w-[50px]"
+            className="px-2 h-control-h text-sm hover:bg-gray-100 rounded transition-colors min-w-[50px]"
             title="기본 크기로"
           >
             {zoomLevel}%
@@ -230,7 +230,7 @@ export function Toolbar({
             size="sm"
             onClick={onZoomIn}
             disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-            className="h-control-h-sm w-control-h-sm p-0"
+            className="h-control-h w-control-h p-0"
             title="확대"
           >
             <ZoomIn className="h-4 w-4" />
