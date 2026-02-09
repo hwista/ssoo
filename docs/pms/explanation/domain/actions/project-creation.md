@@ -93,3 +93,10 @@ Response: {
 
 - 중복 등록 방지는 MVP에서는 강제하지 않음
 - 추후 customer+name+기간 유사도 경고 가능
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

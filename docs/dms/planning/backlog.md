@@ -82,3 +82,10 @@
 - [DMS Changelog](./changelog.md)
 - [DMS Roadmap](./roadmap.md)
 - [PMS Backlog](../../pms/planning/backlog.md)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -218,3 +218,10 @@ FOR EACH ROW EXECUTE FUNCTION {schema}.fn_{table}_history();
 |------|------|
 | 2026-01-27 | 초기 작성 - 현행 패키지 기준 |
 | 2026-02-05 | 테이블 네이밍 규칙, 새 테이블 추가 체크리스트 추가 |
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -251,3 +251,10 @@ return (
 - [페이지 보안 및 라우팅 전략](./page-routing.md)
 - [상태 관리](./state-management.md)
 - [레이아웃 시스템](./layout-system.md)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -518,3 +518,10 @@ export const fileApi = {
 > 📝 이 문서는 리팩토링 완료 후 PMS-DMS 정합성 검증을 위해 작성되었습니다.  
 > 📄 상세 계획: [package-integration-plan.md](./package-integration-plan.md)
 ```
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -26,3 +26,10 @@
 ## 6) Validation
 - 현재 handoff_stage_code=waiting
 - 요청자가 아닌 수신자만 수행 가능
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

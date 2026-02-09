@@ -309,3 +309,10 @@ DROP FUNCTION IF EXISTS fn_pr_project_history();
 - [Database Guide](../../common/guides/database-guide.md) - DB 구조 가이드 (공용)
 - [Prisma Schema](../../../packages/database/prisma/schema.prisma)
 - [Trigger Template](../../../packages/database/prisma/triggers/00_history_trigger_template.sql)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

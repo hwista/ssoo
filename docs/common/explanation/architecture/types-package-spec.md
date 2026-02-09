@@ -142,3 +142,10 @@ packages/types/
 | 날짜 | 내용 |
 |------|------|
 | 2026-01-27 | 초기 작성 - 현행 패키지 기준 |
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

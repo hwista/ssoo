@@ -204,3 +204,10 @@
 - [History Management Guide](../../pms/guides/history-management.md) - PMS 히스토리 트리거
 - [Prisma Schema](../../../packages/database/prisma/schema.prisma)
 - [Trigger Template](../../../packages/database/prisma/triggers/00_history_trigger_template.sql)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

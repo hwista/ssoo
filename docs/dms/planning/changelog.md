@@ -13,17 +13,24 @@
 #### Phase 10: 옵시디언 스타일 라이브 프리뷰 에디터
 | 커밋 | 변경 내용 |
 |------|----------|
-| - | **라이브 프리뷰 확장 신규 구현** (LivePreview Extension) |
-| | - 커서 위치 블록에 마크다운 문법 표시 (CSS `::before`/`::after`) |
-| | - 블록 레벨: 헤딩(`#`), 인용문(`>`) 접두사 |
-| | - 인라인 마크: 굵게(`**`), 기울임(`*`), 취소선(`~~`), 코드(`` ` ``), 형광편(`==`), 링크(`[](url)`) |
-| | - 다른 블록은 WYSIWYG 렌더링 유지 |
+| - | **LivePreview 확장 완전 재설계** (appendTransaction 기반 블록 변환) |
+| | - 커서 위치 블록을 `codeBlock(language='livepreview')`로 변환하여 **실제 편집 가능한 마크다운 텍스트** 표시 |
+| | - 커서가 다른 블록으로 이동하면 마크다운을 파싱하여 WYSIWYG 노드로 자동 복원 |
+| | - `nodeToMarkdown()`: ProseMirror 노드 → DOMSerializer → HTML → TurndownService → 마크다운 |
+| | - `markdownToFragment()`: 마크다운 → markdownToHtmlSync → HTML → PMDOMParser → Fragment |
+| | - 에디터 blur 시 모든 소스 블록 자동 복원 (`onBlur`) |
+| | - 소스 블록 스타일: 연한 파란 배경 (`bg-blue-50/50`) |
+| | **링크 클릭 방지** (편집 모드) |
+| | - CSS `pointer-events: none`으로 에디터 내 링크 클릭 완전 차단 |
+| | - Ctrl+Click으로 링크 열기 지원 (`document.elementsFromPoint()` 활용) |
 | | **에디터 모드 통합** (블록/마크다운 → 단일 라이브 프리뷰) |
 | | - 모드 전환 툴바 제거 (`Toolbar.tsx` 삭제) |
 | | - `Content.tsx` 단순화 (마크다운 textarea 제거) |
 | | - `Editor.tsx`에서 `EditorMode` 타입/상태 제거 |
-| | **뷰어 줄 컨트롤 높이 수정** |
-| | - 확대/축소/되돌리기 버튼 `h-control-h-sm`(32px) → `h-control-h`(36px) |
+| | **globals.css 대폭 정리** |
+| | - ~150줄 CSS pseudo-element 규칙 삭제, ~30줄 소스 블록 스타일로 교체 |
+| | **뷰어 줌 컨트롤 높이 수정** |
+| | - 확대/축소/되돌리기 버튼 `size="sm"` → `size="icon"` (36px 정사각형) |
 
 ### 2026-02-03
 
@@ -240,3 +247,10 @@
 - [DMS Backlog](./backlog.md)
 - [DMS Roadmap](./roadmap.md)
 - [PMS Changelog](../../pms/planning/changelog.md)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

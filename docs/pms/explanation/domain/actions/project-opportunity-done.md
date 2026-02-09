@@ -59,3 +59,10 @@
 
 ## 6) 실패/에러
 - 산출물 confirmed 미충족 시 체크 불가(에러 메시지에 부족 항목 안내 권장)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

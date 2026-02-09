@@ -8,3 +8,9 @@
 - Testing: verify JSON serialization of bigint-sensitive endpoints; ensure no TypeError: Do not know how to serialize a BigInt.
 - Migration note: when adding new models, keep id BigInt and add serializer where exposed.
 
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

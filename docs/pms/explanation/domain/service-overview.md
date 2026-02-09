@@ -53,3 +53,10 @@
 - [concepts.md](concepts.md) - 핵심 개념 정의
 - [workflows/](workflows/) - 운영 프로세스
 - [../common/roadmap.md](../common/roadmap.md) - 제품 로드맵
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

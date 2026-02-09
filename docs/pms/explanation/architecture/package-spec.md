@@ -161,3 +161,10 @@
 |------|------|
 | 2026-02-02 | React 버전 업데이트, @radix-ui/react-alert-dialog 추가, devDependencies 업데이트 |
 | 2026-01-27 | 초기 작성 - 현행 패키지 기준 |
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -273,3 +273,10 @@ JWT_REFRESH_EXPIRES_IN=7d
 ```dotenv
 NEXT_PUBLIC_API_URL=http://localhost:4000/api
 ```
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -262,3 +262,10 @@ app.use(helmet({
 - [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/)
 - [개인정보보호법](https://www.law.go.kr/법령/개인정보보호법)
 - [KISA 보안 가이드](https://www.kisa.or.kr/)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

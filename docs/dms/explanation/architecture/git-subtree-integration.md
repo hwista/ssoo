@@ -260,3 +260,10 @@ git subtree add --prefix=apps/web/dms gitlab-dms main --squash
 | 날짜 | 내용 |
 |------|------|
 | 2026-01-27 | 초기 작성 - Git Subtree 통합 완료 |
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

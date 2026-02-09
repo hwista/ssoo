@@ -127,6 +127,7 @@ export function ProposalListPage() {
         data,
         loading: false,
         onRowClick: handleRowClick,
+        enableClientPagination: true,
         pagination: {
           page,
           pageSize,

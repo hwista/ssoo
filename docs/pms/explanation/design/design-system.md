@@ -738,3 +738,10 @@ export function RequestListItem({ request }) {
 - [Tailwind CSS 문서](https://tailwindcss.com/docs)
 - [shadcn/ui 컴포넌트](https://ui.shadcn.com/)
 - [Lucide Icons](https://lucide.dev/)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

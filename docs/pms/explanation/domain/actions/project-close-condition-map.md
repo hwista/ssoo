@@ -27,3 +27,10 @@
 ## 5) Validation
 - 해당 status_code row가 존재해야 함(프로젝트_스테이터스 row)
 - 기존 생성된 조건이 있을 경우 덮어쓰기 정책(append/replace) 결정 필요
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

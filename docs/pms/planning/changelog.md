@@ -41,11 +41,14 @@
 | - | - | 성능 | **icons.ts wildcard import 제거**: `import * as LucideIcons`(3,740모듈) → 명시적 25개 아이콘 import. 초기 모듈 4,626→1,442 (-69%) |
 | - | - | 버그 | **auth.store.ts Hydration 처리 추가**: `_hasHydrated` 상태 + `onRehydrateStorage` 콜백으로 SSR→CSR 전환 시 상태 불일치 해결 |
 | - | - | 버그 | **checkAuth 안전한 에러 처리**: 외부 try-catch로 네트워크 오류 등 예상치 못한 예외 시 `isLoading: true` 고정 방지 |
+| - | - | 버그 | **DataGrid 클라이언트 페이지네이션 연결**: ListPageTemplate 샘플 목록에서 페이지 변경 반영 |
 | - | - | 리팩 | **(main)/layout.tsx 인라인 로그인 폼 제거**: 기존 (auth)/login 페이지 활용, AppLayout dynamic import로 청크 분리 |
 | - | - | 버그 | **middleware.ts `/login` 경로 허용 추가**: 미인증 시 리다이렉드 작동 |
 | - | - | 신규 | **global-error.tsx 추가**: ChunkLoadError 자동 새로고침 + 폴백 UI |
 | - | - | 신규 | **(main)/error.tsx 추가**: 인증 후 영역 에러 바운더리 (자동 복구) |
 | - | - | 개선 | **(main)/layout.tsx 로딩 타임아웃 추가**: 15초 초과 시 자동 새로고침, 재실패 시 로그인 페이지로 이동 |
+| - | - | DB | **프로젝트 단계별 상세 테이블 추가**: request/proposal/execution/transition 상세 + 히스토리 트리거 도입 |
+| - | - | 문서 | **프로젝트 단계별 상세/전환 흐름 문서화**: concepts, lifecycle, 실행 종료 스펙 업데이트 |
 
 ### 2026-01-30
 
@@ -174,3 +177,10 @@
 > 30일 이상 지난 변경 이력은 아카이브로 이동합니다.
 
 - [2026년 1월 이전](../_archive/changelog-2025.md) *(예정)*
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -31,3 +31,10 @@ PM이 인수하고 실제 수행 시작(킥오프 등) 시점을 기록
 ## 6) Validation
 - status_code=execution
 - stage_code in {waiting, in_progress} (재착수 정책에 따라)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

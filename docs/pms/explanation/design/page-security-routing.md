@@ -286,3 +286,10 @@ not-found.tsx에서 무조건 / 로 리다이렉트
 **작성자**: GitHub Copilot  
 **검토자**: 개발팀  
 **버전**: 1.0
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

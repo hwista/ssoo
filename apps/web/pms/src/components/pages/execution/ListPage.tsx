@@ -144,6 +144,7 @@ export function ExecutionListPage() {
         data,
         loading: false,
         onRowClick: handleRowClick,
+        enableClientPagination: true,
         pagination: {
           page,
           pageSize,

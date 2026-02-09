@@ -227,3 +227,10 @@ packages/
 |------|------|
 | 2026-01-29 | 초안 작성 - PMS/DMS 비교 분석 완료 |
 | 2026-01-29 | DMS Phase 5 완료 반영 - Layout/API 비교 업데이트 |
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -102,3 +102,10 @@
 > 완료된 항목 중 30일 이상 지난 것은 아카이브로 이동합니다.
 
 - [완료된 백로그 아카이브](../_archive/backlog-completed.md) *(예정)*
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

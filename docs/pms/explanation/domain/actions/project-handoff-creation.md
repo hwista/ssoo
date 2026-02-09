@@ -32,3 +32,10 @@
 ## 6) Validation
 - handoff_user_id 필수
 - handoff_type_code 유효값(코드 정책)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

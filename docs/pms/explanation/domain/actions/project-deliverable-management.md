@@ -49,3 +49,10 @@
 ## 5) Validation(권장)
 - submitted 이상으로 갈 때 storage_object_key 존재 여부 검증(파일 없이 제출 방지)
 - confirmed는 submitted 이후로만 가능
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

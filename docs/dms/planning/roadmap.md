@@ -60,3 +60,10 @@
 
 - [DMS Backlog](./backlog.md)
 - [DMS Changelog](./changelog.md)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

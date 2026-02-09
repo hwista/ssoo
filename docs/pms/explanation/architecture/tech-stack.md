@@ -45,3 +45,10 @@ PMS(Project Management System) 프론트엔드 전용 기술 스택입니다.
 - [package-spec.md](package-spec.md) - 패키지 상세 명세
 
 ````
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -27,3 +27,10 @@
 
 ## 6) Validation
 - handoff_stage_code in {waiting, in_progress} (정책)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -174,6 +174,7 @@ export function RequestListPage() {
         data,
         loading: false,
         onRowClick: handleRowClick,
+        enableClientPagination: true,
         pagination: {
           page,
           pageSize,

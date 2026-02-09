@@ -6,6 +6,8 @@ import {
   ColumnFiltersState,
   SortingState,
   VisibilityState,
+  PaginationState,
+  Updater,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -114,6 +116,46 @@ export function DataGrid<TData, TValue>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const shouldUseClientPagination = enableClientPagination;
+  const fallbackPageSize = 10;
+  const [paginationState, setPaginationState] = React.useState<PaginationState>({
+    pageIndex: Math.max(0, (pagination?.page ?? 1) - 1),
+    pageSize: pagination?.pageSize ?? fallbackPageSize,
+  });
+
+  React.useEffect(() => {
+    if (!shouldUseClientPagination) {
+      return;
+    }
+
+    const nextPageIndex = Math.max(0, (pagination?.page ?? 1) - 1);
+    const nextPageSize = pagination?.pageSize ?? fallbackPageSize;
+
+    setPaginationState((prev) => {
+      if (prev.pageIndex === nextPageIndex && prev.pageSize === nextPageSize) {
+        return prev;
+      }
+      return { pageIndex: nextPageIndex, pageSize: nextPageSize };
+    });
+  }, [shouldUseClientPagination, pagination?.page, pagination?.pageSize]);
+
+  const handlePaginationChange = React.useCallback(
+    (updater: Updater<PaginationState>) => {
+      setPaginationState((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        if (pagination) {
+          if (next.pageIndex !== prev.pageIndex) {
+            pagination.onPageChange(next.pageIndex + 1);
+          }
+          if (next.pageSize !== prev.pageSize) {
+            pagination.onPageSizeChange?.(next.pageSize);
+          }
+        }
+        return next;
+      });
+    },
+    [pagination]
+  );
 
   // 선택 컬럼 추가
   const tableColumns = React.useMemo(() => {
@@ -146,23 +188,29 @@ export function DataGrid<TData, TValue>({
     return [selectColumn, ...columns];
   }, [columns, enableRowSelection]);
 
+  const tableState = {
+    sorting,
+    columnFilters,
+    columnVisibility,
+    rowSelection,
+    ...(shouldUseClientPagination && { pagination: paginationState }),
+  };
+
   const table = useReactTable({
     data,
     columns: tableColumns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    ...(enableClientPagination && { getPaginationRowModel: getPaginationRowModel() }),
+    ...(shouldUseClientPagination && {
+      getPaginationRowModel: getPaginationRowModel(),
+      onPaginationChange: handlePaginationChange,
+    }),
     ...(enableSorting && { getSortedRowModel: getSortedRowModel() }),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
+    state: tableState,
   });
 
   // 선택 변경 콜백

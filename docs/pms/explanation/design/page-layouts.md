@@ -650,3 +650,10 @@ interface DataGridProps {
 |------|------|----------|
 | 2026-01-19 | 1.0 | 초기 문서 작성 (목록/폼/상세 페이지) |
 | 2026-01-19 | 2.0 | **새 표준 적용**: PageHeader(액션+필터, 접기/펼치기), PageContent(고정 크기), DataGrid(테이블+페이지네이션 묶음), 레이아웃 변형 패턴 추가 |
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

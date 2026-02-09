@@ -35,3 +35,10 @@
 ## 6) Validation
 - 직전 상태가 proposal done(won) 인지 확인(정책)
 - 또는 계약 이벤트가 존재하면 강제 전환 가능(추후 계약 테이블 생기면 그 이벤트로 판단)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

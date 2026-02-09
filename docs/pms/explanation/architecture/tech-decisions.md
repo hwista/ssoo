@@ -144,7 +144,27 @@
 
 ---
 
-## 9. 사용자 테이블 설계
+## 9. 단계별 상세 테이블 분리
+
+### 결정: Project 공통 + 단계 특화 상세 테이블
+
+**배경:**
+- 단일 Project 엔티티 유지
+- 단계별로 의미가 다른 필드가 증가
+
+**결정 내용:**
+- 공통 필드는 `pr_project_m` 유지
+- 상태 공통 상세는 `pr_project_status_m` 유지
+- 단계 특화 상세는 `pr_project_{stage}_d` 테이블로 분리
+
+**장점:**
+- 공통 모델 단순성 유지
+- 단계별 확장 용이
+- 조인으로 필요한 데이터만 조회 가능
+
+---
+
+## 10. 사용자 테이블 설계
 
 ### 결정: 단일 cm_user_m 테이블
 
@@ -166,3 +186,10 @@
 - [tech-stack.md](tech-stack.md) - 기술 스택
 - [frontend-standards.md](frontend-standards.md) - 프론트엔드 표준
 - [page-routing.md](page-routing.md) - 페이지 라우팅 상세
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -131,3 +131,10 @@ NEXT_PUBLIC_API_URL=http://localhost:4000/api
 - [DMS 기술 스택](../../dms/explanation/architecture/tech-stack.md)
 
 ````
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

@@ -427,3 +427,10 @@ NEXT_PUBLIC_API_URL=http://localhost:4000/api
 - [데이터베이스 스키마](../../../common/reference/db/schema.dbml) - cm_user 테이블 참조
 - [사용자 초대 플로우](./user-invitation.md)
 - [로그인 테스트 상세](../../tests/auth/login.md)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

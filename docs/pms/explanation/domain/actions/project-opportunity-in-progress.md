@@ -29,3 +29,10 @@ RFP/제안서 작업 등 “실제 일이 발생”하는 시점부터 진행으
 ## 6) Validation
 - 현재 status_code in {request, proposal}
 - 현재 stage_code in {waiting, in_progress} (idempotent 허용 여부 정책 결정)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

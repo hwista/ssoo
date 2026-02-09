@@ -478,3 +478,10 @@ cd apps/web/dms && npm run dev
 ---
 
 > 📌 **완료된 Phase 0~2 상세 내역**은 `package-integration-completed.md`를 참조하세요.
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

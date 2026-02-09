@@ -432,3 +432,10 @@ openTab({ ... });
 
 > 📌 **이 문서는 아카이브 목적입니다.**  
 > 진행 중인 작업은 `package-integration-plan.md`를 참조하세요.
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

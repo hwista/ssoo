@@ -26,3 +26,10 @@
 
 ## 5) Validation
 - deliverable_code는 pr_deliverable_m에 존재해야 함(논리 검증)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

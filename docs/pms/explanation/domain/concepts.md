@@ -47,10 +47,23 @@ SSOO 시스템의 핵심 도메인 개념을 정의합니다.
 | `lost` | 실주 |
 | `completed` | 완료 |
 | `cancelled` | 취소 |
-| `transferred` | 전환완료 |
+| `transfer_pending` | 운영 전환 필요 |
+| `transferred` | 운영 이관 완료 |
+| `linked` | 다음 프로젝트 연계 |
 | `hold` | 보류 |
 
 > 사용 규칙: `status_code=request/proposal/execution/transition`에서 `stage_code=done`일 때 의미 있음
+
+### 단계 특화 상세
+
+공통 필드는 `pr_project_m`에 유지하고, 단계별 특화 항목은 상세 테이블로 분리한다.
+
+| 단계 | 상세 테이블 | 설명 |
+|---|---|---|
+| request | `pr_project_request_d` | 요청 유입/채널/우선순위 등 |
+| proposal | `pr_project_proposal_d` | 제안 기한/금액/범위 등 |
+| execution | `pr_project_execution_d` | 계약/정산/납품 방식 등 |
+| transition | `pr_project_transition_d` | 운영 이관 핸드오프 관리 |
 
 ---
 
@@ -172,3 +185,10 @@ Opportunity = Project (status_code=request/proposal)
 - [actions/](actions/) - 액션 명세
 - [workflows/](workflows/) - 워크플로우 명세
 - [database-guide.md](../../common/guides/database-guide.md) - 데이터베이스 가이드 (공용)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

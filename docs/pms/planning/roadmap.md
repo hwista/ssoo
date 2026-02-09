@@ -77,3 +77,10 @@
 
 - [BACKLOG.md](BACKLOG.md) - 상세 백로그
 - [../domain/service-overview.md](../explanation/domain/service-overview.md) - 서비스 개요
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

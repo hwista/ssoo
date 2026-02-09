@@ -23,3 +23,10 @@
 - D01. 산출물 템플릿 적용(프로젝트+status 산출물 자동 생성)
 - D02. 산출물 파일 업로드/교체(storage_object_key 갱신)
 - D03. 산출물 상태 변경(before_submit→submitted→confirmed)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+

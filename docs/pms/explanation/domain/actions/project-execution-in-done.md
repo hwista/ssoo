@@ -18,14 +18,22 @@
 ## 3) 입력
 - project_id
 - (선택) actual_end_at
+- (필수) done_result_code
 - (선택) 종료 조건 체크리스트 완료 여부 확인
 
 ## 4) 상태 변경
 - pr_project_m: status_code=execution 유지, stage_code=done
+- done_result_code:
+  - completed (프로젝트 종료)
+  - transfer_pending (운영 전환 필요)
+  - linked (다음 프로젝트 연계)
+  - cancelled
+  - hold
 
 ## 5) DB 영향
 - UPDATE pr_project_m (+ 히스토리)
 - 프로젝트_스테이터스 상세(execution row)에 actual_end_at 기록
+- done_result_code=transfer_pending 인 경우 transition waiting 전환 이벤트는 별도 처리
 
 ## 6) Validation(권장)
 - (정책) execution 종료 전 종료조건(pr_project_close_condition_r_m) 미체크 항목이 있으면 종료 불가/경고
@@ -57,3 +65,10 @@
 
 ## 6) 실패/에러
 - 산출물 confirmed 미충족 시 체크 불가(에러 메시지에 부족 항목 안내 권장)
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-02-09 | Add changelog section. |
+
