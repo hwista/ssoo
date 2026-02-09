@@ -14,7 +14,7 @@ export const useLayoutStore = create<LayoutStore>()((set) => ({
   // Initial State
   deviceType: 'desktop',
   documentType: 'wiki',
-  aiSearchType: 'rag',
+  aiSearchType: 'question',
 
   // Actions
   setDeviceType: (type: DeviceType) => {

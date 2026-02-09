@@ -14,6 +14,12 @@ const pageComponents = {
   home: lazy(() => import('@/components/pages/home/HomeDashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
   // 마크다운 뷰어/에디터
   markdown: lazy(() => import('@/components/pages/markdown/MarkdownViewerPage').then(m => ({ default: m.MarkdownViewerPage }))),
+  // AI 질문
+  aiAsk: lazy(() => import('@/components/pages/ai/AiAskPage').then(m => ({ default: m.AiAskPage }))),
+  // AI 검색
+  aiSearch: lazy(() => import('@/components/pages/ai/AiSearchPage').then(m => ({ default: m.AiSearchPage }))),
+  // AI 작성
+  aiCreate: lazy(() => import('@/components/pages/ai/AiCreatePage').then(m => ({ default: m.AiCreatePage }))),
 };
 
 /**
@@ -46,6 +52,18 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
   // 새 문서 작성 (/wiki/new)
   if (tab.path === '/wiki/new') {
     return 'markdown';
+  }
+
+  if (tab.path.startsWith('/ai/ask')) {
+    return 'aiAsk';
+  }
+
+  if (tab.path.startsWith('/ai/search')) {
+    return 'aiSearch';
+  }
+
+  if (tab.path === '/ai/create') {
+    return 'aiCreate';
   }
   
   return null;
