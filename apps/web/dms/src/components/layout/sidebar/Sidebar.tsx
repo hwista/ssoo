@@ -47,7 +47,7 @@ interface SidebarProps {
 
 /**
  * DMS 사이드바 (PMS 표준 적용)
- * - 로고: W 아이콘 + Wiki 텍스트
+ * - 로고: S 아이콘 + SSOO 텍스트
  * - 문서 타입 선택: 헤더 영역 (사이드바 접기 버튼 위치)
  * - 검색 + 새로고침
  * - 책갈피 / 현재 열린 페이지 / 전체 파일
@@ -109,9 +109,9 @@ export function Sidebar({
         {/* 로고 (PMS 스타일) */}
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 bg-white rounded flex items-center justify-center">
-            <span className="text-ssoo-primary font-bold text-lg">W</span>
+            <span className="text-ssoo-primary font-bold text-base">S</span>
           </div>
-          <span className="font-semibold text-white text-lg">WIKI</span>
+          <span className="font-semibold text-white text-lg">SSOO</span>
         </div>
 
         {/* 문서 타입 선택 드롭다운 (헤더 AI 검색 스타일) */}
