@@ -23,8 +23,6 @@ export interface TocItem {
 export interface SidecarMetadata {
   /** 작성자 */
   author?: string;
-  /** 마지막 수정자 */
-  lastModifiedBy?: string;
   /** 생성일 */
   createdAt?: Date | string;
   /** 수정일 */
@@ -35,6 +33,8 @@ export interface SidecarMetadata {
   charCount?: number;
   /** 단어 수 */
   wordCount?: number;
+  /** 수정자 */
+  lastModifiedBy?: string;
   /** 첨부 파일 */
   attachments?: SourceFileMeta[];
 }
@@ -45,6 +45,8 @@ export interface SidecarMetadata {
 export interface SidecarProps {
   /** 문서 메타데이터 (표시용) */
   metadata?: SidecarMetadata;
+  /** 파일 경로 */
+  filePath?: string;
   /** 태그 목록 */
   tags?: string[];
   /** 편집 가능 여부 */
@@ -53,8 +55,6 @@ export interface SidecarProps {
   documentMetadata?: DocumentMetadata | null;
   /** 메타데이터 변경 콜백 */
   onMetadataChange?: (update: Partial<DocumentMetadata>) => void;
-  /** 파일 경로 (문서명 fallback용) */
-  filePath?: string;
   /** 추가 className */
   className?: string;
 }
@@ -273,21 +273,9 @@ function EditableSourceLinks({
 }
 
 /**
- * 댓글 섹션 컴포넌트 (목록 + 추가 + 삭제)
- * - editable=true (에디터 모드): 삭제만 가능
- * - editable=false (뷰어 모드): 추가 + 삭제 가능
+ * 댓글 입력 컴포넌트 (사이드카 하단 고정)
  */
-function CommentSection({
-  comments,
-  editable,
-  onAdd,
-  onDelete,
-}: {
-  comments: DocumentComment[];
-  editable: boolean;
-  onAdd: (content: string) => void;
-  onDelete: (id: string) => void;
-}) {
+function CommentInput({ onAdd }: { onAdd: (content: string) => void }) {
   const [inputValue, setInputValue] = React.useState('');
 
   const handleSubmit = () => {
@@ -306,56 +294,25 @@ function CommentSection({
   };
 
   return (
-    <div className="space-y-2">
-      {/* 댓글 목록 */}
-      {comments.map((comment) => (
-        <div
-          key={comment.id}
-          className="p-2 rounded border border-gray-200/60 text-xs space-y-1"
+    <div className="flex-shrink-0 border-t border-gray-200 p-3">
+      <div className="relative">
+        <textarea
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="댓글 입력... (Enter 전송)"
+          rows={2}
+          className="w-full px-2 py-1.5 pr-8 text-xs bg-transparent border border-ssoo-content-border rounded resize-none focus:outline-none focus:border-ssoo-primary text-ssoo-primary"
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={!inputValue.trim()}
+          className="absolute right-1.5 bottom-1.5 p-1 text-ssoo-primary/60 hover:text-ssoo-primary disabled:opacity-30 transition-colors"
+          aria-label="댓글 추가"
         >
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-ssoo-primary">{comment.author}</span>
-            <div className="flex items-center gap-1">
-              <span className="text-gray-400">{formatDate(comment.createdAt)}</span>
-              <button
-                onClick={() => onDelete(comment.id)}
-                className="p-0.5 hover:text-red-500 transition-colors text-gray-400"
-                aria-label="댓글 삭제"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          </div>
-          <p className="text-ssoo-primary/80 whitespace-pre-wrap">{comment.content}</p>
-        </div>
-      ))}
-
-      {/* 댓글 입력 (뷰어 모드에서만 표시) */}
-      {!editable && (
-        <div className="relative">
-          <textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="댓글 입력... (Enter 전송)"
-            rows={2}
-            className="w-full px-2 py-1.5 pr-8 text-xs bg-transparent border border-ssoo-content-border rounded resize-none focus:outline-none focus:border-ssoo-primary text-ssoo-primary"
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={!inputValue.trim()}
-            className="absolute right-1.5 bottom-1.5 p-1 text-ssoo-primary/60 hover:text-ssoo-primary disabled:opacity-30 transition-colors"
-            aria-label="댓글 추가"
-          >
-            <Send className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* 빈 상태 (에디터 모드 + 댓글 없음) */}
-      {editable && comments.length === 0 && (
-        <EmptyPlaceholder text="댓글없음" />
-      )}
+          <Send className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -392,7 +349,8 @@ export function Sidecar({
   const comments = documentMetadata?.comments ?? [];
 
   // 문서명: title이 있으면 사용, 없으면 파일명에서 추출
-  const documentTitle = documentMetadata?.title || (filePath ? filePath.split('/').pop()?.replace(/\.md$/, '') || '' : '');
+  const fileName = filePath ? filePath.split('/').pop() || '' : '';
+  const documentTitle = documentMetadata?.title || fileName.replace(/\.md$/, '');
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [titleDraft, setTitleDraft] = React.useState(documentTitle);
 
@@ -438,216 +396,263 @@ export function Sidecar({
   };
 
   return (
-    <div className={cn('p-4 space-y-1', className)}>
-      {/* ─── 태그 ─── */}
-      <CollapsibleSection icon={Tag} title="태그">
-        {editable ? (
-          <EditableTags tags={tags ?? []} onChange={handleTagsChange} />
-        ) : tags && tags.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="px-2 py-0.5 text-xs bg-ssoo-content-border text-ssoo-primary rounded-full"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <EmptyPlaceholder text="태그없음" />
-        )}
-      </CollapsibleSection>
-
-      {/* ─── 문서 정보 ─── */}
-      {metadata && (
-        <CollapsibleSection icon={FileText} title="문서 정보">
-          <dl className="space-y-2 text-sm">
-            {/* 문서명 */}
-            <div className="flex items-center justify-between">
-              <dt className="flex items-center text-gray-500">
-                <FileText className="h-3.5 w-3.5 mr-1" />
-                문서명
-              </dt>
-              <dd className="text-ssoo-primary flex items-center gap-1">
-                {editable && isEditingTitle ? (
-                  <input
-                    type="text"
-                    value={titleDraft}
-                    onChange={(e) => setTitleDraft(e.target.value)}
-                    onBlur={handleTitleSave}
-                    onKeyDown={handleTitleKeyDown}
-                    className="w-full text-sm text-right border-b border-ssoo-content-border bg-transparent outline-none px-0.5"
-                    autoFocus
-                  />
-                ) : (
-                  <>
-                    <span className="truncate max-w-[140px]" title={documentTitle}>{documentTitle || '제목없음'}</span>
-                    {editable && (
-                      <button onClick={() => setIsEditingTitle(true)} className="text-gray-400 hover:text-ssoo-primary">
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                    )}
-                  </>
-                )}
-              </dd>
-            </div>
-            {/* 작성자 */}
-            <div className="flex items-center justify-between">
-              <dt className="flex items-center text-gray-500">
-                <User className="h-3.5 w-3.5 mr-1" />
-                작성자
-              </dt>
-              <dd className="text-ssoo-primary">{metadata.author || 'Unknown'}</dd>
-            </div>
-            {/* 생성일 */}
-            {metadata.createdAt && (
+    <div className={cn('flex flex-col h-full', className)}>
+      {/* 스크롤 가능한 섹션 영역 */}
+      <div className="flex-1 overflow-auto p-4 space-y-1">
+        {/* ─── 문서 정보 ─── */}
+        {metadata && (
+          <CollapsibleSection icon={FileText} title="문서 정보" defaultOpen={false}>
+            <dl className="space-y-2 text-sm">
+              {/* 문서명 */}
               <div className="flex items-center justify-between">
                 <dt className="flex items-center text-gray-500">
-                  <Calendar className="h-3.5 w-3.5 mr-1" />
-                  생성일
+                  <FileText className="h-3.5 w-3.5 mr-1" />
+                  문서명
                 </dt>
-                <dd className="text-ssoo-primary">{formatDate(metadata.createdAt)}</dd>
+                <dd className="text-ssoo-primary flex items-center gap-1">
+                  {editable && isEditingTitle ? (
+                    <input
+                      type="text"
+                      value={titleDraft}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      onBlur={handleTitleSave}
+                      onKeyDown={handleTitleKeyDown}
+                      className="w-full text-sm text-right border-b border-ssoo-content-border bg-transparent outline-none px-0.5"
+                      autoFocus
+                    />
+                  ) : (
+                    <>
+                      <span className="truncate max-w-[140px]" title={documentTitle}>{documentTitle || '제목없음'}</span>
+                      {editable && (
+                        <button onClick={() => setIsEditingTitle(true)} className="text-gray-400 hover:text-ssoo-primary">
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </dd>
               </div>
-            )}
-            {/* 생성 시간 */}
-            {metadata.createdAt && (
-              <div className="flex items-center justify-between">
-                <dt className="flex items-center text-gray-500 pl-[18px]">
-                  생성 시간
-                </dt>
-                <dd className="text-ssoo-primary">{formatTime(metadata.createdAt)}</dd>
-              </div>
-            )}
-            {/* 수정자 */}
-            <div className="flex items-center justify-between">
-              <dt className="flex items-center text-gray-500">
-                <Pencil className="h-3.5 w-3.5 mr-1" />
-                수정자
-              </dt>
-              <dd className="text-ssoo-primary">{metadata.lastModifiedBy || 'Unknown'}</dd>
-            </div>
-            {/* 수정일 */}
-            {metadata.updatedAt && (
+              {/* 파일명 */}
+              {fileName && (
+                <div className="flex items-center justify-between">
+                  <dt className="flex items-center text-gray-500 pl-[18px]">
+                    파일명
+                  </dt>
+                  <dd className="text-ssoo-primary truncate max-w-[140px]" title={fileName}>{fileName}</dd>
+                </div>
+              )}
+              {/* 파일 경로 */}
+              {filePath && (
+                <div className="flex items-center justify-between">
+                  <dt className="flex items-center text-gray-500 pl-[18px]">
+                    경로
+                  </dt>
+                  <dd className="text-ssoo-primary truncate max-w-[140px]" title={filePath}>{filePath}</dd>
+                </div>
+              )}
+              {/* 작성자 */}
               <div className="flex items-center justify-between">
                 <dt className="flex items-center text-gray-500">
-                  <Calendar className="h-3.5 w-3.5 mr-1" />
-                  수정일
+                  <User className="h-3.5 w-3.5 mr-1" />
+                  작성자
                 </dt>
-                <dd className="text-ssoo-primary">{formatDate(metadata.updatedAt)}</dd>
+                <dd className="text-ssoo-primary">{metadata.author || 'Unknown'}</dd>
               </div>
-            )}
-            {/* 수정 시간 */}
-            {metadata.updatedAt && (
+              {/* 생성일 */}
+              {metadata.createdAt && (
+                <div className="flex items-center justify-between">
+                  <dt className="flex items-center text-gray-500">
+                    <Calendar className="h-3.5 w-3.5 mr-1" />
+                    생성일
+                  </dt>
+                  <dd className="text-ssoo-primary">{formatDate(metadata.createdAt)}</dd>
+                </div>
+              )}
+              {/* 생성 시간 */}
+              {metadata.createdAt && (
+                <div className="flex items-center justify-between">
+                  <dt className="flex items-center text-gray-500 pl-[18px]">
+                    생성 시간
+                  </dt>
+                  <dd className="text-ssoo-primary">{formatTime(metadata.createdAt)}</dd>
+                </div>
+              )}
+              {/* 수정자 */}
               <div className="flex items-center justify-between">
-                <dt className="flex items-center text-gray-500 pl-[18px]">
-                  수정 시간
+                <dt className="flex items-center text-gray-500">
+                  <Pencil className="h-3.5 w-3.5 mr-1" />
+                  수정자
                 </dt>
-                <dd className="text-ssoo-primary">{formatTime(metadata.updatedAt)}</dd>
+                <dd className="text-ssoo-primary">{metadata.lastModifiedBy || 'Unknown'}</dd>
               </div>
-            )}
-            {metadata.lineCount !== undefined && (
-              <div className="flex items-center justify-between">
-                <dt className="text-gray-500">줄 수</dt>
-                <dd className="text-ssoo-primary">{metadata.lineCount.toLocaleString()}</dd>
-              </div>
-            )}
-            {metadata.charCount !== undefined && (
-              <div className="flex items-center justify-between">
-                <dt className="text-gray-500">문자 수</dt>
-                <dd className="text-ssoo-primary">{metadata.charCount.toLocaleString()}</dd>
-              </div>
-            )}
-            {metadata.wordCount !== undefined && (
-              <div className="flex items-center justify-between">
-                <dt className="text-gray-500">단어 수</dt>
-                <dd className="text-ssoo-primary">{metadata.wordCount.toLocaleString()}</dd>
-              </div>
-            )}
-          </dl>
-        </CollapsibleSection>
-      )}
-
-      {/* ─── 요약 ─── */}
-      <CollapsibleSection icon={FileText} title="요약">
-        {editable ? (
-          <textarea
-            value={summary}
-            onChange={handleSummaryChange}
-            placeholder="문서 요약을 입력하세요..."
-            rows={3}
-            className="w-full px-2 py-1.5 text-xs bg-transparent border border-ssoo-content-border rounded resize-none focus:outline-none focus:border-ssoo-primary text-ssoo-primary"
-          />
-        ) : summary ? (
-          <p className="text-xs text-ssoo-primary/80 leading-relaxed">{summary}</p>
-        ) : (
-          <EmptyPlaceholder text="요약없음" />
+              {/* 수정일 */}
+              {metadata.updatedAt && (
+                <div className="flex items-center justify-between">
+                  <dt className="flex items-center text-gray-500">
+                    <Calendar className="h-3.5 w-3.5 mr-1" />
+                    수정일
+                  </dt>
+                  <dd className="text-ssoo-primary">{formatDate(metadata.updatedAt)}</dd>
+                </div>
+              )}
+              {/* 수정 시간 */}
+              {metadata.updatedAt && (
+                <div className="flex items-center justify-between">
+                  <dt className="flex items-center text-gray-500 pl-[18px]">
+                    수정 시간
+                  </dt>
+                  <dd className="text-ssoo-primary">{formatTime(metadata.updatedAt)}</dd>
+                </div>
+              )}
+              {metadata.lineCount !== undefined && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-gray-500">줄 수</dt>
+                  <dd className="text-ssoo-primary">{metadata.lineCount.toLocaleString()}</dd>
+                </div>
+              )}
+              {metadata.charCount !== undefined && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-gray-500">문자 수</dt>
+                  <dd className="text-ssoo-primary">{metadata.charCount.toLocaleString()}</dd>
+                </div>
+              )}
+              {metadata.wordCount !== undefined && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-gray-500">단어 수</dt>
+                  <dd className="text-ssoo-primary">{metadata.wordCount.toLocaleString()}</dd>
+                </div>
+              )}
+            </dl>
+          </CollapsibleSection>
         )}
-      </CollapsibleSection>
 
-      {/* ─── 소스 링크 ─── */}
-      <CollapsibleSection icon={Link2} title="소스 링크">
-        {editable ? (
-          <EditableSourceLinks links={sourceLinks} onChange={handleSourceLinksChange} />
-        ) : sourceLinks.length > 0 ? (
-          <div className="space-y-1">
-            {sourceLinks.map((link) => (
-              <a
-                key={link}
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-xs text-blue-500 hover:underline truncate"
-              >
-                {link}
-              </a>
-            ))}
-          </div>
-        ) : (
-          <EmptyPlaceholder text="링크없음" />
-        )}
-      </CollapsibleSection>
-
-      {/* ─── 첨부 파일 ─── */}
-      <CollapsibleSection icon={Paperclip} title="첨부 파일">
-        {attachments.length > 0 ? (
-          <div className="space-y-2">
-            {attachments.map((attachment) => {
-              const link = attachment.url || `/api/file?path=${encodeURIComponent(attachment.path)}`;
-              return (
-                <a
-                  key={`${attachment.path}-${attachment.name}`}
-                  href={link}
-                  className="flex items-center justify-between rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary transition-colors hover:border-ssoo-primary"
+        {/* ─── 태그 ─── */}
+        <CollapsibleSection icon={Tag} title="태그">
+          {editable ? (
+            <EditableTags tags={tags ?? []} onChange={handleTagsChange} />
+          ) : tags && tags.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-2 py-0.5 text-xs bg-ssoo-content-border text-ssoo-primary rounded-full"
                 >
-                  <span className="truncate">{attachment.name}</span>
-                  <span className="text-ssoo-primary/60">
-                    {(attachment.size / 1024).toFixed(1)} KB
-                  </span>
-                </a>
-              );
-            })}
-          </div>
-        ) : (
-          <EmptyPlaceholder text="첨부없음" />
-        )}
-      </CollapsibleSection>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <EmptyPlaceholder text="태그없음" />
+          )}
+        </CollapsibleSection>
 
-      {/* ─── 댓글 ─── */}
-      <CollapsibleSection
-        icon={MessageSquare}
-        title="댓글"
-        badge={comments.length > 0 ? (
-          <span className="text-xs text-gray-400 mr-1">({comments.length})</span>
-        ) : undefined}
-      >
-        <CommentSection
-          comments={comments}
-          editable={editable}
-          onAdd={handleCommentAdd}
-          onDelete={handleCommentDelete}
-        />
-      </CollapsibleSection>
+        {/* ─── 요약 ─── */}
+        <CollapsibleSection icon={FileText} title="요약">
+          {editable ? (
+            <textarea
+              value={summary}
+              onChange={handleSummaryChange}
+              placeholder="문서 요약을 입력하세요..."
+              rows={3}
+              className="w-full px-2 py-1.5 text-xs bg-transparent border border-ssoo-content-border rounded resize-none focus:outline-none focus:border-ssoo-primary text-ssoo-primary"
+            />
+          ) : summary ? (
+            <p className="text-xs text-ssoo-primary/80 leading-relaxed">{summary}</p>
+          ) : (
+            <EmptyPlaceholder text="요약없음" />
+          )}
+        </CollapsibleSection>
+
+        {/* ─── 소스 링크 ─── */}
+        <CollapsibleSection icon={Link2} title="소스 링크">
+          {editable ? (
+            <EditableSourceLinks links={sourceLinks} onChange={handleSourceLinksChange} />
+          ) : sourceLinks.length > 0 ? (
+            <div className="space-y-1">
+              {sourceLinks.map((link) => (
+                <a
+                  key={link}
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs text-blue-500 hover:underline truncate"
+                >
+                  {link}
+                </a>
+              ))}
+            </div>
+          ) : (
+            <EmptyPlaceholder text="링크없음" />
+          )}
+        </CollapsibleSection>
+
+        {/* ─── 첨부 파일 ─── */}
+        <CollapsibleSection icon={Paperclip} title="첨부 파일">
+          {attachments.length > 0 ? (
+            <div className="space-y-2">
+              {attachments.map((attachment) => {
+                const link = attachment.url || `/api/file?path=${encodeURIComponent(attachment.path)}`;
+                return (
+                  <a
+                    key={`${attachment.path}-${attachment.name}`}
+                    href={link}
+                    className="flex items-center justify-between rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary transition-colors hover:border-ssoo-primary"
+                  >
+                    <span className="truncate">{attachment.name}</span>
+                    <span className="text-ssoo-primary/60">
+                      {(attachment.size / 1024).toFixed(1)} KB
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyPlaceholder text="첨부없음" />
+          )}
+        </CollapsibleSection>
+
+        {/* ─── 댓글 목록 ─── */}
+        <CollapsibleSection
+          icon={MessageSquare}
+          title="댓글"
+          badge={comments.length > 0 ? (
+            <span className="text-xs text-gray-400 mr-1">({comments.length})</span>
+          ) : undefined}
+        >
+          {comments.length > 0 ? (
+            <div className="space-y-2">
+              {comments.map((comment) => (
+                <div
+                  key={comment.id}
+                  className="p-2 rounded border border-gray-200/60 text-xs space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-ssoo-primary">{comment.author}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-400">{formatDate(comment.createdAt)}</span>
+                      <button
+                        onClick={() => handleCommentDelete(comment.id)}
+                        className="p-0.5 hover:text-red-500 transition-colors text-gray-400"
+                        aria-label="댓글 삭제"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-ssoo-primary/80 whitespace-pre-wrap">{comment.content}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyPlaceholder text="댓글없음" />
+          )}
+        </CollapsibleSection>
+      </div>
+
+      {/* ─── 댓글 입력 (하단 고정) ─── */}
+      {!editable && (
+        <CommentInput onAdd={handleCommentAdd} />
+      )}
     </div>
   );
 }

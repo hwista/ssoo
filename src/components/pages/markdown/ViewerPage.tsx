@@ -42,7 +42,6 @@ export function ViewerPage() {
     setIsEditing, 
     fileMetadata, 
     documentMetadata,
-    updateDocumentMetadata,
     setLocalDocumentMetadata,
     setContent, 
     reset,
@@ -183,6 +182,11 @@ export function ViewerPage() {
     // TODO: 해당 폴더로 트리 이동
   }, []);
 
+  // 히스토리 핸들러 (깃 연동 예정)
+  const handleHistory = useCallback(() => {
+    // TODO: 깃 히스토리 뷰어 연동
+  }, []);
+
   // 저장 핸들러 (에디터 모드용) - Store의 핸들러 사용
   const handleSave = useCallback(() => {
     editorHandlers?.save();
@@ -203,7 +207,7 @@ export function ViewerPage() {
     editorHandlers?.autoSaveToggle();
   }, [editorHandlers]);
 
-  // 메타데이터 변경 핸들러 (Sidecar → Store 로컬 → 저장 시 서버 반영)
+  // 메타데이터 변경 핸들러 (Sidecar → Store 로컬 업데이터, 저장 시 플러시)
   const handleMetadataChange = useCallback((update: Partial<DocumentMetadata>) => {
     setLocalDocumentMetadata(update);
   }, [setLocalDocumentMetadata]);
@@ -271,11 +275,11 @@ export function ViewerPage() {
         onEdit={handleEdit}
         onSave={handleSave}
         onCancel={handleCancel}
+        onHistory={handleHistory}
         onDelete={isCreateMode ? undefined : handleDelete}
         onPathClick={handlePathClick}
         // 에디터 상태 (Header에 전달)
         saving={isSaving}
-        hasUnsavedChanges={hasUnsavedChanges}
         isAutoSaveEnabled={isAutoSaveEnabled}
         onAutoSaveToggle={handleAutoSaveToggle}
         autoSaveCountdown={autoSaveCountdown}

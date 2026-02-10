@@ -48,9 +48,11 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     isEditing,
     setIsEditing,
     fileMetadata,
+    pendingMetadataUpdate,
     saveFile: storeSaveFile,
     saveFileKeepEditing: storeSaveFileKeepEditing,
     refreshFileMetadata,
+    discardPendingMetadata,
     // 에디터 상태 공유용
     setEditorHandlers,
     clearEditorHandlers,
@@ -176,7 +178,7 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
   // 취소 핸들러
   // =====================
   const handleCancel = React.useCallback(() => {
-    if (hasUnsavedChanges) {
+    if (hasUnsavedChanges || pendingMetadataUpdate) {
       if (!confirm('저장하지 않은 변경사항이 있습니다. 정말로 취소하시겠습니까?')) {
         return;
       }
@@ -190,8 +192,10 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     
     resetContent(content);
     setHtmlContent(markdownToHtmlSync(content));
+    // 보류 중인 메타데이터 변경사항 폐기 (서버에서 재로드)
+    discardPendingMetadata();
     setIsEditing(false);
-  }, [hasUnsavedChanges, content, resetContent, setIsEditing, isCreateMode, activeTabId, closeTab]);
+  }, [hasUnsavedChanges, pendingMetadataUpdate, content, resetContent, setIsEditing, isCreateMode, activeTabId, closeTab, discardPendingMetadata]);
 
   // =====================
   // 자동저장 토글 핸들러
