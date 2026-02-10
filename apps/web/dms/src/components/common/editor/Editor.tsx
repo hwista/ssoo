@@ -21,6 +21,8 @@ export interface EditorProps {
   className?: string;
   /** 레이아웃 변형 */
   variant?: 'standalone' | 'embedded';
+  /** 콘텐츠 표면 표시 여부 */
+  showContentSurface?: boolean;
 }
 
 /**
@@ -36,7 +38,7 @@ export interface EditorProps {
  * <Editor className="h-full" />
  * ```
  */
-export function Editor({ className, variant = 'standalone' }: EditorProps) {
+export function Editor({ className, variant = 'standalone', showContentSurface }: EditorProps) {
   const { showSuccess, showError } = useToast();
   
   // Store에서 상태 가져오기
@@ -301,6 +303,7 @@ export function Editor({ className, variant = 'standalone' }: EditorProps) {
         onBlockEditorChange={handleBlockEditorChange}
         maxWidth={resolvedMaxWidth}
         variant={variant}
+        showSurface={showContentSurface}
       />
     </div>
   );

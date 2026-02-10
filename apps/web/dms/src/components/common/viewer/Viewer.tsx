@@ -22,6 +22,8 @@ export interface ViewerProps {
   onSearch?: (query: string) => void;
   /** 레이아웃 변형 */
   variant?: ViewerVariant;
+  /** 콘텐츠 표면 표시 여부 */
+  showContentSurface?: boolean;
   /** 추가 className */
   className?: string;
 }
@@ -49,6 +51,7 @@ export function Viewer({
   onTocClick,
   onSearch,
   variant = 'standalone',
+  showContentSurface,
   className,
 }: ViewerProps) {
   // 줌 상태
@@ -251,6 +254,7 @@ export function Viewer({
         zoomLevel={zoomLevel}
         contentRef={contentRef}
         variant={variant}
+        showSurface={showContentSurface}
       />
     </div>
   );

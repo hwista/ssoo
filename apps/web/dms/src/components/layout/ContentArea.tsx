@@ -13,7 +13,7 @@ const pageComponents = {
   // Home 대시보드
   home: lazy(() => import('@/components/pages/home/HomeDashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
   // 마크다운 뷰어/에디터
-  markdown: lazy(() => import('@/components/pages/markdown/MarkdownViewerPage').then(m => ({ default: m.MarkdownViewerPage }))),
+  markdown: lazy(() => import('@/components/pages/markdown/ViewerPage').then(m => ({ default: m.ViewerPage }))),
   // AI 질문
   aiAsk: lazy(() => import('@/components/pages/ai/AiAskPage').then(m => ({ default: m.AiAskPage }))),
   // AI 검색

@@ -19,6 +19,8 @@ export interface ContentProps {
   maxWidth?: number;
   /** 레이아웃 변형 */
   variant?: 'standalone' | 'embedded';
+  /** 콘텐츠 표면 표시 여부 */
+  showSurface?: boolean;
   /** 추가 className */
   className?: string;
 }
@@ -36,10 +38,12 @@ export function Content({
   onSave,
   maxWidth,
   variant = 'standalone',
+  showSurface,
   className,
 }: ContentProps) {
   const isEmbedded = variant === 'embedded';
   const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
+  const shouldShowSurface = showSurface ?? !isEmbedded;
   const blockEditorRef = React.useRef<BlockEditorRef>(null);
 
   return (
@@ -53,7 +57,7 @@ export function Content({
       <div 
         className={cn(
           'h-full w-full overflow-hidden flex flex-col',
-          !isEmbedded && 'bg-white border border-gray-200 rounded-lg'
+          shouldShowSurface && 'bg-white border border-gray-200 rounded-lg'
         )}
         style={resolvedMaxWidth ? { maxWidth: resolvedMaxWidth } : undefined}
       >
