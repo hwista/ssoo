@@ -26,8 +26,12 @@ export class ProjectController {
   @ApiForbiddenResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: "서버 오류" })
   async findAll(@Query() params: PaginationParams) {
-    const { data, total } = await this.projectService.findAll(params);
-    return paginated(data, params.page || 1, params.limit || 10, total);
+    const pageValue = Number(params.page);
+    const limitValue = Number(params.limit);
+    const page = Number.isFinite(pageValue) && pageValue > 0 ? pageValue : 1;
+    const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : 10;
+    const { data, total } = await this.projectService.findAll({ page, limit });
+    return paginated(data, page, limit, total);
   }
 
   @Get(":id")

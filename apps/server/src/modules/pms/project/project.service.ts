@@ -11,8 +11,10 @@ export class ProjectService {
   constructor(private readonly db: DatabaseService) {}
 
   async findAll(params: PaginationParams) {
-    const page = params.page || 1;
-    const limit = params.limit || 10;
+    const pageValue = Number(params.page);
+    const limitValue = Number(params.limit);
+    const page = Number.isFinite(pageValue) && pageValue > 0 ? pageValue : 1;
+    const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : 10;
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([

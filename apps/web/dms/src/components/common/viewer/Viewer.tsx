@@ -228,6 +228,7 @@ export function Viewer({
       {/* 툴바 */}
       <Toolbar
         maxWidth={DOCUMENT_WIDTH}
+        variant={variant}
         toc={toc}
         onTocClick={handleTocClick}
         searchQuery={searchQuery}
