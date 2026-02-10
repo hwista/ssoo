@@ -67,6 +67,13 @@ export interface DocumentVersionEntry {
   summary: string;
 }
 
+export interface DocumentComment {
+  id: string;
+  author: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface DocumentMetadata {
   title: string;
   summary: string;
@@ -83,6 +90,7 @@ export interface DocumentMetadata {
   sourceFiles: SourceFileMeta[];
   acl: DocumentAcl;
   versionHistory: DocumentVersionEntry[];
+  comments: DocumentComment[];
   templateId: string;
   author: string;
 }

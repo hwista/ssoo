@@ -4,6 +4,7 @@
  */
 
 import { ERROR_MESSAGES } from './constants';
+import type { DocumentMetadata } from '@/types/file';
 
 /**
  * API 응답 타입 정의
@@ -236,6 +237,16 @@ export const fileApi = {
     return request('/api/file', {
       method: 'POST',
       body: { action: 'deleteFolder', path }
+    });
+  },
+
+  /**
+   * 문서 메타데이터 업데이트 (사이드카)
+   */
+  updateMetadata: async (path: string, metadata: Partial<DocumentMetadata>): Promise<ApiResponse<DocumentMetadata>> => {
+    return request('/api/file', {
+      method: 'POST',
+      body: { action: 'updateMetadata', path, metadata }
     });
   },
 

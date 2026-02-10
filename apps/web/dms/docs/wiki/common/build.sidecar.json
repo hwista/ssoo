@@ -1,12 +1,12 @@
 {
-  "title": "📋 리팩토링 v1 개요",
+  "title": "One-Pick 프로젝트 정리",
   "summary": "",
   "tags": [],
   "sourceLinks": [],
   "createdAt": "2026-02-04T00:19:14.218Z",
-  "updatedAt": "2026-02-09T05:12:40.972Z",
+  "updatedAt": "2026-02-09T07:18:44.458Z",
   "fileHashes": {
-    "content": "a742ad8c0617f765e7e9dbd51d0ed40f653bc40bb99954a8ee52241d2eeb84f5",
+    "content": "314e8502b924fe494324e5e5042ce9daac6744b185b802cbd6d9cea5945acfce",
     "sources": {}
   },
   "chunkIds": [],
@@ -18,6 +18,7 @@
     "viewers": []
   },
   "versionHistory": [],
+  "comments": [],
   "templateId": "default",
   "author": "admin"
 }

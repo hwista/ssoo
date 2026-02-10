@@ -67,6 +67,7 @@ interface EditorActions {
   
   // 메타데이터
   refreshFileMetadata: (path: string) => Promise<void>;
+  updateDocumentMetadata: (update: Partial<DocumentMetadata>) => Promise<void>;
   
   // 리셋
   reset: () => void;
@@ -269,6 +270,40 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       }
     } catch (error) {
       logger.warn('메타데이터 새로고침 실패', error);
+    }
+  },
+
+  updateDocumentMetadata: async (update) => {
+    const { currentFilePath, documentMetadata } = get();
+    if (!currentFilePath) {
+      logger.warn('메타데이터 업데이트 실패: 파일 경로 없음');
+      return;
+    }
+
+    try {
+      const response = await fileApi.updateMetadata(currentFilePath, update);
+
+      if (!response.success) {
+        throw new Error(`메타데이터 업데이트 실패: ${getErrorMessage(response)}`);
+      }
+
+      // 응답에서 머지된 메타데이터 반영
+      const merged = response.data as DocumentMetadata | undefined;
+      if (merged) {
+        set({ documentMetadata: merged });
+      } else {
+        // fallback: 로컬 머지
+        set({
+          documentMetadata: documentMetadata
+            ? { ...documentMetadata, ...update, updatedAt: new Date().toISOString() }
+            : null,
+        });
+      }
+
+      logger.info('문서 메타데이터 업데이트 성공', { path: currentFilePath });
+    } catch (error) {
+      logger.error('문서 메타데이터 업데이트 실패', error);
+      throw error;
     }
   },
 
