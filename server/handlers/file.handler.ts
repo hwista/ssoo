@@ -44,6 +44,13 @@ export interface DocumentVersionEntry {
   summary: string;
 }
 
+export interface DocumentComment {
+  id: string;
+  author: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface DocumentMetadata {
   title: string;
   summary: string;
@@ -60,6 +67,7 @@ export interface DocumentMetadata {
   sourceFiles: SourceFileMeta[];
   acl: DocumentAcl;
   versionHistory: DocumentVersionEntry[];
+  comments: DocumentComment[];
   templateId: string;
   author: string;
 }
@@ -70,13 +78,14 @@ export interface FileData {
 }
 
 export interface FileActionBody {
-  action: 'read' | 'metadata' | 'write' | 'create' | 'createFolder' | 'mkdir' | 'rename' | 'delete';
+  action: 'read' | 'metadata' | 'write' | 'create' | 'createFolder' | 'mkdir' | 'rename' | 'delete' | 'updateMetadata';
   path?: string;
   content?: string;
   name?: string;
   parent?: string;
   oldPath?: string;
   newPath?: string;
+  metadata?: Partial<DocumentMetadata>;
 }
 
 export type HandlerResult<T = unknown> = 
@@ -136,9 +145,17 @@ function getFileMetadata(filePath: string): FileMetadata {
 }
 
 /**
- * 메타데이터 JSON 파일 경로 생성
+ * 사이드카 메타데이터 파일 경로 생성 (.sidecar.json)
  */
 function getDocumentMetadataPath(filePath: string): string {
+  const parsed = path.parse(filePath);
+  return path.join(parsed.dir, `${parsed.name}.sidecar.json`);
+}
+
+/**
+ * 레거시 메타데이터 파일 경로 (.json) — 마이그레이션용
+ */
+function getLegacyMetadataPath(filePath: string): string {
   const parsed = path.parse(filePath);
   return path.join(parsed.dir, `${parsed.name}.json`);
 }
@@ -179,6 +196,7 @@ function buildDefaultDocumentMetadata(
     sourceFiles: existing?.sourceFiles ?? [],
     acl: existing?.acl ?? { owners: [], editors: [], viewers: [] },
     versionHistory: existing?.versionHistory ?? [],
+    comments: existing?.comments ?? [],
     templateId: existing?.templateId ?? 'default',
     author: existing?.author ?? 'admin',
   };
@@ -186,15 +204,37 @@ function buildDefaultDocumentMetadata(
 
 function readDocumentMetadata(filePath: string): DocumentMetadata | null {
   const metadataPath = getDocumentMetadataPath(filePath);
-  if (!fs.existsSync(metadataPath)) return null;
 
-  try {
-    const raw = fs.readFileSync(metadataPath, 'utf-8');
-    return JSON.parse(raw) as DocumentMetadata;
-  } catch (error) {
-    logger.warn('문서 메타데이터 파싱 실패', error, { metadataPath });
-    return null;
+  // 새 형식 파일 확인
+  if (fs.existsSync(metadataPath)) {
+    try {
+      const raw = fs.readFileSync(metadataPath, 'utf-8');
+      return JSON.parse(raw) as DocumentMetadata;
+    } catch (error) {
+      logger.warn('문서 메타데이터 파싱 실패', { metadataPath, error });
+      return null;
+    }
   }
+
+  // 레거시 형식 자동 마이그레이션 (.json → .sidecar.json)
+  const legacyPath = getLegacyMetadataPath(filePath);
+  if (fs.existsSync(legacyPath)) {
+    try {
+      const raw = fs.readFileSync(legacyPath, 'utf-8');
+      const data = JSON.parse(raw) as DocumentMetadata;
+      // 새 형식으로 저장
+      fs.writeFileSync(metadataPath, JSON.stringify(data, null, 2), 'utf-8');
+      // 레거시 파일 삭제
+      fs.unlinkSync(legacyPath);
+      logger.info('사이드카 메타데이터 마이그레이션 완료', { legacyPath, metadataPath });
+      return data;
+    } catch (error) {
+      logger.warn('레거시 메타데이터 마이그레이션 실패', { legacyPath, error });
+      return null;
+    }
+  }
+
+  return null;
 }
 
 function writeDocumentMetadata(filePath: string, metadata: DocumentMetadata): void {
@@ -207,6 +247,48 @@ function ensureDocumentMetadata(content: string, filePath: string, fileMeta: Fil
   const metadata = buildDefaultDocumentMetadata(content, filePath, fileMeta, existing ?? undefined);
   writeDocumentMetadata(filePath, metadata);
   return metadata;
+}
+
+/**
+ * 문서 메타데이터 부분 업데이트
+ * - 기존 메타데이터를 읽고, 전달된 필드만 머지하여 저장
+ * - comments: 전체 교체 (클라이언트에서 삭제 후 배열 전달)
+ */
+function updateDocumentMetadataHandler(
+  filePath: string,
+  update: Partial<DocumentMetadata>,
+): HandlerResult<DocumentMetadata> {
+  const { targetPath, valid } = resolveFilePath(filePath);
+
+  if (!valid) {
+    return { success: false, error: "Invalid path", status: 400 };
+  }
+
+  if (!fs.existsSync(targetPath)) {
+    return { success: false, error: "File not found", status: 404 };
+  }
+
+  try {
+    const existing = readDocumentMetadata(targetPath);
+    if (!existing) {
+      return { success: false, error: "Metadata not found", status: 404 };
+    }
+
+    // updatedAt 자동 갱신
+    const merged: DocumentMetadata = {
+      ...existing,
+      ...update,
+      updatedAt: new Date().toISOString(),
+    };
+
+    writeDocumentMetadata(targetPath, merged);
+    logger.info('문서 메타데이터 업데이트 완료', { filePath });
+
+    return { success: true, data: merged };
+  } catch (error) {
+    logger.error('문서 메타데이터 업데이트 실패', error, { filePath });
+    return { success: false, error: "Failed to update metadata", status: 500 };
+  }
 }
 
 // ============================================================================
@@ -488,7 +570,7 @@ export async function deleteFile(filePath: string): Promise<HandlerResult<{ mess
  * POST 액션 라우터 - route.ts에서 사용
  */
 export async function handleFileAction(body: FileActionBody): Promise<HandlerResult<unknown>> {
-  const { action, path: filePath, content, name, parent = "", oldPath, newPath } = body;
+  const { action, path: filePath, content, name, parent = "", oldPath, newPath, metadata: metadataUpdate } = body;
 
   switch (action) {
     case "read":
@@ -523,6 +605,11 @@ export async function handleFileAction(body: FileActionBody): Promise<HandlerRes
     case "delete":
       if (!filePath) return { success: false, error: "Missing file path", status: 400 };
       return deleteFile(filePath);
+
+    case "updateMetadata":
+      if (!filePath) return { success: false, error: "Missing file path", status: 400 };
+      if (!metadataUpdate) return { success: false, error: "Missing metadata", status: 400 };
+      return updateDocumentMetadataHandler(filePath, metadataUpdate);
 
     default:
       return { success: false, error: "Invalid action", status: 400 };

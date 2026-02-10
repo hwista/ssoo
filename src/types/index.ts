@@ -11,6 +11,7 @@ export type {
   FileMetadata,
   DocumentMetadata,
   DocumentAcl,
+  DocumentComment,
   SourceFileMeta,
   DocumentVersionEntry,
   FileEvent,

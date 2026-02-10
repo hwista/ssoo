@@ -1,0 +1,24 @@
+{
+  "title": "123",
+  "summary": "",
+  "tags": [],
+  "sourceLinks": [],
+  "createdAt": "2026-02-04T00:19:14.218Z",
+  "updatedAt": "2026-02-09T07:08:24.643Z",
+  "fileHashes": {
+    "content": "21a3fb3d9d790dea6eaa2083e367dff2986016eac03fa1042e616add362072a8",
+    "sources": {}
+  },
+  "chunkIds": [],
+  "embeddingModel": "",
+  "sourceFiles": [],
+  "acl": {
+    "owners": [],
+    "editors": [],
+    "viewers": []
+  },
+  "versionHistory": [],
+  "comments": [],
+  "templateId": "default",
+  "author": "admin"
+}
