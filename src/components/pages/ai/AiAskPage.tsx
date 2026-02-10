@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SendHorizontal, Bot, User } from 'lucide-react';
 import { useTabStore } from '@/stores';
 import { DocPageTemplate } from '@/components/templates';
-import { DOCUMENT_WIDTH } from '@/components/common/viewer/Content';
+import { AiPageShell } from '@/components/common/ai';
 import { aiApi, getErrorMessage } from '@/lib/utils/apiClient';
 
 interface ChatMessage {
@@ -65,55 +65,11 @@ export function AiAskPage() {
 
   return (
     <main className="flex-1 overflow-hidden bg-ssoo-content-bg/30">
-      <DocPageTemplate filePath="ai/ask" mode="viewer">
-        <div className="flex h-full justify-center overflow-hidden px-4">
-          <div
-            className="flex h-full w-full flex-col rounded-lg border border-ssoo-content-border bg-white"
-            style={{ maxWidth: DOCUMENT_WIDTH }}
-          >
-          <header className="border-b border-ssoo-content-border px-6 py-4">
-            <h1 className="text-xl font-semibold text-ssoo-primary">AI 질문</h1>
-            <p className="text-sm text-ssoo-primary/70">문서 기반으로 질문을 입력하세요.</p>
-          </header>
-
-          <section className="flex-1 overflow-auto px-6 py-6">
-            {messages.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-ssoo-primary/60">
-                첫 질문을 입력해 대화를 시작하세요.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {message.role === 'assistant' && (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ssoo-content-bg">
-                        <Bot className="h-5 w-5 text-ssoo-primary" />
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[70%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
-                        message.role === 'user'
-                          ? 'bg-ssoo-primary text-white'
-                          : 'bg-ssoo-content-bg text-ssoo-primary'
-                      }`}
-                    >
-                      {message.content}
-                    </div>
-                    {message.role === 'user' && (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ssoo-primary">
-                        <User className="h-5 w-5 text-white" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <footer className="border-t border-ssoo-content-border px-6 py-4">
+      <DocPageTemplate filePath="ai/ask" mode="viewer" contentOrientation="portrait">
+        <AiPageShell
+          title="AI 질문"
+          description="문서 기반으로 질문을 입력하세요."
+          footer={(
             <div className="flex items-center gap-2">
               <input
                 value={input}
@@ -136,9 +92,43 @@ export function AiAskPage() {
                 전송
               </button>
             </div>
-          </footer>
-          </div>
-        </div>
+          )}
+        >
+          {messages.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-sm text-ssoo-primary/60">
+              첫 질문을 입력해 대화를 시작하세요.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {message.role === 'assistant' && (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ssoo-content-bg">
+                      <Bot className="h-5 w-5 text-ssoo-primary" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[70%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
+                      message.role === 'user'
+                        ? 'bg-ssoo-primary text-white'
+                        : 'bg-ssoo-content-bg text-ssoo-primary'
+                    }`}
+                  >
+                    {message.content}
+                  </div>
+                  {message.role === 'user' && (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ssoo-primary">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </AiPageShell>
       </DocPageTemplate>
     </main>
   );

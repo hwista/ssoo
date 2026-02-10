@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { FileUp, FileText, Plus, Trash2 } from 'lucide-react';
 import { DocPageTemplate } from '@/components/templates';
-import { DOCUMENT_WIDTH } from '@/components/common/viewer/Content';
+import { AiPageShell } from '@/components/common/ai';
 
 interface TemplateOption {
   id: string;
@@ -94,95 +94,85 @@ export function AiCreatePage() {
 
   return (
     <main className="flex-1 overflow-hidden bg-ssoo-content-bg/30">
-      <DocPageTemplate filePath="ai/create" mode="viewer">
-        <div className="flex h-full justify-center overflow-hidden px-4">
-          <div
-            className="flex h-full w-full flex-col rounded-lg border border-ssoo-content-border bg-white"
-            style={{ maxWidth: DOCUMENT_WIDTH }}
-          >
-          <header className="border-b border-ssoo-content-border px-6 py-4">
-            <h1 className="text-xl font-semibold text-ssoo-primary">AI 작성</h1>
-            <p className="text-sm text-ssoo-primary/70">문서 파일을 첨부하고 템플릿 기반 요약을 생성합니다.</p>
-          </header>
-
-          <section className="px-6 py-5">
+      <DocPageTemplate filePath="ai/create" mode="viewer" contentOrientation="portrait">
+        <AiPageShell
+          title="AI 작성"
+          description="문서 파일을 첨부하고 템플릿 기반 요약을 생성합니다."
+          toolbar={(
             <label className="flex h-control-h cursor-pointer items-center gap-3 rounded-lg border border-dashed border-ssoo-content-border px-4 text-sm text-ssoo-primary/70 hover:border-ssoo-primary">
               <FileUp className="h-4 w-4" />
               파일 첨부 (docx, xlsx, pptx, pdf 등)
               <input type="file" multiple className="hidden" onChange={handleFileChange} />
             </label>
-          </section>
-
-          <section className="flex-1 overflow-auto px-6 pb-6">
-            {!hasAttachments ? (
-              <div className="flex h-full items-center justify-center text-sm text-ssoo-primary/60">
-                첨부 파일이 없습니다. 파일을 추가하면 요약 템플릿을 선택할 수 있습니다.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {attachments.map((item) => (
-                  <article key={item.id} className="rounded-lg border border-ssoo-content-border p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ssoo-content-bg">
-                          <FileText className="h-5 w-5 text-ssoo-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-ssoo-primary">{item.file.name}</p>
-                          <p className="text-xs text-ssoo-primary/60">
-                            {(item.file.size / 1024).toFixed(1)} KB
-                          </p>
-                        </div>
+          )}
+        >
+          {!hasAttachments ? (
+            <div className="flex h-full items-center justify-center text-sm text-ssoo-primary/60">
+              첨부 파일이 없습니다. 파일을 추가하면 요약 템플릿을 선택할 수 있습니다.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {attachments.map((item) => (
+                <article key={item.id} className="rounded-lg border border-ssoo-content-border p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ssoo-content-bg">
+                        <FileText className="h-5 w-5 text-ssoo-primary" />
                       </div>
-                      <button
-                        onClick={() => handleRemoveAttachment(item.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-ssoo-content-border text-ssoo-primary/70 hover:border-ssoo-primary hover:text-ssoo-primary"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
                       <div>
-                        <label className="text-xs font-semibold text-ssoo-primary/70">템플릿</label>
-                        <select
-                          value={item.templateId}
-                          onChange={(event) => handleTemplateChange(item.id, event.target.value)}
-                          className="mt-1 h-control-h w-full rounded-lg border border-ssoo-content-border px-3 text-sm focus:border-ssoo-primary focus:outline-none"
-                        >
-                          {TEMPLATE_OPTIONS.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="mt-1 text-xs text-ssoo-primary/60">
-                          {templateMap[item.templateId]?.description}
+                        <p className="text-sm font-semibold text-ssoo-primary">{item.file.name}</p>
+                        <p className="text-xs text-ssoo-primary/60">
+                          {(item.file.size / 1024).toFixed(1)} KB
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleAddSummary(item.id)}
-                        className="mt-2 flex h-control-h items-center justify-center gap-2 rounded-lg border border-ssoo-content-border px-3 text-sm text-ssoo-primary hover:border-ssoo-primary md:mt-6"
-                      >
-                        <Plus className="h-4 w-4" />
-                        요약 추가
-                      </button>
                     </div>
+                    <button
+                      onClick={() => handleRemoveAttachment(item.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-md border border-ssoo-content-border text-ssoo-primary/70 hover:border-ssoo-primary hover:text-ssoo-primary"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
 
-                    {item.summaries.length > 0 && (
-                      <div className="mt-4 space-y-2 rounded-lg bg-ssoo-content-bg p-3 text-sm text-ssoo-primary">
-                        {item.summaries.map((summary, index) => (
-                          <p key={`${item.id}-summary-${index}`}>{summary}</p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+                    <div>
+                      <label className="text-xs font-semibold text-ssoo-primary/70">템플릿</label>
+                      <select
+                        value={item.templateId}
+                        onChange={(event) => handleTemplateChange(item.id, event.target.value)}
+                        className="mt-1 h-control-h w-full rounded-lg border border-ssoo-content-border px-3 text-sm focus:border-ssoo-primary focus:outline-none"
+                      >
+                        {TEMPLATE_OPTIONS.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
                         ))}
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-          </div>
-        </div>
+                      </select>
+                      <p className="mt-1 text-xs text-ssoo-primary/60">
+                        {templateMap[item.templateId]?.description}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleAddSummary(item.id)}
+                      className="mt-2 flex h-control-h items-center justify-center gap-2 rounded-lg border border-ssoo-content-border px-3 text-sm text-ssoo-primary hover:border-ssoo-primary md:mt-6"
+                    >
+                      <Plus className="h-4 w-4" />
+                      요약 추가
+                    </button>
+                  </div>
+
+                  {item.summaries.length > 0 && (
+                    <div className="mt-4 space-y-2 rounded-lg bg-ssoo-content-bg p-3 text-sm text-ssoo-primary">
+                      {item.summaries.map((summary, index) => (
+                        <p key={`${item.id}-summary-${index}`}>{summary}</p>
+                      ))}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </AiPageShell>
       </DocPageTemplate>
     </main>
   );

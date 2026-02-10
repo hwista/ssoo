@@ -2,9 +2,12 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { DOCUMENT_WIDTHS } from '@/components/common/page';
 
 // 문서 본문 최대 너비 (DocPageTemplate과 동일)
-export const DOCUMENT_WIDTH = 975;
+export const DOCUMENT_WIDTH = DOCUMENT_WIDTHS.portrait;
+
+type ContentVariant = 'standalone' | 'embedded';
 
 /**
  * Content Props
@@ -16,6 +19,8 @@ export interface ContentProps {
   zoomLevel: number;
   /** 문서 최대 너비 */
   maxWidth?: number;
+  /** 레이아웃 변형 */
+  variant?: ContentVariant;
   /** 스크롤 컨테이너 ref */
   contentRef?: React.RefObject<HTMLDivElement | null>;
   /** 추가 className */
@@ -33,22 +38,29 @@ export interface ContentProps {
 export function Content({
   content,
   zoomLevel,
-  maxWidth = DOCUMENT_WIDTH,
+  maxWidth,
+  variant = 'standalone',
   contentRef,
   className,
 }: ContentProps) {
+  const isEmbedded = variant === 'embedded';
+  const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
+
   return (
-    <div className={cn('flex-1 flex justify-center overflow-hidden px-4', className)}>
+    <div
+      className={cn(
+        isEmbedded ? 'flex-1 overflow-hidden' : 'flex-1 flex justify-center overflow-hidden px-4',
+        className
+      )}
+    >
       {/* 문서 컨테이너 - 고정 너비 + 내부 스크롤 */}
       <div 
         ref={contentRef as React.RefObject<HTMLDivElement>}
         className={cn(
-          'h-full w-full',
-          'bg-white border border-gray-200 rounded-lg',
-          'overflow-y-auto overflow-x-hidden',
-          'scrollbar-thin'
+          'h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin',
+          !isEmbedded && 'bg-white border border-gray-200 rounded-lg'
         )}
-        style={{ maxWidth }}
+        style={resolvedMaxWidth ? { maxWidth: resolvedMaxWidth } : undefined}
       >
         {/* 문서 본문 - 줌 적용 */}
         <article

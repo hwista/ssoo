@@ -11,11 +11,12 @@ import {
   Sidecar,
   type HeaderProps,
   type SidecarProps,
+  DOCUMENT_WIDTHS,
+  DEFAULT_DOCUMENT_ORIENTATION,
+  type DocumentOrientation,
 } from '../common/page';
 import { LoadingState, ErrorState } from '@/components/common/StateDisplay';
-
-// 본문 영역 최대 너비 (Viewer와 동일)
-const DOCUMENT_WIDTH = 975;
+import type { DocumentMetadata } from '@/types';
 
 /**
  * DocPageTemplate Props
@@ -28,11 +29,24 @@ export interface DocPageTemplateProps {
   mode: 'viewer' | 'editor' | 'create';
   /** 콘텐츠 슬롯 (Viewer 또는 Editor) */
   children: React.ReactNode;
+
+  /** 문서 방향 */
+  contentOrientation?: DocumentOrientation;
+  /** 콘텐츠 최대 너비 (문서형 콘텐츠) */
+  contentMaxWidth?: number | null;
+  /** 콘텐츠 래퍼 클래스 */
+  contentWrapperClassName?: string;
+  /** 콘텐츠 표면 클래스 */
+  contentSurfaceClassName?: string;
   
   /** Sidecar 관련 */
   metadata?: SidecarProps['metadata'];
   tags?: string[];
   sidecarWidth?: number;
+  /** 전체 DocumentMetadata (Sidecar 편집용) */
+  documentMetadata?: DocumentMetadata | null;
+  /** 메타데이터 변경 콜백 */
+  onMetadataChange?: (update: Partial<DocumentMetadata>) => void;
   
   /** 액션 핸들러 */
   onEdit?: () => void;
@@ -87,9 +101,15 @@ export function DocPageTemplate({
   filePath,
   mode,
   children,
+  contentOrientation = DEFAULT_DOCUMENT_ORIENTATION,
+  contentMaxWidth,
+  contentWrapperClassName,
+  contentSurfaceClassName,
   metadata,
   tags,
   sidecarWidth = LAYOUT_SIZES.sidebar.expandedWidth, // 메인 사이드바와 동일한 너비
+  documentMetadata,
+  onMetadataChange,
   onEdit,
   onSave,
   onCancel,
@@ -125,14 +145,19 @@ export function DocPageTemplate({
     }
   }, [isCompactMode]);
 
+  const [hasMeasured, setHasMeasured] = React.useState(false);
+
   // 컨테이너 너비 측정 (ResizeObserver)
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setContainerWidth(entry.contentRect.width);
+        if (entry.contentRect.width > 0) {
+          setHasMeasured(true);
+        }
       }
     });
 
@@ -143,11 +168,29 @@ export function DocPageTemplate({
   // 사이드카 배치 모드 결정
   // - 본문(975px) + 사이드카(340px) + 여유공간(40px) = 약 1355px 필요
   // - 콘텐츠 영역이 이보다 크면 나란히(side-by-side), 작으면 오버레이
-  const minWidthForSideBySide = DOCUMENT_WIDTH + sidecarWidth + 40; // 여유 공간 포함
+  const resolvedContentMaxWidth = contentMaxWidth === null
+    ? null
+    : contentMaxWidth ?? DOCUMENT_WIDTHS[contentOrientation];
+  const minWidthForSideBySide = (resolvedContentMaxWidth ?? DOCUMENT_WIDTHS[contentOrientation]) + sidecarWidth + 40; // 여유 공간 포함
   const canSideBySide = !isCompactMode && containerWidth >= minWidthForSideBySide;
   
   // 사이드카 표시 여부
   const showSidecar = sidecarOpen;
+
+  const resolvedSurfaceClassName = contentSurfaceClassName
+    ?? 'flex h-full w-full flex-col rounded-lg border border-ssoo-content-border bg-white overflow-hidden';
+  const contentNode = resolvedContentMaxWidth !== null ? (
+    <div className={cn('flex h-full justify-center overflow-hidden px-4', contentWrapperClassName)}>
+      <div
+        className={cn('h-full w-full', resolvedSurfaceClassName)}
+        style={{ maxWidth: resolvedContentMaxWidth ?? undefined }}
+      >
+        {children}
+      </div>
+    </div>
+  ) : (
+    children
+  );
 
   // 에러 상태
   if (error) {
@@ -205,7 +248,7 @@ export function DocPageTemplate({
         <div className="flex h-full">
           {/* 메인 콘텐츠 슬롯 */}
           <div 
-            className="h-full transition-all duration-300 ease-in-out"
+            className={cn('h-full', hasMeasured && 'transition-all duration-300 ease-in-out')}
             style={{ 
               // 나란히 모드에서 사이드카가 열려있으면 사이드카 너비만큼 줄임
               width: canSideBySide && showSidecar 
@@ -213,7 +256,7 @@ export function DocPageTemplate({
                 : '100%' 
             }}
           >
-            {children}
+            {contentNode}
           </div>
 
           {/* Sidecar 토글 버튼 */}
@@ -245,7 +288,7 @@ export function DocPageTemplate({
               'h-full z-10',
               'bg-ssoo-content-bg border-l border-ssoo-content-border',
               'overflow-auto',
-              'transition-all duration-300 ease-in-out',
+              hasMeasured && 'transition-all duration-300 ease-in-out',
               // 라운드 처리 (왼쪽 위/아래 모서리)
               'rounded-l-lg',
               // 나란히 모드
@@ -269,6 +312,9 @@ export function DocPageTemplate({
             <Sidecar
               metadata={metadata}
               tags={tags}
+              editable={mode === 'editor' || mode === 'create'}
+              documentMetadata={documentMetadata}
+              onMetadataChange={onMetadataChange}
             />
           </div>
         </div>
