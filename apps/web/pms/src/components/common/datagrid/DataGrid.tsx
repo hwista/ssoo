@@ -22,6 +22,7 @@ import { ErrorState, LoadingState } from '../StateDisplay';
 import { Toolbar } from './Toolbar';
 import { Body } from './Body';
 import { Footer } from './Footer';
+import { SecondGridPanel } from './SecondGridPanel';
 
 /**
  * DataGrid Props
@@ -72,7 +73,6 @@ export interface DataGridProps<TData, TValue> {
   /** 세컨 그리드 패널 */
   secondGrid?: {
     enabled?: boolean;
-    title?: string;
     content: React.ReactNode;
     defaultOpen?: boolean;
     height?: number;
@@ -129,8 +129,11 @@ export function DataGrid<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({});
   const shouldUseClientPagination = enableClientPagination;
   const fallbackPageSize = 10;
+  const rowHeight = 52;
+  const headerHeight = 44;
+  const defaultSecondGridHeight = (rowHeight * 3 + headerHeight) * 4;
   const secondGridEnabled = Boolean(secondGrid?.enabled);
-  const secondGridHeight = secondGrid?.height ?? 220;
+  const secondGridHeight = secondGrid?.height ?? defaultSecondGridHeight;
   const [paginationState, setPaginationState] = React.useState<PaginationState>({
     pageIndex: Math.max(0, (pagination?.page ?? 1) - 1),
     pageSize: pagination?.pageSize ?? fallbackPageSize,
@@ -311,18 +314,18 @@ export function DataGrid<TData, TValue>({
           emptyState={emptyState}
           onRowClick={onRowClick}
           tableClassName={tableClassName}
+          minRows={pagination?.pageSize ?? fallbackPageSize}
+          rowHeight={rowHeight}
+          headerHeight={headerHeight}
         />
-        {secondGridEnabled && isSecondGridOpen && (
-          <div className="absolute inset-x-4 bottom-2 z-10 rounded-lg border border-gray-200 bg-white shadow-lg">
-            <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
-              <span className="text-sm font-medium text-gray-700">
-                {secondGrid?.title || '상세'}
-              </span>
-            </div>
-            <div className="overflow-auto" style={{ height: secondGridHeight }}>
-              {secondGrid?.content}
-            </div>
-          </div>
+        {secondGridEnabled && (
+          <SecondGridPanel
+            isOpen={isSecondGridOpen}
+            height={secondGridHeight}
+            onToggle={() => setSecondGridOpen(!isSecondGridOpen)}
+          >
+            {secondGrid?.content}
+          </SecondGridPanel>
         )}
       </div>
 

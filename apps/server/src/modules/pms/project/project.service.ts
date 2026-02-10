@@ -22,6 +22,7 @@ export class ProjectService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: { requestDetail: true },
       }),
       this.db.project.count(),
     ]);

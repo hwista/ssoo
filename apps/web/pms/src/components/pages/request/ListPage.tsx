@@ -7,12 +7,7 @@ import { useTabStore } from '@/stores';
 import { DataGrid, ColumnDef } from '@/components/common';
 import type { FilterValues } from '@/components/common/page/Header';
 import { useProjectList } from '@/hooks/queries';
-import type { Project, ProjectFilters, ProjectStageCode, ProjectStatusCode } from '@/lib/api/endpoints/projects';
-
-interface RequestDetailRow {
-  label: string;
-  value: string;
-}
+import type { Project, ProjectFilters, ProjectRequestDetail, ProjectStageCode, ProjectStatusCode } from '@/lib/api/endpoints/projects';
 
 const stageOptions: { label: string; value: ProjectStageCode }[] = [
   { label: '대기', value: 'waiting' },
@@ -90,15 +85,51 @@ const columns: ColumnDef<Project>[] = [
   },
 ];
 
-const detailColumns: ColumnDef<RequestDetailRow>[] = [
+const detailColumns: ColumnDef<ProjectRequestDetail>[] = [
   {
-    accessorKey: 'label',
-    header: '항목',
-    size: 160,
+    accessorKey: 'requestSourceCode',
+    header: '요청구분',
+    size: 120,
+    cell: ({ row }) => row.original.requestSourceCode || '-',
   },
   {
-    accessorKey: 'value',
-    header: '값',
+    accessorKey: 'requestChannelCode',
+    header: '접수채널',
+    size: 120,
+    cell: ({ row }) => row.original.requestChannelCode || '-',
+  },
+  {
+    accessorKey: 'requestSummary',
+    header: '요약',
+    size: 240,
+    cell: ({ row }) => row.original.requestSummary || '-',
+  },
+  {
+    accessorKey: 'requestReceivedAt',
+    header: '접수일',
+    size: 140,
+    cell: ({ row }) => {
+      const value = row.original.requestReceivedAt;
+      return value ? new Date(value).toLocaleDateString() : '-';
+    },
+  },
+  {
+    accessorKey: 'requestPriorityCode',
+    header: '우선순위',
+    size: 120,
+    cell: ({ row }) => row.original.requestPriorityCode || '-',
+  },
+  {
+    accessorKey: 'requestOwnerUserId',
+    header: '담당자',
+    size: 120,
+    cell: ({ row }) => row.original.requestOwnerUserId ? String(row.original.requestOwnerUserId) : '-',
+  },
+  {
+    accessorKey: 'memo',
+    header: '메모',
+    size: 240,
+    cell: ({ row }) => row.original.memo || '-',
   },
 ];
 
@@ -150,20 +181,22 @@ export function RequestListPage() {
     });
   }, [filters, filtersApplied, projects]);
 
-  const detailRows = useMemo<RequestDetailRow[]>(() => {
+  const detailRows = useMemo<ProjectRequestDetail[]>(() => {
     if (!selectedProject) {
       return [];
     }
-    const createdAt = new Date(selectedProject.createdAt).toLocaleString();
-    const memo = selectedProject.memo || '요청 상세 테스트 데이터';
+    const detail = selectedProject.requestDetail;
+    const fallbackDate = new Date(selectedProject.createdAt).toISOString();
     return [
-      { label: '프로젝트명', value: selectedProject.projectName },
-      { label: '상태', value: statusLabels[selectedProject.statusCode] },
-      { label: '단계', value: stageLabels[selectedProject.stageCode] },
-      { label: '고객사 ID', value: selectedProject.customerId ? String(selectedProject.customerId) : '-' },
-      { label: '요청일시', value: createdAt },
-      { label: '요청 내용', value: memo },
-      { label: '희망 일정', value: '2026-03-01 ~ 2026-06-30 (테스트 데이터)' },
+      {
+        requestSourceCode: detail?.requestSourceCode ?? 'RFP',
+        requestChannelCode: detail?.requestChannelCode ?? 'email',
+        requestSummary: detail?.requestSummary ?? `${selectedProject.projectName} 요청`,
+        requestReceivedAt: detail?.requestReceivedAt ?? fallbackDate,
+        requestPriorityCode: detail?.requestPriorityCode ?? 'normal',
+        requestOwnerUserId: detail?.requestOwnerUserId ?? selectedProject.currentOwnerUserId ?? null,
+        memo: detail?.memo ?? selectedProject.memo ?? '요청 상세 테스트 데이터',
+      },
     ];
   }, [selectedProject]);
 
@@ -241,19 +274,17 @@ export function RequestListPage() {
         onRowClick: handleRowClick,
         secondGrid: {
           enabled: true,
-          title: selectedProject
-            ? `${selectedProject.projectName} 상세`
-            : '요청 상세',
           content: (
             <DataGrid
               columns={detailColumns}
               data={detailRows}
               loading={false}
+              className="h-full"
+              tableClassName="h-full"
               emptyState={<div className="text-center text-sm text-muted-foreground">행을 선택하세요.</div>}
             />
           ),
           defaultOpen: Boolean(selectedProject),
-          height: 220,
           isOpen: isSecondGridOpen,
           onOpenChange: setIsSecondGridOpen,
         },

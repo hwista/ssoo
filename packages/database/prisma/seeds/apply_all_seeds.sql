@@ -44,6 +44,10 @@
 \echo 'Applying 04_project_handoff_type.sql...'
 \i 04_project_handoff_type.sql
 
+-- 09: 프로젝트 요청 샘플
+\echo 'Applying 09_project_request_sample.sql...'
+\i 09_project_request_sample.sql
+
 -- 08: 단위 코드
 \echo 'Applying 08_unit_code.sql...'
 \i 08_unit_code.sql

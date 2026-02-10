@@ -1,10 +1,10 @@
 'use client';
 
 import { Table as ReactTable } from '@tanstack/react-table';
-import { GripHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Pagination } from './Pagination';
+import { SecondGridToggleButton } from './SecondGridPanel';
 
 interface FooterProps<TData> {
   table: ReactTable<TData>;
@@ -45,22 +45,16 @@ export function Footer<TData>({
   const showSelectionInfo = enableRowSelection;
 
   return (
-    <div className="flex flex-col bg-gray-50">
-      {secondGrid && (
-        <div className="flex justify-center py-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-control-h-sm w-10 rounded-full border border-gray-200 bg-white shadow-sm"
-            onClick={secondGrid.onToggle}
-            aria-label={secondGrid.isOpen ? '상세 그리드 접기' : '상세 그리드 펼치기'}
-          >
-            <GripHorizontal className="h-4 w-4" />
-          </Button>
+    <div className="relative flex items-center px-4 py-2 min-h-[52px] bg-gray-50">
+      {secondGrid && !secondGrid.isOpen && (
+        <div className="absolute left-1/2 -translate-x-1/2 -top-3 bg-transparent border-transparent pointer-events-none">
+          <SecondGridToggleButton
+            isOpen={secondGrid.isOpen}
+            onToggle={secondGrid.onToggle}
+            className="pointer-events-auto"
+          />
         </div>
       )}
-      <div className="flex items-center px-4 py-2 min-h-[52px]">
         {/* 선택 정보 */}
         {showSelectionInfo && (
           <div className="text-sm text-muted-foreground whitespace-nowrap">
@@ -107,7 +101,6 @@ export function Footer<TData>({
             </Button>
           </div>
         )}
-      </div>
     </div>
   );
 }

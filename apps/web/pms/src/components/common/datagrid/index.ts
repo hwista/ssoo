@@ -8,6 +8,7 @@ export { Body } from './Body';
 export { Toolbar } from './Toolbar';
 export { Footer } from './Footer';
 export { Pagination } from './Pagination';
+export { SecondGridPanel, SecondGridToggleButton } from './SecondGridPanel';
 
 // Utilities
 export { createSortableHeader, createActionsColumn } from './utils';

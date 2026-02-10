@@ -39,6 +39,17 @@ export interface Project {
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;
+  requestDetail?: ProjectRequestDetail | null;
+}
+
+export interface ProjectRequestDetail {
+  requestSourceCode?: string | null;
+  requestChannelCode?: string | null;
+  requestSummary?: string | null;
+  requestReceivedAt?: string | null;
+  requestPriorityCode?: string | null;
+  requestOwnerUserId?: number | string | null;
+  memo?: string | null;
 }
 
 /**

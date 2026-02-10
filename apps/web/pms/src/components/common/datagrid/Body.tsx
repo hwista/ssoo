@@ -21,6 +21,9 @@ interface BodyProps<TData, TValue> {
   emptyState?: React.ReactNode;
   onRowClick?: (row: TData) => void;
   tableClassName?: string;
+  minRows?: number;
+  rowHeight?: number;
+  headerHeight?: number;
 }
 
 /**
@@ -35,10 +38,20 @@ export function Body<TData, TValue>({
   emptyState,
   onRowClick,
   tableClassName,
+  minRows = 0,
+  rowHeight = 44,
+  headerHeight = 40,
 }: BodyProps<TData, TValue>) {
+  const minBodyHeight = minRows > 0
+    ? minRows * rowHeight + headerHeight
+    : undefined;
+
   return (
-    <div className={cn('flex-1 min-h-0 rounded-md border [&>div]:h-full', tableClassName)}>
-      <Table>
+    <div
+      className={cn('flex flex-1 min-h-0 flex-col rounded-md border [&>div]:h-full', tableClassName)}
+      style={minBodyHeight ? { minHeight: minBodyHeight, height: '100%' } : { height: '100%' }}
+    >
+      <Table className="h-full">
         <TableHeader className="bg-gray-50 shadow-sm">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -55,7 +68,7 @@ export function Body<TData, TValue>({
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody>
+        <TableBody className="h-full">
           {/* 로딩 중 스켈레톤 */}
           {loading && (
             Array.from({ length: 5 }).map((_, index) => (
@@ -94,9 +107,14 @@ export function Body<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center"
+                  className="h-full text-center align-middle"
+                  style={minBodyHeight ? { height: minBodyHeight - headerHeight } : undefined}
                 >
-                  {emptyState || <EmptyState title="데이터가 없습니다" />}
+                  {emptyState || (
+                    <div className="text-sm text-muted-foreground font-normal">
+                      조회된 데이터가 없습니다
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             )
