@@ -16,6 +16,8 @@ export const DEFAULT_ZOOM = 100;
 export interface ToolbarProps {
   /** 문서 최대 너비 */
   maxWidth: number;
+  /** 레이아웃 변형 */
+  variant?: 'standalone' | 'embedded';
   
   // 목차 관련
   toc?: TocItem[];
@@ -45,6 +47,7 @@ export interface ToolbarProps {
  */
 export function Toolbar({
   maxWidth,
+  variant = 'standalone',
   toc,
   onTocClick,
   searchQuery,
@@ -60,6 +63,8 @@ export function Toolbar({
   onZoomOut,
   onZoomReset,
 }: ToolbarProps) {
+  const isEmbedded = variant === 'embedded';
+
   // 목차 호버 상태
   const [tocHovered, setTocHovered] = React.useState(false);
 
@@ -75,10 +80,17 @@ export function Toolbar({
   };
 
   return (
-    <div className="flex justify-center shrink-0 px-4">
-      <div 
-        className="flex items-center justify-between w-full px-4 py-2 min-h-[52px]"
-        style={{ maxWidth }}
+    <div
+      className={cn(
+        'flex shrink-0',
+        isEmbedded ? 'w-full' : 'justify-center px-4'
+      )}
+    >
+      <div
+        className={cn(
+          'flex w-full items-center justify-between px-4 py-2 min-h-[52px]'
+        )}
+        style={isEmbedded ? undefined : { maxWidth }}
       >
         {/* 좌측: 목차 + 검색 */}
         <div className="flex items-center gap-2">
