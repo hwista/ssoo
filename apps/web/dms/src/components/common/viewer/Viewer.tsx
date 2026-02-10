@@ -6,6 +6,8 @@ import type { TocItem } from '../page/Sidecar';
 import { Toolbar, ZOOM_LEVELS, DEFAULT_ZOOM } from './Toolbar';
 import { Content, DOCUMENT_WIDTH } from './Content';
 
+type ViewerVariant = 'standalone' | 'embedded';
+
 /**
  * Viewer Props
  */
@@ -18,6 +20,8 @@ export interface ViewerProps {
   onTocClick?: (id: string) => void;
   /** 문서 내 검색 */
   onSearch?: (query: string) => void;
+  /** 레이아웃 변형 */
+  variant?: ViewerVariant;
   /** 추가 className */
   className?: string;
 }
@@ -44,6 +48,7 @@ export function Viewer({
   toc,
   onTocClick,
   onSearch,
+  variant = 'standalone',
   className,
 }: ViewerProps) {
   // 줌 상태
@@ -244,6 +249,7 @@ export function Viewer({
         content={displayContent}
         zoomLevel={zoomLevel}
         contentRef={contentRef}
+        variant={variant}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 # 레이아웃 시스템
 
-> 최종 업데이트: 2026-02-09
+> 최종 업데이트: 2026-02-10
 
 DMS의 레이아웃 구조와 컴포넌트를 정의합니다.
 
@@ -228,22 +228,47 @@ function getPageType(tab) {
 - `DocPageTemplate`를 사용하는 모든 문서형 페이지
 - 마크다운 뷰어/에디터 외의 기능 페이지도 동일한 폭 규칙 준수
 
+### 문서 방향
+
+문서 방향은 **스크롤 방향이 아닌 문서 규격(A4 기준)**으로 정의합니다.
+
+| 방향 | 기준 | 폭 상수 |
+|------|------|--------|
+| `portrait` | 세로 문서 | `DOCUMENT_WIDTHS.portrait` |
+| `landscape` | 가로 문서 | `DOCUMENT_WIDTHS.landscape` |
+
+```tsx
+import { DOCUMENT_WIDTHS, DEFAULT_DOCUMENT_ORIENTATION } from '@/components/common/page';
+```
+
 ### 구현 패턴
 
 ```tsx
 import { DocPageTemplate } from '@/components/templates';
-import { DOCUMENT_WIDTH } from '@/components/common/viewer/Content';
 
-<DocPageTemplate filePath="ai/search" mode="viewer">
-  <div className="flex h-full justify-center overflow-hidden px-4">
-    <div
-      className="flex h-full w-full flex-col rounded-lg border border-ssoo-content-border bg-white"
-      style={{ maxWidth: DOCUMENT_WIDTH }}
-    >
-      {/* 페이지별 콘텐츠 */}
-    </div>
-  </div>
+<DocPageTemplate
+  filePath="ai/search"
+  mode="viewer"
+  contentOrientation="portrait"
+>
+  {/* 페이지별 콘텐츠 */}
 </DocPageTemplate>
+```
+
+### AI 페이지 공통 구조
+
+AI 페이지는 공통 셸 컴포넌트로 헤더/툴바/컨텐츠/푸터 구성을 통일합니다.
+
+```tsx
+import { AiPageShell } from '@/components/common/ai';
+
+<AiPageShell
+  title="AI 검색"
+  description="문서 기반 검색 결과를 확인하세요."
+  toolbar={<SearchBar />}
+>
+  <ResultList />
+</AiPageShell>
 ```
 
 ### 참고

@@ -7,6 +7,8 @@ import { Viewer } from '@/components/common/viewer';
 import { Editor } from '@/components/common/editor';
 import { type TocItem } from '@/components/common/page';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
+import type { DocumentMetadata } from '@/types';
+import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 
 /**
  * 페이지 모드
@@ -40,6 +42,7 @@ export function MarkdownViewerPage() {
     setIsEditing, 
     fileMetadata, 
     documentMetadata,
+    updateDocumentMetadata,
     setContent, 
     reset,
     // 에디터 상태 (Header에 전달)
@@ -208,6 +211,49 @@ export function MarkdownViewerPage() {
     editorHandlers?.autoSaveToggle();
   }, [editorHandlers]);
 
+  // 메타데이터 변경 핸들러 (Sidecar → Store → Server)
+  const handleMetadataChange = useCallback((update: Partial<DocumentMetadata>) => {
+    updateDocumentMetadata(update).catch((err) => {
+      console.error('메타데이터 업데이트 실패:', err);
+    });
+  }, [updateDocumentMetadata]);
+
+  const handleRetry = useCallback(() => {
+    if (filePath) {
+      loadFile(filePath);
+    }
+  }, [filePath, loadFile]);
+
+  const contentBody = useMemo(() => {
+    if (error) {
+      return (
+        <div className="flex flex-1 items-center justify-center">
+          <ErrorState error={error} onRetry={handleRetry} />
+        </div>
+      );
+    }
+
+    if (isLoading && !isCreateMode) {
+      return (
+        <div className="flex flex-1 items-center justify-center">
+          <LoadingState message="문서를 불러오는 중..." />
+        </div>
+      );
+    }
+
+    return mode === 'viewer' ? (
+      <Viewer
+        content={htmlContent}
+        toc={toc}
+        onTocClick={handleTocClick}
+        onSearch={handleSearch}
+        variant="embedded"
+      />
+    ) : (
+      <Editor className="h-full" variant="embedded" />
+    );
+  }, [error, handleRetry, htmlContent, isCreateMode, isLoading, mode, toc, handleTocClick, handleSearch]);
+
   // 파일 경로가 없고, 생성 모드도 아닐 때
   if (!filePath && !isCreateMode) {
     return (
@@ -223,17 +269,17 @@ export function MarkdownViewerPage() {
       <DocPageTemplate
         filePath={filePath || '새 문서.md'}
         mode={mode === 'create' ? 'editor' : mode}
+        contentOrientation="portrait"
         metadata={metadata}
         tags={tags}
+        documentMetadata={documentMetadata}
+        onMetadataChange={handleMetadataChange}
         onEdit={handleEdit}
         onSave={handleSave}
         onCancel={handleCancel}
         onTempSave={handleTempSave}
         onDelete={isCreateMode ? undefined : handleDelete}
         onPathClick={handlePathClick}
-        loading={isLoading}
-        error={error}
-        onRetry={() => filePath && loadFile(filePath)}
         // 에디터 상태 (Header에 전달)
         saving={isSaving}
         hasUnsavedChanges={hasUnsavedChanges}
@@ -242,17 +288,7 @@ export function MarkdownViewerPage() {
         autoSaveCountdown={autoSaveCountdown}
         lastSaveTime={lastSaveTime}
       >
-        {/* 슬롯: 뷰어 또는 에디터 */}
-        {mode === 'viewer' ? (
-          <Viewer 
-            content={htmlContent} 
-            toc={toc}
-            onTocClick={handleTocClick}
-            onSearch={handleSearch}
-          />
-        ) : (
-          <Editor className="h-full" />
-        )}
+        {contentBody}
       </DocPageTemplate>
     </main>
   );

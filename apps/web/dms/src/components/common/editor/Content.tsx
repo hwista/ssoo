@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { DOCUMENT_WIDTHS } from '@/components/common/page';
 import { BlockEditor, BlockEditorRef } from './BlockEditor';
 
 /**
@@ -16,6 +17,8 @@ export interface ContentProps {
   onSave?: () => void;
   /** 문서 최대 너비 */
   maxWidth?: number;
+  /** 레이아웃 변형 */
+  variant?: 'standalone' | 'embedded';
   /** 추가 className */
   className?: string;
 }
@@ -31,21 +34,28 @@ export function Content({
   htmlContent,
   onBlockEditorChange,
   onSave,
-  maxWidth = 975,
+  maxWidth,
+  variant = 'standalone',
   className,
 }: ContentProps) {
+  const isEmbedded = variant === 'embedded';
+  const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
   const blockEditorRef = React.useRef<BlockEditorRef>(null);
 
   return (
-    <div className={cn('flex-1 flex justify-center overflow-hidden px-4', className)}>
+    <div
+      className={cn(
+        isEmbedded ? 'flex-1 overflow-hidden' : 'flex-1 flex justify-center overflow-hidden px-4',
+        className
+      )}
+    >
       {/* 에디터 컨테이너 - 고정 너비 */}
       <div 
         className={cn(
-          'h-full w-full',
-          'bg-white border border-gray-200 rounded-lg',
-          'overflow-hidden flex flex-col'
+          'h-full w-full overflow-hidden flex flex-col',
+          !isEmbedded && 'bg-white border border-gray-200 rounded-lg'
         )}
-        style={{ maxWidth }}
+        style={resolvedMaxWidth ? { maxWidth: resolvedMaxWidth } : undefined}
       >
         <BlockEditor
           ref={blockEditorRef}

@@ -3,13 +3,14 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Content } from './Content';
+import { DOCUMENT_WIDTHS } from '@/components/common/page';
 import { useEditor } from '@/hooks/useEditor';
 import { useEditorStore, useTabStore } from '@/stores';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useToast } from '@/lib/toast';
 
 // 문서 본문 최대 너비 (Viewer와 동일)
-export const DOCUMENT_WIDTH = 975;
+export const DOCUMENT_WIDTH = DOCUMENT_WIDTHS.portrait;
 
 /**
  * Editor Props
@@ -18,6 +19,8 @@ export const DOCUMENT_WIDTH = 975;
 export interface EditorProps {
   /** 추가 className */
   className?: string;
+  /** 레이아웃 변형 */
+  variant?: 'standalone' | 'embedded';
 }
 
 /**
@@ -33,7 +36,7 @@ export interface EditorProps {
  * <Editor className="h-full" />
  * ```
  */
-export function Editor({ className }: EditorProps) {
+export function Editor({ className, variant = 'standalone' }: EditorProps) {
   const { showSuccess, showError } = useToast();
   
   // Store에서 상태 가져오기
@@ -288,13 +291,16 @@ export function Editor({ className }: EditorProps) {
     );
   }
 
+  const resolvedMaxWidth = variant === 'standalone' ? DOCUMENT_WIDTH : undefined;
+
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* 본문 - 라이브 프리뷰 에디터 */}
       <Content
         htmlContent={htmlContent}
         onBlockEditorChange={handleBlockEditorChange}
-        maxWidth={DOCUMENT_WIDTH}
+        maxWidth={resolvedMaxWidth}
+        variant={variant}
       />
     </div>
   );
