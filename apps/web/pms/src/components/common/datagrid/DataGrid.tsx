@@ -306,7 +306,7 @@ export function DataGrid<TData, TValue>({
       )}
 
       {/* 테이블 본문 */}
-      <div className="relative flex-1 min-h-0">
+      <div className="relative flex flex-1 min-h-0">
         <Body
           table={table}
           columns={tableColumns}

@@ -23,9 +23,9 @@ export function SecondGridToggleButton({
       variant="ghost"
       size="icon"
       className={cn(
-        'flex h-12 w-5 items-center justify-center',
-        'rounded-l-md bg-gray-100 hover:bg-gray-200',
-        'border border-r-0 border-gray-200',
+        'flex h-5 w-12 items-center justify-center',
+        'rounded-b-md bg-gray-100 hover:bg-gray-200',
+        'border border-b-0 border-gray-200',
         'transition-all duration-300 ease-in-out',
         className
       )}
@@ -63,11 +63,11 @@ export function SecondGridPanel({
   return (
     <div
       className={cn(
-        'absolute inset-x-0 bottom-2 z-10 rounded-lg border border-gray-200 bg-white shadow-lg',
+        'absolute inset-x-0 bottom-2 z-10 rounded-lg border border-gray-200 bg-white shadow-lg overflow-visible',
         className
       )}
     >
-      <div className="absolute left-1/2 -translate-x-1/2 -top-3 bg-transparent border-transparent pointer-events-none">
+      <div className="absolute left-1/2 -translate-x-1/2 -top-3 z-20 bg-transparent border-transparent pointer-events-none">
         <SecondGridToggleButton
           isOpen={isOpen}
           onToggle={onToggle}
