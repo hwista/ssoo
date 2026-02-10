@@ -32,12 +32,18 @@ export class ProjectController {
     const page = Number.isFinite(pageValue) && pageValue > 0 ? pageValue : 1;
     const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : 10;
     const { data, total } = await this.projectService.findAll({ page, limit });
-    const serialized = data.map((project) => ({
-      ...serializeBigIntShallow(project as unknown as Record<string, unknown>),
-      requestDetail: project.requestDetail
-        ? serializeBigIntShallow(project.requestDetail as unknown as Record<string, unknown>)
-        : null,
-    }));
+    const serialized = data.map((project) => {
+      const base = serializeBigIntShallow(project as Record<string, unknown>);
+      if (project.requestDetail) {
+        base.requestDetail = serializeBigIntShallow(project.requestDetail as Record<string, unknown>);
+      }
+      if (project.projectStatuses?.length) {
+        base.projectStatuses = project.projectStatuses.map((status) =>
+          serializeBigIntShallow(status as Record<string, unknown>),
+        );
+      }
+      return base;
+    });
     return paginated(serialized, page, limit, total);
   }
 

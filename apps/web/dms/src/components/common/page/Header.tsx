@@ -5,7 +5,6 @@ import { Edit, Trash2, History, Save, X, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
-import { SimpleTooltip } from '@/components/ui/tooltip';
 
 /**
  * HeaderAction 액션 버튼 정의
@@ -44,9 +43,6 @@ export interface HeaderProps {
   
   /** 저장 중 상태 */
   saving?: boolean;
-  
-  /** 변경사항 있음 */
-  hasUnsavedChanges?: boolean;
   
   /** 자동 저장 관련 */
   isAutoSaveEnabled?: boolean;
@@ -93,7 +89,6 @@ export function Header({
   onSave,
   onCancel,
   saving = false,
-  hasUnsavedChanges = false,
   isAutoSaveEnabled = false,
   onAutoSaveToggle,
   autoSaveCountdown = 0,
@@ -109,92 +104,144 @@ export function Header({
         className
       )}
     >
-      {/* ── 뷰어 모드 ── */}
-      {mode === 'viewer' && (
-        <>
-          {/* 좌측: 수정 버튼 */}
-          <div className="flex items-center gap-2">
+      {/* 좌측: 모드별 액션 버튼 */}
+      <div className="flex items-center gap-2">
+        {mode === 'viewer' && (
+          <>
             {onEdit && (
-              <Button variant="default" size="default" onClick={onEdit} className="h-control-h">
-                <Edit className="h-4 w-4 mr-1.5" />수정
+              <Button
+                variant="default"
+                size="default"
+                onClick={onEdit}
+                className="h-control-h"
+              >
+                <Edit className="h-4 w-4 mr-1.5" />
+                수정
               </Button>
             )}
-          </div>
-          {/* 우측: 히스토리 아이콘 */}
-          <div className="flex items-center gap-2">
-            {onHistory && (
-              <SimpleTooltip content="변경 이력">
-                <Button variant="ghost" size="default" onClick={onHistory} className="h-control-h px-2">
-                  <History className="h-4 w-4" />
-                </Button>
-              </SimpleTooltip>
-            )}
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      {/* ── 에디터/생성 모드 ── */}
-      {(mode === 'editor' || mode === 'create') && (
-        <>
-          {/* 좌측: 취소, 저장, 자동저장 토글 */}
-          <div className="flex items-center gap-2">
+        {(mode === 'editor' || mode === 'create') && (
+          <>
             {onCancel && (
-              <Button variant="outline" size="default" onClick={onCancel} disabled={saving} className="h-control-h">
-                <X className="h-4 w-4 mr-1.5" />취소
+              <Button
+                variant="ghost"
+                size="default"
+                onClick={onCancel}
+                disabled={saving}
+                className="h-control-h"
+              >
+                <X className="h-4 w-4 mr-1.5" />
+                취소
               </Button>
             )}
             {onSave && (
-              <Button variant="default" size="default" onClick={onSave} disabled={saving} className="h-control-h">
-                {saving ? <LoadingSpinner className="mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}저장
+              <Button
+                variant="default"
+                size="default"
+                onClick={onSave}
+                disabled={saving}
+                className="h-control-h"
+              >
+                {saving ? (
+                  <LoadingSpinner className="mr-1.5" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1.5" />
+                )}
+                저장
               </Button>
             )}
-            {/* 자동 저장 토글 */}
+            {/* 자동 저장 토글 (저장 버튼 옆) */}
             {onAutoSaveToggle && (
-              <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">자동저장</span>
-                <button onClick={onAutoSaveToggle}
-                  className={cn('relative w-10 h-5 rounded-full transition-colors',
-                    isAutoSaveEnabled ? 'bg-ssoo-primary' : 'bg-gray-300')}>
-                  <span className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm',
-                    isAutoSaveEnabled ? 'left-5' : 'left-0.5')} />
+                <button
+                  onClick={onAutoSaveToggle}
+                  className={cn(
+                    'relative w-10 h-5 rounded-full transition-colors',
+                    isAutoSaveEnabled ? 'bg-ssoo-primary' : 'bg-gray-300'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm',
+                      isAutoSaveEnabled ? 'left-5' : 'left-0.5'
+                    )}
+                  />
                 </button>
-                {isAutoSaveEnabled && autoSaveCountdown > 0 && (
-                  <span className="text-xs text-ssoo-primary">{autoSaveCountdown}초</span>
+                {isAutoSaveEnabled && (
+                  <span className="text-xs text-gray-500">
+                    {autoSaveCountdown}초 뒤 자동 저장
+                  </span>
                 )}
               </div>
             )}
-          </div>
+          </>
+        )}
 
-          {/* 우측: 마지막 저장 시간 + 삭제 버튼 */}
-          <div className="flex items-center gap-3">
+        {/* 추가 액션 버튼 */}
+        {extraActions?.map((action, index) => (
+          <Button
+            key={index}
+            variant={action.variant || 'ghost'}
+            size="default"
+            onClick={action.onClick}
+            disabled={action.disabled || action.loading}
+            className="h-control-h"
+          >
+            {action.loading ? (
+              <LoadingSpinner className="mr-1.5" />
+            ) : action.icon ? (
+              <span className="mr-1.5">{action.icon}</span>
+            ) : null}
+            {action.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* 우측 */}
+      <div className="flex items-center gap-3">
+        {/* 뷰어 모드: 히스토리 아이콘 버튼 */}
+        {mode === 'viewer' && onHistory && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onHistory}
+            className="h-control-h w-control-h"
+          >
+            <History className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* 에디터/생성 모드 우측 */}
+        {(mode === 'editor' || mode === 'create') && (
+          <>
+            {/* 마지막 저장 시간 */}
             {lastSaveTime && (
               <div className="flex items-center gap-1 text-xs text-gray-400">
                 <Clock className="h-3 w-3" />
-                <span>{lastSaveTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>
+                  마지막 저장: {lastSaveTime.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })} {lastSaveTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
               </div>
             )}
+            {/* 삭제 버튼 (우측 끝) */}
             {onDelete && (
-              <Button variant="destructive" size="default" onClick={onDelete} className="h-control-h">
-                <Trash2 className="h-4 w-4 mr-1.5" />삭제
+              <Button
+                variant="destructive"
+                size="default"
+                onClick={onDelete}
+                disabled={saving}
+                className="h-control-h"
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" />
+                삭제
               </Button>
             )}
-          </div>
-        </>
-      )}
-
-      {/* 추가 액션 버튼 (모든 모드) */}
-      {extraActions && extraActions.length > 0 && (
-        <div className="flex items-center gap-2">
-          {extraActions.map((action, index) => (
-            <Button key={index} variant={action.variant || 'ghost'} size="default"
-              onClick={action.onClick} disabled={action.disabled || action.loading} className="h-control-h">
-              {action.loading ? <LoadingSpinner className="mr-1.5" />
-                : action.icon ? <span className="mr-1.5">{action.icon}</span> : null}
-              {action.label}
-            </Button>
-          ))}
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

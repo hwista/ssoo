@@ -58,7 +58,6 @@ export interface DocPageTemplateProps {
   
   /** 저장 상태 */
   saving?: boolean;
-  hasUnsavedChanges?: boolean;
   
   /** 자동저장 */
   isAutoSaveEnabled?: boolean;
@@ -116,7 +115,6 @@ export function DocPageTemplate({
   onHistory,
   onPathClick,
   saving = false,
-  hasUnsavedChanges = false,
   isAutoSaveEnabled = false,
   onAutoSaveToggle,
   autoSaveCountdown = 0,
@@ -230,7 +228,6 @@ export function DocPageTemplate({
         onDelete={onDelete}
         onHistory={onHistory}
         saving={saving}
-        hasUnsavedChanges={hasUnsavedChanges}
         isAutoSaveEnabled={isAutoSaveEnabled}
         onAutoSaveToggle={onAutoSaveToggle}
         autoSaveCountdown={autoSaveCountdown}

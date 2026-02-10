@@ -70,7 +70,6 @@ export interface DocumentMetadata {
   comments: DocumentComment[];
   templateId: string;
   author: string;
-  lastModifiedBy: string;
 }
 
 export interface FileData {
@@ -200,7 +199,6 @@ function buildDefaultDocumentMetadata(
     comments: existing?.comments ?? [],
     templateId: existing?.templateId ?? 'default',
     author: existing?.author ?? 'Unknown',
-    lastModifiedBy: 'Unknown',
   };
 }
 

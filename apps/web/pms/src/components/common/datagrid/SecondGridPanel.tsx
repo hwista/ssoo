@@ -44,7 +44,6 @@ export function SecondGridToggleButton({
 interface SecondGridPanelProps {
   isOpen: boolean;
   height: number | string;
-  onToggle: () => void;
   children: React.ReactNode;
   className?: string;
 }
@@ -52,28 +51,29 @@ interface SecondGridPanelProps {
 export function SecondGridPanel({
   isOpen,
   height,
-  onToggle,
   children,
   className,
 }: SecondGridPanelProps) {
-  const resolvedHeight = typeof height === 'number' ? `${height}px` : height;
-  const maxHeight = `calc(${resolvedHeight} + 24px)`;
+  const panelHeight = typeof height === 'number' ? `${height}px` : height;
+  const maxHeight = `calc(${panelHeight} + 24px)`;
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-10 overflow-visible">
+    <div
+      className={cn(
+        'absolute bottom-0 left-[5px] right-[5px] z-10 overflow-visible',
+        className
+      )}
+    >
       <div
         className={cn(
-          'rounded-lg border border-gray-200 bg-gray-50 shadow-lg',
-          'transition-[max-height,opacity,transform] duration-300 ease-in-out',
-          isOpen
-            ? 'opacity-100 translate-y-0'
-            : 'opacity-0 translate-y-2 pointer-events-none',
-          className
+          'relative overflow-hidden rounded-lg border border-ssoo-content-border bg-ssoo-content-bg shadow-[0_-4px_16px_rgba(0,0,0,0.15)]',
+          'transition-all duration-300 ease-in-out',
+          isOpen ? 'opacity-100 translate-y-0' : 'pointer-events-none opacity-0 translate-y-2'
         )}
-        style={{ maxHeight: isOpen ? maxHeight : '0px', overflow: 'hidden' }}
+        style={{ maxHeight: isOpen ? maxHeight : 0 }}
       >
         <div className="bg-gray-50">
-          <div className="overflow-auto" style={{ height: resolvedHeight }}>
+          <div className="overflow-auto" style={{ height: panelHeight }}>
             {children}
           </div>
         </div>

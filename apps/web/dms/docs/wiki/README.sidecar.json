@@ -1,15 +1,17 @@
 {
-  "title": "테스트용문서",
-  "summary": "ㅇ요용야ffasdasdasd",
+  "title": "📋 리팩토링 v1 개요",
+  "summary": "ㅇ요용야",
   "tags": [
-    "테스트"
+    "테스트",
+    "리팩터",
+    "ㄴㅇㄹㄴ"
   ],
   "sourceLinks": [
     "http://localhost:3000/",
     "http://localhost:3002/"
   ],
   "createdAt": "2026-02-04T00:19:14.218Z",
-  "updatedAt": "2026-02-10T06:58:48.822Z",
+  "updatedAt": "2026-02-10T07:54:26.707Z",
   "fileHashes": {
     "content": "3def9d9ba272f88116fd6a26a6946dcb54705458253752db665ee1001afe3762",
     "sources": {}
@@ -62,6 +64,5 @@
     }
   ],
   "templateId": "default",
-  "author": "Unknown",
-  "lastModifiedBy": "Unknown"
+  "author": "Unknown"
 }

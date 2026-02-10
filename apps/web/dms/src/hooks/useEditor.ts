@@ -147,7 +147,7 @@ export const useEditor = (
 
   // 자동 저장 스케줄링
   const autoSave = useCallback(async () => {
-    if (!onAutoSave) return;
+    if (!onAutoSave || !hasUnsavedChanges) return;
     
     try {
       await onAutoSave(content);
@@ -156,13 +156,20 @@ export const useEditor = (
     } catch (error) {
       logger.error('자동 저장 실패', error);
     }
-  }, [content, onAutoSave]);
+  }, [content, hasUnsavedChanges, onAutoSave]);
 
+  // 자동 저장 타이머: 토글 ON 시 즉시 카운트다운 시작 (변경사항 유무 무관)
+  // 카운트 0 도달 시: 변경사항 있으면 저장, 없으면 스킵
+  // 이후 다시 카운트다운 재시작 (반복)
   useEffect(() => {
-    if (!isAutoSaveEnabled || !hasUnsavedChanges) {
+    if (!isAutoSaveEnabled) {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
         autoSaveTimeoutRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
       }
       setAutoSaveCountdown(0);
       return;
@@ -174,7 +181,7 @@ export const useEditor = (
 
     countdownIntervalRef.current = setInterval(() => {
       countdown -= 1;
-      setAutoSaveCountdown(countdown);
+      setAutoSaveCountdown(Math.max(0, countdown));
       
       if (countdown <= 0) {
         if (countdownIntervalRef.current) {
@@ -184,22 +191,45 @@ export const useEditor = (
       }
     }, 1000);
 
-    // 자동 저장 타이머
-    autoSaveTimeoutRef.current = setTimeout(() => {
-      if (hasUnsavedChanges && isAutoSaveEnabled) {
-        autoSave();
-      }
-    }, autoSaveInterval);
+    // 자동 저장 타이머 (카운트 완료 시 저장 시도 + 다시 재시작)
+    const scheduleAutoSave = () => {
+      autoSaveTimeoutRef.current = setTimeout(async () => {
+        if (isAutoSaveEnabled) {
+          await autoSave();
+          // 카운트다운 재시작
+          countdown = autoSaveInterval / 1000;
+          setAutoSaveCountdown(countdown);
+          
+          countdownIntervalRef.current = setInterval(() => {
+            countdown -= 1;
+            setAutoSaveCountdown(Math.max(0, countdown));
+            
+            if (countdown <= 0) {
+              if (countdownIntervalRef.current) {
+                clearInterval(countdownIntervalRef.current);
+                countdownIntervalRef.current = null;
+              }
+            }
+          }, 1000);
+          
+          scheduleAutoSave();
+        }
+      }, autoSaveInterval);
+    };
+
+    scheduleAutoSave();
 
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = null;
       }
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
       }
     };
-  }, [isAutoSaveEnabled, hasUnsavedChanges, autoSaveInterval, autoSave]);
+  }, [isAutoSaveEnabled, autoSaveInterval, autoSave]);
 
   // 내용 업데이트 (히스토리에 추가)
   const updateContent = useCallback((newContent: string) => {

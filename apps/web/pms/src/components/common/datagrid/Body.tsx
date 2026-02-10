@@ -47,8 +47,8 @@ export function Body<TData, TValue>({
   getRowId,
   selectedRowId,
   minRows = 0,
-  rowHeight = 44,
-  headerHeight = 40,
+  rowHeight = 36,
+  headerHeight = 36,
 }: BodyProps<TData, TValue>) {
   const minBodyHeight = minRows > 0
     ? minRows * rowHeight + headerHeight
@@ -60,13 +60,14 @@ export function Body<TData, TValue>({
       style={minBodyHeight ? { minHeight: minBodyHeight } : undefined}
     >
       <Table>
-        <TableHeader className={cn('bg-gray-50 shadow-sm', headerClassName)}>
+        <TableHeader className={cn('shadow-sm', headerClassName ?? 'bg-ssoo-content-bg')}>
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
+            <TableRow key={headerGroup.id} style={{ height: headerHeight }}>
               {headerGroup.headers.map((header) => (
                 <TableHead
                   key={header.id}
-                  className={cn('sticky top-0 z-10 bg-gray-50 h-control-h', headerCellClassName)}
+                  className={cn('sticky top-0 z-10', headerCellClassName ?? 'bg-ssoo-content-bg')}
+                  style={{ height: headerHeight }}
                 >
                   {header.isPlaceholder
                     ? null
@@ -83,10 +84,7 @@ export function Body<TData, TValue>({
           {/* 로딩 중 스켈레톤 */}
           {loading && (
             Array.from({ length: 5 }).map((_, index) => (
-              <TableRow
-                key={`skeleton-${index}`}
-                className="h-control-h odd:bg-white even:bg-gray-50"
-              >
+              <TableRow key={`skeleton-${index}`}>
                 {columns.map((_, colIndex) => (
                   <TableCell key={`skeleton-${index}-${colIndex}`}>
                     <Skeleton className="h-4 w-full" />
@@ -99,39 +97,38 @@ export function Body<TData, TValue>({
           {/* 데이터 행 */}
           {!loading && table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => {
-              const rowId = getRowId ? getRowId(row.original) : row.id;
-              const isActiveRow = selectedRowId !== null && selectedRowId !== undefined
-                ? String(rowId) === String(selectedRowId)
-                : false;
+              const rowId = getRowId ? getRowId(row.original) : undefined;
+              const isActive = selectedRowId !== null && selectedRowId !== undefined && rowId === selectedRowId;
 
               return (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() && 'selected'}
-                data-active={isActiveRow ? 'true' : undefined}
-                onClick={() => onRowClick?.(row.original)}
-                className={cn(
-                  'h-control-h odd:bg-white even:bg-gray-50',
-                  'data-[state=selected]:bg-ssoo-content-border data-[state=selected]:text-ssoo-primary data-[state=selected]:font-medium',
-                  'data-[active=true]:bg-ssoo-content-border data-[active=true]:text-ssoo-primary data-[active=true]:font-medium',
-                  onRowClick && 'cursor-pointer hover:bg-muted/50'
-                )}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(
-                      cell.column.columnDef.cell,
-                      cell.getContext()
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-            );
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && 'selected'}
+                  data-active={isActive ? 'true' : undefined}
+                  onClick={() => onRowClick?.(row.original)}
+                  className={cn(
+                    'transition-colors',
+                    row.index % 2 === 1 ? 'bg-gray-50' : 'bg-white',
+                    onRowClick && 'cursor-pointer hover:bg-ssoo-sitemap-bg',
+                    isActive && 'bg-ssoo-content-border'
+                  )}
+                  style={{ height: rowHeight }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
             })
           ) : (
             /* 빈 상태 */
             !loading && (
-              <TableRow className="h-control-h">
+              <TableRow>
                 <TableCell
                   colSpan={columns.length}
                   className="h-full text-center align-middle"

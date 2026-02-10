@@ -23,7 +23,6 @@ export function Header() {
   const { aiSearchType, setAISearchType } = useLayoutStore();
   const { openTab } = useTabStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
   const [actionsWidth, setActionsWidth] = useState(0);
   const createButtonRef = useRef<HTMLButtonElement>(null);
@@ -84,7 +83,6 @@ export function Header() {
       closable: true,
       activate: true,
     });
-    setIsCreateMenuOpen(false);
   }, [openTab]);
 
   const handleCreateWithAi = useCallback(() => {
@@ -96,7 +94,6 @@ export function Header() {
       closable: true,
       activate: true,
     });
-    setIsCreateMenuOpen(false);
   }, [openTab]);
 
   return (
@@ -158,7 +155,7 @@ export function Header() {
       {/* 오른쪽: 액션 버튼들 */}
       <div ref={actionsRef} className="flex items-center gap-2">
         {/* 새 도큐먼트 */}
-        <DropdownMenu open={isCreateMenuOpen} onOpenChange={setIsCreateMenuOpen}>
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               ref={createButtonRef}
@@ -204,7 +201,6 @@ export function Header() {
         {/* 사용자 프로필 */}
         <UserMenu dropdownWidth={actionsWidth} />
       </div>
-
     </header>
   );
 }

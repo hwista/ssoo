@@ -40,6 +40,14 @@ export interface DataGridProps<TData, TValue> {
   onRetry?: () => void;
   /** 행 클릭 핸들러 */
   onRowClick?: (row: TData) => void;
+  /** 헤더 wrapper className */
+  headerClassName?: string;
+  /** 헤더 셀 className */
+  headerCellClassName?: string;
+  /** 행 식별자 */
+  getRowId?: (row: TData) => string | number;
+  /** 선택된 행 ID */
+  selectedRowId?: string | number | null;
   /** 선택 활성화 */
   enableRowSelection?: boolean;
   /** 선택된 행 변경 핸들러 */
@@ -70,14 +78,6 @@ export interface DataGridProps<TData, TValue> {
   className?: string;
   /** 테이블 body className */
   tableClassName?: string;
-  /** 테이블 헤더 className */
-  headerClassName?: string;
-  /** 테이블 헤더 셀 className */
-  headerCellClassName?: string;
-  /** 행 ID 추출 함수 (선택 하이라이트용) */
-  getRowId?: (row: TData) => string | number;
-  /** 하이라이트할 행 ID */
-  selectedRowId?: string | number | null;
   /** 세컨 그리드 패널 */
   secondGrid?: {
     enabled?: boolean;
@@ -124,15 +124,15 @@ export function DataGrid<TData, TValue>({
   searchPlaceholder = '검색...',
   enableColumnVisibility = false,
   enableSorting = true,
+  headerClassName,
+  headerCellClassName,
+  getRowId,
+  selectedRowId,
   pagination,
   enableClientPagination = false,
   emptyState,
   className,
   tableClassName,
-  headerClassName,
-  headerCellClassName,
-  getRowId,
-  selectedRowId,
   secondGrid,
 }: DataGridProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -326,19 +326,18 @@ export function DataGrid<TData, TValue>({
           emptyState={emptyState}
           onRowClick={onRowClick}
           tableClassName={tableClassName}
+          minRows={pagination?.pageSize ?? fallbackPageSize}
+          rowHeight={rowHeight}
+          headerHeight={headerHeight}
           headerClassName={headerClassName}
           headerCellClassName={headerCellClassName}
           getRowId={getRowId}
           selectedRowId={selectedRowId}
-          minRows={pagination?.pageSize ?? fallbackPageSize}
-          rowHeight={rowHeight}
-          headerHeight={headerHeight}
         />
         {secondGridEnabled && (
           <SecondGridPanel
             isOpen={isSecondGridOpen}
             height={secondGridHeight}
-            onToggle={() => setSecondGridOpen(!isSecondGridOpen)}
           >
             {secondGrid?.content}
           </SecondGridPanel>
