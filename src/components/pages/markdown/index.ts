@@ -1,1 +1,1 @@
-export { MarkdownViewerPage } from './MarkdownViewerPage';
+export { ViewerPage } from './ViewerPage';

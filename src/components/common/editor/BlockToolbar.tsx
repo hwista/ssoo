@@ -85,7 +85,7 @@ const BlockToolbar: React.FC<BlockToolbarProps> = ({ editor }) => {
   );
 
   return (
-    <div className="editor-toolbar flex flex-wrap items-center gap-1 px-4 py-2 min-h-[52px] bg-gray-50 border-b border-gray-200 rounded-t-lg">
+    <div className="editor-toolbar flex flex-wrap items-center gap-1 px-4 py-2 min-h-[52px] bg-transparent border-0">
       {/* Undo/Redo */}
       <ToolbarButton
         onClick={() => editor.chain().focus().undo().run()}

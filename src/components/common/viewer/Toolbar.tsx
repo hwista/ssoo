@@ -88,7 +88,7 @@ export function Toolbar({
     >
       <div
         className={cn(
-          'flex w-full items-center justify-between px-4 py-2 min-h-[52px]'
+          'flex w-full items-center justify-between px-4 py-2 min-h-[52px] bg-transparent border-0'
         )}
         style={isEmbedded ? undefined : { maxWidth }}
       >

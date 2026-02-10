@@ -21,6 +21,8 @@ export interface ContentProps {
   maxWidth?: number;
   /** 레이아웃 변형 */
   variant?: ContentVariant;
+  /** 콘텐츠 표면 표시 여부 */
+  showSurface?: boolean;
   /** 스크롤 컨테이너 ref */
   contentRef?: React.RefObject<HTMLDivElement | null>;
   /** 추가 className */
@@ -40,11 +42,13 @@ export function Content({
   zoomLevel,
   maxWidth,
   variant = 'standalone',
+  showSurface,
   contentRef,
   className,
 }: ContentProps) {
   const isEmbedded = variant === 'embedded';
   const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
+  const shouldShowSurface = showSurface ?? !isEmbedded;
 
   return (
     <div
@@ -58,7 +62,7 @@ export function Content({
         ref={contentRef as React.RefObject<HTMLDivElement>}
         className={cn(
           'h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin',
-          !isEmbedded && 'bg-white border border-gray-200 rounded-lg'
+          shouldShowSurface && 'bg-white border border-gray-200 rounded-lg'
         )}
         style={resolvedMaxWidth ? { maxWidth: resolvedMaxWidth } : undefined}
       >

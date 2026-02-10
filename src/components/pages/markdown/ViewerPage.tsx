@@ -31,7 +31,7 @@ type PageMode = 'viewer' | 'editor' | 'create';
  * - SidebarFileTree는 openTab()만 호출
  * - 이 페이지 컴포넌트가 자체적으로 데이터 로드
  */
-export function MarkdownViewerPage() {
+export function ViewerPage() {
   const { activeTabId, tabs } = useTabStore();
   const { 
     loadFile, 
@@ -95,7 +95,6 @@ export function MarkdownViewerPage() {
   // 새 문서 작성 모드 진입
   useEffect(() => {
     if (isCreateMode) {
-      console.log('📄 새 문서 작성 모드');
       reset(); // 에디터 상태 초기화
       setContent('# 새 문서\n\n내용을 입력하세요...');
       setMode('create');
@@ -106,7 +105,6 @@ export function MarkdownViewerPage() {
   // 파일 경로가 변경되면 파일 로드 + 뷰어 모드로 전환
   useEffect(() => {
     if (filePath && !isCreateMode) {
-      console.log('📂 WikiViewerPage: 파일 로드 시작', { filePath });
       loadFile(filePath);
       setMode('viewer');
       setIsEditing(false);
@@ -143,7 +141,7 @@ export function MarkdownViewerPage() {
   const metadata = useMemo(() => {
     const wordCount = content ? content.trim().split(/\s+/).filter(Boolean).length : 0;
     return {
-      author: documentMetadata?.author || 'admin',
+      author: documentMetadata?.author || 'Unknown',
       createdAt: fileMetadata.createdAt || undefined,
       updatedAt: fileMetadata.modifiedAt || undefined,
       lineCount: content ? content.split('\n').length : 0,
@@ -164,13 +162,12 @@ export function MarkdownViewerPage() {
   const handleDelete = useCallback(() => {
     // TODO: 삭제 확인 모달 + 삭제 로직
     if (confirm(`'${filePath}'를 삭제하시겠습니까?`)) {
-      console.log('삭제:', filePath);
+      // TODO: 삭제 로직 연결
     }
   }, [filePath]);
 
-  const handleSearch = useCallback((query: string) => {
+  const handleSearch = useCallback((_query: string) => {
     // TODO: 문서 내 검색 하이라이트
-    console.log('검색:', query);
   }, []);
 
   const handleTocClick = useCallback((id: string) => {
@@ -181,9 +178,8 @@ export function MarkdownViewerPage() {
     }
   }, []);
 
-  const handlePathClick = useCallback((path: string) => {
+  const handlePathClick = useCallback((_path: string) => {
     // TODO: 해당 폴더로 트리 이동
-    console.log('폴더 이동:', path);
   }, []);
 
   // 저장 핸들러 (에디터 모드용) - Store의 핸들러 사용
@@ -248,11 +244,14 @@ export function MarkdownViewerPage() {
         onTocClick={handleTocClick}
         onSearch={handleSearch}
         variant="embedded"
+        showContentSurface
       />
     ) : (
       <Editor className="h-full" variant="embedded" />
     );
   }, [error, handleRetry, htmlContent, isCreateMode, isLoading, mode, toc, handleTocClick, handleSearch]);
+
+  const contentSurfaceClassName = 'bg-transparent border-0';
 
   // 파일 경로가 없고, 생성 모드도 아닐 때
   if (!filePath && !isCreateMode) {
@@ -270,6 +269,7 @@ export function MarkdownViewerPage() {
         filePath={filePath || '새 문서.md'}
         mode={mode === 'create' ? 'editor' : mode}
         contentOrientation="portrait"
+        contentSurfaceClassName={contentSurfaceClassName}
         metadata={metadata}
         tags={tags}
         documentMetadata={documentMetadata}
@@ -294,4 +294,4 @@ export function MarkdownViewerPage() {
   );
 }
 
-export default MarkdownViewerPage;
+export default ViewerPage;
