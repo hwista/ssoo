@@ -1,4 +1,4 @@
-https://github.com/enterprises/ls-workplace
+[https://github.com/enterprises/ls-workplace](https://github.com/enterprises/ls-workplace)
 
 |  |  |  |
 | --- | --- | --- |
@@ -220,4 +220,6 @@ refactoring/v1/
 
 * * *
 
+```livepreview
 **⚠️ 주의사항**: 이 리팩토링은 기존 기능을 보존하면서 코드 품질을 개선하는 것이 목표입니다. 모든 변경사항은 기존 개발 표준과 기능 명세를 준수해야 합니다.
+```

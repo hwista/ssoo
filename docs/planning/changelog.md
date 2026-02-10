@@ -13,6 +13,24 @@
 - AI 페이지 공통 셸 컴포넌트 도입
 - DocPageTemplate 초기 레이아웃 측정 전 트랜지션 억제
 - MarkdownViewerPage 뷰어 툴바의 임베디드 스타일을 이전 패딩 기준으로 복원
+- 뷰어 툴바 컨테이너 배경/보더 투명 처리
+- 뷰어 모드에서 DocPageTemplate 표면을 투명 처리하고 본문 박스만 유지
+- 에디터 툴바 표면을 뷰어와 동일하게 투명 처리
+- 마크다운 뷰어 페이지 파일명을 규칙에 맞게 변경 (ViewerPage)
+- 에디터 모드에서도 DocPageTemplate 표면을 투명 처리하고 본문 박스만 유지
+- ESLint flat config에서 Next preset 로딩 방식 수정
+
+### 사이드카 편집 기능 개선
+
+- 사이드카 섹션 접기/펼치기(CollapsibleSection) 적용
+- 뷰어 모드에서 댓글 입력 지원 (Enter 전송)
+- 빈 섹션 플레이스홀더 표시
+- 작성자 기본값을 'Unknown'으로 변경
+
+### 헤더 UserMenu 추가
+
+- PMS 스타일 UserMenu 드롭다운 적용 (인증 미구현, 더미 데이터)
+- 드롭다운 너비를 액션 영역에 맞춤 (ResizeObserver)
 
 ## 2026-02-09
 
