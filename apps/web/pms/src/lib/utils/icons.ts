@@ -24,6 +24,7 @@ import {
   Code,
   Building2,
   Network,
+  LogOut,
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import type { ForwardRefExoticComponent, RefAttributes } from 'react';
@@ -68,6 +69,8 @@ const iconMap: Record<string, IconComponent> = {
   Code,
   Building2,
   Network,
+  // Layout 컴포넌트
+  LogOut,
 };
 
 /**

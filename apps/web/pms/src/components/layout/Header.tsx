@@ -1,6 +1,7 @@
 'use client';
 
-import { Search, Plus, Bell, User, ChevronDown } from 'lucide-react';
+import { Search, Plus, Bell } from 'lucide-react';
+import { UserMenu } from './UserMenu';
 
 /**
  * 상단 헤더 컴포넌트
@@ -47,12 +48,7 @@ export function Header() {
         </button>
 
         {/* 사용자 프로필 */}
-        <button className="flex items-center gap-2 h-control-h px-2 hover:bg-white/10 rounded-md transition-colors">
-          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
-          <ChevronDown className="w-4 h-4 text-white/70" />
-        </button>
+        <UserMenu />
       </div>
     </header>
   );
