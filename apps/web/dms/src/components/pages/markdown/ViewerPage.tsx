@@ -47,9 +47,6 @@ export function ViewerPage() {
     reset,
     // 에디터 상태 (Header에 전달)
     hasUnsavedChanges,
-    isAutoSaveEnabled,
-    autoSaveCountdown,
-    lastSaveTime,
     isSaving,
     editorHandlers,
   } = useEditorStore();
@@ -202,11 +199,6 @@ export function ViewerPage() {
     }
   }, [editorHandlers, setIsEditing]);
 
-  // 자동저장 토글 핸들러 - Editor의 핸들러 사용
-  const handleAutoSaveToggle = useCallback(() => {
-    editorHandlers?.autoSaveToggle();
-  }, [editorHandlers]);
-
   // 메타데이터 변경 핸들러 (Sidecar → Store 로컬 업데이터, 저장 시 플러시)
   const handleMetadataChange = useCallback((update: Partial<DocumentMetadata>) => {
     setLocalDocumentMetadata(update);
@@ -278,12 +270,7 @@ export function ViewerPage() {
         onHistory={handleHistory}
         onDelete={isCreateMode ? undefined : handleDelete}
         onPathClick={handlePathClick}
-        // 에디터 상태 (Header에 전달)
         saving={isSaving}
-        isAutoSaveEnabled={isAutoSaveEnabled}
-        onAutoSaveToggle={handleAutoSaveToggle}
-        autoSaveCountdown={autoSaveCountdown}
-        lastSaveTime={lastSaveTime}
       >
         {contentBody}
       </DocPageTemplate>

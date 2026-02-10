@@ -5,8 +5,7 @@
  * - 에디터 내용 관리
  * - 커서 위치 및 선택 영역 관리
  * - 실행 취소/다시 실행
- * - 자동 저장
- * - 임시 저장 및 복원
+ * - 저장 관리
  * 
  * 사용처: WikiEditor, MarkdownToolbar
  */
@@ -27,11 +26,9 @@ export interface EditorSelection {
 }
 
 export interface UseEditorOptions {
-  autoSaveInterval?: number; // 자동 저장 간격 (ms)
   maxHistorySize?: number; // 실행 취소 히스토리 최대 크기
   onContentChange?: (content: string) => void;
   onSave?: (content: string) => Promise<void>;
-  onAutoSave?: (content: string) => Promise<void>;
 }
 
 export interface UseEditorReturn {
@@ -39,9 +36,6 @@ export interface UseEditorReturn {
   content: string;
   originalContent: string;
   hasUnsavedChanges: boolean;
-  isAutoSaveEnabled: boolean;
-  lastSaveTime: Date | null;
-  autoSaveCountdown: number;
   
   // 커서 및 선택
   cursorPosition: EditorCursorPosition | null;
@@ -74,8 +68,6 @@ export interface UseEditorReturn {
   
   // 저장 관리
   save: () => Promise<void>;
-  autoSave: () => Promise<void>;
-  setAutoSaveEnabled: (enabled: boolean) => void;
   
   // 유틸리티
   getLineAtPosition: (position: number) => number;
@@ -101,20 +93,15 @@ export const useEditor = (
   options: UseEditorOptions = {}
 ): UseEditorReturn => {
   const {
-    autoSaveInterval = 30000, // 30초
     maxHistorySize = 50,
     onContentChange,
     onSave,
-    onAutoSave
   } = options;
 
   // 기본 상태
   const [content, setContentState] = useState(initialContent);
   const [originalContent, setOriginalContent] = useState(initialContent);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(false);
-  const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
-  const [autoSaveCountdown, setAutoSaveCountdown] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
 
   // 커서 및 선택 상태
@@ -131,8 +118,6 @@ export const useEditor = (
 
   // refs
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // computed states
   const canUndo = historyIndex > 0;
@@ -144,92 +129,6 @@ export const useEditor = (
     setHasUnsavedChanges(hasChanges);
     onContentChange?.(content);
   }, [content, originalContent, onContentChange]);
-
-  // 자동 저장 스케줄링
-  const autoSave = useCallback(async () => {
-    if (!onAutoSave || !hasUnsavedChanges) return;
-    
-    try {
-      await onAutoSave(content);
-      setLastSaveTime(new Date());
-      logger.debug('자동 저장 완료');
-    } catch (error) {
-      logger.error('자동 저장 실패', error);
-    }
-  }, [content, hasUnsavedChanges, onAutoSave]);
-
-  // 자동 저장 타이머: 토글 ON 시 즉시 카운트다운 시작 (변경사항 유무 무관)
-  // 카운트 0 도달 시: 변경사항 있으면 저장, 없으면 스킵
-  // 이후 다시 카운트다운 재시작 (반복)
-  useEffect(() => {
-    if (!isAutoSaveEnabled) {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-        autoSaveTimeoutRef.current = null;
-      }
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = null;
-      }
-      setAutoSaveCountdown(0);
-      return;
-    }
-
-    // 카운트다운 시작
-    let countdown = autoSaveInterval / 1000;
-    setAutoSaveCountdown(countdown);
-
-    countdownIntervalRef.current = setInterval(() => {
-      countdown -= 1;
-      setAutoSaveCountdown(Math.max(0, countdown));
-      
-      if (countdown <= 0) {
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-          countdownIntervalRef.current = null;
-        }
-      }
-    }, 1000);
-
-    // 자동 저장 타이머 (카운트 완료 시 저장 시도 + 다시 재시작)
-    const scheduleAutoSave = () => {
-      autoSaveTimeoutRef.current = setTimeout(async () => {
-        if (isAutoSaveEnabled) {
-          await autoSave();
-          // 카운트다운 재시작
-          countdown = autoSaveInterval / 1000;
-          setAutoSaveCountdown(countdown);
-          
-          countdownIntervalRef.current = setInterval(() => {
-            countdown -= 1;
-            setAutoSaveCountdown(Math.max(0, countdown));
-            
-            if (countdown <= 0) {
-              if (countdownIntervalRef.current) {
-                clearInterval(countdownIntervalRef.current);
-                countdownIntervalRef.current = null;
-              }
-            }
-          }, 1000);
-          
-          scheduleAutoSave();
-        }
-      }, autoSaveInterval);
-    };
-
-    scheduleAutoSave();
-
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-        autoSaveTimeoutRef.current = null;
-      }
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = null;
-      }
-    };
-  }, [isAutoSaveEnabled, autoSaveInterval, autoSave]);
 
   // 내용 업데이트 (히스토리에 추가)
   const updateContent = useCallback((newContent: string) => {
@@ -407,7 +306,6 @@ export const useEditor = (
       await onSave(content);
       setOriginalContent(content);
       setHasUnsavedChanges(false);
-      setLastSaveTime(new Date());
       logger.info('파일 저장 완료');
     } catch (error) {
       logger.error('파일 저장 실패', error);
@@ -421,7 +319,6 @@ export const useEditor = (
   const markAsSaved = useCallback(() => {
     setOriginalContent(content);
     setHasUnsavedChanges(false);
-    setLastSaveTime(new Date());
   }, [content]);
 
   // 히스토리 클리어
@@ -451,9 +348,6 @@ export const useEditor = (
     content,
     originalContent,
     hasUnsavedChanges,
-    isAutoSaveEnabled,
-    lastSaveTime,
-    autoSaveCountdown,
     
     // 커서 및 선택
     cursorPosition,
@@ -486,8 +380,6 @@ export const useEditor = (
     
     // 저장 관리
     save,
-    autoSave,
-    setAutoSaveEnabled: setIsAutoSaveEnabled,
     
     // 유틸리티
     getLineAtPosition,
