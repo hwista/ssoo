@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { User, Calendar, FileText, Tag, Paperclip, Link2, MessageSquare, X, Plus } from 'lucide-react';
+import { User, Calendar, FileText, Tag, Paperclip, Link2, MessageSquare, X, Plus, ChevronDown, ChevronRight, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
 
@@ -55,6 +55,8 @@ export interface SidecarProps {
   className?: string;
 }
 
+// ─── 헬퍼 ───────────────────────────────────────────────
+
 /**
  * 날짜 포맷팅 헬퍼
  */
@@ -67,6 +69,42 @@ function formatDate(date: Date | string | undefined): string {
     day: '2-digit',
   });
 }
+
+// ─── 접기/펼치기 섹션 ────────────────────────────────────
+
+interface CollapsibleSectionProps {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  /** 제목 오른쪽에 표시할 뱃지 (예: 댓글 수) */
+  badge?: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}
+
+function CollapsibleSection({ icon: Icon, title, badge, defaultOpen = true, children }: CollapsibleSectionProps) {
+  const [isOpen, setIsOpen] = React.useState(defaultOpen);
+
+  return (
+    <section className="border-b border-gray-200 last:border-b-0">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center w-full py-2 text-sm font-semibold text-ssoo-primary hover:text-ssoo-primary/80 transition-colors"
+      >
+        <Icon className="h-4 w-4 mr-1.5 shrink-0" />
+        <span className="flex-1 text-left">{title}</span>
+        {badge}
+        {isOpen ? (
+          <ChevronDown className="h-3.5 w-3.5 ml-1 shrink-0 text-ssoo-primary/50" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 ml-1 shrink-0 text-ssoo-primary/50" />
+        )}
+      </button>
+      {isOpen && <div className="pb-3">{children}</div>}
+    </section>
+  );
+}
+
+// ─── 편집 서브 컴포넌트 ──────────────────────────────────
 
 /**
  * 태그 편집 컴포넌트
@@ -189,7 +227,7 @@ function EditableSourceLinks({
           <button
             onClick={() => handleRemove(link)}
             className="flex-shrink-0 hover:text-red-500 transition-colors text-ssoo-primary/60"
-            aria-label={`링크 삭제`}
+            aria-label="링크 삭제"
           >
             <X className="h-3 w-3" />
           </button>
@@ -218,27 +256,45 @@ function EditableSourceLinks({
 }
 
 /**
- * 댓글 목록 컴포넌트 (삭제만 가능)
+ * 댓글 섹션 컴포넌트 (목록 + 추가 + 삭제)
+ * - editable=true (에디터 모드): 삭제만 가능
+ * - editable=false (뷰어 모드): 추가 + 삭제 가능
  */
-function CommentList({
+function CommentSection({
   comments,
+  editable,
+  onAdd,
   onDelete,
 }: {
   comments: DocumentComment[];
+  editable: boolean;
+  onAdd: (content: string) => void;
   onDelete: (id: string) => void;
 }) {
-  if (comments.length === 0) {
-    return (
-      <p className="text-xs text-gray-400 text-center py-2">댓글이 없습니다</p>
-    );
-  }
+  const [inputValue, setInputValue] = React.useState('');
+
+  const handleSubmit = () => {
+    const trimmed = inputValue.trim();
+    if (trimmed) {
+      onAdd(trimmed);
+      setInputValue('');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
 
   return (
     <div className="space-y-2">
+      {/* 댓글 목록 */}
       {comments.map((comment) => (
         <div
           key={comment.id}
-          className="p-2 rounded border border-ssoo-content-border text-xs space-y-1"
+          className="p-2 rounded border border-gray-200/60 text-xs space-y-1"
         >
           <div className="flex items-center justify-between">
             <span className="font-medium text-ssoo-primary">{comment.author}</span>
@@ -253,18 +309,56 @@ function CommentList({
               </button>
             </div>
           </div>
-          <p className="text-ssoo-primary/80">{comment.content}</p>
+          <p className="text-ssoo-primary/80 whitespace-pre-wrap">{comment.content}</p>
         </div>
       ))}
+
+      {/* 댓글 입력 (뷰어 모드에서만 표시) */}
+      {!editable && (
+        <div className="relative">
+          <textarea
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="댓글 입력... (Enter 전송)"
+            rows={2}
+            className="w-full px-2 py-1.5 pr-8 text-xs bg-transparent border border-ssoo-content-border rounded resize-none focus:outline-none focus:border-ssoo-primary text-ssoo-primary"
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={!inputValue.trim()}
+            className="absolute right-1.5 bottom-1.5 p-1 text-ssoo-primary/60 hover:text-ssoo-primary disabled:opacity-30 transition-colors"
+            aria-label="댓글 추가"
+          >
+            <Send className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* 빈 상태 (에디터 모드 + 댓글 없음) */}
+      {editable && comments.length === 0 && (
+        <EmptyPlaceholder text="댓글없음" />
+      )}
     </div>
   );
 }
 
 /**
+ * 빈 상태 플레이스홀더
+ */
+function EmptyPlaceholder({ text }: { text: string }) {
+  return <p className="text-xs text-gray-400 py-1">{text}</p>;
+}
+
+// ─── 메인 컴포넌트 ───────────────────────────────────────
+
+/**
  * Sidecar 컴포넌트
  * 
- * 문서 메타정보 + 목차를 표시하는 우측 패널
- * editable=true 일 때 태그, 요약, 소스링크 편집 + 댓글 삭제 가능
+ * 문서 메타정보를 표시하는 우측 패널
+ * - 모든 섹션은 접기/펼치기 가능
+ * - editable=true 일 때 태그, 요약, 소스링크 편집 + 댓글 추가/삭제 가능
+ * - 빈 섹션은 플레이스홀더 표시
  */
 export function Sidecar({
   metadata,
@@ -291,30 +385,54 @@ export function Sidecar({
     onMetadataChange?.({ sourceLinks: newLinks });
   };
 
+  const handleCommentAdd = (content: string) => {
+    const newComment: DocumentComment = {
+      id: `comment-${Date.now()}`,
+      author: documentMetadata?.author || 'Unknown',
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    onMetadataChange?.({ comments: [...comments, newComment] });
+  };
+
   const handleCommentDelete = (commentId: string) => {
     const updated = comments.filter((c) => c.id !== commentId);
     onMetadataChange?.({ comments: updated });
   };
 
   return (
-    <div className={cn('p-4 space-y-6', className)}>
-      {/* 문서 정보 섹션 */}
+    <div className={cn('p-4 space-y-1', className)}>
+      {/* ─── 태그 ─── */}
+      <CollapsibleSection icon={Tag} title="태그">
+        {editable ? (
+          <EditableTags tags={tags ?? []} onChange={handleTagsChange} />
+        ) : tags && tags.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="px-2 py-0.5 text-xs bg-ssoo-content-border text-ssoo-primary rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <EmptyPlaceholder text="태그없음" />
+        )}
+      </CollapsibleSection>
+
+      {/* ─── 문서 정보 ─── */}
       {metadata && (
-        <section>
-          <h3 className="flex items-center text-sm font-semibold text-ssoo-primary mb-3">
-            <FileText className="h-4 w-4 mr-1.5" />
-            문서 정보
-          </h3>
+        <CollapsibleSection icon={FileText} title="문서 정보">
           <dl className="space-y-2 text-sm">
-            {metadata.author && (
-              <div className="flex items-center justify-between">
-                <dt className="flex items-center text-gray-500">
-                  <User className="h-3.5 w-3.5 mr-1" />
-                  작성자
-                </dt>
-                <dd className="text-ssoo-primary">{metadata.author}</dd>
-              </div>
-            )}
+            <div className="flex items-center justify-between">
+              <dt className="flex items-center text-gray-500">
+                <User className="h-3.5 w-3.5 mr-1" />
+                작성자
+              </dt>
+              <dd className="text-ssoo-primary">{metadata.author || 'Unknown'}</dd>
+            </div>
             {metadata.createdAt && (
               <div className="flex items-center justify-between">
                 <dt className="flex items-center text-gray-500">
@@ -352,16 +470,12 @@ export function Sidecar({
               </div>
             )}
           </dl>
-        </section>
+        </CollapsibleSection>
       )}
 
-      {/* 요약 섹션 (편집 모드) */}
-      {editable && (
-        <section>
-          <h3 className="flex items-center text-sm font-semibold text-ssoo-primary mb-3">
-            <FileText className="h-4 w-4 mr-1.5" />
-            요약
-          </h3>
+      {/* ─── 요약 ─── */}
+      <CollapsibleSection icon={FileText} title="요약">
+        {editable ? (
           <textarea
             value={summary}
             onChange={handleSummaryChange}
@@ -369,84 +483,39 @@ export function Sidecar({
             rows={3}
             className="w-full px-2 py-1.5 text-xs bg-transparent border border-ssoo-content-border rounded resize-none focus:outline-none focus:border-ssoo-primary text-ssoo-primary"
           />
-        </section>
-      )}
-
-      {/* 요약 표시 (읽기 모드, 요약이 있을 때만) */}
-      {!editable && summary && (
-        <section>
-          <h3 className="flex items-center text-sm font-semibold text-ssoo-primary mb-3">
-            <FileText className="h-4 w-4 mr-1.5" />
-            요약
-          </h3>
+        ) : summary ? (
           <p className="text-xs text-ssoo-primary/80 leading-relaxed">{summary}</p>
-        </section>
-      )}
+        ) : (
+          <EmptyPlaceholder text="요약없음" />
+        )}
+      </CollapsibleSection>
 
-      {/* 태그 섹션 */}
-      {(editable || (tags && tags.length > 0)) && (
-        <section>
-          <h3 className="flex items-center text-sm font-semibold text-ssoo-primary mb-3">
-            <Tag className="h-4 w-4 mr-1.5" />
-            태그
-          </h3>
-          {editable ? (
-            <EditableTags
-              tags={tags ?? []}
-              onChange={handleTagsChange}
-            />
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {(tags ?? []).map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-0.5 text-xs bg-ssoo-content-border text-ssoo-primary rounded-full"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      {/* ─── 소스 링크 ─── */}
+      <CollapsibleSection icon={Link2} title="소스 링크">
+        {editable ? (
+          <EditableSourceLinks links={sourceLinks} onChange={handleSourceLinksChange} />
+        ) : sourceLinks.length > 0 ? (
+          <div className="space-y-1">
+            {sourceLinks.map((link) => (
+              <a
+                key={link}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-xs text-blue-500 hover:underline truncate"
+              >
+                {link}
+              </a>
+            ))}
+          </div>
+        ) : (
+          <EmptyPlaceholder text="링크없음" />
+        )}
+      </CollapsibleSection>
 
-      {/* 소스 링크 섹션 */}
-      {(editable || sourceLinks.length > 0) && (
-        <section>
-          <h3 className="flex items-center text-sm font-semibold text-ssoo-primary mb-3">
-            <Link2 className="h-4 w-4 mr-1.5" />
-            소스 링크
-          </h3>
-          {editable ? (
-            <EditableSourceLinks
-              links={sourceLinks}
-              onChange={handleSourceLinksChange}
-            />
-          ) : (
-            <div className="space-y-1">
-              {sourceLinks.map((link) => (
-                <a
-                  key={link}
-                  href={link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-xs text-blue-500 hover:underline truncate"
-                >
-                  {link}
-                </a>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* 첨부 파일 섹션 */}
-      {attachments.length > 0 && (
-        <section>
-          <h3 className="flex items-center text-sm font-semibold text-ssoo-primary mb-3">
-            <Paperclip className="h-4 w-4 mr-1.5" />
-            첨부 파일
-          </h3>
+      {/* ─── 첨부 파일 ─── */}
+      <CollapsibleSection icon={Paperclip} title="첨부 파일">
+        {attachments.length > 0 ? (
           <div className="space-y-2">
             {attachments.map((attachment) => {
               const link = attachment.url || `/api/file?path=${encodeURIComponent(attachment.path)}`;
@@ -464,46 +533,26 @@ export function Sidecar({
               );
             })}
           </div>
-        </section>
-      )}
+        ) : (
+          <EmptyPlaceholder text="첨부없음" />
+        )}
+      </CollapsibleSection>
 
-      {/* 댓글 섹션 */}
-      {(editable || comments.length > 0) && (
-        <section>
-          <h3 className="flex items-center text-sm font-semibold text-ssoo-primary mb-3">
-            <MessageSquare className="h-4 w-4 mr-1.5" />
-            댓글
-            {comments.length > 0 && (
-              <span className="ml-1 text-xs text-gray-400">({comments.length})</span>
-            )}
-          </h3>
-          {editable ? (
-            <CommentList comments={comments} onDelete={handleCommentDelete} />
-          ) : (
-            <div className="space-y-2">
-              {comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="p-2 rounded border border-ssoo-content-border text-xs space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-ssoo-primary">{comment.author}</span>
-                    <span className="text-gray-400">{formatDate(comment.createdAt)}</span>
-                  </div>
-                  <p className="text-ssoo-primary/80">{comment.content}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* 빈 상태 */}
-      {!metadata && (!tags || tags.length === 0) && !editable && (
-        <p className="text-sm text-gray-400 text-center py-4">
-          문서 정보가 없습니다
-        </p>
-      )}
+      {/* ─── 댓글 ─── */}
+      <CollapsibleSection
+        icon={MessageSquare}
+        title="댓글"
+        badge={comments.length > 0 ? (
+          <span className="text-xs text-gray-400 mr-1">({comments.length})</span>
+        ) : undefined}
+      >
+        <CommentSection
+          comments={comments}
+          editable={editable}
+          onAdd={handleCommentAdd}
+          onDelete={handleCommentDelete}
+        />
+      </CollapsibleSection>
     </div>
   );
 }
