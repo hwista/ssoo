@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { User, LogOut, Settings, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
@@ -9,8 +8,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useAuthStore } from '@/stores/auth.store';
+} from '@/components/ui/dropdown';
 
 interface UserMenuProps {
   /** 드롭다운 너비 (부모 액션 영역 기준) */
@@ -18,20 +16,11 @@ interface UserMenuProps {
 }
 
 /**
- * 사용자 프로필 드롭다운 메뉴
- * - 사용자 정보 표시 (loginId, roleCode)
- * - 설정 (준비 중)
- * - 로그아웃
+ * 사용자 프로필 드롭다운 메뉴 (DMS)
+ * - 인증 미구현 상태: 더미 사용자 정보 표시
+ * - 설정 / 로그아웃 (준비 중)
  */
 export function UserMenu({ dropdownWidth }: UserMenuProps) {
-  const { user, logout } = useAuthStore();
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/login');
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -56,8 +45,8 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
               <User className="w-4 h-4 text-white" />
             </div>
             <div className="flex flex-col min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user?.loginId ?? '사용자'}</p>
-              <p className="text-xs text-white/60 truncate">{user?.roleCode ?? ''}</p>
+              <p className="text-sm font-medium text-white truncate">admin</p>
+              <p className="text-xs text-white/60 truncate">관리자</p>
             </div>
           </div>
         </DropdownMenuLabel>
@@ -78,11 +67,12 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
 
         {/* 로그아웃 */}
         <DropdownMenuItem
-          onClick={handleLogout}
-          className="text-white focus:bg-white/10 focus:text-white px-3 py-2 cursor-pointer"
+          disabled
+          className="text-white/40 focus:bg-white/10 focus:text-white px-3 py-2"
         >
           <LogOut className="mr-2 h-4 w-4" />
           <span>로그아웃</span>
+          <span className="ml-auto text-xs text-white/40">준비 중</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

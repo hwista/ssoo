@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState, useEffect } from 'react';
 import { Search, Plus, Bell } from 'lucide-react';
 import { UserMenu } from './UserMenu';
 
@@ -12,6 +13,21 @@ import { UserMenu } from './UserMenu';
  * - 사용자 프로필
  */
 export function Header() {
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const [actionsWidth, setActionsWidth] = useState(0);
+
+  useEffect(() => {
+    const el = actionsRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setActionsWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <header className="h-header-h flex items-center justify-between px-4 bg-ssoo-primary">
       {/* 왼쪽: 통합 검색 (추후 Elasticsearch 또는 AI 챗 연동 예정) */}
@@ -28,7 +44,7 @@ export function Header() {
       </div>
 
       {/* 오른쪽: 액션 버튼들 */}
-      <div className="flex items-center gap-2">
+      <div ref={actionsRef} className="flex items-center gap-2">
         {/* 빠른 생성 */}
         <button
           className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-sm font-medium rounded-md hover:bg-gray-100 transition-colors"
@@ -48,7 +64,7 @@ export function Header() {
         </button>
 
         {/* 사용자 프로필 */}
-        <UserMenu />
+        <UserMenu dropdownWidth={actionsWidth} />
       </div>
     </header>
   );

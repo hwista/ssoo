@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { Search, Plus, Bell, User, ChevronDown, Bot, FileSearch, FileText, Sparkles } from 'lucide-react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { Search, Plus, Bell, ChevronDown, Bot, FileSearch, FileText, Sparkles } from 'lucide-react';
 import { useLayoutStore, useTabStore } from '@/stores';
 import { AI_SEARCH_TYPE_LABELS } from '@/types';
 import {
@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { UserMenu } from './UserMenu';
 
 /**
  * DMS 상단 헤더 컴포넌트
@@ -30,6 +31,20 @@ export function Header() {
   const { openTab } = useTabStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const [actionsWidth, setActionsWidth] = useState(0);
+
+  useEffect(() => {
+    const el = actionsRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setActionsWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const isQuestionMode = aiSearchType === 'question';
 
@@ -136,7 +151,7 @@ export function Header() {
       </div>
 
       {/* 오른쪽: 액션 버튼들 */}
-      <div className="flex items-center gap-2">
+      <div ref={actionsRef} className="flex items-center gap-2">
         {/* 새 도큐먼트 */}
         <button
           onClick={handleCreateNewDocument}
@@ -157,12 +172,7 @@ export function Header() {
         </button>
 
         {/* 사용자 프로필 */}
-        <button className="flex items-center gap-2 h-control-h px-2 hover:bg-white/10 rounded-md transition-colors">
-          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
-          <ChevronDown className="w-4 h-4 text-white/70" />
-        </button>
+        <UserMenu dropdownWidth={actionsWidth} />
       </div>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
