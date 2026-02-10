@@ -68,6 +68,21 @@ export interface ProjectFilters extends ListParams {
   customerId?: number;
 }
 
+interface ProjectListApiResponse {
+  success: boolean;
+  data?: Project[];
+  meta?: {
+    page: number;
+    limit: number;
+    total: number;
+  };
+  message?: string;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+}
+
 /**
  * 프로젝트 API
  */
@@ -76,10 +91,38 @@ export const projectsApi = {
    * 프로젝트 목록 조회
    */
   list: async (params?: ProjectFilters): Promise<ApiResponse<PaginatedResponse<Project>>> => {
-    const response = await apiClient.get<ApiResponse<PaginatedResponse<Project>>>('/projects', {
-      params,
+    const requestParams = params
+      ? {
+          ...params,
+          ...(params.pageSize !== undefined && { limit: params.pageSize }),
+        }
+      : undefined;
+    const response = await apiClient.get<ProjectListApiResponse>('/projects', {
+      params: requestParams,
     });
-    return response.data;
+
+    if (!response.data.success || !response.data.data || !response.data.meta) {
+      return {
+        success: false,
+        data: null,
+        message: response.data.error?.message || '요청 처리 중 오류가 발생했습니다.',
+      };
+    }
+
+    const pageSize = response.data.meta.limit || params?.pageSize || 10;
+    const totalPages = pageSize ? Math.ceil(response.data.meta.total / pageSize) : 0;
+
+    return {
+      success: true,
+      data: {
+        items: response.data.data,
+        total: response.data.meta.total,
+        page: response.data.meta.page,
+        pageSize,
+        totalPages,
+      },
+      message: response.data.message || '',
+    };
   },
 
   /**

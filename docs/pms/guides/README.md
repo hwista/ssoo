@@ -1,6 +1,6 @@
 # 가이드 문서 (Guides)
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-02-10
 
 개발 가이드 및 사용법 문서 모음입니다.
 
@@ -22,6 +22,12 @@
 | **[database-guide.md](../../common/guides/database-guide.md)** | DB 구조 및 셋업 가이드 |
 | **[history-management.md](history-management.md)** | 히스토리 트리거 및 Extension 가이드 (PMS) |
 | **[rules.md](../../common/guides/rules.md)** | 데이터베이스 설계 규칙 |
+
+### PMS 화면
+
+| 문서 | 설명 |
+|------|------|
+| **[request-list.md](request-list.md)** | 요청 목록 조회/검색/상세 패널 가이드 |
 
 ---
 

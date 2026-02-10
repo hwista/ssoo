@@ -1,115 +1,171 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ListPageTemplate } from '@/components/templates';
 import { Plus, Trash2 } from 'lucide-react';
 import { useTabStore } from '@/stores';
-import { ColumnDef } from '@tanstack/react-table';
+import { DataGrid, ColumnDef } from '@/components/common';
 import type { FilterValues } from '@/components/common/page/Header';
+import { useProjectList } from '@/hooks/queries';
+import type { Project, ProjectFilters, ProjectStageCode, ProjectStatusCode } from '@/lib/api/endpoints/projects';
 
-// 샘플 데이터 타입
-interface RequestItem {
-  id: string;
-  requestNo: string;
-  title: string;
-  customerName: string;
-  status: string;
-  requestDate: string;
-  dueDate: string;
+interface RequestDetailRow {
+  label: string;
+  value: string;
 }
 
-// 샘플 데이터
-const sampleData: RequestItem[] = [
-  { id: '1', requestNo: 'REQ-2026-001', title: '시스템 개선 요청', customerName: '삼성전자', status: '접수', requestDate: '2026-01-15', dueDate: '2026-02-15' },
-  { id: '2', requestNo: 'REQ-2026-002', title: '신규 기능 개발', customerName: 'LG전자', status: '검토중', requestDate: '2026-01-16', dueDate: '2026-03-01' },
-  { id: '3', requestNo: 'REQ-2026-003', title: '버그 수정 요청', customerName: 'SK하이닉스', status: '진행중', requestDate: '2026-01-17', dueDate: '2026-01-25' },
-  { id: '4', requestNo: 'REQ-2026-004', title: 'UI 개선 작업', customerName: '현대자동차', status: '접수', requestDate: '2026-01-18', dueDate: '2026-02-28' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
-  { id: '5', requestNo: 'REQ-2026-005', title: '데이터 마이그레이션', customerName: '삼성전자', status: '완료', requestDate: '2026-01-10', dueDate: '2026-01-19' },
+const stageOptions: { label: string; value: ProjectStageCode }[] = [
+  { label: '대기', value: 'waiting' },
+  { label: '진행', value: 'in_progress' },
+  { label: '완료', value: 'done' },
 ];
 
-// 상태 옵션
-const statusOptions = [
-  { label: '접수', value: 'received' },
-  { label: '검토중', value: 'reviewing' },
-  { label: '진행중', value: 'inProgress' },
-  { label: '완료', value: 'completed' },
-  { label: '반려', value: 'rejected' },
-];
+const statusLabels: Record<ProjectStatusCode, string> = {
+  request: '요청',
+  proposal: '제안',
+  execution: '수행',
+  transition: '전환',
+};
 
-// 테이블 컬럼 정의
-const columns: ColumnDef<RequestItem>[] = [
+const stageLabels: Record<ProjectStageCode, string> = {
+  waiting: '대기',
+  in_progress: '진행',
+  done: '완료',
+};
+
+const columns: ColumnDef<Project>[] = [
   {
-    accessorKey: 'requestNo',
+    accessorKey: 'id',
     header: '요청번호',
-    size: 130,
+    size: 100,
+    cell: ({ row }) => `REQ-${String(row.original.id).padStart(6, '0')}`,
   },
   {
-    accessorKey: 'title',
-    header: '제목',
-    size: 200,
+    accessorKey: 'projectName',
+    header: '프로젝트명',
+    size: 220,
   },
   {
-    accessorKey: 'customerName',
+    accessorKey: 'customerId',
     header: '고객사',
     size: 120,
+    cell: ({ row }) => row.original.customerId ? String(row.original.customerId) : '-',
   },
   {
-    accessorKey: 'status',
+    accessorKey: 'statusCode',
     header: '상태',
-    size: 80,
+    size: 90,
     cell: ({ row }) => {
-      const status = row.original.status;
-      const colorMap: Record<string, string> = {
-        '접수': 'bg-blue-100 text-blue-800',
-        '검토중': 'bg-yellow-100 text-yellow-800',
-        '진행중': 'bg-green-100 text-green-800',
-        '완료': 'bg-gray-100 text-gray-800',
-        '반려': 'bg-ls-red/10 text-ls-red',
-      };
+      const status = row.original.statusCode;
       return (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${colorMap[status] || 'bg-gray-100'}`}>
-          {status}
+        <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+          {statusLabels[status]}
         </span>
       );
     },
   },
   {
-    accessorKey: 'requestDate',
-    header: '요청일',
-    size: 100,
+    accessorKey: 'stageCode',
+    header: '단계',
+    size: 90,
+    cell: ({ row }) => {
+      const stage = row.original.stageCode;
+      const colorMap: Record<ProjectStageCode, string> = {
+        waiting: 'bg-yellow-100 text-yellow-800',
+        in_progress: 'bg-green-100 text-green-800',
+        done: 'bg-gray-100 text-gray-800',
+      };
+      return (
+        <span className={`px-2 py-1 rounded text-xs font-medium ${colorMap[stage]}`}>
+          {stageLabels[stage]}
+        </span>
+      );
+    },
   },
   {
-    accessorKey: 'dueDate',
-    header: '완료예정일',
-    size: 100,
+    accessorKey: 'createdAt',
+    header: '요청일',
+    size: 130,
+    cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+  },
+];
+
+const detailColumns: ColumnDef<RequestDetailRow>[] = [
+  {
+    accessorKey: 'label',
+    header: '항목',
+    size: 160,
+  },
+  {
+    accessorKey: 'value',
+    header: '값',
   },
 ];
 
 export function RequestListPage() {
   const { openTab } = useTabStore();
-  const [data] = useState(sampleData);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [filters, setFilters] = useState<ProjectFilters>({
+    statusCode: 'request',
+  });
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isSecondGridOpen, setIsSecondGridOpen] = useState(false);
+
+  const { data: response, isLoading, error, refetch } = useProjectList({
+    ...filters,
+    statusCode: 'request',
+    page,
+    pageSize,
+  });
+
+  const projects = useMemo(() => response?.data?.items ?? [], [response]);
+  const total = response?.data?.total ?? 0;
+  const apiError = response && !response.success
+    ? new Error(response.message || '요청 처리 중 오류가 발생했습니다.')
+    : null;
+  const filtersApplied = Boolean(filters.search || filters.stageCode || filters.customerId);
+  const filteredProjects = useMemo(() => {
+    if (!filtersApplied) {
+      return projects;
+    }
+
+    return projects.filter((project) => {
+      if (filters.search) {
+        const keyword = filters.search.toLowerCase();
+        if (!project.projectName.toLowerCase().includes(keyword)) {
+          return false;
+        }
+      }
+
+      if (filters.stageCode && project.stageCode !== filters.stageCode) {
+        return false;
+      }
+
+      if (filters.customerId && project.customerId !== filters.customerId) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [filters, filtersApplied, projects]);
+
+  const detailRows = useMemo<RequestDetailRow[]>(() => {
+    if (!selectedProject) {
+      return [];
+    }
+    const createdAt = new Date(selectedProject.createdAt).toLocaleString();
+    const memo = selectedProject.memo || '요청 상세 테스트 데이터';
+    return [
+      { label: '프로젝트명', value: selectedProject.projectName },
+      { label: '상태', value: statusLabels[selectedProject.statusCode] },
+      { label: '단계', value: stageLabels[selectedProject.stageCode] },
+      { label: '고객사 ID', value: selectedProject.customerId ? String(selectedProject.customerId) : '-' },
+      { label: '요청일시', value: createdAt },
+      { label: '요청 내용', value: memo },
+      { label: '희망 일정', value: '2026-03-01 ~ 2026-06-30 (테스트 데이터)' },
+    ];
+  }, [selectedProject]);
 
   const handleCreate = () => {
     openTab({
@@ -124,22 +180,31 @@ export function RequestListPage() {
     alert('선택된 항목을 삭제합니다.');
   };
 
-  const handleSearch = useCallback((_values: FilterValues) => {
-    // TODO: 검색 기능 구현
+  const handleSearch = useCallback((values: FilterValues) => {
+    const nextFilters: ProjectFilters = {
+      statusCode: 'request',
+      search: values.projectName?.trim() || undefined,
+      stageCode: values.stageCode as ProjectStageCode | undefined,
+    };
+
+    const customerId = Number(values.customerId);
+    if (!Number.isNaN(customerId) && values.customerId?.trim()) {
+      nextFilters.customerId = customerId;
+    }
+
+    setFilters(nextFilters);
+    setPage(1);
   }, []);
 
   const handleReset = useCallback(() => {
-    // TODO: 검색 초기화 구현
+    setFilters({ statusCode: 'request' });
+    setPage(1);
   }, []);
 
-  const handleRowClick = useCallback((row: RequestItem) => {
-    openTab({
-      menuCode: `request.${row.id}`,
-      menuId: `request.${row.id}`,
-      title: `${row.requestNo} - ${row.title}`,
-      path: `/request/${row.id}`,
-    });
-  }, [openTab]);
+  const handleRowClick = useCallback((row: Project) => {
+    setSelectedProject(row);
+    setIsSecondGridOpen(true);
+  }, []);
 
   return (
     <ListPageTemplate
@@ -160,25 +225,42 @@ export function RequestListPage() {
           },
         ],
         filters: [
-          { key: 'requestNo', type: 'text', placeholder: '요청번호' },
-          { key: 'title', type: 'text', placeholder: '제목' },
-          { key: 'customerName', type: 'text', placeholder: '고객사' },
-          { key: 'status', type: 'select', placeholder: '상태', options: statusOptions },
-          { key: 'requestDate', type: 'dateRange', label: '요청일' },
+          { key: 'projectName', type: 'text', placeholder: '프로젝트명' },
+          { key: 'customerId', type: 'text', placeholder: '고객사 ID' },
+          { key: 'stageCode', type: 'select', placeholder: '단계', options: stageOptions },
         ],
         onSearch: handleSearch,
         onReset: handleReset,
       }}
       table={{
         columns,
-        data,
-        loading: false,
+        data: filteredProjects,
+        loading: isLoading,
+        error: apiError || error,
+        onRetry: () => refetch(),
         onRowClick: handleRowClick,
-        enableClientPagination: true,
+        secondGrid: {
+          enabled: true,
+          title: selectedProject
+            ? `${selectedProject.projectName} 상세`
+            : '요청 상세',
+          content: (
+            <DataGrid
+              columns={detailColumns}
+              data={detailRows}
+              loading={false}
+              emptyState={<div className="text-center text-sm text-muted-foreground">행을 선택하세요.</div>}
+            />
+          ),
+          defaultOpen: Boolean(selectedProject),
+          height: 220,
+          isOpen: isSecondGridOpen,
+          onOpenChange: setIsSecondGridOpen,
+        },
         pagination: {
           page,
           pageSize,
-          total: data.length,
+          total: filtersApplied ? filteredProjects.length : total,
           onPageChange: setPage,
           onPageSizeChange: setPageSize,
         },

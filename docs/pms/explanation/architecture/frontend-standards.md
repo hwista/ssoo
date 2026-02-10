@@ -53,7 +53,7 @@ common/
 |----------|------|-------|
 | `ConfirmDialog` | 전역 확인 대화상자 | useConfirmStore 연동 |
 | `StateDisplay` | 로딩/에러/빈 상태 통합 | loading, error, empty |
-| `DataGrid` | DataTable + Pagination 통합 | columns, data, pagination |
+| `DataGrid` | DataTable + Pagination 통합 | columns, data, pagination, secondGrid |
 | `Pagination` | 페이지 네비게이션 | page, pageSize, total, onChange |
 | `FormSection` | 폼 섹션 제목 + 필드 그룹 | title, description, children |
 | `FormActions` | 저장/취소/삭제 버튼 | onSubmit, onCancel, loading |
@@ -71,6 +71,18 @@ common/
 |--------|------|-----------|
 | `ListPageTemplate` | 목록 페이지 (표준) | header, table |
 | `FormPageTemplate` | 등록/수정 페이지 | header, sections[], onSubmit, onCancel |
+
+### DataGrid 세컨 패널
+
+목록에서 행 선택 후 상세를 아래 패널로 펼칠 수 있습니다.
+
+- `secondGrid.enabled`: 세컨 패널 사용 여부
+- `secondGrid.content`: 패널 내부 컨텐츠 (보통 상세 그리드)
+- `secondGrid.title`: 패널 헤더 타이틀
+- `secondGrid.defaultOpen`: 초기 오픈 여부
+- `secondGrid.height`: 패널 높이(px)
+- `secondGrid.isOpen`: 패널 오픈 상태(제어형)
+- `secondGrid.onOpenChange`: 패널 오픈 상태 변경 콜백
 
 ---
 
@@ -261,6 +273,7 @@ types/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-10 | DataGrid 세컨 패널 토글/플로팅 + 제어형 오픈 옵션 추가 |
 | 2026-01-30 | Sidebar 구조 통합, 미사용 컴포넌트 정리, 템플릿 통합 |
 | 2026-01-22 | 공통/템플릿/훅 구조를 현재 코드 기준으로 정합화 |
 | 2026-01-21 | Backlog/Changelog 섹션 추가 |

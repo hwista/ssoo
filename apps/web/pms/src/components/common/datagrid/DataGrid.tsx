@@ -69,6 +69,16 @@ export interface DataGridProps<TData, TValue> {
   className?: string;
   /** 테이블 body className */
   tableClassName?: string;
+  /** 세컨 그리드 패널 */
+  secondGrid?: {
+    enabled?: boolean;
+    title?: string;
+    content: React.ReactNode;
+    defaultOpen?: boolean;
+    height?: number;
+    isOpen?: boolean;
+    onOpenChange?: (isOpen: boolean) => void;
+  };
 }
 
 /**
@@ -111,6 +121,7 @@ export function DataGrid<TData, TValue>({
   emptyState,
   className,
   tableClassName,
+  secondGrid,
 }: DataGridProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -118,10 +129,31 @@ export function DataGrid<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({});
   const shouldUseClientPagination = enableClientPagination;
   const fallbackPageSize = 10;
+  const secondGridEnabled = Boolean(secondGrid?.enabled);
+  const secondGridHeight = secondGrid?.height ?? 220;
   const [paginationState, setPaginationState] = React.useState<PaginationState>({
     pageIndex: Math.max(0, (pagination?.page ?? 1) - 1),
     pageSize: pagination?.pageSize ?? fallbackPageSize,
   });
+  const isSecondGridControlled = secondGrid?.isOpen !== undefined;
+  const [internalSecondGridOpen, setInternalSecondGridOpen] = React.useState<boolean>(
+    secondGrid?.defaultOpen ?? false
+  );
+  const isSecondGridOpen = isSecondGridControlled
+    ? Boolean(secondGrid?.isOpen)
+    : internalSecondGridOpen;
+  const setSecondGridOpen = React.useCallback(
+    (nextOpen: boolean) => {
+      if (!secondGridEnabled) {
+        return;
+      }
+      if (!isSecondGridControlled) {
+        setInternalSecondGridOpen(nextOpen);
+      }
+      secondGrid?.onOpenChange?.(nextOpen);
+    },
+    [isSecondGridControlled, secondGrid, secondGridEnabled]
+  );
 
   React.useEffect(() => {
     if (!shouldUseClientPagination) {
@@ -138,6 +170,15 @@ export function DataGrid<TData, TValue>({
       return { pageIndex: nextPageIndex, pageSize: nextPageSize };
     });
   }, [shouldUseClientPagination, pagination?.page, pagination?.pageSize]);
+
+  React.useEffect(() => {
+    if (!secondGridEnabled) {
+      return;
+    }
+    if (!isSecondGridControlled) {
+      setInternalSecondGridOpen(secondGrid?.defaultOpen ?? false);
+    }
+  }, [secondGridEnabled, secondGrid?.defaultOpen, isSecondGridControlled]);
 
   const handlePaginationChange = React.useCallback(
     (updater: Updater<PaginationState>) => {
@@ -262,14 +303,28 @@ export function DataGrid<TData, TValue>({
       )}
 
       {/* 테이블 본문 */}
-      <Body
-        table={table}
-        columns={tableColumns}
-        loading={loading}
-        emptyState={emptyState}
-        onRowClick={onRowClick}
-        tableClassName={tableClassName}
-      />
+      <div className="relative flex-1 min-h-0">
+        <Body
+          table={table}
+          columns={tableColumns}
+          loading={loading}
+          emptyState={emptyState}
+          onRowClick={onRowClick}
+          tableClassName={tableClassName}
+        />
+        {secondGridEnabled && isSecondGridOpen && (
+          <div className="absolute inset-x-4 bottom-2 z-10 rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
+              <span className="text-sm font-medium text-gray-700">
+                {secondGrid?.title || '상세'}
+              </span>
+            </div>
+            <div className="overflow-auto" style={{ height: secondGridHeight }}>
+              {secondGrid?.content}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 하단 푸터 */}
       <Footer
@@ -277,6 +332,14 @@ export function DataGrid<TData, TValue>({
         enableRowSelection={enableRowSelection}
         pagination={pagination}
         enableClientPagination={enableClientPagination}
+        secondGrid={
+          secondGridEnabled
+            ? {
+                isOpen: isSecondGridOpen,
+                onToggle: () => setSecondGridOpen(!isSecondGridOpen),
+              }
+            : undefined
+        }
       />
     </div>
   );
