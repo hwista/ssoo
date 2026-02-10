@@ -16,7 +16,6 @@ interface FileMetadata {
 interface EditorHandlers {
   save: () => Promise<void>;
   cancel: () => void;
-  autoSaveToggle: () => void;
 }
 
 interface EditorState {
@@ -31,9 +30,6 @@ interface EditorState {
   
   // 에디터 UI 상태 (Header와 공유)
   hasUnsavedChanges: boolean;
-  isAutoSaveEnabled: boolean;
-  autoSaveCountdown: number;
-  lastSaveTime: Date | null;
   isSaving: boolean;
   
   // 에디터 핸들러 (Editor 컴포넌트에서 등록)
@@ -51,9 +47,6 @@ interface EditorActions {
   
   // 에디터 UI 상태 업데이트
   setHasUnsavedChanges: (hasChanges: boolean) => void;
-  setIsAutoSaveEnabled: (enabled: boolean) => void;
-  setAutoSaveCountdown: (countdown: number) => void;
-  setLastSaveTime: (time: Date | null) => void;
   setIsSaving: (saving: boolean) => void;
   
   // 에디터 핸들러 등록/해제
@@ -95,9 +88,6 @@ const initialState: EditorState = {
   
   // 에디터 UI 상태
   hasUnsavedChanges: false,
-  isAutoSaveEnabled: false,
-  autoSaveCountdown: 0,
-  lastSaveTime: null,
   isSaving: false,
   
   // 에디터 핸들러
@@ -118,9 +108,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   
   // 에디터 UI 상태 업데이트
   setHasUnsavedChanges: (hasChanges) => set({ hasUnsavedChanges: hasChanges }),
-  setIsAutoSaveEnabled: (enabled) => set({ isAutoSaveEnabled: enabled }),
-  setAutoSaveCountdown: (countdown) => set({ autoSaveCountdown: countdown }),
-  setLastSaveTime: (time) => set({ lastSaveTime: time }),
   setIsSaving: (saving) => set({ isSaving: saving }),
   
   // 에디터 핸들러 등록/해제

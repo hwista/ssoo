@@ -6,6 +6,7 @@ import { Content } from './Content';
 import { DOCUMENT_WIDTHS } from '@/components/common/page';
 import { useEditor } from '@/hooks/useEditor';
 import { useEditorStore, useTabStore } from '@/stores';
+import { useConfirmStore } from '@/stores/confirm.store';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useToast } from '@/lib/toast';
 
@@ -57,28 +58,24 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     setEditorHandlers,
     clearEditorHandlers,
     setHasUnsavedChanges: setStoreHasUnsavedChanges,
-    setIsAutoSaveEnabled: setStoreIsAutoSaveEnabled,
-    setAutoSaveCountdown: setStoreAutoSaveCountdown,
-    setLastSaveTime: setStoreLastSaveTime,
     setIsSaving: setStoreIsSaving,
   } = useEditorStore();
 
   // 탭 스토어 (새 문서 저장 시 탭 업데이트용)
   const { activeTabId, updateTab, closeTab, openTab } = useTabStore();
   
+  // 확인 다이얼로그
+  const { confirm } = useConfirmStore();
+
   // HTML 콘텐츠 (BlockEditor용)
   const [htmlContent, setHtmlContent] = React.useState('');
 
-  // useEditor 훅 (자동저장, Undo/Redo 등)
+  // useEditor 훅 (Undo/Redo 등)
   const {
     content: editorContent,
     updateContent,
     resetContent,
     hasUnsavedChanges,
-    isAutoSaveEnabled,
-    setAutoSaveEnabled,
-    lastSaveTime,
-    autoSaveCountdown,
     isSaving,
     save,
     markAsSaved,
@@ -86,12 +83,6 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     onSave: async (c: string) => {
       if (!currentFilePath) return;
       await storeSaveFile(currentFilePath, c);
-    },
-    onAutoSave: async (c: string) => {
-      if (!currentFilePath) return;
-      await storeSaveFileKeepEditing(currentFilePath, c);
-      await refreshFileMetadata(currentFilePath);
-      showSuccess('자동 저장', '자동 저장이 완료되었습니다.');
     },
   });
 
@@ -101,18 +92,6 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
   React.useEffect(() => {
     setStoreHasUnsavedChanges(hasUnsavedChanges);
   }, [hasUnsavedChanges, setStoreHasUnsavedChanges]);
-
-  React.useEffect(() => {
-    setStoreIsAutoSaveEnabled(isAutoSaveEnabled);
-  }, [isAutoSaveEnabled, setStoreIsAutoSaveEnabled]);
-
-  React.useEffect(() => {
-    setStoreAutoSaveCountdown(autoSaveCountdown);
-  }, [autoSaveCountdown, setStoreAutoSaveCountdown]);
-
-  React.useEffect(() => {
-    setStoreLastSaveTime(lastSaveTime);
-  }, [lastSaveTime, setStoreLastSaveTime]);
 
   React.useEffect(() => {
     setStoreIsSaving(isSaving);
@@ -177,11 +156,15 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
   // =====================
   // 취소 핸들러
   // =====================
-  const handleCancel = React.useCallback(() => {
+  const handleCancel = React.useCallback(async () => {
     if (hasUnsavedChanges || pendingMetadataUpdate) {
-      if (!confirm('저장하지 않은 변경사항이 있습니다. 정말로 취소하시겠습니까?')) {
-        return;
-      }
+      const confirmed = await confirm({
+        title: '변경사항 폐기',
+        description: '저장하지 않은 변경사항이 있습니다. 정말로 취소하시겠습니까?',
+        confirmText: '취소',
+        cancelText: '돌아가기',
+      });
+      if (!confirmed) return;
     }
     
     // 새 문서 작성 취소 시 탭 닫기
@@ -195,14 +178,7 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     // 보류 중인 메타데이터 변경사항 폐기 (서버에서 재로드)
     discardPendingMetadata();
     setIsEditing(false);
-  }, [hasUnsavedChanges, pendingMetadataUpdate, content, resetContent, setIsEditing, isCreateMode, activeTabId, closeTab, discardPendingMetadata]);
-
-  // =====================
-  // 자동저장 토글 핸들러
-  // =====================
-  const handleAutoSaveToggle = React.useCallback(() => {
-    setAutoSaveEnabled(!isAutoSaveEnabled);
-  }, [isAutoSaveEnabled, setAutoSaveEnabled]);
+  }, [hasUnsavedChanges, pendingMetadataUpdate, confirm, content, resetContent, setIsEditing, isCreateMode, activeTabId, closeTab, discardPendingMetadata]);
 
   // =====================
   // Store에 핸들러 등록 (Header에서 사용)
@@ -211,7 +187,6 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
   const handlersRef = React.useRef({
     save: handleSave,
     cancel: handleCancel,
-    autoSaveToggle: handleAutoSaveToggle,
   });
 
   // 핸들러가 변경되면 ref 업데이트 (Store 업데이트 없음)
@@ -219,16 +194,14 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     handlersRef.current = {
       save: handleSave,
       cancel: handleCancel,
-      autoSaveToggle: handleAutoSaveToggle,
     };
-  }, [handleSave, handleCancel, handleAutoSaveToggle]);
+  }, [handleSave, handleCancel]);
 
   // 마운트 시 한 번만 Store에 핸들러 등록
   React.useEffect(() => {
     setEditorHandlers({
       save: () => handlersRef.current.save(),
       cancel: () => handlersRef.current.cancel(),
-      autoSaveToggle: () => handlersRef.current.autoSaveToggle(),
     });
     
     return () => {

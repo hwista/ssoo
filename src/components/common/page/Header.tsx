@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Edit, Trash2, History, Save, X, Clock } from 'lucide-react';
+import { Edit, Trash2, History, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
@@ -44,12 +44,6 @@ export interface HeaderProps {
   /** 저장 중 상태 */
   saving?: boolean;
   
-  /** 자동 저장 관련 */
-  isAutoSaveEnabled?: boolean;
-  onAutoSaveToggle?: () => void;
-  autoSaveCountdown?: number;
-  lastSaveTime?: Date | null;
-  
   /** 추가 액션 버튼 */
   extraActions?: HeaderAction[];
   
@@ -89,10 +83,6 @@ export function Header({
   onSave,
   onCancel,
   saving = false,
-  isAutoSaveEnabled = false,
-  onAutoSaveToggle,
-  autoSaveCountdown = 0,
-  lastSaveTime,
   extraActions,
   className,
 }: HeaderProps) {
@@ -152,31 +142,6 @@ export function Header({
                 저장
               </Button>
             )}
-            {/* 자동 저장 토글 (저장 버튼 옆) */}
-            {onAutoSaveToggle && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">자동저장</span>
-                <button
-                  onClick={onAutoSaveToggle}
-                  className={cn(
-                    'relative w-10 h-5 rounded-full transition-colors',
-                    isAutoSaveEnabled ? 'bg-ssoo-primary' : 'bg-gray-300'
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm',
-                      isAutoSaveEnabled ? 'left-5' : 'left-0.5'
-                    )}
-                  />
-                </button>
-                {isAutoSaveEnabled && (
-                  <span className="text-xs text-gray-500">
-                    {autoSaveCountdown}초 뒤 자동 저장
-                  </span>
-                )}
-              </div>
-            )}
           </>
         )}
 
@@ -217,15 +182,6 @@ export function Header({
         {/* 에디터/생성 모드 우측 */}
         {(mode === 'editor' || mode === 'create') && (
           <>
-            {/* 마지막 저장 시간 */}
-            {lastSaveTime && (
-              <div className="flex items-center gap-1 text-xs text-gray-400">
-                <Clock className="h-3 w-3" />
-                <span>
-                  마지막 저장: {lastSaveTime.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })} {lastSaveTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
-              </div>
-            )}
             {/* 삭제 버튼 (우측 끝) */}
             {onDelete && (
               <Button
