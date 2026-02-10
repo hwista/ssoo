@@ -70,6 +70,7 @@ export interface DocumentMetadata {
   comments: DocumentComment[];
   templateId: string;
   author: string;
+  lastModifiedBy: string;
 }
 
 export interface FileData {
@@ -181,7 +182,7 @@ function buildDefaultDocumentMetadata(
   const now = new Date().toISOString();
 
   return {
-    title: extractTitleFromContent(content, filePath),
+    title: existing?.title || extractTitleFromContent(content, filePath),
     summary: existing?.summary ?? '',
     tags: existing?.tags ?? [],
     sourceLinks: existing?.sourceLinks ?? [],
@@ -199,6 +200,7 @@ function buildDefaultDocumentMetadata(
     comments: existing?.comments ?? [],
     templateId: existing?.templateId ?? 'default',
     author: existing?.author ?? 'Unknown',
+    lastModifiedBy: 'Unknown',
   };
 }
 

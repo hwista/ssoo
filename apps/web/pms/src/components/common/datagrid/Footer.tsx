@@ -46,8 +46,8 @@ export function Footer<TData>({
 
   return (
     <div className="relative flex items-center px-4 py-2 min-h-[52px] bg-gray-50">
-      {secondGrid && !secondGrid.isOpen && (
-        <div className="absolute left-1/2 -translate-x-1/2 -top-3 bg-transparent border-transparent pointer-events-none">
+      {secondGrid && (
+        <div className="absolute left-1/2 -translate-x-1/2 -top-3 z-20 bg-transparent border-transparent pointer-events-none">
           <SecondGridToggleButton
             isOpen={secondGrid.isOpen}
             onToggle={secondGrid.onToggle}

@@ -272,6 +272,10 @@ export function RequestListPage() {
         error: apiError || error,
         onRetry: () => refetch(),
         onRowClick: handleRowClick,
+        getRowId: (row) => row.id,
+        selectedRowId: selectedProject?.id ?? null,
+        headerClassName: 'bg-ssoo-content-bg',
+        headerCellClassName: 'bg-ssoo-content-bg',
         secondGrid: {
           enabled: true,
           content: (
@@ -281,6 +285,8 @@ export function RequestListPage() {
               loading={false}
               className="h-full"
               tableClassName="h-full"
+              headerClassName="bg-ssoo-content-bg"
+              headerCellClassName="bg-ssoo-content-bg"
               emptyState={<div className="text-center text-sm text-muted-foreground">행을 선택하세요.</div>}
             />
           ),

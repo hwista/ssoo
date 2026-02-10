@@ -172,26 +172,6 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     }
   }, [isCreateMode, currentFilePath, editorContent, storeSaveFile, save, setIsEditing, showSuccess, showError, activeTabId, updateTab]);
 
-  // 임시 저장 (편집 모드 유지)
-  const handleTempSave = React.useCallback(async () => {
-    if (isCreateMode) {
-      showError('임시 저장 불가', '새 문서는 먼저 저장해야 합니다.');
-      return;
-    }
-    if (!currentFilePath) {
-      showError('저장 실패', '선택된 파일이 없습니다.');
-      return;
-    }
-    try {
-      await storeSaveFileKeepEditing(currentFilePath, editorContent);
-      markAsSaved();
-      await refreshFileMetadata(currentFilePath);
-      showSuccess('임시 저장', '임시 저장이 완료되었습니다.');
-    } catch (error) {
-      showError('저장 실패', '임시 저장 중 오류가 발생했습니다.');
-    }
-  }, [currentFilePath, editorContent, storeSaveFileKeepEditing, markAsSaved, refreshFileMetadata, showSuccess, showError]);
-
   // =====================
   // 취소 핸들러
   // =====================
@@ -226,7 +206,6 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
   // =====================
   const handlersRef = React.useRef({
     save: handleSave,
-    tempSave: handleTempSave,
     cancel: handleCancel,
     autoSaveToggle: handleAutoSaveToggle,
   });
@@ -235,17 +214,15 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
   React.useEffect(() => {
     handlersRef.current = {
       save: handleSave,
-      tempSave: handleTempSave,
       cancel: handleCancel,
       autoSaveToggle: handleAutoSaveToggle,
     };
-  }, [handleSave, handleTempSave, handleCancel, handleAutoSaveToggle]);
+  }, [handleSave, handleCancel, handleAutoSaveToggle]);
 
   // 마운트 시 한 번만 Store에 핸들러 등록
   React.useEffect(() => {
     setEditorHandlers({
       save: () => handlersRef.current.save(),
-      tempSave: () => handlersRef.current.tempSave(),
       cancel: () => handlersRef.current.cancel(),
       autoSaveToggle: () => handlersRef.current.autoSaveToggle(),
     });

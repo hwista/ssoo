@@ -21,6 +21,10 @@ interface BodyProps<TData, TValue> {
   emptyState?: React.ReactNode;
   onRowClick?: (row: TData) => void;
   tableClassName?: string;
+  headerClassName?: string;
+  headerCellClassName?: string;
+  getRowId?: (row: TData) => string | number;
+  selectedRowId?: string | number | null;
   minRows?: number;
   rowHeight?: number;
   headerHeight?: number;
@@ -38,6 +42,10 @@ export function Body<TData, TValue>({
   emptyState,
   onRowClick,
   tableClassName,
+  headerClassName,
+  headerCellClassName,
+  getRowId,
+  selectedRowId,
   minRows = 0,
   rowHeight = 44,
   headerHeight = 40,
@@ -48,15 +56,18 @@ export function Body<TData, TValue>({
 
   return (
     <div
-      className={cn('flex flex-1 min-h-0 flex-col rounded-md border [&>div]:h-full', tableClassName)}
-      style={minBodyHeight ? { minHeight: minBodyHeight, height: '100%' } : { height: '100%' }}
+      className={cn('flex flex-1 min-h-0 flex-col rounded-md border', tableClassName)}
+      style={minBodyHeight ? { minHeight: minBodyHeight } : undefined}
     >
-      <Table className="h-full">
-        <TableHeader className="bg-gray-50 shadow-sm">
+      <Table>
+        <TableHeader className={cn('bg-gray-50 shadow-sm', headerClassName)}>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id} className="sticky top-0 z-10 bg-gray-50">
+                <TableHead
+                  key={header.id}
+                  className={cn('sticky top-0 z-10 bg-gray-50 h-control-h', headerCellClassName)}
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -68,11 +79,14 @@ export function Body<TData, TValue>({
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody className="h-full">
+        <TableBody>
           {/* 로딩 중 스켈레톤 */}
           {loading && (
             Array.from({ length: 5 }).map((_, index) => (
-              <TableRow key={`skeleton-${index}`}>
+              <TableRow
+                key={`skeleton-${index}`}
+                className="h-control-h odd:bg-white even:bg-gray-50"
+              >
                 {columns.map((_, colIndex) => (
                   <TableCell key={`skeleton-${index}-${colIndex}`}>
                     <Skeleton className="h-4 w-full" />
@@ -84,12 +98,24 @@ export function Body<TData, TValue>({
 
           {/* 데이터 행 */}
           {!loading && table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
+            table.getRowModel().rows.map((row) => {
+              const rowId = getRowId ? getRowId(row.original) : row.id;
+              const isActiveRow = selectedRowId !== null && selectedRowId !== undefined
+                ? String(rowId) === String(selectedRowId)
+                : false;
+
+              return (
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
+                data-active={isActiveRow ? 'true' : undefined}
                 onClick={() => onRowClick?.(row.original)}
-                className={cn(onRowClick && 'cursor-pointer hover:bg-muted/50')}
+                className={cn(
+                  'h-control-h odd:bg-white even:bg-gray-50',
+                  'data-[state=selected]:bg-ssoo-content-border data-[state=selected]:text-ssoo-primary data-[state=selected]:font-medium',
+                  'data-[active=true]:bg-ssoo-content-border data-[active=true]:text-ssoo-primary data-[active=true]:font-medium',
+                  onRowClick && 'cursor-pointer hover:bg-muted/50'
+                )}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
@@ -100,11 +126,12 @@ export function Body<TData, TValue>({
                   </TableCell>
                 ))}
               </TableRow>
-            ))
+            );
+            })
           ) : (
             /* 빈 상태 */
             !loading && (
-              <TableRow>
+              <TableRow className="h-control-h">
                 <TableCell
                   colSpan={columns.length}
                   className="h-full text-center align-middle"

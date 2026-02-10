@@ -25,6 +25,8 @@ export interface FileEntry {
   type: "file";
   name: string;
   path: string;
+  /** 사이드카 title (설정된 경우만 포함) */
+  displayTitle?: string;
 }
 
 export interface DirectoryEntry {
@@ -39,6 +41,26 @@ export type FileTreeEntry = FileEntry | DirectoryEntry;
 // ============================================================================
 // Internal Functions
 // ============================================================================
+
+/**
+ * 사이드카 파일에서 title만 추출
+ */
+function readSidecarTitle(mdFilePath: string): string | undefined {
+  try {
+    const parsed = path.parse(mdFilePath);
+    const sidecarPath = path.join(parsed.dir, `${parsed.name}.sidecar.json`);
+    if (fs.existsSync(sidecarPath)) {
+      const raw = fs.readFileSync(sidecarPath, 'utf-8');
+      const data = JSON.parse(raw);
+      // title이 있고, 파일명과 다른 경우만 반환
+      if (data.title && typeof data.title === 'string') {
+        const fileBaseName = parsed.name;
+        if (data.title !== fileBaseName) return data.title;
+      }
+    }
+  } catch { /* sidecar 읽기 실패 시 무시 */ }
+  return undefined;
+}
 
 /**
  * 디렉토리를 재귀적으로 읽어 파일 트리를 생성합니다.
@@ -60,7 +82,10 @@ function readDirectory(dirPath: string): FileTreeEntry[] {
         };
       }
       if (entry.isFile() && isMarkdownFile(entry.name)) {
-        return { type: "file" as const, name: entry.name, path: relativePath };
+        const displayTitle = readSidecarTitle(fullPath);
+        const result: FileEntry = { type: "file" as const, name: entry.name, path: relativePath };
+        if (displayTitle) result.displayTitle = displayTitle;
+        return result;
       }
       return null;
     })

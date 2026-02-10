@@ -77,7 +77,7 @@ const BlockToolbar: React.FC<BlockToolbarProps> = ({ editor }) => {
         size="sm"
         onClick={onClick}
         disabled={disabled}
-        className={`min-w-8 px-2 ${isActive ? 'bg-blue-600 text-white' : ''}`}
+        className={`min-w-8 px-2 ${isActive ? 'bg-ssoo-primary text-white' : ''}`}
       >
         {children}
       </Button>

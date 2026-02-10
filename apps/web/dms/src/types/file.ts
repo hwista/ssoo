@@ -11,6 +11,8 @@ export interface FileNode {
   path: string;
   type: 'file' | 'directory';
   children?: FileNode[];
+  /** 사이드카 title (설정된 경우만 존재) */
+  displayTitle?: string;
   // 확장 속성
   size?: number;
   lastModified?: Date;
@@ -93,6 +95,7 @@ export interface DocumentMetadata {
   comments: DocumentComment[];
   templateId: string;
   author: string;
+  lastModifiedBy: string;
 }
 
 /**

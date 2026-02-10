@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { ProjectService } from './project.service.js';
 import { success, paginated, deleted } from '../../../common/index.js';
+import { serializeBigIntShallow } from '../../../common/utils/bigint.util.js';
 import type {
   CreateProjectDto,
   UpdateProjectDto,
@@ -31,7 +32,13 @@ export class ProjectController {
     const page = Number.isFinite(pageValue) && pageValue > 0 ? pageValue : 1;
     const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : 10;
     const { data, total } = await this.projectService.findAll({ page, limit });
-    return paginated(data, page, limit, total);
+    const serialized = data.map((project) => ({
+      ...serializeBigIntShallow(project as unknown as Record<string, unknown>),
+      requestDetail: project.requestDetail
+        ? serializeBigIntShallow(project.requestDetail as unknown as Record<string, unknown>)
+        : null,
+    }));
+    return paginated(serialized, page, limit, total);
   }
 
   @Get(":id")

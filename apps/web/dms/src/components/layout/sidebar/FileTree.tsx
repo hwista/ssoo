@@ -65,7 +65,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
       // PMS 패턴: 사이드바는 탭만 열고, 페이지 컴포넌트(WikiViewerPage)가 loadFile() 호출
       await openTabWithConfirm({
         id: `file-${node.path.replace(/\//g, '-')}`,
-        title: node.name,
+        title: node.displayTitle || node.name,
         path: `/doc/${encodeURIComponent(node.path)}`,
         icon: 'FileText',
         closable: true,
@@ -83,7 +83,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
     } else {
       addBookmark({
         id: bookmarkId,
-        title: node.name,
+        title: node.displayTitle || node.name,
         path: `/doc/${encodeURIComponent(node.path)}`,
         icon: 'FileText',
       });
@@ -124,7 +124,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
 
         {/* 파일/폴더명 */}
         <span className={`flex-1 truncate ${isSelected ? 'text-ssoo-primary' : 'text-gray-700'}`}>
-          {node.name}
+          {node.displayTitle || node.name}
         </span>
 
         {/* 책갈피 버튼 (파일만) */}

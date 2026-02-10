@@ -31,7 +31,7 @@ type PageMode = 'viewer' | 'editor' | 'create';
  * - SidebarFileTree는 openTab()만 호출
  * - 이 페이지 컴포넌트가 자체적으로 데이터 로드
  */
-export function ViewerPage() {
+export function MarkdownViewerPage() {
   const { activeTabId, tabs } = useTabStore();
   const { 
     loadFile, 
@@ -96,6 +96,7 @@ export function ViewerPage() {
   // 새 문서 작성 모드 진입
   useEffect(() => {
     if (isCreateMode) {
+      console.log('📄 새 문서 작성 모드');
       reset(); // 에디터 상태 초기화
       setContent('# 새 문서\n\n내용을 입력하세요...');
       setMode('create');
@@ -106,6 +107,7 @@ export function ViewerPage() {
   // 파일 경로가 변경되면 파일 로드 + 뷰어 모드로 전환
   useEffect(() => {
     if (filePath && !isCreateMode) {
+      console.log('📂 WikiViewerPage: 파일 로드 시작', { filePath });
       loadFile(filePath);
       setMode('viewer');
       setIsEditing(false);
@@ -143,6 +145,7 @@ export function ViewerPage() {
     const wordCount = content ? content.trim().split(/\s+/).filter(Boolean).length : 0;
     return {
       author: documentMetadata?.author || 'Unknown',
+      lastModifiedBy: documentMetadata?.lastModifiedBy || 'Unknown',
       createdAt: fileMetadata.createdAt || undefined,
       updatedAt: fileMetadata.modifiedAt || undefined,
       lineCount: content ? content.split('\n').length : 0,
@@ -163,12 +166,18 @@ export function ViewerPage() {
   const handleDelete = useCallback(() => {
     // TODO: 삭제 확인 모달 + 삭제 로직
     if (confirm(`'${filePath}'를 삭제하시겠습니까?`)) {
-      // TODO: 삭제 로직 연결
+      console.log('삭제:', filePath);
     }
   }, [filePath]);
 
-  const handleSearch = useCallback((_query: string) => {
+  const handleHistory = useCallback(() => {
+    // TODO: git 연동 히스토리 뷰어
+    console.log('히스토리:', filePath);
+  }, [filePath]);
+
+  const handleSearch = useCallback((query: string) => {
     // TODO: 문서 내 검색 하이라이트
+    console.log('검색:', query);
   }, []);
 
   const handleTocClick = useCallback((id: string) => {
@@ -179,8 +188,9 @@ export function ViewerPage() {
     }
   }, []);
 
-  const handlePathClick = useCallback((_path: string) => {
+  const handlePathClick = useCallback((path: string) => {
     // TODO: 해당 폴더로 트리 이동
+    console.log('폴더 이동:', path);
   }, []);
 
   // 저장 핸들러 (에디터 모드용) - Store의 핸들러 사용
@@ -245,7 +255,7 @@ export function ViewerPage() {
     );
   }, [error, handleRetry, htmlContent, isCreateMode, isLoading, mode, toc, handleTocClick, handleSearch]);
 
-  const contentSurfaceClassName = 'bg-transparent border-0';
+  const contentSurfaceClassName = mode === 'viewer' ? 'bg-transparent border-0' : undefined;
 
   // 파일 경로가 없고, 생성 모드도 아닐 때
   if (!filePath && !isCreateMode) {
@@ -272,6 +282,7 @@ export function ViewerPage() {
         onSave={handleSave}
         onCancel={handleCancel}
         onDelete={isCreateMode ? undefined : handleDelete}
+        onHistory={isCreateMode ? undefined : handleHistory}
         onPathClick={handlePathClick}
         // 에디터 상태 (Header에 전달)
         saving={isSaving}
@@ -287,4 +298,4 @@ export function ViewerPage() {
   );
 }
 
-export default ViewerPage;
+export default MarkdownViewerPage;

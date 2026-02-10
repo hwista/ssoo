@@ -70,12 +70,20 @@ export interface DataGridProps<TData, TValue> {
   className?: string;
   /** 테이블 body className */
   tableClassName?: string;
+  /** 테이블 헤더 className */
+  headerClassName?: string;
+  /** 테이블 헤더 셀 className */
+  headerCellClassName?: string;
+  /** 행 ID 추출 함수 (선택 하이라이트용) */
+  getRowId?: (row: TData) => string | number;
+  /** 하이라이트할 행 ID */
+  selectedRowId?: string | number | null;
   /** 세컨 그리드 패널 */
   secondGrid?: {
     enabled?: boolean;
     content: React.ReactNode;
     defaultOpen?: boolean;
-    height?: number;
+    height?: number | string;
     isOpen?: boolean;
     onOpenChange?: (isOpen: boolean) => void;
   };
@@ -121,6 +129,10 @@ export function DataGrid<TData, TValue>({
   emptyState,
   className,
   tableClassName,
+  headerClassName,
+  headerCellClassName,
+  getRowId,
+  selectedRowId,
   secondGrid,
 }: DataGridProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -129,9 +141,9 @@ export function DataGrid<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({});
   const shouldUseClientPagination = enableClientPagination;
   const fallbackPageSize = 10;
-  const rowHeight = 52;
-  const headerHeight = 44;
-  const defaultSecondGridHeight = (rowHeight * 3 + headerHeight) * 4;
+  const rowHeight = 36;
+  const headerHeight = 36;
+  const defaultSecondGridHeight = '66%';
   const secondGridEnabled = Boolean(secondGrid?.enabled);
   const secondGridHeight = secondGrid?.height ?? defaultSecondGridHeight;
   const [paginationState, setPaginationState] = React.useState<PaginationState>({
@@ -314,6 +326,10 @@ export function DataGrid<TData, TValue>({
           emptyState={emptyState}
           onRowClick={onRowClick}
           tableClassName={tableClassName}
+          headerClassName={headerClassName}
+          headerCellClassName={headerCellClassName}
+          getRowId={getRowId}
+          selectedRowId={selectedRowId}
           minRows={pagination?.pageSize ?? fallbackPageSize}
           rowHeight={rowHeight}
           headerHeight={headerHeight}

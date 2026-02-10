@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { User, Calendar, FileText, Tag, Paperclip, Link2, MessageSquare, X, Plus, ChevronDown, ChevronRight, Send } from 'lucide-react';
+import { User, Calendar, FileText, Tag, Paperclip, Link2, MessageSquare, X, Plus, ChevronDown, ChevronRight, Send, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
 
@@ -23,6 +23,8 @@ export interface TocItem {
 export interface SidecarMetadata {
   /** 작성자 */
   author?: string;
+  /** 마지막 수정자 */
+  lastModifiedBy?: string;
   /** 생성일 */
   createdAt?: Date | string;
   /** 수정일 */
@@ -51,6 +53,8 @@ export interface SidecarProps {
   documentMetadata?: DocumentMetadata | null;
   /** 메타데이터 변경 콜백 */
   onMetadataChange?: (update: Partial<DocumentMetadata>) => void;
+  /** 파일 경로 (문서명 fallback용) */
+  filePath?: string;
   /** 추가 className */
   className?: string;
 }
@@ -67,6 +71,19 @@ function formatDate(date: Date | string | undefined): string {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+  });
+}
+
+/**
+ * 시간 포맷팅 헬퍼
+ */
+function formatTime(date: Date | string | undefined): string {
+  if (!date) return '-';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   });
 }
 
@@ -366,12 +383,32 @@ export function Sidecar({
   editable = false,
   documentMetadata,
   onMetadataChange,
+  filePath,
   className,
 }: SidecarProps) {
   const attachments = metadata?.attachments ?? [];
   const summary = documentMetadata?.summary ?? '';
   const sourceLinks = documentMetadata?.sourceLinks ?? [];
   const comments = documentMetadata?.comments ?? [];
+
+  // 문서명: title이 있으면 사용, 없으면 파일명에서 추출
+  const documentTitle = documentMetadata?.title || (filePath ? filePath.split('/').pop()?.replace(/\.md$/, '') || '' : '');
+  const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+  const [titleDraft, setTitleDraft] = React.useState(documentTitle);
+
+  React.useEffect(() => {
+    setTitleDraft(documentTitle);
+  }, [documentTitle]);
+
+  const handleTitleSave = () => {
+    onMetadataChange?.({ title: titleDraft });
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleTitleSave();
+    if (e.key === 'Escape') { setTitleDraft(documentTitle); setIsEditingTitle(false); }
+  };
 
   const handleTagsChange = (newTags: string[]) => {
     onMetadataChange?.({ tags: newTags });
@@ -426,6 +463,36 @@ export function Sidecar({
       {metadata && (
         <CollapsibleSection icon={FileText} title="문서 정보">
           <dl className="space-y-2 text-sm">
+            {/* 문서명 */}
+            <div className="flex items-center justify-between">
+              <dt className="flex items-center text-gray-500">
+                <FileText className="h-3.5 w-3.5 mr-1" />
+                문서명
+              </dt>
+              <dd className="text-ssoo-primary flex items-center gap-1">
+                {editable && isEditingTitle ? (
+                  <input
+                    type="text"
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    onBlur={handleTitleSave}
+                    onKeyDown={handleTitleKeyDown}
+                    className="w-full text-sm text-right border-b border-ssoo-content-border bg-transparent outline-none px-0.5"
+                    autoFocus
+                  />
+                ) : (
+                  <>
+                    <span className="truncate max-w-[140px]" title={documentTitle}>{documentTitle || '제목없음'}</span>
+                    {editable && (
+                      <button onClick={() => setIsEditingTitle(true)} className="text-gray-400 hover:text-ssoo-primary">
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </>
+                )}
+              </dd>
+            </div>
+            {/* 작성자 */}
             <div className="flex items-center justify-between">
               <dt className="flex items-center text-gray-500">
                 <User className="h-3.5 w-3.5 mr-1" />
@@ -433,6 +500,7 @@ export function Sidecar({
               </dt>
               <dd className="text-ssoo-primary">{metadata.author || 'Unknown'}</dd>
             </div>
+            {/* 생성일 */}
             {metadata.createdAt && (
               <div className="flex items-center justify-between">
                 <dt className="flex items-center text-gray-500">
@@ -442,6 +510,24 @@ export function Sidecar({
                 <dd className="text-ssoo-primary">{formatDate(metadata.createdAt)}</dd>
               </div>
             )}
+            {/* 생성 시간 */}
+            {metadata.createdAt && (
+              <div className="flex items-center justify-between">
+                <dt className="flex items-center text-gray-500 pl-[18px]">
+                  생성 시간
+                </dt>
+                <dd className="text-ssoo-primary">{formatTime(metadata.createdAt)}</dd>
+              </div>
+            )}
+            {/* 수정자 */}
+            <div className="flex items-center justify-between">
+              <dt className="flex items-center text-gray-500">
+                <Pencil className="h-3.5 w-3.5 mr-1" />
+                수정자
+              </dt>
+              <dd className="text-ssoo-primary">{metadata.lastModifiedBy || 'Unknown'}</dd>
+            </div>
+            {/* 수정일 */}
             {metadata.updatedAt && (
               <div className="flex items-center justify-between">
                 <dt className="flex items-center text-gray-500">
@@ -449,6 +535,15 @@ export function Sidecar({
                   수정일
                 </dt>
                 <dd className="text-ssoo-primary">{formatDate(metadata.updatedAt)}</dd>
+              </div>
+            )}
+            {/* 수정 시간 */}
+            {metadata.updatedAt && (
+              <div className="flex items-center justify-between">
+                <dt className="flex items-center text-gray-500 pl-[18px]">
+                  수정 시간
+                </dt>
+                <dd className="text-ssoo-primary">{formatTime(metadata.updatedAt)}</dd>
               </div>
             )}
             {metadata.lineCount !== undefined && (

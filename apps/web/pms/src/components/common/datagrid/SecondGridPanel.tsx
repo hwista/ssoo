@@ -24,8 +24,8 @@ export function SecondGridToggleButton({
       size="icon"
       className={cn(
         'flex h-5 w-12 items-center justify-center',
-        'rounded-b-md bg-gray-100 hover:bg-gray-200',
-        'border border-b-0 border-gray-200',
+        'rounded-b-md bg-ssoo-content-bg hover:bg-ssoo-sitemap-bg',
+        'border border-b-0 border-ssoo-content-border',
         'transition-all duration-300 ease-in-out',
         className
       )}
@@ -33,9 +33,9 @@ export function SecondGridToggleButton({
       aria-label={isOpen ? '상세 그리드 접기' : '상세 그리드 펼치기'}
     >
       {isOpen ? (
-        <ChevronDown className="h-4 w-4 text-gray-500" />
+        <ChevronDown className="h-4 w-4 text-ssoo-primary/70" />
       ) : (
-        <ChevronUp className="h-4 w-4 text-gray-500" />
+        <ChevronUp className="h-4 w-4 text-ssoo-primary/70" />
       )}
     </Button>
   );
@@ -43,7 +43,7 @@ export function SecondGridToggleButton({
 
 interface SecondGridPanelProps {
   isOpen: boolean;
-  height: number;
+  height: number | string;
   onToggle: () => void;
   children: React.ReactNode;
   className?: string;
@@ -56,27 +56,26 @@ export function SecondGridPanel({
   children,
   className,
 }: SecondGridPanelProps) {
-  if (!isOpen) {
-    return null;
-  }
+  const resolvedHeight = typeof height === 'number' ? `${height}px` : height;
+  const maxHeight = `calc(${resolvedHeight} + 24px)`;
 
   return (
-    <div
-      className={cn(
-        'absolute inset-x-0 bottom-2 z-10 rounded-lg border border-gray-200 bg-white shadow-lg overflow-visible',
-        className
-      )}
-    >
-      <div className="absolute left-1/2 -translate-x-1/2 -top-3 z-20 bg-transparent border-transparent pointer-events-none">
-        <SecondGridToggleButton
-          isOpen={isOpen}
-          onToggle={onToggle}
-          className="pointer-events-auto"
-        />
-      </div>
-      <div className="pt-6">
-        <div className="overflow-auto" style={{ height }}>
-          {children}
+    <div className="absolute inset-x-0 bottom-0 z-10 overflow-visible">
+      <div
+        className={cn(
+          'rounded-lg border border-gray-200 bg-gray-50 shadow-lg',
+          'transition-[max-height,opacity,transform] duration-300 ease-in-out',
+          isOpen
+            ? 'opacity-100 translate-y-0'
+            : 'opacity-0 translate-y-2 pointer-events-none',
+          className
+        )}
+        style={{ maxHeight: isOpen ? maxHeight : '0px', overflow: 'hidden' }}
+      >
+        <div className="bg-gray-50">
+          <div className="overflow-auto" style={{ height: resolvedHeight }}>
+            {children}
+          </div>
         </div>
       </div>
     </div>
