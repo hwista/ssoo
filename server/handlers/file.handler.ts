@@ -198,7 +198,7 @@ function buildDefaultDocumentMetadata(
     versionHistory: existing?.versionHistory ?? [],
     comments: existing?.comments ?? [],
     templateId: existing?.templateId ?? 'default',
-    author: existing?.author ?? 'admin',
+    author: existing?.author ?? 'Unknown',
   };
 }
 
