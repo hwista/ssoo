@@ -52,7 +52,6 @@ export interface DocPageTemplateProps {
   onEdit?: () => void;
   onSave?: () => void;
   onCancel?: () => void;
-  onTempSave?: () => void;
   onDelete?: () => void;
   onHistory?: () => void;
   onPathClick?: (path: string) => void;
@@ -113,7 +112,6 @@ export function DocPageTemplate({
   onEdit,
   onSave,
   onCancel,
-  onTempSave,
   onDelete,
   onHistory,
   onPathClick,
@@ -229,7 +227,6 @@ export function DocPageTemplate({
         onEdit={onEdit}
         onSave={onSave}
         onCancel={onCancel}
-        onTempSave={onTempSave}
         onDelete={onDelete}
         onHistory={onHistory}
         saving={saving}
@@ -315,6 +312,7 @@ export function DocPageTemplate({
               editable={mode === 'editor' || mode === 'create'}
               documentMetadata={documentMetadata}
               onMetadataChange={onMetadataChange}
+              filePath={filePath}
             />
           </div>
         </div>

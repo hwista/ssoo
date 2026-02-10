@@ -15,7 +15,6 @@ interface FileMetadata {
 // 에디터 핸들러 (Editor 컴포넌트에서 등록)
 interface EditorHandlers {
   save: () => Promise<void>;
-  tempSave: () => Promise<void>;
   cancel: () => void;
   autoSaveToggle: () => void;
 }
@@ -27,6 +26,7 @@ interface EditorState {
   isEditing: boolean;
   fileMetadata: FileMetadata;
   documentMetadata: DocumentMetadata | null;
+  pendingMetadataUpdate: Partial<DocumentMetadata> | null;
   isLoading: boolean;
   error: string | null;
   
@@ -68,6 +68,8 @@ interface EditorActions {
   // 메타데이터
   refreshFileMetadata: (path: string) => Promise<void>;
   updateDocumentMetadata: (update: Partial<DocumentMetadata>) => Promise<void>;
+  setLocalDocumentMetadata: (update: Partial<DocumentMetadata>) => void;
+  flushPendingMetadata: () => Promise<void>;
   
   // 리셋
   reset: () => void;
@@ -85,6 +87,7 @@ const initialState: EditorState = {
     size: null,
   },
   documentMetadata: null,
+  pendingMetadataUpdate: null,
   isLoading: false,
   error: null,
   
@@ -190,6 +193,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         // 메타데이터 새로고침
         await get().refreshFileMetadata(path);
         
+        // 보류 중인 메타데이터 변경사항 플러시
+        await get().flushPendingMetadata();
+        
         logger.info('파일 저장 성공', { path });
       }, {
         operation: 'saveFile',
@@ -224,6 +230,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         // isEditing 유지
         
         await get().refreshFileMetadata(path);
+        
+        // 보류 중인 메타데이터 변경사항 플러시
+        await get().flushPendingMetadata();
         
         logger.info('임시 저장 성공 (편집 모드 유지)', { path });
       }, {
@@ -270,6 +279,35 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       }
     } catch (error) {
       logger.warn('메타데이터 새로고침 실패', error);
+    }
+  },
+
+  setLocalDocumentMetadata: (update) => {
+    const { documentMetadata, pendingMetadataUpdate } = get();
+    set({
+      documentMetadata: documentMetadata
+        ? { ...documentMetadata, ...update }
+        : null,
+      pendingMetadataUpdate: { ...(pendingMetadataUpdate || {}), ...update },
+    });
+  },
+
+  flushPendingMetadata: async () => {
+    const { pendingMetadataUpdate, currentFilePath } = get();
+    if (!pendingMetadataUpdate || !currentFilePath) return;
+
+    try {
+      const response = await fileApi.updateMetadata(currentFilePath, pendingMetadataUpdate);
+      if (response.success) {
+        const merged = response.data as DocumentMetadata | undefined;
+        if (merged) {
+          set({ documentMetadata: merged });
+        }
+      }
+      set({ pendingMetadataUpdate: null });
+      logger.info('보류 메타데이터 플러시 성공', { path: currentFilePath });
+    } catch (error) {
+      logger.error('보류 메타데이터 플러시 실패', error);
     }
   },
 

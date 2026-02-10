@@ -121,12 +121,13 @@ export function Sidebar({
               className="flex items-center gap-1 h-control-h px-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-colors cursor-pointer"
             >
               <DocumentTypeIcon className="w-4 h-4" />
+              <span className="text-sm">{DOCUMENT_TYPE_LABELS[documentType]}</span>
               <ChevronDown className="w-3 h-3" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            sideOffset={0}
+            sideOffset={4}
             className="w-40 bg-ssoo-primary text-white border-white/20"
           >
             {(Object.keys(DOCUMENT_TYPE_LABELS) as DocumentType[]).map((type) => {
