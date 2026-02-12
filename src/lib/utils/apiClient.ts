@@ -74,6 +74,14 @@ export interface AiAskResponse {
 }
 
 /**
+ * AI 임베딩 통계 타입
+ */
+export interface AiEmbeddingStats {
+  totalDocuments: number;
+  totalChunks: number;
+}
+
+/**
  * HTTP 요청을 수행하는 기본 클라이언트 함수
  */
 async function request<T = unknown>(
@@ -263,14 +271,11 @@ export const fileApi = {
 
 /**
  * AI API 클라이언트
+ * - ask: useChat (Vercel AI SDK)이 직접 /api/ask 호출 → 여기서 관리 안 함
+ * - search: JSON 응답이므로 apiClient로 관리
+ * - create: useCompletion이 직접 /api/create 호출 → 여기서 관리 안 함
  */
 export const aiApi = {
-  ask: async (query: string): Promise<ApiResponse<AiAskResponse>> => {
-    return request('/api/ask', {
-      method: 'POST',
-      body: { query },
-    });
-  },
   search: async (query: string): Promise<ApiResponse<AiSearchResponse>> => {
     return request('/api/search', {
       method: 'POST',
@@ -337,6 +342,111 @@ export const getFileWithHeaders = async (filePath: string): Promise<ApiResponse<
       'x-file-path': filePath
     }
   });
+};
+
+// ============================================================================
+// Git API
+// ============================================================================
+
+/** Git 변경 파일 상태 */
+export type GitFileStatus = 'added' | 'modified' | 'deleted' | 'renamed' | 'untracked';
+
+/** Git 변경 파일 항목 */
+export interface GitChangeEntry {
+  path: string;
+  status: GitFileStatus;
+  oldPath?: string;
+}
+
+/** Git 커밋 로그 항목 */
+export interface GitLogEntry {
+  hash: string;
+  hashShort: string;
+  author: string;
+  date: string;
+  message: string;
+}
+
+/**
+ * Git API 클라이언트
+ */
+export const gitApi = {
+  /** 변경 사항 목록 조회 */
+  getChanges: async (): Promise<ApiResponse<GitChangeEntry[]>> => {
+    return request<GitChangeEntry[]>('/api/git');
+  },
+
+  /** 전체 커밋 */
+  commitAll: async (message: string, author?: string): Promise<ApiResponse<{ hash: string }>> => {
+    return request('/api/git', {
+      method: 'POST',
+      body: { action: 'commit', message, author },
+    });
+  },
+
+  /** 선택 파일 커밋 */
+  commitFiles: async (files: string[], message: string, author?: string): Promise<ApiResponse<{ hash: string }>> => {
+    return request('/api/git', {
+      method: 'POST',
+      body: { action: 'commitFiles', files, message, author },
+    });
+  },
+
+  /** 특정 파일 변경 취소 */
+  discardFile: async (filePath: string): Promise<ApiResponse<{ message: string }>> => {
+    return request('/api/git', {
+      method: 'POST',
+      body: { action: 'discard', path: filePath },
+    });
+  },
+
+  /** 전체 변경 취소 */
+  discardAll: async (): Promise<ApiResponse<{ message: string }>> => {
+    return request('/api/git', {
+      method: 'POST',
+      body: { action: 'discardAll' },
+    });
+  },
+
+  /** 전체 히스토리 */
+  getHistory: async (maxCount?: number): Promise<ApiResponse<GitLogEntry[]>> => {
+    return request('/api/git', {
+      method: 'POST',
+      body: { action: 'history', maxCount },
+    });
+  },
+
+  /** 파일별 히스토리 */
+  getFileHistory: async (filePath: string, maxCount?: number): Promise<ApiResponse<GitLogEntry[]>> => {
+    return request('/api/git', {
+      method: 'POST',
+      body: { action: 'fileHistory', path: filePath, maxCount },
+    });
+  },
+
+  /** 파일 복원 */
+  restoreFile: async (filePath: string, commitHash: string): Promise<ApiResponse<{ message: string }>> => {
+    return request('/api/git', {
+      method: 'POST',
+      body: { action: 'restore', path: filePath, commitHash },
+    });
+  },
+
+  /** 파일 diff */
+  getFileDiff: async (filePath: string): Promise<ApiResponse<string>> => {
+    return request('/api/git', {
+      method: 'POST',
+      body: { action: 'diff', path: filePath },
+    });
+  },
+
+  /** 초기화 */
+  initialize: async (): Promise<ApiResponse<{ isNew: boolean }>> => {
+    return request('/api/git', {
+      method: 'POST',
+      body: { action: 'init' },
+    });
+  },
 };
 
 /**

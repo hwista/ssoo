@@ -120,8 +120,9 @@
 
 | 패키지 | 버전 | 용도 |
 |--------|------|------|
-| `@google/generative-ai` | ^0.24.1 | Google Gemini API |
-| `@lancedb/lancedb` | ^0.23.0 | 벡터 데이터베이스 |
+| `ai` | ^4.x | Vercel AI SDK (LLM 추상화, 스트리밍) |
+| `@ai-sdk/azure` | ^1.x | Azure OpenAI 프로바이더 |
+| `pg` | ^8.x | PostgreSQL 클라이언트 (pgvector 연결) |
 
 ---
 
