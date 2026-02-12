@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, FileText } from 'lucide-react';
 import { useTabStore } from '@/stores';
+import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { AiPageTemplate } from '@/components/templates';
 import { getQueryFromTabPath } from '@/lib/utils';
 import { aiApi, getErrorMessage } from '@/lib/utils/apiClient';
@@ -15,8 +16,9 @@ interface SearchResultItem {
 }
 
 export function AiSearchPage() {
-  const { activeTabId, tabs } = useTabStore();
-  const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [tabs, activeTabId]);
+  const tabId = useCurrentTabId();
+  const { tabs } = useTabStore();
+  const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
   const initialQuery = useMemo(() => getQueryFromTabPath(activeTab?.path), [activeTab?.path]);
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResultItem[]>([]);

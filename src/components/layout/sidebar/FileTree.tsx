@@ -2,8 +2,7 @@
 
 import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, Image, Bookmark } from 'lucide-react';
-import { useFileStore, useSidebarStore, useTabStore } from '@/stores';
-import { useEditorStore } from '@/stores';
+import { useFileStore, useSidebarStore, useTabStore, useActiveEditorFilePath } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
 import type { FileNode } from '@/types';
 
@@ -45,7 +44,8 @@ function getFileIcon(name: string, isSelected: boolean) {
  */
 function FileTreeNode({ node, level }: FileTreeNodeProps) {
   const { expandedFolders, toggleFolder } = useSidebarStore();
-  const { currentFilePath } = useEditorStore();
+  const activeTabId = useTabStore(state => state.activeTabId);
+  const currentFilePath = useActiveEditorFilePath(activeTabId);
   const openTabWithConfirm = useOpenTabWithConfirm();
   const { addBookmark, removeBookmark, isBookmarked } = useFileStore();
   

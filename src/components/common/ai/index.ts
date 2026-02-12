@@ -1,5 +1,5 @@
-export { AiPageShell } from './AiPageShell';
-export type { AiPageShellProps } from './AiPageShell';
+export { AiPageShell } from './PageShell';
+export type { AiPageShellProps } from './PageShell';
 
 export { AiSidecar } from './Sidecar';
 export type { AiSidecarProps } from './Sidecar';
