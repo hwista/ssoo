@@ -18,10 +18,21 @@ export interface BreadcrumbProps {
 }
 
 /**
+ * 세그먼트 표시명 매핑
+ * 경로 세그먼트를 사용자 친화적 이름으로 변환
+ */
+const SEGMENT_DISPLAY_NAMES: Record<string, string> = {
+  'ai/ask': 'AI 질문',
+  'ai/search': 'AI 검색',
+  'ai/create': 'AI 작성',
+};
+
+/**
  * Breadcrumb 컴포넌트
  * 
  * 파일 경로를 브레드크럼으로 표시합니다.
  * 루트는 폴더 아이콘만 표시 (PMS와 동일)
+ * AI 경로는 한글 제목으로 매핑됩니다.
  * 
  * @example
  * ```tsx
@@ -36,12 +47,19 @@ export function Breadcrumb({
   onPathClick,
   className,
 }: BreadcrumbProps) {
-  // 경로를 세그먼트로 분리
+  // 경로를 세그먼트로 분리 (AI 경로는 단일 세그먼트로 표시)
   const segments = React.useMemo(() => {
     if (!filePath) return [];
     
     // 앞뒤 슬래시 제거 후 분리
     const cleanPath = filePath.replace(/^\/+|\/+$/g, '');
+    
+    // AI 경로 매핑: ai/ask → "AI 질문" 단일 세그먼트
+    const displayName = SEGMENT_DISPLAY_NAMES[cleanPath];
+    if (displayName) {
+      return [displayName];
+    }
+    
     return cleanPath.split('/').filter(Boolean);
   }, [filePath]);
 

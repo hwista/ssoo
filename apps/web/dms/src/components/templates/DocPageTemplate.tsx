@@ -30,6 +30,8 @@ export interface DocPageTemplateProps {
   /** 콘텐츠 슬롯 (Viewer 또는 Editor) */
   children: React.ReactNode;
 
+  /** 헤더 부가 설명 */
+  description?: string;
   /** 문서 방향 */
   contentOrientation?: DocumentOrientation;
   /** 콘텐츠 최대 너비 (문서형 콘텐츠) */
@@ -47,6 +49,9 @@ export interface DocPageTemplateProps {
   documentMetadata?: DocumentMetadata | null;
   /** 메타데이터 변경 콜백 */
   onMetadataChange?: (update: Partial<DocumentMetadata>) => void;
+
+  /** 사이드카 커스텀 콘텐츠 (설정 시 Sidecar 대신 렌더링) */
+  sidecarContent?: React.ReactNode;
   
   /** 액션 핸들러 */
   onEdit?: () => void;
@@ -93,6 +98,7 @@ export function DocPageTemplate({
   filePath,
   mode,
   children,
+  description,
   contentOrientation = DEFAULT_DOCUMENT_ORIENTATION,
   contentMaxWidth,
   contentWrapperClassName,
@@ -102,6 +108,7 @@ export function DocPageTemplate({
   sidecarWidth = LAYOUT_SIZES.sidebar.expandedWidth, // 메인 사이드바와 동일한 너비
   documentMetadata,
   onMetadataChange,
+  sidecarContent,
   onEdit,
   onSave,
   onCancel,
@@ -183,7 +190,7 @@ export function DocPageTemplate({
     return (
       <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
         <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
-        <Header mode={mode} />
+        <Header mode={mode} description={description} />
         <div className="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg">
           <ErrorState error={error} onRetry={onRetry} />
         </div>
@@ -196,7 +203,7 @@ export function DocPageTemplate({
     return (
       <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
         <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
-        <Header mode={mode} />
+        <Header mode={mode} description={description} />
         <div className="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg">
           <LoadingState message="문서를 불러오는 중..." />
         </div>
@@ -212,6 +219,7 @@ export function DocPageTemplate({
       {/* 헤더 - 모드에 따라 액션 변경 */}
       <Header
         mode={mode}
+        description={description}
         onEdit={onEdit}
         onSave={onSave}
         onCancel={onCancel}
@@ -289,14 +297,16 @@ export function DocPageTemplate({
               flexShrink: canSideBySide ? 0 : undefined,
             }}
           >
-            <Sidecar
-              metadata={metadata}
-              tags={tags}
-              editable={mode === 'editor' || mode === 'create'}
-              documentMetadata={documentMetadata}
-              onMetadataChange={onMetadataChange}
-              filePath={filePath}
-            />
+            {sidecarContent ?? (
+              <Sidecar
+                metadata={metadata}
+                tags={tags}
+                editable={mode === 'editor' || mode === 'create'}
+                documentMetadata={documentMetadata}
+                onMetadataChange={onMetadataChange}
+                filePath={filePath}
+              />
+            )}
           </div>
         </div>
       </div>

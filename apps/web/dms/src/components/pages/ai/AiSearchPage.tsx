@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, FileText } from 'lucide-react';
 import { useTabStore } from '@/stores';
 import { DocPageTemplate } from '@/components/templates';
-import { AiPageShell } from '@/components/common/ai';
+import { AiPageShell, AiSidecar } from '@/components/common/ai';
 import { aiApi, getErrorMessage } from '@/lib/utils/apiClient';
 
 interface SearchResultItem {
@@ -69,10 +69,8 @@ export function AiSearchPage() {
 
   return (
     <main className="flex-1 overflow-hidden bg-ssoo-content-bg/30">
-      <DocPageTemplate filePath="ai/search" mode="viewer" contentOrientation="portrait">
+      <DocPageTemplate filePath="ai/search" mode="viewer" contentOrientation="portrait" description="문서 기반 검색 결과를 확인하세요." sidecarContent={<AiSidecar variant="search" />}>
         <AiPageShell
-          title="AI 검색"
-          description="문서 기반 검색 결과를 확인하세요."
           toolbar={(
             <div className="flex items-center gap-2">
               <div className="relative flex-1">

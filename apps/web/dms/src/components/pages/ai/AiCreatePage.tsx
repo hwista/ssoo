@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { FileUp, FileText, Plus, Trash2 } from 'lucide-react';
 import { DocPageTemplate } from '@/components/templates';
-import { AiPageShell } from '@/components/common/ai';
+import { AiPageShell, AiSidecar } from '@/components/common/ai';
 
 interface TemplateOption {
   id: string;
@@ -94,10 +94,8 @@ export function AiCreatePage() {
 
   return (
     <main className="flex-1 overflow-hidden bg-ssoo-content-bg/30">
-      <DocPageTemplate filePath="ai/create" mode="viewer" contentOrientation="portrait">
+      <DocPageTemplate filePath="ai/create" mode="viewer" contentOrientation="portrait" description="문서 파일을 첨부하고 템플릿 기반 요약을 생성합니다." sidecarContent={<AiSidecar variant="create" />}>
         <AiPageShell
-          title="AI 작성"
-          description="문서 파일을 첨부하고 템플릿 기반 요약을 생성합니다."
           toolbar={(
             <label className="flex h-control-h cursor-pointer items-center gap-3 rounded-lg border border-dashed border-ssoo-content-border px-4 text-sm text-ssoo-primary/70 hover:border-ssoo-primary">
               <FileUp className="h-4 w-4" />
@@ -116,7 +114,7 @@ export function AiCreatePage() {
                 <article key={item.id} className="rounded-lg border border-ssoo-content-border p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ssoo-content-bg">
+                      <div className="flex h-control-h w-control-h items-center justify-center rounded-md bg-ssoo-content-bg">
                         <FileText className="h-5 w-5 text-ssoo-primary" />
                       </div>
                       <div>
@@ -128,7 +126,7 @@ export function AiCreatePage() {
                     </div>
                     <button
                       onClick={() => handleRemoveAttachment(item.id)}
-                      className="flex h-8 w-8 items-center justify-center rounded-md border border-ssoo-content-border text-ssoo-primary/70 hover:border-ssoo-primary hover:text-ssoo-primary"
+                      className="flex h-control-h-sm w-control-h-sm items-center justify-center rounded-md border border-ssoo-content-border text-ssoo-primary/70 hover:border-ssoo-primary hover:text-ssoo-primary"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

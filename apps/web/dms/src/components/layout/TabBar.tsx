@@ -1,7 +1,8 @@
 'use client';
 
 import { useTabStore, HOME_TAB } from '@/stores';
-import { X, ChevronLeft, ChevronRight, Home, FileText } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { LAYOUT_SIZES } from '@/types';
 
@@ -77,11 +78,19 @@ export function TabBar() {
     setDragOverIndex(null);
   }, []);
 
-  // 탭 아이콘 결정
-  const getTabIcon = (tab: typeof tabs[0]) => {
-    if (tab.id === HOME_TAB.id) {
-      return Home;
-    }
+  // 탭 아이콘 결정 (tab.icon 필드 기반)
+  const TAB_ICON_MAP: Record<string, LucideIcon> = {
+    Home,
+    Bot,
+    Search,
+    FileSearch,
+    Sparkles,
+    FileText,
+  };
+
+  const getTabIcon = (tab: typeof tabs[0]): LucideIcon => {
+    if (tab.id === HOME_TAB.id) return Home;
+    if (tab.icon && TAB_ICON_MAP[tab.icon]) return TAB_ICON_MAP[tab.icon];
     return FileText;
   };
 

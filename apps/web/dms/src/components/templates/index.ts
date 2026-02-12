@@ -11,3 +11,7 @@
 // 문서 페이지 템플릿
 export { DocPageTemplate } from './DocPageTemplate';
 export type { DocPageTemplateProps } from './DocPageTemplate';
+
+// AI 페이지 템플릿
+export { AiPageTemplate } from './AiPageTemplate';
+export type { AiPageTemplateProps } from './AiPageTemplate';

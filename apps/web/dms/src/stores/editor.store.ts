@@ -1,238 +1,200 @@
 'use client';
 
 import { create } from 'zustand';
+import { useCallback, useMemo } from 'react';
+import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { fileApi, getErrorMessage } from '@/lib/utils/apiClient';
 import type { DocumentMetadata } from '@/types';
 import { logger, safeAsync, PerformanceTimer } from '@/lib/utils/errorUtils';
 
-// 파일 메타데이터 타입
+// ============================================
+// Types
+// ============================================
+
 interface FileMetadata {
   createdAt: Date | null;
   modifiedAt: Date | null;
   size: number | null;
 }
 
-// 에디터 핸들러 (Editor 컴포넌트에서 등록)
 interface EditorHandlers {
   save: () => Promise<void>;
   cancel: () => void;
 }
 
-interface EditorState {
-  // 상태
+/** 탭별 에디터 상태 */
+export interface EditorTabState {
   content: string;
-  currentFilePath: string | null;  // 현재 로드된 파일 경로
+  currentFilePath: string | null;
   isEditing: boolean;
   fileMetadata: FileMetadata;
   documentMetadata: DocumentMetadata | null;
   isLoading: boolean;
   error: string | null;
-  
-  // 에디터 UI 상태 (Header와 공유)
   hasUnsavedChanges: boolean;
   isSaving: boolean;
-  
-  // 에디터 핸들러 (Editor 컴포넌트에서 등록)
   editorHandlers: EditorHandlers | null;
-  
-  // 메타데이터 지연 저장
   pendingMetadataUpdate: Partial<DocumentMetadata> | null;
 }
 
-interface EditorActions {
-  // 상태 업데이트
-  setContent: (content: string) => void;
-  setIsEditing: (editing: boolean) => void;
-  setError: (error: string | null) => void;
-  
-  // 에디터 UI 상태 업데이트
-  setHasUnsavedChanges: (hasChanges: boolean) => void;
-  setIsSaving: (saving: boolean) => void;
-  
-  // 에디터 핸들러 등록/해제
-  setEditorHandlers: (handlers: EditorHandlers) => void;
-  clearEditorHandlers: () => void;
-  
-  // 파일 로드
-  loadFile: (path: string) => Promise<void>;
-  
-  // 파일 저장
-  saveFile: (path: string, content: string) => Promise<void>;
-  saveFileKeepEditing: (path: string, content: string) => Promise<void>;
-  
-  // 메타데이터
-  refreshFileMetadata: (path: string) => Promise<void>;
-  updateDocumentMetadata: (update: Partial<DocumentMetadata>) => Promise<void>;
-  setLocalDocumentMetadata: (update: Partial<DocumentMetadata>) => void;
-  flushPendingMetadata: () => Promise<void>;
-  discardPendingMetadata: () => Promise<void>;
-  
-  // 리셋
-  reset: () => void;
-}
-
-type EditorStore = EditorState & EditorActions;
-
-const initialState: EditorState = {
+const initialTabState: EditorTabState = {
   content: '',
   currentFilePath: null,
   isEditing: false,
-  fileMetadata: {
-    createdAt: null,
-    modifiedAt: null,
-    size: null,
-  },
+  fileMetadata: { createdAt: null, modifiedAt: null, size: null },
   documentMetadata: null,
   isLoading: false,
   error: null,
-  
-  // 에디터 UI 상태
   hasUnsavedChanges: false,
   isSaving: false,
-  
-  // 에디터 핸들러
   editorHandlers: null,
-  
-  // 메타데이터 지연 저장
   pendingMetadataUpdate: null,
 };
 
-export const useEditorStore = create<EditorStore>((set, get) => ({
-  ...initialState,
+// ============================================
+// Internal Multi-Tab Store
+// ============================================
 
-  setContent: (content) => set({ content }),
-  
-  setIsEditing: (editing) => set({ isEditing: editing }),
-  
-  setError: (error) => set({ error }),
-  
-  // 에디터 UI 상태 업데이트
-  setHasUnsavedChanges: (hasChanges) => set({ hasUnsavedChanges: hasChanges }),
-  setIsSaving: (saving) => set({ isSaving: saving }),
-  
-  // 에디터 핸들러 등록/해제
-  setEditorHandlers: (handlers) => set({ editorHandlers: handlers }),
-  clearEditorHandlers: () => set({ editorHandlers: null }),
+interface EditorMultiStoreState {
+  editors: Record<string, EditorTabState>;
+}
 
-  loadFile: async (path) => {
+interface EditorMultiStoreActions {
+  _updateTab: (tabId: string, patch: Partial<EditorTabState>) => void;
+  _getTab: (tabId: string) => EditorTabState;
+  removeTab: (tabId: string) => void;
+
+  loadFile: (tabId: string, path: string) => Promise<void>;
+  saveFile: (tabId: string, path: string, content: string) => Promise<void>;
+  saveFileKeepEditing: (tabId: string, path: string, content: string) => Promise<void>;
+  refreshFileMetadata: (tabId: string, path: string) => Promise<void>;
+  updateDocumentMetadata: (tabId: string, update: Partial<DocumentMetadata>) => Promise<void>;
+  setLocalDocumentMetadata: (tabId: string, update: Partial<DocumentMetadata>) => void;
+  flushPendingMetadata: (tabId: string) => Promise<void>;
+  discardPendingMetadata: (tabId: string) => Promise<void>;
+}
+
+type EditorMultiStore = EditorMultiStoreState & EditorMultiStoreActions;
+
+const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
+  editors: {},
+
+  _updateTab: (tabId, patch) => {
+    set(state => {
+      const prev = state.editors[tabId] ?? { ...initialTabState };
+      return {
+        editors: { ...state.editors, [tabId]: { ...prev, ...patch } },
+      };
+    });
+  },
+
+  _getTab: (tabId) => get().editors[tabId] ?? { ...initialTabState },
+
+  removeTab: (tabId) => {
+    set(state => {
+      const { [tabId]: _, ...rest } = state.editors;
+      return { editors: rest };
+    });
+  },
+
+  // ---- Async Operations (tabId 스코프) ----
+
+  loadFile: async (tabId, path) => {
     const timer = new PerformanceTimer('파일 로드');
-    set({ isLoading: true, error: null, currentFilePath: path });
-    
+    get()._updateTab(tabId, { isLoading: true, error: null, currentFilePath: path });
+
     try {
       await safeAsync(async () => {
         const response = await fileApi.read(path);
-        
         if (!response.success) {
           throw new Error(`파일 읽기 실패: ${getErrorMessage(response)}`);
         }
-        
+
         let fileData;
         try {
-          fileData = typeof response.data === 'string' 
-            ? JSON.parse(response.data) 
+          fileData = typeof response.data === 'string'
+            ? JSON.parse(response.data)
             : response.data;
         } catch {
           fileData = { content: response.data || '', metadata: null };
         }
-        
-        set({ content: fileData.content || '' });
-        
+
+        const patch: Partial<EditorTabState> = { content: fileData.content || '' };
+
         if (fileData.metadata) {
-          set({
-            fileMetadata: {
-              createdAt: new Date(fileData.metadata.createdAt),
-              modifiedAt: new Date(fileData.metadata.modifiedAt),
-              size: fileData.metadata.size,
-            },
-            documentMetadata: fileData.metadata.document || null,
-          });
+          patch.fileMetadata = {
+            createdAt: new Date(fileData.metadata.createdAt),
+            modifiedAt: new Date(fileData.metadata.modifiedAt),
+            size: fileData.metadata.size,
+          };
+          patch.documentMetadata = fileData.metadata.document || null;
         } else {
-          set({ fileMetadata: initialState.fileMetadata, documentMetadata: null });
+          patch.fileMetadata = initialTabState.fileMetadata;
+          patch.documentMetadata = null;
         }
-        
+
+        get()._updateTab(tabId, patch);
         logger.info('파일 로드 성공', { path, hasMetadata: !!fileData.metadata });
-      }, {
-        operation: 'loadFile',
-        component: 'WikiEditorStore',
-        context: 'loadFile'
-      });
-      
+      }, { operation: 'loadFile', component: 'EditorMultiStore', context: 'loadFile' });
+
       timer.end({ success: true });
     } catch (error) {
       timer.end({ success: false });
       logger.error('파일 로드 중 오류', error);
       const errorMsg = error instanceof Error ? error.message : '파일 로드 실패';
-      set({ error: errorMsg });
+      get()._updateTab(tabId, { error: errorMsg });
     } finally {
-      set({ isLoading: false });
+      get()._updateTab(tabId, { isLoading: false });
     }
   },
 
-  saveFile: async (path, content) => {
+  saveFile: async (tabId, path, content) => {
     const timer = new PerformanceTimer('파일 저장');
-    set({ isLoading: true, error: null });
-    
+    get()._updateTab(tabId, { isLoading: true, error: null });
+
     try {
       await safeAsync(async () => {
         const response = await fileApi.update(path, content);
-        
         if (!response.success) {
           throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
         }
-        
-        set({ content, isEditing: false });
-        
-        // 보류 메타데이터 플러시
-        await get().flushPendingMetadata();
-        
-        // 메타데이터 새로고침
-        await get().refreshFileMetadata(path);
-        
+
+        get()._updateTab(tabId, { content, isEditing: false });
+        await get().flushPendingMetadata(tabId);
+        await get().refreshFileMetadata(tabId, path);
+
         logger.info('파일 저장 성공', { path });
-      }, {
-        operation: 'saveFile',
-        component: 'WikiEditorStore',
-        context: 'saveFile'
-      });
-      
+      }, { operation: 'saveFile', component: 'EditorMultiStore', context: 'saveFile' });
+
       timer.end({ success: true });
     } catch (error) {
       timer.end({ success: false });
       logger.error('파일 저장 중 오류', error);
       const errorMsg = error instanceof Error ? error.message : '파일 저장 실패';
-      set({ error: errorMsg });
+      get()._updateTab(tabId, { error: errorMsg });
       throw error;
     } finally {
-      set({ isLoading: false });
+      get()._updateTab(tabId, { isLoading: false });
     }
   },
 
-  saveFileKeepEditing: async (path, content) => {
+  saveFileKeepEditing: async (tabId, path, content) => {
     const timer = new PerformanceTimer('임시 파일 저장');
-    
+
     try {
       await safeAsync(async () => {
         const response = await fileApi.update(path, content);
-        
         if (!response.success) {
           throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
         }
-        
-        set({ content });
-        // isEditing 유지
-        
-        // 보류 메타데이터 플러시
-        await get().flushPendingMetadata();
-        
-        await get().refreshFileMetadata(path);
-        
+
+        get()._updateTab(tabId, { content });
+        await get().flushPendingMetadata(tabId);
+        await get().refreshFileMetadata(tabId, path);
+
         logger.info('임시 저장 성공 (편집 모드 유지)', { path });
-      }, {
-        operation: 'saveFileKeepEditing',
-        component: 'WikiEditorStore',
-        context: 'saveFileKeepEditing'
-      });
-      
+      }, { operation: 'saveFileKeepEditing', component: 'EditorMultiStore', context: 'saveFileKeepEditing' });
+
       timer.end({ success: true });
     } catch (error) {
       timer.end({ success: false });
@@ -241,26 +203,25 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }
   },
 
-  refreshFileMetadata: async (path) => {
+  refreshFileMetadata: async (tabId, path) => {
     try {
       const response = await fileApi.getMetadata(path);
-      
       if (!response.success) {
         throw new Error(`메타데이터 조회 실패: ${getErrorMessage(response)}`);
       }
-      
+
       let metadataResponse;
       try {
-        metadataResponse = typeof response.data === 'string' 
-          ? JSON.parse(response.data) 
+        metadataResponse = typeof response.data === 'string'
+          ? JSON.parse(response.data)
           : response.data;
       } catch {
         logger.warn('메타데이터 파싱 실패');
         return;
       }
-      
+
       if (metadataResponse.metadata) {
-        set({
+        get()._updateTab(tabId, {
           fileMetadata: {
             createdAt: new Date(metadataResponse.metadata.createdAt),
             modifiedAt: new Date(metadataResponse.metadata.modifiedAt),
@@ -274,82 +235,144 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }
   },
 
-  discardPendingMetadata: async () => {
-    const { currentFilePath, pendingMetadataUpdate } = get();
-    if (!pendingMetadataUpdate) return;
-
-    // 보류 중인 변경사항 폐기 → 서버에서 다시 읽기
-    set({ pendingMetadataUpdate: null });
-    if (currentFilePath) {
-      await get().refreshFileMetadata(currentFilePath);
+  setLocalDocumentMetadata: (tabId, update) => {
+    const tabState = get()._getTab(tabId);
+    const patch: Partial<EditorTabState> = {
+      pendingMetadataUpdate: { ...(tabState.pendingMetadataUpdate || {}), ...update },
+    };
+    if (tabState.documentMetadata) {
+      patch.documentMetadata = { ...tabState.documentMetadata, ...update };
     }
-    logger.info('보류 메타데이터 폐기', { path: currentFilePath });
+    get()._updateTab(tabId, patch);
   },
 
-  setLocalDocumentMetadata: (update) => {
-    const { documentMetadata, pendingMetadataUpdate } = get();
-    // 1. 로컬 documentMetadata 즉시 업데이트
-    if (documentMetadata) {
-      set({ documentMetadata: { ...documentMetadata, ...update } });
-    }
-    // 2. pendingMetadataUpdate에 누적
-    set({ pendingMetadataUpdate: { ...(pendingMetadataUpdate || {}), ...update } });
-  },
-
-  flushPendingMetadata: async () => {
-    const { currentFilePath, pendingMetadataUpdate } = get();
-    if (!pendingMetadataUpdate || !currentFilePath) return;
+  flushPendingMetadata: async (tabId) => {
+    const tabState = get()._getTab(tabId);
+    if (!tabState.pendingMetadataUpdate || !tabState.currentFilePath) return;
 
     try {
-      const response = await fileApi.updateMetadata(currentFilePath, pendingMetadataUpdate);
+      const response = await fileApi.updateMetadata(tabState.currentFilePath, tabState.pendingMetadataUpdate);
       if (!response.success) {
         throw new Error(`메타데이터 플러시 실패: ${getErrorMessage(response)}`);
       }
       const merged = response.data as DocumentMetadata | undefined;
+      const patch: Partial<EditorTabState> = { pendingMetadataUpdate: null };
       if (merged) {
-        set({ documentMetadata: merged });
+        patch.documentMetadata = merged;
       }
-      set({ pendingMetadataUpdate: null });
-      logger.info('보류 메타데이터 플러시 완료', { path: currentFilePath });
+      get()._updateTab(tabId, patch);
+      logger.info('보류 메타데이터 플러시 완료', { path: tabState.currentFilePath });
     } catch (error) {
       logger.error('메타데이터 플러시 실패', error);
       throw error;
     }
   },
 
-  updateDocumentMetadata: async (update) => {
-    const { currentFilePath, documentMetadata } = get();
-    if (!currentFilePath) {
+  discardPendingMetadata: async (tabId) => {
+    const tabState = get()._getTab(tabId);
+    if (!tabState.pendingMetadataUpdate) return;
+
+    get()._updateTab(tabId, { pendingMetadataUpdate: null });
+    if (tabState.currentFilePath) {
+      await get().refreshFileMetadata(tabId, tabState.currentFilePath);
+    }
+    logger.info('보류 메타데이터 폐기', { path: tabState.currentFilePath });
+  },
+
+  updateDocumentMetadata: async (tabId, update) => {
+    const tabState = get()._getTab(tabId);
+    if (!tabState.currentFilePath) {
       logger.warn('메타데이터 업데이트 실패: 파일 경로 없음');
       return;
     }
 
     try {
-      const response = await fileApi.updateMetadata(currentFilePath, update);
-
+      const response = await fileApi.updateMetadata(tabState.currentFilePath, update);
       if (!response.success) {
         throw new Error(`메타데이터 업데이트 실패: ${getErrorMessage(response)}`);
       }
 
-      // 응답에서 머지된 메타데이터 반영
       const merged = response.data as DocumentMetadata | undefined;
       if (merged) {
-        set({ documentMetadata: merged });
+        get()._updateTab(tabId, { documentMetadata: merged });
       } else {
-        // fallback: 로컬 머지
-        set({
-          documentMetadata: documentMetadata
-            ? { ...documentMetadata, ...update, updatedAt: new Date().toISOString() }
+        get()._updateTab(tabId, {
+          documentMetadata: tabState.documentMetadata
+            ? { ...tabState.documentMetadata, ...update, updatedAt: new Date().toISOString() }
             : null,
         });
       }
 
-      logger.info('문서 메타데이터 업데이트 성공', { path: currentFilePath });
+      logger.info('문서 메타데이터 업데이트 성공', { path: tabState.currentFilePath });
     } catch (error) {
       logger.error('문서 메타데이터 업데이트 실패', error);
       throw error;
     }
   },
-
-  reset: () => set(initialState),
 }));
+
+// ============================================
+// Public Hooks
+// ============================================
+
+/** tabId에 바인딩된 액션 생성 */
+function createTabActions(tabId: string) {
+  const gs = () => useEditorMultiStore.getState();
+
+  return {
+    setContent: (content: string) => gs()._updateTab(tabId, { content }),
+    setIsEditing: (editing: boolean) => gs()._updateTab(tabId, { isEditing: editing }),
+    setError: (error: string | null) => gs()._updateTab(tabId, { error }),
+    setHasUnsavedChanges: (hasChanges: boolean) => gs()._updateTab(tabId, { hasUnsavedChanges: hasChanges }),
+    setIsSaving: (saving: boolean) => gs()._updateTab(tabId, { isSaving: saving }),
+    setEditorHandlers: (handlers: EditorHandlers) => gs()._updateTab(tabId, { editorHandlers: handlers }),
+    clearEditorHandlers: () => gs()._updateTab(tabId, { editorHandlers: null }),
+    setLocalDocumentMetadata: (update: Partial<DocumentMetadata>) => gs().setLocalDocumentMetadata(tabId, update),
+    loadFile: (path: string) => gs().loadFile(tabId, path),
+    saveFile: (path: string, content: string) => gs().saveFile(tabId, path, content),
+    saveFileKeepEditing: (path: string, content: string) => gs().saveFileKeepEditing(tabId, path, content),
+    refreshFileMetadata: (path: string) => gs().refreshFileMetadata(tabId, path),
+    updateDocumentMetadata: (update: Partial<DocumentMetadata>) => gs().updateDocumentMetadata(tabId, update),
+    flushPendingMetadata: () => gs().flushPendingMetadata(tabId),
+    discardPendingMetadata: () => gs().discardPendingMetadata(tabId),
+    reset: () => gs()._updateTab(tabId, { ...initialTabState }),
+    removeTabEditor: () => gs().removeTab(tabId),
+  };
+}
+
+/**
+ * 탭별 에디터 스토어 훅
+ * 
+ * TabInstanceContext에서 tabId를 자동 해석하여
+ * 해당 탭의 에디터 상태와 액션을 반환합니다.
+ * 
+ * ⚠️ TabInstanceContext.Provider 내부에서만 사용 가능
+ * (ContentArea가 각 탭에 Provider를 감싸줌)
+ */
+export function useEditorStore() {
+  const tabId = useCurrentTabId();
+
+  // 이 탭의 상태만 구독 (다른 탭 변경 시 리렌더 없음)
+  const tabState = useEditorMultiStore(
+    useCallback(state => state.editors[tabId] ?? initialTabState, [tabId])
+  );
+
+  // tabId는 컴포넌트 인스턴스별 고정 → actions 안정적
+  const actions = useMemo(() => createTabActions(tabId), [tabId]);
+
+  return { ...tabState, ...actions };
+}
+
+/**
+ * 활성 탭의 에디터 파일 경로 (Sidebar 등 탭 컨텍스트 외부용)
+ * 
+ * @param activeTabId - 탭 스토어의 activeTabId를 직접 전달
+ */
+export function useActiveEditorFilePath(activeTabId: string | null): string | null {
+  return useEditorMultiStore(
+    useCallback(
+      state => activeTabId ? (state.editors[activeTabId]?.currentFilePath ?? null) : null,
+      [activeTabId]
+    )
+  );
+}
