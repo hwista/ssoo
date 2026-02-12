@@ -14,6 +14,7 @@
 import path from 'path';
 import simpleGit, { type SimpleGit, type StatusResult, type DefaultLogFields, type ListLogLine } from 'simple-git';
 import { logger } from '@/lib/utils/errorUtils';
+import { configService } from '@/server/services/config/ConfigService';
 
 // ============================================================================
 // Types
@@ -54,14 +55,24 @@ export type GitResult<T = unknown> =
 // Git Service
 // ============================================================================
 
-const WIKI_DIR = path.join(process.cwd(), 'docs', 'wiki');
-
 class GitService {
   private git: SimpleGit;
   private initialized = false;
+  private wikiDir: string;
 
   constructor() {
-    this.git = simpleGit(WIKI_DIR);
+    this.wikiDir = configService.getWikiDir();
+    this.git = simpleGit(this.wikiDir);
+  }
+
+  /**
+   * 저장소 경로 변경 후 재설정 (설정 UI에서 호출)
+   */
+  reconfigure(newPath: string): void {
+    this.wikiDir = newPath;
+    this.git = simpleGit(newPath);
+    this.initialized = false;
+    logger.info('Git 저장소 경로 재설정', { path: newPath });
   }
 
   // --------------------------------------------------------------------------
@@ -112,11 +123,12 @@ class GitService {
     }
   }
 
-  /** Git 기본 설정 (user.name, user.email) */
+  /** Git 기본 설정 (user.name, user.email) — ConfigService에서 읽음 */
   private async configureGit(): Promise<void> {
     try {
-      await this.git.addConfig('user.name', 'DMS System');
-      await this.git.addConfig('user.email', 'dms@localhost');
+      const author = configService.getGitAuthor();
+      await this.git.addConfig('user.name', author.name);
+      await this.git.addConfig('user.email', author.email);
     } catch {
       // 이미 설정된 경우 무시
     }

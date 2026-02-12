@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { SettingsDialog } from '@/components/common/SettingsDialog';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -19,6 +20,8 @@ export function Providers({ children }: ProvidersProps) {
       {children}
       {/* 전역 Confirm Dialog */}
       <ConfirmDialog />
+      {/* 전역 Settings Dialog */}
+      <SettingsDialog />
       {/* 전역 Toast */}
       <Toaster
         position="top-right"

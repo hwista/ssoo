@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown';
+import { useSettingsStore } from '@/stores/settings.store';
 
 interface UserMenuProps {
   /** 드롭다운 너비 (부모 액션 영역 기준) */
@@ -21,6 +22,8 @@ interface UserMenuProps {
  * - 설정 / 로그아웃 (준비 중)
  */
 export function UserMenu({ dropdownWidth }: UserMenuProps) {
+  const openSettings = useSettingsStore((s) => s.openDialog);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -55,12 +58,11 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
 
         {/* 설정 */}
         <DropdownMenuItem
-          disabled
-          className="text-white/40 focus:bg-white/10 focus:text-white px-3 py-2"
+          onClick={openSettings}
+          className="text-white focus:bg-white/10 focus:text-white px-3 py-2 cursor-pointer"
         >
           <Settings className="mr-2 h-4 w-4" />
           <span>설정</span>
-          <span className="ml-auto text-xs text-white/40">준비 중</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator className="bg-white/15" />

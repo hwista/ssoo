@@ -13,9 +13,12 @@ import path from "path";
 import { normalizePath } from "@/lib/utils/pathUtils";
 import { isMarkdownFile } from "@/lib/utils/fileUtils";
 import { logger, PerformanceTimer } from "@/lib/utils/errorUtils";
+import { configService } from "@/server/services/config/ConfigService";
 
-// 위키 문서 루트 디렉토리
-const ROOT_DIR = path.join(process.cwd(), "docs", "wiki");
+/** 위키 루트 디렉토리 (ConfigService에서 동적 조회) */
+function getRootDir(): string {
+  return configService.getWikiDir();
+}
 
 // ============================================================================
 // Types
@@ -49,7 +52,7 @@ function readDirectory(dirPath: string): FileTreeEntry[] {
   return entries
     .map((entry) => {
       const fullPath = path.join(dirPath, entry.name);
-      const relativePath = normalizePath(path.relative(ROOT_DIR, fullPath));
+      const relativePath = normalizePath(path.relative(getRootDir(), fullPath));
 
       if (entry.isDirectory()) {
         return {
@@ -84,20 +87,20 @@ export async function getFileTree(): Promise<{
   const timer = new PerformanceTimer('Handler: 파일 트리 조회');
   
   try {
-    logger.info('파일 트리 조회 시작', { rootDir: ROOT_DIR });
-    const structure = readDirectory(ROOT_DIR);
+    logger.info('파일 트리 조회 시작', { rootDir: getRootDir() });
+    const structure = readDirectory(getRootDir());
     
     logger.info('파일 트리 조회 성공', { 
       itemCount: structure.length,
-      rootDir: ROOT_DIR 
+      rootDir: getRootDir() 
     });
     
     return { success: true, data: structure };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('파일 트리 조회 실패', error, { rootDir: ROOT_DIR });
+    logger.error('파일 트리 조회 실패', error, { rootDir: getRootDir() });
     return { success: false, error: message };
   } finally {
-    timer.end({ rootDir: ROOT_DIR });
+    timer.end({ rootDir: getRootDir() });
   }
 }
