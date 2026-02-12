@@ -44,8 +44,9 @@ DMS는 모노레포 내 독립 앱으로 운영되며, **npm**을 사용한다 (
 - `turndown` - HTML → MD 변환
 
 ### AI / 벡터 검색
-- `@google/generative-ai` - Gemini API
-- `@lancedb/lancedb` - 벡터 데이터베이스
+- `ai` (Vercel AI SDK) - LLM 프로바이더 추상화, 스트리밍
+- `@ai-sdk/azure` - Azure OpenAI 프로바이더
+- `pg` + pgvector - PostgreSQL 벡터 검색
 
 ---
 

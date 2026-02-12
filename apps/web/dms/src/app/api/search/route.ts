@@ -1,5 +1,6 @@
 /**
- * Search API Route - 문서 검색
+ * Search API Route - 시맨틱 문서 검색
+ * pgvector 유사도 검색 + 키워드 폴백
  */
 
 import { searchDocuments } from '@/server/handlers/ai.handler';

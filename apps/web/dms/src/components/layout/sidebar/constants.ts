@@ -5,6 +5,7 @@ import {
   Bookmark,
   Layers,
   FolderTree,
+  GitBranch,
 } from 'lucide-react';
 
 /**
@@ -15,4 +16,5 @@ export const SECTION_ICONS: Record<SidebarSectionType, React.ComponentType<{ cla
   bookmarks: Bookmark,
   openTabs: Layers,
   fileTree: FolderTree,
+  changes: GitBranch,
 };

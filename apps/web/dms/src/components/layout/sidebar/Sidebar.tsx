@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ChevronDown, 
   ChevronLeft,
@@ -8,10 +8,11 @@ import {
   Bookmark, 
   Layers, 
   FolderTree,
+  GitBranch,
   BookOpen,
   Code,
 } from 'lucide-react';
-import { useLayoutStore, useSidebarStore, useFileStore } from '@/stores';
+import { useLayoutStore, useSidebarStore, useFileStore, useGitStore } from '@/stores';
 import { LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, type DocumentType } from '@/types';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,6 +21,7 @@ import { Section } from './Section';
 import { Bookmarks } from './Bookmarks';
 import { OpenTabs } from './OpenTabs';
 import { FileTree } from './FileTree';
+import { Changes } from './Changes';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,7 +64,13 @@ export function Sidebar({
   const { documentType, setDocumentType } = useLayoutStore();
   const { expandedSections, toggleSection, searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
   const { refreshFileTree } = useFileStore();
+  const { changeCount, initialize: initGit, isAvailable: gitAvailable } = useGitStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Git 초기화 (1회)
+  useEffect(() => {
+    initGit();
+  }, [initGit]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -200,6 +208,18 @@ export function Sidebar({
         >
           <FileTree />
         </Section>
+
+        {/* 변경 사항 (Git) */}
+        {gitAvailable && (
+          <Section
+            title={`변경 사항${changeCount > 0 ? ` (${changeCount})` : ''}`}
+            icon={GitBranch}
+            isExpanded={expandedSections.includes('changes')}
+            onToggle={() => toggleSection('changes')}
+          >
+            <Changes />
+          </Section>
+        )}
       </ScrollArea>
 
       {/* 하단 카피라이트 (PMS 스타일) */}

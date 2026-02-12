@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { FileNode, BookmarkItem } from '@/types';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
-import { fileSystemService } from '@/server/services';
+import { fileSystemService } from '@/server/services/fileSystem/FileSystemService';
 
 // 파일 트리를 플랫 맵으로 변환 (PMS buildMenuMap 대응)
 const buildFileMap = (nodes: FileNode[]): Map<string, FileNode> => {

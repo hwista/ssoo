@@ -107,8 +107,9 @@ apps/web/dms/
 
 | 패키지 | 용도 |
 |--------|------|
-| `@google/generative-ai` | Gemini API |
-| `@lancedb/lancedb` | Vector DB |
+| `ai` | Vercel AI SDK (프로바이더 추상화) |
+| `@ai-sdk/azure` | Azure OpenAI 프로바이더 |
+| `pg` | PostgreSQL + pgvector 연결 |
 
 ---
 

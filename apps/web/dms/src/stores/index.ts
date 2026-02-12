@@ -16,3 +16,6 @@ export { useEditorStore, useActiveEditorFilePath } from './editor.store';
 
 // UI
 export { useConfirmStore } from './confirm.store';
+
+// Git
+export { useGitStore } from './git.store';

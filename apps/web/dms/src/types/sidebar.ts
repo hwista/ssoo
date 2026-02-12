@@ -8,7 +8,7 @@
  * - 파일 시스템 기반: bookmarks, openTabs, fileTree
  * - PMS의 search는 플로팅 패널용, DMS는 고정 UI로 섹션 불필요
  */
-export type SidebarSection = 'bookmarks' | 'openTabs' | 'fileTree';
+export type SidebarSection = 'bookmarks' | 'openTabs' | 'fileTree' | 'changes';
 
 /**
  * 사이드바 상태
@@ -52,6 +52,7 @@ export const SIDEBAR_SECTION_ICONS: Record<SidebarSection, string> = {
   bookmarks: 'Star',
   openTabs: 'Layers',
   fileTree: 'FolderTree',
+  changes: 'GitBranch',
 };
 
 /**
@@ -61,4 +62,5 @@ export const SIDEBAR_SECTION_LABELS: Record<SidebarSection, string> = {
   bookmarks: '즐겨찾기',
   openTabs: '열린 문서',
   fileTree: '문서 탐색',
+  changes: '변경 사항',
 };
