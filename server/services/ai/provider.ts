@@ -11,6 +11,10 @@ import type { LanguageModel, EmbeddingModel } from 'ai';
 
 /**
  * Azure OpenAI 프로바이더 인스턴스
+ *
+ * 인증 방식:
+ * - JWT Bearer 토큰: Authorization: Bearer <token> (현재 사용)
+ * - API Key: api-key: <key> (영구 키 발급 시 전환)
  */
 function getAzureProvider() {
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
@@ -23,9 +27,14 @@ function getAzureProvider() {
     );
   }
 
+  // JWT Bearer 토큰 사용: api-key 대신 Authorization 헤더로 전송
   return createAzure({
-    apiKey,
+    apiKey: 'Bearer-token-in-headers',
     resourceName: extractResourceName(resourceName),
+    headers: {
+      'api-key': '',
+      'Authorization': `Bearer ${apiKey}`,
+    },
   });
 }
 
