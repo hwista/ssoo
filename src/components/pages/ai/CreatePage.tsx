@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { FileUp, FileText, Plus, Trash2 } from 'lucide-react';
+import { FileUp, FileText, Plus, Trash2, Loader2 } from 'lucide-react';
+import { useCompletion } from '@ai-sdk/react';
 import { AiPageTemplate } from '@/components/templates';
 
 interface TemplateOption {
@@ -14,7 +15,8 @@ interface AttachmentItem {
   id: string;
   file: File;
   templateId: string;
-  summaries: string[];
+  summary: string;
+  isLoading: boolean;
 }
 
 const TEMPLATE_OPTIONS: TemplateOption[] = [
@@ -44,6 +46,35 @@ function getTemplateByExtension(fileName: string): string {
 
 export function AiCreatePage() {
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
+
+  const { complete, isLoading: isCompleting } = useCompletion({
+    api: '/api/create',
+    onFinish: (_prompt: string, completion: string) => {
+      if (activeItemId) {
+        setAttachments((prev) =>
+          prev.map((item) =>
+            item.id === activeItemId
+              ? { ...item, summary: completion, isLoading: false }
+              : item
+          )
+        );
+        setActiveItemId(null);
+      }
+    },
+    onError: (_error: Error) => {
+      if (activeItemId) {
+        setAttachments((prev) =>
+          prev.map((item) =>
+            item.id === activeItemId
+              ? { ...item, summary: '요약 생성에 실패했습니다.', isLoading: false }
+              : item
+          )
+        );
+        setActiveItemId(null);
+      }
+    },
+  });
 
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const { files } = event.target;
@@ -53,7 +84,8 @@ export function AiCreatePage() {
       id: `${file.name}-${Date.now()}`,
       file,
       templateId: getTemplateByExtension(file.name),
-      summaries: [],
+      summary: '',
+      isLoading: false,
     }));
 
     setAttachments((prev) => [...prev, ...newItems]);
@@ -70,18 +102,34 @@ export function AiCreatePage() {
     setAttachments((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  const handleAddSummary = useCallback((id: string) => {
+  const handleGenerateSummary = useCallback(async (item: AttachmentItem) => {
+    if (isCompleting) return;
+
+    // 파일 텍스트 읽기
+    const text = await item.file.text();
+    if (!text || text.trim().length < 10) {
+      setAttachments((prev) =>
+        prev.map((a) =>
+          a.id === item.id
+            ? { ...a, summary: '파일 내용이 너무 짧습니다.' }
+            : a
+        )
+      );
+      return;
+    }
+
+    setActiveItemId(item.id);
     setAttachments((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              summaries: [...item.summaries, '요약 생성 요청이 준비 중입니다.'],
-            }
-          : item
+      prev.map((a) =>
+        a.id === item.id ? { ...a, isLoading: true, summary: '' } : a
       )
     );
-  }, []);
+
+    // body에 templateType 전달
+    await complete(text, {
+      body: { templateType: item.templateId },
+    });
+  }, [complete, isCompleting]);
 
   const hasAttachments = attachments.length > 0;
   const templateMap = useMemo(() => {
@@ -150,19 +198,22 @@ export function AiCreatePage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => handleAddSummary(item.id)}
-                  className="mt-2 flex h-control-h items-center justify-center gap-2 rounded-lg border border-ssoo-content-border px-3 text-sm text-ssoo-primary hover:border-ssoo-primary md:mt-6"
+                  onClick={() => handleGenerateSummary(item)}
+                  disabled={item.isLoading || isCompleting}
+                  className="mt-2 flex h-control-h items-center justify-center gap-2 rounded-lg border border-ssoo-content-border px-3 text-sm text-ssoo-primary hover:border-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60 md:mt-6"
                 >
-                  <Plus className="h-4 w-4" />
-                  요약 추가
+                  {item.isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  {item.isLoading ? '생성 중...' : '요약 생성'}
                 </button>
               </div>
 
-              {item.summaries.length > 0 && (
-                <div className="mt-4 space-y-2 rounded-lg bg-ssoo-content-bg p-3 text-sm text-ssoo-primary">
-                  {item.summaries.map((summary, index) => (
-                    <p key={`${item.id}-summary-${index}`}>{summary}</p>
-                  ))}
+              {item.summary && (
+                <div className="mt-4 space-y-2 rounded-lg bg-ssoo-content-bg p-3 text-sm leading-relaxed text-ssoo-primary whitespace-pre-wrap">
+                  {item.summary}
                 </div>
               )}
             </article>

@@ -2,89 +2,77 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SendHorizontal, Bot, User } from 'lucide-react';
+import { DefaultChatTransport } from 'ai';
+import { useChat } from '@ai-sdk/react';
 import { useTabStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { AiPageTemplate } from '@/components/templates';
 import { getQueryFromTabPath } from '@/lib/utils';
-import { aiApi, getErrorMessage } from '@/lib/utils/apiClient';
 
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
+/**
+ * UIMessage의 parts에서 텍스트 추출
+ */
+function getMessageText(message: { parts: Array<{ type: string; text?: string }> }): string {
+  return message.parts
+    .filter((p): p is { type: 'text'; text: string } => p.type === 'text' && typeof p.text === 'string')
+    .map((p) => p.text)
+    .join('');
 }
+
+const askTransport = new DefaultChatTransport({ api: '/api/ask' });
 
 export function AiAskPage() {
   const tabId = useCurrentTabId();
   const { tabs } = useTabStore();
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
   const initialQuery = useMemo(() => getQueryFromTabPath(activeTab?.path), [activeTab?.path]);
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isSending, setIsSending] = useState(false);
   const autoQueryRef = useRef('');
+  const [inputValue, setInputValue] = useState('');
 
-  const handleSend = useCallback(async (overrideInput?: string) => {
-    const trimmed = (overrideInput ?? input).trim();
-    if (!trimmed || isSending) return;
+  const { messages, sendMessage, status } = useChat({
+    transport: askTransport,
+  });
 
-    const responseId = `${Date.now()}-assistant`;
-    setMessages((prev) => [
-      ...prev,
-      { id: `${Date.now()}-user`, role: 'user', content: trimmed },
-      { id: responseId, role: 'assistant', content: '답변을 생성하는 중입니다...' },
-    ]);
-    setInput('');
-    setIsSending(true);
+  const isLoading = status === 'submitted' || status === 'streaming';
 
-    const response = await aiApi.ask(trimmed);
-    const responseText = response.success
-      ? response.data?.answer || '응답을 생성하지 못했습니다.'
-      : getErrorMessage(response);
-
-    setMessages((prev) =>
-      prev.map((message) =>
-        message.id === responseId ? { ...message, content: responseText } : message
-      )
-    );
-    setIsSending(false);
-  }, [input, isSending]);
+  const handleSubmit = useCallback(
+    (e?: React.FormEvent) => {
+      e?.preventDefault();
+      if (!inputValue.trim() || isLoading) return;
+      sendMessage({ text: inputValue });
+      setInputValue('');
+    },
+    [inputValue, isLoading, sendMessage]
+  );
 
   useEffect(() => {
     if (initialQuery && autoQueryRef.current !== initialQuery) {
       autoQueryRef.current = initialQuery;
-      setInput(initialQuery);
-      handleSend(initialQuery);
+      sendMessage({ text: initialQuery });
     }
-  }, [initialQuery, handleSend]);
+  }, [initialQuery, sendMessage]);
 
   return (
     <AiPageTemplate
       variant="ask"
       description="문서 기반으로 질문을 입력하세요."
       footer={(
-        <div className="flex items-center gap-2">
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <input
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
+            value={inputValue}
+            onChange={(event) => setInputValue(event.target.value)}
             placeholder="질문을 입력하세요..."
             className="h-control-h flex-1 rounded-lg border border-ssoo-content-border px-3 text-sm focus:border-ssoo-primary focus:outline-none"
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                handleSend();
-              }
-            }}
           />
           <button
-            onClick={() => handleSend()}
-            disabled={isSending}
+            type="submit"
+            disabled={isLoading || !inputValue.trim()}
             className="flex h-control-h items-center gap-2 rounded-lg bg-ssoo-primary px-4 text-sm font-medium text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <SendHorizontal className="h-4 w-4" />
             전송
           </button>
-        </div>
+        </form>
       )}
     >
       {messages.length === 0 ? (
@@ -110,7 +98,7 @@ export function AiAskPage() {
                     : 'bg-ssoo-content-bg text-ssoo-primary'
                 }`}
               >
-                {message.content}
+                {getMessageText(message)}
               </div>
               {message.role === 'user' && (
                 <div className="flex h-control-h w-control-h shrink-0 items-center justify-center rounded-full bg-ssoo-primary">

@@ -170,8 +170,12 @@ export function DocPageTemplate({
   // 사이드카 표시 여부
   const showSidecar = sidecarOpen;
 
-  const resolvedSurfaceClassName = contentSurfaceClassName
-    ?? 'flex h-full w-full flex-col rounded-lg border border-ssoo-content-border bg-white overflow-hidden';
+  // 레이아웃 클래스(h-full, flex 등)는 항상 유지, contentSurfaceClassName은 시각적 클래스만 오버라이드
+  const defaultVisualClasses = 'rounded-lg border border-ssoo-content-border bg-white';
+  const resolvedSurfaceClassName = cn(
+    'flex h-full w-full flex-col overflow-hidden',
+    contentSurfaceClassName ?? defaultVisualClasses
+  );
   const contentNode = resolvedContentMaxWidth !== null ? (
     <div className={cn('flex h-full justify-center overflow-hidden px-4', contentWrapperClassName)}>
       <div

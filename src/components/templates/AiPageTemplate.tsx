@@ -62,7 +62,7 @@ export function AiPageTemplate({
   const config = AI_PAGE_CONFIG[variant];
 
   return (
-    <main className="flex-1 overflow-hidden bg-ssoo-content-bg/30">
+    <main className="h-full overflow-hidden bg-ssoo-content-bg/30">
       <DocPageTemplate
         filePath={config.filePath}
         mode="viewer"
