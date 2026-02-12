@@ -30,3 +30,4 @@ export type { LoadingStateProps, LoadingSpinnerProps, ErrorStateProps, EmptyStat
 
 // 다이얼로그
 export { ConfirmDialog } from './ConfirmDialog';
+export { SettingsDialog } from './SettingsDialog';

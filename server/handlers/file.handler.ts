@@ -8,8 +8,12 @@ import path from "path";
 import crypto from "crypto";
 import { normalizeMarkdownFileName, isMarkdownFile } from "@/lib/utils/fileUtils";
 import { logger, PerformanceTimer } from "@/lib/utils/errorUtils";
+import { configService } from "@/server/services/config/ConfigService";
 
-const ROOT_DIR = path.join(process.cwd(), "docs", "wiki");
+/** 위키 루트 디렉토리 (ConfigService에서 동적 조회) */
+function getRootDir(): string {
+  return configService.getWikiDir();
+}
 
 // ============================================================================
 // Types
@@ -126,8 +130,8 @@ function findFileByName(rootDir: string, fileName: string): string | null {
  */
 function resolveFilePath(filePath: string): { targetPath: string; valid: boolean; safeRelPath: string } {
   const safeRelPath = path.normalize(filePath).replace(/^\/+/, '');
-  const targetPath = path.join(ROOT_DIR, safeRelPath);
-  const valid = targetPath.startsWith(ROOT_DIR);
+  const targetPath = path.join(getRootDir(), safeRelPath);
+  const valid = targetPath.startsWith(getRootDir());
   return { targetPath, valid, safeRelPath };
 }
 
@@ -313,7 +317,7 @@ export async function readFile(filePath: string): Promise<HandlerResult<FileData
   // 요청이 단일 파일명이고 지정 경로에 없으면, 루트 이하에서 파일명으로 검색
   const isBareFileName = !safeRelPath.includes(path.sep);
   if (!fs.existsSync(finalPath) && isBareFileName) {
-    const found = findFileByName(ROOT_DIR, safeRelPath);
+    const found = findFileByName(getRootDir(), safeRelPath);
     if (found) {
       finalPath = found;
       logger.info('파일명만으로 일치 파일을 발견', { requested: safeRelPath, resolved: finalPath });
@@ -422,9 +426,9 @@ export async function createFile(
   parent: string = "", 
   content?: string
 ): Promise<HandlerResult<{ message: string }>> {
-  const targetPath = path.join(ROOT_DIR, parent, normalizeMarkdownFileName(name));
+  const targetPath = path.join(getRootDir(), parent, normalizeMarkdownFileName(name));
 
-  if (!targetPath.startsWith(ROOT_DIR)) {
+  if (!targetPath.startsWith(getRootDir())) {
     return { success: false, error: "Invalid path", status: 400 };
   }
 
@@ -459,10 +463,10 @@ export async function createFolder(
   filePath?: string
 ): Promise<HandlerResult<{ message: string }>> {
   const folderPath = filePath 
-    ? path.join(ROOT_DIR, filePath) 
-    : path.join(ROOT_DIR, parent, name);
+    ? path.join(getRootDir(), filePath) 
+    : path.join(getRootDir(), parent, name);
 
-  if (!folderPath.startsWith(ROOT_DIR)) {
+  if (!folderPath.startsWith(getRootDir())) {
     return { success: false, error: "Invalid path", status: 400 };
   }
 
@@ -490,10 +494,10 @@ export async function renameFile(
   oldPath: string,
   newPath: string
 ): Promise<HandlerResult<{ message: string }>> {
-  const oldFullPath = path.join(ROOT_DIR, oldPath);
-  const newFullPath = path.join(ROOT_DIR, newPath);
+  const oldFullPath = path.join(getRootDir(), oldPath);
+  const newFullPath = path.join(getRootDir(), newPath);
 
-  if (!oldFullPath.startsWith(ROOT_DIR) || !newFullPath.startsWith(ROOT_DIR)) {
+  if (!oldFullPath.startsWith(getRootDir()) || !newFullPath.startsWith(getRootDir())) {
     return { success: false, error: "Invalid path", status: 400 };
   }
 

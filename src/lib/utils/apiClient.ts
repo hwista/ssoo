@@ -282,6 +282,13 @@ export const aiApi = {
       body: { query },
     });
   },
+
+  ask: async (query: string): Promise<ApiResponse<AiAskResponse>> => {
+    return request('/api/ask', {
+      method: 'POST',
+      body: { query },
+    });
+  },
 };
 
 /**
@@ -445,6 +452,59 @@ export const gitApi = {
     return request('/api/git', {
       method: 'POST',
       body: { action: 'init' },
+    });
+  },
+};
+
+// ============================================================================
+// Settings API
+// ============================================================================
+
+/** Git 설정 */
+export interface GitConfigClient {
+  repositoryPath: string;
+  author: { name: string; email: string };
+  autoInit: boolean;
+}
+
+/** DMS 설정 */
+export interface DmsConfigClient {
+  git: GitConfigClient;
+}
+
+/** 깊은 부분 타입 */
+export type DeepPartialClient<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartialClient<T[P]> : T[P];
+};
+
+/** 설정 조회 응답 */
+export interface SettingsResponse {
+  config: DmsConfigClient;
+  wikiDir: string;
+}
+
+/**
+ * Settings API 클라이언트
+ */
+export const settingsApi = {
+  /** 현재 설정 조회 */
+  getSettings: async (): Promise<ApiResponse<SettingsResponse>> => {
+    return request<SettingsResponse>('/api/settings');
+  },
+
+  /** 설정 업데이트 */
+  updateSettings: async (config: DeepPartialClient<DmsConfigClient>): Promise<ApiResponse<SettingsResponse>> => {
+    return request<SettingsResponse>('/api/settings', {
+      method: 'POST',
+      body: { action: 'update', config },
+    });
+  },
+
+  /** Git 저장소 경로 변경 (파일 복사 + Git init 포함) */
+  updateGitPath: async (newPath: string, copyFiles: boolean): Promise<ApiResponse<SettingsResponse>> => {
+    return request<SettingsResponse>('/api/settings', {
+      method: 'POST',
+      body: { action: 'updateGitPath', newPath, copyFiles },
     });
   },
 };

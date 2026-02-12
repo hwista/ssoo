@@ -19,3 +19,6 @@ export { useConfirmStore } from './confirm.store';
 
 // Git
 export { useGitStore } from './git.store';
+
+// Settings
+export { useSettingsStore } from './settings.store';

@@ -2,6 +2,14 @@
  * 서비스 레이어 진입점
  */
 
+// Config Service
+export {
+  configService,
+  type DmsConfig,
+  type GitConfig,
+  type DeepPartial,
+} from './config/ConfigService';
+
 // File System Service
 export {
   fileSystemService,

@@ -13,8 +13,12 @@ import { isMarkdownFile } from '@/lib/utils/fileUtils';
 import { LIMITS } from '@/lib/utils/constants';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 import { getChatModel, embedQuery, searchSimilarDocuments } from '../services/ai';
+import { configService } from '@/server/services/config/ConfigService';
 
-const ROOT_DIR = path.join(process.cwd(), 'docs', 'wiki');
+/** 위키 루트 디렉토리 (ConfigService에서 동적 조회) */
+function getRootDir(): string {
+  return configService.getWikiDir();
+}
 
 // ============================================
 // Types
@@ -81,7 +85,7 @@ function buildExcerpt(content: string, query: string): { excerpt: string; score:
 }
 
 function toRelativePath(filePath: string): string {
-  const relative = path.relative(ROOT_DIR, filePath);
+  const relative = path.relative(getRootDir(), filePath);
   return normalizePath(relative);
 }
 
@@ -96,7 +100,7 @@ export async function searchDocumentsKeyword(query: string): Promise<HandlerResu
   }
 
   try {
-    const files = listMarkdownFiles(ROOT_DIR);
+    const files = listMarkdownFiles(getRootDir());
     const results: SearchResultItem[] = [];
 
     for (const filePath of files) {
@@ -213,7 +217,7 @@ async function gatherRAGContext(query: string): Promise<{
     const context = topResults
       .map((result, i) => {
         try {
-          const fullPath = path.join(ROOT_DIR, result.path);
+          const fullPath = path.join(getRootDir(), result.path);
           const content = fs.readFileSync(fullPath, 'utf-8').slice(0, 2000);
           return `[문서 ${i + 1}: ${result.title}]\n${content}`;
         } catch {
@@ -252,8 +256,16 @@ export function askQuestionStream(
       role: m.role as 'user' | 'assistant' | 'system',
       content: m.content,
     })),
-    onError: (error) => {
-      logger.error('AI 스트리밍 에러', error);
+    onError: (error: unknown) => {
+      const err = error instanceof Error ? error : (error as Record<string, unknown>)?.error;
+      const errObj = err instanceof Error ? err : null;
+      logger.error('AI 스트리밍 에러', {
+        message: errObj?.message ?? String(error),
+        name: errObj?.name,
+        cause: errObj?.cause,
+        stack: errObj?.stack?.split('\n').slice(0, 3).join('\n'),
+        raw: JSON.stringify(error, null, 2),
+      });
     },
   });
 }

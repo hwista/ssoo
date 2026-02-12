@@ -1,0 +1,10 @@
+{
+  "git": {
+    "repositoryPath": "",
+    "author": {
+      "name": "DMS System",
+      "email": "dms@localhost"
+    },
+    "autoInit": true
+  }
+}
