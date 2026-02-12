@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useTabStore, useEditorStore } from '@/stores';
+import { useTabStore, useEditorStore, useConfirmStore, useFileStore } from '@/stores';
+import { fileApi } from '@/lib/utils/apiClient';
 import { DocPageTemplate } from '@/components/templates';
 import { Viewer } from '@/components/common/viewer';
 import { Editor } from '@/components/common/editor';
@@ -32,7 +33,9 @@ type PageMode = 'viewer' | 'editor' | 'create';
  * - 이 페이지 컴포넌트가 자체적으로 데이터 로드
  */
 export function ViewerPage() {
-  const { activeTabId, tabs } = useTabStore();
+  const { activeTabId, tabs, closeTab } = useTabStore();
+  const { confirm } = useConfirmStore();
+  const { refreshFileTree } = useFileStore();
   const { 
     loadFile, 
     isLoading, 
@@ -156,12 +159,29 @@ export function ViewerPage() {
     setIsEditing(true);
   }, [setIsEditing]);
 
-  const handleDelete = useCallback(() => {
-    // TODO: 삭제 확인 모달 + 삭제 로직
-    if (confirm(`'${filePath}'를 삭제하시겠습니까?`)) {
-      // TODO: 삭제 로직 연결
+  const handleDelete = useCallback(async () => {
+    if (!filePath || !activeTabId) return;
+
+    const confirmed = await confirm({
+      title: '문서 삭제',
+      description: `'${filePath}'를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      confirmText: '삭제',
+      cancelText: '취소',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const result = await fileApi.delete(filePath);
+      if (result.success) {
+        reset();
+        closeTab(activeTabId);
+        await refreshFileTree();
+      }
+    } catch (err) {
+      console.error('파일 삭제 실패:', err);
     }
-  }, [filePath]);
+  }, [filePath, activeTabId, confirm, reset, closeTab, refreshFileTree]);
 
   const handleSearch = useCallback((_query: string) => {
     // TODO: 문서 내 검색 하이라이트
