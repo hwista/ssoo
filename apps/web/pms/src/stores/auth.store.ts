@@ -2,15 +2,16 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { authApi } from '@/lib/api/auth';
 
-/** HTTP 에러 상태 코드 확인 헬퍼 */
+/** HTTP 에러 상태 코드 확인 헬퍼 (ApiError.status + AxiosError.response.status 모두 지원) */
 function isHttpError(error: unknown, statusCode: number): boolean {
   if (typeof error !== 'object' || error === null) return false;
+  // ApiError / 일반 에러: error.status
+  const status = (error as { status?: number }).status;
+  if (status === statusCode) return true;
   // Axios 에러: error.response.status
   const axiosStatus = (error as { response?: { status?: number } }).response?.status;
   if (axiosStatus === statusCode) return true;
-  // 일반 에러: error.status
-  const status = (error as { status?: number }).status;
-  return status === statusCode;
+  return false;
 }
 
 export interface AuthUser {
@@ -67,15 +68,14 @@ export const useAuthStore = create<AuthState>()(
               isLoading: false,
             });
 
-            // 사용자 정보 조회 (실패해도 로그인은 완료 - 토큰은 이미 유효)
-            try {
-              const meResponse = await authApi.me(accessToken);
+            // 사용자 정보 조회 (fire-and-forget, 로그인 블로킹 없음)
+            authApi.me(accessToken).then((meResponse) => {
               if (meResponse.success && meResponse.data) {
                 set({ user: meResponse.data });
               }
-            } catch {
-              // me() 실패는 무시 - 다음 checkAuth에서 재시도
-            }
+            }).catch(() => {
+              // me() 실패는 무시 - MainLayout의 checkAuth에서 재시도
+            });
           } else {
             set({ isLoading: false });
             throw new Error(response.message || '로그인에 실패했습니다.');

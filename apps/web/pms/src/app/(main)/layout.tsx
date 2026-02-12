@@ -34,15 +34,21 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const { isAuthenticated, _hasHydrated } = useAuthStore();
-  const { generalMenus } = useMenuStore();
   const router = useRouter();
-  const checkAuthCalled = useRef(false);
+  const initCalled = useRef(false);
 
-  // Hydration 완료 후 백그라운드 토큰 검증 (1회만, 비차단)
+  // Hydration 후 초기화: checkAuth → refreshMenu 순차 실행 (1회, 비차단)
   useEffect(() => {
-    if (!_hasHydrated || checkAuthCalled.current) return;
-    checkAuthCalled.current = true;
-    useAuthStore.getState().checkAuth();
+    if (!_hasHydrated || initCalled.current) return;
+    initCalled.current = true;
+
+    (async () => {
+      await useAuthStore.getState().checkAuth();
+      const { isAuthenticated: authed } = useAuthStore.getState();
+      if (authed) {
+        useMenuStore.getState().refreshMenu();
+      }
+    })();
   }, [_hasHydrated]);
 
   // 미인증 시 로그인 페이지로 리다이렉트
@@ -51,13 +57,6 @@ export default function MainLayout({
       router.replace('/login');
     }
   }, [_hasHydrated, isAuthenticated, router]);
-
-  // 인증 상태에서 메뉴 로드
-  useEffect(() => {
-    if (_hasHydrated && isAuthenticated && generalMenus.length === 0) {
-      useMenuStore.getState().refreshMenu();
-    }
-  }, [_hasHydrated, isAuthenticated, generalMenus.length]);
 
   // Hydration 대기 (localStorage 읽기, 보통 <100ms)
   if (!_hasHydrated) {

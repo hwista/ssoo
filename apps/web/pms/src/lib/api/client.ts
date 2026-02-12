@@ -2,9 +2,19 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
+/** API 에러 (HTTP status 정보 보존) */
+export class ApiError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 5000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -47,7 +57,7 @@ apiClient.interceptors.response.use(
         const authStorage = localStorage.getItem('ssoo-auth');
         if (authStorage) {
           try {
-            const { state } = JSON.parse(authStorage);
+            const { state, version } = JSON.parse(authStorage);
             if (state?.refreshToken) {
               // 토큰 갱신 요청
               const refreshResponse = await axios.post(`${API_BASE_URL}/auth/refresh`, {
@@ -57,13 +67,13 @@ apiClient.interceptors.response.use(
               if (refreshResponse.data?.success && refreshResponse.data?.data) {
                 const { accessToken, refreshToken } = refreshResponse.data.data;
 
-                // 스토어 업데이트
+                // 스토어 업데이트 (Zustand persist 형식 유지)
                 const newState = {
                   ...state,
                   accessToken,
                   refreshToken,
                 };
-                localStorage.setItem('ssoo-auth', JSON.stringify({ state: newState }));
+                localStorage.setItem('ssoo-auth', JSON.stringify({ state: newState, version: version ?? 0 }));
 
                 // 원래 요청 재시도
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -71,9 +81,9 @@ apiClient.interceptors.response.use(
               }
             }
           } catch {
-            // 토큰 갱신 실패 - 로그아웃 처리 후 홈으로 이동
+            // 토큰 갱신 실패 - 인증 정보 제거 (React 라우터에서 리다이렉트 처리)
             localStorage.removeItem('ssoo-auth');
-            window.location.href = '/';
+            return Promise.reject(new ApiError('인증이 만료되었습니다.', 401));
           }
         }
       }
@@ -86,6 +96,6 @@ apiClient.interceptors.response.use(
       error.message ||
       '요청 처리 중 오류가 발생했습니다.';
 
-    return Promise.reject(new Error(message));
+    return Promise.reject(new ApiError(message, error.response?.status));
   },
 );
