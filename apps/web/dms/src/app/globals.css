@@ -1003,20 +1003,22 @@ a:hover {
    비활성 블록은 WYSIWYG 렌더링 유지
    ============================================ */
 
-/* 소스 블록: 일반 codeBlock과 다른 스타일 (배경 강조 + 밝은 테마) */
+/* 소스 블록: 일반 codeBlock과 다른 스타일 (사이드바 배경 + sans 폰트) */
 .ProseMirror pre:has(code.language-livepreview) {
-  background-color: rgba(59, 130, 246, 0.06) !important;
+  background-color: var(--ssoo-content-background) !important;
   color: inherit !important;
   border-radius: 4px !important;
   padding: 0.75rem 1rem !important;
   margin-left: -8px !important;
   margin-right: -8px !important;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Segoe UI", "Noto Sans KR", sans-serif !important; /* design/font-override: codeBlock(pre>code)가 monospace 상속하므로 font-sans 오버라이드 필수 */
 }
 
 .ProseMirror pre:has(code.language-livepreview) code {
   color: inherit !important;
   background: transparent !important;
-  font-size: 0.9rem !important;
+  font-size: inherit !important;
+  font-family: inherit !important; /* design/font-override: 부모 pre의 font-sans 상속 */
 }
 
 /* 에디터 내 링크 클릭 방지 — pointer-events 차단 */
@@ -1026,7 +1028,7 @@ a:hover {
 
 /* 다크 모드 */
 .dark .ProseMirror pre:has(code.language-livepreview) {
-  background-color: rgba(96, 165, 250, 0.08) !important;
+  background-color: var(--ssoo-content-background) !important;
   color: inherit !important;
 }
 
