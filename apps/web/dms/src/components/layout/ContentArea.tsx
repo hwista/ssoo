@@ -11,11 +11,11 @@ import { LoadingState } from '@/components/common/StateDisplay';
  * - 코드 분할로 초기 로딩 최적화
  */
 const pageComponents = {
-  home: lazy(() => import('@/components/pages/home/HomeDashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
+  home: lazy(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
   markdown: lazy(() => import('@/components/pages/markdown/ViewerPage').then(m => ({ default: m.ViewerPage }))),
-  aiAsk: lazy(() => import('@/components/pages/ai/AiAskPage').then(m => ({ default: m.AiAskPage }))),
-  aiSearch: lazy(() => import('@/components/pages/ai/AiSearchPage').then(m => ({ default: m.AiSearchPage }))),
-  aiCreate: lazy(() => import('@/components/pages/ai/AiCreatePage').then(m => ({ default: m.AiCreatePage }))),
+  aiAsk: lazy(() => import('@/components/pages/ai/AskPage').then(m => ({ default: m.AiAskPage }))),
+  aiSearch: lazy(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
+  aiCreate: lazy(() => import('@/components/pages/ai/CreatePage').then(m => ({ default: m.AiCreatePage }))),
 };
 
 /**

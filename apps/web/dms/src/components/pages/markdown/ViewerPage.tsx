@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTabStore, useEditorStore, useConfirmStore, useFileStore } from '@/stores';
+import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { fileApi } from '@/lib/utils/apiClient';
 import { DocPageTemplate } from '@/components/templates';
 import { Viewer } from '@/components/common/viewer';
@@ -33,7 +34,8 @@ type PageMode = 'viewer' | 'editor' | 'create';
  * - 이 페이지 컴포넌트가 자체적으로 데이터 로드
  */
 export function ViewerPage() {
-  const { activeTabId, tabs, closeTab } = useTabStore();
+  const tabId = useCurrentTabId();
+  const { tabs, closeTab } = useTabStore();
   const { confirm } = useConfirmStore();
   const { refreshFileTree } = useFileStore();
   const { 
@@ -52,10 +54,19 @@ export function ViewerPage() {
     hasUnsavedChanges,
     isSaving,
     editorHandlers,
+    removeTabEditor,
   } = useEditorStore();
   
   // 에디터 모드 상태 (로컬)
   const [mode, setMode] = useState<PageMode>('viewer');
+
+  // 탭 제거 시 에디터 상태 정리
+  useEffect(() => {
+    return () => {
+      removeTabEditor();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Store의 isEditing과 동기화 (create 모드는 제외)
   useEffect(() => {
@@ -64,10 +75,10 @@ export function ViewerPage() {
     }
   }, [isEditing, mode]);
 
-  // 활성 탭 찾기
+  // 이 탭 인스턴스 찾기 (keep-alive: activeTabId 대신 context의 tabId 사용)
   const activeTab = useMemo(() => {
-    return tabs.find((tab) => tab.id === activeTabId);
-  }, [tabs, activeTabId]);
+    return tabs.find((tab) => tab.id === tabId);
+  }, [tabs, tabId]);
 
   // 새 문서 작성 모드인지 확인
   const isCreateMode = useMemo(() => {
@@ -160,7 +171,7 @@ export function ViewerPage() {
   }, [setIsEditing]);
 
   const handleDelete = useCallback(async () => {
-    if (!filePath || !activeTabId) return;
+    if (!filePath || !tabId) return;
 
     const confirmed = await confirm({
       title: '문서 삭제',
@@ -175,13 +186,13 @@ export function ViewerPage() {
       const result = await fileApi.delete(filePath);
       if (result.success) {
         reset();
-        closeTab(activeTabId);
+        closeTab(tabId);
         await refreshFileTree();
       }
     } catch (err) {
       console.error('파일 삭제 실패:', err);
     }
-  }, [filePath, activeTabId, confirm, reset, closeTab, refreshFileTree]);
+  }, [filePath, tabId, confirm, reset, closeTab, refreshFileTree]);
 
   const handleSearch = useCallback((_query: string) => {
     // TODO: 문서 내 검색 하이라이트

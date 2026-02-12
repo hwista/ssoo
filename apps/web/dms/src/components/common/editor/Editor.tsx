@@ -6,6 +6,7 @@ import { Content } from './Content';
 import { DOCUMENT_WIDTHS } from '@/components/common/page';
 import { useEditor } from '@/hooks/useEditor';
 import { useEditorStore, useTabStore } from '@/stores';
+import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { useConfirmStore } from '@/stores/confirm.store';
 import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useToast } from '@/lib/toast';
@@ -61,8 +62,9 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     setIsSaving: setStoreIsSaving,
   } = useEditorStore();
 
-  // 탭 스토어 (새 문서 저장 시 탭 업데이트용)
-  const { activeTabId, updateTab, closeTab, openTab } = useTabStore();
+  // 탭 ID (keep-alive context) + 탭 스토어 (새 문서 저장 시 탭 업데이트용)
+  const tabId = useCurrentTabId();
+  const { updateTab, closeTab, openTab } = useTabStore();
   
   // 확인 다이얼로그
   const { confirm } = useConfirmStore();
@@ -129,10 +131,10 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
         showSuccess('생성 완료', '새 문서가 생성되었습니다.');
         
         // 탭 경로 업데이트: /wiki/new → /doc/{newFileName}
-        if (activeTabId) {
+        if (tabId) {
           const newPath = `/doc/${encodeURIComponent(newFileName)}`;
           const title = newFileName.split('/').pop() || newFileName;
-          updateTab(activeTabId, { path: newPath, title });
+          updateTab(tabId, { path: newPath, title });
         }
       } catch (error) {
         showError('생성 실패', '문서 생성 중 오류가 발생했습니다.');
@@ -151,7 +153,7 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     } catch (error) {
       showError('저장 실패', '파일 저장 중 오류가 발생했습니다.');
     }
-  }, [isCreateMode, currentFilePath, editorContent, storeSaveFile, save, setIsEditing, showSuccess, showError, activeTabId, updateTab]);
+  }, [isCreateMode, currentFilePath, editorContent, storeSaveFile, save, setIsEditing, showSuccess, showError, tabId, updateTab]);
 
   // =====================
   // 취소 핸들러
@@ -168,8 +170,8 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     }
     
     // 새 문서 작성 취소 시 탭 닫기
-    if (isCreateMode && activeTabId) {
-      closeTab(activeTabId);
+    if (isCreateMode && tabId) {
+      closeTab(tabId);
       return;
     }
     
@@ -178,7 +180,7 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     // 보류 중인 메타데이터 변경사항 폐기 (서버에서 재로드)
     discardPendingMetadata();
     setIsEditing(false);
-  }, [hasUnsavedChanges, pendingMetadataUpdate, confirm, content, resetContent, setIsEditing, isCreateMode, activeTabId, closeTab, discardPendingMetadata]);
+  }, [hasUnsavedChanges, pendingMetadataUpdate, confirm, content, resetContent, setIsEditing, isCreateMode, tabId, closeTab, discardPendingMetadata]);
 
   // =====================
   // Store에 핸들러 등록 (Header에서 사용)
