@@ -4,8 +4,6 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 export interface AiPageShellProps {
-  title: string;
-  description?: string;
   toolbar?: React.ReactNode;
   footer?: React.ReactNode;
   children: React.ReactNode;
@@ -14,8 +12,6 @@ export interface AiPageShellProps {
 }
 
 export function AiPageShell({
-  title,
-  description,
   toolbar,
   footer,
   children,
@@ -24,25 +20,18 @@ export function AiPageShell({
 }: AiPageShellProps) {
   return (
     <div className={cn('flex h-full flex-col', className)}>
-      <header className="border-b border-ssoo-content-border px-6 py-4">
-        <h1 className="text-xl font-semibold text-ssoo-primary">{title}</h1>
-        {description && (
-          <p className="text-sm text-ssoo-primary/70">{description}</p>
-        )}
-      </header>
-
       {toolbar && (
-        <section className="border-b border-ssoo-content-border px-6 py-4">
+        <section className="border-b border-ssoo-content-border px-4 py-2 min-h-[52px] flex items-center">
           {toolbar}
         </section>
       )}
 
-      <section className={cn('flex-1 overflow-auto px-6 py-6', contentClassName)}>
+      <section className={cn('flex-1 overflow-auto p-4', contentClassName)}>
         {children}
       </section>
 
       {footer && (
-        <footer className="border-t border-ssoo-content-border px-6 py-4">
+        <footer className="border-t border-ssoo-content-border px-4 py-2 min-h-[52px] flex items-center">
           {footer}
         </footer>
       )}

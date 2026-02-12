@@ -25,30 +25,13 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const actionsRef = useRef<HTMLDivElement>(null);
   const [actionsWidth, setActionsWidth] = useState(0);
-  const createButtonRef = useRef<HTMLButtonElement>(null);
-  const [createMenuWidth, setCreateMenuWidth] = useState(0);
 
   useEffect(() => {
     const el = actionsRef.current;
     if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setActionsWidth(entry.contentRect.width);
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const el = createButtonRef.current;
-    if (!el) return;
-    setCreateMenuWidth(el.getBoundingClientRect().width);
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setCreateMenuWidth(entry.contentRect.width);
-      }
-    });
+    const update = () => setActionsWidth(el.getBoundingClientRect().width);
+    update();
+    const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
@@ -66,7 +49,7 @@ export function Header() {
         id: `ai-${aiSearchType}-${Date.now()}`,
         title: `${label}: ${trimmedQuery.slice(0, 20)}...`,
         path: `${targetPath}?q=${encodeURIComponent(trimmedQuery)}`,
-        icon: isQuestionMode ? 'Bot' : 'FileSearch',
+        icon: 'Bot',
         closable: true,
         activate: true,
       });
@@ -90,7 +73,7 @@ export function Header() {
       id: `ai-create-${Date.now()}`,
       title: 'AI 작성',
       path: '/ai/create',
-      icon: 'Sparkles',
+      icon: 'Bot',
       closable: true,
       activate: true,
     });
@@ -130,23 +113,22 @@ export function Header() {
           <DropdownMenuContent
             align="start"
             sideOffset={4}
-            className="w-48 bg-ssoo-primary text-white border-white/20"
+            className="!min-w-0 bg-ssoo-primary text-white border-white/20"
+            style={{ width: 'var(--radix-popper-anchor-width)' }}
           >
             <DropdownMenuItem
               onClick={() => setAISearchType('question')}
               className={`text-white focus:bg-white/10 focus:text-white ${aiSearchType === 'question' ? 'bg-white/10' : ''}`}
             >
-              <Bot className="w-4 h-4 mr-2" />
-              질문
-              <span className="ml-auto text-xs text-white/70">문서 기반 대화</span>
+              <Bot className="w-4 h-4 shrink-0" />
+              <span className="truncate">질문</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setAISearchType('search')}
               className={`text-white focus:bg-white/10 focus:text-white ${aiSearchType === 'search' ? 'bg-white/10' : ''}`}
             >
-              <FileSearch className="w-4 h-4 mr-2" />
-              검색
-              <span className="ml-auto text-xs text-white/70">문서 목록</span>
+              <FileSearch className="w-4 h-4 shrink-0" />
+              <span className="truncate">검색</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -158,7 +140,6 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              ref={createButtonRef}
               className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-sm font-medium rounded-md hover:bg-gray-100 transition-colors"
             >
               <Plus className="w-4 h-4" />
@@ -168,22 +149,22 @@ export function Header() {
           <DropdownMenuContent
             align="start"
             sideOffset={4}
-            className="bg-white border border-ssoo-content-border shadow-lg"
-            style={createMenuWidth ? { width: createMenuWidth } : undefined}
+            className="!min-w-0 bg-white border border-ssoo-content-border shadow-lg"
+            style={{ width: 'var(--radix-popper-anchor-width)' }}
           >
             <DropdownMenuItem
               onClick={handleCreateWithAi}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-ssoo-primary focus:bg-ssoo-content-bg/60 focus:text-ssoo-primary"
+              className="text-ssoo-primary focus:bg-ssoo-content-bg/60 focus:text-ssoo-primary"
             >
-              <Sparkles className="h-4 w-4 text-ssoo-primary" />
-              <span>AI 작성</span>
+              <Sparkles className="h-4 w-4 shrink-0" />
+              <span className="truncate">AI 작성</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleCreateWithUi}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-ssoo-primary focus:bg-ssoo-content-bg/60 focus:text-ssoo-primary"
+              className="text-ssoo-primary focus:bg-ssoo-content-bg/60 focus:text-ssoo-primary"
             >
-              <FileText className="h-4 w-4 text-ssoo-primary" />
-              <span>UI 작성</span>
+              <FileText className="h-4 w-4 shrink-0" />
+              <span className="truncate">UI 작성</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

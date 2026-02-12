@@ -32,6 +32,9 @@ export interface HeaderProps {
   /** 모드: viewer | editor | create */
   mode: 'viewer' | 'editor' | 'create';
   
+  /** 페이지 부가 설명 (헤더 왼쪽에 표시) */
+  description?: string;
+  
   /** 뷰어 모드 액션 */
   onEdit?: () => void;
   onDelete?: () => void;
@@ -77,6 +80,7 @@ export interface HeaderProps {
  */
 export function Header({
   mode,
+  description,
   onEdit,
   onDelete,
   onHistory,
@@ -94,8 +98,11 @@ export function Header({
         className
       )}
     >
-      {/* 좌측: 모드별 액션 버튼 */}
+      {/* 좌측: 설명 또는 모드별 액션 버튼 */}
       <div className="flex items-center gap-2">
+        {description && (
+          <span className="text-sm text-gray-500">{description}</span>
+        )}
         {mode === 'viewer' && (
           <>
             {onEdit && (

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SendHorizontal, Bot, User } from 'lucide-react';
 import { useTabStore } from '@/stores';
 import { DocPageTemplate } from '@/components/templates';
-import { AiPageShell } from '@/components/common/ai';
+import { AiPageShell, AiSidecar } from '@/components/common/ai';
 import { aiApi, getErrorMessage } from '@/lib/utils/apiClient';
 
 interface ChatMessage {
@@ -65,10 +65,8 @@ export function AiAskPage() {
 
   return (
     <main className="flex-1 overflow-hidden bg-ssoo-content-bg/30">
-      <DocPageTemplate filePath="ai/ask" mode="viewer" contentOrientation="portrait">
+      <DocPageTemplate filePath="ai/ask" mode="viewer" contentOrientation="portrait" description="문서 기반으로 질문을 입력하세요." sidecarContent={<AiSidecar variant="ask" />}>
         <AiPageShell
-          title="AI 질문"
-          description="문서 기반으로 질문을 입력하세요."
           footer={(
             <div className="flex items-center gap-2">
               <input
@@ -106,7 +104,7 @@ export function AiAskPage() {
                   className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {message.role === 'assistant' && (
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ssoo-content-bg">
+                    <div className="flex h-control-h w-control-h shrink-0 items-center justify-center rounded-full bg-ssoo-content-bg">
                       <Bot className="h-5 w-5 text-ssoo-primary" />
                     </div>
                   )}
@@ -120,7 +118,7 @@ export function AiAskPage() {
                     {message.content}
                   </div>
                   {message.role === 'user' && (
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ssoo-primary">
+                    <div className="flex h-control-h w-control-h shrink-0 items-center justify-center rounded-full bg-ssoo-primary">
                       <User className="h-5 w-5 text-white" />
                     </div>
                   )}

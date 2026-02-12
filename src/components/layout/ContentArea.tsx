@@ -1,24 +1,20 @@
 'use client';
 
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense } from 'react';
 import { useTabStore, HOME_TAB } from '@/stores';
+import { TabInstanceContext } from '@/contexts/TabInstanceContext';
 import { LoadingState } from '@/components/common/StateDisplay';
 
 /**
- * 페이지 컴포넌트 매핑 (PMS 패턴)
+ * 페이지 컴포넌트 매핑
  * - React.lazy로 동적 import
  * - 코드 분할로 초기 로딩 최적화
  */
 const pageComponents = {
-  // Home 대시보드
   home: lazy(() => import('@/components/pages/home/HomeDashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
-  // 마크다운 뷰어/에디터
   markdown: lazy(() => import('@/components/pages/markdown/ViewerPage').then(m => ({ default: m.ViewerPage }))),
-  // AI 질문
   aiAsk: lazy(() => import('@/components/pages/ai/AiAskPage').then(m => ({ default: m.AiAskPage }))),
-  // AI 검색
   aiSearch: lazy(() => import('@/components/pages/ai/AiSearchPage').then(m => ({ default: m.AiSearchPage }))),
-  // AI 작성
   aiCreate: lazy(() => import('@/components/pages/ai/AiCreatePage').then(m => ({ default: m.AiCreatePage }))),
 };
 
@@ -39,57 +35,29 @@ function LoadingFallback() {
 function getPageType(tab: { id: string; path: string } | undefined): keyof typeof pageComponents | null {
   if (!tab) return null;
   
-  // Home 탭
-  if (tab.id === HOME_TAB.id) {
-    return 'home';
-  }
-  
-  // 문서 탭 (/doc/...)
-  if (tab.path.startsWith('/doc/')) {
-    return 'markdown';
-  }
-  
-  // 새 문서 작성 (/wiki/new)
-  if (tab.path === '/wiki/new') {
-    return 'markdown';
-  }
-
-  if (tab.path.startsWith('/ai/ask')) {
-    return 'aiAsk';
-  }
-
-  if (tab.path.startsWith('/ai/search')) {
-    return 'aiSearch';
-  }
-
-  if (tab.path === '/ai/create') {
-    return 'aiCreate';
-  }
+  if (tab.id === HOME_TAB.id) return 'home';
+  if (tab.path.startsWith('/doc/')) return 'markdown';
+  if (tab.path === '/wiki/new') return 'markdown';
+  if (tab.path.startsWith('/ai/ask')) return 'aiAsk';
+  if (tab.path.startsWith('/ai/search')) return 'aiSearch';
+  if (tab.path === '/ai/create') return 'aiCreate';
   
   return null;
 }
 
 /**
- * DMS 콘텐츠 영역
+ * DMS 콘텐츠 영역 (Keep-Alive MDI)
  * 
- * PMS 패턴:
- * - pageComponents 매핑으로 동적 페이지 로딩
- * - Suspense로 로딩 상태 처리
- * - 각 페이지 컴포넌트가 자체적으로 데이터 로드
+ * - 모든 열린 탭의 컴포넌트를 동시에 마운트
+ * - 비활성 탭은 CSS display:none으로 숨김 (DOM 유지)
+ * - TabInstanceContext로 각 페이지에 자신의 tabId 주입
+ * - 탭 전환 시 unmount/remount 없이 상태 보존
+ *   → 스크롤 위치, 에디터 내용, 채팅 기록, 검색 결과 유지
  */
 export function ContentArea() {
   const { activeTabId, tabs } = useTabStore();
-  
-  // 활성 탭 찾기
-  const activeTab = useMemo(() => {
-    return tabs.find((tab) => tab.id === activeTabId);
-  }, [tabs, activeTabId]);
 
-  // 페이지 타입 결정
-  const pageType = getPageType(activeTab);
-
-  // 탭이 없을 때
-  if (!activeTab) {
+  if (tabs.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white">
         <p className="text-gray-500">탭을 선택해주세요.</p>
@@ -97,24 +65,41 @@ export function ContentArea() {
     );
   }
 
-  // 알 수 없는 페이지 타입
-  if (!pageType) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-white">
-        <p className="text-gray-500">
-          알 수 없는 페이지입니다. (경로: {activeTab.path})
-        </p>
-      </div>
-    );
-  }
-
-  // 페이지 컴포넌트 선택
-  const PageComponent = pageComponents[pageType];
-
-  // Suspense로 동적 로딩
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <PageComponent />
-    </Suspense>
+    <div className="flex-1 relative overflow-hidden">
+      {tabs.map((tab) => {
+        const pageType = getPageType(tab);
+        const isActive = tab.id === activeTabId;
+
+        // 알 수 없는 페이지 타입
+        if (!pageType) {
+          return (
+            <div
+              key={tab.id}
+              className={`absolute inset-0 flex items-center justify-center bg-white ${isActive ? '' : 'hidden'}`}
+            >
+              <p className="text-gray-500">
+                알 수 없는 페이지입니다. (경로: {tab.path})
+              </p>
+            </div>
+          );
+        }
+
+        const PageComponent = pageComponents[pageType];
+
+        return (
+          <div
+            key={tab.id}
+            className={`absolute inset-0 overflow-auto ${isActive ? '' : 'hidden'}`}
+          >
+            <TabInstanceContext.Provider value={tab.id}>
+              <Suspense fallback={<LoadingFallback />}>
+                <PageComponent />
+              </Suspense>
+            </TabInstanceContext.Provider>
+          </div>
+        );
+      })}
+    </div>
   );
 }

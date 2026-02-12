@@ -128,7 +128,8 @@ export function Sidebar({
           <DropdownMenuContent
             align="end"
             sideOffset={4}
-            className="w-40 bg-ssoo-primary text-white border-white/20"
+            className="!min-w-0 bg-ssoo-primary text-white border-white/20"
+            style={{ width: 'var(--radix-popper-anchor-width)' }}
           >
             {(Object.keys(DOCUMENT_TYPE_LABELS) as DocumentType[]).map((type) => {
               const TypeIcon = DOCUMENT_TYPE_ICONS[type];
@@ -142,8 +143,8 @@ export function Sidebar({
                     isActiveType && 'bg-white/10'
                   )}
                 >
-                  <TypeIcon className="w-4 h-4 mr-2" />
-                  {DOCUMENT_TYPE_LABELS[type]}
+                  <TypeIcon className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{DOCUMENT_TYPE_LABELS[type]}</span>
                 </DropdownMenuItem>
               );
             })}

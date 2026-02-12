@@ -29,7 +29,7 @@ export function HomeDashboardPage() {
       id: 'ai-search',
       title: 'AI 검색',
       path: '/ai/search',
-      icon: 'Search',
+      icon: 'Bot',
       closable: true,
       activate: true,
     });

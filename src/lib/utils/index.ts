@@ -69,6 +69,11 @@ export {
   SUCCESS_MESSAGES,
 } from './constants';
 
+// 탭 유틸리티
+export {
+  getQueryFromTabPath,
+} from './tabUtils';
+
 // API 클라이언트
 export {
   fileApi,
