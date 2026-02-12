@@ -42,7 +42,7 @@ export function HomeDashboardPage() {
   };
 
   return (
-    <main className="flex-1 overflow-auto bg-white p-6">
+    <main className="h-full overflow-auto bg-white p-6">
       <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
         <h1 className="text-2xl font-bold text-ssoo-primary mb-4">

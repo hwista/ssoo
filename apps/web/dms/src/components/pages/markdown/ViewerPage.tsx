@@ -277,7 +277,7 @@ export function ViewerPage() {
   // 파일 경로가 없고, 생성 모드도 아닐 때
   if (!filePath && !isCreateMode) {
     return (
-      <main className="flex-1 flex items-center justify-center bg-ssoo-content-bg/30">
+      <main className="h-full flex items-center justify-center bg-ssoo-content-bg/30">
         <p className="text-ssoo-primary/70">사이드바에서 파일을 선택해주세요.</p>
       </main>
     );
@@ -285,7 +285,7 @@ export function ViewerPage() {
 
   // 공통 템플릿 + 슬롯 구조
   return (
-    <main className="flex-1 overflow-hidden bg-ssoo-content-bg/30">
+    <main className="h-full overflow-hidden bg-ssoo-content-bg/30">
       <DocPageTemplate
         filePath={filePath || '새 문서.md'}
         mode={mode === 'create' ? 'editor' : mode}
