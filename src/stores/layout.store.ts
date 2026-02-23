@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { DeviceType, DocumentType, AISearchType, LayoutState, LayoutActions } from '@/types';
+import type { DeviceType, DocumentType, LayoutState, LayoutActions } from '@/types';
 import { BREAKPOINTS } from '@/types';
 
 interface LayoutStore extends LayoutState, LayoutActions {}
@@ -14,7 +14,6 @@ export const useLayoutStore = create<LayoutStore>()((set) => ({
   // Initial State
   deviceType: 'desktop',
   documentType: 'wiki',
-  aiSearchType: 'question',
 
   // Actions
   setDeviceType: (type: DeviceType) => {
@@ -23,10 +22,6 @@ export const useLayoutStore = create<LayoutStore>()((set) => ({
 
   setDocumentType: (type: DocumentType) => {
     set({ documentType: type });
-  },
-
-  setAISearchType: (type: AISearchType) => {
-    set({ aiSearchType: type });
   },
 }));
 

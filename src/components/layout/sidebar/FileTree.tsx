@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, Image, Bookmark } from 'lucide-react';
+import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, ImageIcon, Bookmark } from 'lucide-react';
 import { useFileStore, useSidebarStore, useTabStore, useActiveEditorFilePath } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
 import type { FileNode } from '@/types';
@@ -33,7 +33,7 @@ function getFileIcon(name: string, isSelected: boolean) {
     case 'jpeg':
     case 'gif':
     case 'svg':
-      return <Image className={iconClass} />;
+      return <ImageIcon className={iconClass} />;
     default:
       return <File className={iconClass} />;
   }

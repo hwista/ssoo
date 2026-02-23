@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { Info, Settings, History, BookOpen } from 'lucide-react';
+import { Info, History, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AssistantSessionHistoryList } from '@/components/common/assistant/AssistantSessionHistoryList';
 
 /**
  * AI Sidecar Section 타입
@@ -21,10 +22,24 @@ interface SidecarSection {
 export interface AiSidecarProps {
   /** AI 기능 유형 */
   variant: 'ask' | 'search' | 'create';
-  /** 검색/질문 히스토리 */
-  history?: string[];
+  /** 채팅 세션 히스토리 */
+  history?: Array<{
+    id: string;
+    title: string;
+    updatedAt: string;
+    active?: boolean;
+    persistedToDb?: boolean;
+  }>;
   /** 참조 소스 문서 목록 */
   sources?: Array<{ title: string; path: string }>;
+  /** 히스토리 선택 콜백 */
+  onHistorySelect?: (item: { id: string; title: string; updatedAt: string; active?: boolean; persistedToDb?: boolean }) => void;
+  /** 히스토리 DB 저장/해제 */
+  onHistoryPersistToggle?: (item: { id: string; title: string; updatedAt: string; active?: boolean; persistedToDb?: boolean }) => void;
+  /** 추천 질문 */
+  suggestions?: string[];
+  /** 추천 질문 선택 */
+  onSuggestionSelect?: (suggestion: string) => void;
   /** 추가 className */
   className?: string;
 }
@@ -59,9 +74,9 @@ const VARIANT_INFO: Record<AiSidecarProps['variant'], { title: string; tips: str
   ask: {
     title: 'AI 질문',
     tips: [
-      '구체적인 키워드를 포함하면 정확도가 높아집니다.',
-      '문서 제목이나 내용 일부를 인용하면 관련 문서를 찾습니다.',
-      '여러 번 질문하여 대화를 이어갈 수 있습니다.',
+      '질문 의도에 따라 대화/문서 검색/기능 안내를 자동으로 분기합니다.',
+      '플로팅 패널의 크게보기 버튼으로 /ai/ask 탭으로 확장할 수 있습니다.',
+      '추천 질문 클릭 시 즉시 전송되며, 대화가 시작되면 추천 영역이 자동으로 접힙니다.',
     ],
   },
   search: {
@@ -88,7 +103,16 @@ const VARIANT_INFO: Record<AiSidecarProps['variant'], { title: string; tips: str
  * DocPageTemplate의 sidecarContent 슬롯에 사용합니다.
  * 기존 문서 Sidecar와 동일한 위치에 AI 맞춤 정보를 표시합니다.
  */
-export function AiSidecar({ variant, history = [], sources = [], className }: AiSidecarProps) {
+export function AiSidecar({
+  variant,
+  history = [],
+  sources = [],
+  onHistorySelect,
+  onHistoryPersistToggle,
+  suggestions = [],
+  onSuggestionSelect,
+  className,
+}: AiSidecarProps) {
   const info = VARIANT_INFO[variant];
 
   return (
@@ -116,6 +140,29 @@ export function AiSidecar({ variant, history = [], sources = [], className }: Ai
           </ul>
         </CollapsibleSection>
 
+        {/* 추천 질문 (AI 질문 페이지) */}
+        {variant === 'ask' && suggestions.length > 0 && (
+          <CollapsibleSection
+            title="추천 질문"
+            icon={<Info className="h-4 w-4 text-gray-500" />}
+            defaultOpen
+          >
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => onSuggestionSelect?.(suggestion)}
+                  className="max-w-full truncate rounded-full border border-ssoo-content-border bg-white px-3 py-1.5 text-xs text-ssoo-primary transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg"
+                  title={suggestion}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </CollapsibleSection>
+        )}
+
         {/* 참조 소스 (질문/검색에서 결과가 있을 때) */}
         {sources.length > 0 && (
           <CollapsibleSection
@@ -134,31 +181,22 @@ export function AiSidecar({ variant, history = [], sources = [], className }: Ai
           </CollapsibleSection>
         )}
 
-        {/* 히스토리 */}
-        {history.length > 0 && (
-          <CollapsibleSection
-            title="최근 기록"
-            icon={<History className="h-4 w-4 text-gray-500" />}
-            defaultOpen={false}
-          >
-            <ul className="space-y-1.5">
-              {history.map((item, index) => (
-                <li key={index} className="text-xs text-gray-600 truncate">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </CollapsibleSection>
-        )}
-
-        {/* AI 설정 (향후 확장) */}
+        {/* 채팅 기록 */}
         <CollapsibleSection
-          title="설정"
-          icon={<Settings className="h-4 w-4 text-gray-500" />}
-          defaultOpen={false}
+          title="채팅 기록"
+          icon={<History className="h-4 w-4 text-gray-500" />}
+          defaultOpen={variant === 'ask'}
         >
-          <p className="text-xs text-gray-400">AI 설정은 향후 추가 예정입니다.</p>
+          <AssistantSessionHistoryList
+            items={history}
+            isActive={(item) => Boolean(item.active)}
+            onSelect={(item) => onHistorySelect?.(item)}
+            onTogglePersist={onHistoryPersistToggle ? (item) => onHistoryPersistToggle(item) : undefined}
+            emptyText="아직 기록이 없습니다. 질문을 보내면 여기에 표시됩니다."
+            variant="sidecar"
+          />
         </CollapsibleSection>
+
       </div>
     </div>
   );

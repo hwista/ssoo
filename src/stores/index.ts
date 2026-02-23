@@ -22,3 +22,7 @@ export { useGitStore } from './git.store';
 
 // Settings
 export { useSettingsStore } from './settings.store';
+
+// Assistant
+export { useAssistantStore } from './assistant.store';
+export type { AssistantMessage, AssistantSearchResult, AssistantSession } from './assistant.store';

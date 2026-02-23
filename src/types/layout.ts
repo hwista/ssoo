@@ -48,22 +48,11 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
 } as const;
 
 /**
- * AI 검색 타입
- */
-export type AISearchType = 'question' | 'search';
-
-export const AI_SEARCH_TYPE_LABELS: Record<AISearchType, string> = {
-  question: '질문',
-  search: '검색',
-} as const;
-
-/**
  * 앱 레이아웃 상태
  */
 export interface LayoutState {
   deviceType: DeviceType;
   documentType: DocumentType;
-  aiSearchType: AISearchType;
 }
 
 /**
@@ -72,7 +61,6 @@ export interface LayoutState {
 export interface LayoutActions {
   setDeviceType: (type: DeviceType) => void;
   setDocumentType: (type: DocumentType) => void;
-  setAISearchType: (type: AISearchType) => void;
 }
 
 // SidebarSection은 ./sidebar.ts로 분리 (PMS 컨벤션)

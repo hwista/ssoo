@@ -92,7 +92,8 @@ const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
 
   removeTab: (tabId) => {
     set(state => {
-      const { [tabId]: _, ...rest } = state.editors;
+      const rest = { ...state.editors };
+      delete rest[tabId];
       return { editors: rest };
     });
   },

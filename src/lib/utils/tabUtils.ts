@@ -5,11 +5,11 @@
 /**
  * 탭 경로에서 쿼리 파라미터 추출
  * 
- * @param path - 탭 경로 (예: '/ai/ask?q=hello')
+ * @param path - 탭 경로 (예: '/ai/search?q=hello')
  * @returns 쿼리 문자열 값 (q 파라미터)
  * 
  * @example
- * getQueryFromTabPath('/ai/ask?q=hello') // 'hello'
+ * getQueryFromTabPath('/ai/search?q=hello') // 'hello'
  * getQueryFromTabPath('/ai/search')       // ''
  */
 export function getQueryFromTabPath(path?: string): string {

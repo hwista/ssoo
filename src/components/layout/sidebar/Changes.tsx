@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FileText, FilePlus, FileX, FileEdit, Undo2, GitCommitHorizontal } from 'lucide-react';
+import { FilePlus, FileX, FileEdit, Undo2, GitCommitHorizontal } from 'lucide-react';
 import { useGitStore } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
 import { useConfirmStore } from '@/stores/confirm.store';
@@ -43,7 +43,7 @@ const STATUS_LABELS: Record<GitFileStatus, string> = {
  * - 커밋 버튼
  */
 export function Changes() {
-  const { changes, changeCount, isAvailable, refreshChanges, discardFile, isLoading } = useGitStore();
+  const { changes, changeCount, isAvailable, refreshChanges, discardFile } = useGitStore();
   const { confirm } = useConfirmStore();
   const openTabWithConfirm = useOpenTabWithConfirm();
   const [showCommitDialog, setShowCommitDialog] = useState(false);

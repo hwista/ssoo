@@ -34,11 +34,10 @@ export type {
 export type {
   DeviceType,
   DocumentType,
-  AISearchType,
   LayoutState,
   LayoutActions,
 } from './layout';
-export { BREAKPOINTS, LAYOUT_SIZES, DOCUMENT_TYPE_LABELS, AI_SEARCH_TYPE_LABELS } from './layout';
+export { BREAKPOINTS, LAYOUT_SIZES, DOCUMENT_TYPE_LABELS } from './layout';
 
 // Sidebar
 export type {

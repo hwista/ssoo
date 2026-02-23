@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Search, ZoomIn, ZoomOut, List, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, ZoomIn, ZoomOut, List, X, ChevronUp, ChevronDown, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { TocItem } from '../page/Sidecar';
@@ -32,6 +32,7 @@ export interface ToolbarProps {
   currentResultIndex: number;
   hasSearched: boolean;
   onNavigateResult: (direction: 'prev' | 'next') => void;
+  onAttachToAssistant?: () => void;
   
   // 줌 관련
   zoomLevel: number;
@@ -58,6 +59,7 @@ export function Toolbar({
   currentResultIndex,
   hasSearched,
   onNavigateResult,
+  onAttachToAssistant,
   zoomLevel,
   onZoomIn,
   onZoomOut,
@@ -214,6 +216,19 @@ export function Toolbar({
               </div>
             )}
           </form>
+          {onAttachToAssistant && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="default"
+              onClick={onAttachToAssistant}
+              className="h-control-h gap-1.5 text-ssoo-primary"
+              title="현재 문서를 AI에 첨부하고 질문하기"
+            >
+              <Bot className="h-4 w-4" />
+              AI
+            </Button>
+          )}
         </div>
 
         {/* 우측: 줌 컨트롤 */}

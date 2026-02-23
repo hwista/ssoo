@@ -5,7 +5,6 @@ import {
   Settings,
   GitBranch,
   FolderOpen,
-  User,
   Save,
   Loader2,
   AlertCircle,

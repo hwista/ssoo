@@ -1,0 +1,24 @@
+{
+  "title": "기능 개발 설계서 - 주문 요청 프로세스 통합 검증 강화",
+  "summary": "",
+  "tags": [],
+  "sourceLinks": [],
+  "createdAt": "2026-02-04T00:19:14.222Z",
+  "updatedAt": "2026-02-23T07:32:14.952Z",
+  "fileHashes": {
+    "content": "a99d240b52ce14f0174fdab58bd0d28e8b3778e2a85ba8e4d50902e327112ae2",
+    "sources": {}
+  },
+  "chunkIds": [],
+  "embeddingModel": "",
+  "sourceFiles": [],
+  "acl": {
+    "owners": [],
+    "editors": [],
+    "viewers": []
+  },
+  "versionHistory": [],
+  "comments": [],
+  "templateId": "default",
+  "author": "Unknown"
+}

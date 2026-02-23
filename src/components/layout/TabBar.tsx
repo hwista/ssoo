@@ -1,7 +1,8 @@
 'use client';
 
 import { useTabStore, HOME_TAB } from '@/stores';
-import { X, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch } from 'lucide-react';
+import { useAssistantStore } from '@/stores';
+import { X, Minimize2, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { LAYOUT_SIZES } from '@/types';
@@ -15,6 +16,7 @@ import { LAYOUT_SIZES } from '@/types';
  */
 export function TabBar() {
   const { tabs, activeTabId, activateTab, closeTab, reorderTabs } = useTabStore();
+  const openPanel = useAssistantStore((state) => state.openPanel);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
@@ -179,13 +181,22 @@ export function TabBar() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (tab.path.startsWith('/ai/ask')) {
+                      closeTab(tab.id);
+                      openPanel();
+                      return;
+                    }
                     closeTab(tab.id);
                   }}
                   className={`h-control-h-sm w-control-h-sm flex items-center justify-center opacity-0 group-hover:opacity-100 rounded transition-opacity ${
                     isActive ? 'hover:bg-ssoo-primary/20' : 'hover:bg-gray-200'
                   }`}
                 >
-                  <X className={`w-3 h-3 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                  {tab.path.startsWith('/ai/ask') ? (
+                    <Minimize2 className={`w-3 h-3 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                  ) : (
+                    <X className={`w-3 h-3 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                  )}
                 </button>
               )}
             </div>

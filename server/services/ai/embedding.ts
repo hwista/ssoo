@@ -42,7 +42,7 @@ export function chunkText(text: string, maxChunkSize = 1000, overlap = 200): str
  * 단일 쿼리의 임베딩 벡터 생성
  */
 export async function embedQuery(query: string): Promise<number[]> {
-  const model = getEmbeddingModel();
+  const model = await getEmbeddingModel();
   const { embedding } = await embed({ model, value: query });
   return embedding;
 }
@@ -51,7 +51,7 @@ export async function embedQuery(query: string): Promise<number[]> {
  * 여러 텍스트의 임베딩 벡터 일괄 생성
  */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
-  const model = getEmbeddingModel();
+  const model = await getEmbeddingModel();
   const { embeddings } = await embedMany({ model, values: texts });
   return embeddings;
 }

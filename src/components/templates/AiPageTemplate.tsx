@@ -33,19 +33,29 @@ export interface AiPageTemplateProps {
   shellClassName?: string;
   /** AiPageShell 콘텐츠 추가 className */
   shellContentClassName?: string;
+  /** 사이드카 히스토리 */
+  sidecarHistory?: AiSidecarProps['history'];
+  /** 사이드카 히스토리 선택 */
+  onSidecarHistorySelect?: AiSidecarProps['onHistorySelect'];
+  /** 사이드카 히스토리 DB 저장/해제 */
+  onSidecarHistoryPersistToggle?: AiSidecarProps['onHistoryPersistToggle'];
+  /** 사이드카 추천 질문 */
+  sidecarSuggestions?: AiSidecarProps['suggestions'];
+  /** 사이드카 추천 질문 선택 */
+  onSidecarSuggestionSelect?: AiSidecarProps['onSuggestionSelect'];
 }
 
 /**
  * AiPageTemplate 컴포넌트
  * 
- * AI 페이지 3종(질문/검색/작성)의 공통 레이아웃 템플릿
+ * AI 페이지 2종(검색/작성)의 공통 레이아웃 템플릿
  * - DocPageTemplate (mode=viewer, orientation=portrait)
  * - AiSidecar (variant별 자동 선택)
  * - AiPageShell (toolbar/footer/children 슬롯)
  * 
  * @example
  * ```tsx
- * <AiPageTemplate variant="ask" description="문서 기반으로 질문을 입력하세요.">
+ * <AiPageTemplate variant="search" description="문서 기반 검색 결과를 확인하세요.">
  *   {chatMessages}
  * </AiPageTemplate>
  * ```
@@ -58,6 +68,11 @@ export function AiPageTemplate({
   children,
   shellClassName,
   shellContentClassName,
+  sidecarHistory,
+  onSidecarHistorySelect,
+  onSidecarHistoryPersistToggle,
+  sidecarSuggestions,
+  onSidecarSuggestionSelect,
 }: AiPageTemplateProps) {
   const config = AI_PAGE_CONFIG[variant];
 
@@ -68,7 +83,16 @@ export function AiPageTemplate({
         mode="viewer"
         contentOrientation="portrait"
         description={description}
-        sidecarContent={<AiSidecar variant={variant} />}
+        sidecarContent={(
+          <AiSidecar
+            variant={variant}
+            history={sidecarHistory}
+            onHistorySelect={onSidecarHistorySelect}
+            onHistoryPersistToggle={onSidecarHistoryPersistToggle}
+            suggestions={sidecarSuggestions}
+            onSuggestionSelect={onSidecarSuggestionSelect}
+          />
+        )}
       >
         <AiPageShell
           toolbar={toolbar}

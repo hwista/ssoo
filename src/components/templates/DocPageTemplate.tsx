@@ -9,7 +9,6 @@ import {
   Breadcrumb, 
   Header,
   Sidecar,
-  type HeaderProps,
   type SidecarProps,
   DOCUMENT_WIDTHS,
   DEFAULT_DOCUMENT_ORIENTATION,

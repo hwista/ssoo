@@ -4,6 +4,7 @@ import { lazy, Suspense } from 'react';
 import { useTabStore, HOME_TAB } from '@/stores';
 import { TabInstanceContext } from '@/contexts/TabInstanceContext';
 import { LoadingState } from '@/components/common/StateDisplay';
+import { AiAskPage } from '@/components/pages/ai/AskPage';
 
 /**
  * 페이지 컴포넌트 매핑
@@ -13,7 +14,7 @@ import { LoadingState } from '@/components/common/StateDisplay';
 const pageComponents = {
   home: lazy(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
   markdown: lazy(() => import('@/components/pages/markdown/ViewerPage').then(m => ({ default: m.ViewerPage }))),
-  aiAsk: lazy(() => import('@/components/pages/ai/AskPage').then(m => ({ default: m.AiAskPage }))),
+  aiAsk: AiAskPage,
   aiSearch: lazy(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
   aiCreate: lazy(() => import('@/components/pages/ai/CreatePage').then(m => ({ default: m.AiCreatePage }))),
   settings: lazy(() => import('@/components/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))),

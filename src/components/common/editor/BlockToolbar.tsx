@@ -17,7 +17,7 @@ import {
   ListOrdered,
   Quote,
   Link,
-  Image,
+  ImageIcon,
   Table,
   CheckSquare,
   Highlighter,
@@ -252,7 +252,7 @@ const BlockToolbar: React.FC<BlockToolbarProps> = ({ editor }) => {
           onClick={() => setShowImageInput(!showImageInput)}
           tooltip="이미지 삽입"
         >
-          <Image className="h-4 w-4" />
+          <ImageIcon className="h-4 w-4" />
         </ToolbarButton>
         {showImageInput && (
           <div className="absolute top-full left-0 mt-1 p-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 flex gap-2">

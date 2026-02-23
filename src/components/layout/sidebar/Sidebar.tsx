@@ -62,7 +62,7 @@ export function Sidebar({
   onClose,
 }: SidebarProps) {
   const { documentType, setDocumentType } = useLayoutStore();
-  const { expandedSections, toggleSection, searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
+  const { expandedSections, toggleSection } = useSidebarStore();
   const { refreshFileTree } = useFileStore();
   const { changeCount, initialize: initGit, isAvailable: gitAvailable } = useGitStore();
   const [isRefreshing, setIsRefreshing] = useState(false);

@@ -62,7 +62,7 @@ export function AiCreatePage() {
         setActiveItemId(null);
       }
     },
-    onError: (_error: Error) => {
+    onError: () => {
       if (activeItemId) {
         setAttachments((prev) =>
           prev.map((item) =>

@@ -35,6 +35,8 @@ export async function POST(req: Request) {
     content?: string;
     parts?: Array<{ type: string; text?: string }>;
   }> = body?.messages ?? [];
+  const contextMode = typeof body?.contextMode === 'string' ? body.contextMode : 'default';
+  const attachmentOnly = contextMode === 'attachments-only';
 
   if (rawMessages.length === 0) {
     return new Response('메시지가 비어 있습니다.', { status: 400 });
@@ -54,10 +56,13 @@ export async function POST(req: Request) {
   // RAG 컨텍스트 주입
   const { messages: augmentedMessages } = await buildRAGMessages(
     lastUserMessage.content,
-    messages
+    messages,
+    attachmentOnly
+      ? { skipSearch: true, includeImplementationContext: false }
+      : undefined
   );
 
   // 스트리밍 응답
-  const result = askQuestionStream(lastUserMessage.content, augmentedMessages);
+  const result = await askQuestionStream(lastUserMessage.content, augmentedMessages, { attachmentOnly });
   return result.toUIMessageStreamResponse();
 }
