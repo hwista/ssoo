@@ -10,33 +10,24 @@
 ## ✅ 완료된 구조
 
 ```
-apps/web/dms/docs/development/   # DMS 내부 정본
-├── README.md                    # 문서 인덱스
-├── architecture/                # 아키텍처 문서
-│   ├── tech-stack.md
-│   ├── package-spec.md
-│   └── docs-structure-plan.md
-├── domain/                      # 도메인 문서
-│   └── service-overview.md
-├── design/                      # 디자인 문서
-│   └── design-system.md
-├── guides/                      # 개발 가이드
-│   ├── hooks.md
-│   ├── components.md
-│   └── api.md
-├── planning/                    # 계획/진행 문서
-│   ├── README.md
-│   ├── roadmap.md
-│   ├── backlog.md
-│   └── changelog.md
-└── _archive/                    # 아카이브
+apps/web/dms/docs/              # DMS 내부 정본
+├── README-dev.md               # 문서 인덱스
+├── AGENTS.md                   # 에이전트 온보딩 가이드
+├── explanation/                # 개념/아키텍처 문서
+│   ├── architecture/
+│   ├── domain/
+│   └── design/
+├── guides/                     # 개발 가이드
+├── planning/                   # 계획/진행 문서
+├── wiki/                       # 사용자/운영 위키
+└── _archive/                   # 아카이브
 ```
 
 ---
 
 ## 적용된 원칙
 
-1. **DMS 내부 문서가 정본** (`apps/web/dms/docs/development/`)
+1. **DMS 내부 문서가 정본** (`apps/web/dms/docs/`)
 2. **모노레포 `docs/dms`는 참조용** (통합 계획 문서만 유지)
 3. **PMS와 대칭 구조** (architecture/, domain/, design/, guides/, planning/)
 

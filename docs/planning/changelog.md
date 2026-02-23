@@ -135,8 +135,8 @@ src/app/
 - 필요한 페이지 컴포넌트 목록 정의
 
 #### 문서 작성
-- `docs/development/architecture/phase3-pms-sync-plan.md` - Phase 3 상세 계획
-- `docs/pms/architecture/app-initialization-flow.md` (모노레포 루트) - PMS 앱 초기화 흐름
+- `apps/web/dms/docs/explanation/architecture/app-initialization-flow.md` - Phase 3 상세 계획
+- `docs/pms/explanation/architecture/app-initialization-flow.md` (모노레포 루트) - PMS 앱 초기화 흐름
 
 #### 결정사항
 - **Option A 채택**: PMS 패턴과 동기화 (일관성 및 통합 준비)
@@ -155,9 +155,9 @@ src/app/
 
 ### 문서 - 정합성 보정 착수
 
-- `apps/web/dms/docs/development/AGENTS.md` 신규 작성 (인수인계 기준)
-- `apps/web/dms/docs/development/verification-report.md` 정본 경로 및 표준 섹션 반영
-- `apps/web/dms/docs/development/architecture/package-spec.md` 의존성 목록 정합성 정리
+- `apps/web/dms/docs/AGENTS.md` 신규 작성 (인수인계 기준)
+- `apps/web/dms/docs/planning/verification-report.md` 정본 경로 및 표준 섹션 반영
+- `apps/web/dms/docs/explanation/architecture/package-spec.md` 의존성 목록 정합성 정리
 
 ### UI - 로딩 스피너 공통화
 

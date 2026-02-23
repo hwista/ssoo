@@ -21,8 +21,6 @@ interface SettingsState {
   wikiDir: string;
   /** 에러 메시지 */
   error: string | null;
-  /** 설정 다이얼로그 열림 여부 */
-  isDialogOpen: boolean;
 }
 
 interface SettingsActions {
@@ -32,10 +30,6 @@ interface SettingsActions {
   updateGitSettings: (git: DeepPartialClient<DmsConfigClient>['git']) => Promise<boolean>;
   /** Git 저장소 경로 변경 */
   updateGitPath: (newPath: string, copyFiles: boolean) => Promise<boolean>;
-  /** 설정 다이얼로그 열기 */
-  openDialog: () => void;
-  /** 설정 다이얼로그 닫기 */
-  closeDialog: () => void;
 }
 
 // ============================================================================
@@ -50,7 +44,6 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   config: null,
   wikiDir: '',
   error: null,
-  isDialogOpen: false,
 
   // Actions
   loadSettings: async () => {
@@ -121,7 +114,4 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       set({ isSaving: false });
     }
   },
-
-  openDialog: () => set({ isDialogOpen: true }),
-  closeDialog: () => set({ isDialogOpen: false }),
 }));

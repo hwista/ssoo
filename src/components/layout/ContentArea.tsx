@@ -16,6 +16,7 @@ const pageComponents = {
   aiAsk: lazy(() => import('@/components/pages/ai/AskPage').then(m => ({ default: m.AiAskPage }))),
   aiSearch: lazy(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
   aiCreate: lazy(() => import('@/components/pages/ai/CreatePage').then(m => ({ default: m.AiCreatePage }))),
+  settings: lazy(() => import('@/components/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))),
 };
 
 /**
@@ -41,6 +42,7 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
   if (tab.path.startsWith('/ai/ask')) return 'aiAsk';
   if (tab.path.startsWith('/ai/search')) return 'aiSearch';
   if (tab.path === '/ai/create') return 'aiCreate';
+  if (tab.path === '/settings') return 'settings';
   
   return null;
 }

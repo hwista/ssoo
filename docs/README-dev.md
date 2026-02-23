@@ -1,7 +1,7 @@
 # DMS 개발 문서
 
 > 최종 업데이트: 2026-02-03  
-> 정본 위치: `apps/web/dms/docs/development/`
+> 정본 위치: `apps/web/dms/docs/`
 
 마크다운 위키 시스템(DMS)의 개발 관련 문서입니다.
 
