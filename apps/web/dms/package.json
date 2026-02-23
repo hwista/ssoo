@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/azure": "^3.0.28",
     "@ai-sdk/react": "^3.0.83",
+    "@azure/identity": "4.6.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^3.10.0",

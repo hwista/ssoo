@@ -41,6 +41,16 @@ export type HandlerResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string; status: number };
 
+const IMPLEMENTATION_CONTEXT = [
+  'DMS 실제 구현 기능 스냅샷(코드 기준):',
+  '- 라우트/API: /api/search(문서 검색), /api/ask(대화형 답변), /api/create(요약/작성 보조), /api/file, /api/files, /api/git, /api/settings',
+  '- 주요 화면 경로: /home, /doc/{path}, /wiki/new(직접 작성), /ai/search(AI 검색), /ai/create(AI 작성), /settings',
+  '- 상단 헤더 기능: 검색 입력(Enter 시 /ai/search 탭), 새 도큐먼트(UI 작성=/wiki/new, AI 작성=/ai/create)',
+  '- 플로팅 AI 어시스턴트: 질문/검색 의도 분기, 문서 검색 결과 카드, 헬프 액션 버튼(기능 화면으로 즉시 이동)',
+  '- 문서 검색 방식: pgvector 시맨틱 검색 우선, 실패/무결과 시 키워드 검색 폴백',
+  '- 답변 생성 방식: RAG(검색 문맥 주입) + 대화형 응답, 문맥 부족 시 보조 설명 제공',
+].join('\n');
+
 // ============================================
 // 텍스트 검색 (폴백 / 키워드 검색)
 // ============================================
@@ -68,11 +78,40 @@ function extractTitle(content: string, fileName: string): string {
   return headingMatch?.[1]?.trim() || fileName.replace(/\.md$/i, '');
 }
 
-function buildExcerpt(content: string, query: string): { excerpt: string; score: number } {
+function tokenizeQuery(query: string): string[] {
+  return query
+    .toLowerCase()
+    .split(/[\s,.;:!?()[\]{}"'`/\\|]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2);
+}
+
+function buildExcerpt(
+  content: string,
+  query: string,
+  terms: string[]
+): { excerpt: string; score: number } {
   const lowerContent = content.toLowerCase();
   const lowerQuery = query.toLowerCase();
-  const index = lowerContent.indexOf(lowerQuery);
-  const score = lowerQuery ? lowerContent.split(lowerQuery).length - 1 : 0;
+  const exactIndex = lowerContent.indexOf(lowerQuery);
+  const exactScore = lowerQuery ? lowerContent.split(lowerQuery).length - 1 : 0;
+
+  let matchedTermIndex = -1;
+  let termScore = 0;
+
+  for (const term of terms) {
+    const firstIndex = lowerContent.indexOf(term);
+    if (matchedTermIndex === -1 && firstIndex !== -1) {
+      matchedTermIndex = firstIndex;
+    }
+
+    if (firstIndex !== -1) {
+      termScore += lowerContent.split(term).length - 1;
+    }
+  }
+
+  const index = exactIndex !== -1 ? exactIndex : matchedTermIndex;
+  const score = exactScore > 0 ? exactScore * 5 + termScore : termScore;
 
   if (index === -1) {
     return { excerpt: content.slice(0, 180).trim() || '내용을 불러올 수 없습니다.', score };
@@ -100,14 +139,20 @@ export async function searchDocumentsKeyword(query: string): Promise<HandlerResu
   }
 
   try {
+    const normalizedQuery = query.trim();
+    const lowerQuery = normalizedQuery.toLowerCase();
+    const terms = tokenizeQuery(normalizedQuery);
     const files = listMarkdownFiles(getRootDir());
     const results: SearchResultItem[] = [];
 
     for (const filePath of files) {
       const content = fs.readFileSync(filePath, 'utf-8');
-      if (!content.toLowerCase().includes(query.toLowerCase())) continue;
+      const lowerContent = content.toLowerCase();
+      const hasExactMatch = lowerContent.includes(lowerQuery);
+      const hasTermMatch = terms.some((term) => lowerContent.includes(term));
+      if (!hasExactMatch && !hasTermMatch) continue;
 
-      const { excerpt, score } = buildExcerpt(content, query);
+      const { excerpt, score } = buildExcerpt(content, normalizedQuery, terms);
       const fileName = path.basename(filePath);
 
       results.push({
@@ -235,23 +280,37 @@ async function gatherRAGContext(query: string): Promise<{
 /**
  * 질문 답변 스트리밍
  */
-export function askQuestionStream(
+export async function askQuestionStream(
   _query: string,
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: string; content: string }>,
+  options?: { attachmentOnly?: boolean }
 ) {
-  const model = getChatModel();
+  const model = await getChatModel();
+
+  const attachmentOnlyRule = options?.attachmentOnly
+    ? `
+- 현재 대화는 "첨부 파일 기반 모드"입니다.
+- 답변은 반드시 사용자가 첨부한 파일 컨텍스트만 근거로 작성하세요.
+- 전역 문서 검색 결과, 시스템 구현 지식, 일반 추측을 근거로 단정하지 마세요.
+- 첨부 내용에서 확인되지 않으면 "첨부 파일 기준 확인되지 않음"이라고 명시하세요.`
+    : '';
 
   return streamText({
     model,
     system: `당신은 DMS(문서 관리 시스템)의 AI 어시스턴트입니다.
-사용자의 질문에 대해 제공된 문서 컨텍스트를 기반으로 정확하고 도움이 되는 답변을 제공하세요.
+사용자의 질문에 대해 "실제 구현 컨텍스트"와 "문서 컨텍스트"를 우선 활용하고, 대화 맥락을 반영해 실무적으로 답변하세요.
 
 규칙:
-- 제공된 문서 컨텍스트에 기반하여 답변하세요.
-- 컨텍스트에 관련 정보가 없으면 솔직하게 "관련 문서를 찾지 못했습니다"라고 답하세요.
+- 답변 우선순위는 1) 실제 구현 컨텍스트 2) 문서 컨텍스트 3) 일반 보조 설명 순서입니다.
+- 이전 대화 흐름(직전 질문/답변)을 이어받아 답변하세요.
+- 기능/사용법 질문에는 실제 경로, 버튼명, 동작 흐름을 단계로 제시하세요.
+- 문서 컨텍스트에 근거가 있으면 이를 사용하고, 근거 문서(제목/경로)를 간단히 언급하세요.
+- 문서 컨텍스트가 부족해도 대화를 중단하지 말고, 일반적인 보조 설명을 제공하세요.
+- 단, 문서에 없는 내용은 "문서 기준 확인되지 않은 보조 설명"임을 짧게 구분해 표현하세요.
+- 구현 컨텍스트로 답할 수 있는데 "관련 문서를 찾지 못했습니다"라고 답하지 마세요.
+- 구현/문서 모두에서 확인 불가한 사실은 "현재 코드/문서 기준 미확인"이라고 명시하세요.
 - 답변은 한국어로 작성하세요.
-- 마크다운 형식을 사용해도 좋습니다.
-- 출처 문서가 있으면 언급하세요.`,
+- 문장은 짧은 단락으로 나누어 가독성 있게 작성하세요.${attachmentOnlyRule}`,
     messages: messages.map((m) => ({
       role: m.role as 'user' | 'assistant' | 'system',
       content: m.content,
@@ -275,18 +334,32 @@ export function askQuestionStream(
  */
 export async function buildRAGMessages(
   query: string,
-  chatHistory: Array<{ role: string; content: string }>
+  chatHistory: Array<{ role: string; content: string }>,
+  options?: { skipSearch?: boolean; includeImplementationContext?: boolean }
 ): Promise<{
   messages: Array<{ role: string; content: string }>;
   sources: SearchResultItem[];
 }> {
-  const { context, sources } = await gatherRAGContext(query);
+  const includeImplementationContext = options?.includeImplementationContext ?? true;
+  const { context, sources } = options?.skipSearch
+    ? { context: '', sources: [] as SearchResultItem[] }
+    : await gatherRAGContext(query);
 
   const augmentedMessages = chatHistory.map((msg, index) => {
-    if (index === chatHistory.length - 1 && msg.role === 'user' && context) {
+    if (index === chatHistory.length - 1 && msg.role === 'user') {
+      const sections: string[] = [];
+      if (includeImplementationContext) {
+        sections.push(`[시스템 구현 컨텍스트]\n${IMPLEMENTATION_CONTEXT}`);
+      }
+      if (context) {
+        sections.push(`[참조 문서]\n${context}`);
+      }
+      if (sections.length === 0) {
+        return msg;
+      }
       return {
         role: msg.role,
-        content: `[참조 문서]\n${context}\n\n[사용자 질문]\n${msg.content}`,
+        content: `${sections.join('\n\n')}\n\n[사용자 질문]\n${msg.content}`,
       };
     }
     return msg;
@@ -302,8 +375,8 @@ export async function buildRAGMessages(
 /**
  * 텍스트 요약 스트리밍
  */
-export function summarizeTextStream(text: string, templateType: string) {
-  const model = getChatModel();
+export async function summarizeTextStream(text: string, templateType: string) {
+  const model = await getChatModel();
 
   const templatePrompts: Record<string, string> = {
     default: '다음 텍스트를 요약하세요. 핵심 포인트, 요약, 액션 아이템을 포함하세요.',

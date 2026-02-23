@@ -15,7 +15,6 @@ import { useFileStore } from '@/stores';
  * Note: deviceType 자동 리사이즈는 layout.store.ts에서 처리 (PMS 패턴)
  */
 export default function MainLayout({
-  children,
 }: {
   children: React.ReactNode;
 }) {

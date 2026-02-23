@@ -1,19 +1,6 @@
 import TurndownService from 'turndown';
 import { marked, Renderer } from 'marked';
 
-/**
- * 텍스트를 slug로 변환 (URL-safe ID 생성)
- */
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s가-힣-]/g, '') // 특수문자 제거 (한글, 영문, 숫자, 공백, 하이픈만 유지)
-    .replace(/\s+/g, '-') // 공백을 하이픈으로
-    .replace(/-+/g, '-') // 중복 하이픈 제거
-    .replace(/^-|-$/g, ''); // 앞뒤 하이픈 제거
-}
-
 // 헤딩 인덱스 추적 (중복 id 방지)
 let headingCounter = 0;
 

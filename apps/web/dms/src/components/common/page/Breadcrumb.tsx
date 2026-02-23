@@ -22,7 +22,7 @@ export interface BreadcrumbProps {
  * 경로 세그먼트를 사용자 친화적 이름으로 변환
  */
 const SEGMENT_DISPLAY_NAMES: Record<string, string> = {
-  'ai/ask': 'AI 질문',
+  'ai/ask': 'AI 어시스턴트',
   'ai/search': 'AI 검색',
   'ai/create': 'AI 작성',
 };
@@ -54,7 +54,7 @@ export function Breadcrumb({
     // 앞뒤 슬래시 제거 후 분리
     const cleanPath = filePath.replace(/^\/+|\/+$/g, '');
     
-    // AI 경로 매핑: ai/ask → "AI 질문" 단일 세그먼트
+    // AI 경로 매핑: ai/search → "AI 검색" 단일 세그먼트
     const displayName = SEGMENT_DISPLAY_NAMES[cleanPath];
     if (displayName) {
       return [displayName];

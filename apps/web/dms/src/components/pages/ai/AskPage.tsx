@@ -1,114 +1,120 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SendHorizontal, Bot, User } from 'lucide-react';
-import { DefaultChatTransport } from 'ai';
-import { useChat } from '@ai-sdk/react';
-import { useTabStore } from '@/stores';
-import { useCurrentTabId } from '@/contexts/TabInstanceContext';
+import { useEffect, useMemo, useRef } from 'react';
+import { ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import { AiPageTemplate } from '@/components/templates';
-import { getQueryFromTabPath } from '@/lib/utils';
-
-/**
- * UIMessage의 parts에서 텍스트 추출
- */
-function getMessageText(message: { parts: Array<{ type: string; text?: string }> }): string {
-  return message.parts
-    .filter((p): p is { type: 'text'; text: string } => p.type === 'text' && typeof p.text === 'string')
-    .map((p) => p.text)
-    .join('');
-}
-
-const askTransport = new DefaultChatTransport({ api: '/api/ask' });
+import { useAssistantStore } from '@/stores';
+import { useAssistantChat } from '@/components/common/assistant/useAssistantChat';
+import { useAssistantSessionPersistence } from '@/components/common/assistant/useAssistantSessionPersistence';
+import { AssistantMessageList } from '@/components/common/assistant/AssistantMessageList';
+import { AssistantComposer } from '@/components/common/assistant/AssistantComposer';
 
 export function AiAskPage() {
-  const tabId = useCurrentTabId();
-  const { tabs } = useTabStore();
-  const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
-  const initialQuery = useMemo(() => getQueryFromTabPath(activeTab?.path), [activeTab?.path]);
-  const autoQueryRef = useRef('');
-  const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messages = useAssistantStore((state) => state.messages);
+  const inputDraft = useAssistantStore((state) => state.inputDraft);
+  const isProcessing = useAssistantStore((state) => state.isProcessing);
+  const suggestions = useAssistantStore((state) => state.suggestions);
+  const sessions = useAssistantStore((state) => state.sessions);
+  const activeSessionId = useAssistantStore((state) => state.activeSessionId);
+  const setInputDraft = useAssistantStore((state) => state.setInputDraft);
+  const regenerateSuggestions = useAssistantStore((state) => state.regenerateSuggestions);
+  const setSuggestionsCollapsed = useAssistantStore((state) => state.setSuggestionsCollapsed);
+  const startNewSession = useAssistantStore((state) => state.startNewSession);
+  const selectSession = useAssistantStore((state) => state.selectSession);
+  const { submitUserMessage, handleOpenFile, handleOpenHelpAction } = useAssistantChat();
+  const { saveSession, removeSessionFromDb } = useAssistantSessionPersistence();
 
-  const { messages, sendMessage, status } = useChat({
-    transport: askTransport,
-  });
-
-  const isLoading = status === 'submitted' || status === 'streaming';
-
-  const handleSubmit = useCallback(
-    (e?: React.FormEvent) => {
-      e?.preventDefault();
-      if (!inputValue.trim() || isLoading) return;
-      sendMessage({ text: inputValue });
-      setInputValue('');
-    },
-    [inputValue, isLoading, sendMessage]
-  );
+  const historyItems = useMemo(() => {
+    return sessions
+      .slice(0, 20)
+      .map((session) => ({
+        id: session.id,
+        title: session.title,
+        updatedAt: session.updatedAt,
+        active: session.id === activeSessionId,
+        persistedToDb: session.persistedToDb,
+      }));
+  }, [activeSessionId, sessions]);
 
   useEffect(() => {
-    if (initialQuery && autoQueryRef.current !== initialQuery) {
-      autoQueryRef.current = initialQuery;
-      sendMessage({ text: initialQuery });
+    regenerateSuggestions(6);
+    if (messages.length === 0) {
+      setSuggestionsCollapsed(false);
     }
-  }, [initialQuery, sendMessage]);
+  }, [messages.length, regenerateSuggestions, setSuggestionsCollapsed]);
 
   return (
     <AiPageTemplate
       variant="ask"
-      description="문서 기반으로 질문을 입력하세요."
+      description="질문, 문서 검색, 기능 안내를 요청하세요."
+      shellContentClassName={messages.length === 0 ? 'overflow-hidden' : undefined}
+      sidecarHistory={historyItems}
+      onSidecarHistorySelect={(item) => selectSession(item.id)}
+      onSidecarHistoryPersistToggle={(item) => {
+        if (item.persistedToDb) {
+          void removeSessionFromDb(item.id).then((result) => {
+            if (!result.success) {
+              toast.error(result.error);
+              return;
+            }
+            toast.success('세션 DB 저장을 해제했습니다.');
+          });
+          return;
+        }
+        void saveSession(item.id).then((result) => {
+          if (!result.success) {
+            toast.error(result.error);
+            return;
+          }
+          toast.success('세션을 DB에 저장했습니다.');
+        });
+      }}
+      sidecarSuggestions={suggestions}
+      onSidecarSuggestionSelect={(suggestion) => {
+        void submitUserMessage(suggestion);
+      }}
       footer={(
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <input
-            value={inputValue}
-            onChange={(event) => setInputValue(event.target.value)}
-            placeholder="질문을 입력하세요..."
-            className="h-control-h flex-1 rounded-lg border border-ssoo-content-border px-3 text-sm focus:border-ssoo-primary focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !inputValue.trim()}
-            className="flex h-control-h items-center gap-2 rounded-lg bg-ssoo-primary px-4 text-sm font-medium text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <SendHorizontal className="h-4 w-4" />
-            전송
-          </button>
-        </form>
+        <AssistantComposer
+          inputRef={inputRef}
+          inputDraft={inputDraft}
+          isProcessing={isProcessing}
+          setInputDraft={setInputDraft}
+          submitUserMessage={submitUserMessage}
+          placeholder="질문을 입력하세요..."
+          submitVariant="text"
+        />
       )}
     >
-      {messages.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-sm text-ssoo-primary/60">
-          첫 질문을 입력해 대화를 시작하세요.
+      <div className="relative h-full">
+        <div className="sticky left-0 top-0 z-10 h-0">
+          <button
+            type="button"
+            onClick={startNewSession}
+            className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-border/60 text-ssoo-primary/75 opacity-55 transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary hover:opacity-100 focus-visible:opacity-100"
+            title="새 채팅 세션"
+            aria-label="새 채팅 세션"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </button>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.role === 'assistant' && (
-                <div className="flex h-control-h w-control-h shrink-0 items-center justify-center rounded-full bg-ssoo-content-bg">
-                  <Bot className="h-5 w-5 text-ssoo-primary" />
-                </div>
-              )}
-              <div
-                className={`max-w-[70%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
-                  message.role === 'user'
-                    ? 'bg-ssoo-primary text-white'
-                    : 'bg-ssoo-content-bg text-ssoo-primary'
-                }`}
-              >
-                {getMessageText(message)}
-              </div>
-              {message.role === 'user' && (
-                <div className="flex h-control-h w-control-h shrink-0 items-center justify-center rounded-full bg-ssoo-primary">
-                  <User className="h-5 w-5 text-white" />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+
+        {messages.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-sm text-ssoo-primary/60">
+            첫 질문을 입력해 대화를 시작하세요.
+          </div>
+        ) : (
+          <div className="space-y-4 pb-8 pt-12">
+            <AssistantMessageList
+              messages={messages}
+              onOpenFile={handleOpenFile}
+              onOpenHelpAction={handleOpenHelpAction}
+              variant="page"
+            />
+          </div>
+        )}
+      </div>
     </AiPageTemplate>
   );
 }

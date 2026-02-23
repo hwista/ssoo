@@ -1,6 +1,6 @@
 # DMS API 가이드
 
-> 최종 업데이트: 2026-02-09
+> 최종 업데이트: 2026-02-23
 
 DMS 프로젝트의 API 엔드포인트에 대한 가이드입니다.
 
@@ -18,6 +18,103 @@ DMS는 Next.js App Router의 Route Handlers를 사용합니다.
 | | `/api/files` | 파일 트리 조회 |
 | **AI** | `/api/search` | 문서 기반 검색 |
 | | `/api/ask` | 문서 기반 질문 |
+| | `/api/create` | 문서 요약/생성 |
+| | `/api/chat-sessions` | AI 채팅 세션 조회/저장/삭제 |
+
+---
+
+## AI 인증 구조 (Azure OpenAI)
+
+DMS는 다음 구조를 사용합니다.
+
+`React -> Next API Route -> server/services/ai/provider.ts -> Azure OpenAI`
+
+- React에서 Azure OpenAI를 직접 호출하지 않습니다.
+- `AZURE_CLIENT_SECRET` 같은 민감 정보는 서버에서만 관리합니다.
+- 백엔드는 Entra ID 토큰을 자동 갱신하여 Azure OpenAI를 호출합니다.
+- Entra 토큰 취득 실패 시 `AZURE_OPENAI_API_KEY` 경로로 폴백할 수 있습니다.
+
+### 권장 환경 변수
+
+```bash
+AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT=<chat-deployment>
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT=<embedding-deployment>
+OPENAI_API_VERSION=2024-10-21
+
+AZURE_TENANT_ID=<tenant-id>
+AZURE_CLIENT_ID=<client-id>
+AZURE_CLIENT_SECRET=<client-secret>
+AZURE_USE_MANAGED_IDENTITY=true
+AZURE_MANAGED_IDENTITY_CLIENT_ID=
+```
+
+---
+
+## AI 채팅 세션 API (`/api/chat-sessions`)
+
+브라우저 메모리 세션과 별개로, 선택한 채팅 세션만 DB에 저장/복원할 때 사용합니다.
+
+### GET /api/chat-sessions
+
+Query:
+
+- `clientId` (필수, 영문/숫자/`_`/`-`, 8~80자)
+- `limit` (선택, 기본 50, 최대 200)
+
+Response:
+
+```json
+[
+  {
+    "id": "session_20260223_120000",
+    "title": "릴리즈 체크리스트 정리",
+    "createdAt": "2026-02-23T07:00:00.000Z",
+    "updatedAt": "2026-02-23T07:30:00.000Z",
+    "messages": [],
+    "persistedToDb": true
+  }
+]
+```
+
+### POST /api/chat-sessions
+
+Request:
+
+```json
+{
+  "clientId": "assistant_client_abcd1234",
+  "session": {
+    "id": "session_20260223_120000",
+    "title": "릴리즈 체크리스트 정리",
+    "createdAt": "2026-02-23T07:00:00.000Z",
+    "updatedAt": "2026-02-23T07:30:00.000Z",
+    "messages": []
+  }
+}
+```
+
+검증:
+
+- `session.id`: 영문/숫자/`._:-` 허용, 8~120자
+- `title`: 1~120자
+- `messages`: 최대 200개, 직렬화 기준 512KB 이하
+
+### DELETE /api/chat-sessions
+
+Request:
+
+```json
+{
+  "clientId": "assistant_client_abcd1234",
+  "sessionId": "session_20260223_120000"
+}
+```
+
+Error:
+
+- `400`: 입력 형식 검증 실패
+- `500`: DB 처리 실패
 
 ---
 

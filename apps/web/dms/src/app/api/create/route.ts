@@ -14,6 +14,6 @@ export async function POST(req: Request) {
     return new Response('요약할 텍스트가 너무 짧습니다.', { status: 400 });
   }
 
-  const result = summarizeTextStream(text, templateType);
+  const result = await summarizeTextStream(text, templateType);
   return result.toTextStreamResponse();
 }

@@ -20,6 +20,8 @@ export interface ViewerProps {
   onTocClick?: (id: string) => void;
   /** 문서 내 검색 */
   onSearch?: (query: string) => void;
+  /** 현재 문서를 AI 첨부로 전환 */
+  onAttachToAssistant?: () => void;
   /** 레이아웃 변형 */
   variant?: ViewerVariant;
   /** 콘텐츠 표면 표시 여부 */
@@ -50,6 +52,7 @@ export function Viewer({
   toc,
   onTocClick,
   onSearch,
+  onAttachToAssistant,
   variant = 'standalone',
   showContentSurface,
   className,
@@ -242,6 +245,7 @@ export function Viewer({
         currentResultIndex={currentResultIndex}
         hasSearched={hasSearched}
         onNavigateResult={handleNavigateResult}
+        onAttachToAssistant={onAttachToAssistant}
         zoomLevel={zoomLevel}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}

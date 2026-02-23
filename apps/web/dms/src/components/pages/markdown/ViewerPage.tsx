@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useTabStore, useEditorStore, useConfirmStore, useFileStore } from '@/stores';
+import { useTabStore, useEditorStore, useConfirmStore, useFileStore, useAssistantStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { fileApi } from '@/lib/utils/apiClient';
 import { DocPageTemplate } from '@/components/templates';
@@ -9,6 +9,7 @@ import { Viewer } from '@/components/common/viewer';
 import { Editor } from '@/components/common/editor';
 import { type TocItem } from '@/components/common/page';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
+import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import type { DocumentMetadata } from '@/types';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 
@@ -38,6 +39,9 @@ export function ViewerPage() {
   const { tabs, closeTab } = useTabStore();
   const { confirm } = useConfirmStore();
   const { refreshFileTree } = useFileStore();
+  const openAssistantPanel = useAssistantStore((state) => state.openPanel);
+  const toggleAssistantReference = useAssistantStore((state) => state.toggleReference);
+  const attachedReferences = useAssistantStore((state) => state.attachedReferences);
   const { 
     loadFile, 
     isLoading, 
@@ -51,7 +55,6 @@ export function ViewerPage() {
     setContent, 
     reset,
     // 에디터 상태 (Header에 전달)
-    hasUnsavedChanges,
     isSaving,
     editorHandlers,
     removeTabEditor,
@@ -194,9 +197,20 @@ export function ViewerPage() {
     }
   }, [filePath, tabId, confirm, reset, closeTab, refreshFileTree]);
 
-  const handleSearch = useCallback((_query: string) => {
+  const handleSearch = useCallback(() => {
     // TODO: 문서 내 검색 하이라이트
   }, []);
+
+  const handleAttachCurrentDocToAssistant = useCallback(() => {
+    if (!filePath) return;
+    const alreadyAttached = attachedReferences.some((item) => item.path === filePath);
+    if (!alreadyAttached) {
+      const title = filePath.split('/').pop() || filePath;
+      toggleAssistantReference({ path: filePath, title });
+    }
+    openAssistantPanel();
+    window.dispatchEvent(new Event(ASSISTANT_FOCUS_INPUT_EVENT));
+  }, [attachedReferences, filePath, openAssistantPanel, toggleAssistantReference]);
 
   const handleTocClick = useCallback((id: string) => {
     // 해당 헤딩으로 스크롤
@@ -206,7 +220,7 @@ export function ViewerPage() {
     }
   }, []);
 
-  const handlePathClick = useCallback((_path: string) => {
+  const handlePathClick = useCallback(() => {
     // TODO: 해당 폴더로 트리 이동
   }, []);
 
@@ -264,13 +278,14 @@ export function ViewerPage() {
         toc={toc}
         onTocClick={handleTocClick}
         onSearch={handleSearch}
+        onAttachToAssistant={handleAttachCurrentDocToAssistant}
         variant="embedded"
         showContentSurface
       />
     ) : (
       <Editor className="h-full" variant="embedded" />
     );
-  }, [error, handleRetry, htmlContent, isCreateMode, isLoading, mode, toc, handleTocClick, handleSearch]);
+  }, [error, handleRetry, htmlContent, isCreateMode, isLoading, mode, toc, handleTocClick, handleSearch, handleAttachCurrentDocToAssistant]);
 
   const contentSurfaceClassName = 'bg-transparent border-0';
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Search, Clock, Plus, Bot } from 'lucide-react';
+import { FileText, Search, Clock, Plus } from 'lucide-react';
 import { useTabStore } from '@/stores';
 
 /**
@@ -10,18 +10,6 @@ import { useTabStore } from '@/stores';
  */
 export function HomeDashboardPage() {
   const { openTab } = useTabStore();
-
-  // AI 질문 탭 열기
-  const handleAIQuestion = () => {
-    openTab({
-      id: 'ai-question',
-      title: 'AI 질문',
-      path: '/ai/ask',
-      icon: 'Bot',
-      closable: true,
-      activate: true,
-    });
-  };
 
   // AI 검색 탭 열기
   const handleAISearch = () => {
@@ -53,7 +41,7 @@ export function HomeDashboardPage() {
         </p>
 
         {/* 빠른 액션 - DMS 테마 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {/* 새 문서 작성 */}
           <button
             onClick={handleNewDocument}
@@ -64,18 +52,6 @@ export function HomeDashboardPage() {
               <h3 className="font-medium text-ssoo-primary">새 문서 작성</h3>
             </div>
             <p className="text-sm text-ssoo-primary/70">새로운 문서를 작성합니다</p>
-          </button>
-
-          {/* AI 질문 */}
-          <button
-            onClick={handleAIQuestion}
-            className="p-4 bg-ssoo-content-bg/30 rounded-lg border border-ssoo-content-border hover:border-ssoo-primary cursor-pointer transition-colors text-left group"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Bot className="w-5 h-5 text-ssoo-primary/50 group-hover:text-ssoo-primary" />
-              <h3 className="font-medium text-ssoo-primary">AI 질문</h3>
-            </div>
-            <p className="text-sm text-ssoo-primary/70">문서 기반으로 질문합니다</p>
           </button>
 
           {/* AI 검색 */}

@@ -1,0 +1,2 @@
+export { FloatingAssistant } from './FloatingAssistant';
+

@@ -1,6 +1,44 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-02-10
+> 최종 업데이트: 2026-02-23
+
+---
+
+## 2026-02-23
+
+### AI 채팅 공통 컴포넌트화 + 세션 API 보강
+
+- 플로팅 챗봇 패널과 `AI 질문` 페이지의 중복 UI를 공통 컴포넌트로 통합
+  - `AssistantMessageList`, `AssistantComposer`, `AssistantSessionHistoryList` 신규 도입
+  - 응답 텍스트 정리 로직(`assistantTextFormat`) 공통화
+  - 포커스 이벤트 상수(`ASSISTANT_FOCUS_INPUT_EVENT`) 공용화
+- 채팅 세션 저장 API(`/api/chat-sessions`) 입력 검증 강화
+  - `clientId`, `sessionId` 형식 검증 추가
+  - `title` 길이 제한, `messages` 개수/바이트 제한 추가
+  - 세션 정렬 안정성 개선(`updatedAt` + `id` 타이브레이커)
+- 사이드카 채팅 기록 목록 렌더링도 공통 세션 리스트 컴포넌트로 통합
+
+---
+
+### 전역 플로팅 AI 어시스턴트 도입
+
+- 헤더의 질문 입력/질문-검색 전환 드롭다운 제거
+- 우측 하단 플로팅 버튼 + 오버레이 챗 패널 전역 배치
+- 챗 입력 의도 라우팅 추가: 질문은 `/api/ask`, 검색 요청은 `/api/search`
+- 검색 결과 카드에서 파일 클릭 시 문서 탭(`/doc/...`) 직접 오픈
+- 홈 대시보드의 `AI 질문` 카드 제거, `AI 검색` 카드만 유지
+- 탭 라우팅에서 `/ai/ask` 매핑 제거 및 관련 레이아웃 타입 정리
+
+---
+
+### Azure OpenAI Entra 토큰 자동 갱신 적용
+
+- `server/services/ai/provider.ts`에 Entra ID 토큰 자동 발급/갱신 로직 추가
+- Managed Identity 우선, Service Principal(`AZURE_TENANT_ID/CLIENT_ID/CLIENT_SECRET`) 폴백 체인 구성
+- Entra 토큰 실패 시 `AZURE_OPENAI_API_KEY` 경로로 호환 폴백 유지
+- `/api/ask`, `/api/create` 경로에서 비동기 모델 초기화 방식 반영
+- `.env.example`에 Entra/Managed Identity/OpenAI API version 변수 추가
+- API 가이드에 `React -> Next API -> Azure OpenAI` 보안 구조 문서화
 
 ---
 

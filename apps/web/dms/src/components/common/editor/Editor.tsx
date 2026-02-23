@@ -49,11 +49,8 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     currentFilePath,
     isEditing,
     setIsEditing,
-    fileMetadata,
     pendingMetadataUpdate,
     saveFile: storeSaveFile,
-    saveFileKeepEditing: storeSaveFileKeepEditing,
-    refreshFileMetadata,
     discardPendingMetadata,
     // 에디터 상태 공유용
     setEditorHandlers,
@@ -64,7 +61,7 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
 
   // 탭 ID (keep-alive context) + 탭 스토어 (새 문서 저장 시 탭 업데이트용)
   const tabId = useCurrentTabId();
-  const { updateTab, closeTab, openTab } = useTabStore();
+  const { updateTab, closeTab } = useTabStore();
   
   // 확인 다이얼로그
   const { confirm } = useConfirmStore();
@@ -80,7 +77,6 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     hasUnsavedChanges,
     isSaving,
     save,
-    markAsSaved,
   } = useEditor(content, {
     onSave: async (c: string) => {
       if (!currentFilePath) return;
@@ -136,7 +132,7 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
           const title = newFileName.split('/').pop() || newFileName;
           updateTab(tabId, { path: newPath, title });
         }
-      } catch (error) {
+      } catch {
         showError('생성 실패', '문서 생성 중 오류가 발생했습니다.');
       }
       return;
@@ -150,7 +146,7 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
       await save();
       setIsEditing(false);
       showSuccess('저장 완료', '파일이 저장되었습니다.');
-    } catch (error) {
+    } catch {
       showError('저장 실패', '파일 저장 중 오류가 발생했습니다.');
     }
   }, [isCreateMode, currentFilePath, editorContent, storeSaveFile, save, setIsEditing, showSuccess, showError, tabId, updateTab]);

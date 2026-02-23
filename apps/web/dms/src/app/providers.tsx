@@ -3,6 +3,8 @@
 import { ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { FloatingAssistant } from '@/components/common/assistant';
+import { AssistantSessionSync } from '@/components/common/assistant/AssistantSessionSync';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -17,6 +19,10 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <>
       {children}
+      {/* 전역 AI 어시스턴트 */}
+      <FloatingAssistant />
+      {/* 세션 동기화 (local + DB 저장 세션 머지) */}
+      <AssistantSessionSync />
       {/* 전역 Confirm Dialog */}
       <ConfirmDialog />
       {/* 전역 Toast */}
