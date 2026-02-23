@@ -16,7 +16,9 @@
 - 📊 **현황 관리** - Backlog/Changelog 관리
 
 **규칙/패턴 참조**:
-> 📌 코드 작성 시 적용되는 **상세 규칙**은 GitHub Copilot이 자동 참조합니다.
+> 📌 코드 작성 시 적용되는 **상세 규칙 참조 경로**:
+> - Codex 진입점: [`AGENTS.md`](../../../../AGENTS.md)
+> - Codex DMS 규칙: [`.codex/instructions/dms.instructions.md`](../../../../../.codex/instructions/dms.instructions.md)
 > - DMS 규칙: [.github/instructions/dms.instructions.md](../../../../../.github/instructions/dms.instructions.md)
 > - 전역 규칙: [.github/copilot-instructions.md](../../../../../.github/copilot-instructions.md)
 
@@ -27,7 +29,7 @@
 ### 1. 변경 작업 흐름
 
 ```
-코드 변경 → 문서 업데이트 → 빌드 검증 → 커밋
+코드 변경 → 문서 업데이트 → 빌드 검증 → 커밋 → 양방향 배포
 ```
 
 | 단계 | 내용 |
@@ -36,6 +38,7 @@
 | **2. 문서 업데이트** | 관련 문서의 Backlog/Changelog 갱신 |
 | **3. 빌드 검증** | `npm run build` 성공 확인 |
 | **4. 커밋** | 변경 내용과 문서를 함께 커밋 |
+| **5. 양방향 배포** | `pnpm run codex:dms-publish` 실행 (GitHub + GitLab + 검증) |
 
 ### 2. 삭제/수정 작업 흐름
 
@@ -89,14 +92,16 @@ npm run dev
 
 ## 📁 DMS 문서 구조
 
-### Copilot 규칙 (정본)
+### AI 규칙 (정본)
 
 | 파일 | 역할 |
 |------|------|
+| `AGENTS.md` | Codex 진입점 및 참조 순서 |
+| `.codex/instructions/dms.instructions.md` | Codex DMS 개발 규칙 |
 | `.github/instructions/dms.instructions.md` | DMS 개발 규칙 (자동 적용) |
 | `.github/copilot-instructions.md` | 전역 규칙 |
 
-### 상세 참조 문서: `docs/development/`
+### 상세 참조 문서: `apps/web/dms/docs/`
 
 | 폴더 | 내용 |
 |------|------|
@@ -110,13 +115,13 @@ npm run dev
 
 | 문서 | 경로 |
 |------|------|
-| **문서 인덱스** | `docs/development/README.md` |
-| **기술 스택** | `docs/development/architecture/tech-stack.md` |
-| **패키지 구조** | `docs/development/architecture/package-spec.md` |
-| **상태 관리** | `docs/development/architecture/state-management.md` |
-| **컴포넌트 가이드** | `docs/development/guides/components.md` |
-| **훅 가이드** | `docs/development/guides/hooks.md` |
-| **API 가이드** | `docs/development/guides/api.md` |
+| **문서 인덱스** | `apps/web/dms/docs/README-dev.md` |
+| **기술 스택** | `apps/web/dms/docs/explanation/architecture/tech-stack.md` |
+| **패키지 구조** | `apps/web/dms/docs/explanation/architecture/package-spec.md` |
+| **상태 관리** | `apps/web/dms/docs/explanation/architecture/state-management.md` |
+| **컴포넌트 가이드** | `apps/web/dms/docs/guides/components.md` |
+| **훅 가이드** | `apps/web/dms/docs/guides/hooks.md` |
+| **API 가이드** | `apps/web/dms/docs/guides/api.md` |
 
 ---
 
@@ -155,6 +160,8 @@ npm run dev
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-23 | DMS 양방향 배포 단계 추가 (`pnpm run codex:dms-publish`) |
+| 2026-02-22 | Codex 참조 경로(`AGENTS.md`, `.codex/instructions/dms.instructions.md`) 추가 |
 | 2026-02-04 | **리팩토링**: Copilot 규칙으로 이관된 내용 삭제 (AI 작업 원칙, DMS 핵심 원칙, Dead Code 기준) |
 | 2026-02-04 | **리팩토링**: Copilot 규칙과 역할 분리, 중복 제거, 온보딩/프로세스 가이드로 전환 |
 | 2026-02-02 | **대규모 업데이트**: AI 작업 원칙, 코드 패턴 표준, Dead Code 기준 추가 |

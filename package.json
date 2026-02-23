@@ -24,6 +24,12 @@
     "build:server": "turbo build --filter=server",
     "build:web-pms": "turbo build --filter=web-pms",
     "build:web-dms": "cd apps/web/dms && npm run build",
+    "codex:verify-sync": "node .codex/scripts/verify-codex-sync.js",
+    "codex:check": "pnpm run codex:verify-sync && bash .codex/hooks/preflight.sh",
+    "codex:preflight": "bash .codex/hooks/preflight.sh",
+    "codex:dms-guard": "bash .codex/hooks/dms-guard.sh",
+    "codex:push-guard": "bash .codex/hooks/push-guard.sh",
+    "codex:dms-publish": "bash .codex/scripts/dms-publish.sh",
     "prepare": "husky"
   },
   "devDependencies": {

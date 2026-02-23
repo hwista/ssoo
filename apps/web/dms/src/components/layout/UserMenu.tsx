@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown';
-import { useSettingsStore } from '@/stores/settings.store';
+import { useTabStore } from '@/stores';
 
 interface UserMenuProps {
   /** 드롭다운 너비 (부모 액션 영역 기준) */
@@ -22,7 +22,18 @@ interface UserMenuProps {
  * - 설정 / 로그아웃 (준비 중)
  */
 export function UserMenu({ dropdownWidth }: UserMenuProps) {
-  const openSettings = useSettingsStore((s) => s.openDialog);
+  const { openTab } = useTabStore();
+
+  const openSettings = () => {
+    openTab({
+      id: 'settings',
+      title: '설정',
+      path: '/settings',
+      icon: 'Settings',
+      closable: true,
+      activate: true,
+    });
+  };
 
   return (
     <DropdownMenu>

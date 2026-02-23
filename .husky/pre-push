@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+set -e
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$HOOK_DIR/.." && pwd)"
+export PATH="$ROOT_DIR/.husky/_:$PATH"
+
+if [ ! -f "$ROOT_DIR/.codex/hooks/push-guard.sh" ]; then
+  echo "husky: .codex/hooks/push-guard.sh not found."
+  exit 1
+fi
+
+export CODEX_PUSH_REMOTE_NAME="${1:-}"
+export CODEX_PUSH_REMOTE_URL="${2:-}"
+bash "$ROOT_DIR/.codex/hooks/push-guard.sh"

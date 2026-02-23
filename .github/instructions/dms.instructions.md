@@ -19,6 +19,15 @@ applyTo: "apps/web/dms/**"
 
 DMS는 별도 저장소로 분리될 가능성이 있어 모노레포 의존성을 갖지 않습니다.
 
+## 양방향 배포 표준
+
+- DMS 변경을 외부 공유할 때는 개별 `git push` 대신 `pnpm run codex:dms-publish`를 우선 사용합니다.
+- `codex:dms-publish`는 GitHub 브랜치 push + GitLab subtree push + 해시 검증까지 한 번에 수행합니다.
+- DMS 변경 상태에서 `origin` push 시 `codex:dms-publish` 마커가 없으면 pre-push가 차단됩니다.
+- 실행 전 필수 환경 변수:
+  - `GL_USER`: GitLab username
+  - `GL_TOKEN`: GitLab personal access token
+
 ---
 
 ## 기술 스택

@@ -1,0 +1,62 @@
+{
+  "version": "2026-02-22",
+  "description": "Codex 정본과 GitHubDocs 핵심 규칙 동기화 검증",
+  "checks": [
+    {
+      "id": "protocol-keyword",
+      "source": ".github/copilot-instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "마스터 키워드",
+      "targetPattern": "Codex 프로토콜 키워드",
+      "severity": "error"
+    },
+    {
+      "id": "start-briefing",
+      "source": ".github/copilot-instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "작업 시작 프로토콜",
+      "targetPattern": "작업 시작 브리핑",
+      "severity": "error"
+    },
+    {
+      "id": "verification-flow",
+      "source": ".github/copilot-instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "검증 실행 순서",
+      "targetPattern": "검증 기본 순서",
+      "severity": "error"
+    },
+    {
+      "id": "doc-hierarchy",
+      "source": ".github/copilot-instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "문서 관리 규칙",
+      "targetPattern": "문서 계층 원칙",
+      "severity": "error"
+    },
+    {
+      "id": "forbidden-rules",
+      "source": ".github/copilot-instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "금지 사항",
+      "targetPattern": "금지 사항",
+      "severity": "warning"
+    },
+    {
+      "id": "project-boundary",
+      "source": ".github/instructions/project.instructions.md",
+      "target": ".codex/instructions/project.instructions.md",
+      "sourcePattern": "패키지 경계",
+      "targetPattern": "패키지 경계",
+      "severity": "error"
+    },
+    {
+      "id": "dms-independence",
+      "source": ".github/instructions/dms.instructions.md",
+      "target": ".codex/instructions/dms.instructions.md",
+      "sourcePattern": "독립",
+      "targetPattern": "독립",
+      "severity": "error"
+    }
+  ]
+}

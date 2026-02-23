@@ -1,0 +1,48 @@
+{
+  "version": "2026-02-22",
+  "entrypoint": "AGENTS.md",
+  "instruction_root": ".codex/instructions",
+  "path_mappings": [
+    {
+      "glob": "apps/server/**",
+      "instruction": ".codex/instructions/server.instructions.md"
+    },
+    {
+      "glob": "apps/web/pms/**",
+      "instruction": ".codex/instructions/pms.instructions.md"
+    },
+    {
+      "glob": "apps/web/dms/**",
+      "instruction": ".codex/instructions/dms.instructions.md"
+    },
+    {
+      "glob": "packages/database/**",
+      "instruction": ".codex/instructions/database.instructions.md"
+    },
+    {
+      "glob": "packages/types/**",
+      "instruction": ".codex/instructions/types.instructions.md"
+    },
+    {
+      "glob": "**/*.test.*",
+      "instruction": ".codex/instructions/testing.instructions.md"
+    },
+    {
+      "glob": "**/*.spec.*",
+      "instruction": ".codex/instructions/testing.instructions.md"
+    }
+  ],
+  "canonical_docs": {
+    "codex": [
+      ".codex/instructions"
+    ],
+    "github_docs": [
+      ".github/copilot-instructions.md",
+      ".github/instructions"
+    ],
+    "repo_docs": [
+      "docs",
+      "apps/web/dms/docs"
+    ]
+  }
+}

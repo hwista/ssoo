@@ -5,7 +5,7 @@
 
 ## 📋 검증 대상
 
-### 공식 문서 (apps/web/dms/docs/development/)
+### 공식 문서 (apps/web/dms/docs/)
 
 | 문서 | 상태 | 설명 |
 |------|------|------|
@@ -90,7 +90,7 @@
 
 ## 🔄 내부 문서 vs 공식 문서 비교
 
-### 기존 내부 문서 (apps/web/dms/docs/development/_archive/)
+### 기존 내부 문서 (apps/web/dms/docs/_archive/)
 | 문서 | 라인 | 문제점 |
 |------|------|--------|
 | hooks.md | 743 | 인터페이스 outdated, 라인수 불일치 |
@@ -99,14 +99,14 @@
 | design-system.md | 661 | 일부 outdated |
 | DEVELOPMENT_STANDARDS.md | 719 | 참조용으로 유지 가능 |
 
-### 현행 정본 문서 (apps/web/dms/docs/development/)
+### 현행 정본 문서 (apps/web/dms/docs/)
 | 문서 | 상태 | 특징 |
 |------|------|------|
 | hooks.md | ✅ | 실제 코드 기반, 100% 커버리지 |
 | components.md | ✅ | 35개 컴포넌트 모두 문서화 |
 | api.md | ✅ | 19개 API 모두 문서화 |
 
-**권장**: `_archive` 문서는 참조용으로 유지하고, 정본은 `apps/web/dms/docs/development/`를 사용
+**권장**: `_archive` 문서는 참조용으로 유지하고, 정본은 `apps/web/dms/docs/`를 사용
 
 ---
 

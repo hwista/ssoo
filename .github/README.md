@@ -28,6 +28,14 @@
 | **깃헙독스 서비스** | `.github/instructions/` | 서비스별 **규칙** | ✅ 정본 | 레포 특화 |
 | **레포독스** | `docs/` | **산출물** 문서 | ✅ 정본 | 레포 특화 |
 
+### Codex 연계 (SSOO 로컬)
+
+이 레포는 Copilot 정본(`.github/`)과 별도로 Codex 로컬 정본을 운영합니다.
+
+- Codex 진입점: `AGENTS.md`
+- Codex 규칙 정본: `.codex/instructions/`
+- 동기화 검증: `.codex/scripts/verify-codex-sync.js`
+
 > **깃헙독스 코어**만 있으면 **어떤 프로젝트든** SDD로 고품질 개발 가능  
 > **깃헙독스 서비스**는 이 레포의 서비스별 규칙 (pms, dms, server 등)  
 > **레포독스**는 이 프로젝트의 산출물(아키텍처, 도메인)을 설명

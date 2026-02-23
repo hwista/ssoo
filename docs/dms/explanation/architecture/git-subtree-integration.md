@@ -114,6 +114,28 @@ git push origin main
 git subtree push --prefix=apps/web/dms gitlab-dms main
 ```
 
+### 3.4 권장: 단일 명령으로 양방향 publish + 검증
+
+> 수동 `git push`/`git subtree push` 대신 아래 명령을 표준으로 사용한다.
+
+```bash
+# 인증 변수 준비
+export GL_USER='gitlab_username'
+export GL_TOKEN='gitlab_personal_access_token'
+
+# 현재 브랜치 기준 GitHub + GitLab 동시 반영/검증
+pnpm run codex:dms-publish
+```
+
+기본 동작:
+1. 현재 브랜치를 `origin`에 push
+2. `apps/web/dms` subtree를 GitLab `refactor/integration`에 push
+3. GitLab 원격을 fetch한 뒤 local subtree split hash와 원격 hash 일치 여부 검증
+
+참고:
+- DMS 변경이 있는데 `origin`으로 바로 push하면 pre-push guard가 차단한다.
+- 예외 우회(권장하지 않음): `CODEX_SKIP_DMS_PUBLISH_GUARD=1 git push ...`
+
 ---
 
 ## 4. DMS 독립성 유지 원칙
@@ -265,5 +287,5 @@ git subtree add --prefix=apps/web/dms gitlab-dms main --squash
 
 | Date | Change |
 |------|--------|
+| 2026-02-23 | Add `codex:dms-publish` standard flow (GitHub + GitLab + hash verification). |
 | 2026-02-09 | Add changelog section. |
-

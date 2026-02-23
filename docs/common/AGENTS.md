@@ -11,9 +11,11 @@
 
 **이 문서의 역할**:
 - 📋 **온보딩** - 프로젝트 구조와 문서 위치 안내
-- 🔗 **규칙 참조** - Copilot 규칙 파일로 연결
+- 🔗 **규칙 참조** - Copilot/Codex 규칙 파일로 연결
 
-> 📌 **코드 작성 시 적용되는 규칙**은 GitHub Copilot이 자동 참조합니다:
+> 📌 **코드 작성 시 적용되는 규칙 참조 경로**:
+> - Codex 진입점: [`AGENTS.md`](../../AGENTS.md)
+> - Codex 전역/경로별 규칙: [`.codex/instructions/`](../../.codex/instructions/)
 > - 전역 규칙: [.github/copilot-instructions.md](../../.github/copilot-instructions.md)
 > - 경로별 규칙: [.github/instructions/](../../.github/instructions/)
 
@@ -41,10 +43,13 @@ sooo/
 
 ---
 
-## 📁 Copilot 규칙 파일 (정본)
+## 📁 AI 규칙 파일 (정본)
 
 | 파일 | 적용 대상 | 내용 |
 |------|----------|------|
+| [`../../AGENTS.md`](../../AGENTS.md) | Codex 진입점 | 참조 순서, 스킬, 실행 루틴 |
+| [`../../.codex/instructions/codex-instructions.md`](../../.codex/instructions/codex-instructions.md) | Codex 전역 | Codex 프로토콜/검증 순서 |
+| [`../../.codex/instructions/project.instructions.md`](../../.codex/instructions/project.instructions.md) | Codex 전역 | 레포 특화 규칙 |
 | [copilot-instructions.md](../../.github/copilot-instructions.md) | 전역 | 핵심 원칙, 패키지 경계, 네이밍 |
 | [server.instructions.md](../../.github/instructions/server.instructions.md) | `apps/server/**` | NestJS 패턴, 보안, API |
 | [pms.instructions.md](../../.github/instructions/pms.instructions.md) | `apps/web/pms/**` | 컴포넌트, 스토어, 색상 |
@@ -104,7 +109,7 @@ cd apps/web/dms && npm run dev    # DMS :3001 (npm!)
 ### 2. DMS 작업 시 주의
 
 > ⚠️ **DMS는 npm 사용, @ssoo/* 참조 금지**  
-> DMS 작업 시: [apps/web/dms/docs/development/AGENTS.md](../../apps/web/dms/docs/development/AGENTS.md)
+> DMS 작업 시: [apps/web/dms/docs/AGENTS.md](../../apps/web/dms/docs/AGENTS.md)
 
 ---
 
@@ -112,6 +117,7 @@ cd apps/web/dms && npm run dev    # DMS :3001 (npm!)
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-02-22 | Codex 정본 진입점(`AGENTS.md`) 및 `.codex/instructions` 참조 경로 추가 |
 | 2026-02-04 | **리팩토링**: 중복 내용 삭제, Copilot 규칙 링크로 대체, 온보딩 가이드로 단순화 |
 | 2026-02-03 | typecheck 명령어 삭제 (스크립트 미존재) |
 | 2026-02-02 | 모노레포 AGENTS 최초 작성 |

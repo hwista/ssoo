@@ -31,3 +31,4 @@ else
 fi
 
 $PNPM_CMD run lint
+$PNPM_CMD run codex:preflight
