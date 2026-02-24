@@ -130,7 +130,7 @@ apps/web/dms/
 ├── server/                     # 백엔드
 │   ├── handlers/              # 19개
 │   └── services/              # FileSystem, Search
-└── docs/wiki/                  # 데이터
+└── data/wiki/                  # 데이터
 ```
 
 ---

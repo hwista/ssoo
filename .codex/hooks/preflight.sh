@@ -29,6 +29,7 @@ echo "$CHANGED"
 
 NEED_DOCS=0
 NEED_PATTERNS=0
+PATTERN_FILES=()
 
 if echo "$CHANGED" | rg -q '\.md$|^docs/|^\.github/'; then
   NEED_DOCS=1
@@ -38,14 +39,26 @@ if echo "$CHANGED" | rg -q '\.tsx?$|^apps/|^packages/'; then
   NEED_PATTERNS=1
 fi
 
+if [ "$NEED_PATTERNS" -eq 1 ]; then
+  while IFS= read -r file; do
+    if [[ "$file" =~ \.(ts|tsx|js|jsx)$ ]] && [ -f "$file" ]; then
+      PATTERN_FILES+=("$file")
+    fi
+  done <<< "$CHANGED"
+
+  if [ "${#PATTERN_FILES[@]}" -eq 0 ]; then
+    NEED_PATTERNS=0
+  fi
+fi
+
 if [ "$NEED_DOCS" -eq 1 ]; then
-  echo "[preflight] running: node .github/scripts/check-docs.js"
-  node .github/scripts/check-docs.js
+  echo "[preflight] running: node .github/scripts/check-docs.js --strict-warnings"
+  node .github/scripts/check-docs.js --strict-warnings
 fi
 
 if [ "$NEED_PATTERNS" -eq 1 ]; then
-  echo "[preflight] running: node .github/scripts/check-patterns.js"
-  node .github/scripts/check-patterns.js
+  echo "[preflight] running: node .github/scripts/check-patterns.js ${PATTERN_FILES[*]}"
+  node .github/scripts/check-patterns.js "${PATTERN_FILES[@]}"
 fi
 
 echo "[preflight] completed."

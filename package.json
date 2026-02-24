@@ -8,7 +8,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "lint:docs": "node scripts/check-docs.js",
+    "lint:docs": "node .github/scripts/check-docs.js --strict-warnings",
     "clean": "turbo clean && rimraf node_modules",
     "docs:typedoc": "pnpm --filter server docs:typedoc && pnpm --filter web-pms docs:typedoc && pnpm --filter @ssoo/types docs:typedoc",
     "docs:openapi": "pnpm --filter server docs:openapi",
@@ -23,7 +23,7 @@
     "dev:web-dms": "cd apps/web/dms && npm run dev",
     "build:server": "turbo build --filter=server",
     "build:web-pms": "turbo build --filter=web-pms",
-    "build:web-dms": "cd apps/web/dms && npm run build",
+    "build:web-dms": "bash .codex/scripts/dms-build.sh",
     "codex:verify-sync": "node .codex/scripts/verify-codex-sync.js",
     "codex:check": "pnpm run codex:verify-sync && bash .codex/hooks/preflight.sh",
     "codex:preflight": "bash .codex/hooks/preflight.sh",
@@ -46,14 +46,14 @@
   "lint-staged": {
     "apps/**/*.{ts,tsx}": [
       "pnpm run lint",
-      "node scripts/check-patterns.js"
+      "node .github/scripts/check-patterns.js"
     ],
     "packages/**/*.{ts,tsx}": [
       "pnpm run lint",
-      "node scripts/check-patterns.js"
+      "node .github/scripts/check-patterns.js"
     ],
     "docs/**/*.md": [
-      "node scripts/check-docs.js"
+      "node .github/scripts/check-docs.js --strict-warnings"
     ]
   },
   "engines": {

@@ -907,22 +907,17 @@ export * from './components';
 > **이 섹션은 레포 특화 내용입니다. 새 프로젝트에서는 수정/삭제하세요.**
 
 <!-- REPO-SPECIFIC-START -->
-SSOO 모노레포에서는 레포독스가 **두 곳**에 존재합니다.
+SSOO 모노레포에서는 DMS 문서를 `docs/dms/` 단일 정본으로 관리합니다.
 
 | 위치 | 역할 | 내용 |
 |------|------|------|
-| `docs/` | **모노레포 전체 정본** | common, pms, (dms 요약) |
-| `apps/web/dms/docs/` | **DMS 독립 정본** | DMS 전용 (분리 가능성) |
-
-**DMS 이중 정본 이유**:
-- DMS는 별도 저장소로 분리될 가능성이 있음
-- `apps/web/dms/docs/`가 DMS의 **1차 정본**
-- `docs/dms/`는 모노레포 통합용 **요약/참조**
+| `docs/` | **모노레포 전체 정본** | common, pms, dms |
+| `docs/dms/` | **DMS 정본** | DMS 전용 산출물 문서 |
+| `apps/web/dms/data/wiki/` | **런타임 자산** | DMS 파일 시스템/Git 데이터 |
 
 **참조 규칙**:
-- DMS 작업 시 → `apps/web/dms/docs/` 참조
-- 모노레포 전체 구조 파악 시 → `docs/dms/` 참조
-- `docs/dms/`에서 상세 내용 → `apps/web/dms/docs/` 링크
+- DMS 작업 시 → `docs/dms/` 참조
+- 위키 데이터 운영/경로 확인 시 → `apps/web/dms/data/wiki/` 참조
 <!-- REPO-SPECIFIC-END -->
 
 ### 🔴 문서 역할 구분 요약
@@ -932,7 +927,7 @@ SSOO 모노레포에서는 레포독스가 **두 곳**에 존재합니다.
 | **깃헙독스 코어** | `.github/` (루트) | 프로세스 **표준** | ✅ 정본 | 100% 이식 |
 | **깃헙독스 서비스** | `.github/instructions/` | 서비스별 **규칙** | ✅ 정본 | 레포 특화 |
 | **레포독스 (모노레포)** | `docs/` | 모노레포 **산출물** | ✅ 정본 | 레포 특화 |
-| **레포독스 (DMS)** | `apps/web/dms/docs/` | DMS **산출물** | ✅ 정본 | 분리 가능 |
+| **레포독스 (DMS)** | `docs/dms/` | DMS **산출물** | ✅ 정본 | 분리 가능 |
 
 ### 📚 Diátaxis 문서 구조 (필수)
 

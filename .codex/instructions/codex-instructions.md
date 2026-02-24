@@ -39,7 +39,7 @@
 
 - Codex 규칙 정본: `.codex/instructions/`
 - GitHubDocs 규칙 정본: `.github/`
-- 레포 산출물 정본: `docs/`, `apps/web/dms/docs/`
+- 레포 산출물 정본: `docs/`, `docs/dms/`
 
 ## 금지 사항
 

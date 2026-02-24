@@ -1,91 +1,70 @@
-# DMS 백로그 (Backlog)
+# DMS 백로그
 
-> DMS(Document Management System) 작업 계획 및 진행 상황
-
-**마지막 업데이트**: 2026-01-29
+> 최종 업데이트: 2026-02-23
 
 ---
 
-## 🎯 현재 작업: Phase 7 - 문서 시스템 템플릿 재설계
+## 🎯 진행 중
 
-**브랜치**: `dms/refactor/integration`  
-**목표**: 문서 뷰어/에디터 템플릿 완성 및 기능 구현
-
----
-
-## ✅ 완료된 작업
-
-### Phase 7: 문서 시스템 템플릿 재설계
-- [x] DocPageTemplate 슬롯 기반 구조 (뷰어/에디터 공용)
-- [x] DocViewer 뷰어 툴바 구현
-  - [x] 목차: 마우스 오버 플로팅 패널 + 레벨별 스타일 구분
-  - [x] 검색: 하이라이트 + 결과 탐색 + 0/0 표시
-  - [x] 줌: 확대/축소 + 리셋
-- [x] markdownConverter.ts 커스텀 renderer (헤딩 id 부여)
-- [x] PMS 네이밍 패턴 통일
-  - [x] `common/doc/` → `common/page/`
-- [x] 가비지 코드 정리
-  - [x] `DocViewerTemplate.tsx` 삭제 (미사용)
-  - [x] `pages/wiki/editor/` 빈 폴더 삭제
-  - [x] 템플릿 미사용 props 제거
-
-### Phase 4: API 레이어 정리 완료
-- [x] apiClient.ts 확장 (userApi, searchApi, uploadApi, aiApi)
-- [x] 직접 fetch 호출 제거 → API 클라이언트 사용
-- [x] package-unification-analysis.md 작성
-
-### Phase 2: DMS 리팩토링 완료
-- [x] Fluent UI 제거 → shadcn/ui 전환
-- [x] Layout 컴포넌트 PMS 표준화
-- [x] 사이드바/헤더/탭바 스타일 통일
-- [x] UI 컴포넌트 SSOO 디자인 시스템 적용
-- [x] Store 파일명 컨벤션 통일 (`*.store.ts`)
-- [x] 색상 토큰 PMS 표준 통일
+| ID | 항목 | 우선순위 | 담당 | 상태 |
+|----|------|----------|------|------|
+| DMS-DOC-INT-01 | `docs/dms` 단일 정본 전환 + 경로 정합성 정리 | P1 | - | ✅ 완료 |
+| DMS-INT-01 | 모노레포 통합 | P1 | - | ✅ 완료 |
+| DMS-INT-02 | PMS 디자인 시스템 적용 | P1 | - | ✅ 완료 |
+| DMS-INT-03 | Phase 3~5: PMS 패턴 동기화 | P1 | - | ✅ 완료 |
+| DMS-DOC-02 | 문서별 Backlog/Changelog 섹션 도입 | P1 | - | ✅ 완료 |
+| DMS-REF-01 | **루트 컴포넌트 정리** | P2 | - | 🔄 **대기** |
 
 ---
 
-## 📋 예정된 작업
+## 📋 루트 컴포넌트 정리 (DMS-REF-01)
 
-### Phase 8: 에디터 기능 구현
-- [ ] DocEditor 컴포넌트 완성
-- [ ] 마크다운 에디터 툴바
-- [ ] 실시간 미리보기 (좌우 분할)
-- [ ] 저장/취소 기능
+> 16개 파일을 적절한 디렉토리로 이동 필요
 
-### Phase 9: API 연동 및 기능 완성
-- [ ] 파일 목록 API 연동 (tree-store → server)
-- [ ] 검색 기능 API 연동
-- [ ] 책갈피 API 연동
-- [ ] 히스토리 기능
-
-### Phase 10: 레거시 정리
-- [ ] WikiEditor.tsx → editor/ 이동 (현재 루트에 위치)
-- [ ] WikiEditor.tsx 인라인 스타일 정리
-- [ ] MarkdownToolbar.tsx 정리
-- [ ] SlashCommand.tsx 정리
+| 파일 | 권장 위치 | 우선순위 |
+|------|----------|----------|
+| `WikiApp.tsx` | 삭제 (AppLayout 대체) | P1 |
+| `WikiSidebar.tsx` | 삭제 (MainSidebar 대체) | P1 |
+| `WikiEditor.tsx` | `editor/` | P2 |
+| `AIChat.tsx` | `pages/ai/` | P2 |
+| `GeminiChat.tsx` | `pages/ai/` | P2 |
+| `SearchPanel.tsx` | `layout/sidebar/` | P2 |
+| `TextSearch.tsx` | `layout/sidebar/` | P2 |
+| 기타 | `common/` | P3 |
 
 ---
 
-## 🏷️ 작업 우선순위
+## 📋 대기
 
-| 우선순위 | 설명 |
-|:--------:|------|
-| P0 | 즉시 처리 필요 |
-| P1 | 이번 스프린트 내 완료 |
-| P2 | 다음 스프린트 |
-| P3 | 백로그 |
+| ID | 항목 | 우선순위 | 비고 |
+|----|------|----------|------|
+| DMS-FE-01 | PWA 지원 | P2 | Phase 5 |
+| DMS-FE-02 | 외부 스토리지 연동 | P3 | S3, Azure Blob |
+| DMS-BE-01 | 공용 백엔드 연동 | P2 | Phase 6 |
+| DMS-BE-02 | PMS 연동 | P3 | 프로젝트 산출물 |
+| DMS-UI-01 | 나머지 컴포넌트 스타일 통일 | P2 | Header, TabBar 등 |
 
 ---
 
-## 🔗 관련 문서
+## ✅ 완료
 
-- [DMS Changelog](./changelog.md)
-- [DMS Roadmap](./roadmap.md)
-- [PMS Backlog](../../pms/planning/backlog.md)
+| ID | 항목 | 완료일 |
+|----|------|--------|
+| DMS-DOC-01 | 문서 구조 정리 | 2026-01-27 |
+| DMS-UI-02 | Fluent UI 제거 (Radix UI 전환) | 2026-01-28 |
+| DMS-UI-03 | 레이아웃 컴포넌트 생성 (PMS 구조) | 2026-01-28 |
+| DMS-UI-04 | 사이드바 PMS 스타일 통합 | 2026-01-28 |
+| DMS-FE-03 | 블록 에디터 (Tiptap) | 2026-01 |
+| DMS-FE-04 | AI 검색 (RAG) | 2026-01 |
+| DMS-FE-05 | 알림 시스템 | 2026-01 |
+| DMS-FE-06 | 권한 관리 (RBAC) | 2026-01 |
+
+---
 
 ## Changelog
 
-| Date | Change |
-|------|--------|
-| 2026-02-09 | Add changelog section. |
-
+| 날짜 | 변경 내용 |
+|------|----------|
+| 2026-02-23 | `docs/dms` 단일 정본 전환 완료, 런타임 위키 경로(`apps/web/dms/data/wiki`) 분리 |
+| 2026-01-28 | DMS-UI-02~04 완료, DMS-UI-01 추가, DMS-DOC-02 진행 등록 |
+| 2026-01-27 | 백로그 문서 생성 |

@@ -11,15 +11,15 @@
 ## 2) 산출물 문서 정본
 
 - 모노레포 통합 산출물: `docs/`
-- DMS 1차 정본: `apps/web/dms/docs/`
+- DMS 정본: `docs/dms/`
 
 ## 3) 에이전트 온보딩 정본
 
 - Codex 진입점: `AGENTS.md`
 - 모노레포: `docs/common/AGENTS.md`
-- DMS: `apps/web/dms/docs/AGENTS.md`
+- DMS: `docs/dms/AGENTS.md`
 
 ## 4) 주의할 경로 표기
 
-- 일부 문서에는 과거 경로 `apps/web/dms/docs/development/*` 표기가 남아 있음
-- 현재 실제 구조는 `apps/web/dms/docs/explanation/*`, `apps/web/dms/docs/guides/*`, `apps/web/dms/docs/planning/*`
+- 과거 경로 `apps/web/dms/docs/*` 표기가 남아 있으면 `docs/dms/*`로 교정
+- 위키 런타임 경로는 문서 정본과 분리되어 `apps/web/dms/data/wiki/*` 사용

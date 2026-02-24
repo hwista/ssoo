@@ -12,6 +12,7 @@
  * 사용법:
  *   node .github/scripts/check-docs.js [files...]
  *   node .github/scripts/check-docs.js --all
+ *   node .github/scripts/check-docs.js --strict-warnings
  */
 
 const fs = require('fs');
@@ -222,6 +223,13 @@ function checkLocation(filePath) {
     return errors;
   }
 
+  // 도메인 루트의 특수 파일 허용 (AGENTS.md, CHANGELOG.md 등)
+  if (parts.length === 2 &&
+      ['common', 'pms', 'dms'].includes(parts[0]) &&
+      SPECIAL_FILES.includes(parts[1])) {
+    return errors;
+  }
+
   // common 루트의 특수 파일 허용 (AGENTS.md)
   if (parts.length === 2 && parts[0] === 'common' && SPECIAL_FILES.includes(parts[1])) {
     return errors;
@@ -368,13 +376,16 @@ function checkComponentDocs() {
 
 function main() {
   const args = process.argv.slice(2);
+  const strictWarnings = args.includes('--strict-warnings');
   let files;
 
-  if (args.includes('--all') || args.length === 0) {
+  const targetArgs = args.filter(arg => arg !== '--strict-warnings');
+
+  if (targetArgs.includes('--all') || targetArgs.length === 0) {
     files = findAllDocs();
   } else {
     // 제공된 파일만 검증
-    files = args
+    files = targetArgs
       .filter(f => f.endsWith('.md'))
       .map(f => path.resolve(f))
       .filter(f => fs.existsSync(f));
@@ -441,10 +452,13 @@ function main() {
     console.log(`${GREEN}✓ 모든 문서 검증 통과${RESET}`);
   } else {
     console.log(`결과: ${RED}${totalErrors} 에러${RESET}, ${YELLOW}${totalWarnings} 경고${RESET}`);
+    if (strictWarnings && totalWarnings > 0) {
+      console.log(`${RED}엄격 모드: 경고도 실패로 처리됩니다.${RESET}`);
+    }
   }
 
-  // 에러가 있으면 종료 코드 1
-  process.exit(totalErrors > 0 ? 1 : 0);
+  const hasFailure = totalErrors > 0 || (strictWarnings && totalWarnings > 0);
+  process.exit(hasFailure ? 1 : 0);
 }
 
 main();

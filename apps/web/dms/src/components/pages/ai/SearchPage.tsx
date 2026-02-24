@@ -1,12 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Search, FileText } from 'lucide-react';
-import { useTabStore } from '@/stores';
+import { FileText } from 'lucide-react';
+import { toast } from 'sonner';
+import { useTabStore, useAssistantStore, useConfirmStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { AiPageTemplate } from '@/components/templates';
+import { Toolbar, DOCUMENT_WIDTH } from '@/components/common/viewer';
+import type { TocItem } from '@/components/common/page';
 import { getQueryFromTabPath } from '@/lib/utils';
 import { aiApi, getErrorMessage } from '@/lib/utils/apiClient';
+import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 
 interface SearchResultItem {
   id: string;
@@ -24,13 +28,24 @@ export function AiSearchPage() {
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
   const [isSearching, setIsSearching] = useState(false);
+  const [currentResultIndex, setCurrentResultIndex] = useState(-1);
   const autoQueryRef = useRef('');
+  const confirm = useConfirmStore((state) => state.confirm);
+  const setReferences = useAssistantStore((state) => state.setReferences);
+  const openPanel = useAssistantStore((state) => state.openPanel);
+
+  const scrollToResult = useCallback((index: number) => {
+    const element = document.getElementById(`search-result-${index}`);
+    if (!element) return;
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   const performSearch = useCallback(async (inputQuery: string) => {
     const trimmed = inputQuery.trim();
     setHasSearched(true);
     if (!trimmed) {
       setResults([]);
+      setCurrentResultIndex(-1);
       return;
     }
     setIsSearching(true);
@@ -47,12 +62,14 @@ export function AiSearchPage() {
         },
       ]);
     }
+    setCurrentResultIndex(-1);
     setIsSearching(false);
   }, []);
 
   const handleSearch = useCallback(() => {
+    if (isSearching) return;
     performSearch(query);
-  }, [performSearch, query]);
+  }, [isSearching, performSearch, query]);
 
   useEffect(() => {
     if (initialQuery && autoQueryRef.current !== initialQuery) {
@@ -62,35 +79,97 @@ export function AiSearchPage() {
     }
   }, [initialQuery, performSearch]);
 
+  useEffect(() => {
+    if (results.length === 0) {
+      setCurrentResultIndex(-1);
+      return;
+    }
+    setCurrentResultIndex(0);
+  }, [results]);
+
+  const tocItems = useMemo<TocItem[]>(() => (
+    results.map((item, index) => ({
+      id: `search-result-${index}`,
+      text: item.title || item.path || `문서 ${index + 1}`,
+      level: 1,
+    }))
+  ), [results]);
+
+  const handleNavigateResult = useCallback((direction: 'prev' | 'next') => {
+    if (results.length === 0) return;
+    const nextIndex = direction === 'next'
+      ? (currentResultIndex + 1) % results.length
+      : (currentResultIndex - 1 + results.length) % results.length;
+    setCurrentResultIndex(nextIndex);
+    scrollToResult(nextIndex);
+  }, [currentResultIndex, results.length, scrollToResult]);
+
+  const handleTocClick = useCallback((id: string) => {
+    const index = Number.parseInt(id.replace('search-result-', ''), 10);
+    if (Number.isNaN(index)) return;
+    setCurrentResultIndex(index);
+    scrollToResult(index);
+  }, [scrollToResult]);
+
+  const handleSearchClose = useCallback(() => {
+    setQuery('');
+    setResults([]);
+    setHasSearched(false);
+    setCurrentResultIndex(-1);
+  }, []);
+
+  const handleAttachSearchResultsToAssistant = useCallback(async () => {
+    const candidates = results
+      .filter((item) => item.path.trim().length > 0 && item.path !== '-')
+      .map((item) => ({
+        path: item.path.replace(/^\/+/, ''),
+        title: item.title || item.path.split('/').pop() || item.path,
+      }));
+
+    if (candidates.length === 0) {
+      toast.error('첨부 가능한 검색 결과 문서가 없습니다.');
+      return;
+    }
+
+    if (candidates.length > 20) {
+      const confirmed = await confirm({
+        title: '검색 결과 전체 첨부',
+        description: `현재 ${candidates.length}개 문서를 첨부하면 응답 품질 또는 속도가 저하될 수 있습니다. 계속 진행할까요?`,
+        confirmText: '계속',
+        cancelText: '취소',
+      });
+      if (!confirmed) return;
+    }
+
+    setReferences(candidates);
+    openPanel();
+    window.dispatchEvent(new Event(ASSISTANT_FOCUS_INPUT_EVENT));
+    toast.success(`${candidates.length}개 문서를 첨부했습니다.`);
+  }, [confirm, openPanel, results, setReferences]);
+
   return (
     <AiPageTemplate
       variant="search"
       description="문서 기반 검색 결과를 확인하세요."
+      shellToolbarClassName="border-0 bg-transparent px-0 py-0"
       toolbar={(
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ssoo-primary/50" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="검색어를 입력하세요..."
-              className="h-control-h w-full rounded-lg border border-ssoo-content-border pl-9 pr-3 text-sm focus:border-ssoo-primary focus:outline-none"
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  handleSearch();
-                }
-              }}
-            />
-          </div>
-          <button
-            onClick={handleSearch}
-            disabled={isSearching}
-            className="h-control-h rounded-lg bg-ssoo-primary px-4 text-sm font-medium text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSearching ? '검색 중...' : '검색'}
-          </button>
-        </div>
+        <Toolbar
+          maxWidth={DOCUMENT_WIDTH}
+          variant="embedded"
+          toc={tocItems}
+          onTocClick={handleTocClick}
+          searchQuery={query}
+          onSearchQueryChange={setQuery}
+          onSearchSubmit={handleSearch}
+          onSearchClose={handleSearchClose}
+          searchResultCount={results.length}
+          currentResultIndex={currentResultIndex}
+          hasSearched={hasSearched}
+          onNavigateResult={handleNavigateResult}
+          onAttachToAssistant={handleAttachSearchResultsToAssistant}
+          attachToAssistantTitle="현재 검색 결과 문서를 AI에 첨부하고 질문하기"
+          showZoomControls={false}
+        />
       )}
     >
       {!hasSearched ? (
@@ -103,8 +182,8 @@ export function AiSearchPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {results.map((item) => (
-            <article key={item.id} className="rounded-lg border border-ssoo-content-border p-4">
+          {results.map((item, index) => (
+            <article id={`search-result-${index}`} key={item.id} className="rounded-lg border border-ssoo-content-border p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-base font-semibold text-ssoo-primary">{item.title}</h2>

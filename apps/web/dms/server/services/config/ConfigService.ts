@@ -43,7 +43,7 @@ const CONFIG_FILE = 'dms.config.json';
 const DEFAULT_CONFIG_FILE = 'dms.config.default.json';
 
 /** 설정 파일이 없을 때 사용하는 폴백 기본 경로 */
-const FALLBACK_WIKI_DIR = path.join(process.cwd(), 'docs', 'wiki');
+const FALLBACK_WIKI_DIR = path.join(process.cwd(), 'data', 'wiki');
 
 // ============================================================================
 // Config Service

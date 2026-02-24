@@ -12,7 +12,7 @@ Codex 작업 시 참조 순서, 규칙 정본, 검증 루틴을 고정해 일관
 1. `.codex/instructions/codex-instructions.md` (Codex 전역 프로토콜)
 2. `.codex/instructions/project.instructions.md` (레포 특화 규칙)
 3. 작업 경로별 `.codex/instructions/*.instructions.md`
-4. 문서 정본: `docs/`, `apps/web/dms/docs/`
+4. 문서 정본: `docs/`, `docs/dms/`
 5. 동기화 원본 참조: `.github/copilot-instructions.md`, `.github/instructions/*.md`
 
 ## 스킬 사용 규칙
@@ -31,7 +31,7 @@ Codex 작업 시 참조 순서, 규칙 정본, 검증 루틴을 고정해 일관
 
 - Codex 규칙 정본: `.codex/instructions/`
 - GitHubDocs 규칙 정본: `.github/copilot-instructions.md`, `.github/instructions/`
-- 산출물 문서 정본: `docs/`, `apps/web/dms/docs/`
+- 산출물 문서 정본: `docs/`, `docs/dms/`
 
 ## 주의
 

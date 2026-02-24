@@ -84,8 +84,8 @@ hooks → lib/api → stores
 
 | 문서 유형 | 정본 위치 | 역할 |
 |----------|----------|------|
-| **DMS 레포독스** | `apps/web/dms/docs/` | DMS 1차 정본 (분리 대비) |
-| **모노레포 요약** | `docs/dms/` | 통합 참조용 (상세는 링크) |
+| **DMS 레포독스** | `docs/dms/` | DMS 정본 |
+| **DMS Wiki 런타임 자산** | `apps/web/dms/data/wiki/` | 파일 시스템/Git 데이터 |
 | **깃헙독스 규칙** | `.github/instructions/dms.instructions.md` | 개발 규칙 (이 파일) |
 
 ### 참조 규칙
@@ -95,19 +95,19 @@ hooks → lib/api → stores
         ↓ 참조
 깃헙독스 서비스 (.github/instructions/dms.instructions.md) ← 이 파일
         ↓ 작업 시 참조
-레포독스 (apps/web/dms/docs/)
+레포독스 (docs/dms/)
 ```
 
-- DMS 작업 시 → `apps/web/dms/docs/` 참조
-- 디자인 시스템 세부 값 → `apps/web/dms/docs/explanation/design/design-system.md`
-- 모노레포 전체 구조 확인 시 → `docs/dms/` 참조
+- DMS 작업 시 → `docs/dms/` 참조
+- 디자인 시스템 세부 값 → `docs/dms/explanation/design/design-system.md`
+- 위키 데이터 경로 확인 시 → `apps/web/dms/data/wiki/` 참조
 
 ---
 
 ## UI 디자인 규칙
 
 > **전역 규칙**: `.github/copilot-instructions.md` 참조
-> **세부 값**: `apps/web/dms/docs/explanation/design/design-system.md` 참조
+> **세부 값**: `docs/dms/explanation/design/design-system.md` 참조
 
 - 요청한 컨트롤만 생성 (컨테이너 금지)
 - 컨트롤 높이 표준 준수 (`h-control-h`)
@@ -395,17 +395,17 @@ const tabId = await openTabWithConfirm({
 ## 관련 문서
 
 **에이전트/온보딩**:
-- [DMS 에이전트 가이드](../../apps/web/dms/docs/AGENTS.md) - 작업 프로세스, 체크리스트
+- [DMS 에이전트 가이드](../../docs/dms/AGENTS.md) - 작업 프로세스, 체크리스트
 
 **아키텍처**:
-- [기술 스택](../../apps/web/dms/docs/explanation/architecture/tech-stack.md)
-- [패키지 구조](../../apps/web/dms/docs/explanation/architecture/package-spec.md)
-- [상태 관리](../../apps/web/dms/docs/explanation/architecture/state-management.md)
+- [기술 스택](../../docs/dms/explanation/architecture/tech-stack.md)
+- [패키지 구조](../../docs/dms/explanation/architecture/package-spec.md)
+- [상태 관리](../../docs/dms/explanation/architecture/state-management.md)
 
 **개발 가이드**:
-- [컴포넌트 가이드](../../apps/web/dms/docs/guides/components.md)
-- [훅 가이드](../../apps/web/dms/docs/guides/hooks.md)
-- [API 가이드](../../apps/web/dms/docs/guides/api.md)
+- [컴포넌트 가이드](../../docs/dms/guides/components.md)
+- [훅 가이드](../../docs/dms/guides/hooks.md)
+- [API 가이드](../../docs/dms/guides/api.md)
 
 **디자인**:
-- [디자인 시스템](../../apps/web/dms/docs/explanation/design/design-system.md)
+- [디자인 시스템](../../docs/dms/explanation/design/design-system.md)

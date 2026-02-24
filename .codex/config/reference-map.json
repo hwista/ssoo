@@ -42,7 +42,7 @@
     ],
     "repo_docs": [
       "docs",
-      "apps/web/dms/docs"
+      "docs/dms"
     ]
   }
 }

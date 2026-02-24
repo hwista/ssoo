@@ -15,9 +15,6 @@ if ! echo "$CHANGED" | rg -q '^apps/web/dms/'; then
 fi
 
 echo "[dms-guard] DMS changes detected. running npm build in apps/web/dms"
-(
-  cd apps/web/dms
-  npm run build
-)
+bash .codex/scripts/dms-build.sh
 
 echo "[dms-guard] completed."

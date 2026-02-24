@@ -25,6 +25,11 @@ const createHomeTab = (): TabItem => {
   };
 };
 
+function normalizeAiTabTitle(path: string, title: string): string {
+  if (path.startsWith('/ai/ask')) return 'AI 어시스턴트';
+  return title;
+}
+
 interface TabStoreState {
   tabs: TabItem[];
   activeTabId: string | null;
@@ -72,11 +77,20 @@ export const useTabStore = create<TabStore>()(
         // 이미 존재하는 탭 확인
         const existingTab = tabs.find((t) => t.id === tabId);
         if (existingTab) {
+          const normalizedTitle = normalizeAiTabTitle(existingTab.path, existingTab.title);
           if (activate) {
             set({
               activeTabId: tabId,
               tabs: tabs.map((t) =>
-                t.id === tabId ? { ...t, lastActiveAt: new Date() } : t
+                t.id === tabId
+                  ? { ...t, title: normalizedTitle, lastActiveAt: new Date() }
+                  : t
+              ),
+            });
+          } else if (normalizedTitle !== existingTab.title) {
+            set({
+              tabs: tabs.map((t) =>
+                t.id === tabId ? { ...t, title: normalizedTitle } : t
               ),
             });
           }
@@ -92,7 +106,7 @@ export const useTabStore = create<TabStore>()(
         const now = new Date();
         const newTab: TabItem = {
           id: tabId,
-          title,
+          title: normalizeAiTabTitle(path, title),
           path,
           icon,
           closable,
@@ -221,6 +235,7 @@ export const useTabStore = create<TabStore>()(
         if (state?.tabs) {
           state.tabs = state.tabs.map((tab) => ({
             ...tab,
+            title: normalizeAiTabTitle(tab.path, tab.title),
             openedAt: new Date(tab.openedAt),
             lastActiveAt: new Date(tab.lastActiveAt),
           }));

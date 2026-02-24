@@ -1,6 +1,6 @@
-# DMS Planning
+# DMS 프로젝트 관리
 
-> DMS 프로젝트 계획 문서
+> 최종 업데이트: 2026-02-02
 
 ---
 
@@ -8,13 +8,13 @@
 
 | 문서 | 설명 |
 |------|------|
-| [changelog.md](./changelog.md) | 변경 이력 |
-| [backlog.md](./backlog.md) | 작업 백로그 |
-| [roadmap.md](./roadmap.md) | 개발 로드맵 |
+| [roadmap.md](roadmap.md) | 개발 로드맵 및 마일스톤 |
+| [backlog.md](backlog.md) | 백로그 및 할 일 목록 |
+| [changelog.md](changelog.md) | 변경 이력 |
 
 ---
 
 ## 🔗 관련 문서
 
-- [DMS 아키텍처](../explanation/architecture/)
-- [DMS README](../README.md)
+- [서비스 개요](../domain/service-overview.md)
+- [기술 스택](../architecture/tech-stack.md)

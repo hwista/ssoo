@@ -48,4 +48,4 @@ pnpm run codex:dms-publish
 
 - Codex 정본: `.codex/instructions/`
 - GitHubDocs 정본: `.github/copilot-instructions.md`, `.github/instructions/`
-- 산출물 정본: `docs/`, `apps/web/dms/docs/`
+- 산출물 정본: `docs/`, `docs/dms/`

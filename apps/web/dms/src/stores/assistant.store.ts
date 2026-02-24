@@ -65,6 +65,7 @@ interface AssistantActions {
   regenerateSuggestions: (count?: number) => void;
   setSuggestionsCollapsed: (value: boolean) => void;
   toggleReference: (reference: { path: string; title: string }) => void;
+  setReferences: (references: Array<{ path: string; title: string }>) => void;
   removeReference: (path: string) => void;
   clearReferences: () => void;
   startNewSession: () => void;
@@ -132,6 +133,15 @@ export const useAssistantStore = create<AssistantStore>()(
         return {
           attachedReferences: [...state.attachedReferences, reference],
         };
+      }),
+      setReferences: (references) => set({
+        attachedReferences: Array.from(
+          new Map(
+            references
+              .filter((item) => item.path.trim().length > 0)
+              .map((item) => [item.path, { path: item.path, title: item.title || item.path }])
+          ).values()
+        ),
       }),
       removeReference: (path) => set((state) => ({
         attachedReferences: state.attachedReferences.filter((item) => item.path !== path),

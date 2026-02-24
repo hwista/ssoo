@@ -86,8 +86,8 @@ sooo/
 | 도메인 | 위치 | 설명 |
 |--------|------|------|
 | **PMS** | `docs/pms/` | PMS 설계, 디자인, 도메인 |
-| **DMS** | `apps/web/dms/docs/` | DMS 정본 (독립) |
-| **DMS 통합** | `docs/dms/` | 모노레포 통합 관련만 |
+| **DMS** | `docs/dms/` | DMS 정본 |
+| **DMS Wiki 자산** | `apps/web/dms/data/wiki/` | 런타임 파일 시스템/Git 데이터 |
 
 ---
 
@@ -109,7 +109,7 @@ cd apps/web/dms && npm run dev    # DMS :3001 (npm!)
 ### 2. DMS 작업 시 주의
 
 > ⚠️ **DMS는 npm 사용, @ssoo/* 참조 금지**  
-> DMS 작업 시: [apps/web/dms/docs/AGENTS.md](../../apps/web/dms/docs/AGENTS.md)
+> DMS 작업 시: [docs/dms/AGENTS.md](../../docs/dms/AGENTS.md)
 
 ---
 

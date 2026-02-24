@@ -1,235 +1,452 @@
-# DMS 변경 이력 (Changelog)
+# DMS 변경 이력
 
-> DMS(Document Management System) 개발 변경 이력
-
-**마지막 업데이트**: 2026-02-09
+> 최종 업데이트: 2026-02-23
 
 ---
 
-## 📅 2026-02
+## 2026-02-23
 
-### 2026-02-09
+### DMS 문서 정본 단일화 + 위키 런타임 경로 분리
 
-#### Phase 10: 옵시디언 스타일 라이브 프리뷰 에디터
-| 커밋 | 변경 내용 |
-|------|----------|
-| - | **LivePreview 확장 완전 재설계** (appendTransaction 기반 블록 변환) |
-| | - 커서 위치 블록을 `codeBlock(language='livepreview')`로 변환하여 **실제 편집 가능한 마크다운 텍스트** 표시 |
-| | - 커서가 다른 블록으로 이동하면 마크다운을 파싱하여 WYSIWYG 노드로 자동 복원 |
-| | - `nodeToMarkdown()`: ProseMirror 노드 → DOMSerializer → HTML → TurndownService → 마크다운 |
-| | - `markdownToFragment()`: 마크다운 → markdownToHtmlSync → HTML → PMDOMParser → Fragment |
-| | - 에디터 blur 시 모든 소스 블록 자동 복원 (`onBlur`) |
-| | - 소스 블록 스타일: 연한 파란 배경 (`bg-blue-50/50`) |
-| | **링크 클릭 방지** (편집 모드) |
-| | - CSS `pointer-events: none`으로 에디터 내 링크 클릭 완전 차단 |
-| | - Ctrl+Click으로 링크 열기 지원 (`document.elementsFromPoint()` 활용) |
-| | **에디터 모드 통합** (블록/마크다운 → 단일 라이브 프리뷰) |
-| | - 모드 전환 툴바 제거 (`Toolbar.tsx` 삭제) |
-| | - `Content.tsx` 단순화 (마크다운 textarea 제거) |
-| | - `Editor.tsx`에서 `EditorMode` 타입/상태 제거 |
-| | **globals.css 대폭 정리** |
-| | - ~150줄 CSS pseudo-element 규칙 삭제, ~30줄 소스 블록 스타일로 교체 |
-| | **뷰어 줌 컨트롤 높이 수정** |
-| | - 확대/축소/되돌리기 버튼 `size="sm"` → `size="icon"` (36px 정사각형) |
+- DMS 문서 정본을 `docs/dms/`로 단일화
+- 기존 `apps/web/dms/docs/` 문서 트리를 `docs/dms/`로 이관하고 레거시 문서는 `docs/dms/_archive/`로 이동
+- 런타임 위키 자산을 `apps/web/dms/data/wiki/`로 분리
+- 설정 기본 경로를 `data/wiki`로 변경 (`ConfigService`, Settings 설명 문구)
+- 문서/규칙 참조 경로를 `docs/dms` 기준으로 전면 갱신
 
-### 2026-02-03
+---
 
-#### Phase 9: 컨트롤 높이 표준화 및 드롭다운 안정화
-| 커밋 | 변경 내용 |
-|------|----------|
-| - | **DMS 컨트롤/컨테이너 높이 표준 적용** |
-| | - Header/Toolbar/EditorToolbar/Sidebar 등 컨트롤 높이 및 컨테이너 패딩 통일 |
-| | - 인라인 아이콘 버튼 크기 표준(32px) 적용 |
-| | **드롭다운 메뉴 표준 개선** |
-| | - 메뉴 항목 높이 `h-control-h` 통일 |
-| | - 문서 타입/AI 검색 드롭다운 클릭 방식으로 안정화 |
-| | **뷰어 컴포넌트 네이밍 정리** |
-| | - ViewerToolbar/ViewerContent → Toolbar/Content |
-| | **문서 타입 옵션 정리** |
-| | - 문서 타입: Wiki, Dev로 단순화 (Blog 제거) |
+### AI 채팅 공통 컴포넌트화 + 세션 API 보강
 
-## 📅 2026-01
+- 플로팅 챗봇 패널과 `AI 질문` 페이지의 중복 UI를 공통 컴포넌트로 통합
+  - `AssistantMessageList`, `AssistantComposer`, `AssistantSessionHistoryList` 신규 도입
+  - 응답 텍스트 정리 로직(`assistantTextFormat`) 공통화
+  - 포커스 이벤트 상수(`ASSISTANT_FOCUS_INPUT_EVENT`) 공용화
+- 채팅 세션 저장 API(`/api/chat-sessions`) 입력 검증 강화
+  - `clientId`, `sessionId` 형식 검증 추가
+  - `title` 길이 제한, `messages` 개수/바이트 제한 추가
+  - 세션 정렬 안정성 개선(`updatedAt` + `id` 타이브레이커)
+- 사이드카 채팅 기록 목록 렌더링도 공통 세션 리스트 컴포넌트로 통합
 
-### 2026-01-30
+---
 
-#### Phase 8: PMS/DMS 구조 통일 - Sidebar 통합
-| 커밋 | 변경 내용 |
-|------|----------|
-| - | **types 구조 PMS 통일** |
-| | - `layout.ts`: 주석 헤더 통일, `sidebar.width` → `expandedWidth` 네이밍 변경 |
-| | - `layout.ts`: `tabBar.height` 명확화 (height: 36, containerHeight: 53) |
-| | - `sidebar.ts`: 신규 생성 (SidebarSection, SidebarState, SIDEBAR_SECTION_ICONS 등) |
-| | - `index.ts`: sidebar.ts export 추가 |
-| | - 사용처 업데이트: AppLayout, Sidebar, DocPageTemplate, layout.store |
-| - | **미사용 ui 컴포넌트 삭제**: menu, popover, progress, spinner |
-| | **Breadcrumb 스타일 PMS 통일** |
-| | - 중간 경로/파일 아이콘 제거 (루트 Folder 아이콘만 유지) |
-| | - PMS와 동일 스타일: `📁 > 텍스트 > 텍스트(볼드)` |
-| - | **버그 수정: Search 무한 루프** |
-| | - lucide-react `Search` 아이콘과 컴포넌트 이름 충돌 → `SearchIcon` alias로 해결 |
-| | **레거시 정리** |
-| | - `MainSidebar/` 폴더 삭제 (Sidebar로 통합 완료) |
-| | - `Sidebar/constants.ts` 추가 (SECTION_ICONS 상수 PMS와 동일 구조) |
-| | - `Sidebar/index.ts` barrel export 재구성 |
-| - | **Sidebar 폴더 구조 통합** |
-| | - `MainSidebar/` + `sidebar/` → `Sidebar/` 단일 폴더로 통합 |
-| | - 컴포넌트 접두어 제거: `SidebarSearch` → `Search`, `SidebarSection` → `Section` 등 |
-| | - `MainSidebar` 컴포넌트 → `Sidebar`로 이름 변경 |
-| | - `layout/index.ts`, `AppLayout.tsx` import/export 수정 |
-| | **common/page 네이밍 PMS 통일** |
-| | - `DocBreadcrumb` → `Breadcrumb` |
-| | - `DocHeader` → `Header` |
-| | - `DocContent` → `Content` |
-| | - `DocSidecar` → `Sidecar` |
-| | - `DocViewer` → `Viewer` |
-| | **editor 폴더 구조 정리** |
-| | - `WikiEditor.tsx` → `editor/WikiEditor.tsx` 이동 |
+### 전역 플로팅 AI 어시스턴트 도입
 
-### 2026-01-29
+- 헤더의 질문 입력/질문-검색 전환 드롭다운 제거
+- 우측 하단 플로팅 버튼 + 오버레이 챗 패널 전역 배치
+- 챗 입력 의도 라우팅 추가: 질문은 `/api/ask`, 검색 요청은 `/api/search`
+- 검색 결과 카드에서 파일 클릭 시 문서 탭(`/doc/...`) 직접 오픈
+- 홈 대시보드의 `AI 질문` 카드 제거, `AI 검색` 카드만 유지
+- 탭 라우팅에서 `/ai/ask` 매핑 제거 및 관련 레이아웃 타입 정리
 
-#### Phase 7: 문서 시스템 템플릿 재설계 - 뷰어 툴바 완성
-| 커밋 | 변경 내용 |
-|------|----------|
-| - | **DocViewer 뷰어 툴바 기능 완성** |
-| | - 목차: 마우스 오버 시 플로팅 패널, 레벨별 볼드/색상 구분 |
-| | - 검색: 하이라이트 + 결과 탐색 (이전/다음) + 0/0 표시 |
-| | - 줌: 75%~200% 확대/축소 + 리셋 |
-| | **마크다운 렌더링 개선** |
-| | - markdownConverter.ts: 커스텀 renderer로 헤딩에 `id="heading-N"` 자동 부여 |
-| | - 목차 클릭 시 해당 섹션으로 스크롤 이동 |
-| | **검색 기능 state 기반 재구현** |
-| | - DOM 직접 조작 → `highlightedContent` state 방식으로 변경 |
-| | - React 리렌더링과의 충돌 해결 |
-| | **코드 정리 및 PMS 패턴 통일** |
-| | - `common/doc/` → `common/page/` 네이밍 변경 (PMS 일관성) |
-| | - `DocViewerTemplate.tsx` 삭제 (미사용 가비지) |
-| | - `pages/wiki/editor/` 빈 폴더 삭제 |
-| | - 템플릿 미사용 props 제거 (`toc`, `onTocClick`, `onSearch`) |
+---
 
-#### 패턴 통일: Store 파일명 및 타입 분리
-| 커밋 | 변경 내용 |
-|------|----------|
-| `c1316bc` | **Store 파일명 컨벤션 PMS 표준화** |
-| | - `*-store.ts` → `*.store.ts` (9개 파일 rename) |
-| | - stores/index.ts 중앙 export 업데이트 |
-| | - 모든 컴포넌트 `@/stores` barrel export 사용 |
-| | **types/tab.ts 도메인별 분리** |
-| | - TabItem, OpenTabOptions 타입을 layout.ts에서 분리 |
-| | - types/index.ts export 추가 |
-| | - tab.store.ts import 경로 수정 |
+### Azure OpenAI Entra 토큰 자동 갱신 적용
 
-#### Phase 4: API 레이어 정리 완료
-| 커밋 | 변경 내용 |
-|------|----------|
-| `05219e4` | **apiClient.ts 확장** |
-| | - userApi, searchApi, uploadApi, aiApi 추가 |
-| | - 모든 직접 fetch 호출 제거 → API 클라이언트 사용 |
-| `3b88a4f` | package-unification-analysis.md 장기 통합 분석 문서 추가 |
-| `262da36` | BlockEditor Tiptap SSR 하이드레이션 오류 수정 (`immediatelyRender: false`) |
+- `server/services/ai/provider.ts`에 Entra ID 토큰 자동 발급/갱신 로직 추가
+- Managed Identity 우선, Service Principal(`AZURE_TENANT_ID/CLIENT_ID/CLIENT_SECRET`) 폴백 체인 구성
+- Entra 토큰 실패 시 `AZURE_OPENAI_API_KEY` 경로로 호환 폴백 유지
+- `/api/ask`, `/api/create` 경로에서 비동기 모델 초기화 방식 반영
+- `.env.example`에 Entra/Managed Identity/OpenAI API version 변수 추가
+- API 가이드에 `React -> Next API -> Azure OpenAI` 보안 구조 문서화
 
-### 2026-01-28
+---
 
-#### Phase 2 추가: 색상 토큰 PMS 표준 통일
-| 커밋 | 변경 내용 |
-|------|----------|
-| `14fb202` | **Sidebar 색상 토큰 PMS 표준 통일** |
-| | - SidebarSearch: `text-muted-foreground` → `text-gray-400` |
-| | - SidebarOpenTabs: `text-foreground` → `text-gray-700` |
-| | - SidebarBookmarks: semantic 토큰 → `gray-xxx` |
-| | - SidebarFileTree: semantic 토큰 → `gray-xxx` |
-| | - MainSidebar 카피라이트: `text-muted-foreground` → `text-gray-500` |
+## 2026-02-10
 
-#### Phase 2-L: Store 구조 비교 (분석 완료)
-| 분석 | 결과 |
+### 문서형 레이아웃 표준화
+
+- 문서 방향(세로/가로) 기준 폭 상수 정의 및 DocPageTemplate 기본 적용
+- 마크다운/AI 페이지를 동일한 문서형 컨테이너 패턴으로 정렬
+- AI 페이지 공통 셸 컴포넌트 도입
+- DocPageTemplate 초기 레이아웃 측정 전 트랜지션 억제
+- MarkdownViewerPage 뷰어 툴바의 임베디드 스타일을 이전 패딩 기준으로 복원
+- 뷰어 툴바 컨테이너 배경/보더 투명 처리
+- 뷰어 모드에서 DocPageTemplate 표면을 투명 처리하고 본문 박스만 유지
+- 에디터 툴바 표면을 뷰어와 동일하게 투명 처리
+- 마크다운 뷰어 페이지 파일명을 규칙에 맞게 변경 (ViewerPage)
+- 에디터 모드에서도 DocPageTemplate 표면을 투명 처리하고 본문 박스만 유지
+- ESLint flat config에서 Next preset 로딩 방식 수정
+
+### 사이드카 편집 기능 개선
+
+- 사이드카 섹션 접기/펼치기(CollapsibleSection) 적용
+- 뷰어 모드에서 댓글 입력 지원 (Enter 전송)
+- 빈 섹션 플레이스홀더 표시
+- 작성자 기본값을 'Unknown'으로 변경
+
+### 헤더 UserMenu 추가
+
+- PMS 스타일 UserMenu 드롭다운 적용 (인증 미구현, 더미 데이터)
+- 드롭다운 너비를 액션 영역에 맞춤 (ResizeObserver)
+
+### 헤더/사이드바 드롭다운 보정
+
+- 새 도큐먼트 모달을 버튼 하단 드롭다운 패널로 변경 (AI 작성/ UI 작성)
+- 새 도큐먼트 드롭다운 폭을 버튼 너비와 동기화
+- 헤더 AI 검색/사이드바 문서 타입 트리거에 텍스트 표시
+- 헤더/사이드바 드롭다운 간격을 사용자 메뉴와 동일하게 통일
+
+## 2026-02-09
+
+### AI 질문/검색 구조 정리
+
+- 상단 AI 진입점을 질문/검색 모드로 분리
+- 질문/검색/AI 작성 페이지 추가 및 탭 라우팅 확장
+- `/api/ask`, `/api/search` 기본 핸들러 추가
+- AI 질문/검색/작성 페이지를 문서형 콘텐츠 폭(975px) 규칙으로 정렬
+
+### 문서 메타데이터/사이드카 확장
+
+- 마크다운과 동일 이름의 JSON 메타데이터 파일 자동 생성
+- 사이드카에 첨부 파일 링크 표시 지원
+
+### 디자인 문서 업데이트
+
+- 문서형 콘텐츠 폭(975px) 규칙과 DocPageTemplate 적용 패턴 추가
+
+## 2026-01-29 (계속)
+
+### 종합 검증 및 분석
+
+#### PMS-DMS 비교 분석 완료
+- 분석 문서 작성: `docs/dms/explanation/architecture/pms-dms-comparison-analysis.md`
+- 4가지 관점에서 종합 분석:
+  1. 패키지 차이 분석
+  2. 소스 디렉토리 구조 차이
+  3. 앱 초기화 흐름 차이
+  4. 코드 패턴/네이밍 룰 차이
+
+#### 즉시 조치 항목 수정
+| 항목 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| package.json name | `markdown-wiki` | `web-dms` |
+| dev 포트 | 기본(3000) | 3001 |
+| lint 스크립트 | 없음 | `"lint": "next lint"` |
+| Root Layout lang | `en` | `ko` |
+
+#### 주요 발견 사항
+- ✅ 최상위 디렉토리 구조 100% 일치
+- ✅ Store 네이밍 컨벤션 통일 완료
+- ✅ pageComponents 패턴 동일 구조
+- ⚠️ 루트 컴포넌트 16개 파일 정리 필요 (DMS-REF-01 백로그 추가)
+
+---
+
+### Phase 5 완료: 라우트 정리 ✅
+
+#### 루트 진입점 변경
+- `/wiki` → `/` 메인 진입점 변경
+- HOME_TAB path: `/`
+- 문서 탭 경로: `/doc/{filePath}`
+
+#### Middleware 추가
+- PMS 패턴 적용: 알 수 없는 경로 → `/` 리다이렉트
+- 정적 파일 제외: `_next`, 확장자 있는 파일, `favicon.ico`
+
+#### 최종 라우트 구조
+```
+src/app/
+├── layout.tsx         # Root (Toaster)
+└── (main)/
+    ├── layout.tsx     # AppLayout
+    └── page.tsx       # 루트 페이지 (/)
+```
+
+---
+
+### Phase 4 완료: API 레이어 정리 ✅
+
+- apiClient.ts 확장 (userApi, searchApi, uploadApi, aiApi)
+- 직접 fetch 호출 제거 (7개 파일)
+- AppLayout children prop 제거
+
+---
+
+### Phase 3 완료: PMS 패턴 동기화 ✅
+
+- pageComponents 패턴 적용
+- WikiHomePage, WikiViewerPage, AISearchPage 생성
+- SidebarFileTree 단순화
+
+---
+
+## 2026-01-29
+
+### Phase 3 시작: PMS 패턴 동기화 분석
+
+#### 분석 완료
+- PMS vs DMS 초기화 흐름 전체 비교 분석
+- 핵심 차이점 식별:
+  - ContentArea: PMS는 `pageComponents` 동적 로딩, DMS는 조건부 분기
+  - 데이터 로딩: PMS는 페이지가 자체 로드, DMS는 loadFile() 호출 누락
+- 필요한 페이지 컴포넌트 목록 정의
+
+#### 문서 작성
+- `docs/dms/explanation/architecture/app-initialization-flow.md` - Phase 3 상세 계획
+- `docs/pms/explanation/architecture/app-initialization-flow.md` (모노레포 루트) - PMS 앱 초기화 흐름
+
+#### 결정사항
+- **Option A 채택**: PMS 패턴과 동기화 (일관성 및 통합 준비)
+- 페이지 컴포넌트 생성 후 ContentArea 리팩토링 진행
+
+#### 필요한 페이지 컴포넌트
+| 컴포넌트 | 경로 | 우선순위 |
+|----------|------|----------|
+| `WikiHomePage` | `/wiki` | ⭐⭐⭐ |
+| `WikiViewerPage` | `/wiki/:path` | ⭐⭐⭐ |
+| `AISearchPage` | `/ai-search` | ⭐⭐ |
+
+---
+
+## 2026-01-28 (계속)
+
+### 문서 - 정합성 보정 착수
+
+- `docs/dms/AGENTS.md` 신규 작성 (인수인계 기준)
+- `docs/dms/planning/verification-report.md` 정본 경로 및 표준 섹션 반영
+- `docs/dms/explanation/architecture/package-spec.md` 의존성 목록 정합성 정리
+
+### UI - 로딩 스피너 공통화
+
+- `StateDisplay` 기준 Loader2 스피너 도입
+- `ContentArea`, `DocPageTemplate`, `Header` 로딩 UI 통일
+- AI 검색 버튼 로딩 스피너를 공통 컴포넌트로 교체
+- 가이드 문서에 로딩 스피너 표준 추가
+
+### 스타일 - Phase 2-H: PMS 디자인 시스템 통합 완료 ✅
+
+**목표**: DMS 사이드바/레이아웃 스타일을 PMS 표준에 100% 맞춤
+
+#### 커밋 이력
+
+| 커밋 | 내용 |
 |------|------|
-| tab-store | PMS: menuCode/menuId 기반 / DMS: id 기반 → **도메인 차이로 유지** |
-| layout-store | PMS: sidebar collapse/float / DMS: 위키 특화 상태 → **유지** |
-| tree-store | DMS 전용 파일 트리 → **유지** |
-| wiki-*.ts | DMS 위키 도메인 전용 → **유지** |
-| **결론** | Store 구조는 도메인 특성상 다르게 유지 (코드 변경 없음) |
+| `7c21b48` | 사이드바 스타일 통일 (Search, OpenTabs, FileTree) |
+| `ac9853e` | 타이포그래피 표준 적용 (heading, body, icon 유틸리티) |
+| `4072ef4` | TreeComponent 아이콘 Lucide로 변경 |
+| `45ae1fd` | 사이드바 구조 PMS 표준 적용 (8가지 항목) |
+| `97cd55f` | SidebarFileTree PMS 스타일 재작성 |
+| `a5f08ab` | PMS/DMS 사이드바 스타일 최종 통일 |
 
-#### Phase 2-K: UI 컴포넌트 통일
-| 커밋 | 변경 내용 |
-|------|----------|
-| `f0495b1` | **Button, Input SSOO 디자인 시스템 적용** |
-| | - Button: `bg-ssoo-primary`, `bg-ls-red`, `h-control-h` |
-| | - Input: `h-9` → `h-control-h` |
-| | - Dialog: PMS와 동일 확인 (변경 불필요) |
+#### 주요 변경 사항
 
-#### Phase 2-J: ContentArea, AppLayout 통일
-| 커밋 | 변경 내용 |
-|------|----------|
-| `04ad943` | **ContentArea 헤더 스타일 PMS 통일** |
-| | - `hover:border-[#003366]` → `hover:border-ssoo-primary` |
-| | - `text-2xl font-bold` → `heading-1` |
+**1. 사이드바 구조 개편**
 
-#### Phase 2-I: Header/TabBar 스타일 통일
-| 커밋 | 변경 내용 |
-|------|----------|
-| `5d01d6f` | **Header/TabBar PMS 스타일 통일** |
-| | - PMS Header: `h-[60px]` → `h-header-h` |
-| | - DMS Header: `bg-red-500` → `bg-ls-red` (알림 뱃지) |
-| | - DMS TabBar: 높이, 배경색, 보더색, 텍스트색 PMS 기준 통일 |
-| `a366f3b` | **하드코딩 색상 CSS 변수화** |
-| | - gray-xxx → semantic CSS 변수 (muted-foreground, foreground) |
-| | - border-gray-200 → border-ssoo-content-border |
-| | - bg-white → bg-background |
-| | - 모든 sidebar 컴포넌트 색상 토큰 통일 |
+| 영역 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| 로고 | DMS 아이콘 | W 아이콘 + "Wiki" 텍스트 (PMS 스타일) |
+| 헤더 우측 | 문서 타입 드롭다운 (넓음) | 아이콘+쉐브론 컴팩트 드롭다운 |
+| 검색란 | 단독 | 검색 + 새로고침 버튼 |
+| 섹션 1 | 열린 문서 | **책갈피** (신규 추가) |
+| 섹션 2 | 파일 탐색기 | 현재 열린 페이지 |
+| 섹션 3 | - | 전체 파일 |
+| 푸터 | 없음 | 카피라이트 (DMS v1.0.0 © 2026 LS Electric) |
 
-#### Phase 2-H: 사이드바 스타일 통일 (계속)
-| 커밋 | 변경 내용 |
-|------|----------|
-| `beaca73` | 문서화 업데이트 (changelog, backlog) |
-| `a5f08ab` | PMS/DMS 양방향 스타일 통일 |
-| | - PMS: `h-[60px]` → `h-header-h`, × → X 컴포넌트 |
-| | - DMS: `border-ssoo-content-border` → `border-gray-200` (섹션 구분선) |
-| | - DMS: ScrollArea 컴포넌트 추가 (PMS 복사) |
-| `97cd55f` | **SidebarFileTree 재작성** |
-| | - TreeComponent 의존성 제거 |
-| | - FileTreeNode 직접 구현 (PMS MenuTreeNode 스타일) |
-| | - layout-store에 expandedFolders, toggleFolder 추가 |
-| `45ae1fd` | **MainSidebar 구조 대폭 변경** |
-| | - 책갈피 섹션 추가 (PMS 즐겨찾기 대응) |
-| | - 섹션 아이콘 추가 (Bookmark, Layers, FolderTree) |
-| | - 섹션명 변경: "열린 문서" → "현재 열린 페이지", "파일 탐색기" → "전체 파일" |
-| | - 검색 옆 새로고침 버튼 추가 |
-| | - 하단 카피라이트 추가 |
-| | - 문서 타입 선택을 헤더로 이동 |
-| | - 로고: W 아이콘 + Wiki 텍스트 |
-| | - SidebarSection, SidebarBookmarks 컴포넌트 신규 |
-| | - tab-store에 BookmarkItem, 북마크 액션 추가 |
-| `4072ef4` | globals.css 타이포그래피 표준 적용 |
-| `ac9853e` | TreeComponent 아이콘 lucide-react로 변경 |
-| `7c21b48` | SidebarSearch, SidebarOpenTabs, SidebarFileTree PMS 스타일 적용 |
+**2. 신규 컴포넌트**
 
-### 2026-01-27
+| 컴포넌트 | 경로 | 설명 |
+|----------|------|------|
+| `SidebarSection` | `layout/sidebar/SidebarSection.tsx` | 재사용 섹션 래퍼 (PMS 동일) |
+| `SidebarBookmarks` | `layout/sidebar/SidebarBookmarks.tsx` | 책갈피 목록 (PMS 즐겨찾기 동일) |
+| `ScrollArea` | `components/ui/scroll-area.tsx` | 커스텀 스크롤바 (PMS 복사) |
 
-#### Phase 2-G: Layout 컴포넌트 신규 생성
-| 커밋 | 변경 내용 |
-|------|----------|
-| - | AppLayout, Header, TabBar, ContentArea 생성 |
-| - | MainSidebar, Sidebar 하위 컴포넌트 생성 |
-| - | PMS 표준 레이아웃 구조 적용 |
+**3. Store 확장**
 
-#### Phase 2-F: Fluent UI 제거
-| 커밋 | 변경 내용 |
-|------|----------|
-| - | @fluentui/react-components 의존성 제거 |
-| - | 자체 UI 컴포넌트로 전환 (button, card, input 등) |
-| - | shadcn/ui 스타일 패턴 적용 |
+| Store | 추가 항목 |
+|-------|----------|
+| `tab-store` | `BookmarkItem` 타입, `addBookmark`, `removeBookmark`, `isBookmarked` |
+| `layout-store` | `expandedFolders: Set<string>`, `toggleFolder`, `expandFolder`, `collapseFolder` |
 
-### 2026-01-26
+**4. SidebarFileTree 재작성**
 
-#### Phase 2: DMS 리팩토링 시작
-| 커밋 | 변경 내용 |
-|------|----------|
-| - | **브랜치**: `dms/refactor/integration` |
-| - | PMS 기준 프로젝트 구조 정립 |
-| - | SSOO 디자인 시스템 적용 |
+- ❌ 기존: `TreeComponent` 임포트 사용
+- ✅ 신규: `FileTreeNode` 직접 구현 (PMS `MenuTreeNode` 스타일)
+- 노드 스타일: `paddingLeft: 8 + level * 16`, `h-control-h`, 보더 없음
+
+**5. PMS/DMS 스타일 통일 (양방향 수정)**
+
+| 항목 | 통일된 값 | 수정 방향 |
+|------|----------|:---------:|
+| 헤더 높이 | `h-header-h` | DMS → PMS |
+| 검색/섹션 보더 | `border-gray-200` | PMS → DMS |
+| 스크롤 영역 | `<ScrollArea variant="sidebar">` | PMS → DMS |
+| 검색 닫기 버튼 | `<X className="w-3.5 h-3.5">` | DMS → PMS |
+
+#### 최종 일치율
+
+| 구분 | 수정 전 | 수정 후 |
+|:----:|:-------:|:-------:|
+| 스타일 일치 | ~70% | **95%** |
+| 의도적 차이 | 25% | 5% |
+| 불일치 | 5% | **0%** |
 
 ---
 
-## 📋 변경 유형 범례
+### 리팩터링 - Phase 2-G: 컴포넌트 재분류 계획 수립 (진행 중)
+
+**목표**: PMS 레이아웃 구조를 DMS에 적용하여 일관성 확보
+
+#### ✅ Step 1-4: 레이아웃 컴포넌트 생성 완료
+
+**생성된 컴포넌트:**
+| 컴포넌트 | 경로 | 설명 |
+|----------|------|------|
+| `AppLayout` | `layout/AppLayout.tsx` | PMS 스타일 메인 레이아웃 |
+| `Header` | `layout/Header.tsx` | AI 검색 드롭다운 + 새 도큐먼트 |
+| `MainSidebar` | `layout/MainSidebar.tsx` | 문서 타입 전환 + 파일 검색 |
+| `TabBar` | `layout/TabBar.tsx` | 문서 탭 관리 |
+| `ContentArea` | `layout/ContentArea.tsx` | 탭별 콘텐츠 렌더링 |
+| `SidebarSearch` | `layout/sidebar/SidebarSearch.tsx` | 파일 검색 |
+| `SidebarOpenTabs` | `layout/sidebar/SidebarOpenTabs.tsx` | 열린 문서 목록 |
+| `SidebarFileTree` | `layout/sidebar/SidebarFileTree.tsx` | 파일 트리 (TreeComponent 활용) |
+
+**생성된 Store:**
+| Store | 경로 | 설명 |
+|-------|------|------|
+| `tab-store` | `stores/tab-store.ts` | 탭 상태 관리 (persist) |
+| `layout-store` | `stores/layout-store.ts` | 레이아웃 상태 (문서 타입, AI 검색 타입) |
+
+**생성된 Type:**
+| Type | 경로 | 내용 |
+|------|------|------|
+| `layout.ts` | `types/layout.ts` | TabItem, DocumentType, AISearchType 등 |
+
+#### ✅ Step 6: 페이지 연결
+
+- `(main)/layout.tsx` 생성 - AppLayout 적용
+- `(main)/wiki/page.tsx` 수정 - WikiApp → WikiEditor 직접 렌더링
+
+#### 레이아웃 구조 통일 (PMS와 동일)
+```
+┌───────────────────────────────────────────────────┐
+│                    Header                          │
+│  [AI검색(드롭다운)] [새 도큐먼트] [알림] [프로필]      │
+├──────────┬────────────────────────────────────────┤
+│          │              TabBar                     │
+│ Sidebar  ├────────────────────────────────────────┤
+│          │                                         │
+│  ▼ 전환  │           ContentArea                   │
+│  검색    │         (WikiEditor/Viewer)             │
+│  탭목록  │                                         │
+│  트리    │                                         │
+└──────────┴────────────────────────────────────────┘
+```
+
+#### 주요 변경 계획
+| 영역 | PMS | DMS 변경 |
+|------|-----|----------|
+| **헤더** | 통합검색(준비 중), 새 프로젝트 | **AI검색**(Gemini/RAG 드롭다운), 새 도큐먼트 |
+| **사이드바 접기** | 접기/펼치기 버튼 | **문서 타입 전환** 드롭다운 (위키/시스템/블로그) |
+| **검색** | 메뉴 검색 | **파일 검색** |
+| **즐겨찾기** | 있음 | **제외** |
+| **탭** | 페이지 탭 | **문서 탭** (신규) |
+| **콘텐츠** | 동적 페이지 | WikiEditor/Viewer |
+
+#### 컴포넌트 이동/생성 목록
+- `WikiApp.tsx` → 삭제 (AppLayout으로 대체)
+- `WikiSidebar.tsx` → 삭제 (MainSidebar로 대체)
+- `TreeComponent.tsx` → `sidebar/SidebarFileTree.tsx`
+- 신규: `AppLayout`, `Header`, `MainSidebar`, `TabBar`, `ContentArea`
+
+---
+
+## 2026-01-28
+
+### 리팩터링 - Phase 2-F: Fluent UI 제거 완료 ✅
+
+**목표**: DMS에서 Fluent UI 완전 제거 및 Tailwind CSS + Radix UI + Lucide 아이콘으로 통일
+
+#### 제거된 패키지 (96개)
+```bash
+npm uninstall @fluentui/react @fluentui/react-components @fluentui/react-icons
+```
+
+#### 신규 추가 UI 컴포넌트 (8개)
+| 컴포넌트 | 경로 | 설명 |
+|----------|------|------|
+| `Button` | `components/ui/button.tsx` | CVA 기반 (shadcn/ui 스타일) |
+| `Card` | `components/ui/card.tsx` | Card, CardHeader, CardTitle, CardDescription, CardFooter |
+| `Input` | `components/ui/input.tsx` | 네이티브 input 래퍼 |
+| `Dialog` | `components/ui/dialog.tsx` | Radix Dialog + DialogSurface, DialogBody alias |
+| `Dropdown` | `components/ui/dropdown.tsx` | Radix Dropdown + Fluent 호환 API |
+| `Tooltip` | `components/ui/tooltip.tsx` | Radix Tooltip + SimpleTooltip |
+| `Progress` | `components/ui/progress.tsx` | Radix Progress (ProgressBar alias) |
+| `Spinner` | `components/ui/spinner.tsx` | SVG 스피너 |
+| `Divider` | `components/ui/divider.tsx` | 구분선 (Separator alias) |
+| `Menu` | `components/ui/menu.tsx` | Radix Context Menu |
+
+#### 변환된 컴포넌트 (13개)
+| 컴포넌트 | 주요 변경 |
+|----------|----------|
+| `EditorToolbar.tsx` | 18개 Fluent 아이콘 → Lucide |
+| `WikiEditor.tsx` | Card, Button, Dialog, Tooltip → 로컬 UI |
+| `WikiSidebar.tsx` | makeStyles/shorthands 제거, Menu → 네이티브 버튼 |
+| `WikiApp.tsx` | Folder24Regular 등 → Lucide |
+| `TextSearch.tsx` | Search24Regular 등 → Lucide |
+| `ThemeToggle.tsx` | WeatherSunny/Moon → Sun/Moon |
+| `CreateFileModal.tsx` | Card, Button, Input, Dropdown → 로컬 UI |
+| `AIChat.tsx` | Input, Button, Card, Spinner → 로컬 UI |
+| `FileUpload.tsx` | Card, ProgressBar, Spinner → 로컬 UI |
+| `GeminiChat.tsx` | Card, Input, Button → 로컬 UI |
+| `LinkModal.tsx` | variant="primary" → variant="default" |
+| `SearchPanel.tsx` | Input, Button, Card, Spinner → 로컬 UI |
+| `TreeComponent.tsx` | Button props 수정 (size="sm", variant="ghost") |
+
+#### Radix UI 패키지 추가 (6개)
+- `@radix-ui/react-tooltip`
+- `@radix-ui/react-dialog`
+- `@radix-ui/react-dropdown-menu`
+- `@radix-ui/react-progress`
+- `@radix-ui/react-context-menu`
+- `@radix-ui/react-slot`
+
+#### Button 컴포넌트 API 변경
+| 기존 (Fluent UI) | 신규 (shadcn/ui 스타일) |
+|------------------|-------------------------|
+| `appearance="primary"` | `variant="default"` |
+| `appearance="outline"` | `variant="outline"` |
+| `appearance="subtle"` | `variant="ghost"` |
+| `size="small"` | `size="sm"` |
+
+#### layout.tsx 변경
+- `FluentProvider` 제거
+- `webLightTheme` import 제거
+
+---
+
+## 2026-01-27
+
+### 문서
+
+- **문서 구조 개편**: PMS 양식에 맞춰 문서 체계 재구성
+  - `development/` 하위에 architecture/, domain/, design/, guides/, planning/ 생성
+  - 기존 문서 재배치 및 신규 문서 작성
+- **정합성 검증 완료**: 실제 코드와 문서 100% 일치 확인
+  - Hooks: 9개 (라인 수 검증)
+  - Components: 35개
+  - API: 19개
+
+### 이동된 문서
+
+| 기존 위치 | 새 위치 |
+|----------|---------|
+| `apps/web/dms/docs/explanation/architecture/tech-stack.md` | `docs/dms/explanation/architecture/tech-stack.md` |
+| `apps/web/dms/docs/explanation/architecture/package-spec.md` | `docs/dms/explanation/architecture/package-spec.md` |
+
+---
+
+## 2026-01-21
+
+### 문서
+
+- DMS 문서 구조 정리 계획 초안 작성
+- 위키 통합 계획 문서 추가
+- TypeDoc/Storybook 역할 정리
+
+---
+
+## 변경 유형 범례
 
 | 태그 | 설명 |
 |------|------|
@@ -240,17 +457,8 @@
 | 설정 | 설정 파일 변경 |
 | 스타일 | UI/UX 개선 |
 
----
-
-## 🔗 관련 문서
-
-- [DMS Backlog](./backlog.md)
-- [DMS Roadmap](./roadmap.md)
-- [PMS Changelog](../../pms/planning/changelog.md)
-
 ## Changelog
 
-| Date | Change |
-|------|--------|
-| 2026-02-09 | Add changelog section. |
-
+| 날짜 | 변경 내용 |
+|------|----------|
+| 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

@@ -1,5 +1,5 @@
 /**
- * Git Service - docs/wiki/ 디렉토리의 Git 저장소 관리
+ * Git Service - data/wiki/ 디렉토리의 Git 저장소 관리
  *
  * 역할:
  * - 서버 부트스트랩 시 자동 git init

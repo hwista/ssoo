@@ -54,6 +54,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Codex Sync Verify
+        run: pnpm run codex:verify-sync
+
+      - name: Codex Preflight
+        run: pnpm run codex:preflight
+
+      - name: Codex Push Guard
+        run: pnpm run codex:push-guard
+
       - name: Lint
         run: pnpm lint
 
@@ -68,34 +77,6 @@ jobs:
 
       - name: Build Types Package
         run: pnpm --filter @ssoo/types build
-
-      - name: Pattern Check
-        run: |
-          # 변경된 파일 목록
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(ts|tsx)$' || true)
-          
-          if [ -n "$CHANGED_FILES" ]; then
-            echo "검증할 파일:"
-            echo "$CHANGED_FILES"
-            echo ""
-            node .github/scripts/check-patterns.js $CHANGED_FILES
-          else
-            echo "검증할 TypeScript 파일 없음"
-          fi
-
-      - name: Docs Check
-        run: |
-          # 변경된 문서 파일 목록
-          CHANGED_DOCS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^docs/.*\.md$' || true)
-          
-          if [ -n "$CHANGED_DOCS" ]; then
-            echo "검증할 문서:"
-            echo "$CHANGED_DOCS"
-            echo ""
-            node .github/scripts/check-docs.js $CHANGED_DOCS
-          else
-            echo "검증할 문서 파일 없음"
-          fi
 
   # 변경 범위 분석
   analyze-changes:
@@ -178,6 +159,33 @@ jobs:
 
       - name: Build
         run: pnpm build:web-pms
+
+  # DMS 빌드 (DMS 변경 시에만)
+  build-dms:
+    name: Build DMS
+    needs: [validate, analyze-changes]
+    if: needs.analyze-changes.outputs.dms == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build:web-dms
 
   # PR 코멘트
   pr-comment:

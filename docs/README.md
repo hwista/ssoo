@@ -26,14 +26,14 @@
 | 검증 스크립트 | [.github/scripts/](../.github/scripts/) |
 | 에이전트 정의 | [.github/agents/](../.github/agents/) |
 
-### DMS 이중 정본 구조
+### DMS 정본 구조
 
-DMS는 독립 분리 가능성으로 인해 **두 곳에 문서**가 있습니다:
+DMS 문서는 모노레포 내에서 `docs/dms/` 단일 정본으로 관리합니다.
 
 | 위치 | 역할 | 언제 참조? |
 |------|------|----------|
-| `apps/web/dms/docs/` | **DMS 1차 정본** | DMS 개발 작업 시 |
-| `docs/dms/` | **모노레포 통합 요약** | 모노레포 전체 구조 파악 시 |
+| `docs/dms/` | **DMS 정본** | DMS 개발/통합 작업 시 |
+| `apps/web/dms/data/wiki/` | **런타임 위키 자산** | DMS 파일 시스템/Git 데이터 |
 
 ---
 
@@ -57,14 +57,19 @@ docs/
 │   │   └── design/         # UI/UX 설계 (디자인 시스템, 레이아웃)
 │   ├── planning/           # 기획 및 로드맵 (backlog, changelog)
 │   └── tests/              # 테스트 문서
-└── dms/                    # 📄 DMS 문서 (모노레포 통합용)
+└── dms/                    # 📄 DMS 문서 (정본)
+    ├── tutorials/          # Tutorial: 학습 자료
+    ├── guides/             # How-to: 개발 가이드
+    ├── reference/          # Reference: 참조/생성 문서
     ├── explanation/        # Explanation: 개념 이해
-    │   └── architecture/   # DMS 통합 계획
-    ├── planning/           # DMS 로드맵/변경이력
-    └── reference/          # DMS 참조 자료
+    │   ├── architecture/
+    │   ├── domain/
+    │   └── design/
+    ├── planning/           # 로드맵/백로그/변경이력
+    └── tests/              # 테스트 문서
 ```
 
-> ⚠️ **DMS 정본 문서**: `apps/web/dms/docs/`에 있습니다.
+> ⚠️ **DMS 정본 문서**: `docs/dms/`에 있습니다.
 
 ## 🔗 문서 바로가기
 
@@ -93,14 +98,14 @@ docs/
 
 ### DMS (Document Management System)
 
-> ⚠️ **DMS 정본 문서는 `apps/web/dms/docs/`에 있습니다.**  
+> ⚠️ **DMS 정본 문서는 `docs/dms/`에 있습니다.**  
 > DMS는 독립 프로젝트로, npm을 사용하며 `@ssoo/*` 패키지를 참조하지 않습니다.
 
 | 문서 | 설명 |
 |------|------|
-| [DMS AGENTS](../apps/web/dms/docs/AGENTS.md) | DMS 에이전트 가이드 (정본) |
-| [DMS 기술 스택](../apps/web/dms/docs/explanation/architecture/tech-stack.md) | DMS 기술 스택 |
-| [DMS 패키지 명세](../apps/web/dms/docs/explanation/architecture/package-spec.md) | DMS 패키지 구조 |
+| [DMS AGENTS](./dms/AGENTS.md) | DMS 에이전트 가이드 (정본) |
+| [DMS 기술 스택](./dms/explanation/architecture/tech-stack.md) | DMS 기술 스택 |
+| [DMS 패키지 명세](./dms/explanation/architecture/package-spec.md) | DMS 패키지 구조 |
 
 ## 📋 문서 카테고리 설명
 
@@ -123,7 +128,7 @@ PMS와 DMS에서 공통으로 적용되는 문서들:
 
 ### 📄 DMS (문서 관리)
 
-> DMS 정본 문서는 `apps/web/dms/docs/`에 있습니다.
+> DMS 정본 문서는 `docs/dms/`에 있습니다.
 
 - **explanation/architecture/**: DMS 통합 계획 및 비교 분석
 - **planning/**: DMS 로드맵, 백로그, 변경 이력
