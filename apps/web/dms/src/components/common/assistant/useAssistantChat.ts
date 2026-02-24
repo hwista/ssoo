@@ -134,7 +134,7 @@ export function useAssistantChat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: toChatPayload(history),
-          contextMode: options?.attachmentOnly ? 'attachments-only' : 'default',
+          contextMode: options?.attachmentOnly ? 'attachments-only' : 'wiki',
         }),
       });
 

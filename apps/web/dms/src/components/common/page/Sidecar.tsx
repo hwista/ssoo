@@ -1,9 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { User, Calendar, FileText, Tag, Paperclip, Link2, MessageSquare, X, Plus, ChevronDown, ChevronRight, Send, Pencil } from 'lucide-react';
+import { User, Calendar, FileText, Tag, Paperclip, Link2, MessageSquare, X, Plus, ChevronDown, ChevronRight, Send, Pencil, ExternalLink, Copy, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
+import { ingestApi, storageApi } from '@/lib/utils/apiClient';
 
 /**
  * 목차 아이템
@@ -85,6 +87,12 @@ function formatTime(date: Date | string | undefined): string {
     minute: '2-digit',
     second: '2-digit',
   });
+}
+
+function formatSize(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // ─── 접기/펼치기 섹션 ────────────────────────────────────
@@ -347,6 +355,7 @@ export function Sidecar({
   const summary = documentMetadata?.summary ?? '';
   const sourceLinks = documentMetadata?.sourceLinks ?? [];
   const comments = documentMetadata?.comments ?? [];
+  const [attachmentActionKey, setAttachmentActionKey] = React.useState<string | null>(null);
 
   // 문서명: title이 있으면 사용, 없으면 파일명에서 추출
   const fileName = filePath ? filePath.split('/').pop() || '' : '';
@@ -393,6 +402,82 @@ export function Sidecar({
   const handleCommentDelete = (commentId: string) => {
     const updated = comments.filter((c) => c.id !== commentId);
     onMetadataChange?.({ comments: updated });
+  };
+
+  const handleAttachmentOpen = async (attachment: SourceFileMeta) => {
+    const actionKey = `${attachment.path}:${attachment.name}:open`;
+    setAttachmentActionKey(actionKey);
+
+    try {
+      if (attachment.url) {
+        window.open(attachment.url, '_blank', 'noopener,noreferrer');
+        toast.success('원본 링크를 열었습니다.');
+        return;
+      }
+
+      const response = await storageApi.open({
+        storageUri: attachment.storageUri,
+        provider: attachment.provider ?? 'local',
+        path: attachment.path,
+      });
+
+      if (!response.success || !response.data) {
+        toast.error(response.error || '첨부 파일 열기에 실패했습니다.');
+        return;
+      }
+
+      window.open(response.data.openUrl, '_blank', 'noopener,noreferrer');
+      toast.success('원본 파일 열기를 요청했습니다.');
+    } catch {
+      toast.error('첨부 파일 열기 중 오류가 발생했습니다.');
+    } finally {
+      setAttachmentActionKey((current) => (current === actionKey ? null : current));
+    }
+  };
+
+  const handleAttachmentCopyUri = async (attachment: SourceFileMeta) => {
+    const uri = attachment.storageUri || `${attachment.provider ?? 'local'}://${attachment.path}`;
+    try {
+      await navigator.clipboard.writeText(uri);
+      toast.success('storageUri를 클립보드에 복사했습니다.');
+    } catch {
+      toast.error('클립보드 복사에 실패했습니다.');
+    }
+  };
+
+  const handleAttachmentResync = async (attachment: SourceFileMeta) => {
+    const actionKey = `${attachment.path}:${attachment.name}:resync`;
+    setAttachmentActionKey(actionKey);
+
+    try {
+      const response = await ingestApi.submit({
+        title: `resync-${attachment.name}`,
+        content: [
+          '# Attachment Resync Request',
+          '',
+          `- file: ${attachment.name}`,
+          `- path: ${attachment.path}`,
+          `- storageUri: ${attachment.storageUri ?? '-'}`,
+          `- provider: ${attachment.provider ?? 'local'}`,
+          '',
+          '원본 파일 메타데이터 재수집 요청입니다.',
+        ].join('\n'),
+        provider: attachment.provider ?? 'local',
+        relativePath: attachment.path.split('/').slice(0, -1).join('/') || 'ingest',
+        origin: 'ingest',
+      });
+
+      if (!response.success || !response.data) {
+        toast.error(response.error || '재동기화 요청에 실패했습니다.');
+        return;
+      }
+
+      toast.success(`재동기화 작업이 등록되었습니다. (${response.data.status})`);
+    } catch {
+      toast.error('재동기화 요청 중 오류가 발생했습니다.');
+    } finally {
+      setAttachmentActionKey((current) => (current === actionKey ? null : current));
+    }
   };
 
   return (
@@ -591,18 +676,48 @@ export function Sidecar({
           {attachments.length > 0 ? (
             <div className="space-y-2">
               {attachments.map((attachment) => {
-                const link = attachment.url || `/api/file?path=${encodeURIComponent(attachment.path)}`;
+                const openKey = `${attachment.path}:${attachment.name}:open`;
+                const resyncKey = `${attachment.path}:${attachment.name}:resync`;
+                const isOpening = attachmentActionKey === openKey;
+                const isResyncing = attachmentActionKey === resyncKey;
                 return (
-                  <a
+                  <div
                     key={`${attachment.path}-${attachment.name}`}
-                    href={link}
-                    className="flex items-center justify-between rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary transition-colors hover:border-ssoo-primary"
+                    className="rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary"
                   >
-                    <span className="truncate">{attachment.name}</span>
-                    <span className="text-ssoo-primary/60">
-                      {(attachment.size / 1024).toFixed(1)} KB
-                    </span>
-                  </a>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate">{attachment.name}</span>
+                      <span className="text-ssoo-primary/60">{formatSize(attachment.size)}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => void handleAttachmentOpen(attachment)}
+                        disabled={isOpening}
+                        className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary disabled:opacity-60"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {isOpening ? 'Opening...' : 'Open'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleAttachmentCopyUri(attachment)}
+                        className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary"
+                      >
+                        <Copy className="h-3 w-3" />
+                        URI
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleAttachmentResync(attachment)}
+                        disabled={isResyncing}
+                        className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary disabled:opacity-60"
+                      >
+                        <RefreshCw className={cn('h-3 w-3', isResyncing && 'animate-spin')} />
+                        Resync
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>

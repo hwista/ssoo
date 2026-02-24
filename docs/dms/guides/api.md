@@ -1,6 +1,6 @@
 # DMS API 가이드
 
-> 최종 업데이트: 2026-02-23
+> 최종 업데이트: 2026-02-24
 
 DMS 프로젝트의 API 엔드포인트에 대한 가이드입니다.
 
@@ -20,6 +20,26 @@ DMS는 Next.js App Router의 Route Handlers를 사용합니다.
 | | `/api/ask` | 문서 기반 질문 |
 | | `/api/create` | 문서 요약/생성 |
 | | `/api/chat-sessions` | AI 채팅 세션 조회/저장/삭제 |
+| **저장소** | `/api/storage/upload` | 저장소(Local/SharePoint/NAS) 업로드 |
+| | `/api/storage/open` | 참조 파일 열기 URL/링크 반환 |
+| **수집** | `/api/ingest/submit` | 자동 수집 작업 등록 |
+| | `/api/ingest/jobs` | 수집 작업 조회 |
+| | `/api/ingest/jobs/:id/confirm` | 수집 결과 게시 승인 |
+
+---
+
+## 저장소/딥리서치 운영 정책
+
+세부 운영 정책은 아래 문서를 정본으로 삼습니다.
+
+- `docs/dms/planning/storage-and-second-brain-architecture.md`
+
+핵심:
+
+- 저장소 3종(Local/SharePoint/NAS) 어댑터 기반
+- 기본 저장소는 설정값(`storage.defaultProvider`)으로 선택
+- 문서/첨부별 오버라이드 지원
+- 기본 챗봇/검색은 위키 중심, 딥리서치는 별도 UI 진입 시만 활성
 
 ---
 
@@ -115,6 +135,40 @@ Error:
 
 - `400`: 입력 형식 검증 실패
 - `500`: DB 처리 실패
+
+---
+
+## AI 모드 파라미터 (`/api/ask`, `/api/search`)
+
+요청 바디 확장 필드:
+
+```json
+{
+  "contextMode": "wiki | deep",
+  "activeDocPath": "docs/sample.md"
+}
+```
+
+- `contextMode=wiki`: 기본 모드 (위키 중심)
+- `contextMode=deep`: 딥리서치 모드 (세컨드브레인 UI 전용)
+- `activeDocPath`: 딥리서치 기준 문서 경로
+
+딥리서치 응답은 출처와 신뢰도 필드를 포함해야 합니다.
+
+```json
+{
+  "answer": "...",
+  "confidence": "high | medium | low",
+  "citations": [
+    {
+      "title": "원본 문서명",
+      "storageUri": "sp://site/library/itemId",
+      "versionId": "v12",
+      "webUrl": "https://..."
+    }
+  ]
+}
+```
 
 ---
 

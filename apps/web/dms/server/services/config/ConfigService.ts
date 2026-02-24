@@ -27,8 +27,31 @@ export interface GitConfig {
   autoInit: boolean;
 }
 
+export type StorageProvider = 'local' | 'sharepoint' | 'nas';
+
+export interface StorageProviderConfig {
+  enabled: boolean;
+  basePath: string;
+  webBaseUrl?: string;
+}
+
+export interface StorageConfig {
+  defaultProvider: StorageProvider;
+  local: StorageProviderConfig;
+  sharepoint: StorageProviderConfig;
+  nas: StorageProviderConfig;
+}
+
+export interface IngestConfig {
+  queuePath: string;
+  autoPublish: boolean;
+  maxConcurrentJobs: number;
+}
+
 export interface DmsConfig {
   git: GitConfig;
+  storage: StorageConfig;
+  ingest: IngestConfig;
 }
 
 export type DeepPartial<T> = {
@@ -145,6 +168,28 @@ class ConfigService {
         repositoryPath: '',
         author: { name: 'DMS System', email: 'dms@localhost' },
         autoInit: true,
+      },
+      storage: {
+        defaultProvider: 'sharepoint',
+        local: {
+          enabled: true,
+          basePath: path.join(process.cwd(), 'data', 'storage', 'local'),
+        },
+        sharepoint: {
+          enabled: true,
+          basePath: '/sites/dms/shared-documents',
+          webBaseUrl: 'https://sharepoint.local',
+        },
+        nas: {
+          enabled: true,
+          basePath: '/mnt/nas/dms',
+          webBaseUrl: 'file:///mnt/nas/dms',
+        },
+      },
+      ingest: {
+        queuePath: path.join(process.cwd(), 'data', 'ingest'),
+        autoPublish: false,
+        maxConcurrentJobs: 2,
       },
     };
   }

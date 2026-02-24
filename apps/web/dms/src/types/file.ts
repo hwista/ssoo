@@ -58,6 +58,13 @@ export interface SourceFileMeta {
   type: string;
   size: number;
   url?: string;
+  storageUri?: string;
+  provider?: 'local' | 'sharepoint' | 'nas';
+  versionId?: string;
+  etag?: string;
+  checksum?: string;
+  origin?: 'manual' | 'ingest' | 'teams' | 'network_drive';
+  status?: 'draft' | 'pending_confirm' | 'published';
 }
 
 export interface DocumentVersionEntry {

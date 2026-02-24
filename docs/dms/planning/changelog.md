@@ -1,6 +1,64 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-02-23
+> 최종 업데이트: 2026-02-24
+
+---
+
+## 2026-02-24
+
+### 저장소/수집/딥리서치 1차 구현 반영
+
+- 설정 스키마 확장:
+  - `storage.defaultProvider`, `storage.local.*`, `storage.sharepoint.*`, `storage.nas.*`
+  - `ingest.queuePath`, `ingest.autoPublish`, `ingest.maxConcurrentJobs`
+- 서버 구현:
+  - 저장소 어댑터 서비스 추가 (`Local/SharePoint/NAS`)
+  - 수집 큐 서비스 추가 (`draft → pending_confirm → published`)
+- API 추가:
+  - `/api/storage/upload`, `/api/storage/open`
+  - `/api/ingest/submit`, `/api/ingest/jobs`, `/api/ingest/jobs/:id/confirm`
+- UI 반영:
+  - Sidecar 첨부 카드에 `Open / URI 복사 / Resync` 액션 추가
+  - Settings 페이지에 Storage/Ingest 설정 섹션 추가
+- AI 모드 반영:
+  - `/api/search`에 `contextMode(wiki|deep)`, `activeDocPath` 파라미터 반영
+  - `/api/ask`에 JSON 모드(`stream=false`) 응답 추가 및 `citations/confidence` 확장
+
+---
+
+### 저장소/수집/세컨드브레인 운영 아키텍처 확정
+
+- 저장소 어댑터 3종(Local/SharePoint/NAS) 동시 지원 방향 확정
+- 기본 저장소 SharePoint + 문서/첨부별 오버라이드 허용 정책 확정
+- 정본/첨부 수정 정책 확정:
+  - DMS 내부 직접 편집 대신 원본 열기 후 사용자 직접 수정(권한 기반)
+  - DMS는 열기/경로복사/재동기화 허브 기능 제공
+- 자동 수집 플로우 확정:
+  - DMS 수집공간, 네트워크 경로, Teams 챗봇 유입을 비동기 수집으로 통합
+  - 요청자 컨펌 후에만 위키 게시
+- AI 모드 분리 확정:
+  - 기본 챗봇/검색은 위키 중심
+  - 딥리서치는 세컨드브레인 UI 진입 시만 활성
+  - 딥리서치 응답은 출처/신뢰도 필수
+- 통합 아키텍처 정본 문서 추가:
+  - `docs/dms/planning/storage-and-second-brain-architecture.md`
+
+---
+
+### 설정 페이지 표준 정렬 리디자인
+
+- `SettingsPage`를 `DocPageTemplate` 기반으로 재구성하고, 설정 페이지는 `sidecarMode=\"hidden\"`으로 사이드카/토글을 비활성화
+- `DocPageTemplate`에 `sidecarMode ('default' | 'custom' | 'hidden')`를 추가해 페이지별 사이드카 렌더링 정책을 명시적으로 제어
+- 설정 항목 라벨을 사용자 친화형으로 정리하고, 기술 키(`git.*`)는 보조 표기로 분리
+- 설정 입력 검증 강화:
+  - 작성자 이름 필수
+  - 작성자 이메일 필수 + 형식 검증
+  - 상대 경로 입력 시 안내 배너 제공
+- 저장 UX 개선:
+  - 변경 항목 요약 표시
+  - 경로 변경 시 파일 복사 옵션 배너 유지/정렬
+  - 성공/오류 상태 배너를 DMS 테마로 통일
+- 설정 페이지의 하드코딩 `blue-*` 스타일을 제거하고 `ssoo-*` 디자인 토큰 기반으로 정렬
 
 ---
 

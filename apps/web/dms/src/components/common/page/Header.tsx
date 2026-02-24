@@ -49,6 +49,8 @@ export interface HeaderProps {
   
   /** 추가 액션 버튼 */
   extraActions?: HeaderAction[];
+  /** 추가 액션 버튼 위치 */
+  extraActionsPosition?: 'left' | 'right';
   
   /** 추가 className */
   className?: string;
@@ -88,8 +90,27 @@ export function Header({
   onCancel,
   saving = false,
   extraActions,
+  extraActionsPosition = 'left',
   className,
 }: HeaderProps) {
+  const renderActionButton = (action: HeaderAction, index: number) => (
+    <Button
+      key={index}
+      variant={action.variant || 'ghost'}
+      size="default"
+      onClick={action.onClick}
+      disabled={action.disabled || action.loading}
+      className="h-control-h"
+    >
+      {action.loading ? (
+        <LoadingSpinner className="mr-1.5" />
+      ) : action.icon ? (
+        <span className="mr-1.5">{action.icon}</span>
+      ) : null}
+      {action.label}
+    </Button>
+  );
+
   return (
     <div
       className={cn(
@@ -152,24 +173,7 @@ export function Header({
           </>
         )}
 
-        {/* 추가 액션 버튼 */}
-        {extraActions?.map((action, index) => (
-          <Button
-            key={index}
-            variant={action.variant || 'ghost'}
-            size="default"
-            onClick={action.onClick}
-            disabled={action.disabled || action.loading}
-            className="h-control-h"
-          >
-            {action.loading ? (
-              <LoadingSpinner className="mr-1.5" />
-            ) : action.icon ? (
-              <span className="mr-1.5">{action.icon}</span>
-            ) : null}
-            {action.label}
-          </Button>
-        ))}
+        {extraActionsPosition === 'left' && extraActions?.map(renderActionButton)}
       </div>
 
       {/* 우측 */}
@@ -204,6 +208,8 @@ export function Header({
             )}
           </>
         )}
+
+        {extraActionsPosition === 'right' && extraActions?.map(renderActionButton)}
       </div>
     </div>
   );

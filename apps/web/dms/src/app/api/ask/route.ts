@@ -6,7 +6,7 @@
  *   { id, role, parts: [{ type: 'text', text: '...' }] }
  */
 
-import { buildRAGMessages, askQuestionStream } from '@/server/handlers/ai.handler';
+import { buildRAGMessages, askQuestion, askQuestionStream } from '@/server/handlers/ai.handler';
 
 /**
  * UIMessage의 parts에서 텍스트 추출 (v6 호환)
@@ -30,13 +30,21 @@ function extractTextFromMessage(
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const rawMessages: Array<{
+  const rawMessagesInput: Array<{
     role: string;
     content?: string;
     parts?: Array<{ type: string; text?: string }>;
   }> = body?.messages ?? [];
-  const contextMode = typeof body?.contextMode === 'string' ? body.contextMode : 'default';
-  const attachmentOnly = contextMode === 'attachments-only';
+  const queryFromBody = typeof body?.query === 'string' ? body.query : '';
+  const rawMessages = rawMessagesInput.length > 0
+    ? rawMessagesInput
+    : (queryFromBody
+      ? [{ role: 'user', content: queryFromBody }]
+      : []);
+  const contextMode = body?.contextMode === 'deep' ? 'deep' : 'wiki';
+  const attachmentOnly = body?.contextMode === 'attachments-only';
+  const activeDocPath = typeof body?.activeDocPath === 'string' ? body.activeDocPath : undefined;
+  const stream = body?.stream !== false;
 
   if (rawMessages.length === 0) {
     return new Response('메시지가 비어 있습니다.', { status: 400 });
@@ -58,9 +66,17 @@ export async function POST(req: Request) {
     lastUserMessage.content,
     messages,
     attachmentOnly
-      ? { skipSearch: true, includeImplementationContext: false }
-      : undefined
+      ? { skipSearch: true, includeImplementationContext: false, contextMode, activeDocPath }
+      : { contextMode, activeDocPath }
   );
+
+  if (!stream) {
+    const result = await askQuestion(lastUserMessage.content, augmentedMessages, { contextMode, activeDocPath });
+    if (!result.success) {
+      return new Response(result.error, { status: result.status });
+    }
+    return Response.json(result.data);
+  }
 
   // 스트리밍 응답
   const result = await askQuestionStream(lastUserMessage.content, augmentedMessages, { attachmentOnly });

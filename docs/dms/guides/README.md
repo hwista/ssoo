@@ -1,8 +1,8 @@
 # DMS 개발 가이드
 
-> 최종 업데이트: 2026-02-03
+> 최종 업데이트: 2026-02-24
 
-DMS 개발 시 참고해야 할 가이드 문서입니다.
+DMS 개발 시 참고할 정본 가이드 인덱스입니다.
 
 ---
 
@@ -10,66 +10,42 @@ DMS 개발 시 참고해야 할 가이드 문서입니다.
 
 | 문서 | 설명 |
 |------|------|
-| [getting-started.md](getting-started.md) | **개발 환경 설정** - 설치, 환경변수, 실행 |
-| [api.md](api.md) | API 엔드포인트 - 파일 CRUD, 트리 조회 |
-| [components.md](components.md) | 컴포넌트 가이드 - 폴더 구조, 네이밍 규칙 |
-| [hooks.md](hooks.md) | 커스텀 훅 - useEditor, useOpenTabWithConfirm |
+| [getting-started.md](getting-started.md) | 개발 환경 설정/실행 |
+| [api.md](api.md) | 운영 API + 계획 API |
+| [components.md](components.md) | 컴포넌트 구조/패턴 |
+| [hooks.md](hooks.md) | 커스텀 훅 가이드 |
 
 ---
 
 ## 빠른 참조
 
-### 파일 API
+### 파일 API 사용
 
-```typescript
+```ts
 import { fileApi } from '@/lib/utils/apiClient';
 
-// 파일 읽기
-const response = await fileApi.read('docs/readme.md');
-
-// 파일 생성
-await fileApi.create({ path: 'docs/new.md', content: '# New' });
-
-// 파일 수정
-await fileApi.update('docs/readme.md', { content: '# Updated' });
-
-// 파일 삭제
-await fileApi.delete('docs/old.md');
+const readResult = await fileApi.read('analysis/apps/App.md');
+await fileApi.update('analysis/apps/App.md', '# Updated');
+await fileApi.delete('analysis/apps/Old.md');
 ```
 
 ### 탭 열기
 
-```typescript
-import { useOpenTabWithConfirm } from '@/hooks';
+```ts
+import { useTabStore } from '@/stores';
 
-const openTab = useOpenTabWithConfirm();
-
+const { openTab } = useTabStore();
 openTab({
-  id: `doc-${filePath}`,
-  title: fileName,
-  path: `/doc/${filePath}`,
+  id: 'doc-analysis-app',
+  title: 'App.md',
+  path: '/doc/analysis/apps/App.md',
   icon: 'FileText',
+  closable: true,
+  activate: true,
 });
 ```
 
-### 스토어 사용
-
-```typescript
-import { useTabStore, useFileStore, useEditorStore } from '@/stores';
-
-// 탭 관리
-const { tabs, activeTabId, openTab, closeTab } = useTabStore();
-
-// 파일 트리
-const { files, loadFileTree, getFileByPath } = useFileStore();
-
-// 에디터
-const { content, isEditing, loadFile, saveFile } = useEditorStore();
-```
-
----
-
-## 개발 서버 실행
+### 로컬 실행
 
 ```bash
 cd apps/web/dms
@@ -81,17 +57,17 @@ npm run dev
 
 ---
 
-## 관련 문서
+## 정책 문서
 
-### 아키텍처
-- [tech-stack.md](../architecture/tech-stack.md) - 기술 스택
-- [state-management.md](../architecture/state-management.md) - 상태 관리
-- [frontend-standards.md](../architecture/frontend-standards.md) - 개발 표준
+- 저장소/수집/세컨드브레인 정책:
+  - `docs/dms/planning/storage-and-second-brain-architecture.md`
+- 서비스 개요:
+  - `docs/dms/explanation/domain/service-overview.md`
 
-### 디자인
-- [design-system.md](../design/design-system.md) - 디자인 시스템
-- [layout-system.md](../design/layout-system.md) - 레이아웃
+---
 
-### 도메인
-- [service-overview.md](../domain/service-overview.md) - 서비스 개요
-- [concepts.md](../domain/concepts.md) - 도메인 개념
+## Changelog
+
+| 날짜 | 변경 내용 |
+|------|----------|
+| 2026-02-24 | API 예시/경로를 현행 코드 기준으로 수정, 정책 문서 링크 추가 |
