@@ -5,6 +5,7 @@
 
 import { ERROR_MESSAGES } from './constants';
 import type { DocumentMetadata } from '@/types/file';
+import type { TemplateItem } from '@/types/template';
 
 /**
  * API 응답 타입 정의
@@ -298,7 +299,7 @@ export const fileApi = {
  * AI API 클라이언트
  * - ask: useChat (Vercel AI SDK)이 직접 /api/ask 호출 → 여기서 관리 안 함
  * - search: JSON 응답이므로 apiClient로 관리
- * - create: useCompletion이 직접 /api/create 호출 → 여기서 관리 안 함
+ * - create/doc-assist: 문서 작성 보조 API
  */
 export const aiApi = {
   search: async (
@@ -670,6 +671,80 @@ export const ingestApi = {
   confirm: async (id: string): Promise<ApiResponse<IngestJobClient>> => {
     return request(`/api/ingest/jobs/${encodeURIComponent(id)}/confirm`, {
       method: 'POST',
+    });
+  },
+};
+
+// ============================================================================
+// Template API
+// ============================================================================
+
+export const templateApi = {
+  list: async (): Promise<ApiResponse<{ global: TemplateItem[]; personal: TemplateItem[] }>> => {
+    return request('/api/templates');
+  },
+  upsert: async (
+    template: Partial<TemplateItem> & Pick<TemplateItem, 'name' | 'scope' | 'kind' | 'content'>
+  ): Promise<ApiResponse<TemplateItem>> => {
+    return request('/api/templates', {
+      method: 'POST',
+      body: template,
+    });
+  },
+  remove: async (id: string, scope: 'global' | 'personal'): Promise<ApiResponse<{ id: string }>> => {
+    return request('/api/templates', {
+      method: 'DELETE',
+      body: { id, scope },
+    });
+  },
+};
+
+// ============================================================================
+// Doc Assist API
+// ============================================================================
+
+export interface DocAssistSummaryFileClient {
+  id?: string;
+  name: string;
+  type?: string;
+  textContent: string;
+}
+
+export interface DocAssistComposeResponse {
+  text: string;
+  suggestedPath: string;
+  relevanceWarnings: string[];
+}
+
+export interface DocAssistRecommendResponse {
+  suggestedPath: string;
+  relevanceWarnings: string[];
+}
+
+export const docAssistApi = {
+  compose: async (payload: {
+    instruction: string;
+    currentContent: string;
+    selectedText?: string;
+    activeDocPath?: string;
+    templates?: TemplateItem[];
+    summaryFiles?: DocAssistSummaryFileClient[];
+  }): Promise<ApiResponse<DocAssistComposeResponse>> => {
+    return request('/api/doc-assist', {
+      method: 'POST',
+      body: payload,
+    });
+  },
+  recommendPath: async (payload: {
+    instruction: string;
+    activeDocPath?: string;
+    selectedText?: string;
+    templates?: TemplateItem[];
+    summaryFiles?: DocAssistSummaryFileClient[];
+  }): Promise<ApiResponse<DocAssistRecommendResponse>> => {
+    return request('/api/doc-assist', {
+      method: 'POST',
+      body: { action: 'recommendPath', ...payload },
     });
   },
 };

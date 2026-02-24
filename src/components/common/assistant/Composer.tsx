@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, type RefObject } from 'react';
 import { ChevronDown, ChevronUp, Loader2, Search, SendHorizontal } from 'lucide-react';
-import { AssistantReferenceChips, AssistantReferencePicker } from './AssistantReferencePicker';
+import { AssistantReferenceChips, AssistantReferencePicker } from './ReferencePicker';
 
 interface AssistantComposerProps {
   inputRef?: RefObject<HTMLTextAreaElement | null>;
@@ -142,4 +142,3 @@ export function AssistantComposer({
     </form>
   );
 }
-

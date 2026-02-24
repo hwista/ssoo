@@ -19,17 +19,10 @@ const HELP_ACTIONS = {
     path: '/ai/search',
     icon: 'Search',
   },
-  create: {
-    id: 'help-create',
-    title: 'AI 작성 열기',
-    description: '파일을 첨부해서 템플릿 기반 요약을 생성합니다.',
-    path: '/ai/create',
-    icon: 'Bot',
-  },
   newDoc: {
     id: 'help-new-doc',
-    title: '새 문서 작성',
-    description: '에디터에서 직접 문서를 작성합니다.',
+    title: 'AI 문서 작성 열기',
+    description: '새 문서에서 인라인 AI 지시로 문서를 작성/수정합니다.',
     path: '/wiki/new',
     icon: 'FileText',
   },
@@ -56,9 +49,7 @@ function selectActions(input: string): AssistantHelpAction[] {
   if (/(검색|search|찾아)/i.test(text)) {
     actions.push(HELP_ACTIONS.search);
   }
-  if (/(ai 작성|작성|요약|create|생성)/i.test(text)) {
-    actions.push(HELP_ACTIONS.create);
-  }
+  if (/(ai 작성|작성|요약|create|생성)/i.test(text)) actions.push(HELP_ACTIONS.newDoc);
   if (/(새 문서|직접 작성|편집|에디터|wiki\/new)/i.test(text)) {
     actions.push(HELP_ACTIONS.newDoc);
   }
@@ -70,7 +61,7 @@ function selectActions(input: string): AssistantHelpAction[] {
   }
 
   if (actions.length === 0) {
-    return [HELP_ACTIONS.search, HELP_ACTIONS.create, HELP_ACTIONS.newDoc];
+    return [HELP_ACTIONS.search, HELP_ACTIONS.newDoc, HELP_ACTIONS.settings];
   }
 
   const deduped = new Map(actions.map((action) => [action.id, action]));
@@ -85,7 +76,7 @@ function buildSummary(input: string, actions: AssistantHelpAction[]): string {
   const text = input.toLowerCase();
 
   if (/(ai 작성|요약|create|생성)/i.test(text)) {
-    return 'AI 작성은 파일을 첨부하고 템플릿을 선택한 뒤 요약 생성 버튼을 누르면 됩니다. 바로 이동해서 실행할 수 있습니다.';
+    return 'AI 작성은 새 문서 편집 화면 하단의 인라인 지시창에서 실행합니다. 템플릿/첨부 파일/문서를 함께 붙일 수 있습니다.';
   }
   if (/(검색|search|찾아)/i.test(text)) {
     return '문서 검색은 검색어를 입력해 결과를 확인하고, 결과 항목을 눌러 문서를 여는 흐름입니다. 바로 검색 화면으로 이동할 수 있습니다.';

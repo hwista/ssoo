@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { AssistantHelpAction } from '@/lib/utils/assistantHelp';
 import { generateAssistantSuggestions } from '@/lib/utils/assistantSuggestions';
+import type { TemplateItem } from '@/types/template';
 
 export interface AssistantSearchResult {
   id: string;
@@ -57,6 +58,9 @@ interface AssistantState {
   suggestions: string[];
   suggestionsCollapsed: boolean;
   attachedReferences: Array<{ path: string; title: string }>;
+  selectedTemplates: TemplateItem[];
+  summaryFiles: Array<{ id: string; name: string; type?: string; textContent: string; size: number }>;
+  relevanceWarnings: string[];
 }
 
 interface AssistantActions {
@@ -71,6 +75,13 @@ interface AssistantActions {
   setReferences: (references: Array<{ path: string; title: string }>) => void;
   removeReference: (path: string) => void;
   clearReferences: () => void;
+  toggleTemplate: (template: TemplateItem) => void;
+  removeTemplate: (id: string) => void;
+  clearTemplates: () => void;
+  upsertSummaryFiles: (files: Array<{ id: string; name: string; type?: string; textContent: string; size: number }>) => void;
+  removeSummaryFile: (id: string) => void;
+  clearSummaryFiles: () => void;
+  setRelevanceWarnings: (warnings: string[]) => void;
   startNewSession: () => void;
   selectSession: (sessionId: string) => void;
   hydrateSessions: (sessions: AssistantSession[]) => void;
@@ -118,6 +129,9 @@ export const useAssistantStore = create<AssistantStore>()(
       suggestions: [],
       suggestionsCollapsed: false,
       attachedReferences: [],
+      selectedTemplates: [],
+      summaryFiles: [],
+      relevanceWarnings: [],
 
       openPanel: () => set({ isOpen: true }),
       closePanel: () => set({ isOpen: false }),
@@ -150,12 +164,39 @@ export const useAssistantStore = create<AssistantStore>()(
         attachedReferences: state.attachedReferences.filter((item) => item.path !== path),
       })),
       clearReferences: () => set({ attachedReferences: [] }),
+      toggleTemplate: (template) => set((state) => {
+        const exists = state.selectedTemplates.some((item) => item.id === template.id);
+        if (exists) {
+          return { selectedTemplates: state.selectedTemplates.filter((item) => item.id !== template.id) };
+        }
+        return { selectedTemplates: [...state.selectedTemplates, template] };
+      }),
+      removeTemplate: (id) => set((state) => ({
+        selectedTemplates: state.selectedTemplates.filter((item) => item.id !== id),
+      })),
+      clearTemplates: () => set({ selectedTemplates: [] }),
+      upsertSummaryFiles: (files) => set((state) => {
+        const map = new Map(state.summaryFiles.map((item) => [item.id, item]));
+        for (const file of files) {
+          if (!file.id) continue;
+          map.set(file.id, file);
+        }
+        return { summaryFiles: Array.from(map.values()) };
+      }),
+      removeSummaryFile: (id) => set((state) => ({
+        summaryFiles: state.summaryFiles.filter((item) => item.id !== id),
+      })),
+      clearSummaryFiles: () => set({ summaryFiles: [] }),
+      setRelevanceWarnings: (warnings) => set({ relevanceWarnings: warnings }),
 
       startNewSession: () => set({
         activeSessionId: null,
         messages: [],
         inputDraft: '',
         attachedReferences: [],
+        selectedTemplates: [],
+        summaryFiles: [],
+        relevanceWarnings: [],
       }),
 
       selectSession: (sessionId) => set((state) => {
@@ -166,6 +207,9 @@ export const useAssistantStore = create<AssistantStore>()(
           messages: target.messages,
           inputDraft: '',
           attachedReferences: [],
+          selectedTemplates: [],
+          summaryFiles: [],
+          relevanceWarnings: [],
         };
       }),
 
@@ -179,6 +223,9 @@ export const useAssistantStore = create<AssistantStore>()(
           sessionsLoaded: true,
           inputDraft: '',
           attachedReferences: [],
+          selectedTemplates: [],
+          summaryFiles: [],
+          relevanceWarnings: [],
         });
       },
 
@@ -307,6 +354,9 @@ export const useAssistantStore = create<AssistantStore>()(
         inputDraft: state.inputDraft,
         suggestionsCollapsed: state.suggestionsCollapsed,
         attachedReferences: state.attachedReferences,
+        selectedTemplates: state.selectedTemplates,
+        summaryFiles: state.summaryFiles,
+        relevanceWarnings: state.relevanceWarnings,
       }),
     }
   )

@@ -8,7 +8,7 @@ import { useAssistantChat } from './useAssistantChat';
 import { useAssistantSessionPersistence } from './useAssistantSessionPersistence';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import { AssistantMessageList } from './MessageList';
-import { AssistantComposer } from './AssistantComposer';
+import { AssistantComposer } from './Composer';
 import { AssistantSessionHistoryList } from './SessionHistoryList';
 
 interface FloatingAssistantPanelProps {

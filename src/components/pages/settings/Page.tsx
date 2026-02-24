@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, FolderOpen, GitBranch, Loader2, RotateCcw, Database, HardDrive } from 'lucide-react';
+import { AlertCircle, Check, FolderOpen, GitBranch, Loader2, RotateCcw, Database, HardDrive, Shapes, Trash2 } from 'lucide-react';
 import { DocPageTemplate } from '@/components/templates';
 import type { HeaderAction } from '@/components/common/page';
 import { useSettingsStore } from '@/stores/settings.store';
+import { templateApi } from '@/lib/utils/apiClient';
 import type { DeepPartialClient, DmsConfigClient } from '@/lib/utils/apiClient';
+import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
 
 interface SettingItem {
   key: string;
@@ -154,6 +156,13 @@ const SETTING_SECTIONS: SettingSection[] = [
         },
       },
     ],
+  },
+  {
+    id: 'templates',
+    label: 'Template',
+    icon: Shapes,
+    description: '전역/개인 템플릿과 폴더 구조 템플릿을 관리합니다.',
+    items: [],
   },
 ];
 
@@ -325,6 +334,15 @@ export function SettingsPage() {
   const [originalConfig, setOriginalConfig] = useState<Record<string, unknown>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [copyFiles, setCopyFiles] = useState(true);
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [templateDraft, setTemplateDraft] = useState({
+    name: '',
+    description: '',
+    content: '',
+    scope: 'personal' as TemplateScope,
+    kind: 'document' as TemplateKind,
+  });
 
   useEffect(() => {
     if (!isLoaded) {
@@ -348,6 +366,24 @@ export function SettingsPage() {
   const currentSection = useMemo(() => (
     SETTING_SECTIONS.find((section) => section.id === activeSection) ?? SETTING_SECTIONS[0]
   ), [activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== 'templates') return;
+    let mounted = true;
+    const loadTemplates = async () => {
+      setIsLoadingTemplates(true);
+      const response = await templateApi.list();
+      if (!mounted) return;
+      if (response.success && response.data) {
+        setTemplates([...(response.data.personal ?? []), ...(response.data.global ?? [])]);
+      }
+      setIsLoadingTemplates(false);
+    };
+    void loadTemplates();
+    return () => {
+      mounted = false;
+    };
+  }, [activeSection]);
 
   const keyToLabel = useMemo(() => {
     const map = new Map<string, string>();
@@ -442,6 +478,32 @@ export function SettingsPage() {
     updateGitPath,
     updateSettings,
   ]);
+
+  const handleTemplateSave = useCallback(async () => {
+    if (!templateDraft.name.trim() || !templateDraft.content.trim()) return;
+    const response = await templateApi.upsert({
+      name: templateDraft.name.trim(),
+      description: templateDraft.description.trim(),
+      content: templateDraft.content,
+      scope: templateDraft.scope,
+      kind: templateDraft.kind,
+    });
+    if (!response.success || !response.data) return;
+    setTemplates((prev) => [response.data as TemplateItem, ...prev.filter((item) => item.id !== response.data?.id)]);
+    setTemplateDraft({
+      name: '',
+      description: '',
+      content: '',
+      scope: 'personal',
+      kind: 'document',
+    });
+  }, [templateDraft]);
+
+  const handleTemplateDelete = useCallback(async (template: TemplateItem) => {
+    const response = await templateApi.remove(template.id, template.scope);
+    if (!response.success) return;
+    setTemplates((prev) => prev.filter((item) => item.id !== template.id));
+  }, []);
 
   const topStatusBanner = error ? (
     <div className="mb-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -554,6 +616,96 @@ export function SettingsPage() {
               <div className="flex h-32 items-center justify-center gap-2 text-sm text-ssoo-primary/70">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 설정을 불러오는 중입니다.
+              </div>
+            ) : currentSection.id === 'templates' ? (
+              <div className="space-y-3">
+                <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+                  <h3 className="text-sm font-semibold text-ssoo-primary">템플릿 추가</h3>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    <input
+                      value={templateDraft.name}
+                      onChange={(event) => setTemplateDraft((prev) => ({ ...prev, name: event.target.value }))}
+                      placeholder="템플릿 이름"
+                      className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+                    />
+                    <input
+                      value={templateDraft.description}
+                      onChange={(event) => setTemplateDraft((prev) => ({ ...prev, description: event.target.value }))}
+                      placeholder="설명"
+                      className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+                    />
+                    <select
+                      value={templateDraft.scope}
+                      onChange={(event) => setTemplateDraft((prev) => ({ ...prev, scope: event.target.value as TemplateScope }))}
+                      className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+                    >
+                      <option value="personal">개인 템플릿</option>
+                      <option value="global">전역 템플릿</option>
+                    </select>
+                    <select
+                      value={templateDraft.kind}
+                      onChange={(event) => setTemplateDraft((prev) => ({ ...prev, kind: event.target.value as TemplateKind }))}
+                      className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+                    >
+                      <option value="document">문서 템플릿</option>
+                      <option value="folder">폴더 템플릿</option>
+                    </select>
+                  </div>
+                  <textarea
+                    value={templateDraft.content}
+                    onChange={(event) => setTemplateDraft((prev) => ({ ...prev, content: event.target.value }))}
+                    placeholder="템플릿 본문 (마크다운/텍스트)"
+                    className="mt-2 min-h-[120px] w-full rounded-md border border-ssoo-content-border px-3 py-2 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+                  />
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleTemplateSave();
+                      }}
+                      className="inline-flex h-control-h items-center gap-1 rounded-md bg-ssoo-primary px-3 text-sm font-medium text-white hover:bg-ssoo-primary/90"
+                    >
+                      <Check className="h-4 w-4" />
+                      템플릿 저장
+                    </button>
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+                  <h3 className="text-sm font-semibold text-ssoo-primary">템플릿 목록</h3>
+                  {isLoadingTemplates ? (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-ssoo-primary/70">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      템플릿을 불러오는 중입니다.
+                    </div>
+                  ) : templates.length === 0 ? (
+                    <p className="mt-2 text-xs text-ssoo-primary/70">등록된 템플릿이 없습니다.</p>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      {templates.map((template) => (
+                        <div key={template.id} className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-ssoo-primary">{template.name}</p>
+                              <p className="text-xs text-ssoo-primary/70">{template.scope === 'global' ? '전역' : '개인'} · {template.kind === 'document' ? '문서' : '폴더'} · {template.updatedAt.slice(0, 10)}</p>
+                              {template.description && <p className="mt-0.5 text-xs text-ssoo-primary/70">{template.description}</p>}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void handleTemplateDelete(template);
+                              }}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-ssoo-content-border text-ssoo-primary/70 hover:border-destructive/40 hover:text-destructive"
+                              aria-label={`${template.name} 삭제`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </article>
               </div>
             ) : (
               <div className="space-y-3">

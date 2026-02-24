@@ -115,14 +115,14 @@ export function Header({
     <div
       className={cn(
         'flex items-center justify-between px-4 py-2 min-h-[52px]',
-        'bg-white border border-gray-200 rounded-lg',
+        'bg-white border border-ssoo-content-border rounded-lg text-ssoo-primary',
         className
       )}
     >
       {/* 좌측: 설명 또는 모드별 액션 버튼 */}
       <div className="flex items-center gap-2">
         {description && (
-          <span className="text-sm text-gray-500">{description}</span>
+          <span className="text-sm text-ssoo-primary/70">{description}</span>
         )}
         {mode === 'viewer' && (
           <>

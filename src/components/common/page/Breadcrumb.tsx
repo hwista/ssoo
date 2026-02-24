@@ -24,7 +24,6 @@ export interface BreadcrumbProps {
 const SEGMENT_DISPLAY_NAMES: Record<string, string> = {
   'ai/ask': 'AI 어시스턴트',
   'ai/search': 'AI 검색',
-  'ai/create': 'AI 작성',
   settings: '설정',
   git: 'Git',
   storage: 'Storage',

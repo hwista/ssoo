@@ -8,7 +8,7 @@ import { useAssistantStore } from '@/stores';
 import { useAssistantChat } from '@/components/common/assistant/useAssistantChat';
 import { useAssistantSessionPersistence } from '@/components/common/assistant/useAssistantSessionPersistence';
 import { AssistantMessageList } from '@/components/common/assistant/MessageList';
-import { AssistantComposer } from '@/components/common/assistant/AssistantComposer';
+import { AssistantComposer } from '@/components/common/assistant/Composer';
 
 export function AiAskPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);

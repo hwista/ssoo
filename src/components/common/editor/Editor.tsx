@@ -25,6 +25,10 @@ export interface EditorProps {
   variant?: 'standalone' | 'embedded';
   /** 콘텐츠 표면 표시 여부 */
   showContentSurface?: boolean;
+  /** 생성 모드에서 우선 사용할 파일 경로 */
+  preferredCreatePath?: string;
+  /** 생성 모드에서 실제 저장 경로가 결정될 때 */
+  onCreatePathResolved?: (path: string) => void;
 }
 
 /**
@@ -40,7 +44,13 @@ export interface EditorProps {
  * <Editor className="h-full" />
  * ```
  */
-export function Editor({ className, variant = 'standalone', showContentSurface }: EditorProps) {
+export function Editor({
+  className,
+  variant = 'standalone',
+  showContentSurface,
+  preferredCreatePath,
+  onCreatePathResolved,
+}: EditorProps) {
   const { showSuccess, showError } = useToast();
   
   // Store에서 상태 가져오기
@@ -117,19 +127,22 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
   // =====================
   const handleSave = React.useCallback(async () => {
     if (isCreateMode) {
-      // 새 문서 저장 - 파일 경로 입력 다이얼로그
-      const newFileName = prompt('파일 이름을 입력하세요 (예: docs/새문서.md)');
+      const pathHint = preferredCreatePath?.trim();
+      const input = pathHint || prompt('파일 이름을 입력하세요 (예: docs/새문서.md)');
+      const newFileName = input?.trim();
       if (!newFileName) return;
+      const resolvedPath = newFileName.endsWith('.md') ? newFileName : `${newFileName}.md`;
       
       try {
-        await storeSaveFile(newFileName, editorContent);
+        await storeSaveFile(resolvedPath, editorContent);
         setIsEditing(false);
+        onCreatePathResolved?.(resolvedPath);
         showSuccess('생성 완료', '새 문서가 생성되었습니다.');
         
         // 탭 경로 업데이트: /wiki/new → /doc/{newFileName}
         if (tabId) {
-          const newPath = `/doc/${encodeURIComponent(newFileName)}`;
-          const title = newFileName.split('/').pop() || newFileName;
+          const newPath = `/doc/${encodeURIComponent(resolvedPath)}`;
+          const title = resolvedPath.split('/').pop() || resolvedPath;
           updateTab(tabId, { path: newPath, title });
         }
       } catch {
@@ -149,7 +162,7 @@ export function Editor({ className, variant = 'standalone', showContentSurface }
     } catch {
       showError('저장 실패', '파일 저장 중 오류가 발생했습니다.');
     }
-  }, [isCreateMode, currentFilePath, editorContent, storeSaveFile, save, setIsEditing, showSuccess, showError, tabId, updateTab]);
+  }, [isCreateMode, currentFilePath, editorContent, preferredCreatePath, storeSaveFile, save, setIsEditing, onCreatePathResolved, showSuccess, showError, tabId, updateTab]);
 
   // =====================
   // 취소 핸들러
