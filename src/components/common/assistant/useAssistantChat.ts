@@ -83,7 +83,7 @@ export function useAssistantChat() {
   const openExpandedAskPage = useCallback(async () => {
     await openTabWithConfirm({
       id: 'ai-ask',
-      title: 'AI 질문',
+      title: 'AI 어시스턴트',
       path: '/ai/ask',
       icon: 'Bot',
       closable: true,

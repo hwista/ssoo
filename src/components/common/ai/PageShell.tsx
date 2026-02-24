@@ -9,6 +9,7 @@ export interface AiPageShellProps {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  toolbarClassName?: string;
 }
 
 export function AiPageShell({
@@ -17,11 +18,12 @@ export function AiPageShell({
   children,
   className,
   contentClassName,
+  toolbarClassName,
 }: AiPageShellProps) {
   return (
     <div className={cn('flex h-full flex-col', className)}>
       {toolbar && (
-        <section className="border-b border-ssoo-content-border px-4 py-2 min-h-[52px] flex items-center">
+        <section className={cn('border-b border-ssoo-content-border px-4 py-2 min-h-[52px] flex items-center', toolbarClassName)}>
           {toolbar}
         </section>
       )}

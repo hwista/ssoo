@@ -33,6 +33,10 @@ export interface AiPageTemplateProps {
   shellClassName?: string;
   /** AiPageShell 콘텐츠 추가 className */
   shellContentClassName?: string;
+  /** AiPageShell 툴바 래퍼 클래스 */
+  shellToolbarClassName?: string;
+  /** DocPageTemplate 콘텐츠 표면 클래스 */
+  contentSurfaceClassName?: string;
   /** 사이드카 히스토리 */
   sidecarHistory?: AiSidecarProps['history'];
   /** 사이드카 히스토리 선택 */
@@ -68,6 +72,8 @@ export function AiPageTemplate({
   children,
   shellClassName,
   shellContentClassName,
+  shellToolbarClassName,
+  contentSurfaceClassName,
   sidecarHistory,
   onSidecarHistorySelect,
   onSidecarHistoryPersistToggle,
@@ -83,6 +89,7 @@ export function AiPageTemplate({
         mode="viewer"
         contentOrientation="portrait"
         description={description}
+        contentSurfaceClassName={contentSurfaceClassName}
         sidecarContent={(
           <AiSidecar
             variant={variant}
@@ -99,6 +106,7 @@ export function AiPageTemplate({
           footer={footer}
           className={shellClassName}
           contentClassName={shellContentClassName}
+          toolbarClassName={shellToolbarClassName}
         >
           {children}
         </AiPageShell>

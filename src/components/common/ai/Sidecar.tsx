@@ -72,7 +72,7 @@ function CollapsibleSection({ title, icon, children, defaultOpen = true }: Omit<
 
 const VARIANT_INFO: Record<AiSidecarProps['variant'], { title: string; tips: string[] }> = {
   ask: {
-    title: 'AI 질문',
+    title: 'AI 어시스턴트',
     tips: [
       '질문 의도에 따라 대화/문서 검색/기능 안내를 자동으로 분기합니다.',
       '플로팅 패널의 크게보기 버튼으로 /ai/ask 탭으로 확장할 수 있습니다.',

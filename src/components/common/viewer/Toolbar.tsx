@@ -33,12 +33,14 @@ export interface ToolbarProps {
   hasSearched: boolean;
   onNavigateResult: (direction: 'prev' | 'next') => void;
   onAttachToAssistant?: () => void;
+  attachToAssistantTitle?: string;
+  showZoomControls?: boolean;
   
   // 줌 관련
-  zoomLevel: number;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onZoomReset: () => void;
+  zoomLevel?: number;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onZoomReset?: () => void;
 }
 
 /**
@@ -60,6 +62,8 @@ export function Toolbar({
   hasSearched,
   onNavigateResult,
   onAttachToAssistant,
+  attachToAssistantTitle = '현재 문서를 AI에 첨부하고 질문하기',
+  showZoomControls = true,
   zoomLevel,
   onZoomIn,
   onZoomOut,
@@ -223,7 +227,7 @@ export function Toolbar({
               size="default"
               onClick={onAttachToAssistant}
               className="h-control-h gap-1.5 text-ssoo-primary"
-              title="현재 문서를 AI에 첨부하고 질문하기"
+              title={attachToAssistantTitle}
             >
               <Bot className="h-4 w-4" />
               AI
@@ -232,37 +236,39 @@ export function Toolbar({
         </div>
 
         {/* 우측: 줌 컨트롤 */}
-        <div className="flex items-center gap-0.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onZoomOut}
-            disabled={zoomLevel === ZOOM_LEVELS[0]}
-            className="p-0"
-            title="축소"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          
-          <button
-            onClick={onZoomReset}
-            className="px-2 h-control-h text-sm hover:bg-gray-100 rounded transition-colors min-w-[50px]"
-            title="기본 크기로"
-          >
-            {zoomLevel}%
-          </button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onZoomIn}
-            disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-            className="p-0"
-            title="확대"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-        </div>
+        {showZoomControls && zoomLevel !== undefined && onZoomIn && onZoomOut && onZoomReset && (
+          <div className="flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onZoomOut}
+              disabled={zoomLevel === ZOOM_LEVELS[0]}
+              className="p-0"
+              title="축소"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            
+            <button
+              onClick={onZoomReset}
+              className="px-2 h-control-h text-sm hover:bg-gray-100 rounded transition-colors min-w-[50px]"
+              title="기본 크기로"
+            >
+              {zoomLevel}%
+            </button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onZoomIn}
+              disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+              className="p-0"
+              title="확대"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

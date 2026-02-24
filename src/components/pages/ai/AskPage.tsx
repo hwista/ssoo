@@ -49,6 +49,7 @@ export function AiAskPage() {
     <AiPageTemplate
       variant="ask"
       description="질문, 문서 검색, 기능 안내를 요청하세요."
+      contentSurfaceClassName="rounded-lg border border-gray-200 bg-white"
       shellContentClassName={messages.length === 0 ? 'overflow-hidden' : undefined}
       sidecarHistory={historyItems}
       onSidecarHistorySelect={(item) => selectSession(item.id)}
