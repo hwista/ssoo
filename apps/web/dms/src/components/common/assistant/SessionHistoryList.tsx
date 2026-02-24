@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import { CloudOff, CloudUpload } from 'lucide-react';
 
 export interface AssistantSessionHistoryItem {
@@ -27,6 +28,16 @@ export function AssistantSessionHistoryList({
   emptyText = '이전 대화 세션이 없습니다.',
   variant = 'panel',
 }: AssistantSessionHistoryListProps) {
+  const STEP = 5;
+  const [visibleCount, setVisibleCount] = useState(STEP);
+
+  const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount]);
+  const hasMore = visibleCount < items.length;
+
+  useEffect(() => {
+    setVisibleCount(STEP);
+  }, [items.length]);
+
   if (items.length === 0) {
     return <p className="px-1 py-1 text-xs text-ssoo-primary/60">{emptyText}</p>;
   }
@@ -36,7 +47,7 @@ export function AssistantSessionHistoryList({
 
   return (
     <div className={containerClass}>
-      {items.map((item) => (
+      {visibleItems.map((item) => (
         <div
           key={item.id}
           className={`flex items-center gap-1 rounded-md px-1 py-1 text-xs transition-colors ${
@@ -73,6 +84,15 @@ export function AssistantSessionHistoryList({
           )}
         </div>
       ))}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((prev) => Math.min(prev + STEP, items.length))}
+          className="w-full rounded-md border border-ssoo-content-border bg-white px-2 py-1.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-content-bg"
+        >
+          more (+{Math.min(STEP, items.length - visibleCount)})
+        </button>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useOpenTabWithConfirm } from '@/hooks';
+import { useOpenDocumentTab, useOpenTabWithConfirm } from '@/hooks';
 import { useAssistantStore, type AssistantMessage, type AssistantSearchResult } from '@/stores';
 import { aiApi, fileApi, getErrorMessage } from '@/lib/utils/apiClient';
 import { detectAssistantIntent } from '@/lib/utils/assistantIntent';
@@ -21,6 +21,7 @@ function toChatPayload(messages: AssistantMessage[]) {
 
 export function useAssistantChat() {
   const openTabWithConfirm = useOpenTabWithConfirm();
+  const openDocumentTab = useOpenDocumentTab();
   const appendMessage = useAssistantStore((state) => state.appendMessage);
   const updateTextMessage = useAssistantStore((state) => state.updateTextMessage);
   const isProcessing = useAssistantStore((state) => state.isProcessing);
@@ -55,18 +56,12 @@ export function useAssistantChat() {
   }, [attachedReferences]);
 
   const handleOpenFile = useCallback(async (result: AssistantSearchResult) => {
-    const normalizedPath = result.path.replace(/^\/+/, '');
-    if (!normalizedPath) return;
-
-    await openTabWithConfirm({
-      id: `file-${normalizedPath.replace(/\//g, '-')}`,
-      title: result.title || normalizedPath.split('/').pop() || '문서',
-      path: `/doc/${encodeURIComponent(normalizedPath)}`,
-      icon: 'FileText',
-      closable: true,
+    await openDocumentTab({
+      path: result.path,
+      title: result.title,
       activate: true,
     });
-  }, [openTabWithConfirm]);
+  }, [openDocumentTab]);
 
   const handleOpenHelpAction = useCallback(async (action: AssistantHelpAction) => {
     const isHome = action.path === '/home';

@@ -19,7 +19,7 @@ import { UserMenu } from './UserMenu';
  * - 사용자 프로필
  */
 export function Header() {
-  const { openTab } = useTabStore();
+  const { openTab, updateTab } = useTabStore();
   const [searchQuery, setSearchQuery] = useState('');
   const actionsRef = useRef<HTMLDivElement>(null);
   const [actionsWidth, setActionsWidth] = useState(0);
@@ -37,17 +37,24 @@ export function Header() {
   const handleSearch = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
       const trimmedQuery = searchQuery.trim();
-      openTab({
-        id: `ai-search-${Date.now()}`,
-        title: `AI 검색: ${trimmedQuery.slice(0, 20)}...`,
+      const tabId = openTab({
+        id: 'ai-search',
+        title: 'AI 검색',
         path: `/ai/search?q=${encodeURIComponent(trimmedQuery)}`,
         icon: 'Bot',
         closable: true,
         activate: true,
       });
+      if (tabId) {
+        updateTab(tabId, {
+          title: `AI 검색: ${trimmedQuery.slice(0, 20)}...`,
+          path: `/ai/search?q=${encodeURIComponent(trimmedQuery)}`,
+          icon: 'Bot',
+        });
+      }
       setSearchQuery('');
     }
-  }, [searchQuery, openTab]);
+  }, [searchQuery, openTab, updateTab]);
 
   const handleCreateWithUi = useCallback(() => {
     openTab({
@@ -82,7 +89,7 @@ export function Header() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleSearch}
-            placeholder="검색어를 입력하세요..."
+            placeholder="찾고 싶은 내용을 자유롭게 물어보세요!"
             className="w-full h-control-h pl-9 pr-4 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/40"
           />
         </div>

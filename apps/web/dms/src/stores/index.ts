@@ -26,3 +26,7 @@ export { useSettingsStore } from './settings.store';
 // Assistant
 export { useAssistantStore } from './assistant.store';
 export type { AssistantMessage, AssistantSearchResult, AssistantSession } from './assistant.store';
+
+// AI Search
+export { useAiSearchStore } from './aiSearch.store';
+export type { AiSearchHistoryItem } from './aiSearch.store';

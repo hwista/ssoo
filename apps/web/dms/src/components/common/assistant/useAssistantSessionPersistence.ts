@@ -29,7 +29,15 @@ function toAssistantMessages(value: unknown): AssistantMessage[] {
 
     if (kind === 'search-results' && role === 'assistant' && typeof message.query === 'string' && Array.isArray(message.results)) {
       const results = message.results
-        .filter((result): result is { id: string; title: string; excerpt: string; path: string } => (
+        .filter((result): result is {
+          id: string;
+          title: string;
+          excerpt: string;
+          path: string;
+          summary?: string;
+          snippets?: string[];
+          totalSnippetCount?: number;
+        } => (
           Boolean(result) &&
           typeof result === 'object' &&
           typeof (result as Record<string, unknown>).id === 'string' &&
@@ -42,6 +50,11 @@ function toAssistantMessages(value: unknown): AssistantMessage[] {
           title: result.title,
           excerpt: result.excerpt,
           path: result.path,
+          summary: typeof result.summary === 'string' ? result.summary : undefined,
+          snippets: Array.isArray(result.snippets)
+            ? result.snippets.filter((snippet): snippet is string => typeof snippet === 'string')
+            : undefined,
+          totalSnippetCount: typeof result.totalSnippetCount === 'number' ? result.totalSnippetCount : undefined,
         }));
 
       return [{ id, role: 'assistant', kind: 'search-results', query: message.query, results }];

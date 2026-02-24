@@ -7,7 +7,7 @@ import { AiPageTemplate } from '@/components/templates';
 import { useAssistantStore } from '@/stores';
 import { useAssistantChat } from '@/components/common/assistant/useAssistantChat';
 import { useAssistantSessionPersistence } from '@/components/common/assistant/useAssistantSessionPersistence';
-import { AssistantMessageList } from '@/components/common/assistant/AssistantMessageList';
+import { AssistantMessageList } from '@/components/common/assistant/MessageList';
 import { AssistantComposer } from '@/components/common/assistant/AssistantComposer';
 
 export function AiAskPage() {
@@ -28,7 +28,6 @@ export function AiAskPage() {
 
   const historyItems = useMemo(() => {
     return sessions
-      .slice(0, 20)
       .map((session) => ({
         id: session.id,
         title: session.title,
