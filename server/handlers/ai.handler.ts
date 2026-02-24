@@ -38,6 +38,32 @@ export interface SearchResultItem {
 export interface SearchResponse {
   query: string;
   results: SearchResultItem[];
+  contextMode?: 'wiki' | 'deep';
+  confidence?: 'high' | 'medium' | 'low';
+  citations?: Array<{
+    title: string;
+    storageUri: string;
+    versionId?: string;
+    webUrl?: string;
+  }>;
+}
+
+export interface AskResponse {
+  query: string;
+  answer: string;
+  sources: SearchResultItem[];
+  confidence: 'high' | 'medium' | 'low';
+  citations: Array<{
+    title: string;
+    storageUri: string;
+    versionId?: string;
+    webUrl?: string;
+  }>;
+}
+
+interface AiContextOptions {
+  contextMode?: 'wiki' | 'deep';
+  activeDocPath?: string;
 }
 
 export type HandlerResult<T = unknown> =
@@ -400,10 +426,28 @@ function toRelativePath(filePath: string): string {
   return normalizePath(relative);
 }
 
+function buildCitations(items: SearchResultItem[]) {
+  return items.slice(0, 5).map((item) => ({
+    title: item.title || item.path,
+    storageUri: `wiki://${item.path.replace(/^\/+/, '')}`,
+    versionId: undefined,
+    webUrl: undefined,
+  }));
+}
+
+function inferConfidence(count: number): 'high' | 'medium' | 'low' {
+  if (count >= 5) return 'high';
+  if (count >= 2) return 'medium';
+  return 'low';
+}
+
 /**
  * 키워드 기반 문서 검색 (폴백)
  */
-export async function searchDocumentsKeyword(query: string): Promise<HandlerResult<SearchResponse>> {
+export async function searchDocumentsKeyword(
+  query: string,
+  options?: AiContextOptions
+): Promise<HandlerResult<SearchResponse>> {
   const timer = new PerformanceTimer('Handler: 키워드 검색');
 
   if (!query || query.trim().length < LIMITS.MIN_SEARCH_QUERY_LENGTH) {
@@ -476,7 +520,16 @@ export async function searchDocumentsKeyword(query: string): Promise<HandlerResu
     logger.info('키워드 검색 완료', { query, count: finalizedResults.length });
     timer.end({ query, count: finalizedResults.length });
 
-    return { success: true, data: { query, results: finalizedResults } };
+    return {
+      success: true,
+      data: {
+        query,
+        results: finalizedResults,
+        contextMode: options?.contextMode ?? 'wiki',
+        confidence: inferConfidence(finalizedResults.length),
+        citations: options?.contextMode === 'deep' ? buildCitations(finalizedResults) : undefined,
+      },
+    };
   } catch (error) {
     logger.error('키워드 검색 실패', error, { query });
     timer.end({ query, error: true });
@@ -492,7 +545,10 @@ export async function searchDocumentsKeyword(query: string): Promise<HandlerResu
  * 시맨틱 문서 검색 (pgvector 코사인 유사도)
  * DB 연결 실패 시 키워드 검색으로 폴백
  */
-export async function searchDocuments(query: string): Promise<HandlerResult<SearchResponse>> {
+export async function searchDocuments(
+  query: string,
+  options?: AiContextOptions
+): Promise<HandlerResult<SearchResponse>> {
   const timer = new PerformanceTimer('Handler: AI 검색');
 
   if (!query || query.trim().length < LIMITS.MIN_SEARCH_QUERY_LENGTH) {
@@ -506,7 +562,7 @@ export async function searchDocuments(query: string): Promise<HandlerResult<Sear
 
     if (semanticResults.length === 0) {
       logger.info('시맨틱 검색 결과 없음, 키워드 폴백', { query });
-      return searchDocumentsKeyword(query);
+      return searchDocumentsKeyword(query, options);
     }
 
     const results: SearchResultItem[] = semanticResults.map((doc, index) => {
@@ -559,11 +615,20 @@ export async function searchDocuments(query: string): Promise<HandlerResult<Sear
     logger.info('시맨틱 검색 완료', { query, count: finalizedResults.length });
     timer.end({ query, count: finalizedResults.length });
 
-    return { success: true, data: { query, results: finalizedResults } };
+    return {
+      success: true,
+      data: {
+        query,
+        results: finalizedResults,
+        contextMode: options?.contextMode ?? 'wiki',
+        confidence: inferConfidence(finalizedResults.length),
+        citations: options?.contextMode === 'deep' ? buildCitations(finalizedResults) : undefined,
+      },
+    };
   } catch (error) {
     logger.warn('시맨틱 검색 실패, 키워드 폴백', { query, error: String(error) });
     timer.end({ query, error: true, fallback: 'keyword' });
-    return searchDocumentsKeyword(query);
+    return searchDocumentsKeyword(query, options);
   }
 }
 
@@ -574,7 +639,10 @@ export async function searchDocuments(query: string): Promise<HandlerResult<Sear
 /**
  * RAG 컨텍스트 수집
  */
-async function gatherRAGContext(query: string): Promise<{
+async function gatherRAGContext(
+  query: string,
+  options?: AiContextOptions
+): Promise<{
   context: string;
   sources: SearchResultItem[];
 }> {
@@ -602,7 +670,7 @@ async function gatherRAGContext(query: string): Promise<{
   }
 
   // 키워드 폴백으로 컨텍스트 수집
-  const keywordResult = await searchDocumentsKeyword(query);
+  const keywordResult = await searchDocumentsKeyword(query, options);
   if (keywordResult.success && keywordResult.data.results.length > 0) {
     const topResults = keywordResult.data.results.slice(0, 3);
     const context = topResults
@@ -675,13 +743,53 @@ export async function askQuestionStream(
   });
 }
 
+export async function askQuestion(
+  query: string,
+  messages: Array<{ role: string; content: string }>,
+  options?: { contextMode?: 'wiki' | 'deep'; activeDocPath?: string }
+): Promise<HandlerResult<AskResponse>> {
+  try {
+    const model = await getChatModel();
+    const completion = await generateText({
+      model,
+      temperature: 0.2,
+      maxOutputTokens: 512,
+      messages: messages.map((item) => ({
+        role: item.role as 'user' | 'assistant' | 'system',
+        content: item.content,
+      })),
+    });
+
+    const sourceResult = await searchDocuments(query, options);
+    const sources = sourceResult.success ? sourceResult.data.results.slice(0, 5) : [];
+
+    return {
+      success: true,
+      data: {
+        query,
+        answer: completion.text,
+        sources,
+        confidence: inferConfidence(sources.length),
+        citations: options?.contextMode === 'deep' ? buildCitations(sources) : [],
+      },
+    };
+  } catch (error) {
+    logger.error('질문 응답 생성 실패', error, { query });
+    return {
+      success: false,
+      error: '질문 처리 중 오류가 발생했습니다.',
+      status: 500,
+    };
+  }
+}
+
 /**
  * 사용자 메시지에 RAG 컨텍스트를 주입
  */
 export async function buildRAGMessages(
   query: string,
   chatHistory: Array<{ role: string; content: string }>,
-  options?: { skipSearch?: boolean; includeImplementationContext?: boolean }
+  options?: { skipSearch?: boolean; includeImplementationContext?: boolean; contextMode?: 'wiki' | 'deep'; activeDocPath?: string }
 ): Promise<{
   messages: Array<{ role: string; content: string }>;
   sources: SearchResultItem[];
@@ -689,7 +797,7 @@ export async function buildRAGMessages(
   const includeImplementationContext = options?.includeImplementationContext ?? true;
   const { context, sources } = options?.skipSearch
     ? { context: '', sources: [] as SearchResultItem[] }
-    : await gatherRAGContext(query);
+    : await gatherRAGContext(query, { contextMode: options?.contextMode, activeDocPath: options?.activeDocPath });
 
   const augmentedMessages = chatHistory.map((msg, index) => {
     if (index === chatHistory.length - 1 && msg.role === 'user') {

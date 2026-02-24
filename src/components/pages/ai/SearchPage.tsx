@@ -73,7 +73,7 @@ export function AiSearchPage() {
       return;
     }
     setIsSearching(true);
-    const response = await aiApi.search(trimmed);
+    const response = await aiApi.search(trimmed, { contextMode: 'deep' });
     if (response.success && response.data) {
       const nextResults = response.data.results ?? [];
       setAllResults(nextResults);

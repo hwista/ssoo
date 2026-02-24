@@ -6,5 +6,27 @@
       "email": "dms@localhost"
     },
     "autoInit": true
+  },
+  "storage": {
+    "defaultProvider": "sharepoint",
+    "local": {
+      "enabled": true,
+      "basePath": "./data/storage/local"
+    },
+    "sharepoint": {
+      "enabled": true,
+      "basePath": "/sites/dms/shared-documents",
+      "webBaseUrl": "https://sharepoint.local"
+    },
+    "nas": {
+      "enabled": true,
+      "basePath": "/mnt/nas/dms",
+      "webBaseUrl": "file:///mnt/nas/dms"
+    }
+  },
+  "ingest": {
+    "queuePath": "./data/ingest",
+    "autoPublish": false,
+    "maxConcurrentJobs": 2
   }
 }

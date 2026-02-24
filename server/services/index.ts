@@ -26,3 +26,20 @@ export {
   type GitFileStatus,
   type GitResult,
 } from './git/GitService';
+
+// Storage Service
+export {
+  storageAdapterService,
+  type StorageReference,
+  type StorageUploadRequest,
+  type StorageOpenRequest,
+  type StorageOpenResult,
+} from './storage/StorageAdapterService';
+
+// Ingest Queue Service
+export {
+  ingestQueueService,
+  type IngestJob,
+  type IngestJobStatus,
+  type SubmitIngestRequest,
+} from './ingest/IngestQueueService';

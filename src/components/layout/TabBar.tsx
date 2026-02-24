@@ -2,7 +2,7 @@
 
 import { useTabStore, HOME_TAB } from '@/stores';
 import { useAssistantStore } from '@/stores';
-import { X, Minimize2, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch } from 'lucide-react';
+import { X, Minimize2, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch, Settings } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { LAYOUT_SIZES } from '@/types';
@@ -88,6 +88,7 @@ export function TabBar() {
     FileSearch,
     Sparkles,
     FileText,
+    Settings,
   };
 
   const getTabIcon = (tab: typeof tabs[0]): LucideIcon => {

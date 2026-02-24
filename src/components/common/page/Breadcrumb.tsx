@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronRight, Folder } from 'lucide-react';
+import { ChevronRight, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -25,6 +25,10 @@ const SEGMENT_DISPLAY_NAMES: Record<string, string> = {
   'ai/ask': 'AI 어시스턴트',
   'ai/search': 'AI 검색',
   'ai/create': 'AI 작성',
+  settings: '설정',
+  git: 'Git',
+  storage: 'Storage',
+  ingest: 'Ingest',
 };
 
 /**
@@ -60,7 +64,10 @@ export function Breadcrumb({
       return [displayName];
     }
     
-    return cleanPath.split('/').filter(Boolean);
+    return cleanPath
+      .split('/')
+      .filter(Boolean)
+      .map((segment) => SEGMENT_DISPLAY_NAMES[segment] ?? segment);
   }, [filePath]);
 
   // 각 세그먼트의 전체 경로 계산
@@ -81,12 +88,12 @@ export function Breadcrumb({
       )}
       aria-label="파일 경로"
     >
-      {/* 루트 - 폴더 아이콘만 (PMS와 동일) */}
+      {/* 루트 - 설정 아이콘 */}
       <button
         onClick={() => onPathClick?.('')}
         className="flex items-center hover:text-ssoo-primary transition-colors shrink-0"
       >
-        <Folder className="h-3.5 w-3.5" />
+        <Settings className="h-3.5 w-3.5" />
       </button>
 
       {/* 경로 세그먼트들 */}

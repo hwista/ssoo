@@ -17,7 +17,7 @@ const pageComponents = {
   aiAsk: AiAskPage,
   aiSearch: lazy(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
   aiCreate: lazy(() => import('@/components/pages/ai/CreatePage').then(m => ({ default: m.AiCreatePage }))),
-  settings: lazy(() => import('@/components/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))),
+  settings: lazy(() => import('@/components/pages/settings/Page').then(m => ({ default: m.SettingsPage }))),
 };
 
 /**

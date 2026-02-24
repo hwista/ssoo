@@ -68,12 +68,27 @@ export interface AiSearchResultItem {
 export interface AiSearchResponse {
   query: string;
   results: AiSearchResultItem[];
+  contextMode?: 'wiki' | 'deep';
+  confidence?: 'high' | 'medium' | 'low';
+  citations?: Array<{
+    title: string;
+    storageUri: string;
+    versionId?: string;
+    webUrl?: string;
+  }>;
 }
 
 export interface AiAskResponse {
   query: string;
   answer: string;
   sources: AiSearchResultItem[];
+  confidence?: 'high' | 'medium' | 'low';
+  citations?: Array<{
+    title: string;
+    storageUri: string;
+    versionId?: string;
+    webUrl?: string;
+  }>;
 }
 
 export interface AssistantSessionPayload {
@@ -286,17 +301,23 @@ export const fileApi = {
  * - create: useCompletion이 직접 /api/create 호출 → 여기서 관리 안 함
  */
 export const aiApi = {
-  search: async (query: string): Promise<ApiResponse<AiSearchResponse>> => {
+  search: async (
+    query: string,
+    options?: { contextMode?: 'wiki' | 'deep'; activeDocPath?: string }
+  ): Promise<ApiResponse<AiSearchResponse>> => {
     return request('/api/search', {
       method: 'POST',
-      body: { query },
+      body: { query, ...options },
     });
   },
 
-  ask: async (query: string): Promise<ApiResponse<AiAskResponse>> => {
+  ask: async (
+    query: string,
+    options?: { contextMode?: 'wiki' | 'deep'; activeDocPath?: string; stream?: boolean }
+  ): Promise<ApiResponse<AiAskResponse>> => {
     return request('/api/ask', {
       method: 'POST',
-      body: { query },
+      body: { query, ...options },
     });
   },
 };
@@ -504,6 +525,17 @@ export interface GitConfigClient {
 /** DMS 설정 */
 export interface DmsConfigClient {
   git: GitConfigClient;
+  storage: {
+    defaultProvider: 'local' | 'sharepoint' | 'nas';
+    local: { enabled: boolean; basePath: string; webBaseUrl?: string };
+    sharepoint: { enabled: boolean; basePath: string; webBaseUrl?: string };
+    nas: { enabled: boolean; basePath: string; webBaseUrl?: string };
+  };
+  ingest: {
+    queuePath: string;
+    autoPublish: boolean;
+    maxConcurrentJobs: number;
+  };
 }
 
 /** 깊은 부분 타입 */
@@ -539,6 +571,105 @@ export const settingsApi = {
     return request<SettingsResponse>('/api/settings', {
       method: 'POST',
       body: { action: 'updateGitPath', newPath, copyFiles },
+    });
+  },
+};
+
+// ============================================================================
+// Storage API
+// ============================================================================
+
+export interface StorageReferenceClient {
+  storageUri: string;
+  provider: 'local' | 'sharepoint' | 'nas';
+  path: string;
+  name: string;
+  size: number;
+  versionId: string;
+  etag: string;
+  checksum: string;
+  origin: 'manual' | 'ingest' | 'teams' | 'network_drive';
+  status: 'draft' | 'pending_confirm' | 'published';
+  webUrl?: string;
+}
+
+export interface StorageOpenResultClient {
+  provider: 'local' | 'sharepoint' | 'nas';
+  path: string;
+  storageUri: string;
+  openUrl: string;
+  webUrl?: string;
+}
+
+export const storageApi = {
+  upload: async (payload: {
+    fileName: string;
+    content: string;
+    provider?: 'local' | 'sharepoint' | 'nas';
+    relativePath?: string;
+    origin?: 'manual' | 'ingest' | 'teams' | 'network_drive';
+    status?: 'draft' | 'pending_confirm' | 'published';
+  }): Promise<ApiResponse<StorageReferenceClient>> => {
+    return request('/api/storage/upload', {
+      method: 'POST',
+      body: payload,
+    });
+  },
+
+  open: async (payload: {
+    storageUri?: string;
+    provider?: 'local' | 'sharepoint' | 'nas';
+    path?: string;
+  }): Promise<ApiResponse<StorageOpenResultClient>> => {
+    return request('/api/storage/open', {
+      method: 'POST',
+      body: payload,
+    });
+  },
+};
+
+// ============================================================================
+// Ingest API
+// ============================================================================
+
+export interface IngestJobClient {
+  id: string;
+  title: string;
+  content: string;
+  provider: 'local' | 'sharepoint' | 'nas';
+  relativePath: string;
+  requestedBy: string;
+  origin: 'manual' | 'ingest' | 'teams' | 'network_drive';
+  createdAt: string;
+  updatedAt: string;
+  status: 'draft' | 'pending_confirm' | 'published' | 'failed';
+  error?: string;
+  storageUri?: string;
+  wikiPath?: string;
+}
+
+export const ingestApi = {
+  submit: async (payload: {
+    title: string;
+    content: string;
+    requestedBy?: string;
+    provider?: 'local' | 'sharepoint' | 'nas';
+    relativePath?: string;
+    origin?: 'manual' | 'ingest' | 'teams' | 'network_drive';
+  }): Promise<ApiResponse<IngestJobClient>> => {
+    return request('/api/ingest/submit', {
+      method: 'POST',
+      body: payload,
+    });
+  },
+
+  jobs: async (): Promise<ApiResponse<{ jobs: IngestJobClient[] }>> => {
+    return request('/api/ingest/jobs');
+  },
+
+  confirm: async (id: string): Promise<ApiResponse<IngestJobClient>> => {
+    return request(`/api/ingest/jobs/${encodeURIComponent(id)}/confirm`, {
+      method: 'POST',
     });
   },
 };

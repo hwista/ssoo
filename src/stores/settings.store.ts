@@ -26,6 +26,8 @@ interface SettingsState {
 interface SettingsActions {
   /** 설정 조회 */
   loadSettings: () => Promise<void>;
+  /** 일반 설정 업데이트 */
+  updateSettings: (partial: DeepPartialClient<DmsConfigClient>) => Promise<boolean>;
   /** Git 설정 업데이트 */
   updateGitSettings: (git: DeepPartialClient<DmsConfigClient>['git']) => Promise<boolean>;
   /** Git 저장소 경로 변경 */
@@ -66,6 +68,29 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       set({ error: '설정 조회 중 오류가 발생했습니다.' });
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  updateSettings: async (partial) => {
+    set({ isSaving: true, error: null });
+
+    try {
+      const response = await settingsApi.updateSettings(partial);
+      if (response.success && response.data) {
+        set({
+          config: response.data.config,
+          wikiDir: response.data.wikiDir,
+        });
+        return true;
+      }
+      set({ error: response.error || '설정 저장 실패' });
+      return false;
+    } catch (error) {
+      logger.error('설정 저장 실패', error);
+      set({ error: '설정 저장 중 오류가 발생했습니다.' });
+      return false;
+    } finally {
+      set({ isSaving: false });
     }
   },
 
