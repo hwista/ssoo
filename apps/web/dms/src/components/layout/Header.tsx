@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Search, Plus, Bell, FileText, Sparkles } from 'lucide-react';
+import { Search, Plus, Bell, FileText } from 'lucide-react';
 import { useTabStore } from '@/stores';
 import {
   DropdownMenu,
@@ -56,23 +56,12 @@ export function Header() {
     }
   }, [searchQuery, openTab, updateTab]);
 
-  const handleCreateWithUi = useCallback(() => {
+  const handleCreateDocument = useCallback(() => {
     openTab({
       id: `new-doc-${Date.now()}`,
       title: '새 문서',
       path: '/wiki/new',
       icon: 'FileText',
-      closable: true,
-      activate: true,
-    });
-  }, [openTab]);
-
-  const handleCreateWithAi = useCallback(() => {
-    openTab({
-      id: `ai-create-${Date.now()}`,
-      title: 'AI 작성',
-      path: '/ai/create',
-      icon: 'Bot',
       closable: true,
       activate: true,
     });
@@ -114,18 +103,11 @@ export function Header() {
             style={{ width: 'var(--radix-popper-anchor-width)' }}
           >
             <DropdownMenuItem
-              onClick={handleCreateWithAi}
-              className="text-ssoo-primary focus:bg-ssoo-content-bg/60 focus:text-ssoo-primary"
-            >
-              <Sparkles className="h-4 w-4 shrink-0" />
-              <span className="truncate">AI 작성</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={handleCreateWithUi}
+              onClick={handleCreateDocument}
               className="text-ssoo-primary focus:bg-ssoo-content-bg/60 focus:text-ssoo-primary"
             >
               <FileText className="h-4 w-4 shrink-0" />
-              <span className="truncate">UI 작성</span>
+              <span className="truncate">문서 작성</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -18,8 +18,10 @@ DMS는 Next.js App Router의 Route Handlers를 사용합니다.
 | | `/api/files` | 파일 트리 조회 |
 | **AI** | `/api/search` | 문서 기반 검색 |
 | | `/api/ask` | 문서 기반 질문 |
-| | `/api/create` | 문서 요약/생성 |
+| | `/api/create` | 문서 요약(레거시 호환) |
+| | `/api/doc-assist` | 인라인 문서 작성/경로 추천 |
 | | `/api/chat-sessions` | AI 채팅 세션 조회/저장/삭제 |
+| **템플릿** | `/api/templates` | 전역/개인 템플릿 CRUD |
 | **저장소** | `/api/storage/upload` | 저장소(Local/SharePoint/NAS) 업로드 |
 | | `/api/storage/open` | 참조 파일 열기 URL/링크 반환 |
 | **수집** | `/api/ingest/submit` | 자동 수집 작업 등록 |
@@ -169,6 +171,60 @@ Error:
   ]
 }
 ```
+
+---
+
+## 문서 인라인 작성 API (`/api/doc-assist`)
+
+### Compose
+
+```json
+{
+  "instruction": "요구사항에 맞게 섹션 다시 작성",
+  "currentContent": "# 문서...",
+  "selectedText": "선택된 기존 문장",
+  "activeDocPath": "design/order/request.md",
+  "templates": [],
+  "summaryFiles": []
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "text": "생성된 마크다운 본문",
+    "suggestedPath": "design/order/request.md",
+    "relevanceWarnings": []
+  }
+}
+```
+
+### Recommend Path
+
+```json
+{
+  "action": "recommendPath",
+  "instruction": "주문 요청 설계서 작성",
+  "templates": [],
+  "summaryFiles": []
+}
+```
+
+---
+
+## 템플릿 API (`/api/templates`)
+
+- `GET`: 전역 템플릿 + 개인 템플릿 조회
+- `POST`: 템플릿 생성/수정 (`scope=global|personal`, `kind=document|folder`)
+- `DELETE`: 템플릿 삭제 (`id`, `scope`)
+
+정책:
+
+- 개인 템플릿: 사용자 개인 작성 템플릿(템플릿 승격 결과)
+- 전역 템플릿: 설정 페이지에서 관리자 CRUD 후 전체 사용자 공유
 
 ---
 

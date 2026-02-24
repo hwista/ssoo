@@ -11,7 +11,6 @@ import type { AiSidecarProps } from '../common/ai';
 const AI_PAGE_CONFIG: Record<AiPageTemplateProps['variant'], { filePath: string }> = {
   ask: { filePath: 'ai/ask' },
   search: { filePath: 'ai/search' },
-  create: { filePath: 'ai/create' },
 };
 
 /**
@@ -20,7 +19,7 @@ const AI_PAGE_CONFIG: Record<AiPageTemplateProps['variant'], { filePath: string 
  */
 export interface AiPageTemplateProps {
   /** AI 기능 유형 */
-  variant: AiSidecarProps['variant'];
+  variant: 'ask' | 'search';
   /** 헤더 부가 설명 */
   description: string;
   /** AiPageShell toolbar 슬롯 */
@@ -52,7 +51,7 @@ export interface AiPageTemplateProps {
 /**
  * AiPageTemplate 컴포넌트
  * 
- * AI 페이지 2종(검색/작성)의 공통 레이아웃 템플릿
+ * AI 페이지 공통 레이아웃 템플릿
  * - DocPageTemplate (mode=viewer, orientation=portrait)
  * - AiSidecar (variant별 자동 선택)
  * - AiPageShell (toolbar/footer/children 슬롯)

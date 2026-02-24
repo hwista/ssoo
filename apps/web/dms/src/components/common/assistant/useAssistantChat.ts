@@ -29,9 +29,11 @@ export function useAssistantChat() {
   const setIsProcessing = useAssistantStore((state) => state.setIsProcessing);
   const setSuggestionsCollapsed = useAssistantStore((state) => state.setSuggestionsCollapsed);
   const attachedReferences = useAssistantStore((state) => state.attachedReferences);
+  const summaryFiles = useAssistantStore((state) => state.summaryFiles);
+  const setRelevanceWarnings = useAssistantStore((state) => state.setRelevanceWarnings);
 
   const buildMessageWithReferences = useCallback(async (rawText: string): Promise<string> => {
-    if (attachedReferences.length === 0) return rawText;
+    if (attachedReferences.length === 0 && summaryFiles.length === 0) return rawText;
 
     const refs = attachedReferences.slice(0, 3);
     const sections = await Promise.all(
@@ -52,8 +54,13 @@ export function useAssistantChat() {
       })
     );
 
-    return `[첨부 파일 컨텍스트]\n${sections.join('\n\n---\n\n')}\n\n[사용자 질문]\n${rawText}`;
-  }, [attachedReferences]);
+    const summarySections = summaryFiles.slice(0, 4).map((file, index) => (
+      `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, 3000) || '텍스트를 추출하지 못했습니다.'}`
+    ));
+
+    const allSections = [...sections, ...summarySections];
+    return `[첨부 파일 컨텍스트]\n${allSections.join('\n\n---\n\n')}\n\n[사용자 질문]\n${rawText}`;
+  }, [attachedReferences, summaryFiles]);
 
   const handleOpenFile = useCallback(async (result: AssistantSearchResult) => {
     await openDocumentTab({
@@ -222,7 +229,8 @@ export function useAssistantChat() {
     });
 
     try {
-      const hasAttachments = attachedReferences.length > 0;
+      const hasAttachments = attachedReferences.length > 0 || summaryFiles.length > 0;
+      if (!hasAttachments) setRelevanceWarnings([]);
       const intent = hasAttachments ? 'ask' : detectAssistantIntent(trimmed);
       if (intent === 'search') {
         await runSearch(trimmed);
@@ -240,7 +248,7 @@ export function useAssistantChat() {
     } finally {
       setIsProcessing(false);
     }
-  }, [appendMessage, attachedReferences.length, buildMessageWithReferences, isProcessing, runAsk, runHelp, runSearch, setInputDraft, setIsProcessing, setSuggestionsCollapsed]);
+  }, [appendMessage, attachedReferences.length, buildMessageWithReferences, isProcessing, runAsk, runHelp, runSearch, setInputDraft, setIsProcessing, setRelevanceWarnings, setSuggestionsCollapsed, summaryFiles.length]);
 
   return {
     submitUserMessage,

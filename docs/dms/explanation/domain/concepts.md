@@ -85,7 +85,22 @@ type AIContextMode = 'wiki' | 'deep';
 
 ---
 
-## 6. 관련 문서
+## 6. AI 작성/템플릿 정책
+
+- 별도 `AI 작성 페이지`를 두지 않고, 문서 편집 화면 하단 인라인 작성창으로 통합합니다.
+- 인라인 작성은 지시 + 첨부 컨텍스트(문서/요약 파일/템플릿)를 받아 문서 본문에 즉시 반영합니다.
+- 템플릿 모델:
+  - 개인 템플릿(`scope=personal`): 개인 작성 템플릿 승격 결과
+  - 전역 템플릿(`scope=global`): 설정 페이지 관리자 CRUD 후 전체 사용자 제공
+- 템플릿 종류:
+  - 문서 템플릿(`kind=document`)
+  - 폴더 템플릿(`kind=folder`)
+- 생성 문서는 경로를 명시적으로 입력하고, AI 경로 추천을 보조로 사용합니다.
+- 다중 요약 첨부 시 연관성 낮은 파일은 soft warning으로 안내합니다.
+
+---
+
+## 7. 관련 문서
 
 - `docs/dms/planning/storage-and-second-brain-architecture.md`
 - `docs/dms/explanation/domain/service-overview.md`
@@ -98,3 +113,4 @@ type AIContextMode = 'wiki' | 'deep';
 | 날짜 | 변경 내용 |
 |------|----------|
 | 2026-02-24 | 저장소/수집/세컨드브레인 정책 기준으로 도메인 개념 재작성 |
+| 2026-02-24 | 인라인 AI 작성/템플릿(개인·전역)/경로추천/연관성 경고 정책 반영 |

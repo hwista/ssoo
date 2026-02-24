@@ -7,7 +7,7 @@
 ## 1. 현재 완료
 
 - 위키 문서 관리 기본 기능 (`/api/file`, `/api/files`, `/api/git`)
-- AI 질문/검색/작성 기본 기능 (`/api/ask`, `/api/search`, `/api/create`)
+- AI 질문/검색 + 인라인 문서 작성 기본 기능 (`/api/ask`, `/api/search`, `/api/doc-assist`)
 - 설정 페이지 표준화 및 Git 경로 설정
 - 플로팅 어시스턴트/AI 검색 UI 고도화
 

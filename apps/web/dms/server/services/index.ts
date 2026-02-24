@@ -43,3 +43,5 @@ export {
   type IngestJobStatus,
   type SubmitIngestRequest,
 } from './ingest/IngestQueueService';
+
+export { templateService } from './template/TemplateService';

@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { useTabStore, useEditorStore, useConfirmStore, useFileStore, useAssistantStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
-import { fileApi } from '@/lib/utils/apiClient';
+import { fileApi, docAssistApi } from '@/lib/utils/apiClient';
 import { DocPageTemplate } from '@/components/templates';
 import { Viewer } from '@/components/common/viewer';
 import { Editor } from '@/components/common/editor';
@@ -12,28 +13,16 @@ import { markdownToHtmlSync } from '@/lib/markdownConverter';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import type { DocumentMetadata } from '@/types';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
+import { AssistantReferenceChips, AssistantReferencePicker } from '@/components/common/assistant/ReferencePicker';
 
-/**
- * 페이지 모드
- * - viewer: 문서 읽기
- * - editor: 기존 문서 편집
- * - create: 새 문서 작성
- */
 type PageMode = 'viewer' | 'editor' | 'create';
 
-/**
- * 마크다운 문서 뷰어/에디터 페이지
- * 
- * Phase 8 업데이트:
- * - 에디터 모드: 새 Editor 컴포넌트 (Viewer 패턴)
- * - 생성 모드: /wiki/new 경로에서 새 문서 작성
- * - 공통 레이아웃: DocPageTemplate (Breadcrumb + Header + Sidecar)
- * - 뷰어 모드: Viewer 슬롯 삽입
- * 
- * PMS 패턴:
- * - SidebarFileTree는 openTab()만 호출
- * - 이 페이지 컴포넌트가 자체적으로 데이터 로드
- */
+function replaceOnce(content: string, target: string, next: string): string {
+  const index = content.indexOf(target);
+  if (index < 0) return `${content.trimEnd()}\n\n${next}`;
+  return `${content.slice(0, index)}${next}${content.slice(index + target.length)}`;
+}
+
 export function ViewerPage() {
   const tabId = useCurrentTabId();
   const { tabs, closeTab } = useTabStore();
@@ -42,28 +31,33 @@ export function ViewerPage() {
   const openAssistantPanel = useAssistantStore((state) => state.openPanel);
   const toggleAssistantReference = useAssistantStore((state) => state.toggleReference);
   const attachedReferences = useAssistantStore((state) => state.attachedReferences);
-  const { 
-    loadFile, 
-    isLoading, 
-    error, 
-    content, 
-    isEditing, 
-    setIsEditing, 
-    fileMetadata, 
+  const selectedTemplates = useAssistantStore((state) => state.selectedTemplates);
+  const summaryFiles = useAssistantStore((state) => state.summaryFiles);
+  const setRelevanceWarnings = useAssistantStore((state) => state.setRelevanceWarnings);
+
+  const {
+    loadFile,
+    isLoading,
+    error,
+    content,
+    isEditing,
+    setIsEditing,
+    fileMetadata,
     documentMetadata,
     setLocalDocumentMetadata,
-    setContent, 
+    setContent,
     reset,
-    // 에디터 상태 (Header에 전달)
     isSaving,
     editorHandlers,
     removeTabEditor,
   } = useEditorStore();
-  
-  // 에디터 모드 상태 (로컬)
-  const [mode, setMode] = useState<PageMode>('viewer');
 
-  // 탭 제거 시 에디터 상태 정리
+  const [mode, setMode] = useState<PageMode>('viewer');
+  const [inlineInstruction, setInlineInstruction] = useState('');
+  const [isComposing, setIsComposing] = useState(false);
+  const [createPath, setCreatePath] = useState('drafts/new-doc.md');
+  const [isRecommendingPath, setIsRecommendingPath] = useState(false);
+
   useEffect(() => {
     return () => {
       removeTabEditor();
@@ -71,34 +65,20 @@ export function ViewerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Store의 isEditing과 동기화 (create 모드는 제외)
   useEffect(() => {
     if (mode !== 'create') {
       setMode(isEditing ? 'editor' : 'viewer');
     }
   }, [isEditing, mode]);
 
-  // 이 탭 인스턴스 찾기 (keep-alive: activeTabId 대신 context의 tabId 사용)
-  const activeTab = useMemo(() => {
-    return tabs.find((tab) => tab.id === tabId);
-  }, [tabs, tabId]);
+  const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
 
-  // 새 문서 작성 모드인지 확인
-  const isCreateMode = useMemo(() => {
-    return activeTab?.path === '/wiki/new';
-  }, [activeTab?.path]);
+  const isCreateMode = useMemo(() => activeTab?.path === '/wiki/new', [activeTab?.path]);
 
-  // 탭 경로에서 파일 경로 추출 (/doc/path/to/file.md → path/to/file.md)
   const filePath = useMemo(() => {
     if (!activeTab?.path) return null;
-    
-    // 새 문서 작성 모드
     if (activeTab.path === '/wiki/new') return null;
-    
-    // /doc/ 접두사 제거
     const path = activeTab.path.replace(/^\/doc\//, '');
-    
-    // URL 디코딩
     try {
       return decodeURIComponent(path);
     } catch {
@@ -106,40 +86,38 @@ export function ViewerPage() {
     }
   }, [activeTab?.path]);
 
-  // 새 문서 작성 모드 진입
   useEffect(() => {
     if (isCreateMode) {
-      reset(); // 에디터 상태 초기화
+      reset();
       setContent('# 새 문서\n\n내용을 입력하세요...');
       setMode('create');
       setIsEditing(true);
+      setCreatePath('drafts/new-doc.md');
     }
   }, [isCreateMode, reset, setContent, setIsEditing]);
 
-  // 파일 경로가 변경되면 파일 로드 + 뷰어 모드로 전환
   useEffect(() => {
     if (filePath && !isCreateMode) {
       loadFile(filePath);
       setMode('viewer');
       setIsEditing(false);
+      setCreatePath(filePath);
     }
   }, [filePath, isCreateMode, loadFile, setIsEditing]);
 
-  // HTML 콘텐츠 변환 (뷰어용)
   const htmlContent = useMemo(() => {
     if (!content) return '';
     return markdownToHtmlSync(content);
   }, [content]);
 
-  // 목차 추출 (헤딩 기반)
   const toc = useMemo((): TocItem[] => {
     if (!content) return [];
-    
+
     const headingRegex = /^(#{1,6})\s+(.+)$/gm;
     const items: TocItem[] = [];
     let match;
     let index = 0;
-    
+
     while ((match = headingRegex.exec(content)) !== null) {
       items.push({
         id: `heading-${index++}`,
@@ -147,11 +125,10 @@ export function ViewerPage() {
         text: match[2].trim(),
       });
     }
-    
+
     return items;
   }, [content]);
 
-  // 메타데이터 구성
   const metadata = useMemo(() => {
     const wordCount = content ? content.trim().split(/\s+/).filter(Boolean).length : 0;
     return {
@@ -167,7 +144,6 @@ export function ViewerPage() {
 
   const tags = useMemo(() => documentMetadata?.tags || [], [documentMetadata]);
 
-  // 액션 핸들러
   const handleEdit = useCallback(() => {
     setMode('editor');
     setIsEditing(true);
@@ -213,28 +189,22 @@ export function ViewerPage() {
   }, [attachedReferences, filePath, openAssistantPanel, toggleAssistantReference]);
 
   const handleTocClick = useCallback((id: string) => {
-    // 해당 헤딩으로 스크롤
     const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (element) element.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
   const handlePathClick = useCallback(() => {
     // TODO: 해당 폴더로 트리 이동
   }, []);
 
-  // 히스토리 핸들러 (깃 연동 예정)
   const handleHistory = useCallback(() => {
     // TODO: 깃 히스토리 뷰어 연동
   }, []);
 
-  // 저장 핸들러 (에디터 모드용) - Store의 핸들러 사용
   const handleSave = useCallback(() => {
     editorHandlers?.save();
   }, [editorHandlers]);
 
-  // 취소 핸들러 (에디터/생성 → 뷰어) - Store의 핸들러 사용
   const handleCancel = useCallback(() => {
     if (editorHandlers) {
       editorHandlers.cancel();
@@ -244,16 +214,131 @@ export function ViewerPage() {
     }
   }, [editorHandlers, setIsEditing]);
 
-  // 메타데이터 변경 핸들러 (Sidecar → Store 로컬 업데이터, 저장 시 플러시)
   const handleMetadataChange = useCallback((update: Partial<DocumentMetadata>) => {
     setLocalDocumentMetadata(update);
   }, [setLocalDocumentMetadata]);
 
   const handleRetry = useCallback(() => {
-    if (filePath) {
-      loadFile(filePath);
-    }
+    if (filePath) loadFile(filePath);
   }, [filePath, loadFile]);
+
+  const handleInlineCompose = useCallback(async () => {
+    const instruction = inlineInstruction.trim();
+    if (!instruction || isComposing) return;
+
+    const selectedText = window.getSelection?.()?.toString().trim() || undefined;
+    setIsComposing(true);
+    try {
+      const response = await docAssistApi.compose({
+        instruction,
+        currentContent: content,
+        selectedText,
+        activeDocPath: filePath || createPath,
+        templates: selectedTemplates,
+        summaryFiles: summaryFiles.map((item) => ({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          textContent: item.textContent,
+        })),
+      });
+
+      if (!response.success || !response.data) return;
+      const generated = response.data.text.trim();
+      if (!generated) return;
+
+      const nextContent = selectedText
+        ? replaceOnce(content, selectedText, generated)
+        : `${content.trimEnd()}\n\n${generated}`;
+
+      setContent(nextContent);
+      setInlineInstruction('');
+      setRelevanceWarnings(response.data.relevanceWarnings ?? []);
+      if (isCreateMode && response.data.suggestedPath) {
+        setCreatePath(response.data.suggestedPath);
+      }
+    } finally {
+      setIsComposing(false);
+    }
+  }, [content, createPath, filePath, inlineInstruction, isComposing, isCreateMode, selectedTemplates, setContent, setRelevanceWarnings, summaryFiles]);
+
+  const handleRecommendPath = useCallback(async () => {
+    const instruction = inlineInstruction.trim() || '새 문서 작성';
+    setIsRecommendingPath(true);
+    try {
+      const response = await docAssistApi.recommendPath({
+        instruction,
+        activeDocPath: createPath,
+        templates: selectedTemplates,
+        summaryFiles: summaryFiles.map((item) => ({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          textContent: item.textContent,
+        })),
+      });
+      if (!response.success || !response.data) return;
+      setCreatePath(response.data.suggestedPath || createPath);
+      setRelevanceWarnings(response.data.relevanceWarnings ?? []);
+    } finally {
+      setIsRecommendingPath(false);
+    }
+  }, [createPath, inlineInstruction, selectedTemplates, setRelevanceWarnings, summaryFiles]);
+
+  const composeFooter = (mode === 'editor' || mode === 'create') ? (
+    <section className="border-t border-ssoo-content-border bg-white/95 px-4 py-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-ssoo-primary/80">인라인 AI 작성</p>
+        <p className="text-[11px] text-ssoo-primary/60">선택 텍스트가 있으면 우선 치환, 없으면 하단에 추가됩니다.</p>
+      </div>
+
+      {mode === 'create' && (
+        <div className="mb-2 flex items-center gap-2">
+          <input
+            value={createPath}
+            onChange={(event) => setCreatePath(event.target.value)}
+            placeholder="생성 경로 (예: design/order/request.md)"
+            className="h-control-h w-full rounded-md border border-ssoo-content-border bg-white px-3 text-sm text-ssoo-primary placeholder:text-ssoo-primary/45 focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              void handleRecommendPath();
+            }}
+            disabled={isRecommendingPath}
+            className="inline-flex h-control-h items-center gap-1 rounded-md border border-ssoo-content-border bg-white px-3 text-xs font-medium text-ssoo-primary hover:border-ssoo-primary/40 disabled:opacity-60"
+          >
+            {isRecommendingPath ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+            경로 추천
+          </button>
+        </div>
+      )}
+
+      <AssistantReferenceChips disabled={isComposing} />
+
+      <div className="flex items-center gap-2">
+        <AssistantReferencePicker disabled={isComposing} />
+        <textarea
+          value={inlineInstruction}
+          onChange={(event) => setInlineInstruction(event.target.value)}
+          placeholder="AI에게 문서 수정/생성 지시를 입력하세요."
+          className="min-h-control-h flex-1 resize-y rounded-md border border-ssoo-content-border px-3 py-2 text-sm text-ssoo-primary placeholder:text-ssoo-primary/45 focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+          rows={1}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            void handleInlineCompose();
+          }}
+          disabled={isComposing || inlineInstruction.trim().length === 0}
+          className="inline-flex h-control-h items-center gap-1 rounded-md bg-ssoo-primary px-3 text-sm font-medium text-white hover:bg-ssoo-primary/90 disabled:opacity-60"
+        >
+          {isComposing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          적용
+        </button>
+      </div>
+    </section>
+  ) : null;
 
   const contentBody = useMemo(() => {
     if (error) {
@@ -283,13 +368,29 @@ export function ViewerPage() {
         showContentSurface
       />
     ) : (
-      <Editor className="h-full" variant="embedded" />
+      <Editor
+        className="h-full"
+        variant="embedded"
+        preferredCreatePath={isCreateMode ? createPath : undefined}
+        onCreatePathResolved={setCreatePath}
+      />
     );
-  }, [error, handleRetry, htmlContent, isCreateMode, isLoading, mode, toc, handleTocClick, handleSearch, handleAttachCurrentDocToAssistant]);
+  }, [
+    createPath,
+    error,
+    handleRetry,
+    htmlContent,
+    isCreateMode,
+    isLoading,
+    mode,
+    toc,
+    handleTocClick,
+    handleSearch,
+    handleAttachCurrentDocToAssistant,
+  ]);
 
   const contentSurfaceClassName = 'bg-transparent border-0';
 
-  // 파일 경로가 없고, 생성 모드도 아닐 때
   if (!filePath && !isCreateMode) {
     return (
       <main className="h-full flex items-center justify-center bg-ssoo-content-bg/30">
@@ -298,7 +399,6 @@ export function ViewerPage() {
     );
   }
 
-  // 공통 템플릿 + 슬롯 구조
   return (
     <main className="h-full overflow-hidden bg-ssoo-content-bg/30">
       <DocPageTemplate
@@ -318,7 +418,10 @@ export function ViewerPage() {
         onPathClick={handlePathClick}
         saving={isSaving}
       >
-        {contentBody}
+        <section className="flex h-full min-h-0 flex-col">
+          <div className="min-h-0 flex-1 overflow-hidden">{contentBody}</div>
+          {composeFooter}
+        </section>
       </DocPageTemplate>
     </main>
   );

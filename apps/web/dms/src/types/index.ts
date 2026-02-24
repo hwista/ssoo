@@ -49,3 +49,10 @@ export {
   SIDEBAR_SECTION_ICONS,
   SIDEBAR_SECTION_LABELS,
 } from './sidebar';
+
+export type {
+  TemplateItem,
+  TemplateKind,
+  TemplateScope,
+  TemplateStoreShape,
+} from './template';
