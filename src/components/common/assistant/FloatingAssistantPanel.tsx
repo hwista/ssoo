@@ -7,9 +7,9 @@ import { useAssistantStore } from '@/stores';
 import { useAssistantChat } from './useAssistantChat';
 import { useAssistantSessionPersistence } from './useAssistantSessionPersistence';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
-import { AssistantMessageList } from './AssistantMessageList';
+import { AssistantMessageList } from './MessageList';
 import { AssistantComposer } from './AssistantComposer';
-import { AssistantSessionHistoryList } from './AssistantSessionHistoryList';
+import { AssistantSessionHistoryList } from './SessionHistoryList';
 
 interface FloatingAssistantPanelProps {
   isOpen: boolean;
@@ -226,7 +226,7 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
         </div>
         {!hasMessages ? (
           <div className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/30 p-4 text-sm text-ssoo-primary/70">
-            문서 요약, 규칙 확인, 파일 검색을 요청해 보세요.
+            우리 서비스의 기능과 문서 내용에 대해 자유롭게 대화해 보세요 !
           </div>
         ) : (
           <AssistantMessageList

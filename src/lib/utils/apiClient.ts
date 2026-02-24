@@ -60,6 +60,9 @@ export interface AiSearchResultItem {
   excerpt: string;
   path: string;
   score: number;
+  summary?: string;
+  snippets?: string[];
+  totalSnippetCount?: number;
 }
 
 export interface AiSearchResponse {
@@ -208,12 +211,10 @@ export const fileApi = {
    * 파일 내용 업데이트
    */
   update: async (path: string, content: string): Promise<ApiResponse> => {
-    console.log('fileApi.update 호출:', { path, contentLength: content.length });
     const response = await request('/api/file', {
       method: 'POST',
       body: { action: 'write', path, content }
     });
-    console.log('fileApi.update 응답:', response);
     return response;
   },
 

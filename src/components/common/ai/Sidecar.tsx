@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Info, History, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AssistantSessionHistoryList } from '@/components/common/assistant/AssistantSessionHistoryList';
+import { AssistantSessionHistoryList } from '@/components/common/assistant/SessionHistoryList';
 
 /**
  * AI Sidecar Section 타입
@@ -114,6 +114,11 @@ export function AiSidecar({
   className,
 }: AiSidecarProps) {
   const info = VARIANT_INFO[variant];
+  const historyTitle = variant === 'search' ? '검색 기록' : '채팅 기록';
+  const historyEmptyText = variant === 'search'
+    ? '아직 검색 기록이 없습니다. 검색을 실행하면 여기에 표시됩니다.'
+    : '아직 기록이 없습니다. 질문을 보내면 여기에 표시됩니다.';
+  const suggestionTitle = variant === 'search' ? '인기 검색어' : '추천 질문';
 
   return (
     <div className={cn('flex h-full flex-col', className)}>
@@ -141,9 +146,9 @@ export function AiSidecar({
         </CollapsibleSection>
 
         {/* 추천 질문 (AI 질문 페이지) */}
-        {variant === 'ask' && suggestions.length > 0 && (
+        {(variant === 'ask' || variant === 'search') && suggestions.length > 0 && (
           <CollapsibleSection
-            title="추천 질문"
+            title={suggestionTitle}
             icon={<Info className="h-4 w-4 text-gray-500" />}
             defaultOpen
           >
@@ -183,16 +188,16 @@ export function AiSidecar({
 
         {/* 채팅 기록 */}
         <CollapsibleSection
-          title="채팅 기록"
+          title={historyTitle}
           icon={<History className="h-4 w-4 text-gray-500" />}
-          defaultOpen={variant === 'ask'}
+          defaultOpen={variant === 'ask' || variant === 'search'}
         >
           <AssistantSessionHistoryList
             items={history}
             isActive={(item) => Boolean(item.active)}
             onSelect={(item) => onHistorySelect?.(item)}
             onTogglePersist={onHistoryPersistToggle ? (item) => onHistoryPersistToggle(item) : undefined}
-            emptyText="아직 기록이 없습니다. 질문을 보내면 여기에 표시됩니다."
+            emptyText={historyEmptyText}
             variant="sidecar"
           />
         </CollapsibleSection>

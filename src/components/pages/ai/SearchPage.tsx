@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { useTabStore, useAssistantStore, useConfirmStore } from '@/stores';
+import { useTabStore, useAssistantStore, useConfirmStore, useAiSearchStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { AiPageTemplate } from '@/components/templates';
 import { Toolbar, DOCUMENT_WIDTH } from '@/components/common/viewer';
+import { SearchResultCard } from '@/components/common/search/ResultCard';
+import { useOpenDocumentTab } from '@/hooks';
 import type { TocItem } from '@/components/common/page';
 import { getQueryFromTabPath } from '@/lib/utils';
 import { aiApi, getErrorMessage } from '@/lib/utils/apiClient';
@@ -17,15 +18,32 @@ interface SearchResultItem {
   title: string;
   excerpt: string;
   path: string;
+  summary?: string;
+  snippets?: string[];
+  totalSnippetCount?: number;
+}
+
+function tokenizeHighlightTerms(query: string): string[] {
+  return Array.from(new Set(
+    query
+      .toLowerCase()
+      .split(/[\s,.;:!?()[\]{}"'`/\\|]+/)
+      .map((term) => term.trim())
+      .filter((term) => term.length >= 2)
+  ));
 }
 
 export function AiSearchPage() {
   const tabId = useCurrentTabId();
-  const { tabs } = useTabStore();
+  const { tabs, updateTab } = useTabStore();
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
   const initialQuery = useMemo(() => getQueryFromTabPath(activeTab?.path), [activeTab?.path]);
-  const [query, setQuery] = useState(initialQuery);
+  const [filterQuery, setFilterQuery] = useState('');
+  const [sourceQuery, setSourceQuery] = useState(initialQuery);
+  const [allResults, setAllResults] = useState<SearchResultItem[]>([]);
   const [results, setResults] = useState<SearchResultItem[]>([]);
+  const [matchedResultIndices, setMatchedResultIndices] = useState<number[]>([]);
+  const [attachFilteredOnly, setAttachFilteredOnly] = useState(true);
   const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
   const [isSearching, setIsSearching] = useState(false);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
@@ -33,6 +51,9 @@ export function AiSearchPage() {
   const confirm = useConfirmStore((state) => state.confirm);
   const setReferences = useAssistantStore((state) => state.setReferences);
   const openPanel = useAssistantStore((state) => state.openPanel);
+  const searchHistory = useAiSearchStore((state) => state.history);
+  const recordSearch = useAiSearchStore((state) => state.recordSearch);
+  const openDocumentTab = useOpenDocumentTab();
 
   const scrollToResult = useCallback((index: number) => {
     const element = document.getElementById(`search-result-${index}`);
@@ -43,49 +64,107 @@ export function AiSearchPage() {
   const performSearch = useCallback(async (inputQuery: string) => {
     const trimmed = inputQuery.trim();
     setHasSearched(true);
+    setSourceQuery(trimmed);
     if (!trimmed) {
+      setAllResults([]);
       setResults([]);
+      setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
       return;
     }
     setIsSearching(true);
     const response = await aiApi.search(trimmed);
     if (response.success && response.data) {
-      setResults(response.data.results);
+      const nextResults = response.data.results ?? [];
+      setAllResults(nextResults);
+      setResults(nextResults);
+      setMatchedResultIndices([]);
+      recordSearch(trimmed, nextResults.length);
     } else {
-      setResults([
+      const fallbackResults = [
         {
           id: 'search-error',
           title: '검색 실패',
           excerpt: getErrorMessage(response),
           path: '-',
         },
-      ]);
+      ];
+      setAllResults(fallbackResults);
+      setResults(fallbackResults);
+      setMatchedResultIndices([]);
+      recordSearch(trimmed, 0);
     }
     setCurrentResultIndex(-1);
     setIsSearching(false);
-  }, []);
+  }, [recordSearch]);
+
+  const sortResultsByQuery = useCallback((inputQuery: string) => {
+    const trimmed = inputQuery.trim().toLowerCase();
+    if (!trimmed) {
+      setResults(allResults);
+      setMatchedResultIndices([]);
+      setCurrentResultIndex(-1);
+      return;
+    }
+
+    const ranked = allResults.map((item, index) => {
+      const title = item.title.toLowerCase();
+      const excerpt = item.excerpt.toLowerCase();
+      const path = item.path.toLowerCase();
+      let score = 0;
+      if (title.includes(trimmed)) score += 4;
+      if (path.includes(trimmed)) score += 3;
+      if (excerpt.includes(trimmed)) score += 2;
+      return { item, index, score };
+    });
+
+    ranked.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.index - b.index;
+    });
+
+    const nextResults = ranked.map((entry) => entry.item);
+    const nextMatchedIndices = ranked
+      .map((entry, sortedIndex) => (entry.score > 0 ? sortedIndex : -1))
+      .filter((index) => index >= 0);
+
+    setResults(nextResults);
+    setMatchedResultIndices(nextMatchedIndices);
+    setCurrentResultIndex(nextMatchedIndices.length > 0 ? 0 : -1);
+  }, [allResults]);
 
   const handleSearch = useCallback(() => {
     if (isSearching) return;
-    performSearch(query);
-  }, [isSearching, performSearch, query]);
+    if (!hasSearched) {
+      performSearch(filterQuery);
+      return;
+    }
+    sortResultsByQuery(filterQuery);
+  }, [filterQuery, hasSearched, isSearching, performSearch, sortResultsByQuery]);
+
+  const handleFilterQueryChange = useCallback((value: string) => {
+    setFilterQuery(value);
+    if (!hasSearched) return;
+    sortResultsByQuery(value);
+  }, [hasSearched, sortResultsByQuery]);
 
   useEffect(() => {
     if (initialQuery && autoQueryRef.current !== initialQuery) {
       autoQueryRef.current = initialQuery;
-      setQuery(initialQuery);
+      setFilterQuery('');
       performSearch(initialQuery);
     }
   }, [initialQuery, performSearch]);
 
   useEffect(() => {
-    if (results.length === 0) {
-      setCurrentResultIndex(-1);
-      return;
-    }
-    setCurrentResultIndex(0);
-  }, [results]);
+    if (!tabId) return;
+    if (!sourceQuery.trim()) return;
+    updateTab(tabId, {
+      title: `AI 검색: ${sourceQuery.slice(0, 20)}...`,
+      path: `/ai/search?q=${encodeURIComponent(sourceQuery)}`,
+      icon: 'Bot',
+    });
+  }, [sourceQuery, tabId, updateTab]);
 
   const tocItems = useMemo<TocItem[]>(() => (
     results.map((item, index) => ({
@@ -94,32 +173,54 @@ export function AiSearchPage() {
       level: 1,
     }))
   ), [results]);
+  const matchedIndexSet = useMemo(() => new Set(matchedResultIndices), [matchedResultIndices]);
+  const snippetHighlightTerms = useMemo(() => tokenizeHighlightTerms(sourceQuery), [sourceQuery]);
+  const historyItems = useMemo(() => (
+    searchHistory.map((item) => ({
+      id: item.id,
+      title: item.query,
+      updatedAt: item.updatedAt,
+      active: item.query === sourceQuery,
+      persistedToDb: true,
+    }))
+  ), [searchHistory, sourceQuery]);
+  const topSearchKeywords = useMemo(() => (
+    [...searchHistory]
+      .sort((a, b) => b.count - a.count || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+      .slice(0, 5)
+      .map((item) => item.query)
+  ), [searchHistory]);
 
   const handleNavigateResult = useCallback((direction: 'prev' | 'next') => {
-    if (results.length === 0) return;
+    if (matchedResultIndices.length === 0) return;
     const nextIndex = direction === 'next'
-      ? (currentResultIndex + 1) % results.length
-      : (currentResultIndex - 1 + results.length) % results.length;
+      ? (currentResultIndex + 1) % matchedResultIndices.length
+      : (currentResultIndex - 1 + matchedResultIndices.length) % matchedResultIndices.length;
     setCurrentResultIndex(nextIndex);
-    scrollToResult(nextIndex);
-  }, [currentResultIndex, results.length, scrollToResult]);
+    scrollToResult(matchedResultIndices[nextIndex]);
+  }, [currentResultIndex, matchedResultIndices, scrollToResult]);
 
   const handleTocClick = useCallback((id: string) => {
     const index = Number.parseInt(id.replace('search-result-', ''), 10);
     if (Number.isNaN(index)) return;
-    setCurrentResultIndex(index);
+    const matchPointer = matchedResultIndices.findIndex((matchedIndex) => matchedIndex === index);
+    setCurrentResultIndex(matchPointer);
     scrollToResult(index);
-  }, [scrollToResult]);
+  }, [matchedResultIndices, scrollToResult]);
 
   const handleSearchClose = useCallback(() => {
-    setQuery('');
-    setResults([]);
-    setHasSearched(false);
+    setFilterQuery('');
+    setResults(allResults);
+    setMatchedResultIndices([]);
     setCurrentResultIndex(-1);
-  }, []);
+  }, [allResults]);
 
   const handleAttachSearchResultsToAssistant = useCallback(async () => {
-    const candidates = results
+    const attachTargets = attachFilteredOnly && filterQuery.trim().length > 0
+      ? matchedResultIndices.map((index) => results[index]).filter(Boolean)
+      : results;
+
+    const candidates = attachTargets
       .filter((item) => item.path.trim().length > 0 && item.path !== '-')
       .map((item) => ({
         path: item.path.replace(/^\/+/, ''),
@@ -145,57 +246,98 @@ export function AiSearchPage() {
     openPanel();
     window.dispatchEvent(new Event(ASSISTANT_FOCUS_INPUT_EVENT));
     toast.success(`${candidates.length}개 문서를 첨부했습니다.`);
-  }, [confirm, openPanel, results, setReferences]);
+  }, [attachFilteredOnly, confirm, filterQuery, matchedResultIndices, openPanel, results, setReferences]);
+
+  const handleOpenSearchResult = useCallback(async (item: SearchResultItem) => {
+    if (!item.path || item.path === '-') return;
+    await openDocumentTab({
+      path: item.path,
+      title: item.title,
+      activate: true,
+    });
+  }, [openDocumentTab]);
 
   return (
     <AiPageTemplate
       variant="search"
       description="문서 기반 검색 결과를 확인하세요."
-      shellToolbarClassName="border-0 bg-transparent px-0 py-0"
+      contentSurfaceClassName="bg-transparent border-0"
+      sidecarHistory={historyItems}
+      onSidecarHistorySelect={(item) => {
+        setFilterQuery('');
+        void performSearch(item.title);
+      }}
+      sidecarSuggestions={topSearchKeywords}
+      onSidecarSuggestionSelect={(keyword) => {
+        setFilterQuery('');
+        void performSearch(keyword);
+      }}
+      shellToolbarClassName="border-0 px-0 py-0 min-h-0"
+      shellContentClassName="flex-1 overflow-hidden p-0"
       toolbar={(
         <Toolbar
           maxWidth={DOCUMENT_WIDTH}
           variant="embedded"
           toc={tocItems}
+          tocLabel="목록"
+          tocListStyle="flat"
+          searchPlaceholder="결과 내 재검색..."
           onTocClick={handleTocClick}
-          searchQuery={query}
-          onSearchQueryChange={setQuery}
+          searchQuery={filterQuery}
+          onSearchQueryChange={handleFilterQueryChange}
           onSearchSubmit={handleSearch}
           onSearchClose={handleSearchClose}
-          searchResultCount={results.length}
+          searchResultCount={matchedResultIndices.length}
           currentResultIndex={currentResultIndex}
-          hasSearched={hasSearched}
+          hasSearched={filterQuery.trim().length > 0}
           onNavigateResult={handleNavigateResult}
           onAttachToAssistant={handleAttachSearchResultsToAssistant}
           attachToAssistantTitle="현재 검색 결과 문서를 AI에 첨부하고 질문하기"
+          attachFilterControl={filterQuery.trim().length > 0 && matchedResultIndices.length > 0 ? (
+            <label className="inline-flex items-center gap-1.5 text-xs text-ssoo-primary/80 select-none">
+              <input
+                type="checkbox"
+                checked={attachFilteredOnly}
+                onChange={(event) => setAttachFilteredOnly(event.target.checked)}
+                className="h-3.5 w-3.5 cursor-pointer rounded border border-ssoo-content-border accent-ssoo-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ssoo-primary/30"
+              />
+              재검색 결과만 첨부
+            </label>
+          ) : null}
           showZoomControls={false}
         />
       )}
     >
-      {!hasSearched ? (
-        <div className="flex h-full items-center justify-center text-sm text-ssoo-primary/60">
-          검색어를 입력하면 결과가 표시됩니다.
-        </div>
-      ) : results.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-sm text-ssoo-primary/60">
-          검색 결과가 없습니다.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {results.map((item, index) => (
-            <article id={`search-result-${index}`} key={item.id} className="rounded-lg border border-ssoo-content-border p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-base font-semibold text-ssoo-primary">{item.title}</h2>
-                  <p className="mt-1 text-sm text-ssoo-primary/70">{item.excerpt}</p>
-                  <p className="mt-2 text-xs text-ssoo-primary/50">{item.path}</p>
-                </div>
-                <FileText className="h-5 w-5 text-ssoo-primary/40" />
+      <div className="h-full overflow-hidden">
+        <div className="h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin bg-white border border-gray-200 rounded-lg">
+          <div className="py-6 px-8">
+            {!hasSearched ? (
+              <div className="flex h-full min-h-[240px] items-center justify-center text-sm text-ssoo-primary/60">
+                검색어를 입력하면 결과가 표시됩니다.
               </div>
-            </article>
-          ))}
+            ) : results.length === 0 ? (
+              <div className="flex h-full min-h-[240px] items-center justify-center text-sm text-ssoo-primary/60">
+                검색 결과가 없습니다.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {results.map((item, index) => (
+                  <SearchResultCard
+                    id={`search-result-${index}`}
+                    key={item.id}
+                    result={item}
+                    highlighted={filterQuery.trim().length > 0 && matchedIndexSet.has(index)}
+                    highlightTerms={snippetHighlightTerms}
+                    onClick={() => {
+                      void handleOpenSearchResult(item);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </AiPageTemplate>
   );
 }

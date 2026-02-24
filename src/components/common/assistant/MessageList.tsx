@@ -5,6 +5,7 @@ import type { ComponentType } from 'react';
 import type { AssistantHelpAction } from '@/lib/utils/assistantHelp';
 import { toTextBlocks, type AssistantTextBlock } from '@/lib/utils/assistantTextFormat';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
+import { SearchResultCard } from '@/components/common/search/ResultCard';
 
 interface AssistantMessageListProps {
   messages: AssistantMessage[];
@@ -20,6 +21,16 @@ const iconMap: Record<AssistantHelpAction['icon'], ComponentType<{ className?: s
   Settings,
   BookOpen,
 };
+
+function tokenizeHighlightTerms(query: string): string[] {
+  return Array.from(new Set(
+    query
+      .toLowerCase()
+      .split(/[\s,.;:!?()[\]{}"'`/\\|]+/)
+      .map((term) => term.trim())
+      .filter((term) => term.length >= 2)
+  ));
+}
 
 export function AssistantMessageList({
   messages,
@@ -42,29 +53,22 @@ export function AssistantMessageList({
     <div className={stackClass}>
       {messages.map((message) => {
         if (message.kind === 'search-results') {
+          const snippetHighlightTerms = tokenizeHighlightTerms(message.query);
           return (
             <div key={message.id} className="space-y-2">
               <p className="text-xs text-ssoo-primary/70">
                 검색 결과: <span className="font-medium">{message.query}</span>
               </p>
               {message.results.map((result) => (
-                <button
+                <SearchResultCard
                   key={`${message.id}-${result.id}`}
-                  type="button"
+                  result={result}
+                  compact={variant === 'panel'}
+                  highlightTerms={snippetHighlightTerms}
                   onClick={() => {
                     void onOpenFile(result);
                   }}
-                  className="w-full rounded-lg border border-ssoo-content-border bg-ssoo-content-bg/30 p-3 text-left transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium text-ssoo-primary">{result.title}</p>
-                      <p className="mt-1 line-clamp-2 text-xs text-ssoo-primary/70">{result.excerpt}</p>
-                      <p className="mt-1 text-[11px] text-ssoo-primary/50">{result.path}</p>
-                    </div>
-                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-ssoo-primary/50" />
-                  </div>
-                </button>
+                />
               ))}
             </div>
           );
@@ -159,4 +163,3 @@ export function AssistantMessageList({
     </div>
   );
 }
-

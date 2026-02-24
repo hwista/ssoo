@@ -8,6 +8,9 @@ export interface AssistantSearchResult {
   title: string;
   excerpt: string;
   path: string;
+  summary?: string;
+  snippets?: string[];
+  totalSnippetCount?: number;
 }
 
 export type AssistantMessage =
@@ -112,7 +115,7 @@ export const useAssistantStore = create<AssistantStore>()(
       sessionsLoaded: false,
       inputDraft: '',
       isProcessing: false,
-      suggestions: generateAssistantSuggestions(6),
+      suggestions: [],
       suggestionsCollapsed: false,
       attachedReferences: [],
 

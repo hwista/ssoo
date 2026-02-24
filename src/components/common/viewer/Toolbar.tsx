@@ -34,7 +34,11 @@ export interface ToolbarProps {
   onNavigateResult: (direction: 'prev' | 'next') => void;
   onAttachToAssistant?: () => void;
   attachToAssistantTitle?: string;
+  attachFilterControl?: React.ReactNode;
   showZoomControls?: boolean;
+  tocLabel?: string;
+  tocListStyle?: 'hierarchy' | 'flat';
+  searchPlaceholder?: string;
   
   // 줌 관련
   zoomLevel?: number;
@@ -63,7 +67,11 @@ export function Toolbar({
   onNavigateResult,
   onAttachToAssistant,
   attachToAssistantTitle = '현재 문서를 AI에 첨부하고 질문하기',
+  attachFilterControl,
   showZoomControls = true,
+  tocLabel = '목차',
+  tocListStyle = 'hierarchy',
+  searchPlaceholder = '문서 내 검색...',
   zoomLevel,
   onZoomIn,
   onZoomOut,
@@ -116,7 +124,7 @@ export function Toolbar({
                 )}
               >
                 <List className="h-4 w-4" />
-                <span>목차</span>
+                <span>{tocLabel}</span>
               </Button>
               
               {/* 플로팅 목차 패널 */}
@@ -137,12 +145,13 @@ export function Toolbar({
                           key={item.id}
                           onClick={() => handleTocItemClick(item.id)}
                           className={cn(
-                            'flex h-control-h w-full items-center text-left text-sm hover:text-ssoo-primary',
+                            'flex h-control-h w-full items-center text-left text-sm leading-6 tracking-normal hover:text-ssoo-primary',
                             'hover:bg-white rounded px-2 transition-colors',
                             'truncate',
-                            item.level === 1 && 'font-semibold text-gray-900',
-                            item.level === 2 && 'font-medium text-gray-700',
-                            item.level >= 3 && 'text-gray-500'
+                            tocListStyle === 'hierarchy' && item.level === 1 && 'font-semibold text-gray-900',
+                            tocListStyle === 'hierarchy' && item.level === 2 && 'font-medium text-gray-700',
+                            tocListStyle === 'hierarchy' && item.level >= 3 && 'text-gray-500',
+                            tocListStyle === 'flat' && 'font-normal text-gray-800'
                           )}
                           style={{
                             paddingLeft: `${(item.level - 1) * 12 + 8}px`,
@@ -166,7 +175,7 @@ export function Toolbar({
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="문서 내 검색..."
+                  placeholder={searchPlaceholder}
                   value={searchQuery}
                   onChange={(e) => onSearchQueryChange(e.target.value)}
                   className={cn(
@@ -221,17 +230,20 @@ export function Toolbar({
             )}
           </form>
           {onAttachToAssistant && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="default"
-              onClick={onAttachToAssistant}
-              className="h-control-h gap-1.5 text-ssoo-primary"
-              title={attachToAssistantTitle}
-            >
-              <Bot className="h-4 w-4" />
-              AI
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="default"
+                onClick={onAttachToAssistant}
+                className="h-control-h gap-1.5 text-ssoo-primary"
+                title={attachToAssistantTitle}
+              >
+                <Bot className="h-4 w-4" />
+                AI
+              </Button>
+              {attachFilterControl}
+            </div>
           )}
         </div>
 

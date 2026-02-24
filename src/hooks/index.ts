@@ -15,3 +15,5 @@ export type {
 
 // Tab
 export { useOpenTabWithConfirm } from './useOpenTabWithConfirm';
+export { useOpenDocumentTab } from './useOpenDocumentTab';
+export type { OpenDocumentTabOptions } from './useOpenDocumentTab';
