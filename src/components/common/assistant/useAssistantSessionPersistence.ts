@@ -67,7 +67,7 @@ function toAssistantMessages(value: unknown): AssistantMessage[] {
           title: string;
           description: string;
           path: string;
-          icon: 'Bot' | 'Search' | 'FileText' | 'Settings' | 'BookOpen';
+          icon: 'Bot' | 'FileText' | 'Settings' | 'BookOpen';
         } => (
           Boolean(action) &&
           typeof action === 'object' &&
@@ -76,7 +76,6 @@ function toAssistantMessages(value: unknown): AssistantMessage[] {
           typeof (action as Record<string, unknown>).description === 'string' &&
           typeof (action as Record<string, unknown>).path === 'string' &&
           ((action as Record<string, unknown>).icon === 'Bot' ||
-            (action as Record<string, unknown>).icon === 'Search' ||
             (action as Record<string, unknown>).icon === 'FileText' ||
             (action as Record<string, unknown>).icon === 'Settings' ||
             (action as Record<string, unknown>).icon === 'BookOpen')

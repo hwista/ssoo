@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowRight, BookOpen, Bot, FileText, Loader2, Search, Settings, User } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { ArrowRight, BookOpen, Bot, Copy, FileText, Loader2, RotateCcw, Settings, User } from 'lucide-react';
+import { useCallback, type ComponentType } from 'react';
+import { toast } from 'sonner';
 import type { AssistantHelpAction } from '@/lib/utils/assistantHelp';
 import { toTextBlocks, type AssistantTextBlock } from '@/lib/utils/assistantTextFormat';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
@@ -11,12 +12,13 @@ interface AssistantMessageListProps {
   messages: AssistantMessage[];
   onOpenFile: (result: AssistantSearchResult) => Promise<void> | void;
   onOpenHelpAction: (action: AssistantHelpAction) => Promise<void> | void;
+  onResendUserMessage?: (text: string) => Promise<void> | void;
+  actionDisabled?: boolean;
   variant?: 'panel' | 'page';
 }
 
 const iconMap: Record<AssistantHelpAction['icon'], ComponentType<{ className?: string }>> = {
   Bot,
-  Search,
   FileText,
   Settings,
   BookOpen,
@@ -36,6 +38,8 @@ export function AssistantMessageList({
   messages,
   onOpenFile,
   onOpenHelpAction,
+  onResendUserMessage,
+  actionDisabled = false,
   variant = 'panel',
 }: AssistantMessageListProps) {
   const stackClass = variant === 'panel' ? 'space-y-3' : 'space-y-4';
@@ -48,6 +52,19 @@ export function AssistantMessageList({
   const userAvatarClass = variant === 'panel'
     ? 'mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-ssoo-primary'
     : 'flex h-control-h w-control-h shrink-0 items-center justify-center rounded-full bg-ssoo-primary';
+  const messageActionButtonClass = variant === 'panel'
+    ? 'inline-flex h-7 w-7 items-center justify-center rounded-full border border-ssoo-content-border bg-white text-ssoo-primary/75 transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60'
+    : 'inline-flex h-8 w-8 items-center justify-center rounded-full border border-ssoo-content-border bg-white text-ssoo-primary/75 transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60';
+  const messageActionIconClass = variant === 'panel' ? 'h-3.5 w-3.5' : 'h-4 w-4';
+
+  const handleCopyUserMessage = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('질문을 클립보드에 복사했습니다.');
+    } catch {
+      toast.error('클립보드 복사에 실패했습니다.');
+    }
+  }, []);
 
   return (
     <div className={stackClass}>
@@ -125,6 +142,35 @@ export function AssistantMessageList({
             {!isUser && (
               <div className={avatarClass}>
                 <Bot className={variant === 'panel' ? 'h-4 w-4 text-ssoo-primary' : 'h-5 w-5 text-ssoo-primary'} />
+              </div>
+            )}
+            {isUser && message.text.trim().length > 0 && (
+              <div className="flex items-center gap-1.5 self-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleCopyUserMessage(message.text);
+                  }}
+                  disabled={actionDisabled}
+                  className={messageActionButtonClass}
+                  title="복사"
+                  aria-label="질문 복사"
+                >
+                  <Copy className={messageActionIconClass} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!onResendUserMessage) return;
+                    void onResendUserMessage(message.text);
+                  }}
+                  disabled={actionDisabled || !onResendUserMessage}
+                  className={messageActionButtonClass}
+                  title="재전송"
+                  aria-label="질문 재전송"
+                >
+                  <RotateCcw className={messageActionIconClass} />
+                </button>
               </div>
             )}
             <div className={`${assistantBubbleClass} ${isUser ? 'bg-ssoo-primary text-white' : 'bg-ssoo-content-bg text-ssoo-primary'}`}>

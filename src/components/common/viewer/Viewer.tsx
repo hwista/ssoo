@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import type { TocItem } from '../page/Sidecar';
 import { Toolbar, ZOOM_LEVELS, DEFAULT_ZOOM } from './Toolbar';
 import { Content, DOCUMENT_WIDTH } from './Content';
+import { SectionedShell } from './SectionedShell';
 
 type ViewerVariant = 'standalone' | 'embedded';
 
@@ -24,7 +25,7 @@ export interface ViewerProps {
   onAttachToAssistant?: () => void;
   /** 레이아웃 변형 */
   variant?: ViewerVariant;
-  /** 콘텐츠 표면 표시 여부 */
+  /** @deprecated Viewer 내부는 SectionedShell이 surface를 담당합니다. */
   showContentSurface?: boolean;
   /** 추가 className */
   className?: string;
@@ -54,9 +55,11 @@ export function Viewer({
   onSearch,
   onAttachToAssistant,
   variant = 'standalone',
-  showContentSurface,
+  showContentSurface: _showContentSurface,
   className,
 }: ViewerProps) {
+  void _showContentSurface;
+
   // 줌 상태
   const [zoomLevel, setZoomLevel] = React.useState(DEFAULT_ZOOM);
   
@@ -230,36 +233,40 @@ export function Viewer({
   };
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
-      {/* 툴바 */}
-      <Toolbar
-        maxWidth={DOCUMENT_WIDTH}
-        variant={variant}
-        toc={toc}
-        onTocClick={handleTocClick}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        onSearchSubmit={handleSearchSubmit}
-        onSearchClose={handleSearchClose}
-        searchResultCount={searchResultCount}
-        currentResultIndex={currentResultIndex}
-        hasSearched={hasSearched}
-        onNavigateResult={handleNavigateResult}
-        onAttachToAssistant={onAttachToAssistant}
-        zoomLevel={zoomLevel}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onZoomReset={handleZoomReset}
-      />
-
-      {/* 본문 */}
-      <Content
-        content={displayContent}
-        zoomLevel={zoomLevel}
-        contentRef={contentRef}
-        variant={variant}
-        showSurface={showContentSurface}
-      />
-    </div>
+    <SectionedShell
+      className={cn('h-full', variant === 'standalone' && 'overflow-hidden rounded-lg border border-gray-200 bg-white', className)}
+      toolbarClassName="p-0"
+      bodyClassName="overflow-hidden p-0"
+      toolbar={(
+        <Toolbar
+          maxWidth={DOCUMENT_WIDTH}
+          variant={variant}
+          toc={toc}
+          onTocClick={handleTocClick}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          onSearchSubmit={handleSearchSubmit}
+          onSearchClose={handleSearchClose}
+          searchResultCount={searchResultCount}
+          currentResultIndex={currentResultIndex}
+          hasSearched={hasSearched}
+          onNavigateResult={handleNavigateResult}
+          onAttachToAssistant={onAttachToAssistant}
+          zoomLevel={zoomLevel}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onZoomReset={handleZoomReset}
+        />
+      )}
+      body={(
+        <Content
+          content={displayContent}
+          zoomLevel={zoomLevel}
+          contentRef={contentRef}
+          variant={variant}
+          showSurface={false}
+        />
+      )}
+    />
   );
 }

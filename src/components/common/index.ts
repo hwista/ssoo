@@ -21,7 +21,7 @@ export { Viewer, Toolbar as ViewerToolbar, Content as ViewerContent, LineNumbers
 export type { ViewerProps, ToolbarProps, ContentProps as ViewerContentProps, LineNumbersProps } from './viewer';
 
 // Editor 슬롯 컴포넌트 (문서 편집)
-export { Editor, Content as EditorContent, BlockEditor, BlockToolbar, SlashCommand, DOCUMENT_WIDTH as EDITOR_DOCUMENT_WIDTH } from './editor';
+export { Editor, Content as EditorContent, BlockEditor, DOCUMENT_WIDTH as EDITOR_DOCUMENT_WIDTH } from './editor';
 export type { EditorProps, ContentProps as EditorContentProps, BlockEditorProps, BlockEditorRef } from './editor';
 
 // 상태 표시

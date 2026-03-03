@@ -28,12 +28,18 @@ export function AiPageShell({
         </section>
       )}
 
-      <section className={cn('flex-1 overflow-auto p-4', contentClassName)}>
+      <section
+        className={cn(
+          'flex-1 overflow-auto border-x border-ssoo-content-border p-4',
+          !footer && 'rounded-b-lg border-b',
+          contentClassName
+        )}
+      >
         {children}
       </section>
 
       {footer && (
-        <footer className="border-t border-ssoo-content-border px-4 py-2 min-h-[52px] flex items-center">
+        <footer className="flex items-center rounded-b-lg border-x border-b border-t border-ssoo-content-border p-3">
           {footer}
         </footer>
       )}

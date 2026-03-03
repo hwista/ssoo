@@ -25,6 +25,8 @@ export interface DocPageTemplateProps {
   description?: string;
   headerExtraActions?: HeaderAction[];
   headerExtraActionsPosition?: 'left' | 'right';
+  headerEditorInlineSlot?: React.ReactNode;
+  headerEditorPreviewSlot?: React.ReactNode;
   contentOrientation?: DocumentOrientation;
   contentMaxWidth?: number | null;
   contentWrapperClassName?: string;
@@ -42,6 +44,7 @@ export interface DocPageTemplateProps {
   onDelete?: () => void;
   onHistory?: () => void;
   onPathClick?: (path: string) => void;
+  breadcrumbRootIconVariant?: 'default' | 'ai' | 'folder' | 'editor';
   saving?: boolean;
   loading?: boolean;
   error?: Error | string | null;
@@ -56,6 +59,8 @@ export function DocPageTemplate({
   description,
   headerExtraActions,
   headerExtraActionsPosition = 'left',
+  headerEditorInlineSlot,
+  headerEditorPreviewSlot,
   contentOrientation = DEFAULT_DOCUMENT_ORIENTATION,
   contentMaxWidth,
   contentWrapperClassName,
@@ -73,6 +78,7 @@ export function DocPageTemplate({
   onDelete,
   onHistory,
   onPathClick,
+  breadcrumbRootIconVariant = 'default',
   saving = false,
   loading = false,
   error,
@@ -140,6 +146,8 @@ export function DocPageTemplate({
       description={description}
       extraActions={headerExtraActions}
       extraActionsPosition={headerExtraActionsPosition}
+      editorInlineSlot={headerEditorInlineSlot}
+      editorPreviewSlot={headerEditorPreviewSlot}
       onEdit={onEdit}
       onSave={onSave}
       onCancel={onCancel}
@@ -152,7 +160,12 @@ export function DocPageTemplate({
   if (error) {
     return (
       <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
-        <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
+        <Breadcrumb
+          filePath={filePath}
+          onPathClick={onPathClick}
+          isEditing={mode === 'editor' || mode === 'create'}
+          rootIconVariant={breadcrumbRootIconVariant}
+        />
         {headerNode}
         <div className="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg">
           <ErrorState error={error} onRetry={onRetry} />
@@ -164,7 +177,12 @@ export function DocPageTemplate({
   if (loading) {
     return (
       <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
-        <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
+        <Breadcrumb
+          filePath={filePath}
+          onPathClick={onPathClick}
+          isEditing={mode === 'editor' || mode === 'create'}
+          rootIconVariant={breadcrumbRootIconVariant}
+        />
         {headerNode}
         <div className="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg">
           <LoadingState message="문서를 불러오는 중..." />
@@ -175,7 +193,12 @@ export function DocPageTemplate({
 
   return (
     <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
-      <Breadcrumb filePath={filePath} onPathClick={onPathClick} />
+      <Breadcrumb
+        filePath={filePath}
+        onPathClick={onPathClick}
+        isEditing={mode === 'editor' || mode === 'create'}
+        rootIconVariant={breadcrumbRootIconVariant}
+      />
       {headerNode}
 
       <div ref={containerRef} className="relative flex-1 overflow-hidden">

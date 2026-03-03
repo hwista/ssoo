@@ -147,7 +147,7 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
             <Bot className="h-4 w-4 text-ssoo-primary" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-ssoo-primary">AI 어시스턴트</p>
+            <p className="text-sm font-semibold text-ssoo-primary">AI 대화</p>
             <p className="text-xs text-ssoo-primary/60">질문, 문서 검색, 기능 안내를 한 번에 처리합니다.</p>
           </div>
         </div>
@@ -160,7 +160,6 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
           title="크게보기"
         >
           <Maximize2 className="h-3.5 w-3.5" />
-          크게보기
         </button>
       </header>
 
@@ -233,6 +232,8 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
             messages={messages}
             onOpenFile={handleOpenFile}
             onOpenHelpAction={handleOpenHelpAction}
+            onResendUserMessage={submitUserMessage}
+            actionDisabled={isProcessing}
             variant="panel"
           />
         )}

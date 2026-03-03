@@ -1,6 +1,6 @@
 'use client';
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ComponentType } from 'react';
 import { useTabStore, HOME_TAB } from '@/stores';
 import { TabInstanceContext } from '@/contexts/TabInstanceContext';
 import { LoadingState } from '@/components/common/StateDisplay';
@@ -11,12 +11,42 @@ import { AiAskPage } from '@/components/pages/ai/AskPage';
  * - React.lazy로 동적 import
  * - 코드 분할로 초기 로딩 최적화
  */
+function lazyWithChunkRetry<T extends ComponentType<unknown>>(
+  importer: () => Promise<{ default: T }>
+) {
+  return lazy(async () => {
+    try {
+      const loaded = await importer();
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('dms_chunk_retry_once');
+      }
+      return loaded;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isChunkError = /ChunkLoadError|Loading chunk .* failed/i.test(message);
+
+      if (isChunkError && typeof window !== 'undefined') {
+        const retried = window.sessionStorage.getItem('dms_chunk_retry_once');
+        if (!retried) {
+          window.sessionStorage.setItem('dms_chunk_retry_once', '1');
+          window.location.reload();
+          return new Promise(() => {
+            // page reload until settled
+          });
+        }
+      }
+
+      throw error;
+    }
+  });
+}
+
 const pageComponents = {
-  home: lazy(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
-  markdown: lazy(() => import('@/components/pages/markdown/ViewerPage').then(m => ({ default: m.ViewerPage }))),
+  home: lazyWithChunkRetry(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
+  markdown: lazyWithChunkRetry(() => import('@/components/pages/markdown/ViewerPage').then(m => ({ default: m.ViewerPage }))),
   aiAsk: AiAskPage,
-  aiSearch: lazy(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
-  settings: lazy(() => import('@/components/pages/settings/Page').then(m => ({ default: m.SettingsPage }))),
+  aiSearch: lazyWithChunkRetry(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
+  settings: lazyWithChunkRetry(() => import('@/components/pages/settings/Page').then(m => ({ default: m.SettingsPage }))),
 };
 
 /**
@@ -91,7 +121,7 @@ export function ContentArea() {
         return (
           <div
             key={tab.id}
-            className={`absolute inset-0 overflow-auto ${isActive ? '' : 'hidden'}`}
+            className={`absolute inset-0 overflow-hidden ${isActive ? '' : 'hidden'}`}
           >
             <TabInstanceContext.Provider value={tab.id}>
               <Suspense fallback={<LoadingFallback />}>

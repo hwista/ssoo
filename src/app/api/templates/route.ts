@@ -6,7 +6,10 @@ import {
 
 export async function GET(req: Request) {
   const result = handleListTemplates(req.headers);
-  return Response.json(result);
+  if (!result.success) {
+    return Response.json({ error: '템플릿 목록 조회에 실패했습니다.' }, { status: 400 });
+  }
+  return Response.json(result.data);
 }
 
 export async function POST(req: Request) {
@@ -15,7 +18,7 @@ export async function POST(req: Request) {
   if (!result.success) {
     return Response.json({ error: result.error }, { status: 400 });
   }
-  return Response.json(result);
+  return Response.json(result.data);
 }
 
 export async function DELETE(req: Request) {
@@ -24,5 +27,5 @@ export async function DELETE(req: Request) {
   if (!result.success) {
     return Response.json({ error: result.error }, { status: 400 });
   }
-  return Response.json(result);
+  return Response.json(result.data);
 }

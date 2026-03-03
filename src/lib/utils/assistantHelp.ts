@@ -3,7 +3,7 @@ export interface AssistantHelpAction {
   title: string;
   description: string;
   path: string;
-  icon: 'Bot' | 'Search' | 'FileText' | 'Settings' | 'BookOpen';
+  icon: 'Bot' | 'FileText' | 'Settings' | 'BookOpen';
 }
 
 export interface AssistantHelpResponse {
@@ -17,7 +17,7 @@ const HELP_ACTIONS = {
     title: 'AI 검색 열기',
     description: '키워드로 문서를 검색하고 관련 파일을 찾습니다.',
     path: '/ai/search',
-    icon: 'Search',
+    icon: 'Bot',
   },
   newDoc: {
     id: 'help-new-doc',

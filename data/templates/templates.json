@@ -1,0 +1,23 @@
+{
+  "global": [
+    {
+      "id": "global-doc-default",
+      "name": "기본 문서 템플릿",
+      "description": "요약/배경/핵심 내용/액션 아이템 구조",
+      "scope": "global",
+      "kind": "document",
+      "content": "# 제목\n\n## 배경\n\n## 핵심 내용\n\n## 액션 아이템\n",
+      "updatedAt": "1970-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "global-folder-default",
+      "name": "기본 폴더 구조 템플릿",
+      "description": "주제 기준의 표준 폴더 구조",
+      "scope": "global",
+      "kind": "folder",
+      "content": "project/\n  docs/\n  references/\n  decisions/\n",
+      "updatedAt": "1970-01-01T00:00:00.000Z"
+    }
+  ],
+  "personal": {}
+}

@@ -2,7 +2,7 @@
 
 import { useTabStore, HOME_TAB } from '@/stores';
 import { useAssistantStore } from '@/stores';
-import { X, Minimize2, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch, Settings } from 'lucide-react';
+import { X, Minimize2, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch, Settings, FilePenLine } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { LAYOUT_SIZES } from '@/types';
@@ -126,6 +126,7 @@ export function TabBar() {
           const IconComponent = getTabIcon(tab);
           const isActive = tab.id === activeTabId;
           const isHomeTab = tab.id === HOME_TAB.id;
+          const isTabEditing = Boolean(tab.isEditing);
           const isDragging = draggedIndex === index;
           const isDragOver = dragOverIndex === index;
 
@@ -169,7 +170,11 @@ export function TabBar() {
                 onClick={() => activateTab(tab.id)}
                 className="flex items-center gap-1.5"
               >
-                <IconComponent className={`w-4 h-4 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                {isTabEditing ? (
+                  <FilePenLine className={`w-4 h-4 ${isActive ? 'text-ssoo-primary/80' : 'text-ssoo-primary/70'}`} />
+                ) : (
+                  <IconComponent className={`w-4 h-4 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                )}
                 <span
                   className={`text-sm truncate max-w-[120px] ${
                     isActive ? 'text-ssoo-primary font-medium' : 'text-gray-600'
@@ -177,6 +182,9 @@ export function TabBar() {
                 >
                   {tab.title}
                 </span>
+                {isTabEditing && (
+                  <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-ssoo-primary/70" />
+                )}
               </button>
               {tab.closable && (
                 <button

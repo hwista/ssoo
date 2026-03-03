@@ -53,7 +53,7 @@ export function Content({
   return (
     <div
       className={cn(
-        isEmbedded ? 'flex-1 overflow-hidden' : 'flex-1 flex justify-center overflow-hidden px-4',
+        isEmbedded ? 'h-full overflow-hidden' : 'h-full flex justify-center overflow-hidden px-4',
         className
       )}
     >
@@ -61,7 +61,7 @@ export function Content({
       <div 
         ref={contentRef as React.RefObject<HTMLDivElement>}
         className={cn(
-          'h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin',
+          'h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin bg-white',
           shouldShowSurface && 'bg-white border border-gray-200 rounded-lg'
         )}
         style={resolvedMaxWidth ? { maxWidth: resolvedMaxWidth } : undefined}

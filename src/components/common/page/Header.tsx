@@ -51,6 +51,10 @@ export interface HeaderProps {
   extraActions?: HeaderAction[];
   /** 추가 액션 버튼 위치 */
   extraActionsPosition?: 'left' | 'right';
+  /** editor/create 모드에서 저장 버튼 오른쪽 슬롯 */
+  editorInlineSlot?: React.ReactNode;
+  /** editor/create 모드에서 취소와 저장 사이 슬롯 */
+  editorPreviewSlot?: React.ReactNode;
   
   /** 추가 className */
   className?: string;
@@ -91,6 +95,8 @@ export function Header({
   saving = false,
   extraActions,
   extraActionsPosition = 'left',
+  editorInlineSlot,
+  editorPreviewSlot,
   className,
 }: HeaderProps) {
   const renderActionButton = (action: HeaderAction, index: number) => (
@@ -154,6 +160,7 @@ export function Header({
                 취소
               </Button>
             )}
+            {editorPreviewSlot}
             {onSave && (
               <Button
                 variant="default"
@@ -170,6 +177,7 @@ export function Header({
                 저장
               </Button>
             )}
+            {editorInlineSlot}
           </>
         )}
 

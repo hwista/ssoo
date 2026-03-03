@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +11,14 @@ interface FloatingAssistantButtonProps {
 }
 
 export function FloatingAssistantButton({ isOpen, onClick, isDocumentActive = false }: FloatingAssistantButtonProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDocumentActiveAfterMount = mounted && isDocumentActive;
+
   return (
     <button
       type="button"
@@ -19,7 +28,7 @@ export function FloatingAssistantButton({ isOpen, onClick, isDocumentActive = fa
         'fixed bottom-12 right-6 z-50 h-14 w-14 rounded-full shadow-lg transition-all',
         'flex items-center justify-center',
         'bg-ssoo-primary text-white hover:bg-ssoo-primary/90',
-        isDocumentActive && 'opacity-45 hover:opacity-100'
+        isDocumentActiveAfterMount && 'opacity-45 hover:opacity-100'
       )}
     >
       {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}

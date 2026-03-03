@@ -9,10 +9,10 @@ import { BlockEditor, BlockEditorRef } from './BlockEditor';
  * Content Props
  */
 export interface ContentProps {
-  /** HTML 콘텐츠 (BlockEditor용) */
-  htmlContent: string;
+  /** Markdown 콘텐츠 (BlockEditor용) */
+  markdownContent: string;
   /** BlockEditor 변경 핸들러 */
-  onBlockEditorChange: (html: string) => void;
+  onBlockEditorChange: (markdown: string) => void;
   /** 저장 핸들러 (Ctrl+S) */
   onSave?: () => void;
   /** 문서 최대 너비 */
@@ -23,52 +23,71 @@ export interface ContentProps {
   showSurface?: boolean;
   /** 추가 className */
   className?: string;
+  /** 에디터 placeholder */
+  placeholder?: string;
+  /** 현재 편집 파일 경로 (상대 링크 해석용) */
+  currentFilePath?: string | null;
+  /** 미리보기 모드 여부 */
+  isPreview?: boolean;
+  /** BlockEditor ref (외부 툴바 명령 연동용) */
+  blockEditorRef?: React.RefObject<BlockEditorRef | null>;
+  /** BlockEditor 내부 툴바 표시 여부 */
+  showToolbar?: boolean;
 }
 
 /**
  * Editor Content 컴포넌트
- * 
- * 에디터 본문 영역 (옵시디언 스타일 라이브 프리뷰)
- * - Tiptap BlockEditor + LivePreview 확장
- * - 커서 위치 블록에 마크다운 구문 표시
+ *
+ * 에디터 본문 영역
+ * - markdown 문자열을 단일 소스로 유지
+ * - 활성 블록은 raw markdown, 나머지는 html 렌더
  */
 export function Content({
-  htmlContent,
+  markdownContent,
   onBlockEditorChange,
   onSave,
   maxWidth,
   variant = 'standalone',
   showSurface,
   className,
+  placeholder = '/를 입력하여 블록 추가',
+  currentFilePath,
+  isPreview = false,
+  blockEditorRef,
+  showToolbar = true,
 }: ContentProps) {
   const isEmbedded = variant === 'embedded';
   const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
   const shouldShowSurface = showSurface ?? !isEmbedded;
-  const blockEditorRef = React.useRef<BlockEditorRef>(null);
+  const fallbackEditorRef = React.useRef<BlockEditorRef>(null);
+  const resolvedEditorRef = blockEditorRef ?? fallbackEditorRef;
 
   return (
     <div
       className={cn(
-        isEmbedded ? 'flex-1 overflow-hidden' : 'flex-1 flex justify-center overflow-hidden px-4',
+        isEmbedded ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 min-h-0 flex justify-center overflow-hidden px-4',
         className
       )}
     >
       {/* 에디터 컨테이너 - 고정 너비 */}
       <div 
         className={cn(
-          'h-full w-full overflow-hidden flex flex-col',
+          'h-full min-h-0 w-full overflow-hidden flex flex-col',
           shouldShowSurface && 'bg-white border border-gray-200 rounded-lg'
         )}
         style={resolvedMaxWidth ? { maxWidth: resolvedMaxWidth } : undefined}
       >
         <BlockEditor
-          ref={blockEditorRef}
-          content={htmlContent}
+          ref={resolvedEditorRef}
+          content={markdownContent}
           onChange={onBlockEditorChange}
           onSave={onSave}
           editable={true}
-          placeholder="/를 입력하여 블록 추가"
-          className="flex-1"
+          placeholder={placeholder}
+          currentFilePath={currentFilePath}
+          isPreview={isPreview}
+          showToolbar={showToolbar}
+          className="flex-1 min-h-0"
         />
       </div>
     </div>
