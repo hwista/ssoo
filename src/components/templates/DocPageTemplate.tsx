@@ -9,14 +9,11 @@ import {
   Breadcrumb,
   Header,
   type HeaderAction,
-  Sidecar,
-  type SidecarProps,
   DOCUMENT_WIDTHS,
   DEFAULT_DOCUMENT_ORIENTATION,
   type DocumentOrientation,
 } from '../common/page';
 import { LoadingState, ErrorState } from '@/components/common/StateDisplay';
-import type { DocumentMetadata } from '@/types';
 
 export interface DocPageTemplateProps {
   filePath: string;
@@ -31,13 +28,9 @@ export interface DocPageTemplateProps {
   contentMaxWidth?: number | null;
   contentWrapperClassName?: string;
   contentSurfaceClassName?: string;
-  metadata?: SidecarProps['metadata'];
-  tags?: string[];
   sidecarWidth?: number;
-  documentMetadata?: DocumentMetadata | null;
-  onMetadataChange?: (update: Partial<DocumentMetadata>) => void;
   sidecarContent?: React.ReactNode;
-  sidecarMode?: 'default' | 'custom' | 'hidden';
+  sidecarMode?: 'custom' | 'hidden';
   onEdit?: () => void;
   onSave?: () => void;
   onCancel?: () => void;
@@ -65,11 +58,7 @@ export function DocPageTemplate({
   contentMaxWidth,
   contentWrapperClassName,
   contentSurfaceClassName,
-  metadata,
-  tags,
   sidecarWidth = LAYOUT_SIZES.sidebar.expandedWidth,
-  documentMetadata,
-  onMetadataChange,
   sidecarContent,
   sidecarMode,
   onEdit,
@@ -114,7 +103,7 @@ export function DocPageTemplate({
     return () => observer.disconnect();
   }, []);
 
-  const resolvedSidecarMode = sidecarMode ?? (sidecarContent ? 'custom' : 'default');
+  const resolvedSidecarMode = sidecarMode ?? (sidecarContent ? 'custom' : 'hidden');
   const supportsSidecar = resolvedSidecarMode !== 'hidden';
   const resolvedContentMaxWidth = contentMaxWidth === null
     ? null
@@ -255,16 +244,7 @@ export function DocPageTemplate({
                 flexShrink: canSideBySide ? 0 : undefined,
               }}
             >
-              {resolvedSidecarMode === 'custom' && sidecarContent ? sidecarContent : (
-                <Sidecar
-                  metadata={metadata}
-                  tags={tags}
-                  editable={mode === 'editor' || mode === 'create'}
-                  documentMetadata={documentMetadata}
-                  onMetadataChange={onMetadataChange}
-                  filePath={filePath}
-                />
-              )}
+              {resolvedSidecarMode === 'custom' && sidecarContent ? sidecarContent : null}
             </div>
           )}
         </div>

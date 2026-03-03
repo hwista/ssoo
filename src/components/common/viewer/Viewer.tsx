@@ -2,10 +2,10 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import type { TocItem } from '../page/Sidecar';
+import type { TocItem } from '../page/toc';
 import { Toolbar, ZOOM_LEVELS, DEFAULT_ZOOM } from './Toolbar';
 import { Content, DOCUMENT_WIDTH } from './Content';
-import { SectionedShell } from './SectionedShell';
+import { SectionedShell } from '../page/SectionedShell';
 
 type ViewerVariant = 'standalone' | 'embedded';
 

@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Search, ZoomIn, ZoomOut, List, X, ChevronUp, ChevronDown, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import type { TocItem } from '../page/Sidecar';
+import type { TocItem } from '../page/toc';
 
 // 줌 레벨 상수
 export const ZOOM_LEVELS = [75, 100, 125, 150, 175, 200];

@@ -12,12 +12,25 @@ export type { HeaderProps, HeaderAction } from './Header';
 export { Content } from './Content';
 export type { ContentProps } from './Content';
 
-export { Sidecar } from './Sidecar';
-export type { SidecarProps, SidecarMetadata, TocItem } from './Sidecar';
+export { SectionedShell } from './SectionedShell';
+export type { SectionedShellProps } from './SectionedShell';
+
+export type { TocItem } from './toc';
+
+export { SidecarFrame, CollapsibleSection } from './sidecar';
+export type { SidecarFrameProps, CollapsibleSectionProps } from './sidecar';
+export { TextSection, ChipListSection, ActivityListSection } from './sidecar';
+export type {
+  TextSectionProps,
+  ChipListSectionProps,
+  ChipItem,
+  ActivityListSectionProps,
+  ActivityItem,
+  ActivityAction,
+} from './sidecar';
 
 export { DOCUMENT_WIDTHS, DEFAULT_DOCUMENT_ORIENTATION } from './documentDimensions';
 export type { DocumentOrientation } from './documentDimensions';
 
 // Viewer, LineNumbers는 common/viewer/로 이동됨
 // import { Viewer } from '@/components/common/viewer';
-

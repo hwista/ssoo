@@ -5,7 +5,7 @@
  * shadcn/ui 원자 컴포넌트를 조합하여 구성
  * 
  * 구조:
- * - page/: 레이아웃 빌딩블록 (Breadcrumb, Header, Content, Sidecar)
+ * - page/: 레이아웃 빌딩블록 (Breadcrumb, Header, Content, SectionedShell, Sidecar primitives)
  * - viewer/: 읽기 슬롯 컴포넌트 (Viewer, Toolbar, Content)
  * - editor/: 편집 슬롯 컴포넌트 (Editor, Toolbar, Content, BlockEditor)
  * - StateDisplay: 로딩/에러/빈 상태 표시
@@ -13,8 +13,8 @@
  */
 
 // 페이지 레이아웃 빌딩블록
-export { Breadcrumb, Header, Content, Sidecar } from './page';
-export type { BreadcrumbProps, HeaderProps, HeaderAction, ContentProps, SidecarProps, SidecarMetadata, TocItem } from './page';
+export { Breadcrumb, Header, Content, SectionedShell } from './page';
+export type { BreadcrumbProps, HeaderProps, HeaderAction, ContentProps, SectionedShellProps, TocItem } from './page';
 
 // Viewer 슬롯 컴포넌트 (문서 읽기)
 export { Viewer, Toolbar as ViewerToolbar, Content as ViewerContent, LineNumbers, countLines, DOCUMENT_WIDTH, ZOOM_LEVELS, DEFAULT_ZOOM } from './viewer';
