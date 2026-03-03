@@ -649,7 +649,7 @@ export function Sidecar({
         </CollapsibleSection>
 
         {/* ─── 소스 링크 ─── */}
-        <CollapsibleSection icon={Link2} title="소스 링크">
+        <CollapsibleSection icon={Link2} title="url">
           {editable ? (
             <EditableSourceLinks links={sourceLinks} onChange={handleSourceLinksChange} />
           ) : sourceLinks.length > 0 ? (

@@ -1,5 +1,5 @@
 {
-  "version": "2026-02-22",
+  "version": "2026-02-27",
   "entrypoint": "AGENTS.md",
   "instruction_root": ".codex/instructions",
   "path_mappings": [
@@ -39,6 +39,10 @@
     "github_docs": [
       ".github/copilot-instructions.md",
       ".github/instructions"
+    ],
+    "claude_code": [
+      "CLAUDE.md",
+      "apps/web/dms/CLAUDE.md"
     ],
     "repo_docs": [
       "docs",

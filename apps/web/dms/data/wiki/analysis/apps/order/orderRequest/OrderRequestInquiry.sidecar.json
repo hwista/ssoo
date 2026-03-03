@@ -1,12 +1,12 @@
 {
-  "title": "개발 가이드",
+  "title": "레거시 코드 분석 및 기능 고도화 설계서",
   "summary": "",
   "tags": [],
   "sourceLinks": [],
-  "createdAt": "2026-02-04T00:19:14.222Z",
-  "updatedAt": "2026-03-03T01:10:23.655Z",
+  "createdAt": "2026-02-04T00:19:14.218Z",
+  "updatedAt": "2026-02-27T05:23:35.536Z",
   "fileHashes": {
-    "content": "db4a3ebf7f56e038388b95943d88324bc4bf55edd07daf69b3a58828369a5e01",
+    "content": "2949aae16158c170a125e02b81df10c7445a6fce08fc287bf07bdcb021f026db",
     "sources": {}
   },
   "chunkIds": [],

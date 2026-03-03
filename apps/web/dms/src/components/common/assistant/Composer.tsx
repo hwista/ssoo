@@ -2,7 +2,19 @@
 
 import { useCallback, useEffect, type RefObject } from 'react';
 import { ChevronDown, ChevronUp, Loader2, Search, SendHorizontal } from 'lucide-react';
-import { AssistantReferenceChips, AssistantReferencePicker } from './ReferencePicker';
+import type { TemplateItem } from '@/types/template';
+import {
+  AssistantReferenceChips,
+  AssistantReferencePicker,
+  type InlineSummaryFileItem,
+} from './ReferencePicker';
+
+interface InlineContextProps {
+  selectedTemplates: TemplateItem[];
+  summaryFiles: InlineSummaryFileItem[];
+  onToggleTemplate: (template: TemplateItem) => void;
+  onUpsertSummaryFiles: (files: InlineSummaryFileItem[]) => void;
+}
 
 interface AssistantComposerProps {
   inputRef?: RefObject<HTMLTextAreaElement | null>;
@@ -12,6 +24,15 @@ interface AssistantComposerProps {
   submitUserMessage: (text: string) => Promise<void>;
   placeholder: string;
   submitVariant?: 'icon' | 'text';
+  submitLabel?: string;
+  mode?: 'assistant' | 'inline';
+  inlineContext?: InlineContextProps;
+  inlineTemplates?: TemplateItem[];
+  inlineSummaryFiles?: InlineSummaryFileItem[];
+  inlineWarnings?: string[];
+  onInlineRemoveTemplate?: (id: string) => void;
+  onInlineRemoveSummaryFile?: (id: string) => void;
+  onInlineClearAll?: () => void;
   suggestions?: string[];
   suggestionsCollapsed?: boolean;
   onToggleSuggestions?: () => void;
@@ -25,6 +46,15 @@ export function AssistantComposer({
   submitUserMessage,
   placeholder,
   submitVariant = 'icon',
+  submitLabel = '전송',
+  mode = 'assistant',
+  inlineContext,
+  inlineTemplates,
+  inlineSummaryFiles,
+  inlineWarnings,
+  onInlineRemoveTemplate,
+  onInlineRemoveSummaryFile,
+  onInlineClearAll,
   suggestions = [],
   suggestionsCollapsed,
   onToggleSuggestions,
@@ -89,11 +119,24 @@ export function AssistantComposer({
         </div>
       )}
 
-      <AssistantReferenceChips disabled={isProcessing} />
+      <AssistantReferenceChips
+        disabled={isProcessing}
+        mode={mode}
+        inlineTemplates={inlineTemplates}
+        inlineSummaryFiles={inlineSummaryFiles}
+        inlineWarnings={inlineWarnings}
+        onInlineRemoveTemplate={onInlineRemoveTemplate}
+        onInlineRemoveSummaryFile={onInlineRemoveSummaryFile}
+        onInlineClearAll={onInlineClearAll}
+      />
       <div className="flex items-center gap-2">
-        <AssistantReferencePicker disabled={isProcessing} />
+        <AssistantReferencePicker
+          disabled={isProcessing}
+          mode={mode}
+          inlineContext={inlineContext}
+        />
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-ssoo-primary/50" />
+          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-ssoo-primary/50" />
           <textarea
             ref={inputRef}
             value={inputDraft}
@@ -115,7 +158,7 @@ export function AssistantComposer({
               }
             }}
             placeholder={placeholder}
-            className="min-h-control-h w-full resize-none rounded-lg border border-ssoo-content-border pl-9 pr-3 pt-2 text-sm focus:border-ssoo-primary focus:outline-none"
+            className="min-h-10 w-full resize-none rounded-lg border border-ssoo-content-border pl-9 pr-3 py-2 text-sm focus:border-ssoo-primary focus:outline-none"
             rows={1}
           />
         </div>
@@ -123,10 +166,10 @@ export function AssistantComposer({
           <button
             type="submit"
             disabled={isProcessing || !inputDraft.trim()}
-            className="flex h-control-h items-center gap-2 rounded-lg bg-ssoo-primary px-4 text-sm font-medium text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-10 items-center gap-2 rounded-lg bg-ssoo-primary px-4 text-sm font-medium text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-            전송
+            {submitLabel}
           </button>
         ) : (
           <button

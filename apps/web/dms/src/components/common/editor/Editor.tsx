@@ -3,12 +3,14 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Content } from './Content';
+import { type BlockEditorRef } from './BlockEditor';
+import { EditorToolbar, type ToolbarCommandId } from './Toolbar';
+import { SectionedShell } from '@/components/common/viewer';
 import { DOCUMENT_WIDTHS } from '@/components/common/page';
 import { useEditor } from '@/hooks/useEditor';
 import { useEditorStore, useTabStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { useConfirmStore } from '@/stores/confirm.store';
-import { htmlToMarkdown, markdownToHtmlSync } from '@/lib/markdownConverter';
 import { useToast } from '@/lib/toast';
 
 // 문서 본문 최대 너비 (Viewer와 동일)
@@ -29,15 +31,16 @@ export interface EditorProps {
   preferredCreatePath?: string;
   /** 생성 모드에서 실제 저장 경로가 결정될 때 */
   onCreatePathResolved?: (path: string) => void;
+  /** 미리보기 모드 여부 */
+  isPreview?: boolean;
 }
 
 /**
  * Editor 컴포넌트
  * 
- * 문서 편집기 (옵시디언 스타일 라이브 프리뷰)
- * - 본문: BlockEditor + LivePreview 확장
- * - 커서 위치 블록에 마크다운 문법 표시
- * - 다른 블록은 WYSIWYG 렌더링 유지
+ * 문서 편집기
+ * - markdown 문자열을 단일 소스로 유지
+ * - 활성 블록은 raw markdown 편집, 비활성 블록은 html 렌더링
  * 
  * @example
  * ```tsx
@@ -50,6 +53,7 @@ export function Editor({
   showContentSurface,
   preferredCreatePath,
   onCreatePathResolved,
+  isPreview = false,
 }: EditorProps) {
   const { showSuccess, showError } = useToast();
   
@@ -75,9 +79,6 @@ export function Editor({
   
   // 확인 다이얼로그
   const { confirm } = useConfirmStore();
-
-  // HTML 콘텐츠 (BlockEditor용)
-  const [htmlContent, setHtmlContent] = React.useState('');
 
   // useEditor 훅 (Undo/Redo 등)
   const {
@@ -108,16 +109,18 @@ export function Editor({
   // 파일 내용 변경 시 에디터 리셋
   React.useEffect(() => {
     resetContent(content);
-    setHtmlContent(content ? markdownToHtmlSync(content) : '');
   }, [content, resetContent]);
 
   // =====================
   // 콘텐츠 변경 핸들러
   // =====================
-  const handleBlockEditorChange = React.useCallback((html: string) => {
-    setHtmlContent(html);
-    updateContent(htmlToMarkdown(html));
+  const handleBlockEditorChange = React.useCallback((markdown: string) => {
+    updateContent(markdown);
   }, [updateContent]);
+  const blockEditorRef = React.useRef<BlockEditorRef>(null);
+  const handleToolbarCommand = React.useCallback((id: ToolbarCommandId) => {
+    blockEditorRef.current?.applyCommand(id);
+  }, []);
 
   // 새 문서 작성 모드 여부
   const isCreateMode = !currentFilePath && isEditing;
@@ -185,7 +188,6 @@ export function Editor({
     }
     
     resetContent(content);
-    setHtmlContent(markdownToHtmlSync(content));
     // 보류 중인 메타데이터 변경사항 폐기 (서버에서 재로드)
     discardPendingMetadata();
     setIsEditing(false);
@@ -198,6 +200,9 @@ export function Editor({
   const handlersRef = React.useRef({
     save: handleSave,
     cancel: handleCancel,
+    getSelection: () => blockEditorRef.current?.getSelection() ?? { from: 0, to: 0 },
+    insertAt: (from: number, to: number, text: string) => blockEditorRef.current?.insertAt(from, to, text),
+    setPendingInsert: (range: { from: number; to: number } | null) => blockEditorRef.current?.setPendingInsert(range),
   });
 
   // 핸들러가 변경되면 ref 업데이트 (Store 업데이트 없음)
@@ -205,6 +210,9 @@ export function Editor({
     handlersRef.current = {
       save: handleSave,
       cancel: handleCancel,
+      getSelection: () => blockEditorRef.current?.getSelection() ?? { from: 0, to: 0 },
+      insertAt: (from: number, to: number, text: string) => blockEditorRef.current?.insertAt(from, to, text),
+      setPendingInsert: (range: { from: number; to: number } | null) => blockEditorRef.current?.setPendingInsert(range),
     };
   }, [handleSave, handleCancel]);
 
@@ -213,6 +221,9 @@ export function Editor({
     setEditorHandlers({
       save: () => handlersRef.current.save(),
       cancel: () => handlersRef.current.cancel(),
+      getSelection: () => handlersRef.current.getSelection(),
+      insertAt: (from, to, text) => handlersRef.current.insertAt(from, to, text),
+      setPendingInsert: (range) => handlersRef.current.setPendingInsert(range),
     });
     
     return () => {
@@ -261,15 +272,34 @@ export function Editor({
   const resolvedMaxWidth = variant === 'standalone' ? DOCUMENT_WIDTH : undefined;
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
-      {/* 본문 - 라이브 프리뷰 에디터 */}
-      <Content
-        htmlContent={htmlContent}
-        onBlockEditorChange={handleBlockEditorChange}
-        maxWidth={resolvedMaxWidth}
-        variant={variant}
-        showSurface={showContentSurface}
-      />
-    </div>
+    <SectionedShell
+      className={cn(
+        'h-full min-h-0',
+        variant === 'standalone' && 'overflow-hidden rounded-lg border-b border-gray-200 bg-white',
+        className
+      )}
+      toolbarClassName="p-0"
+      bodyClassName="min-h-0 overflow-hidden p-0"
+      toolbar={(
+        <EditorToolbar
+          disabled={isPreview}
+          onCommand={handleToolbarCommand}
+        />
+      )}
+      body={(
+        <Content
+          markdownContent={editorContent}
+          onBlockEditorChange={handleBlockEditorChange}
+          maxWidth={resolvedMaxWidth}
+          variant={variant}
+          showSurface={showContentSurface}
+          placeholder={isCreateMode ? '' : '/를 입력하여 블록 추가'}
+          currentFilePath={currentFilePath}
+          isPreview={isPreview}
+          blockEditorRef={blockEditorRef}
+          showToolbar={false}
+        />
+      )}
+    />
   );
 }

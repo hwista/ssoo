@@ -1,6 +1,6 @@
 {
-  "version": "2026-02-22",
-  "description": "Codex 정본과 GitHubDocs 핵심 규칙 동기화 검증",
+  "version": "2026-02-27",
+  "description": "Codex 정본과 GitHubDocs 핵심 규칙 동기화 검증 (CLAUDE.md 포함)",
   "checks": [
     {
       "id": "protocol-keyword",
@@ -54,6 +54,30 @@
       "id": "dms-independence",
       "source": ".github/instructions/dms.instructions.md",
       "target": ".codex/instructions/dms.instructions.md",
+      "sourcePattern": "독립",
+      "targetPattern": "독립",
+      "severity": "error"
+    },
+    {
+      "id": "claude-principles",
+      "source": ".github/copilot-instructions.md",
+      "target": "CLAUDE.md",
+      "sourcePattern": "핵심 원칙",
+      "targetPattern": "핵심 원칙",
+      "severity": "error"
+    },
+    {
+      "id": "claude-forbidden",
+      "source": ".github/copilot-instructions.md",
+      "target": "CLAUDE.md",
+      "sourcePattern": "금지 사항",
+      "targetPattern": "금지 사항",
+      "severity": "error"
+    },
+    {
+      "id": "claude-dms-independence",
+      "source": ".github/instructions/dms.instructions.md",
+      "target": "apps/web/dms/CLAUDE.md",
       "sourcePattern": "독립",
       "targetPattern": "독립",
       "severity": "error"

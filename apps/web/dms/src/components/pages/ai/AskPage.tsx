@@ -48,7 +48,8 @@ export function AiAskPage() {
     <AiPageTemplate
       variant="ask"
       description="질문, 문서 검색, 기능 안내를 요청하세요."
-      contentSurfaceClassName="rounded-lg border border-gray-200 bg-white"
+      contentSurfaceClassName="rounded-lg border-0 bg-transparent"
+      shellToolbarClassName="bg-ssoo-content-bg/30 px-0 py-0 min-h-0"
       shellContentClassName={messages.length === 0 ? 'overflow-hidden' : undefined}
       sidecarHistory={historyItems}
       onSidecarHistorySelect={(item) => selectSession(item.id)}
@@ -82,7 +83,7 @@ export function AiAskPage() {
           isProcessing={isProcessing}
           setInputDraft={setInputDraft}
           submitUserMessage={submitUserMessage}
-          placeholder="질문을 입력하세요..."
+          placeholder="AI에게 무엇이든 물어보세요. 문서 내용을 기반으로 대화하고 검색하거나, 기능 사용법을 안내받을 수도 있습니다!"
           submitVariant="text"
         />
       )}
@@ -110,6 +111,8 @@ export function AiAskPage() {
               messages={messages}
               onOpenFile={handleOpenFile}
               onOpenHelpAction={handleOpenHelpAction}
+              onResendUserMessage={submitUserMessage}
+              actionDisabled={isProcessing}
               variant="page"
             />
           </div>

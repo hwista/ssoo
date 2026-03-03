@@ -261,7 +261,7 @@ export function AiSearchPage() {
     <AiPageTemplate
       variant="search"
       description="문서 기반 검색 결과를 확인하세요."
-      contentSurfaceClassName="bg-transparent border-0"
+      contentSurfaceClassName="rounded-lg border-0 bg-transparent"
       sidecarHistory={historyItems}
       onSidecarHistorySelect={(item) => {
         setFilterQuery('');
@@ -272,7 +272,7 @@ export function AiSearchPage() {
         setFilterQuery('');
         void performSearch(keyword);
       }}
-      shellToolbarClassName="border-0 px-0 py-0 min-h-0"
+      shellToolbarClassName="bg-ssoo-content-bg/30 px-0 py-0 min-h-0"
       shellContentClassName="flex-1 overflow-hidden p-0"
       toolbar={(
         <Toolbar
@@ -308,8 +308,8 @@ export function AiSearchPage() {
         />
       )}
     >
-      <div className="h-full overflow-hidden">
-        <div className="h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin bg-white border border-gray-200 rounded-lg">
+      <div className="h-full overflow-hidden bg-white">
+        <div className="h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin">
           <div className="py-6 px-8">
             {!hasSearched ? (
               <div className="flex h-full min-h-[240px] items-center justify-center text-sm text-ssoo-primary/60">

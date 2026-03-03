@@ -16,6 +16,7 @@ export interface TabItem {
   title: string;
   icon?: string;
   path: string;          // DMS 필수 (파일 경로 기반)
+  isEditing?: boolean;
   closable: boolean;
   openedAt: Date;
   lastActiveAt: Date;

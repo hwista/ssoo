@@ -100,12 +100,12 @@ export function Toolbar({
         isEmbedded ? 'w-full' : 'justify-center px-4'
       )}
     >
-      <div
-        className={cn(
-          'flex w-full items-center justify-between px-4 py-2 min-h-[52px] bg-transparent border-0'
-        )}
-        style={isEmbedded ? undefined : { maxWidth }}
-      >
+        <div
+          className={cn(
+          'flex w-full items-center justify-between px-4 py-2 min-h-[52px] bg-transparent'
+          )}
+          style={isEmbedded ? undefined : { maxWidth }}
+        >
         {/* 좌측: 목차 + 검색 */}
         <div className="flex items-center gap-2">
           {/* 목차 버튼 - 마우스 오버 시 플로팅 */}

@@ -712,6 +712,7 @@ export interface DocAssistSummaryFileClient {
 
 export interface DocAssistComposeResponse {
   text: string;
+  applyMode: 'replace-document' | 'replace-selection' | 'append' | 'insert';
   suggestedPath: string;
   relevanceWarnings: string[];
 }

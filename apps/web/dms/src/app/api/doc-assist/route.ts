@@ -13,7 +13,7 @@ export async function POST(req: Request) {
         summaryFiles: Array.isArray(body?.summaryFiles) ? body.summaryFiles : [],
         selectedText: typeof body?.selectedText === 'string' ? body.selectedText : undefined,
       });
-      return Response.json({ success: true, data: result });
+      return Response.json(result);
     }
 
     const data = await composeDocument({
@@ -24,9 +24,9 @@ export async function POST(req: Request) {
       templates: Array.isArray(body?.templates) ? body.templates : [],
       summaryFiles: Array.isArray(body?.summaryFiles) ? body.summaryFiles : [],
     });
-    return Response.json({ success: true, data });
+    return Response.json(data);
   } catch (error) {
     const message = error instanceof Error ? error.message : '문서 작성 처리 중 오류가 발생했습니다.';
-    return Response.json({ success: false, error: message }, { status: 400 });
+    return Response.json({ error: message }, { status: 400 });
   }
 }

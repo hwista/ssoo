@@ -86,6 +86,7 @@ export function AiPageTemplate({
       <DocPageTemplate
         filePath={config.filePath}
         mode="viewer"
+        breadcrumbRootIconVariant="ai"
         contentOrientation="portrait"
         description={description}
         contentSurfaceClassName={contentSurfaceClassName}

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronRight, Settings } from 'lucide-react';
+import { Bot, ChevronRight, FilePenLine, Folder, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -13,6 +13,10 @@ export interface BreadcrumbProps {
   filePath: string;
   /** 경로 세그먼트 클릭 시 해당 폴더로 이동 */
   onPathClick?: (path: string) => void;
+  /** 편집 중 상태 표시 */
+  isEditing?: boolean;
+  /** 루트 아이콘 변형 */
+  rootIconVariant?: 'default' | 'ai' | 'folder' | 'editor';
   /** 추가 className */
   className?: string;
 }
@@ -48,6 +52,8 @@ const SEGMENT_DISPLAY_NAMES: Record<string, string> = {
 export function Breadcrumb({
   filePath,
   onPathClick,
+  isEditing = false,
+  rootIconVariant = 'default',
   className,
 }: BreadcrumbProps) {
   // 경로를 세그먼트로 분리 (AI 경로는 단일 세그먼트로 표시)
@@ -78,6 +84,14 @@ export function Breadcrumb({
     return null;
   }
 
+  const RootIcon = rootIconVariant === 'ai'
+    ? Bot
+    : rootIconVariant === 'folder'
+      ? Folder
+      : rootIconVariant === 'editor'
+        ? FilePenLine
+        : Settings;
+
   return (
     <nav 
       className={cn(
@@ -87,12 +101,12 @@ export function Breadcrumb({
       )}
       aria-label="파일 경로"
     >
-      {/* 루트 - 설정 아이콘 */}
+      {/* 루트 아이콘 */}
       <button
         onClick={() => onPathClick?.('')}
         className="flex items-center hover:text-ssoo-primary transition-colors shrink-0"
       >
-        <Settings className="h-3.5 w-3.5" />
+        <RootIcon className="h-3.5 w-3.5" />
       </button>
 
       {/* 경로 세그먼트들 */}
@@ -106,8 +120,11 @@ export function Breadcrumb({
             
             {isLast ? (
               // 마지막 세그먼트는 클릭 불가, 볼드 (PMS 스타일)
-              <span className="text-ssoo-primary font-medium shrink-0">
+              <span className="flex shrink-0 items-center gap-1 text-ssoo-primary font-medium">
                 {segment}
+                {isEditing && (
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-ssoo-primary/60" />
+                )}
               </span>
             ) : (
               // 중간 세그먼트는 클릭 가능 (아이콘 없이 텍스트만)

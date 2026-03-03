@@ -392,6 +392,49 @@ const tabId = await openTabWithConfirm({
 
 ---
 
+## AI 통합 패턴
+
+### API 라우트 구조
+
+| 라우트 | 용도 | Handler |
+|--------|------|---------|
+| `/api/doc-assist/` | 문서 작성 AI 보조 | `docAssist.handler.ts` |
+| `/api/templates/` | 템플릿 관리 | `template.handler.ts` |
+| `/api/ask/` | AI 질의응답 | `ai.handler.ts` |
+| `/api/search/` | AI 검색 | `ai.handler.ts` |
+| `/api/chat-sessions/` | 채팅 세션 관리 | `chatSessions.handler.ts` |
+
+### 스트리밍 응답 처리
+
+```typescript
+// API Route에서 ReadableStream 반환
+return new Response(stream, {
+  headers: { 'Content-Type': 'text/event-stream' },
+});
+```
+
+### Assistant 컴포넌트 아키텍처
+
+```
+components/common/assistant/
+├── FloatingAssistantButton.tsx  # 플로팅 버튼
+├── FloatingAssistantPanel.tsx   # 패널 컨테이너
+├── Composer.tsx                 # 메시지 입력
+├── MessageList.tsx              # 메시지 목록
+└── ReferencePicker.tsx          # 참조 선택기
+```
+
+---
+
+## 양방향 배포 워크플로우
+
+- DMS 변경을 외부 공유할 때 `pnpm run codex:dms-publish` 우선 사용
+- 수행 내용: GitHub 브랜치 push + GitLab subtree push + 해시 검증
+- DMS 변경 상태에서 `origin` push 시 `codex:dms-publish` 마커가 없으면 pre-push 차단
+- 필수 환경 변수: `GL_USER` (GitLab username), `GL_TOKEN` (GitLab PAT)
+
+---
+
 ## 관련 문서
 
 **에이전트/온보딩**:

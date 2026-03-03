@@ -1,6 +1,23 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-02-24
+> 최종 업데이트: 2026-02-25
+
+---
+
+## 2026-02-25
+
+### 인라인 작성 적용 모드 정교화 + API 응답 포맷 정렬
+
+- `/api/doc-assist` compose 응답에 `applyMode`(`replace-document|replace-selection|append`) 추가
+- 지시어 기반 적용 분기 보강:
+  - 선택 텍스트가 있으면 선택 치환
+  - `추가/append/덧붙` 계열은 하단 추가
+  - `전체 삭제/문서 비우기` 계열은 문서 전체 치환(빈 본문)
+- Viewer 인라인 작성 상태를 전역 Assistant 상태와 분리:
+  - 인라인 템플릿/요약첨부/연관성 경고를 페이지 로컬 상태로 관리
+- `/api/doc-assist`, `/api/templates` 라우트 응답을 `success/data` 래핑 없이 데이터 본문 직렬화로 정렬
+- 템플릿 저장소 시드 파일 추가:
+  - `apps/web/dms/data/templates/templates.json`
 
 ---
 

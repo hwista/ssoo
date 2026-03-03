@@ -19,6 +19,7 @@ const createHomeTab = (): TabItem => {
     title: HOME_TAB.title,
     path: HOME_TAB.path,
     icon: HOME_TAB.icon,
+    isEditing: false,
     closable: HOME_TAB.closable,
     openedAt: now,
     lastActiveAt: now,
@@ -44,7 +45,7 @@ interface TabStoreActions {
   closeAllTabs: () => void;
   closeOldestTab: () => void;
   updateTabTitle: (tabId: string, title: string) => void;
-  updateTab: (tabId: string, updates: Partial<Pick<TabItem, 'title' | 'path' | 'icon'>>) => void;
+  updateTab: (tabId: string, updates: Partial<Pick<TabItem, 'title' | 'path' | 'icon' | 'isEditing'>>) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   getActiveTab: () => TabItem | undefined;
 }
@@ -109,6 +110,7 @@ export const useTabStore = create<TabStore>()(
           title: normalizeAiTabTitle(path, title),
           path,
           icon,
+          isEditing: false,
           closable,
           openedAt: now,
           lastActiveAt: now,
@@ -188,7 +190,7 @@ export const useTabStore = create<TabStore>()(
         }));
       },
 
-      updateTab: (tabId: string, updates: Partial<Pick<TabItem, 'title' | 'path' | 'icon'>>): void => {
+      updateTab: (tabId: string, updates: Partial<Pick<TabItem, 'title' | 'path' | 'icon' | 'isEditing'>>): void => {
         set((state) => ({
           tabs: state.tabs.map((t) =>
             t.id === tabId ? { ...t, ...updates } : t
@@ -236,6 +238,7 @@ export const useTabStore = create<TabStore>()(
           state.tabs = state.tabs.map((tab) => ({
             ...tab,
             title: normalizeAiTabTitle(tab.path, tab.title),
+            isEditing: false,
             openedAt: new Date(tab.openedAt),
             lastActiveAt: new Date(tab.lastActiveAt),
           }));

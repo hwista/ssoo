@@ -13,6 +13,9 @@ export type { ToolbarProps } from './Toolbar';
 export { Content, DOCUMENT_WIDTH } from './Content';
 export type { ContentProps } from './Content';
 
+export { SectionedShell } from './SectionedShell';
+export type { SectionedShellProps } from './SectionedShell';
+
 export { LineNumbers, countLines } from './LineNumbers';
 export type { LineNumbersProps } from './LineNumbers';
 

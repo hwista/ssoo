@@ -20,7 +20,30 @@ function decodeDocPath(path: string): string | null {
   }
 }
 
-export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
+export interface InlineSummaryFileItem {
+  id: string;
+  name: string;
+  type?: string;
+  size: number;
+  textContent: string;
+}
+
+interface InlineContextProps {
+  selectedTemplates: TemplateItem[];
+  summaryFiles: InlineSummaryFileItem[];
+  onToggleTemplate: (template: TemplateItem) => void;
+  onUpsertSummaryFiles: (files: InlineSummaryFileItem[]) => void;
+}
+
+export function AssistantReferencePicker({
+  disabled,
+  mode = 'assistant',
+  inlineContext,
+}: {
+  disabled?: boolean;
+  mode?: 'assistant' | 'inline';
+  inlineContext?: InlineContextProps;
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [allDocs, setAllDocs] = useState<Array<{ path: string; title: string }>>([]);
@@ -29,11 +52,10 @@ export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
 
   const tabs = useTabStore((state) => state.tabs);
-  const attachedReferences = useAssistantStore((state) => state.attachedReferences);
-  const selectedTemplates = useAssistantStore((state) => state.selectedTemplates);
-  const toggleReference = useAssistantStore((state) => state.toggleReference);
-  const toggleTemplate = useAssistantStore((state) => state.toggleTemplate);
-  const upsertSummaryFiles = useAssistantStore((state) => state.upsertSummaryFiles);
+  const assistantReferences = useAssistantStore((state) => state.attachedReferences);
+  const assistantToggleReference = useAssistantStore((state) => state.toggleReference);
+
+  const selectedTemplates = mode === 'inline' ? (inlineContext?.selectedTemplates ?? []) : [];
 
   const openDocs = useMemo(() => {
     const docs = tabs
@@ -67,9 +89,19 @@ export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
     () => templates.filter((item) => item.kind === 'folder'),
     [templates]
   );
+  const searchedTemplates = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return [];
+    return templates.filter((item) => (
+      item.name.toLowerCase().includes(normalized)
+      || (item.description ?? '').toLowerCase().includes(normalized)
+      || item.kind.toLowerCase().includes(normalized)
+      || item.scope.toLowerCase().includes(normalized)
+    ));
+  }, [query, templates]);
 
   useEffect(() => {
-    if (!open || allDocs.length > 0) return;
+    if (mode !== 'assistant' || !open || allDocs.length > 0) return;
 
     let mounted = true;
     const loadAllDocs = async () => {
@@ -118,10 +150,10 @@ export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
     return () => {
       mounted = false;
     };
-  }, [allDocs.length, open]);
+  }, [allDocs.length, mode, open]);
 
   useEffect(() => {
-    if (!open || templates.length > 0) return;
+    if (mode !== 'inline' || !open || templates.length > 0) return;
 
     let mounted = true;
     const loadTemplates = async () => {
@@ -138,9 +170,10 @@ export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
     return () => {
       mounted = false;
     };
-  }, [open, templates.length]);
+  }, [mode, open, templates.length]);
 
   const handlePickSummaryFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (mode !== 'inline') return;
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
 
@@ -157,20 +190,20 @@ export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
         type: file.type,
         size: file.size,
         textContent,
-      };
+      } satisfies InlineSummaryFileItem;
     }));
 
-    upsertSummaryFiles(mapped);
+    inlineContext?.onUpsertSummaryFiles(mapped);
     event.target.value = '';
   };
 
   const renderReferenceButton = (item: { path: string; title: string }, key: string) => {
-    const attached = attachedReferences.some((ref) => ref.path === item.path);
+    const attached = assistantReferences.some((ref) => ref.path === item.path);
     return (
       <button
         key={key}
         type="button"
-        onClick={() => toggleReference(item)}
+        onClick={() => assistantToggleReference(item)}
         className={`w-full rounded-md border px-2 py-1.5 text-left transition-colors ${
           attached
             ? 'border-ssoo-primary/45 bg-ssoo-primary/10'
@@ -189,7 +222,7 @@ export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
       <button
         key={template.id}
         type="button"
-        onClick={() => toggleTemplate(template)}
+        onClick={() => inlineContext?.onToggleTemplate(template)}
         className={`w-full rounded-md border px-2 py-1.5 text-left transition-colors ${
           selected
             ? 'border-ssoo-primary/45 bg-ssoo-primary/10'
@@ -222,17 +255,30 @@ export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
         data-assistant-dropdown="true"
       >
         <div className="space-y-2">
-          <div className="rounded-md border border-ssoo-primary/20 bg-ssoo-content-bg/40 px-2 py-2">
-            <p className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-ssoo-primary/80">
-              <FileUp className="h-3.5 w-3.5" /> 요약 파일 첨부
+          {mode === 'inline' && (
+            <div className="rounded-md border border-ssoo-primary/20 bg-ssoo-content-bg/40 px-2 py-2">
+              <p className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-ssoo-primary/80">
+                <FileUp className="h-3.5 w-3.5" /> 요약 파일 첨부
+              </p>
+              <input
+                type="file"
+                multiple
+                onChange={handlePickSummaryFiles}
+                className="block w-full text-xs text-ssoo-primary file:mr-2 file:rounded-md file:border file:border-ssoo-content-border file:bg-white file:px-2 file:py-1 file:text-xs file:text-ssoo-primary"
+                accept=".md,.txt,.json,.csv,.pdf,.docx,.pptx,.xlsx"
+              />
+            </div>
+          )}
+
+          <div>
+            <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">
+              {mode === 'inline' ? '템플릿 검색' : '문서 검색'}
             </p>
-            <input
-              type="file"
-              multiple
-              onChange={handlePickSummaryFiles}
-              className="block w-full text-xs text-ssoo-primary file:mr-2 file:rounded-md file:border file:border-ssoo-content-border file:bg-white file:px-2 file:py-1 file:text-xs file:text-ssoo-primary"
-              accept=".md,.txt,.json,.csv,.pdf,.docx,.pptx,.xlsx"
-            />
+            <p className="px-1 pb-1 text-xs text-ssoo-primary/60">
+              {mode === 'inline'
+                ? '검색어를 입력하면 템플릿에서 찾습니다.'
+                : '검색어를 입력하면 전체 문서에서 찾습니다.'}
+            </p>
           </div>
 
           <div className="relative">
@@ -240,61 +286,74 @@ export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="전체 문서 검색..."
+              placeholder={mode === 'inline' ? '템플릿 검색...' : '전체 문서 검색...'}
               className="h-9 w-full rounded-md border border-ssoo-primary/25 bg-white pl-7 pr-2 text-xs text-ssoo-primary placeholder:text-ssoo-primary/45 focus:border-ssoo-primary/50 focus:outline-none"
             />
           </div>
 
           <div className="max-h-80 space-y-2 overflow-y-auto">
-            <div>
-              <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">문서 검색</p>
-              <div className="space-y-1">
-                {query.trim().length === 0 ? (
-                  <p className="px-1 py-1 text-xs text-ssoo-primary/60">검색어를 입력하면 전체 문서에서 찾습니다.</p>
-                ) : isLoadingDocs ? (
-                  <p className="px-1 py-1 text-xs text-ssoo-primary/60">문서 목록 불러오는 중...</p>
-                ) : searchedAllDocs.length === 0 ? (
-                  <p className="px-1 py-1 text-xs text-ssoo-primary/60">검색 결과가 없습니다.</p>
-                ) : (
-                  searchedAllDocs.slice(0, 20).map((item) => renderReferenceButton(item, `search-${item.path}`))
-                )}
-              </div>
-            </div>
+            {mode === 'assistant' ? (
+              <>
+                <div className="space-y-1">
+                  {query.trim().length === 0 ? null : isLoadingDocs ? (
+                    <p className="px-1 py-1 text-xs text-ssoo-primary/60">문서 목록 불러오는 중...</p>
+                  ) : searchedAllDocs.length === 0 ? (
+                    <p className="px-1 py-1 text-xs text-ssoo-primary/60">검색 결과가 없습니다.</p>
+                  ) : (
+                    searchedAllDocs.slice(0, 20).map((item) => renderReferenceButton(item, `search-${item.path}`))
+                  )}
+                </div>
 
-            <div className="border-t border-ssoo-primary/20 pt-2">
-              <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">열린 문서</p>
-              <div className="space-y-1">
-                {openDocs.length === 0
-                  ? <p className="px-1 py-1 text-xs text-ssoo-primary/60">현재 열린 문서가 없습니다.</p>
-                  : openDocs.map((item) => renderReferenceButton(item, `open-${item.path}`))}
-              </div>
-            </div>
+                <div className="border-t border-ssoo-primary/20 pt-2">
+                  <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">열린 문서</p>
+                  <div className="space-y-1">
+                    {openDocs.length === 0
+                      ? <p className="px-1 py-1 text-xs text-ssoo-primary/60">현재 열린 문서가 없습니다.</p>
+                      : openDocs.map((item) => renderReferenceButton(item, `open-${item.path}`))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <div className="space-y-1">
+                    {query.trim().length === 0 ? null : isLoadingTemplates ? (
+                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">템플릿 불러오는 중...</p>
+                    ) : searchedTemplates.length === 0 ? (
+                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">검색 결과가 없습니다.</p>
+                    ) : (
+                      searchedTemplates.slice(0, 20).map(renderTemplateButton)
+                    )}
+                  </div>
+                </div>
 
-            <div className="border-t border-ssoo-primary/20 pt-2">
-              <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">문서 템플릿</p>
-              <div className="space-y-1">
-                {isLoadingTemplates ? (
-                  <p className="px-1 py-1 text-xs text-ssoo-primary/60">템플릿 불러오는 중...</p>
-                ) : documentTemplates.length === 0 ? (
-                  <p className="px-1 py-1 text-xs text-ssoo-primary/60">선택 가능한 문서 템플릿이 없습니다.</p>
-                ) : (
-                  documentTemplates.map(renderTemplateButton)
-                )}
-              </div>
-            </div>
+                <div className="border-t border-ssoo-primary/20 pt-2">
+                  <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">문서 템플릿</p>
+                  <div className="space-y-1">
+                    {isLoadingTemplates ? (
+                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">템플릿 불러오는 중...</p>
+                    ) : documentTemplates.length === 0 ? (
+                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">선택 가능한 문서 템플릿이 없습니다.</p>
+                    ) : (
+                      documentTemplates.map(renderTemplateButton)
+                    )}
+                  </div>
+                </div>
 
-            <div className="border-t border-ssoo-primary/20 pt-2">
-              <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">폴더 템플릿</p>
-              <div className="space-y-1">
-                {isLoadingTemplates ? (
-                  <p className="px-1 py-1 text-xs text-ssoo-primary/60">템플릿 불러오는 중...</p>
-                ) : folderTemplates.length === 0 ? (
-                  <p className="px-1 py-1 text-xs text-ssoo-primary/60">선택 가능한 폴더 템플릿이 없습니다.</p>
-                ) : (
-                  folderTemplates.map(renderTemplateButton)
-                )}
-              </div>
-            </div>
+                <div className="border-t border-ssoo-primary/20 pt-2">
+                  <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">폴더 템플릿</p>
+                  <div className="space-y-1">
+                    {isLoadingTemplates ? (
+                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">템플릿 불러오는 중...</p>
+                    ) : folderTemplates.length === 0 ? (
+                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">선택 가능한 폴더 템플릿이 없습니다.</p>
+                    ) : (
+                      folderTemplates.map(renderTemplateButton)
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </DropdownMenuContent>
@@ -302,26 +361,64 @@ export function AssistantReferencePicker({ disabled }: { disabled?: boolean }) {
   );
 }
 
-export function AssistantReferenceChips({ disabled }: { disabled?: boolean }) {
-  const attachedReferences = useAssistantStore((state) => state.attachedReferences);
-  const selectedTemplates = useAssistantStore((state) => state.selectedTemplates);
-  const summaryFiles = useAssistantStore((state) => state.summaryFiles);
-  const relevanceWarnings = useAssistantStore((state) => state.relevanceWarnings);
+export function AssistantReferenceChips({
+  disabled,
+  mode = 'assistant',
+  inlineTemplates,
+  inlineSummaryFiles,
+  inlineWarnings,
+  onInlineRemoveTemplate,
+  onInlineRemoveSummaryFile,
+  onInlineClearAll,
+}: {
+  disabled?: boolean;
+  mode?: 'assistant' | 'inline';
+  inlineTemplates?: TemplateItem[];
+  inlineSummaryFiles?: InlineSummaryFileItem[];
+  inlineWarnings?: string[];
+  onInlineRemoveTemplate?: (id: string) => void;
+  onInlineRemoveSummaryFile?: (id: string) => void;
+  onInlineClearAll?: () => void;
+}) {
+  const assistantReferences = useAssistantStore((state) => state.attachedReferences);
+  const removeAssistantReference = useAssistantStore((state) => state.removeReference);
+  const clearAssistantReferences = useAssistantStore((state) => state.clearReferences);
 
-  const removeReference = useAssistantStore((state) => state.removeReference);
-  const removeTemplate = useAssistantStore((state) => state.removeTemplate);
-  const removeSummaryFile = useAssistantStore((state) => state.removeSummaryFile);
+  const references = mode === 'assistant' ? assistantReferences : [];
+  const templates = mode === 'inline' ? (inlineTemplates ?? []) : [];
+  const summaryFiles = mode === 'inline' ? (inlineSummaryFiles ?? []) : [];
+  const warnings = mode === 'inline' ? (inlineWarnings ?? []) : [];
 
-  if (attachedReferences.length === 0 && selectedTemplates.length === 0 && summaryFiles.length === 0) return null;
+  const hasAnyContext = references.length > 0 || templates.length > 0 || summaryFiles.length > 0;
+  if (!hasAnyContext) return null;
+
+  const handleClearAll = () => {
+    if (mode === 'assistant') {
+      clearAssistantReferences();
+      return;
+    }
+    onInlineClearAll?.();
+  };
 
   return (
     <div className="mb-2 rounded-lg border border-ssoo-primary/25 bg-ssoo-content-bg/70 px-2 py-1.5">
-      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-ssoo-primary/80">
-        <Paperclip className="h-3.5 w-3.5" />
-        첨부 컨텍스트
+      <div className="mb-1 flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-ssoo-primary/80">
+          <Paperclip className="h-3.5 w-3.5" />
+          첨부 컨텍스트
+        </div>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={handleClearAll}
+          className="ml-1 border-l border-ssoo-primary/20 pl-2 text-[11px] font-semibold text-ssoo-primary opacity-55 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="첨부 컨텍스트 전체 삭제"
+        >
+          전체 해제
+        </button>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {attachedReferences.map((ref) => (
+        {references.map((ref) => (
           <span
             key={ref.path}
             className="inline-flex max-w-full items-center gap-1 rounded-full border border-ssoo-content-border bg-ssoo-content-border px-2 py-1 text-[11px] text-ssoo-primary"
@@ -331,7 +428,7 @@ export function AssistantReferenceChips({ disabled }: { disabled?: boolean }) {
             <button
               type="button"
               disabled={disabled}
-              onClick={() => removeReference(ref.path)}
+              onClick={() => removeAssistantReference(ref.path)}
               className="rounded p-0.5 text-ssoo-primary/70 hover:bg-ssoo-content-border/40 hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60"
               aria-label={`첨부 해제: ${ref.title}`}
             >
@@ -340,7 +437,7 @@ export function AssistantReferenceChips({ disabled }: { disabled?: boolean }) {
           </span>
         ))}
 
-        {selectedTemplates.map((template) => (
+        {templates.map((template) => (
           <span
             key={template.id}
             className="inline-flex max-w-full items-center gap-1 rounded-full border border-ssoo-content-border bg-white px-2 py-1 text-[11px] text-ssoo-primary"
@@ -351,7 +448,7 @@ export function AssistantReferenceChips({ disabled }: { disabled?: boolean }) {
             <button
               type="button"
               disabled={disabled}
-              onClick={() => removeTemplate(template.id)}
+              onClick={() => onInlineRemoveTemplate?.(template.id)}
               className="rounded p-0.5 text-ssoo-primary/70 hover:bg-ssoo-content-border/40 hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60"
               aria-label={`템플릿 해제: ${template.name}`}
             >
@@ -371,7 +468,7 @@ export function AssistantReferenceChips({ disabled }: { disabled?: boolean }) {
             <button
               type="button"
               disabled={disabled}
-              onClick={() => removeSummaryFile(file.id)}
+              onClick={() => onInlineRemoveSummaryFile?.(file.id)}
               className="rounded p-0.5 text-ssoo-primary/70 hover:bg-ssoo-content-border/40 hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60"
               aria-label={`파일 해제: ${file.name}`}
             >
@@ -381,9 +478,9 @@ export function AssistantReferenceChips({ disabled }: { disabled?: boolean }) {
         ))}
       </div>
 
-      {relevanceWarnings.length > 0 && (
+      {warnings.length > 0 && (
         <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
-          {relevanceWarnings.join(' ')}
+          {warnings.join(' ')}
         </div>
       )}
     </div>

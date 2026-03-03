@@ -20,6 +20,9 @@ interface FileMetadata {
 interface EditorHandlers {
   save: () => Promise<void>;
   cancel: () => void;
+  getSelection: () => { from: number; to: number };
+  insertAt: (from: number, to: number, text: string) => void;
+  setPendingInsert: (range: { from: number; to: number } | null) => void;
 }
 
 /** 탭별 에디터 상태 */

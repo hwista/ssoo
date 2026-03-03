@@ -1,6 +1,6 @@
 # DMS API 가이드
 
-> 최종 업데이트: 2026-02-24
+> 최종 업데이트: 2026-02-25
 
 DMS 프로젝트의 API 엔드포인트에 대한 가이드입니다.
 
@@ -193,14 +193,17 @@ Response:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "text": "생성된 마크다운 본문",
-    "suggestedPath": "design/order/request.md",
-    "relevanceWarnings": []
-  }
+  "text": "생성된 마크다운 본문",
+  "applyMode": "replace-document",
+  "suggestedPath": "design/order/request.md",
+  "relevanceWarnings": []
 }
 ```
+
+- `applyMode`:
+  - `replace-selection`: 선택 영역 치환
+  - `append`: 문서 하단 추가
+  - `replace-document`: 문서 전체 치환
 
 ### Recommend Path
 
@@ -210,6 +213,15 @@ Response:
   "instruction": "주문 요청 설계서 작성",
   "templates": [],
   "summaryFiles": []
+}
+```
+
+Response:
+
+```json
+{
+  "suggestedPath": "design/order/request.md",
+  "relevanceWarnings": []
 }
 ```
 
@@ -225,6 +237,38 @@ Response:
 
 - 개인 템플릿: 사용자 개인 작성 템플릿(템플릿 승격 결과)
 - 전역 템플릿: 설정 페이지에서 관리자 CRUD 후 전체 사용자 공유
+
+응답 포맷:
+
+- `GET /api/templates`
+
+```json
+{
+  "global": [],
+  "personal": {}
+}
+```
+
+- `POST /api/templates`
+
+```json
+{
+  "id": "template-id",
+  "name": "템플릿 이름",
+  "scope": "global",
+  "kind": "document",
+  "content": "# 템플릿 본문",
+  "updatedAt": "2026-02-25T00:00:00.000Z"
+}
+```
+
+- `DELETE /api/templates`
+
+```json
+{
+  "id": "template-id"
+}
+```
 
 ---
 
