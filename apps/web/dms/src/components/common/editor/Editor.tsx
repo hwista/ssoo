@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Content } from './Content';
 import { type BlockEditorRef } from './BlockEditor';
 import { EditorToolbar, type ToolbarCommandId } from './Toolbar';
-import { SectionedShell } from '@/components/common/viewer';
+import { SectionedShell } from '@/components/common/page';
 import { DOCUMENT_WIDTHS } from '@/components/common/page';
 import { useEditor } from '@/hooks/useEditor';
 import { useEditorStore, useTabStore } from '@/stores';

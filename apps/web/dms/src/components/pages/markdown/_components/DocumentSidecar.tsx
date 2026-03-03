@@ -1,28 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import { User, Calendar, FileText, Tag, Paperclip, Link2, MessageSquare, X, Plus, ChevronDown, ChevronRight, Send, Pencil, ExternalLink, Copy, RefreshCw } from 'lucide-react';
+import { User, Calendar, FileText, Tag, Paperclip, Link2, MessageSquare, X, Plus, Send, Pencil, ExternalLink, Copy, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
 import { ingestApi, storageApi } from '@/lib/utils/apiClient';
-
-/**
- * 목차 아이템
- */
-export interface TocItem {
-  /** 고유 ID (스크롤 타겟) */
-  id: string;
-  /** 표시 텍스트 */
-  text: string;
-  /** 헤딩 레벨 (1~6) */
-  level: number;
-}
+import { CollapsibleSection } from '@/components/common/page/sidecar';
 
 /**
  * 문서 메타데이터 (표시용)
  */
-export interface SidecarMetadata {
+export interface DocumentSidecarMetadata {
   /** 작성자 */
   author?: string;
   /** 생성일 */
@@ -44,9 +33,9 @@ export interface SidecarMetadata {
 /**
  * Sidecar Props
  */
-export interface SidecarProps {
+export interface DocumentSidecarProps {
   /** 문서 메타데이터 (표시용) */
-  metadata?: SidecarMetadata;
+  metadata?: DocumentSidecarMetadata;
   /** 파일 경로 */
   filePath?: string;
   /** 태그 목록 */
@@ -93,40 +82,6 @@ function formatSize(size: number): string {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-// ─── 접기/펼치기 섹션 ────────────────────────────────────
-
-interface CollapsibleSectionProps {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  /** 제목 오른쪽에 표시할 뱃지 (예: 댓글 수) */
-  badge?: React.ReactNode;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}
-
-function CollapsibleSection({ icon: Icon, title, badge, defaultOpen = true, children }: CollapsibleSectionProps) {
-  const [isOpen, setIsOpen] = React.useState(defaultOpen);
-
-  return (
-    <section className="border-b border-gray-200 last:border-b-0">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center w-full py-2 text-sm font-semibold text-ssoo-primary hover:text-ssoo-primary/80 transition-colors"
-      >
-        <Icon className="h-4 w-4 mr-1.5 shrink-0" />
-        <span className="flex-1 text-left">{title}</span>
-        {badge}
-        {isOpen ? (
-          <ChevronDown className="h-3.5 w-3.5 ml-1 shrink-0 text-ssoo-primary/50" />
-        ) : (
-          <ChevronRight className="h-3.5 w-3.5 ml-1 shrink-0 text-ssoo-primary/50" />
-        )}
-      </button>
-      {isOpen && <div className="pb-3">{children}</div>}
-    </section>
-  );
 }
 
 // ─── 편집 서브 컴포넌트 ──────────────────────────────────
@@ -342,7 +297,7 @@ function EmptyPlaceholder({ text }: { text: string }) {
  * - editable=true 일 때 태그, 요약, 소스링크 편집 + 댓글 추가/삭제 가능
  * - 빈 섹션은 플레이스홀더 표시
  */
-export function Sidecar({
+export function DocumentSidecar({
   metadata,
   tags,
   editable = false,
@@ -350,7 +305,7 @@ export function Sidecar({
   onMetadataChange,
   filePath,
   className,
-}: SidecarProps) {
+}: DocumentSidecarProps) {
   const attachments = metadata?.attachments ?? [];
   const summary = documentMetadata?.summary ?? '';
   const sourceLinks = documentMetadata?.sourceLinks ?? [];
@@ -486,7 +441,7 @@ export function Sidecar({
       <div className="flex-1 overflow-auto p-4 space-y-1">
         {/* ─── 문서 정보 ─── */}
         {metadata && (
-          <CollapsibleSection icon={FileText} title="문서 정보" defaultOpen={false}>
+          <CollapsibleSection icon={<FileText className="h-4 w-4 mr-1.5 shrink-0" />} title="문서 정보" defaultOpen={false}>
             <dl className="space-y-2 text-sm">
               {/* 문서명 */}
               <div className="flex items-center justify-between">
@@ -612,7 +567,7 @@ export function Sidecar({
         )}
 
         {/* ─── 태그 ─── */}
-        <CollapsibleSection icon={Tag} title="태그">
+        <CollapsibleSection icon={<Tag className="h-4 w-4 mr-1.5 shrink-0" />} title="태그">
           {editable ? (
             <EditableTags tags={tags ?? []} onChange={handleTagsChange} />
           ) : tags && tags.length > 0 ? (
@@ -632,7 +587,7 @@ export function Sidecar({
         </CollapsibleSection>
 
         {/* ─── 요약 ─── */}
-        <CollapsibleSection icon={FileText} title="요약">
+        <CollapsibleSection icon={<FileText className="h-4 w-4 mr-1.5 shrink-0" />} title="요약">
           {editable ? (
             <textarea
               value={summary}
@@ -649,7 +604,7 @@ export function Sidecar({
         </CollapsibleSection>
 
         {/* ─── 소스 링크 ─── */}
-        <CollapsibleSection icon={Link2} title="url">
+        <CollapsibleSection icon={<Link2 className="h-4 w-4 mr-1.5 shrink-0" />} title="url">
           {editable ? (
             <EditableSourceLinks links={sourceLinks} onChange={handleSourceLinksChange} />
           ) : sourceLinks.length > 0 ? (
@@ -672,7 +627,7 @@ export function Sidecar({
         </CollapsibleSection>
 
         {/* ─── 첨부 파일 ─── */}
-        <CollapsibleSection icon={Paperclip} title="첨부 파일">
+        <CollapsibleSection icon={<Paperclip className="h-4 w-4 mr-1.5 shrink-0" />} title="첨부 파일">
           {attachments.length > 0 ? (
             <div className="space-y-2">
               {attachments.map((attachment) => {
@@ -728,7 +683,7 @@ export function Sidecar({
 
         {/* ─── 댓글 목록 ─── */}
         <CollapsibleSection
-          icon={MessageSquare}
+          icon={<MessageSquare className="h-4 w-4 mr-1.5 shrink-0" />}
           title="댓글"
           badge={comments.length > 0 ? (
             <span className="text-xs text-gray-400 mr-1">({comments.length})</span>

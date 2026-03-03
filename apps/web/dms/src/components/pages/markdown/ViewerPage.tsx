@@ -6,7 +6,8 @@ import { useTabStore, useEditorStore, useConfirmStore, useFileStore, useAssistan
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { fileApi, docAssistApi } from '@/lib/utils/apiClient';
 import { DocPageTemplate } from '@/components/templates';
-import { SectionedShell, Viewer } from '@/components/common/viewer';
+import { Viewer } from '@/components/common/viewer';
+import { SectionedShell } from '@/components/common/page';
 import { Editor } from '@/components/common/editor';
 import { type TocItem } from '@/components/common/page';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
@@ -20,6 +21,7 @@ import { AssistantComposer } from '@/components/common/assistant/Composer';
 import type { TemplateItem } from '@/types/template';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { DocumentSidecar } from './_components/DocumentSidecar';
 
 type PageMode = 'viewer' | 'editor' | 'create';
 
@@ -474,10 +476,16 @@ export function ViewerPage() {
         breadcrumbRootIconVariant={isCreateMode ? 'editor' : 'folder'}
         contentOrientation="portrait"
         contentSurfaceClassName={contentSurfaceClassName}
-        metadata={metadata}
-        tags={tags}
-        documentMetadata={documentMetadata}
-        onMetadataChange={handleMetadataChange}
+        sidecarContent={(
+          <DocumentSidecar
+            metadata={metadata}
+            tags={tags}
+            editable={mode === 'editor' || mode === 'create'}
+            documentMetadata={documentMetadata}
+            onMetadataChange={handleMetadataChange}
+            filePath={filePath || '새 문서.md'}
+          />
+        )}
         onEdit={handleEdit}
         onSave={handleSave}
         onCancel={handleCancel}

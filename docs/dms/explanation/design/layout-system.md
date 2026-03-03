@@ -257,18 +257,26 @@ import { DocPageTemplate } from '@/components/templates';
 
 ### AI 페이지 공통 구조
 
-AI 페이지는 공통 셸 컴포넌트로 헤더/툴바/컨텐츠/푸터 구성을 통일합니다.
+AI 페이지는 `DocPageTemplate` + `SectionedShell` 조합으로 헤더/툴바/본문/푸터 구성을 통일합니다.
 
 ```tsx
-import { AiPageShell } from '@/components/common/ai';
+import { DocPageTemplate } from '@/components/templates';
+import { SectionedShell } from '@/components/common/page';
+import { AiSidecar } from '@/components/pages/ai/_components/AiSidecar';
 
-<AiPageShell
-  title="AI 검색"
-  description="문서 기반 검색 결과를 확인하세요."
-  toolbar={<SearchBar />}
+<DocPageTemplate
+  filePath="ai/search"
+  mode="viewer"
+  breadcrumbRootIconVariant="ai"
+  contentOrientation="portrait"
+  sidecarContent={<AiSidecar variant="search" />}
 >
-  <ResultList />
-</AiPageShell>
+  <SectionedShell
+    toolbar={<SearchBar />}
+    body={<ResultList />}
+    footer={<ComposeInput />}
+  />
+</DocPageTemplate>
 ```
 
 ### 참고
