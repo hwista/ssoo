@@ -226,7 +226,7 @@ export function Sidebar({
       <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-3 py-2">
         <div className="text-xs text-gray-500 space-y-0.5">
           <div className="font-medium text-gray-600">DMS v1.0.0</div>
-          <div>© 2026 LS Electric Co., Ltd.</div>
+          <div>© 2026 LS ITC Co., Ltd.</div>
           <div className="text-[10px] text-gray-400">All rights reserved.</div>
         </div>
       </div>
