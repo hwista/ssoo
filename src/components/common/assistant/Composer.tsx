@@ -66,10 +66,11 @@ export function AssistantComposer({
     const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
     const borderTop = Number.parseFloat(style.borderTopWidth) || 0;
     const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0;
+    const minHeight = Number.parseFloat(style.minHeight) || 40;
     const maxHeight = lineHeight * 5 + paddingTop + paddingBottom + borderTop + borderBottom;
 
     element.style.height = 'auto';
-    const nextHeight = Math.min(element.scrollHeight, maxHeight);
+    const nextHeight = Math.max(minHeight, Math.min(element.scrollHeight, maxHeight));
     element.style.height = `${nextHeight}px`;
     element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
   }, []);
@@ -129,14 +130,14 @@ export function AssistantComposer({
         onInlineRemoveSummaryFile={onInlineRemoveSummaryFile}
         onInlineClearAll={onInlineClearAll}
       />
-      <div className="flex items-center gap-2">
+      <div className="flex h-10 items-stretch gap-2">
         <AssistantReferencePicker
           disabled={isProcessing}
           mode={mode}
           inlineContext={inlineContext}
         />
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-ssoo-primary/50" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ssoo-primary/50" />
           <textarea
             ref={inputRef}
             value={inputDraft}
@@ -158,7 +159,7 @@ export function AssistantComposer({
               }
             }}
             placeholder={placeholder}
-            className="min-h-10 w-full resize-none rounded-lg border border-ssoo-content-border pl-9 pr-3 py-2 text-sm focus:border-ssoo-primary focus:outline-none"
+            className="block h-full min-h-10 w-full resize-none rounded-lg border border-ssoo-content-border py-2 pl-9 pr-3 text-sm leading-5 focus:border-ssoo-primary focus:outline-none"
             rows={1}
           />
         </div>
@@ -166,7 +167,7 @@ export function AssistantComposer({
           <button
             type="submit"
             disabled={isProcessing || !inputDraft.trim()}
-            className="flex h-10 items-center gap-2 rounded-lg bg-ssoo-primary px-4 text-sm font-medium text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-full items-center justify-center gap-2 rounded-lg bg-ssoo-primary px-4 text-sm font-medium leading-none text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
             {submitLabel}
@@ -175,7 +176,7 @@ export function AssistantComposer({
           <button
             type="submit"
             disabled={isProcessing || !inputDraft.trim()}
-            className="flex h-10 w-10 items-center justify-center rounded-lg bg-ssoo-primary text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-full w-10 items-center justify-center rounded-lg bg-ssoo-primary text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             aria-label="전송"
           >
             {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}

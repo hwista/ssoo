@@ -43,8 +43,8 @@ export const LAYOUT_SIZES = {
 export type DocumentType = 'wiki' | 'dev';
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  wiki: 'Wiki',
-  dev: 'Dev',
+  wiki: 'WIKI',
+  dev: 'DEV',
 } as const;
 
 /**
