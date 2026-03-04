@@ -6,7 +6,7 @@
 
 // 에디터
 export { Editor, DOCUMENT_WIDTH } from './Editor';
-export type { EditorProps } from './Editor';
+export type { EditorProps, EditorRef } from './Editor';
 
 export { Content } from './Content';
 export type { ContentProps } from './Content';

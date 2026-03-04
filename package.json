@@ -6,7 +6,8 @@
     "dev": "next dev --port 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check:shell-body-contract": "node scripts/validate-shell-body-contract.mjs"
   },
   "dependencies": {
     "@ai-sdk/azure": "^3.0.28",

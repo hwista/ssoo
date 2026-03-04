@@ -103,7 +103,7 @@ export function AssistantMessageList({
                 <p className="text-sm leading-6 text-ssoo-primary">{message.summary}</p>
                 <div className="space-y-2">
                   {message.actions.map((action) => {
-                    const ActionIcon = iconMap[action.icon];
+                    const ActionIcon = iconMap[action.icon as AssistantHelpAction['icon']] ?? Bot;
                     return (
                       <button
                         key={`${message.id}-${action.id}`}

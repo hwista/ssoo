@@ -50,7 +50,7 @@ export interface EditorToolbarProps {
 
 export function EditorToolbar({ disabled = false, onCommand }: EditorToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-1 px-4 py-2 min-h-[52px] bg-ssoo-content-bg/30">
+    <div className="flex flex-wrap items-center gap-1">
       <div className={cn('flex flex-wrap items-center gap-1', disabled && 'opacity-50 pointer-events-none')}>
         <SimpleTooltip content="굵게 (Ctrl/Cmd+B)"><Button size="sm" variant="ghost" onMouseDown={(e) => e.preventDefault()} onClick={() => onCommand('bold')}><Bold className="h-4 w-4" /></Button></SimpleTooltip>
         <SimpleTooltip content="기울임 (Ctrl/Cmd+I)"><Button size="sm" variant="ghost" onMouseDown={(e) => e.preventDefault()} onClick={() => onCommand('italic')}><Italic className="h-4 w-4" /></Button></SimpleTooltip>

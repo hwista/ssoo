@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { DocPageTemplate } from '@/components/templates';
-import { SectionedShell } from '@/components/common/page';
+import {
+  DOC_PAGE_SURFACE_PRESETS,
+  PAGE_BACKGROUND_PRESETS,
+  SectionedShell,
+  SHELL_BODY_WRAPPER_PRESETS,
+} from '@/components/common/page';
 import { useAssistantStore } from '@/stores';
 import { useAssistantChat } from '@/components/common/assistant/useAssistantChat';
 import { useAssistantSessionPersistence } from '@/components/common/assistant/useAssistantSessionPersistence';
@@ -59,14 +64,14 @@ export function AiAskPage() {
   );
 
   return (
-    <main className="h-full overflow-hidden bg-ssoo-content-bg/30">
+    <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
       <DocPageTemplate
         filePath="ai/ask"
         mode="viewer"
         breadcrumbRootIconVariant="ai"
         contentOrientation="portrait"
         description="질문, 문서 검색, 기능 안내를 요청하세요."
-        contentSurfaceClassName="rounded-lg border-0 bg-transparent"
+        contentSurfaceClassName={DOC_PAGE_SURFACE_PRESETS.ai}
         sidecarContent={(
           <AiSidecar
             variant="ask"
@@ -99,13 +104,14 @@ export function AiAskPage() {
         )}
       >
         <SectionedShell
-          bodyClassName={[
-            'border-x border-ssoo-content-border p-4',
-            messages.length === 0 ? 'overflow-hidden' : 'overflow-auto',
-          ].join(' ')}
-          footerClassName="flex items-center rounded-b-lg border-x border-b border-t border-ssoo-content-border p-3"
+          variant="chat_with_footer"
           body={(
-            <div className="relative h-full">
+            <div
+              className={[
+                SHELL_BODY_WRAPPER_PRESETS.aiChat,
+                messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto',
+              ].join(' ')}
+            >
               <div className="sticky left-0 top-0 z-10 h-0">
                 <button
                   type="button"

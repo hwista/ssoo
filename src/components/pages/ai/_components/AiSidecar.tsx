@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Info, History, BookOpen } from 'lucide-react';
-import { AssistantSessionHistoryList } from '@/components/common/assistant/SessionHistoryList';
-import { SidecarFrame, CollapsibleSection, TextSection, ChipListSection } from '@/components/common/page/sidecar';
+import { Info, History, BookOpen, CloudOff, CloudUpload } from 'lucide-react';
+import { SidecarFrame, CollapsibleSection, TextSection, ChipListSection, ActivityListSection } from '@/components/common/page/sidecar';
 
 /**
  * AI Sidecar Props
@@ -81,10 +80,24 @@ export function AiSidecar({
     ? '아직 검색 기록이 없습니다. 검색을 실행하면 여기에 표시됩니다.'
     : '아직 기록이 없습니다. 질문을 보내면 여기에 표시됩니다.';
   const suggestionTitle = variant === 'search' ? '인기 검색어' : '추천 질문';
-  const sectionClassName = 'border-b border-ssoo-content-border last:border-b-0';
-  const sectionHeaderClassName = 'px-4 py-3 text-sm font-medium text-ssoo-primary hover:bg-ssoo-content-bg/50 hover:text-ssoo-primary gap-2';
-  const sectionContentClassName = 'px-4 pb-3';
   const tipsText = info.tips.map((tip) => `• ${tip}`).join('\n');
+  const historyItemMap = React.useMemo(() => new Map(history.map((item) => [item.id, item])), [history]);
+  const historyItems = history.map((item) => ({
+    id: item.id,
+    title: item.title,
+    meta: new Date(item.updatedAt).toLocaleString('ko-KR', { hour12: false }),
+    active: item.active,
+    actions: onHistoryPersistToggle ? [
+      {
+        id: `${item.id}-persist`,
+        kind: 'icon' as const,
+        icon: item.persistedToDb ? <CloudOff className="h-3.5 w-3.5" /> : <CloudUpload className="h-3.5 w-3.5" />,
+        title: item.persistedToDb ? 'DB 저장 해제' : 'DB에 저장',
+        ariaLabel: item.persistedToDb ? 'DB 저장 해제' : 'DB에 저장',
+        onClick: () => onHistoryPersistToggle(item),
+      },
+    ] : undefined,
+  }));
 
   return (
     <SidecarFrame title={`${info.title} 도우미`}>
@@ -92,9 +105,7 @@ export function AiSidecar({
         title="사용 팁"
         text={tipsText}
         icon={<Info className="h-4 w-4 text-gray-500" />}
-        className={sectionClassName}
-        headerClassName={sectionHeaderClassName}
-        contentClassName={sectionContentClassName}
+        sectionVariant="default"
       />
 
       {(variant === 'ask' || variant === 'search') && suggestions.length > 0 ? (
@@ -103,9 +114,7 @@ export function AiSidecar({
           chips={suggestions.map((suggestion) => ({ id: suggestion, label: suggestion, title: suggestion }))}
           onChipClick={(chip) => onSuggestionSelect?.(chip.label)}
           icon={<Info className="h-4 w-4 text-gray-500" />}
-          className={sectionClassName}
-          headerClassName={sectionHeaderClassName}
-          contentClassName={sectionContentClassName}
+          sectionVariant="default"
         />
       ) : null}
 
@@ -114,9 +123,7 @@ export function AiSidecar({
           title="참조 문서"
           icon={<BookOpen className="h-4 w-4 text-gray-500" />}
           defaultOpen
-          className={sectionClassName}
-          headerClassName={sectionHeaderClassName}
-          contentClassName={sectionContentClassName}
+          variant="default"
         >
           <ul className="space-y-1.5">
             {sources.map((source, index) => (
@@ -129,23 +136,22 @@ export function AiSidecar({
         </CollapsibleSection>
       ) : null}
 
-      <CollapsibleSection
+      <ActivityListSection
         title={historyTitle}
         icon={<History className="h-4 w-4 text-gray-500" />}
         defaultOpen={variant === 'ask' || variant === 'search'}
-        className={sectionClassName}
-        headerClassName={sectionHeaderClassName}
-        contentClassName={sectionContentClassName}
-      >
-        <AssistantSessionHistoryList
-          items={history}
-          isActive={(item) => Boolean(item.active)}
-          onSelect={(item) => onHistorySelect?.(item)}
-          onTogglePersist={onHistoryPersistToggle ? (item) => onHistoryPersistToggle(item) : undefined}
-          emptyText={historyEmptyText}
-          variant="sidecar"
-        />
-      </CollapsibleSection>
+        sectionVariant="default"
+        variant="compact"
+        items={historyItems}
+        emptyText={historyEmptyText}
+        enableIncrementalLoad
+        pageSize={5}
+        loadMoreLabel={(remaining) => `more (+${remaining})`}
+        onItemClick={(item) => {
+          const source = historyItemMap.get(item.id);
+          if (source) onHistorySelect?.(source);
+        }}
+      />
     </SidecarFrame>
   );
 }

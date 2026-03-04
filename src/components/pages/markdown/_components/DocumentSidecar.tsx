@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
 import { ingestApi, storageApi } from '@/lib/utils/apiClient';
-import { CollapsibleSection } from '@/components/common/page/sidecar';
+import { CollapsibleSection, ActivityListSection } from '@/components/common/page/sidecar';
 
 /**
  * 문서 메타데이터 (표시용)
@@ -257,7 +257,7 @@ function CommentInput({ onAdd }: { onAdd: (content: string) => void }) {
   };
 
   return (
-    <div className="flex-shrink-0 border-t border-gray-200 p-3">
+    <div className="flex-shrink-0 border-t border-ssoo-content-border p-3">
       <div className="relative">
         <textarea
           value={inputValue}
@@ -438,7 +438,7 @@ export function DocumentSidecar({
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* 스크롤 가능한 섹션 영역 */}
-      <div className="flex-1 overflow-auto p-4 space-y-1">
+      <div className="flex-1 overflow-auto">
         {/* ─── 문서 정보 ─── */}
         {metadata && (
           <CollapsibleSection icon={<FileText className="h-4 w-4 mr-1.5 shrink-0" />} title="문서 정보" defaultOpen={false}>
@@ -682,41 +682,32 @@ export function DocumentSidecar({
         </CollapsibleSection>
 
         {/* ─── 댓글 목록 ─── */}
-        <CollapsibleSection
+        <ActivityListSection
           icon={<MessageSquare className="h-4 w-4 mr-1.5 shrink-0" />}
           title="댓글"
           badge={comments.length > 0 ? (
             <span className="text-xs text-gray-400 mr-1">({comments.length})</span>
           ) : undefined}
-        >
-          {comments.length > 0 ? (
-            <div className="space-y-2">
-              {comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="p-2 rounded border border-gray-200/60 text-xs space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-ssoo-primary">{comment.author}</span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-400">{formatDate(comment.createdAt)}</span>
-                      <button
-                        onClick={() => handleCommentDelete(comment.id)}
-                        className="p-0.5 hover:text-red-500 transition-colors text-gray-400"
-                        aria-label="댓글 삭제"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-ssoo-primary/80 whitespace-pre-wrap">{comment.content}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyPlaceholder text="댓글없음" />
-          )}
-        </CollapsibleSection>
+          variant="compact"
+          items={comments.map((comment) => ({
+            id: comment.id,
+            title: comment.author || 'Unknown',
+            content: comment.content,
+            meta: formatDate(comment.createdAt),
+            actions: [
+              {
+                id: `${comment.id}-delete`,
+                kind: 'icon',
+                tone: 'danger',
+                title: '댓글 삭제',
+                ariaLabel: '댓글 삭제',
+                icon: <X className="h-3 w-3" />,
+                onClick: () => handleCommentDelete(comment.id),
+              },
+            ],
+          }))}
+          emptyText="댓글없음"
+        />
       </div>
 
       {/* ─── 댓글 입력 (하단 고정) ─── */}

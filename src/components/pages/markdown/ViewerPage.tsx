@@ -1,14 +1,20 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Loader2, Wand2, Eye, EyeOff } from 'lucide-react';
 import { useTabStore, useEditorStore, useConfirmStore, useFileStore, useAssistantStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { fileApi, docAssistApi } from '@/lib/utils/apiClient';
 import { DocPageTemplate } from '@/components/templates';
 import { Viewer } from '@/components/common/viewer';
-import { SectionedShell } from '@/components/common/page';
+import {
+  DOC_PAGE_SURFACE_PRESETS,
+  PAGE_BACKGROUND_PRESETS,
+  SectionedShell,
+} from '@/components/common/page';
 import { Editor } from '@/components/common/editor';
+import { EditorToolbar } from '@/components/common/editor';
+import type { EditorRef } from '@/components/common/editor';
 import { type TocItem } from '@/components/common/page';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
@@ -60,6 +66,7 @@ export function ViewerPage() {
   const [inlineSummaryFiles, setInlineSummaryFiles] = useState<InlineSummaryFileItem[]>([]);
   const [inlineRelevanceWarnings, setInlineRelevanceWarnings] = useState<string[]>([]);
   const [isPreview, setIsPreview] = useState(false);
+  const editorRef = useRef<EditorRef | null>(null);
 
   useEffect(() => {
     return () => {
@@ -403,8 +410,10 @@ export function ViewerPage() {
       />
     ) : (
       <Editor
+        ref={editorRef}
         className="h-full min-h-0"
         variant="embedded"
+        showToolbar={false}
         preferredCreatePath={isCreateMode ? createPath : undefined}
         onCreatePathResolved={setCreatePath}
         isPreview={isPreview}
@@ -425,7 +434,7 @@ export function ViewerPage() {
     handleAttachCurrentDocToAssistant,
   ]);
 
-  const contentSurfaceClassName = 'bg-transparent border-0';
+  const contentSurfaceClassName = DOC_PAGE_SURFACE_PRESETS.document;
   const headerEditorInlineSlot = mode === 'create' ? (
     <div className="ml-2 flex items-center gap-2">
       <input
@@ -469,7 +478,12 @@ export function ViewerPage() {
   }
 
   return (
-    <main className={cn('h-full overflow-hidden', isEditorMode ? 'bg-ssoo-primary/15' : 'bg-ssoo-content-bg/30')}>
+    <main
+      className={cn(
+        'h-full overflow-hidden',
+        isEditorMode ? PAGE_BACKGROUND_PRESETS.documentEditor : PAGE_BACKGROUND_PRESETS.documentViewer
+      )}
+    >
       <DocPageTemplate
         filePath={filePath || '새 문서.md'}
         mode={mode === 'create' ? 'editor' : mode}
@@ -496,27 +510,25 @@ export function ViewerPage() {
         headerEditorInlineSlot={headerEditorInlineSlot}
         headerEditorPreviewSlot={headerEditorPreviewSlot}
       >
-        <SectionedShell
-          className="h-full min-h-0 overflow-hidden rounded-lg"
-          bodyClassName={cn(
-            'min-h-0 overflow-hidden p-0',
-            isEditorMode
-              ? 'border-b-2 border-ssoo-primary/50 rounded-b-lg'
-              : 'border-b border-ssoo-content-border rounded-b-lg'
-          )}
-          body={isEditorMode ? (
-            <div className="flex h-full min-h-0 flex-col overflow-hidden">
-              <div className="flex-1 min-h-0 overflow-hidden">
+        {isEditorMode ? (
+          <SectionedShell
+            variant="editor_with_footer"
+            toolbar={(
+              <EditorToolbar
+                disabled={isPreview}
+                onCommand={(id) => editorRef.current?.applyCommand(id)}
+              />
+            )}
+            body={(
+              <div className="h-full min-h-0 overflow-hidden">
                 {contentBody}
               </div>
-              <div className="shrink-0 border-t border-ssoo-content-border bg-white/95 p-3 backdrop-blur-[1px]">
-                {inlineComposer}
-              </div>
-            </div>
-          ) : (
-            <div className="h-full min-h-0 overflow-hidden">{contentBody}</div>
-          )}
-        />
+            )}
+            footer={inlineComposer}
+          />
+        ) : (
+          contentBody
+        )}
       </DocPageTemplate>
     </main>
   );

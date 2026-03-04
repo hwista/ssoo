@@ -13,12 +13,17 @@ export { Content } from './Content';
 export type { ContentProps } from './Content';
 
 export { SectionedShell } from './SectionedShell';
-export type { SectionedShellProps } from './SectionedShell';
+export type { SectionedShellProps, SectionedShellVariant } from './SectionedShell';
+export {
+  DOC_PAGE_SURFACE_PRESETS,
+  PAGE_BACKGROUND_PRESETS,
+  SHELL_BODY_WRAPPER_PRESETS,
+} from './layoutPresets';
 
 export type { TocItem } from './toc';
 
 export { SidecarFrame, CollapsibleSection } from './sidecar';
-export type { SidecarFrameProps, CollapsibleSectionProps } from './sidecar';
+export type { SidecarFrameProps, CollapsibleSectionProps, CollapsibleSectionVariant } from './sidecar';
 export { TextSection, ChipListSection, ActivityListSection } from './sidecar';
 export type {
   TextSectionProps,

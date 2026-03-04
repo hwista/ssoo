@@ -33,6 +33,13 @@ export interface EditorProps {
   onCreatePathResolved?: (path: string) => void;
   /** 미리보기 모드 여부 */
   isPreview?: boolean;
+  /** 툴바 표시 여부 (embedded 모드에서 외부 Shell toolbar 슬롯 주입 시 false) */
+  showToolbar?: boolean;
+}
+
+export interface EditorRef {
+  applyCommand: (id: ToolbarCommandId) => void;
+  focus: () => void;
 }
 
 /**
@@ -47,14 +54,15 @@ export interface EditorProps {
  * <Editor className="h-full" />
  * ```
  */
-export function Editor({
+export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   className,
   variant = 'standalone',
   showContentSurface,
   preferredCreatePath,
   onCreatePathResolved,
   isPreview = false,
-}: EditorProps) {
+  showToolbar = true,
+}: EditorProps, ref) {
   const { showSuccess, showError } = useToast();
   
   // Store에서 상태 가져오기
@@ -121,6 +129,15 @@ export function Editor({
   const handleToolbarCommand = React.useCallback((id: ToolbarCommandId) => {
     blockEditorRef.current?.applyCommand(id);
   }, []);
+
+  React.useImperativeHandle(ref, () => ({
+    applyCommand: (id: ToolbarCommandId) => {
+      blockEditorRef.current?.applyCommand(id);
+    },
+    focus: () => {
+      blockEditorRef.current?.focus();
+    },
+  }), []);
 
   // 새 문서 작성 모드 여부
   const isCreateMode = !currentFilePath && isEditing;
@@ -270,36 +287,53 @@ export function Editor({
   }
 
   const resolvedMaxWidth = variant === 'standalone' ? DOCUMENT_WIDTH : undefined;
+  const toolbarNode = (
+    <EditorToolbar
+      disabled={isPreview}
+      onCommand={handleToolbarCommand}
+    />
+  );
+  const contentNode = (
+    <Content
+      markdownContent={editorContent}
+      onBlockEditorChange={handleBlockEditorChange}
+      maxWidth={resolvedMaxWidth}
+      variant={variant}
+      showSurface={showContentSurface}
+      placeholder={isCreateMode ? '' : '/를 입력하여 블록 추가'}
+      currentFilePath={currentFilePath}
+      isPreview={isPreview}
+      blockEditorRef={blockEditorRef}
+      showToolbar={false}
+    />
+  );
+
+  if (variant === 'embedded') {
+    return (
+      <div className={cn('flex h-full min-h-0 flex-col', className)}>
+        {showToolbar && (
+          <div className="shrink-0">
+            {toolbarNode}
+          </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {contentNode}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SectionedShell
       className={cn(
         'h-full min-h-0',
-        variant === 'standalone' && 'overflow-hidden rounded-lg border-b border-gray-200 bg-white',
         className
       )}
-      toolbarClassName="p-0"
-      bodyClassName="min-h-0 overflow-hidden p-0"
-      toolbar={(
-        <EditorToolbar
-          disabled={isPreview}
-          onCommand={handleToolbarCommand}
-        />
-      )}
-      body={(
-        <Content
-          markdownContent={editorContent}
-          onBlockEditorChange={handleBlockEditorChange}
-          maxWidth={resolvedMaxWidth}
-          variant={variant}
-          showSurface={showContentSurface}
-          placeholder={isCreateMode ? '' : '/를 입력하여 블록 추가'}
-          currentFilePath={currentFilePath}
-          isPreview={isPreview}
-          blockEditorRef={blockEditorRef}
-          showToolbar={false}
-        />
-      )}
+      variant="editor_with_footer"
+      toolbar={showToolbar ? toolbarNode : undefined}
+      body={contentNode}
     />
   );
-}
+});
+
+Editor.displayName = 'Editor';
