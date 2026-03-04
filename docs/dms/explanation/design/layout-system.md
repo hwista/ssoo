@@ -265,6 +265,7 @@ import { DocPageTemplate } from '@/components/templates';
 - 에디터 모드도 툴바를 Shell `toolbar` 슬롯으로 렌더링하고, 에디터 본문 컴포넌트는 콘텐츠 편집 기능만 담당
 - 에디터 툴바 액션은 store 우회 없이 페이지 로컬 `Editor` ref에 직접 전달해 body 편집기와 1:1로 연결
 - `toolbar`, `footer`가 없으면 `body`가 해당 영역 스타일을 대체해 상하단 경계를 완성
+- Footer 입력은 `AssistantComposer` 공용 컴포넌트로 단일화하며, `+ / 입력 / 전송` 정렬 규칙은 페이지별 보정 없이 컴포넌트 내부에서만 관리합니다.
 - Body 슬롯에 주입되는 콘텐츠 루트는 `h-full min-h-0 overflow-hidden` 계약을 필수로 따릅니다.
 - `body` 최상위에서 `flex-1` 단독 사용은 금지합니다(부모가 flex가 아니면 높이 전파 실패).
 
