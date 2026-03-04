@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { CollapsibleSection } from '../CollapsibleSection';
+import type { CollapsibleSectionVariant } from '../CollapsibleSection';
 
 export interface ChipItem {
   id: string;
@@ -16,9 +17,7 @@ export interface ChipListSectionProps {
   emptyText?: string;
   icon?: React.ReactNode;
   defaultOpen?: boolean;
-  className?: string;
-  headerClassName?: string;
-  contentClassName?: string;
+  sectionVariant?: CollapsibleSectionVariant;
 }
 
 export function ChipListSection({
@@ -28,18 +27,14 @@ export function ChipListSection({
   emptyText = '-',
   icon,
   defaultOpen = true,
-  className,
-  headerClassName,
-  contentClassName,
+  sectionVariant = 'default',
 }: ChipListSectionProps) {
   return (
     <CollapsibleSection
       title={title}
       icon={icon}
       defaultOpen={defaultOpen}
-      className={className}
-      headerClassName={headerClassName}
-      contentClassName={contentClassName}
+      variant={sectionVariant}
     >
       {chips.length === 0 ? (
         <p className="text-xs text-gray-400 py-1">{emptyText}</p>

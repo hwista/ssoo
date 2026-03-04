@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { CollapsibleSection } from '../CollapsibleSection';
+import type { CollapsibleSectionVariant } from '../CollapsibleSection';
 
 export interface TextSectionProps {
   title: string;
@@ -10,9 +11,7 @@ export interface TextSectionProps {
   emptyText?: string;
   icon?: React.ReactNode;
   defaultOpen?: boolean;
-  className?: string;
-  headerClassName?: string;
-  contentClassName?: string;
+  sectionVariant?: CollapsibleSectionVariant;
   preserveWhitespace?: boolean;
 }
 
@@ -23,9 +22,7 @@ export function TextSection({
   emptyText = '-',
   icon,
   defaultOpen = true,
-  className,
-  headerClassName,
-  contentClassName,
+  sectionVariant = 'default',
   preserveWhitespace = true,
 }: TextSectionProps) {
   const node = content ?? (
@@ -39,9 +36,7 @@ export function TextSection({
       title={title}
       icon={icon}
       defaultOpen={defaultOpen}
-      className={className}
-      headerClassName={headerClassName}
-      contentClassName={contentClassName}
+      variant={sectionVariant}
     >
       {node}
     </CollapsibleSection>

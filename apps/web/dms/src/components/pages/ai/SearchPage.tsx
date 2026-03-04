@@ -5,7 +5,12 @@ import { toast } from 'sonner';
 import { useTabStore, useAssistantStore, useConfirmStore, useAiSearchStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { DocPageTemplate } from '@/components/templates';
-import { SectionedShell } from '@/components/common/page';
+import {
+  DOC_PAGE_SURFACE_PRESETS,
+  PAGE_BACKGROUND_PRESETS,
+  SectionedShell,
+  SHELL_BODY_WRAPPER_PRESETS,
+} from '@/components/common/page';
 import { Toolbar, DOCUMENT_WIDTH } from '@/components/common/viewer';
 import { SearchResultCard } from '@/components/common/search/ResultCard';
 import { useOpenDocumentTab } from '@/hooks';
@@ -260,14 +265,14 @@ export function AiSearchPage() {
   }, [openDocumentTab]);
 
   return (
-    <main className="h-full overflow-hidden bg-ssoo-content-bg/30">
+    <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
       <DocPageTemplate
         filePath="ai/search"
         mode="viewer"
         breadcrumbRootIconVariant="ai"
         contentOrientation="portrait"
         description="문서 기반 검색 결과를 확인하세요."
-        contentSurfaceClassName="rounded-lg border-0 bg-transparent"
+        contentSurfaceClassName={DOC_PAGE_SURFACE_PRESETS.ai}
         sidecarContent={(
           <AiSidecar
             variant="search"
@@ -285,8 +290,7 @@ export function AiSearchPage() {
         )}
       >
         <SectionedShell
-          toolbarClassName="bg-ssoo-content-bg/30 px-0 py-0 min-h-0"
-          bodyClassName="flex-1 min-h-0 overflow-hidden border-x border-b border-ssoo-content-border rounded-b-lg p-0"
+          variant="search_with_toolbar"
           toolbar={(
             <Toolbar
               maxWidth={DOCUMENT_WIDTH}
@@ -321,7 +325,7 @@ export function AiSearchPage() {
             />
           )}
           body={(
-            <div className="h-full overflow-hidden bg-white">
+            <div className={SHELL_BODY_WRAPPER_PRESETS.aiSearch}>
               <div className="h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin">
                 <div className="py-6 px-8">
                   {!hasSearched ? (

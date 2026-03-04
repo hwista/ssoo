@@ -78,6 +78,7 @@ export function Toolbar({
   onZoomReset,
 }: ToolbarProps) {
   const isEmbedded = variant === 'embedded';
+  const canRenderZoomControls = showZoomControls && zoomLevel !== undefined;
 
   // 목차 호버 상태
   const [tocHovered, setTocHovered] = React.useState(false);
@@ -97,25 +98,24 @@ export function Toolbar({
     <div
       className={cn(
         'flex shrink-0',
-        isEmbedded ? 'w-full' : 'justify-center px-4'
+        isEmbedded ? 'w-full' : 'justify-center'
       )}
     >
-        <div
-          className={cn(
-          'flex w-full items-center justify-between px-4 py-2 min-h-[52px] bg-transparent'
-          )}
-          style={isEmbedded ? undefined : { maxWidth }}
-        >
+      <div
+        className={cn('grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 overflow-visible')}
+        style={isEmbedded ? undefined : { maxWidth }}
+      >
         {/* 좌측: 목차 + 검색 */}
-        <div className="flex items-center gap-2">
+        <div className="z-0 flex min-w-0 items-center gap-2 overflow-hidden pr-1">
           {/* 목차 버튼 - 마우스 오버 시 플로팅 */}
           {toc && toc.length > 0 && (
             <div 
-              className="relative"
+              className="relative shrink-0"
               onMouseEnter={() => setTocHovered(true)}
               onMouseLeave={() => setTocHovered(false)}
             >
               <Button
+                type="button"
                 variant="ghost"
                 size="default"
                 className={cn(
@@ -169,10 +169,10 @@ export function Toolbar({
           )}
 
           {/* 검색 폼 */}
-          <form onSubmit={handleSearchFormSubmit} className="flex items-center gap-1">
-            <div className="flex items-center">
-              <Search className="h-4 w-4 text-gray-400 mr-1" />
-              <div className="relative">
+          <form onSubmit={handleSearchFormSubmit} className="flex min-w-0 items-center gap-1">
+            <div className="flex min-w-0 items-center">
+              <Search className="mr-1 h-4 w-4 shrink-0 text-gray-400" />
+              <div className="relative min-w-0">
                 <input
                   type="text"
                   placeholder={searchPlaceholder}
@@ -230,7 +230,7 @@ export function Toolbar({
             )}
           </form>
           {onAttachToAssistant && (
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -248,33 +248,37 @@ export function Toolbar({
         </div>
 
         {/* 우측: 줌 컨트롤 */}
-        {showZoomControls && zoomLevel !== undefined && onZoomIn && onZoomOut && onZoomReset && (
-          <div className="flex items-center gap-0.5">
+        {canRenderZoomControls && (
+          <div className="relative z-30 flex shrink-0 items-center gap-0.5 pl-2 pr-2 pointer-events-auto justify-self-end">
             <Button
+              type="button"
               variant="ghost"
               size="icon"
-              onClick={onZoomOut}
-              disabled={zoomLevel === ZOOM_LEVELS[0]}
-              className="p-0"
+              onClick={() => onZoomOut?.()}
+              disabled={!onZoomOut || zoomLevel === ZOOM_LEVELS[0]}
+              className="relative z-30 p-0"
               title="축소"
             >
               <ZoomOut className="h-4 w-4" />
             </Button>
             
             <button
-              onClick={onZoomReset}
-              className="px-2 h-control-h text-sm hover:bg-gray-100 rounded transition-colors min-w-[50px]"
+              type="button"
+              onClick={() => onZoomReset?.()}
+              disabled={!onZoomReset}
+              className="relative z-30 min-w-[50px] rounded px-2 text-sm h-control-h transition-colors hover:bg-gray-100"
               title="기본 크기로"
             >
               {zoomLevel}%
             </button>
             
             <Button
+              type="button"
               variant="ghost"
               size="icon"
-              onClick={onZoomIn}
-              disabled={zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-              className="p-0"
+              onClick={() => onZoomIn?.()}
+              disabled={!onZoomIn || zoomLevel === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+              className="relative z-40 mr-1 p-0"
               title="확대"
             >
               <ZoomIn className="h-4 w-4" />

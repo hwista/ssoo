@@ -75,27 +75,47 @@ export function Viewer({
   
   // 스크롤 컨테이너 ref
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const getZoomIndex = React.useCallback((value: number) => {
+    const exact = ZOOM_LEVELS.indexOf(value);
+    if (exact >= 0) return exact;
+    let nearest = 0;
+    let minDiff = Number.POSITIVE_INFINITY;
+    ZOOM_LEVELS.forEach((level, index) => {
+      const diff = Math.abs(level - value);
+      if (diff < minDiff) {
+        minDiff = diff;
+        nearest = index;
+      }
+    });
+    return nearest;
+  }, []);
 
   // =====================
   // 줌 핸들러
   // =====================
-  const handleZoomIn = () => {
-    const currentIndex = ZOOM_LEVELS.indexOf(zoomLevel);
-    if (currentIndex < ZOOM_LEVELS.length - 1) {
-      setZoomLevel(ZOOM_LEVELS[currentIndex + 1]);
-    }
-  };
+  const handleZoomIn = React.useCallback(() => {
+    setZoomLevel((prev) => {
+      const currentIndex = getZoomIndex(prev);
+      if (currentIndex < ZOOM_LEVELS.length - 1) {
+        return ZOOM_LEVELS[currentIndex + 1];
+      }
+      return prev;
+    });
+  }, [getZoomIndex]);
 
-  const handleZoomOut = () => {
-    const currentIndex = ZOOM_LEVELS.indexOf(zoomLevel);
-    if (currentIndex > 0) {
-      setZoomLevel(ZOOM_LEVELS[currentIndex - 1]);
-    }
-  };
+  const handleZoomOut = React.useCallback(() => {
+    setZoomLevel((prev) => {
+      const currentIndex = getZoomIndex(prev);
+      if (currentIndex > 0) {
+        return ZOOM_LEVELS[currentIndex - 1];
+      }
+      return prev;
+    });
+  }, [getZoomIndex]);
 
-  const handleZoomReset = () => {
+  const handleZoomReset = React.useCallback(() => {
     setZoomLevel(DEFAULT_ZOOM);
-  };
+  }, []);
 
   // =====================
   // 검색 로직
@@ -234,9 +254,8 @@ export function Viewer({
 
   return (
     <SectionedShell
-      className={cn('h-full', variant === 'standalone' && 'overflow-hidden rounded-lg border border-gray-200 bg-white', className)}
-      toolbarClassName="p-0"
-      bodyClassName="overflow-hidden p-0"
+      className={cn('h-full', className)}
+      variant="viewer_with_toolbar"
       toolbar={(
         <Toolbar
           maxWidth={DOCUMENT_WIDTH}

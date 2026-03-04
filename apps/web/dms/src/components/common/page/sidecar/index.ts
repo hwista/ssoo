@@ -2,7 +2,7 @@ export { SidecarFrame } from './Frame';
 export type { SidecarFrameProps } from './Frame';
 
 export { CollapsibleSection } from './CollapsibleSection';
-export type { CollapsibleSectionProps } from './CollapsibleSection';
+export type { CollapsibleSectionProps, CollapsibleSectionVariant } from './CollapsibleSection';
 
 export { TextSection } from './sections/TextSection';
 export type { TextSectionProps } from './sections/TextSection';

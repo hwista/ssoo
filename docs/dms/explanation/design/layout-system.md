@@ -1,6 +1,6 @@
 # 레이아웃 시스템
 
-> 최종 업데이트: 2026-02-10
+> 최종 업데이트: 2026-03-03
 
 DMS의 레이아웃 구조와 컴포넌트를 정의합니다.
 
@@ -255,13 +255,29 @@ import { DocPageTemplate } from '@/components/templates';
 </DocPageTemplate>
 ```
 
+### Shell 외곽 책임 단일화
+
+`SectionedShell`은 툴바/바디/푸터의 외곽 frame(보더/배경/라운드/분할선)을 단일 책임으로 관리합니다.
+
+- Shell 책임: `toolbar/body/footer`의 frame 스타일
+- 슬롯 컴포넌트 책임: 기능 UI(버튼, 입력, 카드, 메시지 등)
+- 금지: `SectionedShell` 슬롯 직하위 래퍼에 `border-*`, `rounded-*`, 외곽용 `bg-*`를 중복 적용
+- 에디터 모드도 툴바를 Shell `toolbar` 슬롯으로 렌더링하고, 에디터 본문 컴포넌트는 콘텐츠 편집 기능만 담당
+- 에디터 툴바 액션은 store 우회 없이 페이지 로컬 `Editor` ref에 직접 전달해 body 편집기와 1:1로 연결
+- `toolbar`, `footer`가 없으면 `body`가 해당 영역 스타일을 대체해 상하단 경계를 완성
+- Body 슬롯에 주입되는 콘텐츠 루트는 `h-full min-h-0 overflow-hidden` 계약을 필수로 따릅니다.
+- `body` 최상위에서 `flex-1` 단독 사용은 금지합니다(부모가 flex가 아니면 높이 전파 실패).
+
 ### AI 페이지 공통 구조
 
 AI 페이지는 `DocPageTemplate` + `SectionedShell` 조합으로 헤더/툴바/본문/푸터 구성을 통일합니다.
 
 ```tsx
 import { DocPageTemplate } from '@/components/templates';
-import { SectionedShell } from '@/components/common/page';
+import {
+  DOC_PAGE_SURFACE_PRESETS,
+  SectionedShell,
+} from '@/components/common/page';
 import { AiSidecar } from '@/components/pages/ai/_components/AiSidecar';
 
 <DocPageTemplate
@@ -269,15 +285,29 @@ import { AiSidecar } from '@/components/pages/ai/_components/AiSidecar';
   mode="viewer"
   breadcrumbRootIconVariant="ai"
   contentOrientation="portrait"
+  contentSurfaceClassName={DOC_PAGE_SURFACE_PRESETS.ai}
   sidecarContent={<AiSidecar variant="search" />}
 >
   <SectionedShell
+    variant="search_with_toolbar"
     toolbar={<SearchBar />}
     body={<ResultList />}
     footer={<ComposeInput />}
   />
 </DocPageTemplate>
 ```
+
+- `SectionedShell` 스타일은 `variant`로 제어합니다.
+- 페이지는 frame 스타일을 직접 주입하지 않고 variant preset을 사용합니다.
+
+### SectionedShell Variant 매핑
+
+| 화면 | 구성 | variant |
+|------|------|---------|
+| 문서 에디터 | 툴바 + 바디 + 푸터 | `editor_with_footer` |
+| 문서 뷰어 | 툴바 + 바디 | `viewer_with_toolbar` |
+| AI 대화 | 바디 + 푸터 | `chat_with_footer` |
+| AI 검색 | 툴바 + 바디 | `search_with_toolbar` |
 
 ### 참고
 

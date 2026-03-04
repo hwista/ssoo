@@ -53,7 +53,7 @@ export function Content({
   return (
     <div
       className={cn(
-        isEmbedded ? 'h-full overflow-hidden' : 'h-full flex justify-center overflow-hidden px-4',
+        isEmbedded ? 'h-full min-h-0 overflow-hidden' : 'h-full min-h-0 flex justify-center overflow-hidden px-4',
         className
       )}
     >

@@ -14,6 +14,9 @@ if ! echo "$CHANGED" | rg -q '^apps/web/dms/'; then
   exit 0
 fi
 
+echo "[dms-guard] validating shell body slot contract"
+pnpm -C apps/web/dms run check:shell-body-contract
+
 echo "[dms-guard] DMS changes detected. running npm build in apps/web/dms"
 bash .codex/scripts/dms-build.sh
 
