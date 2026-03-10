@@ -31,7 +31,7 @@ export function ConfirmDialog() {
             <AlertDialogDescription>{options.description}</AlertDialogDescription>
           )}
         </AlertDialogHeader>
-        <AlertDialogFooter>
+        <AlertDialogFooter> 
           <AlertDialogCancel onClick={handleCancel}>
             {options.cancelText ?? '취소'}
           </AlertDialogCancel>

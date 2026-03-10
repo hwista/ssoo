@@ -1,14 +1,8 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Search, Plus, Bell, FileText } from 'lucide-react';
+import { Search, Plus, Bell } from 'lucide-react';
 import { useTabStore } from '@/stores';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown';
 import { UserMenu } from './UserMenu';
 
 /**
@@ -87,30 +81,14 @@ export function Header() {
       {/* 오른쪽: 액션 버튼들 */}
       <div ref={actionsRef} className="flex items-center gap-2">
         {/* 새 도큐먼트 */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-sm font-medium rounded-md hover:bg-gray-100 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>새 도큐먼트</span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            sideOffset={4}
-            className="!min-w-0 bg-white border border-ssoo-content-border shadow-lg"
-            style={{ width: 'var(--radix-popper-anchor-width)' }}
-          >
-            <DropdownMenuItem
-              onClick={handleCreateDocument}
-              className="text-ssoo-primary focus:bg-ssoo-content-bg/60 focus:text-ssoo-primary"
-            >
-              <FileText className="h-4 w-4 shrink-0" />
-              <span className="truncate">문서 작성</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          type="button"
+          onClick={handleCreateDocument}
+          className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-sm font-medium rounded-md hover:bg-gray-100 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          <span>새 도큐먼트</span>
+        </button>
 
         {/* 알림 */}
         <button

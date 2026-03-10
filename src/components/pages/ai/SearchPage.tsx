@@ -12,6 +12,7 @@ import {
   SHELL_BODY_WRAPPER_PRESETS,
 } from '@/components/common/page';
 import { Toolbar, DOCUMENT_WIDTH } from '@/components/common/viewer';
+import { LoadingState } from '@/components/common/StateDisplay';
 import { SearchResultCard } from '@/components/common/search/ResultCard';
 import { useOpenDocumentTab } from '@/hooks';
 import type { TocItem } from '@/components/common/page';
@@ -53,6 +54,7 @@ export function AiSearchPage() {
   const [attachFilteredOnly, setAttachFilteredOnly] = useState(true);
   const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
   const [isSearching, setIsSearching] = useState(false);
+  const [hasCompletedSearch, setHasCompletedSearch] = useState(!initialQuery);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
   const autoQueryRef = useRef('');
   const confirm = useConfirmStore((state) => state.confirm);
@@ -72,37 +74,43 @@ export function AiSearchPage() {
     const trimmed = inputQuery.trim();
     setHasSearched(true);
     setSourceQuery(trimmed);
+    setHasCompletedSearch(false);
     if (!trimmed) {
       setAllResults([]);
       setResults([]);
       setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
+      setHasCompletedSearch(true);
       return;
     }
     setIsSearching(true);
-    const response = await aiApi.search(trimmed, { contextMode: 'deep' });
-    if (response.success && response.data) {
-      const nextResults = response.data.results ?? [];
-      setAllResults(nextResults);
-      setResults(nextResults);
-      setMatchedResultIndices([]);
-      recordSearch(trimmed, nextResults.length);
-    } else {
-      const fallbackResults = [
-        {
-          id: 'search-error',
-          title: '검색 실패',
-          excerpt: getErrorMessage(response),
-          path: '-',
-        },
-      ];
-      setAllResults(fallbackResults);
-      setResults(fallbackResults);
-      setMatchedResultIndices([]);
-      recordSearch(trimmed, 0);
+    try {
+      const response = await aiApi.search(trimmed, { contextMode: 'deep' });
+      if (response.success && response.data) {
+        const nextResults = response.data.results ?? [];
+        setAllResults(nextResults);
+        setResults(nextResults);
+        setMatchedResultIndices([]);
+        recordSearch(trimmed, nextResults.length);
+      } else {
+        const fallbackResults = [
+          {
+            id: 'search-error',
+            title: '검색 실패',
+            excerpt: getErrorMessage(response),
+            path: '-',
+          },
+        ];
+        setAllResults(fallbackResults);
+        setResults(fallbackResults);
+        setMatchedResultIndices([]);
+        recordSearch(trimmed, 0);
+      }
+      setCurrentResultIndex(-1);
+    } finally {
+      setIsSearching(false);
+      setHasCompletedSearch(true);
     }
-    setCurrentResultIndex(-1);
-    setIsSearching(false);
   }, [recordSearch]);
 
   const sortResultsByQuery = useCallback((inputQuery: string) => {
@@ -332,6 +340,11 @@ export function AiSearchPage() {
                     <div className="flex h-full min-h-[240px] items-center justify-center text-sm text-ssoo-primary/60">
                       검색어를 입력하면 결과가 표시됩니다.
                     </div>
+                  ) : isSearching || !hasCompletedSearch ? (
+                    <LoadingState
+                      message="AI 검색 결과를 불러오는 중입니다..."
+                      className="min-h-[240px] text-ssoo-primary/70"
+                    />
                   ) : results.length === 0 ? (
                     <div className="flex h-full min-h-[240px] items-center justify-center text-sm text-ssoo-primary/60">
                       검색 결과가 없습니다.

@@ -1082,3 +1082,98 @@ a:hover {
 .dark .markdown-preview hr {
   border-color: #374151;
 }
+
+.assistant-markdown {
+  @apply max-w-none text-sm leading-6 text-ssoo-primary;
+}
+
+.assistant-markdown > :first-child {
+  @apply mt-0;
+}
+
+.assistant-markdown > :last-child {
+  @apply mb-0;
+}
+
+.assistant-markdown p {
+  @apply my-2;
+}
+
+.assistant-markdown h1,
+.assistant-markdown h2,
+.assistant-markdown h3,
+.assistant-markdown h4 {
+  @apply mt-4 mb-2 font-semibold tracking-tight text-ssoo-primary;
+}
+
+.assistant-markdown h1 {
+  @apply text-lg;
+}
+
+.assistant-markdown h2 {
+  @apply text-base;
+}
+
+.assistant-markdown h3,
+.assistant-markdown h4 {
+  @apply text-sm;
+}
+
+.assistant-markdown ul,
+.assistant-markdown ol {
+  @apply my-2 pl-5;
+}
+
+.assistant-markdown ul {
+  @apply list-disc;
+}
+
+.assistant-markdown ol {
+  @apply list-decimal;
+}
+
+.assistant-markdown li {
+  @apply my-1;
+}
+
+.assistant-markdown a {
+  @apply text-ssoo-primary underline underline-offset-2;
+}
+
+.assistant-markdown strong {
+  @apply font-semibold text-ssoo-primary;
+}
+
+.assistant-markdown code {
+  @apply rounded bg-white/70 px-1 py-0.5 font-mono text-[0.8125rem] text-ssoo-primary;
+}
+
+.assistant-markdown pre {
+  @apply my-3 overflow-x-auto rounded-lg border border-ssoo-content-border bg-white px-3 py-2;
+}
+
+.assistant-markdown pre code {
+  @apply bg-transparent p-0 text-[0.8125rem];
+}
+
+.assistant-markdown blockquote {
+  @apply my-3 border-l-4 border-ssoo-content-border bg-white/60 px-3 py-2;
+  color: rgb(52 16 74 / 0.8);
+}
+
+.assistant-markdown table {
+  @apply my-3 w-full border-collapse overflow-hidden rounded-lg text-left text-xs;
+}
+
+.assistant-markdown thead {
+  @apply bg-white/70;
+}
+
+.assistant-markdown th,
+.assistant-markdown td {
+  @apply border border-ssoo-content-border px-2 py-1.5 align-top;
+}
+
+.assistant-markdown hr {
+  @apply my-4 border-ssoo-content-border;
+}
