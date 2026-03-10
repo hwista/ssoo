@@ -10,8 +10,10 @@ import type { OpenTabOptions } from '@/types';
  * openTabWithConfirm({ title: '문서명', path: '/docs/file.md' });
  */
 export function useOpenTabWithConfirm() {
-  const { openTab, closeOldestTab, maxTabs } = useTabStore();
-  const { confirm } = useConfirmStore();
+  const openTab = useTabStore((state) => state.openTab);
+  const closeOldestTab = useTabStore((state) => state.closeOldestTab);
+  const maxTabs = useTabStore((state) => state.maxTabs);
+  const confirm = useConfirmStore((state) => state.confirm);
 
   return useCallback(
     async (options: OpenTabOptions): Promise<string> => {
