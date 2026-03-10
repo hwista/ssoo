@@ -106,7 +106,7 @@ export function Toolbar({
         style={isEmbedded ? undefined : { maxWidth }}
       >
         {/* 좌측: 목차 + 검색 */}
-        <div className="z-0 flex min-w-0 items-center gap-2 overflow-hidden pr-1">
+        <div className="z-0 flex min-w-0 items-center gap-2 overflow-visible pr-1">
           {/* 목차 버튼 - 마우스 오버 시 플로팅 */}
           {toc && toc.length > 0 && (
             <div 

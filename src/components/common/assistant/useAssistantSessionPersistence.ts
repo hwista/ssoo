@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { assistantSessionApi, getErrorMessage } from '@/lib/utils/apiClient';
+import { assistantSessionApi, getErrorMessage } from '@/lib/api';
 import { useAssistantStore } from '@/stores';
 import type { AssistantMessage } from '@/stores';
 

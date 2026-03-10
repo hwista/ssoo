@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { useCallback, useMemo } from 'react';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
-import { fileApi, getErrorMessage } from '@/lib/utils/apiClient';
+import { fileApi, getErrorMessage } from '@/lib/api';
 import type { DocumentMetadata } from '@/types';
 import { logger, safeAsync, PerformanceTimer } from '@/lib/utils/errorUtils';
 

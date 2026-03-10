@@ -50,9 +50,22 @@ export {
   DEFAULT_CONFIG,
   ERROR_MESSAGES,
   SUCCESS_MESSAGES,
-  // apiClient
+} from './utils';
+export type {
+  ErrorContext,
+} from './utils';
+
+export {
   fileApi,
   filesApi,
+  aiApi,
+  docAssistApi,
+  assistantSessionApi,
+  gitApi,
+  settingsApi,
+  storageApi,
+  ingestApi,
+  templateApi,
   get,
   post,
   put,
@@ -60,14 +73,18 @@ export {
   getFileWithHeaders,
   formatApiError,
   getErrorMessage,
-} from './utils';
+} from './api';
 export type {
-  ErrorContext,
   ApiResponse,
   ApiRequestOptions,
   FileAction,
   FileApiRequest,
-} from './utils';
+  GitFileStatus,
+  GitChangeEntry,
+  GitLogEntry,
+  DmsConfigClient,
+  DeepPartialClient,
+} from './api';
 
 // 토스트 알림
 export { toast, useToast } from './toast';

@@ -1,13 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, FolderOpen, GitBranch, Loader2, RotateCcw, Database, HardDrive, Shapes, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, FolderOpen, GitBranch, Loader2, RotateCcw, Database, HardDrive, Shapes } from 'lucide-react';
 import { DocPageTemplate } from '@/components/templates';
 import type { HeaderAction } from '@/components/common/page';
 import { useSettingsStore } from '@/stores/settings.store';
-import { templateApi } from '@/lib/utils/apiClient';
-import type { DeepPartialClient, DmsConfigClient } from '@/lib/utils/apiClient';
+import { templateApi } from '@/lib/api';
+import type { DeepPartialClient, DmsConfigClient } from '@/lib/api';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
+import { CategoryNav } from './_components/CategoryNav';
+import { SettingsFieldList } from './_components/SettingsFieldList';
+import { TemplateSection } from './_components/TemplateSection';
 
 interface SettingItem {
   key: string;
@@ -193,127 +196,6 @@ function isRelativePath(pathText: string): boolean {
   if (pathText.startsWith('/') || pathText.startsWith('~')) return false;
   if (/^[A-Za-z]:[\\/]/.test(pathText)) return false;
   return true;
-}
-
-function CategoryNav({
-  sections,
-  activeSection,
-  onSelect,
-}: {
-  sections: SettingSection[];
-  activeSection: string;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <nav className="space-y-1">
-      {sections.map((section) => {
-        const Icon = section.icon;
-        const isActive = section.id === activeSection;
-        return (
-          <button
-            key={section.id}
-            onClick={() => onSelect(section.id)}
-            className={[
-              'flex h-control-h w-full items-center gap-2 rounded-md px-3 text-sm transition-colors',
-              isActive
-                ? 'bg-ssoo-primary text-white'
-                : 'text-ssoo-primary hover:bg-ssoo-content-bg',
-            ].join(' ')}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            <span>{section.label}</span>
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
-
-function SettingRow({
-  item,
-  value,
-  originalValue,
-  errorMessage,
-  onChange,
-}: {
-  item: SettingItem;
-  value: unknown;
-  originalValue: unknown;
-  errorMessage?: string;
-  onChange: (key: string, value: unknown) => void;
-}) {
-  const isModified = value !== originalValue;
-  const strVal = String(value ?? '');
-  const boolVal = Boolean(value);
-
-  return (
-    <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
-      <div className="flex items-start gap-3">
-        <span
-          className={[
-            'mt-1 block h-2.5 w-2.5 rounded-full shrink-0',
-            isModified ? 'bg-ssoo-primary' : 'bg-ssoo-content-border',
-          ].join(' ')}
-          aria-hidden
-        />
-
-        <div className="min-w-0 flex-1">
-          <label htmlFor={`setting-${item.key}`} className="text-sm font-semibold text-ssoo-primary">
-            {item.label}
-          </label>
-          <p className="mt-0.5 text-xs text-ssoo-primary/70">{item.description}</p>
-          <p className="mt-1 text-xs text-ssoo-primary/60">{item.helpKey}</p>
-
-          {item.type === 'checkbox' ? (
-            <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-ssoo-primary/80">
-              <input
-                id={`setting-${item.key}`}
-                type="checkbox"
-                checked={boolVal}
-                onChange={(event) => onChange(item.key, event.target.checked)}
-                className="h-4 w-4 rounded border-ssoo-content-border accent-ssoo-primary"
-              />
-              <span>{boolVal ? '활성화됨' : '비활성화됨'}</span>
-            </label>
-          ) : item.type === 'select' ? (
-            <select
-              id={`setting-${item.key}`}
-              value={strVal}
-              onChange={(event) => onChange(item.key, event.target.value)}
-              className={[
-                'mt-3 flex h-control-h w-full max-w-2xl rounded-md border bg-white px-3 text-sm text-ssoo-primary',
-                'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ssoo-primary',
-                errorMessage ? 'border-destructive' : 'border-ssoo-content-border',
-              ].join(' ')}
-            >
-              {(item.options ?? []).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              id={`setting-${item.key}`}
-              type={item.type}
-              value={strVal}
-              onChange={(event) => onChange(item.key, event.target.value)}
-              placeholder={item.placeholder}
-              className={[
-                'mt-3 flex h-control-h w-full max-w-2xl rounded-md border bg-white px-3 text-sm text-ssoo-primary',
-                'placeholder:text-ssoo-primary/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ssoo-primary',
-                errorMessage ? 'border-destructive' : 'border-ssoo-content-border',
-              ].join(' ')}
-            />
-          )}
-
-          {errorMessage && (
-            <p className="mt-2 text-xs text-destructive">{errorMessage}</p>
-          )}
-        </div>
-      </div>
-    </article>
-  );
 }
 
 export function SettingsPage() {
@@ -618,108 +500,27 @@ export function SettingsPage() {
                 설정을 불러오는 중입니다.
               </div>
             ) : currentSection.id === 'templates' ? (
-              <div className="space-y-3">
-                <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
-                  <h3 className="text-sm font-semibold text-ssoo-primary">템플릿 추가</h3>
-                  <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    <input
-                      value={templateDraft.name}
-                      onChange={(event) => setTemplateDraft((prev) => ({ ...prev, name: event.target.value }))}
-                      placeholder="템플릿 이름"
-                      className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
-                    />
-                    <input
-                      value={templateDraft.description}
-                      onChange={(event) => setTemplateDraft((prev) => ({ ...prev, description: event.target.value }))}
-                      placeholder="설명"
-                      className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
-                    />
-                    <select
-                      value={templateDraft.scope}
-                      onChange={(event) => setTemplateDraft((prev) => ({ ...prev, scope: event.target.value as TemplateScope }))}
-                      className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
-                    >
-                      <option value="personal">개인 템플릿</option>
-                      <option value="global">전역 템플릿</option>
-                    </select>
-                    <select
-                      value={templateDraft.kind}
-                      onChange={(event) => setTemplateDraft((prev) => ({ ...prev, kind: event.target.value as TemplateKind }))}
-                      className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
-                    >
-                      <option value="document">문서 템플릿</option>
-                      <option value="folder">폴더 템플릿</option>
-                    </select>
-                  </div>
-                  <textarea
-                    value={templateDraft.content}
-                    onChange={(event) => setTemplateDraft((prev) => ({ ...prev, content: event.target.value }))}
-                    placeholder="템플릿 본문 (마크다운/텍스트)"
-                    className="mt-2 min-h-[120px] w-full rounded-md border border-ssoo-content-border px-3 py-2 text-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
-                  />
-                  <div className="mt-2 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void handleTemplateSave();
-                      }}
-                      className="inline-flex h-control-h items-center gap-1 rounded-md bg-ssoo-primary px-3 text-sm font-medium text-white hover:bg-ssoo-primary/90"
-                    >
-                      <Check className="h-4 w-4" />
-                      템플릿 저장
-                    </button>
-                  </div>
-                </article>
-
-                <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
-                  <h3 className="text-sm font-semibold text-ssoo-primary">템플릿 목록</h3>
-                  {isLoadingTemplates ? (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-ssoo-primary/70">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      템플릿을 불러오는 중입니다.
-                    </div>
-                  ) : templates.length === 0 ? (
-                    <p className="mt-2 text-xs text-ssoo-primary/70">등록된 템플릿이 없습니다.</p>
-                  ) : (
-                    <div className="mt-2 space-y-2">
-                      {templates.map((template) => (
-                        <div key={template.id} className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-ssoo-primary">{template.name}</p>
-                              <p className="text-xs text-ssoo-primary/70">{template.scope === 'global' ? '전역' : '개인'} · {template.kind === 'document' ? '문서' : '폴더'} · {template.updatedAt.slice(0, 10)}</p>
-                              {template.description && <p className="mt-0.5 text-xs text-ssoo-primary/70">{template.description}</p>}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void handleTemplateDelete(template);
-                              }}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-ssoo-content-border text-ssoo-primary/70 hover:border-destructive/40 hover:text-destructive"
-                              aria-label={`${template.name} 삭제`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </article>
-              </div>
+              <TemplateSection
+                templates={templates}
+                isLoadingTemplates={isLoadingTemplates}
+                templateDraft={templateDraft}
+                setTemplateDraft={setTemplateDraft}
+                onSave={() => {
+                  void handleTemplateSave();
+                }}
+                onDelete={(template) => {
+                  void handleTemplateDelete(template);
+                }}
+              />
             ) : (
-              <div className="space-y-3">
-                {currentSection.items.map((item) => (
-                  <SettingRow
-                    key={item.key}
-                    item={item}
-                    value={getNestedValue(localConfig, item.key)}
-                    originalValue={getNestedValue(originalConfig, item.key)}
-                    errorMessage={validationErrors[item.key]}
-                    onChange={handleChange}
-                  />
-                ))}
-              </div>
+              <SettingsFieldList
+                items={currentSection.items}
+                localConfig={localConfig}
+                originalConfig={originalConfig}
+                validationErrors={validationErrors}
+                getValue={getNestedValue}
+                onChange={handleChange}
+              />
             )}
           </main>
         </div>

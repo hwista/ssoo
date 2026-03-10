@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { settingsApi, type DmsConfigClient, type DeepPartialClient } from '@/lib/utils/apiClient';
+import { settingsApi, type DmsConfigClient, type DeepPartialClient } from '@/lib/api';
 import { logger } from '@/lib/utils/errorUtils';
 
 // ============================================================================

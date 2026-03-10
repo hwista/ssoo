@@ -1,0 +1,122 @@
+import { ERROR_MESSAGES } from '@/lib/utils/constants';
+
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+export interface ApiRequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  headers?: Record<string, string>;
+  body?: unknown;
+  timeout?: number;
+}
+
+export async function request<T = unknown>(
+  url: string,
+  options: ApiRequestOptions = {}
+): Promise<ApiResponse<T>> {
+  const {
+    method = 'GET',
+    headers = {},
+    body,
+    timeout = 30000,
+  } = options;
+
+  try {
+    const defaultHeaders = {
+      'Content-Type': 'application/json',
+      ...headers,
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const response = await fetch(url, {
+      method,
+      headers: defaultHeaders,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${errorText || response.statusText}`,
+      };
+    }
+
+    const contentType = response.headers.get('content-type');
+    let data: T;
+
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      data = await response.text() as unknown as T;
+    }
+
+    return {
+      success: true,
+      data,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        return {
+          success: false,
+          error: '요청 시간이 초과되었습니다.',
+        };
+      }
+
+      return {
+        success: false,
+        error: error.message || ERROR_MESSAGES.NETWORK_ERROR,
+      };
+    }
+
+    return {
+      success: false,
+      error: ERROR_MESSAGES.NETWORK_ERROR,
+    };
+  }
+}
+
+export const get = <T = unknown>(
+  url: string,
+  headers?: Record<string, string>
+): Promise<ApiResponse<T>> => request<T>(url, { method: 'GET', headers });
+
+export const post = <T = unknown>(
+  url: string,
+  body?: unknown,
+  headers?: Record<string, string>
+): Promise<ApiResponse<T>> => request<T>(url, { method: 'POST', body, headers });
+
+export const put = <T = unknown>(
+  url: string,
+  body?: unknown,
+  headers?: Record<string, string>
+): Promise<ApiResponse<T>> => request<T>(url, { method: 'PUT', body, headers });
+
+export const del = <T = unknown>(
+  url: string,
+  headers?: Record<string, string>
+): Promise<ApiResponse<T>> => request<T>(url, { method: 'DELETE', headers });
+
+export function formatApiError(error: string | undefined): string {
+  if (!error) return ERROR_MESSAGES.NETWORK_ERROR;
+  if (error.includes('404')) return ERROR_MESSAGES.FILE_NOT_FOUND;
+  if (error.includes('409')) return ERROR_MESSAGES.FILE_ALREADY_EXISTS;
+  if (error.includes('413')) return ERROR_MESSAGES.FILE_TOO_LARGE;
+  if (error.includes('timeout') || error.includes('시간')) return '요청 시간이 초과되었습니다.';
+  return error;
+}
+
+export function getErrorMessage(response: ApiResponse): string {
+  return formatApiError(response.error || response.message);
+}

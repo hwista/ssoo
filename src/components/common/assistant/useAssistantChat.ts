@@ -3,7 +3,7 @@
 import { useCallback } from 'react';
 import { useOpenDocumentTab, useOpenTabWithConfirm } from '@/hooks';
 import { useAssistantStore, type AssistantMessage, type AssistantSearchResult } from '@/stores';
-import { aiApi, fileApi, getErrorMessage } from '@/lib/utils/apiClient';
+import { aiApi, fileApi, getErrorMessage } from '@/lib/api';
 import { detectAssistantIntent } from '@/lib/utils/assistantIntent';
 import { resolveAssistantHelp, type AssistantHelpAction } from '@/lib/utils/assistantHelp';
 
