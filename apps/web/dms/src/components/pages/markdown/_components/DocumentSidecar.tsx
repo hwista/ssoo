@@ -46,6 +46,20 @@ export interface DocumentSidecarProps {
   documentMetadata?: DocumentMetadata | null;
   /** 메타데이터 변경 콜백 */
   onMetadataChange?: (update: Partial<DocumentMetadata>) => void;
+  /** 템플릿 전용 저장 여부 */
+  templateSaveEnabled?: boolean;
+  /** 템플릿 저장용 메타데이터 */
+  templateDraft?: {
+    name: string;
+    description: string;
+    scope: 'personal' | 'global';
+  };
+  /** 템플릿 저장 메타데이터 변경 */
+  onTemplateDraftChange?: (update: {
+    name?: string;
+    description?: string;
+    scope?: 'personal' | 'global';
+  }) => void;
   /** 추가 className */
   className?: string;
 }
@@ -304,12 +318,16 @@ export function DocumentSidecar({
   documentMetadata,
   onMetadataChange,
   filePath,
+  templateSaveEnabled = false,
+  templateDraft,
+  onTemplateDraftChange,
   className,
 }: DocumentSidecarProps) {
   const attachments = metadata?.attachments ?? [];
   const summary = documentMetadata?.summary ?? '';
   const sourceLinks = documentMetadata?.sourceLinks ?? [];
   const comments = documentMetadata?.comments ?? [];
+  const isTemplateSidecar = editable && templateSaveEnabled;
   const [attachmentActionKey, setAttachmentActionKey] = React.useState<string | null>(null);
 
   // 문서명: title이 있으면 사용, 없으면 파일명에서 추출
@@ -439,8 +457,52 @@ export function DocumentSidecar({
     <div className={cn('flex flex-col h-full', className)}>
       {/* 스크롤 가능한 섹션 영역 */}
       <div className="flex-1 overflow-auto">
-        {/* ─── 문서 정보 ─── */}
-        {metadata && (
+        {isTemplateSidecar ? (
+          <CollapsibleSection icon={<FileText className="h-4 w-4 mr-1.5 shrink-0" />} title="템플릿 저장" defaultOpen={templateSaveEnabled}>
+            <div className="space-y-3">
+              <div className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/20 px-3 py-2 text-xs text-ssoo-primary/75">
+                현재 저장은 위키 문서가 아니라 템플릿만 생성합니다. 본문은 템플릿 마크다운으로, 메타데이터는 템플릿 사이드카로 저장됩니다.
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-ssoo-primary">템플릿 이름</label>
+                <input
+                  type="text"
+                  value={templateDraft?.name ?? ''}
+                  onChange={(event) => onTemplateDraftChange?.({ name: event.target.value })}
+                  placeholder="예: 프로젝트 1Pager"
+                  className="w-full rounded-md border border-ssoo-content-border bg-white px-3 py-2 text-sm text-ssoo-primary outline-none focus:border-ssoo-primary"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-ssoo-primary">설명</label>
+                <textarea
+                  value={templateDraft?.description ?? ''}
+                  onChange={(event) => onTemplateDraftChange?.({ description: event.target.value })}
+                  placeholder="템플릿 용도와 사용 맥락을 간단히 적어주세요."
+                  rows={3}
+                  className="w-full rounded-md border border-ssoo-content-border bg-white px-3 py-2 text-sm text-ssoo-primary outline-none focus:border-ssoo-primary"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-ssoo-primary">공개 범위</label>
+                <select
+                  value={templateDraft?.scope ?? 'personal'}
+                  onChange={(event) => onTemplateDraftChange?.({ scope: event.target.value as 'personal' | 'global' })}
+                  className="w-full rounded-md border border-ssoo-content-border bg-white px-3 py-2 text-sm text-ssoo-primary outline-none focus:border-ssoo-primary"
+                >
+                  <option value="personal">내 템플릿</option>
+                  <option value="global">공통 템플릿</option>
+                </select>
+              </div>
+              <div className="rounded-md border border-dashed border-ssoo-content-border px-3 py-2 text-xs text-ssoo-primary/65">
+                템플릿 저장 시 위키 문서 파일과 문서용 사이드카는 생성되지 않습니다.
+              </div>
+            </div>
+          </CollapsibleSection>
+        ) : (
+          <>
+            {/* ─── 문서 정보 ─── */}
+            {metadata && (
           <CollapsibleSection icon={<FileText className="h-4 w-4 mr-1.5 shrink-0" />} title="문서 정보" defaultOpen={false}>
             <dl className="space-y-2 text-sm">
               {/* 문서명 */}
@@ -564,154 +626,156 @@ export function DocumentSidecar({
               )}
             </dl>
           </CollapsibleSection>
-        )}
+            )}
 
-        {/* ─── 태그 ─── */}
-        <CollapsibleSection icon={<Tag className="h-4 w-4 mr-1.5 shrink-0" />} title="태그">
-          {editable ? (
-            <EditableTags tags={tags ?? []} onChange={handleTagsChange} />
-          ) : tags && tags.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-0.5 text-xs bg-ssoo-content-border text-ssoo-primary rounded-full"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <EmptyPlaceholder text="태그없음" />
-          )}
-        </CollapsibleSection>
+            {/* ─── 태그 ─── */}
+            <CollapsibleSection icon={<Tag className="h-4 w-4 mr-1.5 shrink-0" />} title="태그">
+              {editable ? (
+                <EditableTags tags={tags ?? []} onChange={handleTagsChange} />
+              ) : tags && tags.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-0.5 text-xs bg-ssoo-content-border text-ssoo-primary rounded-full"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <EmptyPlaceholder text="태그없음" />
+              )}
+            </CollapsibleSection>
 
-        {/* ─── 요약 ─── */}
-        <CollapsibleSection icon={<FileText className="h-4 w-4 mr-1.5 shrink-0" />} title="요약">
-          {editable ? (
-            <textarea
-              value={summary}
-              onChange={handleSummaryChange}
-              placeholder="문서 요약을 입력하세요..."
-              rows={3}
-              className="w-full px-2 py-1.5 text-xs bg-transparent border border-ssoo-content-border rounded resize-none focus:outline-none focus:border-ssoo-primary text-ssoo-primary"
+            {/* ─── 요약 ─── */}
+            <CollapsibleSection icon={<FileText className="h-4 w-4 mr-1.5 shrink-0" />} title="요약">
+              {editable ? (
+                <textarea
+                  value={summary}
+                  onChange={handleSummaryChange}
+                  placeholder="문서 요약을 입력하세요..."
+                  rows={3}
+                  className="w-full px-2 py-1.5 text-xs bg-transparent border border-ssoo-content-border rounded resize-none focus:outline-none focus:border-ssoo-primary text-ssoo-primary"
+                />
+              ) : summary ? (
+                <p className="text-xs text-ssoo-primary/80 leading-relaxed">{summary}</p>
+              ) : (
+                <EmptyPlaceholder text="요약없음" />
+              )}
+            </CollapsibleSection>
+
+            {/* ─── 소스 링크 ─── */}
+            <CollapsibleSection icon={<Link2 className="h-4 w-4 mr-1.5 shrink-0" />} title="url">
+              {editable ? (
+                <EditableSourceLinks links={sourceLinks} onChange={handleSourceLinksChange} />
+              ) : sourceLinks.length > 0 ? (
+                <div className="space-y-1">
+                  {sourceLinks.map((link) => (
+                    <a
+                      key={link}
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-xs text-blue-500 hover:underline truncate"
+                    >
+                      {link}
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <EmptyPlaceholder text="링크없음" />
+              )}
+            </CollapsibleSection>
+
+            {/* ─── 첨부 파일 ─── */}
+            <CollapsibleSection icon={<Paperclip className="h-4 w-4 mr-1.5 shrink-0" />} title="첨부 파일">
+              {attachments.length > 0 ? (
+                <div className="space-y-2">
+                  {attachments.map((attachment) => {
+                    const openKey = `${attachment.path}:${attachment.name}:open`;
+                    const resyncKey = `${attachment.path}:${attachment.name}:resync`;
+                    const isOpening = attachmentActionKey === openKey;
+                    const isResyncing = attachmentActionKey === resyncKey;
+                    return (
+                      <div
+                        key={`${attachment.path}-${attachment.name}`}
+                        className="rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate">{attachment.name}</span>
+                          <span className="text-ssoo-primary/60">{formatSize(attachment.size)}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => void handleAttachmentOpen(attachment)}
+                            disabled={isOpening}
+                            className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary disabled:opacity-60"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            {isOpening ? 'Opening...' : 'Open'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleAttachmentCopyUri(attachment)}
+                            className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary"
+                          >
+                            <Copy className="h-3 w-3" />
+                            URI
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleAttachmentResync(attachment)}
+                            disabled={isResyncing}
+                            className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary disabled:opacity-60"
+                          >
+                            <RefreshCw className={cn('h-3 w-3', isResyncing && 'animate-spin')} />
+                            Resync
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyPlaceholder text="첨부없음" />
+              )}
+            </CollapsibleSection>
+
+            {/* ─── 댓글 목록 ─── */}
+            <ActivityListSection
+              icon={<MessageSquare className="h-4 w-4 mr-1.5 shrink-0" />}
+              title="댓글"
+              badge={comments.length > 0 ? (
+                <span className="text-xs text-gray-400 mr-1">({comments.length})</span>
+              ) : undefined}
+              variant="compact"
+              items={comments.map((comment) => ({
+                id: comment.id,
+                title: comment.author || 'Unknown',
+                content: comment.content,
+                meta: formatDate(comment.createdAt),
+                actions: [
+                  {
+                    id: `${comment.id}-delete`,
+                    kind: 'icon',
+                    tone: 'danger',
+                    title: '댓글 삭제',
+                    ariaLabel: '댓글 삭제',
+                    icon: <X className="h-3 w-3" />,
+                    onClick: () => handleCommentDelete(comment.id),
+                  },
+                ],
+              }))}
+              emptyText="댓글없음"
             />
-          ) : summary ? (
-            <p className="text-xs text-ssoo-primary/80 leading-relaxed">{summary}</p>
-          ) : (
-            <EmptyPlaceholder text="요약없음" />
-          )}
-        </CollapsibleSection>
-
-        {/* ─── 소스 링크 ─── */}
-        <CollapsibleSection icon={<Link2 className="h-4 w-4 mr-1.5 shrink-0" />} title="url">
-          {editable ? (
-            <EditableSourceLinks links={sourceLinks} onChange={handleSourceLinksChange} />
-          ) : sourceLinks.length > 0 ? (
-            <div className="space-y-1">
-              {sourceLinks.map((link) => (
-                <a
-                  key={link}
-                  href={link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-xs text-blue-500 hover:underline truncate"
-                >
-                  {link}
-                </a>
-              ))}
-            </div>
-          ) : (
-            <EmptyPlaceholder text="링크없음" />
-          )}
-        </CollapsibleSection>
-
-        {/* ─── 첨부 파일 ─── */}
-        <CollapsibleSection icon={<Paperclip className="h-4 w-4 mr-1.5 shrink-0" />} title="첨부 파일">
-          {attachments.length > 0 ? (
-            <div className="space-y-2">
-              {attachments.map((attachment) => {
-                const openKey = `${attachment.path}:${attachment.name}:open`;
-                const resyncKey = `${attachment.path}:${attachment.name}:resync`;
-                const isOpening = attachmentActionKey === openKey;
-                const isResyncing = attachmentActionKey === resyncKey;
-                return (
-                  <div
-                    key={`${attachment.path}-${attachment.name}`}
-                    className="rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate">{attachment.name}</span>
-                      <span className="text-ssoo-primary/60">{formatSize(attachment.size)}</span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => void handleAttachmentOpen(attachment)}
-                        disabled={isOpening}
-                        className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary disabled:opacity-60"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        {isOpening ? 'Opening...' : 'Open'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleAttachmentCopyUri(attachment)}
-                        className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary"
-                      >
-                        <Copy className="h-3 w-3" />
-                        URI
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleAttachmentResync(attachment)}
-                        disabled={isResyncing}
-                        className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary disabled:opacity-60"
-                      >
-                        <RefreshCw className={cn('h-3 w-3', isResyncing && 'animate-spin')} />
-                        Resync
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <EmptyPlaceholder text="첨부없음" />
-          )}
-        </CollapsibleSection>
-
-        {/* ─── 댓글 목록 ─── */}
-        <ActivityListSection
-          icon={<MessageSquare className="h-4 w-4 mr-1.5 shrink-0" />}
-          title="댓글"
-          badge={comments.length > 0 ? (
-            <span className="text-xs text-gray-400 mr-1">({comments.length})</span>
-          ) : undefined}
-          variant="compact"
-          items={comments.map((comment) => ({
-            id: comment.id,
-            title: comment.author || 'Unknown',
-            content: comment.content,
-            meta: formatDate(comment.createdAt),
-            actions: [
-              {
-                id: `${comment.id}-delete`,
-                kind: 'icon',
-                tone: 'danger',
-                title: '댓글 삭제',
-                ariaLabel: '댓글 삭제',
-                icon: <X className="h-3 w-3" />,
-                onClick: () => handleCommentDelete(comment.id),
-              },
-            ],
-          }))}
-          emptyText="댓글없음"
-        />
+          </>
+        )}
       </div>
 
       {/* ─── 댓글 입력 (하단 고정) ─── */}
-      {!editable && (
+      {!editable && !isTemplateSidecar && (
         <CommentInput onAdd={handleCommentAdd} />
       )}
     </div>

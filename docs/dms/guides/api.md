@@ -237,6 +237,7 @@ Response:
 
 - 개인 템플릿: 사용자 개인 작성 템플릿(템플릿 승격 결과)
 - 전역 템플릿: 설정 페이지에서 관리자 CRUD 후 전체 사용자 공유
+- 저장 구조: 템플릿 본문은 `data/templates/**/*.md`, 메타데이터는 같은 경로의 `.sidecar.json`
 
 응답 포맷:
 
@@ -258,7 +259,9 @@ Response:
   "scope": "global",
   "kind": "document",
   "content": "# 템플릿 본문",
-  "updatedAt": "2026-02-25T00:00:00.000Z"
+  "updatedAt": "2026-02-25T00:00:00.000Z",
+  "sourceType": "markdown-file",
+  "sourcePath": "global/template-id.md"
 }
 ```
 
