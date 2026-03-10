@@ -3,7 +3,7 @@ import { Providers } from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'SSOO - 업무 허브',
+  title: 'SSOT - 업무 허브',
   description: 'SI/SM 조직의 Opportunity-Project-System 통합 업무 허브',
 };
 

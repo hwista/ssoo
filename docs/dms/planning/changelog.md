@@ -6,6 +6,13 @@
 
 ## 2026-03-10
 
+### `src/hooks/**` 안정화 정리
+
+- `useEditor.ts`의 undo/redo history를 reducer 기반 단일 상태로 통합해 최대 history 크기 초과 시 인덱스 범위 오류가 나지 않도록 수정
+- `useEditor.ts`의 미사용 `timestamp`와 외부 미사용 유틸 반환을 제거하고, 커서 복원은 `setTimeout(0)` 대신 layout effect 기반으로 정리
+- `useOpenDocumentTab.ts`의 탭 ID를 `encodeURIComponent(path)` 기반으로 바꿔 경로 치환 충돌(`a/b.md` vs `a-b.md`)을 방지
+- `useOpenTabWithConfirm.ts`의 Zustand 구독을 selector 기반으로 정리해 불필요한 전체 store 구독을 제거
+
 ### `src/lib/**` 경계 정리
 
 - 미사용 루트 barrel(`src/lib/index.ts`)과 미사용 assistant formatter(`assistantTextFormat`)를 제거하고, dead export를 정리

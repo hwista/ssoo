@@ -81,7 +81,7 @@ export function Sidebar() {
               <div className="w-9 h-9 bg-white rounded flex items-center justify-center">
                 <span className="text-ssoo-primary font-bold text-base">S</span>
               </div>
-              <span className="font-semibold text-white text-lg">SSOO</span>
+              <span className="font-semibold text-white text-lg">SSOT</span>
             </div>
           )}
           <button

@@ -15,7 +15,7 @@ export function useOpenDocumentTab() {
     if (!normalizedPath) return;
 
     await openTabWithConfirm({
-      id: `file-${normalizedPath.replace(/\//g, '-')}`,
+      id: `file-${encodeURIComponent(normalizedPath)}`,
       title: title || normalizedPath.split('/').pop() || '문서',
       path: `/doc/${encodeURIComponent(normalizedPath)}`,
       icon: 'FileText',
