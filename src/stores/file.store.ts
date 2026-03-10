@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { FileNode, BookmarkItem } from '@/types';
+import { filesApi } from '@/lib/api';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
-import { fileSystemService } from '@/server/services/fileSystem/FileSystemService';
 
 // 파일 트리를 플랫 맵으로 변환 (PMS buildMenuMap 대응)
 const buildFileMap = (nodes: FileNode[]): Map<string, FileNode> => {
@@ -56,6 +56,10 @@ interface FileStoreActions {
 
 interface FileStore extends FileStoreState, FileStoreActions {}
 
+function toFileNodes(data: unknown): FileNode[] {
+  return Array.isArray(data) ? data as FileNode[] : [];
+}
+
 export const useFileStore = create<FileStore>()(
   persist(
     (set, get) => ({
@@ -80,19 +84,20 @@ export const useFileStore = create<FileStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const result = await fileSystemService.getFileTree(undefined, { includeHidden: false });
+          const result = await filesApi.getFileTree();
+          const nextFiles = toFileNodes(result.data);
 
-          if (result.success && result.data) {
-            const fileMap = buildFileMap(result.data);
+          if (result.success) {
+            const fileMap = buildFileMap(nextFiles);
             set({
-              files: result.data,
+              files: nextFiles,
               fileMap,
               isLoading: false,
               isInitialized: true,
               error: null,
               lastUpdatedAt: new Date(),
             });
-            logger.info('파일 트리 로드 성공', { fileCount: result.data.length, mapSize: fileMap.size });
+            logger.info('파일 트리 로드 성공', { fileCount: nextFiles.length, mapSize: fileMap.size });
             timer.end({ success: true });
             return { success: true };
           } else {
@@ -116,18 +121,19 @@ export const useFileStore = create<FileStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const result = await fileSystemService.getFileTree(undefined, { includeHidden: false });
+          const result = await filesApi.getFileTree();
+          const nextFiles = toFileNodes(result.data);
 
-          if (result.success && result.data) {
-            const fileMap = buildFileMap(result.data);
+          if (result.success) {
+            const fileMap = buildFileMap(nextFiles);
             set({
-              files: result.data,
+              files: nextFiles,
               fileMap,
               isLoading: false,
               error: null,
               lastUpdatedAt: new Date(),
             });
-            logger.info('파일 트리 새로고침 성공', { fileCount: result.data.length, mapSize: fileMap.size });
+            logger.info('파일 트리 새로고침 성공', { fileCount: nextFiles.length, mapSize: fileMap.size });
             timer.end({ success: true });
           } else {
             const errorMsg = result.error || '파일 트리 새로고침 실패';

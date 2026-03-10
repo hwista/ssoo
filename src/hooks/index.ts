@@ -17,3 +17,6 @@ export type {
 export { useOpenTabWithConfirm } from './useOpenTabWithConfirm';
 export { useOpenDocumentTab } from './useOpenDocumentTab';
 export type { OpenDocumentTabOptions } from './useOpenDocumentTab';
+
+// Layout
+export { useLayoutViewportSync } from './useLayoutViewportSync';

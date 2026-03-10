@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { AssistantHelpAction } from '@/lib/utils/assistantHelp';
-import { generateAssistantSuggestions } from '@/lib/utils/assistantSuggestions';
+import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
+import { generateAssistantSuggestions } from '@/lib/assistant/assistantSuggestions';
 import type { TemplateItem } from '@/types/template';
 
 export interface AssistantSearchResult {

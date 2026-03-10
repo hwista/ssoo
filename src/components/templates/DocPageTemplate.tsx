@@ -4,7 +4,7 @@ import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebarStore } from '@/stores';
-import { LAYOUT_SIZES } from '@/types';
+import { LAYOUT_SIZES } from '@/lib/constants/layout';
 import {
   Breadcrumb,
   Header,

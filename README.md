@@ -46,7 +46,7 @@ apps/web/dms/
 │   ├── stores/                     # Zustand 상태 관리
 │   ├── lib/                        # 유틸리티
 │   ├── types/                      # TypeScript 타입
-│   └── middleware.ts               # Next.js 미들웨어
+│   └── middleware.ts               # 주소창 루트 고정 라우팅 정책
 │
 ├── docs/                           # 개발 문서 (정본)
 │   ├── development/                # 개발 가이드

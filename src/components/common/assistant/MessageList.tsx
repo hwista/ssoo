@@ -5,7 +5,7 @@ import { useCallback, type ComponentType } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
-import type { AssistantHelpAction } from '@/lib/utils/assistantHelp';
+import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
 import { SearchResultCard } from '@/components/common/search/ResultCard';
 

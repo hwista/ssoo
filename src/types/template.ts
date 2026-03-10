@@ -18,12 +18,3 @@ export interface TemplateItem {
   sourceType?: TemplateSourceType;
   sourcePath?: string;
 }
-
-export interface StoredTemplateItem extends Omit<TemplateItem, 'content'> {
-  content?: string;
-}
-
-export interface TemplateStoreShape {
-  global: StoredTemplateItem[];
-  personal: Record<string, StoredTemplateItem[]>;
-}

@@ -12,7 +12,7 @@ import React, {
 import { cn } from '@/lib/utils';
 import { EDITOR_COMMANDS, EditorToolbar, type ToolbarCommandId } from './Toolbar';
 import { useTabStore } from '@/stores';
-import { markdownToHtmlSync } from '@/lib/markdownConverter';
+import { markdownToHtmlSync } from '@/lib/utils/markdown';
 import { Annotation, Compartment, EditorState, StateEffect, StateField, type StateEffectType } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap, placeholder as cmPlaceholder } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';

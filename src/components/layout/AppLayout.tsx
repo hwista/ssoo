@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useLayoutStore, useSidebarStore } from '@/stores';
-import { LAYOUT_SIZES } from '@/types';
+import { LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './sidebar';
 import { Header } from './Header';

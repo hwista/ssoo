@@ -1,11 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { generateText } from 'ai';
-import { normalizePath } from '@/lib/utils/pathUtils';
+import { LIMITS } from '@/lib/constants/common';
 import { isMarkdownFile } from '@/lib/utils/fileUtils';
-import { LIMITS } from '@/lib/utils/constants';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 import { configService } from '@/server/services/config/ConfigService';
+import { normalizePath } from '@/server/utils/pathUtils';
 import { getChatModel } from './provider';
 import { embedQuery, searchSimilarDocuments } from './embedding';
 import type { AiContextOptions, HandlerResult, SearchResponse, SearchResultItem } from './types';

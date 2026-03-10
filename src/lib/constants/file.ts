@@ -1,0 +1,30 @@
+export const FILE_EXTENSIONS = {
+  MARKDOWN: ['.md', '.markdown'],
+  TEXT: ['.txt', '.text'],
+  IMAGE: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'],
+  JSON: '.json',
+  TYPESCRIPT: '.ts',
+  TYPESCRIPT_REACT: '.tsx',
+  JAVASCRIPT: '.js',
+  JAVASCRIPT_REACT: '.jsx',
+} as const;
+
+export const MIME_TYPES = {
+  MARKDOWN: 'text/markdown',
+  TEXT: 'text/plain',
+  IMAGE: 'image/*',
+  JSON: 'application/json',
+  HTML: 'text/html',
+  CSS: 'text/css',
+  JAVASCRIPT: 'application/javascript',
+  DEFAULT: 'application/octet-stream',
+  md: 'text/markdown',
+  txt: 'text/plain',
+  json: 'application/json',
+  ts: 'text/typescript',
+  tsx: 'text/typescript',
+  js: 'application/javascript',
+  jsx: 'application/javascript',
+  css: 'text/css',
+  html: 'text/html',
+} as const;

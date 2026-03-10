@@ -18,3 +18,10 @@ export const SECTION_ICONS: Record<SidebarSectionType, React.ComponentType<{ cla
   fileTree: FolderTree,
   changes: GitBranch,
 };
+
+export const SECTION_LABELS: Record<SidebarSectionType, string> = {
+  bookmarks: '즐겨찾기',
+  openTabs: '열린 문서',
+  fileTree: '문서 탐색',
+  changes: '변경 사항',
+};
