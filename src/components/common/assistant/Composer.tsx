@@ -10,9 +10,9 @@ import {
 } from './ReferencePicker';
 
 interface InlineContextProps {
-  selectedTemplates: TemplateItem[];
+  selectedTemplate: TemplateItem | null;
   summaryFiles: InlineSummaryFileItem[];
-  onToggleTemplate: (template: TemplateItem) => void;
+  onSelectTemplate: (template: TemplateItem) => void | Promise<void>;
   onUpsertSummaryFiles: (files: InlineSummaryFileItem[]) => void;
 }
 
@@ -27,10 +27,10 @@ interface AssistantComposerProps {
   submitLabel?: string;
   mode?: 'assistant' | 'inline';
   inlineContext?: InlineContextProps;
-  inlineTemplates?: TemplateItem[];
+  inlineTemplate?: TemplateItem | null;
   inlineSummaryFiles?: InlineSummaryFileItem[];
   inlineWarnings?: string[];
-  onInlineRemoveTemplate?: (id: string) => void;
+  onInlineRemoveTemplate?: () => void;
   onInlineRemoveSummaryFile?: (id: string) => void;
   onInlineClearAll?: () => void;
   suggestions?: string[];
@@ -49,7 +49,7 @@ export function AssistantComposer({
   submitLabel = '전송',
   mode = 'assistant',
   inlineContext,
-  inlineTemplates,
+  inlineTemplate,
   inlineSummaryFiles,
   inlineWarnings,
   onInlineRemoveTemplate,
@@ -123,7 +123,7 @@ export function AssistantComposer({
       <AssistantReferenceChips
         disabled={isProcessing}
         mode={mode}
-        inlineTemplates={inlineTemplates}
+        inlineTemplate={inlineTemplate}
         inlineSummaryFiles={inlineSummaryFiles}
         inlineWarnings={inlineWarnings}
         onInlineRemoveTemplate={onInlineRemoveTemplate}

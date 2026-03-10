@@ -62,7 +62,7 @@ export function ViewerPage() {
   const [isComposing, setIsComposing] = useState(false);
   const [createPath, setCreatePath] = useState('drafts/new-doc.md');
   const [isRecommendingPath, setIsRecommendingPath] = useState(false);
-  const [inlineTemplates, setInlineTemplates] = useState<TemplateItem[]>([]);
+  const [inlineTemplate, setInlineTemplate] = useState<TemplateItem | null>(null);
   const [inlineSummaryFiles, setInlineSummaryFiles] = useState<InlineSummaryFileItem[]>([]);
   const [inlineRelevanceWarnings, setInlineRelevanceWarnings] = useState<string[]>([]);
   const [isPreview, setIsPreview] = useState(false);
@@ -264,7 +264,7 @@ export function ViewerPage() {
         currentContent: baseContent,
         selectedText,
         activeDocPath: filePath || createPath,
-        templates: inlineTemplates,
+        templates: inlineTemplate ? [inlineTemplate] : [],
         summaryFiles: inlineSummaryFiles.map((item) => ({
           id: item.id,
           name: item.name,
@@ -308,7 +308,7 @@ export function ViewerPage() {
       editorHandlers?.setPendingInsert?.(null);
       setIsComposing(false);
     }
-  }, [content, createPath, editorHandlers, filePath, inlineInstruction, inlineSummaryFiles, inlineTemplates, isComposing, isCreateMode, setContent]);
+  }, [content, createPath, editorHandlers, filePath, inlineInstruction, inlineSummaryFiles, inlineTemplate, isComposing, isCreateMode, setContent]);
 
   const handleRecommendPath = useCallback(async () => {
     const instruction = inlineInstruction.trim() || '새 문서 작성';
@@ -317,7 +317,6 @@ export function ViewerPage() {
       const response = await docAssistApi.recommendPath({
         instruction,
         activeDocPath: createPath,
-        templates: inlineTemplates,
         summaryFiles: inlineSummaryFiles.map((item) => ({
           id: item.id,
           name: item.name,
@@ -331,7 +330,31 @@ export function ViewerPage() {
     } finally {
       setIsRecommendingPath(false);
     }
-  }, [createPath, inlineInstruction, inlineSummaryFiles, inlineTemplates]);
+  }, [createPath, inlineInstruction, inlineSummaryFiles]);
+
+  const handleInlineTemplateSelect = useCallback(async (template: TemplateItem) => {
+    if (template.kind !== 'document') return;
+
+    if (!inlineTemplate) {
+      setInlineTemplate(template);
+      return;
+    }
+
+    if (inlineTemplate.id === template.id) {
+      setInlineTemplate(null);
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: '문서 템플릿 변경',
+      description: `'${inlineTemplate.name}' 템플릿이 이미 선택되어 있습니다. 새 템플릿으로 바꾸면 이후 AI 작성은 '${template.name}' 형식에 맞춰 생성됩니다. 변경하시겠습니까?`,
+      confirmText: '교체',
+      cancelText: '유지',
+    });
+
+    if (!confirmed) return;
+    setInlineTemplate(template);
+  }, [confirm, inlineTemplate]);
 
   const isEditorMode = mode === 'editor' || mode === 'create';
 
@@ -348,15 +371,9 @@ export function ViewerPage() {
       submitLabel="적용"
       mode="inline"
       inlineContext={{
-        selectedTemplates: inlineTemplates,
+        selectedTemplate: inlineTemplate,
         summaryFiles: inlineSummaryFiles,
-        onToggleTemplate: (template) => {
-          setInlineTemplates((prev) => {
-            const exists = prev.some((item) => item.id === template.id);
-            if (exists) return prev.filter((item) => item.id !== template.id);
-            return [...prev, template];
-          });
-        },
+        onSelectTemplate: handleInlineTemplateSelect,
         onUpsertSummaryFiles: (files) => {
           setInlineSummaryFiles((prev) => {
             const map = new Map(prev.map((item) => [item.id, item]));
@@ -365,16 +382,16 @@ export function ViewerPage() {
           });
         },
       }}
-      inlineTemplates={inlineTemplates}
+      inlineTemplate={inlineTemplate}
       inlineSummaryFiles={inlineSummaryFiles}
       inlineWarnings={inlineRelevanceWarnings}
       onInlineClearAll={() => {
-        setInlineTemplates([]);
+        setInlineTemplate(null);
         setInlineSummaryFiles([]);
         setInlineRelevanceWarnings([]);
       }}
-      onInlineRemoveTemplate={(id) => {
-        setInlineTemplates((prev) => prev.filter((item) => item.id !== id));
+      onInlineRemoveTemplate={() => {
+        setInlineTemplate(null);
       }}
       onInlineRemoveSummaryFile={(id) => {
         setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== id));

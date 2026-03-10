@@ -22,7 +22,6 @@ interface ComposeInput {
 type ApplyMode = 'replace-document' | 'replace-selection' | 'append' | 'insert';
 
 const MAX_CURRENT_CONTENT_CHARS = 6000;
-const MAX_TEMPLATE_COUNT = 3;
 const MAX_TEMPLATE_CHARS = 1500;
 const MAX_SUMMARY_FILE_COUNT = 2;
 const MAX_SUMMARY_FILE_CHARS = 2000;
@@ -44,7 +43,7 @@ function buildRelevanceWarnings(instruction: string, files: SummaryFileInput[]):
     const terms = tokenize(file.textContent).slice(0, 80);
     const overlap = terms.filter((term) => baseTerms.has(term)).length;
     if (overlap < 2) {
-      warnings.push(`'${file.name}' 파일은 현재 지시와 연관성이 낮아 보입니다.`);
+      warnings.push(`'${file.name}' 파일은 현재 지시와의 연결이 약해 보여 결과 품질이 떨어질 수 있습니다.`);
     }
   }
   return warnings;
@@ -53,15 +52,6 @@ function buildRelevanceWarnings(instruction: string, files: SummaryFileInput[]):
 function recommendPath(input: ComposeInput): string {
   if (input.activeDocPath && input.activeDocPath.trim().length > 0) {
     return input.activeDocPath;
-  }
-
-  const folderTemplate = (input.templates ?? []).find((item) => item.kind === 'folder');
-  if (folderTemplate) {
-    const firstLine = folderTemplate.content
-      .split('\n')
-      .map((line) => line.trim())
-      .find((line) => line.endsWith('/'));
-    if (firstLine) return `${firstLine.replace(/\/+$/, '')}/new-doc.md`;
   }
 
   const title = input.instruction
@@ -102,13 +92,11 @@ export async function composeDocument(input: ComposeInput): Promise<{
     : /(추가|append|덧붙|이어써|하단)/.test(instructionLower)
       ? 'append'
       : 'insert';
-  const documentTemplates = (input.templates ?? [])
-    .filter((item) => item.kind === 'document')
-    .slice(0, MAX_TEMPLATE_COUNT);
+  const documentTemplate = (input.templates ?? []).find((item) => item.kind === 'document');
   const boundedCurrentContent = input.currentContent.slice(0, MAX_CURRENT_CONTENT_CHARS);
-  const templateContext = documentTemplates
-    .map((item) => `${item.name}\n${item.content.slice(0, MAX_TEMPLATE_CHARS)}`)
-    .join('\n\n');
+  const templateContext = documentTemplate
+    ? `${documentTemplate.name}\n${documentTemplate.content.slice(0, MAX_TEMPLATE_CHARS)}`
+    : '';
   const summaryContext = (input.summaryFiles ?? [])
     .slice(0, MAX_SUMMARY_FILE_COUNT)
     .map((file, index) => `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, MAX_SUMMARY_FILE_CHARS)}`)
@@ -121,7 +109,7 @@ export async function composeDocument(input: ComposeInput): Promise<{
       currentContentLength: input.currentContent.length,
       boundedCurrentContentLength: boundedCurrentContent.length,
       selectedTextLength: selectedText.length,
-      templateCount: documentTemplates.length,
+      templateCount: documentTemplate ? 1 : 0,
       summaryFileCount: Math.min(input.summaryFiles?.length ?? 0, MAX_SUMMARY_FILE_COUNT),
     });
 
@@ -131,6 +119,15 @@ export async function composeDocument(input: ComposeInput): Promise<{
         '당신은 문서 편집 AI입니다.',
         '반드시 한국어 마크다운만 출력하세요.',
         '설명 문장, 머리말, 코드펜스 없이 결과 본문만 반환하세요.',
+        summaryContext
+          ? '요약 첨부 컨텍스트가 있으면 그 안의 정보만 근거로 작성하세요. 첨부에 없는 사실을 보충하거나 추정하지 마세요.'
+          : '제공된 지시와 편집 맥락만 사용해 작성하세요.',
+        documentTemplate
+          ? '문서 템플릿이 있으면 제목 체계, 섹션 구조, 문서 형식을 반드시 따르세요. 템플릿과 충돌하는 임의 형식으로 바꾸지 마세요.'
+          : '문서 템플릿이 없으면 지시에 맞는 가장 자연스러운 마크다운 구조를 선택하세요.',
+        summaryContext && documentTemplate
+          ? '요약 첨부 컨텍스트는 내용의 근거이고, 문서 템플릿은 출력 형식의 기준입니다. 두 역할을 혼동하지 마세요.'
+          : '',
         applyMode === 'replace-selection'
           ? '선택 텍스트를 지시에 맞춰 치환할 결과만 반환하세요.'
           : applyMode === 'append'
@@ -142,7 +139,7 @@ export async function composeDocument(input: ComposeInput): Promise<{
       prompt: [
         `[지시]\n${instruction}`,
         selectedText ? `[선택 텍스트]\n${selectedText}` : '',
-        `[현재 문서]\n${boundedCurrentContent}`,
+        `[현재 문서 편집 맥락]\n${boundedCurrentContent}`,
         templateContext ? `[문서 템플릿]\n${templateContext}` : '',
         summaryContext ? `[요약 첨부 컨텍스트]\n${summaryContext}` : '',
       ].filter(Boolean).join('\n\n'),
@@ -160,7 +157,7 @@ export async function composeDocument(input: ComposeInput): Promise<{
       instructionLength: instruction.length,
       currentContentLength: input.currentContent.length,
       selectedTextLength: selectedText.length,
-      templateCount: documentTemplates.length,
+      templateCount: documentTemplate ? 1 : 0,
       summaryFileCount: input.summaryFiles?.length ?? 0,
     });
     throw error;
