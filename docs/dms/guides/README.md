@@ -22,7 +22,7 @@ DMS 개발 시 참고할 정본 가이드 인덱스입니다.
 ### 파일 API 사용
 
 ```ts
-import { fileApi } from '@/lib/utils/apiClient';
+import { fileApi } from '@/lib/api';
 
 const readResult = await fileApi.read('analysis/apps/App.md');
 await fileApi.update('analysis/apps/App.md', '# Updated');

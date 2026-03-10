@@ -17,7 +17,7 @@ import { SearchResultCard } from '@/components/common/search/ResultCard';
 import { useOpenDocumentTab } from '@/hooks';
 import type { TocItem } from '@/components/common/page';
 import { getQueryFromTabPath } from '@/lib/utils';
-import { aiApi, getErrorMessage } from '@/lib/utils/apiClient';
+import { aiApi, getErrorMessage } from '@/lib/api';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import { AiSidecar } from './_components/AiSidecar';
 

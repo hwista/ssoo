@@ -5,7 +5,7 @@ import { User, Calendar, FileText, Tag, Paperclip, Link2, MessageSquare, X, Plus
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
-import { ingestApi, storageApi } from '@/lib/utils/apiClient';
+import { ingestApi, storageApi } from '@/lib/api';
 import { CollapsibleSection, ActivityListSection } from '@/components/common/page/sidecar';
 
 /**

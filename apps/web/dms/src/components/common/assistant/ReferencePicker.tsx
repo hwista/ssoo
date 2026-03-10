@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { FileUp, Paperclip, Plus, Search, Shapes, X } from 'lucide-react';
 import { useAssistantStore, useTabStore } from '@/stores';
-import { filesApi, templateApi } from '@/lib/utils/apiClient';
+import { filesApi, templateApi } from '@/lib/api';
 import type { TemplateItem } from '@/types/template';
 import {
   DropdownMenu,

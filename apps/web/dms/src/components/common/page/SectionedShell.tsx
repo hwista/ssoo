@@ -18,7 +18,7 @@ export interface SectionedShellProps {
 }
 
 const ROOT_CLASS = 'min-h-0';
-const SLOT_TOOLBAR_BASE = 'flex shrink-0 items-center min-h-[52px] border-b border-ssoo-content-border';
+const SLOT_TOOLBAR_BASE = 'relative z-10 flex shrink-0 items-center overflow-visible min-h-[52px] border-b border-ssoo-content-border';
 const SLOT_BODY_BASE = 'min-h-0 flex-1 flex flex-col overflow-hidden border-x border-ssoo-content-border bg-white';
 const SLOT_FOOTER_BASE = 'flex shrink-0 items-center border-t border-x border-b border-ssoo-content-border rounded-b-lg';
 const BODY_SLOT_CONTENT_CLASS = 'h-full min-h-0 overflow-hidden';

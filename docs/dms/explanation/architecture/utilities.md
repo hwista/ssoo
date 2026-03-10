@@ -137,7 +137,7 @@ getPathDepth('docs/guides/api.md')  // 2
 ### 파일 API
 
 ```typescript
-import { fileApi } from '@/lib/utils/apiClient';
+import { fileApi } from '@/lib/api';
 
 // 파일 읽기
 const response = await fileApi.read('docs/readme.md');

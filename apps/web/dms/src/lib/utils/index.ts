@@ -73,22 +73,3 @@ export {
 export {
   getQueryFromTabPath,
 } from './tabUtils';
-
-// API 클라이언트
-export {
-  fileApi,
-  filesApi,
-  get,
-  post,
-  put,
-  del,
-  getFileWithHeaders,
-  formatApiError,
-  getErrorMessage,
-} from './apiClient';
-export type {
-  ApiResponse,
-  ApiRequestOptions,
-  FileAction,
-  FileApiRequest,
-} from './apiClient';

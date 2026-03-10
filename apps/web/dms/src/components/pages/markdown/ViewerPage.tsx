@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Loader2, Wand2, Eye, EyeOff } from 'lucide-react';
 import { useTabStore, useEditorStore, useConfirmStore, useFileStore, useAssistantStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
-import { fileApi, docAssistApi } from '@/lib/utils/apiClient';
+import { fileApi, docAssistApi } from '@/lib/api';
 import { DocPageTemplate } from '@/components/templates';
 import { Viewer } from '@/components/common/viewer';
 import {

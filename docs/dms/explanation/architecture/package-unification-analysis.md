@@ -112,9 +112,9 @@ DMS sidebar/
 
 | 영역 | PMS | DMS | 비고 |
 |------|-----|-----|------|
-| **HTTP 클라이언트** | `axios` + interceptor | `fetch` 기반 (`apiClient.ts`) | 🟡 Phase 7 검토 |
+| **HTTP 클라이언트** | `axios` + interceptor | `fetch` 기반 (`lib/api/`) | 🟡 Phase 7 검토 |
 | **인증 처리** | 자동 토큰 갱신 | 없음 (의도적) | ✅ 별도 유지 |
-| **API 구조** | `lib/api/` 도메인별 분리 | `lib/utils/apiClient.ts` 확장 | ✅ 개선 완료 |
+| **API 구조** | `lib/api/` 도메인별 분리 | `lib/api/` 도메인별 분리 | ✅ 개선 완료 |
 | **서버 통신** | 외부 백엔드 (NestJS) | Next.js API Routes + Server Action | ✅ 의도적 차이 |
 
 ---
@@ -233,4 +233,3 @@ packages/
 | Date | Change |
 |------|--------|
 | 2026-02-09 | Add changelog section. |
-

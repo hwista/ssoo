@@ -42,7 +42,7 @@ function lazyWithChunkRetry<T extends ComponentType<unknown>>(
 }
 
 const pageComponents = {
-  home: lazyWithChunkRetry(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
+  home: lazyWithChunkRetry(() => import('@/components/pages/home/HomeDashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
   markdown: lazyWithChunkRetry(() => import('@/components/pages/markdown/ViewerPage').then(m => ({ default: m.ViewerPage }))),
   aiAsk: AiAskPage,
   aiSearch: lazyWithChunkRetry(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
