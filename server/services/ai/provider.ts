@@ -124,6 +124,7 @@ async function getAzureProvider() {
       return createAzure({
         apiKey: 'entra-token',
         resourceName,
+        useDeploymentBasedUrls: true,
         ...(apiVersion ? { apiVersion } : {}),
         headers: {
           Authorization: `Bearer ${entraToken}`,
@@ -157,6 +158,7 @@ async function getAzureProvider() {
   return createAzure({
     apiKey,
     resourceName,
+    useDeploymentBasedUrls: true,
     ...(apiVersion ? { apiVersion } : {}),
   });
 }
@@ -182,7 +184,7 @@ function extractResourceName(endpoint: string): string {
 export async function getChatModel(): Promise<LanguageModel> {
   const azure = await getAzureProvider();
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini';
-  return azure(deployment);
+  return azure.chat(deployment);
 }
 
 /**
@@ -199,5 +201,5 @@ export async function getEmbeddingModel(): Promise<EmbeddingModel> {
   }
 
   const azure = await getAzureProvider();
-  return azure.textEmbeddingModel(deployment);
+  return azure.embeddingModel(deployment);
 }

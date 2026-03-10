@@ -1,5 +1,6 @@
 import { generateText } from 'ai';
 import { getChatModel } from '@/server/services/ai';
+import { logger } from '@/lib/utils/errorUtils';
 import type { TemplateItem } from '@/types/template';
 
 interface SummaryFileInput {
@@ -19,6 +20,12 @@ interface ComposeInput {
 }
 
 type ApplyMode = 'replace-document' | 'replace-selection' | 'append' | 'insert';
+
+const MAX_CURRENT_CONTENT_CHARS = 6000;
+const MAX_TEMPLATE_COUNT = 3;
+const MAX_TEMPLATE_CHARS = 1500;
+const MAX_SUMMARY_FILE_COUNT = 2;
+const MAX_SUMMARY_FILE_CHARS = 2000;
 
 function tokenize(value: string): string[] {
   return value
@@ -95,45 +102,69 @@ export async function composeDocument(input: ComposeInput): Promise<{
     : /(추가|append|덧붙|이어써|하단)/.test(instructionLower)
       ? 'append'
       : 'insert';
-  const documentTemplates = (input.templates ?? []).filter((item) => item.kind === 'document');
+  const documentTemplates = (input.templates ?? [])
+    .filter((item) => item.kind === 'document')
+    .slice(0, MAX_TEMPLATE_COUNT);
+  const boundedCurrentContent = input.currentContent.slice(0, MAX_CURRENT_CONTENT_CHARS);
+  const templateContext = documentTemplates
+    .map((item) => `${item.name}\n${item.content.slice(0, MAX_TEMPLATE_CHARS)}`)
+    .join('\n\n');
   const summaryContext = (input.summaryFiles ?? [])
-    .slice(0, 4)
-    .map((file, index) => `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, 4000)}`)
+    .slice(0, MAX_SUMMARY_FILE_COUNT)
+    .map((file, index) => `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, MAX_SUMMARY_FILE_CHARS)}`)
     .join('\n\n---\n\n');
 
-  const model = await getChatModel();
-  const result = await generateText({
-    model,
-    system: [
-      '당신은 문서 편집 AI입니다.',
-      '반드시 한국어 마크다운만 출력하세요.',
-      '설명 문장, 머리말, 코드펜스 없이 결과 본문만 반환하세요.',
-      applyMode === 'replace-selection'
-        ? '선택 텍스트를 지시에 맞춰 치환할 결과만 반환하세요.'
-        : applyMode === 'append'
-          ? '현재 문서 하단에 추가할 신규 블록만 반환하세요.'
-          : applyMode === 'insert'
-            ? '지시에 맞는 새 콘텐츠만 반환하세요. 기존 문서 내용을 반복하거나 전체를 반환하지 마세요.'
-          : '현재 문서를 지시에 맞게 수정한 완성본 전체를 반환하세요.',
-    ].join('\n'),
-    prompt: [
-      `[지시]\n${instruction}`,
-      selectedText ? `[선택 텍스트]\n${selectedText}` : '',
-      `[현재 문서]\n${input.currentContent.slice(0, 12000)}`,
-      documentTemplates.length > 0
-        ? `[문서 템플릿]\n${documentTemplates.map((item) => `${item.name}\n${item.content}`).join('\n\n')}`
-        : '',
-      summaryContext ? `[요약 첨부 컨텍스트]\n${summaryContext}` : '',
-    ].filter(Boolean).join('\n\n'),
-    maxOutputTokens: 1800,
-  });
+  try {
+    const model = await getChatModel();
+    logger.info('doc-assist compose request', {
+      instructionLength: instruction.length,
+      currentContentLength: input.currentContent.length,
+      boundedCurrentContentLength: boundedCurrentContent.length,
+      selectedTextLength: selectedText.length,
+      templateCount: documentTemplates.length,
+      summaryFileCount: Math.min(input.summaryFiles?.length ?? 0, MAX_SUMMARY_FILE_COUNT),
+    });
 
-  return {
-    text: result.text.trim(),
-    applyMode,
-    suggestedPath: recommendPath(input),
-    relevanceWarnings: buildRelevanceWarnings(instruction, input.summaryFiles ?? []),
-  };
+    const result = await generateText({
+      model,
+      system: [
+        '당신은 문서 편집 AI입니다.',
+        '반드시 한국어 마크다운만 출력하세요.',
+        '설명 문장, 머리말, 코드펜스 없이 결과 본문만 반환하세요.',
+        applyMode === 'replace-selection'
+          ? '선택 텍스트를 지시에 맞춰 치환할 결과만 반환하세요.'
+          : applyMode === 'append'
+            ? '현재 문서 하단에 추가할 신규 블록만 반환하세요.'
+            : applyMode === 'insert'
+              ? '지시에 맞는 새 콘텐츠만 반환하세요. 기존 문서 내용을 반복하거나 전체를 반환하지 마세요.'
+              : '현재 문서를 지시에 맞게 수정한 완성본 전체를 반환하세요.',
+      ].join('\n'),
+      prompt: [
+        `[지시]\n${instruction}`,
+        selectedText ? `[선택 텍스트]\n${selectedText}` : '',
+        `[현재 문서]\n${boundedCurrentContent}`,
+        templateContext ? `[문서 템플릿]\n${templateContext}` : '',
+        summaryContext ? `[요약 첨부 컨텍스트]\n${summaryContext}` : '',
+      ].filter(Boolean).join('\n\n'),
+      maxOutputTokens: 1200,
+    });
+
+    return {
+      text: result.text.trim(),
+      applyMode,
+      suggestedPath: recommendPath(input),
+      relevanceWarnings: buildRelevanceWarnings(instruction, input.summaryFiles ?? []),
+    };
+  } catch (error) {
+    logger.error('doc-assist compose failed', error, {
+      instructionLength: instruction.length,
+      currentContentLength: input.currentContent.length,
+      selectedTextLength: selectedText.length,
+      templateCount: documentTemplates.length,
+      summaryFileCount: input.summaryFiles?.length ?? 0,
+    });
+    throw error;
+  }
 }
 
 export function recommendDocumentPath(input: Omit<ComposeInput, 'currentContent'>): {
