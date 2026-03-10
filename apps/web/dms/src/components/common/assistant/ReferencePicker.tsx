@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { FileUp, FolderTree, Paperclip, Plus, Search, Shapes, X } from 'lucide-react';
+import { FileUp, Paperclip, Plus, Search, Shapes, X } from 'lucide-react';
 import { useAssistantStore, useTabStore } from '@/stores';
 import { filesApi, templateApi } from '@/lib/utils/apiClient';
 import type { TemplateItem } from '@/types/template';
@@ -29,9 +29,9 @@ export interface InlineSummaryFileItem {
 }
 
 interface InlineContextProps {
-  selectedTemplates: TemplateItem[];
+  selectedTemplate: TemplateItem | null;
   summaryFiles: InlineSummaryFileItem[];
-  onToggleTemplate: (template: TemplateItem) => void;
+  onSelectTemplate: (template: TemplateItem) => void | Promise<void>;
   onUpsertSummaryFiles: (files: InlineSummaryFileItem[]) => void;
 }
 
@@ -55,7 +55,7 @@ export function AssistantReferencePicker({
   const assistantReferences = useAssistantStore((state) => state.attachedReferences);
   const assistantToggleReference = useAssistantStore((state) => state.toggleReference);
 
-  const selectedTemplates = mode === 'inline' ? (inlineContext?.selectedTemplates ?? []) : [];
+  const selectedTemplate = mode === 'inline' ? (inlineContext?.selectedTemplate ?? null) : null;
 
   const openDocs = useMemo(() => {
     const docs = tabs
@@ -81,24 +81,23 @@ export function AssistantReferencePicker({
     ));
   }, [allDocs, query]);
 
-  const documentTemplates = useMemo(
-    () => templates.filter((item) => item.kind === 'document'),
+  const personalDocumentTemplates = useMemo(
+    () => templates.filter((item) => item.kind === 'document' && item.scope !== 'global'),
     [templates]
   );
-  const folderTemplates = useMemo(
-    () => templates.filter((item) => item.kind === 'folder'),
+  const globalDocumentTemplates = useMemo(
+    () => templates.filter((item) => item.kind === 'document' && item.scope === 'global'),
     [templates]
   );
   const searchedTemplates = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return [];
-    return templates.filter((item) => (
+    return personalDocumentTemplates.filter((item) => (
       item.name.toLowerCase().includes(normalized)
       || (item.description ?? '').toLowerCase().includes(normalized)
-      || item.kind.toLowerCase().includes(normalized)
       || item.scope.toLowerCase().includes(normalized)
     ));
-  }, [query, templates]);
+  }, [personalDocumentTemplates, query]);
 
   useEffect(() => {
     if (mode !== 'assistant' || !open || allDocs.length > 0) return;
@@ -217,12 +216,14 @@ export function AssistantReferencePicker({
   };
 
   const renderTemplateButton = (template: TemplateItem) => {
-    const selected = selectedTemplates.some((item) => item.id === template.id);
+    const selected = selectedTemplate?.id === template.id;
     return (
       <button
         key={template.id}
         type="button"
-        onClick={() => inlineContext?.onToggleTemplate(template)}
+        onClick={() => {
+          void inlineContext?.onSelectTemplate(template);
+        }}
         className={`w-full rounded-md border px-2 py-1.5 text-left transition-colors ${
           selected
             ? 'border-ssoo-primary/45 bg-ssoo-primary/10'
@@ -272,11 +273,11 @@ export function AssistantReferencePicker({
 
           <div>
             <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">
-              {mode === 'inline' ? '템플릿 검색' : '문서 검색'}
+              {mode === 'inline' ? '내 템플릿 검색' : '문서 검색'}
             </p>
             <p className="px-1 pb-1 text-xs text-ssoo-primary/60">
               {mode === 'inline'
-                ? '검색어를 입력하면 템플릿에서 찾습니다.'
+                ? '검색어를 입력하면 내 문서 템플릿에서 찾습니다.'
                 : '검색어를 입력하면 전체 문서에서 찾습니다.'}
             </p>
           </div>
@@ -286,7 +287,7 @@ export function AssistantReferencePicker({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={mode === 'inline' ? '템플릿 검색...' : '전체 문서 검색...'}
+              placeholder={mode === 'inline' ? '문서 템플릿 검색...' : '전체 문서 검색...'}
               className="h-9 w-full rounded-md border border-ssoo-primary/25 bg-white pl-7 pr-2 text-xs text-ssoo-primary placeholder:text-ssoo-primary/45 focus:border-ssoo-primary/50 focus:outline-none"
             />
           </div>
@@ -328,27 +329,14 @@ export function AssistantReferencePicker({
                 </div>
 
                 <div className="border-t border-ssoo-primary/20 pt-2">
-                  <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">문서 템플릿</p>
+                  <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">공통 템플릿</p>
                   <div className="space-y-1">
                     {isLoadingTemplates ? (
                       <p className="px-1 py-1 text-xs text-ssoo-primary/60">템플릿 불러오는 중...</p>
-                    ) : documentTemplates.length === 0 ? (
-                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">선택 가능한 문서 템플릿이 없습니다.</p>
+                    ) : globalDocumentTemplates.length === 0 ? (
+                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">선택 가능한 공통 템플릿이 없습니다.</p>
                     ) : (
-                      documentTemplates.map(renderTemplateButton)
-                    )}
-                  </div>
-                </div>
-
-                <div className="border-t border-ssoo-primary/20 pt-2">
-                  <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">폴더 템플릿</p>
-                  <div className="space-y-1">
-                    {isLoadingTemplates ? (
-                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">템플릿 불러오는 중...</p>
-                    ) : folderTemplates.length === 0 ? (
-                      <p className="px-1 py-1 text-xs text-ssoo-primary/60">선택 가능한 폴더 템플릿이 없습니다.</p>
-                    ) : (
-                      folderTemplates.map(renderTemplateButton)
+                      globalDocumentTemplates.map(renderTemplateButton)
                     )}
                   </div>
                 </div>
@@ -364,7 +352,7 @@ export function AssistantReferencePicker({
 export function AssistantReferenceChips({
   disabled,
   mode = 'assistant',
-  inlineTemplates,
+  inlineTemplate,
   inlineSummaryFiles,
   inlineWarnings,
   onInlineRemoveTemplate,
@@ -373,10 +361,10 @@ export function AssistantReferenceChips({
 }: {
   disabled?: boolean;
   mode?: 'assistant' | 'inline';
-  inlineTemplates?: TemplateItem[];
+  inlineTemplate?: TemplateItem | null;
   inlineSummaryFiles?: InlineSummaryFileItem[];
   inlineWarnings?: string[];
-  onInlineRemoveTemplate?: (id: string) => void;
+  onInlineRemoveTemplate?: () => void;
   onInlineRemoveSummaryFile?: (id: string) => void;
   onInlineClearAll?: () => void;
 }) {
@@ -385,11 +373,11 @@ export function AssistantReferenceChips({
   const clearAssistantReferences = useAssistantStore((state) => state.clearReferences);
 
   const references = mode === 'assistant' ? assistantReferences : [];
-  const templates = mode === 'inline' ? (inlineTemplates ?? []) : [];
+  const template = mode === 'inline' ? (inlineTemplate ?? null) : null;
   const summaryFiles = mode === 'inline' ? (inlineSummaryFiles ?? []) : [];
   const warnings = mode === 'inline' ? (inlineWarnings ?? []) : [];
 
-  const hasAnyContext = references.length > 0 || templates.length > 0 || summaryFiles.length > 0;
+  const hasAnyContext = references.length > 0 || Boolean(template) || summaryFiles.length > 0;
   if (!hasAnyContext) return null;
 
   const handleClearAll = () => {
@@ -437,25 +425,25 @@ export function AssistantReferenceChips({
           </span>
         ))}
 
-        {templates.map((template) => (
+        {template ? (
           <span
             key={template.id}
             className="inline-flex max-w-full items-center gap-1 rounded-full border border-ssoo-content-border bg-white px-2 py-1 text-[11px] text-ssoo-primary"
             title={template.name}
           >
-            {template.kind === 'folder' ? <FolderTree className="h-3 w-3" /> : <Shapes className="h-3 w-3" />}
+            <Shapes className="h-3 w-3" />
             <span className="max-w-[180px] truncate">템플릿: {template.name}</span>
             <button
               type="button"
               disabled={disabled}
-              onClick={() => onInlineRemoveTemplate?.(template.id)}
+              onClick={() => onInlineRemoveTemplate?.()}
               className="rounded p-0.5 text-ssoo-primary/70 hover:bg-ssoo-content-border/40 hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60"
               aria-label={`템플릿 해제: ${template.name}`}
             >
               <X className="h-3 w-3" />
             </button>
           </span>
-        ))}
+        ) : null}
 
         {summaryFiles.map((file) => (
           <span
