@@ -12,6 +12,8 @@ import { useEditorStore, useTabStore } from '@/stores';
 import { useCurrentTabId } from '@/contexts/TabInstanceContext';
 import { useConfirmStore } from '@/stores/confirm.store';
 import { useToast } from '@/lib/toast';
+import { templateApi } from '@/lib/api';
+import type { TemplateScope } from '@/types/template';
 
 // 문서 본문 최대 너비 (Viewer와 동일)
 export const DOCUMENT_WIDTH = DOCUMENT_WIDTHS.portrait;
@@ -37,6 +39,16 @@ export interface EditorProps {
   showToolbar?: boolean;
   /** AI 삽입 대기 중 로딩 표시 여부 */
   isPendingInsertLoading?: boolean;
+  /** 위키 문서 대신 템플릿만 저장할지 여부 */
+  templateSaveEnabled?: boolean;
+  /** 템플릿 저장 메타데이터 */
+  templateSaveDraft?: {
+    name: string;
+    description: string;
+    scope: TemplateScope;
+  };
+  /** 템플릿 저장 완료 후 후처리 */
+  onTemplateSaved?: () => void;
 }
 
 export interface EditorRef {
@@ -65,6 +77,9 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   isPreview = false,
   showToolbar = true,
   isPendingInsertLoading = false,
+  templateSaveEnabled = false,
+  templateSaveDraft,
+  onTemplateSaved,
 }: EditorProps, ref) {
   const { showSuccess, showError } = useToast();
   
@@ -144,11 +159,51 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
 
   // 새 문서 작성 모드 여부
   const isCreateMode = !currentFilePath && isEditing;
+  const deriveTemplateName = React.useCallback(() => {
+    const heading = editorContent.match(/^#\s+(.+)$/m)?.[1]?.trim();
+    if (heading) return heading;
+
+    const pathSource = currentFilePath || preferredCreatePath || '';
+    const fileName = pathSource.split('/').pop()?.replace(/\.md$/i, '').trim();
+    if (fileName) return fileName;
+
+    return '새 템플릿';
+  }, [currentFilePath, editorContent, preferredCreatePath]);
 
   // =====================
   // 저장 핸들러
   // =====================
   const handleSave = React.useCallback(async () => {
+    if (templateSaveEnabled) {
+      const name = templateSaveDraft?.name.trim() || deriveTemplateName();
+
+      if (!editorContent.trim()) {
+        showError('저장 실패', '비어 있는 문서는 템플릿으로 저장할 수 없습니다.');
+        return;
+      }
+
+      try {
+        const response = await templateApi.upsert({
+          name,
+          description: templateSaveDraft?.description.trim() || '',
+          scope: templateSaveDraft?.scope ?? 'personal',
+          kind: 'document',
+          content: editorContent,
+        });
+
+        if (!response.success) {
+          showError('저장 실패', response.error || '템플릿 저장 중 오류가 발생했습니다.');
+          return;
+        }
+
+        onTemplateSaved?.();
+        showSuccess('템플릿 저장 완료', `'${name}' 템플릿이 저장되었습니다. 문서는 위키에 저장되지 않았습니다.`);
+      } catch {
+        showError('저장 실패', '템플릿 저장 중 오류가 발생했습니다.');
+      }
+      return;
+    }
+
     if (isCreateMode) {
       const pathHint = preferredCreatePath?.trim();
       const input = pathHint || prompt('파일 이름을 입력하세요 (예: docs/새문서.md)');
@@ -185,7 +240,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     } catch {
       showError('저장 실패', '파일 저장 중 오류가 발생했습니다.');
     }
-  }, [isCreateMode, currentFilePath, editorContent, preferredCreatePath, storeSaveFile, save, setIsEditing, onCreatePathResolved, showSuccess, showError, tabId, updateTab]);
+  }, [templateSaveEnabled, templateSaveDraft, deriveTemplateName, editorContent, onTemplateSaved, isCreateMode, preferredCreatePath, storeSaveFile, setIsEditing, onCreatePathResolved, tabId, updateTab, currentFilePath, save, showSuccess, showError]);
 
   // =====================
   // 취소 핸들러
