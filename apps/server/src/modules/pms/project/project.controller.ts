@@ -13,6 +13,11 @@ import type {
 import { ProjectDto, ProjectListDto } from './dto/project.dto.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 
+interface SerializableProjectRecord extends Record<string, unknown> {
+  requestDetail?: Record<string, unknown> | null;
+  projectStatuses?: Record<string, unknown>[];
+}
+
 @ApiTags("projects")
 @ApiBearerAuth()
 @Controller("projects")
@@ -32,14 +37,14 @@ export class ProjectController {
     const page = Number.isFinite(pageValue) && pageValue > 0 ? pageValue : 1;
     const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : 10;
     const { data, total } = await this.projectService.findAll({ page, limit });
-    const serialized = data.map((project) => {
-      const base = serializeBigIntShallow(project as Record<string, unknown>);
+    const serialized = data.map((project: SerializableProjectRecord) => {
+      const base = serializeBigIntShallow(project);
       if (project.requestDetail) {
-        base.requestDetail = serializeBigIntShallow(project.requestDetail as Record<string, unknown>);
+        base.requestDetail = serializeBigIntShallow(project.requestDetail);
       }
       if (project.projectStatuses?.length) {
-        base.projectStatuses = project.projectStatuses.map((status) =>
-          serializeBigIntShallow(status as Record<string, unknown>),
+        base.projectStatuses = project.projectStatuses.map((status: Record<string, unknown>) =>
+          serializeBigIntShallow(status),
         );
       }
       return base;

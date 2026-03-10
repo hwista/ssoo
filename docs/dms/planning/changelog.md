@@ -1,6 +1,18 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-02-25
+> 최종 업데이트: 2026-03-10
+
+---
+
+## 2026-03-10
+
+### AI 환경변수 템플릿 정리 + doc-assist 오류 상태 보정
+
+- `apps/web/dms/.env.example`에서 실제 값/중복 키를 제거하고 `.env.local` 기준 템플릿으로 정리
+- Azure OpenAI 예시 변수(`endpoint`, `deployment`, `embedding`, `api version`)를 가이드와 동일한 placeholder 형식으로 통일
+- `/api/doc-assist`가 내부 AI/provider 오류를 모두 400으로 내리던 문제를 수정해, 입력 오류만 400으로 처리하고 나머지는 500으로 구분
+- `/api/doc-assist`의 LLM 프롬프트 크기를 줄이고(현재 문서/템플릿/요약 첨부 상한 적용) 실패 시 입력 크기 기반 서버 로그를 남기도록 보강
+- Azure provider를 deployment-based URL + `chat`/`embeddingModel` 호출로 정렬해 `API version not supported` 오류 가능성을 줄임
 
 ---
 

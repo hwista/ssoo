@@ -54,44 +54,54 @@ export function runWithContext<T>(context: RequestContext, fn: () => T): T {
   return requestContextStorage.run(contextWithTx, fn);
 }
 
+type ExtensionDataRecord = Record<string, unknown>;
+
+function toDataRecord(data: unknown): ExtensionDataRecord {
+  return data && typeof data === 'object' && !Array.isArray(data)
+    ? (data as ExtensionDataRecord)
+    : {};
+}
+
 /**
  * 공통 컬럼 데이터 준비 (create용)
- * @remarks Prisma 타입과의 호환성을 위해 any 사용
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function prepareCreateData(data: any, modelName: string) {
+function prepareCreateData<T>(data: T, modelName: string): T {
   const ctx = getRequestContext();
   const now = new Date();
+  const record = toDataRecord(data);
 
   return {
-    ...data,
-    createdBy: ctx.userId ?? data?.createdBy,
-    createdAt: data?.createdAt ?? now,
-    updatedBy: ctx.userId ?? data?.updatedBy,
+    ...record,
+    createdBy: ctx.userId ?? record.createdBy,
+    createdAt: record.createdAt ?? now,
+    updatedBy: ctx.userId ?? record.updatedBy,
     updatedAt: now,
     lastSource: ctx.source ?? 'API',
     lastActivity: `${modelName}.create`,
     transactionId: ctx.transactionId,
-  };
+  } as T;
 }
 
 /**
  * 공통 컬럼 데이터 준비 (update용)
- * @remarks Prisma 타입과의 호환성을 위해 any 사용
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function prepareUpdateData(data: any, modelName: string, action: string = 'update') {
+function prepareUpdateData<T>(
+  data: T,
+  modelName: string,
+  action: string = 'update',
+): T {
   const ctx = getRequestContext();
   const now = new Date();
+  const record = toDataRecord(data);
 
   return {
-    ...data,
-    updatedBy: ctx.userId ?? data?.updatedBy,
+    ...record,
+    updatedBy: ctx.userId ?? record.updatedBy,
     updatedAt: now,
     lastSource: ctx.source ?? 'API',
     lastActivity: `${modelName}.${action}`,
     transactionId: ctx.transactionId,
-  };
+  } as T;
 }
 
 /**
@@ -109,6 +119,18 @@ const EXCLUDED_MODELS = ['UserFavorite'];
 
 function shouldExcludeModel(model: string): boolean {
   return model.endsWith('History') || EXCLUDED_MODELS.includes(model);
+}
+
+function applyActiveWhereFilter(args: unknown) {
+  const target = args as { where?: unknown };
+  const where =
+    target.where && typeof target.where === 'object' && !Array.isArray(target.where)
+      ? (target.where as Record<string, unknown>)
+      : {};
+
+  if (where.isActive === undefined) {
+    target.where = { ...where, isActive: true };
+  }
 }
 
 export const commonColumnsExtension = Prisma.defineExtension({
@@ -132,9 +154,9 @@ export const commonColumnsExtension = Prisma.defineExtension({
         }
 
         if (Array.isArray(args.data)) {
-          args.data = args.data.map((item) => prepareCreateData(item, model));
+          args.data = args.data.map((item) => prepareCreateData(item, model)) as typeof args.data;
         } else {
-          args.data = prepareCreateData(args.data, model);
+          args.data = prepareCreateData(args.data, model) as typeof args.data;
         }
         return query(args);
       },
@@ -145,7 +167,7 @@ export const commonColumnsExtension = Prisma.defineExtension({
           return query(args);
         }
 
-        args.data = prepareUpdateData(args.data, model, 'update');
+        args.data = prepareUpdateData(args.data, model, 'update') as typeof args.data;
         return query(args);
       },
 
@@ -155,7 +177,7 @@ export const commonColumnsExtension = Prisma.defineExtension({
           return query(args);
         }
 
-        args.data = prepareUpdateData(args.data, model, 'updateMany');
+        args.data = prepareUpdateData(args.data, model, 'updateMany') as typeof args.data;
         return query(args);
       },
 
@@ -165,8 +187,8 @@ export const commonColumnsExtension = Prisma.defineExtension({
           return query(args);
         }
 
-        args.create = prepareCreateData(args.create, model);
-        args.update = prepareUpdateData(args.update, model, 'upsert');
+        args.create = prepareCreateData(args.create, model) as typeof args.create;
+        args.update = prepareUpdateData(args.update, model, 'upsert') as typeof args.update;
         return query(args);
       },
 
@@ -244,19 +266,15 @@ export const activeFilterExtension = Prisma.defineExtension({
     $allModels: {
       async findFirst({ model, args, query }) {
         if (model.endsWith('History')) return query(args);
-        
-        if (args.where?.isActive === undefined) {
-          args.where = { ...args.where, isActive: true };
-        }
+
+        applyActiveWhereFilter(args);
         return query(args);
       },
 
       async findMany({ model, args, query }) {
         if (model.endsWith('History')) return query(args);
-        
-        if (args.where?.isActive === undefined) {
-          args.where = { ...args.where, isActive: true };
-        }
+
+        applyActiveWhereFilter(args);
         return query(args);
       },
 
@@ -269,10 +287,8 @@ export const activeFilterExtension = Prisma.defineExtension({
 
       async count({ model, args, query }) {
         if (model.endsWith('History')) return query(args);
-        
-        if (args.where?.isActive === undefined) {
-          args.where = { ...args.where, isActive: true };
-        }
+
+        applyActiveWhereFilter(args);
         return query(args);
       },
     },

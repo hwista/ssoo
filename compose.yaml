@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: ssoo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ssoo_dev
+      POSTGRES_USER: ssoo
+      POSTGRES_PASSWORD: ssoo_dev_pw
+    ports:
+      - "5432:5432"
+    volumes:
+      - ssoo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ssoo -d ssoo_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  ssoo-postgres-data:

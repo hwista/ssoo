@@ -97,6 +97,33 @@ hooks → lib/api → stores
 
 ---
 
+## 개발 서버 실행
+
+| 앱 | 명령어 | 포트 | 비고 |
+|----|--------|------|------|
+| 전체 (server + pms) | `pnpm dev` | - | Turborepo 병렬 실행 |
+| server만 | `pnpm dev:server` | 4000 | NestJS |
+| web-pms만 | `pnpm dev:web-pms` | 3000 | Next.js |
+| web-dms | `cd apps/web/dms && npm run dev` | 3001 | **npm** 사용 (pnpm 아님) |
+
+### 데이터베이스 명령
+
+```bash
+pnpm --filter @ssoo/database db:generate  # Prisma 클라이언트 생성
+pnpm --filter @ssoo/database db:push      # 스키마를 DB에 반영 (개발용)
+pnpm --filter @ssoo/database db:migrate   # 마이그레이션 생성 및 적용
+pnpm --filter @ssoo/database db:studio    # Prisma Studio (DB GUI)
+```
+
+필수 환경변수 (`.env`):
+```
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ssoo_dev?schema=public"
+JWT_SECRET=...
+JWT_REFRESH_SECRET=...
+```
+
+---
+
 ## 빌드 & 검증 명령
 
 | 용도 | 명령어 |
@@ -104,6 +131,9 @@ hooks → lib/api → stores
 | 타입 체크 | `npx tsc --noEmit` (앱별) 또는 `pnpm build` |
 | 린트 | `pnpm lint` |
 | 테스트 | `pnpm test` |
+| DMS 빌드 | `pnpm run build:web-dms` |
+| DMS 가드 | `pnpm run codex:dms-guard` |
+| DMS 배포 | `pnpm run codex:dms-publish` (GitHub + GitLab 동시) |
 | 문서 점검 | `node .github/scripts/check-docs.js` |
 | 패턴 점검 | `node .github/scripts/check-patterns.js` |
 | 디자인 점검 | `node .github/scripts/check-design.js` |

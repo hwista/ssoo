@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 * **database:** DBML 문서 출력 경로 수정 - 워크스페이스 외부가 아닌 `docs/` 하위로 정상 출력 ([export-dbml.js](packages/database/scripts/export-dbml.js), [render-dbml.js](packages/database/scripts/render-dbml.js))
+* **database:** Prisma extension 공통 컬럼 준비 함수의 `any` 제거로 패턴 경고 해소 ([common-columns.extension.ts](packages/database/src/extensions/common-columns.extension.ts))
 
 ---
 
@@ -48,6 +49,5 @@
 ### BREAKING CHANGES
 
 * **types:** Type literal values changed to match database schema
-
 
 

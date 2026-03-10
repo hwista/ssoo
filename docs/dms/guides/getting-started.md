@@ -51,6 +51,11 @@ AZURE_MANAGED_IDENTITY_CLIENT_ID=
 AZURE_OPENAI_API_KEY=
 ```
 
+주의:
+
+- `apps/web/dms/.env.example`는 템플릿만 유지하고, 실제 값은 반드시 `apps/web/dms/.env.local`에 넣습니다.
+- 동일 키를 중복 선언하면 아래쪽 값이 우선되어 잘못된 Azure 설정으로 요청이 나갈 수 있습니다.
+
 ---
 
 ## 4. 문서 저장소 설정

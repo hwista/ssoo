@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     return Response.json(data);
   } catch (error) {
     const message = error instanceof Error ? error.message : '문서 작성 처리 중 오류가 발생했습니다.';
-    return Response.json({ error: message }, { status: 400 });
+    const status = /필수|too short|invalid/i.test(message) ? 400 : 500;
+    return Response.json({ error: message }, { status });
   }
 }
