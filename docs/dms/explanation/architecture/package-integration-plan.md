@@ -160,7 +160,7 @@
 | fileUtils.ts | ✅ 활성 | 유지 |
 | pathUtils.ts | ✅ 활성 | 유지 |
 | constants.ts | ✅ 활성 | 유지 |
-| markdownConverter.ts | WikiEditor만 | ✅ 활성 |
+| utils/markdown.ts | Viewer/BlockEditor | ✅ 활성 |
 | **markdownUtils.ts** | ❌ 아무도 import 안함 | 삭제 |
 | **performanceUtils.ts** | ❌ 아무도 import 안함 | 삭제 |
 | embeddings.ts | vectorStore만 | ✅ 활성 (서버) |
@@ -484,4 +484,3 @@ cd apps/web/dms && npm run dev
 | Date | Change |
 |------|--------|
 | 2026-02-09 | Add changelog section. |
-

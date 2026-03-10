@@ -1,13 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import type {
-  StoredTemplateItem,
   TemplateItem,
   TemplateScope,
-  TemplateStatus,
-  TemplateStoreShape,
-  TemplateVisibility,
 } from '@/types/template';
+import type { StoredTemplateItem, TemplateStoreShape, TemplateSidecarData } from './types';
 
 const TEMPLATE_ROOT = path.join(process.cwd(), 'data', 'templates');
 const LEGACY_TEMPLATE_FILE = path.join(TEMPLATE_ROOT, 'templates.json');
@@ -40,19 +37,6 @@ const DEFAULT_GLOBAL_TEMPLATES: Array<Omit<TemplateItem, 'updatedAt'>> = [
     sourceType: 'markdown-file',
   },
 ];
-
-interface TemplateSidecarData {
-  id: string;
-  name: string;
-  description?: string;
-  scope: TemplateScope;
-  kind: TemplateItem['kind'];
-  updatedAt: string;
-  ownerId: string;
-  visibility: TemplateVisibility;
-  status: TemplateStatus;
-  sourceType: 'markdown-file';
-}
 
 function slugify(value: string): string {
   return value

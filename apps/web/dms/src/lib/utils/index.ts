@@ -27,18 +27,6 @@ export {
   formatFileSize,
 } from './fileUtils';
 
-// 경로 처리
-export {
-  normalizePath,
-  isValidPath,
-  resolveRelativePath,
-  getFileName,
-  getDirectoryPath,
-  joinPaths,
-  getPathDepth,
-  isSubPath,
-} from './pathUtils';
-
 // 에러 처리
 export {
   LogLevel,
@@ -55,21 +43,3 @@ export {
   getErrorInfo,
 } from './errorUtils';
 export type { ErrorContext } from './errorUtils';
-
-// 상수
-export {
-  FILE_EXTENSIONS,
-  PATH_SEPARATORS,
-  INVALID_FILENAME_CHARS,
-  LIMITS,
-  MIME_TYPES,
-  REGEX_PATTERNS,
-  DEFAULT_CONFIG,
-  ERROR_MESSAGES,
-  SUCCESS_MESSAGES,
-} from './constants';
-
-// 탭 유틸리티
-export {
-  getQueryFromTabPath,
-} from './tabUtils';

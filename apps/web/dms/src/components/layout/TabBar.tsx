@@ -5,7 +5,7 @@ import { useAssistantStore } from '@/stores';
 import { X, Minimize2, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch, Settings, FilePenLine } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { LAYOUT_SIZES } from '@/types';
+import { LAYOUT_SIZES } from '@/lib/constants/layout';
 
 /**
  * DMS 탭바 컴포넌트

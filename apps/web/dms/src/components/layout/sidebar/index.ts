@@ -18,4 +18,4 @@ export { OpenTabs } from './OpenTabs';
 export { FileTree } from './FileTree';
 
 // 상수
-export { SECTION_ICONS } from './constants';
+export { SECTION_ICONS, SECTION_LABELS } from './constants';

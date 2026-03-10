@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { AppLayout } from '@/components/layout';
+import { useLayoutViewportSync } from '@/hooks';
 import { useFileStore } from '@/stores';
 
 /**
@@ -19,6 +20,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const { refreshFileTree } = useFileStore();
+  useLayoutViewportSync();
 
   // 파일 트리 초기화
   useEffect(() => {

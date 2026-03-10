@@ -1,4 +1,4 @@
-import { ERROR_MESSAGES } from '@/lib/utils/constants';
+import { ERROR_MESSAGES } from '@/lib/constants/common';
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

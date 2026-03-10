@@ -6,6 +6,26 @@
 
 ## 2026-03-10
 
+### `src/lib/**` 경계 정리
+
+- 미사용 루트 barrel(`src/lib/index.ts`)과 미사용 assistant formatter(`assistantTextFormat`)를 제거하고, dead export를 정리
+- 마크다운 렌더링 유틸을 `src/lib/utils/markdown.ts`로 이동하면서 전역 `marked` 설정/카운터 상태를 제거해 순수 함수 형태로 정리
+- assistant 전용 도우미를 `src/lib/assistant/`로 분리하고, 공용 상수는 `src/lib/constants/` 하위(`common`, `file`, `path`)로 재배치
+- 서버 전용 경로 정규화 유틸을 `server/utils/pathUtils.ts`로 분리해 `Node path` 의존성이 클라이언트 `src/lib`에 남지 않도록 정리
+- `errorUtils` 기본 로그 prefix를 `[DMS]`로 수정
+
+### 설정 페이지 명명 정리 + stores 경계 보정
+
+- 설정 페이지 파일은 디렉토리 컨벤션에 맞춰 `src/components/pages/settings/Page.tsx`를 유지하고, 내부 export 이름 `SettingsPage` 기준으로 import/라우팅 문서를 정리
+- `file.store.ts`가 `@/server/services`를 직접 참조하던 레이어 위반을 제거하고, 파일 트리 조회를 `filesApi.getFileTree()` 기반으로 통일
+- `layout.store.ts`의 모듈 스코프 resize 리스너를 제거하고, viewport 동기화는 `useLayoutViewportSync()` 훅에서 React lifecycle로 처리
+
+### `src/types/**` 공용 계약 정리
+
+- `src/types`를 클라이언트-서버 공용 계약 중심으로 재정리하고, 파일 트리/문서 메타데이터/북마크 타입을 역할별 파일로 분리
+- `layout.ts`, `sidebar.ts`에서 런타임 상수를 제거하고 레이아웃 상수는 `src/lib/constants/layout.ts`, 사이드바 표시 상수는 `components/layout/sidebar/constants.ts`로 이동
+- `server/handlers/file.handler.ts`, `server/handlers/files.handler.ts`의 중복 타입 선언을 공용 계약으로 통합하고, 템플릿 저장소 내부 타입은 `server/services/template/types.ts`로 분리
+
 ### 템플릿 전용 저장 + 마크다운/사이드카 정본 전환
 
 - 문서 편집 헤더에 `템플릿으로 저장` 토글을 추가하고, 활성화 시 위키 문서 대신 템플릿만 저장하도록 분기
@@ -271,11 +291,12 @@
 
 #### 루트 진입점 변경
 - `/wiki` → `/` 메인 진입점 변경
-- HOME_TAB path: `/`
+- 브라우저 공개 URL: `/`
+- HOME_TAB internal path: `/home`
 - 문서 탭 경로: `/doc/{filePath}`
 
 #### Middleware 추가
-- PMS 패턴 적용: 알 수 없는 경로 → `/` 리다이렉트
+- 루트 고정 정책 적용: 내부 탭 경로 직접 접근 → `/` 리다이렉트
 - 정적 파일 제외: `_next`, 확장자 있는 파일, `favicon.ico`
 
 #### 최종 라우트 구조

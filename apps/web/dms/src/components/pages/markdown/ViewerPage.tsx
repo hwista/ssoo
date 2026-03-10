@@ -16,7 +16,7 @@ import { Editor } from '@/components/common/editor';
 import { EditorToolbar } from '@/components/common/editor';
 import type { EditorRef } from '@/components/common/editor';
 import { type TocItem } from '@/components/common/page';
-import { markdownToHtmlSync } from '@/lib/markdownConverter';
+import { markdownToHtmlSync } from '@/lib/utils/markdown';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import type { DocumentMetadata } from '@/types';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';

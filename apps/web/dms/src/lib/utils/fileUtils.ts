@@ -3,7 +3,7 @@
  * 파일 확장자, 파일 타입 검사, 파일명 처리 등을 담당
  */
 
-import { FILE_EXTENSIONS, MIME_TYPES } from './constants';
+import { FILE_EXTENSIONS, MIME_TYPES } from '@/lib/constants/file';
 
 /**
  * 파일이 마크다운 파일인지 검사

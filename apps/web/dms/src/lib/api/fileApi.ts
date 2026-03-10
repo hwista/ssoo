@@ -1,4 +1,4 @@
-import type { DocumentMetadata } from '@/types/file';
+import type { DocumentMetadata } from '@/types/document-metadata';
 import { request, type ApiResponse } from './core';
 
 export type FileAction =

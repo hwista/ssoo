@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { generateText, streamText } from 'ai';
 import { logger } from '@/lib/utils/errorUtils';
-import { normalizePath } from '@/lib/utils/pathUtils';
+import { normalizePath } from '@/server/utils/pathUtils';
 import { configService } from '@/server/services/config/ConfigService';
 import { getChatModel } from './provider';
 import { buildCitations, inferConfidence, searchDocuments, searchDocumentsKeyword } from './searchService';

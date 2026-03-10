@@ -243,21 +243,20 @@ lib/
 #### DMS lib/
 ```
 lib/
-├── index.ts
-├── markdownConverter.ts  # MD 변환 (DMS 전용)
+├── api/                  # API 클라이언트
+├── assistant/            # AI 어시스턴트 전용 도우미
+├── constants/            # 공용 상수
 ├── toast.ts              # 토스트 유틸
-└── utils/                # 유틸리티
-    ├── apiClient.ts      # API 클라이언트
-    ├── constants.ts
+└── utils/                # 공용 유틸리티
     ├── errorUtils.ts
     ├── fileUtils.ts
     ├── index.ts
-    └── pathUtils.ts
+    └── markdown.ts
 ```
 
 **차이점:**
 - PMS: `api/`, `validations/` 디렉토리 구조
-- DMS: 파일 단위, 마크다운 관련 파일
+- DMS: API/assistant/constants/utils로 분리된 프런트 전용 lib 구조
 
 ### 2.7 hooks/ 비교
 
@@ -524,4 +523,3 @@ export const fileApi = {
 | Date | Change |
 |------|--------|
 | 2026-02-09 | Add changelog section. |
-

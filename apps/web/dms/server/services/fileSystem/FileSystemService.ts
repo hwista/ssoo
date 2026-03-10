@@ -3,7 +3,7 @@
  * - 실제 사용: getFileTree만 사용 (file.store.ts에서 호출)
  */
 
-import type { FileNode } from '@/types';
+import type { FileNode } from '@/types/file-tree';
 
 /** 서비스 결과 타입 */
 export interface ServiceResult<T> {

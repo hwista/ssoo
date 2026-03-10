@@ -43,7 +43,7 @@ const DEFAULT_LOG_CONFIG: LogConfig = {
   level: process.env.NODE_ENV === 'production' ? LogLevel.WARN : LogLevel.DEBUG,
   enableConsole: true,
   enableRemote: false,
-  prefix: '[WikiApp]'
+  prefix: '[DMS]'
 };
 
 let currentLogConfig = { ...DEFAULT_LOG_CONFIG };

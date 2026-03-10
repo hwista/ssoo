@@ -10,47 +10,25 @@
 
 import fs from "fs";
 import path from "path";
-import { normalizePath } from "@/lib/utils/pathUtils";
+import { normalizePath } from "@/server/utils/pathUtils";
 import { isMarkdownFile } from "@/lib/utils/fileUtils";
 import { logger, PerformanceTimer } from "@/lib/utils/errorUtils";
 import { configService } from "@/server/services/config/ConfigService";
+import type { FileNode } from '@/types/file-tree';
 
 /** 위키 루트 디렉토리 (ConfigService에서 동적 조회) */
 function getRootDir(): string {
   return configService.getWikiDir();
 }
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface FileEntry {
-  type: "file";
-  name: string;
-  path: string;
-}
-
-export interface DirectoryEntry {
-  type: "directory";
-  name: string;
-  path: string;
-  children: (FileEntry | DirectoryEntry)[];
-}
-
-export type FileTreeEntry = FileEntry | DirectoryEntry;
-
-// ============================================================================
-// Internal Functions
-// ============================================================================
-
 /**
  * 디렉토리를 재귀적으로 읽어 파일 트리를 생성합니다.
  */
-function readDirectory(dirPath: string): FileTreeEntry[] {
+function readDirectory(dirPath: string): FileNode[] {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
   return entries
-    .map((entry) => {
+    .map<FileNode | null>((entry) => {
       const fullPath = path.join(dirPath, entry.name);
       const relativePath = normalizePath(path.relative(getRootDir(), fullPath));
 
@@ -67,7 +45,7 @@ function readDirectory(dirPath: string): FileTreeEntry[] {
       }
       return null;
     })
-    .filter((item): item is FileTreeEntry => item !== null);
+    .filter((item): item is FileNode => item !== null);
 }
 
 // ============================================================================
@@ -81,7 +59,7 @@ function readDirectory(dirPath: string): FileTreeEntry[] {
  */
 export async function getFileTree(): Promise<{
   success: boolean;
-  data?: FileTreeEntry[];
+  data?: FileNode[];
   error?: string;
 }> {
   const timer = new PerformanceTimer('Handler: 파일 트리 조회');

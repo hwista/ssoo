@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { normalizeMarkdownFileName, isMarkdownFile } from "@/lib/utils/fileUtils";
 import { logger, PerformanceTimer } from "@/lib/utils/errorUtils";
 import { configService } from "@/server/services/config/ConfigService";
+import type { DocumentMetadata } from '@/types/document-metadata';
 
 /** 위키 루트 디렉토리 (ConfigService에서 동적 조회) */
 function getRootDir(): string {
@@ -19,7 +20,7 @@ function getRootDir(): string {
 // Types
 // ============================================================================
 
-export interface FileMetadata {
+export interface FileStatMetadata {
   size: number;
   createdAt: string;
   modifiedAt: string;
@@ -27,65 +28,9 @@ export interface FileMetadata {
   document?: DocumentMetadata;
 }
 
-export interface DocumentAcl {
-  owners: string[];
-  editors: string[];
-  viewers: string[];
-}
-
-export interface SourceFileMeta {
-  name: string;
-  path: string;
-  type: string;
-  size: number;
-  url?: string;
-  storageUri?: string;
-  provider?: 'local' | 'sharepoint' | 'nas';
-  versionId?: string;
-  etag?: string;
-  checksum?: string;
-  origin?: 'manual' | 'ingest' | 'teams' | 'network_drive';
-  status?: 'draft' | 'pending_confirm' | 'published';
-}
-
-export interface DocumentVersionEntry {
-  id: string;
-  createdAt: string;
-  author: string;
-  summary: string;
-}
-
-export interface DocumentComment {
-  id: string;
-  author: string;
-  content: string;
-  createdAt: string;
-}
-
-export interface DocumentMetadata {
-  title: string;
-  summary: string;
-  tags: string[];
-  sourceLinks: string[];
-  createdAt: string;
-  updatedAt: string;
-  fileHashes: {
-    content: string;
-    sources: Record<string, string>;
-  };
-  chunkIds: string[];
-  embeddingModel: string;
-  sourceFiles: SourceFileMeta[];
-  acl: DocumentAcl;
-  versionHistory: DocumentVersionEntry[];
-  comments: DocumentComment[];
-  templateId: string;
-  author: string;
-}
-
 export interface FileData {
   content: string;
-  metadata: FileMetadata;
+  metadata: FileStatMetadata;
 }
 
 export interface FileActionBody {
@@ -145,7 +90,7 @@ function resolveFilePath(filePath: string): { targetPath: string; valid: boolean
 /**
  * 파일 메타데이터 읽기
  */
-function getFileMetadata(filePath: string): FileMetadata {
+function getFileMetadata(filePath: string): FileStatMetadata {
   const stats = fs.statSync(filePath);
   return {
     size: stats.size,
@@ -186,7 +131,7 @@ function hashContent(content: string): string {
 function buildDefaultDocumentMetadata(
   content: string,
   filePath: string,
-  fileMeta: FileMetadata,
+  fileMeta: FileStatMetadata,
   existing?: DocumentMetadata
 ): DocumentMetadata {
   const now = new Date().toISOString();
@@ -253,7 +198,7 @@ function writeDocumentMetadata(filePath: string, metadata: DocumentMetadata): vo
   fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
 }
 
-function ensureDocumentMetadata(content: string, filePath: string, fileMeta: FileMetadata): DocumentMetadata {
+function ensureDocumentMetadata(content: string, filePath: string, fileMeta: FileStatMetadata): DocumentMetadata {
   const existing = readDocumentMetadata(filePath);
   const metadata = buildDefaultDocumentMetadata(content, filePath, fileMeta, existing ?? undefined);
   writeDocumentMetadata(filePath, metadata);
@@ -363,7 +308,7 @@ export async function readFile(filePath: string): Promise<HandlerResult<FileData
 /**
  * 메타데이터만 조회
  */
-export async function getMetadata(filePath: string): Promise<HandlerResult<{ metadata: FileMetadata }>> {
+export async function getMetadata(filePath: string): Promise<HandlerResult<{ metadata: FileStatMetadata }>> {
   const { targetPath, valid } = resolveFilePath(filePath);
 
   if (!valid) {
