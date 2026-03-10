@@ -10,30 +10,15 @@ import React, {
   useState,
 } from 'react';
 import { cn } from '@/lib/utils';
-import { EditorToolbar, type ToolbarCommandId } from './Toolbar';
+import { EDITOR_COMMANDS, EditorToolbar, type ToolbarCommandId } from './Toolbar';
 import { useTabStore } from '@/stores';
 import { markdownToHtmlSync } from '@/lib/markdownConverter';
 import { Annotation, Compartment, EditorState, StateEffect, StateField, type StateEffectType } from '@codemirror/state';
-import { Decoration, type DecorationSet, EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view';
+import { Decoration, type DecorationSet, EditorView, WidgetType, keymap, placeholder as cmPlaceholder } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
-
-type SlashCommandId =
-  | 'h1'
-  | 'h2'
-  | 'h3'
-  | 'ul'
-  | 'ol'
-  | 'task'
-  | 'quote'
-  | 'code'
-  | 'hr'
-  | 'table'
-  | 'image';
-
-type EditorCommandId = SlashCommandId | ToolbarCommandId;
 
 interface SlashState {
   open: boolean;
@@ -41,13 +26,6 @@ interface SlashState {
   from: number;
   to: number;
   selected: number;
-}
-
-interface CommandItem {
-  id: SlashCommandId;
-  title: string;
-  description: string;
-  icon: string;
 }
 
 export interface BlockEditorProps {
@@ -60,6 +38,7 @@ export interface BlockEditorProps {
   currentFilePath?: string | null;
   isPreview?: boolean;
   showToolbar?: boolean;
+  isPendingInsertLoading?: boolean;
 }
 
 export interface BlockEditorRef {
@@ -72,20 +51,6 @@ export interface BlockEditorRef {
   insertAt: (from: number, to: number, text: string) => void;
   setPendingInsert: (range: { from: number; to: number } | null) => void;
 }
-
-const COMMANDS: CommandItem[] = [
-  { id: 'h1', title: '제목 1', description: '큰 제목', icon: 'H1' },
-  { id: 'h2', title: '제목 2', description: '중간 제목', icon: 'H2' },
-  { id: 'h3', title: '제목 3', description: '작은 제목', icon: 'H3' },
-  { id: 'ul', title: '글머리 기호', description: '순서 없는 목록', icon: '•' },
-  { id: 'ol', title: '번호 매기기', description: '순서 있는 목록', icon: '1.' },
-  { id: 'task', title: '체크리스트', description: '할 일 목록', icon: '☑' },
-  { id: 'quote', title: '인용구', description: '인용 블록', icon: '"' },
-  { id: 'code', title: '코드 블록', description: '코드 스니펫', icon: '</>' },
-  { id: 'hr', title: '구분선', description: '수평선 삽입', icon: '—' },
-  { id: 'table', title: '테이블', description: '3x3 테이블 삽입', icon: '⊞' },
-  { id: 'image', title: '이미지', description: '이미지 URL 삽입', icon: '🖼' },
-];
 
 const markdownHighlight = HighlightStyle.define([
   { tag: tags.heading1, fontWeight: '700', fontSize: '1.5em' },
@@ -108,7 +73,10 @@ const ExternalChange = Annotation.define<boolean>();
 const initialSlash: SlashState = { open: false, query: '', from: 0, to: 0, selected: 0 };
 type SelectionRange = { from: number; to: number };
 const setSavedSelectionEffect = StateEffect.define<SelectionRange | null>();
-const setPendingSelectionEffect = StateEffect.define<SelectionRange | null>();
+const setPendingInsertEffect = StateEffect.define<{
+  range?: SelectionRange | null;
+  loading?: boolean;
+}>();
 
 function resolveRelativePath(basePath: string, relativePath: string): string {
   const baseParts = basePath.split('/').filter(Boolean);
@@ -161,20 +129,20 @@ function createDecorationsForRange(
   range: SelectionRange | null,
   lineClass: string,
   markClass: string
-): DecorationSet {
+) {
   const normalized = normalizeRange(state.doc.length, range);
-  if (!normalized) return Decoration.none;
+  if (!normalized) return [];
 
   if (normalized.from === normalized.to) {
     const line = state.doc.lineAt(normalized.from);
-    return Decoration.set([
+    return [
       Decoration.line({ class: lineClass }).range(line.from),
-    ]);
+    ];
   }
 
-  return Decoration.set([
+  return [
     Decoration.mark({ class: markClass }).range(normalized.from, normalized.to),
-  ]);
+  ];
 }
 
 function createSelectionDecorationField(
@@ -188,7 +156,8 @@ function createSelectionDecorationField(
       let next = decorations.map(tr.changes);
       for (const ef of tr.effects) {
         if (ef.is(effect)) {
-          next = createDecorationsForRange(tr.state, ef.value, lineClass, markClass);
+          const ranges = createDecorationsForRange(tr.state, ef.value, lineClass, markClass);
+          next = ranges.length > 0 ? Decoration.set(ranges, true) : Decoration.none;
         }
       }
       return next;
@@ -197,17 +166,88 @@ function createSelectionDecorationField(
   });
 }
 
+class PendingInsertSpinnerWidget extends WidgetType {
+  toDOM() {
+    const wrapper = document.createElement('span');
+    wrapper.className = 'cm-pendingInsertSpinner';
+    wrapper.setAttribute('aria-label', 'AI 작성 중');
+
+    const spinner = document.createElement('span');
+    spinner.className = 'cm-pendingInsertSpinnerIcon';
+    wrapper.appendChild(spinner);
+
+    const label = document.createElement('span');
+    label.className = 'cm-pendingInsertSpinnerLabel';
+    label.textContent = 'AI 작성 중...';
+    wrapper.appendChild(label);
+
+    return wrapper;
+  }
+}
+
 const savedSelectionField = createSelectionDecorationField(
   setSavedSelectionEffect,
   'cm-savedCursorLine',
   'cm-savedSelection'
 );
 
-const pendingSelectionField = createSelectionDecorationField(
-  setPendingSelectionEffect,
-  'cm-pendingInsertLine',
-  'cm-pendingInsertRange'
-);
+const pendingInsertField = StateField.define<{
+  range: SelectionRange | null;
+  loading: boolean;
+  decorations: DecorationSet;
+}>({
+  create: () => ({
+    range: null,
+    loading: false,
+    decorations: Decoration.none,
+  }),
+  update(value, tr) {
+    let nextRange = value.range;
+    let nextLoading = value.loading;
+
+    if (nextRange) {
+      nextRange = {
+        from: tr.changes.mapPos(nextRange.from, -1),
+        to: tr.changes.mapPos(nextRange.to, 1),
+      };
+    }
+
+    for (const ef of tr.effects) {
+      if (ef.is(setPendingInsertEffect)) {
+        if (Object.prototype.hasOwnProperty.call(ef.value, 'range')) {
+          nextRange = ef.value.range ?? null;
+        }
+        if (typeof ef.value.loading === 'boolean') {
+          nextLoading = ef.value.loading;
+        }
+      }
+    }
+
+    const decorationRanges = createDecorationsForRange(
+      tr.state,
+      nextRange,
+      'cm-pendingInsertLine',
+      'cm-pendingInsertRange'
+    );
+
+    if (nextLoading && nextRange) {
+      const widgetPos = normalizeRange(tr.state.doc.length, nextRange)?.from ?? nextRange.from;
+      decorationRanges.push(
+        Decoration.widget({
+          widget: new PendingInsertSpinnerWidget(),
+          side: 1,
+        }).range(widgetPos)
+      );
+    }
+
+    return {
+      range: nextRange,
+      loading: nextLoading,
+      decorations: decorationRanges.length > 0 ? Decoration.set(decorationRanges, true) : Decoration.none,
+    };
+  },
+  provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
+});
 
 const editorTheme = EditorView.theme({
   '&': {
@@ -226,7 +266,40 @@ const editorTheme = EditorView.theme({
   '.cm-savedSelection': { backgroundColor: 'rgba(99, 102, 241, 0.15)', borderRadius: '2px' },
   '.cm-pendingInsertLine': { backgroundColor: 'rgba(245, 158, 11, 0.12)' },
   '.cm-pendingInsertRange': { backgroundColor: 'rgba(245, 158, 11, 0.2)', borderRadius: '2px' },
+  '.cm-pendingInsertSpinner': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.375rem',
+    verticalAlign: 'middle',
+    marginLeft: '0.375rem',
+    marginRight: '0.125rem',
+    padding: '0.3125rem 0.625rem',
+    borderRadius: '9999px',
+    backgroundColor: '#e8ebf6',
+    color: 'rgba(55, 65, 81, 0.9)',
+    fontSize: '0.8125rem',
+    lineHeight: '1',
+    fontWeight: '500',
+    boxShadow: '0 0 0 1px rgba(148, 163, 184, 0.16) inset',
+  },
+  '.cm-pendingInsertSpinnerIcon': {
+    width: '0.8125rem',
+    height: '0.8125rem',
+    borderRadius: '9999px',
+    border: '2px solid rgba(79, 70, 229, 0.2)',
+    borderTopColor: '#6d28d9',
+    animation: 'cm-spin 0.8s linear infinite',
+    boxSizing: 'border-box',
+    flexShrink: '0',
+  },
+  '.cm-pendingInsertSpinnerLabel': {
+    whiteSpace: 'nowrap',
+  },
   '.cm-placeholder': { color: '#9ca3af', fontStyle: 'normal' },
+  '@keyframes cm-spin': {
+    from: { transform: 'rotate(0deg)' },
+    to: { transform: 'rotate(360deg)' },
+  },
 });
 
 const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
@@ -239,6 +312,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   currentFilePath,
   isPreview = false,
   showToolbar = true,
+  isPendingInsertLoading = false,
 }, ref) => {
   const { openTab } = useTabStore();
 
@@ -256,7 +330,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   const [slashPos, setSlashPos] = useState<{ top: number; left: number } | null>(null);
   const [previewMarkdown, setPreviewMarkdown] = useState(content);
 
-  const applyCommandRef = useRef<(id: EditorCommandId, fromSlash?: boolean) => void>(() => {});
+  const applyCommandRef = useRef<(id: ToolbarCommandId, fromSlash?: boolean) => void>(() => {});
   const openHrefRef = useRef<(href: string) => void>(() => {});
 
   const editableCompartmentRef = useRef(new Compartment());
@@ -371,7 +445,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
               run: () => {
                 const s = slashRef.current;
                 if (!s.open) return false;
-                const count = COMMANDS.filter((c) => c.title.toLowerCase().includes(s.query)).length;
+                const count = EDITOR_COMMANDS.filter((c) => c.title.toLowerCase().includes(s.query)).length;
                 const next = { ...s, selected: Math.min(s.selected + 1, Math.max(0, count - 1)) };
                 slashRef.current = next;
                 setSlash(next);
@@ -394,7 +468,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
               run: () => {
                 const s = slashRef.current;
                 if (!s.open) return false;
-                const items = COMMANDS.filter((c) => c.title.toLowerCase().includes(s.query));
+                const items = EDITOR_COMMANDS.filter((c) => c.title.toLowerCase().includes(s.query));
                 const item = items[s.selected];
                 if (item) {
                   applyCommandRef.current(item.id, true);
@@ -426,7 +500,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
           editableCompartment.of(EditorView.editable.of(editable)),
           editorTheme,
           savedSelectionField,
-          pendingSelectionField,
+          pendingInsertField,
           updateListenerExt,
           linkClickExt,
         ],
@@ -494,9 +568,15 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
     });
   }, [editable]);
 
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: setPendingInsertEffect.of({ loading: isPendingInsertLoading }),
+    });
+  }, [isPendingInsertLoading]);
+
   const slashItems = useMemo(() => {
     if (!slash.open) return [];
-    return COMMANDS.filter((item) => item.title.toLowerCase().includes(slash.query));
+    return EDITOR_COMMANDS.filter((item) => item.title.toLowerCase().includes(slash.query));
   }, [slash.open, slash.query]);
 
   useEffect(() => {
@@ -518,7 +598,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
 
   useEffect(() => { openHrefRef.current = openHrefInEditorMode; }, [openHrefInEditorMode]);
 
-  const applyCommand = useCallback((id: EditorCommandId, fromSlash = false) => {
+  const applyCommand = useCallback((id: ToolbarCommandId, fromSlash = false) => {
     const view = viewRef.current;
     if (!view) return;
 
@@ -689,7 +769,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
       const view = viewRef.current;
       if (!view) return;
       view.dispatch({
-        effects: setPendingSelectionEffect.of(range),
+        effects: setPendingInsertEffect.of({ range }),
       });
     },
   }), [content, onChange]);
@@ -753,7 +833,9 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => applyCommand(item.id, true)}
               >
-                <span className="w-8 text-center text-sm">{item.icon}</span>
+                <span className="flex w-8 items-center justify-center text-ssoo-primary/80">
+                  <item.icon className="h-4 w-4" />
+                </span>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{item.title}</span>
                   <span className="text-xs text-ssoo-primary/60">{item.description}</span>

@@ -651,17 +651,22 @@ async function gatherRAGContext(
     const docs = await searchSimilarDocuments(queryEmbedding, 5, 0.5);
 
     if (docs.length > 0) {
+      const sources: SearchResultItem[] = docs.map((doc, i) => {
+        const displayPath = toDisplayPath(doc.filePath);
+        return {
+          id: `source-${i}`,
+          title: doc.title || path.basename(displayPath || doc.filePath, '.md'),
+          excerpt: doc.chunkText.slice(0, 150),
+          path: displayPath,
+          score: doc.similarity,
+        };
+      });
       const context = docs
-        .map((doc, i) => `[문서 ${i + 1}: ${doc.title || doc.filePath}]\n${doc.chunkText}`)
+        .map((doc, i) => {
+          const source = sources[i];
+          return `[문서 ${i + 1}: ${source.title}]\n경로: ${source.path}\n${doc.chunkText}`;
+        })
         .join('\n\n---\n\n');
-
-      const sources: SearchResultItem[] = docs.map((doc, i) => ({
-        id: `source-${i}`,
-        title: doc.title,
-        excerpt: doc.chunkText.slice(0, 150),
-        path: doc.filePath,
-        score: doc.similarity,
-      }));
 
       return { context, sources };
     }
@@ -678,9 +683,9 @@ async function gatherRAGContext(
         try {
           const fullPath = path.join(getRootDir(), result.path);
           const content = fs.readFileSync(fullPath, 'utf-8').slice(0, 2000);
-          return `[문서 ${i + 1}: ${result.title}]\n${content}`;
+          return `[문서 ${i + 1}: ${result.title}]\n경로: ${result.path}\n${content}`;
         } catch {
-          return `[문서 ${i + 1}: ${result.title}]\n${result.excerpt}`;
+          return `[문서 ${i + 1}: ${result.title}]\n경로: ${result.path}\n${result.excerpt}`;
         }
       })
       .join('\n\n---\n\n');
@@ -689,6 +694,32 @@ async function gatherRAGContext(
   }
 
   return { context: '', sources: [] };
+}
+
+function buildAssistantSystemPrompt(options?: { attachmentOnly?: boolean }): string {
+  const attachmentOnlyRule = options?.attachmentOnly
+    ? `
+- 현재 대화는 "첨부 파일 기반 모드"입니다.
+- 답변은 반드시 사용자가 첨부한 파일 컨텍스트만 근거로 작성하세요.
+- 전역 문서 검색 결과, 시스템 구현 지식, 일반 추측을 근거로 단정하지 마세요.
+- 첨부 내용에서 확인되지 않으면 "첨부 파일 기준 확인되지 않음"이라고 명시하세요.`
+    : '';
+
+  return `당신은 DMS(문서 관리 시스템)의 AI 어시스턴트입니다.
+사용자의 질문에 대해 "실제 구현 컨텍스트"와 "문서 컨텍스트"를 우선 활용하고, 대화 맥락을 반영해 실무적으로 답변하세요.
+
+규칙:
+- 답변 우선순위는 1) 실제 구현 컨텍스트 2) 문서 컨텍스트 3) 일반 보조 설명 순서입니다.
+- 이전 대화 흐름(직전 질문/답변)을 이어받아 답변하세요.
+- 기능/사용법 질문에는 실제 경로, 버튼명, 동작 흐름을 단계로 제시하세요.
+- 답변은 한국어 마크다운으로 작성하되, 과한 장식 없이 읽기 쉬운 수준만 사용하세요.
+- 첫 문단은 짧게 요지를 정리하고, 필요할 때만 목록/번호 목록/표/코드블록을 사용하세요.
+- 문서 컨텍스트에 근거가 있으면 이를 사용하고, 답변 마지막에 "## 근거 문서" 섹션으로 제목과 경로를 짧게 정리하세요.
+- 문서 컨텍스트가 부족해도 대화를 중단하지 말고, 일반적인 보조 설명을 제공하세요.
+- 단, 문서에 없는 내용은 "문서 기준 확인되지 않은 보조 설명"임을 짧게 구분해 표현하세요.
+- 구현 컨텍스트로 답할 수 있는데 "관련 문서를 찾지 못했습니다"라고 답하지 마세요.
+- 구현/문서 모두에서 확인 불가한 사실은 "현재 코드/문서 기준 미확인"이라고 명시하세요.
+- 문서 근거를 실제로 사용하지 않았으면 "## 근거 문서" 섹션은 생략하세요.${attachmentOnlyRule}`;
 }
 
 /**
@@ -701,30 +732,9 @@ export async function askQuestionStream(
 ) {
   const model = await getChatModel();
 
-  const attachmentOnlyRule = options?.attachmentOnly
-    ? `
-- 현재 대화는 "첨부 파일 기반 모드"입니다.
-- 답변은 반드시 사용자가 첨부한 파일 컨텍스트만 근거로 작성하세요.
-- 전역 문서 검색 결과, 시스템 구현 지식, 일반 추측을 근거로 단정하지 마세요.
-- 첨부 내용에서 확인되지 않으면 "첨부 파일 기준 확인되지 않음"이라고 명시하세요.`
-    : '';
-
   return streamText({
     model,
-    system: `당신은 DMS(문서 관리 시스템)의 AI 어시스턴트입니다.
-사용자의 질문에 대해 "실제 구현 컨텍스트"와 "문서 컨텍스트"를 우선 활용하고, 대화 맥락을 반영해 실무적으로 답변하세요.
-
-규칙:
-- 답변 우선순위는 1) 실제 구현 컨텍스트 2) 문서 컨텍스트 3) 일반 보조 설명 순서입니다.
-- 이전 대화 흐름(직전 질문/답변)을 이어받아 답변하세요.
-- 기능/사용법 질문에는 실제 경로, 버튼명, 동작 흐름을 단계로 제시하세요.
-- 문서 컨텍스트에 근거가 있으면 이를 사용하고, 근거 문서(제목/경로)를 간단히 언급하세요.
-- 문서 컨텍스트가 부족해도 대화를 중단하지 말고, 일반적인 보조 설명을 제공하세요.
-- 단, 문서에 없는 내용은 "문서 기준 확인되지 않은 보조 설명"임을 짧게 구분해 표현하세요.
-- 구현 컨텍스트로 답할 수 있는데 "관련 문서를 찾지 못했습니다"라고 답하지 마세요.
-- 구현/문서 모두에서 확인 불가한 사실은 "현재 코드/문서 기준 미확인"이라고 명시하세요.
-- 답변은 한국어로 작성하세요.
-- 문장은 짧은 단락으로 나누어 가독성 있게 작성하세요.${attachmentOnlyRule}`,
+    system: buildAssistantSystemPrompt(options),
     messages: messages.map((m) => ({
       role: m.role as 'user' | 'assistant' | 'system',
       content: m.content,
@@ -754,6 +764,7 @@ export async function askQuestion(
       model,
       temperature: 0.2,
       maxOutputTokens: 512,
+      system: buildAssistantSystemPrompt(),
       messages: messages.map((item) => ({
         role: item.role as 'user' | 'assistant' | 'system',
         content: item.content,

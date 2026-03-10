@@ -5,6 +5,92 @@
 
 ---
 
+## ⚡ 개발 빠른 참조
+
+### 개발 서버 실행
+
+| 앱 | 명령어 | 포트 |
+|---|---|---|
+| **전체** | `pnpm dev` | - |
+| **서버 (NestJS)** | `pnpm dev:server` | 4000 |
+| **PMS (Next.js)** | `pnpm dev:web-pms` | 3000 |
+| **DMS (Next.js, 독립)** | `pnpm dev:web-dms` 또는 `cd apps/web/dms && npm run dev` | 3001 |
+
+### 빌드 / 린트
+
+```bash
+pnpm build          # 전체 빌드 (Turborepo, packages 먼저 빌드됨)
+pnpm lint           # 전체 린트
+pnpm lint:docs      # 문서 린트 (check-docs.js)
+```
+
+### DB 초기 세팅 (순서 중요)
+
+```bash
+pnpm db:up          # PostgreSQL Docker 컨테이너 시작
+pnpm db:push        # Prisma 스키마를 DB에 반영
+pnpm db:seed        # 기초 데이터 삽입 (SQL 시드 파일 실행)
+pnpm db:triggers    # 히스토리 트리거 설치
+```
+
+> DB URL 기본값: `postgresql://ssoo:ssoo_dev_pw@localhost:5432/ssoo_dev`
+
+### 4단계 코드 검증 (커밋 전 필수)
+
+```bash
+node .github/scripts/sdd-verify.js --quick           # SDD 구조 검증
+node .github/scripts/check-docs.js --all             # 문서 검증
+node .github/scripts/check-patterns.js [파일경로]   # 코드 패턴 검증
+node .github/scripts/check-design.js [파일경로]     # 디자인 패턴 검증
+```
+
+---
+
+## 🏗️ 핵심 아키텍처 패턴
+
+### PMS: MDI Keep-Alive 탭 (ContentArea)
+
+PMS는 URL이 항상 `/`에 고정되며, `ContentArea`가 메뉴 path 기반으로 페이지를 동적 로딩합니다.
+
+- **모든 열린 탭 컴포넌트를 동시에 마운트** → 비활성 탭은 CSS `display:none`으로 숨김 (DOM 유지)
+- unmount/remount 없이 탭 전환 → 스크롤 위치, 폼 입력, 페이지네이션 상태 보존
+- 새 페이지 추가 시 `src/components/layout/ContentArea.tsx`의 `pageComponents` 맵에 등록 필요
+
+```typescript
+// ContentArea.tsx의 pageComponents 맵에 신규 경로 등록
+const pageComponents = {
+  '/home': lazy(() => ...),
+  '/request': lazy(() => ...),
+  // 신규 페이지 경로 여기에 추가
+};
+```
+
+### DMS: 서버 레이어 패턴
+
+DMS API Route는 비즈니스 로직 없이 핸들러로 위임합니다:
+
+```
+app/api/[route]/route.ts
+  → server/handlers/*.handler.ts   (라우팅, 요청/응답 처리)
+    → server/services/*.service.ts  (실제 비즈니스 로직)
+```
+
+- `apps/web/dms/data/wiki/` — 위키 마크다운 파일의 실제 파일시스템 저장 위치 (Git으로 관리)
+- **DMS는 npm 독립 프로젝트**: `@ssoo/*` 패키지 import 금지, pnpm 워크스페이스와 무관
+
+### 패키지 의존성 방향
+
+```
+apps/server  ──→  packages/database (@ssoo/database)
+apps/server  ──→  packages/types    (@ssoo/types)
+apps/web/pms ──→  packages/types    (@ssoo/types)
+apps/web/dms ──→  (독립, 외부 패키지만 사용, @ssoo/* 금지)
+```
+
+역방향 참조 및 순환 참조 금지. `packages/`는 `apps/`를 절대 참조하지 않습니다.
+
+---
+
 ## ⛔ 필수 프로토콜 (위반 시 작업 중단)
 
 > **이 섹션의 모든 프로토콜은 생략 불가입니다.**
@@ -1074,6 +1160,7 @@ docs/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-03-10 | ⚡ 개발 빠른 참조 섹션 추가 (dev 명령어, 포트, DB 세팅 순서, 검증 스크립트), 🏗️ 핵심 아키텍처 패턴 섹션 추가 (PMS MDI Keep-Alive, DMS 서버 레이어, 패키지 의존성 방향) |
 | 2026-02-27 | 핵심 원칙 3개 추가 (10.비판적 수용, 11.기존 결과 보존, 12.패턴 최우선+경계 관리), 금지 사항 3개 추가 |
 | 2026-02-27 | 멀티 에이전트 규칙 동기화 섹션 추가 (3-에이전트 하모나이제이션) |
 | 2026-02-06 | 레포 특화 내용 분리 (project.instructions.md 신설, 프로젝트 개요/기술스택/패키지경계 이동) |

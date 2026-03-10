@@ -35,6 +35,8 @@ export interface EditorProps {
   isPreview?: boolean;
   /** 툴바 표시 여부 (embedded 모드에서 외부 Shell toolbar 슬롯 주입 시 false) */
   showToolbar?: boolean;
+  /** AI 삽입 대기 중 로딩 표시 여부 */
+  isPendingInsertLoading?: boolean;
 }
 
 export interface EditorRef {
@@ -62,6 +64,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   onCreatePathResolved,
   isPreview = false,
   showToolbar = true,
+  isPendingInsertLoading = false,
 }: EditorProps, ref) {
   const { showSuccess, showError } = useToast();
   
@@ -303,6 +306,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       placeholder={isCreateMode ? '' : '/를 입력하여 블록 추가'}
       currentFilePath={currentFilePath}
       isPreview={isPreview}
+      isPendingInsertLoading={isPendingInsertLoading}
       blockEditorRef={blockEditorRef}
       showToolbar={false}
     />

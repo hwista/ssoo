@@ -33,6 +33,8 @@ export interface ContentProps {
   blockEditorRef?: React.RefObject<BlockEditorRef | null>;
   /** BlockEditor 내부 툴바 표시 여부 */
   showToolbar?: boolean;
+  /** AI 삽입 대기 중 로딩 표시 여부 */
+  isPendingInsertLoading?: boolean;
 }
 
 /**
@@ -55,6 +57,7 @@ export function Content({
   isPreview = false,
   blockEditorRef,
   showToolbar = true,
+  isPendingInsertLoading = false,
 }: ContentProps) {
   const isEmbedded = variant === 'embedded';
   const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
@@ -87,6 +90,7 @@ export function Content({
           currentFilePath={currentFilePath}
           isPreview={isPreview}
           showToolbar={showToolbar}
+          isPendingInsertLoading={isPendingInsertLoading}
           className="flex-1 min-h-0"
         />
       </div>

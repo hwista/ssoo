@@ -417,6 +417,7 @@ export function ViewerPage() {
         preferredCreatePath={isCreateMode ? createPath : undefined}
         onCreatePathResolved={setCreatePath}
         isPreview={isPreview}
+        isPendingInsertLoading={isComposing}
       />
     );
   }, [
@@ -426,6 +427,7 @@ export function ViewerPage() {
     htmlContent,
     isCreateMode,
     isLoading,
+    isComposing,
     isPreview,
     mode,
     toc,

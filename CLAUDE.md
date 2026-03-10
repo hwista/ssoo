@@ -1,4 +1,6 @@
-# SSOO 모노레포 - Claude Code 가이드
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 > Claude Code 세션 시작 시 자동 로드되는 전역 규칙입니다.
 > 경로별 상세 규칙은 `.github/instructions/` 및 각 서브디렉토리 `CLAUDE.md`를 참조하세요.
@@ -104,7 +106,7 @@ hooks → lib/api → stores
 | 전체 (server + pms) | `pnpm dev` | - | Turborepo 병렬 실행 |
 | server만 | `pnpm dev:server` | 4000 | NestJS |
 | web-pms만 | `pnpm dev:web-pms` | 3000 | Next.js |
-| web-dms | `cd apps/web/dms && npm run dev` | 3001 | **npm** 사용 (pnpm 아님) |
+| web-dms | `pnpm dev:web-dms` | 3001 | 내부적으로 `npm run dev` 실행 |
 
 ### 데이터베이스 명령
 
@@ -117,7 +119,7 @@ pnpm --filter @ssoo/database db:studio    # Prisma Studio (DB GUI)
 
 필수 환경변수 (`.env`):
 ```
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ssoo_dev?schema=public"
+DATABASE_URL="postgresql://ssoo:ssoo_dev_pw@localhost:5432/ssoo_dev?schema=public"
 JWT_SECRET=...
 JWT_REFRESH_SECRET=...
 ```
@@ -130,7 +132,6 @@ JWT_REFRESH_SECRET=...
 |------|--------|
 | 타입 체크 | `npx tsc --noEmit` (앱별) 또는 `pnpm build` |
 | 린트 | `pnpm lint` |
-| 테스트 | `pnpm test` |
 | DMS 빌드 | `pnpm run build:web-dms` |
 | DMS 가드 | `pnpm run codex:dms-guard` |
 | DMS 배포 | `pnpm run codex:dms-publish` (GitHub + GitLab 동시) |

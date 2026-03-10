@@ -2,9 +2,10 @@
 
 import { ArrowRight, BookOpen, Bot, Copy, FileText, Loader2, RotateCcw, Settings, User } from 'lucide-react';
 import { useCallback, type ComponentType } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import type { AssistantHelpAction } from '@/lib/utils/assistantHelp';
-import { toTextBlocks, type AssistantTextBlock } from '@/lib/utils/assistantTextFormat';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
 import { SearchResultCard } from '@/components/common/search/ResultCard';
 
@@ -133,9 +134,6 @@ export function AssistantMessageList({
         }
 
         const isUser = message.role === 'user';
-        const textBlocks = !isUser ? toTextBlocks(message.text) : [];
-        const renderBlocks: AssistantTextBlock[] = textBlocks.length > 0 ? textBlocks : [{ type: 'paragraph', text: message.text }];
-        let orderedItemIndex = 0;
 
         return (
           <div key={message.id} className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -183,17 +181,23 @@ export function AssistantMessageList({
                 isUser ? (
                   <span className="whitespace-pre-wrap break-words">{message.text}</span>
                 ) : (
-                  <div className="space-y-1.5 break-words text-ssoo-primary">
-                    {renderBlocks.map((block, index) => (
-                      block.type === 'list-item' ? (
-                        <p key={`${message.id}-li-${index}`} className="flex gap-2 leading-6">
-                          <span className="mt-[3px] text-ssoo-primary/50">{block.ordered ? `${++orderedItemIndex}.` : '•'}</span>
-                          <span>{block.text}</span>
-                        </p>
-                      ) : (
-                        <p key={`${message.id}-p-${index}`} className="leading-6">{block.text}</p>
-                      )
-                    ))}
+                  <div className="assistant-markdown break-words text-ssoo-primary">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ href, children }) => (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                          >
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {message.text}
+                    </ReactMarkdown>
                   </div>
                 )
               )}
