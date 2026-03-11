@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { DOCUMENT_WIDTHS } from '@/components/common/page';
-import { BlockEditor, BlockEditorRef } from './BlockEditor';
+import { DOCUMENT_WIDTHS } from '@/components/templates/page-frame';
+import { BlockEditor, BlockEditorRef } from './block-editor/BlockEditor';
 
 /**
  * Content Props
@@ -35,6 +35,10 @@ export interface ContentProps {
   showToolbar?: boolean;
   /** AI 삽입 대기 중 로딩 표시 여부 */
   isPendingInsertLoading?: boolean;
+  /** 브라우저 상호작용 의존성 */
+  requestImageUrl?: () => Promise<string | null>;
+  requestLinkUrl?: () => Promise<string | null>;
+  openExternalHref?: (href: string) => void;
 }
 
 /**
@@ -58,6 +62,9 @@ export function Content({
   blockEditorRef,
   showToolbar = true,
   isPendingInsertLoading = false,
+  requestImageUrl,
+  requestLinkUrl,
+  openExternalHref,
 }: ContentProps) {
   const isEmbedded = variant === 'embedded';
   const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
@@ -91,6 +98,9 @@ export function Content({
           isPreview={isPreview}
           showToolbar={showToolbar}
           isPendingInsertLoading={isPendingInsertLoading}
+          requestImageUrl={requestImageUrl}
+          requestLinkUrl={requestLinkUrl}
+          openExternalHref={openExternalHref}
           className="flex-1 min-h-0"
         />
       </div>

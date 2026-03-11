@@ -1,27 +1,15 @@
 /**
  * Components Export
  *
- * 컴포넌트 계층 구조:
+ * 레이어 개요:
  *
- * Level 1: ui/ (Primitive - 원자)
- *   └── shadcn/ui 기반 기본 컴포넌트
- *   └── Button, Input, Dialog, etc.
+ * - ui/: primitive adapter
+ * - common/: 재사용 블록 + DMS 공통 기능 모듈
+ * - templates/: page frame
+ * - layout/: app shell
+ * - pages/: feature entry
  *
- * Level 2: common/ (Composite - 분자)
- *   └── 비즈니스 로직 없는 재사용 컴포넌트
- *   └── Breadcrumb, Header, Content, Sidecar, Viewer, etc.
- *   └── 직접 import: import { Header } from '@/components/common';
- *
- * Level 3: templates/ (Organism - 유기체)
- *   └── 페이지 레이아웃 템플릿
- *   └── DocPageTemplate, etc.
- *   └── 직접 import: import { DocPageTemplate } from '@/components/templates';
- *
- * Level 4: layout/ (App Layout)
- *   └── 전체 앱 레이아웃 컴포넌트
- *   └── Header, Sidebar, TabBar, ContentArea
- *
- * @note common/과 templates/는 트리 쉐이킹을 위해 직접 경로로 import합니다.
+ * @note 개별 하위 레이어 import를 우선합니다.
  */
 
 // Layout components - 앱 전역 레이아웃

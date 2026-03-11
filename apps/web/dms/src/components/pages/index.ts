@@ -1,5 +1,7 @@
-// Pages barrel export
-// DMS 페이지 컴포넌트 - PMS pageComponents 패턴
+// Feature page entry barrel.
+// 페이지 엔트리만 노출하고, page-local support module은 각 기능 폴더 내부에 둡니다.
 
-export { HomeDashboardPage } from './home';
+export { AiAskPage, AiSearchPage } from './ai';
+export { DashboardPage } from './home';
 export { ViewerPage } from './markdown';
+export { SettingsPage } from './settings';

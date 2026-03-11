@@ -1,6 +1,6 @@
 # 컴포넌트 계층
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-03-11
 
 DMS 컴포넌트의 계층 구조와 의존성을 정의합니다.
 
@@ -9,16 +9,20 @@ DMS 컴포넌트의 계층 구조와 의존성을 정의합니다.
 ## 계층 개요
 
 ```
-Level 1: UI (Primitive)
+Level 1: ui (Primitive adapter)
     ↓
-Level 2: Common (Composite)
+Level 2: common (Reusable / mixed)
     ↓
-Level 3: Layout / Pages (Feature)
+Level 3: templates (Page frame)
+    ↓
+Level 4: pages (Feature entry)
+
+layout is a shell/runtime lane that spans across page rendering.
 ```
 
 ---
 
-## Level 1: UI 컴포넌트
+## `ui/`
 
 **원자(Atom)** 수준의 기본 UI 요소
 
@@ -50,50 +54,31 @@ src/components/ui/
 
 ---
 
-## Level 2: Common 컴포넌트
+## `common/`
 
-**분자(Molecule)** 수준의 조합 컴포넌트
+`common/` 은 현재 아래 두 하위 성격이 혼재한 레이어입니다.
 
-### 위치
+- `pure common`
+- `domain-common feature modules`
 
-```
-src/components/common/
-```
+### 대표 예시
 
-### 컴포넌트 목록
-
-| 컴포넌트 | 의존성 | 용도 |
-|----------|--------|------|
-| `ConfirmDialog` | AlertDialog, useConfirmStore | 전역 확인 대화상자 |
-| `LoadingState` | - | 로딩 표시 |
-| `ErrorState` | Button | 에러 표시 |
-| `EmptyState` | - | 빈 상태 표시 |
-
-### 의존성 다이어그램
-
-```
-ConfirmDialog
-    ├── ui/AlertDialog
-    └── stores/confirm.store
-
-StateDisplay
-    ├── LoadingState
-    ├── ErrorState
-    │   └── ui/Button
-    └── EmptyState
-```
+| 하위 성격 | 예시 |
+|----------|------|
+| `pure common` | `StateDisplay`, `ConfirmDialog`, `common/search/*` |
+| `domain-common feature` | `common/editor/*`, `common/viewer/*`, `common/assistant/*` |
 
 ### 규칙
 
-- Level 1 UI 컴포넌트만 사용
-- 스토어 사용 가능 (단, 특정 스토어에만 의존)
-- 비즈니스 로직 없음
+- `pure common` 만 엄격한 저결합 공통 컴포넌트로 봄
+- `templates/page-frame/*` 는 template 쪽 building block 레이어로 별도 분리됨
+- `common/editor|viewer|assistant` 는 DMS 도메인 재사용 모듈로 보고, 1차 단계에서는 이동보다 내부 책임 분리를 우선
 
 ---
 
-## Level 3: Layout 컴포넌트
+## `layout/`
 
-**유기체(Organism)** 수준의 레이아웃 컴포넌트
+앱 전역 shell 과 keep-alive 탭 렌더링을 담당하는 lane 입니다.
 
 ### 위치
 
@@ -116,12 +101,13 @@ AppLayout
 │   └── Search
 │       └── 사이드바 스토어 의존
 ├── Header
-│   └── 레이아웃 스토어 의존
+│   └── 전역 shell 제어
 ├── TabBar
 │   └── 탭 스토어 의존
 └── ContentArea
-    └── 탭 스토어 의존
-        └── Pages (lazy load)
+    ├── 탭 스토어 의존
+    ├── keep-alive 렌더링
+    └── Pages (lazy load)
 ```
 
 ### 스토어 의존성
@@ -140,30 +126,52 @@ AppLayout
 
 ---
 
-## Level 3: Page 컴포넌트
+## `templates/`
 
-**페이지(Template)** 수준의 비즈니스 컴포넌트
+`templates` 는 page 구현을 위한 공통 frame 레이어입니다.
+
+대표 엔트리:
+
+- `DocPageTemplate`
+
+역할:
+
+- breadcrumb/header/content/sidecar 패턴 제공
+- page 외형과 프레임 일관성 유지
+- page 비즈니스 로직은 알지 않음
+
+---
+
+## `pages/`
+
+실제 기능 진입점과 orchestration 레이어입니다.
 
 ### 위치
 
 ```
 src/components/pages/
 ├── home/
-│   └── HomeDashboardPage.tsx
-└── markdown/
-    └── MarkdownViewerPage.tsx
+│   └── DashboardPage.tsx
+├── markdown/
+│   └── ViewerPage.tsx
+├── ai/
+│   ├── AskPage.tsx
+│   └── SearchPage.tsx
+└── settings/
+    └── Page.tsx
 ```
 
 ### 페이지 구조
 
 ```
-HomeDashboardPage
+DashboardPage
 └── 대시보드 콘텐츠
 
-MarkdownViewerPage
+ViewerPage
 ├── useEditorStore
 ├── useTabStore
-└── Tiptap Editor
+├── DocPageTemplate
+└── editor/viewer orchestration
 ```
 
 ### 규칙
@@ -180,9 +188,10 @@ MarkdownViewerPage
 ### 허용되는 의존성
 
 ```
-Level 3 → Level 2 → Level 1
-Level 3 → stores/
-Level 2 → stores/ (제한적)
+pages → templates → common → ui
+pages → stores/
+templates → common/ui/stores(프레임 상태 한정)
+common → stores/ (제한적, 현재 혼합 상태 허용)
 Level 1 → 외부 라이브러리만
 ```
 
@@ -243,24 +252,28 @@ import { LoadingState } from '@/components/common/StateDisplay';
 
 ```
 components/
-├── ui/                 # Level 1 - Radix UI 기반
+├── ui/                 # Primitive adapter
 │   ├── button.tsx
 │   ├── alert-dialog.tsx
 │   └── ...
-├── common/             # Level 2 - 재사용 가능 조합
+├── common/             # Mixed reusable layer
 │   ├── ConfirmDialog.tsx
 │   ├── StateDisplay.tsx
 │   └── index.ts
-├── layout/             # Level 3 - 앱 레이아웃
+├── layout/             # App shell / runtime coordinator
 │   ├── AppLayout.tsx
 │   ├── Header.tsx
 │   ├── TabBar.tsx
 │   ├── ContentArea.tsx
 │   ├── sidebar/
 │   └── index.ts
-└── pages/              # Level 3 - 비즈니스 페이지
+├── templates/          # Page frame
+│   └── DocPageTemplate.tsx
+└── pages/              # Feature pages
     ├── home/
-    └── markdown/
+    ├── markdown/
+    ├── ai/
+    └── settings/
 ```
 
 ---
@@ -275,4 +288,5 @@ components/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-03-11 | `ui/common/layout/templates/pages` 재해석 기준 반영, `common` 혼합 레이어 상태 명시 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

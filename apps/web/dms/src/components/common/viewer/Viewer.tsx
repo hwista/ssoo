@@ -2,10 +2,13 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import type { TocItem } from '../page/toc';
-import { Toolbar, ZOOM_LEVELS, DEFAULT_ZOOM } from './Toolbar';
+import type { TocItem } from '@/components/templates/page-frame';
+import { Toolbar, ZOOM_LEVELS, DEFAULT_ZOOM } from './toolbar/Toolbar';
 import { Content, DOCUMENT_WIDTH } from './Content';
-import { SectionedShell } from '../page/SectionedShell';
+import { SectionedShell } from '@/components/templates/page-frame';
+import { useViewerSearch } from './runtime/useViewerSearch';
+import { findTocTarget, getNearestZoomIndex } from './runtime/viewerUtils';
+import type { ViewerSearchControls, ViewerTocControls, ViewerZoomControls } from './toolbar/toolbarTypes';
 
 type ViewerVariant = 'standalone' | 'embedded';
 
@@ -60,197 +63,86 @@ export function Viewer({
 }: ViewerProps) {
   void _showContentSurface;
 
-  // 줌 상태
   const [zoomLevel, setZoomLevel] = React.useState(DEFAULT_ZOOM);
-  
-  // 검색 상태
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [searchResultCount, setSearchResultCount] = React.useState(0);
-  const [currentResultIndex, setCurrentResultIndex] = React.useState(-1);
-  const [hasSearched, setHasSearched] = React.useState(false);
-  const [highlightedContent, setHighlightedContent] = React.useState<string | null>(null);
-  
-  // 실제 렌더링할 콘텐츠
-  const displayContent = highlightedContent ?? content;
-  
-  // 스크롤 컨테이너 ref
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const getZoomIndex = React.useCallback((value: number) => {
-    const exact = ZOOM_LEVELS.indexOf(value);
-    if (exact >= 0) return exact;
-    let nearest = 0;
-    let minDiff = Number.POSITIVE_INFINITY;
-    ZOOM_LEVELS.forEach((level, index) => {
-      const diff = Math.abs(level - value);
-      if (diff < minDiff) {
-        minDiff = diff;
-        nearest = index;
-      }
-    });
-    return nearest;
-  }, []);
+  const {
+    searchQuery,
+    searchResultCount,
+    currentResultIndex,
+    hasSearched,
+    highlightedContent,
+    setSearchQuery,
+    handleSearchSubmit,
+    handleNavigateResult,
+    handleSearchClose,
+  } = useViewerSearch({ content, contentRef, onSearch });
 
-  // =====================
-  // 줌 핸들러
-  // =====================
+  const displayContent = highlightedContent ?? content;
+
   const handleZoomIn = React.useCallback(() => {
     setZoomLevel((prev) => {
-      const currentIndex = getZoomIndex(prev);
+      const currentIndex = getNearestZoomIndex(ZOOM_LEVELS, prev);
       if (currentIndex < ZOOM_LEVELS.length - 1) {
         return ZOOM_LEVELS[currentIndex + 1];
       }
       return prev;
     });
-  }, [getZoomIndex]);
+  }, []);
 
   const handleZoomOut = React.useCallback(() => {
     setZoomLevel((prev) => {
-      const currentIndex = getZoomIndex(prev);
+      const currentIndex = getNearestZoomIndex(ZOOM_LEVELS, prev);
       if (currentIndex > 0) {
         return ZOOM_LEVELS[currentIndex - 1];
       }
       return prev;
     });
-  }, [getZoomIndex]);
+  }, []);
 
   const handleZoomReset = React.useCallback(() => {
     setZoomLevel(DEFAULT_ZOOM);
   }, []);
 
-  // =====================
-  // 검색 로직
-  // =====================
-  const clearHighlights = React.useCallback(() => {
-    setHighlightedContent(null);
-    setSearchResultCount(0);
-    setCurrentResultIndex(-1);
-    setHasSearched(false);
-  }, []);
-
-  const highlightText = React.useCallback((query: string) => {
-    if (!query.trim()) {
-      setHasSearched(true);
-      setSearchResultCount(0);
-      return;
-    }
-    
-    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const searchRegex = new RegExp(`(${escapedQuery})`, 'gi');
-    
-    let matchCount = 0;
-    const newHtml = content.replace(/>([^<]+)</g, (match, text) => {
-      const highlighted = text.replace(searchRegex, (matched: string) => {
-        matchCount++;
-        return `<mark class="search-highlight" style="background-color: #fef08a; color: inherit; border-radius: 2px; padding: 0 2px;" data-search-index="${matchCount - 1}">${matched}</mark>`;
-      });
-      return `>${highlighted}<`;
-    });
-    
-    if (matchCount > 0) {
-      setHighlightedContent(newHtml);
-      setSearchResultCount(matchCount);
-      setHasSearched(true);
-      setCurrentResultIndex(0);
-    } else {
-      setHighlightedContent(null);
-      setSearchResultCount(0);
-      setHasSearched(true);
-      setCurrentResultIndex(-1);
-    }
-  }, [content]);
-
-  // 검색 결과 인덱스 변경 시 스크롤
-  React.useEffect(() => {
-    if (currentResultIndex < 0 || !highlightedContent) return;
-    
-    const timer = setTimeout(() => {
-      const container = contentRef.current;
-      if (!container) return;
-      
-      const marks = container.querySelectorAll('mark.search-highlight');
-      marks.forEach((mark) => {
-        (mark as HTMLElement).style.outline = 'none';
-      });
-      
-      const currentMark = marks[currentResultIndex] as HTMLElement | undefined;
-      if (currentMark) {
-        currentMark.style.outline = '2px solid #fb923c';
-        currentMark.style.outlineOffset = '1px';
-        currentMark.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 10);
-    
-    return () => clearTimeout(timer);
-  }, [currentResultIndex, highlightedContent]);
-
-  const handleSearchSubmit = () => {
-    if (searchQuery.trim()) {
-      highlightText(searchQuery.trim());
-      onSearch?.(searchQuery.trim());
-    }
-  };
-
-  const handleNavigateResult = (direction: 'prev' | 'next') => {
-    if (searchResultCount === 0) return;
-    
-    let newIndex: number;
-    if (direction === 'next') {
-      newIndex = (currentResultIndex + 1) % searchResultCount;
-    } else {
-      newIndex = (currentResultIndex - 1 + searchResultCount) % searchResultCount;
-    }
-    setCurrentResultIndex(newIndex);
-  };
-
-  const handleSearchClose = () => {
-    setSearchQuery('');
-    clearHighlights();
-  };
-
-  // =====================
-  // 목차 클릭 핸들러
-  // =====================
-  const handleTocClick = (id: string) => {
+  const handleTocClick = React.useCallback((id: string) => {
     onTocClick?.(id);
-    
-    const container = contentRef.current;
-    if (!container) return;
-    
-    let element: Element | null = null;
-    
-    // 여러 방법으로 요소 찾기
-    try {
-      const escapedId = CSS.escape(id);
-      element = container.querySelector(`#${escapedId}`);
-    } catch {
-      // CSS.escape 실패 시 무시
-    }
-    
-    if (!element) element = container.querySelector(`[data-id="${id}"]`);
-    if (!element) element = container.querySelector(`[name="${id}"]`);
-    
-    if (!element) {
-      const headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
-      for (const heading of headings) {
-        if (heading.id === id) {
-          element = heading;
-          break;
-        }
-        const text = heading.textContent?.trim() || '';
-        const slug = text.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/(^-|-$)/g, '');
-        if (slug === id || text === id) {
-          element = heading;
-          break;
-        }
-      }
-    }
-    
-    if (!element) element = document.getElementById(id);
-    
+
+    const element = findTocTarget(contentRef.current, id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  };
+  }, [onTocClick]);
+
+  const tocControls = React.useMemo<ViewerTocControls>(() => ({
+    items: toc,
+    onItemClick: handleTocClick,
+  }), [handleTocClick, toc]);
+
+  const searchControls = React.useMemo<ViewerSearchControls>(() => ({
+    query: searchQuery,
+    onQueryChange: setSearchQuery,
+    onSubmit: handleSearchSubmit,
+    onClose: handleSearchClose,
+    resultCount: searchResultCount,
+    currentResultIndex,
+    hasSearched,
+    onNavigateResult: handleNavigateResult,
+  }), [
+    currentResultIndex,
+    handleNavigateResult,
+    handleSearchClose,
+    handleSearchSubmit,
+    hasSearched,
+    searchQuery,
+    searchResultCount,
+    setSearchQuery,
+  ]);
+
+  const zoomControls = React.useMemo<ViewerZoomControls>(() => ({
+    level: zoomLevel,
+    onZoomIn: handleZoomIn,
+    onZoomOut: handleZoomOut,
+    onZoomReset: handleZoomReset,
+  }), [handleZoomIn, handleZoomOut, handleZoomReset, zoomLevel]);
 
   return (
     <SectionedShell
@@ -260,21 +152,10 @@ export function Viewer({
         <Toolbar
           maxWidth={DOCUMENT_WIDTH}
           variant={variant}
-          toc={toc}
-          onTocClick={handleTocClick}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          onSearchSubmit={handleSearchSubmit}
-          onSearchClose={handleSearchClose}
-          searchResultCount={searchResultCount}
-          currentResultIndex={currentResultIndex}
-          hasSearched={hasSearched}
-          onNavigateResult={handleNavigateResult}
-          onAttachToAssistant={onAttachToAssistant}
-          zoomLevel={zoomLevel}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onZoomReset={handleZoomReset}
+          toc={tocControls}
+          search={searchControls}
+          assistant={onAttachToAssistant ? { onAttach: onAttachToAssistant } : undefined}
+          zoom={zoomControls}
         />
       )}
       body={(

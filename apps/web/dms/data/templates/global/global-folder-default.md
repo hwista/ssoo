@@ -1,0 +1,4 @@
+project/
+  docs/
+  references/
+  decisions/

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { DOCUMENT_WIDTHS } from '@/components/common/page';
+import { DOCUMENT_WIDTHS } from '@/components/templates/page-frame';
 
 // 문서 본문 최대 너비 (DocPageTemplate과 동일)
 export const DOCUMENT_WIDTH = DOCUMENT_WIDTHS.portrait;
@@ -59,7 +59,7 @@ export function Content({
     >
       {/* 문서 컨테이너 - 고정 너비 + 내부 스크롤 */}
       <div 
-        ref={contentRef as React.RefObject<HTMLDivElement>}
+        ref={contentRef}
         className={cn(
           'h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin bg-white',
           shouldShowSurface && 'bg-white border border-gray-200 rounded-lg'

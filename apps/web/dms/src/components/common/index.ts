@@ -1,24 +1,21 @@
 /**
- * Common Components (Level 2 - Composite/분자)
+ * Common Components
  * 
- * 비즈니스 로직 없이 재사용 가능한 복합 컴포넌트
- * shadcn/ui 원자 컴포넌트를 조합하여 구성
+ * `common/` 은 현재 단일 성격의 레이어가 아닙니다.
+ * - pure common: StateDisplay, ConfirmDialog 등
+ * - domain-common feature modules: viewer/, editor/, assistant/
  * 
  * 구조:
- * - page/: 레이아웃 빌딩블록 (Breadcrumb, Header, Content, SectionedShell, Sidecar primitives)
- * - viewer/: 읽기 슬롯 컴포넌트 (Viewer, Toolbar, Content)
- * - editor/: 편집 슬롯 컴포넌트 (Editor, Toolbar, Content, BlockEditor)
+ * - viewer/: DMS 공통 viewer 기능
+ * - editor/: DMS 공통 editor 기능
+ * - assistant/: DMS 공통 assistant 기능
  * - StateDisplay: 로딩/에러/빈 상태 표시
  * - ConfirmDialog: 확인 다이얼로그
  */
 
-// 페이지 레이아웃 빌딩블록
-export { Breadcrumb, Header, Content, SectionedShell } from './page';
-export type { BreadcrumbProps, HeaderProps, HeaderAction, ContentProps, SectionedShellProps, TocItem } from './page';
-
 // Viewer 슬롯 컴포넌트 (문서 읽기)
-export { Viewer, Toolbar as ViewerToolbar, Content as ViewerContent, LineNumbers, countLines, DOCUMENT_WIDTH, ZOOM_LEVELS, DEFAULT_ZOOM } from './viewer';
-export type { ViewerProps, ToolbarProps, ContentProps as ViewerContentProps, LineNumbersProps } from './viewer';
+export { Viewer, Toolbar as ViewerToolbar, Content as ViewerContent, DOCUMENT_WIDTH, ZOOM_LEVELS, DEFAULT_ZOOM } from './viewer';
+export type { ViewerProps, ToolbarProps, ContentProps as ViewerContentProps } from './viewer';
 
 // Editor 슬롯 컴포넌트 (문서 편집)
 export { Editor, Content as EditorContent, BlockEditor, DOCUMENT_WIDTH as EDITOR_DOCUMENT_WIDTH } from './editor';

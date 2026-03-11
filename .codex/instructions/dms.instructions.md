@@ -34,9 +34,9 @@ src/
 │   └── layout.tsx
 ├── components/
 │   ├── ui/                # Radix UI 기반 원자
-│   ├── common/            # 공통 (editor, viewer, assistant, page)
+│   ├── common/            # 공통 (ConfirmDialog, StateDisplay, editor/viewer/assistant)
 │   ├── layout/            # AppLayout, Sidebar, Header, TabBar
-│   ├── templates/         # 페이지 템플릿
+│   ├── templates/         # 페이지 템플릿 + page-frame building blocks
 │   └── pages/             # 페이지별 컴포넌트
 ├── hooks/                 # 커스텀 훅
 ├── lib/                   # 유틸리티

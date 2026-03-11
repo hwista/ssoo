@@ -1,19 +1,19 @@
 'use client';
 
+import { useCallback } from 'react';
 import { FileText, Search, Clock, Plus } from 'lucide-react';
-import { useTabStore } from '@/stores';
+import { useOpenTabWithConfirm } from '@/hooks';
 
 /**
  * DMS 홈 대시보드 페이지
  * - 빠른 액션 버튼
  * - 최근 문서 (향후 확장)
  */
-export function HomeDashboardPage() {
-  const { openTab } = useTabStore();
+export function DashboardPage() {
+  const openTabWithConfirm = useOpenTabWithConfirm();
 
-  // AI 검색 탭 열기
-  const handleAISearch = () => {
-    openTab({
+  const handleAISearch = useCallback(async () => {
+    await openTabWithConfirm({
       id: 'ai-search',
       title: 'AI 검색',
       path: '/ai/search',
@@ -21,18 +21,22 @@ export function HomeDashboardPage() {
       closable: true,
       activate: true,
     });
-  };
+  }, [openTabWithConfirm]);
 
-  // 새 문서 작성 (향후 구현)
-  const handleNewDocument = () => {
-    // TODO: 새 문서 생성 모달 열기
-    console.log('새 문서 작성 - 구현 예정');
-  };
+  const handleNewDocument = useCallback(async () => {
+    await openTabWithConfirm({
+      id: `new-doc-${Date.now()}`,
+      title: '새 문서',
+      path: '/wiki/new',
+      icon: 'FileText',
+      closable: true,
+      activate: true,
+    });
+  }, [openTabWithConfirm]);
 
   return (
     <main className="flex-1 overflow-auto bg-white p-6">
       <div className="max-w-4xl mx-auto">
-        {/* 헤더 */}
         <h1 className="text-2xl font-bold text-ssoo-primary mb-4">
           문서 관리 시스템
         </h1>
@@ -40,9 +44,7 @@ export function HomeDashboardPage() {
           문서를 검색하거나 사이드바에서 파일을 선택하여 시작하세요.
         </p>
 
-        {/* 빠른 액션 - DMS 테마 */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {/* 새 문서 작성 */}
           <button
             onClick={handleNewDocument}
             className="p-4 bg-ssoo-content-bg/30 rounded-lg border border-ssoo-content-border hover:border-ssoo-primary cursor-pointer transition-colors text-left group"
@@ -54,7 +56,6 @@ export function HomeDashboardPage() {
             <p className="text-sm text-ssoo-primary/70">새로운 문서를 작성합니다</p>
           </button>
 
-          {/* AI 검색 */}
           <button
             onClick={handleAISearch}
             className="p-4 bg-ssoo-content-bg/30 rounded-lg border border-ssoo-content-border hover:border-ssoo-primary cursor-pointer transition-colors text-left group"
@@ -66,7 +67,6 @@ export function HomeDashboardPage() {
             <p className="text-sm text-ssoo-primary/70">AI로 문서를 검색합니다</p>
           </button>
 
-          {/* 최근 문서 */}
           <div className="p-4 bg-ssoo-content-bg/30 rounded-lg border border-ssoo-content-border hover:border-ssoo-primary cursor-pointer transition-colors group">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="w-5 h-5 text-ssoo-primary/50 group-hover:text-ssoo-primary" />
@@ -76,7 +76,6 @@ export function HomeDashboardPage() {
           </div>
         </div>
 
-        {/* 최근 문서 목록 (향후 확장) */}
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -91,4 +90,4 @@ export function HomeDashboardPage() {
   );
 }
 
-export default HomeDashboardPage;
+export default DashboardPage;

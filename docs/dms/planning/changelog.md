@@ -42,7 +42,7 @@
 
 ### DMS 구조 리팩터링 1차 적용
 
-- 홈 중복 컴포넌트 `DashboardPage.tsx`를 제거하고 `HomeDashboardPage.tsx`를 단일 정본으로 정리
+- 홈 페이지 엔트리를 `DashboardPage.tsx` 로 표준화하고 단일 정본으로 정리
 - 설정 페이지 구조를 정리하고, 네비게이션/설정 필드 목록/템플릿 섹션을 하위 컴포넌트로 분리
 - `src/lib/utils/apiClient.ts`를 `src/lib/api/` 도메인별 모듈로 분리하고 기존 사용처 import를 새 경로로 전환
 - `server/handlers/ai.handler.ts`를 facade로 축소하고 검색/질답/요약 로직을 `server/services/ai/` 하위 서비스로 분리

@@ -75,7 +75,7 @@ interface TabItem {
 
 ```typescript
 const pageComponents = {
-  home: lazy(() => import('@/components/pages/home/HomeDashboardPage')),
+  home: lazy(() => import('@/components/pages/home/DashboardPage')),
   markdown: lazy(() => import('@/components/pages/markdown/ViewerPage')),
   aiAsk: lazy(() => import('@/components/pages/ai/AskPage')),
   aiSearch: lazy(() => import('@/components/pages/ai/SearchPage')),
@@ -165,8 +165,8 @@ Bookmarks 클릭
 
 ```typescript
 const pageComponents = {
-  home: lazy(() => import('@/components/pages/home/HomeDashboardPage')
-    .then(m => ({ default: m.HomeDashboardPage }))),
+  home: lazy(() => import('@/components/pages/home/DashboardPage')
+    .then(m => ({ default: m.DashboardPage }))),
   markdown: lazy(() => import('@/components/pages/markdown/ViewerPage')
     .then(m => ({ default: m.ViewerPage }))),
 };

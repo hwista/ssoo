@@ -290,13 +290,13 @@ apps/web/dms/
 
 > ⚠️ **역사 기록**: 아래는 Phase 3 당시 생성된 페이지 컴포넌트입니다.  
 > Phase 7에서 리팩터링되어 현재는:
-> - `WikiHomePage` → `HomeDashboardPage` (`pages/home/`)
+> - `WikiHomePage` → `DashboardPage` (`pages/home/`)
 > - `WikiViewerPage` → `MarkdownViewerPage` (`pages/markdown/`)
 > - `AISearchPage` → 삭제됨 (Header에서 AI 검색 처리)
 
 | 컴포넌트 (당시) | 경로 (당시) | 역할 | 현재 상태 |
 |----------|------|------|------|
-| WikiHomePage | `components/pages/wiki/WikiHomePage.tsx` | 홈 대시보드 | → `HomeDashboardPage` |
+| WikiHomePage | `components/pages/wiki/WikiHomePage.tsx` | 홈 대시보드 | → `DashboardPage` |
 | WikiViewerPage | `components/pages/wiki/WikiViewerPage.tsx` | 문서 뷰어/에디터 | → `MarkdownViewerPage` |
 | AISearchPage | `components/pages/ai/AISearchPage.tsx` | AI 검색 | ❌ 삭제됨 |
 
@@ -314,7 +314,7 @@ const pageComponents = {
 
 // 현재 (Phase 7 이후):
 const pageComponents = {
-  home: lazy(() => import('@/components/pages/home/HomeDashboardPage')),
+  home: lazy(() => import('@/components/pages/home/DashboardPage')),
   markdown: lazy(() => import('@/components/pages/markdown/MarkdownViewerPage')),
 };
 ```
@@ -438,4 +438,3 @@ openTab({ ... });
 | Date | Change |
 |------|--------|
 | 2026-02-09 | Add changelog section. |
-

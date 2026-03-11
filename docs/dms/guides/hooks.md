@@ -1,6 +1,6 @@
 # DMS 커스텀 훅 가이드
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-03-11
 
 DMS 프로젝트에서 사용되는 커스텀 훅에 대한 가이드입니다.
 
@@ -10,120 +10,12 @@ DMS 프로젝트에서 사용되는 커스텀 훅에 대한 가이드입니다.
 
 | 훅 | 파일 | 용도 |
 |----|------|------|
-| `useEditor` | useEditor.ts | 에디터 상태 관리 |
 | `useOpenTabWithConfirm` | useOpenTabWithConfirm.ts | 탭 초과 시 확인 다이얼로그 |
+| `useOpenDocumentTab` | useOpenDocumentTab.ts | 문서 탭 열기 |
 
 ---
 
-## 1. useEditor
-
-에디터 상태 및 기능을 관리하는 핵심 훅입니다.
-
-### 소스 위치
-
-`src/hooks/useEditor.ts`
-
-### 주요 기능
-
-- 에디터 내용 관리
-- 커서 위치 및 선택 영역 관리
-- 실행 취소/다시 실행 (Undo/Redo)
-- 자동 저장
-- 임시 저장 및 복원
-
-### 인터페이스
-
-```typescript
-interface UseEditorOptions {
-  autoSaveInterval?: number;      // 자동 저장 간격 (ms)
-  maxHistorySize?: number;        // 실행 취소 히스토리 최대 크기
-  onContentChange?: (content: string) => void;
-  onSave?: (content: string) => Promise<void>;
-  onAutoSave?: (content: string) => Promise<void>;
-}
-
-interface UseEditorReturn {
-  // 에디터 상태
-  content: string;
-  originalContent: string;
-  hasUnsavedChanges: boolean;
-  isAutoSaveEnabled: boolean;
-  lastSaveTime: Date | null;
-  autoSaveCountdown: number;
-  
-  // 커서 및 선택
-  cursorPosition: EditorCursorPosition | null;
-  selection: EditorSelection | null;
-  
-  // 실행 취소/다시 실행
-  canUndo: boolean;
-  canRedo: boolean;
-  
-  // 저장 상태
-  isSaving: boolean;
-  
-  // 에디터 참조
-  editorRef: React.RefObject<HTMLTextAreaElement | null>;
-  
-  // 내용 관리
-  setContent: (content: string) => void;
-  updateContent: (content: string) => void;
-  resetContent: (newContent: string) => void;
-  
-  // 저장 관리
-  save: () => Promise<void>;
-  autoSave: () => Promise<void>;
-  setAutoSaveEnabled: (enabled: boolean) => void;
-  
-  // 유틸리티
-  undo: () => void;
-  redo: () => void;
-  markAsSaved: () => void;
-  clearHistory: () => void;
-}
-```
-
-### 사용 예제
-
-```typescript
-import { useEditor } from '@/hooks';
-
-function MarkdownEditor({ initialContent, onSave }) {
-  const {
-    content,
-    hasUnsavedChanges,
-    canUndo,
-    canRedo,
-    updateContent,
-    save,
-    undo,
-    redo,
-  } = useEditor(initialContent, {
-    autoSaveInterval: 30000,
-    onSave: async (content) => {
-      await onSave(content);
-    },
-  });
-
-  return (
-    <div>
-      <div className="toolbar">
-        <button onClick={undo} disabled={!canUndo}>Undo</button>
-        <button onClick={redo} disabled={!canRedo}>Redo</button>
-        <button onClick={save} disabled={!hasUnsavedChanges}>Save</button>
-      </div>
-      <textarea
-        value={content}
-        onChange={(e) => updateContent(e.target.value)}
-      />
-    </div>
-  );
-}
-```
-
----
-
-## 2. useOpenTabWithConfirm
+## 1. useOpenTabWithConfirm
 
 탭 개수 초과 시 확인 다이얼로그를 표시하는 훅입니다.
 
@@ -189,7 +81,33 @@ function FileTree() {
    └─ 탭 개수 >= maxTabs
       └─ 확인 다이얼로그 표시
          └─ 확인 → 가장 오래된 탭 닫기 → 새 탭 열기 → tabId 반환
-         └─ 취소 → '' 반환
+      └─ 취소 → '' 반환
+```
+
+---
+
+## 2. useOpenDocumentTab
+
+문서 경로를 `/doc/...` 탭으로 여는 훅입니다.
+
+### 소스 위치
+
+`src/hooks/useOpenDocumentTab.ts`
+
+### 사용 예제
+
+```typescript
+import { useOpenDocumentTab } from '@/hooks';
+
+function FileTreeItem({ path }: { path: string }) {
+  const openDocumentTab = useOpenDocumentTab();
+
+  return (
+    <button onClick={() => openDocumentTab({ path })}>
+      {path}
+    </button>
+  );
+}
 ```
 
 ---
@@ -212,4 +130,5 @@ function FileTree() {
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-03-11 | `useEditor` 를 editor 도메인 내부 훅으로 이동하고 `useOpenDocumentTab` 설명 추가 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

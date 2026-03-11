@@ -4,7 +4,7 @@ DMS 문서 편집기의 설계 및 컴포넌트 구조를 설명합니다.
 
 ## 개요
 
-Editor 컴포넌트는 DMS의 핵심 문서 편집 기능을 제공합니다. Tiptap 기반의 블록 에디터와 마크다운 직접 편집 모드를 지원합니다.
+Editor 컴포넌트는 DMS의 핵심 문서 편집 기능을 제공합니다. 현재는 CodeMirror 기반 블록 편집기와 editor 도메인 내부 runtime 훅을 중심으로 구성됩니다.
 
 ## 컴포넌트 구조
 
@@ -13,10 +13,17 @@ editor/
 ├── Editor.tsx         # 메인 에디터 (Toolbar + Content 조합)
 ├── Toolbar.tsx        # 상단 툴바 (모드 전환, 저장, 취소)
 ├── Content.tsx        # 본문 영역 (모드에 따라 BlockEditor 또는 textarea)
-├── BlockEditor.tsx    # Tiptap 블록 에디터
-├── BlockToolbar.tsx   # BlockEditor 내부 서식 툴바
-├── SlashCommand.tsx   # 슬래시 명령 팝업
-├── editor.css         # 에디터 전용 스타일
+├── block-editor/
+│   ├── BlockEditor.tsx
+│   ├── BlockEditorPanels.tsx
+│   ├── blockEditorCommands.ts
+│   ├── blockEditorExtensions.ts
+│   ├── useBlockEditorSlashState.ts
+│   └── useBlockEditorView.ts
+├── useEditorState.ts
+├── useEditorPersistence.ts
+├── useEditorRuntimeEffects.ts
+├── useEditorInteractions.ts
 └── index.ts           # 컴포넌트 export
 ```
 
@@ -26,10 +33,9 @@ editor/
 Editor.tsx
 ├── Toolbar.tsx          (모드 전환, 저장 버튼)
 └── Content.tsx          (본문 렌더링)
-    └── BlockEditor.tsx  (block 모드)
-        ├── BlockToolbar.tsx  (서식 툴바)
-        └── SlashCommand.tsx  (슬래시 명령)
-    └── textarea         (markdown 모드)
+    └── block-editor/BlockEditor.tsx
+        ├── BlockEditorPanels.tsx
+        └── useBlockEditorSlashState.ts
 ```
 
 ## 주요 컴포넌트
@@ -40,9 +46,8 @@ Editor.tsx
 
 **책임:**
 - 에디터 모드 상태 관리 (block/markdown)
-- 콘텐츠 변환 (HTML ↔ Markdown)
 - 저장/취소 액션 처리
-- 자동저장 기능 (useEditor 훅)
+- editor runtime state 조립 (`useEditorState`)
 
 **Props:**
 ```typescript
@@ -75,16 +80,17 @@ interface EditorProps {
 
 ### BlockEditor
 
-Tiptap 기반 WYSIWYG 에디터.
+CodeMirror 기반 markdown block editor 입니다.
 
 **책임:**
 - 리치 텍스트 편집
 - 블록 단위 콘텐츠 관리
 - 서식 적용 (bold, italic, heading 등)
 
-**내부 컴포넌트:**
-- `BlockToolbar`: 선택 텍스트 서식 변경
-- `SlashCommand`: `/` 입력 시 명령 팝업
+**내부 구성:**
+- `BlockEditorPanels`: preview / slash panel
+- `blockEditorCommands`: 명령 적용
+- `useBlockEditorView`: editor view lifecycle
 
 ## 상태 관리
 
@@ -96,10 +102,9 @@ useEditorStore (전역)
 ├── fileMetadata    # 파일 메타데이터
 └── saveFile()      # 저장 액션
 
-useEditor (로컬 훅)
+useEditorState (editor 내부 훅)
 ├── content         # 편집 중인 콘텐츠
 ├── hasUnsavedChanges
-├── isAutoSaveEnabled
 ├── save()          # 수동 저장
 └── updateContent() # 콘텐츠 변경
 ```
@@ -114,22 +119,9 @@ Editor는 Viewer와 동일한 슬롯 구조를 따릅니다:
 
 **이유:** UI 일관성 유지, 레이아웃 코드 재사용
 
-### Block/Markdown 듀얼 모드
+### Runtime 훅 분리
 
-**이유:**
-- Block 모드: 일반 사용자를 위한 직관적 편집
-- Markdown 모드: 파워 유저를 위한 직접 편집
-
-**변환:**
-- Block → Markdown: `htmlToMarkdown()` 사용
-- Markdown → Block: `markdownToHtmlSync()` 사용
-
-### 자동저장
-
-useEditor 훅에서 자동저장 기능을 제공합니다:
-- 변경 후 일정 시간 대기
-- 대기 시간 경과 시 자동 저장
-- 카운트다운 표시
+현재 editor 는 runtime state, persistence, interaction, CodeMirror lifecycle 을 별도 훅/헬퍼로 분리해 page/common 경계를 유지합니다.
 
 ## 스타일 가이드
 

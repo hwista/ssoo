@@ -1,6 +1,6 @@
 # DMS 컴포넌트 가이드
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-03-11
 
 DMS 프로젝트의 React 컴포넌트 구조와 사용법에 대한 가이드입니다.
 
@@ -16,8 +16,8 @@ src/components/
 │   ├── ConfirmDialog.tsx      # 확인 다이얼로그
 │   ├── StateDisplay.tsx       # 상태 표시
 │   ├── editor/                # 에디터 관련
-│   ├── page/                  # 페이지 컴포넌트
-│   └── viewer/                # 뷰어 컴포넌트
+│   ├── assistant/             # DMS 공통 assistant 기능
+│   └── viewer/                # DMS 공통 viewer 기능
 │       ├── Viewer.tsx         # 뷰어 본체
 │       ├── Toolbar.tsx        # 뷰어 툴바
 │       ├── Content.tsx        # 뷰어 본문
@@ -28,13 +28,15 @@ src/components/
 │   ├── Header.tsx             # 헤더
 │   ├── TabBar.tsx             # 탭 바
 │   └── sidebar/               # 사이드바 관련
-├── pages/                     # 페이지별 컴포넌트
+├── pages/                     # 기능별 페이지 엔트리
 │   ├── home/                  # 홈 페이지
 │   ├── markdown/              # 마크다운 페이지
-│   └── wiki/                  # 위키 페이지
+│   ├── ai/                    # AI 페이지
+│   └── settings/              # 설정 페이지
 ├── templates/                 # 템플릿
-│   └── DocPageTemplate.tsx    # 문서 페이지 템플릿
-└── ui/                        # 기본 UI 컴포넌트
+│   ├── DocPageTemplate.tsx    # 문서형 페이지 프레임
+│   └── page-frame/            # template-facing building blocks
+└── ui/                        # low-level UI adapters
     ├── alert-dialog.tsx
     ├── button.tsx
     ├── card.tsx
@@ -52,6 +54,24 @@ src/components/
 - **폴더가 컨텍스트를 제공하므로 접두어를 제거**합니다.
 - 예: `common/viewer/Toolbar.tsx`, `common/viewer/Content.tsx`
 - 예외: 전역 공유 컴포넌트는 이름 충돌을 피하도록 명확한 이름 사용
+
+---
+
+## 레이어 해석
+
+- `ui/`
+  - low-level primitive adapter 레이어입니다.
+- `layout/`
+  - 앱 전역 shell 과 keep-alive 탭 렌더링 구조를 담당합니다.
+- `templates/`
+  - `pages/` 가 공통 화면 패턴을 일관되게 구현하도록 돕는 page frame 레이어입니다.
+- `pages/`
+  - 실제 도메인 기능 진입점과 orchestration 을 담당합니다.
+- `common/`
+  - 현재는 순수 공통 컴포넌트와 DMS 도메인 공통 기능 모듈이 함께 존재하는 혼합 레이어입니다.
+  - `common/viewer|editor|assistant/*`: DMS 도메인 공통 기능 모듈
+- `templates/page-frame/`
+  - `DocPageTemplate` 를 구성하는 template-facing building block 레이어입니다.
 
 ---
 
@@ -99,6 +119,10 @@ src/components/
 메인 콘텐츠 영역입니다.
 
 **소스**: `src/components/layout/ContentArea.tsx`
+
+주의:
+
+- 현재 `ContentArea` 는 단순 레이아웃 영역이 아니라 keep-alive 탭 렌더링 coordinator 역할도 수행합니다.
 
 ---
 
@@ -154,7 +178,7 @@ function MyComponent() {
 
 ### DocPageTemplate
 
-문서 페이지의 기본 템플릿입니다.
+문서형 페이지의 공통 프레임입니다.
 
 **소스**: `src/components/templates/DocPageTemplate.tsx`
 
@@ -171,7 +195,7 @@ function MyComponent() {
 
 ## 4. UI 컴포넌트
 
-shadcn/ui 기반의 기본 UI 컴포넌트들입니다.
+shadcn 생성 코드, Radix primitive 래퍼, 프로젝트 스타일 래퍼를 포함하는 low-level UI 컴포넌트들입니다.
 
 ### Button
 
@@ -258,6 +282,12 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 - PascalCase: `MyComponent.tsx`
 - 폴더 기반 구조: 관련 파일은 같은 폴더에
 
+## Changelog
+
+| 날짜 | 변경 내용 |
+|------|----------|
+| 2026-03-11 | `ui/layout/templates/pages` 기준으로 구조 설명 갱신, `common` 혼합 레이어 상태 반영 |
+
 ### Import 순서
 
 ```typescript
@@ -270,8 +300,8 @@ import { cn } from '@/lib/utils';
 // 3. 컴포넌트
 import { Button } from '@/components/ui/button';
 
-// 4. 훅
-import { useEditor } from '@/hooks';
+// 4. editor domain hook
+import { useEditorState } from '@/components/common/editor/useEditorState';
 
 // 5. 타입
 import type { FileNode } from '@/types';

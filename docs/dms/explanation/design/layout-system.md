@@ -196,7 +196,7 @@ className="bg-gray-100 hover:bg-gray-200"
 
 ```typescript
 const pageComponents = {
-  home: lazy(() => import('@/components/pages/home/HomeDashboardPage')),
+  home: lazy(() => import('@/components/pages/home/DashboardPage')),
   markdown: lazy(() => import('@/components/pages/markdown/MarkdownViewerPage')),
 };
 ```
@@ -238,7 +238,7 @@ function getPageType(tab) {
 | `landscape` | 가로 문서 | `DOCUMENT_WIDTHS.landscape` |
 
 ```tsx
-import { DOCUMENT_WIDTHS, DEFAULT_DOCUMENT_ORIENTATION } from '@/components/common/page';
+import { DOCUMENT_WIDTHS, DEFAULT_DOCUMENT_ORIENTATION } from '@/components/templates/page-frame';
 ```
 
 ### 구현 패턴
@@ -278,7 +278,7 @@ import { DocPageTemplate } from '@/components/templates';
 import {
   DOC_PAGE_SURFACE_PRESETS,
   SectionedShell,
-} from '@/components/common/page';
+} from '@/components/templates/page-frame';
 import { AiSidecar } from '@/components/pages/ai/_components/AiSidecar';
 
 <DocPageTemplate

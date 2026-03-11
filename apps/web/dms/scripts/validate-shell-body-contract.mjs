@@ -10,7 +10,7 @@ function read(relPath) {
 
 const checks = [
   {
-    file: 'src/components/common/page/SectionedShell.tsx',
+    file: 'src/components/templates/page-frame/SectionedShell.tsx',
     patterns: [
       "const BODY_SLOT_CONTENT_CLASS = 'h-full min-h-0 overflow-hidden';",
       '<div className={BODY_SLOT_CONTENT_CLASS}>',
@@ -18,7 +18,7 @@ const checks = [
     description: 'SectionedShell body slot content wrapper contract',
   },
   {
-    file: 'src/components/common/page/layoutPresets.ts',
+    file: 'src/components/templates/page-frame/layoutPresets.ts',
     patterns: [
       "aiChat: 'h-full min-h-0 overflow-hidden",
       "aiSearch: 'h-full min-h-0 overflow-hidden",

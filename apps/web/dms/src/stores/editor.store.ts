@@ -2,10 +2,10 @@
 
 import { create } from 'zustand';
 import { useCallback, useMemo } from 'react';
-import { useCurrentTabId } from '@/contexts/TabInstanceContext';
+import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import { fileApi, getErrorMessage } from '@/lib/api';
 import type { DocumentMetadata } from '@/types';
-import { logger, safeAsync, PerformanceTimer } from '@/lib/utils/errorUtils';
+import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 
 // ============================================
 // Types
@@ -20,6 +20,7 @@ interface FileMetadata {
 interface EditorHandlers {
   save: () => Promise<void>;
   cancel: () => void;
+  getMarkdown: () => string;
   getSelection: () => { from: number; to: number };
   insertAt: (from: number, to: number, text: string) => void;
   setPendingInsert: (range: { from: number; to: number } | null) => void;
@@ -108,45 +109,54 @@ const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     get()._updateTab(tabId, { isLoading: true, error: null, currentFilePath: path });
 
     try {
-      await safeAsync(async () => {
-        const response = await fileApi.read(path);
-        if (!response.success) {
-          throw new Error(`파일 읽기 실패: ${getErrorMessage(response)}`);
-        }
+      const response = await fileApi.read(path);
+      if (!response.success) {
+        throw new Error(`파일 읽기 실패: ${getErrorMessage(response)}`);
+      }
 
-        let fileData;
-        try {
-          fileData = typeof response.data === 'string'
-            ? JSON.parse(response.data)
-            : response.data;
-        } catch {
-          fileData = { content: response.data || '', metadata: null };
-        }
+      let fileData;
+      try {
+        fileData = typeof response.data === 'string'
+          ? JSON.parse(response.data)
+          : response.data;
+      } catch {
+        fileData = { content: response.data || '', metadata: null };
+      }
 
-        const patch: Partial<EditorTabState> = { content: fileData.content || '' };
+      const patch: Partial<EditorTabState> = { content: fileData.content || '' };
 
-        if (fileData.metadata) {
-          patch.fileMetadata = {
-            createdAt: new Date(fileData.metadata.createdAt),
-            modifiedAt: new Date(fileData.metadata.modifiedAt),
-            size: fileData.metadata.size,
-          };
-          patch.documentMetadata = fileData.metadata.document || null;
-        } else {
-          patch.fileMetadata = initialTabState.fileMetadata;
-          patch.documentMetadata = null;
-        }
+      if (fileData.metadata) {
+        patch.fileMetadata = {
+          createdAt: new Date(fileData.metadata.createdAt),
+          modifiedAt: new Date(fileData.metadata.modifiedAt),
+          size: fileData.metadata.size,
+        };
+        patch.documentMetadata = fileData.metadata.document || null;
+      } else {
+        patch.fileMetadata = initialTabState.fileMetadata;
+        patch.documentMetadata = null;
+      }
 
-        get()._updateTab(tabId, patch);
-        logger.info('파일 로드 성공', { path, hasMetadata: !!fileData.metadata });
-      }, { operation: 'loadFile', component: 'EditorMultiStore', context: 'loadFile' });
+      get()._updateTab(tabId, patch);
+      logger.info('파일 로드 성공', { path, hasMetadata: !!fileData.metadata });
 
       timer.end({ success: true });
     } catch (error) {
       timer.end({ success: false });
-      logger.error('파일 로드 중 오류', error);
       const errorMsg = error instanceof Error ? error.message : '파일 로드 실패';
-      get()._updateTab(tabId, { error: errorMsg });
+
+      get()._updateTab(tabId, {
+        content: '',
+        fileMetadata: initialTabState.fileMetadata,
+        documentMetadata: null,
+        error: errorMsg,
+      });
+
+      if (errorMsg.includes('파일을 찾을 수 없습니다')) {
+        logger.warn('존재하지 않는 파일 로드 요청', { path, tabId });
+      } else {
+        logger.error('파일 로드 중 오류', error);
+      }
     } finally {
       get()._updateTab(tabId, { isLoading: false });
     }
@@ -157,18 +167,16 @@ const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     get()._updateTab(tabId, { isLoading: true, error: null });
 
     try {
-      await safeAsync(async () => {
-        const response = await fileApi.update(path, content);
-        if (!response.success) {
-          throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
-        }
+      const response = await fileApi.update(path, content);
+      if (!response.success) {
+        throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
+      }
 
-        get()._updateTab(tabId, { content, isEditing: false });
-        await get().flushPendingMetadata(tabId);
-        await get().refreshFileMetadata(tabId, path);
+      get()._updateTab(tabId, { content, isEditing: false });
+      await get().flushPendingMetadata(tabId);
+      await get().refreshFileMetadata(tabId, path);
 
-        logger.info('파일 저장 성공', { path });
-      }, { operation: 'saveFile', component: 'EditorMultiStore', context: 'saveFile' });
+      logger.info('파일 저장 성공', { path });
 
       timer.end({ success: true });
     } catch (error) {
@@ -186,18 +194,16 @@ const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     const timer = new PerformanceTimer('임시 파일 저장');
 
     try {
-      await safeAsync(async () => {
-        const response = await fileApi.update(path, content);
-        if (!response.success) {
-          throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
-        }
+      const response = await fileApi.update(path, content);
+      if (!response.success) {
+        throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
+      }
 
-        get()._updateTab(tabId, { content });
-        await get().flushPendingMetadata(tabId);
-        await get().refreshFileMetadata(tabId, path);
+      get()._updateTab(tabId, { content });
+      await get().flushPendingMetadata(tabId);
+      await get().refreshFileMetadata(tabId, path);
 
-        logger.info('임시 저장 성공 (편집 모드 유지)', { path });
-      }, { operation: 'saveFileKeepEditing', component: 'EditorMultiStore', context: 'saveFileKeepEditing' });
+      logger.info('임시 저장 성공 (편집 모드 유지)', { path });
 
       timer.end({ success: true });
     } catch (error) {
@@ -347,14 +353,14 @@ function createTabActions(tabId: string) {
 /**
  * 탭별 에디터 스토어 훅
  * 
- * TabInstanceContext에서 tabId를 자동 해석하여
+ * TabInstanceProvider에서 주입된 tabId를 자동 해석하여
  * 해당 탭의 에디터 상태와 액션을 반환합니다.
  * 
- * ⚠️ TabInstanceContext.Provider 내부에서만 사용 가능
- * (ContentArea가 각 탭에 Provider를 감싸줌)
+ * ⚠️ TabInstanceProvider 내부에서만 사용 가능
+ * (ContentArea가 keep-alive 탭마다 Provider를 감싸줌)
  */
 export function useEditorStore() {
-  const tabId = useCurrentTabId();
+  const tabId = useTabInstanceId();
 
   // 이 탭의 상태만 구독 (다른 탭 변경 시 리렌더 없음)
   const tabState = useEditorMultiStore(
