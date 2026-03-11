@@ -3,17 +3,19 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Content } from './Content';
-import { type BlockEditorRef } from './BlockEditor';
+import { type BlockEditorRef } from './block-editor/BlockEditor';
 import { EditorToolbar, type ToolbarCommandId } from './Toolbar';
-import { SectionedShell } from '@/components/common/page';
-import { DOCUMENT_WIDTHS } from '@/components/common/page';
-import { useEditor } from '@/hooks/useEditor';
+import { SectionedShell } from '@/components/templates/page-frame';
+import { DOCUMENT_WIDTHS } from '@/components/templates/page-frame';
 import { useEditorStore, useTabStore } from '@/stores';
-import { useCurrentTabId } from '@/contexts/TabInstanceContext';
+import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import { useConfirmStore } from '@/stores/confirm.store';
 import { useToast } from '@/lib/toast';
-import { templateApi } from '@/lib/api';
 import type { TemplateScope } from '@/types/template';
+import { useEditorPersistence } from './useEditorPersistence';
+import { useEditorRuntimeEffects } from './useEditorRuntimeEffects';
+import { useEditorInteractions } from './useEditorInteractions';
+import { useEditorState } from './useEditorState';
 
 // 문서 본문 최대 너비 (Viewer와 동일)
 export const DOCUMENT_WIDTH = DOCUMENT_WIDTHS.portrait;
@@ -82,6 +84,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   onTemplateSaved,
 }: EditorProps, ref) {
   const { showSuccess, showError } = useToast();
+  const interactions = useEditorInteractions();
   
   // Store에서 상태 가져오기
   const {
@@ -100,7 +103,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   } = useEditorStore();
 
   // 탭 ID (keep-alive context) + 탭 스토어 (새 문서 저장 시 탭 업데이트용)
-  const tabId = useCurrentTabId();
+  const tabId = useTabInstanceId();
   const { updateTab, closeTab } = useTabStore();
   
   // 확인 다이얼로그
@@ -114,7 +117,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     hasUnsavedChanges,
     isSaving,
     save,
-  } = useEditor(content, {
+  } = useEditorState(content, {
     onSave: async (c: string) => {
       if (!currentFilePath) return;
       await storeSaveFile(currentFilePath, c);
@@ -144,6 +147,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     updateContent(markdown);
   }, [updateContent]);
   const blockEditorRef = React.useRef<BlockEditorRef>(null);
+  const lastResetContentRef = React.useRef<string | null>(null);
   const handleToolbarCommand = React.useCallback((id: ToolbarCommandId) => {
     blockEditorRef.current?.applyCommand(id);
   }, []);
@@ -157,183 +161,53 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     },
   }), []);
 
-  // 새 문서 작성 모드 여부
   const isCreateMode = !currentFilePath && isEditing;
-  const deriveTemplateName = React.useCallback(() => {
-    const heading = editorContent.match(/^#\s+(.+)$/m)?.[1]?.trim();
-    if (heading) return heading;
-
-    const pathSource = currentFilePath || preferredCreatePath || '';
-    const fileName = pathSource.split('/').pop()?.replace(/\.md$/i, '').trim();
-    if (fileName) return fileName;
-
-    return '새 템플릿';
-  }, [currentFilePath, editorContent, preferredCreatePath]);
-
-  // =====================
-  // 저장 핸들러
-  // =====================
-  const handleSave = React.useCallback(async () => {
-    if (templateSaveEnabled) {
-      const name = templateSaveDraft?.name.trim() || deriveTemplateName();
-
-      if (!editorContent.trim()) {
-        showError('저장 실패', '비어 있는 문서는 템플릿으로 저장할 수 없습니다.');
-        return;
-      }
-
-      try {
-        const response = await templateApi.upsert({
-          name,
-          description: templateSaveDraft?.description.trim() || '',
-          scope: templateSaveDraft?.scope ?? 'personal',
-          kind: 'document',
-          content: editorContent,
-        });
-
-        if (!response.success) {
-          showError('저장 실패', response.error || '템플릿 저장 중 오류가 발생했습니다.');
-          return;
-        }
-
-        onTemplateSaved?.();
-        showSuccess('템플릿 저장 완료', `'${name}' 템플릿이 저장되었습니다. 문서는 위키에 저장되지 않았습니다.`);
-      } catch {
-        showError('저장 실패', '템플릿 저장 중 오류가 발생했습니다.');
-      }
-      return;
-    }
-
-    if (isCreateMode) {
-      const pathHint = preferredCreatePath?.trim();
-      const input = pathHint || prompt('파일 이름을 입력하세요 (예: docs/새문서.md)');
-      const newFileName = input?.trim();
-      if (!newFileName) return;
-      const resolvedPath = newFileName.endsWith('.md') ? newFileName : `${newFileName}.md`;
-      
-      try {
-        await storeSaveFile(resolvedPath, editorContent);
-        setIsEditing(false);
-        onCreatePathResolved?.(resolvedPath);
-        showSuccess('생성 완료', '새 문서가 생성되었습니다.');
-        
-        // 탭 경로 업데이트: /wiki/new → /doc/{newFileName}
-        if (tabId) {
-          const newPath = `/doc/${encodeURIComponent(resolvedPath)}`;
-          const title = resolvedPath.split('/').pop() || resolvedPath;
-          updateTab(tabId, { path: newPath, title });
-        }
-      } catch {
-        showError('생성 실패', '문서 생성 중 오류가 발생했습니다.');
-      }
-      return;
-    }
-    
-    if (!currentFilePath) {
-      showError('저장 실패', '선택된 파일이 없습니다.');
-      return;
-    }
-    try {
-      await save();
-      setIsEditing(false);
-      showSuccess('저장 완료', '파일이 저장되었습니다.');
-    } catch {
-      showError('저장 실패', '파일 저장 중 오류가 발생했습니다.');
-    }
-  }, [templateSaveEnabled, templateSaveDraft, deriveTemplateName, editorContent, onTemplateSaved, isCreateMode, preferredCreatePath, storeSaveFile, setIsEditing, onCreatePathResolved, tabId, updateTab, currentFilePath, save, showSuccess, showError]);
-
-  // =====================
-  // 취소 핸들러
-  // =====================
-  const handleCancel = React.useCallback(async () => {
-    if (hasUnsavedChanges || pendingMetadataUpdate) {
-      const confirmed = await confirm({
-        title: '변경사항 폐기',
-        description: '저장하지 않은 변경사항이 있습니다. 정말로 취소하시겠습니까?',
-        confirmText: '취소',
-        cancelText: '돌아가기',
-      });
-      if (!confirmed) return;
-    }
-    
-    // 새 문서 작성 취소 시 탭 닫기
-    if (isCreateMode && tabId) {
-      closeTab(tabId);
-      return;
-    }
-    
-    resetContent(content);
-    // 보류 중인 메타데이터 변경사항 폐기 (서버에서 재로드)
-    discardPendingMetadata();
-    setIsEditing(false);
-  }, [hasUnsavedChanges, pendingMetadataUpdate, confirm, content, resetContent, setIsEditing, isCreateMode, tabId, closeTab, discardPendingMetadata]);
-
-  // =====================
-  // Store에 핸들러 등록 (Header에서 사용)
-  // Ref를 사용하여 핸들러 변경 시 Store를 업데이트하지 않음
-  // =====================
-  const handlersRef = React.useRef({
-    save: handleSave,
-    cancel: handleCancel,
-    getSelection: () => blockEditorRef.current?.getSelection() ?? { from: 0, to: 0 },
-    insertAt: (from: number, to: number, text: string) => blockEditorRef.current?.insertAt(from, to, text),
-    setPendingInsert: (range: { from: number; to: number } | null) => blockEditorRef.current?.setPendingInsert(range),
+  const { handleSave, handleCancel } = useEditorPersistence({
+    state: {
+      content,
+      editorContent,
+      currentFilePath,
+      hasUnsavedChanges,
+      pendingMetadataUpdate,
+      isCreateMode,
+      preferredCreatePath,
+      templateSaveEnabled,
+      templateSaveDraft,
+      tabId,
+    },
+    actions: {
+      save,
+      storeSaveFile,
+      resetContent,
+      discardPendingMetadata,
+      setIsEditing,
+      updateTab,
+      closeTab,
+      onCreatePathResolved,
+      onTemplateSaved,
+    },
+    deps: {
+      confirm,
+      showSuccess,
+      showError,
+      requestCreatePath: interactions.requestCreatePath,
+    },
   });
 
-  // 핸들러가 변경되면 ref 업데이트 (Store 업데이트 없음)
-  React.useEffect(() => {
-    handlersRef.current = {
-      save: handleSave,
-      cancel: handleCancel,
-      getSelection: () => blockEditorRef.current?.getSelection() ?? { from: 0, to: 0 },
-      insertAt: (from: number, to: number, text: string) => blockEditorRef.current?.insertAt(from, to, text),
-      setPendingInsert: (range: { from: number; to: number } | null) => blockEditorRef.current?.setPendingInsert(range),
-    };
-  }, [handleSave, handleCancel]);
-
-  // 마운트 시 한 번만 Store에 핸들러 등록
-  React.useEffect(() => {
-    setEditorHandlers({
-      save: () => handlersRef.current.save(),
-      cancel: () => handlersRef.current.cancel(),
-      getSelection: () => handlersRef.current.getSelection(),
-      insertAt: (from, to, text) => handlersRef.current.insertAt(from, to, text),
-      setPendingInsert: (range) => handlersRef.current.setPendingInsert(range),
-    });
-    
-    return () => {
-      clearEditorHandlers();
-    };
-  }, [setEditorHandlers, clearEditorHandlers]);
-
-  // =====================
-  // 키보드 단축키
-  // =====================
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        if (hasUnsavedChanges) handleSave();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [hasUnsavedChanges, handleSave]);
-
-  // =====================
-  // 브라우저 종료 경고
-  // =====================
-  React.useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '저장하지 않은 변경사항이 있습니다.';
-        return '저장하지 않은 변경사항이 있습니다.';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+  useEditorRuntimeEffects({
+    content,
+    hasUnsavedChanges,
+    isSaving,
+    resetContent,
+    lastResetContentRef,
+    blockEditorRef,
+    handleSave,
+    handleCancel,
+    setStoreHasUnsavedChanges,
+    setStoreIsSaving,
+    setEditorHandlers,
+    clearEditorHandlers,
+  });
 
   // 파일이 없고, 편집 중도 아닐 때 (새 문서 작성 시에는 isEditing=true)
   if (!currentFilePath && !isEditing) {
@@ -364,6 +238,9 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       isPendingInsertLoading={isPendingInsertLoading}
       blockEditorRef={blockEditorRef}
       showToolbar={false}
+      requestImageUrl={interactions.requestImageUrl}
+      requestLinkUrl={interactions.requestLinkUrl}
+      openExternalHref={interactions.openExternalHref}
     />
   );
 
@@ -378,20 +255,24 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
         <div className="min-h-0 flex-1 overflow-hidden">
           {contentNode}
         </div>
+        {interactions.dialogs}
       </div>
     );
   }
 
   return (
-    <SectionedShell
-      className={cn(
-        'h-full min-h-0',
-        className
-      )}
-      variant="editor_with_footer"
-      toolbar={showToolbar ? toolbarNode : undefined}
-      body={contentNode}
-    />
+    <>
+      <SectionedShell
+        className={cn(
+          'h-full min-h-0',
+          className
+        )}
+        variant="editor_with_footer"
+        toolbar={showToolbar ? toolbarNode : undefined}
+        body={contentNode}
+      />
+      {interactions.dialogs}
+    </>
   );
 });
 

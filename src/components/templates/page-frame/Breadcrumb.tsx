@@ -91,6 +91,7 @@ export function Breadcrumb({
       : rootIconVariant === 'editor'
         ? FilePenLine
         : Settings;
+  const isPathNavigationEnabled = typeof onPathClick === 'function';
 
   return (
     <nav 
@@ -102,12 +103,18 @@ export function Breadcrumb({
       aria-label="파일 경로"
     >
       {/* 루트 아이콘 */}
-      <button
-        onClick={() => onPathClick?.('')}
-        className="flex items-center hover:text-ssoo-primary transition-colors shrink-0"
-      >
-        <RootIcon className="h-3.5 w-3.5" />
-      </button>
+      {isPathNavigationEnabled ? (
+        <button
+          onClick={() => onPathClick?.('')}
+          className="flex items-center hover:text-ssoo-primary transition-colors shrink-0"
+        >
+          <RootIcon className="h-3.5 w-3.5" />
+        </button>
+      ) : (
+        <span className="flex items-center shrink-0 text-ssoo-primary/70">
+          <RootIcon className="h-3.5 w-3.5" />
+        </span>
+      )}
 
       {/* 경로 세그먼트들 */}
       {segments.map((segment, index) => {
@@ -126,7 +133,7 @@ export function Breadcrumb({
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-ssoo-primary/60" />
                 )}
               </span>
-            ) : (
+            ) : isPathNavigationEnabled ? (
               // 중간 세그먼트는 클릭 가능 (아이콘 없이 텍스트만)
               <button
                 onClick={() => onPathClick?.(segmentPath)}
@@ -134,6 +141,10 @@ export function Breadcrumb({
               >
                 {segment}
               </button>
+            ) : (
+              <span className="shrink-0 text-gray-500">
+                {segment}
+              </span>
             )}
           </React.Fragment>
         );

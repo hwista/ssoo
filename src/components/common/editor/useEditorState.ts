@@ -1,5 +1,5 @@
 /**
- * useEditor - 에디터 내부 편집 상태를 관리하는 커스텀 훅
+ * useEditorState - editor 도메인 내부 편집 상태 훅
  *
  * 기능:
  * - markdown 내용 편집
@@ -32,13 +32,13 @@ export interface EditorSelection {
   text: string;
 }
 
-export interface UseEditorOptions {
+export interface UseEditorStateOptions {
   maxHistorySize?: number;
   onContentChange?: (content: string) => void;
   onSave?: (content: string) => Promise<void>;
 }
 
-export interface UseEditorReturn {
+export interface UseEditorStateReturn {
   content: string;
   originalContent: string;
   hasUnsavedChanges: boolean;
@@ -74,23 +74,10 @@ interface HistoryState {
 }
 
 type HistoryAction =
-  | {
-      type: 'push';
-      entry: HistoryEntry;
-      maxHistorySize: number;
-    }
-  | {
-      type: 'reset';
-      entry: HistoryEntry;
-    }
-  | {
-      type: 'clear';
-      entry: HistoryEntry;
-    }
-  | {
-      type: 'move';
-      index: number;
-    };
+  | { type: 'push'; entry: HistoryEntry; maxHistorySize: number }
+  | { type: 'reset'; entry: HistoryEntry }
+  | { type: 'clear'; entry: HistoryEntry }
+  | { type: 'move'; index: number };
 
 function createHistoryEntry(content: string, cursorPosition: number): HistoryEntry {
   return { content, cursorPosition };
@@ -134,10 +121,10 @@ function historyReducer(state: HistoryState, action: HistoryAction): HistoryStat
   }
 }
 
-export const useEditor = (
+export const useEditorState = (
   initialContent: string = '',
-  options: UseEditorOptions = {}
-): UseEditorReturn => {
+  options: UseEditorStateOptions = {}
+): UseEditorStateReturn => {
   const { maxHistorySize = 50, onContentChange, onSave } = options;
 
   const [content, setContentState] = useState(initialContent);
@@ -348,7 +335,7 @@ export const useEditor = (
       const lines = content.split('\n');
       let position = 0;
 
-      for (let i = 0; i < line - 1 && i < lines.length; i++) {
+      for (let i = 0; i < line - 1 && i < lines.length; i += 1) {
         position += lines[i].length + 1;
       }
 

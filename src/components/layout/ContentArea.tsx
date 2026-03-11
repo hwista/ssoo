@@ -2,9 +2,9 @@
 
 import { lazy, Suspense, type ComponentType } from 'react';
 import { useTabStore, HOME_TAB } from '@/stores';
-import { TabInstanceContext } from '@/contexts/TabInstanceContext';
 import { LoadingState } from '@/components/common/StateDisplay';
 import { AiAskPage } from '@/components/pages/ai/AskPage';
+import { TabInstanceProvider } from './tab-instance/TabInstanceContext';
 
 /**
  * 페이지 컴포넌트 매핑
@@ -42,7 +42,7 @@ function lazyWithChunkRetry<T extends ComponentType<unknown>>(
 }
 
 const pageComponents = {
-  home: lazyWithChunkRetry(() => import('@/components/pages/home/HomeDashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
+  home: lazyWithChunkRetry(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.DashboardPage }))),
   markdown: lazyWithChunkRetry(() => import('@/components/pages/markdown/ViewerPage').then(m => ({ default: m.ViewerPage }))),
   aiAsk: AiAskPage,
   aiSearch: lazyWithChunkRetry(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
@@ -81,7 +81,7 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
  * 
  * - 모든 열린 탭의 컴포넌트를 동시에 마운트
  * - 비활성 탭은 CSS display:none으로 숨김 (DOM 유지)
- * - TabInstanceContext로 각 페이지에 자신의 tabId 주입
+ * - TabInstanceProvider로 각 페이지에 자신의 tabId 주입
  * - 탭 전환 시 unmount/remount 없이 상태 보존
  *   → 스크롤 위치, 에디터 내용, 채팅 기록, 검색 결과 유지
  */
@@ -123,11 +123,11 @@ export function ContentArea() {
             key={tab.id}
             className={`absolute inset-0 overflow-hidden ${isActive ? '' : 'hidden'}`}
           >
-            <TabInstanceContext.Provider value={tab.id}>
+            <TabInstanceProvider tabId={tab.id}>
               <Suspense fallback={<LoadingFallback />}>
                 <PageComponent />
               </Suspense>
-            </TabInstanceContext.Provider>
+            </TabInstanceProvider>
           </div>
         );
       })}

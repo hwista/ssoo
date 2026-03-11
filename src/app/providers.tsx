@@ -4,7 +4,7 @@ import { ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { FloatingAssistant } from '@/components/common/assistant';
-import { AssistantSessionSync } from '@/components/common/assistant/AssistantSessionSync';
+import { AssistantSessionSync } from '@/components/common/assistant/session/AssistantSessionSync';
 
 interface ProvidersProps {
   children: ReactNode;

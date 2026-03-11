@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Info, History, BookOpen, CloudOff, CloudUpload } from 'lucide-react';
-import { SidecarFrame, CollapsibleSection, TextSection, ChipListSection, ActivityListSection } from '@/components/common/page/sidecar';
+import { SidecarFrame, CollapsibleSection, TextSection, ChipListSection, ActivityListSection } from '@/components/templates/page-frame/sidecar';
 
 /**
  * AI Sidecar Props

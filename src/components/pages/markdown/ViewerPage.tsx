@@ -1,33 +1,36 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { Loader2, Wand2, Eye, EyeOff } from 'lucide-react';
 import { useTabStore, useEditorStore, useConfirmStore, useFileStore, useAssistantStore } from '@/stores';
-import { useCurrentTabId } from '@/contexts/TabInstanceContext';
-import { fileApi, docAssistApi } from '@/lib/api';
+import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
+import { fileApi } from '@/lib/api';
 import { DocPageTemplate } from '@/components/templates';
-import { Viewer } from '@/components/common/viewer';
 import {
   DOC_PAGE_SURFACE_PRESETS,
   PAGE_BACKGROUND_PRESETS,
   SectionedShell,
-} from '@/components/common/page';
-import { Editor } from '@/components/common/editor';
+} from '@/components/templates/page-frame';
 import { EditorToolbar } from '@/components/common/editor';
 import type { EditorRef } from '@/components/common/editor';
-import { type TocItem } from '@/components/common/page';
+import { type TocItem } from '@/components/templates/page-frame';
 import { markdownToHtmlSync } from '@/lib/utils/markdown';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import type { DocumentMetadata } from '@/types';
-import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import {
   type InlineSummaryFileItem,
-} from '@/components/common/assistant/ReferencePicker';
-import { AssistantComposer } from '@/components/common/assistant/Composer';
+} from '@/components/common/assistant/reference/ReferencePicker';
 import type { TemplateItem } from '@/types/template';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DocumentSidecar } from './_components/DocumentSidecar';
+import { PreviewToggleButton, TemplateSaveControls } from './_components/EditorModeControls';
+import { InlineComposerPanel, ViewerPageContent } from './_components/ViewerPagePanels';
+import { useViewerPageComposeActions } from './useViewerPageComposeActions';
+import {
+  buildDocumentSidecarMetadata,
+  buildMarkdownToc,
+  deriveDefaultTemplateName,
+  getDocumentFilePath,
+} from './viewerPageUtils';
 
 type PageMode = 'viewer' | 'editor' | 'create';
 
@@ -38,7 +41,7 @@ interface TemplateSaveDraft {
 }
 
 export function ViewerPage() {
-  const tabId = useCurrentTabId();
+  const tabId = useTabInstanceId();
   const { tabs, closeTab, updateTab } = useTabStore();
   const { confirm } = useConfirmStore();
   const { refreshFileTree } = useFileStore();
@@ -109,16 +112,7 @@ export function ViewerPage() {
 
   const isCreateMode = useMemo(() => activeTab?.path === '/wiki/new', [activeTab?.path]);
 
-  const filePath = useMemo(() => {
-    if (!activeTab?.path) return null;
-    if (activeTab.path === '/wiki/new') return null;
-    const path = activeTab.path.replace(/^\/doc\//, '');
-    try {
-      return decodeURIComponent(path);
-    } catch {
-      return path;
-    }
-  }, [activeTab?.path]);
+  const filePath = useMemo(() => getDocumentFilePath(activeTab?.path), [activeTab?.path]);
 
   useEffect(() => {
     if (isCreateMode) {
@@ -144,45 +138,18 @@ export function ViewerPage() {
     return markdownToHtmlSync(content);
   }, [content]);
 
-  const toc = useMemo((): TocItem[] => {
-    if (!content) return [];
+  const toc = useMemo((): TocItem[] => buildMarkdownToc(content), [content]);
 
-    const headingRegex = /^(#{1,6})\s+(.+)$/gm;
-    const items: TocItem[] = [];
-    let match;
-    let index = 0;
-
-    while ((match = headingRegex.exec(content)) !== null) {
-      items.push({
-        id: `heading-${index++}`,
-        level: match[1].length,
-        text: match[2].trim(),
-      });
-    }
-
-    return items;
-  }, [content]);
-
-  const metadata = useMemo(() => {
-    const wordCount = content ? content.trim().split(/\s+/).filter(Boolean).length : 0;
-    return {
-      author: documentMetadata?.author || 'Unknown',
-      createdAt: fileMetadata.createdAt || undefined,
-      updatedAt: fileMetadata.modifiedAt || undefined,
-      lineCount: content ? content.split('\n').length : 0,
-      charCount: content ? content.length : 0,
-      wordCount,
-      attachments: documentMetadata?.sourceFiles || [],
-    };
-  }, [content, documentMetadata, fileMetadata]);
+  const metadata = useMemo(
+    () => buildDocumentSidecarMetadata(content, documentMetadata, fileMetadata),
+    [content, documentMetadata, fileMetadata]
+  );
 
   useEffect(() => {
     if (templateSaveDraft.name.trim().length > 0) return;
 
-    const heading = content.match(/^#\s+(.+)$/m)?.[1]?.trim();
     const fallbackPath = filePath || createPath;
-    const fallbackName = fallbackPath.split('/').pop()?.replace(/\.md$/i, '').trim() || '새 템플릿';
-    const nextName = heading || fallbackName;
+    const nextName = deriveDefaultTemplateName(content, fallbackPath);
     setTemplateSaveDraft((prev) => (
       prev.name.trim().length > 0 || prev.name === nextName
         ? prev
@@ -241,14 +208,6 @@ export function ViewerPage() {
     if (element) element.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
-  const handlePathClick = useCallback(() => {
-    // TODO: 해당 폴더로 트리 이동
-  }, []);
-
-  const handleHistory = useCallback(() => {
-    // TODO: 깃 히스토리 뷰어 연동
-  }, []);
-
   const handleSave = useCallback(() => {
     editorHandlers?.save();
   }, [editorHandlers]);
@@ -270,287 +229,60 @@ export function ViewerPage() {
     if (filePath) loadFile(filePath);
   }, [filePath, loadFile]);
 
-  const handleInlineCompose = useCallback(async (draft?: string) => {
-    const instruction = (draft ?? inlineInstruction).trim();
-    if (!instruction || isComposing) return;
-
-    const baseContent = content;
-    const currentSelection = editorHandlers?.getSelection?.() ?? { from: 0, to: 0 };
-    const max = baseContent.length;
-    const safeFrom = Math.max(0, Math.min(max, currentSelection.from));
-    const safeTo = Math.max(0, Math.min(max, currentSelection.to));
-    const selection = { from: Math.min(safeFrom, safeTo), to: Math.max(safeFrom, safeTo) };
-    const hasSelection = selection.from !== selection.to;
-    const selectedText = hasSelection ? baseContent.slice(selection.from, selection.to) : undefined;
-
-    editorHandlers?.setPendingInsert?.(selection);
-    setIsComposing(true);
-    try {
-      const response = await docAssistApi.compose({
-        instruction,
-        currentContent: baseContent,
-        selectedText,
-        activeDocPath: filePath || createPath,
-        templates: inlineTemplate ? [inlineTemplate] : [],
-        summaryFiles: inlineSummaryFiles.map((item) => ({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          textContent: item.textContent,
-        })),
-      });
-
-      if (!response.success || !response.data) return;
-      const generated = typeof response.data.text === 'string' ? response.data.text.trim() : '';
-      if (!generated && response.data.applyMode !== 'replace-document') return;
-
-      if (response.data.applyMode === 'replace-document') {
-        setContent(generated);
-      } else if (response.data.applyMode === 'replace-selection' && hasSelection) {
-        if (editorHandlers?.insertAt) {
-          editorHandlers.insertAt(selection.from, selection.to, generated);
-        } else {
-          setContent(`${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.to)}`);
-        }
-      } else if (response.data.applyMode === 'append') {
-        const joiner = baseContent.trim().length > 0 ? '\n\n' : '';
-        if (editorHandlers?.insertAt) {
-          editorHandlers.insertAt(baseContent.length, baseContent.length, `${joiner}${generated}`);
-        } else {
-          setContent(`${baseContent}${joiner}${generated}`);
-        }
-      } else {
-        if (editorHandlers?.insertAt) {
-          editorHandlers.insertAt(selection.from, selection.from, generated);
-        } else {
-          setContent(`${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.from)}`);
-        }
-      }
-      setInlineInstruction('');
-      setInlineRelevanceWarnings(response.data.relevanceWarnings ?? []);
-      if (isCreateMode && response.data.suggestedPath) {
-        setCreatePath(response.data.suggestedPath);
-      }
-    } finally {
-      editorHandlers?.setPendingInsert?.(null);
-      setIsComposing(false);
-    }
-  }, [content, createPath, editorHandlers, filePath, inlineInstruction, inlineSummaryFiles, inlineTemplate, isComposing, isCreateMode, setContent]);
-
-  const handleRecommendPath = useCallback(async () => {
-    const instruction = inlineInstruction.trim() || '새 문서 작성';
-    setIsRecommendingPath(true);
-    try {
-      const response = await docAssistApi.recommendPath({
-        instruction,
-        activeDocPath: createPath,
-        summaryFiles: inlineSummaryFiles.map((item) => ({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          textContent: item.textContent,
-        })),
-      });
-      if (!response.success || !response.data) return;
-      setCreatePath(response.data.suggestedPath || createPath);
-      setInlineRelevanceWarnings(response.data.relevanceWarnings ?? []);
-    } finally {
-      setIsRecommendingPath(false);
-    }
-  }, [createPath, inlineInstruction, inlineSummaryFiles]);
-
-  const handleInlineTemplateSelect = useCallback(async (template: TemplateItem) => {
-    if (template.kind !== 'document') return;
-
-    if (!inlineTemplate) {
-      setInlineTemplate(template);
-      return;
-    }
-
-    if (inlineTemplate.id === template.id) {
-      setInlineTemplate(null);
-      return;
-    }
-
-    const confirmed = await confirm({
-      title: '문서 템플릿 변경',
-      description: `'${inlineTemplate.name}' 템플릿이 이미 선택되어 있습니다. 새 템플릿으로 바꾸면 이후 AI 작성은 '${template.name}' 형식에 맞춰 생성됩니다. 변경하시겠습니까?`,
-      confirmText: '교체',
-      cancelText: '유지',
-    });
-
-    if (!confirmed) return;
-    setInlineTemplate(template);
-  }, [confirm, inlineTemplate]);
+  const {
+    handleInlineCompose,
+    handleRecommendPath,
+    handleInlineTemplateSelect,
+  } = useViewerPageComposeActions({
+    state: {
+      content,
+      createPath,
+      filePath,
+      inlineInstruction,
+      inlineSummaryFiles,
+      inlineTemplate,
+      isComposing,
+      isCreateMode,
+    },
+    mutators: {
+      setContent,
+      setCreatePath,
+      setInlineInstruction,
+      setInlineRelevanceWarnings,
+      setInlineTemplate,
+      setIsComposing,
+      setIsRecommendingPath,
+    },
+    deps: {
+      editorHandlers,
+      confirm,
+    },
+  });
 
   const isEditorMode = mode === 'editor' || mode === 'create';
 
-  const inlineComposer = isEditorMode ? (
-    <AssistantComposer
-      inputDraft={inlineInstruction}
-      isProcessing={isComposing}
-      setInputDraft={setInlineInstruction}
-      submitUserMessage={async (text) => {
-        await handleInlineCompose(text);
-      }}
-      placeholder="AI와 함께 문서를 작성하세요. 선택한 텍스트 영역이 있으면 치환하고 없으면 커서 위치에 삽입됩니다."
-      submitVariant="text"
-      submitLabel="적용"
-      mode="inline"
-      inlineContext={{
-        selectedTemplate: inlineTemplate,
-        summaryFiles: inlineSummaryFiles,
-        onSelectTemplate: handleInlineTemplateSelect,
-        onUpsertSummaryFiles: (files) => {
-          setInlineSummaryFiles((prev) => {
-            const map = new Map(prev.map((item) => [item.id, item]));
-            for (const file of files) map.set(file.id, file);
-            return Array.from(map.values());
-          });
-        },
-      }}
-      inlineTemplate={inlineTemplate}
-      inlineSummaryFiles={inlineSummaryFiles}
-      inlineWarnings={inlineRelevanceWarnings}
-      onInlineClearAll={() => {
-        setInlineTemplate(null);
-        setInlineSummaryFiles([]);
-        setInlineRelevanceWarnings([]);
-      }}
-      onInlineRemoveTemplate={() => {
-        setInlineTemplate(null);
-      }}
-      onInlineRemoveSummaryFile={(id) => {
-        setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== id));
+  const contentSurfaceClassName = DOC_PAGE_SURFACE_PRESETS.document;
+  const headerEditorInlineSlot = (
+    <TemplateSaveControls
+      mode={mode}
+      saveAsTemplateOnly={saveAsTemplateOnly}
+      setSaveAsTemplateOnly={setSaveAsTemplateOnly}
+      createPath={createPath}
+      setCreatePath={setCreatePath}
+      isRecommendingPath={isRecommendingPath}
+      onRecommendPath={() => {
+        void handleRecommendPath();
       }}
     />
-  ) : null;
+  );
 
-  const contentBody = useMemo(() => {
-    if (error) {
-      return (
-        <div className="flex flex-1 items-center justify-center">
-          <ErrorState error={error} onRetry={handleRetry} />
-        </div>
-      );
-    }
-
-    if (isLoading && !isCreateMode) {
-      return (
-        <div className="flex flex-1 items-center justify-center">
-          <LoadingState message="문서를 불러오는 중..." />
-        </div>
-      );
-    }
-
-    return mode === 'viewer' ? (
-      <Viewer
-        content={htmlContent}
-        toc={toc}
-        onTocClick={handleTocClick}
-        onSearch={handleSearch}
-        onAttachToAssistant={handleAttachCurrentDocToAssistant}
-        variant="embedded"
-      />
-    ) : (
-      <Editor
-        ref={editorRef}
-        className="h-full min-h-0"
-        variant="embedded"
-        showToolbar={false}
-        preferredCreatePath={isCreateMode ? createPath : undefined}
-        onCreatePathResolved={setCreatePath}
-        isPreview={isPreview}
-        isPendingInsertLoading={isComposing}
-        templateSaveEnabled={saveAsTemplateOnly}
-        templateSaveDraft={templateSaveDraft}
-        onTemplateSaved={() => {
-          setSaveAsTemplateOnly(false);
-        }}
-      />
-    );
-  }, [
-    createPath,
-    error,
-    handleRetry,
-    htmlContent,
-    isCreateMode,
-    isLoading,
-    isComposing,
-    isPreview,
-    mode,
-    saveAsTemplateOnly,
-    toc,
-    templateSaveDraft,
-    handleTocClick,
-    handleSearch,
-    handleAttachCurrentDocToAssistant,
-  ]);
-
-  const contentSurfaceClassName = DOC_PAGE_SURFACE_PRESETS.document;
-  const headerEditorInlineSlot = (mode === 'editor' || mode === 'create') ? (
-    <div className="ml-2 flex items-center gap-2">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={saveAsTemplateOnly}
-        onClick={() => setSaveAsTemplateOnly((prev) => !prev)}
-        className={cn(
-          'inline-flex h-control-h items-center gap-2 px-1 text-xs font-medium text-ssoo-primary transition-colors'
-        )}
-      >
-        <span
-          aria-hidden="true"
-          className={cn(
-            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
-            saveAsTemplateOnly ? 'bg-ssoo-primary' : 'bg-ssoo-content-border'
-          )}
-        >
-          <span
-            className={cn(
-              'inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
-              saveAsTemplateOnly ? 'translate-x-4' : 'translate-x-0.5'
-            )}
-          />
-        </span>
-        <span>템플릿으로 저장</span>
-      </button>
-      {mode === 'create' ? (
-        <>
-          <input
-            value={createPath}
-            onChange={(event) => setCreatePath(event.target.value)}
-            placeholder="생성 경로 (예: design/order/request.md)"
-            disabled={saveAsTemplateOnly}
-            className="h-control-h w-[420px] max-w-[42vw] rounded-md border border-ssoo-content-border bg-white px-3 text-sm text-ssoo-primary placeholder:text-ssoo-primary/45 focus:outline-none focus:ring-1 focus:ring-ssoo-primary disabled:cursor-not-allowed disabled:bg-ssoo-content-bg/40 disabled:text-ssoo-primary/45"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              void handleRecommendPath();
-            }}
-            disabled={isRecommendingPath || saveAsTemplateOnly}
-            className="inline-flex h-control-h items-center gap-1 rounded-md border border-ssoo-content-border bg-white px-3 text-xs font-medium text-ssoo-primary hover:border-ssoo-primary/40 disabled:opacity-60"
-          >
-            {isRecommendingPath ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-            경로 추천
-          </button>
-        </>
-      ) : null}
-    </div>
-  ) : undefined;
-
-  const headerEditorPreviewSlot = (mode === 'editor' || mode === 'create') ? (
-    <Button
-      variant="ghost"
-      size="default"
-      onClick={() => setIsPreview((prev) => !prev)}
-      className="h-control-h"
-    >
-      {isPreview ? <EyeOff className="h-4 w-4 mr-1.5" /> : <Eye className="h-4 w-4 mr-1.5" />}
-      {isPreview ? '원본보기' : '미리보기'}
-    </Button>
-  ) : undefined;
+  const headerEditorPreviewSlot = (
+    <PreviewToggleButton
+      mode={mode}
+      isPreview={isPreview}
+      onToggle={() => setIsPreview((prev) => !prev)}
+    />
+  );
 
   if (!filePath && !isCreateMode) {
     return (
@@ -591,32 +323,71 @@ export function ViewerPage() {
         onEdit={handleEdit}
         onSave={handleSave}
         onCancel={handleCancel}
-        onHistory={handleHistory}
         onDelete={isCreateMode ? undefined : handleDelete}
-        onPathClick={handlePathClick}
         saving={isSaving}
         headerEditorInlineSlot={headerEditorInlineSlot}
         headerEditorPreviewSlot={headerEditorPreviewSlot}
       >
-        {isEditorMode ? (
-          <SectionedShell
-            variant="editor_with_footer"
-            toolbar={(
-              <EditorToolbar
-                disabled={isPreview}
-                onCommand={(id) => editorRef.current?.applyCommand(id)}
-              />
-            )}
-            body={(
-              <div className="h-full min-h-0 overflow-hidden">
-                {contentBody}
-              </div>
-            )}
-            footer={inlineComposer}
-          />
-        ) : (
-          contentBody
-        )}
+        {(() => {
+          const contentBody = (
+            <ViewerPageContent
+              error={error}
+              handleRetry={handleRetry}
+              isLoading={isLoading}
+              isCreateMode={isCreateMode}
+              mode={mode}
+              htmlContent={htmlContent}
+              toc={toc}
+              handleTocClick={handleTocClick}
+              handleSearch={handleSearch}
+              handleAttachCurrentDocToAssistant={handleAttachCurrentDocToAssistant}
+              editorRef={editorRef}
+              createPath={createPath}
+              setCreatePath={setCreatePath}
+              isPreview={isPreview}
+              isComposing={isComposing}
+              saveAsTemplateOnly={saveAsTemplateOnly}
+              templateSaveDraft={templateSaveDraft}
+              setSaveAsTemplateOnly={setSaveAsTemplateOnly}
+            />
+          );
+          const inlineComposer = (
+            <InlineComposerPanel
+              isEditorMode={isEditorMode}
+              inlineInstruction={inlineInstruction}
+              isComposing={isComposing}
+              setInlineInstruction={setInlineInstruction}
+              handleInlineCompose={handleInlineCompose}
+              inlineTemplate={inlineTemplate}
+              inlineSummaryFiles={inlineSummaryFiles}
+              inlineRelevanceWarnings={inlineRelevanceWarnings}
+              handleInlineTemplateSelect={handleInlineTemplateSelect}
+              setInlineTemplate={setInlineTemplate}
+              setInlineSummaryFiles={setInlineSummaryFiles}
+              setInlineRelevanceWarnings={setInlineRelevanceWarnings}
+            />
+          );
+
+          return isEditorMode ? (
+            <SectionedShell
+              variant="editor_with_footer"
+              toolbar={(
+                <EditorToolbar
+                  disabled={isPreview}
+                  onCommand={(id) => editorRef.current?.applyCommand(id)}
+                />
+              )}
+              body={(
+                <div className="h-full min-h-0 overflow-hidden">
+                  {contentBody}
+                </div>
+              )}
+              footer={inlineComposer}
+            />
+          ) : (
+            contentBody
+          );
+        })()}
       </DocPageTemplate>
     </main>
   );

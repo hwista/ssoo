@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAssistantStore, useTabStore } from '@/stores';
 import { FloatingAssistantButton } from './FloatingAssistantButton';
-import { FloatingAssistantPanel } from './FloatingAssistantPanel';
+import { FloatingAssistantPanel } from './panel/FloatingAssistantPanel';
 
 export function FloatingAssistant() {
   const isOpen = useAssistantStore((state) => state.isOpen);

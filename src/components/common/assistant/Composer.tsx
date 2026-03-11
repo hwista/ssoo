@@ -4,10 +4,10 @@ import { useCallback, useEffect, type RefObject } from 'react';
 import { ChevronDown, ChevronUp, Loader2, Search, SendHorizontal } from 'lucide-react';
 import type { TemplateItem } from '@/types/template';
 import {
-  AssistantReferenceChips,
   AssistantReferencePicker,
   type InlineSummaryFileItem,
-} from './ReferencePicker';
+} from './reference/ReferencePicker';
+import { AssistantReferenceChips } from './reference/ReferenceChips';
 
 interface InlineContextProps {
   selectedTemplate: TemplateItem | null;

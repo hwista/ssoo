@@ -12,7 +12,7 @@ import {
   DOCUMENT_WIDTHS,
   DEFAULT_DOCUMENT_ORIENTATION,
   type DocumentOrientation,
-} from '../common/page';
+} from './page-frame';
 import { LoadingState, ErrorState } from '@/components/common/StateDisplay';
 
 export interface DocPageTemplateProps {
