@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { deleteChatSession, listChatSessions, saveChatSession } from '@/server/handlers/chatSessions.handler';
 
 const CLIENT_ID_REGEX = /^[a-zA-Z0-9_-]{8,80}$/;
@@ -11,21 +13,21 @@ export async function GET(req: Request) {
   const limitRaw = Number(searchParams.get('limit') ?? '50');
   const limit = Number.isFinite(limitRaw) ? limitRaw : 50;
   if (!CLIENT_ID_REGEX.test(clientId)) {
-    return new Response('유효한 clientId가 필요합니다.', { status: 400 });
+    return Response.json({ error: '유효한 clientId가 필요합니다.' }, { status: 400 });
   }
 
   const result = await listChatSessions(clientId, limit);
   if (result.success) {
     return Response.json(result.data);
   }
-  return new Response(result.error, { status: result.status });
+  return Response.json({ error: result.error }, { status: result.status });
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
   const clientId = typeof body?.clientId === 'string' ? body.clientId : '';
   if (!CLIENT_ID_REGEX.test(clientId)) {
-    return new Response('유효한 clientId가 필요합니다.', { status: 400 });
+    return Response.json({ error: '유효한 clientId가 필요합니다.' }, { status: 400 });
   }
   const sessionCandidate = body?.session;
   const session = (
@@ -50,14 +52,14 @@ export async function POST(req: Request) {
     : null;
 
   if (!session) {
-    return new Response('유효한 session payload가 필요합니다.', { status: 400 });
+    return Response.json({ error: '유효한 session payload가 필요합니다.' }, { status: 400 });
   }
 
   const result = await saveChatSession(clientId, session);
   if (result.success) {
     return Response.json(result.data);
   }
-  return new Response(result.error, { status: result.status });
+  return Response.json({ error: result.error }, { status: result.status });
 }
 
 export async function DELETE(req: Request) {
@@ -65,12 +67,12 @@ export async function DELETE(req: Request) {
   const clientId = typeof body?.clientId === 'string' ? body.clientId : '';
   const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
   if (!CLIENT_ID_REGEX.test(clientId) || !SESSION_ID_REGEX.test(sessionId)) {
-    return new Response('유효한 clientId와 sessionId가 필요합니다.', { status: 400 });
+    return Response.json({ error: '유효한 clientId와 sessionId가 필요합니다.' }, { status: 400 });
   }
 
   const result = await deleteChatSession(clientId, sessionId);
   if (result.success) {
     return Response.json(result.data);
   }
-  return new Response(result.error, { status: result.status });
+  return Response.json({ error: result.error }, { status: result.status });
 }

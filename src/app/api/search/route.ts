@@ -2,6 +2,7 @@
  * Search API Route - 시맨틱 문서 검색
  * pgvector 유사도 검색 + 키워드 폴백
  */
+export const dynamic = 'force-dynamic';
 
 import { searchDocuments } from '@/server/handlers/ai.handler';
 
@@ -17,5 +18,5 @@ export async function POST(req: Request) {
     return Response.json(result.data);
   }
 
-  return new Response(result.error, { status: result.status });
+  return Response.json({ error: result.error }, { status: result.status });
 }

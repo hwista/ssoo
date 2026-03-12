@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { handleConfirmIngestJob } from '@/server/handlers/ingest.handler';
 
 interface RouteContext {

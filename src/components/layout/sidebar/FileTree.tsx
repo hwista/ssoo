@@ -62,7 +62,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
     if (isFolder) {
       toggleFolder(node.path);
     } else {
-      // PMS 패턴: 사이드바는 탭만 열고, 페이지 컴포넌트(WikiViewerPage)가 loadFile() 호출
+      // 사이드바는 탭만 열고, ViewerPage가 파일 로드를 담당합니다.
       await openTabWithConfirm({
         id: `file-${node.path.replace(/\//g, '-')}`,
         title: node.name,

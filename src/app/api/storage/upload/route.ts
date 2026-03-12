@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { handleStorageUpload, type StorageUploadBody } from '@/server/handlers/storage.handler';
 
 export async function POST(req: Request) {

@@ -6,8 +6,8 @@ import type { TemplateItem } from '@/types/template';
 import {
   AssistantReferencePicker,
   type InlineSummaryFileItem,
-} from './reference/ReferencePicker';
-import { AssistantReferenceChips } from './reference/ReferenceChips';
+} from './reference/Picker';
+import { AssistantReferenceChips } from './reference/Chips';
 
 interface InlineContextProps {
   selectedTemplate: TemplateItem | null;

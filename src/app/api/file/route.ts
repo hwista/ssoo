@@ -2,6 +2,7 @@
  * File API Route - 단일 파일 CRUD 작업
  * 비즈니스 로직은 @/server/handlers/file.handler.ts 참조
  */
+export const dynamic = 'force-dynamic';
 
 import { readFile, handleFileAction, type FileActionBody } from "@/server/handlers/file.handler";
 
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
   const filePath = headerPath || queryPath;
 
   if (!filePath) {
-    return new Response("Missing file path header or query", { status: 400 });
+    return Response.json({ error: 'Missing file path header or query' }, { status: 400 });
   }
 
   const result = await readFile(filePath);
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
   if (result.success) {
     return Response.json(result.data);
   }
-  return new Response(result.error, { status: result.status });
+  return Response.json({ error: result.error }, { status: result.status });
 }
 
 export async function POST(req: Request) {
@@ -29,12 +30,7 @@ export async function POST(req: Request) {
   const result = await handleFileAction(body);
 
   if (result.success) {
-    // data가 message만 가진 경우 텍스트로 반환 (하위 호환성)
-    const data = result.data as { message?: string; content?: string; metadata?: unknown };
-    if (data.message && !data.content && !data.metadata) {
-      return new Response(data.message);
-    }
     return Response.json(result.data);
   }
-  return new Response(result.error, { status: result.status });
+  return Response.json({ error: result.error }, { status: result.status });
 }

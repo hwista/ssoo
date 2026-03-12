@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { handleSubmitIngest, type IngestSubmitBody } from '@/server/handlers/ingest.handler';
 
 export async function POST(req: Request) {

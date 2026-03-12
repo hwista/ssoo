@@ -46,7 +46,7 @@ const pageComponents = {
   markdown: lazyWithChunkRetry(() => import('@/components/pages/markdown/ViewerPage').then(m => ({ default: m.ViewerPage }))),
   aiAsk: AiAskPage,
   aiSearch: lazyWithChunkRetry(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
-  settings: lazyWithChunkRetry(() => import('@/components/pages/settings/Page').then(m => ({ default: m.SettingsPage }))),
+  settings: lazyWithChunkRetry(() => import('@/components/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))),
 };
 
 /**

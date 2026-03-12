@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { DocPageTemplate } from '@/components/templates';
 import {
   DOC_PAGE_SURFACE_PRESETS,
   PAGE_BACKGROUND_PRESETS,
   SectionedShell,
 } from '@/components/templates/page-frame';
-import { useAssistantStore } from '@/stores';
+import { useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
 import { useAssistantChat } from '@/components/common/assistant/chat/useAssistantChat';
 import { useAssistantSessionPersistence } from '@/components/common/assistant/session/useAssistantSessionPersistence';
 import { AiSidecar } from './_components/AiSidecar';
@@ -17,17 +17,19 @@ import { buildSessionHistoryItems } from './askPageUtils';
 
 export function AiAskPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const messages = useAssistantStore((state) => state.messages);
-  const inputDraft = useAssistantStore((state) => state.inputDraft);
-  const isProcessing = useAssistantStore((state) => state.isProcessing);
-  const suggestions = useAssistantStore((state) => state.suggestions);
-  const sessions = useAssistantStore((state) => state.sessions);
-  const activeSessionId = useAssistantStore((state) => state.activeSessionId);
-  const setInputDraft = useAssistantStore((state) => state.setInputDraft);
-  const regenerateSuggestions = useAssistantStore((state) => state.regenerateSuggestions);
-  const setSuggestionsCollapsed = useAssistantStore((state) => state.setSuggestionsCollapsed);
-  const startNewSession = useAssistantStore((state) => state.startNewSession);
-  const selectSession = useAssistantStore((state) => state.selectSession);
+  const messages = useAssistantSessionStore((state) => state.messages);
+  const sessions = useAssistantSessionStore((state) => state.sessions);
+  const activeSessionId = useAssistantSessionStore((state) => state.activeSessionId);
+  const startNewSession = useAssistantSessionStore((state) => state.startNewSession);
+  const selectSession = useAssistantSessionStore((state) => state.selectSession);
+  const inputDraft = useAssistantPanelStore((state) => state.inputDraft);
+  const isProcessing = useAssistantPanelStore((state) => state.isProcessing);
+  const suggestions = useAssistantPanelStore((state) => state.suggestions);
+  const setInputDraft = useAssistantPanelStore((state) => state.setInputDraft);
+  const regenerateSuggestions = useAssistantPanelStore((state) => state.regenerateSuggestions);
+  const setSuggestionsCollapsed = useAssistantPanelStore((state) => state.setSuggestionsCollapsed);
+  const resetDraftState = useAssistantPanelStore((state) => state.resetDraftState);
+  const resetContext = useAssistantContextStore((state) => state.resetContext);
   const { submitUserMessage, handleOpenFile, handleOpenHelpAction } = useAssistantChat();
   const { saveSession, removeSessionFromDb } = useAssistantSessionPersistence();
 
@@ -56,7 +58,11 @@ export function AiAskPage() {
           <AiSidecar
             variant="ask"
             history={historyItems}
-            onHistorySelect={(item) => selectSession(item.id)}
+            onHistorySelect={(item) => {
+              selectSession(item.id);
+              resetDraftState();
+              resetContext();
+            }}
             onHistoryPersistToggle={(item) => {
               if (item.persistedToDb) {
                 void removeSessionFromDb(item.id).then((result) => {
@@ -89,7 +95,11 @@ export function AiAskPage() {
             <AiAskBody
               messages={messages}
               isProcessing={isProcessing}
-              startNewSession={startNewSession}
+              startNewSession={() => {
+                startNewSession();
+                resetDraftState();
+                resetContext();
+              }}
               handleOpenFile={handleOpenFile}
               handleOpenHelpAction={handleOpenHelpAction}
               submitUserMessage={submitUserMessage}

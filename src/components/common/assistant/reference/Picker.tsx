@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { FileUp, Plus, Search } from 'lucide-react';
-import { useAssistantStore, useTabStore } from '@/stores';
+import { useAssistantContextStore, useTabStore } from '@/stores';
 import { filesApi, templateApi } from '@/lib/api';
 import type { TemplateItem } from '@/types/template';
 import {
@@ -13,13 +13,13 @@ import {
 import {
   AssistantReferenceDocSections,
   InlineTemplateSections,
-} from './ReferencePickerSections';
+} from './PickerSections';
 import {
   collectOpenDocs,
   filterDocReferences,
   filterPersonalDocumentTemplates,
   flattenFileTreeDocs,
-} from './referencePickerUtils';
+} from './pickerUtils';
 
 export interface InlineSummaryFileItem {
   id: string;
@@ -53,8 +53,8 @@ export function AssistantReferencePicker({
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
 
   const tabs = useTabStore((state) => state.tabs);
-  const assistantReferences = useAssistantStore((state) => state.attachedReferences);
-  const assistantToggleReference = useAssistantStore((state) => state.toggleReference);
+  const assistantReferences = useAssistantContextStore((state) => state.attachedReferences);
+  const assistantToggleReference = useAssistantContextStore((state) => state.toggleReference);
 
   const selectedTemplate = mode === 'inline' ? (inlineContext?.selectedTemplate ?? null) : null;
   const attachedPaths = useMemo(

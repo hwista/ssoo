@@ -4,7 +4,7 @@ import { ArrowRight, BookOpen, Bot, Copy, FileText, Loader2, RotateCcw, Settings
 import { useCallback, type ComponentType } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
 import { SearchResultCard } from '@/components/common/search/ResultCard';

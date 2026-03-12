@@ -1,6 +1,6 @@
 // ============================================
 // Stores Index
-// 스토어 통합 export (PMS 컨벤션)
+// DMS 스토어 통합 export
 // ============================================
 
 // Layout & Navigation
@@ -8,10 +8,10 @@ export { useLayoutStore } from './layout.store';
 export { useSidebarStore } from './sidebar.store';
 export { useTabStore, HOME_TAB } from './tab.store';
 
-// Data (PMS menu.store 대응)
+// Data
 export { useFileStore } from './file.store';
 
-// Editor (문서 편집 상태 - 탭별 멀티 스토어)
+// Editor (문서 편집 상태 - core store + React adapter 분리)
 export { useEditorStore, useActiveEditorFilePath } from './editor.store';
 
 // UI
@@ -24,9 +24,11 @@ export { useGitStore } from './git.store';
 export { useSettingsStore } from './settings.store';
 
 // Assistant
-export { useAssistantStore } from './assistant.store';
-export type { AssistantMessage, AssistantSearchResult, AssistantSession } from './assistant.store';
+export { useAssistantSessionStore } from './assistant-session.store';
+export { useAssistantPanelStore } from './assistant-panel.store';
+export { useAssistantContextStore } from './assistant-context.store';
+export type { AssistantMessage, AssistantSearchResult, AssistantSession } from './assistant-session.store';
 
 // AI Search
-export { useAiSearchStore } from './aiSearch.store';
-export type { AiSearchHistoryItem } from './aiSearch.store';
+export { useAiSearchStore } from './ai-search.store';
+export type { AiSearchHistoryItem } from './ai-search.store';

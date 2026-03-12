@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { FileText, Link2, Tag } from 'lucide-react';
 import { CollapsibleSection } from '@/components/templates/page-frame/sidecar';
-import { EditableSourceLinks, EditableTags } from './editable-fields';
+import { EditableSourceLinks, EditableTags } from './EditableFields';
 
 function EmptyPlaceholder({ text }: { text: string }) {
   return <p className="py-1 text-xs text-gray-400">{text}</p>;

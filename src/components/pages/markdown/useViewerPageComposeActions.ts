@@ -2,7 +2,7 @@
 
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { docAssistApi } from '@/lib/api';
-import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/ReferencePicker';
+import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TemplateItem } from '@/types/template';
 
 interface SelectionRange {

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { handleListIngestJobs } from '@/server/handlers/ingest.handler';
 
 export async function GET() {
