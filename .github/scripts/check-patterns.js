@@ -55,6 +55,12 @@ const NAMING_RULES = [
       const parts = filePath.split(path.sep);
       const fileName = parts[parts.length - 1];
       const dirName = parts[parts.length - 2];
+      const normalizedPath = filePath.split(path.sep).join('/');
+
+      // page entry는 {Feature}Page.tsx 정본을 허용
+      if (/apps\/web\/(dms|pms)\/src\/components\/pages\/[^/]+\/[A-Z][A-Za-z0-9]*Page\.tsx$/.test(normalizedPath)) {
+        return null;
+      }
       
       // index 파일은 무시
       if (fileName === 'index.ts' || fileName === 'index.tsx') {

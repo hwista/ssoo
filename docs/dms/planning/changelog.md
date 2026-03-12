@@ -12,6 +12,7 @@
 - `server/handlers/storage.handler.ts`, `/api/storage/open`에서 local file download 로직을 handler facade로 이동하고, 허용되지 않은 경로는 `403`, 존재하지 않는 파일은 `404`로 분기
 - markdown document sidecar 하위 5개 컴포넌트 파일을 PascalCase로 정규화하고 연관 re-export/import 경로를 갱신
 - editor core store와 AI search store 파일명을 각각 `editor-core.store.ts`, `ai-search.store.ts`로 정리하고 상태관리 문서를 현재 구현과 일치하도록 갱신
+- `.github/scripts/check-patterns.js`가 `components/pages/**` 엔트리의 `{Feature}Page.tsx` 정본을 오탐하지 않도록 page entry 예외를 반영
 
 ---
 
