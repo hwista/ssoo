@@ -32,7 +32,7 @@
   --ls-gold: #7D0D0D;
 
   /* ----------------------------------------
-     shadcn/ui 기본 변수 (Light 테마)
+     UI surface tokens (Light theme)
      ---------------------------------------- */
   --card: 0 0% 100%;
   --card-foreground: 213 100% 23%;
@@ -796,9 +796,9 @@ a:hover {
 }
 
 /* ============================================
-   ProseMirror 에디터 스타일 (Tiptap)
-   - 기본 타이포그래피는 editorProps에서 prose 적용
-   - 여기서는 ProseMirror 고유 기능만 정의
+   Legacy ProseMirror styles
+   - historical selector support kept for old markup compatibility
+   - current editor runtime is CodeMirror-based
    ============================================ */
 
 /* 기본 에디터 레이아웃 */

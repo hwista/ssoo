@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAssistantStore } from '@/stores';
+import { useAssistantSessionStore } from '@/stores';
 import { useAssistantSessionPersistence } from './useAssistantSessionPersistence';
 
 export function AssistantSessionSync() {
-  const sessionsLoaded = useAssistantStore((state) => state.sessionsLoaded);
+  const sessionsLoaded = useAssistantSessionStore((state) => state.sessionsLoaded);
   const { loadPersistedSessions } = useAssistantSessionPersistence();
 
   useEffect(() => {

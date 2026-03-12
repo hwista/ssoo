@@ -1,7 +1,9 @@
 # DMS 패키지 명세서
 
-> 📅 기준일: 2026-01-28  
-> 📦 패키지명: `markdown-wiki` v0.1.0
+> 📅 기준일: 2026-03-12  
+> 📦 패키지명: `web-dms` v0.1.0
+
+> 이 문서는 `apps/web/dms/package.json` 의 현재 설치 의존성과 활성 런타임을 설명합니다.
 
 ---
 
@@ -9,7 +11,7 @@
 
 | 항목 | 값 |
 |------|-----|
-| **프로젝트명** | markdown-wiki |
+| **프로젝트명** | web-dms |
 | **경로** | `apps/web/dms/` |
 | **용도** | 문서 관리 시스템 (Document Management System) |
 | **포트** | 3001 |
@@ -51,17 +53,7 @@
 | `@radix-ui/react-progress` | ^1.1.8 | Progress |
 | `@radix-ui/react-slot` | ^1.2.4 | Slot |
 
-### 3.3 MUI (Material UI)
-
-| 패키지 | 버전 | 용도 |
-|--------|------|------|
-| `@mui/material` | ^7.3.4 | 핵심 UI 컴포넌트 |
-| `@mui/lab` | ^7.0.1-beta.18 | 실험적 컴포넌트 |
-| `@mui/x-tree-view` | ^8.15.0 | 트리 뷰 컴포넌트 |
-| `@emotion/react` | ^11.14.0 | MUI 스타일 엔진 |
-| `@emotion/styled` | ^11.14.1 | MUI 스타일 컴포넌트 |
-
-### 3.4 아이콘
+### 3.3 아이콘
 
 | 패키지 | 버전 | 용도 |
 |--------|------|------|
@@ -74,36 +66,18 @@
 | 패키지 | 버전 | 용도 |
 |--------|------|------|
 | `zustand` | ^5.0.10 | 상태 관리 |
-| `react-hook-form` | ^7.71.1 | 폼 관리 |
-| `@hookform/resolvers` | ^3.10.0 | Zod 연동 resolver |
-| `zod` | ^3.25.76 | 스키마 검증 |
 | `sonner` | ^1.7.4 | 토스트 알림 |
 
 ---
 
-## 5. 리치 텍스트 에디터 (Tiptap)
+## 5. 리치 텍스트 에디터
 
 | 패키지 | 버전 | 용도 |
 |--------|------|------|
-| `@tiptap/react` | ^3.16.0 | React 바인딩 |
-| `@tiptap/starter-kit` | ^3.16.0 | 기본 에디터 번들 |
-| `@tiptap/pm` | ^3.16.0 | ProseMirror 코어 |
-| `@tiptap/suggestion` | ^3.16.0 | 슬래시 명령어 |
-| `@tiptap/extension-code-block-lowlight` | ^3.16.0 | 코드 하이라이트 |
-| `@tiptap/extension-highlight` | ^3.16.0 | 텍스트 하이라이트 |
-| `@tiptap/extension-image` | ^3.16.0 | 이미지 삽입 |
-| `@tiptap/extension-link` | ^3.16.0 | 링크 처리 |
-| `@tiptap/extension-placeholder` | ^3.16.0 | 플레이스홀더 |
-| `@tiptap/extension-table` | ^3.16.0 | 테이블 기본 |
-| `@tiptap/extension-table-cell` | ^3.16.0 | 테이블 셀 |
-| `@tiptap/extension-table-header` | ^3.16.0 | 테이블 헤더 |
-| `@tiptap/extension-table-row` | ^3.16.0 | 테이블 행 |
-| `@tiptap/extension-task-item` | ^3.16.0 | 체크리스트 항목 |
-| `@tiptap/extension-task-list` | ^3.16.0 | 체크리스트 |
+| `codemirror` | ^6.0.2 | 현재 block editor 런타임 |
+| `@codemirror/lang-markdown` | ^6.5.0 | 마크다운 언어 지원 |
 | `lowlight` | ^3.3.0 | 코드 구문 강조 |
-| `tippy.js` | ^6.3.7 | 툴팁 (에디터 메뉴) |
-
----
+| `tippy.js` | ^6.3.7 | 툴팁/슬래시 메뉴 표시 |
 
 ## 6. 마크다운 처리
 
@@ -112,7 +86,6 @@
 | `marked` | ^17.0.1 | 마크다운 파서 |
 | `react-markdown` | ^10.1.0 | 마크다운 렌더링 |
 | `remark-gfm` | ^4.0.1 | GitHub Flavored Markdown |
-| `turndown` | ^7.2.2 | HTML → 마크다운 변환 |
 
 ---
 
@@ -120,31 +93,15 @@
 
 | 패키지 | 버전 | 용도 |
 |--------|------|------|
-| `ai` | ^4.x | Vercel AI SDK (LLM 추상화, 스트리밍) |
-| `@ai-sdk/azure` | ^1.x | Azure OpenAI 프로바이더 |
+| `ai` | ^6.x | Vercel AI SDK (LLM 추상화, 스트리밍) |
+| `@ai-sdk/azure` | ^3.x | Azure OpenAI 프로바이더 |
 | `pg` | ^8.x | PostgreSQL 클라이언트 (pgvector 연결) |
 
 ---
 
 ## 8. 파일 처리 & 서버
 
-| 패키지 | 버전 | 용도 |
-|--------|------|------|
-| `formidable` | ^3.5.4 | 파일 업로드 파싱 |
-| `multer` | ^2.0.2 | 멀티파트 파일 업로드 |
-| `chokidar` | ^4.0.3 | 파일 시스템 감시 |
-| `nodemailer` | ^7.0.12 | 이메일 발송 |
-
----
-
-### 8.1 타입 패키지 (현재 dependencies 포함)
-
-| 패키지 | 버전 | 용도 |
-|--------|------|------|
-| `@types/formidable` | ^3.4.6 | 타입 정의 |
-| `@types/multer` | ^2.0.0 | 타입 정의 |
-| `@types/nodemailer` | ^7.0.5 | 타입 정의 |
-| `@types/turndown` | ^5.0.6 | 타입 정의 |
+현재 별도 업로드/메일러/파일 watcher 패키지는 설치되어 있지 않습니다.
 
 ---
 
@@ -172,7 +129,7 @@
 
 ```json
 {
-  "dev": "next dev",
+  "dev": "next dev --port 3001",
   "build": "next build",
   "start": "next start"
 }
@@ -184,19 +141,7 @@
 
 ## 12. 알려진 이슈
 
-### 12.1 타입 패키지 위치
-
-`@types/*` 패키지가 dependencies에 포함되어 있음. 빌드/배포에 영향이 없으면 devDependencies 이동 검토 필요.
-
-### 12.2 UI 라이브러리 혼용
-
-- **MUI** (Material UI v7)
-- **Radix UI**
-- **Tailwind CSS**
-
-3개의 UI 시스템이 혼용되어 있어 스타일 충돌 가능성 있음.
-
-### 12.3 Tailwind 설정 파일 형식
+### 12.1 Tailwind 설정 파일 형식
 
 DMS는 독립 실행 원칙을 유지하기 위해 `tailwind.config.js`(CJS)를 사용한다.  
 `tailwind.config.ts` 전환은 통합 과정에서 로더/빌드 환경을 함께 정리할 때 진행한다.
@@ -207,8 +152,7 @@ DMS는 독립 실행 원칙을 유지하기 위해 `tailwind.config.js`(CJS)를 
 
 | ID | 항목 | 우선순위 | 상태 |
 |----|------|----------|------|
-| PKG-01 | 의존성 실제 사용 여부 재검증 (MUI/Emotion, chokidar, formidable, multer) | P2 | 🔄 진행중 |
-| PKG-02 | @types 패키지 devDependencies 이동 검토 | P3 | 🔲 대기 |
+| PKG-01 | 남은 설치 의존성(`@ai-sdk/react`, `marked` 등)의 실사용 여부 재검증 | P2 | 🔄 진행중 |
 
 ---
 
@@ -216,6 +160,8 @@ DMS는 독립 실행 원칙을 유지하기 위해 `tailwind.config.js`(CJS)를 
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-03-12 | 미사용 설치 의존성(MUI/Tiptap/RHF/Zod/formidable/multer/chokidar/nodemailer/turndown 등) 제거 반영 |
+| 2026-03-12 | 미사용 의존성 제거 이후 현재 설치 패키지 기준으로 정정 |
 | 2026-01-27 | 초기 작성 - GitLab subtree 기준 |
 | 2026-01-27 | PMS 호환성을 위해 다운그레이드: Next.js 16→15, tailwind-merge 3→2 |
 | 2026-01-28 | Fluent UI 목록 제거, Radix/상태 패키지 추가, 알려진 이슈 정리 |

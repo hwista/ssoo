@@ -15,9 +15,9 @@ DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 `
 - 정책: 내부 탭 경로는 주소창에 직접 노출하거나 딥링크로 사용하는 대상이 아니다.
 
 ```
-URL 경로 → Next.js Route → AppLayout → ContentArea → pageComponents
-                                                        ↓
-                                                    activeTabId 기반 렌더링
+URL 경로 → Next.js Route → (main)/layout → (main)/page → AppLayout → ContentArea → pageComponents
+                                                                                ↓
+                                                                            activeTabId 기반 렌더링
 ```
 
 브라우저에서 `/doc/...` 같은 경로로 직접 들어오면 [`src/middleware.ts`](/home/a0122024330/src/ssoo/apps/web/dms/src/middleware.ts) 가 이를 내부 virtual path 로 간주하고 `/` 루트 셸로 복구한다.
@@ -33,6 +33,7 @@ src/app/
 ├── globals.css            # 글로벌 스타일
 ├── not-found.tsx          # 예외적 404 발생 시 루트 복구
 ├── (main)/
+│   ├── layout.tsx         # 루트 셸 초기화 (파일 트리, viewport sync)
 │   └── page.tsx           # 루트 페이지(/) → AppLayout
 └── api/
     ├── file/
@@ -79,7 +80,7 @@ const pageComponents = {
   markdown: lazy(() => import('@/components/pages/markdown/ViewerPage')),
   aiAsk: lazy(() => import('@/components/pages/ai/AskPage')),
   aiSearch: lazy(() => import('@/components/pages/ai/SearchPage')),
-  settings: lazy(() => import('@/components/pages/settings/Page')),
+  settings: lazy(() => import('@/components/pages/settings/SettingsPage')),
 };
 
 function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiAsk' | 'aiSearch' | 'settings' | null {

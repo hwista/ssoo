@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
 import { ingestApi, storageApi } from '@/lib/api';
 import {

@@ -1,6 +1,6 @@
 # 상태 관리 (State Management)
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-03-12
 
 DMS의 Zustand 기반 상태 관리 구조를 정의합니다.
 
@@ -10,15 +10,22 @@ DMS의 Zustand 기반 상태 관리 구조를 정의합니다.
 
 DMS는 PMS 패턴을 따르되, 서버 인증/권한 관련 상태는 제외합니다.
 
-```
+``` 
 src/stores/
 ├── index.ts                # 스토어 통합 export
 ├── layout.store.ts         # 디바이스/문서 타입 상태
 ├── sidebar.store.ts        # 사이드바 섹션/폴더 상태
-├── tab.store.ts            # 탭 관리 (persist)
+├── tab.store.ts            # 탭 관리 (sessionStorage persist)
 ├── file.store.ts           # 파일 트리 데이터 (persist)
-├── editor.store.ts         # 에디터 상태
-└── confirm.store.ts        # 전역 확인 다이얼로그
+├── editor-core.store.ts    # 탭별 멀티 에디터 core store
+├── editor.store.ts         # 에디터 React hook adapter
+├── confirm.store.ts        # 전역 확인 다이얼로그
+├── git.store.ts            # Git 변경/히스토리 상태
+├── settings.store.ts       # 설정 조회/저장 상태
+├── assistant-session.store.ts   # AI 세션/메시지 persist
+├── assistant-panel.store.ts     # AI 패널 UI transient 상태
+├── assistant-context.store.ts   # AI 첨부/템플릿/요약 컨텍스트
+└── ai-search.store.ts      # AI 검색 기록
 ```
 
 ---
@@ -46,8 +53,7 @@ interface LayoutStore {
 ```
 
 **특징:**
-- 윈도우 리사이즈 리스너로 자동 디바이스 타입 감지
-- 디바운스(100ms) 적용
+- viewport 동기화는 `useLayoutViewportSync()` 훅에서 React lifecycle로 수행
 - SSR 호환 (typeof window 체크)
 
 #### `useSidebarStore`
@@ -81,7 +87,7 @@ interface SidebarStore {
 
 #### `useTabStore` (persist)
 
-탭 관리 - localStorage 영속화
+탭 관리 - sessionStorage 영속화
 
 ```typescript
 interface TabStore {
@@ -142,30 +148,35 @@ interface FileStore {
 
 #### `useEditorStore`
 
-마크다운 에디터 상태 관리
+탭 인스턴스에 바인딩된 에디터 멀티 스토어 훅입니다. 실제 Zustand store core는 `editor-core.store.ts` 에 두고, 이 파일은 React adapter만 담당합니다.
 
 ```typescript
 interface EditorStore {
-  // State
-  content: string;                  // 에디터 내용
-  currentFilePath: string | null;   // 현재 파일 경로
-  isEditing: boolean;               // 편집 모드
-  fileMetadata: FileMetadata;       // 파일 메타데이터
+  content: string;
+  currentFilePath: string | null;
+  isEditing: boolean;
+  fileMetadata: FileMetadata;
+  documentMetadata: DocumentMetadata | null;
+  hasUnsavedChanges: boolean;
+  isSaving: boolean;
   isLoading: boolean;
   error: string | null;
 
-  // Actions
-  setContent: (content: string) => void;
-  setIsEditing: (editing: boolean) => void;
   loadFile: (path: string) => Promise<void>;
   saveFile: (path: string, content: string) => Promise<void>;
   saveFileKeepEditing: (path: string, content: string) => Promise<void>;
   refreshFileMetadata: (path: string) => Promise<void>;
+  updateDocumentMetadata: (update: Partial<DocumentMetadata>) => Promise<void>;
+  setLocalDocumentMetadata: (update: Partial<DocumentMetadata>) => void;
+  flushPendingMetadata: () => Promise<void>;
+  discardPendingMetadata: () => Promise<void>;
   reset: () => void;
 }
 ```
 
 **특징:**
+- keep-alive 탭마다 독립 상태를 유지하는 internal multi-store 구조
+- public hook은 `TabInstanceProvider` 내부에서만 사용
 - `saveFile`: 저장 후 편집 모드 종료
 - `saveFileKeepEditing`: 저장 후 편집 모드 유지
 - 에러 로깅 및 성능 측정 (PerformanceTimer)
@@ -203,6 +214,80 @@ if (result) {
 }
 ```
 
+### 5. Assistant Stores
+
+#### `useAssistantSessionStore`
+
+세션 영속 상태와 메시지 히스토리를 관리합니다.
+
+```typescript
+interface AssistantSessionStore {
+  clientId: string;
+  messages: AssistantMessage[];
+  sessions: AssistantSession[];
+  activeSessionId: string | null;
+  sessionsLoaded: boolean;
+
+  startNewSession: () => void;
+  selectSession: (sessionId: string) => void;
+  hydrateSessions: (sessions: AssistantSession[]) => void;
+  mergeSessions: (sessions: AssistantSession[]) => void;
+  markSessionsLoaded: () => void;
+  setSessionPersisted: (sessionId: string, persisted: boolean) => void;
+  appendMessage: (message: AssistantMessage) => AssistantMessage[];
+  updateTextMessage: (id: string, updater: (prev: string) => string, pending?: boolean) => void;
+}
+```
+
+#### `useAssistantPanelStore`
+
+패널 열림 상태와 draft/processing/suggestions 같은 UI 상태를 관리합니다.
+
+```typescript
+interface AssistantPanelStore {
+  isOpen: boolean;
+  inputDraft: string;
+  isProcessing: boolean;
+  suggestions: string[];
+  suggestionsCollapsed: boolean;
+
+  openPanel: () => void;
+  closePanel: () => void;
+  togglePanel: () => void;
+  setInputDraft: (value: string) => void;
+  setIsProcessing: (value: boolean) => void;
+  regenerateSuggestions: (count?: number) => void;
+  setSuggestionsCollapsed: (value: boolean) => void;
+  resetDraftState: () => void;
+}
+```
+
+#### `useAssistantContextStore`
+
+첨부 문서, 선택 템플릿, 요약 파일, relevance warning 같은 작성 컨텍스트를 관리합니다.
+
+```typescript
+interface AssistantContextStore {
+  attachedReferences: Array<{ path: string; title: string }>;
+  selectedTemplates: TemplateItem[];
+  summaryFiles: Array<{ id: string; name: string; textContent: string; size: number }>;
+  relevanceWarnings: string[];
+
+  toggleReference: (reference: { path: string; title: string }) => void;
+  setReferences: (references: Array<{ path: string; title: string }>) => void;
+  removeReference: (path: string) => void;
+  clearReferences: () => void;
+  toggleTemplate: (template: TemplateItem) => void;
+  removeTemplate: (id: string) => void;
+  clearTemplates: () => void;
+  upsertSummaryFiles: (files: AssistantSummaryFile[]) => void;
+  removeSummaryFile: (id: string) => void;
+  clearSummaryFiles: () => void;
+  setRelevanceWarnings: (warnings: string[]) => void;
+  resetContext: () => void;
+}
+```
+
 ---
 
 ## PMS 대응표
@@ -216,17 +301,21 @@ if (result) {
 | `useTabStore` | `useTabStore` | 동일 패턴 |
 | - | `useEditorStore` | DMS 전용 (마크다운 편집) |
 | - | `useConfirmStore` | DMS 전용 (전역 다이얼로그) |
+| - | `useAssistantSessionStore` | DMS 전용 (세션/메시지 영속 상태) |
+| - | `useAssistantPanelStore` | DMS 전용 (패널 UI transient 상태) |
+| - | `useAssistantContextStore` | DMS 전용 (assistant 작성 컨텍스트) |
 
 ---
 
 ## 영속화 (Persist)
 
-LocalStorage에 영속화되는 스토어:
+영속화되는 스토어:
 
 | Store | Storage Key | 영속화 데이터 |
 |-------|-------------|--------------|
-| `useTabStore` | `dms-tab-storage` | tabs, activeTabId |
-| `useFileStore` | `dms-file-storage` | bookmarks |
+| `useTabStore` | `dms-tab-storage` | `sessionStorage`: tabs, activeTabId |
+| `useFileStore` | `dms-file-storage` | `localStorage`: bookmarks |
+| `useAssistantSessionStore` | `dms-assistant-session-store` | `localStorage`: clientId, sessions, messages, activeSessionId |
 
 **Persist 설정:**
 ```typescript
@@ -234,7 +323,7 @@ persist(
   (set, get) => ({ ... }),
   {
     name: 'dms-tab-storage',
-    storage: createJSONStorage(() => localStorage),
+    storage: createJSONStorage(() => sessionStorage),
     partialize: (state) => ({
       tabs: state.tabs,
       activeTabId: state.activeTabId,
@@ -254,4 +343,5 @@ persist(
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-03-12 | assistant session/panel/context store 분리, editor 멀티 스토어 구조, tab sessionStorage 정책 반영 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

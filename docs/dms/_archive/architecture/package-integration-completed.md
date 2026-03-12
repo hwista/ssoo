@@ -6,6 +6,10 @@
 > 📂 현재 진행 문서: `package-integration-plan.md`  
 > 📊 비교 분석: `pms-dms-comparison-analysis.md`
 
+> 이 문서는 완료 시점 스냅샷을 보존하는 아카이브입니다.
+> 현재 런타임/패키지/구조 정본은 `package-spec.md`, `tech-stack.md`, `frontend-standards.md`, 실제 코드/manifest를 우선합니다.
+> 아래의 패키지 비교, Phase 기록, 옛 컴포넌트명(`WikiViewerPage`, `MarkdownViewerPage`, `Tiptap` 등)은 당시 상태를 설명하는 기록이며 현재 구현 설명으로 읽으면 안 됩니다.
+
 ---
 
 ## 📊 완료된 Phase 요약
@@ -277,7 +281,7 @@ apps/web/dms/
 | **UI 라이브러리** | ✅ Radix UI + shadcn/ui 패턴 |
 | **레이아웃** | ✅ PMS AppLayout 구조 |
 | **스타일** | ✅ PMS 디자인 시스템 100% |
-| **DMS 도메인** | ✅ Tiptap, 마크다운, AI 유지 |
+| **DMS 도메인** | ✅ 당시 Tiptap/마크다운/AI 축 유지 |
 
 ---
 
@@ -291,18 +295,18 @@ apps/web/dms/
 > ⚠️ **역사 기록**: 아래는 Phase 3 당시 생성된 페이지 컴포넌트입니다.  
 > Phase 7에서 리팩터링되어 현재는:
 > - `WikiHomePage` → `DashboardPage` (`pages/home/`)
-> - `WikiViewerPage` → `MarkdownViewerPage` (`pages/markdown/`)
-> - `AISearchPage` → 삭제됨 (Header에서 AI 검색 처리)
+> - `WikiViewerPage` → `ViewerPage` (`pages/markdown/`)
+> - `AISearchPage` → `AiSearchPage` (`pages/ai/`)
 
 | 컴포넌트 (당시) | 경로 (당시) | 역할 | 현재 상태 |
 |----------|------|------|------|
 | WikiHomePage | `components/pages/wiki/WikiHomePage.tsx` | 홈 대시보드 | → `DashboardPage` |
-| WikiViewerPage | `components/pages/wiki/WikiViewerPage.tsx` | 문서 뷰어/에디터 | → `MarkdownViewerPage` |
-| AISearchPage | `components/pages/ai/AISearchPage.tsx` | AI 검색 | ❌ 삭제됨 |
+| WikiViewerPage | `components/pages/wiki/WikiViewerPage.tsx` | 문서 뷰어/에디터 | → `ViewerPage` |
+| AISearchPage | `components/pages/ai/AISearchPage.tsx` | AI 검색 | → `AiSearchPage` |
 
 ### ContentArea 리팩터링 (Phase 3 당시)
 
-> ⚠️ **역사 기록**: 아래는 Phase 3 당시 코드입니다. 현재는 `home`, `markdown` 2개 페이지만 사용합니다.
+> ⚠️ **역사 기록**: 아래는 Phase 3 당시 코드입니다. 현재는 `home`, `markdown`, `aiAsk`, `aiSearch`, `settings` 페이지를 keep-alive 탭 렌더링합니다.
 
 ```typescript
 // Phase 3 당시: pageComponents 패턴 도입
@@ -312,10 +316,13 @@ const pageComponents = {
   wiki: lazy(() => import('@/components/pages/wiki/WikiViewerPage')),
 };
 
-// 현재 (Phase 7 이후):
+// 현재 (2026-03 기준):
 const pageComponents = {
   home: lazy(() => import('@/components/pages/home/DashboardPage')),
-  markdown: lazy(() => import('@/components/pages/markdown/MarkdownViewerPage')),
+  markdown: lazy(() => import('@/components/pages/markdown/ViewerPage')),
+  aiAsk: lazy(() => import('@/components/pages/ai/AskPage')),
+  aiSearch: lazy(() => import('@/components/pages/ai/SearchPage')),
+  settings: lazy(() => import('@/components/pages/settings/Page')),
 };
 ```
 

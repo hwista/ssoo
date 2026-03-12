@@ -89,10 +89,12 @@ apps/web/dms (독립 - @ssoo/* 참조 금지)
 
 | 기술 | 버전 | 용도 |
 |------|------|------|
-| Next.js | 15.x | 프레임워크 |
+| Next.js | 15.x | 프레임워크 (App Router + keep-alive layout) |
 | React | 19.x | UI 라이브러리 |
-| Tiptap | - | 에디터 |
-| MUI Tree View | - | 트리 네비게이션 |
+| Tailwind CSS | 3.x | 스타일링 |
+| Radix UI | - | low-level UI primitive |
+| Zustand | 5.x | 상태 관리 |
+| CodeMirror | 6.x | 블록 에디터 런타임 |
 
 > **DMS 특이사항**: npm 독립 프로젝트 (모노레포 패키지 미참조)
 
@@ -158,4 +160,3 @@ modules/
 | 날짜 | 변경 내용 |
 |------|----------|
 | 2026-02-06 | 초기 버전 - copilot-instructions.md에서 레포 특화 내용 분리 |
-

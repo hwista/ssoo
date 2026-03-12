@@ -25,14 +25,14 @@ export async function request<T = unknown>(
     timeout = 30000,
   } = options;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
   try {
     const defaultHeaders = {
       'Content-Type': 'application/json',
       ...headers,
     };
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     const response = await fetch(url, {
       method,
@@ -41,23 +41,37 @@ export async function request<T = unknown>(
       signal: controller.signal,
     });
 
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
-      const errorText = await response.text();
+      const contentType = response.headers.get('content-type') || '';
+      let errorText = response.statusText;
+
+      if (contentType.includes('application/json')) {
+        try {
+          const payload = await response.json() as { error?: string; message?: string };
+          errorText = payload.error || payload.message || response.statusText;
+        } catch {
+          errorText = response.statusText;
+        }
+      } else {
+        const raw = await response.text();
+        errorText = raw || response.statusText;
+      }
+
       return {
         success: false,
-        error: `HTTP ${response.status}: ${errorText || response.statusText}`,
+        error: `HTTP ${response.status}: ${errorText}`,
       };
     }
 
     const contentType = response.headers.get('content-type');
-    let data: T;
+    let data: T | undefined;
 
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
-    } else {
+    } else if (response.status !== 204) {
       data = await response.text() as unknown as T;
+    } else {
+      data = undefined;
     }
 
     return {
@@ -83,6 +97,8 @@ export async function request<T = unknown>(
       success: false,
       error: ERROR_MESSAGES.NETWORK_ERROR,
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

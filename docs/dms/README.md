@@ -33,8 +33,10 @@ docs/dms/
 | [API 가이드](./guides/api.md) | API 명세/사용 예시 |
 | [컴포넌트 가이드](./guides/components.md) | 컴포넌트 구성 |
 | [훅 가이드](./guides/hooks.md) | 커스텀 훅 설명 |
+| [골든 이그잼플 가이드](./guides/golden-example.md) | 구조 기준선 / 레이어 판정 / 검증 규칙 |
 | [로드맵](./planning/roadmap.md) | 계획/단계 |
 | [백로그](./planning/backlog.md) | 작업 항목 |
+| [PRD 템플릿](./planning/prd-template.md) | 작업 요청 입력 형식 |
 | [변경 이력](./planning/changelog.md) | 변경 기록 |
 
 ## 운영 경로

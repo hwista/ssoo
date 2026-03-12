@@ -1,7 +1,7 @@
 'use client';
 
 import type { TemplateItem } from '@/types/template';
-import type { DocReferenceItem } from './referencePickerUtils';
+import type { DocReferenceItem } from './pickerUtils';
 
 function ReferenceButton({
   item,

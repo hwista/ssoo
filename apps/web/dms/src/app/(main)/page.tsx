@@ -1,14 +1,11 @@
-'use client';
+import { AppLayout } from '@/components/layout';
 
 /**
- * DMS 메인 페이지 (/)
- * 
- * Note: 실제 렌더링은 ContentArea > pageComponents에서 처리
- * 이 파일은 Next.js App Router 라우팅을 위해 존재
- * (main)/layout.tsx의 AppLayout이 ContentArea로 페이지 렌더링
+ * DMS 메인 셸 페이지 (/)
+ *
+ * - 브라우저 공개 진입점은 `/` 하나만 사용
+ * - 실제 탭 기반 화면 전환은 AppLayout > ContentArea가 담당
  */
 export default function MainPage() {
-  // AppLayout > ContentArea가 pageComponents로 렌더링하므로
-  // 이 컴포넌트의 반환값은 사용되지 않음
-  return null;
+  return <AppLayout />;
 }

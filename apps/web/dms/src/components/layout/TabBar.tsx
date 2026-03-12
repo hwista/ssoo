@@ -1,7 +1,7 @@
 'use client';
 
 import { useTabStore, HOME_TAB } from '@/stores';
-import { useAssistantStore } from '@/stores';
+import { useAssistantPanelStore } from '@/stores';
 import { X, Minimize2, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch, Settings, FilePenLine } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback } from 'react';
@@ -16,7 +16,7 @@ import { LAYOUT_SIZES } from '@/lib/constants/layout';
  */
 export function TabBar() {
   const { tabs, activeTabId, activateTab, closeTab, reorderTabs } = useTabStore();
-  const openPanel = useAssistantStore((state) => state.openPanel);
+  const openPanel = useAssistantPanelStore((state) => state.openPanel);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);

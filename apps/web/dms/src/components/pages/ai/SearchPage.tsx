@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
-import { useTabStore, useAssistantStore, useConfirmStore, useAiSearchStore } from '@/stores';
+import { toast } from '@/lib/toast';
+import { useTabStore, useAssistantContextStore, useAssistantPanelStore, useConfirmStore, useAiSearchStore } from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import { DocPageTemplate } from '@/components/templates';
 import {
@@ -43,8 +43,8 @@ export function AiSearchPage() {
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
   const autoQueryRef = useRef('');
   const confirm = useConfirmStore((state) => state.confirm);
-  const setReferences = useAssistantStore((state) => state.setReferences);
-  const openPanel = useAssistantStore((state) => state.openPanel);
+  const setReferences = useAssistantContextStore((state) => state.setReferences);
+  const openPanel = useAssistantPanelStore((state) => state.openPanel);
   const searchHistory = useAiSearchStore((state) => state.history);
   const recordSearch = useAiSearchStore((state) => state.recordSearch);
   const openDocumentTab = useOpenDocumentTab();

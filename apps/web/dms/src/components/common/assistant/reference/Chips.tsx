@@ -1,9 +1,9 @@
 'use client';
 
 import { FileUp, Paperclip, Shapes, X } from 'lucide-react';
-import { useAssistantStore } from '@/stores';
+import { useAssistantContextStore } from '@/stores';
 import type { TemplateItem } from '@/types/template';
-import type { InlineSummaryFileItem } from './ReferencePicker';
+import type { InlineSummaryFileItem } from './Picker';
 
 interface AssistantReferenceChipsProps {
   disabled?: boolean;
@@ -26,9 +26,9 @@ export function AssistantReferenceChips({
   onInlineRemoveSummaryFile,
   onInlineClearAll,
 }: AssistantReferenceChipsProps) {
-  const assistantReferences = useAssistantStore((state) => state.attachedReferences);
-  const removeAssistantReference = useAssistantStore((state) => state.removeReference);
-  const clearAssistantReferences = useAssistantStore((state) => state.clearReferences);
+  const assistantReferences = useAssistantContextStore((state) => state.attachedReferences);
+  const removeAssistantReference = useAssistantContextStore((state) => state.removeReference);
+  const clearAssistantReferences = useAssistantContextStore((state) => state.clearReferences);
 
   const references = mode === 'assistant' ? assistantReferences : [];
   const template = mode === 'inline' ? (inlineTemplate ?? null) : null;

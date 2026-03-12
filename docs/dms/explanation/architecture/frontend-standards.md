@@ -119,13 +119,13 @@ pages/
 │   ├── AskPage.tsx
 │   └── SearchPage.tsx
 └── settings/
-    └── Page.tsx
+    └── SettingsPage.tsx
 ```
 
 ### 네이밍 규칙
 
-- **파일명:** 기본은 `{Feature}Page.tsx`
-- **예외:** 기능 그룹 엔트리에서 `Page.tsx` 사용 가능 (`settings/Page.tsx`)
+- **파일명:** `{Feature}Page.tsx`
+- **예외:** 없음. App Router의 `page.tsx` 와 혼동되지 않도록 feature page도 명시적 이름을 유지
 - **export:** Named export 우선
 
 ```typescript
@@ -162,7 +162,7 @@ hooks/
 | 유형 | 규칙 | 예시 |
 |------|------|------|
 | 컴포넌트 | PascalCase | `FileTree.tsx` |
-| 훅 | camelCase (use 접두사) | `useEditor.ts` |
+| 훅 | camelCase (use 접두사) | `useOpenTabWithConfirm.ts` |
 | 유틸리티 | camelCase | `pathUtils.ts` |
 | 스토어 | kebab-case (store 접미사) | `tab.store.ts` |
 | 타입 | camelCase/index | `tab.ts`, `index.ts` |
@@ -244,7 +244,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 | UI 라이브러리 | shadcn/ui | Radix UI 직접 사용 |
 | API 클라이언트 | Axios + 인터셉터 | fetch + 로컬 API |
 | 상태 관리 | Zustand + React Query | Zustand only |
-| 폼 검증 | Zod + react-hook-form | 없음 (단순 입력) |
+| 폼 검증 | 별도 폼/스키마 라이브러리 미사용 | 현재는 수기 검증/도메인별 validation helper 중심 |
 | 템플릿 컴포넌트 | ListPageTemplate, FormPageTemplate | 없음 (단일 페이지 타입) |
 
 ---

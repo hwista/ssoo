@@ -17,6 +17,9 @@ fi
 echo "[dms-guard] validating shell body slot contract"
 pnpm -C apps/web/dms run check:shell-body-contract
 
+echo "[dms-guard] validating golden example conventions"
+pnpm -C apps/web/dms run check:golden-example
+
 echo "[dms-guard] DMS changes detected. running npm build in apps/web/dms"
 bash .codex/scripts/dms-build.sh
 

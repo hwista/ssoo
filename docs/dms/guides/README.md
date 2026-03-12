@@ -14,6 +14,7 @@ DMS 개발 시 참고할 정본 가이드 인덱스입니다.
 | [api.md](api.md) | 운영 API + 계획 API |
 | [components.md](components.md) | 컴포넌트 구조/패턴 |
 | [hooks.md](hooks.md) | 커스텀 훅 가이드 |
+| [golden-example.md](golden-example.md) | 구조 기준선 / 골든 이그잼플 운영 규칙 |
 
 ---
 

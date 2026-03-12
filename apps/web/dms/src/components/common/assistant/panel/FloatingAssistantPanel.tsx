@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import { toast } from 'sonner';
-import { useAssistantStore } from '@/stores';
+import { toast } from '@/lib/toast';
+import { useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
 import { useAssistantChat } from '../chat/useAssistantChat';
 import { useAssistantSessionPersistence } from '../session/useAssistantSessionPersistence';
 import { AssistantMessageList } from '../MessageList';
@@ -22,20 +22,22 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
 
-  const messages = useAssistantStore((state) => state.messages);
-  const sessions = useAssistantStore((state) => state.sessions);
-  const activeSessionId = useAssistantStore((state) => state.activeSessionId);
-  const inputDraft = useAssistantStore((state) => state.inputDraft);
-  const isProcessing = useAssistantStore((state) => state.isProcessing);
-  const suggestions = useAssistantStore((state) => state.suggestions);
-  const suggestionsCollapsed = useAssistantStore((state) => state.suggestionsCollapsed);
+  const messages = useAssistantSessionStore((state) => state.messages);
+  const sessions = useAssistantSessionStore((state) => state.sessions);
+  const activeSessionId = useAssistantSessionStore((state) => state.activeSessionId);
+  const inputDraft = useAssistantPanelStore((state) => state.inputDraft);
+  const isProcessing = useAssistantPanelStore((state) => state.isProcessing);
+  const suggestions = useAssistantPanelStore((state) => state.suggestions);
+  const suggestionsCollapsed = useAssistantPanelStore((state) => state.suggestionsCollapsed);
 
-  const setInputDraft = useAssistantStore((state) => state.setInputDraft);
-  const regenerateSuggestions = useAssistantStore((state) => state.regenerateSuggestions);
-  const setSuggestionsCollapsed = useAssistantStore((state) => state.setSuggestionsCollapsed);
-  const startNewSession = useAssistantStore((state) => state.startNewSession);
-  const selectSession = useAssistantStore((state) => state.selectSession);
-  const closePanel = useAssistantStore((state) => state.closePanel);
+  const setInputDraft = useAssistantPanelStore((state) => state.setInputDraft);
+  const regenerateSuggestions = useAssistantPanelStore((state) => state.regenerateSuggestions);
+  const setSuggestionsCollapsed = useAssistantPanelStore((state) => state.setSuggestionsCollapsed);
+  const closePanel = useAssistantPanelStore((state) => state.closePanel);
+  const resetDraftState = useAssistantPanelStore((state) => state.resetDraftState);
+  const resetContext = useAssistantContextStore((state) => state.resetContext);
+  const startNewSession = useAssistantSessionStore((state) => state.startNewSession);
+  const selectSession = useAssistantSessionStore((state) => state.selectSession);
 
   const { submitUserMessage, handleOpenFile, handleOpenHelpAction, openExpandedAskPage } = useAssistantChat();
   const { saveSession, removeSessionFromDb } = useAssistantSessionPersistence();
@@ -72,11 +74,15 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
           activeSessionId={activeSessionId}
           onStartNewSession={() => {
             startNewSession();
+            resetDraftState();
+            resetContext();
             setHistoryOpen(false);
           }}
           onToggleHistory={() => setHistoryOpen((prev) => !prev)}
           onSelectSession={(id) => {
             selectSession(id);
+            resetDraftState();
+            resetContext();
             setHistoryOpen(false);
           }}
           onTogglePersist={(item) => {

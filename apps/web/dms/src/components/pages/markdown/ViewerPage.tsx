@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { useTabStore, useEditorStore, useConfirmStore, useFileStore, useAssistantStore } from '@/stores';
+import {
+  useTabStore,
+  useEditorStore,
+  useConfirmStore,
+  useFileStore,
+  useAssistantContextStore,
+  useAssistantPanelStore,
+} from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import { fileApi } from '@/lib/api';
 import { DocPageTemplate } from '@/components/templates';
@@ -18,7 +25,7 @@ import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import type { DocumentMetadata } from '@/types';
 import {
   type InlineSummaryFileItem,
-} from '@/components/common/assistant/reference/ReferencePicker';
+} from '@/components/common/assistant/reference/Picker';
 import type { TemplateItem } from '@/types/template';
 import { cn } from '@/lib/utils';
 import { DocumentSidecar } from './_components/DocumentSidecar';
@@ -45,9 +52,9 @@ export function ViewerPage() {
   const { tabs, closeTab, updateTab } = useTabStore();
   const { confirm } = useConfirmStore();
   const { refreshFileTree } = useFileStore();
-  const openAssistantPanel = useAssistantStore((state) => state.openPanel);
-  const toggleAssistantReference = useAssistantStore((state) => state.toggleReference);
-  const attachedReferences = useAssistantStore((state) => state.attachedReferences);
+  const openAssistantPanel = useAssistantPanelStore((state) => state.openPanel);
+  const toggleAssistantReference = useAssistantContextStore((state) => state.toggleReference);
+  const attachedReferences = useAssistantContextStore((state) => state.attachedReferences);
 
   const {
     loadFile,
@@ -392,5 +399,3 @@ export function ViewerPage() {
     </main>
   );
 }
-
-export default ViewerPage;

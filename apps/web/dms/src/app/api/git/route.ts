@@ -2,6 +2,7 @@
  * Git API Route - Wiki Git 저장소 관리
  * 비즈니스 로직은 @/server/handlers/git.handler.ts 참조
  */
+export const dynamic = 'force-dynamic';
 
 import {
   handleGitAction,

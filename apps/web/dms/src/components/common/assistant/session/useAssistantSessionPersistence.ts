@@ -2,15 +2,15 @@
 
 import { useCallback } from 'react';
 import { assistantSessionApi, getErrorMessage } from '@/lib/api';
-import { useAssistantStore } from '@/stores';
+import { useAssistantSessionStore } from '@/stores';
 import { toAssistantMessages } from './assistantSessionUtils';
 
 export function useAssistantSessionPersistence() {
-  const clientId = useAssistantStore((state) => state.clientId);
-  const sessions = useAssistantStore((state) => state.sessions);
-  const mergeSessions = useAssistantStore((state) => state.mergeSessions);
-  const markSessionsLoaded = useAssistantStore((state) => state.markSessionsLoaded);
-  const setSessionPersisted = useAssistantStore((state) => state.setSessionPersisted);
+  const clientId = useAssistantSessionStore((state) => state.clientId);
+  const sessions = useAssistantSessionStore((state) => state.sessions);
+  const mergeSessions = useAssistantSessionStore((state) => state.mergeSessions);
+  const markSessionsLoaded = useAssistantSessionStore((state) => state.markSessionsLoaded);
+  const setSessionPersisted = useAssistantSessionStore((state) => state.setSessionPersisted);
 
   const loadPersistedSessions = useCallback(async () => {
     const response = await assistantSessionApi.list(clientId, 100);

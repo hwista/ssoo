@@ -1,11 +1,11 @@
-/**
- * 파일 시스템 서비스
- * - 실제 사용: getFileTree만 사용 (file.store.ts에서 호출)
- */
-
+import fs from 'fs';
+import path from 'path';
+import { normalizePath } from '@/server/utils/pathUtils';
+import { configService } from '@/server/services/config/ConfigService';
+import { isMarkdownFile } from '@/lib/utils/fileUtils';
+import { logger } from '@/lib/utils/errorUtils';
 import type { FileNode } from '@/types/file-tree';
 
-/** 서비스 결과 타입 */
 export interface ServiceResult<T> {
   success: boolean;
   data?: T;
@@ -15,105 +15,74 @@ export interface ServiceResult<T> {
   };
 }
 
-/** 파일 트리 조회 옵션 */
 export interface GetTreeOptions {
   includeHidden?: boolean;
-  sortBy?: 'name' | 'type' | 'date';
-  sortOrder?: 'asc' | 'desc';
+}
+
+function getRootDir(): string {
+  return configService.getWikiDir();
 }
 
 class FileSystemService {
-  private readonly name = 'FileSystemService';
+  private readDirectory(dirPath: string, rootDir: string, includeHidden: boolean): FileNode[] {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
-  /**
-   * 로그 출력
-   */
-  private log(level: 'info' | 'error', message: string, error?: unknown): void {
-    const prefix = `[${this.name}]`;
-    if (level === 'error') {
-      // eslint-disable-next-line no-console -- 서버 로깅
-      console.error(prefix, message, error);
-    } else {
-      // eslint-disable-next-line no-console -- 서버 로깅
-      console.log(prefix, message);
-    }
+    return entries
+      .filter((entry) => includeHidden || !entry.name.startsWith('.'))
+      .map<FileNode | null>((entry) => {
+        const fullPath = path.join(dirPath, entry.name);
+        const relativePath = normalizePath(path.relative(rootDir, fullPath));
+
+        if (entry.isDirectory()) {
+          return {
+            type: 'directory' as const,
+            name: entry.name,
+            path: relativePath,
+            children: this.readDirectory(fullPath, rootDir, includeHidden),
+          };
+        }
+
+        if (entry.isFile() && isMarkdownFile(entry.name)) {
+          return {
+            type: 'file' as const,
+            name: entry.name,
+            path: relativePath,
+          };
+        }
+
+        return null;
+      })
+      .filter((item): item is FileNode => item !== null);
   }
 
-  /**
-   * 성공 결과 생성
-   */
-  private success<T>(data: T): ServiceResult<T> {
-    return { success: true, data };
-  }
+  async getFileTree(options: GetTreeOptions = {}): Promise<ServiceResult<FileNode[]>> {
+    const rootDir = getRootDir();
 
-  /**
-   * 실패 결과 생성
-   */
-  private failure<T>(error: Error, code?: string): ServiceResult<T> {
-    return {
-      success: false,
-      error: {
-        message: error.message,
-        code,
-      },
-    };
-  }
-
-  /**
-   * 파일 트리 조회
-   */
-  async getFileTree(path?: string, options: GetTreeOptions = {}): Promise<ServiceResult<FileNode[]>> {
     try {
-      this.log('info', `Getting file tree for path: ${path || 'root'}`);
-
-      const response = await fetch('/api/files', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!fs.existsSync(rootDir)) {
+        logger.warn('파일 트리 루트 디렉터리가 존재하지 않음', { rootDir });
+        return { success: true, data: [] };
       }
 
-      // API는 직접 배열을 반환
-      const data = await response.json();
-      let files = Array.isArray(data) ? data : [];
-
-      // 숨김 파일 필터링
-      if (!options.includeHidden) {
-        files = files.filter((file: FileNode) => !file.name.startsWith('.'));
+      const rootStats = fs.statSync(rootDir);
+      if (!rootStats.isDirectory()) {
+        logger.warn('파일 트리 루트 경로가 디렉터리가 아님', { rootDir });
+        return { success: true, data: [] };
       }
 
-      // 정렬
-      if (options.sortBy) {
-        files.sort((a: FileNode, b: FileNode) => {
-          const order = options.sortOrder === 'desc' ? -1 : 1;
-
-          switch (options.sortBy) {
-            case 'name':
-              return a.name.localeCompare(b.name) * order;
-            case 'type':
-              return (a.type === b.type ? 0 : a.type === 'directory' ? -1 : 1) * order;
-            case 'date':
-              const aDate = new Date(a.lastModified || 0);
-              const bDate = new Date(b.lastModified || 0);
-              return (aDate.getTime() - bDate.getTime()) * order;
-            default:
-              return 0;
-          }
-        });
-      }
-
-      this.log('info', `Successfully retrieved ${files.length} files`);
-      return this.success(files);
+      const data = this.readDirectory(rootDir, rootDir, options.includeHidden ?? false);
+      return { success: true, data };
     } catch (error) {
-      this.log('error', 'Failed to get file tree', error);
-      return this.failure(error as Error, 'GET_TREE_ERROR');
+      logger.error('파일 트리 조회 실패', error, { rootDir });
+      return {
+        success: false,
+        error: {
+          message: error instanceof Error ? error.message : '파일 트리 조회에 실패했습니다.',
+          code: 'FILE_TREE_READ_FAILED',
+        },
+      };
     }
   }
 }
 
-// 싱글톤 인스턴스
 export const fileSystemService = new FileSystemService();

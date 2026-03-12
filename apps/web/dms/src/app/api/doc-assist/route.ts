@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { composeDocument, recommendDocumentPath } from '@/server/handlers/docAssist.handler';
 
 export async function POST(req: Request) {

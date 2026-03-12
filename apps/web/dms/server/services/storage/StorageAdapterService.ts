@@ -55,7 +55,7 @@ function hashValue(content: string | Buffer): string {
 
 function normalizeRelativePath(input?: string): string {
   if (!input) return '';
-  return path.normalize(input).replace(/^\/+/, '').replace(/^\.\.[/\\]/, '');
+  return path.normalize(input).replace(/^[/\\]+/, '');
 }
 
 class StorageAdapterService {
@@ -94,19 +94,33 @@ class StorageAdapterService {
     return `/api/storage/open?provider=${provider}&path=${encodedPath}`;
   }
 
-  private resolveDestination(provider: StorageProvider, relativePath: string, fileName: string): { fullPath: string; relativePath: string } {
-    const normalizedRelative = normalizeRelativePath(relativePath);
-    const safeName = fileName.replace(/[<>:"|?*]/g, '_');
-    const providerConfig = this.getProviderConfig(provider);
-    const configuredBase = providerConfig.basePath;
+  private getStorageRoot(provider: StorageProvider): string {
+    const configuredBase = this.getProviderConfig(provider).basePath;
     const storageRoot = provider === 'local'
       ? configuredBase
       : path.join(process.cwd(), 'data', 'storage', 'providers', provider);
-    const absoluteRoot = path.isAbsolute(storageRoot) ? storageRoot : path.join(process.cwd(), storageRoot);
 
+    return path.isAbsolute(storageRoot) ? storageRoot : path.join(process.cwd(), storageRoot);
+  }
+
+  public resolveContainedPath(provider: StorageProvider, relativePath: string): { fullPath: string; relativePath: string } {
+    const absoluteRoot = this.getStorageRoot(provider);
+    const normalizedRelative = normalizeRelativePath(relativePath);
+    const fullPath = path.resolve(absoluteRoot, normalizedRelative);
+    const relative = path.relative(absoluteRoot, fullPath);
+
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error('허용되지 않은 경로입니다.');
+    }
+
+    return { fullPath, relativePath: relative.replace(/\\/g, '/') };
+  }
+
+  private resolveDestination(provider: StorageProvider, relativePath: string, fileName: string): { fullPath: string; relativePath: string } {
+    const normalizedRelative = normalizeRelativePath(relativePath);
+    const safeName = fileName.replace(/[<>:"/\\|?*]/g, '_');
     const relativeTarget = normalizedRelative ? `${normalizedRelative}/${safeName}` : safeName;
-    const fullPath = path.join(absoluteRoot, relativeTarget);
-    return { fullPath, relativePath: relativeTarget.replace(/\\/g, '/') };
+    return this.resolveContainedPath(provider, relativeTarget);
   }
 
   upload(request: StorageUploadRequest): StorageReference {
@@ -154,24 +168,19 @@ class StorageAdapterService {
     }
 
     const providerConfig = this.getProviderConfig(provider);
-    const configuredBase = providerConfig.basePath;
-    const storageRoot = provider === 'local'
-      ? configuredBase
-      : path.join(process.cwd(), 'data', 'storage', 'providers', provider);
-    const absoluteRoot = path.isAbsolute(storageRoot) ? storageRoot : path.join(process.cwd(), storageRoot);
-    const fullPath = path.join(absoluteRoot, targetPath);
+    const contained = this.resolveContainedPath(provider, targetPath);
 
-    if (provider === 'local' && !fs.existsSync(fullPath)) {
+    if (provider === 'local' && !fs.existsSync(contained.fullPath)) {
       throw new Error('대상 파일을 찾을 수 없습니다.');
     }
 
     return {
       provider,
-      path: targetPath,
-      storageUri: this.toStorageUri(provider, targetPath),
-      openUrl: this.buildOpenUrl(provider, targetPath, providerConfig.webBaseUrl),
+      path: contained.relativePath,
+      storageUri: this.toStorageUri(provider, contained.relativePath),
+      openUrl: this.buildOpenUrl(provider, contained.relativePath, providerConfig.webBaseUrl),
       webUrl: providerConfig.webBaseUrl
-        ? `${providerConfig.webBaseUrl.replace(/\/$/, '')}/${targetPath}`
+        ? `${providerConfig.webBaseUrl.replace(/\/$/, '')}/${contained.relativePath}`
         : undefined,
     };
   }

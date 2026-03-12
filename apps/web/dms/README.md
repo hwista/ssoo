@@ -14,10 +14,10 @@
 |------|----------|
 | **Next.js 15** | App Router, API Routes, SSR |
 | **React 19** | 최신 React, Server Components |
-| **Tiptap** | Notion 스타일 블록 에디터, 확장성 |
+| **CodeMirror 6** | 블록 편집 런타임, selection/command 제어 |
 | **Tailwind CSS** | 유틸리티 CSS, 빠른 스타일링 |
-| **LanceDB** | 경량 Vector DB, RAG 검색 |
-| **Gemini API** | AI 임베딩 및 답변 생성 |
+| **PostgreSQL + pgvector** | 검색/세션/문서 데이터 저장 |
+| **Azure OpenAI + AI SDK** | 문서 보조 작성, 검색, 답변 생성 |
 
 ---
 
@@ -39,8 +39,7 @@ apps/web/dms/
 │   │   ├── templates/              # 템플릿 (DocPageTemplate)
 │   │   └── ui/                     # 기본 UI (Button, Card, Dialog)
 │   │
-│   ├── hooks/                      # 커스텀 훅
-│   │   ├── useEditor.ts            # 에디터 상태 관리
+│   ├── hooks/                      # 앱 범용 훅
 │   │   └── useOpenTabWithConfirm.ts # 탭 열기 확인
 │   │
 │   ├── stores/                     # Zustand 상태 관리
@@ -90,16 +89,15 @@ apps/web/dms/
 
 | 패키지 | 용도 |
 |--------|------|
-| `@tiptap/react` | Tiptap 에디터 |
-| `@tiptap/starter-kit` | 기본 확장 |
+| `codemirror` | 블록 에디터 런타임 |
+| `@codemirror/lang-markdown` | 마크다운 언어 지원 |
 | `lowlight` | 코드 구문 강조 |
 
 ### UI 컴포넌트
 
 | 패키지 | 용도 |
 |--------|------|
-| `@mui/material` | MUI 컴포넌트 |
-| `@fluentui/react` | Fluent UI |
+| `@radix-ui/*` | low-level UI primitives |
 | `lucide-react` | 아이콘 |
 | `tailwindcss` | 유틸리티 CSS |
 
@@ -168,16 +166,16 @@ http://localhost:3001
 
 ## 🔗 API 개요
 
-DMS는 19개의 API 엔드포인트를 제공합니다.
+DMS는 App Router 기반 API 엔드포인트를 제공합니다.
 
 | 카테고리 | 엔드포인트 | 설명 |
 |----------|-----------|------|
 | 파일 | `/api/file`, `/api/files` | 파일 CRUD, 트리 조회 |
 | 검색 | `/api/search`, `/api/ask` | Vector 검색, AI 답변 |
-| 협업 | `/api/comments`, `/api/versions` | 댓글, 버전 히스토리 |
-| 관리 | `/api/users`, `/api/permissions` | 사용자, 권한 |
+| 문서 보조 | `/api/doc-assist`, `/api/templates` | AI 작성, 템플릿 |
+| 설정/세션 | `/api/settings`, `/api/chat-sessions` | 설정, AI 세션 |
 
-> 📚 상세 API 문서: [docs/development/guides/api.md](./docs/development/guides/api.md)
+> 📚 상세 API 문서: [docs/dms/guides/api.md](../../docs/dms/guides/api.md)
 
 ---
 

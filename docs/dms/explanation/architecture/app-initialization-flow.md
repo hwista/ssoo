@@ -17,9 +17,13 @@ RootLayout (layout.tsx)
     ↓
 Providers (providers.tsx)
     ↓
+(main)/layout.tsx
+    ↓
+MainPage (page.tsx)
+    ↓
 AppLayout
     ↓
-InitializeFileTree (파일 트리 로드)
+InitializeFileTree (main layout effect)
     ↓
 ContentArea (Home 페이지 렌더링)
 ```
@@ -63,20 +67,38 @@ export function Providers({ children }) {
 - 전역 Providers 래핑
 - Toast 컨텍스트 제공
 
-### 3. AppLayout
+### 3. (main)/layout.tsx
+
+```tsx
+export default function MainLayout({ children }) {
+  const { refreshFileTree } = useFileStore();
+  useLayoutViewportSync();
+
+  useEffect(() => {
+    refreshFileTree();
+  }, [refreshFileTree]);
+
+  return children;
+}
+```
+
+**역할:**
+- 루트 셸 초기화
+- 파일 트리 초기 로드
+- viewport/layout 동기화
+
+### 4. AppLayout
 
 ```tsx
 export function AppLayout() {
-  // 디바이스 타입 감지
   const { deviceType } = useLayoutStore();
-  
-  // 컴팩트 모드 자동 전환
+
   useEffect(() => {
     const checkCompactMode = () => { ... };
     checkCompactMode();
     window.addEventListener('resize', checkCompactMode);
   }, []);
-  
+
   return (
     <div className="flex h-screen">
       <Sidebar />
@@ -91,11 +113,11 @@ export function AppLayout() {
 ```
 
 **역할:**
-- 레이아웃 구조 정의
+- 앱 전역 레이아웃 구조 정의
 - 컴팩트 모드 감지 (본문 영역 < 975px)
 - 디바이스 타입에 따른 UI 분기
 
-### 4. Sidebar > FileTree
+### 5. Sidebar > FileTree
 
 ```tsx
 export function FileTree() {
@@ -123,24 +145,24 @@ export function FileTree() {
    - useFileStore: 저장된 북마크
 
 2. [비동기] 파일 트리 로드
-   - FileTree 마운트 시 loadFileTree() 호출
+   - (main)/layout.tsx 마운트 시 refreshFileTree() 호출
    - API: GET /api/files
    - 성공 시 files, fileMap 설정
 
 3. [사용자 액션] 문서 로드
    - 탭 클릭 시 ContentArea가 페이지 타입 결정
-   - MarkdownViewerPage가 파일 내용 로드
+   - ViewerPage가 파일 내용 로드
 ```
 
 ---
 
 ## 상태 복원 (Persist)
 
-### localStorage에서 복원되는 데이터
+### 브라우저 스토리지에서 복원되는 데이터
 
 | Store | 복원 데이터 | 기본값 |
 |-------|-----------|-------|
-| `useTabStore` | tabs, activeTabId | [Home 탭], 'home' |
+| `useTabStore` | tabs, activeTabId | [Home 탭], 'home' (`sessionStorage`) |
 | `useFileStore` | bookmarks | [] |
 
 ### 복원 시점

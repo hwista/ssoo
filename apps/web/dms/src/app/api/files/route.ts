@@ -4,6 +4,7 @@
  * @description 얇은 라우팅 레이어 - 핸들러 호출만 수행
  * @see server/handlers/files.handler.ts
  */
+export const dynamic = 'force-dynamic';
 
 import { getFileTree } from "@/server/handlers/files.handler";
 
@@ -13,6 +14,9 @@ export async function GET() {
   if (result.success) {
     return Response.json(result.data);
   }
-  
-  return new Response(result.error || "Failed to read directory", { status: 500 });
+
+  return Response.json(
+    { error: result.error || 'Failed to read directory' },
+    { status: 500 }
+  );
 }

@@ -18,9 +18,9 @@ const DOCUMENT_MIN_WIDTH = 975;
  * - Desktop: Sidebar + Header + TabBar + Content
  * - Mobile: 별도 UI (추후 개발)
  * - Compact Mode: 사이드바 접힘 + 오버레이
- * 
- * Note: PMS 패턴 동기화로 children은 더 이상 사용하지 않음.
- * ContentArea가 내부적으로 pageComponents로 페이지 렌더링.
+ *
+ * Note: 브라우저 공개 진입점은 `/` 하나만 사용하며,
+ * 내부 탭 기반 화면 전환은 ContentArea가 담당한다.
  */
 export function AppLayout() {
   const { deviceType } = useLayoutStore();

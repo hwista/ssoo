@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useAssistantStore } from '@/stores';
+import { useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
 import { detectAssistantIntent } from '@/lib/assistant/assistantIntent';
 import {
   buildMessageWithReferences,
@@ -11,14 +11,14 @@ import { useAssistantNavigationActions } from './useAssistantNavigationActions';
 import { useAssistantMessageActions } from './useAssistantMessageActions';
 
 export function useAssistantChat() {
-  const appendMessage = useAssistantStore((state) => state.appendMessage);
-  const isProcessing = useAssistantStore((state) => state.isProcessing);
-  const setInputDraft = useAssistantStore((state) => state.setInputDraft);
-  const setIsProcessing = useAssistantStore((state) => state.setIsProcessing);
-  const setSuggestionsCollapsed = useAssistantStore((state) => state.setSuggestionsCollapsed);
-  const attachedReferences = useAssistantStore((state) => state.attachedReferences);
-  const summaryFiles = useAssistantStore((state) => state.summaryFiles);
-  const setRelevanceWarnings = useAssistantStore((state) => state.setRelevanceWarnings);
+  const appendMessage = useAssistantSessionStore((state) => state.appendMessage);
+  const isProcessing = useAssistantPanelStore((state) => state.isProcessing);
+  const setInputDraft = useAssistantPanelStore((state) => state.setInputDraft);
+  const setIsProcessing = useAssistantPanelStore((state) => state.setIsProcessing);
+  const setSuggestionsCollapsed = useAssistantPanelStore((state) => state.setSuggestionsCollapsed);
+  const attachedReferences = useAssistantContextStore((state) => state.attachedReferences);
+  const summaryFiles = useAssistantContextStore((state) => state.summaryFiles);
+  const setRelevanceWarnings = useAssistantContextStore((state) => state.setRelevanceWarnings);
   const { handleOpenFile, handleOpenHelpAction, openExpandedAskPage } = useAssistantNavigationActions();
   const { runSearch, runAsk, runHelp } = useAssistantMessageActions();
 

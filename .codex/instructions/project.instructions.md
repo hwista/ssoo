@@ -21,7 +21,7 @@ applyTo: "**"
 |------|------|------|
 | 백엔드 | NestJS, Prisma, PostgreSQL | 10.x, 6.x, 15+ |
 | PMS 프론트 | Next.js (App Router), React, shadcn/ui, Zustand, TanStack Query/Table | 15.x, 19.x, 5.x |
-| DMS 프론트 | Next.js, React, Tiptap, MUI Tree View, Zustand | 15.x, 19.x, 5.x |
+| DMS 프론트 | Next.js, React, Tailwind CSS, Radix UI, Zustand, CodeMirror | 15.x, 19.x, 3.x, 1.x, 5.x, 6.x |
 | 공통 | TypeScript, Tailwind CSS | 5.x, 3.x |
 
 ## 패키지 경계

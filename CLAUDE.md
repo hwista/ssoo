@@ -7,6 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 환경 요구사항
+
+- **Node.js** ≥ 20.0.0, **pnpm** ≥ 9.0.0 (DMS는 npm 독립)
+- **PostgreSQL** ≥ 15 (또는 Docker: `docker compose up -d`)
+- 환경변수: `.env` 파일 참조 (아래 "데이터베이스 명령" 섹션)
+
+---
+
 ## 프로젝트 개요
 
 | 항목 | 값 |
@@ -68,6 +76,36 @@ hooks → lib/api → stores
 - 상위 → 하위만 참조 가능
 - 역방향 참조 금지 (ui → pages ❌)
 - 순환 참조 금지
+
+---
+
+## 아키텍처 패턴
+
+### PMS MDI Keep-Alive (탭 시스템)
+
+```
+URL은 항상 `/` → ContentArea가 탭 기반으로 페이지 동적 로드
+TabBar ↔ tab.store → ContentArea가 활성 탭의 컴포넌트 렌더링
+```
+
+- 탭 전환 시 URL 변경 없음, 컴포넌트 keep-alive 방식
+- 탭 상태는 `tab.store.ts`에서 관리
+
+### DMS 서버 레이어 (3계층 위임)
+
+```
+src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
+```
+
+- API route는 handler 호출만 수행 (로직 금지)
+- Handler는 요청 파싱 + 서비스 위임 (비즈니스 로직 금지)
+- Service가 실제 비즈니스 로직 담당
+
+### 데이터베이스 (Multi-Schema Prisma)
+
+- PostgreSQL 3개 스키마: `common`, `pms`, `dms`
+- 히스토리 테이블 패턴: 주 테이블 `cm_code` → 이력 테이블 `cm_code_h` (historySeq 복합 PK)
+- 공통 감사 컬럼: `createdBy`, `createdAt`, `updatedBy`, `updatedAt`
 
 ---
 
@@ -140,6 +178,12 @@ JWT_REFRESH_SECRET=...
 | 디자인 점검 | `node .github/scripts/check-design.js` |
 | Codex 동기화 검증 | `node .codex/scripts/verify-codex-sync.js` |
 | Codex preflight | `pnpm run codex:preflight` |
+
+### 테스트
+
+- 프레임워크: Jest (NestJS), React Testing Library, Playwright (E2E)
+- 테스트 규칙 상세: `.github/instructions/testing.instructions.md`
+- 현재 Jest 미도입 상태 — 테스트 코드는 추후 도입 대비 작성, 수동 테스트 시나리오 문서화 병행
 
 ---
 

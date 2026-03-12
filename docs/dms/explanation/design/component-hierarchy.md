@@ -158,7 +158,7 @@ src/components/pages/
 │   ├── AskPage.tsx
 │   └── SearchPage.tsx
 └── settings/
-    └── Page.tsx
+    └── SettingsPage.tsx
 ```
 
 ### 페이지 구조
@@ -240,7 +240,7 @@ import { Header } from './Header';
 ### Level 3 (Pages)
 
 ```typescript
-// MarkdownViewerPage.tsx
+// ViewerPage.tsx
 import { useEditorStore, useTabStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { LoadingState } from '@/components/common/StateDisplay';

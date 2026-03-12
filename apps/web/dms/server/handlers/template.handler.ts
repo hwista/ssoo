@@ -8,7 +8,7 @@ function getUserId(headers?: Headers): string {
 
 export function handleListTemplates(headers?: Headers) {
   const userId = getUserId(headers);
-  return { success: true, data: templateService.list(userId) };
+  return { success: true as const, data: templateService.list(userId) };
 }
 
 export function handleUpsertTemplate(

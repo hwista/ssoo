@@ -1,5 +1,5 @@
-export { CommentInput } from './editable-fields';
-export { TemplateSaveSection } from './template-section';
-export { DocumentInfoSection } from './document-info-section';
-export { SourceLinksSection, SummarySection, TagsSection } from './content-info-sections';
-export { AttachmentsSection, CommentsSection } from './activity-sections';
+export { CommentInput } from './EditableFields';
+export { TemplateSaveSection } from './TemplateSection';
+export { DocumentInfoSection } from './DocumentInfoSection';
+export { SourceLinksSection, SummarySection, TagsSection } from './ContentInfoSections';
+export { AttachmentsSection, CommentsSection } from './ActivitySections';

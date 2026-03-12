@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useAssistantStore, type AssistantMessage } from '@/stores';
+import { useAssistantSessionStore, type AssistantMessage } from '@/stores';
 import { aiApi, getErrorMessage } from '@/lib/api';
 import { resolveAssistantHelp } from '@/lib/assistant/assistantHelp';
 import {
@@ -10,8 +10,8 @@ import {
 } from './assistantChatUtils';
 
 export function useAssistantMessageActions() {
-  const appendMessage = useAssistantStore((state) => state.appendMessage);
-  const updateTextMessage = useAssistantStore((state) => state.updateTextMessage);
+  const appendMessage = useAssistantSessionStore((state) => state.appendMessage);
+  const updateTextMessage = useAssistantSessionStore((state) => state.updateTextMessage);
 
   const runSearch = useCallback(async (query: string) => {
     const response = await aiApi.search(query);

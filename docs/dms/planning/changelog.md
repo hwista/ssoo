@@ -1,10 +1,28 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-03-10
+> 최종 업데이트: 2026-03-12
+
+---
+
+## 2026-03-12
+
+### 저장소 경로 보안 강화 + DMS 네이밍 정규화
+
+- `server/services/storage/StorageAdapterService.ts`에 공통 containment 해석을 추가해 local open/upload 경로가 모두 `path.resolve` + `path.relative` 기반으로 base path 이탈을 차단하도록 정리
+- `server/handlers/storage.handler.ts`, `/api/storage/open`에서 local file download 로직을 handler facade로 이동하고, 허용되지 않은 경로는 `403`, 존재하지 않는 파일은 `404`로 분기
+- markdown document sidecar 하위 5개 컴포넌트 파일을 PascalCase로 정규화하고 연관 re-export/import 경로를 갱신
+- editor core store와 AI search store 파일명을 각각 `editor-core.store.ts`, `ai-search.store.ts`로 정리하고 상태관리 문서를 현재 구현과 일치하도록 갱신
 
 ---
 
 ## 2026-03-10
+
+### 골든 이그잼플 운영 기준선 추가
+
+- `docs/dms/guides/golden-example.md`를 추가해 레이어 판정, 파일 배치, 대표 예시 파일, 자동 검증 기준을 정본으로 고정
+- `docs/dms/planning/prd-template.md`를 추가해 작업 요청 입력 형식을 표준화
+- `apps/web/dms/scripts/validate-golden-example.mjs`를 추가하고 `pnpm -C apps/web/dms run check:golden-example`로 페이지 엔트리 네이밍, default export 금지, `common/index.ts` 배럴 제한, `common/page` 금지를 자동 검증
+- `.codex/.github dms.instructions` 와 `dms-guard`를 새 기준에 맞춰 동기화
 
 ### `src/hooks/**` 안정화 정리
 
@@ -23,7 +41,7 @@
 
 ### 설정 페이지 명명 정리 + stores 경계 보정
 
-- 설정 페이지 파일은 디렉토리 컨벤션에 맞춰 `src/components/pages/settings/Page.tsx`를 유지하고, 내부 export 이름 `SettingsPage` 기준으로 import/라우팅 문서를 정리
+- 설정 페이지 엔트리를 `src/components/pages/settings/SettingsPage.tsx`로 정규화하고, import/라우팅 문서를 새 기준에 맞춰 정리
 - `file.store.ts`가 `@/server/services`를 직접 참조하던 레이어 위반을 제거하고, 파일 트리 조회를 `filesApi.getFileTree()` 기반으로 통일
 - `layout.store.ts`의 모듈 스코프 resize 리스너를 제거하고, viewport 동기화는 `useLayoutViewportSync()` 훅에서 React lifecycle로 처리
 
@@ -221,7 +239,7 @@
 - 마크다운/AI 페이지를 동일한 문서형 컨테이너 패턴으로 정렬
 - AI 페이지 공통 셸 컴포넌트 도입
 - DocPageTemplate 초기 레이아웃 측정 전 트랜지션 억제
-- MarkdownViewerPage 뷰어 툴바의 임베디드 스타일을 이전 패딩 기준으로 복원
+- ViewerPage 뷰어 툴바의 임베디드 스타일을 이전 패딩 기준으로 복원
 - 뷰어 툴바 컨테이너 배경/보더 투명 처리
 - 뷰어 모드에서 DocPageTemplate 표면을 투명 처리하고 본문 박스만 유지
 - 에디터 툴바 표면을 뷰어와 동일하게 투명 처리
@@ -271,7 +289,7 @@
 ### 종합 검증 및 분석
 
 #### PMS-DMS 비교 분석 완료
-- 분석 문서 작성: `docs/dms/explanation/architecture/pms-dms-comparison-analysis.md`
+- 분석 문서 작성: `docs/dms/_archive/architecture/pms-dms-comparison-analysis.md`
 - 4가지 관점에서 종합 분석:
   1. 패키지 차이 분석
   2. 소스 디렉토리 구조 차이

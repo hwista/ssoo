@@ -4,11 +4,12 @@ import { request, type ApiResponse } from './core';
 export type FileAction =
   | 'create'
   | 'read'
-  | 'update'
+  | 'metadata'
+  | 'write'
   | 'delete'
   | 'rename'
   | 'createFolder'
-  | 'deleteFolder';
+  | 'updateMetadata';
 
 export interface FileApiRequest {
   action: FileAction;
@@ -18,6 +19,7 @@ export interface FileApiRequest {
   parent?: string;
   oldPath?: string;
   newPath?: string;
+  metadata?: Partial<DocumentMetadata>;
 }
 
 export const fileApi = {
@@ -67,13 +69,6 @@ export const fileApi = {
     return request('/api/file', {
       method: 'POST',
       body: { action: 'createFolder', path },
-    });
-  },
-
-  deleteFolder: async (path: string): Promise<ApiResponse> => {
-    return request('/api/file', {
-      method: 'POST',
-      body: { action: 'deleteFolder', path },
     });
   },
 

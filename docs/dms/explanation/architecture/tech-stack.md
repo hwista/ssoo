@@ -1,7 +1,7 @@
 ````mdc
 # DMS 기술 스택
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-03-12
 
 DMS(Document Management System) 프론트엔드 전용 기술 스택입니다.
 
@@ -26,22 +26,22 @@ DMS는 모노레포 내 독립 앱으로 운영되며, **npm**을 사용한다 (
 | **TypeScript** | ^5 | 언어 |
 | **Tailwind CSS** | ^3.4.0 | 스타일링 |
 | **tailwind-merge** | ^2.6.0 | 클래스 병합 |
-| **Tiptap** | ^3.16.0 | 리치 텍스트 에디터 |
-| **MUI X Tree View** | ^8.15.0 | 트리 뷰 컴포넌트 |
+| **CodeMirror** | 6.x | 블록 기반 마크다운 에디터 런타임 |
+| **react-markdown** | ^10.1.0 | 문서 렌더링 |
 | **Lucide React** | 0.548.x | 아이콘 |
 
 ---
 
 ## DMS 전용 기능
 
-### 리치 텍스트 에디터 (Tiptap)
-- 블록 기반 에디터
-- 마크다운 지원
-- 코드 구문 강조
+### 리치 텍스트 에디터
+- CodeMirror 기반 block editor
+- slash command / 링크 / 이미지 / 테이블 삽입 지원
+- markdown 문자열을 단일 소스로 유지
 
 ### 마크다운 처리
 - `marked`, `react-markdown` - 파싱 및 렌더링
-- `turndown` - HTML → MD 변환
+- viewer는 DOM 기반 검색 하이라이트를 사용
 
 ### AI / 벡터 검색
 - `ai` (Vercel AI SDK) - LLM 프로바이더 추상화, 스트리밍
@@ -62,7 +62,7 @@ DMS는 모노레포 내 독립 앱으로 운영되며, **npm**을 사용한다 (
 
 - [공용 기술 스택](../../common/architecture/tech-stack.md) - 백엔드, DB, 개발 도구
 - [package-spec.md](package-spec.md) - 패키지 상세 명세
-- [package-integration-plan.md](package-integration-plan.md) - PMS 통합 계획
+- [아키텍처 아카이브](../../_archive/architecture/README.md) - 과거 통합 계획/완료 기록
 
 ````
 
@@ -70,4 +70,5 @@ DMS는 모노레포 내 독립 앱으로 운영되며, **npm**을 사용한다 (
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-03-12 | 현재 활성 런타임 기준으로 CodeMirror/react-markdown 중심 기술 스택으로 정정 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import {
   handleDeleteTemplate,
   handleListTemplates,
@@ -6,9 +8,6 @@ import {
 
 export async function GET(req: Request) {
   const result = handleListTemplates(req.headers);
-  if (!result.success) {
-    return Response.json({ error: '템플릿 목록 조회에 실패했습니다.' }, { status: 400 });
-  }
   return Response.json(result.data);
 }
 

@@ -10,6 +10,13 @@ DMS 프로젝트의 API 엔드포인트에 대한 가이드입니다.
 
 DMS는 Next.js App Router의 Route Handlers를 사용합니다.
 
+응답 규약:
+
+- 성공: `200/2xx + raw JSON data`
+- 실패: `4xx/5xx + { "error": "..." }`
+- 예외: `/api/ask`, `/api/create`, `/api/storage/open` 은 성공 시 각각 스트림/바이너리 응답을 반환할 수 있음
+- 프론트 `lib/api/core.ts` 는 위 규약을 기준으로 `{ success, data?, error? }` 로 정규화합니다.
+
 ### 엔드포인트 목록
 
 | 카테고리 | 엔드포인트 | 설명 |
