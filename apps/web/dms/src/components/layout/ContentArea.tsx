@@ -3,7 +3,7 @@
 import { lazy, Suspense, type ComponentType } from 'react';
 import { useTabStore, HOME_TAB } from '@/stores';
 import { LoadingState } from '@/components/common/StateDisplay';
-import { AiAskPage } from '@/components/pages/ai/AskPage';
+import { AiChatPage } from '@/components/pages/ai/ChatPage';
 import { TabInstanceProvider } from './tab-instance/TabInstanceContext';
 
 /**
@@ -44,7 +44,7 @@ function lazyWithChunkRetry<T extends ComponentType<unknown>>(
 const pageComponents = {
   home: lazyWithChunkRetry(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.DashboardPage }))),
   markdown: lazyWithChunkRetry(() => import('@/components/pages/markdown/DocumentPage').then(m => ({ default: m.DocumentPage }))),
-  aiAsk: AiAskPage,
+  aiChat: AiChatPage,
   aiSearch: lazyWithChunkRetry(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
   settings: lazyWithChunkRetry(() => import('@/components/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))),
 };
@@ -69,7 +69,7 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
   if (tab.id === HOME_TAB.id) return 'home';
   if (tab.path.startsWith('/doc/')) return 'markdown';
   if (tab.path === '/wiki/new') return 'markdown';
-  if (tab.path.startsWith('/ai/ask')) return 'aiAsk';
+  if (tab.path.startsWith('/ai/chat')) return 'aiChat';
   if (tab.path.startsWith('/ai/search')) return 'aiSearch';
   if (tab.path === '/settings') return 'settings';
   

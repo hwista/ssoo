@@ -26,7 +26,7 @@ export interface BreadcrumbProps {
  * 경로 세그먼트를 사용자 친화적 이름으로 변환
  */
 const SEGMENT_DISPLAY_NAMES: Record<string, string> = {
-  'ai/ask': 'AI 어시스턴트',
+  'ai/chat': 'AI 대화',
   'ai/search': 'AI 검색',
   settings: '설정',
   git: 'Git',

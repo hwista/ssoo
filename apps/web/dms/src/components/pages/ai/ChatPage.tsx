@@ -12,10 +12,10 @@ import { useAssistantContextStore, useAssistantPanelStore, useAssistantSessionSt
 import { useAssistantChat } from '@/components/common/assistant/chat/useAssistantChat';
 import { useAssistantSessionPersistence } from '@/components/common/assistant/session/useAssistantSessionPersistence';
 import { AiSidecar } from './_components/AiSidecar';
-import { AiAskBody, AiAskFooter } from './_components/AiAskPanels';
-import { buildSessionHistoryItems } from './askPageUtils';
+import { AiChatBody, AiChatFooter } from './_components/AiChatPanels';
+import { buildSessionHistoryItems } from './chatPageUtils';
 
-export function AiAskPage() {
+export function AiChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messages = useAssistantSessionStore((state) => state.messages);
   const sessions = useAssistantSessionStore((state) => state.sessions);
@@ -48,7 +48,7 @@ export function AiAskPage() {
   return (
     <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
       <PageTemplate
-        filePath="ai/ask"
+        filePath="ai/chat"
         mode="viewer"
         breadcrumbRootIconVariant="ai"
         contentOrientation="portrait"
@@ -56,7 +56,7 @@ export function AiAskPage() {
         contentSurfaceClassName={DOC_PAGE_SURFACE_PRESETS.ai}
         sidecarContent={(
           <AiSidecar
-            variant="ask"
+            variant="chat"
             history={historyItems}
             onHistorySelect={(item) => {
               selectSession(item.id);
@@ -92,7 +92,7 @@ export function AiAskPage() {
         <SectionedShell
           variant="chat_with_footer"
           body={(
-            <AiAskBody
+            <AiChatBody
               messages={messages}
               isProcessing={isProcessing}
               startNewSession={() => {
@@ -106,7 +106,7 @@ export function AiAskPage() {
             />
           )}
           footer={(
-            <AiAskFooter
+            <AiChatFooter
               inputRef={inputRef}
               inputDraft={inputDraft}
               isProcessing={isProcessing}

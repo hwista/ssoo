@@ -23,7 +23,7 @@ export function FloatingAssistantButton({ isOpen, onClick, isDocumentActive = fa
     <button
       type="button"
       onClick={onClick}
-      aria-label={isOpen ? 'AI 어시스턴트 닫기' : 'AI 어시스턴트 열기'}
+      aria-label={isOpen ? 'AI 대화 닫기' : 'AI 대화 열기'}
       className={cn(
         'fixed bottom-12 right-6 z-50 h-14 w-14 rounded-full shadow-lg transition-all',
         'flex items-center justify-center',

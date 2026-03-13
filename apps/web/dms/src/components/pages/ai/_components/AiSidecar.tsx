@@ -9,7 +9,7 @@ import { SidecarFrame, CollapsibleSection, TextSection, ChipListSection, Activit
  */
 export interface AiSidecarProps {
   /** AI 기능 유형 */
-  variant: 'ask' | 'search' | 'create';
+  variant: 'chat' | 'search' | 'create';
   /** 채팅 세션 히스토리 */
   history?: Array<{
     id: string;
@@ -33,11 +33,11 @@ export interface AiSidecarProps {
 // ─── 변형별 설명 ─────────────────────────────────────────
 
 const VARIANT_INFO: Record<AiSidecarProps['variant'], { title: string; tips: string[] }> = {
-  ask: {
-    title: 'AI 어시스턴트',
+  chat: {
+    title: 'AI 대화',
     tips: [
       '질문 의도에 따라 대화/문서 검색/기능 안내를 자동으로 분기합니다.',
-      '플로팅 패널의 크게보기 버튼으로 /ai/ask 탭으로 확장할 수 있습니다.',
+      '플로팅 패널의 크게보기 버튼으로 /ai/chat 탭으로 확장할 수 있습니다.',
       '추천 질문 클릭 시 즉시 전송되며, 대화가 시작되면 추천 영역이 자동으로 접힙니다.',
     ],
   },
@@ -108,7 +108,7 @@ export function AiSidecar({
         sectionVariant="default"
       />
 
-      {(variant === 'ask' || variant === 'search') && suggestions.length > 0 ? (
+      {(variant === 'chat' || variant === 'search') && suggestions.length > 0 ? (
         <ChipListSection
           title={suggestionTitle}
           chips={suggestions.map((suggestion) => ({ id: suggestion, label: suggestion, title: suggestion }))}
@@ -139,7 +139,7 @@ export function AiSidecar({
       <ActivityListSection
         title={historyTitle}
         icon={<History className="h-4 w-4 text-gray-500" />}
-        defaultOpen={variant === 'ask' || variant === 'search'}
+        defaultOpen={variant === 'chat' || variant === 'search'}
         sectionVariant="default"
         variant="compact"
         items={historyItems}

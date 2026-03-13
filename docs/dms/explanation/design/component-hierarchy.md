@@ -155,7 +155,7 @@ src/components/pages/
 ├── markdown/
 │   └── DocumentPage.tsx
 ├── ai/
-│   ├── AskPage.tsx
+│   ├── ChatPage.tsx
 │   └── SearchPage.tsx
 └── settings/
     └── SettingsPage.tsx

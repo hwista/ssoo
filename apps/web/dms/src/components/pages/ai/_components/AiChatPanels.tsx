@@ -7,7 +7,7 @@ import { SHELL_BODY_WRAPPER_PRESETS } from '@/components/templates/page-frame';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
 
-interface AiAskBodyProps {
+interface AiChatBodyProps {
   messages: AssistantMessage[];
   isProcessing: boolean;
   startNewSession: () => void;
@@ -16,14 +16,14 @@ interface AiAskBodyProps {
   submitUserMessage: (message: string) => void | Promise<void>;
 }
 
-export function AiAskBody({
+export function AiChatBody({
   messages,
   isProcessing,
   startNewSession,
   handleOpenFile,
   handleOpenHelpAction,
   submitUserMessage,
-}: AiAskBodyProps) {
+}: AiChatBodyProps) {
   return (
     <div
       className={[
@@ -63,7 +63,7 @@ export function AiAskBody({
   );
 }
 
-interface AiAskFooterProps {
+interface AiChatFooterProps {
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
   inputDraft: string;
   isProcessing: boolean;
@@ -71,13 +71,13 @@ interface AiAskFooterProps {
   submitUserMessage: (message: string) => Promise<void>;
 }
 
-export function AiAskFooter({
+export function AiChatFooter({
   inputRef,
   inputDraft,
   isProcessing,
   setInputDraft,
   submitUserMessage,
-}: AiAskFooterProps) {
+}: AiChatFooterProps) {
   return (
     <AssistantComposer
       inputRef={inputRef}

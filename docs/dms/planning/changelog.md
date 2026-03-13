@@ -6,6 +6,15 @@
 
 ## 2026-03-12
 
+### AskPage → ChatPage 리네이밍 + "AI 대화" 레이블 통일
+
+- `AskPage` → `ChatPage`로 리네이밍 (파일명, 심볼, 경로)
+- "Ask"는 일회성 질문을 암시하나 실제로는 세션 기반 대화 인터페이스
+- UI 레이블을 "AI 어시스턴트"에서 **"AI 대화"**로 통일
+- 내부 탭 경로 `/ai/ask` → `/ai/chat`으로 변경
+- variant `'ask'` → `'chat'`으로 변경 (AiSidecar)
+- 코드 15개 파일, 문서 4개 파일 일괄 변경
+
 ### ViewerPage → DocumentPage 리네이밍
 
 - `ViewerPage` → `DocumentPage`로 리네이밍 (파일명, 인터페이스, 함수명, 훅)

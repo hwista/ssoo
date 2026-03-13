@@ -19,7 +19,7 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <>
       {children}
-      {/* 전역 AI 어시스턴트 */}
+      {/* 전역 AI 대화 */}
       <FloatingAssistant />
       {/* 세션 동기화 (local + DB 저장 세션 머지) */}
       <AssistantSessionSync />

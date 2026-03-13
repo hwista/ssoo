@@ -1,2 +1,2 @@
-export { AiAskPage } from './AskPage';
+export { AiChatPage } from './ChatPage';
 export { AiSearchPage } from './SearchPage';

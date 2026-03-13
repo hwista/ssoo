@@ -16,13 +16,13 @@ export function FloatingAssistant() {
   const isDocumentActive = useMemo(() => {
     return activePath.startsWith('/doc/') || activePath === '/wiki/new';
   }, [activePath]);
-  const isAskPageActive = activePath === '/ai/ask';
+  const isChatPageActive = activePath === '/ai/chat';
 
   useEffect(() => {
-    if (isAskPageActive && isOpen) {
+    if (isChatPageActive && isOpen) {
       closePanel();
     }
-  }, [closePanel, isAskPageActive, isOpen]);
+  }, [closePanel, isChatPageActive, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -45,7 +45,7 @@ export function FloatingAssistant() {
   return (
     <div ref={wrapperRef}>
       <FloatingAssistantPanel isOpen={isOpen} />
-      {!isAskPageActive && (
+      {!isChatPageActive && (
         <FloatingAssistantButton
           isOpen={isOpen}
           isDocumentActive={isDocumentActive}

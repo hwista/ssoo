@@ -11,7 +11,7 @@ DMS의 탭 기반 페이지 라우팅 구조를 정의합니다.
 DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 `/` 하나만 사용하고 실제 화면 전환은 **탭 기반**으로 동작합니다.
 
 - 브라우저 공개 URL: `/`
-- 내부 탭 경로: `/home`, `/doc/...`, `/wiki/new`, `/ai/ask`, `/ai/search`, `/settings`
+- 내부 탭 경로: `/home`, `/doc/...`, `/wiki/new`, `/ai/chat`, `/ai/search`, `/settings`
 - 정책: 내부 탭 경로는 주소창에 직접 노출하거나 딥링크로 사용하는 대상이 아니다.
 
 ```
@@ -78,16 +78,16 @@ interface TabItem {
 const pageComponents = {
   home: lazy(() => import('@/components/pages/home/DashboardPage')),
   markdown: lazy(() => import('@/components/pages/markdown/DocumentPage')),
-  aiAsk: lazy(() => import('@/components/pages/ai/AskPage')),
+  aiChat: lazy(() => import('@/components/pages/ai/ChatPage')),
   aiSearch: lazy(() => import('@/components/pages/ai/SearchPage')),
   settings: lazy(() => import('@/components/pages/settings/SettingsPage')),
 };
 
-function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiAsk' | 'aiSearch' | 'settings' | null {
+function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiChat' | 'aiSearch' | 'settings' | null {
   if (tab.id === 'home') return 'home';
   if (tab.path.startsWith('/doc/')) return 'markdown';
   if (tab.path === '/wiki/new') return 'markdown';
-  if (tab.path.startsWith('/ai/ask')) return 'aiAsk';
+  if (tab.path.startsWith('/ai/chat')) return 'aiChat';
   if (tab.path.startsWith('/ai/search')) return 'aiSearch';
   if (tab.path === '/settings') return 'settings';
   return null;
