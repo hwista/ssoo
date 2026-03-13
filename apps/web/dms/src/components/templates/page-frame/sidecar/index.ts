@@ -16,3 +16,6 @@ export type {
   ActivityItem,
   ActivityAction,
 } from './sections/ActivityListSection';
+
+export { KeyValueSection } from './sections/KeyValueSection';
+export type { KeyValueSectionProps, KeyValueItem } from './sections/KeyValueSection';

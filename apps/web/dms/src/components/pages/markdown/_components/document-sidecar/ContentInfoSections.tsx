@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { FileText, Link2, Tag } from 'lucide-react';
-import { ChipListSection, CollapsibleSection, TextSection } from '@/components/templates/page-frame/sidecar';
+import { ActivityListSection, ChipListSection, CollapsibleSection, TextSection } from '@/components/templates/page-frame/sidecar';
 import { EditableSourceLinks, EditableTags } from './EditableFields';
 
 export function TagsSection({
@@ -74,27 +74,22 @@ export function SourceLinksSection({
   sourceLinks: string[];
   onChange: (links: string[]) => void;
 }) {
-  return (
-    <CollapsibleSection icon={<Link2 className="mr-1.5 h-4 w-4 shrink-0" />} title="url">
-      {editable ? (
+  if (editable) {
+    return (
+      <CollapsibleSection icon={<Link2 className="mr-1.5 h-4 w-4 shrink-0" />} title="url">
         <EditableSourceLinks links={sourceLinks} onChange={onChange} />
-      ) : sourceLinks.length > 0 ? (
-        <div className="space-y-1">
-          {sourceLinks.map((link) => (
-            <a
-              key={link}
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block truncate text-xs text-blue-500 hover:underline"
-            >
-              {link}
-            </a>
-          ))}
-        </div>
-      ) : (
-        <p className="py-1 text-xs text-gray-400">링크없음</p>
-      )}
-    </CollapsibleSection>
+      </CollapsibleSection>
+    );
+  }
+
+  return (
+    <ActivityListSection
+      title="url"
+      icon={<Link2 className="mr-1.5 h-4 w-4 shrink-0" />}
+      items={sourceLinks.map((link) => ({ id: link, title: link }))}
+      onItemClick={(item) => window.open(item.title, '_blank', 'noopener,noreferrer')}
+      emptyText="링크없음"
+      variant="compact"
+    />
   );
 }
