@@ -1,7 +1,7 @@
 'use client';
 
 import { LoadingState } from '@/components/common/StateDisplay';
-import { SearchResultCard } from '@/components/common/search/ResultCard';
+import { SearchResultCard } from '@/components/common/assistant/_components/ResultCard';
 import { SHELL_BODY_WRAPPER_PRESETS } from '@/components/templates/page-frame';
 import type { SearchResultItem } from '../searchPageUtils';
 

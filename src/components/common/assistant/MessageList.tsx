@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm';
 import { toast } from '@/lib/toast';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
-import { SearchResultCard } from '@/components/common/search/ResultCard';
+import { SearchResultCard } from '@/components/common/assistant/_components/ResultCard';
 
 interface AssistantMessageListProps {
   messages: AssistantMessage[];
