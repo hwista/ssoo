@@ -98,9 +98,11 @@ export function AttachmentsSection({
 
 export function CommentsSection({
   comments,
+  editable,
   onDelete,
 }: {
   comments: DocumentComment[];
+  editable?: boolean;
   onDelete: (commentId: string) => void;
 }) {
   return (
@@ -114,17 +116,19 @@ export function CommentsSection({
         title: comment.author || 'Unknown',
         content: comment.content,
         meta: formatDate(comment.createdAt),
-        actions: [
-          {
-            id: `${comment.id}-delete`,
-            kind: 'icon' as const,
-            tone: 'danger' as const,
-            title: '댓글 삭제',
-            ariaLabel: '댓글 삭제',
-            icon: <X className="h-3 w-3" />,
-            onClick: () => onDelete(comment.id),
-          },
-        ],
+        actions: editable
+          ? [
+              {
+                id: `${comment.id}-delete`,
+                kind: 'icon' as const,
+                tone: 'danger' as const,
+                title: '댓글 삭제',
+                ariaLabel: '댓글 삭제',
+                icon: <X className="h-3 w-3" />,
+                onClick: () => onDelete(comment.id),
+              },
+            ]
+          : undefined,
       }))}
       emptyText="댓글없음"
     />
