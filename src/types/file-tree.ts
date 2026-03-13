@@ -5,4 +5,6 @@ export interface FileNode {
   children?: FileNode[];
   size?: number;
   lastModified?: Date;
+  /** 문서 메타데이터에서 읽은 제목. 없으면 name으로 fallback. */
+  title?: string;
 }

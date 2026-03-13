@@ -1,12 +1,12 @@
 {
-  "title": "One-Pick 프로젝트 정리",
+  "title": "레거시 코드 분석 및 기능 고도화 설계서",
   "summary": "",
   "tags": [],
   "sourceLinks": [],
-  "createdAt": "2026-02-04T00:19:14.218Z",
-  "updatedAt": "2026-03-13T07:40:15.113Z",
+  "createdAt": "2026-03-09T02:07:07.247Z",
+  "updatedAt": "2026-03-13T07:40:11.531Z",
   "fileHashes": {
-    "content": "314e8502b924fe494324e5e5042ce9daac6744b185b802cbd6d9cea5945acfce",
+    "content": "a08d47f7bb345c50731bfed2238da693c9b0ee08870eddfca89789abcf4ce1dc",
     "sources": {}
   },
   "chunkIds": [],

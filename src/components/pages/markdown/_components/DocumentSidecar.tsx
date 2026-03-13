@@ -5,6 +5,8 @@ import { toast } from '@/lib/toast';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
 import { ingestApi, storageApi } from '@/lib/api';
 import { SidecarFrame } from '@/components/templates/page-frame/sidecar';
+import { SaveLocationDialog } from '@/components/common/save-location';
+import type { SaveLocationResult } from '@/components/common/save-location';
 import {
   AttachmentsSection,
   CommentInput,
@@ -54,6 +56,12 @@ export interface DocumentSidecarProps {
   documentMetadata?: DocumentMetadata | null;
   /** 메타데이터 변경 콜백 */
   onMetadataChange?: (update: Partial<DocumentMetadata>) => void;
+  /** 파일 이동 콜백 (기존 문서 경로 변경 시) */
+  onFileMove?: (newPath: string) => void;
+  /** 자동 생성 파일명 (새 문서용) */
+  generatedFileName?: string;
+  /** 신규 문서 여부 */
+  isNewDocument?: boolean;
   /** 템플릿 전용 저장 여부 */
   templateSaveEnabled?: boolean;
   /** 템플릿 저장용 메타데이터 */
@@ -88,6 +96,9 @@ export function DocumentSidecar({
   editable = false,
   documentMetadata,
   onMetadataChange,
+  onFileMove,
+  generatedFileName,
+  isNewDocument = false,
   filePath,
   templateSaveEnabled = false,
   templateDraft,
@@ -100,25 +111,25 @@ export function DocumentSidecar({
   const comments = documentMetadata?.comments ?? [];
   const isTemplateSidecar = editable && templateSaveEnabled;
   const [attachmentActionKey, setAttachmentActionKey] = React.useState<string | null>(null);
+  const [isSaveLocationOpen, setIsSaveLocationOpen] = React.useState(false);
 
-  // 문서명: title이 있으면 사용, 없으면 파일명에서 추출
   const fileName = filePath ? filePath.split('/').pop() || '' : '';
   const documentTitle = documentMetadata?.title || fileName.replace(/\.md$/, '');
-  const [isEditingTitle, setIsEditingTitle] = React.useState(false);
-  const [titleDraft, setTitleDraft] = React.useState(documentTitle);
+  const currentDirectory = filePath ? filePath.split('/').slice(0, -1).join('/') : '';
 
-  React.useEffect(() => {
-    setTitleDraft(documentTitle);
-  }, [documentTitle]);
+  const handleSaveLocationConfirm = (result: SaveLocationResult) => {
+    if (result.title !== documentTitle) {
+      onMetadataChange?.({ title: result.title });
+    }
 
-  const handleTitleSave = () => {
-    onMetadataChange?.({ title: titleDraft });
-    setIsEditingTitle(false);
-  };
-
-  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleTitleSave();
-    if (e.key === 'Escape') { setTitleDraft(documentTitle); setIsEditingTitle(false); }
+    if (!isNewDocument && filePath) {
+      const newFullPath = result.directory
+        ? `${result.directory}/${fileName}`
+        : fileName;
+      if (newFullPath !== filePath) {
+        onFileMove?.(newFullPath);
+      }
+    }
   };
 
   const handleTagsChange = (newTags: string[]) => {
@@ -243,13 +254,17 @@ export function DocumentSidecar({
             fileName={fileName}
             filePath={filePath}
             documentTitle={documentTitle}
-            isEditingTitle={isEditingTitle}
-            titleDraft={titleDraft}
             metadata={metadata}
-            onStartTitleEdit={() => setIsEditingTitle(true)}
-            onTitleDraftChange={setTitleDraft}
-            onTitleSave={handleTitleSave}
-            onTitleKeyDown={handleTitleKeyDown}
+            onOpenSaveLocation={() => setIsSaveLocationOpen(true)}
+          />
+          <SaveLocationDialog
+            open={isSaveLocationOpen}
+            onOpenChange={setIsSaveLocationOpen}
+            initialTitle={documentTitle}
+            initialDirectory={currentDirectory}
+            fileName={generatedFileName || fileName}
+            isNewDocument={isNewDocument}
+            onConfirm={handleSaveLocationConfirm}
           />
           <TagsSection
             editable={editable}

@@ -21,6 +21,7 @@ import { EditorToolbar } from './_components/editor';
 import type { EditorRef } from './_components/editor';
 import { type TocItem } from '@/components/templates/page-frame';
 import { markdownToHtmlSync } from '@/lib/utils/markdown';
+import { generateUniqueFilename } from '@/lib/utils';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import type { DocumentMetadata } from '@/types';
 import {
@@ -89,6 +90,9 @@ export function DocumentPage() {
     scope: 'personal',
   });
   const editorRef = useRef<EditorRef | null>(null);
+
+  // 새 문서용 자동 생성 파일명 (세션당 1회 생성)
+  const [generatedFileName] = useState(() => generateUniqueFilename());
 
   useEffect(() => {
     return () => {
@@ -232,6 +236,21 @@ export function DocumentPage() {
     setLocalDocumentMetadata(update);
   }, [setLocalDocumentMetadata]);
 
+  const handleFileMove = useCallback(async (newPath: string) => {
+    if (!filePath || !tabId || newPath === filePath) return;
+    try {
+      const result = await fileApi.rename(filePath, newPath);
+      if (result.success) {
+        const encodedPath = `/doc/${encodeURIComponent(newPath)}`;
+        const title = newPath.split('/').pop() || newPath;
+        updateTab(tabId, { path: encodedPath, title });
+        await refreshFileTree();
+      }
+    } catch (err) {
+      console.error('파일 이동 실패:', err);
+    }
+  }, [filePath, tabId, updateTab, refreshFileTree]);
+
   const handleRetry = useCallback(() => {
     if (filePath) loadFile(filePath);
   }, [filePath, loadFile]);
@@ -274,12 +293,6 @@ export function DocumentPage() {
       mode={mode}
       saveAsTemplateOnly={saveAsTemplateOnly}
       setSaveAsTemplateOnly={setSaveAsTemplateOnly}
-      createPath={createPath}
-      setCreatePath={setCreatePath}
-      isRecommendingPath={isRecommendingPath}
-      onRecommendPath={() => {
-        void handleRecommendPath();
-      }}
     />
   );
 
@@ -319,6 +332,9 @@ export function DocumentPage() {
             editable={mode === 'editor' || mode === 'create'}
             documentMetadata={documentMetadata}
             onMetadataChange={handleMetadataChange}
+            onFileMove={handleFileMove}
+            generatedFileName={isCreateMode ? generatedFileName : undefined}
+            isNewDocument={isCreateMode}
             filePath={filePath || '새 문서.md'}
             templateSaveEnabled={saveAsTemplateOnly}
             templateDraft={templateSaveDraft}
@@ -351,6 +367,7 @@ export function DocumentPage() {
               editorRef={editorRef}
               createPath={createPath}
               setCreatePath={setCreatePath}
+              generatedFileName={isCreateMode ? generatedFileName : undefined}
               isPreview={isPreview}
               isComposing={isComposing}
               saveAsTemplateOnly={saveAsTemplateOnly}

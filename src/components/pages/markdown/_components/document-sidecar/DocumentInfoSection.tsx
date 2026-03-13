@@ -34,20 +34,13 @@ export function DocumentInfoSection({
   fileName,
   filePath,
   documentTitle,
-  isEditingTitle,
-  titleDraft,
   metadata,
-  onStartTitleEdit,
-  onTitleDraftChange,
-  onTitleSave,
-  onTitleKeyDown,
+  onOpenSaveLocation,
 }: {
   editable: boolean;
   fileName: string;
   filePath?: string;
   documentTitle: string;
-  isEditingTitle: boolean;
-  titleDraft: string;
   metadata?: {
     author?: string;
     createdAt?: Date | string;
@@ -57,38 +50,34 @@ export function DocumentInfoSection({
     wordCount?: number;
     lastModifiedBy?: string;
   };
-  onStartTitleEdit: () => void;
-  onTitleDraftChange: (value: string) => void;
-  onTitleSave: () => void;
-  onTitleKeyDown: (event: React.KeyboardEvent) => void;
+  onOpenSaveLocation: () => void;
 }) {
   if (!metadata) return null;
 
-  const titleValue = editable && isEditingTitle ? (
-    <input
-      type="text"
-      value={titleDraft}
-      onChange={(event) => onTitleDraftChange(event.target.value)}
-      onBlur={onTitleSave}
-      onKeyDown={onTitleKeyDown}
-      className="w-full border-b border-ssoo-content-border bg-transparent px-0.5 text-right text-sm outline-none"
-      autoFocus
-    />
-  ) : (
+  const editButton = editable ? (
+    <button onClick={onOpenSaveLocation} className="text-gray-400 hover:text-ssoo-primary">
+      <Pencil className="h-3 w-3" />
+    </button>
+  ) : null;
+
+  const titleValue = (
     <span className="flex items-center gap-1">
       <Truncated text={documentTitle || '제목없음'} title={documentTitle} />
-      {editable ? (
-        <button onClick={onStartTitleEdit} className="text-gray-400 hover:text-ssoo-primary">
-          <Pencil className="h-3 w-3" />
-        </button>
-      ) : null}
+      {editButton}
+    </span>
+  );
+
+  const pathValue = (
+    <span className="flex items-center gap-1">
+      <Truncated text={filePath ?? ''} />
+      {editButton}
     </span>
   );
 
   const items: KeyValueItem[] = [
     { label: '문서명', icon: <FileText className="mr-1 h-3.5 w-3.5" />, value: titleValue },
     { label: '파일명', indent: true, value: <Truncated text={fileName} />, hidden: !fileName },
-    { label: '경로', indent: true, value: <Truncated text={filePath ?? ''} />, hidden: !filePath },
+    { label: '경로', indent: true, value: pathValue, hidden: !filePath },
     { label: '작성자', icon: <User className="mr-1 h-3.5 w-3.5" />, value: metadata.author || 'Unknown' },
     { label: '생성일', icon: <Calendar className="mr-1 h-3.5 w-3.5" />, value: formatDate(metadata.createdAt), hidden: !metadata.createdAt },
     { label: '생성 시간', indent: true, value: formatTime(metadata.createdAt), hidden: !metadata.createdAt },
