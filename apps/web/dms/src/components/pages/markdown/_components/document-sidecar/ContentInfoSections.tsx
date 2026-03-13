@@ -90,6 +90,7 @@ export function SourceLinksSection({
       onItemClick={(item) => window.open(item.title, '_blank', 'noopener,noreferrer')}
       emptyText="링크없음"
       variant="compact"
+      itemAppearance="link"
     />
   );
 }

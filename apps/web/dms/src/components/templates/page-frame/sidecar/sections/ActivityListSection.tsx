@@ -35,6 +35,8 @@ export interface ActivityListSectionProps {
   defaultOpen?: boolean;
   sectionVariant?: CollapsibleSectionVariant;
   variant?: 'default' | 'compact';
+  /** 아이템 title 외관. 'link'이면 하이퍼링크 스타일(underline) 적용 */
+  itemAppearance?: 'default' | 'link';
   enableIncrementalLoad?: boolean;
   pageSize?: number;
   loadMoreLabel?: (remaining: number) => string;
@@ -50,6 +52,7 @@ export function ActivityListSection({
   defaultOpen = true,
   sectionVariant = 'default',
   variant = 'default',
+  itemAppearance = 'default',
   enableIncrementalLoad = false,
   pageSize = 5,
   loadMoreLabel = (remaining) => `more (+${remaining})`,
@@ -65,6 +68,12 @@ export function ActivityListSection({
   const hasMore = usePaging && visibleCount < items.length;
   const remainingCount = usePaging ? items.length - visibleCount : 0;
   const compact = variant === 'compact';
+  const isLink = itemAppearance === 'link';
+  const titleCls = cn(
+    'truncate text-ssoo-primary',
+    compact ? 'font-medium' : 'font-medium',
+    isLink && 'underline decoration-1 underline-offset-2 hover:decoration-2',
+  );
 
   return (
     <CollapsibleSection
@@ -95,7 +104,7 @@ export function ActivityListSection({
                     className="min-w-0 flex-1 rounded-md px-1 py-1 text-left"
                     onClick={() => onItemClick(item)}
                   >
-                    <p className={cn('truncate text-ssoo-primary', compact ? 'font-medium' : 'font-medium')}>{item.title}</p>
+                    <p className={titleCls}>{item.title}</p>
                     {item.content ? (
                       <p className="mt-0.5 whitespace-pre-wrap text-ssoo-primary/75">{item.content}</p>
                     ) : null}
@@ -105,7 +114,7 @@ export function ActivityListSection({
                   </button>
                 ) : (
                   <div className="min-w-0 flex-1 px-1 py-1">
-                    <p className={cn('truncate text-ssoo-primary', compact ? 'font-medium' : 'font-medium')}>{item.title}</p>
+                    <p className={titleCls}>{item.title}</p>
                     {item.content ? (
                       <p className="mt-0.5 whitespace-pre-wrap text-ssoo-primary/75">{item.content}</p>
                     ) : null}
