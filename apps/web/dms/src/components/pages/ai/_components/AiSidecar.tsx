@@ -62,7 +62,7 @@ const VARIANT_INFO: Record<AiSidecarProps['variant'], { title: string; tips: str
 /**
  * AI 전용 사이드카 콘텐츠
  * 
- * DocPageTemplate의 sidecarContent 슬롯에 사용합니다.
+ * PageTemplate의 sidecarContent 슬롯에 사용합니다.
  * 기존 문서 Sidecar와 동일한 위치에 AI 맞춤 정보를 표시합니다.
  */
 export function AiSidecar({

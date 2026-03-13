@@ -4,7 +4,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { DOCUMENT_WIDTHS } from '@/components/templates/page-frame';
 
-// 문서 본문 최대 너비 (DocPageTemplate과 동일)
+// 문서 본문 최대 너비 (PageTemplate과 동일)
 export const DOCUMENT_WIDTH = DOCUMENT_WIDTHS.portrait;
 
 type ContentVariant = 'standalone' | 'embedded';

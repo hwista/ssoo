@@ -6,6 +6,12 @@
 
 ## 2026-03-12
 
+### DocPageTemplate → PageTemplate 리네이밍
+
+- `DocPageTemplate` → `PageTemplate`으로 리네이밍 (파일명, 인터페이스, 함수명)
+- "Doc" 접두사가 문서 전용을 암시하나 실제로는 범용 페이지 셸로 사용 (4곳 중 3곳이 비문서 페이지)
+- 코드 9개 파일, 문서 7개 파일 일괄 변경
+
 ### 저장소 경로 보안 강화 + DMS 네이밍 정규화
 
 - `server/services/storage/StorageAdapterService.ts`에 공통 containment 해석을 추가해 local open/upload 경로가 모두 `path.resolve` + `path.relative` 기반으로 base path 이탈을 차단하도록 정리
@@ -169,8 +175,8 @@
 
 ### 설정 페이지 표준 정렬 리디자인
 
-- `SettingsPage`를 `DocPageTemplate` 기반으로 재구성하고, 설정 페이지는 `sidecarMode=\"hidden\"`으로 사이드카/토글을 비활성화
-- `DocPageTemplate`에 `sidecarMode ('default' | 'custom' | 'hidden')`를 추가해 페이지별 사이드카 렌더링 정책을 명시적으로 제어
+- `SettingsPage`를 `PageTemplate` 기반으로 재구성하고, 설정 페이지는 `sidecarMode=\"hidden\"`으로 사이드카/토글을 비활성화
+- `PageTemplate`에 `sidecarMode ('default' | 'custom' | 'hidden')`를 추가해 페이지별 사이드카 렌더링 정책을 명시적으로 제어
 - 설정 항목 라벨을 사용자 친화형으로 정리하고, 기술 키(`git.*`)는 보조 표기로 분리
 - 설정 입력 검증 강화:
   - 작성자 이름 필수
@@ -236,16 +242,16 @@
 
 ### 문서형 레이아웃 표준화
 
-- 문서 방향(세로/가로) 기준 폭 상수 정의 및 DocPageTemplate 기본 적용
+- 문서 방향(세로/가로) 기준 폭 상수 정의 및 PageTemplate 기본 적용
 - 마크다운/AI 페이지를 동일한 문서형 컨테이너 패턴으로 정렬
 - AI 페이지 공통 셸 컴포넌트 도입
-- DocPageTemplate 초기 레이아웃 측정 전 트랜지션 억제
+- PageTemplate 초기 레이아웃 측정 전 트랜지션 억제
 - ViewerPage 뷰어 툴바의 임베디드 스타일을 이전 패딩 기준으로 복원
 - 뷰어 툴바 컨테이너 배경/보더 투명 처리
-- 뷰어 모드에서 DocPageTemplate 표면을 투명 처리하고 본문 박스만 유지
+- 뷰어 모드에서 PageTemplate 표면을 투명 처리하고 본문 박스만 유지
 - 에디터 툴바 표면을 뷰어와 동일하게 투명 처리
 - 마크다운 뷰어 페이지 파일명을 규칙에 맞게 변경 (ViewerPage)
-- 에디터 모드에서도 DocPageTemplate 표면을 투명 처리하고 본문 박스만 유지
+- 에디터 모드에서도 PageTemplate 표면을 투명 처리하고 본문 박스만 유지
 - ESLint flat config에서 Next preset 로딩 방식 수정
 
 ### 사이드카 편집 기능 개선
@@ -283,7 +289,7 @@
 
 ### 디자인 문서 업데이트
 
-- 문서형 콘텐츠 폭(975px) 규칙과 DocPageTemplate 적용 패턴 추가
+- 문서형 콘텐츠 폭(975px) 규칙과 PageTemplate 적용 패턴 추가
 
 ## 2026-01-29 (계속)
 
@@ -391,7 +397,7 @@ src/app/
 ### UI - 로딩 스피너 공통화
 
 - `StateDisplay` 기준 Loader2 스피너 도입
-- `ContentArea`, `DocPageTemplate`, `Header` 로딩 UI 통일
+- `ContentArea`, `PageTemplate`, `Header` 로딩 UI 통일
 - AI 검색 버튼 로딩 스피너를 공통 컴포넌트로 교체
 - 가이드 문서에 로딩 스피너 표준 추가
 

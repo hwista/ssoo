@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from '@/lib/toast';
 import { useTabStore, useAssistantContextStore, useAssistantPanelStore, useConfirmStore, useAiSearchStore } from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
-import { DocPageTemplate } from '@/components/templates';
+import { PageTemplate } from '@/components/templates';
 import {
   DOC_PAGE_SURFACE_PRESETS,
   PAGE_BACKGROUND_PRESETS,
@@ -212,7 +212,7 @@ export function AiSearchPage() {
 
   return (
     <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
-      <DocPageTemplate
+      <PageTemplate
         filePath="ai/search"
         mode="viewer"
         breadcrumbRootIconVariant="ai"
@@ -289,7 +289,7 @@ export function AiSearchPage() {
             />
           )}
         />
-      </DocPageTemplate>
+      </PageTemplate>
     </main>
   );
 }

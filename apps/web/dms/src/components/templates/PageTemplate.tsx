@@ -15,7 +15,7 @@ import {
 } from './page-frame';
 import { LoadingState, ErrorState } from '@/components/common/StateDisplay';
 
-export interface DocPageTemplateProps {
+export interface PageTemplateProps {
   filePath: string;
   mode: 'viewer' | 'editor' | 'create';
   children: React.ReactNode;
@@ -45,7 +45,7 @@ export interface DocPageTemplateProps {
   className?: string;
 }
 
-export function DocPageTemplate({
+export function PageTemplate({
   filePath,
   mode,
   children,
@@ -73,7 +73,7 @@ export function DocPageTemplate({
   error,
   onRetry,
   className,
-}: DocPageTemplateProps) {
+}: PageTemplateProps) {
   const isCompactMode = useSidebarStore((s) => s.isCompactMode);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState(0);

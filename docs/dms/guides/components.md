@@ -34,7 +34,7 @@ src/components/
 │   ├── ai/                    # AI 페이지
 │   └── settings/              # 설정 페이지
 ├── templates/                 # 템플릿
-│   ├── DocPageTemplate.tsx    # 문서형 페이지 프레임
+│   ├── PageTemplate.tsx    # 범용 페이지 프레임
 │   └── page-frame/            # template-facing building blocks
 └── ui/                        # low-level UI adapters
     ├── alert-dialog.tsx
@@ -71,7 +71,7 @@ src/components/
   - 현재는 순수 공통 컴포넌트와 DMS 도메인 공통 기능 모듈이 함께 존재하는 혼합 레이어입니다.
   - `common/viewer|editor|assistant/*`: DMS 도메인 공통 기능 모듈
 - `templates/page-frame/`
-  - `DocPageTemplate` 를 구성하는 template-facing building block 레이어입니다.
+  - `PageTemplate` 를 구성하는 template-facing building block 레이어입니다.
 
 ---
 
@@ -176,19 +176,19 @@ function MyComponent() {
 
 ## 3. 템플릿 컴포넌트
 
-### DocPageTemplate
+### PageTemplate
 
-문서형 페이지의 공통 프레임입니다.
+범용 페이지의 공통 프레임입니다.
 
-**소스**: `src/components/templates/DocPageTemplate.tsx`
+**소스**: `src/components/templates/PageTemplate.tsx`
 
 ```tsx
-<DocPageTemplate
+<PageTemplate
   title="문서 제목"
   actions={<Button>저장</Button>}
 >
   {/* 문서 내용 */}
-</DocPageTemplate>
+</PageTemplate>
 ```
 
 ---

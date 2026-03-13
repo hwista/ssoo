@@ -81,7 +81,7 @@
 | OpenTabs | `layout/sidebar/` | 열린 탭 |
 | DashboardPage | `pages/home/` | 홈 대시보드 |
 | MarkdownViewerPage | `pages/markdown/` | 문서 뷰어 |
-| DocPageTemplate | `templates/` | 문서 템플릿 |
+| PageTemplate | `templates/` | 문서 템플릿 |
 | WikiEditor | 루트 | 에디터 |
 | BlockEditor | `editor/` | 블록 에디터 |
 | EditorToolbar | `editor/` | 에디터 툴바 |

@@ -132,7 +132,7 @@ AppLayout
 
 대표 엔트리:
 
-- `DocPageTemplate`
+- `PageTemplate`
 
 역할:
 
@@ -170,7 +170,7 @@ DashboardPage
 ViewerPage
 ├── useEditorStore
 ├── useTabStore
-├── DocPageTemplate
+├── PageTemplate
 └── editor/viewer orchestration
 ```
 
@@ -268,7 +268,7 @@ components/
 │   ├── sidebar/
 │   └── index.ts
 ├── templates/          # Page frame
-│   └── DocPageTemplate.tsx
+│   └── PageTemplate.tsx
 └── pages/              # Feature pages
     ├── home/
     ├── markdown/

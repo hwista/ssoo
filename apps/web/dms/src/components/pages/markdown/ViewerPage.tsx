@@ -11,7 +11,7 @@ import {
 } from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import { fileApi } from '@/lib/api';
-import { DocPageTemplate } from '@/components/templates';
+import { PageTemplate } from '@/components/templates';
 import {
   DOC_PAGE_SURFACE_PRESETS,
   PAGE_BACKGROUND_PRESETS,
@@ -306,7 +306,7 @@ export function ViewerPage() {
         isEditorMode ? PAGE_BACKGROUND_PRESETS.documentEditor : PAGE_BACKGROUND_PRESETS.documentViewer
       )}
     >
-      <DocPageTemplate
+      <PageTemplate
         filePath={filePath || '새 문서.md'}
         mode={mode === 'create' ? 'editor' : mode}
         breadcrumbRootIconVariant={isCreateMode ? 'editor' : 'folder'}
@@ -395,7 +395,7 @@ export function ViewerPage() {
             contentBody
           );
         })()}
-      </DocPageTemplate>
+      </PageTemplate>
     </main>
   );
 }

@@ -225,7 +225,7 @@ function getPageType(tab) {
 
 ### 적용 기준
 
-- `DocPageTemplate`를 사용하는 모든 문서형 페이지
+- `PageTemplate`를 사용하는 모든 문서형 페이지
 - 마크다운 뷰어/에디터 외의 기능 페이지도 동일한 폭 규칙 준수
 
 ### 문서 방향
@@ -244,15 +244,15 @@ import { DOCUMENT_WIDTHS, DEFAULT_DOCUMENT_ORIENTATION } from '@/components/temp
 ### 구현 패턴
 
 ```tsx
-import { DocPageTemplate } from '@/components/templates';
+import { PageTemplate } from '@/components/templates';
 
-<DocPageTemplate
+<PageTemplate
   filePath="ai/search"
   mode="viewer"
   contentOrientation="portrait"
 >
   {/* 페이지별 콘텐츠 */}
-</DocPageTemplate>
+</PageTemplate>
 ```
 
 ### Shell 외곽 책임 단일화
@@ -271,17 +271,17 @@ import { DocPageTemplate } from '@/components/templates';
 
 ### AI 페이지 공통 구조
 
-AI 페이지는 `DocPageTemplate` + `SectionedShell` 조합으로 헤더/툴바/본문/푸터 구성을 통일합니다.
+AI 페이지는 `PageTemplate` + `SectionedShell` 조합으로 헤더/툴바/본문/푸터 구성을 통일합니다.
 
 ```tsx
-import { DocPageTemplate } from '@/components/templates';
+import { PageTemplate } from '@/components/templates';
 import {
   DOC_PAGE_SURFACE_PRESETS,
   SectionedShell,
 } from '@/components/templates/page-frame';
 import { AiSidecar } from '@/components/pages/ai/_components/AiSidecar';
 
-<DocPageTemplate
+<PageTemplate
   filePath="ai/search"
   mode="viewer"
   breadcrumbRootIconVariant="ai"
@@ -295,7 +295,7 @@ import { AiSidecar } from '@/components/pages/ai/_components/AiSidecar';
     body={<ResultList />}
     footer={<ComposeInput />}
   />
-</DocPageTemplate>
+</PageTemplate>
 ```
 
 - `SectionedShell` 스타일은 `variant`로 제어합니다.

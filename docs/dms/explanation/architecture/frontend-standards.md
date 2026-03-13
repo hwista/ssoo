@@ -95,7 +95,7 @@ layout/
 
 ## `templates/` Page Frame
 
-`templates/` 는 page 를 구현할 때 반복되는 구조 패턴을 제공하는 레이어입니다. 현재는 `DocPageTemplate` 와 `templates/page-frame/*` 이 핵심 축이며, breadcrumb/header/content/sidecar frame 을 일관되게 제공합니다.
+`templates/` 는 page 를 구현할 때 반복되는 구조 패턴을 제공하는 레이어입니다. 현재는 `PageTemplate` 와 `templates/page-frame/*` 이 핵심 축이며, breadcrumb/header/content/sidecar frame 을 일관되게 제공합니다.
 
 현재 해석 기준:
 

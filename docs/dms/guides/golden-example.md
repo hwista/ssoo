@@ -45,7 +45,7 @@ server/services   -> actual implementation
 
 대표 예시:
 
-- [DocPageTemplate.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/templates/DocPageTemplate.tsx)
+- [PageTemplate.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/templates/PageTemplate.tsx)
 - [SectionedShell.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/templates/page-frame/SectionedShell.tsx)
 
 ### `components/common/**`
@@ -134,7 +134,7 @@ PRD 형식은 [../planning/prd-template.md](../planning/prd-template.md)를 사�
 
 - page entry: [DashboardPage.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/pages/home/DashboardPage.tsx)
 - page orchestration: [ViewerPage.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/pages/markdown/ViewerPage.tsx)
-- template frame: [DocPageTemplate.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/templates/DocPageTemplate.tsx)
+- template frame: [PageTemplate.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/templates/PageTemplate.tsx)
 - page-frame primitive: [SectionedShell.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/templates/page-frame/SectionedShell.tsx)
 - domain-common editor: [BlockEditor.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/common/editor/block-editor/BlockEditor.tsx)
 - domain-common assistant: [useAssistantChat.ts](/home/a0122024330/src/ssoo/apps/web/dms/src/components/common/assistant/chat/useAssistantChat.ts)
