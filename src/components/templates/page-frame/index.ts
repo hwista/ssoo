@@ -1,7 +1,7 @@
 /**
  * Page Frame Primitives
  *
- * `templates/page-frame` 는 DocPageTemplate 과 문서형 page 구현을 위한 frame building block 모음입니다.
+ * `templates/page-frame` 는 PageTemplate 과 문서형 page 구현을 위한 frame building block 모음입니다.
  * broad common 이 아니라 template-facing primitive 레이어로 취급합니다.
  */
 

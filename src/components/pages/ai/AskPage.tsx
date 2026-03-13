@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { toast } from '@/lib/toast';
-import { DocPageTemplate } from '@/components/templates';
+import { PageTemplate } from '@/components/templates';
 import {
   DOC_PAGE_SURFACE_PRESETS,
   PAGE_BACKGROUND_PRESETS,
@@ -47,7 +47,7 @@ export function AiAskPage() {
 
   return (
     <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
-      <DocPageTemplate
+      <PageTemplate
         filePath="ai/ask"
         mode="viewer"
         breadcrumbRootIconVariant="ai"
@@ -115,7 +115,7 @@ export function AiAskPage() {
             />
           )}
         />
-      </DocPageTemplate>
+      </PageTemplate>
     </main>
   );
 }

@@ -5,12 +5,12 @@
  * 개별 page 비즈니스 로직을 담지 않고, breadcrumb/header/content/sidecar 구조를 일관되게 제공합니다.
  * 
  * 포함 템플릿:
- * - DocPageTemplate: 문서형 페이지 frame
+ * - PageTemplate: 범용 페이지 frame (breadcrumb/header/content/sidecar)
  */
 
-// 문서 페이지 템플릿
-export { DocPageTemplate } from './DocPageTemplate';
-export type { DocPageTemplateProps } from './DocPageTemplate';
+// 페이지 템플릿
+export { PageTemplate } from './PageTemplate';
+export type { PageTemplateProps } from './PageTemplate';
 
 // template-facing page frame primitives
 export { Breadcrumb } from './page-frame';

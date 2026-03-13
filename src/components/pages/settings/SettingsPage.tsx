@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Check, FolderOpen, Loader2, RotateCcw } from 'lucide-react';
-import { DocPageTemplate } from '@/components/templates';
+import { PageTemplate } from '@/components/templates';
 import type { HeaderAction } from '@/components/templates/page-frame';
 import { useSettingsStore } from '@/stores/settings.store';
 import { templateApi } from '@/lib/api';
@@ -222,7 +222,7 @@ export function SettingsPage() {
   }, [handleReset, handleSave, hasChanges, hasValidationErrors, isSaving, modifiedKeys.length]);
 
   return (
-    <DocPageTemplate
+    <PageTemplate
       filePath={`settings/${currentSection.id}`}
       mode="viewer"
       description={currentSection.description}
@@ -315,6 +315,6 @@ export function SettingsPage() {
           </main>
         </div>
       </section>
-    </DocPageTemplate>
+    </PageTemplate>
   );
 }
