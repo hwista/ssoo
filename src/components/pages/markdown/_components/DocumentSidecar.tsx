@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
 import { ingestApi, storageApi } from '@/lib/api';
+import { SidecarFrame } from '@/components/templates/page-frame/sidecar';
 import {
   AttachmentsSection,
   CommentInput,
@@ -225,64 +225,60 @@ export function DocumentSidecar({
   };
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
-      {/* 스크롤 가능한 섹션 영역 */}
-      <div className="flex-1 overflow-auto">
-        {isTemplateSidecar ? (
-          <TemplateSaveSection
-            enabled={templateSaveEnabled}
-            templateDraft={templateDraft}
-            onTemplateDraftChange={onTemplateDraftChange}
+    <SidecarFrame
+      className={className}
+      footerClassName="border-t-0"
+      footer={!editable && !isTemplateSidecar ? <CommentInput onAdd={handleCommentAdd} /> : undefined}
+    >
+      {isTemplateSidecar ? (
+        <TemplateSaveSection
+          enabled={templateSaveEnabled}
+          templateDraft={templateDraft}
+          onTemplateDraftChange={onTemplateDraftChange}
+        />
+      ) : (
+        <>
+          <DocumentInfoSection
+            editable={editable}
+            fileName={fileName}
+            filePath={filePath}
+            documentTitle={documentTitle}
+            isEditingTitle={isEditingTitle}
+            titleDraft={titleDraft}
+            metadata={metadata}
+            onStartTitleEdit={() => setIsEditingTitle(true)}
+            onTitleDraftChange={setTitleDraft}
+            onTitleSave={handleTitleSave}
+            onTitleKeyDown={handleTitleKeyDown}
           />
-        ) : (
-          <>
-            <DocumentInfoSection
-              editable={editable}
-              fileName={fileName}
-              filePath={filePath}
-              documentTitle={documentTitle}
-              isEditingTitle={isEditingTitle}
-              titleDraft={titleDraft}
-              metadata={metadata}
-              onStartTitleEdit={() => setIsEditingTitle(true)}
-              onTitleDraftChange={setTitleDraft}
-              onTitleSave={handleTitleSave}
-              onTitleKeyDown={handleTitleKeyDown}
-            />
-            <TagsSection
-              editable={editable}
-              tags={tags ?? []}
-              onChange={handleTagsChange}
-            />
-            <SummarySection
-              editable={editable}
-              summary={summary}
-              onChange={handleSummaryChange}
-            />
-            <SourceLinksSection
-              editable={editable}
-              sourceLinks={sourceLinks}
-              onChange={handleSourceLinksChange}
-            />
-            <AttachmentsSection
-              attachments={attachments}
-              attachmentActionKey={attachmentActionKey}
-              onOpen={handleAttachmentOpen}
-              onCopyUri={handleAttachmentCopyUri}
-              onResync={handleAttachmentResync}
-            />
-            <CommentsSection
-              comments={comments}
-              onDelete={handleCommentDelete}
-            />
-          </>
-        )}
-      </div>
-
-      {/* ─── 댓글 입력 (하단 고정) ─── */}
-      {!editable && !isTemplateSidecar && (
-        <CommentInput onAdd={handleCommentAdd} />
+          <TagsSection
+            editable={editable}
+            tags={tags ?? []}
+            onChange={handleTagsChange}
+          />
+          <SummarySection
+            editable={editable}
+            summary={summary}
+            onChange={handleSummaryChange}
+          />
+          <SourceLinksSection
+            editable={editable}
+            sourceLinks={sourceLinks}
+            onChange={handleSourceLinksChange}
+          />
+          <AttachmentsSection
+            attachments={attachments}
+            attachmentActionKey={attachmentActionKey}
+            onOpen={handleAttachmentOpen}
+            onCopyUri={handleAttachmentCopyUri}
+            onResync={handleAttachmentResync}
+          />
+          <CommentsSection
+            comments={comments}
+            onDelete={handleCommentDelete}
+          />
+        </>
       )}
-    </div>
+    </SidecarFrame>
   );
 }
