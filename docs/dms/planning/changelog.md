@@ -1,6 +1,21 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-03-12
+> 최종 업데이트: 2026-03-13
+
+---
+
+## 2026-03-13
+
+### Sidecar 섹션 공통 컴포넌트 통합
+
+- `SourceLinksSection` 편집 모드를 `ActivityListSection` 기반으로 통합 (기존 `EditableSourceLinks` 커스텀 UI 제거)
+  - 편집 시 각 링크에 `actions`(삭제 아이콘) 추가, 하단에 URL 입력 필드를 `children`으로 배치
+- `TagsSection` 편집 모드를 `ChipListSection` 기반으로 통합 (기존 `EditableTags` 커스텀 UI 제거)
+  - 편집 시 `onChipRemove` 콜백으로 칩 삭제, 하단에 태그 입력 필드를 `children`으로 배치
+- `ActivityListSection`에 `children` prop 추가 (리스트 하단 추가 콘텐츠 렌더링)
+- `ChipListSection`에 `onChipRemove`, `children` prop 추가 (칩 삭제 버튼 + 하단 추가 콘텐츠)
+- Dead Code 삭제: `EditableSourceLinks`, `EditableTags` (EditableFields.tsx)
+- 결과: DocumentSidecar의 모든 섹션이 뷰어/에디터 양쪽에서 동일한 공통 컴포넌트를 사용
 
 ---
 

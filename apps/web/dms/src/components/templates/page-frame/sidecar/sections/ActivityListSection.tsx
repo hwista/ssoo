@@ -40,6 +40,8 @@ export interface ActivityListSectionProps {
   enableIncrementalLoad?: boolean;
   pageSize?: number;
   loadMoreLabel?: (remaining: number) => string;
+  /** 리스트 하단에 렌더링할 추가 콘텐츠 */
+  children?: React.ReactNode;
 }
 
 export function ActivityListSection({
@@ -56,6 +58,7 @@ export function ActivityListSection({
   enableIncrementalLoad = false,
   pageSize = 5,
   loadMoreLabel = (remaining) => `more (+${remaining})`,
+  children,
 }: ActivityListSectionProps) {
   const [visibleCount, setVisibleCount] = React.useState(pageSize);
   const usePaging = enableIncrementalLoad && pageSize > 0;
@@ -177,6 +180,7 @@ export function ActivityListSection({
           ) : null}
         </div>
       )}
+      {children}
     </CollapsibleSection>
   );
 }
