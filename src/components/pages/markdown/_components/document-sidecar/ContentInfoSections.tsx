@@ -43,15 +43,19 @@ export function SummarySection({
 }) {
   if (editable) {
     return (
-      <CollapsibleSection icon={<FileText className="mr-1.5 h-4 w-4 shrink-0" />} title="요약">
-        <textarea
-          value={summary}
-          onChange={onChange}
-          placeholder="문서 요약을 입력하세요..."
-          rows={3}
-          className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
-        />
-      </CollapsibleSection>
+      <TextSection
+        title="요약"
+        icon={<FileText className="mr-1.5 h-4 w-4 shrink-0" />}
+        content={
+          <textarea
+            value={summary}
+            onChange={onChange}
+            placeholder="문서 요약을 입력하세요..."
+            rows={3}
+            className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+          />
+        }
+      />
     );
   }
 
