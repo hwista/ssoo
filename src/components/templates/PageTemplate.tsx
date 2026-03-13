@@ -227,7 +227,7 @@ export function PageTemplate({
             <div
               className={cn(
                 'h-full z-10',
-                'bg-ssoo-content-bg border-l border-ssoo-content-border',
+                'bg-ssoo-content-bg border border-ssoo-content-border',
                 'overflow-auto',
                 hasMeasured && 'transition-all duration-300 ease-in-out',
                 'rounded-l-lg',
