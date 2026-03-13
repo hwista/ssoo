@@ -17,8 +17,8 @@ import {
   PAGE_BACKGROUND_PRESETS,
   SectionedShell,
 } from '@/components/templates/page-frame';
-import { EditorToolbar } from '@/components/common/editor';
-import type { EditorRef } from '@/components/common/editor';
+import { EditorToolbar } from './_components/editor';
+import type { EditorRef } from './_components/editor';
 import { type TocItem } from '@/components/templates/page-frame';
 import { markdownToHtmlSync } from '@/lib/utils/markdown';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
