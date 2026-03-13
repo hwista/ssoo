@@ -86,7 +86,7 @@ export function InlineComposerPanel({
   );
 }
 
-interface ViewerPageContentProps {
+interface DocumentPageContentProps {
   error: string | null;
   handleRetry: () => void;
   isLoading: boolean;
@@ -111,7 +111,7 @@ interface ViewerPageContentProps {
   setSaveAsTemplateOnly: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function ViewerPageContent({
+export function DocumentPageContent({
   error,
   handleRetry,
   isLoading,
@@ -130,7 +130,7 @@ export function ViewerPageContent({
   saveAsTemplateOnly,
   templateSaveDraft,
   setSaveAsTemplateOnly,
-}: ViewerPageContentProps) {
+}: DocumentPageContentProps) {
   if (error) {
     return (
       <div className="flex flex-1 items-center justify-center">

@@ -62,7 +62,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
     if (isFolder) {
       toggleFolder(node.path);
     } else {
-      // 사이드바는 탭만 열고, ViewerPage가 파일 로드를 담당합니다.
+      // 사이드바는 탭만 열고, DocumentPage가 파일 로드를 담당합니다.
       await openTabWithConfirm({
         id: `file-${node.path.replace(/\//g, '-')}`,
         title: node.name,

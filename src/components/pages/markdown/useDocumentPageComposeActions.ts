@@ -24,7 +24,7 @@ interface ConfirmOptions {
   cancelText: string;
 }
 
-interface ViewerPageComposeState {
+interface DocumentPageComposeState {
   content: string;
   createPath: string;
   filePath: string | null;
@@ -35,7 +35,7 @@ interface ViewerPageComposeState {
   isCreateMode: boolean;
 }
 
-interface ViewerPageComposeMutators {
+interface DocumentPageComposeMutators {
   setContent: (content: string) => void;
   setCreatePath: (path: string) => void;
   setInlineInstruction: (value: string) => void;
@@ -45,7 +45,7 @@ interface ViewerPageComposeMutators {
   setIsRecommendingPath: Dispatch<SetStateAction<boolean>>;
 }
 
-interface ViewerPageComposeDeps {
+interface DocumentPageComposeDeps {
   editorHandlers: ComposeEditorHandlers | null;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
 }
@@ -101,14 +101,14 @@ function applyGeneratedContent(params: {
   }
 }
 
-export function useViewerPageComposeActions({
+export function useDocumentPageComposeActions({
   state,
   mutators,
   deps,
 }: {
-  state: ViewerPageComposeState;
-  mutators: ViewerPageComposeMutators;
-  deps: ViewerPageComposeDeps;
+  state: DocumentPageComposeState;
+  mutators: DocumentPageComposeMutators;
+  deps: DocumentPageComposeDeps;
 }) {
   const {
     content,

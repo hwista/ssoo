@@ -3,5 +3,5 @@
 
 export { AiAskPage, AiSearchPage } from './ai';
 export { DashboardPage } from './home';
-export { ViewerPage } from './markdown';
+export { DocumentPage } from './markdown';
 export { SettingsPage } from './settings';
