@@ -77,7 +77,7 @@ interface TabItem {
 ```typescript
 const pageComponents = {
   home: lazy(() => import('@/components/pages/home/DashboardPage')),
-  markdown: lazy(() => import('@/components/pages/markdown/ViewerPage')),
+  markdown: lazy(() => import('@/components/pages/markdown/DocumentPage')),
   aiAsk: lazy(() => import('@/components/pages/ai/AskPage')),
   aiSearch: lazy(() => import('@/components/pages/ai/SearchPage')),
   settings: lazy(() => import('@/components/pages/settings/SettingsPage')),
@@ -147,7 +147,7 @@ ContentArea에서 내부 탭 경로 분석
     ↓
 pageComponents.markdown 렌더링
     ↓
-ViewerPage에서 파일 로드
+DocumentPage에서 파일 로드
 ```
 
 ### 북마크에서 문서 열기
@@ -168,8 +168,8 @@ Bookmarks 클릭
 const pageComponents = {
   home: lazy(() => import('@/components/pages/home/DashboardPage')
     .then(m => ({ default: m.DashboardPage }))),
-  markdown: lazy(() => import('@/components/pages/markdown/ViewerPage')
-    .then(m => ({ default: m.ViewerPage }))),
+  markdown: lazy(() => import('@/components/pages/markdown/DocumentPage')
+    .then(m => ({ default: m.DocumentPage }))),
 };
 ```
 

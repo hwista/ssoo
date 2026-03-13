@@ -151,7 +151,7 @@ export function FileTree() {
 
 3. [사용자 액션] 문서 로드
    - 탭 클릭 시 ContentArea가 페이지 타입 결정
-   - ViewerPage가 파일 내용 로드
+   - DocumentPage가 파일 내용 로드
 ```
 
 ---

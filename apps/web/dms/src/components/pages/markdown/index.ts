@@ -1,1 +1,1 @@
-export { ViewerPage } from './ViewerPage';
+export { DocumentPage } from './DocumentPage';

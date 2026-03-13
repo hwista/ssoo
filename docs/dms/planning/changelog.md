@@ -6,6 +6,12 @@
 
 ## 2026-03-12
 
+### ViewerPage → DocumentPage 리네이밍
+
+- `ViewerPage` → `DocumentPage`로 리네이밍 (파일명, 인터페이스, 함수명, 훅)
+- "Viewer" 접두사가 읽기 전용을 암시하나 실제로는 3가지 모드(viewer/editor/create) 처리
+- 코드 7개 파일, 문서 7개 파일 일괄 변경
+
 ### DocPageTemplate → PageTemplate 리네이밍
 
 - `DocPageTemplate` → `PageTemplate`으로 리네이밍 (파일명, 인터페이스, 함수명)
@@ -246,11 +252,11 @@
 - 마크다운/AI 페이지를 동일한 문서형 컨테이너 패턴으로 정렬
 - AI 페이지 공통 셸 컴포넌트 도입
 - PageTemplate 초기 레이아웃 측정 전 트랜지션 억제
-- ViewerPage 뷰어 툴바의 임베디드 스타일을 이전 패딩 기준으로 복원
+- DocumentPage 뷰어 툴바의 임베디드 스타일을 이전 패딩 기준으로 복원
 - 뷰어 툴바 컨테이너 배경/보더 투명 처리
 - 뷰어 모드에서 PageTemplate 표면을 투명 처리하고 본문 박스만 유지
 - 에디터 툴바 표면을 뷰어와 동일하게 투명 처리
-- 마크다운 뷰어 페이지 파일명을 규칙에 맞게 변경 (ViewerPage)
+- 마크다운 뷰어 페이지 파일명을 규칙에 맞게 변경 (DocumentPage)
 - 에디터 모드에서도 PageTemplate 표면을 투명 처리하고 본문 박스만 유지
 - ESLint flat config에서 Next preset 로딩 방식 수정
 

@@ -35,7 +35,7 @@ server/services   -> actual implementation
 대표 예시:
 
 - [DashboardPage.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/pages/home/DashboardPage.tsx)
-- [ViewerPage.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/pages/markdown/ViewerPage.tsx)
+- [DocumentPage.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/pages/markdown/DocumentPage.tsx)
 - [SettingsPage.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/pages/settings/SettingsPage.tsx)
 
 ### `components/templates/page-frame/**`
@@ -133,7 +133,7 @@ PRD 형식은 [../planning/prd-template.md](../planning/prd-template.md)를 사�
 ## 기준선 예시 파일
 
 - page entry: [DashboardPage.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/pages/home/DashboardPage.tsx)
-- page orchestration: [ViewerPage.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/pages/markdown/ViewerPage.tsx)
+- page orchestration: [DocumentPage.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/pages/markdown/DocumentPage.tsx)
 - template frame: [PageTemplate.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/templates/PageTemplate.tsx)
 - page-frame primitive: [SectionedShell.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/templates/page-frame/SectionedShell.tsx)
 - domain-common editor: [BlockEditor.tsx](/home/a0122024330/src/ssoo/apps/web/dms/src/components/common/editor/block-editor/BlockEditor.tsx)

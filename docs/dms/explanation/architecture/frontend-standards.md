@@ -114,7 +114,7 @@ pages/
 ├── home/
 │   └── DashboardPage.tsx
 ├── markdown/
-│   └── ViewerPage.tsx
+│   └── DocumentPage.tsx
 ├── ai/
 │   ├── AskPage.tsx
 │   └── SearchPage.tsx
@@ -129,8 +129,8 @@ pages/
 - **export:** Named export 우선
 
 ```typescript
-// ViewerPage.tsx
-export function ViewerPage() { ... }
+// DocumentPage.tsx
+export function DocumentPage() { ... }
 ```
 
 ---

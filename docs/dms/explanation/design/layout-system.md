@@ -197,7 +197,7 @@ className="bg-gray-100 hover:bg-gray-200"
 ```typescript
 const pageComponents = {
   home: lazy(() => import('@/components/pages/home/DashboardPage')),
-  markdown: lazy(() => import('@/components/pages/markdown/ViewerPage')),
+  markdown: lazy(() => import('@/components/pages/markdown/DocumentPage')),
 };
 ```
 

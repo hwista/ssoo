@@ -30,14 +30,14 @@ import type { TemplateItem } from '@/types/template';
 import { cn } from '@/lib/utils';
 import { DocumentSidecar } from './_components/DocumentSidecar';
 import { PreviewToggleButton, TemplateSaveControls } from './_components/EditorModeControls';
-import { InlineComposerPanel, ViewerPageContent } from './_components/ViewerPagePanels';
-import { useViewerPageComposeActions } from './useViewerPageComposeActions';
+import { InlineComposerPanel, DocumentPageContent } from './_components/DocumentPagePanels';
+import { useDocumentPageComposeActions } from './useDocumentPageComposeActions';
 import {
   buildDocumentSidecarMetadata,
   buildMarkdownToc,
   deriveDefaultTemplateName,
   getDocumentFilePath,
-} from './viewerPageUtils';
+} from './documentPageUtils';
 
 type PageMode = 'viewer' | 'editor' | 'create';
 
@@ -47,7 +47,7 @@ interface TemplateSaveDraft {
   scope: 'personal' | 'global';
 }
 
-export function ViewerPage() {
+export function DocumentPage() {
   const tabId = useTabInstanceId();
   const { tabs, closeTab, updateTab } = useTabStore();
   const { confirm } = useConfirmStore();
@@ -240,7 +240,7 @@ export function ViewerPage() {
     handleInlineCompose,
     handleRecommendPath,
     handleInlineTemplateSelect,
-  } = useViewerPageComposeActions({
+  } = useDocumentPageComposeActions({
     state: {
       content,
       createPath,
@@ -337,7 +337,7 @@ export function ViewerPage() {
       >
         {(() => {
           const contentBody = (
-            <ViewerPageContent
+            <DocumentPageContent
               error={error}
               handleRetry={handleRetry}
               isLoading={isLoading}

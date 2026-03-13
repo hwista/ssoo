@@ -153,7 +153,7 @@ src/components/pages/
 ├── home/
 │   └── DashboardPage.tsx
 ├── markdown/
-│   └── ViewerPage.tsx
+│   └── DocumentPage.tsx
 ├── ai/
 │   ├── AskPage.tsx
 │   └── SearchPage.tsx
@@ -167,7 +167,7 @@ src/components/pages/
 DashboardPage
 └── 대시보드 콘텐츠
 
-ViewerPage
+DocumentPage
 ├── useEditorStore
 ├── useTabStore
 ├── PageTemplate
@@ -240,7 +240,7 @@ import { Header } from './Header';
 ### Level 3 (Pages)
 
 ```typescript
-// ViewerPage.tsx
+// DocumentPage.tsx
 import { useEditorStore, useTabStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { LoadingState } from '@/components/common/StateDisplay';
