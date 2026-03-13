@@ -275,6 +275,7 @@ export function DocumentSidecar({
           />
           <CommentsSection
             comments={comments}
+            editable={editable}
             onDelete={handleCommentDelete}
           />
         </>
