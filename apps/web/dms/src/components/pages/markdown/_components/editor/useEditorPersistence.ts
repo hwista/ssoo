@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { templateApi } from '@/lib/api';
 import type { TemplateScope } from '@/types/template';
+import type { CreatePathResult } from './useEditorCreatePathDialog';
 
 interface ConfirmOptions {
   title: string;
@@ -19,6 +20,8 @@ interface EditorPersistenceState {
   pendingMetadataUpdate: unknown;
   isCreateMode: boolean;
   preferredCreatePath?: string;
+  /** 새 문서용 자동 생성 파일명 */
+  generatedFileName?: string;
   templateSaveEnabled: boolean;
   templateSaveDraft?: {
     name: string;
@@ -34,6 +37,7 @@ interface EditorPersistenceActions {
   resetContent: (content: string) => void;
   discardPendingMetadata: () => Promise<void>;
   setIsEditing: (editing: boolean) => void;
+  setMetadataTitle: (title: string) => void;
   updateTab: (tabId: string, patch: { path: string; title: string }) => void;
   closeTab: (tabId: string) => void;
   onCreatePathResolved?: (path: string) => void;
@@ -45,6 +49,12 @@ interface EditorPersistenceDeps {
   showSuccess: (title: string, description: string) => void;
   showError: (title: string, description: string) => void;
   requestCreatePath: (preferredPath?: string) => Promise<string | null>;
+  requestSaveLocation: (params: {
+    suggestedTitle?: string;
+    suggestedDirectory?: string;
+    fileName: string;
+    isNewDocument: boolean;
+  }) => Promise<CreatePathResult | null>;
 }
 
 function deriveTemplateName(params: {
@@ -107,20 +117,35 @@ export function useEditorPersistence({
     }
 
     if (state.isCreateMode) {
-      const newFileName = await deps.requestCreatePath(state.preferredCreatePath);
-      if (!newFileName) return;
+      // AI 추천 경로에서 디렉토리/제목 분해
+      const hint = state.preferredCreatePath?.trim() || '';
+      const parts = hint.split('/');
+      const nameHint = parts.pop()?.replace(/\.md$/i, '') || '';
+      const dirHint = parts.join('/');
+      const fileName = state.generatedFileName || 'new-doc.md';
 
-      const resolvedPath = newFileName.endsWith('.md') ? newFileName : `${newFileName}.md`;
+      const result = await deps.requestSaveLocation({
+        suggestedTitle: nameHint,
+        suggestedDirectory: dirHint,
+        fileName,
+        isNewDocument: true,
+      });
+      if (!result) return;
+
+      const resolvedPath = result.path.endsWith('.md') ? result.path : `${result.path}.md`;
 
       try {
         await actions.storeSaveFile(resolvedPath, state.editorContent);
+        if (result.title) {
+          actions.setMetadataTitle(result.title);
+        }
         actions.setIsEditing(false);
         actions.onCreatePathResolved?.(resolvedPath);
         deps.showSuccess('생성 완료', '새 문서가 생성되었습니다.');
 
         const newPath = `/doc/${encodeURIComponent(resolvedPath)}`;
-        const title = resolvedPath.split('/').pop() || resolvedPath;
-        actions.updateTab(state.tabId, { path: newPath, title });
+        const tabTitle = result.title || resolvedPath.split('/').pop() || resolvedPath;
+        actions.updateTab(state.tabId, { path: newPath, title: tabTitle });
       } catch {
         deps.showError('생성 실패', '문서 생성 중 오류가 발생했습니다.');
       }

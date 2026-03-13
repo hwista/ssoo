@@ -122,9 +122,9 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
           getFileIcon(node.name, isSelected)
         )}
 
-        {/* 파일/폴더명 */}
-        <span className={`flex-1 truncate ${isSelected ? 'text-ssoo-primary' : 'text-gray-700'}`}>
-          {node.name}
+        {/* 파일/폴더명 (문서명 우선, 없으면 파일명) */}
+        <span className={`flex-1 truncate ${isSelected ? 'text-ssoo-primary' : 'text-gray-700'}`} title={node.path}>
+          {node.title || node.name}
         </span>
 
         {/* 책갈피 버튼 (파일만) */}

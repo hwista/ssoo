@@ -6,6 +6,19 @@
 
 ## 2026-03-13
 
+### 문서 저장 경로 설정 시스템 (SaveLocationDialog)
+
+- **SaveLocationDialog 모달** 신규 생성 (`components/common/save-location/`)
+  - OS 파일 선택기 형태: 문서명 입력 + 폴더 트리 + 자동 파일명 표시
+  - `FolderPickerTree`: 디렉토리 전용 트리 선택 컴포넌트 (자체 expand/collapse 상태)
+  - Radix Dialog 기반, 문서명/경로/파일명 실시간 미리보기
+- **파일명 자동 채번**: nanoid 8자 기반 유니크 파일명 생성 (`lib/utils/generateFilename.ts`)
+- **FileTree 문서명 표시**: `FileNode.title` 필드 추가, 서버에서 `.sidecar.json` title 반환, 사이드바에서 문서명 우선 표시
+- **DocumentInfoSection 리팩토링**: 인라인 title 편집 제거 → 연필 버튼 클릭 시 SaveLocationDialog 모달 오픈
+- **DocumentSidecar 통합**: `isEditingTitle`/`titleDraft` 상태 제거, SaveLocationDialog 연동 (title 변경 + 파일 이동)
+- **Save Flow 리팩토링**: 새 문서 저장 시 SaveLocationDialog가 열려 사용자 확인 후 저장
+- **TemplateSaveControls 정리**: 인라인 createPath input/경로 추천 버튼 제거 (모달로 이동)
+
 ### Sidecar 섹션 공통 컴포넌트 통합
 
 - `SourceLinksSection` 편집 모드를 `ActivityListSection` 기반으로 통합 (기존 `EditableSourceLinks` 커스텀 UI 제거)

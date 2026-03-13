@@ -100,6 +100,8 @@ interface DocumentPageContentProps {
   editorRef: React.RefObject<EditorRef | null>;
   createPath: string;
   setCreatePath: (path: string) => void;
+  /** 새 문서용 자동 생성 파일명 */
+  generatedFileName?: string;
   isPreview: boolean;
   isComposing: boolean;
   saveAsTemplateOnly: boolean;
@@ -125,6 +127,7 @@ export function DocumentPageContent({
   editorRef,
   createPath,
   setCreatePath,
+  generatedFileName,
   isPreview,
   isComposing,
   saveAsTemplateOnly,
@@ -167,6 +170,7 @@ export function DocumentPageContent({
       variant="embedded"
       showToolbar={false}
       preferredCreatePath={isCreateMode ? createPath : undefined}
+      generatedFileName={isCreateMode ? generatedFileName : undefined}
       onCreatePathResolved={setCreatePath}
       isPreview={isPreview}
       isPendingInsertLoading={isComposing}

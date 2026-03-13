@@ -23,6 +23,19 @@ function getRootDir(): string {
   return configService.getWikiDir();
 }
 
+function readSidecarTitle(mdFullPath: string): string | undefined {
+  const parsed = path.parse(mdFullPath);
+  const sidecarPath = path.join(parsed.dir, `${parsed.name}.sidecar.json`);
+  try {
+    if (!fs.existsSync(sidecarPath)) return undefined;
+    const raw = fs.readFileSync(sidecarPath, 'utf-8');
+    const meta = JSON.parse(raw) as { title?: string };
+    return meta.title || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 class FileSystemService {
   private readDirectory(dirPath: string, rootDir: string, includeHidden: boolean): FileNode[] {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
@@ -43,10 +56,12 @@ class FileSystemService {
         }
 
         if (entry.isFile() && isMarkdownFile(entry.name)) {
+          const title = readSidecarTitle(fullPath);
           return {
             type: 'file' as const,
             name: entry.name,
             path: relativePath,
+            ...(title ? { title } : {}),
           };
         }
 

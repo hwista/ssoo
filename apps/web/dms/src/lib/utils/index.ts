@@ -27,6 +27,9 @@ export {
   formatFileSize,
 } from './fileUtils';
 
+// 파일명 생성
+export { generateUniqueFilename } from './generateFilename';
+
 // 에러 처리
 export {
   LogLevel,

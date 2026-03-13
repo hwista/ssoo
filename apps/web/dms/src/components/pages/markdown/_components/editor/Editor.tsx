@@ -33,6 +33,8 @@ export interface EditorProps {
   showContentSurface?: boolean;
   /** 생성 모드에서 우선 사용할 파일 경로 */
   preferredCreatePath?: string;
+  /** 새 문서용 자동 생성 파일명 */
+  generatedFileName?: string;
   /** 생성 모드에서 실제 저장 경로가 결정될 때 */
   onCreatePathResolved?: (path: string) => void;
   /** 미리보기 모드 여부 */
@@ -75,6 +77,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   variant = 'standalone',
   showContentSurface,
   preferredCreatePath,
+  generatedFileName,
   onCreatePathResolved,
   isPreview = false,
   showToolbar = true,
@@ -95,6 +98,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     pendingMetadataUpdate,
     saveFile: storeSaveFile,
     discardPendingMetadata,
+    setLocalDocumentMetadata,
     // 에디터 상태 공유용
     setEditorHandlers,
     clearEditorHandlers,
@@ -171,6 +175,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       pendingMetadataUpdate,
       isCreateMode,
       preferredCreatePath,
+      generatedFileName,
       templateSaveEnabled,
       templateSaveDraft,
       tabId,
@@ -181,6 +186,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       resetContent,
       discardPendingMetadata,
       setIsEditing,
+      setMetadataTitle: (title: string) => setLocalDocumentMetadata({ title }),
       updateTab,
       closeTab,
       onCreatePathResolved,
@@ -191,6 +197,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       showSuccess,
       showError,
       requestCreatePath: interactions.requestCreatePath,
+      requestSaveLocation: interactions.requestSaveLocation,
     },
   });
 
