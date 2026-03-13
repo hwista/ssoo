@@ -1,12 +1,12 @@
 'use client';
 
 import { AssistantComposer } from '@/components/common/assistant/Composer';
-import { Editor } from '@/components/common/editor';
+import { Editor } from './editor';
 import { Viewer } from '@/components/common/viewer';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TocItem } from '@/components/templates/page-frame';
-import type { EditorRef } from '@/components/common/editor';
+import type { EditorRef } from './editor';
 import type { TemplateItem } from '@/types/template';
 
 type PageMode = 'viewer' | 'editor' | 'create';

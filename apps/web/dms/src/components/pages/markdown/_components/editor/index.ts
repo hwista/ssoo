@@ -1,7 +1,6 @@
 // ============================================
-// Domain-Common Editor Modules
-// `common/editor` 는 문서 편집 도메인에 특화된 공통 기능 모듈입니다.
-// 현재는 편집 UI와 일부 orchestration 이 함께 있어, 1차 단계에서는 이동보다 내부 책임 분리를 우선합니다.
+// Editor Modules (DocumentPage 전용)
+// 문서 편집 UI + orchestration. pages/markdown/ 에서만 사용됩니다.
 // ============================================
 
 // 에디터
