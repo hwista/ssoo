@@ -33,11 +33,11 @@ export function EditableTags({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         {tags.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 rounded-full bg-ssoo-content-border px-2 py-0.5 text-xs text-ssoo-primary"
+            className="inline-flex items-center gap-1 rounded-full border border-ssoo-content-border bg-white px-3 py-1.5 text-xs text-ssoo-primary"
           >
             {tag}
             <button
@@ -108,7 +108,7 @@ export function EditableSourceLinks({
             href={link}
             target="_blank"
             rel="noopener noreferrer"
-            className="truncate text-blue-500 hover:underline"
+            className="truncate text-ssoo-primary underline decoration-1 underline-offset-2 hover:decoration-2"
           >
             {link}
           </a>
