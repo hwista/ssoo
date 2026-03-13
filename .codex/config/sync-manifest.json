@@ -4,7 +4,7 @@
   "checks": [
     {
       "id": "protocol-keyword",
-      "source": ".github/copilot-instructions.md",
+      "source": ".github/instructions/workflow.instructions.md",
       "target": ".codex/instructions/codex-instructions.md",
       "sourcePattern": "마스터 키워드",
       "targetPattern": "Codex 프로토콜 키워드",
@@ -12,7 +12,7 @@
     },
     {
       "id": "start-briefing",
-      "source": ".github/copilot-instructions.md",
+      "source": ".github/instructions/workflow.instructions.md",
       "target": ".codex/instructions/codex-instructions.md",
       "sourcePattern": "작업 시작 프로토콜",
       "targetPattern": "작업 시작 브리핑",
@@ -20,7 +20,7 @@
     },
     {
       "id": "verification-flow",
-      "source": ".github/copilot-instructions.md",
+      "source": ".github/instructions/workflow.instructions.md",
       "target": ".codex/instructions/codex-instructions.md",
       "sourcePattern": "검증 실행 순서",
       "targetPattern": "검증 기본 순서",
