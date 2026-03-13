@@ -27,7 +27,7 @@ const createHomeTab = (): TabItem => {
 };
 
 function normalizeAiTabTitle(path: string, title: string): string {
-  if (path.startsWith('/ai/ask')) return 'AI 어시스턴트';
+  if (path.startsWith('/ai/chat')) return 'AI 대화';
   return title;
 }
 

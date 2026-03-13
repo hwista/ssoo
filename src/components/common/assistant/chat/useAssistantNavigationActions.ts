@@ -29,11 +29,11 @@ export function useAssistantNavigationActions() {
     });
   }, [openTabWithConfirm]);
 
-  const openExpandedAskPage = useCallback(async () => {
+  const openExpandedChatPage = useCallback(async () => {
     await openTabWithConfirm({
-      id: 'ai-ask',
-      title: 'AI 어시스턴트',
-      path: '/ai/ask',
+      id: 'ai-chat',
+      title: 'AI 대화',
+      path: '/ai/chat',
       icon: 'Bot',
       closable: true,
       activate: true,
@@ -43,6 +43,6 @@ export function useAssistantNavigationActions() {
   return {
     handleOpenFile,
     handleOpenHelpAction,
-    openExpandedAskPage,
+    openExpandedChatPage,
   };
 }

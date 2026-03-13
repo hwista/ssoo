@@ -190,7 +190,7 @@ export function TabBar() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (tab.path.startsWith('/ai/ask')) {
+                    if (tab.path.startsWith('/ai/chat')) {
                       closeTab(tab.id);
                       openPanel();
                       return;
@@ -201,7 +201,7 @@ export function TabBar() {
                     isActive ? 'hover:bg-ssoo-primary/20' : 'hover:bg-gray-200'
                   }`}
                 >
-                  {tab.path.startsWith('/ai/ask') ? (
+                  {tab.path.startsWith('/ai/chat') ? (
                     <Minimize2 className={`w-3 h-3 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
                   ) : (
                     <X className={`w-3 h-3 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />

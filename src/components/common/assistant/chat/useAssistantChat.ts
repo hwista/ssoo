@@ -19,7 +19,7 @@ export function useAssistantChat() {
   const attachedReferences = useAssistantContextStore((state) => state.attachedReferences);
   const summaryFiles = useAssistantContextStore((state) => state.summaryFiles);
   const setRelevanceWarnings = useAssistantContextStore((state) => state.setRelevanceWarnings);
-  const { handleOpenFile, handleOpenHelpAction, openExpandedAskPage } = useAssistantNavigationActions();
+  const { handleOpenFile, handleOpenHelpAction, openExpandedChatPage } = useAssistantNavigationActions();
   const { runSearch, runAsk, runHelp } = useAssistantMessageActions();
 
   const buildMessageWithAttachments = useCallback((rawText: string) => {
@@ -73,6 +73,6 @@ export function useAssistantChat() {
     submitUserMessage,
     handleOpenFile,
     handleOpenHelpAction,
-    openExpandedAskPage,
+    openExpandedChatPage,
   };
 }

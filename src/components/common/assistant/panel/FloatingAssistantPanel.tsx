@@ -39,7 +39,7 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
   const startNewSession = useAssistantSessionStore((state) => state.startNewSession);
   const selectSession = useAssistantSessionStore((state) => state.selectSession);
 
-  const { submitUserMessage, handleOpenFile, handleOpenHelpAction, openExpandedAskPage } = useAssistantChat();
+  const { submitUserMessage, handleOpenFile, handleOpenHelpAction, openExpandedChatPage } = useAssistantChat();
   const { saveSession, removeSessionFromDb } = useAssistantSessionPersistence();
   const {
     hasMessages,
@@ -58,9 +58,9 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
   });
 
   const onExpand = useCallback(async () => {
-    await openExpandedAskPage();
+    await openExpandedChatPage();
     closePanel();
-  }, [closePanel, openExpandedAskPage]);
+  }, [closePanel, openExpandedChatPage]);
 
   return (
     <section className={panelClassName} aria-hidden={!isOpen}>
