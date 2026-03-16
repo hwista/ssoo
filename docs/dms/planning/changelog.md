@@ -6,6 +6,54 @@
 
 ## 2026-03-16
 
+### 변경 하이라이팅 시스템 (에디터 + 사이드카)
+
+- **문자 수준 diff 하이라이팅** (`fast-diff` 라이브러리 도입)
+  - 에디터: CodeMirror 확장으로 `originalContentFacet` + `changedLinesField` StateField 구현
+  - 전체 문서 비교 (`fast-diff(original, current)`) — 줄 삽입/삭제 시에도 정확한 diff 표시
+  - 추가 문자: `bg-destructive/10` 배경 하이라이트
+  - 삭제 문자: `DeletedTextWidget` 인라인 위젯 (취소선 + 회색 + 배경)
+- **DiffTextInput 공용 컴포넌트** (`components/common/DiffTextInput.tsx`)
+  - textarea + fast-diff 오버레이 패턴 (투명 텍스트 + 뒤에 diff 렌더링)
+  - 스크롤 동기화 (onScroll 핸들러로 scrollTop/scrollLeft 싱크)
+  - `resizable` prop 지원 (세로 리사이즈)
+  - 요약 섹션에서 사용 중, 향후 다른 textarea에서도 재사용 가능
+
+### 소프트 삭제 + 되돌리기 (사이드카)
+
+- **태그/URL/댓글 소프트 삭제**: 삭제 시 즉시 제거하지 않고 취소선 + 붉은 텍스트 + Undo2 아이콘 표시
+  - `pendingDeletes` Set으로 삭제 상태 추적
+  - 되돌리기 시 `onChange([...items, restoredItem])`으로 부모에 재추가
+  - `ChipListSection`: `deletedChipIds`, `onChipRestore` props
+  - `ActivityListSection`: `deletedItemIds`, `onItemRestore` props
+  - `CommentsSection`: `onRestore` 콜백 + 로컬 `deletedComments` 캐시
+- **신규/변경 항목 하이라이트**: `border-destructive/30 bg-destructive/5` 배경으로 표시
+
+### AI 태그 추천 + 요약 생성 (사이드카)
+
+- **WandButton**: 섹션 타이틀 오른쪽에 스파클 아이콘 버튼
+  - 태그: AI 추출 → 점선 테두리 + Plus 아이콘으로 추천 표시, 사용자가 클릭하여 개별 추가
+  - 요약: AI 생성 → 기존 요약 아래에 추천 표시, 추가/변경/취소 버튼으로 제어
+- **API**: `docAssistApi.compose()` 사용, 태그는 JSON 파싱, 요약은 텍스트 직접 사용
+
+### 사이드카 폰트 정규화
+
+- 섹션 타이틀: `text-sm`(14px) + `font-medium` — 위계 최상위
+- 콘텐츠: `text-xs`(12px) — 타이틀보다 작게
+- 메타/보조: `text-xs`(12px) — 기존 `text-[10px]`/`text-[11px]` 비표준 크기 제거
+- 요약 textarea: 세로 리사이즈 가능 (`resize-y`)
+
+### 사이드카 문서정보 개선
+
+- 수정일 → 최종 수정, 수정 시간 → 최종 수정 시간, 생성일 → 작성일, 생성 시간 → 작성 시간
+- 에디터 모드에서 줄수/문자수/단어수 숨김 (저장 후 계산 방식)
+- 새 문서 작성자 'Unknown' 기본 표시
+
+### 사이드바 정규화
+
+- Changes 상태 텍스트 `text-[10px]` → `text-xs` 정규화
+- 푸터 `text-[10px]` → `text-xs` 정규화
+
 ### 새 문서 런처 페이지 (Obsidian 스타일)
 
 - **NewDocumentLauncher** 신규 생성 (`components/pages/markdown/_components/NewDocumentLauncher.tsx`)

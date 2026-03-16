@@ -2,7 +2,28 @@
 
 ## [Unreleased]
 
+### Features
+
+* **web-dms:** 변경 하이라이팅 시스템 — 에디터 문자 수준 diff (fast-diff), DiffTextInput 공용 컴포넌트
+* **web-dms:** 사이드카 소프트 삭제 + 되돌리기 (태그/URL/댓글)
+* **web-dms:** AI 태그 추천 + 요약 생성 (WandButton)
+* **web-dms:** Obsidian 스타일 새 문서 런처 페이지
+* **web-dms:** AI 요약 원클릭 플로우
+
+### Improvements
+
+* **web-dms:** 사이드카 폰트 정규화 (text-[10px]/text-[11px] 제거, 타이틀/콘텐츠 위계 정리)
+* **web-dms:** 사이드바 폰트 정규화 (Changes/푸터 비표준 크기 제거)
+* **web-dms:** 사이드카 문서정보 필드명 개선, 에디터 모드 통계 숨김
+* **web-dms:** 요약 textarea 리사이즈 지원
+
 ### Bug Fixes
+
+* **web-dms:** DiffTextInput 스크롤 동기화
+* **web-dms:** 소프트 삭제 되돌리기 시 아이템 재추가
+* **web-dms:** CollapsibleSection 중첩 button 하이드레이션 에러 수정
+
+### Bug Fixes (prior)
 
 * **database:** DBML 문서 출력 경로 수정 - 워크스페이스 외부가 아닌 `docs/` 하위로 정상 출력 ([export-dbml.js](packages/database/scripts/export-dbml.js), [render-dbml.js](packages/database/scripts/render-dbml.js))
 * **database:** Prisma extension 공통 컬럼 준비 함수의 `any` 제거로 패턴 경고 해소 ([common-columns.extension.ts](packages/database/src/extensions/common-columns.extension.ts))

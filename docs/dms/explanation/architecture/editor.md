@@ -86,11 +86,13 @@ CodeMirror 기반 markdown block editor 입니다.
 - 리치 텍스트 편집
 - 블록 단위 콘텐츠 관리
 - 서식 적용 (bold, italic, heading 등)
+- 변경 하이라이팅 (원본 대비 문자 수준 diff 표시)
 
 **내부 구성:**
 - `BlockEditorPanels`: preview / slash panel
 - `blockEditorCommands`: 명령 적용
-- `useBlockEditorView`: editor view lifecycle
+- `blockEditorExtensions`: CodeMirror 확장 (diff 하이라이팅 포함)
+- `useBlockEditorView`: editor view lifecycle, `originalContent` 전달
 
 ## 상태 관리
 
@@ -108,6 +110,45 @@ useEditorState (editor 내부 훅)
 ├── save()          # 수동 저장
 └── updateContent() # 콘텐츠 변경
 ```
+
+## 변경 하이라이팅 (Diff)
+
+에디터 내에서 원본 문서 대비 변경된 부분을 실시간으로 하이라이팅합니다.
+
+### 아키텍처
+
+```
+originalContentFacet (Facet<string>)
+  → changedLinesField (StateField<DecorationSet>)
+    → computeCharLevelDecorations()
+      → fast-diff(original, current)
+        → Decoration.mark (추가) / Decoration.widget (삭제)
+```
+
+### 핵심 구성 (`blockEditorExtensions.ts`)
+
+| 구성요소 | 역할 |
+|---------|------|
+| `originalContentFacet` | Facet으로 원본 콘텐츠를 에디터에 전달 |
+| `changedLinesField` | StateField — 문서 변경/facet 변경 시 diff 재계산 |
+| `computeCharLevelDecorations()` | `fast-diff`로 전체 문서 비교, 문자 단위 Decoration 생성 |
+| `DeletedTextWidget` | WidgetType — 삭제된 텍스트를 인라인 위젯으로 표시 |
+
+### 스타일
+
+| CSS 클래스 | 용도 |
+|-----------|------|
+| `.cm-changedText` | 추가/수정 텍스트 배경 하이라이트 |
+| `.cm-deletedText` | 삭제 텍스트 (취소선 + 회색 + 배경) |
+
+### DiffTextInput (공용 컴포넌트)
+
+textarea에서도 동일한 diff 하이라이팅을 제공하는 공용 컴포넌트입니다.
+
+- 위치: `components/common/DiffTextInput.tsx`
+- 패턴: textarea 텍스트를 투명하게 → 뒤에 diff 오버레이 렌더링
+- 스크롤 동기화: `onScroll` 핸들러로 textarea ↔ 오버레이 scrollTop/Left 싱크
+- 사용처: 요약 섹션 (SummarySection)
 
 ## 설계 결정
 
@@ -151,4 +192,5 @@ design-system.md에 정의된 폰트 표준을 따릅니다:
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-03-16 | 변경 하이라이팅 시스템 추가 (문자 수준 diff, DiffTextInput 공용 컴포넌트) |
 | 2025-02-06 | 초기 문서 작성 |
