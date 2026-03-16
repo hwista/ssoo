@@ -8,9 +8,10 @@ import {
   useFileStore,
   useAssistantContextStore,
   useAssistantPanelStore,
+  useNewDocStore,
 } from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
-import { fileApi } from '@/lib/api';
+import { fileApi, templateApi, docAssistApi } from '@/lib/api';
 import { PageTemplate } from '@/components/templates';
 import {
   DOC_PAGE_SURFACE_PRESETS,
@@ -29,9 +30,11 @@ import {
 } from '@/components/common/assistant/reference/Picker';
 import type { TemplateItem } from '@/types/template';
 import { cn } from '@/lib/utils';
+import { LoadingState } from '@/components/common/StateDisplay';
 import { DocumentSidecar } from './_components/DocumentSidecar';
 import { PreviewToggleButton, TemplateSaveControls } from './_components/EditorModeControls';
 import { InlineComposerPanel, DocumentPageContent } from './_components/DocumentPagePanels';
+import { NewDocumentLauncher } from './_components/NewDocumentLauncher';
 import { useDocumentPageComposeActions } from './useDocumentPageComposeActions';
 import {
   buildDocumentSidecarMetadata,
@@ -73,6 +76,7 @@ export function DocumentPage() {
     editorHandlers,
     removeTabEditor,
     hasUnsavedChanges,
+    setHasUnsavedChanges,
   } = useEditorStore();
 
   const [mode, setMode] = useState<PageMode>('viewer');
@@ -122,19 +126,41 @@ export function DocumentPage() {
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
 
-  const isCreateMode = useMemo(() => activeTab?.path === '/wiki/new', [activeTab?.path]);
+  const createEntryType = useMemo<'launcher' | 'wiki' | 'template' | 'ai-summary' | null>(() => {
+    const path = activeTab?.path;
+    if (path === '/wiki/new') return 'launcher';
+    if (path === '/wiki/new-wiki') return 'wiki';
+    if (path === '/wiki/new-template') return 'template';
+    if (path === '/wiki/new-ai-summary') return 'ai-summary';
+    return null;
+  }, [activeTab?.path]);
+
+  const isCreateMode = createEntryType !== null && createEntryType !== 'launcher';
 
   const filePath = useMemo(() => getDocumentFilePath(activeTab?.path), [activeTab?.path]);
 
+  const consumeAiSummaryPending = useNewDocStore((s) => s.consumeAiSummaryPending);
+  const aiSummaryConsumedRef = useRef(false);
+  const aiSummaryCompletedRef = useRef(false);
+
   useEffect(() => {
-    if (isCreateMode) {
-      reset();
-      setContent('');
-      setMode('create');
-      setIsEditing(true);
-      setCreatePath('drafts/new-doc.md');
+    if (!createEntryType || createEntryType === 'launcher') return;
+
+    reset();
+    setContent('');
+    setMode('create');
+    setIsEditing(true);
+    setCreatePath('drafts/new-doc.md');
+
+    if (createEntryType === 'template') {
+      setSaveAsTemplateOnly(true);
+    } else {
+      setSaveAsTemplateOnly(false);
     }
-  }, [isCreateMode, reset, setContent, setIsEditing]);
+
+    aiSummaryConsumedRef.current = false;
+    aiSummaryCompletedRef.current = false;
+  }, [createEntryType, reset, setContent, setIsEditing]);
 
   useEffect(() => {
     if (filePath && !isCreateMode) {
@@ -144,6 +170,80 @@ export function DocumentPage() {
       setCreatePath(filePath);
     }
   }, [filePath, isCreateMode, loadFile, setIsEditing]);
+
+  // AI 요약 자동 실행: 진입 시 pending 파일을 소비하고 디폴트 템플릿으로 compose 호출
+  useEffect(() => {
+    if (createEntryType !== 'ai-summary' || aiSummaryConsumedRef.current) return;
+    aiSummaryConsumedRef.current = true;
+
+    const runAiSummary = async () => {
+      const pending = consumeAiSummaryPending();
+      if (!pending || pending.summaryFiles.length === 0) return;
+
+      setInlineSummaryFiles(pending.summaryFiles);
+      setIsComposing(true);
+
+      try {
+        // 디폴트 문서 템플릿 로드
+        const templateResponse = await templateApi.list();
+        let defaultTemplate: TemplateItem | null = null;
+        if (templateResponse.success && templateResponse.data) {
+          defaultTemplate = templateResponse.data.global.find(
+            (t) => t.id === 'global-doc-default'
+          ) ?? null;
+        }
+
+        if (defaultTemplate) {
+          setInlineTemplate(defaultTemplate);
+        }
+
+        const fileNames = pending.summaryFiles.map((f) => f.name).join(', ');
+        const instruction = `다음 파일을 요약해주세요: ${fileNames}`;
+        const summaryFilesPayload = pending.summaryFiles.map((item) => ({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          textContent: item.textContent,
+        }));
+
+        const response = await docAssistApi.compose({
+          instruction,
+          currentContent: '',
+          templates: defaultTemplate ? [defaultTemplate] : [],
+          summaryFiles: summaryFilesPayload,
+        });
+
+        if (response.success && response.data) {
+          const generated = typeof response.data.text === 'string' ? response.data.text.trim() : '';
+          if (generated) {
+            setContent(generated);
+            aiSummaryCompletedRef.current = true;
+          }
+          if (response.data.suggestedPath) {
+            setCreatePath(response.data.suggestedPath);
+          }
+          setInlineRelevanceWarnings([]);
+        }
+      } finally {
+        setIsComposing(false);
+      }
+    };
+
+    void runAiSummary();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createEntryType]);
+
+  // AI 요약 완료 후 에디터 마운트 → dirty 표시
+  // Editor.resetContent가 먼저 실행된 뒤 다음 프레임에서 dirty 플래그 설정
+  useEffect(() => {
+    if (!aiSummaryCompletedRef.current || isComposing) return;
+    aiSummaryCompletedRef.current = false;
+
+    const frameId = requestAnimationFrame(() => {
+      setHasUnsavedChanges(true);
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [isComposing, setHasUnsavedChanges]);
 
   // 문서명이 있으면 탭 제목을 문서명으로 업데이트 (사이드바와 동일 패턴)
   useEffect(() => {
@@ -315,6 +415,49 @@ export function DocumentPage() {
       onToggle={() => setIsPreview((prev) => !prev)}
     />
   );
+
+  const setAiSummaryPending = useNewDocStore((s) => s.setAiSummaryPending);
+
+  const handleLauncherWiki = useCallback(() => {
+    if (!tabId) return;
+    updateTab(tabId, { path: '/wiki/new-wiki', title: '새 문서' });
+  }, [tabId, updateTab]);
+
+  const handleLauncherTemplate = useCallback(() => {
+    if (!tabId) return;
+    updateTab(tabId, { path: '/wiki/new-template', title: '새 템플릿' });
+  }, [tabId, updateTab]);
+
+  const handleLauncherAiSummary = useCallback((files: InlineSummaryFileItem[]) => {
+    if (!tabId || files.length === 0) return;
+    setAiSummaryPending({ summaryFiles: files });
+    updateTab(tabId, { path: '/wiki/new-ai-summary', title: 'AI 요약' });
+  }, [tabId, updateTab, setAiSummaryPending]);
+
+  const handleLauncherClose = useCallback(() => {
+    if (!tabId) return;
+    closeTab(tabId);
+  }, [tabId, closeTab]);
+
+  // 런처 페이지: /wiki/new
+  if (createEntryType === 'launcher') {
+    return (
+      <NewDocumentLauncher
+        onSelectWiki={handleLauncherWiki}
+        onSelectTemplate={handleLauncherTemplate}
+        onSelectAiSummary={handleLauncherAiSummary}
+        onClose={handleLauncherClose}
+      />
+    );
+  }
+
+  if (createEntryType === 'ai-summary' && isComposing) {
+    return (
+      <main className="h-full flex items-center justify-center bg-ssoo-content-bg/30">
+        <LoadingState message="AI가 문서를 요약하는 중..." />
+      </main>
+    );
+  }
 
   if (!filePath && !isCreateMode) {
     return (

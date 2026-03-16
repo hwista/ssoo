@@ -15,7 +15,7 @@ export function TemplateSaveControls({
   saveAsTemplateOnly,
   setSaveAsTemplateOnly,
 }: TemplateSaveControlsProps) {
-  if (mode !== 'editor' && mode !== 'create') {
+  if (mode !== 'editor') {
     return null;
   }
 

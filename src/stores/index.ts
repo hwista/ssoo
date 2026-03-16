@@ -32,3 +32,6 @@ export type { AssistantMessage, AssistantSearchResult, AssistantSession } from '
 // AI Search
 export { useAiSearchStore } from './ai-search.store';
 export type { AiSearchHistoryItem } from './ai-search.store';
+
+// New Document
+export { useNewDocStore } from './new-doc.store';
