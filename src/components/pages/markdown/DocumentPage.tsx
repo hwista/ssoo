@@ -171,7 +171,7 @@ export function DocumentPage() {
     }
   }, [filePath, isCreateMode, loadFile, setIsEditing]);
 
-  // AI 요약 자동 실행: 진입 시 pending 파일을 소비하고 디폴트 템플릿으로 compose 호출
+  // AI 요약 자동 실행: 진입 시 pending 파일을 소비하고 본문 기반으로 compose 호출
   useEffect(() => {
     if (createEntryType !== 'ai-summary' || aiSummaryConsumedRef.current) return;
     aiSummaryConsumedRef.current = true;
@@ -184,21 +184,8 @@ export function DocumentPage() {
       setIsComposing(true);
 
       try {
-        // 디폴트 문서 템플릿 로드
-        const templateResponse = await templateApi.list();
-        let defaultTemplate: TemplateItem | null = null;
-        if (templateResponse.success && templateResponse.data) {
-          defaultTemplate = templateResponse.data.global.find(
-            (t) => t.id === 'global-doc-default'
-          ) ?? null;
-        }
-
-        if (defaultTemplate) {
-          setInlineTemplate(defaultTemplate);
-        }
-
         const fileNames = pending.summaryFiles.map((f) => f.name).join(', ');
-        const instruction = `다음 파일을 요약해주세요: ${fileNames}`;
+        const instruction = `다음 파일의 본문 내용을 면밀히 파악한 뒤, 본문 내용에 맞게 문단을 구성하고 요약해주세요: ${fileNames}`;
         const summaryFilesPayload = pending.summaryFiles.map((item) => ({
           id: item.id,
           name: item.name,
@@ -209,7 +196,7 @@ export function DocumentPage() {
         const response = await docAssistApi.compose({
           instruction,
           currentContent: '',
-          templates: defaultTemplate ? [defaultTemplate] : [],
+          templates: [],
           summaryFiles: summaryFilesPayload,
         });
 
