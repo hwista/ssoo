@@ -72,6 +72,7 @@ export function DocumentPage() {
     isSaving,
     editorHandlers,
     removeTabEditor,
+    hasUnsavedChanges,
   } = useEditorStore();
 
   const [mode, setMode] = useState<PageMode>('viewer');
@@ -143,6 +144,17 @@ export function DocumentPage() {
       setCreatePath(filePath);
     }
   }, [filePath, isCreateMode, loadFile, setIsEditing]);
+
+  // 문서명이 있으면 탭 제목을 문서명으로 업데이트 (사이드바와 동일 패턴)
+  useEffect(() => {
+    if (!tabId) return;
+    const docTitle = documentMetadata?.title?.trim();
+    const fileName = filePath?.split('/').pop() || '';
+    const displayTitle = docTitle || fileName;
+    if (displayTitle) {
+      updateTab(tabId, { title: displayTitle });
+    }
+  }, [tabId, documentMetadata?.title, filePath, updateTab]);
 
   const htmlContent = useMemo(() => {
     if (!content) return '';
@@ -396,6 +408,7 @@ export function DocumentPage() {
           return isEditorMode ? (
             <SectionedShell
               variant="editor_with_footer"
+              borderColorClass={hasUnsavedChanges ? 'border-destructive/40' : undefined}
               toolbar={(
                 <EditorToolbar
                   disabled={isPreview}

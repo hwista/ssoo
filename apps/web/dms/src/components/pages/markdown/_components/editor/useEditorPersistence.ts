@@ -170,8 +170,8 @@ export function useEditorPersistence({
     if (state.hasUnsavedChanges || state.pendingMetadataUpdate) {
       const confirmed = await deps.confirm({
         title: '변경사항 폐기',
-        description: '저장하지 않은 변경사항이 있습니다. 정말로 취소하시겠습니까?',
-        confirmText: '취소',
+        description: '저장하지 않은 변경사항이 있습니다. 정말로 진행하시겠습니까?',
+        confirmText: '확인',
         cancelText: '돌아가기',
       });
       if (!confirmed) return;

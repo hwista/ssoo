@@ -1,7 +1,8 @@
 'use client';
 
 import { useTabStore, HOME_TAB } from '@/stores';
-import { useAssistantPanelStore } from '@/stores';
+import { useAssistantPanelStore, useConfirmStore } from '@/stores';
+import { useEditorMultiStore } from '@/stores/editor-core.store';
 import { X, Minimize2, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch, Settings, FilePenLine } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useRef, useState, useEffect, useCallback } from 'react';
@@ -17,6 +18,8 @@ import { LAYOUT_SIZES } from '@/lib/constants/layout';
 export function TabBar() {
   const { tabs, activeTabId, activateTab, closeTab, reorderTabs } = useTabStore();
   const openPanel = useAssistantPanelStore((state) => state.openPanel);
+  const { confirm } = useConfirmStore();
+  const editors = useEditorMultiStore((state) => state.editors);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
@@ -127,6 +130,7 @@ export function TabBar() {
           const isActive = tab.id === activeTabId;
           const isHomeTab = tab.id === HOME_TAB.id;
           const isTabEditing = Boolean(tab.isEditing);
+          const hasUnsavedChanges = Boolean(editors[tab.id]?.hasUnsavedChanges);
           const isDragging = draggedIndex === index;
           const isDragOver = dragOverIndex === index;
 
@@ -171,29 +175,42 @@ export function TabBar() {
                 className="flex items-center gap-1.5"
               >
                 {isTabEditing ? (
-                  <FilePenLine className={`w-4 h-4 ${isActive ? 'text-ssoo-primary/80' : 'text-ssoo-primary/70'}`} />
+                  <FilePenLine className={`w-4 h-4 flex-shrink-0 ${hasUnsavedChanges ? 'text-destructive/60' : isActive ? 'text-ssoo-primary/80' : 'text-ssoo-primary/70'}`} />
                 ) : (
-                  <IconComponent className={`w-4 h-4 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                  <IconComponent className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
                 )}
                 <span
                   className={`text-sm truncate max-w-[120px] ${
-                    isActive ? 'text-ssoo-primary font-medium' : 'text-gray-600'
+                    hasUnsavedChanges
+                      ? 'text-destructive/60 font-medium italic'
+                      : isActive ? 'text-ssoo-primary font-medium' : 'text-gray-600'
                   }`}
                 >
                   {tab.title}
                 </span>
-                {isTabEditing && (
-                  <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-ssoo-primary/70" />
-                )}
+                <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${
+                  isTabEditing
+                    ? hasUnsavedChanges ? 'bg-destructive/60' : 'bg-ssoo-primary/70'
+                    : 'bg-transparent'
+                }`} />
               </button>
               {tab.closable && (
                 <button
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
                     if (tab.path.startsWith('/ai/chat')) {
                       closeTab(tab.id);
                       openPanel();
                       return;
+                    }
+                    if (editors[tab.id]?.hasUnsavedChanges) {
+                      const confirmed = await confirm({
+                        title: '변경사항 폐기',
+                        description: '저장하지 않은 변경사항이 있습니다. 정말로 진행하시겠습니까?',
+                        confirmText: '확인',
+                        cancelText: '돌아가기',
+                      });
+                      if (!confirmed) return;
                     }
                     closeTab(tab.id);
                   }}
