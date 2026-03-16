@@ -26,7 +26,7 @@ const checks = [
     description: 'Shell body wrapper presets include height contract',
   },
   {
-    file: 'src/components/common/editor/Content.tsx',
+    file: 'src/components/pages/markdown/_components/editor/Content.tsx',
     patterns: [
       "isEmbedded ? 'h-full min-h-0 overflow-hidden'",
     ],
