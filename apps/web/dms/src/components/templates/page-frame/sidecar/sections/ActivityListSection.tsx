@@ -32,6 +32,8 @@ export interface ActivityListSectionProps {
   emptyText?: string;
   icon?: React.ReactNode;
   badge?: React.ReactNode;
+  /** 하이라이트할 아이템 ID 목록 (변경 표시) */
+  highlightedItemIds?: Set<string>;
   defaultOpen?: boolean;
   sectionVariant?: CollapsibleSectionVariant;
   variant?: 'default' | 'compact';
@@ -51,6 +53,7 @@ export function ActivityListSection({
   emptyText = '-',
   icon,
   badge,
+  highlightedItemIds,
   defaultOpen = true,
   sectionVariant = 'default',
   variant = 'default',
@@ -95,9 +98,11 @@ export function ActivityListSection({
               key={item.id}
               className={cn(
                 'flex items-center gap-1 rounded-md px-1 py-1 text-xs transition-colors',
-                item.active
-                  ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
-                  : 'hover:bg-ssoo-content-bg/60'
+                highlightedItemIds?.has(item.id)
+                  ? 'border border-destructive/30 bg-destructive/5'
+                  : item.active
+                    ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
+                    : 'hover:bg-ssoo-content-bg/60'
               )}
             >
               <div className="flex min-w-0 flex-1 items-start gap-2">

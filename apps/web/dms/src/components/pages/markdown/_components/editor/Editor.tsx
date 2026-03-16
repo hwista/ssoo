@@ -118,6 +118,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   // useEditor 훅 (Undo/Redo 등)
   const {
     content: editorContent,
+    originalContent,
     updateContent,
     resetContent,
     hasUnsavedChanges,
@@ -238,6 +239,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   const contentNode = (
     <Content
       markdownContent={editorContent}
+      originalContent={originalContent}
       onBlockEditorChange={handleBlockEditorChange}
       maxWidth={resolvedMaxWidth}
       variant={variant}

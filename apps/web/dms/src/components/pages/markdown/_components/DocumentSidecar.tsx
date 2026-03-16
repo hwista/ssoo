@@ -78,6 +78,12 @@ export interface DocumentSidecarProps {
   }) => void;
   /** 현재 에디터 콘텐츠 반환 (AI 마술봉에서 사용) */
   getEditorContent?: () => string;
+  /** 편집 진입 시 메타데이터 스냅샷 (변경 하이라이트용) */
+  originalMetaSnapshot?: {
+    tags: string[];
+    summary: string;
+    sourceLinks: string[];
+  } | null;
   /** 추가 className */
   className?: string;
 }
@@ -106,6 +112,7 @@ export function DocumentSidecar({
   templateDraft,
   onTemplateDraftChange,
   getEditorContent,
+  originalMetaSnapshot,
   className,
 }: DocumentSidecarProps) {
   const attachments = metadata?.attachments ?? [];
@@ -274,6 +281,7 @@ export function DocumentSidecar({
             tags={tags ?? []}
             onChange={handleTagsChange}
             getEditorContent={getEditorContent}
+            originalTags={originalMetaSnapshot?.tags}
           />
           <SummarySection
             editable={editable}
@@ -281,11 +289,13 @@ export function DocumentSidecar({
             onChange={handleSummaryChange}
             onSummaryReplace={(text) => onMetadataChange?.({ summary: text })}
             getEditorContent={getEditorContent}
+            originalSummary={originalMetaSnapshot?.summary}
           />
           <SourceLinksSection
             editable={editable}
             sourceLinks={sourceLinks}
             onChange={handleSourceLinksChange}
+            originalSourceLinks={originalMetaSnapshot?.sourceLinks}
           />
           <AttachmentsSection
             attachments={attachments}

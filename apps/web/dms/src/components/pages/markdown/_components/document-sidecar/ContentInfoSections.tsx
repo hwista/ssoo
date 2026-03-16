@@ -26,15 +26,27 @@ export function TagsSection({
   tags,
   onChange,
   getEditorContent,
+  originalTags,
 }: {
   editable: boolean;
   tags: string[];
   onChange: (tags: string[]) => void;
   getEditorContent?: () => string;
+  originalTags?: string[];
 }) {
   const [inputValue, setInputValue] = React.useState('');
   const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
+
+  const highlightedTagIds = React.useMemo(() => {
+    if (!originalTags || !editable) return undefined;
+    const originalSet = new Set(originalTags);
+    const ids = new Set<string>();
+    for (const tag of tags) {
+      if (!originalSet.has(tag)) ids.add(tag);
+    }
+    return ids.size > 0 ? ids : undefined;
+  }, [tags, originalTags, editable]);
 
   const handleAdd = () => {
     const trimmed = inputValue.trim();
@@ -89,6 +101,7 @@ export function TagsSection({
       icon={<Tag className="mr-1.5 h-4 w-4 shrink-0" />}
       headerRight={editable && getEditorContent ? <WandButton loading={isLoading} onClick={handleWand} label="AI 태그 추천" /> : undefined}
       chips={tags.map((tag) => ({ id: tag, label: tag }))}
+      highlightedChipIds={highlightedTagIds}
       emptyText="태그없음"
       onChipRemove={editable ? (chip) => onChange(tags.filter((t) => t !== chip.id)) : undefined}
     >
@@ -138,15 +151,18 @@ export function SummarySection({
   onChange,
   onSummaryReplace,
   getEditorContent,
+  originalSummary,
 }: {
   editable: boolean;
   summary: string;
   onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSummaryReplace?: (text: string) => void;
   getEditorContent?: () => string;
+  originalSummary?: string;
 }) {
   const [aiSuggestion, setAiSuggestion] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const isSummaryChanged = editable && originalSummary !== undefined && summary !== originalSummary;
 
   const handleWand = async () => {
     const content = getEditorContent?.() ?? '';
@@ -203,7 +219,11 @@ export function SummarySection({
               onChange={onChange}
               placeholder="문서 요약을 입력하세요..."
               rows={3}
-              className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+              className={`w-full resize-none rounded border px-2 py-1.5 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none ${
+                isSummaryChanged
+                  ? 'border-destructive/30 bg-destructive/5'
+                  : 'border-ssoo-content-border bg-transparent'
+              }`}
             />
             {aiSuggestion && (
               <div className="rounded border border-dashed border-ssoo-primary/30 bg-ssoo-primary/5 p-2">
@@ -253,12 +273,24 @@ export function SourceLinksSection({
   editable,
   sourceLinks,
   onChange,
+  originalSourceLinks,
 }: {
   editable: boolean;
   sourceLinks: string[];
   onChange: (links: string[]) => void;
+  originalSourceLinks?: string[];
 }) {
   const [inputValue, setInputValue] = React.useState('');
+
+  const newLinkSet = React.useMemo(() => {
+    if (!originalSourceLinks || !editable) return undefined;
+    const originalSet = new Set(originalSourceLinks);
+    const ids = new Set<string>();
+    for (const link of sourceLinks) {
+      if (!originalSet.has(link)) ids.add(link);
+    }
+    return ids.size > 0 ? ids : undefined;
+  }, [sourceLinks, originalSourceLinks, editable]);
 
   const handleAdd = () => {
     const trimmed = inputValue.trim();
@@ -287,6 +319,7 @@ export function SourceLinksSection({
       title="url"
       icon={<Link2 className="mr-1.5 h-4 w-4 shrink-0" />}
       items={items}
+      highlightedItemIds={newLinkSet}
       onItemClick={(item) => window.open(item.title, '_blank', 'noopener,noreferrer')}
       emptyText="링크없음"
       variant="compact"

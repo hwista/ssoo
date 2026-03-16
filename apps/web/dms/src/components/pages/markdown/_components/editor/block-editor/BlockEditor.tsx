@@ -22,6 +22,7 @@ import { useTabStore } from '@/stores';
 
 export interface BlockEditorProps {
   content: string;
+  originalContent?: string;
   onChange: (content: string) => void;
   onSave?: () => void;
   editable?: boolean;
@@ -49,6 +50,7 @@ export interface BlockEditorRef {
 
 const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   content,
+  originalContent = '',
   onChange,
   onSave,
   editable = true,
@@ -93,6 +95,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   const { viewRef } = useBlockEditorView({
     containerRef,
     content,
+    originalContent,
     editable,
     placeholder,
     isPendingInsertLoading,

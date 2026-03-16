@@ -11,6 +11,8 @@ import { BlockEditor, BlockEditorRef } from './block-editor/BlockEditor';
 export interface ContentProps {
   /** Markdown 콘텐츠 (BlockEditor용) */
   markdownContent: string;
+  /** 원본 콘텐츠 (변경 줄 하이라이트용) */
+  originalContent?: string;
   /** BlockEditor 변경 핸들러 */
   onBlockEditorChange: (markdown: string) => void;
   /** 저장 핸들러 (Ctrl+S) */
@@ -50,6 +52,7 @@ export interface ContentProps {
  */
 export function Content({
   markdownContent,
+  originalContent,
   onBlockEditorChange,
   onSave,
   maxWidth,
@@ -90,6 +93,7 @@ export function Content({
         <BlockEditor
           ref={resolvedEditorRef}
           content={markdownContent}
+          originalContent={originalContent}
           onChange={onBlockEditorChange}
           onSave={onSave}
           editable={true}
