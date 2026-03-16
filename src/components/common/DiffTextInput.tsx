@@ -52,13 +52,26 @@ export function DiffTextInput({
     );
   }
 
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const overlayRef = React.useRef<HTMLDivElement>(null);
+
+  const handleScroll = React.useCallback(() => {
+    const ta = textareaRef.current;
+    const ov = overlayRef.current;
+    if (ta && ov) {
+      ov.scrollTop = ta.scrollTop;
+      ov.scrollLeft = ta.scrollLeft;
+    }
+  }, []);
+
   // 변경 있음 — diff overlay
   return (
     <div className={`relative ${className ?? ''}`}>
       {/* Diff overlay (뒤) */}
       <div
+        ref={overlayRef}
         aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-auto rounded border border-transparent px-2 py-1.5 text-xs leading-relaxed whitespace-pre-wrap break-words"
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded border border-transparent px-2 py-1.5 text-xs leading-relaxed whitespace-pre-wrap break-words"
       >
         {diffSegments.map(([op, text], i) => {
           if (op === diff.EQUAL) return <span key={i} className="text-ssoo-primary">{text}</span>;
@@ -69,8 +82,10 @@ export function DiffTextInput({
       </div>
       {/* Textarea (앞, 텍스트 투명) */}
       <textarea
+        ref={textareaRef}
         value={value}
         onChange={onChange}
+        onScroll={handleScroll}
         placeholder={placeholder}
         rows={rows}
         className="relative w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs leading-relaxed text-transparent caret-ssoo-primary selection:bg-blue-200/50 focus:border-ssoo-primary focus:outline-none"
