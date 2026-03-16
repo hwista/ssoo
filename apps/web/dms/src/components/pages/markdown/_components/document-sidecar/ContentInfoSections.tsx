@@ -12,7 +12,7 @@ function WandButton({ loading, onClick, label }: { loading: boolean; onClick: ()
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="rounded p-1 text-ssoo-primary/50 transition-colors hover:bg-ssoo-primary/8 hover:text-ssoo-primary/70 disabled:opacity-40"
+      className="rounded p-1 text-ssoo-primary/50 transition-all hover:bg-black/5 hover:text-ssoo-primary disabled:opacity-40"
       aria-label={label}
       title={label}
     >
