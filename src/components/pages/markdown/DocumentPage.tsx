@@ -96,6 +96,13 @@ export function DocumentPage() {
   });
   const editorRef = useRef<EditorRef | null>(null);
 
+  /** 편집 진입 시 메타데이터 스냅샷 (변경 하이라이트용) */
+  const [originalMetaSnapshot, setOriginalMetaSnapshot] = useState<{
+    tags: string[];
+    summary: string;
+    sourceLinks: string[];
+  } | null>(null);
+
   // 새 문서용 자동 생성 파일명 (세션당 1회 생성)
   const [generatedFileName] = useState(() => generateUniqueFilename());
 
@@ -151,6 +158,7 @@ export function DocumentPage() {
     setMode('create');
     setIsEditing(true);
     setCreatePath('drafts/new-doc.md');
+    setOriginalMetaSnapshot({ tags: [], summary: '', sourceLinks: [] });
 
     if (createEntryType === 'template') {
       setSaveAsTemplateOnly(true);
@@ -270,9 +278,14 @@ export function DocumentPage() {
   const tags = useMemo(() => documentMetadata?.tags || [], [documentMetadata]);
 
   const handleEdit = useCallback(() => {
+    setOriginalMetaSnapshot({
+      tags: documentMetadata?.tags ?? [],
+      summary: documentMetadata?.summary ?? '',
+      sourceLinks: documentMetadata?.sourceLinks ?? [],
+    });
     setMode('editor');
     setIsEditing(true);
-  }, [setIsEditing]);
+  }, [setIsEditing, documentMetadata]);
 
   const handleDelete = useCallback(async () => {
     if (!filePath || !tabId) return;
@@ -485,6 +498,7 @@ export function DocumentPage() {
               setTemplateSaveDraft((prev) => ({ ...prev, ...update }));
             }}
             getEditorContent={() => editorRef.current?.getMarkdown() ?? ''}
+            originalMetaSnapshot={originalMetaSnapshot}
           />
         )}
         onEdit={handleEdit}

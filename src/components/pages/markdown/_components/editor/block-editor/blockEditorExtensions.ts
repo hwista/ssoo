@@ -1,6 +1,6 @@
 'use client';
 
-import { Annotation, EditorState, StateEffect, StateField, type StateEffectType } from '@codemirror/state';
+import { Annotation, EditorState, Facet, type Range, StateEffect, StateField, type StateEffectType } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view';
 import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
@@ -13,6 +13,44 @@ export const setPendingInsertEffect = StateEffect.define<{
   range?: SelectionRange | null;
   loading?: boolean;
 }>();
+
+/** 원본 콘텐츠를 Facet으로 에디터에 전달 */
+export const originalContentFacet = Facet.define<string, string>({
+  combine: (values) => values[values.length - 1] ?? '',
+});
+
+/** 원본 대비 변경된 줄을 하이라이트하는 StateField */
+export const changedLinesField = StateField.define<DecorationSet>({
+  create(state) {
+    return computeChangedLineDecorations(state);
+  },
+  update(value, tr) {
+    if (tr.docChanged || tr.effects.length > 0) {
+      return computeChangedLineDecorations(tr.state);
+    }
+    return value;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
+function computeChangedLineDecorations(state: EditorState): DecorationSet {
+  const original = state.facet(originalContentFacet);
+  if (!original) return Decoration.none;
+
+  const originalLines = original.split('\n');
+  const doc = state.doc;
+  const decorations: Range<Decoration>[] = [];
+
+  for (let i = 1; i <= doc.lines; i++) {
+    const currentLine = doc.line(i).text;
+    const originalLine = i <= originalLines.length ? originalLines[i - 1] : undefined;
+    if (originalLine === undefined || currentLine !== originalLine) {
+      decorations.push(Decoration.line({ class: 'cm-changedLine' }).range(doc.line(i).from));
+    }
+  }
+
+  return decorations.length > 0 ? Decoration.set(decorations, true) : Decoration.none;
+}
 
 function normalizeRange(docLength: number, range: SelectionRange | null): SelectionRange | null {
   if (!range) return null;
@@ -177,6 +215,7 @@ export const editorTheme = EditorView.theme({
   '.cm-savedSelection': { backgroundColor: 'rgba(99, 102, 241, 0.15)', borderRadius: '2px' },
   '.cm-pendingInsertLine': { backgroundColor: 'rgba(245, 158, 11, 0.12)' },
   '.cm-pendingInsertRange': { backgroundColor: 'rgba(245, 158, 11, 0.2)', borderRadius: '2px' },
+  '.cm-changedLine': { backgroundColor: 'rgba(250, 0, 45, 0.06)' },
   '.cm-pendingInsertSpinner': {
     display: 'inline-flex',
     alignItems: 'center',

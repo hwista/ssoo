@@ -8,9 +8,11 @@ import { markdown } from '@codemirror/lang-markdown';
 import { syntaxHighlighting } from '@codemirror/language';
 import type { ToolbarCommandId } from '../Toolbar';
 import {
+  changedLinesField,
   editorTheme,
   ExternalChange,
   markdownHighlight,
+  originalContentFacet,
   pendingInsertField,
   savedSelectionField,
   type SelectionRange,
@@ -21,6 +23,7 @@ import {
 interface BlockEditorViewParams {
   containerRef: React.RefObject<HTMLDivElement | null>;
   content: string;
+  originalContent: string;
   editable: boolean;
   placeholder: string;
   isPendingInsertLoading: boolean;
@@ -40,6 +43,7 @@ interface BlockEditorViewParams {
 export function useBlockEditorView({
   containerRef,
   content,
+  originalContent,
   editable,
   placeholder,
   isPendingInsertLoading,
@@ -57,6 +61,7 @@ export function useBlockEditorView({
 }: BlockEditorViewParams) {
   const viewRef = React.useRef<EditorView | null>(null);
   const editableCompartmentRef = React.useRef(new Compartment());
+  const originalContentCompartmentRef = React.useRef(new Compartment());
   const persistSelection = React.useCallback((view: EditorView) => {
     const selection = view.state.selection.main;
     savedSelectionRef.current = {
@@ -165,6 +170,8 @@ export function useBlockEditorView({
           EditorView.lineWrapping,
           cmPlaceholder(placeholder),
           editableCompartment.of(EditorView.editable.of(editable)),
+          originalContentCompartmentRef.current.of(originalContentFacet.of(originalContent)),
+          changedLinesField,
           editorTheme,
           savedSelectionField,
           pendingInsertField,
@@ -217,6 +224,12 @@ export function useBlockEditorView({
       effects: editableCompartmentRef.current.reconfigure(EditorView.editable.of(editable)),
     });
   }, [editable]);
+
+  React.useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: originalContentCompartmentRef.current.reconfigure(originalContentFacet.of(originalContent)),
+    });
+  }, [originalContent]);
 
   React.useEffect(() => {
     viewRef.current?.dispatch({

@@ -17,6 +17,8 @@ export interface ChipListSectionProps {
   onChipClick?: (chip: ChipItem) => void;
   /** 칩 삭제 콜백. 전달 시 각 칩에 X 삭제 버튼 표시 */
   onChipRemove?: (chip: ChipItem) => void;
+  /** 하이라이트할 칩 ID 목록 (변경 표시) */
+  highlightedChipIds?: Set<string>;
   emptyText?: string;
   icon?: React.ReactNode;
   /** 타이틀 우측 추가 요소 (접기 아이콘 왼쪽) */
@@ -32,6 +34,7 @@ export function ChipListSection({
   chips,
   onChipClick,
   onChipRemove,
+  highlightedChipIds,
   emptyText = '-',
   icon,
   headerRight,
@@ -54,7 +57,10 @@ export function ChipListSection({
           {chips.map((chip) => {
             const clickable = Boolean(onChipClick);
             const removable = Boolean(onChipRemove);
-            const baseCls = 'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-ssoo-content-border bg-white px-3 py-1.5 text-xs text-ssoo-primary';
+            const isHighlighted = highlightedChipIds?.has(chip.id);
+            const baseCls = isHighlighted
+              ? 'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs text-ssoo-primary'
+              : 'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-ssoo-content-border bg-white px-3 py-1.5 text-xs text-ssoo-primary';
             const hoverCls = clickable ? ' transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg' : '';
 
             const chipContent = (
