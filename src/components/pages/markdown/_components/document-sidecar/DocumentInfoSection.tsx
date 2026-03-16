@@ -75,13 +75,13 @@ export function DocumentInfoSection({
   );
 
   const items: KeyValueItem[] = [
-    { label: '문서명', icon: <FileText className="mr-1 h-3.5 w-3.5" />, value: titleValue },
+    { label: '문서명', icon: <FileText className="mr-1 h-3.5 w-3.5" />, value: titleValue, hidden: !documentTitle },
     { label: '파일명', indent: true, value: <Truncated text={fileName} />, hidden: !fileName },
     { label: '경로', indent: true, value: pathValue, hidden: !filePath },
-    { label: '작성자', icon: <User className="mr-1 h-3.5 w-3.5" />, value: metadata.author || 'Unknown' },
+    { label: '작성자', icon: <User className="mr-1 h-3.5 w-3.5" />, value: metadata.author, hidden: !metadata.author },
     { label: '생성일', icon: <Calendar className="mr-1 h-3.5 w-3.5" />, value: formatDate(metadata.createdAt), hidden: !metadata.createdAt },
     { label: '생성 시간', indent: true, value: formatTime(metadata.createdAt), hidden: !metadata.createdAt },
-    { label: '수정자', icon: <Pencil className="mr-1 h-3.5 w-3.5" />, value: metadata.lastModifiedBy || 'Unknown' },
+    { label: '수정자', icon: <Pencil className="mr-1 h-3.5 w-3.5" />, value: metadata.lastModifiedBy, hidden: !metadata.lastModifiedBy },
     { label: '수정일', icon: <Calendar className="mr-1 h-3.5 w-3.5" />, value: formatDate(metadata.updatedAt), hidden: !metadata.updatedAt },
     { label: '수정 시간', indent: true, value: formatTime(metadata.updatedAt), hidden: !metadata.updatedAt },
     { label: '줄 수', value: metadata.lineCount?.toLocaleString(), hidden: metadata.lineCount === undefined },
