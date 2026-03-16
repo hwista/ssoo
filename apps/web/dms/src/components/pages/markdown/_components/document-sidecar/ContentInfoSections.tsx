@@ -40,7 +40,7 @@ export function TagsSection({
       onChipRemove={editable ? (chip) => onChange(tags.filter((t) => t !== chip.id)) : undefined}
     >
       {editable && (
-        <div className="flex gap-1 pt-1">
+        <div className="flex gap-1 pt-2">
           <input
             type="text"
             value={inputValue}
