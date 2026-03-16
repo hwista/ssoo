@@ -63,7 +63,7 @@ export function PreviewToggleButton({ mode, isPreview, onToggle }: PreviewToggle
 
   return (
     <Button
-      variant="ghost"
+      variant={isPreview ? 'default' : 'ghost'}
       size="default"
       onClick={onToggle}
       className="h-control-h"

@@ -14,13 +14,16 @@ export interface SectionedShellProps {
   body: React.ReactNode;
   footer?: React.ReactNode;
   variant: SectionedShellVariant;
+  /** 보더 색상 오버라이드 (미지정 시 기본 border-ssoo-content-border) */
+  borderColorClass?: string;
   className?: string;
 }
 
 const ROOT_CLASS = 'min-h-0';
-const SLOT_TOOLBAR_BASE = 'relative z-10 flex shrink-0 items-center overflow-visible min-h-[52px] border-b border-ssoo-content-border';
-const SLOT_BODY_BASE = 'min-h-0 flex-1 flex flex-col overflow-hidden border-x border-ssoo-content-border bg-white';
-const SLOT_FOOTER_BASE = 'flex shrink-0 items-center border-t border-x border-b border-ssoo-content-border rounded-b-lg';
+const DEFAULT_BORDER_COLOR = 'border-ssoo-content-border';
+const SLOT_TOOLBAR_BASE = 'relative z-10 flex shrink-0 items-center overflow-visible min-h-[52px] border-b';
+const SLOT_BODY_BASE = 'min-h-0 flex-1 flex flex-col overflow-hidden border-x bg-white';
+const SLOT_FOOTER_BASE = 'flex shrink-0 items-center border-t border-x border-b rounded-b-lg';
 const BODY_SLOT_CONTENT_CLASS = 'h-full min-h-0 overflow-hidden';
 
 const SHELL_VARIANT_PRESETS: Record<
@@ -54,11 +57,13 @@ export function SectionedShell({
   body,
   footer,
   variant,
+  borderColorClass,
   className,
 }: SectionedShellProps) {
   const preset = SHELL_VARIANT_PRESETS[variant];
   const hasToolbar = toolbar != null;
   const hasFooter = footer != null;
+  const borderColor = borderColorClass || DEFAULT_BORDER_COLOR;
 
   return (
     <div className={cn('flex h-full flex-col', ROOT_CLASS, preset.shellClass, className)}>
@@ -66,6 +71,7 @@ export function SectionedShell({
         <section
           className={cn(
             SLOT_TOOLBAR_BASE,
+            borderColor,
             preset.toolbarToneClass,
             preset.toolbarPaddingClass
           )}
@@ -76,8 +82,9 @@ export function SectionedShell({
       <section
         className={cn(
           SLOT_BODY_BASE,
-          !hasToolbar && 'border-t border-ssoo-content-border rounded-t-lg',
-          !hasFooter && 'border-b border-ssoo-content-border rounded-b-lg',
+          borderColor,
+          !hasToolbar && `border-t ${borderColor} rounded-t-lg`,
+          !hasFooter && `border-b ${borderColor} rounded-b-lg`,
           preset.bodyClass
         )}
       >
@@ -89,6 +96,7 @@ export function SectionedShell({
         <footer
           className={cn(
             SLOT_FOOTER_BASE,
+            borderColor,
             preset.footerClass
           )}
         >

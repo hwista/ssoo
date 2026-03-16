@@ -1,5 +1,5 @@
 {
-  "title": "📋 리팩토링 v1 개요",
+  "title": "RefactorDoc",
   "summary": "ㅇ요용야",
   "tags": [
     "테스트",
@@ -11,7 +11,7 @@
     "http://localhost:3002/"
   ],
   "createdAt": "2026-02-04T00:19:14.218Z",
-  "updatedAt": "2026-03-16T01:08:46.032Z",
+  "updatedAt": "2026-03-16T01:56:10.734Z",
   "fileHashes": {
     "content": "2bbf2979a4d8512be5b88d1328264e555818316a3839efff1e715339df4bc230",
     "sources": {}
