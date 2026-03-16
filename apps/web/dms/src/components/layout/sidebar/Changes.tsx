@@ -134,7 +134,7 @@ export function Changes() {
             >
               <StatusIcon className={cn('w-4 h-4 flex-shrink-0', statusColor)} />
               <span className="truncate text-gray-700">{fileName}</span>
-              <span className={cn('text-[10px] flex-shrink-0', statusColor)}>
+              <span className={cn('text-xs flex-shrink-0', statusColor)}>
                 {STATUS_LABELS[change.status]}
               </span>
             </button>

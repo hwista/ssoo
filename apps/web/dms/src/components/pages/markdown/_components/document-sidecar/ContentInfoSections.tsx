@@ -142,7 +142,7 @@ export function TagsSection({
               key={tag}
               type="button"
               onClick={() => handleAcceptSuggested(tag)}
-              className="inline-flex items-center gap-1 rounded-full border border-dashed border-ssoo-primary/40 bg-ssoo-primary/5 px-2.5 py-1 text-sm text-ssoo-primary/70 transition-colors hover:border-ssoo-primary hover:bg-ssoo-primary/10 hover:text-ssoo-primary"
+              className="inline-flex items-center gap-1 rounded-full border border-dashed border-ssoo-primary/40 bg-ssoo-primary/5 px-2.5 py-1 text-xs text-ssoo-primary/70 transition-colors hover:border-ssoo-primary hover:bg-ssoo-primary/10 hover:text-ssoo-primary"
               title={`"${tag}" 태그 추가`}
             >
               <Plus className="h-3 w-3" />
@@ -159,7 +159,7 @@ export function TagsSection({
             onChange={(event) => setInputValue(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="태그 추가..."
-            className="flex-1 rounded border border-ssoo-content-border bg-transparent px-2 py-1 text-sm text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+            className="flex-1 rounded border border-ssoo-content-border bg-transparent px-2 py-1 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
           />
           <button
             onClick={handleAdd}
@@ -253,7 +253,7 @@ export function SummarySection({
             />
             {aiSuggestion && (
               <div className="rounded border border-dashed border-ssoo-primary/30 bg-ssoo-primary/5 p-2">
-                <p className="mb-2 text-sm leading-relaxed text-ssoo-primary/80 whitespace-pre-wrap">{aiSuggestion}</p>
+                <p className="mb-2 text-xs leading-relaxed text-ssoo-primary/80 whitespace-pre-wrap">{aiSuggestion}</p>
                 <div className="flex gap-1.5">
                   <button
                     type="button"
@@ -385,7 +385,7 @@ export function SourceLinksSection({
             onChange={(event) => setInputValue(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="URL 추가..."
-            className="flex-1 rounded border border-ssoo-content-border bg-transparent px-2 py-1 text-sm text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+            className="flex-1 rounded border border-ssoo-content-border bg-transparent px-2 py-1 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
           />
           <button
             onClick={handleAdd}

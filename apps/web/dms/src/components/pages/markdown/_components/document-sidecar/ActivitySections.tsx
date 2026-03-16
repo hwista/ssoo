@@ -52,7 +52,7 @@ export function AttachmentsSection({
             return (
               <div
                 key={`${attachment.path}-${attachment.name}`}
-                className="rounded-md border border-ssoo-content-border px-2.5 py-2 text-sm text-ssoo-primary"
+                className="rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate">{attachment.name}</span>
