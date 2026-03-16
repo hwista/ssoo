@@ -30,7 +30,7 @@ export function CommentInput({ onAdd }: { onAdd: (content: string) => void }) {
           onKeyDown={handleKeyDown}
           placeholder="댓글 입력... (Enter 전송)"
           rows={2}
-          className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 pr-8 text-sm text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+          className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 pr-8 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
         />
         <button
           onClick={handleSubmit}

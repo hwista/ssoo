@@ -106,7 +106,7 @@ export function ActivityListSection({
             <div
               key={item.id}
               className={cn(
-                'flex items-center gap-1 rounded-md px-1 py-1 text-sm transition-colors',
+                'flex items-center gap-1 rounded-md px-1 py-1 text-xs transition-colors',
                 isDeleted
                   ? 'border border-destructive/30 bg-destructive/5'
                   : highlightedItemIds?.has(item.id)
@@ -202,7 +202,7 @@ export function ActivityListSection({
             <button
               type="button"
               onClick={() => setVisibleCount((prev) => Math.min(prev + pageSize, items.length))}
-              className="w-full rounded-md border border-ssoo-content-border bg-white px-2 py-1.5 text-sm text-ssoo-primary transition-colors hover:bg-ssoo-content-bg"
+              className="w-full rounded-md border border-ssoo-content-border bg-white px-2 py-1.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-content-bg"
             >
               {loadMoreLabel(remainingCount)}
             </button>
