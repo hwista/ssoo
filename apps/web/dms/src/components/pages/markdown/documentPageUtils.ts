@@ -52,6 +52,7 @@ export function buildDocumentSidecarMetadata(
     author: documentMetadata?.author || undefined,
     createdAt: fileMetadata.createdAt || new Date(),
     updatedAt: fileMetadata.modifiedAt || undefined,
+    lastModifiedBy: documentMetadata?.lastModifiedBy || undefined,
     lineCount: content ? content.split('\n').length : 0,
     charCount: content ? content.length : 0,
     wordCount,

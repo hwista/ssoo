@@ -52,4 +52,5 @@ export interface DocumentMetadata {
   comments: DocumentComment[];
   templateId: string;
   author: string;
+  lastModifiedBy: string;
 }
