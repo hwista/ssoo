@@ -5,7 +5,7 @@ import { FileText, Link2, Loader2, Plus, Sparkles, Tag, X } from 'lucide-react';
 import { ActivityListSection, ChipListSection, TextSection } from '@/components/templates/page-frame/sidecar';
 import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
 import { docAssistApi } from '@/lib/api';
-import diff from 'fast-diff';
+import { DiffTextInput } from '@/components/common/DiffTextInput';
 
 function WandButton({ loading, onClick, label }: { loading: boolean; onClick: () => void; label: string }) {
   return (
@@ -52,9 +52,7 @@ export function TagsSection({
 
   const handleSoftDelete = (chip: { id: string }) => {
     setPendingDeletes((prev) => new Set(prev).add(chip.id));
-    // 실제 삭제는 저장 시 적용 — 즉시 onChange로 제거
     onChange(tags.filter((t) => t !== chip.id));
-    // 삭제된 태그를 목록에는 유지하되 시각적으로만 표시
   };
 
   const handleRestore = (chip: { id: string }) => {
@@ -63,6 +61,10 @@ export function TagsSection({
       next.delete(chip.id);
       return next;
     });
+    // 부모 데이터에 다시 추가
+    if (!tags.includes(chip.id)) {
+      onChange([...tags, chip.id]);
+    }
   };
 
   // 삭제된 태그를 포함한 전체 칩 목록 (삭제된 것도 보여주기 위해)
@@ -173,21 +175,6 @@ export function TagsSection({
   );
 }
 
-/** 요약 문자 수준 diff 뷰 */
-function SummaryDiffView({ original, current }: { original: string; current: string }) {
-  const segments = React.useMemo(() => diff(original, current), [original, current]);
-  return (
-    <div className="rounded border border-destructive/20 bg-destructive/5 px-2 py-1.5 text-xs leading-relaxed whitespace-pre-wrap">
-      {segments.map(([op, text], i) => {
-        if (op === diff.EQUAL) return <span key={i}>{text}</span>;
-        if (op === diff.INSERT) return <span key={i} className="bg-destructive/10 rounded-sm">{text}</span>;
-        if (op === diff.DELETE) return <span key={i} className="text-gray-400 line-through text-[0.9em] bg-destructive/10 rounded-sm">{text}</span>;
-        return null;
-      })}
-    </div>
-  );
-}
-
 export function SummarySection({
   editable,
   summary,
@@ -205,7 +192,6 @@ export function SummarySection({
 }) {
   const [aiSuggestion, setAiSuggestion] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const isSummaryChanged = editable && originalSummary !== undefined && summary !== originalSummary;
 
   const handleWand = async () => {
     const content = getEditorContent?.() ?? '';
@@ -257,20 +243,13 @@ export function SummarySection({
         headerRight={wandButton}
         content={
           <div className="space-y-2">
-            <textarea
+            <DiffTextInput
               value={summary}
+              originalValue={originalSummary}
               onChange={onChange}
               placeholder="문서 요약을 입력하세요..."
               rows={3}
-              className={`w-full resize-none rounded border px-2 py-1.5 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none ${
-                isSummaryChanged
-                  ? 'border-destructive/30 bg-destructive/5'
-                  : 'border-ssoo-content-border bg-transparent'
-              }`}
             />
-            {isSummaryChanged && originalSummary !== undefined && (
-              <SummaryDiffView original={originalSummary} current={summary} />
-            )}
             {aiSuggestion && (
               <div className="rounded border border-dashed border-ssoo-primary/30 bg-ssoo-primary/5 p-2">
                 <p className="mb-2 text-xs leading-relaxed text-ssoo-primary/80 whitespace-pre-wrap">{aiSuggestion}</p>
@@ -350,6 +329,9 @@ export function SourceLinksSection({
       next.delete(item.id);
       return next;
     });
+    if (!sourceLinks.includes(item.id)) {
+      onChange([...sourceLinks, item.id]);
+    }
   };
 
   const handleAdd = () => {
