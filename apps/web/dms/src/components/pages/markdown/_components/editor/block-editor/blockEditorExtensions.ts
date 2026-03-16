@@ -4,6 +4,7 @@ import { Annotation, EditorState, Facet, type Range, StateEffect, StateField, ty
 import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view';
 import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import diff from 'fast-diff';
 
 export type SelectionRange = { from: number; to: number };
 
@@ -19,21 +20,40 @@ export const originalContentFacet = Facet.define<string, string>({
   combine: (values) => values[values.length - 1] ?? '',
 });
 
-/** 원본 대비 변경된 줄을 하이라이트하는 StateField */
+/** 삭제된 텍스트를 인라인으로 표시하는 위젯 */
+class DeletedTextWidget extends WidgetType {
+  constructor(readonly text: string) {
+    super();
+  }
+  toDOM() {
+    const span = document.createElement('span');
+    span.className = 'cm-deletedText';
+    span.textContent = this.text;
+    return span;
+  }
+  eq(other: DeletedTextWidget) {
+    return this.text === other.text;
+  }
+  get estimatedHeight() {
+    return -1;
+  }
+}
+
+/** 원본 대비 변경된 문자를 하이라이트하는 StateField */
 export const changedLinesField = StateField.define<DecorationSet>({
   create(state) {
-    return computeChangedLineDecorations(state);
+    return computeCharLevelDecorations(state);
   },
   update(value, tr) {
     if (tr.docChanged || tr.effects.length > 0) {
-      return computeChangedLineDecorations(tr.state);
+      return computeCharLevelDecorations(tr.state);
     }
     return value;
   },
   provide: (field) => EditorView.decorations.from(field),
 });
 
-function computeChangedLineDecorations(state: EditorState): DecorationSet {
+function computeCharLevelDecorations(state: EditorState): DecorationSet {
   const original = state.facet(originalContentFacet);
   if (!original) return Decoration.none;
 
@@ -44,8 +64,50 @@ function computeChangedLineDecorations(state: EditorState): DecorationSet {
   for (let i = 1; i <= doc.lines; i++) {
     const currentLine = doc.line(i).text;
     const originalLine = i <= originalLines.length ? originalLines[i - 1] : undefined;
-    if (originalLine === undefined || currentLine !== originalLine) {
-      decorations.push(Decoration.line({ class: 'cm-changedLine' }).range(doc.line(i).from));
+
+    if (originalLine === undefined) {
+      // 새로 추가된 줄 — 전체 mark
+      if (currentLine.length > 0) {
+        const lineInfo = doc.line(i);
+        decorations.push(
+          Decoration.mark({ class: 'cm-changedText' }).range(lineInfo.from, lineInfo.to)
+        );
+      }
+      continue;
+    }
+
+    if (currentLine === originalLine) continue;
+
+    // 문자 수준 diff
+    const diffs = diff(originalLine, currentLine);
+    const lineFrom = doc.line(i).from;
+    let currentPos = lineFrom;
+
+    for (const [op, text] of diffs) {
+      if (op === diff.EQUAL) {
+        currentPos += text.length;
+      } else if (op === diff.INSERT) {
+        // 추가된 문자 — mark
+        decorations.push(
+          Decoration.mark({ class: 'cm-changedText' }).range(currentPos, currentPos + text.length)
+        );
+        currentPos += text.length;
+      } else if (op === diff.DELETE) {
+        // 삭제된 문자 — 현재 위치에 위젯 삽입
+        decorations.push(
+          Decoration.widget({ widget: new DeletedTextWidget(text), side: -1 }).range(currentPos)
+        );
+      }
+    }
+  }
+
+  // 원본에만 있고 현재 문서에 없는 줄 (끝에서 삭제된 줄들)
+  if (originalLines.length > doc.lines) {
+    const deletedTail = originalLines.slice(doc.lines).join('\n');
+    if (deletedTail) {
+      decorations.push(
+        Decoration.widget({ widget: new DeletedTextWidget('\n' + deletedTail), side: 1 }).range(doc.length)
+      );
     }
   }
 
@@ -215,7 +277,15 @@ export const editorTheme = EditorView.theme({
   '.cm-savedSelection': { backgroundColor: 'rgba(99, 102, 241, 0.15)', borderRadius: '2px' },
   '.cm-pendingInsertLine': { backgroundColor: 'rgba(245, 158, 11, 0.12)' },
   '.cm-pendingInsertRange': { backgroundColor: 'rgba(245, 158, 11, 0.2)', borderRadius: '2px' },
-  '.cm-changedLine': { backgroundColor: 'rgba(250, 0, 45, 0.06)' },
+  '.cm-changedText': {
+    backgroundColor: 'rgba(250, 0, 45, 0.08)',
+    borderRadius: '2px',
+  },
+  '.cm-deletedText': {
+    color: 'rgba(156, 163, 175, 0.7)',
+    textDecoration: 'line-through',
+    fontSize: '0.9em',
+  },
   '.cm-pendingInsertSpinner': {
     display: 'inline-flex',
     alignItems: 'center',
