@@ -333,7 +333,8 @@ export function DocumentPage() {
 
   const handleMetadataChange = useCallback((update: Partial<DocumentMetadata>) => {
     setLocalDocumentMetadata(update);
-  }, [setLocalDocumentMetadata]);
+    setHasUnsavedChanges(true);
+  }, [setLocalDocumentMetadata, setHasUnsavedChanges]);
 
   const handleFileMove = useCallback(async (newPath: string) => {
     if (!filePath || !tabId || newPath === filePath) return;
