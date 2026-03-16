@@ -49,7 +49,7 @@ export function buildDocumentSidecarMetadata(
   const wordCount = content ? content.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return {
-    author: documentMetadata?.author || undefined,
+    author: documentMetadata?.author || 'Unknown',
     createdAt: fileMetadata.createdAt || new Date(),
     updatedAt: fileMetadata.modifiedAt || undefined,
     lastModifiedBy: documentMetadata?.lastModifiedBy || undefined,
