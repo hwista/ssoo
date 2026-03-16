@@ -477,7 +477,7 @@ export function DocumentPage() {
             onFileMove={handleFileMove}
             generatedFileName={isCreateMode ? generatedFileName : undefined}
             isNewDocument={isCreateMode}
-            filePath={filePath || '새 문서.md'}
+            filePath={isCreateMode ? '' : (filePath || '새 문서.md')}
             templateSaveEnabled={saveAsTemplateOnly}
             templateDraft={templateSaveDraft}
             onTemplateDraftChange={(update) => {
