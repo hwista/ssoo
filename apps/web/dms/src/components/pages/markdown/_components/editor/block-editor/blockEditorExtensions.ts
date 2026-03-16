@@ -283,7 +283,9 @@ export const editorTheme = EditorView.theme({
   },
   '.cm-deletedText': {
     color: 'rgba(156, 163, 175, 0.7)',
+    backgroundColor: 'rgba(250, 0, 45, 0.08)',
     textDecoration: 'line-through',
+    borderRadius: '2px',
     fontSize: '0.9em',
   },
   '.cm-pendingInsertSpinner': {
