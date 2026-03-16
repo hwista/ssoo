@@ -19,6 +19,8 @@ export interface ChipListSectionProps {
   onChipRemove?: (chip: ChipItem) => void;
   emptyText?: string;
   icon?: React.ReactNode;
+  /** 타이틀 우측 추가 요소 (접기 아이콘 왼쪽) */
+  headerRight?: React.ReactNode;
   defaultOpen?: boolean;
   sectionVariant?: CollapsibleSectionVariant;
   /** 칩 리스트 하단에 렌더링할 추가 콘텐츠 */
@@ -32,6 +34,7 @@ export function ChipListSection({
   onChipRemove,
   emptyText = '-',
   icon,
+  headerRight,
   defaultOpen = true,
   sectionVariant = 'default',
   children,
@@ -40,6 +43,7 @@ export function ChipListSection({
     <CollapsibleSection
       title={title}
       icon={icon}
+      headerRight={headerRight}
       defaultOpen={defaultOpen}
       variant={sectionVariant}
     >

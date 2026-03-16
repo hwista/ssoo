@@ -76,6 +76,8 @@ export interface DocumentSidecarProps {
     description?: string;
     scope?: 'personal' | 'global';
   }) => void;
+  /** 현재 에디터 콘텐츠 반환 (AI 마술봉에서 사용) */
+  getEditorContent?: () => string;
   /** 추가 className */
   className?: string;
 }
@@ -103,6 +105,7 @@ export function DocumentSidecar({
   templateSaveEnabled = false,
   templateDraft,
   onTemplateDraftChange,
+  getEditorContent,
   className,
 }: DocumentSidecarProps) {
   const attachments = metadata?.attachments ?? [];
@@ -270,11 +273,14 @@ export function DocumentSidecar({
             editable={editable}
             tags={tags ?? []}
             onChange={handleTagsChange}
+            getEditorContent={getEditorContent}
           />
           <SummarySection
             editable={editable}
             summary={summary}
             onChange={handleSummaryChange}
+            onSummaryReplace={(text) => onMetadataChange?.({ summary: text })}
+            getEditorContent={getEditorContent}
           />
           <SourceLinksSection
             editable={editable}

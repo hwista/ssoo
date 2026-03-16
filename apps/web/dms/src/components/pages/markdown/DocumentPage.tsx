@@ -483,6 +483,7 @@ export function DocumentPage() {
             onTemplateDraftChange={(update) => {
               setTemplateSaveDraft((prev) => ({ ...prev, ...update }));
             }}
+            getEditorContent={() => editorRef.current?.getMarkdown() ?? ''}
           />
         )}
         onEdit={handleEdit}

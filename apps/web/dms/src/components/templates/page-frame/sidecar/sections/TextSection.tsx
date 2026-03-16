@@ -10,6 +10,8 @@ export interface TextSectionProps {
   content?: React.ReactNode;
   emptyText?: string;
   icon?: React.ReactNode;
+  /** 타이틀 우측 추가 요소 (접기 아이콘 왼쪽) */
+  headerRight?: React.ReactNode;
   defaultOpen?: boolean;
   sectionVariant?: CollapsibleSectionVariant;
   preserveWhitespace?: boolean;
@@ -21,6 +23,7 @@ export function TextSection({
   content,
   emptyText = '-',
   icon,
+  headerRight,
   defaultOpen = true,
   sectionVariant = 'default',
   preserveWhitespace = true,
@@ -35,6 +38,7 @@ export function TextSection({
     <CollapsibleSection
       title={title}
       icon={icon}
+      headerRight={headerRight}
       defaultOpen={defaultOpen}
       variant={sectionVariant}
     >
