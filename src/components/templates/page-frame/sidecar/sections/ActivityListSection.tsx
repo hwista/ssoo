@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { Undo2 } from 'lucide-react';
 import { CollapsibleSection } from '../CollapsibleSection';
 import { cn } from '@/lib/utils';
 import type { CollapsibleSectionVariant } from '../CollapsibleSection';
@@ -34,6 +35,10 @@ export interface ActivityListSectionProps {
   badge?: React.ReactNode;
   /** 하이라이트할 아이템 ID 목록 (변경 표시) */
   highlightedItemIds?: Set<string>;
+  /** 소프트 삭제된 아이템 ID 목록 (취소선+붉은색+되돌리기) */
+  deletedItemIds?: Set<string>;
+  /** 소프트 삭제된 아이템 복원 콜백 */
+  onItemRestore?: (item: ActivityItem) => void;
   defaultOpen?: boolean;
   sectionVariant?: CollapsibleSectionVariant;
   variant?: 'default' | 'compact';
@@ -54,6 +59,8 @@ export function ActivityListSection({
   icon,
   badge,
   highlightedItemIds,
+  deletedItemIds,
+  onItemRestore,
   defaultOpen = true,
   sectionVariant = 'default',
   variant = 'default',
@@ -93,28 +100,32 @@ export function ActivityListSection({
         <p className="text-xs text-gray-400 py-1">{emptyText}</p>
       ) : (
         <div className="space-y-1.5">
-          {visibleItems.map((item) => (
+          {visibleItems.map((item) => {
+            const isDeleted = deletedItemIds?.has(item.id);
+            return (
             <div
               key={item.id}
               className={cn(
                 'flex items-center gap-1 rounded-md px-1 py-1 text-xs transition-colors',
-                highlightedItemIds?.has(item.id)
+                isDeleted
                   ? 'border border-destructive/30 bg-destructive/5'
-                  : item.active
-                    ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
-                    : 'hover:bg-ssoo-content-bg/60'
+                  : highlightedItemIds?.has(item.id)
+                    ? 'border border-destructive/30 bg-destructive/5'
+                    : item.active
+                      ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
+                      : 'hover:bg-ssoo-content-bg/60'
               )}
             >
               <div className="flex min-w-0 flex-1 items-start gap-2">
-                {onItemClick ? (
+                {onItemClick && !isDeleted ? (
                   <button
                     type="button"
                     className="min-w-0 flex-1 rounded-md px-1 py-1 text-left"
                     onClick={() => onItemClick(item)}
                   >
-                    <p className={titleCls}>{item.title}</p>
+                    <p className={cn(titleCls, isDeleted && 'line-through text-destructive/60')}>{item.title}</p>
                     {item.content ? (
-                      <p className="mt-0.5 whitespace-pre-wrap text-ssoo-primary/75">{item.content}</p>
+                      <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
                     ) : null}
                     {item.meta ? (
                       <p className="mt-0.5 text-[10px] text-ssoo-primary/60">{item.meta}</p>
@@ -122,16 +133,28 @@ export function ActivityListSection({
                   </button>
                 ) : (
                   <div className="min-w-0 flex-1 px-1 py-1">
-                    <p className={titleCls}>{item.title}</p>
+                    <p className={cn(titleCls, isDeleted && 'line-through text-destructive/60')}>{item.title}</p>
                     {item.content ? (
-                      <p className="mt-0.5 whitespace-pre-wrap text-ssoo-primary/75">{item.content}</p>
+                      <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
                     ) : null}
                     {item.meta ? (
                       <p className="mt-0.5 text-[10px] text-ssoo-primary/60">{item.meta}</p>
                     ) : null}
                   </div>
                 )}
-                {item.actions?.filter((action) => action.kind === 'icon').length ? (
+                {isDeleted && onItemRestore ? (
+                  <div className="mt-0.5 flex shrink-0 items-center gap-1 pr-1">
+                    <button
+                      type="button"
+                      onClick={() => onItemRestore(item)}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded border border-destructive/20 text-destructive/50 transition-colors hover:border-ssoo-primary/40 hover:text-ssoo-primary"
+                      title="되돌리기"
+                      aria-label="되돌리기"
+                    >
+                      <Undo2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : !isDeleted && item.actions?.filter((action) => action.kind === 'icon').length ? (
                   <div className="mt-0.5 flex shrink-0 items-center gap-1 pr-1">
                     {item.actions.filter((action) => action.kind === 'icon').map((action) => (
                       <button
@@ -153,7 +176,7 @@ export function ActivityListSection({
                   </div>
                 ) : null}
               </div>
-              {item.actions?.filter((action) => action.kind !== 'icon').length ? (
+              {!isDeleted && item.actions?.filter((action) => action.kind !== 'icon').length ? (
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {item.actions.filter((action) => action.kind !== 'icon').map((action) => (
                     <button
@@ -173,7 +196,8 @@ export function ActivityListSection({
                 </div>
               ) : null}
             </div>
-          ))}
+            );
+          })}
           {hasMore ? (
             <button
               type="button"

@@ -5,6 +5,7 @@ import { FileText, Link2, Loader2, Plus, Sparkles, Tag, X } from 'lucide-react';
 import { ActivityListSection, ChipListSection, TextSection } from '@/components/templates/page-frame/sidecar';
 import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
 import { docAssistApi } from '@/lib/api';
+import diff from 'fast-diff';
 
 function WandButton({ loading, onClick, label }: { loading: boolean; onClick: () => void; label: string }) {
   return (
@@ -37,16 +38,41 @@ export function TagsSection({
   const [inputValue, setInputValue] = React.useState('');
   const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
 
   const highlightedTagIds = React.useMemo(() => {
     if (!originalTags || !editable) return undefined;
     const originalSet = new Set(originalTags);
     const ids = new Set<string>();
     for (const tag of tags) {
-      if (!originalSet.has(tag)) ids.add(tag);
+      if (!originalSet.has(tag) && !pendingDeletes.has(tag)) ids.add(tag);
     }
     return ids.size > 0 ? ids : undefined;
-  }, [tags, originalTags, editable]);
+  }, [tags, originalTags, editable, pendingDeletes]);
+
+  const handleSoftDelete = (chip: { id: string }) => {
+    setPendingDeletes((prev) => new Set(prev).add(chip.id));
+    // 실제 삭제는 저장 시 적용 — 즉시 onChange로 제거
+    onChange(tags.filter((t) => t !== chip.id));
+    // 삭제된 태그를 목록에는 유지하되 시각적으로만 표시
+  };
+
+  const handleRestore = (chip: { id: string }) => {
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.delete(chip.id);
+      return next;
+    });
+  };
+
+  // 삭제된 태그를 포함한 전체 칩 목록 (삭제된 것도 보여주기 위해)
+  const allChips = React.useMemo(() => {
+    const existing = tags.map((tag) => ({ id: tag, label: tag }));
+    const deletedOnly = Array.from(pendingDeletes)
+      .filter((tag) => !tags.includes(tag))
+      .map((tag) => ({ id: tag, label: tag }));
+    return [...existing, ...deletedOnly];
+  }, [tags, pendingDeletes]);
 
   const handleAdd = () => {
     const trimmed = inputValue.trim();
@@ -100,10 +126,12 @@ export function TagsSection({
       title="태그"
       icon={<Tag className="mr-1.5 h-4 w-4 shrink-0" />}
       headerRight={editable && getEditorContent ? <WandButton loading={isLoading} onClick={handleWand} label="AI 태그 추천" /> : undefined}
-      chips={tags.map((tag) => ({ id: tag, label: tag }))}
+      chips={allChips}
       highlightedChipIds={highlightedTagIds}
+      deletedChipIds={pendingDeletes.size > 0 ? pendingDeletes : undefined}
       emptyText="태그없음"
-      onChipRemove={editable ? (chip) => onChange(tags.filter((t) => t !== chip.id)) : undefined}
+      onChipRemove={editable ? handleSoftDelete : undefined}
+      onChipRestore={editable ? handleRestore : undefined}
     >
       {suggestedTags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pt-2">
@@ -142,6 +170,21 @@ export function TagsSection({
         </div>
       )}
     </ChipListSection>
+  );
+}
+
+/** 요약 문자 수준 diff 뷰 */
+function SummaryDiffView({ original, current }: { original: string; current: string }) {
+  const segments = React.useMemo(() => diff(original, current), [original, current]);
+  return (
+    <div className="rounded border border-destructive/20 bg-destructive/5 px-2 py-1.5 text-xs leading-relaxed whitespace-pre-wrap">
+      {segments.map(([op, text], i) => {
+        if (op === diff.EQUAL) return <span key={i}>{text}</span>;
+        if (op === diff.INSERT) return <span key={i} className="bg-destructive/10 rounded-sm">{text}</span>;
+        if (op === diff.DELETE) return <span key={i} className="text-gray-400 line-through text-[0.9em] bg-destructive/10 rounded-sm">{text}</span>;
+        return null;
+      })}
+    </div>
   );
 }
 
@@ -225,6 +268,9 @@ export function SummarySection({
                   : 'border-ssoo-content-border bg-transparent'
               }`}
             />
+            {isSummaryChanged && originalSummary !== undefined && (
+              <SummaryDiffView original={originalSummary} current={summary} />
+            )}
             {aiSuggestion && (
               <div className="rounded border border-dashed border-ssoo-primary/30 bg-ssoo-primary/5 p-2">
                 <p className="mb-2 text-xs leading-relaxed text-ssoo-primary/80 whitespace-pre-wrap">{aiSuggestion}</p>
@@ -281,16 +327,30 @@ export function SourceLinksSection({
   originalSourceLinks?: string[];
 }) {
   const [inputValue, setInputValue] = React.useState('');
+  const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
 
   const newLinkSet = React.useMemo(() => {
     if (!originalSourceLinks || !editable) return undefined;
     const originalSet = new Set(originalSourceLinks);
     const ids = new Set<string>();
     for (const link of sourceLinks) {
-      if (!originalSet.has(link)) ids.add(link);
+      if (!originalSet.has(link) && !pendingDeletes.has(link)) ids.add(link);
     }
     return ids.size > 0 ? ids : undefined;
-  }, [sourceLinks, originalSourceLinks, editable]);
+  }, [sourceLinks, originalSourceLinks, editable, pendingDeletes]);
+
+  const handleSoftDelete = (link: string) => {
+    setPendingDeletes((prev) => new Set(prev).add(link));
+    onChange(sourceLinks.filter((l) => l !== link));
+  };
+
+  const handleRestore = (item: { id: string }) => {
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
+  };
 
   const handleAdd = () => {
     const trimmed = inputValue.trim();
@@ -307,9 +367,16 @@ export function SourceLinksSection({
     }
   };
 
-  const items = sourceLinks.map((link) => {
-    const actions: ActivityAction[] = editable
-      ? [{ id: `delete-${link}`, kind: 'icon', tone: 'danger', icon: <X className="h-3 w-3" />, title: '링크 삭제', onClick: () => onChange(sourceLinks.filter((l) => l !== link)) }]
+  // 삭제된 링크도 포함한 전체 목록
+  const allLinks = React.useMemo(() => {
+    const deletedOnly = Array.from(pendingDeletes).filter((l) => !sourceLinks.includes(l));
+    return [...sourceLinks, ...deletedOnly];
+  }, [sourceLinks, pendingDeletes]);
+
+  const items = allLinks.map((link) => {
+    const isDeleted = pendingDeletes.has(link);
+    const actions: ActivityAction[] = !isDeleted && editable
+      ? [{ id: `delete-${link}`, kind: 'icon', tone: 'danger', icon: <X className="h-3 w-3" />, title: '링크 삭제', onClick: () => handleSoftDelete(link) }]
       : [];
     return { id: link, title: link, actions };
   });
@@ -320,7 +387,9 @@ export function SourceLinksSection({
       icon={<Link2 className="mr-1.5 h-4 w-4 shrink-0" />}
       items={items}
       highlightedItemIds={newLinkSet}
-      onItemClick={(item) => window.open(item.title, '_blank', 'noopener,noreferrer')}
+      deletedItemIds={pendingDeletes.size > 0 ? pendingDeletes : undefined}
+      onItemRestore={handleRestore}
+      onItemClick={(item) => !pendingDeletes.has(item.id) && window.open(item.title, '_blank', 'noopener,noreferrer')}
       emptyText="링크없음"
       variant="compact"
       itemAppearance="link"

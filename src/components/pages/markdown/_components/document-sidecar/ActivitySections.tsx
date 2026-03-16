@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { Copy, ExternalLink, MessageSquare, Paperclip, RefreshCw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SourceFileMeta, DocumentComment } from '@/types';
@@ -100,23 +101,77 @@ export function CommentsSection({
   comments,
   editable,
   onDelete,
+  originalCommentIds,
 }: {
   comments: DocumentComment[];
   editable?: boolean;
   onDelete: (commentId: string) => void;
+  originalCommentIds?: string[];
 }) {
+  const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
+
+  const handleSoftDelete = (commentId: string) => {
+    setPendingDeletes((prev) => new Set(prev).add(commentId));
+    onDelete(commentId);
+  };
+
+  const handleRestore = (item: { id: string }) => {
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
+  };
+
+  const newCommentIds = React.useMemo(() => {
+    if (!originalCommentIds || !editable) return undefined;
+    const originalSet = new Set(originalCommentIds);
+    const ids = new Set<string>();
+    for (const c of comments) {
+      if (!originalSet.has(c.id) && !pendingDeletes.has(c.id)) ids.add(c.id);
+    }
+    return ids.size > 0 ? ids : undefined;
+  }, [comments, originalCommentIds, editable, pendingDeletes]);
+
+  // 삭제된 댓글도 포함 — 단 원래 있던 댓글 정보가 필요
+  // 댓글은 onDelete로 즉시 comments에서 제거되므로 별도 보관 필요
+  const [deletedComments, setDeletedComments] = React.useState<DocumentComment[]>([]);
+
+  const handleSoftDeleteWithCache = (commentId: string) => {
+    const comment = comments.find((c) => c.id === commentId);
+    if (comment) {
+      setDeletedComments((prev) => [...prev, comment]);
+    }
+    handleSoftDelete(commentId);
+  };
+
+  const handleRestoreComment = (item: { id: string }) => {
+    handleRestore(item);
+    setDeletedComments((prev) => prev.filter((c) => c.id !== item.id));
+  };
+
+  const allComments = React.useMemo(() => {
+    const deletedOnly = deletedComments.filter(
+      (dc) => !comments.some((c) => c.id === dc.id) && pendingDeletes.has(dc.id)
+    );
+    return [...comments, ...deletedOnly];
+  }, [comments, deletedComments, pendingDeletes]);
+
   return (
     <ActivityListSection
       icon={<MessageSquare className="mr-1.5 h-4 w-4 shrink-0" />}
       title="댓글"
       badge={comments.length > 0 ? <span className="mr-1 text-xs text-gray-400">({comments.length})</span> : undefined}
       variant="compact"
-      items={comments.map((comment) => ({
+      highlightedItemIds={newCommentIds}
+      deletedItemIds={pendingDeletes.size > 0 ? pendingDeletes : undefined}
+      onItemRestore={handleRestoreComment}
+      items={allComments.map((comment) => ({
         id: comment.id,
         title: comment.author || 'Unknown',
         content: comment.content,
         meta: formatDate(comment.createdAt),
-        actions: editable
+        actions: editable && !pendingDeletes.has(comment.id)
           ? [
               {
                 id: `${comment.id}-delete`,
@@ -125,7 +180,7 @@ export function CommentsSection({
                 title: '댓글 삭제',
                 ariaLabel: '댓글 삭제',
                 icon: <X className="h-3 w-3" />,
-                onClick: () => onDelete(comment.id),
+                onClick: () => handleSoftDeleteWithCache(comment.id),
               },
             ]
           : undefined,

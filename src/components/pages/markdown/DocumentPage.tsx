@@ -101,6 +101,7 @@ export function DocumentPage() {
     tags: string[];
     summary: string;
     sourceLinks: string[];
+    comments: string[];
   } | null>(null);
 
   // 새 문서용 자동 생성 파일명 (세션당 1회 생성)
@@ -158,7 +159,7 @@ export function DocumentPage() {
     setMode('create');
     setIsEditing(true);
     setCreatePath('drafts/new-doc.md');
-    setOriginalMetaSnapshot({ tags: [], summary: '', sourceLinks: [] });
+    setOriginalMetaSnapshot({ tags: [], summary: '', sourceLinks: [], comments: [] });
 
     if (createEntryType === 'template') {
       setSaveAsTemplateOnly(true);
@@ -282,6 +283,7 @@ export function DocumentPage() {
       tags: documentMetadata?.tags ?? [],
       summary: documentMetadata?.summary ?? '',
       sourceLinks: documentMetadata?.sourceLinks ?? [],
+      comments: (documentMetadata?.comments ?? []).map((c) => c.id),
     });
     setMode('editor');
     setIsEditing(true);
