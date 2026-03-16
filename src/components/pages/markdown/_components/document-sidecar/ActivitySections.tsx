@@ -101,27 +101,17 @@ export function CommentsSection({
   comments,
   editable,
   onDelete,
+  onRestore,
   originalCommentIds,
 }: {
   comments: DocumentComment[];
   editable?: boolean;
   onDelete: (commentId: string) => void;
+  onRestore?: (comment: DocumentComment) => void;
   originalCommentIds?: string[];
 }) {
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
-
-  const handleSoftDelete = (commentId: string) => {
-    setPendingDeletes((prev) => new Set(prev).add(commentId));
-    onDelete(commentId);
-  };
-
-  const handleRestore = (item: { id: string }) => {
-    setPendingDeletes((prev) => {
-      const next = new Set(prev);
-      next.delete(item.id);
-      return next;
-    });
-  };
+  const [deletedComments, setDeletedComments] = React.useState<DocumentComment[]>([]);
 
   const newCommentIds = React.useMemo(() => {
     if (!originalCommentIds || !editable) return undefined;
@@ -133,21 +123,26 @@ export function CommentsSection({
     return ids.size > 0 ? ids : undefined;
   }, [comments, originalCommentIds, editable, pendingDeletes]);
 
-  // 삭제된 댓글도 포함 — 단 원래 있던 댓글 정보가 필요
-  // 댓글은 onDelete로 즉시 comments에서 제거되므로 별도 보관 필요
-  const [deletedComments, setDeletedComments] = React.useState<DocumentComment[]>([]);
-
   const handleSoftDeleteWithCache = (commentId: string) => {
     const comment = comments.find((c) => c.id === commentId);
     if (comment) {
       setDeletedComments((prev) => [...prev, comment]);
     }
-    handleSoftDelete(commentId);
+    setPendingDeletes((prev) => new Set(prev).add(commentId));
+    onDelete(commentId);
   };
 
   const handleRestoreComment = (item: { id: string }) => {
-    handleRestore(item);
+    const cached = deletedComments.find((c) => c.id === item.id);
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
     setDeletedComments((prev) => prev.filter((c) => c.id !== item.id));
+    if (cached) {
+      onRestore?.(cached);
+    }
   };
 
   const allComments = React.useMemo(() => {

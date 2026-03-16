@@ -170,6 +170,10 @@ export function DocumentSidecar({
     onMetadataChange?.({ comments: updated });
   };
 
+  const handleCommentRestore = (comment: DocumentComment) => {
+    onMetadataChange?.({ comments: [...comments, comment] });
+  };
+
   const handleAttachmentOpen = async (attachment: SourceFileMeta) => {
     const actionKey = `${attachment.path}:${attachment.name}:open`;
     setAttachmentActionKey(actionKey);
@@ -309,6 +313,7 @@ export function DocumentSidecar({
             comments={comments}
             editable={editable}
             onDelete={handleCommentDelete}
+            onRestore={handleCommentRestore}
             originalCommentIds={originalMetaSnapshot?.comments}
           />
         </>
