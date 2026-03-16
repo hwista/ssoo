@@ -83,6 +83,7 @@ export interface DocumentSidecarProps {
     tags: string[];
     summary: string;
     sourceLinks: string[];
+    comments: string[];
   } | null;
   /** 추가 className */
   className?: string;
@@ -308,6 +309,7 @@ export function DocumentSidecar({
             comments={comments}
             editable={editable}
             onDelete={handleCommentDelete}
+            originalCommentIds={originalMetaSnapshot?.comments}
           />
         </>
       )}

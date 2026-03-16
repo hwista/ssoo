@@ -57,56 +57,24 @@ function computeCharLevelDecorations(state: EditorState): DecorationSet {
   const original = state.facet(originalContentFacet);
   if (!original) return Decoration.none;
 
-  const originalLines = original.split('\n');
-  const doc = state.doc;
+  const currentText = state.doc.toString();
+  if (currentText === original) return Decoration.none;
+
+  const diffs = diff(original, currentText);
   const decorations: Range<Decoration>[] = [];
+  let pos = 0;
 
-  for (let i = 1; i <= doc.lines; i++) {
-    const currentLine = doc.line(i).text;
-    const originalLine = i <= originalLines.length ? originalLines[i - 1] : undefined;
-
-    if (originalLine === undefined) {
-      // 새로 추가된 줄 — 전체 mark
-      if (currentLine.length > 0) {
-        const lineInfo = doc.line(i);
-        decorations.push(
-          Decoration.mark({ class: 'cm-changedText' }).range(lineInfo.from, lineInfo.to)
-        );
-      }
-      continue;
-    }
-
-    if (currentLine === originalLine) continue;
-
-    // 문자 수준 diff
-    const diffs = diff(originalLine, currentLine);
-    const lineFrom = doc.line(i).from;
-    let currentPos = lineFrom;
-
-    for (const [op, text] of diffs) {
-      if (op === diff.EQUAL) {
-        currentPos += text.length;
-      } else if (op === diff.INSERT) {
-        // 추가된 문자 — mark
-        decorations.push(
-          Decoration.mark({ class: 'cm-changedText' }).range(currentPos, currentPos + text.length)
-        );
-        currentPos += text.length;
-      } else if (op === diff.DELETE) {
-        // 삭제된 문자 — 현재 위치에 위젯 삽입
-        decorations.push(
-          Decoration.widget({ widget: new DeletedTextWidget(text), side: -1 }).range(currentPos)
-        );
-      }
-    }
-  }
-
-  // 원본에만 있고 현재 문서에 없는 줄 (끝에서 삭제된 줄들)
-  if (originalLines.length > doc.lines) {
-    const deletedTail = originalLines.slice(doc.lines).join('\n');
-    if (deletedTail) {
+  for (const [op, text] of diffs) {
+    if (op === diff.EQUAL) {
+      pos += text.length;
+    } else if (op === diff.INSERT) {
       decorations.push(
-        Decoration.widget({ widget: new DeletedTextWidget('\n' + deletedTail), side: 1 }).range(doc.length)
+        Decoration.mark({ class: 'cm-changedText' }).range(pos, pos + text.length)
+      );
+      pos += text.length;
+    } else if (op === diff.DELETE) {
+      decorations.push(
+        Decoration.widget({ widget: new DeletedTextWidget(text), side: -1 }).range(pos)
       );
     }
   }
