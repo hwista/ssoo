@@ -288,7 +288,7 @@ export function DocumentPage() {
   const isEditorMode = mode === 'editor' || mode === 'create';
 
   const contentSurfaceClassName = DOC_PAGE_SURFACE_PRESETS.document;
-  const headerEditorInlineSlot = (
+  const headerEditorRightSlot = (
     <TemplateSaveControls
       mode={mode}
       saveAsTemplateOnly={saveAsTemplateOnly}
@@ -348,7 +348,8 @@ export function DocumentPage() {
         onCancel={handleCancel}
         onDelete={isCreateMode ? undefined : handleDelete}
         saving={isSaving}
-        headerEditorInlineSlot={headerEditorInlineSlot}
+        isPreview={isPreview}
+        headerEditorRightSlot={headerEditorRightSlot}
         headerEditorPreviewSlot={headerEditorPreviewSlot}
       >
         {(() => {

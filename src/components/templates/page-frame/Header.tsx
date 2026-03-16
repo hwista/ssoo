@@ -47,13 +47,16 @@ export interface HeaderProps {
   /** 저장 중 상태 */
   saving?: boolean;
   
+  /** 미리보기 모드 (에디터 모드에서 미리보기 토글만 표시) */
+  isPreview?: boolean;
+  
   /** 추가 액션 버튼 */
   extraActions?: HeaderAction[];
   /** 추가 액션 버튼 위치 */
   extraActionsPosition?: 'left' | 'right';
-  /** editor/create 모드에서 저장 버튼 오른쪽 슬롯 */
-  editorInlineSlot?: React.ReactNode;
-  /** editor/create 모드에서 취소와 저장 사이 슬롯 */
+  /** editor/create 모드 우측 슬롯 (저장 버튼 앞에 배치) */
+  editorRightSlot?: React.ReactNode;
+  /** editor/create 모드 좌측 슬롯 (취소 버튼 뒤에 배치) */
   editorPreviewSlot?: React.ReactNode;
   
   /** 추가 className */
@@ -93,9 +96,10 @@ export function Header({
   onSave,
   onCancel,
   saving = false,
+  isPreview = false,
   extraActions,
   extraActionsPosition = 'left',
-  editorInlineSlot,
+  editorRightSlot,
   editorPreviewSlot,
   className,
 }: HeaderProps) {
@@ -161,23 +165,6 @@ export function Header({
               </Button>
             )}
             {editorPreviewSlot}
-            {onSave && (
-              <Button
-                variant="default"
-                size="default"
-                onClick={onSave}
-                disabled={saving}
-                className="h-control-h"
-              >
-                {saving ? (
-                  <LoadingSpinner className="mr-1.5" />
-                ) : (
-                  <Save className="h-4 w-4 mr-1.5" />
-                )}
-                저장
-              </Button>
-            )}
-            {editorInlineSlot}
           </>
         )}
 
@@ -198,10 +185,26 @@ export function Header({
           </Button>
         )}
 
-        {/* 에디터/생성 모드 우측 */}
-        {(mode === 'editor' || mode === 'create') && (
+        {/* 에디터/생성 모드 우측: 주입 슬롯 → 저장 → 삭제 (미리보기 시 숨김) */}
+        {(mode === 'editor' || mode === 'create') && !isPreview && (
           <>
-            {/* 삭제 버튼 (우측 끝) */}
+            {editorRightSlot}
+            {onSave && (
+              <Button
+                variant="default"
+                size="default"
+                onClick={onSave}
+                disabled={saving}
+                className="h-control-h"
+              >
+                {saving ? (
+                  <LoadingSpinner className="mr-1.5" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1.5" />
+                )}
+                저장
+              </Button>
+            )}
             {onDelete && (
               <Button
                 variant="destructive"

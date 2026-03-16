@@ -22,7 +22,7 @@ export interface PageTemplateProps {
   description?: string;
   headerExtraActions?: HeaderAction[];
   headerExtraActionsPosition?: 'left' | 'right';
-  headerEditorInlineSlot?: React.ReactNode;
+  headerEditorRightSlot?: React.ReactNode;
   headerEditorPreviewSlot?: React.ReactNode;
   contentOrientation?: DocumentOrientation;
   contentMaxWidth?: number | null;
@@ -39,6 +39,7 @@ export interface PageTemplateProps {
   onPathClick?: (path: string) => void;
   breadcrumbRootIconVariant?: 'default' | 'ai' | 'folder' | 'editor';
   saving?: boolean;
+  isPreview?: boolean;
   loading?: boolean;
   error?: Error | string | null;
   onRetry?: () => void;
@@ -52,7 +53,7 @@ export function PageTemplate({
   description,
   headerExtraActions,
   headerExtraActionsPosition = 'left',
-  headerEditorInlineSlot,
+  headerEditorRightSlot,
   headerEditorPreviewSlot,
   contentOrientation = DEFAULT_DOCUMENT_ORIENTATION,
   contentMaxWidth,
@@ -69,6 +70,7 @@ export function PageTemplate({
   onPathClick,
   breadcrumbRootIconVariant = 'default',
   saving = false,
+  isPreview = false,
   loading = false,
   error,
   onRetry,
@@ -135,7 +137,7 @@ export function PageTemplate({
       description={description}
       extraActions={headerExtraActions}
       extraActionsPosition={headerExtraActionsPosition}
-      editorInlineSlot={headerEditorInlineSlot}
+      editorRightSlot={headerEditorRightSlot}
       editorPreviewSlot={headerEditorPreviewSlot}
       onEdit={onEdit}
       onSave={onSave}
@@ -143,6 +145,7 @@ export function PageTemplate({
       onDelete={onDelete}
       onHistory={onHistory}
       saving={saving}
+      isPreview={isPreview}
     />
   );
 
