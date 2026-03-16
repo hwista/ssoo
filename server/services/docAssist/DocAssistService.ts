@@ -35,14 +35,15 @@ function tokenize(value: string): string[] {
 }
 
 function buildRelevanceWarnings(instruction: string, files: SummaryFileInput[]): string[] {
-  if (files.length <= 1) return [];
+  if (files.length === 0) return [];
   const baseTerms = new Set(tokenize(instruction));
+  const minOverlap = baseTerms.size <= 3 ? 1 : 2;
   const warnings: string[] = [];
 
   for (const file of files) {
-    const terms = tokenize(file.textContent).slice(0, 80);
+    const terms = tokenize(file.textContent).slice(0, 200);
     const overlap = terms.filter((term) => baseTerms.has(term)).length;
-    if (overlap < 2) {
+    if (overlap < minOverlap) {
       warnings.push(`'${file.name}' 파일은 현재 지시와의 연결이 약해 보여 결과 품질이 떨어질 수 있습니다.`);
     }
   }
