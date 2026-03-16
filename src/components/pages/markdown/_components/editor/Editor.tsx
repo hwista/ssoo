@@ -58,6 +58,8 @@ export interface EditorProps {
 export interface EditorRef {
   applyCommand: (id: ToolbarCommandId) => void;
   focus: () => void;
+  /** 현재 에디터의 markdown 텍스트 반환 */
+  getMarkdown: () => string;
 }
 
 /**
@@ -163,7 +165,8 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     focus: () => {
       blockEditorRef.current?.focus();
     },
-  }), []);
+    getMarkdown: () => editorContent,
+  }), [editorContent]);
 
   const isCreateMode = !currentFilePath && isEditing;
   const { handleSave, handleCancel } = useEditorPersistence({
