@@ -52,7 +52,7 @@ export function AttachmentsSection({
             return (
               <div
                 key={`${attachment.path}-${attachment.name}`}
-                className="rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary"
+                className="rounded-md border border-ssoo-content-border px-2.5 py-2 text-sm text-ssoo-primary"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate">{attachment.name}</span>
@@ -63,7 +63,7 @@ export function AttachmentsSection({
                     type="button"
                     onClick={() => void onOpen(attachment)}
                     disabled={isOpening}
-                    className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary disabled:opacity-60"
+                    className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-xs hover:border-ssoo-primary disabled:opacity-60"
                   >
                     <ExternalLink className="h-3 w-3" />
                     {isOpening ? 'Opening...' : 'Open'}
@@ -71,7 +71,7 @@ export function AttachmentsSection({
                   <button
                     type="button"
                     onClick={() => void onCopyUri(attachment)}
-                    className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary"
+                    className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-xs hover:border-ssoo-primary"
                   >
                     <Copy className="h-3 w-3" />
                     URI
@@ -80,7 +80,7 @@ export function AttachmentsSection({
                     type="button"
                     onClick={() => void onResync(attachment)}
                     disabled={isResyncing}
-                    className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-[11px] hover:border-ssoo-primary disabled:opacity-60"
+                    className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-xs hover:border-ssoo-primary disabled:opacity-60"
                   >
                     <RefreshCw className={cn('h-3 w-3', isResyncing && 'animate-spin')} />
                     Resync

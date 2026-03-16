@@ -16,6 +16,8 @@ export interface DiffTextInputProps {
   rows?: number;
   /** 추가 className (외곽 컨테이너) */
   className?: string;
+  /** 세로 리사이즈 허용 */
+  resizable?: boolean;
 }
 
 /**
@@ -31,6 +33,7 @@ export function DiffTextInput({
   placeholder,
   rows = 3,
   className,
+  resizable = false,
 }: DiffTextInputProps) {
   const hasChanges = originalValue !== undefined && value !== originalValue;
 
@@ -47,7 +50,7 @@ export function DiffTextInput({
         onChange={onChange}
         placeholder={placeholder}
         rows={rows}
-        className={`w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs text-ssoo-primary leading-relaxed focus:border-ssoo-primary focus:outline-none ${className ?? ''}`}
+        className={`w-full rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-sm text-ssoo-primary leading-relaxed focus:border-ssoo-primary focus:outline-none ${resizable ? 'resize-y' : 'resize-none'} ${className ?? ''}`}
       />
     );
   }
@@ -71,7 +74,7 @@ export function DiffTextInput({
       <div
         ref={overlayRef}
         aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded border border-transparent px-2 py-1.5 text-xs leading-relaxed whitespace-pre-wrap break-words"
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded border border-transparent px-2 py-1.5 text-sm leading-relaxed whitespace-pre-wrap break-words"
       >
         {diffSegments.map(([op, text], i) => {
           if (op === diff.EQUAL) return <span key={i} className="text-ssoo-primary">{text}</span>;
@@ -88,7 +91,7 @@ export function DiffTextInput({
         onScroll={handleScroll}
         placeholder={placeholder}
         rows={rows}
-        className="relative w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs leading-relaxed text-transparent caret-ssoo-primary selection:bg-blue-200/50 focus:border-ssoo-primary focus:outline-none"
+        className={`relative w-full rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-sm leading-relaxed text-transparent caret-ssoo-primary selection:bg-blue-200/50 focus:border-ssoo-primary focus:outline-none ${resizable ? 'resize-y' : 'resize-none'}`}
       />
     </div>
   );
