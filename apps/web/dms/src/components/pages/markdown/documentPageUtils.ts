@@ -3,7 +3,13 @@ import type { DocumentMetadata } from '@/types';
 import type { DocumentSidecarMetadata } from './_components/DocumentSidecar';
 
 export function getDocumentFilePath(tabPath: string | undefined): string | null {
-  if (!tabPath || tabPath === '/wiki/new') return null;
+  if (
+    !tabPath ||
+    tabPath === '/wiki/new' ||
+    tabPath === '/wiki/new-wiki' ||
+    tabPath === '/wiki/new-template' ||
+    tabPath === '/wiki/new-ai-summary'
+  ) return null;
 
   const path = tabPath.replace(/^\/doc\//, '');
   try {

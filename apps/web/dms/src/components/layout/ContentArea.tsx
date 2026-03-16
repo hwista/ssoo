@@ -68,7 +68,7 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
   
   if (tab.id === HOME_TAB.id) return 'home';
   if (tab.path.startsWith('/doc/')) return 'markdown';
-  if (tab.path === '/wiki/new') return 'markdown';
+  if (tab.path.startsWith('/wiki/new')) return 'markdown';
   if (tab.path.startsWith('/ai/chat')) return 'aiChat';
   if (tab.path.startsWith('/ai/search')) return 'aiSearch';
   if (tab.path === '/settings') return 'settings';

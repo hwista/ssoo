@@ -1,8 +1,24 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-03-13
+> 최종 업데이트: 2026-03-16
 
 ---
+
+## 2026-03-16
+
+### 새 문서 런처 페이지 (Obsidian 스타일)
+
+- **NewDocumentLauncher** 신규 생성 (`components/pages/markdown/_components/NewDocumentLauncher.tsx`)
+  - Header "새 도큐먼트" 클릭 시 새 탭에 Obsidian 스타일 런처 페이지 렌더링
+  - 4가지 액션 링크: AI 요약, 위키 문서, 템플릿 문서, 닫기
+- **진입점 경로 분기**: `/wiki/new` (런처), `/wiki/new-wiki`, `/wiki/new-template`, `/wiki/new-ai-summary`
+- **new-doc.store.ts** 신규 생성: AI 요약 파일 데이터 전달용 transient Zustand 스토어
+- **AI 요약 원클릭 플로우**: 파일 선택 → `docAssistApi.compose()` 자동 실행 → 에디터에 결과 바인딩
+  - 로딩 스피너 표시 (AI 응답 대기 중)
+  - 생성 직후 unsaved 상태로 표시
+- **템플릿 토글 이동**: 새 문서 생성 모드에서 제거, 기존 문서 편집 모드에서만 표시
+- **Header 단순화**: 드롭다운 메뉴 제거 → 단일 버튼으로 런처 탭 오픈
+- **ContentArea 라우팅**: `/wiki/new*` prefix 매칭으로 모든 새 문서 경로 지원
 
 ## 2026-03-13
 
