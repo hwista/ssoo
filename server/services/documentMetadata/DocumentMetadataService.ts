@@ -61,6 +61,7 @@ class DocumentMetadataService {
       comments: existing?.comments ?? [],
       templateId: existing?.templateId ?? 'default',
       author: existing?.author ?? 'Unknown',
+      lastModifiedBy: existing?.author ?? 'Unknown',
     };
   }
 
