@@ -84,9 +84,9 @@ export function DocumentInfoSection({
     { label: '수정자', icon: <Pencil className="mr-1 h-3.5 w-3.5" />, value: metadata.lastModifiedBy, hidden: !metadata.lastModifiedBy },
     { label: '수정일', icon: <Calendar className="mr-1 h-3.5 w-3.5" />, value: formatDate(metadata.updatedAt), hidden: !metadata.updatedAt },
     { label: '수정 시간', indent: true, value: formatTime(metadata.updatedAt), hidden: !metadata.updatedAt },
-    { label: '줄 수', value: metadata.lineCount?.toLocaleString(), hidden: metadata.lineCount === undefined },
-    { label: '문자 수', value: metadata.charCount?.toLocaleString(), hidden: metadata.charCount === undefined },
-    { label: '단어 수', value: metadata.wordCount?.toLocaleString(), hidden: metadata.wordCount === undefined },
+    { label: '줄 수', value: metadata.lineCount?.toLocaleString(), hidden: metadata.lineCount === undefined || editable },
+    { label: '문자 수', value: metadata.charCount?.toLocaleString(), hidden: metadata.charCount === undefined || editable },
+    { label: '단어 수', value: metadata.wordCount?.toLocaleString(), hidden: metadata.wordCount === undefined || editable },
   ];
 
   return (
