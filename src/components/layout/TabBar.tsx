@@ -172,7 +172,7 @@ export function TabBar() {
             >
               <button
                 onClick={() => activateTab(tab.id)}
-                className="flex items-center gap-1.5"
+                className="flex flex-1 items-center gap-1.5"
               >
                 {isTabEditing ? (
                   <FilePenLine className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary/80' : 'text-ssoo-primary/70'}`} />
@@ -212,7 +212,7 @@ export function TabBar() {
                     }
                     closeTab(tab.id);
                   }}
-                  className={`h-control-h-sm w-control-h-sm flex items-center justify-center opacity-0 group-hover:opacity-100 rounded transition-opacity ${
+                  className={`h-control-h-sm w-control-h-sm flex items-center justify-center rounded transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${
                     isActive ? 'hover:bg-ssoo-primary/20' : 'hover:bg-gray-200'
                   }`}
                 >
