@@ -82,6 +82,8 @@ export const ATTACHMENT_ALLOWED_EXTENSIONS = new Set(ATTACHMENT_TYPES.map((t) =>
 
 export const ATTACHMENT_STORAGE_DIR = '_assets/attachments';
 
+export const REFERENCE_STORAGE_DIR = '_assets/references';
+
 export function getAttachmentCategory(fileName: string): AttachmentCategory | null {
   const ext = fileName.lastIndexOf('.') >= 0 ? fileName.slice(fileName.lastIndexOf('.')).toLowerCase() : '';
   const info = ATTACHMENT_TYPES.find((t) => t.ext === ext);

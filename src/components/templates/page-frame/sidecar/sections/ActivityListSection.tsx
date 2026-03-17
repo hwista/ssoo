@@ -21,7 +21,7 @@ export interface ActivityItem {
   id: string;
   title: string;
   content?: string;
-  meta?: string;
+  meta?: React.ReactNode;
   active?: boolean;
   actions?: ActivityAction[];
   /** 아이템 타이틀 왼쪽에 표시할 아이콘 */

@@ -1,6 +1,6 @@
 'use client';
 
-import { FileUp, Paperclip, Shapes, X } from 'lucide-react';
+import { Check, FileUp, Paperclip, Shapes, X } from 'lucide-react';
 import { useAssistantContextStore } from '@/stores';
 import type { TemplateItem } from '@/types/template';
 import type { InlineSummaryFileItem } from './Picker';
@@ -11,6 +11,10 @@ interface AssistantReferenceChipsProps {
   inlineTemplate?: TemplateItem | null;
   inlineSummaryFiles?: InlineSummaryFileItem[];
   inlineWarnings?: string[];
+  /** IDs of summary files that have been used in AI compose (synced to sidecar) */
+  usedSummaryFileIds?: Set<string>;
+  /** Whether the template has been used in AI compose */
+  isTemplateUsed?: boolean;
   onInlineRemoveTemplate?: () => void;
   onInlineRemoveSummaryFile?: (id: string) => void;
   onInlineClearAll?: () => void;
@@ -22,6 +26,8 @@ export function AssistantReferenceChips({
   inlineTemplate,
   inlineSummaryFiles,
   inlineWarnings,
+  usedSummaryFileIds,
+  isTemplateUsed,
   onInlineRemoveTemplate,
   onInlineRemoveSummaryFile,
   onInlineClearAll,
@@ -86,11 +92,16 @@ export function AssistantReferenceChips({
         {template ? (
           <span
             key={template.id}
-            className="inline-flex max-w-full items-center gap-1 rounded-full border border-ssoo-content-border bg-white px-2 py-1 text-[11px] text-ssoo-primary"
+            className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-[11px] ${
+              isTemplateUsed
+                ? 'border-purple-300 bg-purple-50 text-purple-700'
+                : 'border-ssoo-content-border bg-white text-ssoo-primary'
+            }`}
             title={template.name}
           >
             <Shapes className="h-3 w-3" />
             <span className="max-w-[180px] truncate">템플릿: {template.name}</span>
+            {isTemplateUsed && <Check className="h-3 w-3 text-purple-500" />}
             <button
               type="button"
               disabled={disabled}
@@ -103,25 +114,33 @@ export function AssistantReferenceChips({
           </span>
         ) : null}
 
-        {summaryFiles.map((file) => (
-          <span
-            key={file.id}
-            className="inline-flex max-w-full items-center gap-1 rounded-full border border-ssoo-content-border bg-white px-2 py-1 text-[11px] text-ssoo-primary"
-            title={file.name}
-          >
-            <FileUp className="h-3 w-3" />
-            <span className="max-w-[180px] truncate">파일: {file.name}</span>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => onInlineRemoveSummaryFile?.(file.id)}
-              className="rounded p-0.5 text-ssoo-primary/70 hover:bg-ssoo-content-border/40 hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label={`파일 해제: ${file.name}`}
+        {summaryFiles.map((file) => {
+          const isUsed = usedSummaryFileIds?.has(file.id) ?? false;
+          return (
+            <span
+              key={file.id}
+              className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-[11px] ${
+                isUsed
+                  ? 'border-blue-300 bg-blue-50 text-blue-700'
+                  : 'border-ssoo-content-border bg-white text-ssoo-primary'
+              }`}
+              title={file.name}
             >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
+              <FileUp className="h-3 w-3" />
+              <span className="max-w-[180px] truncate">파일: {file.name}</span>
+              {isUsed && <Check className="h-3 w-3 text-blue-500" />}
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onInlineRemoveSummaryFile?.(file.id)}
+                className="rounded p-0.5 text-ssoo-primary/70 hover:bg-ssoo-content-border/40 hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label={`파일 해제: ${file.name}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          );
+        })}
       </div>
 
       {warnings.length > 0 && (
