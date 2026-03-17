@@ -39,7 +39,13 @@ export function NewDocumentLauncher({
       files.map(async (file) => {
         let textContent = '';
         try {
-          textContent = (await file.text()).slice(0, 12000);
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await fetch('/api/file/extract-text', { method: 'POST', body: formData });
+          if (res.ok) {
+            const data = await res.json();
+            textContent = typeof data?.textContent === 'string' ? data.textContent : '';
+          }
         } catch {
           textContent = '';
         }
