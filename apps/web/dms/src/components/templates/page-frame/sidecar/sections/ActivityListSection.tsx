@@ -24,6 +24,8 @@ export interface ActivityItem {
   meta?: string;
   active?: boolean;
   actions?: ActivityAction[];
+  /** 아이템 타이틀 왼쪽에 표시할 아이콘 */
+  icon?: React.ReactNode;
 }
 
 export interface ActivityListSectionProps {
@@ -120,26 +122,32 @@ export function ActivityListSection({
                 {onItemClick && !isDeleted ? (
                   <button
                     type="button"
-                    className="min-w-0 flex-1 rounded-md px-1 py-1 text-left"
+                    className="min-w-0 flex-1 rounded-md px-1 py-1 text-left flex items-start gap-1.5"
                     onClick={() => onItemClick(item)}
                   >
-                    <p className={cn(titleCls, isDeleted && 'line-through text-destructive/60')}>{item.title}</p>
-                    {item.content ? (
-                      <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
-                    ) : null}
-                    {item.meta ? (
-                      <p className="mt-0.5 text-xs text-ssoo-primary/60">{item.meta}</p>
-                    ) : null}
+                    {item.icon && <span className="mt-0.5 shrink-0">{item.icon}</span>}
+                    <div className="min-w-0 flex-1">
+                      <p className={cn(titleCls, isDeleted && 'line-through text-destructive/60')}>{item.title}</p>
+                      {item.content ? (
+                        <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
+                      ) : null}
+                      {item.meta ? (
+                        <p className="mt-0.5 text-xs text-ssoo-primary/60">{item.meta}</p>
+                      ) : null}
+                    </div>
                   </button>
                 ) : (
-                  <div className="min-w-0 flex-1 px-1 py-1">
-                    <p className={cn(titleCls, isDeleted && 'line-through text-destructive/60')}>{item.title}</p>
-                    {item.content ? (
-                      <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
-                    ) : null}
-                    {item.meta ? (
-                      <p className="mt-0.5 text-xs text-ssoo-primary/60">{item.meta}</p>
-                    ) : null}
+                  <div className="min-w-0 flex-1 px-1 py-1 flex items-start gap-1.5">
+                    {item.icon && <span className="mt-0.5 shrink-0">{item.icon}</span>}
+                    <div className="min-w-0 flex-1">
+                      <p className={cn(titleCls, isDeleted && 'line-through text-destructive/60')}>{item.title}</p>
+                      {item.content ? (
+                        <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
+                      ) : null}
+                      {item.meta ? (
+                        <p className="mt-0.5 text-xs text-ssoo-primary/60">{item.meta}</p>
+                      ) : null}
+                    </div>
                   </div>
                 )}
                 {isDeleted && onItemRestore ? (

@@ -43,6 +43,8 @@ export interface EditorProps {
   showToolbar?: boolean;
   /** AI 삽입 대기 중 로딩 표시 여부 */
   isPendingInsertLoading?: boolean;
+  /** 콘텐츠 변경 콜백 (실시간 동기화용) */
+  onContentChange?: (content: string) => void;
   /** 위키 문서 대신 템플릿만 저장할지 여부 */
   templateSaveEnabled?: boolean;
   /** 템플릿 저장 메타데이터 */
@@ -60,6 +62,10 @@ export interface EditorRef {
   focus: () => void;
   /** 현재 에디터의 markdown 텍스트 반환 */
   getMarkdown: () => string;
+  /** 업로드 대기 중인 이미지 (blob URL → File) */
+  getPendingImages: () => Map<string, File>;
+  /** 대기 중인 이미지 목록 초기화 (업로드 완료 후 호출) */
+  clearPendingImages: () => void;
 }
 
 /**
@@ -84,12 +90,12 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   isPreview = false,
   showToolbar = true,
   isPendingInsertLoading = false,
+  onContentChange,
   templateSaveEnabled = false,
   templateSaveDraft,
   onTemplateSaved,
 }: EditorProps, ref) {
   const { showSuccess, showError } = useToast();
-  const interactions = useEditorInteractions();
   
   // Store에서 상태 가져오기
   const {
@@ -107,6 +113,8 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     setHasUnsavedChanges: setStoreHasUnsavedChanges,
     setIsSaving: setStoreIsSaving,
   } = useEditorStore();
+
+  const interactions = useEditorInteractions(currentFilePath);
 
   // 탭 ID (keep-alive context) + 탭 스토어 (새 문서 저장 시 탭 업데이트용)
   const tabId = useTabInstanceId();
@@ -142,6 +150,10 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     setStoreIsSaving(isSaving);
   }, [isSaving, setStoreIsSaving]);
 
+  React.useEffect(() => {
+    onContentChange?.(editorContent);
+  }, [editorContent, onContentChange]);
+
   // 파일 내용 변경 시 에디터 리셋
   React.useEffect(() => {
     resetContent(content);
@@ -167,9 +179,45 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       blockEditorRef.current?.focus();
     },
     getMarkdown: () => editorContent,
-  }), [editorContent]);
+    getPendingImages: () => new Map(interactions.pendingImagesRef.current),
+    clearPendingImages: () => interactions.clearPendingImages(),
+  }), [editorContent, interactions]);
 
   const isCreateMode = !currentFilePath && isEditing;
+  // blob URL → 실제 경로 치환 (이미지 업로드 지연 처리)
+  const transformBeforeSave = React.useCallback(async (markdown: string): Promise<string> => {
+    const pending = interactions.pendingImagesRef.current;
+    if (pending.size === 0) return markdown;
+
+    let result = markdown;
+    const entries = Array.from(pending.entries());
+
+    for (const [blobUrl, file] of entries) {
+      if (!result.includes(blobUrl)) {
+        // 마크다운에서 이미 제거된 이미지는 업로드하지 않음
+        pending.delete(blobUrl);
+        URL.revokeObjectURL(blobUrl);
+        continue;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/file/upload-image', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (res.ok && data.path) {
+        result = result.replaceAll(blobUrl, data.path);
+      }
+      // 업로드 성공이든 실패든 pending에서 제거
+      pending.delete(blobUrl);
+      URL.revokeObjectURL(blobUrl);
+    }
+
+    return result;
+  }, [interactions.pendingImagesRef]);
+
+  const hasPendingImages = interactions.pendingImagesRef.current.size > 0;
+
   const { handleSave, handleCancel } = useEditorPersistence({
     state: {
       content,
@@ -202,6 +250,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       showError,
       requestCreatePath: interactions.requestCreatePath,
       requestSaveLocation: interactions.requestSaveLocation,
+      transformBeforeSave: hasPendingImages ? transformBeforeSave : undefined,
     },
   });
 

@@ -4,6 +4,11 @@
 
 ### Features
 
+* **web-dms:** 본문 링크 sidecar 싱크 — 마크다운 본문의 링크/이미지를 실시간 추출하여 sidecar 링크 섹션에 자동 반영
+* **web-dms:** 이미지 삽입 다이얼로그 — URL 입력 + 로컬 파일 업로드 탭, 이미지 업로드는 문서 저장 시 지연 처리
+* **web-dms:** 링크 삽입 다이얼로그 — URL 입력 + 내부 문서 파일트리 선택 (FilePickerTree 공통 컴포넌트)
+* **web-dms:** 이미지 미리보기 모달 — sidecar 이미지 링크 클릭 시 모달 표시, 전체화면 lightbox (react-zoom-pan-pinch: 휠 줌/드래그 팬/더블클릭 리셋/컨트롤바)
+* **web-dms:** 위키 내부 이미지 서빙 API (`/api/file/raw`)
 * **web-dms:** Docker 배포 지원 — Dockerfile (multi-stage standalone), compose.yaml (pgvector + DMS 서비스)
 * **web-dms:** 서버 시작 시 pgvector 확장 및 임베딩 테이블 자동 초기화 (instrumentation.ts)
 * **web-dms:** 변경 하이라이팅 시스템 — 에디터 문자 수준 diff (fast-diff), DiffTextInput 공용 컴포넌트
@@ -11,6 +16,14 @@
 * **web-dms:** AI 태그 추천 + 요약 생성 (WandButton)
 * **web-dms:** Obsidian 스타일 새 문서 런처 페이지
 * **web-dms:** AI 요약 원클릭 플로우
+
+### Improvements
+
+* **web-dms:** sidecar 링크 섹션 아이콘 — Globe(외부)/FileText(내부 문서)/Image(이미지) 타입별 구분
+* **web-dms:** 링크 본문 찾기 — sidecar에서 ↳ 버튼 클릭 시 뷰어/에디터 내 해당 링크로 스크롤 + 하이라이팅
+* **web-dms:** 내부 문서 링크 클릭 시 새 탭으로 열기, 외부 링크는 브라우저로 열기
+* **web-dms:** 이미지/링크/문서경로 설정 모달 크기 통일 (max-w-lg h-[480px])
+* **web-dms:** bare path 링크 해석 개선 — `goals.md` 같은 상대 경로를 현재 파일 디렉토리 기준으로 해석
 
 ### Improvements
 

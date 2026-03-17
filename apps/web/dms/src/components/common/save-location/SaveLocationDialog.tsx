@@ -66,7 +66,7 @@ export function SaveLocationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg h-[480px] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isNewDocument ? '새 문서 저장' : '문서 경로 설정'}</DialogTitle>
           <DialogDescription>
@@ -94,12 +94,12 @@ export function SaveLocationDialog({
         </div>
 
         {/* 저장 위치 선택 */}
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
           <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
             <Folder className="h-3.5 w-3.5" />
             저장 위치
           </label>
-          <div className="max-h-48 overflow-y-auto rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30">
+          <div className="flex-1 min-h-0 overflow-y-auto rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30">
             <FolderPickerTree
               files={files}
               selectedPath={directory}

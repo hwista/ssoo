@@ -55,6 +55,8 @@ interface EditorPersistenceDeps {
     fileName: string;
     isNewDocument: boolean;
   }) => Promise<CreatePathResult | null>;
+  /** 저장 직전 콘텐츠 변환 (예: blob URL → 실제 경로 치환) */
+  transformBeforeSave?: (content: string) => Promise<string>;
 }
 
 function deriveTemplateName(params: {
@@ -82,6 +84,11 @@ export function useEditorPersistence({
   deps: EditorPersistenceDeps;
 }) {
   const handleSave = React.useCallback(async () => {
+    // blob URL 등 변환이 필요한 경우 적용
+    const finalContent = deps.transformBeforeSave
+      ? await deps.transformBeforeSave(state.editorContent)
+      : state.editorContent;
+
     if (state.templateSaveEnabled) {
       const name = state.templateSaveDraft?.name.trim() || deriveTemplateName({
         editorContent: state.editorContent,
@@ -89,7 +96,7 @@ export function useEditorPersistence({
         preferredCreatePath: state.preferredCreatePath,
       });
 
-      if (!state.editorContent.trim()) {
+      if (!finalContent.trim()) {
         deps.showError('저장 실패', '비어 있는 문서는 템플릿으로 저장할 수 없습니다.');
         return;
       }
@@ -100,7 +107,7 @@ export function useEditorPersistence({
           description: state.templateSaveDraft?.description.trim() || '',
           scope: state.templateSaveDraft?.scope ?? 'personal',
           kind: 'document',
-          content: state.editorContent,
+          content: finalContent,
         });
 
         if (!response.success) {
@@ -135,7 +142,7 @@ export function useEditorPersistence({
       const resolvedPath = result.path.endsWith('.md') ? result.path : `${result.path}.md`;
 
       try {
-        await actions.storeSaveFile(resolvedPath, state.editorContent);
+        await actions.storeSaveFile(resolvedPath, finalContent);
         if (result.title) {
           actions.setMetadataTitle(result.title);
         }
@@ -158,7 +165,13 @@ export function useEditorPersistence({
     }
 
     try {
-      await actions.save();
+      // 변환된 콘텐츠가 있으면 직접 storeSaveFile 호출
+      if (deps.transformBeforeSave) {
+        await actions.storeSaveFile(state.currentFilePath, finalContent);
+        actions.resetContent(finalContent);
+      } else {
+        await actions.save();
+      }
       actions.setIsEditing(false);
       deps.showSuccess('저장 완료', '파일이 저장되었습니다.');
     } catch {

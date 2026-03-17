@@ -11,3 +11,7 @@ export type { LoadingStateProps, LoadingSpinnerProps, ErrorStateProps, EmptyStat
 
 // 다이얼로그
 export { ConfirmDialog } from './ConfirmDialog';
+
+// 이미지 미리보기
+export { ImagePreviewDialog } from './ImagePreviewDialog';
+export type { ImagePreviewDialogProps } from './ImagePreviewDialog';

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, ImageIcon, Bookmark } from 'lucide-react';
 import { useFileStore, useSidebarStore, useTabStore, useActiveEditorFilePath } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
+import { filterFileTree } from '@/lib/utils/fileTree';
 import type { FileNode } from '@/types';
 
 interface FileTreeNodeProps {
@@ -173,26 +174,6 @@ function sortNodes(nodes: FileNode[]): FileNode[] {
 /**
  * 검색 필터링
  */
-function filterTree(nodes: FileNode[], query: string): FileNode[] {
-  if (!query.trim()) return nodes;
-  
-  const lowerQuery = query.toLowerCase();
-  
-  return nodes.reduce<FileNode[]>((acc, node) => {
-    const matchesName = node.name.toLowerCase().includes(lowerQuery);
-    const filteredChildren = node.children ? filterTree(node.children, query) : [];
-    
-    if (matchesName || filteredChildren.length > 0) {
-      acc.push({
-        ...node,
-        children: filteredChildren.length > 0 ? filteredChildren : node.children,
-      });
-    }
-    
-    return acc;
-  }, []);
-}
-
 /**
  * 사이드바 전체 파일 트리 (PMS MenuTree 스타일)
  */
@@ -201,7 +182,7 @@ export function FileTree() {
   const { searchQuery } = useSidebarStore();
   
   const displayTree = useMemo(() => {
-    const filtered = searchQuery ? filterTree(files, searchQuery) : files;
+    const filtered = searchQuery ? filterFileTree(files, searchQuery) : files;
     return sortNodes(filtered);
   }, [files, searchQuery]);
 

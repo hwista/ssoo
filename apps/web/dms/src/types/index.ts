@@ -8,6 +8,7 @@ export type {
   DocumentComment,
   SourceFileMeta,
   DocumentVersionEntry,
+  BodyLink,
 } from './document-metadata';
 
 export type {
