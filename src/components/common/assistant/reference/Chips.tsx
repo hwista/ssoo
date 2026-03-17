@@ -94,7 +94,7 @@ export function AssistantReferenceChips({
             key={template.id}
             className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-[11px] ${
               isTemplateUsed
-                ? 'border-ssoo-content-border bg-ssoo-content-border/30 text-ssoo-primary'
+                ? 'border-ssoo-content-border bg-ssoo-content-border text-ssoo-primary'
                 : 'border-ssoo-content-border bg-white text-ssoo-primary'
             }`}
             title={template.name}
@@ -121,7 +121,7 @@ export function AssistantReferenceChips({
               key={file.id}
               className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-[11px] ${
                 isUsed
-                  ? 'border-ssoo-content-border bg-ssoo-content-border/30 text-ssoo-primary'
+                  ? 'border-ssoo-content-border bg-ssoo-content-border text-ssoo-primary'
                   : 'border-ssoo-content-border bg-white text-ssoo-primary'
               }`}
               title={file.name}
