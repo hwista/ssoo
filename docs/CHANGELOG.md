@@ -4,6 +4,8 @@
 
 ### Features
 
+* **web-dms:** Docker 배포 지원 — Dockerfile (multi-stage standalone), compose.yaml (pgvector + DMS 서비스)
+* **web-dms:** 서버 시작 시 pgvector 확장 및 임베딩 테이블 자동 초기화 (instrumentation.ts)
 * **web-dms:** 변경 하이라이팅 시스템 — 에디터 문자 수준 diff (fast-diff), DiffTextInput 공용 컴포넌트
 * **web-dms:** 사이드카 소프트 삭제 + 되돌리기 (태그/URL/댓글)
 * **web-dms:** AI 태그 추천 + 요약 생성 (WandButton)

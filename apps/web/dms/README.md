@@ -113,7 +113,7 @@ apps/web/dms/
 
 ## 🛠 개발 명령어
 
-```powershell
+```bash
 # 개발 서버 실행
 pnpm dev:web-dms
 
@@ -129,6 +129,18 @@ pnpm build:web-dms
 ```
 http://localhost:3001
 ```
+
+### Docker 배포
+
+```bash
+# 전체 스택 (PostgreSQL + DMS)
+docker compose up --build -d
+
+# 로그 확인
+docker compose logs -f dms
+```
+
+> 상세 가이드: [docs/dms/guides/deployment.md](../../docs/dms/guides/deployment.md)
 
 ---
 

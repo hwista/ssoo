@@ -1,6 +1,6 @@
 # DMS 개발 가이드
 
-> 최종 업데이트: 2026-02-24
+> 최종 업데이트: 2026-03-17
 
 DMS 개발 시 참고할 정본 가이드 인덱스입니다.
 
@@ -11,6 +11,7 @@ DMS 개발 시 참고할 정본 가이드 인덱스입니다.
 | 문서 | 설명 |
 |------|------|
 | [getting-started.md](getting-started.md) | 개발 환경 설정/실행 |
+| [deployment.md](deployment.md) | Docker 배포 가이드 |
 | [api.md](api.md) | 운영 API + 계획 API |
 | [components.md](components.md) | 컴포넌트 구조/패턴 |
 | [hooks.md](hooks.md) | 커스텀 훅 가이드 |
@@ -71,4 +72,5 @@ npm run dev
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-03-17 | Docker 배포 가이드 추가 (deployment.md) |
 | 2026-02-24 | API 예시/경로를 현행 코드 기준으로 수정, 정책 문서 링크 추가 |
