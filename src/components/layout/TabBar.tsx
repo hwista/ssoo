@@ -160,6 +160,7 @@ export function TabBar() {
             <div
               key={tab.id}
               draggable
+              onClick={() => activateTab(tab.id)}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDragEnd={handleDragEnd}
