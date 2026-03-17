@@ -556,7 +556,6 @@ export function DocumentPage() {
           return isEditorMode ? (
             <SectionedShell
               variant="editor_with_footer"
-              borderColorClass={hasUnsavedChanges ? 'border-destructive/40' : undefined}
               toolbar={(
                 <EditorToolbar
                   disabled={isPreview}
@@ -564,7 +563,12 @@ export function DocumentPage() {
                 />
               )}
               body={(
-                <div className="h-full min-h-0 overflow-hidden">
+                <div className="relative h-full min-h-0 overflow-hidden">
+                  {hasUnsavedChanges && (
+                    <span className="absolute top-2 right-4 z-10 rounded-full bg-destructive/15 px-2 py-0.5 text-xs text-destructive/60 pointer-events-none select-none">
+                      수정됨
+                    </span>
+                  )}
                   {contentBody}
                 </div>
               )}

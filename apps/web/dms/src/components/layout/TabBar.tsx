@@ -175,16 +175,14 @@ export function TabBar() {
                 className="flex items-center gap-1.5"
               >
                 {isTabEditing ? (
-                  <FilePenLine className={`w-4 h-4 flex-shrink-0 ${hasUnsavedChanges ? 'text-destructive/60' : isActive ? 'text-ssoo-primary/80' : 'text-ssoo-primary/70'}`} />
+                  <FilePenLine className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary/80' : 'text-ssoo-primary/70'}`} />
                 ) : (
                   <IconComponent className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
                 )}
                 <span
                   className={`text-sm truncate max-w-[120px] ${
-                    hasUnsavedChanges
-                      ? 'text-destructive/60 font-medium italic'
-                      : isActive ? 'text-ssoo-primary font-medium' : 'text-gray-600'
-                  }`}
+                    isActive ? 'text-ssoo-primary font-medium' : 'text-gray-600'
+                  } ${hasUnsavedChanges ? 'italic' : ''}`}
                 >
                   {tab.title}
                 </span>
