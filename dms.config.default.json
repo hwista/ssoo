@@ -28,5 +28,12 @@
     "queuePath": "./data/ingest",
     "autoPublish": false,
     "maxConcurrentJobs": 2
+  },
+  "extraction": {
+    "maxTextLength": 12000,
+    "maxImages": 5,
+    "maxImageSizeMb": 1,
+    "pdfMaxRenderPages": 3,
+    "pdfRenderScale": 1.0
   }
 }

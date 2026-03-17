@@ -35,6 +35,18 @@ export function DiffTextInput({
   className,
   resizable = false,
 }: DiffTextInputProps) {
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const overlayRef = React.useRef<HTMLDivElement>(null);
+
+  const handleScroll = React.useCallback(() => {
+    const ta = textareaRef.current;
+    const ov = overlayRef.current;
+    if (ta && ov) {
+      ov.scrollTop = ta.scrollTop;
+      ov.scrollLeft = ta.scrollLeft;
+    }
+  }, []);
+
   const hasChanges = originalValue !== undefined && value !== originalValue;
 
   const diffSegments = React.useMemo(() => {
@@ -54,18 +66,6 @@ export function DiffTextInput({
       />
     );
   }
-
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-  const overlayRef = React.useRef<HTMLDivElement>(null);
-
-  const handleScroll = React.useCallback(() => {
-    const ta = textareaRef.current;
-    const ov = overlayRef.current;
-    if (ta && ov) {
-      ov.scrollTop = ta.scrollTop;
-      ov.scrollLeft = ta.scrollLeft;
-    }
-  }, []);
 
   // 변경 있음 — diff overlay
   return (
