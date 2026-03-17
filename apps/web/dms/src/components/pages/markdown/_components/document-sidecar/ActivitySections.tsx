@@ -167,7 +167,7 @@ export function AttachmentsSection({
       ? (
         <span className="flex items-center gap-1.5">
           <span>{formatSize(attachment.size)}</span>
-          <span className="inline-flex items-center gap-0.5 rounded-full border border-ssoo-content-border bg-ssoo-content-border/30 px-1.5 py-0.5 text-[10px] font-medium leading-none text-ssoo-primary">
+          <span className="inline-flex items-center gap-0.5 rounded-full border border-ssoo-content-border bg-ssoo-content-border px-1.5 py-0.5 text-[10px] font-medium leading-none text-ssoo-primary">
             <Link2 className="h-2.5 w-2.5" />
             {badgeLabel}
           </span>
