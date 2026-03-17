@@ -80,6 +80,12 @@ export const aiApi = {
   },
 };
 
+export interface DocAssistTitleAndPathResponse {
+  suggestedTitle: string;
+  suggestedDirectory: string;
+  suggestedFileName: string;
+}
+
 export const docAssistApi = {
   compose: async (payload: {
     instruction: string;
@@ -104,6 +110,15 @@ export const docAssistApi = {
     return request('/api/doc-assist', {
       method: 'POST',
       body: { action: 'recommendPath', ...payload },
+    });
+  },
+  recommendTitleAndPath: async (payload: {
+    currentContent: string;
+    activeDocPath?: string;
+  }): Promise<ApiResponse<DocAssistTitleAndPathResponse>> => {
+    return request('/api/doc-assist', {
+      method: 'POST',
+      body: { action: 'recommendTitleAndPath', ...payload },
     });
   },
 };

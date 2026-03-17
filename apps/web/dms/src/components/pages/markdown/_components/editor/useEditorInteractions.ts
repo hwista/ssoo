@@ -20,7 +20,7 @@ export interface EditorInteractionDeps {
   dialogs: React.ReactNode;
 }
 
-export function useEditorInteractions(currentFilePath?: string | null): EditorInteractionDeps {
+export function useEditorInteractions(currentFilePath?: string | null, getEditorContent?: () => string): EditorInteractionDeps {
   const {
     requestCreatePath,
     requestSaveLocation,
@@ -29,7 +29,7 @@ export function useEditorInteractions(currentFilePath?: string | null): EditorIn
     pendingImagesRef,
     clearPendingImages,
     createPathDialog,
-  } = useEditorCreatePathDialog(currentFilePath);
+  } = useEditorCreatePathDialog(currentFilePath, getEditorContent);
 
   const openExternalHref = React.useCallback((href: string) => {
     if (typeof window === 'undefined') return;

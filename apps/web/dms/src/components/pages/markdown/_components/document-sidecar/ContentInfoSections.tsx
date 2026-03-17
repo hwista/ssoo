@@ -29,17 +29,34 @@ export function TagsSection({
   onChange,
   getEditorContent,
   originalTags,
+  externalSuggestedTags,
+  onExternalSuggestedTagsConsumed,
 }: {
   editable: boolean;
   tags: string[];
   onChange: (tags: string[]) => void;
   getEditorContent?: () => string;
   originalTags?: string[];
+  /** 외부에서 주입된 AI 추천 태그 (compose 후 자동 트리거) */
+  externalSuggestedTags?: string[];
+  /** 외부 추천 태그가 소비(표시)된 후 호출 */
+  onExternalSuggestedTagsConsumed?: () => void;
 }) {
   const [inputValue, setInputValue] = React.useState('');
   const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
+
+  // 외부에서 주입된 태그 제안 반영
+  React.useEffect(() => {
+    if (externalSuggestedTags && externalSuggestedTags.length > 0) {
+      const newSuggestions = externalSuggestedTags.filter((t) => !tags.includes(t));
+      if (newSuggestions.length > 0) {
+        setSuggestedTags(newSuggestions);
+      }
+      onExternalSuggestedTagsConsumed?.();
+    }
+  }, [externalSuggestedTags, tags, onExternalSuggestedTagsConsumed]);
 
   const highlightedTagIds = React.useMemo(() => {
     if (!originalTags || !editable) return undefined;
@@ -183,6 +200,8 @@ export function SummarySection({
   onSummaryReplace,
   getEditorContent,
   originalSummary,
+  externalAiSuggestion,
+  onExternalAiSuggestionConsumed,
 }: {
   editable: boolean;
   summary: string;
@@ -190,9 +209,21 @@ export function SummarySection({
   onSummaryReplace?: (text: string) => void;
   getEditorContent?: () => string;
   originalSummary?: string;
+  /** 외부에서 주입된 AI 요약 제안 (compose 후 자동 트리거) */
+  externalAiSuggestion?: string | null;
+  /** 외부 요약 제안이 소비(표시)된 후 호출 */
+  onExternalAiSuggestionConsumed?: () => void;
 }) {
   const [aiSuggestion, setAiSuggestion] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+
+  // 외부에서 주입된 요약 제안 반영
+  React.useEffect(() => {
+    if (externalAiSuggestion && externalAiSuggestion.trim()) {
+      setAiSuggestion(externalAiSuggestion);
+      onExternalAiSuggestionConsumed?.();
+    }
+  }, [externalAiSuggestion, onExternalAiSuggestionConsumed]);
 
   const handleWand = async () => {
     const content = getEditorContent?.() ?? '';

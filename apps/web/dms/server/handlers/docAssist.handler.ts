@@ -1,4 +1,4 @@
-import { docAssistService, type ApplyMode } from '@/server/services/docAssist/DocAssistService';
+import { docAssistService, type ApplyMode, type TitleAndPathResult } from '@/server/services/docAssist/DocAssistService';
 import type { TemplateItem } from '@/types/template';
 
 interface SummaryFileInput {
@@ -32,4 +32,11 @@ export function recommendDocumentPath(input: Omit<ComposeInput, 'currentContent'
   relevanceWarnings: string[];
 } {
   return docAssistService.recommendDocumentPath(input);
+}
+
+export async function recommendTitleAndPath(input: {
+  currentContent: string;
+  activeDocPath?: string;
+}): Promise<TitleAndPathResult> {
+  return docAssistService.recommendTitleAndPath(input);
 }

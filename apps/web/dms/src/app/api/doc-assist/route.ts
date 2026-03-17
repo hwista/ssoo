@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 
-import { composeDocument, recommendDocumentPath } from '@/server/handlers/docAssist.handler';
+import { composeDocument, recommendDocumentPath, recommendTitleAndPath } from '@/server/handlers/docAssist.handler';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const action = body?.action === 'recommendPath' ? 'recommendPath' : 'compose';
+    const action = body?.action ?? 'compose';
 
     if (action === 'recommendPath') {
       const result = recommendDocumentPath({
@@ -16,6 +16,14 @@ export async function POST(req: Request) {
         selectedText: typeof body?.selectedText === 'string' ? body.selectedText : undefined,
       });
       return Response.json(result);
+    }
+
+    if (action === 'recommendTitleAndPath') {
+      const result = await recommendTitleAndPath({
+        currentContent: typeof body?.currentContent === 'string' ? body.currentContent : '',
+        activeDocPath: typeof body?.activeDocPath === 'string' ? body.activeDocPath : undefined,
+      });
+      return Response.json({ success: true, data: result });
     }
 
     const data = await composeDocument({
