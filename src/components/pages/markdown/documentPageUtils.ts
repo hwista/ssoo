@@ -56,7 +56,6 @@ export function buildDocumentSidecarMetadata(
     lineCount: content ? content.split('\n').length : 0,
     charCount: content ? content.length : 0,
     wordCount,
-    attachments: documentMetadata?.sourceFiles || [],
   };
 }
 

@@ -40,7 +40,7 @@ interface DocumentPageComposeMutators {
   setCreatePath: (path: string) => void;
   setInlineInstruction: (value: string) => void;
   setInlineRelevanceWarnings: Dispatch<SetStateAction<string[]>>;
-  setInlineTemplate: Dispatch<SetStateAction<TemplateItem | null>>;
+setInlineTemplate: Dispatch<SetStateAction<TemplateItem | null>>;
   setIsComposing: Dispatch<SetStateAction<boolean>>;
   setIsRecommendingPath: Dispatch<SetStateAction<boolean>>;
 }

@@ -3,10 +3,10 @@
 import * as React from 'react';
 import { toast } from '@/lib/toast';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment, BodyLink } from '@/types';
-import { ingestApi, storageApi } from '@/lib/api';
 import { SidecarFrame } from '@/components/templates/page-frame/sidecar';
 import { SaveLocationDialog } from '@/components/common/save-location';
 import type { SaveLocationResult } from '@/components/common/save-location';
+import { getAttachmentCategory } from '@/lib/constants/file';
 import {
   AttachmentsSection,
   CommentInput,
@@ -36,8 +36,6 @@ export interface DocumentSidecarMetadata {
   wordCount?: number;
   /** 수정자 */
   lastModifiedBy?: string;
-  /** 첨부 파일 */
-  attachments?: SourceFileMeta[];
 }
 
 /**
@@ -92,6 +90,7 @@ export interface DocumentSidecarProps {
     summary: string;
     sourceLinks: string[];
     comments: string[];
+    attachmentPaths: string[];
   } | null;
   /** 추가 className */
   className?: string;
@@ -128,12 +127,11 @@ export function DocumentSidecar({
   originalMetaSnapshot,
   className,
 }: DocumentSidecarProps) {
-  const attachments = metadata?.attachments ?? [];
+  const attachments = documentMetadata?.sourceFiles ?? [];
   const summary = documentMetadata?.summary ?? '';
   const sourceLinks = documentMetadata?.sourceLinks ?? [];
   const comments = documentMetadata?.comments ?? [];
   const isTemplateSidecar = editable && templateSaveEnabled;
-  const [attachmentActionKey, setAttachmentActionKey] = React.useState<string | null>(null);
   const [isSaveLocationOpen, setIsSaveLocationOpen] = React.useState(false);
 
   const fileName = filePath ? filePath.split('/').pop() || '' : '';
@@ -186,80 +184,37 @@ export function DocumentSidecar({
     onMetadataChange?.({ comments: [...comments, comment] });
   };
 
-  const handleAttachmentOpen = async (attachment: SourceFileMeta) => {
-    const actionKey = `${attachment.path}:${attachment.name}:open`;
-    setAttachmentActionKey(actionKey);
+  const handleAttachmentsChange = (newAttachments: SourceFileMeta[]) => {
+    onMetadataChange?.({ sourceFiles: newAttachments });
+  };
 
-    try {
-      if (attachment.url) {
-        window.open(attachment.url, '_blank', 'noopener,noreferrer');
-        toast.success('원본 링크를 열었습니다.');
-        return;
-      }
-
-      const response = await storageApi.open({
-        storageUri: attachment.storageUri,
-        provider: attachment.provider ?? 'local',
-        path: attachment.path,
-      });
-
-      if (!response.success || !response.data) {
-        toast.error(response.error || '첨부 파일 열기에 실패했습니다.');
-        return;
-      }
-
-      window.open(response.data.openUrl, '_blank', 'noopener,noreferrer');
-      toast.success('원본 파일 열기를 요청했습니다.');
-    } catch {
-      toast.error('첨부 파일 열기 중 오류가 발생했습니다.');
-    } finally {
-      setAttachmentActionKey((current) => (current === actionKey ? null : current));
+  const handleAttachmentClick = (attachment: SourceFileMeta) => {
+    if (attachment.path.startsWith('__pending__/')) {
+      toast.info('파일이 아직 저장되지 않았습니다. 문서를 저장한 후 이용해주세요.');
+      return;
+    }
+    const category = getAttachmentCategory(attachment.name);
+    if (category === 'image') {
+      onOpenLink?.(attachment.path, 'image');
+    } else if (category === 'text' || category === 'document') {
+      window.open(`/api/file/serve-attachment?path=${encodeURIComponent(attachment.path)}&name=${encodeURIComponent(attachment.name)}`, '_blank');
+    } else {
+      toast.info('현재 로컬 저장소 파일은 미리보기를 제공하지 않습니다. 다운로드 버튼을 이용해주세요.');
     }
   };
 
-  const handleAttachmentCopyUri = async (attachment: SourceFileMeta) => {
-    const uri = attachment.storageUri || `${attachment.provider ?? 'local'}://${attachment.path}`;
-    try {
-      await navigator.clipboard.writeText(uri);
-      toast.success('storageUri를 클립보드에 복사했습니다.');
-    } catch {
-      toast.error('클립보드 복사에 실패했습니다.');
+  const handleAttachmentDownload = (attachment: SourceFileMeta) => {
+    if (attachment.path.startsWith('__pending__/')) {
+      toast.info('파일이 아직 저장되지 않았습니다. 문서를 저장한 후 이용해주세요.');
+      return;
     }
-  };
-
-  const handleAttachmentResync = async (attachment: SourceFileMeta) => {
-    const actionKey = `${attachment.path}:${attachment.name}:resync`;
-    setAttachmentActionKey(actionKey);
-
-    try {
-      const response = await ingestApi.submit({
-        title: `resync-${attachment.name}`,
-        content: [
-          '# Attachment Resync Request',
-          '',
-          `- file: ${attachment.name}`,
-          `- path: ${attachment.path}`,
-          `- storageUri: ${attachment.storageUri ?? '-'}`,
-          `- provider: ${attachment.provider ?? 'local'}`,
-          '',
-          '원본 파일 메타데이터 재수집 요청입니다.',
-        ].join('\n'),
-        provider: attachment.provider ?? 'local',
-        relativePath: attachment.path.split('/').slice(0, -1).join('/') || 'ingest',
-        origin: 'ingest',
-      });
-
-      if (!response.success || !response.data) {
-        toast.error(response.error || '재동기화 요청에 실패했습니다.');
-        return;
-      }
-
-      toast.success(`재동기화 작업이 등록되었습니다. (${response.data.status})`);
-    } catch {
-      toast.error('재동기화 요청 중 오류가 발생했습니다.');
-    } finally {
-      setAttachmentActionKey((current) => (current === actionKey ? null : current));
-    }
+    const url = `/api/file/serve-attachment?path=${encodeURIComponent(attachment.path)}&name=${encodeURIComponent(attachment.name)}&download=1`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = attachment.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (
@@ -320,10 +275,11 @@ export function DocumentSidecar({
           />
           <AttachmentsSection
             attachments={attachments}
-            attachmentActionKey={attachmentActionKey}
-            onOpen={handleAttachmentOpen}
-            onCopyUri={handleAttachmentCopyUri}
-            onResync={handleAttachmentResync}
+            editable={editable}
+            onChange={handleAttachmentsChange}
+            onItemClick={handleAttachmentClick}
+            onDownload={handleAttachmentDownload}
+            originalAttachmentPaths={originalMetaSnapshot?.attachmentPaths}
           />
           <CommentsSection
             comments={comments}
