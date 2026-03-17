@@ -427,6 +427,7 @@ export function SourceLinksSection({
     <ActivityListSection
       title="링크"
       icon={<Link2 className="mr-1.5 h-4 w-4 shrink-0" />}
+      badge={items.length > 0 ? <span className="mr-1 text-xs text-gray-400">({items.length})</span> : undefined}
       items={items}
       highlightedItemIds={newLinkSet}
       deletedItemIds={manualDeletedIds}
