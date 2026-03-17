@@ -47,7 +47,7 @@ git -c http.extraHeader="Authorization: Basic $AUTH" \
   "+$GITLAB_BRANCH:$TMP_REMOTE_REF"
 
 echo "[dms-publish] 4/5 compute local subtree split hash"
-LOCAL_SPLIT_HASH="$(git subtree split --prefix="$DMS_PREFIX" --ignore-joins HEAD)"
+LOCAL_SPLIT_HASH="$(git subtree split --prefix="$DMS_PREFIX" HEAD)"
 REMOTE_HASH="$(git rev-parse "$TMP_REMOTE_REF")"
 
 echo "[dms-publish] 5/5 compare hashes"
