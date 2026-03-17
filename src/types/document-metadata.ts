@@ -33,11 +33,19 @@ export interface DocumentComment {
   createdAt: string;
 }
 
+export interface BodyLink {
+  url: string;
+  label: string;
+  /** 'link' = 일반 링크, 'image' = 이미지 링크 */
+  type: 'link' | 'image';
+}
+
 export interface DocumentMetadata {
   title: string;
   summary: string;
   tags: string[];
   sourceLinks: string[];
+  bodyLinks: BodyLink[];
   createdAt: string;
   updatedAt: string;
   fileHashes: {

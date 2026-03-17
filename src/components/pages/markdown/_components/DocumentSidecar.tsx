@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { toast } from '@/lib/toast';
-import type { SourceFileMeta, DocumentMetadata, DocumentComment } from '@/types';
+import type { SourceFileMeta, DocumentMetadata, DocumentComment, BodyLink } from '@/types';
 import { ingestApi, storageApi } from '@/lib/api';
 import { SidecarFrame } from '@/components/templates/page-frame/sidecar';
 import { SaveLocationDialog } from '@/components/common/save-location';
@@ -78,6 +78,14 @@ export interface DocumentSidecarProps {
   }) => void;
   /** 현재 에디터 콘텐츠 반환 (AI 마술봉에서 사용) */
   getEditorContent?: () => string;
+  /** 본문에서 추출된 링크 목록 */
+  bodyLinks?: BodyLink[];
+  /** 본문 내 링크 위치로 스크롤 이동 */
+  onScrollToBodyLink?: (url: string) => void;
+  /** 링크 클릭 시 열기 (내부 문서 → 탭, 외부 → 브라우저, 이미지 → 미리보기) */
+  onOpenLink?: (url: string, type?: 'link' | 'image') => void;
+  /** 현재 파일 경로 (내부 링크 판별용) */
+  currentFilePath?: string | null;
   /** 편집 진입 시 메타데이터 스냅샷 (변경 하이라이트용) */
   originalMetaSnapshot?: {
     tags: string[];
@@ -113,6 +121,10 @@ export function DocumentSidecar({
   templateDraft,
   onTemplateDraftChange,
   getEditorContent,
+  bodyLinks,
+  onScrollToBodyLink,
+  onOpenLink,
+  currentFilePath,
   originalMetaSnapshot,
   className,
 }: DocumentSidecarProps) {
@@ -301,6 +313,10 @@ export function DocumentSidecar({
             sourceLinks={sourceLinks}
             onChange={handleSourceLinksChange}
             originalSourceLinks={originalMetaSnapshot?.sourceLinks}
+            bodyLinks={bodyLinks}
+            onScrollToBodyLink={onScrollToBodyLink}
+            onOpenLink={onOpenLink}
+            currentFilePath={currentFilePath}
           />
           <AttachmentsSection
             attachments={attachments}

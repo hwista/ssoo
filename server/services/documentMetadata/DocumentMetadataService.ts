@@ -47,6 +47,7 @@ class DocumentMetadataService {
       summary: existing?.summary ?? '',
       tags: existing?.tags ?? [],
       sourceLinks: existing?.sourceLinks ?? [],
+      bodyLinks: existing?.bodyLinks ?? [],
       createdAt: existing?.createdAt ?? fileMeta.createdAt,
       updatedAt: now,
       fileHashes: {

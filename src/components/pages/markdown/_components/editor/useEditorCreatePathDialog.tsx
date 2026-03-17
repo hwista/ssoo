@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import { EditorInputDialog } from './EditorInputDialog';
+import { ImageInsertDialog } from './ImageInsertDialog';
+import { LinkInsertDialog } from './LinkInsertDialog';
 import { SaveLocationDialog } from '@/components/common/save-location';
 import type { SaveLocationResult } from '@/components/common/save-location';
 
@@ -46,11 +48,21 @@ export interface CreatePathResult {
   title: string;
 }
 
-export function useEditorCreatePathDialog() {
+/** blob URL → File 맵 (문서 저장 시 일괄 업로드 용) */
+export type PendingImageMap = Map<string, File>;
+
+export function useEditorCreatePathDialog(currentFilePath?: string | null) {
   const [dialogState, setDialogState] = React.useState<InputDialogState>(INITIAL_STATE);
   const [saveLocationState, setSaveLocationState] = React.useState<SaveLocationState>(INITIAL_SAVE_LOCATION);
+  const [imageDialogOpen, setImageDialogOpen] = React.useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = React.useState(false);
   const resolverRef = React.useRef<((value: string | null) => void) | null>(null);
   const saveLocationResolverRef = React.useRef<((value: CreatePathResult | null) => void) | null>(null);
+  const imageResolverRef = React.useRef<((value: string | null) => void) | null>(null);
+  const linkResolverRef = React.useRef<((value: string | null) => void) | null>(null);
+
+  // 업로드 대기 중인 이미지 (blob URL → File)
+  const pendingImagesRef = React.useRef<PendingImageMap>(new Map());
 
   const openInputDialog = React.useCallback((state: Omit<InputDialogState, 'open'>) => {
     return new Promise<string | null>((resolve) => {
@@ -59,10 +71,6 @@ export function useEditorCreatePathDialog() {
     });
   }, []);
 
-  /**
-   * SaveLocationDialog 기반 저장 경로 요청.
-   * 문서명 + 디렉토리 + 자동 파일명을 결정한 후 전체 경로 + title 반환.
-   */
   const requestSaveLocation = React.useCallback((params: {
     suggestedTitle?: string;
     suggestedDirectory?: string;
@@ -81,40 +89,33 @@ export function useEditorCreatePathDialog() {
     });
   }, []);
 
-  /** 기존 호환용 requestCreatePath — 내부적으로 requestSaveLocation 으로 위임 */
   const requestCreatePath = React.useCallback((preferredPath?: string) => {
-    // 경로 힌트를 디렉토리/제목으로 분해
     const pathHint = preferredPath?.trim() || '';
     const parts = pathHint.split('/');
     const namePart = parts.pop()?.replace(/\.md$/i, '') || '';
     const dirPart = parts.join('/');
 
-    // 항상 SaveLocationDialog 를 열어 사용자 확인을 받음
     return requestSaveLocation({
       suggestedTitle: namePart,
       suggestedDirectory: dirPart,
-      fileName: '', // 호출 측에서 별도 지정 필요
+      fileName: '',
       isNewDocument: true,
     }).then((result) => result?.path ?? null);
   }, [requestSaveLocation]);
 
-  const requestImageUrl = React.useCallback(() => openInputDialog({
-    title: '이미지 URL 입력',
-    description: '삽입할 이미지의 URL을 입력하세요.',
-    label: '이미지 URL',
-    placeholder: 'https://example.com/image.png',
-    defaultValue: '',
-    confirmText: '삽입',
-  }), [openInputDialog]);
+  const requestImageUrl = React.useCallback(() => {
+    return new Promise<string | null>((resolve) => {
+      imageResolverRef.current = resolve;
+      setImageDialogOpen(true);
+    });
+  }, []);
 
-  const requestLinkUrl = React.useCallback(() => openInputDialog({
-    title: '링크 URL 입력',
-    description: '삽입할 링크의 URL을 입력하세요.',
-    label: '링크 URL',
-    placeholder: 'https://example.com',
-    defaultValue: '',
-    confirmText: '삽입',
-  }), [openInputDialog]);
+  const requestLinkUrl = React.useCallback(() => {
+    return new Promise<string | null>((resolve) => {
+      linkResolverRef.current = resolve;
+      setLinkDialogOpen(true);
+    });
+  }, []);
 
   const closeDialog = React.useCallback((value: string | null) => {
     resolverRef.current?.(value);
@@ -135,11 +136,35 @@ export function useEditorCreatePathDialog() {
     setSaveLocationState(INITIAL_SAVE_LOCATION);
   }, []);
 
+  const closeImageDialog = React.useCallback((url: string | null, pendingFile?: File) => {
+    if (url && pendingFile) {
+      pendingImagesRef.current.set(url, pendingFile);
+    }
+    imageResolverRef.current?.(url || null);
+    imageResolverRef.current = null;
+    setImageDialogOpen(false);
+  }, []);
+
+  const closeLinkDialog = React.useCallback((url: string | null) => {
+    linkResolverRef.current?.(url || null);
+    linkResolverRef.current = null;
+    setLinkDialogOpen(false);
+  }, []);
+
+  const clearPendingImages = React.useCallback(() => {
+    for (const blobUrl of pendingImagesRef.current.keys()) {
+      URL.revokeObjectURL(blobUrl);
+    }
+    pendingImagesRef.current.clear();
+  }, []);
+
   return {
     requestCreatePath,
     requestSaveLocation,
     requestImageUrl,
     requestLinkUrl,
+    pendingImagesRef,
+    clearPendingImages,
     createPathDialog: (
       <>
         <EditorInputDialog
@@ -162,6 +187,17 @@ export function useEditorCreatePathDialog() {
           fileName={saveLocationState.fileName}
           isNewDocument={saveLocationState.isNewDocument}
           onConfirm={closeSaveLocation}
+        />
+        <ImageInsertDialog
+          open={imageDialogOpen}
+          onConfirm={(url, pendingFile) => closeImageDialog(url, pendingFile)}
+          onCancel={() => closeImageDialog(null)}
+        />
+        <LinkInsertDialog
+          open={linkDialogOpen}
+          currentFilePath={currentFilePath}
+          onConfirm={(url) => closeLinkDialog(url)}
+          onCancel={() => closeLinkDialog(null)}
         />
       </>
     ),

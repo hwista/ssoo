@@ -11,3 +11,6 @@ export type { OpenDocumentTabOptions } from './useOpenDocumentTab';
 
 // Layout
 export { useLayoutViewportSync } from './useLayoutViewportSync';
+
+// Content
+export { useBodyLinks } from './useBodyLinks';

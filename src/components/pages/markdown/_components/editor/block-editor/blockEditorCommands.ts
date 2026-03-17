@@ -82,7 +82,8 @@ export function resolveWikiDocPath(href: string, currentFilePath?: string | null
     return noQuery.slice(1);
   }
 
-  if ((noQuery.startsWith('./') || noQuery.startsWith('../')) && currentFilePath) {
+  // 상대 경로 (./,  ../) 또는 bare 경로 (goals.md 등) → 현재 파일 기준 해석
+  if (currentFilePath) {
     return resolveRelativePath(currentFilePath, noQuery);
   }
 

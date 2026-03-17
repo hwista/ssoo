@@ -46,3 +46,10 @@ export {
   getErrorInfo,
 } from './errorUtils';
 export type { ErrorContext } from './errorUtils';
+
+// 마크다운 링크 추출
+export { extractMarkdownLinks } from './extractMarkdownLinks';
+export type { BodyLink } from './extractMarkdownLinks';
+
+// 파일 트리 필터
+export { filterFileTree } from './fileTree';

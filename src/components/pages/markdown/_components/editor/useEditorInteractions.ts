@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useEditorCreatePathDialog } from './useEditorCreatePathDialog';
-import type { CreatePathResult } from './useEditorCreatePathDialog';
+import type { CreatePathResult, PendingImageMap } from './useEditorCreatePathDialog';
 
 export interface EditorInteractionDeps {
   requestCreatePath: (preferredPath?: string) => Promise<string | null>;
@@ -15,17 +15,21 @@ export interface EditorInteractionDeps {
   requestImageUrl: () => Promise<string | null>;
   requestLinkUrl: () => Promise<string | null>;
   openExternalHref: (href: string) => void;
+  pendingImagesRef: React.RefObject<PendingImageMap>;
+  clearPendingImages: () => void;
   dialogs: React.ReactNode;
 }
 
-export function useEditorInteractions(): EditorInteractionDeps {
+export function useEditorInteractions(currentFilePath?: string | null): EditorInteractionDeps {
   const {
     requestCreatePath,
     requestSaveLocation,
     requestImageUrl,
     requestLinkUrl,
+    pendingImagesRef,
+    clearPendingImages,
     createPathDialog,
-  } = useEditorCreatePathDialog();
+  } = useEditorCreatePathDialog(currentFilePath);
 
   const openExternalHref = React.useCallback((href: string) => {
     if (typeof window === 'undefined') return;
@@ -38,6 +42,8 @@ export function useEditorInteractions(): EditorInteractionDeps {
     requestImageUrl,
     requestLinkUrl,
     openExternalHref,
+    pendingImagesRef,
+    clearPendingImages,
     dialogs: createPathDialog,
   };
 }

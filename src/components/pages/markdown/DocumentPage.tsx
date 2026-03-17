@@ -23,11 +23,16 @@ import type { EditorRef } from './_components/editor';
 import { type TocItem } from '@/components/templates/page-frame';
 import { markdownToHtmlSync } from '@/lib/utils/markdown';
 import { generateUniqueFilename } from '@/lib/utils';
+import { extractMarkdownLinks } from '@/lib/utils/extractMarkdownLinks';
+import { useBodyLinks } from '@/hooks/useBodyLinks';
+import { useOpenDocumentTab } from '@/hooks/useOpenDocumentTab';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
+import { resolveWikiDocPath } from './_components/editor/block-editor/blockEditorCommands';
 import type { DocumentMetadata } from '@/types';
 import {
   type InlineSummaryFileItem,
 } from '@/components/common/assistant/reference/Picker';
+import { ImagePreviewDialog } from '@/components/common/ImagePreviewDialog';
 import type { TemplateItem } from '@/types/template';
 import { cn } from '@/lib/utils';
 import { LoadingState } from '@/components/common/StateDisplay';
@@ -59,6 +64,7 @@ export function DocumentPage() {
   const openAssistantPanel = useAssistantPanelStore((state) => state.openPanel);
   const toggleAssistantReference = useAssistantContextStore((state) => state.toggleReference);
   const attachedReferences = useAssistantContextStore((state) => state.attachedReferences);
+  const openDocumentTab = useOpenDocumentTab();
 
   const {
     loadFile,
@@ -95,6 +101,12 @@ export function DocumentPage() {
     scope: 'personal',
   });
   const editorRef = useRef<EditorRef | null>(null);
+  const [liveEditorContent, setLiveEditorContent] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
+
+  const handleEditorContentChange = useCallback((editorContent: string) => {
+    setLiveEditorContent(editorContent);
+  }, []);
 
   /** 편집 진입 시 메타데이터 스냅샷 (변경 하이라이트용) */
   const [originalMetaSnapshot, setOriginalMetaSnapshot] = useState<{
@@ -259,6 +271,8 @@ export function DocumentPage() {
 
   const toc = useMemo((): TocItem[] => buildMarkdownToc(content), [content]);
 
+  const liveBodyLinks = useBodyLinks(liveEditorContent ?? content);
+
   const metadata = useMemo(
     () => buildDocumentSidecarMetadata(content, documentMetadata, fileMetadata),
     [content, documentMetadata, fileMetadata]
@@ -333,11 +347,110 @@ export function DocumentPage() {
     if (element) element.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  const handleScrollToBodyLink = useCallback((url: string) => {
+    if (mode === 'viewer') {
+      // 일반 링크 (<a>) 또는 이미지 (<img>) 모두 검색
+      const link = document.querySelector(`a[href="${CSS.escape(url)}"]`)
+        ?? document.querySelector(`img[src="${CSS.escape(url)}"]`);
+      if (link) {
+        link.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const el = link as HTMLElement;
+        const prevBg = el.style.backgroundColor;
+        const prevOutline = el.style.outline;
+        const prevOutlineOffset = el.style.outlineOffset;
+        const prevRadius = el.style.borderRadius;
+        const prevPadding = el.style.padding;
+        el.style.backgroundColor = '#fef08a';
+        el.style.outline = '2px solid #fb923c';
+        el.style.outlineOffset = '1px';
+        el.style.borderRadius = '2px';
+        el.style.padding = '0 2px';
+        setTimeout(() => {
+          el.style.backgroundColor = prevBg;
+          el.style.outline = prevOutline;
+          el.style.outlineOffset = prevOutlineOffset;
+          el.style.borderRadius = prevRadius;
+          el.style.padding = prevPadding;
+        }, 2000);
+      }
+    } else {
+      const md = editorRef.current?.getMarkdown() ?? '';
+      const idx = md.indexOf(url);
+      if (idx >= 0) {
+        const cmContent = document.querySelector('.cm-content');
+        if (cmContent) {
+          const walker = document.createTreeWalker(cmContent, NodeFilter.SHOW_TEXT);
+          let node: Node | null;
+          while ((node = walker.nextNode())) {
+            const text = node.textContent ?? '';
+            const pos = text.indexOf(url);
+            if (pos >= 0) {
+              const range = document.createRange();
+              range.setStart(node, pos);
+              range.setEnd(node, pos + url.length);
+              const rect = range.getBoundingClientRect();
+              if (rect) {
+                const scroller = document.querySelector('.cm-scroller');
+                if (scroller) {
+                  const scrollerRect = scroller.getBoundingClientRect();
+                  scroller.scrollTo({
+                    top: scroller.scrollTop + rect.top - scrollerRect.top - scrollerRect.height / 2,
+                    behavior: 'smooth',
+                  });
+                }
+              }
+              // 하이라이트 마크 삽입
+              const mark = document.createElement('mark');
+              mark.className = 'search-highlight';
+              mark.style.backgroundColor = '#fef08a';
+              mark.style.color = 'inherit';
+              mark.style.borderRadius = '2px';
+              mark.style.padding = '0 2px';
+              mark.style.outline = '2px solid #fb923c';
+              mark.style.outlineOffset = '1px';
+              range.surroundContents(mark);
+              setTimeout(() => {
+                const parent = mark.parentNode;
+                if (parent) {
+                  while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+                  parent.removeChild(mark);
+                }
+              }, 2000);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }, [mode]);
+
+  const handleOpenLink = useCallback((url: string, type?: 'link' | 'image') => {
+    if (type === 'image') {
+      // 이미지 → 미리보기 모달
+      const bodyLink = liveBodyLinks.find((l) => l.url === url);
+      setImagePreview({ src: url, alt: bodyLink?.label || '이미지 미리보기' });
+      return;
+    }
+    const docPath = resolveWikiDocPath(url, filePath);
+    if (docPath) {
+      openDocumentTab({ path: docPath });
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }, [filePath, openDocumentTab, liveBodyLinks]);
+
   const handleSave = useCallback(() => {
+    // 저장 직전 본문 링크를 sidecar에 영속화
+    const currentBodyLinks = extractMarkdownLinks(
+      editorRef.current?.getMarkdown() ?? content,
+    );
+    setLocalDocumentMetadata({ bodyLinks: currentBodyLinks });
     editorHandlers?.save();
-  }, [editorHandlers]);
+  }, [editorHandlers, content, setLocalDocumentMetadata]);
 
   const handleCancel = useCallback(() => {
+    // 대기 중인 이미지 blob URL 정리
+    editorRef.current?.clearPendingImages();
     if (editorHandlers) {
       editorHandlers.cancel();
     } else {
@@ -500,6 +613,10 @@ export function DocumentPage() {
               setTemplateSaveDraft((prev) => ({ ...prev, ...update }));
             }}
             getEditorContent={() => editorRef.current?.getMarkdown() ?? ''}
+            bodyLinks={liveBodyLinks}
+            onScrollToBodyLink={handleScrollToBodyLink}
+            onOpenLink={handleOpenLink}
+            currentFilePath={filePath}
             originalMetaSnapshot={originalMetaSnapshot}
           />
         )}
@@ -534,6 +651,7 @@ export function DocumentPage() {
               saveAsTemplateOnly={saveAsTemplateOnly}
               templateSaveDraft={templateSaveDraft}
               setSaveAsTemplateOnly={setSaveAsTemplateOnly}
+              onEditorContentChange={handleEditorContentChange}
             />
           );
           const inlineComposer = (
@@ -579,6 +697,14 @@ export function DocumentPage() {
           );
         })()}
       </PageTemplate>
+
+      {/* 이미지 미리보기 모달 */}
+      <ImagePreviewDialog
+        open={imagePreview !== null}
+        onOpenChange={(open) => { if (!open) setImagePreview(null); }}
+        src={imagePreview?.src ?? ''}
+        alt={imagePreview?.alt}
+      />
     </main>
   );
 }

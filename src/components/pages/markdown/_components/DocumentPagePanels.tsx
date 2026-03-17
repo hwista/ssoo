@@ -111,6 +111,7 @@ interface DocumentPageContentProps {
     scope: 'personal' | 'global';
   };
   setSaveAsTemplateOnly: React.Dispatch<React.SetStateAction<boolean>>;
+  onEditorContentChange?: (content: string) => void;
 }
 
 export function DocumentPageContent({
@@ -133,6 +134,7 @@ export function DocumentPageContent({
   saveAsTemplateOnly,
   templateSaveDraft,
   setSaveAsTemplateOnly,
+  onEditorContentChange,
 }: DocumentPageContentProps) {
   if (error) {
     return (
@@ -174,6 +176,7 @@ export function DocumentPageContent({
       onCreatePathResolved={setCreatePath}
       isPreview={isPreview}
       isPendingInsertLoading={isComposing}
+      onContentChange={onEditorContentChange}
       templateSaveEnabled={saveAsTemplateOnly}
       templateSaveDraft={templateSaveDraft}
       onTemplateSaved={() => {

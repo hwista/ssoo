@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { FileText, Link2, Loader2, Plus, Sparkles, Tag, X } from 'lucide-react';
+import { CornerDownRight, FileText, Globe, Image, Link2, Loader2, Plus, Sparkles, Tag, X } from 'lucide-react';
 import { ActivityListSection, ChipListSection, TextSection } from '@/components/templates/page-frame/sidecar';
 import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
 import { docAssistApi } from '@/lib/api';
 import { DiffTextInput } from '@/components/common/DiffTextInput';
+import type { BodyLink } from '@/types';
 
 function WandButton({ loading, onClick, label }: { loading: boolean; onClick: () => void; label: string }) {
   return (
@@ -300,14 +301,27 @@ export function SourceLinksSection({
   sourceLinks,
   onChange,
   originalSourceLinks,
+  bodyLinks = [],
+  onScrollToBodyLink,
+  onOpenLink,
+  currentFilePath,
 }: {
   editable: boolean;
   sourceLinks: string[];
   onChange: (links: string[]) => void;
   originalSourceLinks?: string[];
+  bodyLinks?: BodyLink[];
+  onScrollToBodyLink?: (url: string) => void;
+  onOpenLink?: (url: string, type?: 'link' | 'image') => void;
+  currentFilePath?: string | null;
 }) {
   const [inputValue, setInputValue] = React.useState('');
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
+
+  const bodyLinkUrlSet = React.useMemo(
+    () => new Set(bodyLinks.map((l) => l.url)),
+    [bodyLinks],
+  );
 
   const newLinkSet = React.useMemo(() => {
     if (!originalSourceLinks || !editable) return undefined;
@@ -350,29 +364,80 @@ export function SourceLinksSection({
     }
   };
 
-  // 삭제된 링크도 포함한 전체 목록
-  const allLinks = React.useMemo(() => {
-    const deletedOnly = Array.from(pendingDeletes).filter((l) => !sourceLinks.includes(l));
-    return [...sourceLinks, ...deletedOnly];
-  }, [sourceLinks, pendingDeletes]);
+  // 내부 문서 링크 여부 판별
+  const isInternalLink = React.useCallback((url: string) => {
+    return /^(https?:|mailto:|tel:|#)/i.test(url) === false;
+  }, []);
 
-  const items = allLinks.map((link) => {
+  // 수동 링크 (삭제된 것 포함, 본문 링크와 중복 제외)
+  const manualLinks = React.useMemo(() => {
+    const deletedOnly = Array.from(pendingDeletes).filter((l) => !sourceLinks.includes(l));
+    const active = sourceLinks.filter((l) => !bodyLinkUrlSet.has(l));
+    return [...active, ...deletedOnly];
+  }, [sourceLinks, pendingDeletes, bodyLinkUrlSet]);
+
+  // 본문 링크 아이템 (본문 위치 이동 아이콘, 삭제 불가)
+  const bodyItems = bodyLinks.map((link) => {
+    const isInternal = isInternalLink(link.url);
+    const iconEl = link.type === 'image'
+      ? <Image className="h-3 w-3 shrink-0 text-ssoo-primary/50" />
+      : isInternal
+        ? <FileText className="h-3 w-3 shrink-0 text-ssoo-primary/50" />
+        : <Globe className="h-3 w-3 shrink-0 text-ssoo-primary/50" />;
+    return {
+      id: `body:${link.url}`,
+      title: link.label,
+      icon: iconEl,
+      actions: [{
+        id: `goto-${link.url}`,
+        kind: 'icon' as const,
+        tone: 'default' as const,
+        icon: <CornerDownRight className="h-3 w-3" />,
+        title: '본문에서 찾기',
+        onClick: () => onScrollToBodyLink?.(link.url),
+      }],
+    };
+  });
+
+  // 수동 링크 아이템 (X 아이콘, 삭제 가능)
+  const manualItems = manualLinks.map((link) => {
     const isDeleted = pendingDeletes.has(link);
+    const isInternal = isInternalLink(link);
     const actions: ActivityAction[] = !isDeleted && editable
       ? [{ id: `delete-${link}`, kind: 'icon', tone: 'danger', icon: <X className="h-3 w-3" />, title: '링크 삭제', onClick: () => handleSoftDelete(link) }]
       : [];
-    return { id: link, title: link, actions };
+    return {
+      id: link,
+      title: link,
+      icon: isInternal
+        ? <FileText className="h-3 w-3 shrink-0 text-ssoo-primary/50" />
+        : <Globe className="h-3 w-3 shrink-0 text-ssoo-primary/50" />,
+      actions,
+    };
   });
+
+  const items = [...bodyItems, ...manualItems];
+
+  const manualDeletedIds = React.useMemo(() => {
+    if (pendingDeletes.size === 0) return undefined;
+    return pendingDeletes;
+  }, [pendingDeletes]);
 
   return (
     <ActivityListSection
-      title="url"
+      title="링크"
       icon={<Link2 className="mr-1.5 h-4 w-4 shrink-0" />}
       items={items}
       highlightedItemIds={newLinkSet}
-      deletedItemIds={pendingDeletes.size > 0 ? pendingDeletes : undefined}
+      deletedItemIds={manualDeletedIds}
       onItemRestore={handleRestore}
-      onItemClick={(item) => !pendingDeletes.has(item.id) && window.open(item.title, '_blank', 'noopener,noreferrer')}
+      onItemClick={(item) => {
+        if (pendingDeletes.has(item.id)) return;
+        const isBody = item.id.startsWith('body:');
+        const url = isBody ? item.id.slice(5) : item.title;
+        const bodyLink = isBody ? bodyLinks.find((l) => l.url === url) : undefined;
+        onOpenLink?.(url, bodyLink?.type);
+      }}
       emptyText="링크없음"
       variant="compact"
       itemAppearance="link"
