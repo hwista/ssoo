@@ -21,12 +21,20 @@ import {
   flattenFileTreeDocs,
 } from './pickerUtils';
 
+export interface ExtractedImageItem {
+  base64: string;
+  mimeType: string;
+  name: string;
+  size: number;
+}
+
 export interface InlineSummaryFileItem {
   id: string;
   name: string;
   type?: string;
   size: number;
   textContent: string;
+  images?: ExtractedImageItem[];
 }
 
 interface InlineContextProps {
@@ -131,6 +139,7 @@ export function AssistantReferencePicker({
 
     const mapped = await Promise.all(files.map(async (file) => {
       let textContent = '';
+      let images: InlineSummaryFileItem['images'];
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -138,6 +147,7 @@ export function AssistantReferencePicker({
         if (res.ok) {
           const data = await res.json();
           textContent = typeof data?.textContent === 'string' ? data.textContent : '';
+          images = Array.isArray(data?.images) ? data.images : undefined;
         }
       } catch {
         textContent = '';
@@ -148,6 +158,7 @@ export function AssistantReferencePicker({
         type: file.type,
         size: file.size,
         textContent,
+        images,
       } satisfies InlineSummaryFileItem;
     }));
 

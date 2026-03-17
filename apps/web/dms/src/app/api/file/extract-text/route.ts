@@ -34,18 +34,20 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const textContent = await extractTextFromFile(buffer, file.name);
+    const result = await extractTextFromFile(buffer, file.name);
 
     logger.info('텍스트 추출 완료', {
       fileName: file.name,
       ext,
       size: file.size,
-      textLength: textContent.length,
+      textLength: result.text.length,
+      imageCount: result.images.length,
     });
 
     return NextResponse.json({
       success: true,
-      textContent,
+      textContent: result.text,
+      images: result.images,
       fileName: file.name,
       size: file.size,
     });

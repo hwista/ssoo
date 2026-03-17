@@ -43,6 +43,7 @@ export interface DocAssistSummaryFileClient {
   name: string;
   type?: string;
   textContent: string;
+  images?: { base64: string; mimeType: string; name: string }[];
 }
 
 export interface DocAssistComposeResponse {

@@ -6,6 +6,7 @@ interface SummaryFileInput {
   name: string;
   type?: string;
   textContent: string;
+  images?: { base64: string; mimeType: string; name: string }[];
 }
 
 interface ComposeInput {
