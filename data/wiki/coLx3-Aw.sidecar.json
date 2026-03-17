@@ -5,14 +5,33 @@
   "sourceLinks": [],
   "bodyLinks": [],
   "createdAt": "2026-03-17T00:18:32.127Z",
-  "updatedAt": "2026-03-17T06:05:20.070Z",
+  "updatedAt": "2026-03-17T07:23:03.497Z",
   "fileHashes": {
-    "content": "12fbb162eff6c876385642f0444529cc31ac60c74dfd6cc1af62df05a15a7393",
+    "content": "6d5cfc84fa225086c77ab8c6a89276e283bfd656a077e42f38f01e08293fda90",
     "sources": {}
   },
   "chunkIds": [],
   "embeddingModel": "",
-  "sourceFiles": [],
+  "sourceFiles": [
+    {
+      "name": "전략과제_Vibe_Coding_IT_Innovation.pptx",
+      "path": "_assets/references/b39f75d5d1f3e3997064920f23a9bf7541b9f413813ff490e4e4b501d77ae8f3.pptx",
+      "type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "size": 5929156,
+      "origin": "reference",
+      "status": "published",
+      "provider": "local"
+    },
+    {
+      "name": "기본 문서 템플릿",
+      "path": "global/global-doc-default.md",
+      "type": "text/markdown",
+      "size": 0,
+      "origin": "template",
+      "status": "published",
+      "provider": "local"
+    }
+  ],
   "acl": {
     "owners": [],
     "editors": [],
