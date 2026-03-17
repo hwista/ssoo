@@ -1,10 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { Copy, ExternalLink, MessageSquare, Paperclip, RefreshCw, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Download, File, FileSpreadsheet, FileText, Image, MessageSquare, Paperclip, Presentation, Plus, X } from 'lucide-react';
 import type { SourceFileMeta, DocumentComment } from '@/types';
-import { ActivityListSection, CollapsibleSection } from '@/components/templates/page-frame/sidecar';
+import { ActivityListSection } from '@/components/templates/page-frame/sidecar';
+import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
+import { getAttachmentCategory, ATTACHMENT_ACCEPT_STRING } from '@/lib/constants/file';
 
 function formatDate(date: Date | string | undefined): string {
   if (!date) return '-';
@@ -22,78 +23,190 @@ function formatSize(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function EmptyPlaceholder({ text }: { text: string }) {
-  return <p className="py-1 text-xs text-gray-400">{text}</p>;
+function getFileIcon(fileName: string): React.ReactNode {
+  const category = getAttachmentCategory(fileName);
+  const cls = 'h-3 w-3 shrink-0 text-ssoo-primary/50';
+  switch (category) {
+    case 'image':
+      return <Image className={cls} />;
+    case 'office': {
+      const ext = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
+      if (ext === '.xls' || ext === '.xlsx') return <FileSpreadsheet className={cls} />;
+      if (ext === '.ppt' || ext === '.pptx') return <Presentation className={cls} />;
+      return <FileText className={cls} />;
+    }
+    case 'document':
+      return <FileText className={cls} />;
+    case 'text':
+      return <FileText className={cls} />;
+    default:
+      return <File className={cls} />;
+  }
 }
 
 export function AttachmentsSection({
   attachments,
-  attachmentActionKey,
-  onOpen,
-  onCopyUri,
-  onResync,
+  editable,
+  onChange,
+  onItemClick,
+  onDownload,
+  originalAttachmentPaths,
 }: {
   attachments: SourceFileMeta[];
-  attachmentActionKey: string | null;
-  onOpen: (attachment: SourceFileMeta) => void | Promise<void>;
-  onCopyUri: (attachment: SourceFileMeta) => void | Promise<void>;
-  onResync: (attachment: SourceFileMeta) => void | Promise<void>;
+  editable?: boolean;
+  onChange?: (attachments: SourceFileMeta[]) => void;
+  onItemClick?: (attachment: SourceFileMeta) => void;
+  onDownload?: (attachment: SourceFileMeta) => void;
+  originalAttachmentPaths?: string[];
 }) {
-  return (
-    <CollapsibleSection icon={<Paperclip className="mr-1.5 h-4 w-4 shrink-0" />} title="첨부 파일">
-      {attachments.length > 0 ? (
-        <div className="space-y-2">
-          {attachments.map((attachment) => {
-            const openKey = `${attachment.path}:${attachment.name}:open`;
-            const resyncKey = `${attachment.path}:${attachment.name}:resync`;
-            const isOpening = attachmentActionKey === openKey;
-            const isResyncing = attachmentActionKey === resyncKey;
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
+  const [deletedAttachments, setDeletedAttachments] = React.useState<SourceFileMeta[]>([]);
 
-            return (
-              <div
-                key={`${attachment.path}-${attachment.name}`}
-                className="rounded-md border border-ssoo-content-border px-2.5 py-2 text-xs text-ssoo-primary"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate">{attachment.name}</span>
-                  <span className="text-ssoo-primary/60">{formatSize(attachment.size)}</span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => void onOpen(attachment)}
-                    disabled={isOpening}
-                    className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-xs hover:border-ssoo-primary disabled:opacity-60"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    {isOpening ? 'Opening...' : 'Open'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void onCopyUri(attachment)}
-                    className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-xs hover:border-ssoo-primary"
-                  >
-                    <Copy className="h-3 w-3" />
-                    URI
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void onResync(attachment)}
-                    disabled={isResyncing}
-                    className="inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-xs hover:border-ssoo-primary disabled:opacity-60"
-                  >
-                    <RefreshCw className={cn('h-3 w-3', isResyncing && 'animate-spin')} />
-                    Resync
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+  const attachmentKey = (a: SourceFileMeta) => a.path || a.name;
+
+  const newAttachmentPaths = React.useMemo(() => {
+    if (!originalAttachmentPaths || !editable) return undefined;
+    const originalSet = new Set(originalAttachmentPaths);
+    const ids = new Set<string>();
+    for (const a of attachments) {
+      const key = attachmentKey(a);
+      if (!originalSet.has(key) && !pendingDeletes.has(key)) ids.add(key);
+    }
+    return ids.size > 0 ? ids : undefined;
+  }, [attachments, originalAttachmentPaths, editable, pendingDeletes]);
+
+  const handleSoftDelete = (key: string) => {
+    const attachment = attachments.find((a) => attachmentKey(a) === key);
+    if (attachment) {
+      setDeletedAttachments((prev) => [...prev, attachment]);
+    }
+    setPendingDeletes((prev) => new Set(prev).add(key));
+    onChange?.(attachments.filter((a) => attachmentKey(a) !== key));
+  };
+
+  const handleRestore = (item: { id: string }) => {
+    const cached = deletedAttachments.find((a) => attachmentKey(a) === item.id);
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
+    setDeletedAttachments((prev) => prev.filter((a) => attachmentKey(a) !== item.id));
+    if (cached && !attachments.some((a) => attachmentKey(a) === item.id)) {
+      onChange?.([...attachments, cached]);
+    }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+
+    const tempMeta: SourceFileMeta = {
+      name: file.name,
+      path: `__pending__/${Date.now()}-${file.name}`,
+      type: file.type || 'application/octet-stream',
+      size: file.size,
+      origin: 'manual',
+      status: 'draft',
+      provider: 'local',
+    };
+
+    onChange?.([...attachments, tempMeta]);
+
+    // Dispatch custom event so DocumentPage can track the pending file
+    window.dispatchEvent(
+      new CustomEvent('attachment-file-selected', { detail: { meta: tempMeta, file } }),
+    );
+  };
+
+  const allAttachments = React.useMemo(() => {
+    const deletedOnly = deletedAttachments.filter(
+      (da) => !attachments.some((a) => attachmentKey(a) === attachmentKey(da)) && pendingDeletes.has(attachmentKey(da)),
+    );
+    return [...attachments, ...deletedOnly];
+  }, [attachments, deletedAttachments, pendingDeletes]);
+
+  const items = allAttachments.map((attachment) => {
+    const key = attachmentKey(attachment);
+    const isDeleted = pendingDeletes.has(key);
+
+    const actions: ActivityAction[] = [];
+
+    if (editable && !isDeleted) {
+      actions.push({
+        id: `delete-${key}`,
+        kind: 'icon',
+        tone: 'danger',
+        icon: <X className="h-3 w-3" />,
+        title: '첨부 삭제',
+        onClick: () => handleSoftDelete(key),
+      });
+    }
+
+    if (!editable) {
+      actions.push({
+        id: `download-${key}`,
+        kind: 'icon',
+        tone: 'default',
+        icon: <Download className="h-3 w-3" />,
+        title: '다운로드',
+        onClick: () => onDownload?.(attachment),
+      });
+    }
+
+    return {
+      id: key,
+      title: attachment.name,
+      meta: formatSize(attachment.size),
+      icon: getFileIcon(attachment.name),
+      actions,
+    };
+  });
+
+  const deletedIds = React.useMemo(() => {
+    if (pendingDeletes.size === 0) return undefined;
+    return pendingDeletes;
+  }, [pendingDeletes]);
+
+  return (
+    <ActivityListSection
+      icon={<Paperclip className="mr-1.5 h-4 w-4 shrink-0" />}
+      title="첨부"
+      badge={attachments.length > 0 ? <span className="mr-1 text-xs text-gray-400">({attachments.length})</span> : undefined}
+      items={items}
+      variant="compact"
+      highlightedItemIds={newAttachmentPaths}
+      deletedItemIds={deletedIds}
+      onItemRestore={handleRestore}
+      onItemClick={(item) => {
+        if (pendingDeletes.has(item.id)) return;
+        const attachment = attachments.find((a) => attachmentKey(a) === item.id);
+        if (attachment) onItemClick?.(attachment);
+      }}
+      emptyText="첨부없음"
+    >
+      {editable && (
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex h-7 w-full items-center justify-center gap-1.5 rounded border border-dashed border-ssoo-content-border px-2 text-xs text-ssoo-primary/60 transition-colors hover:border-ssoo-primary hover:text-ssoo-primary"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            파일 첨부
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ATTACHMENT_ACCEPT_STRING}
+            onChange={handleFileSelect}
+            className="hidden"
+          />
         </div>
-      ) : (
-        <EmptyPlaceholder text="첨부없음" />
       )}
-    </CollapsibleSection>
+    </ActivityListSection>
   );
 }
 

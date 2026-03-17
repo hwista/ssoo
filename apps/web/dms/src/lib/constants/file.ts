@@ -28,3 +28,73 @@ export const MIME_TYPES = {
   css: 'text/css',
   html: 'text/html',
 } as const;
+
+// ─── 첨부파일 허용 확장자 ──────────────────────────────────
+
+export type AttachmentCategory = 'document' | 'office' | 'text' | 'image' | 'web';
+
+export interface AttachmentTypeInfo {
+  ext: string;
+  mime: string;
+  category: AttachmentCategory;
+}
+
+export const ATTACHMENT_TYPES: AttachmentTypeInfo[] = [
+  // 문서
+  { ext: '.pdf', mime: 'application/pdf', category: 'document' },
+
+  // Office
+  { ext: '.doc', mime: 'application/msword', category: 'office' },
+  { ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', category: 'office' },
+  { ext: '.xls', mime: 'application/vnd.ms-excel', category: 'office' },
+  { ext: '.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', category: 'office' },
+  { ext: '.ppt', mime: 'application/vnd.ms-powerpoint', category: 'office' },
+  { ext: '.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', category: 'office' },
+
+  // 텍스트
+  { ext: '.txt', mime: 'text/plain', category: 'text' },
+  { ext: '.md', mime: 'text/markdown', category: 'text' },
+  { ext: '.csv', mime: 'text/csv', category: 'text' },
+  { ext: '.json', mime: 'application/json', category: 'text' },
+  { ext: '.xml', mime: 'application/xml', category: 'text' },
+  { ext: '.yaml', mime: 'application/x-yaml', category: 'text' },
+  { ext: '.yml', mime: 'application/x-yaml', category: 'text' },
+  { ext: '.log', mime: 'text/plain', category: 'text' },
+
+  // 이미지
+  { ext: '.png', mime: 'image/png', category: 'image' },
+  { ext: '.jpg', mime: 'image/jpeg', category: 'image' },
+  { ext: '.jpeg', mime: 'image/jpeg', category: 'image' },
+  { ext: '.gif', mime: 'image/gif', category: 'image' },
+  { ext: '.webp', mime: 'image/webp', category: 'image' },
+  { ext: '.svg', mime: 'image/svg+xml', category: 'image' },
+
+  // 웹
+  { ext: '.html', mime: 'text/html', category: 'web' },
+  { ext: '.htm', mime: 'text/html', category: 'web' },
+];
+
+export const ATTACHMENT_ACCEPT_STRING = ATTACHMENT_TYPES.map((t) => t.ext).join(',');
+
+export const ATTACHMENT_MAX_SIZE = 20 * 1024 * 1024; // 20MB
+
+export const ATTACHMENT_ALLOWED_EXTENSIONS = new Set(ATTACHMENT_TYPES.map((t) => t.ext));
+
+export const ATTACHMENT_STORAGE_DIR = '_assets/attachments';
+
+export function getAttachmentCategory(fileName: string): AttachmentCategory | null {
+  const ext = fileName.lastIndexOf('.') >= 0 ? fileName.slice(fileName.lastIndexOf('.')).toLowerCase() : '';
+  const info = ATTACHMENT_TYPES.find((t) => t.ext === ext);
+  return info?.category ?? null;
+}
+
+export function getMimeType(fileName: string): string {
+  const ext = fileName.lastIndexOf('.') >= 0 ? fileName.slice(fileName.lastIndexOf('.')).toLowerCase() : '';
+  const info = ATTACHMENT_TYPES.find((t) => t.ext === ext);
+  return info?.mime ?? MIME_TYPES.DEFAULT;
+}
+
+export function isAllowedAttachment(fileName: string): boolean {
+  const ext = fileName.lastIndexOf('.') >= 0 ? fileName.slice(fileName.lastIndexOf('.')).toLowerCase() : '';
+  return ATTACHMENT_ALLOWED_EXTENSIONS.has(ext);
+}

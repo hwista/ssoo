@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import fs from 'node:fs';
 import path from 'node:path';
-import { configService } from '@/server/services/config/ConfigService';
 import { logger } from '@/lib/utils';
+import { saveFileByHash } from '@/server/services/file/hashStorage';
 
 const IMAGES_DIR = '_assets/images';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -25,25 +24,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: '파일 크기는 10MB 이하여야 합니다.' }, { status: 400 });
     }
 
-    const wikiDir = configService.getWikiDir();
-    const imagesDir = path.join(wikiDir, IMAGES_DIR);
-
-    if (!fs.existsSync(imagesDir)) {
-      fs.mkdirSync(imagesDir, { recursive: true });
-    }
-
-    // 파일명 중복 방지: timestamp prefix
-    const ext = path.extname(file.name) || '.png';
-    const baseName = path.basename(file.name, ext).replace(/[^a-zA-Z0-9가-힣_-]/g, '_');
-    const fileName = `${Date.now()}-${baseName}${ext}`;
-    const filePath = path.join(imagesDir, fileName);
-
     const buffer = Buffer.from(await file.arrayBuffer());
-    fs.writeFileSync(filePath, buffer);
+    const { relativePath, fileName, reused } = saveFileByHash(buffer, file.name, IMAGES_DIR);
 
-    const relativePath = `${IMAGES_DIR}/${fileName}`;
-
-    logger.info('이미지 업로드 완료', { relativePath, size: file.size });
+    logger.info('이미지 업로드 완료', { relativePath, size: file.size, reused });
 
     return NextResponse.json({
       success: true,

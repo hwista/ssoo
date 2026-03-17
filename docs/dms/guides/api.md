@@ -23,6 +23,10 @@ DMS는 Next.js App Router의 Route Handlers를 사용합니다.
 |----------|-----------|------|
 | **파일 관리** | `/api/file` | 단일 파일 CRUD |
 | | `/api/files` | 파일 트리 조회 |
+| | `/api/file/raw` | 이미지 바이너리 서빙 (GET) |
+| | `/api/file/upload-image` | 이미지 업로드 (POST, 10MB, SHA-256 해시 중복제거) |
+| | `/api/file/upload-attachment` | 첨부파일 업로드 (POST, 20MB, SHA-256 해시 중복제거) |
+| | `/api/file/serve-attachment` | 첨부파일 서빙/다운로드 (GET) |
 | **AI** | `/api/search` | 문서 기반 검색 |
 | | `/api/ask` | 문서 기반 질문 |
 | | `/api/create` | 문서 요약(레거시 호환) |
@@ -462,7 +466,109 @@ GET /api/files
 
 ---
 
-## 4. POST /api/search
+## 4. GET /api/file/raw
+
+위키 디렉토리 내 이미지 파일을 raw 바이너리로 반환합니다.
+
+### Request
+
+```http
+GET /api/file/raw?path=_assets/images/abc123.png
+```
+
+### 지원 형식
+
+PNG, JPEG, GIF, WebP, SVG
+
+### Response
+
+바이너리 (Content-Type에 맞는 이미지 데이터, Cache-Control: 1시간)
+
+---
+
+## 5. POST /api/file/upload-image
+
+이미지 파일을 업로드합니다. SHA-256 해시 기반 중복 제거를 적용합니다.
+
+### Request
+
+```http
+POST /api/file/upload-image
+Content-Type: multipart/form-data
+
+file: (바이너리)
+```
+
+- 최대 크기: 10MB
+- 허용 형식: `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml`
+
+### Response
+
+```json
+{
+  "success": true,
+  "path": "_assets/images/a1b2c3...64자해시.png",
+  "fileName": "a1b2c3...64자해시.png"
+}
+```
+
+동일 내용의 파일 재업로드 시 기존 경로를 반환합니다 (디스크 쓰기 없음).
+
+---
+
+## 6. POST /api/file/upload-attachment
+
+첨부파일을 업로드합니다. SHA-256 해시 기반 중복 제거를 적용합니다.
+
+### Request
+
+```http
+POST /api/file/upload-attachment
+Content-Type: multipart/form-data
+
+file: (바이너리)
+```
+
+- 최대 크기: 20MB
+- 허용 확장자: `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`, `.txt`, `.csv`, `.json`, `.xml`, `.yaml`, `.yml`, `.md`, `.html`, `.htm`, `.rtf`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.bmp`, `.tiff`, `.ico`
+
+### Response
+
+```json
+{
+  "success": true,
+  "path": "_assets/attachments/a1b2c3...64자해시.pdf",
+  "fileName": "a1b2c3...64자해시.pdf",
+  "size": 123456,
+  "type": "application/pdf"
+}
+```
+
+---
+
+## 7. GET /api/file/serve-attachment
+
+첨부파일을 서빙하거나 다운로드합니다.
+
+### Request
+
+```http
+GET /api/file/serve-attachment?path=_assets/attachments/hash.pdf&name=원본파일명.pdf&download=1
+```
+
+| 파라미터 | 필수 | 설명 |
+|----------|------|------|
+| `path` | ✅ | 파일 상대 경로 (wikiDir 기준) |
+| `name` | ❌ | 원본 파일명 (Content-Disposition에 사용) |
+| `download` | ❌ | `1`이면 attachment, 미지정이면 inline |
+
+### Response
+
+바이너리 (Content-Type/Content-Disposition 헤더 포함)
+
+---
+
+## 8. POST /api/search
 
 문서 기반 키워드 검색을 수행합니다.
 
@@ -493,7 +599,7 @@ GET /api/files
 
 ---
 
-## 5. POST /api/ask
+## 9. POST /api/ask
 
 문서 기반 질문을 처리합니다.
 
@@ -626,4 +732,5 @@ async function getFileTree() {
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-03-17 | 파일 업로드/첨부 API 추가 (upload-image, upload-attachment, serve-attachment), 해시 기반 중복 제거 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

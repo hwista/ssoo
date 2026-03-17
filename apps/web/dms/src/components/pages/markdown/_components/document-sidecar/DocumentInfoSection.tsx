@@ -92,7 +92,7 @@ export function DocumentInfoSection({
   return (
     <KeyValueSection
       key={String(editable)}
-      title="문서 정보"
+      title="정보"
       icon={<FileText className="mr-1.5 h-4 w-4 shrink-0" />}
       items={items}
       defaultOpen={editable}

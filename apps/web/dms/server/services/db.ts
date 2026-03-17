@@ -71,8 +71,8 @@ export async function initDatabase(): Promise<void> {
 
     logger.info('DMS 데이터베이스 초기화 완료');
   } catch (error) {
-    logger.error('DMS 데이터베이스 초기화 실패', error);
-    throw error;
+    // pgvector 미설치 등 DB 초기화 실패 시 앱은 계속 시작 (시맨틱 검색 비활성)
+    logger.error('DMS 데이터베이스 초기화 실패 (시맨틱 검색 비활성)', error);
   }
 }
 

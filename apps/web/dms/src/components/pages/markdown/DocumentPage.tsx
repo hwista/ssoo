@@ -104,6 +104,9 @@ export function DocumentPage() {
   const [liveEditorContent, setLiveEditorContent] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
 
+  // 첨부파일 deferred upload: 파일 선택 시 File 객체를 저장, 문서 저장 시 업로드
+  const pendingAttachmentsRef = useRef<Map<string, File>>(new Map());
+
   const handleEditorContentChange = useCallback((editorContent: string) => {
     setLiveEditorContent(editorContent);
   }, []);
@@ -114,6 +117,7 @@ export function DocumentPage() {
     summary: string;
     sourceLinks: string[];
     comments: string[];
+    attachmentPaths: string[];
   } | null>(null);
 
   // 새 문서용 자동 생성 파일명 (세션당 1회 생성)
@@ -124,6 +128,16 @@ export function DocumentPage() {
       removeTabEditor();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 첨부파일 선택 이벤트 수신: File 객체를 pendingAttachmentsRef에 저장
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { meta, file } = (e as CustomEvent).detail as { meta: { path: string }; file: File };
+      pendingAttachmentsRef.current.set(meta.path, file);
+    };
+    window.addEventListener('attachment-file-selected', handler);
+    return () => window.removeEventListener('attachment-file-selected', handler);
   }, []);
 
   useEffect(() => {
@@ -171,7 +185,7 @@ export function DocumentPage() {
     setMode('create');
     setIsEditing(true);
     setCreatePath('drafts/new-doc.md');
-    setOriginalMetaSnapshot({ tags: [], summary: '', sourceLinks: [], comments: [] });
+    setOriginalMetaSnapshot({ tags: [], summary: '', sourceLinks: [], comments: [], attachmentPaths: [] });
 
     if (createEntryType === 'template') {
       setSaveAsTemplateOnly(true);
@@ -298,6 +312,7 @@ export function DocumentPage() {
       summary: documentMetadata?.summary ?? '',
       sourceLinks: documentMetadata?.sourceLinks ?? [],
       comments: (documentMetadata?.comments ?? []).map((c) => c.id),
+      attachmentPaths: (documentMetadata?.sourceFiles ?? []).map((a) => a.path || a.name),
     });
     setMode('editor');
     setIsEditing(true);
@@ -349,9 +364,9 @@ export function DocumentPage() {
 
   const handleScrollToBodyLink = useCallback((url: string) => {
     if (mode === 'viewer') {
-      // 일반 링크 (<a>) 또는 이미지 (<img>) 모두 검색
+      // 일반 링크 (<a>) 또는 이미지 (<img data-original-src>) 모두 검색
       const link = document.querySelector(`a[href="${CSS.escape(url)}"]`)
-        ?? document.querySelector(`img[src="${CSS.escape(url)}"]`);
+        ?? document.querySelector(`img[data-original-src="${CSS.escape(url)}"]`);
       if (link) {
         link.scrollIntoView({ behavior: 'smooth', block: 'center' });
         const el = link as HTMLElement;
@@ -426,9 +441,7 @@ export function DocumentPage() {
 
   const handleOpenLink = useCallback((url: string, type?: 'link' | 'image') => {
     if (type === 'image') {
-      // 이미지 → 미리보기 모달
-      const bodyLink = liveBodyLinks.find((l) => l.url === url);
-      setImagePreview({ src: url, alt: bodyLink?.label || '이미지 미리보기' });
+      setImagePreview({ src: url, alt: '이미지 미리보기' });
       return;
     }
     const docPath = resolveWikiDocPath(url, filePath);
@@ -437,20 +450,49 @@ export function DocumentPage() {
     } else {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
-  }, [filePath, openDocumentTab, liveBodyLinks]);
+  }, [filePath, openDocumentTab]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     // 저장 직전 본문 링크를 sidecar에 영속화
     const currentBodyLinks = extractMarkdownLinks(
       editorRef.current?.getMarkdown() ?? content,
     );
     setLocalDocumentMetadata({ bodyLinks: currentBodyLinks });
+
+    // 대기 중인 첨부파일 업로드 → sourceFiles 경로 치환
+    const pending = pendingAttachmentsRef.current;
+    if (pending.size > 0) {
+      const currentFiles = documentMetadata?.sourceFiles ?? [];
+      const updatedFiles = [...currentFiles];
+
+      for (const [tempPath, file] of pending.entries()) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const res = await fetch('/api/file/upload-attachment', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            const idx = updatedFiles.findIndex((f) => f.path === tempPath);
+            if (idx >= 0) {
+              updatedFiles[idx] = { ...updatedFiles[idx], path: data.path, status: 'published' };
+            }
+          }
+        } catch {
+          // 업로드 실패 시 해당 파일은 pending 상태로 유지
+        }
+        pending.delete(tempPath);
+      }
+      setLocalDocumentMetadata({ sourceFiles: updatedFiles });
+    }
+
     editorHandlers?.save();
-  }, [editorHandlers, content, setLocalDocumentMetadata]);
+  }, [editorHandlers, content, setLocalDocumentMetadata, documentMetadata]);
 
   const handleCancel = useCallback(() => {
     // 대기 중인 이미지 blob URL 정리
     editorRef.current?.clearPendingImages();
+    // 대기 중인 첨부파일 정리
+    pendingAttachmentsRef.current.clear();
     if (editorHandlers) {
       editorHandlers.cancel();
     } else {

@@ -160,12 +160,12 @@ export function TagsSection({
             onChange={(event) => setInputValue(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="태그 추가..."
-            className="flex-1 rounded border border-ssoo-content-border bg-transparent px-2 py-1 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+            className="h-7 flex-1 rounded border border-ssoo-content-border bg-transparent px-2 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
           />
           <button
             onClick={handleAdd}
             disabled={!inputValue.trim()}
-            className="p-1 text-ssoo-primary/60 transition-colors hover:text-ssoo-primary disabled:opacity-30"
+            className="flex h-7 items-center p-1 text-ssoo-primary/60 transition-colors hover:text-ssoo-primary disabled:opacity-30"
             aria-label="태그 추가"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -443,19 +443,19 @@ export function SourceLinksSection({
       itemAppearance="link"
     >
       {editable && (
-        <div className="flex gap-1 pt-1">
+        <div className="flex gap-1 pt-2">
           <input
             type="text"
             value={inputValue}
             onChange={(event) => setInputValue(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="URL 추가..."
-            className="flex-1 rounded border border-ssoo-content-border bg-transparent px-2 py-1 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+            placeholder="링크 추가..."
+            className="h-7 flex-1 rounded border border-ssoo-content-border bg-transparent px-2 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
           />
           <button
             onClick={handleAdd}
             disabled={!inputValue.trim()}
-            className="p-1 text-ssoo-primary/60 transition-colors hover:text-ssoo-primary disabled:opacity-30"
+            className="flex h-7 items-center p-1 text-ssoo-primary/60 transition-colors hover:text-ssoo-primary disabled:opacity-30"
             aria-label="링크 추가"
           >
             <Plus className="h-3.5 w-3.5" />
