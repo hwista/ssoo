@@ -5,7 +5,10 @@ import {
   MAX_EXTRACTED_IMAGES,
   MAX_EXTRACTED_IMAGE_SIZE,
   EXTRACTABLE_IMAGE_MIMES,
+  PDF_MAX_RENDER_PAGES,
+  PDF_RENDER_SCALE,
 } from '@/lib/constants/file';
+import { configService } from '@/server/services/config/ConfigService';
 
 export interface ExtractedImage {
   base64: string;
@@ -19,6 +22,32 @@ export interface ExtractionResult {
   images: ExtractedImage[];
 }
 
+// ── 런타임 설정값 헬퍼 (ConfigService → file.ts 폴백) ────
+
+function getExtractionConfig() {
+  try {
+    const cfg = configService.getConfig().extraction;
+    if (cfg) {
+      return {
+        maxTextLength: cfg.maxTextLength ?? MAX_EXTRACTED_TEXT_LENGTH,
+        maxImages: cfg.maxImages ?? MAX_EXTRACTED_IMAGES,
+        maxImageSize: (cfg.maxImageSizeMb ?? 1) * 1024 * 1024,
+        pdfMaxRenderPages: cfg.pdfMaxRenderPages ?? PDF_MAX_RENDER_PAGES,
+        pdfRenderScale: cfg.pdfRenderScale ?? PDF_RENDER_SCALE,
+      };
+    }
+  } catch {
+    // ConfigService 미초기화 시 폴백
+  }
+  return {
+    maxTextLength: MAX_EXTRACTED_TEXT_LENGTH,
+    maxImages: MAX_EXTRACTED_IMAGES,
+    maxImageSize: MAX_EXTRACTED_IMAGE_SIZE,
+    pdfMaxRenderPages: PDF_MAX_RENDER_PAGES,
+    pdfRenderScale: PDF_RENDER_SCALE,
+  };
+}
+
 /**
  * 파일 Buffer에서 텍스트와 이미지를 추출한다.
  * 바이너리 형식(pdf, docx, pptx, xlsx)은 서버사이드 파서로 처리하고,
@@ -29,20 +58,21 @@ export async function extractTextFromFile(
   fileName: string,
 ): Promise<ExtractionResult> {
   const ext = extname(fileName).toLowerCase();
+  const cfg = getExtractionConfig();
 
   try {
     switch (ext) {
       case '.pdf':
-        return await extractPdf(buffer);
+        return await extractPdf(buffer, cfg);
       case '.doc':
       case '.docx':
-        return await extractDocx(buffer);
+        return await extractDocx(buffer, cfg);
       case '.ppt':
       case '.pptx':
-        return extractOfficeZip(buffer, 'ppt/media/', extractPptxText);
+        return extractOfficeZip(buffer, 'ppt/media/', extractPptxText, cfg);
       case '.xls':
       case '.xlsx':
-        return extractOfficeZip(buffer, 'xl/media/', extractXlsxText);
+        return extractOfficeZip(buffer, 'xl/media/', extractXlsxText, cfg);
       case '.txt':
       case '.md':
       case '.json':
@@ -53,7 +83,7 @@ export async function extractTextFromFile(
       case '.log':
       case '.html':
       case '.htm':
-        return { text: buffer.toString('utf-8').slice(0, MAX_EXTRACTED_TEXT_LENGTH), images: [] };
+        return { text: buffer.toString('utf-8').slice(0, cfg.maxTextLength), images: [] };
       default:
         return { text: '', images: [] };
     }
@@ -64,11 +94,21 @@ export async function extractTextFromFile(
   }
 }
 
+// ── 설정 타입 ────────────────────────────────────────
+
+interface ExtractionCfg {
+  maxTextLength: number;
+  maxImages: number;
+  maxImageSize: number;
+  pdfMaxRenderPages: number;
+  pdfRenderScale: number;
+}
+
 // ── 공통: ZIP 기반 Office 문서 이미지 추출 ─────────────
 
 interface ZipEntry { entryName: string; getData: () => Buffer }
 
-function extractImagesFromZip(buffer: Buffer, mediaPrefix: string): ExtractedImage[] {
+function extractImagesFromZip(buffer: Buffer, mediaPrefix: string, cfg: ExtractionCfg): ExtractedImage[] {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const AdmZip = require('adm-zip');
   const zip = new AdmZip(buffer);
@@ -80,7 +120,7 @@ function extractImagesFromZip(buffer: Buffer, mediaPrefix: string): ExtractedIma
     .sort((a, b) => a.entryName.localeCompare(b.entryName));
 
   for (const entry of mediaEntries) {
-    if (images.length >= MAX_EXTRACTED_IMAGES) break;
+    if (images.length >= cfg.maxImages) break;
 
     const ext = extname(entry.entryName).toLowerCase();
     const mimeMap: Record<string, string> = {
@@ -94,7 +134,7 @@ function extractImagesFromZip(buffer: Buffer, mediaPrefix: string): ExtractedIma
     if (!mimeType || !EXTRACTABLE_IMAGE_MIMES.has(mimeType)) continue;
 
     const data = entry.getData();
-    if (data.length > MAX_EXTRACTED_IMAGE_SIZE) continue;
+    if (data.length > cfg.maxImageSize) continue;
 
     images.push({
       base64: data.toString('base64'),
@@ -110,41 +150,91 @@ function extractImagesFromZip(buffer: Buffer, mediaPrefix: string): ExtractedIma
 function extractOfficeZip(
   buffer: Buffer,
   mediaPrefix: string,
-  textFn: (buffer: Buffer) => string,
+  textFn: (buffer: Buffer, cfg: ExtractionCfg) => string,
+  cfg: ExtractionCfg,
 ): ExtractionResult {
   return {
-    text: textFn(buffer),
-    images: extractImagesFromZip(buffer, mediaPrefix),
+    text: textFn(buffer, cfg),
+    images: extractImagesFromZip(buffer, mediaPrefix, cfg),
   };
 }
 
-// ── PDF ──────────────────────────────────────────────
+// ── PDF (unpdf + @napi-rs/canvas) ────────────────────
 
-async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
-  const result = await pdfParse(buffer);
-  const text = (result.text ?? '').slice(0, MAX_EXTRACTED_TEXT_LENGTH);
+let pdfjsModuleDefined = false;
 
-  // PDF 이미지 추출: pdfjs-dist의 저수준 API로 XObject 이미지를 추출할 수 있으나
-  // Node.js에서 canvas 없이는 디코딩이 제한적. 텍스트만 추출하고 이미지는 빈 배열.
-  return { text, images: [] };
+async function ensurePdfJsModule() {
+  if (pdfjsModuleDefined) return;
+
+  // Node.js 환경에서 pdfjs-dist가 필요로 하는 브라우저 API를 @napi-rs/canvas에서 폴리필
+  const canvas = await import('@napi-rs/canvas');
+  if (!globalThis.DOMMatrix) globalThis.DOMMatrix = canvas.DOMMatrix as unknown as typeof DOMMatrix;
+  if (!globalThis.DOMPoint) globalThis.DOMPoint = canvas.DOMPoint as unknown as typeof DOMPoint;
+  if (!globalThis.Path2D) globalThis.Path2D = canvas.Path2D as unknown as typeof Path2D;
+  if (!globalThis.ImageData) globalThis.ImageData = canvas.ImageData as unknown as typeof ImageData;
+
+  const { definePDFJSModule } = await import('unpdf');
+  // Node.js에서는 legacy 빌드 사용 (DOMMatrix 등 완전 폴리필 불필요)
+  await definePDFJSModule(() => import('pdfjs-dist/legacy/build/pdf.mjs'));
+  pdfjsModuleDefined = true;
+}
+
+async function extractPdf(buffer: Buffer, cfg: ExtractionCfg): Promise<ExtractionResult> {
+  await ensurePdfJsModule();
+
+  const { getDocumentProxy, extractText, renderPageAsImage } = await import('unpdf');
+
+  const uint8 = new Uint8Array(buffer);
+  const pdf = await getDocumentProxy(uint8);
+
+  // 텍스트 추출 (PDF 내부 텍스트 스트림에서 직접 파싱)
+  const { text: rawText } = await extractText(pdf, { mergePages: true });
+  const text = (typeof rawText === 'string' ? rawText : '').slice(0, cfg.maxTextLength);
+
+  // 페이지 이미지 렌더링 (차트, 다이어그램 등 시각 요소 포착)
+  const images: ExtractedImage[] = [];
+  const maxPages = Math.min(pdf.numPages, cfg.pdfMaxRenderPages, cfg.maxImages);
+
+  for (let i = 1; i <= maxPages; i++) {
+    try {
+      const pngArrayBuffer = await renderPageAsImage(pdf, i, {
+        canvasImport: () => import('@napi-rs/canvas'),
+        scale: cfg.pdfRenderScale,
+      });
+      const buf = Buffer.from(pngArrayBuffer);
+
+      if (buf.length <= cfg.maxImageSize) {
+        images.push({
+          base64: buf.toString('base64'),
+          mimeType: 'image/png',
+          name: `page-${i}.png`,
+          size: buf.length,
+        });
+      }
+    } catch (pageError) {
+      logger.warn(`PDF 페이지 ${i} 렌더링 실패`, {
+        error: pageError instanceof Error ? pageError.message : String(pageError),
+      });
+    }
+  }
+
+  return { text, images };
 }
 
 // ── DOCX ─────────────────────────────────────────────
 
-async function extractDocx(buffer: Buffer): Promise<ExtractionResult> {
+async function extractDocx(buffer: Buffer, cfg: ExtractionCfg): Promise<ExtractionResult> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const mammoth = require('mammoth') as { extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }> };
   const result = await mammoth.extractRawText({ buffer });
-  const text = (result.value ?? '').slice(0, MAX_EXTRACTED_TEXT_LENGTH);
-  const images = extractImagesFromZip(buffer, 'word/media/');
+  const text = (result.value ?? '').slice(0, cfg.maxTextLength);
+  const images = extractImagesFromZip(buffer, 'word/media/', cfg);
   return { text, images };
 }
 
 // ── XLSX ─────────────────────────────────────────────
 
-function extractXlsxText(buffer: Buffer): string {
+function extractXlsxText(buffer: Buffer, cfg: ExtractionCfg): string {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const XLSX = require('xlsx');
   const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -156,12 +246,12 @@ function extractXlsxText(buffer: Buffer): string {
       parts.push(`[${sheetName}]\n${csv}`);
     }
   }
-  return parts.join('\n---\n').slice(0, MAX_EXTRACTED_TEXT_LENGTH);
+  return parts.join('\n---\n').slice(0, cfg.maxTextLength);
 }
 
 // ── PPTX ─────────────────────────────────────────────
 
-function extractPptxText(buffer: Buffer): string {
+function extractPptxText(buffer: Buffer, cfg: ExtractionCfg): string {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const AdmZip = require('adm-zip');
   const zip = new AdmZip(buffer);
@@ -192,5 +282,5 @@ function extractPptxText(buffer: Buffer): string {
     }
   }
 
-  return parts.join('\n\n').slice(0, MAX_EXTRACTED_TEXT_LENGTH);
+  return parts.join('\n\n').slice(0, cfg.maxTextLength);
 }

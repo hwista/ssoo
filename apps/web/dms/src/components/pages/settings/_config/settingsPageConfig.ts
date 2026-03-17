@@ -1,4 +1,4 @@
-import { Database, GitBranch, HardDrive, Shapes } from 'lucide-react';
+import { Database, FileSearch, GitBranch, HardDrive, Shapes } from 'lucide-react';
 
 export interface SettingItem {
   key: string;
@@ -155,5 +155,78 @@ export const SETTING_SECTIONS: SettingSection[] = [
     icon: Shapes,
     description: '전역/개인 템플릿과 폴더 구조 템플릿을 관리합니다.',
     items: [],
+  },
+  {
+    id: 'extraction',
+    label: 'Extraction',
+    icon: FileSearch,
+    description: 'AI 문서 분석 시 텍스트/이미지 추출 설정을 관리합니다.',
+    items: [
+      {
+        key: 'extraction.maxTextLength',
+        label: '텍스트 추출 상한',
+        helpKey: 'extraction.maxTextLength',
+        description: '문서에서 추출하는 텍스트 최대 길이(자)입니다.',
+        type: 'text',
+        placeholder: '12000',
+        validate: (value) => {
+          const num = Number(value);
+          if (!Number.isFinite(num) || num < 1000) return '1000 이상의 숫자를 입력하세요.';
+          return null;
+        },
+      },
+      {
+        key: 'extraction.maxImages',
+        label: '최대 추출 이미지 수',
+        helpKey: 'extraction.maxImages',
+        description: '문서당 AI에 전달하는 최대 이미지 수입니다.',
+        type: 'text',
+        placeholder: '5',
+        validate: (value) => {
+          const num = Number(value);
+          if (!Number.isFinite(num) || num < 1 || num > 20) return '1~20 사이의 숫자를 입력하세요.';
+          return null;
+        },
+      },
+      {
+        key: 'extraction.maxImageSizeMb',
+        label: '추출 이미지 최대 크기 (MB)',
+        helpKey: 'extraction.maxImageSizeMb',
+        description: '개별 추출 이미지의 최대 크기(MB)입니다.',
+        type: 'text',
+        placeholder: '1',
+        validate: (value) => {
+          const num = Number(value);
+          if (!Number.isFinite(num) || num < 0.1) return '0.1 이상의 숫자를 입력하세요.';
+          return null;
+        },
+      },
+      {
+        key: 'extraction.pdfMaxRenderPages',
+        label: 'PDF 렌더링 페이지 수',
+        helpKey: 'extraction.pdfMaxRenderPages',
+        description: 'PDF에서 이미지로 렌더링할 최대 페이지 수입니다.',
+        type: 'text',
+        placeholder: '3',
+        validate: (value) => {
+          const num = Number(value);
+          if (!Number.isFinite(num) || num < 1 || num > 20) return '1~20 사이의 숫자를 입력하세요.';
+          return null;
+        },
+      },
+      {
+        key: 'extraction.pdfRenderScale',
+        label: 'PDF 렌더링 스케일',
+        helpKey: 'extraction.pdfRenderScale',
+        description: 'PDF 페이지 렌더링 배율입니다. 1.0이 원본 크기, 2.0이면 2배 해상도.',
+        type: 'text',
+        placeholder: '1.0',
+        validate: (value) => {
+          const num = Number(value);
+          if (!Number.isFinite(num) || num < 0.5 || num > 4.0) return '0.5~4.0 사이의 숫자를 입력하세요.';
+          return null;
+        },
+      },
+    ],
   },
 ];

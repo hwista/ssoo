@@ -80,10 +80,12 @@ export const ATTACHMENT_MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 export const IMAGE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
-// ─── 텍스트/이미지 추출 설정 ─────────────────────────────
+// ─── 텍스트/이미지 추출 설정 (코드 레벨 폴백; 런타임에는 dms.config.json 우선) ───
 export const MAX_EXTRACTED_TEXT_LENGTH = 12_000;
 export const MAX_EXTRACTED_IMAGES = 5;
 export const MAX_EXTRACTED_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
+export const PDF_MAX_RENDER_PAGES = 3;
+export const PDF_RENDER_SCALE = 1.0;
 export const EXTRACTABLE_IMAGE_MIMES = new Set([
   'image/png',
   'image/jpeg',

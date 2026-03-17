@@ -19,6 +19,13 @@ export interface DmsConfigClient {
     autoPublish: boolean;
     maxConcurrentJobs: number;
   };
+  extraction: {
+    maxTextLength: number;
+    maxImages: number;
+    maxImageSizeMb: number;
+    pdfMaxRenderPages: number;
+    pdfRenderScale: number;
+  };
 }
 
 export type DeepPartialClient<T> = {

@@ -48,10 +48,24 @@ export interface IngestConfig {
   maxConcurrentJobs: number;
 }
 
+export interface ExtractionConfig {
+  /** 텍스트 추출 상한 (자) */
+  maxTextLength: number;
+  /** 문서당 최대 추출 이미지 수 */
+  maxImages: number;
+  /** 추출 이미지 최대 크기 (MB) */
+  maxImageSizeMb: number;
+  /** PDF 페이지 렌더링 수 */
+  pdfMaxRenderPages: number;
+  /** PDF 렌더링 스케일 (1.0 = 원본, 2.0 = 2배) */
+  pdfRenderScale: number;
+}
+
 export interface DmsConfig {
   git: GitConfig;
   storage: StorageConfig;
   ingest: IngestConfig;
+  extraction: ExtractionConfig;
 }
 
 export type DeepPartial<T> = {
@@ -190,6 +204,13 @@ class ConfigService {
         queuePath: path.join(process.cwd(), 'data', 'ingest'),
         autoPublish: false,
         maxConcurrentJobs: 2,
+      },
+      extraction: {
+        maxTextLength: 12000,
+        maxImages: 5,
+        maxImageSizeMb: 1,
+        pdfMaxRenderPages: 3,
+        pdfRenderScale: 1.0,
       },
     };
   }
