@@ -332,7 +332,7 @@ export function DocumentPage() {
         name: f.name,
         type: f.type,
         size: f.size,
-        textContent: '', // 원본 텍스트는 서버에 저장됨 — AI 재사용 시 서버에서 읽음
+        textContent: '',
       }));
       setInlineSummaryFiles((prev) => {
         const map = new Map(prev.map((item) => [item.name, item]));
@@ -342,10 +342,36 @@ export function DocumentPage() {
         return Array.from(map.values());
       });
       setUsedSummaryFileIds(new Set(restored.map((r) => r.id)));
+
+      // 서버에서 참조 파일 내용 비동기 복원
+      void (async () => {
+        const results = await Promise.all(
+          refFiles.map(async (f) => {
+            if (!f.path || f.path.startsWith('__pending__')) return null;
+            try {
+              const res = await fetch(`/api/file/serve-attachment?path=${encodeURIComponent(f.path)}`);
+              if (res.ok) {
+                const text = await res.text();
+                return { name: f.name, textContent: text.slice(0, 12000) };
+              }
+            } catch { /* ignore fetch errors */ }
+            return null;
+          }),
+        );
+        const fetched = results.filter(Boolean) as { name: string; textContent: string }[];
+        if (fetched.length > 0) {
+          setInlineSummaryFiles((prev) =>
+            prev.map((item) => {
+              const match = fetched.find((c) => c.name === item.name);
+              return match ? { ...item, textContent: match.textContent } : item;
+            }),
+          );
+        }
+      })();
     }
 
     if (templateFile) {
-      setInlineTemplate({
+      const tplItem: TemplateItem = {
         id: templateFile.path || templateFile.name,
         name: templateFile.name,
         kind: 'document',
@@ -356,8 +382,25 @@ export function DocumentPage() {
         status: 'active',
         sourceType: 'markdown-file',
         visibility: 'personal',
-      });
+      };
+      setInlineTemplate(tplItem);
       setIsTemplateUsed(true);
+
+      // 서버에서 템플릿 내용 비동기 복원
+      if (templateFile.path && !templateFile.path.startsWith('__pending__')) {
+        void (async () => {
+          try {
+            const res = await fetch(`/api/file?path=${encodeURIComponent(templateFile.path!)}`);
+            if (res.ok) {
+              const data = await res.json();
+              const tplContent = typeof data?.content === 'string' ? data.content : '';
+              if (tplContent) {
+                setInlineTemplate((prev) => prev ? { ...prev, content: tplContent } : prev);
+              }
+            }
+          } catch { /* ignore */ }
+        })();
+      }
     }
   }, [setIsEditing, documentMetadata]);
 
