@@ -94,6 +94,8 @@ export interface DocumentSidecarProps {
   } | null;
   /** 추가 className */
   className?: string;
+  /** 문서 탭 열기 (템플릿 파일 클릭 시) */
+  onOpenDocumentTab?: (path: string) => void;
 }
 
 // ─── 메인 컴포넌트 ───────────────────────────────────────
@@ -126,6 +128,7 @@ export function DocumentSidecar({
   currentFilePath,
   originalMetaSnapshot,
   className,
+  onOpenDocumentTab,
 }: DocumentSidecarProps) {
   const attachments = documentMetadata?.sourceFiles ?? [];
   const summary = documentMetadata?.summary ?? '';
@@ -189,6 +192,14 @@ export function DocumentSidecar({
   };
 
   const handleAttachmentClick = (attachment: SourceFileMeta) => {
+    // 템플릿 파일은 새 탭에서 열기
+    if (attachment.origin === 'template') {
+      if (onOpenDocumentTab && attachment.path) {
+        onOpenDocumentTab(attachment.path);
+      }
+      return;
+    }
+
     if (attachment.path.startsWith('__pending__/')) {
       toast.info('파일이 아직 저장되지 않았습니다. 문서를 저장한 후 이용해주세요.');
       return;

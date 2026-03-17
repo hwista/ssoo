@@ -20,10 +20,15 @@ interface InlineComposerPanelProps {
   inlineTemplate: TemplateItem | null;
   inlineSummaryFiles: InlineSummaryFileItem[];
   inlineRelevanceWarnings: string[];
+  usedSummaryFileIds?: Set<string>;
+  isTemplateUsed?: boolean;
   handleInlineTemplateSelect: (template: TemplateItem) => void | Promise<void>;
   setInlineTemplate: (template: TemplateItem | null) => void;
   setInlineSummaryFiles: React.Dispatch<React.SetStateAction<InlineSummaryFileItem[]>>;
   setInlineRelevanceWarnings: React.Dispatch<React.SetStateAction<string[]>>;
+  onRemoveSummaryFileWithConfirm?: (id: string) => void;
+  onRemoveTemplateWithConfirm?: () => void;
+  onClearAllWithConfirm?: () => void;
 }
 
 export function InlineComposerPanel({
@@ -35,10 +40,15 @@ export function InlineComposerPanel({
   inlineTemplate,
   inlineSummaryFiles,
   inlineRelevanceWarnings,
+  usedSummaryFileIds,
+  isTemplateUsed,
   handleInlineTemplateSelect,
   setInlineTemplate,
   setInlineSummaryFiles,
   setInlineRelevanceWarnings,
+  onRemoveSummaryFileWithConfirm,
+  onRemoveTemplateWithConfirm,
+  onClearAllWithConfirm,
 }: InlineComposerPanelProps) {
   if (!isEditorMode) {
     return null;
@@ -71,16 +81,30 @@ export function InlineComposerPanel({
       inlineTemplate={inlineTemplate}
       inlineSummaryFiles={inlineSummaryFiles}
       inlineWarnings={inlineRelevanceWarnings}
+      usedSummaryFileIds={usedSummaryFileIds}
+      isTemplateUsed={isTemplateUsed}
       onInlineClearAll={() => {
-        setInlineTemplate(null);
-        setInlineSummaryFiles([]);
-        setInlineRelevanceWarnings([]);
+        if (onClearAllWithConfirm) {
+          onClearAllWithConfirm();
+        } else {
+          setInlineTemplate(null);
+          setInlineSummaryFiles([]);
+          setInlineRelevanceWarnings([]);
+        }
       }}
       onInlineRemoveTemplate={() => {
-        setInlineTemplate(null);
+        if (onRemoveTemplateWithConfirm) {
+          onRemoveTemplateWithConfirm();
+        } else {
+          setInlineTemplate(null);
+        }
       }}
       onInlineRemoveSummaryFile={(id) => {
-        setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== id));
+        if (onRemoveSummaryFileWithConfirm) {
+          onRemoveSummaryFileWithConfirm(id);
+        } else {
+          setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== id));
+        }
       }}
     />
   );

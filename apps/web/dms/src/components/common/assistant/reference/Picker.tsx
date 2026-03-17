@@ -172,7 +172,7 @@ export function AssistantReferencePicker({
           {mode === 'inline' && (
             <div className="rounded-md border border-ssoo-primary/20 bg-ssoo-content-bg/40 px-2 py-2">
               <p className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-ssoo-primary/80">
-                <FileUp className="h-3.5 w-3.5" /> 요약 파일 첨부
+                <FileUp className="h-3.5 w-3.5" /> 참조 파일 첨부
               </p>
               <input
                 type="file"

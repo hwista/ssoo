@@ -28,7 +28,7 @@ import { useBodyLinks } from '@/hooks/useBodyLinks';
 import { useOpenDocumentTab } from '@/hooks/useOpenDocumentTab';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import { resolveWikiDocPath } from './_components/editor/block-editor/blockEditorCommands';
-import type { DocumentMetadata } from '@/types';
+import type { DocumentMetadata, SourceFileMeta } from '@/types';
 import {
   type InlineSummaryFileItem,
 } from '@/components/common/assistant/reference/Picker';
@@ -103,6 +103,10 @@ export function DocumentPage() {
   const editorRef = useRef<EditorRef | null>(null);
   const [liveEditorContent, setLiveEditorContent] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
+
+  // AI 작성에 사용된 참조 파일/템플릿 추적
+  const [usedSummaryFileIds, setUsedSummaryFileIds] = useState<Set<string>>(new Set());
+  const [isTemplateUsed, setIsTemplateUsed] = useState(false);
 
   // 첨부파일 deferred upload: 파일 선택 시 File 객체를 저장, 문서 저장 시 업로드
   const pendingAttachmentsRef = useRef<Map<string, File>>(new Map());
@@ -316,6 +320,45 @@ export function DocumentPage() {
     });
     setMode('editor');
     setIsEditing(true);
+
+    // 기존 참조/템플릿을 Chips에 복원
+    const sourceFiles = documentMetadata?.sourceFiles ?? [];
+    const refFiles = sourceFiles.filter((f) => f.origin === 'reference');
+    const templateFile = sourceFiles.find((f) => f.origin === 'template');
+
+    if (refFiles.length > 0) {
+      const restored: InlineSummaryFileItem[] = refFiles.map((f) => ({
+        id: `${f.name}-restored-${f.size}`,
+        name: f.name,
+        type: f.type,
+        size: f.size,
+        textContent: '', // 원본 텍스트는 서버에 저장됨 — AI 재사용 시 서버에서 읽음
+      }));
+      setInlineSummaryFiles((prev) => {
+        const map = new Map(prev.map((item) => [item.name, item]));
+        for (const r of restored) {
+          if (!map.has(r.name)) map.set(r.name, r);
+        }
+        return Array.from(map.values());
+      });
+      setUsedSummaryFileIds(new Set(restored.map((r) => r.id)));
+    }
+
+    if (templateFile) {
+      setInlineTemplate({
+        id: templateFile.path || templateFile.name,
+        name: templateFile.name,
+        kind: 'document',
+        scope: 'personal',
+        content: '',
+        updatedAt: new Date().toISOString(),
+        sourcePath: templateFile.path,
+        status: 'active',
+        sourceType: 'markdown-file',
+        visibility: 'personal',
+      });
+      setIsTemplateUsed(true);
+    }
   }, [setIsEditing, documentMetadata]);
 
   const handleDelete = useCallback(async () => {
@@ -459,17 +502,21 @@ export function DocumentPage() {
     );
     setLocalDocumentMetadata({ bodyLinks: currentBodyLinks });
 
-    // 대기 중인 첨부파일 업로드 → sourceFiles 경로 치환
+    // 대기 중인 첨부파일/참조파일 업로드 → sourceFiles 경로 치환
     const pending = pendingAttachmentsRef.current;
     if (pending.size > 0) {
       const currentFiles = documentMetadata?.sourceFiles ?? [];
       const updatedFiles = [...currentFiles];
 
       for (const [tempPath, file] of pending.entries()) {
+        // 참조 파일은 _assets/references/, 수기 첨부는 _assets/attachments/
+        const isRef = tempPath.startsWith('__pending__/ref-');
+        const uploadUrl = isRef ? '/api/file/upload-reference' : '/api/file/upload-attachment';
+
         const formData = new FormData();
         formData.append('file', file);
         try {
-          const res = await fetch('/api/file/upload-attachment', { method: 'POST', body: formData });
+          const res = await fetch(uploadUrl, { method: 'POST', body: formData });
           const data = await res.json();
           if (res.ok && data.success) {
             const idx = updatedFiles.findIndex((f) => f.path === tempPath);
@@ -493,6 +540,12 @@ export function DocumentPage() {
     editorRef.current?.clearPendingImages();
     // 대기 중인 첨부파일 정리
     pendingAttachmentsRef.current.clear();
+    // 참조 파일/템플릿 추적 초기화
+    setUsedSummaryFileIds(new Set());
+    setIsTemplateUsed(false);
+    setInlineSummaryFiles([]);
+    setInlineTemplate(null);
+    setInlineRelevanceWarnings([]);
     if (editorHandlers) {
       editorHandlers.cancel();
     } else {
@@ -525,6 +578,41 @@ export function DocumentPage() {
     if (filePath) loadFile(filePath);
   }, [filePath, loadFile]);
 
+  // AI 작성 후 사용된 참조 파일/템플릿을 sidecar sourceFiles에 동기화
+  const handleSyncReferencesToSidecar = useCallback((
+    files: SourceFileMeta[],
+    rawFiles?: Map<string, File>,
+  ) => {
+    const currentFiles = documentMetadata?.sourceFiles ?? [];
+    const existingKeys = new Set(currentFiles.map((f) => f.name));
+
+    const newFiles = files.filter((f) => !existingKeys.has(f.name));
+    if (newFiles.length === 0) return;
+
+    setLocalDocumentMetadata({ sourceFiles: [...currentFiles, ...newFiles] });
+    setHasUnsavedChanges(true);
+
+    // 사용된 파일 ID 추적
+    for (const f of files) {
+      if (f.origin === 'reference') {
+        // inlineSummaryFiles에서 이름으로 매칭하여 id 찾기
+        const matched = inlineSummaryFiles.find((sf) => sf.name === f.name);
+        if (matched) {
+          setUsedSummaryFileIds((prev) => new Set(prev).add(matched.id));
+        }
+      } else if (f.origin === 'template') {
+        setIsTemplateUsed(true);
+      }
+    }
+
+    // 참조 파일의 File 객체를 pending에 등록 (저장 시 업로드)
+    if (rawFiles) {
+      for (const [tempPath, file] of rawFiles.entries()) {
+        pendingAttachmentsRef.current.set(tempPath, file);
+      }
+    }
+  }, [documentMetadata, inlineSummaryFiles, setLocalDocumentMetadata, setHasUnsavedChanges]);
+
   const {
     handleInlineCompose,
     handleRecommendPath,
@@ -552,10 +640,85 @@ export function DocumentPage() {
     deps: {
       editorHandlers,
       confirm,
+      onSyncReferencesToSidecar: handleSyncReferencesToSidecar,
     },
   });
 
   const isEditorMode = mode === 'editor' || mode === 'create';
+
+  // 참조 파일/템플릿을 sidecar에서도 제거하는 헬퍼
+  const removeReferenceFromSidecar = useCallback((name: string) => {
+    const currentFiles = documentMetadata?.sourceFiles ?? [];
+    setLocalDocumentMetadata({
+      sourceFiles: currentFiles.filter((f) => f.name !== name),
+    });
+  }, [documentMetadata, setLocalDocumentMetadata]);
+
+  // Chips에서 사용된 참조 파일 해제 시 컨펌
+  const handleRemoveSummaryFileWithConfirm = useCallback(async (id: string) => {
+    const file = inlineSummaryFiles.find((f) => f.id === id);
+    if (!file) return;
+
+    const isUsed = usedSummaryFileIds.has(id);
+    if (isUsed) {
+      const confirmed = await confirm({
+        title: '참조 파일 해제',
+        description: `'${file.name}' 파일은 문서 작성에 사용되었습니다. 해제하면 참조 이력이 남지 않습니다. 계속하시겠습니까?`,
+        confirmText: '해제',
+        cancelText: '취소',
+      });
+      if (!confirmed) return;
+      removeReferenceFromSidecar(file.name);
+      setUsedSummaryFileIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+
+    setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== id));
+  }, [inlineSummaryFiles, usedSummaryFileIds, confirm, removeReferenceFromSidecar]);
+
+  // Chips에서 사용된 템플릿 해제 시 컨펌
+  const handleRemoveTemplateWithConfirm = useCallback(async () => {
+    if (isTemplateUsed && inlineTemplate) {
+      const confirmed = await confirm({
+        title: '템플릿 해제',
+        description: `'${inlineTemplate.name}' 템플릿은 문서 작성에 사용되었습니다. 해제하면 참조 이력이 남지 않습니다. 계속하시겠습니까?`,
+        confirmText: '해제',
+        cancelText: '취소',
+      });
+      if (!confirmed) return;
+      removeReferenceFromSidecar(inlineTemplate.name);
+      setIsTemplateUsed(false);
+    }
+    setInlineTemplate(null);
+  }, [isTemplateUsed, inlineTemplate, confirm, removeReferenceFromSidecar]);
+
+  // 전체 해제
+  const handleClearAllWithConfirm = useCallback(async () => {
+    const hasUsed = usedSummaryFileIds.size > 0 || isTemplateUsed;
+    if (hasUsed) {
+      const confirmed = await confirm({
+        title: '전체 컨텍스트 해제',
+        description: '사용된 참조 파일/템플릿이 포함되어 있습니다. 해제하면 참조 이력이 남지 않습니다. 계속하시겠습니까?',
+        confirmText: '전체 해제',
+        cancelText: '취소',
+      });
+      if (!confirmed) return;
+
+      // sidecar에서 모든 참조/템플릿 제거
+      const currentFiles = documentMetadata?.sourceFiles ?? [];
+      setLocalDocumentMetadata({
+        sourceFiles: currentFiles.filter((f) => f.origin !== 'reference' && f.origin !== 'template'),
+      });
+      setUsedSummaryFileIds(new Set());
+      setIsTemplateUsed(false);
+    }
+    setInlineTemplate(null);
+    setInlineSummaryFiles([]);
+    setInlineRelevanceWarnings([]);
+  }, [usedSummaryFileIds, isTemplateUsed, confirm, documentMetadata, setLocalDocumentMetadata]);
 
   const contentSurfaceClassName = DOC_PAGE_SURFACE_PRESETS.document;
   const headerEditorRightSlot = (
@@ -660,6 +823,7 @@ export function DocumentPage() {
             onOpenLink={handleOpenLink}
             currentFilePath={filePath}
             originalMetaSnapshot={originalMetaSnapshot}
+            onOpenDocumentTab={(path) => openDocumentTab({ path })}
           />
         )}
         onEdit={handleEdit}
@@ -706,10 +870,15 @@ export function DocumentPage() {
               inlineTemplate={inlineTemplate}
               inlineSummaryFiles={inlineSummaryFiles}
               inlineRelevanceWarnings={inlineRelevanceWarnings}
+              usedSummaryFileIds={usedSummaryFileIds}
+              isTemplateUsed={isTemplateUsed}
               handleInlineTemplateSelect={handleInlineTemplateSelect}
               setInlineTemplate={setInlineTemplate}
               setInlineSummaryFiles={setInlineSummaryFiles}
               setInlineRelevanceWarnings={setInlineRelevanceWarnings}
+              onRemoveSummaryFileWithConfirm={handleRemoveSummaryFileWithConfirm}
+              onRemoveTemplateWithConfirm={handleRemoveTemplateWithConfirm}
+              onClearAllWithConfirm={handleClearAllWithConfirm}
             />
           );
 

@@ -15,7 +15,7 @@ export interface SourceFileMeta {
   versionId?: string;
   etag?: string;
   checksum?: string;
-  origin?: 'manual' | 'ingest' | 'teams' | 'network_drive';
+  origin?: 'manual' | 'ingest' | 'teams' | 'network_drive' | 'reference' | 'template';
   status?: 'draft' | 'pending_confirm' | 'published';
 }
 

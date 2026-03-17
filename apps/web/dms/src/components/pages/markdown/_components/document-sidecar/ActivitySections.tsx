@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, File, FileSpreadsheet, FileText, Image, MessageSquare, Paperclip, Presentation, Plus, X } from 'lucide-react';
+import { Download, File, FileSpreadsheet, FileText, Image, MessageSquare, Paperclip, Presentation, Plus, Link2, X } from 'lucide-react';
 import type { SourceFileMeta, DocumentComment } from '@/types';
 import { ActivityListSection } from '@/components/templates/page-frame/sidecar';
 import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
@@ -131,10 +131,14 @@ export function AttachmentsSection({
   const items = allAttachments.map((attachment) => {
     const key = attachmentKey(attachment);
     const isDeleted = pendingDeletes.has(key);
+    const isReference = attachment.origin === 'reference';
+    const isTemplate = attachment.origin === 'template';
+    const isSynced = isReference || isTemplate;
 
     const actions: ActivityAction[] = [];
 
-    if (editable && !isDeleted) {
+    // 에디터 모드: 수기 첨부만 삭제 가능, 참조/템플릿은 삭제 불가
+    if (editable && !isDeleted && !isSynced) {
       actions.push({
         id: `delete-${key}`,
         kind: 'icon',
@@ -145,7 +149,8 @@ export function AttachmentsSection({
       });
     }
 
-    if (!editable) {
+    // 뷰어 모드: 참조 파일은 다운로드 가능, 템플릿은 다운로드 없음
+    if (!editable && !isTemplate) {
       actions.push({
         id: `download-${key}`,
         kind: 'icon',
@@ -156,10 +161,28 @@ export function AttachmentsSection({
       });
     }
 
+    // 에디터 모드 뱃지: 참조됨 / 템플릿
+    const badgeLabel = isReference ? '참조됨' : isTemplate ? '템플릿' : null;
+    const metaContent = editable && badgeLabel
+      ? (
+        <span className="flex items-center gap-1.5">
+          <span>{formatSize(attachment.size)}</span>
+          <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${
+            isTemplate
+              ? 'border border-purple-200 bg-purple-50 text-purple-600'
+              : 'border border-blue-200 bg-blue-50 text-blue-600'
+          }`}>
+            <Link2 className="h-2.5 w-2.5" />
+            {badgeLabel}
+          </span>
+        </span>
+      )
+      : formatSize(attachment.size);
+
     return {
       id: key,
       title: attachment.name,
-      meta: formatSize(attachment.size),
+      meta: metaContent,
       icon: getFileIcon(attachment.name),
       actions,
     };

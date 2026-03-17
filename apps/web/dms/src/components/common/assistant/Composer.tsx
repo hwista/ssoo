@@ -30,6 +30,8 @@ interface AssistantComposerProps {
   inlineTemplate?: TemplateItem | null;
   inlineSummaryFiles?: InlineSummaryFileItem[];
   inlineWarnings?: string[];
+  usedSummaryFileIds?: Set<string>;
+  isTemplateUsed?: boolean;
   onInlineRemoveTemplate?: () => void;
   onInlineRemoveSummaryFile?: (id: string) => void;
   onInlineClearAll?: () => void;
@@ -52,6 +54,8 @@ export function AssistantComposer({
   inlineTemplate,
   inlineSummaryFiles,
   inlineWarnings,
+  usedSummaryFileIds,
+  isTemplateUsed,
   onInlineRemoveTemplate,
   onInlineRemoveSummaryFile,
   onInlineClearAll,
@@ -126,6 +130,8 @@ export function AssistantComposer({
         inlineTemplate={inlineTemplate}
         inlineSummaryFiles={inlineSummaryFiles}
         inlineWarnings={inlineWarnings}
+        usedSummaryFileIds={usedSummaryFileIds}
+        isTemplateUsed={isTemplateUsed}
         onInlineRemoveTemplate={onInlineRemoveTemplate}
         onInlineRemoveSummaryFile={onInlineRemoveSummaryFile}
         onInlineClearAll={onInlineClearAll}

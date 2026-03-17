@@ -4,6 +4,7 @@ import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { docAssistApi } from '@/lib/api';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TemplateItem } from '@/types/template';
+import type { SourceFileMeta } from '@/types';
 
 interface SelectionRange {
   from: number;
@@ -40,7 +41,7 @@ interface DocumentPageComposeMutators {
   setCreatePath: (path: string) => void;
   setInlineInstruction: (value: string) => void;
   setInlineRelevanceWarnings: Dispatch<SetStateAction<string[]>>;
-setInlineTemplate: Dispatch<SetStateAction<TemplateItem | null>>;
+  setInlineTemplate: Dispatch<SetStateAction<TemplateItem | null>>;
   setIsComposing: Dispatch<SetStateAction<boolean>>;
   setIsRecommendingPath: Dispatch<SetStateAction<boolean>>;
 }
@@ -48,6 +49,7 @@ setInlineTemplate: Dispatch<SetStateAction<TemplateItem | null>>;
 interface DocumentPageComposeDeps {
   editorHandlers: ComposeEditorHandlers | null;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
+  onSyncReferencesToSidecar?: (files: SourceFileMeta[], rawFiles?: Map<string, File>) => void;
 }
 
 function mapSummaryFiles(summaryFiles: InlineSummaryFileItem[]) {
@@ -129,7 +131,7 @@ export function useDocumentPageComposeActions({
     setIsComposing,
     setIsRecommendingPath,
   } = mutators;
-  const { editorHandlers, confirm } = deps;
+  const { editorHandlers, confirm, onSyncReferencesToSidecar } = deps;
 
   const handleInlineCompose = useCallback(async (draft?: string) => {
     const instruction = (draft ?? inlineInstruction).trim();
@@ -143,6 +145,10 @@ export function useDocumentPageComposeActions({
     const selection = { from: Math.min(safeFrom, safeTo), to: Math.max(safeFrom, safeTo) };
     const hasSelection = selection.from !== selection.to;
     const selectedText = hasSelection ? baseContent.slice(selection.from, selection.to) : undefined;
+
+    // 현재 사용 중인 참조 파일/템플릿 스냅샷 (동기화용)
+    const usedSummaryFiles = [...inlineSummaryFiles];
+    const usedTemplate = inlineTemplate;
 
     editorHandlers?.setPendingInsert?.(selection);
     setIsComposing(true);
@@ -170,6 +176,44 @@ export function useDocumentPageComposeActions({
         setContent,
       });
 
+      // AI가 실제 결과를 생성한 후 사용된 참조 파일/템플릿을 sidecar에 동기화
+      if (onSyncReferencesToSidecar) {
+        const syncFiles: SourceFileMeta[] = [];
+        const rawFiles = new Map<string, File>();
+
+        for (const sf of usedSummaryFiles) {
+          const tempPath = `__pending__/ref-${sf.id}`;
+          syncFiles.push({
+            name: sf.name,
+            path: tempPath,
+            type: sf.type || 'application/octet-stream',
+            size: sf.size,
+            origin: 'reference',
+            status: 'draft',
+            provider: 'local',
+          });
+          // Reconstruct File from text content for upload
+          const blob = new Blob([sf.textContent], { type: sf.type || 'text/plain' });
+          rawFiles.set(tempPath, new File([blob], sf.name, { type: sf.type || 'text/plain' }));
+        }
+
+        if (usedTemplate) {
+          syncFiles.push({
+            name: usedTemplate.name,
+            path: usedTemplate.sourcePath || `templates/${usedTemplate.id}`,
+            type: 'text/markdown',
+            size: 0,
+            origin: 'template',
+            status: 'published',
+            provider: 'local',
+          });
+        }
+
+        if (syncFiles.length > 0) {
+          onSyncReferencesToSidecar(syncFiles, rawFiles);
+        }
+      }
+
       setInlineInstruction('');
       setInlineRelevanceWarnings(response.data.relevanceWarnings ?? []);
       if (isCreateMode && response.data.suggestedPath) {
@@ -189,6 +233,7 @@ export function useDocumentPageComposeActions({
     inlineTemplate,
     isComposing,
     isCreateMode,
+    onSyncReferencesToSidecar,
     setContent,
     setCreatePath,
     setInlineInstruction,
