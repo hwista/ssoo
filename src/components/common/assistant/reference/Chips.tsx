@@ -121,14 +121,14 @@ export function AssistantReferenceChips({
               key={file.id}
               className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-[11px] ${
                 isUsed
-                  ? 'border-blue-300 bg-blue-50 text-blue-700'
+                  ? 'border-purple-300 bg-purple-50 text-purple-700'
                   : 'border-ssoo-content-border bg-white text-ssoo-primary'
               }`}
               title={file.name}
             >
               <FileUp className="h-3 w-3" />
               <span className="max-w-[180px] truncate">파일: {file.name}</span>
-              {isUsed && <Check className="h-3 w-3 text-blue-500" />}
+              {isUsed && <Check className="h-3 w-3 text-purple-500" />}
               <button
                 type="button"
                 disabled={disabled}
