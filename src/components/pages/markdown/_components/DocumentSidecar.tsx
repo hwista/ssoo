@@ -96,6 +96,14 @@ export interface DocumentSidecarProps {
   className?: string;
   /** 문서 탭 열기 (템플릿 파일 클릭 시) */
   onOpenDocumentTab?: (path: string) => void;
+  /** 외부 AI 추천 태그 (compose 후 자동 트리거) */
+  externalSuggestedTags?: string[];
+  /** 외부 태그 제안이 소비된 후 호출 */
+  onExternalSuggestedTagsConsumed?: () => void;
+  /** 외부 AI 요약 제안 (compose 후 자동 트리거) */
+  externalAiSuggestion?: string | null;
+  /** 외부 요약 제안이 소비된 후 호출 */
+  onExternalAiSuggestionConsumed?: () => void;
 }
 
 // ─── 메인 컴포넌트 ───────────────────────────────────────
@@ -129,6 +137,10 @@ export function DocumentSidecar({
   originalMetaSnapshot,
   className,
   onOpenDocumentTab,
+  externalSuggestedTags,
+  onExternalSuggestedTagsConsumed,
+  externalAiSuggestion,
+  onExternalAiSuggestionConsumed,
 }: DocumentSidecarProps) {
   const attachments = documentMetadata?.sourceFiles ?? [];
   const summary = documentMetadata?.summary ?? '';
@@ -258,6 +270,7 @@ export function DocumentSidecar({
             fileName={generatedFileName || fileName}
             isNewDocument={isNewDocument}
             onConfirm={handleSaveLocationConfirm}
+            getEditorContent={getEditorContent}
           />
           <TagsSection
             editable={editable}
@@ -265,6 +278,8 @@ export function DocumentSidecar({
             onChange={handleTagsChange}
             getEditorContent={getEditorContent}
             originalTags={originalMetaSnapshot?.tags}
+            externalSuggestedTags={externalSuggestedTags}
+            onExternalSuggestedTagsConsumed={onExternalSuggestedTagsConsumed}
           />
           <SummarySection
             editable={editable}
@@ -273,6 +288,8 @@ export function DocumentSidecar({
             onSummaryReplace={(text) => onMetadataChange?.({ summary: text })}
             getEditorContent={getEditorContent}
             originalSummary={originalMetaSnapshot?.summary}
+            externalAiSuggestion={externalAiSuggestion}
+            onExternalAiSuggestionConsumed={onExternalAiSuggestionConsumed}
           />
           <SourceLinksSection
             editable={editable}

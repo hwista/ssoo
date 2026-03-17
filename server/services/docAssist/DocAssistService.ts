@@ -1,7 +1,9 @@
 import { generateText, type ModelMessage, type TextPart, type FilePart } from 'ai';
 import { getChatModel } from '@/server/services/ai';
+import { fileSystemService } from '@/server/services/fileSystem/FileSystemService';
 import { logger } from '@/lib/utils/errorUtils';
 import type { TemplateItem } from '@/types/template';
+import type { FileNode } from '@/types/file-tree';
 
 interface ImageInput {
   base64: string;
@@ -27,6 +29,19 @@ interface ComposeInput {
 }
 
 export type ApplyMode = 'replace-document' | 'replace-selection' | 'append' | 'insert';
+
+interface RecommendTitleAndPathInput {
+  currentContent: string;
+  activeDocPath?: string;
+  directoryTree?: string[];
+  existingFiles?: string[];
+}
+
+export interface TitleAndPathResult {
+  suggestedTitle: string;
+  suggestedDirectory: string;
+  suggestedFileName: string;
+}
 
 const MAX_CURRENT_CONTENT_CHARS = 6000;
 const MAX_TEMPLATE_CHARS = 1500;
@@ -89,6 +104,25 @@ function collectImages(files: SummaryFileInput[]): FilePart[] {
     }
   }
   return parts;
+}
+
+function flattenTree(nodes: FileNode[], prefix = ''): { dirs: string[]; files: string[] } {
+  const dirs: string[] = [];
+  const files: string[] = [];
+  for (const node of nodes) {
+    const path = prefix ? `${prefix}/${node.name}` : node.name;
+    if (node.type === 'directory') {
+      dirs.push(path);
+      if (node.children) {
+        const sub = flattenTree(node.children, path);
+        dirs.push(...sub.dirs);
+        files.push(...sub.files);
+      }
+    } else {
+      files.push(path);
+    }
+  }
+  return { dirs, files };
 }
 
 class DocAssistService {
@@ -230,6 +264,105 @@ class DocAssistService {
       suggestedPath: recommendPath({ ...input, currentContent: '' }),
       relevanceWarnings: buildRelevanceWarnings(input.instruction, input.summaryFiles ?? []),
     };
+  }
+
+  async recommendTitleAndPath(input: RecommendTitleAndPathInput): Promise<TitleAndPathResult> {
+    const content = input.currentContent.trim();
+    if (!content) {
+      return { suggestedTitle: '', suggestedDirectory: 'drafts', suggestedFileName: '' };
+    }
+
+    // 디렉토리 트리와 기존 파일 목록 가져오기
+    let dirs = input.directoryTree ?? [];
+    let existingFiles = input.existingFiles ?? [];
+
+    if (dirs.length === 0 || existingFiles.length === 0) {
+      try {
+        const treeResult = await fileSystemService.getFileTree();
+        if (treeResult.success && treeResult.data) {
+          const flat = flattenTree(treeResult.data);
+          if (dirs.length === 0) dirs = flat.dirs;
+          if (existingFiles.length === 0) existingFiles = flat.files;
+        }
+      } catch {
+        // fallback: use empty lists
+      }
+    }
+
+    const boundedContent = content.slice(0, 3000);
+    const dirsContext = dirs.length > 0
+      ? `\n\n[기존 디렉토리 구조]\n${dirs.slice(0, 50).join('\n')}`
+      : '';
+    const filesContext = existingFiles.length > 0
+      ? `\n\n[기존 파일 목록 (중복 방지용)]\n${existingFiles.slice(0, 100).join('\n')}`
+      : '';
+
+    try {
+      const model = await getChatModel();
+      const result = await generateText({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: [
+              '당신은 문서 관리 AI입니다.',
+              '주어진 문서 내용을 분석하여 적절한 문서명, 저장 디렉토리, 파일명을 추천하세요.',
+              '반드시 JSON만 출력하세요. 다른 설명 없이 JSON만 반환하세요.',
+              '출력 형식: {"title":"문서 제목","directory":"저장/경로","fileName":"파일명.md"}',
+              '규칙:',
+              '- title: 문서 내용을 대표하는 한국어 제목 (간결하게)',
+              '- directory: 기존 디렉토리 구조를 참고하여 적절한 위치 선택. 해당하는 디렉토리가 없으면 새 경로 제안 가능.',
+              '- fileName: 영문 kebab-case + .md 확장자. 기존 파일과 중복되지 않도록 주의.',
+              '- 기존 디렉토리가 비어있으면 drafts/ 를 기본 디렉토리로 사용.',
+            ].join('\n'),
+          },
+          {
+            role: 'user',
+            content: `[문서 내용]\n${boundedContent}${dirsContext}${filesContext}`,
+          },
+        ],
+        maxOutputTokens: 200,
+      });
+
+      const text = result.text.trim();
+      // JSON 파싱 (코드 펜스 제거)
+      const jsonStr = text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+      const parsed = JSON.parse(jsonStr);
+
+      let fileName = typeof parsed.fileName === 'string' ? parsed.fileName.trim() : '';
+      if (fileName && !fileName.endsWith('.md')) fileName += '.md';
+
+      // 중복 파일명 체크
+      const dir = typeof parsed.directory === 'string' ? parsed.directory.trim() : 'drafts';
+      const fullPath = dir ? `${dir}/${fileName}` : fileName;
+      if (fileName && existingFiles.includes(fullPath)) {
+        const base = fileName.replace(/\.md$/, '');
+        fileName = `${base}-${Date.now().toString(36).slice(-4)}.md`;
+      }
+
+      return {
+        suggestedTitle: typeof parsed.title === 'string' ? parsed.title.trim() : '',
+        suggestedDirectory: dir || 'drafts',
+        suggestedFileName: fileName,
+      };
+    } catch (error) {
+      logger.error('doc-assist recommendTitleAndPath failed', error);
+      // Fallback: 첫 줄에서 제목 추출
+      const firstLine = content.split('\n').find((l) => l.trim().length > 0) ?? '';
+      const fallbackTitle = firstLine.replace(/^#+\s*/, '').slice(0, 60).trim();
+      const fallbackFileName = fallbackTitle
+        .replace(/[^\w가-힣\s-]/g, '')
+        .trim()
+        .split(/\s+/)
+        .slice(0, 4)
+        .join('-')
+        .toLowerCase();
+      return {
+        suggestedTitle: fallbackTitle || '새 문서',
+        suggestedDirectory: 'drafts',
+        suggestedFileName: fallbackFileName ? `${fallbackFileName}.md` : '',
+      };
+    }
   }
 }
 

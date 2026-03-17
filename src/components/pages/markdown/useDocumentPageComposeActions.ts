@@ -50,6 +50,8 @@ interface DocumentPageComposeDeps {
   editorHandlers: ComposeEditorHandlers | null;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   onSyncReferencesToSidecar?: (files: SourceFileMeta[], rawFiles?: Map<string, File>) => void;
+  /** AI compose 완료 후 태그/요약 자동 추천 콜백 */
+  onComposeComplete?: (generatedContent: string) => void;
 }
 
 function mapSummaryFiles(summaryFiles: InlineSummaryFileItem[]) {
@@ -132,7 +134,7 @@ export function useDocumentPageComposeActions({
     setIsComposing,
     setIsRecommendingPath,
   } = mutators;
-  const { editorHandlers, confirm, onSyncReferencesToSidecar } = deps;
+  const { editorHandlers, confirm, onSyncReferencesToSidecar, onComposeComplete } = deps;
 
   const handleInlineCompose = useCallback(async (draft?: string) => {
     const instruction = (draft ?? inlineInstruction).trim();
@@ -220,6 +222,15 @@ export function useDocumentPageComposeActions({
       if (isCreateMode && response.data.suggestedPath) {
         setCreatePath(response.data.suggestedPath);
       }
+
+      // AI compose 완료 후 자동 추천 트리거
+      if (onComposeComplete) {
+        // 최종 문서 내용 결정
+        const finalContent = response.data.applyMode === 'replace-document'
+          ? generated
+          : editorHandlers?.getMarkdown?.() ?? `${baseContent}${generated}`;
+        onComposeComplete(finalContent);
+      }
     } finally {
       editorHandlers?.setPendingInsert?.(null);
       setIsComposing(false);
@@ -234,6 +245,7 @@ export function useDocumentPageComposeActions({
     inlineTemplate,
     isComposing,
     isCreateMode,
+    onComposeComplete,
     onSyncReferencesToSidecar,
     setContent,
     setCreatePath,

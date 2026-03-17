@@ -76,14 +76,14 @@ export function NewDocumentLauncher({
     },
     {
       id: 'wiki',
-      label: '위키 문서',
+      label: '새 문서',
       description: '새 위키 문서를 작성합니다',
       icon: <FileText className="w-6 h-6" />,
       onClick: onSelectWiki,
     },
     {
       id: 'template',
-      label: '템플릿 문서',
+      label: '새 템플릿',
       description: '새 템플릿을 작성합니다',
       icon: <FileCode className="w-6 h-6" />,
       onClick: onSelectTemplate,

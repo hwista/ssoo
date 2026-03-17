@@ -51,7 +51,7 @@ export interface CreatePathResult {
 /** blob URL → File 맵 (문서 저장 시 일괄 업로드 용) */
 export type PendingImageMap = Map<string, File>;
 
-export function useEditorCreatePathDialog(currentFilePath?: string | null) {
+export function useEditorCreatePathDialog(currentFilePath?: string | null, getEditorContent?: () => string) {
   const [dialogState, setDialogState] = React.useState<InputDialogState>(INITIAL_STATE);
   const [saveLocationState, setSaveLocationState] = React.useState<SaveLocationState>(INITIAL_SAVE_LOCATION);
   const [imageDialogOpen, setImageDialogOpen] = React.useState(false);
@@ -187,6 +187,7 @@ export function useEditorCreatePathDialog(currentFilePath?: string | null) {
           fileName={saveLocationState.fileName}
           isNewDocument={saveLocationState.isNewDocument}
           onConfirm={closeSaveLocation}
+          getEditorContent={getEditorContent}
         />
         <ImageInsertDialog
           open={imageDialogOpen}

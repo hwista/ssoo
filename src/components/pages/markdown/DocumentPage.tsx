@@ -108,8 +108,17 @@ export function DocumentPage() {
   const [usedSummaryFileIds, setUsedSummaryFileIds] = useState<Set<string>>(new Set());
   const [isTemplateUsed, setIsTemplateUsed] = useState(false);
 
+  // AI 자동 추천 상태 (compose 후 sidecar에 주입)
+  const [pendingSuggestedTags, setPendingSuggestedTags] = useState<string[] | undefined>(undefined);
+  const [pendingAiSuggestion, setPendingAiSuggestion] = useState<string | null | undefined>(undefined);
+  const clearPendingSuggestedTags = useCallback(() => setPendingSuggestedTags(undefined), []);
+  const clearPendingAiSuggestion = useCallback(() => setPendingAiSuggestion(undefined), []);
+
   // 첨부파일 deferred upload: 파일 선택 시 File 객체를 저장, 문서 저장 시 업로드
   const pendingAttachmentsRef = useRef<Map<string, File>>(new Map());
+
+  // 경로 변경 지연: 기존문서 경로 변경을 저장 시까지 보류
+  const [pendingFileMove, setPendingFileMove] = useState<string | null>(null);
 
   const handleEditorContentChange = useCallback((editorContent: string) => {
     setLiveEditorContent(editorContent);
@@ -244,6 +253,22 @@ export function DocumentPage() {
           if (generated) {
             setContent(generated);
             aiSummaryCompletedRef.current = true;
+
+            // AI 요약 진입: 태그/요약/문서명/경로 완전 자동 채움
+            void autoRecommendMetadata(generated, 'auto');
+            void docAssistApi.recommendTitleAndPath({ currentContent: generated }).then((res) => {
+              if (res.success && res.data) {
+                const { suggestedTitle, suggestedDirectory, suggestedFileName } = res.data;
+                if (suggestedTitle) {
+                  setLocalDocumentMetadata({ title: suggestedTitle });
+                }
+                if (suggestedDirectory && suggestedFileName) {
+                  setCreatePath(`${suggestedDirectory}/${suggestedFileName}`);
+                } else if (suggestedFileName) {
+                  setCreatePath(`drafts/${suggestedFileName}`);
+                }
+              }
+            });
           }
           if (response.data.suggestedPath) {
             setCreatePath(response.data.suggestedPath);
@@ -576,7 +601,26 @@ export function DocumentPage() {
     }
 
     editorHandlers?.save();
-  }, [editorHandlers, content, setLocalDocumentMetadata, documentMetadata]);
+
+    // 저장 완료 후 보류 중인 파일 이동 적용
+    if (pendingFileMove && filePath && tabId && pendingFileMove !== filePath) {
+      try {
+        const result = await fileApi.rename(filePath, pendingFileMove);
+        if (result.success) {
+          const encodedPath = `/doc/${encodeURIComponent(pendingFileMove)}`;
+          const title = pendingFileMove.split('/').pop() || pendingFileMove;
+          updateTab(tabId, { path: encodedPath, title });
+          setPendingFileMove(null);
+          await refreshFileTree();
+        }
+      } catch (err) {
+        console.error('파일 이동 실패:', err);
+      }
+    } else {
+      // 경로 이동 없어도 파일 트리 갱신 (문서명 변경 반영)
+      await refreshFileTree();
+    }
+  }, [editorHandlers, content, setLocalDocumentMetadata, documentMetadata, pendingFileMove, filePath, tabId, updateTab, refreshFileTree]);
 
   const handleCancel = useCallback(() => {
     // 대기 중인 이미지 blob URL 정리
@@ -602,20 +646,63 @@ export function DocumentPage() {
     setHasUnsavedChanges(true);
   }, [setLocalDocumentMetadata, setHasUnsavedChanges]);
 
-  const handleFileMove = useCallback(async (newPath: string) => {
-    if (!filePath || !tabId || newPath === filePath) return;
-    try {
-      const result = await fileApi.rename(filePath, newPath);
-      if (result.success) {
-        const encodedPath = `/doc/${encodeURIComponent(newPath)}`;
-        const title = newPath.split('/').pop() || newPath;
-        updateTab(tabId, { path: encodedPath, title });
-        await refreshFileTree();
+  /**
+   * AI compose 완료 후 태그/요약을 자동 추천.
+   * - mode 'suggest': 제안 칩/제안 표시 (기존문서, 새문서 AI 작성)
+   * - mode 'auto': 바로 채움 (AI 요약 진입)
+   */
+  const autoRecommendMetadata = useCallback(async (
+    editorContent: string,
+    mode: 'suggest' | 'auto' = 'suggest',
+  ) => {
+    if (!editorContent.trim()) return;
+
+    const tagPromise = docAssistApi.compose({
+      instruction: '다음 문서를 대표하는 핵심 태그를 5개 이내로 추출하세요. 태그만 쉼표로 구분하여 반환하세요. 다른 설명 없이 태그만 출력하세요.',
+      currentContent: editorContent,
+    });
+
+    const summaryPromise = docAssistApi.compose({
+      instruction: '다음 문서의 핵심 내용을 2~3문장으로 요약하세요. 요약문만 출력하세요.',
+      currentContent: editorContent,
+    });
+
+    const [tagRes, summaryRes] = await Promise.allSettled([tagPromise, summaryPromise]);
+
+    // 태그 처리
+    if (tagRes.status === 'fulfilled' && tagRes.value.data?.text) {
+      const parsed = tagRes.value.data.text
+        .split(/[,،、\n]+/)
+        .map((t: string) => t.replace(/^[#\-*\s]+/, '').trim())
+        .filter((t: string) => t.length > 0);
+
+      if (mode === 'auto') {
+        const currentTags = documentMetadata?.tags ?? [];
+        const newTags = parsed.filter((t: string) => !currentTags.includes(t));
+        if (newTags.length > 0) {
+          setLocalDocumentMetadata({ tags: [...currentTags, ...newTags] });
+        }
+      } else {
+        setPendingSuggestedTags(parsed);
       }
-    } catch (err) {
-      console.error('파일 이동 실패:', err);
     }
-  }, [filePath, tabId, updateTab, refreshFileTree]);
+
+    // 요약 처리
+    if (summaryRes.status === 'fulfilled' && summaryRes.value.data?.text) {
+      const text = summaryRes.value.data.text.trim();
+      if (mode === 'auto') {
+        setLocalDocumentMetadata({ summary: text });
+      } else {
+        setPendingAiSuggestion(text);
+      }
+    }
+  }, [documentMetadata?.tags, setLocalDocumentMetadata]);
+
+  const handleFileMove = useCallback((newPath: string) => {
+    if (!filePath || newPath === filePath) return;
+    setPendingFileMove(newPath);
+    setHasUnsavedChanges(true);
+  }, [filePath, setHasUnsavedChanges]);
 
   const handleRetry = useCallback(() => {
     if (filePath) loadFile(filePath);
@@ -684,6 +771,28 @@ export function DocumentPage() {
       editorHandlers,
       confirm,
       onSyncReferencesToSidecar: handleSyncReferencesToSidecar,
+      onComposeComplete: useCallback((generatedContent: string) => {
+        if (isCreateMode) {
+          // 새문서: 태그/요약 제안 + 문서명/경로 바로 채움
+          void autoRecommendMetadata(generatedContent, 'suggest');
+          void docAssistApi.recommendTitleAndPath({ currentContent: generatedContent }).then((res) => {
+            if (res.success && res.data) {
+              const { suggestedTitle, suggestedDirectory, suggestedFileName } = res.data;
+              if (suggestedTitle) {
+                setLocalDocumentMetadata({ title: suggestedTitle });
+              }
+              if (suggestedDirectory && suggestedFileName) {
+                setCreatePath(`${suggestedDirectory}/${suggestedFileName}`);
+              } else if (suggestedFileName) {
+                setCreatePath(`drafts/${suggestedFileName}`);
+              }
+            }
+          });
+        } else {
+          // 기존문서: 태그/요약 제안만
+          void autoRecommendMetadata(generatedContent, 'suggest');
+        }
+      }, [autoRecommendMetadata, isCreateMode, setCreatePath, setLocalDocumentMetadata]),
     },
   });
 
@@ -867,6 +976,10 @@ export function DocumentPage() {
             currentFilePath={filePath}
             originalMetaSnapshot={originalMetaSnapshot}
             onOpenDocumentTab={(path) => openDocumentTab({ path })}
+            externalSuggestedTags={pendingSuggestedTags}
+            onExternalSuggestedTagsConsumed={clearPendingSuggestedTags}
+            externalAiSuggestion={pendingAiSuggestion}
+            onExternalAiSuggestionConsumed={clearPendingAiSuggestion}
           />
         )}
         onEdit={handleEdit}
