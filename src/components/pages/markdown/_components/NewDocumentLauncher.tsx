@@ -38,6 +38,7 @@ export function NewDocumentLauncher({
     const mapped: InlineSummaryFileItem[] = await Promise.all(
       files.map(async (file) => {
         let textContent = '';
+        let images: InlineSummaryFileItem['images'];
         try {
           const formData = new FormData();
           formData.append('file', file);
@@ -45,6 +46,7 @@ export function NewDocumentLauncher({
           if (res.ok) {
             const data = await res.json();
             textContent = typeof data?.textContent === 'string' ? data.textContent : '';
+            images = Array.isArray(data?.images) ? data.images : undefined;
           }
         } catch {
           textContent = '';
@@ -55,6 +57,7 @@ export function NewDocumentLauncher({
           type: file.type,
           size: file.size,
           textContent,
+          images,
         };
       })
     );

@@ -58,6 +58,7 @@ function mapSummaryFiles(summaryFiles: InlineSummaryFileItem[]) {
     name: item.name,
     type: item.type,
     textContent: item.textContent,
+    images: item.images,
   }));
 }
 

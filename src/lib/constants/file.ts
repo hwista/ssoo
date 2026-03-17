@@ -78,6 +78,19 @@ export const ATTACHMENT_ACCEPT_STRING = ATTACHMENT_TYPES.map((t) => t.ext).join(
 
 export const ATTACHMENT_MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
+export const IMAGE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+
+// ─── 텍스트/이미지 추출 설정 ─────────────────────────────
+export const MAX_EXTRACTED_TEXT_LENGTH = 12_000;
+export const MAX_EXTRACTED_IMAGES = 5;
+export const MAX_EXTRACTED_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
+export const EXTRACTABLE_IMAGE_MIMES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+]);
+
 export const ATTACHMENT_ALLOWED_EXTENSIONS = new Set(ATTACHMENT_TYPES.map((t) => t.ext));
 
 export const ATTACHMENT_STORAGE_DIR = '_assets/attachments';
