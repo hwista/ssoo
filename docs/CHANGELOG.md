@@ -4,6 +4,13 @@
 
 ### Features
 
+* **web-pms:** 프로젝트 상세 페이지 — 기본정보 + 상태 타임라인 + 단계별 탭(요청/제안/수행/전환) 조회·편집
+* **server:** 프로젝트 단계별 상세 API — `PUT /api/projects/:id/{request,proposal,execution,transition}-detail` upsert 엔드포인트 4개, `findOne`에 전체 relation include, `statusCode` 필터 추가
+* **types:** `ProjectRequestDetail`, `ProjectProposalDetail`, `ProjectExecutionDetail`, `ProjectTransitionDetail`, `ProjectStatus`, `ProjectDetail` 등 12개 공유 타입 추가
+* **web-pms:** Proposal/Execution/Transition 목록 페이지 실데이터 전환 (Mock → `useProjectList` + `statusCode` 필터)
+* **web-pms:** 목록 행 클릭 → 프로젝트 상세 탭 열기 (MDI keep-alive)
+* **web-pms:** `useCurrentTab` 훅 — TabContext 기반 탭 파라미터 접근
+
 * **web-dms:** 본문 링크 sidecar 싱크 — 마크다운 본문의 링크/이미지를 실시간 추출하여 sidecar 링크 섹션에 자동 반영
 * **web-dms:** 이미지 삽입 다이얼로그 — URL 입력 + 로컬 파일 업로드 탭, 이미지 업로드는 문서 저장 시 지연 처리
 * **web-dms:** 링크 삽입 다이얼로그 — URL 입력 + 내부 문서 파일트리 선택 (FilePickerTree 공통 컴포넌트)

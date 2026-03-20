@@ -81,6 +81,38 @@
       "sourcePattern": "독립",
       "targetPattern": "독립",
       "severity": "error"
+    },
+    {
+      "id": "claude-prisma-ext",
+      "source": ".github/copilot-instructions.md",
+      "target": "CLAUDE.md",
+      "sourcePattern": "Prisma Client Extensions",
+      "targetPattern": "commonColumnsExtension",
+      "severity": "warning"
+    },
+    {
+      "id": "claude-server-arch",
+      "source": ".github/copilot-instructions.md",
+      "target": "CLAUDE.md",
+      "sourcePattern": "DatabaseService",
+      "targetPattern": "DatabaseService",
+      "severity": "warning"
+    },
+    {
+      "id": "claude-dms-editor",
+      "source": ".github/instructions/dms.instructions.md",
+      "target": "apps/web/dms/CLAUDE.md",
+      "sourcePattern": "CodeMirror",
+      "targetPattern": "CodeMirror",
+      "severity": "error"
+    },
+    {
+      "id": "claude-dms-tree",
+      "source": ".github/instructions/dms.instructions.md",
+      "target": "apps/web/dms/CLAUDE.md",
+      "sourcePattern": "커스텀 renderer",
+      "targetPattern": "custom tree",
+      "severity": "warning"
     }
   ]
 }

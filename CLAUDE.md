@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Node.js** ≥ 20.0.0, **pnpm** ≥ 9.0.0 (DMS는 npm 독립)
 - **PostgreSQL** ≥ 15 (또는 Docker: `docker compose up -d`)
 - 환경변수: `.env` 파일 참조 (아래 "데이터베이스 명령" 섹션)
+- Health check: `curl http://localhost:4000/api/health`
+- 테스트 계정: `admin` / `admin123!` (role: admin)
 
 ---
 
@@ -20,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 항목 | 값 |
 |------|-----|
 | 구조 | pnpm workspace + Turborepo |
-| 앱 | `apps/server` (NestJS), `apps/web/pms` (Next.js), `apps/web/dms` (Next.js, npm 독립) |
+| 앱 | `apps/server` (NestJS), `apps/web/pms` (Next.js), `apps/web/chs` (Next.js), `apps/web/dms` (Next.js, npm 독립) |
 | 공유 패키지 | `packages/database` (Prisma), `packages/types` |
 | 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms) |
 
@@ -90,6 +92,8 @@ TabBar ↔ tab.store → ContentArea가 활성 탭의 컴포넌트 렌더링
 
 - 탭 전환 시 URL 변경 없음, 컴포넌트 keep-alive 방식
 - 탭 상태는 `tab.store.ts`에서 관리
+- 새 페이지 추가 시 `src/components/layout/ContentArea.tsx`의 `pageComponents` 맵에 lazy import를 등록
+- Zustand 스토어는 `auth.store.ts`, `tab.store.ts`, `menu.store.ts`, `sidebar.store.ts`, `layout.store.ts`, `confirm.store.ts`를 사용
 
 ### DMS 서버 레이어 (3계층 위임)
 
@@ -106,10 +110,35 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 - PostgreSQL 3개 스키마: `common`, `pms`, `dms`
 - 히스토리 테이블 패턴: 주 테이블 `cm_code` → 이력 테이블 `cm_code_h` (historySeq 복합 PK)
 - 공통 감사 컬럼: `createdBy`, `createdAt`, `updatedBy`, `updatedAt`
+- DB 테이블 네이밍은 `{스키마접두사}_{도메인}_m` 패턴을 사용
+- BigInt PK는 API 응답에서 `string`으로 직렬화해야 함
+- 스키마 간 FK는 금지하고 애플리케이션 레벨 조인을 사용
+
+### 서버 아키텍처 핵심
+
+- `DatabaseService`는 Prisma 래퍼이며 Controller에서 직접 Prisma를 사용하지 않음
+- 도메인 모듈은 `modules/common/`, `modules/pms/`, `modules/dms/` 구조를 따른다
+- 인증은 `JwtAuthGuard`, `RolesGuard`, `@CurrentUser()`, `@Public()` 패턴을 사용
+- `GlobalHttpExceptionFilter`, `RequestContextInterceptor`, 전역 `ValidationPipe`를 기본 전제로 한다
+- 모든 엔드포인트는 `/api` prefix를 사용하고, OpenAPI 스펙은 `/api/openapi.json`에서 제공한다
+
+### PMS API 클라이언트 패턴
+
+- Axios 인스턴스와 인터셉터로 토큰을 자동 주입한다
+- 401 응답 시 refreshToken으로 자동 갱신 후 원 요청을 재시도한다
+- 서버 상태는 TanStack Query 훅(`hooks/queries/`) 패턴으로 관리한다
+- Import alias는 `@/*` → `./src/*` 를 사용한다
+
+### Prisma Client Extensions
+
+- `commonColumnsExtension`: 감사 컬럼 자동 세팅
+- `softDeleteExtension`: `delete()`를 soft delete로 변환
+- `activeFilterExtension`: 활성 데이터 필터 자동 적용
+- 이 Extension들은 `DatabaseService`를 통해서만 적용된다
 
 ---
 
-## 금지 사항 (12개)
+## 금지 사항 (13개)
 
 1. **와일드카드 export** (`export * from`)
 2. **any 타입 사용** - `unknown` 또는 구체적 타입 사용
@@ -123,6 +152,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 10. **사용자 요청의 무조건적 수용/긍정** - 기술적 타당성 검증 없이 그대로 수행
 11. **기존 기능·동작·UI 외형의 왜곡/축소/변형** - 새 작업이 기존 결과물을 훼손
 12. **역할/책임 경계 무시한 비대 모듈** - 하나의 파일/컴포넌트에 과도한 책임 집중
+13. **DMS에서 `@ssoo/*` 패키지 import** - DMS는 독립 프로젝트
 
 ---
 
@@ -132,8 +162,9 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 <type>(<scope>): <subject>
 ```
 
-- **Type**: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `chore`
-- **Scope**: `server` | `web-pms` | `web-dms` | `database` | `types` | `docs`
+- **Type**: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
+- **Scope**: `server` | `web-pms` | `web-chs` | `web-dms` | `database` | `types` | `docs`
+- `commitlint.config.mjs`로 자동 검증 (subject 최대 100자)
 
 ---
 
@@ -146,20 +177,41 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 | web-pms만 | `pnpm dev:web-pms` | 3000 | Next.js |
 | web-dms | `pnpm dev:web-dms` | 3001 | 내부적으로 `npm run dev` 실행 |
 
+### 앱별 빌드 / 린트 / 타입 체크
+
+```bash
+pnpm build                                    # 전체 빌드
+pnpm lint                                     # 전체 린트
+turbo lint --filter=server                    # 서버만 린트
+turbo lint --filter=web-pms                   # PMS만 린트
+pnpm -C apps/server exec tsc --noEmit         # 서버 타입 체크
+pnpm -C apps/web/pms exec tsc --noEmit        # PMS 타입 체크
+cd apps/web/dms && npx tsc --noEmit           # DMS 타입 체크
+```
+
 ### 데이터베이스 명령
 
 ```bash
-pnpm --filter @ssoo/database db:generate  # Prisma 클라이언트 생성
-pnpm --filter @ssoo/database db:push      # 스키마를 DB에 반영 (개발용)
-pnpm --filter @ssoo/database db:migrate   # 마이그레이션 생성 및 적용
-pnpm --filter @ssoo/database db:studio    # Prisma Studio (DB GUI)
+pnpm db:up          # PostgreSQL (pgvector/pgvector:pg17) Docker 컨테이너 시작
+pnpm db:push        # Prisma 스키마를 DB에 반영
+pnpm db:seed        # 기초 데이터 삽입 (SQL 시드)
+pnpm db:triggers    # 히스토리 트리거 설치
 ```
 
 필수 환경변수 (`.env`):
 ```
 DATABASE_URL="postgresql://ssoo:ssoo_dev_pw@localhost:5432/ssoo_dev?schema=public"
+PORT=4000
 JWT_SECRET=...
 JWT_REFRESH_SECRET=...
+NEXT_PUBLIC_API_URL=http://localhost:4000/api
+```
+
+환경 설정:
+
+```bash
+cp .env.example .env
+pnpm install
 ```
 
 ---
@@ -176,14 +228,17 @@ JWT_REFRESH_SECRET=...
 | 문서 점검 | `node .github/scripts/check-docs.js` |
 | 패턴 점검 | `node .github/scripts/check-patterns.js` |
 | 디자인 점검 | `node .github/scripts/check-design.js` |
+| SDD 구조 점검 | `node .github/scripts/sdd-verify.js --quick` |
 | Codex 동기화 검증 | `node .codex/scripts/verify-codex-sync.js` |
 | Codex preflight | `pnpm run codex:preflight` |
 
 ### 테스트
 
-- 프레임워크: Jest (NestJS), React Testing Library, Playwright (E2E)
-- 테스트 규칙 상세: `.github/instructions/testing.instructions.md`
-- 현재 Jest 미도입 상태 — 테스트 코드는 추후 도입 대비 작성, 수동 테스트 시나리오 문서화 병행
+현재 테스트 프레임워크 미도입 상태. `pnpm test` 명령 없음. 테스트 관련 규칙은 `.github/instructions/testing.instructions.md`를 참조합니다.
+
+### CI
+
+PR 생성/업데이트 시 `.github/workflows/pr-validation.yml` 자동 실행 (린트 + 타입 체크 + 빌드 + 패턴 검증)
 
 ---
 
@@ -240,3 +295,5 @@ JWT_REFRESH_SECRET=...
 3. `CLAUDE.md` 미러 반영
 4. `node .codex/scripts/verify-codex-sync.js` 실행
 5. 검증 실패 시 커밋 불가
+
+체크리스트 상세: `.github/guides/agent-sync-checklist.md`

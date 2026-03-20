@@ -30,6 +30,8 @@
     "dev:web-dms": "cd apps/web/dms && npm run dev",
     "build:server": "turbo build --filter=server",
     "build:web-pms": "turbo build --filter=web-pms",
+    "dev:web-chs": "turbo dev --filter=web-chs",
+    "build:web-chs": "turbo build --filter=web-chs",
     "build:web-dms": "bash .codex/scripts/dms-build.sh",
     "codex:verify-sync": "node .codex/scripts/verify-codex-sync.js",
     "codex:check": "pnpm run codex:verify-sync && bash .codex/hooks/preflight.sh",

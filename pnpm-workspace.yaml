@@ -1,6 +1,7 @@
 packages:
   - apps/server
   - apps/web/pms
+  - apps/web/chs
   - packages/*
 
 onlyBuiltDependencies:

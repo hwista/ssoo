@@ -72,6 +72,9 @@ jobs:
       - name: Type Check (PMS)
         run: pnpm --filter web-pms exec tsc --noEmit
 
+      - name: Type Check (CHS)
+        run: pnpm --filter web-chs exec tsc --noEmit
+
       - name: Build Database Package
         run: pnpm --filter @ssoo/database build
 
@@ -86,6 +89,7 @@ jobs:
       server: ${{ steps.filter.outputs.server }}
       pms: ${{ steps.filter.outputs.pms }}
       dms: ${{ steps.filter.outputs.dms }}
+      chs: ${{ steps.filter.outputs.chs }}
       database: ${{ steps.filter.outputs.database }}
     
     steps:
@@ -105,6 +109,8 @@ jobs:
               - 'apps/web/dms/**'
             database:
               - 'packages/database/**'
+            chs:
+              - 'apps/web/chs/**'
 
   # 서버 빌드 (서버 변경 시에만)
   build-server:
@@ -187,6 +193,33 @@ jobs:
       - name: Build
         run: pnpm build:web-dms
 
+  # CHS 빌드 (CHS 변경 시에만)
+  build-chs:
+    name: Build CHS
+    needs: [validate, analyze-changes]
+    if: needs.analyze-changes.outputs.chs == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build:web-chs
+
   # PR 코멘트
   pr-comment:
     name: PR Summary
@@ -203,6 +236,7 @@ jobs:
             const server = '${{ needs.analyze-changes.outputs.server }}';
             const pms = '${{ needs.analyze-changes.outputs.pms }}';
             const dms = '${{ needs.analyze-changes.outputs.dms }}';
+            const chs = '${{ needs.analyze-changes.outputs.chs }}';
             const database = '${{ needs.analyze-changes.outputs.database }}';
             
             let body = '## 🔍 PR 검증 결과\n\n';
@@ -219,6 +253,7 @@ jobs:
             body += `| Server | ${server === 'true' ? '✅' : '➖'} |\n`;
             body += `| PMS | ${pms === 'true' ? '✅' : '➖'} |\n`;
             body += `| DMS | ${dms === 'true' ? '✅' : '➖'} |\n`;
+            body += `| CHS | ${chs === 'true' ? '✅' : '➖'} |\n`;
             body += `| Database | ${database === 'true' ? '✅' : '➖'} |\n`;
             
             // 기존 코멘트 찾기
