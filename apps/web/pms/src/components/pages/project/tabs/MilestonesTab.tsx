@@ -1,10 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Flag, Plus, Trash2, X } from 'lucide-react';
+import { Flag, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -58,27 +66,27 @@ export function MilestonesTab({ projectId }: Props) {
   const updateMilestone = useUpdateMilestone();
   const deleteMilestone = useDeleteMilestone();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState(INITIAL_FORM);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [formData, setFormData] = useState(INITIAL_FORM);
 
   const handleOpenDialog = () => {
-    setForm(INITIAL_FORM);
-    setDialogOpen(true);
+    setFormData(INITIAL_FORM);
+    setShowAddDialog(true);
   };
 
-  const handleCreate = () => {
-    if (!form.milestoneCode.trim() || !form.milestoneName.trim()) return;
+  const handleCreate = async () => {
+    if (!formData.milestoneCode.trim() || !formData.milestoneName.trim()) return;
 
     const payload: CreateMilestoneRequest = {
-      milestoneCode: form.milestoneCode,
-      milestoneName: form.milestoneName,
-      ...(form.description ? { description: form.description } : {}),
-      ...(form.dueAt ? { dueAt: new Date(form.dueAt).toISOString() } : {}),
+      milestoneCode: formData.milestoneCode,
+      milestoneName: formData.milestoneName,
+      ...(formData.description ? { description: formData.description } : {}),
+      ...(formData.dueAt ? { dueAt: new Date(formData.dueAt).toISOString() } : {}),
     };
 
-    createMilestone.mutate({ projectId, data: payload }, {
-      onSuccess: () => setDialogOpen(false),
-    });
+    await createMilestone.mutateAsync({ projectId, data: payload });
+    setShowAddDialog(false);
+    setFormData(INITIAL_FORM);
   };
 
   const handleStatusChange = (milestone: MilestoneItem, statusCode: string) => {
@@ -168,83 +176,77 @@ export function MilestonesTab({ projectId }: Props) {
         </div>
       )}
 
-      {/* 마일스톤 추가 다이얼로그 */}
-      {dialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/80" onClick={() => setDialogOpen(false)} />
-          <div className="relative z-50 w-full max-w-lg rounded-lg border bg-white p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-semibold">마일스톤 추가</h4>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDialogOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>마일스톤 추가</DialogTitle>
+            <DialogDescription>프로젝트에 새 마일스톤을 추가합니다.</DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">코드 *</label>
-                  <Input
-                    placeholder="예: MS-001"
-                    value={form.milestoneCode}
-                    onChange={(e) => setForm((p) => ({ ...p, milestoneCode: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">마일스톤명 *</label>
-                  <Input
-                    placeholder="마일스톤명 입력"
-                    value={form.milestoneName}
-                    onChange={(e) => setForm((p) => ({ ...p, milestoneName: e.target.value }))}
-                  />
-                </div>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">코드 *</label>
+                <Input
+                  placeholder="예: MS-001"
+                  value={formData.milestoneCode}
+                  onChange={(e) => setFormData({ ...formData, milestoneCode: e.target.value })}
+                />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">상태</label>
-                  <Select value={form.statusCode} onValueChange={(v) => setForm((p) => ({ ...p, statusCode: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {STATUS_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">기한</label>
-                  <Input
-                    type="date"
-                    value={form.dueAt}
-                    onChange={(e) => setForm((p) => ({ ...p, dueAt: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">설명</label>
-                <Textarea
-                  placeholder="마일스톤 설명 (선택)"
-                  value={form.description}
-                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                  rows={3}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">마일스톤명 *</label>
+                <Input
+                  placeholder="마일스톤명 입력"
+                  value={formData.milestoneName}
+                  onChange={(e) => setFormData({ ...formData, milestoneName: e.target.value })}
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
-              <Button
-                onClick={handleCreate}
-                disabled={!form.milestoneCode.trim() || !form.milestoneName.trim() || createMilestone.isPending}
-              >
-                {createMilestone.isPending ? '저장 중...' : '저장'}
-              </Button>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">상태</label>
+                <Select value={formData.statusCode} onValueChange={(v) => setFormData({ ...formData, statusCode: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">기한</label>
+                <Input
+                  type="date"
+                  value={formData.dueAt}
+                  onChange={(e) => setFormData({ ...formData, dueAt: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">설명</label>
+              <Textarea
+                placeholder="마일스톤 설명 (선택)"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+              />
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>취소</Button>
+            <Button
+              onClick={handleCreate}
+              disabled={!formData.milestoneCode.trim() || !formData.milestoneName.trim() || createMilestone.isPending}
+            >
+              {createMilestone.isPending ? '저장 중...' : '저장'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

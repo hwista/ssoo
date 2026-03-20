@@ -107,7 +107,7 @@ export interface CreateProjectRequest {
   projectName: string;
   statusCode?: ProjectStatusCode;
   stageCode?: ProjectStageCode;
-  customerId?: number;
+  customerId?: string;
   description?: string;
 }
 

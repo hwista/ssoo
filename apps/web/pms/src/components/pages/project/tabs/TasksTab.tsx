@@ -1,9 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { ListTodo, Plus, Trash2, X } from 'lucide-react';
+import { ListTodo, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -79,29 +87,29 @@ export function TasksTab({ projectId }: Props) {
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState(INITIAL_FORM);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [formData, setFormData] = useState(INITIAL_FORM);
 
   const handleOpenDialog = () => {
-    setForm(INITIAL_FORM);
-    setDialogOpen(true);
+    setFormData(INITIAL_FORM);
+    setShowAddDialog(true);
   };
 
-  const handleCreate = () => {
-    if (!form.taskCode.trim() || !form.taskName.trim()) return;
+  const handleCreate = async () => {
+    if (!formData.taskCode.trim() || !formData.taskName.trim()) return;
 
     const payload: CreateTaskRequest = {
-      taskCode: form.taskCode,
-      taskName: form.taskName,
-      taskTypeCode: form.taskTypeCode,
-      priorityCode: form.priorityCode,
-      ...(form.plannedStartAt ? { plannedStartAt: new Date(form.plannedStartAt).toISOString() } : {}),
-      ...(form.plannedEndAt ? { plannedEndAt: new Date(form.plannedEndAt).toISOString() } : {}),
+      taskCode: formData.taskCode,
+      taskName: formData.taskName,
+      taskTypeCode: formData.taskTypeCode,
+      priorityCode: formData.priorityCode,
+      ...(formData.plannedStartAt ? { plannedStartAt: new Date(formData.plannedStartAt).toISOString() } : {}),
+      ...(formData.plannedEndAt ? { plannedEndAt: new Date(formData.plannedEndAt).toISOString() } : {}),
     };
 
-    createTask.mutate({ projectId, data: payload }, {
-      onSuccess: () => setDialogOpen(false),
-    });
+    await createTask.mutateAsync({ projectId, data: payload });
+    setShowAddDialog(false);
+    setFormData(INITIAL_FORM);
   };
 
   const handleStatusChange = (task: TaskItem, statusCode: string) => {
@@ -221,116 +229,110 @@ export function TasksTab({ projectId }: Props) {
         </div>
       )}
 
-      {/* 태스크 추가 다이얼로그 */}
-      {dialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/80" onClick={() => setDialogOpen(false)} />
-          <div className="relative z-50 w-full max-w-lg rounded-lg border bg-white p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-semibold">태스크 추가</h4>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDialogOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>태스크 추가</DialogTitle>
+            <DialogDescription>프로젝트에 새 태스크를 추가합니다.</DialogDescription>
+          </DialogHeader>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">WBS 코드 *</label>
-                  <Input
-                    placeholder="예: 1.1.1"
-                    value={form.taskCode}
-                    onChange={(e) => setForm((p) => ({ ...p, taskCode: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">태스크명 *</label>
-                  <Input
-                    placeholder="태스크명 입력"
-                    value={form.taskName}
-                    onChange={(e) => setForm((p) => ({ ...p, taskName: e.target.value }))}
-                  />
-                </div>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">WBS 코드 *</label>
+                <Input
+                  placeholder="예: 1.1.1"
+                  value={formData.taskCode}
+                  onChange={(e) => setFormData({ ...formData, taskCode: e.target.value })}
+                />
               </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">유형</label>
-                  <Select value={form.taskTypeCode} onValueChange={(v) => setForm((p) => ({ ...p, taskTypeCode: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {TASK_TYPE_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">상태</label>
-                  <Select value={form.statusCode} onValueChange={(v) => setForm((p) => ({ ...p, statusCode: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {STATUS_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">우선순위</label>
-                  <Select value={form.priorityCode} onValueChange={(v) => setForm((p) => ({ ...p, priorityCode: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {PRIORITY_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">진척률</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={form.progressRate}
-                    onChange={(e) => setForm((p) => ({ ...p, progressRate: Math.min(100, Math.max(0, Number(e.target.value))) }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">시작일</label>
-                  <Input
-                    type="date"
-                    value={form.plannedStartAt}
-                    onChange={(e) => setForm((p) => ({ ...p, plannedStartAt: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">종료일</label>
-                  <Input
-                    type="date"
-                    value={form.plannedEndAt}
-                    onChange={(e) => setForm((p) => ({ ...p, plannedEndAt: e.target.value }))}
-                  />
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">태스크명 *</label>
+                <Input
+                  placeholder="태스크명 입력"
+                  value={formData.taskName}
+                  onChange={(e) => setFormData({ ...formData, taskName: e.target.value })}
+                />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
-              <Button
-                onClick={handleCreate}
-                disabled={!form.taskCode.trim() || !form.taskName.trim() || createTask.isPending}
-              >
-                {createTask.isPending ? '저장 중...' : '저장'}
-              </Button>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">유형</label>
+                <Select value={formData.taskTypeCode} onValueChange={(v) => setFormData({ ...formData, taskTypeCode: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TASK_TYPE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">상태</label>
+                <Select value={formData.statusCode} onValueChange={(v) => setFormData({ ...formData, statusCode: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">우선순위</label>
+                <Select value={formData.priorityCode} onValueChange={(v) => setFormData({ ...formData, priorityCode: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRIORITY_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">진척률</label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={formData.progressRate}
+                  onChange={(e) => setFormData({ ...formData, progressRate: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">시작일</label>
+                <Input
+                  type="date"
+                  value={formData.plannedStartAt}
+                  onChange={(e) => setFormData({ ...formData, plannedStartAt: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">종료일</label>
+                <Input
+                  type="date"
+                  value={formData.plannedEndAt}
+                  onChange={(e) => setFormData({ ...formData, plannedEndAt: e.target.value })}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>취소</Button>
+            <Button
+              onClick={handleCreate}
+              disabled={!formData.taskCode.trim() || !formData.taskName.trim() || createTask.isPending}
+            >
+              {createTask.isPending ? '저장 중...' : '저장'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
