@@ -16,6 +16,10 @@
     "./pms": {
       "types": "./dist/pms/index.d.ts",
       "default": "./dist/pms/index.js"
+    },
+    "./chs": {
+      "types": "./dist/chs/index.d.ts",
+      "default": "./dist/chs/index.js"
     }
   },
   "scripts": {

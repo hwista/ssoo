@@ -1849,6 +1849,7 @@ model ChBoard {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @updatedAt @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   categories      ChBoardCategory[]
@@ -1882,6 +1883,7 @@ model ChBoardHistory {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   @@id([boardId, historySeq], name: "pk_ch_board_h")
@@ -1907,6 +1909,7 @@ model ChBoardCategory {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @updatedAt @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   board           ChBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
@@ -1940,6 +1943,7 @@ model ChPost {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @updatedAt @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   board           ChBoard?          @relation(fields: [boardId], references: [id], onDelete: SetNull)
@@ -1984,6 +1988,7 @@ model ChPostHistory {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   @@id([postId, historySeq], name: "pk_ch_post_h")
@@ -2012,6 +2017,7 @@ model ChComment {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @updatedAt @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   post            ChPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2047,6 +2053,7 @@ model ChCommentHistory {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   @@id([commentId, historySeq], name: "pk_ch_comment_h")
@@ -2180,6 +2187,7 @@ model ChUserProfile {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @updatedAt @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   userSkills      ChUserSkill[]
@@ -2210,6 +2218,7 @@ model ChUserProfileHistory {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   @@id([profileId, historySeq], name: "pk_ch_user_profile_h")
@@ -2237,6 +2246,7 @@ model ChSkill {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @updatedAt @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   parentSkill     ChSkill?   @relation("SkillHierarchy", fields: [parentSkillId], references: [id], onDelete: SetNull)
@@ -2296,6 +2306,7 @@ model ChUserCareer {
   updatedBy       BigInt?  @map("updated_by")
   updatedAt       DateTime @updatedAt @map("updated_at")
   lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
   transactionId   String?  @map("transaction_id") @db.Uuid
 
   profile         ChUserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)

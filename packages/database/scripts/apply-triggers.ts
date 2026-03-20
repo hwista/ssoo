@@ -55,6 +55,11 @@ async function main() {
     '16_pr_project_proposal_d_h_trigger.sql',
     '17_pr_project_execution_d_h_trigger.sql',
     '18_pr_project_transition_d_h_trigger.sql',
+    // CHS (Community Hub System)
+    '50_ch_board_h_trigger.sql',
+    '51_ch_post_h_trigger.sql',
+    '52_ch_comment_h_trigger.sql',
+    '53_ch_user_profile_h_trigger.sql',
   ];
 
   let successCount = 0;

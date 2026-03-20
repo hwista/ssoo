@@ -115,7 +115,19 @@ function prepareUpdateData<T>(
  * - History 접미사 모델: 히스토리 테이블은 트리거에서 관리
  * - UserFavorite: 단순 관계 테이블로 공통 컬럼 없음
  */
-const EXCLUDED_MODELS = ['UserFavorite'];
+const EXCLUDED_MODELS = [
+  'UserFavorite',
+  // CHS 경량 모델 — 전체 감사 컬럼 없음 (관계/이벤트 테이블)
+  'ChReaction',
+  'ChPostTag',
+  'ChMention',
+  'ChBookmark',
+  'ChFollow',
+  'ChNotification',
+  'ChTag',
+  'ChUserSkill',
+  'ChAttachment',
+];
 
 function shouldExcludeModel(model: string): boolean {
   return model.endsWith('History') || EXCLUDED_MODELS.includes(model);

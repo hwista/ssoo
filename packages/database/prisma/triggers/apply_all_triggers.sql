@@ -83,6 +83,22 @@
 \echo 'Installing: pr_issue_h trigger...'
 \i 22_pr_issue_h_trigger.sql
 
+\echo ''
+\echo '-- CHS (Community Hub System) --'
+\echo ''
+
+\echo 'Installing: ch_board_h trigger...'
+\i 50_ch_board_h_trigger.sql
+
+\echo 'Installing: ch_post_h trigger...'
+\i 51_ch_post_h_trigger.sql
+
+\echo 'Installing: ch_comment_h trigger...'
+\i 52_ch_comment_h_trigger.sql
+
+\echo 'Installing: ch_user_profile_h trigger...'
+\i 53_ch_user_profile_h_trigger.sql
+
 \echo '=========================================='
 \echo 'All triggers installed successfully!'
 \echo '=========================================='

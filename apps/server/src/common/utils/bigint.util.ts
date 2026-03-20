@@ -19,3 +19,20 @@ export function serializeBigIntShallow<T extends Record<string, unknown>>(obj: T
     Object.entries(obj).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : v]),
   );
 }
+
+/**
+ * Deep-serialize an object tree, converting every bigint to string.
+ * Handles nested objects and arrays.
+ */
+export function serializeBigInt(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value === 'bigint') return value.toString();
+  if (value instanceof Date) return value;
+  if (Array.isArray(value)) return value.map(serializeBigInt);
+  if (typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, serializeBigInt(v)]),
+    );
+  }
+  return value;
+}
