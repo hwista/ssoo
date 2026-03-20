@@ -20,10 +20,26 @@ export { authApi } from './auth';
 
 // Endpoints
 export {
-  projectsApi,
+  codesApi,
+  customersApi,
   menusApi,
+  projectsApi,
+  usersApi,
 } from './endpoints';
 export type {
+  CodeGroup,
+  CodeItem,
+  CreateCodeRequest,
+  UpdateCodeRequest,
+  CustomerItem,
+  CustomerFilters,
+  CreateCustomerRequest,
+  UpdateCustomerRequest,
+  MenuItem,
+  FavoriteMenu,
+  MyMenuResponse,
+  MenuType,
+  AccessType,
   Project,
   ProjectFilters,
   CreateProjectRequest,
@@ -31,19 +47,22 @@ export type {
   ProjectStatusCode,
   ProjectStageCode,
   ProjectDoneResultCode,
-  MenuItem,
-  FavoriteMenu,
-  MyMenuResponse,
-  MenuType,
-  AccessType,
+  UserItem,
+  UserListResponse,
+  UserListParams,
+  CreateUserRequest,
+  UpdateUserRequest,
 } from './endpoints';
 
 // 편의를 위한 통합 객체
 import { authApi } from './auth';
-import { projectsApi, menusApi } from './endpoints';
+import { codesApi, customersApi, menusApi, projectsApi, usersApi } from './endpoints';
 
 export const api = {
   auth: authApi,
-  projects: projectsApi,
+  codes: codesApi,
+  customers: customersApi,
   menus: menusApi,
+  projects: projectsApi,
+  users: usersApi,
 } as const;

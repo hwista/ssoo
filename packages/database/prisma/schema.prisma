@@ -14,7 +14,7 @@ generator dbml {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["common", "pms", "dms"]
+  schemas  = ["common", "pms", "dms", "chs"]
 }
 
 // ============================================
@@ -1749,4 +1749,643 @@ model IssueHistory {
   @@index([transactionId], name: "ix_pr_issue_h_tx")
   @@map("pr_issue_h")
   @@schema("pms")
+}
+
+// ============================================
+// Customer (고객사) - cm_customer_m
+// ============================================
+
+model Customer {
+  id              BigInt   @id @default(autoincrement()) @map("customer_id")
+
+  customerCode    String   @unique @map("customer_code") @db.VarChar(50)
+  customerName    String   @map("customer_name") @db.VarChar(200)
+  customerType    String?  @map("customer_type") @db.VarChar(50)
+  industry        String?  @db.VarChar(100)
+  address         String?  @db.VarChar(500)
+  phone           String?  @db.VarChar(50)
+  email           String?  @db.VarChar(200)
+  contactPerson   String?  @map("contact_person") @db.VarChar(100)
+  contactPhone    String?  @map("contact_phone") @db.VarChar(50)
+  website         String?  @db.VarChar(300)
+
+  // Common columns
+  isActive        Boolean  @default(true) @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@index([customerName], name: "ix_cm_customer_m_name")
+  @@index([isActive], name: "ix_cm_customer_m_active")
+  @@map("cm_customer_m")
+  @@schema("pms")
+}
+
+// ============================================
+// Customer History (고객사 이력) - cm_customer_h
+// ============================================
+
+model CustomerHistory {
+  customerId      BigInt   @map("customer_id")
+  historySeq      Int      @default(autoincrement()) @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @default(now()) @map("event_at")
+  eventBy         BigInt?  @map("event_by")
+
+  customerCode    String   @map("customer_code") @db.VarChar(50)
+  customerName    String   @map("customer_name") @db.VarChar(200)
+  customerType    String?  @map("customer_type") @db.VarChar(50)
+  industry        String?  @db.VarChar(100)
+  address         String?  @db.VarChar(500)
+  phone           String?  @db.VarChar(50)
+  email           String?  @db.VarChar(200)
+  contactPerson   String?  @map("contact_person") @db.VarChar(100)
+  contactPhone    String?  @map("contact_phone") @db.VarChar(50)
+  website         String?  @db.VarChar(300)
+
+  isActive        Boolean  @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([customerId, historySeq], name: "pk_cm_customer_h")
+  @@index([eventAt], name: "ix_cm_customer_h_event_at")
+  @@index([transactionId], name: "ix_cm_customer_h_tx")
+  @@map("cm_customer_h")
+  @@schema("pms")
+}
+
+// ============================================
+// CHS (Community Hub System) Models
+// Schema: chs, Prefix: ch_
+// ============================================
+
+// ============================================
+// Board (게시판 정의)
+// ============================================
+model ChBoard {
+  id              BigInt   @id @default(autoincrement()) @map("board_id")
+
+  boardCode       String   @unique @map("board_code") @db.VarChar(50)
+  boardName       String   @map("board_name") @db.VarChar(200)
+  boardType       String   @map("board_type") @db.VarChar(50)
+  description     String?  @db.VarChar(1000)
+  sortOrder       Int      @default(0) @map("sort_order")
+  isDefault       Boolean  @default(false) @map("is_default")
+
+  isActive        Boolean  @default(true) @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  categories      ChBoardCategory[]
+  posts           ChPost[]
+
+  @@index([boardType], name: "ix_ch_board_m_type")
+  @@index([sortOrder], name: "ix_ch_board_m_sort")
+  @@map("ch_board_m")
+  @@schema("chs")
+}
+
+model ChBoardHistory {
+  boardId         BigInt   @map("board_id")
+  historySeq      BigInt   @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @default(now()) @map("event_at")
+  eventBy         BigInt?  @map("event_by")
+
+  boardCode       String   @map("board_code") @db.VarChar(50)
+  boardName       String   @map("board_name") @db.VarChar(200)
+  boardType       String   @map("board_type") @db.VarChar(50)
+  description     String?  @db.VarChar(1000)
+  sortOrder       Int      @map("sort_order")
+  isDefault       Boolean  @map("is_default")
+
+  isActive        Boolean  @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([boardId, historySeq], name: "pk_ch_board_h")
+  @@index([eventAt], name: "ix_ch_board_h_event_at")
+  @@index([transactionId], name: "ix_ch_board_h_tx")
+  @@map("ch_board_h")
+  @@schema("chs")
+}
+
+// ============================================
+// Board Category (게시판 카테고리)
+// ============================================
+model ChBoardCategory {
+  id              BigInt   @id @default(autoincrement()) @map("category_id")
+
+  boardId         BigInt   @map("board_id")
+  categoryName    String   @map("category_name") @db.VarChar(200)
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  board           ChBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  posts           ChPost[]
+
+  @@index([boardId], name: "ix_ch_board_category_m_board")
+  @@map("ch_board_category_m")
+  @@schema("chs")
+}
+
+// ============================================
+// Post (게시물 — 피드 + 게시판 통합)
+// ============================================
+model ChPost {
+  id              BigInt   @id @default(autoincrement()) @map("post_id")
+
+  authorUserId    BigInt   @map("author_user_id")
+  boardId         BigInt?  @map("board_id")
+  categoryId      BigInt?  @map("category_id")
+
+  title           String?  @db.VarChar(500)
+  content         String
+  contentType     String   @default("text") @map("content_type") @db.VarChar(30)
+  isPinned        Boolean  @default(false) @map("is_pinned")
+  viewCount       Int      @default(0) @map("view_count")
+
+  isActive        Boolean  @default(true) @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  board           ChBoard?          @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  category        ChBoardCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  comments        ChComment[]
+  reactions       ChReaction[]
+  postTags        ChPostTag[]
+  mentions        ChMention[]
+  attachments     ChAttachment[]
+  bookmarks       ChBookmark[]
+
+  @@index([authorUserId], name: "ix_ch_post_m_author")
+  @@index([boardId], name: "ix_ch_post_m_board")
+  @@index([categoryId], name: "ix_ch_post_m_category")
+  @@index([createdAt], name: "ix_ch_post_m_created")
+  @@index([isPinned, createdAt], name: "ix_ch_post_m_pinned")
+  @@map("ch_post_m")
+  @@schema("chs")
+}
+
+model ChPostHistory {
+  postId          BigInt   @map("post_id")
+  historySeq      BigInt   @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @default(now()) @map("event_at")
+  eventBy         BigInt?  @map("event_by")
+
+  authorUserId    BigInt   @map("author_user_id")
+  boardId         BigInt?  @map("board_id")
+  categoryId      BigInt?  @map("category_id")
+  title           String?  @db.VarChar(500)
+  content         String
+  contentType     String   @map("content_type") @db.VarChar(30)
+  isPinned        Boolean  @map("is_pinned")
+  viewCount       Int      @map("view_count")
+
+  isActive        Boolean  @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([postId, historySeq], name: "pk_ch_post_h")
+  @@index([eventAt], name: "ix_ch_post_h_event_at")
+  @@index([transactionId], name: "ix_ch_post_h_tx")
+  @@map("ch_post_h")
+  @@schema("chs")
+}
+
+// ============================================
+// Comment (댓글 — 대댓글 self-reference)
+// ============================================
+model ChComment {
+  id              BigInt   @id @default(autoincrement()) @map("comment_id")
+
+  postId          BigInt   @map("post_id")
+  authorUserId    BigInt   @map("author_user_id")
+  parentCommentId BigInt?  @map("parent_comment_id")
+
+  content         String
+  depth           Int      @default(0)
+
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  post            ChPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentComment   ChComment?  @relation("CommentThread", fields: [parentCommentId], references: [id], onDelete: SetNull)
+  childComments   ChComment[] @relation("CommentThread")
+  reactions       ChReaction[]
+  mentions        ChMention[]
+
+  @@index([postId, createdAt], name: "ix_ch_comment_m_post")
+  @@index([authorUserId], name: "ix_ch_comment_m_author")
+  @@index([parentCommentId], name: "ix_ch_comment_m_parent")
+  @@map("ch_comment_m")
+  @@schema("chs")
+}
+
+model ChCommentHistory {
+  commentId       BigInt   @map("comment_id")
+  historySeq      BigInt   @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @default(now()) @map("event_at")
+  eventBy         BigInt?  @map("event_by")
+
+  postId          BigInt   @map("post_id")
+  authorUserId    BigInt   @map("author_user_id")
+  parentCommentId BigInt?  @map("parent_comment_id")
+  content         String
+  depth           Int
+
+  isActive        Boolean  @map("is_active")
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([commentId, historySeq], name: "pk_ch_comment_h")
+  @@index([eventAt], name: "ix_ch_comment_h_event_at")
+  @@index([transactionId], name: "ix_ch_comment_h_tx")
+  @@map("ch_comment_h")
+  @@schema("chs")
+}
+
+// ============================================
+// Reaction (반응/좋아요 — 다형성: 게시물·댓글)
+// ============================================
+model ChReaction {
+  id              BigInt   @id @default(autoincrement()) @map("reaction_id")
+
+  userId          BigInt   @map("user_id")
+  postId          BigInt?  @map("post_id")
+  commentId       BigInt?  @map("comment_id")
+  reactionType    String   @default("like") @map("reaction_type") @db.VarChar(30)
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  post            ChPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment         ChComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, reactionType], name: "uq_ch_reaction_post")
+  @@unique([userId, commentId, reactionType], name: "uq_ch_reaction_comment")
+  @@index([postId], name: "ix_ch_reaction_m_post")
+  @@index([commentId], name: "ix_ch_reaction_m_comment")
+  @@map("ch_reaction_m")
+  @@schema("chs")
+}
+
+// ============================================
+// Tag (태그 마스터)
+// ============================================
+model ChTag {
+  id              BigInt   @id @default(autoincrement()) @map("tag_id")
+
+  tagName         String   @unique @map("tag_name") @db.VarChar(100)
+  usageCount      Int      @default(0) @map("usage_count")
+
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  postTags        ChPostTag[]
+
+  @@index([usageCount], name: "ix_ch_tag_m_usage")
+  @@map("ch_tag_m")
+  @@schema("chs")
+}
+
+// ============================================
+// Post-Tag Relation (게시물-태그)
+// ============================================
+model ChPostTag {
+  postId          BigInt   @map("post_id")
+  tagId           BigInt   @map("tag_id")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  post            ChPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag             ChTag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId], name: "pk_ch_post_tag_r")
+  @@index([tagId], name: "ix_ch_post_tag_r_tag")
+  @@map("ch_post_tag_r")
+  @@schema("chs")
+}
+
+// ============================================
+// Mention (멘션 @유저)
+// ============================================
+model ChMention {
+  id              BigInt   @id @default(autoincrement()) @map("mention_id")
+
+  mentionedUserId BigInt   @map("mentioned_user_id")
+  postId          BigInt?  @map("post_id")
+  commentId       BigInt?  @map("comment_id")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  post            ChPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment         ChComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([mentionedUserId], name: "ix_ch_mention_m_user")
+  @@index([postId], name: "ix_ch_mention_m_post")
+  @@index([commentId], name: "ix_ch_mention_m_comment")
+  @@map("ch_mention_m")
+  @@schema("chs")
+}
+
+// ============================================
+// Attachment (첨부파일)
+// ============================================
+model ChAttachment {
+  id              BigInt   @id @default(autoincrement()) @map("attachment_id")
+
+  postId          BigInt   @map("post_id")
+  fileName        String   @map("file_name") @db.VarChar(500)
+  filePath        String   @map("file_path") @db.VarChar(1000)
+  fileSize        BigInt   @map("file_size")
+  mimeType        String   @map("mime_type") @db.VarChar(200)
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  post            ChPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId], name: "ix_ch_attachment_m_post")
+  @@map("ch_attachment_m")
+  @@schema("chs")
+}
+
+// ============================================
+// User Profile (확장 프로필)
+// ============================================
+model ChUserProfile {
+  id              BigInt   @id @default(autoincrement()) @map("profile_id")
+
+  userId          BigInt   @unique @map("user_id")
+  bio             String?  @db.VarChar(2000)
+  coverImageUrl   String?  @map("cover_image_url") @db.VarChar(1000)
+  linkedinUrl     String?  @map("linkedin_url") @db.VarChar(500)
+  websiteUrl      String?  @map("website_url") @db.VarChar(500)
+
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  userSkills      ChUserSkill[]
+  careers         ChUserCareer[]
+  endorsementsReceived ChEndorsement[] @relation("EndorseeProfile")
+
+  @@map("ch_user_profile_m")
+  @@schema("chs")
+}
+
+model ChUserProfileHistory {
+  profileId       BigInt   @map("profile_id")
+  historySeq      BigInt   @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @default(now()) @map("event_at")
+  eventBy         BigInt?  @map("event_by")
+
+  userId          BigInt   @map("user_id")
+  bio             String?  @db.VarChar(2000)
+  coverImageUrl   String?  @map("cover_image_url") @db.VarChar(1000)
+  linkedinUrl     String?  @map("linkedin_url") @db.VarChar(500)
+  websiteUrl      String?  @map("website_url") @db.VarChar(500)
+
+  isActive        Boolean  @map("is_active")
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([profileId, historySeq], name: "pk_ch_user_profile_h")
+  @@index([eventAt], name: "ix_ch_user_profile_h_event_at")
+  @@index([transactionId], name: "ix_ch_user_profile_h_tx")
+  @@map("ch_user_profile_h")
+  @@schema("chs")
+}
+
+// ============================================
+// Skill (스킬 마스터)
+// ============================================
+model ChSkill {
+  id              BigInt   @id @default(autoincrement()) @map("skill_id")
+
+  skillName       String   @unique @map("skill_name") @db.VarChar(200)
+  skillCategory   String   @map("skill_category") @db.VarChar(100)
+  parentSkillId   BigInt?  @map("parent_skill_id")
+  description     String?  @db.VarChar(1000)
+  synonyms        String[] @default([])
+
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  parentSkill     ChSkill?   @relation("SkillHierarchy", fields: [parentSkillId], references: [id], onDelete: SetNull)
+  childSkills     ChSkill[]  @relation("SkillHierarchy")
+  userSkills      ChUserSkill[]
+  endorsements    ChEndorsement[]
+
+  @@index([skillCategory], name: "ix_ch_skill_m_category")
+  @@index([parentSkillId], name: "ix_ch_skill_m_parent")
+  @@map("ch_skill_m")
+  @@schema("chs")
+}
+
+// ============================================
+// User-Skill Relation (유저-스킬 매핑)
+// ============================================
+model ChUserSkill {
+  id              BigInt   @id @default(autoincrement()) @map("user_skill_id")
+
+  profileId       BigInt   @map("profile_id")
+  skillId         BigInt   @map("skill_id")
+  proficiencyLevel Int     @default(1) @map("proficiency_level")
+  yearsOfExperience Int    @default(0) @map("years_of_experience")
+
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  profile         ChUserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skill           ChSkill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  endorsements    ChEndorsement[]
+
+  @@unique([profileId, skillId], name: "uq_ch_user_skill")
+  @@index([skillId], name: "ix_ch_user_skill_r_skill")
+  @@map("ch_user_skill_r")
+  @@schema("chs")
+}
+
+// ============================================
+// User Career (프로젝트 이력)
+// ============================================
+model ChUserCareer {
+  id              BigInt   @id @default(autoincrement()) @map("career_id")
+
+  profileId       BigInt   @map("profile_id")
+  projectId       BigInt?  @map("project_id")
+  companyName     String?  @map("company_name") @db.VarChar(200)
+  projectName     String   @map("project_name") @db.VarChar(300)
+  roleName        String   @map("role_name") @db.VarChar(100)
+  description     String?  @db.VarChar(2000)
+  startDate       DateTime @map("start_date") @db.Date
+  endDate         DateTime? @map("end_date") @db.Date
+
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  profile         ChUserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId], name: "ix_ch_user_career_m_profile")
+  @@index([projectId], name: "ix_ch_user_career_m_project")
+  @@map("ch_user_career_m")
+  @@schema("chs")
+}
+
+// ============================================
+// Endorsement (스킬 추천/보증)
+// ============================================
+model ChEndorsement {
+  id              BigInt   @id @default(autoincrement()) @map("endorsement_id")
+
+  endorserUserId  BigInt   @map("endorser_user_id")
+  endorseeProfileId BigInt @map("endorsee_profile_id")
+  userSkillId     BigInt   @map("user_skill_id")
+  skillId         BigInt   @map("skill_id")
+  comment         String?  @db.VarChar(500)
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  endorseeProfile ChUserProfile @relation("EndorseeProfile", fields: [endorseeProfileId], references: [id], onDelete: Cascade)
+  userSkill       ChUserSkill   @relation(fields: [userSkillId], references: [id], onDelete: Cascade)
+  skill           ChSkill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([endorserUserId, userSkillId], name: "uq_ch_endorsement")
+  @@index([endorseeProfileId], name: "ix_ch_endorsement_m_endorsee")
+  @@index([skillId], name: "ix_ch_endorsement_m_skill")
+  @@map("ch_endorsement_m")
+  @@schema("chs")
+}
+
+// ============================================
+// Follow (팔로우 관계)
+// ============================================
+model ChFollow {
+  id              BigInt   @id @default(autoincrement()) @map("follow_id")
+
+  followerUserId  BigInt   @map("follower_user_id")
+  followingUserId BigInt   @map("following_user_id")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([followerUserId, followingUserId], name: "uq_ch_follow")
+  @@index([followingUserId], name: "ix_ch_follow_r_following")
+  @@map("ch_follow_r")
+  @@schema("chs")
+}
+
+// ============================================
+// Bookmark (게시물 북마크)
+// ============================================
+model ChBookmark {
+  id              BigInt   @id @default(autoincrement()) @map("bookmark_id")
+
+  userId          BigInt   @map("user_id")
+  postId          BigInt   @map("post_id")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  post            ChPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId], name: "uq_ch_bookmark")
+  @@index([userId, createdAt], name: "ix_ch_bookmark_m_user")
+  @@map("ch_bookmark_m")
+  @@schema("chs")
+}
+
+// ============================================
+// Notification (알림)
+// ============================================
+model ChNotification {
+  id              BigInt   @id @default(autoincrement()) @map("notification_id")
+
+  recipientUserId BigInt   @map("recipient_user_id")
+  actorUserId     BigInt   @map("actor_user_id")
+  notificationType String  @map("notification_type") @db.VarChar(50)
+  referenceType   String   @map("reference_type") @db.VarChar(30)
+  referenceId     BigInt   @map("reference_id")
+  message         String   @db.VarChar(1000)
+  isRead          Boolean  @default(false) @map("is_read")
+  readAt          DateTime? @map("read_at")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([recipientUserId, isRead, createdAt], name: "ix_ch_notification_m_recipient")
+  @@index([actorUserId], name: "ix_ch_notification_m_actor")
+  @@map("ch_notification_m")
+  @@schema("chs")
 }
