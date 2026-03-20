@@ -88,7 +88,7 @@ hooks → lib/api → stores
 | 문서 유형 | 정본 위치 | 역할 |
 |----------|----------|------|
 | **DMS 레포독스** | `docs/dms/` | DMS 정본 |
-| **DMS Wiki 런타임 자산** | `apps/web/dms/data/wiki/` | 파일 시스템/Git 데이터 |
+| **DMS Document 런타임 자산** | `apps/web/dms/data/documents/` | 파일 시스템/Git 데이터 |
 | **깃헙독스 규칙** | `.github/instructions/dms.instructions.md` | 개발 규칙 (이 파일) |
 
 ### 참조 규칙
@@ -103,7 +103,7 @@ hooks → lib/api → stores
 
 - DMS 작업 시 → `docs/dms/` 참조
 - 디자인 시스템 세부 값 → `docs/dms/explanation/design/design-system.md`
-- 위키 데이터 경로 확인 시 → `apps/web/dms/data/wiki/` 참조
+- 문서 데이터 경로 확인 시 → `apps/web/dms/data/documents/` 참조
 
 ---
 
