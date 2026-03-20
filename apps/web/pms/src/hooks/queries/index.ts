@@ -46,6 +46,14 @@ export {
   useUpsertTransitionDetail,
 } from './useProjects';
 
+// Roles
+export {
+  roleKeys,
+  useRoleList,
+  useRoleMenuPermissions,
+  useUpdateRolePermissions,
+} from './useRoles';
+
 // Users
 export {
   userKeys,

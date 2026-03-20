@@ -32,6 +32,14 @@ export type {
   AccessType,
 } from './menus';
 
+// Menu Admin
+export { menusAdminApi } from './menusAdmin';
+export type {
+  MenuAdminItem,
+  CreateMenuAdminRequest,
+  UpdateMenuAdminRequest,
+} from './menusAdmin';
+
 // Projects
 export { projectsApi } from './projects';
 export type {
@@ -43,6 +51,14 @@ export type {
   ProjectStageCode,
   ProjectDoneResultCode,
 } from './projects';
+
+// Roles
+export { rolesApi } from './roles';
+export type {
+  RoleItem,
+  RoleMenuPermission,
+  UpdateRolePermissionsRequest,
+} from './roles';
 
 // Users
 export { usersApi } from './users';
