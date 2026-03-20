@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Play, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Play, CheckCircle2, ChevronDown, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAdvanceStage } from '@/hooks/queries/useProjects';
+import { useAdvanceStage, useTransitionReadiness } from '@/hooks/queries/useProjects';
 import type { DoneResultCode } from '@/lib/api/endpoints/projects';
 
 const DONE_RESULT_OPTIONS: Record<string, { value: DoneResultCode; label: string }[]> = {
@@ -73,6 +73,10 @@ export function StageActionBar({
 }: StageActionBarProps) {
   const [showResultPicker, setShowResultPicker] = useState(false);
   const advanceMutation = useAdvanceStage();
+  const { data: readinessResponse } = useTransitionReadiness(
+    stageCode === 'in_progress' ? projectId : undefined,
+  );
+  const readiness = readinessResponse?.data ?? null;
 
   const handleStart = async () => {
     try {
@@ -143,39 +147,57 @@ export function StageActionBar({
         )}
 
         {stageCode === 'in_progress' && (
-          <div className="relative">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowResultPicker(!showResultPicker)}
-              disabled={advanceMutation.isPending}
-              className="gap-1.5"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              완료
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-
-            {showResultPicker && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowResultPicker(false)}
-                />
-                <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-md border bg-white shadow-lg py-1">
-                  {(DONE_RESULT_OPTIONS[statusCode] || []).map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleComplete(option.value)}
-                      disabled={advanceMutation.isPending}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 disabled:opacity-50"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </>
+          <div className="flex items-center gap-2">
+            {readiness && !readiness.canComplete && (
+              <div className="flex items-center gap-2 text-sm">
+                {readiness.deliverables.pending > 0 && (
+                  <span className="text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    산출물 {readiness.deliverables.approved}/{readiness.deliverables.total}
+                  </span>
+                )}
+                {readiness.closeConditions.unchecked > 0 && (
+                  <span className="text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    종료조건 {readiness.closeConditions.checked}/{readiness.closeConditions.total}
+                  </span>
+                )}
+              </div>
             )}
+            <div className="relative">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowResultPicker(!showResultPicker)}
+                disabled={advanceMutation.isPending}
+                className="gap-1.5"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                완료
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+
+              {showResultPicker && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowResultPicker(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-md border bg-white shadow-lg py-1">
+                    {(DONE_RESULT_OPTIONS[statusCode] || []).map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleComplete(option.value)}
+                        disabled={advanceMutation.isPending}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 disabled:opacity-50"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 

@@ -17,6 +17,7 @@ import type {
   ProjectTransitionDetail,
   AdvanceStageRequest,
   TransitionResult,
+  TransitionReadiness,
   ProjectMember,
   CreateMemberRequest,
   UpdateMemberRequest,
@@ -179,6 +180,15 @@ export function useUpsertTransitionDetail() {
 }
 
 // ─── 상태 전이 ───
+
+export function useTransitionReadiness(projectId: number | undefined) {
+  return useQuery({
+    queryKey: [...projectKeys.all, 'transition-readiness', projectId],
+    queryFn: () => projectsApi.getTransitionReadiness(projectId!),
+    enabled: !!projectId,
+    staleTime: 30 * 1000, // 30초 (전이 직전에 최신 데이터 필요)
+  });
+}
 
 export function useAdvanceStage() {
   const queryClient = useQueryClient();

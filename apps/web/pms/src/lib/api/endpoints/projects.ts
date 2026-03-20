@@ -184,6 +184,12 @@ export interface TransitionResult {
   advancedToNextStatus: boolean;
 }
 
+export interface TransitionReadiness {
+  canComplete: boolean;
+  deliverables: { total: number; approved: number; pending: number };
+  closeConditions: { total: number; checked: number; unchecked: number };
+}
+
 // ─── 프로젝트 멤버 ───
 
 export interface ProjectMember {
@@ -544,6 +550,11 @@ export const projectsApi = {
   },
 
   // ─── 상태 전이 ───
+
+  getTransitionReadiness: async (projectId: number): Promise<ApiResponse<TransitionReadiness>> => {
+    const response = await apiClient.get<ApiResponse<TransitionReadiness>>(`/projects/${projectId}/transition-readiness`);
+    return response.data;
+  },
 
   advanceStage: async (id: number, data: AdvanceStageRequest): Promise<ApiResponse<TransitionResult>> => {
     const response = await apiClient.post<ApiResponse<TransitionResult>>(`/projects/${id}/advance-stage`, data);

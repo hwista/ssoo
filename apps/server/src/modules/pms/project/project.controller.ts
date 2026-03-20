@@ -152,6 +152,16 @@ export class ProjectController {
 
   // ─── 상태 전이 ───
 
+  @Get(":id/transition-readiness")
+  @ApiOperation({ summary: "단계 전이 준비 상태 조회" })
+  @ApiOkResponse({ description: "전이 준비 상태" })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async getTransitionReadiness(@Param("id") id: string) {
+    const readiness = await this.projectService.checkTransitionReadiness(BigInt(id));
+    return success(readiness);
+  }
+
   @Post(":id/advance-stage")
   @ApiOperation({ summary: "프로젝트 단계 진행 (상태 전이)" })
   @ApiOkResponse({ description: "전이 결과" })

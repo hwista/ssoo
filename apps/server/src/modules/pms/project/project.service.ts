@@ -275,6 +275,38 @@ export class ProjectService {
           `상태 '${currentStatus}'에서 허용되지 않는 결과 코드입니다: '${doneResultCode}'. 허용값: ${validResults.join(', ')}`,
         );
       }
+
+      // 2-a. 산출물 완료 여부 검증 (soft: 등록된 산출물이 있을 때만)
+      const pendingDeliverables = await this.db.client.projectDeliverable.findMany({
+        where: {
+          projectId,
+          statusCode: currentStatus,
+          isActive: true,
+          submissionStatusCode: { notIn: ['approved', 'not_required'] },
+        },
+      });
+
+      if (pendingDeliverables.length > 0) {
+        throw new BadRequestException(
+          `미완료 산출물이 ${pendingDeliverables.length}건 있습니다. 모든 산출물을 제출/승인 후 완료할 수 있습니다.`,
+        );
+      }
+
+      // 2-b. 종료조건 충족 여부 검증 (soft: 등록된 조건이 있을 때만)
+      const uncheckedConditions = await this.db.client.projectCloseCondition.findMany({
+        where: {
+          projectId,
+          statusCode: currentStatus,
+          isActive: true,
+          isChecked: false,
+        },
+      });
+
+      if (uncheckedConditions.length > 0) {
+        throw new BadRequestException(
+          `미충족 종료조건이 ${uncheckedConditions.length}건 있습니다. 모든 종료조건을 확인 후 완료할 수 있습니다.`,
+        );
+      }
     }
 
     // 3. 트랜잭션으로 전이 수행
@@ -351,6 +383,44 @@ export class ProjectService {
       currentStageCode: advancedToNextStatus ? 'waiting' : targetStage,
       doneResultCode: advancedToNextStatus ? null : (doneResultCode ?? null),
       advancedToNextStatus,
+    };
+  }
+
+  // ─── 전이 준비 상태 조회 ───
+
+  async checkTransitionReadiness(projectId: bigint) {
+    const project = await this.db.project.findUnique({ where: { id: projectId } });
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    const currentStatus = project.statusCode;
+
+    const deliverables = await this.db.client.projectDeliverable.findMany({
+      where: { projectId, statusCode: currentStatus, isActive: true },
+    });
+
+    const closeConditions = await this.db.client.projectCloseCondition.findMany({
+      where: { projectId, statusCode: currentStatus, isActive: true },
+    });
+
+    const pendingDeliverables = deliverables.filter(
+      (d) => !['approved', 'not_required'].includes(d.submissionStatusCode),
+    );
+    const uncheckedConditions = closeConditions.filter((c) => !c.isChecked);
+
+    return {
+      canComplete: pendingDeliverables.length === 0 && uncheckedConditions.length === 0,
+      deliverables: {
+        total: deliverables.length,
+        approved: deliverables.filter((d) => d.submissionStatusCode === 'approved').length,
+        pending: pendingDeliverables.length,
+      },
+      closeConditions: {
+        total: closeConditions.length,
+        checked: closeConditions.filter((c) => c.isChecked).length,
+        unchecked: uncheckedConditions.length,
+      },
     };
   }
 
