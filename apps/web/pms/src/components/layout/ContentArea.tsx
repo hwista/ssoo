@@ -3,6 +3,7 @@
 import { Suspense, lazy } from 'react';
 import { useTabStore } from '@/stores';
 import { LoadingState } from '@/components/common/StateDisplay';
+import { TabContext } from '@/hooks/useCurrentTab';
 
 // 페이지 컴포넌트 동적 import (named export 사용)
 const pageComponents: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
@@ -12,6 +13,7 @@ const pageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   '/proposal': lazy(() => import('@/components/pages/proposal/ListPage').then(m => ({ default: m.ProposalListPage }))),
   '/execution': lazy(() => import('@/components/pages/execution/ListPage').then(m => ({ default: m.ExecutionListPage }))),
   '/transition': lazy(() => import('@/components/pages/transition/ListPage').then(m => ({ default: m.TransitionListPage }))),
+  '/project/detail': lazy(() => import('@/components/pages/project/DetailPage').then(m => ({ default: m.ProjectDetailPage }))),
 };
 
 /**
@@ -65,9 +67,11 @@ export function ContentArea() {
             key={tab.id}
             className={`absolute inset-0 overflow-auto bg-white ${isActive ? '' : 'hidden'}`}
           >
-            <Suspense fallback={<LoadingState message="페이지 로딩 중..." fullHeight />}>
-              <PageComponent />
-            </Suspense>
+            <TabContext.Provider value={tab}>
+              <Suspense fallback={<LoadingState message="페이지 로딩 중..." fullHeight />}>
+                <PageComponent />
+              </Suspense>
+            </TabContext.Provider>
           </div>
         );
       })}

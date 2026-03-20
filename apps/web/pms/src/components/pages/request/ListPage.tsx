@@ -33,7 +33,28 @@ const columns: ColumnDef<Project>[] = [
     accessorKey: 'id',
     header: '요청번호',
     size: 100,
-    cell: ({ row }) => `REQ-${String(row.original.id).padStart(6, '0')}`,
+    cell: ({ row }) => {
+      const label = `REQ-${String(row.original.id).padStart(6, '0')}`;
+      return (
+        <button
+          type="button"
+          className="text-ssoo-primary hover:underline font-medium"
+          onClick={(e) => {
+            e.stopPropagation();
+            const { openTab } = useTabStore.getState();
+            openTab({
+              menuCode: 'project.detail',
+              menuId: `project.detail.${row.original.id}`,
+              title: `PRJ-${String(row.original.id).padStart(6, '0')} ${row.original.projectName}`,
+              path: '/project/detail',
+              params: { id: String(row.original.id) },
+            });
+          }}
+        >
+          {label}
+        </button>
+      );
+    },
   },
   {
     accessorKey: 'projectName',

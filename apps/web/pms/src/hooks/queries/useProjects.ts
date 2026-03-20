@@ -7,6 +7,28 @@ import type {
   ProjectFilters,
   CreateProjectRequest,
   UpdateProjectRequest,
+  UpsertRequestDetailRequest,
+  UpsertProposalDetailRequest,
+  UpsertExecutionDetailRequest,
+  UpsertTransitionDetailRequest,
+  ProjectRequestDetail,
+  ProjectProposalDetail,
+  ProjectExecutionDetail,
+  ProjectTransitionDetail,
+  AdvanceStageRequest,
+  TransitionResult,
+  ProjectMember,
+  CreateMemberRequest,
+  UpdateMemberRequest,
+  TaskItem,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  MilestoneItem,
+  CreateMilestoneRequest,
+  UpdateMilestoneRequest,
+  IssueItem,
+  CreateIssueRequest,
+  UpdateIssueRequest,
 } from '@/lib/api/endpoints/projects';
 import type { ApiResponse, PaginatedResponse } from '@/lib/api/types';
 
@@ -40,7 +62,7 @@ export function useProjectList(
 }
 
 /**
- * 프로젝트 상세 조회
+ * 프로젝트 상세 조회 (모든 relation 포함)
  */
 export function useProjectDetail(
   id: number,
@@ -64,7 +86,6 @@ export function useCreateProject() {
   return useMutation({
     mutationFn: (data: CreateProjectRequest) => projectsApi.create(data),
     onSuccess: () => {
-      // 목록 캐시 무효화
       queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
     },
   });
@@ -80,9 +101,7 @@ export function useUpdateProject() {
     mutationFn: ({ id, data }: { id: number; data: UpdateProjectRequest }) =>
       projectsApi.update(id, data),
     onSuccess: (_, variables) => {
-      // 해당 프로젝트 상세 캐시 무효화
       queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.id) });
-      // 목록 캐시 무효화
       queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
     },
   });
@@ -97,10 +116,264 @@ export function useDeleteProject() {
   return useMutation({
     mutationFn: (id: number) => projectsApi.delete(id),
     onSuccess: (_, id) => {
-      // 해당 프로젝트 상세 캐시 제거
       queryClient.removeQueries({ queryKey: projectKeys.detail(id) });
-      // 목록 캐시 무효화
       queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+}
+
+// ─── 단계별 상세 Upsert Mutations ───
+
+export function useUpsertRequestDetail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: UpsertRequestDetailRequest }) =>
+      projectsApi.upsertRequestDetail(id, data),
+    onSuccess: (_: ApiResponse<ProjectRequestDetail>, variables) => {
+      queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+}
+
+export function useUpsertProposalDetail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: UpsertProposalDetailRequest }) =>
+      projectsApi.upsertProposalDetail(id, data),
+    onSuccess: (_: ApiResponse<ProjectProposalDetail>, variables) => {
+      queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+}
+
+export function useUpsertExecutionDetail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: UpsertExecutionDetailRequest }) =>
+      projectsApi.upsertExecutionDetail(id, data),
+    onSuccess: (_: ApiResponse<ProjectExecutionDetail>, variables) => {
+      queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+}
+
+export function useUpsertTransitionDetail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: UpsertTransitionDetailRequest }) =>
+      projectsApi.upsertTransitionDetail(id, data),
+    onSuccess: (_: ApiResponse<ProjectTransitionDetail>, variables) => {
+      queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+}
+
+// ─── 상태 전이 ───
+
+export function useAdvanceStage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: AdvanceStageRequest }) =>
+      projectsApi.advanceStage(id, data),
+    onSuccess: (_: ApiResponse<TransitionResult>, variables) => {
+      queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+}
+
+// ─── 멤버 ───
+
+export const memberKeys = {
+  all: (projectId: number) => [...projectKeys.detail(projectId), 'members'] as const,
+};
+
+export function useProjectMembers(projectId: number) {
+  return useQuery({
+    queryKey: memberKeys.all(projectId),
+    queryFn: () => projectsApi.getMembers(projectId),
+    enabled: !!projectId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAddMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: CreateMemberRequest }) =>
+      projectsApi.addMember(projectId, data),
+    onSuccess: (_: ApiResponse<ProjectMember>, variables) => {
+      queryClient.invalidateQueries({ queryKey: memberKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useUpdateMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, userId, roleCode, data }: { projectId: number; userId: string; roleCode: string; data: UpdateMemberRequest }) =>
+      projectsApi.updateMember(projectId, userId, roleCode, data),
+    onSuccess: (_: ApiResponse<ProjectMember>, variables) => {
+      queryClient.invalidateQueries({ queryKey: memberKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useRemoveMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, userId, roleCode }: { projectId: number; userId: string; roleCode: string }) =>
+      projectsApi.removeMember(projectId, userId, roleCode),
+    onSuccess: (_: ApiResponse<null>, variables) => {
+      queryClient.invalidateQueries({ queryKey: memberKeys.all(variables.projectId) });
+    },
+  });
+}
+
+// ─── 태스크 ───
+
+export const taskKeys = {
+  all: (projectId: number) => [...projectKeys.detail(projectId), 'tasks'] as const,
+};
+
+export function useProjectTasks(projectId: number) {
+  return useQuery({
+    queryKey: taskKeys.all(projectId),
+    queryFn: () => projectsApi.getTasks(projectId),
+    enabled: !!projectId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: CreateTaskRequest }) =>
+      projectsApi.createTask(projectId, data),
+    onSuccess: (_: ApiResponse<TaskItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useUpdateTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, taskId, data }: { projectId: number; taskId: string; data: UpdateTaskRequest }) =>
+      projectsApi.updateTask(projectId, taskId, data),
+    onSuccess: (_: ApiResponse<TaskItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useDeleteTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, taskId }: { projectId: number; taskId: string }) =>
+      projectsApi.deleteTask(projectId, taskId),
+    onSuccess: (_: ApiResponse<null>, variables) => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.all(variables.projectId) });
+    },
+  });
+}
+
+// ─── 마일스톤 ───
+
+export const milestoneKeys = {
+  all: (projectId: number) => [...projectKeys.detail(projectId), 'milestones'] as const,
+};
+
+export function useProjectMilestones(projectId: number) {
+  return useQuery({
+    queryKey: milestoneKeys.all(projectId),
+    queryFn: () => projectsApi.getMilestones(projectId),
+    enabled: !!projectId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: CreateMilestoneRequest }) =>
+      projectsApi.createMilestone(projectId, data),
+    onSuccess: (_: ApiResponse<MilestoneItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: milestoneKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useUpdateMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, milestoneId, data }: { projectId: number; milestoneId: string; data: UpdateMilestoneRequest }) =>
+      projectsApi.updateMilestone(projectId, milestoneId, data),
+    onSuccess: (_: ApiResponse<MilestoneItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: milestoneKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useDeleteMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, milestoneId }: { projectId: number; milestoneId: string }) =>
+      projectsApi.deleteMilestone(projectId, milestoneId),
+    onSuccess: (_: ApiResponse<null>, variables) => {
+      queryClient.invalidateQueries({ queryKey: milestoneKeys.all(variables.projectId) });
+    },
+  });
+}
+
+// ─── 이슈 ───
+
+export const issueKeys = {
+  all: (projectId: number) => [...projectKeys.detail(projectId), 'issues'] as const,
+};
+
+export function useProjectIssues(projectId: number, filters?: { statusCode?: string; issueTypeCode?: string }) {
+  return useQuery({
+    queryKey: [...issueKeys.all(projectId), filters] as const,
+    queryFn: () => projectsApi.getIssues(projectId, filters),
+    enabled: !!projectId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: CreateIssueRequest }) =>
+      projectsApi.createIssue(projectId, data),
+    onSuccess: (_: ApiResponse<IssueItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: issueKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useUpdateIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, issueId, data }: { projectId: number; issueId: string; data: UpdateIssueRequest }) =>
+      projectsApi.updateIssue(projectId, issueId, data),
+    onSuccess: (_: ApiResponse<IssueItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: issueKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useDeleteIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, issueId }: { projectId: number; issueId: string }) =>
+      projectsApi.deleteIssue(projectId, issueId),
+    onSuccess: (_: ApiResponse<null>, variables) => {
+      queryClient.invalidateQueries({ queryKey: issueKeys.all(variables.projectId) });
     },
   });
 }

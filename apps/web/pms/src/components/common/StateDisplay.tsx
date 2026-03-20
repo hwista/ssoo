@@ -47,6 +47,8 @@ export function LoadingState({
 export interface LoadingSpinnerProps {
   /** 크기 */
   size?: 'sm' | 'md';
+  /** 인라인 로딩 메시지 */
+  message?: string;
   /** 추가 className */
   className?: string;
 }
@@ -54,14 +56,24 @@ export interface LoadingSpinnerProps {
 /**
  * LoadingSpinner 컴포넌트
  * - 버튼/인라인 로딩용
+ * - message를 전달하면 스피너 옆에 텍스트를 함께 표시
  */
 export function LoadingSpinner({
   size = 'sm',
+  message,
   className,
 }: LoadingSpinnerProps) {
   const sizeClasses = size === 'sm' ? 'h-4 w-4' : 'h-8 w-8';
+
+  if (!message) {
+    return <Loader2 className={cn(sizeClasses, 'animate-spin text-muted-foreground', className)} />;
+  }
+
   return (
-    <Loader2 className={cn(sizeClasses, 'animate-spin text-muted-foreground', className)} />
+    <span className={cn('inline-flex items-center gap-2 text-sm text-muted-foreground', className)}>
+      <Loader2 className={cn(sizeClasses, 'animate-spin shrink-0')} />
+      {message}
+    </span>
   );
 }
 

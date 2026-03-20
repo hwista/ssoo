@@ -83,3 +83,57 @@ export const createCustomerRequestSchema = z.object({
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 export type CreateCustomerRequestInput = z.infer<typeof createCustomerRequestSchema>;
+
+// ========================================
+// 단계별 상세 스키마
+// ========================================
+
+/** 요청 상세 스키마 */
+export const upsertRequestDetailSchema = z.object({
+  requestSourceCode: optionalSelect.describe('요청 출처'),
+  requestChannelCode: optionalSelect.describe('접수 채널'),
+  requestSummary: optionalStringMax(2000).describe('요청 요약'),
+  requestReceivedAt: dateField.describe('접수일'),
+  requestPriorityCode: optionalSelect.describe('우선순위'),
+  requestOwnerUserId: optionalId.describe('요청 담당자'),
+  memo: optionalStringMax(2000).describe('메모'),
+});
+
+/** 제안 상세 스키마 */
+export const upsertProposalDetailSchema = z.object({
+  proposalOwnerUserId: optionalId.describe('제안 담당자'),
+  proposalDueAt: dateField.describe('제안 마감일'),
+  proposalSubmittedAt: dateField.describe('제안 제출일'),
+  proposalVersion: z.coerce.number().int().positive().optional().describe('제안 버전'),
+  estimateAmount: optionalStringMax(30).describe('견적 금액'),
+  estimateUnitCode: optionalSelect.describe('견적 단위'),
+  proposalScopeSummary: optionalStringMax(2000).describe('제안 범위 요약'),
+  decisionDeadlineAt: dateField.describe('의사결정 마감일'),
+  memo: optionalStringMax(2000).describe('메모'),
+});
+
+/** 수행 상세 스키마 */
+export const upsertExecutionDetailSchema = z.object({
+  contractSignedAt: dateField.describe('계약 체결일'),
+  contractAmount: optionalStringMax(30).describe('계약 금액'),
+  contractUnitCode: optionalSelect.describe('계약 단위'),
+  billingTypeCode: optionalSelect.describe('청구 유형'),
+  deliveryMethodCode: optionalSelect.describe('납품 방식'),
+  nextProjectId: optionalId.describe('후속 프로젝트'),
+  memo: optionalStringMax(2000).describe('메모'),
+});
+
+/** 전환 상세 스키마 */
+export const upsertTransitionDetailSchema = z.object({
+  operationOwnerUserId: optionalId.describe('운영 담당자'),
+  operationReservedAt: dateField.describe('운영 예정일'),
+  operationStartAt: dateField.describe('운영 시작일'),
+  transitionDueAt: dateField.describe('전환 마감일'),
+  transitionSummary: optionalStringMax(2000).describe('전환 요약'),
+  memo: optionalStringMax(2000).describe('메모'),
+});
+
+export type UpsertRequestDetailInput = z.infer<typeof upsertRequestDetailSchema>;
+export type UpsertProposalDetailInput = z.infer<typeof upsertProposalDetailSchema>;
+export type UpsertExecutionDetailInput = z.infer<typeof upsertExecutionDetailSchema>;
+export type UpsertTransitionDetailInput = z.infer<typeof upsertTransitionDetailSchema>;

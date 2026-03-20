@@ -27,6 +27,10 @@ export {
   useCreateProject,
   useUpdateProject,
   useDeleteProject,
+  useUpsertRequestDetail,
+  useUpsertProposalDetail,
+  useUpsertExecutionDetail,
+  useUpsertTransitionDetail,
 } from './useProjects';
 
 // Menus

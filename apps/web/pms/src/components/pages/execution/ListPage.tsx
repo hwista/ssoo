@@ -1,128 +1,145 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ListPageTemplate } from '@/components/templates';
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useTabStore } from '@/stores';
 import { ColumnDef } from '@tanstack/react-table';
 import type { FilterValues } from '@/components/common/page/Header';
+import { useProjectList } from '@/hooks/queries';
+import type { Project, ProjectFilters, ProjectStageCode } from '@/lib/api/endpoints/projects';
 
-interface ExecutionItem {
-  id: string;
-  projectNo: string;
-  projectName: string;
-  customerName: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  progress: number;
-}
-
-const sampleData: ExecutionItem[] = [
-  { id: '1', projectNo: 'PRJ-2026-001', projectName: 'ERP 시스템 구축', customerName: '삼성전자', status: '진행중', startDate: '2026-01-01', endDate: '2026-06-30', progress: 35 },
-  { id: '2', projectNo: 'PRJ-2026-002', projectName: 'MES 고도화', customerName: 'LG전자', status: '진행중', startDate: '2026-02-01', endDate: '2026-08-31', progress: 15 },
-  { id: '3', projectNo: 'PRJ-2025-003', projectName: '품질관리 시스템', customerName: 'SK하이닉스', status: '검수중', startDate: '2025-07-01', endDate: '2026-01-31', progress: 95 },
+const stageOptions: { label: string; value: ProjectStageCode }[] = [
+  { label: '대기', value: 'waiting' },
+  { label: '진행', value: 'in_progress' },
+  { label: '완료', value: 'done' },
 ];
 
-const statusOptions = [
-  { label: '준비중', value: 'preparing' },
-  { label: '진행중', value: 'inProgress' },
-  { label: '검수중', value: 'reviewing' },
-  { label: '완료', value: 'completed' },
-  { label: '보류', value: 'hold' },
-];
+const stageLabels: Record<ProjectStageCode, string> = {
+  waiting: '대기',
+  in_progress: '진행',
+  done: '완료',
+};
 
-const columns: ColumnDef<ExecutionItem>[] = [
-  { accessorKey: 'projectNo', header: '프로젝트번호', size: 130 },
-  { accessorKey: 'projectName', header: '프로젝트명', size: 200 },
-  { accessorKey: 'customerName', header: '고객사', size: 120 },
+const columns: ColumnDef<Project>[] = [
   {
-    accessorKey: 'status',
-    header: '상태',
-    size: 80,
+    accessorKey: 'id',
+    header: '프로젝트번호',
+    size: 130,
+    cell: ({ row }) => `PRJ-${String(row.original.id).padStart(6, '0')}`,
+  },
+  {
+    accessorKey: 'projectName',
+    header: '프로젝트명',
+    size: 220,
+  },
+  {
+    accessorKey: 'customerId',
+    header: '고객사',
+    size: 120,
+    cell: ({ row }) => row.original.customerId ? String(row.original.customerId) : '-',
+  },
+  {
+    accessorKey: 'stageCode',
+    header: '단계',
+    size: 90,
     cell: ({ row }) => {
-      const status = row.original.status;
-      const colorMap: Record<string, string> = {
-        '준비중': 'bg-yellow-100 text-yellow-800',
-        '진행중': 'bg-green-100 text-green-800',
-        '검수중': 'bg-blue-100 text-blue-800',
-        '완료': 'bg-gray-100 text-gray-800',
-        '보류': 'bg-red-100 text-red-800',
+      const stage = row.original.stageCode;
+      const colorMap: Record<ProjectStageCode, string> = {
+        waiting: 'bg-yellow-100 text-yellow-800',
+        in_progress: 'bg-green-100 text-green-800',
+        done: 'bg-gray-100 text-gray-800',
       };
       return (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${colorMap[status] || 'bg-gray-100'}`}>
-          {status}
+        <span className={`px-2 py-1 rounded text-xs font-medium ${colorMap[stage]}`}>
+          {stageLabels[stage]}
         </span>
       );
     },
   },
   {
-    accessorKey: 'progress',
-    header: '진행률',
-    size: 100,
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <div className="w-16 bg-gray-200 rounded-full h-2">
-          <div
-            className="bg-ls-red h-2 rounded-full"
-            style={{ width: `${row.original.progress}%` }}
-          />
-        </div>
-        <span className="text-xs">{row.original.progress}%</span>
-      </div>
-    ),
+    id: 'contractAmount',
+    header: '계약금액',
+    size: 130,
+    cell: ({ row }) => {
+      const amount = row.original.executionDetail?.contractAmount;
+      if (!amount) return '-';
+      const unit = row.original.executionDetail?.contractUnitCode || '';
+      return `${Number(amount).toLocaleString()} ${unit}`;
+    },
   },
-  { accessorKey: 'startDate', header: '시작일', size: 100 },
-  { accessorKey: 'endDate', header: '종료일', size: 100 },
+  {
+    id: 'contractSignedAt',
+    header: '계약일',
+    size: 120,
+    cell: ({ row }) => {
+      const date = row.original.executionDetail?.contractSignedAt;
+      return date ? new Date(date).toLocaleDateString() : '-';
+    },
+  },
+  {
+    accessorKey: 'createdAt',
+    header: '등록일',
+    size: 120,
+    cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+  },
 ];
 
 export function ExecutionListPage() {
   const { openTab } = useTabStore();
-  const [data] = useState(sampleData);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [filters, setFilters] = useState<ProjectFilters>({
+    statusCode: 'execution',
+  });
 
-  const handleCreate = () => {
-    openTab({
-      menuCode: 'execution.create',
-      menuId: 'execution.create',
-      title: '프로젝트 등록',
-      path: '/execution/create',
-    });
-  };
+  const { data: response, isLoading, error, refetch } = useProjectList({
+    ...filters,
+    statusCode: 'execution',
+    page,
+    pageSize,
+  });
+
+  const projects = useMemo(() => response?.data?.items ?? [], [response]);
+  const total = response?.data?.total ?? 0;
+  const apiError = response && !response.success
+    ? new Error(response.message || '요청 처리 중 오류가 발생했습니다.')
+    : null;
 
   const handleDelete = () => {
     alert('선택된 항목을 삭제합니다.');
   };
 
-  const handleSearch = useCallback((_values: FilterValues) => {
-    // TODO: 검색 기능 구현
+  const handleSearch = useCallback((values: FilterValues) => {
+    setFilters({
+      statusCode: 'execution',
+      search: values.projectName?.trim() || undefined,
+      stageCode: values.stageCode as ProjectStageCode | undefined,
+    });
+    setPage(1);
   }, []);
 
   const handleReset = useCallback(() => {
-    // TODO: 검색 초기화 구현
+    setFilters({ statusCode: 'execution' });
+    setPage(1);
   }, []);
 
-  const handleRowClick = useCallback((row: ExecutionItem) => {
+  const handleRowClick = useCallback((row: Project) => {
     openTab({
-      menuCode: `execution.${row.id}`,
-      menuId: `execution.${row.id}`,
-      title: `${row.projectNo} - ${row.projectName}`,
-      path: `/execution/${row.id}`,
+      menuCode: `project.detail`,
+      menuId: `project.detail.${row.id}`,
+      title: `PRJ-${String(row.id).padStart(6, '0')} ${row.projectName}`,
+      path: '/project/detail',
+      params: { id: String(row.id) },
     });
   }, [openTab]);
 
   return (
     <ListPageTemplate
-      breadcrumb={['실행', '프로젝트 목록']}
+      breadcrumb={['수행', '프로젝트 목록']}
       header={{
         collapsible: true,
         actions: [
-          {
-            label: '등록',
-            icon: <Plus className="h-4 w-4" />,
-            onClick: handleCreate,
-          },
           {
             label: '삭제',
             icon: <Trash2 className="h-4 w-4" />,
@@ -131,24 +148,26 @@ export function ExecutionListPage() {
           },
         ],
         filters: [
-          { key: 'projectNo', type: 'text', placeholder: '프로젝트번호' },
           { key: 'projectName', type: 'text', placeholder: '프로젝트명' },
-          { key: 'customerName', type: 'text', placeholder: '고객사' },
-          { key: 'status', type: 'select', placeholder: '상태', options: statusOptions },
+          { key: 'stageCode', type: 'select', placeholder: '단계', options: stageOptions },
         ],
         onSearch: handleSearch,
         onReset: handleReset,
       }}
       table={{
         columns,
-        data,
-        loading: false,
+        data: projects,
+        loading: isLoading,
+        error: apiError || error,
+        onRetry: () => refetch(),
         onRowClick: handleRowClick,
-        enableClientPagination: true,
+        getRowId: (row) => row.id,
+        headerClassName: 'bg-ssoo-content-bg',
+        headerCellClassName: 'bg-ssoo-content-bg',
         pagination: {
           page,
           pageSize,
-          total: data.length,
+          total,
           onPageChange: setPage,
           onPageSizeChange: setPageSize,
         },

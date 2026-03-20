@@ -8,3 +8,4 @@ export { RequestListPage, RequestCreatePage } from './request';
 export { ProposalListPage } from './proposal';
 export { ExecutionListPage } from './execution';
 export { TransitionListPage } from './transition';
+export { ProjectDetailPage } from './project';
