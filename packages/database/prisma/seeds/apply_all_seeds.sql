@@ -52,6 +52,10 @@
 \echo 'Applying 08_unit_code.sql...'
 \i 08_unit_code.sql
 
+-- 10: 멤버/태스크/이슈 코드
+\echo 'Applying 10_project_member_task_issue_code.sql...'
+\i 10_project_member_task_issue_code.sql
+
 -- 05: 메뉴 데이터
 \echo 'Applying 05_menu_data.sql...'
 \i 05_menu_data.sql

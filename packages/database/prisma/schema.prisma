@@ -409,6 +409,12 @@ model User {
   // Relations - as project owner
   ownedProjects   Project[] @relation("ProjectOwner")
   
+  // Relations - project member
+  projectMembers  ProjectMember[]
+  assignedTasks   Task[]           @relation("TaskAssignee")
+  reportedIssues  Issue[]          @relation("IssueReporter")
+  assignedIssues  Issue[]          @relation("IssueAssignee")
+
   // Relations - menu permissions
   userMenus       UserMenu[]
   
@@ -466,6 +472,10 @@ model Project {
   projectStatuses       ProjectStatus[]
   projectDeliverables   ProjectDeliverable[]
   projectCloseConditions ProjectCloseCondition[]
+  projectMembers        ProjectMember[]
+  tasks                 Task[]
+  milestones            Milestone[]
+  issues                Issue[]
 
   @@index([statusCode, stageCode], name: "ix_pr_project_m_status_stage")
   @@index([currentOwnerUserId], name: "ix_pr_project_m_owner")
@@ -886,6 +896,198 @@ model ProjectCloseCondition {
   @@index([conditionCode], name: "ix_pr_project_close_condition_r_m_condition")
   @@index([updatedAt], name: "ix_pr_project_close_condition_r_m_updated_at")
   @@map("pr_project_close_condition_r_m")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Member (프로젝트 멤버 매핑) - pr_project_member_r_m
+// PK: (project_id, user_id, role_code)
+// role_code: pm, developer, consultant, qa, am, sm, architect, etc.
+// ============================================
+model ProjectMember {
+  projectId       BigInt   @map("project_id")
+  userId          BigInt   @map("user_id")
+  roleCode        String   @map("role_code") // pm, developer, consultant, qa, am, sm, architect
+
+  assignedAt      DateTime @default(now()) @map("assigned_at") @db.Date
+  releasedAt      DateTime? @map("released_at") @db.Date
+  allocationRate  Int      @default(100) @map("allocation_rate") // 0-100 투입률(%)
+
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  // Common columns
+  isActive        Boolean  @default(true) @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  // Relations
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId, roleCode], name: "pk_pr_project_member_r_m")
+  @@index([projectId, roleCode], name: "ix_pr_project_member_r_m_role")
+  @@index([userId], name: "ix_pr_project_member_r_m_user")
+  @@index([updatedAt], name: "ix_pr_project_member_r_m_updated_at")
+  @@map("pr_project_member_r_m")
+  @@schema("pms")
+}
+
+// ============================================
+// Task (태스크/WBS) - pr_task_m
+// 계층 구조 지원 (parentTaskId → self-reference)
+// ============================================
+model Task {
+  id              BigInt   @id @default(autoincrement()) @map("task_id")
+
+  projectId       BigInt   @map("project_id")
+  parentTaskId    BigInt?  @map("parent_task_id")
+
+  taskCode        String   @map("task_code") @db.VarChar(50) // WBS 코드 (예: "1.1.2")
+  taskName        String   @map("task_name")
+  description     String?
+
+  taskTypeCode    String?  @map("task_type_code") // development, design, test, review, deployment, management
+  statusCode      String   @default("not_started") @map("status_code") // not_started, in_progress, completed, on_hold, cancelled
+  priorityCode    String   @default("normal") @map("priority_code") // critical, high, normal, low
+
+  assigneeUserId  BigInt?  @map("assignee_user_id")
+
+  plannedStartAt  DateTime? @map("planned_start_at") @db.Date
+  plannedEndAt    DateTime? @map("planned_end_at") @db.Date
+  actualStartAt   DateTime? @map("actual_start_at") @db.Date
+  actualEndAt     DateTime? @map("actual_end_at") @db.Date
+
+  progressRate    Int      @default(0) @map("progress_rate") // 0-100
+  estimatedHours  Decimal? @map("estimated_hours") @db.Decimal(8, 1)
+  actualHours     Decimal? @map("actual_hours") @db.Decimal(8, 1)
+
+  depth           Int      @default(0) // WBS 깊이 (0 = root)
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  // Common columns
+  isActive        Boolean  @default(true) @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  // Relations
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentTask      Task?    @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  childTasks      Task[]   @relation("TaskHierarchy")
+  assignee        User?    @relation("TaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, taskCode], name: "uq_pr_task_m_project_code")
+  @@index([projectId, statusCode], name: "ix_pr_task_m_project_status")
+  @@index([projectId, parentTaskId], name: "ix_pr_task_m_hierarchy")
+  @@index([assigneeUserId], name: "ix_pr_task_m_assignee")
+  @@index([updatedAt], name: "ix_pr_task_m_updated_at")
+  @@map("pr_task_m")
+  @@schema("pms")
+}
+
+// ============================================
+// Milestone (마일스톤) - pr_milestone_m
+// 프로젝트 주요 체크포인트
+// ============================================
+model Milestone {
+  id              BigInt   @id @default(autoincrement()) @map("milestone_id")
+
+  projectId       BigInt   @map("project_id")
+
+  milestoneCode   String   @map("milestone_code") @db.VarChar(50) // 예: "MS-001", "kickoff"
+  milestoneName   String   @map("milestone_name")
+  description     String?
+
+  statusCode      String   @default("not_started") @map("status_code") // not_started, in_progress, achieved, missed, cancelled
+
+  dueAt           DateTime? @map("due_at") @db.Date
+  achievedAt      DateTime? @map("achieved_at") @db.Date
+
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  // Common columns
+  isActive        Boolean  @default(true) @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  // Relations
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, milestoneCode], name: "uq_pr_milestone_m_project_code")
+  @@index([projectId, statusCode], name: "ix_pr_milestone_m_project_status")
+  @@index([dueAt], name: "ix_pr_milestone_m_due_at")
+  @@index([updatedAt], name: "ix_pr_milestone_m_updated_at")
+  @@map("pr_milestone_m")
+  @@schema("pms")
+}
+
+// ============================================
+// Issue (이슈) - pr_issue_m
+// 프로젝트 이슈/위험/시정조치 통합 관리
+// ============================================
+model Issue {
+  id              BigInt   @id @default(autoincrement()) @map("issue_id")
+
+  projectId       BigInt   @map("project_id")
+
+  issueCode       String   @map("issue_code") @db.VarChar(50) // 예: "ISS-001"
+  issueTitle      String   @map("issue_title")
+  description     String?
+
+  issueTypeCode   String   @map("issue_type_code") // bug, requirement_change, risk, impediment, inquiry
+  statusCode      String   @default("open") @map("status_code") // open, in_progress, resolved, closed, deferred
+  priorityCode    String   @default("normal") @map("priority_code") // critical, high, normal, low
+
+  reportedByUserId BigInt? @map("reported_by_user_id")
+  assigneeUserId  BigInt?  @map("assignee_user_id")
+
+  reportedAt      DateTime @default(now()) @map("reported_at")
+  dueAt           DateTime? @map("due_at") @db.Date
+  resolvedAt      DateTime? @map("resolved_at")
+
+  resolution      String?  // 해결 내용
+
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  // Common columns
+  isActive        Boolean  @default(true) @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  // Relations
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reportedBy      User?    @relation("IssueReporter", fields: [reportedByUserId], references: [id], onDelete: SetNull)
+  assignee        User?    @relation("IssueAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, issueCode], name: "uq_pr_issue_m_project_code")
+  @@index([projectId, statusCode], name: "ix_pr_issue_m_project_status")
+  @@index([projectId, issueTypeCode], name: "ix_pr_issue_m_project_type")
+  @@index([assigneeUserId], name: "ix_pr_issue_m_assignee")
+  @@index([updatedAt], name: "ix_pr_issue_m_updated_at")
+  @@map("pr_issue_m")
   @@schema("pms")
 }
 
@@ -1388,5 +1590,163 @@ model ProjectCloseConditionHistory {
   @@index([eventAt], name: "ix_pr_project_close_condition_r_h_event_at")
   @@index([transactionId], name: "ix_pr_project_close_condition_r_h_tx")
   @@map("pr_project_close_condition_r_h")
+  @@schema("pms")
+}
+
+// ============================================
+// Project Member History - pr_project_member_r_h
+// ============================================
+model ProjectMemberHistory {
+  projectId       BigInt   @map("project_id")
+  userId          BigInt   @map("user_id")
+  roleCode        String   @map("role_code")
+  historySeq      BigInt   @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @map("event_at")
+
+  assignedAt      DateTime @map("assigned_at") @db.Date
+  releasedAt      DateTime? @map("released_at") @db.Date
+  allocationRate  Int      @map("allocation_rate")
+  sortOrder       Int      @map("sort_order")
+
+  isActive        Boolean  @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([projectId, userId, roleCode, historySeq], name: "pk_pr_project_member_r_h")
+  @@index([eventAt], name: "ix_pr_project_member_r_h_event_at")
+  @@index([transactionId], name: "ix_pr_project_member_r_h_tx")
+  @@map("pr_project_member_r_h")
+  @@schema("pms")
+}
+
+// ============================================
+// Task History - pr_task_h
+// ============================================
+model TaskHistory {
+  taskId          BigInt   @map("task_id")
+  historySeq      BigInt   @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @map("event_at")
+
+  projectId       BigInt   @map("project_id")
+  parentTaskId    BigInt?  @map("parent_task_id")
+  taskCode        String   @map("task_code") @db.VarChar(50)
+  taskName        String   @map("task_name")
+  description     String?
+  taskTypeCode    String?  @map("task_type_code")
+  statusCode      String   @map("status_code")
+  priorityCode    String   @map("priority_code")
+  assigneeUserId  BigInt?  @map("assignee_user_id")
+  plannedStartAt  DateTime? @map("planned_start_at") @db.Date
+  plannedEndAt    DateTime? @map("planned_end_at") @db.Date
+  actualStartAt   DateTime? @map("actual_start_at") @db.Date
+  actualEndAt     DateTime? @map("actual_end_at") @db.Date
+  progressRate    Int      @map("progress_rate")
+  estimatedHours  Decimal? @map("estimated_hours") @db.Decimal(8, 1)
+  actualHours     Decimal? @map("actual_hours") @db.Decimal(8, 1)
+  depth           Int
+  sortOrder       Int      @map("sort_order")
+
+  isActive        Boolean  @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([taskId, historySeq], name: "pk_pr_task_h")
+  @@index([eventAt], name: "ix_pr_task_h_event_at")
+  @@index([transactionId], name: "ix_pr_task_h_tx")
+  @@map("pr_task_h")
+  @@schema("pms")
+}
+
+// ============================================
+// Milestone History - pr_milestone_h
+// ============================================
+model MilestoneHistory {
+  milestoneId     BigInt   @map("milestone_id")
+  historySeq      BigInt   @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @map("event_at")
+
+  projectId       BigInt   @map("project_id")
+  milestoneCode   String   @map("milestone_code") @db.VarChar(50)
+  milestoneName   String   @map("milestone_name")
+  description     String?
+  statusCode      String   @map("status_code")
+  dueAt           DateTime? @map("due_at") @db.Date
+  achievedAt      DateTime? @map("achieved_at") @db.Date
+  sortOrder       Int      @map("sort_order")
+
+  isActive        Boolean  @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([milestoneId, historySeq], name: "pk_pr_milestone_h")
+  @@index([eventAt], name: "ix_pr_milestone_h_event_at")
+  @@index([transactionId], name: "ix_pr_milestone_h_tx")
+  @@map("pr_milestone_h")
+  @@schema("pms")
+}
+
+// ============================================
+// Issue History - pr_issue_h
+// ============================================
+model IssueHistory {
+  issueId         BigInt   @map("issue_id")
+  historySeq      BigInt   @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @map("event_at")
+
+  projectId       BigInt   @map("project_id")
+  issueCode       String   @map("issue_code") @db.VarChar(50)
+  issueTitle      String   @map("issue_title")
+  description     String?
+  issueTypeCode   String   @map("issue_type_code")
+  statusCode      String   @map("status_code")
+  priorityCode    String   @map("priority_code")
+  reportedByUserId BigInt? @map("reported_by_user_id")
+  assigneeUserId  BigInt?  @map("assignee_user_id")
+  reportedAt      DateTime @map("reported_at")
+  dueAt           DateTime? @map("due_at") @db.Date
+  resolvedAt      DateTime? @map("resolved_at")
+  resolution      String?
+  sortOrder       Int      @map("sort_order")
+
+  isActive        Boolean  @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  lastActivity    String?  @map("last_activity")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([issueId, historySeq], name: "pk_pr_issue_h")
+  @@index([eventAt], name: "ix_pr_issue_h_event_at")
+  @@index([transactionId], name: "ix_pr_issue_h_tx")
+  @@map("pr_issue_h")
   @@schema("pms")
 }

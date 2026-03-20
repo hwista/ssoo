@@ -4,19 +4,19 @@ import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { ProjectService } from './project.service.js';
 import { success, paginated, deleted } from '../../../common/index.js';
-import { serializeBigIntShallow } from '../../../common/utils/bigint.util.js';
+import { serializeBigInt } from '../../../common/utils/bigint.util.js';
 import type {
   CreateProjectDto,
   UpdateProjectDto,
   PaginationParams,
+  UpsertRequestDetailDto,
+  UpsertProposalDetailDto,
+  UpsertExecutionDetailDto,
+  UpsertTransitionDetailDto,
+  AdvanceStageDto,
 } from "@ssoo/types";
 import { ProjectDto, ProjectListDto } from './dto/project.dto.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
-
-interface SerializableProjectRecord extends Record<string, unknown> {
-  requestDetail?: Record<string, unknown> | null;
-  projectStatuses?: Record<string, unknown>[];
-}
 
 @ApiTags("projects")
 @ApiBearerAuth()
@@ -31,25 +31,14 @@ export class ProjectController {
   @ApiUnauthorizedResponse({ type: ApiError })
   @ApiForbiddenResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: "서버 오류" })
-  async findAll(@Query() params: PaginationParams) {
+  async findAll(@Query() params: PaginationParams & { statusCode?: string }) {
     const pageValue = Number(params.page);
     const limitValue = Number(params.limit);
     const page = Number.isFinite(pageValue) && pageValue > 0 ? pageValue : 1;
     const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : 10;
-    const { data, total } = await this.projectService.findAll({ page, limit });
-    const serialized = data.map((project: SerializableProjectRecord) => {
-      const base = serializeBigIntShallow(project);
-      if (project.requestDetail) {
-        base.requestDetail = serializeBigIntShallow(project.requestDetail);
-      }
-      if (project.projectStatuses?.length) {
-        base.projectStatuses = project.projectStatuses.map((status: Record<string, unknown>) =>
-          serializeBigIntShallow(status),
-        );
-      }
-      return base;
-    });
-    return paginated(serialized, page, limit, total);
+    const { data, total } = await this.projectService.findAll({ page, limit, statusCode: params.statusCode });
+    const serialized = data.map((project) => serializeBigInt(project));
+    return paginated(serialized as Record<string, unknown>[], page, limit, total);
   }
 
   @Get(":id")
@@ -64,7 +53,7 @@ export class ProjectController {
     if (!project) {
       throw new NotFoundException("프로젝트를 찾을 수 없습니다.");
     }
-    return success(project);
+    return success(serializeBigInt(project));
   }
 
   @Post()
@@ -75,7 +64,7 @@ export class ProjectController {
   @ApiInternalServerErrorResponse({ type: ApiError, description: "서버 오류" })
   async create(@Body() dto: CreateProjectDto) {
     const project = await this.projectService.create(dto);
-    return success(project);
+    return success(serializeBigInt(project));
   }
 
   @Put(":id")
@@ -93,7 +82,7 @@ export class ProjectController {
     if (!project) {
       throw new NotFoundException("프로젝트를 찾을 수 없습니다.");
     }
-    return success(project);
+    return success(serializeBigInt(project));
   }
 
   @Delete(":id")
@@ -105,5 +94,74 @@ export class ProjectController {
   async remove(@Param("id") id: string) {
     const result = await this.projectService.remove(BigInt(id));
     return deleted(result);
+  }
+
+  // ─── 단계별 상세 Upsert ───
+
+  @Put(":id/request-detail")
+  @ApiOperation({ summary: "요청 상세 생성/수정" })
+  @ApiOkResponse({ description: "요청 상세" })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async upsertRequestDetail(
+    @Param("id") id: string,
+    @Body() dto: UpsertRequestDetailDto,
+  ) {
+    const detail = await this.projectService.upsertRequestDetail(BigInt(id), dto);
+    return success(serializeBigInt(detail));
+  }
+
+  @Put(":id/proposal-detail")
+  @ApiOperation({ summary: "제안 상세 생성/수정" })
+  @ApiOkResponse({ description: "제안 상세" })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async upsertProposalDetail(
+    @Param("id") id: string,
+    @Body() dto: UpsertProposalDetailDto,
+  ) {
+    const detail = await this.projectService.upsertProposalDetail(BigInt(id), dto);
+    return success(serializeBigInt(detail));
+  }
+
+  @Put(":id/execution-detail")
+  @ApiOperation({ summary: "수행 상세 생성/수정" })
+  @ApiOkResponse({ description: "수행 상세" })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async upsertExecutionDetail(
+    @Param("id") id: string,
+    @Body() dto: UpsertExecutionDetailDto,
+  ) {
+    const detail = await this.projectService.upsertExecutionDetail(BigInt(id), dto);
+    return success(serializeBigInt(detail));
+  }
+
+  @Put(":id/transition-detail")
+  @ApiOperation({ summary: "전환 상세 생성/수정" })
+  @ApiOkResponse({ description: "전환 상세" })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async upsertTransitionDetail(
+    @Param("id") id: string,
+    @Body() dto: UpsertTransitionDetailDto,
+  ) {
+    const detail = await this.projectService.upsertTransitionDetail(BigInt(id), dto);
+    return success(serializeBigInt(detail));
+  }
+
+  // ─── 상태 전이 ───
+
+  @Post(":id/advance-stage")
+  @ApiOperation({ summary: "프로젝트 단계 진행 (상태 전이)" })
+  @ApiOkResponse({ description: "전이 결과" })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async advanceStage(
+    @Param("id") id: string,
+    @Body() dto: AdvanceStageDto,
+  ) {
+    const result = await this.projectService.advanceStage(BigInt(id), dto);
+    return success(result);
   }
 }

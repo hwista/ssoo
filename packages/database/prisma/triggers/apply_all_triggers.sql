@@ -71,6 +71,18 @@
 \echo 'Installing: pr_project_transition_d_h trigger...'
 \i 18_pr_project_transition_d_h_trigger.sql
 
+\echo 'Installing: pr_project_member_r_h trigger...'
+\i 19_pr_project_member_r_h_trigger.sql
+
+\echo 'Installing: pr_task_h trigger...'
+\i 20_pr_task_h_trigger.sql
+
+\echo 'Installing: pr_milestone_h trigger...'
+\i 21_pr_milestone_h_trigger.sql
+
+\echo 'Installing: pr_issue_h trigger...'
+\i 22_pr_issue_h_trigger.sql
+
 \echo '=========================================='
 \echo 'All triggers installed successfully!'
 \echo '=========================================='
