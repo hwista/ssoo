@@ -1,5 +1,5 @@
 /**
- * Git Handler - Wiki Git 저장소 관리 핸들러
+ * Git Handler - Document Git 저장소 관리 핸들러
  * Route: /api/git
  *
  * 액션:

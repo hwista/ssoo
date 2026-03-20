@@ -239,6 +239,8 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     };
     if (tabState.documentMetadata) {
       patch.documentMetadata = { ...tabState.documentMetadata, ...update };
+    } else {
+      patch.documentMetadata = update as DocumentMetadata;
     }
     get()._updateTab(tabId, patch);
   },
@@ -317,6 +319,7 @@ export function createEditorTabActions(tabId: string) {
     setError: (error: string | null) => gs()._updateTab(tabId, { error }),
     setHasUnsavedChanges: (hasChanges: boolean) => gs()._updateTab(tabId, { hasUnsavedChanges: hasChanges }),
     setIsSaving: (saving: boolean) => gs()._updateTab(tabId, { isSaving: saving }),
+    setCurrentFilePath: (path: string | null) => gs()._updateTab(tabId, { currentFilePath: path }),
     setEditorHandlers: (handlers: EditorHandlers) => gs()._updateTab(tabId, { editorHandlers: handlers }),
     clearEditorHandlers: () => gs()._updateTab(tabId, { editorHandlers: null }),
     setLocalDocumentMetadata: (update: Partial<DocumentMetadata>) => gs().setLocalDocumentMetadata(tabId, update),

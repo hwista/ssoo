@@ -6,6 +6,10 @@ export const templateApi = {
     return request('/api/templates');
   },
 
+  get: async (id: string, scope: 'global' | 'personal' = 'personal'): Promise<ApiResponse<TemplateItem>> => {
+    return request(`/api/templates/${encodeURIComponent(id)}?scope=${scope}`);
+  },
+
   upsert: async (
     template: Partial<TemplateItem> & Pick<TemplateItem, 'name' | 'scope' | 'kind' | 'content'>
   ): Promise<ApiResponse<TemplateItem>> => {

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Bold,
   Italic,
@@ -19,6 +19,7 @@ import {
   CheckSquare,
   Highlighter,
   Minus,
+  MoreHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -84,37 +85,133 @@ export interface EditorToolbarProps {
   onCommand: (id: ToolbarCommandId) => void;
 }
 
+const MAX_VISIBLE = 3;
+
+function ToolbarOverflowGroup({
+  commands,
+  onCommand,
+}: {
+  commands: EditorCommandDefinition[];
+  onCommand: (id: ToolbarCommandId) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleEnter = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setOpen(true);
+  }, []);
+
+  const handleLeave = useCallback(() => {
+    timeoutRef.current = setTimeout(() => setOpen(false), 150);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const visible = commands.slice(0, MAX_VISIBLE);
+  const overflow = commands.slice(MAX_VISIBLE);
+
+  return (
+    <>
+      {visible.map((command) => {
+        const Icon = command.icon;
+        return (
+          <SimpleTooltip key={command.id} content={command.tooltip}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onCommand(command.id)}
+            >
+              <Icon className="h-4 w-4" />
+            </Button>
+          </SimpleTooltip>
+        );
+      })}
+      {overflow.length > 0 && (
+        <div
+          ref={containerRef}
+          className="relative"
+          onMouseEnter={handleEnter}
+          onMouseLeave={handleLeave}
+        >
+          <SimpleTooltip content="더보기">
+            <Button
+              size="sm"
+              variant="ghost"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </SimpleTooltip>
+          {open && (
+            <div className="absolute left-0 top-full z-30 mt-1 flex items-center gap-1 rounded-lg border border-ssoo-content-border bg-white p-1 shadow-md">
+              {overflow.map((command) => {
+                const Icon = command.icon;
+                return (
+                  <SimpleTooltip key={command.id} content={command.tooltip}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => onCommand(command.id)}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </Button>
+                  </SimpleTooltip>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function EditorToolbar({ disabled = false, onCommand }: EditorToolbarProps) {
   const commandMap = new Map(EDITOR_COMMANDS.map((command) => [command.id, command]));
 
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <div className={cn('flex flex-wrap items-center gap-1', disabled && 'opacity-50 pointer-events-none')}>
-        {TOOLBAR_COMMAND_GROUPS.map((group, groupIndex) => (
-          <React.Fragment key={group.join('-')}>
-            {group.map((commandId) => {
-              const command = commandMap.get(commandId);
-              if (!command) return null;
-              const Icon = command.icon;
+      <div className={cn('flex items-center gap-1', disabled && 'opacity-50 pointer-events-none')}>
+        {TOOLBAR_COMMAND_GROUPS.map((group, groupIndex) => {
+          const commands = group
+            .map((id) => commandMap.get(id))
+            .filter((c): c is EditorCommandDefinition => c != null);
 
-              return (
-                <SimpleTooltip key={command.id} content={command.tooltip}>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onCommand(command.id)}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </Button>
-                </SimpleTooltip>
-              );
-            })}
-            {groupIndex < TOOLBAR_COMMAND_GROUPS.length - 1 && (
-              <Divider orientation="vertical" className="h-6 mx-1" />
-            )}
-          </React.Fragment>
-        ))}
+          return (
+            <React.Fragment key={group.join('-')}>
+              {commands.length > MAX_VISIBLE ? (
+                <ToolbarOverflowGroup commands={commands} onCommand={onCommand} />
+              ) : (
+                commands.map((command) => {
+                  const Icon = command.icon;
+                  return (
+                    <SimpleTooltip key={command.id} content={command.tooltip}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => onCommand(command.id)}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </Button>
+                    </SimpleTooltip>
+                  );
+                })
+              )}
+              {groupIndex < TOOLBAR_COMMAND_GROUPS.length - 1 && (
+                <Divider orientation="vertical" className="h-6 mx-1" />
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );

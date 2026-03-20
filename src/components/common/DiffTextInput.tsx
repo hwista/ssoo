@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import diff from 'fast-diff';
+import { buildDiffChunks } from '@/lib/utils/diffChunks';
 
 export interface DiffTextInputProps {
   /** 현재 값 */
@@ -37,6 +37,7 @@ export function DiffTextInput({
 }: DiffTextInputProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const overlayRef = React.useRef<HTMLDivElement>(null);
+  const textareaClassName = `w-full rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs leading-relaxed focus:border-ssoo-primary focus:outline-none ${resizable ? 'resize-y' : 'resize-none'}`;
 
   const handleScroll = React.useCallback(() => {
     const ta = textareaRef.current;
@@ -49,12 +50,12 @@ export function DiffTextInput({
 
   const hasChanges = originalValue !== undefined && value !== originalValue;
 
-  const diffSegments = React.useMemo(() => {
+  const diffChunks = React.useMemo(() => {
     if (!hasChanges || originalValue === undefined) return null;
-    return diff(originalValue, value);
+    return buildDiffChunks(originalValue, value);
   }, [hasChanges, originalValue, value]);
 
-  if (!diffSegments) {
+  if (!diffChunks) {
     // 변경 없음 — 일반 textarea
     return (
       <textarea
@@ -62,8 +63,43 @@ export function DiffTextInput({
         onChange={onChange}
         placeholder={placeholder}
         rows={rows}
-        className={`w-full rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs text-ssoo-primary leading-relaxed focus:border-ssoo-primary focus:outline-none ${resizable ? 'resize-y' : 'resize-none'} ${className ?? ''}`}
+        className={`${textareaClassName} text-ssoo-primary ${className ?? ''}`}
       />
+    );
+  }
+
+  const hasBlockChunks = diffChunks.some((chunk) => chunk.kind === 'replace' && chunk.block);
+
+  if (hasBlockChunks) {
+    const blockChunks = diffChunks.filter((chunk): chunk is Extract<typeof chunk, { kind: 'replace' }> => chunk.kind === 'replace' && chunk.block);
+    return (
+      <div className={`space-y-2 ${className ?? ''}`}>
+        <div className="space-y-2 rounded border border-ssoo-content-border/70 bg-ssoo-bg-secondary/40 p-2">
+          {blockChunks.map((chunk, index) => (
+            <div key={`${index}-${chunk.deleted.length}-${chunk.inserted.length}`} className="space-y-1.5">
+              <div className="rounded-md border border-red-200/70 bg-red-50/60 px-2.5 py-2">
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.08em] text-red-700/70">이전</div>
+                <div className="whitespace-pre-wrap break-words text-xs leading-relaxed text-gray-500 line-through">
+                  {chunk.deleted}
+                </div>
+              </div>
+              <div className="rounded-md border border-ssoo-primary/15 bg-ssoo-primary/5 px-2.5 py-2">
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.08em] text-ssoo-primary/70">변경 후</div>
+                <div className="whitespace-pre-wrap break-words text-xs leading-relaxed text-ssoo-primary">
+                  {chunk.inserted}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <textarea
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          rows={rows}
+          className={`${textareaClassName} text-ssoo-primary`}
+        />
+      </div>
     );
   }
 
@@ -76,11 +112,16 @@ export function DiffTextInput({
         aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden rounded border border-transparent px-2 py-1.5 text-xs leading-relaxed whitespace-pre-wrap break-words"
       >
-        {diffSegments.map(([op, text], i) => {
-          if (op === diff.EQUAL) return <span key={i} className="text-ssoo-primary">{text}</span>;
-          if (op === diff.INSERT) return <span key={i} className="text-ssoo-primary bg-destructive/10 rounded-sm">{text}</span>;
-          if (op === diff.DELETE) return <span key={i} className="text-gray-400 line-through text-[0.9em] bg-destructive/10 rounded-sm">{text}</span>;
-          return null;
+        {diffChunks.map((chunk, i) => {
+          if (chunk.kind === 'equal') return <span key={i} className="text-ssoo-primary">{chunk.text}</span>;
+          if (chunk.kind === 'insert') return <span key={i} className="text-ssoo-primary bg-destructive/10 rounded-sm">{chunk.text}</span>;
+          if (chunk.kind === 'delete') return <span key={i} className="text-gray-400 line-through text-[0.9em] bg-destructive/10 rounded-sm">{chunk.text}</span>;
+          return (
+            <React.Fragment key={i}>
+              <span className="text-gray-400 line-through text-[0.9em] bg-destructive/10 rounded-sm">{chunk.deleted}</span>
+              <span className="text-ssoo-primary bg-destructive/10 rounded-sm">{chunk.inserted}</span>
+            </React.Fragment>
+          );
         })}
       </div>
       {/* Textarea (앞, 텍스트 투명) */}
@@ -91,7 +132,7 @@ export function DiffTextInput({
         onScroll={handleScroll}
         placeholder={placeholder}
         rows={rows}
-        className={`relative w-full rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs leading-relaxed text-transparent caret-ssoo-primary selection:bg-blue-200/50 focus:border-ssoo-primary focus:outline-none ${resizable ? 'resize-y' : 'resize-none'}`}
+        className={`relative ${textareaClassName} text-transparent caret-ssoo-primary selection:bg-blue-200/50`}
       />
     </div>
   );

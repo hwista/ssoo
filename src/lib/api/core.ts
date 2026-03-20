@@ -12,6 +12,25 @@ export interface ApiRequestOptions {
   headers?: Record<string, string>;
   body?: unknown;
   timeout?: number;
+  signal?: AbortSignal;
+}
+
+/**
+ * Promise.race 기반 abort 래퍼.
+ * signal이 abort되면 즉시 reject하여 대기 중인 fetch를 건너뛴다.
+ */
+export function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) {
+    return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => { signal.removeEventListener('abort', onAbort); resolve(value); },
+      (error) => { signal.removeEventListener('abort', onAbort); reject(error); },
+    );
+  });
 }
 
 export async function request<T = unknown>(
@@ -23,10 +42,20 @@ export async function request<T = unknown>(
     headers = {},
     body,
     timeout = 30000,
+    signal: externalSignal,
   } = options;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  const onExternalAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+    }
+  }
 
   try {
     const defaultHeaders = {
@@ -34,12 +63,20 @@ export async function request<T = unknown>(
       ...headers,
     };
 
-    const response = await fetch(url, {
+    const fetchPromise = fetch(url, {
       method,
       headers: defaultHeaders,
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
+
+    const response = externalSignal
+      ? await raceAbort(fetchPromise, externalSignal)
+      : await fetchPromise;
+
+    if (externalSignal?.aborted) {
+      return { success: false, error: '요청이 중단되었습니다.' };
+    }
 
     if (!response.ok) {
       const contentType = response.headers.get('content-type') || '';
@@ -83,7 +120,7 @@ export async function request<T = unknown>(
       if (error.name === 'AbortError') {
         return {
           success: false,
-          error: '요청 시간이 초과되었습니다.',
+          error: externalSignal?.aborted ? '요청이 중단되었습니다.' : '요청 시간이 초과되었습니다.',
         };
       }
 
@@ -99,6 +136,9 @@ export async function request<T = unknown>(
     };
   } finally {
     clearTimeout(timeoutId);
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', onExternalAbort);
+    }
   }
 }
 

@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { docAssistApi } from '@/lib/api';
+import { toast } from '@/lib/toast';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TemplateItem } from '@/types/template';
 import type { SourceFileMeta } from '@/types';
+import type { RequestLifecycle } from '@/hooks/useRequestLifecycle';
 
 interface SelectionRange {
   from: number;
@@ -34,6 +36,8 @@ interface DocumentPageComposeState {
   inlineTemplate: TemplateItem | null;
   isComposing: boolean;
   isCreateMode: boolean;
+  pendingDeletedFileIds: Set<string>;
+  isTemplatePendingDelete: boolean;
 }
 
 interface DocumentPageComposeMutators {
@@ -49,9 +53,14 @@ interface DocumentPageComposeMutators {
 interface DocumentPageComposeDeps {
   editorHandlers: ComposeEditorHandlers | null;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
+  requestLifecycle: RequestLifecycle;
   onSyncReferencesToSidecar?: (files: SourceFileMeta[], rawFiles?: Map<string, File>) => void;
-  /** AI compose 완료 후 태그/요약 자동 추천 콜백 */
-  onComposeComplete?: (generatedContent: string) => void;
+  onComposeComplete?: (
+    generatedContent: string,
+    requestToken: number,
+    signal: AbortSignal,
+    context?: { suggestedPath?: string },
+  ) => void | Promise<void>;
 }
 
 function mapSummaryFiles(summaryFiles: InlineSummaryFileItem[]) {
@@ -64,6 +73,31 @@ function mapSummaryFiles(summaryFiles: InlineSummaryFileItem[]) {
   }));
 }
 
+function buildComposedDocument(params: {
+  applyMode: 'replace-document' | 'replace-selection' | 'append' | 'insert';
+  baseContent: string;
+  generated: string;
+  selection: SelectionRange;
+  hasSelection: boolean;
+}) {
+  const { applyMode, baseContent, generated, selection, hasSelection } = params;
+
+  if (applyMode === 'replace-document') {
+    return generated;
+  }
+
+  if (applyMode === 'replace-selection' && hasSelection) {
+    return `${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.to)}`;
+  }
+
+  if (applyMode === 'append') {
+    const joiner = baseContent.trim().length > 0 ? '\n\n' : '';
+    return `${baseContent}${joiner}${generated}`;
+  }
+
+  return `${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.from)}`;
+}
+
 function applyGeneratedContent(params: {
   applyMode: 'replace-document' | 'replace-selection' | 'append' | 'insert';
   baseContent: string;
@@ -74,19 +108,30 @@ function applyGeneratedContent(params: {
   setContent: (content: string) => void;
 }) {
   const { applyMode, baseContent, generated, selection, hasSelection, editorHandlers, setContent } = params;
+  const nextContent = buildComposedDocument({
+    applyMode,
+    baseContent,
+    generated,
+    selection,
+    hasSelection,
+  });
 
   if (applyMode === 'replace-document') {
-    setContent(generated);
-    return;
+    if (editorHandlers?.insertAt) {
+      editorHandlers.insertAt(0, baseContent.length, generated);
+    } else {
+      setContent(nextContent);
+    }
+    return nextContent;
   }
 
   if (applyMode === 'replace-selection' && hasSelection) {
     if (editorHandlers?.insertAt) {
       editorHandlers.insertAt(selection.from, selection.to, generated);
     } else {
-      setContent(`${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.to)}`);
+      setContent(nextContent);
     }
-    return;
+    return nextContent;
   }
 
   if (applyMode === 'append') {
@@ -94,16 +139,18 @@ function applyGeneratedContent(params: {
     if (editorHandlers?.insertAt) {
       editorHandlers.insertAt(baseContent.length, baseContent.length, `${joiner}${generated}`);
     } else {
-      setContent(`${baseContent}${joiner}${generated}`);
+      setContent(nextContent);
     }
-    return;
+    return nextContent;
   }
 
   if (editorHandlers?.insertAt) {
     editorHandlers.insertAt(selection.from, selection.from, generated);
   } else {
-    setContent(`${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.from)}`);
+    setContent(nextContent);
   }
+
+  return nextContent;
 }
 
 export function useDocumentPageComposeActions({
@@ -123,7 +170,8 @@ export function useDocumentPageComposeActions({
     inlineSummaryFiles,
     inlineTemplate,
     isComposing,
-    isCreateMode,
+    pendingDeletedFileIds,
+    isTemplatePendingDelete,
   } = state;
   const {
     setContent,
@@ -134,14 +182,18 @@ export function useDocumentPageComposeActions({
     setIsComposing,
     setIsRecommendingPath,
   } = mutators;
-  const { editorHandlers, confirm, onSyncReferencesToSidecar, onComposeComplete } = deps;
+  const { editorHandlers, confirm, requestLifecycle, onSyncReferencesToSidecar, onComposeComplete } = deps;
+  // Always-fresh reference to editorHandlers (avoids stale closure in streaming callbacks)
+  const editorHandlersRef = useRef(editorHandlers);
+  editorHandlersRef.current = editorHandlers;
 
   const handleInlineCompose = useCallback(async (draft?: string) => {
     const instruction = (draft ?? inlineInstruction).trim();
     if (!instruction || isComposing) return;
 
-    const baseContent = editorHandlers?.getMarkdown?.() ?? content;
-    const currentSelection = editorHandlers?.getSelection?.() ?? { from: 0, to: 0 };
+    const handlers = editorHandlersRef.current;
+    const baseContent = handlers?.getMarkdown?.() ?? content;
+    const currentSelection = handlers?.getSelection?.() ?? { from: 0, to: 0 };
     const max = baseContent.length;
     const safeFrom = Math.max(0, Math.min(max, currentSelection.from));
     const safeTo = Math.max(0, Math.min(max, currentSelection.to));
@@ -149,38 +201,78 @@ export function useDocumentPageComposeActions({
     const hasSelection = selection.from !== selection.to;
     const selectedText = hasSelection ? baseContent.slice(selection.from, selection.to) : undefined;
 
-    // 현재 사용 중인 참조 파일/템플릿 스냅샷 (동기화용)
-    const usedSummaryFiles = [...inlineSummaryFiles];
-    const usedTemplate = inlineTemplate;
+    const activeSummaryFiles = inlineSummaryFiles.filter(
+      (f) => !pendingDeletedFileIds.has(f.id),
+    );
+    const activeTemplate = isTemplatePendingDelete ? null : inlineTemplate;
+    const usedSummaryFiles = [...activeSummaryFiles];
+    const usedTemplate = activeTemplate;
 
-    editorHandlers?.setPendingInsert?.(selection);
+    handlers?.setPendingInsert?.(selection);
     setIsComposing(true);
+    const { token, signal } = requestLifecycle.beginRequest();
+
+    let applyMode: string = 'insert';
+    let suggestedPath = '';
+    let relevanceWarnings: string[] = [];
+    let generatedText = '';
+
     try {
-      const response = await docAssistApi.compose({
-        instruction,
-        currentContent: baseContent,
-        selectedText,
-        activeDocPath: filePath || createPath,
-        templates: inlineTemplate ? [inlineTemplate] : [],
-        summaryFiles: mapSummaryFiles(inlineSummaryFiles),
-      });
+      const completed = await docAssistApi.composeStream(
+        {
+          instruction,
+          currentContent: baseContent,
+          selectedText,
+          activeDocPath: filePath || createPath,
+          templates: activeTemplate ? [activeTemplate] : [],
+          summaryFiles: mapSummaryFiles(activeSummaryFiles),
+        },
+        {
+          onMeta: (meta) => {
+            if (!requestLifecycle.isRequestActive(token)) return;
+            applyMode = meta.applyMode;
+            suggestedPath = meta.suggestedPath;
+            relevanceWarnings = meta.relevanceWarnings;
+          },
+          onTextDelta: (delta) => {
+            if (!requestLifecycle.isRequestActive(token)) return;
+            generatedText += delta;
+          },
+        },
+        { signal },
+      );
 
-      if (!response.success || !response.data) return;
-      const generated = typeof response.data.text === 'string' ? response.data.text.trim() : '';
-      if (!generated && response.data.applyMode !== 'replace-document') return;
+      if (!completed || !requestLifecycle.isRequestActive(token)) return;
 
-      applyGeneratedContent({
-        applyMode: response.data.applyMode,
+      const generated = generatedText.trim();
+      if (!generated && applyMode !== 'replace-document') return;
+
+      if (!requestLifecycle.isRequestActive(token)) return;
+      const finalContent = buildComposedDocument({
+        applyMode: applyMode as 'replace-document' | 'replace-selection' | 'append' | 'insert',
         baseContent,
         generated,
         selection,
         hasSelection,
-        editorHandlers,
+      });
+
+      if (onComposeComplete && requestLifecycle.isRequestActive(token)) {
+        await onComposeComplete(finalContent, token, signal, { suggestedPath });
+      }
+
+      if (!requestLifecycle.isRequestActive(token)) return;
+
+      applyGeneratedContent({
+        applyMode: applyMode as 'replace-document' | 'replace-selection' | 'append' | 'insert',
+        baseContent,
+        generated,
+        selection,
+        hasSelection,
+        editorHandlers: editorHandlersRef.current,
         setContent,
       });
 
-      // AI가 실제 결과를 생성한 후 사용된 참조 파일/템플릿을 sidecar에 동기화
-      if (onSyncReferencesToSidecar) {
+      if (onSyncReferencesToSidecar && requestLifecycle.isRequestActive(token)) {
         const syncFiles: SourceFileMeta[] = [];
         const rawFiles = new Map<string, File>();
 
@@ -195,7 +287,6 @@ export function useDocumentPageComposeActions({
             status: 'draft',
             provider: 'local',
           });
-          // Reconstruct File from text content for upload
           const blob = new Blob([sf.textContent], { type: sf.type || 'text/plain' });
           rawFiles.set(tempPath, new File([blob], sf.name, { type: sf.type || 'text/plain' }));
         }
@@ -217,38 +308,33 @@ export function useDocumentPageComposeActions({
         }
       }
 
+      if (!requestLifecycle.isRequestActive(token)) return;
       setInlineInstruction('');
-      setInlineRelevanceWarnings(response.data.relevanceWarnings ?? []);
-      if (isCreateMode && response.data.suggestedPath) {
-        setCreatePath(response.data.suggestedPath);
-      }
-
-      // AI compose 완료 후 자동 추천 트리거
-      if (onComposeComplete) {
-        // 최종 문서 내용 결정
-        const finalContent = response.data.applyMode === 'replace-document'
-          ? generated
-          : editorHandlers?.getMarkdown?.() ?? `${baseContent}${generated}`;
-        onComposeComplete(finalContent);
-      }
+      setInlineRelevanceWarnings(relevanceWarnings);
+    } catch {
+      // Network errors — silently ignored
     } finally {
-      editorHandlers?.setPendingInsert?.(null);
-      setIsComposing(false);
+      editorHandlersRef.current?.setPendingInsert?.(null);
+      const shouldFinalize = requestLifecycle.isRequestActive(token);
+      requestLifecycle.finalizeRequest(token);
+      if (shouldFinalize) {
+        setIsComposing(false);
+      }
     }
   }, [
     content,
     createPath,
-    editorHandlers,
     filePath,
     inlineInstruction,
     inlineSummaryFiles,
     inlineTemplate,
     isComposing,
-    isCreateMode,
+    isTemplatePendingDelete,
     onComposeComplete,
     onSyncReferencesToSidecar,
+    pendingDeletedFileIds,
+    requestLifecycle,
     setContent,
-    setCreatePath,
     setInlineInstruction,
     setInlineRelevanceWarnings,
     setIsComposing,
@@ -302,9 +388,17 @@ export function useDocumentPageComposeActions({
     setInlineTemplate(template);
   }, [confirm, inlineTemplate, setInlineTemplate]);
 
+  const abortCompose = useCallback(() => {
+    requestLifecycle.abortActiveRequest();
+    editorHandlersRef.current?.setPendingInsert?.(null);
+    setIsComposing(false);
+    toast.info('AI 작성이 중단되었습니다.');
+  }, [requestLifecycle, setIsComposing]);
+
   return {
     handleInlineCompose,
     handleRecommendPath,
     handleInlineTemplateSelect,
+    abortCompose,
   };
 }

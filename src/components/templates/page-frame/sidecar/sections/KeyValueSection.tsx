@@ -11,6 +11,7 @@ export interface KeyValueItem {
   icon?: React.ReactNode;
   indent?: boolean;
   hidden?: boolean;
+  highlighted?: boolean;
 }
 
 export interface KeyValueSectionProps {
@@ -18,8 +19,10 @@ export interface KeyValueSectionProps {
   items: KeyValueItem[];
   emptyText?: string;
   icon?: React.ReactNode;
+  headerRight?: React.ReactNode;
   defaultOpen?: boolean;
   sectionVariant?: CollapsibleSectionVariant;
+  children?: React.ReactNode;
 }
 
 export function KeyValueSection({
@@ -27,8 +30,10 @@ export function KeyValueSection({
   items,
   emptyText = '-',
   icon,
+  headerRight,
   defaultOpen = true,
   sectionVariant = 'default',
+  children,
 }: KeyValueSectionProps) {
   const visibleItems = items.filter((item) => !item.hidden);
 
@@ -36,15 +41,22 @@ export function KeyValueSection({
     <CollapsibleSection
       title={title}
       icon={icon}
+      headerRight={headerRight}
       defaultOpen={defaultOpen}
       variant={sectionVariant}
     >
-      {visibleItems.length === 0 ? (
+      {visibleItems.length === 0 && !children ? (
         <p className="text-xs text-gray-400 py-1">{emptyText}</p>
-      ) : (
+      ) : visibleItems.length > 0 ? (
         <dl className="space-y-2 text-sm">
           {visibleItems.map((item) => (
-            <div key={item.label} className="flex items-center justify-between">
+            <div
+              key={item.label}
+              className={cn(
+                'flex items-center justify-between rounded-md',
+                item.highlighted && 'border border-destructive/30 bg-destructive/5 px-2 py-1.5'
+              )}
+            >
               <dt className={cn('flex items-center text-gray-500', item.indent && 'pl-[18px]')}>
                 {item.icon}
                 {item.label}
@@ -55,7 +67,8 @@ export function KeyValueSection({
             </div>
           ))}
         </dl>
-      )}
+      ) : null}
+      {children}
     </CollapsibleSection>
   );
 }

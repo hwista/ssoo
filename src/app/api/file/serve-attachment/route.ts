@@ -19,11 +19,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: '유효하지 않은 경로입니다.' }, { status: 400 });
   }
 
-  const wikiDir = configService.getWikiDir();
-  const absolutePath = path.join(wikiDir, filePath);
+  const docDir = configService.getDocDir();
+  const absolutePath = path.join(docDir, filePath);
 
-  // wikiDir 범위 내인지 확인
-  if (!absolutePath.startsWith(path.resolve(wikiDir))) {
+  // docDir 범위 내인지 확인
+  if (!absolutePath.startsWith(path.resolve(docDir))) {
     return NextResponse.json({ error: '접근이 허용되지 않는 경로입니다.' }, { status: 403 });
   }
 

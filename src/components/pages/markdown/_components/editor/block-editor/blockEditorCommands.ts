@@ -50,45 +50,8 @@ function applyWrappedSelection(params: {
   });
 }
 
-export function resolveRelativePath(basePath: string, relativePath: string): string {
-  const baseParts = basePath.split('/').filter(Boolean);
-  baseParts.pop();
-  const relParts = relativePath.split('/').filter(Boolean);
-  for (const part of relParts) {
-    if (part === '.') continue;
-    if (part === '..') baseParts.pop();
-    else baseParts.push(part);
-  }
-  return baseParts.join('/');
-}
-
-export function resolveWikiDocPath(href: string, currentFilePath?: string | null): string | null {
-  const rawHref = href.trim();
-  if (!rawHref) return null;
-  if (/^(https?:|mailto:|tel:|#)/i.test(rawHref)) return null;
-
-  const noQuery = rawHref.split('#')[0]?.split('?')[0] ?? rawHref;
-  if (!noQuery) return null;
-
-  if (noQuery.startsWith('/doc/')) {
-    try {
-      return decodeURIComponent(noQuery.slice('/doc/'.length));
-    } catch {
-      return noQuery.slice('/doc/'.length);
-    }
-  }
-
-  if (noQuery.startsWith('/')) {
-    return noQuery.slice(1);
-  }
-
-  // 상대 경로 (./,  ../) 또는 bare 경로 (goals.md 등) → 현재 파일 기준 해석
-  if (currentFilePath) {
-    return resolveRelativePath(currentFilePath, noQuery);
-  }
-
-  return noQuery;
-}
+// 공용 유틸리티에서 re-export (에디터 외부에서도 사용)
+export { resolveRelativePath, resolveDocPath } from '@/lib/utils/linkUtils';
 
 export async function applyEditorCommand({
   view,

@@ -20,7 +20,7 @@ export interface GetTreeOptions {
 }
 
 function getRootDir(): string {
-  return configService.getWikiDir();
+  return configService.getDocDir();
 }
 
 function readSidecarTitle(mdFullPath: string): string | undefined {
@@ -41,7 +41,7 @@ class FileSystemService {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
     return entries
-      .filter((entry) => includeHidden || !entry.name.startsWith('.'))
+      .filter((entry) => includeHidden || (!entry.name.startsWith('.') && !entry.name.startsWith('_')))
       .map<FileNode | null>((entry) => {
         const fullPath = path.join(dirPath, entry.name);
         const relativePath = normalizePath(path.relative(rootDir, fullPath));

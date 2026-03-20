@@ -17,8 +17,8 @@ interface SettingsState {
   isSaving: boolean;
   /** 현재 설정 */
   config: DmsConfigClient | null;
-  /** 현재 위키 디렉토리 경로 */
-  wikiDir: string;
+  /** 현재 문서 디렉토리 경로 */
+  docDir: string;
   /** 에러 메시지 */
   error: string | null;
 }
@@ -44,7 +44,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   isLoading: false,
   isSaving: false,
   config: null,
-  wikiDir: '',
+  docDir: '',
   error: null,
 
   // Actions
@@ -57,7 +57,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       if (response.success && response.data) {
         set({
           config: response.data.config,
-          wikiDir: response.data.wikiDir,
+          docDir: response.data.docDir,
           isLoaded: true,
         });
       } else {
@@ -79,7 +79,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       if (response.success && response.data) {
         set({
           config: response.data.config,
-          wikiDir: response.data.wikiDir,
+          docDir: response.data.docDir,
         });
         return true;
       }
@@ -102,7 +102,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       if (response.success && response.data) {
         set({
           config: response.data.config,
-          wikiDir: response.data.wikiDir,
+          docDir: response.data.docDir,
         });
         return true;
       }
@@ -125,7 +125,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
       if (response.success && response.data) {
         set({
           config: response.data.config,
-          wikiDir: response.data.wikiDir,
+          docDir: response.data.docDir,
         });
         return true;
       }

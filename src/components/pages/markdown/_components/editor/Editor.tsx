@@ -66,6 +66,8 @@ export interface EditorRef {
   getPendingImages: () => Map<string, File>;
   /** 대기 중인 이미지 목록 초기화 (업로드 완료 후 호출) */
   clearPendingImages: () => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 /**
@@ -114,11 +116,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     setIsSaving: setStoreIsSaving,
   } = useEditorStore();
 
-  // editorContent ref (SaveLocationDialog AI 추천용, useEditorState 이후 업데이트)
-  const editorContentRef = React.useRef('');
-  const getEditorContentStable = React.useCallback(() => editorContentRef.current, []);
-
-  const interactions = useEditorInteractions(currentFilePath, getEditorContentStable);
+  const interactions = useEditorInteractions(currentFilePath);
 
   // 탭 ID (keep-alive context) + 탭 스토어 (새 문서 저장 시 탭 업데이트용)
   const tabId = useTabInstanceId();
@@ -142,9 +140,6 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       await storeSaveFile(currentFilePath, c);
     },
   });
-
-  // editorContent가 생성된 후 ref 동기화
-  editorContentRef.current = editorContent;
 
   // =====================
   // Store에 에디터 상태 동기화
@@ -188,6 +183,12 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     getMarkdown: () => editorContent,
     getPendingImages: () => new Map(interactions.pendingImagesRef.current),
     clearPendingImages: () => interactions.clearPendingImages(),
+    undo: () => {
+      blockEditorRef.current?.undo();
+    },
+    redo: () => {
+      blockEditorRef.current?.redo();
+    },
   }), [editorContent, interactions]);
 
   const isCreateMode = !currentFilePath && isEditing;

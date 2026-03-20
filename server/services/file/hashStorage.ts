@@ -9,7 +9,7 @@ import { configService } from '@/server/services/config/ConfigService';
  * 동일 내용 → 같은 해시 → 기존 파일 재사용 (중복 제거)
  * 다른 내용 → 다른 해시 → 별도 저장
  *
- * @returns 상대 경로 (wikiDir 기준)
+ * @returns 상대 경로 (docDir 기준)
  */
 export function saveFileByHash(
   buffer: Buffer,
@@ -20,8 +20,8 @@ export function saveFileByHash(
   const hash = crypto.createHash('sha256').update(buffer).digest('hex');
   const fileName = `${hash}${ext}`;
 
-  const wikiDir = configService.getWikiDir();
-  const targetDir = path.join(wikiDir, storageDir);
+  const docDir = configService.getDocDir();
+  const targetDir = path.join(docDir, storageDir);
 
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });

@@ -1,9 +1,10 @@
-import { generateText, type ModelMessage, type TextPart, type FilePart } from 'ai';
+import { generateText, streamText, type ModelMessage, type TextPart, type FilePart } from 'ai';
 import { getChatModel } from '@/server/services/ai';
 import { fileSystemService } from '@/server/services/fileSystem/FileSystemService';
 import { logger } from '@/lib/utils/errorUtils';
 import type { TemplateItem } from '@/types/template';
 import type { FileNode } from '@/types/file-tree';
+import { buildComposeSystemPrompt } from './prompts';
 
 interface ImageInput {
   base64: string;
@@ -125,6 +126,32 @@ function flattenTree(nodes: FileNode[], prefix = ''): { dirs: string[]; files: s
   return { dirs, files };
 }
 
+function buildFallbackTitle(content: string): string {
+  const firstLine = content.split('\n').find((line) => line.trim().length > 0) ?? '';
+  const fallbackTitle = firstLine.replace(/^#+\s*/, '').slice(0, 60).trim();
+  return fallbackTitle || '새 문서';
+}
+
+function buildFallbackFileName(title: string): string {
+  const fallbackFileName = title
+    .replace(/[^\w가-힣\s-]/g, '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 4)
+    .join('-')
+    .toLowerCase();
+
+  return fallbackFileName ? `${fallbackFileName}.md` : 'new-doc.md';
+}
+
+function ensureUniqueFileName(directory: string, fileName: string, existingFiles: string[]): string {
+  const fullPath = directory ? `${directory}/${fileName}` : fileName;
+  if (!fileName || !existingFiles.includes(fullPath)) return fileName;
+
+  const base = fileName.replace(/\.md$/, '');
+  return `${base}-${Date.now().toString(36).slice(-4)}.md`;
+}
+
 class DocAssistService {
   async composeDocument(input: ComposeInput): Promise<{
     text: string;
@@ -180,30 +207,12 @@ class DocAssistService {
         imageCount: imageParts.length,
       });
 
-      const systemPrompt = [
-        '당신은 문서 편집 AI입니다.',
-        '반드시 한국어 마크다운만 출력하세요.',
-        '설명 문장, 머리말, 코드펜스 없이 결과 본문만 반환하세요.',
-        summaryContext || hasImages
-          ? '요약 첨부 컨텍스트가 있으면 그 안의 정보(텍스트와 이미지 포함)만 근거로 작성하세요. 첨부에 없는 사실을 보충하거나 추정하지 마세요.'
-          : '제공된 지시와 편집 맥락만 사용해 작성하세요.',
-        documentTemplate
-          ? '문서 템플릿이 있으면 제목 체계, 섹션 구조, 문서 형식을 반드시 따르세요. 템플릿과 충돌하는 임의 형식으로 바꾸지 마세요.'
-          : '문서 템플릿이 없으면 지시에 맞는 가장 자연스러운 마크다운 구조를 선택하세요.',
-        (summaryContext || hasImages) && documentTemplate
-          ? '요약 첨부 컨텍스트는 내용의 근거이고, 문서 템플릿은 출력 형식의 기준입니다. 두 역할을 혼동하지 마세요.'
-          : '',
-        hasImages
-          ? '첨부된 이미지를 주의 깊게 분석하고, 이미지에 포함된 차트, 다이어그램, 표 등의 정보를 문서에 반영하세요.'
-          : '',
-        applyMode === 'replace-selection'
-          ? '선택 텍스트를 지시에 맞춰 치환할 결과만 반환하세요.'
-          : applyMode === 'append'
-            ? '현재 문서 하단에 추가할 신규 블록만 반환하세요.'
-            : applyMode === 'insert'
-              ? '지시에 맞는 새 콘텐츠만 반환하세요. 기존 문서 내용을 반복하거나 전체를 반환하지 마세요.'
-              : '현재 문서를 지시에 맞게 수정한 완성본 전체를 반환하세요.',
-      ].filter(Boolean).join('\n');
+      const systemPrompt = buildComposeSystemPrompt({
+        applyMode,
+        hasTemplate: !!documentTemplate,
+        hasAttachments: !!summaryContext,
+        hasImages,
+      });
 
       // 멀티모달 메시지 구성: 텍스트 + 이미지
       const userContentParts: (TextPart | FilePart)[] = [];
@@ -234,7 +243,7 @@ class DocAssistService {
       const result = await generateText({
         model,
         messages,
-        maxOutputTokens: 1200,
+        maxOutputTokens: 4096,
       });
 
       return {
@@ -256,6 +265,128 @@ class DocAssistService {
     }
   }
 
+  async composeDocumentStream(input: ComposeInput, signal?: AbortSignal): Promise<{
+    stream: ReadableStream<string>;
+    applyMode: ApplyMode;
+    suggestedPath: string;
+    relevanceWarnings: string[];
+  }> {
+    const instruction = input.instruction.trim();
+    if (instruction.length === 0) {
+      throw new Error('instruction은 필수입니다.');
+    }
+
+    const selectedText = input.selectedText?.trim() ?? '';
+    const instructionLower = instruction.toLowerCase();
+    const shouldClearDocument = /(내용\s*다\s*지워|전체\s*삭제|전부\s*삭제|모두\s*삭제|문서\s*비워|전체\s*비워|싹\s*지워)/.test(instructionLower);
+    if (!selectedText && shouldClearDocument) {
+      const emptyStream = new ReadableStream<string>({
+        start(controller) { controller.close(); },
+      });
+      return {
+        stream: emptyStream,
+        applyMode: 'replace-document',
+        suggestedPath: recommendPath(input),
+        relevanceWarnings: buildRelevanceWarnings(instruction, input.summaryFiles ?? []),
+      };
+    }
+
+    const applyMode: ApplyMode = selectedText
+      ? 'replace-selection'
+      : /(추가|append|덧붙|이어써|하단)/.test(instructionLower)
+        ? 'append'
+        : 'insert';
+    const documentTemplate = (input.templates ?? []).find((item) => item.kind === 'document');
+    const boundedCurrentContent = input.currentContent.slice(0, MAX_CURRENT_CONTENT_CHARS);
+    const templateContext = documentTemplate
+      ? `${documentTemplate.name}\n${documentTemplate.content.slice(0, MAX_TEMPLATE_CHARS)}`
+      : '';
+    const boundedFiles = (input.summaryFiles ?? []).slice(0, MAX_SUMMARY_FILE_COUNT);
+    const summaryContext = boundedFiles
+      .map((file, index) => `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, MAX_SUMMARY_FILE_CHARS)}`)
+      .join('\n\n---\n\n');
+    const imageParts = collectImages(boundedFiles);
+    const hasImages = imageParts.length > 0;
+
+    const model = await getChatModel();
+    logger.info('doc-assist compose stream request', {
+      instructionLength: instruction.length,
+      currentContentLength: input.currentContent.length,
+      selectedTextLength: selectedText.length,
+      templateCount: documentTemplate ? 1 : 0,
+      summaryFileCount: boundedFiles.length,
+      imageCount: imageParts.length,
+    });
+
+    const systemPrompt = buildComposeSystemPrompt({
+      applyMode,
+      hasTemplate: !!documentTemplate,
+      hasAttachments: !!summaryContext,
+      hasImages,
+    });
+
+    const userContentParts: (TextPart | FilePart)[] = [];
+    const textPrompt = [
+      `[지시]\n${instruction}`,
+      selectedText ? `[선택 텍스트]\n${selectedText}` : '',
+      `[현재 문서 편집 맥락]\n${boundedCurrentContent}`,
+      templateContext ? `[문서 템플릿]\n${templateContext}` : '',
+      summaryContext ? `[요약 첨부 컨텍스트]\n${summaryContext}` : '',
+    ].filter(Boolean).join('\n\n');
+
+    userContentParts.push({ type: 'text', text: textPrompt });
+    if (hasImages) {
+      userContentParts.push(
+        { type: 'text', text: '\n[첨부 이미지 — 아래 이미지들을 분석하여 문서 작성에 활용하세요]' },
+        ...imageParts,
+      );
+    }
+
+    const messages: ModelMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userContentParts },
+    ];
+
+    const result = streamText({
+      model,
+      messages,
+      maxOutputTokens: 4096,
+      abortSignal: signal,
+      onError: (error: unknown) => {
+        if (signal?.aborted) return;
+        const err = error instanceof Error ? error : (error as Record<string, unknown>)?.error;
+        const errObj = err instanceof Error ? err : null;
+        logger.error('doc-assist compose stream error', {
+          message: errObj?.message ?? String(error),
+        });
+      },
+    });
+
+    const textStream = result.textStream;
+    const stream = new ReadableStream<string>({
+      async start(controller) {
+        try {
+          for await (const chunk of textStream) {
+            if (signal?.aborted) break;
+            controller.enqueue(chunk);
+          }
+        } catch (error) {
+          if (signal?.aborted) return;
+          logger.error('doc-assist compose stream iteration error', error);
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return {
+      stream,
+      applyMode,
+      suggestedPath: recommendPath(input),
+      relevanceWarnings: buildRelevanceWarnings(instruction, input.summaryFiles ?? []),
+    };
+  }
+
   recommendDocumentPath(input: Omit<ComposeInput, 'currentContent'>): {
     suggestedPath: string;
     relevanceWarnings: string[];
@@ -269,7 +400,7 @@ class DocAssistService {
   async recommendTitleAndPath(input: RecommendTitleAndPathInput): Promise<TitleAndPathResult> {
     const content = input.currentContent.trim();
     if (!content) {
-      return { suggestedTitle: '', suggestedDirectory: 'drafts', suggestedFileName: '' };
+      return { suggestedTitle: '새 문서', suggestedDirectory: 'drafts', suggestedFileName: 'new-doc.md' };
     }
 
     // 디렉토리 트리와 기존 파일 목록 가져오기
@@ -329,38 +460,37 @@ class DocAssistService {
       const jsonStr = text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
       const parsed = JSON.parse(jsonStr);
 
+      const fallbackTitle = buildFallbackTitle(content);
+      const title = typeof parsed.title === 'string' && parsed.title.trim()
+        ? parsed.title.trim()
+        : fallbackTitle;
       let fileName = typeof parsed.fileName === 'string' ? parsed.fileName.trim() : '';
       if (fileName && !fileName.endsWith('.md')) fileName += '.md';
+      if (!fileName) {
+        fileName = buildFallbackFileName(title);
+      }
 
       // 중복 파일명 체크
       const dir = typeof parsed.directory === 'string' ? parsed.directory.trim() : 'drafts';
-      const fullPath = dir ? `${dir}/${fileName}` : fileName;
-      if (fileName && existingFiles.includes(fullPath)) {
-        const base = fileName.replace(/\.md$/, '');
-        fileName = `${base}-${Date.now().toString(36).slice(-4)}.md`;
-      }
+      fileName = ensureUniqueFileName(dir || 'drafts', fileName, existingFiles);
 
       return {
-        suggestedTitle: typeof parsed.title === 'string' ? parsed.title.trim() : '',
+        suggestedTitle: title,
         suggestedDirectory: dir || 'drafts',
         suggestedFileName: fileName,
       };
     } catch (error) {
       logger.error('doc-assist recommendTitleAndPath failed', error);
-      // Fallback: 첫 줄에서 제목 추출
-      const firstLine = content.split('\n').find((l) => l.trim().length > 0) ?? '';
-      const fallbackTitle = firstLine.replace(/^#+\s*/, '').slice(0, 60).trim();
-      const fallbackFileName = fallbackTitle
-        .replace(/[^\w가-힣\s-]/g, '')
-        .trim()
-        .split(/\s+/)
-        .slice(0, 4)
-        .join('-')
-        .toLowerCase();
+      const fallbackTitle = buildFallbackTitle(content);
+      const fallbackFileName = ensureUniqueFileName(
+        'drafts',
+        buildFallbackFileName(fallbackTitle),
+        existingFiles,
+      );
       return {
-        suggestedTitle: fallbackTitle || '새 문서',
+        suggestedTitle: fallbackTitle,
         suggestedDirectory: 'drafts',
-        suggestedFileName: fallbackFileName ? `${fallbackFileName}.md` : '',
+        suggestedFileName: fallbackFileName,
       };
     }
   }

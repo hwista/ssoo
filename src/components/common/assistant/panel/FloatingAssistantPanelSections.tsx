@@ -40,6 +40,7 @@ export function FloatingAssistantHeader({ onExpand }: FloatingAssistantHeaderPro
 interface FloatingAssistantHistoryProps {
   historyRef: RefObject<HTMLDivElement | null>;
   historyOpen: boolean;
+  isOpen: boolean;
   sessions: AssistantSession[];
   activeSessionId: string | null;
   onStartNewSession: () => void;
@@ -51,6 +52,7 @@ interface FloatingAssistantHistoryProps {
 export function FloatingAssistantHistory({
   historyRef,
   historyOpen,
+  isOpen,
   sessions,
   activeSessionId,
   onStartNewSession,
@@ -59,13 +61,13 @@ export function FloatingAssistantHistory({
   onTogglePersist,
 }: FloatingAssistantHistoryProps) {
   return (
-    <div ref={historyRef} className="sticky left-0 top-0 z-20 h-0">
-      <div className="pointer-events-auto w-fit space-y-2">
+    <div ref={historyRef} className="absolute top-14 -left-12 z-20">
+      <div className={`${isOpen ? 'pointer-events-auto' : 'pointer-events-none'} w-fit space-y-2`}>
         <div className="flex flex-col items-start gap-2">
           <button
             type="button"
             onClick={onStartNewSession}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-border/60 text-ssoo-primary/75 opacity-55 transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary hover:opacity-100 focus-visible:opacity-100"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg text-ssoo-primary/75 shadow-sm transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary"
             title="새 채팅 세션"
             aria-label="새 채팅 세션"
           >
@@ -74,7 +76,7 @@ export function FloatingAssistantHistory({
           <button
             type="button"
             onClick={onToggleHistory}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-border/60 text-ssoo-primary/75 opacity-55 transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary hover:opacity-100 focus-visible:opacity-100"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg text-ssoo-primary/75 shadow-sm transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary"
             title="채팅 세션 히스토리"
             aria-label="채팅 세션 히스토리"
           >
@@ -109,6 +111,7 @@ interface FloatingAssistantFooterProps {
   isProcessing: boolean;
   setInputDraft: (value: string) => void;
   submitUserMessage: (text: string) => Promise<void>;
+  onAbort?: () => void;
   suggestions: string[];
   suggestionsCollapsed: boolean;
   onToggleSuggestions: () => void;
@@ -120,6 +123,7 @@ export function FloatingAssistantFooter({
   isProcessing,
   setInputDraft,
   submitUserMessage,
+  onAbort,
   suggestions,
   suggestionsCollapsed,
   onToggleSuggestions,
@@ -134,6 +138,7 @@ export function FloatingAssistantFooter({
         submitUserMessage={submitUserMessage}
         placeholder="질문하거나, 파일을 찾아달라고 요청하세요."
         submitVariant="icon"
+        onAbort={onAbort}
         suggestions={suggestions}
         suggestionsCollapsed={suggestionsCollapsed}
         onToggleSuggestions={onToggleSuggestions}

@@ -46,6 +46,9 @@ export interface HeaderProps {
   
   /** 저장 중 상태 */
   saving?: boolean;
+
+  /** 저장 버튼 비활성화 (미저장 변경 없을 때) */
+  saveDisabled?: boolean;
   
   /** 미리보기 모드 (에디터 모드에서 미리보기 토글만 표시) */
   isPreview?: boolean;
@@ -96,6 +99,7 @@ export function Header({
   onSave,
   onCancel,
   saving = false,
+  saveDisabled = false,
   isPreview = false,
   extraActions,
   extraActionsPosition = 'left',
@@ -194,8 +198,8 @@ export function Header({
                 variant="default"
                 size="default"
                 onClick={onSave}
-                disabled={saving}
-                className="h-control-h"
+                disabled={saving || saveDisabled}
+                className={cn('h-control-h', saveDisabled && 'disabled:opacity-60')}
               >
                 {saving ? (
                   <LoadingSpinner className="mr-1.5" />

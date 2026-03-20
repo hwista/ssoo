@@ -12,7 +12,7 @@ export interface SearchResultItem {
 export interface SearchResponse {
   query: string;
   results: SearchResultItem[];
-  contextMode?: 'wiki' | 'deep';
+  contextMode?: 'doc' | 'deep';
   confidence?: 'high' | 'medium' | 'low';
   citations?: Array<{
     title: string;
@@ -36,7 +36,7 @@ export interface AskResponse {
 }
 
 export interface AiContextOptions {
-  contextMode?: 'wiki' | 'deep';
+  contextMode?: 'doc' | 'deep';
   activeDocPath?: string;
 }
 

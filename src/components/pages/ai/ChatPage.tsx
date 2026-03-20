@@ -30,7 +30,7 @@ export function AiChatPage() {
   const setSuggestionsCollapsed = useAssistantPanelStore((state) => state.setSuggestionsCollapsed);
   const resetDraftState = useAssistantPanelStore((state) => state.resetDraftState);
   const resetContext = useAssistantContextStore((state) => state.resetContext);
-  const { submitUserMessage, handleOpenFile, handleOpenHelpAction } = useAssistantChat();
+  const { submitUserMessage, abortChat, handleOpenFile, handleOpenHelpAction } = useAssistantChat();
   const { saveSession, removeSessionFromDb } = useAssistantSessionPersistence();
 
   const historyItems = useMemo(
@@ -112,6 +112,7 @@ export function AiChatPage() {
               isProcessing={isProcessing}
               setInputDraft={setInputDraft}
               submitUserMessage={submitUserMessage}
+              onAbort={abortChat}
             />
           )}
         />

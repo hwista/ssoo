@@ -4,7 +4,7 @@
  * 역할:
  * - dms.config.json 읽기/쓰기
  * - dms.config.default.json 기본값 병합
- * - 위키 데이터 디렉토리(= Git 저장소 경로) 제공
+ * - 문서 데이터 디렉토리(= Git 저장소 경로) 제공
  */
 
 import fs from 'fs';
@@ -16,7 +16,7 @@ import { logger } from '@/lib/utils/errorUtils';
 // ============================================================================
 
 export interface GitConfig {
-  /** 위키 Git 저장소 경로 (= 위키 데이터 디렉토리) */
+  /** 문서 Git 저장소 경로 (= 문서 데이터 디렉토리) */
   repositoryPath: string;
   /** 커밋 작성자 정보 */
   author: {
@@ -80,7 +80,7 @@ const CONFIG_FILE = 'dms.config.json';
 const DEFAULT_CONFIG_FILE = 'dms.config.default.json';
 
 /** 설정 파일이 없을 때 사용하는 폴백 기본 경로 */
-const FALLBACK_WIKI_DIR = path.join(process.cwd(), 'data', 'wiki');
+const FALLBACK_DOC_DIR = path.join(process.cwd(), 'data', 'documents');
 
 // ============================================================================
 // Config Service
@@ -120,10 +120,10 @@ class ConfigService {
     return merged;
   }
 
-  /** 위키 데이터 디렉토리 (= Git 저장소 경로) */
-  getWikiDir(): string {
+  /** 문서 데이터 디렉토리 (= Git 저장소 경로) */
+  getDocDir(): string {
     const config = this.getConfig();
-    return config.git.repositoryPath || FALLBACK_WIKI_DIR;
+    return config.git.repositoryPath || FALLBACK_DOC_DIR;
   }
 
   /** Git 작성자 정보 */

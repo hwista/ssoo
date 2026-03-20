@@ -24,7 +24,7 @@ export type FileCrudResult<T = unknown> =
   | { success: false; error: string; status: number };
 
 function getRootDir(): string {
-  return configService.getWikiDir();
+  return configService.getDocDir();
 }
 
 class FileCrudService {
@@ -201,7 +201,7 @@ class FileCrudService {
     }
   }
 
-  async rename(oldPath: string, newPath: string): Promise<FileCrudResult<{ message: string }>> {
+  async rename(oldPath: string, newPath: string, options?: { autoNumber?: boolean }): Promise<FileCrudResult<{ message: string; finalPath?: string }>> {
     const oldFullPath = path.join(getRootDir(), oldPath);
     const newFullPath = path.join(getRootDir(), newPath);
 
@@ -211,23 +211,39 @@ class FileCrudService {
     if (!fs.existsSync(oldFullPath)) {
       return { success: false, error: 'File not found', status: 404 };
     }
+
+    // 대상 경로 충돌 시 자동 넘버링 (Windows 스타일)
+    let resolvedFullPath = newFullPath;
+    let resolvedRelPath = newPath;
     if (fs.existsSync(newFullPath)) {
-      return { success: false, error: 'Target already exists', status: 409 };
+      if (!options?.autoNumber) {
+        return { success: false, error: 'Target already exists', status: 409 };
+      }
+      const dir = path.dirname(newFullPath);
+      const ext = path.extname(newFullPath);
+      const base = path.basename(newFullPath, ext);
+      let n = 1;
+      while (fs.existsSync(resolvedFullPath)) {
+        resolvedFullPath = path.join(dir, `${base} (${n})${ext}`);
+        n++;
+      }
+      resolvedRelPath = path.relative(getRootDir(), resolvedFullPath);
     }
 
     try {
-      fs.mkdirSync(path.dirname(newFullPath), { recursive: true });
-      fs.renameSync(oldFullPath, newFullPath);
+      fs.mkdirSync(path.dirname(resolvedFullPath), { recursive: true });
+      fs.renameSync(oldFullPath, resolvedFullPath);
 
       const oldMetaPath = documentMetadataService.getDocumentMetadataPath(oldFullPath);
-      const newMetaPath = documentMetadataService.getDocumentMetadataPath(newFullPath);
+      const newMetaPath = documentMetadataService.getDocumentMetadataPath(resolvedFullPath);
       if (fs.existsSync(oldMetaPath)) {
+        fs.mkdirSync(path.dirname(newMetaPath), { recursive: true });
         fs.renameSync(oldMetaPath, newMetaPath);
       }
 
-      return { success: true, data: { message: 'File/Folder renamed successfully' } };
+      return { success: true, data: { message: 'File/Folder renamed successfully', finalPath: resolvedRelPath } };
     } catch (error) {
-      logger.error('파일/폴더 이름 변경 실패', error, { oldPath, newPath, oldFullPath, newFullPath });
+      logger.error('파일/폴더 이름 변경 실패', error, { oldPath, newPath, oldFullPath, newFullPath: resolvedFullPath });
       return {
         success: false,
         error: `Rename failed: ${error instanceof Error ? error.message : 'Unknown error'}`,

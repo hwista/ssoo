@@ -6,6 +6,19 @@ function getUserId(headers?: Headers): string {
   return value && value.length > 0 ? value : 'anonymous';
 }
 
+export function handleGetTemplate(
+  id: string,
+  scope: 'global' | 'personal',
+  headers?: Headers
+) {
+  const userId = getUserId(headers);
+  const template = templateService.get(id, scope, userId);
+  if (!template) {
+    return { success: false as const, error: '템플릿을 찾을 수 없습니다.' };
+  }
+  return { success: true as const, data: template };
+}
+
 export function handleListTemplates(headers?: Headers) {
   const userId = getUserId(headers);
   return { success: true as const, data: templateService.list(userId) };

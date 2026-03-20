@@ -69,6 +69,7 @@ interface AiChatFooterProps {
   isProcessing: boolean;
   setInputDraft: (value: string) => void;
   submitUserMessage: (message: string) => Promise<void>;
+  onAbort?: () => void;
 }
 
 export function AiChatFooter({
@@ -77,6 +78,7 @@ export function AiChatFooter({
   isProcessing,
   setInputDraft,
   submitUserMessage,
+  onAbort,
 }: AiChatFooterProps) {
   return (
     <AssistantComposer
@@ -87,6 +89,7 @@ export function AiChatFooter({
       submitUserMessage={submitUserMessage}
       placeholder="AI에게 무엇이든 물어보세요. 문서 내용을 기반으로 대화하고 검색하거나, 기능 사용법을 안내받을 수도 있습니다!"
       submitVariant="text"
+      onAbort={onAbort}
     />
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { fileApi } from '@/lib/api';
+import { streamSSE } from '@/lib/api/streaming';
 import type { AssistantMessage } from '@/stores';
 
 interface AssistantReference {
@@ -67,71 +68,41 @@ export async function buildMessageWithReferences(params: {
 export async function streamAssistantAsk(params: {
   history: AssistantMessage[];
   attachmentOnly?: boolean;
+  templates?: Array<{ name: string; content: string }>;
+  signal?: AbortSignal;
   onPendingMessage: (assistantId: string) => void;
   onTextDelta: (assistantId: string, delta: string) => void;
-  onComplete: (assistantId: string, hasDelta: boolean) => void;
+  onComplete: (assistantId: string, hasDelta: boolean, aborted?: boolean) => void;
   onError: (assistantId: string, message: string) => void;
 }) {
-  const { history, attachmentOnly, onPendingMessage, onTextDelta, onComplete, onError } = params;
+  const { history, attachmentOnly, templates, signal, onPendingMessage, onTextDelta, onComplete, onError } = params;
   const assistantId = createAssistantMessageId();
   onPendingMessage(assistantId);
 
-  try {
-    const response = await fetch('/api/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: toChatPayload(history),
-        contextMode: attachmentOnly ? 'attachments-only' : 'wiki',
-      }),
-    });
+  let hasDelta = false;
 
-    if (!response.ok || !response.body) {
-      const fallback = await response.text();
-      throw new Error(fallback || '질문 요청에 실패했습니다.');
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let hasDelta = false;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      let splitIndex = buffer.indexOf('\n\n');
-
-      while (splitIndex !== -1) {
-        const rawEvent = buffer.slice(0, splitIndex);
-        buffer = buffer.slice(splitIndex + 2);
-
-        const dataLines = rawEvent
-          .split('\n')
-          .filter((line) => line.startsWith('data: '))
-          .map((line) => line.slice(6).trim());
-
-        for (const payload of dataLines) {
-          if (!payload || payload === '[DONE]') continue;
-
-          const parsed = JSON.parse(payload) as { type?: string; delta?: string; errorText?: string };
-          if (parsed.type === 'text-delta' && parsed.delta) {
-            hasDelta = true;
-            onTextDelta(assistantId, parsed.delta);
-          }
-
-          if (parsed.type === 'error') {
-            throw new Error(parsed.errorText || '질문 처리 중 오류가 발생했습니다.');
-          }
-        }
-
-        splitIndex = buffer.indexOf('\n\n');
+  const completed = await streamSSE({
+    url: '/api/ask',
+    body: {
+      messages: toChatPayload(history),
+      contextMode: attachmentOnly ? 'attachments-only' : 'doc',
+      ...(templates && templates.length > 0 ? { templates } : {}),
+    },
+    signal,
+    onEvent: (event) => {
+      if (event.type === 'text-delta' && typeof event.delta === 'string') {
+        hasDelta = true;
+        onTextDelta(assistantId, event.delta);
       }
-    }
+    },
+    onError: (error) => {
+      onError(assistantId, error.message);
+    },
+  });
 
+  if (completed) {
     onComplete(assistantId, hasDelta);
-  } catch (error) {
-    onError(assistantId, error instanceof Error ? error.message : '질문 처리 중 오류가 발생했습니다.');
+  } else {
+    onComplete(assistantId, hasDelta, true);
   }
 }

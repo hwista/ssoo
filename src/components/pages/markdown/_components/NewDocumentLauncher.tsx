@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef, useCallback, type ChangeEvent } from 'react';
-import { Bot, FileText, FileCode, X } from 'lucide-react';
+import { useRef, useCallback, useState, useEffect, type ChangeEvent } from 'react';
+import { Bot, FileText, FileCode, X, Loader2 } from 'lucide-react';
+import { LoadingState } from '@/components/common/StateDisplay';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 
 interface LauncherAction {
@@ -13,28 +14,42 @@ interface LauncherAction {
 }
 
 interface NewDocumentLauncherProps {
-  onSelectWiki: () => void;
+  onSelectNewDoc: () => void;
   onSelectTemplate: () => void;
   onSelectAiSummary: (files: InlineSummaryFileItem[]) => void;
   onClose: () => void;
 }
 
 export function NewDocumentLauncher({
-  onSelectWiki,
+  onSelectNewDoc,
   onSelectTemplate,
   onSelectAiSummary,
   onClose,
 }: NewDocumentLauncherProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   const handleAiSummaryClick = useCallback(() => {
+    setIsPreparing(true);
     fileInputRef.current?.click();
   }, []);
 
+  // 파일 피커 취소 시 isPreparing 복원
+  useEffect(() => {
+    const input = fileInputRef.current;
+    if (!input) return;
+    const handleCancel = () => setIsPreparing(false);
+    input.addEventListener('cancel', handleCancel);
+    return () => input.removeEventListener('cancel', handleCancel);
+  }, []);
+
   const handleFilesSelected = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    setIsPreparing(false);
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
 
+    setIsExtracting(true);
     const mapped: InlineSummaryFileItem[] = await Promise.all(
       files.map(async (file) => {
         let textContent = '';
@@ -69,17 +84,17 @@ export function NewDocumentLauncher({
   const actions: LauncherAction[] = [
     {
       id: 'ai-summary',
-      label: 'AI 요약',
-      description: '파일을 선택하면 AI가 자동으로 요약합니다',
-      icon: <Bot className="w-6 h-6" />,
+      label: isPreparing ? '파일 선택 준비 중...' : 'AI 요약',
+      description: isPreparing ? '' : '파일을 선택하면 AI가 자동으로 요약합니다',
+      icon: isPreparing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Bot className="w-6 h-6" />,
       onClick: handleAiSummaryClick,
     },
     {
-      id: 'wiki',
+      id: 'doc',
       label: '새 문서',
-      description: '새 위키 문서를 작성합니다',
+      description: '새 문서를 작성합니다',
       icon: <FileText className="w-6 h-6" />,
-      onClick: onSelectWiki,
+      onClick: onSelectNewDoc,
     },
     {
       id: 'template',
@@ -96,6 +111,14 @@ export function NewDocumentLauncher({
       onClick: onClose,
     },
   ];
+
+  if (isExtracting) {
+    return (
+      <div className="h-full flex items-center justify-center bg-ssoo-content-bg/30">
+        <LoadingState message="선택한 파일의 내용을 읽는 중..." />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex items-center justify-center bg-ssoo-content-bg/30">

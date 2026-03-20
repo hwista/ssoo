@@ -39,7 +39,7 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
   const startNewSession = useAssistantSessionStore((state) => state.startNewSession);
   const selectSession = useAssistantSessionStore((state) => state.selectSession);
 
-  const { submitUserMessage, handleOpenFile, handleOpenHelpAction, openExpandedChatPage } = useAssistantChat();
+  const { submitUserMessage, abortChat, handleOpenFile, handleOpenHelpAction, openExpandedChatPage } = useAssistantChat();
   const { saveSession, removeSessionFromDb } = useAssistantSessionPersistence();
   const {
     hasMessages,
@@ -66,46 +66,48 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
     <section className={panelClassName} aria-hidden={!isOpen}>
       <FloatingAssistantHeader onExpand={onExpand} />
 
-      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-3">
-        <FloatingAssistantHistory
-          historyRef={historyRef}
-          historyOpen={historyOpen}
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          onStartNewSession={() => {
-            startNewSession();
-            resetDraftState();
-            resetContext();
-            setHistoryOpen(false);
-          }}
-          onToggleHistory={() => setHistoryOpen((prev) => !prev)}
-          onSelectSession={(id) => {
-            selectSession(id);
-            resetDraftState();
-            resetContext();
-            setHistoryOpen(false);
-          }}
-          onTogglePersist={(item) => {
-            if (item.persistedToDb) {
-              void removeSessionFromDb(item.id).then((result) => {
-                if (!result.success) {
-                  toast.error(result.error);
-                  return;
-                }
-                toast.success('세션 DB 저장을 해제했습니다.');
-              });
-              return;
-            }
-
-            void saveSession(item.id).then((result) => {
+      <FloatingAssistantHistory
+        historyRef={historyRef}
+        historyOpen={historyOpen}
+        isOpen={isOpen}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onStartNewSession={() => {
+          startNewSession();
+          resetDraftState();
+          resetContext();
+          setHistoryOpen(false);
+        }}
+        onToggleHistory={() => setHistoryOpen((prev) => !prev)}
+        onSelectSession={(id) => {
+          selectSession(id);
+          resetDraftState();
+          resetContext();
+          setHistoryOpen(false);
+        }}
+        onTogglePersist={(item) => {
+          if (item.persistedToDb) {
+            void removeSessionFromDb(item.id).then((result) => {
               if (!result.success) {
                 toast.error(result.error);
                 return;
               }
-              toast.success('세션을 DB에 저장했습니다.');
+              toast.success('세션 DB 저장을 해제했습니다.');
             });
-          }}
-        />
+            return;
+          }
+
+          void saveSession(item.id).then((result) => {
+            if (!result.success) {
+              toast.error(result.error);
+              return;
+            }
+            toast.success('세션을 DB에 저장했습니다.');
+          });
+        }}
+      />
+
+      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {!hasMessages ? (
           <div className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/30 p-4 text-sm text-ssoo-primary/70">
             우리 서비스의 기능과 문서 내용에 대해 자유롭게 대화해 보세요 !
@@ -128,6 +130,7 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
         isProcessing={isProcessing}
         setInputDraft={setInputDraft}
         submitUserMessage={submitUserMessage}
+        onAbort={abortChat}
         suggestions={suggestions}
         suggestionsCollapsed={suggestionsCollapsed}
         onToggleSuggestions={() => setSuggestionsCollapsed(!suggestionsCollapsed)}

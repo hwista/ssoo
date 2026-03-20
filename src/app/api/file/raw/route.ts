@@ -14,7 +14,7 @@ const MIME_MAP: Record<string, string> = {
 };
 
 /**
- * 위키 디렉토리 내 이미지 파일을 raw 바이너리로 반환
+ * 문서 디렉토리 내 이미지 파일을 raw 바이너리로 반환
  * GET /api/file/raw?path=_assets/images/xxx.png
  */
 export async function GET(req: NextRequest) {
@@ -30,11 +30,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: '잘못된 경로입니다.' }, { status: 400 });
   }
 
-  const wikiDir = configService.getWikiDir();
-  const fullPath = nodePath.join(wikiDir, normalized);
+  const docDir = configService.getDocDir();
+  const fullPath = nodePath.join(docDir, normalized);
 
-  // wikiDir 외부 접근 차단
-  if (!fullPath.startsWith(wikiDir)) {
+  // docDir 외부 접근 차단
+  if (!fullPath.startsWith(docDir)) {
     return NextResponse.json({ error: '잘못된 경로입니다.' }, { status: 400 });
   }
 

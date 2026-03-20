@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, type RefObject } from 'react';
-import { ChevronDown, ChevronUp, Loader2, Search, SendHorizontal } from 'lucide-react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { ChevronDown, ChevronUp, Loader2, SendHorizontal, Square } from 'lucide-react';
 import type { TemplateItem } from '@/types/template';
 import {
   AssistantReferencePicker,
@@ -32,9 +32,17 @@ interface AssistantComposerProps {
   inlineWarnings?: string[];
   usedSummaryFileIds?: Set<string>;
   isTemplateUsed?: boolean;
+  deletedFileIds?: Set<string>;
+  isTemplateDeleted?: boolean;
   onInlineRemoveTemplate?: () => void;
   onInlineRemoveSummaryFile?: (id: string) => void;
+  onInlineRestoreTemplate?: () => void;
+  onInlineRestoreSummaryFile?: (id: string) => void;
   onInlineClearAll?: () => void;
+  onAbort?: () => void;
+  hasFailedRestore?: boolean;
+  isRetryingRestore?: boolean;
+  onRetryRestore?: () => void;
   suggestions?: string[];
   suggestionsCollapsed?: boolean;
   onToggleSuggestions?: () => void;
@@ -56,13 +64,33 @@ export function AssistantComposer({
   inlineWarnings,
   usedSummaryFileIds,
   isTemplateUsed,
+  deletedFileIds,
+  isTemplateDeleted,
   onInlineRemoveTemplate,
   onInlineRemoveSummaryFile,
+  onInlineRestoreTemplate,
+  onInlineRestoreSummaryFile,
   onInlineClearAll,
+  onAbort,
+  hasFailedRestore,
+  isRetryingRestore,
+  onRetryRestore,
   suggestions = [],
   suggestionsCollapsed,
   onToggleSuggestions,
 }: AssistantComposerProps) {
+  const internalRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const setRefs = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      internalRef.current = node;
+      if (inputRef && 'current' in inputRef) {
+        (inputRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = node;
+      }
+    },
+    [inputRef],
+  );
+
   const resizeTextarea = useCallback((element: HTMLTextAreaElement) => {
     const style = window.getComputedStyle(element);
     const lineHeight = Number.parseFloat(style.lineHeight) || 20;
@@ -80,9 +108,9 @@ export function AssistantComposer({
   }, []);
 
   useEffect(() => {
-    if (!inputRef?.current) return;
-    resizeTextarea(inputRef.current);
-  }, [inputDraft, inputRef, resizeTextarea]);
+    if (!internalRef.current) return;
+    resizeTextarea(internalRef.current);
+  }, [inputDraft, resizeTextarea]);
 
   return (
     <form
@@ -132,20 +160,26 @@ export function AssistantComposer({
         inlineWarnings={inlineWarnings}
         usedSummaryFileIds={usedSummaryFileIds}
         isTemplateUsed={isTemplateUsed}
+        deletedFileIds={deletedFileIds}
+        isTemplateDeleted={isTemplateDeleted}
         onInlineRemoveTemplate={onInlineRemoveTemplate}
         onInlineRemoveSummaryFile={onInlineRemoveSummaryFile}
+        onInlineRestoreTemplate={onInlineRestoreTemplate}
+        onInlineRestoreSummaryFile={onInlineRestoreSummaryFile}
         onInlineClearAll={onInlineClearAll}
+        hasFailedRestore={hasFailedRestore}
+        isRetryingRestore={isRetryingRestore}
+        onRetryRestore={onRetryRestore}
       />
-      <div className="flex h-10 items-stretch gap-2">
+      <div className="flex min-h-10 items-end gap-2">
         <AssistantReferencePicker
           disabled={isProcessing}
           mode={mode}
           inlineContext={inlineContext}
         />
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ssoo-primary/50" />
           <textarea
-            ref={inputRef}
+            ref={setRefs}
             value={inputDraft}
             onChange={(event) => {
               setInputDraft(event.target.value);
@@ -165,28 +199,64 @@ export function AssistantComposer({
               }
             }}
             placeholder={placeholder}
-            className="block h-full min-h-10 w-full resize-none rounded-lg border border-ssoo-content-border py-2 pl-9 pr-3 text-sm leading-5 focus:border-ssoo-primary focus:outline-none"
+            className="block min-h-10 w-full resize-none rounded-lg border border-ssoo-content-border px-3 py-2 text-sm leading-5 focus:border-ssoo-primary focus:outline-none"
             rows={1}
           />
         </div>
         {submitVariant === 'text' ? (
-          <button
-            type="submit"
-            disabled={isProcessing || !inputDraft.trim()}
-            className="flex h-full items-center justify-center gap-2 rounded-lg bg-ssoo-primary px-4 text-sm font-medium leading-none text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-            {submitLabel}
-          </button>
+          isProcessing && onAbort ? (
+            <button
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onAbort();
+              }}
+              className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-sm font-medium leading-none text-white transition-colors hover:bg-destructive/90"
+            >
+              <Square className="h-3.5 w-3.5 fill-current" />
+              중단
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isProcessing || !inputDraft.trim()}
+              className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-ssoo-primary px-4 text-sm font-medium leading-none text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+              {submitLabel}
+            </button>
+          )
         ) : (
-          <button
-            type="submit"
-            disabled={isProcessing || !inputDraft.trim()}
-            className="flex h-full w-10 items-center justify-center rounded-lg bg-ssoo-primary text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label="전송"
-          >
-            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-          </button>
+          isProcessing && onAbort ? (
+            <button
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onAbort();
+              }}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive text-white transition-colors hover:bg-destructive/90"
+              aria-label="중단"
+            >
+              <Square className="h-3.5 w-3.5 fill-current" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isProcessing || !inputDraft.trim()}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ssoo-primary text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="전송"
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+            </button>
+          )
         )}
       </div>
     </form>

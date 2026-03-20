@@ -32,6 +32,10 @@ export interface ViewerProps {
   showContentSurface?: boolean;
   /** 추가 className */
   className?: string;
+  /** 본문 <a> 클릭 시 호출 */
+  onLinkClick?: (href: string) => void;
+  /** 본문 <img> 클릭 시 호출 */
+  onImageClick?: (src: string, alt: string) => void;
 }
 
 /**
@@ -60,6 +64,8 @@ export function Viewer({
   variant = 'standalone',
   showContentSurface: _showContentSurface,
   className,
+  onLinkClick,
+  onImageClick,
 }: ViewerProps) {
   void _showContentSurface;
 
@@ -165,6 +171,8 @@ export function Viewer({
           contentRef={contentRef}
           variant={variant}
           showSurface={false}
+          onLinkClick={onLinkClick}
+          onImageClick={onImageClick}
         />
       )}
     />

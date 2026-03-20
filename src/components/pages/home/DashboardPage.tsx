@@ -27,7 +27,7 @@ export function DashboardPage() {
     await openTabWithConfirm({
       id: `new-doc-${Date.now()}`,
       title: '새 문서',
-      path: '/wiki/new',
+      path: '/doc/new',
       icon: 'FileText',
       closable: true,
       activate: true,
@@ -35,7 +35,7 @@ export function DashboardPage() {
   }, [openTabWithConfirm]);
 
   return (
-    <main className="flex-1 overflow-auto bg-white p-6">
+    <main className="min-h-full flex-1 overflow-auto bg-white p-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold text-ssoo-primary mb-4">
           문서 관리 시스템

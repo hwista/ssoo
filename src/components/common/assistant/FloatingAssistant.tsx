@@ -14,7 +14,7 @@ export function FloatingAssistant() {
   const activePath = activeTab?.path ?? '';
 
   const isDocumentActive = useMemo(() => {
-    return activePath.startsWith('/doc/') || activePath === '/wiki/new';
+    return activePath.startsWith('/doc/') || activePath === '/doc/new';
   }, [activePath]);
   const isChatPageActive = activePath === '/ai/chat';
 

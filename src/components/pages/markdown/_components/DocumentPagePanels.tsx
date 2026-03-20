@@ -22,13 +22,21 @@ interface InlineComposerPanelProps {
   inlineRelevanceWarnings: string[];
   usedSummaryFileIds?: Set<string>;
   isTemplateUsed?: boolean;
+  deletedFileIds?: Set<string>;
+  isTemplateDeleted?: boolean;
   handleInlineTemplateSelect: (template: TemplateItem) => void | Promise<void>;
   setInlineTemplate: (template: TemplateItem | null) => void;
   setInlineSummaryFiles: React.Dispatch<React.SetStateAction<InlineSummaryFileItem[]>>;
   setInlineRelevanceWarnings: React.Dispatch<React.SetStateAction<string[]>>;
-  onRemoveSummaryFileWithConfirm?: (id: string) => void;
-  onRemoveTemplateWithConfirm?: () => void;
-  onClearAllWithConfirm?: () => void;
+  onRemoveSummaryFile?: (id: string) => void;
+  onRemoveTemplate?: () => void;
+  onRestoreSummaryFile?: (id: string) => void;
+  onRestoreTemplate?: () => void;
+  onClearAll?: () => void;
+  onAbort?: () => void;
+  hasFailedRestore?: boolean;
+  isRetryingRestore?: boolean;
+  onRetryRestore?: () => void;
 }
 
 export function InlineComposerPanel({
@@ -42,13 +50,21 @@ export function InlineComposerPanel({
   inlineRelevanceWarnings,
   usedSummaryFileIds,
   isTemplateUsed,
+  deletedFileIds,
+  isTemplateDeleted,
   handleInlineTemplateSelect,
   setInlineTemplate,
   setInlineSummaryFiles,
   setInlineRelevanceWarnings,
-  onRemoveSummaryFileWithConfirm,
-  onRemoveTemplateWithConfirm,
-  onClearAllWithConfirm,
+  onRemoveSummaryFile,
+  onRemoveTemplate,
+  onRestoreSummaryFile,
+  onRestoreTemplate,
+  onClearAll,
+  onAbort,
+  hasFailedRestore,
+  isRetryingRestore,
+  onRetryRestore,
 }: InlineComposerPanelProps) {
   if (!isEditorMode) {
     return null;
@@ -83,9 +99,11 @@ export function InlineComposerPanel({
       inlineWarnings={inlineRelevanceWarnings}
       usedSummaryFileIds={usedSummaryFileIds}
       isTemplateUsed={isTemplateUsed}
+      deletedFileIds={deletedFileIds}
+      isTemplateDeleted={isTemplateDeleted}
       onInlineClearAll={() => {
-        if (onClearAllWithConfirm) {
-          onClearAllWithConfirm();
+        if (onClearAll) {
+          onClearAll();
         } else {
           setInlineTemplate(null);
           setInlineSummaryFiles([]);
@@ -93,19 +111,25 @@ export function InlineComposerPanel({
         }
       }}
       onInlineRemoveTemplate={() => {
-        if (onRemoveTemplateWithConfirm) {
-          onRemoveTemplateWithConfirm();
+        if (onRemoveTemplate) {
+          onRemoveTemplate();
         } else {
           setInlineTemplate(null);
         }
       }}
       onInlineRemoveSummaryFile={(id) => {
-        if (onRemoveSummaryFileWithConfirm) {
-          onRemoveSummaryFileWithConfirm(id);
+        if (onRemoveSummaryFile) {
+          onRemoveSummaryFile(id);
         } else {
           setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== id));
         }
       }}
+      onInlineRestoreTemplate={onRestoreTemplate}
+      onInlineRestoreSummaryFile={onRestoreSummaryFile}
+      onAbort={onAbort}
+      hasFailedRestore={hasFailedRestore}
+      isRetryingRestore={isRetryingRestore}
+      onRetryRestore={onRetryRestore}
     />
   );
 }
@@ -136,6 +160,10 @@ interface DocumentPageContentProps {
   };
   setSaveAsTemplateOnly: React.Dispatch<React.SetStateAction<boolean>>;
   onEditorContentChange?: (content: string) => void;
+  /** 본문 <a> 클릭 */
+  onLinkClick?: (href: string) => void;
+  /** 본문 <img> 클릭 */
+  onImageClick?: (src: string, alt: string) => void;
 }
 
 export function DocumentPageContent({
@@ -159,10 +187,12 @@ export function DocumentPageContent({
   templateSaveDraft,
   setSaveAsTemplateOnly,
   onEditorContentChange,
+  onLinkClick,
+  onImageClick,
 }: DocumentPageContentProps) {
   if (error) {
     return (
-      <div className="flex flex-1 items-center justify-center">
+      <div className="flex h-full flex-1 items-center justify-center">
         <ErrorState error={error} onRetry={handleRetry} />
       </div>
     );
@@ -170,7 +200,7 @@ export function DocumentPageContent({
 
   if (isLoading && !isCreateMode) {
     return (
-      <div className="flex flex-1 items-center justify-center">
+      <div className="flex h-full flex-1 items-center justify-center">
         <LoadingState message="문서를 불러오는 중..." />
       </div>
     );
@@ -185,6 +215,8 @@ export function DocumentPageContent({
         onSearch={handleSearch}
         onAttachToAssistant={handleAttachCurrentDocToAssistant}
         variant="embedded"
+        onLinkClick={onLinkClick}
+        onImageClick={onImageClick}
       />
     );
   }

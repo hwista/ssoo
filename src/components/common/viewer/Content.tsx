@@ -3,6 +3,8 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { DOCUMENT_WIDTHS } from '@/components/templates/page-frame';
+import { useMermaidRenderer } from '@/components/common/MermaidBlock';
+import { useContentClickHandler } from '@/hooks/useContentClickHandler';
 
 // 문서 본문 최대 너비 (PageTemplate과 동일)
 export const DOCUMENT_WIDTH = DOCUMENT_WIDTHS.portrait;
@@ -27,6 +29,10 @@ export interface ContentProps {
   contentRef?: React.RefObject<HTMLDivElement | null>;
   /** 추가 className */
   className?: string;
+  /** 본문 <a> 클릭 시 호출 */
+  onLinkClick?: (href: string) => void;
+  /** 본문 <img> 클릭 시 호출 */
+  onImageClick?: (src: string, alt: string) => void;
 }
 
 /**
@@ -45,10 +51,15 @@ export function Content({
   showSurface,
   contentRef,
   className,
+  onLinkClick,
+  onImageClick,
 }: ContentProps) {
   const isEmbedded = variant === 'embedded';
   const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
   const shouldShowSurface = showSurface ?? !isEmbedded;
+  const articleRef = React.useRef<HTMLDivElement>(null);
+  useMermaidRenderer(articleRef, content);
+  useContentClickHandler(articleRef, { onLinkClick, onImageClick });
 
   return (
     <div
@@ -68,6 +79,7 @@ export function Content({
       >
         {/* 문서 본문 - 줌 적용 */}
         <article
+          ref={articleRef}
           className={cn(
             'py-6 px-8',
             'prose prose-base max-w-none font-sans',
@@ -77,7 +89,10 @@ export function Content({
             // 코드 블록 스타일
             'prose-pre:bg-ssoo-content-bg prose-pre:text-ssoo-primary prose-pre:border-0 prose-pre:font-mono',
             // 인라인 코드
-            'prose-code:text-ssoo-primary prose-code:bg-ssoo-content-bg prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:border-0 prose-code:font-mono'
+            'prose-code:text-ssoo-primary prose-code:bg-ssoo-content-bg prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:border-0 prose-code:font-mono',
+            // 이미지: 가운데 정렬 + 클릭 가능 시 pointer 커서
+            'prose-img:mx-auto prose-img:block',
+            onImageClick && 'prose-img:cursor-pointer'
           )}
           style={{
             fontSize: `${zoomLevel}%`,

@@ -29,8 +29,12 @@ export interface DocumentVersionEntry {
 export interface DocumentComment {
   id: string;
   author: string;
+  email?: string;
+  avatarUrl?: string;
   content: string;
   createdAt: string;
+  parentId?: string;
+  deletedAt?: string;
 }
 
 export interface BodyLink {

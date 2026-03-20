@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { Check, Loader2, Trash2 } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/common/StateDisplay';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
 
 interface TemplateDraft {
@@ -80,9 +81,8 @@ export function TemplateSection({
       <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
         <h3 className="text-sm font-semibold text-ssoo-primary">템플릿 목록</h3>
         {isLoadingTemplates ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-ssoo-primary/70">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            템플릿을 불러오는 중입니다.
+          <div className="mt-2">
+            <LoadingSpinner message="템플릿을 불러오는 중입니다." className="text-xs text-ssoo-primary/70" />
           </div>
         ) : templates.length === 0 ? (
           <p className="mt-2 text-xs text-ssoo-primary/70">등록된 템플릿이 없습니다.</p>

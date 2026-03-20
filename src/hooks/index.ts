@@ -14,3 +14,5 @@ export { useLayoutViewportSync } from './useLayoutViewportSync';
 
 // Content
 export { useBodyLinks } from './useBodyLinks';
+export { useContentClickHandler } from './useContentClickHandler';
+export type { ContentClickHandlerOptions } from './useContentClickHandler';

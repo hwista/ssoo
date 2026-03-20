@@ -20,6 +20,7 @@ export type {
   DocAssistSummaryFileClient,
   DocAssistComposeResponse,
   DocAssistRecommendResponse,
+  DocAssistComposeCallbacks,
 } from './aiApi';
 
 export { assistantSessionApi } from './assistantSessionApi';

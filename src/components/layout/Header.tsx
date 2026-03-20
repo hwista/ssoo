@@ -54,7 +54,7 @@ export function Header() {
     openTab({
       id: `new-doc-${Date.now()}`,
       title: '새 문서',
-      path: '/wiki/new',
+      path: '/doc/new',
       icon: 'FileText',
       closable: true,
       activate: true,

@@ -130,6 +130,7 @@ export const useFileStore = create<FileStore>()(
               files: nextFiles,
               fileMap,
               isLoading: false,
+              isInitialized: true,
               error: null,
               lastUpdatedAt: new Date(),
             });

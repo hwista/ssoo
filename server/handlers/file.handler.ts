@@ -25,6 +25,7 @@ export interface FileActionBody {
   parent?: string;
   oldPath?: string;
   newPath?: string;
+  autoNumber?: boolean;
   metadata?: Partial<DocumentMetadata>;
 }
 
@@ -135,9 +136,10 @@ export async function createFolder(
  */
 export async function renameFile(
   oldPath: string,
-  newPath: string
-): Promise<HandlerResult<{ message: string }>> {
-  return fileCrudService.rename(oldPath, newPath);
+  newPath: string,
+  options?: { autoNumber?: boolean }
+): Promise<HandlerResult<{ message: string; finalPath?: string }>> {
+  return fileCrudService.rename(oldPath, newPath, options);
 }
 
 /**
@@ -151,7 +153,7 @@ export async function deleteFile(filePath: string): Promise<HandlerResult<{ mess
  * POST 액션 라우터 - route.ts에서 사용
  */
 export async function handleFileAction(body: FileActionBody): Promise<HandlerResult<unknown>> {
-  const { action, path: filePath, content, name, parent = "", oldPath, newPath, metadata: metadataUpdate } = body;
+  const { action, path: filePath, content, name, parent = "", oldPath, newPath, autoNumber, metadata: metadataUpdate } = body;
 
   switch (action) {
     case "read":
@@ -181,7 +183,7 @@ export async function handleFileAction(body: FileActionBody): Promise<HandlerRes
       if (!oldPath || !newPath) {
         return { success: false, error: "Missing oldPath or newPath", status: 400 };
       }
-      return renameFile(oldPath, newPath);
+      return renameFile(oldPath, newPath, { autoNumber });
 
     case "delete":
       if (!filePath) return { success: false, error: "Missing file path", status: 400 };

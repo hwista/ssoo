@@ -34,7 +34,7 @@ export type DeepPartialClient<T> = {
 
 export interface SettingsResponse {
   config: DmsConfigClient;
-  wikiDir: string;
+  docDir: string;
 }
 
 export const settingsApi = {
