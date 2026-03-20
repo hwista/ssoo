@@ -1,0 +1,137 @@
+{
+  "title": "리팩토링 v1 개요",
+  "summary": "Markdown Wiki System의 리팩토링은 단일 책임 원칙과 코드 재사용성, 유지보수성, 타입 안정성 강화를 목적으로 단계별 구조 개선과 로직 최적화를 완료했습니다. 각 페이즈에서 컴포넌트 분할, 상태 중앙화, 커스텀 훅 구현, 종합 검증을 통해 기존의 복잡하고 중복된 코드를 체계적으로 정리했습니다. 최종 단계에서는 Context 통합 및 문서화, 통합 테스트로 안정적인 시스템 완성을 목표로 하고 있습니다.",
+  "tags": [
+    "리팩토링",
+    "타입시스템",
+    "컴포넌트분할",
+    "성능최적화",
+    "문서화"
+  ],
+  "sourceLinks": [],
+  "bodyLinks": [
+    {
+      "url": "_assets/images/eae06b7513a85ef55983f98649e9fa6be164c5f29cc897bea5407f9c58adce64.png",
+      "label": "image",
+      "type": "image"
+    },
+    {
+      "url": "https://github.com/enterprises/ls-workplace",
+      "label": "https://github.com/enterprises/ls-workplace",
+      "type": "link"
+    },
+    {
+      "url": "_assets/images/a3769f884d4b369d6b649ba5cb0eb86d81baf6120e5226a5eb0a18da5cb84672.png",
+      "label": "image",
+      "type": "link"
+    },
+    {
+      "url": "./goals.md",
+      "label": "goals.md",
+      "type": "link"
+    },
+    {
+      "url": "./phases/phase3/phase3-overall-summary.md",
+      "label": "Phase 3 종합 보고서",
+      "type": "link"
+    },
+    {
+      "url": "./phases/phase3/phase3.5-completion-report.md",
+      "label": "Phase 3.5 완료 보고서",
+      "type": "link"
+    },
+    {
+      "url": "../../DEVELOPMENT_STANDARDS.md",
+      "label": "개발 표준 가이드",
+      "type": "link"
+    },
+    {
+      "url": "../../api.md",
+      "label": "API 문서",
+      "type": "link"
+    },
+    {
+      "url": "../../components.md",
+      "label": "컴포넌트 가이드",
+      "type": "link"
+    }
+  ],
+  "createdAt": "2026-03-17T09:26:10.240Z",
+  "updatedAt": "2026-03-20T00:34:47.543Z",
+  "fileHashes": {
+    "content": "52a97f25d75996795b3fc0d9651104255326db4d83324de0bec5a15f656a9d7a",
+    "sources": {}
+  },
+  "chunkIds": [],
+  "embeddingModel": "",
+  "sourceFiles": [
+    {
+      "name": "스크린샷 2026-03-18 082146.png",
+      "path": "_assets/attachments/efc441ed93340de376b3f779d1645a19db48bdc355c8d5dec233c421773af6af.png",
+      "type": "image/png",
+      "size": 23540,
+      "origin": "manual",
+      "status": "published",
+      "provider": "local"
+    }
+  ],
+  "acl": {
+    "owners": [],
+    "editors": [],
+    "viewers": []
+  },
+  "versionHistory": [],
+  "comments": [
+    {
+      "id": "comment-1773891674520",
+      "author": "Unknown",
+      "content": "호호",
+      "createdAt": "2026-03-19T03:41:14.520Z",
+      "parentId": "comment-1773891659648"
+    },
+    {
+      "id": "comment-1773896037722",
+      "author": "Unknown",
+      "content": "ㅎㅇ",
+      "createdAt": "2026-03-19T04:53:57.722Z",
+      "parentId": "comment-1773891674520"
+    },
+    {
+      "id": "comment-1773899108517",
+      "author": "Unknown",
+      "content": "ㅇㅇ",
+      "createdAt": "2026-03-19T05:45:08.517Z",
+      "parentId": "comment-1773891659648"
+    },
+    {
+      "id": "comment-1773899121925",
+      "author": "Unknown",
+      "content": "ㅁㄴㅇ",
+      "createdAt": "2026-03-19T05:45:21.925Z",
+      "parentId": "comment-1773891659648"
+    },
+    {
+      "id": "comment-1773899510908",
+      "author": "Unknown",
+      "content": "ㅎㅇ",
+      "createdAt": "2026-03-19T05:51:50.908Z",
+      "parentId": "comment-1773896037722"
+    },
+    {
+      "id": "comment-1773899516825",
+      "author": "Unknown",
+      "content": "ㅎㅇ",
+      "createdAt": "2026-03-19T05:51:56.825Z",
+      "parentId": "comment-1773899108517"
+    },
+    {
+      "id": "comment-1773899519392",
+      "author": "Unknown",
+      "content": "ㅎㅇ",
+      "createdAt": "2026-03-19T05:51:59.392Z"
+    }
+  ],
+  "templateId": "default",
+  "author": "Unknown",
+  "lastModifiedBy": "Unknown"
+}

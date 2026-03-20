@@ -12,13 +12,13 @@
   ],
   "bodyLinks": [
     {
-      "url": "blob:http://localhost:3001/51d8afb5-f08d-4f3a-846a-d70b87294084",
-      "label": "image",
-      "type": "image"
-    },
-    {
       "url": "https://github.com/enterprises/ls-workplace",
       "label": "https://github.com/enterprises/ls-workplace",
+      "type": "link"
+    },
+    {
+      "url": "_assets/images/a3769f884d4b369d6b649ba5cb0eb86d81baf6120e5226a5eb0a18da5cb84672.png",
+      "label": "image",
       "type": "link"
     },
     {
@@ -50,17 +50,12 @@
       "url": "../../components.md",
       "label": "컴포넌트 가이드",
       "type": "link"
-    },
-    {
-      "url": "http://localhost:3001/51d8afb5-f08d-4f3a-846a-d70b87294084",
-      "label": "http://localhost:3001/51d8afb5-f08d-4f3a-846a-d70b87294084",
-      "type": "link"
     }
   ],
   "createdAt": "2026-02-04T00:19:14.218Z",
-  "updatedAt": "2026-03-17T07:23:03.496Z",
+  "updatedAt": "2026-03-19T08:40:43.953Z",
   "fileHashes": {
-    "content": "854a5fbf0c83bfa085ca6f737eae2f0302879fe944cb1a40c8123f9ce76399b3",
+    "content": "988112e8d2afaf475a6407dd2944d136b3a7ff23deec2a0010cc03eaa78f63a4",
     "sources": {}
   },
   "chunkIds": [],
