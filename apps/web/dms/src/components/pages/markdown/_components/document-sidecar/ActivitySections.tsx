@@ -1,21 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { Download, File, FileSpreadsheet, FileText, Image, MessageSquare, Paperclip, Presentation, Plus, Link2, X } from 'lucide-react';
-import type { SourceFileMeta, DocumentComment } from '@/types';
+import { Download, File, FileSpreadsheet, FileText, ImageIcon, Paperclip, Presentation, Plus, Link2, X } from 'lucide-react';
+import type { SourceFileMeta } from '@/types';
 import { ActivityListSection } from '@/components/templates/page-frame/sidecar';
 import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
 import { getAttachmentCategory, ATTACHMENT_ACCEPT_STRING } from '@/lib/constants/file';
-
-function formatDate(date: Date | string | undefined): string {
-  if (!date) return '-';
-  const normalizedDate = typeof date === 'string' ? new Date(date) : date;
-  return normalizedDate.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-}
 
 function formatSize(size: number): string {
   if (size < 1024) return `${size} B`;
@@ -28,7 +18,7 @@ function getFileIcon(fileName: string): React.ReactNode {
   const cls = 'h-3 w-3 shrink-0 text-ssoo-primary/50';
   switch (category) {
     case 'image':
-      return <Image className={cls} />;
+      return <ImageIcon className={cls} />;
     case 'office': {
       const ext = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
       if (ext === '.xls' || ext === '.xlsx') return <FileSpreadsheet className={cls} />;
@@ -51,6 +41,8 @@ export function AttachmentsSection({
   onItemClick,
   onDownload,
   originalAttachmentPaths,
+  deletedReferenceKeys,
+  defaultOpen = true,
 }: {
   attachments: SourceFileMeta[];
   editable?: boolean;
@@ -58,6 +50,9 @@ export function AttachmentsSection({
   onItemClick?: (attachment: SourceFileMeta) => void;
   onDownload?: (attachment: SourceFileMeta) => void;
   originalAttachmentPaths?: string[];
+  /** 인라인 컴포저에서 소프트 삭제된 참조/템플릿 키 (표시 전용, undo 없음) */
+  deletedReferenceKeys?: Set<string>;
+  defaultOpen?: boolean;
 }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
@@ -185,26 +180,34 @@ export function AttachmentsSection({
   });
 
   const deletedIds = React.useMemo(() => {
-    if (pendingDeletes.size === 0) return undefined;
-    return pendingDeletes;
-  }, [pendingDeletes]);
+    const hasLocal = pendingDeletes.size > 0;
+    const hasExternal = deletedReferenceKeys && deletedReferenceKeys.size > 0;
+    if (!hasLocal && !hasExternal) return undefined;
+    if (hasLocal && !hasExternal) return pendingDeletes;
+    if (!hasLocal && hasExternal) return deletedReferenceKeys;
+    const merged = new Set(pendingDeletes);
+    for (const key of deletedReferenceKeys!) merged.add(key);
+    return merged;
+  }, [pendingDeletes, deletedReferenceKeys]);
 
   return (
     <ActivityListSection
       icon={<Paperclip className="mr-1.5 h-4 w-4 shrink-0" />}
-      title="첨부"
+      title="파일"
       badge={attachments.length > 0 ? <span className="mr-1 text-xs text-gray-400">({attachments.length})</span> : undefined}
       items={items}
       variant="compact"
       highlightedItemIds={newAttachmentPaths}
       deletedItemIds={deletedIds}
+      nonRestorableItemIds={deletedReferenceKeys}
       onItemRestore={handleRestore}
       onItemClick={(item) => {
-        if (pendingDeletes.has(item.id)) return;
+        if (pendingDeletes.has(item.id) || deletedReferenceKeys?.has(item.id)) return;
         const attachment = attachments.find((a) => attachmentKey(a) === item.id);
         if (attachment) onItemClick?.(attachment);
       }}
-      emptyText="첨부없음"
+      emptyText="파일없음"
+      defaultOpen={defaultOpen}
     >
       {editable && (
         <div className="pt-2">
@@ -226,93 +229,5 @@ export function AttachmentsSection({
         </div>
       )}
     </ActivityListSection>
-  );
-}
-
-export function CommentsSection({
-  comments,
-  editable,
-  onDelete,
-  onRestore,
-  originalCommentIds,
-}: {
-  comments: DocumentComment[];
-  editable?: boolean;
-  onDelete: (commentId: string) => void;
-  onRestore?: (comment: DocumentComment) => void;
-  originalCommentIds?: string[];
-}) {
-  const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
-  const [deletedComments, setDeletedComments] = React.useState<DocumentComment[]>([]);
-
-  const newCommentIds = React.useMemo(() => {
-    if (!originalCommentIds || !editable) return undefined;
-    const originalSet = new Set(originalCommentIds);
-    const ids = new Set<string>();
-    for (const c of comments) {
-      if (!originalSet.has(c.id) && !pendingDeletes.has(c.id)) ids.add(c.id);
-    }
-    return ids.size > 0 ? ids : undefined;
-  }, [comments, originalCommentIds, editable, pendingDeletes]);
-
-  const handleSoftDeleteWithCache = (commentId: string) => {
-    const comment = comments.find((c) => c.id === commentId);
-    if (comment) {
-      setDeletedComments((prev) => [...prev, comment]);
-    }
-    setPendingDeletes((prev) => new Set(prev).add(commentId));
-    onDelete(commentId);
-  };
-
-  const handleRestoreComment = (item: { id: string }) => {
-    const cached = deletedComments.find((c) => c.id === item.id);
-    setPendingDeletes((prev) => {
-      const next = new Set(prev);
-      next.delete(item.id);
-      return next;
-    });
-    setDeletedComments((prev) => prev.filter((c) => c.id !== item.id));
-    if (cached) {
-      onRestore?.(cached);
-    }
-  };
-
-  const allComments = React.useMemo(() => {
-    const deletedOnly = deletedComments.filter(
-      (dc) => !comments.some((c) => c.id === dc.id) && pendingDeletes.has(dc.id)
-    );
-    return [...comments, ...deletedOnly];
-  }, [comments, deletedComments, pendingDeletes]);
-
-  return (
-    <ActivityListSection
-      icon={<MessageSquare className="mr-1.5 h-4 w-4 shrink-0" />}
-      title="댓글"
-      badge={comments.length > 0 ? <span className="mr-1 text-xs text-gray-400">({comments.length})</span> : undefined}
-      variant="compact"
-      highlightedItemIds={newCommentIds}
-      deletedItemIds={pendingDeletes.size > 0 ? pendingDeletes : undefined}
-      onItemRestore={handleRestoreComment}
-      items={allComments.map((comment) => ({
-        id: comment.id,
-        title: comment.author || 'Unknown',
-        content: comment.content,
-        meta: formatDate(comment.createdAt),
-        actions: editable && !pendingDeletes.has(comment.id)
-          ? [
-              {
-                id: `${comment.id}-delete`,
-                kind: 'icon' as const,
-                tone: 'danger' as const,
-                title: '댓글 삭제',
-                ariaLabel: '댓글 삭제',
-                icon: <X className="h-3 w-3" />,
-                onClick: () => handleSoftDeleteWithCache(comment.id),
-              },
-            ]
-          : undefined,
-      }))}
-      emptyText="댓글없음"
-    />
   );
 }

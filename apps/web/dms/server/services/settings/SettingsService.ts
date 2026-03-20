@@ -6,7 +6,7 @@ import { logger } from '@/lib/utils/errorUtils';
 
 export interface SettingsSnapshot {
   config: DmsConfig;
-  wikiDir: string;
+  docDir: string;
 }
 
 export type SettingsServiceResult =
@@ -17,7 +17,7 @@ class SettingsService {
   getSettings(): SettingsSnapshot {
     return {
       config: configService.getConfig(),
-      wikiDir: configService.getWikiDir(),
+      docDir: configService.getDocDir(),
     };
   }
 
@@ -30,7 +30,7 @@ class SettingsService {
     return {
       success: true,
       config: updated,
-      wikiDir: configService.getWikiDir(),
+      docDir: configService.getDocDir(),
     };
   }
 
@@ -40,17 +40,17 @@ class SettingsService {
     }
 
     const resolvedPath = path.resolve(newPath);
-    const currentDir = configService.getWikiDir();
+    const currentDir = configService.getDocDir();
 
     try {
       if (!fs.existsSync(resolvedPath)) {
         fs.mkdirSync(resolvedPath, { recursive: true });
-        logger.info('새 위키 디렉토리 생성', { path: resolvedPath });
+        logger.info('새 문서 디렉토리 생성', { path: resolvedPath });
       }
 
       if (copyFiles && currentDir !== resolvedPath && fs.existsSync(currentDir)) {
         await this.copyDirectoryContents(currentDir, resolvedPath);
-        logger.info('위키 파일 복사 완료', { from: currentDir, to: resolvedPath });
+        logger.info('문서 파일 복사 완료', { from: currentDir, to: resolvedPath });
       }
 
       const updated = configService.updateConfig({
@@ -66,7 +66,7 @@ class SettingsService {
       return {
         success: true,
         config: updated,
-        wikiDir: resolvedPath,
+        docDir: resolvedPath,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

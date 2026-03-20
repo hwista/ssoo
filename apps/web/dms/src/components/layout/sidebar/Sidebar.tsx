@@ -32,7 +32,7 @@ import {
 
 // 문서 타입별 아이콘
 const DOCUMENT_TYPE_ICONS: Record<DocumentType, React.ComponentType<{ className?: string }>> = {
-  wiki: BookOpen,
+  doc: BookOpen,
   dev: Code,
 };
 

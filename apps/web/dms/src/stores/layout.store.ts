@@ -6,7 +6,7 @@ interface LayoutStore extends LayoutState, LayoutActions {}
 export const useLayoutStore = create<LayoutStore>()((set) => ({
   // Initial State
   deviceType: 'desktop',
-  documentType: 'wiki',
+  documentType: 'doc',
 
   // Actions
   setDeviceType: (type: DeviceType) => {

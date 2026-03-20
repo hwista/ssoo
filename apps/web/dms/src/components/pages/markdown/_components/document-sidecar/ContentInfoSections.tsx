@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { CornerDownRight, FileText, Globe, Image, Link2, Loader2, Plus, Sparkles, Tag, X } from 'lucide-react';
+import { Check, CornerDownRight, FileText, Globe, ImageIcon, Link2, Plus, Sparkles, Tag, X } from 'lucide-react';
+import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { ActivityListSection, ChipListSection, TextSection } from '@/components/templates/page-frame/sidecar';
 import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
 import { docAssistApi } from '@/lib/api';
-import { DiffTextInput } from '@/components/common/DiffTextInput';
+import { isExternalUrl } from '@/lib/utils/linkUtils';
 import type { BodyLink } from '@/types';
 
 function WandButton({ loading, onClick, label }: { loading: boolean; onClick: () => void; label: string }) {
@@ -18,7 +19,7 @@ function WandButton({ loading, onClick, label }: { loading: boolean; onClick: ()
       aria-label={label}
       title={label}
     >
-      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+      {loading ? <LoadingSpinner className="h-3.5 w-3.5 text-current" /> : <Sparkles className="h-3.5 w-3.5" />}
     </button>
   );
 }
@@ -30,6 +31,7 @@ export function TagsSection({
   getEditorContent,
   originalTags,
   externalSuggestedTags,
+  externalLoading = false,
   onExternalSuggestedTagsConsumed,
 }: {
   editable: boolean;
@@ -39,6 +41,7 @@ export function TagsSection({
   originalTags?: string[];
   /** 외부에서 주입된 AI 추천 태그 (compose 후 자동 트리거) */
   externalSuggestedTags?: string[];
+  externalLoading?: boolean;
   /** 외부 추천 태그가 소비(표시)된 후 호출 */
   onExternalSuggestedTagsConsumed?: () => void;
 }) {
@@ -117,6 +120,7 @@ export function TagsSection({
   };
 
   const handleWand = async () => {
+    if (externalLoading) return;
     const content = getEditorContent?.() ?? '';
     if (!content.trim()) return;
 
@@ -141,11 +145,13 @@ export function TagsSection({
     }
   };
 
+  const isWandLoading = isLoading || externalLoading;
+
   return (
     <ChipListSection
       title="태그"
       icon={<Tag className="mr-1.5 h-4 w-4 shrink-0" />}
-      headerRight={editable && getEditorContent ? <WandButton loading={isLoading} onClick={handleWand} label="AI 태그 추천" /> : undefined}
+      headerRight={editable && getEditorContent ? <WandButton loading={isWandLoading} onClick={handleWand} label="AI 태그 추천" /> : undefined}
       chips={allChips}
       highlightedChipIds={highlightedTagIds}
       deletedChipIds={pendingDeletes.size > 0 ? pendingDeletes : undefined}
@@ -201,6 +207,7 @@ export function SummarySection({
   getEditorContent,
   originalSummary,
   externalAiSuggestion,
+  externalLoading = false,
   onExternalAiSuggestionConsumed,
 }: {
   editable: boolean;
@@ -211,6 +218,7 @@ export function SummarySection({
   originalSummary?: string;
   /** 외부에서 주입된 AI 요약 제안 (compose 후 자동 트리거) */
   externalAiSuggestion?: string | null;
+  externalLoading?: boolean;
   /** 외부 요약 제안이 소비(표시)된 후 호출 */
   onExternalAiSuggestionConsumed?: () => void;
 }) {
@@ -226,6 +234,7 @@ export function SummarySection({
   }, [externalAiSuggestion, onExternalAiSuggestionConsumed]);
 
   const handleWand = async () => {
+    if (externalLoading) return;
     const content = getEditorContent?.() ?? '';
     if (!content.trim()) return;
 
@@ -246,6 +255,8 @@ export function SummarySection({
     }
   };
 
+  const isWandLoading = isLoading || externalLoading;
+
   const handleAppend = () => {
     if (!aiSuggestion) return;
     const newSummary = summary ? `${summary}\n${aiSuggestion}` : aiSuggestion;
@@ -264,8 +275,9 @@ export function SummarySection({
   };
 
   const wandButton = editable && getEditorContent
-    ? <WandButton loading={isLoading} onClick={handleWand} label="AI 요약 생성" />
+    ? <WandButton loading={isWandLoading} onClick={handleWand} label="AI 요약 생성" />
     : undefined;
+  const isChanged = editable && originalSummary !== undefined && summary !== originalSummary;
 
   if (editable) {
     return (
@@ -275,13 +287,17 @@ export function SummarySection({
         headerRight={wandButton}
         content={
           <div className="space-y-2">
-            <DiffTextInput
+            <textarea
               value={summary}
-              originalValue={originalSummary}
               onChange={onChange}
               placeholder="문서 요약을 입력하세요..."
               rows={3}
-              resizable
+              className={[
+                'w-full resize-y rounded border px-2 py-1.5 text-xs leading-relaxed text-ssoo-primary focus:outline-none',
+                isChanged
+                  ? 'border-destructive/30 bg-destructive/5 focus:border-destructive/40'
+                  : 'border-ssoo-content-border bg-transparent focus:border-ssoo-primary',
+              ].join(' ')}
             />
             {aiSuggestion && (
               <div className="rounded border border-dashed border-ssoo-primary/30 bg-ssoo-primary/5 p-2">
@@ -290,22 +306,25 @@ export function SummarySection({
                   <button
                     type="button"
                     onClick={handleAppend}
-                    className="rounded bg-ssoo-primary/10 px-2 py-0.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
+                    className="inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
                   >
-                    추가
+                    <Plus className="h-3 w-3" />
+                    덧붙이기
                   </button>
                   <button
                     type="button"
                     onClick={handleReplace}
-                    className="rounded bg-ssoo-primary/10 px-2 py-0.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
+                    className="inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
                   >
+                    <Check className="h-3 w-3" />
                     변경
                   </button>
                   <button
                     type="button"
                     onClick={handleDismiss}
-                    className="rounded px-2 py-0.5 text-xs text-ssoo-primary/60 transition-colors hover:text-ssoo-primary"
+                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs text-ssoo-primary/60 transition-colors hover:text-ssoo-primary"
                   >
+                    <X className="h-3 w-3" />
                     취소
                   </button>
                 </div>
@@ -335,7 +354,7 @@ export function SourceLinksSection({
   bodyLinks = [],
   onScrollToBodyLink,
   onOpenLink,
-  currentFilePath,
+  defaultOpen = true,
 }: {
   editable: boolean;
   sourceLinks: string[];
@@ -344,7 +363,7 @@ export function SourceLinksSection({
   bodyLinks?: BodyLink[];
   onScrollToBodyLink?: (url: string) => void;
   onOpenLink?: (url: string, type?: 'link' | 'image') => void;
-  currentFilePath?: string | null;
+  defaultOpen?: boolean;
 }) {
   const [inputValue, setInputValue] = React.useState('');
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
@@ -395,9 +414,9 @@ export function SourceLinksSection({
     }
   };
 
-  // 내부 문서 링크 여부 판별
+  // 내부 문서 링크 여부 판별 (공용 유틸리티 사용)
   const isInternalLink = React.useCallback((url: string) => {
-    return /^(https?:|mailto:|tel:|#)/i.test(url) === false;
+    return !isExternalUrl(url);
   }, []);
 
   // 수동 링크 (삭제된 것 포함, 본문 링크와 중복 제외)
@@ -411,7 +430,7 @@ export function SourceLinksSection({
   const bodyItems = bodyLinks.map((link) => {
     const isInternal = isInternalLink(link.url);
     const iconEl = link.type === 'image'
-      ? <Image className="h-3 w-3 shrink-0 text-ssoo-primary/50" />
+      ? <ImageIcon className="h-3 w-3 shrink-0 text-ssoo-primary/50" />
       : isInternal
         ? <FileText className="h-3 w-3 shrink-0 text-ssoo-primary/50" />
         : <Globe className="h-3 w-3 shrink-0 text-ssoo-primary/50" />;
@@ -473,6 +492,7 @@ export function SourceLinksSection({
       emptyText="링크없음"
       variant="compact"
       itemAppearance="link"
+      defaultOpen={defaultOpen}
     >
       {editable && (
         <div className="flex gap-1 pt-2">

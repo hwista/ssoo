@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, FolderOpen, Loader2, RotateCcw } from 'lucide-react';
+import { AlertCircle, Check, FolderOpen, RotateCcw } from 'lucide-react';
+import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { PageTemplate } from '@/components/templates';
 import type { HeaderAction } from '@/components/templates/page-frame';
 import { useSettingsStore } from '@/stores/settings.store';
@@ -24,7 +25,7 @@ import {
 export function SettingsPage() {
   const {
     config,
-    wikiDir,
+    docDir,
     isLoaded,
     isLoading,
     isSaving,
@@ -210,7 +211,7 @@ export function SettingsPage() {
 
     actions.push({
       label: isSaving ? '저장 중...' : '저장',
-      icon: isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />,
+      icon: isSaving ? <LoadingSpinner className="text-current" /> : <Check className="h-4 w-4" />,
       variant: 'default',
       onClick: () => {
         void handleSave();
@@ -240,10 +241,10 @@ export function SettingsPage() {
               activeSection={activeSection}
               onSelect={setActiveSection}
             />
-            {wikiDir && (
+            {docDir && (
               <div className="mt-4 rounded-md border border-ssoo-content-border bg-ssoo-content-bg/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-ssoo-primary/60">현재 위키 경로</p>
-                <p className="mt-1 break-all text-xs text-ssoo-primary/80">{wikiDir}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-ssoo-primary/60">현재 문서 경로</p>
+                <p className="mt-1 break-all text-xs text-ssoo-primary/80">{docDir}</p>
               </div>
             )}
           </aside>
@@ -270,7 +271,7 @@ export function SettingsPage() {
                     className="h-4 w-4 rounded border-ssoo-content-border accent-ssoo-primary"
                   />
                   <FolderOpen className="h-4 w-4" />
-                  <span>기존 위키 파일을 새 경로로 복사</span>
+                  <span>기존 문서 파일을 새 경로로 복사</span>
                 </label>
                 <p className="mt-1 pl-6 text-xs text-ssoo-primary/70">
                   경로 변경 후 Git 저장소를 다시 초기화합니다.
@@ -285,9 +286,8 @@ export function SettingsPage() {
             )}
 
             {isLoading ? (
-              <div className="flex h-32 items-center justify-center gap-2 text-sm text-ssoo-primary/70">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                설정을 불러오는 중입니다.
+              <div className="flex min-h-full items-center justify-center">
+                <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
               </div>
             ) : currentSection.id === 'templates' ? (
               <TemplateSection

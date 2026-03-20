@@ -13,9 +13,14 @@ export function useAssistantMessageActions() {
   const appendMessage = useAssistantSessionStore((state) => state.appendMessage);
   const updateTextMessage = useAssistantSessionStore((state) => state.updateTextMessage);
 
-  const runSearch = useCallback(async (query: string) => {
-    const response = await aiApi.search(query);
+  const runSearch = useCallback(async (
+    query: string,
+    options?: { signal?: AbortSignal; shouldHandle?: () => boolean },
+  ) => {
+    const response = await aiApi.search(query, { signal: options?.signal });
+    if (options?.shouldHandle && !options.shouldHandle()) return;
     if (!response.success || !response.data) {
+      if (options?.signal?.aborted) return;
       appendMessage({
         id: createAssistantMessageId(),
         role: 'assistant',
@@ -45,11 +50,22 @@ export function useAssistantMessageActions() {
     });
   }, [appendMessage]);
 
-  const runAsk = useCallback(async (history: AssistantMessage[], options?: { attachmentOnly?: boolean }) => {
+  const runAsk = useCallback(async (
+    history: AssistantMessage[],
+    options?: {
+      attachmentOnly?: boolean;
+      templates?: Array<{ name: string; content: string }>;
+      signal?: AbortSignal;
+      shouldHandle?: () => boolean;
+    },
+  ) => {
     await streamAssistantAsk({
       history,
       attachmentOnly: options?.attachmentOnly,
+      templates: options?.templates,
+      signal: options?.signal,
       onPendingMessage: (assistantId) => {
+        if (options?.shouldHandle && !options.shouldHandle()) return;
         appendMessage({
           id: assistantId,
           role: 'assistant',
@@ -59,9 +75,15 @@ export function useAssistantMessageActions() {
         });
       },
       onTextDelta: (assistantId, delta) => {
+        if (options?.shouldHandle && !options.shouldHandle()) return;
         updateTextMessage(assistantId, (prev) => prev + delta, true);
       },
-      onComplete: (assistantId, hasDelta) => {
+      onComplete: (assistantId, hasDelta, aborted) => {
+        if (options?.shouldHandle && !options.shouldHandle()) return;
+        if (aborted && !hasDelta) {
+          updateTextMessage(assistantId, () => '사용자가 응답 수신을 중단했습니다.', false);
+          return;
+        }
         if (!hasDelta) {
           updateTextMessage(assistantId, () => '응답이 비어 있습니다.', false);
           return;
@@ -69,6 +91,7 @@ export function useAssistantMessageActions() {
         updateTextMessage(assistantId, (prev) => prev, false);
       },
       onError: (assistantId, message) => {
+        if (options?.shouldHandle && !options.shouldHandle()) return;
         updateTextMessage(assistantId, () => message, false);
       },
     });

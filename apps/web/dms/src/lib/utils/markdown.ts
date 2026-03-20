@@ -1,11 +1,12 @@
 import { Marked, type Renderer } from 'marked';
+import { resolveImageSrc } from './linkUtils';
 
-function resolveImageSrc(src: string): string {
-  if (!src) return src;
-  if (src.startsWith('blob:') || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
-    return src;
-  }
-  return `/api/file/raw?path=${encodeURIComponent(src)}`;
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function createCustomRenderer(): Partial<Renderer> {
@@ -22,6 +23,13 @@ function createCustomRenderer(): Partial<Renderer> {
       const titleAttr = title ? ` title="${title}"` : '';
       // data-original-src: 원본 경로 보존 (본문 이미지 검색용)
       return `<img src="${resolvedSrc}" alt="${text || ''}" data-original-src="${href}"${titleAttr} />`;
+    },
+    code({ text, lang }): string {
+      if (lang === 'mermaid') {
+        return `<div class="mermaid-diagram">${escapeHtml(text)}</div>\n`;
+      }
+      const langClass = lang ? ` class="language-${lang}"` : '';
+      return `<pre><code${langClass}>${escapeHtml(text)}</code></pre>\n`;
     },
   };
 }

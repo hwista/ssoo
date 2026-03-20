@@ -36,11 +36,11 @@ export const SETTING_SECTIONS: SettingSection[] = [
     items: [
       {
         key: 'git.repositoryPath',
-        label: '위키 저장소 경로',
+        label: '문서 저장소 경로',
         helpKey: 'git.repositoryPath',
-        description: '비워두면 기본 경로(data/wiki)를 사용합니다.',
+        description: '비워두면 기본 경로(data/documents)를 사용합니다.',
         type: 'text',
-        placeholder: '~/dms-wiki',
+        placeholder: '~/dms-docs',
       },
       {
         key: 'git.author.name',

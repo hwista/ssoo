@@ -19,6 +19,7 @@ export interface FileApiRequest {
   parent?: string;
   oldPath?: string;
   newPath?: string;
+  autoNumber?: boolean;
   metadata?: Partial<DocumentMetadata>;
 }
 
@@ -58,10 +59,10 @@ export const fileApi = {
     });
   },
 
-  rename: async (oldPath: string, newPath: string): Promise<ApiResponse> => {
+  rename: async (oldPath: string, newPath: string, autoNumber?: boolean): Promise<ApiResponse<{ message: string; finalPath?: string }>> => {
     return request('/api/file', {
       method: 'POST',
-      body: { action: 'rename', oldPath, newPath },
+      body: { action: 'rename', oldPath, newPath, autoNumber },
     });
   },
 

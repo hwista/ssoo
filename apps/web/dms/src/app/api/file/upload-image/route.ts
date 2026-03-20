@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import path from 'node:path';
 import { logger } from '@/lib/utils';
 import { saveFileByHash } from '@/server/services/file/hashStorage';
 

@@ -18,7 +18,7 @@ export interface IngestJob {
   status: IngestJobStatus;
   error?: string;
   storageUri?: string;
-  wikiPath?: string;
+  docPath?: string;
 }
 
 export interface SubmitIngestRequest {
@@ -50,8 +50,8 @@ class IngestQueueService {
     return path.join(this.getQueueRootPath(), 'jobs.json');
   }
 
-  private getPublishedWikiRootPath(): string {
-    return path.join(configService.getWikiDir(), 'ingest');
+  private getPublishedDocRootPath(): string {
+    return path.join(configService.getDocDir(), 'ingest');
   }
 
   private loadQueue(): IngestQueueShape {
@@ -97,11 +97,11 @@ class IngestQueueService {
       status: storageStatus,
     });
 
-    const wikiDir = this.getPublishedWikiRootPath();
-    ensureDirectory(wikiDir);
-    const wikiFileName = `${job.id}-${job.title}.md`.replace(/\s+/g, '-');
-    const wikiPath = path.join(wikiDir, wikiFileName);
-    const wikiContent = [
+    const docRootDir = this.getPublishedDocRootPath();
+    ensureDirectory(docRootDir);
+    const docFileName = `${job.id}-${job.title}.md`.replace(/\s+/g, '-');
+    const docFilePath = path.join(docRootDir, docFileName);
+    const docContent = [
       `# ${job.title}`,
       '',
       '> 자동 수집 문서',
@@ -116,13 +116,13 @@ class IngestQueueService {
       job.content,
       '',
     ].join('\n');
-    fs.writeFileSync(wikiPath, wikiContent, 'utf-8');
+    fs.writeFileSync(docFilePath, docContent, 'utf-8');
 
     return {
       ...job,
       status: 'published',
       storageUri: storageRef.storageUri,
-      wikiPath: path.relative(configService.getWikiDir(), wikiPath).replace(/\\/g, '/'),
+      docPath: path.relative(configService.getDocDir(), docFilePath).replace(/\\/g, '/'),
       updatedAt: new Date().toISOString(),
       error: undefined,
     };

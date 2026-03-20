@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, ImageIcon, Bookmark } from 'lucide-react';
+import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { useFileStore, useSidebarStore, useTabStore, useActiveEditorFilePath } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
 import { filterFileTree } from '@/lib/utils/fileTree';
@@ -178,13 +179,21 @@ function sortNodes(nodes: FileNode[]): FileNode[] {
  * 사이드바 전체 파일 트리 (PMS MenuTree 스타일)
  */
 export function FileTree() {
-  const { files } = useFileStore();
+  const { files, isLoading, isInitialized } = useFileStore();
   const { searchQuery } = useSidebarStore();
   
   const displayTree = useMemo(() => {
     const filtered = searchQuery ? filterFileTree(files, searchQuery) : files;
     return sortNodes(filtered);
   }, [files, searchQuery]);
+
+  if (isLoading && !isInitialized) {
+    return (
+      <div className="px-3 py-4 flex items-center justify-center">
+        <LoadingSpinner message="파일을 불러오는 중..." className="text-gray-400" />
+      </div>
+    );
+  }
 
   if (displayTree.length === 0) {
     return (

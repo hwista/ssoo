@@ -222,6 +222,13 @@ class TemplateService {
     }
   }
 
+  get(id: string, scope: 'global' | 'personal', userId = 'anonymous'): TemplateItem | null {
+    this.ensureRoots();
+    const owner = scope === 'global' ? 'system' : userId;
+    const markdownPath = getTemplateFilePath(scope, owner, id);
+    return readTemplateFromFile(markdownPath);
+  }
+
   list(userId = 'anonymous'): { global: TemplateItem[]; personal: TemplateItem[] } {
     this.ensureRoots();
     return {

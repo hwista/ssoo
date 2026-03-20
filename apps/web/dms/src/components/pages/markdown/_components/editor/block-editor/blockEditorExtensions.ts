@@ -1,10 +1,9 @@
 'use client';
 
-import { Annotation, EditorState, Facet, type Range, StateEffect, StateField, type StateEffectType } from '@codemirror/state';
+import { Annotation, EditorState, StateEffect, StateField, type StateEffectType } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view';
 import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
-import diff from 'fast-diff';
 
 export type SelectionRange = { from: number; to: number };
 
@@ -14,73 +13,6 @@ export const setPendingInsertEffect = StateEffect.define<{
   range?: SelectionRange | null;
   loading?: boolean;
 }>();
-
-/** 원본 콘텐츠를 Facet으로 에디터에 전달 */
-export const originalContentFacet = Facet.define<string, string>({
-  combine: (values) => values[values.length - 1] ?? '',
-});
-
-/** 삭제된 텍스트를 인라인으로 표시하는 위젯 */
-class DeletedTextWidget extends WidgetType {
-  constructor(readonly text: string) {
-    super();
-  }
-  toDOM() {
-    const span = document.createElement('span');
-    span.className = 'cm-deletedText';
-    span.textContent = this.text;
-    return span;
-  }
-  eq(other: DeletedTextWidget) {
-    return this.text === other.text;
-  }
-  get estimatedHeight() {
-    return -1;
-  }
-}
-
-/** 원본 대비 변경된 문자를 하이라이트하는 StateField */
-export const changedLinesField = StateField.define<DecorationSet>({
-  create(state) {
-    return computeCharLevelDecorations(state);
-  },
-  update(value, tr) {
-    if (tr.docChanged || tr.effects.length > 0) {
-      return computeCharLevelDecorations(tr.state);
-    }
-    return value;
-  },
-  provide: (field) => EditorView.decorations.from(field),
-});
-
-function computeCharLevelDecorations(state: EditorState): DecorationSet {
-  const original = state.facet(originalContentFacet);
-  if (!original) return Decoration.none;
-
-  const currentText = state.doc.toString();
-  if (currentText === original) return Decoration.none;
-
-  const diffs = diff(original, currentText);
-  const decorations: Range<Decoration>[] = [];
-  let pos = 0;
-
-  for (const [op, text] of diffs) {
-    if (op === diff.EQUAL) {
-      pos += text.length;
-    } else if (op === diff.INSERT) {
-      decorations.push(
-        Decoration.mark({ class: 'cm-changedText' }).range(pos, pos + text.length)
-      );
-      pos += text.length;
-    } else if (op === diff.DELETE) {
-      decorations.push(
-        Decoration.widget({ widget: new DeletedTextWidget(text), side: -1 }).range(pos)
-      );
-    }
-  }
-
-  return decorations.length > 0 ? Decoration.set(decorations, true) : Decoration.none;
-}
 
 function normalizeRange(docLength: number, range: SelectionRange | null): SelectionRange | null {
   if (!range) return null;
@@ -231,7 +163,7 @@ export const pendingInsertField = StateField.define<{
 export const editorTheme = EditorView.theme({
   '&': {
     height: '100%',
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, Roboto, "Segoe UI", "Noto Sans KR", sans-serif',
     fontSize: '1rem',
   },
   '.cm-scroller': { height: '100%', padding: '1.5rem 2rem', overflowY: 'auto', overflowX: 'hidden', fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'normal' },
@@ -245,17 +177,6 @@ export const editorTheme = EditorView.theme({
   '.cm-savedSelection': { backgroundColor: 'rgba(99, 102, 241, 0.15)', borderRadius: '2px' },
   '.cm-pendingInsertLine': { backgroundColor: 'rgba(245, 158, 11, 0.12)' },
   '.cm-pendingInsertRange': { backgroundColor: 'rgba(245, 158, 11, 0.2)', borderRadius: '2px' },
-  '.cm-changedText': {
-    backgroundColor: 'rgba(250, 0, 45, 0.08)',
-    borderRadius: '2px',
-  },
-  '.cm-deletedText': {
-    color: 'rgba(156, 163, 175, 0.7)',
-    backgroundColor: 'rgba(250, 0, 45, 0.08)',
-    textDecoration: 'line-through',
-    borderRadius: '2px',
-    fontSize: '0.9em',
-  },
   '.cm-pendingInsertSpinner': {
     display: 'inline-flex',
     alignItems: 'center',

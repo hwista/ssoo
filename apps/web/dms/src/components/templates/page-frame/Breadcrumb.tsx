@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils';
 export interface BreadcrumbProps {
   /** 파일 경로 (예: 'docs/architecture/tech-stack.md') */
   filePath: string;
+  /** 마지막 세그먼트를 오버라이드할 라벨 (예: 문서 제목) */
+  lastSegmentLabel?: string;
   /** 경로 세그먼트 클릭 시 해당 폴더로 이동 */
   onPathClick?: (path: string) => void;
   /** 편집 중 상태 표시 */
@@ -51,6 +53,7 @@ const SEGMENT_DISPLAY_NAMES: Record<string, string> = {
  */
 export function Breadcrumb({
   filePath,
+  lastSegmentLabel,
   onPathClick,
   isEditing = false,
   rootIconVariant = 'default',
@@ -128,7 +131,7 @@ export function Breadcrumb({
             {isLast ? (
               // 마지막 세그먼트는 클릭 불가, 볼드 (PMS 스타일)
               <span className="flex shrink-0 items-center gap-1 text-ssoo-primary font-medium">
-                {segment}
+                {lastSegmentLabel || segment}
                 {isEditing && (
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-ssoo-primary/60" />
                 )}

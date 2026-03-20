@@ -10,7 +10,7 @@ interface SidecarMetadataShape {
 }
 
 export function getRootDir(): string {
-  return configService.getWikiDir();
+  return configService.getDocDir();
 }
 
 export function listMarkdownFiles(dirPath: string): string[] {

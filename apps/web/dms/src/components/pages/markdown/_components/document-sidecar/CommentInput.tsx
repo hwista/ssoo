@@ -1,16 +1,30 @@
 'use client';
 
 import * as React from 'react';
-import { Send } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 
-export function CommentInput({ onAdd }: { onAdd: (content: string) => void }) {
+export interface CommentInputProps {
+  onAdd: (content: string, parentId?: string) => void;
+  replyTo?: { id: string; author: string };
+  onCancelReply?: () => void;
+}
+
+export function CommentInput({ onAdd, replyTo, onCancelReply }: CommentInputProps) {
   const [inputValue, setInputValue] = React.useState('');
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  React.useEffect(() => {
+    if (replyTo) {
+      textareaRef.current?.focus();
+    }
+  }, [replyTo]);
 
   const handleSubmit = () => {
     const trimmed = inputValue.trim();
     if (trimmed) {
-      onAdd(trimmed);
+      onAdd(trimmed, replyTo?.id);
       setInputValue('');
+      onCancelReply?.();
     }
   };
 
@@ -19,16 +33,33 @@ export function CommentInput({ onAdd }: { onAdd: (content: string) => void }) {
       event.preventDefault();
       handleSubmit();
     }
+    if (event.key === 'Escape' && replyTo) {
+      onCancelReply?.();
+    }
   };
 
   return (
     <div className="flex-shrink-0 border-t border-ssoo-content-border p-3">
+      {replyTo && (
+        <div className="mb-1.5 flex items-center gap-1 text-xs text-ssoo-primary/60">
+          <span>@{replyTo.author}에게 답글</span>
+          <button
+            type="button"
+            onClick={onCancelReply}
+            className="ml-auto rounded p-0.5 hover:bg-ssoo-content-border"
+            aria-label="답글 취소"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
       <div className="relative">
         <textarea
+          ref={textareaRef}
           value={inputValue}
           onChange={(event) => setInputValue(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="댓글 입력... (Enter 전송)"
+          placeholder={replyTo ? `@${replyTo.author}에게 답글...` : '댓글 입력... (Enter 전송)'}
           rows={2}
           className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 pr-8 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
         />

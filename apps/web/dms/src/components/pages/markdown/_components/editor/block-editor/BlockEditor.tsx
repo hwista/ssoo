@@ -10,7 +10,8 @@ import React, {
 } from 'react';
 import { EditorToolbar, type ToolbarCommandId } from '../Toolbar';
 import { BlockEditorPreview, SlashCommandMenu } from './BlockEditorPanels';
-import { applyEditorCommand, resolveWikiDocPath } from './blockEditorCommands';
+import { applyEditorCommand, resolveDocPath } from './blockEditorCommands';
+import { undo as cmUndo, redo as cmRedo } from '@codemirror/commands';
 import {
   ExternalChange,
   SelectionRange,
@@ -46,11 +47,12 @@ export interface BlockEditorRef {
   getSelection: () => { from: number; to: number };
   insertAt: (from: number, to: number, text: string) => void;
   setPendingInsert: (range: { from: number; to: number } | null) => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   content,
-  originalContent = '',
   onChange,
   onSave,
   editable = true,
@@ -95,7 +97,6 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   const { viewRef } = useBlockEditorView({
     containerRef,
     content,
-    originalContent,
     editable,
     placeholder,
     isPendingInsertLoading,
@@ -135,7 +136,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   }, [isPreview]);
 
   const openHrefInEditorMode = useCallback((href: string) => {
-    const docPath = resolveWikiDocPath(href, currentFilePath);
+    const docPath = resolveDocPath(href, currentFilePath);
     if (docPath) {
       const title = docPath.split('/').pop() || docPath;
       openTab({ title, path: `/doc/${encodeURIComponent(docPath)}`, activate: true });
@@ -225,6 +226,14 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
       view.dispatch({
         effects: setPendingInsertEffect.of({ range }),
       });
+    },
+    undo: () => {
+      const view = viewRef.current;
+      if (view) cmUndo(view);
+    },
+    redo: () => {
+      const view = viewRef.current;
+      if (view) cmRedo(view);
     },
   }), [content, onChange, viewRef]);
 

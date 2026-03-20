@@ -1,31 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { EditorInputDialog } from './EditorInputDialog';
 import { ImageInsertDialog } from './ImageInsertDialog';
 import { LinkInsertDialog } from './LinkInsertDialog';
 import { SaveLocationDialog } from '@/components/common/save-location';
 import type { SaveLocationResult } from '@/components/common/save-location';
-
-interface InputDialogState {
-  open: boolean;
-  title: string;
-  description?: string;
-  label: string;
-  placeholder?: string;
-  defaultValue: string;
-  confirmText: string;
-}
-
-const INITIAL_STATE: InputDialogState = {
-  open: false,
-  title: '',
-  description: undefined,
-  label: '',
-  placeholder: undefined,
-  defaultValue: '',
-  confirmText: '확인',
-};
 
 interface SaveLocationState {
   open: boolean;
@@ -51,25 +30,16 @@ export interface CreatePathResult {
 /** blob URL → File 맵 (문서 저장 시 일괄 업로드 용) */
 export type PendingImageMap = Map<string, File>;
 
-export function useEditorCreatePathDialog(currentFilePath?: string | null, getEditorContent?: () => string) {
-  const [dialogState, setDialogState] = React.useState<InputDialogState>(INITIAL_STATE);
+export function useEditorCreatePathDialog(currentFilePath?: string | null) {
   const [saveLocationState, setSaveLocationState] = React.useState<SaveLocationState>(INITIAL_SAVE_LOCATION);
   const [imageDialogOpen, setImageDialogOpen] = React.useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = React.useState(false);
-  const resolverRef = React.useRef<((value: string | null) => void) | null>(null);
   const saveLocationResolverRef = React.useRef<((value: CreatePathResult | null) => void) | null>(null);
   const imageResolverRef = React.useRef<((value: string | null) => void) | null>(null);
   const linkResolverRef = React.useRef<((value: string | null) => void) | null>(null);
 
   // 업로드 대기 중인 이미지 (blob URL → File)
   const pendingImagesRef = React.useRef<PendingImageMap>(new Map());
-
-  const openInputDialog = React.useCallback((state: Omit<InputDialogState, 'open'>) => {
-    return new Promise<string | null>((resolve) => {
-      resolverRef.current = resolve;
-      setDialogState({ open: true, ...state });
-    });
-  }, []);
 
   const requestSaveLocation = React.useCallback((params: {
     suggestedTitle?: string;
@@ -117,12 +87,6 @@ export function useEditorCreatePathDialog(currentFilePath?: string | null, getEd
     });
   }, []);
 
-  const closeDialog = React.useCallback((value: string | null) => {
-    resolverRef.current?.(value);
-    resolverRef.current = null;
-    setDialogState(INITIAL_STATE);
-  }, []);
-
   const closeSaveLocation = React.useCallback((result: SaveLocationResult | null) => {
     if (result) {
       const fullPath = result.directory
@@ -167,18 +131,6 @@ export function useEditorCreatePathDialog(currentFilePath?: string | null, getEd
     clearPendingImages,
     createPathDialog: (
       <>
-        <EditorInputDialog
-          open={dialogState.open}
-          title={dialogState.title}
-          description={dialogState.description}
-          label={dialogState.label}
-          placeholder={dialogState.placeholder}
-          defaultValue={dialogState.defaultValue}
-          confirmText={dialogState.confirmText}
-          cancelText="취소"
-          onConfirm={(value) => closeDialog(value || null)}
-          onCancel={() => closeDialog(null)}
-        />
         <SaveLocationDialog
           open={saveLocationState.open}
           onOpenChange={(open) => { if (!open) closeSaveLocation(null); }}
@@ -187,7 +139,6 @@ export function useEditorCreatePathDialog(currentFilePath?: string | null, getEd
           fileName={saveLocationState.fileName}
           isNewDocument={saveLocationState.isNewDocument}
           onConfirm={closeSaveLocation}
-          getEditorContent={getEditorContent}
         />
         <ImageInsertDialog
           open={imageDialogOpen}

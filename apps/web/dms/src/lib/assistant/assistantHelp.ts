@@ -23,7 +23,7 @@ const HELP_ACTIONS = {
     id: 'help-new-doc',
     title: 'AI 문서 작성 열기',
     description: '새 문서에서 인라인 AI 지시로 문서를 작성/수정합니다.',
-    path: '/wiki/new',
+    path: '/doc/new',
     icon: 'FileText',
   },
   settings: {
@@ -50,7 +50,7 @@ function selectActions(input: string): AssistantHelpAction[] {
     actions.push(HELP_ACTIONS.search);
   }
   if (/(ai 작성|작성|요약|create|생성)/i.test(text)) actions.push(HELP_ACTIONS.newDoc);
-  if (/(새 문서|직접 작성|편집|에디터|wiki\/new)/i.test(text)) {
+  if (/(새 문서|직접 작성|편집|에디터|doc\/new)/i.test(text)) {
     actions.push(HELP_ACTIONS.newDoc);
   }
   if (/(설정|환경변수|토큰|api key|api키|entra)/i.test(text)) {

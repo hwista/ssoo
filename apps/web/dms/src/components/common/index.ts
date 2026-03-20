@@ -15,3 +15,11 @@ export { ConfirmDialog } from './ConfirmDialog';
 // 이미지 미리보기
 export { ImagePreviewDialog } from './ImagePreviewDialog';
 export type { ImagePreviewDialogProps } from './ImagePreviewDialog';
+
+// 이미지 라이트박스 (미리보기 모달 없이 바로 전체화면)
+export { ImageLightbox } from './ImageLightbox';
+export type { ImageLightboxProps } from './ImageLightbox';
+
+// 유저 아바타
+export { UserAvatar } from './UserAvatar';
+export type { UserAvatarProps } from './UserAvatar';

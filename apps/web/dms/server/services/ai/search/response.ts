@@ -3,7 +3,7 @@ import type { AiContextOptions, SearchResponse, SearchResultItem } from '@/serve
 export function buildCitations(items: SearchResultItem[]) {
   return items.slice(0, 5).map((item) => ({
     title: item.title || item.path,
-    storageUri: `wiki://${item.path.replace(/^\/+/, '')}`,
+    storageUri: `doc://${item.path.replace(/^\/+/, '')}`,
     versionId: undefined,
     webUrl: undefined,
   }));
@@ -23,7 +23,7 @@ export function buildSearchResponse(
   return {
     query,
     results,
-    contextMode: options?.contextMode ?? 'wiki',
+    contextMode: options?.contextMode ?? 'doc',
     confidence: inferConfidence(results.length),
     citations: options?.contextMode === 'deep' ? buildCitations(results) : undefined,
   };

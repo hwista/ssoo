@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, Bot, Copy, FileText, Loader2, RotateCcw, Settings
 import { useCallback, type ComponentType } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MermaidBlock } from '@/components/common/MermaidBlock';
 import { toast } from '@/lib/toast';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
@@ -194,6 +195,13 @@ export function AssistantMessageList({
                             {children}
                           </a>
                         ),
+                        code: ({ className, children, ...rest }) => {
+                          const match = /language-(\w+)/.exec(className ?? '');
+                          if (match?.[1] === 'mermaid') {
+                            return <MermaidBlock code={String(children).replace(/\n$/, '')} />;
+                          }
+                          return <code className={className} {...rest}>{children}</code>;
+                        },
                       }}
                     >
                       {message.text}

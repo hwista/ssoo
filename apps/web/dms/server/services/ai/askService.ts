@@ -11,15 +11,15 @@ import type { AiContextOptions, AskResponse, HandlerResult, SearchResultItem } f
 const IMPLEMENTATION_CONTEXT = [
   'DMS 실제 구현 기능 스냅샷(코드 기준):',
   '- 라우트/API: /api/search(문서 검색), /api/ask(대화형 답변), /api/create(요약 API), /api/doc-assist(인라인 문서작성), /api/file, /api/files, /api/git, /api/settings',
-  '- 주요 화면 경로: /home, /doc/{path}, /wiki/new(직접 작성+인라인 AI), /ai/search(AI 검색), /settings',
-  '- 상단 헤더 기능: 검색 입력(Enter 시 /ai/search 탭), 새 도큐먼트(/wiki/new)',
+  '- 주요 화면 경로: /home, /doc/{path}, /doc/new(직접 작성+인라인 AI), /ai/search(AI 검색), /settings',
+  '- 상단 헤더 기능: 검색 입력(Enter 시 /ai/search 탭), 새 도큐먼트(/doc/new)',
   '- 플로팅 AI 어시스턴트: 질문/검색 의도 분기, 문서 검색 결과 카드, 헬프 액션 버튼(기능 화면으로 즉시 이동)',
   '- 문서 검색 방식: pgvector 시맨틱 검색 우선, 실패/무결과 시 키워드 검색 폴백',
   '- 답변 생성 방식: RAG(검색 문맥 주입) + 대화형 응답, 문맥 부족 시 보조 설명 제공',
 ].join('\n');
 
 function getRootDir(): string {
-  return configService.getWikiDir();
+  return configService.getDocDir();
 }
 
 function buildAssistantSystemPrompt(options?: { attachmentOnly?: boolean }): string {
@@ -79,18 +79,20 @@ async function gatherRAGContext(
 export async function askQuestionStream(
   _query: string,
   messages: Array<{ role: string; content: string }>,
-  options?: { attachmentOnly?: boolean }
+  options?: { attachmentOnly?: boolean; signal?: AbortSignal }
 ) {
   const model = await getChatModel();
 
   return streamText({
     model,
     system: buildAssistantSystemPrompt(options),
+    abortSignal: options?.signal,
     messages: messages.map((message) => ({
       role: message.role as 'user' | 'assistant' | 'system',
       content: message.content,
     })),
     onError: (error: unknown) => {
+      if (options?.signal?.aborted) return;
       const err = error instanceof Error ? error : (error as Record<string, unknown>)?.error;
       const errObj = err instanceof Error ? err : null;
       logger.error('AI 스트리밍 에러', {
@@ -107,7 +109,7 @@ export async function askQuestionStream(
 export async function askQuestion(
   query: string,
   messages: Array<{ role: string; content: string }>,
-  options?: { contextMode?: 'wiki' | 'deep'; activeDocPath?: string }
+  options?: { contextMode?: 'doc' | 'deep'; activeDocPath?: string }
 ): Promise<HandlerResult<AskResponse>> {
   try {
     const model = await getChatModel();
@@ -148,7 +150,7 @@ export async function askQuestion(
 export async function buildRAGMessages(
   query: string,
   chatHistory: Array<{ role: string; content: string }>,
-  options?: { skipSearch?: boolean; includeImplementationContext?: boolean; contextMode?: 'wiki' | 'deep'; activeDocPath?: string }
+  options?: { skipSearch?: boolean; includeImplementationContext?: boolean; contextMode?: 'doc' | 'deep'; activeDocPath?: string; templates?: Array<{ name: string; content: string }> }
 ): Promise<{
   messages: Array<{ role: string; content: string }>;
   sources: SearchResultItem[];
@@ -166,6 +168,13 @@ export async function buildRAGMessages(
       }
       if (context) {
         sections.push(`[참조 문서]\n${context}`);
+      }
+      if (options?.templates && options.templates.length > 0) {
+        const templateSections = options.templates
+          .slice(0, 3)
+          .map((t) => `[문서 템플릿: ${t.name}]\n${t.content.slice(0, 1500)}`)
+          .join('\n\n');
+        sections.push(templateSections);
       }
       if (sections.length === 0) return msg;
       return {

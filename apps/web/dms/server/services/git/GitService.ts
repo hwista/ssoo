@@ -1,5 +1,5 @@
 /**
- * Git Service - data/wiki/ 디렉토리의 Git 저장소 관리
+ * Git Service - data/documents/ 디렉토리의 Git 저장소 관리
  *
  * 역할:
  * - 서버 부트스트랩 시 자동 git init
@@ -58,18 +58,18 @@ export type GitResult<T = unknown> =
 class GitService {
   private git: SimpleGit;
   private initialized = false;
-  private wikiDir: string;
+  private docDir: string;
 
   constructor() {
-    this.wikiDir = configService.getWikiDir();
-    this.git = simpleGit(this.wikiDir);
+    this.docDir = configService.getDocDir();
+    this.git = simpleGit(this.docDir);
   }
 
   /**
    * 저장소 경로 변경 후 재설정 (설정 UI에서 호출)
    */
   reconfigure(newPath: string): void {
-    this.wikiDir = newPath;
+    this.docDir = newPath;
     this.git = simpleGit(newPath);
     this.initialized = false;
     logger.info('Git 저장소 경로 재설정', { path: newPath });
@@ -106,15 +106,15 @@ class GitService {
         await this.git.init();
         await this.configureGit();
         await this.git.add('.');
-        await this.git.commit('Initial commit: wiki repository initialized');
+        await this.git.commit('Initial commit: document repository initialized');
         this.initialized = true;
-        logger.info('Wiki Git 저장소 초기화 완료 (신규)');
+        logger.info('Document Git 저장소 초기화 완료 (신규)');
         return { success: true, data: { isNew: true } };
       }
 
       // 기존 저장소
       this.initialized = true;
-      logger.info('Wiki Git 저장소 연결 (기존)');
+      logger.info('Document Git 저장소 연결 (기존)');
       return { success: true, data: { isNew: false } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';

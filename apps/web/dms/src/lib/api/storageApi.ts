@@ -35,7 +35,7 @@ export interface IngestJobClient {
   status: 'draft' | 'pending_confirm' | 'published' | 'failed';
   error?: string;
   storageUri?: string;
-  wikiPath?: string;
+  docPath?: string;
 }
 
 export const storageApi = {

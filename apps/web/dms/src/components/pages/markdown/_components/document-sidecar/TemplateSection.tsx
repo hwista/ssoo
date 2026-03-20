@@ -57,7 +57,7 @@ export function TemplateSaveSection({
             <option value="global">공통 템플릿</option>
           </select>
         </div>
-        <div className="rounded-md border border-dashed border-ssoo-content-border px-3 py-2 text-xs text-ssoo-primary/65">
+        <div className="rounded-md border border-dashed border-ssoo-content-border px-3 py-2 text-xs text-ssoo-primary/60">
           템플릿 저장 시 위키 문서 파일과 문서용 사이드카는 생성되지 않습니다.
         </div>
       </div>

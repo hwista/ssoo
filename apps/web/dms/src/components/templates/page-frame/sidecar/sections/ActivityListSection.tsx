@@ -39,6 +39,8 @@ export interface ActivityListSectionProps {
   highlightedItemIds?: Set<string>;
   /** 소프트 삭제된 아이템 ID 목록 (취소선+붉은색+되돌리기) */
   deletedItemIds?: Set<string>;
+  /** 삭제 표시만 하고 되돌리기 버튼을 숨길 아이템 ID 목록 */
+  nonRestorableItemIds?: Set<string>;
   /** 소프트 삭제된 아이템 복원 콜백 */
   onItemRestore?: (item: ActivityItem) => void;
   defaultOpen?: boolean;
@@ -62,6 +64,7 @@ export function ActivityListSection({
   badge,
   highlightedItemIds,
   deletedItemIds,
+  nonRestorableItemIds,
   onItemRestore,
   defaultOpen = true,
   sectionVariant = 'default',
@@ -150,7 +153,7 @@ export function ActivityListSection({
                     </div>
                   </div>
                 )}
-                {isDeleted && onItemRestore ? (
+                {isDeleted && onItemRestore && !nonRestorableItemIds?.has(item.id) ? (
                   <div className="mt-0.5 flex shrink-0 items-center gap-1 pr-1">
                     <button
                       type="button"

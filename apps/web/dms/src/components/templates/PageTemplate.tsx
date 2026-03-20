@@ -38,7 +38,9 @@ export interface PageTemplateProps {
   onHistory?: () => void;
   onPathClick?: (path: string) => void;
   breadcrumbRootIconVariant?: 'default' | 'ai' | 'folder' | 'editor';
+  breadcrumbLastSegmentLabel?: string;
   saving?: boolean;
+  saveDisabled?: boolean;
   isPreview?: boolean;
   loading?: boolean;
   error?: Error | string | null;
@@ -69,7 +71,9 @@ export function PageTemplate({
   onHistory,
   onPathClick,
   breadcrumbRootIconVariant = 'default',
+  breadcrumbLastSegmentLabel,
   saving = false,
+  saveDisabled = false,
   isPreview = false,
   loading = false,
   error,
@@ -145,6 +149,7 @@ export function PageTemplate({
       onDelete={onDelete}
       onHistory={onHistory}
       saving={saving}
+      saveDisabled={saveDisabled}
       isPreview={isPreview}
     />
   );
@@ -154,6 +159,7 @@ export function PageTemplate({
       <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
         <Breadcrumb
           filePath={filePath}
+          lastSegmentLabel={breadcrumbLastSegmentLabel}
           onPathClick={onPathClick}
           isEditing={mode === 'editor' || mode === 'create'}
           rootIconVariant={breadcrumbRootIconVariant}
@@ -171,6 +177,7 @@ export function PageTemplate({
       <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
         <Breadcrumb
           filePath={filePath}
+          lastSegmentLabel={breadcrumbLastSegmentLabel}
           onPathClick={onPathClick}
           isEditing={mode === 'editor' || mode === 'create'}
           rootIconVariant={breadcrumbRootIconVariant}
@@ -187,6 +194,7 @@ export function PageTemplate({
     <div className={cn('flex flex-col h-full p-4 gap-4', className)}>
       <Breadcrumb
         filePath={filePath}
+        lastSegmentLabel={breadcrumbLastSegmentLabel}
         onPathClick={onPathClick}
         isEditing={mode === 'editor' || mode === 'create'}
         rootIconVariant={breadcrumbRootIconVariant}

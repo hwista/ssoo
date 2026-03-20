@@ -20,11 +20,23 @@ interface ComposeInput {
 
 export async function composeDocument(input: ComposeInput): Promise<{
   text: string;
-  applyMode: ApplyMode;
+  applyMode: string;
   suggestedPath: string;
   relevanceWarnings: string[];
 }> {
   return docAssistService.composeDocument(input);
+}
+
+export async function composeDocumentStream(
+  input: ComposeInput,
+  signal?: AbortSignal,
+): Promise<{
+  stream: ReadableStream<string>;
+  applyMode: ApplyMode;
+  suggestedPath: string;
+  relevanceWarnings: string[];
+}> {
+  return docAssistService.composeDocumentStream(input, signal);
 }
 
 export function recommendDocumentPath(input: Omit<ComposeInput, 'currentContent'>): {

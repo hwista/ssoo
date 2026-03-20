@@ -1,14 +1,40 @@
 import type { TocItem } from '@/components/templates/page-frame';
-import type { DocumentMetadata } from '@/types';
+import type { DocumentMetadata, SourceFileMeta, DocumentComment } from '@/types';
 import type { DocumentSidecarMetadata } from './_components/DocumentSidecar';
+
+export interface DocumentSidecarDiffAttachment {
+  name: string;
+  path: string;
+  type: string;
+  origin?: SourceFileMeta['origin'];
+  status?: SourceFileMeta['status'];
+}
+
+export interface DocumentSidecarDiffComment {
+  id: string;
+  author: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface DocumentSidecarDiffSnapshot {
+  title: string;
+  summary: string;
+  tags: string[];
+  sourceLinks: string[];
+  commentIds: string[];
+  attachmentPaths: string[];
+  sourceFiles: DocumentSidecarDiffAttachment[];
+  comments: DocumentSidecarDiffComment[];
+}
 
 export function getDocumentFilePath(tabPath: string | undefined): string | null {
   if (
     !tabPath ||
-    tabPath === '/wiki/new' ||
-    tabPath === '/wiki/new-wiki' ||
-    tabPath === '/wiki/new-template' ||
-    tabPath === '/wiki/new-ai-summary'
+    tabPath === '/doc/new' ||
+    tabPath === '/doc/new-doc' ||
+    tabPath === '/doc/new-template' ||
+    tabPath === '/doc/new-ai-summary'
   ) return null;
 
   const path = tabPath.replace(/^\/doc\//, '');
@@ -65,4 +91,56 @@ export function deriveDefaultTemplateName(content: string, fallbackPath: string)
 
   const fallbackName = fallbackPath.split('/').pop()?.replace(/\.md$/i, '').trim();
   return fallbackName || '새 템플릿';
+}
+
+function normalizeSourceFile(file: SourceFileMeta): DocumentSidecarDiffAttachment {
+  return {
+    name: file.name,
+    path: file.path,
+    type: file.type,
+    origin: file.origin,
+    status: file.status,
+  };
+}
+
+function normalizeComment(comment: DocumentComment): DocumentSidecarDiffComment {
+  return {
+    id: comment.id,
+    author: comment.author,
+    content: comment.content,
+    createdAt: comment.createdAt,
+  };
+}
+
+export function buildDocumentSidecarDiffSnapshot(
+  documentMetadata: DocumentMetadata | null | undefined
+): DocumentSidecarDiffSnapshot {
+  const sourceFiles = (documentMetadata?.sourceFiles ?? []).map(normalizeSourceFile);
+  const comments = (documentMetadata?.comments ?? []).map(normalizeComment);
+
+  return {
+    title: documentMetadata?.title ?? '',
+    summary: documentMetadata?.summary ?? '',
+    tags: documentMetadata?.tags ?? [],
+    sourceLinks: documentMetadata?.sourceLinks ?? [],
+    commentIds: comments.map((comment) => comment.id),
+    attachmentPaths: sourceFiles.map((file) => file.path || file.name),
+    sourceFiles,
+    comments,
+  };
+}
+
+export function stringifyDocumentSidecarDiffSnapshot(snapshot: DocumentSidecarDiffSnapshot): string {
+  return JSON.stringify(
+    {
+      title: snapshot.title,
+      summary: snapshot.summary,
+      tags: snapshot.tags,
+      sourceLinks: snapshot.sourceLinks,
+      sourceFiles: snapshot.sourceFiles,
+      comments: snapshot.comments,
+    },
+    null,
+    2
+  );
 }

@@ -8,6 +8,7 @@
 export const dynamic = 'force-dynamic';
 
 
+import { consumeStream } from 'ai';
 import { buildRAGMessages, askQuestion, askQuestionStream } from '@/server/handlers/ai.handler';
 
 /**
@@ -43,9 +44,13 @@ export async function POST(req: Request) {
     : (queryFromBody
       ? [{ role: 'user', content: queryFromBody }]
       : []);
-  const contextMode = body?.contextMode === 'deep' ? 'deep' : 'wiki';
+  const contextMode = body?.contextMode === 'deep' ? 'deep' : 'doc';
   const attachmentOnly = body?.contextMode === 'attachments-only';
   const activeDocPath = typeof body?.activeDocPath === 'string' ? body.activeDocPath : undefined;
+  const templates: Array<{ name: string; content: string }> = Array.isArray(body?.templates)
+    ? body.templates.filter((t: unknown): t is { name: string; content: string } =>
+        typeof t === 'object' && t !== null && typeof (t as Record<string, unknown>).name === 'string' && typeof (t as Record<string, unknown>).content === 'string')
+    : [];
   const stream = body?.stream !== false;
 
   if (rawMessages.length === 0) {
@@ -68,8 +73,8 @@ export async function POST(req: Request) {
     lastUserMessage.content,
     messages,
     attachmentOnly
-      ? { skipSearch: true, includeImplementationContext: false, contextMode, activeDocPath }
-      : { contextMode, activeDocPath }
+      ? { skipSearch: true, includeImplementationContext: false, contextMode, activeDocPath, templates }
+      : { contextMode, activeDocPath, templates }
   );
 
   if (!stream) {
@@ -81,6 +86,11 @@ export async function POST(req: Request) {
   }
 
   // 스트리밍 응답
-  const result = await askQuestionStream(lastUserMessage.content, augmentedMessages, { attachmentOnly });
-  return result.toUIMessageStreamResponse();
+  const result = await askQuestionStream(lastUserMessage.content, augmentedMessages, {
+    attachmentOnly,
+    signal: req.signal,
+  });
+  return result.toUIMessageStreamResponse({
+    consumeSseStream: consumeStream,
+  });
 }

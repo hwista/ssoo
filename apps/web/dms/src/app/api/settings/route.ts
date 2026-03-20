@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (result.success) {
     return Response.json({
       config: result.config,
-      wikiDir: result.wikiDir,
+      docDir: result.docDir,
     });
   }
   return Response.json({ error: result.error }, { status: 400 });
