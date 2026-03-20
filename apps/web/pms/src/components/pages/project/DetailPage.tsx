@@ -5,7 +5,7 @@ import { useCurrentTab } from '@/hooks/useCurrentTab';
 import { useProjectDetail } from '@/hooks/queries';
 import { LoadingState, ErrorState } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, ListTodo, Flag, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Users, ListTodo, Flag, AlertCircle, FileOutput, ClipboardCheck } from 'lucide-react';
 import { useTabStore } from '@/stores';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { RequestDetailTab } from './tabs/RequestDetailTab';
@@ -16,18 +16,22 @@ import { MembersTab } from './tabs/MembersTab';
 import { TasksTab } from './tabs/TasksTab';
 import { MilestonesTab } from './tabs/MilestonesTab';
 import { IssuesTab } from './tabs/IssuesTab';
+import { DeliverablesTab } from './tabs/DeliverablesTab';
+import { CloseConditionsTab } from './tabs/CloseConditionsTab';
 import { StatusTimeline } from './sections/StatusTimeline';
 import { StageActionBar } from './sections/StageActionBar';
 import type { Project, ProjectStatusCode } from '@/lib/api/endpoints/projects';
 import type { LucideIcon } from 'lucide-react';
 
-type ManagementTabKey = 'members' | 'tasks' | 'milestones' | 'issues';
+type ManagementTabKey = 'members' | 'tasks' | 'milestones' | 'issues' | 'deliverables' | 'closeConditions';
 
 const MANAGEMENT_TABS: { key: ManagementTabKey; label: string; icon: LucideIcon }[] = [
   { key: 'members', label: '멤버', icon: Users },
   { key: 'tasks', label: '태스크', icon: ListTodo },
   { key: 'milestones', label: '마일스톤', icon: Flag },
   { key: 'issues', label: '이슈', icon: AlertCircle },
+  { key: 'deliverables', label: '산출물', icon: FileOutput },
+  { key: 'closeConditions', label: '종료조건', icon: ClipboardCheck },
 ];
 
 const STATUS_TABS: { key: ProjectStatusCode; label: string }[] = [
@@ -179,6 +183,8 @@ export function ProjectDetailPage() {
             {currentManagementTab === 'tasks' && <TasksTab projectId={projectId} />}
             {currentManagementTab === 'milestones' && <MilestonesTab projectId={projectId} />}
             {currentManagementTab === 'issues' && <IssuesTab projectId={projectId} />}
+            {currentManagementTab === 'deliverables' && <DeliverablesTab projectId={projectId} statusCode={project.statusCode} />}
+            {currentManagementTab === 'closeConditions' && <CloseConditionsTab projectId={projectId} statusCode={project.statusCode} />}
           </div>
         </div>
 

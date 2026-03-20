@@ -18,9 +18,9 @@ begin;
 -- 1레벨: 대시보드, 요청, 제안, 수행, 전환
 -- ============================================
 
--- 1. 대시보드 (메인 진입점)
+-- 1. 대시보드 (메인 진입점) — path: /home (ContentArea 기준)
 INSERT INTO pms.cm_menu_m (menu_code, menu_name, menu_name_en, menu_type, menu_path, icon, sort_order, menu_level, is_visible, is_admin_menu, description, updated_at)
-VALUES ('dashboard', '대시보드', 'Dashboard', 'menu', '/dashboard', 'LayoutDashboard', 1, 1, true, false, '전체 현황, KPI, 알림', CURRENT_TIMESTAMP)
+VALUES ('dashboard', '대시보드', 'Dashboard', 'menu', '/home', 'LayoutDashboard', 1, 1, true, false, '전체 현황, KPI, 알림', CURRENT_TIMESTAMP)
 ON CONFLICT (menu_code) DO UPDATE SET
   menu_name = EXCLUDED.menu_name,
   menu_name_en = EXCLUDED.menu_name_en,
@@ -225,6 +225,33 @@ ON CONFLICT (menu_code) DO UPDATE SET
   menu_name = EXCLUDED.menu_name,
   parent_menu_id = (SELECT menu_id FROM pms.cm_menu_m WHERE menu_code = 'admin'),
   is_admin_menu = true,
+  updated_at = CURRENT_TIMESTAMP;
+
+-- ============================================
+-- 2레벨 메뉴 (일반) — 숨겨진 메뉴 (프로그래밍 방식 오픈)
+-- 사이드바에 표시하지 않지만 권한 체크용으로 필요
+-- ============================================
+
+-- 요청 > 요청 등록 (숨김)
+INSERT INTO pms.cm_menu_m (menu_code, menu_name, menu_name_en, menu_type, menu_path, icon, sort_order, menu_level, parent_menu_id, is_visible, is_admin_menu, description, updated_at)
+VALUES ('request.create', '요청 등록', 'Create Request', 'menu', '/request/create', 'Plus', 2, 2,
+        (SELECT menu_id FROM pms.cm_menu_m WHERE menu_code = 'request'), false, false, '새 요청 등록', CURRENT_TIMESTAMP)
+ON CONFLICT (menu_code) DO UPDATE SET
+  menu_name = EXCLUDED.menu_name,
+  menu_path = EXCLUDED.menu_path,
+  parent_menu_id = (SELECT menu_id FROM pms.cm_menu_m WHERE menu_code = 'request'),
+  is_visible = false,
+  is_admin_menu = false,
+  updated_at = CURRENT_TIMESTAMP;
+
+-- 프로젝트 상세 (독립 메뉴, 숨김 — 목록에서 클릭 시 오픈)
+INSERT INTO pms.cm_menu_m (menu_code, menu_name, menu_name_en, menu_type, menu_path, icon, sort_order, menu_level, is_visible, is_admin_menu, description, updated_at)
+VALUES ('project.detail', '프로젝트 상세', 'Project Detail', 'menu', '/project/detail', 'FileText', 99, 1, false, false, '프로젝트 상세 조회 (목록에서 클릭 시 오픈)', CURRENT_TIMESTAMP)
+ON CONFLICT (menu_code) DO UPDATE SET
+  menu_name = EXCLUDED.menu_name,
+  menu_path = EXCLUDED.menu_path,
+  is_visible = false,
+  is_admin_menu = false,
   updated_at = CURRENT_TIMESTAMP;
 
 -- ============================================

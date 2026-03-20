@@ -29,6 +29,12 @@ import type {
   IssueItem,
   CreateIssueRequest,
   UpdateIssueRequest,
+  DeliverableItem,
+  UpsertDeliverableRequest,
+  UpdateSubmissionRequest,
+  CloseConditionItem,
+  UpsertCloseConditionRequest,
+  ToggleCheckRequest,
 } from '@/lib/api/endpoints/projects';
 import type { ApiResponse, PaginatedResponse } from '@/lib/api/types';
 
@@ -374,6 +380,102 @@ export function useDeleteIssue() {
       projectsApi.deleteIssue(projectId, issueId),
     onSuccess: (_: ApiResponse<null>, variables) => {
       queryClient.invalidateQueries({ queryKey: issueKeys.all(variables.projectId) });
+    },
+  });
+}
+
+// ─── 산출물 ───
+
+export const deliverableKeys = {
+  all: (projectId: number) => [...projectKeys.detail(projectId), 'deliverables'] as const,
+};
+
+export function useProjectDeliverables(projectId: number, statusCode?: string) {
+  return useQuery({
+    queryKey: [...deliverableKeys.all(projectId), statusCode] as const,
+    queryFn: () => projectsApi.getDeliverables(projectId, statusCode),
+    enabled: !!projectId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpsertDeliverable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: UpsertDeliverableRequest }) =>
+      projectsApi.upsertDeliverable(projectId, data),
+    onSuccess: (_: ApiResponse<DeliverableItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: deliverableKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useUpdateDeliverableSubmission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, statusCode, deliverableCode, data }: { projectId: number; statusCode: string; deliverableCode: string; data: UpdateSubmissionRequest }) =>
+      projectsApi.updateDeliverableSubmission(projectId, statusCode, deliverableCode, data),
+    onSuccess: (_: ApiResponse<DeliverableItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: deliverableKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useDeleteDeliverable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, statusCode, deliverableCode }: { projectId: number; statusCode: string; deliverableCode: string }) =>
+      projectsApi.deleteDeliverable(projectId, statusCode, deliverableCode),
+    onSuccess: (_: ApiResponse<null>, variables) => {
+      queryClient.invalidateQueries({ queryKey: deliverableKeys.all(variables.projectId) });
+    },
+  });
+}
+
+// ─── 종료 조건 ───
+
+export const closeConditionKeys = {
+  all: (projectId: number) => [...projectKeys.detail(projectId), 'close-conditions'] as const,
+};
+
+export function useProjectCloseConditions(projectId: number, statusCode?: string) {
+  return useQuery({
+    queryKey: [...closeConditionKeys.all(projectId), statusCode] as const,
+    queryFn: () => projectsApi.getCloseConditions(projectId, statusCode),
+    enabled: !!projectId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpsertCloseCondition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: UpsertCloseConditionRequest }) =>
+      projectsApi.upsertCloseCondition(projectId, data),
+    onSuccess: (_: ApiResponse<CloseConditionItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: closeConditionKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useToggleCloseCondition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, statusCode, conditionCode, data }: { projectId: number; statusCode: string; conditionCode: string; data: ToggleCheckRequest }) =>
+      projectsApi.toggleCloseCondition(projectId, statusCode, conditionCode, data),
+    onSuccess: (_: ApiResponse<CloseConditionItem>, variables) => {
+      queryClient.invalidateQueries({ queryKey: closeConditionKeys.all(variables.projectId) });
+    },
+  });
+}
+
+export function useDeleteCloseCondition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, statusCode, conditionCode }: { projectId: number; statusCode: string; conditionCode: string }) =>
+      projectsApi.deleteCloseCondition(projectId, statusCode, conditionCode),
+    onSuccess: (_: ApiResponse<null>, variables) => {
+      queryClient.invalidateQueries({ queryKey: closeConditionKeys.all(variables.projectId) });
     },
   });
 }

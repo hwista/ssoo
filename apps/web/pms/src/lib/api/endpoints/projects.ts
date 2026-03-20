@@ -365,6 +365,64 @@ export interface UpdateIssueRequest {
   memo?: string;
 }
 
+// ─── 산출물 ───
+
+export interface DeliverableItem {
+  projectId: number | string;
+  statusCode: string;
+  deliverableCode: string;
+  deliverableName?: string;
+  submissionStatusCode: string;
+  submittedAt?: string | null;
+  submittedBy?: number | string | null;
+  originalFileName?: string | null;
+  memo?: string | null;
+  isActive: boolean;
+  deliverable?: {
+    deliverableName: string;
+    description?: string | null;
+    sortOrder: number;
+  };
+}
+
+export interface UpsertDeliverableRequest {
+  statusCode: string;
+  deliverableCode: string;
+  submissionStatusCode: string;
+  memo?: string;
+}
+
+export interface UpdateSubmissionRequest {
+  submissionStatusCode: string;
+}
+
+// ─── 종료 조건 ───
+
+export interface CloseConditionItem {
+  projectId: number | string;
+  statusCode: string;
+  conditionCode: string;
+  requiresDeliverable: boolean;
+  isChecked: boolean;
+  checkedAt?: string | null;
+  checkedBy?: number | string | null;
+  sortOrder: number;
+  memo?: string | null;
+  isActive: boolean;
+}
+
+export interface UpsertCloseConditionRequest {
+  statusCode: string;
+  conditionCode: string;
+  requiresDeliverable: boolean;
+  sortOrder?: number;
+  memo?: string;
+}
+
+export interface ToggleCheckRequest {
+  isChecked: boolean;
+}
+
 /**
  * 프로젝트 필터
  */
@@ -577,6 +635,54 @@ export const projectsApi = {
 
   deleteIssue: async (projectId: number, issueId: string): Promise<ApiResponse<null>> => {
     const response = await apiClient.delete<ApiResponse<null>>(`/projects/${projectId}/issues/${issueId}`);
+    return response.data;
+  },
+
+  // ─── 산출물 ───
+
+  getDeliverables: async (projectId: number, statusCode?: string): Promise<ApiResponse<DeliverableItem[]>> => {
+    const response = await apiClient.get<ApiResponse<DeliverableItem[]>>(`/projects/${projectId}/deliverables`, {
+      params: statusCode ? { statusCode } : undefined,
+    });
+    return response.data;
+  },
+
+  upsertDeliverable: async (projectId: number, data: UpsertDeliverableRequest): Promise<ApiResponse<DeliverableItem>> => {
+    const response = await apiClient.post<ApiResponse<DeliverableItem>>(`/projects/${projectId}/deliverables`, data);
+    return response.data;
+  },
+
+  updateDeliverableSubmission: async (projectId: number, statusCode: string, deliverableCode: string, data: UpdateSubmissionRequest): Promise<ApiResponse<DeliverableItem>> => {
+    const response = await apiClient.patch<ApiResponse<DeliverableItem>>(`/projects/${projectId}/deliverables/${statusCode}/${deliverableCode}/submission`, data);
+    return response.data;
+  },
+
+  deleteDeliverable: async (projectId: number, statusCode: string, deliverableCode: string): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(`/projects/${projectId}/deliverables/${statusCode}/${deliverableCode}`);
+    return response.data;
+  },
+
+  // ─── 종료 조건 ───
+
+  getCloseConditions: async (projectId: number, statusCode?: string): Promise<ApiResponse<CloseConditionItem[]>> => {
+    const response = await apiClient.get<ApiResponse<CloseConditionItem[]>>(`/projects/${projectId}/close-conditions`, {
+      params: statusCode ? { statusCode } : undefined,
+    });
+    return response.data;
+  },
+
+  upsertCloseCondition: async (projectId: number, data: UpsertCloseConditionRequest): Promise<ApiResponse<CloseConditionItem>> => {
+    const response = await apiClient.post<ApiResponse<CloseConditionItem>>(`/projects/${projectId}/close-conditions`, data);
+    return response.data;
+  },
+
+  toggleCloseCondition: async (projectId: number, statusCode: string, conditionCode: string, data: ToggleCheckRequest): Promise<ApiResponse<CloseConditionItem>> => {
+    const response = await apiClient.patch<ApiResponse<CloseConditionItem>>(`/projects/${projectId}/close-conditions/${statusCode}/${conditionCode}/check`, data);
+    return response.data;
+  },
+
+  deleteCloseCondition: async (projectId: number, statusCode: string, conditionCode: string): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(`/projects/${projectId}/close-conditions/${statusCode}/${conditionCode}`);
     return response.data;
   },
 };
