@@ -4,6 +4,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  serverExternalPackages: ['@napi-rs/canvas'],
 };
 
 module.exports = nextConfig;
