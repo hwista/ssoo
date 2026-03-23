@@ -1,37 +1,17 @@
-# Dependencies
 node_modules
-.pnp
-.pnp.js
-
-# Build output
 .next
-out
-build
-
-# Environment
+.git
+.github
+docs
+*.md
+!README.md
 .env
 .env.*
 !.env.example
-
-# Data (mounted as volumes)
-data/
-
-# Development
-.git
-.gitignore
-*.md
-!README.md
-coverage
-.vscode
-.idea
-
-# Config (user-specific)
-dms.config.json
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Debug
 npm-debug.log*
 yarn-debug.log*
+.vscode
+dms.config.json
+data/ingest
+data/storage
