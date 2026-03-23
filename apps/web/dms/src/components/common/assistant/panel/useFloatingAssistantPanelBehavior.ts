@@ -112,7 +112,7 @@ export function useFloatingAssistantPanelBehavior({
 
   const panelClassName = useMemo(() => (
     [
-      'fixed right-6 top-[calc(3.75rem+53px+0.75rem)] bottom-24 z-40',
+      'fixed right-6 top-[calc(3.75rem+53px+0.75rem)] bottom-[92px] z-40',
       'w-[min(504px,calc(100vw-2rem))] rounded-xl border border-ssoo-content-border bg-white shadow-2xl',
       'flex flex-col',
       'transition-all duration-200',
