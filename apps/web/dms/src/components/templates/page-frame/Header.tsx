@@ -59,7 +59,7 @@ export interface HeaderProps {
   extraActionsPosition?: 'left' | 'right';
   /** editor/create 모드 우측 슬롯 (저장 버튼 앞에 배치) */
   editorRightSlot?: React.ReactNode;
-  /** editor/create 모드 좌측 슬롯 (취소 버튼 뒤에 배치) */
+  /** editor/create 모드 좌측 슬롯 (편집종료/작성취소 버튼 뒤에 배치) */
   editorPreviewSlot?: React.ReactNode;
   
   /** 추가 className */
@@ -148,7 +148,7 @@ export function Header({
                 className="h-control-h"
               >
                 <Edit className="h-4 w-4 mr-1.5" />
-                수정
+                편집
               </Button>
             )}
           </>
@@ -165,7 +165,7 @@ export function Header({
                 className="h-control-h"
               >
                 <X className="h-4 w-4 mr-1.5" />
-                취소
+                {mode === 'create' ? '작성취소' : '편집종료'}
               </Button>
             )}
             {editorPreviewSlot}

@@ -121,6 +121,8 @@ export function DocumentPage() {
   const [diffTarget, setDiffTarget] = useState<DiffTarget>('content');
   const [diffDraftContent, setDiffDraftContent] = useState<string | null>(null);
   const [diffMetadataSnapshotText, setDiffMetadataSnapshotText] = useState<string | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const [saveAsTemplateOnly, setSaveAsTemplateOnly] = useState(false);
   const [templateSaveDraft, setTemplateSaveDraft] = useState<TemplateSaveDraft>({
     name: '',
@@ -897,8 +899,15 @@ export function DocumentPage() {
 
     await editorHandlers?.save();
 
-    // 저장 성공 후 diff 스냅샷을 현재 메타데이터로 갱신 (하이라이트 초기화)
-    setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(documentMetadata));
+    // 저장 성공 후 diff 스냅샷 갱신 (하이라이트 초기화)
+    // create 모드: 탭 ID 변경으로 컴포넌트가 재마운트되므로 null로 초기화
+    // (재마운트 시 초기화 effect가 디스크에서 로드된 메타데이터로 올바르게 재설정)
+    // 기존 문서: 클로저의 documentMetadata로 스냅샷 갱신
+    if (isCreateMode) {
+      setOriginalMetaSnapshot(null);
+    } else {
+      setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(documentMetadata));
+    }
 
     // 저장 완료 후 보류 중인 파일 이동 적용
     if (pendingFileMove && filePath && tabId && pendingFileMove !== filePath) {
@@ -1242,6 +1251,11 @@ export function DocumentPage() {
     />
   ) : null;
 
+  const handleHistoryChange = useCallback((nextCanUndo: boolean, nextCanRedo: boolean) => {
+    setCanUndo(nextCanUndo);
+    setCanRedo(nextCanRedo);
+  }, []);
+
   const handleDiffToggle = useCallback(() => {
     if (surfaceMode === 'diff') {
       setSurfaceMode('edit');
@@ -1497,7 +1511,7 @@ export function DocumentPage() {
     >
       <PageTemplate
         filePath={filePath || '새 문서.md'}
-        mode={mode === 'create' ? 'editor' : mode}
+        mode={mode}
         breadcrumbRootIconVariant={isCreateMode ? 'editor' : 'folder'}
         breadcrumbLastSegmentLabel={documentMetadata?.title?.trim() || undefined}
         contentOrientation="portrait"
@@ -1592,6 +1606,7 @@ export function DocumentPage() {
               onEditorContentChange={handleEditorContentChange}
               onLinkClick={handleViewerLinkClick}
               onImageClick={handleViewerImageClick}
+              onHistoryChange={handleHistoryChange}
             />
           );
           const inlineComposer = (
@@ -1646,7 +1661,7 @@ export function DocumentPage() {
                       />
                     </>
                   )}
-                  {(hasUnsavedChanges || surfaceMode === 'diff') && (
+                  {(hasUnsavedChanges || surfaceMode === 'diff' || surfaceMode === 'edit') && (
                     <>
                       <div className="flex-1" />
                       {surfaceMode === 'edit' && (
@@ -1655,6 +1670,7 @@ export function DocumentPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              disabled={!canUndo}
                               onClick={() => editorRef.current?.undo()}
                             >
                               <Undo2 className="h-4 w-4" />
@@ -1664,6 +1680,7 @@ export function DocumentPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              disabled={!canRedo}
                               onClick={() => editorRef.current?.redo()}
                             >
                               <Redo2 className="h-4 w-4" />
@@ -1681,6 +1698,7 @@ export function DocumentPage() {
                       <DiffToggleButton
                         mode={mode}
                         active={surfaceMode === 'diff'}
+                        disabled={!hasUnsavedChanges && surfaceMode !== 'diff'}
                         onToggle={handleDiffToggle}
                       />
                     </>

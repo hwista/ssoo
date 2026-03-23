@@ -164,6 +164,8 @@ interface DocumentPageContentProps {
   onLinkClick?: (href: string) => void;
   /** 본문 <img> 클릭 */
   onImageClick?: (src: string, alt: string) => void;
+  /** undo/redo 가용성 변경 콜백 */
+  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
 }
 
 export function DocumentPageContent({
@@ -189,6 +191,7 @@ export function DocumentPageContent({
   onEditorContentChange,
   onLinkClick,
   onImageClick,
+  onHistoryChange,
 }: DocumentPageContentProps) {
   if (error) {
     return (
@@ -238,6 +241,7 @@ export function DocumentPageContent({
       onTemplateSaved={() => {
         setSaveAsTemplateOnly(false);
       }}
+      onHistoryChange={onHistoryChange}
     />
   );
 }

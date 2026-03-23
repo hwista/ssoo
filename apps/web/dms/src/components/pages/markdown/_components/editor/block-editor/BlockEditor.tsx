@@ -36,6 +36,7 @@ export interface BlockEditorProps {
   requestImageUrl?: () => Promise<string | null>;
   requestLinkUrl?: () => Promise<string | null>;
   openExternalHref?: (href: string) => void;
+  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
 }
 
 export interface BlockEditorRef {
@@ -65,6 +66,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   requestImageUrl,
   requestLinkUrl,
   openExternalHref,
+  onHistoryChange,
 }, ref) => {
   const { openTab } = useTabStore();
 
@@ -91,9 +93,11 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
 
   const applyCommandRef = useRef<(id: ToolbarCommandId, fromSlash?: boolean) => void>(() => {});
   const openHrefRef = useRef<(href: string) => void>(() => {});
+  const onHistoryChangeRef = useRef(onHistoryChange);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
+  useEffect(() => { onHistoryChangeRef.current = onHistoryChange; }, [onHistoryChange]);
   const { viewRef } = useBlockEditorView({
     containerRef,
     content,
@@ -106,6 +110,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
     savedSelectionRef,
     applyCommandRef,
     openHrefRef,
+    onHistoryChangeRef,
     updateSlashFromView,
     moveSelection,
     resolveSelectedCommand,
