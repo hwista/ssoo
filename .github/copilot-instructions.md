@@ -181,9 +181,18 @@ URL은 항상 `/` 고정. `ContentArea`가 메뉴 path 기반으로 페이지를
 - Import alias: `@/*` → `./src/*`, `@/server/*` → `./server/*`
 - 빌드: `pnpm run build:web-dms`, 가드: `pnpm run codex:dms-guard`
 
+### CHS: 커뮤니티 허브 (SNS/게시판/인력풀)
+
+- PMS와 동일 기술 스택 (shadcn/ui, Zustand, TanStack Query, Axios)
+- PMS와 달리 **페이지 라우팅** 사용 (MDI 탭 시스템 없음, Next.js App Router 기본 라우팅)
+- 색상 테마: 틸 (hue 180°, `#0A3D3D`) — PMS 네이비(213°)와 구분
+- 포트: 3002
+- 서버 도메인 모듈 (`modules/chs/`): board, comment, feed, follow, notification, post, profile, skill
+- 인증 토큰은 PMS와 공유 (`ssoo-auth` localStorage 키)
+
 ### 데이터베이스: Multi-Schema Prisma
 
-PostgreSQL 3개 스키마 (`packages/database/prisma/schema.prisma`):
+PostgreSQL 4개 스키마 (`packages/database/prisma/schema.prisma`):
 
 | 스키마 | 접두사 | 예시 | 용도 |
 |--------|--------|------|------|
@@ -200,7 +209,11 @@ PostgreSQL 3개 스키마 (`packages/database/prisma/schema.prisma`):
 
 ### Prisma Client Extensions (`packages/database/src/extensions/`)
 
-`createPrismaClient()`에 **`commonColumnsExtension`**이 체이닝되어 자동 동작: create/update 시 감사 컬럼(`createdBy`, `updatedBy`, `lastSource`, `transactionId`)을 `AsyncLocalStorage` 기반 요청 컨텍스트(`runWithContext`)로 자동 세팅. History 접미사 모델과 `UserFavorite`는 제외.
+`createPrismaClient()`에 3개 Extension이 체이닝되어 자동 동작:
+
+- **`commonColumnsExtension`**: create/update 시 감사 컬럼(`createdBy`, `updatedBy`, `lastSource`, `transactionId`)을 `AsyncLocalStorage` 기반 요청 컨텍스트(`runWithContext`)로 자동 세팅. History 접미사 모델과 `UserFavorite`는 제외.
+- **`softDeleteExtension`**: `delete()`를 soft delete로 변환 (`isActive = false`)
+- **`activeFilterExtension`**: 조회 시 활성 데이터(`isActive = true`)만 자동 필터링
 
 `DatabaseService`가 `createPrismaClient()`를 사용하므로, Service를 통한 DB 접근 시 자동 적용됨.
 
