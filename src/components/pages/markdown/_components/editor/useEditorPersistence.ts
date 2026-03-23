@@ -38,7 +38,7 @@ interface EditorPersistenceActions {
   discardPendingMetadata: () => Promise<void>;
   setIsEditing: (editing: boolean) => void;
   setMetadataTitle: (title: string) => void;
-  updateTab: (tabId: string, patch: { path: string; title: string }) => void;
+  updateTab: (tabId: string, patch: { id?: string; path?: string; title?: string }) => void;
   closeTab: (tabId: string) => void;
   onCreatePathResolved?: (path: string) => void;
   onTemplateSaved?: () => void;
@@ -142,17 +142,18 @@ export function useEditorPersistence({
       const resolvedPath = result.path.endsWith('.md') ? result.path : `${result.path}.md`;
 
       try {
-        await actions.storeSaveFile(resolvedPath, finalContent);
         if (result.title) {
           actions.setMetadataTitle(result.title);
         }
+        await actions.storeSaveFile(resolvedPath, finalContent);
         actions.setIsEditing(false);
         actions.onCreatePathResolved?.(resolvedPath);
         deps.showSuccess('생성 완료', '새 문서가 생성되었습니다.');
 
         const newPath = `/doc/${encodeURIComponent(resolvedPath)}`;
+        const newTabId = `file-${encodeURIComponent(resolvedPath)}`;
         const tabTitle = result.title || resolvedPath.split('/').pop() || resolvedPath;
-        actions.updateTab(state.tabId, { path: newPath, title: tabTitle });
+        actions.updateTab(state.tabId, { id: newTabId, path: newPath, title: tabTitle });
       } catch {
         deps.showError('생성 실패', '문서 생성 중 오류가 발생했습니다.');
       }

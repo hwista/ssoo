@@ -1,5 +1,5 @@
 [https://github.com/enterprises/ls-workplace](https://github.com/enterprises/ls-workplace)
-ㅇ
+
 이미지 붙여넣기 파일 드래그앤 드랍으로 붙이기
 버전 히스토리/ 내보내기/ 피피티 변환/ 시각화 변환
 로그인/권한 기능 + 문서명 위에 공개범위 지정하도록 수정

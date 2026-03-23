@@ -41,6 +41,8 @@ export interface ContentProps {
   requestImageUrl?: () => Promise<string | null>;
   requestLinkUrl?: () => Promise<string | null>;
   openExternalHref?: (href: string) => void;
+  /** undo/redo 가용성 변경 콜백 */
+  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
 }
 
 /**
@@ -68,6 +70,7 @@ export function Content({
   requestImageUrl,
   requestLinkUrl,
   openExternalHref,
+  onHistoryChange,
 }: ContentProps) {
   const isEmbedded = variant === 'embedded';
   const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
@@ -105,6 +108,7 @@ export function Content({
           requestImageUrl={requestImageUrl}
           requestLinkUrl={requestLinkUrl}
           openExternalHref={openExternalHref}
+          onHistoryChange={onHistoryChange}
           className="flex-1 min-h-0"
         />
       </div>

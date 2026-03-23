@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, undoDepth, redoDepth } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { syntaxHighlighting } from '@codemirror/language';
 import type { ToolbarCommandId } from '../Toolbar';
@@ -30,6 +30,7 @@ interface BlockEditorViewParams {
   savedSelectionRef: React.MutableRefObject<SelectionRange>;
   applyCommandRef: React.MutableRefObject<(id: ToolbarCommandId, fromSlash?: boolean) => void>;
   openHrefRef: React.MutableRefObject<(href: string) => void>;
+  onHistoryChangeRef: React.MutableRefObject<((canUndo: boolean, canRedo: boolean) => void) | undefined>;
   updateSlashFromView: (view: EditorView) => void;
   moveSelection: (direction: 'up' | 'down') => boolean;
   resolveSelectedCommand: () => { id: ToolbarCommandId } | null;
@@ -49,6 +50,7 @@ export function useBlockEditorView({
   savedSelectionRef,
   applyCommandRef,
   openHrefRef,
+  onHistoryChangeRef,
   updateSlashFromView,
   moveSelection,
   resolveSelectedCommand,
@@ -80,6 +82,14 @@ export function useBlockEditorView({
       if (update.docChanged || update.selectionSet) {
         persistSelection(update.view);
         updateSlashFromView(update.view);
+      }
+
+      // undo/redo 가용성이 바뀌면 부모에게 알림
+      if (update.docChanged || update.transactions.length > 0) {
+        onHistoryChangeRef.current?.(
+          undoDepth(update.state) > 0,
+          redoDepth(update.state) > 0,
+        );
       }
     });
 

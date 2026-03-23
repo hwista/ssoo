@@ -55,6 +55,8 @@ export interface EditorProps {
   };
   /** 템플릿 저장 완료 후 후처리 */
   onTemplateSaved?: () => void;
+  /** undo/redo 가용성 변경 콜백 */
+  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
 }
 
 export interface EditorRef {
@@ -96,6 +98,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   templateSaveEnabled = false,
   templateSaveDraft,
   onTemplateSaved,
+  onHistoryChange,
 }: EditorProps, ref) {
   const { showSuccess, showError } = useToast();
   
@@ -310,6 +313,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       requestImageUrl={interactions.requestImageUrl}
       requestLinkUrl={interactions.requestLinkUrl}
       openExternalHref={interactions.openExternalHref}
+      onHistoryChange={onHistoryChange}
     />
   );
 

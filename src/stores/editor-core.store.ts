@@ -160,7 +160,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
       }
 
-      get()._updateTab(tabId, { content, isEditing: false });
+      get()._updateTab(tabId, { content, isEditing: false, currentFilePath: path });
       await get().flushPendingMetadata(tabId);
       await get().refreshFileMetadata(tabId, path);
 
