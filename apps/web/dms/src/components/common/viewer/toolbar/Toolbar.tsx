@@ -5,9 +5,9 @@ import { Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { ViewerAssistantControls, ViewerSearchControls, ViewerTocControls, ViewerZoomControls } from './toolbarTypes';
-import { ToolbarSearchControls } from './ToolbarSearchControls';
-import { ToolbarTocMenu } from './ToolbarTocMenu';
-import { ToolbarZoomControls } from './ToolbarZoomControls';
+import { ToolbarSearchControls } from './SearchControls';
+import { ToolbarTocMenu } from './TocMenu';
+import { ToolbarZoomControls } from './ZoomControls';
 
 // 줌 레벨 상수
 export const ZOOM_LEVELS = [75, 100, 125, 150, 175, 200];

@@ -44,5 +44,6 @@ export {
   runWithContext,
 } from './extensions/common-columns.extension.js';
 
-export * from '@prisma/client';
+export { PrismaClient } from '@prisma/client';
+export type { Prisma } from '@prisma/client';
 export default prisma;
