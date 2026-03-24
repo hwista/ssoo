@@ -1,6 +1,6 @@
 # SSOO 제품 로드맵
 
-> 최종 업데이트: 2026-03-23
+> 최종 업데이트: 2026-02-03
 
 단계별 구축 전략 (Progressive Delivery)
 
@@ -15,9 +15,9 @@
 | # | 오브젝트 | 설명 |
 |---|----------|------|
 | 1 | Customer | 고객 |
-| 2 | Site | 고객 사이트/플랜트 |
+| 2 | Plant/Site | 플랜트/사이트 |
 | 3 | System Catalog | 시스템 종류/계층 |
-| 4 | System Instance | 고객/사이트별 시스템 인스턴스 + 운영 주체 구분 |
+| 4 | System Instance | 고객/플랜트별 시스템 인스턴스 + 운영 주체 구분 |
 | 5 | Integration | 시스템 간 인터페이스 |
 | 6 | Project | 통합 단일 엔티티 (request/proposal/execution/transition 상태로 표현) |
 | 7 | User | 사람 (내부 직원 + 외부 이해관계자, 시스템 사용 여부로 구분) |
@@ -83,4 +83,4 @@
 | Date | Change |
 |------|--------|
 | 2026-02-09 | Add changelog section. |
-| 2026-03-23 | Update MVP-0 terminology from Plant/Site to Site and reflect current master object structure. |
+

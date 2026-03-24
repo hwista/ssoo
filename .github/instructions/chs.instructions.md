@@ -50,7 +50,6 @@ src/
 │   └── pages/             # 비즈니스 페이지 컴포넌트
 │       ├── feed/          # 피드/타임라인
 │       ├── board/         # 게시판
-│       ├── post/          # 게시물 상세
 │       ├── profile/       # 프로필·스킬맵
 │       ├── search/        # 전문가 검색
 │       └── settings/      # 개인 설정
@@ -145,9 +144,9 @@ export const postsApi = {
   
   create: (data: CreatePostDto) =>
     client.post<ApiResponse<Post>>('/chs/posts', data),
-
+  
   detail: (id: string) =>
-    client.get<ApiResponse<PostDetailItem>>(`/chs/posts/${id}`),
+    client.get<ApiResponse<Post>>(`/chs/posts/${id}`),
 };
 ```
 
@@ -206,7 +205,6 @@ const useFeedStore = create<FeedStoreState & FeedStoreActions>()(
 | 홈/피드 | `/` | 피드 타임라인 |
 | 게시판 | `/board` | 게시판 목록 |
 | 게시판 상세 | `/board/:id` | 게시판 게시물 목록 |
-| 게시물 상세 | `/post/:id` | 게시물 단건 상세 + 댓글 |
 | 프로필 | `/profile/:userId` | 프로필·스킬맵 |
 | 전문가 검색 | `/search` | 스킬 기반 검색 |
 | 설정 | `/settings` | 개인 설정 |
@@ -218,10 +216,8 @@ const useFeedStore = create<FeedStoreState & FeedStoreActions>()(
 - **피드 타임라인**: 중앙 카드 레이아웃 (max-w ~680px)
 - **PostCard**: 프로필+직급+시간, 본문, 태그, 반응바
 - **ProfileCard**: 커버+프로필사진, 스킬맵 게이지바
-- **Profile Actions**: 팔로우 버튼, 팔로워·팔로잉 다이얼로그, 스킬/경력 관리
 - **ComposeBox**: "무슨 생각을 하고 계신가요?" 스타일
 - **ReactionBar**: 좋아요·댓글·공유·저장
-- **PostMenu**: 본인 게시물 수정·삭제 액션
 
 ---
 

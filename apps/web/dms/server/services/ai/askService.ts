@@ -2,13 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import { generateText, streamText } from 'ai';
 import { logger } from '@/lib/utils/errorUtils';
-import type { AppResult } from '@/server/shared/result';
-import { fail, ok } from '@/server/shared/result';
 import { normalizePath } from '@/server/utils/pathUtils';
 import { configService } from '@/server/services/config/ConfigService';
 import { getChatModel } from './provider';
 import { buildCitations, inferConfidence, searchDocuments, searchDocumentsKeyword } from './searchService';
-import type { AiContextOptions, AskResponse, SearchResultItem } from './types';
+import type { AiContextOptions, AskResponse, HandlerResult, SearchResultItem } from './types';
 
 const IMPLEMENTATION_CONTEXT = [
   'DMS 실제 구현 기능 스냅샷(코드 기준):',
@@ -112,7 +110,7 @@ export async function askQuestion(
   query: string,
   messages: Array<{ role: string; content: string }>,
   options?: { contextMode?: 'doc' | 'deep'; activeDocPath?: string }
-): Promise<AppResult<AskResponse>> {
+): Promise<HandlerResult<AskResponse>> {
   try {
     const model = await getChatModel();
     const completion = await generateText({
@@ -129,16 +127,23 @@ export async function askQuestion(
     const sourceResult = await searchDocuments(query, options);
     const sources = sourceResult.success ? sourceResult.data.results.slice(0, 5) : [];
 
-    return ok({
+    return {
+      success: true,
+      data: {
         query,
         answer: completion.text,
         sources,
         confidence: inferConfidence(sources.length),
         citations: options?.contextMode === 'deep' ? buildCitations(sources) : [],
-      });
+      },
+    };
   } catch (error) {
     logger.error('질문 응답 생성 실패', error, { query });
-    return fail('질문 처리 중 오류가 발생했습니다.', 500);
+    return {
+      success: false,
+      error: '질문 처리 중 오류가 발생했습니다.',
+      status: 500,
+    };
   }
 }
 

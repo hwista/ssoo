@@ -76,7 +76,8 @@ export class UserController {
    * GET /api/users
    */
   @Get()
-  @ApiOperation({ summary: '사용자 목록' })
+  @Roles('admin')
+  @ApiOperation({ summary: '사용자 목록 (관리자)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: '페이지 번호' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: '페이지당 항목 수' })
   @ApiQuery({ name: 'search', required: false, type: String, description: '검색어 (이름, 로그인ID, 이메일)' })

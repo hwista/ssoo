@@ -34,15 +34,7 @@ export interface Project {
   stageCode: ProjectStageCode;
   doneResultCode?: ProjectDoneResultCode;
   customerId?: number;
-  siteId?: number;
-  systemInstanceId?: number;
   currentOwnerUserId?: number;
-  handoffTypeCode?: string | null;
-  handoffStatusCode?: string | null;
-  handoffUserId?: number | string | null;
-  handoffRequestedAt?: string | null;
-  handoffConfirmedAt?: string | null;
-  handoffConfirmedBy?: number | string | null;
   memo?: string | null;
   isActive?: boolean;
   createdAt: string;
@@ -168,11 +160,6 @@ export interface UpsertTransitionDetailRequest {
   transitionDueAt?: string;
   transitionSummary?: string;
   memo?: string;
-}
-
-export interface CreateHandoffRequest {
-  handoffTypeCode: string;
-  handoffUserId: string;
 }
 
 // ─── 상태 전이 ───
@@ -559,21 +546,6 @@ export const projectsApi = {
 
   upsertTransitionDetail: async (id: number, data: UpsertTransitionDetailRequest): Promise<ApiResponse<ProjectTransitionDetail>> => {
     const response = await apiClient.put<ApiResponse<ProjectTransitionDetail>>(`/projects/${id}/transition-detail`, data);
-    return response.data;
-  },
-
-  createHandoff: async (id: number, data: CreateHandoffRequest): Promise<ApiResponse<Project>> => {
-    const response = await apiClient.post<ApiResponse<Project>>(`/projects/${id}/handoffs`, data);
-    return response.data;
-  },
-
-  confirmHandoff: async (id: number): Promise<ApiResponse<Project>> => {
-    const response = await apiClient.post<ApiResponse<Project>>(`/projects/${id}/handoffs/confirm`);
-    return response.data;
-  },
-
-  completeHandoff: async (id: number): Promise<ApiResponse<Project>> => {
-    const response = await apiClient.post<ApiResponse<Project>>(`/projects/${id}/handoffs/complete`);
     return response.data;
   },
 

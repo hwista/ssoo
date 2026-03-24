@@ -1,5 +1,5 @@
 import { apiClient } from '../client';
-import type { ApiResponse, PaginatedResponse } from '../types';
+import type { ApiResponse } from '../types';
 
 export interface NotificationItem {
   id: string;
@@ -19,7 +19,7 @@ export interface NotificationItem {
 
 export const notificationsApi = {
   list: (params?: { page?: number; pageSize?: number }) =>
-    apiClient.get<PaginatedResponse<NotificationItem>>(
+    apiClient.get<ApiResponse<{ items: NotificationItem[]; total: number }>>(
       '/chs/notifications',
       { params }
     ),

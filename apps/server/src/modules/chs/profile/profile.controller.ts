@@ -33,8 +33,8 @@ export class ProfileController {
   @ApiNotFoundResponse({ type: ApiError })
   @ApiUnauthorizedResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  async getProfileByUserId(@Param('userId') userId: string, @CurrentUser() user: TokenPayload) {
-    const profile = await this.profileService.getProfileByUserId(BigInt(userId), BigInt(user.userId));
+  async getProfileByUserId(@Param('userId') userId: string) {
+    const profile = await this.profileService.getProfileByUserId(BigInt(userId));
     return success(serializeBigInt(profile));
   }
 

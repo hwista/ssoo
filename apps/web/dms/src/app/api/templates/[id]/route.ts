@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 
 import { handleGetTemplate } from '@/server/handlers/template.handler';
-import { toNextResponse } from '@/server/shared/result';
 
 export async function GET(
   req: Request,
@@ -12,5 +11,8 @@ export async function GET(
   const scope = url.searchParams.get('scope') === 'global' ? 'global' : 'personal';
 
   const result = handleGetTemplate(id, scope, req.headers);
-  return toNextResponse(result);
+  if (!result.success) {
+    return Response.json({ error: result.error }, { status: 404 });
+  }
+  return Response.json(result.data);
 }

@@ -25,7 +25,6 @@ export interface ProfileItem {
     proficiencyLevel: number;
     yearsOfExperience: number;
     endorsementCount: number;
-    isEndorsedByMe: boolean;
   }>;
   careers?: Array<{
     id: string;

@@ -7,15 +7,17 @@ import type { InlineSummaryFileItem } from '@/components/common/assistant/refere
 import type { TemplateItem } from '@/types/template';
 import type { SourceFileMeta } from '@/types';
 import type { RequestLifecycle } from '@/hooks/useRequestLifecycle';
-import { resolveTitlePathRecommendation } from '@/lib/utils/titlePathRecommendation';
-import { applyGeneratedContent, buildComposedDocument, mapSummaryFiles } from './documentPageUtils';
-import type { EditorCommandHandlers, MetadataRecommendationResult } from './documentPageTypes';
+
+interface SelectionRange {
+  from: number;
+  to: number;
+}
 
 interface ComposeEditorHandlers {
-  getMarkdown?: EditorCommandHandlers['getMarkdown'];
-  getSelection?: EditorCommandHandlers['getSelection'];
-  insertAt?: EditorCommandHandlers['insertAt'];
-  setPendingInsert?: EditorCommandHandlers['setPendingInsert'];
+  getMarkdown?: () => string;
+  getSelection?: () => SelectionRange;
+  insertAt?: (from: number, to: number, text: string) => void;
+  setPendingInsert?: (range: SelectionRange | null) => void;
 }
 
 interface ConfirmOptions {
@@ -53,26 +55,102 @@ interface DocumentPageComposeDeps {
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   requestLifecycle: RequestLifecycle;
   onSyncReferencesToSidecar?: (files: SourceFileMeta[], rawFiles?: Map<string, File>) => void;
-  composeRecommendation?: {
-    isCreateMode: boolean;
-    autoRecommendMetadata: (
-      content: string,
-      options?: { signal?: AbortSignal; isRequestActive?: () => boolean },
-    ) => Promise<MetadataRecommendationResult | null>;
-    applyMetadataRecommendation: (
-      recommendation: MetadataRecommendationResult | null,
-      mode: 'suggest' | 'auto',
-    ) => void;
-    consumeTitlePathRecommendation: (
-      resolved: ReturnType<typeof resolveTitlePathRecommendation>,
-      mode: 'suggest' | 'auto',
-    ) => void;
-    setCreatePath: (path: string) => void;
-    setDisplaySuggestedTitle: (title: string) => void;
-    setDisplayCreatePath: (path: string) => void;
-    setTitleRecommendationStatus: (status: 'idle' | 'loading' | 'resolved' | 'error') => void;
-    setPathRecommendationStatus: (status: 'idle' | 'loading' | 'resolved' | 'error') => void;
-  };
+  onComposeComplete?: (
+    generatedContent: string,
+    requestToken: number,
+    signal: AbortSignal,
+    context?: { suggestedPath?: string },
+  ) => void | Promise<void>;
+}
+
+function mapSummaryFiles(summaryFiles: InlineSummaryFileItem[]) {
+  return summaryFiles.map((item) => ({
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    textContent: item.textContent,
+    images: item.images,
+  }));
+}
+
+function buildComposedDocument(params: {
+  applyMode: 'replace-document' | 'replace-selection' | 'append' | 'insert';
+  baseContent: string;
+  generated: string;
+  selection: SelectionRange;
+  hasSelection: boolean;
+}) {
+  const { applyMode, baseContent, generated, selection, hasSelection } = params;
+
+  if (applyMode === 'replace-document') {
+    return generated;
+  }
+
+  if (applyMode === 'replace-selection' && hasSelection) {
+    return `${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.to)}`;
+  }
+
+  if (applyMode === 'append') {
+    const joiner = baseContent.trim().length > 0 ? '\n\n' : '';
+    return `${baseContent}${joiner}${generated}`;
+  }
+
+  return `${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.from)}`;
+}
+
+function applyGeneratedContent(params: {
+  applyMode: 'replace-document' | 'replace-selection' | 'append' | 'insert';
+  baseContent: string;
+  generated: string;
+  selection: SelectionRange;
+  hasSelection: boolean;
+  editorHandlers: ComposeEditorHandlers | null;
+  setContent: (content: string) => void;
+}) {
+  const { applyMode, baseContent, generated, selection, hasSelection, editorHandlers, setContent } = params;
+  const nextContent = buildComposedDocument({
+    applyMode,
+    baseContent,
+    generated,
+    selection,
+    hasSelection,
+  });
+
+  if (applyMode === 'replace-document') {
+    if (editorHandlers?.insertAt) {
+      editorHandlers.insertAt(0, baseContent.length, generated);
+    } else {
+      setContent(nextContent);
+    }
+    return nextContent;
+  }
+
+  if (applyMode === 'replace-selection' && hasSelection) {
+    if (editorHandlers?.insertAt) {
+      editorHandlers.insertAt(selection.from, selection.to, generated);
+    } else {
+      setContent(nextContent);
+    }
+    return nextContent;
+  }
+
+  if (applyMode === 'append') {
+    const joiner = baseContent.trim().length > 0 ? '\n\n' : '';
+    if (editorHandlers?.insertAt) {
+      editorHandlers.insertAt(baseContent.length, baseContent.length, `${joiner}${generated}`);
+    } else {
+      setContent(nextContent);
+    }
+    return nextContent;
+  }
+
+  if (editorHandlers?.insertAt) {
+    editorHandlers.insertAt(selection.from, selection.from, generated);
+  } else {
+    setContent(nextContent);
+  }
+
+  return nextContent;
 }
 
 export function useDocumentPageComposeActions({
@@ -104,7 +182,7 @@ export function useDocumentPageComposeActions({
     setIsComposing,
     setIsRecommendingPath,
   } = mutators;
-  const { editorHandlers, confirm, requestLifecycle, onSyncReferencesToSidecar, composeRecommendation } = deps;
+  const { editorHandlers, confirm, requestLifecycle, onSyncReferencesToSidecar, onComposeComplete } = deps;
   // Always-fresh reference to editorHandlers (avoids stale closure in streaming callbacks)
   const editorHandlersRef = useRef(editorHandlers);
   editorHandlersRef.current = editorHandlers;
@@ -178,63 +256,8 @@ export function useDocumentPageComposeActions({
         hasSelection,
       });
 
-      if (composeRecommendation && requestLifecycle.isRequestActive(token)) {
-        const isRequestActive = () => requestLifecycle.isRequestActive(token);
-        if (composeRecommendation.isCreateMode) {
-          composeRecommendation.setTitleRecommendationStatus('loading');
-          composeRecommendation.setPathRecommendationStatus('loading');
-          const [metadataResult, titlePathResult] = await Promise.allSettled([
-            composeRecommendation.autoRecommendMetadata(finalContent, { signal, isRequestActive }),
-            docAssistApi.recommendTitleAndPath({ currentContent: finalContent }, { signal }),
-          ]);
-
-          if (!isRequestActive() || signal.aborted) return;
-
-          if (metadataResult.status === 'fulfilled') {
-            composeRecommendation.applyMetadataRecommendation(metadataResult.value, 'suggest');
-          }
-
-          if (titlePathResult.status === 'fulfilled') {
-            const res = titlePathResult.value;
-            if (res.success && res.data) {
-              const resolved = resolveTitlePathRecommendation(res.data, { fallbackContent: finalContent });
-              composeRecommendation.consumeTitlePathRecommendation(resolved, 'suggest');
-              if (!resolved.path) {
-                if (res.data.suggestedFileName) {
-                  composeRecommendation.setCreatePath(`drafts/${res.data.suggestedFileName}`);
-                } else if (suggestedPath) {
-                  composeRecommendation.setCreatePath(suggestedPath);
-                }
-              }
-            } else if (suggestedPath) {
-              composeRecommendation.setCreatePath(suggestedPath);
-              composeRecommendation.setDisplaySuggestedTitle('');
-              composeRecommendation.setDisplayCreatePath('');
-              composeRecommendation.setTitleRecommendationStatus('error');
-              composeRecommendation.setPathRecommendationStatus('error');
-            } else {
-              composeRecommendation.setDisplaySuggestedTitle('');
-              composeRecommendation.setDisplayCreatePath('');
-              composeRecommendation.setTitleRecommendationStatus('error');
-              composeRecommendation.setPathRecommendationStatus('error');
-            }
-          } else if (suggestedPath) {
-            composeRecommendation.setCreatePath(suggestedPath);
-            composeRecommendation.setDisplaySuggestedTitle('');
-            composeRecommendation.setDisplayCreatePath('');
-            composeRecommendation.setTitleRecommendationStatus('error');
-            composeRecommendation.setPathRecommendationStatus('error');
-          } else {
-            composeRecommendation.setDisplaySuggestedTitle('');
-            composeRecommendation.setDisplayCreatePath('');
-            composeRecommendation.setTitleRecommendationStatus('error');
-            composeRecommendation.setPathRecommendationStatus('error');
-          }
-        } else {
-          const recommendation = await composeRecommendation.autoRecommendMetadata(finalContent, { signal, isRequestActive });
-          if (!isRequestActive() || signal.aborted) return;
-          composeRecommendation.applyMetadataRecommendation(recommendation, 'suggest');
-        }
+      if (onComposeComplete && requestLifecycle.isRequestActive(token)) {
+        await onComposeComplete(finalContent, token, signal, { suggestedPath });
       }
 
       if (!requestLifecycle.isRequestActive(token)) return;
@@ -307,7 +330,7 @@ export function useDocumentPageComposeActions({
     inlineTemplate,
     isComposing,
     isTemplatePendingDelete,
-    composeRecommendation,
+    onComposeComplete,
     onSyncReferencesToSidecar,
     pendingDeletedFileIds,
     requestLifecycle,

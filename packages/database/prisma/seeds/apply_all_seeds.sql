@@ -56,18 +56,6 @@
 \echo 'Applying 10_project_member_task_issue_code.sql...'
 \i 10_project_member_task_issue_code.sql
 
--- 17: 시스템 카탈로그
-\echo 'Applying 17_system_catalog.sql...'
-\i 17_system_catalog.sql
-
--- 18: 사이트 유형 코드
-\echo 'Applying 18_site_type.sql...'
-\i 18_site_type.sql
-
--- 19: 시스템 운영 주체 유형 코드
-\echo 'Applying 19_system_operator_type.sql...'
-\i 19_system_operator_type.sql
-
 -- 05: 메뉴 데이터
 \echo 'Applying 05_menu_data.sql...'
 \i 05_menu_data.sql

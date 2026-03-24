@@ -20,7 +20,6 @@ import { DeliverablesTab } from './tabs/DeliverablesTab';
 import { CloseConditionsTab } from './tabs/CloseConditionsTab';
 import { StatusTimeline } from './sections/StatusTimeline';
 import { StageActionBar } from './sections/StageActionBar';
-import { HandoffSection } from './sections/HandoffSection';
 import type { Project, ProjectStatusCode } from '@/lib/api/endpoints/projects';
 import type { LucideIcon } from 'lucide-react';
 
@@ -115,12 +114,6 @@ export function ProjectDetailPage() {
           stageCode={project.stageCode}
           doneResultCode={project.doneResultCode}
           onTransitioned={() => refetch()}
-        />
-
-        <HandoffSection
-          projectId={projectId}
-          project={project}
-          onHandoffChanged={() => refetch()}
         />
 
         {/* Status Tabs */}

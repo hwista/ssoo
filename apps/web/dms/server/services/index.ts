@@ -13,16 +13,19 @@ export {
 // File System Service
 export {
   fileSystemService,
+  type ServiceResult,
   type GetTreeOptions,
 } from './fileSystem/FileSystemService';
 export {
   fileCrudService,
   type FileStatMetadata,
   type FileData,
+  type FileCrudResult,
 } from './file/FileCrudService';
 export {
   chatSessionService,
   type PersistedChatSession,
+  type ChatSessionServiceResult,
 } from './chatSession/ChatSessionService';
 
 // Git Service
@@ -32,6 +35,7 @@ export {
   type GitLogEntry,
   type GitDiffResult,
   type GitFileStatus,
+  type GitResult,
 } from './git/GitService';
 
 // Storage Service
@@ -53,9 +57,9 @@ export {
 export {
   settingsService,
   type SettingsSnapshot,
+  type SettingsServiceResult,
 } from './settings/SettingsService';
 
 export { templateService } from './template/TemplateService';
 export { docAssistService } from './docAssist/DocAssistService';
 export { documentMetadataService } from './documentMetadata/DocumentMetadataService';
-export type { AppResult } from '@/server/shared/result';

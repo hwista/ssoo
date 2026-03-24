@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 
 import { composeDocument, composeDocumentStream, recommendDocumentPath, recommendTitleAndPath } from '@/server/handlers/docAssist.handler';
-import { fail, ok, toNextResponse } from '@/server/shared/result';
 
 export async function POST(req: Request) {
   try {
@@ -16,7 +15,7 @@ export async function POST(req: Request) {
         summaryFiles: Array.isArray(body?.summaryFiles) ? body.summaryFiles : [],
         selectedText: typeof body?.selectedText === 'string' ? body.selectedText : undefined,
       });
-      return toNextResponse(ok(result));
+      return Response.json(result);
     }
 
     if (action === 'recommendTitleAndPath') {
@@ -24,7 +23,7 @@ export async function POST(req: Request) {
         currentContent: typeof body?.currentContent === 'string' ? body.currentContent : '',
         activeDocPath: typeof body?.activeDocPath === 'string' ? body.activeDocPath : undefined,
       });
-      return toNextResponse(ok(result));
+      return Response.json({ success: true, data: result });
     }
 
     const composeInput = {
@@ -39,7 +38,7 @@ export async function POST(req: Request) {
     // stream=false → 기존 JSON 응답 (태그 추출, 요약 등 짧은 요청용)
     if (body?.stream === false) {
       const data = await composeDocument(composeInput);
-      return toNextResponse(ok(data));
+      return Response.json(data);
     }
 
     // 기본: SSE 스트리밍 응답 (에디터 compose용)
@@ -97,6 +96,6 @@ export async function POST(req: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : '문서 작성 처리 중 오류가 발생했습니다.';
     const status = /필수|too short|invalid/i.test(message) ? 400 : 500;
-    return toNextResponse(fail(message, status));
+    return Response.json({ error: message }, { status });
   }
 }

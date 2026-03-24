@@ -1,13 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, Min, IsString } from 'class-validator';
+import { IsInt, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class FollowPaginationDto {
-  @ApiPropertyOptional({ description: '대상 사용자 ID' })
-  @IsString()
-  @IsOptional()
-  userId?: string;
-
   @ApiPropertyOptional({ description: '페이지 번호', default: 1 })
   @Type(() => Number)
   @IsInt()

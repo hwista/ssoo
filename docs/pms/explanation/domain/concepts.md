@@ -93,14 +93,13 @@ SSOO 시스템의 핵심 도메인 개념을 정의합니다.
 
 ---
 
-## 5. Customer / Site / System Instance
+## 5. Customer / Plant / System Instance
 
 - **Customer**: 고객사
-- **Site**: 고객의 공장/사이트 (다수 보유 가능)
-- **System Instance**: 고객/사이트별 시스템 인스턴스
-  - 시스템은 특정 Site에 배치되는 인스턴스 단위로 관리한다.
+- **Plant/Site**: 고객의 공장/사이트 (다수 보유 가능)
+- **System Instance**: 고객/플랜트별 시스템 인스턴스
+  - 시스템은 고객에 직접 붙을 수도 있고(전사 ERP), 플랜트별 인스턴스가 존재할 수도 있다(MES)
   - 시스템은 계층 구조를 가질 수 있다 (MES 하위 DAS/HMI 등)
-  - 운영 주체는 유형(`SYSTEM_OPERATOR_TYPE`)과 담당 사용자로 구분해 관리한다.
 - **Integration**: 시스템 간 인터페이스 (ERP↔MES 등)
 
 ---
@@ -169,11 +168,11 @@ registered(리소스 등록) → invited(초대 발송) → active(초대 수락
 ## 9. 데이터 모델 요약 (High-level)
 
 ```
-Customer 1:N Site
+Customer 1:N Plant
 System Catalog (parent-child 계층)
-Customer/Site → System Instance
+Customer/Plant → System Instance
 System Instance ↔ Integration (인터페이스)
-Project → Customer (필수), Site/System Instance (선택)
+Project → Customer (필수), Plant/System Instance (선택)
 User → Project/System (오너/담당)
 Opportunity = Project (status_code=request/proposal)
 ```
@@ -192,3 +191,4 @@ Opportunity = Project (status_code=request/proposal)
 | Date | Change |
 |------|--------|
 | 2026-02-09 | Add changelog section. |
+

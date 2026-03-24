@@ -55,13 +55,6 @@ async function main() {
     '16_pr_project_proposal_d_h_trigger.sql',
     '17_pr_project_execution_d_h_trigger.sql',
     '18_pr_project_transition_d_h_trigger.sql',
-    '19_pr_project_member_r_h_trigger.sql',
-    '20_pr_task_h_trigger.sql',
-    '21_pr_milestone_h_trigger.sql',
-    '22_pr_issue_h_trigger.sql',
-    '23_cm_system_catalog_h_trigger.sql',
-    '24_cm_site_h_trigger.sql',
-    '25_cm_system_instance_h_trigger.sql',
     // CHS (Community Hub System)
     '50_ch_board_h_trigger.sql',
     '51_ch_post_h_trigger.sql',

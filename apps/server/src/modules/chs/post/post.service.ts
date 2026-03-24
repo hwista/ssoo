@@ -42,16 +42,10 @@ export class PostService {
     return { data, total, page, pageSize };
   }
 
-  async findOne(id: bigint, currentUserId: bigint) {
+  async findOne(id: bigint) {
     const post = await this.db.client.chPost.findUnique({
       where: { id },
       include: {
-        board: {
-          select: {
-            id: true,
-            boardName: true,
-          },
-        },
         postTags: { include: { tag: true } },
         _count: { select: { comments: true, reactions: true, bookmarks: true } },
       },
@@ -66,39 +60,7 @@ export class PostService {
       data: { viewCount: { increment: 1 } },
     });
 
-    const [author, liked, bookmarked] = await Promise.all([
-      this.db.client.user.findUnique({
-        where: { id: post.authorUserId },
-        select: {
-          id: true,
-          userName: true,
-          displayName: true,
-          avatarUrl: true,
-          departmentCode: true,
-          positionCode: true,
-        },
-      }),
-      this.db.client.chReaction.findFirst({
-        where: { postId: id, userId: currentUserId },
-        select: { id: true },
-      }),
-      this.db.client.chBookmark.findFirst({
-        where: { postId: id, userId: currentUserId },
-        select: { id: true },
-      }),
-    ]);
-
-    return {
-      ...post,
-      viewCount: post.viewCount + 1,
-      author,
-      tags: post.postTags.map((entry) => entry.tag.tagName),
-      reactionCount: post._count.reactions,
-      commentCount: post._count.comments,
-      bookmarkCount: post._count.bookmarks,
-      isLiked: Boolean(liked),
-      isBookmarked: Boolean(bookmarked),
-    };
+    return post;
   }
 
   async create(dto: CreatePostDto, authorUserId: bigint) {

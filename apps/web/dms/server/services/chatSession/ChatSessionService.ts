@@ -1,6 +1,5 @@
 import { logger } from '@/lib/utils/errorUtils';
 import { getPool } from '@/server/services/db';
-import { fail, ok, type AppResult } from '@/server/shared/result';
 
 export interface PersistedChatSession {
   id: string;
@@ -10,6 +9,10 @@ export interface PersistedChatSession {
   messages: unknown[];
   persistedToDb: boolean;
 }
+
+export type ChatSessionServiceResult<T = unknown> =
+  | { success: true; data: T }
+  | { success: false; error: string; status: number };
 
 const CLIENT_ID_REGEX = /^[a-zA-Z0-9_-]{8,80}$/;
 const SESSION_ID_REGEX = /^[a-zA-Z0-9._:-]{8,120}$/;
@@ -62,9 +65,9 @@ class ChatSessionService {
     chatTableInitialized = true;
   }
 
-  async list(clientId: string, limit = 50): Promise<AppResult<PersistedChatSession[]>> {
+  async list(clientId: string, limit = 50): Promise<ChatSessionServiceResult<PersistedChatSession[]>> {
     if (!isValidClientId(clientId.trim())) {
-      return fail('유효한 clientId가 필요합니다.', 400);
+      return { success: false, error: '유효한 clientId가 필요합니다.', status: 400 };
     }
 
     try {
@@ -79,37 +82,40 @@ class ChatSessionService {
         [clientId, Math.max(1, Math.min(limit, 200))]
       );
 
-      return ok(result.rows.map((row) => ({
+      return {
+        success: true,
+        data: result.rows.map((row) => ({
           id: row.id,
           title: row.title,
           createdAt: new Date(row.created_at).toISOString(),
           updatedAt: new Date(row.updated_at).toISOString(),
           messages: Array.isArray(row.messages) ? row.messages : [],
           persistedToDb: true,
-        })));
+        })),
+      };
     } catch (error) {
       logger.error('채팅 세션 목록 조회 실패', error, { clientId });
-      return fail('채팅 세션 조회 중 오류가 발생했습니다.', 500);
+      return { success: false, error: '채팅 세션 조회 중 오류가 발생했습니다.', status: 500 };
     }
   }
 
   async save(
     clientId: string,
     session: Omit<PersistedChatSession, 'persistedToDb'>
-  ): Promise<AppResult<{ id: string }>> {
+  ): Promise<ChatSessionServiceResult<{ id: string }>> {
     if (!isValidClientId(clientId.trim())) {
-      return fail('유효한 clientId가 필요합니다.', 400);
+      return { success: false, error: '유효한 clientId가 필요합니다.', status: 400 };
     }
     if (!isValidSessionId(session?.id?.trim() ?? '')) {
-      return fail('유효한 session.id가 필요합니다.', 400);
+      return { success: false, error: '유효한 session.id가 필요합니다.', status: 400 };
     }
     if ((session?.title?.trim() ?? '').length === 0 || session.title.length > MAX_TITLE_LENGTH) {
-      return fail(`title은 1~${MAX_TITLE_LENGTH}자여야 합니다.`, 400);
+      return { success: false, error: `title은 1~${MAX_TITLE_LENGTH}자여야 합니다.`, status: 400 };
     }
 
     const messageValidation = validateMessages(Array.isArray(session.messages) ? session.messages : []);
     if (!messageValidation.valid) {
-      return fail(messageValidation.reason ?? 'messages 검증에 실패했습니다.', 400);
+      return { success: false, error: messageValidation.reason ?? 'messages 검증에 실패했습니다.', status: 400 };
     }
 
     try {
@@ -135,16 +141,16 @@ class ChatSessionService {
         ]
       );
 
-      return ok({ id: session.id });
+      return { success: true, data: { id: session.id } };
     } catch (error) {
       logger.error('채팅 세션 저장 실패', error, { clientId, sessionId: session.id });
-      return fail('채팅 세션 저장 중 오류가 발생했습니다.', 500);
+      return { success: false, error: '채팅 세션 저장 중 오류가 발생했습니다.', status: 500 };
     }
   }
 
-  async remove(clientId: string, sessionId: string): Promise<AppResult<{ id: string }>> {
+  async remove(clientId: string, sessionId: string): Promise<ChatSessionServiceResult<{ id: string }>> {
     if (!isValidClientId(clientId.trim()) || !isValidSessionId(sessionId.trim())) {
-      return fail('유효한 clientId와 sessionId가 필요합니다.', 400);
+      return { success: false, error: '유효한 clientId와 sessionId가 필요합니다.', status: 400 };
     }
 
     try {
@@ -154,10 +160,10 @@ class ChatSessionService {
         `DELETE FROM dms_chat_sessions WHERE id = $1 AND client_id = $2`,
         [sessionId, clientId]
       );
-      return ok({ id: sessionId });
+      return { success: true, data: { id: sessionId } };
     } catch (error) {
       logger.error('채팅 세션 삭제 실패', error, { clientId, sessionId });
-      return fail('채팅 세션 삭제 중 오류가 발생했습니다.', 500);
+      return { success: false, error: '채팅 세션 삭제 중 오류가 발생했습니다.', status: 500 };
     }
   }
 }

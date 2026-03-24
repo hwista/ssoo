@@ -4,7 +4,7 @@ applyTo: "apps/web/dms/**"
 
 # Codex DMS Instructions
 
-> 최종 업데이트: 2026-03-23
+> 최종 업데이트: 2026-02-27
 > 정본: `.github/instructions/dms.instructions.md`
 
 ## 독립성 원칙
@@ -48,31 +48,21 @@ server/                    # 서버 레이어 (handlers, services) - src 외부
 ## 서버 레이어 패턴
 
 ```typescript
-// Route: wire parsing + HTTP response only
+// Handler: 단순 라우팅, 로직은 서비스로 위임
 export async function GET(request: NextRequest) {
-  return toNextResponse(await handleFilesRequest());
-}
-
-// Handler: facade only
-export async function handleFilesRequest(): Promise<AppResult<FileNode[]>> {
-  return fileSystemService.getFileTree();
+  const result = await fileSystemService.getFileTree();
+  if (!result.success) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
+  }
+  return NextResponse.json(result.data);
 }
 
 // Service: BaseService 없이 싱글톤 export
 class FileSystemService {
-  async getFileTree(): Promise<AppResult<FileNode[]>> { /* ... */ }
+  async getFileTree(): Promise<ServiceResult<FileNode[]>> { /* ... */ }
 }
 export const fileSystemService = new FileSystemService();
 ```
-
-- JSON API 표준 결과 타입은 `server/shared/result.ts` 의 `AppResult<T>` 하나만 사용합니다.
-- non-stream JSON API 는 성공/실패 모두 envelope 로 응답합니다.
-- 표준 helper:
-  - `ok(data, status?)`
-  - `fail(error, status, code?)`
-  - `toNextResponse(result)`
-- stream/binary route (`/api/ask`, `/api/create`, `/api/doc-assist` SSE, `/api/storage/open`, 파일 raw/attachment) 는 본문 형식 예외를 유지합니다.
-- 단, stream 시작 전 JSON 실패 응답은 envelope 를 사용합니다.
 
 ## Zustand 스토어 패턴
 
@@ -88,8 +78,8 @@ const useTabStore = create<TabStoreState & TabStoreActions>()(
 
 ## Block Editor 규칙
 
-- 현재 block editor 런타임 정본은 `components/pages/markdown/_components/editor/**` 의 page-local 구조입니다.
-- `Editor` 는 markdown page orchestration, `BlockEditor` 는 CodeMirror bridge 역할만 가집니다.
+- block editor 런타임은 `components/common/editor/block-editor/*` 에 둔다
+- `Editor` 는 page/editor orchestration, `BlockEditor` 는 CodeMirror bridge 역할만 가진다
 - `window.prompt/open` 같은 브라우저 imperative API 는 직접 호출하지 않고 interaction contract 뒤로 숨긴다
 - 편집기 전체 reset은 실제 content 변경 시에만 수행하고, selection/cursor 상태를 불필요하게 초기화하지 않는다
 
@@ -172,6 +162,5 @@ export * from './components';
 
 | 날짜 | 변경 내용 |
 |------|-----------|
-| 2026-03-23 | `AppResult`/JSON envelope 표준, stream-binary 예외 정책, page-local editor runtime 기준으로 현행화 |
 | 2026-02-27 | 독립성/기술스택/폴더구조/서버패턴/스토어/에디터/TreeView/타입/Export/치수/크기가이드/금지사항 추가 |
 | 2026-02-22 | Codex DMS 정본 신설 |

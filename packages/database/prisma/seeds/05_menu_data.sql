@@ -227,36 +227,6 @@ ON CONFLICT (menu_code) DO UPDATE SET
   is_admin_menu = true,
   updated_at = CURRENT_TIMESTAMP;
 
--- 관리자 > 시스템 카탈로그
-INSERT INTO pms.cm_menu_m (menu_code, menu_name, menu_name_en, menu_type, menu_path, icon, sort_order, menu_level, parent_menu_id, is_visible, is_admin_menu, description, updated_at)
-VALUES ('admin.systemCatalog', '시스템 카탈로그', 'System Catalog', 'menu', '/admin/system-catalog', 'Server', 7, 2,
-        (SELECT menu_id FROM pms.cm_menu_m WHERE menu_code = 'admin'), true, true, '시스템 종류/계층 관리', CURRENT_TIMESTAMP)
-ON CONFLICT (menu_code) DO UPDATE SET
-  menu_name = EXCLUDED.menu_name,
-  parent_menu_id = (SELECT menu_id FROM pms.cm_menu_m WHERE menu_code = 'admin'),
-  is_admin_menu = true,
-  updated_at = CURRENT_TIMESTAMP;
-
--- 관리자 > 사이트 관리
-INSERT INTO pms.cm_menu_m (menu_code, menu_name, menu_name_en, menu_type, menu_path, icon, sort_order, menu_level, parent_menu_id, is_visible, is_admin_menu, description, updated_at)
-VALUES ('admin.site', '사이트 관리', 'Site Management', 'menu', '/admin/site', 'MapPin', 8, 2,
-        (SELECT menu_id FROM pms.cm_menu_m WHERE menu_code = 'admin'), true, true, '고객별 사이트/플랜트 기준정보 관리', CURRENT_TIMESTAMP)
-ON CONFLICT (menu_code) DO UPDATE SET
-  menu_name = EXCLUDED.menu_name,
-  parent_menu_id = (SELECT menu_id FROM pms.cm_menu_m WHERE menu_code = 'admin'),
-  is_admin_menu = true,
-  updated_at = CURRENT_TIMESTAMP;
-
--- 관리자 > 시스템 인스턴스 관리
-INSERT INTO pms.cm_menu_m (menu_code, menu_name, menu_name_en, menu_type, menu_path, icon, sort_order, menu_level, parent_menu_id, is_visible, is_admin_menu, description, updated_at)
-VALUES ('admin.systemInstance', '시스템 인스턴스 관리', 'System Instance Management', 'menu', '/admin/system-instance', 'Server', 9, 2,
-        (SELECT menu_id FROM pms.cm_menu_m WHERE menu_code = 'admin'), true, true, '고객/사이트별 시스템 인스턴스 기준정보 관리', CURRENT_TIMESTAMP)
-ON CONFLICT (menu_code) DO UPDATE SET
-  menu_name = EXCLUDED.menu_name,
-  parent_menu_id = (SELECT menu_id FROM pms.cm_menu_m WHERE menu_code = 'admin'),
-  is_admin_menu = true,
-  updated_at = CURRENT_TIMESTAMP;
-
 -- ============================================
 -- 2레벨 메뉴 (일반) — 숨겨진 메뉴 (프로그래밍 방식 오픈)
 -- 사이드바에 표시하지 않지만 권한 체크용으로 필요

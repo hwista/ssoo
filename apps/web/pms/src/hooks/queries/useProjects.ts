@@ -11,7 +11,6 @@ import type {
   UpsertProposalDetailRequest,
   UpsertExecutionDetailRequest,
   UpsertTransitionDetailRequest,
-  CreateHandoffRequest,
   ProjectRequestDetail,
   ProjectProposalDetail,
   ProjectExecutionDetail,
@@ -175,40 +174,6 @@ export function useUpsertTransitionDetail() {
       projectsApi.upsertTransitionDetail(id, data),
     onSuccess: (_: ApiResponse<ProjectTransitionDetail>, variables) => {
       queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
-    },
-  });
-}
-
-export function useCreateHandoff() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: CreateHandoffRequest }) =>
-      projectsApi.createHandoff(id, data),
-    onSuccess: (_: ApiResponse<Project>, variables) => {
-      queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
-    },
-  });
-}
-
-export function useConfirmHandoff() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => projectsApi.confirmHandoff(id),
-    onSuccess: (_: ApiResponse<Project>, id) => {
-      queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
-    },
-  });
-}
-
-export function useCompleteHandoff() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => projectsApi.completeHandoff(id),
-    onSuccess: (_: ApiResponse<Project>, id) => {
-      queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
     },
   });

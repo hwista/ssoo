@@ -29,11 +29,3 @@ export function useUpdateProfile() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.all }); },
   });
 }
-
-export function useAddCareer() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: profilesApi.addCareer,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.all }); },
-  });
-}

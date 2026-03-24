@@ -6,7 +6,55 @@ import type { DocumentComment } from '@/types';
 import { UserAvatar } from '@/components/common';
 import { CollapsibleSection } from '@/components/templates/page-frame/sidecar/CollapsibleSection';
 import { cn } from '@/lib/utils';
-import { buildCommentThreads, formatCommentDate } from './commentUtils';
+
+function formatDate(date: Date | string | undefined): string {
+  if (!date) return '-';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('ko-KR', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+interface CommentThread {
+  root: DocumentComment;
+  replies: DocumentComment[];
+}
+
+/** parentId 체인을 따라가 스레드 루트(최상위) ID를 반환 */
+function findThreadRoot(commentId: string, commentMap: Map<string, DocumentComment>): string {
+  const comment = commentMap.get(commentId);
+  if (!comment) return commentId;
+  if (!comment.parentId) return commentId;
+  if (!commentMap.has(comment.parentId)) return commentId; // orphan → 자기가 루트
+  return findThreadRoot(comment.parentId, commentMap);
+}
+
+function buildThreads(comments: DocumentComment[]): CommentThread[] {
+  const commentMap = new Map(comments.map((c) => [c.id, c]));
+  const rootComments: DocumentComment[] = [];
+  const replyMap = new Map<string, DocumentComment[]>();
+  const rootIds = new Set<string>();
+
+  for (const c of comments) {
+    const rootId = findThreadRoot(c.id, commentMap);
+    if (rootId === c.id) {
+      rootComments.push(c);
+      rootIds.add(c.id);
+    } else {
+      const list = replyMap.get(rootId) ?? [];
+      list.push(c);
+      replyMap.set(rootId, list);
+    }
+  }
+
+  return rootComments.map((root) => ({
+    root,
+    replies: (replyMap.get(root.id) ?? []).sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    ),
+  }));
+}
 
 function CommentItem({
   comment,
@@ -71,7 +119,7 @@ function CommentItem({
           <span className={cn('font-medium text-ssoo-primary', isDeleted && 'line-through text-destructive/60')}>
             {comment.author || 'Unknown'}
           </span>
-          <span className="text-ssoo-primary/50">{formatCommentDate(comment.createdAt)}</span>
+          <span className="text-ssoo-primary/50">{formatDate(comment.createdAt)}</span>
         </div>
         <p className={cn(
           'mt-0.5 whitespace-pre-wrap text-ssoo-primary/80',
@@ -157,7 +205,7 @@ export function CommentsSection({
     onRestore?.(comment);
   };
 
-  const threads = React.useMemo(() => buildCommentThreads(comments), [comments]);
+  const threads = React.useMemo(() => buildThreads(comments), [comments]);
   const totalCount = comments.filter((c) => !c.deletedAt && !pendingDeletes.has(c.id)).length;
 
   return (

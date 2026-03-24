@@ -25,10 +25,7 @@ export function useMarkRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => notificationsApi.markRead(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: notifKeys.all });
-      qc.invalidateQueries({ queryKey: notifKeys.unread() });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: notifKeys.all }); },
   });
 }
 
@@ -36,9 +33,6 @@ export function useMarkAllRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => notificationsApi.markAllRead(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: notifKeys.all });
-      qc.invalidateQueries({ queryKey: notifKeys.unread() });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: notifKeys.all }); },
   });
 }

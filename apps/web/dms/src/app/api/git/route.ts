@@ -10,7 +10,6 @@ import {
   isGitAvailable,
   type GitActionBody,
 } from '@/server/handlers/git.handler';
-import { fail, toNextResponse } from '@/server/shared/result';
 
 export async function GET() {
   // 초기화를 보장 (lazy init)
@@ -19,7 +18,12 @@ export async function GET() {
   }
 
   // GET = 간단한 status 조회
-  return toNextResponse(await handleGitAction({ action: 'status' }));
+  const result = await handleGitAction({ action: 'status' });
+
+  if (result.success) {
+    return Response.json(result.data);
+  }
+  return Response.json({ error: result.error }, { status: 500 });
 }
 
 export async function POST(req: Request) {
@@ -29,10 +33,10 @@ export async function POST(req: Request) {
   }
 
   const body: GitActionBody = await req.json();
-  try {
-    return toNextResponse(await handleGitAction(body));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Git 작업 처리 중 오류가 발생했습니다.';
-    return toNextResponse(fail(message, 500));
+  const result = await handleGitAction(body);
+
+  if (result.success) {
+    return Response.json(result.data);
   }
+  return Response.json({ error: result.error }, { status: 400 });
 }

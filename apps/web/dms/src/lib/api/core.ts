@@ -5,8 +5,6 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
   message?: string;
-  status?: number;
-  code?: string;
 }
 
 export interface ApiRequestOptions {
@@ -83,18 +81,11 @@ export async function request<T = unknown>(
     if (!response.ok) {
       const contentType = response.headers.get('content-type') || '';
       let errorText = response.statusText;
-      let errorCode: string | undefined;
 
       if (contentType.includes('application/json')) {
         try {
-          const payload = await response.json() as {
-            error?: string;
-            message?: string;
-            code?: string;
-            status?: number;
-          };
+          const payload = await response.json() as { error?: string; message?: string };
           errorText = payload.error || payload.message || response.statusText;
-          errorCode = payload.code;
         } catch {
           errorText = response.statusText;
         }
@@ -106,8 +97,6 @@ export async function request<T = unknown>(
       return {
         success: false,
         error: `HTTP ${response.status}: ${errorText}`,
-        status: response.status,
-        code: errorCode,
       };
     }
 
@@ -115,33 +104,7 @@ export async function request<T = unknown>(
     let data: T | undefined;
 
     if (contentType && contentType.includes('application/json')) {
-      const payload = await response.json() as unknown;
-
-      if (
-        payload &&
-        typeof payload === 'object' &&
-        'success' in payload &&
-        typeof (payload as { success?: unknown }).success === 'boolean'
-      ) {
-        const envelope = payload as ApiResponse<T>;
-        if (!envelope.success) {
-          return {
-            success: false,
-            error: envelope.error || envelope.message || ERROR_MESSAGES.NETWORK_ERROR,
-            status: envelope.status ?? response.status,
-            code: envelope.code,
-          };
-        }
-
-        return {
-          success: true,
-          data: envelope.data,
-          status: envelope.status ?? response.status,
-          code: envelope.code,
-        };
-      }
-
-      data = payload as T;
+      data = await response.json();
     } else if (response.status !== 204) {
       data = await response.text() as unknown as T;
     } else {
@@ -151,7 +114,6 @@ export async function request<T = unknown>(
     return {
       success: true,
       data,
-      status: response.status,
     };
   } catch (error) {
     if (error instanceof Error) {

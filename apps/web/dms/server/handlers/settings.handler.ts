@@ -1,5 +1,4 @@
 import type { DmsConfig, DeepPartial } from '@/server/services/config/ConfigService';
-import { fail } from '@/server/shared/result';
 import { settingsService } from '@/server/services/settings/SettingsService';
 
 interface SettingsAction {
@@ -22,6 +21,6 @@ export async function handleSettingsAction(body: SettingsAction) {
     case 'updateGitPath':
       return settingsService.updateGitPath(body.newPath, body.copyFiles);
     default:
-      return fail(`Unknown action: ${action}`, 400);
+      return { success: false as const, error: `Unknown action: ${action}` };
   }
 }

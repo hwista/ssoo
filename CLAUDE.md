@@ -24,7 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 구조 | pnpm workspace + Turborepo |
 | 앱 | `apps/server` (NestJS), `apps/web/pms` (Next.js), `apps/web/chs` (Next.js), `apps/web/dms` (Next.js, npm 독립) |
 | 공유 패키지 | `packages/database` (Prisma), `packages/types` |
-| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/chs) |
+| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms) |
 
 ---
 
@@ -107,7 +107,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 
 ### 데이터베이스 (Multi-Schema Prisma)
 
-- PostgreSQL 4개 스키마: `common`, `pms`, `dms`, `chs`
+- PostgreSQL 3개 스키마: `common`, `pms`, `dms`
 - 히스토리 테이블 패턴: 주 테이블 `cm_code` → 이력 테이블 `cm_code_h` (historySeq 복합 PK)
 - 공통 감사 컬럼: `createdBy`, `createdAt`, `updatedBy`, `updatedAt`
 - DB 테이블 네이밍은 `{스키마접두사}_{도메인}_m` 패턴을 사용
@@ -117,7 +117,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 ### 서버 아키텍처 핵심
 
 - `DatabaseService`는 Prisma 래퍼이며 Controller에서 직접 Prisma를 사용하지 않음
-- 도메인 모듈은 `modules/common/`, `modules/pms/`, `modules/dms/`, `modules/chs/` 구조를 따른다
+- 도메인 모듈은 `modules/common/`, `modules/pms/`, `modules/dms/` 구조를 따른다
 - 인증은 `JwtAuthGuard`, `RolesGuard`, `@CurrentUser()`, `@Public()` 패턴을 사용
 - `GlobalHttpExceptionFilter`, `RequestContextInterceptor`, 전역 `ValidationPipe`를 기본 전제로 한다
 - 모든 엔드포인트는 `/api` prefix를 사용하고, OpenAPI 스펙은 `/api/openapi.json`에서 제공한다
@@ -129,18 +129,11 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 - 서버 상태는 TanStack Query 훅(`hooks/queries/`) 패턴으로 관리한다
 - Import alias는 `@/*` → `./src/*` 를 사용한다
 
-### CHS (Community Hub System)
-
-- Next.js App Router 기반, 포트 3002
-- 컬러 테마: Teal (hue 180°) — PMS Navy (hue 213°)와 구분
-- 서버 모듈: `modules/chs/` (board, comment, feed, follow, notification, post, profile, skill)
-- PMS와 인증 토큰 공유, 라우팅은 표준 Next.js 방식 (PMS MDI 탭과 다름)
-
 ### Prisma Client Extensions
 
-- `commonColumnsExtension`: 감사 컬럼 자동 세팅 (History 모델, `UserFavorite` 제외)
+- `commonColumnsExtension`: 감사 컬럼 자동 세팅
 - `softDeleteExtension`: `delete()`를 soft delete로 변환
-- `activeFilterExtension`: 활성 데이터 필터 자동 적용 (읽기 시 soft-deleted 데이터 자동 제외)
+- `activeFilterExtension`: 활성 데이터 필터 자동 적용
 - 이 Extension들은 `DatabaseService`를 통해서만 적용된다
 
 ---
@@ -182,7 +175,6 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 | 전체 (server + pms) | `pnpm dev` | - | Turborepo 병렬 실행 |
 | server만 | `pnpm dev:server` | 4000 | NestJS |
 | web-pms만 | `pnpm dev:web-pms` | 3000 | Next.js |
-| web-chs | `pnpm dev:web-chs` | 3002 | Next.js App Router |
 | web-dms | `pnpm dev:web-dms` | 3001 | 내부적으로 `npm run dev` 실행 |
 
 ### 앱별 빌드 / 린트 / 타입 체크
@@ -192,10 +184,8 @@ pnpm build                                    # 전체 빌드
 pnpm lint                                     # 전체 린트
 turbo lint --filter=server                    # 서버만 린트
 turbo lint --filter=web-pms                   # PMS만 린트
-turbo lint --filter=web-chs                   # CHS만 린트
 pnpm -C apps/server exec tsc --noEmit         # 서버 타입 체크
 pnpm -C apps/web/pms exec tsc --noEmit        # PMS 타입 체크
-pnpm -C apps/web/chs exec tsc --noEmit        # CHS 타입 체크
 cd apps/web/dms && npx tsc --noEmit           # DMS 타입 체크
 ```
 
@@ -246,12 +236,6 @@ pnpm install
 
 현재 테스트 프레임워크 미도입 상태. `pnpm test` 명령 없음. 테스트 관련 규칙은 `.github/instructions/testing.instructions.md`를 참조합니다.
 
-### Pre-commit Hooks (lint-staged)
-
-- TypeScript/JS 파일: `pnpm lint` + `check-patterns.js` 자동 실행
-- Markdown 파일: `check-docs.js --strict` 자동 실행
-- Husky + lint-staged로 관리, 훅 실패 시 커밋 차단
-
 ### CI
 
 PR 생성/업데이트 시 `.github/workflows/pr-validation.yml` 자동 실행 (린트 + 타입 체크 + 빌드 + 패턴 검증)
@@ -288,7 +272,6 @@ PR 생성/업데이트 시 `.github/workflows/pr-validation.yml` 자동 실행 (
 |------|----------------|
 | `apps/server/**` | `.github/instructions/server.instructions.md` |
 | `apps/web/pms/**` | `.github/instructions/pms.instructions.md` |
-| `apps/web/chs/**` | `.github/instructions/chs.instructions.md` |
 | `apps/web/dms/**` | `.github/instructions/dms.instructions.md` + `apps/web/dms/CLAUDE.md` |
 | `packages/database/**` | `.github/instructions/database.instructions.md` |
 | `packages/types/**` | `.github/instructions/types.instructions.md` |

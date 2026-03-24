@@ -2,9 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { LIMITS } from '@/lib/constants/common';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
-import type { AppResult } from '@/server/shared/result';
-import { fail, ok } from '@/server/shared/result';
-import type { AiContextOptions, SearchResponse, SearchResultItem } from '@/server/services/ai/types';
+import type { AiContextOptions, HandlerResult, SearchResponse, SearchResultItem } from '@/server/services/ai/types';
 import { getRootDir, listMarkdownFiles, resolveAbsolutePath, resolveDocumentPresentation, toRelativePath } from './paths';
 import { tokenizeQuery } from './query';
 import { buildSearchResponse } from './response';
@@ -16,11 +14,11 @@ const SEARCH_SUMMARY_CONCURRENCY = 3;
 export async function searchDocumentsKeyword(
   query: string,
   options?: AiContextOptions
-): Promise<AppResult<SearchResponse>> {
+): Promise<HandlerResult<SearchResponse>> {
   const timer = new PerformanceTimer('Handler: 키워드 검색');
 
   if (!query || query.trim().length < LIMITS.MIN_SEARCH_QUERY_LENGTH) {
-    return fail('검색어가 비어 있습니다.', 400);
+    return { success: false, error: '검색어가 비어 있습니다.', status: 400 };
   }
 
   try {
@@ -88,10 +86,13 @@ export async function searchDocumentsKeyword(
     logger.info('키워드 검색 완료', { query, count: finalizedResults.length });
     timer.end({ query, count: finalizedResults.length });
 
-    return ok(buildSearchResponse(query, finalizedResults, options));
+    return {
+      success: true,
+      data: buildSearchResponse(query, finalizedResults, options),
+    };
   } catch (error) {
     logger.error('키워드 검색 실패', error, { query });
     timer.end({ query, error: true });
-    return fail('검색 처리 중 오류가 발생했습니다.', 500);
+    return { success: false, error: '검색 처리 중 오류가 발생했습니다.', status: 500 };
   }
 }

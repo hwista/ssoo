@@ -19,11 +19,6 @@ import {
   useState,
 } from 'react';
 import { logger } from '@/lib/utils/errorUtils';
-import {
-  createHistoryEntry,
-  createInitialHistoryState,
-  historyReducer,
-} from './history';
 
 export interface EditorCursorPosition {
   line: number;
@@ -66,6 +61,64 @@ export interface UseEditorStateReturn {
   getPositionFromLineColumn: (line: number, column: number) => number;
   markAsSaved: () => void;
   clearHistory: () => void;
+}
+
+interface HistoryEntry {
+  content: string;
+  cursorPosition: number;
+}
+
+interface HistoryState {
+  entries: HistoryEntry[];
+  index: number;
+}
+
+type HistoryAction =
+  | { type: 'push'; entry: HistoryEntry; maxHistorySize: number }
+  | { type: 'reset'; entry: HistoryEntry }
+  | { type: 'clear'; entry: HistoryEntry }
+  | { type: 'move'; index: number };
+
+function createHistoryEntry(content: string, cursorPosition: number): HistoryEntry {
+  return { content, cursorPosition };
+}
+
+function createInitialHistoryState(content: string): HistoryState {
+  return {
+    entries: [createHistoryEntry(content, 0)],
+    index: 0,
+  };
+}
+
+function historyReducer(state: HistoryState, action: HistoryAction): HistoryState {
+  switch (action.type) {
+    case 'push': {
+      const nextEntries = state.entries.slice(0, state.index + 1);
+      nextEntries.push(action.entry);
+
+      if (nextEntries.length > action.maxHistorySize) {
+        nextEntries.shift();
+      }
+
+      return {
+        entries: nextEntries,
+        index: nextEntries.length - 1,
+      };
+    }
+    case 'reset':
+    case 'clear':
+      return {
+        entries: [action.entry],
+        index: 0,
+      };
+    case 'move':
+      return {
+        ...state,
+        index: action.index,
+      };
+    default:
+      return state;
+  }
 }
 
 export const useEditorState = (

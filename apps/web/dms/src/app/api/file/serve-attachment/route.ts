@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fail, toNextResponse } from '@/server/shared/result';
 import { configService } from '@/server/services/config/ConfigService';
-import { getMimeType } from '@/lib/utils/fileUtils';
+import { getMimeType } from '@/lib/constants/file';
 
 export async function GET(req: NextRequest) {
   const filePath = req.nextUrl.searchParams.get('path');
@@ -11,13 +10,13 @@ export async function GET(req: NextRequest) {
   const originalName = req.nextUrl.searchParams.get('name');
 
   if (!filePath) {
-    return toNextResponse(fail('path 파라미터가 필요합니다.', 400));
+    return NextResponse.json({ error: 'path 파라미터가 필요합니다.' }, { status: 400 });
   }
 
   // path traversal 방지
   const normalizedPath = path.normalize(filePath).replace(/^(\.\.(\/|\\|$))+/, '');
   if (normalizedPath !== filePath || filePath.includes('..')) {
-    return toNextResponse(fail('유효하지 않은 경로입니다.', 400));
+    return NextResponse.json({ error: '유효하지 않은 경로입니다.' }, { status: 400 });
   }
 
   const docDir = configService.getDocDir();
@@ -25,11 +24,11 @@ export async function GET(req: NextRequest) {
 
   // docDir 범위 내인지 확인
   if (!absolutePath.startsWith(path.resolve(docDir))) {
-    return toNextResponse(fail('접근이 허용되지 않는 경로입니다.', 403));
+    return NextResponse.json({ error: '접근이 허용되지 않는 경로입니다.' }, { status: 403 });
   }
 
   if (!fs.existsSync(absolutePath)) {
-    return toNextResponse(fail('파일을 찾을 수 없습니다.', 404));
+    return NextResponse.json({ error: '파일을 찾을 수 없습니다.' }, { status: 404 });
   }
 
   const buffer = fs.readFileSync(absolutePath);

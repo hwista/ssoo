@@ -19,9 +19,6 @@ export function useCreateComment() {
   return useMutation({
     mutationFn: ({ postId, data }: { postId: string; data: { content: string; parentCommentId?: string } }) =>
       commentsApi.create(postId, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: commentKeys.all });
-      qc.invalidateQueries({ queryKey: ['chs', 'posts'] });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: commentKeys.all }); },
   });
 }

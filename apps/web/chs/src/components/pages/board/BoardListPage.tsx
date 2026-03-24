@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/common/StateDisplay';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBoards } from '@/hooks/queries/useBoards';
-import { useAuthStore } from '@/stores/auth.store';
 import { useRouter } from 'next/navigation';
 
 const boardTypeLabels: Record<string, string> = {
@@ -20,19 +19,16 @@ const boardTypeLabels: Record<string, string> = {
 export function BoardListPage() {
   const { data, isLoading } = useBoards();
   const router = useRouter();
-  const isAdmin = useAuthStore((state) => state.user?.isAdmin);
   const boards = data?.data?.data || [];
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">게시판</h1>
-        {isAdmin ? (
-          <Button size="sm" disabled title="관리자 전용 - 준비 중">
-            <Plus className="h-4 w-4 mr-1" />
-            새 게시판
-          </Button>
-        ) : null}
+        <Button size="sm">
+          <Plus className="h-4 w-4 mr-1" />
+          새 게시판
+        </Button>
       </div>
 
       {isLoading ? (

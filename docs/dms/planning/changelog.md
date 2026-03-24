@@ -1,53 +1,6 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-03-23
-
----
-
-## 2026-03-23
-
-### DMS 표준화 감사 백로그 마감
-
-- 표준화 실행 백로그 14건을 전수 점검하고 전체 상태를 `✅ 완료` 또는 `✅ 수용 종결`로 확정
-- `docs/dms/guides/verification.md` 를 추가해 전역 게이트와 DMS 고유 게이트 해석 기준을 문서화
-- `docs/dms/guides/qa-scenarios.md` 를 추가해 표준화 리팩토링 회귀 확인 시나리오를 정리
-- `DMS-STD-20`, `DMS-STD-22` 는 현재 구조를 수용하는 방식으로 종결 처리
-- `pnpm run codex:preflight` 에서 DMS 외부 원인 실패가 발생할 경우 `레포 전역 이슈 (DMS 범위 외)` 로 분리 해석하는 원칙을 명시
-
-### DMS 3차 마감 정리
-
-- `editor/editorHistory.ts` → `editor/history.ts` rename (디렉토리명 접두사 네이밍 규칙 위반 해소)
-- 행수 초과 5건 (9~20행) accepted deviation으로 확정
-
-### DMS 3차 표준화 리팩토링 진행
-
-- `useDocumentPageReferences.ts` 를 조립 hook으로 축소하고 `useDocumentPageReferenceSelection`, `useDocumentPageReferenceRestore`, `useDocumentPagePendingAttachments` 3개 하위 hook으로 references 흐름을 분리
-- `DocumentPage.tsx` 에서 AI summary 자동 실행, 저장/삭제/취소, navigation, launcher 흐름을 page-local hook으로 이동하고 `DocumentPageFrame`, `DocumentPageEditorShell`, `DocumentPageSidecarSlot`, `EditorToolbarStrip` support 컴포넌트로 JSX 조립을 분리
-- `useDocumentPageComposeActions.ts` 의 compose 완료 후 추천 처리 책임을 hook 내부로 이동해 `DocumentPage` wiring을 추가 경량화
-- 최종 기준으로 `DocumentPage.tsx` 는 417행, `useDocumentPageReferences.ts` 는 84행까지 축소
-### DMS 2차 표준화 리팩토링 진행
-
-- `DocumentPage.tsx` 를 page-local hook 조합 구조로 재편하고 `useDocumentPageMode`, `useDocumentPageSidecar`, `useDocumentPageAI`, `useDocumentPageReferences`, `useDocumentPageDiff` 를 추가
-- `useDocumentPageComposeActions.ts` 의 순수 compose 로직을 `documentPageUtils.ts` 로 이동해 hook을 stream orchestration 중심으로 경량화
-- `ContentInfoSections.tsx` 를 `TagsSection.tsx`, `SummarySection.tsx`, `SourceLinksSection.tsx` 로 물리 분리하고, `useEditorState` history 로직과 `CommentsSection` thread 로직, `SettingsPage` 템플릿 관리 흐름도 별도 모듈로 추출
-- editor toolbar export를 `Toolbar` 로 정리하고 `/api/ask`, `/api/create` 의 pre-stream JSON 응답을 envelope 규약으로 마감
-
-### DMS 1차 표준화 리팩토링 진행
-
-- Quick Wins 범위에서 build warning 4건, `errorUtils` dead code, 파일 MIME/type 유틸 중복을 정리
-- `server/shared/result.ts` 에 `AppResult<T>`, `ok`, `fail`, `toNextResponse` 를 추가하고 file/chat/settings/git/ingest/storage/doc-assist 관련 route-handler-service 흐름에 공통 적용
-- non-stream JSON API 를 `{ success, data?, error?, status, code? }` envelope 기준으로 통일하고 `src/lib/api/core.ts` 를 envelope 우선 해석 구조로 정렬
-- `/api/doc-assist` 는 JSON branch 와 사전 실패 응답만 envelope 로 통일하고, SSE 본문 형식은 예외 정책으로 유지
-- `.github/.codex dms.instructions`, `docs/dms/guides/api|components|hooks`, `apps/web/dms/README.md`, `apps/web/dms/CLAUDE.md`, `verification-report.md` 를 현재 구현 기준으로 현행화
-
----
-
-### DMS 전면 표준화 감사 문서화
-
-- `apps/web/dms/**`, `docs/dms/**`, DMS instruction 정본을 함께 기준으로 삼는 전면 표준화 감사를 수행하고 결과를 `docs/dms/planning/standardization-audit-2026-03.md` 에 기록
-- 감사 결과를 실제 리팩토링 트랙으로 분해한 `docs/dms/planning/standardization-remediation-backlog-2026-03.md` 추가
-- `docs/dms/README.md`, `docs/dms/planning/README.md`, `docs/dms/planning/backlog.md` 에 감사/실행 백로그 문서를 정본 흐름으로 연결
-- DMS 품질 이슈와 레포 전역 게이트 실패를 분리해서 다룰 수 있도록 preflight 실패 원인을 감사 문서에 명시
+> 최종 업데이트: 2026-03-19
 
 ---
 

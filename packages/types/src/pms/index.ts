@@ -5,8 +5,6 @@ export type {
   ProjectStatusCode,
   ProjectStageCode,
   DoneResultCode,
-  HandoffTypeCode,
-  HandoffStageCode,
   Project,
   CreateProjectDto,
   UpdateProjectDto,
@@ -20,7 +18,6 @@ export type {
   UpsertProposalDetailDto,
   UpsertExecutionDetailDto,
   UpsertTransitionDetailDto,
-  CreateHandoffDto,
   AdvanceStageDto,
   TransitionResult,
 } from './project';

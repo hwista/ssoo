@@ -35,8 +35,8 @@ export class PostController {
   @ApiNotFoundResponse({ type: ApiError })
   @ApiUnauthorizedResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  async findOne(@Param('id') id: string, @CurrentUser() user: TokenPayload) {
-    const post = await this.postService.findOne(BigInt(id), BigInt(user.userId));
+  async findOne(@Param('id') id: string) {
+    const post = await this.postService.findOne(BigInt(id));
     return success(serializeBigInt(post));
   }
 

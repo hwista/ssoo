@@ -17,10 +17,6 @@ seed_files=(
   04_project_handoff_type.sql
   09_project_request_sample.sql
   08_unit_code.sql
-  10_project_member_task_issue_code.sql
-  17_system_catalog.sql
-  18_site_type.sql
-  19_system_operator_type.sql
   05_menu_data.sql
   06_role_menu_permission.sql
   99_user_initial_admin.sql

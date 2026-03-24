@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { getGravatarUrl, getInitials, getNameColor } from '@/lib/utils/gravatar';
 
@@ -43,12 +42,9 @@ export function UserAvatar({ name, email, avatarUrl, size = 28, className }: Use
   // 1. 로컬 아바타
   if (avatarUrl && !imgError) {
     return (
-      <Image
+      <img
         src={avatarUrl}
         alt={name}
-        width={size}
-        height={size}
-        unoptimized
         className={cn('rounded-full object-cover', className)}
         style={sizeStyle}
         onError={() => setImgError(true)}
@@ -59,12 +55,9 @@ export function UserAvatar({ name, email, avatarUrl, size = 28, className }: Use
   // 2. Gravatar
   if (gravatarUrl && !gravatarError) {
     return (
-      <Image
+      <img
         src={gravatarUrl}
         alt={name}
-        width={size}
-        height={size}
-        unoptimized
         className={cn('rounded-full object-cover', className)}
         style={sizeStyle}
         onError={() => setGravatarError(true)}

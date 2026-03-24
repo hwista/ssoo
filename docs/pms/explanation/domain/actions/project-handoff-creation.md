@@ -2,12 +2,11 @@
 
 ## 구현 상태
 
-- 상태: ✅ 구현됨
-- 최종 검증일: 2026-03-23
+- 상태: ⬜ 미구현 (스펙 문서)
+- 최종 검증일: 2026-02-02
 - 현재 기준:
-  - `POST /projects/:id/handoffs` 구현
-  - 프로젝트 상세 화면에서 핸드오프 생성 UI 제공
-  - `pr_project_m` 및 히스토리 트리거에 `handoff_user_id` 반영
+  - 핸드오프 관련 API/화면/서비스 전체 미구현
+  - pr_project_m에 handoff 컬럼은 스키마에 정의되어 있음
 
 
 ## 1) 목적
@@ -38,5 +37,5 @@
 
 | Date | Change |
 |------|--------|
-| 2026-03-23 | H01 핸드오프 생성 API/UI 구현 및 handoff_user_id 반영 |
 | 2026-02-09 | Add changelog section. |
+
