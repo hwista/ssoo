@@ -40,6 +40,14 @@ export type DoneResultCode =
   | 'transferred'
   | 'hold';
 
+export type HandoffTypeCode =
+  | 'PRE_TO_PM'
+  | 'PRE_TO_CONTRACT_OWNER'
+  | 'EXEC_TO_CONTRACT_OWNER'
+  | 'EXEC_TO_SM';
+
+export type HandoffStageCode = 'waiting' | 'in_progress' | 'done';
+
 /**
  * 프로젝트 엔티티
  */
@@ -48,10 +56,18 @@ export interface Project {
   projectName: string;
   memo?: string | null;
   customerId?: string | null;
+  siteId?: string | null;
+  systemInstanceId?: string | null;
   statusCode: ProjectStatusCode;
   stageCode: ProjectStageCode;
   doneResultCode?: DoneResultCode;
   currentOwnerUserId?: string | null;
+  handoffTypeCode?: HandoffTypeCode | null;
+  handoffStatusCode?: HandoffStageCode | null;
+  handoffUserId?: string | null;
+  handoffRequestedAt?: Date | null;
+  handoffConfirmedAt?: Date | null;
+  handoffConfirmedBy?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -208,6 +224,11 @@ export interface UpsertTransitionDetailDto {
   transitionDueAt?: string;
   transitionSummary?: string;
   memo?: string;
+}
+
+export interface CreateHandoffDto {
+  handoffTypeCode: HandoffTypeCode;
+  handoffUserId: string;
 }
 
 // ─── 상태 전이 ───

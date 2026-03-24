@@ -39,7 +39,3 @@ export interface AiContextOptions {
   contextMode?: 'doc' | 'deep';
   activeDocPath?: string;
 }
-
-export type HandlerResult<T = unknown> =
-  | { success: true; data: T }
-  | { success: false; error: string; status: number };

@@ -135,18 +135,19 @@ hooks → lib/api → stores
 ## 서버 레이어 패턴 (server/)
 
 ```typescript
-// ✅ Handler: 단순 라우팅, 로직은 서비스로 위임
+// ✅ Route: wire parsing + HTTP response만 담당
 export async function GET(request: NextRequest) {
-  const result = await fileSystemService.getFileTree();
-  if (!result.success) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
-  }
-  return NextResponse.json(result.data);
+  return toNextResponse(await handleFilesRequest());
+}
+
+// ✅ Handler: facade only
+export async function handleFilesRequest(): Promise<AppResult<FileNode[]>> {
+  return fileSystemService.getFileTree();
 }
 
 // ✅ Service: BaseService 없이 단순 구조
 class FileSystemService {
-  async getFileTree(): Promise<ServiceResult<FileNode[]>> {
+  async getFileTree(): Promise<AppResult<FileNode[]>> {
     // 실제 로직만 구현
   }
 }
@@ -158,6 +159,31 @@ export const fileSystemService = new FileSystemService();
 - 불필요한 추상화 제거 → 코드 이해 용이
 - 싱글톤 export → 인스턴스 관리 단순화
 - 실제 사용 메서드만 → Dead Code 방지
+
+### JSON API 응답 규약
+
+- 표준 결과 타입은 `server/shared/result.ts` 의 `AppResult<T>` 하나만 사용합니다.
+- non-stream JSON API 는 아래 envelope 를 사용합니다.
+  - 성공: `{ success: true, data, status }`
+  - 실패: `{ success: false, error, status, code? }`
+- route 는 `ok`, `fail`, `toNextResponse` helper 를 사용합니다.
+- stream/binary route 는 본문 형식 예외를 유지합니다.
+  - `/api/ask`
+  - `/api/create`
+  - `/api/doc-assist` SSE
+  - `/api/storage/open`
+  - `/api/file/raw`
+  - `/api/file/serve-attachment`
+- 단, stream 시작 전 JSON 실패 응답은 envelope 를 사용합니다.
+
+---
+
+## Block Editor 규칙
+
+- 현재 block editor 런타임 정본은 `components/pages/markdown/_components/editor/**` 의 page-local 구조입니다.
+- `Editor` 는 markdown page orchestration, `BlockEditor` 는 CodeMirror bridge 역할만 맡습니다.
+- `window.prompt()` / `window.open()` 직접 호출 대신 interaction contract를 사용합니다.
+- selection/cursor 상태는 불필요하게 초기화하지 않습니다.
 
 ---
 
@@ -312,15 +338,15 @@ DMS의 핵심 에디터는 `CodeMirror 6` 기반 block editor입니다.
 class FileSystemService {
   private basePath: string;
 
-  async getFileTree(): Promise<ServiceResult<FileNode[]>> {
+  async getFileTree(): Promise<AppResult<FileNode[]>> {
     // fs.readdir 등 사용
   }
 
-  async readFile(path: string): Promise<ServiceResult<string>> {
+  async readFile(path: string): Promise<AppResult<string>> {
     // fs.readFile 사용
   }
 
-  async writeFile(path: string, content: string): Promise<ServiceResult<void>> {
+  async writeFile(path: string, content: string): Promise<AppResult<void>> {
     // fs.writeFile 사용
   }
 }

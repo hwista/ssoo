@@ -1,21 +1,30 @@
 'use client';
 
+import { useState } from 'react';
 import { Briefcase, Globe, Linkedin, Mail } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFollow, useUnfollow } from '@/hooks/queries/useFollows';
 import { useMyProfile, useUserProfile } from '@/hooks/queries/useProfiles';
+import { useAuthStore } from '@/stores/auth.store';
+import { FollowListDialog } from './FollowListDialog';
+import { SkillSection } from './SkillSection';
+import { CareerSection } from './CareerSection';
 
 interface ProfilePageProps {
   userId?: string;
 }
 
 export function ProfilePage({ userId }: ProfilePageProps) {
+  const currentUser = useAuthStore((state) => state.user);
   const myProfile = useMyProfile();
   const otherProfile = useUserProfile(userId || '');
+  const follow = useFollow();
+  const unfollow = useUnfollow();
+  const [followDialogType, setFollowDialogType] = useState<'followers' | 'following' | null>(null);
   const { data, isLoading } = userId && userId !== 'me' ? otherProfile : myProfile;
   const profile = data?.data?.data;
 
@@ -41,7 +50,27 @@ export function ProfilePage({ userId }: ProfilePageProps) {
   }
 
   const user = profile.user;
+  const isOwnProfile = currentUser?.userId === profile.userId;
   const initials = user?.displayName?.slice(0, 2) || user?.userName?.slice(0, 2) || '?';
+
+  const handleFollowToggle = async () => {
+    if (isOwnProfile) {
+      return;
+    }
+
+    try {
+      if (profile.followStats?.isFollowing) {
+        await unfollow.mutateAsync(profile.userId);
+        return;
+      }
+
+      await follow.mutateAsync(profile.userId);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '팔로우 상태 변경에 실패했습니다.';
+      toast.error(message);
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
@@ -55,7 +84,19 @@ export function ProfilePage({ userId }: ProfilePageProps) {
             <AvatarFallback className="bg-ssoo-primary text-white text-2xl">{initials}</AvatarFallback>
           </Avatar>
           <div className="mt-3">
-            <h1 className="text-xl font-bold">{user?.displayName || user?.userName}</h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h1 className="text-xl font-bold">{user?.displayName || user?.userName}</h1>
+              {!isOwnProfile && (
+                <Button
+                  variant={profile.followStats?.isFollowing ? 'outline' : 'default'}
+                  size="sm"
+                  disabled={follow.isPending || unfollow.isPending}
+                  onClick={() => void handleFollowToggle()}
+                >
+                  {profile.followStats?.isFollowing ? '팔로잉' : '팔로우'}
+                </Button>
+              )}
+            </div>
             {user?.positionCode && (
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Briefcase className="h-3.5 w-3.5" />
@@ -67,8 +108,20 @@ export function ProfilePage({ userId }: ProfilePageProps) {
             <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
               {profile.followStats && (
                 <>
-                  <span><strong>{profile.followStats.followersCount}</strong> 팔로워</span>
-                  <span><strong>{profile.followStats.followingCount}</strong> 팔로잉</span>
+                  <button
+                    type="button"
+                    className="hover:underline"
+                    onClick={() => setFollowDialogType('followers')}
+                  >
+                    <strong>{profile.followStats.followersCount}</strong> 팔로워
+                  </button>
+                  <button
+                    type="button"
+                    className="hover:underline"
+                    onClick={() => setFollowDialogType('following')}
+                  >
+                    <strong>{profile.followStats.followingCount}</strong> 팔로잉
+                  </button>
                 </>
               )}
             </div>
@@ -93,53 +146,19 @@ export function ProfilePage({ userId }: ProfilePageProps) {
         </CardContent>
       </Card>
 
-      {/* Skills Card */}
-      {profile.skills && profile.skills.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">스킬</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {profile.skills.map((skill) => (
-              <div key={skill.id} className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm font-medium">{skill.skillName}</span>
-                  <Badge variant="outline" className="ml-2 text-xs">{skill.skillCategory}</Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-ssoo-primary rounded-full"
-                      style={{ width: `${(skill.proficiencyLevel / 5) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-muted-foreground">{skill.endorsementCount} 추천</span>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Career Card */}
-      {profile.careers && profile.careers.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">프로젝트 이력</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            {profile.careers.map((career, i) => (
-              <div key={career.id}>
-                {i > 0 && <Separator className="mb-4" />}
-                <div>
-                  <h4 className="text-sm font-semibold">{career.projectName}</h4>
-                  <p className="text-xs text-muted-foreground">{career.roleName}</p>
-                  {career.companyName && <p className="text-xs text-muted-foreground">{career.companyName}</p>}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(career.startDate).toLocaleDateString('ko-KR')} ~{' '}
-                    {career.endDate ? new Date(career.endDate).toLocaleDateString('ko-KR') : '현재'}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      <SkillSection skills={profile.skills ?? []} isOwnProfile={Boolean(isOwnProfile)} />
+      <CareerSection careers={profile.careers ?? []} isOwnProfile={Boolean(isOwnProfile)} />
+      {followDialogType && (
+        <FollowListDialog
+          userId={profile.userId}
+          type={followDialogType}
+          open={Boolean(followDialogType)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setFollowDialogType(null);
+            }
+          }}
+        />
       )}
     </div>
   );

@@ -446,10 +446,11 @@ model Project {
   handoffRequestedAt    DateTime? @map("handoff_requested_at")
   handoffConfirmedAt    DateTime? @map("handoff_confirmed_at")
   handoffConfirmedBy    BigInt?  @map("handoff_confirmed_by")
+  handoffUserId         BigInt?  @map("handoff_user_id")
   
   // Customer (external relations - logical FK)
   customerId            BigInt?  @map("customer_id")
-  plantId               BigInt?  @map("plant_id")
+  siteId                BigInt?  @map("site_id")
   systemInstanceId      BigInt?  @map("system_instance_id")
   
   // Common columns
@@ -1171,8 +1172,9 @@ model ProjectHistory {
   handoffRequestedAt    DateTime? @map("handoff_requested_at")
   handoffConfirmedAt    DateTime? @map("handoff_confirmed_at")
   handoffConfirmedBy    BigInt?  @map("handoff_confirmed_by")
+  handoffUserId         BigInt?  @map("handoff_user_id")
   customerId            BigInt?  @map("customer_id")
-  plantId               BigInt?  @map("plant_id")
+  siteId                BigInt?  @map("site_id")
   systemInstanceId      BigInt?  @map("system_instance_id")
 
   isActive              Boolean  @map("is_active")
@@ -1821,6 +1823,225 @@ model CustomerHistory {
   @@index([eventAt], name: "ix_cm_customer_h_event_at")
   @@index([transactionId], name: "ix_cm_customer_h_tx")
   @@map("cm_customer_h")
+  @@schema("pms")
+}
+
+// ============================================
+// System Catalog (시스템 카탈로그) - cm_system_catalog_m
+// ============================================
+
+model SystemCatalog {
+  id              BigInt   @id @default(autoincrement()) @map("system_catalog_id")
+
+  catalogCode     String   @unique @map("catalog_code") @db.VarChar(50)
+  catalogName     String   @map("catalog_name") @db.VarChar(200)
+  description     String?  @db.VarChar(500)
+  parentCode      String?  @map("parent_code") @db.VarChar(50)
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  // Common columns
+  isActive        Boolean  @default(true) @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@index([catalogName], name: "ix_cm_system_catalog_m_name")
+  @@index([parentCode], name: "ix_cm_system_catalog_m_parent")
+  @@index([isActive], name: "ix_cm_system_catalog_m_active")
+  @@map("cm_system_catalog_m")
+  @@schema("pms")
+}
+
+// ============================================
+// System Catalog History (시스템 카탈로그 이력) - cm_system_catalog_h
+// ============================================
+
+model SystemCatalogHistory {
+  systemCatalogId  BigInt   @map("system_catalog_id")
+  historySeq       Int      @default(autoincrement()) @map("history_seq")
+
+  eventType        String   @map("event_type") @db.Char(1)
+  eventAt          DateTime @default(now()) @map("event_at")
+  eventBy          BigInt?  @map("event_by")
+
+  catalogCode      String   @map("catalog_code") @db.VarChar(50)
+  catalogName      String   @map("catalog_name") @db.VarChar(200)
+  description      String?  @db.VarChar(500)
+  parentCode       String?  @map("parent_code") @db.VarChar(50)
+  sortOrder        Int      @map("sort_order")
+
+  isActive         Boolean  @map("is_active")
+  memo             String?
+  createdBy        BigInt?  @map("created_by")
+  createdAt        DateTime @map("created_at")
+  updatedBy        BigInt?  @map("updated_by")
+  updatedAt        DateTime @map("updated_at")
+  lastSource       String?  @map("last_source")
+  transactionId    String?  @map("transaction_id") @db.Uuid
+
+  @@id([systemCatalogId, historySeq], name: "pk_cm_system_catalog_h")
+  @@index([eventAt], name: "ix_cm_system_catalog_h_event_at")
+  @@index([transactionId], name: "ix_cm_system_catalog_h_tx")
+  @@map("cm_system_catalog_h")
+  @@schema("pms")
+}
+
+// ============================================
+// Site (사이트) - cm_site_m
+// ============================================
+
+model Site {
+  id              BigInt   @id @default(autoincrement()) @map("site_id")
+
+  siteCode        String   @unique @map("site_code") @db.VarChar(50)
+  siteName        String   @map("site_name") @db.VarChar(200)
+  siteType        String?  @map("site_type") @db.VarChar(50)
+  customerId      BigInt   @map("customer_id")
+  parentCode      String?  @map("parent_code") @db.VarChar(50)
+  sortOrder       Int      @default(0) @map("sort_order")
+  address         String?  @db.VarChar(500)
+  region          String?  @db.VarChar(100)
+  contactPerson   String?  @map("contact_person") @db.VarChar(100)
+  contactPhone    String?  @map("contact_phone") @db.VarChar(50)
+  description     String?  @db.VarChar(500)
+
+  isActive        Boolean  @default(true) @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@index([siteName], name: "ix_cm_site_m_name")
+  @@index([customerId], name: "ix_cm_site_m_customer")
+  @@index([parentCode], name: "ix_cm_site_m_parent")
+  @@index([isActive], name: "ix_cm_site_m_active")
+  @@map("cm_site_m")
+  @@schema("pms")
+}
+
+// ============================================
+// Site History (사이트 이력) - cm_site_h
+// ============================================
+
+model SiteHistory {
+  siteId          BigInt   @map("site_id")
+  historySeq      Int      @default(autoincrement()) @map("history_seq")
+
+  eventType       String   @map("event_type") @db.Char(1)
+  eventAt         DateTime @default(now()) @map("event_at")
+  eventBy         BigInt?  @map("event_by")
+
+  siteCode        String   @map("site_code") @db.VarChar(50)
+  siteName        String   @map("site_name") @db.VarChar(200)
+  siteType        String?  @map("site_type") @db.VarChar(50)
+  customerId      BigInt   @map("customer_id")
+  parentCode      String?  @map("parent_code") @db.VarChar(50)
+  sortOrder       Int      @map("sort_order")
+  address         String?  @db.VarChar(500)
+  region          String?  @db.VarChar(100)
+  contactPerson   String?  @map("contact_person") @db.VarChar(100)
+  contactPhone    String?  @map("contact_phone") @db.VarChar(50)
+  description     String?  @db.VarChar(500)
+
+  isActive        Boolean  @map("is_active")
+  memo            String?
+  createdBy       BigInt?  @map("created_by")
+  createdAt       DateTime @map("created_at")
+  updatedBy       BigInt?  @map("updated_by")
+  updatedAt       DateTime @map("updated_at")
+  lastSource      String?  @map("last_source")
+  transactionId   String?  @map("transaction_id") @db.Uuid
+
+  @@id([siteId, historySeq], name: "pk_cm_site_h")
+  @@index([eventAt], name: "ix_cm_site_h_event_at")
+  @@index([transactionId], name: "ix_cm_site_h_tx")
+  @@map("cm_site_h")
+  @@schema("pms")
+}
+
+// ============================================
+// System Instance (시스템 인스턴스) - cm_system_instance_m
+// ============================================
+
+model SystemInstance {
+  id                  BigInt   @id @default(autoincrement()) @map("system_instance_id")
+
+  instanceCode        String   @unique @map("instance_code") @db.VarChar(50)
+  instanceName        String   @map("instance_name") @db.VarChar(200)
+  systemCatalogId     BigInt   @map("system_catalog_id")
+  customerId          BigInt   @map("customer_id")
+  siteId              BigInt   @map("site_id")
+  parentCode          String?  @map("parent_code") @db.VarChar(50)
+  sortOrder           Int      @default(0) @map("sort_order")
+  operatorType        String?  @map("operator_type") @db.VarChar(50)
+  operatorUserId      BigInt?  @map("operator_user_id")
+  version             String?  @db.VarChar(50)
+  description         String?  @db.VarChar(500)
+
+  isActive            Boolean  @default(true) @map("is_active")
+  memo                String?
+  createdBy           BigInt?  @map("created_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedBy           BigInt?  @map("updated_by")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  lastSource          String?  @map("last_source")
+  transactionId       String?  @map("transaction_id") @db.Uuid
+
+  @@index([instanceName], name: "ix_cm_system_instance_m_name")
+  @@index([customerId], name: "ix_cm_system_instance_m_customer")
+  @@index([siteId], name: "ix_cm_system_instance_m_site")
+  @@index([systemCatalogId], name: "ix_cm_system_instance_m_catalog")
+  @@index([parentCode], name: "ix_cm_system_instance_m_parent")
+  @@index([operatorType], name: "ix_cm_system_instance_m_operator_type")
+  @@index([isActive], name: "ix_cm_system_instance_m_active")
+  @@map("cm_system_instance_m")
+  @@schema("pms")
+}
+
+// ============================================
+// System Instance History (시스템 인스턴스 이력) - cm_system_instance_h
+// ============================================
+
+model SystemInstanceHistory {
+  systemInstanceId    BigInt   @map("system_instance_id")
+  historySeq          Int      @default(autoincrement()) @map("history_seq")
+
+  eventType           String   @map("event_type") @db.Char(1)
+  eventAt             DateTime @default(now()) @map("event_at")
+  eventBy             BigInt?  @map("event_by")
+
+  instanceCode        String   @map("instance_code") @db.VarChar(50)
+  instanceName        String   @map("instance_name") @db.VarChar(200)
+  systemCatalogId     BigInt   @map("system_catalog_id")
+  customerId          BigInt   @map("customer_id")
+  siteId              BigInt   @map("site_id")
+  parentCode          String?  @map("parent_code") @db.VarChar(50)
+  sortOrder           Int      @map("sort_order")
+  operatorType        String?  @map("operator_type") @db.VarChar(50)
+  operatorUserId      BigInt?  @map("operator_user_id")
+  version             String?  @db.VarChar(50)
+  description         String?  @db.VarChar(500)
+
+  isActive            Boolean  @map("is_active")
+  memo                String?
+  createdBy           BigInt?  @map("created_by")
+  createdAt           DateTime @map("created_at")
+  updatedBy           BigInt?  @map("updated_by")
+  updatedAt           DateTime @map("updated_at")
+  lastSource          String?  @map("last_source")
+  transactionId       String?  @map("transaction_id") @db.Uuid
+
+  @@id([systemInstanceId, historySeq], name: "pk_cm_system_instance_h")
+  @@index([eventAt], name: "ix_cm_system_instance_h_event_at")
+  @@index([transactionId], name: "ix_cm_system_instance_h_tx")
+  @@map("cm_system_instance_h")
   @@schema("pms")
 }
 

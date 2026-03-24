@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import Image from 'next/image';
-import { X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,

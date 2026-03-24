@@ -43,6 +43,15 @@ export function useDeletePost() {
   });
 }
 
+export function useUpdatePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { title?: string; content?: string } }) =>
+      postsApi.update(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: postKeys.all }); },
+  });
+}
+
 export function useToggleReaction() {
   const qc = useQueryClient();
   return useMutation({

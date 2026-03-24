@@ -31,6 +31,27 @@ export interface FeedItem {
   tags: string[];
 }
 
+export interface PostDetailItem extends PostItem {
+  author: {
+    id: string;
+    userName: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    departmentCode: string | null;
+    positionCode: string | null;
+  };
+  board: {
+    id: string;
+    boardName: string;
+  } | null;
+  reactionCount: number;
+  commentCount: number;
+  bookmarkCount: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
+  tags: string[];
+}
+
 export const postsApi = {
   feed: (params?: {
     cursor?: string;
@@ -50,7 +71,7 @@ export const postsApi = {
     apiClient.get<PaginatedResponse<PostItem>>('/chs/posts', { params }),
 
   detail: (id: string) =>
-    apiClient.get<ApiResponse<PostItem>>(`/chs/posts/${id}`),
+    apiClient.get<ApiResponse<PostDetailItem>>(`/chs/posts/${id}`),
 
   create: (data: {
     title?: string;

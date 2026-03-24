@@ -9,13 +9,14 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface PaginatedResponse<T> {
+  success: boolean;
   data: T[];
   meta: {
     page: number;
     limit: number;
     total: number;
-    totalPages: number;
   };
+  message?: string;
 }
 
 export interface PaginationParams {

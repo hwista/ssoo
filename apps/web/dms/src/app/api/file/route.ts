@@ -5,6 +5,7 @@
 export const dynamic = 'force-dynamic';
 
 import { readFile, handleFileAction, type FileActionBody } from "@/server/handlers/file.handler";
+import { fail, toNextResponse } from '@/server/shared/result';
 
 export async function GET(req: Request) {
   // 헤더 우선, 없으면 쿼리 파라미터(path) 사용
@@ -14,23 +15,13 @@ export async function GET(req: Request) {
   const filePath = headerPath || queryPath;
 
   if (!filePath) {
-    return Response.json({ error: 'Missing file path header or query' }, { status: 400 });
+    return toNextResponse(fail('Missing file path header or query', 400));
   }
 
-  const result = await readFile(filePath);
-
-  if (result.success) {
-    return Response.json(result.data);
-  }
-  return Response.json({ error: result.error }, { status: result.status });
+  return toNextResponse(await readFile(filePath));
 }
 
 export async function POST(req: Request) {
   const body: FileActionBody = await req.json();
-  const result = await handleFileAction(body);
-
-  if (result.success) {
-    return Response.json(result.data);
-  }
-  return Response.json({ error: result.error }, { status: result.status });
+  return toNextResponse(await handleFileAction(body));
 }

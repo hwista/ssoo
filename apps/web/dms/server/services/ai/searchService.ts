@@ -1,6 +1,7 @@
 import { LIMITS } from '@/lib/constants/common';
 import { logger } from '@/lib/utils/errorUtils';
-import type { AiContextOptions, HandlerResult, SearchResponse } from './types';
+import type { AppResult } from '@/server/shared/result';
+import type { AiContextOptions, SearchResponse } from './types';
 import { searchDocumentsKeyword } from './search/keyword';
 import { searchDocumentsSemantic } from './search/semantic';
 
@@ -10,7 +11,7 @@ export { searchDocumentsKeyword } from './search/keyword';
 export async function searchDocuments(
   query: string,
   options?: AiContextOptions
-): Promise<HandlerResult<SearchResponse>> {
+): Promise<AppResult<SearchResponse>> {
   if (!query || query.trim().length < LIMITS.MIN_SEARCH_QUERY_LENGTH) {
     return { success: false, error: '검색어가 비어 있습니다.', status: 400 };
   }

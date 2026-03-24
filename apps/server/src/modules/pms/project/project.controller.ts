@@ -2,6 +2,8 @@
 import { ApiBearerAuth, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
+import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { ProjectService } from './project.service.js';
 import { success, paginated, deleted } from '../../../common/index.js';
 import { serializeBigInt } from '../../../common/utils/bigint.util.js';
@@ -13,6 +15,7 @@ import type {
   UpsertProposalDetailDto,
   UpsertExecutionDetailDto,
   UpsertTransitionDetailDto,
+  CreateHandoffDto,
   AdvanceStageDto,
 } from "@ssoo/types";
 import { ProjectDto, ProjectListDto } from './dto/project.dto.js';
@@ -148,6 +151,46 @@ export class ProjectController {
   ) {
     const detail = await this.projectService.upsertTransitionDetail(BigInt(id), dto);
     return success(serializeBigInt(detail));
+  }
+
+  @Post(":id/handoffs")
+  @ApiOperation({ summary: "핸드오프 생성" })
+  @ApiOkResponse({ description: "핸드오프 생성 결과" })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async createHandoff(
+    @Param("id") id: string,
+    @Body() dto: CreateHandoffDto,
+    @CurrentUser() user: TokenPayload,
+  ) {
+    const result = await this.projectService.createHandoff(BigInt(id), dto, BigInt(user.userId));
+    return success(serializeBigInt(result));
+  }
+
+  @Post(":id/handoffs/confirm")
+  @ApiOperation({ summary: "핸드오프 수락" })
+  @ApiOkResponse({ description: "핸드오프 수락 결과" })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async confirmHandoff(
+    @Param("id") id: string,
+    @CurrentUser() user: TokenPayload,
+  ) {
+    const result = await this.projectService.confirmHandoff(BigInt(id), BigInt(user.userId));
+    return success(serializeBigInt(result));
+  }
+
+  @Post(":id/handoffs/complete")
+  @ApiOperation({ summary: "핸드오프 완료" })
+  @ApiOkResponse({ description: "핸드오프 완료 결과" })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async completeHandoff(
+    @Param("id") id: string,
+    @CurrentUser() user: TokenPayload,
+  ) {
+    const result = await this.projectService.completeHandoff(BigInt(id), BigInt(user.userId));
+    return success(serializeBigInt(result));
   }
 
   // ─── 상태 전이 ───

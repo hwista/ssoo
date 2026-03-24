@@ -5,7 +5,8 @@ import { Download, File, FileSpreadsheet, FileText, ImageIcon, Paperclip, Presen
 import type { SourceFileMeta } from '@/types';
 import { ActivityListSection } from '@/components/templates/page-frame/sidecar';
 import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
-import { getAttachmentCategory, ATTACHMENT_ACCEPT_STRING } from '@/lib/constants/file';
+import { ATTACHMENT_ACCEPT_STRING } from '@/lib/constants/file';
+import { getAttachmentCategory } from '@/lib/utils/fileUtils';
 
 function formatSize(size: number): string {
   if (size < 1024) return `${size} B`;

@@ -83,6 +83,15 @@
 \echo 'Installing: pr_issue_h trigger...'
 \i 22_pr_issue_h_trigger.sql
 
+\echo 'Installing: cm_system_catalog_h trigger...'
+\i 23_cm_system_catalog_h_trigger.sql
+
+\echo 'Installing: cm_site_h trigger...'
+\i 24_cm_site_h_trigger.sql
+
+\echo 'Installing: cm_system_instance_h trigger...'
+\i 25_cm_system_instance_h_trigger.sql
+
 \echo ''
 \echo '-- CHS (Community Hub System) --'
 \echo ''

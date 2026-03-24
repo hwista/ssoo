@@ -16,6 +16,8 @@ DMS 개발 시 참고할 정본 가이드 인덱스입니다.
 | [components.md](components.md) | 컴포넌트 구조/패턴 |
 | [hooks.md](hooks.md) | 커스텀 훅 가이드 |
 | [golden-example.md](golden-example.md) | 구조 기준선 / 골든 이그잼플 운영 규칙 |
+| [verification.md](verification.md) | DMS 검증 기준 / 게이트 해석 가이드 |
+| [qa-scenarios.md](qa-scenarios.md) | 리팩토링 이후 회귀 확인 시나리오 |
 
 ---
 

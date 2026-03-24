@@ -32,3 +32,11 @@
 
 ### Added
 - Phase 0: 프로젝트 초기 세팅 및 보일러플레이트 생성
+- planning 문서 정본화 (`docs/chs/planning/README.md`, `backlog.md`, `handoff-2026-03-23.md`)
+- 게시판 상세 페이지, 전문가 검색 페이지네이션, 댓글 트리 UI, 프로필 편집형 설정, 알림 드롭다운/헤더 뱃지 구현
+- `getTimeAgo`, `useDebounce`, board/search/comment/notification 전용 훅 및 UI 컴포넌트 추가
+- 게시물 상세 라우트(`/post/:id`)와 고유 공유 deep-link 추가
+- COMMENT/FOLLOW/REACTION 알림 서버 트리거 연결 및 post 알림 상세 이동 지원
+- 팔로우/언팔로우, 팔로워·팔로잉 목록 다이얼로그, 스킬 추가/삭제/추천, 경력 추가 UI 추가
+- 게시물 수정/삭제 메뉴, 게시물 수정 다이얼로그, 댓글 섹션 스크롤, 관리자 전용 게시판 생성 버튼 가드 추가
+- CHS shadcn/ui `dropdown-menu`, `dialog`, `label` 프리미티브 추가

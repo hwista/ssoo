@@ -1,15 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Share2 } from 'lucide-react';
+import Link from 'next/link';
+import { Heart, MessageCircle, Bookmark, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
+import { cn, getTimeAgo } from '@/lib/utils';
 import { useToggleReaction, useToggleBookmark } from '@/hooks/queries/usePosts';
 import type { FeedItem } from '@/lib/api/endpoints/posts';
+import { CommentSection } from './CommentSection';
+import { EditPostDialog } from './EditPostDialog';
+import { PostMenu } from './PostMenu';
 
 interface PostCardProps {
   item: FeedItem;
@@ -18,11 +23,22 @@ interface PostCardProps {
 export function PostCard({ item }: PostCardProps) {
   const { post, author, reactionCount, commentCount, isLiked, isBookmarked, tags } = item;
   const [showComments, setShowComments] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const toggleReaction = useToggleReaction();
   const toggleBookmark = useToggleBookmark();
 
   const initials = author.displayName?.slice(0, 2) || author.userName.slice(0, 2);
   const timeAgo = getTimeAgo(post.createdAt);
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/post/${post.id}`
+      );
+      toast.success('링크가 복사되었습니다.');
+    } catch {
+      toast.error('링크 복사에 실패했습니다.');
+    }
+  };
 
   return (
     <Card>
@@ -45,14 +61,26 @@ export function PostCard({ item }: PostCardProps) {
             )}
             <p className="text-xs text-muted-foreground">{timeAgo}</p>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
+          <PostMenu
+            postId={post.id}
+            authorUserId={post.authorUserId}
+            onEdit={() => setEditDialogOpen(true)}
+          />
         </div>
 
         {/* Content */}
-        {post.title && <h3 className="font-semibold mb-2">{post.title}</h3>}
-        <p className="text-sm text-foreground whitespace-pre-wrap mb-3">{post.content}</p>
+        <div className="mb-3 space-y-2">
+          {post.title && (
+            <Link href={`/post/${post.id}`} className="block">
+              <h3 className="font-semibold hover:underline">{post.title}</h3>
+            </Link>
+          )}
+          <Link href={`/post/${post.id}`} className="block">
+            <p className="text-sm text-foreground whitespace-pre-wrap hover:text-ssoo-primary transition-colors">
+              {post.content}
+            </p>
+          </Link>
+        </div>
 
         {/* Tags */}
         {tags.length > 0 && (
@@ -94,7 +122,7 @@ export function PostCard({ item }: PostCardProps) {
             <MessageCircle className="h-4 w-4" />
             댓글
           </Button>
-          <Button variant="ghost" size="sm" className="gap-1">
+          <Button variant="ghost" size="sm" className="gap-1" onClick={() => void handleShare()}>
             <Share2 className="h-4 w-4" />
             공유
           </Button>
@@ -108,21 +136,16 @@ export function PostCard({ item }: PostCardProps) {
             저장
           </Button>
         </div>
+
+        {showComments && <CommentSection postId={post.id} />}
+        <EditPostDialog
+          postId={post.id}
+          initialTitle={post.title}
+          initialContent={post.content}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+        />
       </CardContent>
     </Card>
   );
-}
-
-function getTimeAgo(dateStr: string): string {
-  const now = Date.now();
-  const past = new Date(dateStr).getTime();
-  const diffMs = now - past;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return '방금 전';
-  if (diffMin < 60) return `${diffMin}분 전`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}시간 전`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 7) return `${diffDay}일 전`;
-  return new Date(dateStr).toLocaleDateString('ko-KR');
 }

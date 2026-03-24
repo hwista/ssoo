@@ -39,23 +39,25 @@ export class FollowController {
   }
 
   @Get('followers')
-  @ApiOperation({ summary: '내 팔로워 목록' })
+  @ApiOperation({ summary: '팔로워 목록' })
   @ApiOkResponse({ description: '팔로워 목록' })
   @ApiUnauthorizedResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   async getFollowers(@Query() params: FollowPaginationDto, @CurrentUser() user: TokenPayload) {
-    const { data, total, page, pageSize } = await this.followService.getFollowers(BigInt(user.userId), params);
+    const targetUserId = params.userId ? BigInt(params.userId) : BigInt(user.userId);
+    const { data, total, page, pageSize } = await this.followService.getFollowers(targetUserId, params);
     const serialized = data.map((f) => serializeBigInt(f));
     return paginated(serialized as Record<string, unknown>[], page, pageSize, total);
   }
 
   @Get('following')
-  @ApiOperation({ summary: '내 팔로잉 목록' })
+  @ApiOperation({ summary: '팔로잉 목록' })
   @ApiOkResponse({ description: '팔로잉 목록' })
   @ApiUnauthorizedResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   async getFollowing(@Query() params: FollowPaginationDto, @CurrentUser() user: TokenPayload) {
-    const { data, total, page, pageSize } = await this.followService.getFollowing(BigInt(user.userId), params);
+    const targetUserId = params.userId ? BigInt(params.userId) : BigInt(user.userId);
+    const { data, total, page, pageSize } = await this.followService.getFollowing(targetUserId, params);
     const serialized = data.map((f) => serializeBigInt(f));
     return paginated(serialized as Record<string, unknown>[], page, pageSize, total);
   }

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
 import type {
   CreateProjectDto,
@@ -8,9 +8,11 @@ import type {
   UpsertProposalDetailDto,
   UpsertExecutionDetailDto,
   UpsertTransitionDetailDto,
+  CreateHandoffDto,
   AdvanceStageDto,
   ProjectStatusCode,
   DoneResultCode,
+  HandoffTypeCode,
 } from '@ssoo/types';
 
 // 각 상태에서 허용되는 doneResultCode
@@ -34,6 +36,18 @@ const DEFAULT_STATUS_GOALS: Record<ProjectStatusCode, string> = {
   proposal: '견적/제안서를 작성하고 계약을 협상합니다.',
   execution: '프로젝트를 수행하고 결과물을 산출합니다.',
   transition: '프로젝트를 종료하고 운영/유지보수로 전환합니다.',
+};
+
+const VALID_HANDOFF_TYPES: readonly HandoffTypeCode[] = [
+  'PRE_TO_PM',
+  'PRE_TO_CONTRACT_OWNER',
+  'EXEC_TO_CONTRACT_OWNER',
+  'EXEC_TO_SM',
+];
+
+type ProjectHandoffState = {
+  handoffStatusCode?: string | null;
+  handoffUserId?: bigint | null;
 };
 
 @Injectable()
@@ -227,6 +241,100 @@ export class ProjectService {
         ...(dto.transitionSummary !== undefined && { transitionSummary: dto.transitionSummary || null }),
         ...(dto.memo !== undefined && { memo: dto.memo || null }),
       },
+    });
+  }
+
+  async createHandoff(projectId: bigint, dto: CreateHandoffDto, currentUserId: bigint) {
+    const project = (await this.db.project.findUnique({ where: { id: projectId } })) as (ProjectHandoffState & { id: bigint }) | null;
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    if (project.handoffStatusCode && ['waiting', 'in_progress'].includes(project.handoffStatusCode)) {
+      throw new ConflictException('이미 진행 중인 핸드오프가 있습니다.');
+    }
+
+    if (!VALID_HANDOFF_TYPES.includes(dto.handoffTypeCode)) {
+      throw new BadRequestException(`허용되지 않는 핸드오프 타입입니다: ${dto.handoffTypeCode}`);
+    }
+
+    let handoffUserId: bigint;
+    try {
+      handoffUserId = BigInt(dto.handoffUserId);
+    } catch {
+      throw new BadRequestException('유효한 수신자를 선택해야 합니다.');
+    }
+
+    if (handoffUserId === currentUserId) {
+      throw new BadRequestException('자기 자신에게 핸드오프할 수 없습니다.');
+    }
+
+    const handoffUser = await this.db.user.findUnique({ where: { id: handoffUserId } });
+    if (!handoffUser || !handoffUser.isActive) {
+      throw new BadRequestException('유효한 수신자를 선택해야 합니다.');
+    }
+
+    const data: Record<string, unknown> = {
+      handoffTypeCode: dto.handoffTypeCode,
+      handoffStatusCode: 'waiting',
+      handoffUserId,
+      handoffRequestedAt: new Date(),
+      handoffConfirmedAt: null,
+      handoffConfirmedBy: null,
+    };
+
+    return this.db.project.update({
+      where: { id: projectId },
+      data: data as never,
+    });
+  }
+
+  async confirmHandoff(projectId: bigint, currentUserId: bigint) {
+    const project = (await this.db.project.findUnique({ where: { id: projectId } })) as (ProjectHandoffState & { id: bigint }) | null;
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    if (project.handoffStatusCode !== 'waiting') {
+      throw new BadRequestException('대기 중인 핸드오프만 수락할 수 있습니다.');
+    }
+
+    if (project.handoffUserId !== currentUserId) {
+      throw new ForbiddenException('핸드오프 수신자만 수락할 수 있습니다.');
+    }
+
+    return this.db.project.update({
+      where: { id: projectId },
+      data: {
+        handoffStatusCode: 'in_progress',
+        handoffConfirmedAt: new Date(),
+        handoffConfirmedBy: currentUserId,
+      },
+    });
+  }
+
+  async completeHandoff(projectId: bigint, currentUserId: bigint) {
+    const project = (await this.db.project.findUnique({ where: { id: projectId } })) as (ProjectHandoffState & { id: bigint; currentOwnerUserId?: bigint | null }) | null;
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    if (!project.handoffStatusCode || !['waiting', 'in_progress'].includes(project.handoffStatusCode)) {
+      throw new BadRequestException('진행 가능한 핸드오프가 없습니다.');
+    }
+
+    if (!project.handoffUserId || project.handoffUserId !== currentUserId) {
+      throw new ForbiddenException('핸드오프 수신자만 완료할 수 있습니다.');
+    }
+
+    const data: Record<string, unknown> = {
+      handoffStatusCode: 'done',
+      currentOwnerUserId: project.handoffUserId,
+    };
+
+    return this.db.project.update({
+      where: { id: projectId },
+      data: data as never,
     });
   }
 

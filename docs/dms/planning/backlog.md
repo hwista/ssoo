@@ -1,6 +1,6 @@
 # DMS 백로그
 
-> 최종 업데이트: 2026-03-16
+> 최종 업데이트: 2026-03-23
 
 ---
 
@@ -14,6 +14,10 @@
 | DMS-INT-03 | Phase 3~5: PMS 패턴 동기화 | P1 | - | ✅ 완료 |
 | DMS-DOC-02 | 문서별 Backlog/Changelog 섹션 도입 | P1 | - | ✅ 완료 |
 | DMS-REF-01 | **루트 컴포넌트 정리** | P2 | - | ✅ 완료: 구조 정규화, golden-example/shell-body-contract 검증 통과 |
+| DMS-STD-00-A | 1차 표준화 리팩토링: Quick Wins + AppResult + JSON envelope + 문서 기준선 | P1 | - | ✅ 완료 |
+| DMS-STD-00-B | 2차 표준화 리팩토링: DocumentPage 분해 + 중형 파일 분리 + toolbar/stream 마감 | P1 | - | ✅ 완료 |
+| DMS-STD-00-C | 3차 표준화 리팩토링: DocumentPage 추가 경량화 + references 조립 hook 분해 | P1 | - | ✅ 완료 |
+| DMS-STD-00-D | 3차 마감 정리: `editorHistory.ts` rename + accepted deviation 확정 | P3 | - | ✅ 완료 |
 
 ---
 
@@ -38,6 +42,7 @@
 
 | ID | 항목 | 우선순위 | 비고 |
 |----|------|----------|------|
+| DMS-STD-00 | DMS 전면 표준화 감사 후속 리팩토링 트랙 실행 | P1 | ✅ 완료: [standardization-remediation-backlog-2026-03.md](./standardization-remediation-backlog-2026-03.md) 전 항목 마감 |
 | DMS-STO-01 | 저장소 어댑터 3종(Local/SharePoint/NAS) 구현 | P1 | 🔄 1차 완료: 어댑터+API 도입, 라우팅 고도화 필요 |
 | DMS-STO-02 | 정본/첨부 열기(Open)/경로복사/재동기화 UI | P1 | 🔄 1차 완료: Sidecar 액션 추가, 오류 표준화/실동기화 필요 |
 | DMS-ING-01 | 자동 수집 큐 + 컨펌 후 게시 플로우 | P1 | 🔄 1차 완료: 큐+confirm API 구현, 채널 어댑터 연동 필요 |
@@ -91,6 +96,11 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-03-23 | DMS-STD-00 완료로 갱신하고 표준화 실행 백로그 마감 상태를 반영 |
+| 2026-03-23 | DMS-STD-00-B 완료, DMS-STD-00-C 완료로 3차 분해 결과(`DocumentPage` ≤550, references 조립 hook 분리)를 backlog에 반영 |
+| 2026-03-23 | DMS-STD-00-A 완료, DMS-STD-00-B 추가 및 2차 분해 범위를 backlog에 반영 |
+| 2026-03-23 | DMS-STD-00-A 추가, 1차 표준화 리팩토링 실행 범위를 backlog에 반영 |
+| 2026-03-23 | DMS-STD-00 추가, 2026-03 표준화 감사 후속 리팩토링 백로그 연결 |
 | 2026-03-16 | 에디터 UX 개선: dirty 보더(SectionedShell), 탭 dirty 표시(색상+이탤릭+dot), 탭 문서명 우선 표시, 탭 닫기 confirm, 미리보기 원본보기 색상, confirm 메시지 통일 |
 | 2026-03-16 | Header 에디터 모드 슬롯 구조 개선: editorInlineSlot→editorRightSlot 이름변경, 저장/삭제 우측 재배치, 미리보기 시 우측 버튼 숨김 |
 | 2026-03-16 | DMS-REF-01 완료(검증 스크립트 경로 수정), DMS-AI-02 완료(관련성 경고 튜닝), DMS-TPL-01 완료, DMS-PATH-01 완료, DMS-AI-03 완료 |

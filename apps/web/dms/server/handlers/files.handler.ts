@@ -4,25 +4,14 @@
 
 import { PerformanceTimer } from '@/lib/utils/errorUtils';
 import { fileSystemService } from '@/server/services/fileSystem/FileSystemService';
+import type { AppResult } from '@/server/shared/result';
 import type { FileNode } from '@/types/file-tree';
 
-export async function getFileTree(): Promise<{
-  success: boolean;
-  data?: FileNode[];
-  error?: string;
-}> {
+export async function getFileTree(): Promise<AppResult<FileNode[]>> {
   const timer = new PerformanceTimer('Handler: 파일 트리 조회');
 
   try {
-    const result = await fileSystemService.getFileTree();
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error?.message ?? '파일 트리 조회에 실패했습니다.',
-      };
-    }
-
-    return { success: true, data: result.data ?? [] };
+    return await fileSystemService.getFileTree();
   } finally {
     timer.end();
   }

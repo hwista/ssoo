@@ -4,6 +4,7 @@ import { normalizeMarkdownFileName, isMarkdownFile } from '@/lib/utils/fileUtils
 import { logger } from '@/lib/utils/errorUtils';
 import { configService } from '@/server/services/config/ConfigService';
 import { documentMetadataService } from '@/server/services/documentMetadata/DocumentMetadataService';
+import { fail, ok, type AppResult } from '@/server/shared/result';
 import type { DocumentMetadata } from '@/types/document-metadata';
 
 export interface FileStatMetadata {
@@ -18,10 +19,6 @@ export interface FileData {
   content: string;
   metadata: FileStatMetadata;
 }
-
-export type FileCrudResult<T = unknown> =
-  | { success: true; data: T }
-  | { success: false; error: string; status: number };
 
 function getRootDir(): string {
   return configService.getDocDir();
@@ -70,12 +67,12 @@ class FileCrudService {
     };
   }
 
-  async read(filePath: string): Promise<FileCrudResult<FileData>> {
+  async read(filePath: string): Promise<AppResult<FileData>> {
     const { targetPath, valid, safeRelPath } = this.resolveFilePath(filePath);
 
     if (!valid) {
       logger.warn('루트 디렉터리 범위를 벗어나는 경로 요청 차단', { filePath, targetPath });
-      return { success: false, error: 'Invalid path', status: 400 };
+      return fail('Invalid path', 400);
     }
 
     let finalPath = targetPath;
@@ -91,7 +88,7 @@ class FileCrudService {
 
     if (!fs.existsSync(finalPath)) {
       logger.warn('요청된 파일이 존재하지 않음', { filePath, finalPath });
-      return { success: false, error: 'File not found', status: 404 };
+      return fail('File not found', 404);
     }
 
     try {
@@ -100,18 +97,18 @@ class FileCrudService {
       if (isMarkdownFile(finalPath)) {
         metadata.document = documentMetadataService.ensureDocumentMetadata(content, finalPath, metadata);
       }
-      return { success: true, data: { content, metadata } };
+      return ok({ content, metadata });
     } catch (error) {
       logger.error('파일 읽기 실패', error, { filePath, finalPath });
-      return { success: false, error: 'Failed to read file', status: 500 };
+      return fail('Failed to read file', 500);
     }
   }
 
-  async readMetadata(filePath: string): Promise<FileCrudResult<{ metadata: FileStatMetadata }>> {
+  async readMetadata(filePath: string): Promise<AppResult<{ metadata: FileStatMetadata }>> {
     const { targetPath, valid } = this.resolveFilePath(filePath);
 
-    if (!valid) return { success: false, error: 'Invalid path', status: 400 };
-    if (!fs.existsSync(targetPath)) return { success: false, error: 'File not found', status: 404 };
+    if (!valid) return fail('Invalid path', 400);
+    if (!fs.existsSync(targetPath)) return fail('File not found', 404);
 
     try {
       const metadata = this.getFileMetadata(targetPath);
@@ -119,17 +116,17 @@ class FileCrudService {
         const content = fs.readFileSync(targetPath, 'utf-8');
         metadata.document = documentMetadataService.ensureDocumentMetadata(content, targetPath, metadata);
       }
-      return { success: true, data: { metadata } };
+      return ok({ metadata });
     } catch (error) {
       logger.error('메타데이터 조회 실패', error, { filePath, targetPath });
-      return { success: false, error: 'Failed to read metadata', status: 500 };
+      return fail('Failed to read metadata', 500);
     }
   }
 
-  async write(filePath: string, content: string): Promise<FileCrudResult<{ message: string }>> {
+  async write(filePath: string, content: string): Promise<AppResult<{ message: string }>> {
     const { targetPath, valid } = this.resolveFilePath(filePath);
 
-    if (!valid) return { success: false, error: 'Invalid path', status: 400 };
+    if (!valid) return fail('Invalid path', 400);
 
     try {
       fs.mkdirSync(path.dirname(targetPath), { recursive: true });
@@ -142,14 +139,14 @@ class FileCrudService {
         documentMetadataService.writeDocumentMetadata(targetPath, metadata);
       }
 
-      return { success: true, data: { message: 'File saved' } };
+      return ok({ message: 'File saved' });
     } catch (error) {
       logger.error('파일 쓰기 실패', error, { filePath, targetPath });
-      return { success: false, error: 'Failed to write file', status: 500 };
+      return fail('Failed to write file', 500);
     }
   }
 
-  async create(nameOrPath: string, parent = '', content?: string): Promise<FileCrudResult<{ message: string }>> {
+  async create(nameOrPath: string, parent = '', content?: string): Promise<AppResult<{ message: string }>> {
     const parsedPath = path.parse(nameOrPath);
     const resolvedParent = parent.length > 0 ? parent : parsedPath.dir;
     const resolvedName = normalizeMarkdownFileName(parsedPath.base || nameOrPath);
@@ -157,10 +154,10 @@ class FileCrudService {
     const targetPath = path.join(getRootDir(), normalizedPath);
 
     if (!targetPath.startsWith(getRootDir())) {
-      return { success: false, error: 'Invalid path', status: 400 };
+      return fail('Invalid path', 400);
     }
     if (fs.existsSync(targetPath)) {
-      return { success: false, error: 'File already exists', status: 409 };
+      return fail('File already exists', 409);
     }
 
     try {
@@ -173,43 +170,43 @@ class FileCrudService {
       const metadata = documentMetadataService.buildDefaultDocumentMetadata(newContent, targetPath, fileMeta, undefined);
       documentMetadataService.writeDocumentMetadata(targetPath, metadata);
 
-      return { success: true, data: { message: 'File created' } };
+      return ok({ message: 'File created' });
     } catch (error) {
       logger.error('파일 생성 실패', error, { nameOrPath, parent, targetPath });
-      return { success: false, error: 'Failed to create file', status: 500 };
+      return fail('Failed to create file', 500);
     }
   }
 
-  async createFolder(name: string, parent = '', filePath?: string): Promise<FileCrudResult<{ message: string }>> {
+  async createFolder(name: string, parent = '', filePath?: string): Promise<AppResult<{ message: string }>> {
     const folderPath = filePath
       ? path.join(getRootDir(), filePath)
       : path.join(getRootDir(), parent, name);
 
     if (!folderPath.startsWith(getRootDir())) {
-      return { success: false, error: 'Invalid path', status: 400 };
+      return fail('Invalid path', 400);
     }
     if (fs.existsSync(folderPath)) {
-      return { success: false, error: 'Folder already exists', status: 409 };
+      return fail('Folder already exists', 409);
     }
 
     try {
       fs.mkdirSync(folderPath, { recursive: true });
-      return { success: true, data: { message: 'Folder created' } };
+      return ok({ message: 'Folder created' });
     } catch (error) {
       logger.error('폴더 생성 실패', error, { folderPath });
-      return { success: false, error: 'Failed to create folder', status: 500 };
+      return fail('Failed to create folder', 500);
     }
   }
 
-  async rename(oldPath: string, newPath: string, options?: { autoNumber?: boolean }): Promise<FileCrudResult<{ message: string; finalPath?: string }>> {
+  async rename(oldPath: string, newPath: string, options?: { autoNumber?: boolean }): Promise<AppResult<{ message: string; finalPath?: string }>> {
     const oldFullPath = path.join(getRootDir(), oldPath);
     const newFullPath = path.join(getRootDir(), newPath);
 
     if (!oldFullPath.startsWith(getRootDir()) || !newFullPath.startsWith(getRootDir())) {
-      return { success: false, error: 'Invalid path', status: 400 };
+      return fail('Invalid path', 400);
     }
     if (!fs.existsSync(oldFullPath)) {
-      return { success: false, error: 'File not found', status: 404 };
+      return fail('File not found', 404);
     }
 
     // 대상 경로 충돌 시 자동 넘버링 (Windows 스타일)
@@ -217,7 +214,7 @@ class FileCrudService {
     let resolvedRelPath = newPath;
     if (fs.existsSync(newFullPath)) {
       if (!options?.autoNumber) {
-        return { success: false, error: 'Target already exists', status: 409 };
+        return fail('Target already exists', 409);
       }
       const dir = path.dirname(newFullPath);
       const ext = path.extname(newFullPath);
@@ -241,22 +238,18 @@ class FileCrudService {
         fs.renameSync(oldMetaPath, newMetaPath);
       }
 
-      return { success: true, data: { message: 'File/Folder renamed successfully', finalPath: resolvedRelPath } };
+      return ok({ message: 'File/Folder renamed successfully', finalPath: resolvedRelPath });
     } catch (error) {
       logger.error('파일/폴더 이름 변경 실패', error, { oldPath, newPath, oldFullPath, newFullPath: resolvedFullPath });
-      return {
-        success: false,
-        error: `Rename failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        status: 500,
-      };
+      return fail(`Rename failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
     }
   }
 
-  async remove(filePath: string): Promise<FileCrudResult<{ message: string }>> {
+  async remove(filePath: string): Promise<AppResult<{ message: string }>> {
     const { targetPath, valid } = this.resolveFilePath(filePath);
 
-    if (!valid) return { success: false, error: 'Invalid path', status: 400 };
-    if (!fs.existsSync(targetPath)) return { success: true, data: { message: 'File/Folder deleted' } };
+    if (!valid) return fail('Invalid path', 400);
+    if (!fs.existsSync(targetPath)) return ok({ message: 'File/Folder deleted' });
 
     try {
       const stats = fs.statSync(targetPath);
@@ -270,10 +263,10 @@ class FileCrudService {
         }
       }
 
-      return { success: true, data: { message: 'File/Folder deleted' } };
+      return ok({ message: 'File/Folder deleted' });
     } catch (error) {
       logger.error('파일/폴더 삭제 실패', error, { filePath, targetPath });
-      return { success: false, error: 'Failed to delete file/folder', status: 500 };
+      return fail('Failed to delete file/folder', 500);
     }
   }
 }

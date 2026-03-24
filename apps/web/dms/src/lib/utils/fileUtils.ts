@@ -3,7 +3,9 @@
  * 파일 확장자, 파일 타입 검사, 파일명 처리 등을 담당
  */
 
-import { FILE_EXTENSIONS, MIME_TYPES } from '@/lib/constants/file';
+import { ATTACHMENT_ALLOWED_EXTENSIONS, ATTACHMENT_TYPES, FILE_EXTENSIONS, MIME_TYPES } from '@/lib/constants/file';
+
+export type AttachmentCategory = 'document' | 'office' | 'text' | 'image' | 'web';
 
 /**
  * 파일이 마크다운 파일인지 검사
@@ -108,9 +110,11 @@ export function normalizeMarkdownFileName(fileName: string): string {
  */
 export function getMimeType(fileName: string): string {
   if (!fileName || typeof fileName !== 'string') return MIME_TYPES.DEFAULT;
-  
+
+  const attachmentInfo = ATTACHMENT_TYPES.find((type) => type.ext === getFileExtension(fileName));
+  if (attachmentInfo) return attachmentInfo.mime;
+
   const extension = getFileExtension(fileName);
-  
   if (isMarkdownFile(fileName)) return MIME_TYPES.MARKDOWN;
   if (isTextFile(fileName)) return MIME_TYPES.TEXT;
   if (isImageFile(fileName)) return MIME_TYPES.IMAGE;
@@ -118,8 +122,17 @@ export function getMimeType(fileName: string): string {
   if (extension === '.html' || extension === '.htm') return MIME_TYPES.HTML;
   if (extension === '.css') return MIME_TYPES.CSS;
   if (extension === '.js') return MIME_TYPES.JAVASCRIPT;
-  
+
   return MIME_TYPES.DEFAULT;
+}
+
+export function getAttachmentCategory(fileName: string): AttachmentCategory | null {
+  const attachmentInfo = ATTACHMENT_TYPES.find((type) => type.ext === getFileExtension(fileName));
+  return attachmentInfo?.category ?? null;
+}
+
+export function isAllowedAttachment(fileName: string): boolean {
+  return ATTACHMENT_ALLOWED_EXTENSIONS.has(getFileExtension(fileName));
 }
 
 /**

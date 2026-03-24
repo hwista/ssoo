@@ -1,5 +1,5 @@
 import { apiClient } from '../client';
-import type { ApiResponse } from '../types';
+import type { ApiResponse, PaginatedResponse } from '../types';
 
 export interface BoardItem {
   id: string;
@@ -12,7 +12,8 @@ export interface BoardItem {
 }
 
 export const boardsApi = {
-  list: () => apiClient.get<ApiResponse<BoardItem[]>>('/chs/boards'),
+  list: (params?: { page?: number; pageSize?: number }) =>
+    apiClient.get<PaginatedResponse<BoardItem>>('/chs/boards', { params }),
 
   detail: (id: string) =>
     apiClient.get<ApiResponse<BoardItem>>(`/chs/boards/${id}`),

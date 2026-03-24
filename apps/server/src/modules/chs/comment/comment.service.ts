@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
 import type { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto.js';
+import { NotificationService } from '../notification/notification.service.js';
 
 @Injectable()
 export class CommentService {
-  constructor(private readonly db: DatabaseService) {}
+  private readonly logger = new Logger(CommentService.name);
+
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   async findByPost(postId: bigint) {
     return this.db.client.chComment.findMany({
@@ -28,7 +34,7 @@ export class CommentService {
       depth = parent.depth + 1;
     }
 
-    return this.db.client.chComment.create({
+    const comment = await this.db.client.chComment.create({
       data: {
         postId,
         authorUserId,
@@ -37,6 +43,10 @@ export class CommentService {
         depth,
       },
     });
+
+    void this.notifyPostAuthor(postId, authorUserId);
+
+    return comment;
   }
 
   async update(id: bigint, dto: UpdateCommentDto) {
@@ -63,5 +73,39 @@ export class CommentService {
       where: { id },
       data: { isActive: false },
     });
+  }
+
+  private async notifyPostAuthor(postId: bigint, actorUserId: bigint) {
+    try {
+      const [post, actor] = await Promise.all([
+        this.db.client.chPost.findUnique({
+          where: { id: postId },
+          select: { authorUserId: true },
+        }),
+        this.db.client.user.findUnique({
+          where: { id: actorUserId },
+          select: { displayName: true, userName: true },
+        }),
+      ]);
+
+      if (!post || post.authorUserId === actorUserId) {
+        return;
+      }
+
+      const actorName = actor?.displayName || actor?.userName || '누군가';
+
+      await this.notificationService.createNotification({
+        recipientUserId: post.authorUserId,
+        actorUserId,
+        notificationType: 'COMMENT',
+        referenceType: 'post',
+        referenceId: postId,
+        message: `${actorName}님이 회원님의 게시물에 댓글을 남겼습니다.`,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to create comment notification for post ${postId.toString()}: ${error instanceof Error ? error.message : 'unknown error'}`
+      );
+    }
   }
 }

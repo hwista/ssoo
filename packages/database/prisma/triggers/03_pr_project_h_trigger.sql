@@ -33,16 +33,16 @@ BEGIN
     project_id, history_seq, event_type, event_at,
     project_name, status_code, stage_code, done_result_code,
     current_owner_user_id,
-    handoff_type_code, handoff_status_code, handoff_requested_at, handoff_confirmed_at, handoff_confirmed_by,
-    customer_id, plant_id, system_instance_id,
+    handoff_type_code, handoff_status_code, handoff_requested_at, handoff_confirmed_at, handoff_confirmed_by, handoff_user_id,
+    customer_id, site_id, system_instance_id,
     is_active, memo, created_by, created_at, updated_by, updated_at,
     last_source, last_activity, transaction_id
   ) VALUES (
     v_record.project_id, v_history_seq, v_event_type, NOW(),
     v_record.project_name, v_record.status_code, v_record.stage_code, v_record.done_result_code,
     v_record.current_owner_user_id,
-    v_record.handoff_type_code, v_record.handoff_status_code, v_record.handoff_requested_at, v_record.handoff_confirmed_at, v_record.handoff_confirmed_by,
-    v_record.customer_id, v_record.plant_id, v_record.system_instance_id,
+    v_record.handoff_type_code, v_record.handoff_status_code, v_record.handoff_requested_at, v_record.handoff_confirmed_at, v_record.handoff_confirmed_by, v_record.handoff_user_id,
+    v_record.customer_id, v_record.site_id, v_record.system_instance_id,
     v_record.is_active, v_record.memo, v_record.created_by, v_record.created_at, v_record.updated_by, v_record.updated_at,
     v_record.last_source, v_record.last_activity, v_record.transaction_id
   );

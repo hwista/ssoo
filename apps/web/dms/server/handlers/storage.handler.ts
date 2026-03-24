@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { StorageProvider } from '@/server/services/config/ConfigService';
+import { fail, ok } from '@/server/shared/result';
 import { storageAdapterService, type StorageOrigin, type StorageStatus } from '@/server/services/storage/StorageAdapterService';
 
 export interface StorageUploadBody {
@@ -22,19 +23,19 @@ function mapStorageError(error: unknown) {
   const message = error instanceof Error ? error.message : '저장소 처리 중 오류가 발생했습니다.';
 
   if (message === '허용되지 않은 경로입니다.') {
-    return { success: false as const, status: 403, error: message };
+    return fail(message, 403);
   }
 
   if (message === '대상 파일을 찾을 수 없습니다.') {
-    return { success: false as const, status: 404, error: message };
+    return fail(message, 404);
   }
 
-  throw error;
+  return fail(message, 500);
 }
 
 export function handleStorageUpload(body: StorageUploadBody) {
   if (!body?.fileName?.trim()) {
-    return { success: false as const, status: 400, error: 'fileName이 필요합니다.' };
+    return fail('fileName이 필요합니다.', 400);
   }
 
   const content = body.content ?? '';
@@ -48,7 +49,7 @@ export function handleStorageUpload(body: StorageUploadBody) {
       status: body.status,
     });
 
-    return { success: true as const, data: uploaded };
+    return ok(uploaded);
   } catch (error) {
     return mapStorageError(error);
   }
@@ -56,7 +57,7 @@ export function handleStorageUpload(body: StorageUploadBody) {
 
 export function handleStorageOpen(body: StorageOpenBody) {
   if (!body.storageUri && !body.path) {
-    return { success: false as const, status: 400, error: 'storageUri 또는 path가 필요합니다.' };
+    return fail('storageUri 또는 path가 필요합니다.', 400);
   }
 
   try {
@@ -66,7 +67,7 @@ export function handleStorageOpen(body: StorageOpenBody) {
       path: body.path,
     });
 
-    return { success: true as const, data: result };
+    return ok(result);
   } catch (error) {
     return mapStorageError(error);
   }
@@ -77,16 +78,13 @@ export function handleLocalFileDownload({ targetPath }: { targetPath: string }) 
     const resolved = storageAdapterService.resolveContainedPath('local', targetPath);
 
     if (!fs.existsSync(resolved.fullPath)) {
-      return { success: false as const, status: 404, error: '대상 파일을 찾을 수 없습니다.' };
+      return fail('대상 파일을 찾을 수 없습니다.', 404);
     }
 
-    return {
-      success: true as const,
-      data: {
+    return ok({
         fileBuffer: fs.readFileSync(resolved.fullPath),
         fileName: path.basename(resolved.fullPath) || 'download.bin',
-      },
-    };
+      });
   } catch (error) {
     return mapStorageError(error);
   }
