@@ -39,6 +39,7 @@ SSOO(삼삼오오)는 SI/SM 조직의 **Opportunity → Project → System** 통
 | **PMS (Next.js)** | `pnpm dev:web-pms` | 3000 |
 | **DMS (Next.js, npm 독립)** | `pnpm dev:web-dms` | 3001 |
 | **CHS (Next.js)** | `pnpm dev:web-chs` | 3002 |
+| **Storybook (PMS)** | `pnpm -C apps/web/pms storybook` | 6006 |
 
 Health check: `curl http://localhost:4000/api/health`
 테스트 계정: `admin` / `admin123!` (role: admin)
@@ -50,8 +51,10 @@ pnpm build                                    # 전체 빌드 (Turborepo, packag
 pnpm lint                                     # 전체 린트
 turbo lint --filter=server                    # 서버만 린트
 turbo lint --filter=web-pms                   # PMS만 린트
+turbo lint --filter=web-chs                   # CHS만 린트
 pnpm -C apps/server exec tsc --noEmit        # 서버 타입 체크
 pnpm -C apps/web/pms exec tsc --noEmit       # PMS 타입 체크
+pnpm -C apps/web/chs exec tsc --noEmit       # CHS 타입 체크
 cd apps/web/dms && npx tsc --noEmit           # DMS 타입 체크 (npm 독립)
 ```
 
@@ -102,20 +105,18 @@ PR 생성/업데이트 시 `.github/workflows/pr-validation.yml` 자동 실행 (
 
 ---
 
-## 핵심 원칙 (12개)
+## 핵심 원칙
 
-1. **코드 정리**: 사용 코드만 유지, 미사용 코드 즉시 삭제, 조기 추상화 금지
-2. **코드-문서 동기화**: 코드 변경 → 문서 갱신 → 커밋 (항상 동시 반영)
-3. **증거 기반**: 추정 금지, 파일 경로/라인번호 명시, "~일 것 같음" 금지
-4. **승인 프로세스**: 탐색 → 분석 → 계획 → 사용자 승인 → 실행
-5. **점검 우선**: 수정 전 반드시 탐색, "점검 → 분석 → 실행" 순서
-6. **패키지 경계**: `apps/` → `packages/` 방향만, 역방향/순환 참조 금지
-7. **일관성**: 기존 코드 패턴 참조 우선, 새 패턴 도입 시 사용자 승인 필요
-8. **불확실성**: 추정 대신 `[NEEDS CLARIFICATION: ...]` 사용 (최대 3개)
-9. **사전 게이트**: Simplicity, Anti-Abstraction, Integration 체크
-10. **비판적 수용**: 사용자 요청도 기술적 타당성 검증 후 수행, 무조건 긍정 금지
-11. **기존 결과 보존**: 새 작업이 기존 기능·동작·UI 외형을 왜곡·축소·변형 금지
-12. **패턴 최우선 + 경계 관리**: 워크스페이스 패턴 동일 적용, 역할/책임 경계 명확, 비대화 방지
+> 레거시 호환성: 기존 스크립트에서 `핵심 원칙` 키워드를 찾습니다. 이 헤더는 자동 검증과의 호환을 위해 유지됩니다.
+
+## 핵심 코드베이스 원칙
+
+1. **Dead Code 금지**: 미사용 코드 즉시 삭제, 조기 추상화(BaseService 등) 금지
+2. **패키지 경계 엄수**: `apps/` → `packages/` 방향만 허용, 역방향/순환 참조 금지
+3. **기존 패턴 우선**: 새 코드는 동일 도메인의 기존 패턴을 따름. 새 패턴 도입 시 사용자 승인 필요
+4. **기존 결과 보존**: 새 작업이 기존 기능·동작·UI 외형을 왜곡·축소·변형 금지
+5. **코드-문서 동기화**: 코드 변경 시 관련 문서 + Changelog 동시 갱신
+6. **역할/책임 경계**: 하나의 파일/컴포넌트에 과도한 책임 집중 금지
 
 ---
 
@@ -229,6 +230,39 @@ hooks → lib/api → stores
 
 ---
 
+## 새 기능 추가 레시피
+
+### 서버 모듈 추가
+
+1. `modules/{도메인}/{기능}/` 아래 module, controller, service, dto 생성
+2. 도메인 상위 module(예: `pms.module.ts`)에 import 등록
+3. Controller: Swagger 데코레이터 + `@UseGuards(JwtAuthGuard)` 필수
+4. Service: `DatabaseService` 주입으로 Prisma 접근 (직접 Prisma 사용 금지)
+5. DTO: `class-validator` 데코레이터 필수 (전역 `ValidationPipe`가 검증)
+6. BigInt PK 반환 시 `toIdString()` 또는 `.toString()`으로 string 직렬화
+
+기존 모듈 참조: `modules/pms/project/` (표준 CRUD), `modules/common/auth/` (인증)
+
+### PMS 페이지 추가
+
+1. `src/components/pages/{도메인}/` 아래 페이지 컴포넌트 생성 (named export)
+2. `src/components/layout/ContentArea.tsx`의 `pageComponents` 맵에 lazy import 등록
+3. `lib/api/endpoints/{도메인}.ts`에 API 함수 추가
+4. `hooks/queries/use{Domain}.ts`에 React Query 훅 추가 (계층적 캐시 키 패턴)
+5. DB 메뉴 테이블에 메뉴 항목 등록 (path가 `pageComponents` 키와 일치해야 함)
+
+기존 페이지 참조: `pages/admin/UserManagementPage.tsx` (CRUD), `pages/project/DetailPage.tsx` (상세+탭)
+
+### DB 테이블 추가
+
+1. `packages/database/prisma/schema.prisma`에 마스터 모델 + 히스토리 모델 정의
+2. `pnpm db:push`로 스키마 적용
+3. `prisma/triggers/{스키마}/` 아래 트리거 SQL 작성
+4. `scripts/apply-triggers.ts`에 등록 후 `pnpm db:triggers` 실행
+5. 필수 감사 컬럼: `createdBy`, `createdAt`, `updatedBy`, `updatedAt`
+
+---
+
 ## 코드 규칙
 
 ### Git Hooks (Husky)
@@ -303,6 +337,4 @@ Scope: `server` | `web-pms` | `web-chs` | `web-dms` | `database` | `types` | `do
 
 ---
 
-## 규칙 동기화
-
-이 파일이 **정본**. 규칙 변경 시: 정본 먼저 → `CLAUDE.md`/`.codex/instructions/` 미러 반영 → `node .codex/scripts/verify-codex-sync.js`
+> 이 파일이 정본. 변경 시 `CLAUDE.md`/`.codex/` 미러도 함께 갱신하고 `pnpm run codex:verify-sync`로 검증.

@@ -94,3 +94,7 @@
 * **types:** Type literal values changed to match database schema
 
 
+## 2026-03-24 - docs: finalize copilot instructions
+
+- Updated .github/copilot-instructions.md and docs; ran verification scripts.
+
