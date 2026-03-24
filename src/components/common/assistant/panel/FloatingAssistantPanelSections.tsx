@@ -4,7 +4,7 @@ import type { RefObject } from 'react';
 import { Bot, ExternalLink, History, Maximize2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { AssistantComposer } from '../Composer';
-import { AssistantSessionHistoryList } from '../session/SessionHistoryList';
+import { AssistantSessionHistoryList } from '../session/HistoryList';
 import type { AssistantSession } from '@/stores';
 
 interface FloatingAssistantHeaderProps {

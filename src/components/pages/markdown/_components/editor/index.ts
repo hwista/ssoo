@@ -12,5 +12,6 @@ export type { ContentProps } from './Content';
 
 export { BlockEditor } from './block-editor/BlockEditor';
 export type { BlockEditorProps, BlockEditorRef } from './block-editor/BlockEditor';
-export { EditorToolbar } from './Toolbar';
-export type { EditorToolbarProps, ToolbarCommandId } from './Toolbar';
+export { EditorToolbarStrip } from './EditorToolbarStrip';
+export { Toolbar } from './Toolbar';
+export type { ToolbarProps, ToolbarCommandId } from './Toolbar';
