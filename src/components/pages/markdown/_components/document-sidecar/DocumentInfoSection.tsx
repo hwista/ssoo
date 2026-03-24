@@ -55,7 +55,6 @@ export function DocumentInfoSection({
   pathRecommendationStatus = 'idle',
   externalLoading = false,
   pathValidationMessage,
-  isNewDocument = false,
   pendingSuggestedTitle,
   pendingSuggestedPath,
   pendingPathValidationMessage,
@@ -76,7 +75,6 @@ export function DocumentInfoSection({
   pathRecommendationStatus?: 'idle' | 'loading' | 'resolved' | 'error';
   externalLoading?: boolean;
   pathValidationMessage?: string;
-  isNewDocument?: boolean;
   pendingSuggestedTitle?: string | null;
   pendingSuggestedPath?: string | null;
   pendingPathValidationMessage?: string;

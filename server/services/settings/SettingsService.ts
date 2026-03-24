@@ -3,40 +3,36 @@ import path from 'path';
 import { configService, type DmsConfig, type DeepPartial } from '@/server/services/config/ConfigService';
 import { gitService } from '@/server/services/git/GitService';
 import { logger } from '@/lib/utils/errorUtils';
+import { fail, ok, type AppResult } from '@/server/shared/result';
 
 export interface SettingsSnapshot {
   config: DmsConfig;
   docDir: string;
 }
 
-export type SettingsServiceResult =
-  | ({ success: true } & SettingsSnapshot)
-  | { success: false; error: string };
-
 class SettingsService {
-  getSettings(): SettingsSnapshot {
-    return {
+  getSettings(): AppResult<SettingsSnapshot> {
+    return ok({
       config: configService.getConfig(),
       docDir: configService.getDocDir(),
-    };
+    });
   }
 
-  updateSettings(partial?: DeepPartial<DmsConfig>): SettingsServiceResult {
+  updateSettings(partial?: DeepPartial<DmsConfig>): AppResult<SettingsSnapshot> {
     if (!partial) {
-      return { success: true, ...this.getSettings() };
+      return this.getSettings();
     }
 
     const updated = configService.updateConfig(partial);
-    return {
-      success: true,
+    return ok({
       config: updated,
       docDir: configService.getDocDir(),
-    };
+    });
   }
 
-  async updateGitPath(newPath?: string, copyFiles?: boolean): Promise<SettingsServiceResult> {
+  async updateGitPath(newPath?: string, copyFiles?: boolean): Promise<AppResult<SettingsSnapshot>> {
     if (!newPath) {
-      return { success: false, error: '새 저장소 경로가 필요합니다.' };
+      return fail('새 저장소 경로가 필요합니다.', 400);
     }
 
     const resolvedPath = path.resolve(newPath);
@@ -63,15 +59,14 @@ class SettingsService {
         logger.warn('Git 재초기화 경고', { error: initResult.error });
       }
 
-      return {
-        success: true,
+      return ok({
         config: updated,
         docDir: resolvedPath,
-      };
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 경로 변경 실패', error);
-      return { success: false, error: message };
+      return fail(message, 500);
     }
   }
 

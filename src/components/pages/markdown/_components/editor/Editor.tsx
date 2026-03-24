@@ -4,7 +4,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Content } from './Content';
 import { type BlockEditorRef } from './block-editor/BlockEditor';
-import { EditorToolbar, type ToolbarCommandId } from './Toolbar';
+import { Toolbar, type ToolbarCommandId } from './Toolbar';
 import { SectionedShell } from '@/components/templates/page-frame';
 import { DOCUMENT_WIDTHS } from '@/components/templates/page-frame';
 import { useEditorStore, useTabStore } from '@/stores';
@@ -215,9 +215,10 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       formData.append('file', file);
       const res = await fetch('/api/file/upload-image', { method: 'POST', body: formData });
       const data = await res.json();
+      const payload = data?.data ?? data;
 
-      if (res.ok && data.path) {
-        result = result.replaceAll(blobUrl, data.path);
+      if (res.ok && payload?.path) {
+        result = result.replaceAll(blobUrl, payload.path);
       }
       // 업로드 성공이든 실패든 pending에서 제거
       pending.delete(blobUrl);
@@ -291,7 +292,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
 
   const resolvedMaxWidth = variant === 'standalone' ? DOCUMENT_WIDTH : undefined;
   const toolbarNode = (
-    <EditorToolbar
+    <Toolbar
       disabled={isPreview}
       onCommand={handleToolbarCommand}
     />

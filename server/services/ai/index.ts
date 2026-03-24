@@ -15,4 +15,4 @@ export {
 export { searchDocuments, searchDocumentsKeyword, buildCitations, inferConfidence } from './searchService';
 export { askQuestion, askQuestionStream, buildRAGMessages } from './askService';
 export { summarizeTextStream } from './createService';
-export type { SearchResultItem, SearchResponse, AskResponse, AiContextOptions, HandlerResult } from './types';
+export type { SearchResultItem, SearchResponse, AskResponse, AiContextOptions } from './types';

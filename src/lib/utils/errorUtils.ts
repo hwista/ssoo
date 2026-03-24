@@ -145,38 +145,6 @@ export const logger = {
 };
 
 /**
- * 안전한 비동기 함수 실행 래퍼
- */
-export async function safeAsync<T>(
-  operation: () => Promise<T>,
-  context: ErrorContext,
-  defaultValue?: T
-): Promise<T | undefined> {
-  try {
-    logger.start(context.operation, { component: context.component, data: context.data });
-    const result = await operation();
-    logger.complete(context.operation, { component: context.component });
-    return result;
-  } catch (error) {
-    logger.fail(context.operation, error, { 
-      component: context.component, 
-      data: context.data 
-    });
-    
-    if (defaultValue !== undefined) {
-      return defaultValue;
-    }
-    
-    // 중요한 작업의 경우 에러를 다시 throw
-    if (context.operation.includes('critical') || context.operation.includes('important')) {
-      throw error;
-    }
-    
-    return undefined;
-  }
-}
-
-/**
  * 안전한 동기 함수 실행 래퍼
  */
 export function safeSync<T>(
@@ -348,33 +316,4 @@ export function getErrorInfo(error: unknown): {
   return {
     message: extractErrorMessage(error)
   };
-}
-
-/**
- * 에러 복구를 위한 재시도 로직
- */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  context: ErrorContext,
-  maxRetries: number = 3,
-  delayMs: number = 1000
-): Promise<T> {
-  let lastError: unknown;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      logger.debug(`${context.operation} 시도 ${attempt}/${maxRetries}`);
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      logger.warn(`${context.operation} 시도 ${attempt} 실패`, error);
-      
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      }
-    }
-  }
-  
-  logger.error(`${context.operation} 모든 재시도 실패`, lastError, context);
-  throw lastError;
 }

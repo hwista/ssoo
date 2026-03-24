@@ -7,16 +7,8 @@
 export const dynamic = 'force-dynamic';
 
 import { getFileTree } from "@/server/handlers/files.handler";
+import { toNextResponse } from '@/server/shared/result';
 
 export async function GET() {
-  const result = await getFileTree();
-  
-  if (result.success) {
-    return Response.json(result.data);
-  }
-
-  return Response.json(
-    { error: result.error || 'Failed to read directory' },
-    { status: 500 }
-  );
+  return toNextResponse(await getFileTree());
 }

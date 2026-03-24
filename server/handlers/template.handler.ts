@@ -1,4 +1,5 @@
 import { templateService } from '@/server/services/template/TemplateService';
+import { fail, ok } from '@/server/shared/result';
 import type { TemplateItem } from '@/types/template';
 
 function getUserId(headers?: Headers): string {
@@ -14,14 +15,14 @@ export function handleGetTemplate(
   const userId = getUserId(headers);
   const template = templateService.get(id, scope, userId);
   if (!template) {
-    return { success: false as const, error: '템플릿을 찾을 수 없습니다.' };
+    return fail('템플릿을 찾을 수 없습니다.', 404);
   }
-  return { success: true as const, data: template };
+  return ok(template);
 }
 
 export function handleListTemplates(headers?: Headers) {
   const userId = getUserId(headers);
-  return { success: true as const, data: templateService.list(userId) };
+  return ok(templateService.list(userId));
 }
 
 export function handleUpsertTemplate(
@@ -29,7 +30,7 @@ export function handleUpsertTemplate(
   headers?: Headers
 ) {
   if (!body.name || !body.scope || !body.kind || !body.content) {
-    return { success: false as const, error: 'name/scope/kind/content는 필수입니다.' };
+    return fail('name/scope/kind/content는 필수입니다.', 400);
   }
 
   const saved = templateService.save(
@@ -43,7 +44,7 @@ export function handleUpsertTemplate(
     },
     getUserId(headers)
   );
-  return { success: true as const, data: saved };
+  return ok(saved);
 }
 
 export function handleDeleteTemplate(
@@ -51,11 +52,11 @@ export function handleDeleteTemplate(
   headers?: Headers
 ) {
   if (!body.id || !body.scope) {
-    return { success: false as const, error: 'id/scope는 필수입니다.' };
+    return fail('id/scope는 필수입니다.', 400);
   }
 
   const removed = templateService.remove(body.id, body.scope, getUserId(headers));
   return removed
-    ? { success: true as const, data: { id: body.id } }
-    : { success: false as const, error: '삭제 대상 템플릿을 찾을 수 없습니다.' };
+    ? ok({ id: body.id })
+    : fail('삭제 대상 템플릿을 찾을 수 없습니다.', 404);
 }

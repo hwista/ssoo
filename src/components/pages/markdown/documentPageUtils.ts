@@ -1,5 +1,7 @@
 import type { TocItem } from '@/components/templates/page-frame';
+import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { DocumentMetadata, SourceFileMeta, DocumentComment } from '@/types';
+import type { EditorCommandHandlers, SelectionRange, ComposeApplyMode } from './documentPageTypes';
 import type { DocumentSidecarMetadata } from './_components/DocumentSidecar';
 
 export interface DocumentSidecarDiffAttachment {
@@ -143,4 +145,94 @@ export function stringifyDocumentSidecarDiffSnapshot(snapshot: DocumentSidecarDi
     null,
     2
   );
+}
+
+export function mapSummaryFiles(summaryFiles: InlineSummaryFileItem[]) {
+  return summaryFiles.map((item) => ({
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    textContent: item.textContent,
+    images: item.images,
+  }));
+}
+
+export function buildComposedDocument(params: {
+  applyMode: ComposeApplyMode;
+  baseContent: string;
+  generated: string;
+  selection: SelectionRange;
+  hasSelection: boolean;
+}) {
+  const { applyMode, baseContent, generated, selection, hasSelection } = params;
+
+  if (applyMode === 'replace-document') {
+    return generated;
+  }
+
+  if (applyMode === 'replace-selection' && hasSelection) {
+    return `${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.to)}`;
+  }
+
+  if (applyMode === 'append') {
+    const joiner = baseContent.trim().length > 0 ? '\n\n' : '';
+    return `${baseContent}${joiner}${generated}`;
+  }
+
+  return `${baseContent.slice(0, selection.from)}${generated}${baseContent.slice(selection.from)}`;
+}
+
+export function applyGeneratedContent(params: {
+  applyMode: ComposeApplyMode;
+  baseContent: string;
+  generated: string;
+  selection: SelectionRange;
+  hasSelection: boolean;
+  editorHandlers: EditorCommandHandlers | null;
+  setContent: (content: string) => void;
+}) {
+  const { applyMode, baseContent, generated, selection, hasSelection, editorHandlers, setContent } = params;
+  const nextContent = buildComposedDocument({
+    applyMode,
+    baseContent,
+    generated,
+    selection,
+    hasSelection,
+  });
+
+  if (applyMode === 'replace-document') {
+    if (editorHandlers?.insertAt) {
+      editorHandlers.insertAt(0, baseContent.length, generated);
+    } else {
+      setContent(nextContent);
+    }
+    return nextContent;
+  }
+
+  if (applyMode === 'replace-selection' && hasSelection) {
+    if (editorHandlers?.insertAt) {
+      editorHandlers.insertAt(selection.from, selection.to, generated);
+    } else {
+      setContent(nextContent);
+    }
+    return nextContent;
+  }
+
+  if (applyMode === 'append') {
+    const joiner = baseContent.trim().length > 0 ? '\n\n' : '';
+    if (editorHandlers?.insertAt) {
+      editorHandlers.insertAt(baseContent.length, baseContent.length, `${joiner}${generated}`);
+    } else {
+      setContent(nextContent);
+    }
+    return nextContent;
+  }
+
+  if (editorHandlers?.insertAt) {
+    editorHandlers.insertAt(selection.from, selection.from, generated);
+  } else {
+    setContent(nextContent);
+  }
+
+  return nextContent;
 }

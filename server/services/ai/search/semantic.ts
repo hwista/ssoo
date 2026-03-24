@@ -3,7 +3,9 @@ import path from 'path';
 import { LIMITS } from '@/lib/constants/common';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 import { embedQuery, searchSimilarDocuments } from '@/server/services/ai/embedding';
-import type { AiContextOptions, HandlerResult, SearchResponse, SearchResultItem } from '@/server/services/ai/types';
+import type { AppResult } from '@/server/shared/result';
+import { fail, ok } from '@/server/shared/result';
+import type { AiContextOptions, SearchResponse, SearchResultItem } from '@/server/services/ai/types';
 import { resolveAbsolutePath, resolveDocumentPresentation, toDisplayPath } from './paths';
 import { tokenizeQuery } from './query';
 import { buildSearchResponse } from './response';
@@ -15,11 +17,11 @@ const SEARCH_SUMMARY_CONCURRENCY = 3;
 export async function searchDocumentsSemantic(
   query: string,
   options?: AiContextOptions
-): Promise<HandlerResult<SearchResponse>> {
+): Promise<AppResult<SearchResponse>> {
   const timer = new PerformanceTimer('Handler: AI 검색');
 
   if (!query || query.trim().length < LIMITS.MIN_SEARCH_QUERY_LENGTH) {
-    return { success: false, error: '검색어가 비어 있습니다.', status: 400 };
+    return fail('검색어가 비어 있습니다.', 400);
   }
 
   try {
@@ -78,13 +80,10 @@ export async function searchDocumentsSemantic(
     logger.info('시맨틱 검색 완료', { query, count: finalizedResults.length });
     timer.end({ query, count: finalizedResults.length });
 
-    return {
-      success: true,
-      data: buildSearchResponse(query, finalizedResults, options),
-    };
+    return ok(buildSearchResponse(query, finalizedResults, options));
   } catch (error) {
     logger.warn('시맨틱 검색 실패', { query, error: String(error) });
     timer.end({ query, error: true });
-    return { success: false, error: '시맨틱 검색 처리 중 오류가 발생했습니다.', status: 500 };
+    return fail('시맨틱 검색 처리 중 오류가 발생했습니다.', 500);
   }
 }

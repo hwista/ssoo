@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 
 import { consumeStream } from 'ai';
 import { buildRAGMessages, askQuestion, askQuestionStream } from '@/server/handlers/ai.handler';
+import { fail, ok, toNextResponse } from '@/server/shared/result';
 
 /**
  * UIMessage의 parts에서 텍스트 추출 (v6 호환)
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
   const stream = body?.stream !== false;
 
   if (rawMessages.length === 0) {
-    return Response.json({ error: '메시지가 비어 있습니다.' }, { status: 400 });
+    return toNextResponse(fail('메시지가 비어 있습니다.', 400));
   }
 
   // UIMessage → { role, content } 형식으로 플래튼
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
 
   const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
   if (!lastUserMessage || !lastUserMessage.content) {
-    return Response.json({ error: '사용자 메시지가 없습니다.' }, { status: 400 });
+    return toNextResponse(fail('사용자 메시지가 없습니다.', 400));
   }
 
   // RAG 컨텍스트 주입
@@ -80,9 +81,9 @@ export async function POST(req: Request) {
   if (!stream) {
     const result = await askQuestion(lastUserMessage.content, augmentedMessages, { contextMode, activeDocPath });
     if (!result.success) {
-      return Response.json({ error: result.error }, { status: result.status });
+      return toNextResponse(fail(result.error, result.status));
     }
-    return Response.json(result.data);
+    return toNextResponse(ok(result.data));
   }
 
   // 스트리밍 응답

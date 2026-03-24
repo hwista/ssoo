@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
 import path from 'node:path';
 import { extractTextFromFile } from '@/server/services/file/textExtractor';
 import { logger } from '@/lib/utils';
 import { ATTACHMENT_ALLOWED_EXTENSIONS, ATTACHMENT_MAX_SIZE } from '@/lib/constants/file';
+import { fail, ok, toNextResponse } from '@/server/shared/result';
 
 /**
  * POST /api/file/extract-text
@@ -15,22 +15,16 @@ export async function POST(req: Request) {
     const file = formData.get('file') as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: '파일이 필요합니다.' }, { status: 400 });
+      return toNextResponse(fail('파일이 필요합니다.', 400));
     }
 
     const ext = path.extname(file.name).toLowerCase();
     if (!ATTACHMENT_ALLOWED_EXTENSIONS.has(ext)) {
-      return NextResponse.json(
-        { error: `허용되지 않는 파일 형식입니다: ${ext}` },
-        { status: 400 },
-      );
+      return toNextResponse(fail(`허용되지 않는 파일 형식입니다: ${ext}`, 400));
     }
 
     if (file.size > ATTACHMENT_MAX_SIZE) {
-      return NextResponse.json(
-        { error: '파일 크기는 20MB 이하여야 합니다.' },
-        { status: 400 },
-      );
+      return toNextResponse(fail('파일 크기는 20MB 이하여야 합니다.', 400));
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -44,16 +38,15 @@ export async function POST(req: Request) {
       imageCount: result.images.length,
     });
 
-    return NextResponse.json({
-      success: true,
+    return toNextResponse(ok({
       textContent: result.text,
       images: result.images,
       fileName: file.name,
       size: file.size,
-    });
+    }));
   } catch (error) {
     const message = error instanceof Error ? error.message : '텍스트 추출 중 오류가 발생했습니다.';
     logger.error('텍스트 추출 실패', { error: message });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return toNextResponse(fail(message, 500));
   }
 }

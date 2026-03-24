@@ -1,5 +1,6 @@
 import type { StorageProvider } from '@/server/services/config/ConfigService';
 import { ingestQueueService } from '@/server/services/ingest/IngestQueueService';
+import { fail, ok } from '@/server/shared/result';
 import type { StorageOrigin } from '@/server/services/storage/StorageAdapterService';
 
 export interface IngestSubmitBody {
@@ -13,31 +14,33 @@ export interface IngestSubmitBody {
 
 export function handleSubmitIngest(body: IngestSubmitBody) {
   if (!body?.title?.trim()) {
-    return { success: false as const, status: 400, error: 'title이 필요합니다.' };
+    return fail('title이 필요합니다.', 400);
   }
 
   if (!body?.content?.trim()) {
-    return { success: false as const, status: 400, error: 'content가 필요합니다.' };
+    return fail('content가 필요합니다.', 400);
   }
 
   const job = ingestQueueService.submit(body);
-  return { success: true as const, data: job };
+  return ok(job);
 }
 
 export function handleListIngestJobs() {
-  return {
-    success: true as const,
-    data: {
-      jobs: ingestQueueService.list(),
-    },
-  };
+  return ok({
+    jobs: ingestQueueService.list(),
+  });
 }
 
 export function handleConfirmIngestJob(id: string) {
   if (!id.trim()) {
-    return { success: false as const, status: 400, error: 'job id가 필요합니다.' };
+    return fail('job id가 필요합니다.', 400);
   }
 
-  const job = ingestQueueService.confirm(id);
-  return { success: true as const, data: job };
+  try {
+    const job = ingestQueueService.confirm(id);
+    return ok(job);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '수집 작업 승인 중 오류가 발생했습니다.';
+    return fail(message, 500);
+  }
 }
