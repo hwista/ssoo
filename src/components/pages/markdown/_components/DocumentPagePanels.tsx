@@ -143,7 +143,7 @@ interface DocumentPageContentProps {
   htmlContent: string;
   toc: TocItem[];
   handleTocClick: (id: string) => void;
-  handleSearch?: (query?: string) => void;
+  handleSearch: (query?: string) => void;
   handleAttachCurrentDocToAssistant: () => void;
   editorRef: React.RefObject<EditorRef | null>;
   createPath: string;

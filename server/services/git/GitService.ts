@@ -15,7 +15,6 @@ import path from 'path';
 import simpleGit, { type SimpleGit, type StatusResult, type DefaultLogFields, type ListLogLine } from 'simple-git';
 import { logger } from '@/lib/utils/errorUtils';
 import { configService } from '@/server/services/config/ConfigService';
-import { fail, ok, type AppResult } from '@/server/shared/result';
 
 // ============================================================================
 // Types
@@ -46,6 +45,11 @@ export interface GitDiffResult {
   path: string;
   diff: string;
 }
+
+/** Git 서비스 결과 타입 */
+export type GitResult<T = unknown> =
+  | { success: true; data: T }
+  | { success: false; error: string };
 
 // ============================================================================
 // Git Service
@@ -81,9 +85,9 @@ class GitService {
    * - .git이 있으면 그대로 사용
    * - Git이 설치되지 않은 환경에서는 graceful degradation
    */
-  async initialize(): Promise<AppResult<{ isNew: boolean }>> {
+  async initialize(): Promise<GitResult<{ isNew: boolean }>> {
     if (this.initialized) {
-      return ok({ isNew: false });
+      return { success: true, data: { isNew: false } };
     }
 
     try {
@@ -91,7 +95,7 @@ class GitService {
       await this.git.version();
     } catch {
       logger.warn('Git이 설치되지 않았습니다. 히스토리 기능이 비활성화됩니다.');
-      return fail('Git not available', 503);
+      return { success: false, error: 'Git not available' };
     }
 
     try {
@@ -105,17 +109,17 @@ class GitService {
         await this.git.commit('Initial commit: document repository initialized');
         this.initialized = true;
         logger.info('Document Git 저장소 초기화 완료 (신규)');
-        return ok({ isNew: true });
+        return { success: true, data: { isNew: true } };
       }
 
       // 기존 저장소
       this.initialized = true;
       logger.info('Document Git 저장소 연결 (기존)');
-      return ok({ isNew: false });
+      return { success: true, data: { isNew: false } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 초기화 실패', error);
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 
@@ -143,8 +147,8 @@ class GitService {
    * 변경 사항 목록 조회 (git status)
    * .sidecar.json 파일은 필터링
    */
-  async getChanges(): Promise<AppResult<GitChangeEntry[]>> {
-    if (!this.initialized) return fail('Git not initialized', 503);
+  async getChanges(): Promise<GitResult<GitChangeEntry[]>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       const status: StatusResult = await this.git.status();
@@ -177,11 +181,11 @@ class GitService {
         }
       }
 
-      return ok(changes);
+      return { success: true, data: changes };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git status 조회 실패', error);
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 
@@ -192,8 +196,8 @@ class GitService {
   /**
    * 모든 변경 사항을 커밋
    */
-  async commitAll(message: string, author?: string): Promise<AppResult<{ hash: string }>> {
-    if (!this.initialized) return fail('Git not initialized', 503);
+  async commitAll(message: string, author?: string): Promise<GitResult<{ hash: string }>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       await this.git.add('.');
@@ -204,11 +208,11 @@ class GitService {
       const hash = result.commit || 'unknown';
 
       logger.info('Git 커밋 완료', { hash, message });
-      return ok({ hash });
+      return { success: true, data: { hash } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 커밋 실패', error);
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 
@@ -219,8 +223,8 @@ class GitService {
     files: string[],
     message: string,
     author?: string
-  ): Promise<AppResult<{ hash: string }>> {
-    if (!this.initialized) return fail('Git not initialized', 503);
+  ): Promise<GitResult<{ hash: string }>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       // .sidecar.json 파일도 함께 스테이징
@@ -239,11 +243,11 @@ class GitService {
       const hash = result.commit || 'unknown';
 
       logger.info('Git 파일 커밋 완료', { hash, files, message });
-      return ok({ hash });
+      return { success: true, data: { hash } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 파일 커밋 실패', error);
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 
@@ -254,8 +258,8 @@ class GitService {
   /**
    * 특정 파일의 변경 취소 (마지막 커밋 상태로 복원)
    */
-  async discardFile(filePath: string): Promise<AppResult<{ message: string }>> {
-    if (!this.initialized) return fail('Git not initialized', 503);
+  async discardFile(filePath: string): Promise<GitResult<{ message: string }>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       // untracked 파일인지 확인
@@ -277,30 +281,30 @@ class GitService {
       }
 
       logger.info('Git 변경 취소', { filePath, isUntracked });
-      return ok({ message: `Discarded changes to ${filePath}` });
+      return { success: true, data: { message: `Discarded changes to ${filePath}` } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 변경 취소 실패', error, { filePath });
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 
   /**
    * 모든 변경 취소
    */
-  async discardAll(): Promise<AppResult<{ message: string }>> {
-    if (!this.initialized) return fail('Git not initialized', 503);
+  async discardAll(): Promise<GitResult<{ message: string }>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       await this.git.checkout(['--', '.']);
       await this.git.clean('f', ['-d']);
 
       logger.info('Git 전체 변경 취소');
-      return ok({ message: 'All changes discarded' });
+      return { success: true, data: { message: 'All changes discarded' } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 전체 변경 취소 실패', error);
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 
@@ -314,8 +318,8 @@ class GitService {
   async getFileHistory(
     filePath: string,
     maxCount = 50
-  ): Promise<AppResult<GitLogEntry[]>> {
-    if (!this.initialized) return fail('Git not initialized', 503);
+  ): Promise<GitResult<GitLogEntry[]>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       const log = await this.git.log({
@@ -332,19 +336,19 @@ class GitService {
         message: entry.message,
       }));
 
-      return ok(entries);
+      return { success: true, data: entries };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 히스토리 조회 실패', error, { filePath });
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 
   /**
    * 전체 저장소 히스토리
    */
-  async getHistory(maxCount = 50): Promise<AppResult<GitLogEntry[]>> {
-    if (!this.initialized) return fail('Git not initialized', 503);
+  async getHistory(maxCount = 50): Promise<GitResult<GitLogEntry[]>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       const log = await this.git.log({ maxCount });
@@ -357,11 +361,11 @@ class GitService {
         message: entry.message,
       }));
 
-      return ok(entries);
+      return { success: true, data: entries };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 전체 히스토리 조회 실패', error);
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 
@@ -375,17 +379,17 @@ class GitService {
   async restoreFile(
     filePath: string,
     commitHash: string
-  ): Promise<AppResult<{ message: string }>> {
-    if (!this.initialized) return fail('Git not initialized', 503);
+  ): Promise<GitResult<{ message: string }>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       await this.git.checkout([commitHash, '--', filePath]);
       logger.info('Git 파일 복원', { filePath, commitHash });
-      return ok({ message: `Restored ${filePath} from ${commitHash}` });
+      return { success: true, data: { message: `Restored ${filePath} from ${commitHash}` } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 파일 복원 실패', error, { filePath, commitHash });
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 
@@ -396,8 +400,8 @@ class GitService {
   /**
    * 특정 파일의 diff (uncommitted 변경)
    */
-  async getFileDiff(filePath: string): Promise<AppResult<string>> {
-    if (!this.initialized) return fail('Git not initialized', 503);
+  async getFileDiff(filePath: string): Promise<GitResult<string>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       // staged + unstaged 모두 포함
@@ -409,11 +413,11 @@ class GitService {
         // untracked 파일은 diff 불가 → 전체 내용 반환
         diff = '(new file)';
       }
-      return ok(diff);
+      return { success: true, data: diff };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git diff 조회 실패', error, { filePath });
-      return fail(msg, 500);
+      return { success: false, error: msg };
     }
   }
 

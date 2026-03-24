@@ -5,7 +5,6 @@
 export const dynamic = 'force-dynamic';
 
 import { searchDocuments } from '@/server/handlers/ai.handler';
-import { toNextResponse } from '@/server/shared/result';
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -14,5 +13,10 @@ export async function POST(req: Request) {
   const activeDocPath = typeof body?.activeDocPath === 'string' ? body.activeDocPath : undefined;
 
   const result = await searchDocuments(query, { contextMode, activeDocPath });
-  return toNextResponse(result);
+
+  if (result.success) {
+    return Response.json(result.data);
+  }
+
+  return Response.json({ error: result.error }, { status: result.status });
 }

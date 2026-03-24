@@ -4,8 +4,16 @@ import { normalizePath } from '@/server/utils/pathUtils';
 import { configService } from '@/server/services/config/ConfigService';
 import { isMarkdownFile } from '@/lib/utils/fileUtils';
 import { logger } from '@/lib/utils/errorUtils';
-import { fail, ok, type AppResult } from '@/server/shared/result';
 import type { FileNode } from '@/types/file-tree';
+
+export interface ServiceResult<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    message: string;
+    code?: string;
+  };
+}
 
 export interface GetTreeOptions {
   includeHidden?: boolean;
@@ -62,30 +70,32 @@ class FileSystemService {
       .filter((item): item is FileNode => item !== null);
   }
 
-  async getFileTree(options: GetTreeOptions = {}): Promise<AppResult<FileNode[]>> {
+  async getFileTree(options: GetTreeOptions = {}): Promise<ServiceResult<FileNode[]>> {
     const rootDir = getRootDir();
 
     try {
       if (!fs.existsSync(rootDir)) {
         logger.warn('파일 트리 루트 디렉터리가 존재하지 않음', { rootDir });
-        return ok([]);
+        return { success: true, data: [] };
       }
 
       const rootStats = fs.statSync(rootDir);
       if (!rootStats.isDirectory()) {
         logger.warn('파일 트리 루트 경로가 디렉터리가 아님', { rootDir });
-        return ok([]);
+        return { success: true, data: [] };
       }
 
       const data = this.readDirectory(rootDir, rootDir, options.includeHidden ?? false);
-      return ok(data);
+      return { success: true, data };
     } catch (error) {
       logger.error('파일 트리 조회 실패', error, { rootDir });
-      return fail(
-        error instanceof Error ? error.message : '파일 트리 조회에 실패했습니다.',
-        500,
-        'FILE_TREE_READ_FAILED',
-      );
+      return {
+        success: false,
+        error: {
+          message: error instanceof Error ? error.message : '파일 트리 조회에 실패했습니다.',
+          code: 'FILE_TREE_READ_FAILED',
+        },
+      };
     }
   }
 }

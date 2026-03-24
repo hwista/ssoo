@@ -3,7 +3,6 @@ import path from 'path';
 import crypto from 'crypto';
 import type { DocumentMetadata } from '@/types/document-metadata';
 import { logger } from '@/lib/utils/errorUtils';
-import { fail, ok, type AppResult } from '@/server/shared/result';
 
 interface MetadataFileStat {
   size: number;
@@ -101,32 +100,6 @@ class DocumentMetadataService {
   writeDocumentMetadata(filePath: string, metadata: DocumentMetadata): void {
     const metadataPath = this.getDocumentMetadataPath(filePath);
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
-  }
-
-  updateMetadata(filePath: string, update: Partial<DocumentMetadata>): AppResult<DocumentMetadata> {
-    if (!fs.existsSync(filePath)) {
-      return fail('File not found', 404);
-    }
-
-    try {
-      const existing = this.readDocumentMetadata(filePath);
-      if (!existing) {
-        return fail('Metadata not found', 404);
-      }
-
-      const merged: DocumentMetadata = {
-        ...existing,
-        ...update,
-        updatedAt: new Date().toISOString(),
-      };
-
-      this.writeDocumentMetadata(filePath, merged);
-      logger.info('문서 메타데이터 업데이트 완료', { filePath });
-      return ok(merged);
-    } catch (error) {
-      logger.error('문서 메타데이터 업데이트 실패', error, { filePath });
-      return fail('Failed to update metadata', 500);
-    }
   }
 
   ensureDocumentMetadata(content: string, filePath: string, fileMeta: MetadataFileStat): DocumentMetadata {

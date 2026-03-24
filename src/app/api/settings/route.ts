@@ -5,13 +5,21 @@
 export const dynamic = 'force-dynamic';
 
 import { handleGetSettings, handleSettingsAction } from '@/server/handlers/settings.handler';
-import { toNextResponse } from '@/server/shared/result';
 
 export async function GET() {
-  return toNextResponse(handleGetSettings());
+  const result = handleGetSettings();
+  return Response.json(result);
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  return toNextResponse(await handleSettingsAction(body));
+  const result = await handleSettingsAction(body);
+
+  if (result.success) {
+    return Response.json({
+      config: result.config,
+      docDir: result.docDir,
+    });
+  }
+  return Response.json({ error: result.error }, { status: 400 });
 }

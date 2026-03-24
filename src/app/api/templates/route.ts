@@ -5,18 +5,26 @@ import {
   handleListTemplates,
   handleUpsertTemplate,
 } from '@/server/handlers/template.handler';
-import { toNextResponse } from '@/server/shared/result';
 
 export async function GET(req: Request) {
-  return toNextResponse(handleListTemplates(req.headers));
+  const result = handleListTemplates(req.headers);
+  return Response.json(result.data);
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  return toNextResponse(handleUpsertTemplate(body, req.headers));
+  const result = handleUpsertTemplate(body, req.headers);
+  if (!result.success) {
+    return Response.json({ error: result.error }, { status: 400 });
+  }
+  return Response.json(result.data);
 }
 
 export async function DELETE(req: Request) {
   const body = await req.json();
-  return toNextResponse(handleDeleteTemplate(body, req.headers));
+  const result = handleDeleteTemplate(body, req.headers);
+  if (!result.success) {
+    return Response.json({ error: result.error }, { status: 400 });
+  }
+  return Response.json(result.data);
 }

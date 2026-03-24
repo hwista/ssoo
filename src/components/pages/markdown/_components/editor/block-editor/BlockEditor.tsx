@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Toolbar, type ToolbarCommandId } from '../Toolbar';
+import { EditorToolbar, type ToolbarCommandId } from '../Toolbar';
 import { BlockEditorPreview, SlashCommandMenu } from './BlockEditorPanels';
 import { applyEditorCommand, resolveDocPath } from './blockEditorCommands';
 import { undo as cmUndo, redo as cmRedo } from '@codemirror/commands';
@@ -246,7 +246,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
     <div className={`block-editor flex h-full min-h-0 flex-col ${className}`}>
       {editable && showToolbar && (
         <div className="editor-toolbar border-b border-ssoo-content-border">
-          <Toolbar disabled={isPreview} onCommand={(id) => { void applyCommand(id); }} />
+          <EditorToolbar disabled={isPreview} onCommand={(id) => { void applyCommand(id); }} />
         </div>
       )}
 

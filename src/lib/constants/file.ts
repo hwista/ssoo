@@ -31,10 +31,12 @@ export const MIME_TYPES = {
 
 // ─── 첨부파일 허용 확장자 ──────────────────────────────────
 
+export type AttachmentCategory = 'document' | 'office' | 'text' | 'image' | 'web';
+
 export interface AttachmentTypeInfo {
   ext: string;
   mime: string;
-  category: 'document' | 'office' | 'text' | 'image' | 'web';
+  category: AttachmentCategory;
 }
 
 export const ATTACHMENT_TYPES: AttachmentTypeInfo[] = [
@@ -96,3 +98,20 @@ export const ATTACHMENT_ALLOWED_EXTENSIONS = new Set(ATTACHMENT_TYPES.map((t) =>
 export const ATTACHMENT_STORAGE_DIR = '_assets/attachments';
 
 export const REFERENCE_STORAGE_DIR = '_assets/references';
+
+export function getAttachmentCategory(fileName: string): AttachmentCategory | null {
+  const ext = fileName.lastIndexOf('.') >= 0 ? fileName.slice(fileName.lastIndexOf('.')).toLowerCase() : '';
+  const info = ATTACHMENT_TYPES.find((t) => t.ext === ext);
+  return info?.category ?? null;
+}
+
+export function getMimeType(fileName: string): string {
+  const ext = fileName.lastIndexOf('.') >= 0 ? fileName.slice(fileName.lastIndexOf('.')).toLowerCase() : '';
+  const info = ATTACHMENT_TYPES.find((t) => t.ext === ext);
+  return info?.mime ?? MIME_TYPES.DEFAULT;
+}
+
+export function isAllowedAttachment(fileName: string): boolean {
+  const ext = fileName.lastIndexOf('.') >= 0 ? fileName.slice(fileName.lastIndexOf('.')).toLowerCase() : '';
+  return ATTACHMENT_ALLOWED_EXTENSIONS.has(ext);
+}

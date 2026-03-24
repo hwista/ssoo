@@ -60,9 +60,8 @@ export function NewDocumentLauncher({
           const res = await fetch('/api/file/extract-text', { method: 'POST', body: formData });
           if (res.ok) {
             const data = await res.json();
-            const payload = data?.data ?? data;
-            textContent = typeof payload?.textContent === 'string' ? payload.textContent : '';
-            images = Array.isArray(payload?.images) ? payload.images : undefined;
+            textContent = typeof data?.textContent === 'string' ? data.textContent : '';
+            images = Array.isArray(data?.images) ? data.images : undefined;
           }
         } catch {
           textContent = '';

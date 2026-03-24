@@ -80,7 +80,7 @@ export const TOOLBAR_COMMAND_GROUPS: ToolbarCommandId[][] = [
   ['ul', 'ol', 'task', 'quote', 'code', 'hr', 'table', 'image', 'link'],
 ];
 
-export interface ToolbarProps {
+export interface EditorToolbarProps {
   disabled?: boolean;
   onCommand: (id: ToolbarCommandId) => void;
 }
@@ -174,7 +174,7 @@ function ToolbarOverflowGroup({
   );
 }
 
-export function Toolbar({ disabled = false, onCommand }: ToolbarProps) {
+export function EditorToolbar({ disabled = false, onCommand }: EditorToolbarProps) {
   const commandMap = new Map(EDITOR_COMMANDS.map((command) => [command.id, command]));
 
   return (

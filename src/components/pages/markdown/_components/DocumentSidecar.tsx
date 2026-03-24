@@ -6,7 +6,7 @@ import type { SourceFileMeta, DocumentMetadata, DocumentComment, BodyLink } from
 import { SidecarFrame } from '@/components/templates/page-frame/sidecar';
 import { SaveLocationDialog } from '@/components/common/save-location';
 import type { SaveLocationResult } from '@/components/common/save-location';
-import { getAttachmentCategory } from '@/lib/utils/fileUtils';
+import { getAttachmentCategory } from '@/lib/constants/file';
 import { LoadingState } from '@/components/common/StateDisplay';
 import {
   AttachmentsSection,
@@ -350,6 +350,7 @@ export function DocumentSidecar({
             pendingSuggestedPath={pendingSuggestedPath}
             pendingPathValidationMessage={pendingPathValidationMessage}
             pathValidationMessage={pathValidationMessage}
+            isNewDocument={isNewDocument}
             metadata={metadata}
             onRequestRecommendation={onRequestInfoRecommendation}
             onAcceptSuggestedTitle={onAcceptSuggestedTitle}

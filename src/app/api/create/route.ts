@@ -4,7 +4,6 @@
  */
 export const dynamic = 'force-dynamic';
 
-import { fail, toNextResponse } from '@/server/shared/result';
 import { summarizeTextStream } from '@/server/handlers/ai.handler';
 
 export async function POST(req: Request) {
@@ -13,7 +12,7 @@ export async function POST(req: Request) {
   const templateType = typeof body?.templateType === 'string' ? body.templateType : 'default';
 
   if (!text || text.trim().length < 10) {
-    return toNextResponse(fail('요약할 텍스트가 너무 짧습니다.', 400));
+    return Response.json({ error: '요약할 텍스트가 너무 짧습니다.' }, { status: 400 });
   }
 
   const result = await summarizeTextStream(text, templateType);
