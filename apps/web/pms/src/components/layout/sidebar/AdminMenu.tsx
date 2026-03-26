@@ -49,9 +49,9 @@ function AdminMenuTreeNode({ item, level }: AdminMenuTreeNodeProps) {
     <div>
       <div
         onClick={handleClick}
-        className={`flex items-center gap-1 w-full h-control-h px-2 text-sm rounded-md transition-colors cursor-pointer group ${
+        className={`flex h-control-h w-full cursor-pointer items-center gap-1 rounded-md px-2 text-body-sm transition-colors group ${
           isActive 
-            ? 'bg-ssoo-content-border text-ssoo-primary font-medium' 
+            ? 'bg-ssoo-content-border text-label-md text-ssoo-primary' 
             : 'hover:bg-ssoo-sitemap-bg text-gray-700'
         }`}
         style={{ paddingLeft: `${8 + level * 16}px` }}
@@ -119,7 +119,7 @@ export function AdminMenu() {
 
   if (displayTree.length === 0) {
     return (
-      <div className="px-3 py-4 text-sm text-gray-400 text-center">
+      <div className="px-3 py-4 text-body-sm text-gray-400 text-center">
         {searchQuery ? '검색 결과가 없습니다.' : '관리자 메뉴가 없습니다.'}
       </div>
     );

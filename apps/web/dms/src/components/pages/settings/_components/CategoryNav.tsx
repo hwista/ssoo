@@ -25,7 +25,7 @@ export function CategoryNav({
             key={section.id}
             onClick={() => onSelect(section.id)}
             className={[
-              'flex h-control-h w-full items-center gap-2 rounded-md px-3 text-sm transition-colors',
+              'flex h-control-h w-full items-center gap-2 rounded-md px-3 text-body-sm transition-colors',
               isActive
                 ? 'bg-ssoo-primary text-white'
                 : 'text-ssoo-primary hover:bg-ssoo-content-bg',

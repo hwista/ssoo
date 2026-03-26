@@ -35,7 +35,7 @@ export function Section({
           className="flex items-center gap-2 flex-1 h-full"
         >
           <Icon className="w-4 h-4 text-ssoo-primary" />
-          <span className="text-sm font-medium text-ssoo-primary">{title}</span>
+          <span className="text-label-md text-ssoo-primary">{title}</span>
         </button>
         <div className="flex items-center gap-1">
           {headerAction}
@@ -122,7 +122,7 @@ export function ContextMenuButton({ items }: ContextMenuButtonProps) {
               key={index}
               onClick={() => handleItemClick(item)}
               disabled={item.disabled}
-              className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+              className={`w-full px-3 py-2 text-left text-body-sm transition-colors ${
                 item.disabled
                   ? 'text-gray-300 cursor-not-allowed'
                   : 'text-gray-700 hover:bg-gray-100'

@@ -55,7 +55,6 @@ export function DocumentInfoSection({
   pathRecommendationStatus = 'idle',
   externalLoading = false,
   pathValidationMessage,
-  isNewDocument = false,
   pendingSuggestedTitle,
   pendingSuggestedPath,
   pendingPathValidationMessage,
@@ -163,8 +162,8 @@ export function DocumentInfoSection({
   const showWand = editable && Boolean(onRequestRecommendation);
 
   const suggestionCardClassName = 'mt-2 rounded border border-dashed border-ssoo-primary/30 bg-ssoo-primary/5 p-2';
-  const actionButtonClassName = 'inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-primary/20';
-  const dismissButtonClassName = 'inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs text-ssoo-primary/60 transition-colors hover:text-ssoo-primary';
+  const actionButtonClassName = 'inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-caption text-ssoo-primary transition-colors hover:bg-ssoo-primary/20';
+  const dismissButtonClassName = 'inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption text-ssoo-primary/60 transition-colors hover:text-ssoo-primary';
 
   const items: KeyValueItem[] = [
     {
@@ -205,7 +204,7 @@ export function DocumentInfoSection({
     >
       {pendingSuggestedTitle && !showTitleLoading && (
         <div className={suggestionCardClassName}>
-          <p className="mb-2 text-xs text-ssoo-primary/80">AI 추천 문서명: <span className="font-medium text-ssoo-primary">{pendingSuggestedTitle}</span></p>
+          <p className="mb-2 text-caption text-ssoo-primary/80">AI 추천 문서명: <span className="text-label-sm text-ssoo-primary">{pendingSuggestedTitle}</span></p>
           <div className="flex gap-1.5">
             <button type="button" onClick={onAcceptSuggestedTitle} className={actionButtonClassName}>
               <Check className="h-3 w-3" />
@@ -220,7 +219,7 @@ export function DocumentInfoSection({
       )}
       {pendingSuggestedPath && !showPathLoading && (
         <div className={suggestionCardClassName}>
-          <p className="mb-2 text-xs text-ssoo-primary/80">AI 추천 문서 경로: <span className="font-mono text-ssoo-primary">{pendingSuggestedPath}</span></p>
+          <p className="mb-2 text-caption text-ssoo-primary/80">AI 추천 문서 경로: <span className="font-mono text-ssoo-primary">{pendingSuggestedPath}</span></p>
           <div className="flex gap-1.5">
             <button type="button" onClick={onAcceptSuggestedPath} className={actionButtonClassName}>
               <Check className="h-3 w-3" />
@@ -234,7 +233,7 @@ export function DocumentInfoSection({
         </div>
       )}
       {!pendingSuggestedPath && pendingPathValidationMessage && !showPathLoading && (
-        <div className="mt-2 rounded border border-amber-300/60 bg-amber-50/70 px-2.5 py-2 text-xs text-amber-700/90">
+        <div className="mt-2 rounded border border-amber-300/60 bg-amber-50/70 px-2.5 py-2 text-caption text-amber-700/90">
           {pendingPathValidationMessage}
         </div>
       )}

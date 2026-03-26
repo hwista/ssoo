@@ -18,7 +18,7 @@ export function OpenTabs() {
 
   if (openTabs.length === 0) {
     return (
-      <div className="px-3 py-2 text-xs text-gray-400">
+      <div className="px-3 py-2 text-caption text-gray-400">
         열린 페이지가 없습니다.
       </div>
     );
@@ -32,9 +32,9 @@ export function OpenTabs() {
         return (
           <div
             key={tab.id}
-            className={`group flex items-center gap-2 w-full h-control-h px-3 text-sm rounded-md transition-colors ${
+            className={`group flex h-control-h w-full items-center gap-2 rounded-md px-3 text-body-sm transition-colors ${
               isActive
-                ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
+                ? 'bg-ssoo-content-border text-label-md text-ssoo-primary'
                 : 'text-gray-700 hover:bg-ssoo-sitemap-bg'
             }`}
           >

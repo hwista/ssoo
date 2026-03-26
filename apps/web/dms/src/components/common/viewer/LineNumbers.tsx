@@ -57,7 +57,7 @@ export function LineNumbers({
     <div
       className={cn(
         'select-none text-right pr-3 py-4',
-        'text-sm font-mono text-ssoo-primary/60', // 보라색 (ssoo-primary) 60% 투명도
+        'font-mono text-code-line-number text-ssoo-primary/60', // 보라색 (ssoo-primary) 60% 투명도
         'shrink-0',
         className
       )}
@@ -73,7 +73,7 @@ export function LineNumbers({
           className={cn(
             'leading-6 h-6', // 에디터 줄 높이와 맞춤
             onLineClick && 'cursor-pointer hover:text-ssoo-primary',
-            activeLine === line && 'text-ssoo-primary bg-ssoo-content-bg font-medium'
+            activeLine === line && 'text-ssoo-primary bg-ssoo-content-bg'
           )}
         >
           {line}

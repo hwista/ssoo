@@ -28,7 +28,7 @@ export function TemplateSaveControls({
         aria-checked={saveAsTemplateOnly}
         onClick={() => setSaveAsTemplateOnly(!saveAsTemplateOnly)}
         className={cn(
-          'inline-flex h-control-h items-center gap-2 px-1 text-xs font-medium text-ssoo-primary transition-colors'
+          'inline-flex h-control-h items-center gap-2 px-1 text-label-sm text-ssoo-primary transition-colors'
         )}
       >
         <span
@@ -115,7 +115,7 @@ export function DiffTargetToggle({ value, onChange }: DiffTargetToggleProps) {
         type="button"
         onClick={() => onChange('content')}
         className={cn(
-          'rounded px-3 py-1 text-xs font-medium transition-colors',
+          'rounded px-3 py-1 text-label-sm transition-colors',
           value === 'content' ? 'bg-white text-ssoo-primary shadow-sm' : 'text-ssoo-primary/60 hover:text-ssoo-primary'
         )}
       >
@@ -125,7 +125,7 @@ export function DiffTargetToggle({ value, onChange }: DiffTargetToggleProps) {
         type="button"
         onClick={() => onChange('metadata')}
         className={cn(
-          'rounded px-3 py-1 text-xs font-medium transition-colors',
+          'rounded px-3 py-1 text-label-sm transition-colors',
           value === 'metadata' ? 'bg-white text-ssoo-primary shadow-sm' : 'text-ssoo-primary/60 hover:text-ssoo-primary'
         )}
       >

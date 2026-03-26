@@ -19,8 +19,8 @@ export function FloatingAssistantHeader({ onExpand }: FloatingAssistantHeaderPro
           <Bot className="h-4 w-4 text-ssoo-primary" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-ssoo-primary">AI 대화</p>
-          <p className="text-xs text-ssoo-primary/60">질문, 문서 검색, 기능 안내를 한 번에 처리합니다.</p>
+          <p className="text-label-strong text-ssoo-primary">AI 대화</p>
+          <p className="text-caption text-ssoo-primary/60">질문, 문서 검색, 기능 안내를 한 번에 처리합니다.</p>
         </div>
       </div>
       <button
@@ -28,7 +28,7 @@ export function FloatingAssistantHeader({ onExpand }: FloatingAssistantHeaderPro
         onClick={() => {
           void onExpand();
         }}
-        className="inline-flex h-8 items-center gap-1 rounded-md border border-ssoo-content-border px-2 text-xs text-ssoo-primary transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg"
+        className="inline-flex h-8 items-center gap-1 rounded-md border border-ssoo-content-border px-2 text-caption text-ssoo-primary transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg"
         title="크게보기"
       >
         <Maximize2 className="h-3.5 w-3.5" />

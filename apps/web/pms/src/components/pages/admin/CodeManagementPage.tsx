@@ -135,7 +135,7 @@ export function CodeManagementPage() {
       <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
         <div className="flex items-center gap-2">
           <Database className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-lg font-semibold">코드 관리</h1>
+          <h1 className="text-title-card">코드 관리</h1>
         </div>
       </div>
 
@@ -144,11 +144,11 @@ export function CodeManagementPage() {
         {/* Left Panel: Code Groups */}
         <div className="w-72 border-r bg-gray-50 flex flex-col">
           <div className="px-4 py-3 border-b bg-white">
-            <h2 className="text-sm font-medium text-muted-foreground">코드 그룹</h2>
+            <h2 className="text-label-md text-muted-foreground">코드 그룹</h2>
           </div>
           <div className="flex-1 overflow-auto">
             {groups.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">등록된 코드 그룹이 없습니다.</p>
+              <p className="p-4 text-body-sm text-muted-foreground">등록된 코드 그룹이 없습니다.</p>
             ) : (
               <ul className="py-1">
                 {groups.map((g) => (
@@ -156,15 +156,15 @@ export function CodeManagementPage() {
                     <button
                       onClick={() => handleGroupClick(g.codeGroup)}
                       className={cn(
-                        'w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors',
+                        'w-full text-left px-4 py-2.5 text-body-sm flex items-center justify-between transition-colors',
                         selectedGroup === g.codeGroup
-                          ? 'bg-ssoo-primary/10 text-ssoo-primary font-medium'
+                          ? 'bg-ssoo-primary/10 text-ssoo-primary text-label-md'
                           : 'text-gray-700 hover:bg-gray-100',
                       )}
                     >
                       <span className="truncate">{g.codeGroup}</span>
                       <span className={cn(
-                        'text-xs px-1.5 py-0.5 rounded-full',
+                        'text-caption px-1.5 py-0.5 rounded-full',
                         selectedGroup === g.codeGroup
                           ? 'bg-ssoo-primary/20 text-ssoo-primary'
                           : 'bg-gray-200 text-gray-500',
@@ -183,12 +183,12 @@ export function CodeManagementPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {!selectedGroup ? (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-muted-foreground text-sm">좌측에서 코드 그룹을 선택하세요.</p>
+              <p className="text-muted-foreground text-body-sm">좌측에서 코드 그룹을 선택하세요.</p>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between px-6 py-3 border-b bg-white">
-                <h2 className="text-sm font-semibold">{selectedGroup}</h2>
+                <h2 className="text-label-strong">{selectedGroup}</h2>
                 <Button size="sm" onClick={handleOpenCreate}>
                   <Plus className="h-4 w-4 mr-1" />
                   코드 추가
@@ -200,30 +200,30 @@ export function CodeManagementPage() {
                   <LoadingState message="코드 목록을 불러오는 중..." />
                 ) : codes.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
-                    <p className="text-sm text-muted-foreground">이 그룹에 등록된 코드가 없습니다.</p>
+                    <p className="text-body-sm text-muted-foreground">이 그룹에 등록된 코드가 없습니다.</p>
                   </div>
                 ) : (
-                  <table className="w-full text-sm">
+                  <table className="w-full text-body-sm">
                     <thead>
                       <tr className="border-b bg-gray-50">
-                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">코드값</th>
-                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">한국어명</th>
-                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">영어명</th>
-                        <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">정렬</th>
-                        <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">상태</th>
-                        <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">작업</th>
+                        <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">코드값</th>
+                        <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">한국어명</th>
+                        <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">영어명</th>
+                        <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-20">정렬</th>
+                        <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-20">상태</th>
+                        <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-24">작업</th>
                       </tr>
                     </thead>
                     <tbody>
                       {codes.map((code) => (
                         <tr key={code.id} className="border-b hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-2.5 font-mono text-xs">{code.codeValue}</td>
+                          <td className="px-4 py-2.5 font-mono text-code-line-number">{code.codeValue}</td>
                           <td className="px-4 py-2.5">{code.displayNameKo}</td>
                           <td className="px-4 py-2.5 text-muted-foreground">{code.displayNameEn ?? '-'}</td>
                           <td className="px-4 py-2.5 text-center">{code.sortOrder}</td>
                           <td className="px-4 py-2.5 text-center">
                             <span className={cn(
-                              'px-2 py-0.5 rounded text-xs font-medium',
+                              'px-2 py-0.5 rounded text-label-sm',
                               code.isActive
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-gray-100 text-gray-500',
@@ -270,7 +270,7 @@ export function CodeManagementPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">코드 그룹</label>
+                <label className="text-label-md mb-1.5 block">코드 그룹</label>
                 <Input
                   value={formData.codeGroup}
                   onChange={(e) => updateField('codeGroup', e.target.value)}
@@ -279,7 +279,7 @@ export function CodeManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">코드 값</label>
+                <label className="text-label-md mb-1.5 block">코드 값</label>
                 <Input
                   value={formData.codeValue}
                   onChange={(e) => updateField('codeValue', e.target.value)}
@@ -291,7 +291,7 @@ export function CodeManagementPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">한국어명</label>
+                <label className="text-label-md mb-1.5 block">한국어명</label>
                 <Input
                   value={formData.displayNameKo}
                   onChange={(e) => updateField('displayNameKo', e.target.value)}
@@ -299,7 +299,7 @@ export function CodeManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">영어명</label>
+                <label className="text-label-md mb-1.5 block">영어명</label>
                 <Input
                   value={formData.displayNameEn}
                   onChange={(e) => updateField('displayNameEn', e.target.value)}
@@ -309,7 +309,7 @@ export function CodeManagementPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block">상위 코드</label>
+              <label className="text-label-md mb-1.5 block">상위 코드</label>
               <Input
                 value={formData.parentCode}
                 onChange={(e) => updateField('parentCode', e.target.value)}
@@ -318,7 +318,7 @@ export function CodeManagementPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block">설명</label>
+              <label className="text-label-md mb-1.5 block">설명</label>
               <Input
                 value={formData.description}
                 onChange={(e) => updateField('description', e.target.value)}
@@ -327,7 +327,7 @@ export function CodeManagementPage() {
             </div>
 
             <div className="w-32">
-              <label className="text-sm font-medium mb-1.5 block">정렬 순서</label>
+              <label className="text-label-md mb-1.5 block">정렬 순서</label>
               <Input
                 type="number"
                 value={formData.sortOrder}

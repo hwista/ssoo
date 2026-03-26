@@ -77,7 +77,7 @@ export function SaveLocationDialog({
     >
       {/* 문서명 입력 */}
       <div className="space-y-1.5">
-        <label htmlFor="doc-title" className="flex items-center gap-1.5 text-sm font-medium text-ssoo-primary">
+        <label htmlFor="doc-title" className="flex items-center gap-1.5 text-label-md text-ssoo-primary">
           <FileText className="h-3.5 w-3.5" />
           문서명
         </label>
@@ -87,14 +87,14 @@ export function SaveLocationDialog({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="문서 제목을 입력하세요"
-          className="w-full rounded-md border border-ssoo-content-border bg-white px-3 py-2 text-sm text-ssoo-primary placeholder:text-ssoo-primary/45 focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+          className="w-full rounded-md border border-ssoo-content-border bg-white px-3 py-2 text-body-sm text-ssoo-primary placeholder:text-ssoo-primary/45 focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
           autoFocus
         />
       </div>
 
       {/* 저장 위치 선택 */}
       <div className="flex flex-col gap-1.5 flex-1 min-h-0">
-        <label className="flex items-center gap-1.5 text-sm font-medium text-ssoo-primary" htmlFor="save-dir-input">
+        <label className="flex items-center gap-1.5 text-label-md text-ssoo-primary" htmlFor="save-dir-input">
           <FolderPlus className="h-3.5 w-3.5" />
           저장 위치
         </label>
@@ -107,7 +107,7 @@ export function SaveLocationDialog({
             setDirtyInput(true);
           }}
           placeholder="폴더 경로를 입력하거나 아래에서 선택..."
-          className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm outline-none focus:border-ssoo-primary"
+          className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm outline-none focus:border-ssoo-primary"
         />
         <PickerTree
           files={files}

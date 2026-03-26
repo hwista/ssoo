@@ -84,7 +84,7 @@ function CommentItem({
   if (isTombstone) {
     return (
       <div className={cn(
-        'flex items-center gap-2 rounded-md px-1.5 py-1.5 text-xs text-ssoo-primary/40',
+        'flex items-center gap-2 rounded-md px-1.5 py-1.5 text-caption text-ssoo-primary/40',
         isReply && 'ml-6',
       )}>
         <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-gray-100">
@@ -98,7 +98,7 @@ function CommentItem({
   return (
     <div
       className={cn(
-        'flex gap-2 rounded-md px-1.5 py-1.5 text-xs transition-colors',
+        'flex gap-2 rounded-md px-1.5 py-1.5 text-caption transition-colors',
         isReply && 'ml-6',
         isDeleted
           ? 'border border-destructive/30 bg-destructive/5'
@@ -116,7 +116,7 @@ function CommentItem({
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className={cn('font-medium text-ssoo-primary', isDeleted && 'line-through text-destructive/60')}>
+          <span className={cn('text-label-sm text-ssoo-primary', isDeleted && 'line-through text-destructive/60')}>
             {comment.author || 'Unknown'}
           </span>
           <span className="text-ssoo-primary/50">{formatDate(comment.createdAt)}</span>
@@ -126,7 +126,7 @@ function CommentItem({
           isDeleted && 'line-through text-destructive/50',
         )}>
           {mentionAuthor && (
-            <span className="mr-1 font-medium text-blue-500">@{mentionAuthor}</span>
+            <span className="mr-1 text-label-sm text-blue-500">@{mentionAuthor}</span>
           )}
           {comment.content}
         </p>
@@ -212,11 +212,11 @@ export function CommentsSection({
     <CollapsibleSection
       title="댓글"
       icon={<MessageSquare className="mr-1.5 h-4 w-4 shrink-0" />}
-      badge={totalCount > 0 ? <span className="mr-1 text-xs text-gray-400">({totalCount})</span> : undefined}
+      badge={totalCount > 0 ? <span className="mr-1 text-caption text-gray-400">({totalCount})</span> : undefined}
       defaultOpen
     >
       {threads.length === 0 ? (
-        <p className="py-1 text-xs text-gray-400">댓글없음</p>
+        <p className="py-1 text-caption text-gray-400">댓글없음</p>
       ) : (
         <div className="space-y-1">
           {threads.map((thread) => {
@@ -296,7 +296,7 @@ function RepliesGroup({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="ml-6 mt-0.5 text-xs text-blue-500 hover:text-blue-700"
+          className="ml-6 mt-0.5 text-caption text-blue-500 hover:text-blue-700"
         >
           답글 {hiddenCount}개 더 보기
         </button>

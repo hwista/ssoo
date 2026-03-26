@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Edit, Trash2, History, Save, X } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, History, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
@@ -43,6 +43,9 @@ export interface HeaderProps {
   /** 에디터/생성 모드 액션 */
   onSave?: () => void;
   onCancel?: () => void;
+
+  /** diff 모드 뒤로가기 (onCancel 대신 렌더링) */
+  onBack?: () => void;
   
   /** 저장 중 상태 */
   saving?: boolean;
@@ -98,6 +101,7 @@ export function Header({
   onHistory,
   onSave,
   onCancel,
+  onBack,
   saving = false,
   saveDisabled = false,
   isPreview = false,
@@ -136,7 +140,7 @@ export function Header({
       {/* 좌측: 설명 또는 모드별 액션 버튼 */}
       <div className="flex items-center gap-2">
         {description && (
-          <span className="text-sm text-ssoo-primary/70">{description}</span>
+          <span className="text-body-sm text-ssoo-primary/70">{description}</span>
         )}
         {mode === 'viewer' && (
           <>
@@ -156,7 +160,17 @@ export function Header({
 
         {(mode === 'editor' || mode === 'create') && (
           <>
-            {onCancel && (
+            {onBack ? (
+              <Button
+                variant="ghost"
+                size="default"
+                onClick={onBack}
+                className="h-control-h"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                뒤로가기
+              </Button>
+            ) : onCancel ? (
               <Button
                 variant="ghost"
                 size="default"
@@ -167,7 +181,7 @@ export function Header({
                 <X className="h-4 w-4 mr-1.5" />
                 {mode === 'create' ? '작성취소' : '편집종료'}
               </Button>
-            )}
+            ) : null}
             {editorPreviewSlot}
           </>
         )}

@@ -78,7 +78,7 @@ export function FilterBar({
             return (
               <div key={field.key} style={{ width: field.width || '200px' }}>
                 {field.label && (
-                  <label className="block text-xs text-muted-foreground mb-1">
+                  <label className="mb-1 block text-caption text-muted-foreground">
                     {field.label}
                   </label>
                 )}
@@ -96,7 +96,7 @@ export function FilterBar({
             return (
               <div key={field.key} style={{ width: field.width || '150px' }}>
                 {field.label && (
-                  <label className="block text-xs text-muted-foreground mb-1">
+                  <label className="mb-1 block text-caption text-muted-foreground">
                     {field.label}
                   </label>
                 )}
@@ -123,7 +123,7 @@ export function FilterBar({
             return (
               <div key={field.key} style={{ width: field.width || '150px' }}>
                 {field.label && (
-                  <label className="block text-xs text-muted-foreground mb-1">
+                  <label className="mb-1 block text-caption text-muted-foreground">
                     {field.label}
                   </label>
                 )}
@@ -142,7 +142,7 @@ export function FilterBar({
             return (
               <div key={field.key} className="flex items-center gap-2">
                 {field.label && (
-                  <label className="text-xs text-muted-foreground">
+                  <label className="text-caption text-muted-foreground">
                     {field.label}
                   </label>
                 )}

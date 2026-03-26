@@ -49,7 +49,7 @@ export function FeedPage() {
               <button
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
-                className="text-sm text-ssoo-primary hover:underline"
+                className="text-body-sm text-ssoo-primary hover:underline"
               >
                 {isFetchingNextPage ? '불러오는 중...' : '더 보기'}
               </button>

@@ -63,7 +63,7 @@ export function LinkInsertDialog({ open, currentFilePath, onConfirm, onCancel }:
     >
       {/* URL / 경로 입력란 */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-ssoo-primary" htmlFor="link-url-input">
+        <label className="text-label-md text-ssoo-primary" htmlFor="link-url-input">
           링크 URL
         </label>
         <input
@@ -76,14 +76,14 @@ export function LinkInsertDialog({ open, currentFilePath, onConfirm, onCancel }:
           }}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleConfirm(); } }}
           placeholder="https://example.com 또는 문서 검색..."
-          className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm outline-none focus:border-ssoo-primary"
+          className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm outline-none focus:border-ssoo-primary"
           autoFocus
         />
       </div>
 
       {/* 내부 문서 선택 트리 */}
       <div className="flex flex-col gap-1.5 flex-1 min-h-0">
-        <label className="text-sm font-medium text-ssoo-primary/70">내부 문서 선택</label>
+        <label className="text-label-md text-ssoo-primary/70">내부 문서 선택</label>
         <PickerTree
           files={files}
           selectedPath={selectedFilePath}

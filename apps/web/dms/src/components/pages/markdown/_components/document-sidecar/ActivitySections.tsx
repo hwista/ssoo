@@ -162,7 +162,7 @@ export function AttachmentsSection({
       ? (
         <span className="flex items-center gap-1.5">
           <span>{formatSize(attachment.size)}</span>
-          <span className="inline-flex items-center gap-0.5 rounded-full border border-ssoo-content-border bg-ssoo-content-border px-1.5 py-0.5 text-[10px] font-medium leading-none text-ssoo-primary">
+          <span className="inline-flex items-center gap-0.5 rounded-full border border-ssoo-content-border bg-ssoo-content-border px-1.5 py-0.5 text-badge leading-none text-ssoo-primary">
             <Link2 className="h-2.5 w-2.5" />
             {badgeLabel}
           </span>
@@ -194,7 +194,7 @@ export function AttachmentsSection({
     <ActivityListSection
       icon={<Paperclip className="mr-1.5 h-4 w-4 shrink-0" />}
       title="파일"
-      badge={attachments.length > 0 ? <span className="mr-1 text-xs text-gray-400">({attachments.length})</span> : undefined}
+      badge={attachments.length > 0 ? <span className="mr-1 text-caption text-gray-400">({attachments.length})</span> : undefined}
       items={items}
       variant="compact"
       highlightedItemIds={newAttachmentPaths}
@@ -214,7 +214,7 @@ export function AttachmentsSection({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex h-7 w-full items-center justify-center gap-1.5 rounded border border-dashed border-ssoo-content-border px-2 text-xs text-ssoo-primary/60 transition-colors hover:border-ssoo-primary hover:text-ssoo-primary"
+            className="flex h-7 w-full items-center justify-center gap-1.5 rounded border border-dashed border-ssoo-content-border px-2 text-caption text-ssoo-primary/60 transition-colors hover:border-ssoo-primary hover:text-ssoo-primary"
           >
             <Plus className="h-3.5 w-3.5" />
             파일 첨부

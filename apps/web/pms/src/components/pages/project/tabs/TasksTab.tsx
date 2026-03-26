@@ -137,7 +137,7 @@ export function TasksTab({ projectId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
+        <h3 className="text-label-strong flex items-center gap-2">
           <ListTodo className="h-4 w-4" />
           태스크 ({tasks.length})
         </h3>
@@ -148,27 +148,27 @@ export function TasksTab({ projectId }: Props) {
       </div>
 
       {tasks.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-8 text-center">
+        <div className="text-body-sm text-muted-foreground py-8 text-center">
           아직 등록된 태스크가 없습니다.
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-body-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left p-3 font-medium">WBS</th>
-                <th className="text-left p-3 font-medium">태스크명</th>
-                <th className="text-center p-3 font-medium">상태</th>
-                <th className="text-center p-3 font-medium">진척률</th>
-                <th className="text-left p-3 font-medium">담당자</th>
-                <th className="text-left p-3 font-medium">기간</th>
-                <th className="text-center p-3 font-medium w-10"></th>
+                <th className="text-left p-3 text-label-md">WBS</th>
+                <th className="text-left p-3 text-label-md">태스크명</th>
+                <th className="text-center p-3 text-label-md">상태</th>
+                <th className="text-center p-3 text-label-md">진척률</th>
+                <th className="text-left p-3 text-label-md">담당자</th>
+                <th className="text-left p-3 text-label-md">기간</th>
+                <th className="text-center p-3 text-label-md w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {tasks.map((t: TaskItem) => (
                 <tr key={String(t.id)} className="hover:bg-muted/30 group">
-                  <td className="p-3 font-mono text-xs" style={{ paddingLeft: `${(t.depth * 16) + 12}px` }}>
+                  <td className="p-3 font-mono text-code-line-number" style={{ paddingLeft: `${(t.depth * 16) + 12}px` }}>
                     {t.taskCode}
                   </td>
                   <td className="p-3">{t.taskName}</td>
@@ -177,7 +177,7 @@ export function TasksTab({ projectId }: Props) {
                       value={t.statusCode}
                       onValueChange={(v) => handleStatusChange(t, v)}
                     >
-                      <SelectTrigger className="h-7 w-24 text-xs mx-auto">
+                      <SelectTrigger className="h-7 w-24 text-caption mx-auto">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -201,13 +201,13 @@ export function TasksTab({ projectId }: Props) {
                           const val = Math.min(100, Math.max(0, Number(e.target.value)));
                           handleProgressChange(t, val);
                         }}
-                        className="h-7 w-14 text-xs text-center px-1"
+                        className="h-7 w-14 text-caption text-center px-1"
                       />
-                      <span className="text-xs text-muted-foreground">%</span>
+                      <span className="text-caption text-muted-foreground">%</span>
                     </div>
                   </td>
                   <td className="p-3 text-muted-foreground">{t.assignee?.displayName || t.assignee?.userName || '-'}</td>
-                  <td className="p-3 text-xs text-muted-foreground">
+                  <td className="p-3 text-caption text-muted-foreground">
                     {t.plannedStartAt ? new Date(t.plannedStartAt).toLocaleDateString('ko-KR') : ''}
                     {t.plannedStartAt && t.plannedEndAt ? ' ~ ' : ''}
                     {t.plannedEndAt ? new Date(t.plannedEndAt).toLocaleDateString('ko-KR') : ''}
@@ -239,7 +239,7 @@ export function TasksTab({ projectId }: Props) {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">WBS 코드 *</label>
+                <label className="text-label-md">WBS 코드 *</label>
                 <Input
                   placeholder="예: 1.1.1"
                   value={formData.taskCode}
@@ -247,7 +247,7 @@ export function TasksTab({ projectId }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">태스크명 *</label>
+                <label className="text-label-md">태스크명 *</label>
                 <Input
                   placeholder="태스크명 입력"
                   value={formData.taskName}
@@ -258,7 +258,7 @@ export function TasksTab({ projectId }: Props) {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">유형</label>
+                <label className="text-label-md">유형</label>
                 <Select value={formData.taskTypeCode} onValueChange={(v) => setFormData({ ...formData, taskTypeCode: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -269,7 +269,7 @@ export function TasksTab({ projectId }: Props) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">상태</label>
+                <label className="text-label-md">상태</label>
                 <Select value={formData.statusCode} onValueChange={(v) => setFormData({ ...formData, statusCode: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -280,7 +280,7 @@ export function TasksTab({ projectId }: Props) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">우선순위</label>
+                <label className="text-label-md">우선순위</label>
                 <Select value={formData.priorityCode} onValueChange={(v) => setFormData({ ...formData, priorityCode: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -294,7 +294,7 @@ export function TasksTab({ projectId }: Props) {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">진척률</label>
+                <label className="text-label-md">진척률</label>
                 <Input
                   type="number"
                   min={0}
@@ -304,7 +304,7 @@ export function TasksTab({ projectId }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">시작일</label>
+                <label className="text-label-md">시작일</label>
                 <Input
                   type="date"
                   value={formData.plannedStartAt}
@@ -312,7 +312,7 @@ export function TasksTab({ projectId }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">종료일</label>
+                <label className="text-label-md">종료일</label>
                 <Input
                   type="date"
                   value={formData.plannedEndAt}

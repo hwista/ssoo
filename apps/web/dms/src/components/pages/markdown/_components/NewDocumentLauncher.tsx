@@ -135,9 +135,9 @@ export function NewDocumentLauncher({
                 {action.icon}
               </span>
               <div className="flex flex-col min-w-0">
-                <span className="text-sm">{action.label}</span>
+                <span className="text-body-sm">{action.label}</span>
                 {action.description && (
-                  <span className="text-[11px] text-ssoo-primary/40 truncate">{action.description}</span>
+                  <span className="text-caption text-ssoo-primary/40 truncate">{action.description}</span>
                 )}
               </div>
             </button>

@@ -21,7 +21,7 @@ export function LoadingState({
     >
       <div className="text-center">
         <div className="w-8 h-8 border-3 border-ssoo-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">{message}</p>
+        <p className="text-body-sm text-muted-foreground">{message}</p>
       </div>
     </div>
   );
@@ -50,9 +50,9 @@ export function EmptyState({
       )}
     >
       {icon && <div className="mb-4 text-muted-foreground">{icon}</div>}
-      <h3 className="text-lg font-medium text-foreground">{title}</h3>
+      <h3 className="text-title-card text-foreground">{title}</h3>
       {description && (
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        <p className="mt-1 text-body-sm text-muted-foreground">{description}</p>
       )}
       {action && <div className="mt-4">{action}</div>}
     </div>

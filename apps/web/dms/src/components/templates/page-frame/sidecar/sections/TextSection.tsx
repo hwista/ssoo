@@ -30,8 +30,8 @@ export function TextSection({
 }: TextSectionProps) {
   const node = content ?? (
     text?.trim()
-      ? <p className={preserveWhitespace ? 'text-xs text-ssoo-primary/80 whitespace-pre-wrap leading-relaxed' : 'text-xs text-ssoo-primary/80 leading-relaxed'}>{text}</p>
-      : <p className="text-xs text-gray-400 py-1">{emptyText}</p>
+      ? <p className={preserveWhitespace ? 'text-caption text-ssoo-primary/80 whitespace-pre-wrap leading-relaxed' : 'text-caption text-ssoo-primary/80 leading-relaxed'}>{text}</p>
+      : <p className="py-1 text-caption text-gray-400">{emptyText}</p>
   );
 
   return (

@@ -30,6 +30,12 @@
   --ls-gray: #7D8282;                     /* GRAY - RGB(125, 130, 130) - PMS 표준 */
   --ls-silver: #87827D;
   --ls-gold: #7D0D0D;
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Segoe UI", "Noto Sans KR", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --doc-content-font-size: 1rem;
+  --doc-content-line-height: 1.625;
+  --doc-line-number-font-size: 0.875rem;
+  --doc-line-number-font-weight: 500;
 
   /* ----------------------------------------
      UI surface tokens (Light theme)
@@ -84,24 +90,24 @@
 @layer components {
   /* 제목 스타일 */
   .heading-1 {
-    @apply text-h1 text-gray-900 font-bold;
+    @apply text-title-page text-gray-900;
   }
   
   .heading-2 {
-    @apply text-h2 text-gray-800 font-semibold;
+    @apply text-title-section text-gray-800;
   }
   
   .heading-3 {
-    @apply text-h3 text-gray-800 font-semibold;
+    @apply text-title-subsection text-gray-800;
   }
   
   /* 본문 텍스트 */
   .body-text {
-    @apply text-body text-gray-700;
+    @apply text-body-md text-gray-700;
   }
   
   .body-text-muted {
-    @apply text-body text-gray-500;
+    @apply text-body-md text-muted-foreground;
   }
 
   /* 아이콘 크기 */
@@ -1009,7 +1015,7 @@ a:hover {
   padding: 0.75rem 1rem !important;
   margin-left: -8px !important;
   margin-right: -8px !important;
-  font-family: -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Segoe UI", "Noto Sans KR", sans-serif !important; /* design/font-override: codeBlock(pre>code)가 monospace 상속하므로 font-sans 오버라이드 필수 */
+  font-family: var(--font-sans) !important; /* design/font-override: codeBlock(pre>code)가 monospace 상속하므로 font-sans 오버라이드 필수 */
 }
 
 .ProseMirror pre:has(code.language-livepreview) code {

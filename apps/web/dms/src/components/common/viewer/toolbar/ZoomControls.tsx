@@ -29,7 +29,7 @@ export function ToolbarZoomControls({
         type="button"
         onClick={() => onZoomReset?.()}
         disabled={!onZoomReset}
-        className="relative z-30 h-control-h min-w-[50px] rounded px-2 text-sm transition-colors hover:bg-gray-100"
+        className="relative z-30 h-control-h min-w-[50px] rounded px-2 text-body-sm transition-colors hover:bg-gray-100"
         title="기본 크기로"
       >
         {level}%

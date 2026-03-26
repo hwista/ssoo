@@ -36,7 +36,7 @@ export function LoadingState({
       className
     )}>
       <Loader2 className={cn(sizeClasses, 'animate-spin text-muted-foreground')} />
-      <p className="mt-4 text-sm text-muted-foreground">{message}</p>
+      <p className="mt-4 text-body-sm text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -70,7 +70,7 @@ export function LoadingSpinner({
   }
 
   return (
-    <span className={cn('inline-flex items-center gap-2 text-sm text-muted-foreground', className)}>
+    <span className={cn('inline-flex items-center gap-2 text-body-sm text-muted-foreground', className)}>
       <Loader2 className={cn(sizeClasses, 'animate-spin shrink-0')} />
       {message}
     </span>
@@ -109,7 +109,7 @@ export function ErrorState({
   return (
     <div className={cn('flex flex-col items-center justify-center py-12', className)}>
       <AlertCircle className="h-10 w-10 text-destructive" />
-      <p className="mt-4 text-sm text-muted-foreground">{message}</p>
+      <p className="mt-4 text-body-sm text-muted-foreground">{message}</p>
       {onRetry && (
         <Button variant="outline" className="mt-4" onClick={onRetry}>
           <RefreshCw className="icon-body" />
@@ -154,7 +154,7 @@ export function EmptyState({
       {icon || <FileX className="h-10 w-10 text-muted-foreground" />}
       <h3 className="mt-4 heading-3">{title}</h3>
       {description && (
-        <p className="mt-2 text-sm text-muted-foreground text-center max-w-sm">
+        <p className="mt-2 text-body-sm text-muted-foreground text-center max-w-sm">
           {description}
         </p>
       )}

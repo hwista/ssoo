@@ -11,7 +11,7 @@ export function SearchPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-xl font-bold mb-4">전문가 검색</h1>
+      <h1 className="text-title-subsection mb-4">전문가 검색</h1>
 
       {/* Search Input */}
       <div className="relative mb-6">

@@ -35,9 +35,12 @@ function renderPath(path: string) {
   if (segments.length === 0) return path;
 
   return (
-    <span className="flex flex-wrap items-center gap-1">
+    <span className="flex flex-wrap items-center gap-1 text-caption">
       {segments.map((segment, index) => (
-        <span key={`${segment}-${index}`} className={cn(index === segments.length - 1 ? 'text-ssoo-primary font-medium' : 'text-ssoo-primary/60')}>
+        <span
+          key={`${segment}-${index}`}
+          className={cn(index === segments.length - 1 ? 'text-label-sm text-ssoo-primary' : 'text-ssoo-primary/60')}
+        >
           {index > 0 && <span className="mr-1 text-ssoo-primary/40">/</span>}
           {segment}
         </span>
@@ -94,13 +97,13 @@ export function SearchResultCard({
 
   const content = (
     <div className={cn(compact ? 'p-3' : 'p-4', 'text-left')}>
-      <h3 className={cn(compact ? 'text-sm' : 'text-base', 'font-semibold text-ssoo-primary')}>
+      <h3 className="text-title-card text-ssoo-primary">
         {result.title}
       </h3>
 
-      <p className={cn(compact ? 'mt-1 text-xs' : 'mt-1.5 text-sm', 'line-clamp-2 text-ssoo-primary/80')}>
+      <p className={cn(compact ? 'mt-1' : 'mt-1.5', 'line-clamp-2 text-body-sm text-ssoo-primary/80')}>
         <span className={cn(
-          'mr-1.5 inline-flex items-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-1.5 py-0 text-[10px] font-medium leading-4 text-ssoo-primary'
+          'mr-1.5 inline-flex items-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-1.5 py-0 text-badge text-ssoo-primary'
         )}>
           AI 요약
         </span>
@@ -110,8 +113,8 @@ export function SearchResultCard({
       {previewSnippets.length > 0 && (
         <div className={cn(compact ? 'mt-2' : 'mt-2.5')}>
           <div className={cn('flex items-center gap-4 overflow-x-auto whitespace-nowrap pb-1')}>
-          {previewSnippets.map((snippet, index) => (
-              <span key={`${result.id}-snippet-${index}`} className={cn(compact ? 'text-[11px]' : 'text-xs', 'shrink-0 text-ssoo-primary/70')}>
+            {previewSnippets.map((snippet, index) => (
+              <span key={`${result.id}-snippet-${index}`} className="shrink-0 text-caption text-ssoo-primary/70">
               {splitWithHighlight(snippet, highlightTerms).map((part, partIndex) => {
                 const isHit = highlightTerms.some((term) => term.length >= 2 && part.toLowerCase() === term.toLowerCase());
                 if (!isHit) return <span key={`${result.id}-snippet-${index}-${partIndex}`}>{part}</span>;
@@ -125,15 +128,15 @@ export function SearchResultCard({
                 );
               })}
               </span>
-          ))}
-            <span className={cn(compact ? 'text-[11px]' : 'text-xs', 'ml-2 shrink-0 text-ssoo-primary/55')}>
+            ))}
+            <span className="ml-2 shrink-0 text-caption text-ssoo-primary/55">
               총 {result.totalSnippetCount ?? previewSnippets.length}개 키워드 추출됨
             </span>
           </div>
         </div>
       )}
 
-      <div className={cn(compact ? 'mt-2 text-[11px]' : 'mt-3 text-xs', 'text-ssoo-primary/70')}>
+      <div className={cn(compact ? 'mt-2' : 'mt-3', 'text-ssoo-primary/70')}>
         {renderPath(result.path)}
       </div>
     </div>

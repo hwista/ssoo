@@ -61,8 +61,8 @@ export function MermaidBlock({ code }: { code: string }) {
   if (error) {
     return (
       <div className="my-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-        <p className="mb-1 text-xs font-medium text-amber-700">다이어그램 렌더링 실패</p>
-        <pre className="overflow-x-auto text-xs text-amber-900/80">{code}</pre>
+        <p className="mb-1 text-label-sm text-amber-700">다이어그램 렌더링 실패</p>
+        <pre className="overflow-x-auto font-mono text-code-block text-amber-900/80">{code}</pre>
       </div>
     );
   }
@@ -113,7 +113,7 @@ export function useMermaidRenderer(
       } catch {
         block.classList.add(
           'rounded-md', 'border', 'border-amber-200', 'bg-amber-50',
-          'p-3', 'text-xs', 'text-amber-900/80', 'whitespace-pre-wrap',
+          'p-3', 'font-mono', 'text-code-block', 'text-amber-900/80', 'whitespace-pre-wrap',
         );
       }
     }

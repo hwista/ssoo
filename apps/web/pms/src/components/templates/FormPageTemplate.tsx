@@ -117,7 +117,7 @@ export function FormPageTemplate({
       <div>
         <h1 className="heading-1">{header.title}</h1>
         {header.description && (
-          <p className="text-sm text-muted-foreground mt-1">{header.description}</p>
+          <p className="text-body-sm text-muted-foreground mt-1">{header.description}</p>
         )}
       </div>
     </div>

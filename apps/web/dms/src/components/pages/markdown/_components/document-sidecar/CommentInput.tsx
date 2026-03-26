@@ -41,7 +41,7 @@ export function CommentInput({ onAdd, replyTo, onCancelReply }: CommentInputProp
   return (
     <div className="flex-shrink-0 border-t border-ssoo-content-border p-3">
       {replyTo && (
-        <div className="mb-1.5 flex items-center gap-1 text-xs text-ssoo-primary/60">
+        <div className="mb-1.5 flex items-center gap-1 text-caption text-ssoo-primary/60">
           <span>@{replyTo.author}에게 답글</span>
           <button
             type="button"
@@ -61,7 +61,7 @@ export function CommentInput({ onAdd, replyTo, onCancelReply }: CommentInputProp
           onKeyDown={handleKeyDown}
           placeholder={replyTo ? `@${replyTo.author}에게 답글...` : '댓글 입력... (Enter 전송)'}
           rows={2}
-          className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 pr-8 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+          className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 pr-8 text-caption text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
         />
         <button
           onClick={handleSubmit}

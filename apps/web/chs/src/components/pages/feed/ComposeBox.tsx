@@ -30,7 +30,7 @@ export function ComposeBox() {
         <div className="flex gap-3">
           <Avatar className="h-10 w-10 shrink-0">
             <AvatarImage src={user?.avatarUrl || undefined} />
-            <AvatarFallback className="bg-ssoo-primary text-white text-sm">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-ssoo-primary text-white text-body-sm">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
             {isExpanded ? (
@@ -69,7 +69,7 @@ export function ComposeBox() {
               </div>
             ) : (
               <button
-                className="w-full text-left px-4 py-3 rounded-full border border-input text-muted-foreground hover:bg-muted/50 transition-colors text-sm"
+                className="w-full text-left px-4 py-3 rounded-full border border-input text-body-sm text-muted-foreground hover:bg-muted/50 transition-colors"
                 onClick={() => setIsExpanded(true)}
               >
                 무슨 생각을 하고 계신가요?

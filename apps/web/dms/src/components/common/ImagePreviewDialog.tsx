@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import Image from 'next/image';
-import { X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -54,7 +53,7 @@ export function ImagePreviewDialog({ open, onOpenChange, src, alt = '이미지 �
         <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg h-[480px] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-sm truncate">{alt}</DialogTitle>
+            <DialogTitle className="text-body-sm truncate">{alt}</DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 min-h-0 flex items-center justify-center p-2">

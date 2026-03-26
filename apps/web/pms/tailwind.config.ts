@@ -9,11 +9,30 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
+      },
       fontSize: {
         'h1': ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],  // 28px
         'h2': ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],       // 24px
         'h3': ['1.25rem', { lineHeight: '1.75rem', fontWeight: '600' }],   // 20px
         'body': ['0.875rem', { lineHeight: '1.5rem', fontWeight: '400' }], // 14px
+        'title-page': ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],
+        'title-section': ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
+        'title-subsection': ['1.25rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+        'title-card': ['1.125rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+        'body-md': ['0.875rem', { lineHeight: '1.5rem', fontWeight: '400' }],
+        'body-sm': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '400' }],
+        'control-lg': ['1rem', { lineHeight: '1.5rem', fontWeight: '400' }],
+        'label-md': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '500' }],
+        'label-sm': ['0.75rem', { lineHeight: '1rem', fontWeight: '500' }],
+        'label-strong': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '600' }],
+        'caption': ['0.75rem', { lineHeight: '1rem', fontWeight: '400' }],
+        'badge': ['0.75rem', { lineHeight: '1rem', fontWeight: '600' }],
+        'code-inline': ['0.8125rem', { lineHeight: '1.5', fontWeight: '400' }],
+        'code-block': ['0.8125rem', { lineHeight: '1.625', fontWeight: '400' }],
+        'code-line-number': ['0.75rem', { lineHeight: '1rem', fontWeight: '500' }],
       },
       spacing: {
         'icon-h1': '1.75rem',  // 28px - H1과 같은 크기

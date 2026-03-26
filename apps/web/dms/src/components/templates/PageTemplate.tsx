@@ -34,6 +34,7 @@ export interface PageTemplateProps {
   onEdit?: () => void;
   onSave?: () => void;
   onCancel?: () => void;
+  onBack?: () => void;
   onDelete?: () => void;
   onHistory?: () => void;
   onPathClick?: (path: string) => void;
@@ -67,6 +68,7 @@ export function PageTemplate({
   onEdit,
   onSave,
   onCancel,
+  onBack,
   onDelete,
   onHistory,
   onPathClick,
@@ -119,21 +121,28 @@ export function PageTemplate({
   const showSidecar = supportsSidecar && sidecarOpen;
 
   const defaultVisualClasses = 'rounded-lg border border-ssoo-content-border bg-white';
-  const resolvedSurfaceClassName = cn(
-    'flex h-full w-full flex-col overflow-hidden',
-    contentSurfaceClassName ?? defaultVisualClasses
-  );
+  const isConstrained = resolvedContentMaxWidth !== null;
 
-  const contentNode = resolvedContentMaxWidth !== null ? (
-    <div className={cn('flex h-full justify-center overflow-hidden px-4', contentWrapperClassName)}>
+  const contentNode = (
+    <div className={cn(
+      'flex h-full overflow-hidden',
+      isConstrained && 'justify-center px-4',
+      contentWrapperClassName
+    )}>
       <div
-        className={cn('h-full w-full', resolvedSurfaceClassName)}
-        style={{ maxWidth: resolvedContentMaxWidth ?? undefined }}
+        className={cn(
+          'h-full w-full',
+          isConstrained && cn(
+            'flex flex-col overflow-hidden',
+            contentSurfaceClassName ?? defaultVisualClasses
+          )
+        )}
+        style={isConstrained ? { maxWidth: resolvedContentMaxWidth ?? undefined } : undefined}
       >
         {children}
       </div>
     </div>
-  ) : children;
+  );
 
   const headerNode = (
     <Header
@@ -146,6 +155,7 @@ export function PageTemplate({
       onEdit={onEdit}
       onSave={onSave}
       onCancel={onCancel}
+      onBack={onBack}
       onDelete={onDelete}
       onHistory={onHistory}
       saving={saving}

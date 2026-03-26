@@ -89,7 +89,7 @@ export function ActivityListSection({
   const isLink = itemAppearance === 'link';
   const titleCls = cn(
     'truncate text-ssoo-primary',
-    compact ? 'font-medium' : 'font-medium',
+    compact ? 'text-label-sm' : 'text-label-sm',
     isLink && 'underline decoration-1 underline-offset-2 hover:decoration-2',
   );
 
@@ -102,7 +102,7 @@ export function ActivityListSection({
       variant={sectionVariant}
     >
       {items.length === 0 ? (
-        <p className="text-xs text-gray-400 py-1">{emptyText}</p>
+        <p className="py-1 text-caption text-gray-400">{emptyText}</p>
       ) : (
         <div className="space-y-1.5">
           {visibleItems.map((item) => {
@@ -111,13 +111,13 @@ export function ActivityListSection({
             <div
               key={item.id}
               className={cn(
-                'flex items-center gap-1 rounded-md px-1 py-1 text-xs transition-colors',
+                'flex items-center gap-1 rounded-md px-1 py-1 text-caption transition-colors',
                 isDeleted
                   ? 'border border-destructive/30 bg-destructive/5'
                   : highlightedItemIds?.has(item.id)
                     ? 'border border-destructive/30 bg-destructive/5'
                     : item.active
-                      ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
+                      ? 'bg-ssoo-content-border text-label-sm text-ssoo-primary'
                       : 'hover:bg-ssoo-content-bg/60'
               )}
             >
@@ -135,7 +135,7 @@ export function ActivityListSection({
                         <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
                       ) : null}
                       {item.meta ? (
-                        <p className="mt-0.5 text-xs text-ssoo-primary/60">{item.meta}</p>
+                        <p className="mt-0.5 text-caption text-ssoo-primary/60">{item.meta}</p>
                       ) : null}
                     </div>
                   </button>
@@ -148,7 +148,7 @@ export function ActivityListSection({
                         <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
                       ) : null}
                       {item.meta ? (
-                        <p className="mt-0.5 text-xs text-ssoo-primary/60">{item.meta}</p>
+                        <p className="mt-0.5 text-caption text-ssoo-primary/60">{item.meta}</p>
                       ) : null}
                     </div>
                   </div>
@@ -195,7 +195,7 @@ export function ActivityListSection({
                       type="button"
                       onClick={action.onClick}
                       className={cn(
-                        'rounded border px-2 py-0.5 text-xs hover:border-ssoo-primary/40',
+                        'rounded border px-2 py-0.5 text-caption hover:border-ssoo-primary/40',
                         action.tone === 'danger'
                           ? 'border-red-200 text-red-500'
                           : 'border-ssoo-content-border text-ssoo-primary'
@@ -213,7 +213,7 @@ export function ActivityListSection({
             <button
               type="button"
               onClick={() => setVisibleCount((prev) => Math.min(prev + pageSize, items.length))}
-              className="w-full rounded-md border border-ssoo-content-border bg-white px-2 py-1.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-content-bg"
+              className="w-full rounded-md border border-ssoo-content-border bg-white px-2 py-1.5 text-caption text-ssoo-primary transition-colors hover:bg-ssoo-content-bg"
             >
               {loadMoreLabel(remainingCount)}
             </button>

@@ -37,7 +37,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
   if (!items || items.length === 0) return null;
 
   return (
-    <nav className={cn('flex items-center text-sm text-muted-foreground', className)}>
+    <nav className={cn('flex items-center text-body-sm text-muted-foreground', className)}>
       <Home className="h-3.5 w-3.5 text-gray-400" />
       {items.map((item, index) => {
         const label = typeof item === 'string' ? item : item.label;
@@ -55,7 +55,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
                 {label}
               </button>
             ) : (
-              <span className={cn(isLast && 'text-foreground font-medium')}>
+              <span className={cn(isLast && 'text-label-md text-foreground')}>
                 {label}
               </span>
             )}

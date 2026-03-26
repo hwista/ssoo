@@ -109,7 +109,7 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
 
       <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {!hasMessages ? (
-          <div className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/30 p-4 text-sm text-ssoo-primary/70">
+          <div className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/30 p-4 text-body-sm text-ssoo-primary/70">
             우리 서비스의 기능과 문서 내용에 대해 자유롭게 대화해 보세요 !
           </div>
         ) : (

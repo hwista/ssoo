@@ -54,7 +54,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  critical: 'text-red-600 font-semibold',
+  critical: 'text-red-600',
   high: 'text-orange-600',
   normal: 'text-gray-600',
   low: 'text-gray-400',
@@ -122,7 +122,7 @@ export function IssuesTab({ projectId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
+        <h3 className="text-label-strong flex items-center gap-2">
           <AlertCircle className="h-4 w-4" />
           이슈 ({issues.length})
         </h3>
@@ -133,41 +133,43 @@ export function IssuesTab({ projectId }: Props) {
       </div>
 
       {issues.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-8 text-center">
+        <div className="text-body-sm text-muted-foreground py-8 text-center">
           아직 등록된 이슈가 없습니다.
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-body-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left p-3 font-medium">코드</th>
-                <th className="text-left p-3 font-medium">제목</th>
-                <th className="text-center p-3 font-medium">유형</th>
-                <th className="text-center p-3 font-medium">상태</th>
-                <th className="text-center p-3 font-medium">우선순위</th>
-                <th className="text-left p-3 font-medium">담당자</th>
-                <th className="text-center p-3 font-medium w-16">삭제</th>
+                <th className="text-left p-3 text-label-md">코드</th>
+                <th className="text-left p-3 text-label-md">제목</th>
+                <th className="text-center p-3 text-label-md">유형</th>
+                <th className="text-center p-3 text-label-md">상태</th>
+                <th className="text-center p-3 text-label-md">우선순위</th>
+                <th className="text-left p-3 text-label-md">담당자</th>
+                <th className="text-center p-3 text-label-md w-16">삭제</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {issues.map((i: IssueItem) => (
                 <tr key={String(i.id)} className="hover:bg-muted/30">
-                  <td className="p-3 font-mono text-xs">{i.issueCode}</td>
+                  <td className="p-3 font-mono text-code-line-number">{i.issueCode}</td>
                   <td className="p-3">{i.issueTitle}</td>
-                  <td className="p-3 text-center text-xs">{TYPE_LABELS[i.issueTypeCode] || i.issueTypeCode}</td>
+                  <td className="p-3 text-center text-caption">
+                    {TYPE_LABELS[i.issueTypeCode] || i.issueTypeCode}
+                  </td>
                   <td className="p-3 text-center">
                     <Select
                       value={i.statusCode}
                       onValueChange={(value) => handleStatusChange(i, value)}
                     >
-                      <SelectTrigger className="h-7 w-24 text-xs mx-auto">
+                      <SelectTrigger className="h-7 w-24 text-caption mx-auto">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {Object.entries(STATUS_LABELS).map(([code, label]) => (
                           <SelectItem key={code} value={code}>
-                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${STATUS_COLORS[code] || ''}`}>
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-label-sm ${STATUS_COLORS[code] || ''}`}>
                               {label}
                             </span>
                           </SelectItem>
@@ -175,7 +177,9 @@ export function IssuesTab({ projectId }: Props) {
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className={`p-3 text-center text-xs ${PRIORITY_COLORS[i.priorityCode] || ''}`}>
+                  <td
+                    className={`p-3 text-center text-badge ${PRIORITY_COLORS[i.priorityCode] || ''}`}
+                  >
                     {PRIORITY_LABELS[i.priorityCode] || i.priorityCode}
                   </td>
                   <td className="p-3 text-muted-foreground">{i.assignee?.displayName || i.assignee?.userName || '-'}</td>
@@ -206,7 +210,7 @@ export function IssuesTab({ projectId }: Props) {
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">이슈 코드</label>
+              <label className="text-label-md">이슈 코드</label>
               <Input
                 placeholder="예: ISS-001"
                 value={formData.issueCode}
@@ -215,7 +219,7 @@ export function IssuesTab({ projectId }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">제목</label>
+              <label className="text-label-md">제목</label>
               <Input
                 placeholder="이슈 제목을 입력하세요"
                 value={formData.issueTitle}
@@ -225,7 +229,7 @@ export function IssuesTab({ projectId }: Props) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">유형</label>
+                <label className="text-label-md">유형</label>
                 <Select
                   value={formData.issueTypeCode}
                   onValueChange={(value) => setFormData({ ...formData, issueTypeCode: value })}
@@ -244,7 +248,7 @@ export function IssuesTab({ projectId }: Props) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">우선순위</label>
+                <label className="text-label-md">우선순위</label>
                 <Select
                   value={formData.priorityCode}
                   onValueChange={(value) => setFormData({ ...formData, priorityCode: value })}
@@ -264,7 +268,7 @@ export function IssuesTab({ projectId }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">설명 (선택)</label>
+              <label className="text-label-md">설명 (선택)</label>
               <Textarea
                 placeholder="이슈 상세 설명"
                 rows={3}

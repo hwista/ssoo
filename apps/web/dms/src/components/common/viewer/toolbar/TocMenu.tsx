@@ -51,11 +51,11 @@ export function ToolbarTocMenu({
                   key={item.id}
                   onClick={() => onItemClick?.(item.id)}
                   className={cn(
-                    'flex h-control-h w-full items-center truncate rounded px-2 text-left text-sm leading-6 tracking-normal transition-colors hover:bg-white hover:text-ssoo-primary',
-                    listStyle === 'hierarchy' && item.level === 1 && 'font-semibold text-gray-900',
-                    listStyle === 'hierarchy' && item.level === 2 && 'font-medium text-gray-700',
-                    listStyle === 'hierarchy' && item.level >= 3 && 'text-gray-500',
-                    listStyle === 'flat' && 'font-normal text-gray-800'
+                    'flex h-control-h w-full items-center truncate rounded px-2 text-left leading-6 tracking-normal transition-colors hover:bg-white hover:text-ssoo-primary',
+                    listStyle === 'hierarchy' && item.level === 1 && 'text-label-strong text-gray-900',
+                    listStyle === 'hierarchy' && item.level === 2 && 'text-label-md text-gray-700',
+                    listStyle === 'hierarchy' && item.level >= 3 && 'text-body-sm text-gray-500',
+                    listStyle === 'flat' && 'text-body-sm text-gray-800'
                   )}
                   style={{ paddingLeft: `${(item.level - 1) * 12 + 8}px` }}
                   title={item.text}

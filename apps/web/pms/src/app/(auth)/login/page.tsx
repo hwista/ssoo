@@ -59,14 +59,14 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Error Message */}
           {error && (
-            <div className="bg-ls-red/10 border border-ls-red/20 text-ls-red px-4 py-3 rounded-md text-sm">
+            <div className="bg-ls-red/10 border border-ls-red/20 px-4 py-3 rounded-md text-body-sm text-ls-red">
               {error}
             </div>
           )}
 
           {/* Login ID */}
           <div>
-            <label htmlFor="loginId" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="loginId" className="mb-1 block text-label-md text-gray-700">
               아이디
             </label>
             <input
@@ -74,17 +74,17 @@ export default function LoginPage() {
               type="text"
               id="loginId"
               autoComplete="username"
-              className="w-full h-control-h px-4 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-input outline-none transition-colors bg-background text-sm"
+              className="w-full h-control-h px-4 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-input outline-none transition-colors bg-background text-body-sm"
               placeholder="아이디를 입력하세요"
             />
             {errors.loginId && (
-              <p className="mt-1 text-sm text-ls-red">{errors.loginId.message}</p>
+              <p className="mt-1 text-caption text-ls-red">{errors.loginId.message}</p>
             )}
           </div>
 
           {/* Password */}
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="password" className="mb-1 block text-label-md text-gray-700">
               비밀번호
             </label>
             <input
@@ -92,11 +92,11 @@ export default function LoginPage() {
               type="password"
               id="password"
               autoComplete="current-password"
-              className="w-full h-control-h px-4 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-input outline-none transition-colors bg-background text-sm"
+              className="w-full h-control-h px-4 border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-input outline-none transition-colors bg-background text-body-sm"
               placeholder="비밀번호를 입력하세요"
             />
             {errors.password && (
-              <p className="mt-1 text-sm text-ls-red">{errors.password.message}</p>
+              <p className="mt-1 text-caption text-ls-red">{errors.password.message}</p>
             )}
           </div>
 
@@ -104,7 +104,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-control-h bg-primary hover:bg-secondary disabled:bg-primary/50 text-primary-foreground font-medium px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            className="h-control-h w-full rounded-md bg-primary px-4 text-label-md text-primary-foreground transition-colors hover:bg-secondary disabled:bg-primary/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             {isLoading ? '로그인 중...' : '로그인'}
           </button>
@@ -112,7 +112,7 @@ export default function LoginPage() {
       </div>
 
       {/* Footer */}
-      <p className="text-center text-gray-400 text-sm mt-6">
+      <p className="text-center text-caption text-gray-400 mt-6">
         © 2026 SSOO. SI/SM 업무 허브
       </p>
     </>

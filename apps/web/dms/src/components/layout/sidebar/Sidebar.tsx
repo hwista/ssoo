@@ -118,19 +118,19 @@ export function Sidebar({
         {/* 로고 (PMS 스타일) */}
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 bg-white rounded flex items-center justify-center">
-            <span className="text-ssoo-primary font-bold text-base">S</span>
+            <span className="text-control-lg text-ssoo-primary">S</span>
           </div>
-          <span className="font-semibold text-white text-lg">SSOT</span>
+          <span className="text-title-card text-white">SSOT</span>
         </div>
 
         {/* 문서 타입 선택 드롭다운 (헤더 AI 검색 스타일) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center gap-1 h-control-h px-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-colors cursor-pointer"
+              className="flex h-control-h cursor-pointer items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 text-body-sm text-white transition-colors hover:bg-white/20"
             >
               <DocumentTypeIcon className="w-4 h-4" />
-              <span className="text-sm">{DOCUMENT_TYPE_LABELS[documentType]}</span>
+              <span className="text-body-sm">{DOCUMENT_TYPE_LABELS[documentType]}</span>
               <ChevronDown className="w-3 h-3" />
             </button>
           </DropdownMenuTrigger>
@@ -225,10 +225,10 @@ export function Sidebar({
 
       {/* 하단 카피라이트 (PMS 스타일) */}
       <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-3 py-2">
-        <div className="text-xs text-gray-500 space-y-0.5">
-          <div className="font-medium text-gray-600">DMS v1.0.0</div>
+        <div className="text-caption text-gray-500 space-y-0.5">
+          <div className="text-label-sm text-gray-600">DMS v1.0.0</div>
           <div>© 2026 LS ITC Co., Ltd.</div>
-          <div className="text-xs text-gray-400">All rights reserved.</div>
+          <div className="text-caption text-gray-400">All rights reserved.</div>
         </div>
       </div>
     </aside>

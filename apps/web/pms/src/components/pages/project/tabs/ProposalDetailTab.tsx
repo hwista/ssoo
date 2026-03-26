@@ -63,7 +63,7 @@ export function ProposalDetailTab({ projectId, detail, onSaved }: Props) {
             편집
           </Button>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-body-sm">
           <div>
             <p className="text-muted-foreground mb-1">제안 담당자 ID</p>
             <p>{detail?.proposalOwnerUserId ? String(detail.proposalOwnerUserId) : '-'}</p>
@@ -100,7 +100,7 @@ export function ProposalDetailTab({ projectId, detail, onSaved }: Props) {
           )}
         </div>
         {!detail && (
-          <p className="text-center text-muted-foreground text-sm py-4">
+          <p className="text-center text-muted-foreground text-body-sm py-4">
             아직 등록된 제안 상세 정보가 없습니다. 편집 버튼을 눌러 입력하세요.
           </p>
         )}

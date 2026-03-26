@@ -57,7 +57,7 @@ export function Footer<TData>({
       )}
         {/* 선택 정보 */}
         {showSelectionInfo && (
-          <div className="text-sm text-muted-foreground whitespace-nowrap">
+          <div className="text-body-sm text-muted-foreground whitespace-nowrap">
             {table.getFilteredSelectedRowModel().rows.length}개 선택됨 /{' '}
             {table.getFilteredRowModel().rows.length}개
           </div>
@@ -87,7 +87,7 @@ export function Footer<TData>({
             >
               이전
             </Button>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-body-sm text-muted-foreground">
               {table.getState().pagination.pageIndex + 1} /{' '}
               {table.getPageCount()}
             </span>

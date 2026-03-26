@@ -79,9 +79,9 @@ export function Sidebar() {
           {!isCollapsed && (
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 bg-white rounded flex items-center justify-center">
-                <span className="text-ssoo-primary font-bold text-base">S</span>
+                <span className="text-control-lg text-ssoo-primary">S</span>
               </div>
-              <span className="font-semibold text-white text-lg">SSOT</span>
+              <span className="text-title-card text-white">SSOT</span>
             </div>
           )}
           <button
@@ -115,14 +115,14 @@ export function Sidebar() {
         {/* 사이드바 푸터 - 카피라이트 (고정) */}
         <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-3 py-2">
           {isCollapsed ? (
-            <div className="text-center text-[10px] text-gray-400">
+            <div className="text-center text-caption text-gray-400">
               © LS
             </div>
           ) : (
-            <div className="text-xs text-gray-500 space-y-0.5">
-              <div className="font-medium text-gray-600">SSOO v1.0.0</div>
+            <div className="text-caption text-gray-500 space-y-0.5">
+              <div className="text-label-sm text-gray-600">SSOO v1.0.0</div>
               <div>© 2026 LS ITC Co., Ltd.</div>
-              <div className="text-[10px] text-gray-400">All rights reserved.</div>
+              <div className="text-caption text-gray-400">All rights reserved.</div>
             </div>
           )}
         </div>

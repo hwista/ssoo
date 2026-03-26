@@ -99,7 +99,7 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
+        <h3 className="text-label-strong flex items-center gap-2">
           <FileOutput className="h-4 w-4" />
           산출물 ({deliverables.length})
         </h3>
@@ -110,40 +110,40 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
       </div>
 
       {deliverables.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-8 text-center">
+        <div className="text-body-sm text-muted-foreground py-8 text-center">
           아직 등록된 산출물이 없습니다.
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-body-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left p-3 font-medium">코드</th>
-                <th className="text-left p-3 font-medium">산출물명</th>
-                <th className="text-center p-3 font-medium">제출상태</th>
-                <th className="text-left p-3 font-medium">제출일</th>
-                <th className="text-left p-3 font-medium">파일명</th>
-                <th className="text-left p-3 font-medium">메모</th>
-                <th className="text-center p-3 font-medium w-16">삭제</th>
+                <th className="text-left p-3 text-label-md">코드</th>
+                <th className="text-left p-3 text-label-md">산출물명</th>
+                <th className="text-center p-3 text-label-md">제출상태</th>
+                <th className="text-left p-3 text-label-md">제출일</th>
+                <th className="text-left p-3 text-label-md">파일명</th>
+                <th className="text-left p-3 text-label-md">메모</th>
+                <th className="text-center p-3 text-label-md w-16">삭제</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {deliverables.map((d: DeliverableItem) => (
                 <tr key={`${d.statusCode}-${d.deliverableCode}`} className="hover:bg-muted/30">
-                  <td className="p-3 font-mono text-xs">{d.deliverableCode}</td>
+                  <td className="p-3 font-mono text-code-line-number">{d.deliverableCode}</td>
                   <td className="p-3">{d.deliverable?.deliverableName ?? d.deliverableName ?? '-'}</td>
                   <td className="p-3 text-center">
                     <Select
                       value={d.submissionStatusCode}
                       onValueChange={(value) => handleStatusChange(d, value)}
                     >
-                      <SelectTrigger className="h-7 w-24 text-xs mx-auto">
+                      <SelectTrigger className="h-7 w-24 text-caption mx-auto">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {Object.entries(SUBMISSION_STATUS_LABELS).map(([code, label]) => (
                           <SelectItem key={code} value={code}>
-                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${SUBMISSION_STATUS_COLORS[code] || ''}`}>
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-label-sm ${SUBMISSION_STATUS_COLORS[code] || ''}`}>
                               {label}
                             </span>
                           </SelectItem>
@@ -154,10 +154,10 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
                   <td className="p-3 text-muted-foreground">
                     {d.submittedAt ? new Date(d.submittedAt).toLocaleDateString('ko-KR') : '-'}
                   </td>
-                  <td className="p-3 text-muted-foreground text-xs truncate max-w-[160px]">
+                  <td className="p-3 text-muted-foreground text-caption truncate max-w-[160px]">
                     {d.originalFileName ?? '-'}
                   </td>
-                  <td className="p-3 text-muted-foreground text-xs truncate max-w-[160px]">
+                  <td className="p-3 text-muted-foreground text-caption truncate max-w-[160px]">
                     {d.memo ?? '-'}
                   </td>
                   <td className="p-3 text-center">
@@ -187,7 +187,7 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">산출물 코드</label>
+              <label className="text-label-md">산출물 코드</label>
               <Input
                 placeholder="예: DLV-001"
                 value={formData.deliverableCode}
@@ -196,7 +196,7 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">제출 상태</label>
+              <label className="text-label-md">제출 상태</label>
               <Select
                 value={formData.submissionStatusCode}
                 onValueChange={(value) => setFormData({ ...formData, submissionStatusCode: value })}
@@ -215,7 +215,7 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">메모 (선택)</label>
+              <label className="text-label-md">메모 (선택)</label>
               <Textarea
                 placeholder="산출물에 대한 메모"
                 rows={3}

@@ -172,7 +172,7 @@ export function CustomerManagementPage() {
       <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
         <div className="flex items-center gap-2">
           <Building2 className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-lg font-semibold">고객사 관리</h1>
+          <h1 className="text-title-card">고객사 관리</h1>
         </div>
         <Button size="sm" onClick={handleOpenCreate}>
           <Plus className="h-4 w-4 mr-1" />
@@ -201,34 +201,34 @@ export function CustomerManagementPage() {
           <LoadingState message="고객사 목록을 불러오는 중..." />
         ) : customers.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body-sm text-muted-foreground">
               {search ? '검색 결과가 없습니다.' : '등록된 고객사가 없습니다.'}
             </p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-body-sm">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-32">코드</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">고객사명</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-32">연락처</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-28">담당자</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-28">업종</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">상태</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">작업</th>
+                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground w-32">코드</th>
+                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">고객사명</th>
+                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground w-32">연락처</th>
+                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground w-28">담당자</th>
+                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground w-28">업종</th>
+                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-20">상태</th>
+                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-24">작업</th>
               </tr>
             </thead>
             <tbody>
               {customers.map((customer) => (
                 <tr key={customer.id} className="border-b hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-2.5 font-mono text-xs">{customer.customerCode}</td>
-                  <td className="px-4 py-2.5 font-medium">{customer.customerName}</td>
+                  <td className="px-4 py-2.5 font-mono text-code-line-number">{customer.customerCode}</td>
+                  <td className="px-4 py-2.5 text-label-md">{customer.customerName}</td>
                   <td className="px-4 py-2.5 text-muted-foreground">{customer.phone ?? '-'}</td>
                   <td className="px-4 py-2.5 text-muted-foreground">{customer.contactPerson ?? '-'}</td>
                   <td className="px-4 py-2.5 text-muted-foreground">{customer.industry ?? '-'}</td>
                   <td className="px-4 py-2.5 text-center">
                     <span className={cn(
-                      'px-2 py-0.5 rounded text-xs font-medium',
+                      'px-2 py-0.5 rounded text-label-sm',
                       customer.isActive
                         ? 'bg-green-100 text-green-800'
                         : 'bg-gray-100 text-gray-500',
@@ -261,7 +261,7 @@ export function CustomerManagementPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-6 py-3 border-t bg-white">
-          <span className="text-sm text-muted-foreground">
+          <span className="text-body-sm text-muted-foreground">
             전체 {total}건 / {page}/{totalPages}페이지
           </span>
           <div className="flex items-center gap-1">
@@ -298,7 +298,7 @@ export function CustomerManagementPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">고객사 코드 *</label>
+                <label className="text-label-md mb-1.5 block">고객사 코드 *</label>
                 <Input
                   value={formData.customerCode}
                   onChange={(e) => updateField('customerCode', e.target.value)}
@@ -307,7 +307,7 @@ export function CustomerManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">고객사명 *</label>
+                <label className="text-label-md mb-1.5 block">고객사명 *</label>
                 <Input
                   value={formData.customerName}
                   onChange={(e) => updateField('customerName', e.target.value)}
@@ -318,7 +318,7 @@ export function CustomerManagementPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">고객사 유형</label>
+                <label className="text-label-md mb-1.5 block">고객사 유형</label>
                 <Input
                   value={formData.customerType}
                   onChange={(e) => updateField('customerType', e.target.value)}
@@ -326,7 +326,7 @@ export function CustomerManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">업종</label>
+                <label className="text-label-md mb-1.5 block">업종</label>
                 <Input
                   value={formData.industry}
                   onChange={(e) => updateField('industry', e.target.value)}
@@ -336,7 +336,7 @@ export function CustomerManagementPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block">주소</label>
+              <label className="text-label-md mb-1.5 block">주소</label>
               <Input
                 value={formData.address}
                 onChange={(e) => updateField('address', e.target.value)}
@@ -346,7 +346,7 @@ export function CustomerManagementPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">대표 전화번호</label>
+                <label className="text-label-md mb-1.5 block">대표 전화번호</label>
                 <Input
                   value={formData.phone}
                   onChange={(e) => updateField('phone', e.target.value)}
@@ -354,7 +354,7 @@ export function CustomerManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">대표 이메일</label>
+                <label className="text-label-md mb-1.5 block">대표 이메일</label>
                 <Input
                   value={formData.email}
                   onChange={(e) => updateField('email', e.target.value)}
@@ -365,7 +365,7 @@ export function CustomerManagementPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">담당자명</label>
+                <label className="text-label-md mb-1.5 block">담당자명</label>
                 <Input
                   value={formData.contactPerson}
                   onChange={(e) => updateField('contactPerson', e.target.value)}
@@ -373,7 +373,7 @@ export function CustomerManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">담당자 연락처</label>
+                <label className="text-label-md mb-1.5 block">담당자 연락처</label>
                 <Input
                   value={formData.contactPhone}
                   onChange={(e) => updateField('contactPhone', e.target.value)}
@@ -383,7 +383,7 @@ export function CustomerManagementPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block">웹사이트</label>
+              <label className="text-label-md mb-1.5 block">웹사이트</label>
               <Input
                 value={formData.website}
                 onChange={(e) => updateField('website', e.target.value)}
@@ -392,7 +392,7 @@ export function CustomerManagementPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block">메모</label>
+              <label className="text-label-md mb-1.5 block">메모</label>
               <Input
                 value={formData.memo}
                 onChange={(e) => updateField('memo', e.target.value)}

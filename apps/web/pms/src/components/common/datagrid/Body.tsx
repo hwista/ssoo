@@ -135,7 +135,7 @@ export function Body<TData, TValue>({
                   style={minBodyHeight ? { height: minBodyHeight - headerHeight } : undefined}
                 >
                   {emptyState || (
-                    <div className="text-sm text-muted-foreground font-normal">
+                    <div className="text-body-sm text-muted-foreground font-normal">
                       조회된 데이터가 없습니다
                     </div>
                   )}

@@ -167,7 +167,7 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div className={cn('space-y-2', className)}>
-      <label className="body-text font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+      <label className="text-label-md leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
         {label}
         {required && <span className="text-destructive ml-1">*</span>}
       </label>

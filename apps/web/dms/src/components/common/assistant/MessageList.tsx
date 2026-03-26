@@ -46,8 +46,8 @@ export function AssistantMessageList({
 }: AssistantMessageListProps) {
   const stackClass = variant === 'panel' ? 'space-y-3' : 'space-y-4';
   const assistantBubbleClass = variant === 'panel'
-    ? 'max-w-[80%] rounded-xl px-3 py-2 text-sm'
-    : 'max-w-[78%] rounded-xl px-4 py-3 text-sm leading-relaxed';
+    ? 'max-w-[80%] rounded-xl px-3 py-2 text-body-sm'
+    : 'max-w-[78%] rounded-xl px-4 py-3 text-body-sm leading-relaxed';
   const avatarClass = variant === 'panel'
     ? 'mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-ssoo-content-bg'
     : 'flex h-control-h w-control-h shrink-0 items-center justify-center rounded-full bg-ssoo-content-bg';
@@ -75,8 +75,8 @@ export function AssistantMessageList({
           const snippetHighlightTerms = tokenizeHighlightTerms(message.query);
           return (
             <div key={message.id} className="space-y-2">
-              <p className="text-xs text-ssoo-primary/70">
-                검색 결과: <span className="font-medium">{message.query}</span>
+              <p className="text-caption text-ssoo-primary/70">
+                검색 결과: <span className="text-label-sm">{message.query}</span>
               </p>
               {message.results.map((result) => (
                 <SearchResultCard
@@ -101,8 +101,8 @@ export function AssistantMessageList({
                   <Bot className="h-4 w-4 text-ssoo-primary" />
                 </div>
               )}
-              <div className={variant === 'panel' ? 'max-w-[86%] space-y-2 rounded-xl bg-ssoo-content-bg px-3 py-2 text-sm text-ssoo-primary' : 'space-y-2'}>
-                <p className="text-sm leading-6 text-ssoo-primary">{message.summary}</p>
+              <div className={variant === 'panel' ? 'max-w-[86%] space-y-2 rounded-xl bg-ssoo-content-bg px-3 py-2 text-body-sm text-ssoo-primary' : 'space-y-2'}>
+                <p className="text-body-sm leading-6 text-ssoo-primary">{message.summary}</p>
                 <div className="space-y-2">
                   {message.actions.map((action) => {
                     const ActionIcon = iconMap[action.icon as AssistantHelpAction['icon']] ?? Bot;
@@ -119,8 +119,8 @@ export function AssistantMessageList({
                           <div className="flex min-w-0 gap-2">
                             <ActionIcon className="mt-0.5 h-4 w-4 shrink-0 text-ssoo-primary/70" />
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-ssoo-primary">{action.title}</p>
-                              <p className="text-xs text-ssoo-primary/70">{action.description}</p>
+                              <p className="truncate text-label-md text-ssoo-primary">{action.title}</p>
+                              <p className="text-caption text-ssoo-primary/70">{action.description}</p>
                             </div>
                           </div>
                           <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-ssoo-primary/50" />

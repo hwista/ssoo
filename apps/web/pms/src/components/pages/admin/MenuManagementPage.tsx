@@ -254,8 +254,8 @@ export function MenuManagementPage() {
       <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
         <div className="flex items-center gap-2">
           <Menu className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-lg font-semibold">메뉴 관리</h1>
-          <span className="text-sm text-muted-foreground ml-2">
+          <h1 className="text-title-card">메뉴 관리</h1>
+          <span className="text-body-sm text-muted-foreground ml-2">
             총 {menus.length}개
           </span>
         </div>
@@ -269,20 +269,20 @@ export function MenuManagementPage() {
       <div className="flex-1 overflow-auto">
         {menus.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground">등록된 메뉴가 없습니다.</p>
+            <p className="text-body-sm text-muted-foreground">등록된 메뉴가 없습니다.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-body-sm">
             <thead>
               <tr className="border-b bg-gray-50 sticky top-0 z-10">
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground min-w-[240px]">메뉴명</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">메뉴코드</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">경로</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">유형</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">관리자메뉴</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">표시</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-16">정렬</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">작업</th>
+                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground min-w-[240px]">메뉴명</th>
+                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">메뉴코드</th>
+                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">경로</th>
+                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-20">유형</th>
+                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-24">관리자메뉴</th>
+                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-20">표시</th>
+                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-16">정렬</th>
+                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-24">작업</th>
               </tr>
             </thead>
             <tbody>
@@ -313,29 +313,29 @@ export function MenuManagementPage() {
                         ) : (
                           <span className="w-[22px] inline-block" />
                         )}
-                        <span className={cn(item.menuLevel === 1 && 'font-medium')}>
+                        <span className={cn(item.menuLevel === 1 && 'text-label-md')}>
                           {item.menuName}
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{item.menuCode}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{item.menuPath ?? '-'}</td>
+                    <td className="px-4 py-2.5 font-mono text-code-line-number text-muted-foreground">{item.menuCode}</td>
+                    <td className="px-4 py-2.5 font-mono text-code-line-number text-muted-foreground">{item.menuPath ?? '-'}</td>
                     <td className="px-4 py-2.5 text-center">
-                      <span className={cn('px-2 py-0.5 rounded text-xs font-medium', typeInfo.color)}>
+                      <span className={cn('px-2 py-0.5 rounded text-label-sm', typeInfo.color)}>
                         {typeInfo.label}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       {item.isAdminMenu ? (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">관리자</span>
+                        <span className="px-2 py-0.5 rounded text-label-sm bg-red-100 text-red-800">관리자</span>
                       ) : (
-                        <span className="text-muted-foreground text-xs">-</span>
+                        <span className="text-muted-foreground text-caption">-</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <span
                         className={cn(
-                          'px-2 py-0.5 rounded text-xs font-medium',
+                          'px-2 py-0.5 rounded text-label-sm',
                           item.isVisible ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500',
                         )}
                       >
@@ -375,7 +375,7 @@ export function MenuManagementPage() {
             {/* 메뉴코드, 메뉴명 */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">메뉴 코드</label>
+                <label className="text-label-md mb-1.5 block">메뉴 코드</label>
                 <Input
                   value={formData.menuCode}
                   onChange={(e) => updateField('menuCode', e.target.value)}
@@ -384,7 +384,7 @@ export function MenuManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">메뉴명</label>
+                <label className="text-label-md mb-1.5 block">메뉴명</label>
                 <Input
                   value={formData.menuName}
                   onChange={(e) => updateField('menuName', e.target.value)}
@@ -396,7 +396,7 @@ export function MenuManagementPage() {
             {/* 영문명, 유형 */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">영문명</label>
+                <label className="text-label-md mb-1.5 block">영문명</label>
                 <Input
                   value={formData.menuNameEn}
                   onChange={(e) => updateField('menuNameEn', e.target.value)}
@@ -404,7 +404,7 @@ export function MenuManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">유형</label>
+                <label className="text-label-md mb-1.5 block">유형</label>
                 <Select value={formData.menuType} onValueChange={(v) => updateField('menuType', v)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -421,7 +421,7 @@ export function MenuManagementPage() {
             {/* 부모 메뉴, 경로 */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">부모 메뉴</label>
+                <label className="text-label-md mb-1.5 block">부모 메뉴</label>
                 <Select
                   value={formData.parentMenuId || '__none__'}
                   onValueChange={(v) => updateField('parentMenuId', v === '__none__' ? '' : v)}
@@ -440,7 +440,7 @@ export function MenuManagementPage() {
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">경로</label>
+                <label className="text-label-md mb-1.5 block">경로</label>
                 <Input
                   value={formData.menuPath}
                   onChange={(e) => updateField('menuPath', e.target.value)}
@@ -452,7 +452,7 @@ export function MenuManagementPage() {
             {/* 아이콘, 정렬순서, 열기방식 */}
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">아이콘</label>
+                <label className="text-label-md mb-1.5 block">아이콘</label>
                 <Input
                   value={formData.icon}
                   onChange={(e) => updateField('icon', e.target.value)}
@@ -460,7 +460,7 @@ export function MenuManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">정렬 순서</label>
+                <label className="text-label-md mb-1.5 block">정렬 순서</label>
                 <Input
                   type="number"
                   value={formData.sortOrder}
@@ -468,7 +468,7 @@ export function MenuManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">열기 방식</label>
+                <label className="text-label-md mb-1.5 block">열기 방식</label>
                 <Select value={formData.openType} onValueChange={(v) => updateField('openType', v)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -484,7 +484,7 @@ export function MenuManagementPage() {
 
             {/* 설명 */}
             <div>
-              <label className="text-sm font-medium mb-1.5 block">설명</label>
+              <label className="text-label-md mb-1.5 block">설명</label>
               <Input
                 value={formData.description}
                 onChange={(e) => updateField('description', e.target.value)}
@@ -494,14 +494,14 @@ export function MenuManagementPage() {
 
             {/* 체크박스 */}
             <div className="flex items-center gap-6">
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 text-body-sm">
                 <Checkbox
                   checked={formData.isVisible}
                   onCheckedChange={(checked) => updateField('isVisible', checked === true)}
                 />
                 사이드바 표시
               </label>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 text-body-sm">
                 <Checkbox
                   checked={formData.isAdminMenu}
                   onCheckedChange={(checked) => updateField('isAdminMenu', checked === true)}

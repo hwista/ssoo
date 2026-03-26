@@ -44,7 +44,7 @@ export function AiChatBody({
       </div>
 
       {messages.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-sm text-ssoo-primary/60">
+        <div className="flex h-full items-center justify-center text-body-sm text-ssoo-primary/60">
           첫 질문을 입력해 대화를 시작하세요.
         </div>
       ) : (

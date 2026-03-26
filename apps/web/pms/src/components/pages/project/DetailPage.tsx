@@ -94,10 +94,10 @@ export function ProjectDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               PRJ-{String(project.id).padStart(6, '0')}
             </p>
-            <h1 className="text-lg font-semibold">{project.projectName}</h1>
+            <h1 className="text-title-card">{project.projectName}</h1>
           </div>
         </div>
       </div>
@@ -123,7 +123,7 @@ export function ProjectDetailPage() {
               <button
                 key={st.key}
                 onClick={() => setActiveStatusTab(st.key)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-3 text-label-md border-b-2 transition-colors ${
                   currentStatusTab === st.key
                     ? 'border-ssoo-primary text-ssoo-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -131,7 +131,7 @@ export function ProjectDetailPage() {
               >
                 {st.label}
                 {project.statusCode === st.key && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-[10px] rounded bg-ssoo-primary/10 text-ssoo-primary">
+                  <span className="ml-1.5 rounded bg-ssoo-primary/10 px-1.5 py-0.5 text-badge text-ssoo-primary">
                     현재
                   </span>
                 )}
@@ -165,7 +165,7 @@ export function ProjectDetailPage() {
                   <button
                     key={tab.key}
                     onClick={() => setCurrentManagementTab(tab.key)}
-                    className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                    className={`px-4 py-3 text-label-md border-b-2 transition-colors flex items-center gap-1.5 ${
                       currentManagementTab === tab.key
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-muted-foreground hover:text-foreground'

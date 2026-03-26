@@ -75,8 +75,8 @@ export function SlashCommandMenu({
             <item.icon className="h-4 w-4" />
           </span>
           <div className="flex flex-col">
-            <span className="text-sm font-medium">{item.title}</span>
-            <span className="text-xs text-ssoo-primary/60">{item.description}</span>
+            <span className="text-label-md">{item.title}</span>
+            <span className="text-caption text-ssoo-primary/60">{item.description}</span>
           </div>
         </button>
       ))}

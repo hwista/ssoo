@@ -99,7 +99,7 @@ export function Breadcrumb({
   return (
     <nav 
       className={cn(
-        'flex items-center text-sm text-gray-600 overflow-x-auto',
+        'flex items-center text-body-sm text-gray-600 overflow-x-auto',
         'scrollbar-none', // 스크롤바 숨김
         className
       )}
@@ -130,7 +130,7 @@ export function Breadcrumb({
             
             {isLast ? (
               // 마지막 세그먼트는 클릭 불가, 볼드 (PMS 스타일)
-              <span className="flex shrink-0 items-center gap-1 text-ssoo-primary font-medium">
+              <span className="flex shrink-0 items-center gap-1 text-label-md text-ssoo-primary">
                 {lastSegmentLabel || segment}
                 {isEditing && (
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-ssoo-primary/60" />

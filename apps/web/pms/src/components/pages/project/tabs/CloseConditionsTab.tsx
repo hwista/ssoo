@@ -83,7 +83,7 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
+        <h3 className="text-label-strong flex items-center gap-2">
           <ClipboardCheck className="h-4 w-4" />
           종료조건 ({checkedCount}/{conditions.length})
         </h3>
@@ -94,7 +94,7 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
       </div>
 
       {conditions.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-8 text-center">
+        <div className="text-body-sm text-muted-foreground py-8 text-center">
           아직 등록된 종료조건이 없습니다.
         </div>
       ) : (
@@ -120,21 +120,21 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm font-medium ${c.isChecked ? 'line-through text-muted-foreground' : ''}`}>
+                  <span className={`text-label-md ${c.isChecked ? 'line-through text-muted-foreground' : ''}`}>
                     {c.conditionCode}
                   </span>
                   {c.requiresDeliverable && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-badge text-blue-700">
                       <FileOutput className="h-3 w-3" />
                       산출물 필요
                     </span>
                   )}
                 </div>
                 {c.memo && (
-                  <p className="text-xs text-muted-foreground mt-1">{c.memo}</p>
+                  <p className="text-caption text-muted-foreground mt-1">{c.memo}</p>
                 )}
                 {c.checkedAt && (
-                  <p className="text-[10px] text-muted-foreground mt-1">
+                  <p className="mt-1 text-caption text-muted-foreground">
                     완료: {new Date(c.checkedAt).toLocaleDateString('ko-KR')}
                   </p>
                 )}
@@ -163,7 +163,7 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">조건 코드</label>
+              <label className="text-label-md">조건 코드</label>
               <Input
                 placeholder="예: CC-001"
                 value={formData.conditionCode}
@@ -179,13 +179,13 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
                   setFormData({ ...formData, requiresDeliverable: checked === true })
                 }
               />
-              <label htmlFor="requiresDeliverable" className="text-sm font-medium cursor-pointer">
+              <label htmlFor="requiresDeliverable" className="text-label-md cursor-pointer">
                 산출물 제출 필요
               </label>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">정렬 순서</label>
+              <label className="text-label-md">정렬 순서</label>
               <Input
                 type="number"
                 min={0}
@@ -196,7 +196,7 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">메모 (선택)</label>
+              <label className="text-label-md">메모 (선택)</label>
               <Textarea
                 placeholder="종료조건에 대한 메모"
                 rows={3}

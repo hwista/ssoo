@@ -127,7 +127,7 @@ export function AiSidecar({
         >
           <ul className="space-y-1.5">
             {sources.map((source, index) => (
-              <li key={index} className="text-xs text-gray-600 truncate" title={source.path}>
+              <li key={index} className="text-caption text-gray-600 truncate" title={source.path}>
                 <span className="text-ssoo-primary">{source.title}</span>
                 <span className="ml-1 text-gray-400">{source.path}</span>
               </li>

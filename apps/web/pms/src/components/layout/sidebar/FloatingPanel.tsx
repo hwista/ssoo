@@ -36,7 +36,7 @@ export function FloatingPanel({
       {/* 헤더 */}
       <div className="flex items-center gap-2 px-3 h-control-h border-b border-ssoo-content-border bg-ssoo-content-bg">
         <Icon className="w-4 h-4 text-ssoo-primary" />
-        <span className="text-sm font-medium text-ssoo-primary">
+        <span className="text-label-md text-ssoo-primary">
           {SIDEBAR_SECTION_LABELS[activeSection]}
         </span>
       </div>

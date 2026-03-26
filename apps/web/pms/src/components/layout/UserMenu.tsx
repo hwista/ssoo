@@ -35,7 +35,7 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1.5 h-control-h px-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-colors cursor-pointer">
+        <button className="flex h-control-h cursor-pointer items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2 text-body-sm text-white transition-colors hover:bg-white/20">
           <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center">
             <User className="w-3.5 h-3.5 text-white" />
           </div>
@@ -56,8 +56,8 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
               <User className="w-4 h-4 text-white" />
             </div>
             <div className="flex flex-col min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user?.loginId ?? '사용자'}</p>
-              <p className="text-xs text-white/60 truncate">{user?.roleCode ?? ''}</p>
+              <p className="text-label-md text-white truncate">{user?.loginId ?? '사용자'}</p>
+              <p className="text-caption text-white/60 truncate">{user?.roleCode ?? ''}</p>
             </div>
           </div>
         </DropdownMenuLabel>
@@ -71,7 +71,7 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
         >
           <Settings className="mr-2 h-4 w-4" />
           <span>설정</span>
-          <span className="ml-auto text-xs text-white/40">준비 중</span>
+          <span className="ml-auto text-caption text-white/40">준비 중</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator className="bg-white/15" />

@@ -179,12 +179,12 @@ export function SettingsPage() {
   }, []);
 
   const topStatusBanner = error ? (
-    <div className="mb-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+    <div className="mb-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-body-sm text-destructive">
       <AlertCircle className="h-4 w-4 shrink-0" />
       <span>{error}</span>
     </div>
   ) : saveSuccess ? (
-    <div className="mb-3 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+    <div className="mb-3 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-body-sm text-emerald-700">
       <Check className="h-4 w-4 shrink-0" />
       <span>설정을 저장했습니다.</span>
     </div>
@@ -243,8 +243,8 @@ export function SettingsPage() {
             />
             {docDir && (
               <div className="mt-4 rounded-md border border-ssoo-content-border bg-ssoo-content-bg/60 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-ssoo-primary/60">현재 문서 경로</p>
-                <p className="mt-1 break-all text-xs text-ssoo-primary/80">{docDir}</p>
+                <p className="text-badge uppercase tracking-wide text-ssoo-primary/60">현재 문서 경로</p>
+                <p className="mt-1 break-all text-caption text-ssoo-primary/80">{docDir}</p>
               </div>
             )}
           </aside>
@@ -254,8 +254,8 @@ export function SettingsPage() {
 
             {hasChanges && (
               <section className="mb-3 rounded-md border border-ssoo-content-border bg-ssoo-content-bg/50 px-3 py-2">
-                <p className="text-xs font-semibold text-ssoo-primary">저장 예정 항목</p>
-                <p className="mt-1 text-xs text-ssoo-primary/80">
+                <p className="text-badge text-ssoo-primary">저장 예정 항목</p>
+                <p className="mt-1 text-caption text-ssoo-primary/80">
                   {modifiedKeys.map((key) => keyToLabel.get(key) ?? key).join(', ')}
                 </p>
               </section>
@@ -263,7 +263,7 @@ export function SettingsPage() {
 
             {isPathChanged && (
               <section className="mb-3 rounded-md border border-ssoo-content-border bg-ssoo-content-bg/40 p-3">
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-ssoo-primary">
+                <label className="flex cursor-pointer items-center gap-2 text-body-sm text-ssoo-primary">
                   <input
                     type="checkbox"
                     checked={copyFiles}
@@ -273,14 +273,14 @@ export function SettingsPage() {
                   <FolderOpen className="h-4 w-4" />
                   <span>기존 문서 파일을 새 경로로 복사</span>
                 </label>
-                <p className="mt-1 pl-6 text-xs text-ssoo-primary/70">
+                <p className="mt-1 pl-6 text-caption text-ssoo-primary/70">
                   경로 변경 후 Git 저장소를 다시 초기화합니다.
                 </p>
               </section>
             )}
 
             {relativePathNotice && (
-              <section className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              <section className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-caption text-amber-700">
                 상대 경로로 입력되었습니다. 실행 경로 기준으로 해석됩니다.
               </section>
             )}
