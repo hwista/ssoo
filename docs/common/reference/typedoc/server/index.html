@@ -1,0 +1,395 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>server</title><meta name="description" content="Documentation for server"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><script async src="assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">server</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>server</h1></div><div class="tsd-panel tsd-typography"><h1 id="ssoo-server" class="tsd-anchor-link">SSOO Server<a href="#ssoo-server" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<blockquote>
+<p>NestJS 기반 백엔드 API 서버</p>
+</blockquote>
+<hr>
+<h2 id="📋-개요" class="tsd-anchor-link">📋 개요<a href="#📋-개요" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p><code>apps/server</code>는 SSOO 서비스의 <strong>REST API 백엔드</strong>입니다. NestJS 프레임워크를 사용하여 엔터프라이즈급 구조와 확장성을 제공합니다.</p>
+<h3 id="기술-스택-선정-이유" class="tsd-anchor-link">기술 스택 선정 이유<a href="#기술-스택-선정-이유" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>기술</th>
+<th>선정 이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>NestJS</strong></td>
+<td>모듈 기반 아키텍처, DI 지원, 엔터프라이즈 표준</td>
+</tr>
+<tr>
+<td><strong>Prisma</strong></td>
+<td>타입 안전 ORM, 마이그레이션 관리, 뛰어난 DX</td>
+</tr>
+<tr>
+<td><strong>Swagger</strong></td>
+<td>API 문서 자동 생성, 테스트 UI 제공</td>
+</tr>
+<tr>
+<td><strong>Pino</strong></td>
+<td>고성능 JSON 로깅, 구조화된 로그</td>
+</tr>
+<tr>
+<td><strong>JWT</strong></td>
+<td>Stateless 인증, 확장성 좋음</td>
+</tr>
+<tr>
+<td><strong><a href="http://Socket.io">Socket.io</a></strong></td>
+<td>실시간 양방향 통신 (추후 활용)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="📁-구조" class="tsd-anchor-link">📁 구조<a href="#📁-구조" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code><span class="hl-0">apps</span><span class="hl-1">/</span><span class="hl-0">server</span><span class="hl-1">/</span><br/><span class="hl-1">├── </span><span class="hl-0">src</span><span class="hl-1">/</span><br/><span class="hl-1">│   ├── </span><span class="hl-0">main</span><span class="hl-1">.</span><span class="hl-0">ts</span><span class="hl-1">              # </span><span class="hl-0">엔트리포인트</span><br/><span class="hl-1">│   ├── </span><span class="hl-0">app</span><span class="hl-1">.</span><span class="hl-0">module</span><span class="hl-1">.</span><span class="hl-0">ts</span><span class="hl-1">        # </span><span class="hl-0">루트</span><span class="hl-1"> </span><span class="hl-0">모듈</span><br/><span class="hl-1">│   │</span><br/><span class="hl-1">│   ├── </span><span class="hl-0">auth</span><span class="hl-1">/                # </span><span class="hl-0">인증</span><span class="hl-1"> </span><span class="hl-0">모듈</span><br/><span class="hl-1">│   │   ├── </span><span class="hl-0">auth</span><span class="hl-1">.</span><span class="hl-0">module</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   ├── </span><span class="hl-0">auth</span><span class="hl-1">.</span><span class="hl-0">controller</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   ├── </span><span class="hl-0">auth</span><span class="hl-1">.</span><span class="hl-0">service</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   ├── </span><span class="hl-0">dto</span><span class="hl-1">/</span><br/><span class="hl-1">│   │   │   ├── </span><span class="hl-0">login</span><span class="hl-1">.</span><span class="hl-0">dto</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   │   └── </span><span class="hl-0">refresh</span><span class="hl-1">-</span><span class="hl-0">token</span><span class="hl-1">.</span><span class="hl-0">dto</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   ├── </span><span class="hl-0">strategies</span><span class="hl-1">/</span><br/><span class="hl-1">│   │   │   └── </span><span class="hl-0">jwt</span><span class="hl-1">.</span><span class="hl-0">strategy</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   ├── </span><span class="hl-0">guards</span><span class="hl-1">/</span><br/><span class="hl-1">│   │   │   └── </span><span class="hl-0">jwt</span><span class="hl-1">-</span><span class="hl-0">auth</span><span class="hl-1">.</span><span class="hl-0">guard</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   └── </span><span class="hl-0">decorators</span><span class="hl-1">/</span><br/><span class="hl-1">│   │       ├── </span><span class="hl-0">current</span><span class="hl-1">-</span><span class="hl-0">user</span><span class="hl-1">.</span><span class="hl-0">decorator</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │       └── </span><span class="hl-0">public</span><span class="hl-1">.</span><span class="hl-0">decorator</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │</span><br/><span class="hl-1">│   ├── </span><span class="hl-0">user</span><span class="hl-1">/                # </span><span class="hl-0">사용자</span><span class="hl-1"> </span><span class="hl-0">모듈</span><br/><span class="hl-1">│   │   ├── </span><span class="hl-0">user</span><span class="hl-1">.</span><span class="hl-0">module</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   ├── </span><span class="hl-0">user</span><span class="hl-1">.</span><span class="hl-0">controller</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   └── </span><span class="hl-0">user</span><span class="hl-1">.</span><span class="hl-0">service</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │</span><br/><span class="hl-1">│   ├── </span><span class="hl-0">database</span><span class="hl-1">/            # </span><span class="hl-0">데이터베이스</span><span class="hl-1"> </span><span class="hl-0">모듈</span><br/><span class="hl-1">│   │   ├── </span><span class="hl-0">database</span><span class="hl-1">.</span><span class="hl-0">module</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │   └── </span><span class="hl-0">database</span><span class="hl-1">.</span><span class="hl-0">service</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │</span><br/><span class="hl-1">│   ├── </span><span class="hl-0">health</span><span class="hl-1">/              # </span><span class="hl-0">Health</span><span class="hl-1"> </span><span class="hl-0">Check</span><span class="hl-1"> </span><span class="hl-0">모듈</span><br/><span class="hl-1">│   │   └── </span><span class="hl-0">health</span><span class="hl-1">.</span><span class="hl-0">controller</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│   │</span><br/><span class="hl-1">│   └── </span><span class="hl-0">project</span><span class="hl-1">/             # </span><span class="hl-0">Project</span><span class="hl-1"> </span><span class="hl-0">모듈</span><br/><span class="hl-1">│       ├── </span><span class="hl-0">project</span><span class="hl-1">.</span><span class="hl-0">module</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│       ├── </span><span class="hl-0">project</span><span class="hl-1">.</span><span class="hl-0">controller</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│       └── </span><span class="hl-0">project</span><span class="hl-1">.</span><span class="hl-0">service</span><span class="hl-1">.</span><span class="hl-0">ts</span><br/><span class="hl-1">│</span><br/><span class="hl-1">├── </span><span class="hl-0">scripts</span><span class="hl-1">/</span><br/><span class="hl-1">│   └── </span><span class="hl-0">seed</span><span class="hl-1">-</span><span class="hl-0">admin</span><span class="hl-1">.</span><span class="hl-0">ts</span><span class="hl-1">        # </span><span class="hl-0">관리자</span><span class="hl-1"> </span><span class="hl-0">계정</span><span class="hl-1"> </span><span class="hl-0">생성</span><span class="hl-1"> </span><span class="hl-0">스크립트</span><br/><span class="hl-1">│</span><br/><span class="hl-1">├── </span><span class="hl-0">prisma</span><span class="hl-1">/</span><br/><span class="hl-1">│   └── </span><span class="hl-0">schema</span><span class="hl-1">.</span><span class="hl-0">prisma</span><span class="hl-1">        # </span><span class="hl-0">Prisma</span><span class="hl-1"> </span><span class="hl-0">스키마</span><br/><span class="hl-1">│</span><br/><span class="hl-1">├── </span><span class="hl-0">dist</span><span class="hl-1">/                    # </span><span class="hl-0">빌드</span><span class="hl-1"> </span><span class="hl-0">결과물</span><br/><span class="hl-1">├── </span><span class="hl-0">package</span><span class="hl-1">.</span><span class="hl-0">json</span><br/><span class="hl-1">├── </span><span class="hl-0">tsconfig</span><span class="hl-1">.</span><span class="hl-0">json</span><br/><span class="hl-1">└── </span><span class="hl-0">nest</span><span class="hl-1">-</span><span class="hl-0">cli</span><span class="hl-1">.</span><span class="hl-0">json</span>
+</code><button>Copy</button></pre>
+
+<hr>
+<h2 id="🔐-인증-시스템" class="tsd-anchor-link">🔐 인증 시스템<a href="#🔐-인증-시스템" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<h3 id="구현된-기능" class="tsd-anchor-link">구현된 기능<a href="#구현된-기능" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>기능</th>
+<th>엔드포인트</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>로그인</td>
+<td><code>POST /api/auth/login</code></td>
+<td>ID/PW 검증 후 JWT 발급</td>
+</tr>
+<tr>
+<td>토큰 갱신</td>
+<td><code>POST /api/auth/refresh</code></td>
+<td>Refresh Token으로 새 토큰 발급</td>
+</tr>
+<tr>
+<td>로그아웃</td>
+<td><code>POST /api/auth/logout</code></td>
+<td>Refresh Token 무효화</td>
+</tr>
+<tr>
+<td>사용자 정보</td>
+<td><code>POST /api/auth/me</code></td>
+<td>현재 로그인 사용자 조회</td>
+</tr>
+</tbody>
+</table>
+<h3 id="보안-설정" class="tsd-anchor-link">보안 설정<a href="#보안-설정" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Access Token 만료</td>
+<td>15분</td>
+</tr>
+<tr>
+<td>Refresh Token 만료</td>
+<td>7일</td>
+</tr>
+<tr>
+<td>비밀번호 해싱</td>
+<td>bcryptjs (salt: 12)</td>
+</tr>
+<tr>
+<td>계정 잠금</td>
+<td>5회 실패 시 30분</td>
+</tr>
+</tbody>
+</table>
+<h3 id="테스트-계정-생성" class="tsd-anchor-link">테스트 계정 생성<a href="#테스트-계정-생성" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="powershell"># 관리자 계정 생성
+npx ts-node scripts/seed-admin.ts
+# 또는
+node -r ts-node/register scripts/seed-admin.ts
+
+# 계정 정보
+# ID: admin
+# PW: admin123!
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="🚀-api-엔드포인트" class="tsd-anchor-link">🚀 API 엔드포인트<a href="#🚀-api-엔드포인트" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<h3 id="health-check" class="tsd-anchor-link">Health Check<a href="#health-check" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/api/health</code></td>
+<td>서버 상태 확인</td>
+</tr>
+</tbody>
+</table>
+<p><strong>응답 예시:</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-2">&quot;success&quot;</span><span class="hl-1">: </span><span class="hl-3">true</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-2">&quot;data&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;status&quot;</span><span class="hl-1">: </span><span class="hl-4">&quot;ok&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;timestamp&quot;</span><span class="hl-1">: </span><span class="hl-4">&quot;2026-01-16T07:37:00.000Z&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;service&quot;</span><span class="hl-1">: </span><span class="hl-4">&quot;ssoo-server&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;version&quot;</span><span class="hl-1">: </span><span class="hl-4">&quot;0.0.1&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="project-crud" class="tsd-anchor-link">Project CRUD<a href="#project-crud" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/api/projects</code></td>
+<td>프로젝트 목록 조회</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/projects/:id</code></td>
+<td>프로젝트 상세 조회</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/projects</code></td>
+<td>프로젝트 생성</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/projects/:id</code></td>
+<td>프로젝트 수정</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/projects/:id</code></td>
+<td>프로젝트 삭제</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="🔧-포함된-기능-의존성" class="tsd-anchor-link">🔧 포함된 기능 (의존성)<a href="#🔧-포함된-기능-의존성" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<h3 id="핵심-프레임워크" class="tsd-anchor-link">핵심 프레임워크<a href="#핵심-프레임워크" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@nestjs/core</code></td>
+<td>NestJS 코어</td>
+</tr>
+<tr>
+<td><code>@nestjs/platform-express</code></td>
+<td>Express 어댑터</td>
+</tr>
+<tr>
+<td><code>@ssoo/database</code></td>
+<td>Prisma 클라이언트</td>
+</tr>
+<tr>
+<td><code>@ssoo/types</code></td>
+<td>공통 타입 정의</td>
+</tr>
+</tbody>
+</table>
+<h3 id="api-문서화" class="tsd-anchor-link">API 문서화<a href="#api-문서화" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@nestjs/swagger</code></td>
+<td>Swagger 데코레이터</td>
+</tr>
+<tr>
+<td><code>swagger-ui-express</code></td>
+<td>Swagger UI</td>
+</tr>
+</tbody>
+</table>
+<h3 id="유효성-검증" class="tsd-anchor-link">유효성 검증<a href="#유효성-검증" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>class-validator</code></td>
+<td>DTO 유효성 검증</td>
+</tr>
+<tr>
+<td><code>class-transformer</code></td>
+<td>요청/응답 변환</td>
+</tr>
+</tbody>
+</table>
+<h3 id="인증-보안" class="tsd-anchor-link">인증 &amp; 보안<a href="#인증-보안" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@nestjs/jwt</code></td>
+<td>JWT 토큰 처리</td>
+</tr>
+<tr>
+<td><code>@nestjs/passport</code></td>
+<td>인증 전략</td>
+</tr>
+<tr>
+<td><code>passport-jwt</code></td>
+<td>JWT 전략</td>
+</tr>
+<tr>
+<td><code>bcryptjs</code></td>
+<td>비밀번호 해싱 (pure JS)</td>
+</tr>
+<tr>
+<td><code>helmet</code></td>
+<td>HTTP 보안 헤더</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>참고</strong>: <code>bcrypt</code> 대신 <code>bcryptjs</code>를 사용합니다. Windows 보안 환경에서 native 모듈 빌드 문제를 우회합니다.</p>
+</blockquote>
+<h3 id="로깅" class="tsd-anchor-link">로깅<a href="#로깅" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nestjs-pino</code></td>
+<td>Pino 로거 통합</td>
+</tr>
+<tr>
+<td><code>pino-http</code></td>
+<td>HTTP 요청 로깅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="실시간-통신-예정" class="tsd-anchor-link">실시간 통신 (예정)<a href="#실시간-통신-예정" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@nestjs/websockets</code></td>
+<td>WebSocket 지원</td>
+</tr>
+<tr>
+<td><code>@nestjs/platform-socket.io</code></td>
+<td><a href="http://Socket.io">Socket.io</a> 어댑터</td>
+</tr>
+<tr>
+<td><code>socket.io</code></td>
+<td>실시간 통신</td>
+</tr>
+</tbody>
+</table>
+<h3 id="유틸리티" class="tsd-anchor-link">유틸리티<a href="#유틸리티" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@nestjs/config</code></td>
+<td>환경변수 관리</td>
+</tr>
+<tr>
+<td><code>@nestjs/terminus</code></td>
+<td>Health Check</td>
+</tr>
+<tr>
+<td><code>dayjs</code></td>
+<td>날짜 처리</td>
+</tr>
+<tr>
+<td><code>uuid</code></td>
+<td>UUID 생성</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="🛠-개발-명령어" class="tsd-anchor-link">🛠 개발 명령어<a href="#🛠-개발-명령어" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code class="powershell"># 개발 서버 실행 (일반 환경)
+pnpm dev:server
+
+# 개발 서버 실행 (보안 환경 - watch 모드)
+node ./node_modules/@nestjs/cli/bin/nest.js start --watch
+
+# 개발 서버 실행 (보안 환경 - 빌드 후 실행)
+node ./node_modules/typescript/lib/tsc.js --project tsconfig.json
+node dist/main.js
+
+# 프로덕션 빌드
+pnpm build:server
+
+# 프로덕션 실행
+node dist/main.js
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="⚙️-환경변수" class="tsd-anchor-link">⚙️ 환경변수<a href="#⚙️-환경변수" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p><code>.env</code> 파일에서 설정:</p>
+<pre><code class="env"># Database
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ssoo_dev?schema=public"
+
+# Server
+PORT=4000
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:3000
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="📌-모듈-추가-가이드" class="tsd-anchor-link">📌 모듈 추가 가이드<a href="#📌-모듈-추가-가이드" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>새로운 도메인 모듈 추가 시:</p>
+<pre><code class="powershell"># NestJS CLI 사용 (일반 환경)
+nest generate module customer
+nest generate controller customer
+nest generate service customer
+
+# 수동 생성 (보안 환경)
+# 1. src/customer/ 폴더 생성
+# 2. customer.module.ts, customer.controller.ts, customer.service.ts 생성
+# 3. app.module.ts에 CustomerModule import
+</code><button type="button">Copy</button></pre>
+
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#ssoo-server"><span>SSOO <wbr/>Server</span></a><ul><li><a href="#📋-개요"><span>📋 개요</span></a></li><li><ul><li><a href="#기술-스택-선정-이유"><span>기술 스택 선정 이유</span></a></li></ul></li><li><a href="#📁-구조"><span>📁 구조</span></a></li><li><a href="#🔐-인증-시스템"><span>🔐 인증 시스템</span></a></li><li><ul><li><a href="#구현된-기능"><span>구현된 기능</span></a></li><li><a href="#보안-설정"><span>보안 설정</span></a></li><li><a href="#테스트-계정-생성"><span>테스트 계정 생성</span></a></li></ul></li><li><a href="#🚀-api-엔드포인트"><span>🚀 <wbr/>API 엔드포인트</span></a></li><li><ul><li><a href="#health-check"><span>Health <wbr/>Check</span></a></li><li><a href="#project-crud"><span>Project <wbr/>CRUD</span></a></li></ul></li><li><a href="#🔧-포함된-기능-의존성"><span>🔧 포함된 기능 (의존성)</span></a></li><li><ul><li><a href="#핵심-프레임워크"><span>핵심 프레임워크</span></a></li><li><a href="#api-문서화"><span>API 문서화</span></a></li><li><a href="#유효성-검증"><span>유효성 검증</span></a></li><li><a href="#인증-보안"><span>인증 &amp; 보안</span></a></li><li><a href="#로깅"><span>로깅</span></a></li><li><a href="#실시간-통신-예정"><span>실시간 통신 (예정)</span></a></li><li><a href="#유틸리티"><span>유틸리티</span></a></li></ul></li><li><a href="#🛠-개발-명령어"><span>🛠 개발 명령어</span></a></li><li><a href="#⚙️-환경변수"><span>⚙️ 환경변수</span></a></li><li><a href="#📌-모듈-추가-가이드"><span>📌 모듈 추가 가이드</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">server</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

@@ -1,0 +1,243 @@
+'use client';
+
+import { useTabStore, HOME_TAB } from '@/stores';
+import { useAssistantPanelStore, useConfirmStore } from '@/stores';
+import { useEditorMultiStore } from '@/stores/editor-core.store';
+import { X, Minimize2, ChevronLeft, ChevronRight, Home, FileText, Bot, Search, Sparkles, FileSearch, Settings, FilePenLine } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { LAYOUT_SIZES } from '@/lib/constants/layout';
+
+/**
+ * DMS 탭바 컴포넌트
+ * - 열린 문서 탭 목록 표시
+ * - 탭 활성화, 닫기
+ * - 스크롤 네비게이션
+ * - 드래그로 탭 순서 변경
+ */
+export function TabBar() {
+  const { tabs, activeTabId, activateTab, closeTab, reorderTabs } = useTabStore();
+  const openPanel = useAssistantPanelStore((state) => state.openPanel);
+  const { confirm } = useConfirmStore();
+  const editors = useEditorMultiStore((state) => state.editors);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // 스크롤 상태 체크
+  const checkScrollState = useCallback(() => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setShowLeftArrow(scrollLeft > 0);
+      setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 1);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkScrollState();
+    window.addEventListener('resize', checkScrollState);
+    return () => window.removeEventListener('resize', checkScrollState);
+  }, [tabs, checkScrollState]);
+
+  const handleScroll = useCallback((direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const scrollAmount = 200;
+      scrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  }, []);
+
+  // 드래그 앤 드롭 핸들러
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+    // Home 탭은 드래그 불가
+    if (tabs[index]?.id === HOME_TAB.id) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  }, [tabs]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    // Home 탭 위치로는 드롭 불가
+    if (tabs[index]?.id === HOME_TAB.id) return;
+    if (draggedIndex !== null && index !== draggedIndex) {
+      setDragOverIndex(index);
+    }
+  }, [draggedIndex, tabs]);
+
+  const handleDragEnd = useCallback(() => {
+    if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
+      reorderTabs(draggedIndex, dragOverIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }, [draggedIndex, dragOverIndex, reorderTabs]);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverIndex(null);
+  }, []);
+
+  // 탭 아이콘 결정 (tab.icon 필드 기반)
+  const TAB_ICON_MAP: Record<string, LucideIcon> = {
+    Home,
+    Bot,
+    Search,
+    FileSearch,
+    Sparkles,
+    FileText,
+    Settings,
+  };
+
+  const getTabIcon = (tab: typeof tabs[0]): LucideIcon => {
+    if (tab.id === HOME_TAB.id) return Home;
+    if (tab.icon && TAB_ICON_MAP[tab.icon]) return TAB_ICON_MAP[tab.icon];
+    return FileText;
+  };
+
+  if (tabs.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className="flex items-end bg-gray-50 border-b border-gray-200"
+      style={{ height: LAYOUT_SIZES.tabBar.containerHeight }}
+    >
+      {/* 왼쪽 스크롤 버튼 */}
+      {showLeftArrow && (
+        <button
+          onClick={() => handleScroll('left')}
+          className="flex-shrink-0 h-control-h px-2 hover:bg-gray-100 transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4 text-gray-500" />
+        </button>
+      )}
+
+      {/* 탭 목록 */}
+      <div
+        ref={scrollRef}
+        onScroll={checkScrollState}
+        className="flex-1 flex items-end overflow-x-auto scrollbar-hide"
+      >
+        {tabs.map((tab, index) => {
+          const IconComponent = getTabIcon(tab);
+          const isActive = tab.id === activeTabId;
+          const isHomeTab = tab.id === HOME_TAB.id;
+          const isTabEditing = Boolean(tab.isEditing);
+          const hasUnsavedChanges = Boolean(editors[tab.id]?.hasUnsavedChanges);
+          const isDragging = draggedIndex === index;
+          const isDragOver = dragOverIndex === index;
+
+          // Home 탭 전용 스타일
+          if (isHomeTab) {
+            return (
+              <div
+                key={tab.id}
+                className={`flex-shrink-0 flex items-center justify-center w-10 h-control-h border-r border-gray-200 transition-colors cursor-pointer ${
+                  isActive
+                    ? 'bg-ssoo-content-border border-b-2 border-b-ls-red'
+                    : 'bg-ls-gray hover:bg-ssoo-content-border/80'
+                }`}
+              >
+                <button
+                  onClick={() => activateTab(tab.id)}
+                  className="flex items-center justify-center w-full h-full"
+                >
+                  <IconComponent className={`w-5 h-5 ${isActive ? 'text-ssoo-primary' : 'text-white'}`} />
+                </button>
+              </div>
+            );
+          }
+
+          // 일반 문서 탭
+          return (
+            <div
+              key={tab.id}
+              draggable
+              onClick={() => activateTab(tab.id)}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragLeave={handleDragLeave}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 h-control-h border-r border-gray-200 transition-colors cursor-pointer group ${
+                isActive
+                  ? 'bg-ssoo-content-border border-b-2 border-b-ls-red'
+                  : 'hover:bg-gray-100'
+              } ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'border-l-2 border-l-ssoo-primary' : ''}`}
+            >
+              <button
+                onClick={() => activateTab(tab.id)}
+                className="flex flex-1 items-center gap-1.5"
+              >
+                {isTabEditing ? (
+                  <FilePenLine className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary/80' : 'text-ssoo-primary/70'}`} />
+                ) : (
+                  <IconComponent className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                )}
+                <span
+                  className={`text-sm truncate max-w-[120px] ${
+                    isActive ? 'text-ssoo-primary font-medium' : 'text-gray-600'
+                  } ${hasUnsavedChanges ? 'italic' : ''}`}
+                >
+                  {tab.title}
+                </span>
+                <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${
+                  isTabEditing
+                    ? hasUnsavedChanges ? 'bg-destructive/60' : 'bg-ssoo-primary/70'
+                    : 'bg-transparent'
+                }`} />
+              </button>
+              {tab.closable && (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (tab.path.startsWith('/ai/chat')) {
+                      closeTab(tab.id);
+                      openPanel();
+                      return;
+                    }
+                    if (editors[tab.id]?.hasUnsavedChanges) {
+                      const confirmed = await confirm({
+                        title: '변경사항 폐기',
+                        description: '저장하지 않은 변경사항이 있습니다. 정말로 진행하시겠습니까?',
+                        confirmText: '확인',
+                        cancelText: '돌아가기',
+                      });
+                      if (!confirmed) return;
+                    }
+                    closeTab(tab.id);
+                  }}
+                  className={`h-control-h-sm w-control-h-sm flex items-center justify-center rounded transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto ${
+                    isActive ? 'hover:bg-ssoo-primary/20' : 'hover:bg-gray-200'
+                  }`}
+                >
+                  {tab.path.startsWith('/ai/chat') ? (
+                    <Minimize2 className={`w-3 h-3 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                  ) : (
+                    <X className={`w-3 h-3 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                  )}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 오른쪽 스크롤 버튼 */}
+      {showRightArrow && (
+        <button
+          onClick={() => handleScroll('right')}
+          className="flex-shrink-0 h-control-h px-2 hover:bg-gray-100 transition-colors"
+        >
+          <ChevronRight className="w-4 h-4 text-gray-500" />
+        </button>
+      )}
+    </div>
+  );
+}

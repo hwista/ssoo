@@ -1,0 +1,247 @@
+'use client';
+
+import { AssistantComposer } from '@/components/common/assistant/Composer';
+import { Editor } from './editor';
+import { Viewer } from '@/components/common/viewer';
+import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
+import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
+import type { TocItem } from '@/components/templates/page-frame';
+import type { EditorRef } from './editor';
+import type { TemplateItem } from '@/types/template';
+
+type PageMode = 'viewer' | 'editor' | 'create';
+
+interface InlineComposerPanelProps {
+  isEditorMode: boolean;
+  inlineInstruction: string;
+  isComposing: boolean;
+  setInlineInstruction: (value: string) => void;
+  handleInlineCompose: (draft?: string) => Promise<void>;
+  inlineTemplate: TemplateItem | null;
+  inlineSummaryFiles: InlineSummaryFileItem[];
+  inlineRelevanceWarnings: string[];
+  usedSummaryFileIds?: Set<string>;
+  isTemplateUsed?: boolean;
+  deletedFileIds?: Set<string>;
+  isTemplateDeleted?: boolean;
+  handleInlineTemplateSelect: (template: TemplateItem) => void | Promise<void>;
+  setInlineTemplate: (template: TemplateItem | null) => void;
+  setInlineSummaryFiles: React.Dispatch<React.SetStateAction<InlineSummaryFileItem[]>>;
+  setInlineRelevanceWarnings: React.Dispatch<React.SetStateAction<string[]>>;
+  onRemoveSummaryFile?: (id: string) => void;
+  onRemoveTemplate?: () => void;
+  onRestoreSummaryFile?: (id: string) => void;
+  onRestoreTemplate?: () => void;
+  onClearAll?: () => void;
+  onAbort?: () => void;
+  hasFailedRestore?: boolean;
+  isRetryingRestore?: boolean;
+  onRetryRestore?: () => void;
+}
+
+export function InlineComposerPanel({
+  isEditorMode,
+  inlineInstruction,
+  isComposing,
+  setInlineInstruction,
+  handleInlineCompose,
+  inlineTemplate,
+  inlineSummaryFiles,
+  inlineRelevanceWarnings,
+  usedSummaryFileIds,
+  isTemplateUsed,
+  deletedFileIds,
+  isTemplateDeleted,
+  handleInlineTemplateSelect,
+  setInlineTemplate,
+  setInlineSummaryFiles,
+  setInlineRelevanceWarnings,
+  onRemoveSummaryFile,
+  onRemoveTemplate,
+  onRestoreSummaryFile,
+  onRestoreTemplate,
+  onClearAll,
+  onAbort,
+  hasFailedRestore,
+  isRetryingRestore,
+  onRetryRestore,
+}: InlineComposerPanelProps) {
+  if (!isEditorMode) {
+    return null;
+  }
+
+  return (
+    <AssistantComposer
+      inputDraft={inlineInstruction}
+      isProcessing={isComposing}
+      setInputDraft={setInlineInstruction}
+      submitUserMessage={async (text) => {
+        await handleInlineCompose(text);
+      }}
+      placeholder="AI와 함께 문서를 작성하세요. 선택한 텍스트 영역이 있으면 치환하고 없으면 커서 위치에 삽입됩니다."
+      submitVariant="text"
+      submitLabel="적용"
+      mode="inline"
+      inlineContext={{
+        selectedTemplate: inlineTemplate,
+        summaryFiles: inlineSummaryFiles,
+        onSelectTemplate: handleInlineTemplateSelect,
+        onUpsertSummaryFiles: (files) => {
+          setInlineSummaryFiles((prev) => {
+            const map = new Map(prev.map((item) => [item.id, item]));
+            for (const file of files) map.set(file.id, file);
+            return Array.from(map.values());
+          });
+        },
+      }}
+      inlineTemplate={inlineTemplate}
+      inlineSummaryFiles={inlineSummaryFiles}
+      inlineWarnings={inlineRelevanceWarnings}
+      usedSummaryFileIds={usedSummaryFileIds}
+      isTemplateUsed={isTemplateUsed}
+      deletedFileIds={deletedFileIds}
+      isTemplateDeleted={isTemplateDeleted}
+      onInlineClearAll={() => {
+        if (onClearAll) {
+          onClearAll();
+        } else {
+          setInlineTemplate(null);
+          setInlineSummaryFiles([]);
+          setInlineRelevanceWarnings([]);
+        }
+      }}
+      onInlineRemoveTemplate={() => {
+        if (onRemoveTemplate) {
+          onRemoveTemplate();
+        } else {
+          setInlineTemplate(null);
+        }
+      }}
+      onInlineRemoveSummaryFile={(id) => {
+        if (onRemoveSummaryFile) {
+          onRemoveSummaryFile(id);
+        } else {
+          setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== id));
+        }
+      }}
+      onInlineRestoreTemplate={onRestoreTemplate}
+      onInlineRestoreSummaryFile={onRestoreSummaryFile}
+      onAbort={onAbort}
+      hasFailedRestore={hasFailedRestore}
+      isRetryingRestore={isRetryingRestore}
+      onRetryRestore={onRetryRestore}
+    />
+  );
+}
+
+interface DocumentPageContentProps {
+  error: string | null;
+  handleRetry: () => void;
+  isLoading: boolean;
+  isCreateMode: boolean;
+  mode: PageMode;
+  htmlContent: string;
+  toc: TocItem[];
+  handleTocClick: (id: string) => void;
+  handleSearch: (query?: string) => void;
+  handleAttachCurrentDocToAssistant: () => void;
+  editorRef: React.RefObject<EditorRef | null>;
+  createPath: string;
+  setCreatePath: (path: string) => void;
+  /** 새 문서용 자동 생성 파일명 */
+  generatedFileName?: string;
+  isPreview: boolean;
+  isComposing: boolean;
+  saveAsTemplateOnly: boolean;
+  templateSaveDraft: {
+    name: string;
+    description: string;
+    scope: 'personal' | 'global';
+  };
+  setSaveAsTemplateOnly: React.Dispatch<React.SetStateAction<boolean>>;
+  onEditorContentChange?: (content: string) => void;
+  /** 본문 <a> 클릭 */
+  onLinkClick?: (href: string) => void;
+  /** 본문 <img> 클릭 */
+  onImageClick?: (src: string, alt: string) => void;
+  /** undo/redo 가용성 변경 콜백 */
+  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
+}
+
+export function DocumentPageContent({
+  error,
+  handleRetry,
+  isLoading,
+  isCreateMode,
+  mode,
+  htmlContent,
+  toc,
+  handleTocClick,
+  handleSearch,
+  handleAttachCurrentDocToAssistant,
+  editorRef,
+  createPath,
+  setCreatePath,
+  generatedFileName,
+  isPreview,
+  isComposing,
+  saveAsTemplateOnly,
+  templateSaveDraft,
+  setSaveAsTemplateOnly,
+  onEditorContentChange,
+  onLinkClick,
+  onImageClick,
+  onHistoryChange,
+}: DocumentPageContentProps) {
+  if (error) {
+    return (
+      <div className="flex h-full flex-1 items-center justify-center">
+        <ErrorState error={error} onRetry={handleRetry} />
+      </div>
+    );
+  }
+
+  if (isLoading && !isCreateMode) {
+    return (
+      <div className="flex h-full flex-1 items-center justify-center">
+        <LoadingState message="문서를 불러오는 중..." />
+      </div>
+    );
+  }
+
+  if (mode === 'viewer') {
+    return (
+      <Viewer
+        content={htmlContent}
+        toc={toc}
+        onTocClick={handleTocClick}
+        onSearch={handleSearch}
+        onAttachToAssistant={handleAttachCurrentDocToAssistant}
+        variant="embedded"
+        onLinkClick={onLinkClick}
+        onImageClick={onImageClick}
+      />
+    );
+  }
+
+  return (
+    <Editor
+      ref={editorRef}
+      className="h-full min-h-0"
+      variant="embedded"
+      showToolbar={false}
+      preferredCreatePath={isCreateMode ? createPath : undefined}
+      generatedFileName={isCreateMode ? generatedFileName : undefined}
+      onCreatePathResolved={setCreatePath}
+      isPreview={isPreview}
+      isPendingInsertLoading={isComposing}
+      onContentChange={onEditorContentChange}
+      templateSaveEnabled={saveAsTemplateOnly}
+      templateSaveDraft={templateSaveDraft}
+      onTemplateSaved={() => {
+        setSaveAsTemplateOnly(false);
+      }}
+      onHistoryChange={onHistoryChange}
+    />
+  );
+}

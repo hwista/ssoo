@@ -1,0 +1,39 @@
+{
+  "git": {
+    "repositoryPath": "",
+    "author": {
+      "name": "DMS System",
+      "email": "dms@localhost"
+    },
+    "autoInit": true
+  },
+  "storage": {
+    "defaultProvider": "sharepoint",
+    "local": {
+      "enabled": true,
+      "basePath": "./data/storage/local"
+    },
+    "sharepoint": {
+      "enabled": true,
+      "basePath": "/sites/dms/shared-documents",
+      "webBaseUrl": "https://sharepoint.local"
+    },
+    "nas": {
+      "enabled": true,
+      "basePath": "/mnt/nas/dms",
+      "webBaseUrl": "file:///mnt/nas/dms"
+    }
+  },
+  "ingest": {
+    "queuePath": "./data/ingest",
+    "autoPublish": false,
+    "maxConcurrentJobs": 2
+  },
+  "extraction": {
+    "maxTextLength": 12000,
+    "maxImages": 5,
+    "maxImageSizeMb": 1,
+    "pdfMaxRenderPages": 3,
+    "pdfRenderScale": 1.0
+  }
+}

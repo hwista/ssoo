@@ -1,0 +1,34 @@
+#!/usr/bin/env sh
+set -e
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$HOOK_DIR/.." && pwd)"
+export PATH="$ROOT_DIR/.husky/_:$PATH"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "husky: node not found. Install Node.js in this environment."
+  exit 1
+fi
+
+PNPM_CMD="pnpm"
+PNPM_CJS_WIN='C:\\nvm4w\\nodejs\\node_modules\\pnpm\\bin\\pnpm.cjs'
+PNPM_BIN="$(command -v pnpm 2>/dev/null || true)"
+if [ -n "$PNPM_BIN" ]; then
+  case "$PNPM_BIN" in
+    /mnt/c/*)
+      if [ -f "/mnt/c/nvm4w/nodejs/node_modules/pnpm/bin/pnpm.cjs" ]; then
+        PNPM_CMD="node $PNPM_CJS_WIN"
+      fi
+      ;;
+  esac
+else
+  if [ -f "/mnt/c/nvm4w/nodejs/node_modules/pnpm/bin/pnpm.cjs" ]; then
+    PNPM_CMD="node $PNPM_CJS_WIN"
+  else
+    echo "husky: pnpm not found. Install pnpm or enable corepack."
+    exit 1
+  fi
+fi
+
+$PNPM_CMD run lint
+$PNPM_CMD run codex:preflight

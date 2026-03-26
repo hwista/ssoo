@@ -1,0 +1,31 @@
+# .NET Solution 파일 템플릿
+#
+# 실제 .sln 파일은 dotnet CLI로 생성하세요:
+#
+# dotnet new sln -n [project-name]
+# dotnet new webapi -n [project-name].Api -o src/Api
+# dotnet new classlib -n [project-name].Domain -o src/Domain
+# dotnet new classlib -n [project-name].Infrastructure -o src/Infrastructure
+# dotnet new xunit -n [project-name].Tests -o tests/Tests
+#
+# dotnet sln add src/Api
+# dotnet sln add src/Domain
+# dotnet sln add src/Infrastructure
+# dotnet sln add tests/Tests
+#
+# 프로젝트 참조:
+# dotnet add src/Api reference src/Domain src/Infrastructure
+# dotnet add src/Infrastructure reference src/Domain
+# dotnet add tests/Tests reference src/Domain src/Api
+
+# Clean Architecture 구조:
+#
+# [project-name]/
+# ├── src/
+# │   ├── Api/              # Web API (Controllers, Middleware)
+# │   ├── Domain/           # 도메인 모델, 비즈니스 로직
+# │   └── Infrastructure/   # DB, 외부 서비스
+# ├── tests/
+# │   └── Tests/            # 유닛/통합 테스트
+# ├── Directory.Build.props # 공통 빌드 설정
+# └── [project-name].sln

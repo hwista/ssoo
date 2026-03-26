@@ -1,0 +1,43 @@
+{
+  "name": "@ssoo/database",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "dev": "tsc --watch",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "docs:db:dbml": "prisma generate --schema prisma/schema.prisma",
+    "docs:db:split": "node scripts/split-dbml.js",
+    "docs:db:export": "node scripts/export-dbml.js",
+    "docs:db:render": "node scripts/render-dbml.js",
+    "docs:db": "pnpm run docs:db:dbml && pnpm run docs:db:split && pnpm run docs:db:export && pnpm run docs:db:render"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.0"
+  },
+  "devDependencies": {
+    "@dbml/cli": "^5.4.1",
+    "@softwaretechnik/dbml-renderer": "^1.0.31",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.16.0",
+    "dotenv": "^17.2.3",
+    "pg": "^8.17.1",
+    "prisma": "^6.2.0",
+    "prisma-dbml-generator": "^0.12.0",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.7.0"
+  }
+}

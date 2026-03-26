@@ -1,0 +1,239 @@
+{
+  "timestamp": "2026-02-05T05:54:27.981Z",
+  "score": 100,
+  "convergence": "✅ 완료",
+  "converged": true,
+  "passed": 38,
+  "warnings": 0,
+  "failed": 0,
+  "details": [
+    {
+      "category": "structure",
+      "check": ".github/copilot-instructions.md",
+      "status": "pass",
+      "message": "파일 존재"
+    },
+    {
+      "category": "structure",
+      "check": ".github/README.md",
+      "status": "pass",
+      "message": "파일 존재"
+    },
+    {
+      "category": "structure",
+      "check": ".github/agents/common-workflow.md",
+      "status": "pass",
+      "message": "파일 존재"
+    },
+    {
+      "category": "structure",
+      "check": ".github/agents/orchestrator.agent.md",
+      "status": "pass",
+      "message": "파일 존재"
+    },
+    {
+      "category": "structure",
+      "check": ".github/prompts/core/feature-dev.prompt.md",
+      "status": "pass",
+      "message": "파일 존재"
+    },
+    {
+      "category": "structure",
+      "check": ".github/agents",
+      "status": "pass",
+      "message": "디렉토리 존재"
+    },
+    {
+      "category": "structure",
+      "check": ".github/prompts/core",
+      "status": "pass",
+      "message": "디렉토리 존재"
+    },
+    {
+      "category": "structure",
+      "check": ".github/instructions",
+      "status": "pass",
+      "message": "디렉토리 존재"
+    },
+    {
+      "category": "mapping",
+      "check": "database.instructions.md",
+      "status": "pass",
+      "message": "packages/database 매핑 확인"
+    },
+    {
+      "category": "mapping",
+      "check": "dms.instructions.md",
+      "status": "pass",
+      "message": "apps/web/dms 매핑 확인"
+    },
+    {
+      "category": "mapping",
+      "check": "pms.instructions.md",
+      "status": "pass",
+      "message": "apps/web/pms 매핑 확인"
+    },
+    {
+      "category": "mapping",
+      "check": "server.instructions.md",
+      "status": "pass",
+      "message": "apps/server 매핑 확인"
+    },
+    {
+      "category": "mapping",
+      "check": "testing.instructions.md",
+      "status": "pass",
+      "message": "apps 매핑 확인"
+    },
+    {
+      "category": "mapping",
+      "check": "types.instructions.md",
+      "status": "pass",
+      "message": "packages/types 매핑 확인"
+    },
+    {
+      "category": "instructions",
+      "check": "핵심 원칙",
+      "status": "pass",
+      "message": "섹션 존재"
+    },
+    {
+      "category": "instructions",
+      "check": "기술 스택",
+      "status": "pass",
+      "message": "섹션 존재"
+    },
+    {
+      "category": "instructions",
+      "check": "네이밍 규칙",
+      "status": "pass",
+      "message": "섹션 존재"
+    },
+    {
+      "category": "instructions",
+      "check": "폴더/레이어 구조",
+      "status": "pass",
+      "message": "섹션 존재"
+    },
+    {
+      "category": "instructions",
+      "check": "금지 사항",
+      "status": "pass",
+      "message": "섹션 존재"
+    },
+    {
+      "category": "instructions",
+      "check": "Diátaxis 문서 구조",
+      "status": "pass",
+      "message": "섹션 존재"
+    },
+    {
+      "category": "instructions",
+      "check": "Gate 체크",
+      "status": "pass",
+      "message": "섹션 존재"
+    },
+    {
+      "category": "instructions",
+      "check": "백로그 우선순위",
+      "status": "pass",
+      "message": "섹션 존재"
+    },
+    {
+      "category": "template",
+      "check": "코드 클렌징 원칙",
+      "status": "pass",
+      "message": "범용 원칙 포함"
+    },
+    {
+      "category": "template",
+      "check": "문서-코드 동기화",
+      "status": "pass",
+      "message": "범용 원칙 포함"
+    },
+    {
+      "category": "template",
+      "check": "증거 기반 작업",
+      "status": "pass",
+      "message": "범용 원칙 포함"
+    },
+    {
+      "category": "template",
+      "check": "승인 프로세스",
+      "status": "pass",
+      "message": "범용 원칙 포함"
+    },
+    {
+      "category": "template",
+      "check": "Gate 체크",
+      "status": "pass",
+      "message": "범용 원칙 포함"
+    },
+    {
+      "category": "template",
+      "check": "Diátaxis",
+      "status": "pass",
+      "message": "범용 원칙 포함"
+    },
+    {
+      "category": "template",
+      "check": "정본 원칙",
+      "status": "pass",
+      "message": "범용 원칙 포함"
+    },
+    {
+      "category": "template",
+      "check": "품질 수렴 루프",
+      "status": "pass",
+      "message": "범용 원칙 포함"
+    },
+    {
+      "category": "diataxis",
+      "check": "getting-started.md (Tutorial)",
+      "status": "pass",
+      "message": "존재"
+    },
+    {
+      "category": "diataxis",
+      "check": "README.md (Hub)",
+      "status": "pass",
+      "message": "존재"
+    },
+    {
+      "category": "diataxis",
+      "check": "common/",
+      "status": "pass",
+      "message": "Diátaxis 구조"
+    },
+    {
+      "category": "diataxis",
+      "check": "dms/",
+      "status": "pass",
+      "message": "Diátaxis 구조"
+    },
+    {
+      "category": "diataxis",
+      "check": "pms/",
+      "status": "pass",
+      "message": "Diátaxis 구조"
+    },
+    {
+      "category": "patterns",
+      "check": "wildcard-export",
+      "status": "pass",
+      "message": "위반 없음"
+    },
+    {
+      "category": "patterns",
+      "check": "any-type",
+      "status": "pass",
+      "message": "위반 없음"
+    },
+    {
+      "category": "docs",
+      "check": "naming",
+      "status": "pass",
+      "message": "규칙 준수"
+    }
+  ]
+}

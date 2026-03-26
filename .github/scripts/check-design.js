@@ -1,0 +1,384 @@
+#!/usr/bin/env node
+/**
+ * 디자인 패턴 검증 스크립트
+ * 
+ * DMS 컴포넌트의 디자인 규칙 준수 여부를 검증:
+ * 1. 컨트롤 높이가 컨테이너에 잘못 적용된 경우 감지
+ *    - AI가 컨트롤 생성 요청 시 요청하지 않은 컨테이너를 추가하면 위반
+ *    - 예외 승인 없이 컨테이너 사용 시 경고
+ * 2. 허용된 컨테이너 패턴 외 사용 시 경고
+ * 
+ * @usage node .github/scripts/check-design.js [files...]
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+// 디자인 규칙 정의
+const DESIGN_RULES = [
+  {
+    name: 'control-height-on-container',
+    description: '컨트롤 높이 클래스가 컨테이너에 적용됨',
+    severity: 'warning',
+    // 전역: DMS + PMS 컴포넌트
+    pathPattern: /apps\/web\/(dms|pms)\/src\/components\//,
+    filePattern: /\.(tsx)$/,
+    exclude: ['node_modules', 'dist', '.next'],
+    check: (content, filePath) => {
+      const issues = [];
+      const lines = content.split('\n');
+      
+      // h-control-h, h-control-h-sm, h-control-h-lg가 div, wrapper 등에 사용된 경우 감지
+      // 허용: Button, Input, 실제 컨트롤 컴포넌트
+      const containerPatterns = [
+        // div에 컨트롤 높이 적용
+        /<div[^>]*className=[^>]*h-control-h(?:-sm|-lg)?[^>]*>/g,
+        // wrapper, container에 컨트롤 높이 적용
+        /className=[^>]*(?:wrapper|container|group)[^>]*h-control-h(?:-sm|-lg)?/gi,
+      ];
+      
+      lines.forEach((line, index) => {
+        // 주석 무시
+        if (line.trim().startsWith('//') || line.trim().startsWith('*')) {
+          return;
+        }
+        
+        containerPatterns.forEach(pattern => {
+          if (pattern.test(line)) {
+            // 허용된 패턴인지 확인
+            const allowedPatterns = [
+              'min-h-\\[52px\\]',  // 표준 툴바 컨테이너
+              'h-\\[53px\\]',      // TabBar
+              'min-h-\\[44px\\]',  // 모달 헤더
+              'group.*h-control-h', // 인터랙티브 리스트 아이템 (hover 효과)
+              'h-control-h.*group', // 인터랙티브 리스트 아이템 (hover 효과)
+              'flex items-center.*h-control-h.*hover:', // 클릭 가능한 리스트 아이템
+              'h-control-h.*border-b', // 패널/섹션 헤더
+            ];
+            
+            const isAllowed = allowedPatterns.some(allowed => 
+              new RegExp(allowed).test(line)
+            );
+            
+            if (!isAllowed) {
+              issues.push({
+                file: filePath,
+                line: index + 1,
+                rule: 'control-height-on-container',
+                severity: 'warning',
+                message: '요청하지 않은 컨테이너에 컨트롤 높이 적용됨. 컨트롤만 생성하거나 예외 보고(사용자 승인) 필요',
+                code: line.trim(),
+              });
+            }
+          }
+          // 패턴 초기화 (global 플래그 때문에 필요)
+          pattern.lastIndex = 0;
+        });
+      });
+      
+      return issues;
+    },
+  },
+  {
+    name: 'non-standard-container-height',
+    description: '비표준 컨테이너 높이 사용',
+    severity: 'info',
+    // 전역: DMS + PMS 컴포넌트
+    pathPattern: /apps\/web\/(dms|pms)\/src\/components\//,
+    filePattern: /\.(tsx)$/,
+    exclude: ['node_modules', 'dist', '.next'],
+    check: (content, filePath) => {
+      const issues = [];
+      const lines = content.split('\n');
+      
+      // 표준이 아닌 min-h 또는 h 값 감지 (52px, 53px, 44px 외)
+      const heightPattern = /(?:min-)?h-\[(\d+)px\]/g;
+      
+      const standardHeights = [32, 36, 44, 52, 53, 56]; // 표준 높이값들
+      
+      lines.forEach((line, index) => {
+        if (line.trim().startsWith('//') || line.trim().startsWith('*')) {
+          return;
+        }
+        
+        let match;
+        while ((match = heightPattern.exec(line)) !== null) {
+          const height = parseInt(match[1], 10);
+          if (!standardHeights.includes(height) && height < 100) {
+            issues.push({
+              file: filePath,
+              line: index + 1,
+              rule: 'non-standard-container-height',
+              severity: 'info',
+              message: `비표준 높이값 ${height}px 사용. 표준: ${standardHeights.join(', ')}px`,
+              code: line.trim(),
+            });
+          }
+        }
+      });
+      
+      return issues;
+    },
+  },
+  {
+    name: 'non-standard-font',
+    description: '개별 폰트 정의 감지',
+    severity: 'warning',
+    // 전역: DMS + PMS 컴포넌트 및 스타일 (TSX + CSS)
+    pathPattern: /apps\/web\/(dms|pms)\/src\/(components|app)\//,
+    filePattern: /\.(tsx|css)$/,
+    exclude: ['node_modules', 'dist', '.next'],
+    check: (content, filePath) => {
+      const issues = [];
+      const lines = content.split('\n');
+      const isCssFile = filePath.endsWith('.css');
+      
+      // 예외 승인 패턴 (주석에 명시)
+      const allowedOverridePattern = /design\/font-override|font-override/;
+      
+      // 인라인 폰트 스타일 감지 (font-family만 - font-size, font-weight는 허용)
+      const customFontPatterns = isCssFile
+        ? [
+            /font-family:\s*[^;]+;/gi,
+          ]
+        : [
+            /font-\[['"]?[^'"\]]+['"]?\]/g,  // font-['custom']
+            /fontFamily:\s*['"][^'"]+['"]/g,  // fontFamily: "custom"
+          ];
+      
+      // 허용된 폰트 클래스
+      const allowedFontClasses = ['font-sans', 'font-mono', 'font-serif'];
+      
+      // 허용된 파일 (전역 정의 위치)
+      const isConfigFile = filePath.includes('tailwind.config');
+      const isGlobalCss = filePath.includes('globals.css');
+      
+      // CSS에서 허용되는 컨텍스트 (body 정의, prose 등)
+      let inBodyBlock = false;
+      let inLayerBase = false;
+      
+      lines.forEach((line, index) => {
+        // 주석 무시
+        if (line.trim().startsWith('//') || line.trim().startsWith('*') || line.trim().startsWith('/*')) {
+          return;
+        }
+        
+        // CSS 파일에서 @layer base 및 body 블록 추적
+        if (isCssFile) {
+          if (line.includes('@layer base')) {
+            inLayerBase = true;
+          }
+          if (inLayerBase && line.includes('body')) {
+            inBodyBlock = true;
+          }
+          if (inBodyBlock && line.includes('}')) {
+            inBodyBlock = false;
+          }
+          if (line.trim() === '}' && inLayerBase && !line.includes('{')) {
+            // 간단한 블록 종료 추적 (완벽하지 않지만 기본적인 케이스 처리)
+          }
+        }
+        
+        // 예외 승인 패턴 확인 (현재 줄 또는 이전 줄에 주석)
+        if (allowedOverridePattern.test(line)) {
+          return;
+        }
+        // CSS 파일의 경우 이전 줄 주석도 확인
+        if (isCssFile && index > 0 && allowedOverridePattern.test(lines[index - 1])) {
+          return;
+        }
+        
+        // globals.css의 body에서 font-family 정의는 허용 (전역 정의 위치)
+        if (isGlobalCss && inBodyBlock) {
+          return;
+        }
+        
+        // globals.css의 font-sans 적용은 허용
+        if (isGlobalCss && line.includes('font-sans')) {
+          return;
+        }
+        
+        customFontPatterns.forEach(pattern => {
+          const matches = line.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              // 허용된 클래스가 아닌 경우만 경고
+              if (!allowedFontClasses.some(allowed => match.includes(allowed))) {
+                // tailwind.config.js는 정의 위치로 허용
+                if (isConfigFile) {
+                  return;
+                }
+                issues.push({
+                  file: filePath,
+                  line: index + 1,
+                  rule: 'non-standard-font',
+                  severity: 'warning',
+                  message: '개별 폰트 속성 정의 금지. Tailwind 클래스 또는 전역 정의 사용, 예외 시 design/font-override 주석 필요',
+                  code: line.trim(),
+                });
+              }
+            });
+          }
+        });
+      });
+      
+      return issues;
+    },
+  },
+  {
+    name: 'hardcoded-control-height',
+    description: 'UI 컴포넌트에서 하드코딩된 컨트롤 높이 사용',
+    severity: 'warning',
+    // UI 컴포넌트 파일만 검사
+    pathPattern: /apps\/web\/(dms|pms)\/src\/components\/ui\//,
+    filePattern: /\.(tsx)$/,
+    exclude: ['node_modules', 'dist', '.next', '.stories.tsx'],
+    check: (content, filePath) => {
+      const issues = [];
+      const lines = content.split('\n');
+      
+      // 하드코딩된 높이 패턴 (컨트롤에 자주 사용되는 크기)
+      // h-8 (32px), h-9 (36px), h-10 (40px) 등
+      // 표준: h-control-h (36px), h-control-h-sm (32px), h-control-h-lg (44px)
+      const hardcodedHeightPattern = /\bh-(8|9|10|11|12)\b/g;
+      
+      // 허용 예외: 아이콘 크기 (h-4, h-5, h-6 등)
+      // 허용 예외: 큰 컨테이너 (h-24 이상)
+      
+      lines.forEach((line, index) => {
+        // 주석 무시
+        if (line.trim().startsWith('//') || line.trim().startsWith('*')) {
+          return;
+        }
+        
+        // 예외 승인 패턴
+        if (/design\/height-override/.test(line)) {
+          return;
+        }
+        
+        const matches = line.match(hardcodedHeightPattern);
+        if (matches) {
+          matches.forEach(match => {
+            issues.push({
+              file: filePath,
+              line: index + 1,
+              rule: 'hardcoded-control-height',
+              severity: 'warning',
+              message: `하드코딩된 높이 ${match} 사용. 표준 클래스 사용 권장: h-control-h-sm (32px), h-control-h (36px), h-control-h-lg (44px)`,
+              code: line.trim(),
+            });
+          });
+        }
+      });
+      
+      return issues;
+    },
+  },
+];
+
+function shouldExclude(filePath, excludePatterns) {
+  return excludePatterns.some(pattern => {
+    if (pattern.includes('*')) {
+      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+      return regex.test(filePath);
+    }
+    return filePath.includes(pattern);
+  });
+}
+
+function checkFile(filePath) {
+  const issues = [];
+  
+  if (!fs.existsSync(filePath)) {
+    return issues;
+  }
+
+  const content = fs.readFileSync(filePath, 'utf8');
+
+  for (const rule of DESIGN_RULES) {
+    // 경로 패턴 확인
+    if (rule.pathPattern && !rule.pathPattern.test(filePath)) {
+      continue;
+    }
+    
+    // 파일 패턴 확인
+    if (rule.filePattern && !rule.filePattern.test(filePath)) {
+      continue;
+    }
+
+    // 제외 패턴 확인
+    if (rule.exclude && shouldExclude(filePath, rule.exclude)) {
+      continue;
+    }
+
+    const ruleIssues = rule.check(content, filePath);
+    issues.push(...ruleIssues);
+  }
+
+  return issues;
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  
+  if (args.length === 0) {
+    console.log('✅ 검증할 파일 없음');
+    process.exit(0);
+  }
+
+  const allIssues = [];
+
+  for (const filePath of args) {
+    const issues = checkFile(filePath);
+    allIssues.push(...issues);
+  }
+
+  // 결과 출력
+  const errors = allIssues.filter(i => i.severity === 'error');
+  const warnings = allIssues.filter(i => i.severity === 'warning');
+  const infos = allIssues.filter(i => i.severity === 'info');
+
+  if (allIssues.length > 0) {
+    console.log('\n🎨 디자인 패턴 검증 결과\n');
+
+    if (errors.length > 0) {
+      console.log('❌ 오류:\n');
+      errors.forEach(issue => {
+        console.log(`  ${issue.file}:${issue.line}`);
+        console.log(`    ${issue.message}`);
+        console.log(`    > ${issue.code}\n`);
+      });
+    }
+
+    if (warnings.length > 0) {
+      console.log('⚠️ 경고 (예외 보고 권장):\n');
+      warnings.forEach(issue => {
+        console.log(`  ${issue.file}:${issue.line}`);
+        console.log(`    ${issue.message}`);
+        console.log(`    > ${issue.code}\n`);
+      });
+    }
+
+    if (infos.length > 0) {
+      console.log('ℹ️ 정보:\n');
+      infos.forEach(issue => {
+        console.log(`  ${issue.file}:${issue.line}`);
+        console.log(`    ${issue.message}`);
+        console.log(`    > ${issue.code}\n`);
+      });
+    }
+
+    console.log(`\n총: ${errors.length} 오류, ${warnings.length} 경고, ${infos.length} 정보\n`);
+  }
+
+  // 오류 또는 경고가 있으면 exit 1
+  if (errors.length > 0 || warnings.length > 0) {
+    console.log('❌ 디자인 검증 실패: 문제를 수정하거나 예외 승인(design/font-override 주석) 후 다시 시도하세요\n');
+    process.exit(1);
+  }
+
+  console.log('✅ 디자인 패턴 검증 통과\n');
+  process.exit(0);
+}
+
+main();

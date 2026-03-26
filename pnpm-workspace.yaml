@@ -1,0 +1,17 @@
+packages:
+  - apps/server
+  - apps/web/pms
+  - apps/web/chs
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@scarf/scarf'
+  - bcrypt
+  - core-js
+  - inferno
+  - prisma
+  - sharp
+  - unrs-resolver

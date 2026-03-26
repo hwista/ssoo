@@ -1,0 +1,56 @@
+-- =========================================================
+-- History Trigger Template for SSOO
+-- 
+-- 이 파일은 히스토리 트리거의 공통 패턴을 정의합니다.
+-- 각 테이블별 트리거는 이 패턴을 따릅니다.
+-- =========================================================
+
+-- 트리거 동작 원리:
+-- 1. INSERT/UPDATE/DELETE 이벤트 발생
+-- 2. AFTER 트리거가 NEW 또는 OLD row를 히스토리 테이블에 복사
+-- 3. history_seq는 해당 PK 범위 내에서 자동 증가
+-- 4. event_type: C(Create), U(Update), D(Delete)
+-- 5. event_at: 트리거 실행 시점 (= updated_at)
+
+-- 공통 패턴:
+-- CREATE OR REPLACE FUNCTION fn_{table_name}_h_trigger()
+-- RETURNS TRIGGER AS $$
+-- DECLARE
+--   v_history_seq BIGINT;
+--   v_record RECORD;
+--   v_event_type CHAR(1);
+-- BEGIN
+--   -- 이벤트 타입 결정
+--   IF TG_OP = 'INSERT' THEN
+--     v_event_type := 'C';
+--     v_record := NEW;
+--   ELSIF TG_OP = 'UPDATE' THEN
+--     v_event_type := 'U';
+--     v_record := NEW;
+--   ELSE -- DELETE
+--     v_event_type := 'D';
+--     v_record := OLD;
+--   END IF;
+--
+--   -- history_seq 계산 (해당 PK 범위 내에서 MAX + 1)
+--   SELECT COALESCE(MAX(history_seq), 0) + 1
+--   INTO v_history_seq
+--   FROM {table_name}_h
+--   WHERE {pk_column} = v_record.{pk_column};
+--
+--   -- 히스토리 테이블에 삽입
+--   INSERT INTO {table_name}_h (
+--     {pk_column}, history_seq, event_type, event_at,
+--     {all_columns}
+--   ) VALUES (
+--     v_record.{pk_column}, v_history_seq, v_event_type, NOW(),
+--     v_record.{all_columns}
+--   );
+--
+--   RETURN v_record;
+-- END;
+-- $$ LANGUAGE plpgsql;
+--
+-- CREATE TRIGGER trg_{table_name}_h
+-- AFTER INSERT OR UPDATE OR DELETE ON {table_name}
+-- FOR EACH ROW EXECUTE FUNCTION fn_{table_name}_h_trigger();

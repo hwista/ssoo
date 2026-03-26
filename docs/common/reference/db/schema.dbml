@@ -1,0 +1,344 @@
+//// ------------------------------------------------------
+
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+
+//// ------------------------------------------------------
+
+Table cm_code_m {
+  id BigInt [pk, increment]
+  codeGroup String [not null]
+  codeValue String [not null]
+  parentCode String
+  displayNameKo String [not null]
+  displayNameEn String
+  description String
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (codeGroup, codeValue) [unique]
+  }
+}
+
+Table cm_code_h {
+  codeId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  codeGroup String [not null]
+  codeValue String [not null]
+  parentCode String
+  displayNameKo String [not null]
+  displayNameEn String
+  description String
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (codeId, historySeq) [pk]
+  }
+}
+
+Table cm_menu_m {
+  id BigInt [pk, increment]
+  menuCode String [unique, not null]
+  menuName String [not null]
+  menuNameEn String
+  menuType String [not null, default: 'menu']
+  parentMenuId BigInt
+  menuPath String
+  icon String
+  sortOrder Int [not null, default: 0]
+  menuLevel Int [not null, default: 1]
+  isVisible Boolean [not null, default: true]
+  isEnabled Boolean [not null, default: true]
+  isAdminMenu Boolean [not null, default: false]
+  openType String [not null, default: 'tab']
+  description String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  parentMenu cm_menu_m
+  childMenus cm_menu_m [not null]
+  roleMenus cm_role_menu_r [not null]
+  userMenus cm_user_menu_r [not null]
+  userFavorites cm_user_favorite_r [not null]
+}
+
+Table cm_menu_h {
+  menuId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  menuCode String [not null]
+  menuName String [not null]
+  menuNameEn String
+  menuType String [not null]
+  parentMenuId BigInt
+  menuPath String
+  icon String
+  sortOrder Int [not null]
+  menuLevel Int [not null]
+  isVisible Boolean [not null]
+  isEnabled Boolean [not null]
+  isAdminMenu Boolean [not null, default: false]
+  openType String [not null]
+  description String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (menuId, historySeq) [pk]
+  }
+}
+
+Table cm_role_menu_r {
+  id BigInt [pk, increment]
+  roleCode String [not null]
+  menuId BigInt [not null]
+  accessType String [not null, default: 'full']
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  menu cm_menu_m [not null]
+
+  indexes {
+    (roleCode, menuId) [unique]
+  }
+}
+
+Table cm_role_menu_h {
+  roleMenuId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  roleCode String [not null]
+  menuId BigInt [not null]
+  accessType String [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (roleMenuId, historySeq) [pk]
+  }
+}
+
+Table cm_user_menu_r {
+  id BigInt [pk, increment]
+  userId BigInt [not null]
+  menuId BigInt [not null]
+  accessType String [not null, default: 'full']
+  overrideType String [not null, default: 'grant']
+  expiresAt DateTime
+  grantedBy BigInt
+  grantedAt DateTime
+  grantReason String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+  menu cm_menu_m [not null]
+
+  indexes {
+    (userId, menuId) [unique]
+  }
+}
+
+Table cm_user_menu_h {
+  userMenuId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  userId BigInt [not null]
+  menuId BigInt [not null]
+  accessType String [not null]
+  overrideType String [not null]
+  expiresAt DateTime
+  grantedBy BigInt
+  grantedAt DateTime
+  grantReason String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (userMenuId, historySeq) [pk]
+  }
+}
+
+Table cm_user_favorite_r {
+  id BigInt [pk, increment]
+  userId BigInt [not null]
+  menuId BigInt [not null]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  createdAt DateTime [default: `now()`, not null]
+  user cm_user_m [not null]
+  menu cm_menu_m [not null]
+
+  indexes {
+    (userId, menuId) [unique]
+  }
+}
+
+Table cm_user_m {
+  id BigInt [pk, increment]
+  isSystemUser Boolean [not null, default: false]
+  isAdmin Boolean [not null, default: false]
+  userTypeCode String [not null, default: 'internal']
+  loginId String [unique]
+  passwordHash String
+  passwordSalt String
+  userName String [not null]
+  displayName String
+  email String [unique, not null]
+  phone String
+  avatarUrl String
+  departmentCode String
+  positionCode String
+  employeeNumber String
+  companyName String
+  customerId BigInt
+  roleCode String [not null, default: 'viewer']
+  permissionCodes String[] [not null]
+  userStatusCode String [not null, default: 'registered']
+  lastLoginAt DateTime
+  loginFailCount Int [not null, default: 0]
+  lockedUntil DateTime
+  invitedAt DateTime
+  invitedBy BigInt
+  invitationTokenHash String
+  invitationExpiresAt DateTime
+  refreshTokenHash String
+  refreshTokenExpiresAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  inviter cm_user_m
+  invitees cm_user_m [not null]
+  ownedProjects pr_project_m [not null]
+  userMenus cm_user_menu_r [not null]
+  userFavorites cm_user_favorite_r [not null]
+}
+
+Table cm_user_h {
+  userId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  isSystemUser Boolean [not null]
+  isAdmin Boolean [not null, default: false]
+  userTypeCode String [not null]
+  loginId String
+  passwordHash String
+  passwordSalt String
+  userName String [not null]
+  displayName String
+  email String [not null]
+  phone String
+  avatarUrl String
+  departmentCode String
+  positionCode String
+  employeeNumber String
+  companyName String
+  customerId BigInt
+  roleCode String [not null]
+  permissionCodes String[] [not null]
+  userStatusCode String [not null]
+  lastLoginAt DateTime
+  loginFailCount Int [not null]
+  lockedUntil DateTime
+  invitedAt DateTime
+  invitedBy BigInt
+  invitationTokenHash String
+  invitationExpiresAt DateTime
+  refreshTokenHash String
+  refreshTokenExpiresAt DateTime
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (userId, historySeq) [pk]
+  }
+}
+
+Ref: cm_menu_m.parentMenuId - cm_menu_m.id [delete: Set Null]
+
+Ref: cm_role_menu_r.menuId > cm_menu_m.id [delete: Cascade]
+
+Ref: cm_user_menu_r.userId > cm_user_m.id [delete: Cascade]
+
+Ref: cm_user_menu_r.menuId > cm_menu_m.id [delete: Cascade]
+
+Ref: cm_user_favorite_r.userId > cm_user_m.id [delete: Cascade]
+
+Ref: cm_user_favorite_r.menuId > cm_menu_m.id [delete: Cascade]
+
+Ref: cm_user_m.invitedBy - cm_user_m.id [delete: Set Null]

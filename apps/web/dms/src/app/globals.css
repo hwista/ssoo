@@ -1,0 +1,1177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   SSOO 디자인 시스템 CSS 변수
+   (PMS 표준과 동일)
+   ============================================ */
+:root {
+  /* ----------------------------------------
+     SSOO 테마 색상
+     ---------------------------------------- */
+  --ssoo-primary: #34104A;
+  --ssoo-primary-hover: #4A1A68;
+  --ssoo-secondary: #FAFAFA;
+  --ssoo-background: #FAFAFA;
+  --ssoo-content-border: #BFC6F4;
+  --ssoo-content-background: #E9ECFB;
+  --ssoo-sitemap-title: #2A2E8A;
+  --ssoo-sitemap-bullet: #BFC6F4;
+  --ssoo-sitemap-background: #FAFBFF;
+  
+  /* ----------------------------------------
+     LS CI 색상 팔레트
+     ---------------------------------------- */
+  --ls-red: #FA002D;
+  --ls-blue: #0A1E5A;
+  --ls-green: #009BB4;
+  --ls-sub-blue: #0569A0;
+  --ls-gray: #7D8282;                     /* GRAY - RGB(125, 130, 130) - PMS 표준 */
+  --ls-silver: #87827D;
+  --ls-gold: #7D0D0D;
+
+  /* ----------------------------------------
+     UI surface tokens (Light theme)
+     ---------------------------------------- */
+  --card: 0 0% 100%;
+  --card-foreground: 213 100% 23%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 213 100% 23%;
+  --primary: 213 100% 23%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 213 63% 37%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 270 30% 96%;
+  --muted-foreground: 270 20% 55%;
+  --accent: 200 100% 32%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 353 98% 49%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 213 100% 23%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 213 50% 10%;
+  --foreground: 210 40% 98%;
+  --card: 213 50% 12%;
+  --card-foreground: 210 40% 98%;
+  --popover: 213 50% 12%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 213 80% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 213 50% 25%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 270 20% 22%;
+  --muted-foreground: 270 18% 70%;
+  --accent: 200 80% 45%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 40%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 213 50% 25%;
+  --input: 213 50% 25%;
+  --ring: 213 80% 50%;
+}
+
+/* ============================================
+   SSOO 타이포그래피 유틸리티 클래스
+   (PMS 표준)
+   ============================================ */
+
+@layer components {
+  /* 제목 스타일 */
+  .heading-1 {
+    @apply text-h1 text-gray-900 font-bold;
+  }
+  
+  .heading-2 {
+    @apply text-h2 text-gray-800 font-semibold;
+  }
+  
+  .heading-3 {
+    @apply text-h3 text-gray-800 font-semibold;
+  }
+  
+  /* 본문 텍스트 */
+  .body-text {
+    @apply text-body text-gray-700;
+  }
+  
+  .body-text-muted {
+    @apply text-body text-gray-500;
+  }
+
+  /* 아이콘 크기 */
+  .icon-h1 {
+    @apply w-icon-h1 h-icon-h1;
+  }
+  
+  .icon-h2 {
+    @apply w-icon-h2 h-icon-h2;
+  }
+  
+  .icon-h3 {
+    @apply w-icon-h3 h-icon-h3;
+  }
+  
+  .icon-body {
+    @apply w-icon-body h-icon-body;
+  }
+
+  /* ============================================
+     컨트롤 높이 표준
+     ============================================ */
+  
+  /* 표준 컨트롤 높이 (버튼, 입력, 탭, 메뉴 등) */
+  .control-height {
+    @apply h-control-h; /* 36px */
+  }
+  
+  .control-height-sm {
+    @apply h-control-h-sm; /* 32px */
+  }
+  
+  .control-height-lg {
+    @apply h-control-h-lg; /* 44px */
+  }
+
+  /* 텍스트 오버플로우 처리 */
+  .text-ellipsis-line {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+  
+  .text-ellipsis-multi {
+    @apply overflow-hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
+/* ============================================
+   기본 스타일 초기화 (PMS 표준)
+   ============================================ */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+/* ============================================
+   링크 스타일
+   ============================================ */
+a {
+  color: var(--ssoo-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--ssoo-primary-hover);
+  text-decoration: underline;
+}
+
+/* ============================================
+   커스텀 스크롤바 (PMS 톤앤매너 정렬)
+   ============================================ */
+
+/* 기본 스크롤바 스타일 (전체 앱에 적용) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox 스크롤바 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) hsl(var(--muted) / 0.3);
+}
+
+@layer utilities {
+  /* ============================================
+     스크롤바 유틸리티 클래스
+     ============================================ */
+  
+  /* 스크롤바 숨기기 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 얇은 스크롤바 (4px) */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  /* 기본 스크롤바 (8px) */
+  .scrollbar-default::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-default {
+    scrollbar-width: auto;
+  }
+
+  /* 넓은 스크롤바 (12px) */
+  .scrollbar-wide::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* Primary 색상 스크롤바 */
+  .scrollbar-primary::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.4);
+  }
+  .scrollbar-primary::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.6);
+  }
+  .scrollbar-primary {
+    scrollbar-color: hsl(var(--primary) / 0.4) hsl(var(--muted) / 0.3);
+  }
+
+  /* Accent 색상 스크롤바 */
+  .scrollbar-accent::-webkit-scrollbar-thumb {
+    background: hsl(var(--accent) / 0.4);
+  }
+  .scrollbar-accent::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent) / 0.6);
+  }
+  .scrollbar-accent {
+    scrollbar-color: hsl(var(--accent) / 0.4) hsl(var(--muted) / 0.3);
+  }
+
+  /* 투명 트랙 스크롤바 */
+  .scrollbar-transparent::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-transparent {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  /* 호버 시에만 보이는 스크롤바 */
+  .scrollbar-on-hover::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+  .scrollbar-on-hover:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+  .scrollbar-on-hover:hover::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* 둥근 스크롤바 */
+  .scrollbar-rounded::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+  }
+  .scrollbar-rounded::-webkit-scrollbar-track {
+    border-radius: 9999px;
+  }
+
+  /* 사이드바용 스크롤바 (더 미니멀) */
+  .scrollbar-sidebar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 9999px;
+  }
+  .scrollbar-sidebar:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* 테이블/그리드용 스크롤바 */
+  .scrollbar-table::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-table::-webkit-scrollbar-track {
+    background: hsl(var(--border) / 0.5);
+  }
+  .scrollbar-table::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+  .scrollbar-table::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+/* 리사이저 핸들 스타일 개선 */
+.resize-handle {
+  width: 4px;
+  background: #e5e7eb;
+  cursor: col-resize;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.resize-handle:hover {
+  background: #9ca3af;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 30px;
+  background: repeating-linear-gradient(
+    to bottom,
+    #6b7280 0px,
+    #6b7280 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  border-radius: 1px;
+  opacity: 0.7;
+}
+
+.resize-handle:hover::after {
+  opacity: 1;
+  background: repeating-linear-gradient(
+    to bottom,
+    #374151 0px,
+    #374151 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* 트리 항목 긴 텍스트 처리 */
+.tree-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* 트리 뷰 컨테이너의 최소 너비 설정 */
+.tree-container {
+  min-width: max-content;
+}
+
+/* 선택된 파일 하이라이트 */
+.file-selected {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  /* design/font-override: 선택 상태 시각적 강조 */
+  font-weight: 500;
+}
+
+/* 폴더 상태 표시 아이콘 애니메이션 */
+.folder-toggle-icon {
+  transition: all 0.15s ease-in-out;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.folder-toggle-icon:hover {
+  color: #374151;
+  transform: scale(1.1);
+}
+
+/* 폴더 행 전체 호버 효과 */
+.folder-row:hover .folder-toggle-icon {
+  color: #4b5563;
+}
+
+/* 리사이징 중 텍스트 선택 방지 */
+.resizing {
+  user-select: none;
+  pointer-events: none;
+}
+
+.resizing * {
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 트리 컨트롤 버튼 스타일 */
+.tree-control-btn {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(209, 213, 219, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+}
+
+.tree-control-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+/* 플로팅 버튼 컨테이너 */
+.floating-controls {
+  position: sticky;
+  top: 8px;
+  right: 8px;
+  z-index: 30;
+  pointer-events: none;
+  float: right;
+  clear: both;
+}
+
+.floating-controls > * {
+  pointer-events: auto;
+}
+
+/* 트리 컨테이너 스크롤 시 플로팅 효과 */
+.tree-floating-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.tree-floating-controls > * {
+  pointer-events: auto;
+}
+
+/* 검색 결과 하이라이트 */
+.search-highlight {
+  background-color: #fef3c7;
+  color: #d97706;
+  /* design/font-override: 검색 결과 시각적 강조 */
+  font-weight: 500;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* 트리 내부 검색 바 스타일 */
+.tree-search-bar {
+  backdrop-filter: blur(8px);
+  background: rgba(249, 250, 251, 0.95);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tree-search-input:focus {
+  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* 컨텍스트 메뉴 스타일 - 애니메이션 임시 제거로 중복 렌더링 방지 */
+
+/* 애니메이션 임시 주석 처리
+.context-menu {
+  animation: context-menu-appear 0.15s ease-out;
+}
+
+@keyframes context-menu-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+*/
+
+/* 컨텍스트 메뉴 호버 효과 */
+.context-menu-item {
+  transition: all 0.1s ease;
+}
+
+.context-menu-item:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  transform: translateX(2px);
+}
+
+.context-menu-item.danger:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* ========================================
+   다크 모드 스타일
+   ======================================== */
+
+/* 기본 다크 모드 배경 */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #111827;
+  color: #f3f4f6;
+}
+
+/* 리사이저 핸들 다크 모드 */
+.dark .resize-handle {
+  background: #374151;
+}
+
+.dark .resize-handle:hover {
+  background: #4b5563;
+}
+
+.dark .resize-handle::after {
+  background: repeating-linear-gradient(
+    to bottom,
+    #9ca3af 0px,
+    #9ca3af 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.dark .resize-handle:hover::after {
+  background: repeating-linear-gradient(
+    to bottom,
+    #d1d5db 0px,
+    #d1d5db 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* 스크롤바 다크 모드 */
+.dark .scrollbar-thin {
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) hsl(var(--muted) / 0.3);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.3);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* 선택된 파일 다크 모드 */
+.dark .file-selected {
+  background-color: #1e3a5f;
+  color: #93c5fd;
+}
+
+/* 폴더 아이콘 다크 모드 */
+.dark .folder-toggle-icon {
+  color: #9ca3af;
+}
+
+.dark .folder-toggle-icon:hover {
+  color: #d1d5db;
+}
+
+.dark .folder-row:hover .folder-toggle-icon {
+  color: #e5e7eb;
+}
+
+/* 트리 컨트롤 버튼 다크 모드 */
+.dark .tree-control-btn {
+  background: rgba(31, 41, 55, 0.95);
+  border: 1px solid rgba(75, 85, 99, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dark .tree-control-btn:hover {
+  background: rgba(31, 41, 55, 0.98);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* 검색 하이라이트 다크 모드 */
+.dark .search-highlight {
+  background-color: #78350f;
+  color: #fcd34d;
+}
+
+/* 트리 검색 바 다크 모드 */
+.dark .tree-search-bar {
+  background: rgba(31, 41, 55, 0.95);
+  border-bottom: 1px solid rgba(75, 85, 99, 0.8);
+}
+
+.dark .tree-search-input:focus {
+  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* 컨텍스트 메뉴 다크 모드 */
+.dark .context-menu-item:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.dark .context-menu-item.danger:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* 입력 필드 다크 모드 */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #f3f4f6;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6b7280;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* 버튼 다크 모드 */
+.dark button {
+  color: inherit;
+}
+
+/* 카드/패널 다크 모드 */
+.dark .bg-white {
+  background-color: #1f2937 !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #111827 !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #1f2937 !important;
+}
+
+/* 테두리 다크 모드 */
+.dark .border,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: #374151 !important;
+}
+
+.dark .border-b {
+  border-bottom-color: #374151 !important;
+}
+
+.dark .border-t {
+  border-top-color: #374151 !important;
+}
+
+.dark .border-l {
+  border-left-color: #374151 !important;
+}
+
+.dark .border-r {
+  border-right-color: #374151 !important;
+}
+
+/* 텍스트 색상 다크 모드 */
+.dark .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+.dark .text-gray-600 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-700 {
+  color: #e5e7eb !important;
+}
+
+.dark .text-gray-800 {
+  color: #f3f4f6 !important;
+}
+
+.dark .text-gray-900 {
+  color: #f9fafb !important;
+}
+
+/* 호버 상태 다크 모드 */
+.dark .hover\:bg-gray-50:hover {
+  background-color: #374151 !important;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: #374151 !important;
+}
+
+/* 그림자 다크 모드 */
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================
+   Legacy ProseMirror styles
+   - historical selector support kept for old markup compatibility
+   - current editor runtime is CodeMirror-based
+   ============================================ */
+
+/* 기본 에디터 레이아웃 */
+.ProseMirror {
+  @apply outline-none;
+}
+
+/* 헤딩 스타일 (prose 보완 - font-weight 명시) */
+.ProseMirror h1 {
+  @apply text-3xl font-bold leading-tight mt-6 mb-2;
+}
+
+.ProseMirror h2 {
+  @apply text-2xl font-semibold leading-snug mt-5 mb-2;
+}
+
+.ProseMirror h3 {
+  @apply text-xl font-semibold leading-snug mt-4 mb-2;
+}
+
+.ProseMirror h4 {
+  @apply text-lg font-semibold leading-normal mt-4 mb-2;
+}
+
+/* Placeholder 스타일 (ProseMirror 고유) */
+.ProseMirror p.is-editor-empty:first-child::before,
+.ProseMirror.is-editor-empty::before {
+  @apply text-gray-400 float-left h-0 pointer-events-none;
+  content: attr(data-placeholder);
+}
+
+/* Task List - 체크리스트 (prose에 없음, ProseMirror 고유) */
+.ProseMirror ul[data-type="taskList"] {
+  @apply list-none p-0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  @apply flex items-start gap-2;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  @apply flex-shrink-0 mt-1;
+}
+
+.ProseMirror ul[data-type="taskList"] li > div {
+  @apply flex-1;
+}
+
+.ProseMirror ul[data-type="taskList"] li input[type="checkbox"] {
+  @apply cursor-pointer w-4 h-4 accent-blue-600;
+}
+
+/* 코드 블록 구문 강조 (hljs - ProseMirror 고유) */
+.ProseMirror pre .hljs-comment,
+.ProseMirror pre .hljs-quote {
+  @apply text-gray-500;
+}
+
+.ProseMirror pre .hljs-variable,
+.ProseMirror pre .hljs-template-variable,
+.ProseMirror pre .hljs-attribute,
+.ProseMirror pre .hljs-tag,
+.ProseMirror pre .hljs-regexp,
+.ProseMirror pre .hljs-link,
+.ProseMirror pre .hljs-name,
+.ProseMirror pre .hljs-selector-id,
+.ProseMirror pre .hljs-selector-class {
+  @apply text-red-400;
+}
+
+.ProseMirror pre .hljs-number,
+.ProseMirror pre .hljs-meta,
+.ProseMirror pre .hljs-built_in,
+.ProseMirror pre .hljs-builtin-name,
+.ProseMirror pre .hljs-literal,
+.ProseMirror pre .hljs-type,
+.ProseMirror pre .hljs-params {
+  @apply text-amber-400;
+}
+
+.ProseMirror pre .hljs-string,
+.ProseMirror pre .hljs-symbol,
+.ProseMirror pre .hljs-bullet {
+  @apply text-emerald-400;
+}
+
+.ProseMirror pre .hljs-title,
+.ProseMirror pre .hljs-section {
+  @apply text-blue-400;
+}
+
+.ProseMirror pre .hljs-keyword,
+.ProseMirror pre .hljs-selector-tag {
+  @apply text-purple-400;
+}
+
+/* 테이블 선택/리사이즈 (ProseMirror 고유) */
+.ProseMirror .selectedCell:after {
+  @apply bg-blue-600/10 absolute inset-0 pointer-events-none z-[2];
+  content: '';
+}
+
+.ProseMirror .column-resize-handle {
+  @apply bg-blue-600 absolute -right-0.5 -bottom-0.5 top-0 w-1 pointer-events-none;
+}
+
+/* 이미지 선택 (ProseMirror 고유) */
+.ProseMirror img.ProseMirror-selectednode {
+  @apply outline-[3px] outline outline-blue-600;
+}
+
+/* 하이라이트 스타일 (prose에 없음) */
+.ProseMirror mark {
+  @apply bg-yellow-200 py-0.5;
+}
+
+/* 슬래시 커맨드 메뉴 스타일 */
+.slash-command-menu {
+  @apply min-w-[200px] max-w-xs;
+}
+
+.slash-command-menu button {
+  @apply border-none bg-transparent cursor-pointer;
+}
+
+.slash-command-menu button:focus {
+  @apply outline-none;
+}
+
+/* 포커스/선택 스타일 */
+.ProseMirror:focus {
+  @apply outline-none;
+}
+
+.ProseMirror ::selection {
+  @apply bg-blue-600/20;
+}
+
+/* Tippy 팝업 스타일 */
+.tippy-box[data-theme~='light-border'] {
+  @apply bg-white border border-gray-200 rounded-lg shadow-lg;
+}
+
+/* 반응형 */
+@media (max-width: 640px) {
+  .ProseMirror {
+    @apply p-3;
+  }
+
+  .ProseMirror h1 {
+    @apply text-2xl;
+  }
+
+  .ProseMirror h2 {
+    @apply text-xl;
+  }
+
+  .ProseMirror h3 {
+    @apply text-lg;
+  }
+}
+
+/* 에디터 다크 모드 */
+.dark .ProseMirror {
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
+
+.dark .ProseMirror code {
+  background-color: #374151;
+  color: #fbbf24;
+}
+
+.dark .ProseMirror pre {
+  background-color: #111827;
+  border-color: #374151;
+}
+
+.dark .ProseMirror blockquote {
+  border-left-color: #4b5563;
+  color: #9ca3af;
+}
+
+.dark .ProseMirror table {
+  border-color: #374151;
+}
+
+.dark .ProseMirror th,
+.dark .ProseMirror td {
+  border-color: #374151;
+}
+
+.dark .ProseMirror th {
+  background-color: #374151;
+}
+
+/* 마크다운 미리보기 다크 모드 */
+
+/* ============================================
+   Live Preview - 소스 블록 스타일링
+   활성 블록은 codeBlock(language='livepreview')으로 변환됨
+   비활성 블록은 WYSIWYG 렌더링 유지
+   ============================================ */
+
+/* 소스 블록: 일반 codeBlock과 다른 스타일 (사이드바 배경 + sans 폰트) */
+.ProseMirror pre:has(code.language-livepreview) {
+  background-color: var(--ssoo-content-background) !important;
+  color: inherit !important;
+  border-radius: 4px !important;
+  padding: 0.75rem 1rem !important;
+  margin-left: -8px !important;
+  margin-right: -8px !important;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Segoe UI", "Noto Sans KR", sans-serif !important; /* design/font-override: codeBlock(pre>code)가 monospace 상속하므로 font-sans 오버라이드 필수 */
+}
+
+.ProseMirror pre:has(code.language-livepreview) code {
+  color: inherit !important;
+  background: transparent !important;
+  font-size: inherit !important;
+  font-family: inherit !important; /* design/font-override: 부모 pre의 font-sans 상속 */
+}
+
+/* 에디터 내 링크 클릭 방지 — pointer-events 차단 */
+.ProseMirror a[href] {
+  pointer-events: none;
+}
+
+/* 다크 모드 */
+.dark .ProseMirror pre:has(code.language-livepreview) {
+  background-color: var(--ssoo-content-background) !important;
+  color: inherit !important;
+}
+
+/* 마크다운 미리보기 다크 모드 */
+.dark .markdown-preview {
+  color: #f3f4f6;
+}
+
+.dark .markdown-preview h1,
+.dark .markdown-preview h2,
+.dark .markdown-preview h3,
+.dark .markdown-preview h4,
+.dark .markdown-preview h5,
+.dark .markdown-preview h6 {
+  color: #f9fafb;
+}
+
+.dark .markdown-preview a {
+  color: #60a5fa;
+}
+
+.dark .markdown-preview code {
+  background-color: #374151;
+  color: #fbbf24;
+}
+
+.dark .markdown-preview pre {
+  background-color: #111827;
+  border-color: #374151;
+}
+
+.dark .markdown-preview blockquote {
+  border-left-color: #4b5563;
+  background-color: #1f2937;
+  color: #9ca3af;
+}
+
+.dark .markdown-preview table {
+  border-color: #374151;
+}
+
+.dark .markdown-preview th {
+  background-color: #374151;
+  border-color: #4b5563;
+}
+
+.dark .markdown-preview td {
+  border-color: #374151;
+}
+
+.dark .markdown-preview hr {
+  border-color: #374151;
+}
+
+.assistant-markdown {
+  @apply max-w-none text-sm leading-6 text-ssoo-primary;
+}
+
+.assistant-markdown > :first-child {
+  @apply mt-0;
+}
+
+.assistant-markdown > :last-child {
+  @apply mb-0;
+}
+
+.assistant-markdown p {
+  @apply my-2;
+}
+
+.assistant-markdown h1,
+.assistant-markdown h2,
+.assistant-markdown h3,
+.assistant-markdown h4 {
+  @apply mt-4 mb-2 font-semibold tracking-tight text-ssoo-primary;
+}
+
+.assistant-markdown h1 {
+  @apply text-lg;
+}
+
+.assistant-markdown h2 {
+  @apply text-base;
+}
+
+.assistant-markdown h3,
+.assistant-markdown h4 {
+  @apply text-sm;
+}
+
+.assistant-markdown ul,
+.assistant-markdown ol {
+  @apply my-2 pl-5;
+}
+
+.assistant-markdown ul {
+  @apply list-disc;
+}
+
+.assistant-markdown ol {
+  @apply list-decimal;
+}
+
+.assistant-markdown li {
+  @apply my-1;
+}
+
+.assistant-markdown a {
+  @apply text-ssoo-primary underline underline-offset-2;
+}
+
+.assistant-markdown strong {
+  @apply font-semibold text-ssoo-primary;
+}
+
+.assistant-markdown code {
+  @apply rounded bg-white/70 px-1 py-0.5 font-mono text-[0.8125rem] text-ssoo-primary;
+}
+
+.assistant-markdown pre {
+  @apply my-3 overflow-x-auto rounded-lg border border-ssoo-content-border bg-white px-3 py-2;
+}
+
+.assistant-markdown pre code {
+  @apply bg-transparent p-0 text-[0.8125rem];
+}
+
+.assistant-markdown blockquote {
+  @apply my-3 border-l-4 border-ssoo-content-border bg-white/60 px-3 py-2;
+  color: rgb(52 16 74 / 0.8);
+}
+
+.assistant-markdown table {
+  @apply my-3 w-full border-collapse overflow-hidden rounded-lg text-left text-xs;
+}
+
+.assistant-markdown thead {
+  @apply bg-white/70;
+}
+
+.assistant-markdown th,
+.assistant-markdown td {
+  @apply border border-ssoo-content-border px-2 py-1.5 align-top;
+}
+
+.assistant-markdown hr {
+  @apply my-4 border-ssoo-content-border;
+}

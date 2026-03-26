@@ -1,0 +1,21 @@
+{
+  "openapi": "3.0.0",
+  "paths": {},
+  "info": {
+    "title": "SSOO PMS API",
+    "description": "PMS module API reference",
+    "version": "1.0.0"
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

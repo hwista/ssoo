@@ -1,0 +1,118 @@
+{
+  "version": "2026-02-27",
+  "description": "Codex 정본과 GitHubDocs 핵심 규칙 동기화 검증 (CLAUDE.md 포함)",
+  "checks": [
+    {
+      "id": "protocol-keyword",
+      "source": ".github/instructions/workflow.instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "마스터 키워드",
+      "targetPattern": "Codex 프로토콜 키워드",
+      "severity": "error"
+    },
+    {
+      "id": "start-briefing",
+      "source": ".github/instructions/workflow.instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "작업 시작 프로토콜",
+      "targetPattern": "작업 시작 브리핑",
+      "severity": "error"
+    },
+    {
+      "id": "verification-flow",
+      "source": ".github/instructions/workflow.instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "검증 실행 순서",
+      "targetPattern": "검증 기본 순서",
+      "severity": "error"
+    },
+    {
+      "id": "doc-hierarchy",
+      "source": ".github/copilot-instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "문서 관리 규칙",
+      "targetPattern": "문서 계층 원칙",
+      "severity": "error"
+    },
+    {
+      "id": "forbidden-rules",
+      "source": ".github/copilot-instructions.md",
+      "target": ".codex/instructions/codex-instructions.md",
+      "sourcePattern": "금지 사항",
+      "targetPattern": "금지 사항",
+      "severity": "warning"
+    },
+    {
+      "id": "project-boundary",
+      "source": ".github/instructions/project.instructions.md",
+      "target": ".codex/instructions/project.instructions.md",
+      "sourcePattern": "패키지 경계",
+      "targetPattern": "패키지 경계",
+      "severity": "error"
+    },
+    {
+      "id": "dms-independence",
+      "source": ".github/instructions/dms.instructions.md",
+      "target": ".codex/instructions/dms.instructions.md",
+      "sourcePattern": "독립",
+      "targetPattern": "독립",
+      "severity": "error"
+    },
+    {
+      "id": "claude-principles",
+      "source": ".github/copilot-instructions.md",
+      "target": "CLAUDE.md",
+      "sourcePattern": "핵심 원칙",
+      "targetPattern": "핵심 원칙",
+      "severity": "error"
+    },
+    {
+      "id": "claude-forbidden",
+      "source": ".github/copilot-instructions.md",
+      "target": "CLAUDE.md",
+      "sourcePattern": "금지 사항",
+      "targetPattern": "금지 사항",
+      "severity": "error"
+    },
+    {
+      "id": "claude-dms-independence",
+      "source": ".github/instructions/dms.instructions.md",
+      "target": "apps/web/dms/CLAUDE.md",
+      "sourcePattern": "독립",
+      "targetPattern": "독립",
+      "severity": "error"
+    },
+    {
+      "id": "claude-prisma-ext",
+      "source": ".github/copilot-instructions.md",
+      "target": "CLAUDE.md",
+      "sourcePattern": "Prisma Client Extensions",
+      "targetPattern": "commonColumnsExtension",
+      "severity": "warning"
+    },
+    {
+      "id": "claude-server-arch",
+      "source": ".github/copilot-instructions.md",
+      "target": "CLAUDE.md",
+      "sourcePattern": "DatabaseService",
+      "targetPattern": "DatabaseService",
+      "severity": "warning"
+    },
+    {
+      "id": "claude-dms-editor",
+      "source": ".github/instructions/dms.instructions.md",
+      "target": "apps/web/dms/CLAUDE.md",
+      "sourcePattern": "CodeMirror",
+      "targetPattern": "CodeMirror",
+      "severity": "error"
+    },
+    {
+      "id": "claude-dms-tree",
+      "source": ".github/instructions/dms.instructions.md",
+      "target": "apps/web/dms/CLAUDE.md",
+      "sourcePattern": "커스텀 renderer",
+      "targetPattern": "custom tree",
+      "severity": "warning"
+    }
+  ]
+}

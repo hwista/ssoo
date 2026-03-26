@@ -1,0 +1,38 @@
+#!/usr/bin/env sh
+set -e
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$HOOK_DIR/.." && pwd)"
+export PATH="$ROOT_DIR/.husky/_:$PATH"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "husky: node not found. Install Node.js in this environment."
+  exit 1
+fi
+
+NPX_BIN="$(command -v npx 2>/dev/null || true)"
+if [ -n "$NPX_BIN" ]; then
+  case "$NPX_BIN" in
+    /mnt/c/*) ;;
+    *)
+      npx --no -- commitlint --edit "$1"
+      exit 0
+      ;;
+  esac
+fi
+
+COMMITLINT_CLI="$ROOT_DIR/node_modules/@commitlint/cli/lib/cli.js"
+if [ -f "$COMMITLINT_CLI" ]; then
+  if command -v wslpath >/dev/null 2>&1; then
+    COMMITLINT_CLI_WIN="$(wslpath -w "$COMMITLINT_CLI" 2>/dev/null || true)"
+    if [ -n "$COMMITLINT_CLI_WIN" ]; then
+      node "$COMMITLINT_CLI_WIN" --edit "$1"
+      exit 0
+    fi
+  fi
+  node "$COMMITLINT_CLI" --edit "$1"
+  exit 0
+fi
+
+echo "husky: npx/commitlint not found. Install dependencies." >&2
+exit 1

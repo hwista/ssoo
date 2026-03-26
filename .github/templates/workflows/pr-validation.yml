@@ -1,0 +1,100 @@
+# PR 검증 워크플로우 템플릿
+#
+# PR 생성/업데이트 시 자동으로 실행되어 코드 품질을 검증합니다.
+# 
+# 사용법:
+# 1. 이 파일을 .github/workflows/pr-validation.yml로 복사
+# 2. [PLACEHOLDER] 부분을 프로젝트에 맞게 수정
+# 3. 필요 없는 단계 삭제
+
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # pnpm 사용 시
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # npm 사용 시 (pnpm 대신)
+      # - name: Install dependencies
+      #   run: npm ci
+
+      - name: Lint
+        run: pnpm lint
+        # run: npm run lint
+
+      - name: Type Check
+        run: pnpm typecheck
+        # 또는 개별 패키지 체크
+        # run: pnpm --filter [PACKAGE] exec tsc --noEmit
+
+      - name: Build
+        run: pnpm build
+        # 또는 개별 패키지 빌드
+        # run: pnpm --filter [PACKAGE] build
+
+      - name: Test
+        run: pnpm test
+        # run: npm test
+
+      # SDD Framework 검증 (선택)
+      - name: SDD Verify
+        run: node .github/scripts/sdd-verify.js --quick
+
+      # 패턴 검사 (선택 - 프로젝트에 check-patterns.js 필요)
+      # - name: Pattern Check
+      #   run: |
+      #     CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(ts|tsx)$' || true)
+      #     if [ -n "$CHANGED_FILES" ]; then
+      #       node .github/scripts/check-patterns.js $CHANGED_FILES
+      #     fi
+
+  # 추가 작업 (선택)
+  # security:
+  #   name: Security Scan
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Run security audit
+  #       run: pnpm audit --audit-level=high

@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: ssoo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ssoo_dev
+      POSTGRES_USER: ssoo
+      POSTGRES_PASSWORD: ssoo_dev_pw
+    ports:
+      - "5432:5432"
+    volumes:
+      - ssoo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ssoo -d ssoo_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  dms:
+    build:
+      context: ./apps/web/dms
+      dockerfile: Dockerfile
+    container_name: ssoo-dms
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - DMS_DATABASE_URL=postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public
+    volumes:
+      - dms-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  ssoo-postgres-data:
+  dms-data:
