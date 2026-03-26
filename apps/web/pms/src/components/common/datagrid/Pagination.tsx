@@ -73,7 +73,7 @@ export function Pagination({
   return (
     <div className={cn('flex items-center justify-between px-2', className)}>
       {/* 좌측: 페이지 사이즈 선택 & 총 개수 */}
-      <div className="flex items-center gap-4 text-body-sm text-muted-foreground">
+      <div className="flex items-center gap-4 text-sm text-muted-foreground">
         {showPageSizeSelect && onPageSizeChange && (
           <div className="flex items-center gap-2">
             <span>페이지당</span>
@@ -127,9 +127,9 @@ export function Pagination({
         </Button>
 
         <div className="flex items-center gap-1 px-2">
-          <span className="text-label-md">{page}</span>
-          <span className="text-body-sm text-muted-foreground">/</span>
-          <span className="text-body-sm text-muted-foreground">{totalPages}</span>
+          <span className="text-sm font-medium">{page}</span>
+          <span className="text-sm text-muted-foreground">/</span>
+          <span className="text-sm text-muted-foreground">{totalPages}</span>
         </div>
 
         <Button

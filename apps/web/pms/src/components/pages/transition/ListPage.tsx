@@ -51,7 +51,7 @@ const columns: ColumnDef<Project>[] = [
         done: 'bg-green-100 text-green-800',
       };
       return (
-        <span className={`px-2 py-1 rounded text-label-sm ${colorMap[stage]}`}>
+        <span className={`px-2 py-1 rounded text-xs font-medium ${colorMap[stage]}`}>
           {stageLabels[stage]}
         </span>
       );

@@ -113,20 +113,20 @@ export function StageActionBar({
   return (
     <div className="flex items-center gap-3 bg-muted/30 rounded-lg px-4 py-2.5">
       {/* Current state display */}
-      <div className="flex items-center gap-2 text-body-sm">
-        <span className="text-label-md">
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-medium">
           {STATUS_LABELS[statusCode] || statusCode}
         </span>
         <span className="text-muted-foreground">·</span>
         <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-label-sm ${stageBadgeClass}`}
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${stageBadgeClass}`}
         >
           {STAGE_LABELS[stageCode] || stageCode}
         </span>
         {doneResultCode && (
           <>
             <span className="text-muted-foreground">→</span>
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-label-sm bg-purple-50 text-purple-700">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700">
               {RESULT_LABELS[doneResultCode] || doneResultCode}
             </span>
           </>
@@ -149,7 +149,7 @@ export function StageActionBar({
         {stageCode === 'in_progress' && (
           <div className="flex items-center gap-2">
             {readiness && !readiness.canComplete && (
-              <div className="flex items-center gap-2 text-body-sm">
+              <div className="flex items-center gap-2 text-sm">
                 {readiness.deliverables.pending > 0 && (
                   <span className="text-amber-600 flex items-center gap-1">
                     <AlertTriangle className="h-3.5 w-3.5" />
@@ -189,7 +189,7 @@ export function StageActionBar({
                         key={option.value}
                         onClick={() => handleComplete(option.value)}
                         disabled={advanceMutation.isPending}
-                        className="w-full text-left px-3 py-2 text-body-sm hover:bg-muted/50 disabled:opacity-50"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 disabled:opacity-50"
                       >
                         {option.label}
                       </button>
@@ -202,7 +202,7 @@ export function StageActionBar({
         )}
 
         {stageCode === 'done' && (
-          <span className="text-caption text-muted-foreground">단계 완료</span>
+          <span className="text-xs text-muted-foreground">단계 완료</span>
         )}
       </div>
     </div>

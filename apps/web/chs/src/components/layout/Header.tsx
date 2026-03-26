@@ -21,11 +21,11 @@ export function Header() {
   return (
     <header className="h-[60px] border-b bg-white flex items-center px-4 gap-4 shrink-0">
       <div
-        className="text-title-card text-ssoo-primary cursor-pointer select-none"
+        className="font-bold text-lg text-ssoo-primary cursor-pointer select-none"
         onClick={() => router.push('/')}
       >
         SSOO{' '}
-        <span className="text-caption font-normal text-muted-foreground">CHS</span>
+        <span className="text-xs font-normal text-muted-foreground">CHS</span>
       </div>
 
       <div className="flex-1 max-w-md">
@@ -70,7 +70,7 @@ export function Header() {
           onClick={() => router.push('/profile/me')}
         >
           <AvatarImage src={undefined} />
-          <AvatarFallback className="text-caption bg-ssoo-primary text-white">
+          <AvatarFallback className="text-xs bg-ssoo-primary text-white">
             {initials}
           </AvatarFallback>
         </Avatar>

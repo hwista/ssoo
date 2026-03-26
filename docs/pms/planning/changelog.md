@@ -2,7 +2,7 @@
 
 > 전체 변경 이력 요약 및 영역별 문서 링크
 
-**마지막 업데이트**: 2026-03-25
+**마지막 업데이트**: 2026-02-10
 
 ---
 
@@ -33,15 +33,6 @@
 ---
 
 ## 📅 최근 변경 요약
-
-### 2026-03-25
-
-| 시간 | 커밋 | 영역 | 변경 내용 |
-|------|------|------|----------|
-| - | - | UI | **Density-driven typography 반영**: `FormField` label을 `text-label-md`로 정규화하고 design-system/instructions에 role layer + density + slot contract 규칙을 추가 |
-| - | - | UI | **layout/pages typography 마감**: sidebar 로고/카피라이트, 상태 pill, 타임라인/종결조건 메타를 `text-control-lg`/`text-caption`/`text-badge`로 정규화하고 pages/templates checker를 error로 승격 |
-| - | - | UI | **entry surface cleanup**: 로그인/오류 화면의 label/button typography를 semantic token으로 정리하고 대시보드 헤더를 `text-title-card`로 최종 통일 |
-| - | - | 문서 | **Phase 8 typography closure sync**: admin 6페이지, project 7개 탭, DashboardPage, sidebar 로고, CardTitle 정리 결과와 guard rule/구조적 예외/weight override 제거 기준을 문서 정본에 반영 |
 
 ### 2026-02-10
 
@@ -209,7 +200,4 @@
 | Date | Change |
 |------|--------|
 | 2026-02-09 | Add changelog section. |
-| 2026-03-25 | Add shared typography token system and typography validation flow. |
-| 2026-03-25 | Add `text-control-lg`/`text-badge` and align PMS control primitives with semantic typography tokens. |
-| 2026-03-25 | Apply first common/layout typography cleanup across state display, breadcrumb/filter, tab bar, user menu, sidebar tree, and datagrid support components. |
-| 2026-03-25 | Fix sidebar footer version typography regression by restoring the inherited `0.75rem/w500` rendering with `text-label-sm`. |
+

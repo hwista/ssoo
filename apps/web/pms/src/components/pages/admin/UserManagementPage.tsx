@@ -216,7 +216,7 @@ export function UserManagementPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b">
-        <h1 className="text-title-card">사용자 관리</h1>
+        <h1 className="text-lg font-semibold">사용자 관리</h1>
         <Button onClick={openCreateDialog} size="default">
           <Plus className="h-4 w-4 mr-1" />
           사용자 추가
@@ -276,13 +276,11 @@ export function UserManagementPage() {
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-mono text-code-inline">{user.loginId}</TableCell>
+                  <TableCell className="font-mono text-sm">{user.loginId}</TableCell>
                   <TableCell>{user.userName}</TableCell>
-                  <TableCell className="text-body-sm text-muted-foreground">
-                    {user.email}
-                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-label-sm ${
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                       user.roleCode === 'admin'
                         ? 'bg-red-100 text-red-700'
                         : 'bg-blue-100 text-blue-700'
@@ -290,9 +288,9 @@ export function UserManagementPage() {
                       {ROLE_LABEL[user.roleCode] ?? user.roleCode}
                     </span>
                   </TableCell>
-                  <TableCell className="text-body-sm">{user.departmentCode ?? '-'}</TableCell>
+                  <TableCell className="text-sm">{user.departmentCode ?? '-'}</TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-label-sm ${
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                       user.isActive
                         ? 'bg-green-100 text-green-700'
                         : 'bg-gray-100 text-gray-500'
@@ -300,7 +298,7 @@ export function UserManagementPage() {
                       {user.isActive ? '활성' : '비활성'}
                     </span>
                   </TableCell>
-                  <TableCell className="text-body-sm text-muted-foreground">
+                  <TableCell className="text-sm text-muted-foreground">
                     {formatDateTime(user.lastLoginAt)}
                   </TableCell>
                   <TableCell>
@@ -330,7 +328,7 @@ export function UserManagementPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t text-body-sm">
+        <div className="flex items-center justify-between px-6 py-3 border-t text-sm">
           <span className="text-muted-foreground">
             총 {total}명 (페이지 {page}/{totalPages})
           </span>
@@ -358,21 +356,19 @@ export function UserManagementPage() {
           <div className="grid gap-4 py-2">
             {/* Login ID - readonly when editing */}
             <div className="grid gap-1.5">
-              <label className="text-label-md">로그인 ID *</label>
+              <label className="text-sm font-medium">로그인 ID *</label>
               <Input
                 value={form.loginId}
                 onChange={(e) => updateField('loginId', e.target.value)}
                 disabled={!!editingUser}
                 placeholder="로그인 ID"
               />
-              {formErrors.loginId && (
-                <p className="text-caption text-destructive">{formErrors.loginId}</p>
-              )}
+              {formErrors.loginId && <p className="text-xs text-destructive">{formErrors.loginId}</p>}
             </div>
 
             {/* Password */}
             <div className="grid gap-1.5">
-              <label className="text-label-md">
+              <label className="text-sm font-medium">
                 비밀번호 {editingUser ? '(변경 시에만 입력)' : '*'}
               </label>
               <Input
@@ -381,26 +377,22 @@ export function UserManagementPage() {
                 onChange={(e) => updateField('password', e.target.value)}
                 placeholder={editingUser ? '변경하지 않으려면 비워두세요' : '비밀번호 (8자 이상)'}
               />
-              {formErrors.password && (
-                <p className="text-caption text-destructive">{formErrors.password}</p>
-              )}
+              {formErrors.password && <p className="text-xs text-destructive">{formErrors.password}</p>}
             </div>
 
             {/* Name row */}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <label className="text-label-md">이름 *</label>
+                <label className="text-sm font-medium">이름 *</label>
                 <Input
                   value={form.userName}
                   onChange={(e) => updateField('userName', e.target.value)}
                   placeholder="이름"
                 />
-                {formErrors.userName && (
-                  <p className="text-caption text-destructive">{formErrors.userName}</p>
-                )}
+                {formErrors.userName && <p className="text-xs text-destructive">{formErrors.userName}</p>}
               </div>
               <div className="grid gap-1.5">
-                <label className="text-label-md">표시명</label>
+                <label className="text-sm font-medium">표시명</label>
                 <Input
                   value={form.displayName}
                   onChange={(e) => updateField('displayName', e.target.value)}
@@ -412,19 +404,17 @@ export function UserManagementPage() {
             {/* Email + Phone */}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <label className="text-label-md">이메일 *</label>
+                <label className="text-sm font-medium">이메일 *</label>
                 <Input
                   type="email"
                   value={form.email}
                   onChange={(e) => updateField('email', e.target.value)}
                   placeholder="이메일"
                 />
-                {formErrors.email && (
-                  <p className="text-caption text-destructive">{formErrors.email}</p>
-                )}
+                {formErrors.email && <p className="text-xs text-destructive">{formErrors.email}</p>}
               </div>
               <div className="grid gap-1.5">
-                <label className="text-label-md">전화번호</label>
+                <label className="text-sm font-medium">전화번호</label>
                 <Input
                   value={form.phone}
                   onChange={(e) => updateField('phone', e.target.value)}
@@ -436,7 +426,7 @@ export function UserManagementPage() {
             {/* Role + Department + Position */}
             <div className="grid grid-cols-3 gap-3">
               <div className="grid gap-1.5">
-                <label className="text-label-md">역할</label>
+                <label className="text-sm font-medium">역할</label>
                 <Select value={form.roleCode} onValueChange={(v) => updateField('roleCode', v)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -449,7 +439,7 @@ export function UserManagementPage() {
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <label className="text-label-md">부서</label>
+                <label className="text-sm font-medium">부서</label>
                 <Input
                   value={form.departmentCode}
                   onChange={(e) => updateField('departmentCode', e.target.value)}
@@ -457,7 +447,7 @@ export function UserManagementPage() {
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-label-md">직급</label>
+                <label className="text-sm font-medium">직급</label>
                 <Input
                   value={form.positionCode}
                   onChange={(e) => updateField('positionCode', e.target.value)}

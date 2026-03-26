@@ -65,8 +65,7 @@ hooks → lib/api → stores
 1. `node .codex/scripts/verify-codex-sync.js`
 2. `node .github/scripts/check-docs.js` (문서 영향 시)
 3. `node .github/scripts/check-patterns.js` (코드 영향 시)
-4. `node .github/scripts/check-typography.js` (UI/타이포 영향 시)
-5. 필요 시 `node .github/scripts/check-design.js` + 앱 빌드
+4. 필요 시 `node .github/scripts/check-design.js` + 앱 빌드
 
 ## 문서 계층 원칙
 
@@ -106,8 +105,6 @@ Scope: server|web-pms|web-dms|database|types|docs
 - 요청한 컨트롤만 생성, 요청하지 않은 컨테이너 감싸기 금지
 - 컨트롤 높이 표준 준수 (세부 값은 각 도메인 design-system.md 참조)
 - 폰트는 전역 정의 상속, 개별 폰트 정의 금지 (`font-mono`, `font-sans`만 허용)
-- 타이포는 semantic token 우선 사용 (`text-title-*`, `text-body-*`, `text-label-*`, `text-caption`, `text-code-*`)
-- raw 조합(`text-sm font-medium`, `text-xs font-medium`, `text-lg font-semibold` 등)은 token으로 치환
 
 ## 품질 게이트 체크리스트
 

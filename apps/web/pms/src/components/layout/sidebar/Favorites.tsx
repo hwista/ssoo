@@ -15,7 +15,7 @@ export function Favorites() {
 
   if (favorites.length === 0) {
     return (
-      <div className="px-3 py-2 text-caption text-gray-400">
+      <div className="px-3 py-2 text-xs text-gray-400">
         즐겨찾기한 메뉴가 없습니다.
       </div>
     );
@@ -45,7 +45,7 @@ export function Favorites() {
         return (
           <div
             key={favorite.id}
-            className="group flex h-control-h w-full items-center gap-2 rounded-md px-3 text-body-sm text-gray-700 transition-colors hover:bg-ssoo-sitemap-bg"
+            className="flex items-center gap-2 w-full h-control-h px-3 text-sm text-gray-700 hover:bg-ssoo-sitemap-bg rounded-md transition-colors group"
           >
             <button
               onClick={() => handleClick(favorite)}

@@ -31,19 +31,19 @@ export function PostCard({ item }: PostCardProps) {
         <div className="flex items-start gap-3 mb-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src={author.avatarUrl || undefined} />
-            <AvatarFallback className="bg-ssoo-primary text-white text-body-sm">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-ssoo-primary text-white text-sm">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-label-strong truncate">{author.displayName || author.userName}</span>
+              <span className="font-semibold text-sm truncate">{author.displayName || author.userName}</span>
               {author.positionCode && (
-                <span className="text-caption text-muted-foreground">· {author.positionCode}</span>
+                <span className="text-xs text-muted-foreground">· {author.positionCode}</span>
               )}
             </div>
             {author.departmentCode && (
-              <p className="text-caption text-muted-foreground">{author.departmentCode}</p>
+              <p className="text-xs text-muted-foreground">{author.departmentCode}</p>
             )}
-            <p className="text-caption text-muted-foreground">{timeAgo}</p>
+            <p className="text-xs text-muted-foreground">{timeAgo}</p>
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
             <MoreHorizontal className="h-4 w-4" />
@@ -51,14 +51,14 @@ export function PostCard({ item }: PostCardProps) {
         </div>
 
         {/* Content */}
-        {post.title && <h3 className="text-title-card mb-2">{post.title}</h3>}
-        <p className="text-body-sm text-foreground whitespace-pre-wrap mb-3">{post.content}</p>
+        {post.title && <h3 className="font-semibold mb-2">{post.title}</h3>}
+        <p className="text-sm text-foreground whitespace-pre-wrap mb-3">{post.content}</p>
 
         {/* Tags */}
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
             {tags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-caption">
+              <Badge key={tag} variant="secondary" className="text-xs">
                 #{tag}
               </Badge>
             ))}
@@ -67,7 +67,7 @@ export function PostCard({ item }: PostCardProps) {
 
         {/* Stats */}
         {(reactionCount > 0 || commentCount > 0) && (
-          <div className="flex items-center gap-4 text-caption text-muted-foreground mb-2">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
             {reactionCount > 0 && <span>좋아요 {reactionCount}</span>}
             {commentCount > 0 && (
               <button className="hover:underline" onClick={() => setShowComments(!showComments)}>

@@ -29,9 +29,7 @@ echo "$CHANGED"
 
 NEED_DOCS=0
 NEED_PATTERNS=0
-NEED_TYPO=0
 PATTERN_FILES=()
-TYPO_FILES=()
 
 if echo "$CHANGED" | rg -q '\.md$|^docs/|^\.github/'; then
   NEED_DOCS=1
@@ -39,20 +37,17 @@ fi
 
 if echo "$CHANGED" | rg -q '\.tsx?$|^apps/|^packages/'; then
   NEED_PATTERNS=1
-  NEED_TYPO=1
 fi
 
 if [ "$NEED_PATTERNS" -eq 1 ]; then
   while IFS= read -r file; do
     if [[ "$file" =~ \.(ts|tsx|js|jsx)$ ]] && [ -f "$file" ]; then
       PATTERN_FILES+=("$file")
-      TYPO_FILES+=("$file")
     fi
   done <<< "$CHANGED"
 
   if [ "${#PATTERN_FILES[@]}" -eq 0 ]; then
     NEED_PATTERNS=0
-    NEED_TYPO=0
   fi
 fi
 
@@ -64,11 +59,6 @@ fi
 if [ "$NEED_PATTERNS" -eq 1 ]; then
   echo "[preflight] running: node .github/scripts/check-patterns.js ${PATTERN_FILES[*]}"
   node .github/scripts/check-patterns.js "${PATTERN_FILES[@]}"
-fi
-
-if [ "$NEED_TYPO" -eq 1 ]; then
-  echo "[preflight] running: node .github/scripts/check-typography.js ${TYPO_FILES[*]}"
-  node .github/scripts/check-typography.js "${TYPO_FILES[@]}"
 fi
 
 echo "[preflight] completed."

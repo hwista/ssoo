@@ -94,17 +94,17 @@ function MenuRow({
               'text-blue-500': currentAccess === 'read',
               'text-gray-400': currentAccess === 'none',
             })} />
-            <span className={cn(hasChildren ? 'text-label-md' : 'text-body-sm')}>
+            <span className={cn('text-sm', hasChildren && 'font-medium')}>
               {node.menuName}
             </span>
             {node.isAdminMenu && (
-              <span className="ml-2 px-1.5 py-0.5 rounded text-badge bg-amber-100 text-amber-700">
+              <span className="ml-2 px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700">
                 관리자
               </span>
             )}
           </div>
         </td>
-        <td className="px-4 py-2.5 font-mono text-code-inline text-muted-foreground">
+        <td className="px-4 py-2.5 text-xs text-muted-foreground font-mono">
           {node.menuPath ?? '-'}
         </td>
         <td className="px-4 py-2.5 w-36">
@@ -112,7 +112,7 @@ function MenuRow({
             value={currentAccess}
             onValueChange={(val: AccessType) => onChangeAccess(node.menuId, val)}
           >
-            <SelectTrigger className="h-8 text-caption">
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -229,7 +229,7 @@ export function RoleManagementPage() {
       <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
         <div className="flex items-center gap-2">
           <UserCog className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-title-card">역할 관리</h1>
+          <h1 className="text-lg font-semibold">역할 관리</h1>
         </div>
         {selectedRole && isDirty && (
           <Button
@@ -248,11 +248,11 @@ export function RoleManagementPage() {
         {/* Left Panel: Role List */}
         <div className="w-72 border-r bg-gray-50 flex flex-col">
           <div className="px-4 py-3 border-b bg-white">
-            <h2 className="text-label-md text-muted-foreground">역할 목록</h2>
+            <h2 className="text-sm font-medium text-muted-foreground">역할 목록</h2>
           </div>
           <div className="flex-1 overflow-auto">
             {roles.length === 0 ? (
-              <p className="p-4 text-body-sm text-muted-foreground">등록된 역할이 없습니다.</p>
+              <p className="p-4 text-sm text-muted-foreground">등록된 역할이 없습니다.</p>
             ) : (
               <ul className="py-1">
                 {roles.map((role) => (
@@ -260,16 +260,16 @@ export function RoleManagementPage() {
                     <button
                       onClick={() => handleRoleClick(role.codeValue)}
                       className={cn(
-                        'w-full text-left px-4 py-2.5 text-body-sm flex items-center justify-between transition-colors',
+                        'w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors',
                         selectedRole === role.codeValue
-                          ? 'bg-ssoo-primary/10 text-ssoo-primary text-label-md'
+                          ? 'bg-ssoo-primary/10 text-ssoo-primary font-medium'
                           : 'text-gray-700 hover:bg-gray-100',
                       )}
                     >
                       <div className="flex flex-col">
                         <span className="truncate">{role.displayNameKo}</span>
                         <span className={cn(
-                          'text-caption mt-0.5',
+                          'text-xs mt-0.5',
                           selectedRole === role.codeValue
                             ? 'text-ssoo-primary/70'
                             : 'text-gray-400',
@@ -289,17 +289,17 @@ export function RoleManagementPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {!selectedRole ? (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-muted-foreground text-body-sm">좌측에서 역할을 선택하세요.</p>
+              <p className="text-muted-foreground text-sm">좌측에서 역할을 선택하세요.</p>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between px-6 py-3 border-b bg-white">
-                <h2 className="text-label-strong">
+                <h2 className="text-sm font-semibold">
                   {roles.find((r) => r.codeValue === selectedRole)?.displayNameKo ?? selectedRole}
                   {' '}메뉴 권한
                 </h2>
                 {isDirty && (
-                  <span className="text-caption text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                  <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
                     {localPermissions.size}건 변경됨
                   </span>
                 )}
@@ -310,19 +310,19 @@ export function RoleManagementPage() {
                   <LoadingState message="메뉴 권한을 불러오는 중..." />
                 ) : permissions.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
-                    <p className="text-body-sm text-muted-foreground">등록된 메뉴가 없습니다.</p>
+                    <p className="text-sm text-muted-foreground">등록된 메뉴가 없습니다.</p>
                   </div>
                 ) : (
-                  <table className="w-full text-body-sm">
+                  <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-gray-50">
-                        <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
                           메뉴명
                         </th>
-                        <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
                           경로
                         </th>
-                        <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground w-36">
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-36">
                           접근 권한
                         </th>
                       </tr>

@@ -106,7 +106,7 @@ export function MilestonesTab({ projectId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-label-strong flex items-center gap-2">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
           <Flag className="h-4 w-4" />
           마일스톤 ({milestones.length})
         </h3>
@@ -117,33 +117,33 @@ export function MilestonesTab({ projectId }: Props) {
       </div>
 
       {milestones.length === 0 ? (
-        <div className="text-body-sm text-muted-foreground py-8 text-center">
+        <div className="text-sm text-muted-foreground py-8 text-center">
           아직 등록된 마일스톤이 없습니다.
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-body-sm">
+          <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left p-3 text-label-md">코드</th>
-                <th className="text-left p-3 text-label-md">마일스톤명</th>
-                <th className="text-center p-3 text-label-md">상태</th>
-                <th className="text-left p-3 text-label-md">기한</th>
-                <th className="text-left p-3 text-label-md">달성일</th>
-                <th className="text-center p-3 text-label-md w-10"></th>
+                <th className="text-left p-3 font-medium">코드</th>
+                <th className="text-left p-3 font-medium">마일스톤명</th>
+                <th className="text-center p-3 font-medium">상태</th>
+                <th className="text-left p-3 font-medium">기한</th>
+                <th className="text-left p-3 font-medium">달성일</th>
+                <th className="text-center p-3 font-medium w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {milestones.map((m: MilestoneItem) => (
                 <tr key={String(m.id)} className="hover:bg-muted/30 group">
-                  <td className="p-3 font-mono text-code-line-number">{m.milestoneCode}</td>
+                  <td className="p-3 font-mono text-xs">{m.milestoneCode}</td>
                   <td className="p-3">{m.milestoneName}</td>
                   <td className="p-3 text-center">
                     <Select
                       value={m.statusCode}
                       onValueChange={(v) => handleStatusChange(m, v)}
                     >
-                      <SelectTrigger className="h-7 w-24 text-caption mx-auto">
+                      <SelectTrigger className="h-7 w-24 text-xs mx-auto">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -186,7 +186,7 @@ export function MilestonesTab({ projectId }: Props) {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-label-md">코드 *</label>
+                <label className="text-sm font-medium">코드 *</label>
                 <Input
                   placeholder="예: MS-001"
                   value={formData.milestoneCode}
@@ -194,7 +194,7 @@ export function MilestonesTab({ projectId }: Props) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-label-md">마일스톤명 *</label>
+                <label className="text-sm font-medium">마일스톤명 *</label>
                 <Input
                   placeholder="마일스톤명 입력"
                   value={formData.milestoneName}
@@ -205,7 +205,7 @@ export function MilestonesTab({ projectId }: Props) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-label-md">상태</label>
+                <label className="text-sm font-medium">상태</label>
                 <Select value={formData.statusCode} onValueChange={(v) => setFormData({ ...formData, statusCode: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -216,7 +216,7 @@ export function MilestonesTab({ projectId }: Props) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-label-md">기한</label>
+                <label className="text-sm font-medium">기한</label>
                 <Input
                   type="date"
                   value={formData.dueAt}
@@ -226,7 +226,7 @@ export function MilestonesTab({ projectId }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-label-md">설명</label>
+              <label className="text-sm font-medium">설명</label>
               <Textarea
                 placeholder="마일스톤 설명 (선택)"
                 value={formData.description}

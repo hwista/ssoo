@@ -78,8 +78,6 @@
     --ls-gray: #7D8282;                     /* GRAY - RGB(125, 130, 130) */
     --ls-silver: #87827D;                   /* SILVER - RGB(135, 130, 125) */
     --ls-gold: #7D0D0D;                     /* GOLD - RGB(125, 13, 13) */
-    --font-sans: -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Segoe UI", "Noto Sans KR", sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 
   .dark {
@@ -110,7 +108,9 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+      Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   }
 }
 
@@ -136,24 +136,24 @@ a:hover {
 @layer components {
   /* 제목 스타일 */
   .heading-1 {
-    @apply text-title-page text-gray-900;
+    @apply text-h1 text-gray-900 font-bold;
   }
   
   .heading-2 {
-    @apply text-title-section text-gray-800;
+    @apply text-h2 text-gray-800 font-semibold;
   }
   
   .heading-3 {
-    @apply text-title-subsection text-gray-800;
+    @apply text-h3 text-gray-800 font-semibold;
   }
   
   /* 본문 텍스트 */
   .body-text {
-    @apply text-body-md text-gray-700;
+    @apply text-body text-gray-700;
   }
   
   .body-text-muted {
-    @apply text-body-md text-muted-foreground;
+    @apply text-body text-gray-500;
   }
 
   /* 아이콘 크기 */

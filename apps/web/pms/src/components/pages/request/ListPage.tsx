@@ -38,7 +38,7 @@ const columns: ColumnDef<Project>[] = [
       return (
         <button
           type="button"
-          className="text-label-md text-ssoo-primary hover:underline"
+          className="text-ssoo-primary hover:underline font-medium"
           onClick={(e) => {
             e.stopPropagation();
             const { openTab } = useTabStore.getState();
@@ -74,7 +74,7 @@ const columns: ColumnDef<Project>[] = [
     cell: ({ row }) => {
       const status = row.original.statusCode;
       return (
-        <span className="px-2 py-1 rounded text-label-sm bg-blue-100 text-blue-800">
+        <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
           {statusLabels[status]}
         </span>
       );
@@ -92,7 +92,7 @@ const columns: ColumnDef<Project>[] = [
         done: 'bg-gray-100 text-gray-800',
       };
       return (
-        <span className={`px-2 py-1 rounded text-label-sm ${colorMap[stage]}`}>
+        <span className={`px-2 py-1 rounded text-xs font-medium ${colorMap[stage]}`}>
           {stageLabels[stage]}
         </span>
       );
@@ -308,7 +308,7 @@ export function RequestListPage() {
               tableClassName="h-full"
               headerClassName="bg-ssoo-content-bg"
               headerCellClassName="bg-ssoo-content-bg"
-              emptyState={<div className="text-center text-body-sm text-muted-foreground">행을 선택하세요.</div>}
+              emptyState={<div className="text-center text-sm text-muted-foreground">행을 선택하세요.</div>}
             />
           ),
           defaultOpen: Boolean(selectedProject),

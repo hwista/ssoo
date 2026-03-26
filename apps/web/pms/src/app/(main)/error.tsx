@@ -37,10 +37,10 @@ export default function MainError({
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center max-w-md px-6">
         <div className="text-5xl mb-4">⚠️</div>
-        <h2 className="text-title-subsection text-gray-900 mb-2">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">
           {isChunkError ? '페이지 로딩 실패' : '오류가 발생했습니다'}
         </h2>
-        <p className="text-body-sm text-gray-500 mb-6">
+        <p className="text-sm text-gray-500 mb-6">
           {isChunkError
             ? '페이지 리소스를 불러오는 데 실패했습니다.'
             : '예기치 않은 오류가 발생했습니다. 다시 시도해주세요.'}
@@ -48,13 +48,13 @@ export default function MainError({
         <div className="flex gap-3 justify-center">
           <button
             onClick={() => window.location.reload()}
-            className="rounded-md bg-primary px-6 py-2 text-label-md text-primary-foreground transition-colors hover:bg-primary/90"
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             새로고침
           </button>
           <button
             onClick={reset}
-            className="rounded-md border border-gray-300 bg-white px-6 py-2 text-label-md text-gray-700 transition-colors hover:bg-gray-50"
+            className="px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
           >
             다시 시도
           </button>

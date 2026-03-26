@@ -143,12 +143,12 @@ export function Header({
           >
             {isCollapsed ? (
               <>
-                <span className="mr-1 text-caption">펼치기</span>
+                <span className="mr-1 text-xs">펼치기</span>
                 <ChevronDown className="h-4 w-4" />
               </>
             ) : (
               <>
-                <span className="mr-1 text-caption">접기</span>
+                <span className="mr-1 text-xs">접기</span>
                 <ChevronUp className="h-4 w-4" />
               </>
             )}
@@ -193,7 +193,7 @@ export function Header({
       {/* 필터가 없어도 기본 영역 확보 */}
       {!isCollapsed && !hasFilters && (
         <div className="px-4 py-2 bg-gray-50 min-h-[52px] flex items-center">
-          <span className="text-body-sm text-muted-foreground">검색 조건이 없습니다</span>
+          <span className="text-sm text-muted-foreground">검색 조건이 없습니다</span>
         </div>
       )}
     </div>

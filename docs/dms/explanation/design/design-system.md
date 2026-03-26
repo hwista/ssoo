@@ -86,18 +86,21 @@
 
 ### 3.1 폰트 스택
 
-> **전역 표준**: PMS/CHS/DMS는 동일한 sans/mono 스택을 사용합니다.
+> **PMS/DMS 통합 표준**: 두 앱 모두 동일한 시스템 폰트를 사용합니다.
 
 ```css
 /* 기본 폰트 (font-sans) - 시스템 폰트 */
 font-family: 
-  -apple-system, BlinkMacSystemFont, system-ui,
-  Roboto, "Segoe UI", "Noto Sans KR", sans-serif;
+  -apple-system, BlinkMacSystemFont, 
+  'Segoe UI', Roboto, Oxygen, 
+  Ubuntu, Cantarell, 'Open Sans', 
+  'Helvetica Neue', sans-serif;
 
 /* 코드 폰트 (font-mono) */
 font-family: 
-  ui-monospace, SFMono-Regular,
-  Menlo, Monaco, Consolas, monospace;
+  "Fira Code", "JetBrains Mono", 
+  "SF Mono", Monaco, Consolas, 
+  monospace;
 ```
 
 ### 3.2 폰트 적용 규칙
@@ -108,8 +111,8 @@ font-family:
 
 | 파일 | 역할 | 수정 가능 |
 |------|------|----------|
-| `tailwind.config.js` | `fontFamily.sans`, `fontFamily.mono`, semantic fontSize 정의 | ✅ 정본 구현 |
-| `globals.css` | CSS 변수 + 기존 alias(`heading-*`, `body-text`) 유지 | ✅ 전역 적용 |
+| `tailwind.config.js` | `fontFamily.sans`, `fontFamily.mono` 정의 | ✅ 유일한 정의 위치 |
+| `globals.css` | `body`에 `font-sans` 적용 | ✅ 전역 적용 |
 | 컴포넌트 | 상속받음 | ❌ 개별 정의 금지 |
 
 #### 허용되는 클래스
@@ -118,7 +121,6 @@ font-family:
 |--------|------|
 | `font-sans` | 일반 텍스트 (기본, 생략 가능) |
 | `font-mono` | 코드, 마크다운 에디터 |
-| `text-title-*`, `text-body-*`, `text-label-*`, `text-caption`, `text-code-*` | semantic typography token |
 
 #### 금지되는 패턴
 
@@ -145,126 +147,18 @@ className="font-sans"  // 명시적 일반 텍스트
 2. 승인 후 `// eslint-disable-line design/font-override` 주석 추가
 3. 이유를 코드 주석에 명시
 
-### 3.3 시맨틱 타이포 토큰
+### 3.3 텍스트 스케일
 
-| 토큰 | 크기 | 행간 | 굵기 | 용도 |
-|------|------|------|------|------|
-| `text-title-page` | 28px | 36px | 700 | 페이지 제목 |
-| `text-title-section` | 24px | 32px | 600 | 섹션 제목 |
-| `text-title-subsection` | 20px | 28px | 600 | 하위 섹션 제목 |
-| `text-title-card` | 18px | 28px | 600 | 카드/패널 타이틀 |
-| `text-body-md` | 14px | 24px | 400 | 기본 본문 |
-| `text-body-sm` | 14px | 20px | 400 | 촘촘한 본문 |
-| `text-label-md` | 14px | 20px | 500 | 기본 라벨 |
-| `text-label-sm` | 12px | 16px | 500 | 작은 라벨 |
-| `text-label-strong` | 14px | 20px | 600 | 강조 라벨 |
-| `text-caption` | 12px | 16px | 400 | 캡션/보조 설명 |
-| `text-control-lg` | 16px | 24px | 400 | 큰 컨트롤 텍스트 |
-| `text-badge` | 12px | 16px | 600 | badge/chip 라벨 |
-| `text-code-inline` | 13px | 1.5 | 400 | 인라인 코드, 경로, 식별자 |
-| `text-code-block` | 13px | 1.625 | 400 | 코드 블록 본문 |
-| `text-code-line-number` | 12px | 16px | 500 | 줄번호, gutter |
-
-기존 `heading-1/2/3`, `body-text`, `body-text-muted`는 하위 호환 alias로 유지합니다.
-
-### 3.4 Density-Driven Typography Model
-
-#### Role Layers
-
-| 계층 | 목적 | 기본 토큰 |
-|------|------|-----------|
-| `header` | 페이지/섹션/하위섹션 위계 | `text-title-page`, `text-title-section`, `text-title-subsection` |
-| `title` | 카드/패널/블록 제목 | `text-title-card` |
-| `body` | 사용자가 읽는 기본 데이터 | `text-body-md`, `text-body-sm` |
-| `detail` | 메타/시간/경로/보조 설명 | `text-caption` |
-| `label` | 조작/식별용 텍스트의 독립 역할 계층 | `text-label-md`, `text-label-sm`, `text-label-strong` |
-| `badge` | 압축된 상태/태그/카운트 | `text-badge` |
-| `code` | 코드/경로/기술 텍스트 | `text-code-inline`, `text-code-block`, `text-code-line-number` |
-| `annotation` | diff marker, warning, correction label | `text-label-sm`, `text-badge`, `text-caption` 재사용 |
-
-#### Density
-
-| 밀도 | 설명 | 예시 표면 |
-|------|------|-----------|
-| `spacious` | 위계 강조, 여백이 넉넉함 | page header, section header, empty state title |
-| `normal` | 일반 입력/카드/폼/상세 | article body, form content, dialog description |
-| `dense` | 스캔/조작 중심의 높은 밀도 | sidebar item, picker row, result card meta, history row |
-| `exception` | 일반 읽기 모드가 아닌 특수 표면 | line number, diff overlay, mermaid fallback |
-
-토큰 선택 순서는 `slot 역할 -> density -> 허용 token` 입니다. raw class 조합은 보조 힌트일 뿐 최종 판단 기준이 아닙니다.
-
-### 3.5 Slot-Based Token Contract
-
-| 슬롯 | 허용 토큰 계층 |
-|------|----------------|
-| `Header.title` | `header`, `title` |
-| `Card.title` | `title` |
-| `Card.description` | `body`, `detail` |
-| `Form.label` | `label` |
-| `Form.hint`, `Form.error` | `detail` |
-| `Sidebar.itemLabel` | `body-sm`, `label-md` |
-| `Sidebar.meta` | `detail` |
-| `Picker.sectionTitle` | `label-strong`, `badge` |
-| `Picker.itemMeta` | `detail` |
-| `ResultCard.title` | `title` |
-| `ResultCard.summary` | `body` |
-| `ResultCard.meta`, `ResultCard.path`, `ResultCard.snippet` | `detail` |
-| `Badge/Chip.text` | `badge`, `label` |
-| `Diff.marker` | `annotation` |
-| `LineNumber` | `code-line-number` |
-| `Avatar.initials` | `label intent + container-scaled` |
-
-### 3.6 Container-Scaled Text
-
-- 아바타/아이콘 내부처럼 컨테이너 크기에 종속되는 텍스트는 semantic intent를 먼저 정합니다.
-- `UserAvatar` 이니셜은 `label` intent를 가지며 기준 token은 `text-label-sm` 입니다.
-- 실제 font-size는 컨테이너 크기에 비례해 런타임 스케일할 수 있습니다.
-
-### 3.7 컨트롤 타이포 매핑
-
-- Button `sm`: `text-caption`
-- Button `default`: `text-label-md`
-- Button `lg`, Textarea 기본: `text-control-lg`
-- Dropdown/Select/Input item/trigger: `text-body-sm`
-- Dropdown shortcut, Tooltip: `text-caption`
-- Badge: `text-badge`
-
-### 3.8 Typography Guard Rules
-
-- `text-sm font-medium`, `text-xs font-medium`, `text-sm font-semibold`, `text-lg font-semibold`, `text-xs font-semibold`, `text-lg font-medium`, `body-text font-medium` raw 조합은 금지합니다.
-- `text-[10px]`, `text-[11px]` 같은 arbitrary font-size는 금지합니다.
-- standalone `text-xl`, `text-2xl`, `font-bold`는 금지합니다. Phase 8 기준 `text-title-subsection`, `text-title-section`, weight가 포함된 semantic token으로 닫습니다.
-- semantic token에 raw weight override(`text-title-card font-bold`, `text-label-md font-semibold`)를 추가하는 패턴은 금지합니다.
-- `badge/chip/chart/table cell` 내부 텍스트도 역할/밀도 기준 정규화 대상입니다.
-- 새 token은 기존 role layer로 설명하기 어렵고, 서로 다른 2개 이상 컴포넌트에서 반복되는 독립 역할일 때만 추가합니다.
-
-#### Phase 8 Structural Exceptions
-
-- `UserAvatar.tsx`: container-scaled text
-- viewer zoom (`fontSize: ${zoomLevel}%`)
-- CodeMirror `HighlightStyle` em-relative sizes
-- `SplitDiffViewer.tsx` CSS custom property references
-- `global-error.tsx` CSS 미로드 fallback
-- `*.stories.tsx` checker 제외 파일
-
-### 3.9 Document Content Typography Layer
-
-- DMS 문서 본문은 UI token 계층과 별도의 document content 계층으로 취급합니다.
-- viewer 본문 `prose-base`, block editor 본문, diff 본문은 모두 `16px`를 유지합니다.
-- `text-body-md` 14px는 일반 UI 본문용이며, 문서 읽기/편집/비교 본문을 대체하지 않습니다.
-
-```css
-:root {
-  --doc-content-font-size: 1rem;
-  --doc-content-line-height: 1.625;
-  --doc-line-number-font-size: 0.875rem;
-  --doc-line-number-font-weight: 500;
-}
-```
-
-- `--doc-content-*`는 editor/diff 본문 parity용 변수입니다.
-- `--doc-line-number-*`는 diff line number 정형화용 변수입니다.
-- button prominence 문제는 문서 본문 크기 문제가 아니라 weight/contrast/density 문제이므로 별도 QA 항목으로 다룹니다.
+| 이름 | 크기 | Tailwind | 용도 |
+|------|------|----------|------|
+| H1 | 36px / 2.25rem | `text-4xl` | 페이지 제목 |
+| H2 | 30px / 1.875rem | `text-3xl` | 섹션 제목 |
+| H3 | 24px / 1.5rem | `text-2xl` | 서브섹션 |
+| H4 | 20px / 1.25rem | `text-xl` | 컴포넌트 제목 |
+| Large | 18px / 1.125rem | `text-lg` | 강조 텍스트 |
+| Base | 16px / 1rem | `text-base` | 본문 텍스트 |
+| Small | 14px / 0.875rem | `text-sm` | 부가 정보 |
+| XSmall | 12px / 0.75rem | `text-xs` | 라벨, 캡션 |
 
 ---
 
@@ -407,7 +301,7 @@ AI가 컨트롤(버튼, 입력, 토글 등) 생성 요청을 받았을 때:
 
 ```tsx
 <Card className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-  <CardHeader className="text-title-card text-gray-900 mb-2">
+  <CardHeader className="text-lg font-semibold text-gray-900 mb-2">
     제목
   </CardHeader>
   <CardContent className="text-gray-600">

@@ -24,7 +24,7 @@ export function BoardListPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-title-subsection">게시판</h1>
+        <h1 className="text-xl font-bold">게시판</h1>
         <Button size="sm">
           <Plus className="h-4 w-4 mr-1" />
           새 게시판
@@ -53,17 +53,17 @@ export function BoardListPage() {
             >
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-control-lg">{board.boardName}</CardTitle>
-                  <Badge variant="outline" className="text-caption">
+                  <CardTitle className="text-base">{board.boardName}</CardTitle>
+                  <Badge variant="outline" className="text-xs">
                     {boardTypeLabels[board.boardType] || board.boardType}
                   </Badge>
                 </div>
                 {board.description && (
-                  <CardDescription className="text-caption">{board.description}</CardDescription>
+                  <CardDescription className="text-xs">{board.description}</CardDescription>
                 )}
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-caption text-muted-foreground">코드: {board.boardCode}</p>
+                <p className="text-xs text-muted-foreground">코드: {board.boardCode}</p>
               </CardContent>
             </Card>
           ))}

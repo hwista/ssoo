@@ -72,7 +72,7 @@ export function MembersTab({ projectId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-label-strong flex items-center gap-2">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
           <Users className="h-4 w-4" />
           프로젝트 멤버 ({members.length})
         </h3>
@@ -83,20 +83,20 @@ export function MembersTab({ projectId }: Props) {
       </div>
 
       {members.length === 0 ? (
-        <div className="text-body-sm text-muted-foreground py-8 text-center">
+        <div className="text-sm text-muted-foreground py-8 text-center">
           아직 등록된 멤버가 없습니다.
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-body-sm">
+          <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left p-3 text-label-md">이름</th>
-                <th className="text-left p-3 text-label-md">역할</th>
-                <th className="text-left p-3 text-label-md">부서</th>
-                <th className="text-center p-3 text-label-md">투입률</th>
-                <th className="text-left p-3 text-label-md">배정일</th>
-                <th className="text-center p-3 text-label-md w-16">삭제</th>
+                <th className="text-left p-3 font-medium">이름</th>
+                <th className="text-left p-3 font-medium">역할</th>
+                <th className="text-left p-3 font-medium">부서</th>
+                <th className="text-center p-3 font-medium">투입률</th>
+                <th className="text-left p-3 font-medium">배정일</th>
+                <th className="text-center p-3 font-medium w-16">삭제</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -104,7 +104,7 @@ export function MembersTab({ projectId }: Props) {
                 <tr key={`${m.userId}-${m.roleCode}`} className="hover:bg-muted/30">
                   <td className="p-3">{m.user?.displayName || m.user?.userName || '-'}</td>
                   <td className="p-3">
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-label-sm text-blue-700">
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
                       {ROLE_LABELS[m.roleCode] || m.roleCode}
                     </span>
                   </td>
@@ -140,7 +140,7 @@ export function MembersTab({ projectId }: Props) {
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-label-md">사용자 ID</label>
+              <label className="text-sm font-medium">사용자 ID</label>
               <Input
                 placeholder="사용자 ID를 입력하세요"
                 value={formData.userId}
@@ -149,7 +149,7 @@ export function MembersTab({ projectId }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-label-md">역할</label>
+              <label className="text-sm font-medium">역할</label>
               <Select
                 value={formData.roleCode}
                 onValueChange={(value) => setFormData({ ...formData, roleCode: value })}
@@ -168,7 +168,7 @@ export function MembersTab({ projectId }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-label-md">투입률 (%)</label>
+              <label className="text-sm font-medium">투입률 (%)</label>
               <Input
                 type="number"
                 min={0}

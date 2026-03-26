@@ -1,54 +1,8 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-03-25
+> 최종 업데이트: 2026-03-19
 
 ---
-
-## 2026-03-25
-
-### Phase 7 DMS 문서 표면 재마감
-
-- Phase 6 완료 판정 뒤에도 `DocumentPage` shell, sidecar, editor dialogs에 단독 `text-sm`, `text-xs`, `font-medium` 잔여가 남아 있던 문제를 정리했다.
-- DMS 문서 본문은 `16px`를 유지하고, viewer/editor/diff 간 WYSIWYG parity를 깨지 않도록 본문 크기 축소는 하지 않았다.
-- `SplitDiffViewer`와 block editor theme의 `fontSize: '1rem'`, `lineHeight: '1.625'`, line number literal을 `--doc-content-*`, `--doc-line-number-*` CSS 변수로 정형화했다.
-- Header 및 viewer toolbar의 button prominence 조정은 이번 단계에서 제외하고 후속 수동 QA 항목으로 분리했다.
-
-### Density-Driven Typography Rebase
-
-- `DiffTextInput`, `ResultCard`, `Chips`, `MermaidBlock`를 role layer + density 기준으로 재정렬하고 `text-[10px]`, `text-[11px]` raw size를 제거했다.
-- `ResultCard`는 title/body/detail/badge 계층으로 통합하고 compact/full 차이는 spacing과 clamp만 남겼다.
-- `UserAvatar` 이니셜을 구조적 예외가 아니라 `label intent + container-scaled text` 패턴으로 문서와 구현에 반영했다.
-- typography checker에 `arbitrary-font-size` 규칙을 추가하고 density-driven typography 모델, slot contract, container-scaled text 규칙을 design-system/instructions 정본에 동기화했다.
-- sidebar 로고 이니셜은 이후 Phase 8에서 `text-control-lg`로 최종 정리되었고, `NewDocumentLauncher`, `ActivitySections`, `SettingsPage`의 pages scope raw typography를 `text-caption`/`text-badge`로 정리했다.
-- pages/templates checker severity를 `error`로 승격하고 `text-lg font-medium`, `body-text font-medium` 금지 규칙을 추가했다.
-
-### Phase 8 Typography Closure Sync
-
-- CardTitle semantic token 통일, 로고 weight override 제거, `blockEditorExtensions` spinner shorthand 정리 결과를 문서와 changelog에 반영했다.
-- typography checker에 standalone `text-xl`/`text-2xl`, standalone `font-bold`, semantic token + raw weight override 금지 규칙을 추가했다.
-- design-system과 instructions에 Phase 8 structural exception 목록과 최종 guard rule을 동기화했다.
-
-### Control Typography Token 적용
-
-- `text-control-lg`, `text-badge` 토큰을 추가하고 DMS control primitive typography를 semantic token 기준으로 정리
-- Button, Dropdown, Dialog, AlertDialog, CardDescription, Tooltip의 raw typography를 비주얼 무변경 조건으로 치환
-- typography checker에 `badge-raw` 규칙을 추가하고 instruction/design-system 문서를 동기화
-- common/layout typography 6-B 2차 패스에서 DMS assistant/viewer 계층의 저위험 raw typography를 semantic token으로 치환했다.
-- DMS/PMS sidebar footer 버전 텍스트를 `text-label-sm`으로 바로잡아 0.75rem/500 weight 상속 렌더를 복구했다.
-- `Composer`, `MessageList`, `Picker`, `PickerSections`, `TocMenu`, `ImagePreviewDialog`의 `text-sm`/`text-xs`를 `text-body-sm`/`text-caption`으로 치환하고 leading override는 유지했다.
-- common typography 6-B 3차 판정 패스에서 `FloatingAssistantPanel` empty state, `HistoryList` 제목 상속 패턴, `LineNumbers`의 중복 weight를 렌더 무변경 기준으로 추가 정리했다.
-
-
-## 2026-03-24
-
-### Diff 모드 UX 개선 및 복귀 버그 수정
-
-- diff 모드 툴바 단순화: 원본보기/이전보기 버튼 제거, 본문/메타데이터 토글만 왼쪽 정렬 유지
-- diff 모드 헤더: 편집종료/작성취소 → ← 뒤로가기 (editor/create 모두 현재 편집 세션 복귀)
-- diff 복귀 시 draft 보존 버그 수정: 편집 종료 경로 차단 + 스냅샷이 editor state를 덮어쓰지 않도록 분리
-- diff 뷰어 폰트를 에디터 본문과 동일 계열(sans-serif, 1rem, lineHeight 1.625)로 통일
-- PageTemplate contentNode DOM 안정화: contentMaxWidth 전환 시 DOM 구조 변경 → CSS 전환으로 개선, Editor 재마운트 방지
-- diff 뷰어 스타일 개선: 쉘 밀착 레이아웃, 타이틀/줄번호 배경색 sidecar 톤 통일, 헤더/줄번호 폰트 사이드바 기준 정렬
 
 ## 2026-03-19
 
@@ -822,6 +776,3 @@ npm uninstall @fluentui/react @fluentui/react-components @fluentui/react-icons
 | 날짜 | 변경 내용 |
 |------|----------|
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |
-| 2026-03-25 | 전역 typography token, font CSS 변수, check-typography 검증 흐름 문서화 |
-| 2026-03-25 | common/layout 1차 타이포 정리: 상태 표시, 헤더/유저메뉴, 사이드바 트리/탭, 저장 경로/툴바/히스토리 일부를 semantic token으로 치환 |
-| 2026-03-25 | common/layout 2차 타이포 정리: DMS assistant/picker/toc/image preview를 semantic token으로 정리하고 sidebar footer 버전 텍스트 크기 회귀를 `text-label-sm`으로 수정 |

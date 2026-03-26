@@ -313,15 +313,15 @@ export function RequestCreatePage() {
 
               {submitError && (
                 <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
-                  <p className="text-body-sm text-destructive">{submitError}</p>
+                  <p className="text-sm text-destructive">{submitError}</p>
                 </div>
               )}
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-label-md text-blue-800 mb-2">
+                <p className="text-sm font-medium text-blue-800 mb-2">
                   📌 등록 시 자동 설정되는 값
                 </p>
-                <ul className="text-body-sm text-blue-700 space-y-1">
+                <ul className="text-sm text-blue-700 space-y-1">
                   <li>• 상태: <strong>요청 (Request)</strong></li>
                   <li>• 단계: <strong>대기 (Waiting)</strong></li>
                 </ul>

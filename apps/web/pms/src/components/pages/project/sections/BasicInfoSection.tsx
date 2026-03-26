@@ -63,26 +63,26 @@ export function BasicInfoSection({ project, onUpdated }: BasicInfoSectionProps) 
     return (
       <div className="border rounded-lg p-4 bg-white">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-label-strong">기본 정보</h2>
+          <h2 className="text-sm font-semibold">기본 정보</h2>
           <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
             <Pencil className="h-3.5 w-3.5 mr-1" />
             편집
           </Button>
         </div>
-        <div className="grid grid-cols-2 gap-4 text-body-sm lg:grid-cols-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           <div>
             <p className="text-muted-foreground mb-1">프로젝트명</p>
-            <p className="text-label-md">{project.projectName}</p>
+            <p className="font-medium">{project.projectName}</p>
           </div>
           <div>
             <p className="text-muted-foreground mb-1">상태</p>
-            <span className="px-2 py-1 rounded text-label-sm bg-blue-100 text-blue-800">
+            <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
               {statusLabels[project.statusCode]}
             </span>
           </div>
           <div>
             <p className="text-muted-foreground mb-1">단계</p>
-            <span className="px-2 py-1 rounded text-label-sm bg-green-100 text-green-800">
+            <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
               {stageLabels[project.stageCode]}
             </span>
           </div>
@@ -104,7 +104,7 @@ export function BasicInfoSection({ project, onUpdated }: BasicInfoSectionProps) 
   return (
     <div className="border rounded-lg p-4 bg-white">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-label-strong">기본 정보 편집</h2>
+        <h2 className="text-sm font-semibold">기본 정보 편집</h2>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
             <X className="h-3.5 w-3.5 mr-1" />

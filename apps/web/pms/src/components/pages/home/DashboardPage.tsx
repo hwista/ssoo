@@ -116,8 +116,8 @@ export function HomeDashboardPage() {
       <div className="h-full flex items-center justify-center p-8">
         <div className="text-center text-gray-500">
           <AlertCircle className="w-10 h-10 mx-auto mb-3 text-red-400" />
-          <p className="text-body-sm">데이터를 불러오지 못했습니다</p>
-          <p className="text-caption text-gray-400 mt-1">잠시 후 다시 시도해주세요</p>
+          <p className="text-sm">데이터를 불러오지 못했습니다</p>
+          <p className="text-xs text-gray-400 mt-1">잠시 후 다시 시도해주세요</p>
         </div>
       </div>
     );
@@ -128,8 +128,8 @@ export function HomeDashboardPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* 페이지 헤더 */}
         <div>
-          <h1 className="text-title-card text-gray-800">대시보드</h1>
-          <p className="text-body-sm text-gray-500 mt-0.5">프로젝트 현황을 한눈에 확인하세요</p>
+          <h1 className="text-lg font-bold text-gray-800">대시보드</h1>
+          <p className="text-sm text-gray-500 mt-0.5">프로젝트 현황을 한눈에 확인하세요</p>
         </div>
 
         {/* 2x2 위젯 그리드 */}
@@ -157,7 +157,7 @@ function StatusSummaryWidget({
 
   return (
     <div className="bg-white rounded-lg border shadow-sm p-4">
-      <h2 className="text-label-strong text-gray-700 mb-3">프로젝트 현황</h2>
+      <h2 className="text-sm font-semibold text-gray-700 mb-3">프로젝트 현황</h2>
       <div className="grid grid-cols-2 gap-3">
         {statuses.map((status) => {
           const cfg = STATUS_CONFIG[status];
@@ -174,9 +174,9 @@ function StatusSummaryWidget({
                 {isLoading ? (
                   <Skeleton className="h-6 w-10 mb-1" />
                 ) : (
-                  <p className={`text-title-subsection ${cfg.textColor}`}>{counts[status]}</p>
+                  <p className={`text-xl font-bold ${cfg.textColor}`}>{counts[status]}</p>
                 )}
-                <p className="text-caption text-gray-500 truncate">{cfg.label}</p>
+                <p className="text-xs text-gray-500 truncate">{cfg.label}</p>
               </div>
             </div>
           );
@@ -212,7 +212,7 @@ function RecentProjectsWidget({
     <div className="bg-white rounded-lg border shadow-sm p-4">
       <div className="flex items-center gap-2 mb-3">
         <Clock className="w-4 h-4 text-gray-400" />
-        <h2 className="text-label-strong text-gray-700">최근 프로젝트</h2>
+        <h2 className="text-sm font-semibold text-gray-700">최근 프로젝트</h2>
       </div>
       <div className="space-y-2">
         {isLoading ? (
@@ -224,7 +224,7 @@ function RecentProjectsWidget({
             </div>
           ))
         ) : projects.length === 0 ? (
-          <p className="text-caption text-gray-400 py-4 text-center">프로젝트가 없습니다</p>
+          <p className="text-xs text-gray-400 py-4 text-center">프로젝트가 없습니다</p>
         ) : (
           projects.map((p) => {
             const statusCfg = STATUS_CONFIG[p.statusCode];
@@ -235,15 +235,15 @@ function RecentProjectsWidget({
                 onClick={() => handleClick(p)}
                 className="w-full flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-50 transition-colors text-left"
               >
-                <span className="text-body-sm text-gray-800 truncate flex-1 min-w-0">
+                <span className="text-sm text-gray-800 truncate flex-1 min-w-0">
                   {p.projectName}
                 </span>
                 <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-label-sm ${statusCfg.bgColor} ${statusCfg.textColor}`}
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusCfg.bgColor} ${statusCfg.textColor}`}
                 >
                   {statusCfg.label}
                 </span>
-                <span className="shrink-0 text-caption text-gray-400 w-16 text-right">
+                <span className="shrink-0 text-xs text-gray-400 w-16 text-right">
                   {formatRelativeTime(p.updatedAt)}
                 </span>
               </button>
@@ -281,7 +281,7 @@ function ActiveProjectsWidget({
     <div className="bg-white rounded-lg border shadow-sm p-4">
       <div className="flex items-center gap-2 mb-3">
         <Activity className="w-4 h-4 text-blue-500" />
-        <h2 className="text-label-strong text-gray-700">진행중 프로젝트</h2>
+        <h2 className="text-sm font-semibold text-gray-700">진행중 프로젝트</h2>
       </div>
       <div className="space-y-2">
         {isLoading ? (
@@ -293,7 +293,7 @@ function ActiveProjectsWidget({
             </div>
           ))
         ) : projects.length === 0 ? (
-          <p className="text-caption text-gray-400 py-4 text-center">진행중인 프로젝트가 없습니다</p>
+          <p className="text-xs text-gray-400 py-4 text-center">진행중인 프로젝트가 없습니다</p>
         ) : (
           projects.map((p) => {
             const statusCfg = STATUS_CONFIG[p.statusCode];
@@ -308,16 +308,16 @@ function ActiveProjectsWidget({
                 onClick={() => handleClick(p)}
                 className="w-full flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-50 transition-colors text-left"
               >
-                <span className="text-body-sm text-gray-800 truncate flex-1 min-w-0">
+                <span className="text-sm text-gray-800 truncate flex-1 min-w-0">
                   {p.projectName}
                 </span>
                 <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-label-sm ${statusCfg.bgColor} ${statusCfg.textColor}`}
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusCfg.bgColor} ${statusCfg.textColor}`}
                 >
                   {statusCfg.label}
                 </span>
                 <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-label-sm ${stageCfg.color}`}
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${stageCfg.color}`}
                 >
                   {stageCfg.label}
                 </span>
@@ -336,8 +336,8 @@ function ComingSoonWidget() {
   return (
     <div className="bg-white rounded-lg border shadow-sm p-4 flex flex-col items-center justify-center min-h-[180px]">
       <Construction className="w-8 h-8 text-gray-300 mb-2" />
-      <p className="text-label-md text-gray-400">준비 중</p>
-      <p className="text-caption text-gray-300 mt-1">이슈 현황 · 마일스톤 임박</p>
+      <p className="text-sm font-medium text-gray-400">준비 중</p>
+      <p className="text-xs text-gray-300 mt-1">이슈 현황 · 마일스톤 임박</p>
     </div>
   );
 }

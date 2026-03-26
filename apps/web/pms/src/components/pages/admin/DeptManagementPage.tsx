@@ -123,8 +123,8 @@ export function DeptManagementPage() {
         <div className="flex items-center gap-2">
           <Network className="h-5 w-5 text-muted-foreground" />
           <div>
-            <h1 className="text-title-card">부서 관리</h1>
-            <p className="text-body-sm text-muted-foreground">부서 코드를 관리합니다</p>
+            <h1 className="text-lg font-semibold">부서 관리</h1>
+            <p className="text-sm text-muted-foreground">부서 코드를 관리합니다</p>
           </div>
         </div>
         <Button size="sm" onClick={handleOpenCreate}>
@@ -138,32 +138,32 @@ export function DeptManagementPage() {
         {departments.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <Network className="h-12 w-12 text-muted-foreground/30 mb-3" />
-            <p className="text-body-sm text-muted-foreground">등록된 부서가 없습니다.</p>
+            <p className="text-sm text-muted-foreground">등록된 부서가 없습니다.</p>
           </div>
         ) : (
-          <table className="w-full text-body-sm">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">부서코드</th>
-                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">부서명</th>
-                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">부서명(영문)</th>
-                <th className="text-left px-4 py-2.5 text-label-md text-muted-foreground">설명</th>
-                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-20">정렬순서</th>
-                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-20">상태</th>
-                <th className="text-center px-4 py-2.5 text-label-md text-muted-foreground w-24">액션</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">부서코드</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">부서명</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">부서명(영문)</th>
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">설명</th>
+                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">정렬순서</th>
+                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">상태</th>
+                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">액션</th>
               </tr>
             </thead>
             <tbody>
               {departments.map((dept) => (
                 <tr key={dept.id} className="border-b hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-2.5 font-mono text-code-line-number">{dept.codeValue}</td>
+                  <td className="px-4 py-2.5 font-mono text-xs">{dept.codeValue}</td>
                   <td className="px-4 py-2.5">{dept.displayNameKo}</td>
                   <td className="px-4 py-2.5 text-muted-foreground">{dept.displayNameEn ?? '-'}</td>
                   <td className="px-4 py-2.5 text-muted-foreground">{dept.description ?? '-'}</td>
                   <td className="px-4 py-2.5 text-center">{dept.sortOrder}</td>
                   <td className="px-4 py-2.5 text-center">
                     <span className={cn(
-                      'px-2 py-0.5 rounded text-label-sm',
+                      'px-2 py-0.5 rounded text-xs font-medium',
                       dept.isActive
                         ? 'bg-green-100 text-green-800'
                         : 'bg-gray-100 text-gray-500',
@@ -206,7 +206,7 @@ export function DeptManagementPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-label-md mb-1.5 block">부서코드</label>
+                <label className="text-sm font-medium mb-1.5 block">부서코드</label>
                 <Input
                   value={formData.codeValue}
                   onChange={(e) => updateField('codeValue', e.target.value)}
@@ -215,7 +215,7 @@ export function DeptManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-label-md mb-1.5 block">부서명</label>
+                <label className="text-sm font-medium mb-1.5 block">부서명</label>
                 <Input
                   value={formData.displayNameKo}
                   onChange={(e) => updateField('displayNameKo', e.target.value)}
@@ -226,7 +226,7 @@ export function DeptManagementPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-label-md mb-1.5 block">부서명(영문)</label>
+                <label className="text-sm font-medium mb-1.5 block">부서명(영문)</label>
                 <Input
                   value={formData.displayNameEn}
                   onChange={(e) => updateField('displayNameEn', e.target.value)}
@@ -234,7 +234,7 @@ export function DeptManagementPage() {
                 />
               </div>
               <div className="w-32">
-                <label className="text-label-md mb-1.5 block">정렬순서</label>
+                <label className="text-sm font-medium mb-1.5 block">정렬순서</label>
                 <Input
                   type="number"
                   value={formData.sortOrder}
@@ -244,7 +244,7 @@ export function DeptManagementPage() {
             </div>
 
             <div>
-              <label className="text-label-md mb-1.5 block">설명</label>
+              <label className="text-sm font-medium mb-1.5 block">설명</label>
               <Input
                 value={formData.description}
                 onChange={(e) => updateField('description', e.target.value)}

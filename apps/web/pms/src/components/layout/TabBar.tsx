@@ -156,8 +156,8 @@ export function TabBar() {
                   <IconComponent className={`w-4 h-4 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
                 )}
                 <span
-                  className={`max-w-[120px] truncate ${
-                    isActive ? 'text-label-md text-ssoo-primary' : 'text-body-sm text-gray-600'
+                  className={`text-sm truncate max-w-[120px] ${
+                    isActive ? 'text-ssoo-primary font-medium' : 'text-gray-600'
                   }`}
                 >
                   {tab.title}

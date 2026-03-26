@@ -23,7 +23,7 @@ export function StatusTimeline({ statuses, currentStatusCode }: StatusTimelinePr
 
   return (
     <div className="border rounded-lg p-4 bg-white">
-      <h2 className="text-label-strong mb-4">상태 이력</h2>
+      <h2 className="text-sm font-semibold mb-4">상태 이력</h2>
       <div className="flex items-start gap-0">
         {STATUS_ORDER.map((code, index) => {
           const status = statusMap.get(code);
@@ -47,11 +47,11 @@ export function StatusTimeline({ statuses, currentStatusCode }: StatusTimelinePr
                   <div className={`h-0.5 flex-1 ${isPast ? 'bg-ssoo-primary' : 'bg-gray-200'}`} />
                 )}
               </div>
-              <p className={`mt-2 text-label-sm ${isCurrent ? 'text-ssoo-primary' : 'text-muted-foreground'}`}>
+              <p className={`mt-2 text-xs font-medium ${isCurrent ? 'text-ssoo-primary' : 'text-muted-foreground'}`}>
                 {statusLabels[code]}
               </p>
               {status && (
-                <p className="mt-0.5 text-caption text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   {status.statusGoal}
                 </p>
               )}

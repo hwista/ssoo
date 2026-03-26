@@ -38,7 +38,7 @@ export function Header() {
             type="text"
             placeholder="통합 검색... (준비 중)"
             disabled
-            className="w-full h-control-h cursor-not-allowed rounded-lg border border-white/20 bg-white/10 pl-9 pr-4 text-body-sm text-white placeholder-white/50"
+            className="w-full h-control-h pl-9 pr-4 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 cursor-not-allowed"
           />
         </div>
       </div>
@@ -47,7 +47,7 @@ export function Header() {
       <div ref={actionsRef} className="flex items-center gap-2">
         {/* 빠른 생성 */}
         <button
-          className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-label-md rounded-md hover:bg-gray-100 transition-colors"
+          className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-sm font-medium rounded-md hover:bg-gray-100 transition-colors"
         >
           <Plus className="w-4 h-4" />
           <span>새 프로젝트</span>
