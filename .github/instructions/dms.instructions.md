@@ -115,6 +115,29 @@ hooks → lib/api → stores
 - 요청한 컨트롤만 생성 (컨테이너 금지)
 - 컨트롤 높이 표준 준수 (`h-control-h`)
 - 폰트/타이포그래피 표준 준수
+- semantic typography token 사용 우선:
+  - `text-title-page`, `text-title-section`, `text-title-subsection`, `text-title-card`
+  - `text-body-md`, `text-body-sm`
+  - `text-control-lg`
+  - `text-label-md`, `text-label-sm`, `text-label-strong`
+  - `text-caption`, `text-badge`
+  - `text-code-inline`, `text-code-block`, `text-code-line-number`
+- document content 계층은 별도 유지:
+  - viewer `prose-base`, editor, diff 본문은 `16px` 유지
+  - `--doc-content-font-size`, `--doc-content-line-height`, `--doc-line-number-font-size`, `--doc-line-number-font-weight` CSS 변수 사용
+- typography 선택 순서: `slot 역할 -> density -> 허용 token`
+- role layer: `header`, `title`, `body`, `detail`, `label`, `badge`, `code`, `annotation`
+- `label-*`는 조작/식별용 텍스트의 독립 역할 계층입니다.
+- `caption`은 detail 계층 기본값입니다.
+- 컨트롤 primitive는 `text-xs`, `text-sm`, `text-base` 단독 raw class도 수동 정리 대상입니다.
+- raw 타이포 조합(`text-sm font-medium`, `text-xs font-medium`, `text-sm font-semibold`, `text-lg font-semibold`, `text-xs font-semibold`, `text-lg font-medium`, `body-text font-medium`) 금지
+- `text-[Npx]` arbitrary font-size 금지
+- standalone `text-xl`, `text-2xl`, `font-bold` 금지
+- semantic token + raw weight override(`text-title-card font-bold`, `text-label-md font-semibold`) 금지
+- `badge/chip/chart/table cell` 내부 텍스트도 역할/밀도 기준 정규화 대상입니다.
+- container-scaled text는 semantic intent를 token으로 정의하고, 실제 size는 컨테이너 비례 스케일을 허용합니다.
+- 개별 `fontFamily`/`font-family` 하드코딩 금지, 예외는 bridge/fallback만 허용
+- DMS 문서 표면의 단독 `text-sm`, `text-xs`, `font-medium`과 editor/diff literal typography는 수동 정리 대상입니다.
 
 ---
 
