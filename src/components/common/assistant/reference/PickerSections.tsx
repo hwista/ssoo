@@ -22,8 +22,8 @@ function ReferenceButton({
           : 'border-ssoo-primary/20 bg-white hover:border-ssoo-primary/40 hover:bg-ssoo-primary/5'
       }`}
     >
-      <p className="truncate text-xs font-medium text-ssoo-primary">{item.title}</p>
-      <p className="truncate text-[11px] text-ssoo-primary/60">{item.path}</p>
+      <p className="truncate text-label-sm text-ssoo-primary">{item.title}</p>
+      <p className="truncate text-caption text-ssoo-primary/60">{item.path}</p>
     </button>
   );
 }
@@ -49,8 +49,8 @@ function TemplateButton({
           : 'border-ssoo-primary/20 bg-white hover:border-ssoo-primary/40 hover:bg-ssoo-primary/5'
       }`}
     >
-      <p className="truncate text-xs font-medium text-ssoo-primary">{template.name}</p>
-      <p className="truncate text-[11px] text-ssoo-primary/60">
+      <p className="truncate text-label-sm text-ssoo-primary">{template.name}</p>
+      <p className="truncate text-caption text-ssoo-primary/60">
         {template.scope === 'global' ? '공용' : '개인'} · {template.kind === 'document' ? '문서 템플릿' : '폴더 템플릿'}
       </p>
     </button>
@@ -76,9 +76,9 @@ export function AssistantReferenceDocSections({
     <>
       <div className="space-y-1">
         {query.trim().length === 0 ? null : isLoadingDocs ? (
-          <p className="px-1 py-1 text-xs text-ssoo-primary/60">문서 목록 불러오는 중...</p>
+          <p className="px-1 py-1 text-caption text-ssoo-primary/60">문서 목록 불러오는 중...</p>
         ) : searchedDocs.length === 0 ? (
-          <p className="px-1 py-1 text-xs text-ssoo-primary/60">검색 결과가 없습니다.</p>
+          <p className="px-1 py-1 text-caption text-ssoo-primary/60">검색 결과가 없습니다.</p>
         ) : (
           searchedDocs.slice(0, 20).map((item) => (
             <ReferenceButton
@@ -92,10 +92,10 @@ export function AssistantReferenceDocSections({
       </div>
 
       <div className="border-t border-ssoo-primary/20 pt-2">
-        <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">열린 문서</p>
+        <p className="px-1 pb-1 text-badge text-ssoo-primary/70">열린 문서</p>
         <div className="space-y-1">
           {openDocs.length === 0 ? (
-            <p className="px-1 py-1 text-xs text-ssoo-primary/60">현재 열린 문서가 없습니다.</p>
+            <p className="px-1 py-1 text-caption text-ssoo-primary/60">현재 열린 문서가 없습니다.</p>
           ) : (
             openDocs.map((item) => (
               <ReferenceButton
@@ -132,9 +132,9 @@ export function InlineTemplateSections({
       <div>
         <div className="space-y-1">
           {query.trim().length === 0 ? null : isLoadingTemplates ? (
-            <p className="px-1 py-1 text-xs text-ssoo-primary/60">템플릿 불러오는 중...</p>
+            <p className="px-1 py-1 text-caption text-ssoo-primary/60">템플릿 불러오는 중...</p>
           ) : searchedTemplates.length === 0 ? (
-            <p className="px-1 py-1 text-xs text-ssoo-primary/60">검색 결과가 없습니다.</p>
+            <p className="px-1 py-1 text-caption text-ssoo-primary/60">검색 결과가 없습니다.</p>
           ) : (
             searchedTemplates.slice(0, 20).map((template) => (
               <TemplateButton
@@ -149,12 +149,12 @@ export function InlineTemplateSections({
       </div>
 
       <div className="border-t border-ssoo-primary/20 pt-2">
-        <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">공통 템플릿</p>
+        <p className="px-1 pb-1 text-badge text-ssoo-primary/70">공통 템플릿</p>
         <div className="space-y-1">
           {isLoadingTemplates ? (
-            <p className="px-1 py-1 text-xs text-ssoo-primary/60">템플릿 불러오는 중...</p>
+            <p className="px-1 py-1 text-caption text-ssoo-primary/60">템플릿 불러오는 중...</p>
           ) : globalDocumentTemplates.length === 0 ? (
-            <p className="px-1 py-1 text-xs text-ssoo-primary/60">선택 가능한 공통 템플릿이 없습니다.</p>
+            <p className="px-1 py-1 text-caption text-ssoo-primary/60">선택 가능한 공통 템플릿이 없습니다.</p>
           ) : (
             globalDocumentTemplates.map((template) => (
               <TemplateButton

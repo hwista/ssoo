@@ -31,7 +31,7 @@ export function SearchResultsPanel({
       <div className="h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin">
         <div className="flex min-h-full flex-col px-8 py-6">
           {!hasSearched ? (
-            <div className="flex flex-1 min-h-[240px] items-center justify-center text-sm text-ssoo-primary/60">
+            <div className="flex flex-1 min-h-[240px] items-center justify-center text-body-sm text-ssoo-primary/60">
               검색어를 입력하면 결과가 표시됩니다.
             </div>
           ) : isSearching || !hasCompletedSearch ? (
@@ -40,7 +40,7 @@ export function SearchResultsPanel({
               className="flex-1 min-h-[240px] text-ssoo-primary/70"
             />
           ) : results.length === 0 ? (
-            <div className="flex flex-1 min-h-[240px] items-center justify-center text-sm text-ssoo-primary/60">
+            <div className="flex flex-1 min-h-[240px] items-center justify-center text-body-sm text-ssoo-primary/60">
               검색 결과가 없습니다.
             </div>
           ) : (

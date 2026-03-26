@@ -103,9 +103,9 @@ function TreeNode({ node, level, selectedPath, expandedPaths, onToggle, onSelect
         data-picker-path={node.path}
         onClick={handleClick}
         className={cn(
-          'flex items-center gap-1 w-full h-7 px-2 text-xs rounded-md transition-colors cursor-pointer',
+          'flex h-7 w-full cursor-pointer items-center gap-1 rounded-md px-2 text-caption transition-colors',
           isSelected
-            ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
+            ? 'bg-ssoo-content-border text-label-sm text-ssoo-primary'
             : 'hover:bg-ssoo-sitemap-bg text-gray-700',
         )}
         style={{ paddingLeft: `${8 + level * 14}px` }}
@@ -266,7 +266,7 @@ export function PickerTree({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={placeholder}
-            className="w-full h-control-h-sm pl-7 pr-7 text-xs border border-ssoo-content-border rounded-md focus:outline-none focus:border-ssoo-primary bg-transparent"
+            className="w-full h-control-h-sm rounded-md border border-ssoo-content-border bg-transparent pl-7 pr-7 text-caption focus:border-ssoo-primary focus:outline-none"
           />
           {searchQuery && (
             <button
@@ -285,7 +285,7 @@ export function PickerTree({
         style={maxHeight !== '100%' ? { maxHeight } : undefined}
       >
         {displayTree.length === 0 && (!showRoot || hasActiveFilter) ? (
-          <div className="px-3 py-4 text-xs text-gray-400 text-center">
+          <div className="px-3 py-4 text-caption text-gray-400 text-center">
             {emptyMessage}
           </div>
         ) : (
@@ -295,9 +295,9 @@ export function PickerTree({
                 data-picker-path="/"
                 onClick={() => onSelect('')}
                 className={cn(
-                  'flex items-center gap-1 w-full h-7 px-2 text-xs rounded-md transition-colors cursor-pointer',
+                  'flex h-7 w-full cursor-pointer items-center gap-1 rounded-md px-2 text-caption transition-colors',
                   isRootSelected
-                    ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
+                    ? 'bg-ssoo-content-border text-label-sm text-ssoo-primary'
                     : 'hover:bg-ssoo-sitemap-bg text-gray-700',
                 )}
               >

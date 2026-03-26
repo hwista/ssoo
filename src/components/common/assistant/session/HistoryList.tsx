@@ -39,7 +39,7 @@ export function AssistantSessionHistoryList({
   }, [items.length]);
 
   if (items.length === 0) {
-    return <p className="px-1 py-1 text-xs text-ssoo-primary/60">{emptyText}</p>;
+    return <p className="px-1 py-1 text-caption text-ssoo-primary/60">{emptyText}</p>;
   }
 
   const sizeClass = variant === 'panel' ? 'h-7 w-7' : 'h-6 w-6';
@@ -50,7 +50,7 @@ export function AssistantSessionHistoryList({
       {visibleItems.map((item) => (
         <div
           key={item.id}
-          className={`flex items-center gap-1 rounded-md px-1 py-1 text-xs transition-colors ${
+          className={`flex items-center gap-1 rounded-md px-1 py-1 text-caption transition-colors ${
             isActive(item)
               ? 'bg-ssoo-content-bg text-ssoo-primary'
               : 'hover:bg-ssoo-content-bg/60'
@@ -62,8 +62,8 @@ export function AssistantSessionHistoryList({
             className="min-w-0 flex-1 rounded-md px-1 py-1 text-left"
             title={item.title}
           >
-            <p className="truncate font-medium text-ssoo-primary">{item.title}</p>
-            <p className="mt-0.5 text-[10px] text-ssoo-primary/60">
+            <p className="truncate text-label-sm text-ssoo-primary">{item.title}</p>
+            <p className="mt-0.5 text-caption text-ssoo-primary/60">
               {new Date(item.updatedAt).toLocaleString('ko-KR', { hour12: false })}
             </p>
           </button>
@@ -88,7 +88,7 @@ export function AssistantSessionHistoryList({
         <button
           type="button"
           onClick={() => setVisibleCount((prev) => Math.min(prev + STEP, items.length))}
-          className="w-full rounded-md border border-ssoo-content-border bg-white px-2 py-1.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-content-bg"
+          className="w-full rounded-md border border-ssoo-content-border bg-white px-2 py-1.5 text-caption text-ssoo-primary transition-colors hover:bg-ssoo-content-bg"
         >
           more (+{Math.min(STEP, items.length - visibleCount)})
         </button>

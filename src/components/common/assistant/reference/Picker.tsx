@@ -188,24 +188,24 @@ export function AssistantReferencePicker({
         <div className="space-y-2">
           {mode === 'inline' && (
             <div className="rounded-md border border-ssoo-primary/20 bg-ssoo-content-bg/40 px-2 py-2">
-              <p className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-ssoo-primary/80">
+              <p className="mb-1 flex items-center gap-1 text-badge text-ssoo-primary/80">
                 <FileUp className="h-3.5 w-3.5" /> 참조 파일 첨부
               </p>
               <input
                 type="file"
                 multiple
                 onChange={handlePickSummaryFiles}
-                className="block w-full text-xs text-ssoo-primary file:mr-2 file:rounded-md file:border file:border-ssoo-content-border file:bg-white file:px-2 file:py-1 file:text-xs file:text-ssoo-primary"
+                className="block w-full text-caption text-ssoo-primary file:mr-2 file:rounded-md file:border file:border-ssoo-content-border file:bg-white file:px-2 file:py-1 file:text-label-sm file:text-ssoo-primary"
                 accept=".md,.txt,.json,.csv,.pdf,.docx,.pptx,.xlsx"
               />
             </div>
           )}
 
           <div>
-            <p className="px-1 pb-1 text-[11px] font-semibold text-ssoo-primary/70">
+            <p className="px-1 pb-1 text-badge text-ssoo-primary/70">
               {mode === 'inline' ? '내 템플릿 검색' : '문서 검색'}
             </p>
-            <p className="px-1 pb-1 text-xs text-ssoo-primary/60">
+            <p className="px-1 pb-1 text-caption text-ssoo-primary/60">
               {mode === 'inline'
                 ? '검색어를 입력하면 내 문서 템플릿에서 찾습니다.'
                 : '검색어를 입력하면 전체 문서에서 찾습니다.'}
@@ -218,7 +218,7 @@ export function AssistantReferencePicker({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={mode === 'inline' ? '문서 템플릿 검색...' : '전체 문서 검색...'}
-              className="h-9 w-full rounded-md border border-ssoo-primary/25 bg-white pl-7 pr-2 text-xs text-ssoo-primary placeholder:text-ssoo-primary/45 focus:border-ssoo-primary/50 focus:outline-none"
+              className="h-9 w-full rounded-md border border-ssoo-primary/25 bg-white pl-7 pr-2 text-caption text-ssoo-primary placeholder:text-ssoo-primary/45 focus:border-ssoo-primary/50 focus:outline-none"
             />
           </div>
 

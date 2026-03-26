@@ -84,7 +84,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
         <button
           type="button"
           onClick={() => setActiveTab('url')}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-label-sm transition-colors ${
             activeTab === 'url'
               ? 'bg-ssoo-primary text-white'
               : 'text-ssoo-primary/70 hover:bg-ssoo-content-bg/60'
@@ -96,7 +96,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
         <button
           type="button"
           onClick={() => setActiveTab('upload')}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-label-sm transition-colors ${
             activeTab === 'upload'
               ? 'bg-ssoo-primary text-white'
               : 'text-ssoo-primary/70 hover:bg-ssoo-content-bg/60'
@@ -111,7 +111,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
       <div className="flex-1 min-h-0">
         {activeTab === 'url' && (
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-ssoo-primary" htmlFor="image-url-input">
+            <label className="text-label-md text-ssoo-primary" htmlFor="image-url-input">
               이미지 URL
             </label>
             <input
@@ -121,7 +121,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
               onChange={(e) => setUrlValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleConfirm(); } }}
               placeholder="https://example.com/image.png"
-              className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm outline-none focus:border-ssoo-primary"
+              className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm outline-none focus:border-ssoo-primary"
               autoFocus
             />
           </div>
@@ -147,11 +147,11 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
               ) : (
                 <Upload className="h-8 w-8 text-gray-400" />
               )}
-              <p className="text-xs text-gray-500">
+              <p className="text-caption text-gray-500">
                 {selectedFile ? selectedFile.name : '클릭하여 이미지 선택'}
               </p>
               {selectedFile && (
-                <p className="text-xs text-gray-400">
+                <p className="text-caption text-gray-400">
                   {(selectedFile.size / 1024).toFixed(1)} KB
                 </p>
               )}
@@ -167,7 +167,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
         )}
 
         {error && (
-          <p className="text-xs text-destructive">{error}</p>
+          <p className="text-caption text-destructive">{error}</p>
         )}
       </div>
     </EditorDialog>

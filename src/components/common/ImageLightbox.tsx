@@ -16,7 +16,7 @@ function LightboxControls({ scale, onClose }: { scale: number; onClose: () => vo
       <button onClick={() => zoomOut(0.5)} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="축소">
         <Minus className="h-4 w-4" />
       </button>
-      <span className="min-w-[3.5rem] text-center text-xs font-medium text-white/90 select-none">
+      <span className="min-w-[3.5rem] text-center text-label-sm text-white/90 select-none">
         {Math.round(scale * 100)}%
       </span>
       <button onClick={() => zoomIn(0.5)} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="확대">

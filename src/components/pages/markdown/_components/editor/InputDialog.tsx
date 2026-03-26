@@ -57,7 +57,7 @@ export function EditorInputDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-ssoo-primary" htmlFor="editor-input-dialog-field">
+          <label className="text-label-md text-ssoo-primary" htmlFor="editor-input-dialog-field">
             {label}
           </label>
           <input
@@ -72,7 +72,7 @@ export function EditorInputDialog({
               }
             }}
             placeholder={placeholder}
-            className="h-control-h rounded-md border border-ssoo-content-border px-3 text-sm outline-none focus:border-ssoo-primary"
+            className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm outline-none focus:border-ssoo-primary"
             autoFocus
           />
         </div>

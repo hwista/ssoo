@@ -37,14 +37,14 @@ export function SettingRow({
         />
 
         <div className="min-w-0 flex-1">
-          <label htmlFor={`setting-${item.key}`} className="text-sm font-semibold text-ssoo-primary">
+          <label htmlFor={`setting-${item.key}`} className="text-label-strong text-ssoo-primary">
             {item.label}
           </label>
-          <p className="mt-0.5 text-xs text-ssoo-primary/70">{item.description}</p>
-          <p className="mt-1 text-xs text-ssoo-primary/60">{item.helpKey}</p>
+          <p className="mt-0.5 text-caption text-ssoo-primary/70">{item.description}</p>
+          <p className="mt-1 text-caption text-ssoo-primary/60">{item.helpKey}</p>
 
           {item.type === 'checkbox' ? (
-            <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-ssoo-primary/80">
+            <label className="mt-3 flex cursor-pointer items-center gap-2 text-body-sm text-ssoo-primary/80">
               <input
                 id={`setting-${item.key}`}
                 type="checkbox"
@@ -60,7 +60,7 @@ export function SettingRow({
               value={strVal}
               onChange={(event) => onChange(item.key, event.target.value)}
               className={[
-                'mt-3 flex h-control-h w-full max-w-2xl rounded-md border bg-white px-3 text-sm text-ssoo-primary',
+                'mt-3 flex h-control-h w-full max-w-2xl rounded-md border bg-white px-3 text-body-sm text-ssoo-primary',
                 'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ssoo-primary',
                 errorMessage ? 'border-destructive' : 'border-ssoo-content-border',
               ].join(' ')}
@@ -79,7 +79,7 @@ export function SettingRow({
               onChange={(event) => onChange(item.key, event.target.value)}
               placeholder={item.placeholder}
               className={[
-                'mt-3 flex h-control-h w-full max-w-2xl rounded-md border bg-white px-3 text-sm text-ssoo-primary',
+                'mt-3 flex h-control-h w-full max-w-2xl rounded-md border bg-white px-3 text-body-sm text-ssoo-primary',
                 'placeholder:text-ssoo-primary/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ssoo-primary',
                 errorMessage ? 'border-destructive' : 'border-ssoo-content-border',
               ].join(' ')}
@@ -87,7 +87,7 @@ export function SettingRow({
           )}
 
           {errorMessage && (
-            <p className="mt-2 text-xs text-destructive">{errorMessage}</p>
+            <p className="mt-2 text-caption text-destructive">{errorMessage}</p>
           )}
         </div>
       </div>

@@ -34,7 +34,7 @@ export function Section({
           className="flex items-center gap-2 flex-1 h-full"
         >
           <Icon className="w-4 h-4 text-ssoo-primary" />
-          <span className="text-sm font-medium text-ssoo-primary">{title}</span>
+          <span className="text-label-md text-ssoo-primary">{title}</span>
         </button>
         <div className="flex items-center gap-1">
           {headerAction}

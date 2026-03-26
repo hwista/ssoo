@@ -18,7 +18,7 @@ export function Search() {
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         placeholder="파일 검색..."
-        className="w-full h-control-h pl-8 pr-8 text-sm border border-ssoo-content-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ssoo-primary focus:border-transparent"
+        className="w-full h-control-h rounded-lg border border-ssoo-content-border pl-8 pr-8 text-body-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ssoo-primary"
       />
       {searchQuery && (
         <button

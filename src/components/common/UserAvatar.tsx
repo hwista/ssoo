@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { getGravatarUrl, getInitials, getNameColor } from '@/lib/utils/gravatar';
 
@@ -21,31 +22,31 @@ export function UserAvatar({ name, email, avatarUrl, size = 28, className }: Use
   const [imgError, setImgError] = React.useState(false);
   const [gravatarError, setGravatarError] = React.useState(false);
 
-  const prevAvatarUrl = React.useRef(avatarUrl);
-  const prevEmail = React.useRef(email);
-
-  if (prevAvatarUrl.current !== avatarUrl) {
-    prevAvatarUrl.current = avatarUrl;
+  React.useEffect(() => {
     setImgError(false);
-  }
-  if (prevEmail.current !== email) {
-    prevEmail.current = email;
+  }, [avatarUrl]);
+
+  React.useEffect(() => {
     setGravatarError(false);
-  }
+  }, [email]);
 
   const initials = getInitials(name);
   const bgColor = getNameColor(name);
   const gravatarUrl = email ? getGravatarUrl(email, size * 2) : undefined;
 
   const sizeStyle = { width: size, height: size, minWidth: size };
+  const imageClassName = cn('rounded-full object-cover', className);
 
   // 1. 로컬 아바타
   if (avatarUrl && !imgError) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={name}
-        className={cn('rounded-full object-cover', className)}
+        width={size}
+        height={size}
+        unoptimized
+        className={imageClassName}
         style={sizeStyle}
         onError={() => setImgError(true)}
       />
@@ -55,10 +56,13 @@ export function UserAvatar({ name, email, avatarUrl, size = 28, className }: Use
   // 2. Gravatar
   if (gravatarUrl && !gravatarError) {
     return (
-      <img
+      <Image
         src={gravatarUrl}
         alt={name}
-        className={cn('rounded-full object-cover', className)}
+        width={size}
+        height={size}
+        unoptimized
+        className={imageClassName}
         style={sizeStyle}
         onError={() => setGravatarError(true)}
       />
@@ -69,10 +73,12 @@ export function UserAvatar({ name, email, avatarUrl, size = 28, className }: Use
   return (
     <div
       className={cn(
-        'flex items-center justify-center rounded-full text-white font-medium select-none',
+        // Avatar initials follow the label tier as semantic intent,
+        // then scale with the container size at runtime.
+        'flex items-center justify-center rounded-full select-none text-label-sm leading-none text-white',
         className,
       )}
-      style={{ ...sizeStyle, backgroundColor: bgColor, fontSize: size * 0.45 }}
+      style={{ ...sizeStyle, backgroundColor: bgColor, fontSize: size * 0.45, lineHeight: 1 }}
       title={name}
     >
       {initials}

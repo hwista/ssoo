@@ -32,7 +32,7 @@ export function ToolbarSearchControls({
             placeholder={placeholder}
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            className="h-control-h w-44 border-0 border-b border-gray-300 bg-transparent pr-7 text-sm placeholder:text-gray-400 focus:border-ssoo-primary focus:outline-none focus:ring-0"
+            className="h-control-h w-44 border-0 border-b border-gray-300 bg-transparent pr-7 text-body-sm placeholder:text-gray-400 focus:border-ssoo-primary focus:outline-none focus:ring-0"
           />
           {query ? (
             <button
@@ -48,7 +48,7 @@ export function ToolbarSearchControls({
       </div>
 
       {hasSearched ? (
-        <div className="flex items-center gap-0.5 text-sm text-gray-500">
+        <div className="flex items-center gap-0.5 text-body-sm text-gray-500">
           <span className="min-w-[60px] text-center">
             {resultCount > 0 ? `${currentResultIndex + 1} / ${resultCount}` : '0 / 0'}
           </span>

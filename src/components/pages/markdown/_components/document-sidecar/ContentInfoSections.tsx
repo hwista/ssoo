@@ -166,7 +166,7 @@ export function TagsSection({
               key={tag}
               type="button"
               onClick={() => handleAcceptSuggested(tag)}
-              className="inline-flex items-center gap-1 rounded-full border border-dashed border-ssoo-primary/40 bg-ssoo-primary/5 px-2.5 py-1 text-xs text-ssoo-primary/70 transition-colors hover:border-ssoo-primary hover:bg-ssoo-primary/10 hover:text-ssoo-primary"
+              className="inline-flex items-center gap-1 rounded-full border border-dashed border-ssoo-primary/40 bg-ssoo-primary/5 px-2.5 py-1 text-caption text-ssoo-primary/70 transition-colors hover:border-ssoo-primary hover:bg-ssoo-primary/10 hover:text-ssoo-primary"
               title={`"${tag}" 태그 추가`}
             >
               <Plus className="h-3 w-3" />
@@ -183,7 +183,7 @@ export function TagsSection({
             onChange={(event) => setInputValue(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="태그 추가..."
-            className="h-7 flex-1 rounded border border-ssoo-content-border bg-transparent px-2 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+            className="h-7 flex-1 rounded border border-ssoo-content-border bg-transparent px-2 text-caption text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
           />
           <button
             onClick={handleAdd}
@@ -293,7 +293,7 @@ export function SummarySection({
               placeholder="문서 요약을 입력하세요..."
               rows={3}
               className={[
-                'w-full resize-y rounded border px-2 py-1.5 text-xs leading-relaxed text-ssoo-primary focus:outline-none',
+                'w-full resize-y rounded border px-2 py-1.5 text-caption leading-relaxed text-ssoo-primary focus:outline-none',
                 isChanged
                   ? 'border-destructive/30 bg-destructive/5 focus:border-destructive/40'
                   : 'border-ssoo-content-border bg-transparent focus:border-ssoo-primary',
@@ -301,12 +301,12 @@ export function SummarySection({
             />
             {aiSuggestion && (
               <div className="rounded border border-dashed border-ssoo-primary/30 bg-ssoo-primary/5 p-2">
-                <p className="mb-2 text-xs leading-relaxed text-ssoo-primary/80 whitespace-pre-wrap">{aiSuggestion}</p>
+                <p className="mb-2 text-caption leading-relaxed text-ssoo-primary/80 whitespace-pre-wrap">{aiSuggestion}</p>
                 <div className="flex gap-1.5">
                   <button
                     type="button"
                     onClick={handleAppend}
-                    className="inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
+                    className="inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-caption text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
                   >
                     <Plus className="h-3 w-3" />
                     덧붙이기
@@ -314,7 +314,7 @@ export function SummarySection({
                   <button
                     type="button"
                     onClick={handleReplace}
-                    className="inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-xs text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
+                    className="inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-caption text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
                   >
                     <Check className="h-3 w-3" />
                     변경
@@ -322,7 +322,7 @@ export function SummarySection({
                   <button
                     type="button"
                     onClick={handleDismiss}
-                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs text-ssoo-primary/60 transition-colors hover:text-ssoo-primary"
+                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption text-ssoo-primary/60 transition-colors hover:text-ssoo-primary"
                   >
                     <X className="h-3 w-3" />
                     취소
@@ -477,7 +477,7 @@ export function SourceLinksSection({
     <ActivityListSection
       title="링크"
       icon={<Link2 className="mr-1.5 h-4 w-4 shrink-0" />}
-      badge={items.length > 0 ? <span className="mr-1 text-xs text-gray-400">({items.length})</span> : undefined}
+      badge={items.length > 0 ? <span className="mr-1 text-caption text-gray-400">({items.length})</span> : undefined}
       items={items}
       highlightedItemIds={newLinkSet}
       deletedItemIds={manualDeletedIds}
@@ -502,7 +502,7 @@ export function SourceLinksSection({
             onChange={(event) => setInputValue(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="링크 추가..."
-            className="h-7 flex-1 rounded border border-ssoo-content-border bg-transparent px-2 text-xs text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
+            className="h-7 flex-1 rounded border border-ssoo-content-border bg-transparent px-2 text-caption text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
           />
           <button
             onClick={handleAdd}

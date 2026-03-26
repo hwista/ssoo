@@ -46,9 +46,9 @@ export function KeyValueSection({
       variant={sectionVariant}
     >
       {visibleItems.length === 0 && !children ? (
-        <p className="text-xs text-gray-400 py-1">{emptyText}</p>
+        <p className="py-1 text-caption text-gray-400">{emptyText}</p>
       ) : visibleItems.length > 0 ? (
-        <dl className="space-y-2 text-sm">
+        <dl className="space-y-2 text-body-sm">
           {visibleItems.map((item) => (
             <div
               key={item.label}

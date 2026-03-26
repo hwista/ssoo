@@ -125,7 +125,7 @@ export function AssistantComposer({
           <button
             type="button"
             onClick={onToggleSuggestions}
-            className="flex w-full items-center justify-between rounded-md border border-transparent px-1 py-1 text-xs font-medium text-ssoo-primary/70 transition-colors hover:border-ssoo-content-border hover:bg-ssoo-content-bg/40"
+            className="flex w-full items-center justify-between rounded-md border border-transparent px-1 py-1 text-label-sm text-ssoo-primary/70 transition-colors hover:border-ssoo-content-border hover:bg-ssoo-content-bg/40"
           >
             <span>추천 질문</span>
             {suggestionsCollapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -143,7 +143,7 @@ export function AssistantComposer({
               onClick={() => {
                 void submitUserMessage(suggestion);
               }}
-              className="max-w-full truncate rounded-full border border-ssoo-content-border bg-ssoo-content-bg/60 px-3 py-1.5 text-xs text-ssoo-primary transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg disabled:cursor-not-allowed disabled:opacity-60"
+              className="max-w-full truncate rounded-full border border-ssoo-content-border bg-ssoo-content-bg/60 px-3 py-1.5 text-caption text-ssoo-primary transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg disabled:cursor-not-allowed disabled:opacity-60"
               title={suggestion}
             >
               {suggestion}
@@ -199,7 +199,7 @@ export function AssistantComposer({
               }
             }}
             placeholder={placeholder}
-            className="block min-h-10 w-full resize-none rounded-lg border border-ssoo-content-border px-3 py-2 text-sm leading-5 focus:border-ssoo-primary focus:outline-none"
+            className="block min-h-10 w-full resize-none rounded-lg border border-ssoo-content-border px-3 py-2 text-body-sm focus:border-ssoo-primary focus:outline-none"
             rows={1}
           />
         </div>
@@ -215,7 +215,7 @@ export function AssistantComposer({
                 event.stopPropagation();
                 onAbort();
               }}
-              className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-sm font-medium leading-none text-white transition-colors hover:bg-destructive/90"
+              className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-label-md leading-none text-white transition-colors hover:bg-destructive/90"
             >
               <Square className="h-3.5 w-3.5 fill-current" />
               중단
@@ -224,7 +224,7 @@ export function AssistantComposer({
             <button
               type="submit"
               disabled={isProcessing || !inputDraft.trim()}
-              className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-ssoo-primary px-4 text-sm font-medium leading-none text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-ssoo-primary px-4 text-label-md leading-none text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
               {submitLabel}

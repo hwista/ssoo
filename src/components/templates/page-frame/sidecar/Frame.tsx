@@ -26,7 +26,7 @@ export function SidecarFrame({
     <div className={cn('flex h-full flex-col', className)}>
       {title ? (
         <div className={cn('border-b border-ssoo-content-border px-4 py-3', headerClassName)}>
-          <h3 className="text-sm font-semibold text-ssoo-primary">{title}</h3>
+          <h3 className="text-label-strong text-ssoo-primary">{title}</h3>
         </div>
       ) : null}
       <div className={cn('flex-1 overflow-auto', bodyClassName)}>

@@ -71,7 +71,7 @@ export function AssistantReferenceChips({
   return (
     <div className="mb-2 rounded-lg border border-ssoo-primary/25 bg-ssoo-content-bg/70 px-2 py-1.5">
       <div className="mb-1 flex items-center gap-1.5">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-ssoo-primary/80">
+        <div className="flex items-center gap-1.5 text-badge text-ssoo-primary/80">
           <Paperclip className="h-3.5 w-3.5" />
           첨부 컨텍스트
         </div>
@@ -79,7 +79,7 @@ export function AssistantReferenceChips({
           type="button"
           disabled={disabled}
           onClick={handleClearAll}
-          className="ml-1 border-l border-ssoo-primary/20 pl-2 text-[11px] font-semibold text-ssoo-primary opacity-55 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="ml-1 border-l border-ssoo-primary/20 pl-2 text-badge text-ssoo-primary opacity-55 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="첨부 컨텍스트 전체 삭제"
         >
           전체 해제
@@ -89,7 +89,7 @@ export function AssistantReferenceChips({
         {references.map((ref) => (
           <span
             key={ref.path}
-            className="inline-flex max-w-full items-center gap-1 rounded-full border border-ssoo-content-border bg-ssoo-content-border px-2 py-1 text-[11px] text-ssoo-primary"
+            className="inline-flex max-w-full items-center gap-1 rounded-full border border-ssoo-content-border bg-ssoo-content-border px-2 py-1 text-caption text-ssoo-primary"
             title={ref.path}
           >
             <span className="max-w-[180px] truncate">문서: {ref.title}</span>
@@ -108,7 +108,7 @@ export function AssistantReferenceChips({
         {template ? (
           <span
             key={template.id}
-            className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-[11px] ${
+            className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-caption ${
               isTemplateDeleted
                 ? 'border-destructive/30 bg-destructive/5 text-destructive/60 line-through'
                 : isTemplateUsed
@@ -150,7 +150,7 @@ export function AssistantReferenceChips({
           return (
             <span
               key={file.id}
-              className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-[11px] ${
+              className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-caption ${
                 isDeleted
                   ? 'border-destructive/30 bg-destructive/5 text-destructive/60 line-through'
                   : isUsed
@@ -189,14 +189,14 @@ export function AssistantReferenceChips({
       </div>
 
       {warnings.length > 0 && (
-        <div className="mt-2 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
+        <div className="mt-2 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-caption text-amber-700">
           <span className="flex-1">{warnings.join(' ')}</span>
           {hasFailedRestore && onRetryRestore && (
             <button
               type="button"
               disabled={isRetryingRestore}
               onClick={onRetryRestore}
-              className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-medium text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-label-sm text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="참조 파일 복원 재시도"
             >
               {isRetryingRestore ? (

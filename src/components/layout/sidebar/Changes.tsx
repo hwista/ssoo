@@ -57,7 +57,7 @@ export function Changes() {
 
   if (!isAvailable) {
     return (
-      <div className="px-3 py-2 text-xs text-gray-400">
+      <div className="px-3 py-2 text-caption text-gray-400">
         히스토리가 비활성화되어 있습니다.
       </div>
     );
@@ -65,7 +65,7 @@ export function Changes() {
 
   if (changeCount === 0) {
     return (
-      <div className="px-3 py-2 text-xs text-gray-400">
+      <div className="px-3 py-2 text-caption text-gray-400">
         변경 사항이 없습니다.
       </div>
     );
@@ -107,7 +107,7 @@ export function Changes() {
           onClick={handleCommitClick}
           className={cn(
             'flex items-center justify-center gap-1.5 w-full h-control-h',
-            'text-xs font-medium rounded-md transition-colors',
+            'text-label-sm rounded-md transition-colors',
             'bg-ssoo-primary text-white hover:bg-ssoo-primary/90'
           )}
         >
@@ -125,7 +125,7 @@ export function Changes() {
         return (
           <div
             key={change.path}
-            className="group flex items-center gap-2 w-full h-control-h px-3 text-sm hover:bg-ssoo-sitemap-bg transition-colors"
+            className="group flex h-control-h w-full items-center gap-2 px-3 text-body-sm transition-colors hover:bg-ssoo-sitemap-bg"
           >
             <button
               onClick={() => change.status !== 'deleted' && handleFileClick(change.path)}
@@ -134,7 +134,7 @@ export function Changes() {
             >
               <StatusIcon className={cn('w-4 h-4 flex-shrink-0', statusColor)} />
               <span className="truncate text-gray-700">{fileName}</span>
-              <span className={cn('text-xs flex-shrink-0', statusColor)}>
+              <span className={cn('text-caption flex-shrink-0', statusColor)}>
                 {STATUS_LABELS[change.status]}
               </span>
             </button>
@@ -186,7 +186,7 @@ function CommitDialogTrigger({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="px-3 py-2 border-t border-gray-200 space-y-2">
-      <div className="text-xs text-gray-500">
+      <div className="text-caption text-gray-500">
         {changes.length}개 파일 커밋
       </div>
       <textarea
@@ -194,7 +194,7 @@ function CommitDialogTrigger({ onClose }: { onClose: () => void }) {
         onChange={(e) => setMessage(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="커밋 메시지를 입력하세요..."
-        className="w-full h-16 text-xs p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-ssoo-primary focus:border-ssoo-primary"
+        className="h-16 w-full resize-none rounded-md border border-gray-300 p-2 text-caption focus:border-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
         autoFocus
       />
       <div className="flex gap-1">
@@ -202,7 +202,7 @@ function CommitDialogTrigger({ onClose }: { onClose: () => void }) {
           onClick={handleCommit}
           disabled={!message.trim() || isCommitting}
           className={cn(
-            'flex-1 h-control-h-sm text-xs font-medium rounded-md transition-colors',
+            'flex-1 h-control-h-sm text-label-sm rounded-md transition-colors',
             message.trim() && !isCommitting
               ? 'bg-ssoo-primary text-white hover:bg-ssoo-primary/90'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -212,7 +212,7 @@ function CommitDialogTrigger({ onClose }: { onClose: () => void }) {
         </button>
         <button
           onClick={onClose}
-          className="flex-1 h-control-h-sm text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+          className="flex-1 h-control-h-sm rounded-md bg-gray-100 text-caption text-gray-600 transition-colors hover:bg-gray-200"
         >
           취소
         </button>

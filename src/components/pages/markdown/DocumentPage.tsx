@@ -932,7 +932,7 @@ export function DocumentPage() {
       // 경로 이동 없어도 파일 트리 갱신 (문서명 변경 반영)
       await refreshFileTree();
     }
-  }, [pendingDeletedFileIds, inlineSummaryFiles, isTemplatePendingDelete, inlineTemplate, removeReferenceFromSidecar, documentMetadata, setLocalDocumentMetadata, editorHandlers, content, pendingFileMove, filePath, tabId, updateTab, setCurrentFilePath, refreshFileMetadata, refreshFileTree]);
+  }, [pendingDeletedFileIds, inlineSummaryFiles, isTemplatePendingDelete, inlineTemplate, removeReferenceFromSidecar, documentMetadata, setLocalDocumentMetadata, editorHandlers, content, pendingFileMove, filePath, tabId, updateTab, setCurrentFilePath, refreshFileMetadata, refreshFileTree, isCreateMode]);
 
   // Ctrl+S를 DocumentPage의 handleSave로 라우팅 (rename 로직 포함)
   // Editor 내부의 Ctrl+S 핸들러보다 먼저 capture phase에서 실행
@@ -1244,8 +1244,6 @@ export function DocumentPage() {
       currentText={diffTarget === 'content'
         ? (diffDraftContent ?? currentDraftContent)
         : (diffMetadataSnapshotText ?? metadataDiffCurrentText)}
-      originalTitle="이전"
-      currentTitle="현재"
       language={diffTarget === 'content' ? 'markdown' : 'json'}
       className="h-full"
     />
@@ -1256,20 +1254,23 @@ export function DocumentPage() {
     setCanRedo(nextCanRedo);
   }, []);
 
+  const handleExitDiffMode = useCallback(() => {
+    setSurfaceMode('edit');
+    setDiffTarget('content');
+  }, []);
+
   const handleDiffToggle = useCallback(() => {
     if (surfaceMode === 'diff') {
-      setSurfaceMode('edit');
-      setDiffTarget('content');
+      handleExitDiffMode();
       return;
     }
 
     const draftContent = getCurrentDraftContent();
-    setLiveEditorContent(draftContent);
     setDiffDraftContent(draftContent);
     setDiffMetadataSnapshotText(metadataDiffCurrentText);
     setSurfaceMode('diff');
     setDiffTarget('content');
-  }, [getCurrentDraftContent, metadataDiffCurrentText, surfaceMode]);
+  }, [getCurrentDraftContent, handleExitDiffMode, metadataDiffCurrentText, surfaceMode]);
 
   // 참조 파일 해제: 사용된 파일→confirm→소프트삭제, 미사용→즉시삭제
   const handleRemoveSummaryFile = useCallback(async (id: string) => {
@@ -1575,6 +1576,7 @@ export function DocumentPage() {
         onEdit={handleEdit}
         onSave={handleSave}
         onCancel={handleCancel}
+        onBack={surfaceMode === 'diff' ? handleExitDiffMode : undefined}
         onDelete={isCreateMode ? undefined : handleDelete}
         saving={isSaving}
         saveDisabled={!hasUnsavedChanges}
@@ -1646,61 +1648,64 @@ export function DocumentPage() {
               variant="editor_with_footer"
               toolbar={(
                 <div className="flex w-full items-center gap-1">
-                  <PreviewToggleButton
-                    mode={mode}
-                    isPreview={surfaceMode !== 'edit'}
-                    onToggle={() => {
-                      setSurfaceMode((prev) => (prev === 'edit' ? 'preview' : 'edit'));
-                    }}
-                  />
-                  {surfaceMode === 'edit' && (
+                  {surfaceMode === 'diff' ? (
+                    <DiffTargetToggle
+                      value={diffTarget}
+                      onChange={setDiffTarget}
+                    />
+                  ) : (
                     <>
-                      <Divider orientation="vertical" className="h-6 mx-1" />
-                      <EditorToolbar
-                        onCommand={(id) => editorRef.current?.applyCommand(id)}
+                      <PreviewToggleButton
+                        mode={mode}
+                        isPreview={surfaceMode !== 'edit'}
+                        onToggle={() => {
+                          setSurfaceMode((prev) => (prev === 'edit' ? 'preview' : 'edit'));
+                        }}
                       />
-                    </>
-                  )}
-                  {(hasUnsavedChanges || surfaceMode === 'diff' || surfaceMode === 'edit') && (
-                    <>
-                      <div className="flex-1" />
                       {surfaceMode === 'edit' && (
                         <>
-                          <SimpleTooltip content="되돌리기 (Ctrl+Z)">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={!canUndo}
-                              onClick={() => editorRef.current?.undo()}
-                            >
-                              <Undo2 className="h-4 w-4" />
-                            </Button>
-                          </SimpleTooltip>
-                          <SimpleTooltip content="다시 적용 (Ctrl+Shift+Z)">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={!canRedo}
-                              onClick={() => editorRef.current?.redo()}
-                            >
-                              <Redo2 className="h-4 w-4" />
-                            </Button>
-                          </SimpleTooltip>
                           <Divider orientation="vertical" className="h-6 mx-1" />
+                          <EditorToolbar
+                            onCommand={(id) => editorRef.current?.applyCommand(id)}
+                          />
                         </>
                       )}
-                      {surfaceMode === 'diff' && (
-                        <DiffTargetToggle
-                          value={diffTarget}
-                          onChange={setDiffTarget}
-                        />
+                      {(hasUnsavedChanges || surfaceMode === 'edit') && (
+                        <>
+                          <div className="flex-1" />
+                          {surfaceMode === 'edit' && (
+                            <>
+                              <SimpleTooltip content="되돌리기 (Ctrl+Z)">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!canUndo}
+                                  onClick={() => editorRef.current?.undo()}
+                                >
+                                  <Undo2 className="h-4 w-4" />
+                                </Button>
+                              </SimpleTooltip>
+                              <SimpleTooltip content="다시 적용 (Ctrl+Shift+Z)">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!canRedo}
+                                  onClick={() => editorRef.current?.redo()}
+                                >
+                                  <Redo2 className="h-4 w-4" />
+                                </Button>
+                              </SimpleTooltip>
+                              <Divider orientation="vertical" className="h-6 mx-1" />
+                            </>
+                          )}
+                          <DiffToggleButton
+                            mode={mode}
+                            active={false}
+                            disabled={!hasUnsavedChanges}
+                            onToggle={handleDiffToggle}
+                          />
+                        </>
                       )}
-                      <DiffToggleButton
-                        mode={mode}
-                        active={surfaceMode === 'diff'}
-                        disabled={!hasUnsavedChanges && surfaceMode !== 'diff'}
-                        onToggle={handleDiffToggle}
-                      />
                     </>
                   )}
                 </div>
@@ -1708,7 +1713,7 @@ export function DocumentPage() {
               body={(
                 <div className="relative h-full min-h-0 overflow-hidden">
                   {hasUnsavedChanges && (
-                    <span className="absolute top-2 right-4 z-10 rounded-full bg-destructive/15 px-2 py-0.5 text-xs text-destructive/60 pointer-events-none select-none">
+                    <span className="absolute top-2 right-4 z-10 rounded-full bg-destructive/15 px-2 py-0.5 text-badge text-destructive/60 pointer-events-none select-none">
                       수정됨
                     </span>
                   )}

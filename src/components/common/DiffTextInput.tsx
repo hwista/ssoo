@@ -37,7 +37,7 @@ export function DiffTextInput({
 }: DiffTextInputProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const overlayRef = React.useRef<HTMLDivElement>(null);
-  const textareaClassName = `w-full rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-xs leading-relaxed focus:border-ssoo-primary focus:outline-none ${resizable ? 'resize-y' : 'resize-none'}`;
+  const textareaClassName = `w-full rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 text-caption leading-relaxed focus:border-ssoo-primary focus:outline-none ${resizable ? 'resize-y' : 'resize-none'}`;
 
   const handleScroll = React.useCallback(() => {
     const ta = textareaRef.current;
@@ -78,14 +78,14 @@ export function DiffTextInput({
           {blockChunks.map((chunk, index) => (
             <div key={`${index}-${chunk.deleted.length}-${chunk.inserted.length}`} className="space-y-1.5">
               <div className="rounded-md border border-red-200/70 bg-red-50/60 px-2.5 py-2">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.08em] text-red-700/70">이전</div>
-                <div className="whitespace-pre-wrap break-words text-xs leading-relaxed text-gray-500 line-through">
+                <div className="mb-1 text-label-sm uppercase tracking-[0.08em] text-red-700/70">이전</div>
+                <div className="whitespace-pre-wrap break-words text-caption leading-relaxed text-gray-500 line-through">
                   {chunk.deleted}
                 </div>
               </div>
               <div className="rounded-md border border-ssoo-primary/15 bg-ssoo-primary/5 px-2.5 py-2">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.08em] text-ssoo-primary/70">변경 후</div>
-                <div className="whitespace-pre-wrap break-words text-xs leading-relaxed text-ssoo-primary">
+                <div className="mb-1 text-label-sm uppercase tracking-[0.08em] text-ssoo-primary/70">변경 후</div>
+                <div className="whitespace-pre-wrap break-words text-caption leading-relaxed text-ssoo-primary">
                   {chunk.inserted}
                 </div>
               </div>
@@ -110,7 +110,7 @@ export function DiffTextInput({
       <div
         ref={overlayRef}
         aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded border border-transparent px-2 py-1.5 text-xs leading-relaxed whitespace-pre-wrap break-words"
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded border border-transparent px-2 py-1.5 text-caption leading-relaxed whitespace-pre-wrap break-words"
       >
         {diffChunks.map((chunk, i) => {
           if (chunk.kind === 'equal') return <span key={i} className="text-ssoo-primary">{chunk.text}</span>;

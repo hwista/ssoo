@@ -262,7 +262,7 @@ export function AiSearchPage() {
                 onAttach: handleAttachSearchResultsToAssistant,
                 title: '현재 검색 결과 문서를 AI에 첨부하고 질문하기',
                 filterControl: filterQuery.trim().length > 0 && matchedResultIndices.length > 0 ? (
-                  <label className="inline-flex items-center gap-1.5 text-xs text-ssoo-primary/80 select-none">
+                  <label className="inline-flex items-center gap-1.5 text-caption text-ssoo-primary/80 select-none">
                     <input
                       type="checkbox"
                       checked={attachFilteredOnly}

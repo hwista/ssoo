@@ -16,7 +16,7 @@ export function Bookmarks() {
 
   if (bookmarks.length === 0) {
     return (
-      <div className="px-3 py-2 text-xs text-gray-400">
+      <div className="px-3 py-2 text-caption text-gray-400">
         책갈피가 없습니다.
       </div>
     );
@@ -46,9 +46,9 @@ export function Bookmarks() {
         return (
           <div
             key={bookmark.id}
-            className={`flex items-center gap-2 w-full h-control-h px-3 text-sm rounded-md transition-colors group ${
+            className={`flex h-control-h w-full items-center gap-2 rounded-md px-3 text-body-sm transition-colors group ${
               isActive
-                ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
+                ? 'bg-ssoo-content-border text-label-md text-ssoo-primary'
                 : 'text-gray-700 hover:bg-ssoo-sitemap-bg'
             }`}
           >

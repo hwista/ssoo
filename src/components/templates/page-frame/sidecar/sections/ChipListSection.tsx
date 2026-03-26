@@ -57,7 +57,7 @@ export function ChipListSection({
       variant={sectionVariant}
     >
       {chips.length === 0 ? (
-        <p className="text-xs text-gray-400 py-1">{emptyText}</p>
+        <p className="py-1 text-caption text-gray-400">{emptyText}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {chips.map((chip) => {
@@ -65,10 +65,10 @@ export function ChipListSection({
             const isDeleted = deletedChipIds?.has(chip.id);
             const isHighlighted = !isDeleted && highlightedChipIds?.has(chip.id);
             const baseCls = isDeleted
-              ? 'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs text-destructive/60 line-through'
+              ? 'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-caption text-destructive/60 line-through'
               : isHighlighted
-                ? 'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs text-ssoo-primary'
-                : 'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-ssoo-content-border bg-white px-3 py-1.5 text-xs text-ssoo-primary';
+                ? 'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-caption text-ssoo-primary'
+                : 'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-ssoo-content-border bg-white px-3 py-1.5 text-caption text-ssoo-primary';
             const hoverCls = clickable && !isDeleted ? ' transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg' : '';
 
             const chipContent = (
