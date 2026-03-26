@@ -19,6 +19,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN apk add --no-cache git && \
+    mkdir -p data/wiki data/templates data/ingest data/storage/local data/documents && \
+    git init data/documents
 RUN npm run build
 
 # ---- Stage 3: Production runner ----
