@@ -14,9 +14,9 @@ services:
       - PORT=3000
       - DMS_DATABASE_URL=postgresql://dms_user:dms_pass@dms-db:5432/dms?schema=public
     volumes:
-      - wiki-data:/app/data/wiki:z
-      - ingest-data:/app/data/ingest:z
-      - storage-data:/app/data/storage:z
+      - /opt/LSWIKI/data/wiki:/app/data/wiki:z
+      - /opt/LSWIKI/data/ingest:/app/data/ingest:z
+      - /opt/LSWIKI/data/storage:/app/data/storage:z
     depends_on:
       dms-db:
         condition: service_healthy
@@ -38,7 +38,4 @@ services:
       retries: 5
 
 volumes:
-  wiki-data:
-  ingest-data:
-  storage-data:
   db-data:
