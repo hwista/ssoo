@@ -17,6 +17,8 @@ services:
       - /opt/LSWIKI/data/wiki:/app/data/wiki:z
       - /opt/LSWIKI/data/ingest:/app/data/ingest:z
       - /opt/LSWIKI/data/storage:/app/data/storage:z
+      - /opt/LSWIKI/data/documents:/app/data/documents:z
+      - /opt/LSWIKI/data/templates:/app/data/templates:z
     depends_on:
       dms-db:
         condition: service_healthy
