@@ -9,7 +9,12 @@ GITLAB_BRANCH_DEFAULT="refactor/integration"
 TMP_REMOTE_REF_DEFAULT="refs/remotes/tmp/lswiki-refactor-integration"
 DMS_PREFIX="apps/web/dms"
 
-TARGET_BRANCH="${1:-$(git branch --show-current)}"
+TARGET_BRANCH_ARG="${1:-}"
+if [ "$TARGET_BRANCH_ARG" = "--" ]; then
+  TARGET_BRANCH_ARG="${2:-}"
+fi
+
+TARGET_BRANCH="${TARGET_BRANCH_ARG:-$(git branch --show-current)}"
 GITLAB_URL="${DMS_GITLAB_URL:-$GITLAB_URL_DEFAULT}"
 GITLAB_BRANCH="${DMS_GITLAB_BRANCH:-$GITLAB_BRANCH_DEFAULT}"
 TMP_REMOTE_REF="${DMS_TMP_REMOTE_REF:-$TMP_REMOTE_REF_DEFAULT}"
