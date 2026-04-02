@@ -56,3 +56,7 @@ export { isExternalUrl, resolveDocPath, resolveRelativePath, resolveImageSrc } f
 
 // 파일 트리 필터
 export { filterFileTree } from './fileTree';
+
+// JSON / Object Path
+export { getNestedValue, setNestedValue } from './objectPath';
+export { deepMergeRecords, isPlainObject, parseJsonObject, stringifyJson } from './json';

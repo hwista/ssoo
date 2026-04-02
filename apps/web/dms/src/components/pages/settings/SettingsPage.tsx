@@ -1,31 +1,42 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, FolderOpen, RotateCcw } from 'lucide-react';
+import { AlertCircle, Check, FolderOpen, RotateCcw, Shield, SlidersHorizontal } from 'lucide-react';
+import { JsonDiffView, JsonEditor } from '@/components/common/json';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
+import { Button } from '@/components/ui/button';
 import { PageTemplate } from '@/components/templates';
 import type { HeaderAction } from '@/components/templates/page-frame';
-import { useSettingsStore } from '@/stores/settings.store';
 import { templateApi } from '@/lib/api';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
-import { CategoryNav } from './_components/CategoryNav';
+import { useSettingsShellStore, useSettingsStore } from '@/stores';
+import {
+  SETTING_SECTIONS,
+  SETTINGS_SCOPE_LABELS,
+  SETTINGS_VIEW_MODE_LABELS,
+  getSettingSectionsByScope,
+} from './_config/settingsPageConfig';
+import { SettingsNavigation } from './_components/SettingsNavigation';
 import { SettingsFieldList } from './_components/SettingsFieldList';
 import { TemplateSection } from './_components/TemplateSection';
-import { SETTING_SECTIONS } from './_config/settingsPageConfig';
 import {
   buildKeyToLabelMap,
+  buildSectionJsonDraft,
+  buildSectionUpdatePayload,
   buildSettingsUpdatePayload,
   getModifiedKeys,
   getNestedValue,
   getValidationErrors,
   isRelativePath,
+  mergeSettingsPayloads,
+  parseSectionJsonDraft,
+  replaceSectionValue,
   setNestedValue,
 } from './_utils/settingsPageUtils';
 
 export function SettingsPage() {
   const {
     config,
-    docDir,
     isLoaded,
     isLoading,
     isSaving,
@@ -34,19 +45,27 @@ export function SettingsPage() {
     updateSettings,
     updateGitPath,
   } = useSettingsStore();
+  const {
+    activeScope,
+    activeSectionId,
+    activeViewMode,
+    setSection,
+    setViewMode,
+  } = useSettingsShellStore();
 
-  const [activeSection, setActiveSection] = useState(SETTING_SECTIONS[0].id);
   const [localConfig, setLocalConfig] = useState<Record<string, unknown>>({});
   const [originalConfig, setOriginalConfig] = useState<Record<string, unknown>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [copyFiles, setCopyFiles] = useState(true);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [jsonDraft, setJsonDraft] = useState('{}');
+  const [jsonError, setJsonError] = useState<string | null>(null);
   const [templateDraft, setTemplateDraft] = useState({
     name: '',
     description: '',
     content: '',
-    scope: 'personal' as TemplateScope,
+    scope: 'global' as TemplateScope,
     kind: 'document' as TemplateKind,
   });
 
@@ -58,7 +77,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (!config) return;
-    const nextConfig = config as unknown as Record<string, unknown>;
+    const nextConfig = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
     setLocalConfig(nextConfig);
     setOriginalConfig(nextConfig);
   }, [config]);
@@ -69,12 +88,26 @@ export function SettingsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [saveSuccess]);
 
-  const currentSection = useMemo(() => (
-    SETTING_SECTIONS.find((section) => section.id === activeSection) ?? SETTING_SECTIONS[0]
-  ), [activeSection]);
+  const scopeSections = useMemo(() => getSettingSectionsByScope(activeScope), [activeScope]);
+  const scopeIcon = activeScope === 'system' ? Shield : SlidersHorizontal;
+  const currentSection = useMemo(() => {
+    return scopeSections.find((section) => section.id === activeSectionId) ?? scopeSections[0];
+  }, [activeSectionId, scopeSections]);
 
   useEffect(() => {
-    if (activeSection !== 'templates') return;
+    if (currentSection && currentSection.id !== activeSectionId) {
+      setSection(currentSection.id);
+    }
+  }, [activeSectionId, currentSection, setSection]);
+
+  useEffect(() => {
+    if (!currentSection) return;
+    setJsonDraft(buildSectionJsonDraft(localConfig, currentSection.jsonPath));
+    setJsonError(null);
+  }, [currentSection, localConfig]);
+
+  useEffect(() => {
+    if (!currentSection || currentSection.kind !== 'templates') return;
     let mounted = true;
     const loadTemplates = async () => {
       setIsLoadingTemplates(true);
@@ -89,65 +122,162 @@ export function SettingsPage() {
     return () => {
       mounted = false;
     };
-  }, [activeSection]);
+  }, [currentSection]);
+
+  const supportsJsonModes = currentSection?.kind !== 'templates';
+
+  useEffect(() => {
+    if (!supportsJsonModes && activeViewMode !== 'structured') {
+      setViewMode('structured');
+    }
+  }, [activeViewMode, setViewMode, supportsJsonModes]);
+
+  const parsedJsonDraft = useMemo(() => parseSectionJsonDraft(jsonDraft), [jsonDraft]);
+
+  const comparableConfig = useMemo(() => {
+    if (!supportsJsonModes || activeViewMode !== 'json' || !parsedJsonDraft.success || !currentSection) {
+      return localConfig;
+    }
+    return replaceSectionValue(localConfig, currentSection.jsonPath, parsedJsonDraft.data);
+  }, [activeViewMode, currentSection, localConfig, parsedJsonDraft, supportsJsonModes]);
 
   const keyToLabel = useMemo(() => {
     return buildKeyToLabelMap(SETTING_SECTIONS);
   }, []);
 
   const modifiedKeys = useMemo(() => {
-    return getModifiedKeys(SETTING_SECTIONS, localConfig, originalConfig);
-  }, [localConfig, originalConfig]);
+    return getModifiedKeys(SETTING_SECTIONS, comparableConfig, originalConfig);
+  }, [comparableConfig, originalConfig]);
 
   const validationErrors = useMemo(() => {
-    return getValidationErrors(SETTING_SECTIONS, localConfig);
-  }, [localConfig]);
+    return getValidationErrors(SETTING_SECTIONS, comparableConfig);
+  }, [comparableConfig]);
 
-  const hasChanges = modifiedKeys.length > 0;
+  const currentSectionOriginalText = useMemo(() => {
+    if (!currentSection || !supportsJsonModes) return '{}';
+    return buildSectionJsonDraft(originalConfig, currentSection.jsonPath);
+  }, [currentSection, originalConfig, supportsJsonModes]);
+
+  const currentSectionComparableText = useMemo(() => {
+    if (!currentSection || !supportsJsonModes) return '{}';
+    if (activeViewMode === 'json') {
+      return parsedJsonDraft.success ? JSON.stringify(parsedJsonDraft.data, null, 2) : jsonDraft;
+    }
+    return buildSectionJsonDraft(comparableConfig, currentSection.jsonPath);
+  }, [activeViewMode, comparableConfig, currentSection, jsonDraft, parsedJsonDraft, supportsJsonModes]);
+
+  const hasSectionJsonChanges = supportsJsonModes && currentSectionComparableText !== currentSectionOriginalText;
+  const hasChanges = modifiedKeys.length > 0 || hasSectionJsonChanges;
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
-  const isPathChanged = modifiedKeys.includes('git.repositoryPath');
-  const pathValue = String(getNestedValue(localConfig, 'git.repositoryPath') ?? '').trim();
+  const isPathChanged = modifiedKeys.includes('system.git.repositoryPath');
+  const pathValue = String(getNestedValue(comparableConfig, 'system.git.repositoryPath') ?? '').trim();
   const relativePathNotice = isRelativePath(pathValue);
 
-  const handleChange = useCallback((key: string, value: unknown) => {
+  const handleStructuredChange = useCallback((key: string, value: unknown) => {
     setLocalConfig((prev) => setNestedValue(prev, key, value));
     setSaveSuccess(false);
   }, []);
 
+  const resolveConfigFromJsonDraft = useCallback(() => {
+    if (!supportsJsonModes || !currentSection) {
+      return { success: true as const, config: localConfig };
+    }
+
+    const parsed = parseSectionJsonDraft(jsonDraft);
+    if (!parsed.success) {
+      setJsonError(parsed.error);
+      return { success: false as const };
+    }
+
+    setJsonError(null);
+    return {
+      success: true as const,
+      config: replaceSectionValue(localConfig, currentSection.jsonPath, parsed.data),
+    };
+  }, [currentSection, jsonDraft, localConfig, supportsJsonModes]);
+
+  const handleViewModeChange = useCallback((nextMode: typeof activeViewMode) => {
+    if (!supportsJsonModes && nextMode !== 'structured') return;
+
+    if (activeViewMode === 'json' && nextMode !== 'json') {
+      const resolved = resolveConfigFromJsonDraft();
+      if (!resolved.success) return;
+      setLocalConfig(resolved.config);
+      if (currentSection) {
+        setJsonDraft(buildSectionJsonDraft(resolved.config, currentSection.jsonPath));
+      }
+    }
+
+    setViewMode(nextMode);
+  }, [activeViewMode, currentSection, resolveConfigFromJsonDraft, setViewMode, supportsJsonModes]);
+
   const handleReset = useCallback(() => {
     setLocalConfig(originalConfig);
+    if (currentSection) {
+      setJsonDraft(buildSectionJsonDraft(originalConfig, currentSection.jsonPath));
+    }
+    setJsonError(null);
     setSaveSuccess(false);
-  }, [originalConfig]);
+  }, [currentSection, originalConfig]);
 
   const handleSave = useCallback(async () => {
-    if (hasValidationErrors) return;
+    if (!currentSection) return;
+
+    let workingConfig = comparableConfig;
+    if (supportsJsonModes && activeViewMode === 'json') {
+      const resolved = resolveConfigFromJsonDraft();
+      if (!resolved.success) return;
+      workingConfig = resolved.config;
+      setLocalConfig(resolved.config);
+      setJsonDraft(buildSectionJsonDraft(resolved.config, currentSection.jsonPath));
+    }
+
+    if (Object.keys(getValidationErrors(SETTING_SECTIONS, workingConfig)).length > 0) {
+      return;
+    }
 
     setSaveSuccess(false);
     let success = true;
 
     if (isPathChanged) {
-      const newPath = String(getNestedValue(localConfig, 'git.repositoryPath') ?? '').trim();
+      const newPath = String(getNestedValue(workingConfig, 'system.git.repositoryPath') ?? '').trim();
       if (newPath) {
         success = await updateGitPath(newPath, copyFiles);
       } else {
-        success = await updateSettings({ git: { repositoryPath: '' } });
+        success = await updateSettings({ system: { git: { repositoryPath: '' } } });
       }
     }
 
-    const remainingModified = modifiedKeys.filter((key) => key !== 'git.repositoryPath');
-    if (success && remainingModified.length > 0) {
-      success = await updateSettings(buildSettingsUpdatePayload(remainingModified, localConfig));
+    const remainingModified = modifiedKeys.filter((key) => key !== 'system.git.repositoryPath');
+    let payload = buildSettingsUpdatePayload(remainingModified, workingConfig, SETTING_SECTIONS);
+
+    if (supportsJsonModes && activeViewMode === 'json') {
+      payload = mergeSettingsPayloads(
+        payload,
+        buildSectionUpdatePayload(
+          currentSection.jsonPath,
+          (getNestedValue(workingConfig, currentSection.jsonPath) as Record<string, unknown>) ?? {}
+        )
+      );
+    }
+
+    const hasPayload = Object.keys(payload as Record<string, unknown>).length > 0;
+    if (success && hasPayload) {
+      success = await updateSettings(payload);
     }
 
     if (success) {
       setSaveSuccess(true);
     }
   }, [
+    activeViewMode,
+    comparableConfig,
     copyFiles,
-    hasValidationErrors,
+    currentSection,
     isPathChanged,
-    localConfig,
     modifiedKeys,
+    resolveConfigFromJsonDraft,
+    supportsJsonModes,
     updateGitPath,
     updateSettings,
   ]);
@@ -167,7 +297,7 @@ export function SettingsPage() {
       name: '',
       description: '',
       content: '',
-      scope: 'personal',
+      scope: 'global',
       kind: 'document',
     });
   }, [templateDraft]);
@@ -190,12 +320,20 @@ export function SettingsPage() {
     </div>
   ) : null;
 
+  const pendingLabels = useMemo(() => {
+    const labels = modifiedKeys.map((key) => keyToLabel.get(key) ?? key);
+    if (activeViewMode === 'json' && hasSectionJsonChanges && currentSection) {
+      labels.unshift(`${currentSection.label} JSON`);
+    }
+    return Array.from(new Set(labels));
+  }, [activeViewMode, currentSection, hasSectionJsonChanges, keyToLabel, modifiedKeys]);
+
   const headerActions = useMemo<HeaderAction[]>(() => {
     const actions: HeaderAction[] = [];
 
     if (hasChanges) {
       actions.push({
-        label: `${modifiedKeys.length}개 변경`,
+        label: pendingLabels.length > 0 ? `${pendingLabels.length}개 변경` : 'JSON 변경',
         variant: 'ghost',
         onClick: () => undefined,
       });
@@ -216,47 +354,65 @@ export function SettingsPage() {
       onClick: () => {
         void handleSave();
       },
-      disabled: !hasChanges || hasValidationErrors || isSaving,
+      disabled: !hasChanges || hasValidationErrors || (activeViewMode === 'json' && !parsedJsonDraft.success) || isSaving,
     });
 
     return actions;
-  }, [handleReset, handleSave, hasChanges, hasValidationErrors, isSaving, modifiedKeys.length]);
+  }, [activeViewMode, handleReset, handleSave, hasChanges, hasValidationErrors, isSaving, parsedJsonDraft.success, pendingLabels.length]);
+
+  const viewerRightSlot = currentSection ? (
+    <div className="flex items-center gap-2">
+      {(['structured', 'json', 'diff'] as const).map((mode) => {
+        if (!supportsJsonModes && mode !== 'structured') return null;
+        const isActive = activeViewMode === mode;
+        return (
+          <Button
+            key={mode}
+            variant={isActive ? 'default' : 'outline'}
+            size="default"
+            onClick={() => handleViewModeChange(mode)}
+            className={isActive ? 'text-white' : 'text-ssoo-primary'}
+          >
+            {SETTINGS_VIEW_MODE_LABELS[mode]}
+          </Button>
+        );
+      })}
+    </div>
+  ) : null;
+
+  if (!currentSection) {
+    return null;
+  }
 
   return (
     <PageTemplate
-      filePath={`settings/${currentSection.id}`}
+      filePath={`settings/${activeScope}/${currentSection.id}`}
       mode="viewer"
-      description={currentSection.description}
+      description={`${SETTINGS_SCOPE_LABELS[activeScope]} · ${currentSection.description}`}
       headerExtraActions={headerActions}
       headerExtraActionsPosition="right"
+      headerViewerRightSlot={viewerRightSlot}
       sidecarMode="hidden"
       contentMaxWidth={null}
-      contentSurfaceClassName="rounded-lg border border-ssoo-content-border bg-white"
     >
-      <section className="flex h-full min-h-0 flex-col overflow-hidden">
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          <aside className="w-full shrink-0 border-b border-ssoo-content-border p-3 lg:w-60 lg:border-b-0 lg:border-r">
-            <CategoryNav
-              sections={SETTING_SECTIONS}
-              activeSection={activeSection}
-              onSelect={setActiveSection}
-            />
-            {docDir && (
-              <div className="mt-4 rounded-md border border-ssoo-content-border bg-ssoo-content-bg/60 p-3">
-                <p className="text-badge uppercase tracking-wide text-ssoo-primary/60">현재 문서 경로</p>
-                <p className="mt-1 break-all text-caption text-ssoo-primary/80">{docDir}</p>
-              </div>
-            )}
-          </aside>
+      <section className="flex h-full min-h-0 gap-4 overflow-hidden">
+        <SettingsNavigation
+          title={SETTINGS_SCOPE_LABELS[activeScope]}
+          icon={scopeIcon}
+          sections={scopeSections}
+          activeSectionId={currentSection.id}
+          onSelect={setSection}
+        />
 
-          <main className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-ssoo-content-border bg-white">
+          <main className="h-full min-h-0 overflow-y-auto p-4">
             {topStatusBanner}
 
-            {hasChanges && (
+            {hasChanges && pendingLabels.length > 0 && (
               <section className="mb-3 rounded-md border border-ssoo-content-border bg-ssoo-content-bg/50 px-3 py-2">
                 <p className="text-badge text-ssoo-primary">저장 예정 항목</p>
                 <p className="mt-1 text-caption text-ssoo-primary/80">
-                  {modifiedKeys.map((key) => keyToLabel.get(key) ?? key).join(', ')}
+                  {pendingLabels.join(', ')}
                 </p>
               </section>
             )}
@@ -289,7 +445,7 @@ export function SettingsPage() {
               <div className="flex min-h-full items-center justify-center">
                 <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
               </div>
-            ) : currentSection.id === 'templates' ? (
+            ) : currentSection.kind === 'templates' ? (
               <TemplateSection
                 templates={templates}
                 isLoadingTemplates={isLoadingTemplates}
@@ -302,14 +458,30 @@ export function SettingsPage() {
                   void handleTemplateDelete(template);
                 }}
               />
+            ) : activeViewMode === 'json' ? (
+              <JsonEditor
+                value={jsonDraft}
+                onChange={(nextValue) => {
+                  setJsonDraft(nextValue);
+                  if (jsonError) setJsonError(null);
+                }}
+                errorMessage={!parsedJsonDraft.success ? parsedJsonDraft.error : jsonError}
+                className="min-h-[480px]"
+              />
+            ) : activeViewMode === 'diff' ? (
+              <JsonDiffView
+                originalText={currentSectionOriginalText}
+                currentText={currentSectionComparableText}
+                className="min-h-[480px]"
+              />
             ) : (
               <SettingsFieldList
                 items={currentSection.items}
-                localConfig={localConfig}
+                localConfig={comparableConfig}
                 originalConfig={originalConfig}
                 validationErrors={validationErrors}
                 getValue={getNestedValue}
-                onChange={handleChange}
+                onChange={handleStructuredChange}
               />
             )}
           </main>

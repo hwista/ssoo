@@ -1,10 +1,11 @@
 'use client';
 
-import { lazy, Suspense, type ComponentType } from 'react';
-import { useTabStore, HOME_TAB } from '@/stores';
+import { lazy, Suspense, type ComponentType, useEffect } from 'react';
+import { useSettingsShellStore, useTabStore, HOME_TAB } from '@/stores';
 import { LoadingState } from '@/components/common/StateDisplay';
 import { AiChatPage } from '@/components/pages/ai/ChatPage';
 import { TabInstanceProvider } from './tab-instance/TabInstanceContext';
+import { useTabInstanceId } from './tab-instance/TabInstanceContext';
 
 /**
  * 페이지 컴포넌트 매핑
@@ -46,7 +47,7 @@ const pageComponents = {
   markdown: lazyWithChunkRetry(() => import('@/components/pages/markdown/DocumentPage').then(m => ({ default: m.DocumentPage }))),
   aiChat: AiChatPage,
   aiSearch: lazyWithChunkRetry(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
-  settings: lazyWithChunkRetry(() => import('@/components/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))),
+  settings: LegacySettingsRedirect,
 };
 
 /**
@@ -56,6 +57,23 @@ function LoadingFallback() {
   return (
     <div className="flex-1 flex items-center justify-center bg-white">
       <LoadingState message="로딩 중..." fullHeight />
+    </div>
+  );
+}
+
+function LegacySettingsRedirect() {
+  const tabId = useTabInstanceId();
+  const closeTab = useTabStore((state) => state.closeTab);
+  const enterSettings = useSettingsShellStore((state) => state.enterSettings);
+
+  useEffect(() => {
+    enterSettings();
+    closeTab(tabId);
+  }, [closeTab, enterSettings, tabId]);
+
+  return (
+    <div className="flex flex-1 items-center justify-center bg-white">
+      <LoadingState message="설정 모드로 이동 중..." fullHeight />
     </div>
   );
 }

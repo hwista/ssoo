@@ -1,33 +1,25 @@
-import type { DeepPartialClient, DmsConfigClient } from '@/lib/api';
-import type { SettingSection } from '../_config/settingsPageConfig';
+import type { DeepPartialClient, DmsSettingsConfigClient } from '@/lib/api';
+import { deepMergeRecords, parseJsonObject, stringifyJson } from '@/lib/utils/json';
+import { getNestedValue, setNestedValue } from '@/lib/utils/objectPath';
+import type { SettingItem, SettingSection } from '../_config/settingsPageConfig';
 
-export function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-  return path.split('.').reduce<unknown>((acc, key) => {
-    if (acc && typeof acc === 'object') return (acc as Record<string, unknown>)[key];
-    return undefined;
-  }, obj);
-}
-
-export function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
-  const keys = path.split('.');
-  const result = { ...obj };
-  let current: Record<string, unknown> = result;
-
-  for (let index = 0; index < keys.length - 1; index += 1) {
-    const key = keys[index];
-    current[key] = { ...((current[key] as Record<string, unknown>) || {}) };
-    current = current[key] as Record<string, unknown>;
-  }
-
-  current[keys[keys.length - 1]] = value;
-  return result;
-}
+export { getNestedValue, setNestedValue };
 
 export function isRelativePath(pathText: string): boolean {
   if (!pathText.trim()) return false;
   if (pathText.startsWith('/') || pathText.startsWith('~')) return false;
   if (/^[A-Za-z]:[\\/]/.test(pathText)) return false;
   return true;
+}
+
+function buildSettingItemMap(sections: SettingSection[]) {
+  const map = new Map<string, SettingItem>();
+  sections.forEach((section) => {
+    section.items.forEach((item) => {
+      map.set(item.key, item);
+    });
+  });
+  return map;
 }
 
 export function buildKeyToLabelMap(sections: SettingSection[]) {
@@ -78,15 +70,65 @@ export function getValidationErrors(
 
 export function buildSettingsUpdatePayload(
   modifiedKeys: string[],
-  localConfig: Record<string, unknown>
-): DeepPartialClient<DmsConfigClient> {
+  localConfig: Record<string, unknown>,
+  sections: SettingSection[]
+): DeepPartialClient<DmsSettingsConfigClient> {
+  const itemMap = buildSettingItemMap(sections);
   let partial: Record<string, unknown> = {};
 
   modifiedKeys.forEach((key) => {
+    const item = itemMap.get(key);
     const rawValue = getNestedValue(localConfig, key);
-    const value = key === 'ingest.maxConcurrentJobs' ? Number(rawValue) : rawValue;
+    const value = item?.coerce ? item.coerce(rawValue) : rawValue;
     partial = setNestedValue(partial, key, value);
   });
 
-  return partial as DeepPartialClient<DmsConfigClient>;
+  return partial as DeepPartialClient<DmsSettingsConfigClient>;
+}
+
+export function buildSectionUpdatePayload(
+  sectionPath: string,
+  sectionValue: Record<string, unknown>
+): DeepPartialClient<DmsSettingsConfigClient> {
+  return setNestedValue({}, sectionPath, sectionValue) as DeepPartialClient<DmsSettingsConfigClient>;
+}
+
+export function mergeSettingsPayloads(
+  ...partials: Array<DeepPartialClient<DmsSettingsConfigClient>>
+): DeepPartialClient<DmsSettingsConfigClient> {
+  return partials.reduce<DeepPartialClient<DmsSettingsConfigClient>>((merged, partial) => {
+    return deepMergeRecords(
+      merged as Record<string, unknown>,
+      partial as Record<string, unknown>
+    ) as DeepPartialClient<DmsSettingsConfigClient>;
+  }, {});
+}
+
+export function getSectionObject(
+  config: Record<string, unknown>,
+  sectionPath: string
+): Record<string, unknown> {
+  const value = getNestedValue(config, sectionPath);
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+export function replaceSectionValue(
+  config: Record<string, unknown>,
+  sectionPath: string,
+  sectionValue: Record<string, unknown>
+): Record<string, unknown> {
+  return setNestedValue(config, sectionPath, sectionValue);
+}
+
+export function buildSectionJsonDraft(config: Record<string, unknown>, sectionPath: string): string {
+  return stringifyJson(getSectionObject(config, sectionPath));
+}
+
+export function parseSectionJsonDraft(text: string):
+  | { success: true; data: Record<string, unknown> }
+  | { success: false; error: string } {
+  return parseJsonObject(text);
 }

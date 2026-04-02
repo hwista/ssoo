@@ -1,0 +1,12 @@
+{
+  "identity": {
+    "displayName": "Anonymous",
+    "email": "anonymous@dms.local"
+  },
+  "workspace": {
+    "defaultSettingsScope": "system",
+    "defaultSettingsView": "structured",
+    "showDiffByDefault": false,
+    "preferredStorageProvider": "system-default"
+  }
+}

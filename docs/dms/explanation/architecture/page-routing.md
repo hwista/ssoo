@@ -1,23 +1,24 @@
 # 페이지 라우팅 (Page Routing)
 
-> 최종 업데이트: 2026-03-16
+> 최종 업데이트: 2026-04-02
 
-DMS의 탭 기반 페이지 라우팅 구조를 정의합니다.
+DMS의 탭 기반 라우팅과 settings shell 전환 구조를 정의합니다.
 
 ---
 
 ## 라우팅 개요
 
-DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 `/` 하나만 사용하고 실제 화면 전환은 **탭 기반**으로 동작합니다.
+DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 `/` 하나만 사용하고 실제 화면 전환은 **workspace 탭 셸**과 **settings 전용 셸** 사이를 전환하는 방식으로 동작합니다.
 
 - 브라우저 공개 URL: `/`
-- 내부 탭 경로: `/home`, `/doc/...`, `/wiki/new`, `/ai/chat`, `/ai/search`, `/settings`
+- 내부 탭 경로: `/home`, `/doc/...`, `/wiki/new`, `/ai/chat`, `/ai/search`
+- 레거시 핸드오프 경로: `/settings`
 - 정책: 내부 탭 경로는 주소창에 직접 노출하거나 딥링크로 사용하는 대상이 아니다.
 
-```
-URL 경로 → Next.js Route → (main)/layout → (main)/page → AppLayout → ContentArea → pageComponents
-                                                                                ↓
-                                                                            activeTabId 기반 렌더링
+``` 
+URL 경로 → Next.js Route → (main)/layout → (main)/page → AppLayout(shellMode)
+                                                                   ├─ workspace → Header + TabBar + ContentArea
+                                                                   └─ settings  → SettingsShellHeader + SettingsShellContent
 ```
 
 브라우저에서 `/doc/...` 같은 경로로 직접 들어오면 [`src/middleware.ts`](/home/a0122024330/src/ssoo/apps/web/dms/src/middleware.ts) 가 이를 내부 virtual path 로 간주하고 `/` 루트 셸로 복구한다.
@@ -71,7 +72,7 @@ interface TabItem {
 | 새 문서 (템플릿) | 상황별 생성 | `/wiki/new-template` | ✅ 가능 |
 | 새 문서 (AI 요약) | 상황별 생성 | `/wiki/new-ai-summary` | ✅ 가능 |
 | AI 검색 | 상황별 생성 | `/ai/search` | ✅ 가능 |
-| 설정 | `settings` 계열 | `/settings` | ✅ 가능 |
+| 설정(레거시) | `settings` 계열 | `/settings` | ✅ 가능 |
 
 ### 탭 → 페이지 매핑
 
@@ -83,7 +84,7 @@ const pageComponents = {
   markdown: lazy(() => import('@/components/pages/markdown/DocumentPage')),
   aiChat: lazy(() => import('@/components/pages/ai/ChatPage')),
   aiSearch: lazy(() => import('@/components/pages/ai/SearchPage')),
-  settings: lazy(() => import('@/components/pages/settings/SettingsPage')),
+  settings: LegacySettingsRedirect,
 };
 
 function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiChat' | 'aiSearch' | 'settings' | null {
@@ -92,10 +93,18 @@ function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiChat' | 'aiSearch' 
   if (tab.path.startsWith('/wiki/new')) return 'markdown';
   if (tab.path.startsWith('/ai/chat')) return 'aiChat';
   if (tab.path.startsWith('/ai/search')) return 'aiSearch';
-  if (tab.path === '/settings') return 'settings';
+  if (tab.path === '/settings') return 'settings'; // settings shell 핸드오프
   return null;
 }
 ```
+
+### Settings shell 전환
+
+- 사용자 메뉴와 assistant help action은 `/settings` 탭을 새로 열지 않고 `useSettingsShellStore.enterSettings()` 로 settings shell에 진입합니다.
+- settings shell은 기존 `Sidebar + Header + TabBar + ContentArea` 를 대체하는 전역 모드입니다.
+- outer sidebar는 `시스템 설정`, `개인 설정` 두 개의 scope selector만 렌더링합니다.
+- 실제 section 탐색은 `SettingsPage` 내부의 좌측 navigation(`Git`, `Storage`, `Ingest`, `Identity` 등)에서 처리하고, 우측 detail surface가 현재 section 본문을 렌더링합니다.
+- 세션 복원 등으로 레거시 `/settings` 탭이 남아 있는 경우 `ContentArea` 의 `LegacySettingsRedirect` 가 해당 탭을 닫고 settings shell로 전환합니다.
 
 ---
 
@@ -207,10 +216,10 @@ const pageComponents = {
 
 | 항목 | PMS | DMS |
 |------|-----|-----|
-| 라우팅 방식 | Next.js + 권한 체크 | 루트 고정 + 탭 기반 단일 셸 |
+| 라우팅 방식 | Next.js + 권한 체크 | 루트 고정 + workspace/settings dual shell |
 | 인증 | 미들웨어 + Guard | 없음 |
 | URL 동기화 | 필요 | 불필요 (내부 탭 경로만 관리) |
-| 페이지 타입 | 다양 (대시보드, 설정...) | Home, Markdown, AI, Settings |
+| 페이지 타입 | 다양 (대시보드, 설정...) | Home, Markdown, AI, Settings shell |
 
 ---
 
@@ -242,6 +251,8 @@ const pageComponents = {
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-02 | settings shell 네비게이션을 scope sidebar + inner section menu 3뎁스 구조로 정리 |
+| 2026-04-02 | `/settings` 탭을 settings shell 핸드오프로 전환하고, `AppLayout(shellMode)` 기반 workspace/settings 이중 셸 구조를 반영 |
 | 2026-03-16 | 새 문서 런처 페이지 추가: `/wiki/new` → 런처, `/wiki/new-wiki`·`new-template`·`new-ai-summary` 진입점 분기 |
 | 2026-03-10 | 루트 고정 라우팅 정책과 내부 탭 경로 개념을 현재 구현 기준으로 정리 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

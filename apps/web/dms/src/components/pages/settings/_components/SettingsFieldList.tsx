@@ -1,14 +1,4 @@
-import { SettingRow } from './SettingRow';
-
-interface SectionItem {
-  key: string;
-  label: string;
-  helpKey: string;
-  description: string;
-  type: 'text' | 'email' | 'checkbox' | 'select';
-  placeholder?: string;
-  options?: Array<{ label: string; value: string }>;
-}
+import { JsonRenderer, type JsonFieldDescriptor } from '@/components/common/json';
 
 export function SettingsFieldList({
   items,
@@ -18,7 +8,7 @@ export function SettingsFieldList({
   getValue,
   onChange,
 }: {
-  items: SectionItem[];
+  items: JsonFieldDescriptor[];
   localConfig: Record<string, unknown>;
   originalConfig: Record<string, unknown>;
   validationErrors: Record<string, string>;
@@ -26,17 +16,13 @@ export function SettingsFieldList({
   onChange: (key: string, value: unknown) => void;
 }) {
   return (
-    <div className="space-y-3">
-      {items.map((item) => (
-        <SettingRow
-          key={item.key}
-          item={item}
-          value={getValue(localConfig, item.key)}
-          originalValue={getValue(originalConfig, item.key)}
-          errorMessage={validationErrors[item.key]}
-          onChange={onChange}
-        />
-      ))}
-    </div>
+    <JsonRenderer
+      items={items}
+      localConfig={localConfig}
+      originalConfig={originalConfig}
+      validationErrors={validationErrors}
+      getValue={getValue}
+      onChange={onChange}
+    />
   );
 }

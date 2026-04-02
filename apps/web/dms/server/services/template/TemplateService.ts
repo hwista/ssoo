@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { configService } from '@/server/services/config/ConfigService';
 import { contentService } from '@/server/services/content/ContentService';
+import { personalSettingsService } from '@/server/services/settings/PersonalSettingsService';
 import type {
   TemplateGeneration,
   TemplateItem,
@@ -81,7 +81,7 @@ function resolveAuthor(requestUserId: string | undefined): string {
   const requestUser = requestUserId?.trim();
   if (requestUser) return requestUser;
 
-  const gitAuthorName = configService.getGitAuthor().name?.trim();
+  const gitAuthorName = personalSettingsService.getAuthorIdentity().name?.trim();
   if (gitAuthorName) return gitAuthorName;
 
   return 'Unknown';

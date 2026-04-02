@@ -1,13 +1,16 @@
+import type {
+  PreferredSettingsViewMode,
+  SettingsAccessMode,
+  SettingsProfileKey,
+  SettingsScope,
+} from '@/types/settings';
 import { request, type ApiResponse } from './core';
 
-export interface GitConfigClient {
-  repositoryPath: string;
-  author: { name: string; email: string };
-  autoInit: boolean;
-}
-
-export interface DmsConfigClient {
-  git: GitConfigClient;
+export interface DmsSystemConfigClient {
+  git: {
+    repositoryPath: string;
+    autoInit: boolean;
+  };
   storage: {
     defaultProvider: 'local' | 'sharepoint' | 'nas';
     local: { enabled: boolean; basePath: string; webBaseUrl?: string };
@@ -28,13 +31,39 @@ export interface DmsConfigClient {
   };
 }
 
+export interface DmsPersonalSettingsClient {
+  identity: {
+    displayName: string;
+    email: string;
+  };
+  workspace: {
+    defaultSettingsScope: SettingsScope;
+    defaultSettingsView: PreferredSettingsViewMode;
+    showDiffByDefault: boolean;
+    preferredStorageProvider: 'system-default' | 'local' | 'sharepoint' | 'nas';
+  };
+}
+
+export interface DmsSettingsConfigClient {
+  system: DmsSystemConfigClient;
+  personal: DmsPersonalSettingsClient;
+}
+
 export type DeepPartialClient<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartialClient<T[P]> : T[P];
 };
 
+export interface SettingsAccessClient {
+  mode: SettingsAccessMode;
+  profileKey: SettingsProfileKey;
+  canManageSystem: boolean;
+  canManagePersonal: boolean;
+}
+
 export interface SettingsResponse {
-  config: DmsConfigClient;
+  config: DmsSettingsConfigClient;
   docDir: string;
+  access: SettingsAccessClient;
 }
 
 export const settingsApi = {
@@ -43,7 +72,7 @@ export const settingsApi = {
   },
 
   updateSettings: async (
-    config: DeepPartialClient<DmsConfigClient>
+    config: DeepPartialClient<DmsSettingsConfigClient>
   ): Promise<ApiResponse<SettingsResponse>> => {
     return request<SettingsResponse>('/api/settings', {
       method: 'POST',

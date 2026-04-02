@@ -22,6 +22,7 @@ export { useGitStore } from './git.store';
 
 // Settings
 export { useSettingsStore } from './settings.store';
+export { useSettingsShellStore } from './settings-shell.store';
 
 // Assistant
 export { useAssistantSessionStore } from './assistant-session.store';

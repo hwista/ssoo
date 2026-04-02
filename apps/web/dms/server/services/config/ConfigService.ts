@@ -18,8 +18,11 @@ import { logger } from '@/lib/utils/errorUtils';
 export interface GitConfig {
   /** 문서 Git 저장소 경로 (= 문서 데이터 디렉토리) */
   repositoryPath: string;
-  /** 커밋 작성자 정보 */
-  author: {
+  /**
+   * @deprecated 개인화 설정으로 이전된 레거시 작성자 정보
+   * 기존 dms.config.json 하위 호환을 위해 optional 로만 유지합니다.
+   */
+  author?: {
     name: string;
     email: string;
   };
@@ -128,7 +131,11 @@ class ConfigService {
 
   /** Git 작성자 정보 */
   getGitAuthor(): { name: string; email: string } {
-    return this.getConfig().git.author;
+    const author = this.getConfig().git.author;
+    return {
+      name: author?.name?.trim() || 'DMS System',
+      email: author?.email?.trim() || 'dms@localhost',
+    };
   }
 
   /** Git 자동 초기화 여부 */
@@ -180,7 +187,6 @@ class ConfigService {
     return {
       git: {
         repositoryPath: '',
-        author: { name: 'DMS System', email: 'dms@localhost' },
         autoInit: true,
       },
       storage: {

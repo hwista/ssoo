@@ -15,6 +15,7 @@ import path from 'path';
 import simpleGit, { type SimpleGit, type StatusResult, type DefaultLogFields, type ListLogLine } from 'simple-git';
 import { logger } from '@/lib/utils/errorUtils';
 import { configService } from '@/server/services/config/ConfigService';
+import { personalSettingsService } from '@/server/services/settings/PersonalSettingsService';
 
 // ============================================================================
 // Types
@@ -123,10 +124,10 @@ class GitService {
     }
   }
 
-  /** Git 기본 설정 (user.name, user.email) — ConfigService에서 읽음 */
+  /** Git 기본 설정 (user.name, user.email) — 개인 설정 fallback 우선 */
   private async configureGit(): Promise<void> {
     try {
-      const author = configService.getGitAuthor();
+      const author = personalSettingsService.getAuthorIdentity();
       await this.git.addConfig('user.name', author.name);
       await this.git.addConfig('user.email', author.email);
     } catch {

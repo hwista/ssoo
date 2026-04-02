@@ -1,6 +1,6 @@
 # 유틸리티 함수 (Utilities)
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-04-02
 
 DMS에서 사용하는 유틸리티 함수를 정의합니다.
 
@@ -11,10 +11,10 @@ DMS에서 사용하는 유틸리티 함수를 정의합니다.
 ```
 src/lib/utils/
 ├── index.ts              # 통합 export
-├── constants.ts          # 상수 정의
-├── apiClient.ts          # API 클라이언트
 ├── fileUtils.ts          # 파일 처리
-├── pathUtils.ts          # 경로 처리
+├── linkUtils.ts          # 링크/이미지 경로
+├── objectPath.ts         # 중첩 JSON 경로 접근/치환
+├── json.ts               # JSON stringify/parse/merge
 └── errorUtils.ts         # 에러 처리 & 로깅
 ```
 
@@ -129,6 +129,38 @@ getParentPaths('docs/guides/api.md')
 // 깊이 계산
 getPathDepth('docs/guides/api.md')  // 2
 ```
+
+---
+
+## JSON 유틸리티 (`json.ts`, `objectPath.ts`)
+
+settings shell과 sidecar diff에서 공통으로 쓰는 JSON 처리를 담당합니다.
+
+### `getNestedValue()` / `setNestedValue()`
+
+```typescript
+getNestedValue(config, 'personal.workspace.defaultSettingsView');
+setNestedValue(config, 'system.git.repositoryPath', '/repo/docs');
+```
+
+- dot path 기반 nested object 조회/부분 치환
+- settings structured form, section payload 생성, registry 기반 편집에 공통 사용
+
+### `stringifyJson()` / `parseJsonObject()`
+
+```typescript
+const text = stringifyJson(snapshot);
+const parsed = parseJsonObject(jsonDraft);
+```
+
+- pretty JSON 문자열 생성
+- raw JSON editor 입력 검증 및 object parse
+- sidecar metadata diff 문자열 생성에도 공용 사용
+
+### `deepMergeRecords()`
+
+- system/personal 설정 payload 병합
+- 서버/클라이언트 양쪽 partial JSON patch 조합
 
 ---
 
@@ -268,4 +300,5 @@ export const PATH_SEPARATORS = {
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-02 | `json.ts`, `objectPath.ts` 추가 및 settings shell / sidecar diff 공용 JSON 유틸 계층 반영 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

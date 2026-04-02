@@ -1,4 +1,5 @@
 import type { TocItem } from '@/components/templates/page-frame';
+import { stringifyJson } from '@/lib/utils';
 import type { DocumentMetadata, SourceFileMeta, DocumentComment } from '@/types';
 import type { DocumentSidecarMetadata } from './_components/DocumentSidecar';
 
@@ -139,16 +140,12 @@ export function buildDocumentSidecarDiffSnapshot(
 }
 
 export function stringifyDocumentSidecarDiffSnapshot(snapshot: DocumentSidecarDiffSnapshot): string {
-  return JSON.stringify(
-    {
-      title: snapshot.title,
-      summary: snapshot.summary,
-      tags: snapshot.tags,
-      sourceLinks: snapshot.sourceLinks,
-      sourceFiles: snapshot.sourceFiles,
-      comments: snapshot.comments,
-    },
-    null,
-    2
-  );
+  return stringifyJson({
+    title: snapshot.title,
+    summary: snapshot.summary,
+    tags: snapshot.tags,
+    sourceLinks: snapshot.sourceLinks,
+    sourceFiles: snapshot.sourceFiles,
+    comments: snapshot.comments,
+  });
 }

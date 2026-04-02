@@ -9,6 +9,8 @@ import { Sidebar } from './sidebar';
 import { Header } from './Header';
 import { TabBar } from './TabBar';
 import { ContentArea } from './ContentArea';
+import { SettingsShellContent, SettingsShellHeader, SettingsShellSidebar } from './settings/Shell';
+import { useSettingsShellStore, useSettingsStore } from '@/stores';
 
 // 본문 영역 최소 너비 (Viewer와 동일)
 const DOCUMENT_MIN_WIDTH = 975;
@@ -25,6 +27,9 @@ const DOCUMENT_MIN_WIDTH = 975;
 export function AppLayout() {
   const { deviceType } = useLayoutStore();
   const { isCompactMode, sidebarOpen, setCompactMode, toggleSidebar, setSidebarOpen } = useSidebarStore();
+  const isSettingsShellActive = useSettingsShellStore((state) => state.isActive);
+  const applyWorkspacePreferences = useSettingsShellStore((state) => state.applyWorkspacePreferences);
+  const settingsConfig = useSettingsStore((state) => state.config);
 
   // 컨텐츠 영역 크기 측정
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -43,6 +48,12 @@ export function AppLayout() {
     window.addEventListener('resize', checkCompactMode);
     return () => window.removeEventListener('resize', checkCompactMode);
   }, [setCompactMode]);
+
+  React.useEffect(() => {
+    const workspace = settingsConfig?.personal.workspace;
+    if (!workspace) return;
+    applyWorkspacePreferences(workspace);
+  }, [applyWorkspacePreferences, settingsConfig]);
 
   // 모바일은 별도 UI (추후 개발)
   if (deviceType === 'mobile') {
@@ -85,11 +96,19 @@ export function AppLayout() {
       )}
 
       {/* Sidebar - 컴팩트 모드에서는 오버레이 */}
-      <Sidebar 
-        isCompactMode={isCompactMode}
-        isOpen={!isCompactMode || sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+      {isSettingsShellActive ? (
+        <SettingsShellSidebar
+          isCompactMode={isCompactMode}
+          isOpen={!isCompactMode || sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+      ) : (
+        <Sidebar
+          isCompactMode={isCompactMode}
+          isOpen={!isCompactMode || sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Main Content Area */}
       <div
@@ -99,14 +118,18 @@ export function AppLayout() {
           marginLeft: isCompactMode ? 0 : LAYOUT_SIZES.sidebar.expandedWidth 
         }}
       >
-        {/* Header */}
-        <Header />
-
-        {/* TabBar */}
-        <TabBar />
-
-        {/* Content */}
-        <ContentArea />
+        {isSettingsShellActive ? (
+          <>
+            <SettingsShellHeader />
+            <SettingsShellContent />
+          </>
+        ) : (
+          <>
+            <Header />
+            <TabBar />
+            <ContentArea />
+          </>
+        )}
       </div>
     </div>
   );

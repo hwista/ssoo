@@ -1,9 +1,10 @@
-import type { DmsConfig, DeepPartial } from '@/server/services/config/ConfigService';
+import type { DeepPartial } from '@/server/services/config/ConfigService';
+import type { DmsSettingsConfig } from '@/server/services/settings/SettingsService';
 import { settingsService } from '@/server/services/settings/SettingsService';
 
 interface SettingsAction {
   action: 'update' | 'updateGitPath';
-  config?: DeepPartial<DmsConfig>;
+  config?: DeepPartial<DmsSettingsConfig>;
   newPath?: string;
   copyFiles?: boolean;
 }

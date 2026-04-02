@@ -19,6 +19,7 @@ export async function POST(req: Request) {
     return Response.json({
       config: result.config,
       docDir: result.docDir,
+      access: result.access,
     });
   }
   return Response.json({ error: result.error }, { status: 400 });

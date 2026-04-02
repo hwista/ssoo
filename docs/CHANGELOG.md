@@ -23,6 +23,7 @@
 * **web-dms:** AI 태그 추천 + 요약 생성 (WandButton)
 * **web-dms:** Obsidian 스타일 새 문서 런처 페이지
 * **web-dms:** AI 요약 원클릭 플로우
+* **web-dms:** settings shell — `/settings` 탭 대신 전역 설정 모드, system/personal 설정 분리, 공용 JSON renderer/editor/diff 도입
 
 ### Improvements
 
@@ -31,6 +32,15 @@
 * **web-dms:** 내부 문서 링크 클릭 시 새 탭으로 열기, 외부 링크는 브라우저로 열기
 * **web-dms:** 이미지/링크/문서경로 설정 모달 크기 통일 (max-w-lg h-[480px])
 * **web-dms:** bare path 링크 해석 개선 — `goals.md` 같은 상대 경로를 현재 파일 디렉토리 기준으로 해석
+* **web-dms:** settings shell 헤더 정리 — 사이드바 브랜드 슬롯을 `뒤로가기 + 설정`으로 재구성하고, 상단 헤더 검색을 전역 설정 검색으로 전환하며 scope 뱃지를 제거
+* **web-dms:** settings shell 단순화 — sidebar 브랜드 보조 문구 제거, 설정 검색을 sidebar 검색 슬롯으로 이동, UserMenu 설정 진입점을 단일 항목으로 정리
+* **web-dms:** settings shell 3뎁스 네비게이션 — outer sidebar를 `시스템 설정`/`개인 설정` scope selector로 축소하고, `SettingsPage` 내부에 좌측 section menu + 우측 detail surface를 도입
+* **web-dms:** settings navigation visual consistency — outer scope selector와 inner section menu를 기존 sidebar row/list 패턴으로 통일하고, navigation 내부 설명 문구를 제거
+* **web-dms:** settings typography token alignment — settings UI를 재점검해 semantic typography token 구성을 유지하고, JSON raw editor를 `font-mono + text-code-block` 기준으로 정리
+* **web-dms:** settings navigation row typography alignment — outer/inner settings rows를 실제 FileTree row 리듬(`font-sans`, `gap-1`, `px-2`) 기준으로 다시 맞춰 문서 목록과의 체감 차이를 축소
+* **web-dms:** settings navigation section rhythm alignment — 2열 settings 구조는 유지하되, outer/inner navigation 모두 기존 sidebar의 `Section 헤더 + 목록` 위계를 더 직접적으로 재현하도록 조정
+* **web-dms:** settings navigation sidebar parity refinement — flat settings rows를 `OpenTabs`/`Bookmarks`와 같은 `gap-2`, `px-3` rhythm으로 재정렬하고, inner navigation을 detail card와 시각적으로 분리해 page 내부 sidebar처럼 읽히도록 보정
+* **web-dms:** settings navigation section reuse — outer/inner navigation header에서 실제 sidebar `Section` 컴포넌트를 재사용해 header 구조 drift를 제거
 
 ### Improvements
 
@@ -97,4 +107,3 @@
 ## 2026-03-24 - docs: finalize copilot instructions
 
 - Updated .github/copilot-instructions.md and docs; ran verification scripts.
-

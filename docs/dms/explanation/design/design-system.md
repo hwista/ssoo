@@ -149,16 +149,38 @@ className="font-sans"  // 명시적 일반 텍스트
 
 ### 3.3 텍스트 스케일
 
-| 이름 | 크기 | Tailwind | 용도 |
-|------|------|----------|------|
-| H1 | 36px / 2.25rem | `text-4xl` | 페이지 제목 |
-| H2 | 30px / 1.875rem | `text-3xl` | 섹션 제목 |
-| H3 | 24px / 1.5rem | `text-2xl` | 서브섹션 |
-| H4 | 20px / 1.25rem | `text-xl` | 컴포넌트 제목 |
-| Large | 18px / 1.125rem | `text-lg` | 강조 텍스트 |
-| Base | 16px / 1rem | `text-base` | 본문 텍스트 |
-| Small | 14px / 0.875rem | `text-sm` | 부가 정보 |
-| XSmall | 12px / 0.75rem | `text-xs` | 라벨, 캡션 |
+> **핵심 원칙**: DMS 신규 UI는 raw `text-sm` / `text-xs` 보다는 `tailwind.config.js` 에 정의된 **semantic typography token** 을 우선 사용합니다.
+
+#### 일반 UI 토큰
+
+| 토큰 | 크기 / 줄높이 / 굵기 | 용도 |
+|------|----------------------|------|
+| `text-title-page` | 28px / 36px / 700 | 페이지 메인 타이틀 |
+| `text-title-section` | 24px / 32px / 600 | 큰 섹션 제목 |
+| `text-title-subsection` | 20px / 28px / 600 | 서브섹션 제목 |
+| `text-title-card` | 18px / 28px / 600 | 카드/패널 제목 |
+| `text-body-md` | 14px / 24px / 400 | 기본 본문 |
+| `text-body-sm` | 14px / 20px / 400 | 조밀한 본문, 리스트, 입력값 |
+| `text-control-lg` | 16px / 24px / 400 | 큰 입력/강조 컨트롤 |
+| `text-label-md` | 14px / 20px / 500 | 일반 라벨, 버튼 텍스트 |
+| `text-label-sm` | 12px / 16px / 500 | 작은 라벨 |
+| `text-label-strong` | 14px / 20px / 600 | 강조 라벨, 카드 행 제목 |
+| `text-caption` | 12px / 16px / 400 | 보조 설명, 메타 정보 |
+| `text-badge` | 12px / 16px / 600 | 배지, 상태 요약 |
+
+#### 코드/에디터 토큰
+
+| 토큰 | 크기 / 줄높이 / 굵기 | 용도 |
+|------|----------------------|------|
+| `text-code-inline` | 13px / 1.5 / 400 | 인라인 코드 |
+| `text-code-block` | 13px / 1.625 / 400 | 코드 블록, JSON/텍스트 raw editor |
+| `text-code-line-number` | 12px / 16px / 500 | 라인 넘버 |
+
+#### 적용 기준
+
+- 일반 텍스트는 기본 상속(`font-sans`) 또는 semantic text token을 사용합니다.
+- 코드/JSON/에디터 surface는 `font-mono` 와 `text-code-*` 토큰을 함께 사용합니다.
+- 기존 레거시 영역에 남아 있는 `text-sm`, `text-xs` 는 점진적으로 semantic token으로 정리하되, 신규/수정 코드에서는 token 우선 원칙을 따릅니다.
 
 ---
 
@@ -441,6 +463,7 @@ AI가 컨트롤(버튼, 입력, 토글 등) 생성 요청을 받았을 때:
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-02 | 실제 DMS typography token(`text-title-*`, `text-body-*`, `text-label-*`, `text-code-*`) 기준으로 문서를 정렬하고 settings JSON editor 적용 기준을 반영 |
 | 2026-02-09 | 뷰어 줌 컨트롤 높이 표준 적용 (h-control-h-sm → h-control-h, 32px → 36px) |
 | 2026-02-06 | 컨트롤 컨테이너 원칙 추가 (컨테이너 없이 컨트롤만 사용, 예외 보고 프로세스) |
 | 2026-02-02 | 최초 작성 - 디자인 시스템 문서화 |

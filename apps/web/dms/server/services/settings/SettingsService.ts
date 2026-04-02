@@ -1,36 +1,78 @@
 import fs from 'fs';
 import path from 'path';
-import { configService, type DmsConfig, type DeepPartial } from '@/server/services/config/ConfigService';
+import type { DeepPartial, DmsConfig } from '@/server/services/config/ConfigService';
+import { configService } from '@/server/services/config/ConfigService';
+import { personalSettingsService, type DmsPersonalSettings } from '@/server/services/settings/PersonalSettingsService';
 import { gitService } from '@/server/services/git/GitService';
+import type { SettingsAccessMode, SettingsProfileKey } from '@/types/settings';
 import { logger } from '@/lib/utils/errorUtils';
 
+export type DmsSystemConfig = Omit<DmsConfig, 'git'> & {
+  git: Omit<DmsConfig['git'], 'author'>;
+};
+
+export interface SettingsAccessInfo {
+  mode: SettingsAccessMode;
+  profileKey: SettingsProfileKey;
+  canManageSystem: boolean;
+  canManagePersonal: boolean;
+}
+
+export interface DmsSettingsConfig {
+  system: DmsSystemConfig;
+  personal: DmsPersonalSettings;
+}
+
 export interface SettingsSnapshot {
-  config: DmsConfig;
+  config: DmsSettingsConfig;
   docDir: string;
+  access: SettingsAccessInfo;
 }
 
 export type SettingsServiceResult =
   | ({ success: true } & SettingsSnapshot)
   | { success: false; error: string };
 
+function sanitizeSystemConfig(config: DmsConfig): DmsSystemConfig {
+  const { author: _author, ...git } = config.git;
+  return {
+    ...config,
+    git,
+  };
+}
+
 class SettingsService {
   getSettings(): SettingsSnapshot {
     return {
-      config: configService.getConfig(),
+      config: {
+        system: sanitizeSystemConfig(configService.getConfig()),
+        personal: personalSettingsService.getSettings(),
+      },
       docDir: configService.getDocDir(),
+      access: {
+        mode: personalSettingsService.getAccessMode(),
+        profileKey: personalSettingsService.getProfileKey(),
+        canManageSystem: true,
+        canManagePersonal: true,
+      },
     };
   }
 
-  updateSettings(partial?: DeepPartial<DmsConfig>): SettingsServiceResult {
+  updateSettings(partial?: DeepPartial<DmsSettingsConfig>): SettingsServiceResult {
     if (!partial) {
       return { success: true, ...this.getSettings() };
     }
 
-    const updated = configService.updateConfig(partial);
+    if (partial.system) {
+      configService.updateConfig(partial.system);
+    }
+    if (partial.personal) {
+      personalSettingsService.updateSettings(partial.personal);
+    }
+
     return {
       success: true,
-      config: updated,
-      docDir: configService.getDocDir(),
+      ...this.getSettings(),
     };
   }
 
@@ -53,7 +95,7 @@ class SettingsService {
         logger.info('문서 파일 복사 완료', { from: currentDir, to: resolvedPath });
       }
 
-      const updated = configService.updateConfig({
+      configService.updateConfig({
         git: { repositoryPath: resolvedPath },
       });
 
@@ -65,7 +107,7 @@ class SettingsService {
 
       return {
         success: true,
-        config: updated,
+        ...this.getSettings(),
         docDir: resolvedPath,
       };
     } catch (error) {

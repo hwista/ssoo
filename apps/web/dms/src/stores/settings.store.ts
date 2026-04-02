@@ -1,53 +1,34 @@
 'use client';
 
 import { create } from 'zustand';
-import { settingsApi, type DmsConfigClient, type DeepPartialClient } from '@/lib/api';
+import { settingsApi, type DmsSettingsConfigClient, type DeepPartialClient, type SettingsAccessClient } from '@/lib/api';
 import { logger } from '@/lib/utils/errorUtils';
 
-// ============================================================================
-// Types
-// ============================================================================
-
 interface SettingsState {
-  /** 설정 로드 여부 */
   isLoaded: boolean;
-  /** 로딩 상태 */
   isLoading: boolean;
-  /** 저장 중 */
   isSaving: boolean;
-  /** 현재 설정 */
-  config: DmsConfigClient | null;
-  /** 현재 문서 디렉토리 경로 */
+  config: DmsSettingsConfigClient | null;
   docDir: string;
-  /** 에러 메시지 */
+  access: SettingsAccessClient | null;
   error: string | null;
 }
 
 interface SettingsActions {
-  /** 설정 조회 */
   loadSettings: () => Promise<void>;
-  /** 일반 설정 업데이트 */
-  updateSettings: (partial: DeepPartialClient<DmsConfigClient>) => Promise<boolean>;
-  /** Git 설정 업데이트 */
-  updateGitSettings: (git: DeepPartialClient<DmsConfigClient>['git']) => Promise<boolean>;
-  /** Git 저장소 경로 변경 */
+  updateSettings: (partial: DeepPartialClient<DmsSettingsConfigClient>) => Promise<boolean>;
   updateGitPath: (newPath: string, copyFiles: boolean) => Promise<boolean>;
 }
 
-// ============================================================================
-// Store
-// ============================================================================
-
 export const useSettingsStore = create<SettingsState & SettingsActions>((set, get) => ({
-  // State
   isLoaded: false,
   isLoading: false,
   isSaving: false,
   config: null,
   docDir: '',
+  access: null,
   error: null,
 
-  // Actions
   loadSettings: async () => {
     if (get().isLoading) return;
     set({ isLoading: true, error: null });
@@ -58,6 +39,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
         set({
           config: response.data.config,
           docDir: response.data.docDir,
+          access: response.data.access,
           isLoaded: true,
         });
       } else {
@@ -80,29 +62,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
         set({
           config: response.data.config,
           docDir: response.data.docDir,
-        });
-        return true;
-      }
-      set({ error: response.error || '설정 저장 실패' });
-      return false;
-    } catch (error) {
-      logger.error('설정 저장 실패', error);
-      set({ error: '설정 저장 중 오류가 발생했습니다.' });
-      return false;
-    } finally {
-      set({ isSaving: false });
-    }
-  },
-
-  updateGitSettings: async (git) => {
-    set({ isSaving: true, error: null });
-
-    try {
-      const response = await settingsApi.updateSettings({ git });
-      if (response.success && response.data) {
-        set({
-          config: response.data.config,
-          docDir: response.data.docDir,
+          access: response.data.access,
         });
         return true;
       }
@@ -126,6 +86,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
         set({
           config: response.data.config,
           docDir: response.data.docDir,
+          access: response.data.access,
         });
         return true;
       }

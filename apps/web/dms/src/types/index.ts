@@ -49,6 +49,14 @@ export type {
 } from './layout';
 
 export type {
+  PreferredSettingsViewMode,
+  SettingsAccessMode,
+  SettingsProfileKey,
+  SettingsScope,
+  SettingsViewMode,
+} from './settings';
+
+export type {
   SidebarSection,
   SidebarState,
   SidebarActions,

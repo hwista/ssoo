@@ -30,7 +30,14 @@ export { gitApi } from './gitApi';
 export type { GitFileStatus, GitChangeEntry, GitLogEntry } from './gitApi';
 
 export { settingsApi } from './settingsApi';
-export type { GitConfigClient, DmsConfigClient, DeepPartialClient, SettingsResponse } from './settingsApi';
+export type {
+  DeepPartialClient,
+  DmsPersonalSettingsClient,
+  DmsSettingsConfigClient,
+  DmsSystemConfigClient,
+  SettingsAccessClient,
+  SettingsResponse,
+} from './settingsApi';
 
 export { storageApi, ingestApi } from './storageApi';
 export type { StorageReferenceClient, StorageOpenResultClient, IngestJobClient } from './storageApi';

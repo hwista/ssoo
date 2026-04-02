@@ -1,6 +1,71 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-03-31
+> 최종 업데이트: 2026-04-02
+
+---
+
+## 2026-04-02
+
+### Settings shell + 설정 구조 분리
+
+- 설정 진입을 `/settings` 탭 생성 방식에서 `AppLayout` 전역 settings shell 전환 방식으로 재구성
+- settings shell은 로고 영역 대신 `뒤로가기 + 설정 제목`, 전용 settings sidebar, `SettingsPage` 본문 조합으로 렌더링
+- 설정 모델을 `system` / `personal` 로 분리하고, API/store/service 계약도 같은 구조로 정렬
+- 개인화 설정 전용 `PersonalSettingsService` 와 `dms.personal.config.default.json` 을 추가해 anonymous-first 기준의 작성자/워크스페이스 선호값을 저장
+- 기존 settings UI를 공용 `JsonRenderer`, `JsonEditor`, `JsonDiffView` 기반 structured / JSON / diff 모드로 재구성
+- sidecar metadata diff 와 settings JSON draft 가 `stringifyJson`, `getNestedValue`, `setNestedValue`, `deepMergeRecords` 공용 유틸을 재사용하도록 정리
+
+### Settings shell 헤더 1차 정리
+
+- settings sidebar 상단을 workspace 브랜드 슬롯 패턴에 맞춰 재구성하고, 기존 `S` 아이콘 위치에 뒤로가기 버튼을 배치
+- 브랜드 텍스트를 `SSOT` 계열 표기 대신 `설정` 으로 통일
+- settings shell 상단 헤더는 문서/AI 검색 대신 registry 기반 전역 설정 검색으로 전환하고, 결과는 해당 설정 섹션으로 바로 이동하도록 정리
+- 헤더 우측의 scope badge(`시스템`/`개인화`)는 제거하고 `UserMenu` 중심으로 단순화
+
+### Settings shell 2차 단순화
+
+- settings sidebar 브랜드 블록의 `anonymous-first · anonymous-first` 보조 문구를 제거하고 `뒤로가기 + 설정` 만 남기도록 정리
+- settings 검색 입력을 상단 header에서 제거하고, workspace sidebar와 동일한 검색 슬롯 위치로 이동
+- settings 검색 상태는 파일 검색 store와 분리한 settings shell 전용 로컬 상태로 유지해 기존 파일 검색과 섞이지 않도록 보정
+- `UserMenu` 의 `시스템 설정`, `개인화 설정`, `마지막 설정 다시 열기`를 하나의 `설정` 진입점으로 축소
+
+### Settings shell 3차 네비게이션 정리
+
+- settings shell sidebar를 section tree가 아니라 `시스템 설정`, `개인 설정` 두 개의 scope selector 전용으로 축소
+- `SettingsPage` 내부에 좌측 `SettingsNavigation` + 우측 detail surface 2열 구조를 도입해 `Git`, `Storage`, `Ingest`, `Identity`, `Workspace` 같은 세부 설정 메뉴를 page 내부로 이동
+- settings 검색 입력은 workspace 파일 검색과 동일한 `sidebar/SearchInput.tsx` visual primitive를 공유하도록 추출
+- 설정 검색 결과는 outer sidebar에서 바로 scope/section을 열고, 활성 section의 실제 본문 렌더링은 inner navigation + detail pane 조합이 담당하도록 책임을 분리
+
+### Settings navigation list rhythm 정렬
+
+- outer settings sidebar의 `시스템 설정`, `개인 설정` 항목을 기존 sidebar 문서 목록과 같은 row/list 스타일로 재정렬
+- `SettingsPage` 내부 `SettingsNavigation` 도 같은 row/list rhythm을 사용하도록 맞춰, outer/inner navigation의 선택 상태와 hover 톤을 통일
+- settings navigation 내부의 2줄 설명 문구는 제거하고, 설명 정보는 page header description에만 유지
+
+### Settings typography token 정렬
+
+- settings shell / page / JSON surface 경로를 다시 점검해 공용 typography token 적용 여부를 확인
+- 일반 settings UI는 기존 `text-body-sm`, `text-label-*`, `text-caption`, `text-badge` 토큰 구성을 유지하고, raw JSON editor는 `font-mono + text-code-block` 기준으로 정리
+- 디자인 시스템 문서도 실제 DMS semantic typography token 목록 기준으로 갱신
+
+### Settings navigation row rhythm 재정렬
+
+- 사용자 피드백 기준으로 settings navigation을 다시 비교한 결과, 기존 문서 목록(FileTree)과 settings row 사이에 `gap/padding/font inheritance` 체감 차이가 남아 있음을 확인
+- outer scope selector와 inner section navigation 모두 FileTree row와 같은 `font-sans`, `gap-1`, `px-2` 리듬으로 재정렬
+- active/inactive 텍스트 색상도 row 내부 `span` 기준으로 다시 고정해 기존 문서 목록과 같은 시각적 밀도를 맞춤
+
+### Settings navigation section 패턴 재정렬
+
+- 추가 분석 결과, 차이의 핵심이 단순 font token보다 `Section 헤더 + 목록` 구조 패턴에 더 가깝다고 판단
+- 2열 settings IA는 유지하되, outer sidebar와 inner navigation 모두 상단에 section-style header를 두고 그 아래 row list를 배치하는 구조로 재정렬
+- inner navigation header에도 scope icon을 노출해 기존 sidebar 섹션 헤더와 같은 위계가 읽히도록 조정
+
+### Settings navigation sidebar parity 보정
+
+- 추가 스크린샷 비교 결과, settings navigation의 flat row가 실제 기준인 `FileTree` 보다 `OpenTabs`/`Bookmarks` 계열 row rhythm에 더 가깝다고 재판단
+- outer scope selector와 inner section navigation 모두 `gap-2`, `px-3` 기준의 flat sidebar row spacing으로 재정렬
+- `SettingsPage` 내부에서 좌측 navigation을 우측 detail card와 시각적으로 분리해, page 내부의 또 다른 sidebar rail처럼 읽히도록 보정
+- 마지막으로 outer/inner navigation header 모두 실제 sidebar `Section` 컴포넌트를 재사용하도록 바꿔, section header 구조 자체의 drift를 제거
 
 ---
 

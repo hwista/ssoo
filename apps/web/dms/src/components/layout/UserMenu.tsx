@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown';
-import { useTabStore } from '@/stores';
+import { useSettingsShellStore, useSettingsStore } from '@/stores';
 
 interface UserMenuProps {
   /** 드롭다운 너비 (부모 액션 영역 기준) */
@@ -22,17 +22,18 @@ interface UserMenuProps {
  * - 설정 / 로그아웃 (준비 중)
  */
 export function UserMenu({ dropdownWidth }: UserMenuProps) {
-  const { openTab } = useTabStore();
+  const displayName = useSettingsStore((state) => state.config?.personal.identity.displayName || 'Anonymous');
+  const loadSettings = useSettingsStore((state) => state.loadSettings);
+  const applyWorkspacePreferences = useSettingsShellStore((state) => state.applyWorkspacePreferences);
+  const enterSettings = useSettingsShellStore((state) => state.enterSettings);
 
-  const openSettings = () => {
-    openTab({
-      id: 'settings',
-      title: '설정',
-      path: '/settings',
-      icon: 'Settings',
-      closable: true,
-      activate: true,
-    });
+  const openSettings = async () => {
+    await loadSettings();
+    const settings = useSettingsStore.getState().config;
+    if (settings?.personal.workspace) {
+      applyWorkspacePreferences(settings.personal.workspace);
+    }
+    enterSettings();
   };
 
   return (
@@ -59,8 +60,8 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
               <User className="w-4 h-4 text-white" />
             </div>
             <div className="flex flex-col min-w-0">
-              <p className="text-label-md text-white truncate">admin</p>
-              <p className="text-caption text-white/60 truncate">관리자</p>
+              <p className="text-label-md text-white truncate">{displayName}</p>
+              <p className="text-caption text-white/60 truncate">anonymous-first</p>
             </div>
           </div>
         </DropdownMenuLabel>
@@ -69,7 +70,9 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
 
         {/* 설정 */}
         <DropdownMenuItem
-          onClick={openSettings}
+          onClick={() => {
+            void openSettings();
+          }}
           className="text-white focus:bg-white/10 focus:text-white px-3 py-2 cursor-pointer"
         >
           <Settings className="mr-2 h-4 w-4" />
