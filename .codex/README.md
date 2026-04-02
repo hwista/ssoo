@@ -45,6 +45,10 @@ pnpm run codex:dms-sync-from-gitlab
 
 # 6) DMS 양방향 배포 (GitHub + GitLab + 검증)
 pnpm run codex:dms-publish
+
+# 인증은 환경변수 또는 local git config 사용 가능
+git config --local codex.gitlabUser 'your_gitlab_username'
+git config --local codex.gitlabToken 'your_personal_access_token'
 ```
 
 ## 정본 관계

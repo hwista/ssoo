@@ -19,14 +19,20 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ -z "${GL_USER:-}" ] || [ -z "${GL_TOKEN:-}" ]; then
+GL_USER_VALUE="${GL_USER:-$(git config --local --get codex.gitlabUser || true)}"
+GL_TOKEN_VALUE="${GL_TOKEN:-$(git config --local --get codex.gitlabToken || true)}"
+
+if [ -z "$GL_USER_VALUE" ] || [ -z "$GL_TOKEN_VALUE" ]; then
   echo "[dms-sync] GL_USER/GL_TOKEN are required."
   echo "[dms-sync] example: export GL_USER='your_gitlab_username'"
   echo "[dms-sync]          export GL_TOKEN='your_personal_access_token'"
+  echo "[dms-sync] or set local git config:"
+  echo "[dms-sync]   git config --local codex.gitlabUser 'your_gitlab_username'"
+  echo "[dms-sync]   git config --local codex.gitlabToken 'your_personal_access_token'"
   exit 1
 fi
 
-AUTH="$(printf '%s:%s' "$GL_USER" "$GL_TOKEN" | base64 -w0)"
+AUTH="$(printf '%s:%s' "$GL_USER_VALUE" "$GL_TOKEN_VALUE" | base64 -w0)"
 
 gitlab_git() {
   git -c http.extraHeader="Authorization: Basic $AUTH" "$@"
