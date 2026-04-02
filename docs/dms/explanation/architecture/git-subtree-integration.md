@@ -119,21 +119,28 @@ git subtree push --prefix=apps/web/dms gitlab-dms main
 > 수동 `git push`/`git subtree push` 대신 아래 명령을 표준으로 사용한다.
 
 ```bash
-# 인증 변수 준비
+# 인증 변수 준비 (또는 local git config 사용)
 export GL_USER='gitlab_username'
 export GL_TOKEN='gitlab_personal_access_token'
+git config --local codex.gitlabUser 'gitlab_username'
+git config --local codex.gitlabToken 'gitlab_personal_access_token'
+
+# GitLab subtree가 앞서 있으면 먼저 monorepo로 재통합
+pnpm run codex:dms-sync-from-gitlab
 
 # 현재 브랜치 기준 GitHub + GitLab 동시 반영/검증
 pnpm run codex:dms-publish
 ```
 
 기본 동작:
-1. 현재 브랜치를 `origin`에 push
-2. `apps/web/dms` subtree를 GitLab `refactor/integration`에 push
-3. GitLab 원격을 fetch한 뒤 local subtree split hash와 원격 hash 일치 여부 검증
+1. GitLab `refactor/integration`이 local subtree split으로 fast-forward 가능한지 먼저 검사
+2. 현재 브랜치를 `origin`에 push
+3. `apps/web/dms` subtree를 GitLab `refactor/integration`에 push
+4. GitLab 원격을 fetch한 뒤 local subtree split hash와 원격 hash 일치 여부 검증
 
 참고:
 - DMS 변경이 있는데 `origin`으로 바로 push하면 pre-push guard가 차단한다.
+- GitLab subtree가 local split보다 앞서 있으면 `codex:dms-publish`는 GitHub push 전에 중단하고 `codex:dms-sync-from-gitlab` 실행을 안내한다.
 - 예외 우회(권장하지 않음): `CODEX_SKIP_DMS_PUBLISH_GUARD=1 git push ...`
 
 ---
@@ -287,5 +294,6 @@ git subtree add --prefix=apps/web/dms gitlab-dms main --squash
 
 | Date | Change |
 |------|--------|
+| 2026-04-02 | Add `codex:dms-sync-from-gitlab`, preflight GitLab fast-forward checks, and git-config auth fallback for publish. |
 | 2026-02-23 | Add `codex:dms-publish` standard flow (GitHub + GitLab + hash verification). |
 | 2026-02-09 | Add changelog section. |
