@@ -16,6 +16,7 @@ interface ComposeInput {
   activeDocPath?: string;
   templates?: TemplateItem[];
   summaryFiles?: SummaryFileInput[];
+  contentType?: 'document' | 'template';
 }
 
 export async function composeDocument(input: ComposeInput): Promise<{
@@ -49,6 +50,7 @@ export function recommendDocumentPath(input: Omit<ComposeInput, 'currentContent'
 export async function recommendTitleAndPath(input: {
   currentContent: string;
   activeDocPath?: string;
+  contentType?: 'document' | 'template';
 }): Promise<TitleAndPathResult> {
   return docAssistService.recommendTitleAndPath(input);
 }

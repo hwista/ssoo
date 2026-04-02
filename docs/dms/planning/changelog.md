@@ -1,6 +1,71 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-03-19
+> 최종 업데이트: 2026-03-31
+
+---
+
+## 2026-03-31
+
+### 문서/템플릿 저장 런타임 정렬
+
+- 템플릿 저장을 `DocumentPage.handleSave` 공통 오케스트레이터로 재정렬해, 일반 문서와 동일한 저장 전처리와 저장 후처리를 수행하도록 수정
+- 템플릿 저장 성공 시 editor runtime의 `markAsSaved()`를 공통 handler로 호출해 dirty baseline, 저장 버튼 상태, beforeunload 경고가 일반 문서 저장과 같은 기준으로 정리되도록 보강
+- inline assistant의 템플릿 참조도 일반 참조 파일과 같은 규칙으로 사용 이력 추적, confirm 기반 soft-delete, restore, clear-all semantics를 따르도록 통합
+- compose context 조립을 helper로 분리하고, 템플릿 참조 used tracking을 제목 매칭이 아닌 원본 `path/tempId` stable key 기준으로 전환
+- 템플릿 저장 모델에 `currentTemplateId` 세션 상태를 추가해 첫 저장은 create, 이후 같은 세션 저장은 update로 동작하도록 정렬
+- 문서명/템플릿명은 공통 display title 규칙을 사용하고, 유니크 보장은 파일 경로/템플릿 `id` 같은 내부 저장 식별자에서만 처리하도록 모델을 통일
+
+---
+
+## 2026-03-27
+
+### 템플릿 전환 후속 개선
+
+- PDF 다운로드의 print window feature string에서 `noopener,noreferrer`를 제거하고, 비어 있는 문서는 출력하지 않도록 guard toast를 추가
+- 새 문서, 새 템플릿, AI 요약 생성 진입에서는 baseline snapshot이 없으므로 `이전보기` 버튼을 숨기도록 조정
+- 템플릿 sidecar를 일반 문서 sidecar 기반으로 재구성해 `정보`, `태그`, `참조`, `댓글`, `템플릿 저장` 섹션을 유지하고 `요약`, `링크` 섹션은 제외
+- 템플릿 sidecar의 정보 섹션에서 `수정자`, `수정일`, `수정 시간`, `줄 수`, `문자 수`, `단어 수`를 숨기고, 파일 섹션은 직접 첨부 없는 `참조` 섹션으로 전환
+- 템플릿 저장 시 누락되어 있던 `tags`를 `templateApi.upsert` payload에 포함해 저장 후 재오픈 시 태그가 유지되도록 보정
+
+### 템플릿 전환 pending 전달 안정화
+
+- `/doc/new-template` 진입 시 템플릿 전환 pending을 destructive consume으로 즉시 삭제하지 않고, `getTemplateConversionPending + clearTemplateConversionPending` 계약으로 분리
+- 개발 모드 strict mode remount에서도 새 템플릿 탭이 source document pending을 다시 읽어 `/api/templates/convert` SSE 요청을 정상 시작하도록 보정
+- AI 템플릿 초안 생성 SSE가 실패하면 무음으로 빈 템플릿 상태로 돌아가지 않고 오류 toast를 표시하도록 수정
+
+### 내보내기 UX + AI 스트리밍 자동 스크롤 정비
+
+- viewer 헤더 `내보내기` 버튼을 텍스트 버튼에서 `Share` icon-only 트리거로 정리하고, 드롭다운 패널/hover 스타일을 문서 영역 TOC 패턴과 맞추도록 조정
+- 페이지 헤더와 쉘 툴바에서 텍스트가 보이는 버튼/토글/드롭다운 항목의 타이포그래피를 `text-body-sm`로 통일하되, 채워진 헤더 액션 버튼은 기존처럼 `text-white` 가시성을 유지하도록 보정
+- TOC/export 드롭다운 항목은 `text-body-sm font-normal`로 맞추고, TOC 레벨 차이는 들여쓰기와 색상만 유지하도록 정리
+- `템플릿 전환` 클릭 후 참조 템플릿 조회 중에는 메뉴 항목이 아니라 export trigger 자체를 spinner 상태로 전환해, 메뉴가 닫힌 뒤에도 진행 중임을 인지할 수 있도록 변경
+- 새 `/doc/new-template` 탭에서 AI 초안 생성이 시작되면 shell과 sidecar는 유지한 채, 본문 에디터 영역에만 반투명 overlay + 로딩 문구를 표시하도록 보강
+- AI 스트리밍 자동 스크롤 정책을 `하단 근처(60px)일 때만 follow`로 통일하고, 사용자가 위로 읽는 중이면 추적을 멈췄다가 다시 하단 근처로 내려오면 재개하도록 정리
+- 위 정책을 템플릿 변환, Doc Assist 작성, 플로팅 어시스턴트, AI 채팅 페이지에 공통 적용할 수 있도록 `useAutoScroll`과 CodeMirror `view.scrollDOM` 기반 near-bottom gating을 도입
+- CodeMirror 에디터는 `view.scrollDOM` scroll listener로 `isNearBottomRef`를 추적하고, 스트리밍 delta마다 `scrollIntoView` 대신 RAF에서 `scrollTop = scrollHeight`를 직접 적용하도록 바꿔 빠른 전체 문서 교체 중에도 하단 follow가 끊기지 않게 수정
+
+### 뷰어 헤더 `내보내기` 드롭다운 도입
+
+- 기존 문서 편집 헤더의 `템플릿으로 저장` 토글 진입점을 제거하고, viewer 헤더 우측에 `내보내기` 드롭다운을 추가
+- `내보내기`는 `템플릿 전환`, `마크다운 다운로드`, `PDF 다운로드`를 제공하며 viewer 모드에서만 노출
+- `템플릿 전환`은 현재 탭 editor 진입 대신 고유 탭 ID를 가진 새 `/doc/new-template` 탭을 열고, 현재 문서의 markdown 원문을 `templateConversionPendingByTabId`로 전달하도록 변경
+- 참조 템플릿이 있으면 목록 모달을 먼저 띄우고, 항목 선택 시 overwrite 없이 읽기 전용 `TemplatePreviewDialog`로 내용만 확인
+- 새 탭 생성 실패 시 pending을 정리하고 일반화된 토스트를 표시하되, picker는 닫지 않아 재시도/취소가 가능하도록 처리
+- `/doc/new-template`는 현재 탭 ID 기준으로 source document pending을 1회 소비하고, `useTemplateSaveFlow`는 `sourceDocument`가 있을 때 `originType='referenced'`와 AI 자동 변환을 수행
+- PDF 다운로드는 앱 전체가 아니라 현재 문서 `htmlContent`만 별도 print window에 주입해 브라우저 인쇄 기반으로 처리
+
+### AI 템플릿 변환 모드 + 템플릿 저장소 재정의
+
+- 기존 문서 편집 헤더의 `템플릿으로 저장` 토글을 사이드카 전환용 상태가 아니라, 현재 문서를 AI로 템플릿화해 에디터 본문을 preview하는 모드로 재구성
+- 토글 ON 시 현재 문서를 참조한 저장 템플릿이 있으면 공용 `EditorDialog` 기반 모달에서 목록을 보여주고, 없으면 즉시 `/api/templates/convert` SSE를 통해 AI 변환을 시작하도록 변경
+- 같은 편집 세션 안에서 생성된 AI 템플릿 결과는 캐시 재사용하며, 토글 OFF 시 원본 본문과 원본 메타 draft를 함께 복원하도록 `useTemplateSaveFlow`와 `replaceLocalDocumentMetadata()` 계약을 추가
+- 기존 템플릿 선택은 preview-only로 제한하고, 템플릿 저장 시에는 항상 `id`를 보내지 않아 overwrite가 구조적으로 일어나지 않도록 고정
+- 템플릿 저장 경로를 `data/templates/referenced|generated/(global|personal)` 구조로 재정의하고, sidecar에 `originType`, `referenceDocuments`, `generation`, 공통 메타(`summary/tags/author/...`)를 함께 기록하도록 확장
+- 현재 문서를 참조한 템플릿 조회를 위해 `/api/templates?sourceDocumentPath=...`와 `TemplateService.listByReferenceDocument()`를 추가하고, 응답에는 모달 미리보기를 위한 `content`를 포함
+- `document-to-template` 전용 최소 AI task/profile 계층(`AiTaskRunner`, profile registry, file-based override, shared prompt blocks)을 도입하고, 기존 `docAssist` 프롬프트의 공용 블록을 서버 공용 AI 영역으로 분리
+- 템플릿 저장의 최종 분기점은 `DocumentPage.handleSave`로 고정하고, `useEditorPersistence`는 다시 editor runtime save/cancel primitive만 담당하도록 역할을 축소
+- 템플릿 모드에서는 신규 첨부/이미지 업로드를 지원하지 않으며, `saveTarget === 'template'`일 때는 `transformBeforeSave`를 호출하지 않도록 정책을 고정
+- 템플릿 sidecar의 `author/lastModifiedBy`는 클라이언트가 아니라 서버 저장 계층에서 `요청 사용자 → git.author.name → 'Unknown'` 순서로 계산하도록 정리
 
 ---
 

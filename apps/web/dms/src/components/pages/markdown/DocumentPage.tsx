@@ -10,6 +10,8 @@ import {
   useAssistantPanelStore,
   useNewDocStore,
 } from '@/stores';
+import type { TemplateConversionPendingData } from '@/stores/new-doc.store';
+import type { TemplateSaveData } from '@/stores/editor-core.store';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import { fileApi, templateApi, docAssistApi } from '@/lib/api';
 import { PageTemplate } from '@/components/templates';
@@ -44,17 +46,24 @@ import { SimpleTooltip } from '@/components/ui/tooltip';
 import { LoadingState } from '@/components/common/StateDisplay';
 import { SplitDiffViewer } from '@/components/common/diff/SplitDiffViewer';
 import { DocumentSidecar } from './_components/DocumentSidecar';
-import { DiffTargetToggle, DiffToggleButton, PreviewToggleButton, TemplateSaveControls } from './_components/EditorModeControls';
+import { DiffTargetToggle, DiffToggleButton, PreviewToggleButton } from './_components/EditorModeControls';
 import { InlineComposerPanel, DocumentPageContent } from './_components/DocumentPagePanels';
 import { NewDocumentLauncher } from './_components/NewDocumentLauncher';
+import { DocumentExportMenu } from './_components/DocumentExportMenu';
+import { TemplatePickerDialog } from './_components/document-sidecar/TemplatePickerDialog';
+import { TemplatePreviewDialog } from './_components/document-sidecar/TemplatePreviewDialog';
 import { useDocumentPageComposeActions } from './useDocumentPageComposeActions';
+import { useTemplateSaveFlow } from './useTemplateSaveFlow';
+import { useViewerTemplatePicker } from './useViewerTemplatePicker';
+import { toast } from '@/lib/toast';
+import { downloadMarkdown, printHtmlContent } from '@/lib/utils/downloadUtils';
 import { resolveTitlePathRecommendation, type RecommendationStatus } from '@/lib/utils/titlePathRecommendation';
 import {
   buildDocumentSidecarDiffSnapshot,
   buildDocumentSidecarMetadata,
   buildMarkdownToc,
-  deriveDefaultTemplateName,
   getDocumentFilePath,
+  resolveSaveDisplayName,
   stringifyDocumentSidecarDiffSnapshot,
   type DocumentSidecarDiffSnapshot,
 } from './documentPageUtils';
@@ -63,15 +72,9 @@ type PageMode = 'viewer' | 'editor' | 'create';
 type EditorSurfaceMode = 'edit' | 'preview' | 'diff';
 type DiffTarget = 'content' | 'metadata';
 
-interface TemplateSaveDraft {
-  name: string;
-  description: string;
-  scope: 'personal' | 'global';
-}
-
 export function DocumentPage() {
   const tabId = useTabInstanceId();
-  const { tabs, closeTab, updateTab } = useTabStore();
+  const { tabs, closeTab, updateTab, openTab } = useTabStore();
   const { confirm } = useConfirmStore();
   const { refreshFileTree } = useFileStore();
   const openAssistantPanel = useAssistantPanelStore((state) => state.openPanel);
@@ -89,6 +92,7 @@ export function DocumentPage() {
     fileMetadata,
     documentMetadata,
     setLocalDocumentMetadata,
+    replaceLocalDocumentMetadata,
     setContent,
     reset,
     isSaving,
@@ -97,8 +101,12 @@ export function DocumentPage() {
     hasUnsavedChanges,
     setHasUnsavedChanges,
     flushPendingMetadata,
+    discardPendingMetadata,
+    currentFilePath: storeCurrentFilePath,
     setCurrentFilePath,
     refreshFileMetadata,
+    setContentType,
+    setTemplateSaveData,
   } = useEditorStore();
 
   const [mode, setMode] = useState<PageMode>('viewer');
@@ -123,16 +131,13 @@ export function DocumentPage() {
   const [diffMetadataSnapshotText, setDiffMetadataSnapshotText] = useState<string | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  const [saveAsTemplateOnly, setSaveAsTemplateOnly] = useState(false);
-  const [templateSaveDraft, setTemplateSaveDraft] = useState<TemplateSaveDraft>({
-    name: '',
-    description: '',
-    scope: 'personal',
-  });
   const editorRef = useRef<EditorRef | null>(null);
   const [liveEditorContent, setLiveEditorContent] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
+  const [templateConversionSource, setTemplateConversionSource] = useState<TemplateConversionPendingData | null>(null);
+  // 템플릿 전환 완료 시 생성된 콘텐츠 (useEffect에서 메타데이터 자동 생성 트리거)
+  const [templateConvertedContent, setTemplateConvertedContent] = useState<string | null>(null);
 
   // AI 작성에 사용된 참조 파일/템플릿 추적
   const [usedSummaryFileIds, setUsedSummaryFileIds] = useState<Set<string>>(new Set());
@@ -142,6 +147,8 @@ export function DocumentPage() {
   // 참조 파일/템플릿 소프트 삭제 (되돌리기 가능)
   const [pendingDeletedFileIds, setPendingDeletedFileIds] = useState<Set<string>>(new Set());
   const [isTemplatePendingDelete, setIsTemplatePendingDelete] = useState(false);
+  const [usedTemplateRefPaths, setUsedTemplateRefPaths] = useState<Set<string>>(new Set());
+  const [pendingDeletedRefPaths, setPendingDeletedRefPaths] = useState<Set<string>>(new Set());
 
   // 참조 파일 복원 실패 추적 (재시도용)
   const [failedRestoreFiles, setFailedRestoreFiles] = useState<Array<{ id: string; name: string; path: string }>>([]);
@@ -168,6 +175,10 @@ export function DocumentPage() {
   /** 편집 진입 시 메타데이터 스냅샷 (변경 하이라이트용) */
   const [originalMetaSnapshot, setOriginalMetaSnapshot] = useState<DocumentSidecarDiffSnapshot | null>(null);
 
+  // handleSave 클로저에서 항상 최신 메타데이터를 참조하기 위한 ref
+  const documentMetadataRef = useRef(documentMetadata);
+  documentMetadataRef.current = documentMetadata;
+
   // 새 문서용 자동 생성 파일명 (세션당 1회 생성)
   const [generatedFileName] = useState(() => generateUniqueFilename());
 
@@ -189,15 +200,17 @@ export function DocumentPage() {
   }, []);
 
   useEffect(() => {
-    if (mode !== 'create') {
+    if (mode === 'create' && !isEditing && storeCurrentFilePath) {
+      // create 모드에서 저장 완료 (currentFilePath가 설정됨) → viewer 전환
+      setMode('viewer');
+    } else if (mode !== 'create') {
       setMode(isEditing ? 'editor' : 'viewer');
     }
-  }, [isEditing, mode]);
+  }, [isEditing, mode, storeCurrentFilePath]);
 
   useEffect(() => {
     if (mode === 'viewer') {
       setSurfaceMode('edit');
-      setSaveAsTemplateOnly(false);
     }
   }, [mode]);
 
@@ -237,8 +250,12 @@ export function DocumentPage() {
   const filePath = useMemo(() => getDocumentFilePath(activeTab?.path), [activeTab?.path]);
 
   const consumeAiSummaryPending = useNewDocStore((s) => s.consumeAiSummaryPending);
+  const setTemplateConversionPending = useNewDocStore((s) => s.setTemplateConversionPending);
+  const getTemplateConversionPending = useNewDocStore((s) => s.getTemplateConversionPending);
+  const clearTemplateConversionPending = useNewDocStore((s) => s.clearTemplateConversionPending);
   const aiSummaryConsumedRef = useRef(false);
   const aiSummaryCompletedRef = useRef(false);
+  const templateConversionConsumedRef = useRef(false);
 
   useEffect(() => {
     if (!createEntryType || createEntryType === 'launcher') return;
@@ -260,14 +277,10 @@ export function DocumentPage() {
     setSurfaceMode('edit');
     setDiffTarget('content');
 
-    if (createEntryType === 'template') {
-      setSaveAsTemplateOnly(true);
-    } else {
-      setSaveAsTemplateOnly(false);
-    }
-
     aiSummaryConsumedRef.current = false;
     aiSummaryCompletedRef.current = false;
+    templateConversionConsumedRef.current = false;
+    setTemplateConversionSource(null);
   }, [createEntryType, reset, setContent, setIsEditing]);
 
   useEffect(() => {
@@ -392,7 +405,16 @@ export function DocumentPage() {
     return () => cancelAnimationFrame(frameId);
   }, [isComposing, setHasUnsavedChanges]);
 
+  useEffect(() => {
+    if (createEntryType !== 'template' || !tabId || templateConversionConsumedRef.current) return;
+    const pending = getTemplateConversionPending(tabId);
+    if (!pending) return;
+    templateConversionConsumedRef.current = true;
+    setTemplateConversionSource(pending);
+  }, [createEntryType, getTemplateConversionPending, tabId]);
+
   // 문서명이 있으면 탭 제목을 문서명으로 업데이트 (사이드바와 동일 패턴)
+
   useEffect(() => {
     if (!tabId) return;
     const docTitle = documentMetadata?.title?.trim();
@@ -414,18 +436,95 @@ export function DocumentPage() {
     ?? editorRef.current?.getMarkdown()
     ?? liveEditorContent
     ?? content;
+  const currentTemplateDraftContent = editorRef.current?.getMarkdown()
+    ?? liveEditorContent
+    ?? content;
+  const isGeneratedTemplateMode = createEntryType === 'template';
+
   const getCurrentDraftContent = useCallback(() => (
     editorHandlers?.getMarkdown?.()
     ?? editorRef.current?.getMarkdown()
     ?? liveEditorContent
     ?? content
   ), [content, editorHandlers, liveEditorContent]);
+  const templateSaveFlow = useTemplateSaveFlow({
+    enabled: isGeneratedTemplateMode,
+    editorContent: currentDraftContent,
+    filePath,
+    documentTitle: documentMetadata?.title,
+    sourceDocument: templateConversionSource ? {
+      path: templateConversionSource.sourceFilePath,
+      title: templateConversionSource.sourceTitle,
+      content: templateConversionSource.sourceContent,
+    } : null,
+    documentMetadata,
+    replaceContent: (nextContent) => {
+      editorRef.current?.replaceContent(nextContent);
+      setLiveEditorContent(nextContent);
+    },
+    replaceLocalDocumentMetadata,
+    discardPendingMetadata,
+    onConvertComplete: useCallback((generatedContent: string) => {
+      setTemplateConvertedContent(generatedContent);
+    }, []),
+  });
+  const {
+    templateModeEnabled,
+    isConvertingToTemplate,
+    isTemplatePickerOpen,
+    referenceTemplates,
+    currentTemplateId,
+    saveTarget,
+    templateOriginType,
+    templateReferenceDocuments,
+    templateGeneration,
+    toggleTemplateMode,
+    addTemplateReference,
+    removeTemplateReference,
+    setCurrentTemplateId,
+    handleTemplateSelected,
+    handleAiConvertRequested,
+    handleTemplatePickerClose,
+  } = templateSaveFlow;
+
+  // 스토어에 contentType 동기화 (템플릿/문서)
+  useEffect(() => {
+    setContentType((isGeneratedTemplateMode || templateModeEnabled) ? 'template' : 'document');
+  }, [isGeneratedTemplateMode, templateModeEnabled, setContentType]);
+
+  const {
+    isViewerTemplatePickerOpen,
+    viewerReferenceTemplates,
+    previewTemplate,
+    isCheckingReferenceTemplates,
+    startViewerTemplateFlow,
+    closeViewerTemplatePicker,
+    openViewerTemplatePreview,
+    returnFromPreviewToPicker,
+    createReferencedTemplate,
+  } = useViewerTemplatePicker({
+    filePath,
+    content,
+    documentTitle: documentMetadata?.title,
+    openTab,
+    setTemplateConversionPending,
+    clearTemplateConversionPending,
+  });
+
+  useEffect(() => {
+    if (!isConvertingToTemplate || !tabId) return;
+    clearTemplateConversionPending(tabId);
+  }, [clearTemplateConversionPending, isConvertingToTemplate, tabId]);
+
   const liveBodyLinks = useBodyLinks(currentDraftContent);
-  const currentSidecarFilePath = isCreateMode ? displayCreatePath : (pendingFileMove ?? filePath ?? '');
-  const originalInfoDocumentTitle = isCreateMode
+  // 사이드카 표시용: isCreateMode 대신 mode === 'create' 사용
+  // 템플릿 저장 후 mode가 'viewer'로 전환되면 저장된 값을 표시하기 위함
+  const isActivelyCreating = mode === 'create';
+  const currentSidecarFilePath = isActivelyCreating ? displayCreatePath : (pendingFileMove ?? filePath ?? storeCurrentFilePath ?? '');
+  const originalInfoDocumentTitle = isActivelyCreating
     ? ''
     : (originalMetaSnapshot?.title || filePath?.split('/').pop()?.replace(/\.md$/, '') || '');
-  const originalInfoFilePath = isCreateMode ? '' : (filePath ?? '');
+  const originalInfoFilePath = isActivelyCreating ? '' : (filePath ?? storeCurrentFilePath ?? '');
 
   const applySuggestedInfoTitle = useCallback((title: string) => {
     setDisplaySuggestedTitle(title);
@@ -475,7 +574,10 @@ export function DocumentPage() {
     setPendingInfoPathValidationMessage('');
 
     try {
-      const res = await docAssistApi.recommendTitleAndPath({ currentContent: draftContent });
+      const res = await docAssistApi.recommendTitleAndPath({
+        currentContent: draftContent,
+        contentType: isGeneratedTemplateMode ? 'template' : 'document',
+      });
       if (res.success && res.data) {
         const resolved = resolveTitlePathRecommendation(res.data, {
           fallbackContent: draftContent,
@@ -489,7 +591,7 @@ export function DocumentPage() {
       setTitleRecommendationStatus('error');
       setPathRecommendationStatus('error');
     }
-  }, [consumeTitlePathRecommendation, getCurrentDraftContent]);
+  }, [consumeTitlePathRecommendation, getCurrentDraftContent, isGeneratedTemplateMode]);
 
   const handleAcceptSuggestedInfoTitle = useCallback(() => {
     if (!pendingSuggestedInfoTitle) return;
@@ -525,17 +627,6 @@ export function DocumentPage() {
     [content, documentMetadata, fileMetadata]
   );
 
-  useEffect(() => {
-    if (templateSaveDraft.name.trim().length > 0) return;
-
-    const fallbackPath = filePath || createPath;
-    const nextName = deriveDefaultTemplateName(content, fallbackPath);
-    setTemplateSaveDraft((prev) => (
-      prev.name.trim().length > 0 || prev.name === nextName
-        ? prev
-        : { ...prev, name: nextName }
-    ));
-  }, [content, createPath, filePath, templateSaveDraft.name]);
 
   const tags = useMemo(() => documentMetadata?.tags || [], [documentMetadata]);
 
@@ -634,7 +725,7 @@ export function DocumentPage() {
         sourcePath: templateFile.path,
         status: 'active',
         sourceType: 'markdown-file',
-        visibility: 'personal',
+        visibility: 'private',
       };
       setInlineTemplate(tplItem);
       setIsTemplateUsed(true);
@@ -860,6 +951,24 @@ export function DocumentPage() {
       setIsTemplateUsed(false);
       setIsTemplatePendingDelete(false);
     }
+    if (pendingDeletedRefPaths.size > 0) {
+      const deletedInlineRefIds = templateReferenceDocuments
+        .filter((ref) => pendingDeletedRefPaths.has(ref.path) && ref.storage === 'inline' && ref.tempId)
+        .flatMap((ref) => ref.tempId ? [ref.tempId] : []);
+      for (const path of pendingDeletedRefPaths) {
+        removeTemplateReference(path);
+      }
+      if (deletedInlineRefIds.length > 0) {
+        const deletedIdSet = new Set(deletedInlineRefIds);
+        setInlineSummaryFiles((prev) => prev.filter((item) => !deletedIdSet.has(item.id)));
+      }
+      setPendingDeletedRefPaths(new Set());
+      setUsedTemplateRefPaths((prev) => {
+        const next = new Set(prev);
+        for (const path of pendingDeletedRefPaths) next.delete(path);
+        return next;
+      });
+    }
 
     // 저장 직전 본문 링크를 sidecar에 영속화
     const currentBodyLinks = extractMarkdownLinks(
@@ -897,16 +1006,38 @@ export function DocumentPage() {
       setLocalDocumentMetadata({ sourceFiles: updatedFiles });
     }
 
+    // 템플릿 저장 시 스토어에 메타데이터 설정 (saveFile이 templateApi.upsert() 호출에 사용)
+    if (saveTarget === 'template') {
+      setTemplateSaveData({
+        ...(currentTemplateId ? { id: currentTemplateId } : {}),
+        scope: 'personal',
+        kind: 'document',
+        originType: templateOriginType,
+        referenceDocuments: templateReferenceDocuments.filter(
+          (ref) => !pendingDeletedRefPaths.has(ref.path),
+        ),
+        generation: templateGeneration,
+      } as TemplateSaveData);
+      // 템플릿 이름을 메타데이터 title로 설정
+      setLocalDocumentMetadata({
+        title: resolveSaveDisplayName(documentMetadata, currentDraftContent, filePath || createPath),
+      });
+    }
+
+    // 공통 저장 경로: editorHandlers.save() → useEditorPersistence.handleSave()
+    // - isCreateMode → requestSaveLocation 모달 → storeSaveFile
+    // - 기존 콘텐츠 → storeSaveFile 직접 호출
+    // storeSaveFile은 스토어의 contentType에 따라 fileApi 또는 templateApi 호출
     await editorHandlers?.save();
 
     // 저장 성공 후 diff 스냅샷 갱신 (하이라이트 초기화)
     // create 모드: 탭 ID 변경으로 컴포넌트가 재마운트되므로 null로 초기화
     // (재마운트 시 초기화 effect가 디스크에서 로드된 메타데이터로 올바르게 재설정)
-    // 기존 문서: 클로저의 documentMetadata로 스냅샷 갱신
+    // 기존 문서: ref로 최신 메타데이터 참조 (클로저 캡처 문제 방지)
     if (isCreateMode) {
       setOriginalMetaSnapshot(null);
     } else {
-      setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(documentMetadata));
+      setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(documentMetadataRef.current));
     }
 
     // 저장 완료 후 보류 중인 파일 이동 적용
@@ -932,7 +1063,35 @@ export function DocumentPage() {
       // 경로 이동 없어도 파일 트리 갱신 (문서명 변경 반영)
       await refreshFileTree();
     }
-  }, [pendingDeletedFileIds, inlineSummaryFiles, isTemplatePendingDelete, inlineTemplate, removeReferenceFromSidecar, documentMetadata, setLocalDocumentMetadata, editorHandlers, content, pendingFileMove, filePath, tabId, updateTab, setCurrentFilePath, refreshFileMetadata, refreshFileTree, isCreateMode]);
+  }, [
+    createPath,
+    currentDraftContent,
+    pendingDeletedFileIds,
+    inlineSummaryFiles,
+    isTemplatePendingDelete,
+    inlineTemplate,
+    removeReferenceFromSidecar,
+    documentMetadata,
+    setLocalDocumentMetadata,
+    editorHandlers,
+    content,
+    pendingFileMove,
+    filePath,
+    tabId,
+    updateTab,
+    setCurrentFilePath,
+    refreshFileMetadata,
+    refreshFileTree,
+    isCreateMode,
+    saveTarget,
+    templateGeneration,
+    templateOriginType,
+    templateReferenceDocuments,
+    pendingDeletedRefPaths,
+    currentTemplateId,
+    removeTemplateReference,
+    setTemplateSaveData,
+  ]);
 
   // Ctrl+S를 DocumentPage의 handleSave로 라우팅 (rename 로직 포함)
   // Editor 내부의 Ctrl+S 핸들러보다 먼저 capture phase에서 실행
@@ -950,6 +1109,9 @@ export function DocumentPage() {
   }, [handleSave, isEditing]);
 
   const handleCancel = useCallback(() => {
+    if (templateModeEnabled && !isGeneratedTemplateMode) {
+      toggleTemplateMode(false);
+    }
     // 대기 중인 이미지 blob URL 정리
     editorRef.current?.clearPendingImages();
     // 대기 중인 첨부파일 정리
@@ -963,6 +1125,8 @@ export function DocumentPage() {
     // 소프트 삭제 상태 초기화
     setPendingDeletedFileIds(new Set());
     setIsTemplatePendingDelete(false);
+    setUsedTemplateRefPaths(new Set());
+    setPendingDeletedRefPaths(new Set());
     setFailedRestoreFiles([]);
     // 보류 중인 경로 변경 폐기
     setPendingFileMove(null);
@@ -974,7 +1138,7 @@ export function DocumentPage() {
     }
     setSurfaceMode('edit');
     setDiffTarget('content');
-  }, [editorHandlers, setIsEditing]);
+  }, [editorHandlers, isGeneratedTemplateMode, setIsEditing, templateModeEnabled, toggleTemplateMode]);
 
   const handleMetadataChange = useCallback((update: Partial<DocumentMetadata>) => {
     setLocalDocumentMetadata(update);
@@ -989,16 +1153,23 @@ export function DocumentPage() {
 
   const autoRecommendMetadata = useCallback(async (
     editorContent: string,
-    options?: { signal?: AbortSignal; isRequestActive?: () => boolean },
+    options?: { signal?: AbortSignal; isRequestActive?: () => boolean; contentType?: 'document' | 'template' },
   ): Promise<MetadataRecommendationResult | null> => {
     if (!editorContent.trim()) return null;
+
+    const ct = options?.contentType;
 
     setIsAutoSuggestingTags(true);
     setIsAutoSuggestingSummary(true);
 
+    const tagInstruction = ct === 'template'
+      ? '다음 템플릿을 대표하는 핵심 태그를 5개 이내로 추출하세요. 템플릿의 용도·문서 유형·적용 분야를 나타내는 키워드를 우선하세요. 태그만 쉼표로 구분하여 반환하세요.'
+      : '다음 문서를 대표하는 핵심 태그를 5개 이내로 추출하세요. 태그만 쉼표로 구분하여 반환하세요. 다른 설명 없이 태그만 출력하세요.';
+
     const tagPromise = docAssistApi.compose({
-      instruction: '다음 문서를 대표하는 핵심 태그를 5개 이내로 추출하세요. 태그만 쉼표로 구분하여 반환하세요. 다른 설명 없이 태그만 출력하세요.',
+      instruction: tagInstruction,
       currentContent: editorContent,
+      contentType: ct,
     }, { signal: options?.signal }).finally(() => {
       setIsAutoSuggestingTags(false);
     });
@@ -1006,6 +1177,7 @@ export function DocumentPage() {
     const summaryPromise = docAssistApi.compose({
       instruction: '다음 문서의 핵심 내용을 2~3문장으로 요약하세요. 요약문만 출력하세요.',
       currentContent: editorContent,
+      contentType: ct,
     }, { signal: options?.signal }).finally(() => {
       setIsAutoSuggestingSummary(false);
     });
@@ -1059,6 +1231,42 @@ export function DocumentPage() {
     }
   }, [documentMetadata?.tags, setLocalDocumentMetadata]);
 
+  // 템플릿 전환/선택 완료 후 메타데이터 자동 생성 (AI 요약 생성과 동일 패턴)
+  useEffect(() => {
+    if (!templateConvertedContent) return;
+    const generatedContent = templateConvertedContent;
+    setTemplateConvertedContent(null);
+
+    setTitleRecommendationStatus('loading');
+    setPathRecommendationStatus('loading');
+
+    void (async () => {
+      const [metadataResult, titlePathResult] = await Promise.allSettled([
+        autoRecommendMetadata(generatedContent, { contentType: 'template' }),
+        docAssistApi.recommendTitleAndPath({ currentContent: generatedContent, contentType: 'template' }),
+      ]);
+
+      if (metadataResult.status === 'fulfilled') {
+        applyMetadataRecommendation(metadataResult.value, 'auto');
+      }
+
+      if (titlePathResult.status === 'fulfilled' && titlePathResult.value.success && titlePathResult.value.data) {
+        const resolved = resolveTitlePathRecommendation(titlePathResult.value.data, {
+          fallbackContent: generatedContent,
+        });
+        consumeTitlePathRecommendation(resolved, 'auto');
+        if (titlePathResult.value.data.suggestedFileName) {
+          const dir = titlePathResult.value.data.suggestedDirectory || 'templates/personal';
+          setCreatePath(`${dir}/${titlePathResult.value.data.suggestedFileName}`);
+        }
+      } else {
+        setTitleRecommendationStatus('error');
+        setPathRecommendationStatus('error');
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateConvertedContent]);
+
   const handleFileMove = useCallback((newPath: string) => {
     if (!filePath || newPath === filePath) return;
     setPendingFileMove(newPath);
@@ -1073,15 +1281,16 @@ export function DocumentPage() {
   const handleSyncReferencesToSidecar = useCallback((
     files: SourceFileMeta[],
     rawFiles?: Map<string, File>,
+    resolvedRefPaths?: string[],
   ) => {
     const currentFiles = documentMetadata?.sourceFiles ?? [];
     const existingKeys = new Set(currentFiles.map((f) => f.name));
 
     const newFiles = files.filter((f) => !existingKeys.has(f.name));
-    if (newFiles.length === 0) return;
-
-    setLocalDocumentMetadata({ sourceFiles: [...currentFiles, ...newFiles] });
-    setHasUnsavedChanges(true);
+    if (newFiles.length > 0) {
+      setLocalDocumentMetadata({ sourceFiles: [...currentFiles, ...newFiles] });
+      setHasUnsavedChanges(true);
+    }
 
     // 사용된 파일 ID 추적
     for (const f of files) {
@@ -1094,6 +1303,13 @@ export function DocumentPage() {
       } else if (f.origin === 'template') {
         setIsTemplateUsed(true);
       }
+    }
+    if (resolvedRefPaths && resolvedRefPaths.length > 0) {
+      setUsedTemplateRefPaths((prev) => {
+        const next = new Set(prev);
+        for (const path of resolvedRefPaths) next.add(path);
+        return next;
+      });
     }
 
     // 참조 파일의 File 객체를 pending에 등록 (저장 시 업로드)
@@ -1116,10 +1332,13 @@ export function DocumentPage() {
       inlineInstruction,
       inlineSummaryFiles,
       inlineTemplate,
+      templateReferenceDocuments,
       isComposing,
       isCreateMode,
       pendingDeletedFileIds,
+      pendingDeletedRefPaths,
       isTemplatePendingDelete,
+      contentType: isGeneratedTemplateMode ? 'template' : 'document',
     },
     mutators: {
       setContent,
@@ -1147,8 +1366,8 @@ export function DocumentPage() {
           setTitleRecommendationStatus('loading');
           setPathRecommendationStatus('loading');
           const [metadataResult, titlePathResult] = await Promise.allSettled([
-            autoRecommendMetadata(generatedContent, { signal, isRequestActive }),
-            docAssistApi.recommendTitleAndPath({ currentContent: generatedContent }, { signal }),
+            autoRecommendMetadata(generatedContent, { signal, isRequestActive, contentType: isGeneratedTemplateMode ? 'template' : 'document' }),
+            docAssistApi.recommendTitleAndPath({ currentContent: generatedContent, contentType: isGeneratedTemplateMode ? 'template' : 'document' }, { signal }),
           ]);
 
           if (!isRequestActive() || signal.aborted) return;
@@ -1214,11 +1433,11 @@ export function DocumentPage() {
           }
         } else {
           // 기존문서: 태그/요약 제안만
-          const recommendation = await autoRecommendMetadata(generatedContent, { signal, isRequestActive });
+          const recommendation = await autoRecommendMetadata(generatedContent, { signal, isRequestActive, contentType: isGeneratedTemplateMode ? 'template' : 'document' });
           if (!isRequestActive() || signal.aborted) return;
           applyMetadataRecommendation(recommendation, 'suggest');
         }
-      }, [applyMetadataRecommendation, autoRecommendMetadata, composeRequestLifecycle, consumeTitlePathRecommendation, isCreateMode, setCreatePath]),
+      }, [applyMetadataRecommendation, autoRecommendMetadata, composeRequestLifecycle, consumeTitlePathRecommendation, isCreateMode, isGeneratedTemplateMode, setCreatePath]),
     },
   });
 
@@ -1235,9 +1454,11 @@ export function DocumentPage() {
     () => stringifyDocumentSidecarDiffSnapshot(currentMetadataSnapshot),
     [currentMetadataSnapshot]
   );
-  const sidecarInfoLoading = isCreateMode && isComposing;
-  const sidecarTagsLoading = isComposing || isAutoSuggestingTags;
-  const sidecarSummaryLoading = isComposing || isAutoSuggestingSummary;
+  // 템플릿 전환(isConvertingToTemplate)도 문서 작성(isComposing)과 동일한 로딩 인프라를 공유
+  const isAnyAiGenerating = isComposing || isConvertingToTemplate;
+  const sidecarInfoLoading = isCreateMode && isAnyAiGenerating;
+  const sidecarTagsLoading = isAnyAiGenerating || isAutoSuggestingTags;
+  const sidecarSummaryLoading = isAnyAiGenerating || isAutoSuggestingSummary;
   const diffViewerNode = surfaceMode === 'diff' ? (
     <SplitDiffViewer
       originalText={diffTarget === 'content' ? content : metadataDiffOriginalText}
@@ -1326,6 +1547,37 @@ export function DocumentPage() {
     setIsTemplatePendingDelete(false);
   }, []);
 
+  const handleRemoveTemplateReference = useCallback(async (path: string) => {
+    const ref = templateReferenceDocuments.find((item) => item.path === path);
+    if (!ref) return;
+
+    if (usedTemplateRefPaths.has(path)) {
+      const refName = ref.title || ref.path.split('/').pop() || ref.path;
+      const confirmed = await confirm({
+        title: '참조 문서 해제',
+        description: `'${refName}' 문서는 AI 작성에 사용되었습니다. 해제하면 참조 이력이 남지 않습니다. 계속하시겠습니까?`,
+        confirmText: '해제',
+        cancelText: '취소',
+      });
+      if (!confirmed) return;
+      setPendingDeletedRefPaths((prev) => new Set(prev).add(path));
+      return;
+    }
+
+    removeTemplateReference(path);
+    if (ref.storage === 'inline' && ref.tempId) {
+      setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== ref.tempId));
+    }
+  }, [confirm, removeTemplateReference, templateReferenceDocuments, usedTemplateRefPaths]);
+
+  const handleRestoreTemplateReference = useCallback((path: string) => {
+    setPendingDeletedRefPaths((prev) => {
+      const next = new Set(prev);
+      next.delete(path);
+      return next;
+    });
+  }, []);
+
   // 참조 파일 복원 재시도
   const handleRetryRestoreFiles = useCallback(async () => {
     if (failedRestoreFiles.length === 0) return;
@@ -1386,7 +1638,7 @@ export function DocumentPage() {
 
   // 전체 해제: 사용된 항목→confirm→소프트삭제, 미사용→즉시삭제
   const handleClearAll = useCallback(async () => {
-    const hasUsed = usedSummaryFileIds.size > 0 || isTemplateUsed;
+    const hasUsed = usedSummaryFileIds.size > 0 || isTemplateUsed || usedTemplateRefPaths.size > 0;
     if (hasUsed) {
       const confirmed = await confirm({
         title: '전체 컨텍스트 해제',
@@ -1398,6 +1650,9 @@ export function DocumentPage() {
     }
 
     // 사용된 항목 → 소프트 삭제
+    const usedRefPaths = templateReferenceDocuments
+      .filter((ref) => usedTemplateRefPaths.has(ref.path))
+      .map((ref) => ref.path);
     const usedFileIds = inlineSummaryFiles
       .filter((f) => usedSummaryFileIds.has(f.id))
       .map((f) => f.id);
@@ -1411,18 +1666,44 @@ export function DocumentPage() {
     if (isTemplateUsed && inlineTemplate) {
       setIsTemplatePendingDelete(true);
     }
+    if (usedRefPaths.length > 0) {
+      setPendingDeletedRefPaths((prev) => {
+        const next = new Set(prev);
+        for (const path of usedRefPaths) next.add(path);
+        return next;
+      });
+    }
 
     // 미사용 항목 → 즉시 삭제
-    setInlineSummaryFiles((prev) => prev.filter((f) => usedSummaryFileIds.has(f.id)));
+    const unusedInlineRefIds = new Set(
+      templateReferenceDocuments
+        .filter((ref) => !usedTemplateRefPaths.has(ref.path) && ref.storage === 'inline' && ref.tempId)
+        .flatMap((ref) => ref.tempId ? [ref.tempId] : []),
+    );
+    setInlineSummaryFiles((prev) => prev.filter((f) => usedSummaryFileIds.has(f.id) && !unusedInlineRefIds.has(f.id)));
     if (!isTemplateUsed) {
       setInlineTemplate(null);
     }
+    for (const ref of templateReferenceDocuments) {
+      if (!usedTemplateRefPaths.has(ref.path)) {
+        removeTemplateReference(ref.path);
+      }
+    }
     setInlineRelevanceWarnings([]);
-  }, [usedSummaryFileIds, isTemplateUsed, inlineTemplate, inlineSummaryFiles, confirm]);
+  }, [
+    confirm,
+    inlineSummaryFiles,
+    inlineTemplate,
+    isTemplateUsed,
+    removeTemplateReference,
+    templateReferenceDocuments,
+    usedSummaryFileIds,
+    usedTemplateRefPaths,
+  ]);
 
   // 소프트 삭제된 참조 파일/템플릿의 sidecar 키 (사이드카 첨부 섹션 삭제 표시 연동)
   const deletedReferenceKeys = useMemo(() => {
-    if (pendingDeletedFileIds.size === 0 && !isTemplatePendingDelete) return undefined;
+    if (pendingDeletedFileIds.size === 0 && !isTemplatePendingDelete && pendingDeletedRefPaths.size === 0) return undefined;
     const sourceFiles = documentMetadata?.sourceFiles ?? [];
     const keys = new Set<string>();
 
@@ -1437,21 +1718,38 @@ export function DocumentPage() {
         keys.add(sf.path || sf.name);
       }
     }
+    for (const path of pendingDeletedRefPaths) {
+      keys.add(path);
+    }
     return keys.size > 0 ? keys : undefined;
-  }, [pendingDeletedFileIds, isTemplatePendingDelete, documentMetadata?.sourceFiles, inlineSummaryFiles]);
+  }, [pendingDeletedFileIds, isTemplatePendingDelete, pendingDeletedRefPaths, documentMetadata?.sourceFiles, inlineSummaryFiles]);
 
   const contentSurfaceClassName = DOC_PAGE_SURFACE_PRESETS.document;
-  const headerEditorRightSlot = (
-    <TemplateSaveControls
-      mode={mode}
-      saveAsTemplateOnly={saveAsTemplateOnly}
-      setSaveAsTemplateOnly={setSaveAsTemplateOnly}
-    />
-  );
-
-
 
   const setAiSummaryPending = useNewDocStore((s) => s.setAiSummaryPending);
+
+  const handleDownloadCurrentMarkdown = useCallback(() => {
+    const fallbackName = documentMetadata?.title?.trim() || filePath?.split('/').pop()?.replace(/\.md$/, '') || '문서';
+    downloadMarkdown(content, fallbackName);
+  }, [content, documentMetadata?.title, filePath]);
+
+  const handleDownloadCurrentPdf = useCallback(() => {
+    if (!htmlContent.trim()) {
+      toast.warning('출력할 문서 내용이 없습니다.');
+      return;
+    }
+    const title = documentMetadata?.title?.trim() || filePath?.split('/').pop()?.replace(/\.md$/, '') || '문서';
+    printHtmlContent(htmlContent, title);
+  }, [documentMetadata?.title, filePath, htmlContent]);
+
+  const headerViewerRightSlot = templateModeEnabled ? null : (
+    <DocumentExportMenu
+      onConvertToTemplate={startViewerTemplateFlow}
+      onDownloadMarkdown={handleDownloadCurrentMarkdown}
+      onDownloadPdf={handleDownloadCurrentPdf}
+      loading={isCheckingReferenceTemplates}
+    />
+  );
 
   const handleLauncherNewDoc = useCallback(() => {
     if (!tabId) return;
@@ -1547,11 +1845,10 @@ export function DocumentPage() {
             pendingSuggestedPath={pendingSuggestedInfoPath}
             pendingPathValidationMessage={pendingInfoPathValidationMessage || undefined}
             filePath={currentSidecarFilePath}
-            templateSaveEnabled={saveAsTemplateOnly}
-            templateDraft={templateSaveDraft}
-            onTemplateDraftChange={(update) => {
-              setTemplateSaveDraft((prev) => ({ ...prev, ...update }));
-            }}
+            templateModeEnabled={templateModeEnabled}
+            isConvertingTemplate={isConvertingToTemplate}
+            templateOriginType={templateOriginType}
+            templateReferenceDocuments={templateReferenceDocuments}
             onRequestInfoRecommendation={requestInfoRecommendation}
             onAcceptSuggestedTitle={handleAcceptSuggestedInfoTitle}
             onDismissSuggestedTitle={handleDismissSuggestedInfoTitle}
@@ -1581,7 +1878,7 @@ export function DocumentPage() {
         saving={isSaving}
         saveDisabled={!hasUnsavedChanges}
         isPreview={surfaceMode !== 'edit'}
-        headerEditorRightSlot={headerEditorRightSlot}
+        headerViewerRightSlot={headerViewerRightSlot}
       >
         {(() => {
           const contentBody = (
@@ -1602,9 +1899,9 @@ export function DocumentPage() {
               generatedFileName={isCreateMode ? generatedFileName : undefined}
               isPreview={surfaceMode === 'preview'}
               isComposing={isComposing}
-              saveAsTemplateOnly={saveAsTemplateOnly}
-              templateSaveDraft={templateSaveDraft}
-              setSaveAsTemplateOnly={setSaveAsTemplateOnly}
+              isTemplateGenerating={isConvertingToTemplate}
+              currentDraftContent={currentTemplateDraftContent}
+              streamingAutoScroll={isConvertingToTemplate || isComposing}
               onEditorContentChange={handleEditorContentChange}
               onLinkClick={handleViewerLinkClick}
               onImageClick={handleViewerImageClick}
@@ -1640,6 +1937,13 @@ export function DocumentPage() {
               hasFailedRestore={failedRestoreFiles.length > 0}
               isRetryingRestore={isRetryingRestore}
               onRetryRestore={handleRetryRestoreFiles}
+              templateModeEnabled={templateModeEnabled}
+              templateReferenceDocuments={templateReferenceDocuments}
+              addTemplateReference={addTemplateReference}
+              removeTemplateReference={removeTemplateReference}
+              onRemoveTemplateReference={handleRemoveTemplateReference}
+              onRestoreReference={handleRestoreTemplateReference}
+              pendingDeletedRefPaths={pendingDeletedRefPaths.size > 0 ? pendingDeletedRefPaths : undefined}
             />
           );
 
@@ -1698,12 +2002,14 @@ export function DocumentPage() {
                               <Divider orientation="vertical" className="h-6 mx-1" />
                             </>
                           )}
-                          <DiffToggleButton
-                            mode={mode}
-                            active={false}
-                            disabled={!hasUnsavedChanges}
-                            onToggle={handleDiffToggle}
-                          />
+                          {!isCreateMode && (
+                            <DiffToggleButton
+                              mode={mode}
+                              active={false}
+                              disabled={!hasUnsavedChanges}
+                              onToggle={handleDiffToggle}
+                            />
+                          )}
                         </>
                       )}
                     </>
@@ -1739,6 +2045,35 @@ export function DocumentPage() {
           );
         })()}
       </PageTemplate>
+
+      <TemplatePickerDialog
+        open={isTemplatePickerOpen}
+        onOpenChange={handleTemplatePickerClose}
+        templates={referenceTemplates}
+        title="이 문서로 만들어진 템플릿"
+        description="기존 템플릿을 미리 보거나, 현재 문서를 기준으로 새 AI 템플릿을 생성할 수 있습니다."
+        confirmLabel="AI 템플릿 작성"
+        onSelectTemplate={handleTemplateSelected}
+        onConfirm={handleAiConvertRequested}
+        onCancel={() => toggleTemplateMode(false)}
+      />
+
+      <TemplatePickerDialog
+        open={isViewerTemplatePickerOpen}
+        onOpenChange={(open) => { if (!open) closeViewerTemplatePicker(); }}
+        templates={viewerReferenceTemplates}
+        title="이 문서로 만들어진 템플릿"
+        description="기존 템플릿을 읽기 전용으로 확인하거나, 현재 문서를 참조한 새 템플릿을 만들 수 있습니다."
+        confirmLabel="새 템플릿 생성"
+        onSelectTemplate={openViewerTemplatePreview}
+        onConfirm={createReferencedTemplate}
+        onCancel={closeViewerTemplatePicker}
+      />
+
+      <TemplatePreviewDialog
+        template={previewTemplate}
+        onClose={returnFromPreviewToPicker}
+      />
 
       {/* 이미지 미리보기 모달 (사이드카용) */}
       <ImagePreviewDialog

@@ -3,6 +3,9 @@
  */
 
 export { getChatModel, getEmbeddingModel } from './provider';
+export { aiTaskRunner, AiTaskRunner } from './AiTaskRunner';
+export { profileOverrideService, ProfileOverrideService } from './profiles/ProfileOverrideService';
+export { getDefaultProfile, listDefaultProfiles } from './profiles/registry';
 export {
   embedQuery,
   embedTexts,

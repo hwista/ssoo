@@ -1,0 +1,22 @@
+{
+  "id": "system-doc-default",
+  "name": "기본 문서 템플릿",
+  "description": "요약/배경/핵심 내용/액션 아이템 구조",
+  "summary": "",
+  "tags": [],
+  "createdAt": "1970-01-01T00:00:00.000Z",
+  "updatedAt": "1970-01-01T00:00:00.000Z",
+  "author": "system",
+  "lastModifiedBy": "system",
+  "scope": "global",
+  "kind": "document",
+  "ownerId": "system",
+  "visibility": "shared",
+  "status": "active",
+  "sourceType": "markdown-file",
+  "originType": "generated",
+  "referenceDocuments": [],
+  "generation": {
+    "source": "manual"
+  }
+}

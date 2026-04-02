@@ -80,7 +80,7 @@ export function Toolbar({
                 variant="ghost"
                 size="default"
                 onClick={assistant.onAttach}
-                className="h-control-h gap-1.5 text-ssoo-primary"
+                className="h-control-h gap-1.5 text-[0.8125rem] font-medium text-ssoo-primary"
                 title={assistant.title ?? '현재 문서를 AI에 첨부하고 질문하기'}
               >
                 <Bot className="h-4 w-4" />

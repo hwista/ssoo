@@ -1,4 +1,5 @@
 {
+  "contentType": "document",
   "title": "리팩토링 개요",
   "summary": "Markdown Wiki System의 리팩토링은 단일 책임 원칙과 코드 재사용성, 유지보수성, 타입 안정성 강화를 목적으로 단계별 구조 개선과 로직 최적화를 완료했습니다. 각 페이즈에서 컴포넌트 분할, 상태 중앙화, 커스텀 훅 구현, 종합 검증을 통해 기존의 복잡하고 중복된 코드를 체계적으로 정리했습니다. 최종 단계에서는 Context 통합 및 문서화, 통합 테스트로 안정적인 시스템 완성을 목표로 하고 있습니다.",
   "tags": [
@@ -57,14 +58,14 @@
     }
   ],
   "createdAt": "2026-03-17T09:26:10.240Z",
-  "updatedAt": "2026-03-26T04:46:09.966Z",
+  "updatedAt": "2026-04-01T08:29:20.768Z",
   "fileHashes": {
-    "content": "abb57bfb489528fb10874a1551d80a04cd86e27f83813bf2992c33832bda9505",
+    "content": "9854f8c07553c775fa122909541d6370b3f3681fda3f29f7ca0573fb310fc3ca",
     "sources": {}
   },
   "chunkIds": [],
   "embeddingModel": "",
-  "sourceFiles": [
+  "referenceFiles": [
     {
       "name": "스크린샷 2026-03-18 082146.png",
       "path": "_assets/attachments/efc441ed93340de376b3f779d1645a19db48bdc355c8d5dec233c421773af6af.png",

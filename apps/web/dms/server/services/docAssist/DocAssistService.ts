@@ -27,6 +27,7 @@ interface ComposeInput {
   activeDocPath?: string;
   templates?: TemplateItem[];
   summaryFiles?: SummaryFileInput[];
+  contentType?: 'document' | 'template';
 }
 
 export type ApplyMode = 'replace-document' | 'replace-selection' | 'append' | 'insert';
@@ -36,6 +37,7 @@ interface RecommendTitleAndPathInput {
   activeDocPath?: string;
   directoryTree?: string[];
   existingFiles?: string[];
+  contentType?: 'document' | 'template';
 }
 
 export interface TitleAndPathResult {
@@ -212,6 +214,7 @@ class DocAssistService {
         hasTemplate: !!documentTemplate,
         hasAttachments: !!summaryContext,
         hasImages,
+        contentType: input.contentType,
       });
 
       // 멀티모달 메시지 구성: 텍스트 + 이미지
@@ -323,6 +326,7 @@ class DocAssistService {
       hasTemplate: !!documentTemplate,
       hasAttachments: !!summaryContext,
       hasImages,
+      contentType: input.contentType,
     });
 
     const userContentParts: (TextPart | FilePart)[] = [];
@@ -399,8 +403,13 @@ class DocAssistService {
 
   async recommendTitleAndPath(input: RecommendTitleAndPathInput): Promise<TitleAndPathResult> {
     const content = input.currentContent.trim();
+    const isTemplate = input.contentType === 'template';
+    const defaultDir = isTemplate ? 'templates/personal' : 'drafts';
+    const defaultFileName = isTemplate ? 'new-template.md' : 'new-doc.md';
+    const entityLabel = isTemplate ? '템플릿' : '문서';
+
     if (!content) {
-      return { suggestedTitle: '새 문서', suggestedDirectory: 'drafts', suggestedFileName: 'new-doc.md' };
+      return { suggestedTitle: isTemplate ? '새 템플릿' : '새 문서', suggestedDirectory: defaultDir, suggestedFileName: defaultFileName };
     }
 
     // 디렉토리 트리와 기존 파일 목록 가져오기
@@ -436,20 +445,23 @@ class DocAssistService {
           {
             role: 'system',
             content: [
-              '당신은 문서 관리 AI입니다.',
-              '주어진 문서 내용을 분석하여 적절한 문서명, 저장 디렉토리, 파일명을 추천하세요.',
+              `당신은 ${entityLabel} 관리 AI입니다.`,
+              `주어진 ${entityLabel} 내용을 분석하여 적절한 ${entityLabel}명, 저장 디렉토리, 파일명을 추천하세요.`,
               '반드시 JSON만 출력하세요. 다른 설명 없이 JSON만 반환하세요.',
-              '출력 형식: {"title":"문서 제목","directory":"저장/경로","fileName":"파일명.md"}',
+              `출력 형식: {"title":"${entityLabel} 제목","directory":"저장/경로","fileName":"파일명.md"}`,
               '규칙:',
-              '- title: 문서 내용을 대표하는 한국어 제목 (간결하게)',
+              `- title: ${entityLabel} 내용을 대표하는 한국어 제목 (간결하게)`,
               '- directory: 기존 디렉토리 구조를 참고하여 적절한 위치 선택. 해당하는 디렉토리가 없으면 새 경로 제안 가능.',
               '- fileName: 영문 kebab-case + .md 확장자. 기존 파일과 중복되지 않도록 주의.',
-              '- 기존 디렉토리가 비어있으면 drafts/ 를 기본 디렉토리로 사용.',
+              `- 기존 디렉토리가 비어있으면 ${defaultDir}/ 를 기본 디렉토리로 사용.`,
+              ...(isTemplate ? [
+                '- 이 문서는 재사용 가능한 템플릿입니다. 제목에 "템플릿"이 포함되도록 하고, 용도를 나타내는 이름을 부여하세요.',
+              ] : []),
             ].join('\n'),
           },
           {
             role: 'user',
-            content: `[문서 내용]\n${boundedContent}${dirsContext}${filesContext}`,
+            content: `[${entityLabel} 내용]\n${boundedContent}${dirsContext}${filesContext}`,
           },
         ],
         maxOutputTokens: 200,
@@ -471,25 +483,25 @@ class DocAssistService {
       }
 
       // 중복 파일명 체크
-      const dir = typeof parsed.directory === 'string' ? parsed.directory.trim() : 'drafts';
-      fileName = ensureUniqueFileName(dir || 'drafts', fileName, existingFiles);
+      const dir = typeof parsed.directory === 'string' ? parsed.directory.trim() : defaultDir;
+      fileName = ensureUniqueFileName(dir || defaultDir, fileName, existingFiles);
 
       return {
         suggestedTitle: title,
-        suggestedDirectory: dir || 'drafts',
+        suggestedDirectory: dir || defaultDir,
         suggestedFileName: fileName,
       };
     } catch (error) {
       logger.error('doc-assist recommendTitleAndPath failed', error);
       const fallbackTitle = buildFallbackTitle(content);
       const fallbackFileName = ensureUniqueFileName(
-        'drafts',
+        defaultDir,
         buildFallbackFileName(fallbackTitle),
         existingFiles,
       );
       return {
         suggestedTitle: fallbackTitle,
-        suggestedDirectory: 'drafts',
+        suggestedDirectory: defaultDir,
         suggestedFileName: fallbackFileName,
       };
     }

@@ -60,8 +60,8 @@ export interface HeaderProps {
   extraActions?: HeaderAction[];
   /** 추가 액션 버튼 위치 */
   extraActionsPosition?: 'left' | 'right';
-  /** editor/create 모드 우측 슬롯 (저장 버튼 앞에 배치) */
-  editorRightSlot?: React.ReactNode;
+  /** viewer 모드 우측 슬롯 (History 버튼 앞에 배치) */
+  viewerRightSlot?: React.ReactNode;
   /** editor/create 모드 좌측 슬롯 (편집종료/작성취소 버튼 뒤에 배치) */
   editorPreviewSlot?: React.ReactNode;
   
@@ -107,27 +107,32 @@ export function Header({
   isPreview = false,
   extraActions,
   extraActionsPosition = 'left',
-  editorRightSlot,
+  viewerRightSlot,
   editorPreviewSlot,
   className,
 }: HeaderProps) {
-  const renderActionButton = (action: HeaderAction, index: number) => (
-    <Button
-      key={index}
-      variant={action.variant || 'ghost'}
-      size="default"
-      onClick={action.onClick}
-      disabled={action.disabled || action.loading}
-      className="h-control-h"
-    >
-      {action.loading ? (
-        <LoadingSpinner className="mr-1.5" />
-      ) : action.icon ? (
-        <span className="mr-1.5">{action.icon}</span>
-      ) : null}
-      {action.label}
-    </Button>
-  );
+  const renderActionButton = (action: HeaderAction, index: number) => {
+    const variant = action.variant || 'ghost';
+    const isFilledVariant = variant === 'default' || variant === 'secondary' || variant === 'destructive';
+
+    return (
+      <Button
+        key={index}
+        variant={variant}
+        size="default"
+        onClick={action.onClick}
+        disabled={action.disabled || action.loading}
+        className={cn('h-control-h text-[0.8125rem]', isFilledVariant ? 'text-white' : 'text-ssoo-primary')}
+      >
+        {action.loading ? (
+          <LoadingSpinner className="mr-1.5" />
+        ) : action.icon ? (
+          <span className="mr-1.5">{action.icon}</span>
+        ) : null}
+        {action.label}
+      </Button>
+    );
+  };
 
   return (
     <div
@@ -140,7 +145,7 @@ export function Header({
       {/* 좌측: 설명 또는 모드별 액션 버튼 */}
       <div className="flex items-center gap-2">
         {description && (
-          <span className="text-body-sm text-ssoo-primary/70">{description}</span>
+          <span className="text-[0.8125rem] text-ssoo-primary/70">{description}</span>
         )}
         {mode === 'viewer' && (
           <>
@@ -149,7 +154,7 @@ export function Header({
                 variant="default"
                 size="default"
                 onClick={onEdit}
-                className="h-control-h"
+                className="h-control-h text-[0.8125rem] text-white"
               >
                 <Edit className="h-4 w-4 mr-1.5" />
                 편집
@@ -165,7 +170,7 @@ export function Header({
                 variant="ghost"
                 size="default"
                 onClick={onBack}
-                className="h-control-h"
+                className="h-control-h text-[0.8125rem] text-ssoo-primary"
               >
                 <ArrowLeft className="h-4 w-4 mr-1.5" />
                 뒤로가기
@@ -176,7 +181,7 @@ export function Header({
                 size="default"
                 onClick={onCancel}
                 disabled={saving}
-                className="h-control-h"
+                className="h-control-h text-[0.8125rem] text-ssoo-primary"
               >
                 <X className="h-4 w-4 mr-1.5" />
                 {mode === 'create' ? '작성취소' : '편집종료'}
@@ -191,29 +196,32 @@ export function Header({
 
       {/* 우측 */}
       <div className="flex items-center gap-3">
-        {/* 뷰어 모드: 히스토리 아이콘 버튼 */}
-        {mode === 'viewer' && onHistory && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onHistory}
-            className="h-control-h w-control-h"
-          >
-            <History className="h-4 w-4" />
-          </Button>
+        {mode === 'viewer' && (
+          <>
+            {viewerRightSlot}
+            {onHistory && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onHistory}
+                className="h-control-h w-control-h"
+              >
+                <History className="h-4 w-4" />
+              </Button>
+            )}
+          </>
         )}
 
         {/* 에디터/생성 모드 우측: 주입 슬롯 → 저장 → 삭제 (미리보기 시 숨김) */}
         {(mode === 'editor' || mode === 'create') && !isPreview && (
           <>
-            {editorRightSlot}
             {onSave && (
               <Button
                 variant="default"
                 size="default"
                 onClick={onSave}
                 disabled={saving || saveDisabled}
-                className={cn('h-control-h', saveDisabled && 'disabled:opacity-60')}
+                className={cn('h-control-h text-[0.8125rem] text-white', saveDisabled && 'disabled:opacity-60')}
               >
                 {saving ? (
                   <LoadingSpinner className="mr-1.5" />
@@ -229,7 +237,7 @@ export function Header({
                 size="default"
                 onClick={onDelete}
                 disabled={saving}
-                className="h-control-h"
+                className="h-control-h text-[0.8125rem] text-white"
               >
                 <Trash2 className="h-4 w-4 mr-1.5" />
                 삭제

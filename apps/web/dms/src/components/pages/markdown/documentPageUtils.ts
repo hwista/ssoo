@@ -93,6 +93,14 @@ export function deriveDefaultTemplateName(content: string, fallbackPath: string)
   return fallbackName || '새 템플릿';
 }
 
+export function resolveSaveDisplayName(
+  metadata: DocumentMetadata | null,
+  fallbackContent: string,
+  fallbackPath: string,
+): string {
+  return metadata?.title?.trim() || deriveDefaultTemplateName(fallbackContent, fallbackPath);
+}
+
 function normalizeSourceFile(file: SourceFileMeta): DocumentSidecarDiffAttachment {
   return {
     name: file.name,

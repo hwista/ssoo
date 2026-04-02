@@ -5,9 +5,21 @@ import { useAssistantContextStore } from '@/stores';
 import type { TemplateItem } from '@/types/template';
 import type { InlineSummaryFileItem } from './Picker';
 
+interface InlineReferenceChipItem {
+  path: string;
+  title: string;
+  kind?: 'document' | 'file';
+  storage?: 'path' | 'inline';
+  tempId?: string;
+  isDeleted?: boolean;
+}
+
 interface AssistantReferenceChipsProps {
   disabled?: boolean;
   mode?: 'assistant' | 'inline';
+  referenceChips?: InlineReferenceChipItem[];
+  onRemoveReference?: (path: string) => void;
+  onRestoreReference?: (path: string) => void;
   inlineTemplate?: TemplateItem | null;
   inlineSummaryFiles?: InlineSummaryFileItem[];
   inlineWarnings?: string[];
@@ -32,6 +44,9 @@ interface AssistantReferenceChipsProps {
 export function AssistantReferenceChips({
   disabled,
   mode = 'assistant',
+  referenceChips,
+  onRemoveReference,
+  onRestoreReference,
   inlineTemplate,
   inlineSummaryFiles,
   inlineWarnings,
@@ -52,9 +67,14 @@ export function AssistantReferenceChips({
   const removeAssistantReference = useAssistantContextStore((state) => state.removeReference);
   const clearAssistantReferences = useAssistantContextStore((state) => state.clearReferences);
 
-  const references = mode === 'assistant' ? assistantReferences : [];
+  const references = mode === 'assistant' ? assistantReferences : (referenceChips ?? []);
   const template = mode === 'inline' ? (inlineTemplate ?? null) : null;
-  const summaryFiles = mode === 'inline' ? (inlineSummaryFiles ?? []) : [];
+  const inlineReferenceFileIds = new Set(
+    mode === 'inline' ? (referenceChips ?? []).flatMap((ref) => ref.tempId ? [ref.tempId] : []) : []
+  );
+  const summaryFiles = mode === 'inline'
+    ? (inlineSummaryFiles ?? []).filter((file) => !inlineReferenceFileIds.has(file.id))
+    : [];
   const warnings = mode === 'inline' ? (inlineWarnings ?? []) : [];
 
   const hasAnyContext = references.length > 0 || Boolean(template) || summaryFiles.length > 0;
@@ -87,22 +107,49 @@ export function AssistantReferenceChips({
       </div>
       <div className="flex flex-wrap gap-1.5">
         {references.map((ref) => (
+          (() => {
+            const inlineRef = ref as InlineReferenceChipItem;
+            return (
           <span
             key={ref.path}
-            className="inline-flex max-w-full items-center gap-1 rounded-full border border-ssoo-content-border bg-ssoo-content-border px-2 py-1 text-caption text-ssoo-primary"
+            className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-caption ${
+              inlineRef.isDeleted
+                ? 'border-destructive/30 bg-destructive/5 text-destructive/60 line-through'
+                : 'border-ssoo-content-border bg-ssoo-content-border text-ssoo-primary'
+            }`}
             title={ref.path}
           >
-            <span className="max-w-[180px] truncate">문서: {ref.title}</span>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => removeAssistantReference(ref.path)}
-              className="rounded p-0.5 text-ssoo-primary/70 hover:bg-ssoo-content-border/40 hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label={`첨부 해제: ${ref.title}`}
-            >
-              <X className="h-3 w-3" />
-            </button>
+            <span className="max-w-[180px] truncate">{inlineRef.kind === 'file' ? '파일' : '문서'}: {ref.title}</span>
+            {inlineRef.isDeleted && onRestoreReference ? (
+              <button
+                type="button"
+                onClick={() => onRestoreReference(ref.path)}
+                className="rounded p-0.5 transition-colors text-destructive/50 hover:text-ssoo-primary"
+                aria-label={`첨부 되돌리기: ${ref.title}`}
+                title="되돌리기"
+              >
+                <Undo2 className="h-3 w-3" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  if (mode === 'assistant') {
+                    removeAssistantReference(ref.path);
+                    return;
+                  }
+                  onRemoveReference?.(ref.path);
+                }}
+                className="rounded p-0.5 text-ssoo-primary/70 hover:bg-ssoo-content-border/40 hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label={`첨부 해제: ${ref.title}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </span>
+            );
+          })()
         ))}
 
         {template ? (

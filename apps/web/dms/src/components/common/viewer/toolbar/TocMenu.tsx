@@ -28,7 +28,7 @@ export function ToolbarTocMenu({
         type="button"
         variant="ghost"
         size="default"
-        className={cn('h-control-h gap-1.5', tocHovered && 'bg-gray-100')}
+        className={cn('h-control-h gap-1.5 text-[0.8125rem] font-medium text-ssoo-primary', tocHovered && 'bg-gray-100')}
       >
         <List className="h-4 w-4" />
         <span>{label}</span>
@@ -51,11 +51,11 @@ export function ToolbarTocMenu({
                   key={item.id}
                   onClick={() => onItemClick?.(item.id)}
                   className={cn(
-                    'flex h-control-h w-full items-center truncate rounded px-2 text-left leading-6 tracking-normal transition-colors hover:bg-white hover:text-ssoo-primary',
-                    listStyle === 'hierarchy' && item.level === 1 && 'text-label-strong text-gray-900',
-                    listStyle === 'hierarchy' && item.level === 2 && 'text-label-md text-gray-700',
-                    listStyle === 'hierarchy' && item.level >= 3 && 'text-body-sm text-gray-500',
-                    listStyle === 'flat' && 'text-body-sm text-gray-800'
+                    'flex h-control-h w-full items-center truncate rounded px-2 text-left text-[0.8125rem] leading-6 tracking-normal transition-colors hover:bg-white hover:text-ssoo-primary',
+                    listStyle === 'hierarchy' && item.level === 1 && 'font-medium text-gray-900',
+                    listStyle === 'hierarchy' && item.level === 2 && 'font-normal text-gray-700',
+                    listStyle === 'hierarchy' && item.level >= 3 && 'font-normal text-gray-500',
+                    listStyle === 'flat' && 'text-gray-800'
                   )}
                   style={{ paddingLeft: `${(item.level - 1) * 12 + 8}px` }}
                   title={item.text}

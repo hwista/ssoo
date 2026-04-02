@@ -51,6 +51,7 @@ export interface UseEditorStateReturn {
   setContent: (content: string) => void;
   updateContent: (content: string) => void;
   resetContent: (newContent: string) => void;
+  replaceContent: (newContent: string) => void;
   setCursorPosition: (position: number) => void;
   setSelection: (start: number, end: number) => void;
   getSelectedText: () => string;
@@ -219,6 +220,18 @@ export const useEditorState = (
     logger.debug('에디터 내용 리셋', { contentLength: newContent.length });
   }, []);
 
+  const replaceContent = useCallback((newContent: string) => {
+    setContentState(newContent);
+    setCursorPositionState(null);
+    setSelectionState(null);
+    pendingCursorPositionRef.current = null;
+    dispatchHistory({
+      type: 'reset',
+      entry: createHistoryEntry(newContent, 0),
+    });
+    logger.debug('에디터 내용 교체', { contentLength: newContent.length });
+  }, []);
+
   const setCursorPosition = useCallback(
     (position: number) => {
       if (!editorRef.current) return;
@@ -357,6 +370,7 @@ export const useEditorState = (
     setContent,
     updateContent,
     resetContent,
+    replaceContent,
     setCursorPosition,
     setSelection,
     getSelectedText,

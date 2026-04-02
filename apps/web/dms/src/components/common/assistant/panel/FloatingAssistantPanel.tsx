@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from '@/lib/toast';
 import { useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
+import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { useAssistantChat } from '../chat/useAssistantChat';
 import { useAssistantSessionPersistence } from '../session/useAssistantSessionPersistence';
 import { AssistantMessageList } from '../MessageList';
@@ -56,6 +57,18 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
     setSuggestionsCollapsed,
     setInputDraft,
   });
+  const { scrollToBottomIfNeeded } = useAutoScroll({
+    scrollRef,
+    active: isProcessing,
+  });
+  const streamingContentLength = useMemo(() => {
+    const lastMessage = messages[messages.length - 1];
+    return lastMessage?.kind === 'text' && lastMessage.pending ? lastMessage.text.length : 0;
+  }, [messages]);
+
+  useEffect(() => {
+    scrollToBottomIfNeeded();
+  }, [scrollToBottomIfNeeded, streamingContentLength]);
 
   const onExpand = useCallback(async () => {
     await openExpandedChatPage();

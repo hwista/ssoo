@@ -1,9 +1,11 @@
 'use client';
 
+import * as React from 'react';
 import { ExternalLink } from 'lucide-react';
 import { AssistantComposer } from '@/components/common/assistant/Composer';
 import { AssistantMessageList } from '@/components/common/assistant/MessageList';
 import { SHELL_BODY_WRAPPER_PRESETS } from '@/components/templates/page-frame';
+import { useAutoScroll } from '@/hooks/useAutoScroll';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
 
@@ -24,8 +26,29 @@ export function AiChatBody({
   handleOpenHelpAction,
   submitUserMessage,
 }: AiChatBodyProps) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const { scrollToBottomIfNeeded } = useAutoScroll({
+    scrollRef,
+    active: isProcessing,
+  });
+  const streamingContentLength = React.useMemo(() => {
+    const lastMessage = messages[messages.length - 1];
+    return lastMessage?.kind === 'text' && lastMessage.pending ? lastMessage.text.length : 0;
+  }, [messages]);
+
+  React.useEffect(() => {
+    scrollToBottomIfNeeded();
+  }, [scrollToBottomIfNeeded, streamingContentLength]);
+
+  React.useEffect(() => {
+    const element = scrollRef.current;
+    if (!element || messages.length === 0) return;
+    element.scrollTop = element.scrollHeight;
+  }, [messages.length]);
+
   return (
     <div
+      ref={scrollRef}
       className={[
         SHELL_BODY_WRAPPER_PRESETS.aiChat,
         messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto',

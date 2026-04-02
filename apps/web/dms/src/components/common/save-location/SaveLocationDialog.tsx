@@ -23,6 +23,8 @@ export interface SaveLocationDialogProps {
   fileName: string;
   /** 신규 문서 여부 (true면 경로 확인 강조) */
   isNewDocument: boolean;
+  /** 콘텐츠 타입 — 라벨/제목을 템플릿용으로 전환 */
+  contentType?: 'document' | 'template';
   onConfirm: (result: SaveLocationResult) => void;
 }
 
@@ -33,6 +35,7 @@ export function SaveLocationDialog({
   initialDirectory,
   fileName,
   isNewDocument,
+  contentType = 'document',
   onConfirm,
 }: SaveLocationDialogProps) {
   const files = useFileStore((s) => s.files);
@@ -58,9 +61,14 @@ export function SaveLocationDialog({
     onOpenChange(false);
   };
 
+  const isTemplate = contentType === 'template';
+  const nameLabel = isTemplate ? '템플릿명' : '문서명';
+
   const dialogTitle = (
     <span className="flex items-center gap-2">
-      {isNewDocument ? '새 문서 저장' : '문서 경로 설정'}
+      {isNewDocument
+        ? (isTemplate ? '새 템플릿 저장' : '새 문서 저장')
+        : (isTemplate ? '템플릿 경로 설정' : '문서 경로 설정')}
     </span>
   );
 
@@ -70,8 +78,8 @@ export function SaveLocationDialog({
       onOpenChange={onOpenChange}
       title={dialogTitle}
       description={isNewDocument
-        ? '문서명을 입력하고 저장 위치를 선택하세요.'
-        : '문서명 또는 저장 위치를 변경합니다.'}
+        ? (isTemplate ? '템플릿명을 입력하세요. 저장 위치는 자동으로 결정됩니다.' : '문서명을 입력하고 저장 위치를 선택하세요.')
+        : (isTemplate ? '템플릿명을 변경합니다. 저장 위치는 자동으로 결정됩니다.' : '문서명 또는 저장 위치를 변경합니다.')}
       onConfirm={handleConfirm}
       isValid={title.trim().length > 0}
     >
@@ -79,49 +87,51 @@ export function SaveLocationDialog({
       <div className="space-y-1.5">
         <label htmlFor="doc-title" className="flex items-center gap-1.5 text-label-md text-ssoo-primary">
           <FileText className="h-3.5 w-3.5" />
-          문서명
+          {nameLabel}
         </label>
         <input
           id="doc-title"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="문서 제목을 입력하세요"
+          placeholder={isTemplate ? '템플릿 제목을 입력하세요' : '문서 제목을 입력하세요'}
           className="w-full rounded-md border border-ssoo-content-border bg-white px-3 py-2 text-body-sm text-ssoo-primary placeholder:text-ssoo-primary/45 focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
           autoFocus
         />
       </div>
 
-      {/* 저장 위치 선택 */}
-      <div className="flex flex-col gap-1.5 flex-1 min-h-0">
-        <label className="flex items-center gap-1.5 text-label-md text-ssoo-primary" htmlFor="save-dir-input">
-          <FolderPlus className="h-3.5 w-3.5" />
-          저장 위치
-        </label>
-        <input
-          id="save-dir-input"
-          type="text"
-          value={directory}
-          onChange={(e) => {
-            setDirectory(e.target.value);
-            setDirtyInput(true);
-          }}
-          placeholder="폴더 경로를 입력하거나 아래에서 선택..."
-          className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm outline-none focus:border-ssoo-primary"
-        />
-        <PickerTree
-          files={files}
-          selectedPath={treePath}
-          onSelect={(path) => {
-            setDirectory(path ? `/${path}` : '/');
-            setDirtyInput(false);
-          }}
-          mode="folder"
-          showRoot
-          filterValue={dirtyInput ? treePath : undefined}
-          filterMode="path"
-        />
-      </div>
+      {/* 저장 위치 선택 — 템플릿은 서버 자동 경로이므로 숨김 */}
+      {!isTemplate && (
+        <div className="flex flex-col gap-1.5 flex-1 min-h-0">
+          <label className="flex items-center gap-1.5 text-label-md text-ssoo-primary" htmlFor="save-dir-input">
+            <FolderPlus className="h-3.5 w-3.5" />
+            저장 위치
+          </label>
+          <input
+            id="save-dir-input"
+            type="text"
+            value={directory}
+            onChange={(e) => {
+              setDirectory(e.target.value);
+              setDirtyInput(true);
+            }}
+            placeholder="폴더 경로를 입력하거나 아래에서 선택..."
+            className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm outline-none focus:border-ssoo-primary"
+          />
+          <PickerTree
+            files={files}
+            selectedPath={treePath}
+            onSelect={(path) => {
+              setDirectory(path ? `/${path}` : '/');
+              setDirtyInput(false);
+            }}
+            mode="folder"
+            showRoot
+            filterValue={dirtyInput ? treePath : undefined}
+            filterMode="path"
+          />
+        </div>
+      )}
     </EditorDialog>
   );
 }

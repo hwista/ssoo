@@ -1,9 +1,24 @@
 'use client';
 
 import { create } from 'zustand';
-import { fileApi, getErrorMessage } from '@/lib/api';
+import { fileApi, templateApi, contentApi, getErrorMessage } from '@/lib/api';
 import type { DocumentMetadata } from '@/types';
+import type { ContentType } from '@/types/content-metadata';
+import type { TemplateReferenceDoc, TemplateGeneration, TemplateOriginType } from '@/types/template';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
+
+/**
+ * 템플릿 저장 시 필요한 메타데이터.
+ * DocumentPage가 save 직전에 설정하면, saveFile()이 templateApi.upsert() 호출에 사용.
+ */
+export interface TemplateSaveData {
+  id?: string;
+  scope: 'personal' | 'global';
+  kind: 'document' | 'folder';
+  originType: TemplateOriginType;
+  referenceDocuments: TemplateReferenceDoc[];
+  generation: TemplateGeneration;
+}
 
 interface FileMetadata {
   createdAt: Date | null;
@@ -18,6 +33,7 @@ export interface EditorHandlers {
   getSelection: () => { from: number; to: number };
   insertAt: (from: number, to: number, text: string) => void;
   setPendingInsert: (range: { from: number; to: number } | null) => void;
+  markAsSaved: () => void;
 }
 
 export interface EditorTabState {
@@ -32,6 +48,10 @@ export interface EditorTabState {
   isSaving: boolean;
   editorHandlers: EditorHandlers | null;
   pendingMetadataUpdate: Partial<DocumentMetadata> | null;
+  /** 콘텐츠 타입 — 문서/템플릿 통합 지원 */
+  contentType: ContentType;
+  /** 템플릿 저장용 메타데이터 (DocumentPage가 save 직전에 설정) */
+  templateSaveData: TemplateSaveData | null;
 }
 
 export const initialEditorTabState: EditorTabState = {
@@ -46,6 +66,8 @@ export const initialEditorTabState: EditorTabState = {
   isSaving: false,
   editorHandlers: null,
   pendingMetadataUpdate: null,
+  contentType: 'document',
+  templateSaveData: null,
 };
 
 interface EditorMultiStoreState {
@@ -62,8 +84,17 @@ interface EditorMultiStoreActions {
   refreshFileMetadata: (tabId: string, path: string) => Promise<void>;
   updateDocumentMetadata: (tabId: string, update: Partial<DocumentMetadata>) => Promise<void>;
   setLocalDocumentMetadata: (tabId: string, update: Partial<DocumentMetadata>) => void;
+  replaceLocalDocumentMetadata: (tabId: string, next: DocumentMetadata | null) => void;
   flushPendingMetadata: (tabId: string) => Promise<void>;
   discardPendingMetadata: (tabId: string) => Promise<void>;
+  /** 통합 콘텐츠 저장 (contentApi 사용) */
+  saveContent: (tabId: string, path: string, content: string, metadata?: Record<string, unknown>) => Promise<void>;
+  /** 통합 콘텐츠 로드 (contentApi 사용) */
+  loadContent: (tabId: string, path: string, options?: { strict?: boolean; contentType?: ContentType }) => Promise<void>;
+  /** contentType 설정 */
+  setContentType: (tabId: string, contentType: ContentType) => void;
+  /** 템플릿 저장 메타데이터 설정 (save 직전에 호출) */
+  setTemplateSaveData: (tabId: string, data: TemplateSaveData | null) => void;
 }
 
 type EditorMultiStore = EditorMultiStoreState & EditorMultiStoreActions;
@@ -152,9 +183,46 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
 
   saveFile: async (tabId, path, content) => {
     const timer = new PerformanceTimer('파일 저장');
+    const tabState = get()._getTab(tabId);
     get()._updateTab(tabId, { isLoading: true, error: null });
 
     try {
+      // 템플릿 저장: templateApi.upsert() 사용
+      if (tabState.contentType === 'template' && tabState.templateSaveData) {
+        const name = tabState.documentMetadata?.title || path.split('/').pop()?.replace(/\.md$/i, '') || 'Untitled';
+        const response = await templateApi.upsert({
+          ...(tabState.templateSaveData.id ? { id: tabState.templateSaveData.id } : {}),
+          name,
+          description: '',
+          scope: tabState.templateSaveData.scope,
+          kind: tabState.templateSaveData.kind,
+          content,
+          tags: tabState.documentMetadata?.tags ?? [],
+          originType: tabState.templateSaveData.originType,
+          referenceDocuments: tabState.templateSaveData.referenceDocuments,
+          generation: tabState.templateSaveData.generation,
+        });
+
+        if (!response.success) {
+          throw new Error(`템플릿 저장 실패: ${getErrorMessage(response)}`);
+        }
+
+        const savedId = response.data?.id;
+        get()._updateTab(tabId, {
+          content,
+          isEditing: false,
+          currentFilePath: path,
+          templateSaveData: savedId
+            ? { ...tabState.templateSaveData, id: savedId }
+            : tabState.templateSaveData,
+        });
+
+        logger.info('템플릿 저장 성공', { path, templateId: savedId });
+        timer.end({ success: true });
+        return;
+      }
+
+      // 문서 저장: fileApi.update() 사용 (기존 동작)
       const response = await fileApi.update(path, content);
       if (!response.success) {
         throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
@@ -245,6 +313,13 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     get()._updateTab(tabId, patch);
   },
 
+  replaceLocalDocumentMetadata: (tabId, next) => {
+    get()._updateTab(tabId, {
+      documentMetadata: next,
+      pendingMetadataUpdate: null,
+    });
+  },
+
   flushPendingMetadata: async (tabId) => {
     const tabState = get()._getTab(tabId);
     if (!tabState.pendingMetadataUpdate || !tabState.currentFilePath) return;
@@ -308,6 +383,78 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       throw error;
     }
   },
+
+  setContentType: (tabId, contentType) => {
+    get()._updateTab(tabId, { contentType });
+  },
+
+  setTemplateSaveData: (tabId, data) => {
+    get()._updateTab(tabId, { templateSaveData: data });
+  },
+
+  saveContent: async (tabId, path, content, metadata) => {
+    const timer = new PerformanceTimer('통합 콘텐츠 저장');
+    get()._updateTab(tabId, { isSaving: true, error: null });
+
+    try {
+      const response = await contentApi.save(path, content, metadata);
+      if (!response.success) {
+        throw new Error(`콘텐츠 저장 실패: ${getErrorMessage(response)}`);
+      }
+
+      get()._updateTab(tabId, {
+        content,
+        currentFilePath: path,
+        hasUnsavedChanges: false,
+        pendingMetadataUpdate: null,
+      });
+
+      logger.info('통합 콘텐츠 저장 성공', { path });
+      timer.end({ success: true });
+    } catch (error) {
+      timer.end({ success: false });
+      logger.error('통합 콘텐츠 저장 실패', error);
+      const errorMsg = error instanceof Error ? error.message : '콘텐츠 저장 실패';
+      get()._updateTab(tabId, { error: errorMsg });
+      throw error;
+    } finally {
+      get()._updateTab(tabId, { isSaving: false });
+    }
+  },
+
+  loadContent: async (tabId, path, options) => {
+    const timer = new PerformanceTimer('통합 콘텐츠 로드');
+    const contentType = options?.contentType ?? 'document';
+    get()._updateTab(tabId, { isLoading: true, error: null, currentFilePath: path, contentType });
+
+    try {
+      const response = await contentApi.load(path, { strict: options?.strict });
+      if (!response.success) {
+        throw new Error(`콘텐츠 로드 실패: ${getErrorMessage(response)}`);
+      }
+
+      const data = response.data;
+      const patch: Partial<EditorTabState> = {
+        content: data?.content || '',
+        documentMetadata: (data?.metadata as unknown as DocumentMetadata) || null,
+      };
+
+      get()._updateTab(tabId, patch);
+      logger.info('통합 콘텐츠 로드 성공', { path, contentType });
+      timer.end({ success: true });
+    } catch (error) {
+      timer.end({ success: false });
+      const errorMsg = error instanceof Error ? error.message : '콘텐츠 로드 실패';
+      get()._updateTab(tabId, {
+        content: '',
+        documentMetadata: null,
+        error: errorMsg,
+      });
+      logger.error('통합 콘텐츠 로드 실패', error);
+    } finally {
+      get()._updateTab(tabId, { isLoading: false });
+    }
+  },
 }));
 
 export function createEditorTabActions(tabId: string) {
@@ -323,6 +470,7 @@ export function createEditorTabActions(tabId: string) {
     setEditorHandlers: (handlers: EditorHandlers) => gs()._updateTab(tabId, { editorHandlers: handlers }),
     clearEditorHandlers: () => gs()._updateTab(tabId, { editorHandlers: null }),
     setLocalDocumentMetadata: (update: Partial<DocumentMetadata>) => gs().setLocalDocumentMetadata(tabId, update),
+    replaceLocalDocumentMetadata: (next: DocumentMetadata | null) => gs().replaceLocalDocumentMetadata(tabId, next),
     loadFile: (path: string) => gs().loadFile(tabId, path),
     saveFile: (path: string, content: string) => gs().saveFile(tabId, path, content),
     saveFileKeepEditing: (path: string, content: string) => gs().saveFileKeepEditing(tabId, path, content),
@@ -330,6 +478,10 @@ export function createEditorTabActions(tabId: string) {
     updateDocumentMetadata: (update: Partial<DocumentMetadata>) => gs().updateDocumentMetadata(tabId, update),
     flushPendingMetadata: () => gs().flushPendingMetadata(tabId),
     discardPendingMetadata: () => gs().discardPendingMetadata(tabId),
+    setContentType: (contentType: ContentType) => gs().setContentType(tabId, contentType),
+    setTemplateSaveData: (data: TemplateSaveData | null) => gs().setTemplateSaveData(tabId, data),
+    saveContent: (path: string, content: string, metadata?: Record<string, unknown>) => gs().saveContent(tabId, path, content, metadata),
+    loadContent: (path: string, options?: { strict?: boolean; contentType?: ContentType }) => gs().loadContent(tabId, path, options),
     reset: () => gs()._updateTab(tabId, { ...initialEditorTabState }),
     removeTabEditor: () => gs().removeTab(tabId),
   };

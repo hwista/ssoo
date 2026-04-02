@@ -10,6 +10,7 @@ interface EditorHandlerShape {
   getSelection: () => { from: number; to: number };
   insertAt: (from: number, to: number, text: string) => void;
   setPendingInsert: (range: { from: number; to: number } | null) => void;
+  markAsSaved: () => void;
 }
 
 export function useEditorRuntimeEffects({
@@ -21,6 +22,7 @@ export function useEditorRuntimeEffects({
   blockEditorRef,
   handleSave,
   handleCancel,
+  markAsSaved,
   setStoreHasUnsavedChanges,
   setStoreIsSaving,
   setEditorHandlers,
@@ -34,6 +36,7 @@ export function useEditorRuntimeEffects({
   blockEditorRef: React.RefObject<BlockEditorRef | null>;
   handleSave: () => Promise<void>;
   handleCancel: () => Promise<void>;
+  markAsSaved: () => void;
   setStoreHasUnsavedChanges: (hasChanges: boolean) => void;
   setStoreIsSaving: (saving: boolean) => void;
   setEditorHandlers: (handlers: EditorHandlerShape) => void;
@@ -64,6 +67,7 @@ export function useEditorRuntimeEffects({
     getSelection: () => blockEditorRef.current?.getSelection() ?? { from: 0, to: 0 },
     insertAt: (from: number, to: number, text: string) => blockEditorRef.current?.insertAt(from, to, text),
     setPendingInsert: (range: { from: number; to: number } | null) => blockEditorRef.current?.setPendingInsert(range),
+    markAsSaved,
   });
 
   React.useEffect(() => {
@@ -76,8 +80,9 @@ export function useEditorRuntimeEffects({
       getSelection: () => blockEditorRef.current?.getSelection() ?? { from: 0, to: 0 },
       insertAt: (from: number, to: number, text: string) => blockEditorRef.current?.insertAt(from, to, text),
       setPendingInsert: (range: { from: number; to: number } | null) => blockEditorRef.current?.setPendingInsert(range),
+      markAsSaved,
     };
-  }, [blockEditorRef, content, handleCancel, handleSave]);
+  }, [blockEditorRef, content, handleCancel, handleSave, markAsSaved]);
 
   React.useEffect(() => {
     setEditorHandlers({
@@ -87,6 +92,7 @@ export function useEditorRuntimeEffects({
       getSelection: () => handlersRef.current.getSelection(),
       insertAt: (from, to, text) => handlersRef.current.insertAt(from, to, text),
       setPendingInsert: (range) => handlersRef.current.setPendingInsert(range),
+      markAsSaved: () => handlersRef.current.markAsSaved(),
     });
 
     return () => {

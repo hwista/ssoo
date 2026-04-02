@@ -47,6 +47,7 @@ function WandButton({ loading, onClick, label }: { loading: boolean; onClick: ()
 
 export function DocumentInfoSection({
   editable,
+  templateMode = false,
   filePath,
   documentTitle,
   originalDocumentTitle = '',
@@ -67,6 +68,7 @@ export function DocumentInfoSection({
   onOpenSaveLocation,
 }: {
   editable: boolean;
+  templateMode?: boolean;
   filePath?: string;
   documentTitle: string;
   originalDocumentTitle?: string;
@@ -117,16 +119,19 @@ export function DocumentInfoSection({
     </span>
   );
 
+  const titleLabel = templateMode ? '템플릿명' : '문서명';
+  const pathLabel = templateMode ? '템플릿 경로' : '문서 경로';
+
   const titleErrorValue = (
     <span className="flex items-center gap-1 text-red-600/80">
-      <span>문서명 추천 오류</span>
+      <span>{titleLabel} 추천 오류</span>
       {editButton}
     </span>
   );
 
   const pathErrorValue = (
     <span className="flex items-center gap-1 text-red-600/80">
-      <span>문서 경로 추천 오류</span>
+      <span>{pathLabel} 추천 오류</span>
       {editButton}
     </span>
   );
@@ -140,14 +145,14 @@ export function DocumentInfoSection({
 
   const titleLoadingValue = (
     <span className="flex items-center gap-1 text-gray-500">
-      <span>문서명 추천 중...</span>
+      <span>{titleLabel} 추천 중...</span>
       {editButton}
     </span>
   );
 
   const pathLoadingValue = (
     <span className="flex items-center gap-1 text-gray-500">
-      <span>문서 경로 추천 중...</span>
+      <span>{pathLabel} 추천 중...</span>
       {editButton}
     </span>
   );
@@ -165,32 +170,34 @@ export function DocumentInfoSection({
   const actionButtonClassName = 'inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-caption text-ssoo-primary transition-colors hover:bg-ssoo-primary/20';
   const dismissButtonClassName = 'inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption text-ssoo-primary/60 transition-colors hover:text-ssoo-primary';
 
+  const wandLabel = templateMode ? 'AI 템플릿명/경로 추천' : 'AI 문서명/경로 추천';
+
   const items: KeyValueItem[] = [
     {
-      label: '문서명',
+      label: titleLabel,
       icon: <FileText className="mr-1 h-3.5 w-3.5" />,
       value: showTitleError ? titleErrorValue : (showTitleLoading ? titleLoadingValue : titleValue),
       hidden: showTitleLoading ? false : (showTitleError ? false : !documentTitle),
       highlighted: !showTitleLoading && !showTitleError && isTitleHighlighted,
     },
     {
-      label: '문서 경로',
+      label: pathLabel,
       indent: true,
       value: showPathError
         ? pathErrorValue
         : (showPathLoading ? pathLoadingValue : (pathValidationMessage ? pathValidationValue : pathValue)),
-      hidden: showPathLoading ? false : (showPathError ? false : (!pathValidationMessage && !filePath)),
+      hidden: templateMode || (showPathLoading ? false : (showPathError ? false : (!pathValidationMessage && !filePath))),
       highlighted: !showPathLoading && !showPathError && !pathValidationMessage && isPathHighlighted,
     },
     { label: '작성자', icon: <User className="mr-1 h-3.5 w-3.5" />, value: metadata.author, hidden: !metadata.author },
     { label: '작성일', icon: <Calendar className="mr-1 h-3.5 w-3.5" />, value: formatDate(metadata.createdAt), hidden: !metadata.createdAt },
     { label: '작성 시간', indent: true, value: formatTime(metadata.createdAt), hidden: !metadata.createdAt },
-    { label: '수정자', icon: <Pencil className="mr-1 h-3.5 w-3.5" />, value: metadata.lastModifiedBy, hidden: !metadata.lastModifiedBy },
-    { label: '수정일', icon: <Calendar className="mr-1 h-3.5 w-3.5" />, value: formatDate(metadata.updatedAt), hidden: !metadata.updatedAt },
-    { label: '수정 시간', indent: true, value: formatTime(metadata.updatedAt), hidden: !metadata.updatedAt },
-    { label: '줄 수', value: metadata.lineCount?.toLocaleString(), hidden: metadata.lineCount === undefined || editable },
-    { label: '문자 수', value: metadata.charCount?.toLocaleString(), hidden: metadata.charCount === undefined || editable },
-    { label: '단어 수', value: metadata.wordCount?.toLocaleString(), hidden: metadata.wordCount === undefined || editable },
+    { label: '수정자', icon: <Pencil className="mr-1 h-3.5 w-3.5" />, value: metadata.lastModifiedBy, hidden: !metadata.lastModifiedBy || templateMode },
+    { label: '수정일', icon: <Calendar className="mr-1 h-3.5 w-3.5" />, value: formatDate(metadata.updatedAt), hidden: !metadata.updatedAt || templateMode },
+    { label: '수정 시간', indent: true, value: formatTime(metadata.updatedAt), hidden: !metadata.updatedAt || templateMode },
+    { label: '줄 수', value: metadata.lineCount?.toLocaleString(), hidden: metadata.lineCount === undefined || editable || templateMode },
+    { label: '문자 수', value: metadata.charCount?.toLocaleString(), hidden: metadata.charCount === undefined || editable || templateMode },
+    { label: '단어 수', value: metadata.wordCount?.toLocaleString(), hidden: metadata.wordCount === undefined || editable || templateMode },
   ];
 
   return (
@@ -198,13 +205,13 @@ export function DocumentInfoSection({
       key={String(editable)}
       title="정보"
       icon={<FileText className="mr-1.5 h-4 w-4 shrink-0" />}
-      headerRight={showWand ? <WandButton loading={infoLoading} onClick={onRequestRecommendation!} label="AI 문서명/경로 추천" /> : undefined}
+      headerRight={showWand ? <WandButton loading={infoLoading} onClick={onRequestRecommendation!} label={wandLabel} /> : undefined}
       items={items}
       defaultOpen={editable}
     >
       {pendingSuggestedTitle && !showTitleLoading && (
         <div className={suggestionCardClassName}>
-          <p className="mb-2 text-caption text-ssoo-primary/80">AI 추천 문서명: <span className="text-label-sm text-ssoo-primary">{pendingSuggestedTitle}</span></p>
+          <p className="mb-2 text-caption text-ssoo-primary/80">AI 추천 {titleLabel}: <span className="text-label-sm text-ssoo-primary">{pendingSuggestedTitle}</span></p>
           <div className="flex gap-1.5">
             <button type="button" onClick={onAcceptSuggestedTitle} className={actionButtonClassName}>
               <Check className="h-3 w-3" />
@@ -217,9 +224,9 @@ export function DocumentInfoSection({
           </div>
         </div>
       )}
-      {pendingSuggestedPath && !showPathLoading && (
+      {pendingSuggestedPath && !showPathLoading && !templateMode && (
         <div className={suggestionCardClassName}>
-          <p className="mb-2 text-caption text-ssoo-primary/80">AI 추천 문서 경로: <span className="font-mono text-ssoo-primary">{pendingSuggestedPath}</span></p>
+          <p className="mb-2 text-caption text-ssoo-primary/80">AI 추천 {pathLabel}: <span className="font-mono text-ssoo-primary">{pendingSuggestedPath}</span></p>
           <div className="flex gap-1.5">
             <button type="button" onClick={onAcceptSuggestedPath} className={actionButtonClassName}>
               <Check className="h-3 w-3" />

@@ -8,6 +8,7 @@ import { SaveLocationDialog } from '@/components/common/save-location';
 import type { SaveLocationResult } from '@/components/common/save-location';
 import { getAttachmentCategory } from '@/lib/constants/file';
 import { LoadingState } from '@/components/common/StateDisplay';
+import type { TemplateOriginType, TemplateReferenceDoc } from '@/types/template';
 import {
   AttachmentsSection,
   CommentInput,
@@ -16,7 +17,6 @@ import {
   SourceLinksSection,
   SummarySection,
   TagsSection,
-  TemplateSaveSection,
 } from './document-sidecar';
 import type { DocumentSidecarDiffSnapshot } from '../documentPageUtils';
 
@@ -82,20 +82,14 @@ export interface DocumentSidecarProps {
   pendingPathValidationMessage?: string;
   /** 새 문서 경로 validation 메시지 */
   pathValidationMessage?: string;
-  /** 템플릿 전용 저장 여부 */
-  templateSaveEnabled?: boolean;
-  /** 템플릿 저장용 메타데이터 */
-  templateDraft?: {
-    name: string;
-    description: string;
-    scope: 'personal' | 'global';
-  };
-  /** 템플릿 저장 메타데이터 변경 */
-  onTemplateDraftChange?: (update: {
-    name?: string;
-    description?: string;
-    scope?: 'personal' | 'global';
-  }) => void;
+  /** 템플릿 모드 여부 */
+  templateModeEnabled?: boolean;
+  /** 템플릿 AI 변환 중 여부 */
+  isConvertingTemplate?: boolean;
+  /** 템플릿 유형 */
+  templateOriginType?: TemplateOriginType;
+  /** 템플릿 참조 문서 */
+  templateReferenceDocuments?: TemplateReferenceDoc[];
   /** 현재 에디터 콘텐츠 반환 (AI 마술봉에서 사용) */
   getEditorContent?: () => string;
   /** 본문에서 추출된 링크 목록 */
@@ -170,9 +164,8 @@ export function DocumentSidecar({
   pendingPathValidationMessage,
   pathValidationMessage,
   filePath,
-  templateSaveEnabled = false,
-  templateDraft,
-  onTemplateDraftChange,
+  templateModeEnabled = false,
+  templateReferenceDocuments = [],
   getEditorContent,
   bodyLinks,
   onScrollToBodyLink,
@@ -199,7 +192,19 @@ export function DocumentSidecar({
   const summary = documentMetadata?.summary ?? '';
   const sourceLinks = documentMetadata?.sourceLinks ?? [];
   const comments = documentMetadata?.comments ?? [];
-  const isTemplateSidecar = editable && templateSaveEnabled;
+  const isTemplateSidecar = templateModeEnabled;
+  const templateReferenceAttachments = React.useMemo<SourceFileMeta[]>(() => (
+    isTemplateSidecar
+      ? templateReferenceDocuments.map((reference) => ({
+        name: reference.title || reference.path.split('/').pop() || reference.path,
+        path: reference.path,
+        type: reference.mimeType || 'text/markdown',
+        size: reference.size || 0,
+        origin: 'reference',
+        provider: reference.provider === 'sharepoint' || reference.provider === 'nas' ? reference.provider : 'local',
+      }))
+      : []
+  ), [isTemplateSidecar, templateReferenceDocuments]);
   const [isSaveLocationOpen, setIsSaveLocationOpen] = React.useState(false);
   const [replyTarget, setReplyTarget] = React.useState<{ id: string; author: string } | undefined>();
 
@@ -279,7 +284,23 @@ export function DocumentSidecar({
   };
 
   const handleAttachmentClick = (attachment: SourceFileMeta) => {
-    // 템플릿 파일은 새 탭에서 열기
+    if (isTemplateSidecar && (attachment.origin === 'template' || attachment.origin === 'reference')) {
+      const refDoc = templateReferenceDocuments.find((r) => r.path === attachment.path);
+      if (refDoc) {
+        if (refDoc.storage === 'inline') {
+          toast.info('업로드된 참조 파일은 미리보기를 지원하지 않습니다.');
+          return;
+        }
+        const kind = refDoc.kind ?? 'document';
+        if (kind === 'document') {
+          if (onOpenDocumentTab && attachment.path) {
+            onOpenDocumentTab(attachment.path);
+          }
+          return;
+        }
+      }
+    }
+
     if (attachment.origin === 'template') {
       if (onOpenDocumentTab && attachment.path) {
         onOpenDocumentTab(attachment.path);
@@ -329,16 +350,11 @@ export function DocumentSidecar({
     >
       {isLoading ? (
         <LoadingState size="sm" message="문서를 불러오는 중..." className="h-full" />
-      ) : isTemplateSidecar ? (
-        <TemplateSaveSection
-          enabled={templateSaveEnabled}
-          templateDraft={templateDraft}
-          onTemplateDraftChange={onTemplateDraftChange}
-        />
       ) : (
         <>
           <DocumentInfoSection
             editable={editable}
+            templateMode={isTemplateSidecar}
             filePath={filePath}
             documentTitle={documentTitle}
             originalDocumentTitle={originalDocumentTitle}
@@ -378,45 +394,49 @@ export function DocumentSidecar({
             externalLoading={externalSuggestedTagsLoading}
             onExternalSuggestedTagsConsumed={onExternalSuggestedTagsConsumed}
           />
-          <SummarySection
-            editable={editable}
-            summary={summary}
-            onChange={handleSummaryChange}
-            onSummaryReplace={(text) => onMetadataChange?.({ summary: text })}
-            getEditorContent={getEditorContent}
-            originalSummary={originalMetaSnapshot?.summary}
-            externalAiSuggestion={externalAiSuggestion}
-            externalLoading={externalAiSuggestionLoading}
-            onExternalAiSuggestionConsumed={onExternalAiSuggestionConsumed}
-          />
-          <SourceLinksSection
-            editable={editable}
-            sourceLinks={sourceLinks}
-            onChange={handleSourceLinksChange}
-            originalSourceLinks={originalMetaSnapshot?.sourceLinks}
-            bodyLinks={bodyLinks}
-            onScrollToBodyLink={onScrollToBodyLink}
-            onOpenLink={onOpenLink}
-            defaultOpen={editable}
-          />
+          {!isTemplateSidecar && (
+            <SummarySection
+              editable={editable}
+              summary={summary}
+              onChange={handleSummaryChange}
+              onSummaryReplace={(text) => onMetadataChange?.({ summary: text })}
+              getEditorContent={getEditorContent}
+              originalSummary={originalMetaSnapshot?.summary}
+              externalAiSuggestion={externalAiSuggestion}
+              externalLoading={externalAiSuggestionLoading}
+              onExternalAiSuggestionConsumed={onExternalAiSuggestionConsumed}
+            />
+          )}
+          {!isTemplateSidecar && (
+            <SourceLinksSection
+              editable={editable}
+              sourceLinks={sourceLinks}
+              onChange={handleSourceLinksChange}
+              originalSourceLinks={originalMetaSnapshot?.sourceLinks}
+              bodyLinks={bodyLinks}
+              onScrollToBodyLink={onScrollToBodyLink}
+              onOpenLink={onOpenLink}
+              defaultOpen={editable}
+            />
+          )}
           <AttachmentsSection
-            attachments={attachments}
+            attachments={isTemplateSidecar ? templateReferenceAttachments : attachments}
             editable={editable}
-            onChange={handleAttachmentsChange}
+            templateMode={isTemplateSidecar}
+            onChange={isTemplateSidecar ? undefined : handleAttachmentsChange}
             onItemClick={handleAttachmentClick}
             onDownload={handleAttachmentDownload}
-            originalAttachmentPaths={originalMetaSnapshot?.attachmentPaths}
-            deletedReferenceKeys={deletedReferenceKeys}
-            defaultOpen={editable}
+            originalAttachmentPaths={isTemplateSidecar ? undefined : originalMetaSnapshot?.attachmentPaths}
+            deletedReferenceKeys={isTemplateSidecar ? undefined : deletedReferenceKeys}
+            defaultOpen={isTemplateSidecar || editable}
           />
-          {!isNewDocument && (
+          {!isNewDocument && !isTemplateSidecar && (
             <CommentsSection
               comments={comments}
               editable={editable}
               onDelete={handleCommentDelete}
               onRestore={handleCommentRestore}
               onReply={(comment) => {
-                // parentId 체인을 따라 스레드 루트까지 올라감 (Instagram 1-depth 모델)
                 const commentMap = new Map(comments.map((c) => [c.id, c]));
                 let current = comment;
                 while (current.parentId && commentMap.has(current.parentId)) {

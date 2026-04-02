@@ -4,9 +4,10 @@ import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { docAssistApi } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
-import type { TemplateItem } from '@/types/template';
+import type { TemplateItem, TemplateReferenceDoc } from '@/types/template';
 import type { SourceFileMeta } from '@/types';
 import type { RequestLifecycle } from '@/hooks/useRequestLifecycle';
+import { buildComposeContextFiles } from './composeContextUtils';
 
 interface SelectionRange {
   from: number;
@@ -34,10 +35,13 @@ interface DocumentPageComposeState {
   inlineInstruction: string;
   inlineSummaryFiles: InlineSummaryFileItem[];
   inlineTemplate: TemplateItem | null;
+  templateReferenceDocuments: TemplateReferenceDoc[];
   isComposing: boolean;
   isCreateMode: boolean;
   pendingDeletedFileIds: Set<string>;
+  pendingDeletedRefPaths: Set<string>;
   isTemplatePendingDelete: boolean;
+  contentType?: 'document' | 'template';
 }
 
 interface DocumentPageComposeMutators {
@@ -54,7 +58,11 @@ interface DocumentPageComposeDeps {
   editorHandlers: ComposeEditorHandlers | null;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   requestLifecycle: RequestLifecycle;
-  onSyncReferencesToSidecar?: (files: SourceFileMeta[], rawFiles?: Map<string, File>) => void;
+  onSyncReferencesToSidecar?: (
+    files: SourceFileMeta[],
+    rawFiles?: Map<string, File>,
+    resolvedRefPaths?: string[],
+  ) => void;
   onComposeComplete?: (
     generatedContent: string,
     requestToken: number,
@@ -169,8 +177,10 @@ export function useDocumentPageComposeActions({
     inlineInstruction,
     inlineSummaryFiles,
     inlineTemplate,
+    templateReferenceDocuments,
     isComposing,
     pendingDeletedFileIds,
+    pendingDeletedRefPaths,
     isTemplatePendingDelete,
   } = state;
   const {
@@ -201,11 +211,18 @@ export function useDocumentPageComposeActions({
     const hasSelection = selection.from !== selection.to;
     const selectedText = hasSelection ? baseContent.slice(selection.from, selection.to) : undefined;
 
-    const activeSummaryFiles = inlineSummaryFiles.filter(
-      (f) => !pendingDeletedFileIds.has(f.id),
-    );
+    const {
+      composeSummaryFiles,
+      warnings: preComposeWarnings,
+      resolvedRefPaths,
+    } = await buildComposeContextFiles({
+      inlineSummaryFiles,
+      templateReferenceDocuments,
+      pendingDeletedFileIds,
+      pendingDeletedRefPaths,
+    });
     const activeTemplate = isTemplatePendingDelete ? null : inlineTemplate;
-    const usedSummaryFiles = [...activeSummaryFiles];
+    const usedSummaryFiles = [...composeSummaryFiles];
     const usedTemplate = activeTemplate;
 
     handlers?.setPendingInsert?.(selection);
@@ -225,7 +242,8 @@ export function useDocumentPageComposeActions({
           selectedText,
           activeDocPath: filePath || createPath,
           templates: activeTemplate ? [activeTemplate] : [],
-          summaryFiles: mapSummaryFiles(activeSummaryFiles),
+          summaryFiles: mapSummaryFiles(composeSummaryFiles),
+          contentType: state.contentType,
         },
         {
           onMeta: (meta) => {
@@ -304,13 +322,13 @@ export function useDocumentPageComposeActions({
         }
 
         if (syncFiles.length > 0) {
-          onSyncReferencesToSidecar(syncFiles, rawFiles);
+          onSyncReferencesToSidecar(syncFiles, rawFiles, resolvedRefPaths);
         }
       }
 
       if (!requestLifecycle.isRequestActive(token)) return;
       setInlineInstruction('');
-      setInlineRelevanceWarnings(relevanceWarnings);
+      setInlineRelevanceWarnings([...preComposeWarnings, ...relevanceWarnings]);
     } catch {
       // Network errors — silently ignored
     } finally {
@@ -328,11 +346,13 @@ export function useDocumentPageComposeActions({
     inlineInstruction,
     inlineSummaryFiles,
     inlineTemplate,
+    templateReferenceDocuments,
     isComposing,
     isTemplatePendingDelete,
     onComposeComplete,
     onSyncReferencesToSidecar,
     pendingDeletedFileIds,
+    pendingDeletedRefPaths,
     requestLifecycle,
     setContent,
     setInlineInstruction,

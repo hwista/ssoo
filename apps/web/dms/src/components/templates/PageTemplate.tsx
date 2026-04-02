@@ -22,7 +22,7 @@ export interface PageTemplateProps {
   description?: string;
   headerExtraActions?: HeaderAction[];
   headerExtraActionsPosition?: 'left' | 'right';
-  headerEditorRightSlot?: React.ReactNode;
+  headerViewerRightSlot?: React.ReactNode;
   headerEditorPreviewSlot?: React.ReactNode;
   contentOrientation?: DocumentOrientation;
   contentMaxWidth?: number | null;
@@ -56,7 +56,7 @@ export function PageTemplate({
   description,
   headerExtraActions,
   headerExtraActionsPosition = 'left',
-  headerEditorRightSlot,
+  headerViewerRightSlot,
   headerEditorPreviewSlot,
   contentOrientation = DEFAULT_DOCUMENT_ORIENTATION,
   contentMaxWidth,
@@ -150,7 +150,7 @@ export function PageTemplate({
       description={description}
       extraActions={headerExtraActions}
       extraActionsPosition={headerExtraActionsPosition}
-      editorRightSlot={headerEditorRightSlot}
+      viewerRightSlot={headerViewerRightSlot}
       editorPreviewSlot={headerEditorPreviewSlot}
       onEdit={onEdit}
       onSave={onSave}

@@ -33,6 +33,7 @@ export interface BlockEditorProps {
   isPreview?: boolean;
   showToolbar?: boolean;
   isPendingInsertLoading?: boolean;
+  streamingAutoScroll?: boolean;
   requestImageUrl?: () => Promise<string | null>;
   requestLinkUrl?: () => Promise<string | null>;
   openExternalHref?: (href: string) => void;
@@ -63,6 +64,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
   isPreview = false,
   showToolbar = true,
   isPendingInsertLoading = false,
+  streamingAutoScroll = false,
   requestImageUrl,
   requestLinkUrl,
   openExternalHref,
@@ -116,6 +118,7 @@ const BlockEditor = forwardRef<BlockEditorRef, BlockEditorProps>(({
     resolveSelectedCommand,
     closeSlashMenu,
     slashIsOpen: () => slashRef.current.open,
+    streamingAutoScroll,
   });
 
   // [미리보기 유지 중 외부 변경 동기화] AI 작성 등 부모 content가 바뀔 때 preview에 반영.

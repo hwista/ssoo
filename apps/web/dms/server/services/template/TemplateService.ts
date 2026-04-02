@@ -1,19 +1,26 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { configService } from '@/server/services/config/ConfigService';
+import { contentService } from '@/server/services/content/ContentService';
 import type {
+  TemplateGeneration,
   TemplateItem,
+  TemplateOriginType,
+  TemplateReferenceDoc,
   TemplateScope,
+  UserTemplateManifest,
 } from '@/types/template';
-import type { StoredTemplateItem, TemplateStoreShape, TemplateSidecarData } from './types';
+import type { StoredTemplateItem, TemplateSidecarData } from './types';
 
 const TEMPLATE_ROOT = path.join(process.cwd(), 'data', 'templates');
-const LEGACY_TEMPLATE_FILE = path.join(TEMPLATE_ROOT, 'templates.json');
-const GLOBAL_TEMPLATE_DIR = path.join(TEMPLATE_ROOT, 'global');
+const SYSTEM_TEMPLATE_DIR = path.join(TEMPLATE_ROOT, 'system');
 const PERSONAL_TEMPLATE_DIR = path.join(TEMPLATE_ROOT, 'personal');
+const PERSONAL_MANIFEST_DIR = path.join(PERSONAL_TEMPLATE_DIR, 'manifest');
 
-const DEFAULT_GLOBAL_TEMPLATES: Array<Omit<TemplateItem, 'updatedAt'>> = [
+const DEFAULT_SYSTEM_TEMPLATES: Array<Omit<TemplateItem, 'updatedAt'>> = [
   {
-    id: 'global-doc-default',
+    id: 'system-doc-default',
     name: '기본 문서 템플릿',
     description: '요약/배경/핵심 내용/액션 아이템 구조',
     scope: 'global',
@@ -23,9 +30,12 @@ const DEFAULT_GLOBAL_TEMPLATES: Array<Omit<TemplateItem, 'updatedAt'>> = [
     visibility: 'shared',
     status: 'active',
     sourceType: 'markdown-file',
+    originType: 'generated',
+    referenceDocuments: [],
+    generation: { source: 'manual' },
   },
   {
-    id: 'global-folder-default',
+    id: 'system-folder-default',
     name: '기본 폴더 구조 템플릿',
     description: '주제 기준의 표준 폴더 구조',
     scope: 'global',
@@ -35,39 +45,19 @@ const DEFAULT_GLOBAL_TEMPLATES: Array<Omit<TemplateItem, 'updatedAt'>> = [
     visibility: 'shared',
     status: 'active',
     sourceType: 'markdown-file',
+    originType: 'generated',
+    referenceDocuments: [],
+    generation: { source: 'manual' },
   },
 ];
 
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9가-힣_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
+interface TemplateListFilter {
+  scope?: TemplateScope;
+  originType?: TemplateOriginType;
 }
 
-function safeParseStore(raw: string): TemplateStoreShape {
-  const parsed = JSON.parse(raw) as Partial<TemplateStoreShape>;
-  return {
-    global: Array.isArray(parsed.global) ? parsed.global : [],
-    personal: parsed.personal && typeof parsed.personal === 'object' ? parsed.personal : {},
-  };
-}
-
-function getTemplateDir(scope: TemplateScope, userId: string): string {
-  return scope === 'global'
-    ? GLOBAL_TEMPLATE_DIR
-    : path.join(PERSONAL_TEMPLATE_DIR, userId || 'anonymous');
-}
-
-function getTemplateFilePath(scope: TemplateScope, userId: string, id: string): string {
-  return path.join(getTemplateDir(scope, userId), `${id}.md`);
-}
-
-function getTemplateSidecarPath(markdownPath: string): string {
-  const parsed = path.parse(markdownPath);
-  return path.join(parsed.dir, `${parsed.name}.sidecar.json`);
+interface SaveTemplateInput extends Omit<TemplateItem, 'id' | 'updatedAt'> {
+  id?: string;
 }
 
 function ensureDir(dirPath: string): void {
@@ -76,63 +66,93 @@ function ensureDir(dirPath: string): void {
   }
 }
 
+function ensureTemplateRoots(): void {
+  ensureDir(TEMPLATE_ROOT);
+  ensureDir(SYSTEM_TEMPLATE_DIR);
+  ensureDir(PERSONAL_TEMPLATE_DIR);
+  ensureDir(PERSONAL_MANIFEST_DIR);
+}
+
+function resolveOwnerId(scope: TemplateScope, userId: string): string {
+  return scope === 'global' ? 'system' : (userId || 'anonymous');
+}
+
+function resolveAuthor(requestUserId: string | undefined): string {
+  const requestUser = requestUserId?.trim();
+  if (requestUser) return requestUser;
+
+  const gitAuthorName = configService.getGitAuthor().name?.trim();
+  if (gitAuthorName) return gitAuthorName;
+
+  return 'Unknown';
+}
+
+function getSystemTemplatePath(id: string): string {
+  return path.join(SYSTEM_TEMPLATE_DIR, `${id}.md`);
+}
+
+function getPersonalTemplatePath(id: string): string {
+  return path.join(PERSONAL_TEMPLATE_DIR, `${id}.md`);
+}
+
+function getManifestPath(userId: string): string {
+  return path.join(PERSONAL_MANIFEST_DIR, `${userId || 'anonymous'}.json`);
+}
+
+function readManifest(userId: string): UserTemplateManifest {
+  const manifestPath = getManifestPath(userId);
+  if (!fs.existsSync(manifestPath)) return { owned: [], scraped: [] };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as Partial<UserTemplateManifest>;
+    return {
+      owned: Array.isArray(parsed.owned) ? parsed.owned : [],
+      scraped: Array.isArray(parsed.scraped) ? parsed.scraped : [],
+    };
+  } catch {
+    return { owned: [], scraped: [] };
+  }
+}
+
+function writeManifest(userId: string, manifest: UserTemplateManifest): void {
+  ensureDir(PERSONAL_MANIFEST_DIR);
+  fs.writeFileSync(getManifestPath(userId), JSON.stringify(manifest, null, 2), 'utf-8');
+}
+
 function readTemplateFromFile(markdownPath: string): TemplateItem | null {
-  const sidecarPath = getTemplateSidecarPath(markdownPath);
+  const sidecarPath = contentService.getSidecarPath(markdownPath);
   if (!fs.existsSync(markdownPath) || !fs.existsSync(sidecarPath)) return null;
 
   try {
     const content = fs.readFileSync(markdownPath, 'utf-8');
-    const sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf-8')) as TemplateSidecarData;
+    const sidecar = contentService.readSidecar(markdownPath) as TemplateSidecarData | null;
+    if (!sidecar) return null;
     const sourcePath = path.relative(TEMPLATE_ROOT, markdownPath).replace(/\\/g, '/');
 
     return {
       id: sidecar.id,
       name: sidecar.name,
       description: sidecar.description,
+      summary: sidecar.summary,
+      tags: sidecar.tags,
+      createdAt: sidecar.createdAt,
+      updatedAt: sidecar.updatedAt,
+      author: sidecar.author,
+      lastModifiedBy: sidecar.lastModifiedBy,
       scope: sidecar.scope,
       kind: sidecar.kind,
       content,
-      updatedAt: sidecar.updatedAt,
       ownerId: sidecar.ownerId,
       visibility: sidecar.visibility,
       status: sidecar.status,
       sourceType: sidecar.sourceType,
       sourcePath,
+      originType: sidecar.originType,
+      referenceDocuments: sidecar.referenceDocuments,
+      generation: sidecar.generation,
     };
   } catch {
     return null;
   }
-}
-
-function writeTemplateFiles(template: TemplateItem, userId: string): TemplateItem {
-  const markdownPath = getTemplateFilePath(template.scope, userId, template.id);
-  const sidecarPath = getTemplateSidecarPath(markdownPath);
-
-  ensureDir(path.dirname(markdownPath));
-
-  fs.writeFileSync(markdownPath, template.content, 'utf-8');
-  const sidecar: TemplateSidecarData = {
-    id: template.id,
-    name: template.name,
-    description: template.description,
-    scope: template.scope,
-    kind: template.kind,
-    updatedAt: template.updatedAt,
-    ownerId: template.ownerId ?? (template.scope === 'global' ? 'system' : userId),
-    visibility: template.visibility ?? (template.scope === 'global' ? 'shared' : 'personal'),
-    status: template.status ?? 'active',
-    sourceType: 'markdown-file',
-  };
-  fs.writeFileSync(sidecarPath, JSON.stringify(sidecar, null, 2) + '\n', 'utf-8');
-
-  return {
-    ...template,
-    ownerId: sidecar.ownerId,
-    visibility: sidecar.visibility,
-    status: sidecar.status,
-    sourceType: sidecar.sourceType,
-    sourcePath: path.relative(TEMPLATE_ROOT, markdownPath).replace(/\\/g, '/'),
-  };
 }
 
 function readTemplatesInDir(dirPath: string): TemplateItem[] {
@@ -145,139 +165,202 @@ function readTemplatesInDir(dirPath: string): TemplateItem[] {
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
-function storedTemplateToPublic(
-  template: StoredTemplateItem,
-  scope: TemplateScope,
-  userId: string
-): TemplateItem {
-  const nextId = template.id?.trim() || `${scope}-${Date.now()}`;
-  const nextName = template.name?.trim() || nextId;
-  const sourcePath = template.sourcePath?.trim() || path.relative(
-    TEMPLATE_ROOT,
-    getTemplateFilePath(scope, userId, nextId)
-  ).replace(/\\/g, '/');
-  return {
-    id: nextId,
-    name: nextName,
+function writeTemplateFiles(template: TemplateItem, templateDir: string, userId: string): TemplateItem {
+  const markdownPath = path.join(templateDir, `${template.id}.md`);
+
+  ensureDir(templateDir);
+  fs.writeFileSync(markdownPath, template.content, 'utf-8');
+
+  const sidecar: TemplateSidecarData = {
+    id: template.id,
+    name: template.name,
     description: template.description,
-    scope,
-    kind: template.kind ?? 'document',
-    content: template.content ?? '',
-    updatedAt: template.updatedAt || new Date().toISOString(),
-    ownerId: template.ownerId ?? (scope === 'global' ? 'system' : userId),
-    visibility: template.visibility ?? (scope === 'global' ? 'shared' : 'personal'),
+    summary: template.summary ?? '',
+    tags: template.tags ?? [],
+    createdAt: template.createdAt,
+    updatedAt: template.updatedAt,
+    author: template.author,
+    lastModifiedBy: template.lastModifiedBy,
+    scope: template.scope,
+    kind: template.kind,
+    ownerId: template.ownerId ?? resolveOwnerId(template.scope, userId),
+    visibility: template.visibility ?? (template.scope === 'global' ? 'shared' : 'private'),
     status: template.status ?? 'active',
-    sourceType: 'markdown-file',
-    sourcePath,
+    sourceType: template.sourceType ?? 'markdown-file',
+    originType: template.originType,
+    referenceDocuments: template.referenceDocuments ?? [],
+    generation: template.generation,
+  };
+  contentService.writeSidecar(markdownPath, sidecar as unknown as Record<string, unknown>);
+
+  return {
+    ...template,
+    summary: sidecar.summary,
+    tags: sidecar.tags,
+    ownerId: sidecar.ownerId,
+    visibility: sidecar.visibility,
+    status: sidecar.status,
+    sourceType: sidecar.sourceType,
+    originType: sidecar.originType,
+    referenceDocuments: sidecar.referenceDocuments,
+    generation: sidecar.generation,
+    sourcePath: path.relative(TEMPLATE_ROOT, markdownPath).replace(/\\/g, '/'),
   };
 }
 
-function ensureLegacyMigration(userId = 'anonymous'): void {
-  if (!fs.existsSync(LEGACY_TEMPLATE_FILE)) return;
-
-  try {
-    const store = safeParseStore(fs.readFileSync(LEGACY_TEMPLATE_FILE, 'utf-8'));
-    const candidates: Array<{ template: StoredTemplateItem; scope: TemplateScope; userId: string }> = [];
-
-    for (const template of store.global) {
-      candidates.push({ template, scope: 'global', userId: 'system' });
-    }
-
-    for (const [ownerId, templates] of Object.entries(store.personal)) {
-      for (const template of templates) {
-        candidates.push({ template, scope: 'personal', userId: ownerId || userId });
-      }
-    }
-
-    for (const candidate of candidates) {
-      const template = storedTemplateToPublic(candidate.template, candidate.scope, candidate.userId);
-      const markdownPath = getTemplateFilePath(template.scope, candidate.userId, template.id);
-      const sidecarPath = getTemplateSidecarPath(markdownPath);
-      if (fs.existsSync(markdownPath) && fs.existsSync(sidecarPath)) continue;
-      writeTemplateFiles(template, candidate.userId);
-    }
-  } catch {
-    // legacy 파일은 best-effort 마이그레이션만 수행한다.
+function deleteTemplateFiles(markdownPath: string): boolean {
+  const sidecarPath = contentService.getSidecarPath(markdownPath);
+  let removed = false;
+  if (fs.existsSync(markdownPath)) {
+    fs.unlinkSync(markdownPath);
+    removed = true;
   }
+  if (fs.existsSync(sidecarPath)) {
+    fs.unlinkSync(sidecarPath);
+    removed = true;
+  }
+  return removed;
+}
+
+function dedupeTemplates(templates: TemplateItem[]): TemplateItem[] {
+  const map = new Map<string, TemplateItem>();
+  for (const item of templates) {
+    const key = `${item.scope}:${item.id}`;
+    if (!map.has(key)) {
+      map.set(key, item);
+    }
+  }
+  return Array.from(map.values()).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
 class TemplateService {
   private ensureRoots(): void {
-    ensureDir(TEMPLATE_ROOT);
-    ensureDir(GLOBAL_TEMPLATE_DIR);
-    ensureDir(PERSONAL_TEMPLATE_DIR);
-    ensureLegacyMigration();
+    ensureTemplateRoots();
 
-    const existingGlobal = readTemplatesInDir(GLOBAL_TEMPLATE_DIR);
-    if (existingGlobal.length > 0) return;
+    const existingSystem = readTemplatesInDir(SYSTEM_TEMPLATE_DIR);
+    if (existingSystem.length > 0) return;
 
-    for (const template of DEFAULT_GLOBAL_TEMPLATES) {
+    for (const template of DEFAULT_SYSTEM_TEMPLATES) {
       writeTemplateFiles(
         {
           ...template,
+          summary: '',
+          tags: [],
+          createdAt: new Date(0).toISOString(),
           updatedAt: new Date(0).toISOString(),
+          author: 'system',
+          lastModifiedBy: 'system',
         },
-        'system'
+        SYSTEM_TEMPLATE_DIR,
+        'system',
       );
     }
   }
 
-  get(id: string, scope: 'global' | 'personal', userId = 'anonymous'): TemplateItem | null {
+  get(id: string, scope: TemplateScope, userId = 'anonymous'): TemplateItem | null {
     this.ensureRoots();
-    const owner = scope === 'global' ? 'system' : userId;
-    const markdownPath = getTemplateFilePath(scope, owner, id);
-    return readTemplateFromFile(markdownPath);
+
+    if (scope === 'global') {
+      return readTemplateFromFile(getSystemTemplatePath(id));
+    }
+    return readTemplateFromFile(getPersonalTemplatePath(id));
   }
 
-  list(userId = 'anonymous'): { global: TemplateItem[]; personal: TemplateItem[] } {
+  list(userId = 'anonymous', filter?: TemplateListFilter): { global: TemplateItem[]; personal: TemplateItem[] } {
     this.ensureRoots();
+
+    const globalTemplates = dedupeTemplates(readTemplatesInDir(SYSTEM_TEMPLATE_DIR));
+
+    const manifest = readManifest(userId);
+    const ownedTemplates = manifest.owned
+      .map((id) => readTemplateFromFile(getPersonalTemplatePath(id)))
+      .filter((item): item is TemplateItem => item !== null);
+
+    const personalTemplates = dedupeTemplates(ownedTemplates);
+
+    const applyFilter = (items: TemplateItem[], scope: TemplateScope) => items.filter((item) => {
+      if (filter?.scope && filter.scope !== scope) return false;
+      if (filter?.originType && item.originType !== filter.originType) return false;
+      return true;
+    });
+
     return {
-      global: readTemplatesInDir(GLOBAL_TEMPLATE_DIR),
-      personal: readTemplatesInDir(getTemplateDir('personal', userId)),
+      global: applyFilter(globalTemplates, 'global'),
+      personal: applyFilter(personalTemplates, 'personal'),
     };
   }
 
-  save(template: Omit<TemplateItem, 'id' | 'updatedAt'> & { id?: string }, userId = 'anonymous'): TemplateItem {
+  listByReferenceDocument(docPath: string, userId = 'anonymous'): TemplateItem[] {
     this.ensureRoots();
-    const now = new Date().toISOString();
-    const idBase = template.id?.trim() || slugify(template.name) || `${template.scope}-template`;
-    const nextId = template.id?.trim() || `${template.scope}-${idBase}-${Date.now()}`;
-    const next = writeTemplateFiles(
-      {
-        id: nextId,
-        name: template.name,
-        description: template.description,
-        scope: template.scope,
-        kind: template.kind,
-        content: template.content,
-        updatedAt: now,
-        ownerId: template.ownerId ?? (template.scope === 'global' ? 'system' : userId),
-        visibility: template.visibility ?? (template.scope === 'global' ? 'shared' : 'personal'),
-        status: template.status ?? 'active',
-        sourceType: 'markdown-file',
-      },
-      userId
-    );
 
-    return next;
+    const systemTemplates = readTemplatesInDir(SYSTEM_TEMPLATE_DIR);
+    const manifest = readManifest(userId);
+    const personalTemplates = manifest.owned
+      .map((id) => readTemplateFromFile(getPersonalTemplatePath(id)))
+      .filter((item): item is TemplateItem => item !== null);
+
+    return dedupeTemplates(
+      [...systemTemplates, ...personalTemplates].filter((item) =>
+        (item.referenceDocuments ?? []).some((reference) => reference.path === docPath),
+      ),
+    );
   }
 
-  remove(id: string, scope: 'global' | 'personal', userId = 'anonymous'): boolean {
+  save(template: SaveTemplateInput, userId = 'anonymous', requestUserId?: string): TemplateItem {
     this.ensureRoots();
-    const markdownPath = getTemplateFilePath(scope, scope === 'global' ? 'system' : userId, id);
-    const sidecarPath = getTemplateSidecarPath(markdownPath);
-    let removed = false;
+    const now = new Date().toISOString();
+    const nextId = template.id?.trim() || `tpl-${crypto.randomBytes(4).toString('hex')}`;
+    const author = resolveAuthor(requestUserId || userId);
+    const isSystem = template.scope === 'global';
 
-    if (fs.existsSync(markdownPath)) {
-      fs.unlinkSync(markdownPath);
-      removed = true;
+    const built: TemplateItem = {
+      ...template,
+      id: nextId,
+      summary: template.summary ?? '',
+      tags: template.tags ?? [],
+      createdAt: template.createdAt ?? now,
+      updatedAt: now,
+      ownerId: template.ownerId ?? resolveOwnerId(template.scope, userId),
+      visibility: template.visibility ?? (isSystem ? 'shared' : 'private'),
+      status: template.status ?? 'active',
+      sourceType: template.sourceType ?? 'markdown-file',
+      author,
+      lastModifiedBy: author,
+      originType: template.originType ?? 'generated',
+      referenceDocuments: template.referenceDocuments ?? [],
+      generation: template.generation ?? { source: 'manual' },
+    };
+
+    const templateDir = isSystem ? SYSTEM_TEMPLATE_DIR : PERSONAL_TEMPLATE_DIR;
+    const result = writeTemplateFiles(built, templateDir, isSystem ? 'system' : userId);
+
+    if (!isSystem) {
+      const manifest = readManifest(userId);
+      if (!manifest.owned.includes(nextId)) {
+        manifest.owned.push(nextId);
+        writeManifest(userId, manifest);
+      }
     }
 
-    if (fs.existsSync(sidecarPath)) {
-      fs.unlinkSync(sidecarPath);
-      removed = true;
+    return result;
+  }
+
+  remove(id: string, scope: TemplateScope, userId = 'anonymous'): boolean {
+    this.ensureRoots();
+
+    if (scope === 'global') {
+      return deleteTemplateFiles(getSystemTemplatePath(id));
     }
 
+    const removed = deleteTemplateFiles(getPersonalTemplatePath(id));
+    if (removed) {
+      const manifest = readManifest(userId);
+      const ownerIdx = manifest.owned.indexOf(id);
+      if (ownerIdx !== -1) {
+        manifest.owned.splice(ownerIdx, 1);
+        writeManifest(userId, manifest);
+      }
+    }
     return removed;
   }
 }

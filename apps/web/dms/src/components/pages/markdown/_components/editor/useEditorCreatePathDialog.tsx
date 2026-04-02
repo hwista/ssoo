@@ -12,6 +12,7 @@ interface SaveLocationState {
   initialDirectory: string;
   fileName: string;
   isNewDocument: boolean;
+  contentType?: 'document' | 'template';
 }
 
 const INITIAL_SAVE_LOCATION: SaveLocationState = {
@@ -20,6 +21,7 @@ const INITIAL_SAVE_LOCATION: SaveLocationState = {
   initialDirectory: '',
   fileName: '',
   isNewDocument: true,
+  contentType: 'document',
 };
 
 export interface CreatePathResult {
@@ -46,6 +48,7 @@ export function useEditorCreatePathDialog(currentFilePath?: string | null) {
     suggestedDirectory?: string;
     fileName: string;
     isNewDocument: boolean;
+    contentType?: 'document' | 'template';
   }) => {
     return new Promise<CreatePathResult | null>((resolve) => {
       saveLocationResolverRef.current = resolve;
@@ -55,6 +58,7 @@ export function useEditorCreatePathDialog(currentFilePath?: string | null) {
         initialDirectory: params.suggestedDirectory || '',
         fileName: params.fileName,
         isNewDocument: params.isNewDocument,
+        contentType: params.contentType,
       });
     });
   }, []);
@@ -138,6 +142,7 @@ export function useEditorCreatePathDialog(currentFilePath?: string | null) {
           initialDirectory={saveLocationState.initialDirectory}
           fileName={saveLocationState.fileName}
           isNewDocument={saveLocationState.isNewDocument}
+          contentType={saveLocationState.contentType}
           onConfirm={closeSaveLocation}
         />
         <ImageInsertDialog

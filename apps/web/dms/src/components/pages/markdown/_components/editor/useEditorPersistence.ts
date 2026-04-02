@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { templateApi } from '@/lib/api';
-import type { TemplateScope } from '@/types/template';
 import type { CreatePathResult } from './useEditorCreatePathDialog';
+import type { ContentType } from '@/types/content-metadata';
 
 interface ConfirmOptions {
   title: string;
@@ -22,13 +21,11 @@ interface EditorPersistenceState {
   preferredCreatePath?: string;
   /** 새 문서용 자동 생성 파일명 */
   generatedFileName?: string;
-  templateSaveEnabled: boolean;
-  templateSaveDraft?: {
-    name: string;
-    description: string;
-    scope: TemplateScope;
-  };
   tabId: string;
+  /** 콘텐츠 타입 (문서/템플릿) — 저장 후 흐름 분기에 사용 */
+  contentType?: ContentType;
+  /** 사이드카 메타데이터 제목 (AI 추천 등) — 저장 모달 제목에 우선 반영 */
+  metadataTitle?: string;
 }
 
 interface EditorPersistenceActions {
@@ -41,7 +38,6 @@ interface EditorPersistenceActions {
   updateTab: (tabId: string, patch: { id?: string; path?: string; title?: string }) => void;
   closeTab: (tabId: string) => void;
   onCreatePathResolved?: (path: string) => void;
-  onTemplateSaved?: () => void;
 }
 
 interface EditorPersistenceDeps {
@@ -54,24 +50,10 @@ interface EditorPersistenceDeps {
     suggestedDirectory?: string;
     fileName: string;
     isNewDocument: boolean;
+    contentType?: 'document' | 'template';
   }) => Promise<CreatePathResult | null>;
   /** 저장 직전 콘텐츠 변환 (예: blob URL → 실제 경로 치환) */
   transformBeforeSave?: (content: string) => Promise<string>;
-}
-
-function deriveTemplateName(params: {
-  editorContent: string;
-  currentFilePath: string | null;
-  preferredCreatePath?: string;
-}) {
-  const heading = params.editorContent.match(/^#\s+(.+)$/m)?.[1]?.trim();
-  if (heading) return heading;
-
-  const pathSource = params.currentFilePath || params.preferredCreatePath || '';
-  const fileName = pathSource.split('/').pop()?.replace(/\.md$/i, '').trim();
-  if (fileName) return fileName;
-
-  return '새 템플릿';
 }
 
 export function useEditorPersistence({
@@ -83,59 +65,30 @@ export function useEditorPersistence({
   actions: EditorPersistenceActions;
   deps: EditorPersistenceDeps;
 }) {
+  const isTemplate = state.contentType === 'template';
+
   const handleSave = React.useCallback(async () => {
     // blob URL 등 변환이 필요한 경우 적용
     const finalContent = deps.transformBeforeSave
       ? await deps.transformBeforeSave(state.editorContent)
       : state.editorContent;
 
-    if (state.templateSaveEnabled) {
-      const name = state.templateSaveDraft?.name.trim() || deriveTemplateName({
-        editorContent: state.editorContent,
-        currentFilePath: state.currentFilePath,
-        preferredCreatePath: state.preferredCreatePath,
-      });
-
-      if (!finalContent.trim()) {
-        deps.showError('저장 실패', '비어 있는 문서는 템플릿으로 저장할 수 없습니다.');
-        return;
-      }
-
-      try {
-        const response = await templateApi.upsert({
-          name,
-          description: state.templateSaveDraft?.description.trim() || '',
-          scope: state.templateSaveDraft?.scope ?? 'personal',
-          kind: 'document',
-          content: finalContent,
-        });
-
-        if (!response.success) {
-          deps.showError('저장 실패', response.error || '템플릿 저장 중 오류가 발생했습니다.');
-          return;
-        }
-
-        actions.onTemplateSaved?.();
-        deps.showSuccess('템플릿 저장 완료', `'${name}' 템플릿이 저장되었습니다. 문서는 위키에 저장되지 않았습니다.`);
-      } catch {
-        deps.showError('저장 실패', '템플릿 저장 중 오류가 발생했습니다.');
-      }
-      return;
-    }
-
     if (state.isCreateMode) {
       // AI 추천 경로에서 디렉토리/제목 분해
       const hint = state.preferredCreatePath?.trim() || '';
       const parts = hint.split('/');
       const nameHint = parts.pop()?.replace(/\.md$/i, '') || '';
-      const dirHint = parts.join('/');
-      const fileName = state.generatedFileName || 'new-doc.md';
+      const dirHint = parts.join('/') || (isTemplate ? 'templates/personal' : '');
+      const fileName = state.generatedFileName || (isTemplate ? 'new-template.md' : 'new-doc.md');
+      // 사이드카 메타데이터 제목이 있으면 경로 파생 이름보다 우선
+      const suggestedTitle = state.metadataTitle || nameHint;
 
       const result = await deps.requestSaveLocation({
-        suggestedTitle: nameHint,
+        suggestedTitle,
         suggestedDirectory: dirHint,
         fileName,
         isNewDocument: true,
+        contentType: state.contentType,
       });
       if (!result) return;
 
@@ -147,38 +100,62 @@ export function useEditorPersistence({
         }
         await actions.storeSaveFile(resolvedPath, finalContent);
         actions.setIsEditing(false);
-        actions.onCreatePathResolved?.(resolvedPath);
-        deps.showSuccess('생성 완료', '새 문서가 생성되었습니다.');
 
-        const newPath = `/doc/${encodeURIComponent(resolvedPath)}`;
-        const newTabId = `file-${encodeURIComponent(resolvedPath)}`;
-        const tabTitle = result.title || resolvedPath.split('/').pop() || resolvedPath;
-        actions.updateTab(state.tabId, { id: newTabId, path: newPath, title: tabTitle });
+        if (isTemplate) {
+          // 템플릿: 서버가 경로를 자동 결정하므로 탭 경로는 유지
+          // 탭 제목만 저장된 이름으로 갱신
+          const tabTitle = result.title || resolvedPath.split('/').pop()?.replace(/\.md$/, '') || '템플릿';
+          actions.updateTab(state.tabId, { title: tabTitle });
+          deps.showSuccess('저장 완료', '템플릿이 저장되었습니다.');
+        } else {
+          // 문서: 탭을 새 파일 경로로 업데이트
+          actions.onCreatePathResolved?.(resolvedPath);
+          deps.showSuccess('생성 완료', '새 문서가 생성되었습니다.');
+          const newPath = `/doc/${encodeURIComponent(resolvedPath)}`;
+          const newTabId = `file-${encodeURIComponent(resolvedPath)}`;
+          const tabTitle = result.title || resolvedPath.split('/').pop() || resolvedPath;
+          actions.updateTab(state.tabId, { id: newTabId, path: newPath, title: tabTitle });
+        }
       } catch {
-        deps.showError('생성 실패', '문서 생성 중 오류가 발생했습니다.');
+        const errorMsg = isTemplate
+          ? '템플릿 저장 중 오류가 발생했습니다.'
+          : '문서 생성 중 오류가 발생했습니다.';
+        deps.showError('저장 실패', errorMsg);
       }
       return;
     }
 
-    if (!state.currentFilePath) {
+    // 기존 콘텐츠 저장 (템플릿은 templateSaveData.id 존재 시 여기로 진입)
+    if (!state.currentFilePath && !isTemplate) {
       deps.showError('저장 실패', '선택된 파일이 없습니다.');
       return;
     }
 
     try {
-      // 변환된 콘텐츠가 있으면 직접 storeSaveFile 호출
-      if (deps.transformBeforeSave) {
-        await actions.storeSaveFile(state.currentFilePath, finalContent);
+      if (isTemplate) {
+        // 템플릿 재저장: storeSaveFile이 contentType 기반으로 templateApi 호출
+        await actions.storeSaveFile(state.currentFilePath || '__template__', finalContent);
+        // 탭 제목을 현재 메타데이터 제목으로 갱신
+        if (state.metadataTitle) {
+          actions.updateTab(state.tabId, { title: state.metadataTitle });
+        }
+      } else if (deps.transformBeforeSave) {
+        // 변환된 콘텐츠가 있으면 직접 storeSaveFile 호출
+        await actions.storeSaveFile(state.currentFilePath!, finalContent);
         actions.resetContent(finalContent);
       } else {
         await actions.save();
       }
       actions.setIsEditing(false);
-      deps.showSuccess('저장 완료', '파일이 저장되었습니다.');
+      const successMsg = isTemplate ? '템플릿이 저장되었습니다.' : '파일이 저장되었습니다.';
+      deps.showSuccess('저장 완료', successMsg);
     } catch {
-      deps.showError('저장 실패', '파일 저장 중 오류가 발생했습니다.');
+      const errorMsg = isTemplate
+        ? '템플릿 저장 중 오류가 발생했습니다.'
+        : '파일 저장 중 오류가 발생했습니다.';
+      deps.showError('저장 실패', errorMsg);
     }
-  }, [actions, deps, state]);
+  }, [actions, deps, state, isTemplate]);
 
   const handleCancel = React.useCallback(async () => {
     if (state.hasUnsavedChanges || state.pendingMetadataUpdate) {

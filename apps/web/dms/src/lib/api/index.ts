@@ -36,3 +36,6 @@ export { storageApi, ingestApi } from './storageApi';
 export type { StorageReferenceClient, StorageOpenResultClient, IngestJobClient } from './storageApi';
 
 export { templateApi } from './templateApi';
+
+export { contentApi } from './contentApi';
+export type { ContentData, ContentSaveResult, ContentDeleteResult } from './contentApi';

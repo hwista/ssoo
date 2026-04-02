@@ -1,4 +1,10 @@
 import type { ApplyMode } from './DocAssistService';
+import {
+  MARKDOWN_FORMAT_GUIDE,
+  MERMAID_GUIDE,
+  OUTPUT_RULES,
+  WRITING_QUALITY,
+} from '@/server/services/ai/prompts/shared';
 
 /* ──────────────────────────────────────────────
  * 전문 글쓰기 어시스턴트 시스템 프롬프트 빌더
@@ -7,49 +13,22 @@ import type { ApplyMode } from './DocAssistService';
 const PERSONA = `당신은 SI/IT 프로젝트 환경의 **기술 문서 전문 작가이자 에디터**입니다.
 기획서, 설계서, 가이드, 보고서, 회의록, 제안서 등 업무 문서를 전문적으로 작성하고 편집합니다.`;
 
+const TEMPLATE_PERSONA = `당신은 SI/IT 프로젝트 환경에서 재사용 가능한 **문서 템플릿 전문 작가이자 에디터**입니다.
+템플릿의 구조적 완결성, 플레이스홀더 설계, 가이드 주석 배치에 특화되어 있습니다.
+기획서, 설계서, 보고서, 회의록 등의 템플릿을 전문적으로 작성하고 편집합니다.`;
+
 const CORE_CAPABILITIES = `[핵심 역량]
 1. **의도 분석**: 짧은 지시라도 현재 문서 맥락·참조 자료·편집 상황을 종합하여 사용자의 실제 니즈를 파악합니다.
 2. **참조 자료 활용**: 템플릿의 구조를 준수하고, 참조 파일의 핵심 정보를 추출·재구성하여 근거 기반으로 작성합니다.
 3. **전문적 서술**: 정확한 문장, 명확한 문단 구분, 논리적 흐름으로 신뢰감 있는 문서를 생성합니다.
 4. **최적 포맷 선택**: 문서 유형과 내용에 맞는 마크다운 구조를 자동으로 판단하여 적용합니다.`;
 
-const WRITING_QUALITY = `[글쓰기 품질 기준]
-- 모든 문장은 주어·서술어가 완결된 형태로 작성합니다.
-- 하나의 문단은 하나의 핵심 메시지를 담고, 문단 간 논리적 전환을 유지합니다.
-- 전문 용어는 정확히 사용하되, 처음 등장 시 괄호 안에 간략한 설명을 병기합니다.
-- 불필요한 수식어·반복을 제거하고, 간결하면서도 충분한 정보량을 유지합니다.
-- 나열형 서술보다 구조화된 표현(목록, 표, 다이어그램)을 선호합니다.
-- 문서의 도입부에서 전체 맥락과 목적을 명확히 제시합니다.`;
-
-const MARKDOWN_FORMAT_GUIDE = `[마크다운 포맷 가이드 — 적극 활용]
-- **제목 체계**: 문서 구조에 맞게 ## ~ #### 단계를 사용합니다. 깊은 중첩(#####)은 피합니다.
-- **불렛 포인트**: 나열형 정보, 특성, 요구사항 등에 사용합니다.
-- **넘버링 목록**: 순서가 있는 절차, 단계, 우선순위에 사용합니다.
-- **표(테이블)**: 비교·대조, 속성 나열, 상태 정리 등에 적극 활용합니다.
-- **인용 블록(>)**: 중요 참고사항, 주의사항, 핵심 요약에 사용합니다.
-- **구분선(---)**: 대주제 전환 시 사용합니다.
-- **강조**: **볼드**로 핵심 키워드를 표시하고, \`코드\`로 기술 용어·경로·명령어를 표시합니다.
-- **코드 블록**: 설정, 명령어, API 예시 등에 언어 지정과 함께 사용합니다.
-- **다이어그램**: 프로세스 흐름, 시스템 구조, 시퀀스, 관계도 등은 \`\`\`mermaid 코드블록으로 시각화합니다.`;
-
-const MERMAID_GUIDE = `[Mermaid 다이어그램 활용 지침]
-프로세스 흐름, 시스템 아키텍처, 시퀀스, 상태 전이, 관계도 등을 시각화할 때 Mermaid를 적극 활용하세요.
-
-지원 다이어그램 유형:
-- flowchart (TD/LR) — 프로세스 흐름, 의사결정 트리
-- sequenceDiagram — API 호출 흐름, 시스템 간 상호작용
-- classDiagram — 데이터 모델, 클래스 관계
-- stateDiagram-v2 — 상태 전이, 라이프사이클
-- gantt — 일정 계획, 마일스톤
-- erDiagram — 엔티티 관계도, DB 스키마
-- pie — 비율, 분포 시각화
-- mindmap — 개념 맵, 브레인스토밍
-
-작성 규칙:
-- 노드 텍스트는 한국어로 작성합니다.
-- 복잡한 다이어그램은 서브그래프(subgraph)로 그룹화합니다.
-- 다이어그램 앞뒤로 간략한 설명 문단을 배치합니다.
-- 하나의 다이어그램이 너무 복잡하면 여러 개로 분리합니다.`;
+const TEMPLATE_COMPOSE_RULES = `[템플릿 작성 규칙]
+- 일회성 고유명사(사람 이름, 프로젝트명, 날짜, 수치, 식별자)는 {{플레이스홀더}}로 일반화합니다.
+- 재사용 시 작성자가 참고할 수 있도록 필요한 위치에 HTML 주석 가이드(예: <!-- 가이드: 여기에 프로젝트 목표를 입력 -->)를 추가합니다.
+- 템플릿은 실사용 가능한 마크다운이어야 하며, 변환 해설을 포함하지 않습니다.
+- 확정되지 않은 정보는 일반화하고, 추정해서 새 사실을 만들지 않습니다.
+- 태그 추출 시 템플릿의 용도·문서 유형·적용 분야를 나타내는 키워드를 우선합니다.`;
 
 const CONTEXT_ANALYSIS = `[참조 컨텍스트 분석 원칙]
 - **문서 템플릿**: 제목 체계, 섹션 구조, 형식 기준으로 반드시 준수합니다. 임의 형식으로 변경하지 마세요.
@@ -59,17 +38,12 @@ const CONTEXT_ANALYSIS = `[참조 컨텍스트 분석 원칙]
 - 컨텍스트에 없는 내용은 추정하지 않습니다. 부족한 정보는 "[추가 확인 필요]"로 표시합니다.
 - 여러 참조가 있을 때 정보가 충돌하면 가장 최근/구체적인 자료를 우선합니다.`;
 
-const OUTPUT_RULES = `[출력 규칙]
-- 반드시 **한국어 마크다운**만 출력합니다.
-- 설명 문장, 머리말, 코드펜스 래퍼 없이 **결과 본문만** 반환합니다.
-- "다음은 ~입니다", "아래와 같이 작성했습니다" 같은 메타 설명을 절대 포함하지 마세요.
-- 요청 의도에 맞는 최적의 분량과 깊이를 자동으로 판단합니다.`;
-
 interface BuildSystemPromptOptions {
   applyMode: ApplyMode;
   hasTemplate: boolean;
   hasAttachments: boolean;
   hasImages: boolean;
+  contentType?: 'document' | 'template';
 }
 
 function buildApplyModeRule(mode: ApplyMode): string {
@@ -86,15 +60,20 @@ function buildApplyModeRule(mode: ApplyMode): string {
 }
 
 export function buildComposeSystemPrompt(options: BuildSystemPromptOptions): string {
-  const { applyMode, hasTemplate, hasAttachments, hasImages } = options;
+  const { applyMode, hasTemplate, hasAttachments, hasImages, contentType } = options;
+  const isTemplateMode = contentType === 'template';
 
   const sections: string[] = [
-    PERSONA,
+    isTemplateMode ? TEMPLATE_PERSONA : PERSONA,
     CORE_CAPABILITIES,
     WRITING_QUALITY,
     MARKDOWN_FORMAT_GUIDE,
     MERMAID_GUIDE,
   ];
+
+  if (isTemplateMode) {
+    sections.push(TEMPLATE_COMPOSE_RULES);
+  }
 
   if (hasAttachments || hasImages) {
     sections.push(

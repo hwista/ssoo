@@ -5,7 +5,7 @@
 
 import fs from "fs";
 import { logger, PerformanceTimer } from "@/lib/utils/errorUtils";
-import { documentMetadataService } from '@/server/services/documentMetadata/DocumentMetadataService';
+import { contentService } from '@/server/services/content/ContentService';
 import {
   fileCrudService,
   type FileData,
@@ -57,7 +57,7 @@ function updateDocumentMetadataHandler(
   }
 
   try {
-    const existing = documentMetadataService.readDocumentMetadata(targetPath);
+    const existing = contentService.readSidecar(targetPath) as DocumentMetadata | null;
     if (!existing) {
       return { success: false, error: "Metadata not found", status: 404 };
     }
@@ -69,7 +69,7 @@ function updateDocumentMetadataHandler(
       updatedAt: new Date().toISOString(),
     };
 
-    documentMetadataService.writeDocumentMetadata(targetPath, merged);
+    contentService.writeSidecar(targetPath, merged as unknown as Record<string, unknown>);
     logger.info('문서 메타데이터 업데이트 완료', { filePath });
 
     return { success: true, data: merged };

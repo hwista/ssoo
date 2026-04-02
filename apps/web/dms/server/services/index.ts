@@ -63,3 +63,10 @@ export {
 export { templateService } from './template/TemplateService';
 export { docAssistService } from './docAssist/DocAssistService';
 export { documentMetadataService } from './documentMetadata/DocumentMetadataService';
+export {
+  contentService,
+  type ContentResult,
+  type ContentData,
+  type ContentSaveOptions,
+  type ContentLoadOptions,
+} from './content/ContentService';

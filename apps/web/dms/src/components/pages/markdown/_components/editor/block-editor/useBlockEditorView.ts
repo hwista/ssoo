@@ -36,6 +36,7 @@ interface BlockEditorViewParams {
   resolveSelectedCommand: () => { id: ToolbarCommandId } | null;
   closeSlashMenu: () => void;
   slashIsOpen: () => boolean;
+  streamingAutoScroll?: boolean;
 }
 
 export function useBlockEditorView({
@@ -56,8 +57,11 @@ export function useBlockEditorView({
   resolveSelectedCommand,
   closeSlashMenu,
   slashIsOpen,
+  streamingAutoScroll = false,
 }: BlockEditorViewParams) {
   const viewRef = React.useRef<EditorView | null>(null);
+  const isNearBottomRef = React.useRef(true);
+  const scrollRafRef = React.useRef<number>(0);
   const editableCompartmentRef = React.useRef(new Compartment());
   const persistSelection = React.useCallback((view: EditorView) => {
     const selection = view.state.selection.main;
@@ -216,11 +220,47 @@ export function useBlockEditorView({
     }
 
     prevContentRef.current = content;
+
     view.dispatch({
       changes: { from: 0, to: currentDoc.length, insert: content },
       annotations: [ExternalChange.of(true)],
     });
-  }, [content, prevContentRef]);
+
+    if (streamingAutoScroll && isNearBottomRef.current) {
+      cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = requestAnimationFrame(() => {
+        const scroller = viewRef.current?.scrollDOM;
+        if (!scroller) return;
+        scroller.scrollTop = scroller.scrollHeight;
+      });
+    }
+  }, [content, prevContentRef, streamingAutoScroll]);
+
+  React.useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !streamingAutoScroll) {
+      isNearBottomRef.current = true;
+      return;
+    }
+
+    const scroller = view.scrollDOM;
+    const syncNearBottom = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scroller;
+      isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 60;
+    };
+
+    isNearBottomRef.current = true;
+    scroller.addEventListener('scroll', syncNearBottom, { passive: true });
+
+    return () => {
+      scroller.removeEventListener('scroll', syncNearBottom);
+    };
+    // viewRef는 안정 ref라 dependency에 의미가 없고, 실제 view는 effect 내부에서 current를 읽어 맞춘다.
+  }, [streamingAutoScroll]);
+
+  React.useEffect(() => {
+    return () => cancelAnimationFrame(scrollRafRef.current);
+  }, []);
 
   React.useEffect(() => {
     viewRef.current?.dispatch({

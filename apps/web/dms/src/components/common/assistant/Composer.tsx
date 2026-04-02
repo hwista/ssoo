@@ -6,6 +6,7 @@ import type { TemplateItem } from '@/types/template';
 import {
   AssistantReferencePicker,
   type InlineSummaryFileItem,
+  type PickerSectionsConfig,
 } from './reference/Picker';
 import { AssistantReferenceChips } from './reference/Chips';
 
@@ -26,7 +27,13 @@ interface AssistantComposerProps {
   submitVariant?: 'icon' | 'text';
   submitLabel?: string;
   mode?: 'assistant' | 'inline';
+  pickerSections?: PickerSectionsConfig;
+  overrideToggleReference?: (ref: { path: string; title: string }) => void;
+  overrideAttachedPaths?: Set<string>;
   inlineContext?: InlineContextProps;
+  referenceChips?: Array<{ path: string; title: string; kind?: 'document' | 'file'; storage?: 'path' | 'inline'; tempId?: string; isDeleted?: boolean }>;
+  onRemoveReference?: (path: string) => void;
+  onRestoreReference?: (path: string) => void;
   inlineTemplate?: TemplateItem | null;
   inlineSummaryFiles?: InlineSummaryFileItem[];
   inlineWarnings?: string[];
@@ -58,7 +65,13 @@ export function AssistantComposer({
   submitVariant = 'icon',
   submitLabel = '전송',
   mode = 'assistant',
+  pickerSections,
+  overrideToggleReference,
+  overrideAttachedPaths,
   inlineContext,
+  referenceChips,
+  onRemoveReference,
+  onRestoreReference,
   inlineTemplate,
   inlineSummaryFiles,
   inlineWarnings,
@@ -155,6 +168,9 @@ export function AssistantComposer({
       <AssistantReferenceChips
         disabled={isProcessing}
         mode={mode}
+        referenceChips={referenceChips}
+        onRemoveReference={onRemoveReference}
+        onRestoreReference={onRestoreReference}
         inlineTemplate={inlineTemplate}
         inlineSummaryFiles={inlineSummaryFiles}
         inlineWarnings={inlineWarnings}
@@ -175,7 +191,10 @@ export function AssistantComposer({
         <AssistantReferencePicker
           disabled={isProcessing}
           mode={mode}
+          sections={pickerSections}
           inlineContext={inlineContext}
+          overrideToggleReference={overrideToggleReference}
+          overrideAttachedPaths={overrideAttachedPaths}
         />
         <div className="relative flex-1">
           <textarea

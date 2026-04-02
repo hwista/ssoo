@@ -3,7 +3,7 @@ import path from 'path';
 import { normalizeMarkdownFileName, isMarkdownFile } from '@/lib/utils/fileUtils';
 import { logger } from '@/lib/utils/errorUtils';
 import { configService } from '@/server/services/config/ConfigService';
-import { documentMetadataService } from '@/server/services/documentMetadata/DocumentMetadataService';
+import { contentService } from '@/server/services/content/ContentService';
 import type { DocumentMetadata } from '@/types/document-metadata';
 
 export interface FileStatMetadata {
@@ -98,7 +98,14 @@ class FileCrudService {
       const content = fs.readFileSync(finalPath, 'utf-8');
       const metadata = this.getFileMetadata(finalPath);
       if (isMarkdownFile(finalPath)) {
-        metadata.document = documentMetadataService.ensureDocumentMetadata(content, finalPath, metadata);
+        const sidecar = contentService.readSidecar(finalPath);
+        if (sidecar) {
+          metadata.document = sidecar as unknown as DocumentMetadata;
+        } else {
+          const defaultSidecar = contentService.buildDefaultDocumentSidecar(content, finalPath);
+          contentService.writeSidecar(finalPath, defaultSidecar);
+          metadata.document = defaultSidecar as unknown as DocumentMetadata;
+        }
       }
       return { success: true, data: { content, metadata } };
     } catch (error) {
@@ -117,7 +124,14 @@ class FileCrudService {
       const metadata = this.getFileMetadata(targetPath);
       if (isMarkdownFile(targetPath)) {
         const content = fs.readFileSync(targetPath, 'utf-8');
-        metadata.document = documentMetadataService.ensureDocumentMetadata(content, targetPath, metadata);
+        const sidecar = contentService.readSidecar(targetPath);
+        if (sidecar) {
+          metadata.document = sidecar as unknown as DocumentMetadata;
+        } else {
+          const defaultSidecar = contentService.buildDefaultDocumentSidecar(content, targetPath);
+          contentService.writeSidecar(targetPath, defaultSidecar);
+          metadata.document = defaultSidecar as unknown as DocumentMetadata;
+        }
       }
       return { success: true, data: { metadata } };
     } catch (error) {
@@ -136,10 +150,9 @@ class FileCrudService {
       fs.writeFileSync(targetPath, content, 'utf-8');
 
       if (isMarkdownFile(targetPath)) {
-        const fileMeta = this.getFileMetadata(targetPath);
-        const existing = documentMetadataService.readDocumentMetadata(targetPath) ?? undefined;
-        const metadata = documentMetadataService.buildDefaultDocumentMetadata(content, targetPath, fileMeta, existing);
-        documentMetadataService.writeDocumentMetadata(targetPath, metadata);
+        const existing = contentService.readSidecar(targetPath) ?? undefined;
+        const sidecar = contentService.buildDefaultDocumentSidecar(content, targetPath, existing);
+        contentService.writeSidecar(targetPath, sidecar);
       }
 
       return { success: true, data: { message: 'File saved' } };
@@ -169,9 +182,8 @@ class FileCrudService {
       const newContent = content || `# ${title}\n\n내용을 작성하세요.`;
       fs.writeFileSync(targetPath, newContent, 'utf-8');
 
-      const fileMeta = this.getFileMetadata(targetPath);
-      const metadata = documentMetadataService.buildDefaultDocumentMetadata(newContent, targetPath, fileMeta, undefined);
-      documentMetadataService.writeDocumentMetadata(targetPath, metadata);
+      const sidecar = contentService.buildDefaultDocumentSidecar(newContent, targetPath);
+      contentService.writeSidecar(targetPath, sidecar);
 
       return { success: true, data: { message: 'File created' } };
     } catch (error) {
@@ -234,8 +246,8 @@ class FileCrudService {
       fs.mkdirSync(path.dirname(resolvedFullPath), { recursive: true });
       fs.renameSync(oldFullPath, resolvedFullPath);
 
-      const oldMetaPath = documentMetadataService.getDocumentMetadataPath(oldFullPath);
-      const newMetaPath = documentMetadataService.getDocumentMetadataPath(resolvedFullPath);
+      const oldMetaPath = contentService.getSidecarPath(oldFullPath);
+      const newMetaPath = contentService.getSidecarPath(resolvedFullPath);
       if (fs.existsSync(oldMetaPath)) {
         fs.mkdirSync(path.dirname(newMetaPath), { recursive: true });
         fs.renameSync(oldMetaPath, newMetaPath);
@@ -264,7 +276,7 @@ class FileCrudService {
         fs.rmSync(targetPath, { recursive: true, force: true });
       } else {
         fs.unlinkSync(targetPath);
-        const metaPath = documentMetadataService.getDocumentMetadataPath(targetPath);
+        const metaPath = contentService.getSidecarPath(targetPath);
         if (fs.existsSync(metaPath)) {
           fs.unlinkSync(metaPath);
         }

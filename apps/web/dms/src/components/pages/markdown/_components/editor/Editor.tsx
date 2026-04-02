@@ -11,7 +11,6 @@ import { useEditorStore, useTabStore } from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import { useConfirmStore } from '@/stores/confirm.store';
 import { useToast } from '@/lib/toast';
-import type { TemplateScope } from '@/types/template';
 import { useEditorPersistence } from './useEditorPersistence';
 import { useEditorRuntimeEffects } from './useEditorRuntimeEffects';
 import { useEditorInteractions } from './useEditorInteractions';
@@ -43,18 +42,10 @@ export interface EditorProps {
   showToolbar?: boolean;
   /** AI 삽입 대기 중 로딩 표시 여부 */
   isPendingInsertLoading?: boolean;
+  /** 스트리밍 중 하단 근처일 때만 자동 스크롤 */
+  streamingAutoScroll?: boolean;
   /** 콘텐츠 변경 콜백 (실시간 동기화용) */
   onContentChange?: (content: string) => void;
-  /** 위키 문서 대신 템플릿만 저장할지 여부 */
-  templateSaveEnabled?: boolean;
-  /** 템플릿 저장 메타데이터 */
-  templateSaveDraft?: {
-    name: string;
-    description: string;
-    scope: TemplateScope;
-  };
-  /** 템플릿 저장 완료 후 후처리 */
-  onTemplateSaved?: () => void;
   /** undo/redo 가용성 변경 콜백 */
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
 }
@@ -68,6 +59,7 @@ export interface EditorRef {
   getPendingImages: () => Map<string, File>;
   /** 대기 중인 이미지 목록 초기화 (업로드 완료 후 호출) */
   clearPendingImages: () => void;
+  replaceContent: (content: string) => void;
   undo: () => void;
   redo: () => void;
 }
@@ -94,10 +86,8 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   isPreview = false,
   showToolbar = true,
   isPendingInsertLoading = false,
+  streamingAutoScroll = false,
   onContentChange,
-  templateSaveEnabled = false,
-  templateSaveDraft,
-  onTemplateSaved,
   onHistoryChange,
 }: EditorProps, ref) {
   const { showSuccess, showError } = useToast();
@@ -112,6 +102,8 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     saveFile: storeSaveFile,
     discardPendingMetadata,
     setLocalDocumentMetadata,
+    contentType,
+    documentMetadata,
     // 에디터 상태 공유용
     setEditorHandlers,
     clearEditorHandlers,
@@ -134,9 +126,11 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     originalContent,
     updateContent,
     resetContent,
+    replaceContent,
     hasUnsavedChanges,
     isSaving,
     save,
+    markAsSaved,
   } = useEditorState(content, {
     onSave: async (c: string) => {
       if (!currentFilePath) return;
@@ -186,13 +180,17 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     getMarkdown: () => editorContent,
     getPendingImages: () => new Map(interactions.pendingImagesRef.current),
     clearPendingImages: () => interactions.clearPendingImages(),
+    replaceContent: (nextContent: string) => {
+      replaceContent(nextContent);
+      blockEditorRef.current?.focus();
+    },
     undo: () => {
       blockEditorRef.current?.undo();
     },
     redo: () => {
       blockEditorRef.current?.redo();
     },
-  }), [editorContent, interactions]);
+  }), [editorContent, interactions, replaceContent]);
 
   const isCreateMode = !currentFilePath && isEditing;
   // blob URL → 실제 경로 치환 (이미지 업로드 지연 처리)
@@ -239,9 +237,9 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       isCreateMode,
       preferredCreatePath,
       generatedFileName,
-      templateSaveEnabled,
-      templateSaveDraft,
       tabId,
+      contentType,
+      metadataTitle: documentMetadata?.title,
     },
     actions: {
       save,
@@ -253,7 +251,6 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       updateTab,
       closeTab,
       onCreatePathResolved,
-      onTemplateSaved,
     },
     deps: {
       confirm,
@@ -274,6 +271,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     blockEditorRef,
     handleSave,
     handleCancel,
+    markAsSaved,
     setStoreHasUnsavedChanges,
     setStoreIsSaving,
     setEditorHandlers,
@@ -308,6 +306,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       currentFilePath={currentFilePath}
       isPreview={isPreview}
       isPendingInsertLoading={isPendingInsertLoading}
+      streamingAutoScroll={streamingAutoScroll}
       blockEditorRef={blockEditorRef}
       showToolbar={false}
       requestImageUrl={interactions.requestImageUrl}

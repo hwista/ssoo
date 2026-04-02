@@ -37,6 +37,7 @@ function getFileIcon(fileName: string): React.ReactNode {
 export function AttachmentsSection({
   attachments,
   editable,
+  templateMode = false,
   onChange,
   onItemClick,
   onDownload,
@@ -46,6 +47,7 @@ export function AttachmentsSection({
 }: {
   attachments: SourceFileMeta[];
   editable?: boolean;
+  templateMode?: boolean;
   onChange?: (attachments: SourceFileMeta[]) => void;
   onItemClick?: (attachment: SourceFileMeta) => void;
   onDownload?: (attachment: SourceFileMeta) => void;
@@ -192,8 +194,8 @@ export function AttachmentsSection({
 
   return (
     <ActivityListSection
-      icon={<Paperclip className="mr-1.5 h-4 w-4 shrink-0" />}
-      title="파일"
+      icon={templateMode ? <FileText className="mr-1.5 h-4 w-4 shrink-0" /> : <Paperclip className="mr-1.5 h-4 w-4 shrink-0" />}
+      title={templateMode ? '참조' : '파일'}
       badge={attachments.length > 0 ? <span className="mr-1 text-caption text-gray-400">({attachments.length})</span> : undefined}
       items={items}
       variant="compact"
@@ -206,10 +208,10 @@ export function AttachmentsSection({
         const attachment = attachments.find((a) => attachmentKey(a) === item.id);
         if (attachment) onItemClick?.(attachment);
       }}
-      emptyText="파일없음"
+      emptyText={templateMode ? '참조 문서 없음' : '파일없음'}
       defaultOpen={defaultOpen}
     >
-      {editable && (
+      {editable && !templateMode && (
         <div className="pt-2">
           <button
             type="button"

@@ -107,6 +107,7 @@ export const docAssistApi = {
       activeDocPath?: string;
       templates?: TemplateItem[];
       summaryFiles?: DocAssistSummaryFileClient[];
+      contentType?: 'document' | 'template';
     },
     callbacks: DocAssistComposeCallbacks,
     options?: { signal?: AbortSignal },
@@ -136,6 +137,7 @@ export const docAssistApi = {
     activeDocPath?: string;
     templates?: TemplateItem[];
     summaryFiles?: DocAssistSummaryFileClient[];
+    contentType?: 'document' | 'template';
   }, options?: { signal?: AbortSignal }): Promise<ApiResponse<DocAssistComposeResponse>> => {
     return request('/api/doc-assist', {
       method: 'POST',
@@ -160,6 +162,7 @@ export const docAssistApi = {
   recommendTitleAndPath: async (payload: {
     currentContent: string;
     activeDocPath?: string;
+    contentType?: 'document' | 'template';
   }, options?: { signal?: AbortSignal }): Promise<ApiResponse<DocAssistTitleAndPathResponse>> => {
     return request('/api/doc-assist', {
       method: 'POST',

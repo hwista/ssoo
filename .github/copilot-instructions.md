@@ -107,7 +107,7 @@ PR 생성/업데이트 시 `.github/workflows/pr-validation.yml` 자동 실행 (
 
 ## 핵심 원칙
 
-> 레거시 호환성: 기존 스크립트에서 `핵심 원칙` 키워드를 찾습니다. 이 헤더는 자동 검증과의 호환을 위해 유지됩니다.
+<!-- 레거시 호환성: 기존 스크립트에서 `핵심 원칙` 키워드를 찾습니다. -->
 
 ## 핵심 코드베이스 원칙
 
@@ -139,12 +139,12 @@ apps/web/dms ──→  (독립, @ssoo/* 금지)
 
 - `DatabaseService`(`apps/server/src/database/database.service.ts`)는 Prisma 래퍼. Controller에서 직접 Prisma 사용 금지.
   - 모델 접근: `db.user`, `db.project`, `db.menu` 등 getter 사용, 새 모델은 `db.client.<model>`로 접근 가능
-- 도메인 모듈: `modules/common/` (auth, user, health), `modules/pms/` (project, menu), `modules/dms/`
+- 도메인 모듈: `modules/common/` (auth, user, health), `modules/pms/` (code, customer, deliverable, issue, member, menu, project, task), `modules/chs/` (board, comment, feed, follow, notification, post, profile, skill), `modules/dms/` (예약)
 - 인증 데코레이터/가드: `JwtAuthGuard`, `RolesGuard`, `@CurrentUser()`, `@Public()` (`modules/common/auth/`)
   - `@Public()`: 엔드포인트에 붙이면 JWT 인증 건너뜀 (예: 로그인)
   - `@CurrentUser()`: JWT payload에서 사용자 정보 추출 (`@CurrentUser('userId')` 등 필드 선택 가능)
 - 새 모듈 추가: 해당 도메인 폴더 아래 module/controller/service/dto 생성 → 도메인 module에 등록
-- 응답 헬퍼 (`common/responses.ts`): `success(data)`, `paginated(data, page, limit, total)`, `error(code, msg)`, `notFound(entity)` — Controller에서 일관된 응답 형식 사용
+- 응답 헬퍼 (`common/responses.ts`): `success(data)`, `paginated(data, page, limit, total)`, `error(code, msg)`, `notFound(entity)`, `deleted(result)` — Controller에서 일관된 응답 형식 사용
 - `GlobalHttpExceptionFilter` (`common/filters/`): 모든 에러를 `{ success, error: { code, message, path }, timestamp }` 형식으로 통일
 - `RequestContextInterceptor` (`common/interceptors/`): JWT 사용자 ID를 `@ssoo/database`의 `runWithContext`로 주입 → Prisma Extension에서 감사 컬럼(`createdBy`, `updatedBy`, `transactionId`) 자동 기록
 - 전역 `ValidationPipe`: `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true` — DTO에 class-validator 데코레이터 필수
@@ -160,16 +160,20 @@ URL은 항상 `/` 고정. `ContentArea`가 메뉴 path 기반으로 페이지를
 - **새 페이지 추가**: `src/components/layout/ContentArea.tsx`의 `pageComponents` 맵에 lazy import 등록
 - 탭 상태: `tab.store.ts` (Zustand + sessionStorage persist)
 - 서버 상태: TanStack Query (`hooks/queries/`). useQuery/useMutation 패턴.
-- Zustand 스토어: `auth.store.ts`, `tab.store.ts`, `menu.store.ts`, `sidebar.store.ts`, `layout.store.ts`, `confirm.store.ts`
+- Zustand 스토어: `auth.store.ts`, `tab.store.ts`, `menu.store.ts`, `sidebar.store.ts`, `layout.store.ts`, `confirm.store.ts` (PMS/CHS 동일 패턴)
+- PMS 템플릿: `ListPageTemplate`, `FormPageTemplate` (common/templates/)
+- PMS DataGrid: `common/datagrid/` (DataGrid, Body, Toolbar, Footer, Pagination 등 복합 컴포넌트)
 
 ### PMS: API 클라이언트 패턴
 
 - Axios 인스턴스 (`lib/api/client.ts`) + 인터셉터로 토큰 자동 주입 (localStorage `ssoo-auth` 키)
 - 401 응답 시 refreshToken으로 자동 갱신 → 원래 요청 재시도
 - 도메인별 API 함수: `lib/api/endpoints/{도메인}.ts` (예: `projectsApi.list()`, `menusApi.getMyMenus()`)
-- React Query 훅: `hooks/queries/use{Domain}.ts` (예: `useProjectList()`, `useCreateProject()`)
+- React Query 훅: `hooks/queries/use{Domain}.ts` (예: `useProjects.ts`, `useCustomers.ts`, `useMenus.ts`)
   - 계층적 캐시 키 패턴: `projectKeys.all → lists() → list(filters) → details() → detail(id)`
   - Mutation 성공 시 관련 쿼리 자동 invalidate
+- PMS 라우팅: `(auth)/` (로그인), `(main)/` (메인 레이아웃, optimistic auth) 라우트 그룹
+- Axios 타임아웃: 5000ms, credentials 활성
 - Import alias: `@/*` → `./src/*` (tsconfig paths)
 
 ### DMS: npm 독립 프로젝트
@@ -177,18 +181,17 @@ URL은 항상 `/` 고정. `ContentArea`가 메뉴 path 기반으로 페이지를
 - `@ssoo/*` 패키지 import 금지 (별도 저장소 분리 예정)
 - 패키지 매니저: **npm** (pnpm이 아님), `package-lock.json` 사용
 - API 클라이언트: **fetch** 기반 (`lib/api/core.ts`), Axios 미사용
-- 서버 로직: `server/` 디렉토리 (`src/` 외부에 위치)
+- 서버 로직: `server/` 디렉토리 (`src/` 외부에 위치) — AI 통합, Git 연동, 채팅 세션, 문서 보조 등 다수 서비스
 - API 레이어: `src/app/api/[route]/route.ts` → handler (`server/handlers/`) → service (`server/services/`)
 - Import alias: `@/*` → `./src/*`, `@/server/*` → `./server/*`
 - 빌드: `pnpm run build:web-dms`, 가드: `pnpm run codex:dms-guard`
 
 ### CHS: 커뮤니티 허브 (SNS/게시판/인력풀)
 
-- PMS와 동일 기술 스택 (shadcn/ui, Zustand, TanStack Query, Axios)
-- PMS와 달리 **페이지 라우팅** 사용 (MDI 탭 시스템 없음, Next.js App Router 기본 라우팅)
+- PMS와 동일 기술 스택 및 폴더 구조 (shadcn/ui, Zustand, TanStack Query, Axios)
+- PMS와 달리 **페이지 라우팅** 사용 (MDI 탭 시스템 없음, Next.js App Router `(auth)/`, `(main)/` 라우트 그룹)
 - 색상 테마: 틸 (hue 180°, `#0A3D3D`) — PMS 네이비(213°)와 구분
 - 포트: 3002
-- 서버 도메인 모듈 (`modules/chs/`): board, comment, feed, follow, notification, post, profile, skill
 - 인증 토큰은 PMS와 공유 (`ssoo-auth` localStorage 키)
 
 ### 데이터베이스: Multi-Schema Prisma
@@ -208,11 +211,11 @@ PostgreSQL 4개 스키마 (`packages/database/prisma/schema.prisma`):
 - 스키마 간 FK 금지 → 애플리케이션 레벨 조인
 - 새 테이블 추가 시: 마스터 모델 + 히스토리 모델 + 트리거 SQL + `apply-triggers.ts` 등록
 
-### Prisma Client Extensions (`packages/database/src/extensions/`)
+### Prisma Client Extensions (`packages/database/src/extensions/common-columns.extension.ts`)
 
-`createPrismaClient()`에 3개 Extension이 체이닝되어 자동 동작:
+`createPrismaClient()`에 3개 Extension이 체이닝되어 자동 동작 (모두 단일 파일에 정의):
 
-- **`commonColumnsExtension`**: create/update 시 감사 컬럼(`createdBy`, `updatedBy`, `lastSource`, `transactionId`)을 `AsyncLocalStorage` 기반 요청 컨텍스트(`runWithContext`)로 자동 세팅. History 접미사 모델과 `UserFavorite`는 제외.
+- **`commonColumnsExtension`**: create/update 시 감사 컬럼(`createdBy`, `updatedBy`, `lastSource`, `lastActivity`, `transactionId`)을 `AsyncLocalStorage` 기반 요청 컨텍스트(`runWithContext`)로 자동 세팅. History 접미사 모델, `UserFavorite`, 관계 테이블(ChReaction, ChFollow 등)은 제외.
 - **`softDeleteExtension`**: `delete()`를 soft delete로 변환 (`isActive = false`)
 - **`activeFilterExtension`**: 조회 시 활성 데이터(`isActive = true`)만 자동 필터링
 

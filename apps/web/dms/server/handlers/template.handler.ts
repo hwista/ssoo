@@ -1,3 +1,4 @@
+import { templateConvertService } from '@/server/services/template/TemplateConvertService';
 import { templateService } from '@/server/services/template/TemplateService';
 import type { TemplateItem } from '@/types/template';
 
@@ -24,6 +25,14 @@ export function handleListTemplates(headers?: Headers) {
   return { success: true as const, data: templateService.list(userId) };
 }
 
+export function handleListTemplatesByReferenceDocument(
+  docPath: string,
+  headers?: Headers,
+) {
+  const userId = getUserId(headers);
+  return { success: true as const, data: templateService.listByReferenceDocument(docPath, userId) };
+}
+
 export function handleUpsertTemplate(
   body: Partial<TemplateItem>,
   headers?: Headers
@@ -37,13 +46,35 @@ export function handleUpsertTemplate(
       id: body.id,
       name: body.name,
       description: body.description,
+      summary: body.summary,
+      tags: body.tags,
+      createdAt: body.createdAt,
       scope: body.scope,
       kind: body.kind,
       content: body.content,
+      originType: body.originType,
+      referenceDocuments: body.referenceDocuments,
+      generation: body.generation,
     },
-    getUserId(headers)
+    getUserId(headers),
+    getUserId(headers),
   );
   return { success: true as const, data: saved };
+}
+
+export async function handleConvertToTemplate(
+  body: { documentContent?: string; documentPath?: string },
+  headers?: Headers,
+  signal?: AbortSignal,
+) {
+  return templateConvertService.convertToTemplateStream(
+    {
+      documentContent: body.documentContent ?? '',
+      documentPath: body.documentPath,
+    },
+    getUserId(headers),
+    signal,
+  );
 }
 
 export function handleDeleteTemplate(

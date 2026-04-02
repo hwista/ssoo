@@ -22,9 +22,12 @@ export async function POST(req: Request) {
       const result = await recommendTitleAndPath({
         currentContent: typeof body?.currentContent === 'string' ? body.currentContent : '',
         activeDocPath: typeof body?.activeDocPath === 'string' ? body.activeDocPath : undefined,
+        contentType: body?.contentType === 'template' ? 'template' : 'document',
       });
       return Response.json({ success: true, data: result });
     }
+
+    const contentType = body?.contentType === 'template' ? 'template' as const : 'document' as const;
 
     const composeInput = {
       instruction: typeof body?.instruction === 'string' ? body.instruction : '',
@@ -33,6 +36,7 @@ export async function POST(req: Request) {
       activeDocPath: typeof body?.activeDocPath === 'string' ? body.activeDocPath : undefined,
       templates: Array.isArray(body?.templates) ? body.templates : [],
       summaryFiles: Array.isArray(body?.summaryFiles) ? body.summaryFiles : [],
+      contentType,
     };
 
     // stream=false → 기존 JSON 응답 (태그 추출, 요약 등 짧은 요청용)

@@ -37,6 +37,8 @@ export interface ContentProps {
   showToolbar?: boolean;
   /** AI 삽입 대기 중 로딩 표시 여부 */
   isPendingInsertLoading?: boolean;
+  /** 스트리밍 중 하단 근처일 때만 자동 스크롤 */
+  streamingAutoScroll?: boolean;
   /** 브라우저 상호작용 의존성 */
   requestImageUrl?: () => Promise<string | null>;
   requestLinkUrl?: () => Promise<string | null>;
@@ -67,6 +69,7 @@ export function Content({
   blockEditorRef,
   showToolbar = true,
   isPendingInsertLoading = false,
+  streamingAutoScroll = false,
   requestImageUrl,
   requestLinkUrl,
   openExternalHref,
@@ -105,6 +108,7 @@ export function Content({
           isPreview={isPreview}
           showToolbar={showToolbar}
           isPendingInsertLoading={isPendingInsertLoading}
+          streamingAutoScroll={streamingAutoScroll}
           requestImageUrl={requestImageUrl}
           requestLinkUrl={requestLinkUrl}
           openExternalHref={openExternalHref}

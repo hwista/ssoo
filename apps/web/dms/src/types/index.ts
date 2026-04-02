@@ -12,6 +12,25 @@ export type {
 } from './document-metadata';
 
 export type {
+  ReferenceFile,
+  ReferenceFileOrigin,
+  ExtractedImageItem,
+} from './reference-file';
+
+export type {
+  ContentMetadata,
+  ContentMetadataBase,
+  ContentType,
+  DocumentContentMetadata,
+  TemplateContentMetadata,
+} from './content-metadata';
+
+export {
+  isDocumentMetadata,
+  isTemplateMetadata,
+} from './content-metadata';
+
+export type {
   BookmarkItem,
 } from './bookmark';
 
@@ -42,4 +61,6 @@ export type {
   TemplateStatus,
   TemplateSourceType,
   TemplateVisibility,
+  UserTemplateManifest,
+  ScrapeEntry,
 } from './template';
