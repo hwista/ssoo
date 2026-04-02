@@ -19,6 +19,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN apk add --no-cache git && \
+    mkdir -p data/wiki data/templates data/ingest data/storage/local data/documents && \
+    git init data/documents
 RUN npm run build
 
 # ---- Stage 3: Production runner ----
@@ -30,7 +33,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3001
 ENV HOSTNAME=0.0.0.0
 
-RUN addgroup --system --gid 1001 nodejs && \
+RUN apk add --no-cache git && \
+    addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # standalone 서버 복사
@@ -41,7 +45,8 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/dms.config.default.json ./
 
 # data 디렉토리 (볼륨 마운트 포인트)
-RUN mkdir -p data/wiki data/templates data/ingest data/storage/local && \
+RUN mkdir -p data/wiki data/templates data/ingest data/storage/local data/documents && \
+    git init data/documents && \
     chown -R nextjs:nodejs data
 
 USER nextjs

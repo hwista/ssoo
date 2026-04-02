@@ -1,0 +1,39 @@
+services:
+  dms-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lswiki-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DMS_DATABASE_URL=postgresql://dms_user:dms_pass@dms-db:5432/dms?schema=public
+    volumes:
+      - /opt/LSWIKI/data:/app/data:z
+    depends_on:
+      dms-db:
+        condition: service_healthy
+
+  dms-db:
+    image: pgvector/pgvector:pg16
+    container_name: lswiki-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dms
+      POSTGRES_USER: dms_user
+      POSTGRES_PASSWORD: dms_pass
+    volumes:
+      - db-data:/var/lib/postgresql/data:z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dms_user -d dms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data:
