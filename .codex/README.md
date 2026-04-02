@@ -40,7 +40,10 @@ pnpm run codex:push-guard
 # 4) DMS 변경 포함 시
 pnpm run codex:dms-guard
 
-# 5) DMS 양방향 배포 (GitHub + GitLab + 검증)
+# 5) GitLab subtree가 앞서 있을 때 monorepo로 먼저 동기화
+pnpm run codex:dms-sync-from-gitlab
+
+# 6) DMS 양방향 배포 (GitHub + GitLab + 검증)
 pnpm run codex:dms-publish
 ```
 

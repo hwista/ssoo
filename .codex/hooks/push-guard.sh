@@ -4,6 +4,21 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
+MATCH_TOOL="rg"
+if ! command -v rg >/dev/null 2>&1; then
+  MATCH_TOOL="grep"
+fi
+
+changed_matches() {
+  local pattern="$1"
+  if [ "$MATCH_TOOL" = "rg" ]; then
+    printf '%s\n' "$CHANGED" | rg -q "$pattern"
+    return
+  fi
+
+  printf '%s\n' "$CHANGED" | grep -Eq "$pattern"
+}
+
 echo "[push-guard] running: node .codex/scripts/verify-codex-sync.js"
 node .codex/scripts/verify-codex-sync.js
 
@@ -20,29 +35,33 @@ fi
 echo "[push-guard] changed files:"
 echo "$CHANGED"
 
+if [ "$MATCH_TOOL" = "grep" ]; then
+  echo "[push-guard] rg not found. using grep fallback."
+fi
+
 NEED_SERVER=0
 NEED_WEB_PMS=0
 NEED_WEB_DMS=0
 
 # Shared/core changes that can affect all targets.
-if echo "$CHANGED" | rg -q '^package.json$|^pnpm-lock.yaml$|^pnpm-workspace.yaml$|^turbo.json$|^tsconfig\.base\.json$'; then
+if changed_matches '^package.json$|^pnpm-lock.yaml$|^pnpm-workspace.yaml$|^turbo.json$|^tsconfig\.base\.json$'; then
   NEED_SERVER=1
   NEED_WEB_PMS=1
   NEED_WEB_DMS=1
 fi
 
 # Server and its shared dependencies.
-if echo "$CHANGED" | rg -q '^apps/server/|^packages/database/|^packages/types/'; then
+if changed_matches '^apps/server/|^packages/database/|^packages/types/'; then
   NEED_SERVER=1
 fi
 
 # PMS and its shared dependencies.
-if echo "$CHANGED" | rg -q '^apps/web/pms/|^packages/types/'; then
+if changed_matches '^apps/web/pms/|^packages/types/'; then
   NEED_WEB_PMS=1
 fi
 
 # DMS only.
-if echo "$CHANGED" | rg -q '^apps/web/dms/'; then
+if changed_matches '^apps/web/dms/'; then
   NEED_WEB_DMS=1
 fi
 

@@ -34,23 +34,52 @@ fi
 
 AUTH="$(printf '%s:%s' "$GL_USER" "$GL_TOKEN" | base64 -w0)"
 
-echo "[dms-publish] 1/5 push GitHub branch: $TARGET_BRANCH"
+gitlab_git() {
+  git -c http.extraHeader="Authorization: Basic $AUTH" "$@"
+}
+
+LOCAL_SPLIT_HASH="$(git subtree split --prefix="$DMS_PREFIX" HEAD | tail -n 1)"
+
+echo "[dms-publish] 1/6 inspect GitLab subtree branch: $GITLAB_BRANCH"
+REMOTE_INFO="$(gitlab_git ls-remote --heads "$GITLAB_URL" "$GITLAB_BRANCH")"
+REMOTE_HASH=""
+if [ -n "$REMOTE_INFO" ]; then
+  REMOTE_HASH="$(printf '%s\n' "$REMOTE_INFO" | awk 'NR==1 { print $1 }')"
+  echo "[dms-publish] remote head before push: $REMOTE_HASH"
+
+  gitlab_git fetch "$GITLAB_URL" \
+    "+refs/heads/$GITLAB_BRANCH:$TMP_REMOTE_REF"
+
+  if ! git merge-base --is-ancestor "$REMOTE_HASH" "$LOCAL_SPLIT_HASH"; then
+    echo "[dms-publish] aborting before GitHub push: GitLab branch cannot fast-forward to the local subtree split."
+    echo "[dms-publish] local split:  $LOCAL_SPLIT_HASH"
+    echo "[dms-publish] remote head:  $REMOTE_HASH"
+    echo "[dms-publish] run: pnpm run codex:dms-sync-from-gitlab"
+    echo "[dms-publish] after syncing GitLab subtree back into the monorepo, re-run publish."
+    exit 1
+  fi
+else
+  echo "[dms-publish] GitLab branch does not exist yet. it will be created."
+fi
+
+echo "[dms-publish] 2/6 push GitHub branch: $TARGET_BRANCH"
 git push origin "$TARGET_BRANCH"
 
-echo "[dms-publish] 2/5 push GitLab subtree: $GITLAB_BRANCH"
-git -c http.extraHeader="Authorization: Basic $AUTH" \
-  subtree push --prefix="$DMS_PREFIX" "$GITLAB_URL" "$GITLAB_BRANCH"
+if [ -n "$REMOTE_HASH" ] && [ "$REMOTE_HASH" = "$LOCAL_SPLIT_HASH" ]; then
+  echo "[dms-publish] 3/6 GitLab subtree already up to date. skipping push."
+else
+  echo "[dms-publish] 3/6 push GitLab subtree: $GITLAB_BRANCH"
+  gitlab_git subtree push --prefix="$DMS_PREFIX" "$GITLAB_URL" "$GITLAB_BRANCH"
+fi
 
-echo "[dms-publish] 3/5 fetch GitLab branch for verification"
-git -c http.extraHeader="Authorization: Basic $AUTH" \
-  fetch "$GITLAB_URL" \
-  "+$GITLAB_BRANCH:$TMP_REMOTE_REF"
+echo "[dms-publish] 4/6 fetch GitLab branch for verification"
+gitlab_git fetch "$GITLAB_URL" \
+  "+refs/heads/$GITLAB_BRANCH:$TMP_REMOTE_REF"
 
-echo "[dms-publish] 4/5 compute local subtree split hash"
-LOCAL_SPLIT_HASH="$(git subtree split --prefix="$DMS_PREFIX" HEAD)"
+echo "[dms-publish] 5/6 compute local subtree split hash"
 REMOTE_HASH="$(git rev-parse "$TMP_REMOTE_REF")"
 
-echo "[dms-publish] 5/5 compare hashes"
+echo "[dms-publish] 6/6 compare hashes"
 echo "[dms-publish] local split:  $LOCAL_SPLIT_HASH"
 echo "[dms-publish] remote head:  $REMOTE_HASH"
 
