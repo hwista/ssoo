@@ -4,7 +4,7 @@ applyTo: "apps/web/dms/**"
 
 # Codex DMS Instructions
 
-> 최종 업데이트: 2026-02-27
+> 최종 업데이트: 2026-04-06
 > 정본: `.github/instructions/dms.instructions.md`
 
 ## 독립성 원칙
@@ -150,20 +150,22 @@ export * from './components';
 | 빌드 | `pnpm run build:web-dms` |
 | DMS 가드 | `pnpm run codex:dms-guard` |
 | 골든 기준선 검사 | `pnpm -C apps/web/dms run check:golden-example` |
-| GitLab sync | `pnpm run codex:dms-sync-from-gitlab` |
-| 배포 | `pnpm run codex:dms-publish` (GitHub + GitLab 동시) |
+| GitLab workspace sync | `pnpm run codex:workspace-sync-from-gitlab` |
+| 배포 | `pnpm run codex:workspace-publish` (GitHub + GitLab workspace 동시) |
 
 ## 양방향 배포
 
-- DMS 변경 커밋을 외부 공유할 때 `pnpm run codex:dms-publish` 사용
-- GitLab subtree fast-forward 가능 여부를 먼저 검사한 뒤 GitHub 브랜치 push + GitLab subtree push + 해시 검증 수행
-- GitLab subtree가 앞서 있으면 `pnpm run codex:dms-sync-from-gitlab`로 monorepo에 먼저 재통합
+- 모노레포 변경을 GitLab workspace branch와 함께 공유할 때 `pnpm run codex:workspace-publish` 사용
+- GitLab workspace branch fast-forward 가능 여부를 먼저 검사한 뒤 GitHub 브랜치 push + GitLab workspace branch push + 해시 검증 수행
+- GitLab workspace branch가 앞서 있으면 `pnpm run codex:workspace-sync-from-gitlab`로 monorepo에 먼저 재통합
+- 기존 `pnpm run codex:dms-sync-from-gitlab`, `pnpm run codex:dms-publish`는 당분간 호환 래퍼로 유지
 - 인증: `GL_USER`/`GL_TOKEN` 또는 `git config --local codex.gitlabUser`/`codex.gitlabToken`
 
 ## Changelog
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-04-06 | GitLab 기본 흐름을 full-workspace `development` branch 기준으로 전환하고 `codex:workspace-*` 명령/호환 래퍼를 추가 |
 | 2026-04-02 | `codex:dms-sync-from-gitlab` 추가, `codex:dms-publish` GitLab 선검사 및 git config 인증 fallback 반영 |
 | 2026-02-27 | 독립성/기술스택/폴더구조/서버패턴/스토어/에디터/TreeView/타입/Export/치수/크기가이드/금지사항 추가 |
 | 2026-02-22 | Codex DMS 정본 신설 |

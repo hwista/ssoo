@@ -40,10 +40,14 @@ pnpm run codex:push-guard
 # 4) DMS 변경 포함 시
 pnpm run codex:dms-guard
 
-# 5) GitLab subtree가 앞서 있을 때 monorepo로 먼저 동기화
-pnpm run codex:dms-sync-from-gitlab
+# 5) GitLab workspace branch가 앞서 있을 때 monorepo로 먼저 동기화
+pnpm run codex:workspace-sync-from-gitlab
 
-# 6) DMS 양방향 배포 (GitHub + GitLab + 검증)
+# 6) workspace 양방향 배포 (GitHub + GitLab + 검증)
+pnpm run codex:workspace-publish
+
+# 기존 DMS 명령은 당분간 호환 래퍼로 유지
+pnpm run codex:dms-sync-from-gitlab
 pnpm run codex:dms-publish
 
 # 인증은 환경변수 또는 local git config 사용 가능

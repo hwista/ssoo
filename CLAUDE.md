@@ -226,8 +226,8 @@ pnpm install
 | 린트 | `pnpm lint` |
 | DMS 빌드 | `pnpm run build:web-dms` |
 | DMS 가드 | `pnpm run codex:dms-guard` |
-| DMS 동기화 | `pnpm run codex:dms-sync-from-gitlab` (GitLab subtree가 앞선 경우) |
-| DMS 배포 | `pnpm run codex:dms-publish` (GitHub + GitLab + 사전검사) |
+| GitLab workspace 동기화 | `pnpm run codex:workspace-sync-from-gitlab` (legacy alias: `codex:dms-sync-from-gitlab`) |
+| GitLab workspace 배포 | `pnpm run codex:workspace-publish` (GitHub + GitLab + 사전검사, legacy alias: `codex:dms-publish`) |
 | 문서 점검 | `node .github/scripts/check-docs.js` |
 | 패턴 점검 | `node .github/scripts/check-patterns.js` |
 | 디자인 점검 | `node .github/scripts/check-design.js` |

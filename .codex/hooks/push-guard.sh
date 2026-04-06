@@ -65,19 +65,21 @@ if changed_matches '^apps/web/dms/'; then
   NEED_WEB_DMS=1
 fi
 
-if [ "$NEED_WEB_DMS" -eq 1 ] && [ "${CODEX_PUSH_REMOTE_NAME:-}" = "origin" ]; then
-  CURRENT_SPLIT_HASH="$(git subtree split --prefix=apps/web/dms --ignore-joins HEAD)"
-  LAST_PUBLISHED_HASH="$(git config --local --get codex.dmsLastPublished || true)"
-  if [ "$CURRENT_SPLIT_HASH" != "$LAST_PUBLISHED_HASH" ]; then
-    echo "[push-guard] DMS publish marker mismatch for origin push."
-    echo "[push-guard] expected: $CURRENT_SPLIT_HASH"
+if [ "${CODEX_PUSH_REMOTE_NAME:-}" = "origin" ]; then
+  CURRENT_WORKSPACE_HASH="$(git rev-parse HEAD)"
+  LAST_PUBLISHED_HASH="$(git config --local --get codex.gitlabLastPublished || true)"
+  SKIP_GUARD="${CODEX_SKIP_GITLAB_PUBLISH_GUARD:-${CODEX_SKIP_DMS_PUBLISH_GUARD:-0}}"
+  if [ "$CURRENT_WORKSPACE_HASH" != "$LAST_PUBLISHED_HASH" ]; then
+    echo "[push-guard] GitLab workspace publish marker mismatch for origin push."
+    echo "[push-guard] expected: $CURRENT_WORKSPACE_HASH"
     echo "[push-guard] current marker: ${LAST_PUBLISHED_HASH:-<empty>}"
-    echo "[push-guard] run: pnpm run codex:dms-publish"
-    echo "[push-guard] (bypass once: CODEX_SKIP_DMS_PUBLISH_GUARD=1 git push ...)"
-    if [ "${CODEX_SKIP_DMS_PUBLISH_GUARD:-0}" != "1" ]; then
+    echo "[push-guard] run: pnpm run codex:workspace-publish"
+    echo "[push-guard] (compat alias: pnpm run codex:dms-publish)"
+    echo "[push-guard] (bypass once: CODEX_SKIP_GITLAB_PUBLISH_GUARD=1 git push ...)"
+    if [ "$SKIP_GUARD" != "1" ]; then
       exit 1
     fi
-    echo "[push-guard] bypass enabled by CODEX_SKIP_DMS_PUBLISH_GUARD=1"
+    echo "[push-guard] bypass enabled by GitLab publish guard skip variable"
   fi
 fi
 

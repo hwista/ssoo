@@ -134,4 +134,5 @@ const useTabStore = create<TabStoreState & TabStoreActions>()(
 |------|--------|
 | 빌드 | `pnpm run build:web-dms` |
 | DMS 가드 | `pnpm run codex:dms-guard` |
-| 배포 | `pnpm run codex:dms-publish` (GitHub + GitLab 동시) |
+| GitLab workspace 동기화 | `pnpm run codex:workspace-sync-from-gitlab` (legacy alias: `codex:dms-sync-from-gitlab`) |
+| 배포 | `pnpm run codex:workspace-publish` (GitHub + GitLab workspace 동시, legacy alias: `codex:dms-publish`) |

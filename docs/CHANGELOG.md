@@ -28,6 +28,7 @@
 
 ### Improvements
 
+* **web-dms:** GitLab workspace publish flow — full-workspace `development` branch, `codex:workspace-sync-from-gitlab` / `codex:workspace-publish` 추가, 기존 `codex:dms-*` 는 호환 래퍼로 유지
 * **web-dms:** sidecar 링크 섹션 아이콘 — Globe(외부)/FileText(내부 문서)/Image(이미지) 타입별 구분
 * **web-dms:** 링크 본문 찾기 — sidecar에서 ↳ 버튼 클릭 시 뷰어/에디터 내 해당 링크로 스크롤 + 하이라이팅
 * **web-dms:** 내부 문서 링크 클릭 시 새 탭으로 열기, 외부 링크는 브라우저로 열기

@@ -38,6 +38,8 @@
     "codex:preflight": "bash .codex/hooks/preflight.sh",
     "codex:dms-guard": "bash .codex/hooks/dms-guard.sh",
     "codex:push-guard": "bash .codex/hooks/push-guard.sh",
+    "codex:workspace-sync-from-gitlab": "bash .codex/scripts/workspace-sync-from-gitlab.sh",
+    "codex:workspace-publish": "bash .codex/scripts/workspace-publish.sh",
     "codex:dms-sync-from-gitlab": "bash .codex/scripts/dms-sync-from-gitlab.sh",
     "codex:dms-publish": "bash .codex/scripts/dms-publish.sh",
     "prepare": "husky"

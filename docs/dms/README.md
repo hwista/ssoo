@@ -54,6 +54,7 @@ docs/dms/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-06 | GitLab 운영 기준을 full-workspace `development` branch로 전환하고 `codex:workspace-sync-from-gitlab` / `codex:workspace-publish` 표준 명령을 추가 |
 | 2026-04-06 | settings IA 슬롯 확장: 시스템에 권한/전체문서관리/전역스케줄러/템플릿 마켓/관리자 템플릿, 개인에 공개·내 템플릿/내 문서·내 활동 surface 추가 |
 | 2026-04-06 | settings surface 확장 — storage runtime 필드, upload/search/DocAssist 정책, viewer/sidebar 개인 기본값, M365 metadata-only 설정 추가 |
 | 2026-04-02 | settings shell 도입, system/personal 설정 분리, 공용 JSON renderer/editor/diff 계층 추가, 3뎁스 settings navigation 정리 |

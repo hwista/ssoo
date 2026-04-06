@@ -6,6 +6,14 @@
 
 ## 2026-04-06
 
+### GitLab workspace branch 전환
+
+- GitLab 기본 배포 대상을 legacy DMS subtree branch(`refactor/integration`)에서 full-workspace branch `development` 로 전환
+- 새 표준 명령으로 `codex:workspace-sync-from-gitlab`, `codex:workspace-publish` 를 추가
+- 기존 `codex:dms-sync-from-gitlab`, `codex:dms-publish` 는 당분간 workspace 흐름을 호출하는 호환 래퍼로 유지
+- pre-push guard 기준도 subtree split hash 대신 workspace HEAD + `codex.gitlabLastPublished` marker 기준으로 전환
+- 과거 subtree branch는 legacy reference 로 남겨 transition 기간 동안 비교 기준으로 유지
+
 ### Settings IA 슬롯 확장
 
 - settings registry를 custom slot 확장형으로 열어, JSON 필드 기반 섹션 외에 placeholder/custom surface를 같은 경로에서 렌더링할 수 있도록 정리
