@@ -163,8 +163,9 @@ const checkCompactMode = () => {
 - 검색 입력은 workspace 파일 검색과 동일한 visual primitive(`components/layout/sidebar/SearchInput.tsx`)를 공유합니다.
 - shell sidebar는 section tree를 직접 들지 않고 `시스템 설정`, `개인 설정` 두 개의 scope selector만 노출합니다.
 - outer scope selector와 inner settings navigation 모두 기존 sidebar의 flat row list(`OpenTabs`, `Bookmarks`)와 같은 rhythm을 사용하며, navigation 내부 설명 문구는 두지 않습니다.
-- settings row button은 `font-sans + text-body-sm` 기반에 `gap-2`, `px-3` 밀도를 사용해 flat sidebar row와 동일한 아이콘-텍스트 간격과 좌우 여백을 유지합니다.
-- outer/inner settings navigation 모두 상단에 실제 sidebar `Section` 컴포넌트를 재사용해, 기존 workspace sidebar의 `Section 헤더 + 목록` 위계와 chevron rhythm이 2열 settings 구조 안에서도 그대로 읽히도록 맞춥니다.
+- settings row는 `FlatListItem` 을 쓰되, **trailing action이 없는 settings rail 경로에서는 row 자체를 direct button으로 렌더링**해 불필요한 wrapper 계층 없이 `text-body-sm` / `text-label-md` semantic token을 바로 받도록 유지합니다.
+- settings navigation은 현재 IA가 평면 구조이므로 `Section` / collapse affordance를 두지 않습니다.
+- 대신 `components/layout/sidebar/FlatList.tsx`의 `FlatList`, `FlatListItem` primitive를 기준으로 outer/inner settings menu와 `OpenTabs`/`Bookmarks` row가 가능한 한 같은 row primitive를 공유하되, settings rail은 direct button path를 통해 실제 비교 기준과 더 가까운 DOM/class 경로를 사용합니다.
 - `SettingsPage` 내부에서는 좌측 navigation과 우측 detail surface를 하나의 공용 카드로 묶지 않고 분리해, 좌측 영역이 page 안의 또 다른 sidebar처럼 읽히도록 유지합니다.
 - 검색 결과를 선택하면 해당 scope와 section을 즉시 열고, 실제 `Git`, `Storage`, `Ingest`, `Identity` 같은 세부 menu는 `SettingsPage` 내부 좌측 navigation에서 렌더링합니다.
 - anonymous-first 단계에서는 두 그룹 모두 노출되며, 이후 권한 도입 시 `canManageSystem`, `canManagePersonal` 로 노출/사용을 분리합니다.

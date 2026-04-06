@@ -29,6 +29,44 @@ export interface DmsSystemConfigClient {
     pdfMaxRenderPages: number;
     pdfRenderScale: number;
   };
+  uploads: {
+    attachmentMaxSizeMb: number;
+    imageMaxSizeMb: number;
+  };
+  search: {
+    maxResults: number;
+    semanticThreshold: number;
+    chunkSize: number;
+    chunkOverlap: number;
+    summaryConcurrency: number;
+  };
+  docAssist: {
+    maxCurrentContentChars: number;
+    maxTemplateChars: number;
+    maxSummaryFileCount: number;
+    maxSummaryFileChars: number;
+    maxImagesPerRequest: number;
+  };
+  m365: {
+    sharepoint: {
+      tenantDomain: string;
+      sitePath: string;
+      defaultLibrary: string;
+    };
+    teams: {
+      enabled: boolean;
+      ingestEnabled: boolean;
+      defaultTeam: string;
+      defaultChannel: string;
+      defaultDropPath: string;
+    };
+    auth: {
+      mode: 'anonymous-first' | 'organization-sso';
+      allowedTenantIds: string[];
+      allowedDomains: string[];
+      identityMapping: 'mail' | 'userPrincipalName' | 'displayName';
+    };
+  };
 }
 
 export interface DmsPersonalSettingsClient {
@@ -41,6 +79,17 @@ export interface DmsPersonalSettingsClient {
     defaultSettingsView: PreferredSettingsViewMode;
     showDiffByDefault: boolean;
     preferredStorageProvider: 'system-default' | 'local' | 'sharepoint' | 'nas';
+  };
+  viewer: {
+    defaultZoom: number;
+  };
+  sidebar: {
+    sections: {
+      bookmarks: boolean;
+      openTabs: boolean;
+      fileTree: boolean;
+      changes: boolean;
+    };
   };
 }
 

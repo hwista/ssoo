@@ -1,6 +1,21 @@
 import type { JsonFieldDescriptor } from '@/components/common/json';
 import type { SettingsScope, SettingsViewMode } from '@/types/settings';
-import { Database, FileSearch, GitBranch, HardDrive, Shapes, UserRound, Workflow } from 'lucide-react';
+import {
+  Bot,
+  Cloud,
+  Database,
+  FileSearch,
+  FolderOpen,
+  GitBranch,
+  HardDrive,
+  PanelLeft,
+  Search,
+  Shapes,
+  Shield,
+  Upload,
+  UserRound,
+  Workflow,
+} from 'lucide-react';
 
 export interface SettingItem extends JsonFieldDescriptor {
   validate?: (value: unknown) => string | null;
@@ -14,7 +29,15 @@ export interface SettingSection {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
-  kind?: 'fields' | 'templates';
+  kind?: 'fields' | 'custom';
+  slotKey?:
+    | 'document-access'
+    | 'admin-documents'
+    | 'system-schedulers'
+    | 'template-marketplace'
+    | 'admin-templates'
+    | 'personal-templates'
+    | 'my-activity';
   items: SettingItem[];
 }
 
@@ -31,6 +54,12 @@ export interface SettingSearchEntry {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const toNumber = (value: unknown) => Number(value);
+const toInteger = (value: unknown) => Math.trunc(Number(value));
+const toStringArray = (value: unknown) =>
+  String(value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 const normalizeSearchText = (value: string) => value.trim().toLowerCase();
 
@@ -89,7 +118,86 @@ export const SETTINGS_SCOPE_OPTIONS = [
   { label: '개인 설정', value: 'personal' },
 ] as const;
 
+const VIEWER_ZOOM_OPTIONS = [
+  { label: '75%', value: '75' },
+  { label: '100%', value: '100' },
+  { label: '125%', value: '125' },
+  { label: '150%', value: '150' },
+  { label: '175%', value: '175' },
+  { label: '200%', value: '200' },
+] as const;
+
+const AUTH_MODE_OPTIONS = [
+  { label: 'Anonymous-first', value: 'anonymous-first' },
+  { label: 'Organization SSO', value: 'organization-sso' },
+] as const;
+
+const IDENTITY_MAPPING_OPTIONS = [
+  { label: '메일 주소(mail)', value: 'mail' },
+  { label: 'UPN(userPrincipalName)', value: 'userPrincipalName' },
+  { label: '표시 이름(displayName)', value: 'displayName' },
+] as const;
+
+const validatePositiveInteger = (value: unknown, minimum: number, message: string) => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || !Number.isInteger(num) || num < minimum) {
+    return message;
+  }
+  return null;
+};
+
+const validateCommaSeparatedList = (value: unknown) => {
+  if (Array.isArray(value)) return null;
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  return toStringArray(value).length > 0 ? null : '쉼표로 구분된 값을 입력하세요.';
+};
+
 export const SETTING_SECTIONS: SettingSection[] = [
+  {
+    id: 'documentAccess',
+    scope: 'system',
+    jsonPath: 'system.documentAccess',
+    label: '문서/폴더 권한',
+    icon: Shield,
+    description: '개별 사용자 기준의 문서 및 폴더 접근 권한 관리 슬롯입니다.',
+    kind: 'custom',
+    slotKey: 'document-access',
+    items: [],
+  },
+  {
+    id: 'adminDocuments',
+    scope: 'system',
+    jsonPath: 'system.adminDocuments',
+    label: '전체 문서/폴더 관리',
+    icon: FolderOpen,
+    description: '관리자 기준의 전체 문서 및 폴더 운영 관리 슬롯입니다.',
+    kind: 'custom',
+    slotKey: 'admin-documents',
+    items: [],
+  },
+  {
+    id: 'systemSchedulers',
+    scope: 'system',
+    jsonPath: 'system.systemSchedulers',
+    label: '문서 품질/스케줄러',
+    icon: Workflow,
+    description: '문서 품질 관리와 시스템 전역 스케줄러 관리 슬롯입니다.',
+    kind: 'custom',
+    slotKey: 'system-schedulers',
+    items: [],
+  },
+  {
+    id: 'templateMarketplace',
+    scope: 'system',
+    jsonPath: 'system.templateMarketplace',
+    label: '템플릿 마켓',
+    icon: Shapes,
+    description: '템플릿 마켓플레이스와 공개 템플릿 관리 슬롯입니다.',
+    kind: 'custom',
+    slotKey: 'template-marketplace',
+    items: [],
+  },
   {
     id: 'git',
     scope: 'system',
@@ -140,6 +248,21 @@ export const SETTING_SECTIONS: SettingSection[] = [
         placeholder: './data/storage/local',
       },
       {
+        key: 'system.storage.local.enabled',
+        label: 'Local 저장소 활성화',
+        helpKey: 'system.storage.local.enabled',
+        description: 'Local provider를 업로드 대상 후보로 허용합니다.',
+        type: 'checkbox',
+      },
+      {
+        key: 'system.storage.local.webBaseUrl',
+        label: 'Local 웹 기본 URL',
+        helpKey: 'system.storage.local.webBaseUrl',
+        description: '브라우저 열기 시 사용할 public base URL입니다. 비워두면 내부 open API를 사용합니다.',
+        type: 'text',
+        placeholder: 'http://localhost:3001/storage/local',
+      },
+      {
         key: 'system.storage.sharepoint.basePath',
         label: 'SharePoint 경로',
         helpKey: 'system.storage.sharepoint.basePath',
@@ -148,12 +271,42 @@ export const SETTING_SECTIONS: SettingSection[] = [
         placeholder: '/sites/dms/shared-documents',
       },
       {
+        key: 'system.storage.sharepoint.enabled',
+        label: 'SharePoint 저장소 활성화',
+        helpKey: 'system.storage.sharepoint.enabled',
+        description: 'SharePoint provider를 업로드/열기 대상 후보로 허용합니다.',
+        type: 'checkbox',
+      },
+      {
+        key: 'system.storage.sharepoint.webBaseUrl',
+        label: 'SharePoint 웹 기본 URL',
+        helpKey: 'system.storage.sharepoint.webBaseUrl',
+        description: '저장된 파일의 browser open URL을 조합할 기본 URL입니다.',
+        type: 'text',
+        placeholder: 'https://sharepoint.local',
+      },
+      {
         key: 'system.storage.nas.basePath',
         label: 'NAS 경로',
         helpKey: 'system.storage.nas.basePath',
         description: 'NAS 마운트 경로 또는 게이트웨이 기본 경로입니다.',
         type: 'text',
         placeholder: '/mnt/nas/dms',
+      },
+      {
+        key: 'system.storage.nas.enabled',
+        label: 'NAS 저장소 활성화',
+        helpKey: 'system.storage.nas.enabled',
+        description: 'NAS provider를 업로드/열기 대상 후보로 허용합니다.',
+        type: 'checkbox',
+      },
+      {
+        key: 'system.storage.nas.webBaseUrl',
+        label: 'NAS 웹 기본 URL',
+        helpKey: 'system.storage.nas.webBaseUrl',
+        description: '브라우저 열기 시 사용할 gateway 또는 file URL입니다.',
+        type: 'text',
+        placeholder: 'file:///mnt/nas/dms',
       },
     ],
   },
@@ -197,13 +350,168 @@ export const SETTING_SECTIONS: SettingSection[] = [
     ],
   },
   {
+    id: 'uploads',
+    scope: 'system',
+    jsonPath: 'system.uploads',
+    label: 'Uploads',
+    icon: Upload,
+    description: '첨부/이미지 업로드 한도를 관리합니다.',
+    items: [
+      {
+        key: 'system.uploads.attachmentMaxSizeMb',
+        label: '첨부 최대 크기 (MB)',
+        helpKey: 'system.uploads.attachmentMaxSizeMb',
+        description: '첨부파일, 참조파일, 텍스트 추출 업로드에 공통 적용되는 최대 크기입니다.',
+        type: 'text',
+        placeholder: '20',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 1, '1 이상의 정수를 입력하세요.'),
+      },
+      {
+        key: 'system.uploads.imageMaxSizeMb',
+        label: '이미지 최대 크기 (MB)',
+        helpKey: 'system.uploads.imageMaxSizeMb',
+        description: '에디터 이미지 업로드에 적용되는 최대 크기입니다.',
+        type: 'text',
+        placeholder: '10',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 1, '1 이상의 정수를 입력하세요.'),
+      },
+    ],
+  },
+  {
+    id: 'search',
+    scope: 'system',
+    jsonPath: 'system.search',
+    label: 'Search',
+    icon: Search,
+    description: '검색 결과 수, 시맨틱 threshold, 임베딩 chunk 정책을 관리합니다.',
+    items: [
+      {
+        key: 'system.search.maxResults',
+        label: '최대 검색 결과 수',
+        helpKey: 'system.search.maxResults',
+        description: '키워드/시맨틱 검색 공통 최대 결과 수입니다.',
+        type: 'text',
+        placeholder: '100',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 1, '1 이상의 정수를 입력하세요.'),
+      },
+      {
+        key: 'system.search.semanticThreshold',
+        label: '시맨틱 검색 임계값',
+        helpKey: 'system.search.semanticThreshold',
+        description: '0~1 사이 유사도 threshold 입니다.',
+        type: 'text',
+        placeholder: '0.5',
+        coerce: toNumber,
+        validate: (value) => {
+          const num = Number(value);
+          if (!Number.isFinite(num) || num < 0 || num > 1) return '0~1 사이 숫자를 입력하세요.';
+          return null;
+        },
+      },
+      {
+        key: 'system.search.chunkSize',
+        label: '임베딩 chunk 크기',
+        helpKey: 'system.search.chunkSize',
+        description: '문서를 임베딩 청크로 분할할 최대 글자 수입니다.',
+        type: 'text',
+        placeholder: '1000',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 100, '100 이상의 정수를 입력하세요.'),
+      },
+      {
+        key: 'system.search.chunkOverlap',
+        label: '임베딩 chunk overlap',
+        helpKey: 'system.search.chunkOverlap',
+        description: '다음 청크에 이어 붙일 overlap 길이입니다.',
+        type: 'text',
+        placeholder: '200',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 0, '0 이상의 정수를 입력하세요.'),
+      },
+      {
+        key: 'system.search.summaryConcurrency',
+        label: '검색 요약 동시 처리 수',
+        helpKey: 'system.search.summaryConcurrency',
+        description: '검색 결과 요약 생성 시 동시 처리할 최대 작업 수입니다.',
+        type: 'text',
+        placeholder: '3',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 1, '1 이상의 정수를 입력하세요.'),
+      },
+    ],
+  },
+  {
+    id: 'docAssist',
+    scope: 'system',
+    jsonPath: 'system.docAssist',
+    label: 'Doc Assist',
+    icon: Bot,
+    description: 'AI 문서 작성 컨텍스트 길이와 요약 첨부 한도를 관리합니다.',
+    items: [
+      {
+        key: 'system.docAssist.maxCurrentContentChars',
+        label: '현재 문서 컨텍스트 최대 글자 수',
+        helpKey: 'system.docAssist.maxCurrentContentChars',
+        description: 'AI compose 에 전달할 현재 문서 컨텍스트 상한입니다.',
+        type: 'text',
+        placeholder: '6000',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 500, '500 이상의 정수를 입력하세요.'),
+      },
+      {
+        key: 'system.docAssist.maxTemplateChars',
+        label: '템플릿 컨텍스트 최대 글자 수',
+        helpKey: 'system.docAssist.maxTemplateChars',
+        description: 'AI compose 에 전달할 템플릿 컨텍스트 상한입니다.',
+        type: 'text',
+        placeholder: '1500',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 100, '100 이상의 정수를 입력하세요.'),
+      },
+      {
+        key: 'system.docAssist.maxSummaryFileCount',
+        label: '최대 요약 첨부 파일 수',
+        helpKey: 'system.docAssist.maxSummaryFileCount',
+        description: '요약 첨부 컨텍스트로 함께 보낼 최대 파일 수입니다.',
+        type: 'text',
+        placeholder: '2',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 1, '1 이상의 정수를 입력하세요.'),
+      },
+      {
+        key: 'system.docAssist.maxSummaryFileChars',
+        label: '요약 첨부 파일당 최대 글자 수',
+        helpKey: 'system.docAssist.maxSummaryFileChars',
+        description: '각 요약 첨부에서 AI 에 전달할 최대 글자 수입니다.',
+        type: 'text',
+        placeholder: '2000',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 100, '100 이상의 정수를 입력하세요.'),
+      },
+      {
+        key: 'system.docAssist.maxImagesPerRequest',
+        label: '요청당 최대 이미지 수',
+        helpKey: 'system.docAssist.maxImagesPerRequest',
+        description: 'AI compose 요청에 함께 보낼 최대 이미지 수입니다.',
+        type: 'text',
+        placeholder: '5',
+        coerce: toInteger,
+        validate: (value) => validatePositiveInteger(value, 1, '1 이상의 정수를 입력하세요.'),
+      },
+    ],
+  },
+  {
     id: 'templates',
     scope: 'system',
     jsonPath: 'system.templates',
-    label: 'Template',
+    label: '관리자 템플릿',
     icon: Shapes,
-    description: '전역/개인 템플릿과 폴더 구조 템플릿을 관리합니다.',
-    kind: 'templates',
+    description: '관리자 기준의 전역/개인 템플릿 관리 슬롯입니다.',
+    kind: 'custom',
+    slotKey: 'admin-templates',
     items: [],
   },
   {
@@ -287,6 +595,136 @@ export const SETTING_SECTIONS: SettingSection[] = [
     ],
   },
   {
+    id: 'm365',
+    scope: 'system',
+    jsonPath: 'system.m365',
+    label: 'M365',
+    icon: Cloud,
+    description: 'Microsoft 365 / Teams / SharePoint / SSO 연결 메타를 관리합니다. Secret/token은 env에서 관리합니다.',
+    items: [
+      {
+        key: 'system.m365.sharepoint.tenantDomain',
+        label: 'SharePoint 테넌트 도메인',
+        helpKey: 'system.m365.sharepoint.tenantDomain',
+        description: '예: contoso.sharepoint.com. 연결 메타만 저장하며 secret은 포함하지 않습니다.',
+        type: 'text',
+        placeholder: 'contoso.sharepoint.com',
+      },
+      {
+        key: 'system.m365.sharepoint.sitePath',
+        label: 'SharePoint 사이트 경로',
+        helpKey: 'system.m365.sharepoint.sitePath',
+        description: '예: /sites/dms',
+        type: 'text',
+        placeholder: '/sites/dms',
+      },
+      {
+        key: 'system.m365.sharepoint.defaultLibrary',
+        label: '기본 SharePoint 라이브러리',
+        helpKey: 'system.m365.sharepoint.defaultLibrary',
+        description: '예: shared-documents',
+        type: 'text',
+        placeholder: 'shared-documents',
+      },
+      {
+        key: 'system.m365.teams.enabled',
+        label: 'Teams 메타 설정 활성화',
+        helpKey: 'system.m365.teams.enabled',
+        description: 'Teams 연결 메타를 settings 에서 관리합니다. 실제 Teams runtime 연동은 별도 구현 범위입니다.',
+        type: 'checkbox',
+      },
+      {
+        key: 'system.m365.teams.ingestEnabled',
+        label: 'Teams ingest 메타 활성화',
+        helpKey: 'system.m365.teams.ingestEnabled',
+        description: 'Teams 채널 ingest 정책 메타를 저장합니다.',
+        type: 'checkbox',
+      },
+      {
+        key: 'system.m365.teams.defaultTeam',
+        label: '기본 Teams 팀',
+        helpKey: 'system.m365.teams.defaultTeam',
+        description: '예: DMS 운영팀',
+        type: 'text',
+        placeholder: 'DMS 운영팀',
+      },
+      {
+        key: 'system.m365.teams.defaultChannel',
+        label: '기본 Teams 채널',
+        helpKey: 'system.m365.teams.defaultChannel',
+        description: '예: documents',
+        type: 'text',
+        placeholder: 'documents',
+      },
+      {
+        key: 'system.m365.teams.defaultDropPath',
+        label: '기본 Teams drop 경로',
+        helpKey: 'system.m365.teams.defaultDropPath',
+        description: 'Teams 입력을 저장할 문서 경로 정책입니다.',
+        type: 'text',
+        placeholder: 'ingest/teams',
+      },
+      {
+        key: 'system.m365.auth.mode',
+        label: '조직 인증 모드',
+        helpKey: 'system.m365.auth.mode',
+        description: '현재는 metadata only 설정입니다. 실제 로그인 플로우는 별도 구현 범위입니다.',
+        type: 'select',
+        options: [...AUTH_MODE_OPTIONS],
+      },
+      {
+        key: 'system.m365.auth.allowedTenantIds',
+        label: '허용 테넌트 ID 목록',
+        helpKey: 'system.m365.auth.allowedTenantIds',
+        description: '쉼표로 구분해 입력합니다. 비워두면 제한을 두지 않습니다.',
+        type: 'text',
+        placeholder: 'tenant-a, tenant-b',
+        coerce: toStringArray,
+        validate: validateCommaSeparatedList,
+      },
+      {
+        key: 'system.m365.auth.allowedDomains',
+        label: '허용 도메인 목록',
+        helpKey: 'system.m365.auth.allowedDomains',
+        description: '쉼표로 구분해 입력합니다. 예: contoso.com, partner.co.kr',
+        type: 'text',
+        placeholder: 'contoso.com, partner.co.kr',
+        coerce: toStringArray,
+        validate: validateCommaSeparatedList,
+      },
+      {
+        key: 'system.m365.auth.identityMapping',
+        label: '사용자 식별자 매핑 기준',
+        helpKey: 'system.m365.auth.identityMapping',
+        description: '향후 조직 계정 연결 시 어떤 식별자를 우선 매핑할지 정의합니다.',
+        type: 'select',
+        options: [...IDENTITY_MAPPING_OPTIONS],
+      },
+    ],
+  },
+  {
+    id: 'personalTemplates',
+    scope: 'personal',
+    jsonPath: 'personal.personalTemplates',
+    label: '공개/내 템플릿',
+    icon: Shapes,
+    description: '공개 템플릿과 개인 템플릿 관리 슬롯입니다.',
+    kind: 'custom',
+    slotKey: 'personal-templates',
+    items: [],
+  },
+  {
+    id: 'myActivity',
+    scope: 'personal',
+    jsonPath: 'personal.myActivity',
+    label: '내 문서/내 활동',
+    icon: UserRound,
+    description: '내 문서와 개인 활동 현황을 위한 슬롯입니다.',
+    kind: 'custom',
+    slotKey: 'my-activity',
+    items: [],
+  },
+  {
     id: 'identity',
     scope: 'personal',
     jsonPath: 'personal.identity',
@@ -356,6 +794,70 @@ export const SETTING_SECTIONS: SettingSection[] = [
         description: '개인 작업 시 우선적으로 사용할 저장소입니다.',
         type: 'select',
         options: [...STORAGE_PROVIDER_OPTIONS],
+      },
+    ],
+  },
+  {
+    id: 'viewer',
+    scope: 'personal',
+    jsonPath: 'personal.viewer',
+    label: 'Viewer',
+    icon: FileSearch,
+    description: '문서 viewer 기본 확대 배율을 관리합니다.',
+    items: [
+      {
+        key: 'personal.viewer.defaultZoom',
+        label: '기본 확대 배율',
+        helpKey: 'personal.viewer.defaultZoom',
+        description: 'Viewer 진입 시 기본으로 적용할 확대 배율입니다.',
+        type: 'select',
+        options: [...VIEWER_ZOOM_OPTIONS],
+        coerce: toInteger,
+        validate: (value) => {
+          const zoom = Number(value);
+          if (!Number.isFinite(zoom) || !VIEWER_ZOOM_OPTIONS.some((option) => Number(option.value) === zoom)) {
+            return '지원되는 배율을 선택하세요.';
+          }
+          return null;
+        },
+      },
+    ],
+  },
+  {
+    id: 'sidebar',
+    scope: 'personal',
+    jsonPath: 'personal.sidebar',
+    label: 'Sidebar',
+    icon: PanelLeft,
+    description: '앱 진입 시 기본으로 펼칠 sidebar 섹션을 관리합니다.',
+    items: [
+      {
+        key: 'personal.sidebar.sections.bookmarks',
+        label: '북마크 섹션 기본 펼침',
+        helpKey: 'personal.sidebar.sections.bookmarks',
+        description: '앱 진입 시 bookmarks 섹션을 기본으로 펼칩니다.',
+        type: 'checkbox',
+      },
+      {
+        key: 'personal.sidebar.sections.openTabs',
+        label: '열린 탭 섹션 기본 펼침',
+        helpKey: 'personal.sidebar.sections.openTabs',
+        description: '앱 진입 시 open tabs 섹션을 기본으로 펼칩니다.',
+        type: 'checkbox',
+      },
+      {
+        key: 'personal.sidebar.sections.fileTree',
+        label: '파일 트리 섹션 기본 펼침',
+        helpKey: 'personal.sidebar.sections.fileTree',
+        description: '앱 진입 시 file tree 섹션을 기본으로 펼칩니다.',
+        type: 'checkbox',
+      },
+      {
+        key: 'personal.sidebar.sections.changes',
+        label: '변경사항 섹션 기본 펼침',
+        helpKey: 'personal.sidebar.sections.changes',
+        description: '앱 진입 시 changes 섹션을 기본으로 펼칩니다.',
+        type: 'checkbox',
       },
     ],
   },

@@ -58,14 +58,14 @@
     }
   ],
   "createdAt": "2026-03-17T09:26:10.240Z",
-  "updatedAt": "2026-03-26T04:46:09.966Z",
+  "updatedAt": "2026-04-02T02:05:25.840Z",
   "fileHashes": {
-    "content": "abb57bfb489528fb10874a1551d80a04cd86e27f83813bf2992c33832bda9505",
+    "content": "2153e446e1ecf2612d96b46e3919fff517af72180bf3710b80625454a942b2d4",
     "sources": {}
   },
   "chunkIds": [],
   "embeddingModel": "",
-  "sourceFiles": [
+  "referenceFiles": [
     {
       "name": "스크린샷 2026-03-18 082146.png",
       "path": "_assets/attachments/efc441ed93340de376b3f779d1645a19db48bdc355c8d5dec233c421773af6af.png",

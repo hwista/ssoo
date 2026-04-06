@@ -24,6 +24,7 @@
 * **web-dms:** Obsidian 스타일 새 문서 런처 페이지
 * **web-dms:** AI 요약 원클릭 플로우
 * **web-dms:** settings shell — `/settings` 탭 대신 전역 설정 모드, system/personal 설정 분리, 공용 JSON renderer/editor/diff 도입
+* **web-dms:** settings surface 확장 — storage runtime 필드(`enabled`, `webBaseUrl`), upload/search/DocAssist 정책, viewer/sidebar 개인 기본값, M365 metadata-only 설정 추가
 
 ### Improvements
 
@@ -41,6 +42,10 @@
 * **web-dms:** settings navigation section rhythm alignment — 2열 settings 구조는 유지하되, outer/inner navigation 모두 기존 sidebar의 `Section 헤더 + 목록` 위계를 더 직접적으로 재현하도록 조정
 * **web-dms:** settings navigation sidebar parity refinement — flat settings rows를 `OpenTabs`/`Bookmarks`와 같은 `gap-2`, `px-3` rhythm으로 재정렬하고, inner navigation을 detail card와 시각적으로 분리해 page 내부 sidebar처럼 읽히도록 보정
 * **web-dms:** settings navigation section reuse — outer/inner navigation header에서 실제 sidebar `Section` 컴포넌트를 재사용해 header 구조 drift를 제거
+* **web-dms:** settings navigation flat list reuse — settings 메뉴에서는 `Section`/collapse를 제거하고, `OpenTabs`/`Bookmarks`와 동일한 `FlatList`/`FlatListItem` row primitive를 공유하도록 정리
+* **web-dms:** settings navigation exact flat row render — `FlatListItem` 에서 실제 clickable element와 label span에 typography token을 직접 적용하고, `cn()`/`tailwind-merge` 가 custom `text-*` size token을 color class와 함께 제거하던 경로를 피해 settings/OpenTabs/Bookmarks가 동일 14px row render를 유지하도록 정리
+* **web-dms:** settings flat row font inheritance fix — `FlatListItem` row container가 semantic typography token을 직접 들고, settings/OpenTabs/Bookmarks가 동일한 typography inheritance 경로를 공유하도록 보정
+* **web-dms:** settings direct row button path — trailing action이 없는 outer/inner settings row를 direct button 경로로 렌더링해 두 rail의 DOM/class 경로를 다시 맞춤
 
 ### Improvements
 

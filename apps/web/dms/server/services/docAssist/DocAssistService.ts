@@ -1,5 +1,6 @@
 import { generateText, streamText, type ModelMessage, type TextPart, type FilePart } from 'ai';
 import { getChatModel } from '@/server/services/ai';
+import { configService } from '@/server/services/config/ConfigService';
 import { fileSystemService } from '@/server/services/fileSystem/FileSystemService';
 import { logger } from '@/lib/utils/errorUtils';
 import type { TemplateItem } from '@/types/template';
@@ -46,12 +47,6 @@ export interface TitleAndPathResult {
   suggestedFileName: string;
 }
 
-const MAX_CURRENT_CONTENT_CHARS = 6000;
-const MAX_TEMPLATE_CHARS = 1500;
-const MAX_SUMMARY_FILE_COUNT = 2;
-const MAX_SUMMARY_FILE_CHARS = 2000;
-const MAX_IMAGES_PER_REQUEST = 5;
-
 function tokenize(value: string): string[] {
   return value
     .toLowerCase()
@@ -94,11 +89,12 @@ function recommendPath(input: ComposeInput): string {
 }
 
 function collectImages(files: SummaryFileInput[]): FilePart[] {
+  const maxImagesPerRequest = configService.getConfig().docAssist.maxImagesPerRequest;
   const parts: FilePart[] = [];
   for (const file of files) {
     if (!file.images) continue;
     for (const img of file.images) {
-      if (parts.length >= MAX_IMAGES_PER_REQUEST) break;
+      if (parts.length >= maxImagesPerRequest) break;
       parts.push({
         type: 'file',
         data: Buffer.from(img.base64, 'base64'),
@@ -183,14 +179,17 @@ class DocAssistService {
       : /(추가|append|덧붙|이어써|하단)/.test(instructionLower)
         ? 'append'
         : 'insert';
+    const docAssistConfig = configService.getConfig().docAssist;
     const documentTemplate = (input.templates ?? []).find((item) => item.kind === 'document');
-    const boundedCurrentContent = input.currentContent.slice(0, MAX_CURRENT_CONTENT_CHARS);
+    const boundedCurrentContent = input.currentContent.slice(0, docAssistConfig.maxCurrentContentChars);
     const templateContext = documentTemplate
-      ? `${documentTemplate.name}\n${documentTemplate.content.slice(0, MAX_TEMPLATE_CHARS)}`
+      ? `${documentTemplate.name}\n${documentTemplate.content.slice(0, docAssistConfig.maxTemplateChars)}`
       : '';
-    const boundedFiles = (input.summaryFiles ?? []).slice(0, MAX_SUMMARY_FILE_COUNT);
+    const boundedFiles = (input.summaryFiles ?? []).slice(0, docAssistConfig.maxSummaryFileCount);
     const summaryContext = boundedFiles
-      .map((file, index) => `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, MAX_SUMMARY_FILE_CHARS)}`)
+      .map((file, index) => (
+        `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, docAssistConfig.maxSummaryFileChars)}`
+      ))
       .join('\n\n---\n\n');
 
     // 첨부 파일에서 이미지 수집
@@ -299,14 +298,17 @@ class DocAssistService {
       : /(추가|append|덧붙|이어써|하단)/.test(instructionLower)
         ? 'append'
         : 'insert';
+    const docAssistConfig = configService.getConfig().docAssist;
     const documentTemplate = (input.templates ?? []).find((item) => item.kind === 'document');
-    const boundedCurrentContent = input.currentContent.slice(0, MAX_CURRENT_CONTENT_CHARS);
+    const boundedCurrentContent = input.currentContent.slice(0, docAssistConfig.maxCurrentContentChars);
     const templateContext = documentTemplate
-      ? `${documentTemplate.name}\n${documentTemplate.content.slice(0, MAX_TEMPLATE_CHARS)}`
+      ? `${documentTemplate.name}\n${documentTemplate.content.slice(0, docAssistConfig.maxTemplateChars)}`
       : '';
-    const boundedFiles = (input.summaryFiles ?? []).slice(0, MAX_SUMMARY_FILE_COUNT);
+    const boundedFiles = (input.summaryFiles ?? []).slice(0, docAssistConfig.maxSummaryFileCount);
     const summaryContext = boundedFiles
-      .map((file, index) => `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, MAX_SUMMARY_FILE_CHARS)}`)
+      .map((file, index) => (
+        `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, docAssistConfig.maxSummaryFileChars)}`
+      ))
       .join('\n\n---\n\n');
     const imageParts = collectImages(boundedFiles);
     const hasImages = imageParts.length > 0;

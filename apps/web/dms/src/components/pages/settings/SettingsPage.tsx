@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, FolderOpen, RotateCcw, Shield, SlidersHorizontal } from 'lucide-react';
+import { AlertCircle, Check, FolderOpen, RotateCcw } from 'lucide-react';
 import { JsonDiffView, JsonEditor } from '@/components/common/json';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
@@ -16,9 +16,9 @@ import {
   SETTINGS_VIEW_MODE_LABELS,
   getSettingSectionsByScope,
 } from './_config/settingsPageConfig';
+import { SettingsCustomSlot } from './_components/SettingsCustomSlot';
 import { SettingsNavigation } from './_components/SettingsNavigation';
 import { SettingsFieldList } from './_components/SettingsFieldList';
-import { TemplateSection } from './_components/TemplateSection';
 import {
   buildKeyToLabelMap,
   buildSectionJsonDraft,
@@ -89,10 +89,11 @@ export function SettingsPage() {
   }, [saveSuccess]);
 
   const scopeSections = useMemo(() => getSettingSectionsByScope(activeScope), [activeScope]);
-  const scopeIcon = activeScope === 'system' ? Shield : SlidersHorizontal;
   const currentSection = useMemo(() => {
     return scopeSections.find((section) => section.id === activeSectionId) ?? scopeSections[0];
   }, [activeSectionId, scopeSections]);
+  const isCustomSection = currentSection?.kind === 'custom';
+  const isAdminTemplateSection = currentSection?.slotKey === 'admin-templates';
 
   useEffect(() => {
     if (currentSection && currentSection.id !== activeSectionId) {
@@ -101,13 +102,17 @@ export function SettingsPage() {
   }, [activeSectionId, currentSection, setSection]);
 
   useEffect(() => {
-    if (!currentSection) return;
+    if (!currentSection || isCustomSection) {
+      setJsonDraft('{}');
+      setJsonError(null);
+      return;
+    }
     setJsonDraft(buildSectionJsonDraft(localConfig, currentSection.jsonPath));
     setJsonError(null);
-  }, [currentSection, localConfig]);
+  }, [currentSection, isCustomSection, localConfig]);
 
   useEffect(() => {
-    if (!currentSection || currentSection.kind !== 'templates') return;
+    if (!currentSection || !isAdminTemplateSection) return;
     let mounted = true;
     const loadTemplates = async () => {
       setIsLoadingTemplates(true);
@@ -122,9 +127,9 @@ export function SettingsPage() {
     return () => {
       mounted = false;
     };
-  }, [currentSection]);
+  }, [currentSection, isAdminTemplateSection]);
 
-  const supportsJsonModes = currentSection?.kind !== 'templates';
+  const supportsJsonModes = !isCustomSection;
 
   useEffect(() => {
     if (!supportsJsonModes && activeViewMode !== 'structured') {
@@ -213,12 +218,14 @@ export function SettingsPage() {
 
   const handleReset = useCallback(() => {
     setLocalConfig(originalConfig);
-    if (currentSection) {
+    if (currentSection && !isCustomSection) {
       setJsonDraft(buildSectionJsonDraft(originalConfig, currentSection.jsonPath));
+    } else {
+      setJsonDraft('{}');
     }
     setJsonError(null);
     setSaveSuccess(false);
-  }, [currentSection, originalConfig]);
+  }, [currentSection, isCustomSection, originalConfig]);
 
   const handleSave = useCallback(async () => {
     if (!currentSection) return;
@@ -360,7 +367,7 @@ export function SettingsPage() {
     return actions;
   }, [activeViewMode, handleReset, handleSave, hasChanges, hasValidationErrors, isSaving, parsedJsonDraft.success, pendingLabels.length]);
 
-  const viewerRightSlot = currentSection ? (
+  const viewerRightSlot = currentSection && supportsJsonModes ? (
     <div className="flex items-center gap-2">
       {(['structured', 'json', 'diff'] as const).map((mode) => {
         if (!supportsJsonModes && mode !== 'structured') return null;
@@ -398,7 +405,6 @@ export function SettingsPage() {
       <section className="flex h-full min-h-0 gap-4 overflow-hidden">
         <SettingsNavigation
           title={SETTINGS_SCOPE_LABELS[activeScope]}
-          icon={scopeIcon}
           sections={scopeSections}
           activeSectionId={currentSection.id}
           onSelect={setSection}
@@ -445,8 +451,9 @@ export function SettingsPage() {
               <div className="flex min-h-full items-center justify-center">
                 <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
               </div>
-            ) : currentSection.kind === 'templates' ? (
-              <TemplateSection
+            ) : isCustomSection && currentSection.slotKey ? (
+              <SettingsCustomSlot
+                slotKey={currentSection.slotKey}
                 templates={templates}
                 isLoadingTemplates={isLoadingTemplates}
                 templateDraft={templateDraft}

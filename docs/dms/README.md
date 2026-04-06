@@ -54,6 +54,8 @@ docs/dms/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-06 | settings IA 슬롯 확장: 시스템에 권한/전체문서관리/전역스케줄러/템플릿 마켓/관리자 템플릿, 개인에 공개·내 템플릿/내 문서·내 활동 surface 추가 |
+| 2026-04-06 | settings surface 확장 — storage runtime 필드, upload/search/DocAssist 정책, viewer/sidebar 개인 기본값, M365 metadata-only 설정 추가 |
 | 2026-04-02 | settings shell 도입, system/personal 설정 분리, 공용 JSON renderer/editor/diff 계층 추가, 3뎁스 settings navigation 정리 |
 | 2026-03-17 | 첨부파일 섹션 구현, 파일 업로드 API (해시 기반 중복 제거), 이미지 미리보기 개선, UI 통일 |
 | 2026-02-23 | DMS 정본 경로를 `docs/dms/` 단일화하고 인덱스 구조를 PMS와 정렬 |

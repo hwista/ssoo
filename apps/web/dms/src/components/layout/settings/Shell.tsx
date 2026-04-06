@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { ComponentType, KeyboardEvent } from 'react';
-import { ArrowLeft, FolderTree, Shield, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, Shield, SlidersHorizontal } from 'lucide-react';
 import { SettingsPage } from '@/components/pages/settings/SettingsPage';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,8 @@ import {
 } from '@/components/pages/settings/_config/settingsPageConfig';
 import type { SettingsScope } from '@/types/settings';
 import { UserMenu } from '../UserMenu';
+import { FlatList, FlatListItem } from '../sidebar/FlatList';
 import { SearchInput } from '../sidebar/SearchInput';
-import { Section } from '../sidebar/Section';
 
 interface SettingsShellSidebarProps {
   isCompactMode?: boolean;
@@ -47,7 +47,6 @@ export function SettingsShellSidebar({
   const { activeScope, activeSectionId, exitSettings, openSection, setScope } = useSettingsShellStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isScopeMenuExpanded, setIsScopeMenuExpanded] = useState(true);
 
   const canManageSystem = Boolean(access?.canManageSystem ?? true);
   const canManagePersonal = Boolean(access?.canManagePersonal ?? true);
@@ -179,51 +178,29 @@ export function SettingsShellSidebar({
       </div>
 
       <ScrollArea variant="sidebar" className="flex-1">
-        <Section
-          title="설정 메뉴"
-          icon={FolderTree}
-          isExpanded={isScopeMenuExpanded}
-          onToggle={() => setIsScopeMenuExpanded((prev) => !prev)}
-        >
-          <nav className="space-y-0.5 py-1" aria-label="설정 범위">
-            {(['system', 'personal'] as const).map((scope) => {
-              const { title, icon: ScopeIcon } = SCOPE_META[scope];
-              const isDisabled = !scopePermissions[scope];
-              const isActive = activeScope === scope;
+        <FlatList as="nav" ariaLabel="설정 범위" className="py-2">
+          {(['system', 'personal'] as const).map((scope) => {
+            const { title, icon: ScopeIcon } = SCOPE_META[scope];
+            const isDisabled = !scopePermissions[scope];
+            const isActive = activeScope === scope;
 
-              return (
-                <button
-                  key={scope}
-                  type="button"
-                  disabled={isDisabled}
-                  onClick={() => {
-                    setScope(scope);
-                    if (isCompactMode) {
-                      onClose?.();
-                    }
-                  }}
-                  className={cn(
-                    'group flex h-control-h w-full cursor-pointer items-center gap-2 rounded-md px-3 text-left text-body-sm transition-colors',
-                    isActive
-                      ? 'bg-ssoo-content-border text-label-md text-ssoo-primary'
-                      : 'text-gray-700 hover:bg-ssoo-sitemap-bg',
-                    isDisabled && 'cursor-not-allowed opacity-50'
-                  )}
-                >
-                  <ScopeIcon
-                    className={cn(
-                      'h-4 w-4 shrink-0',
-                      isActive ? 'text-ssoo-primary' : 'text-gray-500'
-                    )}
-                  />
-                  <span className={cn('flex-1 truncate', isActive ? 'text-ssoo-primary' : 'text-gray-700')}>
-                    {title}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-        </Section>
+            return (
+              <FlatListItem
+                key={scope}
+                icon={ScopeIcon}
+                label={title}
+                active={isActive}
+                disabled={isDisabled}
+                onSelect={() => {
+                  setScope(scope);
+                  if (isCompactMode) {
+                    onClose?.();
+                  }
+                }}
+              />
+            );
+          })}
+        </FlatList>
       </ScrollArea>
     </aside>
   );

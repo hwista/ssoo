@@ -1,6 +1,34 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-04-02
+> 최종 업데이트: 2026-04-06
+
+---
+
+## 2026-04-06
+
+### Settings IA 슬롯 확장
+
+- settings registry를 custom slot 확장형으로 열어, JSON 필드 기반 섹션 외에 placeholder/custom surface를 같은 경로에서 렌더링할 수 있도록 정리
+- system scope에 `문서/폴더 권한`, `전체 문서/폴더 관리`, `문서 품질/스케줄러`, `템플릿 마켓`, `관리자 템플릿` 항목을 추가
+- personal scope에 `공개/내 템플릿`, `내 문서/내 활동` 항목을 추가
+- 기존 템플릿 관리 surface는 `관리자 템플릿` 항목으로 재배치하고, 나머지 신규 항목은 다음 단계 연결 포인트가 보이는 placeholder surface로 먼저 노출
+
+### Settings surface 확장
+
+- settings registry 를 `Git / Storage / Ingest / Uploads / Search / Doc Assist / Extraction / M365 / Identity / Workspace / Viewer / Sidebar` 범위로 확장
+- storage 는 기존 `defaultProvider/basePath` 외에 provider별 `enabled`, `webBaseUrl` 도 settings 에서 직접 관리하도록 정리
+- upload / search / DocAssist 관련 한도를 `dms.config` 기반 settings 로 승격해 실제 runtime consumer 와 연결
+- viewer 기본 확대 배율, sidebar 기본 펼침 섹션을 personal settings 로 승격하고 app shell startup 시 적용되도록 정리
+- M365 / Teams / SharePoint / SSO 는 **metadata only settings** 로 추가하고, secret / token / certificate 는 env-runtime 계층에 남기는 경계를 고정
+
+### Settings flat row font inheritance fix
+
+- production build 산출물 기준으로 `text-label-md`, `text-body-sm`, `text-control-lg` semantic typography token이 실제 CSS로 정상 생성됨을 재확인
+- 남아 있던 16px drift는 token 미생성이 아니라 `FlatListItem` row/container typography inheritance 경로 안정성 문제로 판단
+- `FlatListItem` row container가 semantic typography token을 직접 들고, label span은 truncate 중심으로 inherit 하도록 정리
+- 후속 확인에서 `cn()` 내부 `tailwind-merge` 가 custom `text-body-sm` / `text-label-md` 를 `text-ssoo-primary` / `text-gray-700` 과 같은 color utility 와 충돌로 보고 제거하던 점을 확인해, typography token은 merge 대상 밖으로 분리
+- 미사용 `CategoryNav` 를 제거해 settings navigation의 단일 render path를 고정
+- 추가 보정으로 trailing action이 없는 settings rail row는 direct button path로 렌더링해 outer/inner rail이 같은 DOM/class 경로를 타도록 재정렬
 
 ---
 
@@ -66,6 +94,18 @@
 - outer scope selector와 inner section navigation 모두 `gap-2`, `px-3` 기준의 flat sidebar row spacing으로 재정렬
 - `SettingsPage` 내부에서 좌측 navigation을 우측 detail card와 시각적으로 분리해, page 내부의 또 다른 sidebar rail처럼 읽히도록 보정
 - 마지막으로 outer/inner navigation header 모두 실제 sidebar `Section` 컴포넌트를 재사용하도록 바꿔, section header 구조 자체의 drift를 제거
+
+### Settings navigation flat list 공용화
+
+- 사용자 피드백을 반영해 settings 메뉴는 flat IA 이므로 `Section` / collapse UI 자체가 불필요하다는 기준으로 다시 정리
+- `layout/sidebar/FlatList.tsx` 에 `FlatList`, `FlatListItem` primitive를 추가해 `OpenTabs`, `Bookmarks`, settings outer scope menu, inner section navigation이 동일 row 컴포넌트를 공유하도록 통합
+- settings 에서는 row rhythm만 공유하고, 실제 컨텐츠/행동은 settings 전용 props 와 slot 구조로 유지
+
+### Settings flat row exact render 정렬
+
+- 사용자 DevTools 비교 기준으로 settings label 이 16px, 기존 sidebar 기준 label 이 14px 로 다르게 렌더링되는 문제를 재확인
+- `FlatListItem` 의 typography 적용을 wrapper 상속에서 실제 clickable element / label span 직접 적용 방식으로 변경
+- trailing action wrapper 를 제거해 `OpenTabs`, `Bookmarks`, settings 메뉴가 동일 flat row DOM 구조를 공유하도록 정리
 
 ---
 

@@ -92,9 +92,12 @@ src/components/layout/
 AppLayout
 ├── Sidebar
 │   ├── Section
+│   ├── FlatList
 │   ├── Bookmarks
+│   │   ├── FlatListItem
 │   │   └── 파일 스토어 의존
 │   ├── OpenTabs
+│   │   ├── FlatListItem
 │   │   └── 탭 스토어 의존
 │   ├── FileTree
 │   │   └── 파일 스토어 의존
@@ -123,6 +126,8 @@ AppLayout
 | `Bookmarks` | useFileStore |
 | `OpenTabs` | useTabStore |
 | `Search` | useSidebarStore |
+
+- `FlatList`, `FlatListItem` 은 store를 직접 가지지 않는 layout primitive이며, sidebar row rhythm을 settings navigation과도 공유합니다.
 
 ---
 

@@ -2,14 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import { LIMITS } from '@/lib/constants/common';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
+import { configService } from '@/server/services/config/ConfigService';
 import type { AiContextOptions, HandlerResult, SearchResponse, SearchResultItem } from '@/server/services/ai/types';
 import { getRootDir, listMarkdownFiles, resolveAbsolutePath, resolveDocumentPresentation, toRelativePath } from './paths';
 import { tokenizeQuery } from './query';
 import { buildSearchResponse } from './response';
 import { buildAiOneLineSummary, buildAutoSummary, mapWithConcurrency } from './summary';
 import { buildExcerpt, buildPreviewSnippets, extractTitle, toOneLineDescription } from './text';
-
-const SEARCH_SUMMARY_CONCURRENCY = 3;
 
 export async function searchDocumentsKeyword(
   query: string,
@@ -22,6 +21,7 @@ export async function searchDocumentsKeyword(
   }
 
   try {
+    const searchConfig = configService.getConfig().search;
     const normalizedQuery = query.trim();
     const lowerQuery = normalizedQuery.toLowerCase();
     const terms = tokenizeQuery(normalizedQuery);
@@ -66,10 +66,10 @@ export async function searchDocumentsKeyword(
     }
 
     results.sort((a, b) => b.score - a.score);
-    const limitedResults = results.slice(0, LIMITS.MAX_SEARCH_RESULTS);
+    const limitedResults = results.slice(0, searchConfig.maxResults);
     const finalizedResults = await mapWithConcurrency(
       limitedResults,
-      SEARCH_SUMMARY_CONCURRENCY,
+      searchConfig.summaryConcurrency,
       async (item) => {
         try {
           const fullPath = resolveAbsolutePath(item.path);

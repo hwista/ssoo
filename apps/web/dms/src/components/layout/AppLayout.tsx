@@ -25,11 +25,14 @@ const DOCUMENT_MIN_WIDTH = 975;
  * 내부 탭 기반 화면 전환은 ContentArea가 담당한다.
  */
 export function AppLayout() {
+  const sidebarSections = React.useMemo(() => ['bookmarks', 'openTabs', 'fileTree', 'changes'] as const, []);
   const { deviceType } = useLayoutStore();
-  const { isCompactMode, sidebarOpen, setCompactMode, toggleSidebar, setSidebarOpen } = useSidebarStore();
+  const { isCompactMode, sidebarOpen, setCompactMode, toggleSidebar, setSidebarOpen, setExpandedSections } = useSidebarStore();
   const isSettingsShellActive = useSettingsShellStore((state) => state.isActive);
   const applyWorkspacePreferences = useSettingsShellStore((state) => state.applyWorkspacePreferences);
   const settingsConfig = useSettingsStore((state) => state.config);
+  const isSettingsLoaded = useSettingsStore((state) => state.isLoaded);
+  const loadSettings = useSettingsStore((state) => state.loadSettings);
 
   // 컨텐츠 영역 크기 측정
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -50,10 +53,24 @@ export function AppLayout() {
   }, [setCompactMode]);
 
   React.useEffect(() => {
+    if (isSettingsLoaded) return;
+    void loadSettings();
+  }, [isSettingsLoaded, loadSettings]);
+
+  React.useEffect(() => {
     const workspace = settingsConfig?.personal.workspace;
     if (!workspace) return;
     applyWorkspacePreferences(workspace);
   }, [applyWorkspacePreferences, settingsConfig]);
+
+  React.useEffect(() => {
+    const sections = settingsConfig?.personal.sidebar?.sections;
+    if (!sections) return;
+
+    const nextExpandedSections = sidebarSections.filter((section) => sections[section]);
+
+    setExpandedSections([...nextExpandedSections]);
+  }, [setExpandedSections, settingsConfig, sidebarSections]);
 
   // 모바일은 별도 UI (추후 개발)
   if (deviceType === 'mobile') {

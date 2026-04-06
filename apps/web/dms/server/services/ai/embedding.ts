@@ -6,13 +6,17 @@
 import { embedMany, embed } from 'ai';
 import { getEmbeddingModel } from './provider';
 import { getPool } from '../db';
+import { configService } from '@/server/services/config/ConfigService';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 
 /**
  * 텍스트를 청크로 분할
  * 간단한 단락 기반 분할 (향후 개선 가능)
  */
-export function chunkText(text: string, maxChunkSize = 1000, overlap = 200): string[] {
+export function chunkText(text: string, maxChunkSize?: number, overlap?: number): string[] {
+  const searchConfig = configService.getConfig().search;
+  const resolvedMaxChunkSize = maxChunkSize ?? searchConfig.chunkSize;
+  const resolvedOverlap = overlap ?? searchConfig.chunkOverlap;
   const paragraphs = text.split(/\n\n+/);
   const chunks: string[] = [];
   let currentChunk = '';
@@ -21,10 +25,10 @@ export function chunkText(text: string, maxChunkSize = 1000, overlap = 200): str
     const trimmed = paragraph.trim();
     if (!trimmed) continue;
 
-    if (currentChunk.length + trimmed.length > maxChunkSize && currentChunk.length > 0) {
+    if (currentChunk.length + trimmed.length > resolvedMaxChunkSize && currentChunk.length > 0) {
       chunks.push(currentChunk.trim());
       // 오버랩: 마지막 overlap 글자를 다음 청크에 포함
-      const overlapText = currentChunk.slice(-overlap);
+      const overlapText = currentChunk.slice(-resolvedOverlap);
       currentChunk = overlapText + '\n\n' + trimmed;
     } else {
       currentChunk += (currentChunk ? '\n\n' : '') + trimmed;
@@ -107,8 +111,8 @@ export async function upsertDocumentEmbeddings(
  */
 export async function searchSimilarDocuments(
   queryEmbedding: number[],
-  limit = 5,
-  threshold = 0.7
+  limit?: number,
+  threshold?: number
 ): Promise<Array<{
   filePath: string;
   chunkIndex: number;
@@ -117,6 +121,9 @@ export async function searchSimilarDocuments(
   similarity: number;
   metadata: Record<string, unknown>;
 }>> {
+  const searchConfig = configService.getConfig().search;
+  const resolvedLimit = limit ?? searchConfig.maxResults;
+  const resolvedThreshold = threshold ?? searchConfig.semanticThreshold;
   const pool = getPool();
   const vectorStr = `[${queryEmbedding.join(',')}]`;
 
@@ -128,7 +135,7 @@ export async function searchSimilarDocuments(
      WHERE 1 - (embedding <=> $1::vector) > $2
      ORDER BY embedding <=> $1::vector
      LIMIT $3`,
-    [vectorStr, threshold, limit]
+    [vectorStr, resolvedThreshold, resolvedLimit]
   );
 
   return result.rows.map((row) => ({

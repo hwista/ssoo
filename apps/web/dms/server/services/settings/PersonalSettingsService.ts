@@ -22,9 +22,26 @@ export interface PersonalWorkspaceSettings {
   preferredStorageProvider: StorageProvider | 'system-default';
 }
 
+export interface PersonalViewerSettings {
+  defaultZoom: number;
+}
+
+export interface PersonalSidebarSectionsSettings {
+  bookmarks: boolean;
+  openTabs: boolean;
+  fileTree: boolean;
+  changes: boolean;
+}
+
+export interface PersonalSidebarSettings {
+  sections: PersonalSidebarSectionsSettings;
+}
+
 export interface DmsPersonalSettings {
   identity: PersonalIdentitySettings;
   workspace: PersonalWorkspaceSettings;
+  viewer: PersonalViewerSettings;
+  sidebar: PersonalSidebarSettings;
 }
 
 const PERSONAL_SETTINGS_FILE = 'dms.personal.config.json';
@@ -123,6 +140,17 @@ class PersonalSettingsService {
         defaultSettingsView: 'structured',
         showDiffByDefault: false,
         preferredStorageProvider: 'system-default',
+      },
+      viewer: {
+        defaultZoom: 100,
+      },
+      sidebar: {
+        sections: {
+          bookmarks: true,
+          openTabs: false,
+          fileTree: true,
+          changes: false,
+        },
       },
     };
   }

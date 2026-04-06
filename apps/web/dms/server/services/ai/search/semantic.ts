@@ -3,14 +3,13 @@ import path from 'path';
 import { LIMITS } from '@/lib/constants/common';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 import { embedQuery, searchSimilarDocuments } from '@/server/services/ai/embedding';
+import { configService } from '@/server/services/config/ConfigService';
 import type { AiContextOptions, HandlerResult, SearchResponse, SearchResultItem } from '@/server/services/ai/types';
 import { resolveAbsolutePath, resolveDocumentPresentation, toDisplayPath } from './paths';
 import { tokenizeQuery } from './query';
 import { buildSearchResponse } from './response';
 import { buildAiOneLineSummary, buildAutoSummary, mapWithConcurrency } from './summary';
 import { buildPreviewSnippets, stripMarkdown, toOneLineDescription } from './text';
-
-const SEARCH_SUMMARY_CONCURRENCY = 3;
 
 export async function searchDocumentsSemantic(
   query: string,
@@ -24,8 +23,13 @@ export async function searchDocumentsSemantic(
 
   try {
     const terms = tokenizeQuery(query);
+    const searchConfig = configService.getConfig().search;
     const queryEmbedding = await embedQuery(query);
-    const semanticResults = await searchSimilarDocuments(queryEmbedding, LIMITS.MAX_SEARCH_RESULTS, 0.5);
+    const semanticResults = await searchSimilarDocuments(
+      queryEmbedding,
+      searchConfig.maxResults,
+      searchConfig.semanticThreshold
+    );
 
     const results: SearchResultItem[] = semanticResults.map((doc, index) => {
       const displayPath = toDisplayPath(doc.filePath);
@@ -61,7 +65,7 @@ export async function searchDocumentsSemantic(
 
     const finalizedResults = await mapWithConcurrency(
       results,
-      SEARCH_SUMMARY_CONCURRENCY,
+      searchConfig.summaryConcurrency,
       async (item) => {
         try {
           const fullPath = resolveAbsolutePath(item.path);

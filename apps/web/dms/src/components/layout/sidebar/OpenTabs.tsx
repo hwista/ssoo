@@ -2,6 +2,7 @@
 
 import { FileText, X } from 'lucide-react';
 import { useTabStore, HOME_TAB } from '@/stores';
+import { FlatList, FlatListItem } from './FlatList';
 
 /**
  * 사이드바 현재 열린 페이지 목록
@@ -25,40 +26,34 @@ export function OpenTabs() {
   }
 
   return (
-    <div className="space-y-0.5">
+    <FlatList>
       {openTabs.map((tab) => {
         const isActive = tab.id === activeTabId;
 
         return (
-          <div
+          <FlatListItem
             key={tab.id}
-            className={`group flex h-control-h w-full items-center gap-2 rounded-md px-3 text-body-sm transition-colors ${
-              isActive
-                ? 'bg-ssoo-content-border text-label-md text-ssoo-primary'
-                : 'text-gray-700 hover:bg-ssoo-sitemap-bg'
-            }`}
-          >
-            <button
-              onClick={() => activateTab(tab.id)}
-              className="flex items-center gap-2 flex-1 min-w-0"
-            >
-              <FileText className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
-              <span className="truncate">{tab.title}</span>
-            </button>
-            {tab.closable && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  closeTab(tab.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 h-control-h-sm w-control-h-sm flex items-center justify-center hover:bg-gray-200 rounded transition-opacity"
-              >
-                <X className="w-3 h-3 text-gray-500" />
-              </button>
-            )}
-          </div>
+            icon={FileText}
+            label={tab.title}
+            active={isActive}
+            onSelect={() => activateTab(tab.id)}
+            trailingAction={
+              tab.closable ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeTab(tab.id);
+                  }}
+                  className="h-control-h-sm w-control-h-sm opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100 rounded flex items-center justify-center"
+                >
+                  <X className="w-3 h-3 text-gray-500" />
+                </button>
+              ) : null
+            }
+          />
         );
       })}
-    </div>
+    </FlatList>
   );
 }

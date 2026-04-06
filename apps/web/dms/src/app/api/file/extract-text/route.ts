@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import path from 'node:path';
 import { extractTextFromFile } from '@/server/services/file/textExtractor';
 import { logger } from '@/lib/utils';
-import { ATTACHMENT_ALLOWED_EXTENSIONS, ATTACHMENT_MAX_SIZE } from '@/lib/constants/file';
+import { configService } from '@/server/services/config/ConfigService';
+import { ATTACHMENT_ALLOWED_EXTENSIONS } from '@/lib/constants/file';
 
 /**
  * POST /api/file/extract-text
@@ -11,6 +12,8 @@ import { ATTACHMENT_ALLOWED_EXTENSIONS, ATTACHMENT_MAX_SIZE } from '@/lib/consta
  */
 export async function POST(req: Request) {
   try {
+    const attachmentMaxSizeMb = configService.getConfig().uploads.attachmentMaxSizeMb;
+    const attachmentMaxSize = attachmentMaxSizeMb * 1024 * 1024;
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
 
@@ -26,9 +29,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (file.size > ATTACHMENT_MAX_SIZE) {
+    if (file.size > attachmentMaxSize) {
       return NextResponse.json(
-        { error: '파일 크기는 20MB 이하여야 합니다.' },
+        { error: `파일 크기는 ${attachmentMaxSizeMb}MB 이하여야 합니다.` },
         { status: 400 },
       );
     }

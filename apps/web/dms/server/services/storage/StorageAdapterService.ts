@@ -84,13 +84,15 @@ class StorageAdapterService {
 
   private buildOpenUrl(provider: StorageProvider, targetPath: string, webBaseUrl?: string): string {
     const encodedPath = encodeURIComponent(targetPath.replace(/\\/g, '/'));
-    if (provider === 'local') {
-      return `/api/storage/open?provider=${provider}&path=${encodedPath}`;
-    }
     if (webBaseUrl) {
       const normalized = webBaseUrl.replace(/\/$/, '');
       return `${normalized}/${targetPath.replace(/^\/+/, '')}`;
     }
+
+    if (provider === 'local') {
+      return `/api/storage/open?provider=${provider}&path=${encodedPath}`;
+    }
+
     return `/api/storage/open?provider=${provider}&path=${encodedPath}`;
   }
 

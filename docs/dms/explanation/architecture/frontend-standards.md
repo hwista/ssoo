@@ -1,6 +1,6 @@
 # DMS 프론트엔드 표준
 
-> 최종 업데이트: 2026-03-11
+> 최종 업데이트: 2026-04-06
 
 DMS 프론트엔드 개발 시 준수해야 할 표준 구조와 패턴을 정의합니다.
 
@@ -70,6 +70,7 @@ layout/
 ├── ContentArea.tsx     # keep-alive 탭 렌더링 coordinator
 ├── sidebar/
 │   ├── Sidebar.tsx     # 사이드바 컨테이너
+│   ├── FlatList.tsx    # flat row list primitive
 │   ├── Section.tsx     # 접이식 섹션
 │   ├── Bookmarks.tsx   # 북마크 섹션
 │   ├── OpenTabs.tsx    # 열린 탭 섹션
@@ -84,12 +85,26 @@ layout/
 
 | 컴포넌트 | 역할 |
 |----------|------|
-| `AppLayout` | 전체 레이아웃 구성, 컴팩트 모드 관리 |
+| `AppLayout` | 전체 레이아웃 구성, 컴팩트 모드 관리, settings snapshot preload 및 개인 shell preference 적용 |
 | `Header` | 전역 상단 shell 제어 |
 | `TabBar` | 탭 목록 표시, 탭 전환/닫기 |
 | `ContentArea` | 열린 탭의 keep-alive 렌더링 및 페이지 lazy mount |
 | `Sidebar` | 사이드바 컨테이너, 리사이즈 |
 | `FileTree` | 파일 시스템 트리 표시, 파일 열기 |
+
+---
+
+## Settings shell / 설정 surface
+
+DMS settings 는 별도 라우트 페이지가 아니라 `AppLayout` 내부 shell mode 로 동작하며, 설정 데이터는 `useSettingsStore` snapshot 을 기준으로 읽고 저장합니다.
+
+현재 구조 기준:
+
+- settings snapshot 은 app shell 에서 선로딩되어 workspace / sidebar / viewer 기본 선호값과 자연스럽게 연결됩니다.
+- structured settings registry 는 `settingsPageConfig.ts` 를 정본으로 사용합니다.
+- system settings surface 는 `git`, `storage`, `ingest`, `uploads`, `search`, `docAssist`, `extraction`, `m365`, `templates` 를 다룹니다.
+- personal settings surface 는 `identity`, `workspace`, `viewer`, `sidebar` 를 다룹니다.
+- M365 / Teams / SharePoint / SSO 항목은 **metadata only settings** 로 취급하며, secret / token / certificate 는 env-runtime 계층에 남깁니다.
 
 ---
 

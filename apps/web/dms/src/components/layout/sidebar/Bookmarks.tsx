@@ -3,6 +3,7 @@
 import { FileText, X } from 'lucide-react';
 import { useTabStore, useFileStore } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
+import { FlatList, FlatListItem } from './FlatList';
 
 /**
  * 사이드바 책갈피 목록
@@ -39,36 +40,32 @@ export function Bookmarks() {
   };
 
   return (
-    <div className="space-y-0.5">
+    <FlatList>
       {bookmarks.map((bookmark) => {
         const isActive = bookmark.id === activeTabId;
 
         return (
-          <div
+          <FlatListItem
             key={bookmark.id}
-            className={`flex h-control-h w-full items-center gap-2 rounded-md px-3 text-body-sm transition-colors group ${
-              isActive
-                ? 'bg-ssoo-content-border text-label-md text-ssoo-primary'
-                : 'text-gray-700 hover:bg-ssoo-sitemap-bg'
-            }`}
-          >
-            <button
-              onClick={() => handleClick(bookmark)}
-              className="flex items-center gap-2 flex-1 min-w-0"
-            >
-              <FileText className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
-              <span className="truncate">{bookmark.title}</span>
-            </button>
-            <button
-              onClick={(e) => handleRemove(e, bookmark.id)}
-              className="opacity-0 group-hover:opacity-100 h-control-h-sm w-control-h-sm flex items-center justify-center hover:bg-gray-200 rounded transition-opacity flex-shrink-0"
-              title="책갈피 해제"
-            >
-              <X className="w-3 h-3 text-gray-500" />
-            </button>
-          </div>
+            icon={FileText}
+            label={bookmark.title}
+            active={isActive}
+            onSelect={() => {
+              void handleClick(bookmark);
+            }}
+            trailingAction={
+              <button
+                type="button"
+                onClick={(e) => handleRemove(e, bookmark.id)}
+                className="h-control-h-sm w-control-h-sm flex-shrink-0 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100 rounded flex items-center justify-center"
+                title="책갈피 해제"
+              >
+                <X className="w-3 h-3 text-gray-500" />
+              </button>
+            }
+          />
         );
       })}
-    </div>
+    </FlatList>
   );
 }

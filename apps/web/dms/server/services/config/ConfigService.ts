@@ -64,11 +64,66 @@ export interface ExtractionConfig {
   pdfRenderScale: number;
 }
 
+export interface UploadConfig {
+  attachmentMaxSizeMb: number;
+  imageMaxSizeMb: number;
+}
+
+export interface SearchConfig {
+  maxResults: number;
+  semanticThreshold: number;
+  chunkSize: number;
+  chunkOverlap: number;
+  summaryConcurrency: number;
+}
+
+export interface DocAssistConfig {
+  maxCurrentContentChars: number;
+  maxTemplateChars: number;
+  maxSummaryFileCount: number;
+  maxSummaryFileChars: number;
+  maxImagesPerRequest: number;
+}
+
+export type M365AuthMode = 'anonymous-first' | 'organization-sso';
+export type M365IdentityMapping = 'mail' | 'userPrincipalName' | 'displayName';
+
+export interface M365SharePointConfig {
+  tenantDomain: string;
+  sitePath: string;
+  defaultLibrary: string;
+}
+
+export interface M365TeamsConfig {
+  enabled: boolean;
+  ingestEnabled: boolean;
+  defaultTeam: string;
+  defaultChannel: string;
+  defaultDropPath: string;
+}
+
+export interface M365AuthConfig {
+  mode: M365AuthMode;
+  allowedTenantIds: string[];
+  allowedDomains: string[];
+  identityMapping: M365IdentityMapping;
+}
+
+export interface M365Config {
+  sharepoint: M365SharePointConfig;
+  teams: M365TeamsConfig;
+  auth: M365AuthConfig;
+}
+
 export interface DmsConfig {
   git: GitConfig;
   storage: StorageConfig;
   ingest: IngestConfig;
   extraction: ExtractionConfig;
+  uploads: UploadConfig;
+  search: SearchConfig;
+  docAssist: DocAssistConfig;
+  m365: M365Config;
 }
 
 export type DeepPartial<T> = {
@@ -217,6 +272,44 @@ class ConfigService {
         maxImageSizeMb: 1,
         pdfMaxRenderPages: 3,
         pdfRenderScale: 1.0,
+      },
+      uploads: {
+        attachmentMaxSizeMb: 20,
+        imageMaxSizeMb: 10,
+      },
+      search: {
+        maxResults: 100,
+        semanticThreshold: 0.5,
+        chunkSize: 1000,
+        chunkOverlap: 200,
+        summaryConcurrency: 3,
+      },
+      docAssist: {
+        maxCurrentContentChars: 6000,
+        maxTemplateChars: 1500,
+        maxSummaryFileCount: 2,
+        maxSummaryFileChars: 2000,
+        maxImagesPerRequest: 5,
+      },
+      m365: {
+        sharepoint: {
+          tenantDomain: '',
+          sitePath: '/sites/dms',
+          defaultLibrary: 'shared-documents',
+        },
+        teams: {
+          enabled: false,
+          ingestEnabled: false,
+          defaultTeam: '',
+          defaultChannel: '',
+          defaultDropPath: '',
+        },
+        auth: {
+          mode: 'anonymous-first',
+          allowedTenantIds: [],
+          allowedDomains: [],
+          identityMapping: 'mail',
+        },
       },
     };
   }

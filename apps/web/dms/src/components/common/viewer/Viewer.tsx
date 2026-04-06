@@ -9,6 +9,7 @@ import { SectionedShell } from '@/components/templates/page-frame';
 import { useViewerSearch } from './runtime/useViewerSearch';
 import { findTocTarget, getNearestZoomIndex } from './runtime/viewerUtils';
 import type { ViewerSearchControls, ViewerTocControls, ViewerZoomControls } from './toolbar/toolbarTypes';
+import { useSettingsStore } from '@/stores';
 
 type ViewerVariant = 'standalone' | 'embedded';
 
@@ -69,7 +70,9 @@ export function Viewer({
 }: ViewerProps) {
   void _showContentSurface;
 
+  const defaultZoom = useSettingsStore((state) => state.config?.personal.viewer.defaultZoom ?? DEFAULT_ZOOM);
   const [zoomLevel, setZoomLevel] = React.useState(DEFAULT_ZOOM);
+  const hasAdjustedZoomRef = React.useRef(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const {
     searchQuery,
@@ -85,7 +88,14 @@ export function Viewer({
 
   const displayContent = highlightedContent ?? content;
 
+  React.useEffect(() => {
+    if (!hasAdjustedZoomRef.current) {
+      setZoomLevel(defaultZoom);
+    }
+  }, [defaultZoom]);
+
   const handleZoomIn = React.useCallback(() => {
+    hasAdjustedZoomRef.current = true;
     setZoomLevel((prev) => {
       const currentIndex = getNearestZoomIndex(ZOOM_LEVELS, prev);
       if (currentIndex < ZOOM_LEVELS.length - 1) {
@@ -96,6 +106,7 @@ export function Viewer({
   }, []);
 
   const handleZoomOut = React.useCallback(() => {
+    hasAdjustedZoomRef.current = true;
     setZoomLevel((prev) => {
       const currentIndex = getNearestZoomIndex(ZOOM_LEVELS, prev);
       if (currentIndex > 0) {
@@ -106,8 +117,9 @@ export function Viewer({
   }, []);
 
   const handleZoomReset = React.useCallback(() => {
-    setZoomLevel(DEFAULT_ZOOM);
-  }, []);
+    hasAdjustedZoomRef.current = true;
+    setZoomLevel(defaultZoom);
+  }, [defaultZoom]);
 
   const handleTocClick = React.useCallback((id: string) => {
     onTocClick?.(id);
