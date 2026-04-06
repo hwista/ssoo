@@ -5,8 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 GITLAB_URL_DEFAULT="http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git"
-GITLAB_BRANCH_DEFAULT="refactor/integration"
-TMP_REMOTE_REF_DEFAULT="refs/remotes/tmp/lswiki-refactor-integration"
+GITLAB_BRANCH_DEFAULT="dms/refactor/integration"
+TMP_REMOTE_REF_DEFAULT="refs/remotes/tmp/lswiki-dms-refactor-integration"
 DMS_PREFIX="apps/web/dms"
 
 TARGET_BRANCH_ARG="${1:-}"
@@ -51,6 +51,15 @@ gitlab_git() {
 
 LOCAL_SPLIT_HASH="$(git subtree split --prefix="$DMS_PREFIX" HEAD | tail -n 1)"
 
+echo "[dms-publish] GitHub target branch:  $TARGET_BRANCH"
+echo "[dms-publish] GitLab subtree branch: $GITLAB_BRANCH"
+echo "[dms-publish] temporary fetch ref:   $TMP_REMOTE_REF"
+
+if [ "$TARGET_BRANCH" != "$GITLAB_BRANCH" ]; then
+  echo "[dms-publish] notice: GitHub target branch and GitLab subtree branch differ."
+  echo "[dms-publish]         ensure this is intentional or set DMS_GITLAB_BRANCH explicitly."
+fi
+
 echo "[dms-publish] 1/6 inspect GitLab subtree branch: $GITLAB_BRANCH"
 REMOTE_INFO="$(gitlab_git ls-remote --heads "$GITLAB_URL" "$GITLAB_BRANCH")"
 REMOTE_HASH=""
@@ -66,6 +75,7 @@ if [ -n "$REMOTE_INFO" ]; then
     echo "[dms-publish] local split:  $LOCAL_SPLIT_HASH"
     echo "[dms-publish] remote head:  $REMOTE_HASH"
     echo "[dms-publish] run: pnpm run codex:dms-sync-from-gitlab"
+    echo "[dms-publish] override GitLab branch if needed: DMS_GITLAB_BRANCH=<branch> pnpm run codex:dms-sync-from-gitlab"
     echo "[dms-publish] after syncing GitLab subtree back into the monorepo, re-run publish."
     exit 1
   fi

@@ -5,8 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 GITLAB_URL_DEFAULT="http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git"
-GITLAB_BRANCH_DEFAULT="refactor/integration"
-TMP_REMOTE_REF_DEFAULT="refs/remotes/tmp/lswiki-refactor-integration"
+GITLAB_BRANCH_DEFAULT="dms/refactor/integration"
+TMP_REMOTE_REF_DEFAULT="refs/remotes/tmp/lswiki-dms-refactor-integration"
 DMS_PREFIX="apps/web/dms"
 
 GITLAB_URL="${DMS_GITLAB_URL:-$GITLAB_URL_DEFAULT}"
@@ -38,6 +38,8 @@ gitlab_git() {
   git -c http.extraHeader="Authorization: Basic $AUTH" "$@"
 }
 
+echo "[dms-sync] GitLab subtree branch: $GITLAB_BRANCH"
+echo "[dms-sync] temporary fetch ref:   $TMP_REMOTE_REF"
 echo "[dms-sync] 1/4 inspect GitLab subtree branch: $GITLAB_BRANCH"
 REMOTE_INFO="$(gitlab_git ls-remote --heads "$GITLAB_URL" "$GITLAB_BRANCH")"
 if [ -z "$REMOTE_INFO" ]; then
