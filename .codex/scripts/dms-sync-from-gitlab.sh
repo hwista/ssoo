@@ -41,7 +41,7 @@ gitlab_git() {
 echo "[dms-sync] GitLab subtree branch: $GITLAB_BRANCH"
 echo "[dms-sync] temporary fetch ref:   $TMP_REMOTE_REF"
 echo "[dms-sync] 1/4 inspect GitLab subtree branch: $GITLAB_BRANCH"
-REMOTE_INFO="$(gitlab_git ls-remote --heads "$GITLAB_URL" "$GITLAB_BRANCH")"
+REMOTE_INFO="$(gitlab_git ls-remote --heads "$GITLAB_URL" "refs/heads/$GITLAB_BRANCH")"
 if [ -z "$REMOTE_INFO" ]; then
   echo "[dms-sync] GitLab branch does not exist. nothing to sync."
   exit 0

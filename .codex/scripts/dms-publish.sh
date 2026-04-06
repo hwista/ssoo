@@ -61,7 +61,7 @@ if [ "$TARGET_BRANCH" != "$GITLAB_BRANCH" ]; then
 fi
 
 echo "[dms-publish] 1/6 inspect GitLab subtree branch: $GITLAB_BRANCH"
-REMOTE_INFO="$(gitlab_git ls-remote --heads "$GITLAB_URL" "$GITLAB_BRANCH")"
+REMOTE_INFO="$(gitlab_git ls-remote --heads "$GITLAB_URL" "refs/heads/$GITLAB_BRANCH")"
 REMOTE_HASH=""
 if [ -n "$REMOTE_INFO" ]; then
   REMOTE_HASH="$(printf '%s\n' "$REMOTE_INFO" | awk 'NR==1 { print $1 }')"
