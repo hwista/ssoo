@@ -131,21 +131,24 @@ pnpm run codex:dms-sync-from-gitlab
 # 현재 브랜치 기준 GitHub + GitLab 동시 반영/검증
 pnpm run codex:dms-publish
 
+# GitHub target branch만 명시하고 GitLab subtree branch는 기본값(refactor/integration) 사용
+pnpm run codex:dms-publish -- dms/refactor/integration
+
 # 다른 GitLab subtree branch를 검사해야 하면 명시적으로 override
-DMS_GITLAB_BRANCH='dms/refactor/integration' pnpm run codex:dms-sync-from-gitlab
-DMS_GITLAB_BRANCH='dms/refactor/integration' pnpm run codex:dms-publish -- dms/refactor/integration
+DMS_GITLAB_BRANCH='<gitlab-subtree-branch>' pnpm run codex:dms-sync-from-gitlab
+DMS_GITLAB_BRANCH='<gitlab-subtree-branch>' pnpm run codex:dms-publish -- dms/refactor/integration
 ```
 
 기본 동작:
-1. GitLab `dms/refactor/integration`이 local subtree split으로 fast-forward 가능한지 먼저 검사
+1. GitLab `refactor/integration`이 local subtree split으로 fast-forward 가능한지 먼저 검사
 2. 현재 브랜치를 `origin`에 push
-3. `apps/web/dms` subtree를 GitLab `dms/refactor/integration`에 push
+3. `apps/web/dms` subtree를 GitLab `refactor/integration`에 push
 4. GitLab 원격을 fetch한 뒤 local subtree split hash와 원격 hash 일치 여부 검증
 
 참고:
 - DMS 변경이 있는데 `origin`으로 바로 push하면 pre-push guard가 차단한다.
 - GitLab subtree가 local split보다 앞서 있으면 `codex:dms-publish`는 GitHub push 전에 중단하고 `codex:dms-sync-from-gitlab` 실행을 안내한다.
-- `codex:dms-publish`의 인자는 GitHub target branch만 바꾸며, GitLab subtree branch는 `DMS_GITLAB_BRANCH`로 별도 override할 수 있다.
+- 이 저장소에서는 GitHub target branch와 GitLab subtree branch가 기본적으로 다르다. `codex:dms-publish` 인자는 GitHub target branch만 바꾸고, GitLab subtree branch는 `DMS_GITLAB_BRANCH`로 별도 override한다.
 - 예외 우회(권장하지 않음): `CODEX_SKIP_DMS_PUBLISH_GUARD=1 git push ...`
 
 ---
