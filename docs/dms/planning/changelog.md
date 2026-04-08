@@ -1,8 +1,164 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-04-06
+> 최종 업데이트: 2026-04-14
 
 ---
+
+## 2026-04-14
+
+### DMS 백엔드 auth boundary 감사 및 정리 (auth-dms-public-surface-audit)
+
+**감사 배경**
+- DMS 웹 셸이 로그인을 요구하는 상태가 됐지만, 대부분의 DMS 서버 컨트롤러는 `@Public() @UseGuards(OptionalJwtAuthGuard)` 상태로 남아 있었음
+- 2026-04-08 changelog에 `JwtAuthGuard` 기준으로 정리한다고 기록됐으나, 실제 코드 반영이 일부 누락된 상태였음
+
+**감사 결과**
+
+| 컨트롤러 | 변경 전 | 변경 후 | 비고 |
+|---------|---------|---------|------|
+| `access` | `JwtAuthGuard` | `JwtAuthGuard` (유지) | 이미 올바른 상태 |
+| `ask` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | AI ask - 인증 필수 |
+| `chat-sessions` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 개인 채팅 세션 - 인증 필수 |
+| `content` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 문서 CRUD - 인증 필수 |
+| `create` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | AI 요약 - 인증 필수 |
+| `doc-assist` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | AI 작성 보조 - 인증 필수 |
+| `files` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 파일 트리 - 인증 필수 |
+| `git` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | Git 조작 - 인증 필수 |
+| `ingest` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 수집 작업 - 인증 필수 |
+| `search` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 검색/인덱스 - 인증 필수 |
+| `settings` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 설정 변경 - 인증 필수 |
+| `storage` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 외부 저장소 - 인증 필수 |
+| `templates` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 개인 템플릿 - 인증 필수 |
+| `file` (클래스) | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 파일 CRUD - 인증 필수 |
+| `file/raw` (GET) | - | `@Public() OptionalJwtAuthGuard` | 브라우저 `<img src>` 경유, Authorization 헤더 추가 불가 |
+| `file/serve-attachment` (GET) | - | `@Public() OptionalJwtAuthGuard` | `window.open()` / `<a href>` 경유, Authorization 헤더 추가 불가 |
+
+**남은 미완 항목 (future work)**
+- `GET /dms/file/raw` 와 `GET /dms/file/serve-attachment` 는 브라우저 직접 탐색(img src, window.open, anchor)으로 호출되어 Authorization 헤더를 포함할 수 없으므로 `OptionalJwtAuthGuard`로 유지
+  - 실제 보안 경계는 DMS Next.js 셸의 로그인 요구로 확보
+  - 쿠키 기반 JWT 검증이 추가되거나 `<img>` 요청을 JS fetch로 전환하면 해당 엔드포인트도 `JwtAuthGuard`로 전환 가능
+- `DocumentPage.tsx` 일부 `fetch()` 호출(upload-attachment, upload-reference, serve-attachment)이 `fetchWithSharedAuth` 대신 plain `fetch()`를 사용하고 있어 인증 헤더가 없음 — backend는 OptionalJwt이므로 현재는 작동하지만, 추후 프론트엔드를 `fetchWithSharedAuth`로 정렬하면 인증 컨텍스트가 완전해짐
+
+**추가 작업**
+- 모든 DMS 컨트롤러에 `@ApiBearerAuth()` Swagger 데코레이터를 추가해 OpenAPI 문서가 인증 요구사항을 정확히 반영하도록 함
+
+---
+
+## 2026-04-08
+
+### Shared session bootstrap + DMS access snapshot 기준선
+
+- 공통 auth backend에 HttpOnly `ssoo-session` cookie와 `/api/auth/session` bootstrap 흐름을 추가하고, DMS는 same-origin `/api/auth/[action]` proxy가 `Set-Cookie` 를 브라우저로 그대로 전달하도록 정리
+- DMS `sharedAuth` retry 경로를 refresh token localStorage 의존에서 session bootstrap 기반으로 전환해 PMS/CHS와 같은 사용자 세션을 복원할 수 있도록 정리
+- 서버에 `GET /api/dms/access/me` snapshot endpoint를 추가해 DMS 도메인 권한을 공통 JWT와 분리하는 기준점을 마련
+- same-origin `/api/access` proxy와 DMS access store를 추가해 `(main)` layout이 파일 트리 bootstrap 전에 domain access snapshot을 먼저 hydrate 하도록 정리
+- `FloatingAssistant` / `AssistantSessionSync` 는 `canUseAssistant`, 파일 트리 초기화는 `canReadDocuments` 기준으로만 동작하도록 연결
+- DMS domain route는 `/api/auth/*` 를 제외하고 로그인 이후 사용되는 내부 API로 재분류하고, Nest `dms/*` business controller를 `JwtAuthGuard` 기준으로 정리
+- 이 변경에 맞춰 `/api/ingest/jobs` proxy도 authorization/cookie를 서버에 전달하도록 보강
+
+### DMS typography stack alignment
+
+- 실제 로그인 렌더의 typography 비교 결과, `font-size / line-height / weight / letter-spacing` 는 이미 PMS/CHS와 같고 DMS만 `font-family` 스택이 다른 것이 확인됨
+- DMS 전역 `--font-sans` 값을 PMS/CHS와 같은 system font stack으로 정렬해 login 뿐 아니라 DMS 전체 기본 typography 기준을 통일
+- 이로써 `docs/dms/explanation/design/design-system.md` 의 “PMS/DMS 통합 표준” 설명과 실제 구현이 일치
+
+### DMS login render token alignment
+
+- 실제 `/login` 렌더 비교 결과, 레이아웃은 PMS/CHS와 같았지만 DMS만 `primary`/`foreground` 계열 토큰이 섞여 h1은 블루, h2는 블랙, 버튼은 퍼플로 보이는 충돌이 확인됨
+- DMS auth route layout에 전용 theme wrapper(`.dms-auth-theme`)를 두고, login surface에서 쓰는 `background/foreground/primary/muted/ring` 토큰을 퍼플 계열로 다시 정렬
+- 이 수정은 로그인 화면의 실제 렌더만 바로잡고, DMS 메인 앱 전체 토큰 체계는 건드리지 않도록 범위를 제한함
+
+### PMS 기준 로그인 UI 정렬
+
+- DMS login 진입점을 `src/app/(auth)/login/page.tsx` 로 옮기고 `(auth)/layout.tsx` 를 추가해 PMS/CHS와 같은 auth shell 패턴으로 정리
+- 공용 `packages/web-auth` 의 PMS 기준 표준 login card를 사용하도록 바꿔 레이아웃, 문구, footer를 PMS와 동일하게 맞춤
+- DMS의 퍼플 계열 테마 색상은 기존 `globals.css` 토큰을 유지
+
+### Full-stack Docker compose 기준 정렬
+
+- repo root `compose.yaml`을 `postgres + server + pms + chs + dms` 기본 스택으로 확장하는 방향으로 정리
+- DMS의 Docker bridge 기본값을 `host.docker.internal`에서 compose 내부 `server` 서비스로 전환
+- PMS/CHS도 standalone + Dockerfile 기준으로 컨테이너화해 로컬 검증을 docker-first 흐름으로 전환
+- `server`와 `dms`가 동일한 `/app/apps/web/dms/data` 볼륨을 공유하도록 정리해 DMS 문서/Git 런타임을 compose 내부에서 함께 사용
+- root `.env`의 host용 `DATABASE_URL` 과 충돌하지 않도록 compose 전용 `DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` override 키를 분리
+
+## 2026-04-07
+
+### DMS logout surface commonization
+
+- DMS `UserMenu`를 settings 기반 placeholder에서 shared auth 기반 사용자 메뉴로 전환해 헤더와 settings shell 양쪽에서 실제 로그아웃이 동작하도록 정리
+- PMS와 겹치는 메뉴 shell은 `packages/web-auth/src/user-menu.tsx` 로 끌어올리고, DMS-specific 설정 진입 액션만 주입형으로 유지
+
+### PMS/CHS/DMS 공용 auth runtime 정렬
+
+- `packages/types/src/common/auth.ts` 와 `packages/web-auth` 를 추가해 DMS login/auth store/runtime/UI가 PMS/CHS와 같은 공용 surface 위에서 동작하도록 정리
+- DMS login page는 공용 `AuthLoginCard` / `AuthPageShell` 을 사용하고, DMS-specific bootstrap(`checkAuth` 이후 file tree/workspace 초기화)은 `(main)` layout 책임으로 유지
+- DMS `sharedAuth` 유틸은 storage parsing/header 적용 계약을 `packages/web-auth` 기준으로 재사용하도록 얇게 정리
+
+### DMS login-required auth convergence 2차
+
+- DMS 접근 정책을 anonymous-first 에서 **login-required shell** 기준으로 재정렬하고, `/login` 진입점과 `auth.store.ts` 기반 hydrate/checkAuth/logout 흐름을 추가
+- 로그인 구현은 새 DMS 전용 auth 테이블을 만들지 않고, 기존 `apps/server` 공용 auth 엔드포인트와 `common.cm_user_m` 기반 JWT/refresh token 모델을 그대로 재사용
+- DMS `request()` / `streamSSE()` / FormData 업로드 경로에 shared auth refresh/retry semantics를 보강하고, same-origin `/api/auth/*` 프록시를 통해 토큰 재발급/내 정보 조회를 일관되게 연결
+- 인증 전에는 assistant/session sync 같은 전역 런타임 side effect가 뜨지 않도록 `Providers` 와 `(main)` layout gating 을 정리
+- DMS `next.config.js` 의 `outputFileTracingRoot` 를 monorepo root 기준으로 바로잡아 `.next/standalone` 산출과 production runtime 검증이 다시 가능하도록 보정
+
+### DMS 프론트엔드 query/endpoints 표준화
+
+- `apps/web/dms/src/app/providers.tsx`에 `QueryClientProvider`를 추가해 PMS와 같은 query cache 경계를 도입
+- `src/lib/api/endpoints/*` 와 `src/hooks/queries/*` 구조를 만들고, 템플릿/파일 트리/AI 검색/assistant session 동기화에 실제 적용
+- 기존 `@/lib/api` 직접 import 표면을 endpoint 단위 import로 정리해 페이지/컴포넌트 레벨 API 소비 구조를 명확히 분리
+
+### DMS ask/RAG 서버 이전 1차
+
+- `apps/server`에 `dms/ask` 모듈을 추가해 질문 응답과 RAG 문맥 조립을 Nest API에서 수행하도록 정리
+- DMS Next `/api/ask`는 로컬 ask/search 서비스 대신 `apps/server` `/api/dms/ask`로 프록시하고, 스트리밍 응답은 AI SDK UI message SSE를 그대로 전달
+- 기존 DMS-local ask/search/embedding 구현은 제거하고, 검색 read/write/ask 경계를 모두 공용 서버 쪽으로 모아 이후 DB/Prisma commonization 단계와 맞물리도록 정리
+
+### DMS create 서버 이전 + DB 책임 정렬
+
+- `apps/server`에 `dms/create` 모듈을 추가해 `/api/create` 요약 스트림도 Nest API에서 처리하도록 정리
+- DMS Next `/api/create`는 공용 서버 `/api/dms/create` 프록시로 전환하고, DMS-local create handler/export는 제거
+- `apps/web/dms`는 더 이상 `dms_document_embeddings` 초기화 책임을 가지지 않으며, pgvector 테이블/인덱스 준비는 `apps/server` 검색 모듈로 일원화
+- DMS 로컬 DB 풀은 채팅 세션 persistence 위주로 축소하고 `DATABASE_URL` 우선, `DMS_DATABASE_URL` fallback 구조로 정리
+
+### DMS 검색 인덱스 쓰기 경로 서버 이전 1차
+
+- DMS 문서 저장/삭제/이름 변경/메타데이터 수정 이후 검색 인덱스 동기화를 `apps/server` `/api/dms/search/sync` 로 위임하도록 정리
+- `apps/server` 는 DMS 문서 루트를 직접 읽어 단일 문서 또는 폴더 단위 reindex/delete 를 수행하고, 기존 `dms_document_embeddings` 테이블 계약은 유지
+- 이 변경으로 DMS-local embedding write/delete 유틸은 더 이상 저장 경로의 최종 책임을 갖지 않고, 검색 읽기/쓰기 경계가 같은 Nest API 쪽으로 모이기 시작함
+
+### DMS auth convergence 1차
+
+- DMS `request()` / `streamSSE()` 공통 클라이언트가 shared auth storage(`ssoo-auth`)의 access token이 있을 때 동일 origin API 요청에 `Authorization` 헤더를 자동 부착하도록 정리
+- DMS Next 프록시 계층에 `serverApiProxy` 유틸을 추가하고, `/api/search`가 incoming `Authorization` / `Cookie` 헤더를 `apps/server` `/api/dms/search`로 그대로 전달하도록 보강
+- `apps/server` DMS 검색 엔드포인트는 optional JWT guard를 통해 anonymous 접근을 유지하면서, 유효한 토큰이 있으면 request context에 사용자 정보를 싣도록 정리
+
+### DMS runtime/config 정규화
+
+- repo root `compose.yaml` 을 DMS의 단일 지원 compose 경로로 고정하고, workspace `@ssoo/types` 를 함께 빌드하는 `apps/web/dms/Dockerfile` 로 정리
+- compose 경로에서 `DMS_SERVER_API_URL` 기본 브리지(`host.docker.internal:4000/api`)와 optional `.env.local` 로딩을 명시해 검색 서버 슬라이스 연결 가정을 문서/코드에 맞춤
+- `dms.config.default.json` / `dms.personal.config.default.json` / override JSON 파일의 역할을 빠른 시작/패키지 명세/README 에 동일한 용어로 정리
+
+### DMS publish/ops 정렬
+
+- `codex:workspace-publish`를 작업 후 canonical publish 흐름으로 재정의하고, raw dual `git push`는 recovery-only 절차로 문서 위치를 조정
+- pre-push guard가 확인하는 `codex.gitlabLastPublished` marker 기준을 quick-start/architecture 문서와 Codex README에 명시
+- `push-guard.sh`와 `workspace-publish.sh` 출력도 marker 중심 안내 문구로 정리
+
+### DMS 검색 서버 이전 1차
+
+- `apps/server`에 `dms/search` 모듈을 추가해 DMS 검색 요청을 Nest API로 수용하도록 정리
+- DMS Next `src/app/api/search/route.ts`는 로컬 검색 핸들러 대신 `apps/server`의 `/api/dms/search`로 프록시하도록 전환
+- 서버 측 검색은 shared `DATABASE_URL` 기반 pgvector 테이블을 우선 사용하고, 실패 시 기존 문서 루트 기준 키워드 검색으로 폴백
+- `@ssoo/types/dms`에 검색 계약 타입을 추가해 DMS 앱과 서버가 같은 요청/응답 형태를 공유하도록 정리
+
+### DMS workspace 통합 기반 정리
+
+- `apps/web/dms`를 `pnpm-workspace.yaml`에 편입하고 루트 `dev:web-dms` / `build:web-dms`를 Turbo filter 기반으로 전환
+- `apps/web/dms/package.json`에 `@ssoo/types`를 연결하고 `packages/types/src/dms/*` 공유 계약 타입을 추가
+- DMS 로컬 타입 중 공통 계약 성격의 파일(`file-tree`, `document-metadata`, `reference-file`, `template`, `content-metadata`)을 `@ssoo/types/dms` 재사용 구조로 정리
+- PR validation, DMS guard, 전역/경로별 규칙 문서, DMS 온보딩 문서를 새 workspace 기준으로 갱신
 
 ## 2026-04-06
 
