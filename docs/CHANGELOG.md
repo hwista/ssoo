@@ -4,6 +4,8 @@
 
 ### Features
 
+* **web-pms, web-chs:** 브라우저-facing auth surface를 DMS와 동일한 same-origin proxy 패턴으로 통일 — `src/app/api/auth/[action]/route.ts` + `_shared/serverApiProxy.ts` 신규 추가, `authApi` 어댑터를 same-origin `/api/auth/*` fetch 기반으로 교체, Axios 401 인터셉터의 session bootstrap도 `/api/auth/session` same-origin 경유로 변경
+
 * **web-pms:** 프로젝트 상세 페이지 — 기본정보 + 상태 타임라인 + 단계별 탭(요청/제안/수행/전환) 조회·편집
 * **server:** 프로젝트 단계별 상세 API — `PUT /api/projects/:id/{request,proposal,execution,transition}-detail` upsert 엔드포인트 4개, `findOne`에 전체 relation include, `statusCode` 필터 추가
 * **types:** `ProjectRequestDetail`, `ProjectProposalDetail`, `ProjectExecutionDetail`, `ProjectTransitionDetail`, `ProjectStatus`, `ProjectDetail` 등 12개 공유 타입 추가
@@ -28,6 +30,8 @@
 
 ### Improvements
 
+* **docker:** full-stack compose 정렬 — root `compose.yaml`을 `postgres + server + pms + chs + dms` 기준으로 확장하고, PMS/CHS Dockerfile/standalone 설정, shared `dms-data` volume, compose 전용 DB URL override(`DOCKER_DATABASE_URL`)를 정리
+* **web-dms:** runtime/config normalization — root `compose.yaml` 단일 지원 경로, workspace Dockerfile, `DMS_SERVER_API_URL` 브리지/JSON config 문서 정렬과 `DOCKER_DMS_DATABASE_URL` 분리
 * **web-dms:** GitLab workspace publish flow — full-workspace `development` branch, `codex:workspace-sync-from-gitlab` / `codex:workspace-publish` 추가, 기존 `codex:dms-*` 는 호환 래퍼로 유지
 * **web-dms:** sidecar 링크 섹션 아이콘 — Globe(외부)/FileText(내부 문서)/Image(이미지) 타입별 구분
 * **web-dms:** 링크 본문 찾기 — sidecar에서 ↳ 버튼 클릭 시 뷰어/에디터 내 해당 링크로 스크롤 + 하이라이팅

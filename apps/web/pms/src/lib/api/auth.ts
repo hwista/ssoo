@@ -1,68 +1,58 @@
-import { apiClient } from './client';
-import type { ApiResponse } from './types';
+import type { AuthIdentity, AuthSessionBootstrap, AuthTokens, LoginRequest } from '@ssoo/types/common';
+import type { AuthApiAdapter, AuthApiResult } from '@ssoo/web-auth';
 
-export interface LoginRequest {
-  loginId: string;
-  password: string;
-}
+export type AuthUser = AuthIdentity;
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface UserInfo {
-  userId: string;
-  loginId: string;
-  roleCode: string;
-  userTypeCode: string;
-  isAdmin: boolean; // 관리자 여부 (관리자 메뉴 접근 권한)
-}
-
-export const authApi = {
-  /**
-   * 로그인
-   */
-  login: async (data: LoginRequest): Promise<ApiResponse<AuthTokens>> => {
-    const response = await apiClient.post<ApiResponse<AuthTokens>>('/auth/login', data);
-    return response.data;
-  },
-
-  /**
-   * 토큰 갱신
-   */
-  refresh: async (refreshToken: string): Promise<ApiResponse<AuthTokens>> => {
-    const response = await apiClient.post<ApiResponse<AuthTokens>>('/auth/refresh', {
-      refreshToken,
+async function authProxyPost<T>(
+  action: string,
+  body?: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<AuthApiResult<T>> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    };
+    const response = await fetch(`/api/auth/${action}`, {
+      method: 'POST',
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
+      cache: 'no-store',
     });
-    return response.data;
-  },
 
-  /**
-   * 로그아웃
-   */
-  logout: async (accessToken: string): Promise<ApiResponse<null>> => {
-    const response = await apiClient.post<ApiResponse<null>>(
-      '/auth/logout',
-      {},
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      },
-    );
-    return response.data;
-  },
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      return {
+        success: false,
+        error: payload?.error || response.statusText,
+        status: response.status,
+      };
+    }
 
-  /**
-   * 현재 사용자 정보
-   */
-  me: async (accessToken: string): Promise<ApiResponse<UserInfo>> => {
-    const response = await apiClient.post<ApiResponse<UserInfo>>(
-      '/auth/me',
-      {},
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      },
-    );
-    return response.data;
-  },
+    const data = await response.json().catch(() => undefined) as T | undefined;
+    return { success: true, data };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '인증 요청에 실패했습니다.',
+    };
+  }
+}
+
+export const authApi: AuthApiAdapter<AuthUser> = {
+  login: (data: LoginRequest) =>
+    authProxyPost<AuthTokens>('login', data),
+
+  refresh: (refreshToken: string) =>
+    authProxyPost<AuthTokens>('refresh', { refreshToken }),
+
+  restoreSession: () =>
+    authProxyPost<AuthSessionBootstrap<AuthUser>>('session', {}),
+
+  logout: (accessToken: string | null) =>
+    authProxyPost<null>('logout', {}, accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined),
+
+  me: (accessToken: string) =>
+    authProxyPost<AuthUser>('me', {}, { Authorization: `Bearer ${accessToken}` }),
 };

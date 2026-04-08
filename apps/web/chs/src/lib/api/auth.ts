@@ -1,45 +1,62 @@
-import { apiClient } from './client';
-import type { ApiResponse } from './types';
+import type { AuthIdentity, AuthSessionBootstrap, AuthTokens, LoginRequest } from '@ssoo/types/common';
+import type { AuthApiAdapter, AuthApiResult } from '@ssoo/web-auth';
 
-interface LoginRequest {
-  loginId: string;
-  password: string;
+export interface AuthUser extends AuthIdentity {
+  userName?: string;
+  displayName?: string;
+  avatarUrl?: string;
 }
 
-interface TokenResponse {
-  accessToken: string;
-  refreshToken: string;
-}
-
-interface AuthUser {
-  userId: string;
-  loginId: string;
-  roleCode: string;
-  userTypeCode: string;
-  isAdmin: boolean;
-}
-
-export const authApi = {
-  login: async (data: LoginRequest): Promise<ApiResponse<TokenResponse>> => {
-    const res = await apiClient.post('/auth/login', data);
-    return res.data;
-  },
-
-  logout: async (token: string): Promise<void> => {
-    await apiClient.post('/auth/logout', null, {
-      headers: { Authorization: `Bearer ${token}` },
+async function authProxyPost<T>(
+  action: string,
+  body?: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<AuthApiResult<T>> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    };
+    const response = await fetch(`/api/auth/${action}`, {
+      method: 'POST',
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
+      cache: 'no-store',
     });
-  },
 
-  refresh: async (refreshToken: string): Promise<ApiResponse<TokenResponse>> => {
-    const res = await apiClient.post('/auth/refresh', { refreshToken });
-    return res.data;
-  },
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      return {
+        success: false,
+        error: payload?.error || response.statusText,
+        status: response.status,
+      };
+    }
 
-  me: async (token: string): Promise<ApiResponse<AuthUser>> => {
-    const res = await apiClient.get('/auth/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.data;
-  },
+    const data = await response.json().catch(() => undefined) as T | undefined;
+    return { success: true, data };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '인증 요청에 실패했습니다.',
+    };
+  }
+}
+
+export const authApi: AuthApiAdapter<AuthUser> = {
+  login: (data: LoginRequest) =>
+    authProxyPost<AuthTokens>('login', data),
+
+  refresh: (refreshToken: string) =>
+    authProxyPost<AuthTokens>('refresh', { refreshToken }),
+
+  restoreSession: () =>
+    authProxyPost<AuthSessionBootstrap<AuthUser>>('session', {}),
+
+  logout: (accessToken: string | null) =>
+    authProxyPost<null>('logout', {}, accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined),
+
+  me: (accessToken: string) =>
+    authProxyPost<AuthUser>('me', {}, { Authorization: `Bearer ${accessToken}` }),
 };
