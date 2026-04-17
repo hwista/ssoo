@@ -1,23 +1,27 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useMenuStore } from '@/stores';
+import dynamic from 'next/dynamic';
+
+const AppLayout = dynamic(
+  () => import('@/components/layout/AppLayout').then((mod) => ({ default: mod.AppLayout })),
+  {
+    loading: () => (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">로딩 중...</p>
+        </div>
+      </div>
+    ),
+  },
+);
 
 /**
- * 메인 페이지 (대시보드)
- * - 로그인 후 기본 진입 페이지
- * - 메뉴 데이터 로드만 담당
- * - 실제 UI는 Home 탭 (HomeDashboardPage)에서 렌더링
+ * 메인 셸 페이지 (/)
+ *
+ * - shell-app blueprint 기준으로 실제 루트 셸 엔트리를 담당한다.
+ * - 실제 콘텐츠 렌더링은 AppLayout > ContentArea가 담당한다.
  */
 export default function MainPage() {
-  const { refreshMenu } = useMenuStore();
-
-  // 메뉴 데이터 초기 로드
-  useEffect(() => {
-    refreshMenu();
-  }, [refreshMenu]);
-
-  // Home 탭이 항상 존재하므로 ContentArea가 HomeDashboardPage를 렌더링
-  // 이 컴포넌트는 메뉴 초기화만 담당
-  return null;
+  return <AppLayout />;
 }

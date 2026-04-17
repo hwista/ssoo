@@ -6,7 +6,7 @@ import { Viewer } from '@/components/common/viewer';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TocItem } from '@/components/templates/page-frame';
-import type { EditorRef } from './editor';
+import type { EditorRef, EditorSaveConflictPayload } from './editor';
 import type { TemplateItem, TemplateReferenceDoc } from '@/types/template';
 
 type PageMode = 'viewer' | 'editor' | 'create';
@@ -266,7 +266,7 @@ interface DocumentPageContentProps {
   toc: TocItem[];
   handleTocClick: (id: string) => void;
   handleSearch: (query?: string) => void;
-  handleAttachCurrentDocToAssistant: () => void;
+  handleAttachCurrentDocToAssistant?: () => void;
   editorRef: React.RefObject<EditorRef | null>;
   createPath: string;
   setCreatePath: (path: string) => void;
@@ -284,6 +284,8 @@ interface DocumentPageContentProps {
   onImageClick?: (src: string, alt: string) => void;
   /** undo/redo 가용성 변경 콜백 */
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
+  /** 저장 충돌 감지 시 */
+  onSaveConflict?: (conflict: EditorSaveConflictPayload) => Promise<void> | void;
 }
 
 export function DocumentPageContent({
@@ -310,6 +312,7 @@ export function DocumentPageContent({
   onLinkClick,
   onImageClick,
   onHistoryChange,
+  onSaveConflict,
 }: DocumentPageContentProps) {
   if (error) {
     return (
@@ -357,6 +360,7 @@ export function DocumentPageContent({
         streamingAutoScroll={streamingAutoScroll}
         onContentChange={onEditorContentChange}
         onHistoryChange={onHistoryChange}
+        onSaveConflict={onSaveConflict}
       />
       {isTemplateGenerating && !(currentDraftContent?.trim()) ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">

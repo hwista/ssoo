@@ -83,21 +83,76 @@
 \echo 'Installing: pr_issue_h trigger...'
 \i 22_pr_issue_h_trigger.sql
 
+\echo 'Installing: cm_user_auth_h trigger...'
+\i 23_cm_user_auth_h_trigger.sql
+
+\echo 'Installing: cm_user_session_h trigger...'
+\i 24_cm_user_session_h_trigger.sql
+
+\echo 'Installing: cm_user_invitation_h trigger...'
+\i 25_cm_user_invitation_h_trigger.sql
+
+\echo 'Installing: cm_organization_h trigger...'
+\i 26_cm_organization_h_trigger.sql
+
+\echo 'Installing: cm_user_org_h trigger...'
+\i 27_cm_user_org_h_trigger.sql
+
+\echo 'Installing: cm_permission_h trigger...'
+\i 28_cm_permission_h_trigger.sql
+
+\echo 'Installing: cm_role_h trigger...'
+\i 29_cm_role_h_trigger.sql
+
+\echo 'Installing: cm_role_permission_h trigger...'
+\i 30_cm_role_permission_h_trigger.sql
+
+\echo 'Installing: cm_org_permission_h trigger...'
+\i 31_cm_org_permission_h_trigger.sql
+
+\echo 'Installing: cm_user_permission_exception_h trigger...'
+\i 32_cm_user_permission_exception_h_trigger.sql
+
+\echo 'Installing: pr_project_role_permission_h trigger...'
+\i 33_pr_project_role_permission_h_trigger.sql
+
 \echo ''
-\echo '-- CHS (Community Hub System) --'
+\echo '-- DMS (Document Management System) --'
 \echo ''
 
-\echo 'Installing: ch_board_h trigger...'
-\i 50_ch_board_h_trigger.sql
+\echo 'Installing: dm_document_h trigger...'
+\i 45_dm_document_h_trigger.sql
 
-\echo 'Installing: ch_post_h trigger...'
-\i 51_ch_post_h_trigger.sql
+\echo 'Installing: dm_document_grant_h trigger...'
+\i 46_dm_document_grant_h_trigger.sql
 
-\echo 'Installing: ch_comment_h trigger...'
-\i 52_ch_comment_h_trigger.sql
+\echo 'Installing: dm_document_access_request_h trigger...'
+\i 47_dm_document_access_request_h_trigger.sql
 
-\echo 'Installing: ch_user_profile_h trigger...'
-\i 53_ch_user_profile_h_trigger.sql
+\echo 'Installing: dm_document_source_file_h trigger...'
+\i 48_dm_document_source_file_h_trigger.sql
+
+\echo 'Installing: dm_document_index_state_h trigger...'
+\i 49_dm_document_index_state_h_trigger.sql
+
+\echo ''
+\echo '-- CMS (Content Management System) --'
+\echo ''
+
+\echo 'Installing: cms_board_h trigger...'
+\i 50_cms_board_h_trigger.sql
+
+\echo 'Installing: cms_post_h trigger...'
+\i 51_cms_post_h_trigger.sql
+
+\echo 'Installing: cms_comment_h trigger...'
+\i 52_cms_comment_h_trigger.sql
+
+\echo 'Installing: cms_user_profile_h trigger...'
+\i 53_cms_user_profile_h_trigger.sql
+
+\echo 'Installing: pr_project_issue_h trigger...'
+\i 54_pr_project_issue_h_trigger.sql
 
 \echo '=========================================='
 \echo 'All triggers installed successfully!'

@@ -1,5 +1,6 @@
 import { apiClient } from '../client';
 import { ApiResponse, PaginatedResponse, ListParams } from '../types';
+import type { PmsProjectAccessSnapshot, ProjectEventRollup } from '@ssoo/types/pms';
 
 /**
  * 프로젝트 상태 코드
@@ -11,6 +12,10 @@ export type ProjectStatusCode = 'request' | 'proposal' | 'execution' | 'transiti
  */
 export type ProjectStageCode = 'waiting' | 'in_progress' | 'done';
 
+export type ProjectPhase = 'request' | 'proposal' | 'contract' | 'execution' | 'operation' | 'closed';
+
+export type ProjectLifecycleStatus = 'draft' | 'active' | 'on_hold' | 'cancelled' | 'completed';
+
 /**
  * 프로젝트 소스 코드
  */
@@ -20,9 +25,17 @@ export type ProjectDoneResultCode =
   | 'won'
   | 'lost'
   | 'completed'
+  | 'transfer_pending'
+  | 'linked'
   | 'cancelled'
   | 'transferred'
   | 'hold';
+
+export interface ProjectLifecycle {
+  phase: ProjectPhase;
+  status: ProjectLifecycleStatus;
+  terminalReason?: ProjectDoneResultCode | null;
+}
 
 /**
  * 프로젝트 DTO
@@ -33,8 +46,10 @@ export interface Project {
   statusCode: ProjectStatusCode;
   stageCode: ProjectStageCode;
   doneResultCode?: ProjectDoneResultCode;
+  lifecycle: ProjectLifecycle;
   customerId?: number;
   currentOwnerUserId?: number;
+  ownerOrganizationId?: number | null;
   memo?: string | null;
   isActive?: boolean;
   createdAt: string;
@@ -108,6 +123,7 @@ export interface CreateProjectRequest {
   statusCode?: ProjectStatusCode;
   stageCode?: ProjectStageCode;
   customerId?: string;
+  ownerOrganizationId?: string | null;
   description?: string;
 }
 
@@ -116,6 +132,7 @@ export interface CreateProjectRequest {
  */
 export interface UpdateProjectRequest extends Partial<CreateProjectRequest> {
   doneResultCode?: ProjectDoneResultCode;
+  ownerOrganizationId?: string | null;
 }
 
 /**
@@ -182,6 +199,8 @@ export interface TransitionResult {
   currentStageCode: string;
   doneResultCode?: string | null;
   advancedToNextStatus: boolean;
+  previousLifecycle: ProjectLifecycle;
+  currentLifecycle: ProjectLifecycle;
 }
 
 export interface TransitionReadiness {
@@ -196,6 +215,9 @@ export interface ProjectMember {
   projectId: number | string;
   userId: number | string;
   roleCode: string;
+  organizationId?: number | string | null;
+  accessLevel: 'owner' | 'participant' | 'contributor';
+  isPhaseOwner: boolean;
   assignedAt: string;
   releasedAt?: string | null;
   allocationRate: number;
@@ -215,15 +237,89 @@ export interface ProjectMember {
 export interface CreateMemberRequest {
   userId: string;
   roleCode: string;
+  organizationId?: string | null;
+  accessLevel?: 'owner' | 'participant' | 'contributor';
+  isPhaseOwner?: boolean;
   assignedAt?: string;
   allocationRate?: number;
   memo?: string;
 }
 
 export interface UpdateMemberRequest {
+  organizationId?: string | null;
+  accessLevel?: 'owner' | 'participant' | 'contributor';
+  isPhaseOwner?: boolean;
   releasedAt?: string | null;
   allocationRate?: number;
   isActive?: boolean;
+  memo?: string;
+}
+
+// ─── 프로젝트 조직 ───
+
+export type ProjectOrgRoleCode = 'owner' | 'customer' | 'supplier' | 'partner';
+
+export interface ProjectOrgItem {
+  projectId: number | string;
+  organizationId: number | string;
+  roleCode: ProjectOrgRoleCode;
+  isActive: boolean;
+  memo?: string | null;
+  lastSource?: string | null;
+  lastActivity?: string | null;
+  organization?: {
+    orgId: number | string;
+    orgCode: string;
+    orgName: string;
+    orgType: string;
+    orgClass: string;
+    scope: string;
+    levelType?: string | null;
+    isActive: boolean;
+  } | null;
+}
+
+export interface CreateProjectOrgRequest {
+  roleCode: ProjectOrgRoleCode;
+  organizationId?: string;
+  customerId?: string;
+  memo?: string;
+}
+
+export interface UpdateProjectOrgRequest {
+  memo?: string | null;
+  isActive?: boolean;
+}
+
+// ─── 프로젝트 관계 ───
+
+export type ProjectRelationTypeCode = 'successor' | 'split' | 'merge' | 'linked';
+
+export interface ProjectRelationItem {
+  sourceProjectId: number | string;
+  targetProjectId: number | string;
+  relationTypeCode: ProjectRelationTypeCode;
+  isActive: boolean;
+  memo?: string | null;
+  lastSource?: string | null;
+  lastActivity?: string | null;
+  sourceProject?: {
+    id: number | string;
+    projectName: string;
+    statusCode: string;
+    stageCode: string;
+  } | null;
+  targetProject?: {
+    id: number | string;
+    projectName: string;
+    statusCode: string;
+    stageCode: string;
+  } | null;
+}
+
+export interface CreateProjectRelationRequest {
+  relationTypeCode: Extract<ProjectRelationTypeCode, 'linked'>;
+  targetProjectId: string;
   memo?: string;
 }
 
@@ -232,6 +328,7 @@ export interface UpdateMemberRequest {
 export interface TaskItem {
   id: number | string;
   projectId: number | string;
+  wbsId?: number | string | null;
   parentTaskId?: number | string | null;
   taskCode: string;
   taskName: string;
@@ -255,6 +352,7 @@ export interface TaskItem {
 }
 
 export interface CreateTaskRequest {
+  wbsId?: string | null;
   parentTaskId?: string | null;
   taskCode: string;
   taskName: string;
@@ -271,6 +369,7 @@ export interface CreateTaskRequest {
 }
 
 export interface UpdateTaskRequest {
+  wbsId?: string | null;
   taskName?: string;
   description?: string;
   taskTypeCode?: string;
@@ -293,6 +392,7 @@ export interface UpdateTaskRequest {
 export interface MilestoneItem {
   id: number | string;
   projectId: number | string;
+  objectiveId?: number | string | null;
   milestoneCode: string;
   milestoneName: string;
   description?: string | null;
@@ -305,6 +405,7 @@ export interface MilestoneItem {
 }
 
 export interface CreateMilestoneRequest {
+  objectiveId?: string | null;
   milestoneCode: string;
   milestoneName: string;
   description?: string;
@@ -314,6 +415,7 @@ export interface CreateMilestoneRequest {
 }
 
 export interface UpdateMilestoneRequest {
+  objectiveId?: string | null;
   milestoneName?: string;
   description?: string;
   statusCode?: string;
@@ -321,6 +423,86 @@ export interface UpdateMilestoneRequest {
   achievedAt?: string | null;
   sortOrder?: number;
   memo?: string;
+}
+
+// ─── 목표(Objective) ───
+
+export interface ObjectiveItem {
+  id: number | string;
+  projectId: number | string;
+  parentObjectiveId?: number | string | null;
+  objectiveCode: string;
+  objectiveName: string;
+  description?: string | null;
+  statusCode: string;
+  dueAt?: string | null;
+  achievedAt?: string | null;
+  depth: number;
+  sortOrder: number;
+  isActive: boolean;
+  memo?: string | null;
+}
+
+export interface CreateObjectiveRequest {
+  parentObjectiveId?: string | null;
+  objectiveCode: string;
+  objectiveName: string;
+  description?: string;
+  statusCode?: string;
+  dueAt?: string;
+  sortOrder?: number;
+  memo?: string;
+}
+
+export interface UpdateObjectiveRequest {
+  parentObjectiveId?: string | null;
+  objectiveName?: string;
+  description?: string | null;
+  statusCode?: string;
+  dueAt?: string | null;
+  achievedAt?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  memo?: string | null;
+}
+
+// ─── WBS ───
+
+export interface WbsItem {
+  id: number | string;
+  projectId: number | string;
+  objectiveId?: number | string | null;
+  parentWbsId?: number | string | null;
+  wbsCode: string;
+  wbsName: string;
+  description?: string | null;
+  statusCode: string;
+  depth: number;
+  sortOrder: number;
+  isActive: boolean;
+  memo?: string | null;
+}
+
+export interface CreateWbsRequest {
+  objectiveId?: string | null;
+  parentWbsId?: string | null;
+  wbsCode: string;
+  wbsName: string;
+  description?: string;
+  statusCode?: string;
+  sortOrder?: number;
+  memo?: string;
+}
+
+export interface UpdateWbsRequest {
+  objectiveId?: string | null;
+  parentWbsId?: string | null;
+  wbsName?: string;
+  description?: string | null;
+  statusCode?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+  memo?: string | null;
 }
 
 // ─── 이슈 ───
@@ -371,12 +553,241 @@ export interface UpdateIssueRequest {
   memo?: string;
 }
 
+export interface ProjectIssueItem {
+  projectIssueId: number | string;
+  projectId: number | string;
+  issueCode: string;
+  issueTitle: string;
+  description?: string | null;
+  issueTypeCode: string;
+  statusCode: string;
+  priorityCode: string;
+  reportedByUserId?: number | string | null;
+  ownerUserId?: number | string | null;
+  reportedAt: string;
+  dueAt?: string | null;
+  resolvedAt?: string | null;
+  resolution?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  memo?: string | null;
+}
+
+export interface CreateProjectIssueRequest {
+  issueCode: string;
+  issueTitle: string;
+  description?: string;
+  issueTypeCode: string;
+  statusCode?: string;
+  priorityCode?: string;
+  reportedByUserId?: string;
+  ownerUserId?: string;
+  assigneeUserId?: string;
+  reportedAt?: string;
+  dueAt?: string;
+  resolvedAt?: string;
+  resolution?: string;
+  sortOrder?: number;
+  memo?: string;
+}
+
+export interface UpdateProjectIssueRequest {
+  issueTitle?: string;
+  description?: string | null;
+  issueTypeCode?: string;
+  statusCode?: string;
+  priorityCode?: string;
+  ownerUserId?: string | null;
+  assigneeUserId?: string | null;
+  dueAt?: string | null;
+  resolvedAt?: string | null;
+  resolution?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  memo?: string | null;
+}
+
+// ─── 컨트롤 도메인 ───
+
+export interface ProjectRequirementItem {
+  requirementId: number | string;
+  projectId: number | string;
+  requirementCode: string;
+  requirementTitle: string;
+  description?: string | null;
+  statusCode: string;
+  priorityCode: string;
+  ownerUserId?: number | string | null;
+  dueAt?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  memo?: string | null;
+}
+
+export interface CreateProjectRequirementRequest {
+  requirementCode: string;
+  requirementTitle: string;
+  description?: string;
+  statusCode?: string;
+  priorityCode?: string;
+  ownerUserId?: string;
+  dueAt?: string;
+  sortOrder?: number;
+  memo?: string;
+}
+
+export interface UpdateProjectRequirementRequest {
+  requirementTitle?: string;
+  description?: string | null;
+  statusCode?: string;
+  priorityCode?: string;
+  ownerUserId?: string | null;
+  dueAt?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  memo?: string | null;
+}
+
+export interface ProjectRiskItem {
+  riskId: number | string;
+  projectId: number | string;
+  riskCode: string;
+  riskTitle: string;
+  description?: string | null;
+  statusCode: string;
+  impactCode: string;
+  likelihoodCode: string;
+  responsePlan?: string | null;
+  ownerUserId?: number | string | null;
+  dueAt?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  memo?: string | null;
+}
+
+export interface CreateProjectRiskRequest {
+  riskCode: string;
+  riskTitle: string;
+  description?: string;
+  statusCode?: string;
+  impactCode?: string;
+  likelihoodCode?: string;
+  responsePlan?: string;
+  ownerUserId?: string;
+  dueAt?: string;
+  sortOrder?: number;
+  memo?: string;
+}
+
+export interface UpdateProjectRiskRequest {
+  riskTitle?: string;
+  description?: string | null;
+  statusCode?: string;
+  impactCode?: string;
+  likelihoodCode?: string;
+  responsePlan?: string | null;
+  ownerUserId?: string | null;
+  dueAt?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  memo?: string | null;
+}
+
+export interface ProjectChangeRequestItem {
+  changeRequestId: number | string;
+  projectId: number | string;
+  changeCode: string;
+  changeTitle: string;
+  description?: string | null;
+  statusCode: string;
+  priorityCode: string;
+  requestedAt: string;
+  decidedAt?: string | null;
+  ownerUserId?: number | string | null;
+  sortOrder: number;
+  isActive: boolean;
+  memo?: string | null;
+}
+
+export interface CreateProjectChangeRequest {
+  changeCode: string;
+  changeTitle: string;
+  description?: string;
+  statusCode?: string;
+  priorityCode?: string;
+  ownerUserId?: string;
+  requestedAt?: string;
+  decidedAt?: string;
+  sortOrder?: number;
+  memo?: string;
+}
+
+export interface UpdateProjectChangeRequest {
+  changeTitle?: string;
+  description?: string | null;
+  statusCode?: string;
+  priorityCode?: string;
+  ownerUserId?: string | null;
+  requestedAt?: string;
+  decidedAt?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  memo?: string | null;
+}
+
+export interface ProjectEventItem {
+  eventId: number | string;
+  projectId: number | string;
+  eventCode: string;
+  eventName: string;
+  description?: string | null;
+  eventTypeCode: string;
+  statusCode: string;
+  scheduledAt?: string | null;
+  occurredAt?: string | null;
+  summary?: string | null;
+  ownerUserId?: number | string | null;
+  sortOrder: number;
+  isActive: boolean;
+  memo?: string | null;
+  rollup?: ProjectEventRollup | null;
+}
+
+export interface CreateProjectEventRequest {
+  eventCode: string;
+  eventName: string;
+  description?: string;
+  eventTypeCode?: string;
+  statusCode?: string;
+  scheduledAt?: string;
+  occurredAt?: string;
+  summary?: string;
+  ownerUserId?: string;
+  sortOrder?: number;
+  memo?: string;
+}
+
+export interface UpdateProjectEventRequest {
+  eventName?: string;
+  description?: string | null;
+  eventTypeCode?: string;
+  statusCode?: string;
+  scheduledAt?: string | null;
+  occurredAt?: string | null;
+  summary?: string | null;
+  ownerUserId?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  memo?: string | null;
+}
+
 // ─── 산출물 ───
 
 export interface DeliverableItem {
   projectId: number | string;
   statusCode: string;
   deliverableCode: string;
+  eventId?: number | string | null;
   deliverableName?: string;
   submissionStatusCode: string;
   submittedAt?: string | null;
@@ -384,6 +795,11 @@ export interface DeliverableItem {
   originalFileName?: string | null;
   memo?: string | null;
   isActive: boolean;
+  event?: {
+    eventId: number | string;
+    eventCode: string;
+    eventName: string;
+  } | null;
   deliverable?: {
     deliverableName: string;
     description?: string | null;
@@ -395,6 +811,7 @@ export interface UpsertDeliverableRequest {
   statusCode: string;
   deliverableCode: string;
   submissionStatusCode: string;
+  eventId?: string;
   memo?: string;
 }
 
@@ -408,6 +825,7 @@ export interface CloseConditionItem {
   projectId: number | string;
   statusCode: string;
   conditionCode: string;
+  eventId?: number | string | null;
   requiresDeliverable: boolean;
   isChecked: boolean;
   checkedAt?: string | null;
@@ -415,12 +833,18 @@ export interface CloseConditionItem {
   sortOrder: number;
   memo?: string | null;
   isActive: boolean;
+  event?: {
+    eventId: number | string;
+    eventCode: string;
+    eventName: string;
+  } | null;
 }
 
 export interface UpsertCloseConditionRequest {
   statusCode: string;
   conditionCode: string;
   requiresDeliverable: boolean;
+  eventId?: string;
   sortOrder?: number;
   memo?: string;
 }
@@ -504,6 +928,14 @@ export const projectsApi = {
   },
 
   /**
+   * 프로젝트 접근 스냅샷 조회
+   */
+  getAccess: async (id: number): Promise<ApiResponse<PmsProjectAccessSnapshot>> => {
+    const response = await apiClient.get<ApiResponse<PmsProjectAccessSnapshot>>(`/projects/${id}/access`);
+    return response.data;
+  },
+
+  /**
    * 프로젝트 생성
    */
   create: async (data: CreateProjectRequest): Promise<ApiResponse<Project>> => {
@@ -583,6 +1015,136 @@ export const projectsApi = {
     return response.data;
   },
 
+  // ─── 프로젝트 조직 ───
+
+  getProjectOrgs: async (projectId: number): Promise<ApiResponse<ProjectOrgItem[]>> => {
+    const response = await apiClient.get<ApiResponse<ProjectOrgItem[]>>(
+      `/projects/${projectId}/organizations`,
+    );
+    return response.data;
+  },
+
+  createProjectOrg: async (
+    projectId: number,
+    data: CreateProjectOrgRequest,
+  ): Promise<ApiResponse<ProjectOrgItem>> => {
+    const response = await apiClient.post<ApiResponse<ProjectOrgItem>>(
+      `/projects/${projectId}/organizations`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateProjectOrg: async (
+    projectId: number,
+    organizationId: string,
+    roleCode: ProjectOrgRoleCode,
+    data: UpdateProjectOrgRequest,
+  ): Promise<ApiResponse<ProjectOrgItem>> => {
+    const response = await apiClient.put<ApiResponse<ProjectOrgItem>>(
+      `/projects/${projectId}/organizations/${organizationId}/${roleCode}`,
+      data,
+    );
+    return response.data;
+  },
+
+  removeProjectOrg: async (
+    projectId: number,
+    organizationId: string,
+    roleCode: ProjectOrgRoleCode,
+  ): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(
+      `/projects/${projectId}/organizations/${organizationId}/${roleCode}`,
+    );
+    return response.data;
+  },
+
+  // ─── 프로젝트 관계 ───
+
+  getProjectRelations: async (projectId: number): Promise<ApiResponse<ProjectRelationItem[]>> => {
+    const response = await apiClient.get<ApiResponse<ProjectRelationItem[]>>(
+      `/projects/${projectId}/relations`,
+    );
+    return response.data;
+  },
+
+  createProjectRelation: async (
+    projectId: number,
+    data: CreateProjectRelationRequest,
+  ): Promise<ApiResponse<ProjectRelationItem>> => {
+    const response = await apiClient.post<ApiResponse<ProjectRelationItem>>(
+      `/projects/${projectId}/relations`,
+      data,
+    );
+    return response.data;
+  },
+
+  removeProjectRelation: async (
+    projectId: number,
+    targetProjectId: string,
+    relationTypeCode: Extract<ProjectRelationTypeCode, 'linked'>,
+  ): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(
+      `/projects/${projectId}/relations/${targetProjectId}/${relationTypeCode}`,
+    );
+    return response.data;
+  },
+
+  // ─── 목표 ───
+
+  getObjectives: async (projectId: number): Promise<ApiResponse<ObjectiveItem[]>> => {
+    const response = await apiClient.get<ApiResponse<ObjectiveItem[]>>(`/projects/${projectId}/objectives`);
+    return response.data;
+  },
+
+  createObjective: async (projectId: number, data: CreateObjectiveRequest): Promise<ApiResponse<ObjectiveItem>> => {
+    const response = await apiClient.post<ApiResponse<ObjectiveItem>>(`/projects/${projectId}/objectives`, data);
+    return response.data;
+  },
+
+  updateObjective: async (
+    projectId: number,
+    objectiveId: string,
+    data: UpdateObjectiveRequest,
+  ): Promise<ApiResponse<ObjectiveItem>> => {
+    const response = await apiClient.put<ApiResponse<ObjectiveItem>>(
+      `/projects/${projectId}/objectives/${objectiveId}`,
+      data,
+    );
+    return response.data;
+  },
+
+  deleteObjective: async (projectId: number, objectiveId: string): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(`/projects/${projectId}/objectives/${objectiveId}`);
+    return response.data;
+  },
+
+  // ─── WBS ───
+
+  getWbs: async (projectId: number): Promise<ApiResponse<WbsItem[]>> => {
+    const response = await apiClient.get<ApiResponse<WbsItem[]>>(`/projects/${projectId}/wbs`);
+    return response.data;
+  },
+
+  createWbs: async (projectId: number, data: CreateWbsRequest): Promise<ApiResponse<WbsItem>> => {
+    const response = await apiClient.post<ApiResponse<WbsItem>>(`/projects/${projectId}/wbs`, data);
+    return response.data;
+  },
+
+  updateWbs: async (
+    projectId: number,
+    wbsId: string,
+    data: UpdateWbsRequest,
+  ): Promise<ApiResponse<WbsItem>> => {
+    const response = await apiClient.put<ApiResponse<WbsItem>>(`/projects/${projectId}/wbs/${wbsId}`, data);
+    return response.data;
+  },
+
+  deleteWbs: async (projectId: number, wbsId: string): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(`/projects/${projectId}/wbs/${wbsId}`);
+    return response.data;
+  },
+
   // ─── 태스크 ───
 
   getTasks: async (projectId: number): Promise<ApiResponse<TaskItem[]>> => {
@@ -646,6 +1208,207 @@ export const projectsApi = {
 
   deleteIssue: async (projectId: number, issueId: string): Promise<ApiResponse<null>> => {
     const response = await apiClient.delete<ApiResponse<null>>(`/projects/${projectId}/issues/${issueId}`);
+    return response.data;
+  },
+
+  // ─── canonical 이슈 ───
+
+  getControlIssues: async (projectId: number): Promise<ApiResponse<ProjectIssueItem[]>> => {
+    const response = await apiClient.get<ApiResponse<ProjectIssueItem[]>>(
+      `/projects/${projectId}/control/issues`,
+    );
+    return response.data;
+  },
+
+  createProjectIssue: async (
+    projectId: number,
+    data: CreateProjectIssueRequest,
+  ): Promise<ApiResponse<ProjectIssueItem>> => {
+    const response = await apiClient.post<ApiResponse<ProjectIssueItem>>(
+      `/projects/${projectId}/control/issues`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateProjectIssue: async (
+    projectId: number,
+    projectIssueId: string,
+    data: UpdateProjectIssueRequest,
+  ): Promise<ApiResponse<ProjectIssueItem>> => {
+    const response = await apiClient.put<ApiResponse<ProjectIssueItem>>(
+      `/projects/${projectId}/control/issues/${projectIssueId}`,
+      data,
+    );
+    return response.data;
+  },
+
+  deleteProjectIssue: async (
+    projectId: number,
+    projectIssueId: string,
+  ): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(
+      `/projects/${projectId}/control/issues/${projectIssueId}`,
+    );
+    return response.data;
+  },
+
+  // ─── 요구사항 ───
+
+  getRequirements: async (projectId: number): Promise<ApiResponse<ProjectRequirementItem[]>> => {
+    const response = await apiClient.get<ApiResponse<ProjectRequirementItem[]>>(
+      `/projects/${projectId}/control/requirements`,
+    );
+    return response.data;
+  },
+
+  createRequirement: async (
+    projectId: number,
+    data: CreateProjectRequirementRequest,
+  ): Promise<ApiResponse<ProjectRequirementItem>> => {
+    const response = await apiClient.post<ApiResponse<ProjectRequirementItem>>(
+      `/projects/${projectId}/control/requirements`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateRequirement: async (
+    projectId: number,
+    requirementId: string,
+    data: UpdateProjectRequirementRequest,
+  ): Promise<ApiResponse<ProjectRequirementItem>> => {
+    const response = await apiClient.put<ApiResponse<ProjectRequirementItem>>(
+      `/projects/${projectId}/control/requirements/${requirementId}`,
+      data,
+    );
+    return response.data;
+  },
+
+  deleteRequirement: async (projectId: number, requirementId: string): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(
+      `/projects/${projectId}/control/requirements/${requirementId}`,
+    );
+    return response.data;
+  },
+
+  // ─── 리스크 ───
+
+  getRisks: async (projectId: number): Promise<ApiResponse<ProjectRiskItem[]>> => {
+    const response = await apiClient.get<ApiResponse<ProjectRiskItem[]>>(
+      `/projects/${projectId}/control/risks`,
+    );
+    return response.data;
+  },
+
+  createRisk: async (
+    projectId: number,
+    data: CreateProjectRiskRequest,
+  ): Promise<ApiResponse<ProjectRiskItem>> => {
+    const response = await apiClient.post<ApiResponse<ProjectRiskItem>>(
+      `/projects/${projectId}/control/risks`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateRisk: async (
+    projectId: number,
+    riskId: string,
+    data: UpdateProjectRiskRequest,
+  ): Promise<ApiResponse<ProjectRiskItem>> => {
+    const response = await apiClient.put<ApiResponse<ProjectRiskItem>>(
+      `/projects/${projectId}/control/risks/${riskId}`,
+      data,
+    );
+    return response.data;
+  },
+
+  deleteRisk: async (projectId: number, riskId: string): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(
+      `/projects/${projectId}/control/risks/${riskId}`,
+    );
+    return response.data;
+  },
+
+  // ─── 변경요청 ───
+
+  getChangeRequests: async (projectId: number): Promise<ApiResponse<ProjectChangeRequestItem[]>> => {
+    const response = await apiClient.get<ApiResponse<ProjectChangeRequestItem[]>>(
+      `/projects/${projectId}/control/changes`,
+    );
+    return response.data;
+  },
+
+  createChangeRequest: async (
+    projectId: number,
+    data: CreateProjectChangeRequest,
+  ): Promise<ApiResponse<ProjectChangeRequestItem>> => {
+    const response = await apiClient.post<ApiResponse<ProjectChangeRequestItem>>(
+      `/projects/${projectId}/control/changes`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateChangeRequest: async (
+    projectId: number,
+    changeRequestId: string,
+    data: UpdateProjectChangeRequest,
+  ): Promise<ApiResponse<ProjectChangeRequestItem>> => {
+    const response = await apiClient.put<ApiResponse<ProjectChangeRequestItem>>(
+      `/projects/${projectId}/control/changes/${changeRequestId}`,
+      data,
+    );
+    return response.data;
+  },
+
+  deleteChangeRequest: async (
+    projectId: number,
+    changeRequestId: string,
+  ): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(
+      `/projects/${projectId}/control/changes/${changeRequestId}`,
+    );
+    return response.data;
+  },
+
+  // ─── 이벤트 ───
+
+  getEvents: async (projectId: number): Promise<ApiResponse<ProjectEventItem[]>> => {
+    const response = await apiClient.get<ApiResponse<ProjectEventItem[]>>(
+      `/projects/${projectId}/control/events`,
+    );
+    return response.data;
+  },
+
+  createEvent: async (
+    projectId: number,
+    data: CreateProjectEventRequest,
+  ): Promise<ApiResponse<ProjectEventItem>> => {
+    const response = await apiClient.post<ApiResponse<ProjectEventItem>>(
+      `/projects/${projectId}/control/events`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateEvent: async (
+    projectId: number,
+    eventId: string,
+    data: UpdateProjectEventRequest,
+  ): Promise<ApiResponse<ProjectEventItem>> => {
+    const response = await apiClient.put<ApiResponse<ProjectEventItem>>(
+      `/projects/${projectId}/control/events/${eventId}`,
+      data,
+    );
+    return response.data;
+  },
+
+  deleteEvent: async (projectId: number, eventId: string): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(
+      `/projects/${projectId}/control/events/${eventId}`,
+    );
     return response.data;
   },
 

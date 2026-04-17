@@ -1,5 +1,10 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import type { ExtendedPrismaClient, Prisma } from '@ssoo/database';
 import { DatabaseService } from '../../../database/database.service.js';
+import {
+  COMPLETED_DELIVERABLE_SUBMISSION_STATUSES,
+  isDeliverableSubmissionCompleted,
+} from '../deliverable/deliverable.constants.js';
 import type {
   CreateProjectDto,
   UpdateProjectDto,
@@ -12,6 +17,10 @@ import type {
   ProjectStatusCode,
   DoneResultCode,
 } from '@ssoo/types';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { AccessFoundationService } from '../../common/access/access-foundation.service.js';
+import { ProjectOrgService } from './project-org.service.js';
+import { ProjectRelationService } from './project-relation.service.js';
 
 // 각 상태에서 허용되는 doneResultCode
 const VALID_DONE_RESULTS: Record<ProjectStatusCode, DoneResultCode[]> = {
@@ -36,20 +45,30 @@ const DEFAULT_STATUS_GOALS: Record<ProjectStatusCode, string> = {
   transition: '프로젝트를 종료하고 운영/유지보수로 전환합니다.',
 };
 
+type TxClient = Omit<
+  ExtendedPrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
+
 @Injectable()
 export class ProjectService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly accessFoundationService: AccessFoundationService,
+    private readonly projectOrgService: ProjectOrgService,
+    private readonly projectRelationService: ProjectRelationService,
+  ) {}
 
-  async findAll(params: PaginationParams & { statusCode?: string }) {
+  async findAll(
+    params: PaginationParams & { statusCode?: string },
+    currentUser: TokenPayload,
+  ) {
     const pageValue = Number(params.page);
     const limitValue = Number(params.limit);
     const page = Number.isFinite(pageValue) && pageValue > 0 ? pageValue : 1;
     const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : 10;
     const skip = (page - 1) * limit;
-
-    const where = {
-      ...(params.statusCode && { statusCode: params.statusCode }),
-    };
+    const where = await this.buildProjectListWhere(params, currentUser);
 
     const [data, total] = await Promise.all([
       this.db.project.findMany({
@@ -71,6 +90,47 @@ export class ProjectService {
     return { data, total };
   }
 
+  private async buildProjectListWhere(
+    params: PaginationParams & { statusCode?: string },
+    currentUser: TokenPayload,
+  ): Promise<Prisma.ProjectWhereInput> {
+    const baseWhere: Prisma.ProjectWhereInput = {
+      ...(params.statusCode && { statusCode: params.statusCode }),
+    };
+
+    const actionContext =
+      await this.accessFoundationService.resolveActionPermissionContext(currentUser);
+    if (actionContext.policy.hasSystemOverride) {
+      return baseWhere;
+    }
+
+    const userId = BigInt(currentUser.userId);
+    const now = new Date();
+    const userOrgIds = await this.accessFoundationService.getUserOrganizationIds(userId, now);
+    const accessFilters: Prisma.ProjectWhereInput[] = [
+      { currentOwnerUserId: userId },
+      {
+        projectMembers: {
+          some: {
+            userId,
+            isActive: true,
+            OR: [{ releasedAt: null }, { releasedAt: { gte: now } }],
+          },
+        },
+      },
+    ];
+
+    if (userOrgIds.length > 0) {
+      accessFilters.push({
+        ownerOrganizationId: { in: userOrgIds },
+      });
+    }
+
+    return {
+      ...baseWhere,
+      OR: accessFilters,
+    };
+  }
   async findOne(id: bigint) {
     return this.db.project.findUnique({
       where: { id },
@@ -86,35 +146,62 @@ export class ProjectService {
     });
   }
 
-  async create(dto: CreateProjectDto) {
-    return this.db.project.create({
-      data: {
-        projectName: dto.projectName,
-        statusCode: dto.statusCode || 'request',
-        stageCode: dto.stageCode || 'waiting',
-        currentOwnerUserId: dto.ownerId ? BigInt(dto.ownerId) : null,
-        customerId: dto.customerId ? BigInt(dto.customerId) : null,
-        memo: dto.description,
-      },
+  async create(dto: CreateProjectDto, actorUserId: bigint) {
+    const ownerOrganizationId = await this.resolveCreateOwnerOrganizationId(dto, actorUserId);
+
+    return this.db.client.$transaction(async (tx) => {
+      const project = await tx.project.create({
+        data: {
+          projectName: dto.projectName,
+          statusCode: dto.statusCode || 'request',
+          stageCode: dto.stageCode || 'waiting',
+          currentOwnerUserId: dto.ownerId ? BigInt(dto.ownerId) : null,
+          ownerOrganizationId,
+          customerId: dto.customerId ? BigInt(dto.customerId) : null,
+          memo: dto.description,
+        },
+      });
+
+      await this.projectOrgService.syncCompatibilityProjectOrgs(project.id, tx, {
+        strict: true,
+      });
+
+      return project;
     });
   }
 
-  async update(id: bigint, dto: UpdateProjectDto) {
-    try {
-      return await this.db.project.update({
+  async update(id: bigint, dto: UpdateProjectDto, actorUserId: bigint) {
+    const ownerOrganizationId = await this.resolveUpdateOwnerOrganizationId(dto, actorUserId);
+    const existing = await this.db.project.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return null;
+    }
+
+    return this.db.client.$transaction(async (tx) => {
+      const project = await tx.project.update({
         where: { id },
         data: {
           ...(dto.projectName && { projectName: dto.projectName }),
           ...(dto.description !== undefined && { memo: dto.description }),
+          ...(dto.customerId !== undefined && { customerId: dto.customerId ? BigInt(dto.customerId) : null }),
           ...(dto.statusCode && { statusCode: dto.statusCode }),
           ...(dto.stageCode && { stageCode: dto.stageCode }),
           ...(dto.doneResultCode !== undefined && { doneResultCode: dto.doneResultCode }),
           ...(dto.ownerId && { currentOwnerUserId: BigInt(dto.ownerId) }),
+          ...(ownerOrganizationId !== undefined && { ownerOrganizationId }),
         },
       });
-    } catch {
-      return null;
-    }
+
+      await this.projectOrgService.syncCompatibilityProjectOrgs(project.id, tx, {
+        strict: true,
+      });
+
+      return project;
+    });
   }
 
   async remove(id: bigint): Promise<boolean> {
@@ -183,27 +270,35 @@ export class ProjectService {
   }
 
   async upsertExecutionDetail(projectId: bigint, dto: UpsertExecutionDetailDto) {
-    return this.db.client.projectExecutionDetail.upsert({
-      where: { projectId },
-      create: {
-        projectId,
-        ...(dto.contractSignedAt && { contractSignedAt: new Date(dto.contractSignedAt) }),
-        ...(dto.contractAmount && { contractAmount: BigInt(dto.contractAmount) }),
-        ...(dto.contractUnitCode && { contractUnitCode: dto.contractUnitCode }),
-        ...(dto.billingTypeCode && { billingTypeCode: dto.billingTypeCode }),
-        ...(dto.deliveryMethodCode && { deliveryMethodCode: dto.deliveryMethodCode }),
-        ...(dto.nextProjectId && { nextProjectId: BigInt(dto.nextProjectId) }),
-        ...(dto.memo !== undefined && { memo: dto.memo }),
-      },
-      update: {
-        ...(dto.contractSignedAt !== undefined && { contractSignedAt: dto.contractSignedAt ? new Date(dto.contractSignedAt) : null }),
-        ...(dto.contractAmount !== undefined && { contractAmount: dto.contractAmount ? BigInt(dto.contractAmount) : null }),
-        ...(dto.contractUnitCode !== undefined && { contractUnitCode: dto.contractUnitCode || null }),
-        ...(dto.billingTypeCode !== undefined && { billingTypeCode: dto.billingTypeCode || null }),
-        ...(dto.deliveryMethodCode !== undefined && { deliveryMethodCode: dto.deliveryMethodCode || null }),
-        ...(dto.nextProjectId !== undefined && { nextProjectId: dto.nextProjectId ? BigInt(dto.nextProjectId) : null }),
-        ...(dto.memo !== undefined && { memo: dto.memo || null }),
-      },
+    return this.db.client.$transaction(async (tx) => {
+      const detail = await tx.projectExecutionDetail.upsert({
+        where: { projectId },
+        create: {
+          projectId,
+          ...(dto.contractSignedAt && { contractSignedAt: new Date(dto.contractSignedAt) }),
+          ...(dto.contractAmount && { contractAmount: BigInt(dto.contractAmount) }),
+          ...(dto.contractUnitCode && { contractUnitCode: dto.contractUnitCode }),
+          ...(dto.billingTypeCode && { billingTypeCode: dto.billingTypeCode }),
+          ...(dto.deliveryMethodCode && { deliveryMethodCode: dto.deliveryMethodCode }),
+          ...(dto.nextProjectId && { nextProjectId: BigInt(dto.nextProjectId) }),
+          ...(dto.memo !== undefined && { memo: dto.memo }),
+        },
+        update: {
+          ...(dto.contractSignedAt !== undefined && { contractSignedAt: dto.contractSignedAt ? new Date(dto.contractSignedAt) : null }),
+          ...(dto.contractAmount !== undefined && { contractAmount: dto.contractAmount ? BigInt(dto.contractAmount) : null }),
+          ...(dto.contractUnitCode !== undefined && { contractUnitCode: dto.contractUnitCode || null }),
+          ...(dto.billingTypeCode !== undefined && { billingTypeCode: dto.billingTypeCode || null }),
+          ...(dto.deliveryMethodCode !== undefined && { deliveryMethodCode: dto.deliveryMethodCode || null }),
+          ...(dto.nextProjectId !== undefined && { nextProjectId: dto.nextProjectId ? BigInt(dto.nextProjectId) : null }),
+          ...(dto.memo !== undefined && { memo: dto.memo || null }),
+        },
+      });
+
+      await this.syncPrimaryContractFromExecutionDetail(tx, projectId, detail);
+      await this.projectRelationService.syncCompatibilityProjectRelations(projectId, tx, {
+        strict: true,
+      });
+      return detail;
     });
   }
 
@@ -282,7 +377,7 @@ export class ProjectService {
           projectId,
           statusCode: currentStatus,
           isActive: true,
-          submissionStatusCode: { notIn: ['approved', 'not_required'] },
+          submissionStatusCode: { notIn: [...COMPLETED_DELIVERABLE_SUBMISSION_STATUSES] },
         },
       });
 
@@ -405,7 +500,7 @@ export class ProjectService {
     });
 
     const pendingDeliverables = deliverables.filter(
-      (d) => !['approved', 'not_required'].includes(d.submissionStatusCode),
+      (d) => !isDeliverableSubmissionCompleted(d.submissionStatusCode),
     );
     const uncheckedConditions = closeConditions.filter((c) => !c.isChecked);
 
@@ -453,5 +548,108 @@ export class ProjectService {
         });
         break;
     }
+  }
+
+  private async resolveCreateOwnerOrganizationId(
+    dto: CreateProjectDto,
+    actorUserId: bigint,
+  ): Promise<bigint | null> {
+    if (dto.ownerOrganizationId) {
+      return BigInt(dto.ownerOrganizationId);
+    }
+
+    const ownerUserId = dto.ownerId ? BigInt(dto.ownerId) : actorUserId;
+    return this.findPrimaryOrganizationId(ownerUserId);
+  }
+
+  private async resolveUpdateOwnerOrganizationId(
+    dto: UpdateProjectDto,
+    _actorUserId: bigint,
+  ): Promise<bigint | null | undefined> {
+    if (dto.ownerOrganizationId !== undefined) {
+      return dto.ownerOrganizationId ? BigInt(dto.ownerOrganizationId) : null;
+    }
+
+    if (dto.ownerId) {
+      return this.findPrimaryOrganizationId(BigInt(dto.ownerId));
+    }
+
+    return undefined;
+  }
+
+  private async findPrimaryOrganizationId(userId: bigint): Promise<bigint | null> {
+    const relation = await this.db.client.userOrganizationRelation.findFirst({
+      where: {
+        userId,
+        isActive: true,
+      },
+      orderBy: [
+        { isPrimary: 'desc' },
+        { updatedAt: 'desc' },
+      ],
+      select: {
+        orgId: true,
+      },
+    });
+
+    return relation?.orgId ?? null;
+  }
+
+  private async syncPrimaryContractFromExecutionDetail(
+    tx: TxClient,
+    projectId: bigint,
+    detail: {
+      contractSignedAt: Date | null;
+      contractAmount: bigint | null;
+      contractUnitCode: string | null;
+      billingTypeCode: string | null;
+      deliveryMethodCode: string | null;
+    },
+  ): Promise<void> {
+    const hasContractSignal = Boolean(
+      detail.contractSignedAt
+      || detail.contractAmount
+      || detail.contractUnitCode
+      || detail.billingTypeCode
+      || detail.deliveryMethodCode,
+    );
+    const existingPrimaryContract = await tx.projectContract.findFirst({
+      where: { projectId, isPrimary: true, isActive: true },
+      orderBy: [{ updatedAt: 'desc' }, { contractId: 'desc' }],
+    });
+
+    if (!hasContractSignal && !existingPrimaryContract) {
+      return;
+    }
+
+    if (existingPrimaryContract) {
+      await tx.projectContract.update({
+        where: { contractId: existingPrimaryContract.contractId },
+        data: {
+          totalAmount: detail.contractAmount,
+          currencyCode: detail.contractUnitCode ?? existingPrimaryContract.currencyCode,
+          contractStatusCode: detail.contractSignedAt ? 'signed' : 'draft',
+          contractDate: detail.contractSignedAt,
+          billingTypeCode: detail.billingTypeCode,
+          deliveryMethodCode: detail.deliveryMethodCode,
+        },
+      });
+      return;
+    }
+
+    await tx.projectContract.create({
+      data: {
+        projectId,
+        contractCode: 'PRIMARY',
+        title: 'Primary Contract',
+        totalAmount: detail.contractAmount,
+        currencyCode: detail.contractUnitCode ?? 'KRW',
+        contractStatusCode: detail.contractSignedAt ? 'signed' : 'draft',
+        contractDate: detail.contractSignedAt,
+        billingTypeCode: detail.billingTypeCode,
+        deliveryMethodCode: detail.deliveryMethodCode,
+        isPrimary: true,
+      },
+    });
   }
 }

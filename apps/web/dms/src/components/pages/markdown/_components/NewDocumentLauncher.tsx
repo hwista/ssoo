@@ -4,12 +4,14 @@ import { useRef, useCallback, useState, useEffect, type ChangeEvent } from 'reac
 import { Bot, FileText, FileCode, X, Loader2 } from 'lucide-react';
 import { LoadingState } from '@/components/common/StateDisplay';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
+import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
 
 interface LauncherAction {
   id: string;
   label: string;
   description: string;
   icon: React.ReactNode;
+  disabled?: boolean;
   onClick: () => void;
 }
 
@@ -18,6 +20,9 @@ interface NewDocumentLauncherProps {
   onSelectTemplate: () => void;
   onSelectAiSummary: (files: InlineSummaryFileItem[]) => void;
   onClose: () => void;
+  canWriteDocuments: boolean;
+  canManageTemplates: boolean;
+  canUseAssistant: boolean;
 }
 
 export function NewDocumentLauncher({
@@ -25,15 +30,21 @@ export function NewDocumentLauncher({
   onSelectTemplate,
   onSelectAiSummary,
   onClose,
+  canWriteDocuments,
+  canManageTemplates,
+  canUseAssistant,
 }: NewDocumentLauncherProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPreparing, setIsPreparing] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
 
   const handleAiSummaryClick = useCallback(() => {
+    if (!canWriteDocuments || !canUseAssistant) {
+      return;
+    }
     setIsPreparing(true);
     fileInputRef.current?.click();
-  }, []);
+  }, [canUseAssistant, canWriteDocuments]);
 
   // 파일 피커 취소 시 isPreparing 복원
   useEffect(() => {
@@ -57,7 +68,10 @@ export function NewDocumentLauncher({
         try {
           const formData = new FormData();
           formData.append('file', file);
-          const res = await fetch('/api/file/extract-text', { method: 'POST', body: formData });
+          const res = await fetchWithSharedAuth('/api/file/extract-text', {
+            method: 'POST',
+            body: formData,
+          });
           if (res.ok) {
             const data = await res.json();
             textContent = typeof data?.textContent === 'string' ? data.textContent : '';
@@ -85,22 +99,29 @@ export function NewDocumentLauncher({
     {
       id: 'ai-summary',
       label: isPreparing ? '파일 선택 준비 중...' : 'AI 요약',
-      description: isPreparing ? '' : '파일을 선택하면 AI가 자동으로 요약합니다',
+      description: isPreparing
+        ? ''
+        : canWriteDocuments && canUseAssistant
+          ? '파일을 선택하면 AI가 자동으로 요약합니다'
+          : '문서 작성 및 AI 권한이 필요합니다',
       icon: isPreparing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Bot className="w-6 h-6" />,
+      disabled: !canWriteDocuments || !canUseAssistant,
       onClick: handleAiSummaryClick,
     },
     {
       id: 'doc',
       label: '새 문서',
-      description: '새 문서를 작성합니다',
+      description: canWriteDocuments ? '새 문서를 작성합니다' : '문서 작성 권한이 필요합니다',
       icon: <FileText className="w-6 h-6" />,
+      disabled: !canWriteDocuments,
       onClick: onSelectNewDoc,
     },
     {
       id: 'template',
       label: '새 템플릿',
-      description: '새 템플릿을 작성합니다',
+      description: canManageTemplates ? '새 템플릿을 작성합니다' : '템플릿 관리 권한이 필요합니다',
       icon: <FileCode className="w-6 h-6" />,
+      disabled: !canManageTemplates,
       onClick: onSelectTemplate,
     },
     {
@@ -128,8 +149,9 @@ export function NewDocumentLauncher({
             <button
               key={action.id}
               type="button"
+              disabled={action.disabled}
               onClick={action.onClick}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-left transition-colors text-ssoo-primary/80 hover:bg-ssoo-primary/5"
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-left transition-colors text-ssoo-primary/80 hover:bg-ssoo-primary/5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
             >
               <span className="text-ssoo-primary/50">
                 {action.icon}

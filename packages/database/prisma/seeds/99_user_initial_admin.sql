@@ -12,15 +12,6 @@ begin;
 -- 해시 생성: cd apps/server && node -e "console.log(require('bcryptjs').hashSync('admin123!', 12))"
 
 insert into common.cm_user_m (
-    -- System Access Control
-    is_system_user,
-    is_admin,
-    user_type_code,
-    
-    -- Authentication
-    login_id,
-    password_hash,
-    
     -- Profile
     user_name,
     display_name,
@@ -33,10 +24,7 @@ insert into common.cm_user_m (
     
     -- Role & Permission
     role_code,
-    
-    -- Status
-    user_status_code,
-    
+
     -- Common
     is_active,
     memo,
@@ -46,15 +34,6 @@ insert into common.cm_user_m (
     updated_at
 )
 values (
-    -- System Access Control
-    true,                   -- is_system_user: 시스템 사용 가능
-    true,                   -- is_admin: 관리자 (관리자 메뉴 접근 가능)
-    'internal',             -- user_type_code: 내부 직원
-    
-    -- Authentication
-    'admin',                -- login_id
-    '$2b$12$p2cetWagNdcD1D6bfdyhEOU7idn.M37R7GYIF7h3MhLGGnd9bUHWW',  -- admin123!
-    
     -- Profile
     '시스템관리자',          -- user_name
     'Admin',                -- display_name
@@ -67,10 +46,7 @@ values (
     
     -- Role & Permission
     'admin',                -- role_code: 관리자
-    
-    -- Status
-    'active',               -- user_status_code: 활성
-    
+
     -- Common
     true,                   -- is_active
     '시스템 초기 관리자 계정. 배포 후 비밀번호 변경 필수.',
@@ -80,5 +56,35 @@ values (
     CURRENT_TIMESTAMP       -- updated_at
 )
 on conflict (email) do nothing;  -- 이미 존재하면 skip
+
+insert into common.cm_user_auth_m (
+    user_id,
+    login_id,
+    password_hash,
+    account_status_code,
+    created_at,
+    updated_at,
+    last_source,
+    last_activity
+)
+select
+    u.user_id,
+    'admin',
+    '$2b$12$p2cetWagNdcD1D6bfdyhEOU7idn.M37R7GYIF7h3MhLGGnd9bUHWW',
+    'active',
+    current_timestamp,
+    current_timestamp,
+    'SEED',
+    'user_initial_admin.sql'
+from common.cm_user_m u
+where u.email = 'admin@company.com'
+on conflict (user_id) do update
+set
+    login_id = excluded.login_id,
+    password_hash = excluded.password_hash,
+    account_status_code = excluded.account_status_code,
+    updated_at = excluded.updated_at,
+    last_source = excluded.last_source,
+    last_activity = excluded.last_activity;
 
 commit;

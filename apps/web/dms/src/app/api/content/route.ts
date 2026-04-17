@@ -1,73 +1,78 @@
 export const dynamic = 'force-dynamic';
 
-import {
-  handleLoadContent,
-  handleSaveContent,
-  handleDeleteContent,
-  handleUpdateContentMetadata,
-} from '@/server/handlers/content.handler';
+import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
 
-/**
- * GET /api/content?path=...&strict=...
- * 콘텐츠(.md)와 메타데이터(.sidecar.json) 로드
- */
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const contentPath = url.searchParams.get('path')?.trim();
-
-  if (!contentPath) {
-    return Response.json({ error: 'Missing path parameter' }, { status: 400 });
-  }
-
-  const strict = url.searchParams.get('strict') === 'true';
-  const result = handleLoadContent(contentPath, { strict });
-
-  if (result.success) {
-    return Response.json(result.data);
-  }
-  return Response.json({ error: result.error }, { status: result.status ?? 500 });
+interface BackendSuccessResponse<T> {
+  success: true;
+  data: T;
 }
 
-/**
- * POST /api/content
- * 콘텐츠 저장 또는 메타데이터 업데이트
- *
- * Body 형식:
- *   저장: { path, content, metadata?, skipMetadata? }
- *   메타데이터만: { path, metadataUpdate: { ... } }
- */
+interface BackendErrorResponse {
+  success?: false;
+  error?: {
+    code?: string;
+    message?: string;
+  } | string;
+  message?: string;
+  details?: unknown;
+}
+
+function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null): string {
+  if (!responseBody || responseBody.success === true) {
+    return '서버 콘텐츠 처리 중 오류가 발생했습니다.';
+  }
+
+  return (
+    (typeof responseBody.error === 'string' ? responseBody.error : responseBody.error?.message)
+    || responseBody.message
+    || '서버 콘텐츠 처리 중 오류가 발생했습니다.'
+  );
+}
+
+async function proxyJson<T>(request: Request, pathname: string, init?: RequestInit) {
+  const response = await fetch(
+    createServerApiUrl(pathname),
+    createServerApiProxyInit(request, init),
+  );
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<T> | BackendErrorResponse | null;
+
+  if (!response.ok || !responseBody || responseBody.success !== true) {
+    return Response.json(
+      {
+        error: getBackendErrorMessage(responseBody),
+        details: responseBody && responseBody.success !== true ? responseBody.details : undefined,
+      },
+      { status: response.status || 500 },
+    );
+  }
+
+  return Response.json(responseBody.data);
+}
+
+export async function GET(req: Request) {
+  const query = new URL(req.url).searchParams.toString();
+  const pathname = query ? `/dms/content?${query}` : '/dms/content';
+  return proxyJson(req, pathname);
+}
+
 export async function POST(req: Request) {
   const body = await req.json();
-
-  // 메타데이터만 업데이트하는 경우
-  if (body.metadataUpdate && !body.content && body.path) {
-    const result = handleUpdateContentMetadata(body.path, body.metadataUpdate);
-    if (result.success) {
-      return Response.json(result.data);
-    }
-    return Response.json({ error: result.error }, { status: result.status ?? 500 });
-  }
-
-  // 콘텐츠 저장
-  const result = handleSaveContent(body);
-  if (result.success) {
-    return Response.json(result.data);
-  }
-  return Response.json({ error: result.error }, { status: result.status ?? 500 });
+  return proxyJson(req, '/dms/content', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
 }
 
-/**
- * DELETE /api/content
- * 콘텐츠(.md + .sidecar.json) 삭제
- *
- * Body: { path, candidatePaths? }
- */
 export async function DELETE(req: Request) {
   const body = await req.json();
-  const result = handleDeleteContent(body);
-
-  if (result.success) {
-    return Response.json(result.data);
-  }
-  return Response.json({ error: result.error }, { status: result.status ?? 500 });
+  return proxyJson(req, '/dms/content', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
 }

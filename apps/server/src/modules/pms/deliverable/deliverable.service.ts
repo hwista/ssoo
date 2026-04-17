@@ -21,6 +21,13 @@ export class DeliverableService {
             sortOrder: true,
           },
         },
+        event: {
+          select: {
+            eventId: true,
+            eventCode: true,
+            eventName: true,
+          },
+        },
       },
       orderBy: [{ statusCode: 'asc' }, { deliverableCode: 'asc' }],
     });
@@ -36,6 +43,7 @@ export class DeliverableService {
         },
       },
       update: {
+        ...(dto.eventId !== undefined && { eventId: dto.eventId ? BigInt(dto.eventId) : null }),
         submissionStatusCode: dto.submissionStatusCode,
         ...(dto.memo !== undefined && { memo: dto.memo }),
         isActive: true,
@@ -44,6 +52,7 @@ export class DeliverableService {
         projectId,
         statusCode: dto.statusCode,
         deliverableCode: dto.deliverableCode,
+        eventId: dto.eventId ? BigInt(dto.eventId) : null,
         submissionStatusCode: dto.submissionStatusCode,
         memo: dto.memo,
       },
@@ -53,6 +62,13 @@ export class DeliverableService {
             deliverableName: true,
             description: true,
             sortOrder: true,
+          },
+        },
+        event: {
+          select: {
+            eventId: true,
+            eventCode: true,
+            eventName: true,
           },
         },
       },

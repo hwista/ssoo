@@ -1,6 +1,11 @@
 'use client';
 
+import type { DmsDocumentAccessRequestState } from '@ssoo/types/dms';
 import { cn } from '@/lib/utils';
+import {
+  normalizeDocumentAccessRequestPath,
+  useDocumentAccessRequestStore,
+} from '@/stores/document-access-request.store';
 
 export interface SearchResultCardData {
   id: string;
@@ -10,6 +15,11 @@ export interface SearchResultCardData {
   summary?: string;
   snippets?: string[];
   totalSnippetCount?: number;
+  owner?: string;
+  visibilityScope?: 'public' | 'organization' | 'self' | 'legacy';
+  isReadable: boolean;
+  canRequestRead: boolean;
+  readRequest?: DmsDocumentAccessRequestState;
 }
 
 interface SearchResultCardProps {
@@ -49,6 +59,70 @@ function renderPath(path: string) {
   );
 }
 
+function renderVisibilityLabel(scope: SearchResultCardData['visibilityScope']) {
+  switch (scope) {
+    case 'public':
+      return '전체 공개';
+    case 'organization':
+      return '조직 공개';
+    case 'self':
+      return '나만 보기';
+    default:
+      return '기존 ACL';
+  }
+}
+
+function formatRequestDateLabel(value?: string) {
+  if (!value) return '';
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleString('ko-KR', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function getRequestActionLabel(
+  result: SearchResultCardData,
+  request: DmsDocumentAccessRequestState | undefined,
+) {
+  if (result.isReadable) {
+    return '문서 열기';
+  }
+
+  if (request?.status === 'pending') {
+    return '요청 진행 중';
+  }
+
+  if (request?.status === 'rejected') {
+    return '요청 재시도';
+  }
+
+  if (request?.status === 'approved') {
+    return '승인 반영 중';
+  }
+
+  return result.canRequestRead ? '읽기 권한 요청' : '열람 불가';
+}
+
+function getRequestStatusLabel(request: DmsDocumentAccessRequestState) {
+  switch (request.status) {
+    case 'approved':
+      return '승인됨';
+    case 'rejected':
+      return '거절됨';
+    case 'pending':
+    default:
+      return '요청 대기';
+  }
+}
+
 function splitWithHighlight(text: string, terms: string[]) {
   const normalizedTerms = Array.from(new Set(
     terms
@@ -72,6 +146,11 @@ export function SearchResultCard({
   onClick,
   className,
 }: SearchResultCardProps) {
+  const requestPathKey = normalizeDocumentAccessRequestPath(result.path);
+  const requestOverride = useDocumentAccessRequestStore((state) => (
+    requestPathKey ? state.overrides[requestPathKey] : undefined
+  ));
+  const effectiveReadRequest = requestOverride ?? result.readRequest;
   const titleText = result.title?.trim() || '';
   const titleCanon = canonicalize(titleText);
   const rawSummary = result.summary?.trim() || '';
@@ -101,6 +180,20 @@ export function SearchResultCard({
         {result.title}
       </h3>
 
+      <div className={cn(compact ? 'mt-1.5' : 'mt-2', 'flex flex-wrap items-center gap-2')}>
+        <span className="inline-flex items-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-1.5 py-0 text-badge text-ssoo-primary">
+          {result.isReadable ? '열람 가능' : '발견 전용'}
+        </span>
+        <span className="inline-flex items-center rounded-full border border-ssoo-content-border bg-white px-1.5 py-0 text-badge text-ssoo-primary/75">
+          {renderVisibilityLabel(result.visibilityScope)}
+        </span>
+        {result.owner && (
+          <span className="text-caption text-ssoo-primary/65">
+            Owner: {result.owner}
+          </span>
+        )}
+      </div>
+
       <p className={cn(compact ? 'mt-1' : 'mt-1.5', 'line-clamp-2 text-body-sm text-ssoo-primary/80')}>
         <span className={cn(
           'mr-1.5 inline-flex items-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-1.5 py-0 text-badge text-ssoo-primary'
@@ -109,6 +202,28 @@ export function SearchResultCard({
         </span>
         {summaryText}
       </p>
+
+      {!result.isReadable && effectiveReadRequest && (
+        <div className={cn(compact ? 'mt-2' : 'mt-2.5', 'rounded-md border border-ssoo-content-border bg-ssoo-content-bg/40 px-3 py-2')}>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-ssoo-content-border bg-white px-2 py-0.5 text-badge text-ssoo-primary">
+              {getRequestStatusLabel(effectiveReadRequest)}
+            </span>
+            <span className="text-caption text-ssoo-primary/70">
+              {formatRequestDateLabel(effectiveReadRequest.respondedAt ?? effectiveReadRequest.requestedAt)}
+            </span>
+          </div>
+          {effectiveReadRequest.responseMessage ? (
+            <p className="mt-1 text-caption text-ssoo-primary/75">
+              {effectiveReadRequest.responseMessage}
+            </p>
+          ) : effectiveReadRequest.requestMessage ? (
+            <p className="mt-1 text-caption text-ssoo-primary/75">
+              {effectiveReadRequest.requestMessage}
+            </p>
+          ) : null}
+        </div>
+      )}
 
       {previewSnippets.length > 0 && (
         <div className={cn(compact ? 'mt-2' : 'mt-2.5')}>
@@ -136,8 +251,24 @@ export function SearchResultCard({
         </div>
       )}
 
-      <div className={cn(compact ? 'mt-2' : 'mt-3', 'text-ssoo-primary/70')}>
-        {renderPath(result.path)}
+      <div className={cn(compact ? 'mt-2' : 'mt-3', 'flex items-center justify-between gap-3 text-ssoo-primary/70')}>
+        <div className="min-w-0">
+          {renderPath(result.path)}
+        </div>
+        <span className={cn(
+          'shrink-0 rounded-full px-2 py-0.5 text-caption',
+          result.isReadable
+            ? 'bg-ssoo-content-bg text-ssoo-primary'
+            : effectiveReadRequest?.status === 'pending'
+              ? 'bg-amber-50 text-amber-700'
+              : effectiveReadRequest?.status === 'rejected'
+                ? 'bg-rose-50 text-rose-700'
+                : result.canRequestRead
+              ? 'bg-ssoo-content-border/60 text-ssoo-primary'
+              : 'bg-slate-100 text-slate-500',
+        )}>
+          {getRequestActionLabel(result, effectiveReadRequest)}
+        </span>
       </div>
     </div>
   );

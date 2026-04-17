@@ -9,11 +9,13 @@ export interface UserItem {
   email: string;
   phone?: string;
   roleCode: string;
-  userTypeCode: string;
   departmentCode?: string;
   positionCode?: string;
+  employeeNumber?: string;
+  companyName?: string;
+  customerId?: string;
+  primaryAffiliationType?: 'internal' | 'external' | null;
   isActive: boolean;
-  isAdmin: boolean;
   isSystemUser: boolean;
   lastLoginAt?: string;
   createdAt: string;
@@ -38,9 +40,12 @@ export interface CreateUserRequest {
   email: string;
   phone?: string;
   roleCode?: string;
-  userTypeCode?: string;
   departmentCode?: string;
   positionCode?: string;
+  employeeNumber?: string;
+  companyName?: string;
+  customerId?: string;
+  primaryAffiliationType?: 'internal' | 'external';
 }
 
 export interface UpdateUserRequest {
@@ -49,9 +54,12 @@ export interface UpdateUserRequest {
   email?: string;
   phone?: string;
   roleCode?: string;
-  userTypeCode?: string;
   departmentCode?: string;
   positionCode?: string;
+  employeeNumber?: string;
+  companyName?: string;
+  customerId?: string;
+  primaryAffiliationType?: 'internal' | 'external';
   password?: string;
   isActive?: boolean;
 }

@@ -1,6 +1,7 @@
 import type { TocItem } from '@/components/templates/page-frame';
 import { stringifyJson } from '@/lib/utils';
 import type { DocumentMetadata, SourceFileMeta, DocumentComment } from '@/types';
+import type { AuthIdentity } from '@ssoo/types/common';
 import type { DocumentSidecarMetadata } from './_components/DocumentSidecar';
 
 export interface DocumentSidecarDiffAttachment {
@@ -27,6 +28,49 @@ export interface DocumentSidecarDiffSnapshot {
   attachmentPaths: string[];
   sourceFiles: DocumentSidecarDiffAttachment[];
   comments: DocumentSidecarDiffComment[];
+}
+
+export type DocumentAclRole = 'owner' | 'editor' | 'viewer' | 'open' | 'none';
+
+function resolveSubjects(currentUser: AuthIdentity | null | undefined): string[] {
+  return [currentUser?.userId, currentUser?.loginId]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+}
+
+function matchesSubjects(subjects: string[], candidates: Array<string | undefined>): boolean {
+  const candidateSet = new Set(
+    candidates
+      .map((value) => value?.trim())
+      .filter((value): value is string => Boolean(value)),
+  );
+
+  return subjects.some((subject) => candidateSet.has(subject));
+}
+
+function hasAclEntries(documentMetadata: DocumentMetadata | null | undefined): boolean {
+  const owners = documentMetadata?.acl?.owners ?? [];
+  const editors = documentMetadata?.acl?.editors ?? [];
+  const viewers = documentMetadata?.acl?.viewers ?? [];
+  return owners.length > 0 || editors.length > 0 || viewers.length > 0;
+}
+
+function hasActiveUserGrant(
+  documentMetadata: DocumentMetadata | null | undefined,
+  currentUser: AuthIdentity | null | undefined,
+  roles: Array<'read' | 'write' | 'manage'>,
+): boolean {
+  const subjects = resolveSubjects(currentUser);
+  if (subjects.length === 0) {
+    return false;
+  }
+
+  return (documentMetadata?.grants ?? []).some((grant) => (
+    grant.principalType === 'user'
+    && roles.includes(grant.role)
+    && subjects.includes(grant.principalId)
+    && (!grant.expiresAt || Date.parse(grant.expiresAt) >= Date.now())
+  ));
 }
 
 export function getDocumentFilePath(tabPath: string | undefined): string | null {
@@ -63,6 +107,74 @@ export function buildMarkdownToc(content: string): TocItem[] {
   }
 
   return items;
+}
+
+export function resolveDocumentAclRole(
+  documentMetadata: DocumentMetadata | null | undefined,
+  currentUser: AuthIdentity | null | undefined,
+): DocumentAclRole {
+  const acl = documentMetadata?.acl;
+  const subjects = resolveSubjects(currentUser);
+  const hasModernAccessConfig = Boolean(
+    documentMetadata?.ownerId
+    || documentMetadata?.ownerLoginId
+    || documentMetadata?.visibility?.scope
+    || (documentMetadata?.grants ?? []).length > 0
+  );
+  const isLegacyOpen = !hasModernAccessConfig && !hasAclEntries(documentMetadata);
+  const isOwner = matchesSubjects(
+    subjects,
+    [documentMetadata?.ownerId, documentMetadata?.ownerLoginId, ...(acl?.owners ?? [])],
+  );
+  const hasReadGrant = hasActiveUserGrant(documentMetadata, currentUser, ['read', 'write', 'manage']);
+  const hasWriteGrant = hasActiveUserGrant(documentMetadata, currentUser, ['write', 'manage']);
+  const visibilityReadable = documentMetadata?.visibility?.scope === 'public';
+
+  if (isOwner) {
+    return 'owner';
+  }
+
+  if (
+    hasWriteGrant
+    || subjects.some((subject) => (acl?.editors ?? []).includes(subject))
+  ) {
+    return 'editor';
+  }
+
+  if (
+    visibilityReadable
+    || hasReadGrant
+    || subjects.some((subject) => (acl?.viewers ?? []).includes(subject))
+  ) {
+    return 'viewer';
+  }
+
+  if (isLegacyOpen) {
+    return 'open';
+  }
+
+  return 'none';
+}
+
+export function canEditDocument(
+  documentMetadata: DocumentMetadata | null | undefined,
+  currentUser: AuthIdentity | null | undefined,
+): boolean {
+  const role = resolveDocumentAclRole(documentMetadata, currentUser);
+  return role === 'open'
+    || role === 'owner'
+    || role === 'editor'
+    || hasActiveUserGrant(documentMetadata, currentUser, ['write', 'manage']);
+}
+
+export function canManageDocument(
+  documentMetadata: DocumentMetadata | null | undefined,
+  currentUser: AuthIdentity | null | undefined,
+): boolean {
+  const role = resolveDocumentAclRole(documentMetadata, currentUser);
+  return role === 'open'
+    || role === 'owner'
+    || hasActiveUserGrant(documentMetadata, currentUser, ['manage']);
 }
 
 export function buildDocumentSidecarMetadata(
@@ -106,7 +218,7 @@ function normalizeSourceFile(file: SourceFileMeta): DocumentSidecarDiffAttachmen
   return {
     name: file.name,
     path: file.path,
-    type: file.type,
+    type: file.type ?? 'application/octet-stream',
     origin: file.origin,
     status: file.status,
   };

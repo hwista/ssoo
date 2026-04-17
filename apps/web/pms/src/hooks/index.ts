@@ -20,8 +20,8 @@ export {
   useRemoveFavorite,
 } from './queries';
 
-// 인증 및 권한
-export { useAuth } from './useAuth';
+// 접근 권한
+export { usePmsAccess } from './usePmsAccess';
 
 // Tab
 export { useOpenTabWithConfirm } from './useOpenTabWithConfirm';

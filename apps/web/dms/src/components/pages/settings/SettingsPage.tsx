@@ -1,15 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Check, FolderOpen, RotateCcw } from 'lucide-react';
 import { JsonDiffView, JsonEditor } from '@/components/common/json';
-import { LoadingSpinner } from '@/components/common/StateDisplay';
+import { ErrorState, LoadingSpinner } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
 import { PageTemplate } from '@/components/templates';
 import type { HeaderAction } from '@/components/templates/page-frame';
-import { templateApi } from '@/lib/api';
+import { templateApi } from '@/lib/api/endpoints/templates';
+import { templateKeys, useTemplateList } from '@/hooks/queries/useTemplates';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
-import { useSettingsShellStore, useSettingsStore } from '@/stores';
+import { useAccessStore, useSettingsShellStore, useSettingsStore } from '@/stores';
 import {
   SETTING_SECTIONS,
   SETTINGS_SCOPE_LABELS,
@@ -52,13 +54,13 @@ export function SettingsPage() {
     setSection,
     setViewMode,
   } = useSettingsShellStore();
+  const canManageSettings = useAccessStore((state) => state.snapshot?.features.canManageSettings ?? false);
+  const queryClient = useQueryClient();
 
   const [localConfig, setLocalConfig] = useState<Record<string, unknown>>({});
   const [originalConfig, setOriginalConfig] = useState<Record<string, unknown>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [copyFiles, setCopyFiles] = useState(true);
-  const [templates, setTemplates] = useState<TemplateItem[]>([]);
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [jsonDraft, setJsonDraft] = useState('{}');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [templateDraft, setTemplateDraft] = useState({
@@ -94,6 +96,17 @@ export function SettingsPage() {
   }, [activeSectionId, scopeSections]);
   const isCustomSection = currentSection?.kind === 'custom';
   const isAdminTemplateSection = currentSection?.slotKey === 'admin-templates';
+  const templateListQuery = useTemplateList({
+    enabled: isAdminTemplateSection,
+  });
+  const templates = useMemo<TemplateItem[]>(
+    () => [
+      ...(templateListQuery.data?.data?.personal ?? []),
+      ...(templateListQuery.data?.data?.global ?? []),
+    ],
+    [templateListQuery.data?.data?.global, templateListQuery.data?.data?.personal],
+  );
+  const isLoadingTemplates = templateListQuery.isLoading || templateListQuery.isFetching;
 
   useEffect(() => {
     if (currentSection && currentSection.id !== activeSectionId) {
@@ -110,24 +123,6 @@ export function SettingsPage() {
     setJsonDraft(buildSectionJsonDraft(localConfig, currentSection.jsonPath));
     setJsonError(null);
   }, [currentSection, isCustomSection, localConfig]);
-
-  useEffect(() => {
-    if (!currentSection || !isAdminTemplateSection) return;
-    let mounted = true;
-    const loadTemplates = async () => {
-      setIsLoadingTemplates(true);
-      const response = await templateApi.list();
-      if (!mounted) return;
-      if (response.success && response.data) {
-        setTemplates([...(response.data.personal ?? []), ...(response.data.global ?? [])]);
-      }
-      setIsLoadingTemplates(false);
-    };
-    void loadTemplates();
-    return () => {
-      mounted = false;
-    };
-  }, [currentSection, isAdminTemplateSection]);
 
   const supportsJsonModes = !isCustomSection;
 
@@ -299,7 +294,7 @@ export function SettingsPage() {
       kind: templateDraft.kind,
     });
     if (!response.success || !response.data) return;
-    setTemplates((prev) => [response.data as TemplateItem, ...prev.filter((item) => item.id !== response.data?.id)]);
+    await queryClient.invalidateQueries({ queryKey: templateKeys.all });
     setTemplateDraft({
       name: '',
       description: '',
@@ -307,13 +302,13 @@ export function SettingsPage() {
       scope: 'global',
       kind: 'document',
     });
-  }, [templateDraft]);
+  }, [queryClient, templateDraft]);
 
   const handleTemplateDelete = useCallback(async (template: TemplateItem) => {
     const response = await templateApi.remove(template.id, template.scope);
     if (!response.success) return;
-    setTemplates((prev) => prev.filter((item) => item.id !== template.id));
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: templateKeys.all });
+  }, [queryClient]);
 
   const topStatusBanner = error ? (
     <div className="mb-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-body-sm text-destructive">
@@ -389,6 +384,21 @@ export function SettingsPage() {
 
   if (!currentSection) {
     return null;
+  }
+
+  if (!canManageSettings) {
+    return (
+      <PageTemplate
+        filePath="settings"
+        mode="viewer"
+        description="설정 권한이 필요합니다."
+        sidecarMode="hidden"
+      >
+        <div className="flex h-full items-center justify-center">
+          <ErrorState error="설정을 관리할 권한이 없습니다." />
+        </div>
+      </PageTemplate>
+    );
   }
 
   return (

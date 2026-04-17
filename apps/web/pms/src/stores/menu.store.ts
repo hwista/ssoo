@@ -1,12 +1,12 @@
 import { create } from 'zustand';
+import type { PmsAccessMenuItem, PmsAccessSnapshot, PmsFavoriteMenuItem } from '@ssoo/types/pms';
+import { menusApi } from '@/lib/api/endpoints/menus';
 import type { MenuItem, FavoriteMenuItem, AccessType } from '@/types';
-import { useAuthStore } from './auth.store';
-import { apiClient } from '@/lib/api/client';
 
 interface MenuStoreState {
   // 일반 메뉴 트리 (is_admin_menu = false)
   generalMenus: MenuItem[];
-  // 관리자 메뉴 트리 (is_admin_menu = true, isAdmin 사용자만)
+  // 관리자 메뉴 트리 (is_admin_menu = true, access snapshot 기준)
   adminMenus: MenuItem[];
   // 플랫 메뉴 맵 (빠른 조회용 - 일반 + 관리자 통합)
   menuMap: Map<string, MenuItem>;
@@ -19,6 +19,8 @@ interface MenuStoreState {
 }
 
 interface MenuStoreActions {
+  // PMS access snapshot 적용
+  applyAccessSnapshot: (snapshot: PmsAccessSnapshot) => void;
   // 메뉴 로드 (API 호출 후 설정)
   setMenus: (generalMenus: MenuItem[], adminMenus: MenuItem[]) => void;
   // 즐겨찾기 설정
@@ -29,8 +31,6 @@ interface MenuStoreActions {
   addFavorite: (item: Omit<FavoriteMenuItem, 'id' | 'sortOrder'>) => Promise<void>;
   // 즐겨찾기 삭제
   removeFavorite: (menuId: string) => Promise<void>;
-  // 메뉴 새로고침
-  refreshMenu: () => Promise<void>;
   // 특정 메뉴 권한 확인
   getMenuAccess: (menuCode: string) => AccessType;
   // 메뉴 코드로 메뉴 찾기
@@ -42,6 +42,63 @@ interface MenuStoreActions {
 }
 
 interface MenuStore extends MenuStoreState, MenuStoreActions {}
+
+const normalizeMenuType = (menuType: string): MenuItem['menuType'] => {
+  switch (menuType) {
+    case 'group':
+    case 'menu':
+    case 'action':
+      return menuType;
+    default:
+      return 'menu';
+  }
+};
+
+const normalizeAccessType = (accessType: string): AccessType => {
+  switch (accessType) {
+    case 'full':
+    case 'read':
+    case 'none':
+      return accessType;
+    default:
+      return 'none';
+  }
+};
+
+const normalizeMenuItem = (item: PmsAccessMenuItem): MenuItem => ({
+  menuId: item.menuId,
+  menuCode: item.menuCode,
+  menuName: item.menuName,
+  menuNameEn: item.menuNameEn ?? undefined,
+  menuType: normalizeMenuType(item.menuType),
+  menuPath: item.menuPath ?? undefined,
+  icon: item.icon ?? undefined,
+  sortOrder: item.sortOrder,
+  menuLevel: item.menuLevel,
+  isVisible: item.isVisible,
+  isAdminMenu: item.isAdminMenu,
+  accessType: normalizeAccessType(item.accessType),
+  children: item.children.map(normalizeMenuItem),
+  parentMenuId: item.parentMenuId ?? undefined,
+});
+
+const normalizeFavoriteMenu = (item: PmsFavoriteMenuItem): FavoriteMenuItem => ({
+  id: item.id,
+  menuId: item.menuId,
+  menuCode: item.menuCode,
+  menuName: item.menuName,
+  menuPath: item.menuPath ?? undefined,
+  icon: item.icon ?? undefined,
+  sortOrder: item.sortOrder,
+});
+
+const normalizePmsAccessSnapshot = (
+  snapshot: PmsAccessSnapshot,
+): Pick<MenuStoreState, 'generalMenus' | 'adminMenus' | 'favorites'> => ({
+  generalMenus: snapshot.generalMenus.map(normalizeMenuItem),
+  adminMenus: snapshot.adminMenus.map(normalizeMenuItem),
+  favorites: snapshot.favorites.map(normalizeFavoriteMenu),
+});
 
 // 메뉴 트리를 플랫 맵으로 변환
 const buildMenuMap = (menus: MenuItem[]): Map<string, MenuItem> => {
@@ -70,6 +127,12 @@ export const useMenuStore = create<MenuStore>()((set, get) => ({
   lastUpdatedAt: null,
 
   // Actions
+  applyAccessSnapshot: (snapshot: PmsAccessSnapshot) => {
+    const { generalMenus, adminMenus, favorites } = normalizePmsAccessSnapshot(snapshot);
+    get().setMenus(generalMenus, adminMenus);
+    get().setFavorites(favorites);
+  },
+
   setMenus: (generalMenus: MenuItem[], adminMenus: MenuItem[]) => {
     // 일반 메뉴와 관리자 메뉴를 통합하여 menuMap 구성
     const allMenus = [...generalMenus, ...adminMenus];
@@ -92,12 +155,10 @@ export const useMenuStore = create<MenuStore>()((set, get) => ({
 
   addFavorite: async (item: Omit<FavoriteMenuItem, 'id' | 'sortOrder'>) => {
     try {
-      const response = await apiClient.post('/menus/favorites', {
-        menuId: item.menuId,
-      });
+      const response = await menusApi.addFavorite(item.menuId);
       
-      if (response.data.success) {
-        const newFavorite: FavoriteMenuItem = response.data.data;
+      if (response.success && response.data) {
+        const newFavorite = normalizeFavoriteMenu(response.data);
         set((state) => ({
           favorites: [...state.favorites, newFavorite],
         }));
@@ -110,41 +171,13 @@ export const useMenuStore = create<MenuStore>()((set, get) => ({
 
   removeFavorite: async (menuId: string) => {
     try {
-      await apiClient.delete(`/menus/favorites/${menuId}`);
+      await menusApi.removeFavorite(menuId);
       set((state) => ({
         favorites: state.favorites.filter((f) => f.menuId !== menuId),
       }));
     } catch (error) {
       console.error('[MenuStore] Failed to remove favorite:', error);
       throw error;
-    }
-  },
-
-  refreshMenu: async () => {
-    set({ isLoading: true });
-    try {
-      const accessToken = useAuthStore.getState().accessToken;
-      
-      if (!accessToken) {
-        set({ isLoading: false });
-        return;
-      }
-      
-      const response = await apiClient.get('/menus/my');
-      const result = response.data;
-      
-      if (result.success) {
-        get().setMenus(
-          result.data.generalMenus || [],
-          result.data.adminMenus || []
-        );
-        get().setFavorites(result.data.favorites || []);
-      }
-      set({ lastUpdatedAt: new Date() });
-    } catch (error) {
-      console.error('[MenuStore] Failed to refresh menu:', error);
-    } finally {
-      set({ isLoading: false });
     }
   },
 

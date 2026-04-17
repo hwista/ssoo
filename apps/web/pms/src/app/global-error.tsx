@@ -1,5 +1,7 @@
 'use client';
 
+import { LOGIN_PATH } from '@/lib/constants/routes';
+
 /**
  * 전역 에러 바운더리
  * 
@@ -70,7 +72,7 @@ export default function GlobalError({
                 새로고침
               </button>
               <button
-                onClick={() => { window.location.href = '/login'; }}
+                onClick={() => { window.location.href = LOGIN_PATH; }}
                 style={{
                   padding: '8px 24px',
                   backgroundColor: 'white',

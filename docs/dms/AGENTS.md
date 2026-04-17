@@ -36,7 +36,7 @@
 |------|------|
 | **1. 코드 변경** | 패턴 표준 준수, 영향 범위 파악 |
 | **2. 문서 업데이트** | 관련 문서의 Backlog/Changelog 갱신 |
-| **3. 빌드 검증** | `npm run build` 성공 확인 |
+| **3. 빌드 검증** | `pnpm run build:web-dms` 성공 확인 |
 | **4. 커밋** | 변경 내용과 문서를 함께 커밋 |
 | **5. GitLab workspace 동기화** | 원격 GitLab workspace branch가 앞서 있으면 `pnpm run codex:workspace-sync-from-gitlab` 실행 |
 | **6. 양방향 배포** | `pnpm run codex:workspace-publish` 실행 (GitHub + GitLab workspace + 사전검사 + 검증) |
@@ -60,10 +60,10 @@
 
 ```bash
 # 1. 빌드 성공 확인
-npm run build
+pnpm run build:web-dms
 
 # 2. 개발 서버 실행
-npm run dev
+pnpm dev:web-dms
 ```
 
 ---
@@ -74,7 +74,7 @@ npm run dev
 
 - [ ] `apps/web/dms/` 하위에서만 작업하는지 확인
 - [ ] 이 문서(AGENTS.md)를 읽었는지 확인
-- [ ] `package.json` 의존성 확인 (외부 workspace 패키지 없는지)
+- [ ] `package.json` 의존성 확인 (공유 패키지 사용이 현재 규칙과 맞는지)
 - [ ] Copilot 규칙 확인: `dms.instructions.md`
 
 ### 코드 변경 시
@@ -82,7 +82,7 @@ npm run dev
 - [ ] 기존 패턴과 일치하는지 확인
 - [ ] 타입 정의와 구현 일치하는지 확인
 - [ ] 불필요한 코드 추가하지 않았는지 확인
-- [ ] 빌드 테스트 (`npm run build`)
+- [ ] 빌드 테스트 (`pnpm run build:web-dms`)
 
 ### 문서 변경 시
 
@@ -161,6 +161,7 @@ npm run dev
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-07 | DMS workspace 통합에 맞춰 빌드/실행 기준과 공유 패키지 점검 항목을 pnpm 기준으로 갱신 |
 | 2026-04-06 | GitLab 기본 흐름을 full-workspace `development` branch 기준으로 전환하고 `codex:workspace-*` 표준 명령/legacy alias 안내를 반영 |
 | 2026-04-02 | `codex:dms-sync-from-gitlab`와 `codex:dms-publish` 사전검사/인증 fallback 흐름 반영 |
 | 2026-02-23 | DMS 정본 경로를 `docs/dms/`로 단일화하고 참조 경로를 갱신 |

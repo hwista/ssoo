@@ -1,4 +1,4 @@
-import type { DeepPartialClient, DmsSettingsConfigClient } from '@/lib/api';
+import type { DeepPartialClient, DmsSettingsConfigClient } from '@/lib/api/endpoints/settings';
 import { deepMergeRecords, parseJsonObject, stringifyJson } from '@/lib/utils/json';
 import { getNestedValue, setNestedValue } from '@/lib/utils/objectPath';
 import type { SettingItem, SettingSection } from '../_config/settingsPageConfig';

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Play, CheckCircle2, ChevronDown, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAdvanceStage, useTransitionReadiness } from '@/hooks/queries/useProjects';
+import { useAdvanceStage, useProjectAccess, useTransitionReadiness } from '@/hooks/queries/useProjects';
 import type { DoneResultCode } from '@/lib/api/endpoints/projects';
 
 const DONE_RESULT_OPTIONS: Record<string, { value: DoneResultCode; label: string }[]> = {
@@ -73,9 +73,11 @@ export function StageActionBar({
 }: StageActionBarProps) {
   const [showResultPicker, setShowResultPicker] = useState(false);
   const advanceMutation = useAdvanceStage();
+  const { data: accessResponse } = useProjectAccess(projectId);
   const { data: readinessResponse } = useTransitionReadiness(
     stageCode === 'in_progress' ? projectId : undefined,
   );
+  const canAdvanceStage = accessResponse?.data?.features.canAdvanceStage ?? false;
   const readiness = readinessResponse?.data ?? null;
 
   const handleStart = async () => {
@@ -134,7 +136,7 @@ export function StageActionBar({
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        {stageCode === 'waiting' && (
+        {stageCode === 'waiting' && canAdvanceStage && (
           <Button
             size="sm"
             onClick={handleStart}
@@ -146,7 +148,7 @@ export function StageActionBar({
           </Button>
         )}
 
-        {stageCode === 'in_progress' && (
+        {stageCode === 'in_progress' && canAdvanceStage && (
           <div className="flex items-center gap-2">
             {readiness && !readiness.canComplete && (
               <div className="flex items-center gap-2 text-sm">
@@ -203,6 +205,10 @@ export function StageActionBar({
 
         {stageCode === 'done' && (
           <span className="text-xs text-muted-foreground">단계 완료</span>
+        )}
+
+        {!canAdvanceStage && stageCode !== 'done' && (
+          <span className="text-xs text-muted-foreground">단계 진행 권한 없음</span>
         )}
       </div>
     </div>

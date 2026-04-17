@@ -16,6 +16,8 @@ export interface RoleItem {
 /**
  * 역할별 메뉴 권한
  */
+export type RoleMenuAccessSource = 'baseline' | 'role-override' | 'system-override';
+
 export interface RoleMenuPermission {
   menuId: string;
   menuCode: string;
@@ -26,6 +28,9 @@ export interface RoleMenuPermission {
   isAdminMenu: boolean;
   sortOrder: number;
   accessType: 'full' | 'read' | 'none';
+  accessSource: RoleMenuAccessSource;
+  baselineAccessType: 'full' | 'read' | 'none';
+  isEditable: boolean;
 }
 
 /**

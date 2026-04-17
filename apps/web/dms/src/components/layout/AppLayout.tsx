@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { ShellFrame } from '@ssoo/web-shell';
 import { ChevronRight } from 'lucide-react';
 import { useLayoutStore, useSidebarStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/lib/constants/layout';
@@ -33,9 +34,6 @@ export function AppLayout() {
   const settingsConfig = useSettingsStore((state) => state.config);
   const isSettingsLoaded = useSettingsStore((state) => state.isLoaded);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
-
-  // 컨텐츠 영역 크기 측정
-  const contentRef = React.useRef<HTMLDivElement>(null);
 
   // 창 크기에 따른 컴팩트 모드 자동 전환
   React.useEffect(() => {
@@ -85,69 +83,56 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* 컴팩트 모드: 사이드바 그립 버튼 (왼쪽) */}
-      {isCompactMode && !sidebarOpen && (
-        <button
-          onClick={toggleSidebar}
-          className={cn(
-            'fixed left-0 top-1/2 -translate-y-1/2 z-30',
-            'flex items-center justify-center',
-            'w-5 h-12 rounded-r-md',
-            'bg-ssoo-content-bg hover:bg-ssoo-content-border/50 border border-l-0 border-ssoo-content-border',
-            'transition-all duration-300 ease-in-out',
-            'shadow-sm'
-          )}
-          aria-label="사이드바 펼치기"
-        >
-          <ChevronRight className="h-4 w-4 text-gray-500" />
-        </button>
-      )}
-
-      {/* 컴팩트 모드: 오버레이 배경 */}
-      {isCompactMode && sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-20 transition-opacity"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar - 컴팩트 모드에서는 오버레이 */}
-      {isSettingsShellActive ? (
-        <SettingsShellSidebar
-          isCompactMode={isCompactMode}
-          isOpen={!isCompactMode || sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
-      ) : (
-        <Sidebar
-          isCompactMode={isCompactMode}
-          isOpen={!isCompactMode || sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Content Area */}
-      <div
-        ref={contentRef}
-        className="flex flex-col flex-1 min-w-0 transition-all duration-300"
-        style={{ 
-          marginLeft: isCompactMode ? 0 : LAYOUT_SIZES.sidebar.expandedWidth 
-        }}
-      >
-        {isSettingsShellActive ? (
-          <>
-            <SettingsShellHeader />
-            <SettingsShellContent />
-          </>
+    <ShellFrame
+      sidebar={
+        isSettingsShellActive ? (
+          <SettingsShellSidebar
+            isCompactMode={isCompactMode}
+            isOpen={!isCompactMode || sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
         ) : (
-          <>
-            <Header />
-            <TabBar />
-            <ContentArea />
-          </>
-        )}
-      </div>
-    </div>
+          <Sidebar
+            isCompactMode={isCompactMode}
+            isOpen={!isCompactMode || sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
+        )
+      }
+      overlay={
+        isCompactMode && sidebarOpen ? (
+          <div className="fixed inset-0 z-20 bg-black/20 transition-opacity" onClick={() => setSidebarOpen(false)} />
+        ) : undefined
+      }
+      floatingStart={
+        isCompactMode && !sidebarOpen ? (
+          <button
+            onClick={toggleSidebar}
+            className={cn(
+              'fixed left-0 top-1/2 z-30 flex h-12 w-5 -translate-y-1/2 items-center justify-center rounded-r-md',
+              'border border-l-0 border-ssoo-content-border bg-ssoo-content-bg shadow-sm transition-all duration-300 ease-in-out',
+              'hover:bg-ssoo-content-border/50'
+            )}
+            aria-label="사이드바 펼치기"
+          >
+            <ChevronRight className="h-4 w-4 text-gray-500" />
+          </button>
+        ) : undefined
+      }
+      mainOffset={isCompactMode ? 0 : LAYOUT_SIZES.sidebar.expandedWidth}
+    >
+      {isSettingsShellActive ? (
+        <>
+          <SettingsShellHeader />
+          <SettingsShellContent />
+        </>
+      ) : (
+        <>
+          <Header />
+          <TabBar />
+          <ContentArea />
+        </>
+      )}
+    </ShellFrame>
   );
 }

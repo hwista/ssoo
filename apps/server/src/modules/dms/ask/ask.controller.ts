@@ -18,14 +18,19 @@ import {
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
+import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
+import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { AskDocumentsDto } from './dto/ask.dto.js';
 import { AskService } from './ask.service.js';
 
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/ask')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@RequireDmsFeature('canUseAssistant')
 export class AskController {
   constructor(private readonly askService: AskService) {}
 
@@ -38,10 +43,11 @@ export class AskController {
   async ask(
     @Body() dto: AskDocumentsDto,
     @Req() request: ExpressRequest,
+    @CurrentUser() currentUser: TokenPayload,
     @Res() response: ExpressResponse,
   ) {
     if (dto.stream === false) {
-      const data = await this.askService.ask(dto);
+      const data = await this.askService.ask(dto, currentUser);
       response.status(200).json(success(data));
       return;
     }
@@ -49,7 +55,7 @@ export class AskController {
     const abortController = new AbortController();
     request.once('close', () => abortController.abort());
 
-    const result = await this.askService.stream(dto, abortController.signal);
+    const result = await this.askService.stream(dto, currentUser, abortController.signal);
     result.pipeUIMessageStreamToResponse(response);
   }
 }

@@ -5,13 +5,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { updateProjectSchema } from '@/lib/validations/project';
 import type { UpdateProjectInput } from '@/lib/validations/project';
-import { useUpdateProject } from '@/hooks/queries';
+import { useProjectAccess, useUpdateProject } from '@/hooks/queries';
 import { FormField } from '@/components/common';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Pencil, Save, X } from 'lucide-react';
 import type { Project, ProjectStageCode, ProjectStatusCode } from '@/lib/api/endpoints/projects';
+import { OrganizationsSection } from './OrganizationsSection';
+import { RelationsSection } from './RelationsSection';
 
 const statusLabels: Record<ProjectStatusCode, string> = {
   request: '요청',
@@ -34,6 +36,8 @@ interface BasicInfoSectionProps {
 export function BasicInfoSection({ project, onUpdated }: BasicInfoSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const updateProject = useUpdateProject();
+  const { data: accessResponse } = useProjectAccess(project.id);
+  const canEditProject = accessResponse?.data?.features.canEditProject ?? false;
 
   const form = useForm<UpdateProjectInput>({
     resolver: zodResolver(updateProjectSchema),
@@ -64,10 +68,12 @@ export function BasicInfoSection({ project, onUpdated }: BasicInfoSectionProps) 
       <div className="border rounded-lg p-4 bg-white">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold">기본 정보</h2>
-          <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-            <Pencil className="h-3.5 w-3.5 mr-1" />
-            편집
-          </Button>
+          {canEditProject && (
+            <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+              <Pencil className="h-3.5 w-3.5 mr-1" />
+              편집
+            </Button>
+          )}
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           <div>
@@ -96,6 +102,12 @@ export function BasicInfoSection({ project, onUpdated }: BasicInfoSectionProps) 
               <p className="whitespace-pre-wrap">{project.memo}</p>
             </div>
           )}
+          <div className="col-span-2 lg:col-span-4">
+            <OrganizationsSection projectId={project.id} />
+          </div>
+          <div className="col-span-2 lg:col-span-4">
+            <RelationsSection projectId={project.id} />
+          </div>
         </div>
       </div>
     );
@@ -113,7 +125,7 @@ export function BasicInfoSection({ project, onUpdated }: BasicInfoSectionProps) 
           <Button
             size="sm"
             onClick={form.handleSubmit(handleSave)}
-            disabled={updateProject.isPending}
+            disabled={updateProject.isPending || !canEditProject}
           >
             <Save className="h-3.5 w-3.5 mr-1" />
             저장
@@ -131,6 +143,8 @@ export function BasicInfoSection({ project, onUpdated }: BasicInfoSectionProps) 
         <FormField label="메모" error={form.formState.errors.description?.message}>
           <Textarea {...form.register('description')} rows={3} />
         </FormField>
+        <OrganizationsSection projectId={project.id} />
+        <RelationsSection projectId={project.id} />
       </div>
     </div>
   );

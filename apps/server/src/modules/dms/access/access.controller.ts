@@ -20,7 +20,7 @@ export class AccessController {
   @ApiOkResponse({ description: 'DMS domain access snapshot 반환' })
   @ApiUnauthorizedResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  getMyAccess(@CurrentUser() user: TokenPayload) {
-    return success(this.accessService.getAccessSnapshot(user));
+  async getMyAccess(@CurrentUser() user: TokenPayload) {
+    return success(await this.accessService.getAccessSnapshot(user));
   }
 }

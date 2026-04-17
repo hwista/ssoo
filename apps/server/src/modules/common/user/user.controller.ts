@@ -45,7 +45,7 @@ export class UserController {
   @ApiForbiddenResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: "서버 오류" })
   async getProfile(@CurrentUser() currentUser: TokenPayload) {
-    const user = await this.userService.findById(BigInt(currentUser.userId));
+    const user = await this.userService.findProfileById(BigInt(currentUser.userId));
 
     if (!user) {
       throw new NotFoundException("사용자를 찾을 수 없습니다.");
@@ -60,12 +60,9 @@ export class UserController {
         email: user.email,
         phone: user.phone,
         avatarUrl: user.avatarUrl,
-        roleCode: user.roleCode,
-        userTypeCode: user.userTypeCode,
         departmentCode: user.departmentCode,
         positionCode: user.positionCode,
         lastLoginAt: user.lastLoginAt,
-        isAdmin: user.isAdmin,
       },
       "프로필 조회 성공",
     );

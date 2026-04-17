@@ -1,5 +1,6 @@
 'use client';
 
+import { ShellFrame } from '@ssoo/web-shell';
 import { useLayoutStore, useSidebarStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/types';
 import { Sidebar } from './sidebar';
@@ -34,24 +35,10 @@ export function AppLayout() {
     : LAYOUT_SIZES.sidebar.expandedWidth;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar />
-
-      {/* Main Content Area */}
-      <div
-        className="flex flex-col flex-1 min-w-0 transition-all duration-300"
-        style={{ marginLeft: sidebarWidth }}
-      >
-        {/* Header */}
-        <Header />
-
-        {/* TabBar */}
-        <TabBar />
-
-        {/* Content */}
-        <ContentArea />
-      </div>
-    </div>
+    <ShellFrame sidebar={<Sidebar />} mainOffset={sidebarWidth}>
+      <Header />
+      <TabBar />
+      <ContentArea />
+    </ShellFrame>
   );
 }

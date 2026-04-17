@@ -67,7 +67,7 @@ import { Project } from '@ssoo/types/pms';
 |----------|----------|
 | apps/server | ✅ |
 | apps/web/pms | ✅ |
-| apps/web/dms | ❌ (독립 프로젝트) |
+| apps/web/dms | ✅ |
 
 ## 금지 사항
 

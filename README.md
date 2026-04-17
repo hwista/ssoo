@@ -62,8 +62,8 @@
 │   NestJS    │  Next.js    │ React Native │    Electron      │
 │  (백엔드)    │ (프론트엔드) │   (나중에)    │     (나중에)      │
 ├─────────────┴─────────────┴──────────────┴──────────────────┤
-│                      packages/ (공유)                        │
-│  @ssoo/types (타입) │ @ssoo/database (Prisma) │ @ssoo/ui    │
+│                           packages/ (공유)                           │
+│ @ssoo/types │ @ssoo/database │ @ssoo/web-auth │ @ssoo/web-shell │ @ssoo/ui │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -100,10 +100,14 @@ sooo/
 │       │   │   └── stores/      # 상태 관리 (Zustand)
 │       │   └── package.json
 │       │
-│       └── dms/                 # DMS 프론트엔드 (독립 프로젝트)
-│           ├── src/             # 소스 코드
-│           ├── docs/            # DMS 정본 문서
-│           └── package.json     # npm 사용 (pnpm 아님)
+│       ├── dms/                 # DMS 프론트엔드 (pnpm workspace 앱)
+│       │   ├── src/             # 소스 코드
+│       │   ├── server/          # Next API / 서비스 레이어
+│       │   └── package.json     # workspace 패키지 정의
+│       │
+│       └── cms/                 # CMS 프론트엔드 (Next.js 15)
+│           ├── src/
+│           └── package.json
 │
 ├── packages/                    # 공유 패키지
 │   ├── types/                   # @ssoo/types - 공통 타입 정의
@@ -113,6 +117,12 @@ sooo/
 │   │       ├── user.ts          # User 타입/DTO
 │   │       ├── customer.ts      # Customer 타입/DTO
 │   │       └── common.ts        # 공통 타입 (ApiResponse 등)
+│   │
+│   ├── web-auth/                # @ssoo/web-auth - 공용 인증/로그인/부트스트랩
+│   │   └── src/
+│   │
+│   ├── web-shell/               # @ssoo/web-shell - 공용 웹 shell frame
+│   │   └── src/
 │   │
 │   └── database/                # @ssoo/database - Prisma 클라이언트
 │       ├── prisma/
@@ -126,7 +136,8 @@ sooo/
 │   │   ├── AGENTS.md            # 에이전트 가이드
 │   │   └── architecture/        # 개발 표준, 보안, 패키지 명세
 │   ├── pms/                     # PMS 도메인 문서
-│   └── dms/                     # DMS 통합 관련 (정본은 apps/web/dms/docs)
+│   ├── dms/                     # DMS 산출물 문서 정본
+│   └── cms/                     # CMS 도메인 문서
 │
 ├── package.json                 # 루트 워크스페이스 설정
 ├── pnpm-workspace.yaml          # pnpm 워크스페이스 정의
@@ -177,28 +188,44 @@ NODE_ENV=development
 CORS_ORIGIN=http://localhost:3000
 ```
 
-### 3. 데이터베이스 설정
+선택적으로 DMS runtime env도 준비합니다:
 
 ```bash
-# PostgreSQL 실행 (Docker 사용 시)
-docker run --name ssoo-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ssoo_dev -p 5432:5432 -d postgres:15
-
-# Prisma 클라이언트 생성
-pnpm --filter @ssoo/database db:generate
-
-# DB 스키마 적용
-pnpm --filter @ssoo/database db:push
+cp apps/web/dms/.env.example apps/web/dms/.env.local
 ```
 
-### 4. 개발 서버 실행
+### 3. Docker 기반 로컬 스택 실행
 
 ```bash
-# 전체 실행 (server + web-pms 동시)
+# 전체 스택 빌드 + 실행
+pnpm docker:up
+
+# 최초 1회 또는 DB 초기화가 필요할 때
+pnpm db:setup
+```
+
+Docker compose는 컨테이너 내부 DB 연결에 `DOCKER_DATABASE_URL`/`DOCKER_DMS_DATABASE_URL`을 사용합니다.  
+루트 `.env`의 `DATABASE_URL=...@localhost...` 값은 host CLI 기준으로 유지하고, compose 내부 주소 override가 필요할 때만 Docker 전용 키를 수정하세요.
+
+기본 compose 스택은 다음 서비스를 함께 올립니다.
+
+- `postgres` (`5432`)
+- `server` (`4000`)
+- `pms` (`3000`)
+- `dms` (`3001`)
+- `cms` (`3002`)
+
+### 4. 대안: 직접 개발 서버 실행
+
+```bash
+# 전체 실행 (Turbo workspace, 디버깅/직접 개발용)
 pnpm dev
 
 # 또는 개별 실행
 pnpm dev:server   # 백엔드: http://localhost:4000
-pnpm dev:web-pms      # 프론트엔드: http://localhost:3000
+pnpm dev:web-pms  # PMS: http://localhost:3000
+pnpm dev:web-dms  # DMS: http://localhost:3001
+pnpm dev:web-cms  # CMS: http://localhost:3002
 ```
 
 ### 5. 동작 확인
@@ -311,6 +338,11 @@ node ./node_modules/next/dist/bin/next dev --port 3000
 | `pnpm dev` | 전체 개발 서버 실행 |
 | `pnpm build` | 전체 빌드 |
 | `pnpm lint` | 전체 린트 검사 |
+| `pnpm docker:up` | 전체 Docker 스택 빌드 + 실행 |
+| `pnpm docker:build` | 전체 Docker 이미지 빌드 |
+| `pnpm docker:ps` | Docker 서비스 상태 확인 |
+| `pnpm docker:logs` | Docker 로그 확인 |
+| `pnpm docker:down` | Docker 스택 종료 |
 | `pnpm clean` | 빌드 결과물 삭제 |
 
 ### 앱별 명령어
@@ -323,6 +355,10 @@ pnpm build:server
 # Web만 실행/빌드
 pnpm dev:web-pms
 pnpm build:web-pms
+pnpm dev:web-cms
+pnpm build:web-cms
+pnpm dev:web-dms
+pnpm build:web-dms
 
 # 특정 앱 + 의존 패키지만 빌드
 pnpm build --filter=server...

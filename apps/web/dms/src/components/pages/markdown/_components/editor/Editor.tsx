@@ -10,8 +10,9 @@ import { DOCUMENT_WIDTHS } from '@/components/templates/page-frame';
 import { useEditorStore, useTabStore } from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import { useConfirmStore } from '@/stores/confirm.store';
+import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
 import { useToast } from '@/lib/toast';
-import { useEditorPersistence } from './useEditorPersistence';
+import { useEditorPersistence, type EditorSaveConflictPayload } from './useEditorPersistence';
 import { useEditorRuntimeEffects } from './useEditorRuntimeEffects';
 import { useEditorInteractions } from './useEditorInteractions';
 import { useEditorState } from './useEditorState';
@@ -48,6 +49,8 @@ export interface EditorProps {
   onContentChange?: (content: string) => void;
   /** undo/redo 가용성 변경 콜백 */
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
+  /** 저장 충돌 감지 시 */
+  onSaveConflict?: (conflict: EditorSaveConflictPayload) => Promise<void> | void;
 }
 
 export interface EditorRef {
@@ -89,6 +92,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   streamingAutoScroll = false,
   onContentChange,
   onHistoryChange,
+  onSaveConflict,
 }: EditorProps, ref) {
   const { showSuccess, showError } = useToast();
   
@@ -211,7 +215,14 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
 
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/file/upload-image', { method: 'POST', body: formData });
+      const targetDocumentPath = currentFilePath || preferredCreatePath;
+      if (targetDocumentPath) {
+        formData.append('documentPath', targetDocumentPath);
+      }
+      const res = await fetchWithSharedAuth('/api/file/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
       const data = await res.json();
 
       if (res.ok && data.path) {
@@ -223,7 +234,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     }
 
     return result;
-  }, [interactions.pendingImagesRef]);
+  }, [currentFilePath, interactions.pendingImagesRef, preferredCreatePath]);
 
   const hasPendingImages = interactions.pendingImagesRef.current.size > 0;
 
@@ -245,6 +256,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       save,
       storeSaveFile,
       resetContent,
+      replaceEditorContent: replaceContent,
       discardPendingMetadata,
       setIsEditing,
       setMetadataTitle: (title: string) => setLocalDocumentMetadata({ title }),
@@ -259,6 +271,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
       requestCreatePath: interactions.requestCreatePath,
       requestSaveLocation: interactions.requestSaveLocation,
       transformBeforeSave: hasPendingImages ? transformBeforeSave : undefined,
+      onSaveConflict,
     },
   });
 

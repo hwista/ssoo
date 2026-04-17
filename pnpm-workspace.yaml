@@ -1,7 +1,8 @@
 packages:
   - apps/server
   - apps/web/pms
-  - apps/web/chs
+  - apps/web/cms
+  - apps/web/dms
   - packages/*
 
 onlyBuiltDependencies:

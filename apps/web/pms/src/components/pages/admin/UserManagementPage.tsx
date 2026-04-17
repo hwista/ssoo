@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Search, Plus, Pencil, UserX } from 'lucide-react';
+import { Search, Plus, Pencil, Shield, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,8 +27,15 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { useUserList, useCreateUser, useUpdateUser, useDeactivateUser } from '@/hooks/queries';
+import {
+  useUserList,
+  useCreateUser,
+  useUpdateUser,
+  useDeactivateUser,
+  useCustomerList,
+} from '@/hooks/queries';
 import type { UserItem, CreateUserRequest, UpdateUserRequest } from '@/lib/api/endpoints/users';
+import { AccessInspectDialog } from './AccessInspectDialog';
 
 const ROLE_OPTIONS = [
   { value: 'admin', label: '관리자' },
@@ -44,14 +51,12 @@ const ROLE_LABEL: Record<string, string> = {
   viewer: '뷰어',
 };
 
-function formatDate(dateStr?: string | null): string {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-}
+const PRIMARY_AFFILIATION_OPTIONS = [
+  { value: 'internal', label: '내부' },
+  { value: 'external', label: '외부' },
+] as const;
+
+const EMPTY_SELECT_VALUE = '__none__';
 
 function formatDateTime(dateStr?: string | null): string {
   if (!dateStr) return '-';
@@ -74,6 +79,10 @@ interface UserFormData {
   roleCode: string;
   departmentCode: string;
   positionCode: string;
+  employeeNumber: string;
+  companyName: string;
+  customerId: string;
+  primaryAffiliationType: string;
 }
 
 const INITIAL_FORM: UserFormData = {
@@ -86,6 +95,10 @@ const INITIAL_FORM: UserFormData = {
   roleCode: 'user',
   departmentCode: '',
   positionCode: '',
+  employeeNumber: '',
+  companyName: '',
+  customerId: '',
+  primaryAffiliationType: 'internal',
 };
 
 export function UserManagementPage() {
@@ -95,6 +108,7 @@ export function UserManagementPage() {
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
+  const [inspectUser, setInspectUser] = useState<UserItem | null>(null);
   const [form, setForm] = useState<UserFormData>(INITIAL_FORM);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -105,12 +119,14 @@ export function UserManagementPage() {
     search: search || undefined,
     roleCode: roleFilter || undefined,
   });
+  const { data: customersResponse } = useCustomerList({ page: 1, pageSize: 100 });
 
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const deactivateMutation = useDeactivateUser();
 
   const users = response?.data ?? [];
+  const customers = customersResponse?.data?.items ?? [];
   const total = response?.meta?.total ?? 0;
   const totalPages = Math.ceil(total / limit) || 1;
 
@@ -145,6 +161,10 @@ export function UserManagementPage() {
       roleCode: user.roleCode,
       departmentCode: user.departmentCode ?? '',
       positionCode: user.positionCode ?? '',
+      employeeNumber: user.employeeNumber ?? '',
+      companyName: user.companyName ?? '',
+      customerId: user.customerId ?? '',
+      primaryAffiliationType: user.primaryAffiliationType ?? 'internal',
     });
     setFormErrors({});
     setDialogOpen(true);
@@ -173,6 +193,18 @@ export function UserManagementPage() {
       if (form.roleCode !== editingUser.roleCode) updateData.roleCode = form.roleCode;
       if (form.departmentCode !== (editingUser.departmentCode ?? '')) updateData.departmentCode = form.departmentCode;
       if (form.positionCode !== (editingUser.positionCode ?? '')) updateData.positionCode = form.positionCode;
+      if (form.employeeNumber !== (editingUser.employeeNumber ?? '')) {
+        updateData.employeeNumber = form.employeeNumber;
+      }
+      if (form.companyName !== (editingUser.companyName ?? '')) {
+        updateData.companyName = form.companyName;
+      }
+      if (form.customerId !== (editingUser.customerId ?? '')) {
+        updateData.customerId = form.customerId;
+      }
+      if (form.primaryAffiliationType !== (editingUser.primaryAffiliationType ?? 'internal')) {
+        updateData.primaryAffiliationType = form.primaryAffiliationType as 'internal' | 'external';
+      }
       if (form.password) updateData.password = form.password;
 
       await updateMutation.mutateAsync({ id: editingUser.id, data: updateData });
@@ -187,6 +219,12 @@ export function UserManagementPage() {
         ...(form.roleCode && { roleCode: form.roleCode }),
         ...(form.departmentCode && { departmentCode: form.departmentCode }),
         ...(form.positionCode && { positionCode: form.positionCode }),
+        ...(form.employeeNumber && { employeeNumber: form.employeeNumber }),
+        ...(form.companyName && { companyName: form.companyName }),
+        ...(form.customerId && { customerId: form.customerId }),
+        ...(form.primaryAffiliationType && {
+          primaryAffiliationType: form.primaryAffiliationType as 'internal' | 'external',
+        }),
       };
       await createMutation.mutateAsync(createData);
     }
@@ -302,10 +340,18 @@ export function UserManagementPage() {
                     {formatDateTime(user.lastLoginAt)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} title="수정">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setInspectUser(user)}
+                          title="권한 inspect"
+                        >
+                          <Shield className="h-3.5 w-3.5 text-ssoo-primary" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} title="수정">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                       {user.isActive && (
                         <Button
                           variant="ghost"
@@ -455,6 +501,68 @@ export function UserManagementPage() {
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <label className="text-sm font-medium">Primary 소속</label>
+                <Select
+                  value={form.primaryAffiliationType || EMPTY_SELECT_VALUE}
+                  onValueChange={(v) =>
+                    updateField('primaryAffiliationType', v === EMPTY_SELECT_VALUE ? '' : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="primary 소속을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EMPTY_SELECT_VALUE}>선택 안함</SelectItem>
+                    {PRIMARY_AFFILIATION_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <label className="text-sm font-medium">사번</label>
+                <Input
+                  value={form.employeeNumber}
+                  onChange={(e) => updateField('employeeNumber', e.target.value)}
+                  placeholder="사번"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <label className="text-sm font-medium">외부 회사명</label>
+                <Input
+                  value={form.companyName}
+                  onChange={(e) => updateField('companyName', e.target.value)}
+                  placeholder="외부 회사명"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <label className="text-sm font-medium">고객사</label>
+                <Select
+                  value={form.customerId || EMPTY_SELECT_VALUE}
+                  onValueChange={(v) => updateField('customerId', v === EMPTY_SELECT_VALUE ? '' : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="고객사를 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EMPTY_SELECT_VALUE}>선택 안함</SelectItem>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.customerName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -465,6 +573,16 @@ export function UserManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AccessInspectDialog
+        user={inspectUser}
+        open={!!inspectUser}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setInspectUser(null);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -3,6 +3,8 @@ module.exports = {
   darkMode: ['class'],
   content: [
     "./src/**/*.{js,ts,jsx,tsx,mdx}",
+    "../../../packages/web-auth/src/**/*.{js,ts,jsx,tsx,mdx}",
+    "../../../packages/web-shell/src/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
   		extend: {

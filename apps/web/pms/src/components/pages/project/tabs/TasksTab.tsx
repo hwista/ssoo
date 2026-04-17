@@ -20,20 +20,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  useProjectAccess,
+  useProjectWbs,
   useProjectTasks,
   useCreateTask,
   useUpdateTask,
   useDeleteTask,
 } from '@/hooks/queries/useProjects';
 import type { TaskItem, CreateTaskRequest } from '@/lib/api/endpoints/projects';
+import { WbsPanel } from './planning/WbsPanel';
 
-const STATUS_COLORS: Record<string, string> = {
-  not_started: 'bg-gray-100 text-gray-700',
-  in_progress: 'bg-blue-50 text-blue-700',
-  completed: 'bg-green-50 text-green-700',
-  on_hold: 'bg-yellow-50 text-yellow-700',
-  cancelled: 'bg-red-50 text-red-700',
-};
+const NO_WBS_VALUE = '__none__';
 
 const STATUS_LABELS: Record<string, string> = {
   not_started: '미착수',
@@ -64,7 +61,20 @@ const PRIORITY_OPTIONS = [
 
 const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }));
 
-const INITIAL_FORM = {
+interface TaskFormState {
+  wbsId: string;
+  taskCode: string;
+  taskName: string;
+  taskTypeCode: string;
+  statusCode: string;
+  priorityCode: string;
+  progressRate: number;
+  plannedStartAt: string;
+  plannedEndAt: string;
+}
+
+const INITIAL_FORM: TaskFormState = {
+  wbsId: NO_WBS_VALUE,
   taskCode: '',
   taskName: '',
   taskTypeCode: 'development',
@@ -80,8 +90,12 @@ interface Props {
 }
 
 export function TasksTab({ projectId }: Props) {
+  const { data: accessResponse } = useProjectAccess(projectId);
+  const { data: wbsResponse } = useProjectWbs(projectId);
   const { data, isLoading } = useProjectTasks(projectId);
   const tasks = data?.data ?? [];
+  const wbsItems = wbsResponse?.data ?? [];
+  const canManageTasks = accessResponse?.data?.features.canManageTasks ?? false;
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -99,6 +113,7 @@ export function TasksTab({ projectId }: Props) {
     if (!formData.taskCode.trim() || !formData.taskName.trim()) return;
 
     const payload: CreateTaskRequest = {
+      ...(formData.wbsId !== NO_WBS_VALUE ? { wbsId: formData.wbsId } : {}),
       taskCode: formData.taskCode,
       taskName: formData.taskName,
       taskTypeCode: formData.taskTypeCode,
@@ -128,6 +143,14 @@ export function TasksTab({ projectId }: Props) {
     });
   };
 
+  const handleWbsChange = (task: TaskItem, wbsId: string) => {
+    updateTask.mutate({
+      projectId,
+      taskId: String(task.id),
+      data: { wbsId: wbsId === NO_WBS_VALUE ? null : wbsId },
+    });
+  };
+
   const handleDelete = (task: TaskItem) => {
     deleteTask.mutate({ projectId, taskId: String(task.id) });
   };
@@ -136,15 +159,19 @@ export function TasksTab({ projectId }: Props) {
 
   return (
     <div className="space-y-4">
+      <WbsPanel projectId={projectId} canManageWbs={canManageTasks} />
+
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <ListTodo className="h-4 w-4" />
           태스크 ({tasks.length})
         </h3>
-        <Button size="sm" onClick={handleOpenDialog}>
-          <Plus className="h-4 w-4" />
-          태스크 추가
-        </Button>
+        {canManageTasks && (
+          <Button size="sm" onClick={handleOpenDialog}>
+            <Plus className="h-4 w-4" />
+            태스크 추가
+          </Button>
+        )}
       </div>
 
       {tasks.length === 0 ? (
@@ -156,6 +183,7 @@ export function TasksTab({ projectId }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
+                <th className="text-left p-3 font-medium">계획 구조</th>
                 <th className="text-left p-3 font-medium">WBS</th>
                 <th className="text-left p-3 font-medium">태스크명</th>
                 <th className="text-center p-3 font-medium">상태</th>
@@ -168,6 +196,25 @@ export function TasksTab({ projectId }: Props) {
             <tbody className="divide-y">
               {tasks.map((t: TaskItem) => (
                 <tr key={String(t.id)} className="hover:bg-muted/30 group">
+                  <td className="p-3">
+                    <Select
+                      value={t.wbsId ? String(t.wbsId) : NO_WBS_VALUE}
+                      onValueChange={(value) => handleWbsChange(t, value)}
+                      disabled={!canManageTasks}
+                    >
+                      <SelectTrigger className="h-7 min-w-44 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_WBS_VALUE}>미지정</SelectItem>
+                        {wbsItems.map((wbs) => (
+                          <SelectItem key={String(wbs.id)} value={String(wbs.id)}>
+                            {wbs.wbsCode} · {wbs.wbsName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
                   <td className="p-3 font-mono text-xs" style={{ paddingLeft: `${(t.depth * 16) + 12}px` }}>
                     {t.taskCode}
                   </td>
@@ -176,6 +223,7 @@ export function TasksTab({ projectId }: Props) {
                     <Select
                       value={t.statusCode}
                       onValueChange={(v) => handleStatusChange(t, v)}
+                      disabled={!canManageTasks}
                     >
                       <SelectTrigger className="h-7 w-24 text-xs mx-auto">
                         <SelectValue />
@@ -197,6 +245,7 @@ export function TasksTab({ projectId }: Props) {
                         min={0}
                         max={100}
                         value={t.progressRate}
+                        disabled={!canManageTasks}
                         onChange={(e) => {
                           const val = Math.min(100, Math.max(0, Number(e.target.value)));
                           handleProgressChange(t, val);
@@ -213,14 +262,16 @@ export function TasksTab({ projectId }: Props) {
                     {t.plannedEndAt ? new Date(t.plannedEndAt).toLocaleDateString('ko-KR') : ''}
                   </td>
                   <td className="p-3 text-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDelete(t)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canManageTasks && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDelete(t)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -237,7 +288,21 @@ export function TasksTab({ projectId }: Props) {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">WBS 연결</label>
+                <Select value={formData.wbsId} onValueChange={(value) => setFormData({ ...formData, wbsId: value })}>
+                  <SelectTrigger><SelectValue placeholder="미지정" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_WBS_VALUE}>미지정</SelectItem>
+                    {wbsItems.map((wbs) => (
+                      <SelectItem key={String(wbs.id)} value={String(wbs.id)}>
+                        {wbs.wbsCode} · {wbs.wbsName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">WBS 코드 *</label>
                 <Input
@@ -326,7 +391,7 @@ export function TasksTab({ projectId }: Props) {
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>취소</Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.taskCode.trim() || !formData.taskName.trim() || createTask.isPending}
+              disabled={!formData.taskCode.trim() || !formData.taskName.trim() || createTask.isPending || !canManageTasks}
             >
               {createTask.isPending ? '저장 중...' : '저장'}
             </Button>

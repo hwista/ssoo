@@ -5,6 +5,8 @@
  * 즉시 중단이 구조적으로 보장됩니다.
  */
 
+import { fetchWithSharedAuth } from './sharedAuth';
+
 export interface SSEEvent {
   type?: string;
   [key: string]: unknown;
@@ -34,10 +36,11 @@ export async function streamSSE(options: StreamSSEOptions): Promise<boolean> {
   signal?.addEventListener('abort', cancelReader, { once: true });
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithSharedAuth(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      credentials: 'same-origin',
       signal,
     });
 

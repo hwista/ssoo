@@ -7,15 +7,15 @@ applyTo: "apps/web/dms/**"
 > 최종 업데이트: 2026-04-06
 > 정본: `.github/instructions/dms.instructions.md`
 
-## 독립성 원칙
+## 독립 배포 고려사항
 
 | 항목 | DMS | PMS |
 |------|-----|-----|
-| 패키지 매니저 | **npm** | pnpm |
-| @ssoo/* 패키지 | **사용 금지** | 사용 |
+| 패키지 매니저 | **pnpm workspace** | pnpm |
+| 공유 패키지 | `@ssoo/types` 사용 가능 (`@ssoo/database` 직접 참조 금지) | 사용 |
 | 포트 | **3001** | 3000 |
 
-DMS는 별도 저장소로 분리될 가능성이 있어 모노레포 의존성을 갖지 않습니다.
+DMS는 workspace 앱으로 통합되었지만, 파일/Git/스토리지 런타임과 `src/app/api/* -> server/*` 구조는 독립 배포 가능성을 고려해 유지합니다.
 
 ## 기술 스택
 
@@ -136,7 +136,7 @@ export * from './components';
 
 ## 금지 사항
 
-1. **@ssoo/* 패키지 import** - DMS는 독립 프로젝트
+1. **`@ssoo/database` 직접 import** - DMS는 웹 앱이며 DB 접근은 서버/플랫폼 경계를 통해 관리
 2. **BaseService 등 불필요한 추상화**
 3. **any 타입 사용**
 4. **와일드카드 export**

@@ -1,31 +1,39 @@
 # ============================================================
-# DMS Standalone Dockerfile
-# 독립 배포용 (npm 기반, @ssoo/* 미참조)
+# DMS Workspace Dockerfile
+# 모노레포 통합 런타임용 (pnpm workspace + @ssoo/types)
 # ============================================================
 
-# ---- Stage 1: Install dependencies ----
-FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+FROM node:20 AS base
+RUN corepack enable && \
+    corepack prepare pnpm@10.28.0 --activate
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY apps/web/dms/package.json apps/web/dms/package.json
+COPY packages/types/package.json packages/types/package.json
+COPY packages/web-auth/package.json packages/web-auth/package.json
+COPY packages/web-shell/package.json packages/web-shell/package.json
+COPY packages/types/tsconfig.json packages/types/tsconfig.json
+RUN pnpm install --filter web-dms... --frozen-lockfile
 
-# ---- Stage 2: Build ----
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-COPY --from=deps /app/node_modules ./node_modules
+FROM base AS builder
+COPY --from=deps /app/ ./
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN apk add --no-cache git && \
-    mkdir -p data/wiki data/templates data/ingest data/storage/local data/documents && \
-    git init data/documents
-RUN npm run build
+RUN mkdir -p apps/web/dms/data/wiki \
+    apps/web/dms/data/templates \
+    apps/web/dms/data/ingest \
+    apps/web/dms/data/storage/local \
+    apps/web/dms/data/documents && \
+    git init apps/web/dms/data/documents && \
+    pnpm --filter @ssoo/types build && \
+    pnpm --filter @ssoo/web-auth build && \
+    pnpm --filter @ssoo/web-shell build && \
+    pnpm --filter web-dms build
 
-# ---- Stage 3: Production runner ----
-FROM node:20-alpine AS runner
+FROM node:20 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -33,23 +41,24 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3001
 ENV HOSTNAME=0.0.0.0
 
-RUN apk add --no-cache git && \
-    addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 --gid 1001 nextjs
 
-# standalone 서버 복사
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/apps/web/dms/.next/standalone ./
+COPY --from=builder /app/apps/web/dms/.next/static ./apps/web/dms/.next/static
+COPY --from=builder /app/apps/web/dms/dms.config.default.json ./apps/web/dms/dms.config.default.json
+COPY --from=builder /app/apps/web/dms/dms.personal.config.default.json ./apps/web/dms/dms.personal.config.default.json
 
-# 기본 설정 파일 (런타임 참조용)
-COPY --from=builder /app/dms.config.default.json ./
-
-# data 디렉토리 (볼륨 마운트 포인트)
-RUN mkdir -p data/wiki data/templates data/ingest data/storage/local data/documents && \
-    git init data/documents && \
-    chown -R nextjs:nodejs data
+RUN mkdir -p apps/web/dms/data/wiki \
+    apps/web/dms/data/templates \
+    apps/web/dms/data/ingest \
+    apps/web/dms/data/storage/local \
+    apps/web/dms/data/documents && \
+    git init apps/web/dms/data/documents && \
+    chown -R nextjs:nodejs /app/apps/web/dms/data
 
 USER nextjs
+WORKDIR /app/apps/web/dms
 
 EXPOSE 3001
 

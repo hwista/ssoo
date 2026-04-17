@@ -1,7 +1,7 @@
 ````mdc
 # DMS 기술 스택
 
-> 최종 업데이트: 2026-03-12
+> 최종 업데이트: 2026-04-07
 
 DMS(Document Management System) 프론트엔드 전용 기술 스택입니다.
 
@@ -11,7 +11,9 @@ DMS(Document Management System) 프론트엔드 전용 기술 스택입니다.
 
 ## 개요
 
-DMS는 모노레포 내 독립 앱으로 운영되며, **npm**을 사용한다 (pnpm workspace에서 제외).
+DMS는 pnpm workspace 앱으로 운영되며, 공통 계약 타입은 `@ssoo/types`를 통해 공유한다.
+
+현재 원격 데이터 계층은 `src/app/providers.tsx`의 `QueryClientProvider`, `src/lib/api/endpoints/*`, `src/hooks/queries/*`를 기준으로 정리한다.
 
 ---
 
@@ -26,6 +28,7 @@ DMS는 모노레포 내 독립 앱으로 운영되며, **npm**을 사용한다 (
 | **TypeScript** | ^5 | 언어 |
 | **Tailwind CSS** | ^3.4.0 | 스타일링 |
 | **tailwind-merge** | ^2.6.0 | 클래스 병합 |
+| **@tanstack/react-query** | ^5.x | 서버 상태/캐시, query provider |
 | **CodeMirror** | 6.x | 블록 기반 마크다운 에디터 런타임 |
 | **react-markdown** | ^10.1.0 | 문서 렌더링 |
 | **Lucide React** | 0.548.x | 아이콘 |
@@ -70,5 +73,7 @@ DMS는 모노레포 내 독립 앱으로 운영되며, **npm**을 사용한다 (
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-07 | `@tanstack/react-query`, `QueryClientProvider`, `lib/api/endpoints/*`, `hooks/queries/*` 기반 데이터 계층 정리를 반영 |
+| 2026-04-07 | DMS workspace 통합과 `@ssoo/types` 공유 계약 도입을 반영 |
 | 2026-03-12 | 현재 활성 런타임 기준으로 CodeMirror/react-markdown 중심 기술 스택으로 정정 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

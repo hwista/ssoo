@@ -1,0 +1,39 @@
+# Dependencies
+node_modules
+**/node_modules
+.pnpm-store
+**/.pnpm-store
+
+# Build output
+.next
+**/.next
+**/.next/**
+dist
+**/dist
+coverage
+.turbo
+**/.turbo
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Runtime data / local overrides
+apps/web/dms/data/
+apps/web/dms/dms.config.json
+apps/web/dms/dms.personal.config.json
+
+# VCS / editors
+.git
+.gitignore
+.vscode
+.idea
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*

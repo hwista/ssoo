@@ -1,6 +1,6 @@
 # 페이지 라우팅 (Page Routing)
 
-> 최종 업데이트: 2026-04-02
+> 최종 업데이트: 2026-04-16
 
 DMS의 탭 기반 라우팅과 settings shell 전환 구조를 정의합니다.
 
@@ -8,9 +8,9 @@ DMS의 탭 기반 라우팅과 settings shell 전환 구조를 정의합니다.
 
 ## 라우팅 개요
 
-DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 `/` 하나만 사용하고 실제 화면 전환은 **workspace 탭 셸**과 **settings 전용 셸** 사이를 전환하는 방식으로 동작합니다.
+DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 **`/` 와 `/login` 두 개만** 사용하고 실제 화면 전환은 **workspace 탭 셸**과 **settings 전용 셸** 사이를 전환하는 방식으로 동작합니다.
 
-- 브라우저 공개 URL: `/`
+- 브라우저 공개 URL: `/`, `/login`
 - 내부 탭 경로: `/home`, `/doc/...`, `/wiki/new`, `/ai/chat`, `/ai/search`
 - 레거시 핸드오프 경로: `/settings`
 - 정책: 내부 탭 경로는 주소창에 직접 노출하거나 딥링크로 사용하는 대상이 아니다.
@@ -25,6 +25,18 @@ URL 경로 → Next.js Route → (main)/layout → (main)/page → AppLayout(she
 
 ---
 
+## entry contract
+
+| 경로 | 의미 | 담당 파일 |
+|------|------|----------|
+| `/login` | public 로그인 진입점 | `app/(auth)/login/page.tsx` |
+| `/` | 인증된 DMS 루트 shell | `app/(main)/layout.tsx`, `app/(main)/page.tsx` |
+| 그 외 브라우저 경로 | 내부 virtual path 로 간주하고 `/` 로 복구 | `middleware.ts`, `app/not-found.tsx` |
+
+라우트 상수는 `src/lib/constants/routes.ts` 에서 `APP_HOME_PATH`, `LOGIN_PATH`, `ROOT_ENTRY_PATHS` 로 관리한다.
+
+---
+
 ## 라우트 구조
 
 ```
@@ -33,8 +45,11 @@ src/app/
 ├── providers.tsx           # 전역 Providers
 ├── globals.css            # 글로벌 스타일
 ├── not-found.tsx          # 예외적 404 발생 시 루트 복구
+├── (auth)/
+│   ├── layout.tsx         # AuthPageShell + DMS auth theme
+│   └── login/page.tsx     # public 로그인 진입점
 ├── (main)/
-│   ├── layout.tsx         # 루트 셸 초기화 (파일 트리, viewport sync)
+│   ├── layout.tsx         # protected shell gate + 파일 트리 preload
 │   └── page.tsx           # 루트 페이지(/) → AppLayout
 └── api/
     ├── file/
@@ -216,17 +231,17 @@ const pageComponents = {
 
 | 항목 | PMS | DMS |
 |------|-----|-----|
-| 라우팅 방식 | Next.js + 권한 체크 | 루트 고정 + workspace/settings dual shell |
-| 인증 | 미들웨어 + Guard | 없음 |
-| URL 동기화 | 필요 | 불필요 (내부 탭 경로만 관리) |
-| 페이지 타입 | 다양 (대시보드, 설정...) | Home, Markdown, AI, Settings shell |
+| 라우팅 방식 | 루트 고정 shell app | 루트 고정 + workspace/settings dual shell |
+| 인증 | `/login` + protected shell bootstrap | `/login` + protected shell bootstrap |
+| URL 동기화 | 불필요 (internal path 중심) | 불필요 (internal path 중심) |
+| 페이지 타입 | 업무 탭 중심 | Home, Markdown, AI, Settings shell |
 
 ---
 
 ## 미들웨어 정책
 
-- 목적: 공개 URL을 `/` 하나로 고정
-- 허용: `/`
+- 목적: 공개 URL을 `/` 와 `/login` 으로 제한
+- 허용: `ROOT_ENTRY_PATHS = ['/', '/login']`
 - 제외: `/api`, `/_next`, 정적 파일
 - 직접 접근 차단 대상: `/doc/...`, `/wiki/new*`, `/ai/...`, `/settings`
 
@@ -251,6 +266,7 @@ const pageComponents = {
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-16 | `/login` public entry, route constants, protected shell bootstrap 기준으로 공개 라우트 계약을 현행화 |
 | 2026-04-02 | settings shell 네비게이션을 scope sidebar + inner section menu 3뎁스 구조로 정리 |
 | 2026-04-02 | `/settings` 탭을 settings shell 핸드오프로 전환하고, `AppLayout(shellMode)` 기반 workspace/settings 이중 셸 구조를 반영 |
 | 2026-03-16 | 새 문서 런처 페이지 추가: `/wiki/new` → 런처, `/wiki/new-wiki`·`new-template`·`new-ai-summary` 진입점 분기 |

@@ -199,11 +199,11 @@ function RecentProjectsWidget({
 
   const handleClick = (project: Project) => {
     openTab({
-      menuCode: 'PROJECT_DETAIL',
-      menuId: 'project-detail',
-      title: project.projectName,
-      path: '/pms/projects/detail',
-      params: { projectId: String(project.id) },
+      menuCode: 'project.detail',
+      menuId: `project.detail.${project.id}`,
+      title: `PRJ-${String(project.id).padStart(6, '0')} ${project.projectName}`,
+      path: '/project/detail',
+      params: { id: String(project.id) },
       replaceExisting: false,
     });
   };
@@ -268,11 +268,11 @@ function ActiveProjectsWidget({
 
   const handleClick = (project: Project) => {
     openTab({
-      menuCode: 'PROJECT_DETAIL',
-      menuId: 'project-detail',
-      title: project.projectName,
-      path: '/pms/projects/detail',
-      params: { projectId: String(project.id) },
+      menuCode: 'project.detail',
+      menuId: `project.detail.${project.id}`,
+      title: `PRJ-${String(project.id).padStart(6, '0')} ${project.projectName}`,
+      path: '/project/detail',
+      params: { id: String(project.id) },
       replaceExisting: false,
     });
   };

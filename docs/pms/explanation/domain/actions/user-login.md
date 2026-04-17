@@ -57,8 +57,9 @@
 
 | 파일 | 역할 |
 |------|------|
-| `apps/web/pms/src/app/(main)/layout.tsx` | 로그인 폼 UI (react-hook-form + zod) |
-| `apps/web/pms/src/app/(main)/page.tsx` | 로그인 후 홈 |
+| `apps/web/pms/src/app/(auth)/login/page.tsx` | 로그인 폼 UI (공용 `AuthStandardLoginCard`) |
+| `apps/web/pms/src/app/(main)/layout.tsx` | 인증된 PMS shell 진입 전 bootstrap gate |
+| `apps/web/pms/src/app/(main)/page.tsx` | 로그인 후 루트 shell entry |
 | `apps/web/pms/src/stores/auth.store.ts` | Zustand 인증 상태 관리 |
 | `apps/web/pms/src/lib/api/client.ts` | Axios 클라이언트 (자동 토큰 갱신) |
 | `apps/web/pms/src/lib/api/auth.ts` | 인증 API 호출 함수 |
@@ -124,7 +125,7 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │  6. JWT 토큰 발급 (AuthService.generateTokens)                        │
 │     - Access Token: 15분 만료                                         │
-│       · payload: userId, loginId, roleCode, userTypeCode, isAdmin    │
+│       · payload: userId, loginId, roleCode, isAdmin                  │
 │     - Refresh Token: 7일 만료                                         │
 │       · DB에 해시로 저장 (UserService.updateRefreshToken)             │
 └─────────────────────────────────────────────────────────────────────┘
@@ -224,7 +225,6 @@ async login(loginDto: LoginDto): Promise<AuthTokens> {
     userId: user.id.toString(),
     loginId: user.loginId!,
     roleCode: user.roleCode,
-    userTypeCode: user.userTypeCode,
     isAdmin: user.isAdmin,
   });
   
@@ -309,14 +309,11 @@ POST /api/auth/me
 Authorization: Bearer {accessToken}
 Response: {
   "success": true,
-  "data": {
-    "userId": "1",
-    "loginId": "admin",
-    "roleCode": "admin",
-    "userTypeCode": "internal",
-    "isAdmin": true
-  },
-  "message": "사용자 정보 조회 성공"
+    "data": {
+      "userId": "1",
+      "loginId": "admin"
+    },
+    "message": "사용자 정보 조회 성공"
 }
 ```
 
@@ -344,7 +341,7 @@ const tokens = await this.generateTokens({
   userId: user.id.toString(),  // BigInt → string
   loginId: user.loginId,
   roleCode: user.roleCode,
-  userTypeCode: user.userTypeCode,
+  isAdmin: user.isAdmin,
 });
 
 // 토큰 사용 시 - string을 BigInt로 변환
@@ -358,7 +355,6 @@ export interface TokenPayload {
   userId: string;     // BigInt를 JSON 직렬화할 수 없어 string으로 저장
   loginId: string;
   roleCode: string;
-  userTypeCode: string;
   isAdmin: boolean;   // 관리자 여부
   type?: 'access' | 'refresh';
 }
@@ -432,5 +428,5 @@ NEXT_PUBLIC_API_URL=http://localhost:4000/api
 
 | Date | Change |
 |------|--------|
+| 2026-04-16 | 로그인 UI/entry 책임을 `(auth)/login` + `(main) shell gate/page` 구조에 맞춰 갱신 |
 | 2026-02-09 | Add changelog section. |
-

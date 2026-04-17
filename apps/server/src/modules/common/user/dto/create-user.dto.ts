@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsEmail,
+  IsIn,
   MinLength,
   MaxLength,
   Matches,
@@ -54,11 +55,6 @@ export class CreateUserDto {
   @IsOptional()
   roleCode?: string;
 
-  @ApiPropertyOptional({ description: '사용자 유형 코드', example: 'internal', default: 'internal' })
-  @IsString()
-  @IsOptional()
-  userTypeCode?: string;
-
   @ApiPropertyOptional({ description: '부서 코드', example: 'DEV' })
   @IsString()
   @IsOptional()
@@ -68,4 +64,29 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   positionCode?: string;
+
+  @ApiPropertyOptional({ description: '사번', example: 'E240015' })
+  @IsString()
+  @IsOptional()
+  employeeNumber?: string;
+
+  @ApiPropertyOptional({ description: '외부 소속 회사명', example: 'Acme Corp' })
+  @IsString()
+  @IsOptional()
+  companyName?: string;
+
+  @ApiPropertyOptional({ description: '고객사 ID', example: '1001' })
+  @IsString()
+  @IsOptional()
+  customerId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Primary affiliation type',
+    enum: ['internal', 'external'],
+    example: 'internal',
+  })
+  @IsString()
+  @IsOptional()
+  @IsIn(['internal', 'external'])
+  primaryAffiliationType?: string;
 }

@@ -1,18 +1,51 @@
 export const dynamic = 'force-dynamic';
 
-import { handleGetTemplate } from '@/server/handlers/template.handler';
+import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
+
+interface BackendSuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+interface BackendErrorResponse {
+  success?: false;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+  message?: string;
+}
+
+function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null): string {
+  if (!responseBody || responseBody.success === true) {
+    return '서버 템플릿 조회 중 오류가 발생했습니다.';
+  }
+
+  return responseBody.error?.message || responseBody.message || '서버 템플릿 조회 중 오류가 발생했습니다.';
+}
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const url = new URL(req.url);
-  const scope = url.searchParams.get('scope') === 'global' ? 'global' : 'personal';
+  const query = new URL(req.url).searchParams.toString();
+  const pathname = query
+    ? `/dms/templates/${encodeURIComponent(id)}?${query}`
+    : `/dms/templates/${encodeURIComponent(id)}`;
 
-  const result = handleGetTemplate(id, scope, req.headers);
-  if (!result.success) {
-    return Response.json({ error: result.error }, { status: 404 });
+  const response = await fetch(
+    createServerApiUrl(pathname),
+    createServerApiProxyInit(req),
+  );
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<unknown> | BackendErrorResponse | null;
+
+  if (!response.ok || !responseBody || responseBody.success !== true) {
+    return Response.json(
+      { error: getBackendErrorMessage(responseBody) },
+      { status: response.status || 500 },
+    );
   }
-  return Response.json(result.data);
+
+  return Response.json(responseBody.data);
 }

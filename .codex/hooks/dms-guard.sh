@@ -29,12 +29,12 @@ if ! command -v rg >/dev/null 2>&1; then
 fi
 
 echo "[dms-guard] validating shell body slot contract"
-pnpm -C apps/web/dms run check:shell-body-contract
+pnpm --filter web-dms check:shell-body-contract
 
 echo "[dms-guard] validating golden example conventions"
-pnpm -C apps/web/dms run check:golden-example
+pnpm --filter web-dms check:golden-example
 
-echo "[dms-guard] DMS changes detected. running npm build in apps/web/dms"
+echo "[dms-guard] DMS changes detected. running workspace build for web-dms"
 bash .codex/scripts/dms-build.sh
 
 echo "[dms-guard] completed."

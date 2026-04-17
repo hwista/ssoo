@@ -1,6 +1,6 @@
 # SSOO 제품 로드맵
 
-> 최종 업데이트: 2026-02-03
+> 최종 업데이트: 2026-04-17
 
 단계별 구축 전략 (Progressive Delivery)
 
@@ -63,13 +63,25 @@
 
 ## 현재 진행 상황
 
-| 단계 | 상태 | 완료일 |
-|------|------|--------|
-| MVP-0 | 🔄 진행중 | - |
-| MVP-1 | 🔲 대기 | - |
-| MVP-2 | 🔲 대기 | - |
-| MVP-3 | 🔲 대기 | - |
-| MVP-4 | 🔲 대기 | - |
+| 단계 | 상태 | 비고 |
+|------|------|------|
+| MVP-0 | 🔄 진행중 | `Customer`, `Project`, `User/Role/Menu` 축은 구현됨. `Plant/Site`, `System Catalog`, `System Instance`, `Integration`은 후속 범위 |
+| MVP-1 | 🔄 부분 구현 | `status/stage`, `doneResult`, 단계별 상세, 상태 전이 로직이 이미 구현됨 |
+| MVP-2 | 🔲 대기 | handoff/log 트랙은 아직 미구현 |
+| MVP-3 | 🔄 부분 구현 | 산출물/종료조건 CRUD와 완료 전 검증은 존재하나 템플릿 체계는 미구현 |
+| MVP-4 | 🔄 부분 구현 | task/milestone/issue/basic dashboard는 존재하나 reporting/자동화는 미구현 |
+
+### 현재 기준 정리
+
+- PMS는 아직 **MVP-0 전체 완료** 단계는 아니지만, 실제 구현은 MVP-1과 MVP-3 일부를 선행 포함하고 있습니다.
+- 동시에 worktree 기준으로는 lifecycle bridge / org-orgmember foundation / project membership-access / objective-WBS / control quartet+issue / project org-relation / handoff-contract foundation 이 구현 쪽까지 상당 부분 진행된 상태입니다.
+- 따라서 현재 우선순위는 새 feature 확장이 아니라 **baseline close** 입니다.
+- 2026-04-17 기준 PMS 병렬 축의 기준선은 [current-baseline-close-brief.md](./current-baseline-close-brief.md) 를 정본으로 삼습니다.
+- 다음 PMS 작업은 아래 순서로 봅니다.
+  1. reconciliation baseline 공식화
+  2. migration / trigger installer gap 확인
+  3. backlog / roadmap / changelog 재정렬
+  4. 이후에 handoff/contract/payment surface 또는 verification tranche 로 이동
 
 ---
 
@@ -82,5 +94,6 @@
 
 | Date | Change |
 |------|--------|
+| 2026-04-17 | current-baseline-close-brief 를 planning 기준선에 연결하고, PMS 우선순위를 새 feature 확장보다 baseline close / migration / validation gap 정리로 재정렬 |
+| 2026-04-07 | Rebaseline roadmap status to match implemented PMS scope. |
 | 2026-02-09 | Add changelog section. |
-

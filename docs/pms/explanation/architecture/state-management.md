@@ -60,9 +60,6 @@ interface AuthState {
 interface AuthUser {
   userId: string;
   loginId: string;
-  roleCode: string;
-  userTypeCode: string;
-  isAdmin: boolean;
 }
 ```
 

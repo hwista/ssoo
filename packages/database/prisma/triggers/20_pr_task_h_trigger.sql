@@ -28,7 +28,7 @@ BEGIN
 
   INSERT INTO pms.pr_task_h (
     task_id, history_seq, event_type, event_at,
-    project_id, parent_task_id, task_code, task_name, description,
+    project_id, wbs_id, parent_task_id, task_code, task_name, description,
     task_type_code, status_code, priority_code, assignee_user_id,
     planned_start_at, planned_end_at, actual_start_at, actual_end_at,
     progress_rate, estimated_hours, actual_hours, depth, sort_order,
@@ -36,7 +36,7 @@ BEGIN
     last_source, last_activity, transaction_id
   ) VALUES (
     v_record.task_id, v_history_seq, v_event_type, NOW(),
-    v_record.project_id, v_record.parent_task_id, v_record.task_code, v_record.task_name, v_record.description,
+    v_record.project_id, v_record.wbs_id, v_record.parent_task_id, v_record.task_code, v_record.task_name, v_record.description,
     v_record.task_type_code, v_record.status_code, v_record.priority_code, v_record.assignee_user_id,
     v_record.planned_start_at, v_record.planned_end_at, v_record.actual_start_at, v_record.actual_end_at,
     v_record.progress_rate, v_record.estimated_hours, v_record.actual_hours, v_record.depth, v_record.sort_order,

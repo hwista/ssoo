@@ -1,6 +1,6 @@
 # DMS 백로그
 
-> 최종 업데이트: 2026-03-16
+> 최종 업데이트: 2026-04-14
 
 ---
 
@@ -14,6 +14,11 @@
 | DMS-INT-03 | Phase 3~5: PMS 패턴 동기화 | P1 | - | ✅ 완료 |
 | DMS-DOC-02 | 문서별 Backlog/Changelog 섹션 도입 | P1 | - | ✅ 완료 |
 | DMS-REF-01 | **루트 컴포넌트 정리** | P2 | - | ✅ 완료: 구조 정규화, golden-example/shell-body-contract 검증 통과 |
+| DMS-AUTH-01 | `DocumentMetadata.acl` 기반 문서 object policy(server/web/search/binary) 연결 | P1 | - | ✅ 완료: file/content read-write-metadata + search/ask + template/doc-assist source hint + creator owner default + 기본 UI affordance + upload inheritance + local storage/open + validation matrix 적용 |
+| DMS-AUTH-02 | shared session/auth/access/raw/attachment/upload 검증 시나리오 정리 | P1 | - | 🔄 1차 완료: 공통 matrix + repo-native 검증 루틴 문서화, object ACL deny/allow 확장 필요 |
+| DMS-STO-01 | 저장소 어댑터 3종(Local/SharePoint/NAS) 구현 | P1 | - | 🔄 1차 완료: 어댑터+API 도입, 라우팅 고도화 필요 |
+| DMS-ING-01 | 자동 수집 큐 + 컨펌 후 게시 플로우 | P1 | - | 🔄 1차 완료: 큐+confirm API 구현, 채널 어댑터 연동 필요 |
+| DMS-AI-01 | AI 모드 분리(wiki/deep) + 세컨드브레인 UI | P1 | - | 🔄 1차 완료: API 분기/응답 확장, 화면 표시 강화 필요 |
 
 ---
 
@@ -38,19 +43,13 @@
 
 | ID | 항목 | 우선순위 | 비고 |
 |----|------|----------|------|
-| DMS-STO-01 | 저장소 어댑터 3종(Local/SharePoint/NAS) 구현 | P1 | 🔄 1차 완료: 어댑터+API 도입, 라우팅 고도화 필요 |
-| DMS-STO-02 | 정본/첨부 열기(Open)/경로복사/재동기화 UI | P1 | 🔄 1차 완료: Sidecar 액션 추가, 오류 표준화/실동기화 필요 |
-| DMS-ING-01 | 자동 수집 큐 + 컨펌 후 게시 플로우 | P1 | 🔄 1차 완료: 큐+confirm API 구현, 채널 어댑터 연동 필요 |
-| DMS-AI-01 | AI 모드 분리(wiki/deep) + 세컨드브레인 UI | P1 | 🔄 1차 완료: API 분기/응답 확장, 화면 표시 강화 필요 |
-| DMS-AI-02 | `/ai/create` 제거 + 문서 편집 하단 인라인 AI 작성 통합 | P1 | ✅ 완료: 근거 강제/템플릿 단일 선택/관련성 경고 튜닝 적용 |
-| DMS-TPL-01 | 템플릿 모델 분리(개인/전역) + 설정 CRUD | P1 | ✅ 완료: 서비스/API/설정UI/에디터 연동 파이프라인 완성 |
-| DMS-PATH-01 | 생성 문서 경로 입력 + AI 경로 추천 + 자동 폴더 생성 | P1 | ✅ 완료: SaveLocationDialog + FolderPickerTree + 에디터/사이드카 연동 |
-| DMS-AI-03 | 요약 첨부 멀티 업로드 + 연관성 경고 | P1 | ✅ 완료: 첨부 근거 강제, 관련성 경고 튜닝(단일첨부 검사, 적응 임계값) |
+| DMS-AUTH-03 | storage open 정책 + object ACL validation matrix 확장 | P1 | ✅ 완료: local storage/open linked-source 정책과 object ACL validation matrix 확정 |
+| DMS-STO-02 | 정본/첨부 열기(Open)/경로복사/재동기화 UI | P1 | 🔄 1차 완료: sidecar 액션 추가, 오류 표준화/실동기화 필요 |
+| DMS-QA-01 | 저장소/수집/딥리서치/auth-access 시나리오 테스트 자동화 | P1 | 통합/e2e 스크립트 추가 필요 |
 | DMS-FE-01 | PWA 지원 | P2 | Phase 5 |
 | DMS-FE-02 | 외부 스토리지 연동 | P2 | 기존 항목 유지(세부는 DMS-STO-01로 분해) |
-| DMS-BE-01 | 공용 백엔드 연동 | P2 | Phase 6 |
 | DMS-BE-02 | PMS 연동 | P3 | 프로젝트 산출물 |
-| DMS-UI-01 | 나머지 컴포넌트 스타일 통일 | P2 | Header, TabBar 등 → 헤더 슬롯 구조 개선 완료, 잔여 스타일 통일 |
+| DMS-UI-01 | 나머지 컴포넌트 스타일 통일 | P2 | Header, TabBar 등 잔여 정리 |
 
 ---
 
@@ -58,6 +57,8 @@
 
 | ID | 항목 | 완료일 |
 |----|------|--------|
+| DMS-AUTH-00 | 공통 auth + DMS feature baseline gating | 2026-04-13 |
+| DMS-BE-01 | 공용 백엔드 연동 (same-origin proxy + `apps/server` DMS module) | 2026-04-13 |
 | DMS-SET-01 | settings 추가 슬롯 확장 (권한/관리/스케줄러/템플릿/내 활동 IA) | 2026-04-06 |
 | DMS-REF-01 | 루트 컴포넌트 정리 (구조 정규화, 검증 통과) | 2026-03-16 |
 | DMS-AI-02 | 인라인 AI 작성 통합 (/ai/create 제거, 근거 강제, 관련성 경고) | 2026-03-16 |
@@ -92,6 +93,9 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-14 | DMS-AUTH-01/DMS-AUTH-03 를 local storage/open linked-source 정책 + validation matrix까지 반영한 완료 상태로 갱신 |
+| 2026-04-14 | DMS-AUTH-02 를 진행중으로 상향하고 공통 auth/access validation baseline 문서화 상태를 backlog에 반영 |
+| 2026-04-13 | auth/access readiness 항목을 추가하되 기존 backlog 이력과 잔여 체크리스트를 복원해 보존 |
 | 2026-04-06 | settings 추가 슬롯 생성: 시스템에 문서/폴더 권한, 전체 문서/폴더 관리, 문서 품질/전역 스케줄러, 템플릿 마켓, 관리자 템플릿을 추가하고 개인에 공개/내 템플릿, 내 문서/내 활동 placeholder surface를 분리 |
 | 2026-03-16 | 에디터 UX 개선: dirty 보더(SectionedShell), 탭 dirty 표시(색상+이탤릭+dot), 탭 문서명 우선 표시, 탭 닫기 confirm, 미리보기 원본보기 색상, confirm 메시지 통일 |
 | 2026-03-16 | Header 에디터 모드 슬롯 구조 개선: editorInlineSlot→editorRightSlot 이름변경, 저장/삭제 우측 재배치, 미리보기 시 우측 버튼 숨김 |

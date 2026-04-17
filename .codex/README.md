@@ -55,6 +55,9 @@ git config --local codex.gitlabUser 'your_gitlab_username'
 git config --local codex.gitlabToken 'your_personal_access_token'
 ```
 
+> `pnpm run codex:workspace-publish`는 GitHub/GitLab push와 함께 `codex.gitlabLastPublished` marker를 갱신합니다.  
+> 따라서 일반 `git push origin ...` 은 이 marker가 현재 HEAD와 일치할 때만 pre-push guard를 통과합니다.
+
 ## 정본 관계
 
 - Codex 정본: `.codex/instructions/`

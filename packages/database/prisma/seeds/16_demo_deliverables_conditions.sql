@@ -39,19 +39,22 @@ select setval(
 insert into pms.pr_project_deliverable_r_m (project_id, status_code, deliverable_code, submission_status_code, submitted_at, submitted_by, is_active, created_at, updated_at, last_source)
 values
   (900001, 'request', 'DLV-REQ-001', 'submitted',     '2026-02-25', 6, true, now(), now(), 'SEED'),
-  (900001, 'request', 'DLV-REQ-002', 'before_submit', null,         null, true, now(), now(), 'SEED');
+  (900001, 'request', 'DLV-REQ-002', 'before_submit', null,         null, true, now(), now(), 'SEED')
+on conflict (project_id, status_code, deliverable_code) do nothing;
 
 -- 900002: 요구사항 정의서(confirmed), 요청 검토 보고서(submitted)
 insert into pms.pr_project_deliverable_r_m (project_id, status_code, deliverable_code, submission_status_code, submitted_at, submitted_by, is_active, created_at, updated_at, last_source)
 values
   (900002, 'request', 'DLV-REQ-001', 'confirmed',  '2026-02-20', 6, true, now(), now(), 'SEED'),
-  (900002, 'request', 'DLV-REQ-002', 'submitted',  '2026-02-22', 2, true, now(), now(), 'SEED');
+  (900002, 'request', 'DLV-REQ-002', 'submitted',  '2026-02-22', 2, true, now(), now(), 'SEED')
+on conflict (project_id, status_code, deliverable_code) do nothing;
 
 -- 900004 (done 상태): 모두 confirmed
 insert into pms.pr_project_deliverable_r_m (project_id, status_code, deliverable_code, submission_status_code, submitted_at, submitted_by, is_active, created_at, updated_at, last_source)
 values
   (900004, 'request', 'DLV-REQ-001', 'confirmed', '2026-02-15', 6, true, now(), now(), 'SEED'),
-  (900004, 'request', 'DLV-REQ-002', 'confirmed', '2026-02-18', 2, true, now(), now(), 'SEED');
+  (900004, 'request', 'DLV-REQ-002', 'confirmed', '2026-02-18', 2, true, now(), now(), 'SEED')
+on conflict (project_id, status_code, deliverable_code) do nothing;
 
 -- ─────────────────────────────────────────────────────────
 -- 프로젝트별 종료 조건 (pr_project_close_condition_r_m)
@@ -62,18 +65,21 @@ values
 insert into pms.pr_project_close_condition_r_m (project_id, status_code, condition_code, requires_deliverable, is_checked, sort_order, is_active, created_at, updated_at, last_source)
 values
   (900001, 'request', 'DELIVERABLE_SUBMITTED',       true,  false, 1, true, now(), now(), 'SEED'),
-  (900001, 'request', 'CUSTOMER_ACCEPTANCE_SIGNED',  false, false, 2, true, now(), now(), 'SEED');
+  (900001, 'request', 'CUSTOMER_ACCEPTANCE_SIGNED',  false, false, 2, true, now(), now(), 'SEED')
+on conflict (project_id, status_code, condition_code) do nothing;
 
 -- 900002: 산출물 제출(checked), 검수 미완료
 insert into pms.pr_project_close_condition_r_m (project_id, status_code, condition_code, requires_deliverable, is_checked, checked_at, checked_by, sort_order, is_active, created_at, updated_at, last_source)
 values
   (900002, 'request', 'DELIVERABLE_SUBMITTED',       true,  true, '2026-02-23', 2, 1, true, now(), now(), 'SEED'),
-  (900002, 'request', 'CUSTOMER_ACCEPTANCE_SIGNED',  false, false, null, null, 2, true, now(), now(), 'SEED');
+  (900002, 'request', 'CUSTOMER_ACCEPTANCE_SIGNED',  false, false, null, null, 2, true, now(), now(), 'SEED')
+on conflict (project_id, status_code, condition_code) do nothing;
 
 -- 900004 (done): 모두 checked
 insert into pms.pr_project_close_condition_r_m (project_id, status_code, condition_code, requires_deliverable, is_checked, checked_at, checked_by, sort_order, is_active, created_at, updated_at, last_source)
 values
   (900004, 'request', 'DELIVERABLE_SUBMITTED',       true,  true, '2026-02-19', 2, 1, true, now(), now(), 'SEED'),
-  (900004, 'request', 'CUSTOMER_ACCEPTANCE_SIGNED',  false, true, '2026-02-20', 2, 2, true, now(), now(), 'SEED');
+  (900004, 'request', 'CUSTOMER_ACCEPTANCE_SIGNED',  false, true, '2026-02-20', 2, 2, true, now(), now(), 'SEED')
+on conflict (project_id, status_code, condition_code) do nothing;
 
 commit;

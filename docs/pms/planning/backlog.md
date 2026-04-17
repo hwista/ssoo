@@ -2,7 +2,7 @@
 
 > 전체 백로그 요약 및 영역별 문서 링크
 
-**마지막 업데이트**: 2026-02-02
+**마지막 업데이트**: 2026-04-17
 
 ---
 
@@ -54,38 +54,44 @@
 
 > 각 영역에서 P1-P2 우선순위 항목만 모아서 표시
 
-### P1 (High) - 핵심 기초
+### P1 (High) - 바로 착수할 항목
 
 | ID | 영역 | 항목 | 상태 |
 |----|------|------|------|
-| - | 전체 | 대형 컴포넌트 분리 완료 | ✅ |
+| FLOW-01 | UI 흐름 | 상태별 목록/상세 탭 계약 안정화 | ✅ |
+| RULE-01 | 비즈니스 규칙 | `requiresDeliverable` 종료조건 체크 가드 보강 | ✅ |
+| DOC-01 | Planning | roadmap/backlog/changelog 기준선 현행화 | ✅ |
+| DOC-02 | Planning | current baseline-close brief 기준으로 PMS foundation/migration/validation gap 재고정 | 🔄 |
 
-### P2 (Medium) - 품질 개선
+### P2 (Medium) - 다음 배치
 
 | ID | 영역 | 항목 | 상태 |
 |----|------|------|------|
+| ROLE-01 | 멤버 관리 | 멤버 역할 하드코딩을 코드 테이블 기반으로 정리 | 🔲 |
+| MVP0-01 | 도메인 | `Plant/Site`, `System Catalog`, `System Instance`, `Integration` 도메인 착수 | 🔲 |
+| HAND-01 | 프로젝트 흐름 | Handoff/log 트랙 설계 및 1차 구현 | 🔲 |
 | LAY-01 | 레이아웃 | 모바일 레이아웃 구현 | 🔲 |
-| STM-01 | 상태관리 | 즐겨찾기 순서 변경 API 연동 | 🔲 |
-| UTL-01 | 유틸리티 | 날짜/숫자/금액 포맷 유틸리티 | 🔲 |
-| API-02 | API | 에러 응답 상세 코드 정의 | 🔲 |
 
 ### P3 (Low) - 추후 개선
 
 | ID | 영역 | 항목 | 상태 |
 |----|------|------|------|
-| LAY-02 | 레이아웃 | 페이지 컴포넌트 문서화 | 🔲 |
-| LAY-03 | 레이아웃 | Header 브레드크럼 구현 | 🔲 |
-| STM-02 | 상태관리 | 타입 정의 전용 문서 | 🔲 |
-| UIC-01 | UI컴포넌트 | 개별 컴포넌트 상세 문서 | 🔲 |
-| UTL-02 | 유틸리티 | 디바운스/쓰로틀 유틸리티 | 🔲 |
-| API-01 | API | Health Check API 문서화 | 🔲 |
+| DASH-01 | 대시보드 | 리스크/리포트/집계 위젯 확장 | 🔲 |
+| LAY-02 | 레이아웃 | Header 브레드크럼 구현 | 🔲 |
+| UTL-01 | 유틸리티 | 날짜/숫자/금액 포맷 유틸리티 정리 | 🔲 |
+| API-01 | API | 에러 응답 상세 코드 정의 | 🔲 |
 
 ---
 
 ## ✅ 최근 완료 항목
 
+> 현재 PMS의 foundation 정합화 상태와 다음 baseline close 기준은 [current-baseline-close-brief.md](./current-baseline-close-brief.md) 를 함께 참조합니다.
+
 | 완료일 | ID | 항목 |
 |--------|-----|------|
+| 2026-04-07 | FLOW-01 | 대시보드 프로젝트 상세 진입 계약을 목록 화면 규약에 맞춤 |
+| 2026-04-07 | RULE-01 | 종료조건 체크 시 산출물 필요 조건 검증 추가 |
+| 2026-04-07 | DOC-01 | planning 문서를 실제 PMS 구현 단계에 맞게 재기준화 |
 | 2026-01-21 | - | 즐겨찾기 DB 연동 |
 | 2026-01-21 | - | 커스텀 스크롤바 시스템 |
 | 2026-01-21 | - | API/아키텍처 문서화 |
@@ -107,5 +113,5 @@
 
 | Date | Change |
 |------|--------|
+| 2026-04-07 | Reorganized backlog around the next executable PMS batches. |
 | 2026-02-09 | Add changelog section. |
-

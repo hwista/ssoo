@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useMemo, useState, type ChangeEvent } from 'react';
 import { FileUp, Plus, Search } from 'lucide-react';
 import { useAssistantContextStore, useTabStore } from '@/stores';
-import { filesApi, templateApi } from '@/lib/api';
 import type { TemplateItem } from '@/types/template';
+import { useFileTreeQuery } from '@/hooks/queries/useFileTree';
+import { useTemplateList } from '@/hooks/queries/useTemplates';
+import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,10 +82,6 @@ export function AssistantReferencePicker({
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [allDocs, setAllDocs] = useState<Array<{ path: string; title: string }>>([]);
-  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
-  const [templates, setTemplates] = useState<TemplateItem[]>([]);
 
   const tabs = useTabStore((state) => state.tabs);
   const assistantReferences = useAssistantContextStore((state) => state.attachedReferences);
@@ -104,6 +102,27 @@ export function AssistantReferencePicker({
 
   const openDocs = useMemo(() => collectOpenDocs(tabs), [tabs]);
 
+  const fileTreeQuery = useFileTreeQuery({
+    enabled: resolved.documentSearch && open,
+  });
+  const templateListQuery = useTemplateList({
+    enabled: resolved.templateSelection && open,
+  });
+
+  const allDocs = useMemo(
+    () => flattenFileTreeDocs(fileTreeQuery.data?.data ?? []),
+    [fileTreeQuery.data?.data],
+  );
+  const templates = useMemo<TemplateItem[]>(
+    () => [
+      ...(templateListQuery.data?.data?.personal ?? []),
+      ...(templateListQuery.data?.data?.global ?? []),
+    ],
+    [templateListQuery.data?.data?.global, templateListQuery.data?.data?.personal],
+  );
+  const isLoadingDocs = fileTreeQuery.isLoading || fileTreeQuery.isFetching;
+  const isLoadingTemplates = templateListQuery.isLoading || templateListQuery.isFetching;
+
   const searchedAllDocs = useMemo(() => filterDocReferences(allDocs, query), [allDocs, query]);
 
   const personalDocumentTemplates = useMemo(
@@ -119,51 +138,6 @@ export function AssistantReferencePicker({
     [personalDocumentTemplates, query]
   );
 
-  useEffect(() => {
-    if (!resolved.documentSearch || !open || allDocs.length > 0) return;
-
-    let mounted = true;
-    const loadAllDocs = async () => {
-      setIsLoadingDocs(true);
-      const response = await filesApi.getFileTree();
-      if (!mounted) return;
-
-      if (!response.success || !response.data) {
-        setAllDocs([]);
-        setIsLoadingDocs(false);
-        return;
-      }
-
-      setAllDocs(flattenFileTreeDocs(response.data));
-      setIsLoadingDocs(false);
-    };
-
-    void loadAllDocs();
-    return () => {
-      mounted = false;
-    };
-  }, [allDocs.length, resolved.documentSearch, open]);
-
-  useEffect(() => {
-    if (!resolved.templateSelection || !open || templates.length > 0) return;
-
-    let mounted = true;
-    const loadTemplates = async () => {
-      setIsLoadingTemplates(true);
-      const response = await templateApi.list();
-      if (!mounted) return;
-      if (response.success && response.data) {
-        setTemplates([...(response.data.personal ?? []), ...(response.data.global ?? [])]);
-      }
-      setIsLoadingTemplates(false);
-    };
-
-    void loadTemplates();
-    return () => {
-      mounted = false;
-    };
-  }, [resolved.templateSelection, open, templates.length]);
-
   const handlePickSummaryFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!resolved.fileUpload) return;
     const files = Array.from(event.target.files ?? []);
@@ -175,7 +149,10 @@ export function AssistantReferencePicker({
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch('/api/file/extract-text', { method: 'POST', body: formData });
+        const res = await fetchWithSharedAuth('/api/file/extract-text', {
+          method: 'POST',
+          body: formData,
+        });
         if (res.ok) {
           const data = await res.json();
           textContent = typeof data?.textContent === 'string' ? data.textContent : '';

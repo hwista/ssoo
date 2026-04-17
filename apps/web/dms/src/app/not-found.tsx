@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoadingState } from '@/components/common/StateDisplay';
+import { APP_HOME_PATH } from '@/lib/constants/routes';
 
 /**
  * 404 Not Found 페이지
@@ -15,7 +16,7 @@ export default function NotFound() {
 
   useEffect(() => {
     // 루트 셸로 복구
-    router.replace('/');
+    router.replace(APP_HOME_PATH);
   }, [router]);
 
   return (

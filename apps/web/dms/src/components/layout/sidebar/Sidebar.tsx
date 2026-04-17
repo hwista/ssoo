@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
+import {
   ChevronDown, 
   ChevronLeft,
   RefreshCw, 
@@ -12,7 +12,7 @@ import {
   BookOpen,
   Code,
 } from 'lucide-react';
-import { useLayoutStore, useSidebarStore, useFileStore, useGitStore } from '@/stores';
+import { useAccessStore, useLayoutStore, useSidebarStore, useFileStore, useGitStore } from '@/stores';
 import type { DocumentType } from '@/types';
 import { DOCUMENT_TYPE_LABELS, LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';
@@ -66,14 +66,23 @@ export function Sidebar({
   const { expandedSections, toggleSection } = useSidebarStore();
   const { refreshFileTree } = useFileStore();
   const { changeCount, initialize: initGit, isAvailable: gitAvailable } = useGitStore();
+  const accessSnapshot = useAccessStore((state) => state.snapshot);
+  const canReadDocuments = accessSnapshot?.features.canReadDocuments ?? false;
+  const canUseGit = accessSnapshot?.features.canUseGit ?? false;
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Git 초기화 (1회)
   useEffect(() => {
+    if (!canUseGit) {
+      return;
+    }
     initGit();
-  }, [initGit]);
+  }, [canUseGit, initGit]);
 
   const handleRefresh = async () => {
+    if (!canReadDocuments) {
+      return;
+    }
     setIsRefreshing(true);
     try {
       await refreshFileTree();
@@ -161,14 +170,14 @@ export function Sidebar({
         </DropdownMenu>
       </div>
 
-      {/* 검색 + 새로고침 */}
+        {/* 검색 + 새로고침 */}
       <div className="p-2 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-1">
           <Search />
           <button
             onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="h-control-h w-control-h flex items-center justify-center hover:bg-ssoo-sitemap-bg rounded-lg transition-colors disabled:opacity-50"
+            disabled={isRefreshing || !canReadDocuments}
+            className="h-control-h w-control-h flex items-center justify-center hover:bg-ssoo-sitemap-bg rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             title="새로고침"
           >
             <RefreshCw
@@ -201,17 +210,19 @@ export function Sidebar({
         </Section>
 
         {/* 전체 파일 */}
-        <Section
-          title="전체 파일"
-          icon={FolderTree}
-          isExpanded={expandedSections.includes('fileTree')}
-          onToggle={() => toggleSection('fileTree')}
-        >
-          <FileTree />
-        </Section>
+        {canReadDocuments ? (
+          <Section
+            title="전체 파일"
+            icon={FolderTree}
+            isExpanded={expandedSections.includes('fileTree')}
+            onToggle={() => toggleSection('fileTree')}
+          >
+            <FileTree />
+          </Section>
+        ) : null}
 
         {/* 변경 사항 (Git) */}
-        {gitAvailable && (
+        {gitAvailable && canUseGit ? (
           <Section
             title={`변경 사항${changeCount > 0 ? ` (${changeCount})` : ''}`}
             icon={GitBranch}
@@ -220,7 +231,7 @@ export function Sidebar({
           >
             <Changes />
           </Section>
-        )}
+        ) : null}
       </ScrollArea>
 
       {/* 하단 카피라이트 (PMS 스타일) */}

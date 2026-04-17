@@ -1,6 +1,6 @@
 'use client';
 
-import { fileApi } from '@/lib/api';
+import { fileApi } from '@/lib/api/endpoints/files';
 import { streamSSE } from '@/lib/api/streaming';
 import type { AssistantMessage } from '@/stores';
 

@@ -6,6 +6,8 @@ import {
   useEditorStore,
   useConfirmStore,
   useFileStore,
+  useAccessStore,
+  useAuthStore,
   useAssistantContextStore,
   useAssistantPanelStore,
   useNewDocStore,
@@ -13,7 +15,10 @@ import {
 import type { TemplateConversionPendingData } from '@/stores/new-doc.store';
 import type { TemplateSaveData } from '@/stores/editor-core.store';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
-import { fileApi, templateApi, docAssistApi } from '@/lib/api';
+import { docAssistApi } from '@/lib/api/endpoints/ai';
+import { fileApi } from '@/lib/api/endpoints/files';
+import { templateApi } from '@/lib/api/endpoints/templates';
+import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
 import { PageTemplate } from '@/components/templates';
 import {
   DOC_PAGE_SURFACE_PRESETS,
@@ -21,7 +26,7 @@ import {
   SectionedShell,
 } from '@/components/templates/page-frame';
 import { EditorToolbar } from './_components/editor';
-import type { EditorRef } from './_components/editor';
+import type { EditorRef, EditorSaveConflictPayload } from './_components/editor';
 import { type TocItem } from '@/components/templates/page-frame';
 import { markdownToHtmlSync } from '@/lib/utils/markdown';
 import { generateUniqueFilename } from '@/lib/utils';
@@ -40,10 +45,10 @@ import { ImageLightbox } from '@/components/common/ImageLightbox';
 import type { TemplateItem } from '@/types/template';
 import { cn } from '@/lib/utils';
 import { Divider } from '@/components/ui/divider';
-import { Undo2, Redo2 } from 'lucide-react';
+import { AlertTriangle, Undo2, Redo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SimpleTooltip } from '@/components/ui/tooltip';
-import { LoadingState } from '@/components/common/StateDisplay';
+import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { SplitDiffViewer } from '@/components/common/diff/SplitDiffViewer';
 import { DocumentSidecar } from './_components/DocumentSidecar';
 import { DiffTargetToggle, DiffToggleButton, PreviewToggleButton } from './_components/EditorModeControls';
@@ -55,22 +60,28 @@ import { TemplatePreviewDialog } from './_components/document-sidecar/TemplatePr
 import { useDocumentPageComposeActions } from './useDocumentPageComposeActions';
 import { useTemplateSaveFlow } from './useTemplateSaveFlow';
 import { useViewerTemplatePicker } from './useViewerTemplatePicker';
+import { useDocumentCollaboration } from './useDocumentCollaboration';
 import { toast } from '@/lib/toast';
 import { downloadMarkdown, printHtmlContent } from '@/lib/utils/downloadUtils';
 import { resolveTitlePathRecommendation, type RecommendationStatus } from '@/lib/utils/titlePathRecommendation';
 import {
+  canEditDocument,
+  canManageDocument,
   buildDocumentSidecarDiffSnapshot,
   buildDocumentSidecarMetadata,
   buildMarkdownToc,
   getDocumentFilePath,
+  resolveDocumentAclRole,
   resolveSaveDisplayName,
   stringifyDocumentSidecarDiffSnapshot,
   type DocumentSidecarDiffSnapshot,
 } from './documentPageUtils';
 
 type PageMode = 'viewer' | 'editor' | 'create';
-type EditorSurfaceMode = 'edit' | 'preview' | 'diff';
+type EditorSurfaceMode = 'edit' | 'preview' | 'diff' | 'conflict';
 type DiffTarget = 'content' | 'metadata';
+
+type SaveConflictState = EditorSaveConflictPayload;
 
 export function DocumentPage() {
   const tabId = useTabInstanceId();
@@ -81,6 +92,11 @@ export function DocumentPage() {
   const toggleAssistantReference = useAssistantContextStore((state) => state.toggleReference);
   const attachedReferences = useAssistantContextStore((state) => state.attachedReferences);
   const openDocumentTab = useOpenDocumentTab();
+  const currentUser = useAuthStore((state) => state.user);
+  const accessSnapshot = useAccessStore((state) => state.snapshot);
+  const canWriteDocuments = accessSnapshot?.features.canWriteDocuments ?? false;
+  const canUseAssistant = accessSnapshot?.features.canUseAssistant ?? false;
+  const canManageTemplates = accessSnapshot?.features.canManageTemplates ?? false;
 
   const {
     loadFile,
@@ -104,6 +120,7 @@ export function DocumentPage() {
     discardPendingMetadata,
     currentFilePath: storeCurrentFilePath,
     setCurrentFilePath,
+    patchDocumentMetadata,
     refreshFileMetadata,
     setContentType,
     setTemplateSaveData,
@@ -129,6 +146,7 @@ export function DocumentPage() {
   const [diffTarget, setDiffTarget] = useState<DiffTarget>('content');
   const [diffDraftContent, setDiffDraftContent] = useState<string | null>(null);
   const [diffMetadataSnapshotText, setDiffMetadataSnapshotText] = useState<string | null>(null);
+  const [saveConflict, setSaveConflict] = useState<SaveConflictState | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const editorRef = useRef<EditorRef | null>(null);
@@ -226,6 +244,7 @@ export function DocumentPage() {
     if (mode !== 'editor' && mode !== 'create') {
       setSurfaceMode('edit');
       setDiffTarget('content');
+      setSaveConflict(null);
     }
   }, [mode]);
 
@@ -246,6 +265,25 @@ export function DocumentPage() {
   }, [activeTab?.path]);
 
   const isCreateMode = createEntryType !== null && createEntryType !== 'launcher';
+  const documentAclRole = useMemo(
+    () => resolveDocumentAclRole(documentMetadata, currentUser),
+    [documentMetadata, currentUser],
+  );
+  const canEditCurrentDocument = isCreateMode
+    || (canWriteDocuments && canEditDocument(documentMetadata, currentUser));
+  const canManageCurrentDocument = isCreateMode
+    || (canWriteDocuments && canManageDocument(documentMetadata, currentUser));
+
+  useEffect(() => {
+    if (isCreateMode || canEditCurrentDocument || mode === 'viewer') {
+      return;
+    }
+
+    setMode('viewer');
+    setIsEditing(false);
+    setSurfaceMode('edit');
+    setDiffTarget('content');
+  }, [canEditCurrentDocument, isCreateMode, mode, setIsEditing]);
 
   const filePath = useMemo(() => getDocumentFilePath(activeTab?.path), [activeTab?.path]);
 
@@ -276,6 +314,7 @@ export function DocumentPage() {
     setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(null));
     setSurfaceMode('edit');
     setDiffTarget('content');
+    setSaveConflict(null);
 
     aiSummaryConsumedRef.current = false;
     aiSummaryCompletedRef.current = false;
@@ -297,12 +336,17 @@ export function DocumentPage() {
       setTitleRecommendationStatus('idle');
       setPathRecommendationStatus('idle');
       setPathValidationMessage('');
+      setSaveConflict(null);
     }
   }, [filePath, isCreateMode, loadFile, setIsEditing]);
 
   // AI 요약 자동 실행: 진입 시 pending 파일을 소비하고 본문 기반으로 compose 호출
   useEffect(() => {
     if (createEntryType !== 'ai-summary' || aiSummaryConsumedRef.current) return;
+    if (!canWriteDocuments || !canUseAssistant) {
+      setIsComposing(false);
+      return;
+    }
     aiSummaryConsumedRef.current = true;
 
     const runAiSummary = async () => {
@@ -391,7 +435,7 @@ export function DocumentPage() {
 
     void runAiSummary();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createEntryType]);
+  }, [canUseAssistant, canWriteDocuments, createEntryType]);
 
   // AI 요약 완료 후 에디터 마운트 → dirty 표시
   // Editor.resetContent가 먼저 실행된 뒤 다음 프레임에서 dirty 플래그 설정
@@ -564,6 +608,11 @@ export function DocumentPage() {
   }, [applySuggestedInfoPath, applySuggestedInfoTitle]);
 
   const requestInfoRecommendation = useCallback(async () => {
+    if (!canUseAssistant) {
+      toast.error('AI 추천을 사용할 권한이 없습니다.');
+      return;
+    }
+
     const draftContent = getCurrentDraftContent();
     if (!draftContent.trim()) return;
 
@@ -591,7 +640,7 @@ export function DocumentPage() {
       setTitleRecommendationStatus('error');
       setPathRecommendationStatus('error');
     }
-  }, [consumeTitlePathRecommendation, getCurrentDraftContent, isGeneratedTemplateMode]);
+  }, [canUseAssistant, consumeTitlePathRecommendation, getCurrentDraftContent, isGeneratedTemplateMode]);
 
   const handleAcceptSuggestedInfoTitle = useCallback(() => {
     if (!pendingSuggestedInfoTitle) return;
@@ -631,11 +680,17 @@ export function DocumentPage() {
   const tags = useMemo(() => documentMetadata?.tags || [], [documentMetadata]);
 
   const handleEdit = useCallback(() => {
+    if (!canEditCurrentDocument) {
+      toast.error('문서를 편집할 권한이 없습니다.');
+      return;
+    }
+
     setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(documentMetadata));
     setMode('editor');
     setIsEditing(true);
     setSurfaceMode('edit');
     setDiffTarget('content');
+    setSaveConflict(null);
 
     // 기존 참조/템플릿을 Chips에 복원
     const sourceFiles = documentMetadata?.sourceFiles ?? [];
@@ -650,8 +705,8 @@ export function DocumentPage() {
       const restored: InlineSummaryFileItem[] = refFiles.map((f) => ({
         id: `${f.name}-restored-${f.size}`,
         name: f.name,
-        type: f.type,
-        size: f.size,
+        type: f.type ?? 'application/octet-stream',
+        size: f.size ?? 0,
         textContent: '',
       }));
       setInlineSummaryFiles((prev) => {
@@ -676,7 +731,7 @@ export function DocumentPage() {
             try {
               const controller = new AbortController();
               const timeout = setTimeout(() => controller.abort(), 5000);
-              const res = await fetch(
+              const res = await fetchWithSharedAuth(
                 `/api/file/serve-attachment?path=${encodeURIComponent(f.path)}`,
                 { signal: controller.signal },
               );
@@ -766,9 +821,13 @@ export function DocumentPage() {
         setIsRestoringReferences(false);
       });
     }
-  }, [setIsEditing, documentMetadata]);
+  }, [canEditCurrentDocument, setIsEditing, documentMetadata]);
 
   const handleDelete = useCallback(async () => {
+    if (!canManageCurrentDocument) {
+      toast.error('문서를 삭제할 권한이 없습니다.');
+      return;
+    }
     if (!filePath || !tabId) return;
 
     const confirmed = await confirm({
@@ -790,13 +849,17 @@ export function DocumentPage() {
     } catch (err) {
       console.error('파일 삭제 실패:', err);
     }
-  }, [filePath, tabId, confirm, reset, closeTab, refreshFileTree]);
+  }, [canManageCurrentDocument, filePath, tabId, confirm, reset, closeTab, refreshFileTree]);
 
   const handleSearch = useCallback(() => {
     // TODO: 문서 내 검색 하이라이트
   }, []);
 
   const handleAttachCurrentDocToAssistant = useCallback(() => {
+    if (!canUseAssistant) {
+      toast.error('AI 어시스턴트를 사용할 권한이 없습니다.');
+      return;
+    }
     if (!filePath) return;
     const alreadyAttached = attachedReferences.some((item) => item.path === filePath);
     if (!alreadyAttached) {
@@ -805,7 +868,7 @@ export function DocumentPage() {
     }
     openAssistantPanel();
     window.dispatchEvent(new Event(ASSISTANT_FOCUS_INPUT_EVENT));
-  }, [attachedReferences, filePath, openAssistantPanel, toggleAssistantReference]);
+  }, [attachedReferences, canUseAssistant, filePath, openAssistantPanel, toggleAssistantReference]);
 
   const handleTocClick = useCallback((id: string) => {
     const element = document.getElementById(id);
@@ -926,6 +989,10 @@ export function DocumentPage() {
   }, [documentMetadata, setLocalDocumentMetadata]);
 
   const handleSave = useCallback(async () => {
+    if (!canEditCurrentDocument) {
+      return;
+    }
+
     // 소프트 삭제된 항목을 저장 전 실제로 제거
     if (pendingDeletedFileIds.size > 0) {
       const deletedNames = inlineSummaryFiles
@@ -989,8 +1056,9 @@ export function DocumentPage() {
 
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('documentPath', filePath || createPath);
         try {
-          const res = await fetch(uploadUrl, { method: 'POST', body: formData });
+          const res = await fetchWithSharedAuth(uploadUrl, { method: 'POST', body: formData });
           const data = await res.json();
           if (res.ok && data.success) {
             const idx = updatedFiles.findIndex((f) => f.path === tempPath);
@@ -1028,7 +1096,11 @@ export function DocumentPage() {
     // - isCreateMode → requestSaveLocation 모달 → storeSaveFile
     // - 기존 콘텐츠 → storeSaveFile 직접 호출
     // storeSaveFile은 스토어의 contentType에 따라 fileApi 또는 templateApi 호출
-    await editorHandlers?.save();
+    const didSave = await editorHandlers?.save();
+    if (!didSave) {
+      return;
+    }
+    setSaveConflict(null);
 
     // 저장 성공 후 diff 스냅샷 갱신 (하이라이트 초기화)
     // create 모드: 탭 ID 변경으로 컴포넌트가 재마운트되므로 null로 초기화
@@ -1091,7 +1163,17 @@ export function DocumentPage() {
     currentTemplateId,
     removeTemplateReference,
     setTemplateSaveData,
+    canEditCurrentDocument,
   ]);
+
+  const handleSaveConflict = useCallback(async (conflict: EditorSaveConflictPayload) => {
+    setSaveConflict(conflict);
+    setDiffTarget('content');
+    setSurfaceMode('conflict');
+    if (typeof conflict.currentRevisionSeq === 'number') {
+      patchDocumentMetadata({ revisionSeq: conflict.currentRevisionSeq });
+    }
+  }, [patchDocumentMetadata]);
 
   // Ctrl+S를 DocumentPage의 handleSave로 라우팅 (rename 로직 포함)
   // Editor 내부의 Ctrl+S 핸들러보다 먼저 capture phase에서 실행
@@ -1442,6 +1524,9 @@ export function DocumentPage() {
   });
 
   const isEditorMode = mode === 'editor' || mode === 'create';
+  const collaborationPath = currentSidecarFilePath || createPath || null;
+  const collaborationMode = isEditorMode ? 'edit' : 'view';
+  const { snapshot: collaborationSnapshot, activeEditors, takeover: takeoverCollaborationLock, refresh: refreshCollaborationState, retryPublish: retryCollaborationPublish } = useDocumentCollaboration(collaborationPath, collaborationMode);
   const currentMetadataSnapshot = useMemo(
     () => buildDocumentSidecarDiffSnapshot(documentMetadata),
     [documentMetadata]
@@ -1469,6 +1554,21 @@ export function DocumentPage() {
       className="h-full"
     />
   ) : null;
+  const conflictDiffViewerNode = surfaceMode === 'conflict' && saveConflict ? (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-amber-200 bg-white">
+      <div className="grid shrink-0 grid-cols-2 border-b border-ssoo-content-border bg-amber-50/70 text-caption font-medium text-ssoo-primary/80">
+        <div className="border-r border-ssoo-content-border px-4 py-2">최신 저장본</div>
+        <div className="px-4 py-2">현재 초안</div>
+      </div>
+      <SplitDiffViewer
+        originalText={saveConflict.latestContent}
+        currentText={saveConflict.currentContent}
+        language="markdown"
+        className="min-h-0 flex-1"
+      />
+    </div>
+  ) : null;
+  const isCompareSurface = surfaceMode === 'diff' || surfaceMode === 'conflict';
 
   const handleHistoryChange = useCallback((nextCanUndo: boolean, nextCanRedo: boolean) => {
     setCanUndo(nextCanUndo);
@@ -1492,6 +1592,18 @@ export function DocumentPage() {
     setSurfaceMode('diff');
     setDiffTarget('content');
   }, [getCurrentDraftContent, handleExitDiffMode, metadataDiffCurrentText, surfaceMode]);
+
+  const handleReopenConflictDiff = useCallback(() => {
+    if (!saveConflict) return;
+    setDiffTarget('content');
+    setSurfaceMode('conflict');
+  }, [saveConflict]);
+
+  const handleDismissConflictNotice = useCallback(() => {
+    setSaveConflict(null);
+    setSurfaceMode('edit');
+    setDiffTarget('content');
+  }, []);
 
   // 참조 파일 해제: 사용된 파일→confirm→소프트삭제, 미사용→즉시삭제
   const handleRemoveSummaryFile = useCallback(async (id: string) => {
@@ -1594,7 +1706,7 @@ export function DocumentPage() {
         try {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 8000);
-          const res = await fetch(
+          const res = await fetchWithSharedAuth(
             `/api/file/serve-attachment?path=${encodeURIComponent(f.path)}`,
             { signal: controller.signal },
           );
@@ -1748,25 +1860,26 @@ export function DocumentPage() {
       onDownloadMarkdown={handleDownloadCurrentMarkdown}
       onDownloadPdf={handleDownloadCurrentPdf}
       loading={isCheckingReferenceTemplates}
+      canConvertToTemplate={canManageTemplates}
     />
   );
 
   const handleLauncherNewDoc = useCallback(() => {
-    if (!tabId) return;
+    if (!canWriteDocuments || !tabId) return;
     updateTab(tabId, { path: '/doc/new-doc', title: '새 문서' });
-  }, [tabId, updateTab]);
+  }, [canWriteDocuments, tabId, updateTab]);
 
   const handleLauncherTemplate = useCallback(() => {
-    if (!tabId) return;
+    if (!canManageTemplates || !tabId) return;
     updateTab(tabId, { path: '/doc/new-template', title: '새 템플릿' });
-  }, [tabId, updateTab]);
+  }, [canManageTemplates, tabId, updateTab]);
 
   const handleLauncherAiSummary = useCallback((files: InlineSummaryFileItem[]) => {
-    if (!tabId || files.length === 0) return;
+    if (!canWriteDocuments || !canUseAssistant || !tabId || files.length === 0) return;
     setAiSummaryPending({ summaryFiles: files });
     setIsComposing(true);
     updateTab(tabId, { path: '/doc/new-ai-summary', title: 'AI 요약' });
-  }, [tabId, updateTab, setAiSummaryPending]);
+  }, [canUseAssistant, canWriteDocuments, tabId, updateTab, setAiSummaryPending]);
 
   const handleLauncherClose = useCallback(() => {
     if (!tabId) return;
@@ -1781,7 +1894,26 @@ export function DocumentPage() {
         onSelectTemplate={handleLauncherTemplate}
         onSelectAiSummary={handleLauncherAiSummary}
         onClose={handleLauncherClose}
+        canWriteDocuments={canWriteDocuments}
+        canManageTemplates={canManageTemplates}
+        canUseAssistant={canUseAssistant}
       />
+    );
+  }
+
+  const createDeniedMessage = createEntryType === 'doc' && !canWriteDocuments
+    ? '문서를 작성할 권한이 없습니다.'
+    : createEntryType === 'template' && !canManageTemplates
+      ? '템플릿을 관리할 권한이 없습니다.'
+      : createEntryType === 'ai-summary' && (!canWriteDocuments || !canUseAssistant)
+        ? 'AI 요약을 사용할 권한이 없습니다.'
+        : null;
+
+  if (createDeniedMessage) {
+    return (
+      <main className="h-full flex items-center justify-center bg-ssoo-content-bg/30">
+        <ErrorState error={createDeniedMessage} />
+      </main>
     );
   }
 
@@ -1801,6 +1933,14 @@ export function DocumentPage() {
     );
   }
 
+  const documentAclNotice = !isCreateMode && canWriteDocuments
+    ? documentAclRole === 'viewer'
+      ? '이 문서는 viewer 권한으로 열려 편집이 제한됩니다.'
+      : documentAclRole === 'editor'
+        ? '이 문서는 editor 권한으로 열려 메타데이터 변경과 삭제가 제한됩니다.'
+        : null
+    : null;
+
   return (
     <main
       className={cn(
@@ -1814,16 +1954,49 @@ export function DocumentPage() {
         breadcrumbRootIconVariant={isCreateMode ? 'editor' : 'folder'}
         breadcrumbLastSegmentLabel={documentMetadata?.title?.trim() || undefined}
         contentOrientation="portrait"
-        contentMaxWidth={surfaceMode === 'diff' ? null : undefined}
+        contentMaxWidth={isCompareSurface ? null : undefined}
         contentSurfaceClassName={contentSurfaceClassName}
-        sidecarMode={surfaceMode === 'diff' ? 'hidden' : undefined}
+        sidecarMode={isCompareSurface ? 'hidden' : undefined}
         sidecarContent={(
           <DocumentSidecar
             metadata={metadata}
             tags={tags}
-            editable={mode === 'editor' || mode === 'create'}
+            editable={(mode === 'editor' || mode === 'create') && canManageCurrentDocument}
             documentMetadata={documentMetadata}
             isLoading={isLoading}
+            collaborationSnapshot={collaborationSnapshot}
+            currentUserLoginId={currentUser?.loginId}
+            onTakeoverLock={async () => {
+              const confirmed = await confirm({
+                title: '편집 잠금 takeover',
+                description: `${collaborationSnapshot?.softLock?.displayName} 사용자의 soft lock을 가져오시겠습니까?`,
+                confirmText: 'Takeover',
+                cancelText: '취소',
+              });
+              if (!confirmed) return;
+              const updated = await takeoverCollaborationLock();
+              if (updated) {
+                toast.success('편집 잠금을 takeover 했습니다.');
+              } else {
+                toast.error('편집 잠금 takeover 에 실패했습니다.');
+              }
+            }}
+            onRefreshPublishState={async () => {
+              const updated = await refreshCollaborationState();
+              if (updated) {
+                toast.success('publish 상태를 새로고침했습니다.');
+              } else {
+                toast.error('publish 상태 새로고침에 실패했습니다.');
+              }
+            }}
+            onRetryPublish={async () => {
+              const updated = await retryCollaborationPublish();
+              if (updated) {
+                toast.success('publish 재시도를 요청했습니다.');
+              } else {
+                toast.error('publish 재시도 요청에 실패했습니다.');
+              }
+            }}
             onMetadataChange={handleMetadataChange}
             onFileMove={isCreateMode
               ? (newPath) => {
@@ -1849,7 +2022,7 @@ export function DocumentPage() {
             isConvertingTemplate={isConvertingToTemplate}
             templateOriginType={templateOriginType}
             templateReferenceDocuments={templateReferenceDocuments}
-            onRequestInfoRecommendation={requestInfoRecommendation}
+            onRequestInfoRecommendation={canUseAssistant ? requestInfoRecommendation : undefined}
             onAcceptSuggestedTitle={handleAcceptSuggestedInfoTitle}
             onDismissSuggestedTitle={handleDismissSuggestedInfoTitle}
             onAcceptSuggestedPath={handleAcceptSuggestedInfoPath}
@@ -1870,45 +2043,74 @@ export function DocumentPage() {
             onImmediateFlush={flushPendingMetadata}
           />
         )}
-        onEdit={handleEdit}
-        onSave={handleSave}
-        onCancel={handleCancel}
-        onBack={surfaceMode === 'diff' ? handleExitDiffMode : undefined}
-        onDelete={isCreateMode ? undefined : handleDelete}
+        onEdit={canEditCurrentDocument ? handleEdit : undefined}
+        onSave={canEditCurrentDocument ? handleSave : undefined}
+        onCancel={canEditCurrentDocument ? handleCancel : undefined}
+        onBack={isCompareSurface ? handleExitDiffMode : undefined}
+        onDelete={!canManageCurrentDocument || isCreateMode ? undefined : handleDelete}
         saving={isSaving}
-        saveDisabled={!hasUnsavedChanges}
+        saveDisabled={!canEditCurrentDocument || !hasUnsavedChanges}
         isPreview={surfaceMode !== 'edit'}
         headerViewerRightSlot={headerViewerRightSlot}
       >
         {(() => {
           const contentBody = (
-            <DocumentPageContent
-              error={error}
-              handleRetry={handleRetry}
-              isLoading={isLoading}
-              isCreateMode={isCreateMode}
-              mode={mode}
-              htmlContent={htmlContent}
-              toc={toc}
-              handleTocClick={handleTocClick}
-              handleSearch={handleSearch}
-              handleAttachCurrentDocToAssistant={handleAttachCurrentDocToAssistant}
-              editorRef={editorRef}
-              createPath={createPath}
-              setCreatePath={setCreatePath}
-              generatedFileName={isCreateMode ? generatedFileName : undefined}
-              isPreview={surfaceMode === 'preview'}
-              isComposing={isComposing}
-              isTemplateGenerating={isConvertingToTemplate}
-              currentDraftContent={currentTemplateDraftContent}
-              streamingAutoScroll={isConvertingToTemplate || isComposing}
-              onEditorContentChange={handleEditorContentChange}
-              onLinkClick={handleViewerLinkClick}
-              onImageClick={handleViewerImageClick}
-              onHistoryChange={handleHistoryChange}
-            />
+            <>
+              {isEditorMode && saveConflict && surfaceMode !== 'conflict' ? (
+                <div className="mb-3 flex flex-wrap items-start gap-3 rounded-md border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+                  <div className="flex min-w-0 flex-1 items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-medium">최신 저장본과 충돌했습니다.</p>
+                      <p className="text-amber-950/80">
+                        최신 저장본과 현재 초안 비교 화면을 열어 두었습니다. 내용을 확인한 뒤 병합해서 다시 저장하세요.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handleReopenConflictDiff}>
+                      비교 다시 보기
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleDismissConflictNotice}>
+                      닫기
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+              {documentAclNotice ? (
+                <div className="mb-3 rounded-md border border-ssoo-primary/20 bg-ssoo-content-bg/60 px-4 py-3 text-sm text-ssoo-primary/80">
+                  {documentAclNotice}
+                </div>
+              ) : null}
+              <DocumentPageContent
+                error={error}
+                handleRetry={handleRetry}
+                isLoading={isLoading}
+                isCreateMode={isCreateMode}
+                mode={mode}
+                htmlContent={htmlContent}
+                toc={toc}
+                handleTocClick={handleTocClick}
+                handleSearch={handleSearch}
+                handleAttachCurrentDocToAssistant={canUseAssistant ? handleAttachCurrentDocToAssistant : undefined}
+                editorRef={editorRef}
+                createPath={createPath}
+                setCreatePath={setCreatePath}
+                generatedFileName={isCreateMode ? generatedFileName : undefined}
+                isPreview={surfaceMode === 'preview'}
+                isComposing={isComposing}
+                isTemplateGenerating={isConvertingToTemplate}
+                currentDraftContent={currentTemplateDraftContent}
+                streamingAutoScroll={isConvertingToTemplate || isComposing}
+                onEditorContentChange={handleEditorContentChange}
+                onLinkClick={handleViewerLinkClick}
+                onImageClick={handleViewerImageClick}
+                onHistoryChange={handleHistoryChange}
+                onSaveConflict={handleSaveConflict}
+              />
+            </>
           );
-          const inlineComposer = (
+          const inlineComposer = canUseAssistant ? (
             <InlineComposerPanel
               isEditorMode={isEditorMode}
               inlineInstruction={inlineInstruction}
@@ -1945,14 +2147,25 @@ export function DocumentPage() {
               onRestoreReference={handleRestoreTemplateReference}
               pendingDeletedRefPaths={pendingDeletedRefPaths.size > 0 ? pendingDeletedRefPaths : undefined}
             />
-          );
+          ) : null;
 
           return isEditorMode ? (
             <SectionedShell
               variant="editor_with_footer"
               toolbar={(
                 <div className="flex w-full items-center gap-1">
-                  {surfaceMode === 'diff' ? (
+                  {surfaceMode === 'conflict' ? (
+                    <>
+                      <div className="flex items-center gap-2 text-sm text-amber-900">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>최신 저장본과 현재 초안을 비교 중입니다.</span>
+                      </div>
+                      <div className="flex-1" />
+                      <Button variant="ghost" size="sm" onClick={handleDismissConflictNotice}>
+                        알림 닫기
+                      </Button>
+                    </>
+                  ) : surfaceMode === 'diff' ? (
                     <DiffTargetToggle
                       value={diffTarget}
                       onChange={setDiffTarget}
@@ -2026,20 +2239,20 @@ export function DocumentPage() {
                   <div
                     className={cn(
                       'h-full min-h-0',
-                      surfaceMode === 'diff' && 'absolute inset-0 opacity-0 pointer-events-none'
+                      isCompareSurface && 'absolute inset-0 opacity-0 pointer-events-none'
                     )}
                   >
                     {contentBody}
                   </div>
-                  {surfaceMode === 'diff' ? (
+                  {isCompareSurface ? (
                     <div className="absolute inset-0">
-                      {diffViewerNode}
+                      {surfaceMode === 'conflict' ? conflictDiffViewerNode : diffViewerNode}
                     </div>
                   ) : null}
                 </div>
               )}
-              footer={surfaceMode === 'edit' ? inlineComposer : undefined}
-            />
+               footer={surfaceMode === 'edit' ? inlineComposer ?? undefined : undefined}
+             />
           ) : (
             contentBody
           );

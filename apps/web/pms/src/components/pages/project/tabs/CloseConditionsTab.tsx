@@ -7,6 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -15,16 +22,21 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
+  useProjectAccess,
   useProjectCloseConditions,
+  useProjectEvents,
   useUpsertCloseCondition,
   useToggleCloseCondition,
   useDeleteCloseCondition,
 } from '@/hooks/queries/useProjects';
 import type { CloseConditionItem } from '@/lib/api/endpoints/projects';
+import { toast } from '@/lib/toast';
+import { EventRollupSummary } from './EventRollupSummary';
 
 const INITIAL_FORM = {
   conditionCode: '',
   requiresDeliverable: false,
+  eventId: 'none',
   sortOrder: 0,
   memo: '',
 };
@@ -35,8 +47,13 @@ interface Props {
 }
 
 export function CloseConditionsTab({ projectId, statusCode }: Props) {
+  const { data: accessResponse } = useProjectAccess(projectId);
   const { data, isLoading } = useProjectCloseConditions(projectId, statusCode);
+  const { data: eventResponse } = useProjectEvents(projectId);
   const conditions = data?.data ?? [];
+  const events = eventResponse?.data ?? [];
+  const eventLookup = new Map(events.map((event) => [String(event.eventId), event] as const));
+  const canManageCloseConditions = accessResponse?.data?.features.canManageCloseConditions ?? false;
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM);
@@ -44,36 +61,79 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
   const toggleCondition = useToggleCloseCondition();
   const deleteCondition = useDeleteCloseCondition();
 
+  const getErrorMessage = (error: unknown, fallback: string) => (
+    error instanceof Error && error.message ? error.message : fallback
+  );
+
   const handleCreate = async () => {
-    await upsertCondition.mutateAsync({
-      projectId,
-      data: {
-        statusCode,
-        conditionCode: formData.conditionCode,
-        requiresDeliverable: formData.requiresDeliverable,
-        sortOrder: formData.sortOrder || undefined,
-        memo: formData.memo || undefined,
-      },
-    });
-    setShowAddDialog(false);
-    setFormData(INITIAL_FORM);
+    try {
+      await upsertCondition.mutateAsync({
+        projectId,
+        data: {
+          statusCode,
+          conditionCode: formData.conditionCode,
+          requiresDeliverable: formData.requiresDeliverable,
+          eventId: formData.eventId !== 'none' ? formData.eventId : undefined,
+          sortOrder: formData.sortOrder || undefined,
+          memo: formData.memo || undefined,
+        },
+      });
+      setShowAddDialog(false);
+      setFormData(INITIAL_FORM);
+    } catch (error) {
+      toast.error('종료조건을 등록하지 못했습니다.', {
+        description: getErrorMessage(error, '잠시 후 다시 시도해주세요.'),
+      });
+    }
   };
 
   const handleToggle = async (item: CloseConditionItem) => {
-    await toggleCondition.mutateAsync({
-      projectId,
-      statusCode: item.statusCode,
-      conditionCode: item.conditionCode,
-      data: { isChecked: !item.isChecked },
-    });
+    try {
+      await toggleCondition.mutateAsync({
+        projectId,
+        statusCode: item.statusCode,
+        conditionCode: item.conditionCode,
+        data: { isChecked: !item.isChecked },
+      });
+    } catch (error) {
+      toast.error('종료조건 상태를 변경하지 못했습니다.', {
+        description: getErrorMessage(error, '잠시 후 다시 시도해주세요.'),
+      });
+    }
   };
 
   const handleDelete = async (item: CloseConditionItem) => {
-    await deleteCondition.mutateAsync({
-      projectId,
-      statusCode: item.statusCode,
-      conditionCode: item.conditionCode,
-    });
+    try {
+      await deleteCondition.mutateAsync({
+        projectId,
+        statusCode: item.statusCode,
+        conditionCode: item.conditionCode,
+      });
+    } catch (error) {
+      toast.error('종료조건을 삭제하지 못했습니다.', {
+        description: getErrorMessage(error, '잠시 후 다시 시도해주세요.'),
+      });
+    }
+  };
+
+  const handleEventChange = async (item: CloseConditionItem, eventId: string) => {
+    try {
+      await upsertCondition.mutateAsync({
+        projectId,
+        data: {
+          statusCode: item.statusCode,
+          conditionCode: item.conditionCode,
+          requiresDeliverable: item.requiresDeliverable,
+          eventId: eventId !== 'none' ? eventId : undefined,
+          sortOrder: item.sortOrder,
+          memo: item.memo ?? undefined,
+        },
+      });
+    } catch (error) {
+      toast.error('연결 이벤트를 변경하지 못했습니다.', {
+        description: getErrorMessage(error, '잠시 후 다시 시도해주세요.'),
+      });
+    }
   };
 
   const checkedCount = conditions.filter((c: CloseConditionItem) => c.isChecked).length;
@@ -82,15 +142,22 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <ClipboardCheck className="h-4 w-4" />
-          종료조건 ({checkedCount}/{conditions.length})
-        </h3>
-        <Button size="sm" onClick={() => setShowAddDialog(true)}>
-          <Plus className="h-4 w-4" />
-          종료조건 추가
-        </Button>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <ClipboardCheck className="h-4 w-4" />
+            종료조건 ({checkedCount}/{conditions.length})
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            연결 이벤트를 선택하면 해당 이벤트의 진행 요약이 함께 표시됩니다.
+          </p>
+        </div>
+        {canManageCloseConditions && (
+          <Button size="sm" onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4" />
+            종료조건 추가
+          </Button>
+        )}
       </div>
 
       {conditions.length === 0 ? (
@@ -109,7 +176,7 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
               <button
                 className="mt-0.5 shrink-0"
                 onClick={() => handleToggle(c)}
-                disabled={toggleCondition.isPending}
+                disabled={toggleCondition.isPending || !canManageCloseConditions}
               >
                 {c.isChecked ? (
                   <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -123,6 +190,11 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
                   <span className={`text-sm font-medium ${c.isChecked ? 'line-through text-muted-foreground' : ''}`}>
                     {c.conditionCode}
                   </span>
+                  {c.event && (
+                    <span className="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-700">
+                      {c.event.eventName}
+                    </span>
+                  )}
                   {c.requiresDeliverable && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
                       <FileOutput className="h-3 w-3" />
@@ -138,17 +210,44 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
                     완료: {new Date(c.checkedAt).toLocaleDateString('ko-KR')}
                   </p>
                 )}
+                <div className="mt-2">
+                  <Select
+                    value={c.eventId ? String(c.eventId) : 'none'}
+                    onValueChange={(value) => void handleEventChange(c, value)}
+                    disabled={!canManageCloseConditions || upsertCondition.isPending}
+                  >
+                    <SelectTrigger className="h-7 w-40 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">미연결</SelectItem>
+                      {events.map((event) => (
+                        <SelectItem key={String(event.eventId)} value={String(event.eventId)}>
+                          {event.eventName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <EventRollupSummary
+                    rollup={c.eventId ? eventLookup.get(String(c.eventId))?.rollup : undefined}
+                    className="mt-1"
+                  />
+                </div>
               </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                disabled={deleteCondition.isPending}
-                onClick={() => handleDelete(c)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {canManageCloseConditions ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                  disabled={deleteCondition.isPending}
+                  onClick={() => handleDelete(c)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground">-</span>
+              )}
             </div>
           ))}
         </div>
@@ -185,6 +284,26 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
             </div>
 
             <div className="space-y-2">
+              <label className="text-sm font-medium">연결 이벤트</label>
+              <Select
+                value={formData.eventId}
+                onValueChange={(value) => setFormData({ ...formData, eventId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">미연결</SelectItem>
+                  {events.map((event) => (
+                    <SelectItem key={String(event.eventId)} value={String(event.eventId)}>
+                      {event.eventName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-sm font-medium">정렬 순서</label>
               <Input
                 type="number"
@@ -212,7 +331,7 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.conditionCode.trim() || upsertCondition.isPending}
+              disabled={!formData.conditionCode.trim() || upsertCondition.isPending || !canManageCloseConditions}
             >
               {upsertCondition.isPending ? '등록 중...' : '등록'}
             </Button>

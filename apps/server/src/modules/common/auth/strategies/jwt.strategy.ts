@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { TokenPayload } from '../interfaces/auth.interface.js';
 import { UserService } from '../../user/user.service.js';
+import { AccessFoundationService } from '../../access/access-foundation.service.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -12,12 +13,30 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
     private readonly userService: UserService,
+    private readonly accessFoundationService: AccessFoundationService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET', { infer: true }),
     });
+  }
+
+  private normalizePrincipalIds(values: unknown): string[] | undefined {
+    if (!Array.isArray(values)) {
+      return undefined;
+    }
+
+    const normalized = Array.from(
+      new Set(
+        values
+          .filter((value): value is string => typeof value === 'string')
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0),
+      ),
+    );
+
+    return normalized.length > 0 ? normalized : undefined;
   }
 
   async validate(payload: TokenPayload): Promise<TokenPayload> {
@@ -30,23 +49,31 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     // 사용자 존재 및 상태 확인 (userId는 string이므로 BigInt로 변환)
-    const user = await this.userService.findById(BigInt(payload.userId));
+    const userId = BigInt(payload.userId);
+    const [user, organizationIds] = await Promise.all([
+      this.userService.findAuthUserById(userId),
+      this.accessFoundationService.getUserOrganizationIds(userId),
+    ]);
     if (!user) {
       this.logger.warn(`User not found: ${payload.userId}`);
       throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
     }
 
-    if (!user.isSystemUser || user.userStatusCode !== 'active') {
-      this.logger.warn(`User inactive - isSystemUser: ${user.isSystemUser}, status: ${user.userStatusCode}`);
+    if (!user.isActive || user.accountStatusCode !== 'active') {
+      this.logger.warn(`User inactive - status: ${user.accountStatusCode}`);
       throw new UnauthorizedException('비활성화된 계정입니다.');
     }
 
     return {
       userId: payload.userId,
-      loginId: payload.loginId,
-      roleCode: payload.roleCode,
-      userTypeCode: payload.userTypeCode,
-      isAdmin: payload.isAdmin ?? user.isAdmin,
+      loginId: user.loginId,
+      roleCode: user.roleCode,
+      organizationIds: organizationIds.map((orgId) => orgId.toString()),
+      // 현재 공통 런타임에서 안정적으로 해석되는 principal membership 은 organization 까지다.
+      // team/group membership source 가 연결되면 payload 주입만으로 ACL matching 경로를 재사용할 수 있다.
+      teamIds: this.normalizePrincipalIds(payload.teamIds),
+      groupIds: this.normalizePrincipalIds(payload.groupIds),
+      sessionId: payload.sessionId,
     };
   }
 }

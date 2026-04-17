@@ -28,13 +28,13 @@ BEGIN
 
   INSERT INTO pms.pr_milestone_h (
     milestone_id, history_seq, event_type, event_at,
-    project_id, milestone_code, milestone_name, description,
+    project_id, objective_id, milestone_code, milestone_name, description,
     status_code, due_at, achieved_at, sort_order,
     is_active, memo, created_by, created_at, updated_by, updated_at,
     last_source, last_activity, transaction_id
   ) VALUES (
     v_record.milestone_id, v_history_seq, v_event_type, NOW(),
-    v_record.project_id, v_record.milestone_code, v_record.milestone_name, v_record.description,
+    v_record.project_id, v_record.objective_id, v_record.milestone_code, v_record.milestone_name, v_record.description,
     v_record.status_code, v_record.due_at, v_record.achieved_at, v_record.sort_order,
     v_record.is_active, v_record.memo, v_record.created_by, v_record.created_at, v_record.updated_by, v_record.updated_at,
     v_record.last_source, v_record.last_activity, v_record.transaction_id

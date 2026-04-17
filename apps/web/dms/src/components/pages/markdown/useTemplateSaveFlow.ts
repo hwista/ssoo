@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { templateApi } from '@/lib/api';
+import { templateApi } from '@/lib/api/endpoints/templates';
 import { toast } from '@/lib/toast';
 import type { DocumentMetadata } from '@/types';
 import type { TemplateGeneration, TemplateItem, TemplateOriginType, TemplateReferenceDoc } from '@/types/template';

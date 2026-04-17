@@ -7,7 +7,9 @@ function hasHeader(headers: Headers, headerName: string): boolean {
 
 export function getServerApiBaseUrl(): string {
   return (
-    process.env.NEXT_PUBLIC_API_URL?.trim()
+    process.env.PMS_SERVER_API_URL?.trim()
+    || process.env.SERVER_API_URL?.trim()
+    || process.env.NEXT_PUBLIC_API_URL?.trim()
     || DEFAULT_SERVER_API_URL
   ).replace(/\/+$/, '');
 }

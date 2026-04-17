@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 환경 요구사항
 
-- **Node.js** ≥ 20.0.0, **pnpm** ≥ 9.0.0 (DMS는 npm 독립)
+- **Node.js** ≥ 20.0.0, **pnpm** ≥ 9.0.0
 - **PostgreSQL** ≥ 15 (또는 Docker: `docker compose up -d`)
 - 환경변수: `.env` 파일 참조 (아래 "데이터베이스 명령" 섹션)
 - Health check: `curl http://localhost:4000/api/health`
@@ -22,9 +22,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 항목 | 값 |
 |------|-----|
 | 구조 | pnpm workspace + Turborepo |
-| 앱 | `apps/server` (NestJS), `apps/web/pms` (Next.js), `apps/web/chs` (Next.js), `apps/web/dms` (Next.js, npm 독립) |
-| 공유 패키지 | `packages/database` (Prisma), `packages/types` |
-| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/chs) |
+| 앱 | `apps/server` (NestJS), `apps/web/pms` (Next.js), `apps/web/cms` (Next.js), `apps/web/dms` (Next.js, pnpm workspace) |
+| 공유 패키지 | `packages/database` (Prisma), `packages/types`, `packages/web-auth`, `packages/web-shell` |
+| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/cms) |
 
 ---
 
@@ -107,7 +107,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 
 ### 데이터베이스 (Multi-Schema Prisma)
 
-- PostgreSQL 4개 스키마: `common`, `pms`, `dms`, `chs`
+- PostgreSQL 4개 스키마: `common`, `pms`, `dms`, `cms`
 - 히스토리 테이블 패턴: 주 테이블 `cm_code` → 이력 테이블 `cm_code_h` (historySeq 복합 PK)
 - 공통 감사 컬럼: `createdBy`, `createdAt`, `updatedBy`, `updatedAt`
 - DB 테이블 네이밍은 `{스키마접두사}_{도메인}_m` 패턴을 사용
@@ -117,7 +117,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 ### 서버 아키텍처 핵심
 
 - `DatabaseService`는 Prisma 래퍼이며 Controller에서 직접 Prisma를 사용하지 않음
-- 도메인 모듈은 `modules/common/`, `modules/pms/`, `modules/dms/` 구조를 따른다
+- 도메인 모듈은 `modules/common/`, `modules/pms/`, `modules/cms/`, `modules/dms/` 구조를 따른다
 - 인증은 `JwtAuthGuard`, `RolesGuard`, `@CurrentUser()`, `@Public()` 패턴을 사용
 - `GlobalHttpExceptionFilter`, `RequestContextInterceptor`, 전역 `ValidationPipe`를 기본 전제로 한다
 - 모든 엔드포인트는 `/api` prefix를 사용하고, OpenAPI 스펙은 `/api/openapi.json`에서 제공한다
@@ -152,7 +152,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 10. **사용자 요청의 무조건적 수용/긍정** - 기술적 타당성 검증 없이 그대로 수행
 11. **기존 기능·동작·UI 외형의 왜곡/축소/변형** - 새 작업이 기존 결과물을 훼손
 12. **역할/책임 경계 무시한 비대 모듈** - 하나의 파일/컴포넌트에 과도한 책임 집중
-13. **DMS에서 `@ssoo/*` 패키지 import** - DMS는 독립 프로젝트
+13. **DMS에서 `@ssoo/database` 직접 import** - DMS는 웹 앱이며 DB 접근은 서버/플랫폼 경계를 통해 관리
 
 ---
 
@@ -163,7 +163,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 ```
 
 - **Type**: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
-- **Scope**: `server` | `web-pms` | `web-chs` | `web-dms` | `database` | `types` | `docs`
+- **Scope**: `server` | `web-pms` | `web-cms` | `web-dms` | `database` | `types` | `docs`
 - `commitlint.config.mjs`로 자동 검증 (subject 최대 100자)
 
 ---
@@ -175,8 +175,8 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 | 전체 (server + pms) | `pnpm dev` | - | Turborepo 병렬 실행 |
 | server만 | `pnpm dev:server` | 4000 | NestJS |
 | web-pms만 | `pnpm dev:web-pms` | 3000 | Next.js |
-| web-dms | `pnpm dev:web-dms` | 3001 | 내부적으로 `npm run dev` 실행 |
-| web-chs | `pnpm dev:web-chs` | 3002 | Next.js |
+| web-dms | `pnpm dev:web-dms` | 3001 | Turbo filter 기반 실행 |
+| web-cms | `pnpm dev:web-cms` | 3002 | Next.js |
 
 ### 앱별 빌드 / 린트 / 타입 체크
 
@@ -187,7 +187,7 @@ turbo lint --filter=server                    # 서버만 린트
 turbo lint --filter=web-pms                   # PMS만 린트
 pnpm -C apps/server exec tsc --noEmit         # 서버 타입 체크
 pnpm -C apps/web/pms exec tsc --noEmit        # PMS 타입 체크
-cd apps/web/dms && npx tsc --noEmit           # DMS 타입 체크
+pnpm --filter web-dms exec tsc --noEmit       # DMS 타입 체크
 ```
 
 ### 데이터베이스 명령
@@ -276,7 +276,7 @@ PR 생성/업데이트 시 `.github/workflows/pr-validation.yml` 자동 실행 (
 | `apps/server/**` | `.github/instructions/server.instructions.md` |
 | `apps/web/pms/**` | `.github/instructions/pms.instructions.md` |
 | `apps/web/dms/**` | `.github/instructions/dms.instructions.md` + `apps/web/dms/CLAUDE.md` |
-| `apps/web/chs/**` | `.github/instructions/chs.instructions.md` |
+| `apps/web/cms/**` | `.github/instructions/cms.instructions.md` |
 | `packages/database/**` | `.github/instructions/database.instructions.md` |
 | `packages/types/**` | `.github/instructions/types.instructions.md` |
 

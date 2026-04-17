@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { upsertRequestDetailSchema } from '@/lib/validations/project';
 import type { UpsertRequestDetailInput } from '@/lib/validations/project';
-import { useUpsertRequestDetail } from '@/hooks/queries';
+import { useProjectAccess, useUpsertRequestDetail } from '@/hooks/queries';
 import { FormField } from '@/components/common';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,6 +22,8 @@ interface Props {
 export function RequestDetailTab({ projectId, detail, onSaved }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const upsertMutation = useUpsertRequestDetail();
+  const { data: accessResponse } = useProjectAccess(projectId);
+  const canEditProject = accessResponse?.data?.features.canEditProject ?? false;
 
   const form = useForm<UpsertRequestDetailInput>({
     resolver: zodResolver(upsertRequestDetailSchema),
@@ -54,13 +56,15 @@ export function RequestDetailTab({ projectId, detail, onSaved }: Props) {
 
   if (!isEditing) {
     return (
-      <div>
-        <div className="flex justify-end mb-3">
-          <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-            <Pencil className="h-3.5 w-3.5 mr-1" />
-            편집
-          </Button>
-        </div>
+        <div>
+          <div className="flex justify-end mb-3">
+            {canEditProject && (
+              <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+                <Pencil className="h-3.5 w-3.5 mr-1" />
+                편집
+              </Button>
+            )}
+          </div>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-muted-foreground mb-1">요청 출처</p>
@@ -95,7 +99,9 @@ export function RequestDetailTab({ projectId, detail, onSaved }: Props) {
         </div>
         {!detail && (
           <p className="text-center text-muted-foreground text-sm py-4">
-            아직 등록된 요청 상세 정보가 없습니다. 편집 버튼을 눌러 입력하세요.
+            {canEditProject
+              ? '아직 등록된 요청 상세 정보가 없습니다. 편집 버튼을 눌러 입력하세요.'
+              : '아직 등록된 요청 상세 정보가 없습니다.'}
           </p>
         )}
       </div>
@@ -109,7 +115,7 @@ export function RequestDetailTab({ projectId, detail, onSaved }: Props) {
           <X className="h-3.5 w-3.5 mr-1" />
           취소
         </Button>
-        <Button size="sm" onClick={form.handleSubmit(handleSave)} disabled={upsertMutation.isPending}>
+        <Button size="sm" onClick={form.handleSubmit(handleSave)} disabled={upsertMutation.isPending || !canEditProject}>
           <Save className="h-3.5 w-3.5 mr-1" />
           저장
         </Button>

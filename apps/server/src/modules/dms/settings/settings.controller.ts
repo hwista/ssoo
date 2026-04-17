@@ -18,12 +18,15 @@ import type { DeepPartial } from '../runtime/dms-config.service.js';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
+import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
+import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { settingsService, type DmsSettingsConfig } from './settings.service.js';
 
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/settings')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@RequireDmsFeature('canManageSettings')
 export class SettingsController {
   @Get()
   @ApiOperation({ summary: 'DMS 설정 조회' })

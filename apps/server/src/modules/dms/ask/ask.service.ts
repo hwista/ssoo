@@ -16,6 +16,7 @@ import type {
   SearchContextMode,
   SearchResultItem,
 } from '@ssoo/types/dms';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import {
   getErrorMessage,
   resolveAbsolutePath,
@@ -94,10 +95,10 @@ export class AskService {
     private readonly searchService: SearchService,
   ) {}
 
-  async ask(request: AskRequest): Promise<AskResponse> {
+  async ask(request: AskRequest, currentUser: TokenPayload): Promise<AskResponse> {
     try {
       const normalizedRequest = this.normalizeRequest(request);
-      const askContext = await this.buildAskContext(normalizedRequest);
+      const askContext = await this.buildAskContext(normalizedRequest, currentUser);
       const model = await getChatModel();
       const completion = await generateText({
         model,
@@ -127,10 +128,10 @@ export class AskService {
     }
   }
 
-  async stream(request: AskRequest, signal?: AbortSignal) {
+  async stream(request: AskRequest, currentUser: TokenPayload, signal?: AbortSignal) {
     try {
       const normalizedRequest = this.normalizeRequest(request);
-      const askContext = await this.buildAskContext(normalizedRequest);
+      const askContext = await this.buildAskContext(normalizedRequest, currentUser);
       const model = await getChatModel();
 
       return streamText({
@@ -212,7 +213,10 @@ export class AskService {
     };
   }
 
-  private async buildAskContext(request: NormalizedAskRequest): Promise<AskContextBundle> {
+  private async buildAskContext(
+    request: NormalizedAskRequest,
+    currentUser: TokenPayload,
+  ): Promise<AskContextBundle> {
     const attachmentOnly = request.contextMode === 'attachments-only';
     const retrieval = attachmentOnly
       ? {
@@ -221,7 +225,7 @@ export class AskService {
           confidence: 'low' as const,
           citations: [] as AskResponse['citations'],
         }
-      : await this.loadSearchContext(request.query, {
+      : await this.loadSearchContext(currentUser, request.query, {
           contextMode: request.contextMode === 'deep' ? 'deep' : 'doc',
           activeDocPath: request.activeDocPath,
         });
@@ -269,6 +273,7 @@ export class AskService {
   }
 
   private async loadSearchContext(
+    currentUser: TokenPayload,
     query: string,
     options: { contextMode: SearchContextMode; activeDocPath?: string },
   ): Promise<{
@@ -291,9 +296,10 @@ export class AskService {
         query,
         contextMode: options.contextMode,
         activeDocPath: options.activeDocPath,
-      });
+      }, currentUser);
 
-      const topResults = searchResponse.results.slice(0, 3);
+      const readableResults = searchResponse.results.filter((result) => result.isReadable);
+      const topResults = readableResults.slice(0, 3);
       const rootDir = this.runtime.getDocDir();
       const context = topResults
         .map((result, index) => {
@@ -309,7 +315,7 @@ export class AskService {
         })
         .join('\n\n---\n\n');
 
-      const sources = searchResponse.results.slice(0, 5);
+      const sources = readableResults.slice(0, 5);
       return {
         context,
         sources,

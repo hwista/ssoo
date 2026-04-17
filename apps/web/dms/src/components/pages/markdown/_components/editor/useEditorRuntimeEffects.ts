@@ -4,7 +4,7 @@ import * as React from 'react';
 import type { BlockEditorRef } from './block-editor/BlockEditor';
 
 interface EditorHandlerShape {
-  save: () => Promise<void>;
+  save: () => Promise<boolean>;
   cancel: () => void;
   getMarkdown: () => string;
   getSelection: () => { from: number; to: number };
@@ -34,7 +34,7 @@ export function useEditorRuntimeEffects({
   resetContent: (content: string) => void;
   lastResetContentRef: React.MutableRefObject<string | null>;
   blockEditorRef: React.RefObject<BlockEditorRef | null>;
-  handleSave: () => Promise<void>;
+  handleSave: () => Promise<boolean>;
   handleCancel: () => Promise<void>;
   markAsSaved: () => void;
   setStoreHasUnsavedChanges: (hasChanges: boolean) => void;

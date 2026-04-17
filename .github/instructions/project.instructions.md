@@ -26,7 +26,7 @@
 |------|--------|
 | **타입 체크** | `npx tsc --noEmit` (앱별) 또는 `pnpm build` (전체) |
 | **린트** | `pnpm lint` |
-| **테스트** | `pnpm test` |
+| **테스트** | 자동 테스트 명령 없음 (`pnpm test` 미구성) |
 | **전체 빌드** | `pnpm build` |
 
 ---
@@ -37,15 +37,15 @@
 apps/server ──→ packages/database
      ↓                 ↓
 apps/web/pms ──→ packages/types
-
-apps/web/dms (독립 - @ssoo/* 참조 금지)
+apps/web/cms ──→ packages/types
+apps/web/dms ──→ packages/types
 ```
 
 ### 참조 규칙
 
 - `apps/` → `packages/` 방향만 허용
 - 역방향 참조 절대 금지
-- DMS는 독립 프로젝트 (npm 사용, 모노레포 패키지 미참조)
+- DMS는 pnpm workspace 앱이며 공유 계약은 `@ssoo/types`로 관리
 
 ### 패키지 목록
 
@@ -96,7 +96,7 @@ apps/web/dms (독립 - @ssoo/* 참조 금지)
 | Zustand | 5.x | 상태 관리 |
 | CodeMirror | 6.x | 블록 에디터 런타임 |
 
-> **DMS 특이사항**: npm 독립 프로젝트 (모노레포 패키지 미참조)
+> **DMS 특이사항**: pnpm workspace 앱이며 파일/Git/스토리지 런타임은 앱 내부 `src/app/api/* -> server/*` 경계로 유지
 
 ---
 
@@ -137,7 +137,7 @@ modules/
 
 > 코어 문서의 범용 금지 사항에 추가
 
-1. **DMS에서 @ssoo/* 패키지 import** - DMS는 독립 프로젝트
+1. **DMS에서 `@ssoo/database` 직접 import** - DMS는 웹 앱이며 DB 접근은 서버/플랫폼 경계를 통해 관리
 2. **스키마 간 직접 참조** - common ↔ pms 간 FK 금지, 애플리케이션 레벨 조인 사용
 
 ---

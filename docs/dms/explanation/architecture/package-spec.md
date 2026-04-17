@@ -1,6 +1,6 @@
 # DMS 패키지 명세서
 
-> 📅 기준일: 2026-03-12  
+> 📅 기준일: 2026-04-07  
 > 📦 패키지명: `web-dms` v0.1.0
 
 > 이 문서는 `apps/web/dms/package.json` 의 현재 설치 의존성과 활성 런타임을 설명합니다.
@@ -66,6 +66,7 @@
 | 패키지 | 버전 | 용도 |
 |--------|------|------|
 | `zustand` | ^5.0.10 | 상태 관리 |
+| `@tanstack/react-query` | ^5.x | 원격 데이터 query/mutation 캐시 |
 | `sonner` | ^1.7.4 | 토스트 알림 |
 
 ---
@@ -105,11 +106,25 @@
 
 ---
 
-## 9. 내부 패키지
+## 9. 내부 패키지 & 런타임 구성
 
 | 패키지 | 버전 | 용도 |
 |--------|------|------|
-| (없음) | - | 모노레포 패키지 미연동 |
+| `@ssoo/types` | `workspace:*` | DMS ↔ server 검색 계약 / 파일 메타데이터 공유 타입 |
+
+### 런타임 설정 표면
+
+- 환경 변수: `apps/web/dms/.env.local` (Azure/OpenAI + 선택 `DATABASE_URL` / `DMS_SERVER_API_URL`)
+- 시스템 기본값 / 오버라이드: `dms.config.default.json` → `dms.config.json`
+- 개인 기본값 / 오버라이드: `dms.personal.config.default.json` → `dms.personal.config.json`
+- Docker 경로: repo root `compose.yaml` 이 `apps/web/dms/.env.local` 을 선택적으로 읽고, `DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` / `DMS_SERVER_API_URL` 기준으로 컨테이너 runtime 값을 주입
+
+### 프론트엔드 데이터 계층
+
+- Provider: `src/app/providers.tsx` 의 `QueryClientProvider`
+- API surface: `src/lib/api/endpoints/*`
+- Query hooks: `src/hooks/queries/*`
+- 액션/스트리밍 성격이 강한 문서 편집 흐름은 endpoint 호출을 유지하고, 목록/조회/세션 동기화 성격의 데이터는 query layer를 우선 사용
 
 ---
 
@@ -143,8 +158,8 @@
 
 ### 12.1 Tailwind 설정 파일 형식
 
-DMS는 독립 실행 원칙을 유지하기 위해 `tailwind.config.js`(CJS)를 사용한다.  
-`tailwind.config.ts` 전환은 통합 과정에서 로더/빌드 환경을 함께 정리할 때 진행한다.
+DMS는 workspace 앱이지만 app-local Next/Tailwind 구성을 유지하기 위해 `tailwind.config.js`(CJS)를 사용한다.  
+`tailwind.config.ts` 전환은 DMS 빌드/런타임 경로를 다시 정리할 때 함께 진행한다.
 
 ---
 
@@ -160,6 +175,8 @@ DMS는 독립 실행 원칙을 유지하기 위해 `tailwind.config.js`(CJS)를 
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-04-07 | DMS 프론트엔드의 react-query provider / endpoints / hooks 구조 반영 |
+| 2026-04-07 | `@ssoo/types` 연동과 env/JSON/compose 런타임 표면을 현재 workspace 기준으로 정정 |
 | 2026-03-12 | 미사용 설치 의존성(MUI/Tiptap/RHF/Zod/formidable/multer/chokidar/nodemailer/turndown 등) 제거 반영 |
 | 2026-03-12 | 미사용 의존성 제거 이후 현재 설치 패키지 기준으로 정정 |
 | 2026-01-27 | 초기 작성 - GitLab subtree 기준 |

@@ -16,3 +16,13 @@ export { useLayoutViewportSync } from './useLayoutViewportSync';
 export { useBodyLinks } from './useBodyLinks';
 export { useContentClickHandler } from './useContentClickHandler';
 export type { ContentClickHandlerOptions } from './useContentClickHandler';
+
+// Queries
+export { useAiSearchQuery } from './queries/useAiSearch';
+export { useFileTreeQuery } from './queries/useFileTree';
+export {
+  useAssistantSessionsQuery,
+  useRemoveAssistantSessionMutation,
+  useSaveAssistantSessionMutation,
+} from './queries/useAssistantSessions';
+export { useTemplateList, useTemplatesByReferenceDocument } from './queries/useTemplates';

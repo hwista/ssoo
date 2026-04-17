@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import type { DmsDocumentAccessRequestState } from '@ssoo/types/dms';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 
 export interface AssistantSearchResult {
@@ -10,6 +11,11 @@ export interface AssistantSearchResult {
   summary?: string;
   snippets?: string[];
   totalSnippetCount?: number;
+  owner?: string;
+  visibilityScope?: 'public' | 'organization' | 'self' | 'legacy';
+  isReadable: boolean;
+  canRequestRead: boolean;
+  readRequest?: DmsDocumentAccessRequestState;
 }
 
 export type AssistantMessage =

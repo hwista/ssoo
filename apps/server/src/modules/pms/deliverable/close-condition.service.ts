@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
 import type { UpsertCloseConditionDto, ToggleCheckDto } from './dto/deliverable.dto.js';
+import { COMPLETED_DELIVERABLE_SUBMISSION_STATUSES } from './deliverable.constants.js';
 
 @Injectable()
 export class CloseConditionService {
@@ -12,6 +13,15 @@ export class CloseConditionService {
         projectId,
         isActive: true,
         ...(statusCode && { statusCode }),
+      },
+      include: {
+        event: {
+          select: {
+            eventId: true,
+            eventCode: true,
+            eventName: true,
+          },
+        },
       },
       orderBy: [{ statusCode: 'asc' }, { sortOrder: 'asc' }, { conditionCode: 'asc' }],
     });
@@ -27,6 +37,7 @@ export class CloseConditionService {
         },
       },
       update: {
+        ...(dto.eventId !== undefined && { eventId: dto.eventId ? BigInt(dto.eventId) : null }),
         requiresDeliverable: dto.requiresDeliverable,
         ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
         ...(dto.memo !== undefined && { memo: dto.memo }),
@@ -36,9 +47,19 @@ export class CloseConditionService {
         projectId,
         statusCode: dto.statusCode,
         conditionCode: dto.conditionCode,
+        eventId: dto.eventId ? BigInt(dto.eventId) : null,
         requiresDeliverable: dto.requiresDeliverable,
         sortOrder: dto.sortOrder ?? 0,
         memo: dto.memo,
+      },
+      include: {
+        event: {
+          select: {
+            eventId: true,
+            eventCode: true,
+            eventName: true,
+          },
+        },
       },
     });
   }
@@ -59,6 +80,26 @@ export class CloseConditionService {
       throw new NotFoundException(
         `ProjectCloseCondition not found: project=${projectId}, status=${statusCode}, condition=${conditionCode}`,
       );
+    }
+
+    if (existing.requiresDeliverable && dto.isChecked) {
+      const pendingDeliverables = await this.db.client.projectDeliverable.findMany({
+        where: {
+          projectId,
+          statusCode,
+          isActive: true,
+          submissionStatusCode: { notIn: [...COMPLETED_DELIVERABLE_SUBMISSION_STATUSES] },
+        },
+        select: {
+          deliverableCode: true,
+        },
+      });
+
+      if (pendingDeliverables.length > 0) {
+        throw new BadRequestException(
+          `산출물 제출이 필요한 종료조건입니다. 미완료 산출물 ${pendingDeliverables.length}건을 정리한 뒤 완료 처리할 수 있습니다.`,
+        );
+      }
     }
 
     return this.db.client.projectCloseCondition.update({

@@ -1,6 +1,6 @@
 # API 가이드
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-04-14
 
 SSOO 백엔드 서버의 REST API 사용 가이드입니다.
 
@@ -145,9 +145,35 @@ Authorization: Bearer <access_token>
 
 ---
 
+## 운영 Access Ops API
+
+관리자는 공통 access foundation 상태를 아래 endpoint 로 inspect 할 수 있습니다.
+
+| 엔드포인트 | 용도 |
+|-----------|------|
+| `GET /api/access/ops/inspect` | 특정 사용자의 action policy + optional object policy + permission exception 확인 |
+| `GET /api/access/ops/exceptions` | permission exception 목록 조회 |
+
+주요 query:
+
+- `userId` 또는 `loginId`
+- `targetObjectType`, `targetObjectId`
+- `domainPermissionCodes` (inspect)
+- `exceptionAxis`, `permissionCode`, `includeInactive`, `limit` (exceptions)
+
+관련 문서:
+
+- [인증 시스템 아키텍처](../explanation/architecture/auth-system.md)
+- [Access Verification Runbook](./access-verification-runbook.md)
+- [Access Cutover Cleanup Plan](../explanation/architecture/access-cutover-cleanup-plan.md)
+
+---
+
 ## 관련 문서
 
 - [인증 시스템 아키텍처](../explanation/architecture/auth-system.md) - 인증 흐름 (공용)
+- [Access Verification Runbook](./access-verification-runbook.md)
+- [Access Cutover Cleanup Plan](../explanation/architecture/access-cutover-cleanup-plan.md)
 - [보안 표준](../explanation/architecture/security-standards.md)
 
 ---
@@ -156,6 +182,7 @@ Authorization: Bearer <access_token>
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-14 | admin-only access ops endpoint(`GET /api/access/ops/inspect`, `GET /api/access/ops/exceptions`)와 관련 운영 문서를 반영 |
 | 2026-01-25 | 자동 문서 링크 추가, 개별 API 문서 삭제 (Redoc으로 대체) |
 | 2026-01-21 | Project/User/Menu API 명세 정합화 |
 | 2026-01-21 | API 명세서 최초 작성 |

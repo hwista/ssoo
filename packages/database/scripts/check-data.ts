@@ -31,20 +31,35 @@ async function main() {
     .forEach((m) => console.log(`  [L${m.menuLevel}] ${m.menuCode} - ${m.menuName}`));
 
   // 2. admin 계정 확인
-  const admin = await prisma.user.findUnique({
-    where: { loginId: 'admin' },
+  const admin = await prisma.user.findFirst({
+    where: {
+      authAccount: {
+        is: {
+          loginId: 'admin',
+        },
+      },
+    },
     select: {
       id: true,
-      loginId: true,
       userName: true,
-      isAdmin: true,
-      isSystemUser: true,
       roleCode: true,
+      authAccount: {
+        select: {
+          loginId: true,
+        },
+      },
     },
   });
 
   console.log('\n=== admin 계정 ===');
-  console.log(admin);
+  console.log(admin
+    ? {
+        id: admin.id.toString(),
+        loginId: admin.authAccount?.loginId ?? null,
+        userName: admin.userName,
+        roleCode: admin.roleCode,
+      }
+    : null);
 }
 
 main()

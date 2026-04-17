@@ -25,8 +25,13 @@ import type { Request as ExpressRequest, Response as ExpressResponse } from 'exp
 import type { TemplateItem, TemplateScope } from '@ssoo/types/dms';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
+import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
+import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { DocumentAclService } from '../access/document-acl.service.js';
+import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
+import { contentService } from '../runtime/content.service.js';
 import { templateConvertService } from './template-convert.service.js';
 import { templateService } from './template.service.js';
 
@@ -47,14 +52,18 @@ function getRequestUserId(request: ExpressRequest): string {
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/templates')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@RequireDmsFeature('canManageTemplates')
 export class TemplatesController {
+  constructor(private readonly documentAclService: DocumentAclService) {}
+
   @Get()
   @ApiOperation({ summary: 'DMS 템플릿 목록 조회' })
   @ApiOkResponse({ description: '템플릿 목록 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   list(
+    @CurrentUser() currentUser: TokenPayload,
     @Req() request: ExpressRequest,
     @Query('sourceDocumentPath') sourceDocumentPath?: string,
     @Query('originType') originType?: string,
@@ -62,18 +71,30 @@ export class TemplatesController {
     const userId = getRequestUserId(request);
 
     if (sourceDocumentPath?.trim()) {
-      return success(templateService.listByReferenceDocument(sourceDocumentPath.trim(), userId));
+      this.assertReadableDocumentPath(sourceDocumentPath.trim(), currentUser);
+      return success(
+        templateService
+          .listByReferenceDocument(sourceDocumentPath.trim(), userId)
+          .map((item) => this.sanitizeTemplate(item, currentUser)),
+      );
     }
 
     const templates = templateService.list(userId);
     if (originType === 'referenced' || originType === 'generated') {
       return success({
-        global: templates.global.filter((item) => item.originType === originType),
-        personal: templates.personal.filter((item) => item.originType === originType),
+        global: templates.global
+          .filter((item) => item.originType === originType)
+          .map((item) => this.sanitizeTemplate(item, currentUser)),
+        personal: templates.personal
+          .filter((item) => item.originType === originType)
+          .map((item) => this.sanitizeTemplate(item, currentUser)),
       });
     }
 
-    return success(templates);
+    return success({
+      global: templates.global.map((item) => this.sanitizeTemplate(item, currentUser)),
+      personal: templates.personal.map((item) => this.sanitizeTemplate(item, currentUser)),
+    });
   }
 
   @Get(':id')
@@ -84,6 +105,7 @@ export class TemplatesController {
   get(
     @Param('id') id: string,
     @Query('scope') scope: string | undefined,
+    @CurrentUser() currentUser: TokenPayload,
     @Req() request: ExpressRequest,
   ) {
     const template = templateService.get(
@@ -95,7 +117,7 @@ export class TemplatesController {
       throw new NotFoundException('템플릿을 찾을 수 없습니다.');
     }
 
-    return success(template);
+    return success(this.sanitizeTemplate(template, currentUser));
   }
 
   @Post()
@@ -105,6 +127,7 @@ export class TemplatesController {
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   upsert(
     @Body() body: Partial<TemplateItem> & Record<string, unknown>,
+    @CurrentUser() currentUser: TokenPayload,
     @Req() request: ExpressRequest,
   ) {
     if (
@@ -117,6 +140,9 @@ export class TemplatesController {
     }
 
     const userId = getRequestUserId(request);
+    const referenceDocuments = Array.isArray(body.referenceDocuments)
+      ? this.filterReferenceDocuments(body.referenceDocuments, currentUser)
+      : undefined;
     const saved = templateService.save({
       id: typeof body.id === 'string' ? body.id : undefined,
       name: body.name,
@@ -130,13 +156,13 @@ export class TemplatesController {
       originType: body.originType === 'generated' || body.originType === 'referenced'
         ? body.originType
         : undefined,
-      referenceDocuments: Array.isArray(body.referenceDocuments) ? body.referenceDocuments : undefined,
+      referenceDocuments,
       generation: body.generation && typeof body.generation === 'object'
         ? body.generation as TemplateItem['generation']
         : undefined,
     }, userId, userId);
 
-    return success(saved);
+    return success(this.sanitizeTemplate(saved, currentUser));
   }
 
   @Delete()
@@ -170,6 +196,7 @@ export class TemplatesController {
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   async convert(
     @Body() body: Record<string, unknown>,
+    @CurrentUser() currentUser: TokenPayload,
     @Req() request: ExpressRequest,
     @Res() response: ExpressResponse,
   ) {
@@ -177,6 +204,9 @@ export class TemplatesController {
     const documentPath = typeof body.documentPath === 'string' ? body.documentPath : undefined;
     if (!documentContent.trim()) {
       throw new BadRequestException('documentContent는 필수입니다.');
+    }
+    if (documentPath?.trim()) {
+      this.assertReadableDocumentPath(documentPath.trim(), currentUser);
     }
 
     const abortController = new AbortController();
@@ -215,5 +245,35 @@ export class TemplatesController {
     } finally {
       response.end();
     }
+  }
+
+  private sanitizeTemplate(template: TemplateItem, currentUser: TokenPayload): TemplateItem {
+    return {
+      ...template,
+      referenceDocuments: this.filterReferenceDocuments(template.referenceDocuments, currentUser),
+    };
+  }
+
+  private filterReferenceDocuments(
+    referenceDocuments: TemplateItem['referenceDocuments'],
+    currentUser: TokenPayload,
+  ) {
+    return (referenceDocuments ?? []).filter((reference) => {
+      if (!reference?.path?.trim()) {
+        return false;
+      }
+
+      const { targetPath, valid } = contentService.resolveContentPath(reference.path.trim());
+      return valid && this.documentAclService.isReadableAbsolutePath(currentUser, targetPath);
+    });
+  }
+
+  private assertReadableDocumentPath(documentPath: string, currentUser: TokenPayload): void {
+    const { targetPath, valid } = contentService.resolveContentPath(documentPath);
+    if (!valid) {
+      throw new BadRequestException('Invalid source document path');
+    }
+
+    this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
   }
 }

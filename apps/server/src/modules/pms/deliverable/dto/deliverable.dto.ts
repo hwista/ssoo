@@ -13,8 +13,14 @@ export class ProjectDeliverableDto {
   @ApiProperty({ description: '산출물 코드' })
   deliverableCode!: string;
 
+  @ApiPropertyOptional({ description: '연결 이벤트 ID' })
+  eventId?: string;
+
   @ApiPropertyOptional({ description: '산출물명 (마스터 조인)' })
   deliverableName?: string;
+
+  @ApiPropertyOptional({ description: '연결 이벤트 정보' })
+  event?: { eventId: string; eventCode: string; eventName: string } | null;
 
   @ApiProperty({ description: '제출 상태 코드' })
   submissionStatusCode!: string;
@@ -45,6 +51,9 @@ export class ProjectCloseConditionDto {
   @ApiProperty({ description: '종료 조건 코드' })
   conditionCode!: string;
 
+  @ApiPropertyOptional({ description: '연결 이벤트 ID' })
+  eventId?: string;
+
   @ApiProperty({ description: '산출물 필요 여부' })
   requiresDeliverable!: boolean;
 
@@ -65,6 +74,9 @@ export class ProjectCloseConditionDto {
 
   @ApiProperty({ description: '활성 여부' })
   isActive!: boolean;
+
+  @ApiPropertyOptional({ description: '연결 이벤트 정보' })
+  event?: { eventId: string; eventCode: string; eventName: string } | null;
 }
 
 // ─── Request DTOs ───
@@ -81,6 +93,11 @@ export class UpsertDeliverableDto {
   @ApiProperty({ description: '제출 상태 코드' })
   @IsString()
   submissionStatusCode!: string;
+
+  @ApiPropertyOptional({ description: '연결 이벤트 ID' })
+  @IsString()
+  @IsOptional()
+  eventId?: string;
 
   @ApiPropertyOptional({ description: '메모' })
   @IsString()
@@ -106,6 +123,11 @@ export class UpsertCloseConditionDto {
   @ApiProperty({ description: '산출물 필요 여부' })
   @IsBoolean()
   requiresDeliverable!: boolean;
+
+  @ApiPropertyOptional({ description: '연결 이벤트 ID' })
+  @IsString()
+  @IsOptional()
+  eventId?: string;
 
   @ApiPropertyOptional({ description: '정렬 순서', default: 0 })
   @IsInt()

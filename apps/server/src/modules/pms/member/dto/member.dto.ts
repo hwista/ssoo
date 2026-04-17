@@ -10,6 +10,15 @@ export class ProjectMemberDto {
   @ApiProperty({ description: '역할 코드' })
   roleCode!: string;
 
+  @ApiPropertyOptional({ description: '참여 조직 ID' })
+  organizationId?: string | null;
+
+  @ApiProperty({ description: '권한 등급', enum: ['owner', 'participant', 'contributor'] })
+  accessLevel!: string;
+
+  @ApiProperty({ description: '현재 phase 담당자 여부' })
+  isPhaseOwner!: boolean;
+
   @ApiProperty({ description: '배정일' })
   assignedAt!: string;
 

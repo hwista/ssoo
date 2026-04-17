@@ -34,13 +34,13 @@ BEGIN
   -- 히스토리 테이블에 삽입
   INSERT INTO pms.pr_project_deliverable_r_h (
     project_id, status_code, deliverable_code, history_seq, event_type, event_at,
-    submission_status_code, submitted_at, submitted_by,
+    event_id, submission_status_code, submitted_at, submitted_by,
     storage_object_key, original_file_name, mime_type, file_size_bytes,
     is_active, memo, created_by, created_at, updated_by, updated_at,
     last_source, last_activity, transaction_id
   ) VALUES (
     v_record.project_id, v_record.status_code, v_record.deliverable_code, v_history_seq, v_event_type, NOW(),
-    v_record.submission_status_code, v_record.submitted_at, v_record.submitted_by,
+    v_record.event_id, v_record.submission_status_code, v_record.submitted_at, v_record.submitted_by,
     v_record.storage_object_key, v_record.original_file_name, v_record.mime_type, v_record.file_size_bytes,
     v_record.is_active, v_record.memo, v_record.created_by, v_record.created_at, v_record.updated_by, v_record.updated_at,
     v_record.last_source, v_record.last_activity, v_record.transaction_id

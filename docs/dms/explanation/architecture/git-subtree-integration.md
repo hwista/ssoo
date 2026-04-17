@@ -1,6 +1,7 @@
 # DMS GitHub-GitLab Workspace 통합 가이드
 
 > 📅 작성일: 2026-01-27  
+> 🔄 최종 업데이트: 2026-04-07  
 > 📌 상태: 이원화 운영 + GitLab workspace mirror 단계 (legacy subtree 정보 포함)
 
 ---
@@ -107,19 +108,10 @@ git add -A
 git commit -m "feat(dms): 변경 내용"
 ```
 
-### 3.3 작업 후: 양쪽 push
+### 3.3 작업 후: 표준 workspace publish
 
-```bash
-# GitHub push (현재 HEAD를 원하는 GitHub branch로)
-git push origin HEAD:<github-branch>
-
-# GitLab workspace branch push
-git push http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git HEAD:development
-```
-
-### 3.4 권장: 단일 명령으로 양방향 publish + 검증
-
-> 수동 `git push` 대신 아래 명령을 표준으로 사용한다.
+> 작업 후 표준 경로는 개별 `git push`가 아니라 `codex:workspace-publish`다.  
+> 이 명령이 GitHub/GitLab 반영과 검증, 그리고 pre-push guard marker 갱신까지 함께 처리한다.
 
 ```bash
 # 인증 변수 준비 (또는 local git config 사용)
@@ -153,11 +145,27 @@ pnpm run codex:dms-publish -- dms/refactor/integration
 4. GitLab 원격을 fetch한 뒤 local HEAD hash와 원격 hash 일치 여부 검증
 
 참고:
-- origin으로 바로 push하면 pre-push guard가 차단한다.
+- origin으로 바로 push하면 pre-push guard가 `codex.gitlabLastPublished` marker 기준으로 차단한다.
+- `codex:workspace-publish`가 성공하면 이 marker가 현재 HEAD로 갱신되고, 같은 HEAD에 대한 direct origin push가 다시 허용된다.
 - GitLab workspace branch가 local HEAD보다 앞서 있으면 `codex:workspace-publish`는 GitHub push 전에 중단하고 `codex:workspace-sync-from-gitlab` 실행을 안내한다.
 - 이 저장소에서는 GitHub target branch와 GitLab workspace branch가 기본적으로 다를 수 있다. `codex:workspace-publish` 인자는 GitHub target branch만 바꾸고, GitLab workspace branch는 `WORKSPACE_GITLAB_BRANCH`로 별도 override한다.
 - legacy alias: `codex:dms-sync-from-gitlab`, `codex:dms-publish`
 - 예외 우회(권장하지 않음): `CODEX_SKIP_GITLAB_PUBLISH_GUARD=1 git push ...`
+
+---
+
+### 3.4 예외: 수동 recovery push (비권장)
+
+> `codex:workspace-publish` 자체를 디버깅하거나 원격 상태를 복구해야 할 때만 사용한다.
+
+```bash
+# pre-push guard 우회가 필요하므로 예외 변수 명시
+CODEX_SKIP_GITLAB_PUBLISH_GUARD=1 git push origin HEAD:<github-branch>
+git push http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git HEAD:development
+```
+
+- 수동 recovery는 GitHub/GitLab hash 검증과 publish marker 갱신을 자동으로 처리하지 않는다.
+- 복구가 끝나면 표준 경로로 다시 한 번 `pnpm run codex:workspace-publish -- <github-branch>`를 실행해 marker와 검증 상태를 정상화한다.
 
 ---
 
@@ -311,6 +319,7 @@ pnpm run codex:dms-sync-from-gitlab
 
 | Date | Change |
 |------|--------|
+| 2026-04-07 | Make `codex:workspace-publish` the canonical post-commit flow, demote raw dual pushes to recovery-only, and document the publish marker/pre-push guard behavior. |
 | 2026-04-06 | Replace the subtree-only standard flow with GitLab workspace branch `development`, add `codex:workspace-sync-from-gitlab` / `codex:workspace-publish`, and keep `codex:dms-*` as compatibility wrappers. |
 | 2026-04-02 | Add `codex:dms-sync-from-gitlab`, preflight GitLab fast-forward checks, and git-config auth fallback for publish. |
 | 2026-02-23 | Add `codex:dms-publish` standard flow (GitHub + GitLab + hash verification). |

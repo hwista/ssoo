@@ -18,6 +18,8 @@ import {
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
+import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
+import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { ingestQueueService } from './ingest-queue.service.js';
 
 interface SubmitBody {
@@ -32,7 +34,8 @@ interface SubmitBody {
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/ingest')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@RequireDmsFeature('canManageStorage')
 export class IngestController {
   @Post('submit')
   @ApiOperation({ summary: 'DMS 수집 작업 생성' })

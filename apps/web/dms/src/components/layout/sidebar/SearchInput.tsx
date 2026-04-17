@@ -10,6 +10,7 @@ interface SearchInputProps {
   placeholder: string;
   className?: string;
   inputClassName?: string;
+  disabled?: boolean;
   onFocus?: FocusEventHandler<HTMLInputElement>;
   onBlur?: FocusEventHandler<HTMLInputElement>;
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
@@ -22,6 +23,7 @@ export function SearchInput({
   placeholder,
   className,
   inputClassName,
+  disabled = false,
   onFocus,
   onBlur,
   onKeyDown,
@@ -39,13 +41,15 @@ export function SearchInput({
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         autoComplete="off"
+        disabled={disabled}
         className={cn(
           'h-control-h w-full rounded-lg border border-ssoo-content-border pl-8 pr-8 text-body-sm',
           'focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ssoo-primary',
+          'disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400',
           inputClassName
         )}
       />
-      {value && (
+      {value && !disabled && (
         <button
           type="button"
           onMouseDown={(event) => event.preventDefault()}

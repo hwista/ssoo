@@ -63,6 +63,38 @@ export class AuthController {
     response.clearCookie(this.getSessionCookieName(), cookieOptions);
   }
 
+  private resolveIssuedApp(request: ExpressRequest): string | undefined {
+    const explicitApp = request.headers['x-ssoo-app'];
+    if (typeof explicitApp === 'string' && explicitApp.trim()) {
+      return explicitApp.trim();
+    }
+
+    const hostHeader = request.headers['x-forwarded-host'] ?? request.headers.host;
+    if (typeof hostHeader !== 'string') {
+      return undefined;
+    }
+
+    if (hostHeader.includes(':3000')) {
+      return 'pms';
+    }
+    if (hostHeader.includes(':3001')) {
+      return 'dms';
+    }
+    if (hostHeader.includes(':3002')) {
+      return 'cms';
+    }
+
+    return undefined;
+  }
+
+  private buildSessionContext(request: ExpressRequest) {
+    const userAgentHeader = request.headers['user-agent'];
+    return {
+      issuedApp: this.resolveIssuedApp(request),
+      userAgent: typeof userAgentHeader === 'string' ? userAgentHeader : null,
+    };
+  }
+
   private readSessionCookie(request: ExpressRequest): string | null {
     const cookieHeader = request.headers.cookie;
     if (!cookieHeader) {
@@ -85,9 +117,6 @@ export class AuthController {
     return {
       userId: user.userId,
       loginId: user.loginId,
-      roleCode: user.roleCode,
-      userTypeCode: user.userTypeCode,
-      isAdmin: user.isAdmin,
     };
   }
 
@@ -105,9 +134,10 @@ export class AuthController {
   @ApiInternalServerErrorResponse({ type: ApiError, description: "서버 오류" })
   async login(
     @Body() loginDto: LoginDto,
+    @Req() request: ExpressRequest,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
-    const tokens = await this.authService.login(loginDto);
+    const tokens = await this.authService.login(loginDto, this.buildSessionContext(request));
     this.applySessionCookie(response, tokens.refreshToken);
     return success(tokens, "로그인에 성공했습니다");
   }
@@ -126,9 +156,13 @@ export class AuthController {
   @ApiInternalServerErrorResponse({ type: ApiError, description: "서버 오류" })
   async refresh(
     @Body() refreshTokenDto: RefreshTokenDto,
+    @Req() request: ExpressRequest,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
-    const tokens = await this.authService.refreshTokens(refreshTokenDto.refreshToken);
+    const tokens = await this.authService.refreshTokens(
+      refreshTokenDto.refreshToken,
+      this.buildSessionContext(request),
+    );
     this.applySessionCookie(response, tokens.refreshToken);
     return success(tokens, "토큰 갱신 성공");
   }
@@ -155,7 +189,7 @@ export class AuthController {
       throw new UnauthorizedException('세션이 없습니다. 다시 로그인하세요.');
     }
 
-    const tokens = await this.authService.refreshTokens(refreshToken);
+    const tokens = await this.authService.refreshTokens(refreshToken, this.buildSessionContext(request));
     this.applySessionCookie(response, tokens.refreshToken);
 
     const user = await this.authService.validateToken(tokens.accessToken);
@@ -189,7 +223,7 @@ export class AuthController {
     @CurrentUser() user: TokenPayload,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
-    await this.authService.logout(BigInt(user.userId));
+    await this.authService.logout(BigInt(user.userId), user.sessionId);
     this.clearSessionCookie(response);
     return success(null, "로그아웃 성공");
   }
@@ -211,9 +245,6 @@ export class AuthController {
       {
         userId: user.userId,
         loginId: user.loginId,
-        roleCode: user.roleCode,
-        userTypeCode: user.userTypeCode,
-        isAdmin: user.isAdmin,
       },
       "사용자 정보 조회 성공",
     );

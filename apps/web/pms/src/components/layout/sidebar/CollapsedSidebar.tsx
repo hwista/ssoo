@@ -3,7 +3,7 @@
 import type { SidebarSection } from '@/types';
 import { SIDEBAR_SECTION_LABELS } from '@/types';
 import { SECTION_ICONS } from './constants';
-import { useAuthStore, useMenuStore } from '@/stores';
+import { useMenuStore } from '@/stores';
 
 interface CollapsedSidebarProps {
   onMouseEnter: (section: SidebarSection) => void;
@@ -17,13 +17,10 @@ export function CollapsedSidebar({
   onMouseEnter,
   onMouseLeave,
 }: CollapsedSidebarProps) {
-  const { user } = useAuthStore();
   const { adminMenus } = useMenuStore();
-  
-  // 관리자 메뉴 표시 여부
-  const showAdminSection = user?.isAdmin && adminMenus.length > 0;
-  
-  // 기본 섹션 + 조건부 관리자 섹션
+
+  const showAdminSection = adminMenus.length > 0;
+
   const sections: SidebarSection[] = [
     'search', 
     'favorites', 

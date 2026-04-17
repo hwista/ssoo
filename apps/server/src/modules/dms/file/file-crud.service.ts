@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { DocumentMetadata } from '@ssoo/types/dms';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { DocumentAclService } from '../access/document-acl.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 import { normalizeMarkdownFileName, isMarkdownFile } from '../runtime/file-utils.js';
 import { configService } from '../runtime/dms-config.service.js';
@@ -24,13 +27,16 @@ export interface FileData {
 
 export type FileCrudResult<T = unknown> =
   | { success: true; data: T }
-  | { success: false; error: string; status: number };
+  | { success: false; error: string; status: number; details?: Record<string, unknown> };
 
 function getRootDir(): string {
   return configService.getDocDir();
 }
 
-class FileCrudService {
+@Injectable()
+export class FileCrudService {
+  constructor(private readonly documentAclService: DocumentAclService) {}
+
   private findFileByName(rootDir: string, fileName: string): string | null {
     const normalizedFileName = normalizeMarkdownFileName(fileName);
 
@@ -68,7 +74,7 @@ class FileCrudService {
     };
   }
 
-  async read(filePath: string): Promise<FileCrudResult<FileData>> {
+  async read(filePath: string, currentUser: TokenPayload): Promise<FileCrudResult<FileData>> {
     const { targetPath, valid, safeRelPath } = this.resolveFilePath(filePath);
 
     if (!valid) {
@@ -90,6 +96,7 @@ class FileCrudService {
     }
 
     try {
+      this.documentAclService.assertCanReadAbsolutePath(currentUser, finalPath);
       const content = fs.readFileSync(finalPath, 'utf-8');
       const metadata = this.getFileMetadata(finalPath);
       if (isMarkdownFile(finalPath)) {
@@ -97,7 +104,12 @@ class FileCrudService {
         if (sidecar) {
           metadata.document = sidecar as unknown as DocumentMetadata;
         } else {
-          const defaultSidecar = contentService.buildDefaultDocumentSidecar(content, finalPath);
+          const defaultSidecar = contentService.buildDefaultDocumentSidecar(
+            content,
+            finalPath,
+            undefined,
+            { defaultRevisionSeq: 0 },
+          );
           contentService.writeSidecar(finalPath, defaultSidecar);
           metadata.document = defaultSidecar as unknown as DocumentMetadata;
         }
@@ -105,12 +117,19 @@ class FileCrudService {
 
       return { success: true, data: { content, metadata } };
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        return { success: false, error: error.message, status: 403 };
+      }
+
       logger.error('파일 읽기 실패', error, { filePath, finalPath });
       return { success: false, error: 'Failed to read file', status: 500 };
     }
   }
 
-  async readMetadata(filePath: string): Promise<FileCrudResult<{ metadata: FileStatMetadata }>> {
+  async readMetadata(
+    filePath: string,
+    currentUser: TokenPayload,
+  ): Promise<FileCrudResult<{ metadata: FileStatMetadata }>> {
     const { targetPath, valid } = this.resolveFilePath(filePath);
     if (!valid) {
       return { success: false, error: 'Invalid path', status: 400 };
@@ -120,6 +139,7 @@ class FileCrudService {
     }
 
     try {
+      this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
       const metadata = this.getFileMetadata(targetPath);
       if (isMarkdownFile(targetPath)) {
         const content = fs.readFileSync(targetPath, 'utf-8');
@@ -127,7 +147,12 @@ class FileCrudService {
         if (sidecar) {
           metadata.document = sidecar as unknown as DocumentMetadata;
         } else {
-          const defaultSidecar = contentService.buildDefaultDocumentSidecar(content, targetPath);
+          const defaultSidecar = contentService.buildDefaultDocumentSidecar(
+            content,
+            targetPath,
+            undefined,
+            { defaultRevisionSeq: 0 },
+          );
           contentService.writeSidecar(targetPath, defaultSidecar);
           metadata.document = defaultSidecar as unknown as DocumentMetadata;
         }
@@ -135,35 +160,102 @@ class FileCrudService {
 
       return { success: true, data: { metadata } };
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        return { success: false, error: error.message, status: 403 };
+      }
+
       logger.error('메타데이터 조회 실패', error, { filePath, targetPath });
       return { success: false, error: 'Failed to read metadata', status: 500 };
     }
   }
 
-  async write(filePath: string, content: string): Promise<FileCrudResult<{ message: string }>> {
-    const { targetPath, valid } = this.resolveFilePath(filePath);
+  async write(
+    filePath: string,
+    content: string,
+    currentUser: TokenPayload,
+    options?: { expectedRevisionSeq?: number },
+  ): Promise<FileCrudResult<{ message: string; metadata?: DocumentMetadata }>> {
+    const { targetPath, valid, safeRelPath } = this.resolveFilePath(filePath);
     if (!valid) {
       return { success: false, error: 'Invalid path', status: 400 };
     }
 
     try {
-      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-      fs.writeFileSync(targetPath, content, 'utf-8');
+      const existedBeforeWrite = fs.existsSync(targetPath);
+      if (!isMarkdownFile(targetPath)) {
+        if (!existedBeforeWrite) {
+          return {
+            success: false,
+            error: 'Direct non-markdown writes are not allowed',
+            status: 403,
+          };
+        }
 
-      if (isMarkdownFile(targetPath)) {
-        const existing = contentService.readSidecar(targetPath) ?? undefined;
-        const sidecar = contentService.buildDefaultDocumentSidecar(content, targetPath, existing);
-        contentService.writeSidecar(targetPath, sidecar);
+        this.documentAclService.assertCanWriteAbsolutePath(currentUser, targetPath);
+      } else if (existedBeforeWrite) {
+        this.documentAclService.assertCanWriteAbsolutePath(currentUser, targetPath);
       }
 
+      if (isMarkdownFile(targetPath)) {
+        const existingSidecar = contentService.readSidecar(targetPath) ?? (
+          existedBeforeWrite
+            ? undefined
+            : {
+                acl: this.documentAclService.buildOwnerAcl(currentUser),
+                author: currentUser.loginId,
+                lastModifiedBy: currentUser.loginId,
+                ownerId: currentUser.userId,
+                ownerLoginId: currentUser.loginId,
+                visibility: { scope: 'self' },
+              }
+        );
+        const result = contentService.save(
+          safeRelPath,
+          content,
+          {
+            ...(existingSidecar ?? {}),
+            lastModifiedBy: currentUser.loginId,
+          },
+          { expectedRevisionSeq: options?.expectedRevisionSeq },
+        );
+
+        if (!result.success) {
+          return {
+            success: false,
+            error: result.error ?? 'Failed to write file',
+            status: result.status ?? 500,
+            details: result.details,
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            message: 'File saved',
+            metadata: result.data?.metadata as DocumentMetadata | undefined,
+          },
+        };
+      }
+
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.writeFileSync(targetPath, content, 'utf-8');
       return { success: true, data: { message: 'File saved' } };
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        return { success: false, error: error.message, status: 403 };
+      }
+
       logger.error('파일 쓰기 실패', error, { filePath, targetPath });
       return { success: false, error: 'Failed to write file', status: 500 };
     }
   }
 
-  async create(nameOrPath: string, parent = '', content?: string): Promise<FileCrudResult<{ message: string; savedPath: string }>> {
+  async create(
+    nameOrPath: string,
+    parent = '',
+    content: string | undefined,
+    currentUser: TokenPayload,
+  ): Promise<FileCrudResult<{ message: string; savedPath: string; metadata?: DocumentMetadata }>> {
     const parsedPath = path.parse(nameOrPath);
     const resolvedParent = parent.length > 0 ? parent : parsedPath.dir;
     const resolvedName = normalizeMarkdownFileName(parsedPath.base || nameOrPath);
@@ -181,12 +273,31 @@ class FileCrudService {
       fs.mkdirSync(path.dirname(targetPath), { recursive: true });
       const title = path.parse(targetPath).name;
       const nextContent = content || `# ${title}\n\n내용을 작성하세요.`;
-      fs.writeFileSync(targetPath, nextContent, 'utf-8');
+      const result = contentService.save(
+        safeRelPath,
+        nextContent,
+        {
+          acl: this.documentAclService.buildOwnerAcl(currentUser),
+          author: currentUser.loginId,
+          lastModifiedBy: currentUser.loginId,
+          ownerId: currentUser.userId,
+          ownerLoginId: currentUser.loginId,
+          visibility: { scope: 'self' },
+        },
+      );
 
-      const sidecar = contentService.buildDefaultDocumentSidecar(nextContent, targetPath);
-      contentService.writeSidecar(targetPath, sidecar);
+      if (!result.success) {
+        return { success: false, error: result.error ?? 'Failed to create file', status: result.status ?? 500 };
+      }
 
-      return { success: true, data: { message: 'File created', savedPath: safeRelPath } };
+      return {
+        success: true,
+        data: {
+          message: 'File created',
+          savedPath: safeRelPath,
+          metadata: result.data?.metadata as DocumentMetadata | undefined,
+        },
+      };
     } catch (error) {
       logger.error('파일 생성 실패', error, { nameOrPath, parent, targetPath });
       return { success: false, error: 'Failed to create file', status: 500 };
@@ -212,7 +323,12 @@ class FileCrudService {
     }
   }
 
-  async rename(oldPath: string, newPath: string, options?: { autoNumber?: boolean }): Promise<FileCrudResult<{ message: string; finalPath?: string }>> {
+  async rename(
+    oldPath: string,
+    newPath: string,
+    currentUser: TokenPayload,
+    options?: { autoNumber?: boolean },
+  ): Promise<FileCrudResult<{ message: string; finalPath?: string }>> {
     const previous = this.resolveFilePath(oldPath);
     const next = this.resolveFilePath(newPath);
 
@@ -242,6 +358,7 @@ class FileCrudService {
     }
 
     try {
+      this.assertCanManageExistingPath(currentUser, previous.targetPath);
       fs.mkdirSync(path.dirname(resolvedTargetPath), { recursive: true });
       fs.renameSync(previous.targetPath, resolvedTargetPath);
 
@@ -252,6 +369,34 @@ class FileCrudService {
         fs.renameSync(oldMetaPath, newMetaPath);
       }
 
+      if (isMarkdownFile(resolvedTargetPath) && fs.existsSync(resolvedTargetPath)) {
+        const sidecar = contentService.readSidecar(resolvedTargetPath);
+        if (sidecar) {
+          const now = new Date().toISOString();
+          const currentRevisionSeq = typeof sidecar['revisionSeq'] === 'number'
+            ? sidecar['revisionSeq']
+            : 0;
+          const pathHistory = Array.isArray(sidecar['pathHistory']) ? sidecar['pathHistory'] : [];
+          const reason = path.dirname(previous.safeRelPath) === path.dirname(resolvedRelPath) ? 'rename' : 'move';
+          contentService.writeSidecar(resolvedTargetPath, {
+            ...sidecar,
+            relativePath: resolvedRelPath,
+            updatedAt: now,
+            lastModifiedBy: currentUser.loginId,
+            revisionSeq: currentRevisionSeq + 1,
+            pathHistory: [
+              ...pathHistory,
+              {
+                path: previous.safeRelPath,
+                changedAt: now,
+                changedBy: currentUser.loginId,
+                reason,
+              },
+            ],
+          });
+        }
+      }
+
       return {
         success: true,
         data: {
@@ -260,6 +405,10 @@ class FileCrudService {
         },
       };
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        return { success: false, error: error.message, status: 403 };
+      }
+
       logger.error('파일/폴더 이름 변경 실패', error, {
         oldPath,
         newPath,
@@ -274,7 +423,7 @@ class FileCrudService {
     }
   }
 
-  async remove(filePath: string): Promise<FileCrudResult<{ message: string }>> {
+  async remove(filePath: string, currentUser: TokenPayload): Promise<FileCrudResult<{ message: string }>> {
     const { targetPath, valid } = this.resolveFilePath(filePath);
     if (!valid) {
       return { success: false, error: 'Invalid path', status: 400 };
@@ -284,6 +433,7 @@ class FileCrudService {
     }
 
     try {
+      this.assertCanManageExistingPath(currentUser, targetPath);
       const stats = fs.statSync(targetPath);
       if (stats.isDirectory()) {
         fs.rmSync(targetPath, { recursive: true, force: true });
@@ -297,10 +447,43 @@ class FileCrudService {
 
       return { success: true, data: { message: 'File/Folder deleted' } };
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        return { success: false, error: error.message, status: 403 };
+      }
+
       logger.error('파일/폴더 삭제 실패', error, { filePath, targetPath });
       return { success: false, error: 'Failed to delete file/folder', status: 500 };
     }
   }
-}
 
-export const fileCrudService = new FileCrudService();
+  private assertCanManageExistingPath(currentUser: TokenPayload, targetPath: string): void {
+    const stats = fs.statSync(targetPath);
+    if (!stats.isDirectory()) {
+      this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
+      return;
+    }
+
+    for (const nestedPath of this.listManagedFilePaths(targetPath)) {
+      this.documentAclService.assertCanManageAbsolutePath(currentUser, nestedPath);
+    }
+  }
+
+  private listManagedFilePaths(targetPath: string): string[] {
+    const entries = fs.readdirSync(targetPath, { withFileTypes: true });
+    const filePaths: string[] = [];
+
+    for (const entry of entries) {
+      const nestedPath = path.join(targetPath, entry.name);
+      if (entry.isDirectory()) {
+        filePaths.push(...this.listManagedFilePaths(nestedPath));
+        continue;
+      }
+
+      if (entry.isFile() && !nestedPath.endsWith('.sidecar.json')) {
+        filePaths.push(nestedPath);
+      }
+    }
+
+    return filePaths;
+  }
+}

@@ -1,36 +1,79 @@
-﻿/**
- * File API Route - 단일 파일 CRUD 작업
- * 비즈니스 로직은 @/server/handlers/file.handler.ts 참조
- */
 export const dynamic = 'force-dynamic';
 
-import { readFile, handleFileAction, type FileActionBody } from "@/server/handlers/file.handler";
+import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
+
+interface BackendSuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+interface BackendErrorResponse {
+  success?: false;
+  error?: {
+    code?: string;
+    message?: string;
+  } | string;
+  message?: string;
+  details?: unknown;
+}
+
+function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null): string {
+  if (!responseBody || responseBody.success === true) {
+    return '서버 파일 처리 중 오류가 발생했습니다.';
+  }
+
+  return (
+    (typeof responseBody.error === 'string' ? responseBody.error : responseBody.error?.message)
+    || responseBody.message
+    || '서버 파일 처리 중 오류가 발생했습니다.'
+  );
+}
 
 export async function GET(req: Request) {
-  // 헤더 우선, 없으면 쿼리 파라미터(path) 사용
   const url = new URL(req.url);
   const headerPath = req.headers.get('x-file-path');
   const queryPath = url.searchParams.get('path');
-  const filePath = headerPath || queryPath;
-
-  if (!filePath) {
-    return Response.json({ error: 'Missing file path header or query' }, { status: 400 });
+  const query = queryPath ? `?path=${encodeURIComponent(queryPath)}` : '';
+  const response = await fetch(
+    createServerApiUrl(`/dms/file${query}`),
+    createServerApiProxyInit(req, {
+      headers: headerPath ? { 'x-file-path': headerPath } : undefined,
+    }),
+  );
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<unknown> | BackendErrorResponse | null;
+  if (!response.ok || !responseBody || responseBody.success !== true) {
+    return Response.json(
+      {
+        error: getBackendErrorMessage(responseBody),
+        details: responseBody && responseBody.success !== true ? responseBody.details : undefined,
+      },
+      { status: response.status || 500 },
+    );
   }
 
-  const result = await readFile(filePath);
-
-  if (result.success) {
-    return Response.json(result.data);
-  }
-  return Response.json({ error: result.error }, { status: result.status });
+  return Response.json(responseBody.data);
 }
 
 export async function POST(req: Request) {
-  const body: FileActionBody = await req.json();
-  const result = await handleFileAction(body);
-
-  if (result.success) {
-    return Response.json(result.data);
+  const body = await req.json();
+  const response = await fetch(
+    createServerApiUrl('/dms/file'),
+    createServerApiProxyInit(req, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  );
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<unknown> | BackendErrorResponse | null;
+  if (!response.ok || !responseBody || responseBody.success !== true) {
+    return Response.json(
+      {
+        error: getBackendErrorMessage(responseBody),
+        details: responseBody && responseBody.success !== true ? responseBody.details : undefined,
+      },
+      { status: response.status || 500 },
+    );
   }
-  return Response.json({ error: result.error }, { status: result.status });
+
+  return Response.json(responseBody.data);
 }

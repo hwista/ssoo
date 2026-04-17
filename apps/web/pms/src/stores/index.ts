@@ -5,6 +5,7 @@
 
 // Auth
 export { useAuthStore } from './auth.store';
+export type { AuthUser } from './auth.store';
 
 // Layout & Navigation
 export { useLayoutStore } from './layout.store';
@@ -12,6 +13,7 @@ export { useSidebarStore } from './sidebar.store';
 export { useTabStore, HOME_TAB } from './tab.store';
 
 // Data
+export { useAccessStore } from './access.store';
 export { useMenuStore } from './menu.store';
 
 // UI

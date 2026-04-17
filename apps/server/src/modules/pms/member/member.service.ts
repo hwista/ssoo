@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
 import type { CreateProjectMemberDto, UpdateProjectMemberDto } from '@ssoo/types';
 
@@ -21,12 +21,13 @@ export class MemberService {
       include: {
         user: { select: USER_SELECT },
       },
-      orderBy: [{ roleCode: 'asc' }, { sortOrder: 'asc' }],
+      orderBy: [{ isPhaseOwner: 'desc' }, { roleCode: 'asc' }, { sortOrder: 'asc' }],
     });
   }
 
   async create(projectId: bigint, dto: CreateProjectMemberDto) {
     const userId = BigInt(dto.userId);
+    const organizationId = await this.resolveOrganizationId(userId, dto.organizationId);
 
     const existing = await this.db.client.projectMember.findUnique({
       where: {
@@ -47,6 +48,9 @@ export class MemberService {
         projectId,
         userId,
         roleCode: dto.roleCode,
+        organizationId,
+        accessLevel: dto.accessLevel ?? 'participant',
+        isPhaseOwner: dto.isPhaseOwner ?? false,
         assignedAt: dto.assignedAt ? new Date(dto.assignedAt) : new Date(),
         allocationRate: dto.allocationRate ?? 100,
         memo: dto.memo,
@@ -73,6 +77,11 @@ export class MemberService {
         pk_pr_project_member_r_m: { projectId, userId, roleCode },
       },
       data: {
+        ...(dto.organizationId !== undefined && {
+          organizationId: this.parseOrganizationId(dto.organizationId),
+        }),
+        ...(dto.accessLevel !== undefined && { accessLevel: dto.accessLevel }),
+        ...(dto.isPhaseOwner !== undefined && { isPhaseOwner: dto.isPhaseOwner }),
         ...(dto.releasedAt !== undefined && { releasedAt: dto.releasedAt ? new Date(dto.releasedAt) : null }),
         ...(dto.allocationRate !== undefined && { allocationRate: dto.allocationRate }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
@@ -102,5 +111,50 @@ export class MemberService {
     });
 
     return true;
+  }
+
+  private parseOrganizationId(organizationId?: string | null): bigint | null {
+    if (organizationId === undefined || organizationId === null || organizationId.trim() === '') {
+      return null;
+    }
+
+    try {
+      return BigInt(organizationId);
+    } catch {
+      throw new BadRequestException('프로젝트 참여 조직 ID 형식이 올바르지 않습니다.');
+    }
+  }
+
+  private async resolveOrganizationId(userId: bigint, organizationId?: string | null): Promise<bigint | null> {
+    const explicitOrganizationId = this.parseOrganizationId(organizationId);
+    if (explicitOrganizationId) {
+      return explicitOrganizationId;
+    }
+
+    const now = new Date();
+    const relation = await this.db.client.userOrganizationRelation.findFirst({
+      where: {
+        userId,
+        isActive: true,
+        organization: {
+          isActive: true,
+          orgClass: 'permanent',
+        },
+        AND: [
+          {
+            OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }],
+          },
+          {
+            OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+          },
+        ],
+      },
+      select: {
+        orgId: true,
+      },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+    });
+
+    return relation?.orgId ?? null;
   }
 }

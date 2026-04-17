@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiForbiddenResponse, ApiInternalServerErrorResponse, Ap
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { DeliverableService } from './deliverable.service.js';
+import { ProjectFeatureGuard } from '../project/project-feature.guard.js';
+import { RequireProjectFeature } from '../project/require-project-feature.decorator.js';
 import { success, deleted } from '../../../common/index.js';
 import { serializeBigInt } from '../../../common/utils/bigint.util.js';
 import { ProjectDeliverableDto, UpsertDeliverableDto, UpdateSubmissionDto } from './dto/deliverable.dto.js';
@@ -11,11 +13,12 @@ import { ApiError } from '../../../common/swagger/api-response.dto.js';
 @ApiTags('project-deliverables')
 @ApiBearerAuth()
 @Controller('projects/:projectId/deliverables')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
 export class DeliverableController {
   constructor(private readonly deliverableService: DeliverableService) {}
 
   @Get()
+  @RequireProjectFeature('canViewProject')
   @ApiOperation({ summary: '프로젝트 산출물 목록' })
   @ApiOkResponse({ type: [ProjectDeliverableDto] })
   @ApiUnauthorizedResponse({ type: ApiError })
@@ -30,20 +33,19 @@ export class DeliverableController {
   }
 
   @Post()
+  @RequireProjectFeature('canManageDeliverables')
   @ApiOperation({ summary: '프로젝트 산출물 등록/수정' })
   @ApiOkResponse({ type: ProjectDeliverableDto })
   @ApiUnauthorizedResponse({ type: ApiError })
   @ApiForbiddenResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  async upsert(
-    @Param('projectId') projectId: string,
-    @Body() dto: UpsertDeliverableDto,
-  ) {
+  async upsert(@Param('projectId') projectId: string, @Body() dto: UpsertDeliverableDto) {
     const result = await this.deliverableService.upsert(BigInt(projectId), dto);
     return success(serializeBigInt(result));
   }
 
   @Patch(':statusCode/:deliverableCode/submission')
+  @RequireProjectFeature('canManageDeliverables')
   @ApiOperation({ summary: '산출물 제출 상태 변경' })
   @ApiOkResponse({ type: ProjectDeliverableDto })
   @ApiUnauthorizedResponse({ type: ApiError })
@@ -65,6 +67,7 @@ export class DeliverableController {
   }
 
   @Delete(':statusCode/:deliverableCode')
+  @RequireProjectFeature('canManageDeliverables')
   @ApiOperation({ summary: '프로젝트 산출물 삭제' })
   @ApiOkResponse({ description: '산출물 삭제 완료' })
   @ApiUnauthorizedResponse({ type: ApiError })

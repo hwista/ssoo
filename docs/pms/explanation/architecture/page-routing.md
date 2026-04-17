@@ -1,352 +1,145 @@
 # 페이지 보안 및 라우팅 전략
 
 > **작성일**: 2026-01-19  
-> **최종 업데이트**: 2026-02-02  
-> **목적**: Next.js 라우팅 노출 방지 및 권한 기반 접근 제어
+> **최종 업데이트**: 2026-04-16  
+> **목적**: PMS shell app 의 공개 진입 계약과 internal path 운영 방식을 정리
 
 ---
 
-## 🔒 보안 아키텍처
+## 현재 라우팅 모델
 
-### 문제점
-- Next.js 파일 시스템 라우팅은 URL 구조를 그대로 노출
-- `/request`, `/proposal` 같은 경로가 주소창에 노출
-- 권한이 없는 사용자도 URL을 알면 직접 접근 가능
-- 라우팅 구조 분석을 통한 정보 수집 및 해킹 위험
+PMS는 일반 routed app 이 아니라 **shell app** 이다.
 
-### 해결 방안
-**하이브리드 라우팅 전략**: Next.js 라우팅 + 동적 컴포넌트 로딩
+- 브라우저 공개 진입점: `/`, `/login`
+- 실제 업무 화면 path: `/request`, `/proposal`, `/execution` 등
+- 업무 화면 path 는 브라우저 URL 이 아니라 `ContentArea` 내부 virtual path 로만 사용된다.
+
+즉 브라우저에서 볼 수 있는 공개 계약은 작고, 실제 화면 전환은 탭 셸 안에서 일어난다.
 
 ---
 
-## 📁 파일 구조
+## entry contract
 
-### 1. 페이지 컴포넌트 위치
+| 경로 | 의미 | 담당 파일 |
+|------|------|----------|
+| `/` | 인증된 PMS 루트 shell | `app/(main)/layout.tsx`, `app/(main)/page.tsx` |
+| `/login` | public 로그인 진입점 | `app/(auth)/login/page.tsx` |
+| 그 외 모든 브라우저 경로 | 잘못된 직접 접근으로 간주, `/` 로 복구 | `middleware.ts`, `app/not-found.tsx` |
+
+라우트 상수는 `src/lib/constants/routes.ts` 에서 관리한다.
+
+```ts
+export const APP_HOME_PATH = '/';
+export const LOGIN_PATH = '/login';
+export const ROOT_ENTRY_PATHS = [APP_HOME_PATH, LOGIN_PATH] as const;
 ```
+
+---
+
+## 파일 구조
+
+```text
 apps/web/pms/src/
 ├── app/
-│   ├── (main)/
-│   │   ├── layout.tsx          # 메인 레이아웃 (인증 필요, 미인증 시 로그인 폼)
-│   │   ├── page.tsx            # 홈 (/)
-│   │   ├── request/page.tsx    # 얇은 래퍼 → RequestListPage
-│   │   ├── proposal/page.tsx   # 얇은 래퍼 → ProposalListPage
-│   │   ├── execution/page.tsx  # 얇은 래퍼 → ExecutionListPage
-│   │   └── transition/page.tsx # 얇은 래퍼 → TransitionListPage
 │   ├── (auth)/
-│   │   └── login/page.tsx      # 로그인 (현재 미사용)
-│   ├── not-found.tsx           # 404 페이지 (자동 리다이렉트)
-│   └── layout.tsx              # 루트 레이아웃
-├── components/
-│   └── pages/                  # ← 실제 비즈니스 페이지 컴포넌트
-│       ├── home/
-│       │   ├── index.ts
-│       │   └── HomeDashboardPage.tsx
-│       ├── request/
-│       │   ├── index.ts
-│       │   ├── RequestListPage.tsx
-│       │   └── RequestCreatePage.tsx
-│       ├── proposal/
-│       │   ├── index.ts
-│       │   └── ProposalListPage.tsx
-│       ├── execution/
-│       │   ├── index.ts
-│       │   └── ExecutionListPage.tsx
-│       └── transition/
-│           ├── index.ts
-│           └── TransitionListPage.tsx
-└── middleware.ts               # 미들웨어 (직접 접근 차단)
-```
-
-**핵심 원칙**: 
-- `app/(main)` 내부에는 라우팅용 파일만 최소한으로 유지 (얇은 래퍼)
-- 실제 비즈니스 로직 페이지는 `components/pages/`에 배치
-- 탭, 모달 등에서 컴포넌트 재사용 가능
-
-### 2. 얇은 래퍼 패턴 예시
-
-```typescript
-// app/(main)/request/page.tsx - 얇은 래퍼
-import { RequestListPage } from '@/components/pages/request';
-
-export default function RequestPage() {
-  return <RequestListPage />;
-}
-```
-
-```typescript
-// components/pages/request/RequestListPage.tsx - 실제 비즈니스 로직
-'use client';
-
-export default function RequestListPage() {
-  // 실제 UI 구현
-  return <div>요청 목록</div>;
-}
+│   │   ├── layout.tsx
+│   │   └── login/page.tsx
+│   ├── (main)/
+│   │   ├── layout.tsx      # protected shell gate
+│   │   └── page.tsx        # actual shell entry
+│   ├── not-found.tsx
+│   ├── global-error.tsx
+│   └── layout.tsx
+├── components/layout/
+│   ├── AppLayout.tsx
+│   └── ContentArea.tsx
+└── middleware.ts
 ```
 
 ---
 
-## 🛡️ 보안 메커니즘
+## 라우팅 흐름
 
-### 1. 미들웨어 (middleware.ts)
+### 1. `/login`
 
-```typescript
-// 허용된 경로만 통과, 나머지는 404로 리다이렉트
-const allowedPaths = [
-  '/',
-];
+1. auth store hydration 대기
+2. 이미 인증된 상태면 `/` 로 즉시 복귀
+3. 미인증이면 공용 `AuthStandardLoginCard` 렌더
+4. 로그인 성공 시 `/` shell 로 이동
 
-// 그 외 모든 경로는 차단
-return NextResponse.rewrite(new URL('/not-found', request.url));
-```
+### 2. `/`
 
-**작동 방식**:
-- `/request` 접근 시 → 미들웨어에서 차단 → `/not-found`로 리다이렉트
-- API 라우트, 정적 파일은 제외
+1. `(main)/layout.tsx` 진입
+2. `useProtectedAppBootstrap(...)` 가 auth/access bootstrap 수행
+3. 미인증이면 `/login` 이동
+4. 인증 + access snapshot 준비 완료 후 `children` 렌더
+5. `(main)/page.tsx` 가 `AppLayout` 을 렌더
+6. `ContentArea` 가 active tab 의 internal path 를 실제 페이지 컴포넌트에 매핑
 
-### 2. 404 페이지 (app/not-found.tsx)
+### 3. 잘못된 브라우저 경로
 
-```typescript
-export default function NotFound() {
-  const router = useRouter();
+예: `/request`, `/proposal`, `/some-random-path`
 
-  useEffect(() => {
-    // 무조건 메인 페이지로 리다이렉트
-    // (main)/layout.tsx의 checkAuth가 인증 상태를 판단하여 처리
-    router.replace('/');
-  }, [router]);
-}
-```
-
-**작동 방식**:
-- 존재하지 않는 URL 접근 시 무조건 `/`로 리다이렉트
-- `(main)/layout.tsx`가 인증 상태를 확인해:
-  - 로그인됨 → AppLayout 렌더링
-  - 미로그인 → `/`에서 로그인 폼 표시
-- 무한 루프 방지: 404 → `/` → checkAuth → (필요시) 로그인 폼 표시
-
-### 3. ContentArea 동적 로딩
-
-```typescript
-// components/layout/ContentArea.tsx
-const pageComponents = {
-  '/home': lazy(() => import('@/components/pages/home/HomeDashboardPage')),
-  '/request': lazy(() => 
-    import('@/components/pages/request/RequestListPage')
-  ),
-  '/request/create': lazy(() => 
-    import('@/components/pages/request/RequestCreatePage')
-  ),
-  '/proposal': lazy(() => 
-    import('@/components/pages/proposal/ProposalListPage')
-  ),
-  '/execution': lazy(() => 
-    import('@/components/pages/execution/ExecutionListPage')
-  ),
-  '/transition': lazy(() => 
-    import('@/components/pages/transition/TransitionListPage')
-  ),
-};
-
-// activeTab.path에 해당하는 컴포넌트를 동적으로 렌더링
-const PageComponent = pageComponents[activeTab.path];
-return <PageComponent />;
-```
-
-**작동 방식**:
-- 메뉴 클릭 시 `openTab({ path: '/request' })` 호출
-- ContentArea가 path를 보고 해당 컴포넌트를 lazy load
-- URL은 `http://localhost:3000/`에 고정
+1. `middleware.ts` 가 `ROOT_ENTRY_PATHS` 외 경로를 감지
+2. 브라우저를 `/` 로 redirect
+3. 예외적으로 404 가 발생해도 `app/not-found.tsx` 가 다시 `/` 로 복구
+4. 이후 main layout gate 가 로그인 여부를 처리
 
 ---
 
-## 🔐 권한 제어 흐름
+## middleware / not-found 역할
 
-### 1. 메뉴 기반 접근 제어
+### middleware
 
-```
-사용자 로그인
-    ↓
-DB에서 권한별 메뉴 조회 (cm_menu_m + cm_user_menu_r)
-    ↓
-메뉴 트리 구성 (menuStore)
-    ↓
-사이드바에 권한 있는 메뉴만 표시
-    ↓
-메뉴 클릭 시 openTab() 호출
-    ↓
-ContentArea가 동적 컴포넌트 렌더링
-```
+- 허용: `/`, `/login`
+- 제외: `/api`, `/_next`, 정적 파일
+- 나머지 페이지 경로: `/` 로 redirect
 
-### 2. 직접 URL 접근 시도
+이는 “404 페이지를 보여준다”기보다 **shell app 의 공개 entry contract 를 강제한다**는 의미다.
 
-```
-http://localhost:3000/request 입력
-    ↓
-middleware.ts에서 allowedPaths 체크
-    ↓
-허용되지 않은 경로 → /not-found로 리다이렉트
-    ↓
-not-found.tsx에서 무조건 / 로 리다이렉트
-    ↓
-(main)/layout.tsx의 checkAuth 실행
-    ↓
-로그인됨 → 메인 페이지
-미로그인 → `/`에서 로그인 폼 표시
-```
+### not-found
+
+- middleware 바깥에서 예외적으로 404 가 발생했을 때의 마지막 안전망이다.
+- 항상 `APP_HOME_PATH` 로 복구한다.
+- 인증 여부 판단은 not-found 가 아니라 `(main)/layout.tsx` 가 맡는다.
 
 ---
 
-## 🎯 사용자 경험
+## internal path 운영 원칙
 
-### 시나리오 1: 정상 사용자
-1. 로그인 → 메인 페이지
-2. 사이드바에서 "고객요청 관리" 메뉴 클릭
-3. 탭이 열리고 목록 페이지 렌더링
-4. "등록" 버튼 클릭
-5. 등록 페이지 탭 열림
-6. 양식 작성 후 제출
-7. 목록 페이지 탭으로 자동 이동
+`ContentArea` 가 다음과 같은 internal path 를 실제 페이지 컴포넌트에 매핑한다.
 
-**URL 변화**: `http://localhost:3000/` (변화 없음)
+| internal path 예시 | 의미 |
+|-------------------|------|
+| `/home` | 대시보드 탭 |
+| `/request` | 의뢰 목록 |
+| `/request/create` | 의뢰 등록 |
+| `/proposal` | 제안 단계 |
+| `/execution` | 수행 단계 |
+| `/transition` | 전환 단계 |
 
-### 시나리오 2: URL 직접 입력 시도
-1. 주소창에 `http://localhost:3000/request` 입력
-2. 미들웨어가 차단 → 404 페이지
-3. 404 페이지에서 `/`로 리다이렉트
-4. `(main)/layout.tsx`의 `checkAuth` 실행
-5. 로그인 상태 확인:
-   - 로그인됨 → 메인 페이지 표시
-   - 미로그인 → `/`에서 로그인 폼 표시
-
-### 시나리오 3: 미로그인 상태 직접 접근
-1. 주소창에 `http://localhost:3000/some-random-path` 입력
-2. 미들웨어가 차단 → 404 페이지
-3. 404 페이지에서 `/`로 리다이렉트
-4. `(main)/layout.tsx`의 `checkAuth` 실행
-5. 토큰 없음 감지 → `/`에서 로그인 폼 표시
-6. 로그인 폼 표시
+새 화면을 추가할 때는 **Next route 를 늘리는 것보다 `ContentArea` 매핑과 메뉴/탭 계약을 먼저 갱신**하는 것이 PMS 표준이다.
 
 ---
 
-## 📋 구현 체크리스트
+## 유지보수 가이드
 
-### Phase 1: 기본 구조 ✅
-- [x] `components/pages/` 디렉토리 생성
-- [x] 페이지 컴포넌트 이동 (request, proposal, execution, transition)
-- [x] ContentArea에 lazy import 추가
-- [x] `app/(main)/*/page.tsx`를 얇은 래퍼로 구성
-
-### Phase 2: 보안 강화 ✅
-- [x] `middleware.ts` 생성 및 allowedPaths 설정
-- [x] `app/not-found.tsx` 생성 및 자동 리다이렉트
-- [x] 직접 URL 접근 테스트
-
-### Phase 3: 구조 정리 (2026-01-22) ✅
-- [x] customer 폴더 삭제, Request로 통합
-- [x] 4단계 프로젝트 상태 (request → proposal → execution → transition)
-- [x] 얇은 래퍼 패턴 적용
-
-### Phase 4: 확장 (향후)
-- [ ] 더 많은 페이지 컴포넌트 추가
-- [ ] ContentArea의 pageComponents 자동 등록 시스템
-- [ ] 권한별 탭 접근 제어 (현재는 메뉴 기반만)
+1. 브라우저 공개 경로를 늘려야 하는지 먼저 검토한다.
+2. shell 내부 화면이면 `ROOT_ENTRY_PATHS` 를 건드리지 않는다.
+3. `ContentArea` 매핑, 메뉴 snapshot, 탭 open 계약을 함께 갱신한다.
+4. login / logout / not-found / middleware 는 route constants 를 통해 같은 경로 계약을 참조한다.
 
 ---
 
-## 🔧 유지보수 가이드
+## 관련 문서
 
-### 새 페이지 추가 시
-
-1. **페이지 컴포넌트 생성**
-   ```
-   components/pages/[domain]/[PageName].tsx
-   components/pages/[domain]/index.ts
-   ```
-
-2. **app/(main) 래퍼 생성** (선택사항)
-   ```typescript
-   // app/(main)/[domain]/page.tsx
-   import { PageName } from '@/components/pages/[domain]';
-   export default function Page() {
-     return <PageName />;
-   }
-   ```
-
-3. **ContentArea에 등록**
-   ```typescript
-   // components/layout/ContentArea.tsx
-   const pageComponents = {
-     // 기존...
-     '/new-page': lazy(() => import('@/components/pages/new/NewPage')),
-   };
-   ```
-
-4. **메뉴 데이터베이스에 등록**
-   ```sql
-   INSERT INTO cm_menu_m (menu_path, menu_name, ...) 
-   VALUES ('/new-page', '새 페이지', ...);
-   ```
-
-5. **권한 설정**
-   ```sql
-   INSERT INTO cm_role_menu_r (role_code, menu_id, access_type, ...)
-   VALUES ('admin', [menu_id], 'full', ...);
-   ```
-
-### 주의사항
-- 모든 비즈니스 페이지는 `components/pages/`에 배치
-- `app/(main)` 페이지는 얇은 래퍼로만 구성 (import + export default)
-- `middleware.ts`의 allowedPaths는 최소한만 유지
-- 직접 URL 접근이 필요한 페이지만 `app/` 내부에 생성
-
----
-
-## 📊 보안 이점
-
-| 항목 | 기존 방식 | 현재 방식 |
-|------|-----------|-----------|
-| URL 노출 | ✗ 전체 라우팅 구조 노출 | ✓ `/`만 노출 |
-| 직접 접근 | ✗ URL 알면 접근 가능 | ✓ 404 → 리다이렉트 |
-| 권한 체크 | △ 페이지별 개별 구현 | ✓ 메뉴 DB 기반 통합 |
-| 해킹 리스크 | ✗ 라우팅 분석 가능 | ✓ 라우팅 구조 숨김 |
-| 개발 편의성 | ✓ 파일 시스템 기반 | ✓ 컴포넌트 기반 |
-
----
-
-## 🚀 성능 최적화
-
-### 1. Lazy Loading
-- 모든 페이지 컴포넌트는 `React.lazy()`로 로드
-- 탭 열림 시점에만 코드 다운로드
-- 초기 번들 크기 최소화
-
-### 2. Suspense Boundary
-- ContentArea에 Suspense 적용
-- 로딩 상태 표시
-- 사용자 경험 향상
-
-### 3. Code Splitting
-- 각 페이지 컴포넌트는 별도 청크로 분리
-- 병렬 다운로드 가능
-- 캐싱 효율 증가
-
----
-
-## 📚 참고 자료
-
-- [Next.js Middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware)
-- [React.lazy()](https://react.dev/reference/react/lazy)
-- [OWASP - Broken Access Control](https://owasp.org/Top10/A01_2021-Broken_Access_Control/)
-
----
+- [app-initialization-flow.md](./app-initialization-flow.md)
+- [page-security-routing.md](../design/page-security-routing.md)
+- [layout-system.md](../design/layout-system.md)
 
 ## Changelog
 
-| 날짜 | 변경 내용 |
-|------|----------|
-
----
-
-**작성자**: GitHub Copilot  
-**검토자**: 개발팀  
-**버전**: 1.2
+| Date | Change |
+|------|--------|
+| 2026-04-16 | shell-app blueprint 기준으로 `/` + `/login` 공개 계약, route constants, root recovery 흐름을 현재 구현에 맞춰 정리 |
+| 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

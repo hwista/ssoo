@@ -1,8 +1,33 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-04-14
+> 최종 업데이트: 2026-04-16
 
 ---
+
+## 2026-04-16
+
+### DMS canonical permission/hybrid model 문서화
+
+- `docs/dms/explanation/domain/document-visibility-and-access-model.md` 를 추가해 `public / organization / self` visibility, owner-only 기본 `write/manage`, explicit grant/request, 검색 discovery surface, 파일 트리 readable surface, system admin override 를 정본 규칙으로 고정
+- `docs/dms/explanation/architecture/hybrid-document-control-plane.md` 를 추가해 file/Git content plane, DB control-plane, sidecar projection, mixed DB model(`jsonb` + relation), `revisionSeq` optimistic concurrency, startup scan + reconciliation + full resync 전략을 정리
+- `docs/dms/README.md`, `docs/dms/explanation/architecture/README.md` 에 새 정본 문서를 핵심 문서로 연결
+
+### DMS shell entry contract normalization
+
+- `src/lib/constants/routes.ts` 에 `APP_HOME_PATH`, `LOGIN_PATH`, `ROOT_ENTRY_PATHS` 를 도입해 login/logout/not-found/middleware/providers 가 같은 entry contract 를 참조하도록 정리
+- DMS public browser entry 를 `/` root shell 과 `/login` 으로 명시하고, `/doc/...`, `/ai/...`, `/settings` 같은 internal virtual path 는 계속 `/` 로 복구되도록 기준선을 문서/코드에 함께 고정
+- `(main)/layout.tsx` 는 shared `useProtectedAppBootstrap(...)` 기반 protected shell gate 역할을 유지하고, DMS-specific 파일 트리 preload 만 후속 effect 로 남기는 책임 분리를 명시
+- `docs/dms/explanation/architecture/app-initialization-flow.md`, `page-routing.md` 를 현재 구조 기준으로 갱신
+
+## 2026-04-13
+
+### DMS binary delivery auth hardening + readiness 정리
+
+- same-origin `/api/file/raw`, `/api/file/serve-attachment` route handler가 shared session cookie로 `/auth/session` bootstrap을 수행한 뒤 server DMS API에 `Authorization` 헤더를 붙여 호출하도록 정리
+- server `GET /dms/file/raw`, `GET /dms/file/serve-attachment` 도 더 이상 `@Public() OptionalJwtAuthGuard` 예외가 아니며, `JwtAuthGuard + DmsFeatureGuard(canReadDocuments)` 경계 안으로 이동
+- binary response cache header를 `public`에서 `private` 기준으로 조정해 인증된 문서 자산이 shared cache에 남지 않도록 보강
+- `DocumentPage.tsx` 의 첨부 업로드/참조 복원 fetch도 `fetchWithSharedAuth()` 로 맞춰, same-origin 쿠키만 전달되고 bearer header가 빠지는 불일치를 제거
+- 현재 상태/다음 작업 순서는 `docs/dms/planning/auth-access-readiness.md` 정본으로 정리
 
 ## 2026-04-14
 
@@ -30,17 +55,31 @@
 | `storage` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 외부 저장소 - 인증 필수 |
 | `templates` | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 개인 템플릿 - 인증 필수 |
 | `file` (클래스) | `OptionalJwtAuthGuard` | `JwtAuthGuard` | 파일 CRUD - 인증 필수 |
-| `file/raw` (GET) | - | `@Public() OptionalJwtAuthGuard` | 브라우저 `<img src>` 경유, Authorization 헤더 추가 불가 |
-| `file/serve-attachment` (GET) | - | `@Public() OptionalJwtAuthGuard` | `window.open()` / `<a href>` 경유, Authorization 헤더 추가 불가 |
+| `file/raw` (GET) | - | `same-origin session-backed proxy + JwtAuthGuard + DmsFeatureGuard` | 현재는 server `canReadDocuments` 검사까지 포함 |
+| `file/serve-attachment` (GET) | - | `same-origin session-backed proxy + JwtAuthGuard + DmsFeatureGuard` | 현재는 server `canReadDocuments` 검사까지 포함 |
 
-**남은 미완 항목 (future work)**
-- `GET /dms/file/raw` 와 `GET /dms/file/serve-attachment` 는 브라우저 직접 탐색(img src, window.open, anchor)으로 호출되어 Authorization 헤더를 포함할 수 없으므로 `OptionalJwtAuthGuard`로 유지
-  - 실제 보안 경계는 DMS Next.js 셸의 로그인 요구로 확보
-  - 쿠키 기반 JWT 검증이 추가되거나 `<img>` 요청을 JS fetch로 전환하면 해당 엔드포인트도 `JwtAuthGuard`로 전환 가능
-- `DocumentPage.tsx` 일부 `fetch()` 호출(upload-attachment, upload-reference, serve-attachment)이 `fetchWithSharedAuth` 대신 plain `fetch()`를 사용하고 있어 인증 헤더가 없음 — backend는 OptionalJwt이므로 현재는 작동하지만, 추후 프론트엔드를 `fetchWithSharedAuth`로 정렬하면 인증 컨텍스트가 완전해짐
+**당시 미완 항목 (후속 조치 반영됨)**
+- `GET /dms/file/raw`, `GET /dms/file/serve-attachment` 는 audit 시점에는 direct browser navigation 제약 때문에 예외 surface로 남아 있었지만, 현재는 same-origin session-backed proxy와 server `canReadDocuments` 검사로 정리됨
+- `DocumentPage.tsx` 의 첨부 업로드/참조 복원 plain `fetch()` 도 이후 `fetchWithSharedAuth()` 로 정렬되어 bearer header/cookie 불일치가 해소됨
 
 **추가 작업**
 - 모든 DMS 컨트롤러에 `@ApiBearerAuth()` Swagger 데코레이터를 추가해 OpenAPI 문서가 인증 요구사항을 정확히 반영하도록 함
+
+---
+
+## 2026-04-09
+
+### DMS access baseline feature policy 적용
+
+- `packages/database/prisma/seeds/15_dms_access_policy_foundation.sql` 로 DMS permission vocabulary(`dms.document.read`, `dms.document.write`, `dms.template.manage`, `dms.assistant.use`, `dms.search.use`, `dms.settings.manage`, `dms.storage.manage`, `dms.git.use`) 와 role baseline(`admin`, `manager`, `user`, `viewer`)을 추가
+- `apps/server/src/modules/dms/access/access.service.ts` 가 role/org/user-exception/system override 를 합성해 `DmsAccessSnapshot.features` 를 계산하도록 바꿔, `/api/dms/access/me` 가 더 이상 hard-coded allow-all 응답이 아니게 정리
+- `DmsFeatureGuard` / `RequireDmsFeature(...)` 를 도입해 DMS business controller 가 feature snapshot 기준으로 보호되도록 연결
+  - `files/content/search/ask/create/doc-assist/chat-sessions/git/settings/storage/templates/ingest/file` surface 에 read/write/search/assistant/git/storage/settings/template feature 를 매핑
+  - `file/raw`, `file/serve-attachment` 는 브라우저 직접 탐색 제약 때문에 optional-auth 예외로 유지
+- DMS 웹 셸도 같은 snapshot 을 따라 UI gating 하도록 정리
+  - `Header`, `Sidebar`, `DashboardPage`, `UserMenu`, `SearchPage`, `ChatPage`, `SettingsPage`, `DocumentPage`, `NewDocumentLauncher`
+  - 검색/설정/새 문서/새 템플릿/AI 요약/문서 편집/AI 첨부/inline composer 가 access snapshot 기준으로 비노출 또는 disabled 상태를 가짐
+- Docker runtime 기준으로 `admin`, `pm.kim`, `dev.lee` 로그인 후 `/api/dms/access/me` 를 검증해 role별 feature 차이를 확인했고, `dev.lee` 의 `GET /api/dms/git` 및 DMS proxy `/api/git` 가 `403 Forbidden` 으로 차단되는 것을 확인
 
 ---
 
@@ -49,7 +88,7 @@
 ### Shared session bootstrap + DMS access snapshot 기준선
 
 - 공통 auth backend에 HttpOnly `ssoo-session` cookie와 `/api/auth/session` bootstrap 흐름을 추가하고, DMS는 same-origin `/api/auth/[action]` proxy가 `Set-Cookie` 를 브라우저로 그대로 전달하도록 정리
-- DMS `sharedAuth` retry 경로를 refresh token localStorage 의존에서 session bootstrap 기반으로 전환해 PMS/CHS와 같은 사용자 세션을 복원할 수 있도록 정리
+- DMS `sharedAuth` retry 경로를 refresh token localStorage 의존에서 session bootstrap 기반으로 전환해 PMS/CMS와 같은 사용자 세션을 복원할 수 있도록 정리
 - 서버에 `GET /api/dms/access/me` snapshot endpoint를 추가해 DMS 도메인 권한을 공통 JWT와 분리하는 기준점을 마련
 - same-origin `/api/access` proxy와 DMS access store를 추가해 `(main)` layout이 파일 트리 bootstrap 전에 domain access snapshot을 먼저 hydrate 하도록 정리
 - `FloatingAssistant` / `AssistantSessionSync` 는 `canUseAssistant`, 파일 트리 초기화는 `canReadDocuments` 기준으로만 동작하도록 연결
@@ -58,27 +97,27 @@
 
 ### DMS typography stack alignment
 
-- 실제 로그인 렌더의 typography 비교 결과, `font-size / line-height / weight / letter-spacing` 는 이미 PMS/CHS와 같고 DMS만 `font-family` 스택이 다른 것이 확인됨
-- DMS 전역 `--font-sans` 값을 PMS/CHS와 같은 system font stack으로 정렬해 login 뿐 아니라 DMS 전체 기본 typography 기준을 통일
+- 실제 로그인 렌더의 typography 비교 결과, `font-size / line-height / weight / letter-spacing` 는 이미 PMS/CMS와 같고 DMS만 `font-family` 스택이 다른 것이 확인됨
+- DMS 전역 `--font-sans` 값을 PMS/CMS와 같은 system font stack으로 정렬해 login 뿐 아니라 DMS 전체 기본 typography 기준을 통일
 - 이로써 `docs/dms/explanation/design/design-system.md` 의 “PMS/DMS 통합 표준” 설명과 실제 구현이 일치
 
 ### DMS login render token alignment
 
-- 실제 `/login` 렌더 비교 결과, 레이아웃은 PMS/CHS와 같았지만 DMS만 `primary`/`foreground` 계열 토큰이 섞여 h1은 블루, h2는 블랙, 버튼은 퍼플로 보이는 충돌이 확인됨
+- 실제 `/login` 렌더 비교 결과, 레이아웃은 PMS/CMS와 같았지만 DMS만 `primary`/`foreground` 계열 토큰이 섞여 h1은 블루, h2는 블랙, 버튼은 퍼플로 보이는 충돌이 확인됨
 - DMS auth route layout에 전용 theme wrapper(`.dms-auth-theme`)를 두고, login surface에서 쓰는 `background/foreground/primary/muted/ring` 토큰을 퍼플 계열로 다시 정렬
 - 이 수정은 로그인 화면의 실제 렌더만 바로잡고, DMS 메인 앱 전체 토큰 체계는 건드리지 않도록 범위를 제한함
 
 ### PMS 기준 로그인 UI 정렬
 
-- DMS login 진입점을 `src/app/(auth)/login/page.tsx` 로 옮기고 `(auth)/layout.tsx` 를 추가해 PMS/CHS와 같은 auth shell 패턴으로 정리
+- DMS login 진입점을 `src/app/(auth)/login/page.tsx` 로 옮기고 `(auth)/layout.tsx` 를 추가해 PMS/CMS와 같은 auth shell 패턴으로 정리
 - 공용 `packages/web-auth` 의 PMS 기준 표준 login card를 사용하도록 바꿔 레이아웃, 문구, footer를 PMS와 동일하게 맞춤
 - DMS의 퍼플 계열 테마 색상은 기존 `globals.css` 토큰을 유지
 
 ### Full-stack Docker compose 기준 정렬
 
-- repo root `compose.yaml`을 `postgres + server + pms + chs + dms` 기본 스택으로 확장하는 방향으로 정리
+- repo root `compose.yaml`을 `postgres + server + pms + cms + dms` 기본 스택으로 확장하는 방향으로 정리
 - DMS의 Docker bridge 기본값을 `host.docker.internal`에서 compose 내부 `server` 서비스로 전환
-- PMS/CHS도 standalone + Dockerfile 기준으로 컨테이너화해 로컬 검증을 docker-first 흐름으로 전환
+- PMS/CMS도 standalone + Dockerfile 기준으로 컨테이너화해 로컬 검증을 docker-first 흐름으로 전환
 - `server`와 `dms`가 동일한 `/app/apps/web/dms/data` 볼륨을 공유하도록 정리해 DMS 문서/Git 런타임을 compose 내부에서 함께 사용
 - root `.env`의 host용 `DATABASE_URL` 과 충돌하지 않도록 compose 전용 `DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` override 키를 분리
 
@@ -89,9 +128,9 @@
 - DMS `UserMenu`를 settings 기반 placeholder에서 shared auth 기반 사용자 메뉴로 전환해 헤더와 settings shell 양쪽에서 실제 로그아웃이 동작하도록 정리
 - PMS와 겹치는 메뉴 shell은 `packages/web-auth/src/user-menu.tsx` 로 끌어올리고, DMS-specific 설정 진입 액션만 주입형으로 유지
 
-### PMS/CHS/DMS 공용 auth runtime 정렬
+### PMS/CMS/DMS 공용 auth runtime 정렬
 
-- `packages/types/src/common/auth.ts` 와 `packages/web-auth` 를 추가해 DMS login/auth store/runtime/UI가 PMS/CHS와 같은 공용 surface 위에서 동작하도록 정리
+- `packages/types/src/common/auth.ts` 와 `packages/web-auth` 를 추가해 DMS login/auth store/runtime/UI가 PMS/CMS와 같은 공용 surface 위에서 동작하도록 정리
 - DMS login page는 공용 `AuthLoginCard` / `AuthPageShell` 을 사용하고, DMS-specific bootstrap(`checkAuth` 이후 file tree/workspace 초기화)은 `(main)` layout 책임으로 유지
 - DMS `sharedAuth` 유틸은 storage parsing/header 적용 계약을 `packages/web-auth` 기준으로 재사용하도록 얇게 정리
 
@@ -1109,4 +1148,13 @@ npm uninstall @fluentui/react @fluentui/react-components @fluentui/react-icons
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-17 | 문서 레포 3개 이슈(정본 정책, 원격 push blocker, detach 검증)를 `document-repo-three-issue-status.md`로 정리하고 남은 핵심 이슈를 push 정책/권한 문제로 축소 |
+| 2026-04-17 | 외부 문서 Git working tree 구조에서 파일 CRUD 이후 Git sync/publish 경계를 정리한 `document-repo-git-sync-pattern.md` 를 추가하고, canonical branch `master` 와 원격 초기 push 완료 상태를 source-of-truth policy 에 반영 |
+| 2026-04-17 | 동시 편집 위험, dirty tree 장기화 방지, 사용자별 Git attribution 요구를 반영한 `document-repo-concurrency-autopublish-pattern.md` 를 추가하고, auto publish queue / sync-blocked / per-user commit author 기준선을 정의 |
+| 2026-04-17 | DMS에 collaboration foundation 1차 슬라이스를 구현해 `/dms/collaboration` presence snapshot API, file/content mutation 후 auto publish enqueue, per-user commit footer, `DocumentPage` presence/publish banner를 추가하고 다음 구현 단계를 `presence-first-save-system-implementation-plan.md` 로 정리 |
+| 2026-04-17 | collaboration 2차 슬라이스로 publish 상태/soft lock 영속화(`.dms-collaboration-state.json`), `/dms/collaboration/takeover`, `DocumentPage` soft lock owner 표시 및 takeover action 을 추가 |
+| 2026-04-17 | collaboration 3차 슬라이스로 change-set(`operationType`, `affectedPaths`)와 git sync detail을 publish 상태에 포함하고, `/dms/collaboration/refresh`, `/dms/collaboration/retry-publish`, `DocumentPage` refresh/retry UX를 추가 |
+| 2026-04-17 | collaboration marker를 본문 상단 배너에서 `DocumentSidecar` 패널로 이동하고, asset 업로드(attachment/image/reference)도 문서 기준 change-set publish enqueue에 포함되도록 정리 |
+| 2026-04-17 | 오늘 세션의 DMS 저장/협업 체계 작업 전체를 `2026-04-17-save-collaboration-wrapup.md` 로 마감 정리 |
+| 2026-04-17 | `DocumentPage` 의 empty-interface lint error 를 제거해 `build:web-dms` 를 복구하고, `verify:access-dms` probe fixture 에 runtime persona explicit read grant 를 부여하며 cleanup 순서를 asset-first 로 조정해 fixture-driven DMS verification 이 다시 green 이 되도록 보정 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

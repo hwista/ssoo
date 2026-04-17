@@ -1,6 +1,6 @@
 # SSOO 모노레포 에이전트 가이드 (AGENTS)
 
-> 최종 업데이트: 2026-02-04  
+> 최종 업데이트: 2026-04-13  
 > 범위: SSOO 모노레포 전체 (`sooo/`)
 
 ---
@@ -29,10 +29,13 @@ sooo/
 │   ├── server/              # NestJS 백엔드 API 서버
 │   └── web/
 │       ├── pms/             # PMS 프론트엔드 (Next.js 15)
-│       └── dms/             # DMS 프론트엔드 (독립 프로젝트)
+│       ├── cms/             # CMS 프론트엔드 (Next.js 15)
+│       └── dms/             # DMS 프론트엔드 (pnpm workspace 앱)
 ├── packages/
 │   ├── database/            # Prisma ORM, DB 스키마
-│   └── types/               # 공유 TypeScript 타입
+│   ├── types/               # 공유 TypeScript 타입
+│   ├── web-auth/            # 공용 브라우저 auth/session/bootstrap
+│   └── web-shell/           # 공용 웹 shell/layout surface
 ├── docs/                    # 문서
 └── .github/                 # Copilot 규칙
     ├── copilot-instructions.md
@@ -53,6 +56,7 @@ sooo/
 | [copilot-instructions.md](../../.github/copilot-instructions.md) | 전역 | 핵심 원칙, 패키지 경계, 네이밍 |
 | [server.instructions.md](../../.github/instructions/server.instructions.md) | `apps/server/**` | NestJS 패턴, 보안, API |
 | [pms.instructions.md](../../.github/instructions/pms.instructions.md) | `apps/web/pms/**` | 컴포넌트, 스토어, 색상 |
+| [cms.instructions.md](../../.github/instructions/cms.instructions.md) | `apps/web/cms/**` | 인증, feed/board visibility, 공용 auth shell |
 | [dms.instructions.md](../../.github/instructions/dms.instructions.md) | `apps/web/dms/**` | Tiptap, 파일시스템 |
 | [database.instructions.md](../../.github/instructions/database.instructions.md) | `packages/database/**` | Prisma, 히스토리, 트리거 |
 | [types.instructions.md](../../.github/instructions/types.instructions.md) | `packages/types/**` | 타입 정의 규칙 |
@@ -87,7 +91,7 @@ sooo/
 |--------|------|------|
 | **PMS** | `docs/pms/` | PMS 설계, 디자인, 도메인 |
 | **DMS** | `docs/dms/` | DMS 정본 |
-| **DMS Wiki 자산** | `apps/web/dms/data/wiki/` | 런타임 파일 시스템/Git 데이터 |
+| **DMS 런타임 자산** | `apps/web/dms/data/documents/` | 런타임 파일 시스템/Git 데이터 |
 
 ---
 
@@ -103,12 +107,12 @@ pnpm build
 # 개별 서비스 실행
 cd apps/server && pnpm dev        # 백엔드 :4000
 cd apps/web/pms && pnpm dev       # PMS :3000
-cd apps/web/dms && npm run dev    # DMS :3001 (npm!)
+pnpm dev:web-dms                  # DMS :3001
 ```
 
 ### 2. DMS 작업 시 주의
 
-> ⚠️ **DMS는 npm 사용, @ssoo/* 참조 금지**  
+> ⚠️ **PMS/CMS/DMS는 공통 `@ssoo/web-auth` surface 를 사용하고, DMS는 추가로 pnpm workspace 앱 기준을 따릅니다. DMS에서 `@ssoo/database` 직접 import는 금지입니다.**  
 > DMS 작업 시: [docs/dms/AGENTS.md](../../docs/dms/AGENTS.md)
 
 ---
@@ -117,6 +121,7 @@ cd apps/web/dms && npm run dev    # DMS :3001 (npm!)
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-13 | DMS를 pnpm workspace 앱 기준으로 현행화하고 quick start / 주의사항을 공통 auth-access 구조에 맞게 갱신 |
 | 2026-02-22 | Codex 정본 진입점(`AGENTS.md`) 및 `.codex/instructions` 참조 경로 추가 |
 | 2026-02-04 | **리팩토링**: 중복 내용 삭제, Copilot 규칙 링크로 대체, 온보딩 가이드로 단순화 |
 | 2026-02-03 | typecheck 명령어 삭제 (스크립트 미존재) |

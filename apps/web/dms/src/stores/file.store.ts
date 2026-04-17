@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { FileNode, BookmarkItem } from '@/types';
-import { filesApi } from '@/lib/api';
+import { filesApi } from '@/lib/api/endpoints/files';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 
 // 파일 트리를 플랫 맵으로 변환 (PMS buildMenuMap 대응)

@@ -3,6 +3,7 @@
 export interface Milestone {
   id: string;
   projectId: string;
+  objectiveId: string | null;
   milestoneCode: string;
   milestoneName: string;
   description: string | null;
@@ -17,6 +18,7 @@ export interface Milestone {
 }
 
 export interface CreateMilestoneDto {
+  objectiveId?: string | null;
   milestoneCode: string;
   milestoneName: string;
   description?: string;
@@ -26,6 +28,7 @@ export interface CreateMilestoneDto {
 }
 
 export interface UpdateMilestoneDto {
+  objectiveId?: string | null;
   milestoneName?: string;
   description?: string;
   statusCode?: string;

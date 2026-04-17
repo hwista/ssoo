@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
+import { AccessFoundationService } from '../../common/access/access-foundation.service.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import {
+  normalizeMenuAccessType,
+  type MenuAccessType,
+  resolvePmsMenuAccess,
+} from './menu-access-baseline.js';
 
 interface MenuTreeItem {
   menuId: string;
@@ -21,216 +28,214 @@ interface MenuTreeItem {
 
 interface UserMenuResponse {
   generalMenus: MenuTreeItem[];  // is_admin_menu = false
-  adminMenus: MenuTreeItem[];    // is_admin_menu = true (isAdmin 사용자만)
+  adminMenus: MenuTreeItem[];    // is_admin_menu = true (system.override 보유 사용자만)
+}
+
+interface FlatMenuRecord {
+  menu_id: bigint;
+  menu_code: string;
+  menu_name: string;
+  menu_name_en: string | null;
+  menu_type: string;
+  menu_path: string | null;
+  icon: string | null;
+  sort_order: number;
+  menu_level: number;
+  parent_menu_id: bigint | null;
+  is_visible: boolean;
+  is_admin_menu: boolean;
+  description: string | null;
+  access_type: MenuAccessType;
 }
 
 @Injectable()
 export class MenuService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly accessFoundationService: AccessFoundationService,
+  ) {}
 
   /**
    * 사용자별 메뉴 트리 조회 (역할 기반 + 관리자 메뉴 분리)
    * - 역할(role_code)에 따른 메뉴 권한 조회
-   * - isAdmin 사용자는 관리자 메뉴도 포함
+   * - system.override permission 이 있으면 관리자 메뉴도 포함
    * - 일반 메뉴와 관리자 메뉴를 분리하여 반환
    */
   async getMenuTreeByUserId(userId: bigint): Promise<UserMenuResponse> {
-    // 1. 사용자 정보 조회 (roleCode, isAdmin)
+    const now = new Date();
     const user = await this.db.user.findUnique({
       where: { id: userId },
-      select: { roleCode: true, isAdmin: true },
+      select: {
+        roleCode: true,
+        authAccount: {
+          select: {
+            loginId: true,
+          },
+        },
+      },
     });
 
     if (!user) {
       return { generalMenus: [], adminMenus: [] };
     }
 
-    // 2. 역할 기반 메뉴 권한 조회 (일반 메뉴만)
-    const roleMenus = await this.db.$queryRaw<
-      Array<{
-        menu_id: bigint;
-        menu_code: string;
-        menu_name: string;
-        menu_name_en: string | null;
-        menu_type: string;
-        menu_path: string | null;
-        icon: string | null;
-        sort_order: number;
-        menu_level: number;
-        parent_menu_id: bigint | null;
-        is_visible: boolean;
-        is_admin_menu: boolean;
-        description: string | null;
-        access_type: string;
-      }>
-    >`
-      SELECT 
-        m.menu_id,
-        m.menu_code,
-        m.menu_name,
-        m.menu_name_en,
-        m.menu_type,
-        m.menu_path,
-        m.icon,
-        m.sort_order,
-        m.menu_level,
-        m.parent_menu_id,
-        m.is_visible,
-        m.is_admin_menu,
-        m.description,
-        rm.access_type
-      FROM pms.cm_menu_m m
-      INNER JOIN pms.cm_role_menu_r rm ON m.menu_id = rm.menu_id
-      WHERE rm.role_code = ${user.roleCode}
-        AND rm.is_active = true
-        AND m.is_active = true
-        AND m.is_admin_menu = false
-      ORDER BY m.menu_level, m.sort_order
-    `;
+    const [menus, roleMenuOverrides, userMenuOverrides, actionContext] = await Promise.all([
+      this.db.menu.findMany({
+        where: { isActive: true },
+        orderBy: [{ menuLevel: 'asc' }, { sortOrder: 'asc' }],
+      }),
+      user.roleCode
+        ? this.db.client.roleMenu.findMany({
+          where: {
+            roleCode: user.roleCode,
+            isActive: true,
+            menu: {
+              isActive: true,
+              isAdminMenu: false,
+            },
+          },
+          select: {
+            menuId: true,
+            accessType: true,
+          },
+        })
+        : Promise.resolve([]),
+      this.db.client.userMenu.findMany({
+        where: {
+          userId,
+          isActive: true,
+          menu: {
+            isActive: true,
+            isAdminMenu: false,
+          },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: {
+          menuId: true,
+          accessType: true,
+          overrideType: true,
+        },
+      }),
+      this.accessFoundationService.resolveActionPermissionContext({
+        userId: userId.toString(),
+        loginId: user.authAccount?.loginId ?? userId.toString(),
+      } satisfies TokenPayload),
+    ]);
 
-    // 3. 사용자 개별 권한 메뉴 추가 (grant된 것만)
-    const userGrantMenus = await this.db.$queryRaw<
-      Array<{
-        menu_id: bigint;
-        menu_code: string;
-        menu_name: string;
-        menu_name_en: string | null;
-        menu_type: string;
-        menu_path: string | null;
-        icon: string | null;
-        sort_order: number;
-        menu_level: number;
-        parent_menu_id: bigint | null;
-        is_visible: boolean;
-        is_admin_menu: boolean;
-        description: string | null;
-        access_type: string;
-      }>
-    >`
-      SELECT 
-        m.menu_id,
-        m.menu_code,
-        m.menu_name,
-        m.menu_name_en,
-        m.menu_type,
-        m.menu_path,
-        m.icon,
-        m.sort_order,
-        m.menu_level,
-        m.parent_menu_id,
-        m.is_visible,
-        m.is_admin_menu,
-        m.description,
-        um.access_type
-      FROM pms.cm_menu_m m
-      INNER JOIN pms.cm_user_menu_r um ON m.menu_id = um.menu_id
-      WHERE um.user_id = ${userId}
-        AND um.is_active = true
-        AND um.override_type = 'grant'
-        AND m.is_active = true
-        AND m.is_admin_menu = false
-      ORDER BY m.menu_level, m.sort_order
-    `;
+    const roleMenuOverrideMap = new Map(
+      roleMenuOverrides.map((override) => [override.menuId.toString(), override.accessType]),
+    );
+    const userMenuOverrideMap = new Map(
+      userMenuOverrides.map((override) => [override.menuId.toString(), override]),
+    );
 
-    // 4. 역할 메뉴 + 사용자 개별 메뉴 병합 (중복 제거)
-    const menuMap = new Map<string, typeof roleMenus[0]>();
-    for (const menu of roleMenus) {
-      menuMap.set(menu.menu_id.toString(), menu);
-    }
-    for (const menu of userGrantMenus) {
-      if (!menuMap.has(menu.menu_id.toString())) {
-        menuMap.set(menu.menu_id.toString(), menu);
-      }
-    }
+    const generalMenus = this.buildAccessibleMenuTree(
+      menus
+        .filter((menu) => !menu.isAdminMenu)
+        .map((menu) => {
+          const resolvedAccess = resolvePmsMenuAccess({
+            roleCode: user.roleCode,
+            menuCode: menu.menuCode,
+            isAdminMenu: false,
+            hasSystemOverride: actionContext.policy.hasSystemOverride,
+            roleOverrideAccessType: roleMenuOverrideMap.get(menu.id.toString()),
+          });
 
-    const generalMenus = this.buildMenuTree(Array.from(menuMap.values()));
+          const userOverride = userMenuOverrideMap.get(menu.id.toString());
+          const accessType = userOverride
+            ? userOverride.overrideType === 'revoke'
+              ? 'none'
+              : normalizeMenuAccessType(userOverride.accessType)
+            : resolvedAccess.accessType;
 
-    // 5. 관리자 메뉴 조회 (isAdmin 사용자만)
+          return this.toFlatMenuRecord(menu, accessType);
+        }),
+    );
+
     let adminMenus: MenuTreeItem[] = [];
-    if (user.isAdmin) {
-      const adminMenuData = await this.db.$queryRaw<
-        Array<{
-          menu_id: bigint;
-          menu_code: string;
-          menu_name: string;
-          menu_name_en: string | null;
-          menu_type: string;
-          menu_path: string | null;
-          icon: string | null;
-          sort_order: number;
-          menu_level: number;
-          parent_menu_id: bigint | null;
-          is_visible: boolean;
-          is_admin_menu: boolean;
-          description: string | null;
-        }>
-      >`
-        SELECT 
-          m.menu_id,
-          m.menu_code,
-          m.menu_name,
-          m.menu_name_en,
-          m.menu_type,
-          m.menu_path,
-          m.icon,
-          m.sort_order,
-          m.menu_level,
-          m.parent_menu_id,
-          m.is_visible,
-          m.is_admin_menu,
-          m.description
-        FROM pms.cm_menu_m m
-        WHERE m.is_active = true
-          AND m.is_admin_menu = true
-        ORDER BY m.menu_level, m.sort_order
-      `;
-
-      // 관리자 메뉴는 full 권한
+    if (actionContext.policy.hasSystemOverride) {
       adminMenus = this.buildMenuTree(
-        adminMenuData.map(
-          (m: {
-            menu_id: bigint;
-            menu_code: string;
-            menu_name: string;
-            menu_name_en: string | null;
-            menu_type: string;
-            menu_path: string | null;
-            icon: string | null;
-            sort_order: number;
-            menu_level: number;
-            parent_menu_id: bigint | null;
-            is_visible: boolean;
-            is_admin_menu: boolean;
-            description: string | null;
-          }) => ({ ...m, access_type: 'full' })
-        )
+        menus
+          .filter((menu) => menu.isAdminMenu)
+          .map((menu) => this.toFlatMenuRecord(menu, 'full')),
       );
     }
 
     return { generalMenus, adminMenus };
   }
 
+  private toFlatMenuRecord(
+    menu: {
+      id: bigint;
+      menuCode: string;
+      menuName: string;
+      menuNameEn: string | null;
+      menuType: string;
+      menuPath: string | null;
+      icon: string | null;
+      sortOrder: number;
+      menuLevel: number;
+      parentMenuId: bigint | null;
+      isVisible: boolean;
+      isAdminMenu: boolean;
+      description: string | null;
+    },
+    accessType: MenuAccessType,
+  ): FlatMenuRecord {
+    return {
+      menu_id: menu.id,
+      menu_code: menu.menuCode,
+      menu_name: menu.menuName,
+      menu_name_en: menu.menuNameEn,
+      menu_type: menu.menuType,
+      menu_path: menu.menuPath,
+      icon: menu.icon,
+      sort_order: menu.sortOrder,
+      menu_level: menu.menuLevel,
+      parent_menu_id: menu.parentMenuId,
+      is_visible: menu.isVisible,
+      is_admin_menu: menu.isAdminMenu,
+      description: menu.description,
+      access_type: accessType,
+    };
+  }
+
+  private buildAccessibleMenuTree(menus: FlatMenuRecord[]): MenuTreeItem[] {
+    const menuMap = new Map(menus.map((menu) => [menu.menu_id.toString(), menu]));
+    const includedMenuIds = new Set<string>();
+
+    const includeWithAncestors = (menuId: string) => {
+      if (includedMenuIds.has(menuId)) {
+        return;
+      }
+
+      const menu = menuMap.get(menuId);
+      if (!menu) {
+        return;
+      }
+
+      includedMenuIds.add(menuId);
+
+      if (menu.parent_menu_id) {
+        includeWithAncestors(menu.parent_menu_id.toString());
+      }
+    };
+
+    for (const menu of menus) {
+      if (menu.access_type !== 'none') {
+        includeWithAncestors(menu.menu_id.toString());
+      }
+    }
+
+    return this.buildMenuTree(
+      menus.filter((menu) => includedMenuIds.has(menu.menu_id.toString())),
+    );
+  }
+
   /**
    * 플랫 메뉴 리스트를 트리 구조로 변환
    */
-  private buildMenuTree(
-    menus: Array<{
-      menu_id: bigint;
-      menu_code: string;
-      menu_name: string;
-      menu_name_en: string | null;
-      menu_type: string;
-      menu_path: string | null;
-      icon: string | null;
-      sort_order: number;
-      menu_level: number;
-      parent_menu_id: bigint | null;
-      is_visible: boolean;
-      is_admin_menu: boolean;
-      description: string | null;
-      access_type: string;
-    }>
-  ): MenuTreeItem[] {
+  private buildMenuTree(menus: FlatMenuRecord[]): MenuTreeItem[] {
     const menuMap = new Map<string, MenuTreeItem>();
     const rootMenus: MenuTreeItem[] = [];
 

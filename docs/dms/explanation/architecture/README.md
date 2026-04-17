@@ -1,6 +1,6 @@
 # DMS 아키텍처 문서
 
-> 최종 업데이트: 2026-03-12
+> 최종 업데이트: 2026-04-07
 
 DMS(Document Management System) 아키텍처 및 개발 기준 문서입니다.
 
@@ -12,6 +12,7 @@ DMS(Document Management System) 아키텍처 및 개발 기준 문서입니다.
 |------|------|
 | [tech-stack.md](tech-stack.md) | 기술 스택 - 프론트엔드 기술 및 버전 |
 | [package-spec.md](package-spec.md) | 패키지 명세서 - 의존성 상세 |
+| [hybrid-document-control-plane.md](hybrid-document-control-plane.md) | file/Git, DB, sidecar, `revisionSeq`, reconciliation 경계 |
 
 ## 개발 표준
 
@@ -41,12 +42,12 @@ DMS(Document Management System) 아키텍처 및 개발 기준 문서입니다.
 
 ## PMS 대비 차이점
 
-DMS는 독립 npm 프로젝트로, PMS와 다음 차이점이 있습니다:
+DMS는 이제 pnpm workspace 앱으로 통합되었고, PMS와는 다음 아키텍처 차이점이 남아 있습니다:
 
 | 항목 | PMS | DMS |
 |------|-----|-----|
-| 패키지 관리 | pnpm workspace | npm 독립 |
-| 인증 | JWT 기반 | 없음 (로컬 전용) |
+| 인증 | JWT 기반 | JWT + shared auth storage(`ssoo-auth`) 기반, DMS shell은 로그인 필수 |
+| API 토폴로지 | NestJS 백엔드 호출 | Next same-origin proxy + `apps/server` DMS 모듈 |
 | 에디터 | 없음 | CodeMirror 기반 block editor |
 | 스토리지 | 서버 DB | 로컬 파일시스템 |
 | 메뉴 구조 | Tree + 권한 | 파일 트리 직접 반영 |

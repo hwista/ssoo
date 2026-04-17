@@ -168,7 +168,7 @@ const checkCompactMode = () => {
 - 대신 `components/layout/sidebar/FlatList.tsx`의 `FlatList`, `FlatListItem` primitive를 기준으로 outer/inner settings menu와 `OpenTabs`/`Bookmarks` row가 가능한 한 같은 row primitive를 공유하되, settings rail은 direct button path를 통해 실제 비교 기준과 더 가까운 DOM/class 경로를 사용합니다.
 - `SettingsPage` 내부에서는 좌측 navigation과 우측 detail surface를 하나의 공용 카드로 묶지 않고 분리해, 좌측 영역이 page 안의 또 다른 sidebar처럼 읽히도록 유지합니다.
 - 검색 결과를 선택하면 해당 scope와 section을 즉시 열고, 실제 `Git`, `Storage`, `Ingest`, `Identity` 같은 세부 menu는 `SettingsPage` 내부 좌측 navigation에서 렌더링합니다.
-- anonymous-first 단계에서는 두 그룹 모두 노출되며, 이후 권한 도입 시 `canManageSystem`, `canManagePersonal` 로 노출/사용을 분리합니다.
+- 현재는 로그인 필수 기준에서도 두 그룹을 모두 노출하며, 이후 권한 도입 시 `canManageSystem`, `canManagePersonal` 로 노출/사용을 분리합니다.
 
 ### SettingsPage 내부 2열 구조
 

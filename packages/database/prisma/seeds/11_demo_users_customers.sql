@@ -44,56 +44,64 @@ select setval(
 );
 
 -- ─────────────────────────────────────────────────────────
--- 사용자 5명 (user_id 2~6)
+-- 사용자 7명 (user_id 2~8)
 -- 비밀번호 모두: user123!
 -- ─────────────────────────────────────────────────────────
 insert into common.cm_user_m (
-  user_id, is_system_user, is_admin, user_type_code,
-  login_id, password_hash,
+  user_id,
   user_name, display_name, email,
   department_code, position_code, employee_number,
-  role_code, user_status_code, is_active,
+  role_code, is_active,
   memo, last_source, last_activity, updated_at
 )
 values
   -- PM: 프로젝트 매니저
-  (2, true, false, 'internal',
-   'pm.kim', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56',
+  (2,
    '김프로', 'PM Kim', 'pm.kim@company.com',
    'PM', 'MANAGER', 'EMP002',
-   'manager', 'active', true,
+   'manager', true,
    '프로젝트 매니저', 'SEED', 'demo_seed', now()),
 
   -- 개발자
-  (3, true, false, 'internal',
-   'dev.lee', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56',
+  (3,
    '이개발', 'Dev Lee', 'dev.lee@company.com',
    'DEV', 'SENIOR', 'EMP003',
-   'user', 'active', true,
+   'user', true,
    '시니어 개발자', 'SEED', 'demo_seed', now()),
 
   -- AM: 영업담당
-  (4, true, false, 'internal',
-   'am.park', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56',
+  (4,
    '박영업', 'AM Park', 'am.park@company.com',
    'SALES', 'MANAGER', 'EMP004',
-   'user', 'active', true,
+   'user', true,
    '영업 관리자', 'SEED', 'demo_seed', now()),
 
   -- SM: 서비스매니저
-  (5, true, false, 'internal',
-   'sm.choi', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56',
+  (5,
    '최서비', 'SM Choi', 'sm.choi@company.com',
    'SM', 'SENIOR', 'EMP005',
-   'user', 'active', true,
+   'user', true,
    '서비스 매니저', 'SEED', 'demo_seed', now()),
 
+  -- 개발자 (동일 조직 visibility 검증용)
+  (7,
+   '박개발', 'Dev Park', 'dev.park@company.com',
+   'DEV', 'MID', 'EMP007',
+   'user', true,
+   '조직 공개 게시물 검증용 개발자', 'SEED', 'demo_seed', now()),
+
+  -- 조회 전용 사용자 (권한 snapshot / same-org read-only 검증용)
+  (8,
+   '한조회', 'Viewer Han', 'viewer.han@company.com',
+   'DEV', 'JUNIOR', 'EMP008',
+   'viewer', true,
+   '조회 전용 계정', 'SEED', 'demo_seed', now()),
+
   -- 컨설턴트
-  (6, true, false, 'internal',
-   'con.jung', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56',
+  (6,
    '정컨설', 'Con Jung', 'con.jung@company.com',
    'AM', 'SENIOR', 'EMP006',
-   'user', 'active', true,
+   'user', true,
    '비즈니스 컨설턴트', 'SEED', 'demo_seed', now())
 on conflict (user_id) do nothing;
 
@@ -101,8 +109,29 @@ select setval(
   pg_get_serial_sequence('common.cm_user_m', 'user_id'),
   greatest(
     (select coalesce(max(user_id),0) from common.cm_user_m),
-    6
+    8
   )
 );
+
+insert into common.cm_user_auth_m (
+  user_id, login_id, password_hash, account_status_code,
+  created_at, updated_at, last_source, last_activity
+)
+values
+  (2, 'pm.kim', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56', 'active', now(), now(), 'SEED', 'demo_seed'),
+  (3, 'dev.lee', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56', 'active', now(), now(), 'SEED', 'demo_seed'),
+  (4, 'am.park', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56', 'active', now(), now(), 'SEED', 'demo_seed'),
+  (5, 'sm.choi', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56', 'active', now(), now(), 'SEED', 'demo_seed'),
+  (7, 'dev.park', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56', 'active', now(), now(), 'SEED', 'demo_seed'),
+  (8, 'viewer.han', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56', 'active', now(), now(), 'SEED', 'demo_seed'),
+  (6, 'con.jung', '$2b$12$skh0QQm3kLdI/TRo70l5PelEFJYej6yelhhCICEau3J0V/DcLYI56', 'active', now(), now(), 'SEED', 'demo_seed')
+on conflict (user_id) do update
+set
+  login_id = excluded.login_id,
+  password_hash = excluded.password_hash,
+  account_status_code = excluded.account_status_code,
+  updated_at = excluded.updated_at,
+  last_source = excluded.last_source,
+  last_activity = excluded.last_activity;
 
 commit;

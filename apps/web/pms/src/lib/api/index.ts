@@ -20,6 +20,7 @@ export { authApi } from './auth';
 
 // Endpoints
 export {
+  accessOpsApi,
   codesApi,
   customersApi,
   menusApi,
@@ -28,6 +29,7 @@ export {
   usersApi,
 } from './endpoints';
 export type {
+  InspectAccessParams,
   CodeGroup,
   CodeItem,
   CreateCodeRequest,
@@ -47,6 +49,9 @@ export type {
   UpdateProjectRequest,
   ProjectStatusCode,
   ProjectStageCode,
+  ProjectPhase,
+  ProjectLifecycleStatus,
+  ProjectLifecycle,
   ProjectDoneResultCode,
   RoleItem,
   RoleMenuPermission,
@@ -60,9 +65,18 @@ export type {
 
 // 편의를 위한 통합 객체
 import { authApi } from './auth';
-import { codesApi, customersApi, menusApi, projectsApi, rolesApi, usersApi } from './endpoints';
+import {
+  accessOpsApi,
+  codesApi,
+  customersApi,
+  menusApi,
+  projectsApi,
+  rolesApi,
+  usersApi,
+} from './endpoints';
 
 export const api = {
+  accessOps: accessOpsApi,
   auth: authApi,
   codes: codesApi,
   customers: customersApi,

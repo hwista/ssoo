@@ -16,13 +16,14 @@ begin;
 
 -- ============================================
 -- admin 사용자 - 모든 메뉴 full 접근
--- (user_id를 login_id로 조회하여 동적으로 처리)
+-- (user_id를 auth account login_id로 조회하여 동적으로 처리)
 -- ============================================
 INSERT INTO pms.cm_user_menu_r (user_id, menu_id, access_type, override_type, updated_at)
 SELECT u.user_id, m.menu_id, 'full', 'grant', CURRENT_TIMESTAMP 
 FROM pms.cm_menu_m m
-CROSS JOIN common.cm_user_m u
-WHERE m.is_active = true AND u.login_id = 'admin'
+JOIN common.cm_user_auth_m a ON a.login_id = 'admin'
+JOIN common.cm_user_m u ON u.user_id = a.user_id
+WHERE m.is_active = true
 ON CONFLICT (user_id, menu_id) DO NOTHING;
 
 -- ============================================

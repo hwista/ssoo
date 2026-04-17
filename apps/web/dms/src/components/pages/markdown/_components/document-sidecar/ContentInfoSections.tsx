@@ -5,7 +5,7 @@ import { Check, CornerDownRight, FileText, Globe, ImageIcon, Link2, Plus, Sparkl
 import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { ActivityListSection, ChipListSection, TextSection } from '@/components/templates/page-frame/sidecar';
 import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
-import { docAssistApi } from '@/lib/api';
+import { docAssistApi } from '@/lib/api/endpoints/ai';
 import { isExternalUrl } from '@/lib/utils/linkUtils';
 import type { BodyLink } from '@/types';
 

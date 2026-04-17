@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from '@/lib/toast';
-import { useTabStore, useAssistantContextStore, useAssistantPanelStore, useConfirmStore, useAiSearchStore } from '@/stores';
+import { ErrorState } from '@/components/common/StateDisplay';
+import {
+  useTabStore,
+  useAssistantContextStore,
+  useAssistantPanelStore,
+  useConfirmStore,
+  useAiSearchStore,
+  useAccessStore,
+} from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import { PageTemplate } from '@/components/templates';
 import {
@@ -11,9 +19,10 @@ import {
   SectionedShell,
 } from '@/components/templates/page-frame';
 import { Toolbar, DOCUMENT_WIDTH } from '@/components/common/viewer';
-import { useOpenDocumentTab } from '@/hooks';
-import { aiApi, getErrorMessage } from '@/lib/api';
+import { useAiSearchQuery, useOpenDocumentTab } from '@/hooks';
+import { getErrorMessage } from '@/lib/api/core';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
+import { useDocumentAccessRequestStore } from '@/stores/document-access-request.store';
 import { getQueryFromTabPath } from './utils/queryPath';
 import { AiSidecar } from './_components/AiSidecar';
 import { SearchResultsPanel } from './_components/SearchResultsPanel';
@@ -32,22 +41,31 @@ export function AiSearchPage() {
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
   const initialQuery = useMemo(() => getQueryFromTabPath(activeTab?.path), [activeTab?.path]);
   const [filterQuery, setFilterQuery] = useState('');
-  const [sourceQuery, setSourceQuery] = useState(initialQuery);
+  const [sourceQuery, setSourceQuery] = useState('');
   const [allResults, setAllResults] = useState<SearchResultItem[]>([]);
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [matchedResultIndices, setMatchedResultIndices] = useState<number[]>([]);
   const [attachFilteredOnly, setAttachFilteredOnly] = useState(true);
-  const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
-  const [isSearching, setIsSearching] = useState(false);
-  const [hasCompletedSearch, setHasCompletedSearch] = useState(!initialQuery);
+  const [hasSearched, setHasSearched] = useState(false);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
   const autoQueryRef = useRef('');
+  const lastProcessedSearchKeyRef = useRef('');
   const confirm = useConfirmStore((state) => state.confirm);
   const setReferences = useAssistantContextStore((state) => state.setReferences);
   const openPanel = useAssistantPanelStore((state) => state.openPanel);
+  const accessSnapshot = useAccessStore((state) => state.snapshot);
+  const canUseSearch = accessSnapshot?.features.canUseSearch ?? false;
+  const canUseAssistant = accessSnapshot?.features.canUseAssistant ?? false;
   const searchHistory = useAiSearchStore((state) => state.history);
   const recordSearch = useAiSearchStore((state) => state.recordSearch);
   const openDocumentTab = useOpenDocumentTab();
+  const openAccessRequestDialog = useDocumentAccessRequestStore((state) => state.open);
+  const searchQuery = useAiSearchQuery(sourceQuery, {
+    contextMode: 'deep',
+    enabled: hasSearched && sourceQuery.trim().length > 0,
+  });
+  const isSearching = searchQuery.isFetching;
+  const hasCompletedSearch = !isSearching;
 
   const scrollToResult = useCallback((index: number) => {
     const element = document.getElementById(`search-result-${index}`);
@@ -55,48 +73,72 @@ export function AiSearchPage() {
     element.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  const performSearch = useCallback(async (inputQuery: string) => {
+  const performSearch = useCallback((inputQuery: string) => {
     const trimmed = inputQuery.trim();
     setHasSearched(true);
     setSourceQuery(trimmed);
-    setHasCompletedSearch(false);
+
     if (!trimmed) {
       setAllResults([]);
       setResults([]);
       setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
-      setHasCompletedSearch(true);
+      lastProcessedSearchKeyRef.current = '';
       return;
     }
-    setIsSearching(true);
-    try {
-      const response = await aiApi.search(trimmed, { contextMode: 'deep' });
-      if (response.success && response.data) {
-        const nextResults = response.data.results ?? [];
-        setAllResults(nextResults);
-        setResults(nextResults);
-        setMatchedResultIndices([]);
-        recordSearch(trimmed, nextResults.length);
+
+    if (trimmed === sourceQuery) {
+      lastProcessedSearchKeyRef.current = '';
+      void searchQuery.refetch();
+    }
+  }, [searchQuery, sourceQuery]);
+
+  useEffect(() => {
+    if (!hasSearched || !sourceQuery.trim() || !searchQuery.isFetched || isSearching) {
+      return;
+    }
+
+    const searchKey = `${sourceQuery}:${searchQuery.dataUpdatedAt}`;
+    if (lastProcessedSearchKeyRef.current === searchKey) {
+      return;
+    }
+
+    if (searchQuery.data?.success && searchQuery.data.data) {
+      const nextResults = searchQuery.data.data.results ?? [];
+      setAllResults(nextResults);
+      setResults(nextResults);
+      setMatchedResultIndices([]);
+      setCurrentResultIndex(-1);
+      recordSearch(sourceQuery, nextResults.length);
       } else {
         const fallbackResults = [
           {
             id: 'search-error',
             title: '검색 실패',
-            excerpt: getErrorMessage(response),
+            excerpt: getErrorMessage(searchQuery.data ?? { success: false, error: '검색 실패' }),
             path: '-',
+            score: 0,
+            isReadable: false,
+            canRequestRead: false,
           },
         ];
         setAllResults(fallbackResults);
-        setResults(fallbackResults);
-        setMatchedResultIndices([]);
-        recordSearch(trimmed, 0);
-      }
+      setResults(fallbackResults);
+      setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
-    } finally {
-      setIsSearching(false);
-      setHasCompletedSearch(true);
+      recordSearch(sourceQuery, 0);
     }
-  }, [recordSearch]);
+
+    lastProcessedSearchKeyRef.current = searchKey;
+  }, [
+    hasSearched,
+    isSearching,
+    recordSearch,
+    searchQuery.data,
+    searchQuery.dataUpdatedAt,
+    searchQuery.isFetched,
+    sourceQuery,
+  ]);
 
   const sortResultsByQuery = useCallback((inputQuery: string) => {
     const rankedResults = rankSearchResults(allResults, inputQuery);
@@ -124,6 +166,7 @@ export function AiSearchPage() {
     if (initialQuery && autoQueryRef.current !== initialQuery) {
       autoQueryRef.current = initialQuery;
       setFilterQuery('');
+      lastProcessedSearchKeyRef.current = '';
       performSearch(initialQuery);
     }
   }, [initialQuery, performSearch]);
@@ -169,11 +212,17 @@ export function AiSearchPage() {
   }, [allResults]);
 
   const handleAttachSearchResultsToAssistant = useCallback(async () => {
+    if (!canUseAssistant) {
+      toast.error('AI 어시스턴트를 사용할 권한이 없습니다.');
+      return;
+    }
+
     const attachTargets = attachFilteredOnly && filterQuery.trim().length > 0
       ? matchedResultIndices.map((index) => results[index]).filter(Boolean)
       : results;
 
     const candidates = attachTargets
+      .filter((item) => item.isReadable)
       .filter((item) => item.path.trim().length > 0 && item.path !== '-')
       .map((item) => ({
         path: item.path.replace(/^\/+/, ''),
@@ -199,16 +248,39 @@ export function AiSearchPage() {
     openPanel();
     window.dispatchEvent(new Event(ASSISTANT_FOCUS_INPUT_EVENT));
     toast.success(`${candidates.length}개 문서를 첨부했습니다.`);
-  }, [attachFilteredOnly, confirm, filterQuery, matchedResultIndices, openPanel, results, setReferences]);
+  }, [attachFilteredOnly, canUseAssistant, confirm, filterQuery, matchedResultIndices, openPanel, results, setReferences]);
 
   const handleOpenSearchResult = useCallback(async (item: SearchResultItem) => {
     if (!item.path || item.path === '-') return;
+    if (!item.isReadable) {
+      if (item.canRequestRead) {
+        openAccessRequestDialog({
+          title: item.title,
+          path: item.path,
+          owner: item.owner,
+          readRequest: item.readRequest,
+        });
+      } else {
+        toast.error('문서를 열 수 없습니다.');
+      }
+      return;
+    }
     await openDocumentTab({
       path: item.path,
       title: item.title,
       activate: true,
     });
-  }, [openDocumentTab]);
+  }, [openAccessRequestDialog, openDocumentTab]);
+
+  if (!canUseSearch) {
+    return (
+      <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
+        <div className="flex h-full items-center justify-center">
+          <ErrorState error="AI 검색을 사용할 권한이 없습니다." />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
@@ -258,23 +330,23 @@ export function AiSearchPage() {
                 hasSearched: filterQuery.trim().length > 0,
                 onNavigateResult: handleNavigateResult,
               }}
-              assistant={{
-                onAttach: handleAttachSearchResultsToAssistant,
-                title: '현재 검색 결과 문서를 AI에 첨부하고 질문하기',
-                filterControl: filterQuery.trim().length > 0 && matchedResultIndices.length > 0 ? (
-                  <label className="inline-flex items-center gap-1.5 text-caption text-ssoo-primary/80 select-none">
-                    <input
-                      type="checkbox"
-                      checked={attachFilteredOnly}
-                      onChange={(event) => setAttachFilteredOnly(event.target.checked)}
-                      className="h-3.5 w-3.5 cursor-pointer rounded border border-ssoo-content-border accent-ssoo-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ssoo-primary/30"
-                    />
-                    재검색 결과만 첨부
-                  </label>
-                ) : null,
-              }}
-              zoom={{ level: 100, show: false }}
-            />
+               assistant={canUseAssistant ? {
+                 onAttach: handleAttachSearchResultsToAssistant,
+                 title: '현재 검색 결과 문서를 AI에 첨부하고 질문하기',
+                 filterControl: filterQuery.trim().length > 0 && matchedResultIndices.length > 0 ? (
+                   <label className="inline-flex items-center gap-1.5 text-caption text-ssoo-primary/80 select-none">
+                     <input
+                       type="checkbox"
+                       checked={attachFilteredOnly}
+                       onChange={(event) => setAttachFilteredOnly(event.target.checked)}
+                       className="h-3.5 w-3.5 cursor-pointer rounded border border-ssoo-content-border accent-ssoo-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ssoo-primary/30"
+                     />
+                     재검색 결과만 첨부
+                   </label>
+                 ) : null,
+               } : undefined}
+               zoom={{ level: 100, show: false }}
+             />
           )}
           body={(
             <SearchResultsPanel

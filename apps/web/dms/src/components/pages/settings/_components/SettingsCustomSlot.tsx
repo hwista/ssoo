@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from 'react';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
+import { DocumentAccessSurface } from './DocumentAccessSurface';
 import { TemplateSection } from './TemplateSection';
 
 interface TemplateDraft {
@@ -230,6 +231,10 @@ export function SettingsCustomSlot({
         onDelete={onDelete}
       />
     );
+  }
+
+  if (slotKey === 'document-access') {
+    return <DocumentAccessSurface />;
   }
 
   return <PlaceholderSurface content={PLACEHOLDER_SLOT_CONTENT[slotKey]} />;

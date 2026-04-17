@@ -33,6 +33,7 @@ export interface StorageOpenRequest {
   storageUri?: string;
   provider?: StorageProvider;
   path?: string;
+  documentPath?: string;
 }
 
 export interface StorageOpenResult {

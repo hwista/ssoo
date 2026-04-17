@@ -36,9 +36,12 @@ export class TaskService {
   }
 
   async create(projectId: bigint, dto: CreateTaskDto) {
+    const wbsId = await this.resolveWbsId(projectId, dto.wbsId);
+
     return this.db.client.task.create({
       data: {
         projectId,
+        wbsId,
         parentTaskId: dto.parentTaskId ? BigInt(dto.parentTaskId) : null,
         taskCode: dto.taskCode,
         taskName: dto.taskName,
@@ -65,9 +68,15 @@ export class TaskService {
     const existing = await this.db.client.task.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Task ${id} not found`);
 
+    const wbsId =
+      dto.wbsId !== undefined
+        ? await this.resolveWbsId(existing.projectId, dto.wbsId)
+        : undefined;
+
     return this.db.client.task.update({
       where: { id },
       data: {
+        ...(wbsId !== undefined && { wbsId }),
         ...(dto.taskName !== undefined && { taskName: dto.taskName }),
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.taskTypeCode !== undefined && { taskTypeCode: dto.taskTypeCode }),
@@ -97,5 +106,26 @@ export class TaskService {
     const existing = await this.db.client.task.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Task ${id} not found`);
     return this.db.client.task.delete({ where: { id } });
+  }
+
+  private async resolveWbsId(projectId: bigint, wbsId?: string | null) {
+    if (wbsId === undefined) {
+      return undefined;
+    }
+
+    if (wbsId === null || wbsId === '') {
+      return null;
+    }
+
+    const resolved = await this.db.client.wbs.findFirst({
+      where: { id: BigInt(wbsId), projectId, isActive: true },
+      select: { id: true },
+    });
+
+    if (!resolved) {
+      throw new NotFoundException(`WBS ${wbsId} not found`);
+    }
+
+    return resolved.id;
   }
 }

@@ -13,6 +13,7 @@ interface AdminMenuTreeNodeProps {
 
 /**
  * 관리자 메뉴 트리 노드
+ * - 노출 여부는 상위에서 access snapshot/adminMenus 기준으로 제어
  */
 function AdminMenuTreeNode({ item, level }: AdminMenuTreeNodeProps) {
   const { expandedMenuIds, toggleMenuExpand } = useSidebarStore();

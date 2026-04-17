@@ -1,6 +1,6 @@
 'use client';
 
-import { useSidebarStore } from '@/stores';
+import { useAccessStore, useSidebarStore } from '@/stores';
 import { SearchInput } from './SearchInput';
 
 /**
@@ -9,6 +9,7 @@ import { SearchInput } from './SearchInput';
  */
 export function Search() {
   const { searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
+  const canReadDocuments = useAccessStore((state) => state.snapshot?.features.canReadDocuments ?? false);
 
   return (
     <SearchInput
@@ -21,6 +22,7 @@ export function Search() {
         setSearchQuery(value);
       }}
       placeholder="파일 검색..."
+      disabled={!canReadDocuments}
       clearAriaLabel="파일 검색 초기화"
     />
   );

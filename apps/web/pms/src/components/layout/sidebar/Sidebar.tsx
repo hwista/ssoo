@@ -1,6 +1,6 @@
 'use client';
 
-import { useSidebarStore, useMenuStore } from '@/stores';
+import { useAccessStore, useSidebarStore } from '@/stores';
 import { LAYOUT_SIZES, FLOAT_PANEL_CONFIG } from '@/types';
 import type { SidebarSection } from '@/types';
 import { useRef, useCallback } from 'react';
@@ -27,7 +27,8 @@ export function Sidebar() {
     toggleSection,
   } = useSidebarStore();
 
-  const { isLoading: isMenuLoading, refreshMenu } = useMenuStore();
+  const isAccessLoading = useAccessStore((state) => state.isLoading);
+  const hydrateAccess = useAccessStore((state) => state.hydrate);
   const floatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 플로팅 패널 마우스 진입
@@ -103,14 +104,14 @@ export function Sidebar() {
               />
             </ScrollArea>
           ) : (
-            <ExpandedSidebar
-              expandedSections={expandedSections}
-              onToggleSection={toggleSection}
-              onRefresh={refreshMenu}
-              isRefreshing={isMenuLoading}
-            />
-          )}
-        </div>
+              <ExpandedSidebar
+                expandedSections={expandedSections}
+                onToggleSection={toggleSection}
+                onRefresh={hydrateAccess}
+                isRefreshing={isAccessLoading}
+              />
+            )}
+          </div>
 
         {/* 사이드바 푸터 - 카피라이트 (고정) */}
         <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-3 py-2">

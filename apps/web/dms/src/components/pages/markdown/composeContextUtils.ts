@@ -1,6 +1,6 @@
 'use client';
 
-import { fileApi } from '@/lib/api';
+import { fileApi } from '@/lib/api/endpoints/files';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TemplateReferenceDoc } from '@/types/template';
 
@@ -51,12 +51,13 @@ export async function buildComposeContextFiles(params: {
     try {
       const result = await fileApi.read(doc.path);
       if (result.success && result.data) {
+        const content = result.data.content;
         refFiles.push({
           id: `tpl-ref-${doc.path}`,
           name: doc.title || doc.path.split('/').pop() || doc.path,
           type: doc.mimeType || 'text/markdown',
-          size: result.data.length,
-          textContent: result.data,
+          size: content.length,
+          textContent: content,
         });
         resolvedRefPaths.push(doc.path);
       } else {

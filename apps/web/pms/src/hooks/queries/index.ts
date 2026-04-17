@@ -4,6 +4,12 @@
  * 데이터 페칭 및 캐싱을 위한 커스텀 훅
  */
 
+// Access Ops
+export {
+  accessOpsKeys,
+  useInspectAccess,
+} from './useAccessOps';
+
 // Codes
 export {
   codeKeys,
@@ -37,9 +43,32 @@ export {
   projectKeys,
   useProjectList,
   useProjectDetail,
+  useProjectAccess,
   useCreateProject,
   useUpdateProject,
   useDeleteProject,
+  useCreateProjectOrg,
+  useRemoveProjectOrg,
+  useProjectOrgs,
+  useCreateProjectRelation,
+  useRemoveProjectRelation,
+  useProjectRelations,
+  useProjectRequirements,
+  useCreateRequirement,
+  useUpdateRequirement,
+  useDeleteRequirement,
+  useProjectRisks,
+  useCreateRisk,
+  useUpdateRisk,
+  useDeleteRisk,
+  useProjectChangeRequests,
+  useCreateChangeRequest,
+  useUpdateChangeRequest,
+  useDeleteChangeRequest,
+  useProjectEvents,
+  useCreateEvent,
+  useUpdateEvent,
+  useDeleteEvent,
   useUpsertRequestDetail,
   useUpsertProposalDetail,
   useUpsertExecutionDetail,

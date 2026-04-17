@@ -15,6 +15,7 @@ interface DocumentExportMenuProps {
   onDownloadMarkdown: () => void;
   onDownloadPdf: () => void;
   loading?: boolean;
+  canConvertToTemplate?: boolean;
 }
 
 export function DocumentExportMenu({
@@ -22,6 +23,7 @@ export function DocumentExportMenu({
   onDownloadMarkdown,
   onDownloadPdf,
   loading = false,
+  canConvertToTemplate = true,
 }: DocumentExportMenuProps) {
   return (
     <DropdownMenu>
@@ -38,13 +40,15 @@ export function DocumentExportMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48 border-gray-200 bg-gray-100 p-2 shadow-lg">
-        <DropdownMenuItem
-          onClick={onConvertToTemplate}
-          className="text-[0.8125rem] text-gray-800 focus:bg-white focus:text-ssoo-primary"
-        >
-          <FileText className="h-4 w-4" />
-          템플릿 전환
-        </DropdownMenuItem>
+        {canConvertToTemplate ? (
+          <DropdownMenuItem
+            onClick={onConvertToTemplate}
+            className="text-[0.8125rem] text-gray-800 focus:bg-white focus:text-ssoo-primary"
+          >
+            <FileText className="h-4 w-4" />
+            템플릿 전환
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           onClick={onDownloadMarkdown}
           className="text-[0.8125rem] text-gray-800 focus:bg-white focus:text-ssoo-primary"
@@ -52,7 +56,7 @@ export function DocumentExportMenu({
           <Download className="h-4 w-4" />
           마크다운 다운로드
         </DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-gray-300" />
+        {canConvertToTemplate ? <DropdownMenuSeparator className="bg-gray-300" /> : null}
         <DropdownMenuItem
           onClick={onDownloadPdf}
           className="text-[0.8125rem] text-gray-800 focus:bg-white focus:text-ssoo-primary"

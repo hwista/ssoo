@@ -220,7 +220,7 @@ export interface Pagination {
 |----------|--------|
 | apps/server | `@ssoo/types` (workspace:*) |
 | apps/web/pms | `@ssoo/types` (workspace:*) |
-| apps/web/dms | ❌ 사용 금지 (독립 프로젝트) |
+| apps/web/dms | `@ssoo/types` (workspace:*) |
 
 ---
 

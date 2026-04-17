@@ -1,3 +1,4 @@
+import type { DmsDocumentAccessRequestState } from '@ssoo/types/dms';
 import type { TocItem } from '@/components/templates/page-frame';
 
 export interface SearchResultItem {
@@ -5,9 +6,15 @@ export interface SearchResultItem {
   title: string;
   excerpt: string;
   path: string;
+  score?: number;
   summary?: string;
   snippets?: string[];
   totalSnippetCount?: number;
+  owner?: string;
+  visibilityScope?: 'public' | 'organization' | 'self' | 'legacy';
+  isReadable: boolean;
+  canRequestRead: boolean;
+  readRequest?: DmsDocumentAccessRequestState;
 }
 
 interface SearchHistoryItem {

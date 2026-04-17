@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
-import { docAssistApi } from '@/lib/api';
+import { docAssistApi } from '@/lib/api/endpoints/ai';
 import { toast } from '@/lib/toast';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TemplateItem, TemplateReferenceDoc } from '@/types/template';

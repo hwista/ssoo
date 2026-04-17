@@ -1,19 +1,40 @@
 export const dynamic = 'force-dynamic';
 
-import { handleSubmitIngest, type IngestSubmitBody } from '@/server/handlers/ingest.handler';
+import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
+
+interface BackendSuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+interface BackendErrorResponse {
+  success?: false;
+  error?: { message?: string };
+  message?: string;
+}
+
+function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null): string {
+  if (!responseBody || responseBody.success === true) {
+    return '수집 요청 처리 중 오류가 발생했습니다.';
+  }
+
+  return responseBody.error?.message || responseBody.message || '수집 요청 처리 중 오류가 발생했습니다.';
+}
 
 export async function POST(req: Request) {
-  try {
-    const body = (await req.json()) as IngestSubmitBody;
-    const result = handleSubmitIngest(body);
-
-    if (!result.success) {
-      return Response.json({ error: result.error }, { status: result.status });
-    }
-
-    return Response.json(result.data);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '수집 요청 처리 중 오류가 발생했습니다.';
-    return Response.json({ error: message }, { status: 500 });
+  const body = await req.json();
+  const response = await fetch(
+    createServerApiUrl('/dms/ingest/submit'),
+    createServerApiProxyInit(req, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  );
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<unknown> | BackendErrorResponse | null;
+  if (!response.ok || !responseBody || responseBody.success !== true) {
+    return Response.json({ error: getBackendErrorMessage(responseBody) }, { status: response.status || 500 });
   }
+
+  return Response.json(responseBody.data);
 }

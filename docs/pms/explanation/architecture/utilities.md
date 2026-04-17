@@ -116,9 +116,6 @@ interface AuthTokens {
 interface UserInfo {
   userId: string;
   loginId: string;
-  roleCode: string;
-  userTypeCode: string;
-  isAdmin: boolean;
 }
 ```
 

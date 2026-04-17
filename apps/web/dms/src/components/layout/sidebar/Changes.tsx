@@ -6,7 +6,7 @@ import { useGitStore } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
 import { useConfirmStore } from '@/stores/confirm.store';
 import { cn } from '@/lib/utils';
-import type { GitFileStatus } from '@/lib/api';
+import type { GitFileStatus } from '@/lib/api/endpoints/git';
 
 /** 상태별 아이콘 */
 const STATUS_ICONS: Record<GitFileStatus, React.ComponentType<{ className?: string }>> = {

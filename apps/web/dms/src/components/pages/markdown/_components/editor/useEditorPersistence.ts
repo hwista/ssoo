@@ -2,7 +2,15 @@
 
 import * as React from 'react';
 import type { CreatePathResult } from './useEditorCreatePathDialog';
+import { ApiRequestError, getDocumentConflictDetails } from '@/lib/api/core';
 import type { ContentType } from '@/types/content-metadata';
+
+export interface EditorSaveConflictPayload {
+  latestContent: string;
+  currentContent: string;
+  expectedRevisionSeq?: number;
+  currentRevisionSeq?: number;
+}
 
 interface ConfirmOptions {
   title: string;
@@ -32,6 +40,7 @@ interface EditorPersistenceActions {
   save: () => Promise<void>;
   storeSaveFile: (path: string, content: string) => Promise<void>;
   resetContent: (content: string) => void;
+  replaceEditorContent: (content: string) => void;
   discardPendingMetadata: () => Promise<void>;
   setIsEditing: (editing: boolean) => void;
   setMetadataTitle: (title: string) => void;
@@ -54,6 +63,7 @@ interface EditorPersistenceDeps {
   }) => Promise<CreatePathResult | null>;
   /** 저장 직전 콘텐츠 변환 (예: blob URL → 실제 경로 치환) */
   transformBeforeSave?: (content: string) => Promise<string>;
+  onSaveConflict?: (conflict: EditorSaveConflictPayload) => Promise<void> | void;
 }
 
 export function useEditorPersistence({
@@ -66,6 +76,46 @@ export function useEditorPersistence({
   deps: EditorPersistenceDeps;
 }) {
   const isTemplate = state.contentType === 'template';
+
+  const syncFailedContent = React.useCallback((nextContent: string) => {
+    if (nextContent !== state.editorContent) {
+      actions.replaceEditorContent(nextContent);
+    }
+  }, [actions, state.editorContent]);
+
+  const isConflictError = React.useCallback((error: unknown) => {
+    if (error instanceof ApiRequestError) {
+      return error.status === 409;
+    }
+
+    return error instanceof Error && error.message.includes('HTTP 409');
+  }, []);
+
+  const handleSaveFailure = React.useCallback(async (
+    error: unknown,
+    currentContent: string,
+    fallbackMessage: string,
+  ) => {
+    syncFailedContent(currentContent);
+
+    const conflictDetails = getDocumentConflictDetails(error);
+    if (conflictDetails) {
+      await deps.onSaveConflict?.({
+        latestContent: conflictDetails.serverContent,
+        currentContent,
+        expectedRevisionSeq: conflictDetails.expectedRevisionSeq,
+        currentRevisionSeq: conflictDetails.currentRevisionSeq,
+      });
+      deps.showError('저장 충돌', '최신 저장본과 현재 초안 비교 화면을 열었습니다. 병합 후 다시 저장해 주세요.');
+      return false;
+    }
+
+    const errorMsg = isConflictError(error)
+      ? '다른 수정본이 먼저 저장되었습니다. 최신 내용을 다시 불러온 뒤 병합해 주세요.'
+      : fallbackMessage;
+    deps.showError('저장 실패', errorMsg);
+    return false;
+  }, [deps, isConflictError, syncFailedContent]);
 
   const handleSave = React.useCallback(async () => {
     // blob URL 등 변환이 필요한 경우 적용
@@ -90,7 +140,7 @@ export function useEditorPersistence({
         isNewDocument: true,
         contentType: state.contentType,
       });
-      if (!result) return;
+      if (!result) return false;
 
       const resolvedPath = result.path.endsWith('.md') ? result.path : `${result.path}.md`;
 
@@ -116,19 +166,22 @@ export function useEditorPersistence({
           const tabTitle = result.title || resolvedPath.split('/').pop() || resolvedPath;
           actions.updateTab(state.tabId, { id: newTabId, path: newPath, title: tabTitle });
         }
-      } catch {
-        const errorMsg = isTemplate
-          ? '템플릿 저장 중 오류가 발생했습니다.'
-          : '문서 생성 중 오류가 발생했습니다.';
-        deps.showError('저장 실패', errorMsg);
+      } catch (error) {
+        return handleSaveFailure(
+          error,
+          finalContent,
+          isTemplate
+            ? '템플릿 저장 중 오류가 발생했습니다.'
+            : '문서 생성 중 오류가 발생했습니다.',
+        );
       }
-      return;
+      return true;
     }
 
     // 기존 콘텐츠 저장 (템플릿은 templateSaveData.id 존재 시 여기로 진입)
     if (!state.currentFilePath && !isTemplate) {
       deps.showError('저장 실패', '선택된 파일이 없습니다.');
-      return;
+      return false;
     }
 
     try {
@@ -149,13 +202,17 @@ export function useEditorPersistence({
       actions.setIsEditing(false);
       const successMsg = isTemplate ? '템플릿이 저장되었습니다.' : '파일이 저장되었습니다.';
       deps.showSuccess('저장 완료', successMsg);
-    } catch {
-      const errorMsg = isTemplate
-        ? '템플릿 저장 중 오류가 발생했습니다.'
-        : '파일 저장 중 오류가 발생했습니다.';
-      deps.showError('저장 실패', errorMsg);
+      return true;
+    } catch (error) {
+      return handleSaveFailure(
+        error,
+        finalContent,
+        isTemplate
+          ? '템플릿 저장 중 오류가 발생했습니다.'
+          : '파일 저장 중 오류가 발생했습니다.',
+      );
     }
-  }, [actions, deps, state, isTemplate]);
+  }, [actions, deps, handleSaveFailure, state, isTemplate]);
 
   const handleCancel = React.useCallback(async () => {
     if (state.hasUnsavedChanges || state.pendingMetadataUpdate) {

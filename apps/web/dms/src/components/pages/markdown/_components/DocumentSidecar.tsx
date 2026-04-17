@@ -3,7 +3,9 @@
 import * as React from 'react';
 import { toast } from '@/lib/toast';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment, BodyLink } from '@/types';
+import type { DocumentCollaborationSnapshotClient } from '@/lib/api/collaborationApi';
 import { SidecarFrame } from '@/components/templates/page-frame/sidecar';
+import { Button } from '@/components/ui/button';
 import { SaveLocationDialog } from '@/components/common/save-location';
 import type { SaveLocationResult } from '@/components/common/save-location';
 import { getAttachmentCategory } from '@/lib/constants/file';
@@ -132,6 +134,16 @@ export interface DocumentSidecarProps {
   onImmediateFlush?: () => Promise<void>;
   /** 문서 로딩 중 여부 */
   isLoading?: boolean;
+  /** collaboration/publish 상태 */
+  collaborationSnapshot?: DocumentCollaborationSnapshotClient | null;
+  /** 잠금 takeover */
+  onTakeoverLock?: () => Promise<void> | void;
+  /** publish 상태 새로고침 */
+  onRefreshPublishState?: () => Promise<void> | void;
+  /** publish 재시도 */
+  onRetryPublish?: () => Promise<void> | void;
+  /** 현재 사용자 로그인 ID */
+  currentUserLoginId?: string;
 }
 
 // ─── 메인 컴포넌트 ───────────────────────────────────────
@@ -187,6 +199,11 @@ export function DocumentSidecar({
   deletedReferenceKeys,
   onImmediateFlush,
   isLoading = false,
+  collaborationSnapshot,
+  onTakeoverLock,
+  onRefreshPublishState,
+  onRetryPublish,
+  currentUserLoginId,
 }: DocumentSidecarProps) {
   const attachments = documentMetadata?.sourceFiles ?? [];
   const summary = documentMetadata?.summary ?? '';
@@ -352,6 +369,49 @@ export function DocumentSidecar({
         <LoadingState size="sm" message="문서를 불러오는 중..." className="h-full" />
       ) : (
         <>
+          {collaborationSnapshot ? (
+            <div className="mb-3 rounded-md border border-ssoo-border bg-ssoo-card px-3 py-3 text-sm text-ssoo-foreground">
+              <div className="font-medium">협업 / Publish 상태</div>
+              <p className="mt-2 text-ssoo-muted-foreground">
+                현재 접속 {collaborationSnapshot.members.length}명 · 편집 중 {collaborationSnapshot.members.filter((member) => member.mode === 'edit').length}명 · publish {collaborationSnapshot.publishState.status}
+              </p>
+              <p className="mt-1 text-ssoo-muted-foreground">
+                {collaborationSnapshot.softLock
+                  ? `편집 잠금: ${collaborationSnapshot.softLock.displayName}(${collaborationSnapshot.softLock.loginId})`
+                  : '현재 soft lock 없음'}
+              </p>
+              {collaborationSnapshot.publishState.affectedPaths?.length ? (
+                <p className="mt-1 text-ssoo-muted-foreground">
+                  change set: {collaborationSnapshot.publishState.operationType || 'update'} · {collaborationSnapshot.publishState.affectedPaths.join(', ')}
+                </p>
+              ) : null}
+              {collaborationSnapshot.publishState.syncStatus ? (
+                <p className="mt-1 text-ssoo-muted-foreground">
+                  git sync: remoteAhead {String(collaborationSnapshot.publishState.syncStatus.remoteAhead)} / localAhead {String(collaborationSnapshot.publishState.syncStatus.localAhead)} / diverged {String(collaborationSnapshot.publishState.syncStatus.diverged)}
+                </p>
+              ) : null}
+              {collaborationSnapshot.publishState.lastError ? (
+                <p className="mt-1 text-amber-700">최근 publish 오류: {collaborationSnapshot.publishState.lastError}</p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(collaborationSnapshot.publishState.status === 'sync-blocked' || collaborationSnapshot.publishState.status === 'push-failed') && onRefreshPublishState ? (
+                  <Button variant="outline" size="sm" onClick={() => void onRefreshPublishState()}>
+                    상태 새로고침
+                  </Button>
+                ) : null}
+                {(collaborationSnapshot.publishState.status === 'sync-blocked' || collaborationSnapshot.publishState.status === 'push-failed') && onRetryPublish ? (
+                  <Button variant="outline" size="sm" onClick={() => void onRetryPublish()}>
+                    publish 재시도
+                  </Button>
+                ) : null}
+                {collaborationSnapshot.softLock && collaborationSnapshot.softLock.loginId !== currentUserLoginId && onTakeoverLock ? (
+                  <Button variant="outline" size="sm" onClick={() => void onTakeoverLock()}>
+                    잠금 takeover
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <DocumentInfoSection
             editable={editable}
             templateMode={isTemplateSidecar}

@@ -1,5 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { clearSharedAuthState, readSharedAuthSnapshot, setSharedAuthSession } from '@ssoo/web-auth';
+import { readSharedAuthSnapshot, restoreSharedAuthSession } from '@ssoo/web-auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -47,32 +47,23 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       if (typeof window !== 'undefined') {
-        try {
-          const sessionResponse = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            cache: 'no-store',
-          });
+        const restored = await restoreSharedAuthSession();
 
-          if (sessionResponse.ok) {
-            const payload = await sessionResponse.json().catch(() => null) as
-              | { accessToken?: string; user?: unknown }
-              | null;
+        if (restored.success) {
+          originalRequest.headers.Authorization = `Bearer ${restored.accessToken}`;
+          return apiClient(originalRequest);
+        }
 
-            if (typeof payload?.accessToken === 'string') {
-              setSharedAuthSession(payload.accessToken, payload.user ?? null);
-              originalRequest.headers.Authorization = `Bearer ${payload.accessToken}`;
-              return apiClient(originalRequest);
-            }
-          }
-
-          clearSharedAuthState();
-          return Promise.reject(new ApiError('인증이 만료되었습니다.', 401));
-        } catch {
-          clearSharedAuthState();
+        if (restored.clearedAuth) {
           return Promise.reject(new ApiError('인증이 만료되었습니다.', 401));
         }
+
+        return Promise.reject(
+          new ApiError(
+            restored.error || '세션 복원 중 오류가 발생했습니다.',
+            restored.status ?? error.response?.status,
+          ),
+        );
       }
     }
 

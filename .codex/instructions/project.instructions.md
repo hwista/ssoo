@@ -13,7 +13,7 @@ applyTo: "**"
 | 프로젝트명 | SSOO (삼삼오오) |
 | 목적 | SI/SM 조직의 Opportunity-Project-System 통합 업무 허브 |
 | 구조 | pnpm workspace + Turborepo |
-| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms) |
+| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/cms) |
 
 ## 기술 스택
 
@@ -29,14 +29,14 @@ applyTo: "**"
 ```
 apps/server ──→ packages/database
      ↓                 ↓
-apps/web/pms ──→ packages/types
-
-apps/web/dms (독립 - @ssoo/* 참조 금지)
+apps/web/pms ──→ packages/types, packages/web-auth, packages/web-shell
+apps/web/cms ──→ packages/types, packages/web-auth, packages/web-shell
+apps/web/dms ──→ packages/types, packages/web-auth, packages/web-shell
 ```
 
 - `apps/` → `packages/` 방향만 허용
 - 역방향 참조 절대 금지
-- DMS는 독립 프로젝트 (npm 사용, 모노레포 패키지 미참조)
+- DMS는 pnpm workspace 앱이며 공유 계약은 `@ssoo/types`로 관리
 
 ### 패키지 목록
 
@@ -44,17 +44,20 @@ apps/web/dms (독립 - @ssoo/* 참조 금지)
 |--------|------|
 | `@ssoo/database` | Prisma 스키마, 트리거, 시드 |
 | `@ssoo/types` | 공유 타입 정의 |
+| `@ssoo/web-auth` | 공용 로그인/세션/bootstrap/auth store adapter |
+| `@ssoo/web-shell` | 공용 앱 shell / frame / shared layout surface |
 
 ## 백엔드 모듈 구조
 
 ```
 modules/
-├── common/           # 공용 모듈 (auth, user, health)
+├── common/           # 공용 모듈 (auth, user, access, health)
 ├── pms/              # PMS 도메인 모듈
 │   ├── project/
 │   ├── menu/
 │   └── pms.module.ts
-└── (dms/)            # 미래 확장
+├── cms/              # CMS 도메인 모듈
+└── dms/              # DMS 도메인 모듈
 ```
 
 ## 레포 특화 네이밍 규칙
@@ -81,7 +84,7 @@ modules/
 |------|--------|
 | lint | `pnpm lint` |
 | build | `pnpm build` |
-| test | `pnpm test` |
+| test | 없음 (`pnpm test` 미구성) |
 | codex preflight | `pnpm run codex:preflight` |
 | codex sync verify | `pnpm run codex:verify-sync` |
 
@@ -91,9 +94,12 @@ modules/
 |------|-------------------|-------------------|
 | `apps/server/**` | `server.instructions.md` | `server.instructions.md` |
 | `apps/web/pms/**` | `pms.instructions.md` | `pms.instructions.md` |
+| `apps/web/cms/**` | `cms.instructions.md` | `cms.instructions.md` |
 | `apps/web/dms/**` | `dms.instructions.md` | `dms.instructions.md` |
 | `packages/database/**` | `database.instructions.md` | `database.instructions.md` |
 | `packages/types/**` | `types.instructions.md` | `types.instructions.md` |
+| `packages/web-auth/**` | `project.instructions.md` | `project.instructions.md` |
+| `packages/web-shell/**` | `project.instructions.md` | `project.instructions.md` |
 | `**/*.test.*` | `testing.instructions.md` | `testing.instructions.md` |
 
 ## 문서 동기화
@@ -103,7 +109,7 @@ modules/
 
 ## 레포 특화 금지 사항
 
-1. **DMS에서 @ssoo/* 패키지 import** - DMS는 독립 프로젝트
+1. **DMS에서 `@ssoo/database` 직접 import** - DMS는 웹 앱이며 DB 접근은 서버/플랫폼 경계를 통해 관리
 2. **스키마 간 직접 참조** - common ↔ pms 간 FK 금지, 애플리케이션 레벨 조인 사용
 
 ## Changelog

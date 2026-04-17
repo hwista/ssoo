@@ -1,25 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
+import { AuthLoadingScreen, useProtectedAppBootstrap } from '@ssoo/web-auth';
 import { useAuthStore } from '@/stores/auth.store';
-import { useMenuStore } from '@/stores/menu.store';
-
-// AppLayout을 동적 임포트하여 청크 분리
-const AppLayout = dynamic(
-  () => import('@/components/layout/AppLayout').then((mod) => ({ default: mod.AppLayout })),
-  {
-    loading: () => (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">로딩 중...</p>
-        </div>
-      </div>
-    ),
-  },
-);
+import { useAccessStore } from '@/stores/access.store';
+import { LOGIN_PATH } from '@/lib/constants/routes';
 
 /**
  * 메인 레이아웃 (낙관적 인증)
@@ -33,48 +19,40 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, _hasHydrated } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const authIsLoading = useAuthStore((state) => state.isLoading);
+  const hasHydrated = useAuthStore((state) => state._hasHydrated);
+  const checkAuth = useAuthStore((state) => state.checkAuth);
+  const accessHasLoaded = useAccessStore((state) => state.hasLoaded);
+  const accessIsLoading = useAccessStore((state) => state.isLoading);
+  const hydrateAccess = useAccessStore((state) => state.hydrate);
+  const resetAccess = useAccessStore((state) => state.reset);
   const router = useRouter();
-  const initCalled = useRef(false);
+  const redirectToLogin = useCallback(() => {
+    router.replace(LOGIN_PATH);
+  }, [router]);
 
-  // Hydration 후 초기화: checkAuth → refreshMenu 순차 실행 (1회, 비차단)
-  useEffect(() => {
-    if (!_hasHydrated || initCalled.current) return;
-    initCalled.current = true;
+  const { showLoading, shouldRender } = useProtectedAppBootstrap({
+    hasHydrated,
+    isAuthenticated,
+    authIsLoading,
+    accessHasLoaded,
+    accessIsLoading,
+    checkAuth,
+    hydrateAccess,
+    resetAccess,
+    onUnauthenticated: redirectToLogin,
+  });
 
-    (async () => {
-      await useAuthStore.getState().checkAuth();
-      const { isAuthenticated: authed } = useAuthStore.getState();
-      if (authed) {
-        useMenuStore.getState().refreshMenu();
-      }
-    })();
-  }, [_hasHydrated]);
-
-  // 미인증 시 로그인 페이지로 리다이렉트
-  useEffect(() => {
-    if (_hasHydrated && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [_hasHydrated, isAuthenticated, router]);
-
-  // Hydration 대기 (localStorage 읽기, 보통 <100ms)
-  if (!_hasHydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">로딩 중...</p>
-        </div>
-      </div>
-    );
+  // Hydration + access bootstrap 대기
+  if (showLoading) {
+    return <AuthLoadingScreen />;
   }
 
   // 미인증 상태 → /login 리다이렉트 대기
-  if (!isAuthenticated) {
+  if (!shouldRender) {
     return null;
   }
 
-  // 인증된 상태 → 즉시 앱 렌더링
-  return <AppLayout />;
+  return children;
 }

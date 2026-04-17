@@ -1,6 +1,15 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  InternalServerErrorException,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@ssoo/types';
+import { AccessFoundationService } from '../../access/access-foundation.service.js';
 import { ROLES_KEY } from '../decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { TokenPayload } from '../interfaces/auth.interface.js';
@@ -23,9 +32,13 @@ import { TokenPayload } from '../interfaces/auth.interface.js';
 export class RolesGuard implements CanActivate {
   private readonly logger = new Logger(RolesGuard.name);
 
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    @Optional()
+    private readonly accessFoundationService?: AccessFoundationService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     // @Public() 데코레이터가 있으면 역할 검사 건너뛰기
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -56,15 +69,34 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('접근 권한이 없습니다.');
     }
 
-    const userRole = user.roleCode as UserRole;
-    const hasRole = requiredRoles.includes(userRole);
+    const userRole = user.roleCode as UserRole | undefined;
+    const roleMatched = Boolean(
+      userRole && requiredRoles.some((role) => role !== 'admin' && role === userRole),
+    );
+    const adminRequested = requiredRoles.includes('admin');
+    if (adminRequested && !this.accessFoundationService) {
+      throw new InternalServerErrorException(
+        '관리자 권한 검사용 AccessFoundationService 가 연결되지 않았습니다.',
+      );
+    }
 
-    this.logger.debug(
-      `RolesGuard: user=${user.loginId}, role=${userRole}, required=${requiredRoles.join(',')}, allowed=${hasRole}`,
+    const hasSystemOverride = adminRequested && this.accessFoundationService
+      ? (
+        await this.accessFoundationService.resolveActionPermissionContext(user)
+      ).policy.hasSystemOverride
+      : false;
+    const allowed = roleMatched || hasSystemOverride;
+
+      this.logger.debug(
+      `RolesGuard: user=${user.loginId}, role=${userRole ?? '-'}, required=${requiredRoles.join(',')}, roleMatched=${roleMatched}, systemOverride=${hasSystemOverride}, allowed=${allowed}`,
     );
 
-    if (!hasRole) {
-      throw new ForbiddenException(`이 기능은 ${requiredRoles.join(', ')} 역할만 사용할 수 있습니다.`);
+    if (!allowed) {
+      const requiredLabels = requiredRoles.map((role) =>
+        role === 'admin' ? '관리자(system.override)' : role);
+      throw new ForbiddenException(
+        `이 기능은 ${requiredLabels.join(', ')} 권한만 사용할 수 있습니다.`,
+      );
     }
 
     return true;

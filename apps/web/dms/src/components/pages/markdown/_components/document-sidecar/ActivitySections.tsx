@@ -163,14 +163,14 @@ export function AttachmentsSection({
     const metaContent = badgeLabel
       ? (
         <span className="flex items-center gap-1.5">
-          <span>{formatSize(attachment.size)}</span>
+          <span>{formatSize(attachment.size ?? 0)}</span>
           <span className="inline-flex items-center gap-0.5 rounded-full border border-ssoo-content-border bg-ssoo-content-border px-1.5 py-0.5 text-badge leading-none text-ssoo-primary">
             <Link2 className="h-2.5 w-2.5" />
             {badgeLabel}
           </span>
         </span>
       )
-      : formatSize(attachment.size);
+      : formatSize(attachment.size ?? 0);
 
     return {
       id: key,

@@ -11,10 +11,19 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import type {
+  DocumentAcl,
+  DocumentMetadata,
+  DocumentPathHistoryEntry,
+  DocumentPermissionGrant,
+  DocumentVisibility,
+  DocumentVisibilityScope,
+  SourceFileMeta,
+} from '@ssoo/types/dms';
 import { createDmsLogger } from './dms-logger.js';
 import { isMarkdownFile } from './file-utils.js';
 import { configService } from './dms-config.service.js';
-import { resolveContainedPath } from './path-utils.js';
+import { normalizePath, resolveContainedPath } from './path-utils.js';
 
 const logger = createDmsLogger('DmsContentService');
 
@@ -25,6 +34,8 @@ const logger = createDmsLogger('DmsContentService');
 export interface ContentSaveOptions {
   /** 메타데이터 없이 콘텐츠만 저장할 때 true */
   skipMetadata?: boolean;
+  /** optimistic concurrency base revision */
+  expectedRevisionSeq?: number;
 }
 
 export interface ContentLoadOptions {
@@ -37,11 +48,233 @@ export interface ContentResult<T = unknown> {
   data?: T;
   error?: string;
   status?: number;
+  details?: Record<string, unknown>;
 }
 
 export interface ContentData {
   content: string;
   metadata: Record<string, unknown> | null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeOptionalString(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(new Set(
+    value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0),
+  ));
+}
+
+function normalizeDocumentAcl(value: unknown): DocumentAcl {
+  if (!isRecord(value)) {
+    return { owners: [], editors: [], viewers: [] };
+  }
+
+  return {
+    owners: normalizeStringArray(value.owners),
+    editors: normalizeStringArray(value.editors),
+    viewers: normalizeStringArray(value.viewers),
+  };
+}
+
+function normalizeVisibility(value: unknown): DocumentVisibility | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const scope = value.scope;
+  if (scope !== 'public' && scope !== 'organization' && scope !== 'self') {
+    return undefined;
+  }
+
+  return {
+    scope,
+    targetOrgId: normalizeOptionalString(value.targetOrgId),
+  };
+}
+
+function normalizePermissionGrants(value: unknown): DocumentPermissionGrant[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!isRecord(entry)) {
+      return [];
+    }
+
+    const principalType = entry.principalType;
+    const role = entry.role;
+    const principalId = normalizeOptionalString(entry.principalId);
+    if (
+      (principalType !== 'user' && principalType !== 'organization' && principalType !== 'team' && principalType !== 'group')
+      || (role !== 'read' && role !== 'write' && role !== 'manage')
+      || !principalId
+    ) {
+      return [];
+    }
+
+    return [{
+      principalType,
+      principalId,
+      role,
+      expiresAt: normalizeOptionalString(entry.expiresAt),
+      grantedAt: normalizeOptionalString(entry.grantedAt),
+      grantedBy: normalizeOptionalString(entry.grantedBy),
+      source: entry.source === 'request'
+        || entry.source === 'share'
+        || entry.source === 'migration'
+        || entry.source === 'owner-default'
+        ? entry.source
+        : undefined,
+    }];
+  });
+}
+
+function normalizePathHistory(value: unknown): DocumentPathHistoryEntry[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!isRecord(entry)) {
+      return [];
+    }
+
+    const pathValue = normalizeOptionalString(entry.path);
+    const changedAt = normalizeOptionalString(entry.changedAt);
+    if (!pathValue || !changedAt) {
+      return [];
+    }
+
+    return [{
+      path: pathValue,
+      changedAt,
+      changedBy: normalizeOptionalString(entry.changedBy),
+      reason: entry.reason === 'create'
+        || entry.reason === 'rename'
+        || entry.reason === 'move'
+        || entry.reason === 'reconcile'
+        ? entry.reason
+        : undefined,
+    }];
+  });
+}
+
+function normalizeSourceFiles(value: unknown): SourceFileMeta[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!isRecord(entry)) {
+      return [];
+    }
+
+    const name = normalizeOptionalString(entry.name);
+    const filePath = normalizeOptionalString(entry.path);
+    if (!name || !filePath) {
+      return [];
+    }
+
+    return [{
+      name,
+      path: filePath,
+      type: normalizeOptionalString(entry.type),
+      size: typeof entry.size === 'number' && Number.isFinite(entry.size) ? entry.size : undefined,
+      url: normalizeOptionalString(entry.url),
+      storageUri: normalizeOptionalString(entry.storageUri),
+      provider: normalizeOptionalString(entry.provider),
+      versionId: normalizeOptionalString(entry.versionId),
+      etag: normalizeOptionalString(entry.etag),
+      checksum: normalizeOptionalString(entry.checksum),
+      origin: entry.origin === 'manual'
+        || entry.origin === 'ingest'
+        || entry.origin === 'teams'
+        || entry.origin === 'network_drive'
+        || entry.origin === 'reference'
+        || entry.origin === 'template'
+        || entry.origin === 'picker'
+        || entry.origin === 'assistant'
+        || entry.origin === 'current-document'
+        || entry.origin === 'template-selected'
+        ? entry.origin
+        : undefined,
+      status: entry.status === 'draft' || entry.status === 'pending_confirm' || entry.status === 'published'
+        ? entry.status
+        : undefined,
+      textContent: normalizeOptionalString(entry.textContent),
+      storage: entry.storage === 'path' || entry.storage === 'inline' ? entry.storage : undefined,
+      kind: entry.kind === 'document' || entry.kind === 'file' ? entry.kind : undefined,
+      tempId: normalizeOptionalString(entry.tempId),
+      images: Array.isArray(entry.images)
+        ? entry.images.flatMap((image) => {
+          if (!isRecord(image)) {
+            return [];
+          }
+
+          const base64 = normalizeOptionalString(image.base64);
+          const mimeType = normalizeOptionalString(image.mimeType);
+          const imageName = normalizeOptionalString(image.name);
+          if (!base64 || !mimeType || !imageName) {
+            return [];
+          }
+
+          return [{
+            base64,
+            mimeType,
+            name: imageName,
+            size: typeof image.size === 'number' && Number.isFinite(image.size) ? image.size : 0,
+          }];
+        })
+        : undefined,
+    }];
+  });
+}
+
+function normalizeStringRecord(value: unknown): Record<string, string> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const entries = Object.entries(value)
+    .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+    .map(([key, entryValue]) => [key, entryValue.trim()])
+    .filter(([, entryValue]) => entryValue.length > 0);
+
+  return Object.fromEntries(entries);
+}
+
+function normalizeRevisionSeq(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +350,7 @@ class ContentService {
     content: string,
     metadata?: Record<string, unknown>,
     options?: ContentSaveOptions,
-  ): ContentResult<{ message: string; savedPath: string }> {
+  ): ContentResult<{ message: string; savedPath: string; metadata?: Record<string, unknown> | null }> {
     const { targetPath, valid, safeRelPath } = this.resolveContentPath(contentPath);
 
     if (!valid) {
@@ -126,17 +359,59 @@ class ContentService {
     }
 
     try {
+      const existedBeforeSave = fs.existsSync(targetPath);
+      const existingContent = existedBeforeSave && fs.existsSync(targetPath)
+        ? fs.readFileSync(targetPath, 'utf-8')
+        : '';
+      const existingSidecar = existedBeforeSave && isMarkdownFile(targetPath)
+        ? this.readSidecar(targetPath)
+        : null;
+      const currentRevisionSeq = normalizeRevisionSeq(existingSidecar?.['revisionSeq']) ?? 0;
+
+      if (
+        existedBeforeSave
+        && options?.expectedRevisionSeq !== undefined
+        && currentRevisionSeq !== options.expectedRevisionSeq
+      ) {
+        return {
+          success: false,
+          error: 'Document conflict',
+          status: 409,
+          details: {
+            expectedRevisionSeq: options.expectedRevisionSeq,
+            currentRevisionSeq,
+            serverContent: existingContent,
+            serverContentHash: normalizeOptionalString(existingSidecar?.['contentHash']) ?? hashContent(existingContent),
+            clientContentHash: hashContent(content),
+          },
+        };
+      }
+
       ensureDir(path.dirname(targetPath));
       fs.writeFileSync(targetPath, content, 'utf-8');
       logger.info('콘텐츠 저장 완료', { path: safeRelPath });
 
-      if (!options?.skipMetadata && metadata && isMarkdownFile(targetPath)) {
-        this.writeSidecar(targetPath, metadata);
+      let nextMetadata: Record<string, unknown> | null = null;
+      if (!options?.skipMetadata && isMarkdownFile(targetPath)) {
+        const nextRevisionSeq = existedBeforeSave ? currentRevisionSeq + 1 : 1;
+        nextMetadata = this.buildDefaultDocumentSidecar(
+          content,
+          targetPath,
+          {
+            ...(existingSidecar ?? {}),
+            ...(metadata ?? {}),
+            revisionSeq: nextRevisionSeq,
+          },
+          {
+            defaultRevisionSeq: nextRevisionSeq,
+          },
+        );
+        this.writeSidecar(targetPath, nextMetadata);
       }
 
       return {
         success: true,
-        data: { message: 'Content saved', savedPath: safeRelPath },
+        data: { message: 'Content saved', savedPath: safeRelPath, metadata: nextMetadata },
       };
     } catch (error) {
       logger.error('콘텐츠 저장 실패', error, { contentPath, targetPath });
@@ -180,7 +455,12 @@ class ContentService {
 
         if (!metadata && !options?.strict) {
           // 문서 모드: sidecar 없으면 자동 생성 (resilient)
-          metadata = this.buildDefaultDocumentSidecar(content, targetPath);
+          metadata = this.buildDefaultDocumentSidecar(
+            content,
+            targetPath,
+            undefined,
+            { defaultRevisionSeq: 0 },
+          );
           this.writeSidecar(targetPath, metadata);
           logger.info('사이드카 자동 생성', { path: safeRelPath });
         }
@@ -257,7 +537,11 @@ class ContentService {
     if (fs.existsSync(sidecarPath)) {
       try {
         const raw = fs.readFileSync(sidecarPath, 'utf-8');
-        return JSON.parse(raw) as Record<string, unknown>;
+        return this.normalizeDocumentSidecar(
+          filePath,
+          JSON.parse(raw) as Record<string, unknown>,
+          { defaultRevisionSeq: 0 },
+        );
       } catch (error) {
         logger.warn('사이드카 파싱 실패', { sidecarPath, error });
         return null;
@@ -269,7 +553,11 @@ class ContentService {
     if (fs.existsSync(legacyPath)) {
       try {
         const raw = fs.readFileSync(legacyPath, 'utf-8');
-        const data = JSON.parse(raw) as Record<string, unknown>;
+        const data = this.normalizeDocumentSidecar(
+          filePath,
+          JSON.parse(raw) as Record<string, unknown>,
+          { defaultRevisionSeq: 0 },
+        );
         // 마이그레이션: .json → .sidecar.json
         this.writeSidecar(filePath, data);
         fs.unlinkSync(legacyPath);
@@ -290,11 +578,130 @@ class ContentService {
   writeSidecar(filePath: string, metadata: Record<string, unknown>): void {
     const sidecarPath = getSidecarPath(filePath);
     ensureDir(path.dirname(sidecarPath));
+    const content = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : undefined;
+    const normalized = this.normalizeDocumentSidecar(
+      filePath,
+      metadata,
+      { content, defaultRevisionSeq: fs.existsSync(sidecarPath) ? 0 : 1 },
+    );
     fs.writeFileSync(
       sidecarPath,
-      JSON.stringify(metadata, null, 2) + '\n',
+      JSON.stringify(normalized, null, 2) + '\n',
       'utf-8',
     );
+  }
+
+  private normalizeDocumentSidecar(
+    filePath: string,
+    metadata: Record<string, unknown>,
+    options?: {
+      content?: string;
+      defaultRevisionSeq?: number;
+      defaultVisibilityScope?: DocumentVisibilityScope;
+    },
+  ): Record<string, unknown> {
+    const acl = normalizeDocumentAcl(metadata['acl']);
+    const visibility = normalizeVisibility(metadata['visibility'])
+      ?? (options?.defaultVisibilityScope ? { scope: options.defaultVisibilityScope } : undefined);
+    const legacyFileHashes = isRecord(metadata['fileHashes']) ? metadata['fileHashes'] : undefined;
+    const contentHash = normalizeOptionalString(metadata['contentHash'])
+      ?? (legacyFileHashes ? normalizeOptionalString(legacyFileHashes.content) : undefined)
+      ?? (options?.content !== undefined ? hashContent(options.content) : '');
+    const relativePath = normalizeOptionalString(metadata['relativePath'])
+      ?? normalizePath(path.relative(configService.getDocDir(), filePath));
+    const revisionSeq = normalizeRevisionSeq(metadata['revisionSeq']) ?? options?.defaultRevisionSeq ?? 0;
+    const normalized: DocumentMetadata = {
+      documentId: normalizeOptionalString(metadata['documentId']),
+      title: normalizeOptionalString(metadata['title']) ?? extractTitleFromContent(options?.content ?? '', filePath),
+      summary: normalizeOptionalString(metadata['summary']) ?? '',
+      tags: normalizeStringArray(metadata['tags']),
+      sourceLinks: normalizeStringArray(metadata['sourceLinks']),
+      bodyLinks: Array.isArray(metadata['bodyLinks'])
+        ? metadata['bodyLinks'].flatMap((entry) => {
+          if (!isRecord(entry)) {
+            return [];
+          }
+
+          const url = normalizeOptionalString(entry.url);
+          const label = normalizeOptionalString(entry.label);
+          if (!url || !label) {
+            return [];
+          }
+
+          return [{
+            url,
+            label,
+            type: entry.type === 'image' ? 'image' : 'link',
+          }];
+        })
+        : [],
+      createdAt: normalizeOptionalString(metadata['createdAt']) ?? new Date().toISOString(),
+      updatedAt: normalizeOptionalString(metadata['updatedAt']) ?? new Date().toISOString(),
+      relativePath,
+      pathHistory: normalizePathHistory(metadata['pathHistory']),
+      visibility,
+      grants: normalizePermissionGrants(metadata['grants']),
+      revisionSeq,
+      contentHash,
+      fileHashes: {
+        content: contentHash,
+        sources: isRecord(metadata['fileHashes'])
+          ? normalizeStringRecord(metadata['fileHashes'].sources)
+          : {},
+      },
+      chunkIds: normalizeStringArray(metadata['chunkIds']),
+      embeddingModel: normalizeOptionalString(metadata['embeddingModel']) ?? '',
+      sourceFiles: normalizeSourceFiles(metadata['sourceFiles'] ?? metadata['referenceFiles']),
+      acl,
+      versionHistory: Array.isArray(metadata['versionHistory']) ? metadata['versionHistory'].flatMap((entry) => {
+        if (!isRecord(entry)) {
+          return [];
+        }
+
+        const id = normalizeOptionalString(entry.id);
+        const createdAt = normalizeOptionalString(entry.createdAt);
+        const author = normalizeOptionalString(entry.author);
+        const summary = normalizeOptionalString(entry.summary);
+        if (!id || !createdAt || !author || !summary) {
+          return [];
+        }
+
+        return [{ id, createdAt, author, summary }];
+      }) : [],
+      comments: Array.isArray(metadata['comments']) ? metadata['comments'].flatMap((entry) => {
+        if (!isRecord(entry)) {
+          return [];
+        }
+
+        const id = normalizeOptionalString(entry.id);
+        const author = normalizeOptionalString(entry.author);
+        const content = normalizeOptionalString(entry.content);
+        const createdAt = normalizeOptionalString(entry.createdAt);
+        if (!id || !author || !content || !createdAt) {
+          return [];
+        }
+
+        return [{
+          id,
+          author,
+          content,
+          createdAt,
+          email: normalizeOptionalString(entry.email),
+          avatarUrl: normalizeOptionalString(entry.avatarUrl),
+          parentId: normalizeOptionalString(entry.parentId),
+          deletedAt: normalizeOptionalString(entry.deletedAt),
+        }];
+      }) : [],
+      templateId: normalizeOptionalString(metadata['templateId']) ?? 'default',
+      author: normalizeOptionalString(metadata['author']) ?? 'Unknown',
+      lastModifiedBy: normalizeOptionalString(metadata['lastModifiedBy'])
+        ?? normalizeOptionalString(metadata['author'])
+        ?? 'Unknown',
+      ownerId: normalizeOptionalString(metadata['ownerId']) ?? acl.owners[0],
+      ownerLoginId: normalizeOptionalString(metadata['ownerLoginId']),
+    };
+
+    return { ...normalized };
   }
 
   // -------------------------------------------------------------------------
@@ -309,6 +716,12 @@ class ContentService {
     content: string,
     filePath: string,
     existing?: Record<string, unknown>,
+    defaults?: {
+      defaultRevisionSeq?: number;
+      defaultVisibilityScope?: DocumentVisibilityScope;
+      defaultOwnerId?: string;
+      defaultOwnerLoginId?: string;
+    },
   ): Record<string, unknown> {
     const now = new Date().toISOString();
     let createdAt = now;
@@ -320,29 +733,45 @@ class ContentService {
       // 파일이 아직 없을 수 있음
     }
 
-    return {
-      contentType: 'document',
-      title: (existing?.['title'] as string) || extractTitleFromContent(content, filePath),
-      summary: existing?.['summary'] ?? '',
-      tags: existing?.['tags'] ?? [],
-      sourceLinks: existing?.['sourceLinks'] ?? [],
-      bodyLinks: existing?.['bodyLinks'] ?? [],
-      createdAt: (existing?.['createdAt'] as string) ?? createdAt,
-      updatedAt: now,
-      fileHashes: {
-        content: hashContent(content),
-        sources: (existing?.['fileHashes'] as Record<string, unknown>)?.['sources'] ?? {},
+    return this.normalizeDocumentSidecar(
+      filePath,
+      {
+        ...existing,
+        ownerId: existing?.['ownerId'] ?? defaults?.defaultOwnerId,
+        ownerLoginId: existing?.['ownerLoginId'] ?? defaults?.defaultOwnerLoginId,
+        contentType: 'document',
+        title: (existing?.['title'] as string) || extractTitleFromContent(content, filePath),
+        summary: existing?.['summary'] ?? '',
+        tags: existing?.['tags'] ?? [],
+        sourceLinks: existing?.['sourceLinks'] ?? [],
+        bodyLinks: existing?.['bodyLinks'] ?? [],
+        createdAt: (existing?.['createdAt'] as string) ?? createdAt,
+        updatedAt: now,
+        fileHashes: {
+          content: hashContent(content),
+          sources: (existing?.['fileHashes'] as Record<string, unknown>)?.['sources'] ?? {},
+        },
+        contentHash: hashContent(content),
+        revisionSeq: existing?.['revisionSeq'] ?? defaults?.defaultRevisionSeq,
+        chunkIds: existing?.['chunkIds'] ?? [],
+        embeddingModel: existing?.['embeddingModel'] ?? '',
+        sourceFiles: existing?.['sourceFiles'] ?? existing?.['referenceFiles'] ?? [],
+        acl: existing?.['acl'] ?? { owners: [], editors: [], viewers: [] },
+        visibility: existing?.['visibility'],
+        grants: existing?.['grants'] ?? [],
+        pathHistory: existing?.['pathHistory'] ?? [],
+        versionHistory: existing?.['versionHistory'] ?? [],
+        comments: existing?.['comments'] ?? [],
+        templateId: existing?.['templateId'] ?? 'default',
+        author: existing?.['author'] ?? 'Unknown',
+        lastModifiedBy: existing?.['lastModifiedBy'] ?? existing?.['author'] ?? 'Unknown',
       },
-      chunkIds: existing?.['chunkIds'] ?? [],
-      embeddingModel: existing?.['embeddingModel'] ?? '',
-      referenceFiles: existing?.['referenceFiles'] ?? existing?.['sourceFiles'] ?? [],
-      acl: existing?.['acl'] ?? { owners: [], editors: [], viewers: [] },
-      versionHistory: existing?.['versionHistory'] ?? [],
-      comments: existing?.['comments'] ?? [],
-      templateId: existing?.['templateId'] ?? 'default',
-      author: existing?.['author'] ?? 'Unknown',
-      lastModifiedBy: existing?.['lastModifiedBy'] ?? existing?.['author'] ?? 'Unknown',
-    };
+      {
+        content,
+        defaultRevisionSeq: defaults?.defaultRevisionSeq ?? 1,
+        defaultVisibilityScope: defaults?.defaultVisibilityScope,
+      },
+    );
   }
 }
 

@@ -4,6 +4,10 @@
  * 도메인별 API 함수 모음
  */
 
+// Access Ops
+export { accessOpsApi } from './accessOps';
+export type { InspectAccessParams } from './accessOps';
+
 // Codes
 export { codesApi } from './codes';
 export type {
@@ -49,6 +53,9 @@ export type {
   UpdateProjectRequest,
   ProjectStatusCode,
   ProjectStageCode,
+  ProjectPhase,
+  ProjectLifecycleStatus,
+  ProjectLifecycle,
   ProjectDoneResultCode,
 } from './projects';
 

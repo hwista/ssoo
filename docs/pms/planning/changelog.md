@@ -2,7 +2,7 @@
 
 > 전체 변경 이력 요약 및 영역별 문서 링크
 
-**마지막 업데이트**: 2026-02-10
+**마지막 업데이트**: 2026-04-16
 
 ---
 
@@ -33,6 +33,88 @@
 ---
 
 ## 📅 최근 변경 요약
+
+### 2026-04-16
+
+| 시간 | 커밋 | 영역 | 변경 내용 |
+|------|------|------|----------|
+| - | - | planning | **current baseline-close brief 추가**: `current-baseline-close-brief.md` 를 추가해 PMS foundation 구현 상태, commit grouping, migration/validation gap, baseline close 이후 다음 tranche 를 병렬 진행용 기준선으로 고정 |
+| - | - | planning | **설계 정합화 계획 문서 추가**: `spec-reconciliation-plan.md` 를 추가해 새 PMS 설계와 현재 구현의 장기 정합화 계획, 상세 설계 확정 순서, delivery 구조, `Organization / OrgMember` 우선 검토 기준을 레포 planning 문서로 고정 |
+| - | - | planning | **조직 기준선 문서화**: 현재 조직 관련 구조가 `Organization` + `UserOrganizationRelation` + `OrganizationPermission` + `UserPermissionException` + `Project.ownerOrganizationId` + legacy user affiliation bridge 로 운영된다는 점을 `spec-reconciliation-plan.md` 에 명시 |
+| - | - | planning | **검토 범위 확장**: `Organization / OrgMember` slice 를 PMS 단독 범위가 아니라 PMS/CMS/DMS 공통 user/auth/access foundation 및 `organizationIds` parity 검토까지 포함하는 cross-app review 로 재정의 |
+| - | - | planning | **권한 경계 기준 추가**: 공용 auth/access foundation(`AccessFoundationService`, org baseline, exception, policy trace)과 PMS/CMS/DMS의 도메인 특화 권한 해석 경계를 `spec-reconciliation-plan.md` 에 명시 |
+| - | - | planning | **OrgMember 후보 기준선 추가**: `UserOrganizationRelation` 과 user admin/input/inspect surface 가 이미 common affiliation bridge 역할을 하고 있음을 기준선으로 문서화 |
+| - | - | 인증/라우팅 | **shell-app entry blueprint 정렬**: `(main)/layout` 을 auth/access gate 전용으로, `(main)/page` 를 실제 `AppLayout` 루트 엔트리로 이동해 DMS와 같은 shell-app 구조로 정리 |
+| - | - | 인증/라우팅 | **entry route constants 도입**: `APP_HOME_PATH`, `LOGIN_PATH`, `ROOT_ENTRY_PATHS` 를 추가하고 login/logout/not-found/middleware/global-error 가 같은 경로 계약을 참조하도록 정리 |
+| - | - | 문서 | **entry architecture 문서 현행화**: app-initialization-flow, page-routing, page-security-routing, 로그인 관련 도메인 문서를 현재 bootstrap/entry 구조 기준으로 갱신 |
+| - | - | planning | **외부 설계서의 명시 해법 반영**: 새 설계가 `Organization(org_class=permanent/project)` + `OrgMember` + `ProjectOrg` 조합을 명시적으로 채택하고 있음을 planning 문서에 반영 |
+| - | - | planning | **Organization slice 임시 결정안 반영**: `Organization(org_class)` 방향은 채택하되 shared baseline 은 `permanent` affiliation 만 사용하고, `UserOrganizationRelation` 을 common OrgMember storage 로 승격하며 project 참여/권한은 PMS 도메인 해석으로 유지하는 방향을 기록 |
+| - | - | planning | **Handoff/Contract slice 임시 결정안 반영**: standalone `Handoff` 와 `Contract/ContractPayment` 를 채택하되 현재 `Project`/`ExecutionDetail` inline 필드는 compatibility summary/mirror 로 유지하고, 기존 `advanceStage` 엔진은 상위 orchestration 으로 감싸는 방향을 기록 |
+| - | - | planning | **Work breakdown slice 임시 결정안 반영**: `Objective/WBS` 를 새 planning hierarchy 로 도입하되 현재 `Task` 는 compatibility hybrid 로 유지하고, `Milestone` 은 먼저 `Objective` 와 연결하는 방향을 기록 |
+| - | - | planning | **Project membership/access slice 임시 결정안 반영**: `ProjectMember` 를 additive 확장해 `organizationId/accessLevel/isPhaseOwner` 를 도입하되 `roleCode` 는 기능 역할 vocabulary 로 유지하고, 조직 hierarchy view baseline 과 member edit baseline 을 분리하는 방향을 기록 |
+| - | - | planning | **ProjectOrg/external breadth slice 임시 결정안 반영**: external org 는 common `Organization(scope=external)` 으로 수렴시키고 `ProjectOrg` 를 PMS relation 으로 도입하되 기존 `customerId/plantId/systemInstanceId` 는 compatibility anchor 로 유지하는 방향을 기록 |
+| - | - | planning | **롤아웃 시퀀스 고정**: 확정된 slice 결정안을 Delivery 1/2/3 + cleanup 형태의 장기 구현 순서와 선행 의존성 요약으로 묶음 |
+| - | - | 모델/상태 | **Lifecycle bridge 실반영**: shared PMS contract 와 server response 에 canonical `lifecycle.phase/status/terminalReason` 를 추가하고, 기존 `statusCode/stageCode/doneResultCode` 는 compatibility layer 로 유지 |
+| - | - | 조직/권한 | **OrgMember foundation 실반영**: `Organization.orgClass/scope/levelType`, `UserOrganizationRelation.isLeader` 를 추가하고 PMS/CMS/shared access baseline 을 `permanent` affiliation 기준으로 정렬 |
+| - | - | 프로젝트 권한 | **ProjectMember/access semantics 실반영**: `ProjectMember.organizationId/accessLevel/isPhaseOwner` 를 도입하고 `ProjectAccessService` 및 PMS member UI/API 를 새 baseline 에 맞게 확장 |
+| - | - | 계약/인계 | **Handoff/Contract foundation 실반영**: standalone `ProjectHandoff`, `ProjectContract`, `ContractPayment` 모델과 API 를 추가하고 `Project` handoff summary, `ExecutionDetail` 계약 필드는 compatibility bridge 로 유지 |
+| - | - | planning/work | **Objective/WBS foundation 실반영**: standalone `Objective`, `WBS` 모델과 API를 추가하고 `Task.wbsId`, `Milestone.objectiveId` 연결 및 PMS planning panel UI 를 기존 task/milestone 탭 안에 추가 |
+| - | - | 조직/breadth | **ProjectOrg foundation 실반영**: `ProjectOrg` 모델/히스토리/API 를 추가하고 `ownerOrganizationId`, `customerId` anchor 를 compatibility bridge 로 동기화하며 PMS project detail 에 연결 조직 summary 를 노출 |
+| - | - | 조직/breadth | **ProjectRelation foundation 실반영**: read-only `ProjectRelation` 모델/히스토리/API 와 PMS relation summary surface 를 추가하고, 기존 `nextProjectId` anchor 를 canonical `successor` relation 으로 동기화 |
+| - | - | control/ui | **Control object foundation 실반영**: standalone `ProjectRequirement`, `ProjectRisk`, `ProjectChangeRequest`, `ProjectEvent` 모델/히스토리/API 를 추가하고 PMS management tab 을 `컨트롤` 기준으로 전환해 legacy issue surface 와 새 control panels 를 함께 노출 |
+| - | - | deliverable/control | **Event-centered output linkage 반영**: `ProjectDeliverable`, `ProjectCloseCondition` 이 선택적으로 `ProjectEvent` 를 참조하도록 schema/history/API 를 확장하고 PMS 산출물/종료조건 탭에서 연결 이벤트를 직접 선택·변경할 수 있게 정리 |
+| - | - | planning | **relation/breadth anchor refinement 기준 추가**: `spec-reconciliation-plan.md` 에 `owner/customer -> ProjectOrg`, `nextProjectId -> successor` 만 safe compatibility sync 로 유지하고 `linked` terminal-result, `plant/system` breadth 는 fixed compatibility baseline 위의 후속 refinement 항목으로 기록 |
+| - | - | 프로젝트 상세 | **compatibility baseline 명시적 노출**: PMS project detail 의 연결 조직/프로젝트 요약에 현재 safe sync 범위와 유지되는 direct anchor(`linked`, `plant/system`)를 직접 안내하도록 정리 |
+| - | - | planning/control | **Legacy Issue transition policy 고정**: `Issue` 를 dual-write/read-only 가 아닌 migration-source compatibility model 로 정하고, `risk -> ProjectRisk`, `requirement_change -> ProjectChangeRequest` 1차 맵핑과 unmapped `bug/impediment/inquiry/improvement` retention, PMS immediate authoring policy 를 planning 문서에 명시 |
+| - | - | planning/breadth | **breadth 기본값 확정**: 사용자 응답이 없을 때의 compatibility-first baseline 으로 `doneResultCode=linked` 자동 relation 승격을 하지 않고 `plantId/systemInstanceId` 를 direct project anchor 로 유지한 채 stabilization cleanup 을 계속 진행하도록 planning 문서를 정리 |
+| - | - | planning/ui | **stabilization cleanup 실행**: legacy issue create flow 를 unmapped legacy type 위주로 조여 `risk` / `requirement_change` 신규 authoring 을 canonical panel 로 유도하고, project detail wording 과 session plan 을 fixed compatibility baseline 기준으로 정리 |
+| - | - | planning/control | **Unmapped legacy issue owner model 확정**: quartet 흡수 대신 additive `ProjectIssue` fifth control object 를 다음 단계 canonical owner 로 정하고, legacy `Issue` 는 migration inbox/promote source 로 축소하는 방향을 기록 |
+| - | - | control/ui | **ProjectEvent rollup read-model 반영**: `GET /projects/:id/control/events` 가 linked deliverable/close-condition 기준 `rollup` fragment를 함께 반환하고, PMS Control/Deliverables/CloseConditions 탭이 readiness·count mini-summary를 표시하도록 정리 |
+| - | - | control/ui | **ProjectIssue canonical surface 실반영**: additive `ProjectIssue` schema/API/types/hooks/panel 을 반영하고, 신규 `bug/impediment/inquiry/improvement` authoring 을 정식 이슈 패널로 이동. legacy `Issue` 는 secondary compatibility inbox/history surface 로 축소 |
+| - | - | 프로젝트 상세 | **breadth canonicalization UI 실반영**: explicit `ProjectRelation(linked)` create/delete 와 supplier/partner `ProjectOrg` add/remove 를 추가하고, owner/customer 및 successor row 는 기준 반영 provenance 로 정리 |
+| - | - | planning/ui | **post-refinement cleanup 반영**: Control/Organizations/Relations/Deliverables/CloseConditions wording 을 canonical primary surface 기준으로 정리하고, docs/session plan progress 를 landed state 로 갱신 |
+
+### 2026-04-14
+
+| 시간 | 커밋 | 영역 | 변경 내용 |
+|------|------|------|----------|
+| - | - | 인증/권한 | **공통 permission/runtime contract 정렬 확인**: `ProjectAccessService` 가 `AccessFoundationService` + shared `policy` trace 기준으로 owner/org/member/object exception을 계속 합성하고, DMS reference contract 이후에도 PMS project capability 가 같은 상위 계약으로 설명 가능함을 기준선으로 고정 |
+
+### 2026-04-13
+
+| 시간 | 커밋 | 영역 | 변경 내용 |
+|------|------|------|----------|
+| - | - | 인증/권한 | **PMS 프로젝트 조회 정책 정렬**: `canViewProject` 를 프로젝트 owner, 활성 멤버, owner 조직 소속 사용자, 명시적 project capability 보유 사용자에 한해 허용하도록 보정 |
+| - | - | 인증/권한 | **프로젝트 목록/access endpoint 정합성 확보**: `GET /projects` 를 access-aware 목록으로 제한하고 `GET /projects/:id/access` 도 상세 조회와 같은 `canViewProject` 정책을 따르도록 정리 |
+| - | - | DB/데모데이터 | **Docker 권한 검증용 PMS 샘플 정렬**: `db:seed` 루프에 누락됐던 PMS demo 멤버/태스크/마일스톤/이슈/산출물 시드를 다시 포함시키고 `17_demo_project_access_context.sql` 로 프로젝트 owner/user org baseline 을 고정 |
+| - | - | DB/데모데이터 | **viewer 런타임 검증 계정 추가**: `viewer.han` 데모 계정을 추가해 DMS/CMS viewer snapshot 과 PMS same-org read-only 시나리오를 Docker 기준으로 재현 가능하게 정리 |
+
+### 2026-04-09
+
+| 시간 | 커밋 | 영역 | 변경 내용 |
+|------|------|------|----------|
+| - | - | 인증/권한 | **PMS project object policy 도입**: `owner_organization_id` 와 `pr_project_role_permission_r` 기반으로 project capability snapshot(`/api/projects/:id/access`)을 계산하고, 기본 정보/상세 탭/멤버/작업/산출물/종료조건/단계 진행 UI를 snapshot 기준으로 gating |
+| - | - | 인증/권한 | **PMS access contract 명시화**: `/api/menus/my` 응답을 `@ssoo/types/pms` 의 `PmsAccessSnapshot` 기준으로 정렬하고, menu store가 snapshot apply 경계와 `usePmsAccess()` thin wrapper를 통해 navigation-centric access bootstrap 임을 드러내도록 정리 |
+| - | - | 인증/권한 | **PMS access lifecycle 분리**: `access.store` 가 `hydrate/reset/isLoading/hasLoaded/error` lifecycle 을 담당하고, `Sidebar` 새로고침과 main shell bootstrap 도 동일한 hydrate 경로를 사용하도록 정리. `menu.store` 는 이 snapshot 을 실제 메뉴/즐겨찾기/navigation 상태로 유지 |
+
+### 2026-04-08
+
+| 시간 | 커밋 | 영역 | 변경 내용 |
+|------|------|------|----------|
+| - | - | 인증 | **auth proxy contract 정규화**: PMS same-origin `/api/auth/[action]` 가 backend envelope를 브라우저까지 그대로 넘기지 않고 payload-only contract로 정리되어 CMS/DMS와 같은 auth adapter 계약을 사용 |
+| - | - | 인증 | **same-origin auth proxy 정렬**: PMS가 `/api/auth/[action]` proxy를 통해 login/session/logout/me를 처리하도록 정리해 DMS와 같은 브라우저-facing auth surface를 사용하고, 401 session bootstrap도 same-origin 경유로 통일 |
+| - | - | 인증 | **shared session bootstrap 도입**: 공통 auth backend가 HttpOnly `ssoo-session` cookie와 `/api/auth/session` bootstrap endpoint를 제공하도록 정리하고, PMS는 localStorage refresh token 없이 access token/session 복원 흐름으로 전환 시작 |
+| - | - | 인증 | **로그인 화면 기준선 고정**: `packages/web-auth` 에 PMS 기준 표준 login card를 추가하고 CMS/DMS도 같은 레이아웃·문구·footer를 공유하도록 정리. 단, 앱별 컬러 토큰은 그대로 유지 |
+
+### 2026-04-07
+
+| 시간 | 커밋 | 영역 | 변경 내용 |
+|------|------|------|----------|
+| - | - | 인증 | **공용 auth user menu 정렬**: PMS `UserMenu`가 `packages/web-auth` 공용 authenticated user menu surface를 재사용하도록 정리해 DMS와 같은 logout/menu shell을 공유 |
+| - | - | 인증 | **공용 auth runtime/login UI 전환**: `packages/types` / `packages/web-auth` 기준으로 PMS login page, auth store, loading shell을 공용 surface 위로 재정렬하고 PMS는 메뉴 bootstrap만 앱별로 유지 |
+| - | - | UI | **대시보드 프로젝트 상세 진입 계약 정렬**: `DashboardPage`를 `'/project/detail' + params.id` 규약으로 맞춰 목록 화면과 동일한 탭 오픈 계약 사용 |
+| - | - | 규칙 | **종료조건 체크 가드 보강**: `requiresDeliverable` 종료조건은 미완료 산출물이 남아 있으면 체크되지 않도록 서비스 레벨 검증 추가 |
+| - | - | 문서 | **planning 기준선 재정렬**: roadmap/backlog/changelog를 현재 PMS 구현 수준 기준으로 재작성 |
 
 ### 2026-02-10
 
@@ -199,5 +281,6 @@
 
 | Date | Change |
 |------|--------|
+| 2026-04-16 | Add compatibility baseline and stabilization cleanup entries. |
+| 2026-04-07 | Add 2026-04-07 stabilization and planning rebaseline entries. |
 | 2026-02-09 | Add changelog section. |
-

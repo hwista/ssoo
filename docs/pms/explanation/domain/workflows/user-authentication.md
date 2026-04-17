@@ -56,7 +56,7 @@
          ▼
 ┌─────────────────┐
 │   로그아웃       │
-│   → /           │
+│   → /login      │
 └─────────────────┘
 ```
 
@@ -68,8 +68,9 @@
 
 | 파일 | 역할 |
 |------|------|
-| [apps/web/pms/src/app/(main)/layout.tsx][pms-main-layout] | 미인증 로그인 폼 |
-| [apps/web/pms/src/app/(main)/page.tsx][pms-main-page] | 로그인 후 메인 페이지 |
+| [apps/web/pms/src/app/(auth)/login/page.tsx][pms-login-page] | 로그인 폼 UI |
+| [apps/web/pms/src/app/(main)/layout.tsx][pms-main-layout] | 인증된 PMS shell bootstrap gate |
+| [apps/web/pms/src/app/(main)/page.tsx][pms-main-page] | 로그인 후 루트 shell entry |
 | [apps/web/pms/src/stores/auth.store.ts](../../../../apps/web/pms/src/stores/auth.store.ts) | Zustand 인증 상태 관리 |
 | [apps/web/pms/src/lib/api/client.ts](../../../../apps/web/pms/src/lib/api/client.ts) | Axios 클라이언트 (자동 토큰 갱신) |
 | [apps/web/pms/src/lib/api/auth.ts](../../../../apps/web/pms/src/lib/api/auth.ts) | 인증 API 호출 함수 |
@@ -186,10 +187,7 @@ Response:
   "success": true,
   "data": {
     "userId": "1",
-    "loginId": "admin",
-    "roleCode": "admin",
-    "userTypeCode": "internal",
-    "isAdmin": true
+    "loginId": "admin"
   },
   "message": "사용자 정보 조회 성공"
 }
@@ -218,6 +216,7 @@ interface AuthState {
 }
 ```
 
+[pms-login-page]: ../../../../apps/web/pms/src/app/(auth)/login/page.tsx
 [pms-main-layout]: ../../../../apps/web/pms/src/app/(main)/layout.tsx
 [pms-main-page]: ../../../../apps/web/pms/src/app/(main)/page.tsx
 
@@ -278,5 +277,5 @@ NEXT_PUBLIC_API_URL=http://localhost:4000/api
 
 | Date | Change |
 |------|--------|
+| 2026-04-16 | 로그인 진입 책임을 `(auth)/login` + protected shell bootstrap 구조에 맞춰 갱신 |
 | 2026-02-09 | Add changelog section. |
-

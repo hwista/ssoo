@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { toast } from '@/lib/toast';
+import { ErrorState } from '@/components/common/StateDisplay';
 import { PageTemplate } from '@/components/templates';
 import {
   DOC_PAGE_SURFACE_PRESETS,
   PAGE_BACKGROUND_PRESETS,
   SectionedShell,
 } from '@/components/templates/page-frame';
-import { useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
+import { useAccessStore, useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
 import { useAssistantChat } from '@/components/common/assistant/chat/useAssistantChat';
 import { useAssistantSessionPersistence } from '@/components/common/assistant/session/useAssistantSessionPersistence';
 import { AiSidecar } from './_components/AiSidecar';
@@ -22,6 +23,7 @@ export function AiChatPage() {
   const activeSessionId = useAssistantSessionStore((state) => state.activeSessionId);
   const startNewSession = useAssistantSessionStore((state) => state.startNewSession);
   const selectSession = useAssistantSessionStore((state) => state.selectSession);
+  const canUseAssistant = useAccessStore((state) => state.snapshot?.features.canUseAssistant ?? false);
   const inputDraft = useAssistantPanelStore((state) => state.inputDraft);
   const isProcessing = useAssistantPanelStore((state) => state.isProcessing);
   const suggestions = useAssistantPanelStore((state) => state.suggestions);
@@ -44,6 +46,16 @@ export function AiChatPage() {
       setSuggestionsCollapsed(false);
     }
   }, [messages.length, regenerateSuggestions, setSuggestionsCollapsed]);
+
+  if (!canUseAssistant) {
+    return (
+      <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
+        <div className="flex h-full items-center justify-center">
+          <ErrorState error="AI 어시스턴트를 사용할 권한이 없습니다." />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>

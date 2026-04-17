@@ -15,7 +15,7 @@ import { TransitionDetailTab } from './tabs/TransitionDetailTab';
 import { MembersTab } from './tabs/MembersTab';
 import { TasksTab } from './tabs/TasksTab';
 import { MilestonesTab } from './tabs/MilestonesTab';
-import { IssuesTab } from './tabs/IssuesTab';
+import { ControlsTab } from './tabs/ControlsTab';
 import { DeliverablesTab } from './tabs/DeliverablesTab';
 import { CloseConditionsTab } from './tabs/CloseConditionsTab';
 import { StatusTimeline } from './sections/StatusTimeline';
@@ -23,13 +23,19 @@ import { StageActionBar } from './sections/StageActionBar';
 import type { Project, ProjectStatusCode } from '@/lib/api/endpoints/projects';
 import type { LucideIcon } from 'lucide-react';
 
-type ManagementTabKey = 'members' | 'tasks' | 'milestones' | 'issues' | 'deliverables' | 'closeConditions';
+type ManagementTabKey =
+  | 'members'
+  | 'tasks'
+  | 'milestones'
+  | 'controls'
+  | 'deliverables'
+  | 'closeConditions';
 
 const MANAGEMENT_TABS: { key: ManagementTabKey; label: string; icon: LucideIcon }[] = [
   { key: 'members', label: '멤버', icon: Users },
   { key: 'tasks', label: '태스크', icon: ListTodo },
   { key: 'milestones', label: '마일스톤', icon: Flag },
-  { key: 'issues', label: '이슈', icon: AlertCircle },
+  { key: 'controls', label: '컨트롤', icon: AlertCircle },
   { key: 'deliverables', label: '산출물', icon: FileOutput },
   { key: 'closeConditions', label: '종료조건', icon: ClipboardCheck },
 ];
@@ -155,7 +161,7 @@ export function ProjectDetailPage() {
           </div>
         </div>
 
-        {/* Management Tabs (멤버/태스크/마일스톤/이슈) */}
+        {/* Management Tabs (멤버/태스크/마일스톤/컨트롤) */}
         <div className="bg-white rounded-lg border shadow-sm">
           <div className="border-b px-4">
             <div className="flex gap-1">
@@ -182,7 +188,7 @@ export function ProjectDetailPage() {
             {currentManagementTab === 'members' && <MembersTab projectId={projectId} />}
             {currentManagementTab === 'tasks' && <TasksTab projectId={projectId} />}
             {currentManagementTab === 'milestones' && <MilestonesTab projectId={projectId} />}
-            {currentManagementTab === 'issues' && <IssuesTab projectId={projectId} />}
+            {currentManagementTab === 'controls' && <ControlsTab projectId={projectId} />}
             {currentManagementTab === 'deliverables' && <DeliverablesTab projectId={projectId} statusCode={project.statusCode} />}
             {currentManagementTab === 'closeConditions' && <CloseConditionsTab projectId={projectId} statusCode={project.statusCode} />}
           </div>

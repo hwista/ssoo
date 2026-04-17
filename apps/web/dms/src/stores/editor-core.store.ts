@@ -1,7 +1,9 @@
 'use client';
 
 import { create } from 'zustand';
-import { fileApi, templateApi, contentApi, getErrorMessage } from '@/lib/api';
+import { createApiRequestError, getErrorMessage } from '@/lib/api/core';
+import { contentApi, fileApi } from '@/lib/api/endpoints/files';
+import { templateApi } from '@/lib/api/endpoints/templates';
 import type { DocumentMetadata } from '@/types';
 import type { ContentType } from '@/types/content-metadata';
 import type { TemplateReferenceDoc, TemplateGeneration, TemplateOriginType } from '@/types/template';
@@ -27,7 +29,7 @@ interface FileMetadata {
 }
 
 export interface EditorHandlers {
-  save: () => Promise<void>;
+  save: () => Promise<boolean>;
   cancel: () => void;
   getMarkdown: () => string;
   getSelection: () => { from: number; to: number };
@@ -223,12 +225,17 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       }
 
       // 문서 저장: fileApi.update() 사용 (기존 동작)
-      const response = await fileApi.update(path, content);
+      const response = await fileApi.update(path, content, tabState.documentMetadata?.revisionSeq);
       if (!response.success) {
-        throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
+        throw createApiRequestError(response, '파일 저장 실패');
       }
 
-      get()._updateTab(tabId, { content, isEditing: false, currentFilePath: path });
+      get()._updateTab(tabId, {
+        content,
+        isEditing: false,
+        currentFilePath: path,
+        documentMetadata: response.data?.metadata ?? tabState.documentMetadata,
+      });
       await get().flushPendingMetadata(tabId);
       await get().refreshFileMetadata(tabId, path);
 
@@ -249,12 +256,15 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     const timer = new PerformanceTimer('임시 파일 저장');
 
     try {
-      const response = await fileApi.update(path, content);
+      const response = await fileApi.update(path, content, get()._getTab(tabId).documentMetadata?.revisionSeq);
       if (!response.success) {
-        throw new Error(`파일 저장 실패: ${getErrorMessage(response)}`);
+        throw createApiRequestError(response, '파일 저장 실패');
       }
 
-      get()._updateTab(tabId, { content });
+      get()._updateTab(tabId, {
+        content,
+        documentMetadata: response.data?.metadata ?? get()._getTab(tabId).documentMetadata,
+      });
       await get().flushPendingMetadata(tabId);
       await get().refreshFileMetadata(tabId, path);
 
@@ -325,9 +335,13 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     if (!tabState.pendingMetadataUpdate || !tabState.currentFilePath) return;
 
     try {
-      const response = await fileApi.updateMetadata(tabState.currentFilePath, tabState.pendingMetadataUpdate);
+      const response = await fileApi.updateMetadata(
+        tabState.currentFilePath,
+        tabState.pendingMetadataUpdate,
+        tabState.documentMetadata?.revisionSeq,
+      );
       if (!response.success) {
-        throw new Error(`메타데이터 플러시 실패: ${getErrorMessage(response)}`);
+        throw createApiRequestError(response, '메타데이터 플러시 실패');
       }
       const merged = response.data as DocumentMetadata | undefined;
       const patch: Partial<EditorTabState> = { pendingMetadataUpdate: null };
@@ -361,7 +375,11 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     }
 
     try {
-      const response = await fileApi.updateMetadata(tabState.currentFilePath, update);
+      const response = await fileApi.updateMetadata(
+        tabState.currentFilePath,
+        update,
+        tabState.documentMetadata?.revisionSeq,
+      );
       if (!response.success) {
         throw new Error(`메타데이터 업데이트 실패: ${getErrorMessage(response)}`);
       }
@@ -397,7 +415,9 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     get()._updateTab(tabId, { isSaving: true, error: null });
 
     try {
-      const response = await contentApi.save(path, content, metadata);
+      const response = await contentApi.save(path, content, metadata, {
+        expectedRevisionSeq: get()._getTab(tabId).documentMetadata?.revisionSeq,
+      });
       if (!response.success) {
         throw new Error(`콘텐츠 저장 실패: ${getErrorMessage(response)}`);
       }
@@ -405,6 +425,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       get()._updateTab(tabId, {
         content,
         currentFilePath: path,
+        documentMetadata: (response.data?.metadata as DocumentMetadata | undefined) ?? get()._getTab(tabId).documentMetadata,
         hasUnsavedChanges: false,
         pendingMetadataUpdate: null,
       });
@@ -469,6 +490,11 @@ export function createEditorTabActions(tabId: string) {
     setCurrentFilePath: (path: string | null) => gs()._updateTab(tabId, { currentFilePath: path }),
     setEditorHandlers: (handlers: EditorHandlers) => gs()._updateTab(tabId, { editorHandlers: handlers }),
     clearEditorHandlers: () => gs()._updateTab(tabId, { editorHandlers: null }),
+    patchDocumentMetadata: (update: Partial<DocumentMetadata>) => {
+      const current = gs()._getTab(tabId).documentMetadata;
+      if (!current) return;
+      gs()._updateTab(tabId, { documentMetadata: { ...current, ...update } });
+    },
     setLocalDocumentMetadata: (update: Partial<DocumentMetadata>) => gs().setLocalDocumentMetadata(tabId, update),
     replaceLocalDocumentMetadata: (next: DocumentMetadata | null) => gs().replaceLocalDocumentMetadata(tabId, next),
     loadFile: (path: string) => gs().loadFile(tabId, path),

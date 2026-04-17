@@ -225,7 +225,7 @@ function checkLocation(filePath) {
 
   // 도메인 루트의 특수 파일 허용 (AGENTS.md, CHANGELOG.md 등)
   if (parts.length === 2 &&
-      ['common', 'pms', 'dms', 'chs'].includes(parts[0]) &&
+      ['common', 'pms', 'dms', 'cms'].includes(parts[0]) &&
       SPECIAL_FILES.includes(parts[1])) {
     return errors;
   }
@@ -235,14 +235,14 @@ function checkLocation(filePath) {
     return errors;
   }
 
-  const domain = parts[0]; // common, pms, dms, chs
+  const domain = parts[0]; // common, pms, dms, cms
   const directory = parts[1]; // tutorials, guides, explanation, etc.
 
   // 도메인 확인
-  if (!['common', 'pms', 'dms', 'chs'].includes(domain)) {
+  if (!['common', 'pms', 'dms', 'cms'].includes(domain)) {
     errors.push({
       type: 'location',
-      message: `알 수 없는 도메인: ${domain} (common, pms, dms, chs만 허용)`,
+      message: `알 수 없는 도메인: ${domain} (common, pms, dms, cms만 허용)`,
       severity: 'error',
     });
     return errors;

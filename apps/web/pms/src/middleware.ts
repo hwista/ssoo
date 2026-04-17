@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { APP_HOME_PATH, ROOT_ENTRY_PATHS } from '@/lib/constants/routes';
 
 /**
  * PMS 미들웨어
@@ -9,16 +10,13 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 허용된 경로 목록
-  const allowedPaths = ['/', '/login'];
-
   // 허용된 경로면 통과
-  if (allowedPaths.some((path) => pathname === path)) {
+  if (ROOT_ENTRY_PATHS.some((path) => pathname === path)) {
     return NextResponse.next();
   }
 
-  // 그 외 모든 경로는 차단 (404 페이지로 리다이렉트)
-  return NextResponse.rewrite(new URL('/not-found', request.url));
+  // shell-app은 잘못된 경로를 기본 루트 셸로 복구한다.
+  return NextResponse.redirect(new URL(APP_HOME_PATH, request.url));
 }
 
 export const config = {

@@ -1,239 +1,122 @@
 # 앱 초기화 흐름 (App Initialization Flow)
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-04-16
 
-DMS 앱의 초기화 및 데이터 로드 흐름을 정의합니다.
+DMS 앱의 현재 초기화 흐름을 **로그인 진입**, **protected shell bootstrap**, **파일 트리 preload** 기준으로 정리합니다.
 
 ---
 
 ## 초기화 개요
 
-```
+```text
 브라우저 접속
     ↓
-Next.js App Router
+app/layout.tsx
     ↓
-RootLayout (layout.tsx)
+Providers
+    ├─ QueryClient / Toaster / ConfirmDialog
+    ├─ AuthStateSync
+    └─ (로그인 후 + 권한 허용 시) Assistant UI
     ↓
-Providers (providers.tsx)
-    ↓
-(main)/layout.tsx
-    ↓
-MainPage (page.tsx)
-    ↓
-AppLayout
-    ↓
-InitializeFileTree (main layout effect)
-    ↓
-ContentArea (Home 페이지 렌더링)
+경로 판별
+    ├─ /login
+    │   ↓
+    │   app/(auth)/login/page.tsx
+    │   ↓
+    │   AuthStandardLoginCard
+    │
+    └─ /
+        ↓
+        app/(main)/layout.tsx
+        ↓
+        useProtectedAppBootstrap(...)
+        ├─ auth hydration / checkAuth
+        ├─ DMS access snapshot hydrate
+        └─ 미인증 시 /login 복구
+        ↓
+        canReadDocuments 이면 refreshFileTree()
+        ↓
+        app/(main)/page.tsx
+        ↓
+        AppLayout
+        ├─ workspace shell
+        └─ settings shell
 ```
 
 ---
 
-## 컴포넌트별 역할
+## 핵심 파일
 
-### 1. RootLayout (`layout.tsx`)
-
-```tsx
-export default function RootLayout({ children }) {
-  return (
-    <html lang="ko">
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
-```
-
-**역할:**
-- 폰트 설정 (Geist Sans, Geist Mono)
-- 메타데이터 설정
-- Providers 래핑
-
-### 2. Providers (`providers.tsx`)
-
-```tsx
-export function Providers({ children }) {
-  return (
-    <ToastProvider>
-      {children}
-    </ToastProvider>
-  );
-}
-```
-
-**역할:**
-- 전역 Providers 래핑
-- Toast 컨텍스트 제공
-
-### 3. (main)/layout.tsx
-
-```tsx
-export default function MainLayout({ children }) {
-  const { refreshFileTree } = useFileStore();
-  useLayoutViewportSync();
-
-  useEffect(() => {
-    refreshFileTree();
-  }, [refreshFileTree]);
-
-  return children;
-}
-```
-
-**역할:**
-- 루트 셸 초기화
-- 파일 트리 초기 로드
-- viewport/layout 동기화
-
-### 4. AppLayout
-
-```tsx
-export function AppLayout() {
-  const { deviceType } = useLayoutStore();
-
-  useEffect(() => {
-    const checkCompactMode = () => { ... };
-    checkCompactMode();
-    window.addEventListener('resize', checkCompactMode);
-  }, []);
-
-  return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <div className="flex flex-col flex-1">
-        <Header />
-        <TabBar />
-        <ContentArea />
-      </div>
-    </div>
-  );
-}
-```
-
-**역할:**
-- 앱 전역 레이아웃 구조 정의
-- 컴팩트 모드 감지 (본문 영역 < 975px)
-- 디바이스 타입에 따른 UI 분기
-
-### 5. Sidebar > FileTree
-
-```tsx
-export function FileTree() {
-  const { files, isLoading, loadFileTree } = useFileStore();
-  
-  useEffect(() => {
-    loadFileTree();
-  }, [loadFileTree]);
-  
-  return ( ... );
-}
-```
-
-**역할:**
-- 마운트 시 파일 트리 로드
-- 로딩 상태 표시
-
----
-
-## 데이터 로드 순서
-
-```
-1. [동기] Zustand persist 복원
-   - useTabStore: 저장된 탭 상태
-   - useFileStore: 저장된 북마크
-
-2. [비동기] 파일 트리 로드
-   - (main)/layout.tsx 마운트 시 refreshFileTree() 호출
-   - API: GET /api/files
-   - 성공 시 files, fileMap 설정
-
-3. [사용자 액션] 문서 로드
-   - 탭 클릭 시 ContentArea가 페이지 타입 결정
-   - DocumentPage가 파일 내용 로드
+```text
+apps/web/dms/src/
+├── app/
+│   ├── layout.tsx                  # RootLayout + Providers
+│   ├── providers.tsx               # QueryClient / AuthStateSync / assistant gating
+│   ├── (auth)/
+│   │   ├── layout.tsx              # AuthPageShell + DMS auth theme
+│   │   └── login/page.tsx          # 실제 로그인 진입점
+│   ├── (main)/
+│   │   ├── layout.tsx              # protected shell gate + file tree preload
+│   │   └── page.tsx                # actual root shell entry
+│   └── not-found.tsx               # 마지막 루트 복구 장치
+├── components/layout/AppLayout.tsx
+├── lib/constants/routes.ts         # APP_HOME_PATH / LOGIN_PATH / ROOT_ENTRY_PATHS
+└── stores/
+    ├── auth.store.ts
+    ├── access.store.ts
+    ├── file.store.ts
+    └── settings-shell.store.ts
 ```
 
 ---
 
-## 상태 복원 (Persist)
+## bootstrap 순서
 
-### 브라우저 스토리지에서 복원되는 데이터
+### 1. 로그인 진입
 
-| Store | 복원 데이터 | 기본값 |
-|-------|-----------|-------|
-| `useTabStore` | tabs, activeTabId | [Home 탭], 'home' (`sessionStorage`) |
-| `useFileStore` | bookmarks | [] |
+- `/login` 은 public entry 다.
+- auth store hydration 이후 이미 로그인된 상태면 `/` 로 복귀한다.
+- 로그인 성공 시에도 `APP_HOME_PATH ('/')` 로 이동한다.
 
-### 복원 시점
+### 2. protected shell bootstrap
 
-Zustand persist 미들웨어가 스토어 생성 시 자동 복원:
+`app/(main)/layout.tsx` 는 직접 `AppLayout` 을 렌더하지 않는다.
+공통 `useProtectedAppBootstrap(...)` 을 사용해 다음 순서를 맞춘다.
 
-```typescript
-export const useTabStore = create<TabStore>()(
-  persist(
-    (set, get) => ({ ... }),
-    {
-      name: 'dms-tab-storage',
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
-);
-```
+1. auth hydration 대기
+2. `checkAuth()` 실행
+3. 인증 성공 후 `useAccessStore.hydrate()` 실행
+4. 미인증 시 access state reset 후 `/login` 이동
+5. access snapshot 준비 완료 시 `children` 렌더
 
----
+### 3. 파일 트리 preload
 
-## 에러 처리
+bootstrap 이후에도 DMS는 app-specific 후속 단계가 하나 더 있다.
 
-### 파일 트리 로드 실패
+- `accessSnapshot.features.canReadDocuments === true` 일 때만 `refreshFileTree()` 실행
+- 따라서 공용 bootstrap 은 auth/access 까지만 담당하고,
+  DMS-specific 파일 시스템 준비는 layout 의 후속 effect 로 유지한다.
 
-```typescript
-loadFileTree: async () => {
-  try {
-    const result = await fileSystemService.getFileTree();
-    if (!result.success) {
-      set({ error: result.error });
-      return { success: false, error: result.error };
-    }
-    // 성공 처리
-  } catch (error) {
-    logger.error('파일 트리 로드 실패', error);
-    set({ error: getErrorMessage(error) });
-    return { success: false, error: getErrorMessage(error) };
-  }
-};
-```
+### 4. 실제 shell 렌더링
 
-### 중복 로드 방지
+`app/(main)/page.tsx` 가 루트 shell entry 다.
 
-```typescript
-if (get().isInitialized) {
-  logger.debug('파일 트리 이미 로드됨, 건너뜀');
-  return { success: true };
-}
-```
+- `AppLayout` 이 workspace shell 과 settings shell 전환을 담당한다.
+- `ContentArea` 는 active tab 의 internal path 를 기준으로 Home / Markdown / AI / legacy settings handoff 를 렌더한다.
 
 ---
 
-## 성능 측정
+## Providers 역할
 
-`PerformanceTimer` 유틸리티로 초기화 시간 측정:
+| 항목 | 역할 |
+|------|------|
+| `QueryClientProvider` | query cache 경계 |
+| `AuthStateSync` | browser-facing auth state 동기화 |
+| `ConfirmDialog` / `Toaster` | 전역 UX surface |
+| `FloatingAssistant` / `AssistantSessionSync` | 로그인 후 + `canUseAssistant` 권한이 있을 때만 노출 |
 
-```typescript
-const timer = new PerformanceTimer('파일 트리 로드');
-
-try {
-  // ... 로드 로직
-  timer.end({ success: true });
-} catch (error) {
-  timer.end({ success: false, error });
-}
-```
-
-**콘솔 출력:**
-```
-[Performance] 파일 트리 로드 - 123ms {success: true}
-```
+즉 assistant 런타임은 앱 전체에 항상 붙는 것이 아니라,
+**로그인 경로가 아니고 인증 + 권한이 확보된 경우에만 mount** 된다.
 
 ---
 
@@ -241,20 +124,22 @@ try {
 
 | 항목 | PMS | DMS |
 |------|-----|-----|
-| 인증 확인 | 토큰 검증 후 리다이렉트 | 없음 |
-| 메뉴 로드 | 권한 기반 필터링 | 파일 시스템 전체 |
-| 프로젝트 로드 | 활성 프로젝트 선택 | 없음 |
-| 에러 처리 | 401 → 로그인 페이지 | 로컬 에러 표시 |
+| 공개 진입점 | `/`, `/login` | `/`, `/login` |
+| 공통 bootstrap | auth + access snapshot | auth + access snapshot |
+| 앱별 후속 bootstrap | 메뉴 snapshot apply | 파일 트리 preload |
+| shell 종류 | workspace shell | workspace + settings dual shell |
 
 ---
 
 ## 관련 문서
 
-- [state-management.md](state-management.md) - 스토어 상세
-- [page-routing.md](page-routing.md) - 라우팅 흐름
+- [page-routing.md](page-routing.md)
+- [state-management.md](state-management.md)
+- [layout-system.md](../design/layout-system.md)
 
 ## Changelog
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-16 | shared protected bootstrap, `/login` public entry, file tree preload 후속 단계까지 현재 구현 기준으로 재작성 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

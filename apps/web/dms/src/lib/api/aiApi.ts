@@ -1,43 +1,13 @@
+import type {
+  AskResponse as AiAskResponse,
+  SearchResponse as AiSearchResponse,
+  SearchResultItem as AiSearchResultItem,
+} from '@ssoo/types/dms';
 import type { TemplateItem } from '@/types/template';
 import { request, type ApiResponse } from './core';
 import { streamSSE, type SSEEvent } from './streaming';
 
-export interface AiSearchResultItem {
-  id: string;
-  title: string;
-  excerpt: string;
-  path: string;
-  score: number;
-  summary?: string;
-  snippets?: string[];
-  totalSnippetCount?: number;
-}
-
-export interface AiSearchResponse {
-  query: string;
-  results: AiSearchResultItem[];
-  contextMode?: 'doc' | 'deep';
-  confidence?: 'high' | 'medium' | 'low';
-  citations?: Array<{
-    title: string;
-    storageUri: string;
-    versionId?: string;
-    webUrl?: string;
-  }>;
-}
-
-export interface AiAskResponse {
-  query: string;
-  answer: string;
-  sources: AiSearchResultItem[];
-  confidence?: 'high' | 'medium' | 'low';
-  citations?: Array<{
-    title: string;
-    storageUri: string;
-    versionId?: string;
-    webUrl?: string;
-  }>;
-}
+export type { AiAskResponse, AiSearchResponse, AiSearchResultItem };
 
 export interface DocAssistSummaryFileClient {
   id?: string;

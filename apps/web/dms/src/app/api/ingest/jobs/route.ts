@@ -1,13 +1,35 @@
 export const dynamic = 'force-dynamic';
 
-import { handleListIngestJobs } from '@/server/handlers/ingest.handler';
+import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
 
-export async function GET() {
-  try {
-    const result = handleListIngestJobs();
-    return Response.json(result.data);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '수집 작업 조회 중 오류가 발생했습니다.';
-    return Response.json({ error: message }, { status: 500 });
+interface BackendSuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+interface BackendErrorResponse {
+  success?: false;
+  error?: { message?: string };
+  message?: string;
+}
+
+function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null): string {
+  if (!responseBody || responseBody.success === true) {
+    return '수집 작업 조회 중 오류가 발생했습니다.';
   }
+
+  return responseBody.error?.message || responseBody.message || '수집 작업 조회 중 오류가 발생했습니다.';
+}
+
+export async function GET(req: Request) {
+  const response = await fetch(
+    createServerApiUrl('/dms/ingest/jobs'),
+    createServerApiProxyInit(req),
+  );
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<unknown> | BackendErrorResponse | null;
+  if (!response.ok || !responseBody || responseBody.success !== true) {
+    return Response.json({ error: getBackendErrorMessage(responseBody) }, { status: response.status || 500 });
+  }
+
+  return Response.json(responseBody.data);
 }

@@ -17,9 +17,13 @@
       "types": "./dist/pms/index.d.ts",
       "default": "./dist/pms/index.js"
     },
-    "./chs": {
-      "types": "./dist/chs/index.d.ts",
-      "default": "./dist/chs/index.js"
+    "./cms": {
+      "types": "./dist/cms/index.d.ts",
+      "default": "./dist/cms/index.js"
+    },
+    "./dms": {
+      "types": "./dist/dms/index.d.ts",
+      "default": "./dist/dms/index.js"
     }
   },
   "scripts": {

@@ -1,3 +1,5 @@
+import type { ProjectMemberAccessLevel } from './member';
+
 /**
  * 프로젝트 상태 코드
  * - request: 요청
@@ -14,6 +16,18 @@ export type ProjectStatusCode = 'request' | 'proposal' | 'execution' | 'transiti
  * - done: 완료
  */
 export type ProjectStageCode = 'waiting' | 'in_progress' | 'done';
+
+/**
+ * 프로젝트 canonical phase
+ * - legacy `statusCode` 위에 덧씌우는 호환 레이어
+ * - contract 는 이후 delivery 에서 실제 runtime 으로 확장 예정
+ */
+export type ProjectPhase = 'request' | 'proposal' | 'contract' | 'execution' | 'operation' | 'closed';
+
+/**
+ * 프로젝트 canonical lifecycle status
+ */
+export type ProjectLifecycleStatus = 'draft' | 'active' | 'on_hold' | 'cancelled' | 'completed';
 
 /**
  * 완료 결과 코드 (done 상태에서만 사용)
@@ -40,6 +54,12 @@ export type DoneResultCode =
   | 'transferred'
   | 'hold';
 
+export interface ProjectLifecycle {
+  phase: ProjectPhase;
+  status: ProjectLifecycleStatus;
+  terminalReason?: DoneResultCode | null;
+}
+
 /**
  * 프로젝트 엔티티
  */
@@ -48,13 +68,15 @@ export interface Project {
   projectName: string;
   memo?: string | null;
   customerId?: string | null;
+  ownerOrganizationId?: string | null;
   statusCode: ProjectStatusCode;
   stageCode: ProjectStageCode;
   doneResultCode?: DoneResultCode;
+  lifecycle: ProjectLifecycle;
   currentOwnerUserId?: string | null;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -64,6 +86,7 @@ export interface CreateProjectDto {
   projectName: string;
   description?: string;
   customerId?: string;
+  ownerOrganizationId?: string;
   statusCode?: ProjectStatusCode;
   stageCode?: ProjectStageCode;
   ownerId?: string;
@@ -75,9 +98,11 @@ export interface CreateProjectDto {
 export interface UpdateProjectDto {
   projectName?: string;
   description?: string;
+  customerId?: string | null;
   statusCode?: ProjectStatusCode;
   stageCode?: ProjectStageCode;
   doneResultCode?: DoneResultCode;
+  ownerOrganizationId?: string | null;
   ownerId?: string;
 }
 
@@ -140,6 +165,229 @@ export interface ProjectTransitionDetail {
   memo?: string | null;
 }
 
+export type ProjectHandoffTypeCode =
+  | 'phase_transition'
+  | 'reassignment'
+  | 'escalation'
+  | 'closure';
+
+export type ProjectHandoffStatusCode = 'pending' | 'accepted' | 'rejected' | 'cancelled';
+
+export interface ProjectHandoff {
+  handoffId: string;
+  projectId: string;
+  fromPhaseCode?: ProjectPhase | null;
+  toPhaseCode: ProjectPhase;
+  handoffTypeCode: ProjectHandoffTypeCode;
+  fromUserId?: string | null;
+  toUserId?: string | null;
+  requestedByUserId?: string | null;
+  handoffStatusCode: ProjectHandoffStatusCode;
+  conditionNote?: string | null;
+  assignedRoleCode?: string | null;
+  requestedAt: string;
+  respondedAt?: string | null;
+  respondedByUserId?: string | null;
+  memo?: string | null;
+}
+
+export interface CreateProjectHandoffDto {
+  fromPhaseCode?: ProjectPhase | null;
+  toPhaseCode: ProjectPhase;
+  handoffTypeCode?: ProjectHandoffTypeCode;
+  fromUserId?: string;
+  toUserId?: string;
+  handoffStatusCode?: ProjectHandoffStatusCode;
+  conditionNote?: string;
+  assignedRoleCode?: string;
+  memo?: string;
+}
+
+export interface UpdateProjectHandoffDto {
+  toPhaseCode?: ProjectPhase;
+  handoffTypeCode?: ProjectHandoffTypeCode;
+  fromUserId?: string | null;
+  toUserId?: string | null;
+  handoffStatusCode?: ProjectHandoffStatusCode;
+  conditionNote?: string | null;
+  assignedRoleCode?: string | null;
+  memo?: string | null;
+}
+
+export type ProjectContractTypeCode = 'new' | 'change_order' | 'amendment' | 'renewal';
+
+export type ProjectContractStatusCode =
+  | 'draft'
+  | 'negotiating'
+  | 'signed'
+  | 'in_progress'
+  | 'completed'
+  | 'terminated';
+
+export interface ProjectContract {
+  contractId: string;
+  projectId: string;
+  contractCode: string;
+  title: string;
+  contractTypeCode: ProjectContractTypeCode;
+  totalAmount?: string | null;
+  currencyCode: string;
+  contractStatusCode: ProjectContractStatusCode;
+  contractDate?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  managerUserId?: string | null;
+  billingTypeCode?: string | null;
+  deliveryMethodCode?: string | null;
+  isPrimary: boolean;
+  memo?: string | null;
+}
+
+export interface CreateProjectContractDto {
+  contractCode: string;
+  title: string;
+  contractTypeCode?: ProjectContractTypeCode;
+  totalAmount?: string;
+  currencyCode?: string;
+  contractStatusCode?: ProjectContractStatusCode;
+  contractDate?: string;
+  startDate?: string;
+  endDate?: string;
+  managerUserId?: string;
+  billingTypeCode?: string;
+  deliveryMethodCode?: string;
+  isPrimary?: boolean;
+  memo?: string;
+}
+
+export interface UpdateProjectContractDto {
+  contractCode?: string;
+  title?: string;
+  contractTypeCode?: ProjectContractTypeCode;
+  totalAmount?: string | null;
+  currencyCode?: string;
+  contractStatusCode?: ProjectContractStatusCode;
+  contractDate?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  managerUserId?: string | null;
+  billingTypeCode?: string | null;
+  deliveryMethodCode?: string | null;
+  isPrimary?: boolean;
+  memo?: string | null;
+}
+
+export type ContractPaymentTypeCode = 'advance' | 'interim' | 'final' | 'other';
+
+export type ContractPaymentStatusCode =
+  | 'scheduled'
+  | 'requested'
+  | 'invoiced'
+  | 'paid'
+  | 'overdue';
+
+export interface ContractPayment {
+  contractPaymentId: string;
+  contractId: string;
+  paymentTypeCode: ContractPaymentTypeCode;
+  amount?: string | null;
+  triggerEvent?: string | null;
+  paymentStatusCode: ContractPaymentStatusCode;
+  dueDate?: string | null;
+  paidDate?: string | null;
+  requestedByUserId?: string | null;
+  sortOrder: number;
+  memo?: string | null;
+}
+
+export interface CreateContractPaymentDto {
+  paymentTypeCode?: ContractPaymentTypeCode;
+  amount?: string;
+  triggerEvent?: string;
+  paymentStatusCode?: ContractPaymentStatusCode;
+  dueDate?: string;
+  paidDate?: string;
+  requestedByUserId?: string;
+  sortOrder?: number;
+  memo?: string;
+}
+
+export interface UpdateContractPaymentDto {
+  paymentTypeCode?: ContractPaymentTypeCode;
+  amount?: string | null;
+  triggerEvent?: string | null;
+  paymentStatusCode?: ContractPaymentStatusCode;
+  dueDate?: string | null;
+  paidDate?: string | null;
+  requestedByUserId?: string | null;
+  sortOrder?: number;
+  memo?: string | null;
+}
+
+export type ProjectOrgRoleCode = 'owner' | 'customer' | 'supplier' | 'partner';
+
+export interface ProjectOrg {
+  projectId: string;
+  organizationId: string;
+  roleCode: ProjectOrgRoleCode;
+  isActive: boolean;
+  memo?: string | null;
+  lastSource?: string | null;
+  lastActivity?: string | null;
+  organization?: {
+    orgId: string;
+    orgCode: string;
+    orgName: string;
+    orgType: string;
+    orgClass: string;
+    scope: string;
+    levelType?: string | null;
+    isActive: boolean;
+  } | null;
+}
+
+export interface CreateProjectOrgDto {
+  roleCode: ProjectOrgRoleCode;
+  organizationId?: string;
+  customerId?: string;
+  memo?: string;
+}
+
+export interface UpdateProjectOrgDto {
+  memo?: string | null;
+  isActive?: boolean;
+}
+
+export type ProjectRelationTypeCode = 'successor' | 'split' | 'merge' | 'linked';
+
+export interface ProjectRelation {
+  sourceProjectId: string;
+  targetProjectId: string;
+  relationTypeCode: ProjectRelationTypeCode;
+  isActive: boolean;
+  memo?: string | null;
+  lastSource?: string | null;
+  lastActivity?: string | null;
+  sourceProject?: {
+    id: string;
+    projectName: string;
+    statusCode: ProjectStatusCode;
+    stageCode: ProjectStageCode;
+  } | null;
+  targetProject?: {
+    id: string;
+    projectName: string;
+    statusCode: ProjectStatusCode;
+    stageCode: ProjectStageCode;
+  } | null;
+}
+
+export interface CreateProjectRelationDto {
+  relationTypeCode: Extract<ProjectRelationTypeCode, 'linked'>;
+  targetProjectId: string;
+  memo?: string;
+}
+
 /**
  * 프로젝트 상태 이력
  */
@@ -164,6 +412,9 @@ export interface ProjectDetail extends Project {
   proposalDetail?: ProjectProposalDetail | null;
   executionDetail?: ProjectExecutionDetail | null;
   transitionDetail?: ProjectTransitionDetail | null;
+  handoffs?: ProjectHandoff[];
+  contracts?: ProjectContract[];
+  projectOrgs?: ProjectOrg[];
   projectStatuses?: ProjectStatus[];
 }
 
@@ -224,6 +475,8 @@ export interface AdvanceStageDto {
   statusGoal?: string;
 }
 
+import type { PermissionResolutionTrace } from '../common/access';
+
 /**
  * 상태 전이 결과
  */
@@ -234,4 +487,37 @@ export interface TransitionResult {
   currentStageCode: ProjectStageCode;
   doneResultCode?: DoneResultCode | null;
   advancedToNextStatus: boolean;
+  previousLifecycle: ProjectLifecycle;
+  currentLifecycle: ProjectLifecycle;
+}
+
+export interface PmsProjectAccessFeatures {
+  canViewProject: boolean;
+  canEditProject: boolean;
+  canManageMembers: boolean;
+  canManageTasks: boolean;
+  canManageMilestones: boolean;
+  canManageIssues: boolean;
+  canManageDeliverables: boolean;
+  canManageCloseConditions: boolean;
+  canAdvanceStage: boolean;
+}
+
+export interface PmsProjectAccessRoles {
+  isProjectOwner: boolean;
+  isOwnerOrganizationMember: boolean;
+  isProjectMember: boolean;
+  memberRoleCodes: string[];
+  memberAccessLevels: ProjectMemberAccessLevel[];
+  phaseOwnerRoleCodes: string[];
+  memberOrganizationIds: string[];
+}
+
+export interface PmsProjectAccessSnapshot {
+  projectId: string;
+  ownerOrganizationId?: string | null;
+  currentOwnerUserId?: string | null;
+  features: PmsProjectAccessFeatures;
+  roles: PmsProjectAccessRoles;
+  policy: PermissionResolutionTrace;
 }

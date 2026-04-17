@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiForbiddenResponse, ApiInternalServerErrorResponse, Ap
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { MemberService } from './member.service.js';
+import { ProjectFeatureGuard } from '../project/project-feature.guard.js';
+import { RequireProjectFeature } from '../project/require-project-feature.decorator.js';
 import { success, deleted } from '../../../common/index.js';
 import { serializeBigInt } from '../../../common/utils/bigint.util.js';
 import type { CreateProjectMemberDto, UpdateProjectMemberDto } from '@ssoo/types';
@@ -12,11 +14,12 @@ import { ApiError } from '../../../common/swagger/api-response.dto.js';
 @ApiTags('project-members')
 @ApiBearerAuth()
 @Controller('projects/:projectId/members')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
 export class MemberController {
   constructor(private readonly memberService: MemberService) {}
 
   @Get()
+  @RequireProjectFeature('canViewProject')
   @ApiOperation({ summary: '프로젝트 멤버 목록' })
   @ApiOkResponse({ type: [ProjectMemberDto] })
   @ApiUnauthorizedResponse({ type: ApiError })
@@ -28,20 +31,19 @@ export class MemberController {
   }
 
   @Post()
+  @RequireProjectFeature('canManageMembers')
   @ApiOperation({ summary: '프로젝트 멤버 추가' })
   @ApiOkResponse({ type: ProjectMemberDto })
   @ApiUnauthorizedResponse({ type: ApiError })
   @ApiForbiddenResponse({ type: ApiError })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  async create(
-    @Param('projectId') projectId: string,
-    @Body() dto: CreateProjectMemberDto,
-  ) {
+  async create(@Param('projectId') projectId: string, @Body() dto: CreateProjectMemberDto) {
     const result = await this.memberService.create(BigInt(projectId), dto);
     return success(serializeBigInt(result));
   }
 
   @Put(':userId/:roleCode')
+  @RequireProjectFeature('canManageMembers')
   @ApiOperation({ summary: '프로젝트 멤버 수정' })
   @ApiOkResponse({ type: ProjectMemberDto })
   @ApiUnauthorizedResponse({ type: ApiError })
@@ -58,6 +60,7 @@ export class MemberController {
   }
 
   @Delete(':userId/:roleCode')
+  @RequireProjectFeature('canManageMembers')
   @ApiOperation({ summary: '프로젝트 멤버 삭제' })
   @ApiOkResponse({ description: '프로젝트 멤버 삭제' })
   @ApiUnauthorizedResponse({ type: ApiError })

@@ -4,19 +4,55 @@
  */
 export const dynamic = 'force-dynamic';
 
-import { searchDocuments } from '@/server/handlers/ai.handler';
+import type { SearchRequest, SearchResponse } from '@ssoo/types/dms';
+import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
+
+interface BackendSuccessResponse {
+  success: true;
+  data: SearchResponse;
+}
+
+interface BackendErrorResponse {
+  success?: false;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+  message?: string;
+}
+
+function getBackendErrorMessage(responseBody: BackendSuccessResponse | BackendErrorResponse | null): string {
+  if (!responseBody || responseBody.success === true) {
+    return '서버 검색 처리 중 오류가 발생했습니다.';
+  }
+
+  return responseBody.error?.message || responseBody.message || '서버 검색 처리 중 오류가 발생했습니다.';
+}
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const query = typeof body?.query === 'string' ? body.query : '';
-  const contextMode = body?.contextMode === 'deep' ? 'deep' : 'doc';
-  const activeDocPath = typeof body?.activeDocPath === 'string' ? body.activeDocPath : undefined;
+  const payload: SearchRequest = {
+    query: typeof body?.query === 'string' ? body.query : '',
+    contextMode: body?.contextMode === 'deep' ? 'deep' : 'doc',
+    activeDocPath: typeof body?.activeDocPath === 'string' ? body.activeDocPath : undefined,
+  };
 
-  const result = await searchDocuments(query, { contextMode, activeDocPath });
+  const response = await fetch(createServerApiUrl('/dms/search'), createServerApiProxyInit(req, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  }));
 
-  if (result.success) {
-    return Response.json(result.data);
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse | BackendErrorResponse | null;
+
+  if (!response.ok || !responseBody || !('success' in responseBody) || responseBody.success !== true) {
+    return Response.json(
+      { error: getBackendErrorMessage(responseBody) },
+      { status: response.status || 500 },
+    );
   }
 
-  return Response.json({ error: result.error }, { status: result.status });
+  return Response.json(responseBody.data);
 }

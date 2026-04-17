@@ -70,8 +70,8 @@ apps/web/pms/
 
 | 경로 | 컴포넌트 | 설명 |
 |------|----------|------|
-| `/login` | `src/app/login/page.tsx` | 로그인 폼 |
-| `/dashboard` | `src/app/dashboard/page.tsx` | 로그인 후 메인 |
+| `/login` | `src/app/(auth)/login/page.tsx` | 로그인 폼 |
+| `/` | `src/app/(main)/page.tsx` | 로그인 후 메인 셸 (Home 탭 렌더링) |
 
 ### 상태 관리 (Zustand)
 

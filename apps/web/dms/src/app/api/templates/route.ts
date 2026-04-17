@@ -1,47 +1,70 @@
 export const dynamic = 'force-dynamic';
 
-import {
-  handleDeleteTemplate,
-  handleListTemplatesByReferenceDocument,
-  handleListTemplates,
-  handleUpsertTemplate,
-} from '@/server/handlers/template.handler';
+import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
+
+interface BackendSuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+interface BackendErrorResponse {
+  success?: false;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+  message?: string;
+}
+
+function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null): string {
+  if (!responseBody || responseBody.success === true) {
+    return '서버 템플릿 처리 중 오류가 발생했습니다.';
+  }
+
+  return responseBody.error?.message || responseBody.message || '서버 템플릿 처리 중 오류가 발생했습니다.';
+}
+
+async function proxyJson<T>(request: Request, pathname: string, init?: RequestInit) {
+  const response = await fetch(
+    createServerApiUrl(pathname),
+    createServerApiProxyInit(request, init),
+  );
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<T> | BackendErrorResponse | null;
+
+  if (!response.ok || !responseBody || responseBody.success !== true) {
+    return Response.json(
+      { error: getBackendErrorMessage(responseBody) },
+      { status: response.status || 500 },
+    );
+  }
+
+  return Response.json(responseBody.data);
+}
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const sourceDocumentPath = url.searchParams.get('sourceDocumentPath')?.trim();
-  const originType = url.searchParams.get('originType');
-
-  if (sourceDocumentPath) {
-    const result = handleListTemplatesByReferenceDocument(sourceDocumentPath, req.headers);
-    return Response.json(result.data);
-  }
-
-  const result = handleListTemplates(req.headers);
-  if (originType === 'referenced' || originType === 'generated') {
-    return Response.json({
-      global: result.data.global.filter((item) => item.originType === originType),
-      personal: result.data.personal.filter((item) => item.originType === originType),
-    });
-  }
-
-  return Response.json(result.data);
+  const query = new URL(req.url).searchParams.toString();
+  const pathname = query ? `/dms/templates?${query}` : '/dms/templates';
+  return proxyJson(req, pathname);
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const result = handleUpsertTemplate(body, req.headers);
-  if (!result.success) {
-    return Response.json({ error: result.error }, { status: 400 });
-  }
-  return Response.json(result.data);
+  return proxyJson(req, '/dms/templates', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
 }
 
 export async function DELETE(req: Request) {
   const body = await req.json();
-  const result = handleDeleteTemplate(body, req.headers);
-  if (!result.success) {
-    return Response.json({ error: result.error }, { status: 400 });
-  }
-  return Response.json(result.data);
+  return proxyJson(req, '/dms/templates', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
 }

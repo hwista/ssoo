@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { templateApi } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { templateApi } from '@/lib/api/endpoints/templates';
+import { templateKeys } from '@/hooks/queries/useTemplates';
 import { toast } from '@/lib/toast';
 import type { TemplateItem } from '@/types/template';
 import type { OpenTabOptions } from '@/types/tab';
@@ -37,6 +39,7 @@ export function useViewerTemplatePicker({
   setTemplateConversionPending,
   clearTemplateConversionPending,
 }: UseViewerTemplatePickerParams): UseViewerTemplatePickerResult {
+  const queryClient = useQueryClient();
   const [viewerReferenceTemplates, setViewerReferenceTemplates] = useState<TemplateItem[]>([]);
   const [isViewerTemplatePickerOpen, setIsViewerTemplatePickerOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<TemplateItem | null>(null);
@@ -73,7 +76,11 @@ export function useViewerTemplatePicker({
       setIsCheckingReferenceTemplates(true);
       setPreviewTemplate(null);
       try {
-        const response = await templateApi.listByReferenceDocument(filePath);
+        const response = await queryClient.fetchQuery({
+          queryKey: templateKeys.byReferenceDocument(filePath),
+          queryFn: () => templateApi.listByReferenceDocument(filePath),
+          staleTime: 5 * 60 * 1000,
+        });
         if (!response.success) {
           toast.error('템플릿 전환 준비에 실패했습니다.', {
             description: '잠시 후 다시 시도해주세요.',
@@ -95,7 +102,7 @@ export function useViewerTemplatePicker({
         setIsCheckingReferenceTemplates(false);
       }
     })();
-  }, [filePath, createReferencedTemplate]);
+  }, [createReferencedTemplate, filePath, queryClient]);
 
   const openViewerTemplatePreview = useCallback((template: TemplateItem) => {
     setPreviewTemplate(template);

@@ -57,6 +57,7 @@ export const storageApi = {
     storageUri?: string;
     provider?: 'local' | 'sharepoint' | 'nas';
     path?: string;
+    documentPath?: string;
   }): Promise<ApiResponse<StorageOpenResultClient>> => {
     return request('/api/storage/open', {
       method: 'POST',

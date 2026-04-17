@@ -19,12 +19,15 @@ import {
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
+import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
+import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { ChatSessionsService } from './chat-sessions.service.js';
 
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/chat-sessions')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@RequireDmsFeature('canUseAssistant')
 export class ChatSessionsController {
   constructor(private readonly chatSessionsService: ChatSessionsService) {}
 

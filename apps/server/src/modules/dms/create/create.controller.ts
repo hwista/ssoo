@@ -18,13 +18,16 @@ import {
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
+import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
+import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { CreateSummaryDto } from './dto/create.dto.js';
 import { CreateService } from './create.service.js';
 
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/create')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@RequireDmsFeature('canUseAssistant')
 export class CreateController {
   constructor(private readonly createService: CreateService) {}
 

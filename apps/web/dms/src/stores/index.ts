@@ -7,6 +7,9 @@
 export { useLayoutStore } from './layout.store';
 export { useSidebarStore } from './sidebar.store';
 export { useTabStore, HOME_TAB } from './tab.store';
+export { useAuthStore } from './auth.store';
+export type { AuthUser } from './auth.store';
+export { useAccessStore } from './access.store';
 
 // Data
 export { useFileStore } from './file.store';

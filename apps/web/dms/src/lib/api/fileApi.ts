@@ -1,3 +1,4 @@
+import type { FileNode } from '@/types/file-tree';
 import type { DocumentMetadata } from '@/types/document-metadata';
 import { request, type ApiResponse } from './core';
 
@@ -21,6 +22,20 @@ export interface FileApiRequest {
   newPath?: string;
   autoNumber?: boolean;
   metadata?: Partial<DocumentMetadata>;
+  expectedRevisionSeq?: number;
+}
+
+export interface FileReadMetadata {
+  size: number;
+  createdAt: string;
+  modifiedAt: string;
+  accessedAt: string;
+  document?: DocumentMetadata;
+}
+
+export interface FileReadResponse {
+  content: string;
+  metadata: FileReadMetadata;
 }
 
 export const fileApi = {
@@ -31,7 +46,7 @@ export const fileApi = {
     });
   },
 
-  read: async (path: string): Promise<ApiResponse<string>> => {
+  read: async (path: string): Promise<ApiResponse<FileReadResponse>> => {
     return request('/api/file', {
       method: 'POST',
       body: { action: 'read', path },
@@ -45,10 +60,14 @@ export const fileApi = {
     });
   },
 
-  update: async (path: string, content: string): Promise<ApiResponse> => {
+  update: async (
+    path: string,
+    content: string,
+    expectedRevisionSeq?: number,
+  ): Promise<ApiResponse<{ message: string; metadata?: DocumentMetadata }>> => {
     return request('/api/file', {
       method: 'POST',
-      body: { action: 'write', path, content },
+      body: { action: 'write', path, content, expectedRevisionSeq },
     });
   },
 
@@ -75,11 +94,12 @@ export const fileApi = {
 
   updateMetadata: async (
     path: string,
-    metadata: Partial<DocumentMetadata>
+    metadata: Partial<DocumentMetadata>,
+    expectedRevisionSeq?: number,
   ): Promise<ApiResponse<DocumentMetadata>> => {
     return request('/api/file', {
       method: 'POST',
-      body: { action: 'updateMetadata', path, metadata },
+      body: { action: 'updateMetadata', path, metadata, expectedRevisionSeq },
     });
   },
 
@@ -92,13 +112,13 @@ export const fileApi = {
 };
 
 export const filesApi = {
-  getFileTree: async (): Promise<ApiResponse> => {
-    return request('/api/files');
+  getFileTree: async (): Promise<ApiResponse<FileNode[]>> => {
+    return request<FileNode[]>('/api/files');
   },
 
-  getFiles: async (path?: string): Promise<ApiResponse> => {
+  getFiles: async (path?: string): Promise<ApiResponse<FileNode[]>> => {
     const url = path ? `/api/files?path=${encodeURIComponent(path)}` : '/api/files';
-    return request(url);
+    return request<FileNode[]>(url);
   },
 };
 

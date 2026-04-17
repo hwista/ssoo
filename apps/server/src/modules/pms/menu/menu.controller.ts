@@ -1,5 +1,6 @@
-﻿import { Controller, Get, Post, Delete, Body, Param, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Delete, Body, Param, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from "@nestjs/swagger";
+import type { PmsAccessSnapshot } from '@ssoo/types/pms';
 import { MenuService } from './menu.service.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
@@ -34,11 +35,13 @@ export class MenuController {
       this.menuService.getFavoritesByUserId(userId),
     ]);
 
-    return success({
+    const snapshot: PmsAccessSnapshot = {
       generalMenus: menuData.generalMenus,
       adminMenus: menuData.adminMenus,
       favorites,
-    });
+    };
+
+    return success(snapshot);
   }
 
   /**

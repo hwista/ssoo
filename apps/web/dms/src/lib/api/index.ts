@@ -39,6 +39,7 @@ export type {
   SettingsResponse,
 } from './settingsApi';
 
+export { accessApi } from './access';
 export { storageApi, ingestApi } from './storageApi';
 export type { StorageReferenceClient, StorageOpenResultClient, IngestJobClient } from './storageApi';
 
@@ -46,3 +47,6 @@ export { templateApi } from './templateApi';
 
 export { contentApi } from './contentApi';
 export type { ContentData, ContentSaveResult, ContentDeleteResult } from './contentApi';
+
+export { authApi } from './auth';
+export type { AuthTokens, AuthUser, LoginRequest } from '@ssoo/types/common';

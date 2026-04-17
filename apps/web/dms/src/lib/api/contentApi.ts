@@ -15,6 +15,7 @@ export interface ContentData {
 export interface ContentSaveResult {
   message: string;
   savedPath: string;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface ContentDeleteResult {
@@ -50,7 +51,7 @@ export const contentApi = {
     contentPath: string,
     content: string,
     metadata?: Record<string, unknown>,
-    options?: { skipMetadata?: boolean; signal?: AbortSignal },
+    options?: { skipMetadata?: boolean; signal?: AbortSignal; expectedRevisionSeq?: number },
   ): Promise<ApiResponse<ContentSaveResult>> => {
     return request<ContentSaveResult>('/api/content', {
       method: 'POST',
@@ -59,6 +60,7 @@ export const contentApi = {
         content,
         metadata,
         skipMetadata: options?.skipMetadata,
+        expectedRevisionSeq: options?.expectedRevisionSeq,
       },
       signal: options?.signal,
     });
@@ -87,11 +89,11 @@ export const contentApi = {
   updateMetadata: async (
     contentPath: string,
     update: Record<string, unknown>,
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; expectedRevisionSeq?: number },
   ): Promise<ApiResponse<Record<string, unknown>>> => {
     return request<Record<string, unknown>>('/api/content', {
       method: 'POST',
-      body: { path: contentPath, metadataUpdate: update },
+      body: { path: contentPath, metadataUpdate: update, expectedRevisionSeq: options?.expectedRevisionSeq },
       signal: options?.signal,
     });
   },

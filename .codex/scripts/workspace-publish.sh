@@ -22,7 +22,7 @@ PUBLISH_MARKER_KEY="${WORKSPACE_PUBLISH_MARKER_KEY:-$PUBLISH_MARKER_KEY_DEFAULT}
 
 if [ -z "$TARGET_BRANCH" ]; then
   echo "[workspace-publish] unable to determine target GitHub branch."
-  echo "[workspace-publish] usage: bash .codex/scripts/workspace-publish.sh <github-branch>"
+  echo "[workspace-publish] usage: bash .codex/scripts/workspace-publish.sh [github-branch]"
   exit 1
 fi
 
@@ -113,5 +113,6 @@ fi
 
 git config --local "$PUBLISH_MARKER_KEY" "$LOCAL_HEAD_HASH"
 echo "[workspace-publish] wrote marker: git config $PUBLISH_MARKER_KEY=$LOCAL_HEAD_HASH"
+echo "[workspace-publish] pre-push guard will now allow direct origin pushes for this HEAD."
 
 echo "[workspace-publish] success: GitHub and GitLab workspace branches are both updated and verified."

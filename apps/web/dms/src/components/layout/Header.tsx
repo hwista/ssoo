@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Search, Plus, Bell } from 'lucide-react';
-import { useTabStore } from '@/stores';
+import { useAccessStore, useTabStore } from '@/stores';
 import { UserMenu } from './UserMenu';
 
 /**
@@ -14,6 +14,9 @@ import { UserMenu } from './UserMenu';
  */
 export function Header() {
   const { openTab, updateTab } = useTabStore();
+  const accessSnapshot = useAccessStore((state) => state.snapshot);
+  const canUseSearch = accessSnapshot?.features.canUseSearch ?? false;
+  const canWriteDocuments = accessSnapshot?.features.canWriteDocuments ?? false;
   const [searchQuery, setSearchQuery] = useState('');
   const actionsRef = useRef<HTMLDivElement>(null);
   const [actionsWidth, setActionsWidth] = useState(0);
@@ -29,6 +32,9 @@ export function Header() {
   }, []);
 
   const handleSearch = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!canUseSearch) {
+      return;
+    }
     if (e.key === 'Enter' && searchQuery.trim()) {
       const trimmedQuery = searchQuery.trim();
       const tabId = openTab({
@@ -48,9 +54,12 @@ export function Header() {
       }
       setSearchQuery('');
     }
-  }, [searchQuery, openTab, updateTab]);
+  }, [canUseSearch, searchQuery, openTab, updateTab]);
 
   const handleCreateDocument = useCallback(() => {
+    if (!canWriteDocuments) {
+      return;
+    }
     openTab({
       id: `new-doc-${Date.now()}`,
       title: '새 문서',
@@ -59,7 +68,7 @@ export function Header() {
       closable: true,
       activate: true,
     });
-  }, [openTab]);
+  }, [canWriteDocuments, openTab]);
 
   return (
     <header className="h-header-h flex items-center justify-between px-4 bg-ssoo-primary">
@@ -73,7 +82,8 @@ export function Header() {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleSearch}
             placeholder="찾고 싶은 내용을 자유롭게 물어보세요!"
-            className="w-full h-control-h rounded-lg border border-white/20 bg-white/10 pl-9 pr-4 text-body-sm text-white placeholder-white/50 focus:border-white/40 focus:outline-none"
+            disabled={!canUseSearch}
+            className="w-full h-control-h rounded-lg border border-white/20 bg-white/10 pl-9 pr-4 text-body-sm text-white placeholder-white/50 focus:border-white/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
       </div>
@@ -84,7 +94,8 @@ export function Header() {
         <button
           type="button"
           onClick={handleCreateDocument}
-          className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-label-md rounded-md hover:bg-gray-100 transition-colors"
+          disabled={!canWriteDocuments}
+          className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-label-md rounded-md hover:bg-gray-100 transition-colors disabled:cursor-not-allowed disabled:bg-white/70 disabled:text-ssoo-primary/60"
         >
           <Plus className="w-4 h-4" />
           <span>새 도큐먼트</span>

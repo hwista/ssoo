@@ -65,7 +65,7 @@ export function buildSearchResponse(
     contextMode: options?.contextMode ?? 'doc',
     confidence: inferConfidence(results.length),
     citations: options?.contextMode === 'deep'
-      ? results.slice(0, 5).map((item) => ({
+      ? results.filter((item) => item.isReadable).slice(0, 5).map((item) => ({
           title: item.title || item.path,
           storageUri: `doc://${item.path.replace(/^\/+/, '')}`,
           versionId: undefined,

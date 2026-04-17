@@ -1,32 +1,19 @@
 'use client';
 
 import { useCallback } from 'react';
-import { assistantSessionApi, getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/lib/api/core';
+import {
+  useRemoveAssistantSessionMutation,
+  useSaveAssistantSessionMutation,
+} from '@/hooks/queries/useAssistantSessions';
 import { useAssistantSessionStore } from '@/stores';
-import { toAssistantMessages } from './assistantSessionUtils';
 
 export function useAssistantSessionPersistence() {
   const clientId = useAssistantSessionStore((state) => state.clientId);
   const sessions = useAssistantSessionStore((state) => state.sessions);
-  const mergeSessions = useAssistantSessionStore((state) => state.mergeSessions);
-  const markSessionsLoaded = useAssistantSessionStore((state) => state.markSessionsLoaded);
   const setSessionPersisted = useAssistantSessionStore((state) => state.setSessionPersisted);
-
-  const loadPersistedSessions = useCallback(async () => {
-    const response = await assistantSessionApi.list(clientId, 100);
-    if (response.success && response.data) {
-      const dbSessions = response.data.map((session) => ({
-        id: session.id,
-        title: session.title,
-        createdAt: session.createdAt,
-        updatedAt: session.updatedAt,
-        messages: toAssistantMessages(session.messages),
-        persistedToDb: true,
-      }));
-      mergeSessions(dbSessions);
-    }
-    markSessionsLoaded();
-  }, [clientId, markSessionsLoaded, mergeSessions]);
+  const saveSessionMutation = useSaveAssistantSessionMutation(clientId);
+  const removeSessionMutation = useRemoveAssistantSessionMutation(clientId);
 
   const saveSession = useCallback(async (sessionId: string) => {
     const session = sessions.find((item) => item.id === sessionId);
@@ -34,7 +21,7 @@ export function useAssistantSessionPersistence() {
       return { success: false, error: '저장할 세션을 찾을 수 없습니다.' };
     }
 
-    const response = await assistantSessionApi.save(clientId, {
+    const response = await saveSessionMutation.mutateAsync({
       id: session.id,
       title: session.title,
       createdAt: session.createdAt,
@@ -49,20 +36,19 @@ export function useAssistantSessionPersistence() {
 
     setSessionPersisted(sessionId, true);
     return { success: true, error: '' };
-  }, [clientId, sessions, setSessionPersisted]);
+  }, [saveSessionMutation, sessions, setSessionPersisted]);
 
   const removeSessionFromDb = useCallback(async (sessionId: string) => {
-    const response = await assistantSessionApi.remove(clientId, sessionId);
+    const response = await removeSessionMutation.mutateAsync(sessionId);
     if (!response.success) {
       return { success: false, error: getErrorMessage(response) };
     }
 
     setSessionPersisted(sessionId, false);
     return { success: true, error: '' };
-  }, [clientId, setSessionPersisted]);
+  }, [removeSessionMutation, setSessionPersisted]);
 
   return {
-    loadPersistedSessions,
     saveSession,
     removeSessionFromDb,
   };

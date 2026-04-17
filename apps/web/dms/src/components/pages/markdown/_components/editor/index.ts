@@ -6,6 +6,7 @@
 // 에디터
 export { Editor, DOCUMENT_WIDTH } from './Editor';
 export type { EditorProps, EditorRef } from './Editor';
+export type { EditorSaveConflictPayload } from './useEditorPersistence';
 
 export { Content } from './Content';
 export type { ContentProps } from './Content';

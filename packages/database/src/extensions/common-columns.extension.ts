@@ -117,16 +117,16 @@ function prepareUpdateData<T>(
  */
 const EXCLUDED_MODELS = [
   'UserFavorite',
-  // CHS 경량 모델 — 전체 감사 컬럼 없음 (관계/이벤트 테이블)
-  'ChReaction',
-  'ChPostTag',
-  'ChMention',
-  'ChBookmark',
-  'ChFollow',
-  'ChNotification',
-  'ChTag',
-  'ChUserSkill',
-  'ChAttachment',
+  // CMS 경량 모델 — 전체 감사 컬럼 없음 (관계/이벤트 테이블)
+  'CmsReaction',
+  'CmsPostTag',
+  'CmsMention',
+  'CmsBookmark',
+  'CmsFollow',
+  'CmsNotification',
+  'CmsTag',
+  'CmsUserSkill',
+  'CmsAttachment',
 ];
 
 function shouldExcludeModel(model: string): boolean {

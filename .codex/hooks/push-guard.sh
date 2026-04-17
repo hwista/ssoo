@@ -66,15 +66,18 @@ if changed_matches '^apps/web/dms/'; then
 fi
 
 if [ "${CODEX_PUSH_REMOTE_NAME:-}" = "origin" ]; then
+  PUBLISH_MARKER_KEY="codex.gitlabLastPublished"
   CURRENT_WORKSPACE_HASH="$(git rev-parse HEAD)"
-  LAST_PUBLISHED_HASH="$(git config --local --get codex.gitlabLastPublished || true)"
+  LAST_PUBLISHED_HASH="$(git config --local --get "$PUBLISH_MARKER_KEY" || true)"
   SKIP_GUARD="${CODEX_SKIP_GITLAB_PUBLISH_GUARD:-${CODEX_SKIP_DMS_PUBLISH_GUARD:-0}}"
   if [ "$CURRENT_WORKSPACE_HASH" != "$LAST_PUBLISHED_HASH" ]; then
     echo "[push-guard] GitLab workspace publish marker mismatch for origin push."
+    echo "[push-guard] marker key: $PUBLISH_MARKER_KEY"
     echo "[push-guard] expected: $CURRENT_WORKSPACE_HASH"
     echo "[push-guard] current marker: ${LAST_PUBLISHED_HASH:-<empty>}"
+    echo "[push-guard] direct origin pushes stay blocked until workspace publish updates the marker."
     echo "[push-guard] run: pnpm run codex:workspace-publish"
-    echo "[push-guard] (compat alias: pnpm run codex:dms-publish)"
+    echo "[push-guard] legacy alias: pnpm run codex:dms-publish"
     echo "[push-guard] (bypass once: CODEX_SKIP_GITLAB_PUBLISH_GUARD=1 git push ...)"
     if [ "$SKIP_GUARD" != "1" ]; then
       exit 1

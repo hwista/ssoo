@@ -3,6 +3,8 @@
 import { useCallback } from 'react';
 import { FileText, Search, Clock, Plus } from 'lucide-react';
 import { useOpenTabWithConfirm } from '@/hooks';
+import { useAccessStore } from '@/stores';
+import { cn } from '@/lib/utils';
 
 /**
  * DMS 홈 대시보드 페이지
@@ -11,8 +13,14 @@ import { useOpenTabWithConfirm } from '@/hooks';
  */
 export function DashboardPage() {
   const openTabWithConfirm = useOpenTabWithConfirm();
+  const accessSnapshot = useAccessStore((state) => state.snapshot);
+  const canWriteDocuments = accessSnapshot?.features.canWriteDocuments ?? false;
+  const canUseSearch = accessSnapshot?.features.canUseSearch ?? false;
 
   const handleAISearch = useCallback(async () => {
+    if (!canUseSearch) {
+      return;
+    }
     await openTabWithConfirm({
       id: 'ai-search',
       title: 'AI 검색',
@@ -21,9 +29,12 @@ export function DashboardPage() {
       closable: true,
       activate: true,
     });
-  }, [openTabWithConfirm]);
+  }, [canUseSearch, openTabWithConfirm]);
 
   const handleNewDocument = useCallback(async () => {
+    if (!canWriteDocuments) {
+      return;
+    }
     await openTabWithConfirm({
       id: `new-doc-${Date.now()}`,
       title: '새 문서',
@@ -32,7 +43,11 @@ export function DashboardPage() {
       closable: true,
       activate: true,
     });
-  }, [openTabWithConfirm]);
+  }, [canWriteDocuments, openTabWithConfirm]);
+
+  const actionCardClassName = 'p-4 bg-ssoo-content-bg/30 rounded-lg border border-ssoo-content-border text-left transition-colors';
+  const enabledActionCardClassName = `${actionCardClassName} hover:border-ssoo-primary cursor-pointer group`;
+  const disabledActionCardClassName = `${actionCardClassName} cursor-not-allowed opacity-60`;
 
   return (
     <main className="min-h-full flex-1 overflow-auto bg-white p-6">
@@ -47,24 +62,30 @@ export function DashboardPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <button
             onClick={handleNewDocument}
-            className="p-4 bg-ssoo-content-bg/30 rounded-lg border border-ssoo-content-border hover:border-ssoo-primary cursor-pointer transition-colors text-left group"
+            disabled={!canWriteDocuments}
+            className={cn(enabledActionCardClassName, !canWriteDocuments && disabledActionCardClassName)}
           >
             <div className="flex items-center gap-2 mb-2">
               <Plus className="w-5 h-5 text-ssoo-primary/50 group-hover:text-ssoo-primary" />
               <h3 className="text-label-md text-ssoo-primary">새 문서 작성</h3>
             </div>
-            <p className="text-body-sm text-ssoo-primary/70">새로운 문서를 작성합니다</p>
+            <p className="text-body-sm text-ssoo-primary/70">
+              {canWriteDocuments ? '새로운 문서를 작성합니다' : '문서 작성 권한이 필요합니다'}
+            </p>
           </button>
 
           <button
             onClick={handleAISearch}
-            className="p-4 bg-ssoo-content-bg/30 rounded-lg border border-ssoo-content-border hover:border-ssoo-primary cursor-pointer transition-colors text-left group"
+            disabled={!canUseSearch}
+            className={cn(enabledActionCardClassName, !canUseSearch && disabledActionCardClassName)}
           >
             <div className="flex items-center gap-2 mb-2">
               <Search className="w-5 h-5 text-ssoo-primary/50 group-hover:text-ssoo-primary" />
               <h3 className="text-label-md text-ssoo-primary">AI 검색</h3>
             </div>
-            <p className="text-body-sm text-ssoo-primary/70">AI로 문서를 검색합니다</p>
+            <p className="text-body-sm text-ssoo-primary/70">
+              {canUseSearch ? 'AI로 문서를 검색합니다' : 'AI 검색 권한이 필요합니다'}
+            </p>
           </button>
 
           <div className="p-4 bg-ssoo-content-bg/30 rounded-lg border border-ssoo-content-border hover:border-ssoo-primary cursor-pointer transition-colors group">

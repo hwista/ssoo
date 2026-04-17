@@ -17,21 +17,139 @@ services:
       timeout: 5s
       retries: 20
 
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: ssoo-server
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://localhost:3001,http://localhost:3002}
+      JWT_SECRET: ${JWT_SECRET:-development-jwt-secret-change-me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-development-jwt-refresh-secret-change-me}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+    volumes:
+      - dms-data:/app/apps/web/dms/data
+      - /home/a0122024330/src/lswiki-docs:/app/apps/web/dms/data/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/health').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  pms:
+    build:
+      context: .
+      dockerfile: apps/web/pms/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${PMS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        PMS_SERVER_API_URL: ${PMS_SERVER_API_URL:-http://server:4000/api}
+    container_name: ssoo-pms
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${PMS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      PMS_SERVER_API_URL: ${PMS_SERVER_API_URL:-http://server:4000/api}
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  cms:
+    build:
+      context: .
+      dockerfile: apps/web/cms/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${CMS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        CMS_SERVER_API_URL: ${CMS_SERVER_API_URL:-http://server:4000/api}
+    container_name: ssoo-cms
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      NEXT_PUBLIC_API_URL: ${CMS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      CMS_SERVER_API_URL: ${CMS_SERVER_API_URL:-http://server:4000/api}
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3002').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
   dms:
     build:
-      context: ./apps/web/dms
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/web/dms/Dockerfile
     container_name: ssoo-dms
     restart: unless-stopped
     ports:
       - "3001:3001"
+    env_file:
+      - path: ./apps/web/dms/.env.local
+        required: false
     environment:
-      - DMS_DATABASE_URL=postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
+      DMS_DATABASE_URL: ${DOCKER_DMS_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
+      DMS_SERVER_API_URL: ${DMS_SERVER_API_URL:-http://server:4000/api}
     volumes:
-      - dms-data:/app/data
+      - dms-data:/app/apps/web/dms/data
+      - /home/a0122024330/src/lswiki-docs:/app/apps/web/dms/data/documents
     depends_on:
       postgres:
         condition: service_healthy
+      server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
 volumes:
   ssoo-postgres-data:

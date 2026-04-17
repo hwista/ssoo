@@ -99,7 +99,7 @@ docs/
 ### DMS (Document Management System)
 
 > ⚠️ **DMS 정본 문서는 `docs/dms/`에 있습니다.**  
-> DMS는 독립 프로젝트로, npm을 사용하며 `@ssoo/*` 패키지를 참조하지 않습니다.
+> DMS는 pnpm workspace 앱이며 `@ssoo/types`, `@ssoo/web-auth`를 재사용합니다. 단, `@ssoo/database` 직접 import는 금지입니다.
 
 | 문서 | 설명 |
 |------|------|

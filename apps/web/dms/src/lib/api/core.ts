@@ -1,10 +1,33 @@
 import { ERROR_MESSAGES } from '@/lib/constants/common';
+import { fetchWithSharedAuth } from './sharedAuth';
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
+  status?: number;
+  details?: unknown;
+}
+
+export class ApiRequestError extends Error {
+  readonly status?: number;
+  readonly details?: unknown;
+
+  constructor(message: string, options: { status?: number; details?: unknown } = {}) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = options.status;
+    this.details = options.details;
+  }
+}
+
+export interface DocumentConflictDetails {
+  expectedRevisionSeq?: number;
+  currentRevisionSeq?: number;
+  serverContent: string;
+  serverContentHash?: string;
+  clientContentHash?: string;
 }
 
 export interface ApiRequestOptions {
@@ -13,6 +36,14 @@ export interface ApiRequestOptions {
   body?: unknown;
   timeout?: number;
   signal?: AbortSignal;
+  skipAuth?: boolean;
+  skipAuthRefresh?: boolean;
+}
+
+type ApiShortcutOptions = Omit<ApiRequestOptions, 'method' | 'body' | 'headers'>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 /**
@@ -43,6 +74,8 @@ export async function request<T = unknown>(
     body,
     timeout = 30000,
     signal: externalSignal,
+    skipAuth = false,
+    skipAuthRefresh = false,
   } = options;
 
   const controller = new AbortController();
@@ -63,11 +96,15 @@ export async function request<T = unknown>(
       ...headers,
     };
 
-    const fetchPromise = fetch(url, {
+    const fetchPromise = fetchWithSharedAuth(url, {
       method,
       headers: defaultHeaders,
       body: body ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
       signal: controller.signal,
+    }, {
+      skipAuth,
+      retryOnUnauthorized: !skipAuthRefresh,
     });
 
     const response = externalSignal
@@ -84,8 +121,18 @@ export async function request<T = unknown>(
 
       if (contentType.includes('application/json')) {
         try {
-          const payload = await response.json() as { error?: string; message?: string };
+          const payload = await response.json() as {
+            error?: string;
+            message?: string;
+            details?: unknown;
+          };
           errorText = payload.error || payload.message || response.statusText;
+          return {
+            success: false,
+            status: response.status,
+            error: `HTTP ${response.status}: ${errorText}`,
+            details: payload.details,
+          };
         } catch {
           errorText = response.statusText;
         }
@@ -96,6 +143,7 @@ export async function request<T = unknown>(
 
       return {
         success: false,
+        status: response.status,
         error: `HTTP ${response.status}: ${errorText}`,
       };
     }
@@ -144,28 +192,76 @@ export async function request<T = unknown>(
 
 export const get = <T = unknown>(
   url: string,
-  headers?: Record<string, string>
-): Promise<ApiResponse<T>> => request<T>(url, { method: 'GET', headers });
+  headers?: Record<string, string>,
+  options: ApiShortcutOptions = {},
+): Promise<ApiResponse<T>> => request<T>(url, { ...options, method: 'GET', headers });
 
 export const post = <T = unknown>(
   url: string,
   body?: unknown,
-  headers?: Record<string, string>
-): Promise<ApiResponse<T>> => request<T>(url, { method: 'POST', body, headers });
+  headers?: Record<string, string>,
+  options: ApiShortcutOptions = {},
+): Promise<ApiResponse<T>> => request<T>(url, { ...options, method: 'POST', body, headers });
 
 export const put = <T = unknown>(
   url: string,
   body?: unknown,
-  headers?: Record<string, string>
-): Promise<ApiResponse<T>> => request<T>(url, { method: 'PUT', body, headers });
+  headers?: Record<string, string>,
+  options: ApiShortcutOptions = {},
+): Promise<ApiResponse<T>> => request<T>(url, { ...options, method: 'PUT', body, headers });
 
 export const del = <T = unknown>(
   url: string,
-  headers?: Record<string, string>
-): Promise<ApiResponse<T>> => request<T>(url, { method: 'DELETE', headers });
+  headers?: Record<string, string>,
+  options: ApiShortcutOptions = {},
+): Promise<ApiResponse<T>> => request<T>(url, { ...options, method: 'DELETE', headers });
+
+export function createApiRequestError(response: ApiResponse, prefix?: string): ApiRequestError {
+  const message = getErrorMessage(response);
+  return new ApiRequestError(
+    prefix ? `${prefix}: ${message}` : message,
+    { status: response.status, details: response.details },
+  );
+}
+
+export function getDocumentConflictDetails(error: unknown): DocumentConflictDetails | null {
+  const status = error instanceof ApiRequestError
+    ? error.status
+    : isRecord(error) && typeof error.status === 'number'
+      ? error.status
+      : undefined;
+  const details = error instanceof ApiRequestError
+    ? error.details
+    : isRecord(error)
+      ? error.details
+      : undefined;
+
+  if (status !== 409 || !isRecord(details) || typeof details.serverContent !== 'string') {
+    return null;
+  }
+
+  return {
+    serverContent: details.serverContent,
+    expectedRevisionSeq: typeof details.expectedRevisionSeq === 'number'
+      ? details.expectedRevisionSeq
+      : undefined,
+    currentRevisionSeq: typeof details.currentRevisionSeq === 'number'
+      ? details.currentRevisionSeq
+      : undefined,
+    serverContentHash: typeof details.serverContentHash === 'string'
+      ? details.serverContentHash
+      : undefined,
+    clientContentHash: typeof details.clientContentHash === 'string'
+      ? details.clientContentHash
+      : undefined,
+  };
+}
 
 export function formatApiError(error: string | undefined): string {
   if (!error) return ERROR_MESSAGES.NETWORK_ERROR;
+  if (error.includes('409') && /conflict/i.test(error)) {
+    return '다른 수정본이 먼저 저장되었습니다.';
+  }
   if (error.includes('404')) return ERROR_MESSAGES.FILE_NOT_FOUND;
   if (error.includes('409')) return ERROR_MESSAGES.FILE_ALREADY_EXISTS;
   if (error.includes('413')) return ERROR_MESSAGES.FILE_TOO_LARGE;

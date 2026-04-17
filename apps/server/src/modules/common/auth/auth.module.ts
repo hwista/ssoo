@@ -6,6 +6,7 @@ import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { UserModule } from '../user/user.module.js';
+import { AccessFoundationModule } from '../access/access-foundation.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { UserModule } from '../user/user.module.js';
       }),
     }),
     UserModule,
+    AccessFoundationModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

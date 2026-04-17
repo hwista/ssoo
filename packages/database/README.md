@@ -55,8 +55,8 @@ packages/database/
 
 | 스키마 | 접두사 | 설명 | 테이블 수 |
 |--------|--------|------|-----------|
-| `common` | `cm_user_*` | 공통 사용자 (모든 시스템 공유) | 2개 |
-| `pms` | `cm_*`, `pr_*` | PMS 전용 (코드, 메뉴, 프로젝트) | 27개 |
+| `common` | `cm_*` | 공통 사용자/인증/세션/조직/권한 foundation (모든 시스템 공유) | 22개 |
+| `pms` | `cm_*`, `pr_*` | PMS 전용 (코드, 메뉴, 프로젝트) | 29개 |
 | `dms` | `dm_*` | 문서 관리 시스템 (미래 확장) | 0개 |
 
 ### Prisma 설정
@@ -85,6 +85,26 @@ datasource db {
 |------|----------|------|
 | `User` | `cm_user_m` | 사용자 마스터 |
 | `UserHistory` | `cm_user_h` | 사용자 변경 이력 |
+| `UserAuth` | `cm_user_auth_m` | 인증 계정 bridge |
+| `UserAuthHistory` | `cm_user_auth_h` | 인증 계정 변경 이력 |
+| `UserSession` | `cm_user_session_m` | 세션 bridge |
+| `UserSessionHistory` | `cm_user_session_h` | 세션 변경 이력 |
+| `UserInvitation` | `cm_user_invitation_m` | 초대 bridge |
+| `UserInvitationHistory` | `cm_user_invitation_h` | 초대 변경 이력 |
+| `Organization` | `cm_organization_m` | 공통 조직 마스터 |
+| `OrganizationHistory` | `cm_organization_h` | 조직 변경 이력 |
+| `UserOrganizationRelation` | `cm_user_org_r` | 사용자-조직 관계 bridge |
+| `UserOrganizationRelationHistory` | `cm_user_org_h` | 사용자-조직 관계 변경 이력 |
+| `Permission` | `cm_permission_m` | 공통 permission vocabulary |
+| `PermissionHistory` | `cm_permission_h` | permission 변경 이력 |
+| `Role` | `cm_role_m` | system/global role vocabulary |
+| `RoleHistory` | `cm_role_h` | role 변경 이력 |
+| `RolePermission` | `cm_role_permission_r` | role baseline grant |
+| `RolePermissionHistory` | `cm_role_permission_h` | role-permission 변경 이력 |
+| `OrganizationPermission` | `cm_org_permission_r` | 조직 baseline grant |
+| `OrganizationPermissionHistory` | `cm_org_permission_h` | 조직 baseline grant 변경 이력 |
+| `UserPermissionException` | `cm_user_permission_exception_r` | 사용자별 permission exception |
+| `UserPermissionExceptionHistory` | `cm_user_permission_exception_h` | 사용자 permission exception 변경 이력 |
 
 ```prisma
 model User {
@@ -117,6 +137,7 @@ model User {
 |------|----------|------|
 | `Project` | `pr_project_m` | 프로젝트 마스터 |
 | `ProjectStatus` | `pr_project_status_m` | 프로젝트 상태별 상세 |
+| `ProjectRolePermission` | `pr_project_role_permission_r` | PROJECT_MEMBER_ROLE 기반 프로젝트 capability 매핑 |
 | `Deliverable` | `pr_deliverable_m` | 산출물 마스터 |
 | `DeliverableGroup` | `pr_deliverable_group_m` | 산출물 그룹 |
 | `CloseConditionGroup` | `pr_close_condition_group_m` | 종료조건 그룹 |
@@ -127,6 +148,7 @@ model Project {
   projectName     String   @map("project_name")
   statusCode      String   @map("status_code")  // request, proposal, execution, transition
   stageCode       String   @map("stage_code")   // waiting, in_progress, done
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   // ... 생략
   @@map("pr_project_m")
   @@schema("pms")
@@ -228,6 +250,20 @@ node ./node_modules/prisma/build/index.js db push
 | `05_menu_data.sql` | pms | 메뉴 마스터 데이터 |
 | `06_role_menu_permission.sql` | pms | 역할별 메뉴 권한 |
 | `07_user_menu_permission.sql` | pms | 사용자별 메뉴 권한 |
+| `09_project_request_sample.sql` | pms | PMS 프로젝트/요청 샘플 |
+| `10_project_member_task_issue_code.sql` | pms | PMS 멤버/태스크/이슈 코드 |
+| `11_demo_users_customers.sql` | common+pms | 데모 사용자/고객사 및 로그인 계정 |
+| `12_org_foundation_bridge.sql` | **common** | legacy user/customer 기준 조직 foundation bridge |
+| `12_demo_project_members.sql` | pms | 프로젝트별 데모 멤버 배정 |
+| `13_permission_foundation.sql` | **common** | permission/role foundation vocabulary 및 admin baseline |
+| `13_demo_tasks.sql` | pms | 프로젝트별 데모 태스크 |
+| `14_pms_project_policy_foundation.sql` | common+pms | PMS project capability vocabulary / baseline |
+| `14_demo_milestones.sql` | pms | 프로젝트별 데모 마일스톤 |
+| `15_dms_access_policy_foundation.sql` | **common** | DMS access feature baseline |
+| `15_demo_issues.sql` | pms | 프로젝트별 데모 이슈 |
+| `16_cms_access_policy_foundation.sql` | **common** | CMS access feature baseline |
+| `16_demo_deliverables_conditions.sql` | pms | 프로젝트별 데모 산출물/종료조건 |
+| `17_demo_project_access_context.sql` | common+pms | Docker 런타임 검증용 PMS owner/org baseline |
 | `99_user_initial_admin.sql` | **common** | 초기 관리자 계정 |
 | `apply_all_seeds.sql` | - | 전체 실행 스크립트 |
 
@@ -255,6 +291,16 @@ psql -U appuser -d appdb -f prisma/seeds/00_user_code.sql
 | `02_cm_user_h_trigger.sql` | **common** | 사용자 이력 |
 | `03~11_pr_*.sql` | pms | 프로젝트 관련 이력 |
 | `12~14_cm_menu_*.sql` | pms | 메뉴/권한 이력 |
+| `23_cm_user_auth_h_trigger.sql` | **common** | 인증 계정 이력 |
+| `24_cm_user_session_h_trigger.sql` | **common** | 세션 이력 |
+| `25_cm_user_invitation_h_trigger.sql` | **common** | 초대 이력 |
+| `26_cm_organization_h_trigger.sql` | **common** | 조직 이력 |
+| `27_cm_user_org_h_trigger.sql` | **common** | 사용자-조직 관계 이력 |
+| `28_cm_permission_h_trigger.sql` | **common** | permission vocabulary 이력 |
+| `29_cm_role_h_trigger.sql` | **common** | role vocabulary 이력 |
+| `30_cm_role_permission_h_trigger.sql` | **common** | role baseline grant 이력 |
+| `31_cm_org_permission_h_trigger.sql` | **common** | 조직 baseline grant 이력 |
+| `32_cm_user_permission_exception_h_trigger.sql` | **common** | 사용자 permission exception 이력 |
 | `apply_all_triggers.sql` | - | 전체 설치 스크립트 |
 
 ### 실행 방법
@@ -283,3 +329,13 @@ psql -U appuser -d appdb -f prisma/triggers/apply_all_triggers.sql
 4. DB에 적용: `pnpm db:push` (개발) 또는 `pnpm db:migrate` (운영)
 5. 필요시 트리거/시드 파일에 스키마 prefix 반영
 6. 필요시 `@ssoo/types`에 해당 타입 추가
+
+---
+
+## Changelog
+
+| 날짜 | 변경 내용 |
+|------|----------|
+| 2026-04-09 | `cm_permission_m`, `cm_role_m`, `cm_role_permission_r`, `cm_org_permission_r`, `cm_user_permission_exception_r` 및 대응 history table/trigger, permission foundation seed를 추가 |
+| 2026-04-09 | `cm_organization_m`, `cm_user_org_r` 및 대응 history table/trigger, legacy user/customer 기준 org foundation bridge seed를 추가 |
+| 2026-04-09 | `cm_user_auth_m`, `cm_user_session_m`, `cm_user_invitation_m` 및 대응 history table/trigger를 추가해 auth foundation bridge를 도입 |

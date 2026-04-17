@@ -68,6 +68,50 @@
 \echo 'Applying 99_user_initial_admin.sql...'
 \i 99_user_initial_admin.sql
 
+-- 11: 데모 사용자/고객사
+\echo 'Applying 11_demo_users_customers.sql...'
+\i 11_demo_users_customers.sql
+
+-- 12: legacy user/customer 기준 org foundation bridge
+\echo 'Applying 12_org_foundation_bridge.sql...'
+\i 12_org_foundation_bridge.sql
+
+-- 13: common permission/role foundation
+\echo 'Applying 13_permission_foundation.sql...'
+\i 13_permission_foundation.sql
+
+-- 14: PMS project policy foundation
+\echo 'Applying 14_pms_project_policy_foundation.sql...'
+\i 14_pms_project_policy_foundation.sql
+
+-- 15: DMS access policy foundation
+\echo 'Applying 15_dms_access_policy_foundation.sql...'
+\i 15_dms_access_policy_foundation.sql
+
+-- 16: CMS access policy foundation
+\echo 'Applying 16_cms_access_policy_foundation.sql...'
+\i 16_cms_access_policy_foundation.sql
+
+-- 17: PMS demo project access context (owner/org baseline)
+\echo 'Applying 17_demo_project_access_context.sql...'
+\i 17_demo_project_access_context.sql
+
+-- Demo PMS data: members/tasks/milestones/issues/deliverables
+\echo 'Applying 12_demo_project_members.sql...'
+\i 12_demo_project_members.sql
+
+\echo 'Applying 13_demo_tasks.sql...'
+\i 13_demo_tasks.sql
+
+\echo 'Applying 14_demo_milestones.sql...'
+\i 14_demo_milestones.sql
+
+\echo 'Applying 15_demo_issues.sql...'
+\i 15_demo_issues.sql
+
+\echo 'Applying 16_demo_deliverables_conditions.sql...'
+\i 16_demo_deliverables_conditions.sql
+
 -- 07: 사용자별 메뉴 권한 (admin 사용자 생성 후 실행)
 \echo 'Applying 07_user_menu_permission.sql...'
 \i 07_user_menu_permission.sql

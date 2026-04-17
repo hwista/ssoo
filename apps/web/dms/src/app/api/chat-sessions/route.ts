@@ -1,78 +1,71 @@
 export const dynamic = 'force-dynamic';
 
-import { deleteChatSession, listChatSessions, saveChatSession } from '@/server/handlers/chatSessions.handler';
+import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
 
-const CLIENT_ID_REGEX = /^[a-zA-Z0-9_-]{8,80}$/;
-const SESSION_ID_REGEX = /^[a-zA-Z0-9._:-]{8,120}$/;
-const MAX_TITLE_LENGTH = 120;
-const MAX_MESSAGES_COUNT = 200;
+interface BackendSuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+interface BackendErrorResponse {
+  success?: false;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+  message?: string;
+}
+
+function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null): string {
+  if (!responseBody || responseBody.success === true) {
+    return '서버 채팅 세션 처리 중 오류가 발생했습니다.';
+  }
+
+  return responseBody.error?.message || responseBody.message || '서버 채팅 세션 처리 중 오류가 발생했습니다.';
+}
+
+async function proxyJson<T>(request: Request, pathname: string, init?: RequestInit) {
+  const response = await fetch(
+    createServerApiUrl(pathname),
+    createServerApiProxyInit(request, init),
+  );
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<T> | BackendErrorResponse | null;
+
+  if (!response.ok || !responseBody || responseBody.success !== true) {
+    return Response.json(
+      { error: getBackendErrorMessage(responseBody) },
+      { status: response.status || 500 },
+    );
+  }
+
+  return Response.json(responseBody.data);
+}
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const clientId = searchParams.get('clientId') ?? '';
-  const limitRaw = Number(searchParams.get('limit') ?? '50');
-  const limit = Number.isFinite(limitRaw) ? limitRaw : 50;
-  if (!CLIENT_ID_REGEX.test(clientId)) {
-    return Response.json({ error: '유효한 clientId가 필요합니다.' }, { status: 400 });
-  }
-
-  const result = await listChatSessions(clientId, limit);
-  if (result.success) {
-    return Response.json(result.data);
-  }
-  return Response.json({ error: result.error }, { status: result.status });
+  const url = new URL(req.url);
+  const query = url.searchParams.toString();
+  const pathname = query ? `/dms/chat-sessions?${query}` : '/dms/chat-sessions';
+  return proxyJson(req, pathname);
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const clientId = typeof body?.clientId === 'string' ? body.clientId : '';
-  if (!CLIENT_ID_REGEX.test(clientId)) {
-    return Response.json({ error: '유효한 clientId가 필요합니다.' }, { status: 400 });
-  }
-  const sessionCandidate = body?.session;
-  const session = (
-    sessionCandidate &&
-    typeof sessionCandidate.id === 'string' &&
-    typeof sessionCandidate.title === 'string' &&
-    typeof sessionCandidate.createdAt === 'string' &&
-    typeof sessionCandidate.updatedAt === 'string' &&
-    Array.isArray(sessionCandidate.messages) &&
-    SESSION_ID_REGEX.test(sessionCandidate.id) &&
-    sessionCandidate.title.length > 0 &&
-    sessionCandidate.title.length <= MAX_TITLE_LENGTH &&
-    sessionCandidate.messages.length <= MAX_MESSAGES_COUNT
-  )
-    ? {
-      id: sessionCandidate.id,
-      title: sessionCandidate.title,
-      createdAt: sessionCandidate.createdAt,
-      updatedAt: sessionCandidate.updatedAt,
-      messages: sessionCandidate.messages,
-    }
-    : null;
-
-  if (!session) {
-    return Response.json({ error: '유효한 session payload가 필요합니다.' }, { status: 400 });
-  }
-
-  const result = await saveChatSession(clientId, session);
-  if (result.success) {
-    return Response.json(result.data);
-  }
-  return Response.json({ error: result.error }, { status: result.status });
+  return proxyJson(req, '/dms/chat-sessions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
 }
 
 export async function DELETE(req: Request) {
   const body = await req.json();
-  const clientId = typeof body?.clientId === 'string' ? body.clientId : '';
-  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
-  if (!CLIENT_ID_REGEX.test(clientId) || !SESSION_ID_REGEX.test(sessionId)) {
-    return Response.json({ error: '유효한 clientId와 sessionId가 필요합니다.' }, { status: 400 });
-  }
-
-  const result = await deleteChatSession(clientId, sessionId);
-  if (result.success) {
-    return Response.json(result.data);
-  }
-  return Response.json({ error: result.error }, { status: result.status });
+  return proxyJson(req, '/dms/chat-sessions', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
 }

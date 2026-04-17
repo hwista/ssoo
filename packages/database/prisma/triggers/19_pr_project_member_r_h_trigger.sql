@@ -30,11 +30,13 @@ BEGIN
 
   INSERT INTO pms.pr_project_member_r_h (
     project_id, user_id, role_code, history_seq, event_type, event_at,
+    organization_id, access_level, is_phase_owner,
     assigned_at, released_at, allocation_rate, sort_order,
     is_active, memo, created_by, created_at, updated_by, updated_at,
     last_source, last_activity, transaction_id
   ) VALUES (
     v_record.project_id, v_record.user_id, v_record.role_code, v_history_seq, v_event_type, NOW(),
+    v_record.organization_id, v_record.access_level, v_record.is_phase_owner,
     v_record.assigned_at, v_record.released_at, v_record.allocation_rate, v_record.sort_order,
     v_record.is_active, v_record.memo, v_record.created_by, v_record.created_at, v_record.updated_by, v_record.updated_at,
     v_record.last_source, v_record.last_activity, v_record.transaction_id

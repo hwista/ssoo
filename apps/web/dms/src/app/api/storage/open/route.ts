@@ -1,59 +1,67 @@
 export const dynamic = 'force-dynamic';
 
-import { handleLocalFileDownload, handleStorageOpen, type StorageOpenBody } from '@/server/handlers/storage.handler';
+import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
+
+interface BackendSuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+interface BackendErrorResponse {
+  success?: false;
+  error?: { message?: string };
+  message?: string;
+}
+
+function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null): string {
+  if (!responseBody || responseBody.success === true) {
+    return '열기 처리 중 오류가 발생했습니다.';
+  }
+
+  return responseBody.error?.message || responseBody.message || '열기 처리 중 오류가 발생했습니다.';
+}
 
 export async function GET(req: Request) {
-  try {
-    const url = new URL(req.url);
-    const storageUri = url.searchParams.get('storageUri') || undefined;
-    const provider = (url.searchParams.get('provider') || undefined) as StorageOpenBody['provider'];
-    const targetPath = url.searchParams.get('path') || undefined;
+  const query = new URL(req.url).searchParams.toString();
+  const pathname = query ? `/dms/storage/open?${query}` : '/dms/storage/open';
+  const response = await fetch(createServerApiUrl(pathname), createServerApiProxyInit(req));
+  const contentType = response.headers.get('content-type') || '';
 
-    if (provider === 'local' && targetPath) {
-      const result = handleLocalFileDownload({ targetPath });
-
-      if (!result.success) {
-        return Response.json({ error: result.error }, { status: result.status });
+  if (contentType.includes('application/json')) {
+    const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<unknown> | BackendErrorResponse | unknown;
+    if (response.ok && responseBody && typeof responseBody === 'object' && 'success' in responseBody) {
+      const typedBody = responseBody as BackendSuccessResponse<unknown> | BackendErrorResponse;
+      if (typedBody.success === true) {
+        return Response.json(typedBody.data);
       }
 
-      return new Response(result.data.fileBuffer, {
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': `attachment; filename=\"${encodeURIComponent(result.data.fileName)}\"`,
-        },
-      });
+      return Response.json({ error: getBackendErrorMessage(typedBody) }, { status: response.status || 500 });
     }
 
-    const result = handleStorageOpen({ storageUri, provider, path: targetPath });
-
-    if (!result.success) {
-      return Response.json({ error: result.error }, { status: result.status });
-    }
-
-    const openUrl = result.data.openUrl;
-    if (openUrl.startsWith('/api/')) {
-      return Response.json(result.data);
-    }
-
-    return Response.redirect(openUrl, 302);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '열기 처리 중 오류가 발생했습니다.';
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json(responseBody, { status: response.status, headers: new Headers(response.headers) });
   }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: new Headers(response.headers),
+  });
 }
 
 export async function POST(req: Request) {
-  try {
-    const body = (await req.json()) as StorageOpenBody;
-    const result = handleStorageOpen(body);
-
-    if (!result.success) {
-      return Response.json({ error: result.error }, { status: result.status });
-    }
-
-    return Response.json(result.data);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '열기 처리 중 오류가 발생했습니다.';
-    return Response.json({ error: message }, { status: 500 });
+  const body = await req.json();
+  const response = await fetch(
+    createServerApiUrl('/dms/storage/open'),
+    createServerApiProxyInit(req, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  );
+  const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<unknown> | BackendErrorResponse | null;
+  if (!response.ok || !responseBody || responseBody.success !== true) {
+    return Response.json({ error: getBackendErrorMessage(responseBody) }, { status: response.status || 500 });
   }
+
+  return Response.json(responseBody.data);
 }

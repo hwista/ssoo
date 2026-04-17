@@ -2,7 +2,7 @@
 
 > SSOO 프로젝트 로컬 개발 환경 구성 방법
 
-**마지막 업데이트**: 2026-02-05
+**마지막 업데이트**: 2026-04-07
 
 ---
 
@@ -94,6 +94,9 @@ NODE_ENV=development
 CORS_ORIGIN=http://localhost:3000
 ```
 
+Docker compose는 이 `DATABASE_URL`을 그대로 재사용하지 않고, 내부 컨테이너 연결용
+`DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` 기본값을 사용합니다.
+
 ### 2. 서버 환경 변수 (필수)
 
 `apps/server/.env` 생성 **(mis설정 시 서버 부팅 실패 - Joi 검증 적용)**:
@@ -131,7 +134,7 @@ NODE_ENV=development
 
 ### 3. 웹 애플리케이션 환경 변수
 
-`apps/web/pms/.env.local` 생성:
+#### PMS (`apps/web/pms/.env.local`)
 
 ```bash
 # Linux / macOS / WSL
@@ -149,6 +152,32 @@ Copy-Item apps/web/pms/.env.example apps/web/pms/.env.local
 ```env
 # API 엔드포인트
 NEXT_PUBLIC_API_URL=http://localhost:4000/api
+```
+
+#### DMS (`apps/web/dms/.env.local`)
+
+```bash
+# Linux / macOS / WSL
+cp apps/web/dms/.env.example apps/web/dms/.env.local
+
+# Windows (CMD)
+copy apps\web\dms\.env.example apps\web\dms\.env.local
+
+# Windows (PowerShell)
+Copy-Item apps/web/dms/.env.example apps/web/dms/.env.local
+```
+
+필요시 내용 수정:
+
+```env
+# 서버 검색 브리지 (기본값은 http://localhost:4000/api)
+DMS_SERVER_API_URL=http://localhost:4000/api
+
+# 공용 DB URL (권장)
+DATABASE_URL=postgresql://ssoo:ssoo_dev_pw@localhost:5432/ssoo_dev?schema=public
+
+# 호환용 별도 키 (선택)
+DMS_DATABASE_URL=
 ```
 
 ### 4. 데이터베이스 환경 변수
@@ -181,15 +210,24 @@ DATABASE_URL="postgresql://ssoo:ssoo_dev_pw@localhost:5432/ssoo_dev?schema=publi
 ```bash
 # 루트 디렉토리에서 실행
 pnpm install
+
+# 전체 Docker 스택 빌드 + 실행
+pnpm docker:up
+
+# 최초 1회 또는 DB 초기화가 필요할 때
+pnpm db:setup
 ```
 
 이 명령어는 모든 workspace의 의존성을 자동으로 설치합니다:
 - `apps/web/pms` (Next.js)
+- `apps/web/dms` (Next.js)
+- `apps/web/cms` (Next.js)
 - `apps/server` (NestJS)
 - `packages/database` (Prisma)
 - `packages/types` (TypeScript Types)
 
 > ⚠️ **중요**: Prisma 명령어(`prisma generate`, `prisma db push` 등)는 의존성 설치 후에만 사용 가능합니다.
+> 로컬 기능 검증은 개별 `pnpm dev:*`보다 root `compose.yaml` 기반 Docker 스택을 기본 경로로 사용합니다.
 
 ### DB 서버 옵션 (택 1)
 
@@ -360,6 +398,7 @@ pnpm dev
 이 명령어는 다음을 동시에 실행합니다:
 - 백엔드 서버 (port 4000)
 - 프론트엔드 서버 (port 3000)
+- DMS 서버 (port 3001)
 
 ### 방법 2: 개별 실행
 
@@ -388,6 +427,19 @@ pnpm dev
 - Local:        http://localhost:3000
 ```
 
+#### DMS 서버
+
+```bash
+cd apps/web/dms
+pnpm dev
+```
+
+서버가 정상 실행되면:
+```
+▲ Next.js 15.x
+- Local:        http://localhost:3001
+```
+
 ---
 
 ## 포트 설정
@@ -395,6 +447,7 @@ pnpm dev
 | 서비스 | 포트 | URL |
 |--------|------|-----|
 | **프론트엔드** | 3000 | http://localhost:3000 |
+| **DMS** | 3001 | http://localhost:3001 |
 | **백엔드 API** | 4000 | http://localhost:4000 |
 | **PostgreSQL** | 5432 | localhost:5432 |
 
@@ -416,8 +469,11 @@ pnpm dev
 # 백엔드만 실행
 pnpm --filter server dev
 
-# 프론트엔드만 실행
+# PMS만 실행
 pnpm --filter web-pms dev
+
+# DMS만 실행
+pnpm --filter web-dms dev
 
 # 특정 앱 빌드
 pnpm --filter server build
@@ -667,6 +723,7 @@ cat .npmrc
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-07 | DMS workspace env/runtime (`.env.local`, `dev:web-dms`, port 3001) 안내를 현재 구조 기준으로 추가 |
 | 2026-02-05 | **코드 품질 보장** 섹션 추가 (자동 검증 체계, 커밋 규칙, AI 협업 가이드) |
 | 2026-02-04 | **WSL 문제 해결**: `.npmrc` script-shell 설정 가이드 추가, exit code -2 해결법 문서화 |
 | 2026-02-04 | **ESM 통일**: server, database 패키지 ESM 마이그레이션 (`module: NodeNext`), 비밀번호 규칙 안내 추가 (`Admin123@`) |
@@ -711,4 +768,3 @@ cat .npmrc
 1) After backend changes, update this snapshot section with new policy values.
 2) Run pnpm --filter server lint and Swagger build to ensure docs/examples match code.
 3) Record history in changelog; keep this file as current-state snapshot.
-

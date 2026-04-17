@@ -9,7 +9,7 @@ import { MenuTree } from './MenuTree';
 import { AdminMenu } from './AdminMenu';
 import { Section } from './Section';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useAuthStore, useMenuStore } from '@/stores';
+import { useMenuStore } from '@/stores';
 
 interface ExpandedSidebarProps {
   expandedSections: SidebarSectionType[];
@@ -27,11 +27,9 @@ export function ExpandedSidebar({
   onRefresh,
   isRefreshing,
 }: ExpandedSidebarProps) {
-  const { user } = useAuthStore();
   const { adminMenus } = useMenuStore();
-  
-  // 관리자 메뉴 표시 여부: isAdmin && 관리자 메뉴가 있는 경우
-  const showAdminSection = user?.isAdmin && adminMenus.length > 0;
+
+  const showAdminSection = adminMenus.length > 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -84,7 +82,7 @@ export function ExpandedSidebar({
         <MenuTree />
       </Section>
 
-        {/* 관리자 메뉴 (isAdmin 사용자만) */}
+        {/* 관리자 메뉴 */}
         {showAdminSection && (
           <Section
             title="관리자"

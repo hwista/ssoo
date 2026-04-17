@@ -1,260 +1,149 @@
 # PMS 앱 초기화 흐름
 
 > **작성일**: 2026-01-29  
-> **목적**: PMS 앱의 컴포넌트 인스턴스 생성부터 렌더링까지의 전체 흐름 정리
+> **최종 업데이트**: 2026-04-16  
+> **목적**: PMS shell app 기준의 실제 진입 흐름과 bootstrap 책임을 정리
 
 ---
 
-## 📊 초기화 흐름 다이어그램
+## 초기화 개요
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ 1. Root Layout (app/layout.tsx)                                              │
-│    ├─ 메타데이터 설정 (title, description)                                    │
-│    └─ <Providers>                                                            │
-│         └─ QueryClientProvider (React Query)                                 │
-│              └─ {children}                                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 2. Main Layout (app/(main)/layout.tsx)                                       │
-│    ├─ useEffect #1: checkAuth() → 토큰 검증                                   │
-│    │     └─ accessToken 유효성 → isAuthenticated, user 설정                   │
-│    ├─ 조건부 렌더링:                                                          │
-│    │     ├─ (isChecking || authLoading) → 로딩 스피너                         │
-│    │     ├─ (!isAuthenticated) → 로그인 폼 표시                               │
-│    │     └─ (isAuthenticated) → AppLayout 렌더링                              │
-│    ├─ useEffect #2: 인증 후 refreshMenu() → 메뉴 API 호출                     │
-│    └─ return <AppLayout>{children}</AppLayout>                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 3. AppLayout (components/layout/AppLayout.tsx)                               │
-│    ├─ useLayoutStore: sidebarWidth, isMobileMenuOpen                         │
-│    ├─ 레이아웃 구조:                                                          │
-│    │     ├─ Sidebar (고정 너비 또는 리사이즈 가능)                              │
-│    │     ├─ Main Area (flex-1)                                               │
-│    │     │     ├─ Header                                                     │
-│    │     │     ├─ TabBar                                                     │
-│    │     │     └─ ContentArea                                                │
-│    │     └─ SidebarResizer (드래그로 너비 조절)                                │
-│    └─ 모바일: MobileMenuOverlay                                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 4. Sidebar (components/layout/sidebar/Sidebar.tsx)                           │
-│    ├─ 헤더: 로고 + 접기 버튼                                                   │
-│    ├─ 빠른 액세스 (Favorites)                                                 │
-│    ├─ MenuTree: 메뉴 트리 렌더링                                            │
-│    │     └─ useMenuStore.generalMenus/adminMenus                             │
-│    └─ 사용자 정보 + 로그아웃                                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 5. ContentArea (components/layout/ContentArea.tsx)                           │
-│    ├─ pageComponents 매핑 (React.lazy 동적 import)                            │
-│    │     ├─ '/home': HomeDashboardPage                                       │
-│    │     ├─ '/request': RequestListPage                                      │
-│    │     ├─ '/request/create': RequestCreatePage                             │
-│    │     ├─ '/proposal': ProposalListPage                                    │
-│    │     ├─ '/execution': ExecutionListPage                                  │
-│    │     └─ '/transition': TransitionListPage                                │
-│    ├─ activeTab.path로 컴포넌트 결정                                          │
-│    └─ <Suspense><PageComponent /></Suspense>                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 6. 메뉴 클릭 시 (MenuTree → handleMenuClick)                                    │
-│    └─ openTab({ path: '/request', title: '의뢰', ... })                       │
-│         └─ ContentArea 리렌더링 → RequestListPage 로딩                        │
-│              └─ 페이지 컴포넌트가 자체적으로 데이터 fetch                       │
-└─────────────────────────────────────────────────────────────────────────────┘
+```text
+브라우저 접속
+    ↓
+app/layout.tsx
+    ↓
+Providers (QueryClient, 전역 UI)
+    ↓
+경로 판별
+    ├─ /login
+    │   ↓
+    │   app/(auth)/login/page.tsx
+    │   ↓
+    │   AuthStandardLoginCard
+    │
+    └─ /
+        ↓
+        app/(main)/layout.tsx
+        ↓
+        useProtectedAppBootstrap(...)
+        ├─ auth hydration / checkAuth
+        ├─ PMS access snapshot hydrate
+        └─ 미인증 시 /login 복구
+        ↓
+        app/(main)/page.tsx
+        ↓
+        AppLayout
+        ↓
+        Sidebar / Header / TabBar / ContentArea
 ```
 
 ---
 
-## 🗂️ 핵심 파일 구조
+## 핵심 파일
 
-```
+```text
 apps/web/pms/src/
 ├── app/
-│   ├── layout.tsx              # Root Layout (Providers)
-│   ├── providers.tsx           # QueryClientProvider 설정
+│   ├── layout.tsx                  # RootLayout + Providers
+│   ├── (auth)/
+│   │   ├── layout.tsx              # AuthPageShell
+│   │   └── login/page.tsx          # 실제 로그인 진입점
 │   ├── (main)/
-│   │   ├── layout.tsx          # Auth 체크 + AppLayout 렌더링
-│   │   ├── page.tsx            # Home 페이지 (/ 라우트)
-│   │   ├── request/page.tsx    # 얇은 래퍼
-│   │   ├── proposal/page.tsx
-│   │   ├── execution/page.tsx
-│   │   └── transition/page.tsx
-│   └── not-found.tsx
-├── components/
-│   ├── layout/
-│   │   ├── AppLayout.tsx       # 메인 레이아웃 컨테이너
-│   │   ├── Header.tsx
-│   │   ├── TabBar.tsx
-│   │   ├── ContentArea.tsx     # 동적 페이지 로딩
-│   │   └── sidebar/
-│   │       ├── Sidebar.tsx
-│   │       ├── CollapsedSidebar.tsx
-│   │       ├── ExpandedSidebar.tsx
-│   │       ├── FloatingPanel.tsx
-│   │       ├── Section.tsx
-│   │       ├── Search.tsx
-│   │       ├── Favorites.tsx
-│   │       ├── OpenTabs.tsx
-│   │       ├── MenuTree.tsx        # 메뉴 트리
-│   │       ├── AdminMenu.tsx
-│   │       └── constants.ts
-│   └── pages/                  # 실제 비즈니스 페이지
-│       ├── home/
-│       │   └── HomeDashboardPage.tsx
-│       ├── request/
-│       │   ├── RequestListPage.tsx
-│       │   └── RequestCreatePage.tsx
-│       ├── proposal/
-│       │   └── ProposalListPage.tsx
-│       ├── execution/
-│       │   └── ExecutionListPage.tsx
-│       └── transition/
-│           └── TransitionListPage.tsx
+│   │   ├── layout.tsx              # protected shell gate
+│   │   └── page.tsx                # 실제 루트 shell entry
+│   ├── not-found.tsx               # 마지막 루트 복구 장치
+│   └── global-error.tsx            # shell 전역 에러 복구
+├── components/layout/
+│   ├── AppLayout.tsx
+│   ├── Header.tsx
+│   ├── TabBar.tsx
+│   └── ContentArea.tsx
+├── lib/constants/routes.ts         # APP_HOME_PATH / LOGIN_PATH / ROOT_ENTRY_PATHS
 └── stores/
-    ├── auth.store.ts           # 인증 상태
-    ├── confirm.store.ts        # 전역 Confirm Dialog
-    ├── index.ts                # 배럴 export
-    ├── menu.store.ts           # 메뉴 트리, 즐겨찾기
-    ├── tab.store.ts            # 탭 상태
-    ├── sidebar.store.ts        # 사이드바 UI
-    └── layout.store.ts         # 레이아웃 상태
+    ├── auth.store.ts
+    ├── access.store.ts
+    └── menu.store.ts
 ```
 
 ---
 
-## 🔄 Store 간 연동 흐름
+## 컴포넌트별 역할
 
-### 1. 인증 흐름
-
-```
-┌──────────────┐    checkAuth()    ┌──────────────┐
-│  AuthStore   │ ◄──────────────── │ Main Layout  │
-│              │                   │              │
-│ accessToken  │                   │ isChecking   │
-│ user         │                   │              │
-│ isAuth       │ ────────────────► │ 조건부 렌더  │
-└──────────────┘                   └──────────────┘
-       │
-       │ authenticated
-       ▼
-┌──────────────┐
-│  MenuStore   │ ◄── refreshMenu() API 호출
-│              │
-│ generalMenus │
-│ adminMenus   │
-│ favorites    │
-└──────────────┘
-```
-
-### 2. 네비게이션 흐름
-
-```
-┌─────────────────┐   openTab()   ┌──────────────┐
-│ SidebarMenuTree │ ────────────► │   TabStore   │
-│                 │               │              │
-│ handleMenuClick │               │ tabs[]       │
-└─────────────────┘               │ activeTabId  │
-                                  └──────┬───────┘
-                                         │
-                                         ▼
-                                  ┌──────────────┐
-                                  │ ContentArea  │
-                                  │              │
-                                  │ pageComp[path]│
-                                  │ <PageComp /> │
-                                  └──────────────┘
-```
-
-### 3. 레이아웃 상태 흐름
-
-```
-┌──────────────┐                  ┌─────────────────┐
-│ LayoutStore  │ ◄────────────────│ SidebarResizer  │
-│              │  setSidebarWidth │                 │
-│ sidebarWidth │                  │ onDrag          │
-│ deviceType   │                  └─────────────────┘
-│              │
-│              │                  ┌─────────────────┐
-│              │ ◄────────────────│ AppLayout       │
-│              │  initDevice      │                 │
-└──────────────┘                  │ useEffect       │
-       │                          └─────────────────┘
-       │
-       ▼
-┌──────────────┐  ┌──────────────┐
-│   Sidebar    │  │ ContentArea  │
-│ width={...}  │  │ flex-1       │
-└──────────────┘  └──────────────┘
-```
+| 파일 | 역할 |
+|------|------|
+| `app/layout.tsx` | HTML 문서 구조와 전역 Providers 구성 |
+| `app/(auth)/login/page.tsx` | 공용 `AuthStandardLoginCard` 기반 로그인 UI |
+| `app/(main)/layout.tsx` | `useProtectedAppBootstrap(...)` 로 auth/access gate 수행 |
+| `app/(main)/page.tsx` | 동적 import된 `AppLayout` 을 루트 shell entry로 렌더 |
+| `stores/access.store.ts` | `/api/menus/my` 응답을 access snapshot으로 hydrate |
+| `stores/menu.store.ts` | access snapshot을 실제 메뉴/즐겨찾기/navigation 상태로 반영 |
+| `components/layout/ContentArea.tsx` | 탭의 internal path를 실제 페이지 컴포넌트에 매핑 |
 
 ---
 
-## 📋 컴포넌트별 주요 역할
+## bootstrap 순서
 
-### Root Layout (`app/layout.tsx`)
-- HTML 문서 기본 구조
-- Providers 래핑 (React Query)
-- 전역 메타데이터
+### 1. 로그인 진입
 
-### Main Layout (`app/(main)/layout.tsx`)
-- **인증 게이트**: 비인증 시 로그인 폼
-- **메뉴 초기화**: 인증 성공 후 메뉴 로드
-- AppLayout으로 자식 렌더링
+- `/login` 은 별도의 public entry다.
+- auth store hydration 이후 이미 로그인된 상태면 `APP_HOME_PATH ('/')` 로 즉시 복귀한다.
+- 로그인 성공 시에도 `/` shell entry로 이동한다.
 
-### AppLayout (`components/layout/AppLayout.tsx`)
-- 전체 레이아웃 구성 (Sidebar + Main)
-- 반응형 처리 (모바일 메뉴)
-- 사이드바 리사이즈 로직
+### 2. 보호된 루트 진입
 
-### ContentArea (`components/layout/ContentArea.tsx`)
-- **핵심**: `pageComponents` 객체로 동적 페이지 로딩
-- `activeTab.path`에 따라 컴포넌트 결정
-- Suspense로 로딩 상태 처리
+`app/(main)/layout.tsx` 는 직접 `AppLayout` 을 그리지 않고 **gate** 만 담당한다.
 
-### SidebarMenuTree (`components/layout/sidebar/SidebarMenuTree.tsx`)
-- 메뉴 트리 렌더링
-- 클릭 시 `openTab()` 호출
-- **데이터 로딩 책임 없음** (페이지가 자체 로드)
+1. auth store hydration 대기
+2. `checkAuth()` 1회 실행
+3. 인증 성공 후 `useAccessStore.hydrate()` 실행
+4. 미인증이면 access/menu 상태를 reset 하고 `/login` 으로 이동
+5. access snapshot 이 준비되면 `children` 렌더
 
----
+이 공통 orchestration 은 `packages/web-auth/src/protected-app-bootstrap.ts` 의
+`useProtectedAppBootstrap(...)` 으로 정렬되어 있다.
 
-## ⚡ 핵심 패턴: pageComponents 동적 로딩
+### 3. PMS access/menu 초기화
 
-```typescript
-// ContentArea.tsx
-const pageComponents: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
-  '/home': lazy(() => import('@/components/pages/home/HomeDashboardPage')),
-  '/request': lazy(() => import('@/components/pages/request/RequestListPage')),
-  '/request/create': lazy(() => import('@/components/pages/request/RequestCreatePage')),
-  '/proposal': lazy(() => import('@/components/pages/proposal/ProposalListPage')),
-  '/execution': lazy(() => import('@/components/pages/execution/ExecutionListPage')),
-  '/transition': lazy(() => import('@/components/pages/transition/TransitionListPage')),
-};
+`useAccessStore.hydrate()` 흐름:
 
-// 렌더링
-const PageComponent = pageComponents[activeTab.path];
-return (
-  <Suspense fallback={<Loading />}>
-    <PageComponent />
-  </Suspense>
-);
-```
+1. `menusApi.getMyMenus()` 호출
+2. `PmsAccessSnapshot` 수신
+3. `useMenuStore.applyAccessSnapshot(snapshot)` 실행
+4. 사이드바/즐겨찾기/관리자 메뉴가 동일 snapshot 기준으로 구성
 
-### 장점
-1. **코드 분할**: 각 페이지는 필요할 때만 로드
-2. **책임 분리**: 메뉴는 탭만 열고, 페이지가 데이터 로드
-3. **URL 보안**: Next.js 라우트 구조 최소 노출
-4. **일관성**: 모든 페이지 동일한 방식으로 로딩
+즉, 예전처럼 main layout 이 메뉴를 직접 로드하는 구조가 아니라,
+**shared bootstrap -> access store -> menu store** 순서로 책임이 분리되어 있다.
+
+### 4. 실제 shell 렌더링
+
+`app/(main)/page.tsx` 가 루트 shell entry다.
+
+- `AppLayout` 은 동적 import로 로드된다.
+- `AppLayout` 내부에서 `Sidebar`, `Header`, `TabBar`, `ContentArea` 가 닫힌다.
+- 실제 업무 화면 전환은 브라우저 라우팅이 아니라 `ContentArea` 의 internal path 매핑으로 처리한다.
 
 ---
 
-## 🔗 관련 문서
+## PMS shell-app 계약
 
-- [페이지 보안 및 라우팅 전략](./page-routing.md)
-- [상태 관리](./state-management.md)
-- [레이아웃 시스템](./layout-system.md)
+| 브라우저 경로 | 의미 | 실제 담당 |
+|--------------|------|----------|
+| `/` | 인증된 PMS shell home | `(main)/layout` + `(main)/page` |
+| `/login` | 로그인 진입점 | `(auth)/login/page.tsx` |
+| 그 외 | 공개 진입점이 아님, 루트 shell 로 복구 | `middleware.ts` / `not-found.tsx` |
+
+---
+
+## 관련 문서
+
+- [page-routing.md](./page-routing.md)
+- [state-management.md](./state-management.md)
+- [layout-system.md](../design/layout-system.md)
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2026-04-16 | `(main)/layout = gate`, `(main)/page = actual shell entry` 구조와 shared bootstrap/access snapshot 흐름을 현재 구현 기준으로 반영 |
 | 2026-02-09 | Add changelog section. |
-

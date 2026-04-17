@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { gitApi, type GitChangeEntry, type GitLogEntry } from '@/lib/api';
+import { gitApi, type GitChangeEntry, type GitLogEntry } from '@/lib/api/endpoints/git';
 import { logger } from '@/lib/utils/errorUtils';
 
 // ============================================================================

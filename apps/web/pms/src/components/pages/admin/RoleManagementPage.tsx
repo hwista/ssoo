@@ -16,7 +16,7 @@ import {
   useRoleMenuPermissions,
   useUpdateRolePermissions,
 } from '@/hooks/queries/useRoles';
-import type { RoleMenuPermission } from '@/lib/api/endpoints/roles';
+import type { RoleMenuPermission, RoleMenuAccessSource } from '@/lib/api/endpoints/roles';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
 
@@ -65,6 +65,12 @@ const ACCESS_ICONS: Record<AccessType, typeof ShieldCheck> = {
   none: ShieldX,
 };
 
+const ACCESS_SOURCE_LABELS: Record<RoleMenuAccessSource, string> = {
+  baseline: '기준선',
+  'role-override': 'role override',
+  'system-override': 'system.override',
+};
+
 function MenuRow({
   node,
   localPermissions,
@@ -79,6 +85,7 @@ function MenuRow({
   const currentAccess = localPermissions.get(node.menuId) ?? node.accessType;
   const Icon = ACCESS_ICONS[currentAccess];
   const hasChildren = node.children.length > 0;
+  const sourceLabel = ACCESS_SOURCE_LABELS[node.accessSource];
 
   return (
     <>
@@ -94,9 +101,19 @@ function MenuRow({
               'text-blue-500': currentAccess === 'read',
               'text-gray-400': currentAccess === 'none',
             })} />
-            <span className={cn('text-sm', hasChildren && 'font-medium')}>
-              {node.menuName}
-            </span>
+             <span className={cn('text-sm', hasChildren && 'font-medium')}>
+               {node.menuName}
+             </span>
+            {node.accessSource !== 'baseline' && (
+              <span className={cn(
+                'ml-2 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide',
+                node.accessSource === 'role-override'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'bg-slate-100 text-slate-700',
+              )}>
+                {sourceLabel}
+              </span>
+            )}
             {node.isAdminMenu && (
               <span className="ml-2 px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700">
                 관리자
@@ -111,6 +128,7 @@ function MenuRow({
           <Select
             value={currentAccess}
             onValueChange={(val: AccessType) => onChangeAccess(node.menuId, val)}
+            disabled={!node.isEditable}
           >
             <SelectTrigger className="h-8 text-xs">
               <SelectValue />
@@ -121,6 +139,11 @@ function MenuRow({
               <SelectItem value="none">{ACCESS_LABELS.none}</SelectItem>
             </SelectContent>
           </Select>
+          {!node.isEditable && (
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              이 메뉴는 system.override 기준으로 계산됩니다.
+            </p>
+          )}
         </td>
       </tr>
       {node.children.map((child) => (
@@ -294,10 +317,16 @@ export function RoleManagementPage() {
           ) : (
             <>
               <div className="flex items-center justify-between px-6 py-3 border-b bg-white">
-                <h2 className="text-sm font-semibold">
-                  {roles.find((r) => r.codeValue === selectedRole)?.displayNameKo ?? selectedRole}
-                  {' '}메뉴 권한
-                </h2>
+                <div>
+                  <h2 className="text-sm font-semibold">
+                    {roles.find((r) => r.codeValue === selectedRole)?.displayNameKo ?? selectedRole}
+                    {' '}메뉴 권한
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    일반 메뉴는 역할 기준선 위에 role override 를 덧씌우고, 관리자 메뉴는
+                    {' '}system.override 기준으로 계산됩니다.
+                  </p>
+                </div>
                 {isDirty && (
                   <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
                     {localPermissions.size}건 변경됨

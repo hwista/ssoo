@@ -3,6 +3,7 @@
 export interface Task {
   id: string;
   projectId: string;
+  wbsId: string | null;
   parentTaskId: string | null;
   taskCode: string;
   taskName: string;
@@ -30,6 +31,7 @@ export interface Task {
 }
 
 export interface CreateTaskDto {
+  wbsId?: string | null;
   parentTaskId?: string | null;
   taskCode: string;
   taskName: string;
@@ -46,6 +48,7 @@ export interface CreateTaskDto {
 }
 
 export interface UpdateTaskDto {
+  wbsId?: string | null;
   taskName?: string;
   description?: string;
   taskTypeCode?: string;

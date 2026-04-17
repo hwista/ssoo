@@ -17,6 +17,9 @@ import type {
   SearchResultItem,
 } from '@ssoo/types/dms';
 import { DatabaseService } from '../../../database/database.service.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { AccessRequestService } from '../access/access-request.service.js';
+import { DocumentAclService } from '../access/document-acl.service.js';
 import {
   buildAutoSummary,
   buildExcerpt,
@@ -58,13 +61,15 @@ export class SearchService implements OnModuleInit {
   constructor(
     private readonly db: DatabaseService,
     private readonly runtime: SearchRuntimeService,
+    private readonly accessRequestService: AccessRequestService,
+    private readonly documentAclService: DocumentAclService,
   ) {}
 
   async onModuleInit() {
     await this.ensureVectorStore();
   }
 
-  async search(request: SearchRequest): Promise<SearchResponse> {
+  async search(request: SearchRequest, currentUser: TokenPayload): Promise<SearchResponse> {
     const query = request.query.trim();
     if (query.length < 2) {
       throw new BadRequestException('검색어가 비어 있습니다.');
@@ -75,12 +80,12 @@ export class SearchService implements OnModuleInit {
       activeDocPath: request.activeDocPath,
     };
 
-    const semanticResponse = await this.searchSemantic(query, options);
+    const semanticResponse = await this.searchSemantic(query, currentUser, options);
     if (semanticResponse.results.length > 0) {
       return semanticResponse;
     }
 
-    return this.searchKeyword(query, options);
+    return this.searchKeyword(query, currentUser, options);
   }
 
   async syncIndex(request: SearchIndexSyncRequest): Promise<SearchIndexSyncResponse> {
@@ -172,6 +177,7 @@ export class SearchService implements OnModuleInit {
 
   private async searchSemantic(
     query: string,
+    currentUser: TokenPayload,
     options?: AiContextOptions,
   ): Promise<SearchResponse> {
     try {
@@ -203,12 +209,16 @@ export class SearchService implements OnModuleInit {
         searchConfig.maxResults,
       );
 
-      const results: SearchResultItem[] = rows.map((row, index) => {
+      const results: SearchResultItem[] = [];
+
+      rows.forEach((row, index) => {
         const displayPath = toDisplayPath(row.file_path, rootDir);
         const resolvedPath = resolveAbsolutePath(row.file_path, rootDir);
+        const access = this.documentAclService.describeSearchResultAccess(currentUser, resolvedPath);
+
         let content = row.chunk_text;
 
-        if (fs.existsSync(resolvedPath)) {
+        if (access.isReadable && fs.existsSync(resolvedPath)) {
           content = fs.readFileSync(resolvedPath, 'utf-8');
         }
 
@@ -233,7 +243,7 @@ export class SearchService implements OnModuleInit {
           snippets,
         );
 
-        return {
+        results.push({
           id: `semantic-${index}`,
           title: presentation.title,
           excerpt,
@@ -242,10 +252,18 @@ export class SearchService implements OnModuleInit {
           summary,
           snippets,
           totalSnippetCount: totalCount,
-        };
+          owner: access.owner,
+          visibilityScope: access.visibilityScope,
+          isReadable: access.isReadable,
+          canRequestRead: access.canRequestRead,
+        });
       });
 
-      return buildSearchResponse(query, results, options);
+      const resultsWithRequests = await this.accessRequestService.attachReadRequestStates(
+        currentUser,
+        results,
+      );
+      return buildSearchResponse(query, resultsWithRequests, options);
     } catch (error) {
       this.logger.warn(
         `시맨틱 검색 실패, 키워드 검색으로 전환합니다: ${getErrorMessage(error)}`,
@@ -256,6 +274,7 @@ export class SearchService implements OnModuleInit {
 
   private async searchKeyword(
     query: string,
+    currentUser: TokenPayload,
     options?: AiContextOptions,
   ): Promise<SearchResponse> {
     const searchConfig = this.runtime.getSearchConfig();
@@ -283,6 +302,8 @@ export class SearchService implements OnModuleInit {
       if (!hasExactMatch && !hasTermMatch) {
         continue;
       }
+
+      const access = this.documentAclService.describeSearchResultAccess(currentUser, filePath);
 
       const { excerpt, score: contentScore } = buildExcerpt(
         content,
@@ -317,13 +338,21 @@ export class SearchService implements OnModuleInit {
         summary,
         snippets,
         totalSnippetCount: totalCount,
+        owner: access.owner,
+        visibilityScope: access.visibilityScope,
+        isReadable: access.isReadable,
+        canRequestRead: access.canRequestRead,
       });
     }
 
     results.sort((left, right) => right.score - left.score);
+    const resultsWithRequests = await this.accessRequestService.attachReadRequestStates(
+      currentUser,
+      results.slice(0, searchConfig.maxResults),
+    );
     return buildSearchResponse(
       query,
-      results.slice(0, searchConfig.maxResults),
+      resultsWithRequests,
       options,
     );
   }

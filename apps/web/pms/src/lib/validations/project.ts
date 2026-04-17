@@ -28,9 +28,9 @@ export const projectStageCodeSchema = z.enum(['waiting', 'in_progress', 'done'],
 
 /** 프로젝트 완료 결과 코드 */
 export const projectDoneResultCodeSchema = z.enum(
-  ['accepted', 'rejected', 'won', 'lost', 'completed', 'cancelled', 'transferred', 'hold'],
+  ['accepted', 'rejected', 'won', 'lost', 'completed', 'transfer_pending', 'linked', 'cancelled', 'transferred', 'hold'],
   {
-  errorMap: () => ({ message: '유효한 결과를 선택하세요.' }),
+   errorMap: () => ({ message: '유효한 결과를 선택하세요.' }),
 });
 
 // ========================================

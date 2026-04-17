@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Users, Plus, X } from 'lucide-react';
-import { useProjectMembers, useAddMember, useRemoveMember } from '@/hooks/queries/useProjects';
+import { useProjectAccess, useProjectMembers, useAddMember, useRemoveMember } from '@/hooks/queries/useProjects';
+import { useCodesByGroup } from '@/hooks/queries/useCodes';
 import type { ProjectMember } from '@/lib/api/endpoints/projects';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -22,45 +24,113 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const ROLE_LABELS: Record<string, string> = {
-  pm: 'PM',
-  pmo: 'PMO',
-  am: '영업담당',
-  sm: 'SM담당',
-  developer: '개발자',
-  consultant: '컨설턴트',
-  architect: '아키텍트',
-  qa: '품질관리',
-  reviewer: '검수자',
-  customer_rep: '고객대표',
+const PROJECT_MEMBER_ROLE_GROUP = 'PROJECT_MEMBER_ROLE';
+const DEFAULT_ROLE_CODE = 'developer';
+
+const DEFAULT_ROLE_OPTIONS = [
+  { code: 'pm', label: 'PM' },
+  { code: 'pmo', label: 'PMO' },
+  { code: 'am', label: '영업담당' },
+  { code: 'sm', label: 'SM담당' },
+  { code: 'developer', label: '개발자' },
+  { code: 'consultant', label: '컨설턴트' },
+  { code: 'architect', label: '아키텍트' },
+  { code: 'qa', label: '품질관리' },
+  { code: 'reviewer', label: '검수자' },
+  { code: 'customer_rep', label: '고객대표' },
+] as const;
+
+const ACCESS_LEVEL_OPTIONS = [
+  { value: 'owner', label: '소유' },
+  { value: 'participant', label: '참여' },
+  { value: 'contributor', label: '기여' },
+] as const;
+
+const ACCESS_LEVEL_LABELS: Record<(typeof ACCESS_LEVEL_OPTIONS)[number]['value'], string> = {
+  owner: '소유',
+  participant: '참여',
+  contributor: '기여',
 };
 
-const INITIAL_FORM = { userId: '', roleCode: 'developer', allocationRate: 100 };
+type MemberAccessLevel = (typeof ACCESS_LEVEL_OPTIONS)[number]['value'];
+
+interface MemberFormState {
+  userId: string;
+  roleCode: string;
+  accessLevel: MemberAccessLevel;
+  isPhaseOwner: boolean;
+  allocationRate: number;
+}
+
+const createInitialForm = (roleCode = DEFAULT_ROLE_CODE): MemberFormState => ({
+  userId: '',
+  roleCode,
+  accessLevel: 'participant',
+  isPhaseOwner: false,
+  allocationRate: 100,
+});
 
 interface Props {
   projectId: number;
 }
 
 export function MembersTab({ projectId }: Props) {
+  const { data: accessResponse } = useProjectAccess(projectId);
   const { data, isLoading } = useProjectMembers(projectId);
   const members = data?.data ?? [];
+  const canManageMembers = accessResponse?.data?.features.canManageMembers ?? false;
+  const { data: roleCodesResponse } = useCodesByGroup(PROJECT_MEMBER_ROLE_GROUP);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [formData, setFormData] = useState(INITIAL_FORM);
+  const [formData, setFormData] = useState(createInitialForm());
   const addMember = useAddMember();
   const removeMember = useRemoveMember();
+
+  const roleOptions = useMemo(() => {
+    const apiOptions = roleCodesResponse?.success && roleCodesResponse.data?.length
+      ? roleCodesResponse.data.map((code) => ({
+          code: code.codeValue,
+          label: code.displayNameKo,
+        }))
+      : [];
+
+    return apiOptions.length > 0 ? apiOptions : [...DEFAULT_ROLE_OPTIONS];
+  }, [roleCodesResponse]);
+
+  const roleLabels = useMemo(
+    () => roleOptions.reduce<Record<string, string>>((acc, option) => {
+      acc[option.code] = option.label;
+      return acc;
+    }, {}),
+    [roleOptions],
+  );
+
+  useEffect(() => {
+    if (roleOptions.length === 0) {
+      return;
+    }
+
+    if (!roleOptions.some((option) => option.code === formData.roleCode)) {
+      setFormData((prev) => ({
+        ...prev,
+        roleCode: roleOptions[0]?.code ?? DEFAULT_ROLE_CODE,
+      }));
+    }
+  }, [formData.roleCode, roleOptions]);
 
   const handleAdd = async () => {
     await addMember.mutateAsync({
       projectId,
-      data: {
-        userId: formData.userId,
-        roleCode: formData.roleCode,
-        allocationRate: formData.allocationRate,
-      },
-    });
+        data: {
+          userId: formData.userId,
+          roleCode: formData.roleCode,
+          accessLevel: formData.accessLevel,
+          isPhaseOwner: formData.isPhaseOwner,
+          allocationRate: formData.allocationRate,
+        },
+      });
     setShowAddDialog(false);
-    setFormData(INITIAL_FORM);
+    setFormData(createInitialForm(roleOptions[0]?.code ?? DEFAULT_ROLE_CODE));
   };
 
   const handleRemove = async (userId: string, roleCode: string) => {
@@ -76,10 +146,12 @@ export function MembersTab({ projectId }: Props) {
           <Users className="h-4 w-4" />
           프로젝트 멤버 ({members.length})
         </h3>
-        <Button size="sm" onClick={() => setShowAddDialog(true)}>
-          <Plus className="h-4 w-4" />
-          멤버 추가
-        </Button>
+        {canManageMembers && (
+          <Button size="sm" onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4" />
+            멤버 추가
+          </Button>
+        )}
       </div>
 
       {members.length === 0 ? (
@@ -90,12 +162,14 @@ export function MembersTab({ projectId }: Props) {
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left p-3 font-medium">이름</th>
-                <th className="text-left p-3 font-medium">역할</th>
-                <th className="text-left p-3 font-medium">부서</th>
-                <th className="text-center p-3 font-medium">투입률</th>
-                <th className="text-left p-3 font-medium">배정일</th>
+                <tr>
+                  <th className="text-left p-3 font-medium">이름</th>
+                  <th className="text-left p-3 font-medium">역할</th>
+                  <th className="text-left p-3 font-medium">권한등급</th>
+                  <th className="text-center p-3 font-medium">Phase 담당</th>
+                  <th className="text-left p-3 font-medium">부서</th>
+                  <th className="text-center p-3 font-medium">투입률</th>
+                  <th className="text-left p-3 font-medium">배정일</th>
                 <th className="text-center p-3 font-medium w-16">삭제</th>
               </tr>
             </thead>
@@ -105,24 +179,34 @@ export function MembersTab({ projectId }: Props) {
                   <td className="p-3">{m.user?.displayName || m.user?.userName || '-'}</td>
                   <td className="p-3">
                     <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                      {ROLE_LABELS[m.roleCode] || m.roleCode}
+                      {roleLabels[m.roleCode] || m.roleCode}
                     </span>
                   </td>
+                  <td className="p-3">
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      {ACCESS_LEVEL_LABELS[m.accessLevel]}
+                    </span>
+                  </td>
+                  <td className="p-3 text-center">{m.isPhaseOwner ? '예' : '-'}</td>
                   <td className="p-3 text-muted-foreground">{m.user?.departmentCode || '-'}</td>
                   <td className="p-3 text-center">{m.allocationRate}%</td>
                   <td className="p-3 text-muted-foreground">
                     {m.assignedAt ? new Date(m.assignedAt).toLocaleDateString('ko-KR') : '-'}
                   </td>
                   <td className="p-3 text-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      disabled={removeMember.isPending}
-                      onClick={() => handleRemove(String(m.userId), m.roleCode)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    {canManageMembers ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        disabled={removeMember.isPending}
+                        onClick={() => handleRemove(String(m.userId), m.roleCode)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -158,13 +242,47 @@ export function MembersTab({ projectId }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(ROLE_LABELS).map(([code, label]) => (
-                    <SelectItem key={code} value={code}>
-                      {label}
+                  {roleOptions.map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">권한 등급</label>
+              <Select
+                value={formData.accessLevel}
+                onValueChange={(value: MemberAccessLevel) =>
+                  setFormData({ ...formData, accessLevel: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACCESS_LEVEL_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+              <Checkbox
+                id="phase-owner"
+                checked={formData.isPhaseOwner}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, isPhaseOwner: checked === true })
+                }
+              />
+              <label htmlFor="phase-owner" className="text-sm font-medium">
+                현재 phase 담당자로 지정
+              </label>
             </div>
 
             <div className="space-y-2">
@@ -187,7 +305,7 @@ export function MembersTab({ projectId }: Props) {
             </Button>
             <Button
               onClick={handleAdd}
-              disabled={!formData.userId.trim() || addMember.isPending}
+              disabled={!formData.userId.trim() || addMember.isPending || !canManageMembers}
             >
               {addMember.isPending ? '추가 중...' : '추가'}
             </Button>

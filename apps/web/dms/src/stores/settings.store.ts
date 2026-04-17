@@ -1,7 +1,12 @@
 'use client';
 
 import { create } from 'zustand';
-import { settingsApi, type DmsSettingsConfigClient, type DeepPartialClient, type SettingsAccessClient } from '@/lib/api';
+import {
+  settingsApi,
+  type DmsSettingsConfigClient,
+  type DeepPartialClient,
+  type SettingsAccessClient,
+} from '@/lib/api/endpoints/settings';
 import { logger } from '@/lib/utils/errorUtils';
 
 interface SettingsState {

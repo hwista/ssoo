@@ -5,7 +5,7 @@ import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { Roles } from '../../common/auth/decorators/roles.decorator.js';
 import { RolePermissionService } from './role-permission.service.js';
 import { success } from '../../../common/index.js';
-import type { UpdateRolePermissionsDto } from './dto/role-permission.dto.js';
+import { UpdateRolePermissionsDto } from './dto/role-permission.dto.js';
 
 @ApiTags('Role Permissions')
 @ApiBearerAuth()

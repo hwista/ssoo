@@ -37,6 +37,9 @@ PMS와 DMS 모두에 공통 적용되는 개발 표준, 가이드, 아키텍처 
 
 | 문서 | 설명 |
 |------|------|
+| [current-workstream-baseline.md](explanation/architecture/current-workstream-baseline.md) | 현재 DMS/PMS/CMS 작업축 상태, stop/continue boundary, 실행 순서, 병렬 규칙 |
+| [current-tranche-execution-contract.md](explanation/architecture/current-tranche-execution-contract.md) | dirty tree 재기준선화 후 현재 tranche 실행 계약 |
+| [current-tranche-inventory-freeze.md](explanation/architecture/current-tranche-inventory-freeze.md) | 현재 tranche inventory freeze 와 첫 수정 대상 고정 |
 | [tech-stack.md](explanation/architecture/tech-stack.md) | 공용 기술 스택 (백엔드, DB, 개발도구) |
 | [development-standards.md](explanation/architecture/development-standards.md) | 개발 표준 (계층 구조, SRP, 컴포넌트 설계) |
 | [security-standards.md](explanation/architecture/security-standards.md) | 보안 표준 (인증, 인가, 데이터 보호) |
@@ -72,6 +75,7 @@ PMS와 DMS 모두에 공통 적용되는 개발 표준, 가이드, 아키텍처 
 ## 시스템별 문서
 
 - [PMS 문서](../pms/README.md) - 프로젝트 관리 시스템
+- [CMS 문서](../cms/README.md) - 커뮤니티 관리 시스템
 - [DMS 문서](../dms/README.md) - 도큐먼트 관리 시스템
 
 ````

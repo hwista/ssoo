@@ -2,7 +2,8 @@
 
 import { useCallback } from 'react';
 import { useAssistantSessionStore, type AssistantMessage } from '@/stores';
-import { aiApi, getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/lib/api/core';
+import { aiApi } from '@/lib/api/endpoints/ai';
 import { resolveAssistantHelp } from '@/lib/assistant/assistantHelp';
 import {
   createAssistantMessageId,

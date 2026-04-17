@@ -53,6 +53,24 @@ export type GitResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string };
 
+export interface GitCommitAuthor {
+  name: string;
+  email: string;
+  loginId?: string;
+  userId?: string;
+}
+
+export interface GitSyncStatus {
+  branch: string;
+  remote: string;
+  remoteRef: string;
+  remoteExists: boolean;
+  canPushFastForward: boolean;
+  remoteAhead: boolean;
+  localAhead: boolean;
+  diverged: boolean;
+}
+
 // ============================================================================
 // Git Service
 // ============================================================================
@@ -198,15 +216,21 @@ class GitService {
   /**
    * 모든 변경 사항을 커밋
    */
-  async commitAll(message: string, author?: string): Promise<GitResult<{ hash: string }>> {
+  async commitAll(
+    message: string,
+    author?: string | GitCommitAuthor,
+    footerLines: string[] = [],
+  ): Promise<GitResult<{ hash: string }>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
     try {
       await this.git.add('.');
 
-      const result = author
-        ? await this.git.commit(message, undefined, { '--author': `${author} <${author}@dms>` })
-        : await this.git.commit(message);
+      const commitMessage = this.buildCommitMessage(message, footerLines);
+      const authorArgs = this.buildCommitAuthorArgs(author);
+      const result = authorArgs
+        ? await this.git.commit(commitMessage, undefined, authorArgs)
+        : await this.git.commit(commitMessage);
       const hash = result.commit || 'unknown';
 
       logger.info('Git 커밋 완료', { hash, message });
@@ -224,7 +248,8 @@ class GitService {
   async commitFiles(
     files: string[],
     message: string,
-    author?: string
+    author?: string | GitCommitAuthor,
+    footerLines: string[] = [],
   ): Promise<GitResult<{ hash: string }>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
@@ -237,11 +262,13 @@ class GitService {
         filesToAdd.push(sidecarPath);
       }
 
-      await this.git.add(filesToAdd);
+      await this.git.raw(['add', '-A', '--', ...filesToAdd]);
 
-      const result = author
-        ? await this.git.commit(message, undefined, { '--author': `${author} <${author}@dms>` })
-        : await this.git.commit(message);
+      const commitMessage = this.buildCommitMessage(message, footerLines);
+      const authorArgs = this.buildCommitAuthorArgs(author);
+      const result = authorArgs
+        ? await this.git.commit(commitMessage, undefined, authorArgs)
+        : await this.git.commit(commitMessage);
       const hash = result.commit || 'unknown';
 
       logger.info('Git 파일 커밋 완료', { hash, files, message });
@@ -430,6 +457,116 @@ class GitService {
   /** .sidecar.json 파일 필터링 */
   private shouldInclude(filePath: string): boolean {
     return !filePath.endsWith('.sidecar.json');
+  }
+
+  private buildCommitAuthorArgs(author?: string | GitCommitAuthor): Record<string, string> | undefined {
+    if (!author) {
+      return undefined;
+    }
+    if (typeof author === 'string') {
+      return { '--author': `${author} <${author}@dms>` };
+    }
+    return { '--author': `${author.name} <${author.email}>` };
+  }
+
+  private buildCommitMessage(message: string, footerLines: string[] = []): string {
+    if (footerLines.length === 0) {
+      return message;
+    }
+    return `${message}\n\n${footerLines.join('\n')}`;
+  }
+
+  async fetch(remote = 'origin'): Promise<GitResult<{ remote: string }>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
+    try {
+      await this.git.fetch(remote);
+      return { success: true, data: { remote } };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Git fetch failed' };
+    }
+  }
+
+  async getCurrentBranch(): Promise<GitResult<string>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
+    try {
+      const branch = await this.git.branchLocal();
+      return { success: true, data: branch.current };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Git branch lookup failed' };
+    }
+  }
+
+  async publishCurrentBranch(remote = 'origin'): Promise<GitResult<{ remote: string; branch: string }>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
+    const syncResult = await this.inspectSyncStatus(remote);
+    if (!syncResult.success) return syncResult as GitResult<{ remote: string; branch: string }>;
+    const sync = syncResult.data;
+
+    try {
+      if (sync.remoteExists && !sync.canPushFastForward) {
+        return { success: false, error: `SYNC_BLOCKED: remote branch ${sync.remoteRef} is ahead of local HEAD` };
+      }
+
+      await this.git.push(remote, sync.branch);
+      return { success: true, data: { remote, branch: sync.branch } };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Git push failed' };
+    }
+  }
+
+  async inspectSyncStatus(remote = 'origin'): Promise<GitResult<GitSyncStatus>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
+    const branchResult = await this.getCurrentBranch();
+    if (!branchResult.success) return branchResult as GitResult<GitSyncStatus>;
+    const branch = branchResult.data;
+    const fetchResult = await this.fetch(remote);
+    if (!fetchResult.success) return fetchResult as GitResult<GitSyncStatus>;
+
+    try {
+      const remoteRef = `${remote}/${branch}`;
+      let remoteExists = true;
+      try {
+        await this.git.raw(['rev-parse', '--verify', remoteRef]);
+      } catch {
+        remoteExists = false;
+      }
+
+      if (!remoteExists) {
+        return {
+          success: true,
+          data: {
+            branch,
+            remote,
+            remoteRef,
+            remoteExists: false,
+            canPushFastForward: true,
+            remoteAhead: false,
+            localAhead: true,
+            diverged: false,
+          },
+        };
+      }
+
+      const countsRaw = await this.git.raw(['rev-list', '--left-right', '--count', `${remoteRef}...HEAD`]);
+      const [behindText, aheadText] = countsRaw.trim().split(/\s+/);
+      const ahead = Number.parseInt(aheadText ?? '0', 10) || 0;
+      const behind = Number.parseInt(behindText ?? '0', 10) || 0;
+      return {
+        success: true,
+        data: {
+          branch,
+          remote,
+          remoteRef,
+          remoteExists: true,
+          canPushFastForward: behind === 0,
+          remoteAhead: behind > 0,
+          localAhead: ahead > 0,
+          diverged: ahead > 0 && behind > 0,
+        },
+      };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Git sync inspection failed' };
+    }
   }
 }
 
