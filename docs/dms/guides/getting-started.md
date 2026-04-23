@@ -81,15 +81,26 @@ DMS_DATABASE_URL=
 
 ## 4. 문서 저장소 / 런타임 설정
 
-| 표면 | 파일 | 역할 |
-|------|------|------|
-| 문서 자산 | `apps/web/dms/data/documents/` | 기본 Git 문서 루트 |
-| 시스템 기본값 | `apps/web/dms/dms.config.default.json` | Git / storage / ingest / search / DocAssist 기본값 |
-| 시스템 오버라이드 | `apps/web/dms/dms.config.json` | settings 화면에서 저장되는 실제 시스템 설정 |
+| 표면 | 파일/변수 | 역할 |
+|------|-----------|------|
+| markdown working tree | `git.repositoryPath`, `DMS_MARKDOWN_ROOT` | Git-managed markdown runtime root |
+| local binary storage | `storage.local.basePath`, `DMS_STORAGE_LOCAL_BASE_PATH` | attachment/reference/image local storage root |
+| ingest queue | `ingest.queuePath`, `DMS_INGEST_QUEUE_PATH` | ingest queue runtime path |
+| template runtime | `markdownRoot/_templates/` | 템플릿은 문서 Git 레포의 `_templates/` 하위에 배치되며 GitLab과 자동 동기화됩니다 (별도 `DMS_TEMPLATE_ROOT` 불필요) |
+| 시스템 기본값 | `apps/web/dms/dms.config.default.json` | Git / storage / ingest / template / search / DocAssist 기본값 |
+| 시스템 오버라이드 | `apps/web/dms/dms.config.json` | settings 화면에서 저장되는 실제 시스템 설정 (단, markdown working tree root 는 system-managed) |
 | 개인 기본값 | `apps/web/dms/dms.personal.config.default.json` | identity / workspace / viewer / sidebar 기본값 |
 | 개인 오버라이드 | `apps/web/dms/dms.personal.config.json` | settings 화면에서 저장되는 개인 설정 |
 
-설정 화면(`/settings`)에서 Git 저장소 경로와 런타임 JSON 오버라이드를 변경할 수 있습니다.
+운영 원칙:
+
+- GitLab binding 은 markdown working tree 에만 적용합니다.
+- attachment / reference / image 는 Git 비대상 external storage root 로 관리합니다.
+- Docker 배포에서는 위 경로들을 `compose.yaml` bind mount + env override 로 image 밖에 둡니다.
+- settings 화면(`/settings`)은 persisted config 와 runtime snapshot 을 함께 보여 줄 수 있으며, env override 가 실제 runtime path 를 덮어쓸 수 있습니다.
+- markdown working tree root 는 settings 에서 관측만 제공하고, 실제 변경은 deploy/runtime config 로 관리합니다.
+- 대신 admin 은 settings 에서 Git bootstrap 정책(`bootstrapRemoteUrl`, `bootstrapBranch`, `autoInit`)은 계속 관리할 수 있습니다.
+- 문서 Git bootstrap/sync 는 앱 빌드 시점이 아니라 server runtime initialize/reconcile 시점에 수행됩니다.
 
 운영 저장소 정책 정본:
 
@@ -163,6 +174,7 @@ pnpm run build:web-dms
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-22 | external runtime paths(`DMS_MARKDOWN_ROOT`, `DMS_TEMPLATE_ROOT`, `DMS_INGEST_QUEUE_PATH`, `DMS_STORAGE_LOCAL_BASE_PATH`)와 markdown-only Git binding 원칙을 반영 |
 | 2026-04-07 | `DMS_SERVER_API_URL`/runtime JSON 표면과 root compose 연계를 빠른 참조에 추가 |
 | 2026-04-07 | GitLab workspace sync/publish 명령과 pre-push guard marker 기준을 빠른 참조에 추가 |
 | 2026-04-07 | DMS workspace 통합에 맞춰 pnpm 실행 기준과 `data/documents` 경로로 갱신 |

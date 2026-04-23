@@ -1,6 +1,6 @@
 # DMS / SSOO Docker 배포 가이드
 
-> 최종 업데이트: 2026-04-08
+> 최종 업데이트: 2026-04-22
 
 DMS를 **모노레포 통합 런타임 기준**으로 Docker 컨테이너에 배포하는 가이드입니다.  
 지원 경로는 **repo root `compose.yaml`** 하나로 정리하며, 기본 배포 단위는 `postgres + server + pms + cms + dms` 전체 스택입니다.
@@ -33,8 +33,8 @@ DMS를 **모노레포 통합 런타임 기준**으로 Docker 컨테이너에 배
 ┌─────────────────┐ │  ┌───────────────────────┐
 │  ssoo-dms       │─┘  │  ssoo-postgres        │
 │  Port: 3001     │────▶  (pgvector/pg17)      │
-│  /app/apps/web/ │    │  Port: 5432           │
-│  dms/data/      │◀───│  Volume: dms-data     │
+│  same-origin    │    │  Port: 5432           │
+│  proxy / UI     │    │                       │
 └─────────────────┘    └───────────────────────┘
 ```
 
@@ -118,27 +118,36 @@ docker compose exec postgres pg_isready -U ssoo -d ssoo_dev
 **주요 특성**:
 - `output: 'standalone'` — monorepo root tracing 기준으로 standalone 산출 생성
 - 비root 유저 실행 (`nextjs:nodejs`, UID 1001)
-- `apps/web/dms/data/` 디렉토리 볼륨 마운트 포인트 사전 생성
+- runtime data 는 image 내부 `apps/web/dms/data/` 가 아니라 external runtime path mount 를 통해 server 컨테이너에 주입
 
 ---
 
 ## 볼륨 & 영속 데이터
 
-`dms-data` 볼륨이 `/app/apps/web/dms/data/`에 마운트되며, 아래 하위 디렉토리를 포함합니다:
+기본 compose 는 DMS 운영 데이터를 **빌드 이미지 밖의 external runtime paths** 로 분리합니다.
 
-| 경로 | 용도 | 데이터 유실 시 영향 |
-|------|------|-------------------|
-| `data/wiki/` | 위키 문서 (마크다운 + 사이드카 메타데이터) | 🔴 전체 문서 유실 |
-| `data/templates/` | 글로벌/개인 템플릿 | 🟡 템플릿 초기화 |
-| `data/ingest/` | 수집 작업 큐 (jobs.json) | 🟡 대기 중 작업 유실 |
-| `data/storage/local/` | 로컬 스토리지 파일 | 🟠 저장된 파일 유실 |
+| 호스트 변수 | 컨테이너 변수 | 기본 컨테이너 경로 | 용도 |
+|------------|---------------|-------------------|------|
+| `DMS_MARKDOWN_HOST_PATH` | `DMS_MARKDOWN_ROOT` | `/var/lib/ssoo/dms/documents` | markdown working tree (Git-managed). 템플릿은 이 경로의 `_templates/` 하위에 배치됩니다 |
+| `DMS_INGEST_HOST_PATH` | `DMS_INGEST_QUEUE_PATH` | `/var/lib/ssoo/dms/ingest` | ingest queue (`jobs.json`) |
+| `DMS_STORAGE_LOCAL_HOST_PATH` | `DMS_STORAGE_LOCAL_BASE_PATH` | `/var/lib/ssoo/dms/storage/local` | local binary storage |
+
+핵심 원칙:
+
+- `server` 컨테이너가 markdown / storage / ingest runtime mount 를 소유한다. 템플릿은 markdown root 의 `_templates/` 하위에 포함되므로 별도 mount 가 불필요하다.
+- `dms` web 컨테이너는 same-origin proxy/UI 이므로 runtime data mount 를 직접 소유하지 않는다.
+- GitLab binding 은 `DMS_MARKDOWN_ROOT` 에만 적용한다. 템플릿은 문서 Git 레포의 `_templates/` 하위에 배치되며 GitLab과 자동 동기화된다.
+- attachment / reference / image 는 `DMS_STORAGE_LOCAL_BASE_PATH` 또는 다른 provider root 를 사용하며 Git 비대상이다.
 
 ### 백업 권장
 
+운영 환경에서는 위 host path 들을 기준으로 백업한다. 예:
+
 ```bash
-# 볼륨 백업
-docker run --rm -v dms-data:/data -v $(pwd):/backup alpine \
-  tar czf /backup/dms-data-backup-$(date +%Y%m%d).tar.gz -C /data .
+tar czf dms-runtime-backup-$(date +%Y%m%d).tar.gz \
+  "${DMS_MARKDOWN_HOST_PATH}" \
+  "${DMS_INGEST_HOST_PATH}" \
+  "${DMS_STORAGE_LOCAL_HOST_PATH}"
 ```
 
 ---
@@ -164,6 +173,11 @@ docker run --rm -v dms-data:/data -v $(pwd):/backup alpine \
 | `PMS_SERVER_API_URL` | `http://server:4000/api` | PMS same-origin auth proxy가 내부 server 컨테이너로 연결할 주소 |
 | `CMS_NEXT_PUBLIC_API_URL` | `http://localhost:4000/api` | CMS 브라우저 번들용 API 주소 |
 | `CMS_SERVER_API_URL` | `http://server:4000/api` | CMS same-origin auth proxy가 내부 server 컨테이너로 연결할 주소 |
+| `DMS_MARKDOWN_ROOT` | `/var/lib/ssoo/dms/documents` | server 컨테이너 내 external markdown working tree. 템플릿은 이 경로의 `_templates/` 하위에 자동 포함 |
+| `DMS_INGEST_QUEUE_PATH` | `/var/lib/ssoo/dms/ingest` | server 컨테이너 내 ingest queue root |
+| `DMS_STORAGE_LOCAL_BASE_PATH` | `/var/lib/ssoo/dms/storage/local` | server 컨테이너 내 local binary storage root |
+| `DMS_STORAGE_SHAREPOINT_BASE_PATH` | `/sites/dms/shared-documents` | SharePoint provider base path override |
+| `DMS_STORAGE_NAS_BASE_PATH` | `/mnt/nas/dms` | NAS provider base path override |
 
 ### AI 기능 사용 시 추가 필요
 
@@ -182,9 +196,13 @@ Azure 관련 값은 해당 파일에 넣고, Docker 내부 DB 주소 override가
 
 예시:
 ```yaml
-dms:
+server:
   environment:
-    DMS_SERVER_API_URL: http://server:4000/api
+    DMS_MARKDOWN_ROOT: /var/lib/ssoo/dms/documents
+    DMS_STORAGE_LOCAL_BASE_PATH: /var/lib/ssoo/dms/storage/local
+  volumes:
+    - /srv/dms/documents:/var/lib/ssoo/dms/documents
+    - /srv/dms/storage/local:/var/lib/ssoo/dms/storage/local
 ```
 
 ---
@@ -220,9 +238,9 @@ docker compose ps postgres
 - 필요 시 `DMS_SERVER_API_URL` 을 다른 내부/외부 Nest API 주소로 override
 
 ### 데이터 경로 문제
-DMS는 `process.cwd()/data/` 기준으로 파일을 읽습니다.
-Docker 컨테이너 내 WORKDIR은 `/app/apps/web/dms`이므로 실제 데이터 경로는 `/app/apps/web/dms/data/`가 됩니다.
-볼륨 마운트가 정상인지 확인하세요.
+- 실제 runtime data owner는 `server` 컨테이너입니다. 먼저 `docker compose exec server printenv DMS_MARKDOWN_ROOT DMS_INGEST_QUEUE_PATH DMS_STORAGE_LOCAL_BASE_PATH` 로 effective path 를 확인하세요. 템플릿은 `$DMS_MARKDOWN_ROOT/_templates/` 에 자동 포함됩니다.
+- 기본 compose 는 host `.runtime/dms/*` 를 server 컨테이너 `/var/lib/ssoo/dms/*` 로 bind mount 합니다. 필요 시 `docker compose exec server ls -la "$DMS_MARKDOWN_ROOT"` 같이 mounted contents 를 직접 확인하세요.
+- `dms` web 컨테이너는 UI/same-origin proxy 이므로 `/app/apps/web/dms/data` 를 운영 데이터 경로로 진단하지 않습니다.
 
 ---
 
@@ -230,6 +248,7 @@ Docker 컨테이너 내 WORKDIR은 `/app/apps/web/dms`이므로 실제 데이터
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-22 | 데이터 경로 트러블슈팅을 server-owned external runtime mount(`DMS_MARKDOWN_ROOT`, `DMS_TEMPLATE_ROOT`, `DMS_INGEST_QUEUE_PATH`, `DMS_STORAGE_LOCAL_BASE_PATH`) 기준으로 정리 |
 | 2026-04-08 | full-stack compose 기준으로 `postgres + server + pms + cms + dms` 기본 배포, DMS internal server bridge, PMS/CMS browser API URL 기준으로 정리 |
 | 2026-04-07 | root compose 단일 지원 경로, workspace Dockerfile, monorepo root tracing 기준 standalone runtime, `DMS_SERVER_API_URL` 브리지 기준으로 정규화 |
 | 2026-03-17 | 초기 버전 — DMS Docker 독립 배포 가이드 |

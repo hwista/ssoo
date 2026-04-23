@@ -91,7 +91,7 @@ sooo/
 |--------|------|------|
 | **PMS** | `docs/pms/` | PMS 설계, 디자인, 도메인 |
 | **DMS** | `docs/dms/` | DMS 정본 |
-| **DMS 런타임 자산** | `apps/web/dms/data/documents/` | 런타임 파일 시스템/Git 데이터 |
+| **DMS 런타임 자산 계약** | `apps/web/dms/dms.config.default.json`, `compose.yaml`, `DMS_*` | markdown working tree (템플릿은 `_templates/` 하위 포함), ingest queue, binary storage |
 
 ---
 

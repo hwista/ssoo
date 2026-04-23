@@ -29,7 +29,7 @@ docs/dms/
 | [GitHub-GitLab workspace 통합 가이드](./explanation/architecture/git-subtree-integration.md) | GitLab sync / workspace publish / pre-push guard 운영 절차 |
 | [기술 스택](./explanation/architecture/tech-stack.md) | DMS 기술 스택 |
 | [패키지 구조](./explanation/architecture/package-spec.md) | 의존성/구조 규칙 |
-| [하이브리드 document control-plane](./explanation/architecture/hybrid-document-control-plane.md) | file/Git vs DB vs sidecar 경계, `revisionSeq`, reconciliation |
+| [하이브리드 document control-plane](./explanation/architecture/hybrid-document-control-plane.md) | file/Git vs DB metadata projection 경계, `revisionSeq`, reconciliation |
 | [문서 공개 범위 및 접근 모델](./explanation/domain/document-visibility-and-access-model.md) | visibility, explicit grant, request flow, search/tree 경계 |
 | [인증/권한 준비도](./planning/auth-access-readiness.md) | 공통 auth/access 경계, DMS 현재 상태, 다음 우선순위 |
 | [상태 관리](./explanation/architecture/state-management.md) | 스토어/상태 흐름 |
@@ -45,7 +45,10 @@ docs/dms/
 
 ## 운영 경로
 
-- 런타임 문서 자산: `apps/web/dms/data/documents/`
+- 런타임 markdown root: `git.repositoryPath` / `DMS_MARKDOWN_ROOT` (settings runtime surface에서 관측, 변경은 deploy/runtime config)
+- 런타임 binary storage root: `storage.local.basePath` / `DMS_STORAGE_LOCAL_BASE_PATH`
+- 런타임 ingest queue: `ingest.queuePath` / `DMS_INGEST_QUEUE_PATH`
+- 런타임 template root: `markdownRoot/_templates/` (문서 Git 레포 하위, 별도 `DMS_TEMPLATE_ROOT` 불필요)
 - 레거시 문서 보관: `docs/dms/_archive/`
 
 ## Backlog
@@ -58,6 +61,7 @@ docs/dms/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-22 | 운영 경로 안내를 repo-local `apps/web/dms/data/documents/` 단일 경로에서 external runtime path contract(`DMS_MARKDOWN_ROOT`, `DMS_STORAGE_LOCAL_BASE_PATH`, `DMS_INGEST_QUEUE_PATH`, `DMS_TEMPLATE_ROOT`) 기준으로 갱신 |
 | 2026-04-16 | 문서 공개 범위/접근 모델과 hybrid document control-plane 정본 문서를 핵심 문서 목록에 추가 |
 | 2026-04-13 | DMS auth/access readiness 문서를 추가하고, raw/attachment binary delivery를 session-backed auth proxy 기준으로 보강 |
 | 2026-04-09 | DMS access baseline feature policy 적용: role/org/exception 기반 snapshot, server guard, web UI gating 정리 |

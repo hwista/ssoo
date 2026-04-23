@@ -1,8 +1,137 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-04-16
+> 최종 업데이트: 2026-04-22
+> 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
 
 ---
+
+## 2026-04-22
+
+### DMS 템플릿 경로 통합
+
+- 템플릿 경로를 `DMS_TEMPLATE_ROOT` 에서 `DMS_MARKDOWN_ROOT/_templates/` 로 통합 — 문서 Git 레포 안에 포함되어 자동 싱크
+
+### DMS docs + verify contract cleanup
+
+- `docs/dms/guides/deployment.md`, `docs/dms/guides/api.md`, `docs/dms/explanation/domain/service-overview.md` 를 external runtime path / markdown-only Git binding / non-Git binary storage 기준으로 정리
+- `scripts/verify-access-dms.mjs` 는 env-aware runtime binding, settings runtime snapshot, `storage/open` read ACL + `storage/resync` manage ACL 분리 검증을 반영
+
+### DMS external runtime path contract + markdown-only Git binding
+
+- `DmsConfigService` 가 markdown root / template root / ingest queue / storage provider roots 에 대해 external runtime path binding helper 를 제공하고, `DMS_MARKDOWN_ROOT`, `DMS_TEMPLATE_ROOT`, `DMS_INGEST_QUEUE_PATH`, `DMS_STORAGE_*_BASE_PATH` env override 를 실제 runtime 경로로 해석하도록 정리
+- `StorageAdapterService` 는 provider별 configured base path 를 실제 root 로 사용하도록 보강했고, `upload-image` 도 더 이상 Git working tree `_assets/images` 에 쓰지 않고 storage provider 기반 binary asset upload 로 정리
+- settings runtime snapshot 은 `runtime.paths` 로 markdown/template/ingest/storage roots 의 configured value, effective input, resolved path, env override 여부, 존재 여부를 노출하고, Settings UI 에 실제 runtime path surface 를 추가
+- Docker/compose 는 `apps/web/dms/data` 내부 디렉터리 생성 전제를 제거하고, server runtime 에 external bind mount(`.runtime/dms/*` 기본값 또는 사용자 지정 host path) 를 주입하는 모델로 전환
+
+### DMS doc binding observability surface sync
+
+- `GET /dms/settings` snapshot 이 configured root input, resolved configured root, actual Git root, actual remote URL/branch, sync/parity, reconcile-needed context 를 함께 반환하도록 확장
+- Settings > Git UI 는 운영 카드에서 현재 runtime binding 과 parity 상태를 바로 보여 주고, 상대 경로 해석/auto-init copy 를 현재 동작 기준으로 다시 설명하도록 정리
+- 문서 협업 panel 의 publish wording 도 raw boolean 나열 대신 실제 sync state / path isolation 설명 기준으로 정리
+
+### DMS isolated path release controls
+
+- `CollaborationService` 가 repo-wide dirty 여부 대신 `GitService.inspectPathParity()` 로 affected path 집합만 비교해, 해당 change set 경로가 실제 clean/reconciled 상태로 돌아오면 publish isolation 을 자동 해제하도록 정리
+- `POST /dms/collaboration/force-lock`, `POST /dms/collaboration/force-unlock` 을 추가해 `canManageSettings` 권한(관리자/system override 포함)으로 특정 경로만 강제 잠금/해제할 수 있게 하고, override 상태도 collaboration state 파일에 함께 영속화하도록 보강
+- publish 기원의 isolation 은 `releaseStrategy: mixed`, 운영자 강제 잠금은 `releaseStrategy: manual` 로 구분해 path-level mixed release 정책을 반영
+
+### DMS repo parity gate for control-plane mutation
+
+- `GitService.inspectRemoteParity()` 를 추가해 remote configured 여부, fast-forward 가능 여부, remote-ahead/diverged parity 차단 사유를 control-plane sync 와 publish flow 가 같은 기준으로 재사용하도록 정리
+- `AccessRequestService.ensureRepoControlPlaneSynced()` 는 repo-wide scan/deactivate 전에 parity 를 검사하고, remote ahead / diverged / parity inspection 실패 / non-git reconcile-needed root 상태에서는 기존 DB control-plane cache 를 유지한 채 repo-wide mutation 을 건너뛰도록 보강
+- `CollaborationService` auto publish / retry publish 는 commit 전에 parity 를 확인해 sync-blocked 또는 push-failed 상태를 먼저 기록하고, stale local branch 기준 commit/push 시도를 줄이도록 정리
+
+### DMS path-scoped reconcile isolation
+
+- `CollaborationService` 가 `sync-blocked` / `push-failed` change-set 을 문서/asset path 단위 isolation state 로 영속화하고, read/status 는 유지한 채 후속 mutation(`write`, `updateMetadata`, `rename`, `delete`, `upload`, `resync`, `publish`) 만 423으로 차단하도록 정리
+- `ContentController`, `file.controller.ts`, `StorageController` read/status surface 는 문서 metadata / collaboration snapshot 에 isolation reason 을 노출해 “왜 이 경로가 잠겼는지”를 path 단위로 설명하도록 보강
+- auto release / admin force lock/unlock 은 아직 넣지 않고, isolation state 의 `releaseStrategy: manual` hook 만 남겨 다음 todo 에서 mixed release control 을 이어받을 수 있게 정리
+
+### DMS document root binding hardening
+
+- `dms.config.default.json` 이 `git.repositoryPath` 를 repo-root `.runtime/dms/documents` 기준 상대 경로로 명시해 canonical local working tree root 를 빈 문자열 fallback 이 아니라 설정값으로 고정
+- `DmsConfigService` 가 legacy blank `git.repositoryPath` override 를 configured default path 로 정규화하고, source/dist 어디서 실행돼도 실제 `apps/web/dms` app root 를 탐색하도록 보강
+- `SearchRuntimeService` 는 DMS search/doc root 해석을 `DmsConfigService` 와 공유해 repo-local fallback/build-output 경로 드리프트를 제거
+- Settings Git 경로 field 는 non-empty canonical root 로 안내되고, generic settings update 로 경로가 바뀌어도 runtime Git binding 이 새 document root 를 다시 가리키도록 보강
+
+## 2026-04-21
+
+### DMS ops surface cleanup + quality noise reduction
+
+- settings IA 에서 실제 운영 가능한 `document-access` surface 를 `문서 운영/권한` 기준으로 승격하고, `admin-documents` / `system-schedulers` / `template-marketplace` / personal placeholder slot 은 planned 상태로 숨겨 현재 구현과 navigation/search 가 어긋나지 않게 정리
+- `DocumentAccessSurface` 상단 copy 도 DB control-plane 기준 운영 surface 임을 명시하도록 맞췄고, 더 이상 sidecar 제거 이후의 실제 운영 흐름과 placeholder 설명이 섞여 보이지 않게 정리
+- `DocumentPage.tsx`, `useDocumentPageComposeActions.ts`, `errorUtils.ts` 의 unused state / hook dependency / intentional console lint warning 을 정리해 `web-dms build` warning noise 를 줄이는 후속 정리를 반영
+
+### DMS control-plane projection wiring
+
+- `DocumentControlPlaneService` 를 access module 에 연결해 `DmsDocument + grant + source file + path history` 를 현재 FE metadata shape 로 projection 하는 공용 경로를 추가
+- `FilesController` 가 더 이상 filesystem scan 결과를 직접 트리 정본으로 쓰지 않고, control-plane document row 기준으로 tree projection 을 생성하도록 전환
+- `ContentController` read path(`GET /dms/content`, `GET /dms/content/metadata`) 가 sync/read 시 sidecar 를 자동 생성하지 않고 DB projection 우선, sidecar fallback 으로 동작하도록 정리
+- `StorageController` 의 local `storage/open` allow-list 가 sidecar `sourceFiles` 대신 DB source-file registry projection 을 우선 사용하도록 전환
+- `AccessRequestService` sync 경로에서 sidecar writeback 을 제거하고, 문서 sync 시 `dm_document_source_file_m`, `dm_document_path_history_m` canonical row 를 같이 재구성하도록 정리
+
+### DMS manual upload storage routing
+
+- `file.controller.ts` 의 `upload-attachment`, `upload-reference` 가 더 이상 local hash-storage 고정 경로만 쓰지 않고 `StorageAdapterService.upload(...)` 를 통해 `storage.defaultProvider` 또는 요청별 provider override 를 타도록 정리
+- 업로드 응답이 `provider`, `storageUri`, `versionId`, `etag`, `checksum`, `webUrl` 를 함께 반환하도록 확장해 FE source-file projection 이 provider별 저장 메타데이터를 그대로 보존할 수 있게 정리
+- `DocumentPage.tsx` 의 pending attachment/reference save 흐름이 same-origin proxy의 실제 응답 모양을 기준으로 source-file row 를 갱신하고, 실패한 업로드는 pending queue 에 남겨 재시도 가능하도록 보정
+- 수기 첨부/AI 참조용 임시 source-file 생성 시 기본 provider 를 강제로 `local` 로 고정하지 않도록 바꿔 system default storage routing 이 실제로 적용되게 정리
+
+### DMS storage open/resync follow-up
+
+- `StorageAdapterService.open()` 이 upload와 같은 provider validation/enablement 규칙을 따르도록 정리하고, `StorageController` GET open 이 local/sharepoint/nas 공통으로 same-origin binary fallback 또는 external redirect 를 수행하도록 보강
+- `StorageController` 에 `POST /dms/storage/resync` 를 추가해 문서에 연결된 source file metadata 를 실제 저장소 파일 기준으로 다시 읽고, sidecar + control-plane projection + source-file registry row 를 함께 갱신하도록 정리
+- `AccessRequestService` sync 가 full scan 이후 누락된 문서를 `deleted/inactive` 상태로 비활성화하도록 바꿔 DB-first file tree/control-plane 이 rename/delete 뒤에도 stale row를 남기지 않게 정리
+- `file.controller.ts` 의 markdown write/create/updateMetadata 는 single-document projection refresh 를, rename/delete 는 forced reconcile 을 호출하도록 연결해 저장 직후 `storage/open` / file tree 가 최신 source-file/path 상태를 바로 반영하도록 정리
+- DMS web sidecar 는 storage-backed attachment/reference 를 `/api/storage/open` 으로 열고 내려받으며, `canManageStorage` 권한이 있으면 attachment metadata resync 액션도 실행할 수 있게 정리
+
+### DMS sidecarless read-path reduction
+
+- `FileCrudService.read()` / `readMetadata()` 가 markdown 문서를 읽을 때 더 이상 missing sidecar 를 디스크에 자동 생성하지 않고, DB control-plane projection 우선 → legacy sidecar fallback → in-memory default metadata 순으로 응답하도록 정리
+- 이로써 editor/store 가 쓰는 `/api/file` read surface 도 “read 때문에 sidecar 가 생기는” 패턴에서 빠지기 시작했고, sidecarless projection 남은 범위가 주로 write/update compatibility 경로로 좁혀짐
+
+### DMS sidecarless write-path fallback
+
+- `ContentService.load()` 가 더 이상 missing sidecar 또는 legacy `.json` 을 read 시점에 `.sidecar.json` 으로 재생성하지 않고, strict=false 문서 경로에서는 in-memory default metadata 만 반환하도록 정리
+- `ContentController` 의 `GET /dms/content`, `GET /dms/content/metadata`, metadata update/save/delete 경로가 DB projection 우선 → sidecar fallback 순으로 기존 metadata 를 해석하고, 저장 직후 single-document projection refresh / 삭제 직후 forced reconcile 을 호출하도록 정리
+- `FileCrudService.write()` 와 `file.controller.ts` metadata update 도 sidecar 가 없어도 기존 DB projection 을 base metadata 로 재사용해 `revisionSeq`, ACL, visibility, source-file projection 을 보존하도록 정리
+- `StorageController` 의 storage metadata resync 도 persisted metadata 기준을 sidecar 우선이 아니라 DB projection 우선으로 맞춰 write/update surface 전체가 같은 control-plane truth 를 보도록 정리
+
+### DMS comment relation split + mutation ordering hardening
+
+- `dms.dm_document_comment_m`, `dms.dm_document_comment_h` 를 추가해 `DocumentMetadata.comments` / discussion thread 를 canonical relation 로 승격하고, FE 는 기존 `comments` shape 를 그대로 projection 으로 받도록 정리
+- `AccessRequestService.syncDocumentProjectionRelations(...)` 가 source file / path history 와 함께 comment row 도 동기화하도록 확장하고, `DocumentControlPlaneService.projectMetadata()` 가 relation-backed comment row 를 우선 projection 하도록 정리
+- `ContentController`, `file.controller.ts` 의 markdown mutation 경로는 search sync 보다 먼저 collaboration note + control-plane refresh 를 수행하도록 순서를 조정해, 검색 인덱스가 502 를 반환해도 DB-first permission/control-plane 정합성이 깨지지 않게 보강
+- `GET /dms/file/serve-attachment` 는 docs root 파일뿐 아니라 storage-backed attachment/reference 경로도 same-origin binary surface 로 읽을 수 있게 보강하고, 접근 허용 여부는 “읽을 수 있는 문서가 해당 asset path 를 실제로 참조하는가” 기준으로 판정하도록 정리
+- `scripts/verify-access-dms.mjs` 의 comment relation / storage boundary / same-origin binary surface 회귀 검증이 다시 green 상태로 고정됨
+
+### DMS sidecar exit hardening
+
+- `AccessRequestService.syncDocumentProjection(...)` 가 explicit metadata override 를 받을 수 있게 확장되고, sync/repair 경로가 기존 `dmsDocument.metadataJson` + sidecar + mutation metadata 를 병합해 sidecar 누락 시에도 기존 DB truth 를 잃지 않도록 보강
+- `ensureDocumentRecord()` / `upsertRepairNeededDocument()` 가 missing sidecar 상황에서 기존 DB metadata 를 기본값으로 덮어쓰지 않고 owner/visibility/source-file/path-history 정합성을 유지하도록 정리
+- `ContentController`, `file.controller.ts`, `StorageController` 는 이미 메모리에 있는 merged metadata 를 `syncDocumentProjection(...)` 로 직접 전달해, control-plane refresh 가 디스크 sidecar 재읽기를 전제로 하지 않게 맞춤
+- `scripts/verify-access-dms.mjs` 는 probe 문서 저장 직후 `.sidecar.json` 을 실제 삭제한 뒤 `/dms/file`, `/dms/content`, `/dms/content/metadata`, same-origin binary surface 를 검증하고, read surface 이후에도 probe sidecar 가 다시 생기지 않는지 확인하도록 확장
+- 이로써 “sidecar 는 compatibility fallback 이고, DB + Git 이 runtime truth” 라는 계약이 코드 경로와 회귀 스크립트 양쪽에서 동시에 고정됨
+
+### DMS document sidecar hard-removal enforcement
+
+- `StorageController` 의 `/dms/storage/resync` 는 더 이상 `.sidecar.json` writeback 을 하지 않고 DB projection 만 갱신하도록 정리
+- `scripts/verify-access-dms.mjs` 는 probe 저장 직후 sidecar 가 생성되면 즉시 실패하도록 바뀌었고, DMS document root 전체에 `.sidecar.json` 이 남아 있지 않은지도 함께 검증하도록 강화
+- `apps/web/dms/data/documents/verify-access/manual-mo885nuo.sidecar.json` 를 제거해 document content plane 에 남아 있던 tracked sidecar artifact 를 정리
+
+### DMS template DB cutover + full sidecar cleanup
+
+- `dms.dm_template_m`, `dms.dm_template_h` 를 추가해 template metadata canonical source 를 DB로 이동하고, template markdown content 만 `data/templates/**/*.md` content plane 에 남기도록 정리
+- `TemplateService` 는 DB-backed service 로 전환되고, legacy personal template(`tpl-6b582033`) metadata 도 seed/backfill 후 DB row 기준으로 조회되도록 정리
+- `templates/doc-assist/git` controller 는 control-plane sync 를 선행해 cache-only ACL 계약과 맞추고, `DocumentAclService` 는 sidecar fallback 없이 cached DB projection 만 읽도록 정리
+- `runtime/file-system.service.ts`, `content.service.ts`, `file-crud.service.ts`, `AccessRequestService` 의 남은 sidecar read/write/path-helper 호출을 제거해 server runtime 에서 `.sidecar.json` I/O를 끊음
+- tracked template sidecar/manifest 와 backup 아래 잔여 `.sidecar.json` 를 제거했고, `verify-access-dms.mjs` 는 template round-trip + `apps/web/dms/data` 전체 no-sidecar 상태까지 함께 검증한다
+
+### 현재 남은 후속 범위
+
+- 남은 metadata field 의 relation split 여부 결정 (`versionHistory` 등)
+- 운영 surface / provider-specific UX 표준화
+- repo-wide quality noise 정리
 
 ## 2026-04-16
 
@@ -212,7 +341,7 @@
 ### Settings IA 슬롯 확장
 
 - settings registry를 custom slot 확장형으로 열어, JSON 필드 기반 섹션 외에 placeholder/custom surface를 같은 경로에서 렌더링할 수 있도록 정리
-- system scope에 `문서/폴더 권한`, `전체 문서/폴더 관리`, `문서 품질/스케줄러`, `템플릿 마켓`, `관리자 템플릿` 항목을 추가
+- system scope에 `문서 권한`, `전체 문서 관리`, `문서 품질/스케줄러`, `템플릿 마켓`, `관리자 템플릿` 항목을 추가
 - personal scope에 `공개/내 템플릿`, `내 문서/내 활동` 항목을 추가
 - 기존 템플릿 관리 surface는 `관리자 템플릿` 항목으로 재배치하고, 나머지 신규 항목은 다음 단계 연결 포인트가 보이는 placeholder surface로 먼저 노출
 
