@@ -20,6 +20,7 @@ import {
   SourceLinksSection,
   SummarySection,
   TagsSection,
+  VisibilitySection,
 } from './document-panel';
 import type { DocumentMetadataDiffSnapshot } from '../documentPageUtils';
 
@@ -612,6 +613,19 @@ export function DocumentPanel({
             isNewDocument={isNewDocument}
             onConfirm={handleSaveLocationConfirm}
           />
+          {documentMetadata?.visibility && !isNewDocument && !isTemplatePanel ? (
+            <VisibilitySection
+              scope={documentMetadata.visibility.scope}
+              canManage={
+                Boolean(currentUserLoginId) &&
+                Boolean(documentMetadata.ownerLoginId) &&
+                currentUserLoginId === documentMetadata.ownerLoginId
+              }
+              onScopeChange={(scope) => {
+                onMetadataChange?.({ visibility: { scope } });
+              }}
+            />
+          ) : null}
           <TagsSection
             editable={editable}
             tags={tags ?? []}

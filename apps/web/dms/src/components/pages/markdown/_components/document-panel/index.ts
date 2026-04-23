@@ -5,3 +5,5 @@ export { SourceLinksSection, SummarySection, TagsSection } from './ContentInfoSe
 export { AttachmentsSection } from './ActivitySections';
 export { CommentsSection } from './CommentsSection';
 export type { CommentsSectionProps } from './CommentsSection';
+export { VisibilitySection } from './VisibilitySection';
+export type { VisibilitySectionProps } from './VisibilitySection';
