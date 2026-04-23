@@ -24,6 +24,38 @@ function extractTitle(content: string, filePath: string): string {
   return match?.[1]?.trim() ?? path.parse(filePath).name;
 }
 
+interface SidecarData {
+  title?: string;
+  summary?: string;
+  tags?: string[];
+  sourceLinks?: unknown[];
+  bodyLinks?: unknown[];
+  sourceFiles?: Array<{ name: string; path: string; type: string; size: number; origin: string; status: string; provider: string }>;
+  referenceFiles?: Array<{ name: string; path: string; type: string; size: number; origin: string; status: string; provider: string }>;
+  comments?: Array<{ id: string; author: string; text: string; createdAt: string; updatedAt?: string; resolved?: boolean }>;
+  acl?: { owners?: string[]; editors?: string[]; viewers?: string[] };
+  templateId?: string;
+  author?: string;
+  lastModifiedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  fileHashes?: Record<string, unknown>;
+  chunkIds?: string[];
+  embeddingModel?: string;
+  versionHistory?: unknown[];
+  contentType?: string;
+}
+
+function readSidecar(mdFullPath: string): SidecarData | null {
+  const sidecarPath = mdFullPath.replace(/\.md$/, '.sidecar.json');
+  if (!fs.existsSync(sidecarPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(sidecarPath, 'utf-8')) as SidecarData;
+  } catch {
+    return null;
+  }
+}
+
 function collectMarkdownFiles(rootDir: string, relativeTo: string): string[] {
   const results: string[] = [];
   if (!fs.existsSync(rootDir) || !fs.statSync(rootDir).isDirectory()) {
@@ -120,7 +152,37 @@ export class DocumentHydrationService {
       try {
         const content = fs.readFileSync(fullPath, 'utf-8');
         const hash = hashContent(content);
-        const title = extractTitle(content, relPath);
+        const sidecar = readSidecar(fullPath);
+        const title = sidecar?.title || extractTitle(content, relPath);
+
+        // sourceFiles / referenceFiles를 하나로 합침
+        const mergedSourceFiles = [
+          ...(sidecar?.sourceFiles ?? []),
+          ...(sidecar?.referenceFiles ?? []),
+        ];
+
+        const metadataJson: Record<string, unknown> = {
+          title,
+          ownerId: adminUserId.toString(),
+          ownerLoginId: 'admin',
+          ...(sidecar?.summary ? { summary: sidecar.summary } : {}),
+          ...(sidecar?.tags?.length ? { tags: sidecar.tags } : {}),
+          ...(sidecar?.sourceLinks?.length ? { sourceLinks: sidecar.sourceLinks } : {}),
+          ...(sidecar?.bodyLinks?.length ? { bodyLinks: sidecar.bodyLinks } : {}),
+          ...(sidecar?.templateId ? { templateId: sidecar.templateId } : {}),
+          ...(sidecar?.author && sidecar.author !== 'Unknown' ? { author: sidecar.author } : { author: 'admin' }),
+          ...(sidecar?.lastModifiedBy ? { lastModifiedBy: sidecar.lastModifiedBy } : { lastModifiedBy: 'admin' }),
+          ...(sidecar?.fileHashes ? { fileHashes: sidecar.fileHashes } : {}),
+          ...(sidecar?.chunkIds?.length ? { chunkIds: sidecar.chunkIds } : {}),
+          ...(sidecar?.embeddingModel ? { embeddingModel: sidecar.embeddingModel } : {}),
+          ...(sidecar?.versionHistory?.length ? { versionHistory: sidecar.versionHistory } : {}),
+          ...(sidecar?.contentType ? { contentType: sidecar.contentType } : {}),
+          ...(mergedSourceFiles.length ? { sourceFiles: mergedSourceFiles } : {}),
+          ...(sidecar?.comments?.length ? { comments: sidecar.comments } : {}),
+          visibility: { scope: 'organization' },
+          grants: [],
+          fileHashes: sidecar?.fileHashes ?? { content: hash, sources: {} },
+        };
 
         const doc = await this.db.client.dmsDocument.create({
           data: {
@@ -130,7 +192,7 @@ export class DocumentHydrationService {
             documentStatusCode: 'active',
             syncStatusCode: 'synced',
             contentHash: hash,
-            metadataJson: { title },
+            metadataJson,
             lastSource: 'hydration',
             lastActivity: 'document-hydration.bootstrap',
             createdBy: adminUserId,
@@ -153,6 +215,59 @@ export class DocumentHydrationService {
             updatedBy: adminUserId,
           },
         });
+
+        // sidecar sourceFiles / referenceFiles → dm_document_source_file_m
+        if (mergedSourceFiles.length > 0) {
+          logger.debug(`sourceFiles ${mergedSourceFiles.length}건 등록 시도: ${relPath}`);
+        }
+        for (const sf of mergedSourceFiles) {
+          try {
+            await this.db.client.dmsDocumentSourceFile.create({
+              data: {
+                documentId: doc.documentId,
+                sourceName: sf.name,
+                sourcePath: sf.path,
+                mediaType: sf.type,
+                fileSize: sf.size ?? 0,
+                originCode: sf.origin ?? 'reference',
+                statusCode: sf.status ?? 'published',
+                providerCode: sf.provider ?? 'local',
+                lastSource: 'hydration',
+                lastActivity: 'sidecar-migration',
+                createdBy: adminUserId,
+                updatedBy: adminUserId,
+              },
+            });
+          } catch (sfErr) {
+            logger.warn(`sourceFile 등록 실패 (${relPath}): ${sf.name}`, sfErr instanceof Error ? sfErr.message : String(sfErr));
+          }
+        }
+
+        // sidecar comments → dm_document_comment_m
+        for (const comment of sidecar?.comments ?? []) {
+          try {
+            const commentKey = comment.id || crypto.randomUUID();
+            await this.db.client.dmsDocumentComment.create({
+              data: {
+                documentId: doc.documentId,
+                commentKey,
+                commentContent: comment.text ?? '',
+                authorName: comment.author ?? 'Unknown',
+                commentCreatedAt: comment.createdAt ? new Date(comment.createdAt) : new Date(),
+                lastSource: 'hydration',
+                lastActivity: 'sidecar-migration',
+                createdBy: adminUserId,
+                updatedBy: adminUserId,
+              },
+            });
+          } catch {
+            // best-effort
+          }
+        }
+
+        if (sidecar) {
+          logger.debug(`sidecar 메타데이터 적용: ${relPath}`);
+        }
 
         created++;
       } catch (err) {
