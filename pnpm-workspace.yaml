@@ -3,6 +3,7 @@ packages:
   - apps/web/pms
   - apps/web/cms
   - apps/web/dms
+  - apps/web/admin
   - packages/*
 
 onlyBuiltDependencies:

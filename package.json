@@ -38,6 +38,8 @@
     "dev:web-cms": "turbo dev --filter=web-cms",
     "build:web-cms": "turbo build --filter=web-cms",
     "build:web-dms": "turbo build --filter=web-dms",
+    "dev:web-admin": "turbo dev --filter=web-admin",
+    "build:web-admin": "turbo build --filter=web-admin",
     "verify:access-smoke": "pnpm run verify:access-smoke:observed",
     "verify:access-smoke:raw": "node scripts/verify-access-smoke.mjs",
     "verify:access-ci": "pnpm verify:access-smoke && pnpm verify:access-admin && pnpm verify:access-dms",
