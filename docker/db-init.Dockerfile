@@ -1,4 +1,5 @@
 FROM node:20 AS base
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 RUN corepack enable && \
     corepack prepare pnpm@10.28.0 --activate && \
     apt-get update && apt-get install -y --no-install-recommends postgresql-client && \
