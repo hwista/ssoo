@@ -25,6 +25,7 @@ export interface AuthTokens {
 export interface AuthIdentity {
   userId: string;
   loginId: string;
+  userName?: string;
 }
 
 /**

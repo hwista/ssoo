@@ -245,6 +245,7 @@ export class AuthController {
       {
         userId: user.userId,
         loginId: user.loginId,
+        userName: user.userName,
       },
       "사용자 정보 조회 성공",
     );

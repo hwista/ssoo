@@ -1,6 +1,7 @@
 export interface TokenPayload {
   userId: string;  // BigInt를 JSON 직렬화할 수 없어 string으로 저장
   loginId: string;
+  userName?: string;
   roleCode?: string;
   organizationIds?: string[];
   teamIds?: string[];
@@ -17,6 +18,7 @@ export interface AuthTokens {
 export interface AuthUserRecord {
   userId: bigint;
   loginId: string;
+  userName: string;
   passwordHash: string;
   accountStatusCode: string;
   lastLoginAt: Date | null;

@@ -16,7 +16,7 @@ export interface AuthUserMenuAction {
 }
 
 export interface AuthUserMenuProps {
-  user: Pick<AuthIdentity, 'loginId'> | null;
+  user: Pick<AuthIdentity, 'loginId' | 'userName'> | null;
   dropdownWidth?: number;
   onLogout: () => void | Promise<void>;
   actions?: AuthUserMenuAction[];
@@ -35,6 +35,7 @@ export function AuthUserMenu({
   fallbackSecondaryLabel = null,
 }: AuthUserMenuProps) {
   const loginId = user?.loginId ?? fallbackLoginId;
+  const displayName = user?.userName ?? loginId;
   const resolvedSecondaryLabel = secondaryLabel ?? fallbackSecondaryLabel;
 
   return (
@@ -47,6 +48,7 @@ export function AuthUserMenu({
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
             <User className="h-3.5 w-3.5 text-white" />
           </div>
+          <span className="max-w-[80px] truncate text-sm font-medium text-white">{displayName}</span>
           <ChevronDown className="h-3 w-3 text-white/70" />
         </button>
       </DropdownMenuPrimitive.Trigger>
@@ -64,7 +66,7 @@ export function AuthUserMenu({
                 <User className="h-4 w-4 text-white" />
               </div>
               <div className="flex min-w-0 flex-col">
-                <p className="truncate text-sm font-medium text-white">{loginId}</p>
+                <p className="truncate text-sm font-medium text-white">{displayName}</p>
                 {resolvedSecondaryLabel ? (
                   <p className="truncate text-xs text-white/60">{resolvedSecondaryLabel}</p>
                 ) : null}

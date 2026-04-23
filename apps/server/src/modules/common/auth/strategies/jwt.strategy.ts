@@ -67,6 +67,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.userId,
       loginId: user.loginId,
+      userName: user.userName,
       roleCode: user.roleCode,
       organizationIds: organizationIds.map((orgId) => orgId.toString()),
       // 현재 공통 런타임에서 안정적으로 해석되는 principal membership 은 organization 까지다.

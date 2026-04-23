@@ -17,6 +17,7 @@ interface AuthAccountWithUserRecord {
   lockedUntil: Date | null;
   user: {
     id: bigint;
+    userName: string;
     roleCode: string;
     isActive: boolean;
   };
@@ -89,6 +90,7 @@ interface ProfileUserViewRecord {
 
 const authAccountUserSelect = {
   id: true,
+  userName: true,
   roleCode: true,
   isActive: true,
 } as const;
@@ -268,6 +270,7 @@ export class UserService {
     return {
       userId: authAccount.userId,
       loginId: authAccount.loginId,
+      userName: authAccount.user.userName,
       passwordHash: authAccount.passwordHash,
       accountStatusCode: authAccount.accountStatusCode,
       lastLoginAt: authAccount.lastLoginAt,

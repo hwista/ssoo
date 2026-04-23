@@ -30,6 +30,7 @@ export class AuthService {
     return {
       userId: user.userId.toString(),
       loginId: user.loginId,
+      userName: user.userName,
       sessionId,
     };
   }
