@@ -58,7 +58,7 @@ interface DocumentPageComposeDeps {
   editorHandlers: ComposeEditorHandlers | null;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   requestLifecycle: RequestLifecycle;
-  onSyncReferencesToSidecar?: (
+  onSyncReferencesToMetadata?: (
     files: SourceFileMeta[],
     rawFiles?: Map<string, File>,
     resolvedRefPaths?: string[],
@@ -192,7 +192,7 @@ export function useDocumentPageComposeActions({
     setIsComposing,
     setIsRecommendingPath,
   } = mutators;
-  const { editorHandlers, confirm, requestLifecycle, onSyncReferencesToSidecar, onComposeComplete } = deps;
+  const { editorHandlers, confirm, requestLifecycle, onSyncReferencesToMetadata, onComposeComplete } = deps;
   // Always-fresh reference to editorHandlers (avoids stale closure in streaming callbacks)
   const editorHandlersRef = useRef(editorHandlers);
   editorHandlersRef.current = editorHandlers;
@@ -290,7 +290,7 @@ export function useDocumentPageComposeActions({
         setContent,
       });
 
-      if (onSyncReferencesToSidecar && requestLifecycle.isRequestActive(token)) {
+      if (onSyncReferencesToMetadata && requestLifecycle.isRequestActive(token)) {
         const syncFiles: SourceFileMeta[] = [];
         const rawFiles = new Map<string, File>();
 
@@ -303,7 +303,6 @@ export function useDocumentPageComposeActions({
             size: sf.size,
             origin: 'reference',
             status: 'draft',
-            provider: 'local',
           });
           const blob = new Blob([sf.textContent], { type: sf.type || 'text/plain' });
           rawFiles.set(tempPath, new File([blob], sf.name, { type: sf.type || 'text/plain' }));
@@ -322,7 +321,7 @@ export function useDocumentPageComposeActions({
         }
 
         if (syncFiles.length > 0) {
-          onSyncReferencesToSidecar(syncFiles, rawFiles, resolvedRefPaths);
+          onSyncReferencesToMetadata(syncFiles, rawFiles, resolvedRefPaths);
         }
       }
 
@@ -350,7 +349,7 @@ export function useDocumentPageComposeActions({
     isComposing,
     isTemplatePendingDelete,
     onComposeComplete,
-    onSyncReferencesToSidecar,
+    onSyncReferencesToMetadata,
     pendingDeletedFileIds,
     pendingDeletedRefPaths,
     requestLifecycle,
@@ -358,6 +357,7 @@ export function useDocumentPageComposeActions({
     setInlineInstruction,
     setInlineRelevanceWarnings,
     setIsComposing,
+    state.contentType,
   ]);
 
   const handleRecommendPath = useCallback(async () => {

@@ -23,7 +23,7 @@ interface AssistantReferenceChipsProps {
   inlineTemplate?: TemplateItem | null;
   inlineSummaryFiles?: InlineSummaryFileItem[];
   inlineWarnings?: string[];
-  /** IDs of summary files that have been used in AI compose (synced to sidecar) */
+  /** IDs of summary files that have been used in AI compose (synced to metadata) */
   usedSummaryFileIds?: Set<string>;
   /** Whether the template has been used in AI compose */
   isTemplateUsed?: boolean;

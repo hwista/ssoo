@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface SidecarFrameProps {
+export interface PanelFrameProps {
   title?: string;
   className?: string;
   headerClassName?: string;
@@ -13,7 +13,7 @@ export interface SidecarFrameProps {
   footer?: React.ReactNode;
 }
 
-export function SidecarFrame({
+export function PanelFrame({
   title,
   className,
   headerClassName,
@@ -21,7 +21,7 @@ export function SidecarFrame({
   footerClassName,
   children,
   footer,
-}: SidecarFrameProps) {
+}: PanelFrameProps) {
   return (
     <div className={cn('flex h-full flex-col', className)}>
       {title ? (

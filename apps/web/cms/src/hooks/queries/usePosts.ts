@@ -28,6 +28,22 @@ export function usePostDetail(id: string) {
   });
 }
 
+export function usePostList(
+  params?: Parameters<typeof postsApi.list>[0],
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: postKeys.list({
+      page: params?.page ?? 1,
+      pageSize: params?.pageSize ?? 20,
+      boardId: params?.boardId ?? '',
+      search: params?.search ?? '',
+    }),
+    queryFn: () => postsApi.list(params),
+    enabled,
+  });
+}
+
 export function useCreatePost() {
   const qc = useQueryClient();
   return useMutation({

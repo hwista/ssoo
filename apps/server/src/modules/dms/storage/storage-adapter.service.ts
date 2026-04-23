@@ -36,6 +36,12 @@ export interface StorageOpenRequest {
   documentPath?: string;
 }
 
+export interface StorageRefreshRequest extends StorageOpenRequest {
+  fileName?: string;
+  origin?: StorageOrigin;
+  status?: StorageStatus;
+}
+
 export interface StorageOpenResult {
   provider: StorageProvider;
   path: string;
@@ -63,8 +69,18 @@ function normalizeRelativePath(input?: string): string {
 }
 
 class StorageAdapterService {
+  private readonly supportedProviders = new Set<StorageProvider>(['local', 'sharepoint', 'nas']);
+
   private resolveProvider(provider?: StorageProvider): StorageProvider {
-    return provider ?? configService.getConfig().storage.defaultProvider;
+    if (!provider) {
+      return configService.getConfig().storage.defaultProvider;
+    }
+
+    if (this.supportedProviders.has(provider)) {
+      return provider;
+    }
+
+    throw new Error('지원하지 않는 저장소 provider 입니다.');
   }
 
   private getProviderConfig(provider: StorageProvider) {
@@ -97,14 +113,7 @@ class StorageAdapterService {
   }
 
   private getStorageRoot(provider: StorageProvider): string {
-    const configuredBase = this.getProviderConfig(provider).basePath;
-    const fallbackRoot = provider === 'local'
-      ? configuredBase
-      : path.join(configService.getAppRoot(), 'data', 'storage', 'providers', provider);
-
-    return path.isAbsolute(fallbackRoot)
-      ? fallbackRoot
-      : path.join(configService.getAppRoot(), fallbackRoot);
+    return configService.getStorageRootBinding(provider).resolvedPath;
   }
 
   resolveContainedPath(provider: StorageProvider, relativePath: string): { fullPath: string; relativePath: string } {
@@ -169,6 +178,9 @@ class StorageAdapterService {
     }
 
     const providerConfig = this.getProviderConfig(provider);
+    if (!providerConfig.enabled) {
+      throw new Error(`${provider} 저장소가 비활성화되어 있습니다.`);
+    }
     const contained = this.resolveContainedPath(provider, targetPath);
     if (provider === 'local' && !fs.existsSync(contained.fullPath)) {
       throw new Error('대상 파일을 찾을 수 없습니다.');
@@ -179,6 +191,48 @@ class StorageAdapterService {
       path: contained.relativePath,
       storageUri: this.toStorageUri(provider, contained.relativePath),
       openUrl: this.buildOpenUrl(provider, contained.relativePath, providerConfig.webBaseUrl),
+      webUrl: providerConfig.webBaseUrl
+        ? `${providerConfig.webBaseUrl.replace(/\/$/, '')}/${contained.relativePath}`
+        : undefined,
+    };
+  }
+
+  refresh(request: StorageRefreshRequest): StorageReference {
+    const parsed = request.storageUri ? this.parseStorageUri(request.storageUri) : null;
+    const provider = parsed?.provider ?? this.resolveProvider(request.provider);
+    const targetPath = parsed?.path ?? normalizeRelativePath(request.path);
+    if (!targetPath) {
+      throw new Error('resync 대상 경로가 필요합니다.');
+    }
+
+    const providerConfig = this.getProviderConfig(provider);
+    if (!providerConfig.enabled) {
+      throw new Error(`${provider} 저장소가 비활성화되어 있습니다.`);
+    }
+
+    const contained = this.resolveContainedPath(provider, targetPath);
+    if (!fs.existsSync(contained.fullPath)) {
+      throw new Error('대상 파일을 찾을 수 없습니다.');
+    }
+
+    const fileBuffer = fs.readFileSync(contained.fullPath);
+    const stats = fs.statSync(contained.fullPath);
+    const checksum = hashValue(fileBuffer);
+    const versionId = String(stats.mtimeMs);
+    const etag = hashValue(`${contained.relativePath}:${stats.size}:${versionId}`).slice(0, 16);
+    const fileName = request.fileName?.trim() || path.basename(contained.fullPath);
+
+    return {
+      storageUri: this.toStorageUri(provider, contained.relativePath),
+      provider,
+      path: contained.relativePath,
+      name: fileName,
+      size: stats.size,
+      versionId,
+      etag,
+      checksum,
+      origin: request.origin ?? 'manual',
+      status: request.status ?? 'published',
       webUrl: providerConfig.webBaseUrl
         ? `${providerConfig.webBaseUrl.replace(/\/$/, '')}/${contained.relativePath}`
         : undefined,

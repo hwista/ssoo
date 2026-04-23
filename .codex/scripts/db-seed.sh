@@ -26,7 +26,7 @@ seed_files=(
   13_permission_foundation.sql
   14_pms_project_policy_foundation.sql
   15_dms_access_policy_foundation.sql
-  16_chs_access_policy_foundation.sql
+  16_cms_access_policy_foundation.sql
   17_demo_project_access_context.sql
   12_demo_project_members.sql
   13_demo_tasks.sql

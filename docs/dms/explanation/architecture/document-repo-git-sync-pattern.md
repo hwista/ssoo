@@ -1,5 +1,8 @@
 # DMS 문서 레포 Git Sync 패턴
 
+> Historical note: 이 문서는 **DB-only metadata cutover 이전의 sidecar-based Git sync 설계**를 기록합니다.
+> 현재 runtime 계약은 `.md content + DB metadata projection` 기준이며, 아래 sidecar 언급은 historical context 로만 유지합니다.
+
 > 최종 업데이트: 2026-04-17
 > 상위 문서:
 > - `docs/dms/explanation/architecture/document-repo-source-of-truth-policy.md`

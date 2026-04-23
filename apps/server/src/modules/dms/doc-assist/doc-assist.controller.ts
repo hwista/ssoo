@@ -23,6 +23,7 @@ import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
@@ -66,7 +67,10 @@ function flattenTree(nodes: FileNode[], prefix = ''): { dirs: string[]; files: s
 @UseGuards(JwtAuthGuard, DmsFeatureGuard)
 @RequireDmsFeature('canUseAssistant')
 export class DocAssistController {
-  constructor(private readonly documentAclService: DocumentAclService) {}
+  constructor(
+    private readonly documentAclService: DocumentAclService,
+    private readonly accessRequestService: AccessRequestService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'DMS 문서 작성 보조' })
@@ -80,6 +84,7 @@ export class DocAssistController {
     @CurrentUser() currentUser: TokenPayload,
     @Res() response: ExpressResponse,
   ) {
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
     const action = body.action === 'recommendPath' || body.action === 'recommendTitleAndPath'
       ? body.action
       : 'compose';

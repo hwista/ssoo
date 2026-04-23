@@ -13,10 +13,12 @@ import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { contentService } from '../runtime/content.service.js';
+import { isMarkdownFile } from '../runtime/file-utils.js';
 import { gitService } from '../runtime/git.service.js';
 
 type GitActionBody = {
@@ -45,7 +47,10 @@ type GitActionBody = {
 @UseGuards(JwtAuthGuard, DmsFeatureGuard)
 @RequireDmsFeature('canUseGit')
 export class GitController {
-  constructor(private readonly documentAclService: DocumentAclService) {}
+  constructor(
+    private readonly documentAclService: DocumentAclService,
+    private readonly accessRequestService: AccessRequestService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'DMS Git 변경사항 조회' })
@@ -81,6 +86,7 @@ export class GitController {
     }
 
     await this.ensureInitialized();
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
 
     switch (action) {
       case 'status':
@@ -167,9 +173,11 @@ export class GitController {
     if (!valid || safeRelPath.trim().length === 0) {
       throw new BadRequestException('Invalid file path');
     }
+    if (!isMarkdownFile(safeRelPath)) {
+      throw new BadRequestException('Git path must reference a markdown document');
+    }
 
-    const sidecarPath = contentService.getSidecarPath(targetPath);
-    if (!fs.existsSync(targetPath) && !fs.existsSync(sidecarPath)) {
+    if (!fs.existsSync(targetPath)) {
       throw new NotFoundException('Git path not found');
     }
 

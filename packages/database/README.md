@@ -336,6 +336,7 @@ psql -U appuser -d appdb -f prisma/triggers/apply_all_triggers.sql
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-21 | `dm_document_comment_m` 및 대응 history table/trigger를 추가해 DMS `comments/discussion` metadata 의 canonical relation 분리를 시작 |
 | 2026-04-09 | `cm_permission_m`, `cm_role_m`, `cm_role_permission_r`, `cm_org_permission_r`, `cm_user_permission_exception_r` 및 대응 history table/trigger, permission foundation seed를 추가 |
 | 2026-04-09 | `cm_organization_m`, `cm_user_org_r` 및 대응 history table/trigger, legacy user/customer 기준 org foundation bridge seed를 추가 |
 | 2026-04-09 | `cm_user_auth_m`, `cm_user_session_m`, `cm_user_invitation_m` 및 대응 history table/trigger를 추가해 auth foundation bridge를 도입 |

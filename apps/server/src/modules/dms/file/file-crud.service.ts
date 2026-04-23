@@ -3,6 +3,7 @@ import path from 'path';
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { DocumentMetadata } from '@ssoo/types/dms';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { DocumentControlPlaneService } from '../access/document-control-plane.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 import { normalizeMarkdownFileName, isMarkdownFile } from '../runtime/file-utils.js';
@@ -35,7 +36,32 @@ function getRootDir(): string {
 
 @Injectable()
 export class FileCrudService {
-  constructor(private readonly documentAclService: DocumentAclService) {}
+  constructor(
+    private readonly documentAclService: DocumentAclService,
+    private readonly documentControlPlaneService: DocumentControlPlaneService,
+  ) {}
+
+  private toRelativePath(filePath: string): string {
+    return path.relative(getRootDir(), filePath).replace(/\\/g, '/');
+  }
+
+  private async resolveDocumentMetadata(
+    filePath: string,
+    content: string,
+  ): Promise<DocumentMetadata> {
+    const relativePath = this.toRelativePath(filePath);
+    const projected = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(relativePath);
+    if (projected) {
+      return projected;
+    }
+
+    return contentService.buildDefaultDocumentMetadata(
+      content,
+      filePath,
+      undefined,
+      { defaultRevisionSeq: 0 },
+    ) as unknown as DocumentMetadata;
+  }
 
   private findFileByName(rootDir: string, fileName: string): string | null {
     const normalizedFileName = normalizeMarkdownFileName(fileName);
@@ -100,19 +126,7 @@ export class FileCrudService {
       const content = fs.readFileSync(finalPath, 'utf-8');
       const metadata = this.getFileMetadata(finalPath);
       if (isMarkdownFile(finalPath)) {
-        const sidecar = contentService.readSidecar(finalPath);
-        if (sidecar) {
-          metadata.document = sidecar as unknown as DocumentMetadata;
-        } else {
-          const defaultSidecar = contentService.buildDefaultDocumentSidecar(
-            content,
-            finalPath,
-            undefined,
-            { defaultRevisionSeq: 0 },
-          );
-          contentService.writeSidecar(finalPath, defaultSidecar);
-          metadata.document = defaultSidecar as unknown as DocumentMetadata;
-        }
+        metadata.document = await this.resolveDocumentMetadata(finalPath, content);
       }
 
       return { success: true, data: { content, metadata } };
@@ -143,19 +157,7 @@ export class FileCrudService {
       const metadata = this.getFileMetadata(targetPath);
       if (isMarkdownFile(targetPath)) {
         const content = fs.readFileSync(targetPath, 'utf-8');
-        const sidecar = contentService.readSidecar(targetPath);
-        if (sidecar) {
-          metadata.document = sidecar as unknown as DocumentMetadata;
-        } else {
-          const defaultSidecar = contentService.buildDefaultDocumentSidecar(
-            content,
-            targetPath,
-            undefined,
-            { defaultRevisionSeq: 0 },
-          );
-          contentService.writeSidecar(targetPath, defaultSidecar);
-          metadata.document = defaultSidecar as unknown as DocumentMetadata;
-        }
+        metadata.document = await this.resolveDocumentMetadata(targetPath, content);
       }
 
       return { success: true, data: { metadata } };
@@ -197,23 +199,22 @@ export class FileCrudService {
       }
 
       if (isMarkdownFile(targetPath)) {
-        const existingSidecar = contentService.readSidecar(targetPath) ?? (
-          existedBeforeWrite
-            ? undefined
-            : {
-                acl: this.documentAclService.buildOwnerAcl(currentUser),
-                author: currentUser.loginId,
-                lastModifiedBy: currentUser.loginId,
-                ownerId: currentUser.userId,
-                ownerLoginId: currentUser.loginId,
-                visibility: { scope: 'self' },
-              }
-        );
+        const projectedMetadata = existedBeforeWrite
+          ? await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath) as unknown as Record<string, unknown> | null
+          : null;
+        const existingMetadata = projectedMetadata ?? {
+          acl: this.documentAclService.buildOwnerAcl(currentUser),
+          author: currentUser.loginId,
+          lastModifiedBy: currentUser.loginId,
+          ownerId: currentUser.userId,
+          ownerLoginId: currentUser.loginId,
+          visibility: { scope: 'self' },
+        };
         const result = contentService.save(
           safeRelPath,
           content,
           {
-            ...(existingSidecar ?? {}),
+            ...(existingMetadata ?? {}),
             lastModifiedBy: currentUser.loginId,
           },
           { expectedRevisionSeq: options?.expectedRevisionSeq },
@@ -328,7 +329,7 @@ export class FileCrudService {
     newPath: string,
     currentUser: TokenPayload,
     options?: { autoNumber?: boolean },
-  ): Promise<FileCrudResult<{ message: string; finalPath?: string }>> {
+  ): Promise<FileCrudResult<{ message: string; finalPath?: string; metadata?: DocumentMetadata }>> {
     const previous = this.resolveFilePath(oldPath);
     const next = this.resolveFilePath(newPath);
 
@@ -359,42 +360,43 @@ export class FileCrudService {
 
     try {
       this.assertCanManageExistingPath(currentUser, previous.targetPath);
+      const previousMetadata = fs.statSync(previous.targetPath).isDirectory()
+        ? null
+        : isMarkdownFile(previous.targetPath)
+          ? await this.resolveDocumentMetadata(previous.targetPath, fs.readFileSync(previous.targetPath, 'utf-8'))
+          : null;
       fs.mkdirSync(path.dirname(resolvedTargetPath), { recursive: true });
       fs.renameSync(previous.targetPath, resolvedTargetPath);
 
-      const oldMetaPath = contentService.getSidecarPath(previous.targetPath);
-      const newMetaPath = contentService.getSidecarPath(resolvedTargetPath);
-      if (fs.existsSync(oldMetaPath)) {
-        fs.mkdirSync(path.dirname(newMetaPath), { recursive: true });
-        fs.renameSync(oldMetaPath, newMetaPath);
-      }
-
+      let nextMetadata: DocumentMetadata | undefined;
       if (isMarkdownFile(resolvedTargetPath) && fs.existsSync(resolvedTargetPath)) {
-        const sidecar = contentService.readSidecar(resolvedTargetPath);
-        if (sidecar) {
-          const now = new Date().toISOString();
-          const currentRevisionSeq = typeof sidecar['revisionSeq'] === 'number'
-            ? sidecar['revisionSeq']
-            : 0;
-          const pathHistory = Array.isArray(sidecar['pathHistory']) ? sidecar['pathHistory'] : [];
-          const reason = path.dirname(previous.safeRelPath) === path.dirname(resolvedRelPath) ? 'rename' : 'move';
-          contentService.writeSidecar(resolvedTargetPath, {
-            ...sidecar,
-            relativePath: resolvedRelPath,
-            updatedAt: now,
-            lastModifiedBy: currentUser.loginId,
-            revisionSeq: currentRevisionSeq + 1,
-            pathHistory: [
-              ...pathHistory,
-              {
-                path: previous.safeRelPath,
-                changedAt: now,
-                changedBy: currentUser.loginId,
-                reason,
-              },
-            ],
-          });
-        }
+        const now = new Date().toISOString();
+        const reason = path.dirname(previous.safeRelPath) === path.dirname(resolvedRelPath) ? 'rename' : 'move';
+        const currentRevisionSeq = typeof previousMetadata?.revisionSeq === 'number'
+          ? previousMetadata.revisionSeq
+          : 0;
+        const pathHistory = Array.isArray(previousMetadata?.pathHistory)
+          ? previousMetadata.pathHistory
+          : [];
+        nextMetadata = {
+          ...(previousMetadata ?? await this.resolveDocumentMetadata(
+            resolvedTargetPath,
+            fs.readFileSync(resolvedTargetPath, 'utf-8'),
+          )),
+          relativePath: resolvedRelPath,
+          updatedAt: now,
+          revisionSeq: currentRevisionSeq + 1,
+          lastModifiedBy: currentUser.loginId,
+          pathHistory: [
+            ...pathHistory,
+            {
+              path: resolvedRelPath,
+              changedAt: now,
+              changedBy: currentUser.loginId,
+              reason,
+            },
+          ],
+        };
       }
 
       return {
@@ -402,6 +404,7 @@ export class FileCrudService {
         data: {
           message: 'File/Folder renamed successfully',
           finalPath: resolvedRelPath,
+          metadata: nextMetadata,
         },
       };
     } catch (error) {
@@ -439,10 +442,6 @@ export class FileCrudService {
         fs.rmSync(targetPath, { recursive: true, force: true });
       } else {
         fs.unlinkSync(targetPath);
-        const metaPath = contentService.getSidecarPath(targetPath);
-        if (fs.existsSync(metaPath)) {
-          fs.unlinkSync(metaPath);
-        }
       }
 
       return { success: true, data: { message: 'File/Folder deleted' } };

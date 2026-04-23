@@ -1,15 +1,26 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { HttpException, Injectable, OnModuleDestroy } from '@nestjs/common';
+import type { DocumentIsolationState, DocumentMutationAction } from '@ssoo/types/dms';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { UserService } from '../../common/user/user.service.js';
-import { gitService, type GitCommitAuthor, type GitSyncStatus } from '../runtime/git.service.js';
+import { gitService, type GitCommitAuthor, type GitPathParityStatus, type GitRemoteParityStatus, type GitSyncStatus } from '../runtime/git.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 import { configService } from '../runtime/dms-config.service.js';
+import { isMarkdownFile } from '../runtime/file-utils.js';
 
 const logger = createDmsLogger('DmsCollaborationService');
 const PRESENCE_TTL_MS = 30_000;
 const STATE_FILE = '.dms-collaboration-state.json';
+const BLOCKED_MUTATION_ACTIONS: readonly DocumentMutationAction[] = [
+  'write',
+  'updateMetadata',
+  'rename',
+  'delete',
+  'upload',
+  'resync',
+  'publish',
+];
 
 type CollaborationMode = 'view' | 'edit';
 export type PublishStatus = 'clean' | 'dirty-uncommitted' | 'publishing' | 'committed-unpushed' | 'sync-blocked' | 'push-failed';
@@ -56,6 +67,7 @@ export interface DocumentCollaborationSnapshot {
   members: CollaborationMember[];
   publishState: DocumentPublishState;
   softLock: DocumentSoftLock | null;
+  isolation: DocumentIsolationState | null;
 }
 
 interface ActorProfile {
@@ -76,6 +88,18 @@ interface PublishJob {
 interface PersistedState {
   publishStates: Record<string, DocumentPublishState>;
   softLocks: Record<string, DocumentSoftLock>;
+  pathIsolations?: Record<string, DocumentIsolationState>;
+  pathOverrides?: Record<string, PathReleaseOverride>;
+}
+
+interface PathReleaseOverride {
+  path: string;
+  mode: 'force-lock' | 'force-unlock';
+  reason?: string;
+  appliedAt: string;
+  actorUserId: string;
+  actorLoginId: string;
+  actorDisplayName: string;
 }
 
 @Injectable()
@@ -83,6 +107,8 @@ export class CollaborationService implements OnModuleDestroy {
   private readonly presenceByPath = new Map<string, Map<string, CollaborationMember>>();
   private readonly publishStateByPath = new Map<string, DocumentPublishState>();
   private readonly softLockByPath = new Map<string, DocumentSoftLock>();
+  private readonly pathIsolationByPath = new Map<string, DocumentIsolationState>();
+  private readonly pathOverrideByPath = new Map<string, PathReleaseOverride>();
   private readonly publishJobsByPath = new Map<string, PublishJob>();
   private readonly actorCache = new Map<string, ActorProfile>();
   private readonly stateFilePath: string;
@@ -177,57 +203,220 @@ export class CollaborationService implements OnModuleDestroy {
     const normalizedPath = this.normalizePath(pathValue);
     this.cleanupInactiveMembers(normalizedPath);
     this.cleanupInactiveLock(normalizedPath);
+    const publishIsolation = this.findPublishIsolation(normalizedPath);
     const members = Array.from(this.presenceByPath.get(normalizedPath)?.values() ?? []).sort((a, b) => a.displayName.localeCompare(b.displayName, 'ko'));
     return {
       path: normalizedPath,
       members,
-      publishState: this.getPublishState(normalizedPath),
+      publishState: this.getPublishState(this.normalizePath(publishIsolation?.primaryPath ?? normalizedPath)),
       softLock: this.softLockByPath.get(normalizedPath) ?? null,
+      isolation: this.getPathIsolation(normalizedPath),
     };
   }
 
   async refreshPublishState(pathValue: string): Promise<DocumentCollaborationSnapshot> {
     const normalizedPath = this.normalizePath(pathValue);
-    const syncStatus = await this.fetchSyncStatus();
-    this.publishStateByPath.set(normalizedPath, {
-      ...this.getPublishState(normalizedPath),
-      path: normalizedPath,
-      syncStatus: syncStatus.success ? syncStatus.data : undefined,
-      lastError: syncStatus.success ? this.getPublishState(normalizedPath).lastError : syncStatus.error,
-    });
+    const currentIsolation = this.findPublishIsolation(normalizedPath);
+    const primaryPath = this.resolvePublishPrimaryPath(normalizedPath, currentIsolation);
+    if (!primaryPath) {
+      return this.getSnapshot(normalizedPath);
+    }
+    const currentState = this.getPublishState(primaryPath);
+    const trackedPaths = this.resolveTrackedPaths(primaryPath, currentState, currentIsolation);
+    const pathParity = await this.inspectPathParity(trackedPaths);
+    const shouldRelease = this.shouldAutoReleasePublishIsolation(currentState, currentIsolation, pathParity);
+    const nextState: DocumentPublishState = {
+      ...currentState,
+      path: primaryPath,
+      status: shouldRelease
+        ? 'clean'
+        : this.resolveRefreshStatus(currentState, currentIsolation, pathParity),
+      syncStatus: pathParity.success
+        ? pathParity.data.syncStatus ?? currentState.syncStatus
+        : currentState.syncStatus,
+      lastError: shouldRelease
+        ? undefined
+        : this.resolveRefreshError(currentState, pathParity),
+    };
+    this.publishStateByPath.set(primaryPath, nextState);
+    if (shouldRelease) {
+      this.releasePublishIsolation(primaryPath, { persist: false });
+      this.persistState();
+      return this.getSnapshot(normalizedPath);
+    }
+    if ((nextState.status === 'sync-blocked' || nextState.status === 'push-failed') && (currentState.status !== 'clean' || Boolean(currentIsolation))) {
+      this.captureIsolationFromPublishState(primaryPath, nextState, { persist: false });
+    }
     this.persistState();
     return this.getSnapshot(normalizedPath);
   }
 
-  async retryPublish(pathValue: string): Promise<DocumentCollaborationSnapshot> {
+  async retryPublish(pathValue: string, currentUser: TokenPayload): Promise<DocumentCollaborationSnapshot> {
     const normalizedPath = this.normalizePath(pathValue);
-    const currentState = this.getPublishState(normalizedPath);
-    const syncStatus = await this.fetchSyncStatus();
+    const currentIsolation = this.findPublishIsolation(normalizedPath);
+    const primaryPath = this.resolvePublishPrimaryPath(normalizedPath, currentIsolation);
+    if (!primaryPath) {
+      return this.getSnapshot(normalizedPath);
+    }
+    this.assertMutationAllowed({ action: 'publish', paths: [normalizedPath] });
+    const currentState = this.getPublishState(primaryPath);
+    const parity = await this.inspectPublishParity();
+    const parityBlocked = parity.success
+      && parity.data.verified
+      && !parity.data.canTreatLocalAsCanonical;
+    const parityUnavailable = !parity.success
+      || (parity.success && !parity.data.verified && !parity.data.canTreatLocalAsCanonical);
+    const queuedAt = new Date().toISOString();
     const nextState: DocumentPublishState = {
       ...currentState,
-      path: normalizedPath,
-      status: currentState.status === 'sync-blocked' ? 'sync-blocked' : 'dirty-uncommitted',
+      path: primaryPath,
+      status: parityBlocked
+        ? 'sync-blocked'
+        : (parityUnavailable ? 'push-failed' : 'dirty-uncommitted'),
       retryCount: (currentState.retryCount ?? 0) + 1,
-      syncStatus: syncStatus.success ? syncStatus.data : currentState.syncStatus,
-      lastError: syncStatus.success ? undefined : syncStatus.error,
+      syncStatus: parity.success
+        ? parity.data.syncStatus ?? currentState.syncStatus
+        : currentState.syncStatus,
+      lastQueuedAt: parityBlocked || parityUnavailable ? currentState.lastQueuedAt : queuedAt,
+      lastError: parity.success
+        ? (parity.data.canTreatLocalAsCanonical ? undefined : parity.data.reason)
+        : parity.error,
     };
-    this.publishStateByPath.set(normalizedPath, nextState);
+    this.publishStateByPath.set(primaryPath, nextState);
     this.persistState();
 
-    if (currentState.status !== 'sync-blocked') {
-      const existing = this.publishJobsByPath.get(normalizedPath);
-      if (existing) {
-        if (existing.timer) clearTimeout(existing.timer);
-        existing.timer = setTimeout(() => void this.publishJob(normalizedPath), 10);
+    if (parityBlocked || parityUnavailable) {
+      const isolation = this.captureIsolationFromPublishState(primaryPath, nextState);
+      throw this.buildIsolationException('publish', normalizedPath, isolation ?? {
+        path: primaryPath,
+        primaryPath,
+        status: 'reconcile-needed',
+        source: 'publish',
+        reasonCode: 'push-failed',
+        reason: nextState.lastError ?? '문서 publish 가 실패해 reconcile 전까지 추가 변경이 차단됩니다.',
+        isolatedAt: nextState.lastQueuedAt ?? queuedAt,
+        blockedActions: [...BLOCKED_MUTATION_ACTIONS],
+        affectedPaths: nextState.affectedPaths ?? [primaryPath],
+        releaseStrategy: 'mixed',
+      });
+    }
+
+    if (!parityBlocked && !parityUnavailable) {
+      const existing = this.publishJobsByPath.get(primaryPath);
+      const retryPaths = Array.from(new Set((currentState.affectedPaths ?? [primaryPath]).map((item) => this.normalizePath(item)))).filter(Boolean);
+      const job: PublishJob = existing ?? {
+        primaryPath,
+        affectedPaths: new Set<string>(),
+        operationType: currentState.operationType ?? 'update',
+        actor: currentUser,
+        queuedAt,
+        timer: null,
+        processing: false,
+      };
+      job.operationType = currentState.operationType ?? job.operationType;
+      job.actor = currentUser;
+      job.queuedAt = queuedAt;
+      retryPaths.forEach((item) => job.affectedPaths.add(item));
+      if (job.affectedPaths.size === 0) {
+        job.affectedPaths.add(primaryPath);
       }
+      if (job.timer) clearTimeout(job.timer);
+      job.timer = setTimeout(() => void this.publishJob(primaryPath), 10);
+      this.publishJobsByPath.set(primaryPath, job);
     }
 
     return this.getSnapshot(normalizedPath);
   }
 
-  noteMutation(input: { primaryPath: string; affectedPaths?: string[]; operationType: string; currentUser: TokenPayload }): void {
-    const primaryPath = this.normalizePath(input.primaryPath);
-    const affectedPaths = Array.from(new Set([primaryPath, ...(input.affectedPaths ?? []).map((item) => this.normalizePath(item))])).filter(Boolean);
+  async forceLockPath(pathValue: string, currentUser: TokenPayload, reason?: string): Promise<DocumentCollaborationSnapshot> {
+    const normalizedPath = this.normalizePath(pathValue);
+    if (!this.isGitManagedDocumentPath(normalizedPath)) {
+      logger.warn('비-markdown 경로 force-lock 요청 무시', { path: normalizedPath, actorLoginId: currentUser.loginId });
+      return this.getSnapshot(normalizedPath);
+    }
+    const actor = await this.resolveActorProfile(currentUser);
+    this.pathOverrideByPath.set(normalizedPath, {
+      path: normalizedPath,
+      mode: 'force-lock',
+      reason: reason?.trim() || undefined,
+      appliedAt: new Date().toISOString(),
+      actorUserId: currentUser.userId,
+      actorLoginId: currentUser.loginId,
+      actorDisplayName: actor.displayName,
+    });
+    this.persistState();
+    logger.info('문서 경로 강제 잠금 적용', { path: normalizedPath, actorLoginId: currentUser.loginId });
+    return this.getSnapshot(normalizedPath);
+  }
+
+  async forceUnlockPath(pathValue: string, currentUser: TokenPayload): Promise<DocumentCollaborationSnapshot> {
+    const normalizedPath = this.normalizePath(pathValue);
+    if (!this.isGitManagedDocumentPath(normalizedPath)) {
+      logger.warn('비-markdown 경로 force-unlock 요청 무시', { path: normalizedPath, actorLoginId: currentUser.loginId });
+      return this.getSnapshot(normalizedPath);
+    }
+    const actor = await this.resolveActorProfile(currentUser);
+    const publishIsolation = this.findPublishIsolation(normalizedPath);
+    this.pathOverrideByPath.delete(normalizedPath);
+    if (publishIsolation) {
+      this.pathOverrideByPath.set(normalizedPath, {
+        path: normalizedPath,
+        mode: 'force-unlock',
+        appliedAt: new Date().toISOString(),
+        actorUserId: currentUser.userId,
+        actorLoginId: currentUser.loginId,
+        actorDisplayName: actor.displayName,
+      });
+    }
+    this.persistState();
+    logger.info('문서 경로 강제 잠금 해제', {
+      path: normalizedPath,
+      actorLoginId: currentUser.loginId,
+      underlyingIsolation: Boolean(publishIsolation),
+    });
+    return this.getSnapshot(normalizedPath);
+  }
+
+  getPathIsolation(pathValue: string): DocumentIsolationState | null {
+    const normalizedPath = this.normalizePath(pathValue);
+    if (!normalizedPath) {
+      return null;
+    }
+
+    return this.findPathIsolation(normalizedPath);
+  }
+
+  assertMutationAllowed(input: { action: DocumentMutationAction; paths: string[] }): void {
+    const normalizedPaths = Array.from(new Set(
+      input.paths
+        .map((item) => this.normalizePath(item))
+        .filter(Boolean),
+    ));
+
+    for (const requestedPath of normalizedPaths) {
+      const isolation = this.findPathIsolation(requestedPath);
+      if (!isolation || !isolation.blockedActions.includes(input.action)) {
+        continue;
+      }
+
+      throw this.buildIsolationException(input.action, requestedPath, isolation);
+    }
+  }
+
+  noteMutation(input: {
+    primaryPath: string;
+    affectedPaths?: string[];
+    gitManagedPaths?: string[];
+    operationType: string;
+    currentUser: TokenPayload;
+  }): void {
+    const affectedPaths = this.filterGitManagedDocumentPaths(
+      input.gitManagedPaths ?? [input.primaryPath, ...(input.affectedPaths ?? [])],
+    );
+    const primaryPath = this.resolveGitManagedPrimaryPath(input.primaryPath, affectedPaths);
+    if (!primaryPath || affectedPaths.length === 0) {
+      return;
+    }
     const now = new Date().toISOString();
     const currentState = this.getPublishState(primaryPath);
     const nextState: DocumentPublishState = {
@@ -273,19 +462,45 @@ export class CollaborationService implements OnModuleDestroy {
     }
 
     const actor = await this.resolveActorProfile(job.actor);
-    this.publishStateByPath.set(primaryPath, {
-      ...this.getPublishState(primaryPath),
-      path: primaryPath,
-      operationType: job.operationType,
-      affectedPaths: Array.from(job.affectedPaths),
-      status: 'publishing',
-      lastActorLoginId: job.actor.loginId,
-      lastActorDisplayName: actor.displayName,
-      lastQueuedAt: job.queuedAt,
-    });
-    this.persistState();
-
     try {
+      const parity = await this.inspectPublishParity();
+      if (!parity.success || !parity.data.canTreatLocalAsCanonical) {
+        const blockedByParity = parity.success
+          && parity.data.verified
+          && !parity.data.canTreatLocalAsCanonical;
+        this.publishStateByPath.set(primaryPath, {
+          ...this.getPublishState(primaryPath),
+          path: primaryPath,
+          operationType: job.operationType,
+          affectedPaths: Array.from(job.affectedPaths),
+          status: blockedByParity ? 'sync-blocked' : 'push-failed',
+          syncStatus: parity.success
+            ? parity.data.syncStatus ?? this.getPublishState(primaryPath).syncStatus
+            : this.getPublishState(primaryPath).syncStatus,
+          lastActorLoginId: job.actor.loginId,
+          lastActorDisplayName: actor.displayName,
+          lastQueuedAt: job.queuedAt,
+          lastError: parity.success ? parity.data.reason : parity.error,
+        });
+        this.captureIsolationFromPublishState(primaryPath, this.getPublishState(primaryPath));
+        this.persistState();
+        return;
+      }
+
+      this.publishStateByPath.set(primaryPath, {
+        ...this.getPublishState(primaryPath),
+        path: primaryPath,
+        operationType: job.operationType,
+        affectedPaths: Array.from(job.affectedPaths),
+        status: 'publishing',
+        lastActorLoginId: job.actor.loginId,
+        lastActorDisplayName: actor.displayName,
+        lastQueuedAt: job.queuedAt,
+        syncStatus: parity.data.syncStatus ?? this.getPublishState(primaryPath).syncStatus,
+        lastError: undefined,
+      });
+      this.persistState();
+
       const commitAuthor: GitCommitAuthor = {
         name: actor.displayName,
         email: actor.email,
@@ -327,6 +542,7 @@ export class CollaborationService implements OnModuleDestroy {
           lastActorLoginId: job.actor.loginId,
           lastActorDisplayName: actor.displayName,
         });
+        this.captureIsolationFromPublishState(primaryPath, this.getPublishState(primaryPath));
         this.persistState();
         return;
       }
@@ -342,6 +558,7 @@ export class CollaborationService implements OnModuleDestroy {
         lastPublishedAt: new Date().toISOString(),
         lastError: undefined,
       });
+      this.releasePublishIsolation(primaryPath, { persist: false });
       this.persistState();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -353,6 +570,7 @@ export class CollaborationService implements OnModuleDestroy {
         lastError: message,
         lastActorLoginId: job.actor.loginId,
       });
+      this.captureIsolationFromPublishState(primaryPath, this.getPublishState(primaryPath));
       this.persistState();
     } finally {
       job.processing = false;
@@ -361,9 +579,11 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private async fetchSyncStatus() {
-    const fetchResult = await gitService.fetch('origin');
-    if (!fetchResult.success) return { success: false as const, error: fetchResult.error };
     return gitService.inspectSyncStatus('origin');
+  }
+
+  private async inspectPublishParity(): Promise<{ success: true; data: GitRemoteParityStatus } | { success: false; error: string }> {
+    return gitService.inspectRemoteParity('origin');
   }
 
   private touchOrAcquireSoftLock(pathValue: string, currentUser: TokenPayload, actor: ActorProfile, sessionId: string, now: string): void {
@@ -442,9 +662,56 @@ export class CollaborationService implements OnModuleDestroy {
       if (!fs.existsSync(this.stateFilePath)) return;
       const raw = fs.readFileSync(this.stateFilePath, 'utf-8');
       const parsed = JSON.parse(raw) as PersistedState;
-      for (const [pathValue, state] of Object.entries(parsed.publishStates ?? {})) this.publishStateByPath.set(pathValue, state);
+      let shouldPersistNormalizedState = false;
+      for (const [pathValue, state] of Object.entries(parsed.publishStates ?? {})) {
+        const sanitized = this.sanitizePublishState(state);
+        if (!sanitized) {
+          shouldPersistNormalizedState = true;
+          continue;
+        }
+        if (pathValue !== sanitized.path || !this.hasSameSerializedValue(state, sanitized)) {
+          shouldPersistNormalizedState = true;
+        }
+        this.publishStateByPath.set(sanitized.path, sanitized);
+      }
       for (const [pathValue, lock] of Object.entries(parsed.softLocks ?? {})) {
-        if (!this.isExpired(lock.lastSeenAt)) this.softLockByPath.set(pathValue, lock);
+        const sanitized = this.sanitizeSoftLock(lock);
+        if (!sanitized || this.isExpired(sanitized.lastSeenAt)) {
+          shouldPersistNormalizedState = true;
+          continue;
+        }
+        if (pathValue !== sanitized.path || !this.hasSameSerializedValue(lock, sanitized)) {
+          shouldPersistNormalizedState = true;
+        }
+        this.softLockByPath.set(sanitized.path, sanitized);
+      }
+      for (const [pathValue, isolation] of Object.entries(parsed.pathIsolations ?? {})) {
+        const sanitized = this.sanitizeIsolationState(isolation);
+        if (!sanitized) {
+          shouldPersistNormalizedState = true;
+          continue;
+        }
+        if (pathValue !== sanitized.path || !this.hasSameSerializedValue(isolation, sanitized)) {
+          shouldPersistNormalizedState = true;
+        }
+        this.pathIsolationByPath.set(sanitized.path, sanitized);
+      }
+      for (const [pathValue, override] of Object.entries(parsed.pathOverrides ?? {})) {
+        const sanitized = this.sanitizePathOverride(override);
+        if (!sanitized) {
+          shouldPersistNormalizedState = true;
+          continue;
+        }
+        if (pathValue !== sanitized.path || !this.hasSameSerializedValue(override, sanitized)) {
+          shouldPersistNormalizedState = true;
+        }
+        this.pathOverrideByPath.set(sanitized.path, sanitized);
+      }
+      for (const [pathValue, state] of this.publishStateByPath.entries()) {
+        this.captureIsolationFromPublishState(pathValue, state, { persist: false, onlyIfMissing: true });
+      }
+      if (shouldPersistNormalizedState) {
+        this.persistState();
       }
     } catch (error) {
       logger.warn('collaboration persisted state load 실패', error instanceof Error ? { message: error.message } : undefined);
@@ -456,6 +723,8 @@ export class CollaborationService implements OnModuleDestroy {
       const payload: PersistedState = {
         publishStates: Object.fromEntries(this.publishStateByPath.entries()),
         softLocks: Object.fromEntries(this.softLockByPath.entries()),
+        pathIsolations: Object.fromEntries(this.pathIsolationByPath.entries()),
+        pathOverrides: Object.fromEntries(this.pathOverrideByPath.entries()),
       };
       fs.writeFileSync(this.stateFilePath, JSON.stringify(payload, null, 2) + '\n', 'utf-8');
     } catch (error) {
@@ -469,5 +738,341 @@ export class CollaborationService implements OnModuleDestroy {
 
   private normalizePath(pathValue: string): string {
     return pathValue.trim().replace(/\\/g, '/');
+  }
+
+  private isGitManagedDocumentPath(pathValue: string): boolean {
+    return isMarkdownFile(this.normalizePath(pathValue));
+  }
+
+  private filterGitManagedDocumentPaths(paths: Iterable<string | null | undefined>): string[] {
+    return Array.from(new Set(
+      Array.from(paths)
+        .map((item) => this.normalizePath(item ?? ''))
+        .filter((item) => this.isGitManagedDocumentPath(item)),
+    ));
+  }
+
+  private resolveGitManagedPrimaryPath(primaryPath: string, affectedPaths: string[]): string | null {
+    const normalizedPrimaryPath = this.normalizePath(primaryPath);
+    if (this.isGitManagedDocumentPath(normalizedPrimaryPath)) {
+      return normalizedPrimaryPath;
+    }
+
+    return affectedPaths[0] ?? null;
+  }
+
+  private resolvePublishPrimaryPath(pathValue: string, isolation: DocumentIsolationState | null): string | null {
+    return this.resolveGitManagedPrimaryPath(
+      isolation?.primaryPath ?? pathValue,
+      this.filterGitManagedDocumentPaths([
+        pathValue,
+        isolation?.primaryPath,
+        ...(isolation?.affectedPaths ?? []),
+      ]),
+    );
+  }
+
+  private sanitizePublishState(state: DocumentPublishState): DocumentPublishState | null {
+    const affectedPaths = this.filterGitManagedDocumentPaths([
+      state.path,
+      ...(state.affectedPaths ?? []),
+    ]);
+    const primaryPath = this.resolveGitManagedPrimaryPath(state.path, affectedPaths);
+    if (!primaryPath) {
+      return null;
+    }
+
+    return {
+      ...state,
+      path: primaryPath,
+      affectedPaths,
+    };
+  }
+
+  private sanitizeSoftLock(lock: DocumentSoftLock): DocumentSoftLock | null {
+    const normalizedPath = this.normalizePath(lock.path);
+    if (!this.isGitManagedDocumentPath(normalizedPath)) {
+      return null;
+    }
+
+    return {
+      ...lock,
+      path: normalizedPath,
+    };
+  }
+
+  private sanitizeIsolationState(isolation: DocumentIsolationState): DocumentIsolationState | null {
+    const affectedPaths = this.filterGitManagedDocumentPaths([
+      isolation.primaryPath,
+      isolation.path,
+      ...(isolation.affectedPaths ?? []),
+    ]);
+    const primaryPath = this.resolveGitManagedPrimaryPath(isolation.primaryPath, affectedPaths);
+    if (!primaryPath) {
+      return null;
+    }
+
+    return {
+      ...isolation,
+      path: this.isGitManagedDocumentPath(isolation.path)
+        ? this.normalizePath(isolation.path)
+        : primaryPath,
+      primaryPath,
+      affectedPaths,
+    };
+  }
+
+  private sanitizePathOverride(override: PathReleaseOverride): PathReleaseOverride | null {
+    const normalizedPath = this.normalizePath(override.path);
+    if (!this.isGitManagedDocumentPath(normalizedPath)) {
+      return null;
+    }
+
+    return {
+      ...override,
+      path: normalizedPath,
+    };
+  }
+
+  private hasSameSerializedValue(left: unknown, right: unknown): boolean {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+
+  private findPathIsolation(pathValue: string): DocumentIsolationState | null {
+    const override = this.pathOverrideByPath.get(pathValue);
+    if (override?.mode === 'force-lock') {
+      return this.buildOperatorLockIsolation(override);
+    }
+
+    const publishIsolation = this.findPublishIsolation(pathValue);
+    if (!publishIsolation) {
+      return null;
+    }
+
+    if (override?.mode === 'force-unlock' && this.isForceUnlockActive(override, publishIsolation)) {
+      return null;
+    }
+
+    return publishIsolation;
+  }
+
+  private findPublishIsolation(pathValue: string): DocumentIsolationState | null {
+    const direct = this.pathIsolationByPath.get(pathValue);
+    if (direct) {
+      return direct;
+    }
+
+    let matched: DocumentIsolationState | null = null;
+    for (const [isolatedPath, isolation] of this.pathIsolationByPath.entries()) {
+      if (!this.pathsOverlap(pathValue, isolatedPath)) {
+        continue;
+      }
+
+      if (!matched || isolatedPath.length > matched.path.length) {
+        matched = isolation;
+      }
+    }
+
+    return matched;
+  }
+
+  private pathsOverlap(left: string, right: string): boolean {
+    return left === right
+      || left.startsWith(`${right}/`)
+      || right.startsWith(`${left}/`);
+  }
+
+  private captureIsolationFromPublishState(
+    primaryPath: string,
+    publishState: DocumentPublishState,
+    options?: { persist?: boolean; onlyIfMissing?: boolean },
+  ): DocumentIsolationState | null {
+    const normalizedPrimaryPath = this.normalizePath(primaryPath);
+    if (!this.isGitManagedDocumentPath(normalizedPrimaryPath)) {
+      return null;
+    }
+    const reasonCode = publishState.status === 'sync-blocked'
+      ? 'sync-blocked'
+      : publishState.status === 'push-failed'
+        ? 'push-failed'
+        : null;
+    if (!reasonCode) {
+      return null;
+    }
+
+    const affectedPaths = this.filterGitManagedDocumentPaths([
+      normalizedPrimaryPath,
+      ...(publishState.affectedPaths ?? []),
+    ]);
+    const isolation: DocumentIsolationState = {
+      path: normalizedPrimaryPath,
+      primaryPath: normalizedPrimaryPath,
+      status: 'reconcile-needed',
+      source: 'publish',
+      reasonCode,
+      reason: publishState.lastError
+        ?? (reasonCode === 'sync-blocked'
+          ? '문서 change set 이 sync-blocked 상태라 reconcile 전까지 추가 변경이 차단됩니다.'
+          : '문서 publish 가 실패해 reconcile 전까지 추가 변경이 차단됩니다.'),
+      isolatedAt: publishState.lastQueuedAt ?? new Date().toISOString(),
+      blockedActions: [...BLOCKED_MUTATION_ACTIONS],
+      affectedPaths,
+      releaseStrategy: 'mixed',
+    };
+
+    for (const affectedPath of affectedPaths) {
+      const override = this.pathOverrideByPath.get(affectedPath);
+      if (override?.mode === 'force-unlock' && !this.isForceUnlockActive(override, isolation)) {
+        this.pathOverrideByPath.delete(affectedPath);
+      }
+      if (options?.onlyIfMissing && this.pathIsolationByPath.has(affectedPath)) {
+        continue;
+      }
+      this.pathIsolationByPath.set(affectedPath, {
+        ...isolation,
+        path: affectedPath,
+      });
+    }
+
+    if (options?.persist !== false) {
+      this.persistState();
+    }
+
+    return this.pathIsolationByPath.get(normalizedPrimaryPath) ?? isolation;
+  }
+
+  private resolveTrackedPaths(
+    primaryPath: string,
+    publishState: DocumentPublishState,
+    isolation: DocumentIsolationState | null,
+  ): string[] {
+    return this.filterGitManagedDocumentPaths([
+      primaryPath,
+      ...(publishState.affectedPaths ?? []),
+      ...(isolation?.affectedPaths ?? []),
+    ]);
+  }
+
+  private async inspectPathParity(paths: string[]) {
+    return gitService.inspectPathParity(paths, 'origin');
+  }
+
+  private shouldAutoReleasePublishIsolation(
+    currentState: DocumentPublishState,
+    currentIsolation: DocumentIsolationState | null,
+    pathParity: { success: true; data: GitPathParityStatus } | { success: false; error: string },
+  ): boolean {
+    return pathParity.success
+      && pathParity.data.verified
+      && pathParity.data.clean
+      && (currentState.status !== 'clean' || Boolean(currentIsolation));
+  }
+
+  private resolveRefreshStatus(
+    currentState: DocumentPublishState,
+    currentIsolation: DocumentIsolationState | null,
+    pathParity: { success: true; data: GitPathParityStatus } | { success: false; error: string },
+  ): PublishStatus {
+    if (!pathParity.success || !pathParity.data.verified) {
+      return currentState.status;
+    }
+
+    if (pathParity.data.clean) {
+      return 'clean';
+    }
+
+    if (pathParity.data.remoteAheadPaths.length > 0) {
+      return currentState.status === 'clean' && !currentIsolation ? 'clean' : 'sync-blocked';
+    }
+
+    if (pathParity.data.localAheadPaths.length > 0) {
+      return 'committed-unpushed';
+    }
+
+    if (pathParity.data.workingTreePaths.length > 0) {
+      return 'dirty-uncommitted';
+    }
+
+    return currentState.status;
+  }
+
+  private resolveRefreshError(
+    currentState: DocumentPublishState,
+    pathParity: { success: true; data: GitPathParityStatus } | { success: false; error: string },
+  ): string | undefined {
+    if (!pathParity.success) {
+      return pathParity.error;
+    }
+
+    if (pathParity.data.clean) {
+      return undefined;
+    }
+
+    return pathParity.data.reason ?? currentState.lastError;
+  }
+
+  private releasePublishIsolation(primaryPath: string, options?: { persist?: boolean }): void {
+    const normalizedPrimaryPath = this.normalizePath(primaryPath);
+    const releasedPaths: string[] = [];
+    for (const [pathValue, isolation] of this.pathIsolationByPath.entries()) {
+      if (this.normalizePath(isolation.primaryPath) !== normalizedPrimaryPath) {
+        continue;
+      }
+      this.pathIsolationByPath.delete(pathValue);
+      releasedPaths.push(pathValue);
+    }
+
+    for (const releasedPath of releasedPaths) {
+      const override = this.pathOverrideByPath.get(releasedPath);
+      if (override?.mode === 'force-unlock') {
+        this.pathOverrideByPath.delete(releasedPath);
+      }
+    }
+
+    if (options?.persist !== false) {
+      this.persistState();
+    }
+  }
+
+  private buildOperatorLockIsolation(override: PathReleaseOverride): DocumentIsolationState {
+    const actorLabel = `${override.actorDisplayName}(${override.actorLoginId})`;
+    return {
+      path: override.path,
+      primaryPath: override.path,
+      status: 'force-locked',
+      source: 'operator',
+      reasonCode: 'operator-forced-lock',
+      reason: override.reason?.trim() || `운영자 ${actorLabel} 이 경로를 강제 잠금했습니다.`,
+      isolatedAt: override.appliedAt,
+      blockedActions: [...BLOCKED_MUTATION_ACTIONS],
+      affectedPaths: [override.path],
+      releaseStrategy: 'manual',
+    };
+  }
+
+  private isForceUnlockActive(override: PathReleaseOverride, isolation: DocumentIsolationState): boolean {
+    return this.getTimestampMs(override.appliedAt) >= this.getTimestampMs(isolation.isolatedAt);
+  }
+
+  private getTimestampMs(value: string): number {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private buildIsolationException(
+    action: DocumentMutationAction,
+    requestedPath: string,
+    isolation: DocumentIsolationState,
+  ): HttpException {
+    return new HttpException({
+      error: isolation.source === 'operator'
+        ? '문서 경로가 운영자에 의해 강제 잠금되어 있어 변경 작업을 수행할 수 없습니다.'
+        : '문서 경로가 격리되어 있어 reconcile 전까지 변경 작업을 수행할 수 없습니다.',
+      details: {
+        action,
+        requestedPath,
+        isolation,
+      },
+    }, 423);
   }
 }

@@ -68,6 +68,18 @@ export class AccessRequestController {
     return success(await this.accessRequestService.listManageableReadRequests(currentUser, query));
   }
 
+  @Get('documents/manageable')
+  @RequireDmsFeature('canReadDocuments')
+  @ApiOperation({ summary: '내가 관리 가능한 문서 목록 조회' })
+  @ApiOkResponse({ description: '문서별 권한 관리 목록 반환' })
+  @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
+  @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
+  async listManageableDocuments(
+    @CurrentUser() currentUser: TokenPayload,
+  ) {
+    return success(await this.accessRequestService.listManageableDocuments(currentUser));
+  }
+
   @Post(':accessRequestId/approve')
   @RequireDmsFeature('canReadDocuments')
   @ApiOperation({ summary: '문서 읽기 권한 요청 승인' })

@@ -50,13 +50,13 @@ import { Button } from '@/components/ui/button';
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { SplitDiffViewer } from '@/components/common/diff/SplitDiffViewer';
-import { DocumentSidecar } from './_components/DocumentSidecar';
+import { DocumentPanel } from './_components/DocumentPanel';
 import { DiffTargetToggle, DiffToggleButton, PreviewToggleButton } from './_components/EditorModeControls';
 import { InlineComposerPanel, DocumentPageContent } from './_components/DocumentPagePanels';
 import { NewDocumentLauncher } from './_components/NewDocumentLauncher';
 import { DocumentExportMenu } from './_components/DocumentExportMenu';
-import { TemplatePickerDialog } from './_components/document-sidecar/TemplatePickerDialog';
-import { TemplatePreviewDialog } from './_components/document-sidecar/TemplatePreviewDialog';
+import { TemplatePickerDialog } from './_components/document-panel/TemplatePickerDialog';
+import { TemplatePreviewDialog } from './_components/document-panel/TemplatePreviewDialog';
 import { useDocumentPageComposeActions } from './useDocumentPageComposeActions';
 import { useTemplateSaveFlow } from './useTemplateSaveFlow';
 import { useViewerTemplatePicker } from './useViewerTemplatePicker';
@@ -67,14 +67,14 @@ import { resolveTitlePathRecommendation, type RecommendationStatus } from '@/lib
 import {
   canEditDocument,
   canManageDocument,
-  buildDocumentSidecarDiffSnapshot,
-  buildDocumentSidecarMetadata,
+  buildDocumentMetadataDiffSnapshot,
+  buildDocumentPanelMetadata,
   buildMarkdownToc,
   getDocumentFilePath,
   resolveDocumentAclRole,
   resolveSaveDisplayName,
-  stringifyDocumentSidecarDiffSnapshot,
-  type DocumentSidecarDiffSnapshot,
+  stringifyDocumentMetadataDiffSnapshot,
+  type DocumentMetadataDiffSnapshot,
 } from './documentPageUtils';
 
 type PageMode = 'viewer' | 'editor' | 'create';
@@ -97,6 +97,7 @@ export function DocumentPage() {
   const canWriteDocuments = accessSnapshot?.features.canWriteDocuments ?? false;
   const canUseAssistant = accessSnapshot?.features.canUseAssistant ?? false;
   const canManageTemplates = accessSnapshot?.features.canManageTemplates ?? false;
+  const canManageStorage = accessSnapshot?.features.canManageStorage ?? false;
 
   const {
     loadFile,
@@ -172,7 +173,7 @@ export function DocumentPage() {
   const [failedRestoreFiles, setFailedRestoreFiles] = useState<Array<{ id: string; name: string; path: string }>>([]);
   const [isRetryingRestore, setIsRetryingRestore] = useState(false);
 
-  // AI 자동 추천 상태 (compose 후 sidecar에 주입)
+  // AI 자동 추천 상태 (compose 후 패널에 주입)
   const [pendingSuggestedTags, setPendingSuggestedTags] = useState<string[] | undefined>(undefined);
   const [pendingAiSuggestion, setPendingAiSuggestion] = useState<string | null | undefined>(undefined);
   const [isAutoSuggestingTags, setIsAutoSuggestingTags] = useState(false);
@@ -191,7 +192,7 @@ export function DocumentPage() {
   }, []);
 
   /** 편집 진입 시 메타데이터 스냅샷 (변경 하이라이트용) */
-  const [originalMetaSnapshot, setOriginalMetaSnapshot] = useState<DocumentSidecarDiffSnapshot | null>(null);
+  const [originalMetaSnapshot, setOriginalMetaSnapshot] = useState<DocumentMetadataDiffSnapshot | null>(null);
 
   // handleSave 클로저에서 항상 최신 메타데이터를 참조하기 위한 ref
   const documentMetadataRef = useRef(documentMetadata);
@@ -236,7 +237,7 @@ export function DocumentPage() {
   // (snapshot이 null이면 파일명으로 폴백되어 제목 하이라이트 오작동)
   useEffect(() => {
     if (mode === 'viewer' && documentMetadata && !originalMetaSnapshot) {
-      setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(documentMetadata));
+      setOriginalMetaSnapshot(buildDocumentMetadataDiffSnapshot(documentMetadata));
     }
   }, [mode, documentMetadata, originalMetaSnapshot]);
 
@@ -311,7 +312,7 @@ export function DocumentPage() {
     setTitleRecommendationStatus('idle');
     setPathRecommendationStatus('idle');
     setPathValidationMessage('');
-    setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(null));
+    setOriginalMetaSnapshot(buildDocumentMetadataDiffSnapshot(null));
     setSurfaceMode('edit');
     setDiffTarget('content');
     setSaveConflict(null);
@@ -525,7 +526,6 @@ export function DocumentPage() {
     toggleTemplateMode,
     addTemplateReference,
     removeTemplateReference,
-    setCurrentTemplateId,
     handleTemplateSelected,
     handleAiConvertRequested,
     handleTemplatePickerClose,
@@ -561,10 +561,10 @@ export function DocumentPage() {
   }, [clearTemplateConversionPending, isConvertingToTemplate, tabId]);
 
   const liveBodyLinks = useBodyLinks(currentDraftContent);
-  // 사이드카 표시용: isCreateMode 대신 mode === 'create' 사용
+  // 패널 표시용: isCreateMode 대신 mode === 'create' 사용
   // 템플릿 저장 후 mode가 'viewer'로 전환되면 저장된 값을 표시하기 위함
   const isActivelyCreating = mode === 'create';
-  const currentSidecarFilePath = isActivelyCreating ? displayCreatePath : (pendingFileMove ?? filePath ?? storeCurrentFilePath ?? '');
+  const currentDocumentPath = isActivelyCreating ? displayCreatePath : (pendingFileMove ?? filePath ?? storeCurrentFilePath ?? '');
   const originalInfoDocumentTitle = isActivelyCreating
     ? ''
     : (originalMetaSnapshot?.title || filePath?.split('/').pop()?.replace(/\.md$/, '') || '');
@@ -672,7 +672,7 @@ export function DocumentPage() {
   }, []);
 
   const metadata = useMemo(
-    () => buildDocumentSidecarMetadata(content, documentMetadata, fileMetadata),
+    () => buildDocumentPanelMetadata(content, documentMetadata, fileMetadata),
     [content, documentMetadata, fileMetadata]
   );
 
@@ -685,7 +685,7 @@ export function DocumentPage() {
       return;
     }
 
-    setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(documentMetadata));
+    setOriginalMetaSnapshot(buildDocumentMetadataDiffSnapshot(documentMetadata));
     setMode('editor');
     setIsEditing(true);
     setSurfaceMode('edit');
@@ -980,8 +980,8 @@ export function DocumentPage() {
     setLightboxImage({ src, alt });
   }, []);
 
-  // 참조 파일/템플릿을 sidecar에서도 제거하는 헬퍼
-  const removeReferenceFromSidecar = useCallback((name: string) => {
+  // 참조 파일/템플릿을 metadata projection 에서 제거하는 헬퍼
+  const removeReferenceFromMetadata = useCallback((name: string) => {
     const currentFiles = documentMetadata?.sourceFiles ?? [];
     setLocalDocumentMetadata({
       sourceFiles: currentFiles.filter((f) => f.name !== name),
@@ -1004,7 +1004,7 @@ export function DocumentPage() {
         for (const id of pendingDeletedFileIds) next.delete(id);
         return next;
       });
-      // sidecar에서도 제거
+      // metadata projection 에서도 제거
       const currentFiles = documentMetadata?.sourceFiles ?? [];
       const nameSet = new Set(deletedNames);
       setLocalDocumentMetadata({
@@ -1013,7 +1013,7 @@ export function DocumentPage() {
       setPendingDeletedFileIds(new Set());
     }
     if (isTemplatePendingDelete && inlineTemplate) {
-      removeReferenceFromSidecar(inlineTemplate.name);
+      removeReferenceFromMetadata(inlineTemplate.name);
       setInlineTemplate(null);
       setIsTemplateUsed(false);
       setIsTemplatePendingDelete(false);
@@ -1037,7 +1037,7 @@ export function DocumentPage() {
       });
     }
 
-    // 저장 직전 본문 링크를 sidecar에 영속화
+    // 저장 직전 본문 링크를 metadata projection 에 영속화
     const currentBodyLinks = extractMarkdownLinks(
       editorRef.current?.getMarkdown() ?? content,
     );
@@ -1053,23 +1053,45 @@ export function DocumentPage() {
         // 참조 파일은 _assets/references/, 수기 첨부는 _assets/attachments/
         const isRef = tempPath.startsWith('__pending__/ref-');
         const uploadUrl = isRef ? '/api/file/upload-reference' : '/api/file/upload-attachment';
+        const currentFile = updatedFiles.find((entry) => entry.path === tempPath);
 
         const formData = new FormData();
         formData.append('file', file);
         formData.append('documentPath', filePath || createPath);
+        if (currentFile?.provider) {
+          formData.append('provider', currentFile.provider);
+        }
         try {
           const res = await fetchWithSharedAuth(uploadUrl, { method: 'POST', body: formData });
           const data = await res.json();
-          if (res.ok && data.success) {
+          if (res.ok && data && typeof data.path === 'string') {
             const idx = updatedFiles.findIndex((f) => f.path === tempPath);
+            const nextFile = {
+              ...(idx >= 0 ? updatedFiles[idx] ?? {} : currentFile ?? {}),
+              name: typeof data.fileName === 'string' ? data.fileName : currentFile?.name ?? file.name,
+              path: data.path,
+              size: typeof data.size === 'number' ? data.size : currentFile?.size ?? file.size,
+              type: typeof data.type === 'string' ? data.type : currentFile?.type ?? file.type,
+              provider: typeof data.provider === 'string' ? data.provider : currentFile?.provider,
+              storageUri: typeof data.storageUri === 'string' ? data.storageUri : currentFile?.storageUri,
+              versionId: typeof data.versionId === 'string' ? data.versionId : currentFile?.versionId,
+              etag: typeof data.etag === 'string' ? data.etag : currentFile?.etag,
+              checksum: typeof data.checksum === 'string' ? data.checksum : currentFile?.checksum,
+              url: typeof data.webUrl === 'string' ? data.webUrl : currentFile?.url,
+              status: data.status === 'draft' || data.status === 'pending_confirm' || data.status === 'published'
+                ? data.status
+                : 'published',
+            };
             if (idx >= 0) {
-              updatedFiles[idx] = { ...updatedFiles[idx], path: data.path, status: 'published' };
+              updatedFiles[idx] = nextFile;
+            } else {
+              updatedFiles.push(nextFile);
             }
+            pending.delete(tempPath);
           }
         } catch {
           // 업로드 실패 시 해당 파일은 pending 상태로 유지
         }
-        pending.delete(tempPath);
       }
       setLocalDocumentMetadata({ sourceFiles: updatedFiles });
     }
@@ -1109,7 +1131,7 @@ export function DocumentPage() {
     if (isCreateMode) {
       setOriginalMetaSnapshot(null);
     } else {
-      setOriginalMetaSnapshot(buildDocumentSidecarDiffSnapshot(documentMetadataRef.current));
+      setOriginalMetaSnapshot(buildDocumentMetadataDiffSnapshot(documentMetadataRef.current));
     }
 
     // 저장 완료 후 보류 중인 파일 이동 적용
@@ -1142,7 +1164,7 @@ export function DocumentPage() {
     inlineSummaryFiles,
     isTemplatePendingDelete,
     inlineTemplate,
-    removeReferenceFromSidecar,
+    removeReferenceFromMetadata,
     documentMetadata,
     setLocalDocumentMetadata,
     editorHandlers,
@@ -1359,8 +1381,8 @@ export function DocumentPage() {
     if (filePath) loadFile(filePath);
   }, [filePath, loadFile]);
 
-  // AI 작성 후 사용된 참조 파일/템플릿을 sidecar sourceFiles에 동기화
-  const handleSyncReferencesToSidecar = useCallback((
+  // AI 작성 후 사용된 참조 파일/템플릿을 metadata sourceFiles에 동기화
+  const handleSyncReferencesToMetadata = useCallback((
     files: SourceFileMeta[],
     rawFiles?: Map<string, File>,
     resolvedRefPaths?: string[],
@@ -1435,7 +1457,7 @@ export function DocumentPage() {
       editorHandlers,
       confirm,
       requestLifecycle: composeRequestLifecycle,
-      onSyncReferencesToSidecar: handleSyncReferencesToSidecar,
+      onSyncReferencesToMetadata: handleSyncReferencesToMetadata,
       onComposeComplete: useCallback(async (
         generatedContent: string,
         requestToken: number,
@@ -1524,26 +1546,31 @@ export function DocumentPage() {
   });
 
   const isEditorMode = mode === 'editor' || mode === 'create';
-  const collaborationPath = currentSidecarFilePath || createPath || null;
+  const collaborationPath = currentDocumentPath || createPath || null;
   const collaborationMode = isEditorMode ? 'edit' : 'view';
-  const { snapshot: collaborationSnapshot, activeEditors, takeover: takeoverCollaborationLock, refresh: refreshCollaborationState, retryPublish: retryCollaborationPublish } = useDocumentCollaboration(collaborationPath, collaborationMode);
+  const {
+    snapshot: collaborationSnapshot,
+    takeover: takeoverCollaborationLock,
+    refresh: refreshCollaborationState,
+    retryPublish: retryCollaborationPublish,
+  } = useDocumentCollaboration(collaborationPath, collaborationMode);
   const currentMetadataSnapshot = useMemo(
-    () => buildDocumentSidecarDiffSnapshot(documentMetadata),
+    () => buildDocumentMetadataDiffSnapshot(documentMetadata),
     [documentMetadata]
   );
   const metadataDiffOriginalText = useMemo(
-    () => stringifyDocumentSidecarDiffSnapshot(originalMetaSnapshot ?? buildDocumentSidecarDiffSnapshot(null)),
+    () => stringifyDocumentMetadataDiffSnapshot(originalMetaSnapshot ?? buildDocumentMetadataDiffSnapshot(null)),
     [originalMetaSnapshot]
   );
   const metadataDiffCurrentText = useMemo(
-    () => stringifyDocumentSidecarDiffSnapshot(currentMetadataSnapshot),
+    () => stringifyDocumentMetadataDiffSnapshot(currentMetadataSnapshot),
     [currentMetadataSnapshot]
   );
   // 템플릿 전환(isConvertingToTemplate)도 문서 작성(isComposing)과 동일한 로딩 인프라를 공유
   const isAnyAiGenerating = isComposing || isConvertingToTemplate;
-  const sidecarInfoLoading = isCreateMode && isAnyAiGenerating;
-  const sidecarTagsLoading = isAnyAiGenerating || isAutoSuggestingTags;
-  const sidecarSummaryLoading = isAnyAiGenerating || isAutoSuggestingSummary;
+  const panelInfoLoading = isCreateMode && isAnyAiGenerating;
+  const panelTagsLoading = isAnyAiGenerating || isAutoSuggestingTags;
+  const panelSummaryLoading = isAnyAiGenerating || isAutoSuggestingSummary;
   const diffViewerNode = surfaceMode === 'diff' ? (
     <SplitDiffViewer
       originalText={diffTarget === 'content' ? content : metadataDiffOriginalText}
@@ -1813,7 +1840,7 @@ export function DocumentPage() {
     usedTemplateRefPaths,
   ]);
 
-  // 소프트 삭제된 참조 파일/템플릿의 sidecar 키 (사이드카 첨부 섹션 삭제 표시 연동)
+  // 소프트 삭제된 참조 파일/템플릿 키 (패널 첨부 섹션 삭제 표시 연동)
   const deletedReferenceKeys = useMemo(() => {
     if (pendingDeletedFileIds.size === 0 && !isTemplatePendingDelete && pendingDeletedRefPaths.size === 0) return undefined;
     const sourceFiles = documentMetadata?.sourceFiles ?? [];
@@ -1956,9 +1983,9 @@ export function DocumentPage() {
         contentOrientation="portrait"
         contentMaxWidth={isCompareSurface ? null : undefined}
         contentSurfaceClassName={contentSurfaceClassName}
-        sidecarMode={isCompareSurface ? 'hidden' : undefined}
-        sidecarContent={(
-          <DocumentSidecar
+        panelMode={isCompareSurface ? 'hidden' : undefined}
+        panelContent={(
+          <DocumentPanel
             metadata={metadata}
             tags={tags}
             editable={(mode === 'editor' || mode === 'create') && canManageCurrentDocument}
@@ -1997,6 +2024,7 @@ export function DocumentPage() {
                 toast.error('publish 재시도 요청에 실패했습니다.');
               }
             }}
+            canManageStorage={canManageStorage}
             onMetadataChange={handleMetadataChange}
             onFileMove={isCreateMode
               ? (newPath) => {
@@ -2009,7 +2037,7 @@ export function DocumentPage() {
             isNewDocument={isCreateMode}
             titleRecommendationStatus={titleRecommendationStatus}
             pathRecommendationStatus={pathRecommendationStatus}
-            externalInfoLoading={sidecarInfoLoading}
+            externalInfoLoading={panelInfoLoading}
             originalDocumentTitle={originalInfoDocumentTitle}
             originalFilePath={originalInfoFilePath}
             pathValidationMessage={pathValidationMessage || undefined}
@@ -2017,7 +2045,7 @@ export function DocumentPage() {
             pendingSuggestedTitle={pendingSuggestedInfoTitle}
             pendingSuggestedPath={pendingSuggestedInfoPath}
             pendingPathValidationMessage={pendingInfoPathValidationMessage || undefined}
-            filePath={currentSidecarFilePath}
+            filePath={currentDocumentPath}
             templateModeEnabled={templateModeEnabled}
             isConvertingTemplate={isConvertingToTemplate}
             templateOriginType={templateOriginType}
@@ -2034,10 +2062,10 @@ export function DocumentPage() {
             originalMetaSnapshot={originalMetaSnapshot}
             onOpenDocumentTab={(path) => openDocumentTab({ path })}
             externalSuggestedTags={pendingSuggestedTags}
-            externalSuggestedTagsLoading={sidecarTagsLoading}
+            externalSuggestedTagsLoading={panelTagsLoading}
             onExternalSuggestedTagsConsumed={clearPendingSuggestedTags}
             externalAiSuggestion={pendingAiSuggestion}
-            externalAiSuggestionLoading={sidecarSummaryLoading}
+            externalAiSuggestionLoading={panelSummaryLoading}
             onExternalAiSuggestionConsumed={clearPendingAiSuggestion}
             deletedReferenceKeys={deletedReferenceKeys}
             onImmediateFlush={flushPendingMetadata}

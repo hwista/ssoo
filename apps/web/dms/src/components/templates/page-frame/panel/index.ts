@@ -1,5 +1,5 @@
-export { SidecarFrame } from './Frame';
-export type { SidecarFrameProps } from './Frame';
+export { PanelFrame } from './Frame';
+export type { PanelFrameProps } from './Frame';
 
 export { CollapsibleSection } from './CollapsibleSection';
 export type { CollapsibleSectionProps, CollapsibleSectionVariant } from './CollapsibleSection';

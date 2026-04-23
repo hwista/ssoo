@@ -1,6 +1,60 @@
 #!/usr/bin/env node
 
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
 import { PrismaClient } from '../packages/database/dist/index.js';
+
+const HARNESS_RUN_ID = process.env.HERMES_HARNESS_RUN_ID;
+const HARNESS_REPO_ROOT = process.env.HERMES_HARNESS_REPO_ROOT || process.cwd();
+const STAGE_HELPER = resolve(HARNESS_REPO_ROOT, '.hermes/scripts/harness-stage-event');
+let currentRole = null;
+
+const ROLE_PROFILES = {
+  planner: { provider: 'github-copilot', model: 'claude-sonnet-4.6' },
+  critic: { provider: 'openai-codex', model: 'gpt-5.4' },
+  builder: { provider: 'github-copilot', model: 'gpt-5.4' },
+  reviewer: { provider: 'github-copilot', model: 'claude-sonnet-4.6' },
+};
+
+function emitStage(action, role, extra = {}) {
+  if (!HARNESS_RUN_ID) {
+    return;
+  }
+
+  const args = [action, '--run-id', HARNESS_RUN_ID, '--role', role];
+  for (const [key, value] of Object.entries(extra)) {
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+    args.push(`--${key.replaceAll('_', '-')}`, String(value));
+  }
+
+  spawnSync(STAGE_HELPER, args, { stdio: 'ignore' });
+}
+
+function startRole(role, extra = {}) {
+  currentRole = role;
+  emitStage('start', role, { ...ROLE_PROFILES[role], ...extra });
+}
+
+function completeRole(role, extra = {}) {
+  emitStage('complete', role, { ...ROLE_PROFILES[role], status: 'succeeded', ...extra });
+}
+
+function handoffRole(fromRole, toRole, extra = {}) {
+  completeRole(fromRole, { handoff_to: `${toRole}-01`, ...extra });
+  startRole(toRole);
+}
+
+function failCurrentRole(error, reason) {
+  const activeRole = currentRole || 'reviewer';
+  emitStage('fallback', activeRole, {
+    ...ROLE_PROFILES[activeRole],
+    status: 'failed',
+    fallback_reason: reason,
+    notes: error instanceof Error ? error.message : String(error),
+  });
+}
 
 const argv = process.argv.slice(2);
 
@@ -26,7 +80,18 @@ if (options.dryRun) {
   process.exit(0);
 }
 
-await main(options);
+await runObserved(options);
+
+async function runObserved(config) {
+  startRole('planner');
+  try {
+    await main(config);
+    completeRole('reviewer');
+  } catch (error) {
+    failCurrentRole(error, 'verification_failed');
+    throw error;
+  }
+}
 
 async function main(config) {
   const prisma = new PrismaClient();
@@ -35,8 +100,11 @@ async function main(config) {
     const adminAccessToken = await login(config.baseUrl, config.adminLoginId, config.adminPassword);
 
     await verifyRoleMenuOperatorSurface(config.baseUrl, adminAccessToken, config.roleCode);
+    handoffRole('planner', 'critic');
     await verifyAdminUserCrudAndOrgBridge(config.baseUrl, adminAccessToken, prisma, config);
 
+    handoffRole('critic', 'builder');
+    handoffRole('builder', 'reviewer');
     console.log('✓ access admin verification passed');
   } finally {
     await prisma.$disconnect();

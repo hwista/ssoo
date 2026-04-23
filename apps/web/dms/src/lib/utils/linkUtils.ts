@@ -57,11 +57,17 @@ export function resolveDocPath(href: string, currentFilePath?: string | null): s
   return noQuery;
 }
 
-/** 이미지 src를 렌더링 가능한 URL로 변환 (로컬 경로 → API URL) */
+/** 이미지 src를 렌더링 가능한 URL로 변환 (내부 경로 → same-origin binary route) */
 export function resolveImageSrc(src: string): string {
   if (!src) return src;
-  if (src.startsWith('blob:') || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
+  if (
+    src.startsWith('blob:')
+    || src.startsWith('http://')
+    || src.startsWith('https://')
+    || src.startsWith('data:')
+    || src.startsWith('/api/')
+  ) {
     return src;
   }
-  return `/api/file/raw?path=${encodeURIComponent(src)}`;
+  return `/api/file/serve-attachment?path=${encodeURIComponent(src)}`;
 }

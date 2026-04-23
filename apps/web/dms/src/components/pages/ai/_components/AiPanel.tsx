@@ -2,12 +2,12 @@
 
 import * as React from 'react';
 import { Info, History, BookOpen, CloudOff, CloudUpload } from 'lucide-react';
-import { SidecarFrame, CollapsibleSection, TextSection, ChipListSection, ActivityListSection } from '@/components/templates/page-frame/sidecar';
+import { PanelFrame, CollapsibleSection, TextSection, ChipListSection, ActivityListSection } from '@/components/templates/page-frame/panel';
 
 /**
- * AI Sidecar Props
+ * AI panel props
  */
-export interface AiSidecarProps {
+export interface AiPanelProps {
   /** AI 기능 유형 */
   variant: 'chat' | 'search' | 'create';
   /** 채팅 세션 히스토리 */
@@ -32,7 +32,7 @@ export interface AiSidecarProps {
 
 // ─── 변형별 설명 ─────────────────────────────────────────
 
-const VARIANT_INFO: Record<AiSidecarProps['variant'], { title: string; tips: string[] }> = {
+const VARIANT_INFO: Record<AiPanelProps['variant'], { title: string; tips: string[] }> = {
   chat: {
     title: 'AI 대화',
     tips: [
@@ -60,12 +60,12 @@ const VARIANT_INFO: Record<AiSidecarProps['variant'], { title: string; tips: str
 };
 
 /**
- * AI 전용 사이드카 콘텐츠
+ * AI 전용 보조 패널 콘텐츠
  * 
- * PageTemplate의 sidecarContent 슬롯에 사용합니다.
- * 기존 문서 Sidecar와 동일한 위치에 AI 맞춤 정보를 표시합니다.
+ * PageTemplate의 panelContent 슬롯에 사용합니다.
+ * 기존 문서 패널과 동일한 위치에 AI 맞춤 정보를 표시합니다.
  */
-export function AiSidecar({
+export function AiPanel({
   variant,
   history = [],
   sources = [],
@@ -73,7 +73,7 @@ export function AiSidecar({
   onHistoryPersistToggle,
   suggestions = [],
   onSuggestionSelect,
-}: AiSidecarProps) {
+}: AiPanelProps) {
   const info = VARIANT_INFO[variant];
   const historyTitle = variant === 'search' ? '검색 기록' : '채팅 기록';
   const historyEmptyText = variant === 'search'
@@ -100,7 +100,7 @@ export function AiSidecar({
   }));
 
   return (
-    <SidecarFrame title={`${info.title} 도우미`}>
+    <PanelFrame title={`${info.title} 도우미`}>
       <TextSection
         title="사용 팁"
         text={tipsText}
@@ -152,6 +152,6 @@ export function AiSidecar({
           if (source) onHistorySelect?.(source);
         }}
       />
-    </SidecarFrame>
+    </PanelFrame>
   );
 }

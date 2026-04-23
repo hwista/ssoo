@@ -30,13 +30,6 @@ ENV PORT=4000
 
 COPY --from=builder /app /app
 
-RUN mkdir -p /app/apps/web/dms/data/wiki \
-    /app/apps/web/dms/data/templates \
-    /app/apps/web/dms/data/ingest \
-    /app/apps/web/dms/data/storage/local \
-    /app/apps/web/dms/data/documents && \
-    git init /app/apps/web/dms/data/documents
-
 WORKDIR /app/apps/server
 
 EXPOSE 4000

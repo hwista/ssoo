@@ -36,25 +36,29 @@ import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { AccessRequestService } from '../access/access-request.service.js';
 import { AccessService } from '../access/access.service.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
+import { DocumentControlPlaneService } from '../access/document-control-plane.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { SearchService } from '../search/search.service.js';
 import { CollaborationService } from '../collaboration/collaboration.service.js';
-import { configService } from '../runtime/dms-config.service.js';
+import { configService, type StorageProvider } from '../runtime/dms-config.service.js';
 import { contentService } from '../runtime/content.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
+import { isMarkdownFile } from '../runtime/file-utils.js';
 import {
   ATTACHMENT_ALLOWED_EXTENSIONS,
   ATTACHMENT_STORAGE_DIR,
   getMimeType,
   IMAGE_ALLOWED_MIME_TYPES,
+  IMAGE_STORAGE_DIR,
   REFERENCE_STORAGE_DIR,
 } from './file.constants.js';
 import { FileCrudService } from './file-crud.service.js';
-import { saveFileByHash } from './hash-storage.js';
 import { extractTextFromFile } from './text-extractor.js';
+import { storageAdapterService } from '../storage/storage-adapter.service.js';
 
 const logger = createDmsLogger('DmsFileController');
 
@@ -63,6 +67,15 @@ interface UploadedFormFile {
   originalname: string;
   mimetype: string;
   size: number;
+}
+
+function toMetadataRecord(value: DocumentMetadata | null | undefined): Record<string, unknown> | null {
+  if (!value) {
+    return null;
+  }
+
+  const record: Record<string, unknown> = { ...value };
+  return record;
 }
 
 export interface FileActionBody {
@@ -85,7 +98,9 @@ export interface FileActionBody {
 export class FileController {
   constructor(
     private readonly searchService: SearchService,
+    private readonly accessRequestService: AccessRequestService,
     private readonly accessService: AccessService,
+    private readonly documentControlPlaneService: DocumentControlPlaneService,
     private readonly documentAclService: DocumentAclService,
     private readonly fileCrudService: FileCrudService,
     private readonly collaborationService: CollaborationService,
@@ -110,7 +125,9 @@ export class FileController {
       throw new BadRequestException('Missing file path header or query');
     }
 
-    return success(await this.unwrap(this.fileCrudService.read(filePath, currentUser)));
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
+    const data = await this.unwrap(this.fileCrudService.read(filePath, currentUser));
+    return success(this.withIsolationOnFilePayload(filePath, data));
   }
 
   @Post()
@@ -154,10 +171,18 @@ export class FileController {
     switch (action) {
       case 'read':
         if (!filePath) throw new BadRequestException('Missing file path');
-        return success(await this.unwrap(this.fileCrudService.read(filePath, currentUser)));
+        await this.accessRequestService.ensureRepoControlPlaneSynced();
+        return success(this.withIsolationOnFilePayload(
+          filePath,
+          await this.unwrap(this.fileCrudService.read(filePath, currentUser)),
+        ));
       case 'metadata':
         if (!filePath) throw new BadRequestException('Missing file path');
-        return success(await this.unwrap(this.fileCrudService.readMetadata(filePath, currentUser)));
+        await this.accessRequestService.ensureRepoControlPlaneSynced();
+        return success(this.withIsolationOnFilePayload(
+          filePath,
+          await this.unwrap(this.fileCrudService.readMetadata(filePath, currentUser)),
+        ));
       case 'write':
         if (!filePath || content === undefined) {
           throw new BadRequestException('Missing file path or content');
@@ -201,6 +226,7 @@ export class FileController {
       throw new BadRequestException('path 파라미터가 필요합니다.');
     }
 
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
     const { targetPath, valid } = this.fileCrudService.resolveFilePath(filePath);
     if (!valid) {
       throw new BadRequestException('잘못된 경로입니다.');
@@ -235,16 +261,22 @@ export class FileController {
       throw new BadRequestException('path 파라미터가 필요합니다.');
     }
 
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
     const { targetPath, valid } = this.fileCrudService.resolveFilePath(filePath);
-    if (!valid) {
-      throw new BadRequestException('유효하지 않은 경로입니다.');
+    let resolvedAbsolutePath: string | null = null;
+
+    if (valid && fs.existsSync(targetPath)) {
+      this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
+      resolvedAbsolutePath = targetPath;
+    } else {
+      resolvedAbsolutePath = await this.resolveStorageBackedAttachmentPath(filePath, currentUser);
     }
-    if (!fs.existsSync(targetPath)) {
+
+    if (!resolvedAbsolutePath || !fs.existsSync(resolvedAbsolutePath)) {
       throw new NotFoundException('파일을 찾을 수 없습니다.');
     }
 
-    this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
-    const buffer = fs.readFileSync(targetPath);
+    const buffer = fs.readFileSync(resolvedAbsolutePath);
     const displayName = originalName || path.basename(filePath);
     response.setHeader('Content-Type', getMimeType(displayName));
     response.setHeader('Content-Length', String(buffer.length));
@@ -304,9 +336,14 @@ export class FileController {
     @CurrentUser() currentUser: TokenPayload,
     @UploadedFile() file: UploadedFormFile | undefined,
     @Body('documentPath') documentPath?: string,
+    @Body('provider') provider?: string,
   ) {
     const uploadedFile = this.requireFile(file);
+    if (documentPath?.trim()) {
+      this.collaborationService.assertMutationAllowed({ action: 'upload', paths: [documentPath.trim()] });
+    }
     this.assertCanUploadToDocument(currentUser, documentPath);
+    const storageProvider = this.resolveUploadProvider(provider);
     const attachmentMaxSizeMb = configService.getConfig().uploads.attachmentMaxSizeMb;
     const attachmentMaxSize = attachmentMaxSizeMb * 1024 * 1024;
     const ext = path.extname(uploadedFile.originalname).toLowerCase();
@@ -318,22 +355,32 @@ export class FileController {
       throw new BadRequestException(`파일 크기는 ${attachmentMaxSizeMb}MB 이하여야 합니다.`);
     }
 
-    const saved = saveFileByHash(uploadedFile.buffer, uploadedFile.originalname, ATTACHMENT_STORAGE_DIR);
-    logger.info('첨부파일 업로드 완료', { relativePath: saved.relativePath, size: uploadedFile.size, reused: saved.reused });
-    if (documentPath?.trim()) {
-      this.collaborationService.noteMutation({
-        primaryPath: documentPath.trim(),
-        affectedPaths: [documentPath.trim(), saved.relativePath],
-        operationType: 'asset',
-        currentUser,
-      });
-    }
+    const saved = storageAdapterService.upload({
+      fileName: uploadedFile.originalname,
+      content: uploadedFile.buffer,
+      provider: storageProvider,
+      relativePath: ATTACHMENT_STORAGE_DIR,
+      origin: 'manual',
+      status: 'published',
+    });
+    logger.info('첨부파일 업로드 완료', {
+      path: saved.path,
+      provider: saved.provider,
+      size: uploadedFile.size,
+    });
 
     return success({
-      path: saved.relativePath,
-      fileName: saved.fileName,
-      size: uploadedFile.size,
+      path: saved.path,
+      fileName: saved.name,
+      size: saved.size,
       type: getMimeType(uploadedFile.originalname),
+      provider: saved.provider,
+      storageUri: saved.storageUri,
+      versionId: saved.versionId,
+      etag: saved.etag,
+      checksum: saved.checksum,
+      status: saved.status,
+      webUrl: saved.webUrl,
     });
   }
 
@@ -347,9 +394,14 @@ export class FileController {
     @CurrentUser() currentUser: TokenPayload,
     @UploadedFile() file: UploadedFormFile | undefined,
     @Body('documentPath') documentPath?: string,
+    @Body('provider') provider?: string,
   ) {
     const uploadedFile = this.requireFile(file);
+    if (documentPath?.trim()) {
+      this.collaborationService.assertMutationAllowed({ action: 'upload', paths: [documentPath.trim()] });
+    }
     this.assertCanUploadToDocument(currentUser, documentPath);
+    const storageProvider = this.resolveUploadProvider(provider);
     const imageMaxSizeMb = configService.getConfig().uploads.imageMaxSizeMb;
     const imageMaxSize = imageMaxSizeMb * 1024 * 1024;
 
@@ -360,20 +412,32 @@ export class FileController {
       throw new BadRequestException(`파일 크기는 ${imageMaxSizeMb}MB 이하여야 합니다.`);
     }
 
-    const saved = saveFileByHash(uploadedFile.buffer, uploadedFile.originalname, '_assets/images');
-    logger.info('이미지 업로드 완료', { relativePath: saved.relativePath, size: uploadedFile.size, reused: saved.reused });
-    if (documentPath?.trim()) {
-      this.collaborationService.noteMutation({
-        primaryPath: documentPath.trim(),
-        affectedPaths: [documentPath.trim(), saved.relativePath],
-        operationType: 'asset',
-        currentUser,
-      });
-    }
+    const saved = storageAdapterService.upload({
+      fileName: uploadedFile.originalname,
+      content: uploadedFile.buffer,
+      provider: storageProvider,
+      relativePath: IMAGE_STORAGE_DIR,
+      origin: 'manual',
+      status: 'published',
+    });
+    logger.info('이미지 업로드 완료', {
+      path: saved.path,
+      provider: saved.provider,
+      size: uploadedFile.size,
+    });
 
     return success({
-      path: saved.relativePath,
-      fileName: saved.fileName,
+      path: saved.path,
+      fileName: saved.name,
+      size: saved.size,
+      type: getMimeType(uploadedFile.originalname),
+      provider: saved.provider,
+      storageUri: saved.storageUri,
+      versionId: saved.versionId,
+      etag: saved.etag,
+      checksum: saved.checksum,
+      status: saved.status,
+      webUrl: saved.webUrl,
     });
   }
 
@@ -387,9 +451,14 @@ export class FileController {
     @CurrentUser() currentUser: TokenPayload,
     @UploadedFile() file: UploadedFormFile | undefined,
     @Body('documentPath') documentPath?: string,
+    @Body('provider') provider?: string,
   ) {
     const uploadedFile = this.requireFile(file);
+    if (documentPath?.trim()) {
+      this.collaborationService.assertMutationAllowed({ action: 'upload', paths: [documentPath.trim()] });
+    }
     this.assertCanUploadToDocument(currentUser, documentPath);
+    const storageProvider = this.resolveUploadProvider(provider);
     const attachmentMaxSizeMb = configService.getConfig().uploads.attachmentMaxSizeMb;
     const attachmentMaxSize = attachmentMaxSizeMb * 1024 * 1024;
     const ext = path.extname(uploadedFile.originalname).toLowerCase();
@@ -401,22 +470,32 @@ export class FileController {
       throw new BadRequestException(`파일 크기는 ${attachmentMaxSizeMb}MB 이하여야 합니다.`);
     }
 
-    const saved = saveFileByHash(uploadedFile.buffer, uploadedFile.originalname, REFERENCE_STORAGE_DIR);
-    logger.info('참조 파일 업로드 완료', { relativePath: saved.relativePath, size: uploadedFile.size, reused: saved.reused });
-    if (documentPath?.trim()) {
-      this.collaborationService.noteMutation({
-        primaryPath: documentPath.trim(),
-        affectedPaths: [documentPath.trim(), saved.relativePath],
-        operationType: 'asset',
-        currentUser,
-      });
-    }
+    const saved = storageAdapterService.upload({
+      fileName: uploadedFile.originalname,
+      content: uploadedFile.buffer,
+      provider: storageProvider,
+      relativePath: REFERENCE_STORAGE_DIR,
+      origin: 'manual',
+      status: 'published',
+    });
+    logger.info('참조 파일 업로드 완료', {
+      path: saved.path,
+      provider: saved.provider,
+      size: uploadedFile.size,
+    });
 
     return success({
-      path: saved.relativePath,
-      fileName: saved.fileName,
-      size: uploadedFile.size,
+      path: saved.path,
+      fileName: saved.name,
+      size: saved.size,
       type: getMimeType(uploadedFile.originalname),
+      provider: saved.provider,
+      storageUri: saved.storageUri,
+      versionId: saved.versionId,
+      etag: saved.etag,
+      checksum: saved.checksum,
+      status: saved.status,
+      webUrl: saved.webUrl,
     });
   }
 
@@ -426,6 +505,58 @@ export class FileController {
     }
 
     return file;
+  }
+
+  private resolveUploadProvider(provider?: string): StorageProvider | undefined {
+    if (!provider) {
+      return undefined;
+    }
+
+    if (provider === 'local' || provider === 'sharepoint' || provider === 'nas') {
+      return provider;
+    }
+
+    throw new BadRequestException('지원하지 않는 저장소 provider 입니다.');
+  }
+
+  private isMarkdownPath(filePath: string): boolean {
+    return isMarkdownFile(filePath.trim());
+  }
+
+  private shouldForceControlPlaneResync(filePath: string): boolean {
+    const normalized = filePath.trim().toLowerCase();
+    return normalized.endsWith('.md') || path.extname(normalized).length === 0;
+  }
+
+  private async resolveStorageBackedAttachmentPath(
+    filePath: string,
+    currentUser: TokenPayload,
+  ): Promise<string | null> {
+    const resolvedStoragePath = this.resolveExistingStorageAttachmentPath(filePath);
+    if (!resolvedStoragePath) {
+      throw new NotFoundException('파일을 찾을 수 없습니다.');
+    }
+
+    if (!this.documentAclService.hasReadableDocumentReference(currentUser, filePath)) {
+      throw new ForbiddenException('첨부파일을 읽을 권한이 없습니다.');
+    }
+
+    return resolvedStoragePath;
+  }
+
+  private resolveExistingStorageAttachmentPath(filePath: string): string | null {
+    for (const provider of ['local', 'sharepoint', 'nas'] as const) {
+      try {
+        const resolvedPath = storageAdapterService.resolveContainedPath(provider, filePath).fullPath;
+        if (fs.existsSync(resolvedPath)) {
+          return resolvedPath;
+        }
+      } catch {
+        // ignore invalid containment for this provider candidate
+      }
+    }
+
+    return null;
   }
 
   private assertCanUploadToDocument(
@@ -455,20 +586,95 @@ export class FileController {
     this.documentAclService.assertCanWriteAbsolutePath(currentUser, targetPath);
   }
 
+  private resolveGitManagedMutationPaths(candidatePaths: string[]): string[] {
+    const gitManagedPaths = new Set<string>();
+
+    for (const candidatePath of candidatePaths) {
+      const normalizedCandidatePath = candidatePath.trim().replace(/\\/g, '/');
+      if (!normalizedCandidatePath) {
+        continue;
+      }
+
+      if (this.isMarkdownPath(normalizedCandidatePath)) {
+        gitManagedPaths.add(normalizedCandidatePath);
+        continue;
+      }
+
+      if (path.extname(normalizedCandidatePath)) {
+        continue;
+      }
+
+      const { targetPath, valid, safeRelPath } = this.fileCrudService.resolveFilePath(normalizedCandidatePath);
+      if (!valid || !fs.existsSync(targetPath)) {
+        continue;
+      }
+
+      if (fs.statSync(targetPath).isDirectory()) {
+        this.collectMarkdownDocumentPaths(targetPath).forEach((markdownPath) => gitManagedPaths.add(markdownPath));
+        continue;
+      }
+
+      if (this.isMarkdownPath(safeRelPath)) {
+        gitManagedPaths.add(safeRelPath);
+      }
+    }
+
+    return Array.from(gitManagedPaths);
+  }
+
+  private collectMarkdownDocumentPaths(rootPath: string): string[] {
+    const docRoot = configService.getDocDir();
+    const gitManagedPaths = new Set<string>();
+
+    const visitDirectory = (currentPath: string): void => {
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(currentPath, { withFileTypes: true });
+      } catch {
+        return;
+      }
+
+      for (const entry of entries) {
+        const fullPath = path.join(currentPath, entry.name);
+        if (entry.isDirectory()) {
+          visitDirectory(fullPath);
+          continue;
+        }
+
+        if (!entry.isFile() || !this.isMarkdownPath(entry.name)) {
+          continue;
+        }
+
+        gitManagedPaths.add(path.relative(docRoot, fullPath).replace(/\\/g, '/'));
+      }
+    };
+
+    visitDirectory(rootPath);
+    return Array.from(gitManagedPaths);
+  }
+
   private async writeFile(
     filePath: string,
     content: string,
     currentUser: TokenPayload,
     options?: { expectedRevisionSeq?: number },
   ) {
+    this.collaborationService.assertMutationAllowed({ action: 'write', paths: [filePath] });
     const result = await this.unwrap(this.fileCrudService.write(filePath, content, currentUser, options));
+    const gitManagedPaths = this.resolveGitManagedMutationPaths([filePath]);
+    if (gitManagedPaths.length > 0) {
+      this.collaborationService.noteMutation({
+        primaryPath: filePath,
+        affectedPaths: [filePath],
+        gitManagedPaths,
+        operationType: 'update',
+        currentUser,
+      });
+    }
+    if (this.isMarkdownPath(filePath)) {
+      await this.accessRequestService.syncDocumentProjection(filePath, toMetadataRecord(result.metadata));
+    }
     await this.syncSearchIndex(filePath, 'upsert');
-    this.collaborationService.noteMutation({
-      primaryPath: filePath,
-      affectedPaths: [filePath],
-      operationType: 'update',
-      currentUser,
-    });
     return result;
   }
 
@@ -479,13 +685,20 @@ export class FileController {
     currentUser: TokenPayload,
   ) {
     const result = await this.unwrap(this.fileCrudService.create(nameOrPath, parent, content, currentUser));
+    const gitManagedPaths = this.resolveGitManagedMutationPaths([result.savedPath]);
+    if (gitManagedPaths.length > 0) {
+      this.collaborationService.noteMutation({
+        primaryPath: result.savedPath,
+        affectedPaths: [result.savedPath],
+        gitManagedPaths,
+        operationType: 'create',
+        currentUser,
+      });
+    }
+    if (this.isMarkdownPath(result.savedPath)) {
+      await this.accessRequestService.syncDocumentProjection(result.savedPath, toMetadataRecord(result.metadata));
+    }
     await this.syncSearchIndex(result.savedPath, 'upsert');
-    this.collaborationService.noteMutation({
-      primaryPath: result.savedPath,
-      affectedPaths: [result.savedPath],
-      operationType: 'create',
-      currentUser,
-    });
     return result;
   }
 
@@ -495,28 +708,52 @@ export class FileController {
     currentUser: TokenPayload,
     options?: { autoNumber?: boolean },
   ) {
+    this.collaborationService.assertMutationAllowed({ action: 'rename', paths: [oldPath, newPath] });
+    const previousGitManagedPaths = this.resolveGitManagedMutationPaths([oldPath]);
     const result = await this.unwrap(this.fileCrudService.rename(oldPath, newPath, currentUser, options));
     if (result.finalPath) {
+      const nextGitManagedPaths = this.resolveGitManagedMutationPaths([result.finalPath]);
+      const gitManagedPaths = Array.from(new Set([...previousGitManagedPaths, ...nextGitManagedPaths]));
+      if (gitManagedPaths.length > 0) {
+        this.collaborationService.noteMutation({
+          primaryPath: result.finalPath,
+          affectedPaths: [oldPath, result.finalPath],
+          gitManagedPaths,
+          operationType: 'rename',
+          currentUser,
+        });
+      }
+      if (this.isMarkdownPath(oldPath) || this.isMarkdownPath(result.finalPath)) {
+        await this.accessRequestService.moveDocumentProjection(
+          oldPath,
+          result.finalPath,
+          toMetadataRecord(result.metadata),
+        );
+      } else if (this.shouldForceControlPlaneResync(oldPath) || this.shouldForceControlPlaneResync(result.finalPath)) {
+        await this.accessRequestService.ensureRepoControlPlaneSynced(true);
+      }
       await this.syncSearchIndex(result.finalPath, 'upsert', oldPath);
-      this.collaborationService.noteMutation({
-        primaryPath: result.finalPath,
-        affectedPaths: [oldPath, result.finalPath],
-        operationType: 'rename',
-        currentUser,
-      });
     }
     return result;
   }
 
   private async deleteFile(filePath: string, currentUser: TokenPayload) {
+    this.collaborationService.assertMutationAllowed({ action: 'delete', paths: [filePath] });
+    const gitManagedPaths = this.resolveGitManagedMutationPaths([filePath]);
     const result = await this.unwrap(this.fileCrudService.remove(filePath, currentUser));
+    if (gitManagedPaths.length > 0) {
+      this.collaborationService.noteMutation({
+        primaryPath: filePath,
+        affectedPaths: [filePath],
+        gitManagedPaths,
+        operationType: 'delete',
+        currentUser,
+      });
+    }
+    if (this.shouldForceControlPlaneResync(filePath)) {
+      await this.accessRequestService.ensureRepoControlPlaneSynced(true);
+    }
     await this.syncSearchIndex(filePath, 'delete');
-    this.collaborationService.noteMutation({
-      primaryPath: filePath,
-      affectedPaths: [filePath],
-      operationType: 'delete',
-      currentUser,
-    });
     return result;
   }
 
@@ -526,7 +763,7 @@ export class FileController {
     currentUser: TokenPayload,
     options?: { expectedRevisionSeq?: number },
   ) {
-    const { targetPath, valid } = this.fileCrudService.resolveFilePath(filePath);
+    const { targetPath, valid, safeRelPath } = this.fileCrudService.resolveFilePath(filePath);
     if (!valid) {
       throw new BadRequestException('Invalid path');
     }
@@ -534,11 +771,16 @@ export class FileController {
       throw new NotFoundException('File not found');
     }
 
+    this.collaborationService.assertMutationAllowed({ action: 'updateMetadata', paths: [filePath] });
     this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
-    const existing = contentService.readSidecar(targetPath) as DocumentMetadata | null;
-    if (!existing) {
-      throw new NotFoundException('Metadata not found');
-    }
+    const projectedMetadata = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath);
+    const existing = projectedMetadata
+      ?? contentService.buildDefaultDocumentMetadata(
+        fs.readFileSync(targetPath, 'utf-8'),
+        targetPath,
+        undefined,
+        { defaultRevisionSeq: 0 },
+      ) as unknown as DocumentMetadata;
 
     const currentRevisionSeq = typeof existing.revisionSeq === 'number' ? existing.revisionSeq : 0;
     if (
@@ -561,16 +803,17 @@ export class FileController {
       revisionSeq: currentRevisionSeq + 1,
       lastModifiedBy: currentUser.loginId,
     };
-    contentService.writeSidecar(targetPath, merged as unknown as Record<string, unknown>);
-    await this.syncSearchIndex(filePath, 'upsert');
     this.collaborationService.noteMutation({
       primaryPath: filePath,
       affectedPaths: [filePath],
+      gitManagedPaths: [filePath],
       operationType: 'metadata',
       currentUser,
     });
+    await this.accessRequestService.syncDocumentProjection(filePath, toMetadataRecord(merged));
+    await this.syncSearchIndex(filePath, 'upsert');
     logger.info('문서 메타데이터 업데이트 완료', { filePath });
-    return (contentService.readSidecar(targetPath) as DocumentMetadata | null) ?? merged;
+    return merged;
   }
 
   private async syncSearchIndex(
@@ -629,5 +872,26 @@ export class FileController {
       default:
         throw new BadRequestException(result.error);
     }
+  }
+
+  private withIsolationOnFilePayload<
+    T extends { metadata?: { document?: DocumentMetadata } },
+  >(filePath: string, payload: T): T {
+    const documentPath = payload.metadata?.document?.relativePath ?? filePath;
+    const isolation = this.collaborationService.getPathIsolation(documentPath);
+    if (!payload.metadata?.document || !isolation) {
+      return payload;
+    }
+
+    return {
+      ...payload,
+      metadata: {
+        ...payload.metadata,
+        document: {
+          ...payload.metadata.document,
+          isolation,
+        },
+      },
+    };
   }
 }

@@ -53,6 +53,14 @@ interface PathSyncCounts {
   deletedChunkCount: number;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function pickString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
 @Injectable()
 export class SearchService implements OnModuleInit {
   private readonly logger = new Logger(SearchService.name);
@@ -74,6 +82,8 @@ export class SearchService implements OnModuleInit {
     if (query.length < 2) {
       throw new BadRequestException('검색어가 비어 있습니다.');
     }
+
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
 
     const options: AiContextOptions = {
       contextMode: request.contextMode ?? 'doc',
@@ -211,10 +221,11 @@ export class SearchService implements OnModuleInit {
 
       const results: SearchResultItem[] = [];
 
-      rows.forEach((row, index) => {
+      for (const [index, row] of rows.entries()) {
         const displayPath = toDisplayPath(row.file_path, rootDir);
         const resolvedPath = resolveAbsolutePath(row.file_path, rootDir);
         const access = this.documentAclService.describeSearchResultAccess(currentUser, resolvedPath);
+        const metadata = await this.readDocumentMetadata(row.file_path);
 
         let content = row.chunk_text;
 
@@ -229,6 +240,7 @@ export class SearchService implements OnModuleInit {
           rootDir,
           fallbackTitle,
         );
+        const title = pickString(metadata['title']) ?? presentation.title;
         const { snippets, totalCount } = buildPreviewSnippets(
           content || row.chunk_text,
           query,
@@ -236,7 +248,7 @@ export class SearchService implements OnModuleInit {
           4,
         );
         const excerpt = snippets[0] || stripMarkdown(row.chunk_text).slice(0, 200);
-        const summary = presentation.sidecarSummary || buildAutoSummary(
+        const summary = pickString(metadata['summary']) || buildAutoSummary(
           content || row.chunk_text,
           query,
           terms,
@@ -245,7 +257,7 @@ export class SearchService implements OnModuleInit {
 
         results.push({
           id: `semantic-${index}`,
-          title: presentation.title,
+          title,
           excerpt,
           path: displayPath,
           score: Number(row.similarity) || 0,
@@ -257,7 +269,7 @@ export class SearchService implements OnModuleInit {
           isReadable: access.isReadable,
           canRequestRead: access.canRequestRead,
         });
-      });
+      }
 
       const resultsWithRequests = await this.accessRequestService.attachReadRequestStates(
         currentUser,
@@ -287,13 +299,15 @@ export class SearchService implements OnModuleInit {
 
     for (const filePath of files) {
       const content = fs.readFileSync(filePath, 'utf-8');
+      const metadata = await this.readDocumentMetadata(filePath);
       const lowerContent = content.toLowerCase();
       const relativePath = toRelativePath(filePath, rootDir);
       const lowerPath = relativePath.toLowerCase();
       const fileName = path.basename(filePath);
       const fallbackTitle = extractTitle(content, fileName);
       const presentation = resolveDocumentPresentation(filePath, rootDir, fallbackTitle);
-      const lowerTitle = presentation.title.toLowerCase();
+      const title = pickString(metadata['title']) ?? presentation.title;
+      const lowerTitle = title.toLowerCase();
       const hasExactMatch = lowerContent.includes(lowerQuery);
       const hasTermMatch = terms.some((term) => (
         lowerContent.includes(term) || lowerPath.includes(term) || lowerTitle.includes(term)
@@ -316,7 +330,7 @@ export class SearchService implements OnModuleInit {
         terms,
         4,
       );
-      const summary = presentation.sidecarSummary || buildAutoSummary(
+      const summary = pickString(metadata['summary']) || buildAutoSummary(
         content,
         normalizedQuery,
         terms,
@@ -331,7 +345,7 @@ export class SearchService implements OnModuleInit {
 
       results.push({
         id: filePath,
-        title: presentation.title,
+        title,
         excerpt,
         path: relativePath,
         score: contentScore + metaScore,
@@ -427,8 +441,8 @@ export class SearchService implements OnModuleInit {
       values: chunks,
     });
 
-    const metadata = this.readDocumentMetadata(filePath);
-    const title = resolveDocumentPresentation(
+    const metadata = await this.readDocumentMetadata(filePath);
+    const title = pickString(metadata['title']) ?? resolveDocumentPresentation(
       filePath,
       rootDir,
       extractTitle(content, path.basename(filePath)),
@@ -518,15 +532,28 @@ export class SearchService implements OnModuleInit {
     return fallback ? [fallback] : [];
   }
 
-  private readDocumentMetadata(filePath: string): Record<string, unknown> {
-    try {
-      const parsed = path.parse(filePath);
-      const sidecarPath = path.join(parsed.dir, `${parsed.name}.sidecar.json`);
-      if (!fs.existsSync(sidecarPath)) {
-        return {};
-      }
+  private async readDocumentMetadata(filePath: string): Promise<Record<string, unknown>> {
+    const rootDir = this.runtime.getDocDir();
+    const relativePath = path.isAbsolute(filePath)
+      ? toRelativePath(filePath, rootDir)
+      : normalizePath(filePath).replace(/^\/+/, '');
 
-      return JSON.parse(fs.readFileSync(sidecarPath, 'utf-8')) as Record<string, unknown>;
+    if (!relativePath) {
+      return {};
+    }
+
+    try {
+      const document = await this.db.client.dmsDocument.findFirst({
+        where: {
+          relativePath,
+          isActive: true,
+        },
+        select: {
+          metadataJson: true,
+        },
+      });
+
+      return isRecord(document?.metadataJson) ? document.metadataJson : {};
     } catch {
       return {};
     }

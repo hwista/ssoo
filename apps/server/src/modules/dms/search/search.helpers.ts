@@ -14,11 +14,6 @@ const QUERY_STOPWORDS = new Set([
   'what', 'where', 'when', 'how', 'why', 'find', 'show', 'search', 'about', 'please',
 ]);
 
-interface SidecarMetadataShape {
-  title?: string;
-  summary?: string;
-}
-
 function normalizeSearchToken(raw: string): string {
   let token = raw
     .toLowerCase()
@@ -126,34 +121,26 @@ export function toRelativePath(filePath: string, rootDir: string): string {
   return normalizePath(path.relative(rootDir, filePath));
 }
 
-function readSidecarMetadata(filePath: string, rootDir: string): SidecarMetadataShape | null {
-  try {
-    const resolved = resolveAbsolutePath(filePath, rootDir);
-    const parsed = path.parse(resolved);
-    const sidecarPath = path.join(parsed.dir, `${parsed.name}.sidecar.json`);
-
-    if (!fs.existsSync(sidecarPath)) {
-      return null;
-    }
-
-    const raw = fs.readFileSync(sidecarPath, 'utf-8');
-    return JSON.parse(raw) as SidecarMetadataShape;
-  } catch {
-    return null;
-  }
-}
-
 export function resolveDocumentPresentation(
   filePath: string,
   rootDir: string,
   fallbackTitle: string,
-): { title: string; sidecarSummary?: string } {
-  const sidecar = readSidecarMetadata(filePath, rootDir);
+): { title: string; metadataSummary?: string } {
   const fileName = path.basename(filePath).replace(/\.md$/i, '');
-  const title = sidecar?.title?.trim() || fallbackTitle || fileName;
+  let title = fallbackTitle || fileName;
+
+  try {
+    const resolved = resolveAbsolutePath(filePath, rootDir);
+    if (fs.existsSync(resolved)) {
+      const content = fs.readFileSync(resolved, 'utf-8');
+      title = extractTitle(content, path.basename(resolved));
+    }
+  } catch {
+    // ignore and keep fallback title
+  }
+
   return {
     title,
-    sidecarSummary: sidecar?.summary?.trim(),
   };
 }
 

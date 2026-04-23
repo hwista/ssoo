@@ -136,7 +136,7 @@ export function DocumentAccessRequestDialogHost() {
               <h3 className="mt-1 text-label-strong text-ssoo-primary">{target.title}</h3>
               <p className="mt-2 break-all text-caption text-ssoo-primary/70">{target.path}</p>
               {target.owner && (
-                <p className="mt-1 text-caption text-ssoo-primary/70">Owner: {target.owner}</p>
+                <p className="mt-1 text-caption text-ssoo-primary/70">작성자: {target.owner}</p>
               )}
             </section>
 

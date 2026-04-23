@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Check, FolderOpen, RotateCcw } from 'lucide-react';
+import { AlertCircle, Check, RotateCcw } from 'lucide-react';
 import { JsonDiffView, JsonEditor } from '@/components/common/json';
 import { ErrorState, LoadingSpinner } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,8 @@ import {
   SETTINGS_VIEW_MODE_LABELS,
   getSettingSectionsByScope,
 } from './_config/settingsPageConfig';
+import { GitObservabilitySurface } from './_components/GitObservabilitySurface';
+import { RuntimePathSurface } from './_components/RuntimePathSurface';
 import { SettingsCustomSlot } from './_components/SettingsCustomSlot';
 import { SettingsNavigation } from './_components/SettingsNavigation';
 import { SettingsFieldList } from './_components/SettingsFieldList';
@@ -29,7 +31,6 @@ import {
   getModifiedKeys,
   getNestedValue,
   getValidationErrors,
-  isRelativePath,
   mergeSettingsPayloads,
   parseSectionJsonDraft,
   replaceSectionValue,
@@ -45,7 +46,7 @@ export function SettingsPage() {
     error,
     loadSettings,
     updateSettings,
-    updateGitPath,
+    runtime,
   } = useSettingsStore();
   const {
     activeScope,
@@ -60,7 +61,6 @@ export function SettingsPage() {
   const [localConfig, setLocalConfig] = useState<Record<string, unknown>>({});
   const [originalConfig, setOriginalConfig] = useState<Record<string, unknown>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [copyFiles, setCopyFiles] = useState(true);
   const [jsonDraft, setJsonDraft] = useState('{}');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [templateDraft, setTemplateDraft] = useState({
@@ -70,12 +70,15 @@ export function SettingsPage() {
     scope: 'global' as TemplateScope,
     kind: 'document' as TemplateKind,
   });
+  const runtimeSectionIds = useMemo(() => new Set(['git', 'storage', 'ingest', 'templates-runtime']), []);
 
   useEffect(() => {
-    if (!isLoaded) {
-      void loadSettings();
+    const includeRuntime = runtimeSectionIds.has(activeSectionId);
+    if (isLoaded && (!includeRuntime || runtime)) {
+      return;
     }
-  }, [isLoaded, loadSettings]);
+    void loadSettings(includeRuntime);
+  }, [activeSectionId, isLoaded, loadSettings, runtime, runtimeSectionIds]);
 
   useEffect(() => {
     if (!config) return;
@@ -124,7 +127,7 @@ export function SettingsPage() {
     setJsonError(null);
   }, [currentSection, isCustomSection, localConfig]);
 
-  const supportsJsonModes = !isCustomSection;
+  const supportsJsonModes = !isCustomSection && currentSection?.id !== 'git';
 
   useEffect(() => {
     if (!supportsJsonModes && activeViewMode !== 'structured') {
@@ -169,9 +172,6 @@ export function SettingsPage() {
   const hasSectionJsonChanges = supportsJsonModes && currentSectionComparableText !== currentSectionOriginalText;
   const hasChanges = modifiedKeys.length > 0 || hasSectionJsonChanges;
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
-  const isPathChanged = modifiedKeys.includes('system.git.repositoryPath');
-  const pathValue = String(getNestedValue(comparableConfig, 'system.git.repositoryPath') ?? '').trim();
-  const relativePathNotice = isRelativePath(pathValue);
 
   const handleStructuredChange = useCallback((key: string, value: unknown) => {
     setLocalConfig((prev) => setNestedValue(prev, key, value));
@@ -240,18 +240,7 @@ export function SettingsPage() {
 
     setSaveSuccess(false);
     let success = true;
-
-    if (isPathChanged) {
-      const newPath = String(getNestedValue(workingConfig, 'system.git.repositoryPath') ?? '').trim();
-      if (newPath) {
-        success = await updateGitPath(newPath, copyFiles);
-      } else {
-        success = await updateSettings({ system: { git: { repositoryPath: '' } } });
-      }
-    }
-
-    const remainingModified = modifiedKeys.filter((key) => key !== 'system.git.repositoryPath');
-    let payload = buildSettingsUpdatePayload(remainingModified, workingConfig, SETTING_SECTIONS);
+    let payload = buildSettingsUpdatePayload(modifiedKeys, workingConfig, SETTING_SECTIONS);
 
     if (supportsJsonModes && activeViewMode === 'json') {
       payload = mergeSettingsPayloads(
@@ -274,13 +263,10 @@ export function SettingsPage() {
   }, [
     activeViewMode,
     comparableConfig,
-    copyFiles,
     currentSection,
-    isPathChanged,
     modifiedKeys,
     resolveConfigFromJsonDraft,
     supportsJsonModes,
-    updateGitPath,
     updateSettings,
   ]);
 
@@ -309,6 +295,96 @@ export function SettingsPage() {
     if (!response.success) return;
     await queryClient.invalidateQueries({ queryKey: templateKeys.all });
   }, [queryClient]);
+
+  const runtimePathSurface = useMemo(() => {
+    if (!runtime?.paths || !currentSection) {
+      return null;
+    }
+
+    switch (currentSection.id) {
+      case 'git':
+        return (
+          <RuntimePathSurface
+            title="Markdown runtime path"
+            description="Git 이 실제로 묶이는 external markdown working tree 경로입니다."
+            entries={[
+              {
+                key: 'markdown-root',
+                label: 'Markdown root',
+                description: '서비스가 실제로 바라보는 markdown working tree 입니다.',
+                binding: runtime.paths.markdownRoot,
+              },
+            ]}
+          />
+        );
+      case 'storage':
+        return (
+          <RuntimePathSurface
+            title="Binary storage roots"
+            description="Attachment/reference/image 가 사용하는 provider별 runtime roots 입니다."
+            entries={[
+              {
+                key: 'storage-local',
+                label: 'Local provider root',
+                description: 'Local binary storage root 입니다.',
+                binding: runtime.paths.storageRoots.local,
+              },
+              {
+                key: 'storage-sharepoint',
+                label: 'SharePoint provider root',
+                description: 'SharePoint provider 의 mount/library 기준 경로입니다.',
+                binding: runtime.paths.storageRoots.sharepoint,
+              },
+              {
+                key: 'storage-nas',
+                label: 'NAS provider root',
+                description: 'NAS provider 의 mount/gateway 기준 경로입니다.',
+                binding: runtime.paths.storageRoots.nas,
+              },
+            ]}
+          />
+        );
+      case 'ingest':
+        return (
+          <RuntimePathSurface
+            title="Ingest queue path"
+            description="수집 작업 큐 파일을 저장하는 실제 runtime 경로입니다."
+            entries={[
+              {
+                key: 'ingest-root',
+                label: 'Ingest queue root',
+                description: 'jobs.json 과 관련 ingest queue 파일이 위치하는 경로입니다.',
+                binding: runtime.paths.ingestQueue,
+              },
+            ]}
+          />
+        );
+      case 'templates-runtime':
+        return (
+          <RuntimePathSurface
+            title="Template runtime path"
+            description="템플릿은 문서 Git 레포의 _templates/ 하위에 자동 배치됩니다 (markdownRoot 파생)."
+            entries={[
+              {
+                key: 'template-root',
+                label: 'Template directory',
+                description: '문서 markdown root 의 _templates/ 하위 경로입니다.',
+                binding: {
+                  configuredPath: runtime.paths.templateDir,
+                  effectiveInput: runtime.paths.templateDir,
+                  resolvedPath: runtime.paths.templateDir,
+                  exists: true,
+                  relativeToAppRoot: false,
+                  source: 'config' as const,
+                },
+              },
+            ]}
+          />
+        );
+      default:
+        return null;
+    }
+  }, [currentSection, runtime?.paths]);
 
   const topStatusBanner = error ? (
     <div className="mb-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-body-sm text-destructive">
@@ -392,7 +468,7 @@ export function SettingsPage() {
         filePath="settings"
         mode="viewer"
         description="설정 권한이 필요합니다."
-        sidecarMode="hidden"
+        panelMode="hidden"
       >
         <div className="flex h-full items-center justify-center">
           <ErrorState error="설정을 관리할 권한이 없습니다." />
@@ -409,7 +485,7 @@ export function SettingsPage() {
       headerExtraActions={headerActions}
       headerExtraActionsPosition="right"
       headerViewerRightSlot={viewerRightSlot}
-      sidecarMode="hidden"
+      panelMode="hidden"
       contentMaxWidth={null}
     >
       <section className="flex h-full min-h-0 gap-4 overflow-hidden">
@@ -433,29 +509,8 @@ export function SettingsPage() {
               </section>
             )}
 
-            {isPathChanged && (
-              <section className="mb-3 rounded-md border border-ssoo-content-border bg-ssoo-content-bg/40 p-3">
-                <label className="flex cursor-pointer items-center gap-2 text-body-sm text-ssoo-primary">
-                  <input
-                    type="checkbox"
-                    checked={copyFiles}
-                    onChange={(event) => setCopyFiles(event.target.checked)}
-                    className="h-4 w-4 rounded border-ssoo-content-border accent-ssoo-primary"
-                  />
-                  <FolderOpen className="h-4 w-4" />
-                  <span>기존 문서 파일을 새 경로로 복사</span>
-                </label>
-                <p className="mt-1 pl-6 text-caption text-ssoo-primary/70">
-                  경로 변경 후 Git 저장소를 다시 초기화합니다.
-                </p>
-              </section>
-            )}
-
-            {relativePathNotice && (
-              <section className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-caption text-amber-700">
-                상대 경로로 입력되었습니다. 실행 경로 기준으로 해석됩니다.
-              </section>
-            )}
+            {runtimePathSurface}
+            {currentSection.id === 'git' && <GitObservabilitySurface git={runtime?.git ?? null} />}
 
             {isLoading ? (
               <div className="flex min-h-full items-center justify-center">

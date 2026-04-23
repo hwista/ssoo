@@ -7,18 +7,18 @@ import { useLayoutStore } from '@/stores';
 
 /**
  * Content Props
- * PMS Content 참조 - 문서 본문 + Sidecar
+ * PMS Content 참조 - 문서 본문 + 보조 패널
  */
 export interface ContentProps {
   /** 자식 요소 (문서 본문) */
   children: React.ReactNode;
-  /** Sidecar 컴포넌트 */
-  sidecar?: React.ReactNode;
-  /** Sidecar 너비 (px) - 가로 모드에서 사용 */
-  sidecarWidth?: number;
-  /** Sidecar 외부 제어 (가로 모드에서) */
-  sidecarOpen?: boolean;
-  onSidecarToggle?: () => void;
+  /** 보조 패널 컴포넌트 */
+  panel?: React.ReactNode;
+  /** 보조 패널 너비 (px) - 가로 모드에서 사용 */
+  panelWidth?: number;
+  /** 보조 패널 외부 제어 (가로 모드에서) */
+  panelOpen?: boolean;
+  onPanelToggle?: () => void;
   /** 추가 className */
   className?: string;
 }
@@ -26,15 +26,15 @@ export interface ContentProps {
 /**
  * Content 컴포넌트
  * 
- * 문서 본문과 Sidecar를 담는 컨테이너
- * - 가로 모드: Sidecar 펌침 (토글 가능)
- * - 세로 모드: Sidecar 무조건 접힘
+ * 문서 본문과 보조 패널을 담는 컨테이너
+ * - 가로 모드: 패널 펼침 (토글 가능)
+ * - 세로 모드: 패널 무조건 접힘
  * 
  * @example
  * ```tsx
  * <Content
- *   sidecar={<Sidecar metadata={metadata} />}
- *   sidecarWidth={280}
+ *   panel={<Panel metadata={metadata} />}
+ *   panelWidth={280}
  * >
  *   <article>문서 본문...</article>
  * </Content>
@@ -42,10 +42,10 @@ export interface ContentProps {
  */
 export function Content({
   children,
-  sidecar,
-  sidecarWidth = 280,
-  sidecarOpen: controlledOpen,
-  onSidecarToggle,
+  panel,
+  panelWidth = 280,
+  panelOpen: controlledOpen,
+  onPanelToggle,
   className,
 }: ContentProps) {
   const deviceType = useLayoutStore((s) => s.deviceType);
@@ -58,8 +58,8 @@ export function Content({
   const isOpen = isVertical ? false : (controlledOpen ?? internalOpen);
 
   const handleToggle = () => {
-    if (onSidecarToggle) {
-      onSidecarToggle();
+    if (onPanelToggle) {
+      onPanelToggle();
     } else {
       setInternalOpen((prev) => !prev);
     }
@@ -83,10 +83,10 @@ export function Content({
         {children}
       </div>
 
-      {/* Sidecar 영역 (가로 모드에서만 표시) */}
-      {sidecar && !isVertical && (
+      {/* 패널 영역 (가로 모드에서만 표시) */}
+      {panel && !isVertical && (
         <>
-          {/* Sidecar 토글 버튼 (그립 버튼) */}
+          {/* 패널 토글 버튼 (그립 버튼) */}
           <button
             onClick={handleToggle}
             className={cn(
@@ -96,11 +96,11 @@ export function Content({
               'bg-gray-100 hover:bg-gray-200 border border-r-0 border-gray-200',
               'transition-all duration-300 ease-in-out',
               isOpen
-                ? 'right-[calc(var(--sidecar-width))]'
+                ? 'right-[calc(var(--panel-width))]'
                 : 'right-0'
             )}
-            style={{ '--sidecar-width': `${sidecarWidth}px` } as React.CSSProperties}
-            aria-label={isOpen ? 'Sidecar 접기' : 'Sidecar 펼치기'}
+            style={{ '--panel-width': `${panelWidth}px` } as React.CSSProperties}
+            aria-label={isOpen ? '패널 접기' : '패널 펼치기'}
           >
             {isOpen ? (
               <ChevronRight className="h-4 w-4 text-gray-500" />
@@ -109,7 +109,7 @@ export function Content({
             )}
           </button>
 
-          {/* Sidecar 패널 */}
+          {/* 보조 패널 */}
           <div
             className={cn(
               'border-l border-gray-200 overflow-auto',
@@ -117,11 +117,11 @@ export function Content({
               isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
             )}
             style={{
-              width: isOpen ? sidecarWidth : 0,
-              minWidth: isOpen ? sidecarWidth : 0,
+              width: isOpen ? panelWidth : 0,
+              minWidth: isOpen ? panelWidth : 0,
             }}
           >
-            {sidecar}
+            {panel}
           </div>
         </>
       )}

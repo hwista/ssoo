@@ -22,4 +22,4 @@
 ## 4) 주의할 경로 표기
 
 - 과거 경로 `apps/web/dms/docs/*` 표기가 남아 있으면 `docs/dms/*`로 교정
-- 문서 런타임 경로는 문서 정본과 분리되어 `apps/web/dms/data/documents/*` 사용
+- 문서 런타임 경로는 문서 정본과 분리되며, 기본값은 `.runtime/dms/*` 이고 배포 환경에서는 `DMS_*` override 가 우선

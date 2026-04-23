@@ -29,6 +29,7 @@ export interface SettingSection {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
+  status?: 'active' | 'planned';
   kind?: 'fields' | 'custom';
   slotKey?:
     | 'document-access'
@@ -49,6 +50,10 @@ export interface SettingSearchEntry {
   title: string;
   subtitle: string;
   score: number;
+}
+
+function isVisibleSettingSection(section: SettingSection): boolean {
+  return section.status !== 'planned';
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -158,9 +163,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
     id: 'documentAccess',
     scope: 'system',
     jsonPath: 'system.documentAccess',
-    label: '문서/폴더 권한',
+    label: '문서 운영/권한',
     icon: Shield,
-    description: '개별 사용자 기준의 문서 및 폴더 접근 권한 관리 슬롯입니다.',
+    description: '관리 가능 문서, 승인 inbox, 내 요청을 함께 운영하는 현재 기준 문서 운영 surface 입니다.',
     kind: 'custom',
     slotKey: 'document-access',
     items: [],
@@ -172,6 +177,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     label: '전체 문서/폴더 관리',
     icon: FolderOpen,
     description: '관리자 기준의 전체 문서 및 폴더 운영 관리 슬롯입니다.',
+    status: 'planned',
     kind: 'custom',
     slotKey: 'admin-documents',
     items: [],
@@ -183,6 +189,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     label: '문서 품질/스케줄러',
     icon: Workflow,
     description: '문서 품질 관리와 시스템 전역 스케줄러 관리 슬롯입니다.',
+    status: 'planned',
     kind: 'custom',
     slotKey: 'system-schedulers',
     items: [],
@@ -194,6 +201,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     label: '템플릿 마켓',
     icon: Shapes,
     description: '템플릿 마켓플레이스와 공개 템플릿 관리 슬롯입니다.',
+    status: 'planned',
     kind: 'custom',
     slotKey: 'template-marketplace',
     items: [],
@@ -204,21 +212,29 @@ export const SETTING_SECTIONS: SettingSection[] = [
     jsonPath: 'system.git',
     label: 'Git',
     icon: GitBranch,
-    description: '문서 저장소 경로와 저장소 초기화 정책을 관리합니다.',
+    description: 'system-managed markdown working tree observability 와 admin용 Git bootstrap/sync 정책을 함께 확인합니다.',
     items: [
       {
-        key: 'system.git.repositoryPath',
-        label: '문서 저장소 경로',
-        helpKey: 'system.git.repositoryPath',
-        description: '비워두면 기본 경로(data/documents)를 사용합니다.',
+        key: 'system.git.bootstrapRemoteUrl',
+        label: 'Bootstrap Remote URL',
+        helpKey: 'system.git.bootstrapRemoteUrl',
+        description: '빈 working tree일 때 clone 할 canonical Git remote URL입니다.',
         type: 'text',
-        placeholder: '~/dms-docs',
+        placeholder: 'https://git.example.com/dms/docs.git',
+      },
+      {
+        key: 'system.git.bootstrapBranch',
+        label: 'Bootstrap Branch',
+        helpKey: 'system.git.bootstrapBranch',
+        description: '빈 working tree를 clone/init 할 때 우선 사용할 branch입니다. 비워두면 remote 기본 branch를 사용합니다.',
+        type: 'text',
+        placeholder: 'main',
       },
       {
         key: 'system.git.autoInit',
         label: '저장소 자동 초기화',
         helpKey: 'system.git.autoInit',
-        description: '저장소 경로에 .git이 없으면 자동으로 git init을 수행합니다.',
+        description: 'external markdown root 가 비어 있고 .git 이 없을 때만 git init 을 수행합니다. non-empty non-git 경로는 reconcile-needed 상태로 남깁니다.',
         type: 'checkbox',
       },
     ],
@@ -229,7 +245,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     jsonPath: 'system.storage',
     label: 'Storage',
     icon: HardDrive,
-    description: 'Local/SharePoint/NAS 저장소 정책을 관리합니다.',
+    description: 'Git 비대상 binary/runtime storage roots 와 provider 정책을 관리합니다.',
     items: [
       {
         key: 'system.storage.defaultProvider',
@@ -243,9 +259,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
         key: 'system.storage.local.basePath',
         label: 'Local 기본 경로',
         helpKey: 'system.storage.local.basePath',
-        description: 'Local 저장소 루트 경로입니다.',
+        description: 'Local binary storage root 입니다. attachment/reference/image 는 이 외부 경로를 사용할 수 있습니다.',
         type: 'text',
-        placeholder: './data/storage/local',
+        placeholder: '/var/lib/ssoo/dms/storage/local',
       },
       {
         key: 'system.storage.local.enabled',
@@ -266,7 +282,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
         key: 'system.storage.sharepoint.basePath',
         label: 'SharePoint 경로',
         helpKey: 'system.storage.sharepoint.basePath',
-        description: 'SharePoint 라이브러리 경로입니다.',
+        description: 'SharePoint provider 가 사용할 library/mount 기준 경로입니다.',
         type: 'text',
         placeholder: '/sites/dms/shared-documents',
       },
@@ -289,7 +305,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
         key: 'system.storage.nas.basePath',
         label: 'NAS 경로',
         helpKey: 'system.storage.nas.basePath',
-        description: 'NAS 마운트 경로 또는 게이트웨이 기본 경로입니다.',
+        description: 'NAS provider 가 사용할 mount/gateway 기준 경로입니다.',
         type: 'text',
         placeholder: '/mnt/nas/dms',
       },
@@ -316,15 +332,15 @@ export const SETTING_SECTIONS: SettingSection[] = [
     jsonPath: 'system.ingest',
     label: 'Ingest',
     icon: Database,
-    description: '자동 수집 큐와 게시 정책을 관리합니다.',
+    description: '빌드 이미지 밖의 ingest queue 경로와 게시 정책을 관리합니다.',
     items: [
       {
         key: 'system.ingest.queuePath',
         label: '수집 큐 경로',
         helpKey: 'system.ingest.queuePath',
-        description: '수집 작업 JSON 큐 파일을 저장하는 경로입니다.',
+        description: '수집 작업 JSON 큐 파일을 저장하는 external runtime path 입니다.',
         type: 'text',
-        placeholder: './data/ingest',
+        placeholder: '/var/lib/ssoo/dms/ingest',
       },
       {
         key: 'system.ingest.autoPublish',
@@ -348,6 +364,15 @@ export const SETTING_SECTIONS: SettingSection[] = [
         },
       },
     ],
+  },
+  {
+    id: 'templates-runtime',
+    scope: 'system',
+    jsonPath: 'system.templates',
+    label: 'Template Runtime',
+    icon: FolderOpen,
+    description: '템플릿은 문서 Git 레포의 _templates/ 하위에 자동 배치됩니다 (markdownRoot 파생, 변경 불가).',
+    items: [],
   },
   {
     id: 'uploads',
@@ -709,6 +734,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     label: '공개/내 템플릿',
     icon: Shapes,
     description: '공개 템플릿과 개인 템플릿 관리 슬롯입니다.',
+    status: 'planned',
     kind: 'custom',
     slotKey: 'personal-templates',
     items: [],
@@ -720,6 +746,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     label: '내 문서/내 활동',
     icon: UserRound,
     description: '내 문서와 개인 활동 현황을 위한 슬롯입니다.',
+    status: 'planned',
     kind: 'custom',
     slotKey: 'my-activity',
     items: [],
@@ -864,7 +891,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
 ];
 
 export function getSettingSectionsByScope(scope: SettingsScope): SettingSection[] {
-  return SETTING_SECTIONS.filter((section) => section.scope === scope);
+  return SETTING_SECTIONS.filter((section) => section.scope === scope && isVisibleSettingSection(section));
 }
 
 export function getSettingSection(scope: SettingsScope, sectionId: string): SettingSection | undefined {
@@ -877,7 +904,7 @@ export function searchSettingEntries(query: string): SettingSearchEntry[] {
 
   const results: SettingSearchEntry[] = [];
 
-  SETTING_SECTIONS.forEach((section) => {
+  SETTING_SECTIONS.filter(isVisibleSettingSection).forEach((section) => {
     const scopeLabel = SETTINGS_SCOPE_LABELS[section.scope];
     const sectionScore =
       getSearchScore(normalizedQuery, section.label, section.description, scopeLabel, section.id) + 40;

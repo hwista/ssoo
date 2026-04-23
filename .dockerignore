@@ -23,6 +23,7 @@ coverage
 !**/.env.example
 
 # Runtime data / local overrides
+.runtime/
 apps/web/dms/data/
 apps/web/dms/dms.config.json
 apps/web/dms/dms.personal.config.json
@@ -32,6 +33,9 @@ apps/web/dms/dms.personal.config.json
 .gitignore
 .vscode
 .idea
+
+# Development tooling
+.hermes/
 
 # Logs
 npm-debug.log*

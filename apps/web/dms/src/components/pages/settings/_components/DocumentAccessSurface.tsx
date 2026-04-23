@@ -1,14 +1,15 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { CheckCircle2, Clock3, Inbox, Loader2, ShieldCheck, XCircle } from 'lucide-react';
-import type { DmsDocumentAccessRequestSummary } from '@ssoo/types/dms';
+import { AlertTriangle, CheckCircle2, Clock3, FileText, Inbox, Loader2, ShieldCheck, Users, XCircle } from 'lucide-react';
+import type { DmsDocumentAccessRequestSummary, DmsManagedDocumentSummary } from '@ssoo/types/dms';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
 import {
   useApproveDocumentAccessRequestMutation,
   useDocumentAccessInboxQuery,
+  useManageableDocumentsQuery,
   useMyDocumentAccessRequestsQuery,
   useRejectDocumentAccessRequestMutation,
 } from '@/hooks/queries/useDocumentAccessRequests';
@@ -83,6 +84,124 @@ function StatusBadge({ status }: { status: RequestStatus }) {
     <span className={`rounded-full border px-2 py-0.5 text-badge ${STATUS_META[status].className}`}>
       {STATUS_META[status].label}
     </span>
+  );
+}
+
+function formatVisibilityScope(scope: DmsManagedDocumentSummary['visibilityScope']) {
+  switch (scope) {
+    case 'public':
+      return '공개';
+    case 'organization':
+      return '조직 공개';
+    case 'self':
+      return '소유자 전용';
+    default:
+      return '레거시';
+  }
+}
+
+function formatSyncStatus(scope: DmsManagedDocumentSummary['syncStatusCode']) {
+  return scope === 'repair_needed' ? '메타 보정 필요' : '정상 동기화';
+}
+
+function ManagedDocumentCard({ document }: { document: DmsManagedDocumentSummary }) {
+  return (
+    <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-label-strong text-ssoo-primary">{document.documentTitle}</h3>
+            <span className="rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-2 py-0.5 text-badge text-ssoo-primary/70">
+              {formatVisibilityScope(document.visibilityScope)}
+            </span>
+            <span className={`rounded-full border px-2 py-0.5 text-badge ${document.syncStatusCode === 'repair_needed' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+              {formatSyncStatus(document.syncStatusCode)}
+            </span>
+          </div>
+          <p className="mt-1 break-all text-caption text-ssoo-primary/70">{document.path}</p>
+          <p className="mt-2 text-body-sm text-ssoo-primary/80">
+            작성자: {document.owner.displayName ?? document.owner.loginId}
+          </p>
+          <p className="mt-1 text-caption text-ssoo-primary/70">
+            업데이트: {formatDateTime(document.updatedAt)}
+          </p>
+        </div>
+        <div className="grid min-w-[180px] gap-2 text-right text-caption text-ssoo-primary/70 sm:grid-cols-2 sm:text-left">
+          <div className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
+            <p className="text-badge text-ssoo-primary/60">Pending 요청</p>
+            <p className="mt-1 text-label-strong text-ssoo-primary">{document.requestSummary.pending}</p>
+          </div>
+          <div className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
+            <p className="text-badge text-ssoo-primary/60">Active grant</p>
+            <p className="mt-1 text-label-strong text-ssoo-primary">{document.grantSummary.total - document.grantSummary.expired}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-lg border border-ssoo-content-border bg-ssoo-content-bg/20 px-4 py-3">
+          <div className="flex items-center gap-2 text-caption text-ssoo-primary/70">
+            <Users className="h-4 w-4" />
+            Grant 요약
+          </div>
+          <div className="mt-2 grid grid-cols-4 gap-2 text-center text-body-sm text-ssoo-primary/80">
+            <div>
+              <p className="text-badge text-ssoo-primary/60">읽기</p>
+              <p className="mt-1 text-label-strong text-ssoo-primary">{document.grantSummary.read}</p>
+            </div>
+            <div>
+              <p className="text-badge text-ssoo-primary/60">쓰기</p>
+              <p className="mt-1 text-label-strong text-ssoo-primary">{document.grantSummary.write}</p>
+            </div>
+            <div>
+              <p className="text-badge text-ssoo-primary/60">관리</p>
+              <p className="mt-1 text-label-strong text-ssoo-primary">{document.grantSummary.manage}</p>
+            </div>
+            <div>
+              <p className="text-badge text-ssoo-primary/60">만료</p>
+              <p className="mt-1 text-label-strong text-ssoo-primary">{document.grantSummary.expired}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-ssoo-content-border bg-ssoo-content-bg/20 px-4 py-3">
+          <div className="flex items-center gap-2 text-caption text-ssoo-primary/70">
+            <Inbox className="h-4 w-4" />
+            요청 요약
+          </div>
+          <div className="mt-2 grid grid-cols-4 gap-2 text-center text-body-sm text-ssoo-primary/80">
+            <div>
+              <p className="text-badge text-ssoo-primary/60">전체</p>
+              <p className="mt-1 text-label-strong text-ssoo-primary">{document.requestSummary.total}</p>
+            </div>
+            <div>
+              <p className="text-badge text-ssoo-primary/60">대기</p>
+              <p className="mt-1 text-label-strong text-ssoo-primary">{document.requestSummary.pending}</p>
+            </div>
+            <div>
+              <p className="text-badge text-ssoo-primary/60">승인</p>
+              <p className="mt-1 text-label-strong text-ssoo-primary">{document.requestSummary.approved}</p>
+            </div>
+            <div>
+              <p className="text-badge text-ssoo-primary/60">거절</p>
+              <p className="mt-1 text-label-strong text-ssoo-primary">{document.requestSummary.rejected}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {document.syncStatusCode === 'repair_needed' && document.repairReason && (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-body-sm text-amber-800">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">이 문서는 control-plane 메타 보정이 필요합니다.</p>
+              <p className="mt-1 break-all text-caption text-amber-700">사유: {document.repairReason}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -204,12 +323,17 @@ function RequestCard({
 }
 
 export function DocumentAccessSurface() {
+  const manageableDocumentsQuery = useManageableDocumentsQuery();
   const myRequestsQuery = useMyDocumentAccessRequestsQuery('all');
   const inboxQuery = useDocumentAccessInboxQuery({ status: 'pending' });
   const approveMutation = useApproveDocumentAccessRequestMutation();
   const rejectMutation = useRejectDocumentAccessRequestMutation();
   const [actionDrafts, setActionDrafts] = useState<Record<string, RequestActionDraft>>({});
 
+  const manageableDocuments = useMemo(
+    () => manageableDocumentsQuery.data ?? [],
+    [manageableDocumentsQuery.data],
+  );
   const myRequests = useMemo(
     () => myRequestsQuery.data ?? [],
     [myRequestsQuery.data],
@@ -220,10 +344,12 @@ export function DocumentAccessSurface() {
   );
 
   const counts = useMemo(() => ({
+    manageableDocuments: manageableDocuments.length,
+    pendingOwnedRequests: manageableDocuments.reduce((sum, document) => sum + document.requestSummary.pending, 0),
     myPending: myRequests.filter((request) => request.status === 'pending').length,
     myApproved: myRequests.filter((request) => request.status === 'approved').length,
     inbox: inboxRequests.length,
-  }), [inboxRequests.length, myRequests]);
+  }), [inboxRequests.length, manageableDocuments, myRequests]);
 
   const handleActionDraftChange = (
     requestId: string,
@@ -282,15 +408,16 @@ export function DocumentAccessSurface() {
     }
   };
 
-  if (myRequestsQuery.isLoading && inboxQuery.isLoading) {
-    return <LoadingState message="문서 권한 요청 현황을 불러오는 중입니다." className="py-16" />;
+  if (manageableDocumentsQuery.isLoading && myRequestsQuery.isLoading && inboxQuery.isLoading) {
+    return <LoadingState message="문서 권한 관리 현황을 불러오는 중입니다." className="py-16" />;
   }
 
-  if (myRequestsQuery.isError || inboxQuery.isError) {
+  if (manageableDocumentsQuery.isError || myRequestsQuery.isError || inboxQuery.isError) {
     return (
       <ErrorState
-        error={myRequestsQuery.error?.message || inboxQuery.error?.message || '문서 권한 요청 현황을 불러오지 못했습니다.'}
+        error={manageableDocumentsQuery.error?.message || myRequestsQuery.error?.message || inboxQuery.error?.message || '문서 권한 관리 현황을 불러오지 못했습니다.'}
         onRetry={() => {
+          void manageableDocumentsQuery.refetch();
           void myRequestsQuery.refetch();
           void inboxQuery.refetch();
         }}
@@ -301,19 +428,47 @@ export function DocumentAccessSurface() {
   return (
     <div className="space-y-4">
       <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
-        <p className="text-badge text-ssoo-primary/70">현재 사용 가능</p>
-        <h3 className="mt-1 text-label-strong text-ssoo-primary">문서 읽기 권한 요청/승인 inbox</h3>
+        <p className="text-badge text-ssoo-primary/70">현재 운영 중</p>
+        <h3 className="mt-1 text-label-strong text-ssoo-primary">문서 운영/권한 surface</h3>
         <p className="mt-2 text-body-sm text-ssoo-primary/80">
-          검색 discovery surface 에서 생성한 읽기 권한 요청을 DB에 저장하고, 이 화면에서 내 요청 현황과 승인
-          대기 inbox 를 확인합니다.
+          DB control-plane 기준으로 내가 관리 가능한 문서, 승인 inbox, 내가 보낸 요청을 한 화면에서 운영합니다.
         </p>
       </article>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <SummaryCard title="관리 가능 문서" value={counts.manageableDocuments} icon={<FileText className="h-5 w-5" />} />
+        <SummaryCard title="내 문서 대기 요청" value={counts.pendingOwnedRequests} icon={<Users className="h-5 w-5" />} />
+        <SummaryCard title="승인 inbox" value={counts.inbox} icon={<Inbox className="h-5 w-5" />} />
         <SummaryCard title="내 대기 요청" value={counts.myPending} icon={<Clock3 className="h-5 w-5" />} />
         <SummaryCard title="내 승인 완료" value={counts.myApproved} icon={<CheckCircle2 className="h-5 w-5" />} />
-        <SummaryCard title="승인 inbox" value={counts.inbox} icon={<Inbox className="h-5 w-5" />} />
       </div>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-label-strong text-ssoo-primary">내가 관리 가능한 문서</h3>
+            <p className="text-caption text-ssoo-primary/70">
+              owner 또는 manage grant 기준으로 내가 권한을 운영할 수 있는 문서 목록입니다.
+            </p>
+          </div>
+          {manageableDocumentsQuery.isFetching && <Loader2 className="h-4 w-4 animate-spin text-ssoo-primary/60" />}
+        </div>
+
+        {manageableDocuments.length === 0 ? (
+          <EmptyState
+            icon={<FileText className="h-10 w-10 text-ssoo-primary/40" />}
+            title="관리 가능한 문서가 없습니다"
+            description="현재 계정이 owner 또는 manage 권한으로 운영 중인 문서가 아직 없습니다."
+            className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/20"
+          />
+        ) : (
+          <div className="space-y-3">
+            {manageableDocuments.map((document) => (
+              <ManagedDocumentCard key={document.documentId} document={document} />
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">

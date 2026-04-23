@@ -1,5 +1,8 @@
 # DMS 문서 레포 동시 편집 / 자동 Publish / 사용자별 Git 반영 패턴
 
+> Historical note: 이 문서는 **2026-04-21 이전의 sidecar-era 설계 메모**를 보존합니다.
+> 현재 runtime 정본 계약은 `markdown content + DB metadata control-plane` 이며, 아래의 sidecar 언급은 historical context 로만 읽어야 합니다.
+
 > 최종 업데이트: 2026-04-17
 > 상위 문서:
 > - `docs/dms/explanation/architecture/document-repo-git-sync-pattern.md`

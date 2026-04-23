@@ -233,7 +233,6 @@ interface SettingsStore {
 
   loadSettings: () => Promise<void>;
   updateSettings: (partial: DeepPartialClient<DmsSettingsConfigClient>) => Promise<boolean>;
-  updateGitPath: (newPath: string, copyFiles: boolean) => Promise<boolean>;
 }
 ```
 

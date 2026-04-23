@@ -2,7 +2,7 @@
  * ContentService — 통합 콘텐츠 저장/로드/삭제 서비스
  *
  * FileCrudService + DocumentMetadataService + TemplateService의
- * .md + .sidecar.json CRUD를 단일 서비스로 통합.
+ * .md content + metadata projection 처리를 단일 서비스로 통합.
  *
  * 베이스: FileCrudService 패턴 (경로 검증, 에러 로깅, resilient 읽기)
  * 차용(템플릿): trailing newline, 다중 후보 경로 삭제
@@ -39,7 +39,7 @@ export interface ContentSaveOptions {
 }
 
 export interface ContentLoadOptions {
-  /** true이면 .sidecar.json이 없을 때 null 반환 (템플릿 기본 동작) */
+  /** true이면 persisted metadata source 가 없을 때 null 반환 (템플릿 기본 동작) */
   strict?: boolean;
 }
 
@@ -281,16 +281,6 @@ function normalizeRevisionSeq(value: unknown): number | undefined {
 // Utilities
 // ---------------------------------------------------------------------------
 
-function getSidecarPath(filePath: string): string {
-  const parsed = path.parse(filePath);
-  return path.join(parsed.dir, `${parsed.name}.sidecar.json`);
-}
-
-function getLegacySidecarPath(filePath: string): string {
-  const parsed = path.parse(filePath);
-  return path.join(parsed.dir, `${parsed.name}.json`);
-}
-
 function ensureDir(dirPath: string): void {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -327,23 +317,16 @@ class ContentService {
     return resolveContainedPath(rootDir, contentPath);
   }
 
-  /**
-   * .sidecar.json 경로를 반환.
-   */
-  getSidecarPath(filePath: string): string {
-    return getSidecarPath(filePath);
-  }
-
   // -------------------------------------------------------------------------
-  // Save (write .md + .sidecar.json)
+  // Save (write .md only, return normalized metadata for DB sync)
   // -------------------------------------------------------------------------
 
   /**
-   * 콘텐츠(.md)와 메타데이터(.sidecar.json)를 저장.
+   * 콘텐츠(.md)를 저장하고, DB control-plane 으로 보낼 정규화 메타데이터를 반환.
    *
    * - 경로 검증 (directory traversal 방지)
    * - 디렉토리 자동 생성
-   * - sidecar에 trailing newline 추가 (POSIX 표준, 템플릿 패턴 차용)
+   * - markdown trailing newline 보정 (POSIX 표준, 템플릿 패턴 차용)
    */
   save(
     contentPath: string,
@@ -363,10 +346,9 @@ class ContentService {
       const existingContent = existedBeforeSave && fs.existsSync(targetPath)
         ? fs.readFileSync(targetPath, 'utf-8')
         : '';
-      const existingSidecar = existedBeforeSave && isMarkdownFile(targetPath)
-        ? this.readSidecar(targetPath)
-        : null;
-      const currentRevisionSeq = normalizeRevisionSeq(existingSidecar?.['revisionSeq']) ?? 0;
+      const baseMetadata = isRecord(metadata) ? metadata : null;
+      const currentRevisionSeq = normalizeRevisionSeq(baseMetadata?.['revisionSeq'])
+        ?? 0;
 
       if (
         existedBeforeSave
@@ -381,7 +363,8 @@ class ContentService {
             expectedRevisionSeq: options.expectedRevisionSeq,
             currentRevisionSeq,
             serverContent: existingContent,
-            serverContentHash: normalizeOptionalString(existingSidecar?.['contentHash']) ?? hashContent(existingContent),
+            serverContentHash: normalizeOptionalString(baseMetadata?.['contentHash'])
+              ?? hashContent(existingContent),
             clientContentHash: hashContent(content),
           },
         };
@@ -394,11 +377,11 @@ class ContentService {
       let nextMetadata: Record<string, unknown> | null = null;
       if (!options?.skipMetadata && isMarkdownFile(targetPath)) {
         const nextRevisionSeq = existedBeforeSave ? currentRevisionSeq + 1 : 1;
-        nextMetadata = this.buildDefaultDocumentSidecar(
+        nextMetadata = this.buildDefaultDocumentMetadata(
           content,
           targetPath,
           {
-            ...(existingSidecar ?? {}),
+            ...(baseMetadata ?? {}),
             ...(metadata ?? {}),
             revisionSeq: nextRevisionSeq,
           },
@@ -406,7 +389,6 @@ class ContentService {
             defaultRevisionSeq: nextRevisionSeq,
           },
         );
-        this.writeSidecar(targetPath, nextMetadata);
       }
 
       return {
@@ -420,15 +402,14 @@ class ContentService {
   }
 
   // -------------------------------------------------------------------------
-  // Load (read .md + .sidecar.json)
+  // Load (read .md and derive transient metadata only)
   // -------------------------------------------------------------------------
 
   /**
-   * 콘텐츠(.md)와 메타데이터(.sidecar.json)를 로드.
+   * 콘텐츠(.md)를 로드하고, 저장소 파일에 의존하지 않는 in-memory metadata 를 반환.
    *
-   * - strict=false (기본, 문서 동작): sidecar 없으면 자동 생성
-   * - strict=true (템플릿 동작): sidecar 없으면 null 반환
-   * - 레거시 .json 파일 자동 마이그레이션
+   * - strict=false (기본): in-memory default metadata 반환
+   * - strict=true: persisted metadata source 가 없으므로 404 반환
    */
   load(
     contentPath: string,
@@ -451,24 +432,17 @@ class ContentService {
       let metadata: Record<string, unknown> | null = null;
 
       if (isMarkdownFile(targetPath)) {
-        metadata = this.readSidecar(targetPath);
-
-        if (!metadata && !options?.strict) {
-          // 문서 모드: sidecar 없으면 자동 생성 (resilient)
-          metadata = this.buildDefaultDocumentSidecar(
-            content,
-            targetPath,
-            undefined,
-            { defaultRevisionSeq: 0 },
-          );
-          this.writeSidecar(targetPath, metadata);
-          logger.info('사이드카 자동 생성', { path: safeRelPath });
+        if (options?.strict) {
+          logger.warn('strict 모드: persisted metadata source 없음', { path: safeRelPath });
+          return { success: false, error: 'Metadata not found', status: 404 };
         }
 
-        if (!metadata && options?.strict) {
-          logger.warn('strict 모드: 사이드카 없음', { path: safeRelPath });
-          return { success: false, error: 'Sidecar not found', status: 404 };
-        }
+        metadata = this.buildDefaultDocumentMetadata(
+          content,
+          targetPath,
+          undefined,
+          { defaultRevisionSeq: 0 },
+        );
       }
 
       return { success: true, data: { content, metadata } };
@@ -479,13 +453,11 @@ class ContentService {
   }
 
   // -------------------------------------------------------------------------
-  // Delete (remove .md + .sidecar.json)
+  // Delete (remove .md only)
   // -------------------------------------------------------------------------
 
   /**
-   * 콘텐츠(.md)와 메타데이터(.sidecar.json)를 삭제.
-   *
-   * candidatePaths가 제공되면 다중 후보 경로를 순회 (템플릿 패턴 차용).
+   * 콘텐츠(.md)를 삭제한다.
    */
   delete(
     contentPath: string,
@@ -504,12 +476,6 @@ class ContentService {
           removed = true;
           logger.info('콘텐츠 파일 삭제', { path: candidate });
         }
-
-        const sidecarPath = getSidecarPath(targetPath);
-        if (fs.existsSync(sidecarPath)) {
-          fs.unlinkSync(sidecarPath);
-          logger.info('사이드카 파일 삭제', { path: candidate });
-        }
       } catch (error) {
         logger.error('삭제 실패', error, { candidate, targetPath });
       }
@@ -524,74 +490,7 @@ class ContentService {
     };
   }
 
-  // -------------------------------------------------------------------------
-  // Sidecar I/O
-  // -------------------------------------------------------------------------
-
-  /**
-   * .sidecar.json 읽기 (레거시 .json 마이그레이션 포함).
-   */
-  readSidecar(filePath: string): Record<string, unknown> | null {
-    const sidecarPath = getSidecarPath(filePath);
-
-    if (fs.existsSync(sidecarPath)) {
-      try {
-        const raw = fs.readFileSync(sidecarPath, 'utf-8');
-        return this.normalizeDocumentSidecar(
-          filePath,
-          JSON.parse(raw) as Record<string, unknown>,
-          { defaultRevisionSeq: 0 },
-        );
-      } catch (error) {
-        logger.warn('사이드카 파싱 실패', { sidecarPath, error });
-        return null;
-      }
-    }
-
-    // 레거시 .json 마이그레이션
-    const legacyPath = getLegacySidecarPath(filePath);
-    if (fs.existsSync(legacyPath)) {
-      try {
-        const raw = fs.readFileSync(legacyPath, 'utf-8');
-        const data = this.normalizeDocumentSidecar(
-          filePath,
-          JSON.parse(raw) as Record<string, unknown>,
-          { defaultRevisionSeq: 0 },
-        );
-        // 마이그레이션: .json → .sidecar.json
-        this.writeSidecar(filePath, data);
-        fs.unlinkSync(legacyPath);
-        logger.info('레거시 사이드카 마이그레이션 완료', { legacyPath, sidecarPath });
-        return data;
-      } catch (error) {
-        logger.warn('레거시 사이드카 마이그레이션 실패', { legacyPath, error });
-        return null;
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * .sidecar.json 쓰기 (trailing newline 포함 — POSIX 표준).
-   */
-  writeSidecar(filePath: string, metadata: Record<string, unknown>): void {
-    const sidecarPath = getSidecarPath(filePath);
-    ensureDir(path.dirname(sidecarPath));
-    const content = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : undefined;
-    const normalized = this.normalizeDocumentSidecar(
-      filePath,
-      metadata,
-      { content, defaultRevisionSeq: fs.existsSync(sidecarPath) ? 0 : 1 },
-    );
-    fs.writeFileSync(
-      sidecarPath,
-      JSON.stringify(normalized, null, 2) + '\n',
-      'utf-8',
-    );
-  }
-
-  private normalizeDocumentSidecar(
+  private normalizeDocumentMetadata(
     filePath: string,
     metadata: Record<string, unknown>,
     options?: {
@@ -693,12 +592,16 @@ class ContentService {
         }];
       }) : [],
       templateId: normalizeOptionalString(metadata['templateId']) ?? 'default',
-      author: normalizeOptionalString(metadata['author']) ?? 'Unknown',
+      author: normalizeOptionalString(metadata['author'])
+        ?? normalizeOptionalString(metadata['ownerLoginId'])
+        ?? 'Unknown',
       lastModifiedBy: normalizeOptionalString(metadata['lastModifiedBy'])
         ?? normalizeOptionalString(metadata['author'])
+        ?? normalizeOptionalString(metadata['ownerLoginId'])
         ?? 'Unknown',
       ownerId: normalizeOptionalString(metadata['ownerId']) ?? acl.owners[0],
-      ownerLoginId: normalizeOptionalString(metadata['ownerLoginId']),
+      ownerLoginId: normalizeOptionalString(metadata['ownerLoginId'])
+        ?? normalizeOptionalString(metadata['author']),
     };
 
     return { ...normalized };
@@ -709,10 +612,10 @@ class ContentService {
   // -------------------------------------------------------------------------
 
   /**
-   * 문서용 기본 사이드카 메타데이터 생성.
+   * 문서용 기본 메타데이터 생성.
    * DocumentMetadataService.buildDefaultDocumentMetadata() 베이스.
    */
-  buildDefaultDocumentSidecar(
+  buildDefaultDocumentMetadata(
     content: string,
     filePath: string,
     existing?: Record<string, unknown>,
@@ -733,7 +636,7 @@ class ContentService {
       // 파일이 아직 없을 수 있음
     }
 
-    return this.normalizeDocumentSidecar(
+    return this.normalizeDocumentMetadata(
       filePath,
       {
         ...existing,
@@ -763,8 +666,8 @@ class ContentService {
         versionHistory: existing?.['versionHistory'] ?? [],
         comments: existing?.['comments'] ?? [],
         templateId: existing?.['templateId'] ?? 'default',
-        author: existing?.['author'] ?? 'Unknown',
-        lastModifiedBy: existing?.['lastModifiedBy'] ?? existing?.['author'] ?? 'Unknown',
+        author: existing?.['author'] ?? existing?.['ownerLoginId'] ?? defaults?.defaultOwnerLoginId ?? 'Unknown',
+        lastModifiedBy: existing?.['lastModifiedBy'] ?? existing?.['author'] ?? existing?.['ownerLoginId'] ?? defaults?.defaultOwnerLoginId ?? 'Unknown',
       },
       {
         content,

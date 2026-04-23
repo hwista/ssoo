@@ -320,7 +320,7 @@ import {
   DOC_PAGE_SURFACE_PRESETS,
   SectionedShell,
 } from '@/components/templates/page-frame';
-import { AiSidecar } from '@/components/pages/ai/_components/AiSidecar';
+import { AiPanel } from '@/components/pages/ai/_components/AiPanel';
 
 <PageTemplate
   filePath="ai/search"
@@ -328,7 +328,7 @@ import { AiSidecar } from '@/components/pages/ai/_components/AiSidecar';
   breadcrumbRootIconVariant="ai"
   contentOrientation="portrait"
   contentSurfaceClassName={DOC_PAGE_SURFACE_PRESETS.ai}
-  sidecarContent={<AiSidecar variant="search" />}
+  panelContent={<AiPanel variant="search" />}
 >
   <SectionedShell
     variant="search_with_toolbar"

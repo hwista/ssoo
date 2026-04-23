@@ -1,4 +1,5 @@
 import { request, type ApiResponse } from './core';
+import type { SourceFileMeta } from '@/types';
 
 export interface StorageReferenceClient {
   storageUri: string;
@@ -60,6 +61,18 @@ export const storageApi = {
     documentPath?: string;
   }): Promise<ApiResponse<StorageOpenResultClient>> => {
     return request('/api/storage/open', {
+      method: 'POST',
+      body: payload,
+    });
+  },
+
+  resync: async (payload: {
+    storageUri?: string;
+    provider?: 'local' | 'sharepoint' | 'nas';
+    path?: string;
+    documentPath: string;
+  }): Promise<ApiResponse<SourceFileMeta>> => {
+    return request('/api/storage/resync', {
       method: 'POST',
       body: payload,
     });

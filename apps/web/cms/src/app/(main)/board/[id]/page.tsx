@@ -1,10 +1,9 @@
 'use client';
 
 import { use } from 'react';
-import { BoardListPage } from '@/components/pages/board/BoardListPage';
+import { BoardDetailPage } from '@/components/pages/board/BoardDetailPage';
 
-export default function BoardDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: _id } = use(params);
-  // TODO: Board detail view with posts list
-  return <BoardListPage />;
+export default function BoardDetailRoute({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  return <BoardDetailPage boardId={id} />;
 }

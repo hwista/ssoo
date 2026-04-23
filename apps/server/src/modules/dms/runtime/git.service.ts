@@ -1,5 +1,5 @@
 /**
- * Git Service - data/documents/ 디렉토리의 Git 저장소 관리
+ * Git Service - external markdown working tree 의 Git 저장소 관리
  *
  * 역할:
  * - 서버 부트스트랩 시 자동 git init
@@ -11,9 +11,12 @@
  * - diff 조회 (git diff)
  */
 
+import fs from 'fs';
+import path from 'path';
 import { simpleGit, type SimpleGit, type StatusResult, type DefaultLogFields, type ListLogLine } from 'simple-git';
 import { createDmsLogger } from './dms-logger.js';
 import { configService } from './dms-config.service.js';
+import { isMarkdownFile } from './file-utils.js';
 import { personalSettingsService } from './personal-settings.service.js';
 
 const logger = createDmsLogger('DmsGitService');
@@ -60,15 +63,92 @@ export interface GitCommitAuthor {
   userId?: string;
 }
 
+export type GitSyncState =
+  | 'local-only'
+  | 'remote-missing'
+  | 'in-sync'
+  | 'local-ahead'
+  | 'remote-ahead'
+  | 'diverged';
+
+export type GitBindingState =
+  | 'ready'
+  | 'uninitialized'
+  | 'reconcile-needed'
+  | 'git-unavailable';
+
+export type GitRootRelation =
+  | 'exact'
+  | 'configured-subdirectory'
+  | 'not-inside-repository';
+
 export interface GitSyncStatus {
   branch: string;
   remote: string;
+  remoteUrl?: string;
   remoteRef: string;
+  remoteConfigured: boolean;
   remoteExists: boolean;
   canPushFastForward: boolean;
   remoteAhead: boolean;
   localAhead: boolean;
   diverged: boolean;
+  aheadCount: number;
+  behindCount: number;
+  state: GitSyncState;
+}
+
+export type GitBootstrapMode = 'existing' | 'init' | 'clone';
+
+export interface GitInitializeResult {
+  isNew: boolean;
+  mode: GitBootstrapMode;
+}
+
+export interface GitRemoteParityStatus {
+  remote: string;
+  verified: boolean;
+  canTreatLocalAsCanonical: boolean;
+  syncStatus?: GitSyncStatus;
+  reason?: string;
+}
+
+export interface GitPathParityStatus {
+  remote: string;
+  verified: boolean;
+  clean: boolean;
+  syncStatus?: GitSyncStatus;
+  workingTreePaths: string[];
+  localAheadPaths: string[];
+  remoteAheadPaths: string[];
+  reason?: string;
+}
+
+export interface GitRepositoryBindingStatus {
+  appRoot: string;
+  configuredRootInput: string;
+  configuredRoot: string;
+  configuredRootExists: boolean;
+  configuredRootRelativeToAppRoot: boolean;
+  actualGitRoot?: string;
+  rootRelation: GitRootRelation;
+  rootMismatch: boolean;
+  state: GitBindingState;
+  reason?: string;
+  gitAvailable: boolean;
+  isRepository: boolean;
+  hasGitMetadata: boolean;
+  visibleEntryCount: number;
+  branch?: string;
+  remoteName: string;
+  remoteUrl?: string;
+  syncState: GitSyncState | 'unavailable';
+  syncStatus?: GitSyncStatus;
+  parityStatus: GitRemoteParityStatus;
+  bootstrapRemoteUrl?: string;
+  bootstrapBranch?: string;
+  autoInit: boolean;
+  reconcileRequired: boolean;
 }
 
 // ============================================================================
@@ -82,6 +162,7 @@ class GitService {
 
   constructor() {
     this.docDir = configService.getDocDir();
+    fs.mkdirSync(this.docDir, { recursive: true });
     this.git = simpleGit(this.docDir);
   }
 
@@ -90,6 +171,7 @@ class GitService {
    */
   reconfigure(newPath: string): void {
     this.docDir = newPath;
+    fs.mkdirSync(this.docDir, { recursive: true });
     this.git = simpleGit(newPath);
     this.initialized = false;
     logger.info('Git 저장소 경로 재설정', { path: newPath });
@@ -101,41 +183,84 @@ class GitService {
 
   /**
    * Git 저장소 초기화 (서버 시작 시 1회 호출)
-   * - .git이 없으면 git init + 초기 커밋
-   * - .git이 있으면 그대로 사용
-   * - Git이 설치되지 않은 환경에서는 graceful degradation
+   * - empty working tree + bootstrapRemoteUrl 이 있으면 clone
+   * - truly empty working tree 에서만 git init + 초기 커밋
+   * - non-empty + non-git root 는 reconcile 필요 상태로 간주하고 실패 반환
+   * - .git이 있으면 그대로 사용하되 origin remote 는 bootstrap 설정과 reconcile
    */
-  async initialize(): Promise<GitResult<{ isNew: boolean }>> {
+  async initialize(): Promise<GitResult<GitInitializeResult>> {
     if (this.initialized) {
-      return { success: true, data: { isNew: false } };
+      return { success: true, data: { isNew: false, mode: 'existing' } };
     }
 
     try {
-      // Git 사용 가능 여부 확인
-      await this.git.version();
+      await simpleGit().version();
     } catch {
       logger.warn('Git이 설치되지 않았습니다. 히스토리 기능이 비활성화됩니다.');
       return { success: false, error: 'Git not available' };
     }
 
     try {
+      this.ensureDocDirExists();
+      this.git = simpleGit(this.docDir);
       const isRepo = await this.git.checkIsRepo();
+      const bootstrapRemoteUrl = configService.getGitBootstrapRemoteUrl();
+      const bootstrapBranch = configService.getGitBootstrapBranch();
+      const workingTreeEntries = this.listWorkingTreeEntries();
+      const visibleEntries = workingTreeEntries.filter((entry) => entry !== '.git');
+      const isEmptyWorkingTree = workingTreeEntries.length === 0;
 
       if (!isRepo) {
-        // 신규 초기화
+        const shouldClone = Boolean(bootstrapRemoteUrl) && isEmptyWorkingTree;
+        if (shouldClone && bootstrapRemoteUrl) {
+          await this.cloneBootstrapRepository(bootstrapRemoteUrl, bootstrapBranch);
+          await this.ensureConfiguredRemote(bootstrapRemoteUrl);
+          await this.configureGit();
+          this.initialized = true;
+          logger.info('Document Git 저장소 bootstrap clone 완료', {
+            remote: bootstrapRemoteUrl,
+            branch: bootstrapBranch ?? '(default)',
+          });
+          return { success: true, data: { isNew: true, mode: 'clone' } };
+        }
+
+        if (!isEmptyWorkingTree) {
+          const error = bootstrapRemoteUrl
+            ? 'Configured document root is non-empty but not a Git repository; reconcile is required before bootstrap clone.'
+            : 'Configured document root is non-empty but not a Git repository; reconcile is required before Git initialization.';
+          logger.warn('Document Git 저장소 bootstrap 보류 (reconcile 필요)', {
+            root: this.docDir,
+            remoteConfigured: Boolean(bootstrapRemoteUrl),
+            hasGitMetadata: workingTreeEntries.includes('.git'),
+            visibleEntryCount: visibleEntries.length,
+          });
+          return { success: false, error };
+        }
+
+        if (!configService.getAutoInit()) {
+          return { success: false, error: 'Git auto initialization is disabled' };
+        }
+
         await this.git.init();
         await this.configureGit();
-        await this.git.add('.');
-        await this.git.commit('Initial commit: document repository initialized');
+        await this.ensureConfiguredRemote(bootstrapRemoteUrl);
+        await this.ensureInitialCommit();
+        await this.ensurePreferredBranch(bootstrapBranch);
         this.initialized = true;
-        logger.info('Document Git 저장소 초기화 완료 (신규)');
-        return { success: true, data: { isNew: true } };
+        logger.info('Document Git 저장소 초기화 완료 (신규)', {
+          branch: bootstrapBranch ?? '(git default)',
+          remote: bootstrapRemoteUrl ?? '(none)',
+        });
+        return { success: true, data: { isNew: true, mode: 'init' } };
       }
 
-      // 기존 저장소
+      await this.ensureConfiguredRemote(bootstrapRemoteUrl);
+      await this.configureGit();
       this.initialized = true;
-      logger.info('Document Git 저장소 연결 (기존)');
-      return { success: true, data: { isNew: false } };
+      logger.info('Document Git 저장소 연결 (기존)', {
+        remote: bootstrapRemoteUrl ?? '(preserve-existing)',
+      });
+      return { success: true, data: { isNew: false, mode: 'existing' } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Git 초기화 실패', error);
@@ -152,6 +277,66 @@ class GitService {
     } catch {
       // 이미 설정된 경우 무시
     }
+  }
+
+  private ensureDocDirExists(): void {
+    fs.mkdirSync(this.docDir, { recursive: true });
+  }
+
+  private listWorkingTreeEntries(): string[] {
+    return this.listWorkingTreeEntriesAt(this.docDir);
+  }
+
+  private listWorkingTreeEntriesAt(rootPath: string): string[] {
+    try {
+      return fs.readdirSync(rootPath);
+    } catch {
+      return [];
+    }
+  }
+
+  private async cloneBootstrapRepository(remoteUrl: string, branch?: string): Promise<void> {
+    fs.mkdirSync(path.dirname(this.docDir), { recursive: true });
+    const cloneArgs = branch
+      ? ['--branch', branch, '--single-branch']
+      : [];
+
+    await simpleGit().clone(remoteUrl, this.docDir, cloneArgs);
+    this.git = simpleGit(this.docDir);
+  }
+
+  private async ensureConfiguredRemote(remoteUrl?: string): Promise<void> {
+    if (!remoteUrl) {
+      return;
+    }
+
+    const remotes = await this.git.getRemotes(true);
+    const origin = remotes.find((remote) => remote.name === 'origin');
+    if (!origin) {
+      await this.git.addRemote('origin', remoteUrl);
+      return;
+    }
+
+    if (origin.refs.fetch !== remoteUrl || origin.refs.push !== remoteUrl) {
+      await this.git.raw(['remote', 'set-url', 'origin', remoteUrl]);
+    }
+  }
+
+  private async ensureInitialCommit(): Promise<void> {
+    await this.git.add('.');
+    await this.git.commit(
+      'Initial commit: document repository initialized',
+      undefined,
+      { '--allow-empty': null },
+    );
+  }
+
+  private async ensurePreferredBranch(branch?: string): Promise<void> {
+    if (!branch) {
+      return;
+    }
+
+    await this.git.raw(['branch', '-M', branch]);
   }
 
   /** Git 사용 가능 여부 */
@@ -223,23 +408,19 @@ class GitService {
   ): Promise<GitResult<{ hash: string }>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
-    try {
-      await this.git.add('.');
-
-      const commitMessage = this.buildCommitMessage(message, footerLines);
-      const authorArgs = this.buildCommitAuthorArgs(author);
-      const result = authorArgs
-        ? await this.git.commit(commitMessage, undefined, authorArgs)
-        : await this.git.commit(commitMessage);
-      const hash = result.commit || 'unknown';
-
-      logger.info('Git 커밋 완료', { hash, message });
-      return { success: true, data: { hash } };
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Git 커밋 실패', error);
-      return { success: false, error: msg };
+    const changesResult = await this.getChanges();
+    if (!changesResult.success) {
+      return { success: false, error: changesResult.error };
     }
+
+    const changedFiles = this.filterGitManagedPaths(
+      changesResult.data.flatMap((change) => [change.path, change.oldPath].filter((item): item is string => Boolean(item))),
+    );
+    if (changedFiles.length === 0) {
+      return { success: false, error: 'No markdown changes to commit' };
+    }
+
+    return this.commitFiles(changedFiles, message, author, footerLines);
   }
 
   /**
@@ -253,16 +434,13 @@ class GitService {
   ): Promise<GitResult<{ hash: string }>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
 
-    try {
-      // .sidecar.json 파일도 함께 스테이징
-      const filesToAdd: string[] = [];
-      for (const file of files) {
-        filesToAdd.push(file);
-        const sidecarPath = file.replace(/\.md$/, '.sidecar.json');
-        filesToAdd.push(sidecarPath);
-      }
+    const normalizedFiles = this.filterGitManagedPaths(files);
+    if (normalizedFiles.length === 0) {
+      return { success: false, error: 'No markdown Git-managed files provided' };
+    }
 
-      await this.git.raw(['add', '-A', '--', ...filesToAdd]);
+    try {
+      await this.git.raw(['add', '-A', '--', ...normalizedFiles]);
 
       const commitMessage = this.buildCommitMessage(message, footerLines);
       const authorArgs = this.buildCommitAuthorArgs(author);
@@ -271,7 +449,7 @@ class GitService {
         : await this.git.commit(commitMessage);
       const hash = result.commit || 'unknown';
 
-      logger.info('Git 파일 커밋 완료', { hash, files, message });
+      logger.info('Git 파일 커밋 완료', { hash, files: normalizedFiles, message });
       return { success: true, data: { hash } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
@@ -298,15 +476,9 @@ class GitService {
       if (isUntracked) {
         // untracked/created 파일은 git clean으로 제거
         await this.git.clean('f', [filePath]);
-        // sidecar도 제거
-        const sidecarPath = filePath.replace(/\.md$/, '.sidecar.json');
-        try { await this.git.clean('f', [sidecarPath]); } catch { /* 없으면 무시 */ }
       } else {
         // tracked 파일은 checkout으로 복원
         await this.git.checkout(['--', filePath]);
-        // sidecar도 복원 시도
-        const sidecarPath = filePath.replace(/\.md$/, '.sidecar.json');
-        try { await this.git.checkout(['--', sidecarPath]); } catch { /* 없으면 무시 */ }
       }
 
       logger.info('Git 변경 취소', { filePath, isUntracked });
@@ -456,7 +628,179 @@ class GitService {
 
   /** .sidecar.json 파일 필터링 */
   private shouldInclude(filePath: string): boolean {
-    return !filePath.endsWith('.sidecar.json');
+    return isMarkdownFile(this.normalizeGitPath(filePath));
+  }
+
+  private filterGitManagedPaths(paths: string[]): string[] {
+    return Array.from(new Set(
+      paths
+        .map((item) => this.normalizeGitPath(item))
+        .filter((item) => this.shouldInclude(item)),
+    ));
+  }
+
+  private async isGitBinaryAvailable(): Promise<boolean> {
+    try {
+      await simpleGit().version();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async resolveCurrentBranchWithGit(git: SimpleGit): Promise<GitResult<string>> {
+    try {
+      const branch = await git.branchLocal();
+      const current = branch.current?.trim();
+      if (!current) {
+        return { success: false, error: 'Git branch lookup failed' };
+      }
+      return { success: true, data: current };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Git branch lookup failed' };
+    }
+  }
+
+  private async resolveRemoteDetails(
+    git: SimpleGit,
+    remote: string,
+  ): Promise<{ remoteConfigured: boolean; remoteUrl?: string }> {
+    const remotes = await git.getRemotes(true);
+    const entry = remotes.find((candidate) => candidate.name === remote);
+    return {
+      remoteConfigured: Boolean(entry),
+      remoteUrl: entry?.refs.push || entry?.refs.fetch || undefined,
+    };
+  }
+
+  private computeSyncState(input: {
+    remoteConfigured: boolean;
+    remoteExists: boolean;
+    aheadCount: number;
+    behindCount: number;
+  }): GitSyncState {
+    if (!input.remoteConfigured) {
+      return 'local-only';
+    }
+    if (!input.remoteExists) {
+      return 'remote-missing';
+    }
+    if (input.aheadCount > 0 && input.behindCount > 0) {
+      return 'diverged';
+    }
+    if (input.behindCount > 0) {
+      return 'remote-ahead';
+    }
+    if (input.aheadCount > 0) {
+      return 'local-ahead';
+    }
+    return 'in-sync';
+  }
+
+  private buildParityStatus(
+    remote: string,
+    syncStatus?: GitSyncStatus,
+    reason?: string,
+  ): GitRemoteParityStatus {
+    if (!syncStatus) {
+      return {
+        remote,
+        verified: false,
+        canTreatLocalAsCanonical: false,
+        reason,
+      };
+    }
+
+    if (!syncStatus.remoteConfigured) {
+      return {
+        remote,
+        verified: false,
+        canTreatLocalAsCanonical: false,
+        syncStatus,
+        reason: reason ?? `PARITY_UNAVAILABLE: remote '${remote}' is not configured`,
+      };
+    }
+
+    if (!syncStatus.remoteExists) {
+      return {
+        remote,
+        verified: false,
+        canTreatLocalAsCanonical: false,
+        syncStatus,
+        reason: reason ?? `PARITY_UNAVAILABLE: remote branch ${syncStatus.remoteRef} does not exist`,
+      };
+    }
+
+    if (!syncStatus.canPushFastForward) {
+      return {
+        remote,
+        verified: true,
+        canTreatLocalAsCanonical: false,
+        syncStatus,
+        reason: reason ?? this.buildSyncBlockedReason(syncStatus),
+      };
+    }
+
+    return {
+      remote,
+      verified: true,
+      canTreatLocalAsCanonical: true,
+      syncStatus,
+      reason,
+    };
+  }
+
+  private buildSyncBlockedReason(sync: GitSyncStatus): string {
+    if (sync.diverged) {
+      return `SYNC_BLOCKED: local HEAD diverged from ${sync.remoteRef} (local +${sync.aheadCount}, remote +${sync.behindCount})`;
+    }
+    if (sync.remoteAhead) {
+      return `SYNC_BLOCKED: remote branch ${sync.remoteRef} is ahead of local HEAD by ${sync.behindCount} commit(s)`;
+    }
+    return `SYNC_BLOCKED: local HEAD cannot fast-forward ${sync.remoteRef}`;
+  }
+
+  private normalizeGitPath(pathValue: string): string {
+    return pathValue.trim().replace(/\\/g, '/');
+  }
+
+  private pathsOverlap(left: string, right: string): boolean {
+    return left === right
+      || left.startsWith(`${right}/`)
+      || right.startsWith(`${left}/`);
+  }
+
+  private parseGitPathList(raw: string): string[] {
+    return Array.from(new Set(
+      raw
+        .split(/\r?\n/)
+        .map((item) => this.normalizeGitPath(item))
+        .filter(Boolean),
+    ));
+  }
+
+  private buildPathParityReason(status: Omit<GitPathParityStatus, 'reason'>): string | undefined {
+    if (status.remoteAheadPaths.length > 0) {
+      return `PATH_SYNC_BLOCKED: remote changes pending for ${this.summarizePaths(status.remoteAheadPaths)}`;
+    }
+
+    if (status.localAheadPaths.length > 0) {
+      return `PATH_PENDING_LOCAL: local commits not yet published for ${this.summarizePaths(status.localAheadPaths)}`;
+    }
+
+    if (status.workingTreePaths.length > 0) {
+      return `PATH_DIRTY: uncommitted changes remain for ${this.summarizePaths(status.workingTreePaths)}`;
+    }
+
+    return undefined;
+  }
+
+  private summarizePaths(paths: string[]): string {
+    if (paths.length <= 2) {
+      return paths.join(', ');
+    }
+
+    return `${paths.slice(0, 2).join(', ')} (+${paths.length - 2} more)`;
   }
 
   private buildCommitAuthorArgs(author?: string | GitCommitAuthor): Record<string, string> | undefined {
@@ -476,6 +820,234 @@ class GitService {
     return `${message}\n\n${footerLines.join('\n')}`;
   }
 
+  private async inspectSyncStatusWithGit(
+    git: SimpleGit,
+    remote = 'origin',
+    branchHint?: string,
+  ): Promise<GitResult<GitSyncStatus>> {
+    const branchResult = branchHint
+      ? { success: true as const, data: branchHint }
+      : await this.resolveCurrentBranchWithGit(git);
+    if (!branchResult.success) {
+      return branchResult as GitResult<GitSyncStatus>;
+    }
+
+    const branch = branchResult.data;
+    try {
+      const remoteRef = `${remote}/${branch}`;
+      const remoteDetails = await this.resolveRemoteDetails(git, remote);
+      if (!remoteDetails.remoteConfigured) {
+        return {
+          success: true,
+          data: {
+            branch,
+            remote,
+            remoteUrl: remoteDetails.remoteUrl,
+            remoteRef,
+            remoteConfigured: false,
+            remoteExists: false,
+            canPushFastForward: true,
+            remoteAhead: false,
+            localAhead: false,
+            diverged: false,
+            aheadCount: 0,
+            behindCount: 0,
+            state: 'local-only',
+          },
+        };
+      }
+
+      await git.fetch(remote);
+
+      let remoteExists = true;
+      try {
+        await git.raw(['rev-parse', '--verify', remoteRef]);
+      } catch {
+        remoteExists = false;
+      }
+
+      if (!remoteExists) {
+        return {
+          success: true,
+          data: {
+            branch,
+            remote,
+            remoteUrl: remoteDetails.remoteUrl,
+            remoteRef,
+            remoteConfigured: true,
+            remoteExists: false,
+            canPushFastForward: true,
+            remoteAhead: false,
+            localAhead: false,
+            diverged: false,
+            aheadCount: 0,
+            behindCount: 0,
+            state: 'remote-missing',
+          },
+        };
+      }
+
+      const countsRaw = await git.raw(['rev-list', '--left-right', '--count', `${remoteRef}...HEAD`]);
+      const [behindText, aheadText] = countsRaw.trim().split(/\s+/);
+      const aheadCount = Number.parseInt(aheadText ?? '0', 10) || 0;
+      const behindCount = Number.parseInt(behindText ?? '0', 10) || 0;
+      return {
+        success: true,
+        data: {
+          branch,
+          remote,
+          remoteUrl: remoteDetails.remoteUrl,
+          remoteRef,
+          remoteConfigured: true,
+          remoteExists: true,
+          canPushFastForward: behindCount === 0,
+          remoteAhead: behindCount > 0,
+          localAhead: aheadCount > 0,
+          diverged: aheadCount > 0 && behindCount > 0,
+          aheadCount,
+          behindCount,
+          state: this.computeSyncState({
+            remoteConfigured: true,
+            remoteExists: true,
+            aheadCount,
+            behindCount,
+          }),
+        },
+      };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Git sync inspection failed' };
+    }
+  }
+
+  async getRepositoryBindingStatus(remote = 'origin'): Promise<GitResult<GitRepositoryBindingStatus>> {
+    const rootBinding = configService.getDocumentRootBinding();
+    const configuredRoot = rootBinding.resolvedPath;
+    const configuredRootExists = fs.existsSync(configuredRoot);
+    const workingTreeEntries = configuredRootExists ? this.listWorkingTreeEntriesAt(configuredRoot) : [];
+    const visibleEntries = workingTreeEntries.filter((entry) => entry !== '.git');
+    const hasGitMetadata = workingTreeEntries.includes('.git');
+    const bootstrapRemoteUrl = configService.getGitBootstrapRemoteUrl();
+    const bootstrapBranch = configService.getGitBootstrapBranch();
+    const autoInit = configService.getAutoInit();
+    const gitAvailable = await this.isGitBinaryAvailable();
+
+    const baseBinding: Omit<GitRepositoryBindingStatus, 'state' | 'parityStatus' | 'syncState'> = {
+      appRoot: rootBinding.appRoot,
+      configuredRootInput: rootBinding.effectiveInput,
+      configuredRoot,
+      configuredRootExists,
+      configuredRootRelativeToAppRoot: rootBinding.relativeToAppRoot,
+      actualGitRoot: undefined,
+      rootRelation: 'not-inside-repository',
+      rootMismatch: false,
+      reason: undefined,
+      gitAvailable,
+      isRepository: false,
+      hasGitMetadata,
+      visibleEntryCount: visibleEntries.length,
+      branch: undefined,
+      remoteName: remote,
+      remoteUrl: undefined,
+      syncStatus: undefined,
+      bootstrapRemoteUrl,
+      bootstrapBranch,
+      autoInit,
+      reconcileRequired: false,
+    };
+
+    if (!gitAvailable) {
+      return {
+        success: true,
+        data: {
+          ...baseBinding,
+          state: 'git-unavailable',
+          syncState: 'unavailable',
+          parityStatus: this.buildParityStatus(remote, undefined, 'PARITY_UNAVAILABLE: Git not available'),
+          reason: 'Git not available',
+        },
+      };
+    }
+
+    const git = simpleGit(configuredRoot);
+    let isRepository = false;
+    try {
+      isRepository = configuredRootExists ? await git.checkIsRepo() : false;
+    } catch {
+      isRepository = false;
+    }
+
+    if (!isRepository) {
+      const reconcileRequired = visibleEntries.length > 0;
+      const reason = reconcileRequired
+        ? (
+          bootstrapRemoteUrl
+            ? 'Configured root is non-empty but not a Git repository; reconcile is required before bootstrap clone.'
+            : 'Configured root is non-empty but not a Git repository; reconcile is required before Git initialization.'
+        )
+        : (
+          bootstrapRemoteUrl
+            ? 'Configured root is empty; runtime will bootstrap clone on initialization.'
+            : (
+              autoInit
+                ? 'Configured root is empty; runtime will initialize a local Git repository on demand.'
+                : 'Git auto initialization is disabled for this configured root.'
+            )
+        );
+
+      return {
+        success: true,
+        data: {
+          ...baseBinding,
+          state: reconcileRequired ? 'reconcile-needed' : 'uninitialized',
+          syncState: 'unavailable',
+          parityStatus: this.buildParityStatus(remote, undefined, `PARITY_UNAVAILABLE: ${reason}`),
+          reason,
+          reconcileRequired,
+        },
+      };
+    }
+
+    let actualGitRoot: string | undefined;
+    try {
+      actualGitRoot = (await git.raw(['rev-parse', '--show-toplevel'])).trim() || undefined;
+    } catch {
+      actualGitRoot = undefined;
+    }
+
+    const remoteDetails = await this.resolveRemoteDetails(git, remote);
+    const branchResult = await this.resolveCurrentBranchWithGit(git);
+    const syncResult = branchResult.success
+      ? await this.inspectSyncStatusWithGit(git, remote, branchResult.data)
+      : { success: false as const, error: branchResult.error };
+    const parityStatus = syncResult.success
+      ? this.buildParityStatus(remote, syncResult.data)
+      : this.buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${syncResult.error}`);
+
+    return {
+      success: true,
+      data: {
+        ...baseBinding,
+        actualGitRoot,
+        rootRelation: !actualGitRoot
+          ? 'not-inside-repository'
+          : path.resolve(actualGitRoot) === configuredRoot
+            ? 'exact'
+            : 'configured-subdirectory',
+        rootMismatch: Boolean(actualGitRoot && path.resolve(actualGitRoot) !== configuredRoot),
+        state: 'ready',
+        reason: actualGitRoot && path.resolve(actualGitRoot) !== configuredRoot
+          ? `Configured root is nested under actual Git root ${actualGitRoot}`
+          : undefined,
+        isRepository: true,
+        branch: branchResult.success ? branchResult.data : undefined,
+        remoteUrl: syncResult.success ? syncResult.data.remoteUrl : remoteDetails.remoteUrl,
+        syncState: syncResult.success ? syncResult.data.state : 'unavailable',
+        syncStatus: syncResult.success ? syncResult.data : undefined,
+        parityStatus,
+      },
+    };
+  }
+
   async fetch(remote = 'origin'): Promise<GitResult<{ remote: string }>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
     try {
@@ -488,25 +1060,23 @@ class GitService {
 
   async getCurrentBranch(): Promise<GitResult<string>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
-    try {
-      const branch = await this.git.branchLocal();
-      return { success: true, data: branch.current };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Git branch lookup failed' };
-    }
+    return this.resolveCurrentBranchWithGit(this.git);
   }
 
   async publishCurrentBranch(remote = 'origin'): Promise<GitResult<{ remote: string; branch: string }>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
-    const syncResult = await this.inspectSyncStatus(remote);
-    if (!syncResult.success) return syncResult as GitResult<{ remote: string; branch: string }>;
-    const sync = syncResult.data;
+    const parityResult = await this.inspectRemoteParity(remote);
+    if (!parityResult.success) return parityResult as GitResult<{ remote: string; branch: string }>;
+    const parity = parityResult.data;
+    if (!parity.canTreatLocalAsCanonical) {
+      return { success: false, error: parity.reason ?? `PARITY_CHECK_FAILED: publish parity unavailable for ${remote}` };
+    }
+    const sync = parity.syncStatus;
+    if (!sync) {
+      return { success: false, error: `PARITY_CHECK_FAILED: sync status unavailable for ${remote}` };
+    }
 
     try {
-      if (sync.remoteExists && !sync.canPushFastForward) {
-        return { success: false, error: `SYNC_BLOCKED: remote branch ${sync.remoteRef} is ahead of local HEAD` };
-      }
-
       await this.git.push(remote, sync.branch);
       return { success: true, data: { remote, branch: sync.branch } };
     } catch (error) {
@@ -514,59 +1084,148 @@ class GitService {
     }
   }
 
-  async inspectSyncStatus(remote = 'origin'): Promise<GitResult<GitSyncStatus>> {
-    if (!this.initialized) return { success: false, error: 'Git not initialized' };
-    const branchResult = await this.getCurrentBranch();
-    if (!branchResult.success) return branchResult as GitResult<GitSyncStatus>;
-    const branch = branchResult.data;
-    const fetchResult = await this.fetch(remote);
-    if (!fetchResult.success) return fetchResult as GitResult<GitSyncStatus>;
+  async inspectRemoteParity(remote = 'origin'): Promise<GitResult<GitRemoteParityStatus>> {
+    if (!this.initialized) {
+      return { success: true, data: this.buildParityStatus(remote, undefined, 'PARITY_UNAVAILABLE: Git not initialized') };
+    }
 
-    try {
-      const remoteRef = `${remote}/${branch}`;
-      let remoteExists = true;
-      try {
-        await this.git.raw(['rev-parse', '--verify', remoteRef]);
-      } catch {
-        remoteExists = false;
-      }
+    const syncResult = await this.inspectSyncStatus(remote);
+    if (!syncResult.success) {
+      return { success: true, data: this.buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${syncResult.error}`) };
+    }
 
-      if (!remoteExists) {
-        return {
-          success: true,
-          data: {
-            branch,
-            remote,
-            remoteRef,
-            remoteExists: false,
-            canPushFastForward: true,
-            remoteAhead: false,
-            localAhead: true,
-            diverged: false,
-          },
-        };
-      }
+    return { success: true, data: this.buildParityStatus(remote, syncResult.data) };
+  }
 
-      const countsRaw = await this.git.raw(['rev-list', '--left-right', '--count', `${remoteRef}...HEAD`]);
-      const [behindText, aheadText] = countsRaw.trim().split(/\s+/);
-      const ahead = Number.parseInt(aheadText ?? '0', 10) || 0;
-      const behind = Number.parseInt(behindText ?? '0', 10) || 0;
+  async inspectPathParity(paths: string[], remote = 'origin'): Promise<GitResult<GitPathParityStatus>> {
+    const normalizedPaths = this.filterGitManagedPaths(paths);
+    if (normalizedPaths.length === 0) {
       return {
         success: true,
         data: {
-          branch,
           remote,
-          remoteRef,
-          remoteExists: true,
-          canPushFastForward: behind === 0,
-          remoteAhead: behind > 0,
-          localAhead: ahead > 0,
-          diverged: ahead > 0 && behind > 0,
+          verified: true,
+          clean: true,
+          workingTreePaths: [],
+          localAheadPaths: [],
+          remoteAheadPaths: [],
+        },
+      };
+    }
+
+    if (!this.initialized) {
+      return {
+        success: true,
+        data: {
+          remote,
+          verified: false,
+          clean: false,
+          workingTreePaths: [],
+          localAheadPaths: [],
+          remoteAheadPaths: [],
+          reason: 'PARITY_UNAVAILABLE: Git not initialized',
+        },
+      };
+    }
+
+    const syncResult = await this.inspectSyncStatus(remote);
+    if (!syncResult.success) {
+      return {
+        success: true,
+        data: {
+          remote,
+          verified: false,
+          clean: false,
+          workingTreePaths: [],
+          localAheadPaths: [],
+          remoteAheadPaths: [],
+          reason: `PARITY_CHECK_FAILED: ${syncResult.error}`,
+        },
+      };
+    }
+
+    const syncStatus = syncResult.data;
+    if (!syncStatus.remoteConfigured) {
+      return {
+        success: true,
+        data: {
+          remote,
+          verified: false,
+          clean: false,
+          syncStatus,
+          workingTreePaths: [],
+          localAheadPaths: [],
+          remoteAheadPaths: [],
+          reason: `PARITY_UNAVAILABLE: remote '${remote}' is not configured`,
+        },
+      };
+    }
+
+    if (!syncStatus.remoteExists) {
+      return {
+        success: true,
+        data: {
+          remote,
+          verified: false,
+          clean: false,
+          syncStatus,
+          workingTreePaths: [],
+          localAheadPaths: [],
+          remoteAheadPaths: [],
+          reason: `PARITY_UNAVAILABLE: remote branch ${syncStatus.remoteRef} does not exist`,
+        },
+      };
+    }
+
+    const changesResult = await this.getChanges();
+    if (!changesResult.success) {
+      return { success: false, error: changesResult.error };
+    }
+
+    try {
+      const workingTreePaths = Array.from(new Set(
+        changesResult.data
+          .flatMap((change) => [change.path, change.oldPath].filter((item): item is string => Boolean(item)))
+          .map((item) => this.normalizeGitPath(item))
+          .filter((candidate) => normalizedPaths.some((scope) => this.pathsOverlap(candidate, scope))),
+      ));
+      const localAheadPaths = this.parseGitPathList(
+        await this.git.raw(['diff', '--name-only', `${syncStatus.remoteRef}..HEAD`, '--', ...normalizedPaths]),
+      );
+      const remoteAheadPaths = this.parseGitPathList(
+        await this.git.raw(['diff', '--name-only', `HEAD..${syncStatus.remoteRef}`, '--', ...normalizedPaths]),
+      );
+      const clean = workingTreePaths.length === 0 && localAheadPaths.length === 0 && remoteAheadPaths.length === 0;
+
+      return {
+        success: true,
+        data: {
+          remote,
+          verified: true,
+          clean,
+          syncStatus,
+          workingTreePaths,
+          localAheadPaths,
+          remoteAheadPaths,
+          reason: clean ? undefined : this.buildPathParityReason({
+            remote,
+            verified: true,
+            clean,
+            syncStatus,
+            workingTreePaths,
+            localAheadPaths,
+            remoteAheadPaths,
+          }),
         },
       };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Git sync inspection failed' };
+      return { success: false, error: error instanceof Error ? error.message : 'Git path parity inspection failed' };
     }
+  }
+
+  async inspectSyncStatus(remote = 'origin'): Promise<GitResult<GitSyncStatus>> {
+    if (!this.initialized) return { success: false, error: 'Git not initialized' };
+    return this.inspectSyncStatusWithGit(this.git, remote);
   }
 }
 

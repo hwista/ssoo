@@ -17,6 +17,18 @@ services:
       timeout: 5s
       retries: 20
 
+  db-init:
+    build:
+      context: .
+      dockerfile: docker/db-init.Dockerfile
+    container_name: ssoo-db-init
+    environment:
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   server:
     build:
       context: .
@@ -34,12 +46,18 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-development-jwt-refresh-secret-change-me}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      DMS_MARKDOWN_ROOT: ${DMS_MARKDOWN_ROOT:-/var/lib/ssoo/dms/documents}
+      DMS_INGEST_QUEUE_PATH: ${DMS_INGEST_QUEUE_PATH:-/var/lib/ssoo/dms/ingest}
+      DMS_STORAGE_LOCAL_BASE_PATH: ${DMS_STORAGE_LOCAL_BASE_PATH:-/var/lib/ssoo/dms/storage/local}
+      DMS_STORAGE_SHAREPOINT_BASE_PATH: ${DMS_STORAGE_SHAREPOINT_BASE_PATH:-/sites/dms/shared-documents}
+      DMS_STORAGE_NAS_BASE_PATH: ${DMS_STORAGE_NAS_BASE_PATH:-/mnt/nas/dms}
     volumes:
-      - dms-data:/app/apps/web/dms/data
-      - /home/a0122024330/src/lswiki-docs:/app/apps/web/dms/data/documents
+      - ${DMS_MARKDOWN_HOST_PATH:-./.runtime/dms/documents}:${DMS_MARKDOWN_ROOT:-/var/lib/ssoo/dms/documents}
+      - ${DMS_INGEST_HOST_PATH:-./.runtime/dms/ingest}:${DMS_INGEST_QUEUE_PATH:-/var/lib/ssoo/dms/ingest}
+      - ${DMS_STORAGE_LOCAL_HOST_PATH:-./.runtime/dms/storage/local}:${DMS_STORAGE_LOCAL_BASE_PATH:-/var/lib/ssoo/dms/storage/local}
     depends_on:
-      postgres:
-        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -131,9 +149,6 @@ services:
       DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
       DMS_DATABASE_URL: ${DOCKER_DMS_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
       DMS_SERVER_API_URL: ${DMS_SERVER_API_URL:-http://server:4000/api}
-    volumes:
-      - dms-data:/app/apps/web/dms/data
-      - /home/a0122024330/src/lswiki-docs:/app/apps/web/dms/data/documents
     depends_on:
       postgres:
         condition: service_healthy
@@ -153,4 +168,3 @@ services:
 
 volumes:
   ssoo-postgres-data:
-  dms-data:

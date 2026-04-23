@@ -4,11 +4,14 @@ import type {
   SettingsProfileKey,
   SettingsScope,
 } from '@/types/settings';
+import type { GitSyncStatusClient } from './collaborationApi';
 import { request, type ApiResponse } from './core';
 
 export interface DmsSystemConfigClient {
   git: {
     repositoryPath: string;
+    bootstrapRemoteUrl?: string;
+    bootstrapBranch?: string;
     autoInit: boolean;
   };
   storage: {
@@ -21,6 +24,9 @@ export interface DmsSystemConfigClient {
     queuePath: string;
     autoPublish: boolean;
     maxConcurrentJobs: number;
+  };
+  templates: {
+    rootPath: string;
   };
   extraction: {
     maxTextLength: number;
@@ -109,15 +115,90 @@ export interface SettingsAccessClient {
   canManagePersonal: boolean;
 }
 
+export type GitBindingStateClient =
+  | 'ready'
+  | 'uninitialized'
+  | 'reconcile-needed'
+  | 'git-unavailable';
+
+export type GitRootRelationClient =
+  | 'exact'
+  | 'configured-subdirectory'
+  | 'not-inside-repository';
+
+export interface GitParityStatusClient {
+  remote: string;
+  verified: boolean;
+  canTreatLocalAsCanonical: boolean;
+  syncStatus?: GitSyncStatusClient;
+  reason?: string;
+}
+
+export interface SettingsRuntimeGitClient {
+  appRoot: string;
+  configuredRootInput: string;
+  configuredRoot: string;
+  configuredRootExists: boolean;
+  configuredRootRelativeToAppRoot: boolean;
+  actualGitRoot?: string;
+  rootRelation: GitRootRelationClient;
+  rootMismatch: boolean;
+  state: GitBindingStateClient;
+  reason?: string;
+  gitAvailable: boolean;
+  isRepository: boolean;
+  hasGitMetadata: boolean;
+  visibleEntryCount: number;
+  branch?: string;
+  remoteName: string;
+  remoteUrl?: string;
+  syncState: GitSyncStatusClient['state'] | 'unavailable';
+  syncStatus?: GitSyncStatusClient;
+  parityStatus: GitParityStatusClient;
+  bootstrapRemoteUrl?: string;
+  bootstrapBranch?: string;
+  autoInit: boolean;
+  reconcileRequired: boolean;
+}
+
+export interface SettingsRuntimePathClient {
+  configuredPath: string;
+  effectiveInput: string;
+  resolvedPath: string;
+  exists: boolean;
+  relativeToAppRoot: boolean;
+  source: 'config' | 'env';
+  envVar?: string;
+}
+
+export interface SettingsRuntimePathsClient {
+  markdownRoot: SettingsRuntimePathClient;
+  ingestQueue: SettingsRuntimePathClient;
+  storageRoots: {
+    local: SettingsRuntimePathClient;
+    sharepoint: SettingsRuntimePathClient;
+    nas: SettingsRuntimePathClient;
+  };
+  /** 템플릿 경로 — markdownRoot/_templates 에서 파생 (read-only) */
+  templateDir: string;
+}
+
+export interface SettingsRuntimeClient {
+  git: SettingsRuntimeGitClient;
+  paths: SettingsRuntimePathsClient;
+}
+
 export interface SettingsResponse {
   config: DmsSettingsConfigClient;
   docDir: string;
   access: SettingsAccessClient;
+  runtime: SettingsRuntimeClient | null;
 }
 
 export const settingsApi = {
-  getSettings: async (): Promise<ApiResponse<SettingsResponse>> => {
-    return request<SettingsResponse>('/api/settings');
+  getSettings: async (includeRuntime = false): Promise<ApiResponse<SettingsResponse>> => {
+    const query = includeRuntime ? '?includeRuntime=1' : '';
+    return request<SettingsResponse>(`/api/settings${query}`);
   },
 
   updateSettings: async (
@@ -126,16 +207,6 @@ export const settingsApi = {
     return request<SettingsResponse>('/api/settings', {
       method: 'POST',
       body: { action: 'update', config },
-    });
-  },
-
-  updateGitPath: async (
-    newPath: string,
-    copyFiles: boolean
-  ): Promise<ApiResponse<SettingsResponse>> => {
-    return request<SettingsResponse>('/api/settings', {
-      method: 'POST',
-      body: { action: 'updateGitPath', newPath, copyFiles },
     });
   },
 };

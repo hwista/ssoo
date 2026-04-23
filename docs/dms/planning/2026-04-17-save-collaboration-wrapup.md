@@ -1,5 +1,8 @@
 # 2026-04-17 DMS 저장/협업 체계 작업 마감 정리
 
+> Historical note: 이 문서는 sidecar terminology purge 이전의 세션 정리 문서입니다.
+> 아래 sidecar 표기는 당시 UI/설계를 설명하는 historical context 입니다.
+
 > 최종 업데이트: 2026-04-17
 > 관련 문서:
 > - `document-repo-source-of-truth-policy.md`
@@ -53,7 +56,7 @@
 - 문서별 접속자/편집자 heartbeat 추적 추가
 - soft lock 추가
 - takeover API 추가
-- sidecar에서 lock owner 및 takeover 액션 표시
+- 당시 sidecar 패널에서 lock owner 및 takeover 액션 표시
 
 ### 2.5 recovery / reconcile foundation
 - publish 상태 refresh API 추가
@@ -73,7 +76,7 @@
 
 ### 2.7 UI 정리
 - collaboration / publish 표식을 본문 상단 배너에서 제거했다.
-- 같은 정보를 `DocumentSidecar` 패널로 이동했다.
+- 같은 정보를 `DocumentPanel` 패널로 이동했다.
 - 문서 내용과 운영/협업 상태가 분리되어 UI 흐름이 더 명확해졌다.
 
 ### 2.8 asset change-set 반영
@@ -110,7 +113,7 @@
 - sync-blocked / push-failed recovery action 가능
 - 사용자별 Git attribution foundation 존재
 - asset 포함 change-set publish 가능
-- 협업/퍼블리시 상태가 sidecar UI 에서 확인 가능
+- 협업/퍼블리시 상태가 당시 sidecar UI 에서 확인 가능
 
 즉 저장/협업 기반은 “아예 없음” 단계는 끝났고,
 이제는 명확한 마스터 플랜 하에서 남은 마감 slice 들만 닫으면 된다.
@@ -133,4 +136,4 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
-| 2026-04-17 | 오늘 세션에서 반영한 DMS 저장/협업 체계 작업(정본 연결, auto publish, presence, soft lock, recovery, attribution, sidecar marker 이동)을 마감 정리 문서로 고정 |
+| 2026-04-17 | 오늘 세션에서 반영한 DMS 저장/협업 체계 작업(정본 연결, auto publish, presence, soft lock, recovery, attribution, metadata panel marker 이동)을 마감 정리 문서로 고정 |

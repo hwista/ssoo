@@ -1,6 +1,66 @@
 #!/usr/bin/env node
 
-import path from 'node:path';
+import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import path, { resolve } from 'node:path';
+
+const requireFromDatabasePackage = createRequire(new URL('../packages/database/package.json', import.meta.url));
+const { PrismaClient } = requireFromDatabasePackage('@prisma/client');
+
+process.env.DATABASE_URL ??= 'postgresql://ssoo:ssoo_dev_pw@localhost:5432/ssoo_dev?schema=public';
+
+const HARNESS_RUN_ID = process.env.HERMES_HARNESS_RUN_ID;
+const HARNESS_REPO_ROOT = process.env.HERMES_HARNESS_REPO_ROOT || process.cwd();
+const STAGE_HELPER = resolve(HARNESS_REPO_ROOT, '.hermes/scripts/harness-stage-event');
+let currentRole = null;
+
+const ROLE_PROFILES = {
+  planner: { provider: 'github-copilot', model: 'claude-sonnet-4.6' },
+  critic: { provider: 'openai-codex', model: 'gpt-5.4' },
+  builder: { provider: 'github-copilot', model: 'gpt-5.4' },
+  reviewer: { provider: 'github-copilot', model: 'claude-sonnet-4.6' },
+};
+
+function emitStage(action, role, extra = {}) {
+  if (!HARNESS_RUN_ID) {
+    return;
+  }
+
+  const args = [action, '--run-id', HARNESS_RUN_ID, '--role', role];
+  for (const [key, value] of Object.entries(extra)) {
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+    args.push(`--${key.replaceAll('_', '-')}`, String(value));
+  }
+
+  spawnSync(STAGE_HELPER, args, { stdio: 'ignore' });
+}
+
+function startRole(role, extra = {}) {
+  currentRole = role;
+  emitStage('start', role, { ...ROLE_PROFILES[role], ...extra });
+}
+
+function completeRole(role, extra = {}) {
+  emitStage('complete', role, { ...ROLE_PROFILES[role], status: 'succeeded', ...extra });
+}
+
+function handoffRole(fromRole, toRole, extra = {}) {
+  completeRole(fromRole, { handoff_to: `${toRole}-01`, ...extra });
+  startRole(toRole);
+}
+
+function failCurrentRole(error, reason) {
+  const activeRole = currentRole || 'reviewer';
+  emitStage('fallback', activeRole, {
+    ...ROLE_PROFILES[activeRole],
+    status: 'failed',
+    fallback_reason: reason,
+    notes: error instanceof Error ? error.message : String(error),
+  });
+}
 
 const argv = process.argv.slice(2);
 
@@ -39,6 +99,9 @@ const options = {
   fixtureDir: readOption('fixture-dir', 'ACCESS_VERIFY_DMS_FIXTURE_DIR', 'verify-access'),
 };
 
+const DMS_APP_ROOT = resolve(HARNESS_REPO_ROOT, 'apps/web/dms');
+const DMS_RUNTIME_BINDINGS = resolveDmsRuntimeBindings();
+
 if (options.help) {
   printUsage();
   process.exit(0);
@@ -49,20 +112,34 @@ if (options.dryRun) {
   process.exit(0);
 }
 
-await main(options);
+await runObserved(options);
+
+async function runObserved(config) {
+  startRole('planner');
+  try {
+    await main(config);
+    completeRole('reviewer');
+  } catch (error) {
+    failCurrentRole(error, 'dms_verification_failed');
+    throw error;
+  }
+}
 
 async function main(config) {
-  const adminAccessToken = await login(config.baseUrl, config.adminLoginId, config.adminPassword);
+  const prisma = new PrismaClient();
+  let adminAccessToken = null;
   let probe = null;
   let mainError = null;
 
   try {
+    adminAccessToken = await login(config.baseUrl, config.adminLoginId, config.adminPassword);
     probe = await prepareProbeFixtures(
       config.baseUrl,
       adminAccessToken,
       config.fixtureDir,
       config.runtimeLoginId,
     );
+    await verifyCommentRelationProjection(prisma, probe);
 
     const runtimeAccessToken = await login(
       config.baseUrl,
@@ -79,6 +156,7 @@ async function main(config) {
       'runtime',
     );
 
+    handoffRole('planner', 'critic');
     await verifyRuntimeDocumentInspect(
       config.baseUrl,
       adminAccessToken,
@@ -91,6 +169,8 @@ async function main(config) {
       runtimeAccessSnapshot.features.canReadDocuments,
       probe,
     );
+    assertNoSidecarFiles(DMS_RUNTIME_BINDINGS.markdownRoot.resolvedPath, 'DMS markdown runtime root');
+    assertProbeSidecarAbsent(probe, 'DMS read/file/content/binary surfaces');
     await verifySearchBoundary(
       config.baseUrl,
       runtimeAccessToken,
@@ -108,6 +188,8 @@ async function main(config) {
       runtimeAccessToken,
       runtimeAccessSnapshot.features.canWriteDocuments,
     );
+
+    handoffRole('critic', 'builder');
     await verifyAssistantBoundary(
       config.baseUrl,
       runtimeAccessToken,
@@ -131,8 +213,18 @@ async function main(config) {
     await verifyStorageBoundary(
       config.baseUrl,
       runtimeAccessToken,
-      runtimeAccessSnapshot.features.canManageStorage,
+      {
+        canReadDocuments: runtimeAccessSnapshot.features.canReadDocuments,
+        canManageStorage: runtimeAccessSnapshot.features.canManageStorage,
+      },
       probe,
+      'runtime',
+    );
+    await verifyTemplateBoundary(
+      config.baseUrl,
+      runtimeAccessToken,
+      runtimeAccessSnapshot.features.canManageTemplates,
+      probe.documentPath,
       'runtime',
     );
 
@@ -142,7 +234,9 @@ async function main(config) {
       config.adminLoginId,
       probe,
     );
+    assertNoSidecarFiles(DMS_RUNTIME_BINDINGS.templateDir, 'DMS template directory (markdownRoot/_templates)');
 
+    handoffRole('builder', 'reviewer');
     console.log('✓ DMS access verification passed');
   } catch (error) {
     mainError = error;
@@ -159,6 +253,7 @@ async function main(config) {
         }
       }
     }
+    await prisma.$disconnect();
   }
 }
 
@@ -174,6 +269,11 @@ async function prepareProbeFixtures(baseUrl, accessToken, fixtureDir, runtimeLog
     imagePath: null,
     attachmentPath: null,
     storagePath: null,
+    commentId: `comment-${suffix}`,
+    sidecarPath: resolveProbeSidecarAbsolutePath(
+      documentPath,
+      DMS_RUNTIME_BINDINGS.markdownRoot.resolvedPath,
+    ),
   };
 
   console.log(`→ prepare: DMS probe fixtures (${documentPath})`);
@@ -215,6 +315,7 @@ async function prepareProbeFixtures(baseUrl, accessToken, fixtureDir, runtimeLog
       attachment: attachmentUpload,
       storage: storageUpload,
     }, runtimeLoginId);
+    assertProbeSidecarAbsent(probe, 'DMS save surface');
 
     return probe;
   } catch (error) {
@@ -261,6 +362,14 @@ async function saveProbeDocument(baseUrl, accessToken, probe, uploads, runtimeLo
         checksum: uploads.storage.checksum,
         origin: uploads.storage.origin,
         status: uploads.storage.status,
+      },
+    ],
+    comments: [
+      {
+        id: probe.commentId,
+        author: runtimeLoginId,
+        content: 'Temporary DMS access verification comment.',
+        createdAt: new Date().toISOString(),
       },
     ],
     referenceFiles: [
@@ -424,6 +533,119 @@ async function cleanupProbeFixtures(baseUrl, accessToken, probe, options = {}) {
   if (errors.length > 0 && options.suppressErrors !== true) {
     throw new Error(`fixture cleanup failed: ${errors.join(' | ')}`);
   }
+}
+
+function readJsonFileIfExists(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+
+  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+}
+
+function resolveDmsRuntimeBindings() {
+  const defaultConfig = readJsonFileIfExists(resolve(DMS_APP_ROOT, 'dms.config.default.json'));
+  const userConfig = readJsonFileIfExists(resolve(DMS_APP_ROOT, 'dms.config.json'));
+
+  return {
+    markdownRoot: resolveRuntimeBinding(
+      { defaultConfig, userConfig },
+      ['git', 'repositoryPath'],
+      '../../../.runtime/dms/documents',
+      'DMS_MARKDOWN_ROOT',
+    ),
+  };
+  // templateRoot is now derived: markdownRoot/_templates
+  runtimeBindings.templateDir = path.join(runtimeBindings.markdownRoot.resolvedPath, '_templates');
+  return runtimeBindings;
+}
+
+function resolveRuntimeBinding(configs, pathKeys, fallbackPath, envVar) {
+  const configuredPath = [
+    readConfiguredPath(configs.userConfig, pathKeys),
+    readConfiguredPath(configs.defaultConfig, pathKeys),
+  ]
+    .find(Boolean) ?? fallbackPath;
+  const envOverride = process.env[envVar]?.trim();
+  const effectiveInput = envOverride && envOverride.length > 0
+    ? envOverride
+    : configuredPath;
+
+  return {
+    configuredPath,
+    effectiveInput,
+    resolvedPath: path.isAbsolute(effectiveInput)
+      ? effectiveInput
+      : resolve(DMS_APP_ROOT, effectiveInput),
+    relativeToAppRoot: !path.isAbsolute(effectiveInput),
+    source: envOverride && envOverride.length > 0 ? 'env' : 'config',
+    envVar: envOverride && envOverride.length > 0 ? envVar : undefined,
+  };
+}
+
+function readConfiguredPath(config, pathKeys) {
+  let current = config;
+  for (const key of pathKeys) {
+    if (!isPlainObject(current)) {
+      return undefined;
+    }
+    current = current[key];
+  }
+
+  if (typeof current !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = current.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resolveProbeSidecarAbsolutePath(documentPath, markdownRoot) {
+  const absoluteDocumentPath = resolve(markdownRoot, documentPath);
+  const parsed = path.parse(absoluteDocumentPath);
+  return path.join(parsed.dir, `${parsed.name}.sidecar.json`);
+}
+
+function assertProbeSidecarAbsent(probe, label) {
+  if (!probe.sidecarPath) {
+    throw new Error(`${label} 검증 전에 probe sidecar 경로를 계산하지 못했습니다.`);
+  }
+
+  if (fs.existsSync(probe.sidecarPath)) {
+    throw new Error(`${label} 이후 probe sidecar 가 다시 생성되었습니다: ${probe.sidecarPath}`);
+  }
+}
+
+function assertNoSidecarFiles(rootDir, label) {
+  const sidecarPaths = collectSidecarFiles(rootDir);
+  if (sidecarPaths.length > 0) {
+    throw new Error(`${label} 에 sidecar 파일이 남아 있습니다:\n${sidecarPaths.join('\n')}`);
+  }
+}
+
+function collectSidecarFiles(rootDir) {
+  if (!fs.existsSync(rootDir)) {
+    return [];
+  }
+
+  const results = [];
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+      if (entry.isFile() && entry.name.endsWith('.sidecar.json')) {
+        results.push(fullPath);
+      }
+    }
+  }
+
+  return results.sort();
 }
 
 async function deleteProbeDocument(baseUrl, accessToken, documentPath) {
@@ -614,6 +836,17 @@ async function verifyReadSurfaces(baseUrl, accessToken, canReadDocuments, probe)
   if (!isPlainObject(contentData.metadata) || contentData.metadata.title !== contentMetadata.title) {
     throw new Error('/dms/content metadata title 이 /dms/content/metadata 와 다릅니다.');
   }
+  const contentComments = Array.isArray(contentMetadata.comments) ? contentMetadata.comments : [];
+  if (!contentComments.some((comment) => isPlainObject(comment) && comment.id === probe.commentId)) {
+    throw new Error('/dms/content/metadata comments projection 에 probe comment 가 없습니다.');
+  }
+  if (
+    !isPlainObject(contentData.metadata)
+    || !Array.isArray(contentData.metadata.comments)
+    || !contentData.metadata.comments.some((comment) => isPlainObject(comment) && comment.id === probe.commentId)
+  ) {
+    throw new Error('/dms/content read metadata comments projection 에 probe comment 가 없습니다.');
+  }
 
   await assertBinaryEndpoint(
     `${baseUrl}/dms/file/raw?path=${encodeURIComponent(probe.imagePath)}`,
@@ -646,6 +879,31 @@ async function verifyReadSurfaces(baseUrl, accessToken, canReadDocuments, probe)
       }
     },
   );
+}
+
+async function verifyCommentRelationProjection(prisma, probe) {
+  console.log('→ verify: DMS comment relation projection');
+  const comment = await prisma.dmsDocumentComment.findFirst({
+    where: {
+      commentKey: probe.commentId,
+      isActive: true,
+    },
+    select: {
+      document: {
+        select: {
+          relativePath: true,
+        },
+      },
+    },
+  });
+
+  if (!comment) {
+    throw new Error('dm_document_comment_m relation 에 probe comment 가 기록되지 않았습니다.');
+  }
+
+  if (comment.document.relativePath !== probe.documentPath) {
+    throw new Error('probe comment relation 이 기대한 문서 경로에 연결되지 않았습니다.');
+  }
 }
 
 async function verifySearchBoundary(baseUrl, accessToken, canUseSearch, query, activeDocPath) {
@@ -726,13 +984,14 @@ async function verifyAssistantBoundary(baseUrl, accessToken, canUseAssistant, ac
 
 async function verifySettingsBoundary(baseUrl, accessToken, canManageSettings, label) {
   console.log(`→ verify: DMS settings boundary (${label})`);
-  const getResult = await requestJson(`${baseUrl}/dms/settings`, {
+  const getResult = await requestJson(`${baseUrl}/dms/settings?includeRuntime=1`, {
     headers: authHeaders(accessToken),
   });
   assertStatus(getResult.response, canManageSettings ? 200 : 403, `/dms/settings GET (${label})`);
 
   if (canManageSettings) {
     assertSuccessEnvelope(getResult.data, `/dms/settings GET (${label})`);
+    assertSettingsSnapshot(getResult.data.data, `/dms/settings GET (${label})`);
   }
 
   const postResult = await requestJson(`${baseUrl}/dms/settings`, {
@@ -741,10 +1000,15 @@ async function verifySettingsBoundary(baseUrl, accessToken, canManageSettings, l
       'Content-Type': 'application/json',
     }),
     body: JSON.stringify({
-      action: 'updateGitPath',
+      action: 'update',
+      config: {},
     }),
   });
-  assertStatus(postResult.response, canManageSettings ? 400 : 403, `/dms/settings POST (${label})`);
+  assertStatus(postResult.response, canManageSettings ? 200 : 403, `/dms/settings POST (${label})`);
+  if (canManageSettings) {
+    assertSuccessEnvelope(postResult.data, `/dms/settings POST (${label})`);
+    assertSettingsSnapshot(postResult.data.data, `/dms/settings POST (${label})`);
+  }
 }
 
 async function verifyGitBoundary(baseUrl, accessToken, canUseGit, samplePath, label) {
@@ -771,8 +1035,9 @@ async function verifyGitBoundary(baseUrl, accessToken, canUseGit, samplePath, la
   assertStatus(postResult.response, canUseGit ? 400 : 403, `/dms/git POST (${label})`);
 }
 
-async function verifyStorageBoundary(baseUrl, accessToken, canManageStorage, probe, label) {
-  console.log(`→ verify: DMS storage/open boundary (${label})`);
+async function verifyStorageBoundary(baseUrl, accessToken, features, probe, label) {
+  const { canReadDocuments, canManageStorage } = features;
+  console.log(`→ verify: DMS storage/open + resync boundary (${label})`);
   const requestBody = {
     provider: 'local',
     path: probe.storagePath,
@@ -788,11 +1053,11 @@ async function verifyStorageBoundary(baseUrl, accessToken, canManageStorage, pro
   });
   assertStatusOneOf(
     postResult.response,
-    canManageStorage ? [200, 201] : [403],
+    canReadDocuments ? [200, 201] : [403],
     `/dms/storage/open POST (${label})`,
   );
 
-  if (canManageStorage) {
+  if (canReadDocuments) {
     assertSuccessEnvelope(postResult.data, `/dms/storage/open POST (${label})`);
     const result = postResult.data.data;
     if (result.path !== probe.storagePath) {
@@ -817,9 +1082,9 @@ async function verifyStorageBoundary(baseUrl, accessToken, canManageStorage, pro
   await assertBinaryEndpoint(
     `${baseUrl}/dms/storage/open?${params.toString()}`,
     authHeaders(accessToken),
-    canManageStorage ? 200 : 403,
+    canReadDocuments ? 200 : 403,
     `/dms/storage/open GET (${label})`,
-    canManageStorage
+    canReadDocuments
       ? (response, body) => {
         const contentType = response.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
@@ -831,6 +1096,121 @@ async function verifyStorageBoundary(baseUrl, accessToken, canManageStorage, pro
       }
       : undefined,
   );
+
+  const resyncResult = await requestJson(`${baseUrl}/dms/storage/resync`, {
+    method: 'POST',
+    headers: authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify(requestBody),
+  });
+  assertStatusOneOf(
+    resyncResult.response,
+    canManageStorage ? [200, 201] : [403],
+    `/dms/storage/resync (${label})`,
+  );
+
+  if (canManageStorage) {
+    assertSuccessEnvelope(resyncResult.data, `/dms/storage/resync (${label})`);
+    const result = resyncResult.data.data;
+    if (result.path !== probe.storagePath) {
+      throw new Error(`/dms/storage/resync (${label}) path 가 요청값과 다릅니다.`);
+    }
+    if (result.provider !== 'local') {
+      throw new Error(`/dms/storage/resync (${label}) provider 가 local 이 아닙니다.`);
+    }
+  }
+
+  const invalidProviderResult = await requestJson(`${baseUrl}/dms/storage/open`, {
+    method: 'POST',
+    headers: authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify({
+      ...requestBody,
+      provider: 'invalid-provider',
+    }),
+  });
+  assertStatusOneOf(
+    invalidProviderResult.response,
+    canReadDocuments ? [400] : [403],
+    `/dms/storage/open invalid provider (${label})`,
+  );
+}
+
+async function verifyTemplateBoundary(baseUrl, accessToken, canManageTemplates, sourceDocumentPath, label) {
+  console.log(`→ verify: DMS template boundary (${label})`);
+
+  const listResult = await requestJson(`${baseUrl}/dms/templates`, {
+    headers: authHeaders(accessToken),
+  });
+  assertStatus(listResult.response, canManageTemplates ? 200 : 403, `/dms/templates GET (${label})`);
+
+  const upsertBody = {
+    id: `verify-template-${label}-${Date.now().toString(36)}`,
+    name: `Verify template ${label}`,
+    scope: 'personal',
+    kind: 'document',
+    content: '# Verification template\n\nBody generated by verify-access-dms.',
+    originType: 'referenced',
+    referenceDocuments: [
+      {
+        path: sourceDocumentPath,
+        source: 'manual',
+        kind: 'document',
+      },
+    ],
+  };
+
+  const upsertResult = await requestJson(`${baseUrl}/dms/templates`, {
+    method: 'POST',
+    headers: authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify(upsertBody),
+  });
+  assertStatusOneOf(
+    upsertResult.response,
+    canManageTemplates ? [200, 201] : [403],
+    `/dms/templates POST (${label})`,
+  );
+
+  if (!canManageTemplates) {
+    return;
+  }
+
+  assertSuccessEnvelope(listResult.data, `/dms/templates GET (${label})`);
+  assertSuccessEnvelope(upsertResult.data, `/dms/templates POST (${label})`);
+  const saved = upsertResult.data.data;
+  if (!isPlainObject(saved) || saved.id !== upsertBody.id) {
+    throw new Error(`/dms/templates POST (${label}) 응답에 저장된 템플릿 id 가 없습니다.`);
+  }
+
+  const getResult = await requestJson(
+    `${baseUrl}/dms/templates/${encodeURIComponent(upsertBody.id)}?scope=personal`,
+    {
+      headers: authHeaders(accessToken),
+    },
+  );
+  assertStatus(getResult.response, 200, `/dms/templates/:id GET (${label})`);
+  assertSuccessEnvelope(getResult.data, `/dms/templates/:id GET (${label})`);
+  const fetched = getResult.data.data;
+  if (!isPlainObject(fetched) || fetched.id !== upsertBody.id) {
+    throw new Error(`/dms/templates/:id GET (${label}) 응답 id 가 일치하지 않습니다.`);
+  }
+
+  const deleteResult = await requestJson(`${baseUrl}/dms/templates`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify({
+      id: upsertBody.id,
+      scope: 'personal',
+    }),
+  });
+  assertStatus(deleteResult.response, 200, `/dms/templates DELETE (${label})`);
+  assertSuccessEnvelope(deleteResult.data, `/dms/templates DELETE (${label})`);
 }
 
 async function verifyAdminPrivilegedSurfaces(baseUrl, accessToken, adminLoginId, probe) {
@@ -851,7 +1231,101 @@ async function verifyAdminPrivilegedSurfaces(baseUrl, accessToken, adminLoginId,
   await verifyAssistantBoundary(baseUrl, accessToken, true, probe.documentPath, 'admin');
   await verifySettingsBoundary(baseUrl, accessToken, true, 'admin');
   await verifyGitBoundary(baseUrl, accessToken, true, probe.documentPath, 'admin');
-  await verifyStorageBoundary(baseUrl, accessToken, true, probe, 'admin');
+  await verifyStorageBoundary(baseUrl, accessToken, { canReadDocuments: true, canManageStorage: true }, probe, 'admin');
+  await verifyTemplateBoundary(baseUrl, accessToken, true, probe.documentPath, 'admin');
+}
+
+function assertSettingsSnapshot(settingsSnapshot, label) {
+  if (!isPlainObject(settingsSnapshot)) {
+    throw new Error(`${label} 응답 data 가 객체가 아닙니다.`);
+  }
+  if (typeof settingsSnapshot.docDir !== 'string' || settingsSnapshot.docDir.length === 0) {
+    throw new Error(`${label} docDir 가 비어 있습니다.`);
+  }
+  if (!isPlainObject(settingsSnapshot.runtime)) {
+    throw new Error(`${label} runtime snapshot 이 없습니다.`);
+  }
+
+  const runtime = settingsSnapshot.runtime;
+  if (!isPlainObject(runtime.git)) {
+    throw new Error(`${label} runtime.git 이 객체가 아닙니다.`);
+  }
+  if (!isPlainObject(runtime.paths)) {
+    throw new Error(`${label} runtime.paths 가 객체가 아닙니다.`);
+  }
+
+  const markdownRoot = assertRuntimePathInfo(runtime.paths.markdownRoot, `${label} runtime.paths.markdownRoot`);
+  // templateDir is now a derived string, not a full RuntimePathInfo
+  if (typeof runtime.paths.templateDir !== 'string' || runtime.paths.templateDir.length === 0) {
+    throw new Error(`${label} runtime.paths.templateDir 가 비어 있거나 문자열이 아닙니다.`);
+  }
+  const ingestQueue = assertRuntimePathInfo(runtime.paths.ingestQueue, `${label} runtime.paths.ingestQueue`);
+
+  if (!isPlainObject(runtime.paths.storageRoots)) {
+    throw new Error(`${label} runtime.paths.storageRoots 가 객체가 아닙니다.`);
+  }
+
+  const localStorage = assertRuntimePathInfo(
+    runtime.paths.storageRoots.local,
+    `${label} runtime.paths.storageRoots.local`,
+  );
+  assertRuntimePathInfo(runtime.paths.storageRoots.sharepoint, `${label} runtime.paths.storageRoots.sharepoint`);
+  assertRuntimePathInfo(runtime.paths.storageRoots.nas, `${label} runtime.paths.storageRoots.nas`);
+
+  if (settingsSnapshot.docDir !== markdownRoot.resolvedPath) {
+    throw new Error(`${label} docDir 와 runtime.paths.markdownRoot.resolvedPath 가 다릅니다.`);
+  }
+  if (runtime.git.configuredRoot !== markdownRoot.resolvedPath) {
+    throw new Error(`${label} runtime.git.configuredRoot 가 markdownRoot 와 다릅니다.`);
+  }
+  if (runtime.git.configuredRootInput !== markdownRoot.effectiveInput) {
+    throw new Error(`${label} runtime.git.configuredRootInput 이 markdownRoot.effectiveInput 과 다릅니다.`);
+  }
+  if (runtime.git.configuredRootExists !== markdownRoot.exists) {
+    throw new Error(`${label} runtime.git.configuredRootExists 가 markdownRoot.exists 와 다릅니다.`);
+  }
+  if (runtime.git.configuredRootRelativeToAppRoot !== markdownRoot.relativeToAppRoot) {
+    throw new Error(`${label} runtime.git.configuredRootRelativeToAppRoot 가 markdownRoot.relativeToAppRoot 와 다릅니다.`);
+  }
+
+  const uniqueRuntimeRoots = new Set([
+    markdownRoot.resolvedPath,
+    runtime.paths.templateDir,
+    ingestQueue.resolvedPath,
+    localStorage.resolvedPath,
+  ]);
+  if (uniqueRuntimeRoots.size !== 4) {
+    throw new Error(`${label} runtime root 가 markdown/template/ingest/local storage 로 분리되어 있지 않습니다.`);
+  }
+}
+
+function assertRuntimePathInfo(info, label) {
+  if (!isPlainObject(info)) {
+    throw new Error(`${label} 가 객체가 아닙니다.`);
+  }
+  if (typeof info.configuredPath !== 'string' || info.configuredPath.length === 0) {
+    throw new Error(`${label} configuredPath 가 비어 있습니다.`);
+  }
+  if (typeof info.effectiveInput !== 'string' || info.effectiveInput.length === 0) {
+    throw new Error(`${label} effectiveInput 이 비어 있습니다.`);
+  }
+  if (typeof info.resolvedPath !== 'string' || info.resolvedPath.length === 0) {
+    throw new Error(`${label} resolvedPath 가 비어 있습니다.`);
+  }
+  if (typeof info.exists !== 'boolean') {
+    throw new Error(`${label} exists 가 boolean 이 아닙니다.`);
+  }
+  if (typeof info.relativeToAppRoot !== 'boolean') {
+    throw new Error(`${label} relativeToAppRoot 가 boolean 이 아닙니다.`);
+  }
+  if (info.source !== 'config' && info.source !== 'env') {
+    throw new Error(`${label} source 가 config/env 가 아닙니다.`);
+  }
+  if (info.source === 'env' && typeof info.envVar !== 'string') {
+    throw new Error(`${label} env override 인데 envVar 가 없습니다.`);
+  }
+
+  return info;
 }
 
 async function login(baseUrl, loginId, password) {
@@ -1186,8 +1660,8 @@ function printDryRun(config) {
   console.log('2. temporary DMS probe document + image/attachment/reference fixture creation');
   console.log('3. DMS access snapshot parity against access inspect');
   console.log('4. runtime document object inspect parity for dms.document.read/write');
-  console.log('5. file/content/files/raw/serve-attachment allow-deny verification');
-  console.log('6. search/ask/settings/git/storage/open boundary verification');
+  console.log('5. file/content/files/raw/serve-attachment + runtime no-sidecar verification');
+  console.log('6. search/ask/settings runtime/git/storage open-resync boundary verification');
   console.log('7. admin privileged DMS surfaces allow path verification');
   console.log('8. fixture cleanup');
 }

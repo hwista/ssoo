@@ -27,7 +27,7 @@ export const contentApi = {
   /**
    * 콘텐츠 로드 (GET)
    * @param contentPath 상대 경로 (docRoot 기준)
-   * @param options.strict true이면 sidecar 없을 때 404 반환 (템플릿 기본 동작)
+   * @param options.strict true이면 metadata 없을 때 404 반환 (템플릿 기본 동작)
    */
   load: async (
     contentPath: string,
@@ -45,7 +45,7 @@ export const contentApi = {
    * 콘텐츠 저장 (POST)
    * @param contentPath 저장 경로
    * @param content 마크다운 콘텐츠
-   * @param metadata 사이드카 메타데이터 (선택)
+   * @param metadata 문서 메타데이터 projection (선택)
    */
   save: async (
     contentPath: string,

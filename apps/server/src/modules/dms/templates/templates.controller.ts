@@ -29,11 +29,12 @@ import { CurrentUser } from '../../common/auth/decorators/current-user.decorator
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { contentService } from '../runtime/content.service.js';
-import { templateConvertService } from './template-convert.service.js';
-import { templateService } from './template.service.js';
+import { TemplateConvertService } from './template-convert.service.js';
+import { TemplateService } from './template.service.js';
 
 function getRequestUserId(request: ExpressRequest): string {
   const user = request.user as Partial<TokenPayload> | undefined;
@@ -55,31 +56,36 @@ function getRequestUserId(request: ExpressRequest): string {
 @UseGuards(JwtAuthGuard, DmsFeatureGuard)
 @RequireDmsFeature('canManageTemplates')
 export class TemplatesController {
-  constructor(private readonly documentAclService: DocumentAclService) {}
+  constructor(
+    private readonly documentAclService: DocumentAclService,
+    private readonly accessRequestService: AccessRequestService,
+    private readonly templateService: TemplateService,
+    private readonly templateConvertService: TemplateConvertService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'DMS 템플릿 목록 조회' })
   @ApiOkResponse({ description: '템플릿 목록 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  list(
+  async list(
     @CurrentUser() currentUser: TokenPayload,
     @Req() request: ExpressRequest,
     @Query('sourceDocumentPath') sourceDocumentPath?: string,
     @Query('originType') originType?: string,
   ) {
     const userId = getRequestUserId(request);
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
 
     if (sourceDocumentPath?.trim()) {
       this.assertReadableDocumentPath(sourceDocumentPath.trim(), currentUser);
+      const templates = await this.templateService.listByReferenceDocument(sourceDocumentPath.trim(), userId);
       return success(
-        templateService
-          .listByReferenceDocument(sourceDocumentPath.trim(), userId)
-          .map((item) => this.sanitizeTemplate(item, currentUser)),
+        templates.map((item) => this.sanitizeTemplate(item, currentUser)),
       );
     }
 
-    const templates = templateService.list(userId);
+    const templates = await this.templateService.list(userId);
     if (originType === 'referenced' || originType === 'generated') {
       return success({
         global: templates.global
@@ -102,13 +108,14 @@ export class TemplatesController {
   @ApiOkResponse({ description: '템플릿 상세 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  get(
+  async get(
     @Param('id') id: string,
     @Query('scope') scope: string | undefined,
     @CurrentUser() currentUser: TokenPayload,
     @Req() request: ExpressRequest,
   ) {
-    const template = templateService.get(
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
+    const template = await this.templateService.get(
       id,
       scope === 'global' ? 'global' : 'personal',
       getRequestUserId(request),
@@ -125,7 +132,7 @@ export class TemplatesController {
   @ApiOkResponse({ description: '저장된 템플릿 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  upsert(
+  async upsert(
     @Body() body: Partial<TemplateItem> & Record<string, unknown>,
     @CurrentUser() currentUser: TokenPayload,
     @Req() request: ExpressRequest,
@@ -140,10 +147,11 @@ export class TemplatesController {
     }
 
     const userId = getRequestUserId(request);
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
     const referenceDocuments = Array.isArray(body.referenceDocuments)
       ? this.filterReferenceDocuments(body.referenceDocuments, currentUser)
       : undefined;
-    const saved = templateService.save({
+    const saved = await this.templateService.save({
       id: typeof body.id === 'string' ? body.id : undefined,
       name: body.name,
       description: typeof body.description === 'string' ? body.description : undefined,
@@ -160,7 +168,7 @@ export class TemplatesController {
       generation: body.generation && typeof body.generation === 'object'
         ? body.generation as TemplateItem['generation']
         : undefined,
-    }, userId, userId);
+    }, userId, currentUser.loginId);
 
     return success(this.sanitizeTemplate(saved, currentUser));
   }
@@ -170,7 +178,7 @@ export class TemplatesController {
   @ApiOkResponse({ description: '삭제 결과 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  remove(
+  async remove(
     @Body() body: Record<string, unknown>,
     @Req() request: ExpressRequest,
   ) {
@@ -180,7 +188,7 @@ export class TemplatesController {
       throw new BadRequestException('id/scope는 필수입니다.');
     }
 
-    const removed = templateService.remove(id, scope as TemplateScope, getRequestUserId(request));
+    const removed = await this.templateService.remove(id, scope as TemplateScope, getRequestUserId(request));
     if (!removed) {
       throw new NotFoundException('삭제 대상 템플릿을 찾을 수 없습니다.');
     }
@@ -206,6 +214,7 @@ export class TemplatesController {
       throw new BadRequestException('documentContent는 필수입니다.');
     }
     if (documentPath?.trim()) {
+      await this.accessRequestService.ensureRepoControlPlaneSynced();
       this.assertReadableDocumentPath(documentPath.trim(), currentUser);
     }
 
@@ -213,7 +222,7 @@ export class TemplatesController {
     request.once('close', () => abortController.abort());
 
     const userId = getRequestUserId(request);
-    const { stream } = await templateConvertService.convertToTemplateStream(
+    const { stream } = await this.templateConvertService.convertToTemplateStream(
       { documentContent, documentPath },
       userId,
       abortController.signal,

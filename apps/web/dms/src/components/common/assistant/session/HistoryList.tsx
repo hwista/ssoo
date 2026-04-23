@@ -17,7 +17,7 @@ interface AssistantSessionHistoryListProps {
   onSelect: (item: AssistantSessionHistoryItem) => void;
   onTogglePersist?: (item: AssistantSessionHistoryItem) => void;
   emptyText?: string;
-  variant?: 'panel' | 'sidecar';
+  variant?: 'panel' | 'compact';
 }
 
 export function AssistantSessionHistoryList({

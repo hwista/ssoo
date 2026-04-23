@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { Download, File, FileSpreadsheet, FileText, ImageIcon, Paperclip, Presentation, Plus, Link2, X } from 'lucide-react';
+import { Download, File, FileSpreadsheet, FileText, ImageIcon, Link2, Paperclip, Plus, Presentation, RefreshCw, X } from 'lucide-react';
 import type { SourceFileMeta } from '@/types';
-import { ActivityListSection } from '@/components/templates/page-frame/sidecar';
-import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
+import { ActivityListSection } from '@/components/templates/page-frame/panel';
+import type { ActivityAction } from '@/components/templates/page-frame/panel';
 import { getAttachmentCategory, ATTACHMENT_ACCEPT_STRING } from '@/lib/constants/file';
 
 function formatSize(size: number): string {
@@ -41,6 +41,7 @@ export function AttachmentsSection({
   onChange,
   onItemClick,
   onDownload,
+  onResync,
   originalAttachmentPaths,
   deletedReferenceKeys,
   defaultOpen = true,
@@ -51,6 +52,7 @@ export function AttachmentsSection({
   onChange?: (attachments: SourceFileMeta[]) => void;
   onItemClick?: (attachment: SourceFileMeta) => void;
   onDownload?: (attachment: SourceFileMeta) => void;
+  onResync?: (attachment: SourceFileMeta) => void;
   originalAttachmentPaths?: string[];
   /** 인라인 컴포저에서 소프트 삭제된 참조/템플릿 키 (표시 전용, undo 없음) */
   deletedReferenceKeys?: Set<string>;
@@ -107,7 +109,6 @@ export function AttachmentsSection({
       size: file.size,
       origin: 'manual',
       status: 'draft',
-      provider: 'local',
     };
 
     onChange?.([...attachments, tempMeta]);
@@ -143,6 +144,17 @@ export function AttachmentsSection({
         icon: <X className="h-3 w-3" />,
         title: '첨부 삭제',
         onClick: () => handleSoftDelete(key),
+      });
+    }
+
+    if (!editable && !isDeleted && !isTemplate && onResync && !attachment.path.startsWith('__pending__/')) {
+      actions.push({
+        id: `resync-${key}`,
+        kind: 'icon',
+        tone: 'default',
+        icon: <RefreshCw className="h-3 w-3" />,
+        title: '저장소 메타데이터 새로고침',
+        onClick: () => onResync(attachment),
       });
     }
 

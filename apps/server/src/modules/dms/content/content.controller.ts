@@ -21,11 +21,14 @@ import {
   ApiBearerAuth,
   ApiTags,
 } from '@nestjs/swagger';
+import type { DocumentMetadata } from '@ssoo/types/dms';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { AccessRequestService } from '../access/access-request.service.js';
+import { DocumentControlPlaneService } from '../access/document-control-plane.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
@@ -45,6 +48,8 @@ function isSearchIndexSyncTarget(targetPath: string): boolean {
 export class ContentController {
   constructor(
     private readonly searchService: SearchService,
+    private readonly accessRequestService: AccessRequestService,
+    private readonly documentControlPlaneService: DocumentControlPlaneService,
     private readonly documentAclService: DocumentAclService,
     private readonly collaborationService: CollaborationService,
   ) {}
@@ -55,7 +60,7 @@ export class ContentController {
   @ApiOkResponse({ description: '콘텐츠 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  load(
+  async load(
     @CurrentUser() currentUser: TokenPayload,
     @Query('path') contentPath?: string,
     @Query('strict') strict?: string,
@@ -65,16 +70,29 @@ export class ContentController {
     }
 
     const normalizedPath = contentPath.trim();
-    const { targetPath, valid } = contentService.resolveContentPath(normalizedPath);
+    const { targetPath, valid, safeRelPath } = contentService.resolveContentPath(normalizedPath);
     if (!valid) {
       throw new BadRequestException('Invalid path');
     }
+    if (!fs.existsSync(targetPath)) {
+      throw new NotFoundException('Content not found');
+    }
 
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
     this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
-    const result = contentService.load(normalizedPath, {
-      strict: strict === 'true',
-    });
-    return success(this.unwrap(result, '콘텐츠 로드에 실패했습니다.'));
+    const content = fs.readFileSync(targetPath, 'utf-8');
+    const projectedMetadata = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath);
+    const fallbackMetadata = projectedMetadata
+      ?? (
+        strict === 'true'
+          ? null
+          : contentService.buildDefaultDocumentMetadata(content, targetPath, undefined, { defaultRevisionSeq: 0 })
+      );
+    if (!fallbackMetadata) {
+      throw new NotFoundException('Metadata not found');
+    }
+
+    return success({ content, metadata: this.withIsolation(fallbackMetadata, safeRelPath) });
   }
 
   @Get('metadata')
@@ -83,7 +101,7 @@ export class ContentController {
   @ApiOkResponse({ description: '메타데이터 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  readMetadata(
+  async readMetadata(
     @CurrentUser() currentUser: TokenPayload,
     @Query('path') contentPath?: string,
   ) {
@@ -91,18 +109,21 @@ export class ContentController {
       throw new BadRequestException('Missing path parameter');
     }
 
-    const { targetPath, valid } = contentService.resolveContentPath(contentPath.trim());
+    const { targetPath, valid, safeRelPath } = contentService.resolveContentPath(contentPath.trim());
     if (!valid) {
       throw new BadRequestException('Invalid path');
     }
-
-    this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
-    const metadata = contentService.readSidecar(targetPath);
-    if (!metadata) {
-      throw new NotFoundException('Metadata not found');
+    if (!fs.existsSync(targetPath)) {
+      throw new NotFoundException('Content not found');
     }
 
-    return success(metadata);
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
+    this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
+    const content = fs.readFileSync(targetPath, 'utf-8');
+    const metadata = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath)
+      ?? contentService.buildDefaultDocumentMetadata(content, targetPath, undefined, { defaultRevisionSeq: 0 });
+
+    return success(this.withIsolation(metadata, safeRelPath));
   }
 
   @Delete()
@@ -129,16 +150,21 @@ export class ContentController {
       throw new BadRequestException('Invalid path');
     }
     this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
+    this.collaborationService.assertMutationAllowed({
+      action: 'delete',
+      paths: [contentPath, ...(candidatePaths ?? [])],
+    });
 
     const result = contentService.delete(contentPath, candidatePaths);
     const data = this.unwrap(result, '콘텐츠 삭제에 실패했습니다.');
-    await this.syncSearchIndex(contentPath, 'delete');
     this.collaborationService.noteMutation({
       primaryPath: contentPath,
       affectedPaths: [contentPath],
       operationType: 'delete',
       currentUser,
     });
+    await this.accessRequestService.ensureRepoControlPlaneSynced(true);
+    await this.syncSearchIndex(contentPath, 'delete');
     return success(data);
   }
 
@@ -160,18 +186,21 @@ export class ContentController {
       throw new BadRequestException('path는 필수입니다.');
     }
 
-    const { targetPath, valid } = contentService.resolveContentPath(contentPath);
+    const { targetPath, valid, safeRelPath } = contentService.resolveContentPath(contentPath);
     if (!valid) {
       throw new BadRequestException('Invalid path');
     }
 
     if (body.metadataUpdate && typeof body.metadataUpdate === 'object' && body.content === undefined) {
       const update = body.metadataUpdate as Record<string, unknown>;
-      this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
-      const existing = contentService.readSidecar(targetPath);
-      if (!existing) {
-        throw new NotFoundException('Metadata not found');
+      if (!fs.existsSync(targetPath)) {
+        throw new NotFoundException('Content not found');
       }
+      this.collaborationService.assertMutationAllowed({ action: 'updateMetadata', paths: [contentPath] });
+      this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
+      const baseContent = fs.readFileSync(targetPath, 'utf-8');
+      const existing = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath)
+        ?? contentService.buildDefaultDocumentMetadata(baseContent, targetPath, undefined, { defaultRevisionSeq: 0 });
 
       const currentRevisionSeq = typeof existing['revisionSeq'] === 'number'
         ? existing['revisionSeq']
@@ -196,15 +225,15 @@ export class ContentController {
         revisionSeq: currentRevisionSeq + 1,
         lastModifiedBy: currentUser.loginId,
       };
-      contentService.writeSidecar(targetPath, merged);
-      await this.syncSearchIndex(contentPath, 'upsert');
       this.collaborationService.noteMutation({
         primaryPath: contentPath,
         affectedPaths: [contentPath],
         operationType: 'metadata',
         currentUser,
       });
-      return success(contentService.readSidecar(targetPath) ?? merged);
+      await this.accessRequestService.syncDocumentProjection(contentPath, merged);
+      await this.syncSearchIndex(contentPath, 'upsert');
+      return success(merged);
     }
 
     if (typeof body.content !== 'string') {
@@ -223,6 +252,9 @@ export class ContentController {
     let metadata = body.metadata && typeof body.metadata === 'object'
       ? body.metadata as Record<string, unknown>
       : undefined;
+    const existingMetadata = existingFile
+      ? await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath)
+      : null;
 
     if (!existingFile) {
       metadata = {
@@ -237,19 +269,21 @@ export class ContentController {
     }
 
     if (metadata && existingFile && !canManage) {
-      const existingSidecar = contentService.readSidecar(targetPath);
-      if (existingSidecar) {
+      if (existingMetadata) {
         metadata = {
           ...metadata,
-          acl: existingSidecar['acl'],
-          visibility: existingSidecar['visibility'],
-          grants: existingSidecar['grants'],
-          ownerId: existingSidecar['ownerId'],
-          ownerLoginId: existingSidecar['ownerLoginId'],
+          acl: existingMetadata['acl'],
+          visibility: existingMetadata['visibility'],
+          grants: existingMetadata['grants'],
+          ownerId: existingMetadata['ownerId'],
+          ownerLoginId: existingMetadata['ownerLoginId'],
         };
       }
+    } else if (!metadata && existingMetadata) {
+      metadata = { ...existingMetadata };
     }
 
+    this.collaborationService.assertMutationAllowed({ action: 'write', paths: [contentPath] });
     const result = contentService.save(
       contentPath,
       body.content,
@@ -261,13 +295,14 @@ export class ContentController {
     );
 
     const data = this.unwrap(result, '콘텐츠 저장에 실패했습니다.');
-    await this.syncSearchIndex(contentPath, 'upsert');
     this.collaborationService.noteMutation({
       primaryPath: contentPath,
       affectedPaths: [contentPath],
       operationType: existingFile ? 'update' : 'create',
       currentUser,
     });
+    await this.accessRequestService.syncDocumentProjection(contentPath, data.metadata ?? metadata ?? null);
+    await this.syncSearchIndex(contentPath, 'upsert');
     return success(data);
   }
 
@@ -313,5 +348,20 @@ export class ContentController {
       default:
         throw new BadRequestException(result.error ?? fallbackMessage);
     }
+  }
+
+  private withIsolation(
+    metadata: DocumentMetadata | Record<string, unknown>,
+    relativePath: string,
+  ): DocumentMetadata | Record<string, unknown> {
+    const isolation = this.collaborationService.getPathIsolation(relativePath);
+    if (!isolation) {
+      return metadata;
+    }
+
+    return {
+      ...metadata,
+      isolation,
+    };
   }
 }

@@ -1,13 +1,15 @@
 {
   "git": {
-    "repositoryPath": "",
+    "repositoryPath": "../../../.runtime/dms/documents",
+    "bootstrapRemoteUrl": "",
+    "bootstrapBranch": "",
     "autoInit": true
   },
   "storage": {
     "defaultProvider": "sharepoint",
     "local": {
       "enabled": true,
-      "basePath": "./data/storage/local"
+      "basePath": "../../../.runtime/dms/storage/local"
     },
     "sharepoint": {
       "enabled": true,
@@ -21,10 +23,11 @@
     }
   },
   "ingest": {
-    "queuePath": "./data/ingest",
+    "queuePath": "../../../.runtime/dms/ingest",
     "autoPublish": false,
     "maxConcurrentJobs": 2
   },
+  "templates": {},
   "extraction": {
     "maxTextLength": 12000,
     "maxImages": 5,

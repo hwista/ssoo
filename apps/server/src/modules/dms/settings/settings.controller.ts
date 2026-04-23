@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -33,8 +34,9 @@ export class SettingsController {
   @ApiOkResponse({ description: '설정 스냅샷 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  getSettings() {
-    return success(settingsService.getSettings());
+  async getSettings(@Query('includeRuntime') includeRuntime?: string) {
+    const shouldIncludeRuntime = includeRuntime === '1' || includeRuntime === 'true';
+    return success(await settingsService.getSettings(shouldIncludeRuntime));
   }
 
   @Post()
@@ -44,26 +46,15 @@ export class SettingsController {
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   async update(@Body() body: Record<string, unknown>) {
     const action = body.action === 'updateGitPath' ? 'updateGitPath' : 'update';
-
-    if (action === 'update') {
-      const config = body.config;
-      const partial = config && typeof config === 'object'
-        ? config as DeepPartial<DmsSettingsConfig>
-        : undefined;
-      const result = settingsService.updateSettings(partial);
-      if (!result.success) {
-        throw new BadRequestException(result.error);
-      }
-      return success({
-        config: result.config,
-        docDir: result.docDir,
-        access: result.access,
-      });
+    if (action === 'updateGitPath') {
+      throw new BadRequestException('Markdown runtime 경로는 settings에서 변경할 수 없습니다. 배포/runtime 설정으로 관리하세요.');
     }
 
-    const newPath = typeof body.newPath === 'string' ? body.newPath : '';
-    const copyFiles = body.copyFiles === true;
-    const result = await settingsService.updateGitPath(newPath, copyFiles);
+    const config = body.config;
+    const partial = config && typeof config === 'object'
+      ? config as DeepPartial<DmsSettingsConfig>
+      : undefined;
+    const result = await settingsService.updateSettings(partial);
     if (!result.success) {
       throw new BadRequestException(result.error);
     }
@@ -72,6 +63,7 @@ export class SettingsController {
       config: result.config,
       docDir: result.docDir,
       access: result.access,
+      runtime: result.runtime,
     });
   }
 }

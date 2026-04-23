@@ -44,24 +44,24 @@ const PLACEHOLDER_SLOT_CONTENT: Record<
   PlaceholderSlotContent
 > = {
   'document-access': {
-    title: '문서 및 폴더 접근 권한 관리',
+    title: '문서 접근 권한 관리',
     summary:
-      '개별 사용자 기준의 문서/폴더 권한 관리를 위한 설정 항목입니다. 이번 단계에서는 항목과 진입 surface를 먼저 열어 둡니다.',
+      '개별 사용자 기준의 문서 권한 관리를 위한 설정 항목입니다. 폴더 권한은 현재 범위에서 제외하고 문서 단위 흐름만 다룹니다.',
     highlights: [
-      '문서/폴더 단위 권한 정책 슬롯',
-      '상속 구조와 예외 처리 흐름 자리 확보',
-      '향후 권한 정책과 문서 메타데이터 연결 지점 정리',
+      '문서 단위 권한 정책 슬롯',
+      '예외 grant 및 요청 승인 흐름 자리 확보',
+      '향후 문서 메타데이터/ACL 연결 지점 정리',
     ],
     nextSteps: [
       '공용 인증/권한 연동',
-      '문서 sidecar ACL과 실제 CRUD 검사 연결',
+      '문서 metadata ACL과 실제 CRUD 검사 연결',
       '관리자 일괄 수정 흐름 추가',
     ],
   },
   'admin-documents': {
-    title: '관리자 전체 문서 및 폴더 관리',
+    title: '관리자 전체 문서 관리',
     summary:
-      '관리자 기준의 전체 문서/폴더 운영 관리를 위한 상위 항목입니다. 현재는 navigation과 개요 surface를 먼저 생성합니다.',
+      '관리자 기준의 전체 문서 운영 관리를 위한 상위 항목입니다. 현재는 navigation과 개요 surface를 먼저 생성합니다.',
     highlights: [
       '전체 자산 현황 진입점 확보',
       '소유자/권한/정리 작업용 관리 surface 자리 마련',

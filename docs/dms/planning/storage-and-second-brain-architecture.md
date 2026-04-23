@@ -22,7 +22,7 @@ DMS에서 다루는 문서 자산을 저장소별로 명확히 분리하고, 기
 
 | 구분 | 정의 | 기본 정본 |
 |------|------|-----------|
-| 생성 문서 | DMS에서 작성/수정한 위키 문서 (`.md`, `.sidecar.json`) | Git 저장소 |
+| 생성 문서 | DMS에서 작성/수정한 위키 문서 (`.md`) | Git 저장소 |
 | 생성 입력 정본 | AI 요약/생성에 사용한 원본 파일 | SharePoint (기본), NAS/Local 선택 가능 |
 | 문서별 첨부 정본 | 문서에 연결되는 첨부 파일 | SharePoint (기본), NAS/Local 선택 가능 |
 
@@ -76,7 +76,7 @@ DMS는 아래 3개 저장소를 동시에 지원한다.
 - 첨부/정본 항목의 `열기(Open)`
 - `경로/URI 복사`
 - 권한/경로 오류 안내 (`접근 권한 없음`, `링크 만료`, `경로 없음`)
-- 수정 후 `재동기화` (메타/버전 재수집 + sidecar 업데이트)
+- 수정 후 `재동기화` (메타/버전 재수집 + DB projection 업데이트)
 
 ### 4.2 저장소별 열기 동작
 
@@ -160,14 +160,14 @@ MVP에서 우선 구현:
 
 - 저장소 어댑터 서비스 + `storage/upload`, `storage/open` API
 - 수집 큐 + `ingest/submit`, `ingest/jobs`, `ingest/jobs/:id/confirm` API
-- Sidecar 첨부 `Open / URI 복사 / Resync` 액션
+- 첨부 `Open / URI 복사 / Resync` 액션
 - AI `wiki|deep` 모드 파라미터 및 `citations/confidence` 응답 필드
 
 ### 잔여
 
 - 기본 저장소/오버라이드 정책의 전 경로 라우팅 관통 적용
 - SharePoint/NAS 열기 실패 유형별 오류 메시지 표준화
-- Resync 후 sidecar 메타 자동 갱신 파이프라인
+- Resync 후 DB metadata projection 자동 갱신 파이프라인
 - Teams/네트워크 드라이브 수집 채널 어댑터 연결
 - Ask/Search 화면의 citations/confidence 시각화
 - 시나리오 7종 자동화 테스트
@@ -188,5 +188,6 @@ MVP에서 우선 구현:
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-04-21 | 생성 문서/재동기화 설명을 `.md + DB metadata projection` 기준으로 갱신 |
 | 2026-02-24 | 1차 구현 완료 범위와 잔여 항목(운영화/UX/테스트) 상태 스냅샷 추가 |
 | 2026-02-24 | 저장소 3어댑터(Local/SharePoint/NAS), 수집/컨펌 플로우, 세컨드브레인 딥리서치 정책 정본화 |

@@ -28,9 +28,9 @@ export interface PageTemplateProps {
   contentMaxWidth?: number | null;
   contentWrapperClassName?: string;
   contentSurfaceClassName?: string;
-  sidecarWidth?: number;
-  sidecarContent?: React.ReactNode;
-  sidecarMode?: 'custom' | 'hidden';
+  panelWidth?: number;
+  panelContent?: React.ReactNode;
+  panelMode?: 'custom' | 'hidden';
   onEdit?: () => void;
   onSave?: () => void;
   onCancel?: () => void;
@@ -62,9 +62,9 @@ export function PageTemplate({
   contentMaxWidth,
   contentWrapperClassName,
   contentSurfaceClassName,
-  sidecarWidth = LAYOUT_SIZES.sidebar.expandedWidth,
-  sidecarContent,
-  sidecarMode,
+  panelWidth = LAYOUT_SIZES.sidebar.expandedWidth,
+  panelContent,
+  panelMode,
   onEdit,
   onSave,
   onCancel,
@@ -85,12 +85,12 @@ export function PageTemplate({
   const isCompactMode = useSidebarStore((s) => s.isCompactMode);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState(0);
-  const [sidecarOpen, setSidecarOpen] = React.useState(!isCompactMode);
+  const [panelOpen, setPanelOpen] = React.useState(!isCompactMode);
   const [hasMeasured, setHasMeasured] = React.useState(false);
 
   React.useEffect(() => {
     if (isCompactMode) {
-      setSidecarOpen(false);
+      setPanelOpen(false);
     }
   }, [isCompactMode]);
 
@@ -111,14 +111,14 @@ export function PageTemplate({
     return () => observer.disconnect();
   }, []);
 
-  const resolvedSidecarMode = sidecarMode ?? (sidecarContent ? 'custom' : 'hidden');
-  const supportsSidecar = resolvedSidecarMode !== 'hidden';
+  const resolvedPanelMode = panelMode ?? (panelContent ? 'custom' : 'hidden');
+  const supportsPanel = resolvedPanelMode !== 'hidden';
   const resolvedContentMaxWidth = contentMaxWidth === null
     ? null
     : contentMaxWidth ?? DOCUMENT_WIDTHS[contentOrientation];
-  const minWidthForSideBySide = (resolvedContentMaxWidth ?? DOCUMENT_WIDTHS[contentOrientation]) + sidecarWidth + 40;
+  const minWidthForSideBySide = (resolvedContentMaxWidth ?? DOCUMENT_WIDTHS[contentOrientation]) + panelWidth + 40;
   const canSideBySide = !isCompactMode && containerWidth >= minWidthForSideBySide;
-  const showSidecar = supportsSidecar && sidecarOpen;
+  const showPanel = supportsPanel && panelOpen;
 
   const defaultVisualClasses = 'rounded-lg border border-ssoo-content-border bg-white';
   const isConstrained = resolvedContentMaxWidth !== null;
@@ -216,15 +216,15 @@ export function PageTemplate({
           <div
             className={cn('h-full', hasMeasured && 'transition-all duration-300 ease-in-out')}
             style={{
-              width: canSideBySide && showSidecar ? `calc(100% - ${sidecarWidth}px)` : '100%',
+              width: canSideBySide && showPanel ? `calc(100% - ${panelWidth}px)` : '100%',
             }}
           >
             {contentNode}
           </div>
 
-          {supportsSidecar && (
+          {supportsPanel && (
             <button
-              onClick={() => setSidecarOpen((prev) => !prev)}
+              onClick={() => setPanelOpen((prev) => !prev)}
               className={cn(
                 'absolute top-1/2 -translate-y-1/2 z-20',
                 'flex items-center justify-center',
@@ -233,10 +233,10 @@ export function PageTemplate({
                 'transition-all duration-300 ease-in-out',
                 'shadow-sm'
               )}
-              style={{ right: showSidecar ? sidecarWidth : 0 }}
-              aria-label={showSidecar ? 'Sidecar 접기' : 'Sidecar 펼치기'}
+              style={{ right: showPanel ? panelWidth : 0 }}
+              aria-label={showPanel ? '패널 접기' : '패널 펼치기'}
             >
-              {showSidecar ? (
+              {showPanel ? (
                 <ChevronRight className="h-4 w-4 text-gray-500" />
               ) : (
                 <ChevronLeft className="h-4 w-4 text-gray-500" />
@@ -244,7 +244,7 @@ export function PageTemplate({
             </button>
           )}
 
-          {supportsSidecar && (
+          {supportsPanel && (
             <div
               className={cn(
                 'h-full z-10',
@@ -253,19 +253,19 @@ export function PageTemplate({
                 hasMeasured && 'transition-all duration-300 ease-in-out',
                 'rounded-l-lg',
                 canSideBySide
-                  ? (showSidecar
+                  ? (showPanel
                     ? 'relative opacity-100'
                     : 'absolute right-0 top-0 opacity-0 translate-x-full pointer-events-none')
-                  : (showSidecar
+                  : (showPanel
                     ? 'absolute right-0 top-0 opacity-100 translate-x-0 shadow-lg'
                     : 'absolute right-0 top-0 opacity-0 translate-x-full pointer-events-none')
               )}
               style={{
-                width: sidecarWidth,
+                width: panelWidth,
                 flexShrink: canSideBySide ? 0 : undefined,
               }}
             >
-              {resolvedSidecarMode === 'custom' && sidecarContent ? sidecarContent : null}
+              {resolvedPanelMode === 'custom' && panelContent ? panelContent : null}
             </div>
           )}
         </div>

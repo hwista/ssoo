@@ -12,7 +12,7 @@ import {
 import { useAccessStore, useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
 import { useAssistantChat } from '@/components/common/assistant/chat/useAssistantChat';
 import { useAssistantSessionPersistence } from '@/components/common/assistant/session/useAssistantSessionPersistence';
-import { AiSidecar } from './_components/AiSidecar';
+import { AiPanel } from './_components/AiPanel';
 import { AiChatBody, AiChatFooter } from './_components/AiChatPanels';
 import { buildSessionHistoryItems } from './chatPageUtils';
 
@@ -66,8 +66,8 @@ export function AiChatPage() {
         contentOrientation="portrait"
         description="질문, 문서 검색, 기능 안내를 요청하세요."
         contentSurfaceClassName={DOC_PAGE_SURFACE_PRESETS.ai}
-        sidecarContent={(
-          <AiSidecar
+        panelContent={(
+          <AiPanel
             variant="chat"
             history={historyItems}
             onHistorySelect={(item) => {

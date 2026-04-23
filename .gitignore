@@ -40,3 +40,9 @@ prisma/*.db-journal
 
 # Misc
 *.tsbuildinfo
+.runtime/
+.hermes/
+
+# DMS runtime state / retired data
+.dms-collaboration-state.json
+apps/web/dms/data/

@@ -347,8 +347,8 @@ checkAuth: async () => {
 | editor 문서 열기 | content save, attachment/reference/image upload 는 허용되지만 metadata/ACL 관리와 delete 는 거부 |
 | owner 문서 열기 | read/write/rename/delete/updateMetadata, binary, search/ask, linked local storage open 이 허용 |
 | ACL 비어 있는 기존 문서 | 기존 feature gate fallback 을 유지하고 기존 공유 문서 동작을 깨지 않음 |
-| 새 문서 생성 | creator 가 owner 로 sidecar ACL 에 기록되고 첫 저장 이후 owner 기준 object policy 가 적용 |
-| local `storage/open` | `documentPath` 가 필요하며, readable document sidecar의 `sourceFiles` 에 연결된 local storage reference 일 때만 허용 |
+| 새 문서 생성 | creator 가 owner 로 DB metadata ACL 에 기록되고 첫 저장 이후 owner 기준 object policy 가 적용 |
+| local `storage/open` | `documentPath` 가 필요하며, readable document metadata projection 의 `sourceFiles` 에 연결된 local storage reference 일 때만 허용 |
 | attachment/reference/image upload | `documentPath` 로 연결된 기존 문서가 있으면 write ACL 을 상속하고, 새 문서 draft 는 feature gate 범위에서만 허용 |
 
 #### Wave 5 PMS/CMS validation expansion targets

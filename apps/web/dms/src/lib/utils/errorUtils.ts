@@ -90,6 +90,7 @@ export const logger = {
    */
   debug: (message: string, context?: unknown): void => {
     if (currentLogConfig.level <= LogLevel.DEBUG && currentLogConfig.enableConsole) {
+      // eslint-disable-next-line no-console
       console.debug(formatLogMessage('DEBUG', message, context));
     }
   },
@@ -99,6 +100,7 @@ export const logger = {
    */
   info: (message: string, context?: unknown): void => {
     if (currentLogConfig.level <= LogLevel.INFO && currentLogConfig.enableConsole) {
+      // eslint-disable-next-line no-console
       console.log(formatLogMessage('INFO', message, context));
     }
   },

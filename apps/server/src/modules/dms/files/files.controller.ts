@@ -1,4 +1,4 @@
-import { Controller, Get, InternalServerErrorException, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -14,9 +14,10 @@ import { CurrentUser } from '../../common/auth/decorators/current-user.decorator
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
+import { AccessRequestService } from '../access/access-request.service.js';
+import { DocumentControlPlaneService } from '../access/document-control-plane.service.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
-import { fileSystemService } from '../runtime/file-system.service.js';
 
 @ApiTags('dms')
 @ApiBearerAuth()
@@ -24,7 +25,11 @@ import { fileSystemService } from '../runtime/file-system.service.js';
 @RequireDmsFeature('canReadDocuments')
 @Controller('dms/files')
 export class FilesController {
-  constructor(private readonly documentAclService: DocumentAclService) {}
+  constructor(
+    private readonly documentAclService: DocumentAclService,
+    private readonly accessRequestService: AccessRequestService,
+    private readonly documentControlPlaneService: DocumentControlPlaneService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'DMS 파일 트리 조회' })
@@ -33,11 +38,11 @@ export class FilesController {
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   @ApiUnauthorizedResponse({ type: ApiError, description: '인증 필요' })
   async getFileTree(@CurrentUser() currentUser: TokenPayload) {
-    const result = await fileSystemService.getFileTree();
-    if (!result.success) {
-      throw new InternalServerErrorException(result.error?.message ?? '파일 트리 조회에 실패했습니다.');
-    }
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
+    const documents = await this.documentControlPlaneService.listActiveDocuments();
+    const projectedDocuments = documents.map((document) => this.documentControlPlaneService.projectMetadata(document));
+    const tree = this.documentControlPlaneService.buildFileTree(projectedDocuments);
 
-    return success(this.documentAclService.filterFileTree(currentUser, result.data ?? []));
+    return success(this.documentAclService.filterFileTree(currentUser, tree));
   }
 }

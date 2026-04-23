@@ -40,7 +40,7 @@ server/services   -> actual implementation
 
 ### `components/templates/page-frame/**`
 
-- breadcrumb/header/content/sidecar/frame 같은 문서형 page frame 부품은 여기 둡니다.
+- breadcrumb/header/content/panel/frame 같은 문서형 page frame 부품은 여기 둡니다.
 - broad common 으로 올리지 않습니다.
 
 대표 예시:

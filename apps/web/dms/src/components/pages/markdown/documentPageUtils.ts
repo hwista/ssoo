@@ -2,9 +2,9 @@ import type { TocItem } from '@/components/templates/page-frame';
 import { stringifyJson } from '@/lib/utils';
 import type { DocumentMetadata, SourceFileMeta, DocumentComment } from '@/types';
 import type { AuthIdentity } from '@ssoo/types/common';
-import type { DocumentSidecarMetadata } from './_components/DocumentSidecar';
+import type { DocumentPanelMetadata } from './_components/DocumentPanel';
 
-export interface DocumentSidecarDiffAttachment {
+export interface DocumentMetadataDiffAttachment {
   name: string;
   path: string;
   type: string;
@@ -12,22 +12,22 @@ export interface DocumentSidecarDiffAttachment {
   status?: SourceFileMeta['status'];
 }
 
-export interface DocumentSidecarDiffComment {
+export interface DocumentMetadataDiffComment {
   id: string;
   author: string;
   content: string;
   createdAt: string;
 }
 
-export interface DocumentSidecarDiffSnapshot {
+export interface DocumentMetadataDiffSnapshot {
   title: string;
   summary: string;
   tags: string[];
   sourceLinks: string[];
   commentIds: string[];
   attachmentPaths: string[];
-  sourceFiles: DocumentSidecarDiffAttachment[];
-  comments: DocumentSidecarDiffComment[];
+  sourceFiles: DocumentMetadataDiffAttachment[];
+  comments: DocumentMetadataDiffComment[];
 }
 
 export type DocumentAclRole = 'owner' | 'editor' | 'viewer' | 'open' | 'none';
@@ -177,14 +177,14 @@ export function canManageDocument(
     || hasActiveUserGrant(documentMetadata, currentUser, ['manage']);
 }
 
-export function buildDocumentSidecarMetadata(
+export function buildDocumentPanelMetadata(
   content: string,
   documentMetadata: DocumentMetadata | null,
   fileMetadata: {
     createdAt: Date | null;
     modifiedAt: Date | null;
   }
-): DocumentSidecarMetadata {
+): DocumentPanelMetadata {
   const wordCount = content ? content.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return {
@@ -214,7 +214,7 @@ export function resolveSaveDisplayName(
   return metadata?.title?.trim() || deriveDefaultTemplateName(fallbackContent, fallbackPath);
 }
 
-function normalizeSourceFile(file: SourceFileMeta): DocumentSidecarDiffAttachment {
+function normalizeSourceFile(file: SourceFileMeta): DocumentMetadataDiffAttachment {
   return {
     name: file.name,
     path: file.path,
@@ -224,7 +224,7 @@ function normalizeSourceFile(file: SourceFileMeta): DocumentSidecarDiffAttachmen
   };
 }
 
-function normalizeComment(comment: DocumentComment): DocumentSidecarDiffComment {
+function normalizeComment(comment: DocumentComment): DocumentMetadataDiffComment {
   return {
     id: comment.id,
     author: comment.author,
@@ -233,9 +233,9 @@ function normalizeComment(comment: DocumentComment): DocumentSidecarDiffComment 
   };
 }
 
-export function buildDocumentSidecarDiffSnapshot(
+export function buildDocumentMetadataDiffSnapshot(
   documentMetadata: DocumentMetadata | null | undefined
-): DocumentSidecarDiffSnapshot {
+): DocumentMetadataDiffSnapshot {
   const sourceFiles = (documentMetadata?.sourceFiles ?? []).map(normalizeSourceFile);
   const comments = (documentMetadata?.comments ?? []).map(normalizeComment);
 
@@ -251,7 +251,7 @@ export function buildDocumentSidecarDiffSnapshot(
   };
 }
 
-export function stringifyDocumentSidecarDiffSnapshot(snapshot: DocumentSidecarDiffSnapshot): string {
+export function stringifyDocumentMetadataDiffSnapshot(snapshot: DocumentMetadataDiffSnapshot): string {
   return stringifyJson({
     title: snapshot.title,
     summary: snapshot.summary,

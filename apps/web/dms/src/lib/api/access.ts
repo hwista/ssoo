@@ -4,6 +4,7 @@ import type {
   DmsAccessSnapshot,
   DmsDocumentAccessRequestListQuery,
   DmsDocumentAccessRequestSummary,
+  DmsManagedDocumentSummary,
   RejectDmsDocumentAccessRequestPayload,
 } from '@ssoo/types/dms';
 import { get, post } from './core';
@@ -35,6 +36,9 @@ export const accessApi = {
   ),
   listInboxRequests: (query?: DmsDocumentAccessRequestListQuery) => (
     get<DmsDocumentAccessRequestSummary[]>(`/api/access/requests/inbox${buildQueryString(query)}`)
+  ),
+  listManageableDocuments: () => (
+    get<DmsManagedDocumentSummary[]>('/api/access/documents/manageable')
   ),
   approveRequest: (
     accessRequestId: string,

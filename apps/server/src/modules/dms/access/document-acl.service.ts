@@ -2,16 +2,17 @@ import fs from 'fs';
 import path from 'path';
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import type {
+  DocumentMetadata,
   DocumentAcl,
   DocumentPermissionGrant,
   FileNode,
   SearchResultItem,
 } from '@ssoo/types/dms';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
-import { contentService } from '../runtime/content.service.js';
 import { configService } from '../runtime/dms-config.service.js';
 import { normalizePath } from '../runtime/path-utils.js';
 import { listMarkdownFiles, resolveAbsolutePath } from '../search/search.helpers.js';
+import { DocumentControlPlaneService } from './document-control-plane.service.js';
 
 const EMPTY_DOCUMENT_ACL: DocumentAcl = {
   owners: [],
@@ -34,6 +35,10 @@ type DocumentPrincipalType = DocumentPermissionGrant['principalType'];
 
 @Injectable()
 export class DocumentAclService {
+  constructor(
+    private readonly documentControlPlaneService: DocumentControlPlaneService,
+  ) {}
+
   buildOwnerAcl(user: TokenPayload): DocumentAcl {
     const owner = user.userId.trim() || user.loginId.trim();
     return {
@@ -88,8 +93,7 @@ export class DocumentAclService {
       return this.canAccessAssetPath(user, absolutePath, 'write');
     }
 
-    const sidecar = contentService.readSidecar(absolutePath);
-    return this.resolveDocumentAccessState(user, sidecar).isWritable;
+    return this.resolveDocumentAccessState(user, this.readAccessMetadata(absolutePath)).isWritable;
   }
 
   isManageableAbsolutePath(user: TokenPayload, absolutePath: string): boolean {
@@ -97,15 +101,14 @@ export class DocumentAclService {
       return this.canAccessAssetPath(user, absolutePath, 'manage');
     }
 
-    const sidecar = contentService.readSidecar(absolutePath);
-    return this.resolveDocumentAccessState(user, sidecar).isManageable;
+    return this.resolveDocumentAccessState(user, this.readAccessMetadata(absolutePath)).isManageable;
   }
 
   describeSearchResultAccess(user: TokenPayload, absolutePath: string): Pick<
     SearchResultItem,
     'owner' | 'visibilityScope' | 'isReadable' | 'canRequestRead'
   > {
-    const state = this.resolveDocumentAccessState(user, contentService.readSidecar(absolutePath));
+    const state = this.resolveDocumentAccessState(user, this.readAccessMetadata(absolutePath));
     return {
       owner: state.owner,
       visibilityScope: state.visibilityScope,
@@ -133,6 +136,20 @@ export class DocumentAclService {
         resolveAbsolutePath(result.path, rootDir),
         cache,
       )
+    ));
+  }
+
+  hasReadableDocumentReference(user: TokenPayload, assetPath: string): boolean {
+    const normalizedAssetPath = this.normalizeAssetReference(assetPath);
+    if (!normalizedAssetPath) {
+      return false;
+    }
+
+    const cache = new Map<string, boolean>();
+    const markdownFiles = listMarkdownFiles(this.getRootDir());
+    return markdownFiles.some((markdownFile) => (
+      this.documentReferencesAsset(markdownFile, normalizedAssetPath)
+      && this.isAccessibleDocumentForAsset(user, markdownFile, 'read', cache)
     ));
   }
 
@@ -178,8 +195,7 @@ export class DocumentAclService {
     cache: Map<string, boolean>,
   ): boolean {
     if (/\.md$/i.test(absolutePath)) {
-      const sidecar = contentService.readSidecar(absolutePath);
-      return this.resolveDocumentAccessState(user, sidecar).isReadable;
+      return this.resolveDocumentAccessState(user, this.readAccessMetadata(absolutePath)).isReadable;
     }
 
     return this.canAccessAssetPath(user, absolutePath, 'read', cache);
@@ -235,11 +251,11 @@ export class DocumentAclService {
     }
 
     try {
-      const sidecar = contentService.readSidecar(markdownFilePath);
+      const metadata = this.readAccessMetadata(markdownFilePath);
       const structuredReferences = new Set(
         [
-          ...this.collectSourceFilePaths(sidecar),
-          ...this.collectBodyLinkUrls(sidecar),
+          ...this.collectSourceFilePaths(metadata),
+          ...this.collectBodyLinkUrls(metadata),
         ]
           .map((candidate) => this.normalizeAssetReference(candidate))
           .filter((candidate) => candidate.length > 0),
@@ -255,12 +271,12 @@ export class DocumentAclService {
     }
   }
 
-  private collectSourceFilePaths(sidecarValue: unknown): string[] {
-    if (!sidecarValue || typeof sidecarValue !== 'object') {
+  private collectSourceFilePaths(metadataValue: unknown): string[] {
+    if (!metadataValue || typeof metadataValue !== 'object') {
       return [];
     }
 
-    const sourceFiles = (sidecarValue as { sourceFiles?: unknown }).sourceFiles;
+    const sourceFiles = (metadataValue as { sourceFiles?: unknown }).sourceFiles;
     if (!Array.isArray(sourceFiles)) {
       return [];
     }
@@ -277,12 +293,12 @@ export class DocumentAclService {
     });
   }
 
-  private collectBodyLinkUrls(sidecarValue: unknown): string[] {
-    if (!sidecarValue || typeof sidecarValue !== 'object') {
+  private collectBodyLinkUrls(metadataValue: unknown): string[] {
+    if (!metadataValue || typeof metadataValue !== 'object') {
       return [];
     }
 
-    const bodyLinks = (sidecarValue as { bodyLinks?: unknown }).bodyLinks;
+    const bodyLinks = (metadataValue as { bodyLinks?: unknown }).bodyLinks;
     if (!Array.isArray(bodyLinks)) {
       return [];
     }
@@ -308,9 +324,9 @@ export class DocumentAclService {
     );
   }
 
-  private resolveDocumentAccessState(user: TokenPayload, sidecarValue: unknown): DocumentAccessState {
-    const sidecar = this.normalizeSidecar(sidecarValue);
-    const acl = sidecar.acl;
+  private resolveDocumentAccessState(user: TokenPayload, metadataValue: unknown): DocumentAccessState {
+    const metadata = this.normalizeMetadataAccess(metadataValue);
+    const acl = metadata.acl;
     const legacyAclRead = this.hasAclEntries(acl)
       ? this.matchesAcl(user, [...acl.owners, ...acl.editors, ...acl.viewers])
       : false;
@@ -322,10 +338,10 @@ export class DocumentAclService {
       : false;
     const isOwner = this.matchesAcl(user, [
       ...acl.owners,
-      ...(sidecar.ownerId ? [sidecar.ownerId] : []),
-      ...(sidecar.ownerLoginId ? [sidecar.ownerLoginId] : []),
+      ...(metadata.ownerId ? [metadata.ownerId] : []),
+      ...(metadata.ownerLoginId ? [metadata.ownerLoginId] : []),
     ]);
-    const activePrincipalGrants = sidecar.grants.filter((grant) => this.matchesGrant(user, grant));
+    const activePrincipalGrants = metadata.grants.filter((grant) => this.matchesGrant(user, grant));
     const hasReadGrant = activePrincipalGrants.some((grant) => (
       grant.role === 'read' || grant.role === 'write' || grant.role === 'manage'
     ));
@@ -334,16 +350,16 @@ export class DocumentAclService {
     ));
     const hasManageGrant = activePrincipalGrants.some((grant) => grant.role === 'manage');
     const hasModernAccessConfig = Boolean(
-      sidecar.ownerId
-      || sidecar.ownerLoginId
-      || sidecar.visibilityScope
-      || sidecar.grants.length > 0,
+      metadata.ownerId
+      || metadata.ownerLoginId
+      || metadata.visibilityScope
+      || metadata.grants.length > 0,
     );
     const isLegacyOpen = !hasModernAccessConfig && !this.hasAclEntries(acl);
     const visibilityReadable = this.isVisibilityReadable(
       user,
-      sidecar.visibilityScope,
-      sidecar.visibilityTargetOrgId,
+      metadata.visibilityScope,
+      metadata.visibilityTargetOrgId,
     );
 
     const isReadable = isOwner || hasReadGrant || legacyAclRead || visibilityReadable || isLegacyOpen;
@@ -351,8 +367,8 @@ export class DocumentAclService {
     const isManageable = isOwner || hasManageGrant || legacyAclManage || isLegacyOpen;
 
     return {
-      owner: sidecar.author || sidecar.ownerLoginId,
-      visibilityScope: sidecar.visibilityScope ?? 'legacy',
+      owner: metadata.author || metadata.ownerLoginId,
+      visibilityScope: metadata.visibilityScope ?? 'legacy',
       isOwner,
       isReadable,
       isWritable,
@@ -361,7 +377,7 @@ export class DocumentAclService {
     };
   }
 
-  private normalizeSidecar(value: unknown): {
+  private normalizeMetadataAccess(value: unknown): {
     acl: DocumentAcl;
     author?: string;
     ownerId?: string;
@@ -377,8 +393,8 @@ export class DocumentAclService {
       };
     }
 
-    const sidecar = value as Record<string, unknown>;
-    const visibility = sidecar['visibility'];
+    const metadata = value as Record<string, unknown>;
+    const visibility = metadata['visibility'];
     const visibilityTargetOrgId = (
       visibility
       && typeof visibility === 'object'
@@ -389,15 +405,15 @@ export class DocumentAclService {
       : '';
 
     return {
-      acl: this.normalizeAcl(sidecar['acl']),
-      author: typeof sidecar['author'] === 'string' && sidecar['author'].trim().length > 0
-        ? sidecar['author'].trim()
+      acl: this.normalizeAcl(metadata['acl']),
+      author: typeof metadata['author'] === 'string' && metadata['author'].trim().length > 0
+        ? metadata['author'].trim()
         : undefined,
-      ownerId: typeof sidecar['ownerId'] === 'string' && sidecar['ownerId'].trim().length > 0
-        ? sidecar['ownerId'].trim()
+      ownerId: typeof metadata['ownerId'] === 'string' && metadata['ownerId'].trim().length > 0
+        ? metadata['ownerId'].trim()
         : undefined,
-      ownerLoginId: typeof sidecar['ownerLoginId'] === 'string' && sidecar['ownerLoginId'].trim().length > 0
-        ? sidecar['ownerLoginId'].trim()
+      ownerLoginId: typeof metadata['ownerLoginId'] === 'string' && metadata['ownerLoginId'].trim().length > 0
+        ? metadata['ownerLoginId'].trim()
         : undefined,
       visibilityTargetOrgId: visibilityTargetOrgId.length > 0 ? visibilityTargetOrgId : undefined,
       visibilityScope: (
@@ -416,7 +432,7 @@ export class DocumentAclService {
         && visibility !== null
         && (visibility as Record<string, unknown>)['scope'] === 'self'
       ) ? 'self' : undefined,
-      grants: this.normalizePermissionGrants(sidecar['grants']),
+      grants: this.normalizePermissionGrants(metadata['grants']),
     };
   }
 
@@ -575,5 +591,19 @@ export class DocumentAclService {
           .filter((value): value is string => Boolean(value)),
       ),
     );
+  }
+
+  private readAccessMetadata(absolutePath: string): DocumentMetadata | Record<string, unknown> | null {
+    return this.readCachedMetadata(absolutePath);
+  }
+
+  private readCachedMetadata(absolutePath: string): DocumentMetadata | null {
+    const rootDir = this.getRootDir();
+    const relativePath = normalizePath(path.relative(rootDir, absolutePath));
+    if (relativePath.startsWith('..')) {
+      return null;
+    }
+
+    return this.documentControlPlaneService.getCachedMetadataByRelativePath(relativePath);
   }
 }

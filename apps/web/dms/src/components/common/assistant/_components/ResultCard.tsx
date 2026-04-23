@@ -189,7 +189,7 @@ export function SearchResultCard({
         </span>
         {result.owner && (
           <span className="text-caption text-ssoo-primary/65">
-            Owner: {result.owner}
+            작성자: {result.owner}
           </span>
         )}
       </div>

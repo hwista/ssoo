@@ -135,6 +135,12 @@
 \echo 'Installing: dm_document_index_state_h trigger...'
 \i 49_dm_document_index_state_h_trigger.sql
 
+\echo 'Installing: dm_document_comment_h trigger...'
+\i 55_dm_document_comment_h_trigger.sql
+
+\echo 'Installing: dm_template_h trigger...'
+\i 56_dm_template_h_trigger.sql
+
 \echo ''
 \echo '-- CMS (Content Management System) --'
 \echo ''

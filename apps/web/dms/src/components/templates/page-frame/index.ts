@@ -25,9 +25,9 @@ export {
 
 export type { TocItem } from './toc';
 
-export { SidecarFrame, CollapsibleSection } from './sidecar';
-export type { SidecarFrameProps, CollapsibleSectionProps, CollapsibleSectionVariant } from './sidecar';
-export { TextSection, ChipListSection, ActivityListSection, KeyValueSection } from './sidecar';
+export { PanelFrame, CollapsibleSection } from './panel';
+export type { PanelFrameProps, CollapsibleSectionProps, CollapsibleSectionVariant } from './panel';
+export { TextSection, ChipListSection, ActivityListSection, KeyValueSection } from './panel';
 export type {
   TextSectionProps,
   ChipListSectionProps,
@@ -37,7 +37,7 @@ export type {
   ActivityAction,
   KeyValueSectionProps,
   KeyValueItem,
-} from './sidecar';
+} from './panel';
 
 export { DOCUMENT_WIDTHS, DEFAULT_DOCUMENT_ORIENTATION } from './documentDimensions';
 export type { DocumentOrientation } from './documentDimensions';

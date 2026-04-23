@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Changed
+- **board detail surface now resolves real board context**
+  - `/board/:id` 가 더 이상 목록 placeholder 를 다시 렌더하지 않고 실제 게시판 메타데이터와 board-scoped 게시물 목록을 보여주도록 정리
+  - CMS board detail route 의 TODO/unused param 상태를 제거해 라우트 계약과 실제 화면 동작을 일치시킴
 - **stronger shell chrome parity without real MDI tabs**
   - CMS shell 을 colored header + hover-reveal icon rail sidebar + route-aware secondary strip 조합으로 재구성
   - PMS/DMS 계열의 shell 모양을 더 가깝게 맞추되, CMS는 routed app 의미를 유지

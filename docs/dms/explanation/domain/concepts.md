@@ -11,7 +11,7 @@ DMS의 핵심 도메인 개념과 운영 기준을 정의합니다.
 ### 1.1 생성 문서
 
 - 대상: DMS에서 작성/수정한 위키 문서
-- 파일: `.md`, `.sidecar.json`
+- 파일/정본: markdown content(`.md`) + DB metadata projection
 - 정본: Git 저장소
 
 ### 1.2 생성 입력 정본

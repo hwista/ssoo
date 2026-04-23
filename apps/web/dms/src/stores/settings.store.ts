@@ -6,6 +6,7 @@ import {
   type DmsSettingsConfigClient,
   type DeepPartialClient,
   type SettingsAccessClient,
+  type SettingsRuntimeClient,
 } from '@/lib/api/endpoints/settings';
 import { logger } from '@/lib/utils/errorUtils';
 
@@ -16,13 +17,13 @@ interface SettingsState {
   config: DmsSettingsConfigClient | null;
   docDir: string;
   access: SettingsAccessClient | null;
+  runtime: SettingsRuntimeClient | null;
   error: string | null;
 }
 
 interface SettingsActions {
-  loadSettings: () => Promise<void>;
+  loadSettings: (includeRuntime?: boolean) => Promise<void>;
   updateSettings: (partial: DeepPartialClient<DmsSettingsConfigClient>) => Promise<boolean>;
-  updateGitPath: (newPath: string, copyFiles: boolean) => Promise<boolean>;
 }
 
 export const useSettingsStore = create<SettingsState & SettingsActions>((set, get) => ({
@@ -32,19 +33,21 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
   config: null,
   docDir: '',
   access: null,
+  runtime: null,
   error: null,
 
-  loadSettings: async () => {
+  loadSettings: async (includeRuntime = false) => {
     if (get().isLoading) return;
     set({ isLoading: true, error: null });
 
     try {
-      const response = await settingsApi.getSettings();
+      const response = await settingsApi.getSettings(includeRuntime);
       if (response.success && response.data) {
         set({
           config: response.data.config,
           docDir: response.data.docDir,
           access: response.data.access,
+          runtime: includeRuntime ? response.data.runtime : get().runtime,
           isLoaded: true,
         });
       } else {
@@ -68,6 +71,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
           config: response.data.config,
           docDir: response.data.docDir,
           access: response.data.access,
+          runtime: response.data.runtime,
         });
         return true;
       }
@@ -76,30 +80,6 @@ export const useSettingsStore = create<SettingsState & SettingsActions>((set, ge
     } catch (error) {
       logger.error('설정 저장 실패', error);
       set({ error: '설정 저장 중 오류가 발생했습니다.' });
-      return false;
-    } finally {
-      set({ isSaving: false });
-    }
-  },
-
-  updateGitPath: async (newPath, copyFiles) => {
-    set({ isSaving: true, error: null });
-
-    try {
-      const response = await settingsApi.updateGitPath(newPath, copyFiles);
-      if (response.success && response.data) {
-        set({
-          config: response.data.config,
-          docDir: response.data.docDir,
-          access: response.data.access,
-        });
-        return true;
-      }
-      set({ error: response.error || '경로 변경 실패' });
-      return false;
-    } catch (error) {
-      logger.error('Git 경로 변경 실패', error);
-      set({ error: '경로 변경 중 오류가 발생했습니다.' });
       return false;
     } finally {
       set({ isSaving: false });

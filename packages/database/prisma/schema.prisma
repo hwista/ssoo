@@ -3489,6 +3489,7 @@ model DmsDocument {
   accessRequests     DmsDocumentAccessRequest[]
   pathHistoryEntries DmsDocumentPathHistory[]
   sourceFiles        DmsDocumentSourceFile[]
+  comments           DmsDocumentComment[]
   chunks             DmsDocumentChunk[]
   indexState         DmsDocumentIndexState?
 
@@ -3540,6 +3541,81 @@ model DmsDocumentHistory {
   @@index([eventAt], name: "ix_dm_document_h_event_at")
   @@index([transactionId], name: "ix_dm_document_h_tx")
   @@map("dm_document_h")
+  @@schema("dms")
+}
+
+// ============================================
+// Template Registry - dm_template_m
+// 템플릿 본문은 markdown content plane 에 두고, 메타데이터/ownership/query surface 는 DB 에 canonical 저장한다
+// ============================================
+model DmsTemplate {
+  templateId BigInt @id @default(autoincrement()) @map("template_id")
+
+  templateKey        String  @map("template_key")
+  relativePath       String  @map("relative_path")
+  templateScopeCode  String  @default("personal") @map("template_scope_code")
+  templateKindCode   String  @map("template_kind_code")
+  ownerRef           String  @map("owner_ref")
+  visibilityCode     String  @default("private") @map("visibility_code")
+  templateStatusCode String  @default("active") @map("template_status_code")
+  sourceTypeCode     String  @default("markdown-file") @map("source_type_code")
+  originTypeCode     String? @map("origin_type_code")
+  metadataJson       Json?   @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@unique([templateScopeCode, ownerRef, templateKey], name: "ux_dm_template_m_scope_owner_key")
+  @@unique([relativePath], name: "ux_dm_template_m_relative_path")
+  @@index([templateScopeCode, ownerRef], name: "ix_dm_template_m_scope_owner")
+  @@index([templateKindCode], name: "ix_dm_template_m_kind")
+  @@index([templateStatusCode, updatedAt], name: "ix_dm_template_m_status_updated_at")
+  @@map("dm_template_m")
+  @@schema("dms")
+}
+
+// ============================================
+// Template History - dm_template_h
+// ============================================
+model DmsTemplateHistory {
+  templateId  BigInt @map("template_id")
+  historySeq  BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at")
+
+  templateKey        String  @map("template_key")
+  relativePath       String  @map("relative_path")
+  templateScopeCode  String  @map("template_scope_code")
+  templateKindCode   String  @map("template_kind_code")
+  ownerRef           String  @map("owner_ref")
+  visibilityCode     String  @map("visibility_code")
+  templateStatusCode String  @map("template_status_code")
+  sourceTypeCode     String  @map("source_type_code")
+  originTypeCode     String? @map("origin_type_code")
+  metadataJson       Json?   @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([templateId, historySeq], name: "pk_dm_template_h")
+  @@index([eventAt], name: "ix_dm_template_h_event_at")
+  @@index([transactionId], name: "ix_dm_template_h_tx")
+  @@map("dm_template_h")
   @@schema("dms")
 }
 
@@ -3822,6 +3898,82 @@ model DmsDocumentSourceFileHistory {
   @@index([eventAt], name: "ix_dm_document_source_file_h_event_at")
   @@index([transactionId], name: "ix_dm_document_source_file_h_tx")
   @@map("dm_document_source_file_h")
+  @@schema("dms")
+}
+
+// ============================================
+// Document Comment - dm_document_comment_m
+// comments/discussion canonical relation. FE 는 기존 DocumentMetadata.comments projection 을 유지한다
+// ============================================
+model DmsDocumentComment {
+  commentId BigInt @id @default(autoincrement()) @map("comment_id")
+
+  documentId       BigInt    @map("document_id")
+  commentKey       String    @map("comment_key")
+  parentCommentKey String?   @map("parent_comment_key")
+  commentContent   String    @map("comment_content") @db.Text
+  authorName       String    @map("author_name") @db.VarChar(100)
+  authorEmail      String?   @map("author_email") @db.VarChar(255)
+  avatarUrl        String?   @map("avatar_url")
+  commentCreatedAt DateTime  @map("comment_created_at") @db.Timestamptz(6)
+  commentDeletedAt DateTime? @map("comment_deleted_at") @db.Timestamptz(6)
+  sortOrder        Int       @default(0) @map("sort_order")
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  document DmsDocument @relation(fields: [documentId], references: [documentId], onDelete: Cascade)
+
+  @@unique([documentId, commentKey], name: "ux_dm_document_comment_m_document_key")
+  @@index([documentId, sortOrder], name: "ix_dm_document_comment_m_document_sort")
+  @@index([parentCommentKey], name: "ix_dm_document_comment_m_parent_key")
+  @@index([commentCreatedAt], name: "ix_dm_document_comment_m_created_at")
+  @@map("dm_document_comment_m")
+  @@schema("dms")
+}
+
+// ============================================
+// Document Comment History - dm_document_comment_h
+// ============================================
+model DmsDocumentCommentHistory {
+  commentId  BigInt @map("comment_id")
+  historySeq BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at")
+
+  documentId       BigInt    @map("document_id")
+  commentKey       String    @map("comment_key")
+  parentCommentKey String?   @map("parent_comment_key")
+  commentContent   String    @map("comment_content") @db.Text
+  authorName       String    @map("author_name") @db.VarChar(100)
+  authorEmail      String?   @map("author_email") @db.VarChar(255)
+  avatarUrl        String?   @map("avatar_url")
+  commentCreatedAt DateTime  @map("comment_created_at") @db.Timestamptz(6)
+  commentDeletedAt DateTime? @map("comment_deleted_at") @db.Timestamptz(6)
+  sortOrder        Int       @map("sort_order")
+
+  isActive      Boolean  @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([commentId, historySeq], name: "pk_dm_document_comment_h")
+  @@index([eventAt], name: "ix_dm_document_comment_h_event_at")
+  @@index([transactionId], name: "ix_dm_document_comment_h_tx")
+  @@map("dm_document_comment_h")
   @@schema("dms")
 }
 

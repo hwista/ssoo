@@ -1,4 +1,5 @@
 import type { PermissionResolutionTrace } from '../common/access';
+import type { DocumentPermissionGrant, DocumentVisibilityScope } from './document-metadata';
 
 export type DmsDocumentAccessRequestRole = 'read';
 
@@ -52,6 +53,35 @@ export interface DmsDocumentAccessRequestSummary
   grantId?: string;
   grantExpiresAt?: string;
   canRespond?: boolean;
+}
+
+export interface DmsManagedDocumentGrantSummary {
+  total: number;
+  read: number;
+  write: number;
+  manage: number;
+  expired: number;
+}
+
+export interface DmsManagedDocumentRequestSummary {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+}
+
+export interface DmsManagedDocumentSummary {
+  documentId: string;
+  path: string;
+  documentTitle: string;
+  owner: DmsDocumentAccessRequestActor;
+  visibilityScope: DocumentVisibilityScope | 'legacy';
+  syncStatusCode: 'synced' | 'repair_needed';
+  repairReason?: string;
+  updatedAt?: string;
+  grants: DocumentPermissionGrant[];
+  grantSummary: DmsManagedDocumentGrantSummary;
+  requestSummary: DmsManagedDocumentRequestSummary;
 }
 
 export interface CreateDmsDocumentAccessRequestPayload {

@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { Check, CornerDownRight, FileText, Globe, ImageIcon, Link2, Plus, Sparkles, Tag, X } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
-import { ActivityListSection, ChipListSection, TextSection } from '@/components/templates/page-frame/sidecar';
-import type { ActivityAction } from '@/components/templates/page-frame/sidecar';
+import { ActivityListSection, ChipListSection, TextSection } from '@/components/templates/page-frame/panel';
+import type { ActivityAction } from '@/components/templates/page-frame/panel';
 import { docAssistApi } from '@/lib/api/endpoints/ai';
 import { isExternalUrl } from '@/lib/utils/linkUtils';
 import type { BodyLink } from '@/types';

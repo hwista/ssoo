@@ -151,6 +151,9 @@ export type { CmsFeatureAccess, CmsAccessSnapshot } from './cms/access';
 export type {
   FileNode,
   DocumentAcl,
+  DocumentMutationAction,
+  DocumentIsolationReasonCode,
+  DocumentIsolationState,
   SourceFileMeta,
   DocumentVersionEntry,
   DocumentComment,

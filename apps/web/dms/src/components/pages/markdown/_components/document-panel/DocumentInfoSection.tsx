@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { Calendar, Check, FileText, Pencil, Sparkles, User, X } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
-import { KeyValueSection } from '@/components/templates/page-frame/sidecar';
-import type { KeyValueItem } from '@/components/templates/page-frame/sidecar';
+import { KeyValueSection } from '@/components/templates/page-frame/panel';
+import type { KeyValueItem } from '@/components/templates/page-frame/panel';
 
 function formatDate(date: Date | string | undefined): string {
   if (!date) return '-';

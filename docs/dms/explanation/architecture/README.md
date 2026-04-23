@@ -12,7 +12,7 @@ DMS(Document Management System) 아키텍처 및 개발 기준 문서입니다.
 |------|------|
 | [tech-stack.md](tech-stack.md) | 기술 스택 - 프론트엔드 기술 및 버전 |
 | [package-spec.md](package-spec.md) | 패키지 명세서 - 의존성 상세 |
-| [hybrid-document-control-plane.md](hybrid-document-control-plane.md) | file/Git, DB, sidecar, `revisionSeq`, reconciliation 경계 |
+| [hybrid-document-control-plane.md](hybrid-document-control-plane.md) | file/Git, DB metadata projection, `revisionSeq`, reconciliation 경계 |
 
 ## 개발 표준
 

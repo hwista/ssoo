@@ -39,7 +39,7 @@ DMS는 다음이 실제로 구현되어 있습니다.
 - same-origin auth proxy
 - shared access foundation 위의 DMS feature snapshot
 - DmsFeatureGuard 기반 feature gating
-- sidecar 기반 document ACL pilot
+- DB metadata projection 기반 document ACL pilot
 - document access request workflow
 - document/file/content/search/ask/storage/git/templates surface 에 대한 ACL enforcement 확장
 

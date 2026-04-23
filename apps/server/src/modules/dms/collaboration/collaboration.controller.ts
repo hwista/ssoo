@@ -51,9 +51,27 @@ export class CollaborationController {
   @Post('retry-publish')
   @ApiOperation({ summary: '문서 publish 재시도' })
   @ApiOkResponse({ description: '문서 collaboration snapshot 반환' })
-  async retryPublish(@Body() body: { path?: string }) {
+  async retryPublish(@CurrentUser() currentUser: TokenPayload, @Body() body: { path?: string }) {
     if (!body.path?.trim()) throw new BadRequestException('path는 필수입니다.');
-    return success(await this.collaborationService.retryPublish(body.path));
+    return success(await this.collaborationService.retryPublish(body.path, currentUser));
+  }
+
+  @Post('force-lock')
+  @RequireDmsFeature('canManageSettings')
+  @ApiOperation({ summary: '문서 경로 강제 잠금' })
+  @ApiOkResponse({ description: '문서 collaboration snapshot 반환' })
+  async forceLock(@CurrentUser() currentUser: TokenPayload, @Body() body: { path?: string; reason?: string }) {
+    if (!body.path?.trim()) throw new BadRequestException('path는 필수입니다.');
+    return success(await this.collaborationService.forceLockPath(body.path, currentUser, body.reason));
+  }
+
+  @Post('force-unlock')
+  @RequireDmsFeature('canManageSettings')
+  @ApiOperation({ summary: '문서 경로 강제 잠금 해제' })
+  @ApiOkResponse({ description: '문서 collaboration snapshot 반환' })
+  async forceUnlock(@CurrentUser() currentUser: TokenPayload, @Body() body: { path?: string }) {
+    if (!body.path?.trim()) throw new BadRequestException('path는 필수입니다.');
+    return success(await this.collaborationService.forceUnlockPath(body.path, currentUser));
   }
 
   @Delete()

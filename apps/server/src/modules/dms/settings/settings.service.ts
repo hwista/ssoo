@@ -1,9 +1,8 @@
 import fs from 'fs';
-import path from 'path';
-import type { DeepPartial, DmsConfig } from '../runtime/dms-config.service.js';
+import type { DeepPartial, DmsConfig, RuntimePathBindingInfo } from '../runtime/dms-config.service.js';
 import { configService } from '../runtime/dms-config.service.js';
 import { personalSettingsService, type DmsPersonalSettings } from '../runtime/personal-settings.service.js';
-import { gitService } from '../runtime/git.service.js';
+import { gitService, type GitRepositoryBindingStatus } from '../runtime/git.service.js';
 import type { SettingsAccessMode, SettingsProfileKey } from '../runtime/settings.types.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 const logger = createDmsLogger('DmsSettingsService');
@@ -19,15 +18,43 @@ export interface SettingsAccessInfo {
   canManagePersonal: boolean;
 }
 
+export interface SettingsRuntimePathInfo {
+  configuredPath: string;
+  effectiveInput: string;
+  resolvedPath: string;
+  exists: boolean;
+  relativeToAppRoot: boolean;
+  source: 'config' | 'env';
+  envVar?: string;
+}
+
+export interface SettingsRuntimePathsSnapshot {
+  markdownRoot: SettingsRuntimePathInfo;
+  ingestQueue: SettingsRuntimePathInfo;
+  storageRoots: {
+    local: SettingsRuntimePathInfo;
+    sharepoint: SettingsRuntimePathInfo;
+    nas: SettingsRuntimePathInfo;
+  };
+  /** 템플릿 경로는 markdownRoot/_templates 에서 파생 (read-only info) */
+  templateDir: string;
+}
+
 export interface DmsSettingsConfig {
   system: DmsSystemConfig;
   personal: DmsPersonalSettings;
+}
+
+export interface SettingsRuntimeSnapshot {
+  git: GitRepositoryBindingStatus;
+  paths: SettingsRuntimePathsSnapshot;
 }
 
 export interface SettingsSnapshot {
   config: DmsSettingsConfig;
   docDir: string;
   access: SettingsAccessInfo;
+  runtime: SettingsRuntimeSnapshot | null;
 }
 
 export type SettingsServiceResult =
@@ -43,101 +70,155 @@ function sanitizeSystemConfig(config: DmsConfig): DmsSystemConfig {
   };
 }
 
+function sanitizeMutableSettingsPartial(
+  partial?: DeepPartial<DmsSettingsConfig>,
+): DeepPartial<DmsSettingsConfig> | undefined {
+  if (!partial) {
+    return undefined;
+  }
+
+  const next: DeepPartial<DmsSettingsConfig> = { ...partial };
+  if (!partial.system) {
+    return next;
+  }
+
+  const system = { ...partial.system };
+  if (partial.system.git) {
+    const git = { ...partial.system.git } as Record<string, unknown>;
+    delete git.repositoryPath;
+    if (Object.keys(git).length > 0) {
+      system.git = git as DeepPartial<DmsSettingsConfig['system']['git']>;
+    } else {
+      delete system.git;
+    }
+  }
+
+  // templates config is now derived from markdownRoot — strip entirely
+  delete (system as Record<string, unknown>).templates;
+
+  if (Object.keys(system as Record<string, unknown>).length > 0) {
+    next.system = system;
+  } else {
+    delete next.system;
+  }
+
+  return next;
+}
+
 class SettingsService {
-  getSettings(): SettingsSnapshot {
+  async getSettings(includeRuntime = false): Promise<SettingsSnapshot> {
+    return this.buildSnapshot(includeRuntime);
+  }
+
+  private toRuntimePathInfo(binding: RuntimePathBindingInfo): SettingsRuntimePathInfo {
+    return {
+      ...binding,
+      exists: fs.existsSync(binding.resolvedPath),
+    };
+  }
+
+  private async buildRuntimeSnapshot(): Promise<SettingsRuntimeSnapshot> {
+    const docRootBinding = configService.getDocumentRootBinding();
+    const resolvedDocDir = docRootBinding.resolvedPath;
+    const runtimeGit = await gitService.getRepositoryBindingStatus();
+    const runtimePaths: SettingsRuntimePathsSnapshot = {
+      markdownRoot: this.toRuntimePathInfo(docRootBinding),
+      ingestQueue: this.toRuntimePathInfo(configService.getIngestQueueBinding()),
+      storageRoots: {
+        local: this.toRuntimePathInfo(configService.getStorageRootBinding('local')),
+        sharepoint: this.toRuntimePathInfo(configService.getStorageRootBinding('sharepoint')),
+        nas: this.toRuntimePathInfo(configService.getStorageRootBinding('nas')),
+      },
+      templateDir: configService.getTemplateDir(),
+    };
+    return {
+      git: runtimeGit.success
+        ? runtimeGit.data
+        : {
+          appRoot: docRootBinding.appRoot,
+          configuredRootInput: docRootBinding.effectiveInput,
+          configuredRoot: resolvedDocDir,
+          configuredRootExists: fs.existsSync(resolvedDocDir),
+          configuredRootRelativeToAppRoot: docRootBinding.relativeToAppRoot,
+          actualGitRoot: undefined,
+          rootRelation: 'not-inside-repository',
+          rootMismatch: false,
+          state: 'git-unavailable',
+          reason: runtimeGit.error,
+          gitAvailable: false,
+          isRepository: false,
+          hasGitMetadata: false,
+          visibleEntryCount: 0,
+          branch: undefined,
+          remoteName: 'origin',
+          remoteUrl: undefined,
+          syncState: 'unavailable',
+          syncStatus: undefined,
+          parityStatus: {
+            remote: 'origin',
+            verified: false,
+            canTreatLocalAsCanonical: false,
+            reason: runtimeGit.error,
+          },
+          bootstrapRemoteUrl: configService.getGitBootstrapRemoteUrl(),
+          bootstrapBranch: configService.getGitBootstrapBranch(),
+          autoInit: configService.getAutoInit(),
+          reconcileRequired: false,
+        },
+      paths: runtimePaths,
+    };
+  }
+
+  private async buildSnapshot(includeRuntime = false): Promise<SettingsSnapshot> {
+    const docRootBinding = configService.getDocumentRootBinding();
+    const resolvedDocDir = docRootBinding.resolvedPath;
+    const runtime = includeRuntime ? await this.buildRuntimeSnapshot() : null;
+
     return {
       config: {
         system: sanitizeSystemConfig(configService.getConfig()),
         personal: personalSettingsService.getSettings(),
       },
-      docDir: configService.getDocDir(),
+      docDir: resolvedDocDir,
       access: {
         mode: personalSettingsService.getAccessMode(),
         profileKey: personalSettingsService.getProfileKey(),
         canManageSystem: true,
         canManagePersonal: true,
       },
+      runtime,
     };
   }
 
-  updateSettings(partial?: DeepPartial<DmsSettingsConfig>): SettingsServiceResult {
+  async updateSettings(partial?: DeepPartial<DmsSettingsConfig>): Promise<SettingsServiceResult> {
     if (!partial) {
-      return { success: true, ...this.getSettings() };
+      return { success: true, ...(await this.buildSnapshot(false)) };
     }
 
-    if (partial.system) {
-      configService.updateConfig(partial.system);
+    const sanitizedPartial = sanitizeMutableSettingsPartial(partial);
+    const previousDocDir = sanitizedPartial?.system ? configService.getDocDir() : null;
+
+    if (sanitizedPartial?.system) {
+      configService.updateConfig(sanitizedPartial.system);
+      const nextDocDir = configService.getDocDir();
+      if (previousDocDir !== nextDocDir) {
+        gitService.reconfigure(nextDocDir);
+        logger.info('문서 Git working tree binding 갱신', {
+          from: previousDocDir,
+          to: nextDocDir,
+        });
+      }
     }
-    if (partial.personal) {
-      personalSettingsService.updateSettings(partial.personal);
+    if (sanitizedPartial?.personal) {
+      personalSettingsService.updateSettings(sanitizedPartial.personal);
     }
 
     return {
       success: true,
-      ...this.getSettings(),
+      ...(await this.buildSnapshot(true)),
     };
   }
 
-  async updateGitPath(newPath?: string, copyFiles?: boolean): Promise<SettingsServiceResult> {
-    if (!newPath) {
-      return { success: false, error: '새 저장소 경로가 필요합니다.' };
-    }
-
-    const resolvedPath = path.resolve(newPath);
-    const currentDir = configService.getDocDir();
-
-    try {
-      if (!fs.existsSync(resolvedPath)) {
-        fs.mkdirSync(resolvedPath, { recursive: true });
-        logger.info('새 문서 디렉토리 생성', { path: resolvedPath });
-      }
-
-      if (copyFiles && currentDir !== resolvedPath && fs.existsSync(currentDir)) {
-        await this.copyDirectoryContents(currentDir, resolvedPath);
-        logger.info('문서 파일 복사 완료', { from: currentDir, to: resolvedPath });
-      }
-
-      configService.updateConfig({
-        git: { repositoryPath: resolvedPath },
-      });
-
-      gitService.reconfigure(resolvedPath);
-      const initResult = await gitService.initialize();
-      if (!initResult.success) {
-        logger.warn('Git 재초기화 경고', { error: initResult.error });
-      }
-
-      return {
-        success: true,
-        ...this.getSettings(),
-        docDir: resolvedPath,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      logger.error('Git 경로 변경 실패', error);
-      return { success: false, error: message };
-    }
-  }
-
-  private async copyDirectoryContents(src: string, dest: string): Promise<void> {
-    const entries = fs.readdirSync(src, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (entry.name === '.git') continue;
-
-      const srcPath = path.join(src, entry.name);
-      const destPath = path.join(dest, entry.name);
-
-      if (entry.isDirectory()) {
-        if (!fs.existsSync(destPath)) {
-          fs.mkdirSync(destPath, { recursive: true });
-        }
-        await this.copyDirectoryContents(srcPath, destPath);
-      } else {
-        fs.copyFileSync(srcPath, destPath);
-      }
-    }
-  }
 }
 
 export const settingsService = new SettingsService();

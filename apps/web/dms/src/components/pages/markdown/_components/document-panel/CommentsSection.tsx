@@ -4,7 +4,7 @@ import * as React from 'react';
 import { MessageSquare, Reply, X } from 'lucide-react';
 import type { DocumentComment } from '@/types';
 import { UserAvatar } from '@/components/common';
-import { CollapsibleSection } from '@/components/templates/page-frame/sidecar/CollapsibleSection';
+import { CollapsibleSection } from '@/components/templates/page-frame/panel/CollapsibleSection';
 import { cn } from '@/lib/utils';
 
 function formatDate(date: Date | string | undefined): string {

@@ -4,6 +4,13 @@ export type {
   DmsPersonalSettingsClient,
   DmsSettingsConfigClient,
   DmsSystemConfigClient,
+  GitBindingStateClient,
+  GitParityStatusClient,
+  GitRootRelationClient,
   SettingsAccessClient,
+  SettingsRuntimeClient,
+  SettingsRuntimeGitClient,
+  SettingsRuntimePathClient,
+  SettingsRuntimePathsClient,
   SettingsResponse,
 } from '../settingsApi';

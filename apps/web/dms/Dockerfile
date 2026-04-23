@@ -22,13 +22,7 @@ COPY --from=deps /app/ ./
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN mkdir -p apps/web/dms/data/wiki \
-    apps/web/dms/data/templates \
-    apps/web/dms/data/ingest \
-    apps/web/dms/data/storage/local \
-    apps/web/dms/data/documents && \
-    git init apps/web/dms/data/documents && \
-    pnpm --filter @ssoo/types build && \
+RUN pnpm --filter @ssoo/types build && \
     pnpm --filter @ssoo/web-auth build && \
     pnpm --filter @ssoo/web-shell build && \
     pnpm --filter web-dms build
@@ -48,14 +42,6 @@ COPY --from=builder /app/apps/web/dms/.next/standalone ./
 COPY --from=builder /app/apps/web/dms/.next/static ./apps/web/dms/.next/static
 COPY --from=builder /app/apps/web/dms/dms.config.default.json ./apps/web/dms/dms.config.default.json
 COPY --from=builder /app/apps/web/dms/dms.personal.config.default.json ./apps/web/dms/dms.personal.config.default.json
-
-RUN mkdir -p apps/web/dms/data/wiki \
-    apps/web/dms/data/templates \
-    apps/web/dms/data/ingest \
-    apps/web/dms/data/storage/local \
-    apps/web/dms/data/documents && \
-    git init apps/web/dms/data/documents && \
-    chown -R nextjs:nodejs /app/apps/web/dms/data
 
 USER nextjs
 WORKDIR /app/apps/web/dms

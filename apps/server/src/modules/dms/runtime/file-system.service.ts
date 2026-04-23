@@ -25,14 +25,11 @@ function getRootDir(): string {
   return configService.getDocDir();
 }
 
-function readSidecarTitle(mdFullPath: string): string | undefined {
-  const parsed = path.parse(mdFullPath);
-  const sidecarPath = path.join(parsed.dir, `${parsed.name}.sidecar.json`);
+function extractMarkdownTitle(mdFullPath: string): string | undefined {
   try {
-    if (!fs.existsSync(sidecarPath)) return undefined;
-    const raw = fs.readFileSync(sidecarPath, 'utf-8');
-    const meta = JSON.parse(raw) as { title?: string };
-    return meta.title || undefined;
+    const content = fs.readFileSync(mdFullPath, 'utf-8');
+    const headingMatch = content.match(/^#\s+(.+)$/m);
+    return headingMatch?.[1]?.trim() || undefined;
   } catch {
     return undefined;
   }
@@ -58,7 +55,7 @@ class FileSystemService {
         }
 
         if (entry.isFile() && isMarkdownFile(entry.name)) {
-          const title = readSidecarTitle(fullPath);
+          const title = extractMarkdownTitle(fullPath);
           return {
             type: 'file' as const,
             name: entry.name,

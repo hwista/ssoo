@@ -12,6 +12,27 @@ export type DocumentPermissionPrincipalType = 'user' | 'organization' | 'team' |
 
 export type DocumentPermissionRole = 'read' | 'write' | 'manage';
 
+export type DocumentMutationAction = 'write' | 'updateMetadata' | 'rename' | 'delete' | 'upload' | 'resync' | 'publish';
+
+export type DocumentIsolationReasonCode =
+  | 'sync-blocked'
+  | 'push-failed'
+  | 'control-plane-repair'
+  | 'operator-forced-lock';
+
+export interface DocumentIsolationState {
+  path: string;
+  primaryPath: string;
+  status: 'reconcile-needed' | 'force-locked';
+  source: 'publish' | 'control-plane' | 'operator';
+  reasonCode: DocumentIsolationReasonCode;
+  reason: string;
+  isolatedAt: string;
+  blockedActions: DocumentMutationAction[];
+  affectedPaths?: string[];
+  releaseStrategy: 'manual' | 'mixed';
+}
+
 export interface DocumentVisibility {
   scope: DocumentVisibilityScope;
   targetOrgId?: string;
@@ -108,4 +129,5 @@ export interface DocumentMetadata {
   lastModifiedBy: string;
   ownerId?: string;
   ownerLoginId?: string;
+  isolation?: DocumentIsolationState;
 }

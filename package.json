@@ -41,8 +41,10 @@
     "verify:access-smoke": "pnpm run verify:access-smoke:observed",
     "verify:access-smoke:raw": "node scripts/verify-access-smoke.mjs",
     "verify:access-ci": "pnpm verify:access-smoke && pnpm verify:access-admin && pnpm verify:access-dms",
-    "verify:access-admin": "pnpm --filter @ssoo/database build && DATABASE_URL=${DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@localhost:5432/ssoo_dev?schema=public} node scripts/verify-access-admin.mjs",
-    "verify:access-dms": "node scripts/verify-access-dms.mjs",
+    "verify:access-admin": "pnpm run verify:access-admin:observed",
+    "verify:access-admin:raw": "pnpm --filter @ssoo/database build && DATABASE_URL=${DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@localhost:5432/ssoo_dev?schema=public} node scripts/verify-access-admin.mjs",
+    "verify:access-dms": "pnpm run verify:access-dms:observed",
+    "verify:access-dms:raw": "node scripts/verify-access-dms.mjs",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
@@ -74,7 +76,9 @@
     "harness:reviewer:complete": "bash .hermes/scripts/harness-stage-event complete --role reviewer",
     "codex:preflight:observed": "bash .hermes/scripts/harness-observe-command --stage stage8-verify --actor-role verifier --agent-id verify-preflight --prompt-class verification --command 'pnpm run codex:preflight:raw' --verification-command-label 'pnpm run codex:preflight:raw'",
     "docs:verify:observed": "bash .hermes/scripts/harness-observe-command --stage stage8-verify --actor-role verifier --agent-id verify-docs --prompt-class verification --command 'pnpm run docs:verify:raw' --verification-command-label 'pnpm run docs:verify:raw'",
-    "verify:access-smoke:observed": "bash .hermes/scripts/harness-observe-command --stage stage8-verify --actor-role verifier --agent-id verify-access-smoke --provider github-copilot --model gpt-4.1 --prompt-class verification --command 'pnpm run verify:access-smoke:raw' --verification-command-label 'pnpm run verify:access-smoke:raw'"
+    "verify:access-smoke:observed": "bash .hermes/scripts/harness-observe-command --stage stage8-verify --actor-role verifier --agent-id verify-access-smoke --provider github-copilot --model gpt-4.1 --prompt-class verification --command 'pnpm run verify:access-smoke:raw' --verification-command-label 'pnpm run verify:access-smoke:raw'",
+    "verify:access-admin:observed": "bash .hermes/scripts/harness-observe-command --stage stage8-verify --actor-role verifier --agent-id verify-access-admin --provider github-copilot --model gpt-4.1 --prompt-class verification --command 'pnpm run verify:access-admin:raw' --verification-command-label 'pnpm run verify:access-admin:raw'",
+    "verify:access-dms:observed": "bash .hermes/scripts/harness-observe-command --stage stage8-verify --actor-role verifier --agent-id verify-access-dms --provider github-copilot --model gpt-4.1 --prompt-class verification --command 'pnpm run verify:access-dms:raw' --verification-command-label 'pnpm run verify:access-dms:raw'"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.3.1",

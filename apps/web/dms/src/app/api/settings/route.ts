@@ -25,8 +25,10 @@ function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | 
 }
 
 async function proxyJson<T>(request: Request, init?: RequestInit) {
+  const requestUrl = new URL(request.url);
+  const query = requestUrl.searchParams.toString();
   const response = await fetch(
-    createServerApiUrl('/dms/settings'),
+    createServerApiUrl(query ? `/dms/settings?${query}` : '/dms/settings'),
     createServerApiProxyInit(request, init),
   );
   const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<T> | BackendErrorResponse | null;

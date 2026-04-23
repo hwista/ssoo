@@ -25,7 +25,7 @@
 - publish state 에 change-set(`operationType`, `affectedPaths`)와 git sync detail 추가
 - recovery API 추가 (`/dms/collaboration/refresh`, `/dms/collaboration/retry-publish`)
 - DocumentPage 에 sync-blocked / push-failed 상태 새로고침 및 publish 재시도 UX 추가
-- collaboration/publish 표식을 `DocumentSidecar` 패널로 이동
+- collaboration/publish 표식을 `DocumentPanel` 패널로 이동
 - asset 업로드(attachment/image/reference)도 문서 기준 change-set publish enqueue 에 포함
 
 검증:
@@ -91,7 +91,7 @@
 
 ### Slice 5 — asset/change-set batching and sync-blocked recovery
 
-**Objective:** 문서/sidecar/assets를 change-set 단위로 묶고, sync-blocked 상태에서 수동 reconcile 흐름을 제공한다.
+**Objective:** 문서/metadata/assets를 change-set 단위로 묶고, sync-blocked 상태에서 수동 reconcile 흐름을 제공한다.
 
 **Files:**
 - Modify: `apps/server/src/modules/dms/collaboration/collaboration.service.ts`

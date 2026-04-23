@@ -141,7 +141,7 @@ AppLayout
 
 역할:
 
-- breadcrumb/header/content/sidecar 패턴 제공
+- breadcrumb/header/content/panel 패턴 제공
 - page 외형과 프레임 일관성 유지
 - page 비즈니스 로직은 알지 않음
 

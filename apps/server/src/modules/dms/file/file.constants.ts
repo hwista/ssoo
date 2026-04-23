@@ -34,6 +34,7 @@ export const ATTACHMENT_TYPES: AttachmentTypeInfo[] = [
 
 export const ATTACHMENT_ALLOWED_EXTENSIONS = new Set(ATTACHMENT_TYPES.map((item) => item.ext));
 export const ATTACHMENT_STORAGE_DIR = '_assets/attachments';
+export const IMAGE_STORAGE_DIR = '_assets/images';
 export const REFERENCE_STORAGE_DIR = '_assets/references';
 export const IMAGE_ALLOWED_MIME_TYPES = new Set([
   'image/png',

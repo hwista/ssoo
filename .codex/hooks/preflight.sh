@@ -4,6 +4,20 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
+emit_stage() {
+  local action="$1"
+  shift
+  if [ -z "${HERMES_HARNESS_RUN_ID:-}" ]; then
+    return 0
+  fi
+  if [ ! -x ".hermes/scripts/harness-stage-event" ]; then
+    return 0
+  fi
+  bash .hermes/scripts/harness-stage-event "$action" --run-id "$HERMES_HARNESS_RUN_ID" "$@" >/dev/null 2>&1 || true
+}
+
+emit_stage start --role planner --provider github-copilot --model claude-sonnet-4.6 --notes "ssoo preflight planner"
+
 MATCH_TOOL="rg"
 if ! command -v rg >/dev/null 2>&1; then
   MATCH_TOOL="grep"
@@ -71,13 +85,22 @@ if [ "$NEED_PATTERNS" -eq 1 ]; then
 fi
 
 if [ "$NEED_DOCS" -eq 1 ]; then
+  emit_stage complete --role planner --provider github-copilot --model claude-sonnet-4.6 --status succeeded --handoff-to critic-01
+  emit_stage start --role critic --provider openai-codex --model gpt-5.4
   echo "[preflight] running: node .github/scripts/check-docs.js --strict-warnings"
   node .github/scripts/check-docs.js --strict-warnings
 fi
 
 if [ "$NEED_PATTERNS" -eq 1 ]; then
+  if [ "$NEED_DOCS" -ne 1 ]; then
+    emit_stage complete --role planner --provider github-copilot --model claude-sonnet-4.6 --status succeeded --handoff-to critic-01
+    emit_stage start --role critic --provider openai-codex --model gpt-5.4
+  fi
   echo "[preflight] running: node .github/scripts/check-patterns.js ${PATTERN_FILES[*]}"
   node .github/scripts/check-patterns.js "${PATTERN_FILES[@]}"
 fi
 
 echo "[preflight] completed."
+emit_stage complete --role critic --provider openai-codex --model gpt-5.4 --status succeeded --handoff-to reviewer-01
+emit_stage start --role reviewer --provider github-copilot --model claude-sonnet-4.6
+emit_stage complete --role reviewer --provider github-copilot --model claude-sonnet-4.6 --status succeeded

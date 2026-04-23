@@ -24,7 +24,7 @@ import { getErrorMessage } from '@/lib/api/core';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import { useDocumentAccessRequestStore } from '@/stores/document-access-request.store';
 import { getQueryFromTabPath } from './utils/queryPath';
-import { AiSidecar } from './_components/AiSidecar';
+import { AiPanel } from './_components/AiPanel';
 import { SearchResultsPanel } from './_components/SearchResultsPanel';
 import {
   buildHistoryItems,
@@ -291,8 +291,8 @@ export function AiSearchPage() {
         contentOrientation="portrait"
         description="문서 기반 검색 결과를 확인하세요."
         contentSurfaceClassName={DOC_PAGE_SURFACE_PRESETS.ai}
-        sidecarContent={(
-          <AiSidecar
+        panelContent={(
+          <AiPanel
             variant="search"
             history={historyItems}
             onHistorySelect={(item) => {

@@ -7,6 +7,7 @@ import type {
   DmsDocumentAccessRequestListQuery,
   DmsDocumentAccessRequestStatusFilter,
   DmsDocumentAccessRequestSummary,
+  DmsManagedDocumentSummary,
   RejectDmsDocumentAccessRequestPayload,
 } from '@ssoo/types/dms';
 import { accessApi } from '@/lib/api/access';
@@ -15,6 +16,7 @@ import { aiSearchKeys } from './useAiSearch';
 
 export const accessRequestKeys = {
   all: ['dms-access-requests'] as const,
+  managedDocuments: ['dms-managed-documents'] as const,
   my: (query: DmsDocumentAccessRequestListQuery = {}) => [
     ...accessRequestKeys.all,
     'my',
@@ -40,8 +42,16 @@ async function unwrap<T>(promise: Promise<{ success: boolean; data?: T; error?: 
 async function invalidateRequestQueries(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: accessRequestKeys.all }),
+    queryClient.invalidateQueries({ queryKey: accessRequestKeys.managedDocuments }),
     queryClient.invalidateQueries({ queryKey: aiSearchKeys.results() }),
   ]);
+}
+
+export function useManageableDocumentsQuery() {
+  return useQuery({
+    queryKey: accessRequestKeys.managedDocuments,
+    queryFn: () => unwrap<DmsManagedDocumentSummary[]>(accessApi.listManageableDocuments()),
+  });
 }
 
 export function useMyDocumentAccessRequestsQuery(

@@ -1,8 +1,8 @@
 import type {
   TemplateGeneration,
+  TemplateItem,
   TemplateOriginType,
   TemplateReferenceDoc,
-  TemplateItem,
   TemplateScope,
   TemplateSourceType,
   TemplateStatus,
@@ -13,18 +13,18 @@ export interface StoredTemplateItem extends Omit<TemplateItem, 'content'> {
   content?: string;
 }
 
-export interface TemplateSidecarData {
+export interface TemplateMetadataRecord {
   id: string;
   name: string;
   description?: string;
   summary?: string;
   tags?: string[];
   createdAt?: string;
-  scope: TemplateScope;
-  kind: TemplateItem['kind'];
   updatedAt: string;
   author?: string;
   lastModifiedBy?: string;
+  scope: TemplateScope;
+  kind: TemplateItem['kind'];
   ownerId: string;
   visibility: TemplateVisibility;
   status: TemplateStatus;
