@@ -126,7 +126,7 @@ export class DocumentHydrationService {
           data: {
             relativePath: relPath,
             ownerUserId: adminUserId,
-            visibilityScope: 'org',
+            visibilityScope: 'organization',
             documentStatusCode: 'active',
             syncStatusCode: 'synced',
             contentHash: hash,
@@ -138,14 +138,14 @@ export class DocumentHydrationService {
           },
         });
 
-        // admin에게 owner grant 부여
+        // admin에게 manage grant 부여
         await this.db.client.dmsDocumentGrant.create({
           data: {
             documentId: doc.documentId,
-            principalType: 'role',
-            principalRef: 'admin',
-            roleCode: 'owner',
-            grantSourceCode: 'bootstrap',
+            principalType: 'user',
+            principalRef: adminUserId.toString(),
+            roleCode: 'manage',
+            grantSourceCode: 'owner-default',
             grantedByUserId: adminUserId,
             lastSource: 'hydration',
             lastActivity: 'document-hydration.bootstrap',
