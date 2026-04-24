@@ -6,6 +6,7 @@ import type {
   DmsDocumentAccessRequestListQuery,
   DmsDocumentAccessRequestStatusFilter,
   RejectDmsDocumentAccessRequestPayload,
+  UpdateDocumentVisibilityPayload,
 } from '@ssoo/types/dms';
 
 export const DMS_DOCUMENT_ACCESS_REQUEST_STATUS_FILTERS = [
@@ -72,4 +73,16 @@ export class RejectReadAccessRequestDto
   @IsString()
   @MaxLength(500)
   responseMessage?: string;
+}
+
+const VALID_VISIBILITY_SCOPES = ['self', 'organization'] as const;
+
+export class UpdateDocumentVisibilityDto
+  implements UpdateDocumentVisibilityPayload {
+  @ApiProperty({
+    description: '문서 공개범위',
+    enum: VALID_VISIBILITY_SCOPES,
+  })
+  @IsIn(VALID_VISIBILITY_SCOPES)
+  visibilityScope!: 'self' | 'organization';
 }

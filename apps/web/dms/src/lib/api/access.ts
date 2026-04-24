@@ -6,8 +6,9 @@ import type {
   DmsDocumentAccessRequestSummary,
   DmsManagedDocumentSummary,
   RejectDmsDocumentAccessRequestPayload,
+  UpdateDocumentVisibilityPayload,
 } from '@ssoo/types/dms';
-import { get, post } from './core';
+import { get, patch, post } from './core';
 
 function buildQueryString(query?: DmsDocumentAccessRequestListQuery) {
   if (!query) {
@@ -55,6 +56,15 @@ export const accessApi = {
   ) => (
     post<DmsDocumentAccessRequestSummary>(
       `/api/access/requests/${encodeURIComponent(accessRequestId)}/reject`,
+      payload,
+    )
+  ),
+  updateDocumentVisibility: (
+    documentId: string,
+    payload: UpdateDocumentVisibilityPayload,
+  ) => (
+    patch<{ documentId: string; visibilityScope: string }>(
+      `/api/access/documents/${encodeURIComponent(documentId)}/visibility`,
       payload,
     )
   ),

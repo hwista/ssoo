@@ -9,6 +9,7 @@ import type {
   DmsDocumentAccessRequestSummary,
   DmsManagedDocumentSummary,
   RejectDmsDocumentAccessRequestPayload,
+  UpdateDocumentVisibilityPayload,
 } from '@ssoo/types/dms';
 import { accessApi } from '@/lib/api/access';
 import { getErrorMessage } from '@/lib/api/core';
@@ -110,6 +111,22 @@ export function useRejectDocumentAccessRequestMutation() {
       payload: RejectDmsDocumentAccessRequestPayload;
     }) => unwrap<DmsDocumentAccessRequestSummary>(
       accessApi.rejectRequest(params.accessRequestId, params.payload),
+    ),
+    onSuccess: async () => {
+      await invalidateRequestQueries(queryClient);
+    },
+  });
+}
+
+export function useUpdateDocumentVisibilityMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      documentId: string;
+      payload: UpdateDocumentVisibilityPayload;
+    }) => unwrap<{ documentId: string; visibilityScope: string }>(
+      accessApi.updateDocumentVisibility(params.documentId, params.payload),
     ),
     onSuccess: async () => {
       await invalidateRequestQueries(queryClient);

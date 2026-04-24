@@ -31,7 +31,7 @@ export interface DocumentConflictDetails {
 }
 
 export interface ApiRequestOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers?: Record<string, string>;
   body?: unknown;
   timeout?: number;
@@ -215,6 +215,13 @@ export const del = <T = unknown>(
   headers?: Record<string, string>,
   options: ApiShortcutOptions = {},
 ): Promise<ApiResponse<T>> => request<T>(url, { ...options, method: 'DELETE', headers });
+
+export const patch = <T = unknown>(
+  url: string,
+  body?: unknown,
+  headers?: Record<string, string>,
+  options: ApiShortcutOptions = {},
+): Promise<ApiResponse<T>> => request<T>(url, { ...options, method: 'PATCH', body, headers });
 
 export function createApiRequestError(response: ApiResponse, prefix?: string): ApiRequestError {
   const message = getErrorMessage(response);

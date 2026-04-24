@@ -103,3 +103,7 @@ export interface ApproveDmsDocumentAccessRequestPayload {
 export interface RejectDmsDocumentAccessRequestPayload {
   responseMessage?: string;
 }
+
+export interface UpdateDocumentVisibilityPayload {
+  visibilityScope: DocumentVisibilityScope;
+}

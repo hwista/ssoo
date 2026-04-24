@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, CheckCircle2, Clock3, FileText, Inbox, Loader2, ShieldCheck, Users, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, Eye, EyeOff, FileText, Inbox, Loader2, ShieldCheck, Users, XCircle } from 'lucide-react';
 import type { DmsDocumentAccessRequestSummary, DmsManagedDocumentSummary } from '@ssoo/types/dms';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
   useManageableDocumentsQuery,
   useMyDocumentAccessRequestsQuery,
   useRejectDocumentAccessRequestMutation,
+  useUpdateDocumentVisibilityMutation,
 } from '@/hooks/queries/useDocumentAccessRequests';
 
 type RequestStatus = DmsDocumentAccessRequestSummary['status'];
@@ -104,7 +105,18 @@ function formatSyncStatus(scope: DmsManagedDocumentSummary['syncStatusCode']) {
   return scope === 'repair_needed' ? '메타 보정 필요' : '정상 동기화';
 }
 
-function ManagedDocumentCard({ document }: { document: DmsManagedDocumentSummary }) {
+function ManagedDocumentCard({
+  document,
+  onToggleVisibility,
+  isTogglingVisibility,
+}: {
+  document: DmsManagedDocumentSummary;
+  onToggleVisibility: (documentId: string, newScope: 'self' | 'organization') => void;
+  isTogglingVisibility: boolean;
+}) {
+  const canToggle = document.visibilityScope === 'self' || document.visibilityScope === 'organization';
+  const nextScope = document.visibilityScope === 'self' ? 'organization' : 'self';
+
   return (
     <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -114,6 +126,23 @@ function ManagedDocumentCard({ document }: { document: DmsManagedDocumentSummary
             <span className="rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-2 py-0.5 text-badge text-ssoo-primary/70">
               {formatVisibilityScope(document.visibilityScope)}
             </span>
+            {canToggle && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 px-2 text-badge"
+                disabled={isTogglingVisibility}
+                onClick={() => onToggleVisibility(document.documentId, nextScope)}
+              >
+                {isTogglingVisibility
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : nextScope === 'organization'
+                    ? <Eye className="h-3 w-3" />
+                    : <EyeOff className="h-3 w-3" />
+                }
+                {nextScope === 'organization' ? '조직 공개로 변경' : '비공개로 변경'}
+              </Button>
+            )}
             <span className={`rounded-full border px-2 py-0.5 text-badge ${document.syncStatusCode === 'repair_needed' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
               {formatSyncStatus(document.syncStatusCode)}
             </span>
@@ -328,6 +357,7 @@ export function DocumentAccessSurface() {
   const inboxQuery = useDocumentAccessInboxQuery({ status: 'pending' });
   const approveMutation = useApproveDocumentAccessRequestMutation();
   const rejectMutation = useRejectDocumentAccessRequestMutation();
+  const visibilityMutation = useUpdateDocumentVisibilityMutation();
   const [actionDrafts, setActionDrafts] = useState<Record<string, RequestActionDraft>>({});
 
   const manageableDocuments = useMemo(
@@ -363,6 +393,18 @@ export function DocumentAccessSurface() {
         ...patch,
       },
     }));
+  };
+
+  const handleToggleVisibility = async (documentId: string, newScope: 'self' | 'organization') => {
+    try {
+      await visibilityMutation.mutateAsync({
+        documentId,
+        payload: { visibilityScope: newScope },
+      });
+      toast.success(newScope === 'organization' ? '문서를 조직 내 공개로 변경했습니다.' : '문서를 비공개로 변경했습니다.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '공개범위 변경에 실패했습니다.');
+    }
   };
 
   const handleApprove = async (request: DmsDocumentAccessRequestSummary) => {
@@ -464,7 +506,12 @@ export function DocumentAccessSurface() {
         ) : (
           <div className="space-y-3">
             {manageableDocuments.map((document) => (
-              <ManagedDocumentCard key={document.documentId} document={document} />
+              <ManagedDocumentCard
+                key={document.documentId}
+                document={document}
+                onToggleVisibility={handleToggleVisibility}
+                isTogglingVisibility={visibilityMutation.isPending}
+              />
             ))}
           </div>
         )}

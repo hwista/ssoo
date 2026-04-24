@@ -417,6 +417,45 @@ export class AccessRequestService {
       .sort((left, right) => left.path.localeCompare(right.path));
   }
 
+  async updateDocumentVisibility(
+    user: TokenPayload,
+    documentId: string,
+    visibilityScope: 'self' | 'organization',
+  ): Promise<{ documentId: string; visibilityScope: string }> {
+    const document = await this.db.client.dmsDocument.findUnique({
+      where: { documentId: BigInt(documentId), isActive: true },
+      select: { documentId: true, ownerUserId: true, relativePath: true, visibilityScope: true },
+    });
+
+    if (!document) {
+      throw new NotFoundException('문서를 찾을 수 없습니다.');
+    }
+
+    if (document.ownerUserId.toString() !== user.userId) {
+      throw new ForbiddenException('문서 소유자만 공개범위를 변경할 수 있습니다.');
+    }
+
+    if (document.visibilityScope === visibilityScope) {
+      return { documentId: document.documentId.toString(), visibilityScope };
+    }
+
+    await this.db.client.dmsDocument.update({
+      where: { documentId: document.documentId },
+      data: {
+        visibilityScope,
+        targetOrgId: visibilityScope === 'self' ? null : undefined,
+      },
+    });
+
+    this.documentControlPlaneService.clearCachedMetadataByRelativePath(document.relativePath);
+
+    logger.info(
+      `Document ${documentId} visibility changed: ${document.visibilityScope} → ${visibilityScope} by user ${user.userId}`,
+    );
+
+    return { documentId: document.documentId.toString(), visibilityScope };
+  }
+
   async approveReadRequest(
     user: TokenPayload,
     accessRequestId: string,

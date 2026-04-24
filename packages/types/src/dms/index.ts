@@ -89,4 +89,5 @@ export type {
   DmsDocumentAccessRequestListQuery,
   ApproveDmsDocumentAccessRequestPayload,
   RejectDmsDocumentAccessRequestPayload,
+  UpdateDocumentVisibilityPayload,
 } from './access';

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -19,6 +19,7 @@ import {
   CreateReadAccessRequestDto,
   ListAccessRequestsDto,
   RejectReadAccessRequestDto,
+  UpdateDocumentVisibilityDto,
 } from './dto/access-request.dto.js';
 import { AccessRequestService } from './access-request.service.js';
 
@@ -106,5 +107,21 @@ export class AccessRequestController {
     @Body() dto: RejectReadAccessRequestDto,
   ) {
     return success(await this.accessRequestService.rejectReadRequest(currentUser, accessRequestId, dto));
+  }
+
+  @Patch('documents/:documentId/visibility')
+  @RequireDmsFeature('canReadDocuments')
+  @ApiOperation({ summary: '문서 공개범위 변경 (소유자 전용)' })
+  @ApiOkResponse({ description: '변경된 공개범위 반환' })
+  @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
+  @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
+  async updateVisibility(
+    @CurrentUser() currentUser: TokenPayload,
+    @Param('documentId') documentId: string,
+    @Body() dto: UpdateDocumentVisibilityDto,
+  ) {
+    return success(
+      await this.accessRequestService.updateDocumentVisibility(currentUser, documentId, dto.visibilityScope),
+    );
   }
 }
