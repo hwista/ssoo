@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import type { DeepPartial, StorageProvider } from './dms-config.service.js';
 import { configService } from './dms-config.service.js';
 import { createDmsLogger } from './dms-logger.js';
@@ -46,20 +44,64 @@ export interface DmsPersonalSettings {
   sidebar: PersonalSidebarSettings;
 }
 
-const PERSONAL_SETTINGS_FILE = 'dms.personal.config.json';
-const DEFAULT_PERSONAL_SETTINGS_FILE = 'dms.personal.config.default.json';
 const ANONYMOUS_PROFILE_KEY: SettingsProfileKey = 'anonymous';
 
 class PersonalSettingsService {
-  private settings: DmsPersonalSettings | null = null;
-  private readonly settingsPath: string;
-  private readonly defaultSettingsPath: string;
+  private settingsCache: Map<string, DmsPersonalSettings> = new Map();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private dbClient: any = null;
+  private dbReady = false;
 
-  constructor() {
-    const appRoot = configService.getAppRoot();
-    this.settingsPath = path.join(appRoot, PERSONAL_SETTINGS_FILE);
-    this.defaultSettingsPath = path.join(appRoot, DEFAULT_PERSONAL_SETTINGS_FILE);
+  // --------------------------------------------------------------------------
+  // DB Integration
+  // --------------------------------------------------------------------------
+
+  async initFromDb(dbClient: { dmsConfig: unknown }): Promise<void> {
+    this.dbClient = dbClient;
+    this.dbReady = true;
+    logger.info('개인 설정 DB 연결 완료');
   }
+
+  private async loadFromDb(userId: string): Promise<DmsPersonalSettings | null> {
+    if (!this.dbClient) return null;
+    try {
+      const row = await (this.dbClient.dmsConfig as { findFirst: (args: unknown) => Promise<{ configData: unknown } | null> }).findFirst({
+        where: { scopeCode: 'personal', ownerRef: userId, isActive: true },
+      });
+      if (row && row.configData && typeof row.configData === 'object') {
+        return row.configData as unknown as DmsPersonalSettings;
+      }
+    } catch (error) {
+      logger.error('DB에서 개인 설정 로드 실패', error);
+    }
+    return null;
+  }
+
+  private async saveToDb(userId: string, settings: DmsPersonalSettings): Promise<void> {
+    if (!this.dbClient) return;
+    try {
+      const existing = await (this.dbClient.dmsConfig as { findFirst: (args: unknown) => Promise<{ configId: bigint } | null> }).findFirst({
+        where: { scopeCode: 'personal', ownerRef: userId },
+      });
+      const data = JSON.parse(JSON.stringify(settings));
+      if (existing) {
+        await (this.dbClient.dmsConfig as { update: (args: unknown) => Promise<unknown> }).update({
+          where: { configId: existing.configId },
+          data: { configData: data },
+        });
+      } else {
+        await (this.dbClient.dmsConfig as { create: (args: unknown) => Promise<unknown> }).create({
+          data: { scopeCode: 'personal', ownerRef: userId, configData: data },
+        });
+      }
+    } catch (error) {
+      logger.error('DB에 개인 설정 저장 실패', error);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Public API
+  // --------------------------------------------------------------------------
 
   getProfileKey(): SettingsProfileKey {
     return ANONYMOUS_PROFILE_KEY;
@@ -69,26 +111,63 @@ class PersonalSettingsService {
     return 'anonymous-first';
   }
 
-  getSettings(): DmsPersonalSettings {
-    if (!this.settings) {
-      this.settings = this.loadSettings();
-    }
-    return this.settings;
+  /** 동기 읽기 (캐시에서). 캐시 미스 시 하드코딩 defaults 반환. */
+  getSettings(userId?: string): DmsPersonalSettings {
+    const key = userId || ANONYMOUS_PROFILE_KEY;
+    const cached = this.settingsCache.get(key);
+    if (cached) return cached;
+
+    const defaults = this.getDefaults();
+    this.settingsCache.set(key, defaults);
+    return defaults;
   }
 
+  /** 비동기 읽기 (DB에서 프리로드). */
+  async loadSettingsForUser(userId: string): Promise<DmsPersonalSettings> {
+    if (this.dbReady) {
+      const fromDb = await this.loadFromDb(userId);
+      if (fromDb) {
+        const defaults = this.getDefaults();
+        const merged = this.deepMerge(
+          defaults as unknown as Record<string, unknown>,
+          fromDb as unknown as Record<string, unknown>,
+        ) as unknown as DmsPersonalSettings;
+        this.settingsCache.set(userId, merged);
+        return merged;
+      }
+    }
+    const defaults = this.getDefaults();
+    this.settingsCache.set(userId, defaults);
+    return defaults;
+  }
+
+  /** 비동기 업데이트 (DB에 저장). */
+  async updateSettingsForUser(userId: string, partial: DeepPartial<DmsPersonalSettings>): Promise<DmsPersonalSettings> {
+    const current = await this.loadSettingsForUser(userId);
+    const merged = this.deepMerge(
+      current as unknown as Record<string, unknown>,
+      partial as unknown as Record<string, unknown>,
+    ) as unknown as DmsPersonalSettings;
+    this.settingsCache.set(userId, merged);
+    if (this.dbReady) {
+      await this.saveToDb(userId, merged);
+    }
+    return merged;
+  }
+
+  /** @deprecated 레거시 동기 업데이트. DB 모드에서는 updateSettingsForUser 사용 */
   updateSettings(partial: DeepPartial<DmsPersonalSettings>): DmsPersonalSettings {
     const current = this.getSettings();
     const merged = this.deepMerge(
       current as unknown as Record<string, unknown>,
       partial as unknown as Record<string, unknown>
     ) as unknown as DmsPersonalSettings;
-    this.saveSettings(merged);
-    this.settings = merged;
+    this.settingsCache.set(ANONYMOUS_PROFILE_KEY, merged);
     return merged;
   }
 
-  getAuthorIdentity(): { name: string; email: string } {
-    const settings = this.getSettings();
+  getAuthorIdentity(userId?: string): { name: string; email: string } {
+    const settings = this.getSettings(userId);
     const legacyAuthor = configService.getGitAuthor();
 
     return {
@@ -97,46 +176,21 @@ class PersonalSettingsService {
     };
   }
 
-  invalidateCache(): void {
-    this.settings = null;
+  invalidateCache(userId?: string): void {
+    if (userId) {
+      this.settingsCache.delete(userId);
+    } else {
+      this.settingsCache.clear();
+    }
   }
 
-  private loadSettings(): DmsPersonalSettings {
-    const defaults = this.loadDefaults();
-
-    try {
-      if (fs.existsSync(this.settingsPath)) {
-        const raw = fs.readFileSync(this.settingsPath, 'utf-8');
-        const userSettings = JSON.parse(raw) as DeepPartial<DmsPersonalSettings>;
-        const merged = this.deepMerge(
-          defaults as unknown as Record<string, unknown>,
-          userSettings as unknown as Record<string, unknown>
-        ) as unknown as DmsPersonalSettings;
-        logger.info('개인 설정 로드 완료', { path: this.settingsPath, profileKey: ANONYMOUS_PROFILE_KEY });
-        return merged;
-      }
-    } catch (error) {
-      logger.error('개인 설정 파일 로드 실패, 기본값 사용', error);
-    }
-
-    return defaults;
-  }
-
-  private loadDefaults(): DmsPersonalSettings {
-    try {
-      if (fs.existsSync(this.defaultSettingsPath)) {
-        const raw = fs.readFileSync(this.defaultSettingsPath, 'utf-8');
-        return JSON.parse(raw) as DmsPersonalSettings;
-      }
-    } catch (error) {
-      logger.error('개인 설정 기본 파일 로드 실패', error);
-    }
-
+  /** 하드코딩 기본값 (단일 정본). DB에 없을 때 사용. */
+  private getDefaults(): DmsPersonalSettings {
     const legacyAuthor = configService.getGitAuthor();
     return {
       identity: {
-        displayName: legacyAuthor.name,
-        email: legacyAuthor.email,
+        displayName: legacyAuthor.name || 'Anonymous',
+        email: legacyAuthor.email || 'anonymous@dms.local',
       },
       workspace: {
         defaultSettingsScope: 'system',
@@ -156,16 +210,6 @@ class PersonalSettingsService {
         },
       },
     };
-  }
-
-  private saveSettings(settings: DmsPersonalSettings): void {
-    try {
-      fs.writeFileSync(this.settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
-      logger.info('개인 설정 저장 완료', { path: this.settingsPath, profileKey: ANONYMOUS_PROFILE_KEY });
-    } catch (error) {
-      logger.error('개인 설정 저장 실패', error);
-      throw new Error('개인 설정 파일 저장에 실패했습니다.');
-    }
   }
 
   private deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {

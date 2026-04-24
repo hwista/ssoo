@@ -19,6 +19,8 @@ import type { DeepPartial } from '../runtime/dms-config.service.js';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
+import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { settingsService, type DmsSettingsConfig } from './settings.service.js';
@@ -34,9 +36,13 @@ export class SettingsController {
   @ApiOkResponse({ description: '설정 스냅샷 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  async getSettings(@Query('includeRuntime') includeRuntime?: string) {
+  async getSettings(
+    @CurrentUser() currentUser: TokenPayload,
+    @Query('includeRuntime') includeRuntime?: string,
+  ) {
     const shouldIncludeRuntime = includeRuntime === '1' || includeRuntime === 'true';
-    return success(await settingsService.getSettings(shouldIncludeRuntime));
+    const userId = String(currentUser.userId);
+    return success(await settingsService.getSettings(shouldIncludeRuntime, userId));
   }
 
   @Post()
@@ -44,17 +50,21 @@ export class SettingsController {
   @ApiOkResponse({ description: '설정 스냅샷 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  async update(@Body() body: Record<string, unknown>) {
+  async update(
+    @CurrentUser() currentUser: TokenPayload,
+    @Body() body: Record<string, unknown>,
+  ) {
     const action = body.action === 'updateGitPath' ? 'updateGitPath' : 'update';
     if (action === 'updateGitPath') {
       throw new BadRequestException('Markdown runtime 경로는 settings에서 변경할 수 없습니다. 배포/runtime 설정으로 관리하세요.');
     }
 
+    const userId = String(currentUser.userId);
     const config = body.config;
     const partial = config && typeof config === 'object'
       ? config as DeepPartial<DmsSettingsConfig>
       : undefined;
-    const result = await settingsService.updateSettings(partial);
+    const result = await settingsService.updateSettings(partial, userId);
     if (!result.success) {
       throw new BadRequestException(result.error);
     }

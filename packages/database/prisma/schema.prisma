@@ -4098,6 +4098,34 @@ model DmsDocumentIndexStateHistory {
 }
 
 // ============================================
+// DMS Configuration Store - dm_config_m
+// scope_code='system' + owner_ref=NULL → 시스템 설정 (1행)
+// scope_code='personal' + owner_ref=userId → 사용자별 개인 설정
+// ============================================
+model DmsConfig {
+  configId  BigInt @id @default(autoincrement()) @map("config_id")
+
+  scopeCode  String @map("scope_code") @db.VarChar(20)
+  ownerRef   String @default("_system_") @map("owner_ref") @db.VarChar(100)
+  configData Json   @map("config_data") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@unique([scopeCode, ownerRef], name: "ux_dm_config_m_scope_owner")
+  @@index([scopeCode], name: "ix_dm_config_m_scope")
+  @@map("dm_config_m")
+  @@schema("dms")
+}
+
+// ============================================
 // CMS (Content Management System) Models
 // Schema: cms, Prefix: cms_
 // ============================================

@@ -1,0 +1,37 @@
+-- DMS Configuration Foundation
+-- dm_config_m: system settings + default personal settings seed
+
+INSERT INTO dms.dm_config_m (scope_code, owner_ref, config_data, is_active, created_at, updated_at)
+VALUES (
+  'system',
+  '_system_',
+  '{
+    "git": {
+      "repositoryPath": "../../../.runtime/dms/documents",
+      "bootstrapRemoteUrl": "",
+      "bootstrapBranch": "",
+      "autoInit": true
+    },
+    "storage": {
+      "defaultProvider": "sharepoint",
+      "local": { "enabled": true, "basePath": "../../../.runtime/dms/storage/local" },
+      "sharepoint": { "enabled": true, "basePath": "/sites/dms/shared-documents", "webBaseUrl": "https://sharepoint.local" },
+      "nas": { "enabled": true, "basePath": "/mnt/nas/dms", "webBaseUrl": "file:///mnt/nas/dms" }
+    },
+    "ingest": { "queuePath": "../../../.runtime/dms/ingest", "autoPublish": false, "maxConcurrentJobs": 2 },
+    "templates": {},
+    "extraction": { "maxTextLength": 12000, "maxImages": 5, "maxImageSizeMb": 1, "pdfMaxRenderPages": 3, "pdfRenderScale": 1.0 },
+    "uploads": { "attachmentMaxSizeMb": 20, "imageMaxSizeMb": 10 },
+    "search": { "maxResults": 100, "semanticThreshold": 0.5, "chunkSize": 1000, "chunkOverlap": 200, "summaryConcurrency": 3 },
+    "docAssist": { "maxCurrentContentChars": 6000, "maxTemplateChars": 1500, "maxSummaryFileCount": 2, "maxSummaryFileChars": 2000, "maxImagesPerRequest": 5 },
+    "m365": {
+      "sharepoint": { "tenantDomain": "", "sitePath": "/sites/dms", "defaultLibrary": "shared-documents" },
+      "teams": { "enabled": false, "ingestEnabled": false, "defaultTeam": "", "defaultChannel": "", "defaultDropPath": "" },
+      "auth": { "mode": "anonymous-first", "allowedTenantIds": [], "allowedDomains": [], "identityMapping": "mail" }
+    }
+  }'::jsonb,
+  true,
+  NOW(),
+  NOW()
+)
+ON CONFLICT (scope_code, owner_ref) DO NOTHING;

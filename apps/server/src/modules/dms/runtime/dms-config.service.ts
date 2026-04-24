@@ -2,8 +2,8 @@
  * Config Service - DMS 설정 관리
  *
  * 역할:
- * - dms.config.json 읽기/쓰기
- * - dms.config.default.json 기본값 병합
+ * - dm_config_m DB 테이블 읽기/쓰기 (primary)
+ * - 하드코딩 defaults 폴백 (DB 미연결 시)
  * - markdown working tree / binary storage / ingest / template runtime 경로 제공
  */
 
@@ -27,7 +27,7 @@ export interface GitConfig {
   bootstrapBranch?: string;
   /**
    * @deprecated 개인화 설정으로 이전된 레거시 작성자 정보
-   * 기존 dms.config.json 하위 호환을 위해 optional 로만 유지합니다.
+   * DB 기존 데이터 하위 호환을 위해 optional 로만 유지합니다.
    */
   author?: {
     name: string;
@@ -166,8 +166,6 @@ export type DocumentRootBindingInfo = RuntimePathBindingInfo;
 // Constants
 // ============================================================================
 
-const CONFIG_FILE = 'dms.config.json';
-const DEFAULT_CONFIG_FILE = 'dms.config.default.json';
 export const DEFAULT_DOCUMENT_REPOSITORY_PATH = '../../../.runtime/dms/documents';
 /** @deprecated templates are now derived from markdownRoot/_templates */
 export const DEFAULT_TEMPLATE_ROOT_PATH = '_templates';
@@ -199,13 +197,72 @@ interface NormalizeConfigResult {
 class ConfigService {
   private config: DmsConfig | null = null;
   private readonly appRoot: string;
-  private configPath: string;
-  private defaultConfigPath: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private dbClient: any = null;
+  private dbReady = false;
 
   constructor() {
     this.appRoot = this.resolveAppRoot();
-    this.configPath = path.join(this.appRoot, CONFIG_FILE);
-    this.defaultConfigPath = path.join(this.appRoot, DEFAULT_CONFIG_FILE);
+  }
+
+  // --------------------------------------------------------------------------
+  // DB Integration
+  // --------------------------------------------------------------------------
+
+  /**
+   * DmsModule.onModuleInit 에서 호출.
+   * DB에서 system config를 프리로드하고, 없으면 defaults로 seed.
+   */
+  async initFromDb(dbClient: { dmsConfig: unknown }): Promise<void> {
+    this.dbClient = dbClient;
+    try {
+      const row = await (this.dbClient.dmsConfig as { findFirst: (args: unknown) => Promise<{ configData: unknown } | null> }).findFirst({
+        where: { scopeCode: 'system', ownerRef: '_system_', isActive: true },
+      });
+      if (row && row.configData && typeof row.configData === 'object') {
+        const defaults = this.getDefaults();
+        const merged = this.deepMerge(
+          defaults as unknown as Record<string, unknown>,
+          row.configData as Record<string, unknown>,
+        ) as unknown as DmsConfig;
+        const normalized = this.normalizeConfig(merged, defaults);
+        this.config = normalized.config;
+        this.dbReady = true;
+        logger.info('DB에서 시스템 설정 로드 완료');
+      } else {
+        const defaults = this.getDefaults();
+        this.config = this.normalizeConfig(defaults, defaults).config;
+        await this.saveConfigToDb(this.config);
+        this.dbReady = true;
+        logger.info('하드코딩 defaults를 DB에 시드 완료');
+      }
+    } catch (error) {
+      logger.warn('DB 설정 로드 실패, 하드코딩 defaults 사용', error);
+      this.config = this.normalizeConfig(this.getDefaults(), this.getDefaults()).config;
+      this.dbReady = false;
+    }
+  }
+
+  private async saveConfigToDb(config: DmsConfig): Promise<void> {
+    if (!this.dbClient) return;
+    try {
+      const existing = await (this.dbClient.dmsConfig as { findFirst: (args: unknown) => Promise<{ configId: bigint } | null> }).findFirst({
+        where: { scopeCode: 'system', ownerRef: '_system_' },
+      });
+      const data = JSON.parse(JSON.stringify(config));
+      if (existing) {
+        await (this.dbClient.dmsConfig as { update: (args: unknown) => Promise<unknown> }).update({
+          where: { configId: existing.configId },
+          data: { configData: data },
+        });
+      } else {
+        await (this.dbClient.dmsConfig as { create: (args: unknown) => Promise<unknown> }).create({
+          data: { scopeCode: 'system', ownerRef: '_system_', configData: data },
+        });
+      }
+    } catch (error) {
+      logger.error('DB에 시스템 설정 저장 실패', error);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -215,21 +272,24 @@ class ConfigService {
   /** 전체 설정 조회 */
   getConfig(): DmsConfig {
     if (!this.config) {
-      this.config = this.loadConfig();
+      const defaults = this.getDefaults();
+      this.config = this.normalizeConfig(defaults, defaults).config;
     }
     return this.config;
   }
 
-  /** 설정 업데이트 (부분 업데이트 지원) */
-  updateConfig(partial: DeepPartial<DmsConfig>): DmsConfig {
+  /** 설정 업데이트 (부분 업데이트 지원) — DB 백엔드 사용 */
+  async updateConfig(partial: DeepPartial<DmsConfig>): Promise<DmsConfig> {
     const current = this.getConfig();
     const merged = this.deepMerge(
       current as unknown as Record<string, unknown>,
       partial as unknown as Record<string, unknown>
     ) as unknown as DmsConfig;
-    const normalized = this.normalizeConfig(merged, this.loadDefaults());
-    this.saveConfig(normalized.config);
+    const normalized = this.normalizeConfig(merged, this.getDefaults());
     this.config = normalized.config;
+    if (this.dbReady) {
+      await this.saveConfigToDb(normalized.config);
+    }
     return normalized.config;
   }
 
@@ -331,10 +391,10 @@ class ConfigService {
     const envRoot = process.env.DMS_APP_ROOT?.trim();
     if (envRoot) {
       const resolvedEnvRoot = path.resolve(envRoot);
-      if (this.hasDefaultConfigFile(resolvedEnvRoot)) {
+      if (this.isDmsAppRoot(resolvedEnvRoot)) {
         return resolvedEnvRoot;
       }
-      logger.warn('DMS_APP_ROOT 에 기본 설정 파일이 없어 무시합니다.', {
+      logger.warn('DMS_APP_ROOT 에 DMS 패키지가 아닌 경로이므로 무시합니다.', {
         candidate: resolvedEnvRoot,
       });
     }
@@ -356,52 +416,8 @@ class ConfigService {
     return fallback;
   }
 
-  private loadConfig(): DmsConfig {
-    const defaults = this.loadDefaults();
-    let loadedUserConfig = false;
-    let merged = defaults;
-
-    try {
-      if (fs.existsSync(this.configPath)) {
-        loadedUserConfig = true;
-        const raw = fs.readFileSync(this.configPath, 'utf-8');
-        const userConfig = JSON.parse(raw) as DeepPartial<DmsConfig>;
-        merged = this.deepMerge(
-          defaults as unknown as Record<string, unknown>,
-          userConfig as unknown as Record<string, unknown>
-        ) as unknown as DmsConfig;
-        logger.info('설정 로드 완료', { path: this.configPath });
-      }
-    } catch (error) {
-      logger.error('설정 파일 로드 실패, 기본값 사용', error);
-    }
-
-    const normalized = this.normalizeConfig(merged, defaults);
-    if (loadedUserConfig && normalized.usedDefaultRepositoryPath) {
-      logger.warn('빈 git.repositoryPath override 를 기본 configured path 로 정규화합니다.', {
-        repositoryPath: normalized.config.git.repositoryPath,
-      });
-      try {
-        this.saveConfig(normalized.config);
-      } catch (error) {
-        logger.error('정규화된 설정 저장 실패', error);
-      }
-    }
-
-    return normalized.config;
-  }
-
-  private loadDefaults(): DmsConfig {
-    try {
-      if (fs.existsSync(this.defaultConfigPath)) {
-        const raw = fs.readFileSync(this.defaultConfigPath, 'utf-8');
-        return JSON.parse(raw) as DmsConfig;
-      }
-    } catch (error) {
-      logger.error('기본 설정 파일 로드 실패', error);
-    }
-
-    // 하드코딩 폴백
+  /** 하드코딩 기본값 (단일 정본). DB에 없을 때 사용. */
+  private getDefaults(): DmsConfig {
     return {
       git: {
         repositoryPath: DEFAULT_DOCUMENT_REPOSITORY_PATH,
@@ -478,16 +494,6 @@ class ConfigService {
         },
       },
     };
-  }
-
-  private saveConfig(config: DmsConfig): void {
-    try {
-      fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
-      logger.info('설정 저장 완료', { path: this.configPath });
-    } catch (error) {
-      logger.error('설정 저장 실패', error);
-      throw new Error('설정 파일 저장에 실패했습니다.');
-    }
   }
 
   resolveRuntimePath(runtimePath: string): string {
@@ -586,7 +592,7 @@ class ConfigService {
         path.join(current, 'apps', 'web', 'dms'),
         path.join(current, 'web', 'dms'),
       ];
-      const resolved = candidates.find((candidate) => this.hasDefaultConfigFile(candidate));
+      const resolved = candidates.find((candidate) => this.isDmsAppRoot(candidate));
       if (resolved) {
         return resolved;
       }
@@ -599,8 +605,16 @@ class ConfigService {
     }
   }
 
-  private hasDefaultConfigFile(candidate: string): boolean {
-    return fs.existsSync(path.join(candidate, DEFAULT_CONFIG_FILE));
+  private isDmsAppRoot(candidate: string): boolean {
+    try {
+      const pkgPath = path.join(candidate, 'package.json');
+      if (fs.existsSync(pkgPath)) {
+        const raw = fs.readFileSync(pkgPath, 'utf-8');
+        const pkg = JSON.parse(raw) as { name?: string };
+        return pkg.name === 'web-dms';
+      }
+    } catch { /* ignore */ }
+    return false;
   }
 
   /** 깊은 병합 (배열은 덮어쓰기) */

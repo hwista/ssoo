@@ -106,8 +106,8 @@ function sanitizeMutableSettingsPartial(
 }
 
 class SettingsService {
-  async getSettings(includeRuntime = false): Promise<SettingsSnapshot> {
-    return this.buildSnapshot(includeRuntime);
+  async getSettings(includeRuntime = false, userId?: string): Promise<SettingsSnapshot> {
+    return this.buildSnapshot(includeRuntime, userId);
   }
 
   private toRuntimePathInfo(binding: RuntimePathBindingInfo): SettingsRuntimePathInfo {
@@ -169,20 +169,24 @@ class SettingsService {
     };
   }
 
-  private async buildSnapshot(includeRuntime = false): Promise<SettingsSnapshot> {
+  private async buildSnapshot(includeRuntime = false, userId?: string): Promise<SettingsSnapshot> {
     const docRootBinding = configService.getDocumentRootBinding();
     const resolvedDocDir = docRootBinding.resolvedPath;
     const runtime = includeRuntime ? await this.buildRuntimeSnapshot() : null;
 
+    const personal = userId
+      ? await personalSettingsService.loadSettingsForUser(userId)
+      : personalSettingsService.getSettings();
+
     return {
       config: {
         system: sanitizeSystemConfig(configService.getConfig()),
-        personal: personalSettingsService.getSettings(),
+        personal,
       },
       docDir: resolvedDocDir,
       access: {
         mode: personalSettingsService.getAccessMode(),
-        profileKey: personalSettingsService.getProfileKey(),
+        profileKey: userId || personalSettingsService.getProfileKey(),
         canManageSystem: true,
         canManagePersonal: true,
       },
@@ -190,16 +194,16 @@ class SettingsService {
     };
   }
 
-  async updateSettings(partial?: DeepPartial<DmsSettingsConfig>): Promise<SettingsServiceResult> {
+  async updateSettings(partial?: DeepPartial<DmsSettingsConfig>, userId?: string): Promise<SettingsServiceResult> {
     if (!partial) {
-      return { success: true, ...(await this.buildSnapshot(false)) };
+      return { success: true, ...(await this.buildSnapshot(false, userId)) };
     }
 
     const sanitizedPartial = sanitizeMutableSettingsPartial(partial);
     const previousDocDir = sanitizedPartial?.system ? configService.getDocDir() : null;
 
     if (sanitizedPartial?.system) {
-      configService.updateConfig(sanitizedPartial.system);
+      await configService.updateConfig(sanitizedPartial.system);
       const nextDocDir = configService.getDocDir();
       if (previousDocDir !== nextDocDir) {
         gitService.reconfigure(nextDocDir);
@@ -210,12 +214,16 @@ class SettingsService {
       }
     }
     if (sanitizedPartial?.personal) {
-      personalSettingsService.updateSettings(sanitizedPartial.personal);
+      if (userId) {
+        await personalSettingsService.updateSettingsForUser(userId, sanitizedPartial.personal);
+      } else {
+        personalSettingsService.updateSettings(sanitizedPartial.personal);
+      }
     }
 
     return {
       success: true,
-      ...(await this.buildSnapshot(true)),
+      ...(await this.buildSnapshot(true, userId)),
     };
   }
 
