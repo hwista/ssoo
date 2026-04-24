@@ -18,9 +18,7 @@ const pageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   '/admin/code': lazy(() => import('@/components/pages/admin/CodeManagementPage').then(m => ({ default: m.CodeManagementPage }))),
   '/admin/role': lazy(() => import('@/components/pages/admin/RoleManagementPage').then(m => ({ default: m.RoleManagementPage }))),
   '/admin/menu': lazy(() => import('@/components/pages/admin/MenuManagementPage').then(m => ({ default: m.MenuManagementPage }))),
-  '/admin/dept': lazy(() => import('@/components/pages/admin/DeptManagementPage').then(m => ({ default: m.DeptManagementPage }))),
   '/admin/customer': lazy(() => import('@/components/pages/admin/CustomerManagementPage').then(m => ({ default: m.CustomerManagementPage }))),
-  '/admin/user': lazy(() => import('@/components/pages/admin/UserManagementPage').then(m => ({ default: m.UserManagementPage }))),
 };
 
 /**

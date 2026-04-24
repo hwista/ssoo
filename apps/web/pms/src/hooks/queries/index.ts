@@ -4,12 +4,6 @@
  * 데이터 페칭 및 캐싱을 위한 커스텀 훅
  */
 
-// Access Ops
-export {
-  accessOpsKeys,
-  useInspectAccess,
-} from './useAccessOps';
-
 // Codes
 export {
   codeKeys,
@@ -82,12 +76,3 @@ export {
   useRoleMenuPermissions,
   useUpdateRolePermissions,
 } from './useRoles';
-
-// Users
-export {
-  userKeys,
-  useUserList,
-  useCreateUser,
-  useUpdateUser,
-  useDeactivateUser,
-} from './useUsers';
