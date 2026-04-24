@@ -17,6 +17,7 @@ import {
   Workflow,
 } from 'lucide-react';
 
+
 export interface SettingItem extends JsonFieldDescriptor {
   validate?: (value: unknown) => string | null;
   coerce?: (value: unknown) => unknown;
@@ -29,16 +30,8 @@ export interface SettingSection {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
-  status?: 'active' | 'planned';
   kind?: 'fields' | 'custom';
-  slotKey?:
-    | 'document-access'
-    | 'admin-documents'
-    | 'system-schedulers'
-    | 'template-marketplace'
-    | 'admin-templates'
-    | 'personal-templates'
-    | 'my-activity';
+  slotKey?: 'document-access' | 'admin-templates';
   items: SettingItem[];
 }
 
@@ -50,10 +43,6 @@ export interface SettingSearchEntry {
   title: string;
   subtitle: string;
   score: number;
-}
-
-function isVisibleSettingSection(section: SettingSection): boolean {
-  return section.status !== 'planned';
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -168,42 +157,6 @@ export const SETTING_SECTIONS: SettingSection[] = [
     description: '관리 가능 문서, 승인 inbox, 내 요청을 함께 운영하는 현재 기준 문서 운영 surface 입니다.',
     kind: 'custom',
     slotKey: 'document-access',
-    items: [],
-  },
-  {
-    id: 'adminDocuments',
-    scope: 'system',
-    jsonPath: 'system.adminDocuments',
-    label: '전체 문서/폴더 관리',
-    icon: FolderOpen,
-    description: '관리자 기준의 전체 문서 및 폴더 운영 관리 슬롯입니다.',
-    status: 'planned',
-    kind: 'custom',
-    slotKey: 'admin-documents',
-    items: [],
-  },
-  {
-    id: 'systemSchedulers',
-    scope: 'system',
-    jsonPath: 'system.systemSchedulers',
-    label: '문서 품질/스케줄러',
-    icon: Workflow,
-    description: '문서 품질 관리와 시스템 전역 스케줄러 관리 슬롯입니다.',
-    status: 'planned',
-    kind: 'custom',
-    slotKey: 'system-schedulers',
-    items: [],
-  },
-  {
-    id: 'templateMarketplace',
-    scope: 'system',
-    jsonPath: 'system.templateMarketplace',
-    label: '템플릿 마켓',
-    icon: Shapes,
-    description: '템플릿 마켓플레이스와 공개 템플릿 관리 슬롯입니다.',
-    status: 'planned',
-    kind: 'custom',
-    slotKey: 'template-marketplace',
     items: [],
   },
   {
@@ -728,30 +681,6 @@ export const SETTING_SECTIONS: SettingSection[] = [
     ],
   },
   {
-    id: 'personalTemplates',
-    scope: 'personal',
-    jsonPath: 'personal.personalTemplates',
-    label: '공개/내 템플릿',
-    icon: Shapes,
-    description: '공개 템플릿과 개인 템플릿 관리 슬롯입니다.',
-    status: 'planned',
-    kind: 'custom',
-    slotKey: 'personal-templates',
-    items: [],
-  },
-  {
-    id: 'myActivity',
-    scope: 'personal',
-    jsonPath: 'personal.myActivity',
-    label: '내 문서/내 활동',
-    icon: UserRound,
-    description: '내 문서와 개인 활동 현황을 위한 슬롯입니다.',
-    status: 'planned',
-    kind: 'custom',
-    slotKey: 'my-activity',
-    items: [],
-  },
-  {
     id: 'identity',
     scope: 'personal',
     jsonPath: 'personal.identity',
@@ -891,7 +820,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
 ];
 
 export function getSettingSectionsByScope(scope: SettingsScope): SettingSection[] {
-  return SETTING_SECTIONS.filter((section) => section.scope === scope && isVisibleSettingSection(section));
+  return SETTING_SECTIONS.filter((section) => section.scope === scope);
 }
 
 export function getSettingSection(scope: SettingsScope, sectionId: string): SettingSection | undefined {
@@ -904,7 +833,7 @@ export function searchSettingEntries(query: string): SettingSearchEntry[] {
 
   const results: SettingSearchEntry[] = [];
 
-  SETTING_SECTIONS.filter(isVisibleSettingSection).forEach((section) => {
+  SETTING_SECTIONS.forEach((section) => {
     const scopeLabel = SETTINGS_SCOPE_LABELS[section.scope];
     const sectionScore =
       getSearchScore(normalizedQuery, section.label, section.description, scopeLabel, section.id) + 40;
