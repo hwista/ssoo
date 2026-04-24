@@ -40,8 +40,6 @@ RUN groupadd --system --gid 1001 nodejs && \
 
 COPY --from=builder /app/apps/web/dms/.next/standalone ./
 COPY --from=builder /app/apps/web/dms/.next/static ./apps/web/dms/.next/static
-COPY --from=builder /app/apps/web/dms/dms.config.default.json ./apps/web/dms/dms.config.default.json
-COPY --from=builder /app/apps/web/dms/dms.personal.config.default.json ./apps/web/dms/dms.personal.config.default.json
 
 USER nextjs
 WORKDIR /app/apps/web/dms
