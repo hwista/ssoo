@@ -48,11 +48,20 @@ const INITIAL_FORM: OrgFormData = {
   sortOrder: 0,
 };
 
+function validateOrgForm(data: OrgFormData, mode: FormMode): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (mode === 'create' && !data.codeValue.trim()) errors.codeValue = '조직코드를 입력하세요';
+  if (!data.displayNameKo.trim()) errors.displayNameKo = '조직명을 입력하세요';
+  return errors;
+}
+
 export function OrgManagementPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState<FormMode>('create');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<OrgFormData>(INITIAL_FORM);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const { data: codesResponse, isLoading, error, refetch } = useCodesByGroup(DEPT_GROUP);
   const createMutation = useCreateCode();
@@ -65,6 +74,8 @@ export function OrgManagementPage() {
     setFormMode('create');
     setEditingId(null);
     setFormData(INITIAL_FORM);
+    setFormErrors({});
+    setSubmitError(null);
     setDialogOpen(true);
   }, []);
 
@@ -78,18 +89,29 @@ export function OrgManagementPage() {
       description: dept.description ?? '',
       sortOrder: dept.sortOrder,
     });
+    setFormErrors({});
+    setSubmitError(null);
     setDialogOpen(true);
   }, []);
 
   const handleDeactivate = useCallback(
     (dept: CodeItem) => {
       if (!confirm(`"${dept.displayNameKo}" 조직을 비활성화하시겠습니까?`)) return;
-      deactivateMutation.mutate(dept.id);
+      deactivateMutation.mutate(dept.id, {
+        onError: () => window.alert('조직 비활성화에 실패했습니다.'),
+      });
     },
     [deactivateMutation],
   );
 
   const handleSubmit = useCallback(() => {
+    const errors = validateOrgForm(formData, formMode);
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    setSubmitError(null);
+
+    const onError = (err: Error) => setSubmitError(err.message || '저장에 실패했습니다.');
+
     if (formMode === 'create') {
       const req: CreateCodeRequest = {
         codeGroup: DEPT_GROUP,
@@ -99,7 +121,7 @@ export function OrgManagementPage() {
         ...(formData.description && { description: formData.description }),
         sortOrder: formData.sortOrder,
       };
-      createMutation.mutate(req, { onSuccess: () => setDialogOpen(false) });
+      createMutation.mutate(req, { onSuccess: () => setDialogOpen(false), onError });
     } else if (editingId) {
       const req: UpdateCodeRequest = {
         displayNameKo: formData.displayNameKo,
@@ -109,7 +131,7 @@ export function OrgManagementPage() {
       };
       updateMutation.mutate(
         { id: editingId, data: req },
-        { onSuccess: () => setDialogOpen(false) },
+        { onSuccess: () => setDialogOpen(false), onError },
       );
     }
   }, [formMode, formData, editingId, createMutation, updateMutation]);
@@ -117,6 +139,11 @@ export function OrgManagementPage() {
   const updateField = useCallback(
     <K extends keyof OrgFormData>(field: K, value: OrgFormData[K]) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
     },
     [],
   );
@@ -239,6 +266,9 @@ export function OrgManagementPage() {
                   disabled={formMode === 'edit'}
                   placeholder="DEV, QA, PM 등"
                 />
+                {formErrors.codeValue && (
+                  <p className="text-xs text-destructive mt-1">{formErrors.codeValue}</p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">조직명 *</label>
@@ -247,6 +277,9 @@ export function OrgManagementPage() {
                   onChange={(e) => updateField('displayNameKo', e.target.value)}
                   placeholder="개발팀"
                 />
+                {formErrors.displayNameKo && (
+                  <p className="text-xs text-destructive mt-1">{formErrors.displayNameKo}</p>
+                )}
               </div>
             </div>
 
@@ -278,6 +311,10 @@ export function OrgManagementPage() {
               />
             </div>
           </div>
+
+          {submitError && (
+            <p className="text-sm text-destructive px-1">{submitError}</p>
+          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>

@@ -112,9 +112,10 @@ export function UserManagementPage() {
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
   const [form, setForm] = useState<UserFormData>(INITIAL_FORM);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const limit = 20;
-  const { data: response, isLoading } = useUserList({
+  const { data: response, isLoading, error: listError, refetch } = useUserList({
     page,
     limit,
     search: search || undefined,
@@ -173,67 +174,82 @@ export function UserManagementPage() {
     const errors: Record<string, string> = {};
     if (!editingUser && !form.loginId.trim()) errors.loginId = '로그인 ID를 입력하세요';
     if (!editingUser && !form.password) errors.password = '비밀번호를 입력하세요';
-    if (form.password && form.password.length < 8)
-      errors.password = '비밀번호는 8자 이상이어야 합니다';
+    if (form.password) {
+      if (form.password.length < 8) errors.password = '비밀번호는 8자 이상이어야 합니다';
+      else if (!/[a-zA-Z]/.test(form.password)) errors.password = '영문자를 포함해야 합니다';
+      else if (!/\d/.test(form.password)) errors.password = '숫자를 포함해야 합니다';
+      else if (!/[!@#$%^&*(),.?":{}|<>]/.test(form.password)) errors.password = '특수문자를 포함해야 합니다';
+    }
     if (!form.userName.trim()) errors.userName = '이름을 입력하세요';
     if (!form.email.trim()) errors.email = '이메일을 입력하세요';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = '올바른 이메일 형식이 아닙니다';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   }, [form, editingUser]);
 
   const handleSubmit = useCallback(async () => {
     if (!validateForm()) return;
+    setSubmitError(null);
 
-    if (editingUser) {
-      const updateData: UpdateUserRequest = {};
-      if (form.userName !== editingUser.userName) updateData.userName = form.userName;
-      if (form.displayName !== (editingUser.displayName ?? ''))
-        updateData.displayName = form.displayName;
-      if (form.email !== editingUser.email) updateData.email = form.email;
-      if (form.phone !== (editingUser.phone ?? '')) updateData.phone = form.phone;
-      if (form.roleCode !== editingUser.roleCode) updateData.roleCode = form.roleCode;
-      if (form.departmentCode !== (editingUser.departmentCode ?? ''))
-        updateData.departmentCode = form.departmentCode;
-      if (form.positionCode !== (editingUser.positionCode ?? ''))
-        updateData.positionCode = form.positionCode;
-      if (form.employeeNumber !== (editingUser.employeeNumber ?? ''))
-        updateData.employeeNumber = form.employeeNumber;
-      if (form.companyName !== (editingUser.companyName ?? ''))
-        updateData.companyName = form.companyName;
-      if (form.customerId !== (editingUser.customerId ?? ''))
-        updateData.customerId = form.customerId;
-      if (form.primaryAffiliationType !== (editingUser.primaryAffiliationType ?? 'internal'))
-        updateData.primaryAffiliationType = form.primaryAffiliationType as 'internal' | 'external';
-      if (form.password) updateData.password = form.password;
+    try {
+      if (editingUser) {
+        const updateData: UpdateUserRequest = {};
+        if (form.userName !== editingUser.userName) updateData.userName = form.userName;
+        if (form.displayName !== (editingUser.displayName ?? ''))
+          updateData.displayName = form.displayName;
+        if (form.email !== editingUser.email) updateData.email = form.email;
+        if (form.phone !== (editingUser.phone ?? '')) updateData.phone = form.phone;
+        if (form.roleCode !== editingUser.roleCode) updateData.roleCode = form.roleCode;
+        if (form.departmentCode !== (editingUser.departmentCode ?? ''))
+          updateData.departmentCode = form.departmentCode;
+        if (form.positionCode !== (editingUser.positionCode ?? ''))
+          updateData.positionCode = form.positionCode;
+        if (form.employeeNumber !== (editingUser.employeeNumber ?? ''))
+          updateData.employeeNumber = form.employeeNumber;
+        if (form.companyName !== (editingUser.companyName ?? ''))
+          updateData.companyName = form.companyName;
+        if (form.customerId !== (editingUser.customerId ?? ''))
+          updateData.customerId = form.customerId;
+        if (form.primaryAffiliationType !== (editingUser.primaryAffiliationType ?? 'internal'))
+          updateData.primaryAffiliationType = form.primaryAffiliationType as 'internal' | 'external';
+        if (form.password) updateData.password = form.password;
 
-      await updateMutation.mutateAsync({ id: editingUser.id, data: updateData });
-    } else {
-      const createData: CreateUserRequest = {
-        loginId: form.loginId,
-        password: form.password,
-        userName: form.userName,
-        email: form.email,
-        ...(form.displayName && { displayName: form.displayName }),
-        ...(form.phone && { phone: form.phone }),
-        ...(form.roleCode && { roleCode: form.roleCode }),
-        ...(form.departmentCode && { departmentCode: form.departmentCode }),
-        ...(form.positionCode && { positionCode: form.positionCode }),
-        ...(form.employeeNumber && { employeeNumber: form.employeeNumber }),
-        ...(form.companyName && { companyName: form.companyName }),
-        ...(form.customerId && { customerId: form.customerId }),
-        ...(form.primaryAffiliationType && {
-          primaryAffiliationType: form.primaryAffiliationType as 'internal' | 'external',
-        }),
-      };
-      await createMutation.mutateAsync(createData);
+        await updateMutation.mutateAsync({ id: editingUser.id, data: updateData });
+      } else {
+        const createData: CreateUserRequest = {
+          loginId: form.loginId,
+          password: form.password,
+          userName: form.userName,
+          email: form.email,
+          ...(form.displayName && { displayName: form.displayName }),
+          ...(form.phone && { phone: form.phone }),
+          ...(form.roleCode && { roleCode: form.roleCode }),
+          ...(form.departmentCode && { departmentCode: form.departmentCode }),
+          ...(form.positionCode && { positionCode: form.positionCode }),
+          ...(form.employeeNumber && { employeeNumber: form.employeeNumber }),
+          ...(form.companyName && { companyName: form.companyName }),
+          ...(form.customerId && { customerId: form.customerId }),
+          ...(form.primaryAffiliationType && {
+            primaryAffiliationType: form.primaryAffiliationType as 'internal' | 'external',
+          }),
+        };
+        await createMutation.mutateAsync(createData);
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '저장에 실패했습니다.';
+      setSubmitError(message);
     }
-    setDialogOpen(false);
   }, [form, editingUser, validateForm, createMutation, updateMutation]);
 
   const handleDeactivate = useCallback(
     async (user: UserItem) => {
       if (!window.confirm(`'${user.userName}' 사용자를 비활성화하시겠습니까?`)) return;
-      await deactivateMutation.mutateAsync(user.id);
+      try {
+        await deactivateMutation.mutateAsync(user.id);
+      } catch {
+        window.alert('사용자 비활성화에 실패했습니다.');
+      }
     },
     [deactivateMutation],
   );
@@ -302,6 +318,13 @@ export function UserManagementPage() {
         {isLoading ? (
           <div className="flex items-center justify-center h-40 text-muted-foreground">
             로딩 중...
+          </div>
+        ) : listError ? (
+          <div className="flex flex-col items-center justify-center h-40 gap-2">
+            <p className="text-sm text-destructive">목록을 불러오지 못했습니다.</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              다시 시도
+            </Button>
           </div>
         ) : users.length === 0 ? (
           <div className="flex items-center justify-center h-40 text-muted-foreground">
@@ -586,6 +609,10 @@ export function UserManagementPage() {
               </div>
             </div>
           </div>
+
+          {submitError && (
+            <p className="text-sm text-destructive px-1">{submitError}</p>
+          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>

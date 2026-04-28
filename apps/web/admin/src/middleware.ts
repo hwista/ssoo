@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/login'];
+const ALLOWED_PATHS = ['/login', '/', '/users', '/organizations', '/roles'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 공개 경로 허용
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (ALLOWED_PATHS.some((p) => pathname === p)) {
     return NextResponse.next();
   }
 
-  return NextResponse.next();
+  // Unknown routes redirect to dashboard
+  return NextResponse.redirect(new URL('/', request.url));
 }
 
 export const config = {
