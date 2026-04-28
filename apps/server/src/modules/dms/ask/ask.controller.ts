@@ -4,8 +4,7 @@ import {
   Post,
   Req,
   Res,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
@@ -13,13 +12,11 @@ import {
   ApiOperation,
   ApiProduces,
   ApiBearerAuth,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
@@ -29,7 +26,7 @@ import { AskService } from './ask.service.js';
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/ask')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canUseAssistant')
 export class AskController {
   constructor(private readonly askService: AskService) {}

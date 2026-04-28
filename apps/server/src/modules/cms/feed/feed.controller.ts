@@ -1,7 +1,6 @@
 import { Controller, Get, Post, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { FeedService } from './feed.service.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
@@ -15,7 +14,7 @@ import { RequireCmsFeature } from '../access/require-cms-feature.decorator.js';
 @ApiTags('cms-feed')
 @ApiBearerAuth()
 @Controller('cms')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 export class FeedController {
   constructor(private readonly feedService: FeedService) {}
 
@@ -31,8 +30,7 @@ export class FeedController {
     return success({
       items: result.items.map((item) => serializeBigInt(item)),
       nextCursor: result.nextCursor,
-      hasMore: result.hasMore,
-    });
+      hasMore: result.hasMore });
   }
 
   @Post('posts/:postId/reactions')

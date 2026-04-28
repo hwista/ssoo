@@ -5,20 +5,17 @@ import {
   Get,
   Post,
   Query,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
   ApiBearerAuth,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import type { DeepPartial } from '../runtime/dms-config.service.js';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
@@ -28,7 +25,7 @@ import { settingsService, type DmsSettingsConfig } from './settings.service.js';
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/settings')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canManageSettings')
 export class SettingsController {
   @Get()
@@ -73,7 +70,6 @@ export class SettingsController {
       config: result.config,
       docDir: result.docDir,
       access: result.access,
-      runtime: result.runtime,
-    });
+      runtime: result.runtime });
   }
 }

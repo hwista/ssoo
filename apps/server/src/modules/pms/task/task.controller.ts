@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { TaskService } from './task.service.js';
 import { ProjectFeatureGuard } from '../project/project-feature.guard.js';
@@ -12,7 +11,7 @@ import type { CreateTaskDto, UpdateTaskDto } from '@ssoo/types';
 @ApiTags('tasks')
 @ApiBearerAuth()
 @Controller('projects/:projectId/tasks')
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class TaskController {
   constructor(private readonly taskService: TaskService) {}
 

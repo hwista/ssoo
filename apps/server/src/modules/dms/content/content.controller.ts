@@ -11,21 +11,18 @@ import {
   NotFoundException,
   Post,
   Query,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
   ApiBearerAuth,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import type { DocumentMetadata } from '@ssoo/types/dms';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentControlPlaneService } from '../access/document-control-plane.service.js';
@@ -44,7 +41,7 @@ function isSearchIndexSyncTarget(targetPath: string): boolean {
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/content')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 export class ContentController {
   constructor(
     private readonly searchService: SearchService,
@@ -152,8 +149,7 @@ export class ContentController {
     this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
     this.collaborationService.assertMutationAllowed({
       action: 'delete',
-      paths: [contentPath, ...(candidatePaths ?? [])],
-    });
+      paths: [contentPath, ...(candidatePaths ?? [])] });
 
     const result = contentService.delete(contentPath, candidatePaths);
     const data = this.unwrap(result, '콘텐츠 삭제에 실패했습니다.');
@@ -161,8 +157,7 @@ export class ContentController {
       primaryPath: contentPath,
       affectedPaths: [contentPath],
       operationType: 'delete',
-      currentUser,
-    });
+      currentUser });
     await this.accessRequestService.ensureRepoControlPlaneSynced(true);
     await this.syncSearchIndex(contentPath, 'delete');
     return success(data);
@@ -213,9 +208,7 @@ export class ContentController {
           error: 'Document conflict',
           details: {
             expectedRevisionSeq,
-            currentRevisionSeq,
-          },
-        }, 409);
+            currentRevisionSeq } }, 409);
       }
 
       const merged = {
@@ -223,14 +216,12 @@ export class ContentController {
         ...update,
         updatedAt: new Date().toISOString(),
         revisionSeq: currentRevisionSeq + 1,
-        lastModifiedBy: currentUser.loginId,
-      };
+        lastModifiedBy: currentUser.loginId };
       this.collaborationService.noteMutation({
         primaryPath: contentPath,
         affectedPaths: [contentPath],
         operationType: 'metadata',
-        currentUser,
-      });
+        currentUser });
       await this.accessRequestService.syncDocumentProjection(contentPath, merged);
       await this.syncSearchIndex(contentPath, 'upsert');
       return success(merged);
@@ -264,8 +255,7 @@ export class ContentController {
         lastModifiedBy: metadata?.['lastModifiedBy'] ?? currentUser.loginId,
         ownerId: metadata?.['ownerId'] ?? currentUser.userId,
         ownerLoginId: metadata?.['ownerLoginId'] ?? currentUser.loginId,
-        visibility: metadata?.['visibility'] ?? { scope: 'self' },
-      };
+        visibility: metadata?.['visibility'] ?? { scope: 'self' } };
     }
 
     if (metadata && existingFile && !canManage) {
@@ -276,8 +266,7 @@ export class ContentController {
           visibility: existingMetadata['visibility'],
           grants: existingMetadata['grants'],
           ownerId: existingMetadata['ownerId'],
-          ownerLoginId: existingMetadata['ownerLoginId'],
-        };
+          ownerLoginId: existingMetadata['ownerLoginId'] };
       }
     } else if (!metadata && existingMetadata) {
       metadata = { ...existingMetadata };
@@ -290,8 +279,7 @@ export class ContentController {
       metadata,
       {
         skipMetadata: body.skipMetadata === true,
-        expectedRevisionSeq,
-      },
+        expectedRevisionSeq },
     );
 
     const data = this.unwrap(result, '콘텐츠 저장에 실패했습니다.');
@@ -299,8 +287,7 @@ export class ContentController {
       primaryPath: contentPath,
       affectedPaths: [contentPath],
       operationType: existingFile ? 'update' : 'create',
-      currentUser,
-    });
+      currentUser });
     await this.accessRequestService.syncDocumentProjection(contentPath, data.metadata ?? metadata ?? null);
     await this.syncSearchIndex(contentPath, 'upsert');
     return success(data);
@@ -343,8 +330,7 @@ export class ContentController {
       case 409:
         throw new HttpException({
           error: result.error ?? fallbackMessage,
-          details: result.details,
-        }, 409);
+          details: result.details }, 409);
       default:
         throw new BadRequestException(result.error ?? fallbackMessage);
     }
@@ -361,7 +347,6 @@ export class ContentController {
 
     return {
       ...metadata,
-      isolation,
-    };
+      isolation };
   }
 }

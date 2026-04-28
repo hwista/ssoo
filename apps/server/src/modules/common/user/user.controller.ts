@@ -11,10 +11,8 @@ import {
   ApiQuery,
   ApiParam,
   ApiBody,
-  ApiCreatedResponse,
-} from "@nestjs/swagger";
+  ApiCreatedResponse } from "@nestjs/swagger";
 import { UserService } from './user.service.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -29,7 +27,7 @@ import { ApiError } from '../../../common/swagger/api-response.dto.js';
 @ApiTags("users")
 @ApiBearerAuth()
 @Controller("users")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -62,8 +60,7 @@ export class UserController {
         avatarUrl: user.avatarUrl,
         departmentCode: user.departmentCode,
         positionCode: user.positionCode,
-        lastLoginAt: user.lastLoginAt,
-      },
+        lastLoginAt: user.lastLoginAt },
       "프로필 조회 성공",
     );
   }
@@ -94,8 +91,7 @@ export class UserController {
       page: pageNum,
       limit: limitNum,
       search,
-      roleCode,
-    });
+      roleCode });
 
     const serialized = result.data.map((u) => serializeBigInt(u));
     return paginated(serialized, pageNum, limitNum, result.total);

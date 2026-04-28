@@ -5,12 +5,10 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiBearerAuth,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
@@ -20,7 +18,7 @@ import { SearchService } from './search.service.js';
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/search')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canUseSearch')
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}

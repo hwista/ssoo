@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { Roles } from '../../common/auth/decorators/roles.decorator.js';
 import { CodeService } from './code.service.js';
@@ -11,7 +10,7 @@ import type { CreateCodeDto, UpdateCodeDto } from './dto/code.dto.js';
 @ApiTags('codes')
 @ApiBearerAuth()
 @Controller('codes')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 export class CodeController {
   constructor(private readonly codeService: CodeService) {}
 

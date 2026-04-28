@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
@@ -19,13 +18,12 @@ import type {
   CreateProjectChangeRequestDto,
   UpdateProjectChangeRequestDto,
   CreateProjectEventDto,
-  UpdateProjectEventDto,
-} from '@ssoo/types';
+  UpdateProjectEventDto } from '@ssoo/types';
 
 @ApiTags('project-control')
 @ApiBearerAuth()
 @Controller('projects/:projectId/control')
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class ControlController {
   constructor(private readonly controlService: ControlService) {}
 

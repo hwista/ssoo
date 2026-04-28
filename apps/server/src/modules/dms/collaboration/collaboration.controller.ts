@@ -2,7 +2,6 @@ import { BadRequestException, Body, Controller, Delete, Get, Post, Query, UseGua
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { success } from '../../../common/responses.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
@@ -11,7 +10,7 @@ import { CollaborationService } from './collaboration.service.js';
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/collaboration')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canReadDocuments')
 export class CollaborationController {
   constructor(private readonly collaborationService: CollaborationService) {}

@@ -1,7 +1,6 @@
 import { Controller, Get, Put, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { NotificationService } from './notification.service.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
@@ -13,7 +12,7 @@ import { FindNotificationsDto } from './dto/notification.dto.js';
 @ApiTags('cms-notifications')
 @ApiBearerAuth()
 @Controller('cms/notifications')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 

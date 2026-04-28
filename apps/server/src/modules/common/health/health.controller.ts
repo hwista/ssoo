@@ -3,9 +3,11 @@ import { ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags } 
 import type { ApiResponse } from "@ssoo/types";
 import { HealthStatusDto } from '../../../common/swagger/health.dto.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
+import { Public } from '../../common/auth/decorators/public.decorator.js';
 
 @ApiTags("health")
 @Controller("health")
+@Public()
 export class HealthController {
   @Get()
   @ApiOperation({ summary: "헬스 체크" })

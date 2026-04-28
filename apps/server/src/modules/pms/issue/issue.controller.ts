@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
@@ -14,7 +13,7 @@ import type { CreateIssueDto, UpdateIssueDto } from '@ssoo/types';
 @ApiTags('issues')
 @ApiBearerAuth()
 @Controller('projects/:projectId/issues')
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class IssueController {
   constructor(private readonly issueService: IssueService) {}
 

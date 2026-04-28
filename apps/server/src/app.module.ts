@@ -10,6 +10,7 @@ import { RequestContextInterceptor } from './common/interceptors/request-context
 import { configValidationSchema } from './config/config.validation.js';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { JwtAuthGuard } from './modules/common/auth/guards/jwt-auth.guard.js';
 
 @Module({
   imports: [
@@ -42,6 +43,11 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // 전역 인증 가드: 모든 엔드포인트에 JWT 인증 적용 (@Public()으로 예외 처리)
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
   ],
 })

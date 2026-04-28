@@ -5,10 +5,8 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
+  ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { success } from '../../../common/index.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { AccessOperationsService } from './access-operations.service.js';
@@ -18,7 +16,7 @@ import { ListPermissionExceptionsQueryDto } from './dto/list-permission-exceptio
 @ApiTags('Access Ops')
 @ApiBearerAuth()
 @Controller('access/ops')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles('admin')
 export class AccessOperationsController {
   constructor(private readonly accessOperationsService: AccessOperationsService) {}
@@ -27,8 +25,7 @@ export class AccessOperationsController {
   @ApiOperation({
     summary: '권한 해석 inspect (관리자)',
     description:
-      '특정 사용자의 foundation action policy 와 optional object policy, active permission exception을 함께 조회합니다.',
-  })
+      '특정 사용자의 foundation action policy 와 optional object policy, active permission exception을 함께 조회합니다.' })
   @ApiOkResponse({ description: '권한 해석 조회 성공' })
   @ApiUnauthorizedResponse({ description: '인증되지 않은 요청' })
   @ApiForbiddenResponse({ description: '관리자만 접근 가능' })
@@ -41,8 +38,7 @@ export class AccessOperationsController {
   @ApiOperation({
     summary: 'permission exception 목록 조회 (관리자)',
     description:
-      'user/loginId, axis, object target, permission code 로 필터링된 permission exception 목록을 반환합니다.',
-  })
+      'user/loginId, axis, object target, permission code 로 필터링된 permission exception 목록을 반환합니다.' })
   @ApiOkResponse({ description: '권한 예외 목록 조회 성공' })
   @ApiUnauthorizedResponse({ description: '인증되지 않은 요청' })
   @ApiForbiddenResponse({ description: '관리자만 접근 가능' })

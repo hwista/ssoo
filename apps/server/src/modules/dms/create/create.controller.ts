@@ -4,8 +4,7 @@ import {
   Post,
   Req,
   Res,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
@@ -13,11 +12,9 @@ import {
   ApiOperation,
   ApiProduces,
   ApiBearerAuth,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { CreateSummaryDto } from './dto/create.dto.js';
@@ -26,7 +23,7 @@ import { CreateService } from './create.service.js';
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/create')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canUseAssistant')
 export class CreateController {
   constructor(private readonly createService: CreateService) {}

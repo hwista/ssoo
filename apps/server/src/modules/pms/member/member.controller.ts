@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { MemberService } from './member.service.js';
 import { ProjectFeatureGuard } from '../project/project-feature.guard.js';
@@ -14,7 +13,7 @@ import { ApiError } from '../../../common/swagger/api-response.dto.js';
 @ApiTags('project-members')
 @ApiBearerAuth()
 @Controller('projects/:projectId/members')
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class MemberController {
   constructor(private readonly memberService: MemberService) {}
 

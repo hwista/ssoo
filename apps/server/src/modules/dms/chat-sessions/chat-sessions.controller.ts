@@ -6,19 +6,16 @@ import {
   Get,
   Post,
   Query,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
   ApiBearerAuth,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { ChatSessionsService } from './chat-sessions.service.js';
@@ -26,7 +23,7 @@ import { ChatSessionsService } from './chat-sessions.service.js';
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/chat-sessions')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canUseAssistant')
 export class ChatSessionsController {
   constructor(private readonly chatSessionsService: ChatSessionsService) {}
@@ -93,7 +90,6 @@ export class ChatSessionsController {
       title: candidate.title,
       createdAt: candidate.createdAt,
       updatedAt: candidate.updatedAt,
-      messages: candidate.messages,
-    };
+      messages: candidate.messages };
   }
 }

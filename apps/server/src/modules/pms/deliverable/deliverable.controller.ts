@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { DeliverableService } from './deliverable.service.js';
 import { ProjectFeatureGuard } from '../project/project-feature.guard.js';
@@ -13,7 +12,7 @@ import { ApiError } from '../../../common/swagger/api-response.dto.js';
 @ApiTags('project-deliverables')
 @ApiBearerAuth()
 @Controller('projects/:projectId/deliverables')
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class DeliverableController {
   constructor(private readonly deliverableService: DeliverableService) {}
 

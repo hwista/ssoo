@@ -5,20 +5,17 @@ import {
   Get,
   Param,
   Post,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
@@ -36,7 +33,7 @@ interface SubmitBody {
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/ingest')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canManageStorage')
 export class IngestController {
   constructor(
@@ -66,8 +63,7 @@ export class IngestController {
       submittedBy: currentUser.loginId,
       provider: body.provider,
       relativePath: body.relativePath,
-      origin: body.origin,
-    }));
+      origin: body.origin }));
   }
 
   @Get('jobs')

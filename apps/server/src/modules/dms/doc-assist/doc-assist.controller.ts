@@ -5,8 +5,7 @@ import {
   Post,
   Req,
   Res,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
@@ -14,14 +13,12 @@ import {
   ApiOperation,
   ApiProduces,
   ApiBearerAuth,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import type { FileNode, TemplateItem } from '@ssoo/types/dms';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
@@ -64,7 +61,7 @@ function flattenTree(nodes: FileNode[], prefix = ''): { dirs: string[]; files: s
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/doc-assist')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canUseAssistant')
 export class DocAssistController {
   constructor(
@@ -96,8 +93,7 @@ export class DocAssistController {
         activeDocPath: this.readOptionalString(body.activeDocPath),
         selectedText: this.readOptionalString(body.selectedText),
         templates: this.readTemplates(body.templates),
-        summaryFiles: this.readSummaryFiles(body.summaryFiles),
-      });
+        summaryFiles: this.readSummaryFiles(body.summaryFiles) });
       response.status(200).json(success(data));
       return;
     }
@@ -111,8 +107,7 @@ export class DocAssistController {
         activeDocPath,
         directoryTree: treeHints?.dirs,
         existingFiles: treeHints?.files,
-        contentType: body.contentType === 'template' ? 'template' : 'document',
-      });
+        contentType: body.contentType === 'template' ? 'template' : 'document' });
       response.status(200).json(success(data));
       return;
     }
@@ -124,8 +119,7 @@ export class DocAssistController {
       activeDocPath: this.readOptionalString(body.activeDocPath),
       templates: this.readTemplates(body.templates),
       summaryFiles: this.readSummaryFiles(body.summaryFiles),
-      contentType: body.contentType === 'template' ? 'template' as const : 'document' as const,
-    };
+      contentType: body.contentType === 'template' ? 'template' as const : 'document' as const };
     this.assertReadableActivePath(input.activeDocPath, currentUser);
 
     if (body.stream === false) {

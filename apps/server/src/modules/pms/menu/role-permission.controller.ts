@@ -1,6 +1,5 @@
 import { Controller, Get, Put, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { Roles } from '../../common/auth/decorators/roles.decorator.js';
 import { RolePermissionService } from './role-permission.service.js';
@@ -10,7 +9,7 @@ import { UpdateRolePermissionsDto } from './dto/role-permission.dto.js';
 @ApiTags('Role Permissions')
 @ApiBearerAuth()
 @Controller('roles')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles('admin')
 export class RolePermissionController {
   constructor(

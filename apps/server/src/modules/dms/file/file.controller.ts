@@ -16,8 +16,7 @@ import {
   UnsupportedMediaTypeException,
   UploadedFile,
   UseGuards,
-  UseInterceptors,
-} from '@nestjs/common';
+  UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
@@ -27,14 +26,12 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiProduces,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import type { DocumentMetadata } from '@ssoo/types/dms';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessRequestService } from '../access/access-request.service.js';
 import { AccessService } from '../access/access.service.js';
@@ -54,8 +51,7 @@ import {
   getMimeType,
   IMAGE_ALLOWED_MIME_TYPES,
   IMAGE_STORAGE_DIR,
-  REFERENCE_STORAGE_DIR,
-} from './file.constants.js';
+  REFERENCE_STORAGE_DIR } from './file.constants.js';
 import { FileCrudService } from './file-crud.service.js';
 import { extractTextFromFile } from './text-extractor.js';
 import { storageAdapterService } from '../storage/storage-adapter.service.js';
@@ -93,7 +89,6 @@ export interface FileActionBody {
 
 @ApiTags('dms')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('dms/file')
 export class FileController {
   constructor(
@@ -149,8 +144,7 @@ export class FileController {
       newPath,
       autoNumber,
       metadata,
-      expectedRevisionSeq,
-    } = body;
+      expectedRevisionSeq } = body;
 
     if (action === 'read' || action === 'metadata') {
       await this.accessService.assertFeatures(currentUser, ['canReadDocuments']);
@@ -315,15 +309,13 @@ export class FileController {
       ext,
       size: uploadedFile.size,
       textLength: result.text.length,
-      imageCount: result.images.length,
-    });
+      imageCount: result.images.length });
 
     return success({
       textContent: result.text,
       images: result.images,
       fileName: uploadedFile.originalname,
-      size: uploadedFile.size,
-    });
+      size: uploadedFile.size });
   }
 
   @Post('upload-attachment')
@@ -361,13 +353,11 @@ export class FileController {
       provider: storageProvider,
       relativePath: ATTACHMENT_STORAGE_DIR,
       origin: 'manual',
-      status: 'published',
-    });
+      status: 'published' });
     logger.info('첨부파일 업로드 완료', {
       path: saved.path,
       provider: saved.provider,
-      size: uploadedFile.size,
-    });
+      size: uploadedFile.size });
 
     return success({
       path: saved.path,
@@ -380,8 +370,7 @@ export class FileController {
       etag: saved.etag,
       checksum: saved.checksum,
       status: saved.status,
-      webUrl: saved.webUrl,
-    });
+      webUrl: saved.webUrl });
   }
 
   @Post('upload-image')
@@ -418,13 +407,11 @@ export class FileController {
       provider: storageProvider,
       relativePath: IMAGE_STORAGE_DIR,
       origin: 'manual',
-      status: 'published',
-    });
+      status: 'published' });
     logger.info('이미지 업로드 완료', {
       path: saved.path,
       provider: saved.provider,
-      size: uploadedFile.size,
-    });
+      size: uploadedFile.size });
 
     return success({
       path: saved.path,
@@ -437,8 +424,7 @@ export class FileController {
       etag: saved.etag,
       checksum: saved.checksum,
       status: saved.status,
-      webUrl: saved.webUrl,
-    });
+      webUrl: saved.webUrl });
   }
 
   @Post('upload-reference')
@@ -476,13 +462,11 @@ export class FileController {
       provider: storageProvider,
       relativePath: REFERENCE_STORAGE_DIR,
       origin: 'manual',
-      status: 'published',
-    });
+      status: 'published' });
     logger.info('참조 파일 업로드 완료', {
       path: saved.path,
       provider: saved.provider,
-      size: uploadedFile.size,
-    });
+      size: uploadedFile.size });
 
     return success({
       path: saved.path,
@@ -495,8 +479,7 @@ export class FileController {
       etag: saved.etag,
       checksum: saved.checksum,
       status: saved.status,
-      webUrl: saved.webUrl,
-    });
+      webUrl: saved.webUrl });
   }
 
   private requireFile(file: UploadedFormFile | undefined): UploadedFormFile {
@@ -668,8 +651,7 @@ export class FileController {
         affectedPaths: [filePath],
         gitManagedPaths,
         operationType: 'update',
-        currentUser,
-      });
+        currentUser });
     }
     if (this.isMarkdownPath(filePath)) {
       await this.accessRequestService.syncDocumentProjection(filePath, toMetadataRecord(result.metadata));
@@ -692,8 +674,7 @@ export class FileController {
         affectedPaths: [result.savedPath],
         gitManagedPaths,
         operationType: 'create',
-        currentUser,
-      });
+        currentUser });
     }
     if (this.isMarkdownPath(result.savedPath)) {
       await this.accessRequestService.syncDocumentProjection(result.savedPath, toMetadataRecord(result.metadata));
@@ -720,8 +701,7 @@ export class FileController {
           affectedPaths: [oldPath, result.finalPath],
           gitManagedPaths,
           operationType: 'rename',
-          currentUser,
-        });
+          currentUser });
       }
       if (this.isMarkdownPath(oldPath) || this.isMarkdownPath(result.finalPath)) {
         await this.accessRequestService.moveDocumentProjection(
@@ -747,8 +727,7 @@ export class FileController {
         affectedPaths: [filePath],
         gitManagedPaths,
         operationType: 'delete',
-        currentUser,
-      });
+        currentUser });
     }
     if (this.shouldForceControlPlaneResync(filePath)) {
       await this.accessRequestService.ensureRepoControlPlaneSynced(true);
@@ -791,9 +770,7 @@ export class FileController {
         error: 'Document conflict',
         details: {
           expectedRevisionSeq: options.expectedRevisionSeq,
-          currentRevisionSeq,
-        },
-      }, 409);
+          currentRevisionSeq } }, 409);
     }
 
     const merged: DocumentMetadata = {
@@ -801,15 +778,13 @@ export class FileController {
       ...update,
       updatedAt: new Date().toISOString(),
       revisionSeq: currentRevisionSeq + 1,
-      lastModifiedBy: currentUser.loginId,
-    };
+      lastModifiedBy: currentUser.loginId };
     this.collaborationService.noteMutation({
       primaryPath: filePath,
       affectedPaths: [filePath],
       gitManagedPaths: [filePath],
       operationType: 'metadata',
-      currentUser,
-    });
+      currentUser });
     await this.accessRequestService.syncDocumentProjection(filePath, toMetadataRecord(merged));
     await this.syncSearchIndex(filePath, 'upsert');
     logger.info('문서 메타데이터 업데이트 완료', { filePath });
@@ -830,8 +805,7 @@ export class FileController {
       await this.searchService.syncIndex({
         path: targetPath,
         previousPath,
-        action,
-      });
+        action });
     } catch (error) {
       throw new BadGatewayException(
         `파일은 처리되었지만 검색 인덱스 동기화에 실패했습니다: ${error instanceof Error ? error.message : String(error)}`,
@@ -867,8 +841,7 @@ export class FileController {
       case 409:
         throw new HttpException({
           error: result.error,
-          details: result.details,
-        }, 409);
+          details: result.details }, 409);
       default:
         throw new BadRequestException(result.error);
     }
@@ -889,9 +862,6 @@ export class FileController {
         ...payload.metadata,
         document: {
           ...payload.metadata.document,
-          isolation,
-        },
-      },
-    };
+          isolation } } };
   }
 }

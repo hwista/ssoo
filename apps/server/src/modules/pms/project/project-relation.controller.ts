@@ -6,10 +6,8 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
+  ApiUnauthorizedResponse } from '@nestjs/swagger';
 import type { CreateProjectRelationDto } from '@ssoo/types';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { deleted, success } from '../../../common/index.js';
 import { serializeBigInt } from '../../../common/utils/bigint.util.js';
@@ -21,7 +19,7 @@ import { RequireProjectFeature } from './require-project-feature.decorator.js';
 @ApiTags('project-relations')
 @ApiBearerAuth()
 @Controller('projects/:projectId/relations')
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class ProjectRelationController {
   constructor(private readonly projectRelationService: ProjectRelationService) {}
 

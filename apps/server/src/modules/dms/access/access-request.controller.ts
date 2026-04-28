@@ -5,12 +5,10 @@ import {
   ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DmsFeatureGuard } from './dms-feature.guard.js';
 import { RequireDmsFeature } from './require-dms-feature.decorator.js';
@@ -19,14 +17,13 @@ import {
   CreateReadAccessRequestDto,
   ListAccessRequestsDto,
   RejectReadAccessRequestDto,
-  UpdateDocumentVisibilityDto,
-} from './dto/access-request.dto.js';
+  UpdateDocumentVisibilityDto } from './dto/access-request.dto.js';
 import { AccessRequestService } from './access-request.service.js';
 
 @ApiTags('dms-access')
 @ApiBearerAuth()
 @Controller('dms/access/requests')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 export class AccessRequestController {
   constructor(private readonly accessRequestService: AccessRequestService) {}
 

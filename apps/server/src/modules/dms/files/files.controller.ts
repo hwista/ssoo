@@ -6,12 +6,10 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
+  ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import { AccessRequestService } from '../access/access-request.service.js';
@@ -21,7 +19,7 @@ import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 
 @ApiTags('dms')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canReadDocuments')
 @Controller('dms/files')
 export class FilesController {

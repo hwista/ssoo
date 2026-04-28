@@ -1,7 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { BoardService } from './board.service.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { success, paginated, deleted } from '../../../common/index.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
@@ -13,7 +12,7 @@ import { RequireCmsFeature } from '../access/require-cms-feature.decorator.js';
 @ApiTags('cms-boards')
 @ApiBearerAuth()
 @Controller('cms/boards')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 export class BoardController {
   constructor(private readonly boardService: BoardService) {}
 

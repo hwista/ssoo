@@ -6,8 +6,7 @@ import {
   Param,
   Post,
   Put,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -15,10 +14,8 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
+  ApiUnauthorizedResponse } from '@nestjs/swagger';
 import type { CreateProjectOrgDto, UpdateProjectOrgDto } from '@ssoo/types';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { success, deleted } from '../../../common/index.js';
 import { serializeBigInt } from '../../../common/utils/bigint.util.js';
@@ -30,7 +27,7 @@ import { RequireProjectFeature } from './require-project-feature.decorator.js';
 @ApiTags('project-orgs')
 @ApiBearerAuth()
 @Controller('projects/:projectId/organizations')
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class ProjectOrgController {
   constructor(private readonly projectOrgService: ProjectOrgService) {}
 

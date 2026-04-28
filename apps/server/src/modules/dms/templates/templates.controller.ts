@@ -10,8 +10,7 @@ import {
   Query,
   Req,
   Res,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
@@ -19,14 +18,12 @@ import {
   ApiOperation,
   ApiProduces,
   ApiBearerAuth,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import type { TemplateItem, TemplateScope } from '@ssoo/types/dms';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessRequestService } from '../access/access-request.service.js';
@@ -53,7 +50,7 @@ function getRequestUserId(request: ExpressRequest): string {
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/templates')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canManageTemplates')
 export class TemplatesController {
   constructor(
@@ -93,14 +90,12 @@ export class TemplatesController {
           .map((item) => this.sanitizeTemplate(item, currentUser)),
         personal: templates.personal
           .filter((item) => item.originType === originType)
-          .map((item) => this.sanitizeTemplate(item, currentUser)),
-      });
+          .map((item) => this.sanitizeTemplate(item, currentUser)) });
     }
 
     return success({
       global: templates.global.map((item) => this.sanitizeTemplate(item, currentUser)),
-      personal: templates.personal.map((item) => this.sanitizeTemplate(item, currentUser)),
-    });
+      personal: templates.personal.map((item) => this.sanitizeTemplate(item, currentUser)) });
   }
 
   @Get(':id')
@@ -167,8 +162,7 @@ export class TemplatesController {
       referenceDocuments,
       generation: body.generation && typeof body.generation === 'object'
         ? body.generation as TemplateItem['generation']
-        : undefined,
-    }, userId, currentUser.loginId);
+        : undefined }, userId, currentUser.loginId);
 
     return success(this.sanitizeTemplate(saved, currentUser));
   }
@@ -259,8 +253,7 @@ export class TemplatesController {
   private sanitizeTemplate(template: TemplateItem, currentUser: TokenPayload): TemplateItem {
     return {
       ...template,
-      referenceDocuments: this.filterReferenceDocuments(template.referenceDocuments, currentUser),
-    };
+      referenceDocuments: this.filterReferenceDocuments(template.referenceDocuments, currentUser) };
   }
 
   private filterReferenceDocuments(

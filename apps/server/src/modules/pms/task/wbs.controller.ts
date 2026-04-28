@@ -1,6 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { WbsService } from './wbs.service.js';
 import { ProjectFeatureGuard } from '../project/project-feature.guard.js';
@@ -12,7 +11,7 @@ import type { CreateWbsDto, UpdateWbsDto } from '@ssoo/types';
 @ApiTags('wbs')
 @ApiBearerAuth()
 @Controller('projects/:projectId/wbs')
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class WbsController {
   constructor(private readonly wbsService: WbsService) {}
 

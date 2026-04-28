@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { Roles } from '../../common/auth/decorators/roles.decorator.js';
 import { MenuAdminService } from './menu-admin.service.js';
@@ -10,7 +9,7 @@ import type { CreateMenuDto, UpdateMenuDto } from './dto/menu-admin.dto.js';
 @ApiTags('Menu Administration')
 @ApiBearerAuth()
 @Controller('menus/admin')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles('admin')
 export class MenuAdminController {
   constructor(private readonly menuAdminService: MenuAdminService) {}

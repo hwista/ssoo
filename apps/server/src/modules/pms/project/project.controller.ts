@@ -1,6 +1,5 @@
 ﻿import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, NotFoundException } from "@nestjs/common";
 import { ApiBearerAuth, ApiForbiddenResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from "@nestjs/swagger";
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
@@ -26,15 +25,14 @@ import type {
   CreateProjectContractDto,
   UpdateProjectContractDto,
   CreateContractPaymentDto,
-  UpdateContractPaymentDto,
-} from "@ssoo/types";
+  UpdateContractPaymentDto } from "@ssoo/types";
 import { ProjectDto, ProjectListDto } from './dto/project.dto.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 
 @ApiTags("projects")
 @ApiBearerAuth()
 @Controller("projects")
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class ProjectController {
   constructor(
     private readonly projectService: ProjectService,

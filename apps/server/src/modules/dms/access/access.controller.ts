@@ -3,7 +3,6 @@ import { ApiBearerAuth, ApiInternalServerErrorResponse, ApiOkResponse, ApiOperat
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessService } from './access.service.js';
@@ -11,7 +10,7 @@ import { AccessService } from './access.service.js';
 @ApiTags('dms-access')
 @ApiBearerAuth()
 @Controller('dms/access')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 export class AccessController {
   constructor(private readonly accessService: AccessService) {}
 

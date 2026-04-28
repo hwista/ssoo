@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
 import { MilestoneService } from './milestone.service.js';
 import { ProjectFeatureGuard } from '../project/project-feature.guard.js';
@@ -12,7 +11,7 @@ import type { CreateMilestoneDto, UpdateMilestoneDto } from '@ssoo/types';
 @ApiTags('milestones')
 @ApiBearerAuth()
 @Controller('projects/:projectId/milestones')
-@UseGuards(JwtAuthGuard, RolesGuard, ProjectFeatureGuard)
+@UseGuards(RolesGuard, ProjectFeatureGuard)
 export class MilestoneController {
   constructor(private readonly milestoneService: MilestoneService) {}
 

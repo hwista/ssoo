@@ -4,7 +4,6 @@ import {
   Body,
   Req,
   Res,
-  UseGuards,
   HttpCode,
   HttpStatus,
   UnauthorizedException,
@@ -17,8 +16,8 @@ import type { Request as ExpressRequest, Response as ExpressResponse, CookieOpti
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
-import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
+import { Public } from './decorators/public.decorator.js';
 import { TokenPayload } from './interfaces/auth.interface.js';
 import { success } from '../../../common/index.js';
 import { ApiSuccess, ApiError } from '../../../common/swagger/api-response.dto.js';
@@ -125,6 +124,7 @@ export class AuthController {
    * POST /api/auth/login
    */
   @Post("login")
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: "로그인", description: "JWT Access/Refresh 토큰 발급" })
@@ -147,6 +147,7 @@ export class AuthController {
    * POST /api/auth/refresh
    */
   @Post("refresh")
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: "Refresh 토큰으로 재발급" })
@@ -172,6 +173,7 @@ export class AuthController {
    * POST /api/auth/session
    */
   @Post("session")
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: "공유 세션 복원", description: "HttpOnly shared session cookie 로 Access Token 재발급" })
@@ -212,7 +214,6 @@ export class AuthController {
    * POST /api/auth/logout
    */
   @Post("logout")
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: "로그아웃", description: "서버에 저장된 Refresh Token 무효화" })
@@ -233,7 +234,6 @@ export class AuthController {
    * POST /api/auth/me
    */
   @Post("me")
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: "내 정보 조회" })

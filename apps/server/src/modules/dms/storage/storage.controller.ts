@@ -10,22 +10,19 @@ import {
   Post,
   Query,
   Res,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiOperation,
   ApiBearerAuth,
   ApiInternalServerErrorResponse,
   ApiOkResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+  ApiTags } from '@nestjs/swagger';
 import type { Response as ExpressResponse } from 'express';
 import type { SourceFileMeta } from '@ssoo/types/dms';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
-import { JwtAuthGuard } from '../../common/auth/guards/jwt-auth.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentControlPlaneService } from '../access/document-control-plane.service.js';
@@ -41,13 +38,12 @@ import {
   type StorageOpenRequest,
   type StorageOpenResult,
   type StorageRefreshRequest,
-  type StorageUploadRequest,
-} from './storage-adapter.service.js';
+  type StorageUploadRequest } from './storage-adapter.service.js';
 
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/storage')
-@UseGuards(JwtAuthGuard, DmsFeatureGuard)
+@UseGuards(DmsFeatureGuard)
 export class StorageController {
   constructor(
     private readonly accessRequestService: AccessRequestService,
@@ -74,8 +70,7 @@ export class StorageController {
         provider: body.provider,
         relativePath: body.relativePath,
         origin: body.origin,
-        status: body.status,
-      }));
+        status: body.status }));
     } catch (error) {
       this.throwStorageError(error);
     }
@@ -146,8 +141,7 @@ export class StorageController {
         path: matched.path ?? body.path,
         fileName: matched.name,
         origin: this.toStorageOrigin(matched.origin),
-        status: this.toStorageStatus(matched.status),
-      });
+        status: this.toStorageStatus(matched.status) });
       const updatedSourceFile: SourceFileMeta = {
         ...matched,
         name: refreshed.name,
@@ -161,15 +155,13 @@ export class StorageController {
         etag: refreshed.etag,
         checksum: refreshed.checksum,
         origin: matched.origin,
-        status: matched.status ?? refreshed.status,
-      };
+        status: matched.status ?? refreshed.status };
       const updatedSourceFiles = sourceFiles.map((sourceFile) => (
         this.isSameSourceFile(sourceFile, matched) ? updatedSourceFile : sourceFile
       ));
       const nextMetadata = {
         ...this.toMutableMetadataRecord(persistedMetadata),
-        sourceFiles: updatedSourceFiles,
-      };
+        sourceFiles: updatedSourceFiles };
       await this.accessRequestService.syncDocumentProjection(safeRelPath, nextMetadata);
       return success(updatedSourceFile);
     } catch (error) {
@@ -199,8 +191,7 @@ export class StorageController {
         storageUri,
         provider,
         path: targetPath,
-        documentPath,
-      };
+        documentPath };
       const result = storageAdapterService.open(request);
       await this.assertStorageOpenAllowed(currentUser, request, result);
 
@@ -268,8 +259,7 @@ export class StorageController {
     const separator = result.openUrl.includes('?') ? '&' : '?';
     return {
       ...result,
-      openUrl: `${result.openUrl}${separator}documentPath=${encodeURIComponent(documentPath.trim())}`,
-    };
+      openUrl: `${result.openUrl}${separator}documentPath=${encodeURIComponent(documentPath.trim())}` };
   }
 
   private throwStorageError(error: unknown): never {
@@ -397,8 +387,7 @@ export class StorageController {
               };
               return [typedImage];
             })
-          : undefined,
-      }];
+          : undefined }];
     });
   }
 
