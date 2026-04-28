@@ -36,8 +36,7 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
           key: 'settings',
           label: '설정',
           icon: Settings,
-          disabled: true,
-          trailing: <span className="ml-auto text-xs text-white/40">준비 중</span>,
+          onSelect: () => router.push('/settings'),
         },
       ]}
     />
