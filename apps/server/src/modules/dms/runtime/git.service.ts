@@ -98,7 +98,7 @@ export interface GitSyncStatus {
   state: GitSyncState;
 }
 
-export type GitBootstrapMode = 'existing' | 'init' | 'clone';
+export type GitBootstrapMode = 'existing' | 'existing-pulled' | 'init' | 'clone' | 'reconcile-merge';
 
 export interface GitInitializeResult {
   isNew: boolean;
@@ -185,8 +185,9 @@ class GitService {
    * Git 저장소 초기화 (서버 시작 시 1회 호출)
    * - empty working tree + bootstrapRemoteUrl 이 있으면 clone
    * - truly empty working tree 에서만 git init + 초기 커밋
-   * - non-empty + non-git root 는 reconcile 필요 상태로 간주하고 실패 반환
-   * - .git이 있으면 그대로 사용하되 origin remote 는 bootstrap 설정과 reconcile
+   * - non-empty + non-git + bootstrapRemoteUrl → reconcile-merge (fetch + checkout)
+   * - non-empty + non-git + no remote → reconcile 필요 상태로 간주하고 실패 반환
+   * - .git이 있으면 그대로 사용하되 origin remote 맞추고 auto-pull (ff-only)
    */
   async initialize(): Promise<GitResult<GitInitializeResult>> {
     if (this.initialized) {
@@ -225,12 +226,23 @@ class GitService {
         }
 
         if (!isEmptyWorkingTree) {
-          const error = bootstrapRemoteUrl
-            ? 'Configured document root is non-empty but not a Git repository; reconcile is required before bootstrap clone.'
-            : 'Configured document root is non-empty but not a Git repository; reconcile is required before Git initialization.';
+          if (bootstrapRemoteUrl) {
+            // GAP 1: non-empty + bootstrapRemoteUrl → reconcile-merge
+            // git init → remote add → fetch → checkout remote branch (preserving local-only files)
+            await this.reconcileMergeBootstrap(bootstrapRemoteUrl, bootstrapBranch);
+            this.initialized = true;
+            logger.info('Document Git 저장소 reconcile-merge 완료', {
+              remote: bootstrapRemoteUrl,
+              branch: bootstrapBranch ?? '(default)',
+              existingFileCount: visibleEntries.length,
+            });
+            return { success: true, data: { isNew: true, mode: 'reconcile-merge' } };
+          }
+
+          const error = 'Configured document root is non-empty but not a Git repository; reconcile is required before Git initialization.';
           logger.warn('Document Git 저장소 bootstrap 보류 (reconcile 필요)', {
             root: this.docDir,
-            remoteConfigured: Boolean(bootstrapRemoteUrl),
+            remoteConfigured: false,
             hasGitMetadata: workingTreeEntries.includes('.git'),
             visibleEntryCount: visibleEntries.length,
           });
@@ -256,9 +268,22 @@ class GitService {
 
       await this.ensureConfiguredRemote(bootstrapRemoteUrl);
       await this.configureGit();
+
+      // GAP 2: auto-pull on existing repo — fetch & fast-forward only
+      const pullResult = await this.tryAutoPull(bootstrapRemoteUrl);
       this.initialized = true;
+
+      if (pullResult.pulled) {
+        logger.info('Document Git 저장소 연결 + auto-pull 완료 (기존)', {
+          remote: bootstrapRemoteUrl ?? '(preserve-existing)',
+          pulledCommits: pullResult.commitCount,
+        });
+        return { success: true, data: { isNew: false, mode: 'existing-pulled' } };
+      }
+
       logger.info('Document Git 저장소 연결 (기존)', {
         remote: bootstrapRemoteUrl ?? '(preserve-existing)',
+        pullSkipReason: pullResult.reason,
       });
       return { success: true, data: { isNew: false, mode: 'existing' } };
     } catch (error) {
@@ -339,9 +364,171 @@ class GitService {
     await this.git.raw(['branch', '-M', branch]);
   }
 
+  /**
+   * non-empty working tree에 bootstrap remote를 reconcile-merge 방식으로 적용.
+   * 1) git init → 2) remote add → 3) fetch → 4) validate remote branch → 5) checkout
+   * 로컬에만 있는 파일은 untracked로 보존됩니다.
+   */
+  private async reconcileMergeBootstrap(remoteUrl: string, branch?: string): Promise<void> {
+    await this.git.init();
+    await this.configureGit();
+    await this.git.addRemote('origin', remoteUrl);
+
+    const fetchArgs = branch ? ['origin', branch] : ['origin'];
+    await this.git.fetch(fetchArgs);
+
+    // remote 기본 브랜치 결정
+    const targetBranch = branch || await this.detectRemoteDefaultBranch();
+    const remoteRef = `origin/${targetBranch}`;
+
+    // remote 브랜치 존재 확인 (빈 remote / 잘못된 브랜치 방지)
+    try {
+      await this.git.revparse([remoteRef]);
+    } catch {
+      throw new Error(`reconcile-merge 실패: remote 브랜치 '${remoteRef}'를 찾을 수 없습니다. remote가 비어있거나 브랜치명이 잘못되었습니다.`);
+    }
+
+    // remote 브랜치 기반으로 로컬 브랜치 생성 + checkout
+    try {
+      await this.git.raw(['checkout', '-b', targetBranch, remoteRef]);
+    } catch (checkoutError) {
+      const msg = checkoutError instanceof Error ? checkoutError.message : String(checkoutError);
+
+      // "would be overwritten by checkout" 에러만 처리 — 나머지는 rethrow
+      if (!msg.includes('would be overwritten')) {
+        throw checkoutError;
+      }
+
+      // 로컬 파일과 remote 파일 이름이 겹치는 경우
+      // → 임시 커밋 → remote checkout → merge (allow-unrelated)
+      logger.warn('reconcile-merge: 로컬 파일과 remote 파일 충돌 — stash + merge 전략 시도');
+      await this.git.add('.');
+      const stashResult = await this.git.commit(
+        'chore: reconcile-merge stash (local files before bootstrap)',
+        undefined,
+        { '--allow-empty': null },
+      );
+      const stashCommitHash = stashResult.commit;
+
+      await this.git.raw(['checkout', '-b', targetBranch, remoteRef]);
+      try {
+        await this.git.raw(['merge', '--allow-unrelated-histories', '--no-edit', stashCommitHash]);
+      } catch {
+        // merge 충돌 시 remote 우선 (theirs)
+        logger.warn('reconcile-merge: merge 충돌 — remote 우선 전략 적용');
+        await this.git.raw(['checkout', '--theirs', '.']);
+        await this.git.add('.');
+        await this.git.commit('chore: reconcile-merge complete (remote-first resolution)');
+      }
+    }
+  }
+
+  /**
+   * 기존 repo에 대해 remote에서 새 커밋을 fast-forward pull 시도.
+   * config가 아닌 실제 repo의 origin remote 존재 여부로 판단합니다.
+   * 충돌이나 diverged 상태에서는 pull하지 않고 사유를 반환합니다.
+   */
+  private async tryAutoPull(_remoteUrl?: string): Promise<{ pulled: boolean; commitCount: number; reason?: string }> {
+    return this.pullFastForward('origin');
+  }
+
+  /**
+   * Fast-forward only pull을 수행합니다. (공용 메서드 — 런타임 sync에서도 호출 가능)
+   * @returns pull 결과: pulled=true면 새 커밋을 가져옴, false면 스킵 사유 포함
+   */
+  async pullFastForward(remote = 'origin'): Promise<{ pulled: boolean; commitCount: number; reason?: string }> {
+    if (!this.initialized) {
+      return { pulled: false, commitCount: 0, reason: 'git-not-initialized' };
+    }
+
+    try {
+      // 실제 remote 존재 확인 (config와 무관하게)
+      const remotes = await this.git.getRemotes(true);
+      const targetRemote = remotes.find((r) => r.name === remote);
+      if (!targetRemote || !targetRemote.refs.fetch) {
+        return { pulled: false, commitCount: 0, reason: 'no-remote-configured' };
+      }
+
+      await this.git.fetch([remote]);
+
+      const branch = (await this.git.revparse(['--abbrev-ref', 'HEAD'])).trim();
+      if (branch === 'HEAD') {
+        return { pulled: false, commitCount: 0, reason: 'detached-head' };
+      }
+      const remoteRef = `${remote}/${branch}`;
+
+      // remote 브랜치 존재 확인
+      try {
+        await this.git.revparse([remoteRef]);
+      } catch {
+        return { pulled: false, commitCount: 0, reason: 'remote-branch-not-found' };
+      }
+
+      // dirty working tree 확인
+      const status = await this.git.status();
+      if (status.modified.length > 0 || status.staged.length > 0) {
+        return { pulled: false, commitCount: 0, reason: 'dirty-working-tree' };
+      }
+
+      const behindCount = parseInt(
+        (await this.git.raw(['rev-list', '--count', `${branch}..${remoteRef}`])).trim(),
+        10,
+      );
+      if (behindCount === 0) {
+        return { pulled: false, commitCount: 0, reason: 'already-up-to-date' };
+      }
+
+      // diverged 확인 (local도 ahead이면 ff 불가)
+      const aheadCount = parseInt(
+        (await this.git.raw(['rev-list', '--count', `${remoteRef}..${branch}`])).trim(),
+        10,
+      );
+      if (aheadCount > 0) {
+        return { pulled: false, commitCount: 0, reason: `diverged (local +${aheadCount}, remote +${behindCount})` };
+      }
+
+      // fast-forward only merge
+      await this.git.raw(['merge', '--ff-only', remoteRef]);
+      return { pulled: true, commitCount: behindCount };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.warn('pullFastForward 실패', { remote, error: msg });
+      return { pulled: false, commitCount: 0, reason: `pull-failed: ${msg}` };
+    }
+  }
+
+  /**
+   * origin remote의 기본 브랜치를 감지합니다.
+   */
+  private async detectRemoteDefaultBranch(): Promise<string> {
+    try {
+      const remoteInfo = await this.git.raw(['remote', 'show', 'origin']);
+      const match = remoteInfo.match(/HEAD branch:\s*(.+)/);
+      if (match?.[1]) return match[1].trim();
+    } catch {
+      // fallback
+    }
+
+    // remote show 실패 시 fetch된 refs에서 첫 번째 브랜치 사용
+    try {
+      const refs = await this.git.raw(['branch', '-r']);
+      const firstRef = refs.split('\n').map(l => l.trim()).find(l => l.startsWith('origin/') && !l.includes('HEAD'));
+      if (firstRef) return firstRef.replace('origin/', '');
+    } catch {
+      // fallback
+    }
+
+    return 'main';
+  }
+
   /** Git 사용 가능 여부 */
   get isAvailable(): boolean {
     return this.initialized;
+  }
+
+  /** 내부 SimpleGit 인스턴스 접근 (런타임 pull 등 외부 서비스 용도) */
+  getGit(): SimpleGit | null {
+    return this.initialized ? this.git : null;
   }
 
   // --------------------------------------------------------------------------

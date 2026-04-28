@@ -7,6 +7,8 @@
 -- 스키마 분류:
 --   - common: cm_user_m (사용자)
 --   - pms: cm_code_m, cm_menu_m, cm_*_r (코드, 메뉴, 권한 관련)
+--   - dms: dm_config_m (DMS 시스템 설정)
+--   - cms: cm_board_m, cm_skill_m (게시판, 스킬)
 -- =========================================================
 -- 
 -- 사용법 (psql):
@@ -21,7 +23,7 @@
 
 \echo '=========================================='
 \echo 'Starting Seed Data Application'
-\echo 'Schema: common (user), pms (code, menu, permission)'
+\echo 'Schema: common (user), pms (code, menu, permission), dms (config), cms (boards, skills)'
 \echo '=========================================='
 
 -- 00: 사용자 타입 코드
@@ -91,6 +93,18 @@
 -- 16: CMS access policy foundation
 \echo 'Applying 16_cms_access_policy_foundation.sql...'
 \i 16_cms_access_policy_foundation.sql
+
+-- 20: DMS config foundation (시스템 설정 시드 — git, storage, ingest 등)
+\echo 'Applying 20_dms_config_foundation.sql...'
+\i 20_dms_config_foundation.sql
+
+-- 50: CMS boards
+\echo 'Applying 50_cms_boards.sql...'
+\i 50_cms_boards.sql
+
+-- 51: CMS skills
+\echo 'Applying 51_cms_skills.sql...'
+\i 51_cms_skills.sql
 
 -- 17: PMS demo project access context (owner/org baseline)
 \echo 'Applying 17_demo_project_access_context.sql...'

@@ -688,23 +688,27 @@ export class AccessRequestService {
         await this.ensureGitContentPlaneReady();
         const repoParity = await this.inspectRepoMutationParity();
         if (!repoParity.canTreatLocalAsCanonical) {
-          logger.warn('문서 repo -> control-plane 동기화 보류 (원격 parity 확인 필요)', {
-            force,
-            reason: repoParity.reason,
-            syncStatus: repoParity.syncStatus
-              ? {
-                  remote: repoParity.syncStatus.remote,
-                  remoteConfigured: repoParity.syncStatus.remoteConfigured,
-                  remoteExists: repoParity.syncStatus.remoteExists,
-                  remoteAhead: repoParity.syncStatus.remoteAhead,
-                  localAhead: repoParity.syncStatus.localAhead,
-                  diverged: repoParity.syncStatus.diverged,
-                }
-              : undefined,
-          });
-          await this.documentControlPlaneService.refreshCache();
-          this.lastControlPlaneSyncAt = Date.now();
-          return;
+          // GAP 3: remote ahead → try pull-then-sync before giving up
+          const pullRecovered = await this.tryPullAndRecover(repoParity);
+          if (!pullRecovered) {
+            logger.warn('문서 repo -> control-plane 동기화 보류 (원격 parity 확인 필요)', {
+              force,
+              reason: repoParity.reason,
+              syncStatus: repoParity.syncStatus
+                ? {
+                    remote: repoParity.syncStatus.remote,
+                    remoteConfigured: repoParity.syncStatus.remoteConfigured,
+                    remoteExists: repoParity.syncStatus.remoteExists,
+                    remoteAhead: repoParity.syncStatus.remoteAhead,
+                    localAhead: repoParity.syncStatus.localAhead,
+                    diverged: repoParity.syncStatus.diverged,
+                  }
+                : undefined,
+            });
+            await this.documentControlPlaneService.refreshCache();
+            this.lastControlPlaneSyncAt = Date.now();
+            return;
+          }
         }
         await this.syncRepoControlPlane(force);
         await this.documentControlPlaneService.refreshCache();
@@ -732,6 +736,32 @@ export class AccessRequestService {
       canTreatLocalAsCanonical: false,
       reason: `PARITY_CHECK_FAILED: ${parityResult.error}`,
     };
+  }
+
+  /**
+   * remote가 ahead인 경우 fast-forward pull을 시도하여 parity를 회복합니다.
+   * diverged 상태에서는 pull하지 않습니다.
+   * @returns true면 pull 성공 → syncRepoControlPlane 진행 가능
+   */
+  private async tryPullAndRecover(parity: GitRemoteParityStatus): Promise<boolean> {
+    const sync = parity.syncStatus;
+    if (!sync) return false;
+
+    // remote ahead + local not ahead → fast-forward 가능
+    if (sync.remoteAhead && !sync.localAhead && !sync.diverged) {
+      const result = await gitService.pullFastForward('origin');
+      if (result.pulled) {
+        logger.info('런타임 auto-pull 성공 (remote → local ff-only)', {
+          behindCount: sync.behindCount,
+          pulledCommits: result.commitCount,
+        });
+        return true;
+      }
+      logger.warn('런타임 auto-pull 스킵', { reason: result.reason });
+      return false;
+    }
+
+    return false;
   }
 
   async syncDocumentProjection(
