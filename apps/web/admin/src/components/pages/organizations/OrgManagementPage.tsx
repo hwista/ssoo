@@ -297,7 +297,7 @@ export function OrgManagementPage() {
                 <Input
                   type="number"
                   value={formData.sortOrder}
-                  onChange={(e) => updateField('sortOrder', parseInt(e.target.value) || 0)}
+                  onChange={(e) => updateField('sortOrder', e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0)}
                 />
               </div>
             </div>

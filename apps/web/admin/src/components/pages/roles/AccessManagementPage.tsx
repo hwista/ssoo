@@ -311,15 +311,32 @@ function InspectTab() {
       {/* User selector */}
       <div className="rounded-lg border bg-card p-4">
         <h3 className="mb-3 text-sm font-semibold">대상 사용자 선택</h3>
-        <div className="flex gap-3">
-          <Input
-            placeholder="이름 또는 로그인 ID 검색..."
-            value={userSearch}
-            onChange={(e) => setUserSearch(e.target.value)}
-            className="max-w-xs"
-          />
-        </div>
-        {filteredUsers.length > 0 && (
+
+        {usersQuery.isLoading && (
+          <p className="text-sm text-muted-foreground">사용자 목록을 불러오는 중...</p>
+        )}
+
+        {usersQuery.isError && (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            사용자 목록을 불러오지 못했습니다.
+            <Button variant="outline" size="sm" onClick={() => usersQuery.refetch()}>
+              <RefreshCcw className="mr-1 h-3 w-3" />
+              다시 시도
+            </Button>
+          </div>
+        )}
+
+        {!usersQuery.isLoading && !usersQuery.isError && (
+          <>
+            <div className="flex gap-3">
+              <Input
+                placeholder="이름 또는 로그인 ID 검색..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="max-w-xs"
+              />
+            </div>
+            {filteredUsers.length > 0 && (
           <div className="mt-2 max-h-48 overflow-auto rounded-md border">
             {filteredUsers.map((u) => (
               <button
@@ -338,6 +355,8 @@ function InspectTab() {
               </button>
             ))}
           </div>
+        )}
+          </>
         )}
       </div>
 

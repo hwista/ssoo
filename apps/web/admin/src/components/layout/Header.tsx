@@ -11,11 +11,13 @@ export function AdminHeader() {
     <header className="flex h-[60px] items-center justify-between border-b bg-card px-6">
       <div />
       <div className="flex items-center gap-2">
-        {user && (
+        {user ? (
           <AuthUserMenu
             user={user}
             onLogout={logout}
           />
+        ) : (
+          <span className="text-sm text-muted-foreground">로딩 중...</span>
         )}
       </div>
     </header>
