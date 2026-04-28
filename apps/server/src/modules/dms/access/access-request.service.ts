@@ -17,6 +17,7 @@ import type {
   RejectDmsDocumentAccessRequestPayload,
   SearchResultItem,
   SourceFileMeta,
+  TransferDocumentOwnershipResult,
 } from '@ssoo/types/dms';
 import { DatabaseService } from '../../../database/database.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
@@ -454,6 +455,225 @@ export class AccessRequestService {
     );
 
     return { documentId: document.documentId.toString(), visibilityScope };
+  }
+
+  async transferDocumentOwnership(
+    user: TokenPayload,
+    documentId: string,
+    newOwnerLoginId: string,
+  ): Promise<TransferDocumentOwnershipResult> {
+    const document = await this.db.client.dmsDocument.findUnique({
+      where: { documentId: BigInt(documentId), isActive: true },
+      select: {
+        documentId: true,
+        ownerUserId: true,
+        relativePath: true,
+        metadataJson: true,
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException('문서를 찾을 수 없습니다.');
+    }
+
+    const rootDir = configService.getDocDir();
+    const absolutePath = resolveAbsolutePath(document.relativePath, rootDir);
+    if (!this.documentAclService.isManageableAbsolutePath(user, absolutePath)) {
+      throw new ForbiddenException('문서 소유권을 이전할 권한이 없습니다.');
+    }
+
+    const newOwner = await this.db.client.user.findFirst({
+      where: {
+        authAccount: { loginId: newOwnerLoginId },
+        isActive: true,
+      },
+      select: {
+        id: true,
+        userName: true,
+        authAccount: { select: { loginId: true } },
+      },
+    });
+
+    if (!newOwner || !newOwner.authAccount) {
+      throw new BadRequestException(`사용자를 찾을 수 없습니다: ${newOwnerLoginId}`);
+    }
+
+    if (newOwner.id === document.ownerUserId) {
+      throw new BadRequestException('이미 해당 사용자가 소유자입니다.');
+    }
+
+    const callerUserId = BigInt(user.userId);
+    const previousOwnerUserId = document.ownerUserId;
+
+    await this.db.client.$transaction(async (tx) => {
+      const metadata = isRecord(document.metadataJson) ? { ...document.metadataJson } : {};
+      metadata['ownerId'] = newOwner.id.toString();
+      metadata['ownerLoginId'] = newOwner.authAccount!.loginId;
+
+      await tx.dmsDocument.update({
+        where: { documentId: document.documentId },
+        data: {
+          ownerUserId: newOwner.id,
+          metadataJson: metadata,
+          updatedBy: callerUserId,
+          lastSource: ACTIVE_REQUEST_SOURCE,
+          lastActivity: 'dms.access.document.transfer-ownership',
+        },
+      });
+
+      // Convert old owner's owner-default grants to 'share'
+      await tx.dmsDocumentGrant.updateMany({
+        where: {
+          documentId: document.documentId,
+          principalType: 'user',
+          principalRef: previousOwnerUserId.toString(),
+          grantSourceCode: 'owner-default',
+          isActive: true,
+          revokedAt: null,
+        },
+        data: {
+          grantSourceCode: 'share',
+          updatedBy: callerUserId,
+          lastSource: ACTIVE_REQUEST_SOURCE,
+          lastActivity: 'dms.access.document.transfer-ownership.demote-old-owner',
+        },
+      });
+
+      // Upsert manage grant for new owner
+      const existingGrant = await tx.dmsDocumentGrant.findFirst({
+        where: {
+          documentId: document.documentId,
+          principalType: 'user',
+          principalRef: newOwner.id.toString(),
+          roleCode: 'manage',
+        },
+        select: { documentGrantId: true },
+      });
+
+      if (existingGrant) {
+        await tx.dmsDocumentGrant.update({
+          where: { documentGrantId: existingGrant.documentGrantId },
+          data: {
+            grantSourceCode: 'owner-default',
+            grantedAt: new Date(),
+            grantedByUserId: callerUserId,
+            expiresAt: null,
+            revokedAt: null,
+            revokedByUserId: null,
+            revokeReason: null,
+            isActive: true,
+            updatedBy: callerUserId,
+            lastSource: ACTIVE_REQUEST_SOURCE,
+            lastActivity: 'dms.access.document.transfer-ownership.grant-new-owner',
+          },
+        });
+      } else {
+        await tx.dmsDocumentGrant.create({
+          data: {
+            documentId: document.documentId,
+            principalType: 'user',
+            principalRef: newOwner.id.toString(),
+            roleCode: 'manage',
+            grantSourceCode: 'owner-default',
+            grantedAt: new Date(),
+            grantedByUserId: callerUserId,
+            isActive: true,
+            createdBy: callerUserId,
+            updatedBy: callerUserId,
+            lastSource: ACTIVE_REQUEST_SOURCE,
+            lastActivity: 'dms.access.document.transfer-ownership.grant-new-owner',
+          },
+        });
+      }
+    });
+
+    await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(document.relativePath);
+
+    logger.info(
+      `Document ${documentId} ownership transferred: user ${previousOwnerUserId} → user ${newOwner.id} (${newOwnerLoginId}) by user ${user.userId}`,
+    );
+
+    return {
+      documentId: document.documentId.toString(),
+      previousOwnerUserId: previousOwnerUserId.toString(),
+      newOwnerUserId: newOwner.id.toString(),
+      newOwnerLoginId: newOwner.authAccount!.loginId,
+    };
+  }
+
+  async revokeDocumentGrant(
+    user: TokenPayload,
+    documentId: string,
+    grantId: string,
+  ): Promise<{ grantId: string; documentId: string }> {
+    const document = await this.db.client.dmsDocument.findUnique({
+      where: { documentId: BigInt(documentId), isActive: true },
+      select: { documentId: true, ownerUserId: true, relativePath: true },
+    });
+
+    if (!document) {
+      throw new NotFoundException('문서를 찾을 수 없습니다.');
+    }
+
+    const rootDir = configService.getDocDir();
+    const absolutePath = resolveAbsolutePath(document.relativePath, rootDir);
+    if (!this.documentAclService.isManageableAbsolutePath(user, absolutePath)) {
+      throw new ForbiddenException('grant를 취소할 권한이 없습니다.');
+    }
+
+    const grant = await this.db.client.dmsDocumentGrant.findUnique({
+      where: { documentGrantId: BigInt(grantId) },
+      select: {
+        documentGrantId: true,
+        documentId: true,
+        principalType: true,
+        principalRef: true,
+        roleCode: true,
+        grantSourceCode: true,
+        revokedAt: true,
+        isActive: true,
+      },
+    });
+
+    if (!grant || grant.documentId !== document.documentId) {
+      throw new NotFoundException('grant를 찾을 수 없습니다.');
+    }
+
+    if (grant.revokedAt || !grant.isActive) {
+      throw new BadRequestException('이미 취소된 grant입니다.');
+    }
+
+    // Prevent revoking the current owner's manage grant
+    if (
+      grant.principalType === 'user'
+      && grant.principalRef === document.ownerUserId.toString()
+      && grant.roleCode === 'manage'
+    ) {
+      throw new BadRequestException('문서 소유자의 관리 권한은 취소할 수 없습니다. 소유권 이전을 이용하세요.');
+    }
+
+    const callerUserId = BigInt(user.userId);
+
+    await this.db.client.dmsDocumentGrant.update({
+      where: { documentGrantId: grant.documentGrantId },
+      data: {
+        revokedAt: new Date(),
+        revokedByUserId: callerUserId,
+        revokeReason: 'manual-revoke',
+        isActive: false,
+        updatedBy: callerUserId,
+        lastSource: ACTIVE_REQUEST_SOURCE,
+        lastActivity: 'dms.access.grant.revoke',
+      },
+    });
+
+    await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(document.relativePath);
+
+    logger.info(
+      `Grant ${grantId} revoked for document ${documentId} by user ${user.userId}`,
+    );
+
+    return { grantId: grant.documentGrantId.toString(), documentId: document.documentId.toString() };
   }
 
   async approveReadRequest(
@@ -1913,6 +2133,7 @@ export class AccessRequestService {
     }
 
     return {
+      grantId: grant.documentGrantId?.toString(),
       principalId: grant.principalRef,
       principalType: grant.principalType,
       role: grant.roleCode,

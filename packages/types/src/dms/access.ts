@@ -107,3 +107,14 @@ export interface RejectDmsDocumentAccessRequestPayload {
 export interface UpdateDocumentVisibilityPayload {
   visibilityScope: DocumentVisibilityScope;
 }
+
+export interface TransferDocumentOwnershipPayload {
+  newOwnerLoginId: string;
+}
+
+export interface TransferDocumentOwnershipResult {
+  documentId: string;
+  previousOwnerUserId: string;
+  newOwnerUserId: string;
+  newOwnerLoginId: string;
+}

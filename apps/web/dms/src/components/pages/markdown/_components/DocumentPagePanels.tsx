@@ -267,6 +267,8 @@ interface DocumentPageContentProps {
   handleTocClick: (id: string) => void;
   handleSearch: (query?: string) => void;
   handleAttachCurrentDocToAssistant?: () => void;
+  /** 초기 검색 하이라이트 쿼리 */
+  initialSearchQuery?: string | null;
   editorRef: React.RefObject<EditorRef | null>;
   createPath: string;
   setCreatePath: (path: string) => void;
@@ -299,6 +301,7 @@ export function DocumentPageContent({
   handleTocClick,
   handleSearch,
   handleAttachCurrentDocToAssistant,
+  initialSearchQuery,
   editorRef,
   createPath,
   setCreatePath,
@@ -341,6 +344,7 @@ export function DocumentPageContent({
         variant="embedded"
         onLinkClick={onLinkClick}
         onImageClick={onImageClick}
+        initialSearchQuery={initialSearchQuery}
       />
     );
   }

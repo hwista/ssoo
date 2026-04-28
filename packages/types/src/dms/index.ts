@@ -90,4 +90,6 @@ export type {
   ApproveDmsDocumentAccessRequestPayload,
   RejectDmsDocumentAccessRequestPayload,
   UpdateDocumentVisibilityPayload,
+  TransferDocumentOwnershipPayload,
+  TransferDocumentOwnershipResult,
 } from './access';

@@ -7,16 +7,19 @@ export function useViewerSearch({
   content,
   contentRef,
   onSearch,
+  initialSearchQuery,
 }: {
   content: string;
   contentRef: React.RefObject<HTMLDivElement | null>;
   onSearch?: (query: string) => void;
+  initialSearchQuery?: string | null;
 }) {
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const [searchQuery, setSearchQuery] = React.useState(initialSearchQuery ?? '');
   const [searchResultCount, setSearchResultCount] = React.useState(0);
   const [currentResultIndex, setCurrentResultIndex] = React.useState(-1);
   const [hasSearched, setHasSearched] = React.useState(false);
   const [highlightedContent, setHighlightedContent] = React.useState<string | null>(null);
+  const initialSearchAppliedRef = React.useRef(false);
 
   const clearHighlights = React.useCallback(() => {
     setHighlightedContent(null);
@@ -51,6 +54,19 @@ export function useViewerSearch({
     setSearchQuery('');
     clearHighlights();
   }, [clearHighlights]);
+
+  // Auto-trigger search when initialSearchQuery is provided and content is loaded
+  React.useEffect(() => {
+    if (initialSearchAppliedRef.current || !initialSearchQuery || !content) return;
+    initialSearchAppliedRef.current = true;
+
+    const result = highlightViewerHtml(content, initialSearchQuery);
+    setHighlightedContent(result.highlightedContent);
+    setSearchResultCount(result.searchResultCount);
+    setHasSearched(result.hasSearched);
+    setCurrentResultIndex(result.currentResultIndex);
+    onSearch?.(initialSearchQuery);
+  }, [content, initialSearchQuery, onSearch]);
 
   React.useEffect(() => {
     if (currentResultIndex < 0 || !highlightedContent) return;

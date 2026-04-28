@@ -37,6 +37,8 @@ export interface ViewerProps {
   onLinkClick?: (href: string) => void;
   /** 본문 <img> 클릭 시 호출 */
   onImageClick?: (src: string, alt: string) => void;
+  /** 검색어 — 문서 열 때 자동 하이라이트 */
+  initialSearchQuery?: string | null;
 }
 
 /**
@@ -67,6 +69,7 @@ export function Viewer({
   className,
   onLinkClick,
   onImageClick,
+  initialSearchQuery,
 }: ViewerProps) {
   void _showContentSurface;
 
@@ -84,7 +87,7 @@ export function Viewer({
     handleSearchSubmit,
     handleNavigateResult,
     handleSearchClose,
-  } = useViewerSearch({ content, contentRef, onSearch });
+  } = useViewerSearch({ content, contentRef, onSearch, initialSearchQuery });
 
   const displayContent = highlightedContent ?? content;
 

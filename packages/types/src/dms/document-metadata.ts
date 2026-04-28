@@ -39,6 +39,7 @@ export interface DocumentVisibility {
 }
 
 export interface DocumentPermissionGrant {
+  grantId?: string;
   principalType: DocumentPermissionPrincipalType;
   principalId: string;
   role: DocumentPermissionRole;

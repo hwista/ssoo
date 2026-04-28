@@ -6,9 +6,11 @@ import type {
   DmsDocumentAccessRequestSummary,
   DmsManagedDocumentSummary,
   RejectDmsDocumentAccessRequestPayload,
+  TransferDocumentOwnershipPayload,
+  TransferDocumentOwnershipResult,
   UpdateDocumentVisibilityPayload,
 } from '@ssoo/types/dms';
-import { get, patch, post } from './core';
+import { del, get, patch, post } from './core';
 
 function buildQueryString(query?: DmsDocumentAccessRequestListQuery) {
   if (!query) {
@@ -66,6 +68,23 @@ export const accessApi = {
     patch<{ documentId: string; visibilityScope: string }>(
       `/api/access/documents/${encodeURIComponent(documentId)}/visibility`,
       payload,
+    )
+  ),
+  transferOwnership: (
+    documentId: string,
+    payload: TransferDocumentOwnershipPayload,
+  ) => (
+    patch<TransferDocumentOwnershipResult>(
+      `/api/access/documents/${encodeURIComponent(documentId)}/owner`,
+      payload,
+    )
+  ),
+  revokeGrant: (
+    documentId: string,
+    grantId: string,
+  ) => (
+    del<{ grantId: string; documentId: string }>(
+      `/api/access/documents/${encodeURIComponent(documentId)}/grants/${encodeURIComponent(grantId)}`,
     )
   ),
 };

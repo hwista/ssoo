@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -17,6 +17,7 @@ import {
   CreateReadAccessRequestDto,
   ListAccessRequestsDto,
   RejectReadAccessRequestDto,
+  TransferDocumentOwnershipDto,
   UpdateDocumentVisibilityDto } from './dto/access-request.dto.js';
 import { AccessRequestService } from './access-request.service.js';
 
@@ -119,6 +120,38 @@ export class AccessRequestController {
   ) {
     return success(
       await this.accessRequestService.updateDocumentVisibility(currentUser, documentId, dto.visibilityScope),
+    );
+  }
+
+  @Patch('documents/:documentId/owner')
+  @RequireDmsFeature('canReadDocuments')
+  @ApiOperation({ summary: '문서 소유권 이전 (소유자/관리자 전용)' })
+  @ApiOkResponse({ description: '이전된 소유권 정보 반환' })
+  @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
+  @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
+  async transferOwnership(
+    @CurrentUser() currentUser: TokenPayload,
+    @Param('documentId') documentId: string,
+    @Body() dto: TransferDocumentOwnershipDto,
+  ) {
+    return success(
+      await this.accessRequestService.transferDocumentOwnership(currentUser, documentId, dto.newOwnerLoginId),
+    );
+  }
+
+  @Delete('documents/:documentId/grants/:grantId')
+  @RequireDmsFeature('canReadDocuments')
+  @ApiOperation({ summary: '문서 grant 취소 (소유자/관리 권한자 전용)' })
+  @ApiOkResponse({ description: '취소된 grant 정보 반환' })
+  @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
+  @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
+  async revokeGrant(
+    @CurrentUser() currentUser: TokenPayload,
+    @Param('documentId') documentId: string,
+    @Param('grantId') grantId: string,
+  ) {
+    return success(
+      await this.accessRequestService.revokeDocumentGrant(currentUser, documentId, grantId),
     );
   }
 }

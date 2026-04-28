@@ -71,6 +71,7 @@ import {
   buildDocumentPanelMetadata,
   buildMarkdownToc,
   getDocumentFilePath,
+  getDocumentHighlightQuery,
   resolveDocumentAclRole,
   resolveSaveDisplayName,
   stringifyDocumentMetadataDiffSnapshot,
@@ -287,6 +288,7 @@ export function DocumentPage() {
   }, [canEditCurrentDocument, isCreateMode, mode, setIsEditing]);
 
   const filePath = useMemo(() => getDocumentFilePath(activeTab?.path), [activeTab?.path]);
+  const highlightQuery = useMemo(() => getDocumentHighlightQuery(activeTab?.path), [activeTab?.path]);
 
   const consumeAiSummaryPending = useNewDocStore((s) => s.consumeAiSummaryPending);
   const setTemplateConversionPending = useNewDocStore((s) => s.setTemplateConversionPending);
@@ -2121,6 +2123,7 @@ export function DocumentPage() {
                 handleTocClick={handleTocClick}
                 handleSearch={handleSearch}
                 handleAttachCurrentDocToAssistant={canUseAssistant ? handleAttachCurrentDocToAssistant : undefined}
+                initialSearchQuery={highlightQuery}
                 editorRef={editorRef}
                 createPath={createPath}
                 setCreatePath={setCreatePath}

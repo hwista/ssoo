@@ -82,11 +82,25 @@ export function getDocumentFilePath(tabPath: string | undefined): string | null 
     tabPath === '/doc/new-ai-summary'
   ) return null;
 
-  const path = tabPath.replace(/^\/doc\//, '');
+  const pathWithoutQuery = tabPath.split('?')[0];
+  const path = pathWithoutQuery.replace(/^\/doc\//, '');
   try {
     return decodeURIComponent(path);
   } catch {
     return path;
+  }
+}
+
+export function getDocumentHighlightQuery(tabPath: string | undefined): string | null {
+  if (!tabPath) return null;
+  const queryStart = tabPath.indexOf('?');
+  if (queryStart < 0) return null;
+  try {
+    const params = new URLSearchParams(tabPath.slice(queryStart));
+    const highlight = params.get('highlight');
+    return highlight?.trim() || null;
+  } catch {
+    return null;
   }
 }
 

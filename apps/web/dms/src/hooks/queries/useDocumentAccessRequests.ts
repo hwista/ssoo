@@ -9,6 +9,8 @@ import type {
   DmsDocumentAccessRequestSummary,
   DmsManagedDocumentSummary,
   RejectDmsDocumentAccessRequestPayload,
+  TransferDocumentOwnershipPayload,
+  TransferDocumentOwnershipResult,
   UpdateDocumentVisibilityPayload,
 } from '@ssoo/types/dms';
 import { accessApi } from '@/lib/api/access';
@@ -127,6 +129,38 @@ export function useUpdateDocumentVisibilityMutation() {
       payload: UpdateDocumentVisibilityPayload;
     }) => unwrap<{ documentId: string; visibilityScope: string }>(
       accessApi.updateDocumentVisibility(params.documentId, params.payload),
+    ),
+    onSuccess: async () => {
+      await invalidateRequestQueries(queryClient);
+    },
+  });
+}
+
+export function useTransferDocumentOwnershipMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      documentId: string;
+      payload: TransferDocumentOwnershipPayload;
+    }) => unwrap<TransferDocumentOwnershipResult>(
+      accessApi.transferOwnership(params.documentId, params.payload),
+    ),
+    onSuccess: async () => {
+      await invalidateRequestQueries(queryClient);
+    },
+  });
+}
+
+export function useRevokeDocumentGrantMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      documentId: string;
+      grantId: string;
+    }) => unwrap<{ grantId: string; documentId: string }>(
+      accessApi.revokeGrant(params.documentId, params.grantId),
     ),
     onSuccess: async () => {
       await invalidateRequestQueries(queryClient);

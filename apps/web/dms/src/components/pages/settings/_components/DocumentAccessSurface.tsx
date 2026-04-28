@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, CheckCircle2, Clock3, Eye, EyeOff, FileText, Inbox, Loader2, ShieldCheck, Users, XCircle } from 'lucide-react';
-import type { DmsDocumentAccessRequestSummary, DmsManagedDocumentSummary } from '@ssoo/types/dms';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock3, Eye, EyeOff, FileText, Inbox, Loader2, ShieldCheck, Trash2, UserCheck, Users, XCircle } from 'lucide-react';
+import type { DmsDocumentAccessRequestSummary, DmsManagedDocumentSummary, DocumentPermissionGrant } from '@ssoo/types/dms';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
@@ -12,6 +12,8 @@ import {
   useManageableDocumentsQuery,
   useMyDocumentAccessRequestsQuery,
   useRejectDocumentAccessRequestMutation,
+  useRevokeDocumentGrantMutation,
+  useTransferDocumentOwnershipMutation,
   useUpdateDocumentVisibilityMutation,
 } from '@/hooks/queries/useDocumentAccessRequests';
 
@@ -105,17 +107,91 @@ function formatSyncStatus(scope: DmsManagedDocumentSummary['syncStatusCode']) {
   return scope === 'repair_needed' ? '메타 보정 필요' : '정상 동기화';
 }
 
+function formatGrantRole(role: string) {
+  switch (role) {
+    case 'read': return '읽기';
+    case 'write': return '쓰기';
+    case 'manage': return '관리';
+    default: return role;
+  }
+}
+
+function formatGrantSource(source?: string) {
+  switch (source) {
+    case 'request': return '요청 승인';
+    case 'share': return '공유';
+    case 'migration': return '마이그레이션';
+    case 'owner-default': return '소유자 기본';
+    default: return '-';
+  }
+}
+
+function GrantRow({
+  grant,
+  documentId,
+  isOwnerGrant,
+  onRevoke,
+  isRevoking,
+}: {
+  grant: DocumentPermissionGrant;
+  documentId: string;
+  isOwnerGrant: boolean;
+  onRevoke: (documentId: string, grantId: string) => void;
+  isRevoking: boolean;
+}) {
+  return (
+    <tr className="border-b border-ssoo-content-border/50 last:border-0">
+      <td className="px-2 py-1.5 text-body-sm text-ssoo-primary/80">{grant.principalId}</td>
+      <td className="px-2 py-1.5 text-body-sm text-ssoo-primary/80">{formatGrantRole(grant.role)}</td>
+      <td className="px-2 py-1.5 text-caption text-ssoo-primary/60">{formatGrantSource(grant.source)}</td>
+      <td className="px-2 py-1.5 text-caption text-ssoo-primary/60">{grant.grantedAt ? formatDateTime(grant.grantedAt) : '-'}</td>
+      <td className="px-2 py-1.5 text-right">
+        {grant.grantId && !isOwnerGrant ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-2 text-badge text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+            disabled={isRevoking}
+            onClick={() => onRevoke(documentId, grant.grantId!)}
+          >
+            {isRevoking
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : <Trash2 className="h-3 w-3" />
+            }
+            취소
+          </Button>
+        ) : isOwnerGrant ? (
+          <span className="text-badge text-ssoo-primary/40">소유자</span>
+        ) : null}
+      </td>
+    </tr>
+  );
+}
+
 function ManagedDocumentCard({
   document,
   onToggleVisibility,
   isTogglingVisibility,
+  onTransferOwnership,
+  isTransferring,
+  onRevokeGrant,
+  isRevoking,
+  revokingGrantId,
 }: {
   document: DmsManagedDocumentSummary;
   onToggleVisibility: (documentId: string, newScope: 'self' | 'organization') => void;
   isTogglingVisibility: boolean;
+  onTransferOwnership: (documentId: string, newOwnerLoginId: string) => void;
+  isTransferring: boolean;
+  onRevokeGrant: (documentId: string, grantId: string) => void;
+  isRevoking: boolean;
+  revokingGrantId: string | null;
 }) {
   const canToggle = document.visibilityScope === 'self' || document.visibilityScope === 'organization';
   const nextScope = document.visibilityScope === 'self' ? 'organization' : 'self';
+  const [showTransferForm, setShowTransferForm] = useState(false);
+  const [transferLoginId, setTransferLoginId] = useState('');
+  const [showGrants, setShowGrants] = useState(false);
 
   return (
     <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
@@ -227,6 +303,106 @@ function ManagedDocumentCard({
               <p className="font-medium">이 문서는 control-plane 메타 보정이 필요합니다.</p>
               <p className="mt-1 break-all text-caption text-amber-700">사유: {document.repairReason}</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ownership Transfer + Grant Revoke Actions */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1 text-badge"
+          onClick={() => { setShowTransferForm(!showTransferForm); setShowGrants(false); }}
+        >
+          <UserCheck className="h-3.5 w-3.5" />
+          소유권 이전
+        </Button>
+        {document.grants.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 text-badge"
+            onClick={() => { setShowGrants(!showGrants); setShowTransferForm(false); }}
+          >
+            {showGrants ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            Grant 상세 ({document.grants.length})
+          </Button>
+        )}
+      </div>
+
+      {showTransferForm && (
+        <div className="mt-3 rounded-lg border border-ssoo-content-border bg-ssoo-content-bg/30 px-4 py-3">
+          <p className="text-caption text-ssoo-primary/70">
+            새 소유자의 로그인 ID를 입력하세요. 현재 소유자의 기존 grant는 유지됩니다.
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="text"
+              value={transferLoginId}
+              onChange={(event) => setTransferLoginId(event.target.value)}
+              placeholder="새 소유자 loginId"
+              className="h-control-h flex-1 rounded-md border border-ssoo-content-border bg-white px-3 text-body-sm text-ssoo-primary outline-none transition focus:border-ssoo-primary/40 focus:ring-2 focus:ring-ssoo-primary/10"
+            />
+            <Button
+              size="sm"
+              disabled={!transferLoginId.trim() || isTransferring}
+              onClick={() => {
+                onTransferOwnership(document.documentId, transferLoginId.trim());
+                setTransferLoginId('');
+                setShowTransferForm(false);
+              }}
+            >
+              {isTransferring
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> 이전 중...</>
+                : <><UserCheck className="h-3.5 w-3.5" /> 이전</>
+              }
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setShowTransferForm(false); setTransferLoginId(''); }}
+            >
+              취소
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {showGrants && document.grants.length > 0 && (
+        <div className="mt-3 rounded-lg border border-ssoo-content-border bg-ssoo-content-bg/20 px-4 py-3">
+          <div className="flex items-center gap-2 text-caption text-ssoo-primary/70">
+            <ShieldCheck className="h-4 w-4" />
+            Grant 상세 목록
+          </div>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-ssoo-content-border text-badge text-ssoo-primary/60">
+                  <th className="px-2 py-1.5 font-medium">사용자/대상</th>
+                  <th className="px-2 py-1.5 font-medium">역할</th>
+                  <th className="px-2 py-1.5 font-medium">출처</th>
+                  <th className="px-2 py-1.5 font-medium">부여일</th>
+                  <th className="px-2 py-1.5 text-right font-medium">작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                {document.grants.map((grant, index) => (
+                  <GrantRow
+                    key={grant.grantId ?? `${grant.principalId}-${grant.role}-${index}`}
+                    grant={grant}
+                    documentId={document.documentId}
+                    isOwnerGrant={
+                      grant.principalType === 'user'
+                      && grant.principalId === document.owner.userId
+                      && grant.role === 'manage'
+                    }
+                    onRevoke={onRevokeGrant}
+                    isRevoking={isRevoking && revokingGrantId === grant.grantId}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -358,6 +534,8 @@ export function DocumentAccessSurface() {
   const approveMutation = useApproveDocumentAccessRequestMutation();
   const rejectMutation = useRejectDocumentAccessRequestMutation();
   const visibilityMutation = useUpdateDocumentVisibilityMutation();
+  const transferMutation = useTransferDocumentOwnershipMutation();
+  const revokeMutation = useRevokeDocumentGrantMutation();
   const [actionDrafts, setActionDrafts] = useState<Record<string, RequestActionDraft>>({});
 
   const manageableDocuments = useMemo(
@@ -404,6 +582,27 @@ export function DocumentAccessSurface() {
       toast.success(newScope === 'organization' ? '문서를 조직 내 공개로 변경했습니다.' : '문서를 비공개로 변경했습니다.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '공개범위 변경에 실패했습니다.');
+    }
+  };
+
+  const handleTransferOwnership = async (documentId: string, newOwnerLoginId: string) => {
+    try {
+      const result = await transferMutation.mutateAsync({
+        documentId,
+        payload: { newOwnerLoginId },
+      });
+      toast.success(`문서 소유권이 ${result.newOwnerLoginId}에게 이전되었습니다.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '소유권 이전에 실패했습니다.');
+    }
+  };
+
+  const handleRevokeGrant = async (documentId: string, grantId: string) => {
+    try {
+      await revokeMutation.mutateAsync({ documentId, grantId });
+      toast.success('grant를 취소했습니다.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'grant 취소에 실패했습니다.');
     }
   };
 
@@ -511,6 +710,11 @@ export function DocumentAccessSurface() {
                 document={document}
                 onToggleVisibility={handleToggleVisibility}
                 isTogglingVisibility={visibilityMutation.isPending}
+                onTransferOwnership={handleTransferOwnership}
+                isTransferring={transferMutation.isPending}
+                onRevokeGrant={handleRevokeGrant}
+                isRevoking={revokeMutation.isPending}
+                revokingGrantId={revokeMutation.variables?.grantId ?? null}
               />
             ))}
           </div>

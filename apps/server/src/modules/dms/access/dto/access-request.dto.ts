@@ -6,6 +6,7 @@ import type {
   DmsDocumentAccessRequestListQuery,
   DmsDocumentAccessRequestStatusFilter,
   RejectDmsDocumentAccessRequestPayload,
+  TransferDocumentOwnershipPayload,
   UpdateDocumentVisibilityPayload,
 } from '@ssoo/types/dms';
 
@@ -85,4 +86,13 @@ export class UpdateDocumentVisibilityDto
   })
   @IsIn(VALID_VISIBILITY_SCOPES)
   visibilityScope!: 'self' | 'organization';
+}
+
+export class TransferDocumentOwnershipDto
+  implements TransferDocumentOwnershipPayload {
+  @ApiProperty({ description: '새 소유자의 loginId' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  newOwnerLoginId!: string;
 }

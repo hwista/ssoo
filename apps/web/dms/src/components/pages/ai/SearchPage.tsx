@@ -269,8 +269,9 @@ export function AiSearchPage() {
       path: item.path,
       title: item.title,
       activate: true,
+      highlightQuery: sourceQuery.trim() || undefined,
     });
-  }, [openAccessRequestDialog, openDocumentTab]);
+  }, [openAccessRequestDialog, openDocumentTab, sourceQuery]);
 
   if (!canUseSearch) {
     return (
