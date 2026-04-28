@@ -115,8 +115,8 @@
 ### 런타임 설정 표면
 
 - 환경 변수: `apps/web/dms/.env.local` (Azure/OpenAI + 선택 `DATABASE_URL` / `DMS_SERVER_API_URL`)
-- 시스템 기본값 / 오버라이드: `dms.config.default.json` → `dms.config.json`
-- 개인 기본값 / 오버라이드: `dms.personal.config.default.json` → `dms.personal.config.json`
+- 시스템 설정: `dm_config_m` 테이블 (DB) — 시드 기본값은 `20_dms_config_foundation.sql`, Settings UI 또는 DB 직접 수정으로 오버라이드
+- 개인 설정: `dm_config_m` 테이블 (DB, `scopeCode='personal'`) — Settings UI에서 저장
 - Docker 경로: repo root `compose.yaml` 이 `apps/web/dms/.env.local` 을 선택적으로 읽고, `DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` / `DMS_SERVER_API_URL` 기준으로 컨테이너 runtime 값을 주입
 
 ### 프론트엔드 데이터 계층

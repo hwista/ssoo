@@ -79,6 +79,9 @@ jobs:
       - name: Type Check (DMS)
         run: pnpm --filter web-dms exec tsc --noEmit
 
+      - name: Type Check (Admin)
+        run: pnpm --filter web-admin exec tsc --noEmit
+
       - name: Build Database Package
         run: pnpm --filter @ssoo/database build
 
@@ -188,6 +191,7 @@ jobs:
       dms: ${{ steps.filter.outputs.dms }}
       cms: ${{ steps.filter.outputs.cms }}
       database: ${{ steps.filter.outputs.database }}
+      admin: ${{ steps.filter.outputs.admin }}
     
     steps:
       - name: Checkout
@@ -208,6 +212,8 @@ jobs:
               - 'packages/database/**'
             cms:
               - 'apps/web/cms/**'
+            admin:
+              - 'apps/web/admin/**'
 
   # 서버 빌드 (서버 변경 시에만)
   build-server:
@@ -317,6 +323,33 @@ jobs:
       - name: Build
         run: pnpm build:web-cms
 
+  # Admin 빌드 (Admin 변경 시에만)
+  build-admin:
+    name: Build Admin
+    needs: [validate, analyze-changes]
+    if: needs.analyze-changes.outputs.admin == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build:web-admin
+
   # PR 코멘트
   pr-comment:
     name: PR Summary
@@ -335,6 +368,7 @@ jobs:
             const pms = '${{ needs.analyze-changes.outputs.pms }}';
             const dms = '${{ needs.analyze-changes.outputs.dms }}';
             const cms = '${{ needs.analyze-changes.outputs.cms }}';
+            const admin = '${{ needs.analyze-changes.outputs.admin }}';
             const database = '${{ needs.analyze-changes.outputs.database }}';
             const formatResult = (result) => {
               if (result === 'success') return '✅';
@@ -364,6 +398,7 @@ jobs:
             body += `| PMS | ${pms === 'true' ? '✅' : '➖'} |\n`;
             body += `| DMS | ${dms === 'true' ? '✅' : '➖'} |\n`;
             body += `| CMS | ${cms === 'true' ? '✅' : '➖'} |\n`;
+            body += `| Admin | ${admin === 'true' ? '✅' : '➖'} |\n`;
             body += `| Database | ${database === 'true' ? '✅' : '➖'} |\n`;
             
             // 기존 코멘트 찾기

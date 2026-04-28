@@ -544,18 +544,17 @@ function readJsonFileIfExists(filePath) {
 }
 
 function resolveDmsRuntimeBindings() {
-  const defaultConfig = readJsonFileIfExists(resolve(DMS_APP_ROOT, 'dms.config.default.json'));
-  const userConfig = readJsonFileIfExists(resolve(DMS_APP_ROOT, 'dms.config.json'));
-
-  return {
+  // DMS config JSON files have been removed — settings now live in dm_config_m (DB).
+  // For verification purposes, resolve paths using env overrides or hardcoded defaults only.
+  const runtimeBindings = {
     markdownRoot: resolveRuntimeBinding(
-      { defaultConfig, userConfig },
+      { defaultConfig: null, userConfig: null },
       ['git', 'repositoryPath'],
       '../../../.runtime/dms/documents',
       'DMS_MARKDOWN_ROOT',
     ),
   };
-  // templateRoot is now derived: markdownRoot/_templates
+  // templateRoot is derived: markdownRoot/_templates
   runtimeBindings.templateDir = path.join(runtimeBindings.markdownRoot.resolvedPath, '_templates');
   return runtimeBindings;
 }

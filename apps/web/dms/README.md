@@ -123,8 +123,8 @@ pnpm build:web-dms
 | 표면 | 파일 | 설명 |
 |------|------|------|
 | 환경 변수 | `apps/web/dms/.env.local` | Azure/OpenAI 설정 + 선택 `DATABASE_URL` / `DMS_SERVER_API_URL` 오버라이드 |
-| 시스템 기본값 / 오버라이드 | `apps/web/dms/dms.config.default.json` → `apps/web/dms/dms.config.json` | Git / storage / ingest / search / DocAssist 런타임 설정 |
-| 개인 기본값 / 오버라이드 | `apps/web/dms/dms.personal.config.default.json` → `apps/web/dms/dms.personal.config.json` | identity / workspace / viewer / sidebar 기본값 |
+| 시스템 설정 | `dm_config_m` 테이블 (DB, `scopeCode='system'`) | Git / storage / ingest / search / DocAssist 런타임 설정. 시드: `20_dms_config_foundation.sql` |
+| 개인 설정 | `dm_config_m` 테이블 (DB, `scopeCode='personal'`) | identity / workspace / viewer / sidebar 기본값 |
 
 ### 접속
 

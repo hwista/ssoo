@@ -87,10 +87,10 @@ DMS_DATABASE_URL=
 | local binary storage | `storage.local.basePath`, `DMS_STORAGE_LOCAL_BASE_PATH` | attachment/reference/image local storage root |
 | ingest queue | `ingest.queuePath`, `DMS_INGEST_QUEUE_PATH` | ingest queue runtime path |
 | template runtime | `markdownRoot/_templates/` | 템플릿은 문서 Git 레포의 `_templates/` 하위에 배치되며 GitLab과 자동 동기화됩니다 (별도 `DMS_TEMPLATE_ROOT` 불필요) |
-| 시스템 기본값 | `apps/web/dms/dms.config.default.json` | Git / storage / ingest / template / search / DocAssist 기본값 |
-| 시스템 오버라이드 | `apps/web/dms/dms.config.json` | settings 화면에서 저장되는 실제 시스템 설정 (단, markdown working tree root 는 system-managed) |
-| 개인 기본값 | `apps/web/dms/dms.personal.config.default.json` | identity / workspace / viewer / sidebar 기본값 |
-| 개인 오버라이드 | `apps/web/dms/dms.personal.config.json` | settings 화면에서 저장되는 개인 설정 |
+| 시스템 설정 | `dm_config_m` 테이블 (DB, `scopeCode='system'`) | Git / storage / ingest / template / search / DocAssist 기본값. 시드: `20_dms_config_foundation.sql` |
+| 시스템 오버라이드 | DMS Settings UI (`/settings`) 또는 직접 DB 수정 | settings 화면에서 저장되는 실제 시스템 설정 |
+| 개인 설정 | `dm_config_m` 테이블 (DB, `scopeCode='personal'`) | identity / workspace / viewer / sidebar 기본값 |
+| 개인 오버라이드 | DMS Settings UI (`/settings`) | settings 화면에서 저장되는 개인 설정 |
 
 운영 원칙:
 
