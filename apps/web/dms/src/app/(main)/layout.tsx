@@ -6,7 +6,7 @@ import { AuthLoadingScreen, useProtectedAppBootstrap } from '@ssoo/web-auth';
 import { useLayoutViewportSync } from '@/hooks';
 import { useDmsSocket } from '@/hooks/useDmsSocket';
 import { LOGIN_PATH } from '@/lib/constants/routes';
-import { useAccessStore, useAuthStore, useFileStore } from '@/stores';
+import { useAccessStore, useAuthStore, useFileStore, useTabStore, useActiveEditorFilePath } from '@/stores';
 
 /**
  * (main) 그룹 레이아웃
@@ -31,6 +31,8 @@ export default function MainLayout({
   const hydrateAccess = useAccessStore((state) => state.hydrate);
   const resetAccess = useAccessStore((state) => state.reset);
   const { refreshFileTree } = useFileStore();
+  const activeTabId = useTabStore((s) => s.activeTabId);
+  const activeDocumentPath = useActiveEditorFilePath(activeTabId);
   const redirectToLogin = useCallback(() => {
     router.replace(LOGIN_PATH);
   }, [router]);
@@ -38,7 +40,7 @@ export default function MainLayout({
   useLayoutViewportSync();
 
   // WebSocket 실시간 동기화
-  useDmsSocket();
+  useDmsSocket({ activeDocumentPath: activeDocumentPath ?? undefined });
 
   const { showLoading, shouldRender } = useProtectedAppBootstrap({
     hasHydrated,

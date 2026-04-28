@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getSharedAccessToken } from '@ssoo/web-auth';
 import { useAuthStore } from '@/stores';
 import { fileTreeKeys } from '@/hooks/queries/useFileTree';
+import { toast } from '@/lib/toast';
 
 // ============================================================================
 // Types
@@ -68,6 +69,7 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
   const socketRef = useRef<Socket | null>(null);
   const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const currentUserId = useAuthStore((state) => state.user?.userId);
   const prevDocPath = useRef<string | undefined>(undefined);
 
   // Invalidate file tree query
@@ -110,6 +112,16 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
     // 파일 변경 이벤트
     socket.on('dms:file-changed', (event: DmsFileChangedEvent) => {
       onFileChanged?.(event);
+
+      // 다른 사용자가 현재 보고 있는 문서를 수정한 경우 알림
+      if (event.userId && event.userId !== currentUserId && event.action === 'update') {
+        const who = event.userName ?? '다른 사용자';
+        toast.warning(`${who}가 이 문서를 수정했습니다.`, {
+          description: '저장 시 충돌이 발생할 수 있습니다. 최신 내용을 확인하세요.',
+          duration: 6000,
+        });
+      }
+
       // create/rename/delete는 트리도 갱신
       if (event.action !== 'update' && event.action !== 'metadata') {
         invalidateFileTree();
