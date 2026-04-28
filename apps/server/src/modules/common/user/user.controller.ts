@@ -32,6 +32,22 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   /**
+   * Admin 대시보드 통계
+   * GET /api/users/stats
+   */
+  @Get("stats")
+  @Roles('admin')
+  @ApiOperation({ summary: '관리자 대시보드 통계' })
+  @ApiOkResponse({ description: '통계 조회 성공' })
+  @ApiForbiddenResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  @ApiInternalServerErrorResponse({ type: ApiError, description: "서버 오류" })
+  async getStats() {
+    const stats = await this.userService.getAdminStats();
+    return success(stats, '통계 조회 성공');
+  }
+
+  /**
    * 현재 사용자 프로필 조회
    * GET /api/users/profile
    */

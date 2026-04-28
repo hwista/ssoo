@@ -872,4 +872,17 @@ export class UserService {
 
     return this.toAdminUserView(deactivatedUser);
   }
+
+  async getAdminStats() {
+    const [activeUsers, roles, organizations, permissions] = await Promise.all([
+      this.db.user.count({ where: { isActive: true } }),
+      this.db.client.role.count({ where: { isActive: true } }),
+      this.db.client.cmCode.count({
+        where: { codeGroup: 'USER_DEPARTMENT', isActive: true },
+      }),
+      this.db.client.permission.count({ where: { isActive: true } }),
+    ]);
+
+    return { activeUsers, roles, organizations, permissions };
+  }
 }
