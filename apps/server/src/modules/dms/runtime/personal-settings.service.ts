@@ -2,6 +2,7 @@ import type { DeepPartial, StorageProvider } from './dms-config.service.js';
 import { configService } from './dms-config.service.js';
 import { createDmsLogger } from './dms-logger.js';
 import type {
+  DmsConfigDbClient,
   PreferredSettingsViewMode,
   SettingsAccessMode,
   SettingsProfileKey,
@@ -48,15 +49,14 @@ const ANONYMOUS_PROFILE_KEY: SettingsProfileKey = 'anonymous';
 
 class PersonalSettingsService {
   private settingsCache: Map<string, DmsPersonalSettings> = new Map();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private dbClient: any = null;
+  private dbClient: DmsConfigDbClient | null = null;
   private dbReady = false;
 
   // --------------------------------------------------------------------------
   // DB Integration
   // --------------------------------------------------------------------------
 
-  async initFromDb(dbClient: { dmsConfig: unknown }): Promise<void> {
+  async initFromDb(dbClient: DmsConfigDbClient): Promise<void> {
     this.dbClient = dbClient;
     this.dbReady = true;
     logger.info('개인 설정 DB 연결 완료');
@@ -65,7 +65,7 @@ class PersonalSettingsService {
   private async loadFromDb(userId: string): Promise<DmsPersonalSettings | null> {
     if (!this.dbClient) return null;
     try {
-      const row = await (this.dbClient.dmsConfig as { findFirst: (args: unknown) => Promise<{ configData: unknown } | null> }).findFirst({
+      const row = await this.dbClient.dmsConfig.findFirst({
         where: { scopeCode: 'personal', ownerRef: userId, isActive: true },
       });
       if (row && row.configData && typeof row.configData === 'object') {
@@ -80,17 +80,17 @@ class PersonalSettingsService {
   private async saveToDb(userId: string, settings: DmsPersonalSettings): Promise<void> {
     if (!this.dbClient) return;
     try {
-      const existing = await (this.dbClient.dmsConfig as { findFirst: (args: unknown) => Promise<{ configId: bigint } | null> }).findFirst({
+      const existing = await this.dbClient.dmsConfig.findFirst({
         where: { scopeCode: 'personal', ownerRef: userId },
       });
       const data = JSON.parse(JSON.stringify(settings));
       if (existing) {
-        await (this.dbClient.dmsConfig as { update: (args: unknown) => Promise<unknown> }).update({
+        await this.dbClient.dmsConfig.update({
           where: { configId: existing.configId },
           data: { configData: data },
         });
       } else {
-        await (this.dbClient.dmsConfig as { create: (args: unknown) => Promise<unknown> }).create({
+        await this.dbClient.dmsConfig.create({
           data: { scopeCode: 'personal', ownerRef: userId, configData: data },
         });
       }

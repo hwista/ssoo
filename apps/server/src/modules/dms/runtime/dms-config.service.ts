@@ -12,6 +12,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createDmsLogger } from './dms-logger.js';
+import type { DmsConfigDbClient } from './settings.types.js';
 const logger = createDmsLogger('DmsConfigService');
 
 // ============================================================================
@@ -202,8 +203,7 @@ interface NormalizeConfigResult {
 class ConfigService {
   private config: DmsConfig | null = null;
   private readonly appRoot: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private dbClient: any = null;
+  private dbClient: DmsConfigDbClient | null = null;
   private dbReady = false;
 
   constructor() {
@@ -218,10 +218,10 @@ class ConfigService {
    * DmsModule.onModuleInit 에서 호출.
    * DB에서 system config를 프리로드하고, 없으면 defaults로 seed.
    */
-  async initFromDb(dbClient: { dmsConfig: unknown }): Promise<void> {
+  async initFromDb(dbClient: DmsConfigDbClient): Promise<void> {
     this.dbClient = dbClient;
     try {
-      const row = await (this.dbClient.dmsConfig as { findFirst: (args: unknown) => Promise<{ configData: unknown } | null> }).findFirst({
+      const row = await this.dbClient.dmsConfig.findFirst({
         where: { scopeCode: 'system', ownerRef: '_system_', isActive: true },
       });
       if (row && row.configData && typeof row.configData === 'object') {
@@ -251,17 +251,17 @@ class ConfigService {
   private async saveConfigToDb(config: DmsConfig): Promise<void> {
     if (!this.dbClient) return;
     try {
-      const existing = await (this.dbClient.dmsConfig as { findFirst: (args: unknown) => Promise<{ configId: bigint } | null> }).findFirst({
+      const existing = await this.dbClient.dmsConfig.findFirst({
         where: { scopeCode: 'system', ownerRef: '_system_' },
       });
       const data = JSON.parse(JSON.stringify(config));
       if (existing) {
-        await (this.dbClient.dmsConfig as { update: (args: unknown) => Promise<unknown> }).update({
+        await this.dbClient.dmsConfig.update({
           where: { configId: existing.configId },
           data: { configData: data },
         });
       } else {
-        await (this.dbClient.dmsConfig as { create: (args: unknown) => Promise<unknown> }).create({
+        await this.dbClient.dmsConfig.create({
           data: { scopeCode: 'system', ownerRef: '_system_', configData: data },
         });
       }
