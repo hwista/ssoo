@@ -16,7 +16,7 @@ export function useFileTreeQuery(
   return useQuery({
     queryKey: fileTreeKeys.tree(),
     queryFn: () => filesApi.getFileTree(),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
     ...options,
   });
 }

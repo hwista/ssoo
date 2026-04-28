@@ -4,6 +4,7 @@ import { useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthLoadingScreen, useProtectedAppBootstrap } from '@ssoo/web-auth';
 import { useLayoutViewportSync } from '@/hooks';
+import { useDmsSocket } from '@/hooks/useDmsSocket';
 import { LOGIN_PATH } from '@/lib/constants/routes';
 import { useAccessStore, useAuthStore, useFileStore } from '@/stores';
 
@@ -35,6 +36,9 @@ export default function MainLayout({
   }, [router]);
 
   useLayoutViewportSync();
+
+  // WebSocket 실시간 동기화
+  useDmsSocket();
 
   const { showLoading, shouldRender } = useProtectedAppBootstrap({
     hasHydrated,

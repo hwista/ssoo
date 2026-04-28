@@ -8,6 +8,7 @@ import { CollaborationModule } from './collaboration/collaboration.module.js';
 import { ContentModule } from './content/content.module.js';
 import { CreateModule } from './create/create.module.js';
 import { DocAssistModule } from './doc-assist/doc-assist.module.js';
+import { EventsModule } from './events/events.module.js';
 import { FileModule } from './file/file.module.js';
 import { FilesModule } from './files/files.module.js';
 import { GitModule } from './git/git.module.js';
@@ -32,6 +33,7 @@ const logger = new Logger('DmsModule');
     CreateModule,
     ChatSessionsModule,
     CollaborationModule,
+    EventsModule,
     SettingsModule,
     TemplatesModule,
     DocAssistModule,
@@ -50,6 +52,7 @@ const logger = new Logger('DmsModule');
     CreateModule,
     ChatSessionsModule,
     CollaborationModule,
+    EventsModule,
     SettingsModule,
     TemplatesModule,
     DocAssistModule,

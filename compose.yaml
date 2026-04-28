@@ -51,6 +51,9 @@ services:
       DMS_STORAGE_LOCAL_BASE_PATH: ${DMS_STORAGE_LOCAL_BASE_PATH:-/var/lib/ssoo/dms/storage/local}
       DMS_STORAGE_SHAREPOINT_BASE_PATH: ${DMS_STORAGE_SHAREPOINT_BASE_PATH:-/sites/dms/shared-documents}
       DMS_STORAGE_NAS_BASE_PATH: ${DMS_STORAGE_NAS_BASE_PATH:-/mnt/nas/dms}
+      # Git bootstrap: GitLab 문서 전용 레포 자동 clone/pull 설정
+      # DMS_GIT_BOOTSTRAP_REMOTE_URL: http://gitlab.company.com/docs/dms-documents.git
+      # DMS_GIT_BOOTSTRAP_BRANCH: main
     volumes:
       - ${DMS_MARKDOWN_HOST_PATH:-./.runtime/dms/documents}:${DMS_MARKDOWN_ROOT:-/var/lib/ssoo/dms/documents}
       - ${DMS_INGEST_HOST_PATH:-./.runtime/dms/ingest}:${DMS_INGEST_QUEUE_PATH:-/var/lib/ssoo/dms/ingest}

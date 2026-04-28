@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { HttpException, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { HttpException, Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 import type { DocumentIsolationState, DocumentMutationAction } from '@ssoo/types/dms';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { UserService } from '../../common/user/user.service.js';
+import { DmsEventsGateway } from '../events/dms-events.gateway.js';
 import { gitService, type GitCommitAuthor, type GitPathParityStatus, type GitRemoteParityStatus, type GitSyncStatus } from '../runtime/git.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 import { configService } from '../runtime/dms-config.service.js';
@@ -113,7 +114,10 @@ export class CollaborationService implements OnModuleDestroy {
   private readonly actorCache = new Map<string, ActorProfile>();
   private readonly stateFilePath: string;
 
-  constructor(private readonly userService: UserService) {
+  constructor(
+    private readonly userService: UserService,
+    @Optional() private readonly eventsGateway?: DmsEventsGateway,
+  ) {
     this.stateFilePath = path.join(configService.getAppRoot(), STATE_FILE);
     this.loadPersistedState();
   }
@@ -449,6 +453,14 @@ export class CollaborationService implements OnModuleDestroy {
     if (job.timer) clearTimeout(job.timer);
     job.timer = setTimeout(() => void this.publishJob(primaryPath), 4000);
     this.publishJobsByPath.set(primaryPath, job);
+
+    // WebSocket: 파일 변경 이벤트 전파
+    this.eventsGateway?.emitFileChanged({
+      action: input.operationType as 'create' | 'update' | 'rename' | 'delete' | 'metadata',
+      paths: affectedPaths,
+      userId: input.currentUser.userId,
+      userName: input.currentUser.userName,
+    });
   }
 
   private async publishJob(primaryPath: string): Promise<void> {
@@ -560,6 +572,13 @@ export class CollaborationService implements OnModuleDestroy {
       });
       this.releasePublishIsolation(primaryPath, { persist: false });
       this.persistState();
+
+      // WebSocket: publish 완료 이벤트
+      this.eventsGateway?.emitPublishStatus({
+        path: primaryPath,
+        status: 'clean',
+        commitHash: commitResult.success ? commitResult.data.hash : undefined,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error('자동 publish 실패', error instanceof Error ? error : new Error(message), { primaryPath });

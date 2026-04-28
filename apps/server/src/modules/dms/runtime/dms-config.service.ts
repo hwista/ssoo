@@ -183,6 +183,11 @@ const RUNTIME_PATH_ENV_KEYS = {
   storageNasBasePath: 'DMS_STORAGE_NAS_BASE_PATH',
 } as const;
 
+const GIT_BOOTSTRAP_ENV_KEYS = {
+  remoteUrl: 'DMS_GIT_BOOTSTRAP_REMOTE_URL',
+  branch: 'DMS_GIT_BOOTSTRAP_BRANCH',
+} as const;
+
 type RuntimePathEnvKey = (typeof RUNTIME_PATH_ENV_KEYS)[keyof typeof RUNTIME_PATH_ENV_KEYS];
 
 interface NormalizeConfigResult {
@@ -369,11 +374,15 @@ class ConfigService {
   }
 
   getGitBootstrapRemoteUrl(): string | undefined {
+    const envOverride = process.env[GIT_BOOTSTRAP_ENV_KEYS.remoteUrl]?.trim();
+    if (envOverride && envOverride.length > 0) return envOverride;
     const remoteUrl = this.getConfig().git.bootstrapRemoteUrl?.trim();
     return remoteUrl ? remoteUrl : undefined;
   }
 
   getGitBootstrapBranch(): string | undefined {
+    const envOverride = process.env[GIT_BOOTSTRAP_ENV_KEYS.branch]?.trim();
+    if (envOverride && envOverride.length > 0) return envOverride;
     const branch = this.getConfig().git.bootstrapBranch?.trim();
     return branch ? branch : undefined;
   }
