@@ -12,6 +12,8 @@
     "lint": "pnpm run lint:observed",
     "lint:raw": "turbo lint",
     "lint:observed": "bash .hermes/scripts/harness-observe-command --stage stage8-verify --actor-role verifier --agent-id verify-lint --prompt-class verification --command 'pnpm run lint:raw' --verification-command-label 'pnpm run lint:raw'",
+    "test": "turbo test",
+    "test:server": "turbo test --filter=server",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:generate": "COREPACK_HOME=${COREPACK_HOME:-/tmp/corepack} corepack pnpm --filter @ssoo/database db:generate",

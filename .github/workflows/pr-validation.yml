@@ -82,6 +82,9 @@ jobs:
       - name: Type Check (Admin)
         run: pnpm --filter web-admin exec tsc --noEmit
 
+      - name: Unit Tests (Server)
+        run: pnpm --filter server test
+
       - name: Build Database Package
         run: pnpm --filter @ssoo/database build
 
