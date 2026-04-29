@@ -18,6 +18,15 @@ import { createDmsLogger } from './dms-logger.js';
 import { configService } from './dms-config.service.js';
 import { isMarkdownFile } from './file-utils.js';
 import { personalSettingsService } from './personal-settings.service.js';
+import {
+  buildCommitAuthorArgs,
+  buildCommitMessage,
+  buildPathParityReason,
+  buildSyncBlockedReason,
+  normalizeGitPath,
+  parseGitPathList,
+  pathsOverlap,
+} from './git-paths.util.js';
 
 const logger = createDmsLogger('DmsGitService');
 
@@ -629,8 +638,8 @@ class GitService {
     try {
       await this.git.raw(['add', '-A', '--', ...normalizedFiles]);
 
-      const commitMessage = this.buildCommitMessage(message, footerLines);
-      const authorArgs = this.buildCommitAuthorArgs(author);
+      const commitMessage = buildCommitMessage(message, footerLines);
+      const authorArgs = buildCommitAuthorArgs(author);
       const result = authorArgs
         ? await this.git.commit(commitMessage, undefined, authorArgs)
         : await this.git.commit(commitMessage);
@@ -815,13 +824,13 @@ class GitService {
 
   /** .sidecar.json 파일 필터링 */
   private shouldInclude(filePath: string): boolean {
-    return isMarkdownFile(this.normalizeGitPath(filePath));
+    return isMarkdownFile(normalizeGitPath(filePath));
   }
 
   private filterGitManagedPaths(paths: string[]): string[] {
     return Array.from(new Set(
       paths
-        .map((item) => this.normalizeGitPath(item))
+        .map((item) => normalizeGitPath(item))
         .filter((item) => this.shouldInclude(item)),
     ));
   }
@@ -924,7 +933,7 @@ class GitService {
         verified: true,
         canTreatLocalAsCanonical: false,
         syncStatus,
-        reason: reason ?? this.buildSyncBlockedReason(syncStatus),
+        reason: reason ?? buildSyncBlockedReason(syncStatus),
       };
     }
 
@@ -935,76 +944,6 @@ class GitService {
       syncStatus,
       reason,
     };
-  }
-
-  private buildSyncBlockedReason(sync: GitSyncStatus): string {
-    if (sync.diverged) {
-      return `SYNC_BLOCKED: local HEAD diverged from ${sync.remoteRef} (local +${sync.aheadCount}, remote +${sync.behindCount})`;
-    }
-    if (sync.remoteAhead) {
-      return `SYNC_BLOCKED: remote branch ${sync.remoteRef} is ahead of local HEAD by ${sync.behindCount} commit(s)`;
-    }
-    return `SYNC_BLOCKED: local HEAD cannot fast-forward ${sync.remoteRef}`;
-  }
-
-  private normalizeGitPath(pathValue: string): string {
-    return pathValue.trim().replace(/\\/g, '/');
-  }
-
-  private pathsOverlap(left: string, right: string): boolean {
-    return left === right
-      || left.startsWith(`${right}/`)
-      || right.startsWith(`${left}/`);
-  }
-
-  private parseGitPathList(raw: string): string[] {
-    return Array.from(new Set(
-      raw
-        .split(/\r?\n/)
-        .map((item) => this.normalizeGitPath(item))
-        .filter(Boolean),
-    ));
-  }
-
-  private buildPathParityReason(status: Omit<GitPathParityStatus, 'reason'>): string | undefined {
-    if (status.remoteAheadPaths.length > 0) {
-      return `PATH_SYNC_BLOCKED: remote changes pending for ${this.summarizePaths(status.remoteAheadPaths)}`;
-    }
-
-    if (status.localAheadPaths.length > 0) {
-      return `PATH_PENDING_LOCAL: local commits not yet published for ${this.summarizePaths(status.localAheadPaths)}`;
-    }
-
-    if (status.workingTreePaths.length > 0) {
-      return `PATH_DIRTY: uncommitted changes remain for ${this.summarizePaths(status.workingTreePaths)}`;
-    }
-
-    return undefined;
-  }
-
-  private summarizePaths(paths: string[]): string {
-    if (paths.length <= 2) {
-      return paths.join(', ');
-    }
-
-    return `${paths.slice(0, 2).join(', ')} (+${paths.length - 2} more)`;
-  }
-
-  private buildCommitAuthorArgs(author?: string | GitCommitAuthor): Record<string, string> | undefined {
-    if (!author) {
-      return undefined;
-    }
-    if (typeof author === 'string') {
-      return { '--author': `${author} <${author}@dms>` };
-    }
-    return { '--author': `${author.name} <${author.email}>` };
-  }
-
-  private buildCommitMessage(message: string, footerLines: string[] = []): string {
-    if (footerLines.length === 0) {
-      return message;
-    }
-    return `${message}\n\n${footerLines.join('\n')}`;
   }
 
   private async inspectSyncStatusWithGit(
@@ -1373,13 +1312,13 @@ class GitService {
       const workingTreePaths = Array.from(new Set(
         changesResult.data
           .flatMap((change) => [change.path, change.oldPath].filter((item): item is string => Boolean(item)))
-          .map((item) => this.normalizeGitPath(item))
-          .filter((candidate) => normalizedPaths.some((scope) => this.pathsOverlap(candidate, scope))),
+          .map((item) => normalizeGitPath(item))
+          .filter((candidate) => normalizedPaths.some((scope) => pathsOverlap(candidate, scope))),
       ));
-      const localAheadPaths = this.parseGitPathList(
+      const localAheadPaths = parseGitPathList(
         await this.git.raw(['diff', '--name-only', `${syncStatus.remoteRef}..HEAD`, '--', ...normalizedPaths]),
       );
-      const remoteAheadPaths = this.parseGitPathList(
+      const remoteAheadPaths = parseGitPathList(
         await this.git.raw(['diff', '--name-only', `HEAD..${syncStatus.remoteRef}`, '--', ...normalizedPaths]),
       );
       const clean = workingTreePaths.length === 0 && localAheadPaths.length === 0 && remoteAheadPaths.length === 0;
@@ -1394,7 +1333,7 @@ class GitService {
           workingTreePaths,
           localAheadPaths,
           remoteAheadPaths,
-          reason: clean ? undefined : this.buildPathParityReason({
+          reason: clean ? undefined : buildPathParityReason({
             remote,
             verified: true,
             clean,
