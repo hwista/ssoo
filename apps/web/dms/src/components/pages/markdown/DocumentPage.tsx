@@ -61,9 +61,10 @@ import { useDocumentPageComposeActions } from './useDocumentPageComposeActions';
 import { useTemplateSaveFlow } from './useTemplateSaveFlow';
 import { useViewerTemplatePicker } from './useViewerTemplatePicker';
 import { useDocumentCollaboration } from './useDocumentCollaboration';
+import { useDocumentInfoRecommendation } from './useDocumentInfoRecommendation';
 import { toast } from '@/lib/toast';
 import { downloadMarkdown, printHtmlContent } from '@/lib/utils/downloadUtils';
-import { resolveTitlePathRecommendation, type RecommendationStatus } from '@/lib/utils/titlePathRecommendation';
+import { resolveTitlePathRecommendation } from '@/lib/utils/titlePathRecommendation';
 import {
   canEditDocument,
   canManageDocument,
@@ -132,14 +133,6 @@ export function DocumentPage() {
   const [inlineInstruction, setInlineInstruction] = useState('');
   const [isComposing, setIsComposing] = useState(false);
   const [createPath, setCreatePath] = useState('drafts/new-doc.md');
-  const [displayCreatePath, setDisplayCreatePath] = useState('');
-  const [displaySuggestedTitle, setDisplaySuggestedTitle] = useState('');
-  const [pendingSuggestedInfoTitle, setPendingSuggestedInfoTitle] = useState<string | null>(null);
-  const [pendingSuggestedInfoPath, setPendingSuggestedInfoPath] = useState<string | null>(null);
-  const [pendingInfoPathValidationMessage, setPendingInfoPathValidationMessage] = useState('');
-  const [titleRecommendationStatus, setTitleRecommendationStatus] = useState<RecommendationStatus>('idle');
-  const [pathRecommendationStatus, setPathRecommendationStatus] = useState<RecommendationStatus>('idle');
-  const [pathValidationMessage, setPathValidationMessage] = useState('');
   const [, setIsRecommendingPath] = useState(false);
   const [inlineTemplate, setInlineTemplate] = useState<TemplateItem | null>(null);
   const [inlineSummaryFiles, setInlineSummaryFiles] = useState<InlineSummaryFileItem[]>([]);
@@ -306,14 +299,7 @@ export function DocumentPage() {
     setMode('create');
     setIsEditing(true);
     setCreatePath('drafts/new-doc.md');
-    setDisplayCreatePath('');
-    setDisplaySuggestedTitle('');
-    setPendingSuggestedInfoTitle(null);
-    setPendingSuggestedInfoPath(null);
-    setPendingInfoPathValidationMessage('');
-    setTitleRecommendationStatus('idle');
-    setPathRecommendationStatus('idle');
-    setPathValidationMessage('');
+    resetInfoRecommendation();
     setOriginalMetaSnapshot(buildDocumentMetadataDiffSnapshot(null));
     setSurfaceMode('edit');
     setDiffTarget('content');
@@ -323,6 +309,7 @@ export function DocumentPage() {
     aiSummaryCompletedRef.current = false;
     templateConversionConsumedRef.current = false;
     setTemplateConversionSource(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- resetInfoRecommendation is referentially stable
   }, [createEntryType, reset, setContent, setIsEditing]);
 
   useEffect(() => {
@@ -331,16 +318,10 @@ export function DocumentPage() {
       setMode('viewer');
       setIsEditing(false);
       setCreatePath(filePath);
-      setDisplayCreatePath('');
-      setDisplaySuggestedTitle('');
-      setPendingSuggestedInfoTitle(null);
-      setPendingSuggestedInfoPath(null);
-      setPendingInfoPathValidationMessage('');
-      setTitleRecommendationStatus('idle');
-      setPathRecommendationStatus('idle');
-      setPathValidationMessage('');
+      resetInfoRecommendation();
       setSaveConflict(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- resetInfoRecommendation is referentially stable
   }, [filePath, isCreateMode, loadFile, setIsEditing]);
 
   // AI 요약 자동 실행: 진입 시 pending 파일을 소비하고 본문 기반으로 compose 호출
@@ -381,8 +362,7 @@ export function DocumentPage() {
         if (response.success && response.data) {
           const generated = typeof response.data.text === 'string' ? response.data.text.trim() : '';
           if (generated) {
-            setTitleRecommendationStatus('loading');
-            setPathRecommendationStatus('loading');
+            markRecommendationLoading();
             const [metadataResult, titlePathResult] = await Promise.allSettled([
               autoRecommendMetadata(generated),
               docAssistApi.recommendTitleAndPath({ currentContent: generated }),
@@ -407,23 +387,9 @@ export function DocumentPage() {
               }
             } else if (response.data.suggestedPath) {
               setCreatePath(response.data.suggestedPath);
-              setDisplaySuggestedTitle('');
-              setDisplayCreatePath('');
-              setPendingSuggestedInfoTitle(null);
-              setPendingSuggestedInfoPath(null);
-              setPendingInfoPathValidationMessage('');
-              setPathValidationMessage('');
-              setTitleRecommendationStatus('error');
-              setPathRecommendationStatus('error');
+              markRecommendationError();
             } else {
-              setDisplaySuggestedTitle('');
-              setDisplayCreatePath('');
-              setPendingSuggestedInfoTitle(null);
-              setPendingSuggestedInfoPath(null);
-              setPendingInfoPathValidationMessage('');
-              setPathValidationMessage('');
-              setTitleRecommendationStatus('error');
-              setPathRecommendationStatus('error');
+              markRecommendationError();
             }
 
             setContent(generated);
@@ -563,6 +529,40 @@ export function DocumentPage() {
   }, [clearTemplateConversionPending, isConvertingToTemplate, tabId]);
 
   const liveBodyLinks = useBodyLinks(currentDraftContent);
+
+  const {
+    displayCreatePath,
+    displaySuggestedTitle,
+    pendingSuggestedInfoTitle,
+    pendingSuggestedInfoPath,
+    pendingInfoPathValidationMessage,
+    titleRecommendationStatus,
+    pathRecommendationStatus,
+    pathValidationMessage,
+    setDisplayCreatePath,
+    setTitleRecommendationStatus,
+    setPathRecommendationStatus,
+    resetInfoRecommendation,
+    markRecommendationLoading,
+    markRecommendationError,
+    consumeTitlePathRecommendation,
+    requestInfoRecommendation,
+    handleAcceptSuggestedInfoTitle,
+    handleDismissSuggestedInfoTitle,
+    handleAcceptSuggestedInfoPath,
+    handleDismissSuggestedInfoPath,
+  } = useDocumentInfoRecommendation({
+    canUseAssistant,
+    isCreateMode,
+    isGeneratedTemplateMode,
+    filePath,
+    getCurrentDraftContent,
+    setLocalDocumentMetadata,
+    setCreatePath,
+    setHasUnsavedChanges,
+    setPendingFileMove,
+  });
+
   // 패널 표시용: isCreateMode 대신 mode === 'create' 사용
   // 템플릿 저장 후 mode가 'viewer'로 전환되면 저장된 값을 표시하기 위함
   const isActivelyCreating = mode === 'create';
@@ -571,107 +571,6 @@ export function DocumentPage() {
     ? ''
     : (originalMetaSnapshot?.title || filePath?.split('/').pop()?.replace(/\.md$/, '') || '');
   const originalInfoFilePath = isActivelyCreating ? '' : (filePath ?? storeCurrentFilePath ?? '');
-
-  const applySuggestedInfoTitle = useCallback((title: string) => {
-    setDisplaySuggestedTitle(title);
-    setLocalDocumentMetadata({ title });
-  }, [setLocalDocumentMetadata]);
-
-  const applySuggestedInfoPath = useCallback((path: string) => {
-    setDisplayCreatePath(path);
-    setCreatePath(path);
-  }, [setCreatePath]);
-
-  const consumeTitlePathRecommendation = useCallback((
-    resolved: ReturnType<typeof resolveTitlePathRecommendation>,
-    mode: 'suggest' | 'auto',
-  ) => {
-    setTitleRecommendationStatus(resolved.titleStatus);
-    setPathRecommendationStatus(resolved.pathStatus);
-
-    if (mode === 'auto') {
-      setPendingSuggestedInfoTitle(null);
-      setPendingSuggestedInfoPath(null);
-      setPendingInfoPathValidationMessage('');
-      setPathValidationMessage(resolved.pathValidationMessage ?? '');
-      if (resolved.title) {
-        applySuggestedInfoTitle(resolved.title);
-      }
-      if (resolved.path) {
-        applySuggestedInfoPath(resolved.path);
-      }
-      return;
-    }
-
-    setPathValidationMessage('');
-    setPendingSuggestedInfoTitle(resolved.title || null);
-    setPendingSuggestedInfoPath(resolved.path || null);
-    setPendingInfoPathValidationMessage(resolved.path ? '' : (resolved.pathValidationMessage ?? ''));
-  }, [applySuggestedInfoPath, applySuggestedInfoTitle]);
-
-  const requestInfoRecommendation = useCallback(async () => {
-    if (!canUseAssistant) {
-      toast.error('AI 추천을 사용할 권한이 없습니다.');
-      return;
-    }
-
-    const draftContent = getCurrentDraftContent();
-    if (!draftContent.trim()) return;
-
-    setTitleRecommendationStatus('loading');
-    setPathRecommendationStatus('loading');
-    setPendingSuggestedInfoTitle(null);
-    setPendingSuggestedInfoPath(null);
-    setPendingInfoPathValidationMessage('');
-
-    try {
-      const res = await docAssistApi.recommendTitleAndPath({
-        currentContent: draftContent,
-        contentType: isGeneratedTemplateMode ? 'template' : 'document',
-      });
-      if (res.success && res.data) {
-        const resolved = resolveTitlePathRecommendation(res.data, {
-          fallbackContent: draftContent,
-        });
-        consumeTitlePathRecommendation(resolved, 'suggest');
-      } else {
-        setTitleRecommendationStatus('error');
-        setPathRecommendationStatus('error');
-      }
-    } catch {
-      setTitleRecommendationStatus('error');
-      setPathRecommendationStatus('error');
-    }
-  }, [canUseAssistant, consumeTitlePathRecommendation, getCurrentDraftContent, isGeneratedTemplateMode]);
-
-  const handleAcceptSuggestedInfoTitle = useCallback(() => {
-    if (!pendingSuggestedInfoTitle) return;
-    applySuggestedInfoTitle(pendingSuggestedInfoTitle);
-    setPendingSuggestedInfoTitle(null);
-  }, [applySuggestedInfoTitle, pendingSuggestedInfoTitle]);
-
-  const handleDismissSuggestedInfoTitle = useCallback(() => {
-    setPendingSuggestedInfoTitle(null);
-  }, []);
-
-  const handleAcceptSuggestedInfoPath = useCallback(() => {
-    if (!pendingSuggestedInfoPath) return;
-    if (isCreateMode) {
-      applySuggestedInfoPath(pendingSuggestedInfoPath);
-    } else {
-      if (filePath && pendingSuggestedInfoPath !== filePath) {
-        setPendingFileMove(pendingSuggestedInfoPath);
-        setHasUnsavedChanges(true);
-      }
-    }
-    setPendingSuggestedInfoPath(null);
-    setPendingInfoPathValidationMessage('');
-  }, [applySuggestedInfoPath, filePath, isCreateMode, pendingSuggestedInfoPath, setHasUnsavedChanges]);
-
-  const handleDismissSuggestedInfoPath = useCallback(() => {
-    setPendingSuggestedInfoPath(null);
-    setPendingInfoPathValidationMessage('');
-  }, []);
 
   const metadata = useMemo(
     () => buildDocumentPanelMetadata(content, documentMetadata, fileMetadata),
@@ -1343,8 +1242,7 @@ export function DocumentPage() {
     const generatedContent = templateConvertedContent;
     setTemplateConvertedContent(null);
 
-    setTitleRecommendationStatus('loading');
-    setPathRecommendationStatus('loading');
+    markRecommendationLoading();
 
     void (async () => {
       const [metadataResult, titlePathResult] = await Promise.allSettled([
@@ -1469,8 +1367,7 @@ export function DocumentPage() {
         const isRequestActive = () => composeRequestLifecycle.isRequestActive(requestToken);
         if (isCreateMode) {
           // 새문서: 태그/요약 제안 + 문서명/경로 제안
-          setTitleRecommendationStatus('loading');
-          setPathRecommendationStatus('loading');
+          markRecommendationLoading();
           const [metadataResult, titlePathResult] = await Promise.allSettled([
             autoRecommendMetadata(generatedContent, { signal, isRequestActive, contentType: isGeneratedTemplateMode ? 'template' : 'document' }),
             docAssistApi.recommendTitleAndPath({ currentContent: generatedContent, contentType: isGeneratedTemplateMode ? 'template' : 'document' }, { signal }),
@@ -1499,43 +1396,15 @@ export function DocumentPage() {
               }
             } else if (context?.suggestedPath) {
               setCreatePath(context.suggestedPath);
-              setDisplaySuggestedTitle('');
-              setDisplayCreatePath('');
-              setPendingSuggestedInfoTitle(null);
-              setPendingSuggestedInfoPath(null);
-              setPendingInfoPathValidationMessage('');
-              setPathValidationMessage('');
-              setTitleRecommendationStatus('error');
-              setPathRecommendationStatus('error');
+              markRecommendationError();
             } else {
-              setDisplaySuggestedTitle('');
-              setDisplayCreatePath('');
-              setPendingSuggestedInfoTitle(null);
-              setPendingSuggestedInfoPath(null);
-              setPendingInfoPathValidationMessage('');
-              setPathValidationMessage('');
-              setTitleRecommendationStatus('error');
-              setPathRecommendationStatus('error');
+              markRecommendationError();
             }
           } else if (context?.suggestedPath) {
             setCreatePath(context.suggestedPath);
-            setDisplaySuggestedTitle('');
-            setDisplayCreatePath('');
-            setPendingSuggestedInfoTitle(null);
-            setPendingSuggestedInfoPath(null);
-            setPendingInfoPathValidationMessage('');
-            setPathValidationMessage('');
-            setTitleRecommendationStatus('error');
-            setPathRecommendationStatus('error');
+            markRecommendationError();
           } else {
-            setDisplaySuggestedTitle('');
-            setDisplayCreatePath('');
-            setPendingSuggestedInfoTitle(null);
-            setPendingSuggestedInfoPath(null);
-            setPendingInfoPathValidationMessage('');
-            setPathValidationMessage('');
-            setTitleRecommendationStatus('error');
-            setPathRecommendationStatus('error');
+            markRecommendationError();
           }
         } else {
           // 기존문서: 태그/요약 제안만
@@ -1543,7 +1412,7 @@ export function DocumentPage() {
           if (!isRequestActive() || signal.aborted) return;
           applyMetadataRecommendation(recommendation, 'suggest');
         }
-      }, [applyMetadataRecommendation, autoRecommendMetadata, composeRequestLifecycle, consumeTitlePathRecommendation, isCreateMode, isGeneratedTemplateMode, setCreatePath]),
+      }, [applyMetadataRecommendation, autoRecommendMetadata, composeRequestLifecycle, consumeTitlePathRecommendation, isCreateMode, isGeneratedTemplateMode, markRecommendationError, markRecommendationLoading, setCreatePath]),
     },
   });
 
