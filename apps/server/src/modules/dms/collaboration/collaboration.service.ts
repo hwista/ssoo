@@ -8,10 +8,20 @@ import { DmsEventsGateway } from '../events/dms-events.gateway.js';
 import { gitService, type GitCommitAuthor, type GitPathParityStatus, type GitRemoteParityStatus, type GitSyncStatus } from '../runtime/git.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 import { configService } from '../runtime/dms-config.service.js';
-import { isMarkdownFile } from '../runtime/file-utils.js';
+import {
+  PRESENCE_TTL_MS,
+  buildPresenceKey,
+  filterGitManagedDocumentPaths,
+  getTimestampMs,
+  hasSameSerializedValue,
+  isExpired,
+  isGitManagedDocumentPath,
+  normalizePath,
+  pathsOverlap,
+  resolveGitManagedPrimaryPath,
+} from './collaboration-paths.util.js';
 
 const logger = createDmsLogger('DmsCollaborationService');
-const PRESENCE_TTL_MS = 30_000;
 const STATE_FILE = '.dms-collaboration-state.json';
 const BLOCKED_MUTATION_ACTIONS: readonly DocumentMutationAction[] = [
   'write',
@@ -136,10 +146,10 @@ export class CollaborationService implements OnModuleDestroy {
     sessionId?: string;
     mode?: CollaborationMode;
   }): Promise<DocumentCollaborationSnapshot> {
-    const normalizedPath = this.normalizePath(input.path);
+    const normalizedPath = normalizePath(input.path);
     const actor = await this.resolveActorProfile(input.currentUser);
     const sessionId = input.sessionId?.trim() || input.currentUser.sessionId || 'default';
-    const key = this.buildPresenceKey(input.currentUser.userId, sessionId);
+    const key = buildPresenceKey(input.currentUser.userId, sessionId);
     const now = new Date().toISOString();
     const members = this.getOrCreatePresence(normalizedPath);
     const existing = members.get(key);
@@ -166,7 +176,7 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   async takeover(input: { path: string; currentUser: TokenPayload; sessionId?: string }): Promise<DocumentCollaborationSnapshot> {
-    const normalizedPath = this.normalizePath(input.path);
+    const normalizedPath = normalizePath(input.path);
     const actor = await this.resolveActorProfile(input.currentUser);
     const sessionId = input.sessionId?.trim() || input.currentUser.sessionId || 'default';
     const now = new Date().toISOString();
@@ -187,9 +197,9 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   leave(input: { path: string; currentUser: TokenPayload; sessionId?: string }): DocumentCollaborationSnapshot {
-    const normalizedPath = this.normalizePath(input.path);
+    const normalizedPath = normalizePath(input.path);
     const sessionId = input.sessionId?.trim() || input.currentUser.sessionId || 'default';
-    const key = this.buildPresenceKey(input.currentUser.userId, sessionId);
+    const key = buildPresenceKey(input.currentUser.userId, sessionId);
     const members = this.presenceByPath.get(normalizedPath);
     members?.delete(key);
     if (members?.size === 0) this.presenceByPath.delete(normalizedPath);
@@ -204,7 +214,7 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   getSnapshot(pathValue: string): DocumentCollaborationSnapshot {
-    const normalizedPath = this.normalizePath(pathValue);
+    const normalizedPath = normalizePath(pathValue);
     this.cleanupInactiveMembers(normalizedPath);
     this.cleanupInactiveLock(normalizedPath);
     const publishIsolation = this.findPublishIsolation(normalizedPath);
@@ -212,14 +222,14 @@ export class CollaborationService implements OnModuleDestroy {
     return {
       path: normalizedPath,
       members,
-      publishState: this.getPublishState(this.normalizePath(publishIsolation?.primaryPath ?? normalizedPath)),
+      publishState: this.getPublishState(normalizePath(publishIsolation?.primaryPath ?? normalizedPath)),
       softLock: this.softLockByPath.get(normalizedPath) ?? null,
       isolation: this.getPathIsolation(normalizedPath),
     };
   }
 
   async refreshPublishState(pathValue: string): Promise<DocumentCollaborationSnapshot> {
-    const normalizedPath = this.normalizePath(pathValue);
+    const normalizedPath = normalizePath(pathValue);
     const currentIsolation = this.findPublishIsolation(normalizedPath);
     const primaryPath = this.resolvePublishPrimaryPath(normalizedPath, currentIsolation);
     if (!primaryPath) {
@@ -256,7 +266,7 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   async retryPublish(pathValue: string, currentUser: TokenPayload): Promise<DocumentCollaborationSnapshot> {
-    const normalizedPath = this.normalizePath(pathValue);
+    const normalizedPath = normalizePath(pathValue);
     const currentIsolation = this.findPublishIsolation(normalizedPath);
     const primaryPath = this.resolvePublishPrimaryPath(normalizedPath, currentIsolation);
     if (!primaryPath) {
@@ -307,7 +317,7 @@ export class CollaborationService implements OnModuleDestroy {
 
     if (!parityBlocked && !parityUnavailable) {
       const existing = this.publishJobsByPath.get(primaryPath);
-      const retryPaths = Array.from(new Set((currentState.affectedPaths ?? [primaryPath]).map((item) => this.normalizePath(item)))).filter(Boolean);
+      const retryPaths = Array.from(new Set((currentState.affectedPaths ?? [primaryPath]).map((item) => normalizePath(item)))).filter(Boolean);
       const job: PublishJob = existing ?? {
         primaryPath,
         affectedPaths: new Set<string>(),
@@ -333,8 +343,8 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   async forceLockPath(pathValue: string, currentUser: TokenPayload, reason?: string): Promise<DocumentCollaborationSnapshot> {
-    const normalizedPath = this.normalizePath(pathValue);
-    if (!this.isGitManagedDocumentPath(normalizedPath)) {
+    const normalizedPath = normalizePath(pathValue);
+    if (!isGitManagedDocumentPath(normalizedPath)) {
       logger.warn('비-markdown 경로 force-lock 요청 무시', { path: normalizedPath, actorLoginId: currentUser.loginId });
       return this.getSnapshot(normalizedPath);
     }
@@ -354,8 +364,8 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   async forceUnlockPath(pathValue: string, currentUser: TokenPayload): Promise<DocumentCollaborationSnapshot> {
-    const normalizedPath = this.normalizePath(pathValue);
-    if (!this.isGitManagedDocumentPath(normalizedPath)) {
+    const normalizedPath = normalizePath(pathValue);
+    if (!isGitManagedDocumentPath(normalizedPath)) {
       logger.warn('비-markdown 경로 force-unlock 요청 무시', { path: normalizedPath, actorLoginId: currentUser.loginId });
       return this.getSnapshot(normalizedPath);
     }
@@ -382,7 +392,7 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   getPathIsolation(pathValue: string): DocumentIsolationState | null {
-    const normalizedPath = this.normalizePath(pathValue);
+    const normalizedPath = normalizePath(pathValue);
     if (!normalizedPath) {
       return null;
     }
@@ -393,7 +403,7 @@ export class CollaborationService implements OnModuleDestroy {
   assertMutationAllowed(input: { action: DocumentMutationAction; paths: string[] }): void {
     const normalizedPaths = Array.from(new Set(
       input.paths
-        .map((item) => this.normalizePath(item))
+        .map((item) => normalizePath(item))
         .filter(Boolean),
     ));
 
@@ -414,10 +424,10 @@ export class CollaborationService implements OnModuleDestroy {
     operationType: string;
     currentUser: TokenPayload;
   }): void {
-    const affectedPaths = this.filterGitManagedDocumentPaths(
+    const affectedPaths = filterGitManagedDocumentPaths(
       input.gitManagedPaths ?? [input.primaryPath, ...(input.affectedPaths ?? [])],
     );
-    const primaryPath = this.resolveGitManagedPrimaryPath(input.primaryPath, affectedPaths);
+    const primaryPath = resolveGitManagedPrimaryPath(input.primaryPath, affectedPaths);
     if (!primaryPath || affectedPaths.length === 0) {
       return;
     }
@@ -607,7 +617,7 @@ export class CollaborationService implements OnModuleDestroy {
 
   private touchOrAcquireSoftLock(pathValue: string, currentUser: TokenPayload, actor: ActorProfile, sessionId: string, now: string): void {
     const existing = this.softLockByPath.get(pathValue);
-    if (!existing || this.isExpired(existing.lastSeenAt) || (existing.userId === currentUser.userId && existing.sessionId === sessionId)) {
+    if (!existing || isExpired(existing.lastSeenAt) || (existing.userId === currentUser.userId && existing.sessionId === sessionId)) {
       this.softLockByPath.set(pathValue, {
         path: pathValue,
         userId: currentUser.userId,
@@ -666,14 +676,10 @@ export class CollaborationService implements OnModuleDestroy {
   private cleanupInactiveLock(pathValue: string): void {
     const lock = this.softLockByPath.get(pathValue);
     if (!lock) return;
-    if (this.isExpired(lock.lastSeenAt)) {
+    if (isExpired(lock.lastSeenAt)) {
       this.softLockByPath.delete(pathValue);
       this.persistState();
     }
-  }
-
-  private isExpired(lastSeenAt: string): boolean {
-    return Date.now() - new Date(lastSeenAt).getTime() > PRESENCE_TTL_MS;
   }
 
   private loadPersistedState(): void {
@@ -688,18 +694,18 @@ export class CollaborationService implements OnModuleDestroy {
           shouldPersistNormalizedState = true;
           continue;
         }
-        if (pathValue !== sanitized.path || !this.hasSameSerializedValue(state, sanitized)) {
+        if (pathValue !== sanitized.path || !hasSameSerializedValue(state, sanitized)) {
           shouldPersistNormalizedState = true;
         }
         this.publishStateByPath.set(sanitized.path, sanitized);
       }
       for (const [pathValue, lock] of Object.entries(parsed.softLocks ?? {})) {
         const sanitized = this.sanitizeSoftLock(lock);
-        if (!sanitized || this.isExpired(sanitized.lastSeenAt)) {
+        if (!sanitized || isExpired(sanitized.lastSeenAt)) {
           shouldPersistNormalizedState = true;
           continue;
         }
-        if (pathValue !== sanitized.path || !this.hasSameSerializedValue(lock, sanitized)) {
+        if (pathValue !== sanitized.path || !hasSameSerializedValue(lock, sanitized)) {
           shouldPersistNormalizedState = true;
         }
         this.softLockByPath.set(sanitized.path, sanitized);
@@ -710,7 +716,7 @@ export class CollaborationService implements OnModuleDestroy {
           shouldPersistNormalizedState = true;
           continue;
         }
-        if (pathValue !== sanitized.path || !this.hasSameSerializedValue(isolation, sanitized)) {
+        if (pathValue !== sanitized.path || !hasSameSerializedValue(isolation, sanitized)) {
           shouldPersistNormalizedState = true;
         }
         this.pathIsolationByPath.set(sanitized.path, sanitized);
@@ -721,7 +727,7 @@ export class CollaborationService implements OnModuleDestroy {
           shouldPersistNormalizedState = true;
           continue;
         }
-        if (pathValue !== sanitized.path || !this.hasSameSerializedValue(override, sanitized)) {
+        if (pathValue !== sanitized.path || !hasSameSerializedValue(override, sanitized)) {
           shouldPersistNormalizedState = true;
         }
         this.pathOverrideByPath.set(sanitized.path, sanitized);
@@ -751,39 +757,10 @@ export class CollaborationService implements OnModuleDestroy {
     }
   }
 
-  private buildPresenceKey(userId: string, sessionId: string): string {
-    return `${userId}:${sessionId}`;
-  }
-
-  private normalizePath(pathValue: string): string {
-    return pathValue.trim().replace(/\\/g, '/');
-  }
-
-  private isGitManagedDocumentPath(pathValue: string): boolean {
-    return isMarkdownFile(this.normalizePath(pathValue));
-  }
-
-  private filterGitManagedDocumentPaths(paths: Iterable<string | null | undefined>): string[] {
-    return Array.from(new Set(
-      Array.from(paths)
-        .map((item) => this.normalizePath(item ?? ''))
-        .filter((item) => this.isGitManagedDocumentPath(item)),
-    ));
-  }
-
-  private resolveGitManagedPrimaryPath(primaryPath: string, affectedPaths: string[]): string | null {
-    const normalizedPrimaryPath = this.normalizePath(primaryPath);
-    if (this.isGitManagedDocumentPath(normalizedPrimaryPath)) {
-      return normalizedPrimaryPath;
-    }
-
-    return affectedPaths[0] ?? null;
-  }
-
   private resolvePublishPrimaryPath(pathValue: string, isolation: DocumentIsolationState | null): string | null {
-    return this.resolveGitManagedPrimaryPath(
+    return resolveGitManagedPrimaryPath(
       isolation?.primaryPath ?? pathValue,
-      this.filterGitManagedDocumentPaths([
+      filterGitManagedDocumentPaths([
         pathValue,
         isolation?.primaryPath,
         ...(isolation?.affectedPaths ?? []),
@@ -792,11 +769,11 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private sanitizePublishState(state: DocumentPublishState): DocumentPublishState | null {
-    const affectedPaths = this.filterGitManagedDocumentPaths([
+    const affectedPaths = filterGitManagedDocumentPaths([
       state.path,
       ...(state.affectedPaths ?? []),
     ]);
-    const primaryPath = this.resolveGitManagedPrimaryPath(state.path, affectedPaths);
+    const primaryPath = resolveGitManagedPrimaryPath(state.path, affectedPaths);
     if (!primaryPath) {
       return null;
     }
@@ -809,8 +786,8 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private sanitizeSoftLock(lock: DocumentSoftLock): DocumentSoftLock | null {
-    const normalizedPath = this.normalizePath(lock.path);
-    if (!this.isGitManagedDocumentPath(normalizedPath)) {
+    const normalizedPath = normalizePath(lock.path);
+    if (!isGitManagedDocumentPath(normalizedPath)) {
       return null;
     }
 
@@ -821,20 +798,20 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private sanitizeIsolationState(isolation: DocumentIsolationState): DocumentIsolationState | null {
-    const affectedPaths = this.filterGitManagedDocumentPaths([
+    const affectedPaths = filterGitManagedDocumentPaths([
       isolation.primaryPath,
       isolation.path,
       ...(isolation.affectedPaths ?? []),
     ]);
-    const primaryPath = this.resolveGitManagedPrimaryPath(isolation.primaryPath, affectedPaths);
+    const primaryPath = resolveGitManagedPrimaryPath(isolation.primaryPath, affectedPaths);
     if (!primaryPath) {
       return null;
     }
 
     return {
       ...isolation,
-      path: this.isGitManagedDocumentPath(isolation.path)
-        ? this.normalizePath(isolation.path)
+      path: isGitManagedDocumentPath(isolation.path)
+        ? normalizePath(isolation.path)
         : primaryPath,
       primaryPath,
       affectedPaths,
@@ -842,8 +819,8 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private sanitizePathOverride(override: PathReleaseOverride): PathReleaseOverride | null {
-    const normalizedPath = this.normalizePath(override.path);
-    if (!this.isGitManagedDocumentPath(normalizedPath)) {
+    const normalizedPath = normalizePath(override.path);
+    if (!isGitManagedDocumentPath(normalizedPath)) {
       return null;
     }
 
@@ -854,7 +831,7 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private hasSameSerializedValue(left: unknown, right: unknown): boolean {
-    return JSON.stringify(left) === JSON.stringify(right);
+    return hasSameSerializedValue(left, right);
   }
 
   private findPathIsolation(pathValue: string): DocumentIsolationState | null {
@@ -883,7 +860,7 @@ export class CollaborationService implements OnModuleDestroy {
 
     let matched: DocumentIsolationState | null = null;
     for (const [isolatedPath, isolation] of this.pathIsolationByPath.entries()) {
-      if (!this.pathsOverlap(pathValue, isolatedPath)) {
+      if (!pathsOverlap(pathValue, isolatedPath)) {
         continue;
       }
 
@@ -896,9 +873,7 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private pathsOverlap(left: string, right: string): boolean {
-    return left === right
-      || left.startsWith(`${right}/`)
-      || right.startsWith(`${left}/`);
+    return pathsOverlap(left, right);
   }
 
   private captureIsolationFromPublishState(
@@ -906,8 +881,8 @@ export class CollaborationService implements OnModuleDestroy {
     publishState: DocumentPublishState,
     options?: { persist?: boolean; onlyIfMissing?: boolean },
   ): DocumentIsolationState | null {
-    const normalizedPrimaryPath = this.normalizePath(primaryPath);
-    if (!this.isGitManagedDocumentPath(normalizedPrimaryPath)) {
+    const normalizedPrimaryPath = normalizePath(primaryPath);
+    if (!isGitManagedDocumentPath(normalizedPrimaryPath)) {
       return null;
     }
     const reasonCode = publishState.status === 'sync-blocked'
@@ -919,7 +894,7 @@ export class CollaborationService implements OnModuleDestroy {
       return null;
     }
 
-    const affectedPaths = this.filterGitManagedDocumentPaths([
+    const affectedPaths = filterGitManagedDocumentPaths([
       normalizedPrimaryPath,
       ...(publishState.affectedPaths ?? []),
     ]);
@@ -965,7 +940,7 @@ export class CollaborationService implements OnModuleDestroy {
     publishState: DocumentPublishState,
     isolation: DocumentIsolationState | null,
   ): string[] {
-    return this.filterGitManagedDocumentPaths([
+    return filterGitManagedDocumentPaths([
       primaryPath,
       ...(publishState.affectedPaths ?? []),
       ...(isolation?.affectedPaths ?? []),
@@ -1031,10 +1006,10 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private releasePublishIsolation(primaryPath: string, options?: { persist?: boolean }): void {
-    const normalizedPrimaryPath = this.normalizePath(primaryPath);
+    const normalizedPrimaryPath = normalizePath(primaryPath);
     const releasedPaths: string[] = [];
     for (const [pathValue, isolation] of this.pathIsolationByPath.entries()) {
-      if (this.normalizePath(isolation.primaryPath) !== normalizedPrimaryPath) {
+      if (normalizePath(isolation.primaryPath) !== normalizedPrimaryPath) {
         continue;
       }
       this.pathIsolationByPath.delete(pathValue);
@@ -1070,12 +1045,11 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private isForceUnlockActive(override: PathReleaseOverride, isolation: DocumentIsolationState): boolean {
-    return this.getTimestampMs(override.appliedAt) >= this.getTimestampMs(isolation.isolatedAt);
+    return getTimestampMs(override.appliedAt) >= getTimestampMs(isolation.isolatedAt);
   }
 
   private getTimestampMs(value: string): number {
-    const parsed = Date.parse(value);
-    return Number.isFinite(parsed) ? parsed : 0;
+    return getTimestampMs(value);
   }
 
   private buildIsolationException(
