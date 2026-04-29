@@ -7,6 +7,7 @@ import {
   fetchDmsAdminTemplates,
   fetchDmsAdminGitStatus,
   fetchDmsAdminGitHistory,
+  fetchDmsAdminSettings,
   type DmsAdminDocumentListParams,
   type DmsAdminTemplateListParams,
 } from '@/lib/api/endpoints/dms';
@@ -50,5 +51,13 @@ export function useDmsAdminGitHistory(maxCount = 50) {
     queryKey: ['admin', 'dms', 'git', 'history', maxCount],
     queryFn: () => fetchDmsAdminGitHistory(maxCount),
     staleTime: 15_000,
+  });
+}
+
+export function useDmsAdminSettings() {
+  return useQuery({
+    queryKey: ['admin', 'dms', 'settings'],
+    queryFn: fetchDmsAdminSettings,
+    staleTime: 30_000,
   });
 }

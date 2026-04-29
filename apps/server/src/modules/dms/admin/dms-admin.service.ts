@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
 import { gitService } from '../runtime/git.service.js';
+import { configService } from '../runtime/dms-config.service.js';
 
 export interface DmsAdminOverview {
   documents: {
@@ -338,5 +339,75 @@ export class DmsAdminService {
     const result = await gitService.getHistory(safeCount);
     if (!result.success) return { items: [], error: result.error ?? 'Unknown error' };
     return { items: result.data ?? [], error: null };
+  }
+
+  getRuntimeSettings(): {
+    paths: {
+      appRoot: string;
+      docDir: string;
+      templateDir: string;
+      ingestQueueDir: string;
+      documentRoot: unknown;
+      ingestQueue: unknown;
+      storageLocal: unknown;
+    };
+    git: {
+      author: { name: string; email: string };
+      autoInit: boolean;
+      bootstrapBranch: string | undefined;
+      bootstrapRemoteUrl: string | undefined;
+    };
+    config: unknown;
+  } {
+    const config = configService.getConfig();
+    const bootstrapRemoteUrl = configService.getGitBootstrapRemoteUrl();
+    return {
+      paths: {
+        appRoot: configService.getAppRoot(),
+        docDir: configService.getDocDir(),
+        templateDir: configService.getTemplateDir(),
+        ingestQueueDir: configService.getIngestQueueDir(),
+        documentRoot: configService.getDocumentRootBinding(),
+        ingestQueue: configService.getIngestQueueBinding(),
+        storageLocal: configService.getStorageRootBinding('local'),
+      },
+      git: {
+        author: configService.getGitAuthor(),
+        autoInit: configService.getAutoInit(),
+        bootstrapBranch: configService.getGitBootstrapBranch(),
+        bootstrapRemoteUrl: redactUrlCredentials(bootstrapRemoteUrl),
+      },
+      config: redactSensitive(config),
+    };
+  }
+}
+
+const SENSITIVE_KEY_PATTERN = /(token|secret|password|apikey|api_key|client_secret|access_key)/i;
+
+function redactSensitive(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.map(redactSensitive);
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (SENSITIVE_KEY_PATTERN.test(k) && typeof v === 'string' && v.length > 0) {
+        out[k] = '***';
+      } else if (typeof v === 'string' && /^https?:\/\/[^@\s]+:[^@\s]+@/.test(v)) {
+        out[k] = redactUrlCredentials(v);
+      } else {
+        out[k] = redactSensitive(v);
+      }
+    }
+    return out;
+  }
+  return value;
+}
+
+function redactUrlCredentials(url: string | undefined): string | undefined {
+  if (!url) return url;
+  try {
+    return url.replace(/^(https?:\/\/)([^:@\s]+):([^@\s]+)@/, '$1$2:***@');
+  } catch {
+    return url;
   }
 }

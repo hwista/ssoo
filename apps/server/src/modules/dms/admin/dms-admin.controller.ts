@@ -126,4 +126,15 @@ export class DmsAdminController {
     const result = await this.dmsAdminService.getGitHistory(maxCount ? Number(maxCount) : 50);
     return success(result, 'DMS Git 히스토리 조회 성공');
   }
+
+  @Get('settings')
+  @ApiOperation({
+    summary: 'DMS 런타임 설정 inspector (관리자)',
+    description: '실행 시점 경로 바인딩 / git 메타 / 정규화된 설정(민감 필드 redact)을 반환합니다.',
+  })
+  @ApiOkResponse({ description: 'DMS 설정 조회 성공' })
+  getSettings() {
+    const result = this.dmsAdminService.getRuntimeSettings();
+    return success(result, 'DMS 설정 조회 성공');
+  }
 }

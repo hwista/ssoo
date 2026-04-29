@@ -153,3 +153,27 @@ export async function fetchDmsAdminGitHistory(maxCount = 50): Promise<ApiRespons
   });
   return data;
 }
+
+export interface DmsAdminSettingsResult {
+  paths: {
+    appRoot: string;
+    docDir: string;
+    templateDir: string;
+    ingestQueueDir: string;
+    documentRoot: Record<string, unknown> | null;
+    ingestQueue: Record<string, unknown> | null;
+    storageLocal: Record<string, unknown> | null;
+  };
+  git: {
+    author: { name: string; email: string };
+    autoInit: boolean;
+    bootstrapBranch: string | undefined;
+    bootstrapRemoteUrl: string | undefined;
+  };
+  config: Record<string, unknown>;
+}
+
+export async function fetchDmsAdminSettings(): Promise<ApiResponse<DmsAdminSettingsResult>> {
+  const { data } = await apiClient.get<ApiResponse<DmsAdminSettingsResult>>('/dms/admin/settings');
+  return data;
+}

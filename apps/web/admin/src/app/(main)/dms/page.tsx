@@ -38,6 +38,12 @@ export default function DmsAdminPage() {
           >
             Git 관측 →
           </Link>
+          <Link
+            href="/dms/settings"
+            className="rounded-md border bg-card px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            설정 inspector →
+          </Link>
         </div>
       </div>
 
