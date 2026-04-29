@@ -1513,6 +1513,7 @@ export function DocumentPage() {
     handleRestoreTemplate,
     handleRemoveTemplateReference,
     handleRestoreTemplateReference,
+    handleClearAll,
   } = useDocumentReferenceLifecycle({
     inlineSummaryFiles,
     setInlineSummaryFiles,
@@ -1527,6 +1528,7 @@ export function DocumentPage() {
     usedTemplateRefPaths,
     setPendingDeletedRefPaths,
     removeTemplateReference,
+    setInlineRelevanceWarnings,
     confirm,
   });
 
@@ -1587,71 +1589,6 @@ export function DocumentPage() {
     });
     setIsRetryingRestore(false);
   }, [failedRestoreFiles]);
-
-  // 전체 해제: 사용된 항목→confirm→소프트삭제, 미사용→즉시삭제
-  const handleClearAll = useCallback(async () => {
-    const hasUsed = usedSummaryFileIds.size > 0 || isTemplateUsed || usedTemplateRefPaths.size > 0;
-    if (hasUsed) {
-      const confirmed = await confirm({
-        title: '전체 컨텍스트 해제',
-        description: '사용된 참조 파일/템플릿이 포함되어 있습니다. 해제하면 참조 이력이 남지 않습니다. 계속하시겠습니까?',
-        confirmText: '전체 해제',
-        cancelText: '취소',
-      });
-      if (!confirmed) return;
-    }
-
-    // 사용된 항목 → 소프트 삭제
-    const usedRefPaths = templateReferenceDocuments
-      .filter((ref) => usedTemplateRefPaths.has(ref.path))
-      .map((ref) => ref.path);
-    const usedFileIds = inlineSummaryFiles
-      .filter((f) => usedSummaryFileIds.has(f.id))
-      .map((f) => f.id);
-    if (usedFileIds.length > 0) {
-      setPendingDeletedFileIds((prev) => {
-        const next = new Set(prev);
-        for (const id of usedFileIds) next.add(id);
-        return next;
-      });
-    }
-    if (isTemplateUsed && inlineTemplate) {
-      setIsTemplatePendingDelete(true);
-    }
-    if (usedRefPaths.length > 0) {
-      setPendingDeletedRefPaths((prev) => {
-        const next = new Set(prev);
-        for (const path of usedRefPaths) next.add(path);
-        return next;
-      });
-    }
-
-    // 미사용 항목 → 즉시 삭제
-    const unusedInlineRefIds = new Set(
-      templateReferenceDocuments
-        .filter((ref) => !usedTemplateRefPaths.has(ref.path) && ref.storage === 'inline' && ref.tempId)
-        .flatMap((ref) => ref.tempId ? [ref.tempId] : []),
-    );
-    setInlineSummaryFiles((prev) => prev.filter((f) => usedSummaryFileIds.has(f.id) && !unusedInlineRefIds.has(f.id)));
-    if (!isTemplateUsed) {
-      setInlineTemplate(null);
-    }
-    for (const ref of templateReferenceDocuments) {
-      if (!usedTemplateRefPaths.has(ref.path)) {
-        removeTemplateReference(ref.path);
-      }
-    }
-    setInlineRelevanceWarnings([]);
-  }, [
-    confirm,
-    inlineSummaryFiles,
-    inlineTemplate,
-    isTemplateUsed,
-    removeTemplateReference,
-    templateReferenceDocuments,
-    usedSummaryFileIds,
-    usedTemplateRefPaths,
-  ]);
 
   // 소프트 삭제된 참조 파일/템플릿 키 (패널 첨부 섹션 삭제 표시 연동)
   const deletedReferenceKeys = useMemo(() => {
