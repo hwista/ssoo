@@ -31,6 +31,7 @@ import {
 import { DocumentAclService } from './document-acl.service.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
 import { DocumentProjectionService } from './document-projection.service.js';
+import { DocumentRecordService } from './document-record.service.js';
 import {
   ACTIVE_REQUEST_ACTIVITY,
   ACTIVE_REQUEST_SOURCE,
@@ -134,7 +135,6 @@ const ACCESS_REQUEST_SELECT = {
 export class AccessRequestService {
   private lastControlPlaneSyncAt = 0;
   private controlPlaneSyncPromise: Promise<void> | null = null;
-  private repairOwnerUserIdPromise: Promise<bigint | null> | null = null;
   private deferredGitBootstrapRoot: string | null = null;
 
   constructor(
@@ -142,6 +142,7 @@ export class AccessRequestService {
     private readonly documentAclService: DocumentAclService,
     private readonly documentControlPlaneService: DocumentControlPlaneService,
     private readonly documentProjectionService: DocumentProjectionService,
+    private readonly documentRecordService: DocumentRecordService,
   ) {}
 
   async createReadRequest(
@@ -159,7 +160,7 @@ export class AccessRequestService {
     }
 
     const requestedExpiresAt = this.parseFutureDate(payload.requestedExpiresAt, 'requestedExpiresAt');
-    const document = await this.ensureDocumentRecord(relativePath);
+    const document = await this.documentRecordService.ensureDocumentRecord(relativePath);
     const requesterUserId = BigInt(user.userId);
 
     const existingPending = await this.db.client.dmsDocumentAccessRequest.findFirst({
@@ -285,7 +286,7 @@ export class AccessRequestService {
     }
 
     const syncedDocuments: Array<{
-      document: Awaited<ReturnType<AccessRequestService['ensureDocumentRecord']>>;
+      document: Awaited<ReturnType<DocumentRecordService['ensureDocumentRecord']>>;
       absolutePath: string;
       relativePath: string;
     }> = [];
@@ -294,7 +295,7 @@ export class AccessRequestService {
     for (const absolutePath of manageablePaths) {
       const relativePath = this.normalizeRelativePath(path.relative(rootDir, absolutePath));
       try {
-        const document = await this.ensureDocumentRecord(relativePath);
+        const document = await this.documentRecordService.ensureDocumentRecord(relativePath);
         syncedDocuments.push({ document, absolutePath, relativePath });
       } catch {
         fallbackDocuments.push(buildFallbackManagedDocumentSummary(absolutePath, relativePath, rootDir));
@@ -978,7 +979,7 @@ export class AccessRequestService {
   ): Promise<void> {
     const normalized = this.normalizeRelativePath(relativePath);
     await this.ensureGitContentPlaneReady();
-    await this.ensureDocumentRecord(normalized, metadataOverride);
+    await this.documentRecordService.ensureDocumentRecord(normalized, metadataOverride);
     await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(normalized);
     this.lastControlPlaneSyncAt = Date.now();
   }
@@ -1021,12 +1022,12 @@ export class AccessRequestService {
     }
 
     const content = fs.readFileSync(absolutePath, 'utf-8');
-    const metadataSource = this.ensureDocumentMetadataSeed(
+    const metadataSource = this.documentRecordService.ensureDocumentMetadataSeed(
       mergeCanonicalMetadataSource(existing.metadataJson, metadataOverride),
       absolutePath,
       content,
     );
-    const owner = await this.resolveCanonicalOwnerIdentity(metadataSource, existing.ownerUserId);
+    const owner = await this.documentRecordService.resolveCanonicalOwnerIdentity(metadataSource, existing.ownerUserId);
     const canonicalMetadata = normalizeCanonicalMetadata(metadataSource, owner);
     const visibilityScope = extractVisibilityScope(canonicalMetadata);
     const targetOrgId = extractTargetOrgId(canonicalMetadata);
@@ -1102,11 +1103,11 @@ export class AccessRequestService {
       const relativePath = this.normalizeRelativePath(path.relative(rootDir, absolutePath));
       scannedRelativePaths.add(relativePath);
       try {
-        await this.ensureDocumentRecord(relativePath);
+        await this.documentRecordService.ensureDocumentRecord(relativePath);
         synced += 1;
       } catch (error) {
         try {
-          await this.upsertRepairNeededDocument(relativePath, absolutePath, error);
+          await this.documentRecordService.upsertRepairNeededDocument(relativePath, absolutePath, error);
           repaired += 1;
         } catch (repairError) {
           failed += 1;
@@ -1202,287 +1203,6 @@ export class AccessRequestService {
     return missingDocumentIds.length;
   }
 
-  private async resolveRepairOwnerUserId(): Promise<bigint | null> {
-    if (!this.repairOwnerUserIdPromise) {
-      this.repairOwnerUserIdPromise = this.db.client.userAuth.findUnique({
-        where: { loginId: 'admin' },
-        select: { userId: true },
-      }).then((record) => record?.userId ?? null);
-    }
-
-    return this.repairOwnerUserIdPromise;
-  }
-
-  private async upsertRepairNeededDocument(
-    relativePath: string,
-    absolutePath: string,
-    cause: unknown,
-  ): Promise<void> {
-    const repairOwnerUserId = await this.resolveRepairOwnerUserId();
-    if (!repairOwnerUserId) {
-      throw new Error('repair fallback owner(admin)를 찾을 수 없습니다.');
-    }
-
-    const content = fs.readFileSync(absolutePath, 'utf-8');
-    const existing = await this.db.client.dmsDocument.findFirst({
-      where: { relativePath },
-      select: {
-        documentId: true,
-        lastSyncedAt: true,
-        metadataJson: true,
-      },
-    });
-    const metadataSource = this.ensureDocumentMetadataSeed(
-      mergeCanonicalMetadataSource(existing?.metadataJson),
-      absolutePath,
-      content,
-    );
-    const fallbackOwner = await this.resolveCanonicalOwnerIdentity(metadataSource, repairOwnerUserId);
-    const canonicalMetadata = normalizeCanonicalMetadata(metadataSource, {
-      ...fallbackOwner,
-      repaired: true,
-      repairReason: cause instanceof Error ? cause.message : String(cause),
-    });
-    const visibilityScope = extractVisibilityScope(canonicalMetadata);
-    const targetOrgId = extractTargetOrgId(canonicalMetadata);
-    const revisionSeq = extractRevisionSeq(canonicalMetadata) ?? 1;
-    const contentHash = extractContentHash(canonicalMetadata) ?? buildContentHash(content);
-    const metadataJson = JSON.parse(JSON.stringify(canonicalMetadata)) as Prisma.InputJsonValue;
-
-    if (existing) {
-      await this.db.client.dmsDocument.update({
-        where: { documentId: existing.documentId },
-        data: {
-          visibilityScope,
-          targetOrgId,
-          ownerUserId: fallbackOwner.userId,
-          documentStatusCode: 'active',
-          syncStatusCode: 'repair_needed',
-          revisionSeq,
-          contentHash,
-          metadataJson,
-          lastScannedAt: new Date(),
-          lastSyncedAt: existing.lastSyncedAt ?? new Date(),
-          lastReconciledAt: new Date(),
-          updatedBy: fallbackOwner.userId,
-          lastSource: ACTIVE_REQUEST_SOURCE,
-          lastActivity: 'dms.access.request.sync-document.repair-needed',
-          isActive: true,
-        },
-      });
-      await this.documentProjectionService.syncDocumentProjectionRelations(existing.documentId, relativePath, canonicalMetadata, fallbackOwner.userId);
-      return;
-    }
-
-    const created = await this.db.client.dmsDocument.create({
-      data: {
-        relativePath,
-        visibilityScope,
-        targetOrgId,
-        ownerUserId: fallbackOwner.userId,
-        documentStatusCode: 'active',
-        syncStatusCode: 'repair_needed',
-        revisionSeq,
-        contentHash,
-        metadataJson,
-        lastScannedAt: new Date(),
-        lastSyncedAt: new Date(),
-        lastReconciledAt: new Date(),
-        createdBy: fallbackOwner.userId,
-        updatedBy: fallbackOwner.userId,
-        lastSource: ACTIVE_REQUEST_SOURCE,
-        lastActivity: 'dms.access.request.sync-document.repair-needed',
-      },
-      select: {
-        documentId: true,
-      },
-    });
-    await this.documentProjectionService.syncDocumentProjectionRelations(created.documentId, relativePath, canonicalMetadata, fallbackOwner.userId);
-  }
-
-  private async resolveCanonicalOwnerIdentity(
-    metadata: Record<string, unknown> | null,
-    fallbackOwnerUserId: bigint | null,
-  ): Promise<{ userId: bigint; loginId: string; repaired: boolean; repairReason?: string }> {
-    const metadataOwnerId = typeof metadata?.['ownerId'] === 'string'
-      ? metadata['ownerId'].trim()
-      : '';
-    if (/^\d+$/.test(metadataOwnerId)) {
-      const byId = await this.db.client.userAuth.findFirst({
-        where: { userId: BigInt(metadataOwnerId) },
-        select: { userId: true, loginId: true },
-      });
-      if (byId) {
-        return { userId: byId.userId, loginId: byId.loginId, repaired: false };
-      }
-    }
-
-    const candidateLoginId = typeof metadata?.['ownerLoginId'] === 'string' && metadata['ownerLoginId'].trim()
-      ? metadata['ownerLoginId'].trim()
-      : typeof metadata?.['author'] === 'string' && metadata['author'].trim() && metadata['author'].trim() !== 'Unknown'
-        ? metadata['author'].trim()
-        : '';
-
-    if (candidateLoginId) {
-      const owner = await this.db.client.userAuth.findUnique({
-        where: { loginId: candidateLoginId },
-        select: { userId: true, loginId: true },
-      });
-
-      if (owner) {
-        const ownerLoginPresent = typeof metadata?.['ownerLoginId'] === 'string' && metadata['ownerLoginId'].trim().length > 0;
-        const authorPresent = typeof metadata?.['author'] === 'string' && metadata['author'].trim().length > 0 && metadata['author'].trim() !== 'Unknown';
-        return {
-          userId: owner.userId,
-          loginId: owner.loginId,
-          repaired: !ownerLoginPresent || !authorPresent,
-          repairReason: !ownerLoginPresent || !authorPresent
-            ? 'owner/author normalized from existing login metadata'
-            : undefined,
-        };
-      }
-    }
-
-    if (fallbackOwnerUserId) {
-      const fallback = await this.db.client.userAuth.findFirst({
-        where: { userId: fallbackOwnerUserId },
-        select: { userId: true, loginId: true },
-      });
-      if (fallback) {
-        return {
-          userId: fallback.userId,
-          loginId: fallback.loginId,
-          repaired: true,
-          repairReason: 'owner/author missing; normalized with fallback runtime owner',
-        };
-      }
-    }
-
-    throw new BadRequestException('문서 owner 정보를 찾을 수 없습니다.');
-  }
-
-  private ensureDocumentMetadataSeed(
-    metadataSource: Record<string, unknown> | null,
-    absolutePath: string,
-    content: string,
-  ): Record<string, unknown> {
-    if (metadataSource) {
-      return metadataSource;
-    }
-
-    return contentService.buildDefaultDocumentMetadata(
-      content,
-      absolutePath,
-      undefined,
-      { defaultRevisionSeq: 1 },
-    );
-  }
-
-  private async ensureDocumentRecord(
-    relativePath: string,
-    metadataOverride?: Record<string, unknown> | null,
-  ) {
-    const absolutePath = resolveAbsolutePath(relativePath, configService.getDocDir());
-    if (!fs.existsSync(absolutePath)) {
-      throw new NotFoundException('문서를 찾을 수 없습니다.');
-    }
-
-    const content = fs.readFileSync(absolutePath, 'utf-8');
-    const existing = await this.db.client.dmsDocument.findFirst({
-      where: { relativePath },
-      select: {
-        documentId: true,
-        ownerUserId: true,
-        latestGitCommitHash: true,
-        lastSyncedAt: true,
-        metadataJson: true,
-      },
-    });
-
-    const metadataSource = mergeCanonicalMetadataSource(
-      existing?.metadataJson,
-      metadataOverride,
-    );
-    const seededMetadataSource = this.ensureDocumentMetadataSeed(
-      metadataSource,
-      absolutePath,
-      content,
-    );
-    const owner = await this.resolveCanonicalOwnerIdentity(seededMetadataSource, existing?.ownerUserId ?? null);
-    const canonicalMetadata = normalizeCanonicalMetadata(seededMetadataSource, owner);
-    const visibilityScope = extractVisibilityScope(canonicalMetadata);
-    const targetOrgId = extractTargetOrgId(canonicalMetadata);
-    const revisionSeq = extractRevisionSeq(canonicalMetadata) ?? 1;
-    const contentHash = extractContentHash(canonicalMetadata) ?? buildContentHash(content);
-    const metadataJson = JSON.parse(JSON.stringify(canonicalMetadata)) as Prisma.InputJsonValue;
-
-    if (existing) {
-      const updated = await this.db.client.dmsDocument.update({
-        where: { documentId: existing.documentId },
-        data: {
-          visibilityScope,
-          targetOrgId,
-          ownerUserId: owner.userId,
-          documentStatusCode: 'active',
-          syncStatusCode: owner.repaired ? 'repair_needed' : 'synced',
-          revisionSeq,
-          contentHash,
-          metadataJson,
-          lastScannedAt: new Date(),
-          lastSyncedAt: existing.lastSyncedAt ?? new Date(),
-          lastReconciledAt: new Date(),
-          updatedBy: owner.userId,
-          lastSource: ACTIVE_REQUEST_SOURCE,
-          lastActivity: ACTIVE_REQUEST_ACTIVITY,
-          isActive: true,
-        },
-        select: {
-          documentId: true,
-          relativePath: true,
-          visibilityScope: true,
-          targetOrgId: true,
-          ownerUserId: true,
-          syncStatusCode: true,
-          metadataJson: true,
-        },
-      });
-      await this.documentProjectionService.syncDocumentProjectionRelations(updated.documentId, relativePath, canonicalMetadata, owner.userId);
-      return updated;
-    }
-
-    const created = await this.db.client.dmsDocument.create({
-      data: {
-        relativePath,
-        visibilityScope,
-        targetOrgId,
-        ownerUserId: owner.userId,
-        documentStatusCode: 'active',
-        syncStatusCode: owner.repaired ? 'repair_needed' : 'synced',
-        revisionSeq,
-        contentHash,
-        latestGitCommitHash: null,
-        metadataJson,
-        lastScannedAt: new Date(),
-        lastSyncedAt: new Date(),
-        lastReconciledAt: new Date(),
-        createdBy: owner.userId,
-        updatedBy: owner.userId,
-        lastSource: ACTIVE_REQUEST_SOURCE,
-        lastActivity: ACTIVE_REQUEST_ACTIVITY,
-      },
-      select: {
-        documentId: true,
-        relativePath: true,
-        visibilityScope: true,
-        targetOrgId: true,
-        ownerUserId: true,
-        syncStatusCode: true,
-        metadataJson: true,
-      },
-    });
-    await this.documentProjectionService.syncDocumentProjectionRelations(created.documentId, relativePath, canonicalMetadata, owner.userId);
-    return created;
-  }
 
   private async getRequestByIdOrThrow(
     accessRequestId: string,

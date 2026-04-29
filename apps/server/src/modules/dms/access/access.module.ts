@@ -9,6 +9,7 @@ import { DocumentControlPlaneService } from './document-control-plane.service.js
 import { DmsFeatureGuard } from './dms-feature.guard.js';
 import { DocumentAclService } from './document-acl.service.js';
 import { DocumentProjectionService } from './document-projection.service.js';
+import { DocumentRecordService } from './document-record.service.js';
 
 @Module({
   imports: [DatabaseModule, AccessFoundationModule],
@@ -20,6 +21,7 @@ import { DocumentProjectionService } from './document-projection.service.js';
     DmsFeatureGuard,
     DocumentAclService,
     DocumentProjectionService,
+    DocumentRecordService,
   ],
   exports: [
     AccessService,
@@ -28,6 +30,7 @@ import { DocumentProjectionService } from './document-projection.service.js';
     DmsFeatureGuard,
     DocumentAclService,
     DocumentProjectionService,
+    DocumentRecordService,
   ],
 })
 export class AccessModule {}
