@@ -5,6 +5,13 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TemplateItem, TemplateReferenceDoc } from '@/types/template';
 import type { ConfirmOptions } from '@/stores/confirm.store';
+import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
+
+interface FailedRestoreFile {
+  id: string;
+  name: string;
+  path: string;
+}
 
 interface UseDocumentReferenceLifecycleOptions {
   inlineSummaryFiles: InlineSummaryFileItem[];
@@ -25,6 +32,10 @@ interface UseDocumentReferenceLifecycleOptions {
 
   setInlineRelevanceWarnings: Dispatch<SetStateAction<string[]>>;
 
+  failedRestoreFiles: FailedRestoreFile[];
+  setFailedRestoreFiles: Dispatch<SetStateAction<FailedRestoreFile[]>>;
+  setIsRetryingRestore: Dispatch<SetStateAction<boolean>>;
+
   confirm: (options: ConfirmOptions) => Promise<boolean>;
 }
 
@@ -36,6 +47,7 @@ export interface UseDocumentReferenceLifecycleResult {
   handleRemoveTemplateReference: (path: string) => Promise<void>;
   handleRestoreTemplateReference: (path: string) => void;
   handleClearAll: () => Promise<void>;
+  handleRetryRestoreFiles: () => Promise<void>;
 }
 
 /**
@@ -60,6 +72,9 @@ export function useDocumentReferenceLifecycle(
     setPendingDeletedRefPaths,
     removeTemplateReference,
     setInlineRelevanceWarnings,
+    failedRestoreFiles,
+    setFailedRestoreFiles,
+    setIsRetryingRestore,
     confirm,
   } = opts;
 
@@ -215,6 +230,62 @@ export function useDocumentReferenceLifecycle(
     setInlineRelevanceWarnings,
   ]);
 
+  const handleRetryRestoreFiles = useCallback(async () => {
+    if (failedRestoreFiles.length === 0) return;
+    setIsRetryingRestore(true);
+    const stillFailed: FailedRestoreFile[] = [];
+    const fetched: Array<{ name: string; textContent: string }> = [];
+
+    await Promise.all(
+      failedRestoreFiles.map(async (f) => {
+        if (!f.path || f.path.startsWith('__pending__')) {
+          stillFailed.push(f);
+          return;
+        }
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          const res = await fetchWithSharedAuth(
+            `/api/file/serve-attachment?path=${encodeURIComponent(f.path)}`,
+            { signal: controller.signal },
+          );
+          clearTimeout(timeout);
+          if (res.ok) {
+            const text = await res.text();
+            if (text.trim().length > 0) {
+              fetched.push({ name: f.name, textContent: text.slice(0, 12000) });
+              return;
+            }
+          }
+          stillFailed.push(f);
+        } catch {
+          stillFailed.push(f);
+        }
+      }),
+    );
+
+    if (fetched.length > 0) {
+      setInlineSummaryFiles((prev) =>
+        prev.map((item) => {
+          const match = fetched.find((c) => c.name === item.name);
+          return match ? { ...item, textContent: match.textContent } : item;
+        }),
+      );
+    }
+
+    setFailedRestoreFiles(stillFailed);
+    setInlineRelevanceWarnings((prev) => {
+      const filtered = prev.filter((w) => !w.startsWith('참조 파일 복원 실패:'));
+      if (stillFailed.length > 0) {
+        filtered.push(
+          `참조 파일 복원 실패: ${stillFailed.map((f) => f.name).join(', ')}. AI 작성 시 해당 파일 내용이 반영되지 않을 수 있습니다.`,
+        );
+      }
+      return filtered;
+    });
+    setIsRetryingRestore(false);
+  }, [failedRestoreFiles, setIsRetryingRestore, setInlineSummaryFiles, setFailedRestoreFiles, setInlineRelevanceWarnings]);
+
   return {
     handleRemoveSummaryFile,
     handleRestoreSummaryFile,
@@ -223,5 +294,6 @@ export function useDocumentReferenceLifecycle(
     handleRemoveTemplateReference,
     handleRestoreTemplateReference,
     handleClearAll,
+    handleRetryRestoreFiles,
   };
 }

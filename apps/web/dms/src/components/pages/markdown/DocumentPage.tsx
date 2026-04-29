@@ -1514,6 +1514,7 @@ export function DocumentPage() {
     handleRemoveTemplateReference,
     handleRestoreTemplateReference,
     handleClearAll,
+    handleRetryRestoreFiles,
   } = useDocumentReferenceLifecycle({
     inlineSummaryFiles,
     setInlineSummaryFiles,
@@ -1529,66 +1530,11 @@ export function DocumentPage() {
     setPendingDeletedRefPaths,
     removeTemplateReference,
     setInlineRelevanceWarnings,
+    failedRestoreFiles,
+    setFailedRestoreFiles,
+    setIsRetryingRestore,
     confirm,
   });
-
-  // 참조 파일 복원 재시도
-  const handleRetryRestoreFiles = useCallback(async () => {
-    if (failedRestoreFiles.length === 0) return;
-    setIsRetryingRestore(true);
-    const stillFailed: Array<{ id: string; name: string; path: string }> = [];
-    const fetched: Array<{ name: string; textContent: string }> = [];
-
-    await Promise.all(
-      failedRestoreFiles.map(async (f) => {
-        if (!f.path || f.path.startsWith('__pending__')) {
-          stillFailed.push(f);
-          return;
-        }
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 8000);
-          const res = await fetchWithSharedAuth(
-            `/api/file/serve-attachment?path=${encodeURIComponent(f.path)}`,
-            { signal: controller.signal },
-          );
-          clearTimeout(timeout);
-          if (res.ok) {
-            const text = await res.text();
-            if (text.trim().length > 0) {
-              fetched.push({ name: f.name, textContent: text.slice(0, 12000) });
-              return;
-            }
-          }
-          stillFailed.push(f);
-        } catch {
-          stillFailed.push(f);
-        }
-      }),
-    );
-
-    if (fetched.length > 0) {
-      setInlineSummaryFiles((prev) =>
-        prev.map((item) => {
-          const match = fetched.find((c) => c.name === item.name);
-          return match ? { ...item, textContent: match.textContent } : item;
-        }),
-      );
-    }
-
-    setFailedRestoreFiles(stillFailed);
-    // 경고 메시지 갱신
-    setInlineRelevanceWarnings((prev) => {
-      const filtered = prev.filter((w) => !w.startsWith('참조 파일 복원 실패:'));
-      if (stillFailed.length > 0) {
-        filtered.push(
-          `참조 파일 복원 실패: ${stillFailed.map((f) => f.name).join(', ')}. AI 작성 시 해당 파일 내용이 반영되지 않을 수 있습니다.`,
-        );
-      }
-      return filtered;
-    });
-    setIsRetryingRestore(false);
-  }, [failedRestoreFiles]);
 
   // 소프트 삭제된 참조 파일/템플릿 키 (패널 첨부 섹션 삭제 표시 연동)
   const deletedReferenceKeys = useMemo(() => {
