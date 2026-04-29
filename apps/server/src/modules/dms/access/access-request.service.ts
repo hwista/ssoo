@@ -11,11 +11,9 @@ import type {
   DmsDocumentAccessRequestStatus,
   DmsDocumentAccessRequestSummary,
   DmsManagedDocumentSummary,
-  DocumentComment,
   DocumentPermissionGrant,
   RejectDmsDocumentAccessRequestPayload,
   SearchResultItem,
-  SourceFileMeta,
   TransferDocumentOwnershipResult,
 } from '@ssoo/types/dms';
 import { DatabaseService } from '../../../database/database.service.js';
@@ -34,17 +32,21 @@ import { DocumentAclService } from './document-acl.service.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
 import {
   buildContentHash,
+  buildFallbackManagedDocumentSummary,
+  buildGrantSummary,
+  buildRequestSummary,
   extractContentHash,
+  extractGrants,
   extractRevisionSeq,
   extractTargetOrgId,
   extractVisibilityScope,
   isRecord,
   mergeCanonicalMetadataSource,
+  normalizeCanonicalMetadata,
+  normalizeComments,
   normalizeOptionalText,
-  normalizeSourceFileKind,
-  normalizeSourceFileOrigin,
-  normalizeSourceFileStatus,
-  normalizeSourceFileStorage,
+  normalizePathHistory,
+  normalizeSourceFiles,
   toDocumentPermissionGrant,
   toIsoString,
   toRequestState,
@@ -297,7 +299,7 @@ export class AccessRequestService {
         const document = await this.ensureDocumentRecord(relativePath);
         syncedDocuments.push({ document, absolutePath, relativePath });
       } catch {
-        fallbackDocuments.push(this.buildFallbackManagedDocumentSummary(absolutePath, relativePath, rootDir));
+        fallbackDocuments.push(buildFallbackManagedDocumentSummary(absolutePath, relativePath, rootDir));
       }
     }
 
@@ -371,9 +373,9 @@ export class AccessRequestService {
       const documentTitle = typeof metadata?.['title'] === 'string' && metadata['title'].trim().length > 0
         ? metadata['title'].trim()
         : presentation.title;
-      const grants = grantsByDocumentId.get(document.documentId.toString()) ?? this.extractGrants(metadata);
-      const grantSummary = this.buildGrantSummary(grants);
-      const requestSummary = this.buildRequestSummary(
+      const grants = grantsByDocumentId.get(document.documentId.toString()) ?? extractGrants(metadata);
+      const grantSummary = buildGrantSummary(grants);
+      const requestSummary = buildRequestSummary(
         requestsByDocumentId.get(document.documentId.toString()) ?? [],
       );
       const owner = ownerActors.get(document.ownerUserId.toString()) ?? {
@@ -1027,7 +1029,7 @@ export class AccessRequestService {
       content,
     );
     const owner = await this.resolveCanonicalOwnerIdentity(metadataSource, existing.ownerUserId);
-    const canonicalMetadata = this.normalizeCanonicalMetadata(metadataSource, owner);
+    const canonicalMetadata = normalizeCanonicalMetadata(metadataSource, owner);
     const visibilityScope = extractVisibilityScope(canonicalMetadata);
     const targetOrgId = extractTargetOrgId(canonicalMetadata);
     const revisionSeq = extractRevisionSeq(canonicalMetadata) ?? 1;
@@ -1238,7 +1240,7 @@ export class AccessRequestService {
       content,
     );
     const fallbackOwner = await this.resolveCanonicalOwnerIdentity(metadataSource, repairOwnerUserId);
-    const canonicalMetadata = this.normalizeCanonicalMetadata(metadataSource, {
+    const canonicalMetadata = normalizeCanonicalMetadata(metadataSource, {
       ...fallbackOwner,
       repaired: true,
       repairReason: cause instanceof Error ? cause.message : String(cause),
@@ -1378,38 +1380,6 @@ export class AccessRequestService {
     );
   }
 
-  private normalizeCanonicalMetadata(
-    metadata: Record<string, unknown> | null,
-    owner: { userId: bigint; loginId: string; repaired: boolean; repairReason?: string },
-  ): Record<string, unknown> {
-    const next = {
-      ...(metadata ?? {}),
-      ownerId: owner.userId.toString(),
-      ownerLoginId: owner.loginId,
-      author: owner.loginId,
-      lastModifiedBy: typeof metadata?.['lastModifiedBy'] === 'string' && metadata['lastModifiedBy'].trim()
-        ? metadata['lastModifiedBy'].trim()
-        : owner.loginId,
-      visibility: isRecord(metadata?.['visibility'])
-        ? metadata?.['visibility']
-        : { scope: 'self' },
-      grants: Array.isArray(metadata?.['grants']) ? metadata['grants'] : [],
-      controlPlaneRepair: owner.repaired
-        ? {
-            needed: true,
-            reason: owner.repairReason ?? 'owner/author normalized during control-plane sync',
-            repairedAt: new Date().toISOString(),
-          }
-        : undefined,
-    } as Record<string, unknown>;
-
-    if (!owner.repaired) {
-      delete next.controlPlaneRepair;
-    }
-
-    return next;
-  }
-
   private async ensureDocumentRecord(
     relativePath: string,
     metadataOverride?: Record<string, unknown> | null,
@@ -1441,7 +1411,7 @@ export class AccessRequestService {
       content,
     );
     const owner = await this.resolveCanonicalOwnerIdentity(seededMetadataSource, existing?.ownerUserId ?? null);
-    const canonicalMetadata = this.normalizeCanonicalMetadata(seededMetadataSource, owner);
+    const canonicalMetadata = normalizeCanonicalMetadata(seededMetadataSource, owner);
     const visibilityScope = extractVisibilityScope(canonicalMetadata);
     const targetOrgId = extractTargetOrgId(canonicalMetadata);
     const revisionSeq = extractRevisionSeq(canonicalMetadata) ?? 1;
@@ -1640,105 +1610,6 @@ export class AccessRequestService {
     };
   }
 
-  private extractGrants(metadata: Record<string, unknown> | null): DocumentPermissionGrant[] {
-    if (!Array.isArray(metadata?.['grants'])) {
-      return [];
-    }
-
-    return metadata['grants'].flatMap((grant) => {
-      if (!isRecord(grant)) {
-        return [];
-      }
-
-      const principalId = typeof grant['principalId'] === 'string' ? grant['principalId'].trim() : '';
-      const principalType = grant['principalType'];
-      const role = grant['role'];
-      if (!principalId || (principalType !== 'user' && principalType !== 'organization' && principalType !== 'team' && principalType !== 'group')) {
-        return [];
-      }
-      if (role !== 'read' && role !== 'write' && role !== 'manage') {
-        return [];
-      }
-
-      return [{
-        principalId,
-        principalType,
-        role,
-        expiresAt: typeof grant['expiresAt'] === 'string' ? grant['expiresAt'] : undefined,
-        grantedAt: typeof grant['grantedAt'] === 'string' ? grant['grantedAt'] : undefined,
-        grantedBy: typeof grant['grantedBy'] === 'string' ? grant['grantedBy'] : undefined,
-        source: grant['source'] === 'request'
-          || grant['source'] === 'share'
-          || grant['source'] === 'migration'
-          || grant['source'] === 'owner-default'
-          ? grant['source']
-          : undefined,
-      } satisfies DocumentPermissionGrant];
-    });
-  }
-
-  private buildGrantSummary(grants: DocumentPermissionGrant[]) {
-    const summary = {
-      total: grants.length,
-      read: 0,
-      write: 0,
-      manage: 0,
-      expired: 0,
-    };
-
-    for (const grant of grants) {
-      if (grant.role === 'read') summary.read += 1;
-      if (grant.role === 'write') summary.write += 1;
-      if (grant.role === 'manage') summary.manage += 1;
-      if (grant.expiresAt && Date.parse(grant.expiresAt) < Date.now()) summary.expired += 1;
-    }
-
-    return summary;
-  }
-
-  private buildRequestSummary(requests: Array<{ statusCode: string }>) {
-    const summary = {
-      total: requests.length,
-      pending: 0,
-      approved: 0,
-      rejected: 0,
-    };
-
-    for (const request of requests) {
-      if (request.statusCode === 'pending') summary.pending += 1;
-      if (request.statusCode === 'approved') summary.approved += 1;
-      if (request.statusCode === 'rejected') summary.rejected += 1;
-    }
-
-    return summary;
-  }
-
-  private buildFallbackManagedDocumentSummary(
-    absolutePath: string,
-    relativePath: string,
-    rootDir: string,
-  ): DmsManagedDocumentSummary {
-    const presentation = resolveDocumentPresentation(
-      absolutePath,
-      rootDir,
-      path.basename(relativePath, '.md'),
-    );
-    return {
-      documentId: `fallback:${relativePath}`,
-      path: relativePath,
-      documentTitle: presentation.title,
-      owner: {
-        userId: `unknown:${relativePath}`,
-        loginId: 'unknown',
-      },
-      visibilityScope: 'legacy',
-      syncStatusCode: 'repair_needed',
-      repairReason: 'control-plane metadata sync failed',
-      grants: [],
-      grantSummary: this.buildGrantSummary([]),
-      requestSummary: this.buildRequestSummary([]),
-    };
-  }
 
   private resolveDocumentPath(inputPath: string) {
     const { targetPath, valid, safeRelPath } = contentService.resolveContentPath(inputPath);
@@ -1776,7 +1647,7 @@ export class AccessRequestService {
     metadata: Record<string, unknown> | null,
     actorUserId: bigint,
   ): Promise<void> {
-    const sourceFiles = this.normalizeSourceFiles(metadata);
+    const sourceFiles = normalizeSourceFiles(metadata);
     await this.db.client.dmsDocumentSourceFile.deleteMany({ where: { documentId } });
     if (sourceFiles.length === 0) {
       return;
@@ -1815,7 +1686,7 @@ export class AccessRequestService {
     metadata: Record<string, unknown> | null,
     actorUserId: bigint,
   ): Promise<void> {
-    const pathHistory = this.normalizePathHistory(relativePath, metadata);
+    const pathHistory = normalizePathHistory(relativePath, metadata);
     await this.db.client.dmsDocumentPathHistory.deleteMany({ where: { documentId } });
     if (pathHistory.length === 0) {
       return;
@@ -1842,7 +1713,7 @@ export class AccessRequestService {
     metadata: Record<string, unknown> | null,
     actorUserId: bigint,
   ): Promise<void> {
-    const comments = this.normalizeComments(metadata);
+    const comments = normalizeComments(metadata);
     await this.db.client.dmsDocumentComment.deleteMany({ where: { documentId } });
     if (comments.length === 0) {
       return;
@@ -1869,155 +1740,5 @@ export class AccessRequestService {
     });
   }
 
-  private normalizeSourceFiles(metadata: Record<string, unknown> | null): SourceFileMeta[] {
-    const value = metadata?.['sourceFiles'] ?? metadata?.['referenceFiles'];
-    if (!Array.isArray(value)) {
-      return [];
-    }
-
-    return value.flatMap((entry) => {
-      if (!isRecord(entry)) {
-        return [];
-      }
-
-      const name = typeof entry['name'] === 'string' ? entry['name'].trim() : '';
-      const sourcePath = typeof entry['path'] === 'string' ? entry['path'].trim() : '';
-      if (!name || !sourcePath) {
-        return [];
-      }
-
-      const normalizedImages = Array.isArray(entry['images'])
-        ? entry['images'].flatMap((image) => {
-            if (
-              !isRecord(image)
-              || typeof image['base64'] !== 'string'
-              || typeof image['mimeType'] !== 'string'
-              || typeof image['name'] !== 'string'
-              || typeof image['size'] !== 'number'
-            ) {
-              return [];
-            }
-
-            return [{
-              base64: image['base64'],
-              mimeType: image['mimeType'],
-              name: image['name'],
-              size: image['size'],
-            }];
-          })
-        : undefined;
-
-      return [{
-        name,
-        path: sourcePath,
-        type: typeof entry['type'] === 'string' ? entry['type'] : undefined,
-        size: typeof entry['size'] === 'number' && Number.isFinite(entry['size']) ? entry['size'] : undefined,
-        url: typeof entry['url'] === 'string' ? entry['url'] : undefined,
-        storageUri: typeof entry['storageUri'] === 'string' ? entry['storageUri'] : undefined,
-        provider: typeof entry['provider'] === 'string' ? entry['provider'] : undefined,
-        versionId: typeof entry['versionId'] === 'string' ? entry['versionId'] : undefined,
-        etag: typeof entry['etag'] === 'string' ? entry['etag'] : undefined,
-        checksum: typeof entry['checksum'] === 'string' ? entry['checksum'] : undefined,
-        origin: normalizeSourceFileOrigin(entry['origin']),
-        status: normalizeSourceFileStatus(entry['status']),
-        textContent: typeof entry['textContent'] === 'string' ? entry['textContent'] : undefined,
-        storage: normalizeSourceFileStorage(entry['storage']),
-        kind: normalizeSourceFileKind(entry['kind']),
-        tempId: typeof entry['tempId'] === 'string' ? entry['tempId'] : undefined,
-        images: normalizedImages,
-      }];
-    });
-  }
-
-  private normalizePathHistory(
-    relativePath: string,
-    metadata: Record<string, unknown> | null,
-  ): Array<{
-    path: string;
-    previousRelativePath?: string;
-    changedAt: Date;
-    reasonCode: 'create' | 'rename' | 'move' | 'reconcile';
-  }> {
-    const rawEntries = Array.isArray(metadata?.['pathHistory']) ? metadata['pathHistory'] : [];
-    const normalized = rawEntries.flatMap((entry) => {
-      if (
-        !isRecord(entry)
-        || typeof entry['path'] !== 'string'
-        || typeof entry['changedAt'] !== 'string'
-      ) {
-        return [];
-      }
-
-      const pathValue = entry['path'].trim();
-      const changedAt = new Date(entry['changedAt']);
-      if (!pathValue || Number.isNaN(changedAt.getTime())) {
-        return [];
-      }
-
-      const reason = entry['reason'];
-      const reasonCode: 'create' | 'rename' | 'move' | 'reconcile' = (
-        reason === 'rename' || reason === 'move' || reason === 'reconcile'
-          ? reason
-          : 'create'
-      );
-      return [{
-        path: pathValue,
-        previousRelativePath: typeof entry['previousRelativePath'] === 'string'
-          ? entry['previousRelativePath'].trim()
-          : undefined,
-        changedAt,
-        reasonCode,
-      }];
-    });
-
-    if (normalized.length > 0) {
-      return normalized;
-    }
-
-    return [{
-      path: relativePath,
-      changedAt: new Date(),
-      reasonCode: 'create',
-    }];
-  }
-
-  private normalizeComments(metadata: Record<string, unknown> | null): DocumentComment[] {
-    const rawEntries = Array.isArray(metadata?.['comments']) ? metadata['comments'] : [];
-    const seen = new Set<string>();
-
-    return rawEntries.flatMap((entry) => {
-      if (!isRecord(entry)) {
-        return [];
-      }
-
-      const id = typeof entry['id'] === 'string' ? entry['id'].trim() : '';
-      const author = typeof entry['author'] === 'string' ? entry['author'].trim() : '';
-      const content = typeof entry['content'] === 'string' ? entry['content'].trim() : '';
-      const createdAtValue = typeof entry['createdAt'] === 'string' ? entry['createdAt'].trim() : '';
-      const createdAt = new Date(createdAtValue);
-      if (!id || seen.has(id) || !author || !content || Number.isNaN(createdAt.getTime())) {
-        return [];
-      }
-
-      seen.add(id);
-
-      const parentId = typeof entry['parentId'] === 'string' && entry['parentId'].trim().length > 0
-        ? entry['parentId'].trim()
-        : undefined;
-      const deletedAtValue = typeof entry['deletedAt'] === 'string' ? entry['deletedAt'].trim() : '';
-      const deletedAt = deletedAtValue ? new Date(deletedAtValue) : null;
-
-      return [{
-        id,
-        author,
-        content,
-        createdAt: createdAt.toISOString(),
-        email: typeof entry['email'] === 'string' ? entry['email'].trim() || undefined : undefined,
-        avatarUrl: typeof entry['avatarUrl'] === 'string' ? entry['avatarUrl'].trim() || undefined : undefined,
-        parentId,
-        deletedAt: deletedAt && !Number.isNaN(deletedAt.getTime()) ? deletedAt.toISOString() : undefined,
-      }];
-    });
-  }
 
 }
