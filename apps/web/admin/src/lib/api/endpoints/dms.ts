@@ -72,3 +72,51 @@ export async function fetchDmsAdminDocuments(
   );
   return data;
 }
+
+export interface DmsAdminTemplate {
+  templateId: string;
+  templateKey: string;
+  relativePath: string;
+  templateScopeCode: string;
+  templateKindCode: string;
+  visibilityCode: string;
+  templateStatusCode: string;
+  ownerRef: string;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface DmsAdminTemplateListResult {
+  items: DmsAdminTemplate[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+export interface DmsAdminTemplateListParams {
+  q?: string;
+  scope?: string;
+  kindCode?: string;
+  statusCode?: string;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export async function fetchDmsAdminTemplates(
+  params: DmsAdminTemplateListParams = {},
+): Promise<ApiResponse<DmsAdminTemplateListResult>> {
+  const search: Record<string, string> = {};
+  if (params.q) search.q = params.q;
+  if (params.scope) search.scope = params.scope;
+  if (params.kindCode) search.kindCode = params.kindCode;
+  if (params.statusCode) search.statusCode = params.statusCode;
+  if (typeof params.isActive === 'boolean') search.isActive = String(params.isActive);
+  if (params.page) search.page = String(params.page);
+  if (params.limit) search.limit = String(params.limit);
+  const { data } = await apiClient.get<ApiResponse<DmsAdminTemplateListResult>>(
+    '/dms/admin/templates',
+    { params: search },
+  );
+  return data;
+}

@@ -221,4 +221,97 @@ export class DmsAdminService {
 
     return { items, page, limit, total };
   }
+
+  async listTemplates(params: {
+    q?: string;
+    scope?: string;
+    kindCode?: string;
+    statusCode?: string;
+    isActive?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    items: Array<{
+      templateId: string;
+      templateKey: string;
+      relativePath: string;
+      templateScopeCode: string;
+      templateKindCode: string;
+      visibilityCode: string;
+      templateStatusCode: string;
+      ownerRef: string;
+      isActive: boolean;
+      updatedAt: string;
+    }>;
+    page: number;
+    limit: number;
+    total: number;
+  }> {
+    const prisma = this.db.client;
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 20));
+
+    const where: Record<string, unknown> = {};
+    if (typeof params.isActive === 'boolean') where.isActive = params.isActive;
+    if (params.scope) where.templateScopeCode = params.scope;
+    if (params.kindCode) where.templateKindCode = params.kindCode;
+    if (params.statusCode) where.templateStatusCode = params.statusCode;
+    if (params.q && params.q.trim()) {
+      const term = params.q.trim();
+      where.OR = [
+        { relativePath: { contains: term, mode: 'insensitive' } },
+        { templateKey: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, rows] = await Promise.all([
+      prisma.dmsTemplate.count({ where }),
+      prisma.dmsTemplate.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          templateId: true,
+          templateKey: true,
+          relativePath: true,
+          templateScopeCode: true,
+          templateKindCode: true,
+          visibilityCode: true,
+          templateStatusCode: true,
+          ownerRef: true,
+          isActive: true,
+          updatedAt: true,
+        },
+      }),
+    ]);
+
+    const items = rows.map(
+      (r: {
+        templateId: bigint;
+        templateKey: string;
+        relativePath: string;
+        templateScopeCode: string;
+        templateKindCode: string;
+        visibilityCode: string;
+        templateStatusCode: string;
+        ownerRef: string;
+        isActive: boolean;
+        updatedAt: Date;
+      }) => ({
+        templateId: r.templateId.toString(),
+        templateKey: r.templateKey,
+        relativePath: r.relativePath,
+        templateScopeCode: r.templateScopeCode,
+        templateKindCode: r.templateKindCode,
+        visibilityCode: r.visibilityCode,
+        templateStatusCode: r.templateStatusCode,
+        ownerRef: r.ownerRef,
+        isActive: r.isActive,
+        updatedAt: r.updatedAt.toISOString(),
+      }),
+    );
+
+    return { items, page, limit, total };
+  }
 }

@@ -66,4 +66,40 @@ export class DmsAdminController {
     });
     return success(result, 'DMS 문서 목록 조회 성공');
   }
+
+  @Get('templates')
+  @ApiOperation({
+    summary: 'DMS 템플릿 목록 (관리자)',
+    description: '관리자용 템플릿 목록. 경로/키 검색, 스코프/종류/상태 필터, 페이징을 지원합니다.',
+  })
+  @ApiQuery({ name: 'q', required: false, description: 'relativePath 또는 templateKey 부분 일치' })
+  @ApiQuery({ name: 'scope', required: false })
+  @ApiQuery({ name: 'kindCode', required: false })
+  @ApiQuery({ name: 'statusCode', required: false })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiOkResponse({ description: 'DMS 템플릿 목록 조회 성공' })
+  @ApiUnauthorizedResponse({ description: '인증되지 않은 요청' })
+  @ApiForbiddenResponse({ description: '관리자만 접근 가능' })
+  async listTemplates(
+    @Query('q') q?: string,
+    @Query('scope') scope?: string,
+    @Query('kindCode') kindCode?: string,
+    @Query('statusCode') statusCode?: string,
+    @Query('isActive') isActive?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const result = await this.dmsAdminService.listTemplates({
+      q,
+      scope,
+      kindCode,
+      statusCode,
+      isActive: typeof isActive === 'string' ? isActive === 'true' : undefined,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+    return success(result, 'DMS 템플릿 목록 조회 성공');
+  }
 }

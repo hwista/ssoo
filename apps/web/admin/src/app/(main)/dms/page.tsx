@@ -26,6 +26,12 @@ export default function DmsAdminPage() {
           >
             문서 관리 →
           </Link>
+          <Link
+            href="/dms/templates"
+            className="rounded-md border bg-card px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            템플릿 관리 →
+          </Link>
         </div>
       </div>
 
