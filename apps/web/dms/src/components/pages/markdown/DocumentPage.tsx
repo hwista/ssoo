@@ -63,6 +63,7 @@ import { useViewerTemplatePicker } from './useViewerTemplatePicker';
 import { useDocumentCollaboration } from './useDocumentCollaboration';
 import { useDocumentInfoRecommendation } from './useDocumentInfoRecommendation';
 import { useDocumentLauncherActions } from './useDocumentLauncherActions';
+import { useDocumentReferenceLifecycle } from './useDocumentReferenceLifecycle';
 import { toast } from '@/lib/toast';
 import { downloadMarkdown, printHtmlContent } from '@/lib/utils/downloadUtils';
 import { resolveTitlePathRecommendation } from '@/lib/utils/titlePathRecommendation';
@@ -1505,89 +1506,29 @@ export function DocumentPage() {
   }, []);
 
   // 참조 파일 해제: 사용된 파일→confirm→소프트삭제, 미사용→즉시삭제
-  const handleRemoveSummaryFile = useCallback(async (id: string) => {
-    const file = inlineSummaryFiles.find((f) => f.id === id);
-    if (!file) return;
-
-    const isUsed = usedSummaryFileIds.has(id);
-    if (isUsed) {
-      const confirmed = await confirm({
-        title: '참조 파일 해제',
-        description: `'${file.name}' 파일은 문서 작성에 사용되었습니다. 해제하면 참조 이력이 남지 않습니다. 계속하시겠습니까?`,
-        confirmText: '해제',
-        cancelText: '취소',
-      });
-      if (!confirmed) return;
-      // 소프트 삭제 (되돌리기 가능)
-      setPendingDeletedFileIds((prev) => new Set(prev).add(id));
-    } else {
-      // 미사용 항목 즉시 삭제
-      setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== id));
-    }
-  }, [inlineSummaryFiles, usedSummaryFileIds, confirm]);
-
-  // 참조 파일 복원 (소프트 삭제 취소)
-  const handleRestoreSummaryFile = useCallback((id: string) => {
-    setPendingDeletedFileIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  }, []);
-
-  // 템플릿 해제: 사용된→confirm→소프트삭제, 미사용→즉시삭제
-  const handleRemoveTemplate = useCallback(async () => {
-    if (isTemplateUsed && inlineTemplate) {
-      const confirmed = await confirm({
-        title: '템플릿 해제',
-        description: `'${inlineTemplate.name}' 템플릿은 문서 작성에 사용되었습니다. 해제하면 참조 이력이 남지 않습니다. 계속하시겠습니까?`,
-        confirmText: '해제',
-        cancelText: '취소',
-      });
-      if (!confirmed) return;
-      // 소프트 삭제 (되돌리기 가능)
-      setIsTemplatePendingDelete(true);
-    } else {
-      // 미사용 항목 즉시 삭제
-      setInlineTemplate(null);
-    }
-  }, [isTemplateUsed, inlineTemplate, confirm]);
-
-  // 템플릿 복원 (소프트 삭제 취소)
-  const handleRestoreTemplate = useCallback(() => {
-    setIsTemplatePendingDelete(false);
-  }, []);
-
-  const handleRemoveTemplateReference = useCallback(async (path: string) => {
-    const ref = templateReferenceDocuments.find((item) => item.path === path);
-    if (!ref) return;
-
-    if (usedTemplateRefPaths.has(path)) {
-      const refName = ref.title || ref.path.split('/').pop() || ref.path;
-      const confirmed = await confirm({
-        title: '참조 문서 해제',
-        description: `'${refName}' 문서는 AI 작성에 사용되었습니다. 해제하면 참조 이력이 남지 않습니다. 계속하시겠습니까?`,
-        confirmText: '해제',
-        cancelText: '취소',
-      });
-      if (!confirmed) return;
-      setPendingDeletedRefPaths((prev) => new Set(prev).add(path));
-      return;
-    }
-
-    removeTemplateReference(path);
-    if (ref.storage === 'inline' && ref.tempId) {
-      setInlineSummaryFiles((prev) => prev.filter((item) => item.id !== ref.tempId));
-    }
-  }, [confirm, removeTemplateReference, templateReferenceDocuments, usedTemplateRefPaths]);
-
-  const handleRestoreTemplateReference = useCallback((path: string) => {
-    setPendingDeletedRefPaths((prev) => {
-      const next = new Set(prev);
-      next.delete(path);
-      return next;
-    });
-  }, []);
+  const {
+    handleRemoveSummaryFile,
+    handleRestoreSummaryFile,
+    handleRemoveTemplate,
+    handleRestoreTemplate,
+    handleRemoveTemplateReference,
+    handleRestoreTemplateReference,
+  } = useDocumentReferenceLifecycle({
+    inlineSummaryFiles,
+    setInlineSummaryFiles,
+    usedSummaryFileIds,
+    setPendingDeletedFileIds,
+    inlineTemplate,
+    setInlineTemplate,
+    isTemplateUsed,
+    isTemplatePendingDelete,
+    setIsTemplatePendingDelete,
+    templateReferenceDocuments,
+    usedTemplateRefPaths,
+    setPendingDeletedRefPaths,
+    removeTemplateReference,
+    confirm,
+  });
 
   // 참조 파일 복원 재시도
   const handleRetryRestoreFiles = useCallback(async () => {
