@@ -20,6 +20,13 @@ import {
   pathsOverlap,
   resolveGitManagedPrimaryPath,
 } from './collaboration-paths.util.js';
+import {
+  type PathReleaseOverride,
+  sanitizeIsolationState,
+  sanitizePathOverride,
+  sanitizePublishState,
+  sanitizeSoftLock,
+} from './collaboration-sanitizers.util.js';
 
 const logger = createDmsLogger('DmsCollaborationService');
 const STATE_FILE = '.dms-collaboration-state.json';
@@ -101,16 +108,6 @@ interface PersistedState {
   softLocks: Record<string, DocumentSoftLock>;
   pathIsolations?: Record<string, DocumentIsolationState>;
   pathOverrides?: Record<string, PathReleaseOverride>;
-}
-
-interface PathReleaseOverride {
-  path: string;
-  mode: 'force-lock' | 'force-unlock';
-  reason?: string;
-  appliedAt: string;
-  actorUserId: string;
-  actorLoginId: string;
-  actorDisplayName: string;
 }
 
 @Injectable()
@@ -689,7 +686,7 @@ export class CollaborationService implements OnModuleDestroy {
       const parsed = JSON.parse(raw) as PersistedState;
       let shouldPersistNormalizedState = false;
       for (const [pathValue, state] of Object.entries(parsed.publishStates ?? {})) {
-        const sanitized = this.sanitizePublishState(state);
+        const sanitized = sanitizePublishState(state);
         if (!sanitized) {
           shouldPersistNormalizedState = true;
           continue;
@@ -700,7 +697,7 @@ export class CollaborationService implements OnModuleDestroy {
         this.publishStateByPath.set(sanitized.path, sanitized);
       }
       for (const [pathValue, lock] of Object.entries(parsed.softLocks ?? {})) {
-        const sanitized = this.sanitizeSoftLock(lock);
+        const sanitized = sanitizeSoftLock(lock);
         if (!sanitized || isExpired(sanitized.lastSeenAt)) {
           shouldPersistNormalizedState = true;
           continue;
@@ -711,7 +708,7 @@ export class CollaborationService implements OnModuleDestroy {
         this.softLockByPath.set(sanitized.path, sanitized);
       }
       for (const [pathValue, isolation] of Object.entries(parsed.pathIsolations ?? {})) {
-        const sanitized = this.sanitizeIsolationState(isolation);
+        const sanitized = sanitizeIsolationState(isolation);
         if (!sanitized) {
           shouldPersistNormalizedState = true;
           continue;
@@ -722,7 +719,7 @@ export class CollaborationService implements OnModuleDestroy {
         this.pathIsolationByPath.set(sanitized.path, sanitized);
       }
       for (const [pathValue, override] of Object.entries(parsed.pathOverrides ?? {})) {
-        const sanitized = this.sanitizePathOverride(override);
+        const sanitized = sanitizePathOverride(override);
         if (!sanitized) {
           shouldPersistNormalizedState = true;
           continue;
@@ -766,68 +763,6 @@ export class CollaborationService implements OnModuleDestroy {
         ...(isolation?.affectedPaths ?? []),
       ]),
     );
-  }
-
-  private sanitizePublishState(state: DocumentPublishState): DocumentPublishState | null {
-    const affectedPaths = filterGitManagedDocumentPaths([
-      state.path,
-      ...(state.affectedPaths ?? []),
-    ]);
-    const primaryPath = resolveGitManagedPrimaryPath(state.path, affectedPaths);
-    if (!primaryPath) {
-      return null;
-    }
-
-    return {
-      ...state,
-      path: primaryPath,
-      affectedPaths,
-    };
-  }
-
-  private sanitizeSoftLock(lock: DocumentSoftLock): DocumentSoftLock | null {
-    const normalizedPath = normalizePath(lock.path);
-    if (!isGitManagedDocumentPath(normalizedPath)) {
-      return null;
-    }
-
-    return {
-      ...lock,
-      path: normalizedPath,
-    };
-  }
-
-  private sanitizeIsolationState(isolation: DocumentIsolationState): DocumentIsolationState | null {
-    const affectedPaths = filterGitManagedDocumentPaths([
-      isolation.primaryPath,
-      isolation.path,
-      ...(isolation.affectedPaths ?? []),
-    ]);
-    const primaryPath = resolveGitManagedPrimaryPath(isolation.primaryPath, affectedPaths);
-    if (!primaryPath) {
-      return null;
-    }
-
-    return {
-      ...isolation,
-      path: isGitManagedDocumentPath(isolation.path)
-        ? normalizePath(isolation.path)
-        : primaryPath,
-      primaryPath,
-      affectedPaths,
-    };
-  }
-
-  private sanitizePathOverride(override: PathReleaseOverride): PathReleaseOverride | null {
-    const normalizedPath = normalizePath(override.path);
-    if (!isGitManagedDocumentPath(normalizedPath)) {
-      return null;
-    }
-
-    return {
-      ...override,
-      path: normalizedPath,
-    };
   }
 
   private hasSameSerializedValue(left: unknown, right: unknown): boolean {
