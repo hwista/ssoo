@@ -118,4 +118,107 @@ export class DmsAdminService {
       generatedAt: new Date().toISOString(),
     };
   }
+
+  async listDocuments(params: {
+    q?: string;
+    visibilityScope?: string;
+    syncStatusCode?: string;
+    isActive?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    items: Array<{
+      documentId: string;
+      relativePath: string;
+      visibilityScope: string;
+      syncStatusCode: string;
+      documentStatusCode: string;
+      isActive: boolean;
+      ownerUserId: string;
+      ownerLoginId: string | null;
+      revisionSeq: number;
+      updatedAt: string;
+      lastSyncedAt: string | null;
+    }>;
+    page: number;
+    limit: number;
+    total: number;
+  }> {
+    const prisma = this.db.client;
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 20));
+
+    const where: Record<string, unknown> = {};
+    if (typeof params.isActive === 'boolean') where.isActive = params.isActive;
+    if (params.visibilityScope) where.visibilityScope = params.visibilityScope;
+    if (params.syncStatusCode) where.syncStatusCode = params.syncStatusCode;
+    if (params.q && params.q.trim()) {
+      where.relativePath = { contains: params.q.trim(), mode: 'insensitive' };
+    }
+
+    const [total, rows] = await Promise.all([
+      prisma.dmsDocument.count({ where }),
+      prisma.dmsDocument.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          documentId: true,
+          relativePath: true,
+          visibilityScope: true,
+          syncStatusCode: true,
+          documentStatusCode: true,
+          isActive: true,
+          ownerUserId: true,
+          revisionSeq: true,
+          updatedAt: true,
+          lastSyncedAt: true,
+        },
+      }),
+    ]);
+
+    const ownerIds = Array.from(new Set(rows.map((r: { ownerUserId: bigint }) => r.ownerUserId)));
+    const owners = ownerIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: ownerIds } },
+          select: { id: true, userName: true, authAccount: { select: { loginId: true } } },
+        })
+      : [];
+    const ownerMap = new Map(
+      owners.map((u: { id: bigint; userName: string; authAccount: { loginId: string } | null }) => [
+        u.id.toString(),
+        u.authAccount?.loginId ?? u.userName,
+      ]),
+    );
+
+    const items = rows.map(
+      (r: {
+        documentId: bigint;
+        relativePath: string;
+        visibilityScope: string;
+        syncStatusCode: string;
+        documentStatusCode: string;
+        isActive: boolean;
+        ownerUserId: bigint;
+        revisionSeq: number;
+        updatedAt: Date;
+        lastSyncedAt: Date | null;
+      }) => ({
+        documentId: r.documentId.toString(),
+        relativePath: r.relativePath,
+        visibilityScope: r.visibilityScope,
+        syncStatusCode: r.syncStatusCode,
+        documentStatusCode: r.documentStatusCode,
+        isActive: r.isActive,
+        ownerUserId: r.ownerUserId.toString(),
+        ownerLoginId: ownerMap.get(r.ownerUserId.toString()) ?? null,
+        revisionSeq: r.revisionSeq,
+        updatedAt: r.updatedAt.toISOString(),
+        lastSyncedAt: r.lastSyncedAt ? r.lastSyncedAt.toISOString() : null,
+      }),
+    );
+
+    return { items, page, limit, total };
+  }
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useDmsAdminOverview } from '@/hooks/queries/useDmsAdmin';
 
 export default function DmsAdminPage() {
@@ -13,11 +14,19 @@ export default function DmsAdminPage() {
           <h1 className="text-2xl font-bold text-foreground">DMS 관리</h1>
           <p className="mt-1 text-sm text-muted-foreground">문서 관리 시스템 운영 개요</p>
         </div>
-        {overview?.generatedAt && (
-          <p className="text-xs text-muted-foreground">
-            업데이트: {new Date(overview.generatedAt).toLocaleString('ko-KR')}
-          </p>
-        )}
+        <div className="flex items-center gap-3">
+          {overview?.generatedAt && (
+            <p className="text-xs text-muted-foreground">
+              업데이트: {new Date(overview.generatedAt).toLocaleString('ko-KR')}
+            </p>
+          )}
+          <Link
+            href="/dms/documents"
+            className="rounded-md border bg-card px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            문서 관리 →
+          </Link>
+        </div>
       </div>
 
       {error && (
