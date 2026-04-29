@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 import type { DocumentIsolationState, DocumentMutationAction } from '@ssoo/types/dms';
@@ -37,6 +36,12 @@ import {
   resolveTrackedPaths,
   shouldAutoReleasePublishIsolation,
 } from './collaboration-isolation.util.js';
+import {
+  type PersistedState,
+  hydrateSanitizedMap,
+  readPersistedStateFile,
+  writePersistedStateFile,
+} from './collaboration-state.io.js';
 
 const logger = createDmsLogger('DmsCollaborationService');
 const STATE_FILE = '.dms-collaboration-state.json';
@@ -102,13 +107,6 @@ interface PublishJob {
   queuedAt: string;
   timer: NodeJS.Timeout | null;
   processing: boolean;
-}
-
-interface PersistedState {
-  publishStates: Record<string, DocumentPublishState>;
-  softLocks: Record<string, DocumentSoftLock>;
-  pathIsolations?: Record<string, DocumentIsolationState>;
-  pathOverrides?: Record<string, PathReleaseOverride>;
 }
 
 @Injectable()
@@ -681,78 +679,34 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private loadPersistedState(): void {
-    try {
-      if (!fs.existsSync(this.stateFilePath)) return;
-      const raw = fs.readFileSync(this.stateFilePath, 'utf-8');
-      const parsed = JSON.parse(raw) as PersistedState;
-      let shouldPersistNormalizedState = false;
-      for (const [pathValue, state] of Object.entries(parsed.publishStates ?? {})) {
-        const sanitized = sanitizePublishState(state);
-        if (!sanitized) {
-          shouldPersistNormalizedState = true;
-          continue;
-        }
-        if (pathValue !== sanitized.path || !hasSameSerializedValue(state, sanitized)) {
-          shouldPersistNormalizedState = true;
-        }
-        this.publishStateByPath.set(sanitized.path, sanitized);
-      }
-      for (const [pathValue, lock] of Object.entries(parsed.softLocks ?? {})) {
-        const sanitized = sanitizeSoftLock(lock);
-        if (!sanitized || isExpired(sanitized.lastSeenAt)) {
-          shouldPersistNormalizedState = true;
-          continue;
-        }
-        if (pathValue !== sanitized.path || !hasSameSerializedValue(lock, sanitized)) {
-          shouldPersistNormalizedState = true;
-        }
-        this.softLockByPath.set(sanitized.path, sanitized);
-      }
-      for (const [pathValue, isolation] of Object.entries(parsed.pathIsolations ?? {})) {
-        const sanitized = sanitizeIsolationState(isolation);
-        if (!sanitized) {
-          shouldPersistNormalizedState = true;
-          continue;
-        }
-        if (pathValue !== sanitized.path || !hasSameSerializedValue(isolation, sanitized)) {
-          shouldPersistNormalizedState = true;
-        }
-        this.pathIsolationByPath.set(sanitized.path, sanitized);
-      }
-      for (const [pathValue, override] of Object.entries(parsed.pathOverrides ?? {})) {
-        const sanitized = sanitizePathOverride(override);
-        if (!sanitized) {
-          shouldPersistNormalizedState = true;
-          continue;
-        }
-        if (pathValue !== sanitized.path || !hasSameSerializedValue(override, sanitized)) {
-          shouldPersistNormalizedState = true;
-        }
-        this.pathOverrideByPath.set(sanitized.path, sanitized);
-      }
-      for (const [pathValue, state] of this.publishStateByPath.entries()) {
-        this.captureIsolationFromPublishState(pathValue, state, { persist: false, onlyIfMissing: true });
-      }
-      if (shouldPersistNormalizedState) {
-        this.persistState();
-      }
-    } catch (error) {
-      logger.warn('collaboration persisted state load 실패', error instanceof Error ? { message: error.message } : undefined);
+    const parsed = readPersistedStateFile(this.stateFilePath);
+    if (!parsed) return;
+
+    const dirty = [
+      hydrateSanitizedMap(parsed.publishStates, sanitizePublishState, this.publishStateByPath),
+      hydrateSanitizedMap(parsed.softLocks, sanitizeSoftLock, this.softLockByPath, {
+        skip: (lock) => isExpired(lock.lastSeenAt),
+      }),
+      hydrateSanitizedMap(parsed.pathIsolations, sanitizeIsolationState, this.pathIsolationByPath),
+      hydrateSanitizedMap(parsed.pathOverrides, sanitizePathOverride, this.pathOverrideByPath),
+    ].some(Boolean);
+
+    for (const [pathValue, state] of this.publishStateByPath.entries()) {
+      this.captureIsolationFromPublishState(pathValue, state, { persist: false, onlyIfMissing: true });
+    }
+    if (dirty) {
+      this.persistState();
     }
   }
 
   private persistState(): void {
-    try {
-      const payload: PersistedState = {
-        publishStates: Object.fromEntries(this.publishStateByPath.entries()),
-        softLocks: Object.fromEntries(this.softLockByPath.entries()),
-        pathIsolations: Object.fromEntries(this.pathIsolationByPath.entries()),
-        pathOverrides: Object.fromEntries(this.pathOverrideByPath.entries()),
-      };
-      fs.writeFileSync(this.stateFilePath, JSON.stringify(payload, null, 2) + '\n', 'utf-8');
-    } catch (error) {
-      logger.warn('collaboration persisted state save 실패', error instanceof Error ? { message: error.message } : undefined);
-    }
+    const payload: PersistedState = {
+      publishStates: Object.fromEntries(this.publishStateByPath.entries()),
+      softLocks: Object.fromEntries(this.softLockByPath.entries()),
+      pathIsolations: Object.fromEntries(this.pathIsolationByPath.entries()),
+      pathOverrides: Object.fromEntries(this.pathOverrideByPath.entries()),
+    };
+    writePersistedStateFile(this.stateFilePath, payload);
   }
 
   private resolvePublishPrimaryPath(pathValue: string, isolation: DocumentIsolationState | null): string | null {
