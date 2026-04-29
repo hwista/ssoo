@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
@@ -33,6 +32,24 @@ import {
 } from '../search/search.helpers.js';
 import { DocumentAclService } from './document-acl.service.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
+import {
+  buildContentHash,
+  extractContentHash,
+  extractRevisionSeq,
+  extractTargetOrgId,
+  extractVisibilityScope,
+  isRecord,
+  mergeCanonicalMetadataSource,
+  normalizeOptionalText,
+  normalizeSourceFileKind,
+  normalizeSourceFileOrigin,
+  normalizeSourceFileStatus,
+  normalizeSourceFileStorage,
+  toDocumentPermissionGrant,
+  toIsoString,
+  toRequestState,
+  toSourceFileProjectionJson,
+} from './access-request.util.js';
 
 const READ_REQUEST_ROLE = 'read';
 const ACTIVE_REQUEST_SOURCE = 'dms.access.request';
@@ -50,7 +67,7 @@ interface AccessRequestDocumentRecord {
   metadataJson: Prisma.JsonValue | null;
 }
 
-interface AccessRequestGrantRecord {
+export interface AccessRequestGrantRecord {
   documentGrantId: bigint;
   documentId?: bigint;
   principalType?: string;
@@ -61,7 +78,7 @@ interface AccessRequestGrantRecord {
   grantSourceCode?: string | null;
 }
 
-interface AccessRequestRecord {
+export interface AccessRequestRecord {
   accessRequestId: bigint;
   documentId: bigint;
   requesterUserId: bigint;
@@ -113,35 +130,6 @@ const ACCESS_REQUEST_SELECT = {
     },
   },
 } as const;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function normalizeOptionalText(value?: string | null): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function toIsoString(value: Date | null | undefined): string | undefined {
-  return value ? value.toISOString() : undefined;
-}
-
-function toRequestState(record: AccessRequestRecord): DmsDocumentAccessRequestState {
-  return {
-    requestId: record.accessRequestId.toString(),
-    status: record.statusCode as DmsDocumentAccessRequestStatus,
-    requestedAt: record.createdAt.toISOString(),
-    requestMessage: record.requestMessage ?? undefined,
-    requestedExpiresAt: toIsoString(record.requestedExpiresAt),
-    respondedAt: toIsoString(record.respondedAt),
-    responseMessage: record.responseMessage ?? undefined,
-  };
-}
-
-function buildContentHash(content: string): string {
-  return crypto.createHash('sha256').update(content).digest('hex');
-}
 
 @Injectable()
 export class AccessRequestService {
@@ -360,7 +348,7 @@ export class AccessRequestService {
     });
     const grantsByDocumentId = new Map<string, DocumentPermissionGrant[]>();
     for (const grantRow of grantRows) {
-      const grant = this.toDocumentPermissionGrant(grantRow);
+      const grant = toDocumentPermissionGrant(grantRow);
       if (!grant) {
         continue;
       }
@@ -1034,16 +1022,16 @@ export class AccessRequestService {
 
     const content = fs.readFileSync(absolutePath, 'utf-8');
     const metadataSource = this.ensureDocumentMetadataSeed(
-      this.mergeCanonicalMetadataSource(existing.metadataJson, metadataOverride),
+      mergeCanonicalMetadataSource(existing.metadataJson, metadataOverride),
       absolutePath,
       content,
     );
     const owner = await this.resolveCanonicalOwnerIdentity(metadataSource, existing.ownerUserId);
     const canonicalMetadata = this.normalizeCanonicalMetadata(metadataSource, owner);
-    const visibilityScope = this.extractVisibilityScope(canonicalMetadata);
-    const targetOrgId = this.extractTargetOrgId(canonicalMetadata);
-    const revisionSeq = this.extractRevisionSeq(canonicalMetadata) ?? 1;
-    const contentHash = this.extractContentHash(canonicalMetadata) ?? buildContentHash(content);
+    const visibilityScope = extractVisibilityScope(canonicalMetadata);
+    const targetOrgId = extractTargetOrgId(canonicalMetadata);
+    const revisionSeq = extractRevisionSeq(canonicalMetadata) ?? 1;
+    const contentHash = extractContentHash(canonicalMetadata) ?? buildContentHash(content);
     const metadataJson = JSON.parse(JSON.stringify(canonicalMetadata)) as Prisma.InputJsonValue;
 
     await this.db.client.dmsDocument.update({
@@ -1245,7 +1233,7 @@ export class AccessRequestService {
       },
     });
     const metadataSource = this.ensureDocumentMetadataSeed(
-      this.mergeCanonicalMetadataSource(existing?.metadataJson),
+      mergeCanonicalMetadataSource(existing?.metadataJson),
       absolutePath,
       content,
     );
@@ -1255,10 +1243,10 @@ export class AccessRequestService {
       repaired: true,
       repairReason: cause instanceof Error ? cause.message : String(cause),
     });
-    const visibilityScope = this.extractVisibilityScope(canonicalMetadata);
-    const targetOrgId = this.extractTargetOrgId(canonicalMetadata);
-    const revisionSeq = this.extractRevisionSeq(canonicalMetadata) ?? 1;
-    const contentHash = this.extractContentHash(canonicalMetadata) ?? buildContentHash(content);
+    const visibilityScope = extractVisibilityScope(canonicalMetadata);
+    const targetOrgId = extractTargetOrgId(canonicalMetadata);
+    const revisionSeq = extractRevisionSeq(canonicalMetadata) ?? 1;
+    const contentHash = extractContentHash(canonicalMetadata) ?? buildContentHash(content);
     const metadataJson = JSON.parse(JSON.stringify(canonicalMetadata)) as Prisma.InputJsonValue;
 
     if (existing) {
@@ -1373,19 +1361,6 @@ export class AccessRequestService {
     throw new BadRequestException('문서 owner 정보를 찾을 수 없습니다.');
   }
 
-  private mergeCanonicalMetadataSource(
-    persistedMetadataJson: Prisma.JsonValue | null | undefined,
-    metadataOverride?: Record<string, unknown> | null,
-  ): Record<string, unknown> | null {
-    const persistedMetadata = isRecord(persistedMetadataJson) ? persistedMetadataJson : null;
-    const merged = {
-      ...(persistedMetadata ?? {}),
-      ...(metadataOverride ?? {}),
-    };
-
-    return Object.keys(merged).length > 0 ? merged : null;
-  }
-
   private ensureDocumentMetadataSeed(
     metadataSource: Record<string, unknown> | null,
     absolutePath: string,
@@ -1456,7 +1431,7 @@ export class AccessRequestService {
       },
     });
 
-    const metadataSource = this.mergeCanonicalMetadataSource(
+    const metadataSource = mergeCanonicalMetadataSource(
       existing?.metadataJson,
       metadataOverride,
     );
@@ -1467,10 +1442,10 @@ export class AccessRequestService {
     );
     const owner = await this.resolveCanonicalOwnerIdentity(seededMetadataSource, existing?.ownerUserId ?? null);
     const canonicalMetadata = this.normalizeCanonicalMetadata(seededMetadataSource, owner);
-    const visibilityScope = this.extractVisibilityScope(canonicalMetadata);
-    const targetOrgId = this.extractTargetOrgId(canonicalMetadata);
-    const revisionSeq = this.extractRevisionSeq(canonicalMetadata) ?? 1;
-    const contentHash = this.extractContentHash(canonicalMetadata) ?? buildContentHash(content);
+    const visibilityScope = extractVisibilityScope(canonicalMetadata);
+    const targetOrgId = extractTargetOrgId(canonicalMetadata);
+    const revisionSeq = extractRevisionSeq(canonicalMetadata) ?? 1;
+    const contentHash = extractContentHash(canonicalMetadata) ?? buildContentHash(content);
     const metadataJson = JSON.parse(JSON.stringify(canonicalMetadata)) as Prisma.InputJsonValue;
 
     if (existing) {
@@ -1539,40 +1514,6 @@ export class AccessRequestService {
     });
     await this.syncDocumentProjectionRelations(created.documentId, relativePath, canonicalMetadata, owner.userId);
     return created;
-  }
-
-  private extractVisibilityScope(metadata: Record<string, unknown> | null) {
-    const visibility = metadata?.['visibility'];
-    if (
-      isRecord(visibility)
-      && (visibility.scope === 'public' || visibility.scope === 'organization' || visibility.scope === 'self')
-    ) {
-      return visibility.scope;
-    }
-
-    return 'self';
-  }
-
-  private extractTargetOrgId(metadata: Record<string, unknown> | null) {
-    const visibility = metadata?.['visibility'];
-    if (!isRecord(visibility) || typeof visibility.targetOrgId !== 'string') {
-      return null;
-    }
-
-    const trimmed = visibility.targetOrgId.trim();
-    return /^\d+$/.test(trimmed) ? BigInt(trimmed) : null;
-  }
-
-  private extractRevisionSeq(metadata: Record<string, unknown> | null) {
-    return typeof metadata?.['revisionSeq'] === 'number'
-      ? metadata['revisionSeq']
-      : undefined;
-  }
-
-  private extractContentHash(metadata: Record<string, unknown> | null) {
-    return typeof metadata?.['contentHash'] === 'string' && metadata['contentHash'].trim()
-      ? metadata['contentHash'].trim()
-      : undefined;
   }
 
   private async getRequestByIdOrThrow(
@@ -1859,7 +1800,7 @@ export class AccessRequestService {
         storageMode: sourceFile.storage ?? null,
         kindCode: sourceFile.kind ?? null,
         sortOrder: index,
-        projectionJson: this.toSourceFileProjectionJson(sourceFile),
+        projectionJson: toSourceFileProjectionJson(sourceFile),
         createdBy: actorUserId,
         updatedBy: actorUserId,
         lastSource: ACTIVE_REQUEST_SOURCE,
@@ -1977,11 +1918,11 @@ export class AccessRequestService {
         versionId: typeof entry['versionId'] === 'string' ? entry['versionId'] : undefined,
         etag: typeof entry['etag'] === 'string' ? entry['etag'] : undefined,
         checksum: typeof entry['checksum'] === 'string' ? entry['checksum'] : undefined,
-        origin: this.normalizeSourceFileOrigin(entry['origin']),
-        status: this.normalizeSourceFileStatus(entry['status']),
+        origin: normalizeSourceFileOrigin(entry['origin']),
+        status: normalizeSourceFileStatus(entry['status']),
         textContent: typeof entry['textContent'] === 'string' ? entry['textContent'] : undefined,
-        storage: this.normalizeSourceFileStorage(entry['storage']),
-        kind: this.normalizeSourceFileKind(entry['kind']),
+        storage: normalizeSourceFileStorage(entry['storage']),
+        kind: normalizeSourceFileKind(entry['kind']),
         tempId: typeof entry['tempId'] === 'string' ? entry['tempId'] : undefined,
         images: normalizedImages,
       }];
@@ -2079,72 +2020,4 @@ export class AccessRequestService {
     });
   }
 
-  private normalizeSourceFileOrigin(value: unknown): SourceFileMeta['origin'] | undefined {
-    return value === 'manual'
-      || value === 'ingest'
-      || value === 'teams'
-      || value === 'network_drive'
-      || value === 'reference'
-      || value === 'template'
-      || value === 'picker'
-      || value === 'assistant'
-      || value === 'current-document'
-      || value === 'template-selected'
-      ? value
-      : undefined;
-  }
-
-  private normalizeSourceFileStatus(value: unknown): SourceFileMeta['status'] | undefined {
-    return value === 'draft' || value === 'pending_confirm' || value === 'published'
-      ? value
-      : undefined;
-  }
-
-  private normalizeSourceFileStorage(value: unknown): SourceFileMeta['storage'] | undefined {
-    return value === 'path' || value === 'inline' ? value : undefined;
-  }
-
-  private normalizeSourceFileKind(value: unknown): SourceFileMeta['kind'] | undefined {
-    return value === 'document' || value === 'file' ? value : undefined;
-  }
-
-  private toSourceFileProjectionJson(sourceFile: SourceFileMeta): Prisma.InputJsonValue | undefined {
-    const projection = {
-      ...(sourceFile.tempId ? { tempId: sourceFile.tempId } : {}),
-      ...(sourceFile.textContent ? { textContent: sourceFile.textContent } : {}),
-      ...(sourceFile.images ? { images: sourceFile.images } : {}),
-    };
-
-    return Object.keys(projection).length > 0
-      ? JSON.parse(JSON.stringify(projection)) as Prisma.InputJsonValue
-      : undefined;
-  }
-
-  private toDocumentPermissionGrant(grant: AccessRequestGrantRecord): DocumentPermissionGrant | null {
-    if (
-      !grant.principalRef
-      || (grant.principalType !== 'user'
-        && grant.principalType !== 'organization'
-        && grant.principalType !== 'team'
-        && grant.principalType !== 'group')
-      || (grant.roleCode !== 'read' && grant.roleCode !== 'write' && grant.roleCode !== 'manage')
-    ) {
-      return null;
-    }
-
-    return {
-      grantId: grant.documentGrantId?.toString(),
-      principalId: grant.principalRef,
-      principalType: grant.principalType,
-      role: grant.roleCode,
-      expiresAt: toIsoString(grant.expiresAt),
-      grantedAt: grant.grantedAt?.toISOString(),
-      source: grant.grantSourceCode === 'request'
-        || grant.grantSourceCode === 'share'
-        || grant.grantSourceCode === 'migration'
-        || grant.grantSourceCode === 'owner-default'
-        ? grant.grantSourceCode
-        : undefined,
-    };
-  }
 }
