@@ -22,11 +22,14 @@ import {
   buildCommitAuthorArgs,
   buildCommitMessage,
   buildPathParityReason,
-  buildSyncBlockedReason,
   normalizeGitPath,
   parseGitPathList,
   pathsOverlap,
 } from './git-paths.util.js';
+import {
+  buildParityStatus,
+  computeSyncState,
+} from './git-sync.util.js';
 
 const logger = createDmsLogger('DmsGitService');
 
@@ -869,83 +872,6 @@ class GitService {
     };
   }
 
-  private computeSyncState(input: {
-    remoteConfigured: boolean;
-    remoteExists: boolean;
-    aheadCount: number;
-    behindCount: number;
-  }): GitSyncState {
-    if (!input.remoteConfigured) {
-      return 'local-only';
-    }
-    if (!input.remoteExists) {
-      return 'remote-missing';
-    }
-    if (input.aheadCount > 0 && input.behindCount > 0) {
-      return 'diverged';
-    }
-    if (input.behindCount > 0) {
-      return 'remote-ahead';
-    }
-    if (input.aheadCount > 0) {
-      return 'local-ahead';
-    }
-    return 'in-sync';
-  }
-
-  private buildParityStatus(
-    remote: string,
-    syncStatus?: GitSyncStatus,
-    reason?: string,
-  ): GitRemoteParityStatus {
-    if (!syncStatus) {
-      return {
-        remote,
-        verified: false,
-        canTreatLocalAsCanonical: false,
-        reason,
-      };
-    }
-
-    if (!syncStatus.remoteConfigured) {
-      return {
-        remote,
-        verified: false,
-        canTreatLocalAsCanonical: false,
-        syncStatus,
-        reason: reason ?? `PARITY_UNAVAILABLE: remote '${remote}' is not configured`,
-      };
-    }
-
-    if (!syncStatus.remoteExists) {
-      return {
-        remote,
-        verified: false,
-        canTreatLocalAsCanonical: false,
-        syncStatus,
-        reason: reason ?? `PARITY_UNAVAILABLE: remote branch ${syncStatus.remoteRef} does not exist`,
-      };
-    }
-
-    if (!syncStatus.canPushFastForward) {
-      return {
-        remote,
-        verified: true,
-        canTreatLocalAsCanonical: false,
-        syncStatus,
-        reason: reason ?? buildSyncBlockedReason(syncStatus),
-      };
-    }
-
-    return {
-      remote,
-      verified: true,
-      canTreatLocalAsCanonical: true,
-      syncStatus,
-      reason,
-    };
-  }
-
   private async inspectSyncStatusWithGit(
     git: SimpleGit,
     remote = 'origin',
@@ -1032,7 +958,7 @@ class GitService {
           diverged: aheadCount > 0 && behindCount > 0,
           aheadCount,
           behindCount,
-          state: this.computeSyncState({
+          state: computeSyncState({
             remoteConfigured: true,
             remoteExists: true,
             aheadCount,
@@ -1088,7 +1014,7 @@ class GitService {
           ...baseBinding,
           state: 'git-unavailable',
           syncState: 'unavailable',
-          parityStatus: this.buildParityStatus(remote, undefined, 'PARITY_UNAVAILABLE: Git not available'),
+          parityStatus: buildParityStatus(remote, undefined, 'PARITY_UNAVAILABLE: Git not available'),
           reason: 'Git not available',
         },
       };
@@ -1126,7 +1052,7 @@ class GitService {
           ...baseBinding,
           state: reconcileRequired ? 'reconcile-needed' : 'uninitialized',
           syncState: 'unavailable',
-          parityStatus: this.buildParityStatus(remote, undefined, `PARITY_UNAVAILABLE: ${reason}`),
+          parityStatus: buildParityStatus(remote, undefined, `PARITY_UNAVAILABLE: ${reason}`),
           reason,
           reconcileRequired,
         },
@@ -1146,8 +1072,8 @@ class GitService {
       ? await this.inspectSyncStatusWithGit(git, remote, branchResult.data)
       : { success: false as const, error: branchResult.error };
     const parityStatus = syncResult.success
-      ? this.buildParityStatus(remote, syncResult.data)
-      : this.buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${syncResult.error}`);
+      ? buildParityStatus(remote, syncResult.data)
+      : buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${syncResult.error}`);
 
     return {
       success: true,
@@ -1212,15 +1138,15 @@ class GitService {
 
   async inspectRemoteParity(remote = 'origin'): Promise<GitResult<GitRemoteParityStatus>> {
     if (!this.initialized) {
-      return { success: true, data: this.buildParityStatus(remote, undefined, 'PARITY_UNAVAILABLE: Git not initialized') };
+      return { success: true, data: buildParityStatus(remote, undefined, 'PARITY_UNAVAILABLE: Git not initialized') };
     }
 
     const syncResult = await this.inspectSyncStatus(remote);
     if (!syncResult.success) {
-      return { success: true, data: this.buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${syncResult.error}`) };
+      return { success: true, data: buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${syncResult.error}`) };
     }
 
-    return { success: true, data: this.buildParityStatus(remote, syncResult.data) };
+    return { success: true, data: buildParityStatus(remote, syncResult.data) };
   }
 
   async inspectPathParity(paths: string[], remote = 'origin'): Promise<GitResult<GitPathParityStatus>> {
