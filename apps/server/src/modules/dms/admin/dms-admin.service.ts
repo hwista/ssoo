@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
+import { gitService } from '../runtime/git.service.js';
 
 export interface DmsAdminOverview {
   documents: {
@@ -313,5 +314,29 @@ export class DmsAdminService {
     );
 
     return { items, page, limit, total };
+  }
+
+  async getGitStatus(remote = 'origin'): Promise<{
+    binding: unknown;
+    sync: unknown;
+    error: string | null;
+  }> {
+    const bindingResult = await gitService.getRepositoryBindingStatus(remote);
+    const syncResult = await gitService.inspectSyncStatus(remote);
+    return {
+      binding: bindingResult.success ? bindingResult.data : null,
+      sync: syncResult.success ? syncResult.data : null,
+      error: bindingResult.success ? (syncResult.success ? null : syncResult.error ?? null) : bindingResult.error ?? null,
+    };
+  }
+
+  async getGitHistory(maxCount = 50): Promise<{
+    items: Array<{ hash: string; hashShort: string; author: string; date: string; message: string }>;
+    error: string | null;
+  }> {
+    const safeCount = Math.min(200, Math.max(1, maxCount));
+    const result = await gitService.getHistory(safeCount);
+    if (!result.success) return { items: [], error: result.error ?? 'Unknown error' };
+    return { items: result.data ?? [], error: null };
   }
 }

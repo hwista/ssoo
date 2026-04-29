@@ -102,4 +102,28 @@ export class DmsAdminController {
     });
     return success(result, 'DMS 템플릿 목록 조회 성공');
   }
+
+  @Get('git/status')
+  @ApiOperation({
+    summary: 'DMS Git 저장소 상태 (관리자)',
+    description: '저장소 바인딩 + remote sync 상태 조회.',
+  })
+  @ApiQuery({ name: 'remote', required: false })
+  @ApiOkResponse({ description: 'Git 상태 조회 성공' })
+  async getGitStatus(@Query('remote') remote?: string) {
+    const result = await this.dmsAdminService.getGitStatus(remote || 'origin');
+    return success(result, 'DMS Git 상태 조회 성공');
+  }
+
+  @Get('git/history')
+  @ApiOperation({
+    summary: 'DMS Git 커밋 히스토리 (관리자)',
+    description: '저장소 최근 커밋 로그.',
+  })
+  @ApiQuery({ name: 'maxCount', required: false, type: Number, description: '1~200 사이, 기본 50' })
+  @ApiOkResponse({ description: 'Git 히스토리 조회 성공' })
+  async getGitHistory(@Query('maxCount') maxCount?: string) {
+    const result = await this.dmsAdminService.getGitHistory(maxCount ? Number(maxCount) : 50);
+    return success(result, 'DMS Git 히스토리 조회 성공');
+  }
 }

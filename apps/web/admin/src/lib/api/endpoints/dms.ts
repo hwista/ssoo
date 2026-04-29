@@ -120,3 +120,36 @@ export async function fetchDmsAdminTemplates(
   );
   return data;
 }
+
+export interface DmsAdminGitStatusResult {
+  binding: Record<string, unknown> | null;
+  sync: Record<string, unknown> | null;
+  error: string | null;
+}
+
+export interface DmsAdminGitHistoryItem {
+  hash: string;
+  hashShort: string;
+  author: string;
+  date: string;
+  message: string;
+}
+
+export interface DmsAdminGitHistoryResult {
+  items: DmsAdminGitHistoryItem[];
+  error: string | null;
+}
+
+export async function fetchDmsAdminGitStatus(remote = 'origin'): Promise<ApiResponse<DmsAdminGitStatusResult>> {
+  const { data } = await apiClient.get<ApiResponse<DmsAdminGitStatusResult>>('/dms/admin/git/status', {
+    params: { remote },
+  });
+  return data;
+}
+
+export async function fetchDmsAdminGitHistory(maxCount = 50): Promise<ApiResponse<DmsAdminGitHistoryResult>> {
+  const { data } = await apiClient.get<ApiResponse<DmsAdminGitHistoryResult>>('/dms/admin/git/history', {
+    params: { maxCount: String(maxCount) },
+  });
+  return data;
+}

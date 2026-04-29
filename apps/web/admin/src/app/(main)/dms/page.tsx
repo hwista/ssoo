@@ -32,6 +32,12 @@ export default function DmsAdminPage() {
           >
             템플릿 관리 →
           </Link>
+          <Link
+            href="/dms/git"
+            className="rounded-md border bg-card px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            Git 관측 →
+          </Link>
         </div>
       </div>
 
