@@ -26,10 +26,13 @@ import {
   parseGitPathList,
   pathsOverlap,
 } from './git-paths.util.js';
+import { buildParityStatus } from './git-sync.util.js';
 import {
-  buildParityStatus,
-  computeSyncState,
-} from './git-sync.util.js';
+  inspectSyncStatusWithGit,
+  isGitBinaryAvailable,
+  resolveCurrentBranchWithGit,
+  resolveRemoteDetails,
+} from './git-inspect.util.js';
 
 const logger = createDmsLogger('DmsGitService');
 
@@ -838,139 +841,6 @@ class GitService {
     ));
   }
 
-  private async isGitBinaryAvailable(): Promise<boolean> {
-    try {
-      await simpleGit().version();
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  private async resolveCurrentBranchWithGit(git: SimpleGit): Promise<GitResult<string>> {
-    try {
-      const branch = await git.branchLocal();
-      const current = branch.current?.trim();
-      if (!current) {
-        return { success: false, error: 'Git branch lookup failed' };
-      }
-      return { success: true, data: current };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Git branch lookup failed' };
-    }
-  }
-
-  private async resolveRemoteDetails(
-    git: SimpleGit,
-    remote: string,
-  ): Promise<{ remoteConfigured: boolean; remoteUrl?: string }> {
-    const remotes = await git.getRemotes(true);
-    const entry = remotes.find((candidate) => candidate.name === remote);
-    return {
-      remoteConfigured: Boolean(entry),
-      remoteUrl: entry?.refs.push || entry?.refs.fetch || undefined,
-    };
-  }
-
-  private async inspectSyncStatusWithGit(
-    git: SimpleGit,
-    remote = 'origin',
-    branchHint?: string,
-  ): Promise<GitResult<GitSyncStatus>> {
-    const branchResult = branchHint
-      ? { success: true as const, data: branchHint }
-      : await this.resolveCurrentBranchWithGit(git);
-    if (!branchResult.success) {
-      return branchResult as GitResult<GitSyncStatus>;
-    }
-
-    const branch = branchResult.data;
-    try {
-      const remoteRef = `${remote}/${branch}`;
-      const remoteDetails = await this.resolveRemoteDetails(git, remote);
-      if (!remoteDetails.remoteConfigured) {
-        return {
-          success: true,
-          data: {
-            branch,
-            remote,
-            remoteUrl: remoteDetails.remoteUrl,
-            remoteRef,
-            remoteConfigured: false,
-            remoteExists: false,
-            canPushFastForward: true,
-            remoteAhead: false,
-            localAhead: false,
-            diverged: false,
-            aheadCount: 0,
-            behindCount: 0,
-            state: 'local-only',
-          },
-        };
-      }
-
-      await git.fetch(remote);
-
-      let remoteExists = true;
-      try {
-        await git.raw(['rev-parse', '--verify', remoteRef]);
-      } catch {
-        remoteExists = false;
-      }
-
-      if (!remoteExists) {
-        return {
-          success: true,
-          data: {
-            branch,
-            remote,
-            remoteUrl: remoteDetails.remoteUrl,
-            remoteRef,
-            remoteConfigured: true,
-            remoteExists: false,
-            canPushFastForward: true,
-            remoteAhead: false,
-            localAhead: false,
-            diverged: false,
-            aheadCount: 0,
-            behindCount: 0,
-            state: 'remote-missing',
-          },
-        };
-      }
-
-      const countsRaw = await git.raw(['rev-list', '--left-right', '--count', `${remoteRef}...HEAD`]);
-      const [behindText, aheadText] = countsRaw.trim().split(/\s+/);
-      const aheadCount = Number.parseInt(aheadText ?? '0', 10) || 0;
-      const behindCount = Number.parseInt(behindText ?? '0', 10) || 0;
-      return {
-        success: true,
-        data: {
-          branch,
-          remote,
-          remoteUrl: remoteDetails.remoteUrl,
-          remoteRef,
-          remoteConfigured: true,
-          remoteExists: true,
-          canPushFastForward: behindCount === 0,
-          remoteAhead: behindCount > 0,
-          localAhead: aheadCount > 0,
-          diverged: aheadCount > 0 && behindCount > 0,
-          aheadCount,
-          behindCount,
-          state: computeSyncState({
-            remoteConfigured: true,
-            remoteExists: true,
-            aheadCount,
-            behindCount,
-          }),
-        },
-      };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Git sync inspection failed' };
-    }
-  }
-
   async getRepositoryBindingStatus(remote = 'origin'): Promise<GitResult<GitRepositoryBindingStatus>> {
     const rootBinding = configService.getDocumentRootBinding();
     const configuredRoot = rootBinding.resolvedPath;
@@ -981,7 +851,7 @@ class GitService {
     const bootstrapRemoteUrl = configService.getGitBootstrapRemoteUrl();
     const bootstrapBranch = configService.getGitBootstrapBranch();
     const autoInit = configService.getAutoInit();
-    const gitAvailable = await this.isGitBinaryAvailable();
+    const gitAvailable = await isGitBinaryAvailable();
 
     const baseBinding: Omit<GitRepositoryBindingStatus, 'state' | 'parityStatus' | 'syncState'> = {
       appRoot: rootBinding.appRoot,
@@ -1066,10 +936,10 @@ class GitService {
       actualGitRoot = undefined;
     }
 
-    const remoteDetails = await this.resolveRemoteDetails(git, remote);
-    const branchResult = await this.resolveCurrentBranchWithGit(git);
+    const remoteDetails = await resolveRemoteDetails(git, remote);
+    const branchResult = await resolveCurrentBranchWithGit(git);
     const syncResult = branchResult.success
-      ? await this.inspectSyncStatusWithGit(git, remote, branchResult.data)
+      ? await inspectSyncStatusWithGit(git, remote, branchResult.data)
       : { success: false as const, error: branchResult.error };
     const parityStatus = syncResult.success
       ? buildParityStatus(remote, syncResult.data)
@@ -1112,7 +982,7 @@ class GitService {
 
   async getCurrentBranch(): Promise<GitResult<string>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
-    return this.resolveCurrentBranchWithGit(this.git);
+    return resolveCurrentBranchWithGit(this.git);
   }
 
   async publishCurrentBranch(remote = 'origin'): Promise<GitResult<{ remote: string; branch: string }>> {
@@ -1277,7 +1147,7 @@ class GitService {
 
   async inspectSyncStatus(remote = 'origin'): Promise<GitResult<GitSyncStatus>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
-    return this.inspectSyncStatusWithGit(this.git, remote);
+    return inspectSyncStatusWithGit(this.git, remote);
   }
 }
 
