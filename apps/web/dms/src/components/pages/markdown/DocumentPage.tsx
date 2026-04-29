@@ -62,6 +62,7 @@ import { useTemplateSaveFlow } from './useTemplateSaveFlow';
 import { useViewerTemplatePicker } from './useViewerTemplatePicker';
 import { useDocumentCollaboration } from './useDocumentCollaboration';
 import { useDocumentInfoRecommendation } from './useDocumentInfoRecommendation';
+import { useDocumentLauncherActions } from './useDocumentLauncherActions';
 import { toast } from '@/lib/toast';
 import { downloadMarkdown, printHtmlContent } from '@/lib/utils/downloadUtils';
 import { resolveTitlePathRecommendation } from '@/lib/utils/titlePathRecommendation';
@@ -1762,27 +1763,21 @@ export function DocumentPage() {
     />
   );
 
-  const handleLauncherNewDoc = useCallback(() => {
-    if (!canWriteDocuments || !tabId) return;
-    updateTab(tabId, { path: '/doc/new-doc', title: '새 문서' });
-  }, [canWriteDocuments, tabId, updateTab]);
-
-  const handleLauncherTemplate = useCallback(() => {
-    if (!canManageTemplates || !tabId) return;
-    updateTab(tabId, { path: '/doc/new-template', title: '새 템플릿' });
-  }, [canManageTemplates, tabId, updateTab]);
-
-  const handleLauncherAiSummary = useCallback((files: InlineSummaryFileItem[]) => {
-    if (!canWriteDocuments || !canUseAssistant || !tabId || files.length === 0) return;
-    setAiSummaryPending({ summaryFiles: files });
-    setIsComposing(true);
-    updateTab(tabId, { path: '/doc/new-ai-summary', title: 'AI 요약' });
-  }, [canUseAssistant, canWriteDocuments, tabId, updateTab, setAiSummaryPending]);
-
-  const handleLauncherClose = useCallback(() => {
-    if (!tabId) return;
-    closeTab(tabId);
-  }, [tabId, closeTab]);
+  const {
+    handleLauncherNewDoc,
+    handleLauncherTemplate,
+    handleLauncherAiSummary,
+    handleLauncherClose,
+  } = useDocumentLauncherActions({
+    tabId,
+    canWriteDocuments,
+    canManageTemplates,
+    canUseAssistant,
+    updateTab,
+    closeTab,
+    setAiSummaryPending,
+    setIsComposing,
+  });
 
   // 런처 페이지: /doc/new
   if (createEntryType === 'launcher') {
