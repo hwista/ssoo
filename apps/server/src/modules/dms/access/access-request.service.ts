@@ -21,13 +21,13 @@ import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.j
 import { configService } from '../runtime/dms-config.service.js';
 import { contentService } from '../runtime/content.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
-import { gitService, type GitRemoteParityStatus } from '../runtime/git.service.js';
 import { normalizePath } from '../runtime/path-utils.js';
 import {
   listMarkdownFiles,
   resolveAbsolutePath,
   resolveDocumentPresentation,
 } from '../search/search.helpers.js';
+import { ControlPlaneSyncService } from './control-plane-sync.service.js';
 import { DocumentAclService } from './document-acl.service.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
 import { DocumentProjectionService } from './document-projection.service.js';
@@ -54,7 +54,6 @@ import {
 } from './access-request.util.js';
 
 const READ_REQUEST_ROLE = 'read';
-const CONTROL_PLANE_SYNC_MAX_AGE_MS = 30_000;
 const logger = createDmsLogger('DmsAccessRequestService');
 
 interface AccessRequestDocumentRecord {
@@ -133,9 +132,6 @@ const ACCESS_REQUEST_SELECT = {
 
 @Injectable()
 export class AccessRequestService {
-  private lastControlPlaneSyncAt = 0;
-  private controlPlaneSyncPromise: Promise<void> | null = null;
-  private deferredGitBootstrapRoot: string | null = null;
 
   constructor(
     private readonly db: DatabaseService,
@@ -143,6 +139,7 @@ export class AccessRequestService {
     private readonly documentControlPlaneService: DocumentControlPlaneService,
     private readonly documentProjectionService: DocumentProjectionService,
     private readonly documentRecordService: DocumentRecordService,
+    private readonly controlPlaneSyncService: ControlPlaneSyncService,
   ) {}
 
   async createReadRequest(
@@ -883,105 +880,19 @@ export class AccessRequestService {
   }
 
   async ensureRepoControlPlaneSynced(force = false): Promise<void> {
-    const now = Date.now();
-    if (!force && now - this.lastControlPlaneSyncAt < CONTROL_PLANE_SYNC_MAX_AGE_MS) {
-      return;
-    }
-    if (this.controlPlaneSyncPromise) {
-      await this.controlPlaneSyncPromise;
-      return;
-    }
-
-    this.controlPlaneSyncPromise = (async () => {
-      try {
-        await this.ensureGitContentPlaneReady();
-        const repoParity = await this.inspectRepoMutationParity();
-        if (!repoParity.canTreatLocalAsCanonical) {
-          // GAP 3: remote ahead → try pull-then-sync before giving up
-          const pullRecovered = await this.tryPullAndRecover(repoParity);
-          if (!pullRecovered) {
-            logger.warn('문서 repo -> control-plane 동기화 보류 (원격 parity 확인 필요)', {
-              force,
-              reason: repoParity.reason,
-              syncStatus: repoParity.syncStatus
-                ? {
-                    remote: repoParity.syncStatus.remote,
-                    remoteConfigured: repoParity.syncStatus.remoteConfigured,
-                    remoteExists: repoParity.syncStatus.remoteExists,
-                    remoteAhead: repoParity.syncStatus.remoteAhead,
-                    localAhead: repoParity.syncStatus.localAhead,
-                    diverged: repoParity.syncStatus.diverged,
-                  }
-                : undefined,
-            });
-            await this.documentControlPlaneService.refreshCache();
-            this.lastControlPlaneSyncAt = Date.now();
-            return;
-          }
-        }
-        await this.syncRepoControlPlane(force);
-        await this.documentControlPlaneService.refreshCache();
-        this.lastControlPlaneSyncAt = Date.now();
-      } catch (error) {
-        logger.warn('문서 control-plane 동기화 실패', error instanceof Error ? { message: error.message } : undefined);
-        throw error;
-      } finally {
-        this.controlPlaneSyncPromise = null;
-      }
-    })();
-
-    await this.controlPlaneSyncPromise;
+    return this.controlPlaneSyncService.ensureRepoControlPlaneSynced(force);
   }
 
-  private async inspectRepoMutationParity(): Promise<GitRemoteParityStatus> {
-    const parityResult = await gitService.inspectRemoteParity('origin');
-    if (parityResult.success) {
-      return parityResult.data;
-    }
-
-    return {
-      remote: 'origin',
-      verified: false,
-      canTreatLocalAsCanonical: false,
-      reason: `PARITY_CHECK_FAILED: ${parityResult.error}`,
-    };
-  }
-
-  /**
-   * remote가 ahead인 경우 fast-forward pull을 시도하여 parity를 회복합니다.
-   * diverged 상태에서는 pull하지 않습니다.
-   * @returns true면 pull 성공 → syncRepoControlPlane 진행 가능
-   */
-  private async tryPullAndRecover(parity: GitRemoteParityStatus): Promise<boolean> {
-    const sync = parity.syncStatus;
-    if (!sync) return false;
-
-    // remote ahead + local not ahead → fast-forward 가능
-    if (sync.remoteAhead && !sync.localAhead && !sync.diverged) {
-      const result = await gitService.pullFastForward('origin');
-      if (result.pulled) {
-        logger.info('런타임 auto-pull 성공 (remote → local ff-only)', {
-          behindCount: sync.behindCount,
-          pulledCommits: result.commitCount,
-        });
-        return true;
-      }
-      logger.warn('런타임 auto-pull 스킵', { reason: result.reason });
-      return false;
-    }
-
-    return false;
-  }
 
   async syncDocumentProjection(
     relativePath: string,
     metadataOverride?: Record<string, unknown> | null,
   ): Promise<void> {
     const normalized = this.normalizeRelativePath(relativePath);
-    await this.ensureGitContentPlaneReady();
+    await this.controlPlaneSyncService.ensureGitContentPlaneReady();
     await this.documentRecordService.ensureDocumentRecord(normalized, metadataOverride);
     await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(normalized);
-    this.lastControlPlaneSyncAt = Date.now();
+    this.controlPlaneSyncService.markSynced();
   }
 
   async moveDocumentProjection(
@@ -999,7 +910,7 @@ export class AccessRequestService {
       return;
     }
 
-    await this.ensureGitContentPlaneReady();
+    await this.controlPlaneSyncService.ensureGitContentPlaneReady();
     const absolutePath = resolveAbsolutePath(nextNormalized, configService.getDocDir());
     if (!fs.existsSync(absolutePath)) {
       throw new NotFoundException('문서를 찾을 수 없습니다.');
@@ -1060,147 +971,7 @@ export class AccessRequestService {
     await this.documentProjectionService.syncDocumentProjectionRelations(existing.documentId, nextNormalized, canonicalMetadata, owner.userId);
     this.documentControlPlaneService.clearCachedMetadataByRelativePath(previousNormalized);
     await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(nextNormalized);
-    this.lastControlPlaneSyncAt = Date.now();
-  }
-
-  private async ensureGitContentPlaneReady(): Promise<void> {
-    const rootDir = configService.getDocDir();
-    const workingTreeEntries = fs.existsSync(rootDir)
-      ? fs.readdirSync(rootDir)
-      : [];
-    const hasGitRepository = workingTreeEntries.includes('.git');
-    const visibleEntries = workingTreeEntries.filter((entry) => entry !== '.git');
-    const shouldInitializeGit = hasGitRepository || workingTreeEntries.length === 0;
-
-    if (!shouldInitializeGit) {
-      if (!hasGitRepository && this.deferredGitBootstrapRoot !== rootDir) {
-        this.deferredGitBootstrapRoot = rootDir;
-        logger.warn('Git content-plane bootstrap 보류 (reconcile 필요)', {
-          rootDir,
-          visibleEntryCount: visibleEntries.length,
-          bootstrapRemoteConfigured: Boolean(configService.getGitBootstrapRemoteUrl()),
-        });
-      }
-      return;
-    }
-
-    this.deferredGitBootstrapRoot = null;
-    const initResult = await gitService.initialize();
-    if (!initResult.success) {
-      throw new Error(`Git content-plane bootstrap failed: ${initResult.error}`);
-    }
-  }
-
-  private async syncRepoControlPlane(force: boolean): Promise<void> {
-    const rootDir = configService.getDocDir();
-    const markdownFiles = listMarkdownFiles(rootDir);
-    const scannedRelativePaths = new Set<string>();
-    let synced = 0;
-    let repaired = 0;
-    let failed = 0;
-
-    for (const absolutePath of markdownFiles) {
-      const relativePath = this.normalizeRelativePath(path.relative(rootDir, absolutePath));
-      scannedRelativePaths.add(relativePath);
-      try {
-        await this.documentRecordService.ensureDocumentRecord(relativePath);
-        synced += 1;
-      } catch (error) {
-        try {
-          await this.documentRecordService.upsertRepairNeededDocument(relativePath, absolutePath, error);
-          repaired += 1;
-        } catch (repairError) {
-          failed += 1;
-          logger.warn('repair-needed 문서 동기화도 실패', {
-            relativePath,
-            error: repairError instanceof Error ? repairError.message : String(repairError),
-          });
-        }
-      }
-    }
-
-    const deactivated = await this.deactivateMissingDocuments(scannedRelativePaths);
-
-    logger.info('문서 repo -> control-plane 동기화 완료', {
-      force,
-      scanned: markdownFiles.length,
-      synced,
-      repaired,
-      failed,
-      deactivated,
-    });
-  }
-
-  private async deactivateMissingDocuments(scannedRelativePaths: ReadonlySet<string>): Promise<number> {
-    const activeDocuments = await this.db.client.dmsDocument.findMany({
-      where: {
-        isActive: true,
-        documentStatusCode: 'active',
-      },
-      select: {
-        documentId: true,
-        relativePath: true,
-      },
-    });
-
-    const missingDocumentIds = activeDocuments
-      .filter((document) => !scannedRelativePaths.has(document.relativePath))
-      .map((document) => document.documentId);
-    if (missingDocumentIds.length === 0) {
-      return 0;
-    }
-
-    const reconciledAt = new Date();
-    await this.db.client.$transaction(async (tx) => {
-      await tx.dmsDocument.updateMany({
-        where: {
-          documentId: { in: missingDocumentIds },
-        },
-        data: {
-          documentStatusCode: 'deleted',
-          syncStatusCode: 'deleted',
-          isActive: false,
-          lastReconciledAt: reconciledAt,
-          lastSource: ACTIVE_REQUEST_SOURCE,
-          lastActivity: 'dms.access.request.sync-document.deactivate-missing',
-        },
-      });
-      await tx.dmsDocumentSourceFile.updateMany({
-        where: {
-          documentId: { in: missingDocumentIds },
-          isActive: true,
-        },
-        data: {
-          isActive: false,
-          lastSource: ACTIVE_REQUEST_SOURCE,
-          lastActivity: 'dms.access.request.sync-document.deactivate-missing',
-        },
-      });
-      await tx.dmsDocumentPathHistory.updateMany({
-        where: {
-          documentId: { in: missingDocumentIds },
-          isActive: true,
-        },
-        data: {
-          isActive: false,
-          lastSource: ACTIVE_REQUEST_SOURCE,
-          lastActivity: 'dms.access.request.sync-document.deactivate-missing',
-        },
-      });
-      await tx.dmsDocumentComment.updateMany({
-        where: {
-          documentId: { in: missingDocumentIds },
-          isActive: true,
-        },
-        data: {
-          isActive: false,
-          lastSource: ACTIVE_REQUEST_SOURCE,
-          lastActivity: 'dms.access.request.sync-document.deactivate-missing',
-        },
-      });
-    });
-
-    return missingDocumentIds.length;
+    this.controlPlaneSyncService.markSynced();
   }
 
 

@@ -5,6 +5,7 @@ import { AccessController } from './access.controller.js';
 import { AccessRequestController } from './access-request.controller.js';
 import { AccessRequestService } from './access-request.service.js';
 import { AccessService } from './access.service.js';
+import { ControlPlaneSyncService } from './control-plane-sync.service.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
 import { DmsFeatureGuard } from './dms-feature.guard.js';
 import { DocumentAclService } from './document-acl.service.js';
@@ -17,6 +18,7 @@ import { DocumentRecordService } from './document-record.service.js';
   providers: [
     AccessService,
     AccessRequestService,
+    ControlPlaneSyncService,
     DocumentControlPlaneService,
     DmsFeatureGuard,
     DocumentAclService,
@@ -26,6 +28,7 @@ import { DocumentRecordService } from './document-record.service.js';
   exports: [
     AccessService,
     AccessRequestService,
+    ControlPlaneSyncService,
     DocumentControlPlaneService,
     DmsFeatureGuard,
     DocumentAclService,
