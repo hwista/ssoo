@@ -9,6 +9,7 @@ import {
   Building2,
   Shield,
   Settings,
+  FileText,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/users', label: '사용자 관리', icon: Users },
   { href: '/organizations', label: '조직 관리', icon: Building2 },
   { href: '/roles', label: '역할 & 권한', icon: Shield },
+  { href: '/dms', label: 'DMS 관리', icon: FileText },
 ] as const;
 
 export function AdminSidebar() {

@@ -2,6 +2,7 @@ import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { DatabaseModule } from '../../database/database.module.js';
 import { DatabaseService } from '../../database/database.service.js';
 import { AccessModule } from './access/access.module.js';
+import { DmsAdminModule } from './admin/dms-admin.module.js';
 import { AskModule } from './ask/ask.module.js';
 import { ChatSessionsModule } from './chat-sessions/chat-sessions.module.js';
 import { CollaborationModule } from './collaboration/collaboration.module.js';
@@ -28,6 +29,7 @@ const logger = new Logger('DmsModule');
   imports: [
     DatabaseModule,
     AccessModule,
+    DmsAdminModule,
     SearchModule,
     AskModule,
     CreateModule,
