@@ -1,11 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { HttpException, Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 import type { DocumentIsolationState, DocumentMutationAction } from '@ssoo/types/dms';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { UserService } from '../../common/user/user.service.js';
 import { DmsEventsGateway } from '../events/dms-events.gateway.js';
-import { gitService, type GitCommitAuthor, type GitPathParityStatus, type GitRemoteParityStatus, type GitSyncStatus } from '../runtime/git.service.js';
+import { gitService, type GitCommitAuthor, type GitRemoteParityStatus, type GitSyncStatus } from '../runtime/git.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 import { configService } from '../runtime/dms-config.service.js';
 import {
@@ -27,18 +27,19 @@ import {
   sanitizePublishState,
   sanitizeSoftLock,
 } from './collaboration-sanitizers.util.js';
+import {
+  BLOCKED_MUTATION_ACTIONS,
+  buildIsolationException,
+  buildOperatorLockIsolation,
+  isForceUnlockActive,
+  resolveRefreshError,
+  resolveRefreshStatus,
+  resolveTrackedPaths,
+  shouldAutoReleasePublishIsolation,
+} from './collaboration-isolation.util.js';
 
 const logger = createDmsLogger('DmsCollaborationService');
 const STATE_FILE = '.dms-collaboration-state.json';
-const BLOCKED_MUTATION_ACTIONS: readonly DocumentMutationAction[] = [
-  'write',
-  'updateMetadata',
-  'rename',
-  'delete',
-  'upload',
-  'resync',
-  'publish',
-];
 
 type CollaborationMode = 'view' | 'edit';
 export type PublishStatus = 'clean' | 'dirty-uncommitted' | 'publishing' | 'committed-unpushed' | 'sync-blocked' | 'push-failed';
@@ -233,21 +234,21 @@ export class CollaborationService implements OnModuleDestroy {
       return this.getSnapshot(normalizedPath);
     }
     const currentState = this.getPublishState(primaryPath);
-    const trackedPaths = this.resolveTrackedPaths(primaryPath, currentState, currentIsolation);
+    const trackedPaths = resolveTrackedPaths(primaryPath, currentState, currentIsolation);
     const pathParity = await this.inspectPathParity(trackedPaths);
-    const shouldRelease = this.shouldAutoReleasePublishIsolation(currentState, currentIsolation, pathParity);
+    const shouldRelease = shouldAutoReleasePublishIsolation(currentState, currentIsolation, pathParity);
     const nextState: DocumentPublishState = {
       ...currentState,
       path: primaryPath,
       status: shouldRelease
         ? 'clean'
-        : this.resolveRefreshStatus(currentState, currentIsolation, pathParity),
+        : resolveRefreshStatus(currentState, currentIsolation, pathParity),
       syncStatus: pathParity.success
         ? pathParity.data.syncStatus ?? currentState.syncStatus
         : currentState.syncStatus,
       lastError: shouldRelease
         ? undefined
-        : this.resolveRefreshError(currentState, pathParity),
+        : resolveRefreshError(currentState, pathParity),
     };
     this.publishStateByPath.set(primaryPath, nextState);
     if (shouldRelease) {
@@ -298,7 +299,7 @@ export class CollaborationService implements OnModuleDestroy {
 
     if (parityBlocked || parityUnavailable) {
       const isolation = this.captureIsolationFromPublishState(primaryPath, nextState);
-      throw this.buildIsolationException('publish', normalizedPath, isolation ?? {
+      throw buildIsolationException('publish', normalizedPath, isolation ?? {
         path: primaryPath,
         primaryPath,
         status: 'reconcile-needed',
@@ -410,7 +411,7 @@ export class CollaborationService implements OnModuleDestroy {
         continue;
       }
 
-      throw this.buildIsolationException(input.action, requestedPath, isolation);
+      throw buildIsolationException(input.action, requestedPath, isolation);
     }
   }
 
@@ -772,7 +773,7 @@ export class CollaborationService implements OnModuleDestroy {
   private findPathIsolation(pathValue: string): DocumentIsolationState | null {
     const override = this.pathOverrideByPath.get(pathValue);
     if (override?.mode === 'force-lock') {
-      return this.buildOperatorLockIsolation(override);
+      return buildOperatorLockIsolation(override);
     }
 
     const publishIsolation = this.findPublishIsolation(pathValue);
@@ -780,7 +781,7 @@ export class CollaborationService implements OnModuleDestroy {
       return null;
     }
 
-    if (override?.mode === 'force-unlock' && this.isForceUnlockActive(override, publishIsolation)) {
+    if (override?.mode === 'force-unlock' && isForceUnlockActive(override, publishIsolation)) {
       return null;
     }
 
@@ -851,7 +852,7 @@ export class CollaborationService implements OnModuleDestroy {
 
     for (const affectedPath of affectedPaths) {
       const override = this.pathOverrideByPath.get(affectedPath);
-      if (override?.mode === 'force-unlock' && !this.isForceUnlockActive(override, isolation)) {
+      if (override?.mode === 'force-unlock' && !isForceUnlockActive(override, isolation)) {
         this.pathOverrideByPath.delete(affectedPath);
       }
       if (options?.onlyIfMissing && this.pathIsolationByPath.has(affectedPath)) {
@@ -870,74 +871,8 @@ export class CollaborationService implements OnModuleDestroy {
     return this.pathIsolationByPath.get(normalizedPrimaryPath) ?? isolation;
   }
 
-  private resolveTrackedPaths(
-    primaryPath: string,
-    publishState: DocumentPublishState,
-    isolation: DocumentIsolationState | null,
-  ): string[] {
-    return filterGitManagedDocumentPaths([
-      primaryPath,
-      ...(publishState.affectedPaths ?? []),
-      ...(isolation?.affectedPaths ?? []),
-    ]);
-  }
-
   private async inspectPathParity(paths: string[]) {
     return gitService.inspectPathParity(paths, 'origin');
-  }
-
-  private shouldAutoReleasePublishIsolation(
-    currentState: DocumentPublishState,
-    currentIsolation: DocumentIsolationState | null,
-    pathParity: { success: true; data: GitPathParityStatus } | { success: false; error: string },
-  ): boolean {
-    return pathParity.success
-      && pathParity.data.verified
-      && pathParity.data.clean
-      && (currentState.status !== 'clean' || Boolean(currentIsolation));
-  }
-
-  private resolveRefreshStatus(
-    currentState: DocumentPublishState,
-    currentIsolation: DocumentIsolationState | null,
-    pathParity: { success: true; data: GitPathParityStatus } | { success: false; error: string },
-  ): PublishStatus {
-    if (!pathParity.success || !pathParity.data.verified) {
-      return currentState.status;
-    }
-
-    if (pathParity.data.clean) {
-      return 'clean';
-    }
-
-    if (pathParity.data.remoteAheadPaths.length > 0) {
-      return currentState.status === 'clean' && !currentIsolation ? 'clean' : 'sync-blocked';
-    }
-
-    if (pathParity.data.localAheadPaths.length > 0) {
-      return 'committed-unpushed';
-    }
-
-    if (pathParity.data.workingTreePaths.length > 0) {
-      return 'dirty-uncommitted';
-    }
-
-    return currentState.status;
-  }
-
-  private resolveRefreshError(
-    currentState: DocumentPublishState,
-    pathParity: { success: true; data: GitPathParityStatus } | { success: false; error: string },
-  ): string | undefined {
-    if (!pathParity.success) {
-      return pathParity.error;
-    }
-
-    if (pathParity.data.clean) {
-      return undefined;
-    }
-
-    return pathParity.data.reason ?? currentState.lastError;
   }
 
   private releasePublishIsolation(primaryPath: string, options?: { persist?: boolean }): void {
@@ -963,44 +898,7 @@ export class CollaborationService implements OnModuleDestroy {
     }
   }
 
-  private buildOperatorLockIsolation(override: PathReleaseOverride): DocumentIsolationState {
-    const actorLabel = `${override.actorDisplayName}(${override.actorLoginId})`;
-    return {
-      path: override.path,
-      primaryPath: override.path,
-      status: 'force-locked',
-      source: 'operator',
-      reasonCode: 'operator-forced-lock',
-      reason: override.reason?.trim() || `운영자 ${actorLabel} 이 경로를 강제 잠금했습니다.`,
-      isolatedAt: override.appliedAt,
-      blockedActions: [...BLOCKED_MUTATION_ACTIONS],
-      affectedPaths: [override.path],
-      releaseStrategy: 'manual',
-    };
-  }
-
-  private isForceUnlockActive(override: PathReleaseOverride, isolation: DocumentIsolationState): boolean {
-    return getTimestampMs(override.appliedAt) >= getTimestampMs(isolation.isolatedAt);
-  }
-
   private getTimestampMs(value: string): number {
     return getTimestampMs(value);
-  }
-
-  private buildIsolationException(
-    action: DocumentMutationAction,
-    requestedPath: string,
-    isolation: DocumentIsolationState,
-  ): HttpException {
-    return new HttpException({
-      error: isolation.source === 'operator'
-        ? '문서 경로가 운영자에 의해 강제 잠금되어 있어 변경 작업을 수행할 수 없습니다.'
-        : '문서 경로가 격리되어 있어 reconcile 전까지 변경 작업을 수행할 수 없습니다.',
-      details: {
-        action,
-        requestedPath,
-        isolation,
-      },
-    }, 423);
   }
 }
