@@ -30,7 +30,10 @@ import {
 } from '../search/search.helpers.js';
 import { DocumentAclService } from './document-acl.service.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
+import { DocumentProjectionService } from './document-projection.service.js';
 import {
+  ACTIVE_REQUEST_ACTIVITY,
+  ACTIVE_REQUEST_SOURCE,
   buildContentHash,
   buildFallbackManagedDocumentSummary,
   buildGrantSummary,
@@ -43,19 +46,13 @@ import {
   isRecord,
   mergeCanonicalMetadataSource,
   normalizeCanonicalMetadata,
-  normalizeComments,
   normalizeOptionalText,
-  normalizePathHistory,
-  normalizeSourceFiles,
   toDocumentPermissionGrant,
   toIsoString,
   toRequestState,
-  toSourceFileProjectionJson,
 } from './access-request.util.js';
 
 const READ_REQUEST_ROLE = 'read';
-const ACTIVE_REQUEST_SOURCE = 'dms.access.request';
-const ACTIVE_REQUEST_ACTIVITY = 'dms.access.request.sync-document';
 const CONTROL_PLANE_SYNC_MAX_AGE_MS = 30_000;
 const logger = createDmsLogger('DmsAccessRequestService');
 
@@ -144,6 +141,7 @@ export class AccessRequestService {
     private readonly db: DatabaseService,
     private readonly documentAclService: DocumentAclService,
     private readonly documentControlPlaneService: DocumentControlPlaneService,
+    private readonly documentProjectionService: DocumentProjectionService,
   ) {}
 
   async createReadRequest(
@@ -1058,7 +1056,7 @@ export class AccessRequestService {
         isActive: true,
       },
     });
-    await this.syncDocumentProjectionRelations(existing.documentId, nextNormalized, canonicalMetadata, owner.userId);
+    await this.documentProjectionService.syncDocumentProjectionRelations(existing.documentId, nextNormalized, canonicalMetadata, owner.userId);
     this.documentControlPlaneService.clearCachedMetadataByRelativePath(previousNormalized);
     await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(nextNormalized);
     this.lastControlPlaneSyncAt = Date.now();
@@ -1272,7 +1270,7 @@ export class AccessRequestService {
           isActive: true,
         },
       });
-      await this.syncDocumentProjectionRelations(existing.documentId, relativePath, canonicalMetadata, fallbackOwner.userId);
+      await this.documentProjectionService.syncDocumentProjectionRelations(existing.documentId, relativePath, canonicalMetadata, fallbackOwner.userId);
       return;
     }
 
@@ -1299,7 +1297,7 @@ export class AccessRequestService {
         documentId: true,
       },
     });
-    await this.syncDocumentProjectionRelations(created.documentId, relativePath, canonicalMetadata, fallbackOwner.userId);
+    await this.documentProjectionService.syncDocumentProjectionRelations(created.documentId, relativePath, canonicalMetadata, fallbackOwner.userId);
   }
 
   private async resolveCanonicalOwnerIdentity(
@@ -1448,7 +1446,7 @@ export class AccessRequestService {
           metadataJson: true,
         },
       });
-      await this.syncDocumentProjectionRelations(updated.documentId, relativePath, canonicalMetadata, owner.userId);
+      await this.documentProjectionService.syncDocumentProjectionRelations(updated.documentId, relativePath, canonicalMetadata, owner.userId);
       return updated;
     }
 
@@ -1482,7 +1480,7 @@ export class AccessRequestService {
         metadataJson: true,
       },
     });
-    await this.syncDocumentProjectionRelations(created.documentId, relativePath, canonicalMetadata, owner.userId);
+    await this.documentProjectionService.syncDocumentProjectionRelations(created.documentId, relativePath, canonicalMetadata, owner.userId);
     return created;
   }
 
@@ -1628,117 +1626,5 @@ export class AccessRequestService {
   private normalizeRelativePath(inputPath: string): string {
     return normalizePath(inputPath.trim().replace(/^\/+/, ''));
   }
-
-  private async syncDocumentProjectionRelations(
-    documentId: bigint,
-    relativePath: string,
-    metadata: Record<string, unknown> | null,
-    actorUserId: bigint,
-  ): Promise<void> {
-    await Promise.all([
-      this.syncDocumentSourceFiles(documentId, metadata, actorUserId),
-      this.syncDocumentPathHistory(documentId, relativePath, metadata, actorUserId),
-      this.syncDocumentComments(documentId, metadata, actorUserId),
-    ]);
-  }
-
-  private async syncDocumentSourceFiles(
-    documentId: bigint,
-    metadata: Record<string, unknown> | null,
-    actorUserId: bigint,
-  ): Promise<void> {
-    const sourceFiles = normalizeSourceFiles(metadata);
-    await this.db.client.dmsDocumentSourceFile.deleteMany({ where: { documentId } });
-    if (sourceFiles.length === 0) {
-      return;
-    }
-
-    await this.db.client.dmsDocumentSourceFile.createMany({
-      data: sourceFiles.map((sourceFile, index) => ({
-        documentId,
-        sourceName: sourceFile.name,
-        sourcePath: sourceFile.path,
-        mediaType: sourceFile.type ?? null,
-        fileSize: sourceFile.size ?? null,
-        url: sourceFile.url ?? null,
-        storageUri: sourceFile.storageUri ?? null,
-        providerCode: sourceFile.provider ?? null,
-        versionId: sourceFile.versionId ?? null,
-        etag: sourceFile.etag ?? null,
-        checksum: sourceFile.checksum ?? null,
-        originCode: sourceFile.origin ?? null,
-        statusCode: sourceFile.status ?? null,
-        storageMode: sourceFile.storage ?? null,
-        kindCode: sourceFile.kind ?? null,
-        sortOrder: index,
-        projectionJson: toSourceFileProjectionJson(sourceFile),
-        createdBy: actorUserId,
-        updatedBy: actorUserId,
-        lastSource: ACTIVE_REQUEST_SOURCE,
-        lastActivity: ACTIVE_REQUEST_ACTIVITY,
-      })),
-    });
-  }
-
-  private async syncDocumentPathHistory(
-    documentId: bigint,
-    relativePath: string,
-    metadata: Record<string, unknown> | null,
-    actorUserId: bigint,
-  ): Promise<void> {
-    const pathHistory = normalizePathHistory(relativePath, metadata);
-    await this.db.client.dmsDocumentPathHistory.deleteMany({ where: { documentId } });
-    if (pathHistory.length === 0) {
-      return;
-    }
-
-    await this.db.client.dmsDocumentPathHistory.createMany({
-      data: pathHistory.map((entry) => ({
-        documentId,
-        relativePath: entry.path,
-        previousRelativePath: entry.previousRelativePath ?? null,
-        reasonCode: entry.reasonCode,
-        changedAt: entry.changedAt,
-        changedByUserId: actorUserId,
-        createdBy: actorUserId,
-        updatedBy: actorUserId,
-        lastSource: ACTIVE_REQUEST_SOURCE,
-        lastActivity: ACTIVE_REQUEST_ACTIVITY,
-      })),
-    });
-  }
-
-  private async syncDocumentComments(
-    documentId: bigint,
-    metadata: Record<string, unknown> | null,
-    actorUserId: bigint,
-  ): Promise<void> {
-    const comments = normalizeComments(metadata);
-    await this.db.client.dmsDocumentComment.deleteMany({ where: { documentId } });
-    if (comments.length === 0) {
-      return;
-    }
-
-    await this.db.client.dmsDocumentComment.createMany({
-      data: comments.map((comment, index) => ({
-        documentId,
-        commentKey: comment.id,
-        parentCommentKey: comment.parentId ?? null,
-        commentContent: comment.content,
-        authorName: comment.author,
-        authorEmail: comment.email ?? null,
-        avatarUrl: comment.avatarUrl ?? null,
-        commentCreatedAt: new Date(comment.createdAt),
-        commentDeletedAt: comment.deletedAt ? new Date(comment.deletedAt) : null,
-        sortOrder: index,
-        isActive: true,
-        createdBy: actorUserId,
-        updatedBy: actorUserId,
-        lastSource: ACTIVE_REQUEST_SOURCE,
-        lastActivity: ACTIVE_REQUEST_ACTIVITY,
-      })),
-    });
-  }
-
 
 }

@@ -15,6 +15,9 @@ import type {
   AccessRequestRecord,
 } from './access-request.service.js';
 
+export const ACTIVE_REQUEST_SOURCE = 'dms.access.request';
+export const ACTIVE_REQUEST_ACTIVITY = 'dms.access.request.sync-document';
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
