@@ -36,7 +36,7 @@ import { useRequestLifecycle } from '@/hooks/useRequestLifecycle';
 import { useOpenDocumentTab } from '@/hooks/useOpenDocumentTab';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
 import { resolveDocPath } from '@/lib/utils/linkUtils';
-import type { DocumentMetadata, SourceFileMeta } from '@/types';
+import type { DocumentMetadata } from '@/types';
 import {
   type InlineSummaryFileItem,
 } from '@/components/common/assistant/reference/Picker';
@@ -64,6 +64,7 @@ import { useDocumentCollaboration } from './useDocumentCollaboration';
 import { useDocumentInfoRecommendation } from './useDocumentInfoRecommendation';
 import { useDocumentLauncherActions } from './useDocumentLauncherActions';
 import { useDocumentReferenceLifecycle } from './useDocumentReferenceLifecycle';
+import { useSyncReferencesToMetadata } from './useSyncReferencesToMetadata';
 import { toast } from '@/lib/toast';
 import { downloadMarkdown, printHtmlContent } from '@/lib/utils/downloadUtils';
 import { resolveTitlePathRecommendation } from '@/lib/utils/titlePathRecommendation';
@@ -1284,47 +1285,16 @@ export function DocumentPage() {
   }, [filePath, loadFile]);
 
   // AI 작성 후 사용된 참조 파일/템플릿을 metadata sourceFiles에 동기화
-  const handleSyncReferencesToMetadata = useCallback((
-    files: SourceFileMeta[],
-    rawFiles?: Map<string, File>,
-    resolvedRefPaths?: string[],
-  ) => {
-    const currentFiles = documentMetadata?.sourceFiles ?? [];
-    const existingKeys = new Set(currentFiles.map((f) => f.name));
-
-    const newFiles = files.filter((f) => !existingKeys.has(f.name));
-    if (newFiles.length > 0) {
-      setLocalDocumentMetadata({ sourceFiles: [...currentFiles, ...newFiles] });
-      setHasUnsavedChanges(true);
-    }
-
-    // 사용된 파일 ID 추적
-    for (const f of files) {
-      if (f.origin === 'reference') {
-        // inlineSummaryFiles에서 이름으로 매칭하여 id 찾기
-        const matched = inlineSummaryFiles.find((sf) => sf.name === f.name);
-        if (matched) {
-          setUsedSummaryFileIds((prev) => new Set(prev).add(matched.id));
-        }
-      } else if (f.origin === 'template') {
-        setIsTemplateUsed(true);
-      }
-    }
-    if (resolvedRefPaths && resolvedRefPaths.length > 0) {
-      setUsedTemplateRefPaths((prev) => {
-        const next = new Set(prev);
-        for (const path of resolvedRefPaths) next.add(path);
-        return next;
-      });
-    }
-
-    // 참조 파일의 File 객체를 pending에 등록 (저장 시 업로드)
-    if (rawFiles) {
-      for (const [tempPath, file] of rawFiles.entries()) {
-        pendingAttachmentsRef.current.set(tempPath, file);
-      }
-    }
-  }, [documentMetadata, inlineSummaryFiles, setLocalDocumentMetadata, setHasUnsavedChanges]);
+  const handleSyncReferencesToMetadata = useSyncReferencesToMetadata({
+    documentMetadata,
+    inlineSummaryFiles,
+    setLocalDocumentMetadata,
+    setHasUnsavedChanges,
+    setUsedSummaryFileIds,
+    setIsTemplateUsed,
+    setUsedTemplateRefPaths,
+    pendingAttachmentsRef,
+  });
 
   const {
     handleInlineCompose,
