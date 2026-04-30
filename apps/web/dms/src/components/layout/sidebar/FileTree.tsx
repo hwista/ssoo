@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, ImageIcon, Bookmark } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { useFileStore, useSidebarStore, useTabStore, useActiveEditorFilePath } from '@/stores';
-import { useOpenTabWithConfirm } from '@/hooks';
+import { useOpenDocumentTab } from '@/hooks';
 import { filterFileTree } from '@/lib/utils/fileTree';
 import type { FileNode } from '@/types';
 
@@ -48,7 +48,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
   const { expandedFolders, toggleFolder } = useSidebarStore();
   const activeTabId = useTabStore(state => state.activeTabId);
   const currentFilePath = useActiveEditorFilePath(activeTabId);
-  const openTabWithConfirm = useOpenTabWithConfirm();
+  const openDocumentTab = useOpenDocumentTab();
   const { addBookmark, removeBookmark, isBookmarked } = useFileStore();
   
   const isExpanded = expandedFolders.has(node.path);
@@ -64,13 +64,11 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
     if (isFolder) {
       toggleFolder(node.path);
     } else {
-      // 사이드바는 탭만 열고, DocumentPage가 파일 로드를 담당합니다.
-      await openTabWithConfirm({
-        id: `file-${node.path.replace(/\//g, '-')}`,
+      // 사이드바와 검색이 동일한 정규화로 탭을 식별하도록 useOpenDocumentTab 통합 사용.
+      // (이전엔 슬래시→'-' 와 encodeURIComponent 차이로 같은 문서가 두 탭에 중복으로 열림)
+      await openDocumentTab({
+        path: node.path,
         title: node.name,
-        path: `/doc/${encodeURIComponent(node.path)}`,
-        icon: 'FileText',
-        closable: true,
         activate: true,
       });
     }

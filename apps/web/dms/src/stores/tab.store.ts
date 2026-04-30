@@ -35,6 +35,11 @@ interface TabStoreState {
   tabs: TabItem[];
   activeTabId: string | null;
   maxTabs: number;
+  /**
+   * 현 탭들이 어느 사용자 소속인지 추적. 다른 계정으로 전환되면 (rehydrate 직후 비교)
+   * 탭을 초기화해 이전 사용자의 탭이 새 사용자 화면에 잔존하는 문제를 방지.
+   */
+  ownerUserId: string | null;
 }
 
 interface TabStoreActions {
@@ -48,6 +53,7 @@ interface TabStoreActions {
   updateTab: (tabId: string, updates: Partial<Pick<TabItem, 'id' | 'title' | 'path' | 'icon' | 'isEditing'>>) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   getActiveTab: () => TabItem | undefined;
+  setOwnerUserId: (userId: string | null) => void;
 }
 
 interface TabStore extends TabStoreState, TabStoreActions {}
@@ -59,6 +65,7 @@ export const useTabStore = create<TabStore>()(
       tabs: [createHomeTab()],
       activeTabId: HOME_TAB.id,
       maxTabs: 16,
+      ownerUserId: null,
 
       // Actions
       openTab: (options: OpenTabOptions): string => {
@@ -230,6 +237,10 @@ export const useTabStore = create<TabStore>()(
         const { tabs, activeTabId } = get();
         return tabs.find((t) => t.id === activeTabId);
       },
+
+      setOwnerUserId: (userId: string | null): void => {
+        set({ ownerUserId: userId });
+      },
     }),
     {
       name: 'dms-tab-store',
@@ -237,6 +248,7 @@ export const useTabStore = create<TabStore>()(
       partialize: (state) => ({
         tabs: state.tabs,
         activeTabId: state.activeTabId,
+        ownerUserId: state.ownerUserId,
       }),
       // Date 역직렬화
       onRehydrateStorage: () => (state) => {

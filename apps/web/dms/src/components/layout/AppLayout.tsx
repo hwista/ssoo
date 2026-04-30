@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { ShellFrame } from '@ssoo/web-shell';
 import { ChevronRight } from 'lucide-react';
-import { useLayoutStore, useSidebarStore } from '@/stores';
+import { useAuthStore, useLayoutStore, useSidebarStore, useTabStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './sidebar';
@@ -69,6 +69,23 @@ export function AppLayout() {
 
     setExpandedSections([...nextExpandedSections]);
   }, [setExpandedSections, settingsConfig, sidebarSections]);
+
+  // 로그인 사용자 변경 시 이전 사용자의 탭을 초기화 (zustand persist 가 user-scope 가 아니라
+  // 다른 계정으로 로그인해도 이전 사용자의 탭이 그대로 보이는 문제 해결).
+  // ownerUserId 는 persist 에 보존되므로 새로고침 후 다른 계정 로그인 시점에도 비교 가능.
+  const currentUserId = useAuthStore((state) => state.user?.userId);
+  const tabOwnerUserId = useTabStore((state) => state.ownerUserId);
+  const closeAllTabs = useTabStore((state) => state.closeAllTabs);
+  const setTabOwnerUserId = useTabStore((state) => state.setOwnerUserId);
+  React.useEffect(() => {
+    if (!currentUserId) return;
+    if (tabOwnerUserId && tabOwnerUserId !== currentUserId) {
+      closeAllTabs();
+    }
+    if (tabOwnerUserId !== currentUserId) {
+      setTabOwnerUserId(currentUserId);
+    }
+  }, [currentUserId, tabOwnerUserId, closeAllTabs, setTabOwnerUserId]);
 
   // 모바일은 별도 UI (추후 개발)
   if (deviceType === 'mobile') {

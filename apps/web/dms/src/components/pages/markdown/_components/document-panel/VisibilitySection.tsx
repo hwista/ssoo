@@ -46,9 +46,9 @@ export function VisibilitySection({ scope, onScopeChange, canManage = false }: V
       <Dropdown
         value={formatVisibilityScope(scope)}
         onValueChange={handleChange}
-        className="h-7 w-[130px] border-ssoo-content-border bg-white text-body-sm"
-        contentClassName="border-ssoo-content-border bg-white"
-        itemClassName="focus:bg-ssoo-content-background"
+        className="h-7 w-[130px] border-ssoo-content-border bg-white text-body-sm text-ssoo-primary"
+        contentClassName="border-ssoo-content-border bg-white text-ssoo-primary"
+        itemClassName="text-ssoo-primary focus:bg-ssoo-content-background focus:text-ssoo-primary"
       >
         {VISIBILITY_OPTIONS.map((opt) => (
           <Option key={opt.value} value={opt.value}>
