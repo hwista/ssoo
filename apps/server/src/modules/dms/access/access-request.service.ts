@@ -27,6 +27,7 @@ import {
   resolveAbsolutePath,
   resolveDocumentPresentation,
 } from '../search/search.helpers.js';
+import { DmsEventsGateway } from '../events/dms-events.gateway.js';
 import { ControlPlaneSyncService } from './control-plane-sync.service.js';
 import { DocumentAclService } from './document-acl.service.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
@@ -140,6 +141,7 @@ export class AccessRequestService {
     private readonly documentProjectionService: DocumentProjectionService,
     private readonly documentRecordService: DocumentRecordService,
     private readonly controlPlaneSyncService: ControlPlaneSyncService,
+    private readonly eventsGateway: DmsEventsGateway,
   ) {}
 
   async createReadRequest(
@@ -436,6 +438,13 @@ export class AccessRequestService {
 
     this.documentControlPlaneService.clearCachedMetadataByRelativePath(document.relativePath);
 
+    this.eventsGateway.emitAccessChanged({
+      documentId: document.documentId.toString(),
+      relativePath: document.relativePath,
+      reason: 'visibility',
+      actorUserId: user.userId,
+    });
+
     logger.info(
       `Document ${documentId} visibility changed: ${document.visibilityScope} → ${visibilityScope} by user ${user.userId}`,
     );
@@ -575,6 +584,13 @@ export class AccessRequestService {
 
     await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(document.relativePath);
 
+    this.eventsGateway.emitAccessChanged({
+      documentId: document.documentId.toString(),
+      relativePath: document.relativePath,
+      reason: 'ownership',
+      actorUserId: user.userId,
+    });
+
     logger.info(
       `Document ${documentId} ownership transferred: user ${previousOwnerUserId} → user ${newOwner.id} (${newOwnerLoginId}) by user ${user.userId}`,
     );
@@ -654,6 +670,13 @@ export class AccessRequestService {
     });
 
     await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(document.relativePath);
+
+    this.eventsGateway.emitAccessChanged({
+      documentId: document.documentId.toString(),
+      relativePath: document.relativePath,
+      reason: 'grant-revoked',
+      actorUserId: user.userId,
+    });
 
     logger.info(
       `Grant ${grantId} revoked for document ${documentId} by user ${user.userId}`,
@@ -754,6 +777,14 @@ export class AccessRequestService {
     });
 
     await this.documentControlPlaneService.refreshCache();
+
+    this.eventsGateway.emitAccessChanged({
+      documentId: approved.documentId.toString(),
+      relativePath: approved.document.relativePath,
+      reason: 'grant-created',
+      actorUserId: user.userId,
+    });
+
     const actors = await this.loadActors([
       approved.requesterUserId,
       approved.respondedByUserId,

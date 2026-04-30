@@ -6,6 +6,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getSharedAccessToken } from '@ssoo/web-auth';
 import { useAuthStore } from '@/stores';
 import { fileTreeKeys } from '@/hooks/queries/useFileTree';
+import { aiSearchKeys } from '@/hooks/queries/useAiSearch';
+import { accessRequestKeys } from '@/hooks/queries/useDocumentAccessRequests';
 import { toast } from '@/lib/toast';
 
 // ============================================================================
@@ -144,6 +146,15 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
     // publish 상태 이벤트
     socket.on('dms:publish-status', (event: DmsPublishStatusEvent) => {
       onPublishStatus?.(event);
+    });
+
+    // ACL/visibility 변경 이벤트 — 모든 client 가 search/tree/access-request cache 를 즉시 invalidate.
+    // 정식 cross-client invalidation 통로. F1 staleTime 단축의 정식 대체.
+    socket.on('dms:access-changed', () => {
+      void queryClient.invalidateQueries({ queryKey: aiSearchKeys.results() });
+      void queryClient.invalidateQueries({ queryKey: fileTreeKeys.tree() });
+      void queryClient.invalidateQueries({ queryKey: accessRequestKeys.all });
+      void queryClient.invalidateQueries({ queryKey: accessRequestKeys.managedDocuments });
     });
 
     return () => {

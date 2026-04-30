@@ -195,12 +195,16 @@ interface DropdownProps {
   onValueChange?: (value: string) => void;
   children: React.ReactNode;
   className?: string;
+  /** content panel (열린 listbox) className override — 사용처별 디자인 토큰 정렬용 */
+  contentClassName?: string;
+  /** option item className override */
+  itemClassName?: string;
   placeholder?: string;
 }
 
-const Dropdown: React.FC<DropdownProps> = ({ value, onOptionSelect, onValueChange, children, className, placeholder }) => {
+const Dropdown: React.FC<DropdownProps> = ({ value, onOptionSelect, onValueChange, children, className, contentClassName, itemClassName, placeholder }) => {
   const [open, setOpen] = React.useState(false);
-  
+
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
@@ -214,11 +218,12 @@ const Dropdown: React.FC<DropdownProps> = ({ value, onOptionSelect, onValueChang
           <ChevronRight className="h-4 w-4 rotate-90 opacity-50" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-full min-w-[var(--radix-dropdown-menu-trigger-width)]">
+      <DropdownMenuContent className={cn("w-full min-w-[var(--radix-dropdown-menu-trigger-width)]", contentClassName)}>
         {React.Children.map(children, (child) => {
           if (React.isValidElement<OptionProps>(child) && child.type === Option) {
             return (
               <DropdownMenuItem
+                className={itemClassName}
                 onClick={(e) => {
                   onOptionSelect?.(e as unknown as React.MouseEvent, { optionValue: child.props.value });
                   onValueChange?.(child.props.value);

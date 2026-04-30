@@ -617,6 +617,7 @@ export function DocumentPanel({
             <VisibilitySection
               scope={documentMetadata.visibility.scope}
               canManage={
+                editable &&
                 Boolean(currentUserLoginId) &&
                 Boolean(documentMetadata.ownerLoginId) &&
                 currentUserLoginId === documentMetadata.ownerLoginId

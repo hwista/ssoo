@@ -38,6 +38,17 @@ export interface DmsTreeChangedEvent {
   action: 'create' | 'rename' | 'delete' | 'sync';
 }
 
+/**
+ * 문서 access state 변경 이벤트 — visibility / grant / ownership 등 ACL 영향 변경 시 emit.
+ * 모든 dms 클라이언트가 받아 search / file tree / managed documents query 를 invalidate.
+ */
+export interface DmsAccessChangedEvent {
+  documentId: string;
+  relativePath?: string;
+  reason: 'visibility' | 'ownership' | 'grant-revoked' | 'grant-created';
+  actorUserId?: string;
+}
+
 interface AuthenticatedSocket extends Socket {
   data: {
     user?: TokenPayload;
@@ -184,6 +195,18 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   emitTreeChanged(event: DmsTreeChangedEvent): void {
     this.server?.to('dms:tree').emit('dms:tree-changed', event);
+  }
+
+  /**
+   * 문서 ACL/visibility 변경 broadcast — 모든 dms 사용자가 search/tree cache 를 invalidate 하도록.
+   * tree room 으로 보내 모든 인증된 dms 클라이언트에게 도달 (개별 doc room 가입 여부와 무관).
+   */
+  emitAccessChanged(event: DmsAccessChangedEvent): void {
+    this.server?.to('dms:tree').emit('dms:access-changed', event);
+    if (event.relativePath) {
+      const roomName = this.documentRoom(event.relativePath);
+      this.server?.to(roomName).emit('dms:access-changed', event);
+    }
   }
 
   // --------------------------------------------------------------------------
