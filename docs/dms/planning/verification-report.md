@@ -1,7 +1,9 @@
 # DMS 문서-코드 검증 리포트
 
 > 작성일: 2026-01-27  
-> 상태: ✅ 검증 완료
+> 상태: ✅ 검증 완료 (작성 시점 기준)
+>
+> ⚠️ **STALE BASELINE**: 본 문서의 baseline (API 19개 / 컴포넌트 35개 / 훅 9개) 은 2026-01-27 작성 시점 측정값입니다. 이후 4개월간 코드가 진화 (DMS 통합, runtime path contract, control-plane decomposition 등) 했으므로 현 코드와 일치하지 않을 수 있습니다. 갱신 또는 `_archive/` 이동 검토 필요. 추적: backlog `VR-01` (P2, 진행중), `VR-02` (P2, 대기).
 
 ## 📋 검증 대상
 

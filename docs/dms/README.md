@@ -55,7 +55,7 @@ docs/dms/
 
 | ID | 항목 | 우선순위 | 상태 |
 |----|------|----------|------|
-| DMS-AUTH-01 | 공통 auth/access 기반 위 DMS 문서 object ACL 연결 | P1 | 🔄 진행중 |
+| DMS-AUTH-01 | 공통 auth/access 기반 위 DMS 문서 object ACL 연결 | P1 | ✅ 완료 |
 
 ## Changelog
 

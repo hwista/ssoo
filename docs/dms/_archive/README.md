@@ -12,10 +12,10 @@
 |------|------|------|
 | `DEVELOPMENT_STANDARDS.md` | 참조용 유지 | 개발 표준 (유효) |
 | `deployment.md` | 참조용 유지 | 배포 가이드 |
-| `hooks.md` | 대체됨 | → `../development/hooks.md` |
-| `components.md` | 대체됨 | → `../development/components.md` |
-| `api.md` | 대체됨 | → `../development/api.md` |
-| `design-system.md` | 대체됨 | → `../development/design-system.md` |
+| `hooks.md` | 대체됨 | → `../guides/hooks.md` |
+| `components.md` | 대체됨 | → `../guides/components.md` |
+| `api.md` | 대체됨 | → `../guides/api.md` |
+| `design-system.md` | 대체됨 | → `../explanation/design/design-system.md` |
 | `refactoring/` | 참조용 유지 | 리팩토링 관련 문서 |
 
 ---
@@ -23,11 +23,11 @@
 ## ⚠️ 주의사항
 
 - 대체된 문서들은 **최신 정보가 아닐 수 있습니다**
-- 최신 문서는 `../development/` 폴더를 참조하세요
+- 최신 문서는 `../guides/` 폴더를 참조하세요
 - 이 폴더의 문서는 **수정하지 마세요**
 
 ---
 
 ## 🔗 현재 문서 위치
 
-**👉 [개발 문서 바로가기](../development/README.md)**
+**👉 [개발 문서 바로가기](../guides/README.md)**

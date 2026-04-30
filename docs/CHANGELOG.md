@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Refactoring
+
+* **server (dms):** `access-request.service.ts` decomposition complete — 2150-line god service decomposed into 5 cohesive units (`AccessRequestService` 1121, `ControlPlaneSyncService` 260, `DocumentRecordService` 311, `DocumentProjectionService` 126, `access-request.util.ts` 447). C-4 track via 5 slices. Record bootstrap and control plane sync split into separate Nest services after circular dependency between them was resolved by re-ordering slices.
+
+* **server (dms):** `git.service.ts` decomposition — 1285 → ~1150 lines via pure-function util extraction (`git-paths.util.ts`, `git-sync.util.ts`, `git-inspect.util.ts`). C-3 track via 4 slices. `getRepositoryBindingStatus` kept as a 1-line proxy on `GitService` for caller stability.
+
+* **server (dms):** `collaboration.service.ts` util extraction (paths / sanitizers / isolation / state-IO) and 110-test integration coverage. C-2 + D-2 tracks.
+
+* **web-dms:** `DocumentPage` `useSyncReferencesToMetadata` hook extraction — initial slice of C-1 track (DocumentPage at ~1997 lines).
+
 ### Features
 
 * **docs/dms:** DMS canonical permission/hybrid model 문서화 — 문서 visibility(`public / organization / self`), explicit grant/request, discovery-vs-readable surface, file/Git vs DB vs sidecar 경계, mixed `jsonb`+relation control-plane, `revisionSeq` optimistic concurrency, reconciliation 전략을 정본 문서로 고정

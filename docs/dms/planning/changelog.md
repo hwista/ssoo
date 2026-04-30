@@ -1,7 +1,54 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-04-22
+> 최종 업데이트: 2026-04-30
 > 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
+
+---
+
+## 2026-04-30
+
+### C-4 트랙 종료 — `access-request.service.ts` 분해 (5 slices)
+
+- `AccessRequestService` 2150 → 1121 lines (-1029, -48%) 로 축소. 24개 stateless util (`access-request.util.ts`) + 3개 cohesive Nest 서비스로 분해
+- `DocumentProjectionService` (126 lines) — DB projection sync (source files / path history / comments)
+- `DocumentRecordService` (311 lines) — record bootstrap + canonical owner resolution + repair-needed handling
+- `ControlPlaneSyncService` (260 lines) — repo↔DB sync 오케스트레이션, throttle + parity + scan + `markSynced()` setter for external callers
+- 슬라이스 진행 중 control plane sync ↔ record bootstrap 순환 의존성 발견 후 순서 스왑 (record bootstrap 먼저 추출 → control plane sync 가능)
+- 외부 21 caller (controller × 8 + service × 1) 무영향 (1-line proxy 유지)
+- 커밋: `49ef29f`/`4081ea4`/`c9b13be`/`2d9f2e5`/`4d98ca2`
+
+### C-3 트랙 종료 — `git.service.ts` 분해 (4 slices)
+
+- `git.service.ts` 1285 → ~1150 lines (-263, -20.5%). pure-function util pattern 일관 적용
+- `git-paths.util.ts` (Slice 1) / `git-sync.util.ts` (Slice 2) / `git-inspect.util.ts` (Slice 3+4)
+- `getRepositoryBindingStatus` 는 1-line proxy 유지로 `dms-admin.service`, `settings.service` 등 외부 caller 무영향
+- 커밋: `4c5df24`/`eedb751`/`47f2cc0`/`00127c8`
+
+---
+
+## 2026-04-29
+
+### HANDOFF.md 도입
+
+- DMS refactor 작업 진입점 및 다음 단계를 `HANDOFF.md` 로 분리해 휘발성 메모를 정본 위치에 고정 — `42696a0`
+
+---
+
+## 2026-04-28
+
+### D-2 트랙 — collaboration spec 110 tests
+
+- `collaboration-utils.spec.ts`, `collaboration.service.spec.ts` 등 6 suites 110 tests 추가. C-3·C-4 회귀 안전망으로 활용
+- 커밋: `6fb2cdb`/`f41854d`
+
+### C-2 트랙 — `collaboration.service.ts` util 분해
+
+- 4 util 파일 분리: paths / sanitizers / isolation / state-IO. 본 service 는 858 lines 로 축소(추가 분해는 향후 슬라이스)
+- 커밋: `db77869`/`34094f7`/`f156d90`/`2dc45a4`
+
+### C-1 진행 — DocumentPage 훅 추출
+
+- `useSyncReferencesToMetadata` 훅 분리. DocumentPage 는 ~1997 lines 시점 (추가 분해는 C-5 트랙 후보) — `353094c`
 
 ---
 
