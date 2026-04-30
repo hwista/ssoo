@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **PostgreSQL** ≥ 15 (또는 Docker: `docker compose up -d`)
 - 환경변수: `.env` 파일 참조 (아래 "데이터베이스 명령" 섹션)
 - Health check: `curl http://localhost:4000/api/health`
-- 테스트 계정: `admin` / `admin123!` (role: admin)
+- 환경 설정: `.env.example` 복사 → `.env`. 시드 계정/데이터는 `pnpm db:seed` 실행 (스크립트: `.codex/scripts/db-seed.sh`)
 
 ---
 
@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 항목 | 값 |
 |------|-----|
 | 구조 | pnpm workspace + Turborepo |
-| 앱 | `apps/server` (NestJS), `apps/web/pms` (Next.js), `apps/web/cms` (Next.js), `apps/web/dms` (Next.js, pnpm workspace) |
+| 앱 | `apps/server` (NestJS, 4000), `apps/web/pms` (Next.js, 3000), `apps/web/cms` (Next.js, 3002), `apps/web/dms` (Next.js, 3001), `apps/web/admin` (Next.js, 3003) |
 | 공유 패키지 | `packages/database` (Prisma), `packages/types`, `packages/web-auth`, `packages/web-shell` |
 | 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/cms) |
 
@@ -163,7 +163,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 ```
 
 - **Type**: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
-- **Scope**: `server` | `web-pms` | `web-cms` | `web-dms` | `database` | `types` | `docs`
+- **Scope**: `server` | `web-pms` | `web-cms` | `web-dms` | `web-admin` | `database` | `types` | `docs`
 - `commitlint.config.mjs`로 자동 검증 (subject 최대 100자)
 
 ---
@@ -172,11 +172,12 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 
 | 앱 | 명령어 | 포트 | 비고 |
 |----|--------|------|------|
-| 전체 (server + pms) | `pnpm dev` | - | Turborepo 병렬 실행 |
-| server만 | `pnpm dev:server` | 4000 | NestJS |
-| web-pms만 | `pnpm dev:web-pms` | 3000 | Next.js |
-| web-dms | `pnpm dev:web-dms` | 3001 | Turbo filter 기반 실행 |
+| 전체 | `pnpm dev` | - | 모든 워크스페이스 dev 스크립트 병렬 실행 (turbo) |
+| server | `pnpm dev:server` | 4000 | NestJS |
+| web-pms | `pnpm dev:web-pms` | 3000 | Next.js |
+| web-dms | `pnpm dev:web-dms` | 3001 | Next.js |
 | web-cms | `pnpm dev:web-cms` | 3002 | Next.js |
+| web-admin | `pnpm dev:web-admin` | 3003 | Next.js |
 
 ### 앱별 빌드 / 린트 / 타입 체크
 
@@ -188,6 +189,7 @@ turbo lint --filter=web-pms                   # PMS만 린트
 pnpm -C apps/server exec tsc --noEmit         # 서버 타입 체크
 pnpm -C apps/web/pms exec tsc --noEmit        # PMS 타입 체크
 pnpm --filter web-dms exec tsc --noEmit       # DMS 타입 체크
+pnpm --filter web-admin exec tsc --noEmit     # Admin 타입 체크
 ```
 
 ### 데이터베이스 명령
@@ -198,6 +200,7 @@ pnpm db:push        # Prisma 스키마를 DB에 반영
 pnpm db:seed        # 기초 데이터 삽입 (SQL 시드)
 pnpm db:triggers    # 히스토리 트리거 설치
 pnpm db:generate    # Prisma Client 생성
+pnpm db:setup       # docker up → generate → push → seed → triggers (헬스체크 포함 일괄 초기화)
 ```
 
 필수 환경변수 (`.env`):
@@ -226,18 +229,47 @@ pnpm install
 | 린트 | `pnpm lint` |
 | DMS 빌드 | `pnpm run build:web-dms` |
 | DMS 가드 | `pnpm run codex:dms-guard` |
-| GitLab workspace 동기화 | `pnpm run codex:workspace-sync-from-gitlab` (legacy alias: `codex:dms-sync-from-gitlab`) |
-| GitLab workspace 배포 | `pnpm run codex:workspace-publish` (GitHub + GitLab + 사전검사, legacy alias: `codex:dms-publish`) |
+| GitLab workspace 동기화 | `pnpm run codex:workspace-sync-from-gitlab` (LSWIKI ← GitLab `LSITC_WEB/LSWIKI`; legacy alias: `codex:dms-sync-from-gitlab`) |
+| GitLab workspace 배포 | `pnpm run codex:workspace-publish` (GitHub + GitLab 양방향 + 사전검사; legacy alias: `codex:dms-publish`) |
 | 문서 점검 | `node .github/scripts/check-docs.js` |
 | 패턴 점검 | `node .github/scripts/check-patterns.js` |
 | 디자인 점검 | `node .github/scripts/check-design.js` |
 | SDD 구조 점검 | `node .github/scripts/sdd-verify.js --quick` |
 | Codex 동기화 검증 | `node .codex/scripts/verify-codex-sync.js` |
 | Codex preflight | `pnpm run codex:preflight` |
+| 전체 클린 | `pnpm clean` (turbo clean + node_modules 삭제) |
+| 접근제어 스모크 | `pnpm verify:access-smoke` |
+| 접근제어 CI 묶음 | `pnpm verify:access-ci` (smoke + admin + dms) |
+| Docker 운영 | `pnpm docker:up` / `docker:down` / `docker:logs` / `docker:ps` |
+| 문서 생성 (TypeDoc) | `pnpm docs:typedoc` |
+| 문서 생성 (OpenAPI) | `pnpm docs:openapi` |
+| 문서 생성 (DB) | `pnpm docs:db` |
+| 문서 생성 (Storybook) | `pnpm docs:storybook` |
+| 문서 일괄 생성/검증 | `pnpm docs:all` |
+
+### Hermes 하네스 관측성
+
+`pnpm build`, `pnpm lint`, `pnpm docs:verify`, `pnpm codex:preflight`, `pnpm verify:access-*` 는 모두 `*:observed` 변형으로 실행됨 (`package.json` 참조).
+
+- `*:observed` = `.hermes/scripts/harness-observe-command` 래퍼 (실행을 **차단하지 않음**, 이벤트 로깅 전용)
+- raw 명령은 `:raw` suffix 사용 (예: `pnpm run build:raw`, `pnpm run lint:raw`) — 래핑 노이즈 없이 디버깅할 때
+- 이벤트 산출물: `.hermes/runs/<date>/<run_id>/events.jsonl`
+- 단계 이벤트 헬퍼: `pnpm harness:planner:start|complete`, `harness:critic:start|complete`, `harness:builder:start|fallback|complete`, `harness:reviewer:start|complete`
+- 상세: `.hermes/README.md`, `AGENTS.md`
 
 ### 테스트
 
-현재 테스트 프레임워크 미도입 상태. `pnpm test` 명령 없음. 테스트 관련 규칙은 `.github/instructions/testing.instructions.md`를 참조합니다.
+| 범위 | 명령어 |
+|------|--------|
+| 전체 (turbo) | `pnpm test` |
+| server만 | `pnpm test:server` 또는 `pnpm -C apps/server test` |
+| server watch | `pnpm -C apps/server test:watch` |
+| server 커버리지 | `pnpm -C apps/server test:cov` (출력: `apps/server/coverage/`) |
+| 단일 파일 | `pnpm -C apps/server exec jest <path>` |
+
+- **server**: Jest 운영 중. 위치 `apps/server/test/**/*.spec.ts`, 설정 `apps/server/jest.config.ts`
+- **web 앱 (pms/dms/cms/admin)**: test 스크립트 없음 (미도입). `turbo test` 시 노옵 처리
+- 작성 규칙: `.github/instructions/testing.instructions.md`
 
 ### CI
 
@@ -277,6 +309,7 @@ PR 생성/업데이트 시 `.github/workflows/pr-validation.yml` 자동 실행 (
 | `apps/web/pms/**` | `.github/instructions/pms.instructions.md` |
 | `apps/web/dms/**` | `.github/instructions/dms.instructions.md` + `apps/web/dms/CLAUDE.md` |
 | `apps/web/cms/**` | `.github/instructions/cms.instructions.md` |
+| `apps/web/admin/**` | 전용 인스트럭션 미작성. `.github/instructions/pms.instructions.md` 패턴 준용 |
 | `packages/database/**` | `.github/instructions/database.instructions.md` |
 | `packages/types/**` | `.github/instructions/types.instructions.md` |
 
@@ -301,3 +334,14 @@ PR 생성/업데이트 시 `.github/workflows/pr-validation.yml` 자동 실행 (
 5. 검증 실패 시 커밋 불가
 
 체크리스트 상세: `.github/guides/agent-sync-checklist.md`
+
+---
+
+## 추가 진입점 문서
+
+| 파일 | 역할 |
+|------|------|
+| `AGENTS.md` | Codex 에이전트 진입점. 하네스 관측 의무, 정본 참조 순서 명시 |
+| `HANDOFF.md` | 현재 진행 작업의 세션 핸드오프 컨텍스트 (다음 작업자 인계용) |
+| `README.md` | 일반 온보딩 (개발자 대상). CLAUDE.md 와 역할 분리 |
+| `.codex/instructions/` | Codex 정본 (Codex CLI 가 우선 참조) |
