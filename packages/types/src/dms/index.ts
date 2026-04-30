@@ -12,7 +12,6 @@ export type {
   DocumentPermissionGrant,
   DocumentPathHistoryEntry,
   SourceFileMeta,
-  DocumentVersionEntry,
   DocumentComment,
   BodyLink,
   DocumentMetadata,

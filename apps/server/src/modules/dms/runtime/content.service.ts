@@ -552,21 +552,6 @@ class ContentService {
       embeddingModel: normalizeOptionalString(metadata['embeddingModel']) ?? '',
       sourceFiles: normalizeSourceFiles(metadata['sourceFiles'] ?? metadata['referenceFiles']),
       acl,
-      versionHistory: Array.isArray(metadata['versionHistory']) ? metadata['versionHistory'].flatMap((entry) => {
-        if (!isRecord(entry)) {
-          return [];
-        }
-
-        const id = normalizeOptionalString(entry.id);
-        const createdAt = normalizeOptionalString(entry.createdAt);
-        const author = normalizeOptionalString(entry.author);
-        const summary = normalizeOptionalString(entry.summary);
-        if (!id || !createdAt || !author || !summary) {
-          return [];
-        }
-
-        return [{ id, createdAt, author, summary }];
-      }) : [],
       comments: Array.isArray(metadata['comments']) ? metadata['comments'].flatMap((entry) => {
         if (!isRecord(entry)) {
           return [];
@@ -663,7 +648,6 @@ class ContentService {
         visibility: existing?.['visibility'],
         grants: existing?.['grants'] ?? [],
         pathHistory: existing?.['pathHistory'] ?? [],
-        versionHistory: existing?.['versionHistory'] ?? [],
         comments: existing?.['comments'] ?? [],
         templateId: existing?.['templateId'] ?? 'default',
         author: existing?.['author'] ?? existing?.['ownerLoginId'] ?? defaults?.defaultOwnerLoginId ?? 'Unknown',

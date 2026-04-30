@@ -79,6 +79,10 @@ DMS control-plane 은 PostgreSQL **mixed model** 을 사용한다.
 - RAG chunk / embedding / index state
 - path history
 
+#### 의도적으로 분리하지 않는 축
+
+- **versionHistory**: 2026-04-30 시점 dead feature 로 확인되어 제거됨. 의도(문서별 git commit history 노출)는 별도 backlog (`DMS-FE-versionHistory`) 로 등재. 향후 구현 시 `gitService.getFileHistory()` 기반 on-demand projection 으로 설계 (DB 저장 불필요).
+
 ---
 
 ## 5. canonical metadata contract

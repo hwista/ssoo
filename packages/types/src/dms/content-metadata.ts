@@ -4,7 +4,6 @@ import type {
   DocumentComment,
   DocumentPathHistoryEntry,
   DocumentPermissionGrant,
-  DocumentVersionEntry,
   DocumentVisibility,
   SourceFileMeta,
 } from './document-metadata';
@@ -51,7 +50,6 @@ export interface DocumentContentMetadata extends ContentMetadataBase {
   chunkIds?: string[];
   embeddingModel?: string;
   acl?: DocumentAcl;
-  versionHistory?: DocumentVersionEntry[];
   comments?: DocumentComment[];
   templateId?: string;
   ownerId?: string;

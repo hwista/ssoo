@@ -12,6 +12,7 @@ Context
 
 Completed
 ---------
+- **Phase A (project-level closure, 2026-04-30)**: GitLab `LSWIKI_DOC.git` push policy confirmed (canonical `master`, direct push verified — `b963f14` already on `origin/master`). `versionHistory` dead feature removed (server -50 lines + types -10 lines); intent re-registered as `DMS-FE-versionHistory` backlog item for future git-history-based on-demand projection. Closes Tracks 2/5/7 of the integration project at 100%.
 - C-1: DocumentPage hooks extraction and cleanup (DocumentPage.tsx reduced to ~1997 lines)
 - C-2: Collaboration service decomposition into 4 util files (paths, sanitizers, isolation, state IO) — `353094c`, `db77869`, `34094f7`, `f156d90`, `2dc45a4`
 - D-2: Collaboration unit and integration tests added (110 tests across 6 suites; passed) — `6fb2cdb`, `f41854d`
@@ -29,11 +30,12 @@ Completed
 
 Current branch/commit
 ---------------------
-- Branch: main
-- Latest commits:
+- Branch: main (synced to origin)
+- Latest commits (Phase A pending commit ahead of HEAD will be added by this session)
+- Recent committed:
+  - `6e2f83a` docs: realign CLAUDE.md with current monorepo state
+  - `c1497ec` docs(dms): align HANDOFF, changelogs, backlog, roadmap, README with C-3/C-4
   - `4d98ca2` refactor(dms): extract ControlPlaneSyncService (C-4 slice 5)
-  - `2d9f2e5` refactor(dms): extract DocumentRecordService (C-4 slice 4)
-  - `c9b13be` refactor(dms): extract DocumentProjectionService (C-4 slice 3)
 
 Files of interest
 -----------------
@@ -63,16 +65,31 @@ None. C-3 and C-4 tracks both closed.
 
 Next recommended actions (in priority order)
 --------------------------------------------
-1. **D-3 — HTTP integration tests (recommended next)** — Add controller-level integration tests for `file.controller`, `collaboration.controller`, `content.controller`, `access-request.controller`. Strengthens regression safety net for the 7 slices just landed and unblocks future refactors. No expected behavior changes.
-2. **Controller migration off `ensureRepoControlPlaneSynced` proxy** — 21 call sites across 8 controllers + 1 service still go through the 1-line proxy on `AccessRequestService`. Migrating them to inject `ControlPlaneSyncService` directly removes the proxy and makes dependencies explicit. Small slice work, can be batched.
-3. **`normalizeRelativePath` consolidation** — Currently duplicated as a private helper in both `AccessRequestService` and `ControlPlaneSyncService`. Move to `access-request.util.ts` (or a path util) and import from both. Tiny cleanup left over from C-4 Slice 5.
-4. **C-5 — DocumentPage decomposition (1997 lines)** — Frontend god component, harder context switch. Plan separately.
-5. **collaboration.service.ts further decomposition (858 lines)** — Continuation of C-2; lower priority since utils are already extracted.
-6. **Admin tests (dms-admin.service.spec.ts) and smoke tests for admin pages** — Originally listed in HANDOFF; can interleave with D-3.
 
-External operational issue (non-code)
--------------------------------------
-- **GitLab `LSWIKI_DOC.git` push policy** — protected-branch rejection on `master`/`development`. Allow-list / MR procedure must be defined. Blocks the GitHub→GitLab publish pipeline. No code change needed; needs a policy decision.
+**Phase B — Permission UX (Track 4 closure, P1, ~1-2 weeks)** — biggest remaining closure gap
+
+1. **DMS-PERM-UX-01** Search/Ask 차단 소스 표시 UI — "N sources excluded due to access" surface in search results + ask responses. Backend ACL filtering already returns disclosure-only metadata for unreadable docs; frontend just needs to render it.
+2. **DMS-PERM-UX-02** Access request workflow UI — "Request access" button on search results / file tree → approval flow (existing `/dms/access-request/*` 9 routes wired) → grant reflected in document. Pure frontend work.
+3. **DMS-PERM-UX-03** Admin grant / exception management UI — Settings → 문서접근 section gains "grant user X read/write to doc" interaction. DB grant infrastructure (`dm_document_grant_m`) already in place.
+
+**Phase C — Operational polish (P2, ~3-5 days)**
+
+4. Storage error message standardization (SharePoint / NAS — permission vs timeout vs expired) — `DMS-STO-02-A`
+5. Resync → Settings refresh end-to-end verification — `DMS-STO-02-B`
+
+**Phase D — Test safety net (P2, ~1 week, NOT closure-critical)**
+
+6. **D-3** controller HTTP integration tests for `file.controller`, `collaboration.controller`, `content.controller`, `access-request.controller`. Adds `supertest` dep + `@nestjs/testing` HTTP bootstrap. Strengthens regression safety net.
+7. Admin spec: `dms-admin.service.spec.ts` + admin page smoke
+
+**Phase E — Track 6 unimplemented slots (P3, ~2-3 weeks)**
+
+8. System schedulers, template marketplace, personal activity dashboard
+
+**Cleanup (low priority)**:
+- `DMS-REF-C5` DocumentPage decomposition (1997 lines, frontend context)
+- `DMS-REF-C6` `ensureRepoControlPlaneSynced` proxy removal (21 controller migration)
+- `DMS-REF-C7` `normalizeRelativePath` consolidation
 
 Environment notes
 -----------------

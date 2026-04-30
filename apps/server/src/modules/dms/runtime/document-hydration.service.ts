@@ -42,7 +42,6 @@ interface SidecarData {
   fileHashes?: Record<string, unknown>;
   chunkIds?: string[];
   embeddingModel?: string;
-  versionHistory?: unknown[];
   contentType?: string;
 }
 
@@ -175,7 +174,6 @@ export class DocumentHydrationService {
           ...(sidecar?.fileHashes ? { fileHashes: sidecar.fileHashes } : {}),
           ...(sidecar?.chunkIds?.length ? { chunkIds: sidecar.chunkIds } : {}),
           ...(sidecar?.embeddingModel ? { embeddingModel: sidecar.embeddingModel } : {}),
-          ...(sidecar?.versionHistory?.length ? { versionHistory: sidecar.versionHistory } : {}),
           ...(sidecar?.contentType ? { contentType: sidecar.contentType } : {}),
           ...(mergedSourceFiles.length ? { sourceFiles: mergedSourceFiles } : {}),
           ...(sidecar?.comments?.length ? { comments: sidecar.comments } : {}),

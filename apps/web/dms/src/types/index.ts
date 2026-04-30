@@ -7,7 +7,6 @@ export type {
   DocumentAcl,
   DocumentComment,
   SourceFileMeta,
-  DocumentVersionEntry,
   BodyLink,
 } from './document-metadata';
 

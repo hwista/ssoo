@@ -1,6 +1,6 @@
 # DMS 로드맵
 
-> 최종 업데이트: 2026-04-30
+> 최종 업데이트: 2026-04-30 (Phase A 종결)
 
 ---
 
@@ -14,15 +14,23 @@
 - DMS 주요 business API를 `apps/server` DMS module로 이관하고 Next route handler를 proxy boundary로 정렬
 - 저장소/수집/AI 기본 기능 및 settings shell, template pipeline, file/git runtime 유지
 - DMS 핵심 서비스 분해 (refactoring decomposition, 2026-04-28 ~ 04-30): `collaboration.service.ts` / `git.service.ts` / `access-request.service.ts` 3개 god service 를 cohesive Nest 서비스 + util 로 분해 (C-2 / C-3 / C-4 트랙 종료, 합 13 slices). `access-request.service.ts` 만으로 2150 → 1121 lines (-48%). 회귀 안전망: `pnpm --filter server test` 110 tests / 6 suites (D-2 트랙)
+- 문서 정본 GitLab `LSWIKI_DOC.git` 원격 운영 종결 (2026-04-30, Phase A): canonical `master` 직접 push 정책 확정/검증. `document-repo-three-issue-status.md` 3개 이슈 모두 closed. versionHistory dead feature 제거 + 의도(`DMS-FE-versionHistory`) backlog 등재. Track 2 / 5 / 7 closed → 100%
 
 ## 2. 단기 우선순위 (P1)
 
-1. PMS/CMS access contract / validation baseline 정렬
-2. admin·ops 예외 운영 tooling 최소 표면 정리
-3. 저장소 어댑터 3종(Local/SharePoint/NAS) 라우팅 관통 적용
-4. 정본/첨부 Open/Copy/Resync UX 고도화
-5. 자동 수집 채널 연동 + 컨펌 후 게시 운영화
-6. Ask/Search 화면의 citations/confidence UI 완결
+**Phase B — 권한 UX 3종 (Track 4 종결 critical path)**:
+
+1. **DMS-PERM-UX-01** Search/Ask 차단 소스 표시 UI ("권한 부족으로 N개 제외됨")
+2. **DMS-PERM-UX-02** 액세스 요청 워크플로우 UI (검색/트리에서 "권한 요청" 버튼 → 승인 흐름 → grant 반영)
+3. **DMS-PERM-UX-03** Admin grant / exception 관리 UI (설정 → 문서접근 화면)
+
+**기타 P1**:
+
+4. PMS/CMS access contract / validation baseline 정렬
+5. 저장소 어댑터 3종(Local/SharePoint/NAS) 라우팅 관통 적용
+6. 정본/첨부 Open/Copy/Resync UX 고도화 (에러 표준화 — Phase C)
+7. 자동 수집 채널 연동 + 컨펌 후 게시 운영화
+8. Ask/Search 화면의 citations/confidence UI 완결 (Phase B-1 일부)
 
 ## 3. 중기 우선순위 (P2)
 
@@ -46,6 +54,7 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-30 | Phase A 종결 — 문서 정본 GitLab push 정책 확정 (canonical `master`), versionHistory dead code 제거 + 의도 backlog 등재. Track 2/5/7 closed (100%). 단기 우선순위를 Phase B (권한 UX 3종, `DMS-PERM-UX-01/02/03`) 로 재정렬 |
 | 2026-04-30 | DMS 핵심 서비스 분해 트랙 (C-2 / C-3 / C-4, 13 slices, 7 commits) 종료를 현재 완료에 반영. `access-request.service.ts` 2150 → 1121 (-48%) 외 collaboration / git 서비스도 cohesive 단위로 분리 |
 | 2026-04-14 | DMS object ACL pilot을 file/content write-read + template/doc-assist source hint + creator owner default + 기본 UI affordance + upload inheritance + local storage/open + validation matrix까지 확장한 상태를 현재 완료에 반영하고, 단기 우선순위를 PMS/CMS alignment로 전환 |
 | 2026-04-14 | 공통 permission contract / auth-access validation baseline 완료를 현재 완료 항목에 반영하고, 단기 우선순위를 object ACL 중심으로 재정렬 |

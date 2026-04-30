@@ -7,7 +7,6 @@ import type {
   DocumentMetadata,
   DocumentPathHistoryEntry,
   DocumentPermissionGrant,
-  DocumentVersionEntry,
   FileNode,
   SourceFileMeta,
 } from '@ssoo/types/dms';
@@ -188,28 +187,6 @@ function normalizeBodyLinks(value: unknown): BodyLink[] {
     }
 
     return [{ url, label, type }];
-  });
-}
-
-function normalizeVersionHistory(value: unknown): DocumentVersionEntry[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.flatMap((entry) => {
-    if (!isRecord(entry)) {
-      return [];
-    }
-
-    const id = pickString(entry['id']);
-    const createdAt = pickString(entry['createdAt']);
-    const author = pickString(entry['author']);
-    const summary = pickString(entry['summary']);
-    if (!id || !createdAt || !author || !summary) {
-      return [];
-    }
-
-    return [{ id, createdAt, author, summary }];
   });
 }
 
@@ -553,7 +530,6 @@ export class DocumentControlPlaneService {
       embeddingModel: pickString(metadata['embeddingModel']) ?? '',
       sourceFiles,
       acl: normalizeAcl(metadata['acl'], document.ownerUserId.toString(), ownerLoginId),
-      versionHistory: normalizeVersionHistory(metadata['versionHistory']),
       comments: document.comments.length > 0
         ? mapCommentRows(document.comments)
         : normalizeComments(metadata['comments']),

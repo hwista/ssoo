@@ -76,13 +76,6 @@ export interface SourceFileMeta {
   images?: ExtractedImageItem[];
 }
 
-export interface DocumentVersionEntry {
-  id: string;
-  createdAt: string;
-  author: string;
-  summary: string;
-}
-
 export interface DocumentComment {
   id: string;
   author: string;
@@ -123,7 +116,6 @@ export interface DocumentMetadata {
   embeddingModel: string;
   sourceFiles: SourceFileMeta[];
   acl: DocumentAcl;
-  versionHistory: DocumentVersionEntry[];
   comments: DocumentComment[];
   templateId: string;
   author: string;

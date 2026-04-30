@@ -155,7 +155,6 @@ export type {
   DocumentIsolationReasonCode,
   DocumentIsolationState,
   SourceFileMeta,
-  DocumentVersionEntry,
   DocumentComment,
   BodyLink,
   DocumentMetadata,

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Project Closure (DMS Phase A — 2026-04-30)
+
+* **dms (operational):** GitLab `LSWIKI_DOC.git` document repository push policy confirmed and verified — canonical branch `master`, direct push allowed for current account; initial import commit `b963f14` already on `origin/master`. Closes Track 5 (Git file backup) at 100% and removes the long-standing operational blocker tracked in `document-repo-three-issue-status.md`.
+
+* **server, web-dms, types (dms):** removed dead `versionHistory` feature — the `DocumentVersionEntry` type, `normalizeVersionHistory()` function, and `versionHistory` field on `DocumentMetadata`/`DocumentContentMetadata` had no write path, no UI consumer, and no git integration; only a normalize-on-read pass-through. Removed across server (`document-control-plane.service.ts`, `content.service.ts`, `document-hydration.service.ts`), shared types (`packages/types/src/dms/`), and web-dms type re-exports. Original intent (per-document git commit history surface) re-registered as `DMS-FE-versionHistory` backlog item for future implementation as on-demand `gitService.getFileHistory()` projection. Closes Track 2 (DB schema separation) and Track 7 (JSON metadata → DB) at 100%.
+
 ### Refactoring
 
 * **server (dms):** `access-request.service.ts` decomposition complete — 2150-line god service decomposed into 5 cohesive units (`AccessRequestService` 1121, `ControlPlaneSyncService` 260, `DocumentRecordService` 311, `DocumentProjectionService` 126, `access-request.util.ts` 447). C-4 track via 5 slices. Record bootstrap and control plane sync split into separate Nest services after circular dependency between them was resolved by re-ordering slices.

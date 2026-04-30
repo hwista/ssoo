@@ -5,7 +5,14 @@
 
 ---
 
-## 2026-04-30
+## 2026-04-30 (Phase A 종결)
+
+### Phase A — 통합 프로젝트 종결 critical path 진입 (1/2)
+
+- **A-1 GitLab `LSWIKI_DOC.git` push 정책 검증** — `b963f14` 가 `origin/master` 에 반영됨을 검증 (`git rev-list --left-right --count origin/master...HEAD` = `0\t0`). canonical branch = `master`, push 허용. `document-repo-three-issue-status.md` 의 "이슈 2 미해결" 표기는 stale 였음을 정정. Track 5 (Git 파일 백업) **70% → 100%**
+- **A-2 versionHistory dead code 제거** — write path / UI / git 연동 모두 부재 (dead feature) 확인 후 제거. `DocumentVersionEntry` 타입, `normalizeVersionHistory` 함수, `versionHistory` 필드 (DocumentMetadata + DocumentContentMetadata) 모두 제거. server -50줄, types -10줄. 의도된 기능(git history 기반 자동 채움 + UI)은 `DMS-FE-versionHistory` backlog 등재 (P3, 향후 `gitService.getFileHistory()` 기반 on-demand projection 설계). Track 2 + Track 7 **95% → 100%**
+
+→ Phase A 종결 후 Track 종결률: 1·3·5·7 = **100%**, 2 = **100%** (versionHistory 결정), 4 = 85%, 6 = 80%. **다음: Phase B (권한 UX 3종)**
 
 ### C-4 트랙 종료 — `access-request.service.ts` 분해 (5 slices)
 

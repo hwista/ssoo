@@ -1,6 +1,6 @@
 # DMS 백로그
 
-> 최종 업데이트: 2026-04-30
+> 최종 업데이트: 2026-04-30 (Phase A 종결)
 
 ---
 
@@ -51,6 +51,10 @@
 | DMS-STO-02 | 정본/첨부 열기(Open)/경로복사/재동기화 UI | P1 | 🔄 1차 완료: metadata panel 액션 추가, 오류 표준화/실동기화 필요 |
 | DMS-QA-01 | 저장소/수집/딥리서치/auth-access 시나리오 테스트 자동화 | P1 | 통합/e2e 스크립트 추가 필요 |
 | DMS-TEST-D3 | controller HTTP 통합 테스트 (file/collaboration/content/access) | P1 | C-3·C-4 회귀 안전망 강화. 7 slices 후속 |
+| DMS-PERM-UX-01 | Search/Ask 차단 소스 표시 UI ("권한 부족으로 N개 제외됨") | P1 | Track 4 종결 핵심 (Phase B-1) |
+| DMS-PERM-UX-02 | 액세스 요청 워크플로우 UI (검색/트리에서 "권한 요청" 버튼 → 승인 흐름) | P1 | 백엔드 `/dms/access-request/*` 9 routes 완성, UI 부재 (Phase B-2) |
+| DMS-PERM-UX-03 | Admin grant / exception 관리 UI (설정 → 문서접근) | P1 | DB grant 가능, UI 부재 (Phase B-3) |
+| DMS-FE-versionHistory | git commit history 기반 versionHistory 자동 채움 + UI 표시 | P3 | 2026-04-30 dead code 제거 후 backlog 등재. 향후 `gitService.getFileHistory()` 기반 on-demand projection 으로 재구현 |
 | DMS-REF-C5 | `DocumentPage.tsx` 1997줄 분해 | P2 | C-1 트랙 후속 (frontend god component) |
 | DMS-REF-C6 | `ensureRepoControlPlaneSynced` proxy 제거 | P3 | 21 controller 가 `controlPlaneSyncService` 직접 inject. C-4 Slice 5 잔여 정리 |
 | DMS-REF-C7 | `normalizeRelativePath` 통합 | P3 | access-request + control-plane-sync 양쪽 중복. util 로 단일화 |
@@ -101,6 +105,7 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-04-30 | Phase A 종결 — A-1 GitLab `LSWIKI_DOC.git` push 정책 (master 직접 push 검증 완료), A-2 versionHistory dead code 제거 + `DMS-FE-versionHistory` backlog 등재. Phase B 권한 UX 트랙 (`DMS-PERM-UX-01/02/03`) 신규 등록 |
 | 2026-04-30 | DMS 핵심 서비스 분해 트랙 등재 — `DMS-REF-C2/C3/C4` + `DMS-TEST-D2` 완료 (13 slices, 7 commits). 후속 `DMS-TEST-D3`, `DMS-REF-C5/C6/C7` 대기 등록 |
 | 2026-04-14 | DMS-AUTH-01/DMS-AUTH-03 를 local storage/open linked-source 정책 + validation matrix까지 반영한 완료 상태로 갱신 |
 | 2026-04-14 | DMS-AUTH-02 를 진행중으로 상향하고 공통 auth/access validation baseline 문서화 상태를 backlog에 반영 |
