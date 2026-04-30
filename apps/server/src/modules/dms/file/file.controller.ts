@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  BadGatewayException,
   BadRequestException,
   Body,
   Controller,
@@ -807,9 +806,14 @@ export class FileController {
         previousPath,
         action });
     } catch (error) {
-      throw new BadGatewayException(
-        `파일은 처리되었지만 검색 인덱스 동기화에 실패했습니다: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      // 검색 인덱스 동기화 실패는 파일 저장 흐름을 차단하지 않음.
+      // 임베딩 미설정 등 부가 기능 결함은 keyword 폴백/재시도로 자연 회복되도록 silent warning.
+      logger.warn('파일 저장 후 검색 인덱스 동기화 실패 (사용자 흐름 미차단)', {
+        targetPath,
+        action,
+        previousPath,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

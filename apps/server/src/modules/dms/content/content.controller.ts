@@ -1,6 +1,5 @@
 import fs from 'fs';
 import {
-  BadGatewayException,
   BadRequestException,
   Body,
   Controller,
@@ -32,6 +31,9 @@ import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { SearchService } from '../search/search.service.js';
 import { CollaborationService } from '../collaboration/collaboration.service.js';
 import { contentService } from '../runtime/content.service.js';
+import { createDmsLogger } from '../runtime/dms-logger.js';
+
+const logger = createDmsLogger('DmsContentController');
 
 function isSearchIndexSyncTarget(targetPath: string): boolean {
   const normalized = targetPath.toLowerCase();
@@ -304,9 +306,13 @@ export class ContentController {
     try {
       await this.searchService.syncIndex({ path: contentPath, action });
     } catch (error) {
-      throw new BadGatewayException(
-        `콘텐츠는 처리되었지만 검색 인덱스 동기화에 실패했습니다: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      // 검색 인덱스 동기화 실패는 콘텐츠 저장 흐름을 차단하지 않음.
+      // 임베딩 미설정 등 부가 기능 결함은 keyword 폴백/재시도로 자연 회복되도록 silent warning.
+      logger.warn('콘텐츠 저장 후 검색 인덱스 동기화 실패 (사용자 흐름 미차단)', {
+        contentPath,
+        action,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
