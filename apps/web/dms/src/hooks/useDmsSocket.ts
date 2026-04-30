@@ -70,6 +70,12 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
   const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const currentUserId = useAuthStore((state) => state.user?.userId);
+  // currentUserId 를 ref 로도 보관 — socket 이벤트 핸들러는 effect 내부 closure 라
+  // dependency 에 currentUserId 를 추가하면 socket 이 재생성됨. ref 로 최신값 참조.
+  const currentUserIdRef = useRef(currentUserId);
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
   const prevDocPath = useRef<string | undefined>(undefined);
 
   // Invalidate file tree query
@@ -113,8 +119,9 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
     socket.on('dms:file-changed', (event: DmsFileChangedEvent) => {
       onFileChanged?.(event);
 
-      // 다른 사용자가 현재 보고 있는 문서를 수정한 경우 알림
-      if (event.userId && event.userId !== currentUserId && event.action === 'update') {
+      // 다른 사용자가 현재 보고 있는 문서를 수정한 경우 알림.
+      // ref 로 최신 currentUserId 참조 (socket effect 의 closure 가 stale 한 문제 회피).
+      if (event.userId && event.userId !== currentUserIdRef.current && event.action === 'update') {
         const who = event.userName ?? '다른 사용자';
         toast.warning(`${who}가 이 문서를 수정했습니다.`, {
           description: '저장 시 충돌이 발생할 수 있습니다. 최신 내용을 확인하세요.',

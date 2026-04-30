@@ -36,7 +36,9 @@ export function useAiSearchQuery(
     queryKey: aiSearchKeys.result(query, contextMode, activeDocPath),
     queryFn: ({ signal }) => aiApi.search(query, { contextMode, activeDocPath, signal }),
     enabled: enabled && query.trim().length > 0,
-    staleTime: 5 * 60 * 1000,
+    // 권한/visibility 변경이 다른 client 에 즉시 반영되도록 stale time 짧게.
+    // 정식 fix (WebSocket broadcast 기반 invalidation) 는 Phase B 의 일부로 등재.
+    staleTime: 30 * 1000,
     ...queryOptions,
   });
 }
