@@ -47,6 +47,7 @@ const pageComponents = {
   markdown: lazyWithChunkRetry(() => import('@/components/pages/markdown/DocumentPage').then(m => ({ default: m.DocumentPage }))),
   aiChat: AiChatPage,
   aiSearch: lazyWithChunkRetry(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
+  myAccessRequests: lazyWithChunkRetry(() => import('@/components/pages/access-requests/MyRequestsPage').then(m => ({ default: m.MyRequestsPage }))),
   settings: LegacySettingsRedirect,
 };
 
@@ -89,8 +90,9 @@ function getPageType(tab: { id: string; path: string } | undefined): keyof typeo
   if (tab.path.startsWith('/doc/new')) return 'markdown';
   if (tab.path.startsWith('/ai/chat')) return 'aiChat';
   if (tab.path.startsWith('/ai/search')) return 'aiSearch';
+  if (tab.path.startsWith('/access-requests/me')) return 'myAccessRequests';
   if (tab.path === '/settings') return 'settings';
-  
+
   return null;
 }
 

@@ -2,17 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import {
-  ChevronDown, 
+  ChevronDown,
   ChevronLeft,
-  RefreshCw, 
-  Bookmark, 
-  Layers, 
+  RefreshCw,
+  Bookmark,
+  Layers,
   FolderTree,
   GitBranch,
   BookOpen,
   Code,
+  FileQuestion,
 } from 'lucide-react';
-import { useAccessStore, useLayoutStore, useSidebarStore, useFileStore, useGitStore } from '@/stores';
+import { useAccessStore, useLayoutStore, useSidebarStore, useFileStore, useGitStore, useTabStore } from '@/stores';
+import { useMyDocumentAccessRequestsQuery } from '@/hooks/queries/useDocumentAccessRequests';
 import type { DocumentType } from '@/types';
 import { DOCUMENT_TYPE_LABELS, LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';
@@ -234,6 +236,9 @@ export function Sidebar({
         ) : null}
       </ScrollArea>
 
+      {/* 하단 navigation: 내 요청 */}
+      <MyAccessRequestsNavItem />
+
       {/* 하단 카피라이트 (PMS 스타일) */}
       <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-3 py-2">
         <div className="text-caption text-gray-500 space-y-0.5">
@@ -243,5 +248,46 @@ export function Sidebar({
         </div>
       </div>
     </aside>
+  );
+}
+
+/**
+ * "내 요청" 사이드바 nav 아이템 — 자기가 보낸 권한 요청 목록 페이지로 진입.
+ * pending count 가 있으면 badge 로 표시.
+ */
+function MyAccessRequestsNavItem() {
+  const openTab = useTabStore((state) => state.openTab);
+  const pendingQuery = useMyDocumentAccessRequestsQuery('pending');
+  const pendingCount = pendingQuery.data?.length ?? 0;
+
+  const handleOpen = () => {
+    openTab({
+      id: 'my-access-requests',
+      title: '내 요청',
+      path: '/access-requests/me',
+      icon: 'FileQuestion',
+      closable: true,
+    });
+  };
+
+  return (
+    <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-2 py-1.5">
+      <button
+        type="button"
+        onClick={handleOpen}
+        className={cn(
+          'flex w-full items-center gap-2 rounded px-2 py-1.5 text-body-sm text-ssoo-primary transition-colors',
+          'hover:bg-white',
+        )}
+      >
+        <FileQuestion className="h-4 w-4 shrink-0" />
+        <span className="flex-1 truncate text-left">내 요청</span>
+        {pendingCount > 0 ? (
+          <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-ssoo-primary px-1.5 text-caption text-white">
+            {pendingCount}
+          </span>
+        ) : null}
+      </button>
+    </div>
   );
 }

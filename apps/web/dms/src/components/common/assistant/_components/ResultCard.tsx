@@ -97,26 +97,26 @@ function getRequestActionLabel(
   }
 
   if (request?.status === 'pending') {
-    return '요청 진행 중';
+    return '요청 대기';
   }
 
   if (request?.status === 'rejected') {
-    return '요청 재시도';
+    return '다시 요청';
   }
 
   if (request?.status === 'approved') {
     return '승인 반영 중';
   }
 
-  return result.canRequestRead ? '읽기 권한 요청' : '열람 불가';
+  return result.canRequestRead ? '권한 요청' : '열람 불가';
 }
 
 function getRequestStatusLabel(request: DmsDocumentAccessRequestState) {
   switch (request.status) {
     case 'approved':
-      return '승인됨';
+      return '승인';
     case 'rejected':
-      return '거절됨';
+      return '거부';
     case 'pending':
     default:
       return '요청 대기';

@@ -21,8 +21,8 @@ import {
 
 const STATUS_LABELS: Record<NonNullable<DmsDocumentAccessRequestState['status']>, string> = {
   pending: '요청 대기',
-  approved: '승인됨',
-  rejected: '거절됨',
+  approved: '승인',
+  rejected: '거부',
 };
 
 function formatDateLabel(value?: string) {
@@ -103,12 +103,12 @@ export function DocumentAccessRequestDialogHost() {
       setRequestState(target.path, toRequestState(created));
       toast.success(
         currentRequest?.status === 'rejected'
-          ? '읽기 권한 요청을 다시 접수했습니다.'
-          : '읽기 권한 요청을 저장했습니다.',
+          ? '권한 요청을 다시 보냈습니다.'
+          : '권한 요청을 보냈습니다.',
       );
       close();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '읽기 권한 요청에 실패했습니다.');
+      toast.error(error instanceof Error ? error.message : '권한 요청에 실패했습니다.');
     }
   };
 
@@ -123,9 +123,9 @@ export function DocumentAccessRequestDialogHost() {
     >
       <DialogContent className="max-w-xl border-ssoo-content-border bg-white text-ssoo-primary">
         <DialogHeader>
-          <DialogTitle>읽기 권한 요청</DialogTitle>
+          <DialogTitle>권한 요청</DialogTitle>
           <DialogDescription className="text-ssoo-primary/70">
-            discovery surface 에서 확인한 문서에 대해 owner/관리자에게 읽기 권한을 요청합니다.
+            검색에서 확인한 문서를 열기 위해 소유자에게 읽기 권한을 요청합니다.
           </DialogDescription>
         </DialogHeader>
 
@@ -167,8 +167,8 @@ export function DocumentAccessRequestDialogHost() {
             {isPendingRequest || isApprovedRequest ? (
               <section className="rounded-lg border border-ssoo-content-border bg-ssoo-content-bg/40 px-4 py-3 text-body-sm text-ssoo-primary/80">
                 {isPendingRequest
-                  ? '이미 처리 대기 중인 읽기 권한 요청이 있습니다. 승인되면 검색 결과와 문서 열기 상태에 반영됩니다.'
-                  : '읽기 권한 승인이 완료되었습니다. 검색을 다시 실행하거나 문서를 다시 열면 접근 상태가 갱신됩니다.'}
+                  ? '이미 보낸 요청이 처리 대기 중입니다. 승인되면 검색 결과와 문서 열기 상태에 자동 반영됩니다.'
+                  : '권한이 승인되었습니다. 검색을 다시 실행하면 문서를 바로 열 수 있습니다.'}
               </section>
             ) : (
               <section className="space-y-2">
@@ -211,7 +211,7 @@ export function DocumentAccessRequestDialogHost() {
               ) : (
                 <>
                   <Send className="h-4 w-4" />
-                  {currentRequest?.status === 'rejected' ? '다시 요청' : '권한 요청 보내기'}
+                  {currentRequest?.status === 'rejected' ? '다시 요청' : '요청 보내기'}
                 </>
               )}
             </Button>
