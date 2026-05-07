@@ -125,3 +125,20 @@ export interface TransferDocumentOwnershipResult {
   newOwnerUserId: string;
   newOwnerLoginId: string;
 }
+
+export interface CreateDmsDocumentDirectGrantPayload {
+  documentId: string;
+  /** grant 대상 사용자 ID (BigInt 직렬화된 문자열) */
+  principalUserId: string;
+  /** 권한 만료 시각 (ISO 8601) — 미지정 시 무기한 */
+  grantExpiresAt?: string;
+  /** 부여 사유 또는 메모 */
+  memo?: string;
+}
+
+export interface DmsDocumentDirectGrantResult {
+  grantId: string;
+  documentId: string;
+  principalUserId: string;
+  grantExpiresAt?: string;
+}

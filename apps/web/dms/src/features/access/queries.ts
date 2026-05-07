@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ApproveDmsDocumentAccessRequestPayload,
   CreateDmsDocumentAccessRequestPayload,
+  CreateDmsDocumentDirectGrantPayload,
   DmsDocumentAccessRequestListQuery,
   DmsDocumentAccessRequestStatusFilter,
   DmsDocumentAccessRequestSummary,
+  DmsDocumentDirectGrantResult,
   DmsManagedDocumentSummary,
   RejectDmsDocumentAccessRequestPayload,
   TransferDocumentOwnershipPayload,
@@ -161,6 +163,19 @@ export function useRevokeDocumentGrantMutation() {
       grantId: string;
     }) => unwrap<{ grantId: string; documentId: string }>(
       accessApi.revokeGrant(params.documentId, params.grantId),
+    ),
+    onSuccess: async () => {
+      await invalidateRequestQueries(queryClient);
+    },
+  });
+}
+
+export function useCreateDirectGrantMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateDmsDocumentDirectGrantPayload) => (
+      unwrap<DmsDocumentDirectGrantResult>(accessApi.createDirectGrant(payload))
     ),
     onSuccess: async () => {
       await invalidateRequestQueries(queryClient);

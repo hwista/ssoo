@@ -5,11 +5,13 @@ import type { Prisma } from '@ssoo/database';
 import type {
   ApproveDmsDocumentAccessRequestPayload,
   CreateDmsDocumentAccessRequestPayload,
+  CreateDmsDocumentDirectGrantPayload,
   DmsDocumentAccessRequestActor,
   DmsDocumentAccessRequestListQuery,
   DmsDocumentAccessRequestState,
   DmsDocumentAccessRequestStatus,
   DmsDocumentAccessRequestSummary,
+  DmsDocumentDirectGrantResult,
   DmsManagedDocumentSummary,
   DocumentPermissionGrant,
   RejectDmsDocumentAccessRequestPayload,
@@ -621,6 +623,124 @@ export class AccessRequestService {
       newOwnerUserId: newOwner.id.toString(),
       newOwnerLoginId: newOwner.authAccount!.loginId,
     };
+  }
+
+  async createDirectGrant(
+    user: TokenPayload,
+    payload: CreateDmsDocumentDirectGrantPayload,
+  ): Promise<DmsDocumentDirectGrantResult> {
+    const documentIdBigInt = this.parseBigIntId(payload.documentId, 'documentId');
+    const principalUserIdBigInt = this.parseBigIntId(payload.principalUserId, 'principalUserId');
+
+    const document = await this.db.client.dmsDocument.findUnique({
+      where: { documentId: documentIdBigInt },
+      select: { documentId: true, relativePath: true, ownerUserId: true },
+    });
+    if (!document) {
+      throw new NotFoundException('문서를 찾을 수 없습니다.');
+    }
+
+    const { absolutePath } = this.resolveDocumentPath(document.relativePath);
+    if (!this.documentAclService.isManageableAbsolutePath(user, absolutePath)) {
+      throw new ForbiddenException('문서 권한을 부여할 권한이 없습니다.');
+    }
+
+    const grantee = await this.db.client.user.findUnique({
+      where: { id: principalUserIdBigInt },
+      select: { id: true, isActive: true },
+    });
+    if (!grantee || !grantee.isActive) {
+      throw new NotFoundException('대상 사용자를 찾을 수 없습니다.');
+    }
+
+    const grantExpiresAt = this.parseFutureDate(payload.grantExpiresAt, 'grantExpiresAt') ?? null;
+    const granterUserId = BigInt(user.userId);
+
+    const result = await this.db.client.$transaction(async (tx) => {
+      const existing = await tx.dmsDocumentGrant.findFirst({
+        where: {
+          documentId: documentIdBigInt,
+          principalType: 'user',
+          principalRef: principalUserIdBigInt.toString(),
+          roleCode: READ_REQUEST_ROLE,
+        },
+        select: { documentGrantId: true },
+      });
+
+      if (existing) {
+        return tx.dmsDocumentGrant.update({
+          where: { documentGrantId: existing.documentGrantId },
+          data: {
+            grantSourceCode: 'direct',
+            grantedFromRequestId: null,
+            grantedAt: new Date(),
+            grantedByUserId: granterUserId,
+            expiresAt: grantExpiresAt,
+            revokedAt: null,
+            revokedByUserId: null,
+            revokeReason: null,
+            reason: normalizeOptionalText(payload.memo),
+            isActive: true,
+            updatedBy: granterUserId,
+            lastSource: ACTIVE_REQUEST_SOURCE,
+            lastActivity: 'dms.access.grant.direct',
+          },
+          select: { documentGrantId: true, expiresAt: true },
+        });
+      }
+
+      return tx.dmsDocumentGrant.create({
+        data: {
+          documentId: documentIdBigInt,
+          principalType: 'user',
+          principalRef: principalUserIdBigInt.toString(),
+          roleCode: READ_REQUEST_ROLE,
+          grantSourceCode: 'direct',
+          grantedFromRequestId: null,
+          grantedAt: new Date(),
+          grantedByUserId: granterUserId,
+          expiresAt: grantExpiresAt,
+          reason: normalizeOptionalText(payload.memo),
+          createdBy: granterUserId,
+          updatedBy: granterUserId,
+          lastSource: ACTIVE_REQUEST_SOURCE,
+          lastActivity: 'dms.access.grant.direct',
+        },
+        select: { documentGrantId: true, expiresAt: true },
+      });
+    });
+
+    await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(document.relativePath);
+
+    this.eventsGateway.emitAccessChanged({
+      documentId: document.documentId.toString(),
+      relativePath: document.relativePath,
+      reason: 'grant-direct',
+      actorUserId: user.userId,
+    });
+
+    logger.info(
+      `Direct grant ${result.documentGrantId.toString()} issued on document ${document.documentId.toString()} `
+      + `to user ${principalUserIdBigInt.toString()} by ${user.userId}`,
+    );
+
+    return {
+      grantId: result.documentGrantId.toString(),
+      documentId: document.documentId.toString(),
+      principalUserId: principalUserIdBigInt.toString(),
+      grantExpiresAt: toIsoString(result.expiresAt),
+    };
+  }
+
+  private parseBigIntId(value: string, field: string): bigint {
+    if (!value || !/^\d+$/.test(value)) {
+      throw new BadRequestException(`유효한 ${field} 가 필요합니다.`);
+    }
+    try {
+      return BigInt(value);
+    } catch {
+      throw new BadRequestException(`유효한 ${field} 가 필요합니다.`);
+    }
   }
 
   async revokeDocumentGrant(

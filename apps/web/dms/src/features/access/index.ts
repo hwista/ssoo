@@ -20,4 +20,5 @@ export {
   useUpdateDocumentVisibilityMutation,
   useTransferDocumentOwnershipMutation,
   useRevokeDocumentGrantMutation,
+  useCreateDirectGrantMutation,
 } from './queries';

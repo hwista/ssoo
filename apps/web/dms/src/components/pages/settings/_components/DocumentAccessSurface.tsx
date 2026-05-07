@@ -2,12 +2,18 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock3, Eye, EyeOff, FileText, Inbox, Loader2, ShieldCheck, Trash2, UserCheck, Users, XCircle } from 'lucide-react';
-import type { DmsDocumentAccessRequestSummary, DmsManagedDocumentSummary, DocumentPermissionGrant } from '@ssoo/types/dms';
+import type {
+  CreateDmsDocumentDirectGrantPayload,
+  DmsDocumentAccessRequestSummary,
+  DmsManagedDocumentSummary,
+  DocumentPermissionGrant,
+} from '@ssoo/types/dms';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
 import {
   useApproveDocumentAccessRequestMutation,
+  useCreateDirectGrantMutation,
   useDocumentAccessInboxQuery,
   useManageableDocumentsQuery,
   useMyDocumentAccessRequestsQuery,
@@ -535,6 +541,110 @@ function RequestCard({
   );
 }
 
+interface DirectGrantDraft {
+  documentId: string;
+  principalUserId: string;
+  grantExpiresAt: string;
+  memo: string;
+}
+
+const EMPTY_DIRECT_GRANT_DRAFT: DirectGrantDraft = {
+  documentId: '',
+  principalUserId: '',
+  grantExpiresAt: '',
+  memo: '',
+};
+
+function DirectGrantSection({
+  documents,
+  draft,
+  onDraftChange,
+  onSubmit,
+  isSubmitting,
+}: {
+  documents: DmsManagedDocumentSummary[];
+  draft: DirectGrantDraft;
+  onDraftChange: (patch: Partial<DirectGrantDraft>) => void;
+  onSubmit: () => void;
+  isSubmitting: boolean;
+}) {
+  const canSubmit = !!draft.documentId && !!draft.principalUserId && !isSubmitting;
+
+  return (
+    <section className="space-y-3 rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+      <header>
+        <h3 className="text-label-strong text-ssoo-primary">권한 직접 부여</h3>
+        <p className="text-caption text-ssoo-primary/70">
+          요청 entity 없이 특정 사용자에게 문서 읽기 권한을 즉시 발급합니다. 사용자 ID 는 admin 화면 등에서 확인하세요.
+        </p>
+      </header>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="block">
+          <span className="text-caption text-ssoo-primary/70">대상 문서</span>
+          <select
+            value={draft.documentId}
+            onChange={(event) => onDraftChange({ documentId: event.target.value })}
+            className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
+          >
+            <option value="">선택...</option>
+            {documents.map((document) => (
+              <option key={document.documentId} value={document.documentId}>
+                {document.documentTitle || document.path}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-caption text-ssoo-primary/70">대상 사용자 ID</span>
+          <input
+            type="text"
+            value={draft.principalUserId}
+            onChange={(event) => onDraftChange({ principalUserId: event.target.value.trim() })}
+            placeholder="예: 12345"
+            inputMode="numeric"
+            className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-caption text-ssoo-primary/70">만료일 (선택)</span>
+          <input
+            type="date"
+            value={draft.grantExpiresAt}
+            onChange={(event) => onDraftChange({ grantExpiresAt: event.target.value })}
+            className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
+          />
+        </label>
+
+        <label className="block md:col-span-2">
+          <span className="text-caption text-ssoo-primary/70">메모 (선택, 최대 500자)</span>
+          <textarea
+            value={draft.memo}
+            onChange={(event) => onDraftChange({ memo: event.target.value })}
+            rows={2}
+            maxLength={500}
+            placeholder="부여 사유를 남겨두면 향후 감사에 도움이 됩니다."
+            className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
+          />
+        </label>
+      </div>
+
+      <div className="flex justify-end">
+        <Button type="button" onClick={onSubmit} disabled={!canSubmit}>
+          {isSubmitting ? (
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+          ) : (
+            <UserCheck className="mr-1 h-4 w-4" />
+          )}
+          권한 부여
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 export function DocumentAccessSurface() {
   const manageableDocumentsQuery = useManageableDocumentsQuery();
   const myRequestsQuery = useMyDocumentAccessRequestsQuery('all');
@@ -544,7 +654,9 @@ export function DocumentAccessSurface() {
   const visibilityMutation = useUpdateDocumentVisibilityMutation();
   const transferMutation = useTransferDocumentOwnershipMutation();
   const revokeMutation = useRevokeDocumentGrantMutation();
+  const directGrantMutation = useCreateDirectGrantMutation();
   const [actionDrafts, setActionDrafts] = useState<Record<string, RequestActionDraft>>({});
+  const [directGrantDraft, setDirectGrantDraft] = useState<DirectGrantDraft>(EMPTY_DIRECT_GRANT_DRAFT);
 
   const manageableDocuments = useMemo(
     () => manageableDocumentsQuery.data ?? [],
@@ -611,6 +723,33 @@ export function DocumentAccessSurface() {
       toast.success('grant를 취소했습니다.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'grant 취소에 실패했습니다.');
+    }
+  };
+
+  const handleDirectGrantDraftChange = (patch: Partial<DirectGrantDraft>) => {
+    setDirectGrantDraft((current) => ({ ...current, ...patch }));
+  };
+
+  const handleDirectGrantSubmit = async () => {
+    if (!directGrantDraft.documentId || !directGrantDraft.principalUserId) {
+      return;
+    }
+
+    const payload: CreateDmsDocumentDirectGrantPayload = {
+      documentId: directGrantDraft.documentId,
+      principalUserId: directGrantDraft.principalUserId,
+      grantExpiresAt: directGrantDraft.grantExpiresAt
+        ? new Date(`${directGrantDraft.grantExpiresAt}T23:59:59.999Z`).toISOString()
+        : undefined,
+      memo: directGrantDraft.memo.trim() || undefined,
+    };
+
+    try {
+      await directGrantMutation.mutateAsync(payload);
+      toast.success('권한을 부여했습니다.');
+      setDirectGrantDraft(EMPTY_DIRECT_GRANT_DRAFT);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '권한 부여에 실패했습니다.');
     }
   };
 
@@ -728,6 +867,14 @@ export function DocumentAccessSurface() {
           </div>
         )}
       </section>
+
+      <DirectGrantSection
+        documents={manageableDocuments}
+        draft={directGrantDraft}
+        onDraftChange={handleDirectGrantDraftChange}
+        onSubmit={() => void handleDirectGrantSubmit()}
+        isSubmitting={directGrantMutation.isPending}
+      />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">

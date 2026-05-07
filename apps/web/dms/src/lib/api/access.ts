@@ -1,9 +1,11 @@
 import type {
   ApproveDmsDocumentAccessRequestPayload,
   CreateDmsDocumentAccessRequestPayload,
+  CreateDmsDocumentDirectGrantPayload,
   DmsAccessSnapshot,
   DmsDocumentAccessRequestListQuery,
   DmsDocumentAccessRequestSummary,
+  DmsDocumentDirectGrantResult,
   DmsManagedDocumentSummary,
   RejectDmsDocumentAccessRequestPayload,
   TransferDocumentOwnershipPayload,
@@ -86,5 +88,10 @@ export const accessApi = {
     del<{ grantId: string; documentId: string }>(
       `/api/access/documents/${encodeURIComponent(documentId)}/grants/${encodeURIComponent(grantId)}`,
     )
+  ),
+  createDirectGrant: (
+    payload: CreateDmsDocumentDirectGrantPayload,
+  ) => (
+    post<DmsDocumentDirectGrantResult>('/api/access/grants', payload)
   ),
 };

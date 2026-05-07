@@ -91,4 +91,6 @@ export type {
   UpdateDocumentVisibilityPayload,
   TransferDocumentOwnershipPayload,
   TransferDocumentOwnershipResult,
+  CreateDmsDocumentDirectGrantPayload,
+  DmsDocumentDirectGrantResult,
 } from './access';

@@ -3,6 +3,7 @@ import { AccessFoundationModule } from '../../common/access/access-foundation.mo
 import { DatabaseModule } from '../../../database/database.module.js';
 import { EventsModule } from '../events/events.module.js';
 import { AccessController } from './access.controller.js';
+import { AccessGrantController } from './access-grant.controller.js';
 import { AccessRequestController } from './access-request.controller.js';
 import { AccessRequestService } from './access-request.service.js';
 import { AccessService } from './access.service.js';
@@ -15,7 +16,7 @@ import { DocumentRecordService } from './document-record.service.js';
 
 @Module({
   imports: [DatabaseModule, AccessFoundationModule, EventsModule],
-  controllers: [AccessController, AccessRequestController],
+  controllers: [AccessController, AccessRequestController, AccessGrantController],
   providers: [
     AccessService,
     AccessRequestService,

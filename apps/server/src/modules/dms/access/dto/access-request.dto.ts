@@ -3,6 +3,7 @@ import { IsDateString, IsIn, IsOptional, IsString, MaxLength, MinLength } from '
 import type {
   ApproveDmsDocumentAccessRequestPayload,
   CreateDmsDocumentAccessRequestPayload,
+  CreateDmsDocumentDirectGrantPayload,
   DmsDocumentAccessRequestListQuery,
   DmsDocumentAccessRequestStatusFilter,
   RejectDmsDocumentAccessRequestPayload,
@@ -15,6 +16,8 @@ export const DMS_DOCUMENT_ACCESS_REQUEST_STATUS_FILTERS = [
   'pending',
   'approved',
   'rejected',
+  'expired',
+  'revoked',
 ] as const;
 
 export class CreateReadAccessRequestDto
@@ -95,4 +98,27 @@ export class TransferDocumentOwnershipDto
   @MinLength(1)
   @MaxLength(100)
   newOwnerLoginId!: string;
+}
+
+export class CreateDirectGrantDto implements CreateDmsDocumentDirectGrantPayload {
+  @ApiProperty({ description: '권한을 부여할 문서 ID' })
+  @IsString()
+  @MinLength(1)
+  documentId!: string;
+
+  @ApiProperty({ description: 'grant 대상 사용자 ID' })
+  @IsString()
+  @MinLength(1)
+  principalUserId!: string;
+
+  @ApiPropertyOptional({ description: '권한 만료 시각 (ISO 8601), 미지정 시 무기한' })
+  @IsOptional()
+  @IsDateString()
+  grantExpiresAt?: string;
+
+  @ApiPropertyOptional({ description: '부여 사유/메모', maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  memo?: string;
 }
