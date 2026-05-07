@@ -23,6 +23,8 @@ const STATUS_LABELS: Record<NonNullable<DmsDocumentAccessRequestState['status']>
   pending: '요청 대기',
   approved: '승인',
   rejected: '거부',
+  expired: '만료',
+  revoked: '취소',
 };
 
 function formatDateLabel(value?: string) {

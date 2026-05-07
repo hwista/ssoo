@@ -251,18 +251,37 @@ export function buildGrantSummary(grants: DocumentPermissionGrant[]) {
   return summary;
 }
 
-export function buildRequestSummary(requests: Array<{ statusCode: string }>) {
+export function buildRequestSummary(
+  requests: Array<{
+    statusCode: string;
+    generatedGrant?: { expiresAt: Date | null; revokedAt: Date | null } | null;
+  }>,
+) {
   const summary = {
     total: requests.length,
     pending: 0,
     approved: 0,
     rejected: 0,
+    expired: 0,
+    revoked: 0,
   };
 
+  const now = Date.now();
   for (const request of requests) {
-    if (request.statusCode === 'pending') summary.pending += 1;
-    if (request.statusCode === 'approved') summary.approved += 1;
-    if (request.statusCode === 'rejected') summary.rejected += 1;
+    if (request.statusCode === 'pending') {
+      summary.pending += 1;
+    } else if (request.statusCode === 'rejected') {
+      summary.rejected += 1;
+    } else if (request.statusCode === 'approved') {
+      const grant = request.generatedGrant;
+      if (grant?.revokedAt instanceof Date) {
+        summary.revoked += 1;
+      } else if (grant?.expiresAt instanceof Date && grant.expiresAt.getTime() < now) {
+        summary.expired += 1;
+      } else {
+        summary.approved += 1;
+      }
+    }
   }
 
   return summary;

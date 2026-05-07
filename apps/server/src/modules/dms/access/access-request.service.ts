@@ -74,6 +74,7 @@ export interface AccessRequestGrantRecord {
   principalRef?: string;
   roleCode?: string;
   expiresAt: Date | null;
+  revokedAt?: Date | null;
   grantedAt?: Date;
   grantSourceCode?: string | null;
 }
@@ -127,6 +128,7 @@ const ACCESS_REQUEST_SELECT = {
     select: {
       documentGrantId: true,
       expiresAt: true,
+      revokedAt: true,
     },
   },
 } as const;
@@ -314,14 +316,32 @@ export class AccessRequestService {
       select: {
         documentId: true,
         statusCode: true,
+        generatedGrant: {
+          select: {
+            expiresAt: true,
+            revokedAt: true,
+          },
+        },
       },
     });
 
-    const requestsByDocumentId = new Map<string, Array<{ statusCode: string }>>();
+    type RequestSummaryRow = {
+      statusCode: string;
+      generatedGrant: { expiresAt: Date | null; revokedAt: Date | null } | null;
+    };
+    const requestsByDocumentId = new Map<string, RequestSummaryRow[]>();
     for (const request of requests) {
       const key = request.documentId.toString();
       const current = requestsByDocumentId.get(key) ?? [];
-      current.push({ statusCode: request.statusCode });
+      current.push({
+        statusCode: request.statusCode,
+        generatedGrant: request.generatedGrant
+          ? {
+              expiresAt: request.generatedGrant.expiresAt,
+              revokedAt: request.generatedGrant.revokedAt,
+            }
+          : null,
+      });
       requestsByDocumentId.set(key, current);
     }
 
@@ -1111,8 +1131,25 @@ export class AccessRequestService {
       ? metadata['title'].trim()
       : presentation.title;
 
+    const baseState = toRequestState(request);
+    const grant = request.generatedGrant;
+    const grantRevokedAt = grant?.revokedAt;
+    const grantExpiresAt = grant?.expiresAt;
+    const isApproved = baseState.status === 'approved';
+    const isRevoked = isApproved && grantRevokedAt instanceof Date;
+    const isExpired = isApproved
+      && !isRevoked
+      && grantExpiresAt instanceof Date
+      && grantExpiresAt.getTime() < Date.now();
+    const effectiveStatus = isRevoked
+      ? 'revoked'
+      : isExpired
+        ? 'expired'
+        : baseState.status;
+
     return {
-      ...toRequestState(request),
+      ...baseState,
+      status: effectiveStatus,
       documentId: request.document.documentId.toString(),
       path: request.document.relativePath,
       documentTitle,
@@ -1124,8 +1161,8 @@ export class AccessRequestService {
       responder: request.respondedByUserId
         ? actors.get(request.respondedByUserId.toString())
         : undefined,
-      grantId: request.generatedGrant?.documentGrantId.toString(),
-      grantExpiresAt: toIsoString(request.generatedGrant?.expiresAt),
+      grantId: grant?.documentGrantId.toString(),
+      grantExpiresAt: toIsoString(grantExpiresAt),
       canRespond,
     };
   }

@@ -40,6 +40,14 @@ const STATUS_META: Record<RequestStatus, {
     label: '거절됨',
     className: 'border-rose-200 bg-rose-50 text-rose-700',
   },
+  expired: {
+    label: '만료됨',
+    className: 'border-zinc-200 bg-zinc-50 text-zinc-600',
+  },
+  revoked: {
+    label: '취소됨',
+    className: 'border-orange-200 bg-orange-50 text-orange-700',
+  },
 };
 
 function formatDateTime(value?: string) {

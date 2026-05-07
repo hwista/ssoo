@@ -3,7 +3,12 @@ import type { DocumentPermissionGrant, DocumentVisibilityScope } from './documen
 
 export type DmsDocumentAccessRequestRole = 'read';
 
-export type DmsDocumentAccessRequestStatus = 'pending' | 'approved' | 'rejected';
+export type DmsDocumentAccessRequestStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'expired'
+  | 'revoked';
 
 export type DmsDocumentAccessRequestStatusFilter =
   | 'all'
@@ -68,6 +73,8 @@ export interface DmsManagedDocumentRequestSummary {
   pending: number;
   approved: number;
   rejected: number;
+  expired: number;
+  revoked: number;
 }
 
 export interface DmsManagedDocumentSummary {

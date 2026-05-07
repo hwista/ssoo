@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Clock, CheckCircle2, XCircle, FileQuestion, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, FileQuestion, ArrowRight, Hourglass, Ban } from 'lucide-react';
 import type {
+  DmsDocumentAccessRequestStatus,
   DmsDocumentAccessRequestStatusFilter,
   DmsDocumentAccessRequestSummary,
 } from '@ssoo/types/dms';
@@ -16,6 +17,8 @@ const STATUS_FILTERS: { value: DmsDocumentAccessRequestStatusFilter; label: stri
   { value: 'pending', label: '대기' },
   { value: 'approved', label: '승인' },
   { value: 'rejected', label: '거부' },
+  { value: 'expired', label: '만료' },
+  { value: 'revoked', label: '취소' },
 ];
 
 function formatDateTime(value?: string): string {
@@ -25,7 +28,7 @@ function formatDateTime(value?: string): string {
   return d.toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function StatusBadge({ status }: { status: 'pending' | 'approved' | 'rejected' }) {
+function StatusBadge({ status }: { status: DmsDocumentAccessRequestStatus }) {
   if (status === 'pending') {
     return (
       <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-yellow-50 text-yellow-700 border border-yellow-200">
@@ -42,10 +45,26 @@ function StatusBadge({ status }: { status: 'pending' | 'approved' | 'rejected' }
       </span>
     );
   }
+  if (status === 'rejected') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-rose-50 text-rose-700 border border-rose-200">
+        <XCircle className="h-3 w-3" />
+        거부
+      </span>
+    );
+  }
+  if (status === 'expired') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-zinc-50 text-zinc-600 border border-zinc-200">
+        <Hourglass className="h-3 w-3" />
+        만료
+      </span>
+    );
+  }
   return (
-    <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-gray-50 text-gray-700 border border-gray-200">
-      <XCircle className="h-3 w-3" />
-      거부
+    <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-orange-50 text-orange-700 border border-orange-200">
+      <Ban className="h-3 w-3" />
+      취소
     </span>
   );
 }
@@ -107,6 +126,8 @@ export function MyRequestsPage() {
       pending: list.filter((r) => r.status === 'pending').length,
       approved: list.filter((r) => r.status === 'approved').length,
       rejected: list.filter((r) => r.status === 'rejected').length,
+      expired: list.filter((r) => r.status === 'expired').length,
+      revoked: list.filter((r) => r.status === 'revoked').length,
     };
   }, [query.data]);
 
