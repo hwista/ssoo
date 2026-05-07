@@ -34,6 +34,10 @@ interface FileStoreState {
   error: string | null;
   // 마지막 갱신 시각
   lastUpdatedAt: Date | null;
+  /**
+   * 현 bookmarks 가 어느 사용자 소속인지 추적. user 변경 시 cross-user 잔존 방지.
+   */
+  ownerUserId: string | null;
 }
 
 interface FileStoreActions {
@@ -52,6 +56,10 @@ interface FileStoreActions {
   setLoading: (loading: boolean) => void;
   // 초기화
   clearFiles: () => void;
+  /**
+   * 현 owner 와 비교 후 다르면 bookmarks 비우고 새 owner 기록 — user 변경 시 호출.
+   */
+  setOwnerUserId: (userId: string | null) => void;
 }
 
 interface FileStore extends FileStoreState, FileStoreActions {}
@@ -71,6 +79,16 @@ export const useFileStore = create<FileStore>()(
       isInitialized: false,
       error: null,
       lastUpdatedAt: null,
+      ownerUserId: null,
+
+      setOwnerUserId: (userId: string | null): void => {
+        const current = get().ownerUserId;
+        if (current && userId && current !== userId) {
+          set({ bookmarks: [], ownerUserId: userId });
+        } else if (current !== userId) {
+          set({ ownerUserId: userId });
+        }
+      },
 
       // 파일 트리 로드
       loadFileTree: async () => {
@@ -206,9 +224,11 @@ export const useFileStore = create<FileStore>()(
     {
       name: 'dms-file-store',
       storage: createJSONStorage(() => localStorage),
-      // bookmarks만 persist (files는 서버에서 로드)
+      // bookmarks 와 ownerUserId 만 persist (files 는 서버에서 로드, owner 추적은
+      // cross-session 도 보존되어야 새 사용자 로그인 시 invalidation 가능)
       partialize: (state) => ({
         bookmarks: state.bookmarks,
+        ownerUserId: state.ownerUserId,
       }),
       // Date 역직렬화
       onRehydrateStorage: () => (state) => {

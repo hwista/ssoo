@@ -11,10 +11,20 @@ export interface AiSearchHistoryItem {
 
 interface AiSearchState {
   history: AiSearchHistoryItem[];
+  /**
+   * 현 history 가 어느 사용자 소속인지 추적. setOwnerUserId 가 다른 user 를 받으면
+   * history 를 비우고 새 owner 를 기록 — cross-user 잔존 방지.
+   */
+  ownerUserId: string | null;
 }
 
 interface AiSearchActions {
   recordSearch: (query: string, resultCount: number) => void;
+  /**
+   * 현 owner 와 비교 후 다르면 history 비우고 새 owner 기록.
+   * AppLayout 의 user 변경 감지 effect 에서 호출.
+   */
+  setOwnerUserId: (userId: string | null) => void;
 }
 
 type AiSearchStore = AiSearchState & AiSearchActions;
@@ -23,8 +33,19 @@ const MAX_HISTORY = 50;
 
 export const useAiSearchStore = create<AiSearchStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       history: [],
+      ownerUserId: null,
+
+      setOwnerUserId: (userId) => {
+        const current = get().ownerUserId;
+        if (current && userId && current !== userId) {
+          set({ history: [], ownerUserId: userId });
+        } else if (current !== userId) {
+          set({ ownerUserId: userId });
+        }
+      },
+
       recordSearch: (query, resultCount) => {
         const normalized = query.trim();
         if (!normalized) return;
@@ -62,7 +83,7 @@ export const useAiSearchStore = create<AiSearchStore>()(
     {
       name: 'dms-ai-search-store',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ history: state.history }),
+      partialize: (state) => ({ history: state.history, ownerUserId: state.ownerUserId }),
     }
   )
 );

@@ -16,6 +16,7 @@ export { useFileStore } from './file.store';
 
 // Editor (문서 편집 상태 - core store + React adapter 분리)
 export { useEditorStore, useActiveEditorFilePath } from './editor.store';
+export { useEditorMultiStore } from './editor-core.store';
 
 // UI
 export { useConfirmStore } from './confirm.store';

@@ -56,6 +56,10 @@ interface AssistantSessionState {
   sessions: AssistantSession[];
   activeSessionId: string | null;
   sessionsLoaded: boolean;
+  /**
+   * 현 sessions/messages 가 어느 사용자 소속인지 추적. user 변경 시 cross-user 잔존 방지.
+   */
+  ownerUserId: string | null;
 }
 
 interface AssistantSessionActions {
@@ -67,6 +71,10 @@ interface AssistantSessionActions {
   setSessionPersisted: (sessionId: string, persisted: boolean) => void;
   appendMessage: (message: AssistantMessage) => AssistantMessage[];
   updateTextMessage: (id: string, updater: (prev: string) => string, pending?: boolean) => void;
+  /**
+   * 현 owner 와 비교 후 다르면 sessions/messages/clientId 모두 비우고 새 owner 기록.
+   */
+  setOwnerUserId: (userId: string | null) => void;
 }
 
 type AssistantSessionStore = AssistantSessionState & AssistantSessionActions;
@@ -100,6 +108,23 @@ export const useAssistantSessionStore = create<AssistantSessionStore>()(
       sessions: [],
       activeSessionId: null,
       sessionsLoaded: false,
+      ownerUserId: null,
+
+      setOwnerUserId: (userId) => {
+        const current = get().ownerUserId;
+        if (current && userId && current !== userId) {
+          set({
+            clientId: createClientId(),
+            messages: [],
+            sessions: [],
+            activeSessionId: null,
+            sessionsLoaded: false,
+            ownerUserId: userId,
+          });
+        } else if (current !== userId) {
+          set({ ownerUserId: userId });
+        }
+      },
 
       startNewSession: () => set({
         activeSessionId: null,
@@ -249,6 +274,7 @@ export const useAssistantSessionStore = create<AssistantSessionStore>()(
         messages: state.messages,
         sessions: state.sessions,
         activeSessionId: state.activeSessionId,
+        ownerUserId: state.ownerUserId,
       }),
     }
   )

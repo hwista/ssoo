@@ -25,6 +25,10 @@ interface NewDocStoreActions {
   getTemplateConversionPending: (tabId: string) => TemplateConversionPendingData | null;
   consumeTemplateConversionPending: (tabId: string) => TemplateConversionPendingData | null;
   clearTemplateConversionPending: (tabId: string) => void;
+  /**
+   * 모든 pending 상태를 비움 — user 변경 시 cross-user 잔존 방지에 사용.
+   */
+  resetAllPending: () => void;
 }
 
 export const useNewDocStore = create<NewDocStoreState & NewDocStoreActions>((set, get) => ({
@@ -64,5 +68,10 @@ export const useNewDocStore = create<NewDocStoreState & NewDocStoreActions>((set
     const next = { ...state.templateConversionPendingByTabId };
     delete next[tabId];
     return { templateConversionPendingByTabId: next };
+  }),
+
+  resetAllPending: () => set({
+    aiSummaryPending: null,
+    templateConversionPendingByTabId: {},
   }),
 }));

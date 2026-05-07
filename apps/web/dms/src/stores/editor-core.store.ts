@@ -80,6 +80,10 @@ interface EditorMultiStoreActions {
   _updateTab: (tabId: string, patch: Partial<EditorTabState>) => void;
   _getTab: (tabId: string) => EditorTabState;
   removeTab: (tabId: string) => void;
+  /**
+   * 모든 탭의 에디터 state 를 비움 — user 변경 시 cross-user 잔존 방지에 사용.
+   */
+  resetAllEditors: () => void;
   loadFile: (tabId: string, path: string) => Promise<void>;
   saveFile: (tabId: string, path: string, content: string) => Promise<void>;
   saveFileKeepEditing: (tabId: string, path: string, content: string) => Promise<void>;
@@ -121,6 +125,10 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       delete rest[tabId];
       return { editors: rest };
     });
+  },
+
+  resetAllEditors: () => {
+    set({ editors: {} });
   },
 
   loadFile: async (tabId, path) => {
