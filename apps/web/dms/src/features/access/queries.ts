@@ -15,7 +15,7 @@ import type {
 } from '@ssoo/types/dms';
 import { accessApi } from '@/lib/api/access';
 import { getErrorMessage } from '@/lib/api/core';
-import { aiSearchKeys } from './useAiSearch';
+import { aiSearchKeys } from '@/hooks/queries/useAiSearch';
 
 export const accessRequestKeys = {
   all: ['dms-access-requests'] as const,

@@ -13,11 +13,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/lib/toast';
-import { useCreateReadAccessRequestMutation } from '@/hooks/queries/useDocumentAccessRequests';
+import { useCreateReadAccessRequestMutation } from './queries';
 import {
   normalizeDocumentAccessRequestPath,
   useDocumentAccessRequestStore,
-} from '@/stores/document-access-request.store';
+} from './dialog-store';
 
 const STATUS_LABELS: Record<NonNullable<DmsDocumentAccessRequestState['status']>, string> = {
   pending: '요청 대기',

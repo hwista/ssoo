@@ -20,8 +20,8 @@ import {
   SourceLinksSection,
   SummarySection,
   TagsSection,
-  VisibilitySection,
 } from './document-panel';
+import { VisibilitySection } from '@/features/access';
 import type { DocumentMetadataDiffSnapshot } from '../documentPageUtils';
 
 function formatPublishStatusLabel(status: DocumentCollaborationSnapshotClient['publishState']['status']) {

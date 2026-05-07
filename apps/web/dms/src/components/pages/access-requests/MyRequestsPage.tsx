@@ -6,7 +6,7 @@ import type {
   DmsDocumentAccessRequestStatusFilter,
   DmsDocumentAccessRequestSummary,
 } from '@ssoo/types/dms';
-import { useMyDocumentAccessRequestsQuery } from '@/hooks/queries/useDocumentAccessRequests';
+import { useMyDocumentAccessRequestsQuery } from '@/features/access';
 import { useOpenDocumentTab } from '@/hooks';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { cn } from '@/lib/utils';

@@ -117,6 +117,95 @@ DMS access module (`apps/server/src/modules/dms/access/`) is now decomposed into
 - `DocumentAclService` (existing) — ACL evaluation
 - `access-request.util.ts` — 24 stateless metadata/transform utilities + 2 shared constants
 
+Recovery snapshot — 2026-05-07 10:06 KST
+-----------------------------------------
+
+Purpose of this snapshot
+- This section is a reboot/session-recovery handoff only.
+- Do not treat it as a request to start new implementation automatically.
+- Resume by reading this section first, then the rest of this HANDOFF, `.codex/instructions/*`, and the relevant DMS planning docs.
+
+1) Current goal / last completed slice
+- Current active goal at handoff time: preserve the DMS workstream state after a diagnostic pass, especially DMS document-repo/control-plane cutover readiness and the Copilot-era DMS refactor handoff.
+- No new implementation slice was started in the handoff request.
+- Last completed slice visible in current Git history: `6c26b89 fix(web-dms): user-scope cleanup 일괄 정렬 — 9 stores cross-user 잔존 차단`.
+- Existing HANDOFF state below also records earlier closed DMS refactor tracks:
+  - C-3 `git.service.ts` decomposition complete.
+  - C-4 `access-request.service.ts` decomposition complete.
+- Diagnostic finding from the immediately preceding session: DMS cutover is not fully green yet because `verify:access-dms:raw` fails on storage-backed image serving and sidecar/runtime-root cleanup remains unresolved.
+
+2) Git status / commit / push state
+- SSOO repo path: `/home/a0122024330/src/ssoo`
+- Current branch/status at snapshot:
+  - `## main...origin/main [ahead 1]`
+- Latest local commits at snapshot:
+  - `6c26b89 fix(web-dms): user-scope cleanup 일괄 정렬 — 9 stores cross-user 잔존 차단`
+  - `6b9e110 feat(web-dms): 내 요청 페이지 + 사이드바 진입점 + 권한 UX 용어 통일`
+  - `192ee1a fix(web-dms): tab dedup, dropdown ssoo tokens, user-scoped tab persistence`
+  - `d042991 feat(dms): cross-client access invalidation + visibility UI polish (Phase B)`
+  - `a128ce0 fix(web-dms): permission UX correctness — search cache + socket self-filter`
+- Commit/push state:
+  - There is one local commit ahead of `origin/main`.
+  - This handoff request did not push.
+  - After saving this HANDOFF section, the working tree will include this documentation edit until committed or reverted.
+- Runtime document repo status at snapshot:
+  - `.runtime/dms/documents`: `## master...origin/master`, with untracked `_templates/`.
+  - `/home/a0122024330/src/lswiki-docs`: `## master...origin/master`, with many modified/untracked `.sidecar.json` files.
+
+3) Changed files / verification results
+- This handoff request intentionally performed no implementation changes.
+- File changed by this handoff request:
+  - `HANDOFF.md` — appended this recovery snapshot section.
+- Verification commands run during this handoff request:
+  - `date '+%Y-%m-%d %H:%M:%S %Z' && git status --short --branch && git log --oneline -5` — success.
+  - `git -C .runtime/dms/documents status --short --branch && git -C /home/a0122024330/src/lswiki-docs status --short --branch` — success.
+- Verification known from the immediately preceding diagnostic pass, not re-run in this handoff request:
+  - `pnpm run codex:verify-sync` — passed.
+  - `pnpm run docs:verify:raw` — passed.
+  - `pnpm --filter server exec node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand` — passed: 6 suites, 110 tests.
+  - `pnpm run build:server` — passed.
+  - `pnpm run build:web-dms` — passed.
+  - `pnpm --filter server test -- --runInBand` — failed because Jest received `--runInBand` as a pattern via the extra `--`; direct Jest command above passed.
+  - `pnpm run verify:access-dms:raw` — failed: `/dms/file/raw` returned 404 for a probe image path like `_assets/images/verify-*.png`.
+- Important diagnostic conclusion:
+  - `upload-image` stores files through `storageAdapterService.upload(...)` under the configured storage provider/root.
+  - Current config had `storage.defaultProvider = sharepoint`; probe images were observed under `/sites/dms/shared-documents/_assets/images/...` inside the server container.
+  - `GET /dms/file/raw` only resolves against markdown root via `fileCrudService.resolveFilePath(...)`, so it misses storage-backed images.
+  - `GET /dms/file/serve-attachment` already has a storage-backed fallback path; raw image serving needs equivalent behavior or a deliberate alternative contract.
+
+4) Re-entry commands / next small step
+- Recommended re-entry commands:
+  1. `cd /home/a0122024330/src/ssoo`
+  2. `git status --short --branch`
+  3. `git log --oneline -5`
+  4. `git -C .runtime/dms/documents status --short --branch`
+  5. `git -C /home/a0122024330/src/lswiki-docs status --short --branch`
+  6. Read: `HANDOFF.md`, `.codex/instructions/codex-instructions.md`, `.codex/instructions/project.instructions.md`
+- Next smallest implementation step, if the user asks to proceed:
+  - Fix DMS raw image serving contract in `apps/server/src/modules/dms/file/file.controller.ts` so `/dms/file/raw` can serve storage-backed images referenced by a readable document, matching the policy that binary assets are external storage and not markdown Git-root truth.
+  - Prefer a small helper shared with or parallel to `resolveStorageBackedAttachmentPath(...)`.
+  - Then run, in order:
+    1. `pnpm --filter server exec node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand`
+    2. `pnpm run build:server`
+    3. `pnpm run verify:access-dms:raw`
+- Do not start the broader refactor track again before the red DMS cutover gate is understood or intentionally deferred.
+
+5) Unresolved risks / user confirmation needed
+- Push confirmation needed:
+  - Current branch is ahead of `origin/main` by 1 commit. Confirm before pushing.
+- Runtime source-of-truth risk:
+  - Docker server currently binds `.runtime/dms/documents`, while `/home/a0122024330/src/lswiki-docs` also exists as a GitLab document clone and is dirty. Confirm which path should be treated as the canonical local runtime working tree.
+- Sidecar risk:
+  - `.sidecar.json` files remain in document repos despite the current no-sidecar runtime contract. Need a deliberate cleanup/archival policy before deleting or committing them.
+- Raw binary risk:
+  - `verify:access-dms:raw` is red until raw image endpoint supports storage-backed assets or the upload/materialization contract is changed.
+- Storage provider risk:
+  - DB config currently routes default uploads to `sharepoint`, represented locally by `/sites/dms/shared-documents`. Confirm whether this is intentional for local Docker verification.
+- Test-command risk:
+  - Use the direct Jest command for `--runInBand`; `pnpm --filter server test -- --runInBand` is known to fail due to argument forwarding.
+- Documentation edit risk:
+  - This HANDOFF update itself is a working-tree documentation change and should be committed, amended into the local ahead commit, or reverted based on the next operator’s intent.
+
 Contact
 -------
 For questions about decisions or tests, check `docs/dms/guides/` and recent commits (2026-04-28..30).

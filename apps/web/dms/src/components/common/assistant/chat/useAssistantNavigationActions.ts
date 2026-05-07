@@ -6,7 +6,7 @@ import { toast } from '@/lib/toast';
 import { useSettingsShellStore, useSettingsStore } from '@/stores';
 import type { AssistantSearchResult } from '@/stores';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
-import { useDocumentAccessRequestStore } from '@/stores/document-access-request.store';
+import { useDocumentAccessRequestStore } from '@/features/access';
 
 export function useAssistantNavigationActions() {
   const openTabWithConfirm = useOpenTabWithConfirm();

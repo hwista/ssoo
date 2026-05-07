@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import {
   normalizeDocumentAccessRequestPath,
   useDocumentAccessRequestStore,
-} from '@/stores/document-access-request.store';
+} from '@/features/access';
 
 export interface SearchResultCardData {
   id: string;

@@ -14,7 +14,7 @@ import {
   FileQuestion,
 } from 'lucide-react';
 import { useAccessStore, useLayoutStore, useSidebarStore, useFileStore, useGitStore, useTabStore } from '@/stores';
-import { useMyDocumentAccessRequestsQuery } from '@/hooks/queries/useDocumentAccessRequests';
+import { useMyDocumentAccessRequestsQuery } from '@/features/access';
 import type { DocumentType } from '@/types';
 import { DOCUMENT_TYPE_LABELS, LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';

@@ -22,7 +22,7 @@ import { Toolbar, DOCUMENT_WIDTH } from '@/components/common/viewer';
 import { useAiSearchQuery, useOpenDocumentTab } from '@/hooks';
 import { getErrorMessage } from '@/lib/api/core';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
-import { useDocumentAccessRequestStore } from '@/stores/document-access-request.store';
+import { useDocumentAccessRequestStore } from '@/features/access';
 import { getQueryFromTabPath } from './utils/queryPath';
 import { AiPanel } from './_components/AiPanel';
 import { SearchResultsPanel } from './_components/SearchResultsPanel';

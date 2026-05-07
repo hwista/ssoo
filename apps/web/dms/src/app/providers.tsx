@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { FloatingAssistant } from '@/components/common/assistant';
-import { DocumentAccessRequestDialogHost } from '@/components/common/document-access/DocumentAccessRequestDialogHost';
+import { DocumentAccessRequestDialogHost } from '@/features/access';
 import { AuthStateSync } from '@/components/common/auth/StateSync';
 import { AssistantSessionSync } from '@/components/common/assistant/session/AssistantSessionSync';
 import { LOGIN_PATH } from '@/lib/constants/routes';

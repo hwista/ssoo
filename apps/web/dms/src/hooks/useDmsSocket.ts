@@ -7,7 +7,7 @@ import { getSharedAccessToken } from '@ssoo/web-auth';
 import { useAuthStore } from '@/stores';
 import { fileTreeKeys } from '@/hooks/queries/useFileTree';
 import { aiSearchKeys } from '@/hooks/queries/useAiSearch';
-import { accessRequestKeys } from '@/hooks/queries/useDocumentAccessRequests';
+import { accessRequestKeys } from '@/features/access';
 import { toast } from '@/lib/toast';
 
 // ============================================================================

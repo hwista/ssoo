@@ -15,7 +15,7 @@ import {
   useRevokeDocumentGrantMutation,
   useTransferDocumentOwnershipMutation,
   useUpdateDocumentVisibilityMutation,
-} from '@/hooks/queries/useDocumentAccessRequests';
+} from '@/features/access';
 
 type RequestStatus = DmsDocumentAccessRequestSummary['status'];
 
