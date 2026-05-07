@@ -159,6 +159,8 @@ sock.on('connect_error', (e) => { console.log('ERR', e.message); process.exit(1)
 
 ## 6. 시나리오 D — Git 동기화 / 정본 일치
 
+DMS GitLab 문서 자동 싱크 운영 변수와 bootstrap mode 세부 절차는 `docs/dms/guides/gitlab-document-sync.md` 를 정본으로 봅니다.
+
 ```bash
 cd .runtime/dms/documents
 git --no-pager status
@@ -168,11 +170,26 @@ git --no-pager remote -v
 
 - 워킹 트리는 항상 clean (DMS save 후 자동 commit).
 - `origin` 은 `LSWIKI_DOC` 원격을 가리켜야 함.
+- 운영 `.env` 에 `DMS_GIT_BOOTSTRAP_REMOTE_URL` / `DMS_GIT_BOOTSTRAP_BRANCH` 를 넣으면 `compose.yaml` 이 server 컨테이너 환경변수로 전달하고, 서버 시작 시 empty dir clone, 기존 `.git` fast-forward auto-pull, non-empty remote reconcile-merge, non-empty no remote fail 분기가 적용됩니다.
 - `inspectRemoteParity` 가 ahead/diverged 라면 control-plane sync 가 보류됨 → 운영자가 명시적으로 정리 필요.
+
+## 7. 시나리오 E — DMS 챗봇 / Azure OpenAI 환경변수
+
+DMS 웹의 `/api/ask` 는 DMS Next API proxy를 거쳐 server 컨테이너의 `/api/dms/ask` 에서 Azure OpenAI를 호출합니다. Azure 환경변수는 web-dms 컨테이너가 아니라 server 컨테이너에 있어야 합니다.
+
+```bash
+docker compose config | grep -E 'AZURE_OPENAI|OPENAI_API_VERSION|AZURE_USE_MANAGED_IDENTITY'
+docker compose exec server env | grep -E 'AZURE_OPENAI|OPENAI_API_VERSION|AZURE_USE_MANAGED_IDENTITY'
+```
+
+필수 기준:
+
+- 챗봇: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `OPENAI_API_VERSION`, 그리고 Entra 또는 API key 인증 정보가 필요합니다.
+- 임베딩/시맨틱 검색: `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` 가 필요합니다. 비워두면 임베딩/시맨틱 검색은 비활성화되고 키워드 검색 폴백을 사용하지만, 챗봇 자체는 채팅 배포와 인증 정보가 있으면 동작해야 합니다.
 
 ---
 
-## 7. 빠른 점검 한 줄 명령
+## 8. 빠른 점검 한 줄 명령
 
 ```bash
 # 컨테이너 healthy + DB 카운트 + API 카운트 한번에

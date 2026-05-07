@@ -89,6 +89,7 @@ DMS는 다음 구조를 사용합니다.
 - `/api/search`, `/api/ask`, `/api/create` 는 DMS Route Handler가 요청을 `apps/server` Nest API로 넘기고, Nest가 Azure OpenAI와 검색 저장소를 직접 다룹니다.
 - `/api/doc-assist` 도 포함한 주요 DMS AI/business 경로는 same-origin Route Handler를 거쳐 `apps/server` DMS module로 전달됩니다.
 - Entra 토큰 취득 실패 시 `AZURE_OPENAI_API_KEY` 경로로 폴백할 수 있습니다.
+- Docker 배포에서는 Azure 환경변수가 `server` 컨테이너에 주입되어야 합니다. `web-dms`의 `.env.local` 만 채우면 `/api/dms/ask` 쪽 server 런타임에는 값이 없습니다.
 
 ### 권장 환경 변수
 
@@ -104,6 +105,8 @@ AZURE_CLIENT_SECRET=<client-secret>
 AZURE_USE_MANAGED_IDENTITY=true
 AZURE_MANAGED_IDENTITY_CLIENT_ID=
 ```
+
+`AZURE_OPENAI_EMBEDDING_DEPLOYMENT` 는 임베딩/시맨틱 검색에 필요합니다. 비어 있으면 임베딩은 비활성화되고 키워드 검색 폴백을 사용하지만, `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_DEPLOYMENT` / 인증 정보가 server 컨테이너에 있으면 챗봇 호출은 동작해야 합니다.
 
 ---
 

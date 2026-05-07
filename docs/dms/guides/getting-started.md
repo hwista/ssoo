@@ -40,6 +40,8 @@ pnpm db:setup
 
 ## 3. 환경 변수
 
+Docker compose 기준 server 컨테이너는 root `.env` 의 Azure 값을 `compose.yaml` `server.environment` 로 전달받습니다. `apps/web/dms/.env.local` 은 web-dms 로컬 override 용도입니다.
+
 `apps/web/dms/.env.local` 예시:
 
 ```env

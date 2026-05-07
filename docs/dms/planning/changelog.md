@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-05-07
+
+### DMS GitLab 문서 자동 싱크 운영 가이드
+
+- `DMS_GIT_BOOTSTRAP_REMOTE_URL` / `DMS_GIT_BOOTSTRAP_BRANCH` 운영 변수와 `LSWIKI_DOC.git` bootstrap 경계를 `docs/dms/guides/gitlab-document-sync.md` 로 문서화.
+- 서버 부팅 `gitService.initialize()` 가 이미 처리하는 clone / existing fast-forward auto-pull / reconcile-merge / non-empty no remote fail 4분기를 운영자가 확인할 수 있게 정리.
+- `compose.yaml` server environment에 DMS Git bootstrap 및 Azure OpenAI 변수를 전달하도록 정리해, 운영 `.env` 값이 server 컨테이너의 자동 clone/챗봇 런타임에 주입되도록 보강.
+- 실제 `.env` 값, GitLab token/credential, remote 실행은 이번 묶음 out of scope 로 분리하고 docs checker 로 guide marker를 보호.
+
+---
+
 ## 2026-04-30 (Phase A 종결)
 
 ### Phase A — 통합 프로젝트 종결 critical path 진입 (1/2)

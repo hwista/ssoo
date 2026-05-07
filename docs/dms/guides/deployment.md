@@ -68,12 +68,12 @@ cp apps/web/dms/.env.example apps/web/dms/.env.local
 # - JWT_REFRESH_SECRET
 # - AZURE_OPENAI_ENDPOINT
 # - AZURE_OPENAI_DEPLOYMENT
-# - AZURE_OPENAI_EMBEDDING_DEPLOYMENT
+# - AZURE_OPENAI_EMBEDDING_DEPLOYMENT (임베딩/시맨틱 검색 사용 시)
 # - 인증: AZURE_TENANT_ID/CLIENT_ID/CLIENT_SECRET 또는 AZURE_OPENAI_API_KEY
 ```
 
 > AI 기능을 쓰지 않더라도 `.env.local` 파일은 같은 자리에서 유지하는 것을 권장합니다.  
-> `compose.yaml`은 DMS `.env.local`을 **선택적으로** 읽고, 공통 DB/API 연결 값은 compose 기본값으로 주입합니다.
+> `compose.yaml`은 DMS `.env.local`을 **web-dms 컨테이너용으로 선택적으로** 읽고, server 컨테이너의 DMS Git/Azure 값은 root `.env`를 `environment:`로 전달합니다.
 
 ### 2. 빌드 & 실행
 
@@ -185,14 +185,16 @@ tar czf dms-runtime-backup-$(date +%Y%m%d).tar.gz \
 |------|------|------|
 | `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI 엔드포인트 |
 | `AZURE_OPENAI_DEPLOYMENT` | ✅ | 채팅 모델 배포명 |
-| `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | ✅ | 임베딩 모델 배포명 |
+| `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | ◐ | 임베딩 모델 배포명. 임베딩/시맨틱 검색에는 필요하지만 챗봇 단독 호출에는 필수 아님 |
+| `OPENAI_API_VERSION` | ✅ | Azure OpenAI API version |
+| `AZURE_USE_MANAGED_IDENTITY` | ⭕ | Managed Identity 사용 여부 (`true`/`false`) |
 | `AZURE_OPENAI_API_KEY` | ⭕ | API 키 (Entra ID 미사용 시) |
 | `AZURE_TENANT_ID` | ⭕ | Entra ID 인증 시 |
 | `AZURE_CLIENT_ID` | ⭕ | Entra ID 인증 시 |
 | `AZURE_CLIENT_SECRET` | ⭕ | Entra ID 인증 시 |
+| `AZURE_MANAGED_IDENTITY_CLIENT_ID` | ⭕ | user-assigned managed identity 사용 시 |
 
-루트 `compose.yaml` 은 `apps/web/dms/.env.local` 을 **선택적으로** 읽습니다.  
-Azure 관련 값은 해당 파일에 넣고, Docker 내부 DB 주소 override가 필요하면 root `.env`의 `DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` 을 수정하세요.
+루트 `compose.yaml` 은 server 컨테이너의 Azure 관련 값을 root `.env` 에서 읽어 `environment:` 로 전달합니다. `apps/web/dms/.env.local` 은 web-dms 컨테이너의 로컬 override 용도입니다. Docker 내부 DB 주소 override가 필요하면 root `.env`의 `DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` 을 수정하세요.
 
 예시:
 ```yaml
