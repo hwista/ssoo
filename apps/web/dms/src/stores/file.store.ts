@@ -232,10 +232,11 @@ export const useFileStore = create<FileStore>()(
 );
 
 // 사용자 변경 시 자체 invalidation: bookmarks 비우고 owner 갱신.
+// logout 시점 (next === null) 에는 ownerUserId 를 보존해 다음 login 시 비교가 가능하도록.
 registerUserScopedReset((next) => {
+  if (next === null) return;
   const state = useFileStore.getState();
-  const ownerChanged = state.ownerUserId !== null && next !== null && state.ownerUserId !== next;
-  if (ownerChanged) {
+  if (state.ownerUserId !== null && state.ownerUserId !== next) {
     useFileStore.setState({ bookmarks: [], ownerUserId: next });
   } else if (state.ownerUserId !== next) {
     useFileStore.setState({ ownerUserId: next });

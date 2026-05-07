@@ -262,10 +262,11 @@ export const useAssistantSessionStore = create<AssistantSessionStore>()(
 );
 
 // 사용자 변경 시 자체 invalidation: 모든 세션/대화/clientId 를 비움.
+// logout 시점 (next === null) 에는 ownerUserId 를 보존해 다음 login 시 비교가 가능하도록.
 registerUserScopedReset((next) => {
+  if (next === null) return;
   const state = useAssistantSessionStore.getState();
-  const ownerChanged = state.ownerUserId !== null && next !== null && state.ownerUserId !== next;
-  if (ownerChanged) {
+  if (state.ownerUserId !== null && state.ownerUserId !== next) {
     useAssistantSessionStore.setState({
       clientId: createClientId(),
       messages: [],
