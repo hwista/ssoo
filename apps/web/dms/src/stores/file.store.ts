@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { FileNode, BookmarkItem } from '@/types';
 import { filesApi } from '@/lib/api/endpoints/files';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 // 파일 트리를 플랫 맵으로 변환 (PMS buildMenuMap 대응)
 const buildFileMap = (nodes: FileNode[]): Map<string, FileNode> => {
@@ -56,10 +57,6 @@ interface FileStoreActions {
   setLoading: (loading: boolean) => void;
   // 초기화
   clearFiles: () => void;
-  /**
-   * 현 owner 와 비교 후 다르면 bookmarks 비우고 새 owner 기록 — user 변경 시 호출.
-   */
-  setOwnerUserId: (userId: string | null) => void;
 }
 
 interface FileStore extends FileStoreState, FileStoreActions {}
@@ -80,15 +77,6 @@ export const useFileStore = create<FileStore>()(
       error: null,
       lastUpdatedAt: null,
       ownerUserId: null,
-
-      setOwnerUserId: (userId: string | null): void => {
-        const current = get().ownerUserId;
-        if (current && userId && current !== userId) {
-          set({ bookmarks: [], ownerUserId: userId });
-        } else if (current !== userId) {
-          set({ ownerUserId: userId });
-        }
-      },
 
       // 파일 트리 로드
       loadFileTree: async () => {
@@ -242,3 +230,14 @@ export const useFileStore = create<FileStore>()(
     }
   )
 );
+
+// 사용자 변경 시 자체 invalidation: bookmarks 비우고 owner 갱신.
+registerUserScopedReset((next) => {
+  const state = useFileStore.getState();
+  const ownerChanged = state.ownerUserId !== null && next !== null && state.ownerUserId !== next;
+  if (ownerChanged) {
+    useFileStore.setState({ bookmarks: [], ownerUserId: next });
+  } else if (state.ownerUserId !== next) {
+    useFileStore.setState({ ownerUserId: next });
+  }
+});

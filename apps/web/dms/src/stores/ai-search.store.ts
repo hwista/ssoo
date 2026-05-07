@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 export interface AiSearchHistoryItem {
   id: string;
@@ -20,11 +21,6 @@ interface AiSearchState {
 
 interface AiSearchActions {
   recordSearch: (query: string, resultCount: number) => void;
-  /**
-   * 현 owner 와 비교 후 다르면 history 비우고 새 owner 기록.
-   * AppLayout 의 user 변경 감지 effect 에서 호출.
-   */
-  setOwnerUserId: (userId: string | null) => void;
 }
 
 type AiSearchStore = AiSearchState & AiSearchActions;
@@ -33,18 +29,9 @@ const MAX_HISTORY = 50;
 
 export const useAiSearchStore = create<AiSearchStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       history: [],
       ownerUserId: null,
-
-      setOwnerUserId: (userId) => {
-        const current = get().ownerUserId;
-        if (current && userId && current !== userId) {
-          set({ history: [], ownerUserId: userId });
-        } else if (current !== userId) {
-          set({ ownerUserId: userId });
-        }
-      },
 
       recordSearch: (query, resultCount) => {
         const normalized = query.trim();
@@ -87,3 +74,14 @@ export const useAiSearchStore = create<AiSearchStore>()(
     }
   )
 );
+
+// 사용자 변경 시 자체 invalidation: persist 의 ownerUserId 와 비교 후 다르면 history 비움.
+registerUserScopedReset((next) => {
+  const state = useAiSearchStore.getState();
+  const ownerChanged = state.ownerUserId !== null && next !== null && state.ownerUserId !== next;
+  if (ownerChanged) {
+    useAiSearchStore.setState({ history: [], ownerUserId: next });
+  } else if (state.ownerUserId !== next) {
+    useAiSearchStore.setState({ ownerUserId: next });
+  }
+});

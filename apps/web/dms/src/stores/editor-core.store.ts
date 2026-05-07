@@ -8,6 +8,7 @@ import type { DocumentMetadata } from '@/types';
 import type { ContentType } from '@/types/content-metadata';
 import type { TemplateReferenceDoc, TemplateGeneration, TemplateOriginType } from '@/types/template';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 /**
  * 템플릿 저장 시 필요한 메타데이터.
@@ -520,3 +521,10 @@ export function createEditorTabActions(tabId: string) {
     removeTabEditor: () => gs().removeTab(tabId),
   };
 }
+
+// 사용자 변경 시 모든 탭의 에디터 state 비움 (편집 중 컨텐츠/메타데이터 cross-user 잔존 방지)
+registerUserScopedReset((next, prev) => {
+  if (prev !== null && prev !== next) {
+    useEditorMultiStore.getState().resetAllEditors();
+  }
+});

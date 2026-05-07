@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TabItem, OpenTabOptions } from '@/types/tab';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 // Home 탭 상수 (닫기 불가)
 export const HOME_TAB = {
@@ -53,7 +54,6 @@ interface TabStoreActions {
   updateTab: (tabId: string, updates: Partial<Pick<TabItem, 'id' | 'title' | 'path' | 'icon' | 'isEditing'>>) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   getActiveTab: () => TabItem | undefined;
-  setOwnerUserId: (userId: string | null) => void;
 }
 
 interface TabStore extends TabStoreState, TabStoreActions {}
@@ -237,10 +237,6 @@ export const useTabStore = create<TabStore>()(
         const { tabs, activeTabId } = get();
         return tabs.find((t) => t.id === activeTabId);
       },
-
-      setOwnerUserId: (userId: string | null): void => {
-        set({ ownerUserId: userId });
-      },
     }),
     {
       name: 'dms-tab-store',
@@ -265,3 +261,15 @@ export const useTabStore = create<TabStore>()(
     }
   )
 );
+
+// 사용자 변경 시 자체 invalidation: persist 의 ownerUserId 와 비교 후 다르면 모든 탭을 home 으로 리셋.
+registerUserScopedReset((next) => {
+  const state = useTabStore.getState();
+  const ownerChanged = state.ownerUserId !== null && next !== null && state.ownerUserId !== next;
+  if (ownerChanged) {
+    state.closeAllTabs();
+  }
+  if (state.ownerUserId !== next) {
+    useTabStore.setState({ ownerUserId: next });
+  }
+});

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { DmsAccessSnapshot } from '@ssoo/types/dms';
 import { accessApi, getErrorMessage } from '@/lib/api';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 interface AccessStoreState {
   snapshot: DmsAccessSnapshot | null;
@@ -57,3 +58,10 @@ export const useAccessStore = create<AccessStoreState & AccessStoreActions>()((s
   },
   reset: () => set(INITIAL_STATE),
 }));
+
+// 사용자 변경 시 access snapshot 초기화
+registerUserScopedReset((next, prev) => {
+  if (prev !== null && prev !== next) {
+    useAccessStore.getState().reset();
+  }
+});

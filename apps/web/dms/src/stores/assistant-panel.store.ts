@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { generateAssistantSuggestions } from '@/lib/assistant/assistantSuggestions';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 interface AssistantPanelState {
   isOpen: boolean;
@@ -46,3 +47,12 @@ export const useAssistantPanelStore = create<AssistantPanelStore>()((set) => ({
     isProcessing: false,
   })),
 }));
+
+// 사용자 변경 시 어시스턴트 패널 닫고 draft 비움
+registerUserScopedReset((next, prev) => {
+  if (prev !== null && prev !== next) {
+    const { closePanel, resetDraftState } = useAssistantPanelStore.getState();
+    closePanel();
+    resetDraftState();
+  }
+});

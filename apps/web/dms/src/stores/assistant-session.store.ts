@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { DmsDocumentAccessRequestState } from '@ssoo/types/dms';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 export interface AssistantSearchResult {
   id: string;
@@ -71,10 +72,6 @@ interface AssistantSessionActions {
   setSessionPersisted: (sessionId: string, persisted: boolean) => void;
   appendMessage: (message: AssistantMessage) => AssistantMessage[];
   updateTextMessage: (id: string, updater: (prev: string) => string, pending?: boolean) => void;
-  /**
-   * 현 owner 와 비교 후 다르면 sessions/messages/clientId 모두 비우고 새 owner 기록.
-   */
-  setOwnerUserId: (userId: string | null) => void;
 }
 
 type AssistantSessionStore = AssistantSessionState & AssistantSessionActions;
@@ -109,22 +106,6 @@ export const useAssistantSessionStore = create<AssistantSessionStore>()(
       activeSessionId: null,
       sessionsLoaded: false,
       ownerUserId: null,
-
-      setOwnerUserId: (userId) => {
-        const current = get().ownerUserId;
-        if (current && userId && current !== userId) {
-          set({
-            clientId: createClientId(),
-            messages: [],
-            sessions: [],
-            activeSessionId: null,
-            sessionsLoaded: false,
-            ownerUserId: userId,
-          });
-        } else if (current !== userId) {
-          set({ ownerUserId: userId });
-        }
-      },
 
       startNewSession: () => set({
         activeSessionId: null,
@@ -279,3 +260,21 @@ export const useAssistantSessionStore = create<AssistantSessionStore>()(
     }
   )
 );
+
+// 사용자 변경 시 자체 invalidation: 모든 세션/대화/clientId 를 비움.
+registerUserScopedReset((next) => {
+  const state = useAssistantSessionStore.getState();
+  const ownerChanged = state.ownerUserId !== null && next !== null && state.ownerUserId !== next;
+  if (ownerChanged) {
+    useAssistantSessionStore.setState({
+      clientId: createClientId(),
+      messages: [],
+      sessions: [],
+      activeSessionId: null,
+      sessionsLoaded: false,
+      ownerUserId: next,
+    });
+  } else if (state.ownerUserId !== next) {
+    useAssistantSessionStore.setState({ ownerUserId: next });
+  }
+});

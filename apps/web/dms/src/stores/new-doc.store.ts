@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 interface AiSummaryPendingData {
   summaryFiles: InlineSummaryFileItem[];
@@ -75,3 +76,10 @@ export const useNewDocStore = create<NewDocStoreState & NewDocStoreActions>((set
     templateConversionPendingByTabId: {},
   }),
 }));
+
+// 사용자 변경 시 모든 pending 비움
+registerUserScopedReset((next, prev) => {
+  if (prev !== null && prev !== next) {
+    useNewDocStore.getState().resetAllPending();
+  }
+});

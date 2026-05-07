@@ -3,20 +3,7 @@
 import * as React from 'react';
 import { ShellFrame } from '@ssoo/web-shell';
 import { ChevronRight } from 'lucide-react';
-import {
-  useAccessStore,
-  useAiSearchStore,
-  useAssistantContextStore,
-  useAssistantPanelStore,
-  useAssistantSessionStore,
-  useAuthStore,
-  useEditorMultiStore,
-  useFileStore,
-  useLayoutStore,
-  useNewDocStore,
-  useSidebarStore,
-  useTabStore,
-} from '@/stores';
+import { useLayoutStore, useSidebarStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './sidebar';
@@ -83,60 +70,10 @@ export function AppLayout() {
     setExpandedSections([...nextExpandedSections]);
   }, [setExpandedSections, settingsConfig, sidebarSections]);
 
-  // 로그인 사용자 변경 시 이전 사용자의 client-side state 를 일괄 reset.
-  // (cross-user 잔존 방지 — tab/settings shell/assistant context/editor draft/검색 history/AI 대화/책갈피/access snapshot 등)
-  const currentUserId = useAuthStore((state) => state.user?.userId);
-  const tabOwnerUserId = useTabStore((state) => state.ownerUserId);
-  const closeAllTabs = useTabStore((state) => state.closeAllTabs);
-  const setTabOwnerUserId = useTabStore((state) => state.setOwnerUserId);
-  const exitSettings = useSettingsShellStore((state) => state.exitSettings);
-  const resetAssistantContext = useAssistantContextStore((state) => state.resetContext);
-  const closeAssistantPanel = useAssistantPanelStore((state) => state.closePanel);
-  const resetAssistantDraft = useAssistantPanelStore((state) => state.resetDraftState);
-  const resetAllEditors = useEditorMultiStore((state) => state.resetAllEditors);
-  const resetAllPending = useNewDocStore((state) => state.resetAllPending);
-  const resetAccess = useAccessStore((state) => state.reset);
-  const setAiSearchOwnerUserId = useAiSearchStore((state) => state.setOwnerUserId);
-  const setAssistantSessionOwnerUserId = useAssistantSessionStore((state) => state.setOwnerUserId);
-  const setFileOwnerUserId = useFileStore((state) => state.setOwnerUserId);
-
-  React.useEffect(() => {
-    if (!currentUserId) return;
-    const ownerChanged = Boolean(tabOwnerUserId) && tabOwnerUserId !== currentUserId;
-    if (ownerChanged) {
-      // memory-only stores
-      closeAllTabs();
-      exitSettings();
-      resetAssistantContext();
-      closeAssistantPanel();
-      resetAssistantDraft();
-      resetAllEditors();
-      resetAllPending();
-      resetAccess();
-    }
-    // persist stores — 자체 owner 비교 → 다르면 history/sessions/bookmarks reset 후 owner set
-    setAiSearchOwnerUserId(currentUserId);
-    setAssistantSessionOwnerUserId(currentUserId);
-    setFileOwnerUserId(currentUserId);
-    if (tabOwnerUserId !== currentUserId) {
-      setTabOwnerUserId(currentUserId);
-    }
-  }, [
-    currentUserId,
-    tabOwnerUserId,
-    closeAllTabs,
-    setTabOwnerUserId,
-    exitSettings,
-    resetAssistantContext,
-    closeAssistantPanel,
-    resetAssistantDraft,
-    resetAllEditors,
-    resetAllPending,
-    resetAccess,
-    setAiSearchOwnerUserId,
-    setAssistantSessionOwnerUserId,
-    setFileOwnerUserId,
-  ]);
+  // 사용자 변경 시 client-side state 일괄 cleanup 은 `lib/user-scope` 의 registry 가 처리.
+  // 각 store 가 자체 등록 → useAuthStore 변경을 zustand subscribe 가 감지 → 모든 listener emit.
+  // AppLayout 이 직접 selector/effect 를 보유하지 않음 — 새 store 추가 시 그 store 파일 안에서
+  // registerUserScopedReset 한 번 호출로 자동 합류.
 
   // 모바일은 별도 UI (추후 개발)
   if (deviceType === 'mobile') {

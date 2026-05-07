@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { TemplateItem } from '@/types/template';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 interface AssistantReference {
   path: string;
@@ -98,3 +99,10 @@ export const useAssistantContextStore = create<AssistantContextStore>()((set) =>
   setRelevanceWarnings: (warnings) => set({ relevanceWarnings: warnings }),
   resetContext: () => set(INITIAL_STATE),
 }));
+
+// 사용자 변경 시 어시스턴트 컨텍스트 (참조/템플릿/요약) 비움
+registerUserScopedReset((next, prev) => {
+  if (prev !== null && prev !== next) {
+    useAssistantContextStore.getState().resetContext();
+  }
+});

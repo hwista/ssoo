@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import type { PreferredSettingsViewMode, SettingsScope, SettingsViewMode } from '@/types/settings';
+import { registerUserScopedReset } from '@/lib/user-scope';
 
 const DEFAULT_SECTION_BY_SCOPE: Record<SettingsScope, string> = {
   system: 'git',
@@ -99,3 +100,10 @@ export const useSettingsShellStore = create<SettingsShellState & SettingsShellAc
     });
   },
 }));
+
+// 사용자 변경 시 settings shell 비활성화 (cross-user 잔존 방지)
+registerUserScopedReset((next, prev) => {
+  if (prev !== null && prev !== next) {
+    useSettingsShellStore.getState().exitSettings();
+  }
+});
