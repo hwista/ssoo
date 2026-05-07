@@ -20,6 +20,7 @@ out/
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+!.vscode/mcp.json
 .idea/
 
 # OS
