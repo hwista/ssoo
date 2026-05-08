@@ -419,6 +419,7 @@ export class CollaborationService implements OnModuleDestroy {
     gitManagedPaths?: string[];
     operationType: string;
     currentUser: TokenPayload;
+    publishDelayMs?: number;
   }): void {
     const affectedPaths = filterGitManagedDocumentPaths(
       input.gitManagedPaths ?? [input.primaryPath, ...(input.affectedPaths ?? [])],
@@ -457,7 +458,8 @@ export class CollaborationService implements OnModuleDestroy {
     job.queuedAt = now;
     affectedPaths.forEach((item) => job.affectedPaths.add(item));
     if (job.timer) clearTimeout(job.timer);
-    job.timer = setTimeout(() => void this.publishJob(primaryPath), 4000);
+    const publishDelayMs = Math.max(0, input.publishDelayMs ?? 4000);
+    job.timer = setTimeout(() => void this.publishJob(primaryPath), publishDelayMs);
     this.publishJobsByPath.set(primaryPath, job);
 
     // WebSocket: 파일 변경 이벤트 전파

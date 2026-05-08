@@ -22,6 +22,7 @@ import { DocumentHydrationService } from './runtime/document-hydration.service.j
 import { configService } from './runtime/dms-config.service.js';
 import { personalSettingsService } from './runtime/personal-settings.service.js';
 import { gitService } from './runtime/git.service.js';
+import { TemplateService } from './templates/template.service.js';
 
 const logger = new Logger('DmsModule');
 
@@ -70,6 +71,7 @@ export class DmsModule implements OnModuleInit {
   constructor(
     private readonly hydration: DocumentHydrationService,
     private readonly db: DatabaseService,
+    private readonly templateService: TemplateService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -98,6 +100,13 @@ export class DmsModule implements OnModuleInit {
       await this.hydration.hydrateFromDisk();
     } catch (err) {
       logger.warn('문서 하이드레이션 중 예외', err instanceof Error ? err.message : String(err));
+    }
+
+    try {
+      await this.templateService.ensureDefaultTemplatesSynced();
+      logger.log('DMS 기본 템플릿 동기화 완료');
+    } catch (err) {
+      logger.warn('DMS 기본 템플릿 동기화 중 예외', err instanceof Error ? err.message : String(err));
     }
   }
 }

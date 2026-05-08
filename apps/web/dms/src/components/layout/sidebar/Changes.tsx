@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { FilePlus, FileX, FileEdit, Undo2, GitCommitHorizontal } from 'lucide-react';
+import { useEffect } from 'react';
+import { FilePlus, FileX, FileEdit, Undo2 } from 'lucide-react';
 import { useGitStore } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
 import { useConfirmStore } from '@/stores/confirm.store';
@@ -40,13 +40,12 @@ const STATUS_LABELS: Record<GitFileStatus, string> = {
  * - Git uncommitted 변경 파일 표시
  * - 파일 클릭 → 해당 탭 열기
  * - 변경 취소 버튼
- * - 커밋 버튼
+ * - 자동 publish 대기/실패 항목 안내
  */
 export function Changes() {
   const { changes, changeCount, isAvailable, refreshChanges, discardFile } = useGitStore();
   const { confirm } = useConfirmStore();
   const openTabWithConfirm = useOpenTabWithConfirm();
-  const [showCommitDialog, setShowCommitDialog] = useState(false);
 
   // 컴포넌트 마운트 시 변경 사항 조회
   useEffect(() => {
@@ -95,25 +94,11 @@ export function Changes() {
     }
   };
 
-  const handleCommitClick = () => {
-    setShowCommitDialog(true);
-  };
-
   return (
     <div className="space-y-0.5">
-      {/* 커밋 버튼 */}
-      <div className="px-3 pb-1">
-        <button
-          onClick={handleCommitClick}
-          className={cn(
-            'flex items-center justify-center gap-1.5 w-full h-control-h',
-            'text-label-sm rounded-md transition-colors',
-            'bg-ssoo-primary text-white hover:bg-ssoo-primary/90'
-          )}
-        >
-          <GitCommitHorizontal className="w-3.5 h-3.5" />
-          <span>커밋 ({changeCount})</span>
-        </button>
+      {/* 자동 publish 진단 안내 */}
+      <div className="px-3 pb-1 text-caption text-gray-500">
+        자동 publish 대기 또는 실패 항목입니다.
       </div>
 
       {/* 변경 파일 목록 */}
@@ -149,74 +134,6 @@ export function Changes() {
         );
       })}
 
-      {/* 커밋 다이얼로그 (CommitDialog에서 처리) */}
-      {showCommitDialog && (
-        <CommitDialogTrigger onClose={() => setShowCommitDialog(false)} />
-      )}
-    </div>
-  );
-}
-
-/**
- * CommitDialog 트리거 (포탈 기반)
- * - 실제 다이얼로그는 CommitDialog 컴포넌트에서 렌더링
- */
-function CommitDialogTrigger({ onClose }: { onClose: () => void }) {
-  const { commitAll, changes, isCommitting, refreshChanges } = useGitStore();
-  const [message, setMessage] = useState('');
-
-  const handleCommit = async () => {
-    if (!message.trim()) return;
-    const success = await commitAll(message.trim());
-    if (success) {
-      await refreshChanges();
-      onClose();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && message.trim()) {
-      e.preventDefault();
-      handleCommit();
-    }
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  };
-
-  return (
-    <div className="px-3 py-2 border-t border-gray-200 space-y-2">
-      <div className="text-caption text-gray-500">
-        {changes.length}개 파일 커밋
-      </div>
-      <textarea
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="커밋 메시지를 입력하세요..."
-        className="h-16 w-full resize-none rounded-md border border-gray-300 p-2 text-caption focus:border-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
-        autoFocus
-      />
-      <div className="flex gap-1">
-        <button
-          onClick={handleCommit}
-          disabled={!message.trim() || isCommitting}
-          className={cn(
-            'flex-1 h-control-h-sm text-label-sm rounded-md transition-colors',
-            message.trim() && !isCommitting
-              ? 'bg-ssoo-primary text-white hover:bg-ssoo-primary/90'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          )}
-        >
-          {isCommitting ? '커밋 중...' : '확인'}
-        </button>
-        <button
-          onClick={onClose}
-          className="flex-1 h-control-h-sm rounded-md bg-gray-100 text-caption text-gray-600 transition-colors hover:bg-gray-200"
-        >
-          취소
-        </button>
-      </div>
     </div>
   );
 }

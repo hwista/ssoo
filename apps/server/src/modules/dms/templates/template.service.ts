@@ -4,7 +4,10 @@ import path from 'path';
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@ssoo/database';
 import { DatabaseService } from '../../../database/database.service.js';
-import { configService } from '../runtime/dms-config.service.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { CollaborationService } from '../collaboration/collaboration.service.js';
+import { configService, TEMPLATE_SUBDIR } from '../runtime/dms-config.service.js';
+import { gitService } from '../runtime/git.service.js';
 import { personalSettingsService } from '../runtime/personal-settings.service.js';
 import { normalizePath } from '../runtime/path-utils.js';
 import type {
@@ -225,6 +228,13 @@ function normalizeMetadataRecord(
 }
 
 const TEMPLATE_LAST_SOURCE = 'dms.templates';
+const TEMPLATE_PUBLISH_DELAY_MS = 25;
+const SYSTEM_TEMPLATE_ACTOR: TokenPayload = {
+  userId: '0',
+  loginId: 'system',
+  userName: 'DMS System',
+  sessionId: 'template-seed',
+};
 
 const DEFAULT_SYSTEM_TEMPLATES: Array<Omit<TemplateItem, 'updatedAt'>> = [
   {
@@ -493,12 +503,87 @@ interface TemplateRow {
 
 @Injectable()
 export class TemplateService {
-  constructor(private readonly db: DatabaseService) {}
+  private seedPublishQueued = false;
+
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly collaborationService: CollaborationService,
+  ) {}
 
   private async ensureRoots(): Promise<void> {
     ensureTemplateRoots();
     await this.ensureDefaultSystemTemplates();
     await this.ensureLegacyTemplateSeeds();
+    await this.noteDefaultTemplateSeedMutationIfDirty();
+  }
+
+  async ensureDefaultTemplatesSynced(): Promise<void> {
+    await this.ensureRoots();
+  }
+
+  private toTemplateGitPath(relativePath: string): string {
+    return normalizePath(path.join(TEMPLATE_SUBDIR, relativePath));
+  }
+
+  private buildTemplateActor(userId: string, loginId?: string): TokenPayload {
+    const normalizedUserId = userId.trim() || 'anonymous';
+    const normalizedLoginId = loginId?.trim() || normalizedUserId;
+    return {
+      userId: normalizedUserId,
+      loginId: normalizedLoginId,
+      userName: normalizedLoginId,
+      sessionId: `template-${normalizedUserId}`,
+    };
+  }
+
+  private noteTemplateMutation(input: {
+    relativePaths: string[];
+    operationType: string;
+    actor: TokenPayload;
+  }): void {
+    const gitManagedPaths = Array.from(new Set(
+      input.relativePaths
+        .map((relativePath) => this.toTemplateGitPath(relativePath))
+        .filter((relativePath) => relativePath.endsWith('.md')),
+    ));
+    if (gitManagedPaths.length === 0) {
+      return;
+    }
+
+    this.collaborationService.noteMutation({
+      primaryPath: gitManagedPaths[0],
+      affectedPaths: gitManagedPaths,
+      gitManagedPaths,
+      operationType: input.operationType,
+      currentUser: input.actor,
+      publishDelayMs: TEMPLATE_PUBLISH_DELAY_MS,
+    });
+  }
+
+  private async noteDefaultTemplateSeedMutationIfDirty(): Promise<void> {
+    if (this.seedPublishQueued) {
+      return;
+    }
+
+    const relativePaths = [
+      ...DEFAULT_SYSTEM_TEMPLATES.map((template) => getTemplateRelativePath('global', template.id)),
+      ...LEGACY_TEMPLATE_SEEDS.map((seed) => seed.relativePath),
+    ];
+    const gitManagedPaths = relativePaths.map((relativePath) => this.toTemplateGitPath(relativePath));
+    const parityResult = await gitService.inspectPathParity(gitManagedPaths, 'origin');
+    if (parityResult.success && parityResult.data.clean) {
+      return;
+    }
+    if (!parityResult.success) {
+      return;
+    }
+
+    this.seedPublishQueued = true;
+    this.noteTemplateMutation({
+      relativePaths,
+      operationType: 'create',
+      actor: SYSTEM_TEMPLATE_ACTOR,
+    });
   }
 
   private async ensureDefaultSystemTemplates(): Promise<void> {
@@ -662,7 +747,12 @@ export class TemplateService {
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   }
 
-  async save(template: SaveTemplateInput, userId = 'anonymous', requestAuthor?: string): Promise<TemplateItem> {
+  async save(
+    template: SaveTemplateInput,
+    userId = 'anonymous',
+    requestAuthor?: string,
+    currentUser?: TokenPayload,
+  ): Promise<TemplateItem> {
     await this.ensureRoots();
 
     const now = new Date().toISOString();
@@ -723,6 +813,12 @@ export class TemplateService {
           select: this.templateRowSelect(),
         });
 
+    this.noteTemplateMutation({
+      relativePaths: [relativePath],
+      operationType: existing ? 'update' : 'create',
+      actor: currentUser ?? this.buildTemplateActor(userId, author),
+    });
+
     return this.toTemplateItem(row, template.content) ?? {
       id: metadata.id,
       name: metadata.name,
@@ -747,7 +843,12 @@ export class TemplateService {
     };
   }
 
-  async remove(id: string, scope: TemplateScope, userId = 'anonymous'): Promise<boolean> {
+  async remove(
+    id: string,
+    scope: TemplateScope,
+    userId = 'anonymous',
+    currentUser?: TokenPayload,
+  ): Promise<boolean> {
     await this.ensureRoots();
 
     const ownerRef = resolveOwnerRef(scope, userId);
@@ -765,6 +866,14 @@ export class TemplateService {
         where: { templateId: row.templateId },
       });
       removed = true;
+    }
+
+    if (removed) {
+      this.noteTemplateMutation({
+        relativePaths: [getTemplateRelativePath(scope, id)],
+        operationType: 'delete',
+        actor: currentUser ?? this.buildTemplateActor(userId),
+      });
     }
 
     return removed;

@@ -162,7 +162,7 @@ export class TemplatesController {
       referenceDocuments,
       generation: body.generation && typeof body.generation === 'object'
         ? body.generation as TemplateItem['generation']
-        : undefined }, userId, currentUser.loginId);
+        : undefined }, userId, currentUser.loginId, currentUser);
 
     return success(this.sanitizeTemplate(saved, currentUser));
   }
@@ -174,6 +174,7 @@ export class TemplatesController {
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   async remove(
     @Body() body: Record<string, unknown>,
+    @CurrentUser() currentUser: TokenPayload,
     @Req() request: ExpressRequest,
   ) {
     const id = typeof body.id === 'string' ? body.id : '';
@@ -182,7 +183,7 @@ export class TemplatesController {
       throw new BadRequestException('id/scope는 필수입니다.');
     }
 
-    const removed = await this.templateService.remove(id, scope as TemplateScope, getRequestUserId(request));
+    const removed = await this.templateService.remove(id, scope as TemplateScope, getRequestUserId(request), currentUser);
     if (!removed) {
       throw new NotFoundException('삭제 대상 템플릿을 찾을 수 없습니다.');
     }
