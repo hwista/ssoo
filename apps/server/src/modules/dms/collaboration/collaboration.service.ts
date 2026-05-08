@@ -268,7 +268,10 @@ export class CollaborationService implements OnModuleDestroy {
     if (!primaryPath) {
       return this.getSnapshot(normalizedPath);
     }
-    this.assertMutationAllowed({ action: 'publish', paths: [normalizedPath] });
+    const blockingIsolation = this.findPathIsolation(normalizedPath);
+    if (blockingIsolation && blockingIsolation.source !== 'publish') {
+      this.assertMutationAllowed({ action: 'publish', paths: [normalizedPath] });
+    }
     const currentState = this.getPublishState(primaryPath);
     const parity = await this.inspectPublishParity();
     const parityBlocked = parity.success
@@ -336,6 +339,32 @@ export class CollaborationService implements OnModuleDestroy {
     }
 
     return this.getSnapshot(normalizedPath);
+  }
+
+  async listPublishFailures(): Promise<DocumentPublishState[]> {
+    const failureStates = Array.from(this.publishStateByPath.values())
+      .filter((state) => state.status === 'push-failed' || state.status === 'sync-blocked');
+
+    for (const state of failureStates) {
+      const currentState = this.getPublishState(state.path);
+      const currentIsolation = this.findPublishIsolation(state.path);
+      const trackedPaths = resolveTrackedPaths(state.path, currentState, currentIsolation);
+      const pathParity = await this.inspectPathParity(trackedPaths);
+      if (pathParity.success && shouldAutoReleasePublishIsolation(currentState, currentIsolation, pathParity)) {
+        this.publishStateByPath.set(state.path, {
+          ...currentState,
+          status: 'clean',
+          syncStatus: pathParity.data.syncStatus ?? currentState.syncStatus,
+          lastError: undefined,
+        });
+        this.releasePublishIsolation(state.path, { persist: false });
+        this.persistState();
+      }
+    }
+
+    return Array.from(this.publishStateByPath.values())
+      .filter((state) => state.status === 'push-failed' || state.status === 'sync-blocked')
+      .sort((left, right) => (right.lastQueuedAt ?? '').localeCompare(left.lastQueuedAt ?? ''));
   }
 
   async forceLockPath(pathValue: string, currentUser: TokenPayload, reason?: string): Promise<DocumentCollaborationSnapshot> {
@@ -504,6 +533,11 @@ export class CollaborationService implements OnModuleDestroy {
         });
         this.captureIsolationFromPublishState(primaryPath, this.getPublishState(primaryPath));
         this.persistState();
+        this.eventsGateway?.emitPublishStatus({
+          path: primaryPath,
+          status: blockedByParity ? 'sync-blocked' : 'push-failed',
+          error: parity.success ? parity.data.reason : parity.error,
+        });
         return;
       }
 
@@ -564,6 +598,11 @@ export class CollaborationService implements OnModuleDestroy {
         });
         this.captureIsolationFromPublishState(primaryPath, this.getPublishState(primaryPath));
         this.persistState();
+        this.eventsGateway?.emitPublishStatus({
+          path: primaryPath,
+          status,
+          error: pushResult.error,
+        });
         return;
       }
 
@@ -599,6 +638,11 @@ export class CollaborationService implements OnModuleDestroy {
       });
       this.captureIsolationFromPublishState(primaryPath, this.getPublishState(primaryPath));
       this.persistState();
+      this.eventsGateway?.emitPublishStatus({
+        path: primaryPath,
+        status: 'push-failed',
+        error: message,
+      });
     } finally {
       job.processing = false;
       if (this.publishJobsByPath.get(primaryPath) === job) this.publishJobsByPath.delete(primaryPath);

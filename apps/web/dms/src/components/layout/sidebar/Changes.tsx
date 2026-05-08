@@ -1,77 +1,40 @@
 'use client';
 
 import { useEffect } from 'react';
-import { FilePlus, FileX, FileEdit, Undo2 } from 'lucide-react';
+import { AlertTriangle, FileText, RefreshCw } from 'lucide-react';
 import { useGitStore } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
-import { useConfirmStore } from '@/stores/confirm.store';
 import { cn } from '@/lib/utils';
-import type { GitFileStatus } from '@/lib/api/endpoints/git';
+import { toast } from '@/lib/toast';
+import type { DocumentPublishStateClient } from '@/lib/api/collaborationApi';
 
-/** 상태별 아이콘 */
-const STATUS_ICONS: Record<GitFileStatus, React.ComponentType<{ className?: string }>> = {
-  added: FilePlus,
-  modified: FileEdit,
-  deleted: FileX,
-  renamed: FileEdit,
-  untracked: FilePlus,
-};
-
-/** 상태별 색상 */
-const STATUS_COLORS: Record<GitFileStatus, string> = {
-  added: 'text-green-600',
-  modified: 'text-amber-600',
-  deleted: 'text-red-500',
-  renamed: 'text-blue-500',
-  untracked: 'text-green-400',
-};
-
-/** 상태별 라벨 */
-const STATUS_LABELS: Record<GitFileStatus, string> = {
-  added: '추가',
-  modified: '수정',
-  deleted: '삭제',
-  renamed: '이름변경',
-  untracked: '신규',
-};
+function getFailureLabel(status: DocumentPublishStateClient['status']): string {
+  if (status === 'sync-blocked') return '동기화 차단';
+  if (status === 'committed-unpushed') return 'push 필요';
+  if (status === 'dirty-uncommitted') return 'commit 필요';
+  return 'push 실패';
+}
 
 /**
  * 사이드바 변경 사항 목록
- * - Git uncommitted 변경 파일 표시
- * - 파일 클릭 → 해당 탭 열기
- * - 변경 취소 버튼
- * - 자동 publish 대기/실패 항목 안내
+ * - 자동 publish 실패/차단 항목만 표시
+ * - 실패 항목별 수동 publish 재시도
  */
 export function Changes() {
-  const { changes, changeCount, isAvailable, refreshChanges, discardFile } = useGitStore();
-  const { confirm } = useConfirmStore();
+  const { publishFailures, failureCount, isAvailable, isRetryingPublish, refreshPublishFailures, retryPublish } = useGitStore();
   const openTabWithConfirm = useOpenTabWithConfirm();
 
-  // 컴포넌트 마운트 시 변경 사항 조회
   useEffect(() => {
     if (isAvailable) {
-      refreshChanges();
+      refreshPublishFailures();
     }
-  }, [isAvailable, refreshChanges]);
+  }, [isAvailable, refreshPublishFailures]);
 
-  if (!isAvailable) {
-    return (
-      <div className="px-3 py-2 text-caption text-gray-400">
-        히스토리가 비활성화되어 있습니다.
-      </div>
-    );
-  }
-
-  if (changeCount === 0) {
-    return (
-      <div className="px-3 py-2 text-caption text-gray-400">
-        변경 사항이 없습니다.
-      </div>
-    );
+  if (!isAvailable || failureCount === 0) {
+    return null;
   }
 
   const handleFileClick = async (filePath: string) => {
-    // /doc/ 접두사 붙여서 탭 열기
     await openTabWithConfirm({
       id: `doc-${filePath}`,
       title: filePath.split('/').pop() || filePath,
@@ -81,55 +44,67 @@ export function Changes() {
     });
   };
 
-  const handleDiscard = async (filePath: string) => {
-    const confirmed = await confirm({
-      title: '변경 취소',
-      description: `'${filePath}'의 변경 사항을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
-      confirmText: '취소하기',
-      cancelText: '돌아가기',
-    });
-
-    if (confirmed) {
-      await discardFile(filePath);
+  const handleRetryPublish = async (path: string) => {
+    const ok = await retryPublish(path);
+    if (ok) {
+      toast.success('publish 재시도를 요청했습니다.');
+    } else {
+      toast.error('publish 재시도 요청에 실패했습니다.');
     }
   };
 
   return (
-    <div className="space-y-0.5">
-      {/* 자동 publish 진단 안내 */}
-      <div className="px-3 pb-1 text-caption text-gray-500">
-        자동 publish 대기 또는 실패 항목입니다.
+    <div className="space-y-1">
+      <div className="px-3 pb-1 text-caption text-red-600">
+        자동 publish 실패 항목입니다. 원인 조치 후 수동 publish를 재시도하세요.
       </div>
 
-      {/* 변경 파일 목록 */}
-      {changes.map((change) => {
-        const StatusIcon = STATUS_ICONS[change.status];
-        const statusColor = STATUS_COLORS[change.status];
-        const fileName = change.path.split('/').pop() || change.path;
+      {publishFailures.map((failure) => {
+        const fileName = failure.path.split('/').pop() || failure.path;
+        const label = getFailureLabel(failure.status);
+        const affectedPaths = failure.affectedPaths ?? [failure.path];
 
         return (
           <div
-            key={change.path}
-            className="group flex h-control-h w-full items-center gap-2 px-3 text-body-sm transition-colors hover:bg-ssoo-sitemap-bg"
+            key={failure.path}
+            className="px-3 py-2 text-body-sm transition-colors hover:bg-ssoo-sitemap-bg"
           >
-            <button
-              onClick={() => change.status !== 'deleted' && handleFileClick(change.path)}
-              className="flex items-center gap-2 flex-1 min-w-0"
-              disabled={change.status === 'deleted'}
-            >
-              <StatusIcon className={cn('w-4 h-4 flex-shrink-0', statusColor)} />
-              <span className="truncate text-gray-700">{fileName}</span>
-              <span className={cn('text-caption flex-shrink-0', statusColor)}>
-                {STATUS_LABELS[change.status]}
-              </span>
-            </button>
-            <button
-              onClick={() => handleDiscard(change.path)}
-              className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 hover:bg-gray-200 rounded transition-opacity"
-              title="변경 취소"
-            >
-              <Undo2 className="w-3 h-3 text-gray-500" />
-            </button>
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
+              <div className="min-w-0 flex-1">
+                <button
+                  onClick={() => handleFileClick(failure.path)}
+                  className="flex max-w-full items-center gap-1 text-left text-gray-700 hover:text-ssoo-primary"
+                >
+                  <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">{fileName}</span>
+                </button>
+                <div className="mt-0.5 flex items-center gap-2 text-caption">
+                  <span className={cn('font-medium', failure.status === 'sync-blocked' ? 'text-amber-600' : 'text-red-600')}>
+                    {label}
+                  </span>
+                  {failure.lastActorDisplayName || failure.lastActorLoginId ? (
+                    <span className="truncate text-gray-500">
+                      {failure.lastActorDisplayName ?? failure.lastActorLoginId}
+                    </span>
+                  ) : null}
+                </div>
+                {failure.lastError ? (
+                  <p className="mt-1 line-clamp-2 text-caption text-gray-500">{failure.lastError}</p>
+                ) : null}
+                {affectedPaths.length > 1 ? (
+                  <p className="mt-1 text-caption text-gray-400">관련 파일 {affectedPaths.length}개</p>
+                ) : null}
+                <button
+                  onClick={() => handleRetryPublish(failure.path)}
+                  disabled={isRetryingPublish}
+                  className="mt-2 inline-flex items-center gap-1 rounded border border-ssoo-content-border px-2 py-1 text-caption text-gray-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <RefreshCw className={cn('h-3 w-3', isRetryingPublish && 'animate-spin')} />
+                  수동 publish
+                </button>
+              </div>
+            </div>
           </div>
         );
       })}

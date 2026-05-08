@@ -23,6 +23,14 @@ export class CollaborationController {
     return success(this.collaborationService.getSnapshot(path));
   }
 
+  @Get('publish-failures')
+  @RequireDmsFeature('canUseGit')
+  @ApiOperation({ summary: '자동 publish 실패 목록 조회' })
+  @ApiOkResponse({ description: '수동 복구가 필요한 publish 실패 목록 반환' })
+  async listPublishFailures() {
+    return success(await this.collaborationService.listPublishFailures());
+  }
+
   @Post()
   @ApiOperation({ summary: '문서 collaboration heartbeat / join' })
   @ApiOkResponse({ description: '문서 collaboration snapshot 반환' })

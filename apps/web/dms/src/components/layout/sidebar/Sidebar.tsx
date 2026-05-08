@@ -67,7 +67,7 @@ export function Sidebar({
   const { documentType, setDocumentType } = useLayoutStore();
   const { expandedSections, toggleSection } = useSidebarStore();
   const { refreshFileTree } = useFileStore();
-  const { changeCount, initialize: initGit, isAvailable: gitAvailable } = useGitStore();
+  const { failureCount, initialize: initGit, isAvailable: gitAvailable, refreshPublishFailures } = useGitStore();
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const canReadDocuments = accessSnapshot?.features.canReadDocuments ?? false;
   const canUseGit = accessSnapshot?.features.canUseGit ?? false;
@@ -80,6 +80,16 @@ export function Sidebar({
     }
     initGit();
   }, [canUseGit, initGit]);
+
+  useEffect(() => {
+    if (!canUseGit || !gitAvailable) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      void refreshPublishFailures();
+    }, 30000);
+    return () => window.clearInterval(interval);
+  }, [canUseGit, gitAvailable, refreshPublishFailures]);
 
   const handleRefresh = async () => {
     if (!canReadDocuments) {
@@ -224,9 +234,9 @@ export function Sidebar({
         ) : null}
 
         {/* 변경 사항 (Git) */}
-        {gitAvailable && canUseGit ? (
+        {gitAvailable && canUseGit && failureCount > 0 ? (
           <Section
-            title={`변경 사항${changeCount > 0 ? ` (${changeCount})` : ''}`}
+            title={`publish 복구 (${failureCount})`}
             icon={GitBranch}
             isExpanded={expandedSections.includes('changes')}
             onToggle={() => toggleSection('changes')}

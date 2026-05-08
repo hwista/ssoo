@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { gitApi, type GitChangeEntry, type GitLogEntry } from '@/lib/api/endpoints/git';
+import { collaborationApi, type DocumentPublishStateClient } from '@/lib/api/collaborationApi';
 import { logger } from '@/lib/utils/errorUtils';
 
 // ============================================================================
@@ -15,10 +16,16 @@ interface GitState {
   changes: GitChangeEntry[];
   /** 변경 사항 개수 */
   changeCount: number;
+  /** 수동 복구가 필요한 자동 publish 실패 목록 */
+  publishFailures: DocumentPublishStateClient[];
+  /** 자동 publish 실패 개수 */
+  failureCount: number;
   /** 로딩 상태 */
   isLoading: boolean;
   /** 커밋 중 */
   isCommitting: boolean;
+  /** 수동 publish 재시도 중 */
+  isRetryingPublish: boolean;
   /** 에러 메시지 */
   error: string | null;
 }
@@ -28,6 +35,10 @@ interface GitActions {
   initialize: () => Promise<void>;
   /** 변경 사항 조회 */
   refreshChanges: () => Promise<void>;
+  /** 수동 복구가 필요한 publish 실패 목록 조회 */
+  refreshPublishFailures: () => Promise<void>;
+  /** 실패한 publish 재시도 */
+  retryPublish: (path: string) => Promise<boolean>;
   /** 전체 커밋 */
   commitAll: (message: string, author?: string) => Promise<boolean>;
   /** 선택 파일 커밋 */
@@ -50,8 +61,11 @@ const initialState: GitState = {
   isAvailable: false,
   changes: [],
   changeCount: 0,
+  publishFailures: [],
+  failureCount: 0,
   isLoading: false,
   isCommitting: false,
+  isRetryingPublish: false,
   error: null,
 };
 
@@ -67,8 +81,7 @@ export const useGitStore = create<GitStore>((set, get) => ({
       const result = await gitApi.initialize();
       if (result.success) {
         set({ isAvailable: true });
-        // 초기화 후 변경 사항 조회
-        await get().refreshChanges();
+        await get().refreshPublishFailures();
       } else {
         logger.warn('Git 초기화 실패 (히스토리 비활성화)');
         set({ isAvailable: false });
@@ -96,6 +109,45 @@ export const useGitStore = create<GitStore>((set, get) => ({
       }
     } catch {
       set({ isLoading: false, error: 'Network error' });
+    }
+  },
+
+  refreshPublishFailures: async () => {
+    if (!get().isAvailable) return;
+
+    set({ isLoading: true, error: null });
+    try {
+      const result = await collaborationApi.listPublishFailures();
+      if (result.success && result.data) {
+        const publishFailures = result.data;
+        set({
+          publishFailures,
+          failureCount: publishFailures.length,
+          isLoading: false,
+        });
+      } else {
+        set({ isLoading: false, error: result.error || 'Failed to get publish failures' });
+      }
+    } catch {
+      set({ isLoading: false, error: 'Network error' });
+    }
+  },
+
+  retryPublish: async (path) => {
+    set({ isRetryingPublish: true, error: null });
+    try {
+      const result = await collaborationApi.retryPublish(path);
+      if (result.success) {
+        await get().refreshPublishFailures();
+        set({ isRetryingPublish: false });
+        window.setTimeout(() => void get().refreshPublishFailures(), 5000);
+        return true;
+      }
+      set({ isRetryingPublish: false, error: result.error || 'Publish retry failed' });
+      return false;
+    } catch {
+      set({ isRetryingPublish: false, error: 'Network error' });
+      return false;
     }
   },
 

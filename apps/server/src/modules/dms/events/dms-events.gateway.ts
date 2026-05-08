@@ -191,6 +191,7 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
   emitPublishStatus(event: DmsPublishStatusEvent): void {
     const roomName = this.documentRoom(event.path);
     this.server?.to(roomName).emit('dms:publish-status', event);
+    this.server?.to('dms:tree').emit('dms:publish-status', event);
   }
 
   emitTreeChanged(event: DmsTreeChangedEvent): void {

@@ -84,6 +84,7 @@ export interface DocumentCollaborationSnapshotClient {
 
 export const collaborationApi = {
   getSnapshot: async (path: string): Promise<ApiResponse<DocumentCollaborationSnapshotClient>> => request(`/api/collaboration?path=${encodeURIComponent(path)}`),
+  listPublishFailures: async (): Promise<ApiResponse<DocumentPublishStateClient[]>> => request('/api/collaboration/publish-failures'),
   heartbeat: async (path: string, mode: 'view' | 'edit', sessionId: string): Promise<ApiResponse<DocumentCollaborationSnapshotClient>> => request('/api/collaboration', { method: 'POST', body: { path, mode, sessionId } }),
   takeover: async (path: string, sessionId: string): Promise<ApiResponse<DocumentCollaborationSnapshotClient>> => request('/api/collaboration/takeover', { method: 'POST', body: { path, sessionId } }),
   refresh: async (path: string): Promise<ApiResponse<DocumentCollaborationSnapshotClient>> => request('/api/collaboration/refresh', { method: 'POST', body: { path } }),
