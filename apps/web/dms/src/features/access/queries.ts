@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type {
   ApproveDmsDocumentAccessRequestPayload,
   CreateDmsDocumentAccessRequestPayload,
@@ -36,6 +36,10 @@ export const accessRequestKeys = {
   ] as const,
 };
 
+interface AccessRequestQueryOptions {
+  enabled?: boolean;
+}
+
 async function unwrap<T>(promise: Promise<{ success: boolean; data?: T; error?: string; message?: string }>): Promise<T> {
   const response = await promise;
   if (!response.success || response.data === undefined) {
@@ -44,36 +48,39 @@ async function unwrap<T>(promise: Promise<{ success: boolean; data?: T; error?: 
   return response.data;
 }
 
-async function invalidateRequestQueries(queryClient: ReturnType<typeof useQueryClient>) {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: accessRequestKeys.all }),
-    queryClient.invalidateQueries({ queryKey: accessRequestKeys.managedDocuments }),
-    queryClient.invalidateQueries({ queryKey: aiSearchKeys.results() }),
-  ]);
+function invalidateRequestQueries(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: accessRequestKeys.all });
+  void queryClient.invalidateQueries({ queryKey: accessRequestKeys.managedDocuments });
+  void queryClient.invalidateQueries({ queryKey: aiSearchKeys.results() });
 }
 
-export function useManageableDocumentsQuery() {
+export function useManageableDocumentsQuery(options: AccessRequestQueryOptions = {}) {
   return useQuery({
     queryKey: accessRequestKeys.managedDocuments,
     queryFn: () => unwrap<DmsManagedDocumentSummary[]>(accessApi.listManageableDocuments()),
+    enabled: options.enabled ?? true,
   });
 }
 
 export function useMyDocumentAccessRequestsQuery(
   status: DmsDocumentAccessRequestStatusFilter = 'all',
+  options: AccessRequestQueryOptions = {},
 ) {
   return useQuery({
     queryKey: accessRequestKeys.my({ status }),
     queryFn: () => unwrap(accessApi.listMyRequests({ status })),
+    enabled: options.enabled ?? true,
   });
 }
 
 export function useDocumentAccessInboxQuery(
   query: DmsDocumentAccessRequestListQuery = { status: 'pending' },
+  options: AccessRequestQueryOptions = {},
 ) {
   return useQuery({
     queryKey: accessRequestKeys.inbox(query),
     queryFn: () => unwrap(accessApi.listInboxRequests(query)),
+    enabled: options.enabled ?? true,
   });
 }
 
@@ -84,8 +91,8 @@ export function useCreateReadAccessRequestMutation() {
     mutationFn: (payload: CreateDmsDocumentAccessRequestPayload) => (
       unwrap<DmsDocumentAccessRequestSummary>(accessApi.createReadRequest(payload))
     ),
-    onSuccess: async () => {
-      await invalidateRequestQueries(queryClient);
+    onSuccess: () => {
+      invalidateRequestQueries(queryClient);
     },
   });
 }
@@ -100,8 +107,8 @@ export function useApproveDocumentAccessRequestMutation() {
     }) => unwrap<DmsDocumentAccessRequestSummary>(
       accessApi.approveRequest(params.accessRequestId, params.payload),
     ),
-    onSuccess: async () => {
-      await invalidateRequestQueries(queryClient);
+    onSuccess: () => {
+      invalidateRequestQueries(queryClient);
     },
   });
 }
@@ -116,8 +123,23 @@ export function useRejectDocumentAccessRequestMutation() {
     }) => unwrap<DmsDocumentAccessRequestSummary>(
       accessApi.rejectRequest(params.accessRequestId, params.payload),
     ),
-    onSuccess: async () => {
-      await invalidateRequestQueries(queryClient);
+    onSuccess: () => {
+      invalidateRequestQueries(queryClient);
+    },
+  });
+}
+
+export function useCancelDocumentAccessRequestMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      accessRequestId: string;
+    }) => unwrap<DmsDocumentAccessRequestSummary>(
+      accessApi.cancelRequest(params.accessRequestId),
+    ),
+    onSuccess: () => {
+      invalidateRequestQueries(queryClient);
     },
   });
 }
@@ -132,8 +154,8 @@ export function useUpdateDocumentVisibilityMutation() {
     }) => unwrap<{ documentId: string; visibilityScope: string }>(
       accessApi.updateDocumentVisibility(params.documentId, params.payload),
     ),
-    onSuccess: async () => {
-      await invalidateRequestQueries(queryClient);
+    onSuccess: () => {
+      invalidateRequestQueries(queryClient);
     },
   });
 }
@@ -148,8 +170,8 @@ export function useTransferDocumentOwnershipMutation() {
     }) => unwrap<TransferDocumentOwnershipResult>(
       accessApi.transferOwnership(params.documentId, params.payload),
     ),
-    onSuccess: async () => {
-      await invalidateRequestQueries(queryClient);
+    onSuccess: () => {
+      invalidateRequestQueries(queryClient);
     },
   });
 }
@@ -164,8 +186,8 @@ export function useRevokeDocumentGrantMutation() {
     }) => unwrap<{ grantId: string; documentId: string }>(
       accessApi.revokeGrant(params.documentId, params.grantId),
     ),
-    onSuccess: async () => {
-      await invalidateRequestQueries(queryClient);
+    onSuccess: () => {
+      invalidateRequestQueries(queryClient);
     },
   });
 }
@@ -177,8 +199,8 @@ export function useCreateDirectGrantMutation() {
     mutationFn: (payload: CreateDmsDocumentDirectGrantPayload) => (
       unwrap<DmsDocumentDirectGrantResult>(accessApi.createDirectGrant(payload))
     ),
-    onSuccess: async () => {
-      await invalidateRequestQueries(queryClient);
+    onSuccess: () => {
+      invalidateRequestQueries(queryClient);
     },
   });
 }

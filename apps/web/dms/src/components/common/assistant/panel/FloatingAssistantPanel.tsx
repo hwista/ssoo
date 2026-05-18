@@ -47,6 +47,7 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
     historyOpen,
     setHistoryOpen,
     panelClassName,
+    panelStyle,
   } = useFloatingAssistantPanelBehavior({
     isOpen,
     messagesLength: messages.length,
@@ -76,7 +77,7 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
   }, [closePanel, openExpandedChatPage]);
 
   return (
-    <section className={panelClassName} aria-hidden={!isOpen}>
+    <section className={panelClassName} style={panelStyle} aria-hidden={!isOpen}>
       <FloatingAssistantHeader onExpand={onExpand} />
 
       <FloatingAssistantHistory

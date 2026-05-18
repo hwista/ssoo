@@ -1,7 +1,7 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { AuthIdentity, AuthSessionBootstrap, AuthTokens, LoginRequest } from '@ssoo/types/common';
-import { readSharedAuthSnapshot, SHARED_AUTH_STORAGE_KEY } from './storage';
+import { createSafeJsonStateStorage, readSharedAuthSnapshot, SHARED_AUTH_STORAGE_KEY } from './storage';
 
 export interface AuthApiResult<T> {
   success: boolean;
@@ -89,7 +89,13 @@ export function createAuthStore<TUser extends AuthIdentity>(
         _hasHydrated: false,
 
         login: async (loginId: string, password: string) => {
-          set({ isLoading: true });
+          set({
+            accessToken: null,
+            refreshToken: null,
+            user: null,
+            isAuthenticated: false,
+            isLoading: true,
+          });
 
           const loginResponse = await authApi.login({ loginId, password });
           if (!loginResponse.success || !loginResponse.data) {
@@ -98,17 +104,20 @@ export function createAuthStore<TUser extends AuthIdentity>(
           }
 
           const { accessToken } = loginResponse.data;
-          set({
-            accessToken,
-            refreshToken: null,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-
           const meResponse = await authApi.me(accessToken);
           if (meResponse.success && meResponse.data) {
-            set({ user: meResponse.data });
+            set({
+              accessToken,
+              refreshToken: null,
+              user: meResponse.data,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+            return;
           }
+
+          get().clearAuth();
+          throw new Error(getAuthErrorMessage(meResponse, '사용자 정보를 불러오지 못했습니다.'));
         },
 
         logout: async () => {
@@ -223,7 +232,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
       }),
       {
         name: storageKey,
-        storage: createJSONStorage(() => localStorage),
+        storage: createJSONStorage(() => createSafeJsonStateStorage(() => localStorage)),
         partialize: (state) => ({
           accessToken: state.accessToken,
           user: state.user,

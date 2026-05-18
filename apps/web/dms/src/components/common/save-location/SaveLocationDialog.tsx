@@ -4,7 +4,7 @@ import * as React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { EditorDialog } from '@/components/common/editor-dialog';
 import { PickerTree } from '@/components/common/picker-tree';
-import { useFileStore } from '@/stores';
+import { useAuthStore, useFileStore } from '@/stores';
 
 export interface SaveLocationResult {
   title: string;
@@ -38,7 +38,10 @@ export function SaveLocationDialog({
   contentType = 'document',
   onConfirm,
 }: SaveLocationDialogProps) {
+  const currentUserId = useAuthStore((s) => s.user?.userId ?? null);
   const files = useFileStore((s) => s.files);
+  const filesOwnerUserId = useFileStore((s) => s.filesOwnerUserId);
+  const scopedFiles = currentUserId && filesOwnerUserId === currentUserId ? files : [];
   const [title, setTitle] = React.useState(initialTitle);
   const [directory, setDirectory] = React.useState(initialDirectory);
   // 사용자가 직접 타이핑했는지 추적 (트리 선택이나 초기값은 필터링하지 않음)
@@ -119,7 +122,7 @@ export function SaveLocationDialog({
             className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm outline-none focus:border-ssoo-primary"
           />
           <PickerTree
-            files={files}
+            files={scopedFiles}
             selectedPath={treePath}
             onSelect={(path) => {
               setDirectory(path ? `/${path}` : '/');

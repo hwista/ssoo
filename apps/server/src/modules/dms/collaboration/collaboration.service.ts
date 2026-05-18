@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 import type { DocumentIsolationState, DocumentMutationAction } from '@ssoo/types/dms';
+import { CommonNotificationService } from '../../common/notification/notification.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { UserService } from '../../common/user/user.service.js';
 import { DmsEventsGateway } from '../events/dms-events.gateway.js';
@@ -122,6 +123,7 @@ export class CollaborationService implements OnModuleDestroy {
 
   constructor(
     private readonly userService: UserService,
+    private readonly notificationService: CommonNotificationService,
     @Optional() private readonly eventsGateway?: DmsEventsGateway,
   ) {
     this.stateFilePath = path.join(configService.getAppRoot(), STATE_FILE);
@@ -300,6 +302,7 @@ export class CollaborationService implements OnModuleDestroy {
 
     if (parityBlocked || parityUnavailable) {
       const isolation = this.captureIsolationFromPublishState(primaryPath, nextState);
+      await this.notifyPublishFailure(nextState, currentUser);
       throw buildIsolationException('publish', normalizedPath, isolation ?? {
         path: primaryPath,
         primaryPath,
@@ -538,6 +541,7 @@ export class CollaborationService implements OnModuleDestroy {
           status: blockedByParity ? 'sync-blocked' : 'push-failed',
           error: parity.success ? parity.data.reason : parity.error,
         });
+        await this.notifyPublishFailure(this.getPublishState(primaryPath), job.actor);
         return;
       }
 
@@ -603,6 +607,7 @@ export class CollaborationService implements OnModuleDestroy {
           status,
           error: pushResult.error,
         });
+        await this.notifyPublishFailure(this.getPublishState(primaryPath), job.actor);
         return;
       }
 
@@ -643,6 +648,7 @@ export class CollaborationService implements OnModuleDestroy {
         status: 'push-failed',
         error: message,
       });
+      await this.notifyPublishFailure(this.getPublishState(primaryPath), job.actor);
     } finally {
       job.processing = false;
       if (this.publishJobsByPath.get(primaryPath) === job) this.publishJobsByPath.delete(primaryPath);
@@ -651,6 +657,53 @@ export class CollaborationService implements OnModuleDestroy {
 
   private async fetchSyncStatus() {
     return gitService.inspectSyncStatus('origin');
+  }
+
+  private async notifyPublishFailure(state: DocumentPublishState, actor: TokenPayload): Promise<void> {
+    if (state.status !== 'push-failed' && state.status !== 'sync-blocked') {
+      return;
+    }
+
+    try {
+      const title = state.status === 'sync-blocked' ? 'DMS 동기화 차단' : 'DMS publish 실패';
+      const actionLabel = state.status === 'sync-blocked' ? '상태 확인' : '수동 publish';
+      await this.notificationService.notifyUser({
+        recipientUserId: BigInt(actor.userId),
+        actorUserId: BigInt(actor.userId),
+        sourceApp: 'dms',
+        notificationType: 'dms.publish.failed',
+        severity: state.status === 'sync-blocked' ? 'warning' : 'error',
+        title,
+        message: state.lastError
+          ? `${state.path}: ${state.lastError}`
+          : `${state.path} 문서 publish 복구가 필요합니다.`,
+        reference: {
+          type: 'dms.document',
+          path: state.path,
+        },
+        action: {
+          type: 'retry-dms-publish',
+          label: actionLabel,
+          payload: {
+            path: state.path,
+            status: state.status,
+          },
+        },
+        dedupeKey: [
+          'dms',
+          'publish',
+          'failed',
+          actor.userId,
+          state.path,
+        ].join(':'),
+      });
+    } catch (error) {
+      logger.warn('publish 실패 알림 생성 실패', {
+        path: state.path,
+        actorUserId: actor.userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async inspectPublishParity(): Promise<{ success: true; data: GitRemoteParityStatus } | { success: false; error: string }> {

@@ -47,7 +47,7 @@ const pageComponents = {
   markdown: lazyWithChunkRetry(() => import('@/components/pages/markdown/DocumentPage').then(m => ({ default: m.DocumentPage }))),
   aiChat: AiChatPage,
   aiSearch: lazyWithChunkRetry(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
-  myAccessRequests: lazyWithChunkRetry(() => import('@/components/pages/access-requests/MyRequestsPage').then(m => ({ default: m.MyRequestsPage }))),
+  myAccessRequests: LegacyAccessRequestsRedirect,
   settings: LegacySettingsRedirect,
 };
 
@@ -75,6 +75,23 @@ function LegacySettingsRedirect() {
   return (
     <div className="flex flex-1 items-center justify-center bg-white">
       <LoadingState message="설정 모드로 이동 중..." fullHeight />
+    </div>
+  );
+}
+
+function LegacyAccessRequestsRedirect() {
+  const tabId = useTabInstanceId();
+  const closeTab = useTabStore((state) => state.closeTab);
+  const openSection = useSettingsShellStore((state) => state.openSection);
+
+  useEffect(() => {
+    openSection('system', 'documentAccess');
+    closeTab(tabId);
+  }, [closeTab, openSection, tabId]);
+
+  return (
+    <div className="flex flex-1 items-center justify-center bg-white">
+      <LoadingState message="권한 요청/승인 화면으로 이동 중..." fullHeight />
     </div>
   );
 }

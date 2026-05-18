@@ -1,7 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
+import { LAYOUT_SIZES } from '@/lib/constants/layout';
+
+const FLOATING_ASSISTANT_PANEL_STYLE: CSSProperties = {
+  right: LAYOUT_SIZES.rightPanel.inset,
+  width: `min(${LAYOUT_SIZES.rightPanel.overlayWidth}px, calc(100vw - ${LAYOUT_SIZES.rightPanel.inset * 2}px))`,
+};
 
 interface UseFloatingAssistantPanelBehaviorOptions {
   isOpen: boolean;
@@ -112,8 +118,8 @@ export function useFloatingAssistantPanelBehavior({
 
   const panelClassName = useMemo(() => (
     [
-      'fixed right-6 top-[calc(3.75rem+53px+0.75rem)] bottom-[92px] z-40',
-      'w-[min(504px,calc(100vw-2rem))] rounded-xl border border-ssoo-content-border bg-white shadow-2xl',
+      'fixed top-[calc(3.75rem+53px+0.75rem)] bottom-[92px] z-40',
+      'rounded-xl border border-ssoo-content-border bg-white shadow-2xl',
       'flex flex-col',
       'transition-all duration-200',
       isOpen ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0',
@@ -125,5 +131,6 @@ export function useFloatingAssistantPanelBehavior({
     historyOpen,
     setHistoryOpen,
     panelClassName,
+    panelStyle: FLOATING_ASSISTANT_PANEL_STYLE,
   };
 }

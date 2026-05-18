@@ -1,6 +1,6 @@
 # DMS 문서
 
-> 최종 업데이트: 2026-04-13  
+> 최종 업데이트: 2026-05-18
 > 정본 위치: `docs/dms/`
 
 Document Management System(DMS) 문서의 단일 정본 인덱스입니다.
@@ -51,6 +51,12 @@ docs/dms/
 - 런타임 template root: `markdownRoot/_templates/` (문서 Git 레포 하위, 별도 `DMS_TEMPLATE_ROOT` 불필요)
 - 레거시 문서 보관: `docs/dms/_archive/`
 
+## 현재 검증 기준선
+
+- 서버/DMS 타입·빌드 기준선: `pnpm --filter server exec tsc --noEmit`, `pnpm --filter web-dms exec tsc --noEmit`, `pnpm build:server`, `pnpm build:web-dms`
+- DMS 계약 기준선: `pnpm -C apps/web/dms run check:user-scope-contract`, `pnpm -C apps/web/dms run check:golden-example`, `pnpm -C apps/web/dms run check:shell-body-contract`
+- 런타임 접근 기준선: `pnpm verify:access-dms`
+
 ## Backlog
 
 | ID | 항목 | 우선순위 | 상태 |
@@ -61,6 +67,7 @@ docs/dms/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-05-18 | 현재 검증 기준선을 추가하고, 공통 알림/SSE·사용자별 state isolation·권한 요청 취소/알림 cleanup 상태를 로드맵/백로그에 반영 |
 | 2026-04-22 | 운영 경로 안내를 repo-local `apps/web/dms/data/documents/` 단일 경로에서 external runtime path contract(`DMS_MARKDOWN_ROOT`, `DMS_STORAGE_LOCAL_BASE_PATH`, `DMS_INGEST_QUEUE_PATH`, `DMS_TEMPLATE_ROOT`) 기준으로 갱신 |
 | 2026-04-16 | 문서 공개 범위/접근 모델과 hybrid document control-plane 정본 문서를 핵심 문서 목록에 추가 |
 | 2026-04-13 | DMS auth/access readiness 문서를 추가하고, raw/attachment binary delivery를 session-backed auth proxy 기준으로 보강 |

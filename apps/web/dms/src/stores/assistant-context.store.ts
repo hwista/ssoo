@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { TemplateItem } from '@/types/template';
-import { registerUserScopedReset } from '@/lib/user-scope';
+import { isUserScopeTransition, registerUserScopedReset } from '@/lib/user-scope';
 
 interface AssistantReference {
   path: string;
@@ -102,7 +102,7 @@ export const useAssistantContextStore = create<AssistantContextStore>()((set) =>
 
 // 사용자 변경 시 어시스턴트 컨텍스트 (참조/템플릿/요약) 비움
 registerUserScopedReset((next, prev) => {
-  if (prev !== null && prev !== next) {
+  if (isUserScopeTransition(next, prev)) {
     useAssistantContextStore.getState().resetContext();
   }
 });

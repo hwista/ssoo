@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TabItem, OpenTabOptions } from '@/types/tab';
-import { registerUserScopedReset } from '@/lib/user-scope';
+import { registerUserScopedReset, shouldResetPersistedUserState } from '@/lib/user-scope';
 
 // Home 탭 상수 (닫기 불가)
 export const HOME_TAB = {
@@ -58,6 +58,14 @@ interface TabStoreActions {
 
 interface TabStore extends TabStoreState, TabStoreActions {}
 
+function hasNonDefaultTabState(state: Pick<TabStoreState, 'tabs' | 'activeTabId'>): boolean {
+  return (
+    state.tabs.length !== 1
+    || state.tabs[0]?.id !== HOME_TAB.id
+    || state.activeTabId !== HOME_TAB.id
+  );
+}
+
 export const useTabStore = create<TabStore>()(
   persist(
     (set, get) => ({
@@ -76,6 +84,7 @@ export const useTabStore = create<TabStore>()(
           icon,
           closable = true,
           activate = true,
+          reloadOnExisting = false,
         } = options;
 
         // ID가 없으면 path 기반으로 생성
@@ -86,12 +95,18 @@ export const useTabStore = create<TabStore>()(
         const existingTab = tabs.find((t) => t.id === tabId);
         if (existingTab) {
           const normalizedTitle = normalizeAiTabTitle(existingTab.path, existingTab.title);
+          const shouldReload = activate && reloadOnExisting;
           if (activate) {
             set({
               activeTabId: tabId,
               tabs: tabs.map((t) =>
                 t.id === tabId
-                  ? { ...t, title: normalizedTitle, lastActiveAt: new Date() }
+                  ? {
+                      ...t,
+                      title: normalizedTitle,
+                      lastActiveAt: new Date(),
+                      reloadSeq: shouldReload ? (t.reloadSeq ?? 0) + 1 : t.reloadSeq,
+                    }
                   : t
               ),
             });
@@ -118,6 +133,7 @@ export const useTabStore = create<TabStore>()(
           path,
           icon,
           isEditing: false,
+          reloadSeq: 0,
           closable,
           openedAt: now,
           lastActiveAt: now,
@@ -253,6 +269,7 @@ export const useTabStore = create<TabStore>()(
             ...tab,
             title: normalizeAiTabTitle(tab.path, tab.title),
             isEditing: false,
+            reloadSeq: tab.reloadSeq ?? 0,
             openedAt: new Date(tab.openedAt),
             lastActiveAt: new Date(tab.lastActiveAt),
           }));
@@ -267,7 +284,7 @@ export const useTabStore = create<TabStore>()(
 registerUserScopedReset((next) => {
   if (next === null) return;
   const state = useTabStore.getState();
-  if (state.ownerUserId !== null && state.ownerUserId !== next) {
+  if (shouldResetPersistedUserState(next, state.ownerUserId, hasNonDefaultTabState(state))) {
     state.closeAllTabs();
   }
   if (state.ownerUserId !== next) {

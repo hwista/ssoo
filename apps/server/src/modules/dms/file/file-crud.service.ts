@@ -458,12 +458,12 @@ export class FileCrudService {
   private assertCanManageExistingPath(currentUser: TokenPayload, targetPath: string): void {
     const stats = fs.statSync(targetPath);
     if (!stats.isDirectory()) {
-      this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
+      this.documentAclService.assertIsOwnerAbsolutePath(currentUser, targetPath);
       return;
     }
 
     for (const nestedPath of this.listManagedFilePaths(targetPath)) {
-      this.documentAclService.assertCanManageAbsolutePath(currentUser, nestedPath);
+      this.documentAclService.assertIsOwnerAbsolutePath(currentUser, nestedPath);
     }
   }
 

@@ -100,7 +100,7 @@ function getRequestActionLabel(
     return '요청 대기';
   }
 
-  if (request?.status === 'rejected') {
+  if (request?.status === 'rejected' || request?.status === 'cancelled') {
     return '다시 요청';
   }
 
@@ -117,6 +117,12 @@ function getRequestStatusLabel(request: DmsDocumentAccessRequestState) {
       return '승인';
     case 'rejected':
       return '거부';
+    case 'cancelled':
+      return '취소';
+    case 'revoked':
+      return '회수';
+    case 'expired':
+      return '만료';
     case 'pending':
     default:
       return '요청 대기';
@@ -263,9 +269,11 @@ export function SearchResultCard({
               ? 'bg-amber-50 text-amber-700'
               : effectiveReadRequest?.status === 'rejected'
                 ? 'bg-rose-50 text-rose-700'
-                : result.canRequestRead
-              ? 'bg-ssoo-content-border/60 text-ssoo-primary'
-              : 'bg-slate-100 text-slate-500',
+                : effectiveReadRequest?.status === 'cancelled'
+                  ? 'bg-orange-50 text-orange-700'
+                  : result.canRequestRead
+                    ? 'bg-ssoo-content-border/60 text-ssoo-primary'
+                    : 'bg-slate-100 text-slate-500',
         )}>
           {getRequestActionLabel(result, effectiveReadRequest)}
         </span>

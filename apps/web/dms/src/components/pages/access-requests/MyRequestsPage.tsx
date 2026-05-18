@@ -17,8 +17,9 @@ const STATUS_FILTERS: { value: DmsDocumentAccessRequestStatusFilter; label: stri
   { value: 'pending', label: '대기' },
   { value: 'approved', label: '승인' },
   { value: 'rejected', label: '거부' },
+  { value: 'cancelled', label: '취소' },
   { value: 'expired', label: '만료' },
-  { value: 'revoked', label: '취소' },
+  { value: 'revoked', label: '회수' },
 ];
 
 function formatDateTime(value?: string): string {
@@ -61,10 +62,18 @@ function StatusBadge({ status }: { status: DmsDocumentAccessRequestStatus }) {
       </span>
     );
   }
+  if (status === 'cancelled') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-orange-50 text-orange-700 border border-orange-200">
+        <Ban className="h-3 w-3" />
+        취소
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-orange-50 text-orange-700 border border-orange-200">
       <Ban className="h-3 w-3" />
-      취소
+      회수
     </span>
   );
 }
@@ -126,6 +135,7 @@ export function MyRequestsPage() {
       pending: list.filter((r) => r.status === 'pending').length,
       approved: list.filter((r) => r.status === 'approved').length,
       rejected: list.filter((r) => r.status === 'rejected').length,
+      cancelled: list.filter((r) => r.status === 'cancelled').length,
       expired: list.filter((r) => r.status === 'expired').length,
       revoked: list.filter((r) => r.status === 'revoked').length,
     };

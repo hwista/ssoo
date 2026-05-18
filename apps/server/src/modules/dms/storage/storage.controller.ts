@@ -123,7 +123,7 @@ export class StorageController {
     }
 
     this.collaborationService.assertMutationAllowed({ action: 'resync', paths: [documentPath] });
-    this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
+    this.documentAclService.assertIsOwnerAbsolutePath(currentUser, targetPath);
     await this.accessRequestService.ensureRepoControlPlaneSynced();
 
     const projectedMetadata = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath);

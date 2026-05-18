@@ -22,6 +22,7 @@ export default function MainLayout({
 }) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
   const authIsLoading = useAuthStore((state) => state.isLoading);
   const hasHydrated = useAuthStore((state) => state._hasHydrated);
   const checkAuth = useAuthStore((state) => state.checkAuth);
@@ -61,12 +62,12 @@ export default function MainLayout({
   });
 
   useEffect(() => {
-    if (!isAuthenticated || !accessSnapshot?.features.canReadDocuments) {
+    if (!isAuthenticated || !currentUserId || !accessSnapshot?.features.canReadDocuments) {
       return;
     }
 
     void refreshFileTree();
-  }, [accessSnapshot?.features.canReadDocuments, isAuthenticated, refreshFileTree]);
+  }, [accessSnapshot?.features.canReadDocuments, currentUserId, isAuthenticated, refreshFileTree]);
 
   if (showLoading) {
     return <AuthLoadingScreen />;

@@ -1,7 +1,33 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-04-30
+> 최종 업데이트: 2026-05-18
 > 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
+
+---
+
+## 2026-05-18
+
+### 공통 알림과 DMS 알림 UX 기준선 정리
+
+- `common` notification DB/API/types/history trigger 를 추가하고, DMS는 same-origin proxy와 React Query/SSE hook을 통해 공통 알림 API를 사용하도록 정렬했습니다.
+- DMS 헤더 알림 패널과 토스트를 공통 알림 이벤트(`notification`, `notification-read`, `notification-archived`, `notifications-read-all`)에 연결했습니다.
+- CMS bridge도 common notification contract를 사용하도록 맞췄습니다.
+
+### 권한 요청 취소와 알림 cleanup
+
+- requester가 pending read request를 취소할 수 있는 서버/DMS proxy/API/hook/UI 경로를 연결했습니다.
+- 취소 시 owner에게 생성됐던 요청 알림을 dedupe key 기준으로 archive 처리하고, unread count/list에서 제외되도록 정리했습니다.
+- `notification-archived` SSE 이벤트로 DMS 알림 쿼리를 무효화해 수신자 패널에서 취소된 요청 알림이 제거되도록 했습니다.
+
+### 사용자별 DMS 상태 격리
+
+- 로그인 사용자 변경 시 tab/file tree/sidebar/editor/settings/query cache 상태가 다른 사용자에게 누수되지 않도록 store reset/scope 계약을 정리했습니다.
+- `apps/web/dms/scripts/validate-user-scope-contract.mjs` 기반 `check:user-scope-contract` 검증을 추가했습니다.
+
+### 현재 검증 상태
+
+- 현재 기준에서 `@ssoo/types`/`@ssoo/database` build, server/web-dms type check, server build, web-dms build, server Jest 110개, DMS guard, DMS access verification이 통과했습니다.
+- hard refresh 후 client-side Application error는 CLI/HTTP/build/log 기준으로 재현되지 않았습니다. 브라우저에서 재현되면 console 첫 오류를 기준으로 별도 regression case를 추가합니다.
 
 ---
 

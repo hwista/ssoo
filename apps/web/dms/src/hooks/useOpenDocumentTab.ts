@@ -36,6 +36,7 @@ export function useOpenDocumentTab() {
       icon,
       closable: true,
       activate,
+      reloadOnExisting: true,
     });
   }, [openTabWithConfirm]);
 }

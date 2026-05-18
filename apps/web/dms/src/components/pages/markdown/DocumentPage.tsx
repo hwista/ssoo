@@ -252,6 +252,7 @@ export function DocumentPage() {
   }, [mode, tabId, updateTab]);
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
+  const lastDocumentLoadRef = useRef<{ path: string; reloadSeq: number } | null>(null);
 
   const createEntryType = useMemo<'launcher' | 'doc' | 'template' | 'ai-summary' | null>(() => {
     const path = activeTab?.path;
@@ -317,6 +318,14 @@ export function DocumentPage() {
 
   useEffect(() => {
     if (filePath && !isCreateMode) {
+      const reloadSeq = activeTab?.reloadSeq ?? 0;
+      const lastDocumentLoad = lastDocumentLoadRef.current;
+      const isSamePathReload = lastDocumentLoad?.path === filePath && lastDocumentLoad.reloadSeq !== reloadSeq;
+      if (isSamePathReload && (hasUnsavedChanges || isEditing)) {
+        return;
+      }
+
+      lastDocumentLoadRef.current = { path: filePath, reloadSeq };
       loadFile(filePath);
       setMode('viewer');
       setIsEditing(false);
@@ -325,7 +334,7 @@ export function DocumentPage() {
       setSaveConflict(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- resetInfoRecommendation is referentially stable
-  }, [filePath, isCreateMode, loadFile, setIsEditing]);
+  }, [activeTab?.reloadSeq, filePath, hasUnsavedChanges, isCreateMode, isEditing, loadFile, setIsEditing]);
 
   // AI 요약 자동 실행: 진입 시 pending 파일을 소비하고 본문 기반으로 compose 호출
   useEffect(() => {

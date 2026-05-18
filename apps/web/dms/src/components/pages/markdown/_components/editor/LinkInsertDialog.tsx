@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Link2 } from 'lucide-react';
 import { EditorDialog } from '@/components/common/editor-dialog';
 import { PickerTree } from '@/components/common/picker-tree';
-import { useFileStore } from '@/stores';
+import { useAuthStore, useFileStore } from '@/stores';
 
 export interface LinkInsertDialogProps {
   open: boolean;
@@ -17,7 +17,9 @@ export interface LinkInsertDialogProps {
 export function LinkInsertDialog({ open, currentFilePath, onConfirm, onCancel }: LinkInsertDialogProps) {
   const [inputValue, setInputValue] = React.useState('');
   const [selectedFilePath, setSelectedFilePath] = React.useState('');
-  const { files } = useFileStore();
+  const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
+  const { files, filesOwnerUserId } = useFileStore();
+  const scopedFiles = currentUserId && filesOwnerUserId === currentUserId ? files : [];
 
   React.useEffect(() => {
     if (open) {
@@ -85,7 +87,7 @@ export function LinkInsertDialog({ open, currentFilePath, onConfirm, onCancel }:
       <div className="flex flex-col gap-1.5 flex-1 min-h-0">
         <label className="text-label-md text-ssoo-primary/70">내부 문서 선택</label>
         <PickerTree
-          files={files}
+          files={scopedFiles}
           selectedPath={selectedFilePath}
           onSelect={handleFileSelect}
           mode="file"

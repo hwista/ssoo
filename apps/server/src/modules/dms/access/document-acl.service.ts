@@ -30,7 +30,7 @@ interface DocumentAccessState {
   canRequestRead: boolean;
 }
 
-type DocumentAssetPermissionMode = 'read' | 'write' | 'manage';
+type DocumentAssetPermissionMode = 'read' | 'write' | 'manage' | 'owner';
 type DocumentPrincipalType = DocumentPermissionGrant['principalType'];
 
 @Injectable()
@@ -72,6 +72,14 @@ export class DocumentAclService {
     throw new ForbiddenException('문서를 관리할 권한이 없습니다.');
   }
 
+  assertIsOwnerAbsolutePath(user: TokenPayload, absolutePath: string): void {
+    if (this.isOwnerAbsolutePath(user, absolutePath)) {
+      return;
+    }
+
+    throw new ForbiddenException('문서 소유자만 수행할 수 있는 작업입니다.');
+  }
+
   isReadableAbsolutePath(
     user: TokenPayload,
     absolutePath: string,
@@ -102,6 +110,14 @@ export class DocumentAclService {
     }
 
     return this.resolveDocumentAccessState(user, this.readAccessMetadata(absolutePath)).isManageable;
+  }
+
+  isOwnerAbsolutePath(user: TokenPayload, absolutePath: string): boolean {
+    if (!/\.md$/i.test(absolutePath)) {
+      return this.canAccessAssetPath(user, absolutePath, 'owner');
+    }
+
+    return this.resolveDocumentAccessState(user, this.readAccessMetadata(absolutePath)).isOwner;
   }
 
   describeSearchResultAccess(user: TokenPayload, absolutePath: string): Pick<
@@ -239,6 +255,10 @@ export class DocumentAclService {
 
     if (mode === 'manage') {
       return this.isManageableAbsolutePath(user, markdownFilePath);
+    }
+
+    if (mode === 'owner') {
+      return this.isOwnerAbsolutePath(user, markdownFilePath);
     }
 
     return this.isReadableAbsolutePath(user, markdownFilePath, cache);

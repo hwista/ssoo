@@ -23,8 +23,9 @@ const STATUS_LABELS: Record<NonNullable<DmsDocumentAccessRequestState['status']>
   pending: '요청 대기',
   approved: '승인',
   rejected: '거부',
+  cancelled: '취소',
   expired: '만료',
-  revoked: '취소',
+  revoked: '회수',
 };
 
 function formatDateLabel(value?: string) {
@@ -213,7 +214,7 @@ export function DocumentAccessRequestDialogHost() {
               ) : (
                 <>
                   <Send className="h-4 w-4" />
-                  {currentRequest?.status === 'rejected' ? '다시 요청' : '요청 보내기'}
+                  {currentRequest?.status === 'rejected' || currentRequest?.status === 'cancelled' ? '다시 요청' : '요청 보내기'}
                 </>
               )}
             </Button>

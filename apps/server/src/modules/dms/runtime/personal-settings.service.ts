@@ -205,7 +205,7 @@ class PersonalSettingsService {
         sections: {
           bookmarks: true,
           openTabs: false,
-          fileTree: true,
+          fileTree: false,
           changes: false,
         },
       },

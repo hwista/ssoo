@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AccessFoundationModule } from '../../common/access/access-foundation.module.js';
 import { DatabaseModule } from '../../../database/database.module.js';
+import { CommonNotificationModule } from '../../common/notification/notification.module.js';
 import { EventsModule } from '../events/events.module.js';
 import { AccessController } from './access.controller.js';
 import { AccessGrantController } from './access-grant.controller.js';
@@ -15,7 +16,7 @@ import { DocumentProjectionService } from './document-projection.service.js';
 import { DocumentRecordService } from './document-record.service.js';
 
 @Module({
-  imports: [DatabaseModule, AccessFoundationModule, EventsModule],
+  imports: [DatabaseModule, AccessFoundationModule, EventsModule, CommonNotificationModule],
   controllers: [AccessController, AccessRequestController, AccessGrantController],
   providers: [
     AccessService,

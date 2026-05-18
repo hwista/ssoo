@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { registerUserScopedReset } from '@/lib/user-scope';
+import { registerUserScopedReset, shouldResetPersistedUserState } from '@/lib/user-scope';
 
 export interface AiSearchHistoryItem {
   id: string;
@@ -80,7 +80,7 @@ export const useAiSearchStore = create<AiSearchStore>()(
 registerUserScopedReset((next) => {
   if (next === null) return;
   const state = useAiSearchStore.getState();
-  if (state.ownerUserId !== null && state.ownerUserId !== next) {
+  if (shouldResetPersistedUserState(next, state.ownerUserId, state.history.length > 0)) {
     useAiSearchStore.setState({ history: [], ownerUserId: next });
   } else if (state.ownerUserId !== next) {
     useAiSearchStore.setState({ ownerUserId: next });

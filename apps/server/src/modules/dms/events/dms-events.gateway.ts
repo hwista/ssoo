@@ -45,7 +45,7 @@ export interface DmsTreeChangedEvent {
 export interface DmsAccessChangedEvent {
   documentId: string;
   relativePath?: string;
-  reason: 'visibility' | 'ownership' | 'grant-revoked' | 'grant-created' | 'grant-direct';
+  reason: 'visibility' | 'ownership' | 'grant-revoked' | 'grant-created' | 'grant-direct' | 'request-cancelled';
   actorUserId?: string;
 }
 

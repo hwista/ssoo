@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Post,
   Query,
   UseGuards } from '@nestjs/common';
@@ -43,6 +44,7 @@ export class SettingsController {
   }
 
   @Post()
+  @HttpCode(200)
   @ApiOperation({ summary: 'DMS 설정 갱신' })
   @ApiOkResponse({ description: '설정 스냅샷 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })

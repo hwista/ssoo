@@ -1,12 +1,13 @@
 import type { PermissionResolutionTrace } from '../common/access';
-import type { DocumentPermissionGrant, DocumentVisibilityScope } from './document-metadata';
+import type { DocumentPermissionGrant, DocumentPermissionRole, DocumentVisibilityScope } from './document-metadata';
 
-export type DmsDocumentAccessRequestRole = 'read';
+export type DmsDocumentAccessRequestRole = Extract<DocumentPermissionRole, 'read' | 'write'>;
 
 export type DmsDocumentAccessRequestStatus =
   | 'pending'
   | 'approved'
   | 'rejected'
+  | 'cancelled'
   | 'expired'
   | 'revoked';
 
@@ -73,6 +74,7 @@ export interface DmsManagedDocumentRequestSummary {
   pending: number;
   approved: number;
   rejected: number;
+  cancelled: number;
   expired: number;
   revoked: number;
 }
@@ -93,6 +95,7 @@ export interface DmsManagedDocumentSummary {
 
 export interface CreateDmsDocumentAccessRequestPayload {
   path: string;
+  requestedRole?: DmsDocumentAccessRequestRole;
   requestMessage?: string;
   requestedExpiresAt?: string;
 }
@@ -103,6 +106,7 @@ export interface DmsDocumentAccessRequestListQuery {
 }
 
 export interface ApproveDmsDocumentAccessRequestPayload {
+  grantRole?: DmsDocumentAccessRequestRole;
   responseMessage?: string;
   grantExpiresAt?: string;
 }
@@ -130,6 +134,8 @@ export interface CreateDmsDocumentDirectGrantPayload {
   documentId: string;
   /** grant 대상 사용자 ID (BigInt 직렬화된 문자열) */
   principalUserId: string;
+  /** 부여할 문서 권한 — manage 는 신규 직접 부여 대상이 아님 */
+  role: DmsDocumentAccessRequestRole;
   /** 권한 만료 시각 (ISO 8601) — 미지정 시 무기한 */
   grantExpiresAt?: string;
   /** 부여 사유 또는 메모 */
@@ -140,5 +146,6 @@ export interface DmsDocumentDirectGrantResult {
   grantId: string;
   documentId: string;
   principalUserId: string;
+  role: DmsDocumentAccessRequestRole;
   grantExpiresAt?: string;
 }

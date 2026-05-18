@@ -1,6 +1,6 @@
 'use client';
 
-import { useAccessStore, useSidebarStore } from '@/stores';
+import { useAccessStore, useAuthStore, useSidebarStore } from '@/stores';
 import { SearchInput } from './SearchInput';
 
 /**
@@ -8,12 +8,14 @@ import { SearchInput } from './SearchInput';
  * - PMS 디자인 표준 적용
  */
 export function Search() {
-  const { searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
+  const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
+  const { searchOwnerUserId, searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
   const canReadDocuments = useAccessStore((state) => state.snapshot?.features.canReadDocuments ?? false);
+  const scopedSearchQuery = currentUserId && searchOwnerUserId === currentUserId ? searchQuery : '';
 
   return (
     <SearchInput
-      value={searchQuery}
+      value={scopedSearchQuery}
       onChange={(value) => {
         if (!value) {
           clearSearch();

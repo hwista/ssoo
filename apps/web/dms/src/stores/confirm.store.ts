@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { isUserScopeTransition, registerUserScopedReset } from '@/lib/user-scope';
 
 /**
  * 전역 Confirm Dialog Store
@@ -29,6 +30,7 @@ interface ConfirmActions {
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   handleConfirm: () => void;
   handleCancel: () => void;
+  reset: () => void;
 }
 
 export type ConfirmStore = ConfirmState & ConfirmActions;
@@ -73,4 +75,22 @@ export const useConfirmStore = create<ConfirmStore>((set, get) => ({
       resolve: null,
     });
   },
+
+  reset: () => {
+    const { resolve } = get();
+    if (resolve) {
+      resolve(false);
+    }
+    set({
+      isOpen: false,
+      options: null,
+      resolve: null,
+    });
+  },
 }));
+
+registerUserScopedReset((next, prev) => {
+  if (isUserScopeTransition(next, prev)) {
+    useConfirmStore.getState().reset();
+  }
+});

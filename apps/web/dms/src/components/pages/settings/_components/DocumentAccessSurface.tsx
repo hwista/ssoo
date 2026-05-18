@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock3, Eye, EyeOff, FileText, Inbox, Loader2, ShieldCheck, Trash2, UserCheck, Users, XCircle } from 'lucide-react';
 import type {
   CreateDmsDocumentDirectGrantPayload,
+  DmsDocumentAccessRequestRole,
   DmsDocumentAccessRequestSummary,
   DmsManagedDocumentSummary,
   DocumentPermissionGrant,
@@ -11,8 +12,10 @@ import type {
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 import {
   useApproveDocumentAccessRequestMutation,
+  useCancelDocumentAccessRequestMutation,
   useCreateDirectGrantMutation,
   useDocumentAccessInboxQuery,
   useManageableDocumentsQuery,
@@ -22,8 +25,14 @@ import {
   useTransferDocumentOwnershipMutation,
   useUpdateDocumentVisibilityMutation,
 } from '@/features/access';
+import { useAccessStore } from '@/stores';
+import { DMS_ACCESS_REQUEST_FOCUS_EVENT } from '@/lib/notification-events';
 
 type RequestStatus = DmsDocumentAccessRequestSummary['status'];
+const ACCESS_ROLE_OPTIONS: Array<{ value: DmsDocumentAccessRequestRole; label: string }> = [
+  { value: 'read', label: '읽기' },
+  { value: 'write', label: '쓰기' },
+];
 
 interface RequestActionDraft {
   responseMessage: string;
@@ -50,8 +59,12 @@ const STATUS_META: Record<RequestStatus, {
     label: '만료됨',
     className: 'border-zinc-200 bg-zinc-50 text-zinc-600',
   },
-  revoked: {
+  cancelled: {
     label: '취소됨',
+    className: 'border-orange-200 bg-orange-50 text-orange-700',
+  },
+  revoked: {
+    label: '회수됨',
     className: 'border-orange-200 bg-orange-50 text-orange-700',
   },
 };
@@ -70,6 +83,10 @@ function formatDateTime(value?: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatAccessRole(role: DmsDocumentAccessRequestRole) {
+  return role === 'write' ? '쓰기' : '읽기';
 }
 
 function SummaryCard({
@@ -430,19 +447,35 @@ function RequestCard({
   onActionDraftChange,
   onApprove,
   onReject,
+  onCancel,
   isApproving,
   isRejecting,
+  isCancelling,
+  isHighlighted,
+  canCancel,
 }: {
   request: DmsDocumentAccessRequestSummary;
   actionDraft?: RequestActionDraft;
   onActionDraftChange: (requestId: string, patch: Partial<RequestActionDraft>) => void;
   onApprove: (request: DmsDocumentAccessRequestSummary) => void;
   onReject: (request: DmsDocumentAccessRequestSummary) => void;
+  onCancel?: (request: DmsDocumentAccessRequestSummary) => void;
   isApproving: boolean;
   isRejecting: boolean;
+  isCancelling?: boolean;
+  isHighlighted?: boolean;
+  canCancel?: boolean;
 }) {
   return (
-    <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+    <article
+      id={`dms-access-request-${request.requestId}`}
+      className={cn(
+        'rounded-lg border bg-white px-4 py-3 transition-shadow',
+        isHighlighted
+          ? 'border-ssoo-primary shadow-[0_0_0_3px_rgba(30,64,175,0.16)]'
+          : 'border-ssoo-content-border',
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -452,6 +485,9 @@ function RequestCard({
           <p className="mt-1 break-all text-caption text-ssoo-primary/70">{request.path}</p>
           <p className="mt-2 text-body-sm text-ssoo-primary/80">
             요청자: {request.requester.displayName ?? request.requester.loginId}
+          </p>
+          <p className="mt-1 text-caption text-ssoo-primary/70">
+            요청 권한: {formatAccessRole(request.requestedRole)}
           </p>
           <p className="mt-1 text-caption text-ssoo-primary/70">
             요청 시각: {formatDateTime(request.requestedAt)}
@@ -537,6 +573,24 @@ function RequestCard({
           </div>
         </div>
       )}
+
+      {canCancel && onCancel ? (
+        <div className="mt-3 flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onCancel(request)}
+            disabled={isCancelling}
+          >
+            {isCancelling ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <XCircle className="h-4 w-4" />
+            )}
+            요청 취소
+          </Button>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -544,6 +598,7 @@ function RequestCard({
 interface DirectGrantDraft {
   documentId: string;
   principalUserId: string;
+  role: DmsDocumentAccessRequestRole;
   grantExpiresAt: string;
   memo: string;
 }
@@ -551,6 +606,7 @@ interface DirectGrantDraft {
 const EMPTY_DIRECT_GRANT_DRAFT: DirectGrantDraft = {
   documentId: '',
   principalUserId: '',
+  role: 'read',
   grantExpiresAt: '',
   memo: '',
 };
@@ -575,7 +631,7 @@ function DirectGrantSection({
       <header>
         <h3 className="text-label-strong text-ssoo-primary">권한 직접 부여</h3>
         <p className="text-caption text-ssoo-primary/70">
-          요청 entity 없이 특정 사용자에게 문서 읽기 권한을 즉시 발급합니다. 사용자 ID 는 admin 화면 등에서 확인하세요.
+          요청 entity 없이 특정 사용자에게 문서 읽기 또는 쓰기 권한을 즉시 발급합니다. 사용자 ID 는 admin 화면 등에서 확인하세요.
         </p>
       </header>
 
@@ -606,6 +662,21 @@ function DirectGrantSection({
             inputMode="numeric"
             className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
           />
+        </label>
+
+        <label className="block">
+          <span className="text-caption text-ssoo-primary/70">부여 권한</span>
+          <select
+            value={draft.role}
+            onChange={(event) => onDraftChange({ role: event.target.value as DmsDocumentAccessRequestRole })}
+            className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
+          >
+            {ACCESS_ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="block">
@@ -646,17 +717,22 @@ function DirectGrantSection({
 }
 
 export function DocumentAccessSurface() {
-  const manageableDocumentsQuery = useManageableDocumentsQuery();
-  const myRequestsQuery = useMyDocumentAccessRequestsQuery('all');
-  const inboxQuery = useDocumentAccessInboxQuery({ status: 'pending' });
+  const accessFeatures = useAccessStore((state) => state.snapshot?.features);
+  const canManageDocumentAccess = accessFeatures?.canReadDocuments ?? false;
+  const canViewMyRequests = accessFeatures?.canUseSearch ?? false;
+  const manageableDocumentsQuery = useManageableDocumentsQuery({ enabled: canManageDocumentAccess });
+  const myRequestsQuery = useMyDocumentAccessRequestsQuery('all', { enabled: canViewMyRequests });
+  const inboxQuery = useDocumentAccessInboxQuery({ status: 'pending' }, { enabled: canManageDocumentAccess });
   const approveMutation = useApproveDocumentAccessRequestMutation();
   const rejectMutation = useRejectDocumentAccessRequestMutation();
+  const cancelMutation = useCancelDocumentAccessRequestMutation();
   const visibilityMutation = useUpdateDocumentVisibilityMutation();
   const transferMutation = useTransferDocumentOwnershipMutation();
   const revokeMutation = useRevokeDocumentGrantMutation();
   const directGrantMutation = useCreateDirectGrantMutation();
   const [actionDrafts, setActionDrafts] = useState<Record<string, RequestActionDraft>>({});
   const [directGrantDraft, setDirectGrantDraft] = useState<DirectGrantDraft>(EMPTY_DIRECT_GRANT_DRAFT);
+  const [highlightedRequestId, setHighlightedRequestId] = useState<string | null>(null);
 
   const manageableDocuments = useMemo(
     () => manageableDocumentsQuery.data ?? [],
@@ -678,6 +754,40 @@ export function DocumentAccessSurface() {
     myApproved: myRequests.filter((request) => request.status === 'approved').length,
     inbox: inboxRequests.length,
   }), [inboxRequests.length, manageableDocuments, myRequests]);
+
+  useEffect(() => {
+    const handleFocusRequest = (event: Event) => {
+      const requestId = (event as CustomEvent<{ requestId?: string }>).detail?.requestId;
+      if (!requestId) {
+        return;
+      }
+
+      setHighlightedRequestId(requestId);
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById(`dms-access-request-${requestId}`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      window.setTimeout(() => {
+        setHighlightedRequestId((current) => (current === requestId ? null : current));
+      }, 3000);
+    };
+
+    window.addEventListener(DMS_ACCESS_REQUEST_FOCUS_EVENT, handleFocusRequest);
+    return () => window.removeEventListener(DMS_ACCESS_REQUEST_FOCUS_EVENT, handleFocusRequest);
+  }, []);
+
+  useEffect(() => {
+    if (!highlightedRequestId) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(`dms-access-request-${highlightedRequestId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [highlightedRequestId, inboxRequests, myRequests]);
 
   const handleActionDraftChange = (
     requestId: string,
@@ -738,6 +848,7 @@ export function DocumentAccessSurface() {
     const payload: CreateDmsDocumentDirectGrantPayload = {
       documentId: directGrantDraft.documentId,
       principalUserId: directGrantDraft.principalUserId,
+      role: directGrantDraft.role,
       grantExpiresAt: directGrantDraft.grantExpiresAt
         ? new Date(`${directGrantDraft.grantExpiresAt}T23:59:59.999Z`).toISOString()
         : undefined,
@@ -765,7 +876,7 @@ export function DocumentAccessSurface() {
             : undefined,
         },
       });
-      toast.success('읽기 권한 요청을 승인했습니다.');
+      toast.success(`${formatAccessRole(request.requestedRole)} 권한 요청을 승인했습니다.`);
       setActionDrafts((current) => {
         const next = { ...current };
         delete next[request.requestId];
@@ -785,7 +896,7 @@ export function DocumentAccessSurface() {
           responseMessage: draft?.responseMessage.trim() || undefined,
         },
       });
-      toast.success('읽기 권한 요청을 거절했습니다.');
+      toast.success(`${formatAccessRole(request.requestedRole)} 권한 요청을 거절했습니다.`);
       setActionDrafts((current) => {
         const next = { ...current };
         delete next[request.requestId];
@@ -796,18 +907,46 @@ export function DocumentAccessSurface() {
     }
   };
 
-  if (manageableDocumentsQuery.isLoading && myRequestsQuery.isLoading && inboxQuery.isLoading) {
+  const handleCancel = async (request: DmsDocumentAccessRequestSummary) => {
+    try {
+      await cancelMutation.mutateAsync({ accessRequestId: request.requestId });
+      toast.success('권한 요청을 취소했습니다.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '권한 요청 취소에 실패했습니다.');
+    }
+  };
+
+  if (!canManageDocumentAccess && !canViewMyRequests) {
+    return <ErrorState error="권한 요청/승인 화면을 사용할 권한이 없습니다." />;
+  }
+
+  const isInitialLoading = [
+    canManageDocumentAccess ? manageableDocumentsQuery.isLoading : false,
+    canManageDocumentAccess ? inboxQuery.isLoading : false,
+    canViewMyRequests ? myRequestsQuery.isLoading : false,
+  ].some(Boolean);
+  const hasQueryError = [
+    canManageDocumentAccess ? manageableDocumentsQuery.isError : false,
+    canManageDocumentAccess ? inboxQuery.isError : false,
+    canViewMyRequests ? myRequestsQuery.isError : false,
+  ].some(Boolean);
+
+  if (isInitialLoading) {
     return <LoadingState message="문서 권한 관리 현황을 불러오는 중입니다." className="py-16" />;
   }
 
-  if (manageableDocumentsQuery.isError || myRequestsQuery.isError || inboxQuery.isError) {
+  if (hasQueryError) {
     return (
       <ErrorState
         error={manageableDocumentsQuery.error?.message || myRequestsQuery.error?.message || inboxQuery.error?.message || '문서 권한 관리 현황을 불러오지 못했습니다.'}
         onRetry={() => {
-          void manageableDocumentsQuery.refetch();
-          void myRequestsQuery.refetch();
-          void inboxQuery.refetch();
+          if (canManageDocumentAccess) {
+            void manageableDocumentsQuery.refetch();
+            void inboxQuery.refetch();
+          }
+          if (canViewMyRequests) {
+            void myRequestsQuery.refetch();
+          }
         }}
       />
     );
@@ -817,136 +956,157 @@ export function DocumentAccessSurface() {
     <div className="space-y-4">
       <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
         <p className="text-badge text-ssoo-primary/70">현재 운영 중</p>
-        <h3 className="mt-1 text-label-strong text-ssoo-primary">문서 운영/권한 surface</h3>
+        <h3 className="mt-1 text-label-strong text-ssoo-primary">권한 요청/승인</h3>
         <p className="mt-2 text-body-sm text-ssoo-primary/80">
-          DB control-plane 기준으로 내가 관리 가능한 문서, 승인 inbox, 내가 보낸 요청을 한 화면에서 운영합니다.
+          내가 보낸 요청 상태와 내가 처리할 승인 요청을 한 화면에서 확인합니다.
         </p>
       </article>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard title="관리 가능 문서" value={counts.manageableDocuments} icon={<FileText className="h-5 w-5" />} />
-        <SummaryCard title="내 문서 대기 요청" value={counts.pendingOwnedRequests} icon={<Users className="h-5 w-5" />} />
-        <SummaryCard title="승인 inbox" value={counts.inbox} icon={<Inbox className="h-5 w-5" />} />
-        <SummaryCard title="내 대기 요청" value={counts.myPending} icon={<Clock3 className="h-5 w-5" />} />
-        <SummaryCard title="내 승인 완료" value={counts.myApproved} icon={<CheckCircle2 className="h-5 w-5" />} />
+        {canManageDocumentAccess ? (
+          <>
+            <SummaryCard title="관리 가능 문서" value={counts.manageableDocuments} icon={<FileText className="h-5 w-5" />} />
+            <SummaryCard title="내 문서 대기 요청" value={counts.pendingOwnedRequests} icon={<Users className="h-5 w-5" />} />
+            <SummaryCard title="승인 inbox" value={counts.inbox} icon={<Inbox className="h-5 w-5" />} />
+          </>
+        ) : null}
+        {canViewMyRequests ? (
+          <>
+            <SummaryCard title="내 대기 요청" value={counts.myPending} icon={<Clock3 className="h-5 w-5" />} />
+            <SummaryCard title="내 승인 완료" value={counts.myApproved} icon={<CheckCircle2 className="h-5 w-5" />} />
+          </>
+        ) : null}
       </div>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-label-strong text-ssoo-primary">내가 관리 가능한 문서</h3>
-            <p className="text-caption text-ssoo-primary/70">
-              owner 또는 manage grant 기준으로 내가 권한을 운영할 수 있는 문서 목록입니다.
-            </p>
-          </div>
-          {manageableDocumentsQuery.isFetching && <Loader2 className="h-4 w-4 animate-spin text-ssoo-primary/60" />}
-        </div>
+      {canManageDocumentAccess ? (
+        <>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-label-strong text-ssoo-primary">내가 관리 가능한 문서</h3>
+                <p className="text-caption text-ssoo-primary/70">
+                  owner 또는 manage grant 기준으로 내가 권한을 운영할 수 있는 문서 목록입니다.
+                </p>
+              </div>
+              {manageableDocumentsQuery.isFetching && <Loader2 className="h-4 w-4 animate-spin text-ssoo-primary/60" />}
+            </div>
 
-        {manageableDocuments.length === 0 ? (
-          <EmptyState
-            icon={<FileText className="h-10 w-10 text-ssoo-primary/40" />}
-            title="관리 가능한 문서가 없습니다"
-            description="현재 계정이 owner 또는 manage 권한으로 운영 중인 문서가 아직 없습니다."
-            className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/20"
-          />
-        ) : (
-          <div className="space-y-3">
-            {manageableDocuments.map((document) => (
-              <ManagedDocumentCard
-                key={document.documentId}
-                document={document}
-                onToggleVisibility={handleToggleVisibility}
-                isTogglingVisibility={visibilityMutation.isPending}
-                onTransferOwnership={handleTransferOwnership}
-                isTransferring={transferMutation.isPending}
-                onRevokeGrant={handleRevokeGrant}
-                isRevoking={revokeMutation.isPending}
-                revokingGrantId={revokeMutation.variables?.grantId ?? null}
+            {manageableDocuments.length === 0 ? (
+              <EmptyState
+                icon={<FileText className="h-10 w-10 text-ssoo-primary/40" />}
+                title="관리 가능한 문서가 없습니다"
+                description="현재 계정이 owner 또는 manage 권한으로 운영 중인 문서가 아직 없습니다."
+                className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/20"
               />
-            ))}
-          </div>
-        )}
-      </section>
+            ) : (
+              <div className="space-y-3">
+                {manageableDocuments.map((document) => (
+                  <ManagedDocumentCard
+                    key={document.documentId}
+                    document={document}
+                    onToggleVisibility={handleToggleVisibility}
+                    isTogglingVisibility={visibilityMutation.isPending}
+                    onTransferOwnership={handleTransferOwnership}
+                    isTransferring={transferMutation.isPending}
+                    onRevokeGrant={handleRevokeGrant}
+                    isRevoking={revokeMutation.isPending}
+                    revokingGrantId={revokeMutation.variables?.grantId ?? null}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
 
-      <DirectGrantSection
-        documents={manageableDocuments}
-        draft={directGrantDraft}
-        onDraftChange={handleDirectGrantDraftChange}
-        onSubmit={() => void handleDirectGrantSubmit()}
-        isSubmitting={directGrantMutation.isPending}
-      />
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-label-strong text-ssoo-primary">승인 대기 inbox</h3>
-            <p className="text-caption text-ssoo-primary/70">
-              내가 관리 가능한 문서에 대해 들어온 pending 요청만 표시합니다.
-            </p>
-          </div>
-          {inboxQuery.isFetching && <Loader2 className="h-4 w-4 animate-spin text-ssoo-primary/60" />}
-        </div>
-
-        {inboxRequests.length === 0 ? (
-          <EmptyState
-            icon={<ShieldCheck className="h-10 w-10 text-ssoo-primary/40" />}
-            title="처리할 요청이 없습니다"
-            description="현재 승인 또는 거절이 필요한 읽기 권한 요청이 없습니다."
-            className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/20"
+          <DirectGrantSection
+            documents={manageableDocuments}
+            draft={directGrantDraft}
+            onDraftChange={handleDirectGrantDraftChange}
+            onSubmit={() => void handleDirectGrantSubmit()}
+            isSubmitting={directGrantMutation.isPending}
           />
-        ) : (
-          <div className="space-y-3">
-            {inboxRequests.map((request) => (
-              <RequestCard
-                key={`inbox-${request.requestId}`}
-                request={request}
-                actionDraft={actionDrafts[request.requestId]}
-                onActionDraftChange={handleActionDraftChange}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                isApproving={approveMutation.isPending && approveMutation.variables?.accessRequestId === request.requestId}
-                isRejecting={rejectMutation.isPending && rejectMutation.variables?.accessRequestId === request.requestId}
-              />
-            ))}
-          </div>
-        )}
-      </section>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-label-strong text-ssoo-primary">내 요청 내역</h3>
-            <p className="text-caption text-ssoo-primary/70">
-              discovery surface 에서 보낸 읽기 권한 요청의 최신 상태입니다.
-            </p>
-          </div>
-          {myRequestsQuery.isFetching && <Loader2 className="h-4 w-4 animate-spin text-ssoo-primary/60" />}
-        </div>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-label-strong text-ssoo-primary">승인 대기 inbox</h3>
+                <p className="text-caption text-ssoo-primary/70">
+                  내가 관리 가능한 문서에 대해 들어온 pending 요청만 표시합니다.
+                </p>
+              </div>
+              {inboxQuery.isFetching && <Loader2 className="h-4 w-4 animate-spin text-ssoo-primary/60" />}
+            </div>
 
-        {myRequests.length === 0 ? (
-          <EmptyState
-            icon={<Inbox className="h-10 w-10 text-ssoo-primary/40" />}
-            title="보낸 요청이 없습니다"
-            description="검색 결과에서 unreadable 문서를 찾으면 읽기 권한 요청을 보낼 수 있습니다."
-            className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/20"
-          />
-        ) : (
-          <div className="space-y-3">
-            {myRequests.map((request) => (
-              <RequestCard
-                key={`my-${request.requestId}`}
-                request={request}
-                actionDraft={actionDrafts[request.requestId]}
-                onActionDraftChange={handleActionDraftChange}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                isApproving={false}
-                isRejecting={false}
+            {inboxRequests.length === 0 ? (
+              <EmptyState
+                icon={<ShieldCheck className="h-10 w-10 text-ssoo-primary/40" />}
+                title="처리할 요청이 없습니다"
+                description="현재 승인 또는 거절이 필요한 읽기 권한 요청이 없습니다."
+                className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/20"
               />
-            ))}
+            ) : (
+              <div className="space-y-3">
+                {inboxRequests.map((request) => (
+                  <RequestCard
+                    key={`inbox-${request.requestId}`}
+                    request={request}
+                    actionDraft={actionDrafts[request.requestId]}
+                    onActionDraftChange={handleActionDraftChange}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                    onCancel={handleCancel}
+                    isApproving={approveMutation.isPending && approveMutation.variables?.accessRequestId === request.requestId}
+                    isRejecting={rejectMutation.isPending && rejectMutation.variables?.accessRequestId === request.requestId}
+                    isCancelling={false}
+                    isHighlighted={highlightedRequestId === request.requestId}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      ) : null}
+
+      {canViewMyRequests ? (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-label-strong text-ssoo-primary">내 요청 내역</h3>
+              <p className="text-caption text-ssoo-primary/70">
+                discovery surface 에서 보낸 읽기 권한 요청의 최신 상태입니다.
+              </p>
+            </div>
+            {myRequestsQuery.isFetching && <Loader2 className="h-4 w-4 animate-spin text-ssoo-primary/60" />}
           </div>
-        )}
-      </section>
+
+          {myRequests.length === 0 ? (
+            <EmptyState
+              icon={<Inbox className="h-10 w-10 text-ssoo-primary/40" />}
+              title="보낸 요청이 없습니다"
+              description="검색 결과에서 unreadable 문서를 찾으면 읽기 권한 요청을 보낼 수 있습니다."
+              className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/20"
+            />
+          ) : (
+            <div className="space-y-3">
+              {myRequests.map((request) => (
+                <RequestCard
+                  key={`my-${request.requestId}`}
+                  request={request}
+                  actionDraft={actionDrafts[request.requestId]}
+                  onActionDraftChange={handleActionDraftChange}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  onCancel={handleCancel}
+                  isApproving={false}
+                  isRejecting={false}
+                  isCancelling={cancelMutation.isPending && cancelMutation.variables?.accessRequestId === request.requestId}
+                  isHighlighted={highlightedRequestId === request.requestId}
+                  canCancel={request.status === 'pending'}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

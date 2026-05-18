@@ -130,6 +130,8 @@ async function main(config) {
   let adminAccessToken = null;
   let probe = null;
   let mainError = null;
+  const initialMarkdownSidecars = collectSidecarFiles(DMS_RUNTIME_BINDINGS.markdownRoot.resolvedPath);
+  const initialTemplateSidecars = collectSidecarFiles(DMS_RUNTIME_BINDINGS.templateDir);
 
   try {
     adminAccessToken = await login(config.baseUrl, config.adminLoginId, config.adminPassword);
@@ -169,7 +171,11 @@ async function main(config) {
       runtimeAccessSnapshot.features.canReadDocuments,
       probe,
     );
-    assertNoSidecarFiles(DMS_RUNTIME_BINDINGS.markdownRoot.resolvedPath, 'DMS markdown runtime root');
+    assertNoNewSidecarFiles(
+      DMS_RUNTIME_BINDINGS.markdownRoot.resolvedPath,
+      'DMS markdown runtime root',
+      initialMarkdownSidecars,
+    );
     assertProbeSidecarAbsent(probe, 'DMS read/file/content/binary surfaces');
     await verifySearchBoundary(
       config.baseUrl,
@@ -234,7 +240,11 @@ async function main(config) {
       config.adminLoginId,
       probe,
     );
-    assertNoSidecarFiles(DMS_RUNTIME_BINDINGS.templateDir, 'DMS template directory (markdownRoot/_templates)');
+    assertNoNewSidecarFiles(
+      DMS_RUNTIME_BINDINGS.templateDir,
+      'DMS template directory (markdownRoot/_templates)',
+      initialTemplateSidecars,
+    );
 
     handoffRole('builder', 'reviewer');
     console.log('✓ DMS access verification passed');
@@ -619,6 +629,16 @@ function assertNoSidecarFiles(rootDir, label) {
   const sidecarPaths = collectSidecarFiles(rootDir);
   if (sidecarPaths.length > 0) {
     throw new Error(`${label} 에 sidecar 파일이 남아 있습니다:\n${sidecarPaths.join('\n')}`);
+  }
+}
+
+function assertNoNewSidecarFiles(rootDir, label, baselinePaths) {
+  const baseline = new Set(baselinePaths);
+  const newSidecarPaths = collectSidecarFiles(rootDir)
+    .filter((sidecarPath) => !baseline.has(sidecarPath));
+
+  if (newSidecarPaths.length > 0) {
+    throw new Error(`${label} 에 신규 sidecar 파일이 생성되었습니다:\n${newSidecarPaths.join('\n')}`);
   }
 }
 

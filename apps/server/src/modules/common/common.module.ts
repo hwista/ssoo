@@ -3,10 +3,11 @@ import { AccessFoundationModule } from './access/access-foundation.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UserModule } from './user/user.module.js';
 import { HealthController } from './health/health.controller.js';
+import { CommonNotificationModule } from './notification/notification.module.js';
 
 @Module({
-  imports: [AccessFoundationModule, AuthModule, UserModule],
+  imports: [AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule],
   controllers: [HealthController],
-  exports: [AccessFoundationModule, AuthModule, UserModule],
+  exports: [AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule],
 })
 export class CommonModule {}

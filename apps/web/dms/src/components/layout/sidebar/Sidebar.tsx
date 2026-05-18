@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   ChevronDown,
   ChevronLeft,
@@ -11,10 +11,8 @@ import {
   GitBranch,
   BookOpen,
   Code,
-  FileQuestion,
 } from 'lucide-react';
-import { useAccessStore, useLayoutStore, useSidebarStore, useFileStore, useGitStore, useTabStore } from '@/stores';
-import { useMyDocumentAccessRequestsQuery } from '@/features/access';
+import { useAccessStore, useAuthStore, useLayoutStore, useSidebarStore, useFileStore, useGitStore } from '@/stores';
 import type { DocumentType } from '@/types';
 import { DOCUMENT_TYPE_LABELS, LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';
@@ -65,31 +63,19 @@ export function Sidebar({
   onClose,
 }: SidebarProps) {
   const { documentType, setDocumentType } = useLayoutStore();
-  const { expandedSections, toggleSection } = useSidebarStore();
+  const { expandedSections, isFileTreeOpen, fileTreeOwnerUserId, fileTreeResetEpoch, toggleSection } = useSidebarStore();
   const { refreshFileTree } = useFileStore();
-  const { failureCount, initialize: initGit, isAvailable: gitAvailable, refreshPublishFailures } = useGitStore();
+  const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
+  const { failureCount, isAvailable: gitAvailable } = useGitStore();
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const canReadDocuments = accessSnapshot?.features.canReadDocuments ?? false;
   const canUseGit = accessSnapshot?.features.canUseGit ?? false;
+  const isFileTreeExpanded = Boolean(
+    currentUserId
+    && isFileTreeOpen
+    && fileTreeOwnerUserId === currentUserId
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Git 초기화 (1회)
-  useEffect(() => {
-    if (!canUseGit) {
-      return;
-    }
-    initGit();
-  }, [canUseGit, initGit]);
-
-  useEffect(() => {
-    if (!canUseGit || !gitAvailable) {
-      return;
-    }
-    const interval = window.setInterval(() => {
-      void refreshPublishFailures();
-    }, 30000);
-    return () => window.clearInterval(interval);
-  }, [canUseGit, gitAvailable, refreshPublishFailures]);
 
   const handleRefresh = async () => {
     if (!canReadDocuments) {
@@ -224,12 +210,13 @@ export function Sidebar({
         {/* 전체 파일 */}
         {canReadDocuments ? (
           <Section
+            key={`file-tree-section-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`}
             title="전체 파일"
             icon={FolderTree}
-            isExpanded={expandedSections.includes('fileTree')}
+            isExpanded={isFileTreeExpanded}
             onToggle={() => toggleSection('fileTree')}
           >
-            <FileTree />
+            <FileTree key={`file-tree-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`} />
           </Section>
         ) : null}
 
@@ -246,9 +233,6 @@ export function Sidebar({
         ) : null}
       </ScrollArea>
 
-      {/* 하단 navigation: 내 요청 */}
-      <MyAccessRequestsNavItem />
-
       {/* 하단 카피라이트 (PMS 스타일) */}
       <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-3 py-2">
         <div className="text-caption text-gray-500 space-y-0.5">
@@ -258,46 +242,5 @@ export function Sidebar({
         </div>
       </div>
     </aside>
-  );
-}
-
-/**
- * "내 요청" 사이드바 nav 아이템 — 자기가 보낸 권한 요청 목록 페이지로 진입.
- * pending count 가 있으면 badge 로 표시.
- */
-function MyAccessRequestsNavItem() {
-  const openTab = useTabStore((state) => state.openTab);
-  const pendingQuery = useMyDocumentAccessRequestsQuery('pending');
-  const pendingCount = pendingQuery.data?.length ?? 0;
-
-  const handleOpen = () => {
-    openTab({
-      id: 'my-access-requests',
-      title: '내 요청',
-      path: '/access-requests/me',
-      icon: 'FileQuestion',
-      closable: true,
-    });
-  };
-
-  return (
-    <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-2 py-1.5">
-      <button
-        type="button"
-        onClick={handleOpen}
-        className={cn(
-          'flex w-full items-center gap-2 rounded px-2 py-1.5 text-body-sm text-ssoo-primary transition-colors',
-          'hover:bg-white',
-        )}
-      >
-        <FileQuestion className="h-4 w-4 shrink-0" />
-        <span className="flex-1 truncate text-left">내 요청</span>
-        {pendingCount > 0 ? (
-          <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-ssoo-primary px-1.5 text-caption text-white">
-            {pendingCount}
-          </span>
-        ) : null}
-      </button>
-    </div>
   );
 }

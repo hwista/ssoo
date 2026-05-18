@@ -221,22 +221,31 @@ export class FileController {
 
     await this.accessRequestService.ensureRepoControlPlaneSynced();
     const { targetPath, valid } = this.fileCrudService.resolveFilePath(filePath);
+    let resolvedAbsolutePath: string | null = null;
+
     if (!valid) {
       throw new BadRequestException('잘못된 경로입니다.');
     }
-    if (!fs.existsSync(targetPath)) {
+
+    if (fs.existsSync(targetPath)) {
+      this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
+      resolvedAbsolutePath = targetPath;
+    } else {
+      resolvedAbsolutePath = await this.resolveStorageBackedAttachmentPath(filePath, currentUser);
+    }
+
+    if (!resolvedAbsolutePath || !fs.existsSync(resolvedAbsolutePath)) {
       throw new NotFoundException('파일을 찾을 수 없습니다.');
     }
 
-    const contentType = getMimeType(targetPath);
+    const contentType = getMimeType(filePath || resolvedAbsolutePath);
     if (!contentType.startsWith('image/')) {
       throw new UnsupportedMediaTypeException('지원하지 않는 파일 형식입니다.');
     }
 
-    this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
     response.setHeader('Content-Type', contentType);
     response.setHeader('Cache-Control', 'private, max-age=3600, must-revalidate');
-    response.status(200).send(fs.readFileSync(targetPath));
+    response.status(200).send(fs.readFileSync(resolvedAbsolutePath));
   }
 
   @Get('serve-attachment')
@@ -750,7 +759,7 @@ export class FileController {
     }
 
     this.collaborationService.assertMutationAllowed({ action: 'updateMetadata', paths: [filePath] });
-    this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
+    this.documentAclService.assertIsOwnerAbsolutePath(currentUser, targetPath);
     const projectedMetadata = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath);
     const existing = projectedMetadata
       ?? contentService.buildDefaultDocumentMetadata(

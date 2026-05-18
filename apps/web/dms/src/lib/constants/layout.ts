@@ -18,6 +18,10 @@ export const LAYOUT_SIZES = {
     tabMinWidth: 120,
     tabMaxWidth: 200,
   },
+  rightPanel: {
+    inset: 16,
+    overlayWidth: 504,
+  },
 } as const;
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {

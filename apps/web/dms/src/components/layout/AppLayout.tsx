@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { ShellFrame } from '@ssoo/web-shell';
 import { ChevronRight } from 'lucide-react';
-import { useLayoutStore, useSidebarStore } from '@/stores';
+import { useAccessStore, useAuthStore, useLayoutStore, useSettingsShellStore, useSettingsStore, useSidebarStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './sidebar';
@@ -11,7 +11,6 @@ import { Header } from './Header';
 import { TabBar } from './TabBar';
 import { ContentArea } from './ContentArea';
 import { SettingsShellContent, SettingsShellHeader, SettingsShellSidebar } from './settings/Shell';
-import { useSettingsShellStore, useSettingsStore } from '@/stores';
 
 // 본문 영역 최소 너비 (Viewer와 동일)
 const DOCUMENT_MIN_WIDTH = 975;
@@ -26,14 +25,17 @@ const DOCUMENT_MIN_WIDTH = 975;
  * 내부 탭 기반 화면 전환은 ContentArea가 담당한다.
  */
 export function AppLayout() {
-  const sidebarSections = React.useMemo(() => ['bookmarks', 'openTabs', 'fileTree', 'changes'] as const, []);
+  const sidebarAutoExpandSections = React.useMemo(() => ['bookmarks', 'openTabs', 'changes'] as const, []);
   const { deviceType } = useLayoutStore();
   const { isCompactMode, sidebarOpen, setCompactMode, toggleSidebar, setSidebarOpen, setExpandedSections } = useSidebarStore();
+  const fileTreeResetEpoch = useSidebarStore((state) => state.fileTreeResetEpoch);
+  const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
   const isSettingsShellActive = useSettingsShellStore((state) => state.isActive);
   const applyWorkspacePreferences = useSettingsShellStore((state) => state.applyWorkspacePreferences);
   const settingsConfig = useSettingsStore((state) => state.config);
   const isSettingsLoaded = useSettingsStore((state) => state.isLoaded);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
+  const canManageSettings = useAccessStore((state) => state.snapshot?.features.canManageSettings ?? false);
 
   // 창 크기에 따른 컴팩트 모드 자동 전환
   React.useEffect(() => {
@@ -51,9 +53,9 @@ export function AppLayout() {
   }, [setCompactMode]);
 
   React.useEffect(() => {
-    if (isSettingsLoaded) return;
+    if (!canManageSettings || isSettingsLoaded) return;
     void loadSettings();
-  }, [isSettingsLoaded, loadSettings]);
+  }, [canManageSettings, isSettingsLoaded, loadSettings]);
 
   React.useEffect(() => {
     const workspace = settingsConfig?.personal.workspace;
@@ -65,10 +67,10 @@ export function AppLayout() {
     const sections = settingsConfig?.personal.sidebar?.sections;
     if (!sections) return;
 
-    const nextExpandedSections = sidebarSections.filter((section) => sections[section]);
+    const nextExpandedSections = sidebarAutoExpandSections.filter((section) => sections[section]);
 
     setExpandedSections([...nextExpandedSections]);
-  }, [setExpandedSections, settingsConfig, sidebarSections]);
+  }, [setExpandedSections, settingsConfig, sidebarAutoExpandSections]);
 
   // 사용자 변경 시 client-side state 일괄 cleanup 은 `lib/user-scope` 의 registry 가 처리.
   // 각 store 가 자체 등록 → useAuthStore 변경을 zustand subscribe 가 감지 → 모든 listener emit.
@@ -98,6 +100,7 @@ export function AppLayout() {
           />
         ) : (
           <Sidebar
+            key={`dms-sidebar-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`}
             isCompactMode={isCompactMode}
             isOpen={!isCompactMode || sidebarOpen}
             onClose={() => setSidebarOpen(false)}

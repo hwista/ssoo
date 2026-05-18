@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, ImageIcon, Bookmark } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
-import { useFileStore, useSidebarStore, useTabStore, useActiveEditorFilePath } from '@/stores';
+import { useAuthStore, useFileStore, useSidebarStore, useTabStore, useActiveEditorFilePath } from '@/stores';
 import { useOpenDocumentTab } from '@/hooks';
 import { filterFileTree } from '@/lib/utils/fileTree';
 import type { FileNode } from '@/types';
@@ -45,13 +45,18 @@ function getFileIcon(name: string, isSelected: boolean) {
  * 파일 트리 노드 (PMS SidebarMenuTree 스타일)
  */
 function FileTreeNode({ node, level }: FileTreeNodeProps) {
-  const { expandedFolders, toggleFolder } = useSidebarStore();
+  const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
+  const { expandedFolders, fileTreeOwnerUserId, toggleFolder } = useSidebarStore();
   const activeTabId = useTabStore(state => state.activeTabId);
   const currentFilePath = useActiveEditorFilePath(activeTabId);
   const openDocumentTab = useOpenDocumentTab();
   const { addBookmark, removeBookmark, isBookmarked } = useFileStore();
   
-  const isExpanded = expandedFolders.has(node.path);
+  const isExpanded = Boolean(
+    currentUserId
+    && fileTreeOwnerUserId === currentUserId
+    && expandedFolders.has(node.path)
+  );
   const isFolder = node.type === 'directory';
   const hasChildren = node.children && node.children.length > 0;
   
@@ -177,15 +182,20 @@ function sortNodes(nodes: FileNode[]): FileNode[] {
  * 사이드바 전체 파일 트리 (PMS MenuTree 스타일)
  */
 export function FileTree() {
-  const { files, isLoading, isInitialized } = useFileStore();
-  const { searchQuery } = useSidebarStore();
+  const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
+  const { files, filesOwnerUserId, isLoading, isInitialized } = useFileStore();
+  const { fileTreeResetEpoch, searchOwnerUserId, searchQuery } = useSidebarStore();
+  const isCurrentFileTree = Boolean(currentUserId && filesOwnerUserId === currentUserId);
+  const isScopedInitialized = isInitialized && isCurrentFileTree;
+  const scopedSearchQuery = currentUserId && searchOwnerUserId === currentUserId ? searchQuery : '';
   
   const displayTree = useMemo(() => {
-    const filtered = searchQuery ? filterFileTree(files, searchQuery) : files;
+    const sourceFiles = isCurrentFileTree ? files : [];
+    const filtered = scopedSearchQuery ? filterFileTree(sourceFiles, scopedSearchQuery) : sourceFiles;
     return sortNodes(filtered);
-  }, [files, searchQuery]);
+  }, [files, isCurrentFileTree, scopedSearchQuery]);
 
-  if (isLoading && !isInitialized) {
+  if (isLoading && !isScopedInitialized) {
     return (
       <div className="px-3 py-4 flex items-center justify-center">
         <LoadingSpinner message="파일을 불러오는 중..." className="text-gray-400" />
@@ -196,13 +206,13 @@ export function FileTree() {
   if (displayTree.length === 0) {
     return (
       <div className="px-3 py-4 text-body-sm text-gray-400 text-center">
-        {searchQuery ? '검색 결과가 없습니다.' : '파일이 없습니다.'}
+        {scopedSearchQuery ? '검색 결과가 없습니다.' : '파일이 없습니다.'}
       </div>
     );
   }
 
   return (
-    <div className="py-1">
+    <div className="py-1" key={`file-tree-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`}>
       {displayTree.map((node) => (
         <FileTreeNode key={node.path} node={node} level={0} />
       ))}

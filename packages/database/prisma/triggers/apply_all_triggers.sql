@@ -23,6 +23,9 @@
 \echo 'Installing: cm_user_h trigger...'
 \i 02_cm_user_h_trigger.sql
 
+\echo 'Installing: cm_notification_h trigger...'
+\i 57_cm_notification_h_trigger.sql
+
 \echo 'Installing: pr_project_h trigger...'
 \i 03_pr_project_h_trigger.sql
 

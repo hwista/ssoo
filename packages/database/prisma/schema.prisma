@@ -413,6 +413,52 @@ model User {
 }
 
 // ============================================
+// Common Notification (공통 알림) - cm_notification_m
+// ============================================
+model CommonNotification {
+  id BigInt @id @default(autoincrement()) @map("notification_id")
+
+  recipientUserId  BigInt  @map("recipient_user_id")
+  actorUserId      BigInt? @map("actor_user_id")
+  sourceAppCode    String  @map("source_app_code") @db.VarChar(20)
+  notificationType String  @map("notification_type") @db.VarChar(80)
+  severityCode     String  @default("info") @map("severity_code") @db.VarChar(20)
+
+  title   String  @db.VarChar(200)
+  message String? @db.VarChar(1000)
+
+  referenceType String? @map("reference_type") @db.VarChar(50)
+  referenceId   String? @map("reference_id") @db.VarChar(100)
+  referencePath String? @map("reference_path") @db.VarChar(500)
+
+  actionType    String? @map("action_type") @db.VarChar(80)
+  actionPayload Json?   @map("action_payload") @db.JsonB
+  dedupeKey     String? @map("dedupe_key") @db.VarChar(300)
+
+  isRead     Boolean   @default(false) @map("is_read")
+  readAt     DateTime? @map("read_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  // Common columns
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@unique([recipientUserId, dedupeKey], name: "ux_cm_notification_m_recipient_dedupe")
+  @@index([recipientUserId, isRead, createdAt], name: "ix_cm_notification_m_recipient_read")
+  @@index([sourceAppCode, notificationType, createdAt], name: "ix_cm_notification_m_source_type")
+  @@index([actorUserId], name: "ix_cm_notification_m_actor")
+  @@map("cm_notification_m")
+  @@schema("common")
+}
+
+// ============================================
 // User Auth Account - cm_user_auth_m
 // auth/account 상태 전용 브리지 테이블
 // ============================================
@@ -1982,6 +2028,50 @@ model UserHistory {
   @@index([eventAt], name: "ix_cm_user_h_event_at")
   @@index([transactionId], name: "ix_cm_user_h_tx")
   @@map("cm_user_h")
+  @@schema("common")
+}
+
+// ============================================
+// Common Notification History - cm_notification_h
+// ============================================
+model CommonNotificationHistory {
+  notificationId BigInt @map("notification_id")
+  historySeq     BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at") @db.Timestamptz(6)
+
+  recipientUserId  BigInt  @map("recipient_user_id")
+  actorUserId      BigInt? @map("actor_user_id")
+  sourceAppCode    String  @map("source_app_code") @db.VarChar(20)
+  notificationType String  @map("notification_type") @db.VarChar(80)
+  severityCode     String  @map("severity_code") @db.VarChar(20)
+  title            String  @db.VarChar(200)
+  message          String? @db.VarChar(1000)
+  referenceType    String? @map("reference_type") @db.VarChar(50)
+  referenceId      String? @map("reference_id") @db.VarChar(100)
+  referencePath    String? @map("reference_path") @db.VarChar(500)
+  actionType       String? @map("action_type") @db.VarChar(80)
+  actionPayload    Json?   @map("action_payload") @db.JsonB
+  dedupeKey        String? @map("dedupe_key") @db.VarChar(300)
+  isRead           Boolean @map("is_read")
+  readAt           DateTime? @map("read_at") @db.Timestamptz(6)
+  archivedAt       DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  isActive      Boolean  @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([notificationId, historySeq], name: "pk_cm_notification_h")
+  @@index([eventAt], name: "ix_cm_notification_h_event_at")
+  @@index([transactionId], name: "ix_cm_notification_h_tx")
+  @@map("cm_notification_h")
   @@schema("common")
 }
 

@@ -165,3 +165,49 @@ export async function proxySessionBackedBinaryResponse(
     headers: responseHeaders,
   });
 }
+
+export async function proxySessionBackedStreamResponse(
+  request: Request,
+  pathname: string,
+): Promise<Response> {
+  const incomingAuthorization = request.headers.get('authorization');
+  let sessionResponse: Response | null = null;
+  let upstreamHeaders: HeadersInit | undefined = {
+    Accept: 'text/event-stream',
+    'Cache-Control': 'no-cache',
+  };
+
+  if (!incomingAuthorization) {
+    const restoredSession = await restoreServerAccessToken(request);
+    if ('errorResponse' in restoredSession) {
+      return restoredSession.errorResponse;
+    }
+
+    sessionResponse = restoredSession.sessionResponse;
+    upstreamHeaders = {
+      ...upstreamHeaders,
+      Authorization: `Bearer ${restoredSession.accessToken}`,
+    };
+  }
+
+  const response = await fetch(
+    createServerApiUrl(pathname),
+    createServerApiProxyInit(request, {
+      headers: upstreamHeaders,
+    }),
+  );
+
+  const responseHeaders = new Headers(response.headers);
+  responseHeaders.set('Cache-Control', 'no-cache, no-transform');
+  responseHeaders.set('Content-Type', 'text/event-stream; charset=utf-8');
+  responseHeaders.set('X-Accel-Buffering', 'no');
+  if (sessionResponse) {
+    appendSetCookieHeader(responseHeaders, sessionResponse);
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders,
+  });
+}

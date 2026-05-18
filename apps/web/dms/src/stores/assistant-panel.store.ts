@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { generateAssistantSuggestions } from '@/lib/assistant/assistantSuggestions';
-import { registerUserScopedReset } from '@/lib/user-scope';
+import { isUserScopeTransition, registerUserScopedReset } from '@/lib/user-scope';
 
 interface AssistantPanelState {
   isOpen: boolean;
@@ -50,7 +50,7 @@ export const useAssistantPanelStore = create<AssistantPanelStore>()((set) => ({
 
 // 사용자 변경 시 어시스턴트 패널 닫고 draft 비움
 registerUserScopedReset((next, prev) => {
-  if (prev !== null && prev !== next) {
+  if (isUserScopeTransition(next, prev)) {
     const { closePanel, resetDraftState } = useAssistantPanelStore.getState();
     closePanel();
     resetDraftState();

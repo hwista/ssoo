@@ -5,6 +5,7 @@ import type {
   CreateDmsDocumentAccessRequestPayload,
   CreateDmsDocumentDirectGrantPayload,
   DmsDocumentAccessRequestListQuery,
+  DmsDocumentAccessRequestRole,
   DmsDocumentAccessRequestStatusFilter,
   RejectDmsDocumentAccessRequestPayload,
   TransferDocumentOwnershipPayload,
@@ -16,16 +17,31 @@ export const DMS_DOCUMENT_ACCESS_REQUEST_STATUS_FILTERS = [
   'pending',
   'approved',
   'rejected',
+  'cancelled',
   'expired',
   'revoked',
 ] as const;
 
+export const DMS_DOCUMENT_ACCESS_REQUEST_ROLES = [
+  'read',
+  'write',
+] as const;
+
 export class CreateReadAccessRequestDto
   implements CreateDmsDocumentAccessRequestPayload {
-  @ApiProperty({ description: '읽기 권한을 요청할 문서 경로' })
+  @ApiProperty({ description: '권한을 요청할 문서 경로' })
   @IsString()
   @MinLength(1)
   path!: string;
+
+  @ApiPropertyOptional({
+    description: '요청 권한. 검색 결과에서는 read, 문서 내부에서는 write 요청까지 허용',
+    enum: DMS_DOCUMENT_ACCESS_REQUEST_ROLES,
+    default: 'read',
+  })
+  @IsOptional()
+  @IsIn(DMS_DOCUMENT_ACCESS_REQUEST_ROLES)
+  requestedRole?: DmsDocumentAccessRequestRole;
 
   @ApiPropertyOptional({ description: '요청 메시지', maxLength: 500 })
   @IsOptional()
@@ -58,6 +74,14 @@ export class ListAccessRequestsDto
 
 export class ApproveReadAccessRequestDto
   implements ApproveDmsDocumentAccessRequestPayload {
+  @ApiPropertyOptional({
+    description: '승인할 grant 권한. manage 는 승인 대상이 아님',
+    enum: DMS_DOCUMENT_ACCESS_REQUEST_ROLES,
+  })
+  @IsOptional()
+  @IsIn(DMS_DOCUMENT_ACCESS_REQUEST_ROLES)
+  grantRole?: DmsDocumentAccessRequestRole;
+
   @ApiPropertyOptional({ description: '응답 메시지', maxLength: 500 })
   @IsOptional()
   @IsString()
@@ -110,6 +134,13 @@ export class CreateDirectGrantDto implements CreateDmsDocumentDirectGrantPayload
   @IsString()
   @MinLength(1)
   principalUserId!: string;
+
+  @ApiProperty({
+    description: '부여할 권한. manage 는 직접 부여할 수 없음',
+    enum: DMS_DOCUMENT_ACCESS_REQUEST_ROLES,
+  })
+  @IsIn(DMS_DOCUMENT_ACCESS_REQUEST_ROLES)
+  role!: DmsDocumentAccessRequestRole;
 
   @ApiPropertyOptional({ description: '권한 만료 시각 (ISO 8601), 미지정 시 무기한' })
   @IsOptional()

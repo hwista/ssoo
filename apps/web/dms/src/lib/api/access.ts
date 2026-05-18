@@ -63,6 +63,14 @@ export const accessApi = {
       payload,
     )
   ),
+  cancelRequest: (
+    accessRequestId: string,
+  ) => (
+    post<DmsDocumentAccessRequestSummary>(
+      `/api/access/requests/${encodeURIComponent(accessRequestId)}/cancel`,
+      {},
+    )
+  ),
   updateDocumentVisibility: (
     documentId: string,
     payload: UpdateDocumentVisibilityPayload,

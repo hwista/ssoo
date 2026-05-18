@@ -107,6 +107,19 @@ export class AccessRequestController {
     return success(await this.accessRequestService.rejectReadRequest(currentUser, accessRequestId, dto));
   }
 
+  @Post(':accessRequestId/cancel')
+  @RequireDmsFeature('canUseSearch')
+  @ApiOperation({ summary: '내 문서 권한 요청 취소' })
+  @ApiOkResponse({ description: '취소된 권한 요청 반환' })
+  @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
+  @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
+  async cancel(
+    @CurrentUser() currentUser: TokenPayload,
+    @Param('accessRequestId') accessRequestId: string,
+  ) {
+    return success(await this.accessRequestService.cancelReadRequest(currentUser, accessRequestId));
+  }
+
   @Patch('documents/:documentId/visibility')
   @RequireDmsFeature('canReadDocuments')
   @ApiOperation({ summary: '문서 공개범위 변경 (소유자 전용)' })

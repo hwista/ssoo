@@ -32,6 +32,24 @@ export type {
   PermissionResolutionTrace,
 } from './access';
 
+// Notification
+export type {
+  CommonNotificationAction,
+  CommonNotificationActionType,
+  CommonNotificationItem,
+  CommonNotificationJsonValue,
+  CommonNotificationArchiveResult,
+  CommonNotificationListQuery,
+  CommonNotificationListResult,
+  CommonNotificationMarkAllReadResult,
+  CommonNotificationReference,
+  CommonNotificationSeverity,
+  CommonNotificationSourceApp,
+  CommonNotificationStreamEvent,
+  CommonNotificationStreamEventType,
+  CommonNotificationUnreadCountResult,
+} from './notification';
+
 // User
 export type {
   UserRole,

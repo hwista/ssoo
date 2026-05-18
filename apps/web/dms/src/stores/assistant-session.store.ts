@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { DmsDocumentAccessRequestState } from '@ssoo/types/dms';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
-import { registerUserScopedReset } from '@/lib/user-scope';
+import { registerUserScopedReset, shouldResetPersistedUserState } from '@/lib/user-scope';
 
 export interface AssistantSearchResult {
   id: string;
@@ -77,6 +77,10 @@ interface AssistantSessionActions {
 type AssistantSessionStore = AssistantSessionState & AssistantSessionActions;
 
 const createClientId = () => `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+function hasAssistantSessionData(state: Pick<AssistantSessionState, 'messages' | 'sessions' | 'activeSessionId'>): boolean {
+  return state.messages.length > 0 || state.sessions.length > 0 || state.activeSessionId !== null;
+}
 
 const sortSessions = (sessions: AssistantSession[]) => (
   [...sessions].sort((a, b) => {
@@ -266,7 +270,7 @@ export const useAssistantSessionStore = create<AssistantSessionStore>()(
 registerUserScopedReset((next) => {
   if (next === null) return;
   const state = useAssistantSessionStore.getState();
-  if (state.ownerUserId !== null && state.ownerUserId !== next) {
+  if (shouldResetPersistedUserState(next, state.ownerUserId, hasAssistantSessionData(state))) {
     useAssistantSessionStore.setState({
       clientId: createClientId(),
       messages: [],

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "check:shell-body-contract": "node scripts/validate-shell-body-contract.mjs",
-    "check:golden-example": "node scripts/validate-golden-example.mjs"
+    "check:golden-example": "node scripts/validate-golden-example.mjs",
+    "check:user-scope-contract": "node scripts/validate-user-scope-contract.mjs"
   },
   "dependencies": {
     "@ai-sdk/azure": "^3.0.28",

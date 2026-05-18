@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Search, Plus, Bell } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { useAccessStore, useTabStore } from '@/stores';
 import { UserMenu } from './UserMenu';
+import { HeaderNotifications } from './HeaderNotifications';
 
 /**
  * DMS 상단 헤더 컴포넌트
@@ -101,15 +102,7 @@ export function Header() {
           <span>새 도큐먼트</span>
         </button>
 
-        {/* 알림 */}
-        <button
-          className="relative h-control-h w-control-h flex items-center justify-center hover:bg-white/10 rounded-md transition-colors"
-          title="알림"
-        >
-          <Bell className="w-5 h-5 text-white" />
-          {/* 알림 뱃지 (임시) */}
-          <span className="absolute top-1 right-1 w-2 h-2 bg-ls-red rounded-full" />
-        </button>
+        <HeaderNotifications />
 
         {/* 사용자 프로필 */}
         <UserMenu dropdownWidth={actionsWidth} />

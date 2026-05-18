@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AuthLoadingScreen, AuthStandardLoginCard } from '@ssoo/web-auth';
 import { useAuthStore } from '@/stores';
 import { APP_HOME_PATH } from '@/lib/constants/routes';
+import { resetDmsFileTreeSession } from '@/lib/file-tree-session';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +20,11 @@ export default function LoginPage() {
     }
   }, [hasHydrated, isAuthenticated, router]);
 
+  useEffect(() => {
+    if (!hasHydrated || isAuthenticated) return;
+    resetDmsFileTreeSession();
+  }, [hasHydrated, isAuthenticated]);
+
   if (!hasHydrated) {
     return <AuthLoadingScreen />;
   }
@@ -31,6 +37,7 @@ export default function LoginPage() {
     <AuthStandardLoginCard
       isLoading={isLoading}
       onSubmit={async ({ loginId, password }) => {
+        resetDmsFileTreeSession();
         await login(loginId, password);
         router.replace(APP_HOME_PATH);
       }}

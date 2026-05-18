@@ -17,6 +17,7 @@ export interface TabItem {
   icon?: string;
   path: string;          // DMS 필수 (파일 경로 기반)
   isEditing?: boolean;
+  reloadSeq?: number;
   closable: boolean;
   openedAt: Date;
   lastActiveAt: Date;
@@ -32,6 +33,7 @@ export interface OpenTabOptions {
   path: string;          // DMS 필수
   closable?: boolean;
   activate?: boolean;
+  reloadOnExisting?: boolean;
 }
 
 /**

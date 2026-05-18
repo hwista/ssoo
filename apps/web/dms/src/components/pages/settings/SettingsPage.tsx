@@ -52,10 +52,14 @@ export function SettingsPage() {
     activeScope,
     activeSectionId,
     activeViewMode,
+    openSection,
     setSection,
     setViewMode,
   } = useSettingsShellStore();
   const canManageSettings = useAccessStore((state) => state.snapshot?.features.canManageSettings ?? false);
+  const canViewOwnAccessRequests = useAccessStore((state) => state.snapshot?.features.canUseSearch ?? false);
+  const canOperateDocumentAccess = useAccessStore((state) => state.snapshot?.features.canReadDocuments ?? false);
+  const canUseAccessCenter = canViewOwnAccessRequests || canOperateDocumentAccess;
   const queryClient = useQueryClient();
 
   const [localConfig, setLocalConfig] = useState<Record<string, unknown>>({});
@@ -73,12 +77,24 @@ export function SettingsPage() {
   const runtimeSectionIds = useMemo(() => new Set(['git', 'storage', 'ingest', 'templates-runtime']), []);
 
   useEffect(() => {
+    if (!canManageSettings || activeSectionId === 'documentAccess') {
+      return;
+    }
     const includeRuntime = runtimeSectionIds.has(activeSectionId);
     if (isLoaded && (!includeRuntime || runtime)) {
       return;
     }
     void loadSettings(includeRuntime);
-  }, [activeSectionId, isLoaded, loadSettings, runtime, runtimeSectionIds]);
+  }, [activeSectionId, canManageSettings, isLoaded, loadSettings, runtime, runtimeSectionIds]);
+
+  useEffect(() => {
+    if (canManageSettings || !canUseAccessCenter) {
+      return;
+    }
+    if (activeScope !== 'system' || activeSectionId !== 'documentAccess') {
+      openSection('system', 'documentAccess');
+    }
+  }, [activeScope, activeSectionId, canManageSettings, canUseAccessCenter, openSection]);
 
   useEffect(() => {
     if (!config) return;
@@ -93,11 +109,21 @@ export function SettingsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [saveSuccess]);
 
-  const scopeSections = useMemo(() => getSettingSectionsByScope(activeScope), [activeScope]);
+  const allScopeSections = useMemo(() => getSettingSectionsByScope(activeScope), [activeScope]);
+  const scopeSections = useMemo(() => {
+    if (canManageSettings) {
+      return allScopeSections;
+    }
+    if (activeScope === 'system' && canUseAccessCenter) {
+      return allScopeSections.filter((section) => section.id === 'documentAccess');
+    }
+    return [];
+  }, [activeScope, allScopeSections, canManageSettings, canUseAccessCenter]);
   const currentSection = useMemo(() => {
     return scopeSections.find((section) => section.id === activeSectionId) ?? scopeSections[0];
   }, [activeSectionId, scopeSections]);
   const isCustomSection = currentSection?.kind === 'custom';
+  const isAccessCenterSection = currentSection?.slotKey === 'document-access';
   const isAdminTemplateSection = currentSection?.slotKey === 'admin-templates';
   const templateListQuery = useTemplateList({
     enabled: isAdminTemplateSection,
@@ -407,6 +433,10 @@ export function SettingsPage() {
   }, [activeViewMode, currentSection, hasSectionJsonChanges, keyToLabel, modifiedKeys]);
 
   const headerActions = useMemo<HeaderAction[]>(() => {
+    if (isCustomSection) {
+      return [];
+    }
+
     const actions: HeaderAction[] = [];
 
     if (hasChanges) {
@@ -436,7 +466,7 @@ export function SettingsPage() {
     });
 
     return actions;
-  }, [activeViewMode, handleReset, handleSave, hasChanges, hasValidationErrors, isSaving, parsedJsonDraft.success, pendingLabels.length]);
+  }, [activeViewMode, handleReset, handleSave, hasChanges, hasValidationErrors, isCustomSection, isSaving, parsedJsonDraft.success, pendingLabels.length]);
 
   const viewerRightSlot = currentSection && supportsJsonModes ? (
     <div className="flex items-center gap-2">
@@ -459,10 +489,36 @@ export function SettingsPage() {
   ) : null;
 
   if (!currentSection) {
-    return null;
+    if (!canManageSettings && !canUseAccessCenter) {
+      return (
+        <PageTemplate
+          filePath="settings"
+          mode="viewer"
+          description="권한 요청/승인 또는 설정 권한이 필요합니다."
+          panelMode="hidden"
+        >
+          <div className="flex h-full items-center justify-center">
+            <ErrorState error="권한 요청/승인 또는 설정 화면을 사용할 권한이 없습니다." />
+          </div>
+        </PageTemplate>
+      );
+    }
+
+    return (
+      <PageTemplate
+        filePath="settings/documentAccess"
+        mode="viewer"
+        description="권한 요청/승인 화면으로 이동 중입니다."
+        panelMode="hidden"
+      >
+        <div className="flex h-full items-center justify-center">
+          <LoadingSpinner message="권한 요청/승인 화면으로 이동 중입니다." className="text-ssoo-primary/70" />
+        </div>
+      </PageTemplate>
+    );
   }
 
-  if (!canManageSettings) {
+  if (!canManageSettings && !isAccessCenterSection) {
     return (
       <PageTemplate
         filePath="settings"
@@ -498,7 +554,7 @@ export function SettingsPage() {
 
         <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-ssoo-content-border bg-white">
           <main className="h-full min-h-0 overflow-y-auto p-4">
-            {topStatusBanner}
+            {canManageSettings ? topStatusBanner : null}
 
             {hasChanges && pendingLabels.length > 0 && (
               <section className="mb-3 rounded-md border border-ssoo-content-border bg-ssoo-content-bg/50 px-3 py-2">
@@ -512,7 +568,7 @@ export function SettingsPage() {
             {runtimePathSurface}
             {currentSection.id === 'git' && <GitObservabilitySurface git={runtime?.git ?? null} />}
 
-            {isLoading ? (
+            {isLoading && !isCustomSection ? (
               <div className="flex min-h-full items-center justify-center">
                 <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
               </div>

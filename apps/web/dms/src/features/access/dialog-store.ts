@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import type { DmsDocumentAccessRequestState } from '@ssoo/types/dms';
+import { isUserScopeTransition, registerUserScopedReset } from '@/lib/user-scope';
 
 export interface DocumentAccessRequestTarget {
   title: string;
@@ -21,6 +22,7 @@ interface DocumentAccessRequestStoreActions {
   close: () => void;
   setRequestState: (path: string, state: DmsDocumentAccessRequestState) => void;
   clearRequestState: (path: string) => void;
+  reset: () => void;
 }
 
 export function normalizeDocumentAccessRequestPath(path: string): string {
@@ -48,4 +50,11 @@ export const useDocumentAccessRequestStore = create<
       overrides: nextOverrides,
     };
   }),
+  reset: () => set({ isOpen: false, target: null, overrides: {} }),
 }));
+
+registerUserScopedReset((next, prev) => {
+  if (isUserScopeTransition(next, prev)) {
+    useDocumentAccessRequestStore.getState().reset();
+  }
+});

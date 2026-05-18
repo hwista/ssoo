@@ -35,7 +35,7 @@ export function AuthUserMenu({
   fallbackSecondaryLabel = null,
 }: AuthUserMenuProps) {
   const loginId = user?.loginId ?? fallbackLoginId;
-  const displayName = user?.userName ?? loginId;
+  const displayName = user?.userName?.trim() || loginId;
   const resolvedSecondaryLabel = secondaryLabel ?? fallbackSecondaryLabel;
 
   return (

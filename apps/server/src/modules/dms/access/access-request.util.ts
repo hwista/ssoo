@@ -262,6 +262,7 @@ export function buildRequestSummary(
     pending: 0,
     approved: 0,
     rejected: 0,
+    cancelled: 0,
     expired: 0,
     revoked: 0,
   };
@@ -272,6 +273,8 @@ export function buildRequestSummary(
       summary.pending += 1;
     } else if (request.statusCode === 'rejected') {
       summary.rejected += 1;
+    } else if (request.statusCode === 'cancelled') {
+      summary.cancelled += 1;
     } else if (request.statusCode === 'approved') {
       const grant = request.generatedGrant;
       if (grant?.revokedAt instanceof Date) {

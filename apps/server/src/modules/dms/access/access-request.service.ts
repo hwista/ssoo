@@ -8,6 +8,7 @@ import type {
   CreateDmsDocumentDirectGrantPayload,
   DmsDocumentAccessRequestActor,
   DmsDocumentAccessRequestListQuery,
+  DmsDocumentAccessRequestRole,
   DmsDocumentAccessRequestState,
   DmsDocumentAccessRequestStatus,
   DmsDocumentAccessRequestSummary,
@@ -19,6 +20,7 @@ import type {
   TransferDocumentOwnershipResult,
 } from '@ssoo/types/dms';
 import { DatabaseService } from '../../../database/database.service.js';
+import { CommonNotificationService } from '../../common/notification/notification.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { configService } from '../runtime/dms-config.service.js';
 import { contentService } from '../runtime/content.service.js';
@@ -56,7 +58,8 @@ import {
   toRequestState,
 } from './access-request.util.js';
 
-const READ_REQUEST_ROLE = 'read';
+const DEFAULT_REQUEST_ROLE: DmsDocumentAccessRequestRole = 'read';
+const GRANTABLE_REQUEST_ROLES: readonly DmsDocumentAccessRequestRole[] = ['read', 'write'];
 const logger = createDmsLogger('DmsAccessRequestService');
 
 interface AccessRequestDocumentRecord {
@@ -146,6 +149,7 @@ export class AccessRequestService {
     private readonly documentRecordService: DocumentRecordService,
     private readonly controlPlaneSyncService: ControlPlaneSyncService,
     private readonly eventsGateway: DmsEventsGateway,
+    private readonly notificationService: CommonNotificationService,
   ) {}
 
   async createReadRequest(
@@ -155,11 +159,18 @@ export class AccessRequestService {
     await this.ensureRepoControlPlaneSynced();
     const { absolutePath, relativePath } = this.resolveDocumentPath(payload.path);
     const access = this.documentAclService.describeSearchResultAccess(user, absolutePath);
-    if (access.isReadable) {
+    const requestedRole = this.resolveRequestedRole(payload.requestedRole);
+    if (requestedRole === 'read' && access.isReadable) {
       throw new BadRequestException('이미 문서를 읽을 수 있습니다.');
     }
-    if (!access.canRequestRead) {
+    if (requestedRole === 'read' && !access.canRequestRead) {
       throw new BadRequestException('읽기 권한을 요청할 수 없는 문서입니다.');
+    }
+    if (requestedRole === 'write' && !access.isReadable) {
+      throw new BadRequestException('쓰기 권한 요청은 읽을 수 있는 문서 안에서만 가능합니다.');
+    }
+    if (requestedRole === 'write' && this.documentAclService.isWritableAbsolutePath(user, absolutePath)) {
+      throw new BadRequestException('이미 문서를 수정할 수 있습니다.');
     }
 
     const requestedExpiresAt = this.parseFutureDate(payload.requestedExpiresAt, 'requestedExpiresAt');
@@ -170,7 +181,7 @@ export class AccessRequestService {
       where: {
         documentId: document.documentId,
         requesterUserId,
-        requestedRole: READ_REQUEST_ROLE,
+        requestedRole,
         statusCode: 'pending',
         isActive: true,
       },
@@ -190,7 +201,7 @@ export class AccessRequestService {
       data: {
         documentId: document.documentId,
         requesterUserId,
-        requestedRole: READ_REQUEST_ROLE,
+        requestedRole,
         statusCode: 'pending',
         requestMessage: normalizeOptionalText(payload.requestMessage),
         requestedExpiresAt,
@@ -205,7 +216,9 @@ export class AccessRequestService {
     const actors = await this.loadActors([
       created.requesterUserId,
       created.respondedByUserId,
+      created.document.ownerUserId,
     ]);
+    await this.notifyAccessRequestCreated(created, actors, user);
     return this.toAccessRequestSummary(created, actors, false);
   }
 
@@ -217,7 +230,6 @@ export class AccessRequestService {
     const requests = await this.db.client.dmsDocumentAccessRequest.findMany({
       where: {
         requesterUserId,
-        requestedRole: READ_REQUEST_ROLE,
         isActive: true,
         ...(query.status && query.status !== 'all'
           ? { statusCode: query.status }
@@ -247,7 +259,6 @@ export class AccessRequestService {
     await this.ensureRepoControlPlaneSynced();
     const requests = await this.db.client.dmsDocumentAccessRequest.findMany({
       where: {
-        requestedRole: READ_REQUEST_ROLE,
         isActive: true,
         ...(query.status && query.status !== 'all'
           ? { statusCode: query.status }
@@ -267,7 +278,7 @@ export class AccessRequestService {
       }
       const absolutePath = resolveAbsolutePath(request.document.relativePath, rootDir);
       return fs.existsSync(absolutePath)
-        && this.documentAclService.isManageableAbsolutePath(user, absolutePath);
+        && request.document.ownerUserId.toString() === user.userId;
     });
 
     const actors = await this.loadActors(
@@ -280,13 +291,8 @@ export class AccessRequestService {
   async listManageableDocuments(user: TokenPayload): Promise<DmsManagedDocumentSummary[]> {
     await this.ensureRepoControlPlaneSynced();
     const rootDir = configService.getDocDir();
-    const manageablePaths = listMarkdownFiles(rootDir)
-      .filter((absolutePath) => this.documentAclService.isManageableAbsolutePath(user, absolutePath))
+    const documentPaths = listMarkdownFiles(rootDir)
       .sort((left, right) => left.localeCompare(right));
-
-    if (manageablePaths.length === 0) {
-      return [];
-    }
 
     const syncedDocuments: Array<{
       document: Awaited<ReturnType<DocumentRecordService['ensureDocumentRecord']>>;
@@ -295,13 +301,18 @@ export class AccessRequestService {
     }> = [];
     const fallbackDocuments: DmsManagedDocumentSummary[] = [];
 
-    for (const absolutePath of manageablePaths) {
+    for (const absolutePath of documentPaths) {
       const relativePath = this.normalizeRelativePath(path.relative(rootDir, absolutePath));
       try {
         const document = await this.documentRecordService.ensureDocumentRecord(relativePath);
+        if (document.ownerUserId.toString() !== user.userId) {
+          continue;
+        }
         syncedDocuments.push({ document, absolutePath, relativePath });
       } catch {
-        fallbackDocuments.push(buildFallbackManagedDocumentSummary(absolutePath, relativePath, rootDir));
+        if (this.documentAclService.isOwnerAbsolutePath(user, absolutePath)) {
+          fallbackDocuments.push(buildFallbackManagedDocumentSummary(absolutePath, relativePath, rootDir));
+        }
       }
     }
 
@@ -312,7 +323,6 @@ export class AccessRequestService {
     const requests = await this.db.client.dmsDocumentAccessRequest.findMany({
       where: {
         documentId: { in: syncedDocuments.map(({ document }) => document.documentId) },
-        requestedRole: READ_REQUEST_ROLE,
         isActive: true,
       },
       select: {
@@ -493,11 +503,7 @@ export class AccessRequestService {
       throw new NotFoundException('문서를 찾을 수 없습니다.');
     }
 
-    const rootDir = configService.getDocDir();
-    const absolutePath = resolveAbsolutePath(document.relativePath, rootDir);
-    if (!this.documentAclService.isManageableAbsolutePath(user, absolutePath)) {
-      throw new ForbiddenException('문서 소유권을 이전할 권한이 없습니다.');
-    }
+    this.assertDocumentOwnerFromRecord(user, document.ownerUserId, '문서 소유권을 이전할 권한이 없습니다.');
 
     const newOwner = await this.db.client.user.findFirst({
       where: {
@@ -617,6 +623,14 @@ export class AccessRequestService {
       `Document ${documentId} ownership transferred: user ${previousOwnerUserId} → user ${newOwner.id} (${newOwnerLoginId}) by user ${user.userId}`,
     );
 
+    await this.notifyOwnershipTransferred(
+      document.documentId,
+      document.relativePath,
+      previousOwnerUserId,
+      newOwner.id,
+      BigInt(user.userId),
+    );
+
     return {
       documentId: document.documentId.toString(),
       previousOwnerUserId: previousOwnerUserId.toString(),
@@ -640,10 +654,7 @@ export class AccessRequestService {
       throw new NotFoundException('문서를 찾을 수 없습니다.');
     }
 
-    const { absolutePath } = this.resolveDocumentPath(document.relativePath);
-    if (!this.documentAclService.isManageableAbsolutePath(user, absolutePath)) {
-      throw new ForbiddenException('문서 권한을 부여할 권한이 없습니다.');
-    }
+    this.assertDocumentOwnerFromRecord(user, document.ownerUserId, '문서 권한을 부여할 권한이 없습니다.');
 
     const grantee = await this.db.client.user.findUnique({
       where: { id: principalUserIdBigInt },
@@ -655,6 +666,7 @@ export class AccessRequestService {
 
     const grantExpiresAt = this.parseFutureDate(payload.grantExpiresAt, 'grantExpiresAt') ?? null;
     const granterUserId = BigInt(user.userId);
+    const grantRole = this.resolveGrantableRole(payload.role);
 
     const result = await this.db.client.$transaction(async (tx) => {
       const existing = await tx.dmsDocumentGrant.findFirst({
@@ -662,7 +674,7 @@ export class AccessRequestService {
           documentId: documentIdBigInt,
           principalType: 'user',
           principalRef: principalUserIdBigInt.toString(),
-          roleCode: READ_REQUEST_ROLE,
+          roleCode: grantRole,
         },
         select: { documentGrantId: true },
       });
@@ -694,7 +706,7 @@ export class AccessRequestService {
           documentId: documentIdBigInt,
           principalType: 'user',
           principalRef: principalUserIdBigInt.toString(),
-          roleCode: READ_REQUEST_ROLE,
+          roleCode: grantRole,
           grantSourceCode: 'direct',
           grantedFromRequestId: null,
           grantedAt: new Date(),
@@ -724,10 +736,19 @@ export class AccessRequestService {
       + `to user ${principalUserIdBigInt.toString()} by ${user.userId}`,
     );
 
+    await this.notifyDirectGrantCreated(
+      document.documentId,
+      document.relativePath,
+      principalUserIdBigInt,
+      BigInt(user.userId),
+      grantRole,
+    );
+
     return {
       grantId: result.documentGrantId.toString(),
       documentId: document.documentId.toString(),
       principalUserId: principalUserIdBigInt.toString(),
+      role: grantRole,
       grantExpiresAt: toIsoString(result.expiresAt),
     };
   }
@@ -757,11 +778,7 @@ export class AccessRequestService {
       throw new NotFoundException('문서를 찾을 수 없습니다.');
     }
 
-    const rootDir = configService.getDocDir();
-    const absolutePath = resolveAbsolutePath(document.relativePath, rootDir);
-    if (!this.documentAclService.isManageableAbsolutePath(user, absolutePath)) {
-      throw new ForbiddenException('grant를 취소할 권한이 없습니다.');
-    }
+    this.assertDocumentOwnerFromRecord(user, document.ownerUserId, 'grant를 취소할 권한이 없습니다.');
 
     const grant = await this.db.client.dmsDocumentGrant.findUnique({
       where: { documentGrantId: BigInt(grantId) },
@@ -822,6 +839,8 @@ export class AccessRequestService {
       `Grant ${grantId} revoked for document ${documentId} by user ${user.userId}`,
     );
 
+    await this.notifyGrantRevoked(document.documentId, document.relativePath, grant, callerUserId);
+
     return { grantId: grant.documentGrantId.toString(), documentId: document.documentId.toString() };
   }
 
@@ -833,10 +852,8 @@ export class AccessRequestService {
     const request = await this.getRequestByIdOrThrow(accessRequestId);
     this.assertPendingRequest(request);
 
-    const { absolutePath } = this.resolveDocumentPath(request.document.relativePath);
-    if (!this.documentAclService.isManageableAbsolutePath(user, absolutePath)) {
-      throw new ForbiddenException('요청을 승인할 권한이 없습니다.');
-    }
+    const grantRole = this.resolveApprovalGrantRole(request.requestedRole, payload.grantRole);
+    this.assertDocumentOwnerFromRecord(user, request.document.ownerUserId, '요청을 승인할 권한이 없습니다.');
 
     const responderUserId = BigInt(user.userId);
     const grantExpiresAt = this.parseFutureDate(payload.grantExpiresAt, 'grantExpiresAt')
@@ -849,7 +866,7 @@ export class AccessRequestService {
           documentId: request.documentId,
           principalType: 'user',
           principalRef: request.requesterUserId.toString(),
-          roleCode: READ_REQUEST_ROLE,
+          roleCode: grantRole,
         },
         select: {
           documentGrantId: true,
@@ -883,7 +900,7 @@ export class AccessRequestService {
             documentId: request.documentId,
             principalType: 'user',
             principalRef: request.requesterUserId.toString(),
-            roleCode: READ_REQUEST_ROLE,
+            roleCode: grantRole,
             grantSourceCode: 'request',
             grantedFromRequestId: request.accessRequestId,
             grantedAt: new Date(),
@@ -929,6 +946,7 @@ export class AccessRequestService {
       approved.requesterUserId,
       approved.respondedByUserId,
     ]);
+    await this.notifyAccessRequestApproved(approved, grantRole, responderUserId);
     return this.toAccessRequestSummary(approved, actors, true);
   }
 
@@ -940,10 +958,7 @@ export class AccessRequestService {
     const request = await this.getRequestByIdOrThrow(accessRequestId);
     this.assertPendingRequest(request);
 
-    const { absolutePath } = this.resolveDocumentPath(request.document.relativePath);
-    if (!this.documentAclService.isManageableAbsolutePath(user, absolutePath)) {
-      throw new ForbiddenException('요청을 거절할 권한이 없습니다.');
-    }
+    this.assertDocumentOwnerFromRecord(user, request.document.ownerUserId, '요청을 거절할 권한이 없습니다.');
 
     const responderUserId = BigInt(user.userId);
     const rejected = await this.db.client.dmsDocumentAccessRequest.update({
@@ -966,7 +981,60 @@ export class AccessRequestService {
       rejected.requesterUserId,
       rejected.respondedByUserId,
     ]);
+    await this.notifyAccessRequestRejected(rejected, responderUserId);
     return this.toAccessRequestSummary(rejected, actors, true);
+  }
+
+  async cancelReadRequest(
+    user: TokenPayload,
+    accessRequestId: string,
+  ): Promise<DmsDocumentAccessRequestSummary> {
+    const request = await this.getRequestByIdOrThrow(accessRequestId);
+    this.assertPendingRequest(request);
+
+    const requesterUserId = BigInt(user.userId);
+    if (request.requesterUserId !== requesterUserId) {
+      throw new ForbiddenException('본인이 보낸 권한 요청만 취소할 수 있습니다.');
+    }
+
+    const updateResult = await this.db.client.dmsDocumentAccessRequest.updateMany({
+      where: {
+        accessRequestId: request.accessRequestId,
+        requesterUserId,
+        statusCode: 'pending',
+        isActive: true,
+      },
+      data: {
+        statusCode: 'cancelled',
+        respondedByUserId: requesterUserId,
+        respondedAt: new Date(),
+        responseMessage: null,
+        updatedBy: requesterUserId,
+        lastSource: ACTIVE_REQUEST_SOURCE,
+        lastActivity: 'dms.access.request.cancel',
+      },
+    });
+
+    if (updateResult.count === 0) {
+      throw new BadRequestException('이미 처리된 요청입니다.');
+    }
+
+    const cancelled = await this.getRequestByIdOrThrow(request.accessRequestId.toString());
+
+    this.eventsGateway.emitAccessChanged({
+      documentId: cancelled.documentId.toString(),
+      relativePath: cancelled.document.relativePath,
+      reason: 'request-cancelled',
+      actorUserId: user.userId,
+    });
+
+    const actors = await this.loadActors([
+      cancelled.requesterUserId,
+      cancelled.respondedByUserId,
+      cancelled.document.ownerUserId,
+    ]);
+    await this.notifyAccessRequestCancelled(cancelled, requesterUserId);
+    return this.toAccessRequestSummary(cancelled, actors, false);
   }
 
   async attachReadRequestStates(
@@ -1003,7 +1071,7 @@ export class AccessRequestService {
       where: {
         documentId: { in: documents.map((document) => document.documentId) },
         requesterUserId: BigInt(user.userId),
-        requestedRole: READ_REQUEST_ROLE,
+        requestedRole: DEFAULT_REQUEST_ROLE,
         isActive: true,
       },
       select: {
@@ -1169,13 +1237,353 @@ export class AccessRequestService {
   }
 
   private assertPendingRequest(request: AccessRequestRecord): void {
-    if (request.requestedRole !== READ_REQUEST_ROLE) {
-      throw new BadRequestException('현재는 읽기 권한 요청만 처리할 수 있습니다.');
+    if (!GRANTABLE_REQUEST_ROLES.includes(request.requestedRole as DmsDocumentAccessRequestRole)) {
+      throw new BadRequestException('처리할 수 없는 권한 요청입니다.');
     }
 
     if (request.statusCode !== 'pending') {
       throw new BadRequestException('이미 처리된 요청입니다.');
     }
+  }
+
+  private resolveRequestedRole(value: DmsDocumentAccessRequestRole | undefined): DmsDocumentAccessRequestRole {
+    return this.resolveGrantableRole(value ?? DEFAULT_REQUEST_ROLE);
+  }
+
+  private resolveGrantableRole(value: string | undefined): DmsDocumentAccessRequestRole {
+    if (GRANTABLE_REQUEST_ROLES.includes(value as DmsDocumentAccessRequestRole)) {
+      return value as DmsDocumentAccessRequestRole;
+    }
+
+    throw new BadRequestException('요청/부여 가능한 문서 권한은 읽기 또는 쓰기입니다.');
+  }
+
+  private resolveApprovalGrantRole(
+    requestedRole: string,
+    grantRole: DmsDocumentAccessRequestRole | undefined,
+  ): DmsDocumentAccessRequestRole {
+    const requested = this.resolveGrantableRole(requestedRole);
+    if (!grantRole) {
+      return requested;
+    }
+
+    const resolved = this.resolveGrantableRole(grantRole);
+    if (requested === 'read' && resolved === 'write') {
+      throw new BadRequestException('요청된 권한보다 높은 권한으로 승인할 수 없습니다.');
+    }
+
+    return resolved;
+  }
+
+  private assertDocumentOwnerFromRecord(user: TokenPayload, ownerUserId: bigint, message: string): void {
+    if (ownerUserId.toString() !== user.userId) {
+      throw new ForbiddenException(message);
+    }
+  }
+
+  private async notifyAccessRequestCreated(
+    request: AccessRequestRecord,
+    actors: Map<string, DmsDocumentAccessRequestActor>,
+    user: TokenPayload,
+  ): Promise<void> {
+    const ownerUserId = request.document.ownerUserId;
+    if (ownerUserId === request.requesterUserId) {
+      return;
+    }
+
+    const requester = actors.get(request.requesterUserId.toString());
+    const requesterName = requester?.displayName ?? requester?.loginId ?? user.loginId;
+    const roleLabel = request.requestedRole === 'write' ? '쓰기' : '읽기';
+
+    await this.notificationService.notifyUser({
+      recipientUserId: ownerUserId,
+      actorUserId: request.requesterUserId,
+      sourceApp: 'dms',
+      notificationType: 'dms.document-access-request.created',
+      severity: 'info',
+      title: `문서 ${roleLabel} 권한 요청`,
+      message: `${requesterName}님이 ${request.document.relativePath} 문서의 ${roleLabel} 권한을 요청했습니다.`,
+      reference: {
+        type: 'dms.document-access-request',
+        id: request.accessRequestId.toString(),
+        path: request.document.relativePath,
+      },
+      action: {
+        type: 'focus-dms-access-request',
+        label: '요청 처리',
+        payload: {
+          requestId: request.accessRequestId.toString(),
+          documentId: request.documentId.toString(),
+          path: request.document.relativePath,
+        },
+      },
+      dedupeKey: [
+        'dms',
+        'access-request',
+        'created',
+        ownerUserId.toString(),
+        request.accessRequestId.toString(),
+      ].join(':'),
+    });
+  }
+
+  private async notifyAccessRequestApproved(
+    request: AccessRequestRecord,
+    grantRole: DmsDocumentAccessRequestRole,
+    responderUserId: bigint,
+  ): Promise<void> {
+    const roleLabel = grantRole === 'write' ? '쓰기' : '읽기';
+    await this.notificationService.notifyUser({
+      recipientUserId: request.requesterUserId,
+      actorUserId: responderUserId,
+      sourceApp: 'dms',
+      notificationType: 'dms.document-access-request.approved',
+      severity: 'success',
+      title: `문서 ${roleLabel} 권한 요청 승인`,
+      message: `${request.document.relativePath} 문서의 ${roleLabel} 권한 요청이 승인되었습니다.`,
+      reference: {
+        type: 'dms.document',
+        id: request.documentId.toString(),
+        path: request.document.relativePath,
+      },
+      action: {
+        type: 'open-dms-document',
+        label: '문서 열기',
+        payload: {
+          documentId: request.documentId.toString(),
+          path: request.document.relativePath,
+        },
+      },
+      dedupeKey: [
+        'dms',
+        'access-request',
+        'approved',
+        request.requesterUserId.toString(),
+        request.accessRequestId.toString(),
+      ].join(':'),
+    });
+  }
+
+  private async notifyAccessRequestRejected(
+    request: AccessRequestRecord,
+    responderUserId: bigint,
+  ): Promise<void> {
+    const roleLabel = request.requestedRole === 'write' ? '쓰기' : '읽기';
+    await this.notificationService.notifyUser({
+      recipientUserId: request.requesterUserId,
+      actorUserId: responderUserId,
+      sourceApp: 'dms',
+      notificationType: 'dms.document-access-request.rejected',
+      severity: 'warning',
+      title: `문서 ${roleLabel} 권한 요청 거절`,
+      message: `${request.document.relativePath} 문서의 ${roleLabel} 권한 요청이 거절되었습니다.`,
+      reference: {
+        type: 'dms.document-access-request',
+        id: request.accessRequestId.toString(),
+        path: request.document.relativePath,
+      },
+      action: {
+        type: 'open-dms-settings-section',
+        label: '상태 보기',
+        payload: {
+          section: 'access-requests',
+          requestId: request.accessRequestId.toString(),
+          documentId: request.documentId.toString(),
+          path: request.document.relativePath,
+        },
+      },
+      dedupeKey: [
+        'dms',
+        'access-request',
+        'rejected',
+        request.requesterUserId.toString(),
+        request.accessRequestId.toString(),
+      ].join(':'),
+    });
+  }
+
+  private async notifyAccessRequestCancelled(
+    request: AccessRequestRecord,
+    requesterUserId: bigint,
+  ): Promise<void> {
+    const ownerUserId = request.document.ownerUserId;
+    if (ownerUserId === requesterUserId) {
+      return;
+    }
+
+    await this.notificationService.archiveByDedupeKey(
+      ownerUserId,
+      'dms',
+      [
+        'dms',
+        'access-request',
+        'created',
+        ownerUserId.toString(),
+        request.accessRequestId.toString(),
+      ].join(':'),
+    );
+  }
+
+  private async notifyDirectGrantCreated(
+    documentId: bigint,
+    relativePath: string,
+    recipientUserId: bigint,
+    actorUserId: bigint,
+    grantRole: DmsDocumentAccessRequestRole,
+  ): Promise<void> {
+    if (recipientUserId === actorUserId) {
+      return;
+    }
+
+    const roleLabel = grantRole === 'write' ? '쓰기' : '읽기';
+    await this.notificationService.notifyUser({
+      recipientUserId,
+      actorUserId,
+      sourceApp: 'dms',
+      notificationType: 'dms.document-access-grant.created',
+      severity: 'success',
+      title: `문서 ${roleLabel} 권한 부여`,
+      message: `${relativePath} 문서의 ${roleLabel} 권한이 부여되었습니다.`,
+      reference: {
+        type: 'dms.document',
+        id: documentId.toString(),
+        path: relativePath,
+      },
+      action: {
+        type: 'open-dms-document',
+        label: '문서 열기',
+        payload: {
+          documentId: documentId.toString(),
+          path: relativePath,
+        },
+      },
+      dedupeKey: [
+        'dms',
+        'access-grant',
+        'created',
+        recipientUserId.toString(),
+        documentId.toString(),
+        grantRole,
+      ].join(':'),
+    });
+  }
+
+  private async notifyGrantRevoked(
+    documentId: bigint,
+    relativePath: string,
+    grant: Pick<AccessRequestGrantRecord, 'documentGrantId' | 'principalType' | 'principalRef' | 'roleCode'>,
+    actorUserId: bigint,
+  ): Promise<void> {
+    if (grant.principalType !== 'user' || !grant.principalRef || !/^\d+$/.test(grant.principalRef)) {
+      return;
+    }
+
+    const recipientUserId = BigInt(grant.principalRef);
+    if (recipientUserId === actorUserId) {
+      return;
+    }
+
+    const roleLabel = grant.roleCode === 'write' ? '쓰기' : grant.roleCode === 'manage' ? '관리' : '읽기';
+    await this.notificationService.notifyUser({
+      recipientUserId,
+      actorUserId,
+      sourceApp: 'dms',
+      notificationType: 'dms.document-access-grant.revoked',
+      severity: 'warning',
+      title: `문서 ${roleLabel} 권한 회수`,
+      message: `${relativePath} 문서의 ${roleLabel} 권한이 회수되었습니다.`,
+      reference: {
+        type: 'dms.document',
+        id: documentId.toString(),
+        path: relativePath,
+      },
+      action: {
+        type: 'open-dms-settings-section',
+        label: '상태 보기',
+        payload: {
+          section: 'access-requests',
+          documentId: documentId.toString(),
+          path: relativePath,
+        },
+      },
+      dedupeKey: [
+        'dms',
+        'access-grant',
+        'revoked',
+        recipientUserId.toString(),
+        grant.documentGrantId.toString(),
+      ].join(':'),
+    });
+  }
+
+  private async notifyOwnershipTransferred(
+    documentId: bigint,
+    relativePath: string,
+    previousOwnerUserId: bigint,
+    newOwnerUserId: bigint,
+    actorUserId: bigint,
+  ): Promise<void> {
+    await this.notificationService.notifyMany([
+      {
+        recipientUserId: newOwnerUserId,
+        actorUserId,
+        sourceApp: 'dms',
+        notificationType: 'dms.document-ownership.transferred-in',
+        severity: 'success',
+        title: '문서 소유권 이전',
+        message: `${relativePath} 문서의 소유자가 되었습니다.`,
+        reference: {
+          type: 'dms.document',
+          id: documentId.toString(),
+          path: relativePath,
+        },
+        action: {
+          type: 'open-dms-document',
+          label: '문서 열기',
+          payload: {
+            documentId: documentId.toString(),
+            path: relativePath,
+          },
+        },
+        dedupeKey: [
+          'dms',
+          'ownership',
+          'transferred-in',
+          newOwnerUserId.toString(),
+          documentId.toString(),
+        ].join(':'),
+      },
+      {
+        recipientUserId: previousOwnerUserId,
+        actorUserId,
+        sourceApp: 'dms',
+        notificationType: 'dms.document-ownership.transferred-out',
+        severity: 'info',
+        title: '문서 소유권 이전 완료',
+        message: `${relativePath} 문서의 소유권이 이전되었습니다.`,
+        reference: {
+          type: 'dms.document',
+          id: documentId.toString(),
+          path: relativePath,
+        },
+        action: {
+          type: 'open-dms-settings-section',
+          label: '상태 보기',
+          payload: {
+            section: 'access-requests',
+            documentId: documentId.toString(),
+            path: relativePath,
+          },
+        },
+        dedupeKey: [
+          'dms',
+          'ownership',
+          'transferred-out',
+          previousOwnerUserId.toString(),
+          documentId.toString(),
+        ].join(':'),
+      },
+    ]);
   }
 
   private parseFutureDate(value: string | undefined, fieldName: string): Date | null {
@@ -1273,7 +1681,7 @@ export class AccessRequestService {
       documentId: request.document.documentId.toString(),
       path: request.document.relativePath,
       documentTitle,
-      requestedRole: READ_REQUEST_ROLE,
+      requestedRole: request.requestedRole as DmsDocumentAccessRequestRole,
       requester: actors.get(request.requesterUserId.toString()) ?? {
         userId: request.requesterUserId.toString(),
         loginId: request.requesterUserId.toString(),

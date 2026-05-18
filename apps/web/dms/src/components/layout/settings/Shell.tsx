@@ -6,7 +6,7 @@ import { ArrowLeft, Shield, SlidersHorizontal } from 'lucide-react';
 import { SettingsPage } from '@/components/pages/settings/SettingsPage';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { useSettingsShellStore, useSettingsStore } from '@/stores';
+import { useAccessStore, useSettingsShellStore, useSettingsStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';
 import {
@@ -44,23 +44,34 @@ export function SettingsShellSidebar({
   onClose,
 }: SettingsShellSidebarProps) {
   const access = useSettingsStore((state) => state.access);
+  const accessFeatures = useAccessStore((state) => state.snapshot?.features);
   const { activeScope, activeSectionId, exitSettings, openSection, setScope } = useSettingsShellStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const canManageSystem = Boolean(access?.canManageSystem ?? true);
-  const canManagePersonal = Boolean(access?.canManagePersonal ?? true);
+  const canManageSettings = accessFeatures?.canManageSettings ?? false;
+  const canUseAccessCenter = Boolean(accessFeatures?.canReadDocuments || accessFeatures?.canUseSearch);
+  const canManageSystem = Boolean(access?.canManageSystem ?? canManageSettings);
+  const canManagePersonal = Boolean(access?.canManagePersonal ?? canManageSettings);
 
   const scopePermissions: Record<SettingsScope, boolean> = {
-    system: canManageSystem,
+    system: canManageSystem || canUseAccessCenter,
     personal: canManagePersonal,
   };
 
   const searchResults = useMemo(() => {
     return searchSettingEntries(searchQuery)
-      .filter((result) => (result.scope === 'system' ? canManageSystem : canManagePersonal))
+      .filter((result) => {
+        if (result.scope === 'personal') {
+          return canManagePersonal;
+        }
+        if (canManageSystem) {
+          return true;
+        }
+        return canUseAccessCenter && result.sectionId === 'documentAccess';
+      })
       .slice(0, 8);
-  }, [canManagePersonal, canManageSystem, searchQuery]);
+  }, [canManagePersonal, canManageSystem, canUseAccessCenter, searchQuery]);
 
   const handleSelectResult = (scope: SettingsScope, sectionId: string) => {
     openSection(scope, sectionId);

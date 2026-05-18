@@ -26,6 +26,102 @@ export interface SharedAuthHeaderOptions {
   skipAuth?: boolean;
 }
 
+interface SafeJsonStateStorage {
+  getItem: (name: string) => string | null;
+  setItem: (name: string, value: string) => void;
+  removeItem: (name: string) => void;
+}
+
+function warnStorageRecovery(message: string, error: unknown): void {
+  if (typeof console === 'undefined') {
+    return;
+  }
+
+  console.warn(`[web-auth] ${message}`, error);
+}
+
+export function createSafeJsonStateStorage(getStorage: () => Storage): SafeJsonStateStorage {
+  let storage: Storage | null | undefined;
+
+  const resolveStorage = () => {
+    if (storage !== undefined) {
+      return storage;
+    }
+
+    if (typeof window === 'undefined') {
+      storage = null;
+      return storage;
+    }
+
+    try {
+      storage = getStorage();
+    } catch (error) {
+      storage = null;
+      warnStorageRecovery('브라우저 저장소에 접근하지 못해 인증 상태 복원을 건너뜁니다.', error);
+    }
+
+    return storage;
+  };
+
+  return {
+    getItem: (name: string) => {
+      const resolvedStorage = resolveStorage();
+      if (!resolvedStorage) {
+        return null;
+      }
+
+      let rawValue: string | null = null;
+      try {
+        rawValue = resolvedStorage.getItem(name);
+      } catch (error) {
+        warnStorageRecovery('인증 상태를 읽지 못해 저장된 세션을 무시합니다.', error);
+        return null;
+      }
+
+      if (rawValue === null) {
+        return null;
+      }
+
+      try {
+        JSON.parse(rawValue);
+        return rawValue;
+      } catch (error) {
+        warnStorageRecovery('손상된 인증 상태를 제거하고 다시 초기화합니다.', error);
+        try {
+          resolvedStorage.removeItem(name);
+        } catch (removeError) {
+          warnStorageRecovery('손상된 인증 상태 제거에 실패했습니다.', removeError);
+        }
+        return null;
+      }
+    },
+    setItem: (name: string, value: string) => {
+      const resolvedStorage = resolveStorage();
+      if (!resolvedStorage) {
+        return;
+      }
+
+      try {
+        resolvedStorage.setItem(name, value);
+      } catch (error) {
+        warnStorageRecovery('인증 상태를 저장하지 못했습니다.', error);
+      }
+    },
+    removeItem: (name: string) => {
+      const resolvedStorage = resolveStorage();
+      if (!resolvedStorage) {
+        return;
+      }
+
+      try {
+        resolvedStorage.removeItem(name);
+      } catch (error) {
+        warnStorageRecovery('인증 상태를 제거하지 못했습니다.', error);
+      }
+    },
+  };
+}
+
 function readPersistedAuthState(rawValue: string): PersistedAuthState | null {
   try {
     const parsed = JSON.parse(rawValue) as PersistedAuthState;

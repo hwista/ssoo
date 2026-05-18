@@ -17,6 +17,7 @@ export {
   useCreateReadAccessRequestMutation,
   useApproveDocumentAccessRequestMutation,
   useRejectDocumentAccessRequestMutation,
+  useCancelDocumentAccessRequestMutation,
   useUpdateDocumentVisibilityMutation,
   useTransferDocumentOwnershipMutation,
   useRevokeDocumentGrantMutation,

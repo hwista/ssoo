@@ -6,6 +6,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
   HttpException,
   NotFoundException,
   Post,
@@ -148,7 +149,7 @@ export class ContentController {
     if (!valid) {
       throw new BadRequestException('Invalid path');
     }
-    this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
+    this.documentAclService.assertIsOwnerAbsolutePath(currentUser, targetPath);
     this.collaborationService.assertMutationAllowed({
       action: 'delete',
       paths: [contentPath, ...(candidatePaths ?? [])] });
@@ -166,6 +167,7 @@ export class ContentController {
   }
 
   @Post()
+  @HttpCode(200)
   @RequireDmsFeature('canWriteDocuments')
   @ApiOperation({ summary: 'DMS 콘텐츠 저장/메타데이터 갱신' })
   @ApiOkResponse({ description: '저장 결과 반환' })
@@ -194,7 +196,7 @@ export class ContentController {
         throw new NotFoundException('Content not found');
       }
       this.collaborationService.assertMutationAllowed({ action: 'updateMetadata', paths: [contentPath] });
-      this.documentAclService.assertCanManageAbsolutePath(currentUser, targetPath);
+      this.documentAclService.assertIsOwnerAbsolutePath(currentUser, targetPath);
       const baseContent = fs.readFileSync(targetPath, 'utf-8');
       const existing = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath)
         ?? contentService.buildDefaultDocumentMetadata(baseContent, targetPath, undefined, { defaultRevisionSeq: 0 });
@@ -235,7 +237,7 @@ export class ContentController {
 
     const existingFile = fs.existsSync(targetPath);
     const canManage = existingFile
-      ? this.documentAclService.isManageableAbsolutePath(currentUser, targetPath)
+      ? this.documentAclService.isOwnerAbsolutePath(currentUser, targetPath)
       : true;
 
     if (existingFile) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { FileText, X } from 'lucide-react';
-import { useTabStore, useFileStore } from '@/stores';
+import { useAuthStore, useTabStore, useFileStore } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
 import { FlatList, FlatListItem } from './FlatList';
 
@@ -12,10 +12,12 @@ import { FlatList, FlatListItem } from './FlatList';
  */
 export function Bookmarks() {
   const { activeTabId } = useTabStore();
-  const { bookmarks, removeBookmark } = useFileStore();
+  const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
+  const { bookmarks, ownerUserId, removeBookmark } = useFileStore();
+  const scopedBookmarks = currentUserId && ownerUserId === currentUserId ? bookmarks : [];
   const openTabWithConfirm = useOpenTabWithConfirm();
 
-  if (bookmarks.length === 0) {
+  if (scopedBookmarks.length === 0) {
     return (
       <div className="px-3 py-2 text-caption text-gray-400">
         책갈피가 없습니다.
@@ -23,7 +25,7 @@ export function Bookmarks() {
     );
   }
 
-  const handleClick = async (bookmark: typeof bookmarks[0]) => {
+  const handleClick = async (bookmark: typeof scopedBookmarks[0]) => {
     await openTabWithConfirm({
       id: bookmark.id,
       title: bookmark.title,
@@ -41,7 +43,7 @@ export function Bookmarks() {
 
   return (
     <FlatList>
-      {bookmarks.map((bookmark) => {
+      {scopedBookmarks.map((bookmark) => {
         const isActive = bookmark.id === activeTabId;
 
         return (

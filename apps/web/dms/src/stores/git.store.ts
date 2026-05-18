@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { gitApi, type GitChangeEntry, type GitLogEntry } from '@/lib/api/endpoints/git';
 import { collaborationApi, type DocumentPublishStateClient } from '@/lib/api/collaborationApi';
 import { logger } from '@/lib/utils/errorUtils';
+import { isUserScopeTransition, registerUserScopedReset } from '@/lib/user-scope';
 
 // ============================================================================
 // Types
@@ -53,6 +54,8 @@ interface GitActions {
   restoreFile: (filePath: string, commitHash: string) => Promise<boolean>;
   /** 에러 초기화 */
   clearError: () => void;
+  /** 사용자 경계 변경 시 서버 상태 캐시 초기화 */
+  reset: () => void;
 }
 
 type GitStore = GitState & GitActions;
@@ -244,4 +247,11 @@ export const useGitStore = create<GitStore>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  reset: () => set(initialState),
 }));
+
+registerUserScopedReset((next, prev) => {
+  if (isUserScopeTransition(next, prev)) {
+    useGitStore.getState().reset();
+  }
+});

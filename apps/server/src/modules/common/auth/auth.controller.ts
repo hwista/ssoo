@@ -116,6 +116,7 @@ export class AuthController {
     return {
       userId: user.userId,
       loginId: user.loginId,
+      userName: user.userName,
     };
   }
 

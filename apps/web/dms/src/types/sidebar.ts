@@ -3,7 +3,11 @@ export type SidebarSection = 'bookmarks' | 'openTabs' | 'fileTree' | 'changes';
 export interface SidebarState {
   expandedSections: SidebarSection[];
   searchQuery: string;
+  searchOwnerUserId: string | null;
   expandedFolders: Set<string>;
+  isFileTreeOpen: boolean;
+  fileTreeOwnerUserId: string | null;
+  fileTreeResetEpoch: number;
   isCompactMode: boolean;
   sidebarOpen: boolean;
 }
