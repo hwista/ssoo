@@ -5,6 +5,7 @@ import { ImageInsertDialog } from './ImageInsertDialog';
 import { LinkInsertDialog } from './LinkInsertDialog';
 import { SaveLocationDialog } from '@/components/common/save-location';
 import type { SaveLocationResult } from '@/components/common/save-location';
+import { joinDocumentPath, normalizeDocumentPath } from '@/lib/utils/linkUtils';
 
 interface SaveLocationState {
   open: boolean;
@@ -64,7 +65,7 @@ export function useEditorCreatePathDialog(currentFilePath?: string | null) {
   }, []);
 
   const requestCreatePath = React.useCallback((preferredPath?: string) => {
-    const pathHint = preferredPath?.trim() || '';
+    const pathHint = normalizeDocumentPath(preferredPath?.trim() || '');
     const parts = pathHint.split('/');
     const namePart = parts.pop()?.replace(/\.md$/i, '') || '';
     const dirPart = parts.join('/');
@@ -93,9 +94,7 @@ export function useEditorCreatePathDialog(currentFilePath?: string | null) {
 
   const closeSaveLocation = React.useCallback((result: SaveLocationResult | null) => {
     if (result) {
-      const fullPath = result.directory
-        ? `${result.directory}/${result.fileName}`
-        : result.fileName;
+      const fullPath = joinDocumentPath(result.directory, result.fileName);
       saveLocationResolverRef.current?.({ path: fullPath, title: result.title });
     } else {
       saveLocationResolverRef.current?.(null);

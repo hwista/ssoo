@@ -12,17 +12,41 @@ export function isExternalUrl(url: string): boolean {
   return EXTERNAL_URL_RE.test(url);
 }
 
+export function normalizeDocumentPath(pathValue: string): string {
+  if (!pathValue) return '';
+
+  return pathValue
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '');
+}
+
+export function joinDocumentPath(directory: string, fileName: string): string {
+  const normalizedDirectory = normalizeDocumentPath(directory);
+  const normalizedFileName = normalizeDocumentPath(fileName);
+
+  if (!normalizedFileName) {
+    return normalizedDirectory;
+  }
+
+  return normalizedDirectory
+    ? `${normalizedDirectory}/${normalizedFileName}`
+    : normalizedFileName;
+}
+
 /** basePath 기준으로 상대 경로를 절대 경로로 해석 */
 export function resolveRelativePath(basePath: string, relativePath: string): string {
-  const baseParts = basePath.split('/').filter(Boolean);
+  const baseParts = normalizeDocumentPath(basePath).split('/').filter(Boolean);
   baseParts.pop();
-  const relParts = relativePath.split('/').filter(Boolean);
+  const relParts = normalizeDocumentPath(relativePath).split('/').filter(Boolean);
   for (const part of relParts) {
     if (part === '.') continue;
     if (part === '..') baseParts.pop();
     else baseParts.push(part);
   }
-  return baseParts.join('/');
+  return normalizeDocumentPath(baseParts.join('/'));
 }
 
 /**
@@ -39,14 +63,14 @@ export function resolveDocPath(href: string, currentFilePath?: string | null): s
 
   if (noQuery.startsWith('/doc/')) {
     try {
-      return decodeURIComponent(noQuery.slice('/doc/'.length));
+      return normalizeDocumentPath(decodeURIComponent(noQuery.slice('/doc/'.length)));
     } catch {
-      return noQuery.slice('/doc/'.length);
+      return normalizeDocumentPath(noQuery.slice('/doc/'.length));
     }
   }
 
   if (noQuery.startsWith('/')) {
-    return noQuery.slice(1);
+    return normalizeDocumentPath(noQuery);
   }
 
   // 상대 경로 (./,  ../) 또는 bare 경로 (goals.md 등) → 현재 파일 기준 해석
@@ -54,7 +78,7 @@ export function resolveDocPath(href: string, currentFilePath?: string | null): s
     return resolveRelativePath(currentFilePath, noQuery);
   }
 
-  return noQuery;
+  return normalizeDocumentPath(noQuery);
 }
 
 /** 이미지 src를 렌더링 가능한 URL로 변환 (내부 경로 → same-origin binary route) */
@@ -69,5 +93,7 @@ export function resolveImageSrc(src: string): string {
   ) {
     return src;
   }
-  return `/api/file/serve-attachment?path=${encodeURIComponent(src)}`;
+
+  const normalizedSrc = normalizeDocumentPath(src);
+  return `/api/file/serve-attachment?path=${encodeURIComponent(normalizedSrc)}`;
 }

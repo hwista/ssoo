@@ -52,7 +52,14 @@ export { extractMarkdownLinks } from './extractMarkdownLinks';
 export type { BodyLink } from './extractMarkdownLinks';
 
 // 링크/이미지 경로
-export { isExternalUrl, resolveDocPath, resolveRelativePath, resolveImageSrc } from './linkUtils';
+export {
+  isExternalUrl,
+  joinDocumentPath,
+  normalizeDocumentPath,
+  resolveDocPath,
+  resolveRelativePath,
+  resolveImageSrc,
+} from './linkUtils';
 
 // 파일 트리 필터
 export { filterFileTree } from './fileTree';

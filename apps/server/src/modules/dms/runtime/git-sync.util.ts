@@ -46,10 +46,10 @@ export function buildParityStatus(
   if (!syncStatus.remoteConfigured) {
     return {
       remote,
-      verified: false,
-      canTreatLocalAsCanonical: false,
+      verified: true,
+      canTreatLocalAsCanonical: true,
       syncStatus,
-      reason: reason ?? `PARITY_UNAVAILABLE: remote '${remote}' is not configured`,
+      reason: reason ?? `LOCAL_ONLY: remote '${remote}' is not configured; treating the local repository as canonical`,
     };
   }
 

@@ -5,7 +5,7 @@ import { DatabaseService } from '../../../database/database.service.js';
 import { configService } from '../runtime/dms-config.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 import { gitService, type GitRemoteParityStatus } from '../runtime/git.service.js';
-import { normalizePath } from '../runtime/path-utils.js';
+import { normalizeRelativePath } from '../runtime/path-utils.js';
 import { listMarkdownFiles } from '../search/search.helpers.js';
 import { ACTIVE_REQUEST_SOURCE } from './access-request.util.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
@@ -13,10 +13,6 @@ import { DocumentRecordService } from './document-record.service.js';
 
 const CONTROL_PLANE_SYNC_MAX_AGE_MS = 30_000;
 const logger = createDmsLogger('DmsControlPlaneSyncService');
-
-function normalizeRelativePath(inputPath: string): string {
-  return normalizePath(inputPath.trim().replace(/^\/+/, ''));
-}
 
 @Injectable()
 export class ControlPlaneSyncService {

@@ -1,5 +1,9 @@
 import path from 'path';
-import { normalizePath, resolveContainedPath } from '../../src/modules/dms/runtime/path-utils.js';
+import {
+  normalizePath,
+  normalizeRelativePath,
+  resolveContainedPath,
+} from '../../src/modules/dms/runtime/path-utils.js';
 import {
   tokenizeQuery,
   inferConfidence,
@@ -46,6 +50,28 @@ describe('runtime/path-utils', () => {
       const r = resolveContainedPath(root, '/foo/bar.md');
       expect(r.valid).toBe(true);
       expect(r.safeRelPath).toBe('foo/bar.md');
+    });
+
+    it('treats windows-style separators as nested directories', () => {
+      const r = resolveContainedPath(root, 'analysis\\foo\\bar.md');
+      expect(r.valid).toBe(true);
+      expect(r.targetPath).toBe(path.resolve(root, 'analysis/foo/bar.md'));
+      expect(r.safeRelPath).toBe('analysis/foo/bar.md');
+    });
+
+    it('rejects backslash traversal attempts', () => {
+      const r = resolveContainedPath(root, '..\\..\\etc\\passwd');
+      expect(r.valid).toBe(false);
+    });
+  });
+
+  describe('normalizeRelativePath', () => {
+    it('normalizes windows-style separators before path resolution', () => {
+      expect(normalizeRelativePath('analysis\\foo\\bar.md')).toBe('analysis/foo/bar.md');
+    });
+
+    it('keeps traversal segments canonicalized for validation', () => {
+      expect(normalizeRelativePath('..\\..\\etc\\passwd')).toBe('../../etc/passwd');
     });
   });
 });

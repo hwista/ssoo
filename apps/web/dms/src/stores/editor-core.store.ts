@@ -8,6 +8,7 @@ import type { DocumentMetadata } from '@/types';
 import type { ContentType } from '@/types/content-metadata';
 import type { TemplateReferenceDoc, TemplateGeneration, TemplateOriginType } from '@/types/template';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
+import { normalizeDocumentPath } from '@/lib/utils/linkUtils';
 import { isUserScopeTransition, registerUserScopedReset } from '@/lib/user-scope';
 
 /**
@@ -134,10 +135,11 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
 
   loadFile: async (tabId, path) => {
     const timer = new PerformanceTimer('파일 로드');
-    get()._updateTab(tabId, { isLoading: true, error: null, currentFilePath: path });
+    const normalizedPath = normalizeDocumentPath(path);
+    get()._updateTab(tabId, { isLoading: true, error: null, currentFilePath: normalizedPath });
 
     try {
-      const response = await fileApi.read(path);
+      const response = await fileApi.read(normalizedPath);
       if (!response.success) {
         throw new Error(`파일 읽기 실패: ${getErrorMessage(response)}`);
       }
@@ -183,7 +185,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       });
 
       if (errorMsg.includes('파일을 찾을 수 없습니다')) {
-        logger.warn('존재하지 않는 파일 로드 요청', { path, tabId });
+        logger.warn('존재하지 않는 파일 로드 요청', { path: normalizedPath, tabId });
       } else {
         logger.error('파일 로드 중 오류', error);
       }
@@ -195,12 +197,13 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
   saveFile: async (tabId, path, content) => {
     const timer = new PerformanceTimer('파일 저장');
     const tabState = get()._getTab(tabId);
+    const normalizedPath = normalizeDocumentPath(path);
     get()._updateTab(tabId, { isLoading: true, error: null });
 
     try {
       // 템플릿 저장: templateApi.upsert() 사용
       if (tabState.contentType === 'template' && tabState.templateSaveData) {
-        const name = tabState.documentMetadata?.title || path.split('/').pop()?.replace(/\.md$/i, '') || 'Untitled';
+        const name = tabState.documentMetadata?.title || normalizedPath.split('/').pop()?.replace(/\.md$/i, '') || 'Untitled';
         const response = await templateApi.upsert({
           ...(tabState.templateSaveData.id ? { id: tabState.templateSaveData.id } : {}),
           name,
@@ -222,19 +225,19 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         get()._updateTab(tabId, {
           content,
           isEditing: false,
-          currentFilePath: path,
+          currentFilePath: normalizedPath,
           templateSaveData: savedId
             ? { ...tabState.templateSaveData, id: savedId }
             : tabState.templateSaveData,
         });
 
-        logger.info('템플릿 저장 성공', { path, templateId: savedId });
+        logger.info('템플릿 저장 성공', { path: normalizedPath, templateId: savedId });
         timer.end({ success: true });
         return;
       }
 
       // 문서 저장: fileApi.update() 사용 (기존 동작)
-      const response = await fileApi.update(path, content, tabState.documentMetadata?.revisionSeq);
+      const response = await fileApi.update(normalizedPath, content, tabState.documentMetadata?.revisionSeq);
       if (!response.success) {
         throw createApiRequestError(response, '파일 저장 실패');
       }
@@ -242,13 +245,13 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       get()._updateTab(tabId, {
         content,
         isEditing: false,
-        currentFilePath: path,
+        currentFilePath: normalizedPath,
         documentMetadata: response.data?.metadata ?? tabState.documentMetadata,
       });
       await get().flushPendingMetadata(tabId);
-      await get().refreshFileMetadata(tabId, path);
+      await get().refreshFileMetadata(tabId, normalizedPath);
 
-      logger.info('파일 저장 성공', { path });
+      logger.info('파일 저장 성공', { path: normalizedPath });
       timer.end({ success: true });
     } catch (error) {
       timer.end({ success: false });
@@ -263,21 +266,23 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
 
   saveFileKeepEditing: async (tabId, path, content) => {
     const timer = new PerformanceTimer('임시 파일 저장');
+    const normalizedPath = normalizeDocumentPath(path);
 
     try {
-      const response = await fileApi.update(path, content, get()._getTab(tabId).documentMetadata?.revisionSeq);
+      const response = await fileApi.update(normalizedPath, content, get()._getTab(tabId).documentMetadata?.revisionSeq);
       if (!response.success) {
         throw createApiRequestError(response, '파일 저장 실패');
       }
 
       get()._updateTab(tabId, {
         content,
+        currentFilePath: normalizedPath,
         documentMetadata: response.data?.metadata ?? get()._getTab(tabId).documentMetadata,
       });
       await get().flushPendingMetadata(tabId);
-      await get().refreshFileMetadata(tabId, path);
+      await get().refreshFileMetadata(tabId, normalizedPath);
 
-      logger.info('임시 저장 성공 (편집 모드 유지)', { path });
+      logger.info('임시 저장 성공 (편집 모드 유지)', { path: normalizedPath });
       timer.end({ success: true });
     } catch (error) {
       timer.end({ success: false });
@@ -287,8 +292,10 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
   },
 
   refreshFileMetadata: async (tabId, path) => {
+    const normalizedPath = normalizeDocumentPath(path);
+
     try {
-      const response = await fileApi.getMetadata(path);
+      const response = await fileApi.getMetadata(normalizedPath);
       if (!response.success) {
         throw new Error(`메타데이터 조회 실패: ${getErrorMessage(response)}`);
       }
@@ -421,10 +428,11 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
 
   saveContent: async (tabId, path, content, metadata) => {
     const timer = new PerformanceTimer('통합 콘텐츠 저장');
+    const normalizedPath = normalizeDocumentPath(path);
     get()._updateTab(tabId, { isSaving: true, error: null });
 
     try {
-      const response = await contentApi.save(path, content, metadata, {
+      const response = await contentApi.save(normalizedPath, content, metadata, {
         expectedRevisionSeq: get()._getTab(tabId).documentMetadata?.revisionSeq,
       });
       if (!response.success) {
@@ -433,13 +441,13 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
 
       get()._updateTab(tabId, {
         content,
-        currentFilePath: path,
+        currentFilePath: normalizedPath,
         documentMetadata: (response.data?.metadata as DocumentMetadata | undefined) ?? get()._getTab(tabId).documentMetadata,
         hasUnsavedChanges: false,
         pendingMetadataUpdate: null,
       });
 
-      logger.info('통합 콘텐츠 저장 성공', { path });
+      logger.info('통합 콘텐츠 저장 성공', { path: normalizedPath });
       timer.end({ success: true });
     } catch (error) {
       timer.end({ success: false });
@@ -455,10 +463,11 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
   loadContent: async (tabId, path, options) => {
     const timer = new PerformanceTimer('통합 콘텐츠 로드');
     const contentType = options?.contentType ?? 'document';
-    get()._updateTab(tabId, { isLoading: true, error: null, currentFilePath: path, contentType });
+    const normalizedPath = normalizeDocumentPath(path);
+    get()._updateTab(tabId, { isLoading: true, error: null, currentFilePath: normalizedPath, contentType });
 
     try {
-      const response = await contentApi.load(path, { strict: options?.strict });
+      const response = await contentApi.load(normalizedPath, { strict: options?.strict });
       if (!response.success) {
         throw new Error(`콘텐츠 로드 실패: ${getErrorMessage(response)}`);
       }

@@ -12,7 +12,7 @@ import type {
 } from '@ssoo/types/dms';
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
-import { normalizePath } from '../runtime/path-utils.js';
+import { normalizeRelativePath } from '../runtime/path-utils.js';
 
 const DOCUMENT_CONTROL_PLANE_SELECT = {
   documentId: true,
@@ -146,10 +146,6 @@ function pickStringArray(value: unknown): string[] {
     const normalized = pickString(entry);
     return normalized ? [normalized] : [];
   });
-}
-
-function normalizeRelativePath(input: string): string {
-  return normalizePath(path.normalize(input).replace(/^[/\\]+/, ''));
 }
 
 function normalizeAcl(value: unknown, ownerId?: string, ownerLoginId?: string): DocumentAcl {

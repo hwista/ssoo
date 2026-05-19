@@ -25,7 +25,7 @@ import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.j
 import { configService } from '../runtime/dms-config.service.js';
 import { contentService } from '../runtime/content.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
-import { normalizePath } from '../runtime/path-utils.js';
+import { normalizeRelativePath as normalizeDocumentRelativePath } from '../runtime/path-utils.js';
 import {
   listMarkdownFiles,
   resolveAbsolutePath,
@@ -1711,7 +1711,7 @@ export class AccessRequestService {
   }
 
   private normalizeRelativePath(inputPath: string): string {
-    return normalizePath(inputPath.trim().replace(/^\/+/, ''));
+    return normalizeDocumentRelativePath(inputPath);
   }
 
 }

@@ -108,6 +108,34 @@ DMS_DATABASE_URL=
 
 - `docs/dms/planning/storage-and-second-brain-architecture.md`
 
+### Direct-run local-test profile (document repo isolation)
+
+로컬에서 DMS Git/save/publish 테스트를 할 때는 `LSWIKI/.runtime/dms/documents` 를 markdown working tree로 쓰지 않습니다. 대신 문서 Git working tree만 repo 밖으로 분리하고, ingest/storage는 기존 `.runtime` 경로를 유지합니다.
+
+- supported direct-run entrypoint: `pnpm run dms:local-test:start`
+- tracked launcher: `.codex/scripts/dms-local-test-start.sh`
+- untracked local override: `.env.local-test`
+- local markdown repo example: `~/dev/LSWIKI_DOC_LOCAL`
+- local templates also live under `DMS_MARKDOWN_ROOT/_templates`
+
+권장 `.env.local-test` 예시:
+
+```bash
+DMS_MARKDOWN_ROOT=$HOME/dev/LSWIKI_DOC_LOCAL
+DMS_INGEST_QUEUE_PATH=/absolute/path/to/LSWIKI/.runtime/dms/ingest
+DMS_STORAGE_LOCAL_BASE_PATH=/absolute/path/to/LSWIKI/.runtime/dms/storage/local
+DMS_GIT_BOOTSTRAP_REMOTE_URL=
+DMS_GIT_BOOTSTRAP_BRANCH=master
+```
+
+직접 실행 원칙:
+
+- `DMS_MARKDOWN_ROOT` 는 반드시 `LSWIKI` repo 밖 경로를 가리켜야 합니다.
+- `DMS_GIT_BOOTSTRAP_REMOTE_URL` 은 기본 local-test profile에서는 비워 둡니다.
+- 기본 local-test profile에서는 remote가 없어도 현재 local repo를 canonical source로 간주합니다.
+- 테스트 문서와 템플릿은 로컬에서 생성합니다.
+- 운영 문서/운영 템플릿이 꼭 필요할 때만 명시 승인 후 예외 반입합니다.
+
 ---
 
 ## 5. 주요 명령어
@@ -122,6 +150,9 @@ pnpm docker:logs
 
 # DMS 빌드
 pnpm run build:web-dms
+
+# Direct-run local-test server (emitted server + local-test profile)
+pnpm run dms:local-test:start
 
 # 모노레포 preflight
 cd /path/to/ssoo
