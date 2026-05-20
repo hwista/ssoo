@@ -116,7 +116,7 @@ CI 기준선: `.github/workflows/pr-validation.yml`
 3. **공용 런타임 우선**: 인증은 `@ssoo/web-auth`, 셸 레이아웃은 `@ssoo/web-shell`, 공유 계약은 `@ssoo/types`를 우선 확장합니다.
 4. **기존 결과 보존**: 새 작업이 기존 기능, 동작, UI 외형을 훼손하면 안 됩니다.
 5. **코드-문서 동기화**: 규칙이나 동작을 바꾸면 관련 `.github/` 또는 `docs/` 문서도 함께 갱신합니다.
-6. **관측성 포함 작업**: 의미 있는 repo-scoped 작업은 `.hermes` harness 흐름을 따르며, 루트의 관측형 script(`build`, `lint`, `codex:preflight` 등)를 우선 사용합니다.
+6. **관측성 포함 작업**: 의미 있는 repo-scoped 작업은 루트의 관측형 script(`build`, `lint`, `codex:preflight` 등)를 우선 사용합니다. `*:observed` 엔트리는 `scripts/run-observed-command.sh`를 통해 machine-local observer가 있으면 연결하고, 없으면 raw 명령으로 바로 fallback 합니다.
 
 ---
 
@@ -189,7 +189,7 @@ packages/*    -> never import apps/*
 | 서버 응답 형식 | 서버는 공통 response helper 형식을 유지하고, BigInt ID는 문자열로 내보냅니다. |
 | 공유 타입 | `packages/types`에는 런타임 로직을 넣지 않고, 명시적 re-export만 사용합니다. |
 | DMS GitLab workspace | DMS workspace를 외부 공유할 때는 일반 `git push`보다 `pnpm run codex:workspace-publish`를 우선 사용하고, GitLab branch가 앞서 있으면 `pnpm run codex:workspace-sync-from-gitlab`로 먼저 재통합합니다. |
-| 관측형 루트 스크립트 | `pnpm build`, `pnpm lint`, `pnpm run codex:preflight`, `pnpm run docs:verify`는 `.hermes` 관측 wrapper를 거칩니다. raw 실행이 필요하면 `*:raw` 스크립트를 사용합니다. |
+| 관측형 루트 스크립트 | `pnpm build`, `pnpm lint`, `pnpm run codex:preflight`, `pnpm run docs:verify`, `pnpm run verify:access-*`는 `scripts/run-observed-command.sh` 관측 wrapper를 사용합니다. local observer가 없으면 raw 명령으로 fallback 합니다. raw 실행이 필요하면 `*:raw` 스크립트를 사용합니다. |
 
 ---
 

@@ -165,7 +165,7 @@ class StorageAdapterService {
   open(request: StorageOpenRequest): StorageOpenResult {
     const parsed = request.storageUri ? this.parseStorageUri(request.storageUri) : null;
     const provider = parsed?.provider ?? this.resolveProvider(request.provider);
-    const targetPath = parsed?.path ?? normalizeRelativePath(request.path);
+    const targetPath = parsed?.path ?? normalizeRelativePath(request.path ?? '');
     if (!targetPath) {
       throw new Error('열기 대상 경로가 필요합니다.');
     }
@@ -193,7 +193,7 @@ class StorageAdapterService {
   refresh(request: StorageRefreshRequest): StorageReference {
     const parsed = request.storageUri ? this.parseStorageUri(request.storageUri) : null;
     const provider = parsed?.provider ?? this.resolveProvider(request.provider);
-    const targetPath = parsed?.path ?? normalizeRelativePath(request.path);
+    const targetPath = parsed?.path ?? normalizeRelativePath(request.path ?? '');
     if (!targetPath) {
       throw new Error('resync 대상 경로가 필요합니다.');
     }
