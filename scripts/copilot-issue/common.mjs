@@ -458,8 +458,8 @@ export async function resolveGitLabContext(repoRoot) {
   const gitLabUser = process.env.GL_USER || readGitConfig(repoRoot, 'codex.gitlabUser') || credentialUser;
   const gitLabToken = process.env.GL_TOKEN || readGitConfig(repoRoot, 'codex.gitlabToken') || credentialToken;
 
-  if (!gitLabUser || !gitLabToken) {
-    throw new Error('GitLab API access requires GL_USER/GL_TOKEN, local git config, or remote.origin.url credentials.');
+  if (!gitLabToken) {
+    throw new Error('GitLab API access requires GL_TOKEN, local git config codex.gitlabToken, or remote.origin.url credentials.');
   }
 
   return {
@@ -467,7 +467,8 @@ export async function resolveGitLabContext(repoRoot) {
     projectPath,
     projectId: encodeURIComponent(projectPath),
     apiBaseUrl: `${hostUrl.replace(/\/$/, '')}/api/v4`,
-    authorization: `Basic ${Buffer.from(`${gitLabUser}:${gitLabToken}`).toString('base64')}`,
+    gitLabUser,
+    gitLabToken,
   };
 }
 
@@ -623,7 +624,7 @@ async function gitLabFetchJson(gitLabContext, pathname, { method = 'GET', body =
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      Authorization: gitLabContext.authorization,
+      'PRIVATE-TOKEN': gitLabContext.gitLabToken,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
