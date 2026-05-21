@@ -3,6 +3,12 @@
 import * as React from 'react';
 import type { EditorView } from '@codemirror/view';
 import { EDITOR_COMMANDS } from '../Toolbar';
+import {
+  SLASH_MENU_ITEM_HEIGHT,
+  SLASH_MENU_MAX_HEIGHT,
+  SLASH_MENU_OFFSET,
+  SLASH_MENU_WIDTH,
+} from './BlockEditorPanels';
 
 export interface SlashState {
   open: boolean;
@@ -20,6 +26,38 @@ export const initialSlashState: SlashState = {
   selected: 0,
 };
 
+function getSlashItems(query: string) {
+  return EDITOR_COMMANDS.filter((item) => item.title.toLowerCase().includes(query));
+}
+
+function resolveSlashPosition(
+  containerRect: DOMRect,
+  coords: { top: number; bottom: number; left: number },
+  itemCount: number
+) {
+  const estimatedMenuHeight = Math.min(
+    SLASH_MENU_MAX_HEIGHT,
+    Math.max(1, itemCount) * SLASH_MENU_ITEM_HEIGHT
+  );
+  const maxLeft = Math.max(0, containerRect.width - SLASH_MENU_WIDTH);
+  const left = Math.min(Math.max(0, coords.left - containerRect.left), maxLeft);
+  const spaceBelow = containerRect.bottom - coords.bottom;
+  const spaceAbove = coords.top - containerRect.top;
+
+  if (spaceBelow >= estimatedMenuHeight || spaceBelow >= spaceAbove) {
+    const maxTop = Math.max(0, containerRect.height - estimatedMenuHeight);
+    return {
+      top: Math.min(coords.bottom - containerRect.top + SLASH_MENU_OFFSET, maxTop),
+      left,
+    };
+  }
+
+  return {
+    top: Math.max(0, coords.top - containerRect.top - estimatedMenuHeight - SLASH_MENU_OFFSET),
+    left,
+  };
+}
+
 export function useBlockEditorSlashState(containerRef: React.RefObject<HTMLDivElement | null>) {
   const slashRef = React.useRef<SlashState>(initialSlashState);
   const slashItemRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
@@ -28,7 +66,7 @@ export function useBlockEditorSlashState(containerRef: React.RefObject<HTMLDivEl
 
   const slashItems = React.useMemo(() => {
     if (!slash.open) return [];
-    return EDITOR_COMMANDS.filter((item) => item.title.toLowerCase().includes(slash.query));
+    return getSlashItems(slash.query);
   }, [slash.open, slash.query]);
 
   const closeSlashMenu = React.useCallback(() => {
@@ -51,12 +89,15 @@ export function useBlockEditorSlashState(containerRef: React.RefObject<HTMLDivEl
     if (/^\/[\S]*$/.test(lineTextToCursor)) {
       const nextQuery = lineTextToCursor.slice(1).toLowerCase();
       const previous = slashRef.current;
+      const nextItems = getSlashItems(nextQuery);
       const next: SlashState = {
         open: true,
         query: nextQuery,
         from: line.from,
         to: head,
-        selected: previous.open && previous.query === nextQuery ? previous.selected : 0,
+        selected: previous.open && previous.query === nextQuery
+          ? Math.min(previous.selected, Math.max(0, nextItems.length - 1))
+          : 0,
       };
 
       slashRef.current = next;
@@ -67,10 +108,7 @@ export function useBlockEditorSlashState(containerRef: React.RefObject<HTMLDivEl
         const coords = view.coordsAtPos(head);
         const rect = containerElement.getBoundingClientRect();
         if (coords) {
-          setSlashPos({
-            top: coords.bottom - rect.top + 4,
-            left: Math.max(0, coords.left - rect.left),
-          });
+          setSlashPos(resolveSlashPosition(rect, coords, nextItems.length));
         }
       }
 
@@ -86,7 +124,7 @@ export function useBlockEditorSlashState(containerRef: React.RefObject<HTMLDivEl
     const current = slashRef.current;
     if (!current.open) return false;
 
-    const count = EDITOR_COMMANDS.filter((command) => command.title.toLowerCase().includes(current.query)).length;
+    const count = getSlashItems(current.query).length;
     const nextSelected = direction === 'down'
       ? Math.min(current.selected + 1, Math.max(0, count - 1))
       : Math.max(current.selected - 1, 0);
@@ -100,7 +138,7 @@ export function useBlockEditorSlashState(containerRef: React.RefObject<HTMLDivEl
   const resolveSelectedCommand = React.useCallback(() => {
     const current = slashRef.current;
     if (!current.open) return null;
-    const items = EDITOR_COMMANDS.filter((command) => command.title.toLowerCase().includes(current.query));
+    const items = getSlashItems(current.query);
     return items[current.selected] ?? null;
   }, []);
 

@@ -1653,6 +1653,7 @@ export function DocumentPage() {
         contentMaxWidth={isCompareSurface ? null : undefined}
         contentSurfaceClassName={contentSurfaceClassName}
         panelMode={isCompareSurface ? 'hidden' : undefined}
+        panelNarrowBehavior="auto-close"
         panelContent={(
           <DocumentPanel
             metadata={metadata}

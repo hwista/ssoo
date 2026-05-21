@@ -5,6 +5,11 @@ import { cn } from '@/lib/utils';
 import { markdownToHtmlSync } from '@/lib/utils/markdown';
 import type { EditorCommandDefinition, ToolbarCommandId } from '../Toolbar';
 
+export const SLASH_MENU_WIDTH = 320;
+export const SLASH_MENU_MAX_HEIGHT = 288;
+export const SLASH_MENU_ITEM_HEIGHT = 56;
+export const SLASH_MENU_OFFSET = 4;
+
 interface BlockEditorPreviewProps {
   markdown: string;
   onModifiedClick: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -53,8 +58,13 @@ export function SlashCommandMenu({
 
   return (
     <div
-      className="absolute z-50 max-h-72 w-[320px] overflow-y-auto rounded-lg border border-ssoo-content-border bg-white shadow-lg"
-      style={position ? { top: position.top, left: position.left } : { top: 48, left: 32 }}
+      className="absolute z-50 overflow-y-auto rounded-lg border border-ssoo-content-border bg-white shadow-lg"
+      style={{
+        top: position?.top ?? 48,
+        left: position?.left ?? 32,
+        width: SLASH_MENU_WIDTH,
+        maxHeight: SLASH_MENU_MAX_HEIGHT,
+      }}
     >
       {items.map((item, index) => (
         <button

@@ -72,7 +72,7 @@ export function Content({
       <div 
         ref={contentRef}
         className={cn(
-          'h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin bg-white',
+          'h-full w-full overflow-x-auto overflow-y-auto scrollbar-thin bg-white',
           shouldShowSurface && 'bg-white border border-gray-200 rounded-lg'
         )}
         style={resolvedMaxWidth ? { maxWidth: resolvedMaxWidth } : undefined}
