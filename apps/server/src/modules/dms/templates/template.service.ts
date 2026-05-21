@@ -73,7 +73,11 @@ function normalizeStringArray(value: unknown): string[] {
 }
 
 function normalizeTemplateScope(value: unknown): TemplateScope {
-  return value === 'global' ? 'global' : 'personal';
+  return value === 'global' || value === 'system' ? 'global' : 'personal';
+}
+
+function toStoredTemplateScope(scope: TemplateScope): 'system' | 'personal' {
+  return scope === 'global' ? 'system' : 'personal';
 }
 
 function normalizeTemplateKind(value: unknown): TemplateItem['kind'] {
@@ -595,7 +599,8 @@ export class TemplateService {
         fs.writeFileSync(absolutePath, template.content, 'utf-8');
       }
 
-      const existing = await this.findTemplateRow(template.id, 'global', 'system');
+      const existing = await this.findTemplateRowByRelativePath(relativePath)
+        ?? await this.findTemplateRow(template.id, 'global', 'system');
       if (existing) {
         continue;
       }
@@ -621,7 +626,7 @@ export class TemplateService {
         data: {
           templateKey: template.id,
           relativePath,
-          templateScopeCode: 'global',
+          templateScopeCode: toStoredTemplateScope('global'),
           templateKindCode: template.kind,
           ownerRef: 'system',
           visibilityCode: metadata.visibility,
@@ -644,11 +649,12 @@ export class TemplateService {
         fs.writeFileSync(absolutePath, seed.content, 'utf-8');
       }
 
-      const existing = await this.findTemplateRow(
-        seed.template.id,
-        seed.template.scope,
-        seed.ownerRef,
-      );
+      const existing = await this.findTemplateRowByRelativePath(seed.relativePath)
+        ?? await this.findTemplateRow(
+          seed.template.id,
+          seed.template.scope,
+          seed.ownerRef,
+        );
       if (existing) {
         continue;
       }
@@ -671,7 +677,7 @@ export class TemplateService {
         data: {
           templateKey: seed.template.id,
           relativePath: seed.relativePath,
-          templateScopeCode: metadata.scope,
+          templateScopeCode: toStoredTemplateScope(metadata.scope),
           templateKindCode: metadata.kind,
           ownerRef: seed.ownerRef,
           visibilityCode: metadata.visibility,
@@ -706,7 +712,7 @@ export class TemplateService {
     const [globalRows, personalRows] = await Promise.all([
       this.db.client.dmsTemplate.findMany({
         where: {
-          templateScopeCode: 'global',
+          templateScopeCode: toStoredTemplateScope('global'),
           ownerRef: 'system',
           isActive: true,
         },
@@ -786,7 +792,7 @@ export class TemplateService {
 
     const payload = {
       relativePath,
-      templateScopeCode: metadata.scope,
+      templateScopeCode: toStoredTemplateScope(metadata.scope),
       templateKindCode: metadata.kind,
       ownerRef,
       visibilityCode: metadata.visibility,
@@ -905,8 +911,17 @@ export class TemplateService {
     return this.db.client.dmsTemplate.findFirst({
       where: {
         templateKey: id,
-        templateScopeCode: scope,
+        templateScopeCode: toStoredTemplateScope(scope),
         ownerRef,
+      },
+      select: this.templateRowSelect(),
+    });
+  }
+
+  private async findTemplateRowByRelativePath(relativePath: string): Promise<TemplateRow | null> {
+    return this.db.client.dmsTemplate.findFirst({
+      where: {
+        relativePath,
       },
       select: this.templateRowSelect(),
     });
