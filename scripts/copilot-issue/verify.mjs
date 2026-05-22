@@ -38,14 +38,16 @@ const artifactDir = getArtifactDir(repoRoot, manifest.issueKey);
 const reportPath = getVerificationReportPath(repoRoot, manifest.issueKey);
 const reportMarkdownPath = getVerificationReportMarkdownPath(repoRoot, manifest.issueKey);
 const logDir = path.join(artifactDir, 'logs');
+const baseRef = manifest.baseRef ?? manifest.baseBranch;
 
-const changedFiles = collectChangedFiles(repoRoot, manifest.baseBranch);
+const changedFiles = collectChangedFiles(repoRoot, baseRef);
 const commands = resolveVerificationCommands(changedFiles);
 
 if (options.dryRun) {
   console.log('# copilot:issue:verify dry-run');
   console.log(`- issue key: ${manifest.issueKey}`);
   console.log(`- base branch: ${manifest.baseBranch}`);
+  console.log(`- base ref: ${baseRef}`);
   console.log(`- execution branch: ${manifest.branchName}`);
   console.log(`- changed files: ${changedFiles.length}`);
   for (const command of commands) {
@@ -116,6 +118,7 @@ const report = {
   issueKey: manifest.issueKey,
   status: hasFailure ? 'failed' : 'passed',
   baseBranch: manifest.baseBranch,
+  baseRef,
   branchName: manifest.branchName,
   artifactDir: manifest.artifactDir,
   changedFiles,

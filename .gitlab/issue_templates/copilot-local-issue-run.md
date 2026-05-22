@@ -1,6 +1,6 @@
 /label ~"ai-exec-ready"
 
-> current slice: GitLab issue -> local operator bootstrap -> local verification -> GitLab issue note
+> current slice: GitLab issue -> local operator bootstrap -> local verification -> GitLab issue state/note -> execution branch push
 
 ## Problem statement
 
@@ -21,3 +21,9 @@
 ## Constraints / notes
 
 <!-- 추가 제약, 관련 이슈, 배치 실행 여부, 참고 링크를 적는다. -->
+<!-- optional hints:
+- batch candidate issues: #123, #124
+- preferred base branch:
+- operator handoff note:
+- validation notes:
+-->

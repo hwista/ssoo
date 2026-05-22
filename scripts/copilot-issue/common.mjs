@@ -4,7 +4,28 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-export const EXECUTION_LABEL = 'ai-exec-ready';
+export const ISSUE_LABELS = Object.freeze({
+  ready: 'ai-exec-ready',
+  inProgress: 'ai/in-progress',
+  verified: 'ai/verified',
+  blocked: 'ai/blocked',
+  batch: 'ai/batch',
+  mergeReady: 'ai/merge-ready',
+});
+
+export const EXECUTION_LABEL = ISSUE_LABELS.ready;
+
+const EXECUTION_STATE_LABELS = [
+  ISSUE_LABELS.ready,
+  ISSUE_LABELS.inProgress,
+  ISSUE_LABELS.verified,
+  ISSUE_LABELS.blocked,
+];
+
+const MANAGED_FLOW_LABELS = [
+  ...EXECUTION_STATE_LABELS,
+  ISSUE_LABELS.batch,
+];
 
 export const REQUIRED_SECTIONS = [
   { key: 'problemStatement', heading: 'Problem statement' },
@@ -165,13 +186,15 @@ export function parseCliOptions(argv, { allowManifest = false } = {}) {
     throw new Error('`--issue`, `--issues`, 또는 `--manifest` 중 하나는 필요합니다.');
   }
 
-  const issueIids = issue
+  const rawIssueIids = issue
     ? [parseIssueIid(issue)]
     : issues
       ? issues
         .split(',')
         .map((value) => parseIssueIid(value.trim()))
       : [];
+
+  const issueIids = normalizeIssueIids(rawIssueIids);
 
   return {
     help,
@@ -191,11 +214,18 @@ export function resolveIssueKey(issueIids) {
 }
 
 export function buildExecutionBranchName(issues) {
-  const primary = issues[0];
-  const slug = slugify(primary?.title ?? 'work', issues.length === 1 ? 40 : 28) || 'work';
-  return issues.length === 1
-    ? `ai/issue-${primary.iid}-${slug}`
-    : `ai/issues-${issues.map((issue) => issue.iid).join('-')}-${slug}`;
+  const sortedIssues = sortIssuesByIid(issues);
+  const primary = sortedIssues[0];
+  if (sortedIssues.length === 1) {
+    const slug = slugify(primary?.title ?? 'work', 40) || 'work';
+    return `ai/issue-${primary.iid}-${slug}`;
+  }
+
+  const targetAreas = dedupe(
+    sortedIssues.flatMap((issue) => toListItems(issue.sections?.targetArea ?? '')),
+  );
+  const batchSlug = slugify(targetAreas.slice(0, 2).join('-'), 24) || 'batch';
+  return `ai/issues-${sortedIssues.map((issue) => issue.iid).join('-')}-${batchSlug}`;
 }
 
 export function slugify(value, maxLength = 48) {
@@ -215,6 +245,21 @@ export function getCurrentBranch(repoRoot) {
   return gitOutput(['branch', '--show-current'], { cwd: repoRoot });
 }
 
+export function resolveOperatorIdentity(repoRoot, gitLabContext) {
+  const gitLabUser = gitLabContext.gitLabUser || null;
+  const gitUserName = readGitConfig(repoRoot, 'user.name') || null;
+  const gitUserEmail = readGitConfig(repoRoot, 'user.email') || null;
+  const localUser = process.env.USER || process.env.USERNAME || null;
+
+  return {
+    gitLabUser,
+    gitUserName,
+    gitUserEmail,
+    localUser,
+    displayName: gitLabUser || gitUserName || localUser || 'unknown-operator',
+  };
+}
+
 export function ensureCleanWorktree(repoRoot) {
   const status = gitOutput(['status', '--porcelain'], { cwd: repoRoot });
   if (status.trim().length > 0) {
@@ -229,18 +274,86 @@ export function localBranchExists(repoRoot, branchName) {
   }).status === 0;
 }
 
-export function checkoutExecutionBranch(repoRoot, branchName, baseBranch) {
+export function remoteTrackingBranchExists(repoRoot, branchName, remoteName = 'origin') {
+  return runCommand('git', ['show-ref', '--verify', '--quiet', `refs/remotes/${remoteName}/${branchName}`], {
+    cwd: repoRoot,
+    allowFailure: true,
+  }).status === 0;
+}
+
+export function resolveBranchReference(repoRoot, branchName, { remoteName = 'origin', fetchRemote = false } = {}) {
   if (localBranchExists(repoRoot, branchName)) {
-    runCommand('git', ['checkout', branchName], { cwd: repoRoot });
-    return 'existing';
+    return {
+      exists: true,
+      ref: branchName,
+      source: 'local',
+    };
   }
 
-  runCommand('git', ['checkout', '-b', branchName, baseBranch], { cwd: repoRoot });
+  if (remoteTrackingBranchExists(repoRoot, branchName, remoteName)) {
+    return {
+      exists: true,
+      ref: `${remoteName}/${branchName}`,
+      source: 'remote-tracking',
+    };
+  }
+
+  if (fetchRemote && remoteBranchExists(repoRoot, branchName, remoteName)) {
+    fetchRemoteTrackingBranch(repoRoot, branchName, remoteName);
+    return {
+      exists: true,
+      ref: `${remoteName}/${branchName}`,
+      source: 'remote-fetched',
+    };
+  }
+
+  return {
+    exists: false,
+    ref: branchName,
+    source: 'missing',
+  };
+}
+
+export function resolveBaseBranch(repoRoot, { override = null } = {}) {
+  const branchName = override ?? getCurrentBranch(repoRoot);
+  if (!branchName) {
+    throw new Error('base branch를 결정할 수 없습니다. 현재 브랜치를 확인하거나 `--base <branch>`를 지정하세요.');
+  }
+
+  if (!override && isExecutionBranchName(branchName)) {
+    throw new Error('현재 브랜치가 execution branch입니다. `--base <branch>`를 지정하거나 base 브랜치로 checkout한 뒤 다시 시도하세요.');
+  }
+
+  const branchRef = resolveBranchReference(repoRoot, branchName);
+  if (!branchRef.exists) {
+    throw new Error(`base branch \`${branchName}\`를 찾을 수 없습니다. 로컬 브랜치 또는 origin tracking branch를 확인하세요.`);
+  }
+
+  return {
+    branchName,
+    ref: branchRef.ref,
+    source: branchRef.source,
+  };
+}
+
+export function checkoutExecutionBranch(repoRoot, branchName, baseRef) {
+  if (localBranchExists(repoRoot, branchName)) {
+    runCommand('git', ['checkout', branchName], { cwd: repoRoot });
+    return 'existing-local';
+  }
+
+  const remoteBranch = resolveBranchReference(repoRoot, branchName, { fetchRemote: true });
+  if (remoteBranch.exists) {
+    runCommand('git', ['checkout', '-b', branchName, '--track', remoteBranch.ref], { cwd: repoRoot });
+    return remoteBranch.source === 'remote-fetched' ? 'existing-remote-fetched' : 'existing-remote';
+  }
+
+  runCommand('git', ['checkout', '-b', branchName, baseRef], { cwd: repoRoot });
   return 'created';
 }
 
-export function collectChangedFiles(repoRoot, baseBranch) {
-  const output = gitOutput(['diff', '--name-only', `${baseBranch}...HEAD`], { cwd: repoRoot });
+export function collectChangedFiles(repoRoot, baseRef) {
+  const output = gitOutput(['diff', '--name-only', `${baseRef}...HEAD`], { cwd: repoRoot });
   return output
     .split('\n')
     .map((line) => line.trim())
@@ -267,6 +380,10 @@ export function getManifestPath(repoRoot, issueKey) {
 
 export function getNormalizedSpecPath(repoRoot, issueKey) {
   return path.join(getArtifactDir(repoRoot, issueKey), 'normalized-spec.md');
+}
+
+export function getPrepareNotePath(repoRoot, issueKey) {
+  return path.join(getArtifactDir(repoRoot, issueKey), 'prepare-note.md');
 }
 
 export function getVerificationReportPath(repoRoot, issueKey) {
@@ -340,7 +457,10 @@ export function buildNormalizedSpec(manifest) {
     '- Issue platform: GitLab',
     `- Issue key: \`${manifest.issueKey}\``,
     `- Mode: \`${manifest.mode}\``,
+    `- Topology: \`${manifest.topology ?? getTopology(manifest.mode)}\``,
+    `- Operator: \`${manifest.operator?.displayName ?? 'unknown-operator'}\``,
     `- Base branch: \`${manifest.baseBranch}\``,
+    `- Base ref: \`${manifest.baseRef ?? manifest.baseBranch}\``,
     `- Execution branch: \`${manifest.branchName}\``,
     `- Required label: \`${manifest.executionLabel}\``,
     '',
@@ -357,7 +477,7 @@ export function buildNormalizedSpec(manifest) {
     '- issue가 canonical tracking record다.',
     '- current slice에서는 `--issue` / `--issues`만 허용한다.',
     '- 1:n split는 열지 않는다.',
-    '- current slice는 issue registration -> local verification/report까지다.',
+    '- current slice는 issue registration -> local verification/report -> branch push까지다.',
     '',
     ...sectionBlocks,
   ].join('\n').trimEnd();
@@ -388,7 +508,9 @@ export function renderVerificationReportMarkdown(manifest, report) {
     '',
     `- Status: \`${report.status}\``,
     `- Issue key: \`${manifest.issueKey}\``,
+    `- Topology: \`${manifest.topology ?? getTopology(manifest.mode)}\``,
     `- Base branch: \`${manifest.baseBranch}\``,
+    `- Base ref: \`${manifest.baseRef ?? manifest.baseBranch}\``,
     `- Execution branch: \`${manifest.branchName}\``,
     '',
     '## Participating issues',
@@ -411,55 +533,157 @@ export function renderVerificationReportMarkdown(manifest, report) {
 }
 
 export function buildGitLabIssueNote(manifest, report) {
-  const changedFiles = report.changedFiles.length > 0
-    ? report.changedFiles.map((file) => `- \`${file}\``).join('\n')
-    : '- (no changed files detected against the recorded base branch)';
-  const matrix = report.commands.map((entry) => {
-    const icon = entry.status === 'passed'
-      ? '✅'
-      : entry.status === 'failed'
-        ? '❌'
-        : '⏭️';
-    return `- ${icon} \`${entry.commandDisplay}\``;
-  }).join('\n');
+  const stateLabel = report.status === 'passed'
+    ? ISSUE_LABELS.verified
+    : ISSUE_LABELS.blocked;
+
+  return buildGitLabStateNote(manifest, {
+    phase: 'report',
+    stateLabel,
+    verificationStatus: report.status,
+    noteTimestamp: report.verifiedAt,
+    report,
+  });
+}
+
+export function buildGitLabStateNote(
+  manifest,
+  {
+    phase,
+    stateLabel,
+    verificationStatus,
+    noteTimestamp = new Date().toISOString(),
+    report = null,
+    checkoutMode = null,
+    supersededBranch = null,
+  },
+) {
+  const issueLines = sortIssuesByIid(manifest.issues)
+    .map((issue) => `- !${issue.iid} ${issue.title}`);
+  const changedFileLines = report
+    ? report.changedFiles.length > 0
+      ? report.changedFiles.map((file) => `- \`${file}\``)
+      : ['- (no changed files detected against the recorded base branch)']
+    : ['- (not run yet)'];
+  const matrixLines = report
+    ? report.commands.map((entry) => {
+      const icon = entry.status === 'passed'
+        ? '✅'
+        : entry.status === 'failed'
+          ? '❌'
+          : '⏭️';
+      return `- ${icon} \`${entry.commandDisplay}\``;
+    })
+    : ['- `not-run`'];
+  const artifactPaths = {
+    manifest: manifest.manifestPath,
+    normalizedSpec: manifest.normalizedSpecPath,
+    prepareNote: manifest.prepareNotePath ?? null,
+    verificationReport: manifest.verificationReportPath ?? null,
+    verificationReportMarkdown: manifest.verificationReportMarkdownPath ?? null,
+    issueNote: manifest.issueNotePath ?? null,
+  };
+  const artifactLines = Object.entries(artifactPaths)
+    .filter(([, value]) => value)
+    .map(([label, value]) => `- ${label}: \`${value}\``);
+  const notePayload = {
+    version: 1,
+    phase,
+    stateLabel,
+    verificationStatus,
+    noteTimestamp,
+    issueKey: manifest.issueKey,
+    topology: manifest.topology ?? getTopology(manifest.mode),
+    operator: manifest.operator ?? { displayName: 'unknown-operator' },
+    baseBranch: manifest.baseBranch,
+    baseRef: manifest.baseRef ?? manifest.baseBranch,
+    executionBranch: manifest.branchName,
+    checkoutMode: checkoutMode ?? manifest.checkoutMode ?? null,
+    participatingIssues: sortIssuesByIid(manifest.issues).map((issue) => issue.iid),
+    artifactPaths,
+    supersededBranch: supersededBranch ?? manifest.registry?.supersededBranch ?? null,
+    reportStatus: report?.status ?? null,
+  };
+  const nextAction = phase === 'prepare'
+    ? '- checkout된 execution branch에서 구현을 진행한 뒤 `pnpm run copilot:issue:verify -- ...`와 `pnpm run copilot:issue:report -- ...`를 이어간다.'
+    : report?.status === 'passed'
+      ? '- GitLab issue state/note를 확인하고 execution branch를 push 상태로 유지한다.'
+      : '- 실패 원인을 수정한 뒤 같은 execution branch에서 verify/report를 다시 수행한다.';
 
   return [
-    '## Copilot local operator report',
+    '## Copilot local operator registry',
     '',
-    `- Status: \`${report.status}\``,
-    `- Base branch: \`${manifest.baseBranch}\``,
-    `- Execution branch: \`${manifest.branchName}\``,
-    `- Issue key: \`${manifest.issueKey}\``,
+    '<!-- copilot-issue-registry:v1 -->',
+    '',
+    `- Phase: \`${phase}\``,
+    `- State label: \`${stateLabel}\``,
+    `- Verification status: \`${verificationStatus}\``,
+    `- Topology: \`${notePayload.topology}\``,
+    `- Operator: \`${notePayload.operator.displayName}\``,
+    `- Base branch: \`${notePayload.baseBranch}\``,
+    `- Base ref: \`${notePayload.baseRef}\``,
+    `- Execution branch: \`${notePayload.executionBranch}\``,
+    `- Checkout mode: \`${notePayload.checkoutMode ?? 'n/a'}\``,
+    `- Superseded branch: \`${notePayload.supersededBranch ?? 'none'}\``,
+    `- Timestamp: \`${noteTimestamp}\``,
+    '',
+    '### Participating issues',
+    '',
+    ...issueLines,
     '',
     '### Changed files',
     '',
-    changedFiles,
+    ...changedFileLines,
     '',
     '### Verification matrix',
     '',
-    matrix,
+    ...matrixLines,
     '',
     '### Local artifacts',
     '',
-    `- \`${report.artifactDir}/verification-report.md\``,
-    `- \`${report.artifactDir}/normalized-spec.md\``,
+    ...artifactLines,
     '',
     '### Next action',
     '',
-    report.status === 'passed'
-      ? '- 브랜치 diff를 검토한 뒤 다음 승인/보고 단계로 넘긴다.'
-      : '- 실패 원인을 수정한 뒤 같은 issue key로 verify/report를 다시 수행한다.',
+    nextAction,
+    '',
+    '### Structured payload',
+    '',
+    '```json',
+    JSON.stringify(notePayload, null, 2),
+    '```',
   ].join('\n');
 }
 
 export async function resolveGitLabContext(repoRoot) {
-  const remoteUrl = gitOutput(['config', '--get', 'remote.origin.url'], { cwd: repoRoot });
-  const { hostUrl, projectPath, credentialUser, credentialToken } = parseGitLabRemote(remoteUrl);
-  const gitLabUser = process.env.GL_USER || readGitConfig(repoRoot, 'codex.gitlabUser') || credentialUser;
-  const gitLabToken = process.env.GL_TOKEN || readGitConfig(repoRoot, 'codex.gitlabToken') || credentialToken;
+  const remoteUrlResult = runCommand('git', ['config', '--get', 'remote.origin.url'], {
+    cwd: repoRoot,
+    allowFailure: true,
+  });
+  const remoteUrl = remoteUrlResult.status === 0 ? remoteUrlResult.stdout.trim() : '';
+  const parsedRemote = remoteUrl
+    ? parseGitLabRemote(remoteUrl)
+    : {
+      hostUrl: '',
+      projectPath: '',
+      credentialUser: '',
+      credentialToken: '',
+    };
+  const hostUrl = process.env.GL_HOST_URL
+    || readGitConfig(repoRoot, 'codex.gitlabHostUrl')
+    || parsedRemote.hostUrl;
+  const projectPath = process.env.GL_PROJECT_PATH
+    || readGitConfig(repoRoot, 'codex.gitlabProjectPath')
+    || parsedRemote.projectPath;
+  const gitLabUser = process.env.GL_USER || readGitConfig(repoRoot, 'codex.gitlabUser') || parsedRemote.credentialUser;
+  const gitLabToken = process.env.GL_TOKEN || readGitConfig(repoRoot, 'codex.gitlabToken') || parsedRemote.credentialToken;
 
   if (!gitLabToken) {
     throw new Error('GitLab API access requires GL_TOKEN, local git config codex.gitlabToken, or remote.origin.url credentials.');
+  }
+
+  if (!hostUrl || !projectPath) {
+    throw new Error('GitLab API context requires host/project information. Configure `GL_HOST_URL`/`GL_PROJECT_PATH` or local git config `codex.gitlabHostUrl`/`codex.gitlabProjectPath` when the remote URL is not enough.');
   }
 
   return {
@@ -491,13 +715,47 @@ export async function postIssueNote(gitLabContext, issueIid, body) {
   );
 }
 
+export async function updateIssueLabels(gitLabContext, issueIid, labels) {
+  return gitLabFetchJson(
+    gitLabContext,
+    `/projects/${gitLabContext.projectId}/issues/${issueIid}`,
+    {
+      method: 'PUT',
+      body: {
+        labels: labels.join(','),
+      },
+    },
+  );
+}
+
+export function buildManagedIssueLabels(currentLabels, { stateLabel, mode }) {
+  const nextLabels = currentLabels.filter((label) => !MANAGED_FLOW_LABELS.includes(label));
+  nextLabels.push(stateLabel);
+  if ((mode ?? 'single') === 'batch') {
+    nextLabels.push(ISSUE_LABELS.batch);
+  }
+
+  return dedupe(nextLabels).sort((left, right) => left.localeCompare(right));
+}
+
 export function validateIssue(issue) {
   const sections = parseIssueSections(issue.description ?? '');
   const errors = [];
 
   const labels = Array.isArray(issue.labels) ? issue.labels : [];
-  if (!labels.includes(EXECUTION_LABEL)) {
-    errors.push(`GitLab issue !${issue.iid}에는 \`${EXECUTION_LABEL}\` label이 필요합니다.`);
+  if (issue.state !== 'opened') {
+    errors.push(`GitLab issue !${issue.iid}는 opened 상태여야 합니다. 현재 상태: \`${issue.state}\``);
+  }
+
+  let executionState = null;
+  try {
+    executionState = resolveExecutionState(labels);
+  } catch (error) {
+    errors.push(`GitLab issue !${issue.iid}의 execution label 상태가 충돌합니다. ${error.message}`);
+  }
+
+  if (!executionState) {
+    errors.push(`GitLab issue !${issue.iid}에는 \`${ISSUE_LABELS.ready}\`, \`${ISSUE_LABELS.inProgress}\`, \`${ISSUE_LABELS.verified}\`, \`${ISSUE_LABELS.blocked}\` 중 하나가 필요합니다.`);
   }
 
   for (const section of REQUIRED_SECTIONS) {
@@ -511,6 +769,8 @@ export function validateIssue(issue) {
       iid: Number(issue.iid),
       title: issue.title,
       webUrl: issue.web_url,
+      issueState: issue.state,
+      executionState,
       labels,
       sections,
     },
@@ -555,6 +815,10 @@ function parseIssueSections(body) {
   );
 }
 
+export function normalizeIssueIids(issueIids) {
+  return [...new Set(issueIids)].sort((left, right) => left - right);
+}
+
 function sanitizeTemplateText(value) {
   return value
     .replace(/<!--[\s\S]*?-->/g, '')
@@ -581,6 +845,43 @@ function dedupe(values) {
   return [...new Set(values)];
 }
 
+function sortIssuesByIid(issues) {
+  return [...issues].sort((left, right) => left.iid - right.iid);
+}
+
+function getTopology(mode) {
+  return mode === 'batch' ? 'batch' : 'single';
+}
+
+function isExecutionBranchName(branchName) {
+  return branchName.startsWith('ai/');
+}
+
+function resolveExecutionState(labels) {
+  const activeLabels = EXECUTION_STATE_LABELS.filter((label) => labels.includes(label));
+  if (activeLabels.length > 1) {
+    throw new Error(`동시에 둘 이상의 state label이 존재합니다: ${activeLabels.join(', ')}`);
+  }
+
+  if (activeLabels.length === 0) {
+    return null;
+  }
+
+  if (activeLabels[0] === ISSUE_LABELS.ready) {
+    return 'ready';
+  }
+
+  if (activeLabels[0] === ISSUE_LABELS.inProgress) {
+    return 'in-progress';
+  }
+
+  if (activeLabels[0] === ISSUE_LABELS.verified) {
+    return 'verified';
+  }
+
+  return 'blocked';
+}
+
 function parseIssueIid(value) {
   const parsed = Number.parseInt(String(value), 10);
   if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -605,17 +906,38 @@ function readOptionValue(argv, names) {
 }
 
 function parseGitLabRemote(remoteUrl) {
-  if (!remoteUrl.startsWith('http://') && !remoteUrl.startsWith('https://')) {
-    throw new Error('Only http(s) GitLab remotes are supported for the local operator issue flow.');
+  if (remoteUrl.startsWith('http://') || remoteUrl.startsWith('https://')) {
+    const parsed = new URL(remoteUrl);
+    return {
+      hostUrl: `${parsed.protocol}//${parsed.host}`,
+      projectPath: parsed.pathname.replace(/^\/+/, '').replace(/\.git$/, ''),
+      credentialUser: parsed.username ? decodeURIComponent(parsed.username) : '',
+      credentialToken: parsed.password ? decodeURIComponent(parsed.password) : '',
+    };
   }
 
-  const parsed = new URL(remoteUrl);
-  return {
-    hostUrl: `${parsed.protocol}//${parsed.host}`,
-    projectPath: parsed.pathname.replace(/^\/+/, '').replace(/\.git$/, ''),
-    credentialUser: parsed.username ? decodeURIComponent(parsed.username) : '',
-    credentialToken: parsed.password ? decodeURIComponent(parsed.password) : '',
-  };
+  if (remoteUrl.startsWith('ssh://')) {
+    const parsed = new URL(remoteUrl);
+    return {
+      hostUrl: `https://${parsed.hostname}`,
+      projectPath: parsed.pathname.replace(/^\/+/, '').replace(/\.git$/, ''),
+      credentialUser: parsed.username ? decodeURIComponent(parsed.username) : '',
+      credentialToken: '',
+    };
+  }
+
+  const scpLikeMatch = /^(?:([^@]+)@)?([^:]+):(.+)$/.exec(remoteUrl);
+  if (scpLikeMatch) {
+    const [, user = '', host, projectPath] = scpLikeMatch;
+    return {
+      hostUrl: `https://${host}`,
+      projectPath: projectPath.replace(/^\/+/, '').replace(/\.git$/, ''),
+      credentialUser: user ? decodeURIComponent(user) : '',
+      credentialToken: '',
+    };
+  }
+
+  throw new Error('Unsupported GitLab remote format. Use http(s), ssh://, or git@host:path.git, or configure codex.gitlabHostUrl / codex.gitlabProjectPath.');
 }
 
 async function gitLabFetchJson(gitLabContext, pathname, { method = 'GET', body = null } = {}) {
@@ -653,6 +975,30 @@ function readGitConfig(repoRoot, key) {
     allowFailure: true,
   });
   return result.status === 0 ? result.stdout.trim() : '';
+}
+
+function remoteBranchExists(repoRoot, branchName, remoteName = 'origin') {
+  const remoteUrl = readGitConfig(repoRoot, `remote.${remoteName}.url`);
+  if (!remoteUrl) {
+    return false;
+  }
+
+  return runCommand(
+    'git',
+    ['ls-remote', '--exit-code', '--heads', remoteName, `refs/heads/${branchName}`],
+    {
+      cwd: repoRoot,
+      allowFailure: true,
+    },
+  ).status === 0;
+}
+
+function fetchRemoteTrackingBranch(repoRoot, branchName, remoteName = 'origin') {
+  runCommand(
+    'git',
+    ['fetch', remoteName, `refs/heads/${branchName}:refs/remotes/${remoteName}/${branchName}`],
+    { cwd: repoRoot },
+  );
 }
 
 function gitOutput(args, options = {}) {
