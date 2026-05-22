@@ -1,6 +1,6 @@
 # DMS 로드맵
 
-> 최종 업데이트: 2026-05-18 (공통 알림 + 사용자 스코프 + 현재 검증 기준선)
+> 최종 업데이트: 2026-05-20 (AI 검색 기록 + 잠긴 문서 미리보기 closeout)
 
 ---
 
@@ -20,22 +20,25 @@
 - 공통 알림 모듈 1차 완결: common notification DB/API/types/history trigger, DMS same-origin proxy, SSE stream, 헤더 알림 패널/토스트, CMS bridge 를 공통 알림 계약으로 정렬
 - 사용자별 DMS client state isolation 적용: 로그인 사용자 변경 시 tab/file tree/sidebar/editor/settings/query cache 상태를 분리하고, user-scope contract 검증을 추가
 - 권한 요청 취소와 수신자 알림 cleanup 적용: requester pending 취소, owner 알림 archive/read 처리, notification archived 이벤트 기반 패널 갱신 연결
-- 현재 검증 기준선 통과: types/database build, server/web-dms type check, server test 110개, DMS guard, DMS access verification, server/web-dms build
+- AI 검색 런칭 정리: 검색 결과 AI 요약 표시, DB 기반 내 자주 검색/인기 검색어/검색 기록, 인기 검색어 최소 노출 조건과 검증/테스트 검색어 저장 차단 적용
+- 잠긴 문서 미리보기 적용: unreadable 검색/AI 결과 클릭 시 즉시 팝업 대신 문서 탭을 열고, 서버 preview-only 응답 기반 잠금 화면과 권한 요청 CTA를 표시
+- 현재 검증 기준선 통과: locked preview 서버 테스트, server/web-dms build, DMS access verification, Codex preflight, Docker server/dms rebuild, health/browser 확인
 
 ## 2. 단기 우선순위 (P1)
 
 **Phase B — 권한 UX 잔여 정리**:
 
 1. **DMS-PERM-UX-01** Search/Ask 차단 소스 수와 제외 사유 표시 UI ("권한 부족으로 N개 제외됨")
-2. **DMS-PERM-UX-04** 권한 UX 회귀 검증 자동화: 요청 생성 → 승인/거절 → grant 반영 → 회수/소유권 이전
-3. **DMS-QA-02** hard refresh client-side error 브라우저 재현 케이스 확보: 현재 CLI/HTTP/build 기준 문제 없음, 재현 시 console 첫 오류 기준으로 regression 추가
+2. **DMS-PERM-UX-07** 권한 없는 검색 결과 카드 스니펫/키워드 노출 정책 정리: AI 요약은 유지하되 원문 기반 발췌는 제거하거나 서버 preview-only 기준으로 제한
+3. **DMS-PERM-UX-04** 권한 UX 회귀 검증 자동화: 요청 생성 → 승인/거절 → grant 반영 → 회수/소유권 이전
+4. **DMS-QA-02** hard refresh client-side error 브라우저 재현 케이스 확보: 현재 CLI/HTTP/build 기준 문제 없음, 재현 시 console 첫 오류 기준으로 regression 추가
 
 **기타 P1**:
 
-4. 저장소 어댑터 3종(Local/SharePoint/NAS) 라우팅 관통 적용
-5. 정본/첨부 Open/Copy/Resync UX 고도화 (에러 표준화 — Phase C)
-6. 자동 수집 채널 연동 + 컨펌 후 게시 운영화
-7. Ask/Search 화면의 citations/confidence UI 완결 (Phase B-1 일부)
+5. 저장소 어댑터 3종(Local/SharePoint/NAS) 라우팅 관통 적용
+6. 정본/첨부 Open/Copy/Resync UX 고도화 (에러 표준화 — Phase C)
+7. 자동 수집 채널 연동 + 컨펌 후 게시 운영화
+8. Ask/Search 화면의 citations/confidence UI 완결 (Phase B-1 일부)
 
 ## 3. 중기 우선순위 (P2)
 
@@ -59,6 +62,7 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-05-20 | AI 검색 결과 요약, DB 기반 검색 기록/인기 검색어, 잠긴 문서 미리보기, 권한 요청 CTA, Docker/browser 검증 완료를 현재 완료 범위에 반영. 단기 P1에 unreadable 검색 결과 카드 스니펫/키워드 노출 정책 정리를 추가 |
 | 2026-05-18 | 공통 알림/SSE, DMS 헤더 알림, 사용자별 client state isolation, 권한 요청 취소/알림 cleanup 을 현재 완료 범위에 반영. 현재 기준 검증 통과 상태를 명시하고, hard refresh client-side error는 브라우저 재현 기반 QA 항목으로 분리 |
 | 2026-05-14 | DMS 접근 검증 게이트 복구(`verify:access-dms:raw` 통과)와 권한 UX 재감사 결과 반영. 액세스 요청 워크플로우와 관리자 권한 운영 surface 를 완료로 재분류하고, 잔여 P1을 차단 소스 수 표시와 권한 UX 회귀 자동화로 축소 |
 | 2026-04-30 | Phase A 종결 — 문서 정본 GitLab push 정책 확정 (canonical `master`), versionHistory dead code 제거 + 의도 backlog 등재. Track 2/5/7 closed (100%). 단기 우선순위를 Phase B (권한 UX 3종, `DMS-PERM-UX-01/02/03`) 로 재정렬 |

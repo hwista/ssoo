@@ -21,9 +21,21 @@ export interface FileStatMetadata {
   document?: DocumentMetadata;
 }
 
+export interface LockedFilePreviewData {
+  isLocked: true;
+  path: string;
+  title: string;
+  owner?: string;
+  visibilityScope?: string;
+  canRequestRead: boolean;
+  preview: string;
+  truncated: boolean;
+}
+
 export interface FileData {
   content: string;
   metadata: FileStatMetadata;
+  lockedPreview?: LockedFilePreviewData;
 }
 
 export type FileCrudResult<T = unknown> =
@@ -100,6 +112,56 @@ export class FileCrudService {
     };
   }
 
+  private buildPreviewContent(content: string): { preview: string; truncated: boolean } {
+    const safeLines = content
+      .split(/\r?\n/)
+      .map((line) => line.trimEnd())
+      .filter((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return true;
+        if (trimmed.startsWith('|')) return false;
+        if (/^!\[[^\]]*\]\([^)]*\)/.test(trimmed)) return false;
+        if (/\.(png|jpe?g|gif|webp|svg|pdf|xlsx?|docx?|pptx?)\b/i.test(trimmed)) return false;
+        return true;
+      });
+    const previewLines = safeLines.slice(0, 4);
+    const preview = previewLines.join('\n').trimEnd();
+    return {
+      preview,
+      truncated: preview.length < content.length,
+    };
+  }
+
+  private async buildLockedPreview(
+    filePath: string,
+    finalPath: string,
+    currentUser: TokenPayload,
+  ): Promise<FileData> {
+    const content = fs.readFileSync(finalPath, 'utf-8');
+    const { preview, truncated } = this.buildPreviewContent(content);
+    const relativePath = this.toRelativePath(finalPath);
+    const projected = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(relativePath);
+    const access = this.documentAclService.describeSearchResultAccess(currentUser, finalPath);
+    const title = typeof projected?.title === 'string' && projected.title.trim()
+      ? projected.title.trim()
+      : path.basename(filePath).replace(/\.md$/i, '');
+
+    return {
+      content: preview,
+      metadata: this.getFileMetadata(finalPath),
+      lockedPreview: {
+        isLocked: true,
+        path: relativePath,
+        title,
+        owner: access.owner,
+        visibilityScope: access.visibilityScope,
+        canRequestRead: access.canRequestRead,
+        preview,
+        truncated,
+      },
+    };
+  }
+
   async read(filePath: string, currentUser: TokenPayload): Promise<FileCrudResult<FileData>> {
     const { targetPath, valid, safeRelPath } = this.resolveFilePath(filePath);
 
@@ -132,6 +194,9 @@ export class FileCrudService {
       return { success: true, data: { content, metadata } };
     } catch (error) {
       if (error instanceof ForbiddenException) {
+        if (isMarkdownFile(finalPath)) {
+          return { success: true, data: await this.buildLockedPreview(filePath, finalPath, currentUser) };
+        }
         return { success: false, error: error.message, status: 403 };
       }
 

@@ -41,6 +41,32 @@ function isSearchIndexSyncTarget(targetPath: string): boolean {
   return normalized.endsWith('.md') || !normalized.includes('.');
 }
 
+function buildPreviewContent(content: string): { preview: string; truncated: boolean } {
+  const safeLines = content
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return true;
+      if (trimmed.startsWith('|')) return false;
+      if (/^!\[[^\]]*\]\([^)]*\)/.test(trimmed)) return false;
+      if (/\.(png|jpe?g|gif|webp|svg|pdf|xlsx?|docx?|pptx?)\b/i.test(trimmed)) return false;
+      return true;
+    });
+  const previewLines = safeLines.slice(0, 4);
+  const preview = previewLines.join('\n').trimEnd();
+  return {
+    preview,
+    truncated: preview.length < content.length,
+  };
+}
+
+function resolvePreviewTitle(metadata: DocumentMetadata | null, contentPath: string): string {
+  const projectedTitle = typeof metadata?.title === 'string' ? metadata.title.trim() : '';
+  if (projectedTitle) return projectedTitle;
+  return contentPath.split('/').pop()?.replace(/\.md$/i, '') || '잠긴 문서';
+}
+
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/content')
@@ -79,7 +105,35 @@ export class ContentController {
     }
 
     await this.accessRequestService.ensureRepoControlPlaneSynced();
-    this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
+
+    try {
+      this.documentAclService.assertCanReadAbsolutePath(currentUser, targetPath);
+    } catch (error) {
+      if (!(error instanceof ForbiddenException)) {
+        throw error;
+      }
+
+      const content = fs.readFileSync(targetPath, 'utf-8');
+      const projectedMetadata = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath);
+      const { preview, truncated } = buildPreviewContent(content);
+      const access = this.documentAclService.describeSearchResultAccess(currentUser, targetPath);
+
+      return success({
+        content: preview,
+        metadata: null,
+        lockedPreview: {
+          isLocked: true,
+          path: safeRelPath,
+          title: resolvePreviewTitle(projectedMetadata, safeRelPath),
+          owner: access.owner,
+          visibilityScope: access.visibilityScope,
+          canRequestRead: access.canRequestRead,
+          preview,
+          truncated,
+        },
+      });
+    }
+
     const content = fs.readFileSync(targetPath, 'utf-8');
     const projectedMetadata = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath);
     const fallbackMetadata = projectedMetadata

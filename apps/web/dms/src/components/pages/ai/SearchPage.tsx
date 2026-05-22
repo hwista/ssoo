@@ -8,7 +8,6 @@ import {
   useAssistantContextStore,
   useAssistantPanelStore,
   useConfirmStore,
-  useAiSearchStore,
   useAccessStore,
 } from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
@@ -19,17 +18,15 @@ import {
   SectionedShell,
 } from '@/components/templates/page-frame';
 import { Toolbar, DOCUMENT_WIDTH } from '@/components/common/viewer';
-import { useAiSearchQuery, useOpenDocumentTab } from '@/hooks';
+import { useAiSearchInsightsQuery, useAiSearchQuery, useOpenDocumentTab } from '@/hooks';
 import { getErrorMessage } from '@/lib/api/core';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
-import { useDocumentAccessRequestStore } from '@/features/access';
 import { getQueryFromTabPath } from './utils/queryPath';
 import { AiPanel } from './_components/AiPanel';
 import { SearchResultsPanel } from './_components/SearchResultsPanel';
 import {
   buildHistoryItems,
   buildSearchTocItems,
-  getTopSearchKeywords,
   rankSearchResults,
   type SearchResultItem,
   tokenizeHighlightTerms,
@@ -56,13 +53,15 @@ export function AiSearchPage() {
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const canUseSearch = accessSnapshot?.features.canUseSearch ?? false;
   const canUseAssistant = accessSnapshot?.features.canUseAssistant ?? false;
-  const searchHistory = useAiSearchStore((state) => state.history);
-  const recordSearch = useAiSearchStore((state) => state.recordSearch);
   const openDocumentTab = useOpenDocumentTab();
-  const openAccessRequestDialog = useDocumentAccessRequestStore((state) => state.open);
   const searchQuery = useAiSearchQuery(sourceQuery, {
     contextMode: 'deep',
     enabled: hasSearched && sourceQuery.trim().length > 0,
+  });
+  const searchInsightsQuery = useAiSearchInsightsQuery({
+    enabled: canUseSearch,
+    historyLimit: 50,
+    popularLimit: 5,
   });
   const isSearching = searchQuery.isFetching;
   const hasCompletedSearch = !isSearching;
@@ -109,7 +108,6 @@ export function AiSearchPage() {
       setResults(nextResults);
       setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
-      recordSearch(sourceQuery, nextResults.length);
       } else {
         const fallbackResults = [
           {
@@ -126,14 +124,12 @@ export function AiSearchPage() {
       setResults(fallbackResults);
       setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
-      recordSearch(sourceQuery, 0);
     }
 
     lastProcessedSearchKeyRef.current = searchKey;
   }, [
     hasSearched,
     isSearching,
-    recordSearch,
     searchQuery.data,
     searchQuery.dataUpdatedAt,
     searchQuery.isFetched,
@@ -184,8 +180,22 @@ export function AiSearchPage() {
   const tocItems = useMemo(() => buildSearchTocItems(results), [results]);
   const matchedIndexSet = useMemo(() => new Set(matchedResultIndices), [matchedResultIndices]);
   const snippetHighlightTerms = useMemo(() => tokenizeHighlightTerms(sourceQuery), [sourceQuery]);
-  const historyItems = useMemo(() => buildHistoryItems(searchHistory, sourceQuery), [searchHistory, sourceQuery]);
-  const topSearchKeywords = useMemo(() => getTopSearchKeywords(searchHistory), [searchHistory]);
+  const dbSearchInsights = searchInsightsQuery.data?.success ? searchInsightsQuery.data.data : undefined;
+  const historyItems = useMemo(
+    () => buildHistoryItems(dbSearchInsights?.history ?? [], sourceQuery),
+    [dbSearchInsights?.history, sourceQuery],
+  );
+  const topSearchKeywords = useMemo(
+    () => (dbSearchInsights?.popular ?? []).map((item) => item.query),
+    [dbSearchInsights?.popular],
+  );
+  const frequentSearchKeywords = useMemo(
+    () => [...(dbSearchInsights?.history ?? [])]
+      .sort((a, b) => b.count - a.count || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 5)
+      .map((item) => item.query),
+    [dbSearchInsights?.history],
+  );
 
   const handleNavigateResult = useCallback((direction: 'prev' | 'next') => {
     if (matchedResultIndices.length === 0) return;
@@ -252,26 +262,13 @@ export function AiSearchPage() {
 
   const handleOpenSearchResult = useCallback(async (item: SearchResultItem) => {
     if (!item.path || item.path === '-') return;
-    if (!item.isReadable) {
-      if (item.canRequestRead) {
-        openAccessRequestDialog({
-          title: item.title,
-          path: item.path,
-          owner: item.owner,
-          readRequest: item.readRequest,
-        });
-      } else {
-        toast.error('문서를 열 수 없습니다.');
-      }
-      return;
-    }
     await openDocumentTab({
       path: item.path,
       title: item.title,
       activate: true,
       highlightQuery: sourceQuery.trim() || undefined,
     });
-  }, [openAccessRequestDialog, openDocumentTab, sourceQuery]);
+  }, [openDocumentTab, sourceQuery]);
 
   if (!canUseSearch) {
     return (
@@ -301,6 +298,7 @@ export function AiSearchPage() {
               void performSearch(item.title);
             }}
             suggestions={topSearchKeywords}
+            frequentSearches={frequentSearchKeywords}
             onSuggestionSelect={(keyword) => {
               setFilterQuery('');
               void performSearch(keyword);

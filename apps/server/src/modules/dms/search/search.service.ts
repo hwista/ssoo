@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { embed, embedMany } from 'ai';
+import { embed, embedMany, generateText } from 'ai';
 import {
   BadRequestException,
   InternalServerErrorException,
@@ -36,8 +36,12 @@ import {
   toRelativePath,
   tokenizeQuery,
 } from './search.helpers.js';
-import { getEmbeddingModel } from './search.provider.js';
+import { getChatModel, getEmbeddingModel } from './search.provider.js';
 import { SearchRuntimeService } from './search-runtime.service.js';
+import { SearchHistoryService } from './search-history.service.js';
+
+const SEARCH_SUMMARY_MAX_CONTENT_CHARS = 6000;
+const SEARCH_SUMMARY_MAX_OUTPUT_TOKENS = 120;
 
 interface SemanticSearchRow {
   file_path: string;
@@ -71,6 +75,7 @@ export class SearchService implements OnModuleInit {
     private readonly runtime: SearchRuntimeService,
     private readonly accessRequestService: AccessRequestService,
     private readonly documentAclService: DocumentAclService,
+    private readonly searchHistoryService: SearchHistoryService,
   ) {}
 
   async onModuleInit() {
@@ -91,11 +96,26 @@ export class SearchService implements OnModuleInit {
     };
 
     const semanticResponse = await this.searchSemantic(query, currentUser, options);
-    if (semanticResponse.results.length > 0) {
-      return semanticResponse;
-    }
+    const response = semanticResponse.results.length > 0
+      ? semanticResponse
+      : await this.searchKeyword(query, currentUser, options);
+    const resultsWithSummaries = await this.attachAiSummaries(
+      query,
+      response.results,
+    );
+    const resultsWithRequests = await this.accessRequestService.attachReadRequestStates(
+      currentUser,
+      resultsWithSummaries,
+    );
 
-    return this.searchKeyword(query, currentUser, options);
+    const finalResponse = {
+      ...response,
+      results: resultsWithRequests,
+    };
+
+    await this.searchHistoryService.recordSearch(currentUser, query, finalResponse.results.length);
+
+    return finalResponse;
   }
 
   async syncIndex(request: SearchIndexSyncRequest): Promise<SearchIndexSyncResponse> {
@@ -254,7 +274,6 @@ export class SearchService implements OnModuleInit {
           terms,
           snippets,
         );
-
         results.push({
           id: `semantic-${index}`,
           title,
@@ -271,11 +290,7 @@ export class SearchService implements OnModuleInit {
         });
       }
 
-      const resultsWithRequests = await this.accessRequestService.attachReadRequestStates(
-        currentUser,
-        results,
-      );
-      return buildSearchResponse(query, resultsWithRequests, options);
+      return buildSearchResponse(query, results, options);
     } catch (error) {
       this.logger.warn(
         `시맨틱 검색 실패, 키워드 검색으로 전환합니다: ${getErrorMessage(error)}`,
@@ -360,15 +375,112 @@ export class SearchService implements OnModuleInit {
     }
 
     results.sort((left, right) => right.score - left.score);
-    const resultsWithRequests = await this.accessRequestService.attachReadRequestStates(
-      currentUser,
-      results.slice(0, searchConfig.maxResults),
-    );
     return buildSearchResponse(
       query,
-      resultsWithRequests,
+      results.slice(0, searchConfig.maxResults),
       options,
     );
+  }
+
+  private async attachAiSummaries(
+    query: string,
+    results: SearchResultItem[],
+  ): Promise<SearchResultItem[]> {
+    const summaryTargets = results.filter((result) => (
+      result.path.trim().length > 0
+      && result.path !== '-'
+    ));
+
+    if (summaryTargets.length === 0) {
+      return results;
+    }
+
+    const model = await getChatModel().catch((error: unknown) => {
+      this.logger.warn(`검색 결과 AI 요약 모델 초기화 실패: ${getErrorMessage(error)}`);
+      return null;
+    });
+
+    if (!model) {
+      return results;
+    }
+
+    const rootDir = this.runtime.getDocDir();
+    const concurrency = Math.max(1, this.runtime.getSearchConfig().summaryConcurrency);
+    const summaries = new Map<string, string>();
+    let nextIndex = 0;
+
+    const runWorker = async () => {
+      while (nextIndex < summaryTargets.length) {
+        const target = summaryTargets[nextIndex];
+        nextIndex += 1;
+
+        try {
+          const absolutePath = resolveAbsolutePath(target.path, rootDir);
+
+          if (!fs.existsSync(absolutePath)) {
+            continue;
+          }
+
+          const content = stripMarkdown(fs.readFileSync(absolutePath, 'utf-8'))
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, SEARCH_SUMMARY_MAX_CONTENT_CHARS);
+
+          if (!content) {
+            continue;
+          }
+
+          const completion = await generateText({
+            model,
+            temperature: 0.2,
+            maxOutputTokens: SEARCH_SUMMARY_MAX_OUTPUT_TOKENS,
+            system: [
+              '당신은 DMS 검색 결과 카드에 표시할 문서 요약을 작성합니다.',
+              '한국어 한 문장으로만 답하세요.',
+              '문서 전체의 핵심을 요약하고, 검색어 주변 문장만 복사하지 마세요.',
+              '마크다운, 목록, 따옴표, 접두어를 쓰지 마세요.',
+            ].join('\n'),
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  `검색어: ${query}`,
+                  `문서 제목: ${target.title}`,
+                  `문서 경로: ${target.path}`,
+                  '',
+                  '문서 내용:',
+                  content,
+                ].join('\n'),
+              },
+            ],
+          });
+
+          const summary = completion.text.replace(/\s+/g, ' ').trim();
+          if (summary) {
+            summaries.set(target.path, summary);
+          }
+        } catch (error) {
+          this.logger.warn(`검색 결과 AI 요약 생성 실패 (${target.path}): ${getErrorMessage(error)}`);
+        }
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, summaryTargets.length) }, () => runWorker()),
+    );
+
+    return results.map((result) => {
+      const summary = summaries.get(result.path);
+      if (!summary) {
+        return result;
+      }
+
+      return {
+        ...result,
+        summary,
+        summarySource: 'ai',
+      };
+    });
   }
 
   private async syncIndexForPath(docPath: string): Promise<PathSyncCounts> {

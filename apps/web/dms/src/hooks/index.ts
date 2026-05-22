@@ -18,7 +18,7 @@ export { useContentClickHandler } from './useContentClickHandler';
 export type { ContentClickHandlerOptions } from './useContentClickHandler';
 
 // Queries
-export { useAiSearchQuery } from './queries/useAiSearch';
+export { useAiSearchInsightsQuery, useAiSearchQuery } from './queries/useAiSearch';
 export { useFileTreeQuery } from './queries/useFileTree';
 export {
   useAssistantSessionsQuery,

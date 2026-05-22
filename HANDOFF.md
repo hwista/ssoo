@@ -206,6 +206,60 @@ Purpose of this snapshot
 - Documentation edit risk:
   - This HANDOFF update itself is a working-tree documentation change and should be committed, amended into the local ahead commit, or reverted based on the next operator’s intent.
 
+Launch closeout snapshot — 2026-05-20 17:44 KST
+------------------------------------------------
+
+Purpose of this snapshot
+- This section is the current re-entry handoff for DMS launch-prep work.
+- Scope is DMS only. PMS/CMS integration acceptance is intentionally out of scope.
+- Detailed task handoff lives in `docs/dms/planning/2026-05-20-launch-closeout-handoff.md`.
+
+1) Current goal / last completed slice
+- Last completed slice: DMS AI search/history/popular keywords + locked document preview UX closeout.
+- Locked preview behavior is implemented and verified: unreadable search/AI result opens a document tab, server returns preview-only data, document page shows locked preview + access request CTA.
+- Docker reflection completed for server and DMS web. Browser verified locked preview and access request dialog display.
+- Current remaining P1: unreadable search result card snippet/keyword exposure policy. AI summary should stay visible, but original-content snippets/keywords should be removed or constrained to preview-only policy.
+
+2) Git / remote state at snapshot
+- Repo path: `/home/a0122024330/src/ssoo`
+- Branch: `main`
+- Remotes:
+  - GitHub: `origin`
+  - GitLab: `gitlab`
+- Working tree contains a large DMS launch-prep batch plus this documentation update. It should be committed as one coherent launch-prep closeout unless review decides to split.
+
+3) Verification completed before this handoff update
+- Locked preview Jest spec passed.
+- `pnpm run build:server` passed.
+- `pnpm run build:web-dms` passed.
+- `pnpm run verify:access-dms:raw` passed.
+- `pnpm run codex:preflight` passed.
+- `docker compose up -d --build server dms` completed.
+- `curl -fsS http://127.0.0.1:4000/api/health` returned healthy server response.
+- `curl -fsSI http://127.0.0.1:3001` returned 200.
+- `docker compose ps server dms postgres` showed all three healthy.
+- Browser check: viewer login → AI search → unreadable result click → locked document tab → access request CTA → access request dialog.
+- API check: unreadable markdown file/content read returned locked preview data without the hidden full-content marker; validation document was deleted afterward and 404 confirmed.
+
+4) Re-entry commands
+```bash
+cd /home/a0122024330/src/ssoo
+git status --short --branch
+git log --oneline --decorate -8
+sed -n '1,220p' docs/dms/planning/2026-05-20-launch-closeout-handoff.md
+```
+
+5) Next smallest implementation step
+- Fix unreadable search result card snippet/keyword policy.
+- Do not change the requirement that AI summaries may be shown for documents included in search results.
+- Do restrict original markdown excerpts/keywords for unreadable results so search cards do not leak more than the locked-preview policy allows.
+- Re-run server/web builds, DMS access verification, Codex preflight, Docker rebuild, and browser verification.
+
+6) Important constraints
+- Do not implement CSS-only blur over full downloaded content.
+- Do not broaden this session into PMS/CMS unless explicitly instructed.
+- Do not close a DMS runtime change without Docker rebuild and health/browser verification.
+
 Contact
 -------
-For questions about decisions or tests, check `docs/dms/guides/` and recent commits (2026-04-28..30).
+For questions about decisions or tests, check `docs/dms/guides/`, `docs/dms/planning/`, and recent commits.
