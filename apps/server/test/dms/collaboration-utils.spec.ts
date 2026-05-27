@@ -27,11 +27,13 @@ import {
   resolveTrackedPaths,
   shouldAutoReleasePublishIsolation,
 } from '../../src/modules/dms/collaboration/collaboration-isolation.util.js';
+import { buildParityStatus } from '../../src/modules/dms/runtime/git-sync.util.js';
 import type {
   DocumentPublishState,
   DocumentSoftLock,
 } from '../../src/modules/dms/collaboration/collaboration.service.js';
 import type { DocumentIsolationState } from '@ssoo/types/dms';
+import type { GitSyncStatus } from '../../src/modules/dms/runtime/git.service.js';
 
 describe('collaboration-paths.util', () => {
   describe('normalizePath', () => {
@@ -131,6 +133,31 @@ describe('collaboration-sanitizers.util', () => {
       expect(sanitized).toEqual({
         ...state,
         affectedPaths: ['docs/a.md'],
+      });
+    });
+
+    describe('git-sync.util', () => {
+      it('treats a local-only repository as canonical parity for local testing', () => {
+        const syncStatus: GitSyncStatus = {
+          branch: 'master',
+          remote: 'origin',
+          remoteRef: 'origin/master',
+          remoteConfigured: false,
+          remoteExists: false,
+          canPushFastForward: true,
+          remoteAhead: false,
+          localAhead: false,
+          diverged: false,
+          aheadCount: 0,
+          behindCount: 0,
+          state: 'local-only',
+        };
+
+        expect(buildParityStatus('origin', syncStatus)).toMatchObject({
+          verified: true,
+          canTreatLocalAsCanonical: true,
+          syncStatus,
+        });
       });
     });
 

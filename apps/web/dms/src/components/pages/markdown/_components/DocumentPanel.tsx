@@ -22,6 +22,7 @@ import {
   TagsSection,
 } from './document-panel';
 import { VisibilitySection } from '@/features/access';
+import { joinDocumentPath, normalizeDocumentPath } from '@/lib/utils/linkUtils';
 import type { DocumentMetadataDiffSnapshot } from '../documentPageUtils';
 
 function formatPublishStatusLabel(status: DocumentCollaborationSnapshotClient['publishState']['status']) {
@@ -340,11 +341,13 @@ export function DocumentPanel({
   const [isSaveLocationOpen, setIsSaveLocationOpen] = React.useState(false);
   const [replyTarget, setReplyTarget] = React.useState<{ id: string; author: string } | undefined>();
 
-  const fileName = filePath ? filePath.split('/').pop() || '' : '';
+  const displayPath = lockedPreview?.path || filePath || '';
+  const normalizedFilePath = displayPath ? normalizeDocumentPath(displayPath) : '';
+  const fileName = normalizedFilePath.split('/').pop() || '';
   const documentTitle = lockedPreview?.title || (isNewDocument
     ? (documentMetadata?.title || displayDocumentTitle || '')
     : (documentMetadata?.title || fileName.replace(/\.md$/, '')));
-  const currentDirectory = (lockedPreview?.path || filePath) ? (lockedPreview?.path || filePath || '').split('/').slice(0, -1).join('/') : '';
+  const currentDirectory = normalizedFilePath.split('/').slice(0, -1).join('/');
 
   const handleSaveLocationConfirm = (result: SaveLocationResult) => {
     if (result.title !== documentTitle) {
@@ -352,18 +355,14 @@ export function DocumentPanel({
     }
 
     if (isNewDocument) {
-      const newFullPath = result.directory
-        ? `${result.directory}/${result.fileName}`
-        : result.fileName;
+      const newFullPath = joinDocumentPath(result.directory, result.fileName);
       onFileMove?.(newFullPath);
       return;
     }
 
     if (filePath) {
-      const newFullPath = result.directory
-        ? `${result.directory}/${fileName}`
-        : fileName;
-      if (newFullPath !== filePath) {
+      const newFullPath = joinDocumentPath(result.directory, fileName);
+      if (newFullPath !== normalizedFilePath) {
         onFileMove?.(newFullPath);
       }
     }

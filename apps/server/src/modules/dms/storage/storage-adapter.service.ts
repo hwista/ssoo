@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { configService, type StorageProvider } from '../runtime/dms-config.service.js';
+import { normalizeRelativePath } from '../runtime/path-utils.js';
 
 export type StorageOrigin = 'manual' | 'ingest' | 'teams' | 'network_drive';
 export type StorageStatus = 'draft' | 'pending_confirm' | 'published';
@@ -58,14 +59,6 @@ function ensureDirectory(dirPath: string): void {
 
 function hashValue(content: string | Buffer): string {
   return crypto.createHash('sha256').update(content).digest('hex');
-}
-
-function normalizeRelativePath(input?: string): string {
-  if (!input) {
-    return '';
-  }
-
-  return path.normalize(input).replace(/^[/\\]+/, '');
 }
 
 class StorageAdapterService {
@@ -172,7 +165,7 @@ class StorageAdapterService {
   open(request: StorageOpenRequest): StorageOpenResult {
     const parsed = request.storageUri ? this.parseStorageUri(request.storageUri) : null;
     const provider = parsed?.provider ?? this.resolveProvider(request.provider);
-    const targetPath = parsed?.path ?? normalizeRelativePath(request.path);
+    const targetPath = parsed?.path ?? normalizeRelativePath(request.path ?? '');
     if (!targetPath) {
       throw new Error('열기 대상 경로가 필요합니다.');
     }
@@ -200,7 +193,7 @@ class StorageAdapterService {
   refresh(request: StorageRefreshRequest): StorageReference {
     const parsed = request.storageUri ? this.parseStorageUri(request.storageUri) : null;
     const provider = parsed?.provider ?? this.resolveProvider(request.provider);
-    const targetPath = parsed?.path ?? normalizeRelativePath(request.path);
+    const targetPath = parsed?.path ?? normalizeRelativePath(request.path ?? '');
     if (!targetPath) {
       throw new Error('resync 대상 경로가 필요합니다.');
     }

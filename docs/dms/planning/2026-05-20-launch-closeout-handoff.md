@@ -1,7 +1,7 @@
 # DMS 런칭 준비 핸드오프 — 검색/권한 게이트 closeout
 
 > 작성: 2026-05-27 08:30 KST
-> 갱신: 2026-05-27 10:04 KST
+> 갱신: 2026-05-27 10:24 KST
 > 범위: DMS 단독 런칭 준비. PMS/CMS 통합 수용성은 이 문서 범위가 아닙니다.
 
 ---
@@ -126,6 +126,8 @@
 - 서버 health: 정상
 - DMS 웹 응답: 정상
 - server/dms 컨테이너 상태: healthy
+- GitLab workspace sync merge 후 서버/DMS 웹 빌드: 통과
+- GitLab workspace sync merge 후 Codex preflight: 통과
 - 브라우저 로그인 후 AI 검색 결과 클릭: 문서 탭 진입 확인
 - 잠긴 문서 화면 표시: 확인
 - 권한 요청 CTA → 권한 요청 다이얼로그: 확인
@@ -147,6 +149,8 @@ pnpm run build:server
 pnpm run build:web-dms
 pnpm run verify:access-dms:raw
 pnpm run codex:preflight
+pnpm --filter server build
+pnpm --filter web-dms build
 DOCKER_CONFIG=/tmp/ssoo-docker-config docker compose up -d --build server dms
 curl -I -fsS http://localhost:3001/
 ```
@@ -228,7 +232,7 @@ sed -n '1,90p' docs/dms/planning/roadmap.md
 
 - 브라우저 런칭 스모크
 - 운영 freeze 확인
-- 원격 push 상태 확인
+- 원격 push 상태 확인: GitHub는 `main`, GitLab workspace는 `development` 기준
 
 ---
 
@@ -249,4 +253,5 @@ sed -n '1,90p' docs/dms/planning/roadmap.md
 
 - 2026-05-27: unreadable 검색 결과 redaction, 기존 문서 화면 기반 locked preview, 헤더 좌측 권한 요청 CTA, 기존 사이드카 섹션 재사용 잠금 표현, Docker 반영 상태를 런칭 핸드오프 기준으로 현행화했습니다.
 - 2026-05-27: Search/Ask 차단 소스 수/사유 요약, 권한 워크플로 live HTTP 회귀 검증, DB 검색 기록 migration 산출물을 완료 범위에 추가했습니다.
+- 2026-05-27: GitLab workspace `development`의 추가 하드닝 변경분을 로컬 작업과 병합하고, 병합 후 서버/DMS 웹 빌드와 Codex preflight 통과 상태를 문서화했습니다.
 - 2026-05-20: DMS AI 검색 기록/인기 검색어, 잠긴 문서 미리보기, 권한 요청 진입점, 남은 검색 결과 노출 정책을 런칭 핸드오프 기준으로 정리했습니다.

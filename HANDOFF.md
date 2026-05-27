@@ -32,9 +32,12 @@ Completed
 Current branch/commit
 ---------------------
 - Branch: main
-- Publish target for this snapshot: `origin/main` and `gitlab/main`
-- This handoff belongs to the DMS launch closeout commit created from the current working tree.
+- Publish target for this snapshot: GitHub `origin/main` and GitLab workspace branch `development`
+- This handoff belongs to the DMS launch closeout commit plus the GitLab workspace sync merge created from the current working tree.
 - Recent committed:
+  - `79fbb6f` feat(dms): close launch search permission gate
+  - `959c42f` feat(dms): close out search access launch slice
+  - `e3f8678` feat(dms): finalize notification baseline
   - `6e2f83a` docs: realign CLAUDE.md with current monorepo state
   - `c1497ec` docs(dms): align HANDOFF, changelogs, backlog, roadmap, README with C-3/C-4
   - `4d98ca2` refactor(dms): extract ControlPlaneSyncService (C-4 slice 5)
@@ -70,6 +73,7 @@ Publish snapshot — 2026-05-27 10:04 KST
 - Scope: DMS search/permission launch gate closeout.
 - Core implementation: unreadable search redaction, Search/Ask blocked-source summaries, permission workflow regression automation, and search history migration artifact.
 - Docs synced: root handoff, DMS launch closeout handoff, backlog, roadmap, changelog.
+- GitLab sync note: GitLab `development` contained additional workspace hardening and Copilot issue-operator commits, so it was merged locally before final publish. Do not force-push over GitLab workspace history.
 - Verification passed:
   - `pnpm --filter @ssoo/types build`
   - `pnpm --filter server build`
@@ -79,6 +83,7 @@ Publish snapshot — 2026-05-27 10:04 KST
   - `pnpm run codex:dms-guard`
   - `pnpm run codex:verify-sync`
   - `pnpm run codex:preflight`
+  - GitLab sync merge follow-up: `pnpm --filter server build`, `pnpm --filter web-dms build`, `pnpm run codex:preflight`
 - Runtime state: Docker `server` and `dms` were rebuilt and are healthy; DMS web and API health both returned HTTP 200.
 - DB runtime check: `dms.dm_search_query_m` exists in the running Postgres database.
 
@@ -113,7 +118,7 @@ Next recommended actions (in priority order)
 Environment notes
 -----------------
 - GH remote configured; pushes to main are automated via workflow
-- GitLab `development` push currently blocked (see issue above)
+- GitLab workspace publish target is `development`; the standard publish script refuses non-fast-forward pushes, so run workspace sync first when GitLab has new commits.
 - Commit footer: this session used `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. Earlier sessions used `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`. Mixed convention currently — pick one going forward.
 
 How to pick up from CLI

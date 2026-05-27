@@ -4,6 +4,7 @@ import * as React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { EditorDialog } from '@/components/common/editor-dialog';
 import { PickerTree } from '@/components/common/picker-tree';
+import { normalizeDocumentPath } from '@/lib/utils/linkUtils';
 import { useAuthStore, useFileStore } from '@/stores';
 
 export interface SaveLocationResult {
@@ -51,13 +52,14 @@ export function SaveLocationDialog({
   React.useLayoutEffect(() => {
     if (open) {
       setTitle(initialTitle);
-      setDirectory(initialDirectory ? `/${initialDirectory}` : '/');
+      const normalizedDirectory = normalizeDocumentPath(initialDirectory);
+      setDirectory(normalizedDirectory ? `/${normalizedDirectory}` : '/');
       setDirtyInput(false);
     }
   }, [open, initialTitle, initialDirectory]);
 
   // 입력 표시용 → 트리 selectedPath 변환 (선행 / 제거)
-  const treePath = directory === '/' ? '' : directory.replace(/^\//, '');
+  const treePath = normalizeDocumentPath(directory);
 
   const handleConfirm = () => {
     onConfirm({ title: title.trim(), directory: treePath, fileName });

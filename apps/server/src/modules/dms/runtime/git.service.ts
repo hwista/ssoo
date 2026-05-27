@@ -864,6 +864,9 @@ class GitService {
     if (!sync) {
       return { success: false, error: `PARITY_CHECK_FAILED: sync status unavailable for ${remote}` };
     }
+    if (!sync.remoteConfigured) {
+      return { success: true, data: { remote, branch: sync.branch } };
+    }
 
     try {
       await this.git.push(remote, sync.branch);
@@ -935,17 +938,38 @@ class GitService {
 
     const syncStatus = syncResult.data;
     if (!syncStatus.remoteConfigured) {
+      const changesResult = await this.getChanges();
+      if (!changesResult.success) {
+        return {
+          success: true,
+          data: {
+            remote,
+            verified: false,
+            clean: false,
+            syncStatus,
+            workingTreePaths: [],
+            localAheadPaths: [],
+            remoteAheadPaths: [],
+            reason: changesResult.error,
+          },
+        };
+      }
+      const workingTreePaths = changesResult.data
+        .map((entry) => normalizeGitPath(entry.path))
+        .filter((entryPath) => normalizedPaths.some((candidate) => pathsOverlap(entryPath, candidate)));
       return {
         success: true,
         data: {
           remote,
-          verified: false,
-          clean: false,
+          verified: true,
+          clean: workingTreePaths.length === 0,
           syncStatus,
-          workingTreePaths: [],
+          workingTreePaths,
           localAheadPaths: [],
           remoteAheadPaths: [],
-          reason: `PARITY_UNAVAILABLE: remote '${remote}' is not configured`,
+          reason: workingTreePaths.length > 0
+            ? `LOCAL_ONLY: remote '${remote}' is not configured and the local working tree has uncommitted changes`
+            : `LOCAL_ONLY: remote '${remote}' is not configured; the local repository is authoritative`,
         },
       };
     }

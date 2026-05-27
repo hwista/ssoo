@@ -31,6 +31,7 @@ export interface PageTemplateProps {
   panelWidth?: number;
   panelContent?: React.ReactNode;
   panelMode?: 'custom' | 'hidden';
+  panelNarrowBehavior?: 'overlay' | 'auto-close';
   onEdit?: () => void;
   onSave?: () => void;
   onCancel?: () => void;
@@ -65,6 +66,7 @@ export function PageTemplate({
   panelWidth = LAYOUT_SIZES.sidebar.expandedWidth,
   panelContent,
   panelMode,
+  panelNarrowBehavior = 'overlay',
   onEdit,
   onSave,
   onCancel,
@@ -85,14 +87,17 @@ export function PageTemplate({
   const isCompactMode = useSidebarStore((s) => s.isCompactMode);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState(0);
-  const [panelOpen, setPanelOpen] = React.useState(!isCompactMode);
+  const [panelOpen, setPanelOpen] = React.useState(() => (
+    panelNarrowBehavior === 'auto-close' ? true : !isCompactMode
+  ));
+  const [panelForcedOpen, setPanelForcedOpen] = React.useState(false);
   const [hasMeasured, setHasMeasured] = React.useState(false);
 
   React.useEffect(() => {
-    if (isCompactMode) {
+    if (isCompactMode && panelNarrowBehavior !== 'auto-close') {
       setPanelOpen(false);
     }
-  }, [isCompactMode]);
+  }, [isCompactMode, panelNarrowBehavior]);
 
   React.useLayoutEffect(() => {
     const container = containerRef.current;
@@ -118,7 +123,32 @@ export function PageTemplate({
     : contentMaxWidth ?? DOCUMENT_WIDTHS[contentOrientation];
   const minWidthForSideBySide = (resolvedContentMaxWidth ?? DOCUMENT_WIDTHS[contentOrientation]) + panelWidth + 40;
   const canSideBySide = !isCompactMode && containerWidth >= minWidthForSideBySide;
-  const showPanel = supportsPanel && panelOpen;
+  const allowOverlayPanel = panelNarrowBehavior === 'overlay' || panelForcedOpen;
+  const panelCanStayOpen = canSideBySide || allowOverlayPanel;
+  const showPanel = supportsPanel && panelOpen && panelCanStayOpen;
+  const canTogglePanel = supportsPanel;
+  const isOverlayPanel = showPanel && !canSideBySide;
+
+  React.useEffect(() => {
+    if (canSideBySide && panelForcedOpen) {
+      setPanelForcedOpen(false);
+    }
+  }, [canSideBySide, panelForcedOpen]);
+
+  const closePanel = React.useCallback(() => {
+    setPanelOpen(false);
+    setPanelForcedOpen(false);
+  }, []);
+
+  const togglePanel = React.useCallback(() => {
+    if (showPanel) {
+      closePanel();
+      return;
+    }
+
+    setPanelOpen(true);
+    setPanelForcedOpen(panelNarrowBehavior === 'auto-close' && !canSideBySide);
+  }, [canSideBySide, closePanel, panelNarrowBehavior, showPanel]);
 
   const defaultVisualClasses = 'rounded-lg border border-ssoo-content-border bg-white';
   const isConstrained = resolvedContentMaxWidth !== null;
@@ -212,6 +242,14 @@ export function PageTemplate({
       {headerNode}
 
       <div ref={containerRef} className="relative flex-1 overflow-hidden">
+        {isOverlayPanel && (
+          <button
+            type="button"
+            aria-label="패널 닫기"
+            className="absolute inset-0 z-0 bg-transparent"
+            onClick={closePanel}
+          />
+        )}
         <div className="flex h-full">
           <div
             className={cn('h-full', hasMeasured && 'transition-all duration-300 ease-in-out')}
@@ -222,9 +260,9 @@ export function PageTemplate({
             {contentNode}
           </div>
 
-          {supportsPanel && (
+          {canTogglePanel && (
             <button
-              onClick={() => setPanelOpen((prev) => !prev)}
+              onClick={togglePanel}
               className={cn(
                 'absolute top-1/2 -translate-y-1/2 z-20',
                 'flex items-center justify-center',
@@ -244,7 +282,7 @@ export function PageTemplate({
             </button>
           )}
 
-          {supportsPanel && (
+          {showPanel && (
             <div
               className={cn(
                 'h-full z-10',

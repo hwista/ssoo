@@ -3,6 +3,7 @@
 import * as React from 'react';
 import type { CreatePathResult } from './useEditorCreatePathDialog';
 import { ApiRequestError, getDocumentConflictDetails } from '@/lib/api/core';
+import { normalizeDocumentPath } from '@/lib/utils/linkUtils';
 import type { ContentType } from '@/types/content-metadata';
 
 export interface EditorSaveConflictPayload {
@@ -125,7 +126,7 @@ export function useEditorPersistence({
 
     if (state.isCreateMode) {
       // AI 추천 경로에서 디렉토리/제목 분해
-      const hint = state.preferredCreatePath?.trim() || '';
+      const hint = normalizeDocumentPath(state.preferredCreatePath?.trim() || '');
       const parts = hint.split('/');
       const nameHint = parts.pop()?.replace(/\.md$/i, '') || '';
       const dirHint = parts.join('/') || (isTemplate ? 'templates/personal' : '');
@@ -142,7 +143,9 @@ export function useEditorPersistence({
       });
       if (!result) return false;
 
-      const resolvedPath = result.path.endsWith('.md') ? result.path : `${result.path}.md`;
+      const resolvedPath = normalizeDocumentPath(
+        result.path.endsWith('.md') ? result.path : `${result.path}.md`,
+      );
 
       try {
         if (result.title) {
@@ -185,16 +188,20 @@ export function useEditorPersistence({
     }
 
     try {
+      const currentFilePath = state.currentFilePath
+        ? normalizeDocumentPath(state.currentFilePath)
+        : null;
+
       if (isTemplate) {
         // 템플릿 재저장: storeSaveFile이 contentType 기반으로 templateApi 호출
-        await actions.storeSaveFile(state.currentFilePath || '__template__', finalContent);
+        await actions.storeSaveFile(currentFilePath || '__template__', finalContent);
         // 탭 제목을 현재 메타데이터 제목으로 갱신
         if (state.metadataTitle) {
           actions.updateTab(state.tabId, { title: state.metadataTitle });
         }
-      } else if (deps.transformBeforeSave) {
+      } else if (deps.transformBeforeSave && currentFilePath) {
         // 변환된 콘텐츠가 있으면 직접 storeSaveFile 호출
-        await actions.storeSaveFile(state.currentFilePath!, finalContent);
+        await actions.storeSaveFile(currentFilePath, finalContent);
         actions.resetContent(finalContent);
       } else {
         await actions.save();

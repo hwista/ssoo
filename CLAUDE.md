@@ -247,15 +247,15 @@ pnpm install
 | 문서 생성 (Storybook) | `pnpm docs:storybook` |
 | 문서 일괄 생성/검증 | `pnpm docs:all` |
 
-### Hermes 하네스 관측성
+### 관측형 실행
 
 `pnpm build`, `pnpm lint`, `pnpm docs:verify`, `pnpm codex:preflight`, `pnpm verify:access-*` 는 모두 `*:observed` 변형으로 실행됨 (`package.json` 참조).
 
-- `*:observed` = `.hermes/scripts/harness-observe-command` 래퍼 (실행을 **차단하지 않음**, 이벤트 로깅 전용)
+- `*:observed` = `scripts/run-observed-command.sh` 래퍼 (machine-local observer가 있으면 연결하고, 없으면 raw 명령으로 fallback)
 - raw 명령은 `:raw` suffix 사용 (예: `pnpm run build:raw`, `pnpm run lint:raw`) — 래핑 노이즈 없이 디버깅할 때
-- 이벤트 산출물: `.hermes/runs/<date>/<run_id>/events.jsonl`
-- 단계 이벤트 헬퍼: `pnpm harness:planner:start|complete`, `harness:critic:start|complete`, `harness:builder:start|fallback|complete`, `harness:reviewer:start|complete`
-- 상세: `.hermes/README.md`, `AGENTS.md`
+- local observer 경로: `LSWIKI_COMMAND_OBSERVER` 또는 `agent-system/local/observe-command.sh`
+- `pnpm run harness:*` 는 compatibility stub 이며, 필요 시 `agent-system/local/harness-command.sh` 를 통해 machine-local handler 를 연결한다.
+- 상세: `scripts/run-observed-command.sh`, `scripts/harness-compat.sh`, `AGENTS.md`
 
 ### 테스트
 

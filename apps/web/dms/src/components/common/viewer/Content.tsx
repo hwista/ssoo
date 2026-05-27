@@ -37,7 +37,7 @@ export interface ContentProps {
 
 /**
  * Content 컴포넌트
- * 
+ *
  * 문서 본문 렌더링 영역
  * - 최대 너비 975px
  * - prose 스타일 적용
@@ -69,10 +69,10 @@ export function Content({
       )}
     >
       {/* 문서 컨테이너 - 고정 너비 + 내부 스크롤 */}
-      <div 
+      <div
         ref={contentRef}
         className={cn(
-          'h-full w-full overflow-y-auto overflow-x-hidden scrollbar-thin bg-white',
+          'h-full w-full overflow-x-auto overflow-y-auto scrollbar-thin bg-white',
           shouldShowSurface && 'bg-white border border-gray-200 rounded-lg'
         )}
         style={resolvedMaxWidth ? { maxWidth: resolvedMaxWidth } : undefined}
