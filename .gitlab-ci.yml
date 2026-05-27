@@ -1,0 +1,20 @@
+# SSOO CI 파이프라인
+# 1단계: 동작 확인만 (배포 없음). 검증 후 build/deploy 추가 예정.
+
+stages:
+  - verify
+
+runner_check:
+  stage: verify
+  tags:
+    - ssoo
+  script:
+    - echo "=== 파이프라인 동작 확인 ==="
+    - echo "푸시한 사람 - $GITLAB_USER_NAME"
+    - echo "브랜치 - $CI_COMMIT_REF_NAME"
+    - echo "커밋 - $CI_COMMIT_SHORT_SHA"
+    - echo "메시지 - $CI_COMMIT_TITLE"
+    - whoami
+    - echo "=== 운영 컨테이너 상태 ==="
+    - docker ps --format "{{.Names}} - {{.Status}}"
+    - echo "=== 완료 (이 파이프라인은 배포하지 않음) ==="
