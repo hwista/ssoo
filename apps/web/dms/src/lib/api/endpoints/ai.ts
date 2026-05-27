@@ -1,6 +1,7 @@
 export { aiApi, docAssistApi } from '../aiApi';
 export type {
   AiAskResponse,
+  AiSearchInsightsResponse,
   AiSearchResponse,
   AiSearchResultItem,
   DocAssistComposeCallbacks,

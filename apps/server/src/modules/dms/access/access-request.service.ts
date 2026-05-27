@@ -1072,6 +1072,7 @@ export class AccessRequestService {
         documentId: { in: documents.map((document) => document.documentId) },
         requesterUserId: BigInt(user.userId),
         requestedRole: DEFAULT_REQUEST_ROLE,
+        statusCode: { in: ['pending', 'approved'] },
         isActive: true,
       },
       select: {

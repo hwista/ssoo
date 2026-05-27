@@ -5,6 +5,8 @@ export type SearchContextMode = 'doc' | 'deep';
 
 export type SearchConfidence = 'high' | 'medium' | 'low';
 
+export type SearchResultSummarySource = 'ai';
+
 export interface SearchCitation {
   title: string;
   storageUri: string;
@@ -19,6 +21,7 @@ export interface SearchResultItem {
   path: string;
   score: number;
   summary?: string;
+  summarySource?: SearchResultSummarySource;
   snippets?: string[];
   totalSnippetCount?: number;
   owner?: string;
@@ -34,6 +37,27 @@ export interface SearchResponse {
   contextMode?: SearchContextMode;
   confidence?: SearchConfidence;
   citations?: SearchCitation[];
+}
+
+export interface SearchHistoryItem {
+  id: string;
+  query: string;
+  count: number;
+  lastResultCount: number;
+  updatedAt: string;
+}
+
+export interface PopularSearchKeyword {
+  id: string;
+  query: string;
+  count: number;
+  userCount: number;
+  updatedAt: string;
+}
+
+export interface SearchInsightsResponse {
+  history: SearchHistoryItem[];
+  popular: PopularSearchKeyword[];
 }
 
 export interface AiContextOptions {

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
@@ -13,6 +13,7 @@ import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.j
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { SearchDocumentsDto, SyncSearchIndexDto } from './dto/search.dto.js';
+import { SearchHistoryService } from './search-history.service.js';
 import { SearchService } from './search.service.js';
 
 @ApiTags('dms')
@@ -21,7 +22,10 @@ import { SearchService } from './search.service.js';
 @UseGuards(DmsFeatureGuard)
 @RequireDmsFeature('canUseSearch')
 export class SearchController {
-  constructor(private readonly searchService: SearchService) {}
+  constructor(
+    private readonly searchService: SearchService,
+    private readonly searchHistoryService: SearchHistoryService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'DMS 문서 검색' })
@@ -33,6 +37,21 @@ export class SearchController {
     @CurrentUser() currentUser: TokenPayload,
   ) {
     const data = await this.searchService.search(dto, currentUser);
+    return success(data);
+  }
+
+  @Get('insights')
+  @ApiOperation({ summary: 'DMS 검색 기록 및 인기 검색어 조회' })
+  @ApiOkResponse({ description: '검색 기록/인기 검색어 반환' })
+  async insights(
+    @CurrentUser() currentUser: TokenPayload,
+    @Query('historyLimit') historyLimit?: string,
+    @Query('popularLimit') popularLimit?: string,
+  ) {
+    const data = await this.searchHistoryService.getSearchInsights(currentUser, {
+      historyLimit: Number(historyLimit),
+      popularLimit: Number(popularLimit),
+    });
     return success(data);
   }
 

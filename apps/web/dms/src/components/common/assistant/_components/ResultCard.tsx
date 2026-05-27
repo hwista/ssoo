@@ -13,6 +13,7 @@ export interface SearchResultCardData {
   excerpt: string;
   path: string;
   summary?: string;
+  summarySource?: 'ai';
   snippets?: string[];
   totalSnippetCount?: number;
   owner?: string;
@@ -72,20 +73,12 @@ function renderVisibilityLabel(scope: SearchResultCardData['visibilityScope']) {
   }
 }
 
-function formatRequestDateLabel(value?: string) {
-  if (!value) return '';
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
+function getDisplayableReadRequest(request: DmsDocumentAccessRequestState | undefined) {
+  if (request?.status === 'pending' || request?.status === 'approved') {
+    return request;
   }
 
-  return parsed.toLocaleString('ko-KR', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return undefined;
 }
 
 function getRequestActionLabel(
@@ -100,33 +93,11 @@ function getRequestActionLabel(
     return '요청 대기';
   }
 
-  if (request?.status === 'rejected' || request?.status === 'cancelled') {
-    return '다시 요청';
-  }
-
   if (request?.status === 'approved') {
     return '승인 반영 중';
   }
 
   return result.canRequestRead ? '권한 요청' : '열람 불가';
-}
-
-function getRequestStatusLabel(request: DmsDocumentAccessRequestState) {
-  switch (request.status) {
-    case 'approved':
-      return '승인';
-    case 'rejected':
-      return '거부';
-    case 'cancelled':
-      return '취소';
-    case 'revoked':
-      return '회수';
-    case 'expired':
-      return '만료';
-    case 'pending':
-    default:
-      return '요청 대기';
-  }
 }
 
 function splitWithHighlight(text: string, terms: string[]) {
@@ -156,7 +127,8 @@ export function SearchResultCard({
   const requestOverride = useDocumentAccessRequestStore((state) => (
     requestPathKey ? state.overrides[requestPathKey] : undefined
   ));
-  const effectiveReadRequest = requestOverride ?? result.readRequest;
+  const effectiveReadRequest = getDisplayableReadRequest(requestOverride)
+    ?? getDisplayableReadRequest(result.readRequest);
   const titleText = result.title?.trim() || '';
   const titleCanon = canonicalize(titleText);
   const rawSummary = result.summary?.trim() || '';
@@ -173,12 +145,13 @@ export function SearchResultCard({
     })
     .slice(0, 4);
 
-  const summaryText = (() => {
-    const summaryCanon = canonicalize(rawSummary);
-    if (summaryCanon && summaryCanon !== titleCanon) return rawSummary;
-    return uniqueSnippets[0] || result.excerpt?.trim() || '문서 핵심 내용을 요약했습니다.';
-  })();
-  const previewSnippets = uniqueSnippets.filter((snippet) => canonicalize(snippet) !== canonicalize(summaryText));
+  const summaryCanon = canonicalize(rawSummary);
+  const hasSummary = Boolean(summaryCanon && summaryCanon !== titleCanon);
+  const hasAiSummary = result.summarySource === 'ai' && hasSummary;
+  const previewText = hasSummary
+    ? rawSummary
+    : uniqueSnippets[0] || result.excerpt?.trim() || '표시할 본문 미리보기가 없습니다.';
+  const previewSnippets = uniqueSnippets.filter((snippet) => canonicalize(snippet) !== canonicalize(previewText));
 
   const content = (
     <div className={cn(compact ? 'p-3' : 'p-4', 'text-left')}>
@@ -187,9 +160,6 @@ export function SearchResultCard({
       </h3>
 
       <div className={cn(compact ? 'mt-1.5' : 'mt-2', 'flex flex-wrap items-center gap-2')}>
-        <span className="inline-flex items-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-1.5 py-0 text-badge text-ssoo-primary">
-          {result.isReadable ? '열람 가능' : '발견 전용'}
-        </span>
         <span className="inline-flex items-center rounded-full border border-ssoo-content-border bg-white px-1.5 py-0 text-badge text-ssoo-primary/75">
           {renderVisibilityLabel(result.visibilityScope)}
         </span>
@@ -201,35 +171,13 @@ export function SearchResultCard({
       </div>
 
       <p className={cn(compact ? 'mt-1' : 'mt-1.5', 'line-clamp-2 text-body-sm text-ssoo-primary/80')}>
-        <span className={cn(
-          'mr-1.5 inline-flex items-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-1.5 py-0 text-badge text-ssoo-primary'
-        )}>
-          AI 요약
-        </span>
-        {summaryText}
+        {hasAiSummary && (
+          <span className="mr-1.5 inline-flex items-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-1.5 py-0 text-badge text-ssoo-primary">
+            AI 요약
+          </span>
+        )}
+        {previewText}
       </p>
-
-      {!result.isReadable && effectiveReadRequest && (
-        <div className={cn(compact ? 'mt-2' : 'mt-2.5', 'rounded-md border border-ssoo-content-border bg-ssoo-content-bg/40 px-3 py-2')}>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-ssoo-content-border bg-white px-2 py-0.5 text-badge text-ssoo-primary">
-              {getRequestStatusLabel(effectiveReadRequest)}
-            </span>
-            <span className="text-caption text-ssoo-primary/70">
-              {formatRequestDateLabel(effectiveReadRequest.respondedAt ?? effectiveReadRequest.requestedAt)}
-            </span>
-          </div>
-          {effectiveReadRequest.responseMessage ? (
-            <p className="mt-1 text-caption text-ssoo-primary/75">
-              {effectiveReadRequest.responseMessage}
-            </p>
-          ) : effectiveReadRequest.requestMessage ? (
-            <p className="mt-1 text-caption text-ssoo-primary/75">
-              {effectiveReadRequest.requestMessage}
-            </p>
-          ) : null}
-        </div>
-      )}
 
       {previewSnippets.length > 0 && (
         <div className={cn(compact ? 'mt-2' : 'mt-2.5')}>
@@ -267,13 +215,11 @@ export function SearchResultCard({
             ? 'bg-ssoo-content-bg text-ssoo-primary'
             : effectiveReadRequest?.status === 'pending'
               ? 'bg-amber-50 text-amber-700'
-              : effectiveReadRequest?.status === 'rejected'
-                ? 'bg-rose-50 text-rose-700'
-                : effectiveReadRequest?.status === 'cancelled'
-                  ? 'bg-orange-50 text-orange-700'
-                  : result.canRequestRead
-                    ? 'bg-ssoo-content-border/60 text-ssoo-primary'
-                    : 'bg-slate-100 text-slate-500',
+              : effectiveReadRequest?.status === 'approved'
+                ? 'bg-emerald-50 text-emerald-700'
+                : result.canRequestRead
+                  ? 'bg-ssoo-content-border/60 text-ssoo-primary'
+                  : 'bg-slate-100 text-slate-500',
         )}>
           {getRequestActionLabel(result, effectiveReadRequest)}
         </span>

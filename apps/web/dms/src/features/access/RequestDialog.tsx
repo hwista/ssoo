@@ -58,6 +58,14 @@ function toRequestState(
   };
 }
 
+function getActiveRequestState(request: DmsDocumentAccessRequestState | undefined) {
+  if (request?.status === 'pending' || request?.status === 'approved') {
+    return request;
+  }
+
+  return undefined;
+}
+
 export function DocumentAccessRequestDialogHost() {
   const isOpen = useDocumentAccessRequestStore((state) => state.isOpen);
   const target = useDocumentAccessRequestStore((state) => state.target);
@@ -72,8 +80,8 @@ export function DocumentAccessRequestDialogHost() {
     [target?.path],
   );
   const currentRequest = pathKey
-    ? overrides[pathKey] ?? target?.readRequest
-    : target?.readRequest;
+    ? getActiveRequestState(overrides[pathKey]) ?? getActiveRequestState(target?.readRequest)
+    : getActiveRequestState(target?.readRequest);
 
   useEffect(() => {
     if (!isOpen) {
@@ -81,13 +89,8 @@ export function DocumentAccessRequestDialogHost() {
       return;
     }
 
-    if (currentRequest?.status === 'rejected') {
-      setRequestMessage(currentRequest.requestMessage ?? '');
-      return;
-    }
-
     setRequestMessage('');
-  }, [currentRequest?.requestMessage, currentRequest?.status, isOpen]);
+  }, [isOpen]);
 
   const isPendingRequest = currentRequest?.status === 'pending';
   const isApprovedRequest = currentRequest?.status === 'approved';
@@ -104,11 +107,7 @@ export function DocumentAccessRequestDialogHost() {
         requestMessage: requestMessage.trim() || undefined,
       });
       setRequestState(target.path, toRequestState(created));
-      toast.success(
-        currentRequest?.status === 'rejected'
-          ? '권한 요청을 다시 보냈습니다.'
-          : '권한 요청을 보냈습니다.',
-      );
+      toast.success('권한 요청을 보냈습니다.');
       close();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '권한 요청에 실패했습니다.');
@@ -214,7 +213,7 @@ export function DocumentAccessRequestDialogHost() {
               ) : (
                 <>
                   <Send className="h-4 w-4" />
-                  {currentRequest?.status === 'rejected' || currentRequest?.status === 'cancelled' ? '다시 요청' : '요청 보내기'}
+                  요청 보내기
                 </>
               )}
             </Button>

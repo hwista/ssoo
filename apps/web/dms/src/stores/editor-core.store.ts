@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { createApiRequestError, getErrorMessage } from '@/lib/api/core';
 import { contentApi, fileApi } from '@/lib/api/endpoints/files';
+import type { LockedContentPreviewData } from '@/lib/api/contentApi';
 import { templateApi } from '@/lib/api/endpoints/templates';
 import type { DocumentMetadata } from '@/types';
 import type { ContentType } from '@/types/content-metadata';
@@ -46,6 +47,7 @@ export interface EditorTabState {
   isEditing: boolean;
   fileMetadata: FileMetadata;
   documentMetadata: DocumentMetadata | null;
+  lockedPreview: LockedContentPreviewData | null;
   isLoading: boolean;
   error: string | null;
   hasUnsavedChanges: boolean;
@@ -64,6 +66,7 @@ export const initialEditorTabState: EditorTabState = {
   isEditing: false,
   fileMetadata: { createdAt: null, modifiedAt: null, size: null },
   documentMetadata: null,
+  lockedPreview: null,
   isLoading: false,
   error: null,
   hasUnsavedChanges: false,
@@ -153,10 +156,14 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
               size: number;
               document?: DocumentMetadata | null;
             } | null;
+            lockedPreview?: LockedContentPreviewData | null;
           }
         | undefined;
 
-      const patch: Partial<EditorTabState> = { content: fileData?.content || '' };
+      const patch: Partial<EditorTabState> = {
+        content: fileData?.content || '',
+        lockedPreview: fileData?.lockedPreview ?? null,
+      };
 
       if (fileData?.metadata) {
         patch.fileMetadata = {
@@ -181,6 +188,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         content: '',
         fileMetadata: initialEditorTabState.fileMetadata,
         documentMetadata: null,
+        lockedPreview: null,
         error: errorMsg,
       });
 
@@ -475,7 +483,10 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       const data = response.data;
       const patch: Partial<EditorTabState> = {
         content: data?.content || '',
-        documentMetadata: (data?.metadata as unknown as DocumentMetadata) || null,
+        documentMetadata: data?.lockedPreview
+          ? null
+          : (data?.metadata as unknown as DocumentMetadata) || null,
+        lockedPreview: data?.lockedPreview ?? null,
       };
 
       get()._updateTab(tabId, patch);
@@ -487,6 +498,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       get()._updateTab(tabId, {
         content: '',
         documentMetadata: null,
+        lockedPreview: null,
         error: errorMsg,
       });
       logger.error('통합 콘텐츠 로드 실패', error);

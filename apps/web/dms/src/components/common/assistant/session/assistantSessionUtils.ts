@@ -1,7 +1,7 @@
 'use client';
 
 import type { DmsDocumentAccessRequestState } from '@ssoo/types/dms';
-import type { AssistantMessage } from '@/stores';
+import type { AssistantMessage, AssistantSearchResult } from '@/stores';
 
 function toReadRequestState(value: unknown): DmsDocumentAccessRequestState | undefined {
   if (!value || typeof value !== 'object') {
@@ -62,6 +62,7 @@ export function toAssistantMessages(value: unknown): AssistantMessage[] {
           totalSnippetCount?: number;
           owner?: string;
           visibilityScope?: 'public' | 'organization' | 'self' | 'legacy';
+          summarySource?: 'ai';
           isReadable?: boolean;
           canRequestRead?: boolean;
           readRequest?: DmsDocumentAccessRequestState;
@@ -73,7 +74,7 @@ export function toAssistantMessages(value: unknown): AssistantMessage[] {
           typeof (result as Record<string, unknown>).excerpt === 'string' &&
           typeof (result as Record<string, unknown>).path === 'string'
         ))
-        .map((result) => ({
+        .map((result): AssistantSearchResult => ({
           id: result.id,
           title: result.title,
           excerpt: result.excerpt,
@@ -84,6 +85,7 @@ export function toAssistantMessages(value: unknown): AssistantMessage[] {
             : undefined,
           totalSnippetCount: typeof result.totalSnippetCount === 'number' ? result.totalSnippetCount : undefined,
           owner: typeof result.owner === 'string' ? result.owner : undefined,
+          summarySource: result.summarySource === 'ai' ? 'ai' : undefined,
           visibilityScope: result.visibilityScope === 'public'
             || result.visibilityScope === 'organization'
             || result.visibilityScope === 'self'

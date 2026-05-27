@@ -7,9 +7,21 @@
 
 import { request, type ApiResponse } from './core';
 
+export interface LockedContentPreviewData {
+  isLocked: true;
+  path: string;
+  title: string;
+  owner?: string;
+  visibilityScope?: string;
+  canRequestRead: boolean;
+  preview: string;
+  truncated: boolean;
+}
+
 export interface ContentData {
   content: string;
   metadata: Record<string, unknown> | null;
+  lockedPreview?: LockedContentPreviewData;
 }
 
 export interface ContentSaveResult {

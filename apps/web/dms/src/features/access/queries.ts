@@ -18,6 +18,7 @@ import type {
 import { accessApi } from '@/lib/api/access';
 import { getErrorMessage } from '@/lib/api/core';
 import { aiSearchKeys } from '@/hooks/queries/useAiSearch';
+import { useDocumentAccessRequestStore } from './dialog-store';
 
 export const accessRequestKeys = {
   all: ['dms-access-requests'] as const,
@@ -138,7 +139,8 @@ export function useCancelDocumentAccessRequestMutation() {
     }) => unwrap<DmsDocumentAccessRequestSummary>(
       accessApi.cancelRequest(params.accessRequestId),
     ),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      useDocumentAccessRequestStore.getState().clearRequestState(data.path);
       invalidateRequestQueries(queryClient);
     },
   });

@@ -24,9 +24,11 @@ export interface AiPanelProps {
   onHistorySelect?: (item: { id: string; title: string; updatedAt: string; active?: boolean; persistedToDb?: boolean }) => void;
   /** 히스토리 DB 저장/해제 */
   onHistoryPersistToggle?: (item: { id: string; title: string; updatedAt: string; active?: boolean; persistedToDb?: boolean }) => void;
-  /** 추천 질문 */
+  /** 추천 질문 또는 전체 인기 검색어 */
   suggestions?: string[];
-  /** 추천 질문 선택 */
+  /** 개인 자주 검색어 */
+  frequentSearches?: string[];
+  /** 추천 질문/검색어 선택 */
   onSuggestionSelect?: (suggestion: string) => void;
 }
 
@@ -72,6 +74,7 @@ export function AiPanel({
   onHistorySelect,
   onHistoryPersistToggle,
   suggestions = [],
+  frequentSearches = [],
   onSuggestionSelect,
 }: AiPanelProps) {
   const info = VARIANT_INFO[variant];
@@ -80,6 +83,7 @@ export function AiPanel({
     ? '아직 검색 기록이 없습니다. 검색을 실행하면 여기에 표시됩니다.'
     : '아직 기록이 없습니다. 질문을 보내면 여기에 표시됩니다.';
   const suggestionTitle = variant === 'search' ? '인기 검색어' : '추천 질문';
+  const frequentSearchTitle = '내 자주 검색';
   const tipsText = info.tips.map((tip) => `• ${tip}`).join('\n');
   const historyItemMap = React.useMemo(() => new Map(history.map((item) => [item.id, item])), [history]);
   const historyItems = history.map((item) => ({
@@ -100,13 +104,23 @@ export function AiPanel({
   }));
 
   return (
-    <PanelFrame title={`${info.title} 도우미`}>
+    <PanelFrame>
       <TextSection
         title="사용 팁"
         text={tipsText}
         icon={<Info className="h-4 w-4 text-gray-500" />}
         sectionVariant="default"
       />
+
+      {variant === 'search' && frequentSearches.length > 0 ? (
+        <ChipListSection
+          title={frequentSearchTitle}
+          chips={frequentSearches.map((query) => ({ id: query, label: query, title: query }))}
+          onChipClick={(chip) => onSuggestionSelect?.(chip.label)}
+          icon={<History className="h-4 w-4 text-gray-500" />}
+          sectionVariant="default"
+        />
+      ) : null}
 
       {(variant === 'chat' || variant === 'search') && suggestions.length > 0 ? (
         <ChipListSection

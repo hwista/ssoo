@@ -8,6 +8,7 @@ export interface SearchResultItem {
   path: string;
   score?: number;
   summary?: string;
+  summarySource?: 'ai';
   snippets?: string[];
   totalSnippetCount?: number;
   owner?: string;

@@ -1,5 +1,6 @@
 import type {
   AskResponse as AiAskResponse,
+  SearchInsightsResponse as AiSearchInsightsResponse,
   SearchResponse as AiSearchResponse,
   SearchResultItem as AiSearchResultItem,
 } from '@ssoo/types/dms';
@@ -7,7 +8,7 @@ import type { TemplateItem } from '@/types/template';
 import { request, type ApiResponse } from './core';
 import { streamSSE, type SSEEvent } from './streaming';
 
-export type { AiAskResponse, AiSearchResponse, AiSearchResultItem };
+export type { AiAskResponse, AiSearchInsightsResponse, AiSearchResponse, AiSearchResultItem };
 
 export interface DocAssistSummaryFileClient {
   id?: string;
@@ -39,6 +40,25 @@ export const aiApi = {
       method: 'POST',
       body: { query, ...body },
       signal,
+    });
+  },
+
+  searchInsights: async (options?: {
+    historyLimit?: number;
+    popularLimit?: number;
+    signal?: AbortSignal;
+  }): Promise<ApiResponse<AiSearchInsightsResponse>> => {
+    const params = new URLSearchParams();
+    if (typeof options?.historyLimit === 'number') {
+      params.set('historyLimit', String(options.historyLimit));
+    }
+    if (typeof options?.popularLimit === 'number') {
+      params.set('popularLimit', String(options.popularLimit));
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    return request(`/api/search/insights${suffix}`, {
+      method: 'GET',
+      signal: options?.signal,
     });
   },
 

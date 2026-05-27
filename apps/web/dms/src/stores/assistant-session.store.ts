@@ -14,6 +14,7 @@ export interface AssistantSearchResult {
   totalSnippetCount?: number;
   owner?: string;
   visibilityScope?: 'public' | 'organization' | 'self' | 'legacy';
+  summarySource?: 'ai';
   isReadable: boolean;
   canRequestRead: boolean;
   readRequest?: DmsDocumentAccessRequestState;

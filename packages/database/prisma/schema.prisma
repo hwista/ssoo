@@ -384,6 +384,7 @@ model User {
   organizationRelations UserOrganizationRelation[]
   permissionExceptions  UserPermissionException[]
   ownedDmsDocuments     DmsDocument[]              @relation("DmsDocumentOwner")
+  dmsSearchQueries      DmsSearchQuery[]
 
   // Relations - as project owner
   ownedProjects Project[] @relation("ProjectOwner")
@@ -3590,6 +3591,33 @@ model DmsDocument {
   @@index([syncStatusCode], name: "ix_dm_document_m_sync_status")
   @@index([updatedAt], name: "ix_dm_document_m_updated_at")
   @@map("dm_document_m")
+  @@schema("dms")
+}
+
+// ============================================
+// Search Query - dm_search_query_m
+// 로그인 사용자 기준 AI 검색 기록 및 전체 인기 검색어 집계 원천
+// ============================================
+model DmsSearchQuery {
+  searchQueryId BigInt @id @default(autoincrement()) @map("search_query_id")
+  userId        BigInt @map("user_id")
+
+  query           String
+  normalizedQuery String @map("normalized_query")
+  searchCount     Int    @default(1) @map("search_count")
+  lastResultCount Int    @default(0) @map("last_result_count")
+
+  firstSearchedAt DateTime @default(now()) @map("first_searched_at") @db.Timestamptz(6)
+  lastSearchedAt  DateTime @default(now()) @map("last_searched_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, normalizedQuery], name: "ux_dm_search_query_m_user_normalized")
+  @@index([userId, lastSearchedAt], name: "ix_dm_search_query_m_user_last")
+  @@index([normalizedQuery, searchCount, lastSearchedAt], name: "ix_dm_search_query_m_popular")
+  @@map("dm_search_query_m")
   @@schema("dms")
 }
 
