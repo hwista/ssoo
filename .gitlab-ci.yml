@@ -1,5 +1,6 @@
 stages:
   - verify
+  - ai_review
   - build
   - deploy
 
@@ -15,6 +16,21 @@ verify:
     - echo "푸시한 사람 $GITLAB_USER_NAME"
     - echo "브랜치 $CI_COMMIT_REF_NAME"
     - echo "커밋 $CI_COMMIT_SHORT_SHA"
+  only:
+    - development
+
+ai_review:
+  stage: ai_review
+  tags:
+    - ssoo
+  script:
+    - cd "$APP_DIR"
+    - bash scripts/ci/ai-review.sh
+  artifacts:
+    paths:
+      - ai-review-report.md
+    expire_in: 30 days
+  allow_failure: true
   only:
     - development
 
