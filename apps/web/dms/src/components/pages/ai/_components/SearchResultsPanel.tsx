@@ -3,13 +3,14 @@
 import { LoadingState } from '@/components/common/StateDisplay';
 import { SearchResultCard } from '@/components/common/assistant/_components/ResultCard';
 import { SHELL_BODY_WRAPPER_PRESETS } from '@/components/templates/page-frame';
-import type { SearchResultItem } from '../searchPageUtils';
+import type { SearchBlockedSourceSummary, SearchResultItem } from '../searchPageUtils';
 
 interface SearchResultsPanelProps {
   hasSearched: boolean;
   isSearching: boolean;
   hasCompletedSearch: boolean;
   results: SearchResultItem[];
+  blockedSources?: SearchBlockedSourceSummary;
   filterQuery: string;
   matchedIndexSet: Set<number>;
   snippetHighlightTerms: string[];
@@ -21,6 +22,7 @@ export function SearchResultsPanel({
   isSearching,
   hasCompletedSearch,
   results,
+  blockedSources,
   filterQuery,
   matchedIndexSet,
   snippetHighlightTerms,
@@ -45,6 +47,18 @@ export function SearchResultsPanel({
             </div>
           ) : (
             <div className="space-y-4">
+              {blockedSources && blockedSources.totalCount > 0 ? (
+                <div className="rounded-md border border-ssoo-warning/30 bg-ssoo-warning/10 px-4 py-3 text-body-sm text-ssoo-primary">
+                  <p className="font-medium">
+                    권한 때문에 제외된 문서 {blockedSources.totalCount}개가 있습니다.
+                  </p>
+                  <p className="mt-1 text-caption text-ssoo-primary/70">
+                    {blockedSources.reasons
+                      .map((reason) => `${reason.label} ${reason.count}개`)
+                      .join(', ')}
+                  </p>
+                </div>
+              ) : null}
               {results.map((item, index) => (
                 <SearchResultCard
                   id={`search-result-${index}`}

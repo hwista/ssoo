@@ -173,6 +173,7 @@ export interface CommentsSectionProps {
   onRestore?: (comment: DocumentComment) => void;
   originalCommentIds?: string[];
   onReply?: (comment: DocumentComment) => void;
+  locked?: boolean;
 }
 
 export function CommentsSection({
@@ -182,6 +183,7 @@ export function CommentsSection({
   onRestore,
   originalCommentIds,
   onReply,
+  locked = false,
 }: CommentsSectionProps) {
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
 
@@ -212,8 +214,9 @@ export function CommentsSection({
     <CollapsibleSection
       title="댓글"
       icon={<MessageSquare className="mr-1.5 h-4 w-4 shrink-0" />}
-      badge={totalCount > 0 ? <span className="mr-1 text-caption text-gray-400">({totalCount})</span> : undefined}
+      badge={!locked && totalCount > 0 ? <span className="mr-1 text-caption text-gray-400">({totalCount})</span> : undefined}
       defaultOpen
+      locked={locked}
     >
       {threads.length === 0 ? (
         <p className="py-1 text-caption text-gray-400">댓글없음</p>

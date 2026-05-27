@@ -45,7 +45,7 @@ import { ImageLightbox } from '@/components/common/ImageLightbox';
 import type { TemplateItem } from '@/types/template';
 import { cn } from '@/lib/utils';
 import { Divider } from '@/components/ui/divider';
-import { AlertTriangle, Lock, Undo2, Redo2 } from 'lucide-react';
+import { AlertTriangle, Undo2, Redo2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SimpleTooltip } from '@/components/ui/tooltip';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
@@ -594,6 +594,31 @@ export function DocumentPage() {
 
 
   const tags = useMemo(() => documentMetadata?.tags || [], [documentMetadata]);
+  const isLockedPreview = Boolean(lockedPreview);
+
+  const handleRequestLockedPreviewAccess = useCallback(() => {
+    if (!lockedPreview?.canRequestRead) return;
+    openAccessRequestDialog({
+      title: lockedPreview.title,
+      path: lockedPreview.path,
+      owner: lockedPreview.owner,
+    });
+  }, [lockedPreview, openAccessRequestDialog]);
+
+  const lockedPreviewUi = lockedPreview ? {
+    title: lockedPreview.title,
+    path: lockedPreview.path,
+    owner: lockedPreview.owner,
+    visibilityScope: lockedPreview.visibilityScope,
+    canRequestRead: lockedPreview.canRequestRead,
+  } : undefined;
+
+  const lockedPreviewHeaderActions = lockedPreview?.canRequestRead ? [{
+    label: '권한 요청',
+    icon: <Lock className="h-4 w-4" />,
+    variant: 'default' as const,
+    onClick: handleRequestLockedPreviewAccess,
+  }] : undefined;
 
   const handleEdit = useCallback(() => {
     if (!canEditCurrentDocument) {
@@ -1559,7 +1584,7 @@ export function DocumentPage() {
     printHtmlContent(htmlContent, title);
   }, [documentMetadata?.title, filePath, htmlContent]);
 
-  const headerViewerRightSlot = templateModeEnabled ? null : (
+  const headerViewerRightSlot = templateModeEnabled || isLockedPreview ? null : (
     <DocumentExportMenu
       onConvertToTemplate={startViewerTemplateFlow}
       onDownloadMarkdown={handleDownloadCurrentMarkdown}
@@ -1632,76 +1657,6 @@ export function DocumentPage() {
     );
   }
 
-  if (lockedPreview) {
-    const handleRequestLockedPreviewAccess = () => {
-      if (!lockedPreview.canRequestRead) return;
-      openAccessRequestDialog({
-        title: lockedPreview.title,
-        path: lockedPreview.path,
-        owner: lockedPreview.owner,
-      });
-    };
-
-    return (
-      <main className={cn('h-full overflow-hidden', PAGE_BACKGROUND_PRESETS.documentViewer)}>
-        <PageTemplate
-          filePath={lockedPreview.path || filePath || '잠긴 문서.md'}
-          mode="viewer"
-          breadcrumbRootIconVariant="folder"
-          breadcrumbLastSegmentLabel={lockedPreview.title}
-          contentOrientation="portrait"
-          contentSurfaceClassName={contentSurfaceClassName}
-          panelMode="hidden"
-          isPreview
-        >
-          <div className="mx-auto flex min-h-[calc(100vh-14rem)] w-full max-w-3xl flex-col justify-center px-4 py-10">
-            <section className="overflow-hidden rounded-2xl border border-ssoo-primary/15 bg-white shadow-sm">
-              <div className="border-b border-ssoo-primary/10 bg-ssoo-content-bg/60 px-6 py-5">
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 rounded-full bg-ssoo-primary/10 p-2 text-ssoo-primary">
-                    <Lock className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ssoo-primary/60">잠긴 문서 보기</p>
-                    <h1 className="mt-1 truncate text-xl font-semibold text-ssoo-primary">{lockedPreview.title}</h1>
-                    <p className="mt-2 text-sm text-ssoo-primary/65">
-                      권한이 필요한 문서입니다. 서버가 허용한 상단 미리보기만 표시하고, 전체 원문은 내려받지 않습니다.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative px-6 py-6">
-                <div
-                  className="prose prose-sm max-w-none text-ssoo-primary/85"
-                  dangerouslySetInnerHTML={{ __html: htmlContent }}
-                />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-white/0 via-white/90 to-white" />
-              </div>
-
-              <div className="border-t border-ssoo-primary/10 bg-white px-6 py-6">
-                <div className="rounded-xl border border-dashed border-ssoo-primary/25 bg-ssoo-content-bg/50 px-5 py-5 text-center">
-                  <Lock className="mx-auto h-7 w-7 text-ssoo-primary/50" />
-                  <p className="mt-3 text-sm font-medium text-ssoo-primary">나머지 내용은 잠겨 있습니다.</p>
-                  <p className="mt-1 text-xs text-ssoo-primary/60">
-                    읽기 권한을 요청하면 문서 소유자가 승인한 뒤 전체 내용을 볼 수 있습니다.
-                  </p>
-                  <Button
-                    className="mt-4"
-                    disabled={!lockedPreview.canRequestRead}
-                    onClick={handleRequestLockedPreviewAccess}
-                  >
-                    권한 요청하기
-                  </Button>
-                </div>
-              </div>
-            </section>
-          </div>
-        </PageTemplate>
-      </main>
-    );
-  }
-
   const documentAclNotice = !isCreateMode && canWriteDocuments
     ? documentAclRole === 'viewer'
       ? '이 문서는 viewer 권한으로 열려 편집이 제한됩니다.'
@@ -1718,10 +1673,10 @@ export function DocumentPage() {
       )}
     >
       <PageTemplate
-        filePath={filePath || '새 문서.md'}
+        filePath={lockedPreview?.path || filePath || '새 문서.md'}
         mode={mode}
         breadcrumbRootIconVariant={isCreateMode ? 'editor' : 'folder'}
-        breadcrumbLastSegmentLabel={documentMetadata?.title?.trim() || undefined}
+        breadcrumbLastSegmentLabel={lockedPreview?.title || documentMetadata?.title?.trim() || undefined}
         contentOrientation="portrait"
         contentMaxWidth={isCompareSurface ? null : undefined}
         contentSurfaceClassName={contentSurfaceClassName}
@@ -1811,17 +1766,20 @@ export function DocumentPage() {
             onExternalAiSuggestionConsumed={clearPendingAiSuggestion}
             deletedReferenceKeys={deletedReferenceKeys}
             onImmediateFlush={flushPendingMetadata}
+            lockedPreview={lockedPreviewUi}
           />
         )}
-        onEdit={canEditCurrentDocument ? handleEdit : undefined}
-        onSave={canEditCurrentDocument ? handleSave : undefined}
-        onCancel={canEditCurrentDocument ? handleCancel : undefined}
+        onEdit={!isLockedPreview && canEditCurrentDocument ? handleEdit : undefined}
+        onSave={!isLockedPreview && canEditCurrentDocument ? handleSave : undefined}
+        onCancel={!isLockedPreview && canEditCurrentDocument ? handleCancel : undefined}
         onBack={isCompareSurface ? handleExitDiffMode : undefined}
-        onDelete={!canManageCurrentDocument || isCreateMode ? undefined : handleDelete}
+        onDelete={!canManageCurrentDocument || isCreateMode || isLockedPreview ? undefined : handleDelete}
         saving={isSaving}
-        saveDisabled={!canEditCurrentDocument || !hasUnsavedChanges}
+        saveDisabled={isLockedPreview || !canEditCurrentDocument || !hasUnsavedChanges}
         isPreview={surfaceMode !== 'edit'}
         headerViewerRightSlot={headerViewerRightSlot}
+        headerExtraActions={lockedPreviewHeaderActions}
+        headerExtraActionsPosition="left"
       >
         {(() => {
           const contentBody = (
@@ -1862,7 +1820,7 @@ export function DocumentPage() {
                 toc={toc}
                 handleTocClick={handleTocClick}
                 handleSearch={handleSearch}
-                handleAttachCurrentDocToAssistant={canUseAssistant ? handleAttachCurrentDocToAssistant : undefined}
+                handleAttachCurrentDocToAssistant={!isLockedPreview && canUseAssistant ? handleAttachCurrentDocToAssistant : undefined}
                 initialSearchQuery={highlightQuery}
                 editorRef={editorRef}
                 createPath={createPath}
@@ -1878,6 +1836,7 @@ export function DocumentPage() {
                 onImageClick={handleViewerImageClick}
                 onHistoryChange={handleHistoryChange}
                 onSaveConflict={handleSaveConflict}
+                lockedPreview={lockedPreviewUi}
               />
             </>
           );

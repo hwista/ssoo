@@ -12,6 +12,7 @@ Context
 
 Completed
 ---------
+- **DMS launch gate closeout (2026-05-27)**: unreadable search result redaction, locked document preview, Search/Ask blocked-source summary UI, access request approve/reject/revoke/ownership regression coverage, and formal search history migration artifact are complete for the DMS search/permission launch gate.
 - **Phase A (project-level closure, 2026-04-30)**: GitLab `LSWIKI_DOC.git` push policy confirmed (canonical `master`, direct push verified — `b963f14` already on `origin/master`). `versionHistory` dead feature removed (server -50 lines + types -10 lines); intent re-registered as `DMS-FE-versionHistory` backlog item for future git-history-based on-demand projection. Closes Tracks 2/5/7 of the integration project at 100%.
 - C-1: DocumentPage hooks extraction and cleanup (DocumentPage.tsx reduced to ~1997 lines)
 - C-2: Collaboration service decomposition into 4 util files (paths, sanitizers, isolation, state IO) — `353094c`, `db77869`, `34094f7`, `f156d90`, `2dc45a4`
@@ -30,8 +31,9 @@ Completed
 
 Current branch/commit
 ---------------------
-- Branch: main (synced to origin)
-- Latest commits (Phase A pending commit ahead of HEAD will be added by this session)
+- Branch: main
+- Publish target for this snapshot: `origin/main` and `gitlab/main`
+- This handoff belongs to the DMS launch closeout commit created from the current working tree.
 - Recent committed:
   - `6e2f83a` docs: realign CLAUDE.md with current monorepo state
   - `c1497ec` docs(dms): align HANDOFF, changelogs, backlog, roadmap, README with C-3/C-4
@@ -61,16 +63,33 @@ Build & test
 
 Current in-progress todo
 ------------------------
-None. C-3 and C-4 tracks both closed.
+None. DMS launch closeout implementation, final gates, and Docker rebuild/health verification are complete for this slice.
+
+Publish snapshot — 2026-05-27 10:04 KST
+---------------------------------------
+- Scope: DMS search/permission launch gate closeout.
+- Core implementation: unreadable search redaction, Search/Ask blocked-source summaries, permission workflow regression automation, and search history migration artifact.
+- Docs synced: root handoff, DMS launch closeout handoff, backlog, roadmap, changelog.
+- Verification passed:
+  - `pnpm --filter @ssoo/types build`
+  - `pnpm --filter server build`
+  - `pnpm --filter web-dms build`
+  - `pnpm --filter server exec node --experimental-vm-modules node_modules/jest/bin/jest.js test/dms/path-and-search.helpers.spec.ts --runInBand`
+  - `pnpm run verify:access-dms:raw`
+  - `pnpm run codex:dms-guard`
+  - `pnpm run codex:verify-sync`
+  - `pnpm run codex:preflight`
+- Runtime state: Docker `server` and `dms` were rebuilt and are healthy; DMS web and API health both returned HTTP 200.
+- DB runtime check: `dms.dm_search_query_m` exists in the running Postgres database.
 
 Next recommended actions (in priority order)
 --------------------------------------------
 
-**Phase B — Permission UX (Track 4 closure, P1, ~1-2 weeks)** — biggest remaining closure gap
+**DMS launch smoke (P1, same-day)**
 
-1. **DMS-PERM-UX-01** Search/Ask 차단 소스 표시 UI — "N sources excluded due to access" surface in search results + ask responses. Backend ACL filtering already returns disclosure-only metadata for unreadable docs; frontend just needs to render it.
-2. **DMS-PERM-UX-02** Access request workflow UI — "Request access" button on search results / file tree → approval flow (existing `/dms/access-request/*` 9 routes wired) → grant reflected in document. Pure frontend work.
-3. **DMS-PERM-UX-03** Admin grant / exception management UI — Settings → 문서접근 section gains "grant user X read/write to doc" interaction. DB grant infrastructure (`dm_document_grant_m`) already in place.
+1. Perform browser launch smoke: login, AI search, locked document entry, access request CTA, approve/reject/revoke path.
+2. Freeze operating seed/account/document-root state for launch.
+3. Track any browser-only regression as a new bug; do not reopen the completed search/permission closeout unless a regression is reproduced.
 
 **Phase C — Operational polish (P2, ~3-5 days)**
 
@@ -206,7 +225,7 @@ Purpose of this snapshot
 - Documentation edit risk:
   - This HANDOFF update itself is a working-tree documentation change and should be committed, amended into the local ahead commit, or reverted based on the next operator’s intent.
 
-Launch closeout snapshot — 2026-05-20 17:44 KST
+Launch closeout snapshot — 2026-05-27 08:30 KST
 ------------------------------------------------
 
 Purpose of this snapshot
@@ -215,48 +234,50 @@ Purpose of this snapshot
 - Detailed task handoff lives in `docs/dms/planning/2026-05-20-launch-closeout-handoff.md`.
 
 1) Current goal / last completed slice
-- Last completed slice: DMS AI search/history/popular keywords + locked document preview UX closeout.
-- Locked preview behavior is implemented and verified: unreadable search/AI result opens a document tab, server returns preview-only data, document page shows locked preview + access request CTA.
-- Docker reflection completed for server and DMS web. Browser verified locked preview and access request dialog display.
-- Current remaining P1: unreadable search result card snippet/keyword exposure policy. AI summary should stay visible, but original-content snippets/keywords should be removed or constrained to preview-only policy.
+- Last completed slice: DMS AI search/history/popular keywords + unreadable search redaction + locked document preview UX closeout.
+- Locked preview behavior is implemented and verified: unreadable search/AI result opens an existing document page, server returns preview-only data, document page shows locked preview, and access request CTA lives in the document header left action area.
+- Search result redaction is implemented and tested: unreadable results keep AI summary but replace original-content excerpt with a safe message, clear snippets, and set snippet count to 0.
+- Locked sidecar behavior is implemented with existing section components, not a separate placeholder UI. Sensitive sections remain collapsed and show a lock icon where the collapse/expand icon normally appears.
+- Docker reflection completed for server and DMS web. server/dms are healthy and DMS web returns 200.
+- Current remaining P1: 권한 UX 회귀 검증 자동화 and Search/Ask 전체 차단 소스 수/제외 사유 요약 UI.
 
 2) Git / remote state at snapshot
 - Repo path: `/home/a0122024330/src/ssoo`
-- Branch: `main`
+- Branch at documentation time: `main`
+- Latest published base before this closeout commit: `959c42f feat(dms): close out search access launch slice`
 - Remotes:
-  - GitHub: `origin`
-  - GitLab: `gitlab`
-- Working tree contains a large DMS launch-prep batch plus this documentation update. It should be committed as one coherent launch-prep closeout unless review decides to split.
+  - GitHub: `origin` / `main`
+  - GitLab workspace publish target: `development` via the workspace publish script
+- Working tree at this snapshot contains the DMS locked-preview/redaction implementation plus documentation updates. Commit and publish should happen after final gates pass.
 
 3) Verification completed before this handoff update
-- Locked preview Jest spec passed.
-- `pnpm run build:server` passed.
-- `pnpm run build:web-dms` passed.
-- `pnpm run verify:access-dms:raw` passed.
-- `pnpm run codex:preflight` passed.
-- `docker compose up -d --build server dms` completed.
-- `curl -fsS http://127.0.0.1:4000/api/health` returned healthy server response.
-- `curl -fsSI http://127.0.0.1:3001` returned 200.
-- `docker compose ps server dms postgres` showed all three healthy.
-- Browser check: viewer login → AI search → unreadable result click → locked document tab → access request CTA → access request dialog.
-- API check: unreadable markdown file/content read returned locked preview data without the hidden full-content marker; validation document was deleted afterward and 404 confirmed.
+- `pnpm --filter server exec node --experimental-vm-modules node_modules/jest/bin/jest.js test/dms/path-and-search.helpers.spec.ts --runInBand` passed.
+- `pnpm --filter server exec node --experimental-vm-modules node_modules/jest/bin/jest.js test/dms/file-crud.service.spec.ts --runInBand` passed earlier in the slice.
+- `pnpm run build:server` passed earlier in the slice.
+- `pnpm run build:web-dms` passed after the sidecar existing-section lock rewrite.
+- `pnpm run verify:access-dms:raw` passed after the sidecar existing-section lock rewrite.
+- `pnpm run codex:preflight` passed earlier in the slice; re-run before publication if this section is stale.
+- Docker rebuild/restart completed with `DOCKER_CONFIG=/tmp/ssoo-docker-config docker compose up -d --build server dms`.
+- `docker inspect` showed `ssoo-server=healthy` and `ssoo-dms=healthy`.
+- `curl -I -fsS http://localhost:3001/` returned `HTTP/1.1 200 OK`.
 
 4) Re-entry commands
 ```bash
 cd /home/a0122024330/src/ssoo
 git status --short --branch
 git log --oneline --decorate -8
-sed -n '1,220p' docs/dms/planning/2026-05-20-launch-closeout-handoff.md
+sed -n '1,260p' docs/dms/planning/2026-05-20-launch-closeout-handoff.md
 ```
 
 5) Next smallest implementation step
-- Fix unreadable search result card snippet/keyword policy.
-- Do not change the requirement that AI summaries may be shown for documents included in search results.
-- Do restrict original markdown excerpts/keywords for unreadable results so search cards do not leak more than the locked-preview policy allows.
-- Re-run server/web builds, DMS access verification, Codex preflight, Docker rebuild, and browser verification.
+- Add 권한 UX 회귀 검증 automation for request create → approve/reject → grant reflected → revoke/ownership-transfer boundaries.
+- Add Search/Ask blocked-source count and exclusion reason summary UI.
+- Confirm the DB migration status for the search history model before production deployment.
+- Preserve the requirements that AI summaries can remain visible for included search results, while original markdown snippets/excerpts for unreadable results remain redacted.
 
 6) Important constraints
 - Do not implement CSS-only blur over full downloaded content.
+- Do not replace locked sidecar sections with a new placeholder UI; reuse existing section components with locked collapsed state.
 - Do not broaden this session into PMS/CMS unless explicitly instructed.
 - Do not close a DMS runtime change without Docker rebuild and health/browser verification.
 

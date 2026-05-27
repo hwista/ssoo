@@ -44,6 +44,7 @@ export interface ActivityListSectionProps {
   /** 소프트 삭제된 아이템 복원 콜백 */
   onItemRestore?: (item: ActivityItem) => void;
   defaultOpen?: boolean;
+  locked?: boolean;
   sectionVariant?: CollapsibleSectionVariant;
   variant?: 'default' | 'compact';
   /** 아이템 title 외관. 'link'이면 하이퍼링크 스타일(underline) 적용 */
@@ -67,6 +68,7 @@ export function ActivityListSection({
   nonRestorableItemIds,
   onItemRestore,
   defaultOpen = true,
+  locked = false,
   sectionVariant = 'default',
   variant = 'default',
   itemAppearance = 'default',
@@ -99,6 +101,7 @@ export function ActivityListSection({
       icon={icon}
       badge={badge}
       defaultOpen={defaultOpen}
+      locked={locked}
       variant={sectionVariant}
     >
       {items.length === 0 ? (

@@ -7,6 +7,7 @@ import { aiApi } from '@/lib/api/endpoints/ai';
 import { resolveAssistantHelp } from '@/lib/assistant/assistantHelp';
 import {
   createAssistantMessageId,
+  formatBlockedSourcesNotice,
   streamAssistantAsk,
 } from './assistantChatUtils';
 
@@ -32,6 +33,15 @@ export function useAssistantMessageActions() {
     }
 
     const results = response.data.results ?? [];
+    if (response.data.blockedSources?.totalCount) {
+      appendMessage({
+        id: createAssistantMessageId(),
+        role: 'assistant',
+        kind: 'text',
+        text: formatBlockedSourcesNotice(response.data.blockedSources).trim(),
+      });
+    }
+
     if (results.length === 0) {
       appendMessage({
         id: createAssistantMessageId(),
@@ -78,6 +88,10 @@ export function useAssistantMessageActions() {
       onTextDelta: (assistantId, delta) => {
         if (options?.shouldHandle && !options.shouldHandle()) return;
         updateTextMessage(assistantId, (prev) => prev + delta, true);
+      },
+      onBlockedSources: (assistantId, summary) => {
+        if (options?.shouldHandle && !options.shouldHandle()) return;
+        updateTextMessage(assistantId, (prev) => `${formatBlockedSourcesNotice(summary)}${prev}`, true);
       },
       onComplete: (assistantId, hasDelta, aborted) => {
         if (options?.shouldHandle && !options.shouldHandle()) return;

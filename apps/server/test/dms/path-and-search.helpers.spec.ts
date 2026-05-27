@@ -9,6 +9,8 @@ import {
   toRelativePath,
   extractTitle,
   stripMarkdown,
+  redactUnreadableSearchResult,
+  buildBlockedSourceSummary,
 } from '../../src/modules/dms/search/search.helpers.js';
 
 describe('runtime/path-utils', () => {
@@ -83,6 +85,49 @@ describe('search/helpers', () => {
     });
   });
 
+  describe('redactUnreadableSearchResult', () => {
+    it('removes raw original excerpts and snippets from unreadable results while preserving AI summaries', () => {
+      const item = {
+        id: 'locked-doc',
+        title: '잠긴 문서',
+        path: 'secure/locked.md',
+        excerpt: '민감한 원문 문장과 검색어 주변 문맥입니다.',
+        summary: '권한 밖 문서도 발견 판단에 필요한 AI 요약은 유지합니다.',
+        summarySource: 'ai',
+        snippets: ['...민감한 원문...', '...검색어 주변...'],
+        totalSnippetCount: 2,
+        score: 10,
+        isReadable: false,
+        canRequestRead: true,
+      } as never;
+
+      const redacted = redactUnreadableSearchResult(item);
+
+      expect(redacted.summary).toBe('권한 밖 문서도 발견 판단에 필요한 AI 요약은 유지합니다.');
+      expect(redacted.summarySource).toBe('ai');
+      expect(redacted.excerpt).toBe('권한 요청 후 문서 화면에서 제한된 미리보기를 확인할 수 있습니다.');
+      expect(redacted.snippets).toEqual([]);
+      expect(redacted.totalSnippetCount).toBe(0);
+    });
+
+    it('keeps readable search results unchanged', () => {
+      const item = {
+        id: 'readable-doc',
+        title: '읽기 가능 문서',
+        path: 'open/readable.md',
+        excerpt: '읽기 가능한 원문 발췌',
+        summary: '읽기 가능한 요약',
+        snippets: ['...읽기 가능...'],
+        totalSnippetCount: 1,
+        score: 10,
+        isReadable: true,
+        canRequestRead: false,
+      } as never;
+
+      expect(redactUnreadableSearchResult(item)).toEqual(item);
+    });
+  });
+
   describe('buildSearchResponse', () => {
     it('omits citations in default doc mode', () => {
       const resp = buildSearchResponse('q', [
@@ -101,6 +146,34 @@ describe('search/helpers', () => {
       expect(resp.citations).toBeDefined();
       expect(resp.citations!.length).toBeLessThanOrEqual(5);
       expect(resp.citations!.every((c) => c.storageUri.startsWith('doc://'))).toBe(true);
+    });
+
+    it('summarizes unreadable blocked sources without counting readable citations', () => {
+      const resp = buildSearchResponse('q', [
+        { path: 'a.md', title: 'A', isReadable: true } as never,
+        { path: 'b.md', title: 'B', isReadable: false } as never,
+        { path: 'c.md', title: 'C', isReadable: false } as never,
+      ], { contextMode: 'deep' });
+
+      expect(resp.blockedSources).toEqual({
+        totalCount: 2,
+        reasons: [
+          {
+            code: 'document_access_denied',
+            label: '문서 읽기 권한 없음',
+            count: 2,
+          },
+        ],
+      });
+      expect(resp.citations).toHaveLength(1);
+    });
+  });
+
+  describe('buildBlockedSourceSummary', () => {
+    it('omits summary when all results are readable', () => {
+      expect(buildBlockedSourceSummary([
+        { path: 'a.md', title: 'A', isReadable: true } as never,
+      ])).toBeUndefined();
     });
   });
 

@@ -5,6 +5,7 @@ import {
   Req,
   Res,
   UseGuards } from '@nestjs/common';
+import { pipeUIMessageStreamToResponse } from 'ai';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
@@ -52,7 +53,7 @@ export class AskController {
     const abortController = new AbortController();
     request.once('close', () => abortController.abort());
 
-    const result = await this.askService.stream(dto, currentUser, abortController.signal);
-    result.pipeUIMessageStreamToResponse(response);
+    const stream = await this.askService.stream(dto, currentUser, abortController.signal);
+    pipeUIMessageStreamToResponse({ response, stream });
   }
 }

@@ -13,6 +13,7 @@ export interface TextSectionProps {
   /** 타이틀 우측 추가 요소 (접기 아이콘 왼쪽) */
   headerRight?: React.ReactNode;
   defaultOpen?: boolean;
+  locked?: boolean;
   sectionVariant?: CollapsibleSectionVariant;
   preserveWhitespace?: boolean;
 }
@@ -25,6 +26,7 @@ export function TextSection({
   icon,
   headerRight,
   defaultOpen = true,
+  locked = false,
   sectionVariant = 'default',
   preserveWhitespace = true,
 }: TextSectionProps) {
@@ -40,6 +42,7 @@ export function TextSection({
       icon={icon}
       headerRight={headerRight}
       defaultOpen={defaultOpen}
+      locked={locked}
       variant={sectionVariant}
     >
       {node}

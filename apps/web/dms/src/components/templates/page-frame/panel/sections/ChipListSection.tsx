@@ -28,6 +28,7 @@ export interface ChipListSectionProps {
   /** 타이틀 우측 추가 요소 (접기 아이콘 왼쪽) */
   headerRight?: React.ReactNode;
   defaultOpen?: boolean;
+  locked?: boolean;
   sectionVariant?: CollapsibleSectionVariant;
   /** 칩 리스트 하단에 렌더링할 추가 콘텐츠 */
   children?: React.ReactNode;
@@ -45,6 +46,7 @@ export function ChipListSection({
   icon,
   headerRight,
   defaultOpen = true,
+  locked = false,
   sectionVariant = 'default',
   children,
 }: ChipListSectionProps) {
@@ -54,6 +56,7 @@ export function ChipListSection({
       icon={icon}
       headerRight={headerRight}
       defaultOpen={defaultOpen}
+      locked={locked}
       variant={sectionVariant}
     >
       {chips.length === 0 ? (

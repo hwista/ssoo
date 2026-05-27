@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type {
   AiContextOptions,
+  SearchBlockedSourceSummary,
   SearchConfidence,
   SearchResponse,
   SearchResultItem,
@@ -49,6 +50,42 @@ export function inferConfidence(count: number): SearchConfidence {
   return 'low';
 }
 
+const LOCKED_SEARCH_PREVIEW_MESSAGE = '권한 요청 후 문서 화면에서 제한된 미리보기를 확인할 수 있습니다.';
+const BLOCKED_SOURCE_REASON_LABEL = '문서 읽기 권한 없음';
+
+export function redactUnreadableSearchResult(item: SearchResultItem): SearchResultItem {
+  if (item.isReadable) {
+    return item;
+  }
+
+  return {
+    ...item,
+    excerpt: LOCKED_SEARCH_PREVIEW_MESSAGE,
+    snippets: [],
+    totalSnippetCount: 0,
+  };
+}
+
+export function buildBlockedSourceSummary(
+  results: SearchResultItem[],
+): SearchBlockedSourceSummary | undefined {
+  const blockedCount = results.filter((item) => !item.isReadable).length;
+  if (blockedCount === 0) {
+    return undefined;
+  }
+
+  return {
+    totalCount: blockedCount,
+    reasons: [
+      {
+        code: 'document_access_denied',
+        label: BLOCKED_SOURCE_REASON_LABEL,
+        count: blockedCount,
+      },
+    ],
+  };
+}
+
 export function buildSearchResponse(
   query: string,
   results: SearchResultItem[],
@@ -67,6 +104,7 @@ export function buildSearchResponse(
           webUrl: undefined,
         }))
       : undefined,
+    blockedSources: buildBlockedSourceSummary(results),
   };
 }
 

@@ -1,5 +1,7 @@
-import type { DmsDocumentAccessRequestState } from '@ssoo/types/dms';
+import type { DmsDocumentAccessRequestState, SearchBlockedSourceSummary } from '@ssoo/types/dms';
 import type { TocItem } from '@/components/templates/page-frame';
+
+export type { SearchBlockedSourceSummary };
 
 export interface SearchResultItem {
   id: string;

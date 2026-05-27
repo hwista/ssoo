@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { generateText, streamText } from 'ai';
+import { createUIMessageStream, generateText, streamText } from 'ai';
 import {
   BadRequestException,
   Injectable,
@@ -12,6 +12,7 @@ import type {
   AskRequest,
   AskResponse,
   AskTemplateInput,
+  SearchBlockedSourceSummary,
   SearchConfidence,
   SearchContextMode,
   SearchResultItem,
@@ -53,6 +54,7 @@ interface AskContextBundle {
   sources: SearchResultItem[];
   confidence: SearchConfidence;
   citations: AskResponse['citations'];
+  blockedSources?: SearchBlockedSourceSummary;
 }
 
 function extractTextFromMessage(message: AskMessageInput): string {
@@ -117,6 +119,7 @@ export class AskService {
         sources: askContext.sources,
         confidence: askContext.confidence,
         citations: askContext.citations,
+        blockedSources: askContext.blockedSources,
       };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -133,8 +136,7 @@ export class AskService {
       const normalizedRequest = this.normalizeRequest(request);
       const askContext = await this.buildAskContext(normalizedRequest, currentUser);
       const model = await getChatModel();
-
-      return streamText({
+      const result = streamText({
         model,
         system: this.buildAssistantSystemPrompt(normalizedRequest.contextMode),
         abortSignal: signal,
@@ -148,6 +150,20 @@ export class AskService {
           }
 
           this.logger.error(`DMS 질문 스트리밍 실패: ${getErrorMessage(error)}`);
+        },
+      });
+
+      return createUIMessageStream({
+        execute: ({ writer }) => {
+          if (askContext.blockedSources?.totalCount) {
+            writer.write({
+              type: 'data-blocked-sources',
+              data: askContext.blockedSources,
+              transient: true,
+            } as Parameters<typeof writer.write>[0]);
+          }
+
+          writer.merge(result.toUIMessageStream());
         },
       });
     } catch (error) {
@@ -224,6 +240,7 @@ export class AskService {
           sources: [] as SearchResultItem[],
           confidence: 'low' as const,
           citations: [] as AskResponse['citations'],
+          blockedSources: undefined,
         }
       : await this.loadSearchContext(currentUser, request.query, {
           contextMode: request.contextMode === 'deep' ? 'deep' : 'doc',
@@ -269,6 +286,7 @@ export class AskService {
       sources: retrieval.sources,
       confidence: retrieval.confidence,
       citations: retrieval.citations,
+      blockedSources: retrieval.blockedSources,
     };
   }
 
@@ -281,6 +299,7 @@ export class AskService {
     sources: SearchResultItem[];
     confidence: SearchConfidence;
     citations: AskResponse['citations'];
+    blockedSources?: SearchBlockedSourceSummary;
   }> {
     if (query.trim().length < 2) {
       return {
@@ -288,6 +307,7 @@ export class AskService {
         sources: [],
         confidence: 'low',
         citations: [],
+        blockedSources: undefined,
       };
     }
 
@@ -323,6 +343,7 @@ export class AskService {
         citations: options.contextMode === 'deep'
           ? (searchResponse.citations ?? [])
           : [],
+        blockedSources: searchResponse.blockedSources,
       };
     } catch (error) {
       this.logger.warn(
@@ -333,6 +354,7 @@ export class AskService {
         sources: [],
         confidence: 'low',
         citations: [],
+        blockedSources: undefined,
       };
     }
   }

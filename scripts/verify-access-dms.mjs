@@ -184,6 +184,18 @@ async function main(config) {
       probe.searchQuery,
       probe.documentPath,
     );
+    await verifyPermissionWorkflowRegression(
+      config.baseUrl,
+      prisma,
+      adminAccessToken,
+      runtimeAccessToken,
+      {
+        adminLoginId: config.adminLoginId,
+        runtimeLoginId: config.runtimeLoginId,
+        fixtureDir: config.fixtureDir,
+      },
+      runtimeAccessSnapshot.features,
+    );
     await verifyFileWriteBoundary(
       config.baseUrl,
       runtimeAccessToken,
@@ -951,6 +963,453 @@ async function verifySearchBoundary(baseUrl, accessToken, canUseSearch, query, a
   assertArray(search.results, '/dms/search results');
 }
 
+async function verifyPermissionWorkflowRegression(
+  baseUrl,
+  prisma,
+  adminAccessToken,
+  runtimeAccessToken,
+  config,
+  features,
+) {
+  console.log('→ verify: DMS permission workflow regression');
+
+  if (!features.canUseSearch || !features.canReadDocuments) {
+    console.log('! skip: runtime user lacks DMS search/read feature needed for permission workflow regression');
+    return;
+  }
+
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const docs = [
+    buildPermissionWorkflowDocument(config.fixtureDir, suffix, 'approve', '권한 승인 회귀'),
+    buildPermissionWorkflowDocument(config.fixtureDir, suffix, 'reject', '권한 거절 회귀'),
+    buildPermissionWorkflowDocument(config.fixtureDir, suffix, 'owner', '소유권 이전 회귀'),
+  ];
+
+  try {
+    for (const doc of docs) {
+      await savePermissionWorkflowDocument(baseUrl, adminAccessToken, doc, config.adminLoginId);
+    }
+
+    const [approvalDoc, rejectionDoc, ownershipDoc] = docs;
+
+    await assertLockedDocumentRead(baseUrl, runtimeAccessToken, approvalDoc);
+    await verifyBlockedSearchResult(baseUrl, runtimeAccessToken, approvalDoc);
+
+    const createdRequest = await createDocumentAccessRequest(
+      baseUrl,
+      runtimeAccessToken,
+      approvalDoc.path,
+      'DMS permission approval regression',
+    );
+    assertAccessRequestStatus(createdRequest, 'pending', 'DMS permission request create');
+
+    const approvedRequest = await respondToDocumentAccessRequest(
+      baseUrl,
+      adminAccessToken,
+      createdRequest.requestId,
+      'approve',
+      { grantRole: 'read', responseMessage: 'Approved by DMS launch verification.' },
+    );
+    assertAccessRequestStatus(approvedRequest, 'approved', 'DMS permission request approve');
+    await assertUnlockedDocumentRead(baseUrl, runtimeAccessToken, approvalDoc);
+
+    const approvalDocumentId = approvedRequest.documentId
+      ?? (await findDmsDocumentByPath(prisma, approvalDoc.path)).documentId.toString();
+    const grantId = approvedRequest.grantId
+      ?? await findActiveReadGrantId(prisma, approvalDoc.path, config.runtimeLoginId);
+
+    await revokeDocumentGrant(baseUrl, adminAccessToken, approvalDocumentId, grantId);
+    await assertLockedDocumentRead(baseUrl, runtimeAccessToken, approvalDoc);
+    await assertMyRequestStatus(
+      baseUrl,
+      runtimeAccessToken,
+      createdRequest.requestId,
+      ['revoked', 'approved'],
+      'DMS permission request revoke reflection',
+    );
+
+    const rejectedRequest = await createDocumentAccessRequest(
+      baseUrl,
+      runtimeAccessToken,
+      rejectionDoc.path,
+      'DMS permission rejection regression',
+    );
+    assertAccessRequestStatus(rejectedRequest, 'pending', 'DMS permission request create for reject');
+    const rejected = await respondToDocumentAccessRequest(
+      baseUrl,
+      adminAccessToken,
+      rejectedRequest.requestId,
+      'reject',
+      { responseMessage: 'Rejected by DMS launch verification.' },
+    );
+    assertAccessRequestStatus(rejected, 'rejected', 'DMS permission request reject');
+    await assertMyRequestStatus(
+      baseUrl,
+      runtimeAccessToken,
+      rejectedRequest.requestId,
+      ['rejected'],
+      'DMS permission rejected request listing',
+    );
+
+    const ownershipRecord = await findDmsDocumentByPath(prisma, ownershipDoc.path);
+    const transferred = await transferDocumentOwnership(
+      baseUrl,
+      adminAccessToken,
+      ownershipRecord.documentId.toString(),
+      config.runtimeLoginId,
+      'DMS ownership transfer to runtime',
+    );
+    if (transferred.newOwnerLoginId !== config.runtimeLoginId) {
+      throw new Error('DMS ownership transfer newOwnerLoginId 가 runtime 사용자와 다릅니다.');
+    }
+
+    const transferredBack = await transferDocumentOwnership(
+      baseUrl,
+      runtimeAccessToken,
+      ownershipRecord.documentId.toString(),
+      config.adminLoginId,
+      'DMS ownership transfer back to admin',
+    );
+    if (transferredBack.newOwnerLoginId !== config.adminLoginId) {
+      throw new Error('DMS ownership transfer back newOwnerLoginId 가 admin 사용자와 다릅니다.');
+    }
+  } finally {
+    await cleanupPermissionWorkflowDocuments(baseUrl, adminAccessToken, runtimeAccessToken, docs);
+  }
+}
+
+function buildPermissionWorkflowDocument(fixtureDir, suffix, kind, titlePrefix) {
+  const normalizedDir = fixtureDir.replace(/^[/\\]+|[/\\]+$/g, '');
+  const title = `DMS Access Verify ${titlePrefix} ${suffix}`;
+  return {
+    path: `${normalizedDir}/verify-dms-permission-${kind}-${suffix}.md`,
+    title,
+    query: title,
+    secret: `permission-workflow-secret-${kind}-${suffix}`,
+  };
+}
+
+async function savePermissionWorkflowDocument(baseUrl, accessToken, doc, adminLoginId) {
+  const content = [
+    `# ${doc.title}`,
+    '',
+    'Temporary DMS permission workflow verification fixture.',
+    '',
+    doc.secret,
+    '',
+  ].join('\n');
+  const metadata = {
+    title: doc.title,
+    summary: 'Temporary DMS permission workflow verification fixture.',
+    tags: ['access-verification', 'dms-permission-workflow'],
+    sourceLinks: [],
+    bodyLinks: [],
+    sourceFiles: [],
+    comments: [],
+    referenceFiles: [],
+    acl: {
+      owners: [],
+      editors: [],
+      viewers: [],
+    },
+    grants: [],
+    visibility: {
+      scope: 'self',
+    },
+    ownerLoginId: adminLoginId,
+    author: adminLoginId,
+    lastModifiedBy: adminLoginId,
+  };
+
+  const { response, data } = await requestJson(`${baseUrl}/dms/content`, {
+    method: 'POST',
+    headers: authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify({
+      path: doc.path,
+      content,
+      metadata,
+    }),
+  });
+
+  assertStatusOneOf(response, [200, 502], `DMS permission workflow document save (${doc.path})`);
+  if (response.status === 200) {
+    assertSuccessEnvelope(data, `DMS permission workflow document save (${doc.path})`);
+    return;
+  }
+
+  const errorMessageText = data?.error?.message;
+  if (
+    typeof errorMessageText !== 'string'
+    || !errorMessageText.includes('검색 인덱스 동기화에 실패했습니다')
+  ) {
+    throw new Error(`DMS permission workflow document save 가 예상 외 502 를 반환했습니다: ${JSON.stringify(data)}`);
+  }
+
+  await fetchSuccessData(
+    `${baseUrl}/dms/file?path=${encodeURIComponent(doc.path)}`,
+    authHeaders(accessToken),
+    [200],
+    `DMS permission workflow document existence after 502 (${doc.path})`,
+  );
+}
+
+async function assertLockedDocumentRead(baseUrl, accessToken, doc) {
+  const data = await fetchSuccessData(
+    `${baseUrl}/dms/file?path=${encodeURIComponent(doc.path)}`,
+    authHeaders(accessToken),
+    [200],
+    `DMS locked document read (${doc.path})`,
+  );
+
+  if (!isPlainObject(data.lockedPreview) || data.lockedPreview.isLocked !== true) {
+    throw new Error(`DMS locked document read 에 lockedPreview.isLocked=true 가 없습니다: ${doc.path}`);
+  }
+  if (typeof data.content === 'string' && data.content.includes(doc.secret)) {
+    throw new Error(`DMS locked document read 가 원문 secret 을 노출했습니다: ${doc.path}`);
+  }
+}
+
+async function assertUnlockedDocumentRead(baseUrl, accessToken, doc) {
+  const data = await fetchSuccessData(
+    `${baseUrl}/dms/file?path=${encodeURIComponent(doc.path)}`,
+    authHeaders(accessToken),
+    [200],
+    `DMS unlocked document read (${doc.path})`,
+  );
+
+  if (isPlainObject(data.lockedPreview) && data.lockedPreview.isLocked === true) {
+    throw new Error(`DMS unlocked document read 가 lockedPreview 를 반환했습니다: ${doc.path}`);
+  }
+  if (typeof data.content !== 'string' || !data.content.includes(doc.secret)) {
+    throw new Error(`DMS unlocked document read 가 원문 content 를 반환하지 않았습니다: ${doc.path}`);
+  }
+}
+
+async function verifyBlockedSearchResult(baseUrl, accessToken, doc) {
+  const search = await fetchSuccessData(
+    `${baseUrl}/dms/search`,
+    authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    [200, 201],
+    `DMS blocked source search (${doc.path})`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ query: doc.query, activeDocPath: doc.path, contextMode: 'deep' }),
+    },
+  );
+
+  assertArray(search.results, `DMS blocked source search results (${doc.path})`);
+  const target = search.results.find((item) => isPlainObject(item) && item.path === doc.path);
+  if (!target) {
+    throw new Error(`DMS blocked source search results 에 대상 문서가 없습니다: ${doc.path}`);
+  }
+  if (target.isReadable !== false) {
+    throw new Error(`DMS blocked source search 대상 문서가 unreadable 로 표시되지 않았습니다: ${doc.path}`);
+  }
+  if (Array.isArray(target.snippets) && target.snippets.length > 0) {
+    throw new Error(`DMS blocked source search 가 snippet 을 노출했습니다: ${doc.path}`);
+  }
+  if (target.totalSnippetCount !== 0) {
+    throw new Error(`DMS blocked source search totalSnippetCount 가 0 이 아닙니다: ${doc.path}`);
+  }
+  if (typeof target.excerpt === 'string' && target.excerpt.includes(doc.secret)) {
+    throw new Error(`DMS blocked source search excerpt 가 원문 secret 을 노출했습니다: ${doc.path}`);
+  }
+  if (
+    !isPlainObject(search.blockedSources)
+    || search.blockedSources.totalCount < 1
+    || !Array.isArray(search.blockedSources.reasons)
+    || !search.blockedSources.reasons.some((reason) => (
+      isPlainObject(reason)
+      && reason.code === 'document_access_denied'
+      && reason.count >= 1
+    ))
+  ) {
+    throw new Error(`DMS blocked source summary 가 응답에 없습니다: ${doc.path}`);
+  }
+}
+
+async function createDocumentAccessRequest(baseUrl, accessToken, documentPath, requestMessage) {
+  const request = await fetchSuccessData(
+    `${baseUrl}/dms/access/requests`,
+    authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    [200, 201],
+    `DMS access request create (${documentPath})`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        path: documentPath,
+        requestedRole: 'read',
+        requestMessage,
+      }),
+    },
+  );
+
+  if (!isPlainObject(request) || typeof request.requestId !== 'string') {
+    throw new Error(`DMS access request create 응답에 requestId 가 없습니다: ${documentPath}`);
+  }
+
+  return request;
+}
+
+async function respondToDocumentAccessRequest(baseUrl, accessToken, requestId, action, body) {
+  const request = await fetchSuccessData(
+    `${baseUrl}/dms/access/requests/${encodeURIComponent(requestId)}/${action}`,
+    authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    [200, 201],
+    `DMS access request ${action} (${requestId})`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
+
+  if (!isPlainObject(request) || typeof request.requestId !== 'string') {
+    throw new Error(`DMS access request ${action} 응답에 requestId 가 없습니다: ${requestId}`);
+  }
+
+  return request;
+}
+
+function assertAccessRequestStatus(request, status, label) {
+  if (request.status !== status) {
+    throw new Error(`${label} status=${String(request.status)} 이지만 expected=${status} 입니다.`);
+  }
+}
+
+async function assertMyRequestStatus(baseUrl, accessToken, requestId, expectedStatuses, label) {
+  const requests = await fetchSuccessData(
+    `${baseUrl}/dms/access/requests/me?status=all`,
+    authHeaders(accessToken),
+    [200],
+    label,
+  );
+
+  assertArray(requests, label);
+  const request = requests.find((item) => isPlainObject(item) && item.requestId === requestId);
+  if (!request) {
+    throw new Error(`${label} 목록에서 requestId=${requestId} 를 찾지 못했습니다.`);
+  }
+  if (!expectedStatuses.includes(request.status)) {
+    throw new Error(`${label} status=${String(request.status)} 이지만 expected=${expectedStatuses.join('|')} 입니다.`);
+  }
+}
+
+async function revokeDocumentGrant(baseUrl, accessToken, documentId, grantId) {
+  const revoked = await fetchSuccessData(
+    `${baseUrl}/dms/access/requests/documents/${encodeURIComponent(documentId)}/grants/${encodeURIComponent(grantId)}`,
+    authHeaders(accessToken),
+    [200],
+    `DMS document grant revoke (${documentId}/${grantId})`,
+    {
+      method: 'DELETE',
+    },
+  );
+
+  if (!isPlainObject(revoked) || revoked.grantId !== grantId) {
+    throw new Error(`DMS document grant revoke 응답 grantId 가 요청값과 다릅니다: ${grantId}`);
+  }
+}
+
+async function transferDocumentOwnership(baseUrl, accessToken, documentId, newOwnerLoginId, label) {
+  const transfer = await fetchSuccessData(
+    `${baseUrl}/dms/access/requests/documents/${encodeURIComponent(documentId)}/owner`,
+    authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    [200],
+    label,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ newOwnerLoginId }),
+    },
+  );
+
+  if (!isPlainObject(transfer) || typeof transfer.newOwnerLoginId !== 'string') {
+    throw new Error(`${label} 응답이 소유권 이전 결과 형식이 아닙니다.`);
+  }
+
+  return transfer;
+}
+
+async function findDmsDocumentByPath(prisma, documentPath) {
+  const document = await prisma.dmsDocument.findFirst({
+    where: {
+      relativePath: documentPath,
+    },
+    select: {
+      documentId: true,
+    },
+  });
+
+  if (!document) {
+    throw new Error(`DMS document record 를 찾지 못했습니다: ${documentPath}`);
+  }
+
+  return document;
+}
+
+async function findActiveReadGrantId(prisma, documentPath, loginId) {
+  const userAuth = await prisma.userAuth.findFirst({
+    where: {
+      loginId,
+    },
+    select: {
+      userId: true,
+    },
+  });
+  if (!userAuth) {
+    throw new Error(`DMS runtime userAuth 를 찾지 못했습니다: ${loginId}`);
+  }
+
+  const document = await findDmsDocumentByPath(prisma, documentPath);
+  const grant = await prisma.dmsDocumentGrant.findFirst({
+    where: {
+      documentId: document.documentId,
+      principalType: 'user',
+      principalRef: userAuth.userId.toString(),
+      roleCode: 'read',
+      isActive: true,
+      revokedAt: null,
+    },
+    orderBy: {
+      documentGrantId: 'desc',
+    },
+    select: {
+      documentGrantId: true,
+    },
+  });
+
+  if (!grant) {
+    throw new Error(`DMS active read grant 를 찾지 못했습니다: ${documentPath}/${loginId}`);
+  }
+
+  return grant.documentGrantId.toString();
+}
+
+async function cleanupPermissionWorkflowDocuments(baseUrl, adminAccessToken, runtimeAccessToken, docs) {
+  for (const doc of [...docs].reverse()) {
+    try {
+      await deleteProbeDocument(baseUrl, adminAccessToken, doc.path);
+    } catch (adminError) {
+      try {
+        await deleteProbeDocument(baseUrl, runtimeAccessToken, doc.path);
+      } catch (runtimeError) {
+        console.warn(
+          `! permission workflow cleanup failed (${doc.path}): admin=${errorMessage(adminError)} runtime=${errorMessage(runtimeError)}`,
+        );
+      }
+    }
+  }
+}
+
 async function verifyFileWriteBoundary(baseUrl, accessToken, canWriteDocuments) {
   console.log('→ verify: DMS file write boundary');
   const { response } = await requestJson(`${baseUrl}/dms/file`, {
@@ -1680,9 +2139,11 @@ function printDryRun(config) {
   console.log('3. DMS access snapshot parity against access inspect');
   console.log('4. runtime document object inspect parity for dms.document.read/write');
   console.log('5. file/content/files/raw/serve-attachment + runtime no-sidecar verification');
-  console.log('6. search/ask/settings runtime/git/storage open-resync boundary verification');
-  console.log('7. admin privileged DMS surfaces allow path verification');
-  console.log('8. fixture cleanup');
+  console.log('6. search redaction + blocked source summary verification');
+  console.log('7. access request create/approve/reject/revoke + ownership transfer regression');
+  console.log('8. ask/settings runtime/git/storage open-resync boundary verification');
+  console.log('9. admin privileged DMS surfaces allow path verification');
+  console.log('10. fixture cleanup');
 }
 
 function mask(value) {

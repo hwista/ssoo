@@ -1,6 +1,6 @@
 # DMS 백로그
 
-> 최종 업데이트: 2026-05-20 (AI 검색 기록 + 잠긴 문서 미리보기 + 검색 결과 스니펫 잔여)
+> 최종 업데이트: 2026-05-27 (검색/권한 런칭 게이트 closeout)
 
 ---
 
@@ -25,6 +25,10 @@
 | DMS-PERM-UX-05 | 권한 요청 취소 + 수신자 알림 정리 | P1 | - | ✅ 완료: pending 요청 취소, owner 알림 archive/read 처리, SSE 기반 알림 패널 갱신 |
 | DMS-AI-SEARCH-01 | DB 기반 AI 검색 기록/내 자주 검색/인기 검색어 | P1 | - | ✅ 완료: 로그인 사용자 기준 history/frequent 저장, popular 최소 2회·2명 기준, 검증/테스트 검색어 저장 차단 |
 | DMS-PERM-UX-06 | 잠긴 문서 미리보기 + 문서 화면 권한 요청 CTA | P1 | - | ✅ 완료: unreadable 검색/AI 결과 클릭 시 문서 탭 진입, 서버 preview-only 응답, 잠금 화면/CTA, Docker/browser 확인 |
+| DMS-PERM-UX-01 | Search/Ask 차단 소스 수와 제외 사유 표시 UI | P1 | - | ✅ 완료: 검색 응답/Ask 응답/스트리밍 이벤트에 blocked source summary 추가, 검색 화면과 어시스턴트 대화에 요약 표시 |
+| DMS-PERM-UX-07 | 권한 없는 검색 결과 카드 스니펫/키워드 노출 정책 정리 | P1 | - | ✅ 완료: unreadable 결과 excerpt 안전 문구, snippets 빈 배열, totalSnippetCount 0으로 서버 redaction 고정 |
+| DMS-PERM-UX-04 | 권한 UX 회귀 검증 자동화 | P1 | - | ✅ 완료: live HTTP gate에 요청 생성, 승인/거절, grant 반영, grant 회수, 소유권 이전/복귀 검증 추가 |
+| DMS-DB-MIG-01 | DB 검색 기록 정식 migration 산출물 | P1 | - | ✅ 완료: `dm_search_query_m` 배포 migration 추가 |
 | DMS-STO-01 | 저장소 어댑터 3종(Local/SharePoint/NAS) 구현 | P1 | - | 🔄 1차 완료: 어댑터+API 도입, 라우팅 고도화 필요 |
 | DMS-ING-01 | 자동 수집 큐 + 컨펌 후 게시 플로우 | P1 | - | 🔄 1차 완료: 큐+confirm API 구현, 채널 어댑터 연동 필요 |
 | DMS-AI-01 | AI 모드 분리(wiki/deep) + 세컨드브레인 UI | P1 | - | 🔄 1차 완료: API 분기/응답 확장, 화면 표시 강화 필요 |
@@ -56,9 +60,6 @@
 | DMS-STO-02 | 정본/첨부 열기(Open)/경로복사/재동기화 UI | P1 | 🔄 1차 완료: metadata panel 액션 추가, 오류 표준화/실동기화 필요 |
 | DMS-QA-01 | 저장소/수집/딥리서치/auth-access 시나리오 테스트 자동화 | P1 | 통합/e2e 스크립트 추가 필요. DMS access live gate는 복구 완료 |
 | DMS-TEST-D3 | controller HTTP 통합 테스트 (file/collaboration/content/access) | P1 | C-3·C-4 회귀 안전망 강화. 7 slices 후속 |
-| DMS-PERM-UX-01 | Search/Ask 차단 소스 수와 제외 사유 표시 UI ("권한 부족으로 N개 제외됨") | P1 | 검색 결과 카드는 열람 가능/발견 전용/요청 상태를 표시함. 남은 범위는 전체 차단 수와 제외 사유 요약 |
-| DMS-PERM-UX-07 | 권한 없는 검색 결과 카드 스니펫/키워드 노출 정책 정리 | P1 | 잠긴 문서 화면은 preview-only로 완료됐으나, 검색 결과 카드에서 원문 기반 스니펫/키워드 일부가 노출될 수 있어 런칭 전 정리 필요 |
-| DMS-PERM-UX-04 | 권한 UX 회귀 검증 자동화 | P1 | 요청 생성 → 승인/거절 → grant 반영 → 회수/소유권 이전까지 브라우저/HTTP 검증 추가 필요 |
 | DMS-QA-02 | hard refresh client-side error live 재현 자동화 | P1 | 현재 CLI/HTTP/build 기준 문제 없음. 브라우저에서 재현 시 console 첫 오류를 기준으로 regression case 추가 |
 | DMS-FE-versionHistory | git commit history 기반 versionHistory 자동 채움 + UI 표시 | P3 | 2026-04-30 dead code 제거 후 backlog 등재. 향후 `gitService.getFileHistory()` 기반 on-demand projection 으로 재구현 |
 | DMS-REF-C5 | `DocumentPage.tsx` 1997줄 분해 | P2 | C-1 트랙 후속 (frontend god component) |
@@ -111,9 +112,9 @@
 | DMS-ING-01-A | Teams/네트워크 드라이브/수집폴더 입력 채널 어댑터 연결 | ⬜ 대기 | ingest API는 구현 완료 |
 | DMS-AI-01-A | Ask/Search 화면에 citations/confidence 표시 | ⬜ 대기 | API 응답 확장 완료 |
 | DMS-QA-01 | 저장소/수집/딥리서치 7개 시나리오 테스트 자동화 | ⬜ 대기 | 통합/e2e 스크립트 추가 필요 |
-| DMS-PERM-UX-01-A | Search/Ask 전체 차단 소스 수와 제외 사유 요약 표시 | ⬜ 대기 | 개별 결과의 열람 가능/발견 전용/권한 요청 표시는 구현 완료 |
-| DMS-PERM-UX-07-A | Unreadable 검색 결과 카드의 원문 스니펫/키워드 제거 또는 preview-only 제한 | ⬜ 대기 | AI 요약은 유지하되 원문 기반 발췌는 잠긴 문서 미리보기 정책과 맞춰 제한 |
-| DMS-PERM-UX-04-A | 권한 요청·승인·회수·소유권 이전 회귀 검증 추가 | ⬜ 대기 | 현재 live gate는 DMS access boundary 중심 |
+| DMS-PERM-UX-01-A | Search/Ask 전체 차단 소스 수와 제외 사유 요약 표시 | ✅ 완료 | 검색/Ask 응답과 스트리밍 이벤트, 검색 화면/어시스턴트 대화 UI에 반영 |
+| DMS-PERM-UX-07-A | Unreadable 검색 결과 카드의 원문 스니펫/키워드 제거 또는 preview-only 제한 | ✅ 완료 | AI 요약은 유지하고 원문 기반 발췌/스니펫은 서버 응답에서 제거 |
+| DMS-PERM-UX-04-A | 권한 요청·승인·회수·소유권 이전 회귀 검증 추가 | ✅ 완료 | `verify:access-dms:raw` live HTTP gate에 편입 |
 | DMS-QA-02-A | hard refresh Application error 브라우저 재현 케이스 확보 | ⬜ 대기 | 현재 `build:web-dms`, DMS root HTTP 200, server/DMS logs 기준 재현 없음 |
 
 ---
@@ -122,6 +123,7 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-05-27 | 검색/권한 런칭 게이트 closeout: unreadable 검색 결과 redaction, Search/Ask 차단 소스 수/사유 요약, 권한 요청 승인/거절/grant 회수/소유권 이전 회귀 검증, 검색 기록 DB migration 산출물을 완료로 반영 |
 | 2026-05-20 | AI 검색 기록/인기검색어를 DB 기준으로 정리하고, 검증/테스트 검색어 저장 차단 및 popular 최소 노출 조건을 적용. 권한 없는 문서 클릭은 즉시 팝업이 아니라 잠긴 문서 preview-only 화면 + 권한 요청 CTA로 전환했으며, Docker/browser 확인까지 완료. 다음 런칭 P1은 unreadable 검색 결과 카드의 스니펫/키워드 노출 정책 정리 |
 | 2026-05-18 | 공통 알림 모듈, DMS 헤더 알림/SSE, 사용자별 client state isolation, 권한 요청 취소/owner 알림 archive 정리를 완료 상태로 반영. 현재 검증 기준선(`types/database build`, server/web-dms type check, server test 110개, DMS guard, DMS access verification, DMS build)을 통과했으며, hard refresh client-side error는 브라우저 재현 시 추가 추적 대상으로 분리 |
 | 2026-05-14 | DMS 접근 검증 복구와 권한 UX 실제 구현 상태 재분류. `DMS-PERM-UX-02/03`을 완료로 이동하고, 잔여는 차단 소스 수 표시(`DMS-PERM-UX-01`)와 회귀 자동화(`DMS-PERM-UX-04`)로 재정의 |
