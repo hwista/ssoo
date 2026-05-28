@@ -6,6 +6,8 @@ stages:
 
 variables:
   APP_DIR: "/opt/ssoo/app"
+  DOCKER_BUILDKIT: "1"
+  COMPOSE_DOCKER_CLI_BUILD: "1"
 
 verify:
   stage: verify
@@ -39,7 +41,7 @@ build:
   tags:
     - ssoo
   script:
-    - echo "전체 이미지 빌드 시작"
+    - echo "전체 이미지 빌드 시작 (BuildKit, 순차)"
     - cd "$APP_DIR"
     - git reset --hard "origin/$CI_COMMIT_REF_NAME"
     - docker compose build
