@@ -2,7 +2,7 @@
 # AI 코드 검증 (Azure OpenAI) - 직전 푸시 diff 검토, 리포트 생성 (게이트 없음)
 set -uo pipefail
 
-REPORT="$(pwd)/ai-review-report.md"
+REPORT="${CI_PROJECT_DIR:-$(pwd)}/ai-review-report.md"
 APP_DIR="${APP_DIR:-/opt/ssoo/app}"
 
 # CI 변수 값의 개행/공백 제거 (어디서든 섞일 수 있음 - 방어적 처리)
