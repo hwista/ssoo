@@ -2,17 +2,20 @@
 # AI 코드 검증 (Azure OpenAI) - 직전 푸시 diff 검토, 리포트 생성 (게이트 없음)
 set -uo pipefail
 
-# 리포트는 현재 작업 디렉토리(runner)에 생성 (artifacts 가 여기서 찾음)
 REPORT="$(pwd)/ai-review-report.md"
 APP_DIR="${APP_DIR:-/opt/ssoo/app}"
 
-# 변수 디버그 (값 노출 안 하고 존재 여부만)
-echo "[ai-review] ENDPOINT 설정됨: $([ -n "${AZURE_OPENAI_ENDPOINT:-}" ] && echo yes || echo NO)"
-echo "[ai-review] DEPLOYMENT 설정됨: $([ -n "${AZURE_OPENAI_DEPLOYMENT:-}" ] && echo yes || echo NO)"
-echo "[ai-review] API_KEY 설정됨: $([ -n "${AZURE_OPENAI_API_KEY:-}" ] && echo yes || echo NO)"
-echo "[ai-review] API_VERSION 설정됨: $([ -n "${OPENAI_API_VERSION:-}" ] && echo yes || echo NO)"
+# CI 변수 값의 개행/공백 제거 (어디서든 섞일 수 있음 - 방어적 처리)
+AZURE_OPENAI_ENDPOINT=$(printf '%s' "${AZURE_OPENAI_ENDPOINT:-}" | tr -d '[:space:]')
+AZURE_OPENAI_DEPLOYMENT=$(printf '%s' "${AZURE_OPENAI_DEPLOYMENT:-}" | tr -d '[:space:]')
+OPENAI_API_VERSION=$(printf '%s' "${OPENAI_API_VERSION:-}" | tr -d '[:space:]')
+AZURE_OPENAI_API_KEY=$(printf '%s' "${AZURE_OPENAI_API_KEY:-}" | tr -d '[:space:]')
 
-# diff 는 APP_DIR 의 git 에서
+echo "[ai-review] ENDPOINT 설정됨: $([ -n "$AZURE_OPENAI_ENDPOINT" ] && echo yes || echo NO)"
+echo "[ai-review] DEPLOYMENT 설정됨: $([ -n "$AZURE_OPENAI_DEPLOYMENT" ] && echo yes || echo NO)"
+echo "[ai-review] API_KEY 설정됨: $([ -n "$AZURE_OPENAI_API_KEY" ] && echo yes || echo NO)"
+echo "[ai-review] API_VERSION 설정됨: $([ -n "$OPENAI_API_VERSION" ] && echo yes || echo NO)"
+
 cd "$APP_DIR"
 
 BEFORE="${CI_COMMIT_BEFORE_SHA:-}"
@@ -30,8 +33,8 @@ if [ -z "$DIFF" ]; then
   cat "$REPORT"; exit 0
 fi
 
-if [ -z "${AZURE_OPENAI_ENDPOINT:-}" ] || [ -z "${AZURE_OPENAI_API_KEY:-}" ]; then
-  printf '# AI 코드 검증\n\nAzure 환경변수 없음. CI Variables 의 Protected 설정 확인 필요.\n' > "$REPORT"
+if [ -z "$AZURE_OPENAI_ENDPOINT" ] || [ -z "$AZURE_OPENAI_API_KEY" ]; then
+  printf '# AI 코드 검증\n\nAzure 환경변수 없음.\n' > "$REPORT"
   cat "$REPORT"; exit 0
 fi
 
