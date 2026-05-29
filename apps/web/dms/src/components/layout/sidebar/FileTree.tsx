@@ -5,7 +5,7 @@ import { ChevronRight, Folder, FolderOpen, FileText, File, FileCode, FileJson, I
 import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { useAuthStore, useFileStore, useSidebarStore, useTabStore, useActiveEditorFilePath } from '@/stores';
 import { useOpenDocumentTab } from '@/hooks';
-import { filterFileTree } from '@/lib/utils/fileTree';
+import { filterFileTree, getFileNodeDisplayTitle } from '@/lib/utils/fileTree';
 import type { FileNode } from '@/types';
 
 interface FileTreeNodeProps {
@@ -62,6 +62,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
   
   // 선택 상태 확인 (currentFilePath 기반)
   const isSelected = currentFilePath === node.path;
+  const displayTitle = getFileNodeDisplayTitle(node);
   
   const iconClass = `w-4 h-4 flex-shrink-0 ${isSelected ? 'text-ssoo-primary' : 'text-gray-500'}`;
 
@@ -73,7 +74,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
       // (이전엔 슬래시→'-' 와 encodeURIComponent 차이로 같은 문서가 두 탭에 중복으로 열림)
       await openDocumentTab({
         path: node.path,
-        title: node.name,
+        title: displayTitle,
         activate: true,
       });
     }
@@ -88,7 +89,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
     } else {
       addBookmark({
         id: bookmarkId,
-        title: node.name,
+        title: displayTitle,
         path: `/doc/${encodeURIComponent(node.path)}`,
         icon: 'FileText',
       });
@@ -129,7 +130,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
 
         {/* 파일/폴더명 (문서명 우선, 없으면 파일명) */}
         <span className={`flex-1 truncate ${isSelected ? 'text-ssoo-primary' : 'text-gray-700'}`} title={node.path}>
-          {node.title || node.name}
+          {displayTitle}
         </span>
 
         {/* 책갈피 버튼 (파일만) */}

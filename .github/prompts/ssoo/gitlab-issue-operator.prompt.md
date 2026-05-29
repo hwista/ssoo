@@ -17,9 +17,11 @@
 5. Check latest structured note before claiming an issue. Do not overwrite another active operator/branch without `--takeover` or `--supersede`.
 6. Keep `executionBranch` and `reflectedBranches` separate.
 7. Use `codex:workspace-sync-from-gitlab` and `codex:workspace-publish` for `development` finalization.
-8. Close merged issues only after remote push/publish verification passes.
-9. Record `mergedBy`; prefer explicit `--merged-by`.
-10. Keep shared rules in repo scripts/docs/templates. Do not place common rules in personal agent files or local overlays.
+8. Treat shared integration branch finalization conservatively: sync the latest target branch into the execution branch first, resolve/verify there, and only then reflect the execution branch back into the target branch. If the target branch moves again before finalization, repeat the sync/verify cycle.
+9. Prefer merge over rebase for that shared-branch refresh step unless the operator explicitly asked for another strategy.
+10. Close merged issues only after remote push/publish verification passes.
+11. Record `mergedBy`; prefer explicit `--merged-by`.
+12. Keep shared rules in repo scripts/docs/templates. Do not place common rules in personal agent files or local overlays.
 
 ## Command sequence
 
@@ -33,6 +35,8 @@ pnpm run codex:workspace-sync-from-gitlab
 pnpm run codex:workspace-publish -- development
 pnpm run copilot:issue:merge -- --issue <iid> --target development --merged-by '<담당자 이름>'
 ```
+
+`codex:workspace-sync-from-gitlab` is the required target-into-execution sync step. Re-run it if `development` moved before `copilot:issue:merge`.
 
 ## Duplicate comment path
 
