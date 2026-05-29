@@ -4,9 +4,9 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { PrismaClient } from '../packages/database/dist/index.js';
 
-const HARNESS_RUN_ID = process.env.HERMES_HARNESS_RUN_ID;
-const HARNESS_REPO_ROOT = process.env.HERMES_HARNESS_REPO_ROOT || process.cwd();
-const STAGE_HELPER = resolve(HARNESS_REPO_ROOT, '.hermes/scripts/harness-stage-event');
+const HARNESS_RUN_ID = process.env.LSWIKI_HARNESS_RUN_ID;
+const HARNESS_REPO_ROOT = process.env.LSWIKI_HARNESS_REPO_ROOT || process.cwd();
+const STAGE_HELPER = resolve(HARNESS_REPO_ROOT, 'scripts/harness-compat.sh');
 let currentRole = null;
 
 const ROLE_PROFILES = {
@@ -29,7 +29,7 @@ function emitStage(action, role, extra = {}) {
     args.push(`--${key.replaceAll('_', '-')}`, String(value));
   }
 
-  spawnSync(STAGE_HELPER, args, { stdio: 'ignore' });
+  spawnSync('bash', [STAGE_HELPER, ...args], { stdio: 'ignore' });
 }
 
 function startRole(role, extra = {}) {
