@@ -2,7 +2,6 @@
 
 import { Eye, EyeOff, GitCompareArrows } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SimpleTooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 interface PreviewToggleButtonProps {
@@ -16,17 +15,19 @@ export function PreviewToggleButton({ mode, isPreview, onToggle }: PreviewToggle
     return null;
   }
 
+  const title = isPreview ? '원본보기' : '미리보기';
+
   return (
-    <SimpleTooltip content={isPreview ? '원본보기' : '미리보기'}>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onToggle}
-        className="bg-ssoo-content-bg hover:bg-ssoo-content-bg/80"
-      >
-        {isPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </Button>
-    </SimpleTooltip>
+    <Button
+      variant="ghost"
+      size="sm"
+      title={title}
+      aria-label={title}
+      onClick={onToggle}
+      className="bg-ssoo-content-bg hover:bg-ssoo-content-bg/80"
+    >
+      {isPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </Button>
   );
 }
 
@@ -43,17 +44,17 @@ export function DiffToggleButton({ mode, active, disabled = false, onToggle }: D
   }
 
   return (
-    <SimpleTooltip content="이전보기">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onToggle}
-        disabled={disabled}
-        className={active ? 'bg-ssoo-content-bg hover:bg-ssoo-content-bg/80' : undefined}
-      >
-        <GitCompareArrows className="h-4 w-4" />
-      </Button>
-    </SimpleTooltip>
+    <Button
+      variant="ghost"
+      size="sm"
+      title="이전보기"
+      aria-label="이전보기"
+      onClick={onToggle}
+      disabled={disabled}
+      className={active ? 'bg-ssoo-content-bg hover:bg-ssoo-content-bg/80' : undefined}
+    >
+      <GitCompareArrows className="h-4 w-4" />
+    </Button>
   );
 }
 

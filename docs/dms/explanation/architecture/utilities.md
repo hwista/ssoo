@@ -1,6 +1,6 @@
 # 유틸리티 함수 (Utilities)
 
-> 최종 업데이트: 2026-04-02
+> 최종 업데이트: 2026-05-29
 
 DMS에서 사용하는 유틸리티 함수를 정의합니다.
 
@@ -17,6 +17,15 @@ src/lib/utils/
 ├── json.ts               # JSON stringify/parse/merge
 └── errorUtils.ts         # 에러 처리 & 로깅
 ```
+
+---
+
+## 링크 유틸리티 (`linkUtils.ts`)
+
+- 내부 문서 링크는 `/doc/...`, `/...`, `./...`, `../...`, `*.md` 경로를 문서 탭 경로로 해석합니다.
+- 외부 링크는 `http://`, `https://`, `mailto:`, `tel:` 같은 명시적 scheme, `//example.com` protocol-relative URL, `www.example.com` 또는 `example.com/path` 같은 도메인형 URL로 판별합니다.
+- 도메인형 URL은 브라우저 새 탭으로 열 때 `https://`를 보강합니다.
+- 이미지 경로는 내부 첨부 경로이면 same-origin 첨부 serve route로 변환하고, `http`, `https`, `data`, `blob`, `/api` 경로는 그대로 사용합니다.
 
 ---
 

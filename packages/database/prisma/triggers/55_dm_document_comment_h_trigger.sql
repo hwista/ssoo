@@ -29,13 +29,15 @@ BEGIN
   INSERT INTO dms.dm_document_comment_h (
     comment_id, history_seq, event_type, event_at,
     document_id, comment_key, parent_comment_key, comment_content,
-    author_name, author_email, avatar_url, comment_created_at, comment_deleted_at, sort_order,
+    author_name, author_email, avatar_url, comment_created_at, comment_deleted_at,
+    comment_deleted_by, comment_deleted_by_name, sort_order,
     is_active, memo, created_by, created_at, updated_by, updated_at,
     last_source, last_activity, transaction_id
   ) VALUES (
     v_record.comment_id, v_history_seq, v_event_type, NOW(),
     v_record.document_id, v_record.comment_key, v_record.parent_comment_key, v_record.comment_content,
-    v_record.author_name, v_record.author_email, v_record.avatar_url, v_record.comment_created_at, v_record.comment_deleted_at, v_record.sort_order,
+    v_record.author_name, v_record.author_email, v_record.avatar_url, v_record.comment_created_at, v_record.comment_deleted_at,
+    v_record.comment_deleted_by, v_record.comment_deleted_by_name, v_record.sort_order,
     v_record.is_active, v_record.memo, v_record.created_by, v_record.created_at, v_record.updated_by, v_record.updated_at,
     v_record.last_source, v_record.last_activity, v_record.transaction_id
   );

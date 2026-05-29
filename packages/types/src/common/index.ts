@@ -36,6 +36,7 @@ export type {
 export type {
   CommonNotificationAction,
   CommonNotificationActionType,
+  CommonNotificationDomainEvent,
   CommonNotificationItem,
   CommonNotificationJsonValue,
   CommonNotificationArchiveResult,

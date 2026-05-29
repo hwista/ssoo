@@ -45,6 +45,7 @@ export type {
 } from './settingsApi';
 
 export { accessApi } from './access';
+export { commentsApi } from './comments';
 export { storageApi, ingestApi } from './storageApi';
 export type { StorageReferenceClient, StorageOpenResultClient, IngestJobClient } from './storageApi';
 

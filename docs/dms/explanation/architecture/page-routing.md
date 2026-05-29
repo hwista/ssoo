@@ -1,6 +1,6 @@
 # 페이지 라우팅 (Page Routing)
 
-> 최종 업데이트: 2026-04-16
+> 최종 업데이트: 2026-05-29
 
 DMS의 탭 기반 라우팅과 settings shell 전환 구조를 정의합니다.
 
@@ -11,7 +11,7 @@ DMS의 탭 기반 라우팅과 settings shell 전환 구조를 정의합니다.
 DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 **`/` 와 `/login` 두 개만** 사용하고 실제 화면 전환은 **workspace 탭 셸**과 **settings 전용 셸** 사이를 전환하는 방식으로 동작합니다.
 
 - 브라우저 공개 URL: `/`, `/login`
-- 내부 탭 경로: `/home`, `/doc/...`, `/wiki/new`, `/ai/chat`, `/ai/search`
+- 내부 탭 경로: `/home`, `/doc/...`, `/doc/new*`, `/ai/chat`, `/ai/search`
 - 레거시 핸드오프 경로: `/settings`
 - 정책: 내부 탭 경로는 주소창에 직접 노출하거나 딥링크로 사용하는 대상이 아니다.
 
@@ -82,10 +82,10 @@ interface TabItem {
 |----|----|------|----------|
 | Home | `home` | `/home` | ❌ 불가 |
 | 문서 | `file-{path}` | `/doc/{path}` | ✅ 가능 |
-| 새 문서 | 상황별 생성 | `/wiki/new` | ✅ 가능 |
-| 새 문서 (위키) | 상황별 생성 | `/wiki/new-wiki` | ✅ 가능 |
-| 새 문서 (템플릿) | 상황별 생성 | `/wiki/new-template` | ✅ 가능 |
-| 새 문서 (AI 요약) | 상황별 생성 | `/wiki/new-ai-summary` | ✅ 가능 |
+| 새 문서 | 상황별 생성 | `/doc/new` | ✅ 가능 |
+| 새 문서 (문서) | 상황별 생성 | `/doc/new-doc` | ✅ 가능 |
+| 새 문서 (템플릿) | 상황별 생성 | `/doc/new-template` | ✅ 가능 |
+| 새 문서 (AI 요약) | 상황별 생성 | `/doc/new-ai-summary` | ✅ 가능 |
 | AI 검색 | 상황별 생성 | `/ai/search` | ✅ 가능 |
 | 설정(레거시) | `settings` 계열 | `/settings` | ✅ 가능 |
 
@@ -105,7 +105,7 @@ const pageComponents = {
 function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiChat' | 'aiSearch' | 'settings' | null {
   if (tab.id === 'home') return 'home';
   if (tab.path.startsWith('/doc/')) return 'markdown';
-  if (tab.path.startsWith('/wiki/new')) return 'markdown';
+  if (tab.path.startsWith('/doc/new')) return 'markdown';
   if (tab.path.startsWith('/ai/chat')) return 'aiChat';
   if (tab.path.startsWith('/ai/search')) return 'aiSearch';
   if (tab.path === '/settings') return 'settings'; // settings shell 핸드오프
@@ -182,17 +182,18 @@ DocumentPage에서 파일 로드
 ```
 Header "새 도큐먼트" 클릭
     ↓
-openTab({ path: '/wiki/new', title: '새 문서' })
+openTab({ path: '/doc/new', title: '새 문서' })
     ↓
 ContentArea → DocumentPage (createEntryType = 'launcher')
     ↓
 NewDocumentLauncher 렌더링 (Obsidian 스타일 액션 링크 4개)
     ├─ "AI 요약" → 파일 선택 → new-doc.store에 파일 저장
-    │               → updateTab({ path: '/wiki/new-ai-summary' })
+    │               → updateTab({ path: '/doc/new-ai-summary' })
     │               → DocumentPage AI 요약 자동 실행 → 에디터 마운트
-    ├─ "위키 문서" → updateTab({ path: '/wiki/new-wiki' })
-    │               → DocumentPage 새 위키 에디터 마운트
-    ├─ "템플릿 문서" → updateTab({ path: '/wiki/new-template' })
+    │               → 요약에 사용한 파일을 sourceFiles와 저장 대기 첨부로 동기화
+    ├─ "문서" → updateTab({ path: '/doc/new-doc' })
+    │          → DocumentPage 새 문서 에디터 마운트
+    ├─ "템플릿 문서" → updateTab({ path: '/doc/new-template' })
     │                 → DocumentPage 새 템플릿 에디터 마운트
     └─ "닫기" → closeTab()
 ```
@@ -243,7 +244,7 @@ const pageComponents = {
 - 목적: 공개 URL을 `/` 와 `/login` 으로 제한
 - 허용: `ROOT_ENTRY_PATHS = ['/', '/login']`
 - 제외: `/api`, `/_next`, 정적 파일
-- 직접 접근 차단 대상: `/doc/...`, `/wiki/new*`, `/ai/...`, `/settings`
+- 직접 접근 차단 대상: `/doc/...`, `/doc/new*`, `/ai/...`, `/settings`
 
 이 정책은 인증/권한 미들웨어가 아니라 “주소창 루트 고정” 정책이다. 향후 실제 공개 URL 기반 딥링크를 허용할 시점에는 이 정책을 제거하거나 허용 경로 기반으로 재설계해야 한다.
 

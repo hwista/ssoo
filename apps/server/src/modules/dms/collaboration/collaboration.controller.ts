@@ -47,6 +47,29 @@ export class CollaborationController {
     return success(await this.collaborationService.takeover({ path: body.path, sessionId: body.sessionId, currentUser }));
   }
 
+  @Get('takeover/pending')
+  @ApiOperation({ summary: '문서 soft lock takeover 미처리 요청 조회' })
+  @ApiOkResponse({ description: '현재 사용자 기준 미처리 takeover 요청 반환' })
+  getTakeoverPendingState(@CurrentUser() currentUser: TokenPayload, @Query('path') path?: string) {
+    if (!path?.trim()) throw new BadRequestException('path는 필수입니다.');
+    return success(this.collaborationService.getTakeoverPendingState({ path, currentUser }));
+  }
+
+  @Post('takeover/respond')
+  @ApiOperation({ summary: '문서 soft lock takeover 요청 응답' })
+  @ApiOkResponse({ description: '문서 collaboration snapshot 반환' })
+  async respondToTakeover(
+    @CurrentUser() currentUser: TokenPayload,
+    @Body() body: { requestId?: string; approved?: boolean },
+  ) {
+    if (!body.requestId?.trim()) throw new BadRequestException('requestId는 필수입니다.');
+    return success(await this.collaborationService.respondToTakeover({
+      requestId: body.requestId,
+      approved: body.approved === true,
+      currentUser,
+    }));
+  }
+
   @Post('refresh')
   @ApiOperation({ summary: '문서 publish 상태 refresh' })
   @ApiOkResponse({ description: '문서 collaboration snapshot 반환' })

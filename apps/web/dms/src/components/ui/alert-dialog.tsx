@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
+import { POPUP_BACKDROP_ANIMATION_CLASS, POPUP_BACKDROP_TONE_CLASS } from '@/components/ui/popup-backdrop';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 
@@ -17,7 +18,9 @@ const AlertDialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Overlay
     className={cn(
-      'fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      'fixed inset-0 z-50',
+      POPUP_BACKDROP_TONE_CLASS,
+      POPUP_BACKDROP_ANIMATION_CLASS,
       className
     )}
     {...props}
@@ -90,7 +93,7 @@ const AlertDialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Description
     ref={ref}
-    className={cn('text-body-sm text-muted-foreground', className)}
+    className={cn('text-body-sm text-black', className)}
     {...props}
   />
 ));

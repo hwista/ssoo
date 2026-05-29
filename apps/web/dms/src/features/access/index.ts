@@ -2,7 +2,7 @@
 // 다른 모듈은 이 barrel 만 import 하고 내부 파일을 직접 참조하지 않는다.
 
 export { DocumentAccessRequestDialogHost } from './RequestDialog';
-export { VisibilitySection } from './VisibilitySelector';
+export { VisibilitySection, VisibilityValue } from './VisibilitySelector';
 export type { VisibilitySectionProps } from './VisibilitySelector';
 export {
   normalizeDocumentAccessRequestPath,
@@ -13,6 +13,7 @@ export {
   accessRequestKeys,
   useManageableDocumentsQuery,
   useMyDocumentAccessRequestsQuery,
+  useMyDocumentAccessRequestsForPathQuery,
   useDocumentAccessInboxQuery,
   useCreateReadAccessRequestMutation,
   useApproveDocumentAccessRequestMutation,
@@ -21,5 +22,6 @@ export {
   useUpdateDocumentVisibilityMutation,
   useTransferDocumentOwnershipMutation,
   useRevokeDocumentGrantMutation,
+  useUpdateDocumentGrantRoleMutation,
   useCreateDirectGrantMutation,
 } from './queries';

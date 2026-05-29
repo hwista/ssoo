@@ -87,6 +87,13 @@ const FULL_POLICY_TRACE_KEYS = [
 ];
 
 const PNG_1X1_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X6n4AAAAASUVORK5CYII=';
+const NOTIFICATION_CLEANUP_SETTLE_MS = 5_500;
+const NOTIFICATION_CLEANUP_PREFIXES = [
+  'verify-access/',
+  'verify-sse/',
+  'copilot-access-cancel-smoke-',
+  '_templates/personal/verify-template-',
+];
 
 const options = {
   dryRun: argv.includes('--dry-run'),
@@ -130,6 +137,7 @@ async function main(config) {
   let adminAccessToken = null;
   let probe = null;
   let mainError = null;
+  const notificationCleanupPaths = new Set();
   const initialMarkdownSidecars = collectSidecarFiles(DMS_RUNTIME_BINDINGS.markdownRoot.resolvedPath);
   const initialTemplateSidecars = collectSidecarFiles(DMS_RUNTIME_BINDINGS.templateDir);
 
@@ -141,6 +149,7 @@ async function main(config) {
       config.fixtureDir,
       config.runtimeLoginId,
     );
+    rememberNotificationCleanupPath(notificationCleanupPaths, probe.documentPath);
     await verifyCommentRelationProjection(prisma, probe);
 
     const runtimeAccessToken = await login(
@@ -171,6 +180,14 @@ async function main(config) {
       runtimeAccessSnapshot.features.canReadDocuments,
       probe,
     );
+    await verifyCommentApi(
+      config.baseUrl,
+      runtimeAccessToken,
+      adminAccessToken,
+      runtimeAccessSnapshot.features.canReadDocuments,
+      probe,
+      prisma,
+    );
     assertNoNewSidecarFiles(
       DMS_RUNTIME_BINDINGS.markdownRoot.resolvedPath,
       'DMS markdown runtime root',
@@ -195,6 +212,7 @@ async function main(config) {
         fixtureDir: config.fixtureDir,
       },
       runtimeAccessSnapshot.features,
+      notificationCleanupPaths,
     );
     await verifyFileWriteBoundary(
       config.baseUrl,
@@ -244,6 +262,7 @@ async function main(config) {
       runtimeAccessSnapshot.features.canManageTemplates,
       probe.documentPath,
       'runtime',
+      notificationCleanupPaths,
     );
 
     await verifyAdminPrivilegedSurfaces(
@@ -251,6 +270,7 @@ async function main(config) {
       adminAccessToken,
       config.adminLoginId,
       probe,
+      notificationCleanupPaths,
     );
     assertNoNewSidecarFiles(
       DMS_RUNTIME_BINDINGS.templateDir,
@@ -273,6 +293,16 @@ async function main(config) {
         } else {
           throw cleanupError;
         }
+      }
+    }
+    try {
+      await settleVerificationNotifications();
+      await cleanupVerificationNotifications(prisma, config.fixtureDir, notificationCleanupPaths);
+    } catch (cleanupError) {
+      if (mainError) {
+        console.warn(`! notification cleanup failed: ${errorMessage(cleanupError)}`);
+      } else {
+        throw cleanupError;
       }
     }
     await prisma.$disconnect();
@@ -937,6 +967,182 @@ async function verifyCommentRelationProjection(prisma, probe) {
   }
 }
 
+async function verifyCommentApi(baseUrl, accessToken, adminAccessToken, canReadDocuments, probe, prisma) {
+  console.log('→ verify: DMS DB-backed comment API');
+  const listData = await fetchSuccessData(
+    `${baseUrl}/dms/comments?path=${encodeURIComponent(probe.documentPath)}`,
+    authHeaders(accessToken),
+    canReadDocuments ? [200] : [403],
+    '/dms/comments list',
+    { allowNonSuccessEnvelope: !canReadDocuments },
+  );
+
+  if (!canReadDocuments) {
+    return;
+  }
+
+  assertArray(listData.comments, '/dms/comments list comments');
+  const content = `Runtime comment API verification ${Date.now()}`;
+  const created = await fetchSuccessData(
+    `${baseUrl}/dms/comments`,
+    authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    [200],
+    '/dms/comments create',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        path: probe.documentPath,
+        content,
+      }),
+    },
+  );
+  if (!isPlainObject(created.comment) || typeof created.comment.id !== 'string') {
+    throw new Error('/dms/comments create 응답에 comment.id 가 없습니다.');
+  }
+  if (!Array.isArray(created.comments) || !created.comments.some((comment) => (
+    isPlainObject(comment) && comment.id === created.comment.id && comment.content === content
+  ))) {
+    throw new Error('/dms/comments create 응답 comments 에 새 댓글이 없습니다.');
+  }
+
+  const commentId = created.comment.id;
+  await verifyCommentNotification(prisma, probe.documentPath, commentId);
+
+  const deleted = await fetchSuccessData(
+    `${baseUrl}/dms/comments/${encodeURIComponent(commentId)}?path=${encodeURIComponent(probe.documentPath)}`,
+    authHeaders(accessToken),
+    [200],
+    '/dms/comments delete',
+    { method: 'DELETE' },
+  );
+  const deletedComment = Array.isArray(deleted.comments)
+    ? deleted.comments.find((comment) => isPlainObject(comment) && comment.id === commentId)
+    : null;
+  if (!isPlainObject(deletedComment) || typeof deletedComment.deletedAt !== 'string') {
+    throw new Error('/dms/comments delete 가 댓글 tombstone 을 반환하지 않았습니다.');
+  }
+  if (typeof deletedComment.deletedByUserId !== 'string') {
+    throw new Error('/dms/comments delete 가 삭제자 userId 를 반환하지 않았습니다.');
+  }
+
+  const restored = await fetchSuccessData(
+    `${baseUrl}/dms/comments/${encodeURIComponent(commentId)}/restore`,
+    authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    [200],
+    '/dms/comments restore',
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        path: probe.documentPath,
+      }),
+    },
+  );
+  const restoredComment = Array.isArray(restored.comments)
+    ? restored.comments.find((comment) => isPlainObject(comment) && comment.id === commentId)
+    : null;
+  if (!isPlainObject(restoredComment) || restoredComment.deletedAt !== undefined) {
+    throw new Error('/dms/comments restore 가 댓글 tombstone 을 해제하지 않았습니다.');
+  }
+  if (restoredComment.deletedByUserId !== undefined || restoredComment.deletedByName !== undefined) {
+    throw new Error('/dms/comments restore 가 삭제자 정보를 정리하지 않았습니다.');
+  }
+
+  await verifyCommentRestoreActorPolicy(baseUrl, accessToken, adminAccessToken, probe);
+}
+
+async function verifyCommentRestoreActorPolicy(baseUrl, runtimeAccessToken, adminAccessToken, probe) {
+  const content = `Runtime comment restore actor policy ${Date.now()}`;
+  const created = await fetchSuccessData(
+    `${baseUrl}/dms/comments`,
+    authHeaders(runtimeAccessToken, {
+      'Content-Type': 'application/json',
+    }),
+    [200],
+    '/dms/comments create restore policy fixture',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        path: probe.documentPath,
+        content,
+      }),
+    },
+  );
+  if (!isPlainObject(created.comment) || typeof created.comment.id !== 'string') {
+    throw new Error('/dms/comments restore policy fixture 응답에 comment.id 가 없습니다.');
+  }
+
+  const commentId = created.comment.id;
+  await fetchSuccessData(
+    `${baseUrl}/dms/comments/${encodeURIComponent(commentId)}?path=${encodeURIComponent(probe.documentPath)}`,
+    authHeaders(adminAccessToken),
+    [200],
+    '/dms/comments delete restore policy fixture as admin',
+    { method: 'DELETE' },
+  );
+
+  await fetchSuccessData(
+    `${baseUrl}/dms/comments/${encodeURIComponent(commentId)}/restore`,
+    authHeaders(runtimeAccessToken, {
+      'Content-Type': 'application/json',
+    }),
+    [403],
+    '/dms/comments restore by non-deleter',
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        path: probe.documentPath,
+      }),
+      allowNonSuccessEnvelope: true,
+    },
+  );
+}
+
+async function verifyCommentNotification(prisma, documentPath, commentId) {
+  const document = await prisma.dmsDocument.findFirst({
+    where: { relativePath: documentPath },
+    select: { ownerUserId: true },
+  });
+  if (!document) {
+    throw new Error('댓글 알림 검증 대상 문서를 찾지 못했습니다.');
+  }
+
+  const notification = await prisma.commonNotification.findFirst({
+    where: {
+      recipientUserId: document.ownerUserId,
+      sourceAppCode: 'dms',
+      notificationType: 'dms.document-comment.created',
+      referenceType: 'dms.document-comment',
+      referenceId: commentId,
+      referencePath: documentPath,
+      archivedAt: null,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      actionType: true,
+      actionPayload: true,
+    },
+  });
+
+  if (!notification) {
+    throw new Error('댓글 작성 시 문서 소유자 알림이 생성되지 않았습니다.');
+  }
+  if (notification.actionType !== 'open-dms-document') {
+    throw new Error('댓글 알림 action 이 문서 열기가 아닙니다.');
+  }
+  if (
+    !isPlainObject(notification.actionPayload)
+    || notification.actionPayload.path !== documentPath
+    || notification.actionPayload.commentId !== commentId
+  ) {
+    throw new Error('댓글 알림 action payload 가 문서/댓글을 가리키지 않습니다.');
+  }
+}
+
 async function verifySearchBoundary(baseUrl, accessToken, canUseSearch, query, activeDocPath) {
   console.log('→ verify: DMS search boundary');
   const search = await fetchSuccessData(
@@ -970,6 +1176,7 @@ async function verifyPermissionWorkflowRegression(
   runtimeAccessToken,
   config,
   features,
+  notificationCleanupPaths,
 ) {
   console.log('→ verify: DMS permission workflow regression');
 
@@ -984,6 +1191,7 @@ async function verifyPermissionWorkflowRegression(
     buildPermissionWorkflowDocument(config.fixtureDir, suffix, 'reject', '권한 거절 회귀'),
     buildPermissionWorkflowDocument(config.fixtureDir, suffix, 'owner', '소유권 이전 회귀'),
   ];
+  docs.forEach((doc) => rememberNotificationCleanupPath(notificationCleanupPaths, doc.path));
 
   try {
     for (const doc of docs) {
@@ -1616,7 +1824,14 @@ async function verifyStorageBoundary(baseUrl, accessToken, features, probe, labe
   );
 }
 
-async function verifyTemplateBoundary(baseUrl, accessToken, canManageTemplates, sourceDocumentPath, label) {
+async function verifyTemplateBoundary(
+  baseUrl,
+  accessToken,
+  canManageTemplates,
+  sourceDocumentPath,
+  label,
+  notificationCleanupPaths,
+) {
   console.log(`→ verify: DMS template boundary (${label})`);
 
   const listResult = await requestJson(`${baseUrl}/dms/templates`, {
@@ -1639,6 +1854,10 @@ async function verifyTemplateBoundary(baseUrl, accessToken, canManageTemplates, 
       },
     ],
   };
+  rememberNotificationCleanupPath(
+    notificationCleanupPaths,
+    `_templates/personal/${upsertBody.id}.md`,
+  );
 
   const upsertResult = await requestJson(`${baseUrl}/dms/templates`, {
     method: 'POST',
@@ -1691,7 +1910,13 @@ async function verifyTemplateBoundary(baseUrl, accessToken, canManageTemplates, 
   assertSuccessEnvelope(deleteResult.data, `/dms/templates DELETE (${label})`);
 }
 
-async function verifyAdminPrivilegedSurfaces(baseUrl, accessToken, adminLoginId, probe) {
+async function verifyAdminPrivilegedSurfaces(
+  baseUrl,
+  accessToken,
+  adminLoginId,
+  probe,
+  notificationCleanupPaths,
+) {
   const adminInspection = await inspectAccess(baseUrl, accessToken, {
     loginId: adminLoginId,
   });
@@ -1710,7 +1935,7 @@ async function verifyAdminPrivilegedSurfaces(baseUrl, accessToken, adminLoginId,
   await verifySettingsBoundary(baseUrl, accessToken, true, 'admin');
   await verifyGitBoundary(baseUrl, accessToken, true, probe.documentPath, 'admin');
   await verifyStorageBoundary(baseUrl, accessToken, { canReadDocuments: true, canManageStorage: true }, probe, 'admin');
-  await verifyTemplateBoundary(baseUrl, accessToken, true, probe.documentPath, 'admin');
+  await verifyTemplateBoundary(baseUrl, accessToken, true, probe.documentPath, 'admin', notificationCleanupPaths);
 }
 
 function assertSettingsSnapshot(settingsSnapshot, label) {
@@ -2069,6 +2294,61 @@ async function requestBinary(url, init = {}) {
   const response = await fetch(url, init);
   const body = Buffer.from(await response.arrayBuffer());
   return { response, body };
+}
+
+function rememberNotificationCleanupPath(paths, pathValue) {
+  if (!paths || typeof pathValue !== 'string') {
+    return;
+  }
+  const normalized = pathValue.trim().replace(/\\/g, '/').replace(/^\/+/, '');
+  if (normalized) {
+    paths.add(normalized);
+  }
+}
+
+async function settleVerificationNotifications() {
+  await delay(NOTIFICATION_CLEANUP_SETTLE_MS);
+}
+
+async function cleanupVerificationNotifications(prisma, fixtureDir, paths) {
+  const pathList = Array.from(paths ?? []);
+  const normalizedFixtureDir = typeof fixtureDir === 'string'
+    ? fixtureDir.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+    : '';
+  const prefixes = Array.from(new Set([
+    ...NOTIFICATION_CLEANUP_PREFIXES,
+    normalizedFixtureDir ? `${normalizedFixtureDir}/` : '',
+  ].filter(Boolean)));
+
+  const orFilters = [
+    ...pathList.map((pathValue) => ({ referencePath: pathValue })),
+    ...pathList.map((pathValue) => ({ dedupeKey: { contains: pathValue } })),
+    ...prefixes.map((prefix) => ({ referencePath: { startsWith: prefix } })),
+    ...prefixes.map((prefix) => ({ dedupeKey: { contains: prefix } })),
+  ];
+
+  if (orFilters.length === 0) {
+    return;
+  }
+
+  const now = new Date();
+  const result = await prisma.commonNotification.updateMany({
+    where: {
+      sourceAppCode: 'dms',
+      archivedAt: null,
+      OR: orFilters,
+    },
+    data: {
+      isRead: true,
+      readAt: now,
+      archivedAt: now,
+      lastActivity: 'dms.verify-access.notification-cleanup',
+    },
+  });
+
+  if (result.count > 0) {
+    console.log(`✓ archived DMS verification notifications (${result.count})`);
+  }
 }
 
 function delay(ms) {

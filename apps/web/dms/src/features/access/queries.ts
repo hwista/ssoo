@@ -6,6 +6,7 @@ import type {
   CreateDmsDocumentAccessRequestPayload,
   CreateDmsDocumentDirectGrantPayload,
   DmsDocumentAccessRequestListQuery,
+  DmsDocumentAccessRequestRole,
   DmsDocumentAccessRequestStatusFilter,
   DmsDocumentAccessRequestSummary,
   DmsDocumentDirectGrantResult,
@@ -13,6 +14,8 @@ import type {
   RejectDmsDocumentAccessRequestPayload,
   TransferDocumentOwnershipPayload,
   TransferDocumentOwnershipResult,
+  UpdateDmsDocumentGrantRolePayload,
+  UpdateDmsDocumentGrantRoleResult,
   UpdateDocumentVisibilityPayload,
 } from '@ssoo/types/dms';
 import { accessApi } from '@/lib/api/access';
@@ -55,6 +58,29 @@ function invalidateRequestQueries(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: aiSearchKeys.results() });
 }
 
+function updateManagedDocumentGrantRole(
+  queryClient: QueryClient,
+  documentId: string,
+  grantId: string,
+  role: DmsDocumentAccessRequestRole,
+) {
+  queryClient.setQueryData<DmsManagedDocumentSummary[]>(
+    accessRequestKeys.managedDocuments,
+    (documents) => documents?.map((document) => {
+      if (document.documentId !== documentId) {
+        return document;
+      }
+
+      return {
+        ...document,
+        grants: document.grants.map((grant) => (
+          grant.grantId === grantId ? { ...grant, role } : grant
+        )),
+      };
+    }),
+  );
+}
+
 export function useManageableDocumentsQuery(options: AccessRequestQueryOptions = {}) {
   return useQuery({
     queryKey: accessRequestKeys.managedDocuments,
@@ -70,6 +96,17 @@ export function useMyDocumentAccessRequestsQuery(
   return useQuery({
     queryKey: accessRequestKeys.my({ status }),
     queryFn: () => unwrap(accessApi.listMyRequests({ status })),
+    enabled: options.enabled ?? true,
+  });
+}
+
+export function useMyDocumentAccessRequestsForPathQuery(
+  query: DmsDocumentAccessRequestListQuery,
+  options: AccessRequestQueryOptions = {},
+) {
+  return useQuery({
+    queryKey: accessRequestKeys.my(query),
+    queryFn: () => unwrap(accessApi.listMyRequests(query)),
     enabled: options.enabled ?? true,
   });
 }
@@ -189,6 +226,46 @@ export function useRevokeDocumentGrantMutation() {
       accessApi.revokeGrant(params.documentId, params.grantId),
     ),
     onSuccess: () => {
+      invalidateRequestQueries(queryClient);
+    },
+  });
+}
+
+export function useUpdateDocumentGrantRoleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      documentId: string;
+      grantId: string;
+      payload: UpdateDmsDocumentGrantRolePayload;
+    }) => unwrap<UpdateDmsDocumentGrantRoleResult>(
+      accessApi.updateGrantRole(params.documentId, params.grantId, params.payload),
+    ),
+    onMutate: async (params) => {
+      await queryClient.cancelQueries({ queryKey: accessRequestKeys.managedDocuments });
+      const previousManagedDocuments = queryClient.getQueryData<DmsManagedDocumentSummary[]>(
+        accessRequestKeys.managedDocuments,
+      );
+
+      updateManagedDocumentGrantRole(
+        queryClient,
+        params.documentId,
+        params.grantId,
+        params.payload.role,
+      );
+
+      return { previousManagedDocuments };
+    },
+    onError: (_error, _params, context) => {
+      if (context?.previousManagedDocuments) {
+        queryClient.setQueryData(
+          accessRequestKeys.managedDocuments,
+          context.previousManagedDocuments,
+        );
+      }
+    },
+    onSettled: () => {
       invalidateRequestQueries(queryClient);
     },
   });

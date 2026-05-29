@@ -24,6 +24,41 @@ class FakeUserService {
   }
 }
 
+class FakeNotificationService {
+  readonly notifications: unknown[] = [];
+  readonly archivedDedupeKeys: string[] = [];
+
+  async notifyUser(payload: unknown): Promise<void> {
+    this.notifications.push(payload);
+  }
+
+  async archiveByDedupeKey(_recipientUserId: bigint, _sourceApp: string, dedupeKey: string): Promise<void> {
+    this.archivedDedupeKeys.push(dedupeKey);
+  }
+}
+
+class FakeEventsGateway {
+  readonly takeoverRequests: unknown[] = [];
+  readonly takeoverResponses: unknown[] = [];
+  readonly collaborationEvents: unknown[] = [];
+
+  emitLockTakeoverRequested(_ownerUserId: string, event: unknown): void {
+    this.takeoverRequests.push(event);
+  }
+
+  emitLockTakeoverResponded(_requesterUserId: string, event: unknown): void {
+    this.takeoverResponses.push(event);
+  }
+
+  emitCollaborationChanged(event: unknown): void {
+    this.collaborationEvents.push(event);
+  }
+
+  isUserConnected(): boolean {
+    return false;
+  }
+}
+
 const tokenFor = (userId: string, loginId: string, sessionId = 'sess-1'): TokenPayload => ({
   userId,
   loginId,
@@ -33,6 +68,8 @@ const tokenFor = (userId: string, loginId: string, sessionId = 'sess-1'): TokenP
 describe('CollaborationService (D-2 phase 2)', () => {
   let tempRoot: string;
   let userService: FakeUserService;
+  let notificationService: FakeNotificationService;
+  let eventsGateway: FakeEventsGateway;
   let service: CollaborationService;
 
   beforeEach(() => {
@@ -41,8 +78,10 @@ describe('CollaborationService (D-2 phase 2)', () => {
     userService = new FakeUserService();
     userService.setProfile('1', { displayName: 'Alice', email: 'alice@example.com' });
     userService.setProfile('2', { displayName: 'Bob', email: 'bob@example.com' });
+    notificationService = new FakeNotificationService();
+    eventsGateway = new FakeEventsGateway();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    service = new CollaborationService(userService as any);
+    service = new CollaborationService(userService as any, notificationService as any, eventsGateway as any);
   });
 
   afterEach(() => {
@@ -106,19 +145,96 @@ describe('CollaborationService (D-2 phase 2)', () => {
   });
 
   describe('takeover', () => {
-    it('replaces an existing edit lock with the new owner', async () => {
+    it('creates a pending request when another user owns an active edit lock', async () => {
       await service.heartbeat({
         path: 'docs/a.md',
         currentUser: tokenFor('1', 'alice'),
         sessionId: 's1',
         mode: 'edit',
       });
-      const snapshot = await service.takeover({
+      const result = await service.takeover({
         path: 'docs/a.md',
         currentUser: tokenFor('2', 'bob'),
         sessionId: 's2',
       });
-      expect(snapshot.softLock).toMatchObject({ userId: '2', sessionId: 's2' });
+      expect(result.status).toBe('requested');
+      expect(result.snapshot.softLock).toMatchObject({ userId: '1', sessionId: 's1' });
+      expect(result.request).toMatchObject({
+        path: 'docs/a.md',
+        requester: { userId: '2', sessionId: 's2' },
+        owner: { userId: '1', sessionId: 's1' },
+      });
+      expect(notificationService.notifications).toHaveLength(1);
+      expect(eventsGateway.takeoverRequests).toHaveLength(1);
+    });
+
+    it('reuses an active pending takeover request for the same requester', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+      const first = await service.takeover({
+        path: 'docs/a.md',
+        currentUser: tokenFor('2', 'bob'),
+        sessionId: 's2',
+      });
+      const second = await service.takeover({
+        path: 'docs/a.md',
+        currentUser: tokenFor('2', 'bob'),
+        sessionId: 's2',
+      });
+
+      expect(second.status).toBe('requested');
+      expect(second.request?.requestId).toBe(first.request?.requestId);
+      expect(notificationService.notifications).toHaveLength(1);
+      expect(eventsGateway.takeoverRequests).toHaveLength(1);
+    });
+
+    it('exposes pending takeover state for requester and lock owner', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+      const result = await service.takeover({
+        path: 'docs/a.md',
+        currentUser: tokenFor('2', 'bob'),
+        sessionId: 's2',
+      });
+
+      expect(service.getTakeoverPendingState({
+        path: 'docs/a.md',
+        currentUser: tokenFor('2', 'bob'),
+      }).requesterRequest?.requestId).toBe(result.request?.requestId);
+      expect(service.getTakeoverPendingState({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+      }).ownerRequest?.requestId).toBe(result.request?.requestId);
+    });
+
+    it('moves the edit lock when the owner approves a pending takeover request', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+      const result = await service.takeover({
+        path: 'docs/a.md',
+        currentUser: tokenFor('2', 'bob'),
+        sessionId: 's2',
+      });
+      const response = await service.respondToTakeover({
+        requestId: result.request?.requestId ?? '',
+        approved: true,
+        currentUser: tokenFor('1', 'alice'),
+      });
+
+      expect(response.status).toBe('approved');
+      expect(response.snapshot.softLock).toMatchObject({ userId: '2', sessionId: 's2' });
     });
   });
 

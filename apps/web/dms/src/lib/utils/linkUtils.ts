@@ -5,11 +5,56 @@
  * 링크 분류·해석·이미지 경로 변환 함수를 모아 둔다.
  */
 
-const EXTERNAL_URL_RE = /^(https?:|mailto:|tel:|#)/i;
+const ABSOLUTE_SCHEME_RE = /^[a-z][a-z\d+.-]*:/i;
+const DOMAIN_LIKE_URL_RE = /^(?:www\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?::\d+)?(?:[/?#].*)?$/i;
 
-/** URL이 외부 링크(http, mailto, tel, anchor)인지 판별 */
+function stripQueryAndHash(value: string): string {
+  return value.split('#')[0]?.split('?')[0] ?? value;
+}
+
+function isMarkdownDocumentHref(value: string): boolean {
+  const pathOnly = stripQueryAndHash(value.trim());
+  return /\.md$/i.test(pathOnly);
+}
+
+function isDomainLikeHref(value: string): boolean {
+  const rawValue = value.trim();
+  const lowerValue = rawValue.toLowerCase();
+  const pathOnly = stripQueryAndHash(rawValue);
+  if (
+    /\.md$/i.test(pathOnly)
+    && !pathOnly.includes('/')
+    && !lowerValue.startsWith('www.')
+  ) {
+    return false;
+  }
+
+  return DOMAIN_LIKE_URL_RE.test(rawValue);
+}
+
+/** URL이 외부 링크인지 판별 */
 export function isExternalUrl(url: string): boolean {
-  return EXTERNAL_URL_RE.test(url);
+  const rawUrl = url.trim();
+  if (!rawUrl) return false;
+  if (rawUrl.startsWith('#')) return true;
+  if (rawUrl.startsWith('//')) return true;
+  if (ABSOLUTE_SCHEME_RE.test(rawUrl)) return true;
+  if (rawUrl.startsWith('/') || rawUrl.startsWith('./') || rawUrl.startsWith('../')) return false;
+  if (isDomainLikeHref(rawUrl)) return true;
+  if (isMarkdownDocumentHref(rawUrl)) return false;
+  return false;
+}
+
+/** 브라우저에서 열 수 있는 외부 href로 정규화한다. 내부 문서/앵커이면 null. */
+export function resolveExternalHref(href: string): string | null {
+  const rawHref = href.trim();
+  if (!rawHref || rawHref.startsWith('#')) return null;
+  if (rawHref.startsWith('//')) return `https:${rawHref}`;
+  if (ABSOLUTE_SCHEME_RE.test(rawHref)) return rawHref;
+  if (rawHref.startsWith('/') || rawHref.startsWith('./') || rawHref.startsWith('../')) return null;
+  if (isDomainLikeHref(rawHref)) return `https://${rawHref}`;
+  if (isMarkdownDocumentHref(rawHref)) return null;
+  return null;
 }
 
 export function normalizeDocumentPath(pathValue: string): string {
@@ -58,7 +103,7 @@ export function resolveDocPath(href: string, currentFilePath?: string | null): s
   if (!rawHref) return null;
   if (isExternalUrl(rawHref)) return null;
 
-  const noQuery = rawHref.split('#')[0]?.split('?')[0] ?? rawHref;
+  const noQuery = stripQueryAndHash(rawHref);
   if (!noQuery) return null;
 
   if (noQuery.startsWith('/doc/')) {

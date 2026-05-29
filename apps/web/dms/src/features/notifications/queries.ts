@@ -20,6 +20,7 @@ export const notificationKeys = {
     query.page ?? 1,
     query.pageSize ?? 20,
     query.unreadOnly ? 'unread' : 'all',
+    query.readOnly ? 'read' : '',
     query.notificationType ?? '',
   ] as const,
   unreadCount: () => [...notificationKeys.all, 'unread-count', 'dms'] as const,
@@ -73,6 +74,19 @@ export function useMarkNotificationReadMutation() {
   });
 }
 
+export function useMarkNotificationUnreadMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (notificationId: string) => (
+      unwrap<CommonNotificationItem>(notificationApi.markAsUnread(notificationId))
+    ),
+    onSuccess: async () => {
+      await invalidateNotificationQueries(queryClient);
+    },
+  });
+}
+
 export function useMarkAllNotificationsReadMutation() {
   const queryClient = useQueryClient();
 
@@ -82,6 +96,21 @@ export function useMarkAllNotificationsReadMutation() {
     ),
     onSuccess: async () => {
       await invalidateNotificationQueries(queryClient);
+    },
+  });
+}
+
+export function useMarkDocumentNotificationsReadMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (path: string) => unwrap<CommonNotificationMarkAllReadResult>(
+      notificationApi.markByReferencePathAsRead(path, 'dms'),
+    ),
+    onSuccess: async (result) => {
+      if (result.count > 0) {
+        await invalidateNotificationQueries(queryClient);
+      }
     },
   });
 }

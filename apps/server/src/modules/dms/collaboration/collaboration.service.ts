@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 import type { DocumentIsolationState, DocumentMutationAction } from '@ssoo/types/dms';
 import { CommonNotificationService } from '../../common/notification/notification.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
@@ -46,6 +46,7 @@ import {
 
 const logger = createDmsLogger('DmsCollaborationService');
 const STATE_FILE = '.dms-collaboration-state.json';
+const TAKEOVER_REQUEST_TTL_MS = 30_000;
 
 type CollaborationMode = 'view' | 'edit';
 export type PublishStatus = 'clean' | 'dirty-uncommitted' | 'publishing' | 'committed-unpushed' | 'sync-blocked' | 'push-failed';
@@ -95,6 +96,42 @@ export interface DocumentCollaborationSnapshot {
   isolation: DocumentIsolationState | null;
 }
 
+export interface SoftLockTakeoverActor {
+  userId: string;
+  loginId: string;
+  displayName: string;
+  email: string;
+  sessionId: string;
+}
+
+export interface SoftLockTakeoverRequest {
+  requestId: string;
+  path: string;
+  requester: SoftLockTakeoverActor;
+  owner: SoftLockTakeoverActor;
+  requestedAt: string;
+  expiresAt: string;
+}
+
+export interface SoftLockTakeoverResult {
+  status: 'granted' | 'requested';
+  snapshot: DocumentCollaborationSnapshot;
+  request?: SoftLockTakeoverRequest;
+}
+
+export interface SoftLockTakeoverResponse {
+  requestId: string;
+  path: string;
+  status: 'approved' | 'rejected' | 'expired';
+  snapshot: DocumentCollaborationSnapshot;
+  message?: string;
+}
+
+export interface SoftLockTakeoverPendingState {
+  requesterRequest: SoftLockTakeoverRequest | null;
+  ownerRequest: SoftLockTakeoverRequest | null;
+}
+
 interface ActorProfile {
   displayName: string;
   email: string;
@@ -115,6 +152,7 @@ export class CollaborationService implements OnModuleDestroy {
   private readonly presenceByPath = new Map<string, Map<string, CollaborationMember>>();
   private readonly publishStateByPath = new Map<string, DocumentPublishState>();
   private readonly softLockByPath = new Map<string, DocumentSoftLock>();
+  private readonly softLockTakeoverRequestsById = new Map<string, SoftLockTakeoverRequest>();
   private readonly pathIsolationByPath = new Map<string, DocumentIsolationState>();
   private readonly pathOverrideByPath = new Map<string, PathReleaseOverride>();
   private readonly publishJobsByPath = new Map<string, PublishJob>();
@@ -149,9 +187,19 @@ export class CollaborationService implements OnModuleDestroy {
     const sessionId = input.sessionId?.trim() || input.currentUser.sessionId || 'default';
     const key = buildPresenceKey(input.currentUser.userId, sessionId);
     const now = new Date().toISOString();
+    const mode = input.mode ?? 'view';
+
+    this.cleanupInactiveMembers(normalizedPath);
+    this.cleanupInactiveLock(normalizedPath);
     const members = this.getOrCreatePresence(normalizedPath);
     const existing = members.get(key);
-    const mode = input.mode ?? 'view';
+
+    if (mode === 'edit') {
+      this.assertCanEnterEditMode(normalizedPath, input.currentUser);
+      this.touchOrAcquireSoftLock(normalizedPath, input.currentUser, actor, sessionId, now);
+    } else {
+      this.releaseOwnSoftLock(normalizedPath, input.currentUser, sessionId);
+    }
 
     members.set(key, {
       userId: input.currentUser.userId,
@@ -164,34 +212,182 @@ export class CollaborationService implements OnModuleDestroy {
       lastSeenAt: now,
     });
 
-    if (mode === 'edit') {
-      this.touchOrAcquireSoftLock(normalizedPath, input.currentUser, actor, sessionId, now);
-    }
-
-    this.cleanupInactiveMembers(normalizedPath);
-    this.cleanupInactiveLock(normalizedPath);
-    return this.getSnapshot(normalizedPath);
+    const snapshot = this.getSnapshot(normalizedPath);
+    this.emitCollaborationChanged(normalizedPath, snapshot, existing ? (mode === existing.mode ? 'join' : 'mode') : 'join');
+    return snapshot;
   }
 
-  async takeover(input: { path: string; currentUser: TokenPayload; sessionId?: string }): Promise<DocumentCollaborationSnapshot> {
+  async takeover(input: { path: string; currentUser: TokenPayload; sessionId?: string }): Promise<SoftLockTakeoverResult> {
     const normalizedPath = normalizePath(input.path);
     const actor = await this.resolveActorProfile(input.currentUser);
     const sessionId = input.sessionId?.trim() || input.currentUser.sessionId || 'default';
     const now = new Date().toISOString();
+    this.cleanupInactiveMembers(normalizedPath);
+    this.cleanupInactiveLock(normalizedPath);
+    this.cleanupStaleTakeoverRequests(normalizedPath);
 
-    this.softLockByPath.set(normalizedPath, {
+    const existing = this.softLockByPath.get(normalizedPath);
+    if (!existing || !this.isSoftLockActive(existing) || existing.userId === input.currentUser.userId) {
+      this.softLockByPath.set(normalizedPath, {
+        path: normalizedPath,
+        userId: input.currentUser.userId,
+        loginId: input.currentUser.loginId,
+        displayName: actor.displayName,
+        email: actor.email,
+        sessionId,
+        acquiredAt: existing?.acquiredAt ?? now,
+        lastSeenAt: now,
+      });
+      this.upsertPresenceMember(normalizedPath, {
+        userId: input.currentUser.userId,
+        loginId: input.currentUser.loginId,
+        displayName: actor.displayName,
+        email: actor.email,
+        sessionId,
+      }, 'edit', now);
+      this.persistState();
+      const snapshot = this.getSnapshot(normalizedPath);
+      this.emitCollaborationChanged(normalizedPath, snapshot, 'takeover');
+      return { status: 'granted', snapshot };
+    }
+
+    const existingRequest = this.findActiveTakeoverRequest(
+      normalizedPath,
+      input.currentUser.userId,
+      existing.userId,
+    );
+    if (existingRequest) {
+      return {
+        status: 'requested',
+        request: existingRequest,
+        snapshot: this.getSnapshot(normalizedPath),
+      };
+    }
+
+    const request: SoftLockTakeoverRequest = {
+      requestId: this.createTakeoverRequestId(),
       path: normalizedPath,
-      userId: input.currentUser.userId,
-      loginId: input.currentUser.loginId,
-      displayName: actor.displayName,
-      email: actor.email,
-      sessionId,
-      acquiredAt: now,
-      lastSeenAt: now,
-    });
-    this.persistState();
+      requester: {
+        userId: input.currentUser.userId,
+        loginId: input.currentUser.loginId,
+        displayName: actor.displayName,
+        email: actor.email,
+        sessionId,
+      },
+      owner: {
+        userId: existing.userId,
+        loginId: existing.loginId,
+        displayName: existing.displayName,
+        email: existing.email,
+        sessionId: existing.sessionId,
+      },
+      requestedAt: now,
+      expiresAt: new Date(Date.now() + TAKEOVER_REQUEST_TTL_MS).toISOString(),
+    };
+    this.softLockTakeoverRequestsById.set(request.requestId, request);
+    await this.notifyTakeoverRequested(request, input.currentUser);
+    this.eventsGateway?.emitLockTakeoverRequested(existing.userId, request);
 
-    return this.heartbeat({ path: normalizedPath, currentUser: input.currentUser, sessionId, mode: 'edit' });
+    return {
+      status: 'requested',
+      request,
+      snapshot: this.getSnapshot(normalizedPath),
+    };
+  }
+
+  async respondToTakeover(input: {
+    requestId: string;
+    approved: boolean;
+    currentUser: TokenPayload;
+  }): Promise<SoftLockTakeoverResponse> {
+    const request = this.softLockTakeoverRequestsById.get(input.requestId);
+    if (!request) {
+      throw new BadRequestException('처리할 편집 잠금 요청을 찾을 수 없습니다.');
+    }
+    if (request.owner.userId !== input.currentUser.userId) {
+      throw new ForbiddenException('편집 잠금 요청은 현재 잠금 보유자만 처리할 수 있습니다.');
+    }
+
+    const now = new Date().toISOString();
+    const expired = getTimestampMs(request.expiresAt) <= Date.now();
+    if (expired) {
+      this.softLockTakeoverRequestsById.delete(request.requestId);
+      const snapshot = this.getSnapshot(request.path);
+      const response: SoftLockTakeoverResponse = {
+        requestId: request.requestId,
+        path: request.path,
+        status: 'expired',
+        snapshot,
+        message: '편집 잠금 요청이 만료되었습니다.',
+      };
+      this.eventsGateway?.emitLockTakeoverResponded(request.requester.userId, response);
+      await this.notificationService.archiveByDedupeKey(BigInt(request.owner.userId), 'dms', this.getTakeoverOwnerDedupeKey(request.requestId));
+      await this.notifyTakeoverResponded(request, response);
+      return response;
+    }
+
+    this.softLockTakeoverRequestsById.delete(request.requestId);
+
+    if (input.approved) {
+      this.softLockByPath.set(request.path, {
+        path: request.path,
+        userId: request.requester.userId,
+        loginId: request.requester.loginId,
+        displayName: request.requester.displayName,
+        email: request.requester.email,
+        sessionId: request.requester.sessionId,
+        acquiredAt: now,
+        lastSeenAt: now,
+      });
+      this.upsertPresenceMember(request.path, request.requester, 'edit', now);
+      this.upsertPresenceMember(request.path, request.owner, 'view', now);
+      this.persistState();
+
+      const snapshot = this.getSnapshot(request.path);
+      const response: SoftLockTakeoverResponse = {
+        requestId: request.requestId,
+        path: request.path,
+        status: 'approved',
+        snapshot,
+        message: '편집 잠금 요청이 승인되었습니다.',
+      };
+      this.emitCollaborationChanged(request.path, snapshot, 'takeover');
+      this.eventsGateway?.emitLockTakeoverResponded(request.requester.userId, response);
+      await this.notificationService.archiveByDedupeKey(BigInt(request.owner.userId), 'dms', this.getTakeoverOwnerDedupeKey(request.requestId));
+      await this.notifyTakeoverResponded(request, response);
+      return response;
+    }
+
+    this.touchOwnerSoftLock(request.path, request.owner, now);
+    const snapshot = this.getSnapshot(request.path);
+    const response: SoftLockTakeoverResponse = {
+      requestId: request.requestId,
+      path: request.path,
+      status: 'rejected',
+      snapshot,
+      message: '편집 잠금 보유자가 편집을 계속합니다.',
+    };
+    this.emitCollaborationChanged(request.path, snapshot, 'lock');
+    this.eventsGateway?.emitLockTakeoverResponded(request.requester.userId, response);
+    await this.notificationService.archiveByDedupeKey(BigInt(request.owner.userId), 'dms', this.getTakeoverOwnerDedupeKey(request.requestId));
+    await this.notifyTakeoverResponded(request, response);
+    return response;
+  }
+
+  getTakeoverPendingState(input: { path: string; currentUser: TokenPayload }): SoftLockTakeoverPendingState {
+    const normalizedPath = normalizePath(input.path);
+    this.cleanupInactiveMembers(normalizedPath);
+    this.cleanupInactiveLock(normalizedPath);
+    this.cleanupStaleTakeoverRequests(normalizedPath);
+
+    const activeRequests = Array.from(this.softLockTakeoverRequestsById.values())
+      .filter((request) => request.path === normalizedPath && this.isTakeoverRequestProcessable(request))
+      .sort((a, b) => getTimestampMs(b.requestedAt) - getTimestampMs(a.requestedAt));
+
+    return {
+      requesterRequest: activeRequests.find((request) => request.requester.userId === input.currentUser.userId) ?? null,
+      ownerRequest: activeRequests.find((request) => request.owner.userId === input.currentUser.userId) ?? null,
+    };
   }
 
   leave(input: { path: string; currentUser: TokenPayload; sessionId?: string }): DocumentCollaborationSnapshot {
@@ -208,7 +404,9 @@ export class CollaborationService implements OnModuleDestroy {
       this.persistState();
     }
 
-    return this.getSnapshot(normalizedPath);
+    const snapshot = this.getSnapshot(normalizedPath);
+    this.emitCollaborationChanged(normalizedPath, snapshot, 'leave');
+    return snapshot;
   }
 
   getSnapshot(pathValue: string): DocumentCollaborationSnapshot {
@@ -541,6 +739,7 @@ export class CollaborationService implements OnModuleDestroy {
           status: blockedByParity ? 'sync-blocked' : 'push-failed',
           error: parity.success ? parity.data.reason : parity.error,
         });
+        this.emitCollaborationChanged(primaryPath, this.getSnapshot(primaryPath), 'publish');
         await this.notifyPublishFailure(this.getPublishState(primaryPath), job.actor);
         return;
       }
@@ -558,6 +757,7 @@ export class CollaborationService implements OnModuleDestroy {
         lastError: undefined,
       });
       this.persistState();
+      this.emitCollaborationChanged(primaryPath, this.getSnapshot(primaryPath), 'publish');
 
       const commitAuthor: GitCommitAuthor = {
         name: actor.displayName,
@@ -586,6 +786,7 @@ export class CollaborationService implements OnModuleDestroy {
         lastCommitHash: commitResult.success ? commitResult.data.hash : this.getPublishState(primaryPath).lastCommitHash,
       });
       this.persistState();
+      this.emitCollaborationChanged(primaryPath, this.getSnapshot(primaryPath), 'publish');
 
       const pushResult = await gitService.publishCurrentBranch('origin');
       if (!pushResult.success) {
@@ -607,6 +808,7 @@ export class CollaborationService implements OnModuleDestroy {
           status,
           error: pushResult.error,
         });
+        this.emitCollaborationChanged(primaryPath, this.getSnapshot(primaryPath), 'publish');
         await this.notifyPublishFailure(this.getPublishState(primaryPath), job.actor);
         return;
       }
@@ -631,6 +833,7 @@ export class CollaborationService implements OnModuleDestroy {
         status: 'clean',
         commitHash: commitResult.success ? commitResult.data.hash : undefined,
       });
+      this.emitCollaborationChanged(primaryPath, this.getSnapshot(primaryPath), 'publish');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error('자동 publish 실패', error instanceof Error ? error : new Error(message), { primaryPath });
@@ -648,6 +851,7 @@ export class CollaborationService implements OnModuleDestroy {
         status: 'push-failed',
         error: message,
       });
+      this.emitCollaborationChanged(primaryPath, this.getSnapshot(primaryPath), 'publish');
       await this.notifyPublishFailure(this.getPublishState(primaryPath), job.actor);
     } finally {
       job.processing = false;
@@ -706,13 +910,99 @@ export class CollaborationService implements OnModuleDestroy {
     }
   }
 
+  private async notifyTakeoverRequested(request: SoftLockTakeoverRequest, actor: TokenPayload): Promise<void> {
+    try {
+      await this.notificationService.notifyUser({
+        recipientUserId: BigInt(request.owner.userId),
+        actorUserId: BigInt(actor.userId),
+        sourceApp: 'dms',
+        notificationType: 'dms.document-soft-lock.takeover-requested',
+        severity: 'warning',
+        title: '편집 잠금 해제 요청',
+        message: `${request.requester.displayName} 님이 문서 편집 잠금 해제를 요청했습니다.`,
+        reference: {
+          type: 'dms.document',
+          path: request.path,
+        },
+        action: {
+          type: 'open-dms-document',
+          label: '요청 처리',
+          payload: {
+            path: request.path,
+            requestId: request.requestId,
+            requesterUserId: request.requester.userId,
+            requesterName: request.requester.displayName,
+          },
+        },
+        dedupeKey: this.getTakeoverOwnerDedupeKey(request.requestId),
+      });
+    } catch (error) {
+      logger.warn('편집 잠금 요청 알림 생성 실패', {
+        path: request.path,
+        requestId: request.requestId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async notifyTakeoverResponded(
+    request: SoftLockTakeoverRequest,
+    response: SoftLockTakeoverResponse,
+  ): Promise<void> {
+    const approved = response.status === 'approved';
+    try {
+      await this.notificationService.notifyUser({
+        recipientUserId: BigInt(request.requester.userId),
+        actorUserId: BigInt(request.owner.userId),
+        sourceApp: 'dms',
+        notificationType: `dms.document-soft-lock.takeover-${response.status}`,
+        severity: approved ? 'success' : 'warning',
+        title: approved ? '편집 잠금 요청 승인' : '편집 잠금 요청 미승인',
+        message: response.message ?? (approved ? '편집 잠금이 이동되었습니다.' : '현재 편집자가 편집을 계속합니다.'),
+        reference: {
+          type: 'dms.document',
+          path: request.path,
+        },
+        action: {
+          type: 'open-dms-document',
+          label: '문서 열기',
+          payload: {
+            path: request.path,
+            requestId: request.requestId,
+            status: response.status,
+          },
+        },
+        dedupeKey: `dms:soft-lock:takeover:${request.requestId}:requester:${response.status}`,
+      });
+    } catch (error) {
+      logger.warn('편집 잠금 응답 알림 생성 실패', {
+        path: request.path,
+        requestId: request.requestId,
+        status: response.status,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   private async inspectPublishParity(): Promise<{ success: true; data: GitRemoteParityStatus } | { success: false; error: string }> {
     return gitService.inspectRemoteParity('origin');
   }
 
+  private assertCanEnterEditMode(pathValue: string, currentUser: TokenPayload): void {
+    const isolation = this.findPathIsolation(pathValue);
+    if (isolation?.blockedActions.includes('write')) {
+      throw buildIsolationException('write', pathValue, isolation);
+    }
+
+    const existing = this.softLockByPath.get(pathValue);
+    if (existing && this.isSoftLockActive(existing) && existing.userId !== currentUser.userId) {
+      throw new ConflictException(`${existing.displayName || existing.loginId} 사용자가 편집 중입니다. 잠금 가져오기 요청을 먼저 보내야 합니다.`);
+    }
+  }
+
   private touchOrAcquireSoftLock(pathValue: string, currentUser: TokenPayload, actor: ActorProfile, sessionId: string, now: string): void {
     const existing = this.softLockByPath.get(pathValue);
-    if (!existing || isExpired(existing.lastSeenAt) || (existing.userId === currentUser.userId && existing.sessionId === sessionId)) {
+    if (!existing || !this.isSoftLockActive(existing) || existing.userId === currentUser.userId) {
       this.softLockByPath.set(pathValue, {
         path: pathValue,
         userId: currentUser.userId,
@@ -725,6 +1015,105 @@ export class CollaborationService implements OnModuleDestroy {
       });
       this.persistState();
     }
+  }
+
+  private touchOwnerSoftLock(pathValue: string, owner: SoftLockTakeoverActor, now: string): void {
+    this.softLockByPath.set(pathValue, {
+      path: pathValue,
+      userId: owner.userId,
+      loginId: owner.loginId,
+      displayName: owner.displayName,
+      email: owner.email,
+      sessionId: owner.sessionId,
+      acquiredAt: this.softLockByPath.get(pathValue)?.acquiredAt ?? now,
+      lastSeenAt: now,
+    });
+    this.upsertPresenceMember(pathValue, owner, 'edit', now);
+    this.persistState();
+  }
+
+  private releaseOwnSoftLock(pathValue: string, currentUser: TokenPayload, sessionId: string): void {
+    const existing = this.softLockByPath.get(pathValue);
+    if (existing && existing.userId === currentUser.userId && existing.sessionId === sessionId) {
+      this.softLockByPath.delete(pathValue);
+      this.persistState();
+    }
+  }
+
+  private upsertPresenceMember(pathValue: string, actor: SoftLockTakeoverActor, mode: CollaborationMode, now: string): void {
+    const members = this.getOrCreatePresence(pathValue);
+    const key = buildPresenceKey(actor.userId, actor.sessionId);
+    const existing = members.get(key);
+    members.set(key, {
+      userId: actor.userId,
+      loginId: actor.loginId,
+      displayName: actor.displayName,
+      email: actor.email,
+      sessionId: actor.sessionId,
+      mode,
+      joinedAt: existing?.joinedAt ?? now,
+      lastSeenAt: now,
+    });
+  }
+
+  private createTakeoverRequestId(): string {
+    return `takeover_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  private findActiveTakeoverRequest(
+    pathValue: string,
+    requesterUserId: string,
+    ownerUserId: string,
+  ): SoftLockTakeoverRequest | null {
+    const requests = Array.from(this.softLockTakeoverRequestsById.values())
+      .filter((request) => (
+        request.path === pathValue
+        && request.requester.userId === requesterUserId
+        && request.owner.userId === ownerUserId
+        && this.isTakeoverRequestProcessable(request)
+      ))
+      .sort((a, b) => getTimestampMs(b.requestedAt) - getTimestampMs(a.requestedAt));
+    return requests[0] ?? null;
+  }
+
+  private cleanupStaleTakeoverRequests(pathValue?: string): void {
+    for (const [requestId, request] of this.softLockTakeoverRequestsById.entries()) {
+      if (pathValue && request.path !== pathValue) {
+        continue;
+      }
+      if (!this.isTakeoverRequestProcessable(request)) {
+        this.softLockTakeoverRequestsById.delete(requestId);
+      }
+    }
+  }
+
+  private isTakeoverRequestProcessable(request: SoftLockTakeoverRequest): boolean {
+    if (getTimestampMs(request.expiresAt) <= Date.now()) {
+      return false;
+    }
+
+    const lock = this.softLockByPath.get(request.path);
+    return Boolean(
+      lock
+      && lock.userId === request.owner.userId
+      && lock.sessionId === request.owner.sessionId,
+    );
+  }
+
+  private getTakeoverOwnerDedupeKey(requestId: string): string {
+    return `dms:soft-lock:takeover:${requestId}:owner`;
+  }
+
+  private isSoftLockActive(lock: DocumentSoftLock): boolean {
+    return !isExpired(lock.lastSeenAt) || Boolean(this.eventsGateway?.isUserConnected(lock.userId));
+  }
+
+  private emitCollaborationChanged(
+    pathValue: string,
+    snapshot: DocumentCollaborationSnapshot,
+    reason: 'join' | 'mode' | 'leave' | 'lock' | 'takeover' | 'publish' | 'refresh',
+  ): void {
+    this.eventsGateway?.emitCollaborationChanged({ path: pathValue, snapshot, reason });
   }
 
   private buildCommitMessage(operationType: string, pathValue: string, affectedPaths: string[]): string {
@@ -763,7 +1152,9 @@ export class CollaborationService implements OnModuleDestroy {
     if (!members) return;
     const now = Date.now();
     for (const [key, member] of members.entries()) {
-      if (now - new Date(member.lastSeenAt).getTime() > PRESENCE_TTL_MS) members.delete(key);
+      if (now - new Date(member.lastSeenAt).getTime() > PRESENCE_TTL_MS && !this.eventsGateway?.isUserConnected(member.userId)) {
+        members.delete(key);
+      }
     }
     if (members.size === 0) this.presenceByPath.delete(pathValue);
   }
@@ -771,7 +1162,7 @@ export class CollaborationService implements OnModuleDestroy {
   private cleanupInactiveLock(pathValue: string): void {
     const lock = this.softLockByPath.get(pathValue);
     if (!lock) return;
-    if (isExpired(lock.lastSeenAt)) {
+    if (!this.isSoftLockActive(lock)) {
       this.softLockByPath.delete(pathValue);
       this.persistState();
     }

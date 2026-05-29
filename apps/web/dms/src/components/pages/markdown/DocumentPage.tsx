@@ -35,8 +35,8 @@ import { useBodyLinks } from '@/hooks/useBodyLinks';
 import { useRequestLifecycle } from '@/hooks/useRequestLifecycle';
 import { useOpenDocumentTab } from '@/hooks/useOpenDocumentTab';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
-import { resolveDocPath } from '@/lib/utils/linkUtils';
-import type { DocumentMetadata } from '@/types';
+import { resolveDocPath, resolveExternalHref } from '@/lib/utils/linkUtils';
+import type { DocumentMetadata, SourceFileMeta } from '@/types';
 import {
   type InlineSummaryFileItem,
 } from '@/components/common/assistant/reference/Picker';
@@ -45,9 +45,8 @@ import { ImageLightbox } from '@/components/common/ImageLightbox';
 import type { TemplateItem } from '@/types/template';
 import { cn } from '@/lib/utils';
 import { Divider } from '@/components/ui/divider';
-import { AlertTriangle, Undo2, Redo2, Lock } from 'lucide-react';
+import { AlertTriangle, Undo2, Redo2, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SimpleTooltip } from '@/components/ui/tooltip';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { SplitDiffViewer } from '@/components/common/diff/SplitDiffViewer';
 import { DocumentPanel } from './_components/DocumentPanel';
@@ -82,6 +81,11 @@ import {
   type DocumentMetadataDiffSnapshot,
 } from './documentPageUtils';
 import { useDocumentAccessRequestStore } from '@/features/access';
+import {
+  DMS_LOCK_TAKEOVER_REQUEST_FOCUS_EVENT,
+  isDmsLockTakeoverRequestFocusEventDetail,
+  type DmsLockTakeoverRequestFocusEventDetail,
+} from '@/lib/notification-events';
 
 type PageMode = 'viewer' | 'editor' | 'create';
 type EditorSurfaceMode = 'edit' | 'preview' | 'diff' | 'conflict';
@@ -89,9 +93,34 @@ type DiffTarget = 'content' | 'metadata';
 
 type SaveConflictState = EditorSaveConflictPayload;
 
+function buildSummarySourceFileMeta(file: InlineSummaryFileItem): SourceFileMeta {
+  return {
+    name: file.name,
+    path: `__pending__/ref-${file.id}`,
+    type: file.type || 'application/octet-stream',
+    size: file.size,
+    origin: 'reference',
+    status: 'draft',
+    textContent: file.textContent,
+    storage: 'inline',
+    kind: 'file',
+    tempId: file.id,
+    images: file.images,
+  };
+}
+
+function buildSummaryRawFile(file: InlineSummaryFileItem): File {
+  if (file.rawFile) {
+    return file.rawFile;
+  }
+
+  const blob = new Blob([file.textContent], { type: file.type || 'text/plain' });
+  return new File([blob], file.name, { type: file.type || 'text/plain' });
+}
+
 export function DocumentPage() {
   const tabId = useTabInstanceId();
-  const { tabs, closeTab, updateTab, openTab } = useTabStore();
+  const { tabs, activeTabId, closeTab, updateTab, openTab } = useTabStore();
   const { confirm } = useConfirmStore();
   const { refreshFileTree } = useFileStore();
   const openAssistantPanel = useAssistantPanelStore((state) => state.openPanel);
@@ -125,7 +154,6 @@ export function DocumentPage() {
     removeTabEditor,
     hasUnsavedChanges,
     setHasUnsavedChanges,
-    flushPendingMetadata,
     discardPendingMetadata,
     currentFilePath: storeCurrentFilePath,
     setCurrentFilePath,
@@ -150,6 +178,7 @@ export function DocumentPage() {
   const [saveConflict, setSaveConflict] = useState<SaveConflictState | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [focusedTakeoverRequest, setFocusedTakeoverRequest] = useState<DmsLockTakeoverRequestFocusEventDetail | null>(null);
   const editorRef = useRef<EditorRef | null>(null);
   const [liveEditorContent, setLiveEditorContent] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
@@ -197,6 +226,32 @@ export function DocumentPage() {
   // handleSave 클로저에서 항상 최신 메타데이터를 참조하기 위한 ref
   const documentMetadataRef = useRef(documentMetadata);
   documentMetadataRef.current = documentMetadata;
+
+  const syncAiSummarySourceFiles = useCallback((files: InlineSummaryFileItem[]) => {
+    if (files.length === 0) return;
+
+    const currentFiles = documentMetadataRef.current?.sourceFiles ?? [];
+    const existingKeys = new Set(currentFiles.map((file) => file.name));
+    const sourceFiles = files.map(buildSummarySourceFileMeta);
+    const newFiles = sourceFiles.filter((file) => !existingKeys.has(file.name));
+
+    if (newFiles.length > 0) {
+      setLocalDocumentMetadata({ sourceFiles: [...currentFiles, ...newFiles] });
+      setHasUnsavedChanges(true);
+    }
+
+    setUsedSummaryFileIds((prev) => {
+      const next = new Set(prev);
+      for (const file of files) {
+        next.add(file.id);
+      }
+      return next;
+    });
+
+    for (const file of files) {
+      pendingAttachmentsRef.current.set(`__pending__/ref-${file.id}`, buildSummaryRawFile(file));
+    }
+  }, [setHasUnsavedChanges, setLocalDocumentMetadata]);
 
   // 새 문서용 자동 생성 파일명 (세션당 1회 생성)
   const [generatedFileName] = useState(() => generateUniqueFilename());
@@ -275,6 +330,11 @@ export function DocumentPage() {
     || (canWriteDocuments && canEditDocument(documentMetadata, currentUser));
   const canManageCurrentDocument = isCreateMode
     || (canWriteDocuments && canManageDocument(documentMetadata, currentUser));
+  const currentAccessRole = documentAclRole === 'editor'
+    ? 'write'
+    : documentAclRole === 'viewer'
+      ? 'read'
+      : undefined;
 
   useEffect(() => {
     if (isCreateMode || canEditCurrentDocument || mode === 'viewer') {
@@ -283,9 +343,11 @@ export function DocumentPage() {
 
     setMode('viewer');
     setIsEditing(false);
+    setHasUnsavedChanges(false);
     setSurfaceMode('edit');
     setDiffTarget('content');
-  }, [canEditCurrentDocument, isCreateMode, mode, setIsEditing]);
+    setSaveConflict(null);
+  }, [canEditCurrentDocument, isCreateMode, mode, setHasUnsavedChanges, setIsEditing]);
 
   const filePath = useMemo(() => getDocumentFilePath(activeTab?.path), [activeTab?.path]);
   const highlightQuery = useMemo(() => getDocumentHighlightQuery(activeTab?.path), [activeTab?.path]);
@@ -323,6 +385,11 @@ export function DocumentPage() {
     if (filePath && !isCreateMode) {
       const reloadSeq = activeTab?.reloadSeq ?? 0;
       const lastDocumentLoad = lastDocumentLoadRef.current;
+      const isSameDocumentLoad = lastDocumentLoad?.path === filePath && lastDocumentLoad.reloadSeq === reloadSeq;
+      if (isSameDocumentLoad) {
+        return;
+      }
+
       const isSamePathReload = lastDocumentLoad?.path === filePath && lastDocumentLoad.reloadSeq !== reloadSeq;
       if (isSamePathReload && (hasUnsavedChanges || isEditing)) {
         return;
@@ -356,6 +423,7 @@ export function DocumentPage() {
       }
 
       setInlineSummaryFiles(pending.summaryFiles);
+      syncAiSummarySourceFiles(pending.summaryFiles);
 
       try {
         const fileNames = pending.summaryFiles.map((f) => f.name).join(', ');
@@ -365,6 +433,7 @@ export function DocumentPage() {
           name: item.name,
           type: item.type,
           textContent: item.textContent,
+          images: item.images,
         }));
 
         const response = await docAssistApi.compose({
@@ -620,10 +689,24 @@ export function DocumentPage() {
     onClick: handleRequestLockedPreviewAccess,
   }] : undefined;
 
-  const handleEdit = useCallback(() => {
+  const collaborationStartEditingRef = useRef<(() => Promise<unknown | null>) | null>(null);
+  const collaborationPathRef = useRef<string | null>(null);
+  const processedTakeoverRequestRef = useRef<string | null>(null);
+  const processedTakeoverResponseRef = useRef<string | null>(null);
+
+  const handleEdit = useCallback(async () => {
     if (!canEditCurrentDocument) {
       toast.error('문서를 편집할 권한이 없습니다.');
       return;
+    }
+    if (collaborationPathRef.current && collaborationStartEditingRef.current) {
+      const acquired = await collaborationStartEditingRef.current();
+      if (!acquired) {
+        toast.error('다른 사용자가 편집 중입니다.', {
+          description: '문서 헤더의 해제 요청 버튼으로 잠금 해제를 요청할 수 있습니다.',
+        });
+        return;
+      }
     }
 
     setOriginalMetaSnapshot(buildDocumentMetadataDiffSnapshot(documentMetadata));
@@ -902,7 +985,10 @@ export function DocumentPage() {
     if (docPath) {
       openDocumentTab({ path: docPath });
     } else {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      const externalHref = resolveExternalHref(url);
+      if (externalHref) {
+        window.open(externalHref, '_blank', 'noopener,noreferrer');
+      }
     }
   }, [filePath, openDocumentTab]);
 
@@ -912,7 +998,10 @@ export function DocumentPage() {
     if (docPath) {
       openDocumentTab({ path: docPath });
     } else {
-      window.open(href, '_blank', 'noopener,noreferrer');
+      const externalHref = resolveExternalHref(href);
+      if (externalHref) {
+        window.open(externalHref, '_blank', 'noopener,noreferrer');
+      }
     }
   }, [filePath, openDocumentTab]);
 
@@ -1189,6 +1278,15 @@ export function DocumentPage() {
     setLocalDocumentMetadata(update);
     setHasUnsavedChanges(true);
   }, [setLocalDocumentMetadata, setHasUnsavedChanges]);
+  const handleCommentsChange = useCallback((comments: DocumentMetadata['comments']) => {
+    if (!documentMetadata) {
+      return;
+    }
+    replaceLocalDocumentMetadata({
+      ...documentMetadata,
+      comments,
+    });
+  }, [documentMetadata, replaceLocalDocumentMetadata]);
   const composeRequestLifecycle = useRequestLifecycle();
 
   interface MetadataRecommendationResult {
@@ -1430,10 +1528,217 @@ export function DocumentPage() {
   const collaborationMode = isEditorMode ? 'edit' : 'view';
   const {
     snapshot: collaborationSnapshot,
-    takeover: takeoverCollaborationLock,
+    startEditing: startCollaborationEditing,
+    takeover: requestCollaborationLockTakeover,
+    respondToTakeover: respondToCollaborationLockTakeover,
+    takeoverRequest: collaborationLockTakeoverRequest,
+    takeoverResponse: collaborationLockTakeoverResponse,
+    pendingTakeoverRequestId,
+    clearTakeoverRequest: clearCollaborationLockTakeoverRequest,
+    clearTakeoverResponse: clearCollaborationLockTakeoverResponse,
+    clearPendingTakeoverRequest,
     refresh: refreshCollaborationState,
     retryPublish: retryCollaborationPublish,
   } = useDocumentCollaboration(collaborationPath, collaborationMode);
+  collaborationStartEditingRef.current = startCollaborationEditing;
+  collaborationPathRef.current = collaborationPath;
+  const isCollaborativelyLockedByOther = Boolean(
+    collaborationSnapshot?.softLock
+    && currentUser?.loginId
+    && collaborationSnapshot.softLock.loginId !== currentUser.loginId,
+  );
+  const isCollaborationWriteBlocked = Boolean(
+    isCollaborativelyLockedByOther
+    || collaborationSnapshot?.isolation?.blockedActions.includes('write'),
+  );
+  const focusedTakeoverRequestForPath = focusedTakeoverRequest?.path === collaborationPath ? focusedTakeoverRequest : null;
+  const ownerTakeoverRequestId = collaborationLockTakeoverRequest?.requestId ?? focusedTakeoverRequestForPath?.requestId ?? null;
+  const ownerTakeoverRequesterName = collaborationLockTakeoverRequest?.requester.displayName
+    ?? focusedTakeoverRequestForPath?.requesterName
+    ?? '다른 사용자';
+  const handleRequestCollaborationLockTakeover = useCallback(async () => {
+    if (pendingTakeoverRequestId) {
+      toast.info('이미 편집 잠금 해제 요청을 보냈습니다.');
+      return;
+    }
+    const lockOwner = collaborationSnapshot?.softLock?.displayName || collaborationSnapshot?.softLock?.loginId || '다른 사용자';
+    const confirmed = await confirm({
+      title: '편집 잠금 해제 요청',
+      description: `${lockOwner} 사용자가 편집 중입니다. 잠금 해제를 요청하시겠습니까?`,
+      confirmText: '요청',
+      cancelText: '취소',
+    });
+    if (!confirmed) return;
+    const result = await requestCollaborationLockTakeover();
+    if (result?.status === 'granted') {
+      toast.success('편집 잠금을 가져왔습니다.');
+      await handleEdit();
+      return;
+    }
+    if (result?.status === 'requested') {
+      toast.info('편집 잠금 해제 요청을 보냈습니다.');
+      return;
+    }
+    toast.error('편집 잠금 해제 요청에 실패했습니다.');
+  }, [
+    collaborationSnapshot?.softLock?.displayName,
+    collaborationSnapshot?.softLock?.loginId,
+    confirm,
+    handleEdit,
+    pendingTakeoverRequestId,
+    requestCollaborationLockTakeover,
+  ]);
+
+  useEffect(() => {
+    if (!collaborationPath || typeof window === 'undefined') {
+      return;
+    }
+
+    const handleFocusRequest = (event: Event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (!isDmsLockTakeoverRequestFocusEventDetail(detail) || detail.path !== collaborationPath) {
+        return;
+      }
+      setFocusedTakeoverRequest(detail);
+    };
+
+    window.addEventListener(DMS_LOCK_TAKEOVER_REQUEST_FOCUS_EVENT, handleFocusRequest);
+    return () => window.removeEventListener(DMS_LOCK_TAKEOVER_REQUEST_FOCUS_EVENT, handleFocusRequest);
+  }, [collaborationPath]);
+
+  useEffect(() => {
+    if (
+      !ownerTakeoverRequestId
+      || activeTabId !== tabId
+      || processedTakeoverRequestRef.current === ownerTakeoverRequestId
+    ) {
+      return;
+    }
+    processedTakeoverRequestRef.current = ownerTakeoverRequestId;
+    let active = true;
+
+    const handleRequest = async () => {
+      const approved = await confirm({
+        title: '편집 잠금 요청',
+        description: `${ownerTakeoverRequesterName} 사용자가 편집 잠금을 요청했습니다. 허용하면 현재 편집을 종료합니다.`,
+        confirmText: '허용',
+        cancelText: '계속 편집',
+      });
+      if (!active) return;
+      const response = await respondToCollaborationLockTakeover(
+        ownerTakeoverRequestId,
+        approved,
+      );
+      if (!active) return;
+      if (response?.status === 'approved') {
+        toast.info('편집 잠금 요청을 허용했습니다.');
+        if (mode === 'editor') {
+          handleCancel();
+        }
+      } else if (response?.status === 'rejected') {
+        toast.info('현재 편집 잠금을 유지합니다.');
+      } else if (response?.status === 'expired') {
+        toast.warning('편집 잠금 요청이 만료되었습니다.');
+      }
+      clearCollaborationLockTakeoverRequest();
+      setFocusedTakeoverRequest(null);
+      processedTakeoverRequestRef.current = null;
+    };
+
+    void handleRequest();
+    return () => {
+      active = false;
+      if (processedTakeoverRequestRef.current === ownerTakeoverRequestId) {
+        processedTakeoverRequestRef.current = null;
+      }
+    };
+  }, [
+    clearCollaborationLockTakeoverRequest,
+    activeTabId,
+    confirm,
+    handleCancel,
+    mode,
+    ownerTakeoverRequesterName,
+    ownerTakeoverRequestId,
+    respondToCollaborationLockTakeover,
+    tabId,
+  ]);
+
+  useEffect(() => {
+    if (
+      !collaborationLockTakeoverResponse
+      || activeTabId !== tabId
+      || processedTakeoverResponseRef.current === collaborationLockTakeoverResponse.requestId
+    ) {
+      return;
+    }
+    processedTakeoverResponseRef.current = collaborationLockTakeoverResponse.requestId;
+
+    if (collaborationLockTakeoverResponse.status === 'approved') {
+      if (mode !== 'editor') {
+        void handleEdit();
+      }
+    } else if (collaborationLockTakeoverResponse.status === 'rejected') {
+      toast.info('상대 사용자가 편집을 계속합니다.');
+    } else {
+      toast.warning('편집 잠금 요청이 만료되었습니다.');
+    }
+    clearCollaborationLockTakeoverResponse();
+    processedTakeoverResponseRef.current = null;
+  }, [
+    activeTabId,
+    clearCollaborationLockTakeoverResponse,
+    collaborationLockTakeoverResponse,
+    handleEdit,
+    mode,
+    tabId,
+  ]);
+
+  useEffect(() => {
+    if (
+      !pendingTakeoverRequestId
+      || activeTabId !== tabId
+      || mode !== 'viewer'
+      || !collaborationSnapshot?.softLock
+      || !currentUser?.loginId
+      || collaborationSnapshot.softLock.loginId !== currentUser.loginId
+    ) {
+      return;
+    }
+
+    clearPendingTakeoverRequest();
+    void handleEdit();
+  }, [
+    activeTabId,
+    clearPendingTakeoverRequest,
+    collaborationSnapshot?.softLock,
+    currentUser?.loginId,
+    handleEdit,
+    mode,
+    pendingTakeoverRequestId,
+    tabId,
+  ]);
+
+  useEffect(() => {
+    if (
+      mode !== 'editor'
+      || !collaborationSnapshot?.softLock
+      || !currentUser?.loginId
+      || collaborationSnapshot.softLock.loginId === currentUser.loginId
+    ) {
+      return;
+    }
+
+    toast.warning('편집 잠금이 다른 사용자에게 이동했습니다.', {
+      description: '현재 편집 화면을 종료합니다.',
+    });
+    handleCancel();
+  }, [
+    collaborationSnapshot?.softLock,
+    currentUser?.loginId,
+    handleCancel,
+    mode,
+  ]);
   const currentMetadataSnapshot = useMemo(
     () => buildDocumentMetadataDiffSnapshot(documentMetadata),
     [documentMetadata]
@@ -1664,6 +1969,16 @@ export function DocumentPage() {
         ? '이 문서는 editor 권한으로 열려 메타데이터 변경과 삭제가 제한됩니다.'
         : null
     : null;
+  const headerExtraActions = [
+    ...(lockedPreviewHeaderActions ?? []),
+    ...(!isLockedPreview && canEditCurrentDocument && isCollaborativelyLockedByOther ? [{
+      label: pendingTakeoverRequestId ? '요청 중' : '해제 요청',
+      icon: <Unlock className="h-4 w-4" />,
+      variant: 'default' as const,
+      disabled: Boolean(pendingTakeoverRequestId),
+      onClick: () => void handleRequestCollaborationLockTakeover(),
+    }] : []),
+  ];
 
   return (
     <main
@@ -1691,21 +2006,9 @@ export function DocumentPage() {
             isLoading={isLoading}
             collaborationSnapshot={collaborationSnapshot}
             currentUserLoginId={currentUser?.loginId}
-            onTakeoverLock={async () => {
-              const confirmed = await confirm({
-                title: '편집 잠금 takeover',
-                description: `${collaborationSnapshot?.softLock?.displayName} 사용자의 soft lock을 가져오시겠습니까?`,
-                confirmText: 'Takeover',
-                cancelText: '취소',
-              });
-              if (!confirmed) return;
-              const updated = await takeoverCollaborationLock();
-              if (updated) {
-                toast.success('편집 잠금을 takeover 했습니다.');
-              } else {
-                toast.error('편집 잠금 takeover 에 실패했습니다.');
-              }
-            }}
+            currentUserId={currentUser?.userId}
+            currentAccessRole={currentAccessRole}
+            canManageComments={!isCreateMode && canManageCurrentDocument}
             onRefreshPublishState={async () => {
               const updated = await refreshCollaborationState();
               if (updated) {
@@ -1724,6 +2027,7 @@ export function DocumentPage() {
             }}
             canManageStorage={canManageStorage}
             onMetadataChange={handleMetadataChange}
+            onCommentsChange={handleCommentsChange}
             onFileMove={isCreateMode
               ? (newPath) => {
                   setCreatePath(newPath);
@@ -1766,20 +2070,19 @@ export function DocumentPage() {
             externalAiSuggestionLoading={panelSummaryLoading}
             onExternalAiSuggestionConsumed={clearPendingAiSuggestion}
             deletedReferenceKeys={deletedReferenceKeys}
-            onImmediateFlush={flushPendingMetadata}
             lockedPreview={lockedPreviewUi}
           />
         )}
-        onEdit={!isLockedPreview && canEditCurrentDocument ? handleEdit : undefined}
-        onSave={!isLockedPreview && canEditCurrentDocument ? handleSave : undefined}
+        onEdit={!isLockedPreview && canEditCurrentDocument && !isCollaborationWriteBlocked ? handleEdit : undefined}
+        onSave={!isLockedPreview && canEditCurrentDocument && !isCollaborationWriteBlocked ? handleSave : undefined}
         onCancel={!isLockedPreview && canEditCurrentDocument ? handleCancel : undefined}
         onBack={isCompareSurface ? handleExitDiffMode : undefined}
         onDelete={!canManageCurrentDocument || isCreateMode || isLockedPreview ? undefined : handleDelete}
         saving={isSaving}
-        saveDisabled={isLockedPreview || !canEditCurrentDocument || !hasUnsavedChanges}
+        saveDisabled={isLockedPreview || !canEditCurrentDocument || isCollaborationWriteBlocked || !hasUnsavedChanges}
         isPreview={surfaceMode !== 'edit'}
         headerViewerRightSlot={headerViewerRightSlot}
-        headerExtraActions={lockedPreviewHeaderActions}
+        headerExtraActions={headerExtraActions.length > 0 ? headerExtraActions : undefined}
         headerExtraActionsPosition="left"
       >
         {(() => {
@@ -1923,26 +2226,26 @@ export function DocumentPage() {
                           <div className="flex-1" />
                           {surfaceMode === 'edit' && (
                             <>
-                              <SimpleTooltip content="되돌리기 (Ctrl+Z)">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={!canUndo}
-                                  onClick={() => editorRef.current?.undo()}
-                                >
-                                  <Undo2 className="h-4 w-4" />
-                                </Button>
-                              </SimpleTooltip>
-                              <SimpleTooltip content="다시 적용 (Ctrl+Shift+Z)">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={!canRedo}
-                                  onClick={() => editorRef.current?.redo()}
-                                >
-                                  <Redo2 className="h-4 w-4" />
-                                </Button>
-                              </SimpleTooltip>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={!canUndo}
+                                title="되돌리기 (Ctrl+Z)"
+                                aria-label="되돌리기 (Ctrl+Z)"
+                                onClick={() => editorRef.current?.undo()}
+                              >
+                                <Undo2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={!canRedo}
+                                title="다시 적용 (Ctrl+Shift+Z)"
+                                aria-label="다시 적용 (Ctrl+Shift+Z)"
+                                onClick={() => editorRef.current?.redo()}
+                              >
+                                <Redo2 className="h-4 w-4" />
+                              </Button>
                               <Divider orientation="vertical" className="h-6 mx-1" />
                             </>
                           )}

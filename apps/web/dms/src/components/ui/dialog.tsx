@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { POPUP_BACKDROP_ANIMATION_CLASS, POPUP_BACKDROP_TONE_CLASS } from "@/components/ui/popup-backdrop";
 import { cn } from "@/lib/utils";
 
 const Dialog = DialogPrimitive.Root;
@@ -20,7 +21,9 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50",
+      POPUP_BACKDROP_TONE_CLASS,
+      POPUP_BACKDROP_ANIMATION_CLASS,
       className
     )}
     {...props}
@@ -101,7 +104,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-body-sm text-muted-foreground", className)}
+    className={cn("text-body-sm text-black", className)}
     {...props}
   />
 ));

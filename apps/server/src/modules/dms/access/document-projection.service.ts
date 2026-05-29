@@ -9,6 +9,13 @@ import {
   toSourceFileProjectionJson,
 } from './access-request.util.js';
 
+function parseOptionalBigInt(value: string | undefined): bigint | null {
+  if (!value || !/^\d+$/.test(value)) {
+    return null;
+  }
+  return BigInt(value);
+}
+
 @Injectable()
 export class DocumentProjectionService {
   constructor(private readonly db: DatabaseService) {}
@@ -98,8 +105,14 @@ export class DocumentProjectionService {
     actorUserId: bigint,
   ): Promise<void> {
     const comments = normalizeComments(metadata);
-    await this.db.client.dmsDocumentComment.deleteMany({ where: { documentId } });
     if (comments.length === 0) {
+      return;
+    }
+
+    const existingCount = await this.db.client.dmsDocumentComment.count({
+      where: { documentId },
+    });
+    if (existingCount > 0) {
       return;
     }
 
@@ -114,6 +127,8 @@ export class DocumentProjectionService {
         avatarUrl: comment.avatarUrl ?? null,
         commentCreatedAt: new Date(comment.createdAt),
         commentDeletedAt: comment.deletedAt ? new Date(comment.deletedAt) : null,
+        commentDeletedBy: comment.deletedAt ? parseOptionalBigInt(comment.deletedByUserId) : null,
+        commentDeletedByName: comment.deletedAt ? comment.deletedByName ?? null : null,
         sortOrder: index,
         isActive: true,
         createdBy: actorUserId,

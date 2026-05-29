@@ -303,9 +303,18 @@ export function useDocumentPageComposeActions({
             size: sf.size,
             origin: 'reference',
             status: 'draft',
+            textContent: sf.textContent,
+            storage: 'inline',
+            kind: 'file',
+            tempId: sf.id,
+            images: sf.images,
           });
-          const blob = new Blob([sf.textContent], { type: sf.type || 'text/plain' });
-          rawFiles.set(tempPath, new File([blob], sf.name, { type: sf.type || 'text/plain' }));
+          if (sf.rawFile) {
+            rawFiles.set(tempPath, sf.rawFile);
+          } else {
+            const blob = new Blob([sf.textContent], { type: sf.type || 'text/plain' });
+            rawFiles.set(tempPath, new File([blob], sf.name, { type: sf.type || 'text/plain' }));
+          }
         }
 
         if (usedTemplate) {

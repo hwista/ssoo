@@ -1,6 +1,6 @@
 import type { TocItem } from '@/components/templates/page-frame';
 import { stringifyJson } from '@/lib/utils';
-import type { DocumentMetadata, SourceFileMeta, DocumentComment } from '@/types';
+import type { DocumentMetadata, SourceFileMeta } from '@/types';
 import type { AuthIdentity } from '@ssoo/types/common';
 import type { DocumentPanelMetadata } from './_components/DocumentPanel';
 
@@ -12,22 +12,13 @@ export interface DocumentMetadataDiffAttachment {
   status?: SourceFileMeta['status'];
 }
 
-export interface DocumentMetadataDiffComment {
-  id: string;
-  author: string;
-  content: string;
-  createdAt: string;
-}
-
 export interface DocumentMetadataDiffSnapshot {
   title: string;
   summary: string;
   tags: string[];
   sourceLinks: string[];
-  commentIds: string[];
   attachmentPaths: string[];
   sourceFiles: DocumentMetadataDiffAttachment[];
-  comments: DocumentMetadataDiffComment[];
 }
 
 export type DocumentAclRole = 'owner' | 'editor' | 'viewer' | 'open' | 'none';
@@ -238,30 +229,18 @@ function normalizeSourceFile(file: SourceFileMeta): DocumentMetadataDiffAttachme
   };
 }
 
-function normalizeComment(comment: DocumentComment): DocumentMetadataDiffComment {
-  return {
-    id: comment.id,
-    author: comment.author,
-    content: comment.content,
-    createdAt: comment.createdAt,
-  };
-}
-
 export function buildDocumentMetadataDiffSnapshot(
   documentMetadata: DocumentMetadata | null | undefined
 ): DocumentMetadataDiffSnapshot {
   const sourceFiles = (documentMetadata?.sourceFiles ?? []).map(normalizeSourceFile);
-  const comments = (documentMetadata?.comments ?? []).map(normalizeComment);
 
   return {
     title: documentMetadata?.title ?? '',
     summary: documentMetadata?.summary ?? '',
     tags: documentMetadata?.tags ?? [],
     sourceLinks: documentMetadata?.sourceLinks ?? [],
-    commentIds: comments.map((comment) => comment.id),
     attachmentPaths: sourceFiles.map((file) => file.path || file.name),
     sourceFiles,
-    comments,
   };
 }
 
@@ -272,6 +251,5 @@ export function stringifyDocumentMetadataDiffSnapshot(snapshot: DocumentMetadata
     tags: snapshot.tags,
     sourceLinks: snapshot.sourceLinks,
     sourceFiles: snapshot.sourceFiles,
-    comments: snapshot.comments,
   });
 }

@@ -58,7 +58,12 @@ export function CollapsibleSection({
             canToggle ? 'hover:text-ssoo-primary/80' : 'cursor-default text-ssoo-primary/70',
           )}
         >
-          {icon ?? <span className="h-4 w-4 shrink-0" aria-hidden />}
+          <span
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center [&>svg]:m-0 [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0"
+            aria-hidden
+          >
+            {icon}
+          </span>
           <span className="text-left">{title}</span>
         </button>
         {headerRight}

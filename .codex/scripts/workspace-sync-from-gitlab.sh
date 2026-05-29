@@ -18,6 +18,15 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
+WORKTREE_STATUS="$(git status --porcelain=v1)"
+if [ -n "$WORKTREE_STATUS" ]; then
+  echo "[workspace-sync] refusing to merge GitLab workspace branch into a dirty worktree."
+  echo "[workspace-sync] commit a checkpoint or stash local changes first, then rerun sync."
+  echo "[workspace-sync] current changes:"
+  git status --short
+  exit 1
+fi
+
 GL_USER_VALUE="${GL_USER:-$(git config --local --get codex.gitlabUser || true)}"
 GL_TOKEN_VALUE="${GL_TOKEN:-$(git config --local --get codex.gitlabToken || true)}"
 

@@ -126,7 +126,7 @@ export function DocumentAccessRequestDialogHost() {
       <DialogContent className="max-w-xl border-ssoo-content-border bg-white text-ssoo-primary">
         <DialogHeader>
           <DialogTitle>권한 요청</DialogTitle>
-          <DialogDescription className="text-ssoo-primary/70">
+          <DialogDescription>
             검색에서 확인한 문서를 열기 위해 소유자에게 읽기 권한을 요청합니다.
           </DialogDescription>
         </DialogHeader>

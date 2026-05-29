@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAssistantPanelStore, useTabStore } from '@/stores';
 import { useFloatingButtonDrag } from '@/hooks/useFloatingButtonDrag';
+import { PopupBackdrop } from '@/components/ui/popup-backdrop';
 import { FloatingAssistantButton } from './FloatingAssistantButton';
 import { FloatingAssistantPanel } from './panel/FloatingAssistantPanel';
 
@@ -56,6 +57,7 @@ export function FloatingAssistant() {
 
   return (
     <div ref={wrapperRef}>
+      {isOpen ? <PopupBackdrop className="z-[35]" onMouseDown={closePanel} /> : null}
       <FloatingAssistantPanel isOpen={isOpen} />
       {!isChatPageActive && (
         <FloatingAssistantButton

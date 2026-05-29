@@ -1,7 +1,7 @@
 # DMS GitHub-GitLab Workspace 통합 가이드
 
 > 📅 작성일: 2026-01-27  
-> 🔄 최종 업데이트: 2026-04-07  
+> 🔄 최종 업데이트: 2026-05-27
 > 📌 상태: 이원화 운영 + GitLab workspace mirror 단계 (legacy subtree 정보 포함)
 
 ---
@@ -87,22 +87,46 @@ git subtree add --prefix=apps/web/dms gitlab-dms main --squash
 
 ## 3. 현재 표준 작업 워크플로우
 
+### 3.0 병행 개발 운영 원칙
+
+GitLab issue 기준 브랜치가 `development`에 계속 병합되는 동안에는 Codex/조율자도 GitLab workspace branch를 단순 push 대상이 아니라 **작업 전·push 전 선행 입력**으로 취급한다.
+
+- 작업 시작 전과 push 직전에는 항상 GitLab `development`를 로컬 모노레포에 먼저 재통합한다.
+- 로컬 변경이 있으면 먼저 체크포인트 커밋을 만들거나 stash 한다. 더러운 작업트리 위에서는 GitLab sync를 실행하지 않는다.
+- GitLab sync 후에는 원격 변경과 내 변경이 함께 있는 상태로 다시 검증한다.
+- 충돌이 나면 원격 issue-branch 수정분을 삭제하지 말고, 충돌 해결 커밋을 별도로 남긴 뒤 검증을 재실행한다.
+- `development`에 이미 올라간 다른 작업을 덮어쓰는 force push는 금지한다.
+
 ### 3.1 작업 전: GitLab workspace 최신 sync
 
 ```bash
 # 워크스페이스 루트에서 실행
 cd C:\WorkSpace\dev\source\sooo
 
-# GitLab workspace branch가 앞서 있으면 먼저 로컬 monorepo에 재통합
+# 작업트리가 깨끗한지 먼저 확인
+git status --short
+
+# GitLab workspace branch를 먼저 로컬 monorepo에 재통합
 pnpm run codex:workspace-sync-from-gitlab
+
+# 동기화 직후 기본 검증
+pnpm run codex:preflight
 
 # legacy alias
 pnpm run codex:dms-sync-from-gitlab
 ```
 
+`workspace-sync-from-gitlab`는 dirty worktree를 감지하면 중단한다. 진행 중인 변경이 있다면 먼저 커밋하거나 stash 한 뒤 다시 실행한다.
+
 ### 3.2 작업 수행 & 커밋
 
 ```bash
+# 코드/문서 변경 후 표준 검증
+pnpm run codex:preflight
+
+# DMS 변경 포함 시
+pnpm run codex:dms-guard
+
 # 변경사항 커밋 (일반 git 작업)
 git add -A
 git commit -m "feat(dms): 변경 내용"
@@ -120,8 +144,12 @@ export GL_TOKEN='gitlab_personal_access_token'
 git config --local codex.gitlabUser 'gitlab_username'
 git config --local codex.gitlabToken 'gitlab_personal_access_token'
 
-# GitLab workspace branch가 앞서 있으면 먼저 monorepo로 재통합
+# push 직전에도 GitLab workspace branch를 다시 monorepo로 재통합
 pnpm run codex:workspace-sync-from-gitlab
+
+# sync가 merge commit을 만들었거나 충돌 해결이 있었다면 다시 검증
+pnpm run codex:preflight
+pnpm run codex:push-guard
 
 # 현재 HEAD 기준 GitHub + GitLab workspace 동시 반영/검증
 pnpm run codex:workspace-publish
@@ -148,6 +176,7 @@ pnpm run codex:dms-publish -- dms/refactor/integration
 - origin으로 바로 push하면 pre-push guard가 `codex.gitlabLastPublished` marker 기준으로 차단한다.
 - `codex:workspace-publish`가 성공하면 이 marker가 현재 HEAD로 갱신되고, 같은 HEAD에 대한 direct origin push가 다시 허용된다.
 - GitLab workspace branch가 local HEAD보다 앞서 있으면 `codex:workspace-publish`는 GitHub push 전에 중단하고 `codex:workspace-sync-from-gitlab` 실행을 안내한다.
+- GitLab issue branch가 `development`에 병합된 뒤에는 `codex:workspace-sync-from-gitlab`으로 그 변경을 먼저 흡수한 다음 내 작업을 push한다.
 - 이 저장소에서는 GitHub target branch와 GitLab workspace branch가 기본적으로 다를 수 있다. `codex:workspace-publish` 인자는 GitHub target branch만 바꾸고, GitLab workspace branch는 `WORKSPACE_GITLAB_BRANCH`로 별도 override한다.
 - legacy alias: `codex:dms-sync-from-gitlab`, `codex:dms-publish`
 - 예외 우회(권장하지 않음): `CODEX_SKIP_GITLAB_PUBLISH_GUARD=1 git push ...`

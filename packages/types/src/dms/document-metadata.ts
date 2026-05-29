@@ -42,6 +42,8 @@ export interface DocumentPermissionGrant {
   grantId?: string;
   principalType: DocumentPermissionPrincipalType;
   principalId: string;
+  principalLoginId?: string;
+  principalDisplayName?: string;
   role: DocumentPermissionRole;
   expiresAt?: string;
   grantedAt?: string;
@@ -79,12 +81,15 @@ export interface SourceFileMeta {
 export interface DocumentComment {
   id: string;
   author: string;
+  authorUserId?: string;
   email?: string;
   avatarUrl?: string;
   content: string;
   createdAt: string;
   parentId?: string;
   deletedAt?: string;
+  deletedByUserId?: string;
+  deletedByName?: string;
 }
 
 export interface BodyLink {

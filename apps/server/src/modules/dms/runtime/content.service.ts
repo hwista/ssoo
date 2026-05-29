@@ -574,6 +574,8 @@ class ContentService {
           avatarUrl: normalizeOptionalString(entry.avatarUrl),
           parentId: normalizeOptionalString(entry.parentId),
           deletedAt: normalizeOptionalString(entry.deletedAt),
+          deletedByUserId: normalizeOptionalString(entry.deletedByUserId),
+          deletedByName: normalizeOptionalString(entry.deletedByName),
         }];
       }) : [],
       templateId: normalizeOptionalString(metadata['templateId']) ?? 'default',

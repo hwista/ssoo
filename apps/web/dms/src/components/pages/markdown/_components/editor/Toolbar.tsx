@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { SimpleTooltip } from '@/components/ui/tooltip';
 import { Divider } from '@/components/ui/divider';
 
 export type ToolbarCommandId =
@@ -121,16 +120,17 @@ function ToolbarOverflowGroup({
       {visible.map((command) => {
         const Icon = command.icon;
         return (
-          <SimpleTooltip key={command.id} content={command.tooltip}>
-            <Button
-              size="sm"
-              variant="ghost"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onCommand(command.id)}
-            >
-              <Icon className="h-4 w-4" />
-            </Button>
-          </SimpleTooltip>
+          <Button
+            key={command.id}
+            size="sm"
+            variant="ghost"
+            title={command.tooltip}
+            aria-label={command.tooltip}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onCommand(command.id)}
+          >
+            <Icon className="h-4 w-4" />
+          </Button>
         );
       })}
       {overflow.length > 0 && (
@@ -140,30 +140,31 @@ function ToolbarOverflowGroup({
           onMouseEnter={handleEnter}
           onMouseLeave={handleLeave}
         >
-          <SimpleTooltip content="더보기">
-            <Button
-              size="sm"
-              variant="ghost"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </SimpleTooltip>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="더보기"
+            aria-label="더보기"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
           {open && (
             <div className="absolute left-0 top-full z-30 mt-1 flex items-center gap-1 rounded-lg border border-ssoo-content-border bg-white p-1 shadow-md">
               {overflow.map((command) => {
                 const Icon = command.icon;
                 return (
-                  <SimpleTooltip key={command.id} content={command.tooltip}>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => onCommand(command.id)}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </Button>
-                  </SimpleTooltip>
+                  <Button
+                    key={command.id}
+                    size="sm"
+                    variant="ghost"
+                    title={command.tooltip}
+                    aria-label={command.tooltip}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => onCommand(command.id)}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </Button>
                 );
               })}
             </div>
@@ -193,16 +194,17 @@ export function EditorToolbar({ disabled = false, onCommand }: EditorToolbarProp
                 commands.map((command) => {
                   const Icon = command.icon;
                   return (
-                    <SimpleTooltip key={command.id} content={command.tooltip}>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => onCommand(command.id)}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </Button>
-                    </SimpleTooltip>
+                    <Button
+                      key={command.id}
+                      size="sm"
+                      variant="ghost"
+                      title={command.tooltip}
+                      aria-label={command.tooltip}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => onCommand(command.id)}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </Button>
                   );
                 })
               )}

@@ -38,6 +38,7 @@ export interface InlineSummaryFileItem {
   size: number;
   textContent: string;
   images?: ExtractedImageItem[];
+  rawFile?: File;
 }
 
 export interface PickerSectionsConfig {
@@ -168,6 +169,7 @@ export function AssistantReferencePicker({
         size: file.size,
         textContent,
         images,
+        rawFile: file,
       } satisfies InlineSummaryFileItem;
     }));
 

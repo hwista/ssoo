@@ -1,6 +1,6 @@
 # DMS 문서 control-plane hydration 계약
 
-> 최종 업데이트: 2026-04-21
+> 최종 업데이트: 2026-05-29
 > 관련 문서:
 > - `hybrid-document-control-plane.md`
 > - `document-visibility-and-access-model.md`
@@ -123,6 +123,14 @@
 - 문서별 discussion thread / comment 이력의 canonical 저장
 - FE `DocumentMetadata.comments` shape 유지 + DB projection 소비
 - metadata companion file 없는 save/update 이후에도 comment metadata 정합성 유지
+
+런타임 mutation 계약:
+- 댓글 조회/작성/답글/삭제/복원은 문서 metadata update 가 아니라 `/dms/comments` 전용 API가 `dm_document_comment_m` 을 직접 변경한다.
+- 댓글 작성/답글은 문서 read ACL 을 통과한 로그인 사용자에게 허용하고, 삭제/복원은 댓글 작성자 본인 또는 문서 manage 권한자에게만 허용한다.
+- 새 댓글 작성 시 문서 소유자에게 DMS 알림을 만들고, 답글은 문서 소유자와 원 댓글 작성자에게 중복 없이 알림을 만든다. 작성자 본인은 수신 대상에서 제외한다.
+- 댓글 변경 반영은 WebSocket 이 아니라 공용 알림 SSE의 `dms.document-comment.changed` 도메인 이벤트로 처리한다. 열린 문서 탭은 이벤트의 path 로 댓글 목록만 재조회하고, 해당 문서 경로의 미읽음 알림을 읽음 처리한다.
+- `DocumentProjectionService` 는 legacy metadata comment seed 를 relation 이 비어 있을 때만 1회 흡수하며, relation row 가 있는 문서에서는 이후 metadata sync 가 댓글 row 를 삭제/재생성하지 않는다.
+- FE 는 relation-backed `DocumentMetadata.comments` projection 을 표시하되, 댓글 mutation 후에는 댓글 목록만 교체하고 문서 본문/일반 metadata 저장 흐름을 타지 않는다.
 
 #### F. chunk / embedding / index state
 정본 테이블:

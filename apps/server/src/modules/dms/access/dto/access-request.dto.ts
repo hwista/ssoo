@@ -9,6 +9,7 @@ import type {
   DmsDocumentAccessRequestStatusFilter,
   RejectDmsDocumentAccessRequestPayload,
   TransferDocumentOwnershipPayload,
+  UpdateDmsDocumentGrantRolePayload,
   UpdateDocumentVisibilityPayload,
 } from '@ssoo/types/dms';
 
@@ -152,4 +153,13 @@ export class CreateDirectGrantDto implements CreateDmsDocumentDirectGrantPayload
   @IsString()
   @MaxLength(500)
   memo?: string;
+}
+
+export class UpdateDocumentGrantRoleDto implements UpdateDmsDocumentGrantRolePayload {
+  @ApiProperty({
+    description: '변경할 권한. manage 는 직접 변경할 수 없음',
+    enum: DMS_DOCUMENT_ACCESS_REQUEST_ROLES,
+  })
+  @IsIn(DMS_DOCUMENT_ACCESS_REQUEST_ROLES)
+  role!: DmsDocumentAccessRequestRole;
 }

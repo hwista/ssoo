@@ -1,11 +1,11 @@
-import { Controller, Get, Param, Put, Query, Sse } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query, Sse } from '@nestjs/common';
 import type { MessageEvent } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Observable } from 'rxjs';
 import { success } from '../../../common/responses.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { TokenPayload } from '../auth/interfaces/auth.interface.js';
-import { ListNotificationsDto } from './dto/notification.dto.js';
+import { ListNotificationsDto, MarkNotificationsByReferenceDto } from './dto/notification.dto.js';
 import { CommonNotificationService } from './notification.service.js';
 
 @ApiTags('common-notifications')
@@ -53,6 +53,16 @@ export class CommonNotificationController {
     return success(await this.notificationService.markAsRead(BigInt(id), BigInt(user.userId)));
   }
 
+  @Put(':id/unread')
+  @ApiOperation({ summary: '알림 안읽음 처리' })
+  @ApiOkResponse({ description: '안읽음 처리된 알림 반환' })
+  async markAsUnread(
+    @Param('id') id: string,
+    @CurrentUser() user: TokenPayload,
+  ) {
+    return success(await this.notificationService.markAsUnread(BigInt(id), BigInt(user.userId)));
+  }
+
   @Put('read-all')
   @ApiOperation({ summary: '내 알림 전체 읽음 처리' })
   @ApiOkResponse({ description: '읽음 처리 건수 반환' })
@@ -61,5 +71,19 @@ export class CommonNotificationController {
     @CurrentUser() user: TokenPayload,
   ) {
     return success(await this.notificationService.markAllAsRead(BigInt(user.userId), sourceApp));
+  }
+
+  @Put('read-by-reference')
+  @ApiOperation({ summary: '참조 경로 기준 알림 읽음 처리' })
+  @ApiOkResponse({ description: '읽음 처리 건수 반환' })
+  async markByReferencePathAsRead(
+    @Body() body: MarkNotificationsByReferenceDto,
+    @CurrentUser() user: TokenPayload,
+  ) {
+    return success(await this.notificationService.markByReferencePathAsRead(
+      BigInt(user.userId),
+      body.path,
+      body.sourceApp,
+    ));
   }
 }

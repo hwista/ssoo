@@ -57,6 +57,7 @@ export {
   joinDocumentPath,
   normalizeDocumentPath,
   resolveDocPath,
+  resolveExternalHref,
   resolveRelativePath,
   resolveImageSrc,
 } from './linkUtils';

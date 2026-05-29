@@ -149,3 +149,13 @@ export interface DmsDocumentDirectGrantResult {
   role: DmsDocumentAccessRequestRole;
   grantExpiresAt?: string;
 }
+
+export interface UpdateDmsDocumentGrantRolePayload {
+  role: DmsDocumentAccessRequestRole;
+}
+
+export interface UpdateDmsDocumentGrantRoleResult {
+  grantId: string;
+  documentId: string;
+  role: DmsDocumentAccessRequestRole;
+}

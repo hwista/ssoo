@@ -12,6 +12,7 @@ Context
 
 Completed
 ---------
+- **DMS collaboration/permission closeout (2026-05-29)**: sidecar status/permission/comment UX, notification read-state controls, DB-backed comments, AI summary attachment preservation, internal/external link routing, WebSocket soft-lock flow, and lock release request lifecycle are complete and Docker-reflected.
 - **DMS launch gate closeout (2026-05-27)**: unreadable search result redaction, locked document preview, Search/Ask blocked-source summary UI, access request approve/reject/revoke/ownership regression coverage, and formal search history migration artifact are complete for the DMS search/permission launch gate.
 - **Phase A (project-level closure, 2026-04-30)**: GitLab `LSWIKI_DOC.git` push policy confirmed (canonical `master`, direct push verified — `b963f14` already on `origin/master`). `versionHistory` dead feature removed (server -50 lines + types -10 lines); intent re-registered as `DMS-FE-versionHistory` backlog item for future git-history-based on-demand projection. Closes Tracks 2/5/7 of the integration project at 100%.
 - C-1: DocumentPage hooks extraction and cleanup (DocumentPage.tsx reduced to ~1997 lines)
@@ -66,7 +67,26 @@ Build & test
 
 Current in-progress todo
 ------------------------
-None. DMS launch closeout implementation, final gates, and Docker rebuild/health verification are complete for this slice.
+None. DMS collaboration/permission/comment closeout implementation, final gates, and Docker rebuild/health verification are complete for this slice.
+
+Publish snapshot — 2026-05-29 17:50 KST
+---------------------------------------
+- Scope: DMS launch collaboration/permission/comment closeout.
+- Core implementation: sidecar status cleanup, permission section owner/viewer flows, access grant/request realtime refresh, notification read/unread controls and target-document auto-read, DB-backed comments, AI summary source attachment retention, link routing, WebSocket soft-lock updates, and lock release request approval lifecycle.
+- Critical lock fix: lock release requests now dedupe server-side by document/requester/lock owner, expose pending state for page reload recovery, restore requester `요청 중` and owner handling dialog, and notify/requester state through WebSocket/SSE fallback.
+- Docs synced: root handoff, DMS launch collaboration handoff, backlog, roadmap, README, API guide, changelog.
+- GitLab branch rule: GitLab workspace target is `development`; fetch/merge it before pushing and never force-push over workspace history.
+- Verification passed:
+  - `pnpm --filter web-dms build`
+  - `pnpm --filter server build`
+  - `pnpm --filter server test -- collaboration.service.spec.ts`
+  - `pnpm run codex:dms-guard`
+  - `pnpm run codex:preflight`
+  - Docker `server` and `dms` rebuild
+  - DMS web `http://127.0.0.1:3001` returned HTTP 200
+  - server health `http://127.0.0.1:4000/api/health` returned HTTP 200
+- Runtime state: Docker `server` and `dms` are healthy.
+- Handoff detail: `docs/dms/planning/2026-05-29-launch-collaboration-handoff.md`
 
 Publish snapshot — 2026-05-27 10:04 KST
 ---------------------------------------
@@ -92,9 +112,9 @@ Next recommended actions (in priority order)
 
 **DMS launch smoke (P1, same-day)**
 
-1. Perform browser launch smoke: login, AI search, locked document entry, access request CTA, approve/reject/revoke path.
+1. Perform final browser launch smoke: login, AI search, locked document entry, access request CTA, approve/reject/revoke path, comment create/delete/restore, and soft-lock release request approve/reject.
 2. Freeze operating seed/account/document-root state for launch.
-3. Track any browser-only regression as a new bug; do not reopen the completed search/permission closeout unless a regression is reproduced.
+3. Track any browser-only regression as a new bug; do not reopen the completed search/permission/collaboration closeout unless a regression is reproduced.
 
 **Phase C — Operational polish (P2, ~3-5 days)**
 
@@ -118,7 +138,7 @@ Next recommended actions (in priority order)
 Environment notes
 -----------------
 - GH remote configured; pushes to main are automated via workflow
-- GitLab workspace publish target is `development`; the standard publish script refuses non-fast-forward pushes, so run workspace sync first when GitLab has new commits.
+- GitLab workspace publish target is `development`; the standard publish script refuses non-fast-forward pushes, so run workspace sync/fetch first when GitLab has new commits.
 - Commit footer: this session used `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`. Earlier sessions used `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`. Mixed convention currently — pick one going forward.
 
 How to pick up from CLI

@@ -1,7 +1,7 @@
 # DMS 런칭 준비 핸드오프 — 검색/권한 게이트 closeout
 
 > 작성: 2026-05-27 08:30 KST
-> 갱신: 2026-05-27 10:24 KST
+> 갱신: 2026-05-29 17:50 KST
 > 범위: DMS 단독 런칭 준비. PMS/CMS 통합 수용성은 이 문서 범위가 아닙니다.
 
 ---
@@ -138,6 +138,7 @@
 - 권한 워크플로 회귀를 포함한 DMS access live gate: 통과
 - 검색 기록 DB 테이블 런타임 존재 확인: 통과
 - Docker server/dms 재빌드와 HTTP 200 health 확인: 통과
+- 2026-05-29 협업/권한/알림/댓글 closeout 후 `web-dms`/`server` 빌드, 협업 서비스 테스트, DMS guard, Codex preflight, Docker server/dms 재빌드와 health 확인: 통과
 
 최근 실행한 대표 게이트:
 
@@ -154,6 +155,10 @@ pnpm --filter web-dms build
 DOCKER_CONFIG=/tmp/ssoo-docker-config docker compose up -d --build server dms
 curl -I -fsS http://localhost:3001/
 ```
+
+후속 상세 핸드오프:
+
+- `docs/dms/planning/2026-05-29-launch-collaboration-handoff.md`
 
 ---
 
@@ -246,11 +251,13 @@ sed -n '1,90p' docs/dms/planning/roadmap.md
 - PMS/CMS 범위로 확장하지 말고 DMS 단독 런칭 기준으로 이어가야 합니다.
 - Docker 반영 없이 “완료”로 닫지 않습니다.
 - Search/Ask 차단 소스 요약과 권한 회귀 자동화는 완료 항목이므로 다시 백로그로 되돌리지 않습니다. 실패가 재현되면 regression bug로 별도 등록합니다.
+- 협업/권한/댓글 흐름은 2026-05-29 closeout 기준으로 완료 항목입니다. 실패가 재현되면 새 regression bug로 분리하고, soft lock 해제 요청은 반드시 서버 pending state 기준으로 복원되어야 합니다.
 
 ---
 
 ## Changelog
 
+- 2026-05-29: 협업/권한/알림/댓글 closeout 상세 핸드오프 문서를 추가하고, soft lock 해제 요청 lifecycle과 DB 댓글/알림 읽음 상태를 런칭 closeout 후속 완료 범위로 연결했습니다.
 - 2026-05-27: unreadable 검색 결과 redaction, 기존 문서 화면 기반 locked preview, 헤더 좌측 권한 요청 CTA, 기존 사이드카 섹션 재사용 잠금 표현, Docker 반영 상태를 런칭 핸드오프 기준으로 현행화했습니다.
 - 2026-05-27: Search/Ask 차단 소스 수/사유 요약, 권한 워크플로 live HTTP 회귀 검증, DB 검색 기록 migration 산출물을 완료 범위에 추가했습니다.
 - 2026-05-27: GitLab workspace `development`의 추가 하드닝 변경분을 로컬 작업과 병합하고, 병합 후 서버/DMS 웹 빌드와 Codex preflight 통과 상태를 문서화했습니다.

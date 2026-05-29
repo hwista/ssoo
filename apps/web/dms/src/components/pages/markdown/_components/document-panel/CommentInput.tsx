@@ -4,13 +4,15 @@ import * as React from 'react';
 import { Send, X } from 'lucide-react';
 
 export interface CommentInputProps {
-  onAdd: (content: string, parentId?: string) => void;
+  onAdd: (content: string, parentId?: string) => boolean | void | Promise<boolean | void>;
   replyTo?: { id: string; author: string };
   onCancelReply?: () => void;
+  disabled?: boolean;
 }
 
-export function CommentInput({ onAdd, replyTo, onCancelReply }: CommentInputProps) {
+export function CommentInput({ onAdd, replyTo, onCancelReply, disabled = false }: CommentInputProps) {
   const [inputValue, setInputValue] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   React.useEffect(() => {
@@ -19,10 +21,19 @@ export function CommentInput({ onAdd, replyTo, onCancelReply }: CommentInputProp
     }
   }, [replyTo]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const trimmed = inputValue.trim();
-    if (trimmed) {
-      onAdd(trimmed, replyTo?.id);
+    if (trimmed && !disabled && !isSubmitting) {
+      setIsSubmitting(true);
+      let result: boolean | void;
+      try {
+        result = await onAdd(trimmed, replyTo?.id);
+      } finally {
+        setIsSubmitting(false);
+      }
+      if (result === false) {
+        return;
+      }
       setInputValue('');
       onCancelReply?.();
     }
@@ -61,11 +72,12 @@ export function CommentInput({ onAdd, replyTo, onCancelReply }: CommentInputProp
           onKeyDown={handleKeyDown}
           placeholder={replyTo ? `@${replyTo.author}에게 답글...` : '댓글 입력... (Enter 전송)'}
           rows={2}
+          disabled={disabled || isSubmitting}
           className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 pr-8 text-caption text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
         />
         <button
           onClick={handleSubmit}
-          disabled={!inputValue.trim()}
+          disabled={!inputValue.trim() || disabled || isSubmitting}
           className="absolute bottom-1.5 right-1.5 p-1 text-ssoo-primary/60 transition-colors hover:text-ssoo-primary disabled:opacity-30"
           aria-label="댓글 추가"
         >

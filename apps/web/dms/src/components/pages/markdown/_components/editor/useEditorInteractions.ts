@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useEditorCreatePathDialog } from './useEditorCreatePathDialog';
 import type { CreatePathResult, PendingImageMap } from './useEditorCreatePathDialog';
+import { resolveExternalHref } from '@/lib/utils/linkUtils';
 
 export interface EditorInteractionDeps {
   requestCreatePath: (preferredPath?: string) => Promise<string | null>;
@@ -33,7 +34,10 @@ export function useEditorInteractions(currentFilePath?: string | null): EditorIn
 
   const openExternalHref = React.useCallback((href: string) => {
     if (typeof window === 'undefined') return;
-    window.open(href, '_blank', 'noopener,noreferrer');
+    const externalHref = resolveExternalHref(href);
+    if (externalHref) {
+      window.open(externalHref, '_blank', 'noopener,noreferrer');
+    }
   }, []);
 
   return {

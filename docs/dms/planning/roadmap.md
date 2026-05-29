@@ -1,6 +1,6 @@
 # DMS 로드맵
 
-> 최종 업데이트: 2026-05-27 (검색/권한 런칭 게이트 closeout)
+> 최종 업데이트: 2026-05-29 (협업/권한/알림/댓글 closeout)
 
 ---
 
@@ -23,15 +23,16 @@
 - AI 검색 런칭 정리: 검색 결과 AI 요약 표시, DB 기반 내 자주 검색/인기 검색어/검색 기록, 인기 검색어 최소 노출 조건과 검증/테스트 검색어 저장 차단 적용
 - 잠긴 문서 미리보기 적용: unreadable 검색/AI 결과 클릭 시 즉시 팝업 대신 문서 탭을 열고, 서버 preview-only 응답 기반 잠금 화면과 권한 요청 CTA를 표시
 - 검색/권한 런칭 게이트 closeout: unreadable 검색 결과 원문 발췌 redaction, Search/Ask 차단 소스 수와 제외 사유 요약, 권한 요청 승인/거절/grant 회수/소유권 이전 live HTTP 회귀 검증, DB 검색 기록 migration 산출물 반영
+- 협업/권한/알림/댓글 closeout: 문서 사이드카 상태/권한/댓글 UX, 알림 읽음 상태 제어, 대상 문서 자동 읽음, DB 기반 댓글, 댓글 실시간 갱신, AI 요약 첨부 유지, 내부/외부 링크 라우팅, WebSocket soft lock, 잠금 해제 요청 승인 lifecycle 반영
 - 현재 검증 기준선 통과: locked preview 서버 테스트, server/web-dms build, DMS access verification, Codex preflight, Docker server/dms rebuild, health/browser 확인
 
 ## 2. 단기 우선순위 (P1)
 
 **런칭 스모크 / 운영 freeze**:
 
-1. 브라우저 기준 로그인, 검색, 잠긴 문서, 권한 요청 CTA, 승인/회수 스모크 확인
+1. 브라우저 기준 로그인, 검색, 잠긴 문서, 권한 요청 CTA, 승인/회수, 댓글, soft lock 해제 요청 승인/거절 연속 스모크 확인
 2. 런칭 체크리스트 freeze 및 운영 데이터/계정 seed 상태 확인
-3. 원격 push 상태와 배포 대상 브랜치 확인
+3. 원격 push 상태와 배포 대상 브랜치 확인: GitHub `main`, GitLab `development`
 4. **DMS-QA-02** hard refresh client-side error 브라우저 재현 케이스 확보: 현재 CLI/HTTP/build 기준 문제 없음, 재현 시 console 첫 오류 기준으로 regression 추가
 
 **기타 P1**:
@@ -63,6 +64,7 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-05-29 | 협업/권한/알림/댓글 closeout을 완료 범위에 반영. 사이드카 권한 섹션, 알림 읽음 상태, DB 댓글, AI 요약 첨부/링크 복구, WebSocket soft lock, 잠금 해제 요청 lifecycle까지 닫고 단기 우선순위를 최종 브라우저 스모크와 운영 freeze로 재정렬 |
 | 2026-05-27 | 검색/권한 런칭 게이트 closeout을 현재 완료로 반영. Search/Ask 차단 소스 요약, unreadable 검색 redaction, 권한 요청 승인/거절/grant 회수/소유권 이전 회귀 검증, 검색 기록 migration 산출물까지 Phase B 핵심 잔여를 닫고 단기 우선순위를 최종 게이트/스모크로 재정렬 |
 | 2026-05-20 | AI 검색 결과 요약, DB 기반 검색 기록/인기 검색어, 잠긴 문서 미리보기, 권한 요청 CTA, Docker/browser 검증 완료를 현재 완료 범위에 반영. 단기 P1에 unreadable 검색 결과 카드 스니펫/키워드 노출 정책 정리를 추가 |
 | 2026-05-18 | 공통 알림/SSE, DMS 헤더 알림, 사용자별 client state isolation, 권한 요청 취소/알림 cleanup 을 현재 완료 범위에 반영. 현재 기준 검증 통과 상태를 명시하고, hard refresh client-side error는 브라우저 재현 기반 QA 항목으로 분리 |

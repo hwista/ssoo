@@ -20,6 +20,7 @@ export interface ActivityAction {
 export interface ActivityItem {
   id: string;
   title: string;
+  titleNode?: React.ReactNode;
   content?: string;
   meta?: React.ReactNode;
   active?: boolean;
@@ -94,6 +95,15 @@ export function ActivityListSection({
     compact ? 'text-label-sm' : 'text-label-sm',
     isLink && 'underline decoration-1 underline-offset-2 hover:decoration-2',
   );
+  const renderItemTitle = (item: ActivityItem, isDeleted: boolean) => (
+    item.titleNode ? (
+      <div className={cn('min-w-0', isDeleted && 'line-through text-destructive/60')}>
+        {item.titleNode}
+      </div>
+    ) : (
+      <p className={cn(titleCls, isDeleted && 'line-through text-destructive/60')}>{item.title}</p>
+    )
+  );
 
   return (
     <CollapsibleSection
@@ -109,7 +119,7 @@ export function ActivityListSection({
       ) : (
         <div className="space-y-1.5">
           {visibleItems.map((item) => {
-            const isDeleted = deletedItemIds?.has(item.id);
+            const isDeleted = Boolean(deletedItemIds?.has(item.id));
             return (
             <div
               key={item.id}
@@ -133,7 +143,7 @@ export function ActivityListSection({
                   >
                     {item.icon && <span className="mt-0.5 shrink-0">{item.icon}</span>}
                     <div className="min-w-0 flex-1">
-                      <p className={cn(titleCls, isDeleted && 'line-through text-destructive/60')}>{item.title}</p>
+                      {renderItemTitle(item, isDeleted)}
                       {item.content ? (
                         <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
                       ) : null}
@@ -146,7 +156,7 @@ export function ActivityListSection({
                   <div className="min-w-0 flex-1 px-1 py-1 flex items-start gap-1.5">
                     {item.icon && <span className="mt-0.5 shrink-0">{item.icon}</span>}
                     <div className="min-w-0 flex-1">
-                      <p className={cn(titleCls, isDeleted && 'line-through text-destructive/60')}>{item.title}</p>
+                      {renderItemTitle(item, isDeleted)}
                       {item.content ? (
                         <p className={cn('mt-0.5 whitespace-pre-wrap text-ssoo-primary/75', isDeleted && 'line-through text-destructive/50')}>{item.content}</p>
                       ) : null}

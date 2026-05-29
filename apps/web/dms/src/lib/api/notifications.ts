@@ -14,6 +14,7 @@ function buildQueryString(query: CommonNotificationListQuery = {}) {
   if (query.page) params.set('page', String(query.page));
   if (query.pageSize) params.set('pageSize', String(query.pageSize));
   if (query.unreadOnly) params.set('unreadOnly', 'true');
+  if (query.readOnly) params.set('readOnly', 'true');
   if (query.notificationType?.trim()) params.set('notificationType', query.notificationType.trim());
 
   return `?${params.toString()}`;
@@ -33,7 +34,13 @@ export const notificationApi = {
   markAsRead: (notificationId: string) => (
     put<CommonNotificationItem>(`/api/notifications/${encodeURIComponent(notificationId)}/read`)
   ),
+  markAsUnread: (notificationId: string) => (
+    put<CommonNotificationItem>(`/api/notifications/${encodeURIComponent(notificationId)}/unread`)
+  ),
   markAllAsRead: (sourceApp: CommonNotificationSourceApp = 'dms') => (
     put<CommonNotificationMarkAllReadResult>(`/api/notifications/read-all${buildSourceQuery(sourceApp)}`)
+  ),
+  markByReferencePathAsRead: (path: string, sourceApp: CommonNotificationSourceApp = 'dms') => (
+    put<CommonNotificationMarkAllReadResult>('/api/notifications/read-by-reference', { path, sourceApp })
   ),
 };

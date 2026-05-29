@@ -2,11 +2,12 @@
 
 import * as React from 'react';
 import { toast } from '@/lib/toast';
-import { storageApi } from '@/lib/api';
+import { commentsApi, storageApi } from '@/lib/api';
+import { useConfirmStore } from '@/stores';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment, BodyLink } from '@/types';
-import type { DocumentCollaborationSnapshotClient, GitSyncStatusClient } from '@/lib/api/collaborationApi';
+import type { DmsDocumentAccessRequestRole } from '@ssoo/types/dms';
+import type { DocumentCollaborationSnapshotClient } from '@/lib/api/collaborationApi';
 import { PanelFrame } from '@/components/templates/page-frame/panel';
-import { Button } from '@/components/ui/button';
 import { SaveLocationDialog } from '@/components/common/save-location';
 import type { SaveLocationResult } from '@/components/common/save-location';
 import { getAttachmentCategory } from '@/lib/constants/file';
@@ -16,64 +17,16 @@ import {
   AttachmentsSection,
   CommentInput,
   CommentsSection,
+  DocumentStatusSummary,
   DocumentInfoSection,
+  DocumentPermissionsSection,
   SourceLinksSection,
   SummarySection,
   TagsSection,
 } from './document-panel';
-import { VisibilitySection } from '@/features/access';
+import { VisibilityValue } from '@/features/access';
 import { joinDocumentPath, normalizeDocumentPath } from '@/lib/utils/linkUtils';
 import type { DocumentMetadataDiffSnapshot } from '../documentPageUtils';
-
-function formatPublishStatusLabel(status: DocumentCollaborationSnapshotClient['publishState']['status']) {
-  switch (status) {
-    case 'clean':
-      return 'clean · 원격 반영됨';
-    case 'dirty-uncommitted':
-      return '저장됨 · local commit 대기';
-    case 'publishing':
-      return 'publish 진행 중';
-    case 'committed-unpushed':
-      return 'local commit 완료 · push 대기';
-    case 'sync-blocked':
-      return 'sync-blocked · 수동 reconcile 필요';
-    case 'push-failed':
-      return 'push-failed · 재시도 필요';
-    default:
-      return status;
-  }
-}
-
-function formatGitSyncSummary(syncStatus?: GitSyncStatusClient) {
-  if (!syncStatus) {
-    return 'Git sync 정보 없음';
-  }
-
-  if (!syncStatus.remoteConfigured) {
-    return `원격 ${syncStatus.remote} 미구성`;
-  }
-
-  if (!syncStatus.remoteExists) {
-    return `원격 브랜치 ${syncStatus.remoteRef} 없음`;
-  }
-
-  switch (syncStatus.state) {
-    case 'in-sync':
-      return `${syncStatus.remoteRef} · 원격과 동일`;
-    case 'local-ahead':
-      return `${syncStatus.remoteRef} · local +${syncStatus.aheadCount}`;
-    case 'remote-ahead':
-      return `${syncStatus.remoteRef} · remote +${syncStatus.behindCount}`;
-    case 'diverged':
-      return `${syncStatus.remoteRef} · diverged (local +${syncStatus.aheadCount} / remote +${syncStatus.behindCount})`;
-    case 'remote-missing':
-      return `원격 브랜치 ${syncStatus.remoteRef} 없음`;
-    case 'local-only':
-      return `원격 ${syncStatus.remote} 미구성`;
-    default:
-      return `${syncStatus.remoteRef} · 상태 미확인`;
-  }
-}
 
 export interface DocumentPanelLockedPreview {
   title: string;
@@ -120,6 +73,8 @@ export interface DocumentPanelProps {
   documentMetadata?: DocumentMetadata | null;
   /** 메타데이터 변경 콜백 */
   onMetadataChange?: (update: Partial<DocumentMetadata>) => void;
+  /** 서버 댓글 API 반영 후 댓글 목록만 교체 */
+  onCommentsChange?: (comments: DocumentComment[]) => void;
   /** 파일 이동 콜백 (기존 문서 경로 변경 시) */
   onFileMove?: (newPath: string) => void;
   /** 자동 생성 파일명 (새 문서용) */
@@ -192,20 +147,22 @@ export interface DocumentPanelProps {
   onDismissSuggestedPath?: () => void;
   /** 인라인 컴포저에서 소프트 삭제된 참조 파일/템플릿 키 (패널 첨부 섹션 표시용) */
   deletedReferenceKeys?: Set<string>;
-  /** 댓글 변경 후 즉시 디스크에 저장하는 콜백 (뷰어 모드 댓글은 편집 저장 흐름을 타지 않으므로 별도 flush 필요) */
-  onImmediateFlush?: () => Promise<void>;
   /** 문서 로딩 중 여부 */
   isLoading?: boolean;
   /** collaboration/publish 상태 */
   collaborationSnapshot?: DocumentCollaborationSnapshotClient | null;
-  /** 잠금 takeover */
-  onTakeoverLock?: () => Promise<void> | void;
   /** publish 상태 새로고침 */
   onRefreshPublishState?: () => Promise<void> | void;
   /** publish 재시도 */
   onRetryPublish?: () => Promise<void> | void;
   /** 현재 사용자 로그인 ID */
   currentUserLoginId?: string;
+  /** 현재 사용자 ID */
+  currentUserId?: string;
+  /** 현재 문서에서 현재 사용자가 실제로 가진 읽기/쓰기 권한 */
+  currentAccessRole?: DmsDocumentAccessRequestRole;
+  /** 댓글 관리 가능 여부 */
+  canManageComments?: boolean;
   /** 저장소 관리 가능 여부 */
   canManageStorage?: boolean;
   /** 권한 없는 문서 미리보기 상태 */
@@ -267,7 +224,7 @@ function buildStorageOpenUrl(
  * 
  * 문서 메타정보를 표시하는 우측 패널
  * - 모든 섹션은 접기/펼치기 가능
- * - editable=true 일 때 태그, 요약, 소스링크 편집 + 댓글 추가/삭제 가능
+ * - editable=true 일 때 태그, 요약, 소스링크 편집 가능
  * - 빈 섹션은 플레이스홀더 표시
  */
 export function DocumentPanel({
@@ -276,6 +233,7 @@ export function DocumentPanel({
   editable = false,
   documentMetadata,
   onMetadataChange,
+  onCommentsChange,
   onFileMove,
   generatedFileName,
   isNewDocument = false,
@@ -311,16 +269,18 @@ export function DocumentPanel({
   onAcceptSuggestedPath,
   onDismissSuggestedPath,
   deletedReferenceKeys,
-  onImmediateFlush,
   isLoading = false,
   collaborationSnapshot,
-  onTakeoverLock,
   onRefreshPublishState,
   onRetryPublish,
   currentUserLoginId,
+  currentUserId,
+  currentAccessRole,
+  canManageComments = false,
   canManageStorage = false,
   lockedPreview,
 }: DocumentPanelProps) {
+  const confirm = useConfirmStore((state) => state.confirm);
   const attachments = documentMetadata?.sourceFiles ?? [];
   const summary = documentMetadata?.summary ?? '';
   const sourceLinks = documentMetadata?.sourceLinks ?? [];
@@ -348,6 +308,20 @@ export function DocumentPanel({
     ? (documentMetadata?.title || displayDocumentTitle || '')
     : (documentMetadata?.title || fileName.replace(/\.md$/, '')));
   const currentDirectory = normalizedFilePath.split('/').slice(0, -1).join('/');
+  const visibilityValue = documentMetadata?.visibility && !isNewDocument && !isTemplatePanel && !lockedPreview ? (
+    <VisibilityValue
+      scope={documentMetadata.visibility.scope}
+      canManage={
+        editable &&
+        Boolean(currentUserLoginId) &&
+        Boolean(documentMetadata.ownerLoginId) &&
+        currentUserLoginId === documentMetadata.ownerLoginId
+      }
+      onScopeChange={(scope) => {
+        onMetadataChange?.({ visibility: { scope } });
+      }}
+    />
+  ) : undefined;
 
   const handleSaveLocationConfirm = (result: SaveLocationResult) => {
     if (result.title !== documentTitle) {
@@ -380,34 +354,77 @@ export function DocumentPanel({
     onMetadataChange?.({ sourceLinks: newLinks });
   };
 
-  const handleCommentAdd = (content: string, parentId?: string) => {
-    const newComment: DocumentComment = {
-      id: `comment-${Date.now()}`,
-      author: documentMetadata?.author || 'Unknown',
+  const canComment = Boolean(
+    normalizedFilePath
+    && !isNewDocument
+    && !isTemplatePanel
+    && !lockedPreview
+    && currentUserLoginId,
+  );
+
+  const applyCommentMutation = (nextComments: DocumentComment[] | undefined): boolean => {
+    if (!nextComments) {
+      toast.error('댓글 응답을 확인하지 못했습니다.');
+      return false;
+    }
+    onCommentsChange?.(nextComments);
+    return true;
+  };
+
+  const handleCommentAdd = async (content: string, parentId?: string) => {
+    if (!normalizedFilePath) {
+      toast.info('문서를 저장한 후 댓글을 작성할 수 있습니다.');
+      return false;
+    }
+
+    const response = await commentsApi.create({
+      path: normalizedFilePath,
       content,
-      createdAt: new Date().toISOString(),
       parentId,
-    };
-    onMetadataChange?.({ comments: [...comments, newComment] });
-    if (!editable) onImmediateFlush?.();
+    });
+    if (!response.success) {
+      toast.error(response.error || '댓글을 저장하지 못했습니다.');
+      return false;
+    }
+
+    return applyCommentMutation(response.data?.comments);
   };
 
-  const handleCommentDelete = (commentId: string) => {
-    // 모든 댓글은 tombstone 처리 (deletedAt 설정, hard-delete 없음)
-    const updated = comments.map((c) =>
-      c.id === commentId ? { ...c, deletedAt: new Date().toISOString() } : c,
-    );
-    onMetadataChange?.({ comments: updated });
-    if (!editable) onImmediateFlush?.();
+  const handleCommentDelete = async (commentId: string) => {
+    if (!normalizedFilePath) {
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: '댓글 삭제',
+      description: '이 댓글을 삭제하시겠습니까?',
+      confirmText: '삭제',
+      cancelText: '취소',
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    const response = await commentsApi.delete(normalizedFilePath, commentId);
+    if (!response.success) {
+      toast.error(response.error || '댓글을 삭제하지 못했습니다.');
+      return;
+    }
+    applyCommentMutation(response.data?.comments);
   };
 
-  const handleCommentRestore = (comment: DocumentComment) => {
-    // deletedAt 제거로 복원
-    const updated = comments.map((c) =>
-      c.id === comment.id ? { ...c, deletedAt: undefined } : c,
-    );
-    onMetadataChange?.({ comments: updated });
-    if (!editable) onImmediateFlush?.();
+  const handleCommentRestore = async (comment: DocumentComment) => {
+    if (!normalizedFilePath) {
+      return;
+    }
+
+    const response = await commentsApi.restore(comment.id, { path: normalizedFilePath });
+    if (!response.success) {
+      toast.error(response.error || '댓글을 복원하지 못했습니다.');
+      return;
+    }
+    applyCommentMutation(response.data?.comments);
   };
 
   const handleAttachmentsChange = (newAttachments: SourceFileMeta[]) => {
@@ -530,7 +547,7 @@ export function DocumentPanel({
     <PanelFrame
       className={className}
       footerClassName="border-t-0"
-      footer={!editable && !isTemplatePanel && !lockedPreview ? (
+      footer={canComment ? (
         <CommentInput
           onAdd={handleCommentAdd}
           replyTo={replyTarget}
@@ -543,54 +560,12 @@ export function DocumentPanel({
       ) : (
         <>
           {collaborationSnapshot ? (
-            <div className="mb-3 rounded-md border border-ssoo-border bg-ssoo-card px-3 py-3 text-sm text-ssoo-foreground">
-              <div className="font-medium">협업 / Publish 상태</div>
-              <p className="mt-2 text-ssoo-muted-foreground">
-                현재 접속 {collaborationSnapshot.members.length}명 · 편집 중 {collaborationSnapshot.members.filter((member) => member.mode === 'edit').length}명 · publish {formatPublishStatusLabel(collaborationSnapshot.publishState.status)}
-              </p>
-              <p className="mt-1 text-ssoo-muted-foreground">
-                {collaborationSnapshot.softLock
-                  ? `편집 잠금: ${collaborationSnapshot.softLock.displayName}(${collaborationSnapshot.softLock.loginId})`
-                  : '현재 soft lock 없음'}
-              </p>
-              {collaborationSnapshot.publishState.affectedPaths?.length ? (
-                <p className="mt-1 text-ssoo-muted-foreground">
-                  change set: {collaborationSnapshot.publishState.operationType || 'update'} · {collaborationSnapshot.publishState.affectedPaths.join(', ')}
-                </p>
-              ) : null}
-              {collaborationSnapshot.publishState.syncStatus ? (
-                <p className="mt-1 text-ssoo-muted-foreground">
-                  git sync: {formatGitSyncSummary(collaborationSnapshot.publishState.syncStatus)}
-                </p>
-              ) : null}
-              {collaborationSnapshot.publishState.lastError ? (
-                <p className="mt-1 text-amber-700">최근 publish 오류: {collaborationSnapshot.publishState.lastError}</p>
-              ) : null}
-              {collaborationSnapshot.isolation ? (
-                <p className="mt-1 text-amber-700">
-                  경로 격리(수동 reconcile 필요): {collaborationSnapshot.isolation.reason}
-                  {' '}
-                  · 차단 작업 {collaborationSnapshot.isolation.blockedActions.join(', ')}
-                </p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(collaborationSnapshot.isolation || collaborationSnapshot.publishState.status === 'sync-blocked' || collaborationSnapshot.publishState.status === 'push-failed') && onRefreshPublishState ? (
-                  <Button variant="outline" size="sm" onClick={() => void onRefreshPublishState()}>
-                    상태 새로고침
-                  </Button>
-                ) : null}
-                {!collaborationSnapshot.isolation && (collaborationSnapshot.publishState.status === 'sync-blocked' || collaborationSnapshot.publishState.status === 'push-failed') && onRetryPublish ? (
-                  <Button variant="outline" size="sm" onClick={() => void onRetryPublish()}>
-                    publish 재시도
-                  </Button>
-                ) : null}
-                {collaborationSnapshot.softLock && collaborationSnapshot.softLock.loginId !== currentUserLoginId && onTakeoverLock ? (
-                  <Button variant="outline" size="sm" onClick={() => void onTakeoverLock()}>
-                    잠금 takeover
-                  </Button>
-                ) : null}
-              </div>
-            </div>
+            <DocumentStatusSummary
+              snapshot={collaborationSnapshot}
+              currentUserLoginId={currentUserLoginId}
+              onRefreshPublishState={onRefreshPublishState}
+              onRetryPublish={onRetryPublish}
+            />
           ) : null}
           <DocumentInfoSection
             editable={editable}
@@ -613,6 +588,7 @@ export function DocumentPanel({
             onDismissSuggestedTitle={onDismissSuggestedTitle}
             onAcceptSuggestedPath={onAcceptSuggestedPath}
             onDismissSuggestedPath={onDismissSuggestedPath}
+            visibilityValue={visibilityValue}
             onOpenSaveLocation={() => setIsSaveLocationOpen(true)}
           />
           <SaveLocationDialog
@@ -624,20 +600,16 @@ export function DocumentPanel({
             isNewDocument={isNewDocument}
             onConfirm={handleSaveLocationConfirm}
           />
-          {documentMetadata?.visibility && !isNewDocument && !isTemplatePanel && !lockedPreview ? (
-            <VisibilitySection
-              scope={documentMetadata.visibility.scope}
-              canManage={
-                editable &&
-                Boolean(currentUserLoginId) &&
-                Boolean(documentMetadata.ownerLoginId) &&
-                currentUserLoginId === documentMetadata.ownerLoginId
-              }
-              onScopeChange={(scope) => {
-                onMetadataChange?.({ visibility: { scope } });
-              }}
-            />
-          ) : null}
+          <DocumentPermissionsSection
+            documentId={documentMetadata?.documentId}
+            filePath={normalizedFilePath}
+            currentUserLoginId={currentUserLoginId}
+            currentAccessRole={currentAccessRole}
+            ownerUserId={documentMetadata?.ownerId}
+            ownerLoginId={documentMetadata?.ownerLoginId}
+            grants={documentMetadata?.grants}
+            locked={Boolean(isNewDocument || isTemplatePanel || lockedPreview)}
+          />
           <>
             <TagsSection
               editable={editable}
@@ -693,7 +665,9 @@ export function DocumentPanel({
             {!isNewDocument && !isTemplatePanel && (
               <CommentsSection
                 comments={comments}
-                editable={editable}
+                currentUserId={currentUserId}
+                canManageComments={canManageComments}
+                canReply={canComment}
                 onDelete={handleCommentDelete}
                 onRestore={handleCommentRestore}
                 onReply={(comment) => {
@@ -704,7 +678,6 @@ export function DocumentPanel({
                   }
                   setReplyTarget({ id: current.id, author: comment.author || 'Unknown' });
                 }}
-                originalCommentIds={originalMetaSnapshot?.commentIds}
                 locked={Boolean(lockedPreview)}
               />
             )}

@@ -218,6 +218,8 @@ export function extractGrants(metadata: Record<string, unknown> | null): Documen
     return [{
       principalId,
       principalType,
+      principalLoginId: typeof grant['principalLoginId'] === 'string' ? grant['principalLoginId'] : undefined,
+      principalDisplayName: typeof grant['principalDisplayName'] === 'string' ? grant['principalDisplayName'] : undefined,
       role,
       expiresAt: typeof grant['expiresAt'] === 'string' ? grant['expiresAt'] : undefined,
       grantedAt: typeof grant['grantedAt'] === 'string' ? grant['grantedAt'] : undefined,
@@ -464,6 +466,8 @@ export function normalizeComments(metadata: Record<string, unknown> | null): Doc
       avatarUrl: typeof entry['avatarUrl'] === 'string' ? entry['avatarUrl'].trim() || undefined : undefined,
       parentId,
       deletedAt: deletedAt && !Number.isNaN(deletedAt.getTime()) ? deletedAt.toISOString() : undefined,
+      deletedByUserId: typeof entry['deletedByUserId'] === 'string' ? entry['deletedByUserId'].trim() || undefined : undefined,
+      deletedByName: typeof entry['deletedByName'] === 'string' ? entry['deletedByName'].trim() || undefined : undefined,
     }];
   });
 }

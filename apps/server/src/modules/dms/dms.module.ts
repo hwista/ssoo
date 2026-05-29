@@ -6,6 +6,7 @@ import { DmsAdminModule } from './admin/dms-admin.module.js';
 import { AskModule } from './ask/ask.module.js';
 import { ChatSessionsModule } from './chat-sessions/chat-sessions.module.js';
 import { CollaborationModule } from './collaboration/collaboration.module.js';
+import { CommentsModule } from './comments/comments.module.js';
 import { ContentModule } from './content/content.module.js';
 import { CreateModule } from './create/create.module.js';
 import { DocAssistModule } from './doc-assist/doc-assist.module.js';
@@ -36,6 +37,7 @@ const logger = new Logger('DmsModule');
     CreateModule,
     ChatSessionsModule,
     CollaborationModule,
+    CommentsModule,
     EventsModule,
     SettingsModule,
     TemplatesModule,
@@ -55,6 +57,7 @@ const logger = new Logger('DmsModule');
     CreateModule,
     ChatSessionsModule,
     CollaborationModule,
+    CommentsModule,
     EventsModule,
     SettingsModule,
     TemplatesModule,

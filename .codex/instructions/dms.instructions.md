@@ -17,6 +17,20 @@ applyTo: "apps/web/dms/**"
 
 DMS는 workspace 앱으로 통합되었지만, 파일/Git/스토리지 런타임과 `src/app/api/* -> server/*` 구조는 독립 배포 가능성을 고려해 유지합니다.
 
+## 양방향 배포 표준
+
+- 모노레포 변경을 외부 공유할 때는 개별 `git push` 대신 `pnpm run codex:workspace-publish`를 우선 사용합니다.
+- GitLab issue branch가 `development`에 병합되는 병행 개발 단계에서는 작업 시작 전과 push 직전에 `pnpm run codex:workspace-sync-from-gitlab`를 실행해 원격 workspace branch를 로컬에 먼저 재통합합니다.
+- 로컬 변경이 있으면 먼저 체크포인트 커밋 또는 stash를 만들고 sync합니다. 더러운 작업트리 위에서 GitLab workspace branch를 병합하지 않습니다.
+- `codex:workspace-publish`는 GitHub 브랜치 push 전에 GitLab workspace branch fast-forward 가능 여부를 먼저 검사한 뒤, GitHub 브랜치 push + GitLab workspace branch push + 해시 검증까지 수행합니다.
+- origin push 시 `codex:workspace-publish` marker가 없으면 pre-push가 차단됩니다.
+- GitLab workspace branch가 로컬 HEAD보다 앞서 있으면 먼저 `pnpm run codex:workspace-sync-from-gitlab`로 monorepo에 재통합합니다.
+- sync가 merge commit 또는 충돌 해결을 만들면 `pnpm run codex:preflight`, DMS 변경 시 `pnpm run codex:dms-guard`, push 전 `pnpm run codex:push-guard`를 다시 실행합니다.
+- 기존 `pnpm run codex:dms-sync-from-gitlab`, `pnpm run codex:dms-publish`는 당분간 호환 래퍼로 유지합니다.
+- 인증은 환경 변수 또는 local git config 중 하나를 사용합니다.
+  - 환경 변수: `GL_USER`, `GL_TOKEN`
+  - local git config: `codex.gitlabUser`, `codex.gitlabToken`
+
 ## 기술 스택
 
 - Next.js 15.x (App Router), React 19.x, TypeScript 5.x

@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import type { CommonNotificationListQuery, CommonNotificationSourceApp } from '@ssoo/types/common';
@@ -32,6 +32,12 @@ export class ListNotificationsDto implements CommonNotificationListQuery {
   @IsOptional()
   unreadOnly?: boolean;
 
+  @ApiPropertyOptional({ description: '읽은 알림만 조회' })
+  @Type(() => Boolean)
+  @IsBoolean()
+  @IsOptional()
+  readOnly?: boolean;
+
   @ApiPropertyOptional({ description: '출처 앱', enum: COMMON_NOTIFICATION_SOURCE_APPS })
   @IsIn(COMMON_NOTIFICATION_SOURCE_APPS)
   @IsOptional()
@@ -42,4 +48,16 @@ export class ListNotificationsDto implements CommonNotificationListQuery {
   @MaxLength(80)
   @IsOptional()
   notificationType?: string;
+}
+
+export class MarkNotificationsByReferenceDto {
+  @ApiProperty({ description: '알림 참조 경로', maxLength: 500 })
+  @IsString()
+  @MaxLength(500)
+  path!: string;
+
+  @ApiPropertyOptional({ description: '출처 앱', enum: COMMON_NOTIFICATION_SOURCE_APPS })
+  @IsIn(COMMON_NOTIFICATION_SOURCE_APPS)
+  @IsOptional()
+  sourceApp?: CommonNotificationSourceApp;
 }

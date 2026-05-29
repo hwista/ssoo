@@ -4035,6 +4035,8 @@ model DmsDocumentComment {
   avatarUrl        String?   @map("avatar_url")
   commentCreatedAt DateTime  @map("comment_created_at") @db.Timestamptz(6)
   commentDeletedAt DateTime? @map("comment_deleted_at") @db.Timestamptz(6)
+  commentDeletedBy BigInt?   @map("comment_deleted_by")
+  commentDeletedByName String? @map("comment_deleted_by_name") @db.VarChar(100)
   sortOrder        Int       @default(0) @map("sort_order")
 
   isActive      Boolean  @default(true) @map("is_active")
@@ -4076,6 +4078,8 @@ model DmsDocumentCommentHistory {
   avatarUrl        String?   @map("avatar_url")
   commentCreatedAt DateTime  @map("comment_created_at") @db.Timestamptz(6)
   commentDeletedAt DateTime? @map("comment_deleted_at") @db.Timestamptz(6)
+  commentDeletedBy BigInt?   @map("comment_deleted_by")
+  commentDeletedByName String? @map("comment_deleted_by_name") @db.VarChar(100)
   sortOrder        Int       @map("sort_order")
 
   isActive      Boolean  @map("is_active")

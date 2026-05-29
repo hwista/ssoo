@@ -1,6 +1,6 @@
 # DMS 문서
 
-> 최종 업데이트: 2026-05-18
+> 최종 업데이트: 2026-05-29
 > 정본 위치: `docs/dms/`
 
 Document Management System(DMS) 문서의 단일 정본 인덱스입니다.
@@ -40,6 +40,7 @@ docs/dms/
 | [골든 이그잼플 가이드](./guides/golden-example.md) | 구조 기준선 / 레이어 판정 / 검증 규칙 |
 | [로드맵](./planning/roadmap.md) | 계획/단계 |
 | [백로그](./planning/backlog.md) | 작업 항목 |
+| [협업/권한/알림/댓글 런칭 핸드오프](./planning/2026-05-29-launch-collaboration-handoff.md) | 2026-05-29 런칭 closeout 인계 |
 | [PRD 템플릿](./planning/prd-template.md) | 작업 요청 입력 형식 |
 | [변경 이력](./planning/changelog.md) | 변경 기록 |
 
@@ -67,6 +68,8 @@ docs/dms/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-05-29 | 협업/권한/알림/댓글 런칭 closeout 핸드오프를 핵심 문서에 추가하고, 로드맵/백로그/API/변경 이력 기준을 2026-05-29 현재 상태로 현행화 |
+| 2026-05-27 | GitHub-GitLab workspace 통합 가이드와 DMS AGENTS에 병행 개발용 작업 전·push 전 GitLab sync 절차를 반영 |
 | 2026-05-18 | 현재 검증 기준선을 추가하고, 공통 알림/SSE·사용자별 state isolation·권한 요청 취소/알림 cleanup 상태를 로드맵/백로그에 반영 |
 | 2026-04-22 | 운영 경로 안내를 repo-local `apps/web/dms/data/documents/` 단일 경로에서 external runtime path contract(`DMS_MARKDOWN_ROOT`, `DMS_STORAGE_LOCAL_BASE_PATH`, `DMS_INGEST_QUEUE_PATH`, `DMS_TEMPLATE_ROOT`) 기준으로 갱신 |
 | 2026-04-16 | 문서 공개 범위/접근 모델과 hybrid document control-plane 정본 문서를 핵심 문서 목록에 추가 |

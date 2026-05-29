@@ -18,7 +18,9 @@ import type {
   RejectDmsDocumentAccessRequestPayload,
   SearchResultItem,
   TransferDocumentOwnershipResult,
+  UpdateDmsDocumentGrantRoleResult,
 } from '@ssoo/types/dms';
+import type { CommonNotificationJsonValue } from '@ssoo/types/common';
 import { DatabaseService } from '../../../database/database.service.js';
 import { CommonNotificationService } from '../../common/notification/notification.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
@@ -31,7 +33,6 @@ import {
   resolveAbsolutePath,
   resolveDocumentPresentation,
 } from '../search/search.helpers.js';
-import { DmsEventsGateway } from '../events/dms-events.gateway.js';
 import { ControlPlaneSyncService } from './control-plane-sync.service.js';
 import { DocumentAclService } from './document-acl.service.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
@@ -105,6 +106,24 @@ type AccessRequestTx = Parameters<
   Parameters<DatabaseService['client']['$transaction']>[0]
 >[0];
 
+type DmsAccessChangeReason =
+  | 'visibility'
+  | 'ownership'
+  | 'grant-revoked'
+  | 'grant-created'
+  | 'grant-direct'
+  | 'grant-updated'
+  | 'request-created'
+  | 'request-rejected'
+  | 'request-cancelled';
+
+interface DmsAccessChangedEvent {
+  documentId: string;
+  relativePath?: string;
+  reason: DmsAccessChangeReason;
+  actorUserId?: string;
+}
+
 const ACCESS_REQUEST_SELECT = {
   accessRequestId: true,
   documentId: true,
@@ -148,9 +167,23 @@ export class AccessRequestService {
     private readonly documentProjectionService: DocumentProjectionService,
     private readonly documentRecordService: DocumentRecordService,
     private readonly controlPlaneSyncService: ControlPlaneSyncService,
-    private readonly eventsGateway: DmsEventsGateway,
     private readonly notificationService: CommonNotificationService,
   ) {}
+
+  private publishAccessChanged(event: DmsAccessChangedEvent): void {
+    const payload: Record<string, CommonNotificationJsonValue> = {
+      documentId: event.documentId,
+      reason: event.reason,
+    };
+    if (event.relativePath) {
+      payload.path = event.relativePath;
+    }
+    if (event.actorUserId) {
+      payload.actorUserId = event.actorUserId;
+    }
+
+    this.notificationService.publishDomainEvent('dms', 'dms.document-access.changed', payload);
+  }
 
   async createReadRequest(
     user: TokenPayload,
@@ -219,6 +252,12 @@ export class AccessRequestService {
       created.document.ownerUserId,
     ]);
     await this.notifyAccessRequestCreated(created, actors, user);
+    this.publishAccessChanged({
+      documentId: created.documentId.toString(),
+      relativePath: created.document.relativePath,
+      reason: 'request-created',
+      actorUserId: user.userId,
+    });
     return this.toAccessRequestSummary(created, actors, false);
   }
 
@@ -378,6 +417,11 @@ export class AccessRequestService {
         { documentGrantId: 'asc' },
       ],
     });
+    const grantActors = await this.loadActors(
+      grantRows
+        .filter((grantRow) => grantRow.principalType === 'user' && /^\d+$/.test(grantRow.principalRef))
+        .map((grantRow) => BigInt(grantRow.principalRef)),
+    );
     const grantsByDocumentId = new Map<string, DocumentPermissionGrant[]>();
     for (const grantRow of grantRows) {
       const grant = toDocumentPermissionGrant(grantRow);
@@ -387,7 +431,14 @@ export class AccessRequestService {
 
       const key = grantRow.documentId.toString();
       const current = grantsByDocumentId.get(key) ?? [];
-      current.push(grant);
+      const actor = grant.principalType === 'user'
+        ? grantActors.get(grant.principalId)
+        : undefined;
+      current.push(actor ? {
+        ...grant,
+        principalLoginId: actor.loginId,
+        principalDisplayName: actor.displayName,
+      } : grant);
       grantsByDocumentId.set(key, current);
     }
 
@@ -470,7 +521,7 @@ export class AccessRequestService {
 
     this.documentControlPlaneService.clearCachedMetadataByRelativePath(document.relativePath);
 
-    this.eventsGateway.emitAccessChanged({
+    this.publishAccessChanged({
       documentId: document.documentId.toString(),
       relativePath: document.relativePath,
       reason: 'visibility',
@@ -612,7 +663,7 @@ export class AccessRequestService {
 
     await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(document.relativePath);
 
-    this.eventsGateway.emitAccessChanged({
+    this.publishAccessChanged({
       documentId: document.documentId.toString(),
       relativePath: document.relativePath,
       reason: 'ownership',
@@ -724,7 +775,7 @@ export class AccessRequestService {
 
     await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(document.relativePath);
 
-    this.eventsGateway.emitAccessChanged({
+    this.publishAccessChanged({
       documentId: document.documentId.toString(),
       relativePath: document.relativePath,
       reason: 'grant-direct',
@@ -828,7 +879,7 @@ export class AccessRequestService {
 
     await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(document.relativePath);
 
-    this.eventsGateway.emitAccessChanged({
+    this.publishAccessChanged({
       documentId: document.documentId.toString(),
       relativePath: document.relativePath,
       reason: 'grant-revoked',
@@ -842,6 +893,149 @@ export class AccessRequestService {
     await this.notifyGrantRevoked(document.documentId, document.relativePath, grant, callerUserId);
 
     return { grantId: grant.documentGrantId.toString(), documentId: document.documentId.toString() };
+  }
+
+  async updateDocumentGrantRole(
+    user: TokenPayload,
+    documentId: string,
+    grantId: string,
+    role: DmsDocumentAccessRequestRole,
+  ): Promise<UpdateDmsDocumentGrantRoleResult> {
+    const documentIdBigInt = this.parseBigIntId(documentId, 'documentId');
+    const grantIdBigInt = this.parseBigIntId(grantId, 'grantId');
+    const grantRole = this.resolveGrantableRole(role);
+
+    const document = await this.db.client.dmsDocument.findUnique({
+      where: { documentId: documentIdBigInt, isActive: true },
+      select: { documentId: true, ownerUserId: true, relativePath: true },
+    });
+
+    if (!document) {
+      throw new NotFoundException('문서를 찾을 수 없습니다.');
+    }
+
+    this.assertDocumentOwnerFromRecord(user, document.ownerUserId, 'grant 역할을 변경할 권한이 없습니다.');
+
+    const grant = await this.db.client.dmsDocumentGrant.findUnique({
+      where: { documentGrantId: grantIdBigInt },
+      select: {
+        documentGrantId: true,
+        documentId: true,
+        principalType: true,
+        principalRef: true,
+        roleCode: true,
+        revokedAt: true,
+        isActive: true,
+      },
+    });
+
+    if (!grant || grant.documentId !== document.documentId) {
+      throw new NotFoundException('grant를 찾을 수 없습니다.');
+    }
+
+    if (grant.revokedAt || !grant.isActive) {
+      throw new BadRequestException('이미 취소된 grant입니다.');
+    }
+
+    if (
+      grant.principalType === 'user'
+      && grant.principalRef === document.ownerUserId.toString()
+      && grant.roleCode === 'manage'
+    ) {
+      throw new BadRequestException('문서 소유자의 관리 권한은 변경할 수 없습니다. 소유권 이전을 이용하세요.');
+    }
+
+    if (grant.roleCode === 'manage') {
+      throw new BadRequestException('관리 권한은 이 화면에서 읽기/쓰기 권한으로 변경할 수 없습니다.');
+    }
+
+    if (grant.roleCode === grantRole) {
+      return {
+        grantId: grant.documentGrantId.toString(),
+        documentId: document.documentId.toString(),
+        role: grantRole,
+      };
+    }
+
+    const callerUserId = BigInt(user.userId);
+    const changedGrantId = await this.db.client.$transaction(async (tx) => {
+      const existingTargetGrant = await tx.dmsDocumentGrant.findFirst({
+        where: {
+          documentId: document.documentId,
+          principalType: grant.principalType,
+          principalRef: grant.principalRef,
+          roleCode: grantRole,
+          NOT: { documentGrantId: grant.documentGrantId },
+        },
+        select: { documentGrantId: true },
+      });
+
+      if (existingTargetGrant) {
+        await tx.dmsDocumentGrant.update({
+          where: { documentGrantId: existingTargetGrant.documentGrantId },
+          data: {
+            grantedAt: new Date(),
+            grantedByUserId: callerUserId,
+            revokedAt: null,
+            revokedByUserId: null,
+            revokeReason: null,
+            isActive: true,
+            updatedBy: callerUserId,
+            lastSource: ACTIVE_REQUEST_SOURCE,
+            lastActivity: 'dms.access.grant.update-role.activate-existing',
+          },
+        });
+
+        await tx.dmsDocumentGrant.update({
+          where: { documentGrantId: grant.documentGrantId },
+          data: {
+            revokedAt: new Date(),
+            revokedByUserId: callerUserId,
+            revokeReason: 'role-change',
+            isActive: false,
+            updatedBy: callerUserId,
+            lastSource: ACTIVE_REQUEST_SOURCE,
+            lastActivity: 'dms.access.grant.update-role.revoke-previous',
+          },
+        });
+
+        return existingTargetGrant.documentGrantId;
+      }
+
+      const updated = await tx.dmsDocumentGrant.update({
+        where: { documentGrantId: grant.documentGrantId },
+        data: {
+          roleCode: grantRole,
+          updatedBy: callerUserId,
+          lastSource: ACTIVE_REQUEST_SOURCE,
+          lastActivity: 'dms.access.grant.update-role',
+        },
+        select: { documentGrantId: true },
+      });
+
+      return updated.documentGrantId;
+    });
+
+    await this.documentControlPlaneService.refreshProjectedMetadataByRelativePath(document.relativePath);
+
+    this.publishAccessChanged({
+      documentId: document.documentId.toString(),
+      relativePath: document.relativePath,
+      reason: 'grant-updated',
+      actorUserId: user.userId,
+    });
+
+    logger.info(
+      `Grant ${grantId} role changed to ${grantRole} for document ${documentId} by user ${user.userId}`,
+    );
+
+    await this.notifyGrantRoleUpdated(document.documentId, document.relativePath, grant, callerUserId, grantRole);
+
+    return {
+      grantId: changedGrantId.toString(),
+      documentId: document.documentId.toString(),
+      role: grantRole,
+    };
   }
 
   async approveReadRequest(
@@ -873,8 +1067,9 @@ export class AccessRequestService {
         },
       });
 
+      let approvedGrantId: bigint;
       if (existingGrant) {
-        await tx.dmsDocumentGrant.update({
+        const updatedGrant = await tx.dmsDocumentGrant.update({
           where: {
             documentGrantId: existingGrant.documentGrantId,
           },
@@ -893,9 +1088,11 @@ export class AccessRequestService {
             lastSource: ACTIVE_REQUEST_SOURCE,
             lastActivity: 'dms.access.request.approve.grant',
           },
+          select: { documentGrantId: true },
         });
+        approvedGrantId = updatedGrant.documentGrantId;
       } else {
-        await tx.dmsDocumentGrant.create({
+        const createdGrant = await tx.dmsDocumentGrant.create({
           data: {
             documentId: request.documentId,
             principalType: 'user',
@@ -911,6 +1108,31 @@ export class AccessRequestService {
             updatedBy: responderUserId,
             lastSource: ACTIVE_REQUEST_SOURCE,
             lastActivity: 'dms.access.request.approve.grant',
+          },
+          select: { documentGrantId: true },
+        });
+        approvedGrantId = createdGrant.documentGrantId;
+      }
+
+      if (grantRole === 'write') {
+        await tx.dmsDocumentGrant.updateMany({
+          where: {
+            documentId: request.documentId,
+            principalType: 'user',
+            principalRef: request.requesterUserId.toString(),
+            roleCode: 'read',
+            documentGrantId: { not: approvedGrantId },
+            isActive: true,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: new Date(),
+            revokedByUserId: responderUserId,
+            revokeReason: 'role-upgrade',
+            isActive: false,
+            updatedBy: responderUserId,
+            lastSource: ACTIVE_REQUEST_SOURCE,
+            lastActivity: 'dms.access.request.approve.revoke-lower-grant',
           },
         });
       }
@@ -935,7 +1157,7 @@ export class AccessRequestService {
 
     await this.documentControlPlaneService.refreshCache();
 
-    this.eventsGateway.emitAccessChanged({
+    this.publishAccessChanged({
       documentId: approved.documentId.toString(),
       relativePath: approved.document.relativePath,
       reason: 'grant-created',
@@ -982,6 +1204,12 @@ export class AccessRequestService {
       rejected.respondedByUserId,
     ]);
     await this.notifyAccessRequestRejected(rejected, responderUserId);
+    this.publishAccessChanged({
+      documentId: rejected.documentId.toString(),
+      relativePath: rejected.document.relativePath,
+      reason: 'request-rejected',
+      actorUserId: user.userId,
+    });
     return this.toAccessRequestSummary(rejected, actors, true);
   }
 
@@ -1021,7 +1249,7 @@ export class AccessRequestService {
 
     const cancelled = await this.getRequestByIdOrThrow(request.accessRequestId.toString());
 
-    this.eventsGateway.emitAccessChanged({
+    this.publishAccessChanged({
       documentId: cancelled.documentId.toString(),
       relativePath: cancelled.document.relativePath,
       reason: 'request-cancelled',
@@ -1513,6 +1741,55 @@ export class AccessRequestService {
         'revoked',
         recipientUserId.toString(),
         grant.documentGrantId.toString(),
+      ].join(':'),
+    });
+  }
+
+  private async notifyGrantRoleUpdated(
+    documentId: bigint,
+    relativePath: string,
+    grant: Pick<AccessRequestGrantRecord, 'documentGrantId' | 'principalType' | 'principalRef'>,
+    actorUserId: bigint,
+    grantRole: DmsDocumentAccessRequestRole,
+  ): Promise<void> {
+    if (grant.principalType !== 'user' || !grant.principalRef || !/^\d+$/.test(grant.principalRef)) {
+      return;
+    }
+
+    const recipientUserId = BigInt(grant.principalRef);
+    if (recipientUserId === actorUserId) {
+      return;
+    }
+
+    const roleLabel = grantRole === 'write' ? '쓰기' : '읽기';
+    await this.notificationService.notifyUser({
+      recipientUserId,
+      actorUserId,
+      sourceApp: 'dms',
+      notificationType: 'dms.document-access-grant.updated',
+      severity: 'info',
+      title: `문서 ${roleLabel} 권한 변경`,
+      message: `${relativePath} 문서 권한이 ${roleLabel}로 변경되었습니다.`,
+      reference: {
+        type: 'dms.document',
+        id: documentId.toString(),
+        path: relativePath,
+      },
+      action: {
+        type: 'open-dms-document',
+        label: '문서 열기',
+        payload: {
+          documentId: documentId.toString(),
+          path: relativePath,
+        },
+      },
+      dedupeKey: [
+        'dms',
+        'access-grant',
+        'updated',
+        recipientUserId.toString(),
+        grant.documentGrantId.toString(),
+        grantRole,
       ].join(':'),
     });
   }

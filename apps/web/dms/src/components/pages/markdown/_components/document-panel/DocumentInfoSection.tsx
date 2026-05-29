@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Calendar, Check, FileText, Pencil, Sparkles, User, X } from 'lucide-react';
+import { Calendar, Check, Eye, FileText, Pencil, Sparkles, User, X } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { KeyValueSection } from '@/components/templates/page-frame/panel';
 import type { KeyValueItem } from '@/components/templates/page-frame/panel';
@@ -60,6 +60,7 @@ export function DocumentInfoSection({
   pendingSuggestedPath,
   pendingPathValidationMessage,
   metadata,
+  visibilityValue,
   onRequestRecommendation,
   onAcceptSuggestedTitle,
   onDismissSuggestedTitle,
@@ -81,6 +82,7 @@ export function DocumentInfoSection({
   pendingSuggestedTitle?: string | null;
   pendingSuggestedPath?: string | null;
   pendingPathValidationMessage?: string;
+  visibilityValue?: React.ReactNode;
   metadata?: {
     author?: string;
     createdAt?: Date | string;
@@ -188,6 +190,12 @@ export function DocumentInfoSection({
         : (showPathLoading ? pathLoadingValue : (pathValidationMessage ? pathValidationValue : pathValue)),
       hidden: templateMode || (showPathLoading ? false : (showPathError ? false : (!pathValidationMessage && !filePath))),
       highlighted: !showPathLoading && !showPathError && !pathValidationMessage && isPathHighlighted,
+    },
+    {
+      label: '공개 범위',
+      icon: <Eye className="mr-1 h-3.5 w-3.5" />,
+      value: visibilityValue,
+      hidden: !visibilityValue,
     },
     { label: '작성자', icon: <User className="mr-1 h-3.5 w-3.5" />, value: metadata.author, hidden: !metadata.author },
     { label: '작성일', icon: <Calendar className="mr-1 h-3.5 w-3.5" />, value: formatDate(metadata.createdAt), hidden: !metadata.createdAt },

@@ -31,7 +31,7 @@ export interface VisibilitySectionProps {
   canManage?: boolean;
 }
 
-export function VisibilitySection({ scope, onScopeChange, canManage = false }: VisibilitySectionProps) {
+export function VisibilityValue({ scope, onScopeChange, canManage = false }: VisibilitySectionProps) {
   const handleChange = React.useCallback(
     (value: string) => {
       if (canManage && onScopeChange) {
@@ -41,8 +41,8 @@ export function VisibilitySection({ scope, onScopeChange, canManage = false }: V
     [canManage, onScopeChange],
   );
 
-  const visibilityValue = (
-    canManage && onScopeChange ? (
+  if (canManage && onScopeChange) {
+    return (
       <Dropdown
         value={formatVisibilityScope(scope)}
         onValueChange={handleChange}
@@ -59,14 +59,18 @@ export function VisibilitySection({ scope, onScopeChange, canManage = false }: V
           </Option>
         ))}
       </Dropdown>
-    ) : (
-      <span className="flex items-center gap-1.5 text-body-sm">
-        <VisibilityIcon scope={scope} />
-        {formatVisibilityScope(scope)}
-      </span>
-    )
-  );
+    );
+  }
 
+  return (
+    <span className="flex items-center gap-1.5 text-body-sm">
+      <VisibilityIcon scope={scope} />
+      {formatVisibilityScope(scope)}
+    </span>
+  );
+}
+
+export function VisibilitySection(props: VisibilitySectionProps) {
   return (
     <KeyValueSection
       title="공개 범위"
@@ -74,7 +78,7 @@ export function VisibilitySection({ scope, onScopeChange, canManage = false }: V
       items={[
         {
           label: '문서 공개',
-          value: visibilityValue,
+          value: <VisibilityValue {...props} />,
         },
       ]}
     />

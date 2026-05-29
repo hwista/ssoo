@@ -18,6 +18,7 @@ import {
   ListAccessRequestsDto,
   RejectReadAccessRequestDto,
   TransferDocumentOwnershipDto,
+  UpdateDocumentGrantRoleDto,
   UpdateDocumentVisibilityDto } from './dto/access-request.dto.js';
 import { AccessRequestService } from './access-request.service.js';
 
@@ -165,6 +166,23 @@ export class AccessRequestController {
   ) {
     return success(
       await this.accessRequestService.revokeDocumentGrant(currentUser, documentId, grantId),
+    );
+  }
+
+  @Patch('documents/:documentId/grants/:grantId')
+  @RequireDmsFeature('canReadDocuments')
+  @ApiOperation({ summary: '문서 grant 역할 변경 (소유자 전용)' })
+  @ApiOkResponse({ description: '변경된 grant 역할 반환' })
+  @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
+  @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
+  async updateGrantRole(
+    @CurrentUser() currentUser: TokenPayload,
+    @Param('documentId') documentId: string,
+    @Param('grantId') grantId: string,
+    @Body() dto: UpdateDocumentGrantRoleDto,
+  ) {
+    return success(
+      await this.accessRequestService.updateDocumentGrantRole(currentUser, documentId, grantId, dto.role),
     );
   }
 }

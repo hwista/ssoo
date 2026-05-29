@@ -10,6 +10,8 @@ import type {
   RejectDmsDocumentAccessRequestPayload,
   TransferDocumentOwnershipPayload,
   TransferDocumentOwnershipResult,
+  UpdateDmsDocumentGrantRolePayload,
+  UpdateDmsDocumentGrantRoleResult,
   UpdateDocumentVisibilityPayload,
 } from '@ssoo/types/dms';
 import { del, get, patch, post } from './core';
@@ -95,6 +97,16 @@ export const accessApi = {
   ) => (
     del<{ grantId: string; documentId: string }>(
       `/api/access/documents/${encodeURIComponent(documentId)}/grants/${encodeURIComponent(grantId)}`,
+    )
+  ),
+  updateGrantRole: (
+    documentId: string,
+    grantId: string,
+    payload: UpdateDmsDocumentGrantRolePayload,
+  ) => (
+    patch<UpdateDmsDocumentGrantRoleResult>(
+      `/api/access/documents/${encodeURIComponent(documentId)}/grants/${encodeURIComponent(grantId)}`,
+      payload,
     )
   ),
   createDirectGrant: (

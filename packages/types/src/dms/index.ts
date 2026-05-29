@@ -99,4 +99,13 @@ export type {
   TransferDocumentOwnershipResult,
   CreateDmsDocumentDirectGrantPayload,
   DmsDocumentDirectGrantResult,
+  UpdateDmsDocumentGrantRolePayload,
+  UpdateDmsDocumentGrantRoleResult,
 } from './access';
+
+export type {
+  CreateDmsDocumentCommentPayload,
+  DmsDocumentCommentMutationResult,
+  DmsDocumentCommentsResult,
+  MutateDmsDocumentCommentPayload,
+} from './comments';

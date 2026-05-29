@@ -229,4 +229,8 @@ export type {
   TransferDocumentOwnershipResult,
   CreateDmsDocumentDirectGrantPayload,
   DmsDocumentDirectGrantResult,
+  CreateDmsDocumentCommentPayload,
+  DmsDocumentCommentMutationResult,
+  DmsDocumentCommentsResult,
+  MutateDmsDocumentCommentPayload,
 } from './dms';

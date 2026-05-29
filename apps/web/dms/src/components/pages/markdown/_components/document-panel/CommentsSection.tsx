@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { MessageSquare, Reply, X } from 'lucide-react';
+import { Eye, EyeOff, MessageSquare, Reply, X } from 'lucide-react';
 import type { DocumentComment } from '@/types';
 import { UserAvatar } from '@/components/common';
 import { CollapsibleSection } from '@/components/templates/page-frame/panel/CollapsibleSection';
@@ -59,9 +59,10 @@ function buildThreads(comments: DocumentComment[]): CommentThread[] {
 function CommentItem({
   comment,
   isReply,
-  isNew,
-  isDeleted,
-  editable,
+  canDelete,
+  canRestore,
+  canViewDeletedDetails,
+  canReply,
   mentionAuthor,
   onDelete,
   onRestore,
@@ -69,28 +70,107 @@ function CommentItem({
 }: {
   comment: DocumentComment;
   isReply?: boolean;
-  isNew?: boolean;
-  isDeleted?: boolean;
-  editable?: boolean;
+  canDelete?: boolean;
+  canRestore?: boolean;
+  canViewDeletedDetails?: boolean;
+  canReply?: boolean;
   mentionAuthor?: string;
-  onDelete?: (id: string) => void;
-  onRestore?: (comment: DocumentComment) => void;
+  onDelete?: (id: string) => void | Promise<void>;
+  onRestore?: (comment: DocumentComment) => void | Promise<void>;
   onReply?: (comment: DocumentComment) => void;
 }) {
-  // 방금 삭제 (pendingDeletes) → soft-delete UI 우선
-  // 이미 저장된 삭제 (deletedAt) → 톰스톤
-  const isTombstone = !!comment.deletedAt && !isDeleted;
+  const isTombstone = !!comment.deletedAt;
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+
+  if (isTombstone && canViewDeletedDetails && detailsOpen) {
+    return (
+      <div
+        className={cn(
+          'flex gap-2 rounded-md px-1.5 py-1.5 text-caption transition-colors hover:bg-ssoo-content-bg/60',
+          isReply && 'ml-6',
+        )}
+      >
+        <div className="mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-gray-100">
+          <X className="h-3 w-3 text-gray-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 italic text-ssoo-primary/60">
+            <span className="text-label-sm">
+              {comment.author || 'Unknown'}
+            </span>
+            <span>{formatDate(comment.createdAt)}</span>
+          </div>
+          <p className="mt-0.5 whitespace-pre-wrap italic text-ssoo-primary/65">
+            {mentionAuthor && (
+              <span className="mr-1 text-label-sm text-blue-500/70">@{mentionAuthor}</span>
+            )}
+            {comment.content}
+          </p>
+          <p className="mt-1 text-ssoo-primary/50">
+            삭제됨
+            {' · '}
+            {formatDate(comment.deletedAt)}
+            {comment.deletedByName ? ` · ${comment.deletedByName}` : ''}
+          </p>
+        </div>
+        <div className="mt-0.5 flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setDetailsOpen(false)}
+            className="inline-flex h-5 w-5 items-center justify-center rounded text-ssoo-primary/50 hover:text-ssoo-primary"
+            title="삭제된 댓글 숨기기"
+          >
+            <EyeOff className="h-3 w-3" />
+          </button>
+          {canRestore && onRestore ? (
+            <button
+              type="button"
+              onClick={() => { void onRestore(comment); }}
+              className="inline-flex h-5 w-5 items-center justify-center rounded text-ssoo-primary/50 hover:text-ssoo-primary"
+              title="되돌리기"
+            >
+              ↩
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   if (isTombstone) {
     return (
       <div className={cn(
-        'flex items-center gap-2 rounded-md px-1.5 py-1.5 text-caption text-ssoo-primary/40',
+        'flex gap-2 rounded-md px-1.5 py-1.5 text-caption text-ssoo-primary/40',
         isReply && 'ml-6',
       )}>
-        <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-gray-100">
+        <div className="mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-gray-100">
           <X className="h-3 w-3 text-gray-400" />
         </div>
-        <span className="italic">삭제된 댓글입니다.</span>
+        <div className="min-w-0 flex-1">
+          <span className="block py-1 italic">삭제된 댓글입니다.</span>
+        </div>
+        <div className="mt-0.5 flex shrink-0 items-center gap-1">
+          {canViewDeletedDetails ? (
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((value) => !value)}
+              className="inline-flex h-5 w-5 items-center justify-center rounded text-ssoo-primary/50 hover:text-ssoo-primary"
+              title="삭제된 댓글 보기"
+            >
+              <Eye className="h-3 w-3" />
+            </button>
+          ) : null}
+          {canRestore && onRestore ? (
+            <button
+              type="button"
+              onClick={() => { void onRestore(comment); }}
+              className="inline-flex h-5 w-5 items-center justify-center rounded text-ssoo-primary/50 hover:text-ssoo-primary"
+              title="되돌리기"
+            >
+              ↩
+            </button>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -100,11 +180,7 @@ function CommentItem({
       className={cn(
         'flex gap-2 rounded-md px-1.5 py-1.5 text-caption transition-colors',
         isReply && 'ml-6',
-        isDeleted
-          ? 'border border-destructive/30 bg-destructive/5'
-          : isNew
-            ? 'border border-destructive/30 bg-destructive/5'
-            : 'hover:bg-ssoo-content-bg/60',
+        'hover:bg-ssoo-content-bg/60',
       )}
     >
       <UserAvatar
@@ -116,21 +192,18 @@ function CommentItem({
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className={cn('text-label-sm text-ssoo-primary', isDeleted && 'line-through text-destructive/60')}>
+          <span className="text-label-sm text-ssoo-primary">
             {comment.author || 'Unknown'}
           </span>
           <span className="text-ssoo-primary/50">{formatDate(comment.createdAt)}</span>
         </div>
-        <p className={cn(
-          'mt-0.5 whitespace-pre-wrap text-ssoo-primary/80',
-          isDeleted && 'line-through text-destructive/50',
-        )}>
+        <p className="mt-0.5 whitespace-pre-wrap text-ssoo-primary/80">
           {mentionAuthor && (
             <span className="mr-1 text-label-sm text-blue-500">@{mentionAuthor}</span>
           )}
           {comment.content}
         </p>
-        {!isDeleted && !editable && onReply && (
+        {canReply && onReply && (
           <button
             type="button"
             onClick={() => onReply(comment)}
@@ -142,19 +215,10 @@ function CommentItem({
         )}
       </div>
       <div className="mt-0.5 flex shrink-0 items-center gap-1">
-        {isDeleted && onRestore ? (
+        {canDelete && onDelete ? (
           <button
             type="button"
-            onClick={() => onRestore(comment)}
-            className="inline-flex h-5 w-5 items-center justify-center rounded text-destructive/50 hover:text-ssoo-primary"
-            title="되돌리기"
-          >
-            ↩
-          </button>
-        ) : editable && onDelete && !isDeleted ? (
-          <button
-            type="button"
-            onClick={() => onDelete(comment.id)}
+            onClick={() => { void onDelete(comment.id); }}
             className="inline-flex h-5 w-5 items-center justify-center rounded text-red-400 hover:text-red-600"
             title="댓글 삭제"
           >
@@ -168,47 +232,37 @@ function CommentItem({
 
 export interface CommentsSectionProps {
   comments: DocumentComment[];
-  editable?: boolean;
-  onDelete: (commentId: string) => void;
-  onRestore?: (comment: DocumentComment) => void;
-  originalCommentIds?: string[];
+  currentUserId?: string;
+  canManageComments?: boolean;
+  canReply?: boolean;
+  onDelete: (commentId: string) => void | Promise<void>;
+  onRestore?: (comment: DocumentComment) => void | Promise<void>;
   onReply?: (comment: DocumentComment) => void;
   locked?: boolean;
 }
 
 export function CommentsSection({
   comments,
-  editable,
+  currentUserId,
+  canManageComments = false,
+  canReply = false,
   onDelete,
   onRestore,
-  originalCommentIds,
   onReply,
   locked = false,
 }: CommentsSectionProps) {
-  const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
-
-  const newCommentIds = React.useMemo(() => {
-    if (!originalCommentIds || !editable) return undefined;
-    const originalSet = new Set(originalCommentIds);
-    const ids = new Set<string>();
-    for (const c of comments) {
-      if (!originalSet.has(c.id) && !pendingDeletes.has(c.id) && !c.deletedAt) ids.add(c.id);
-    }
-    return ids.size > 0 ? ids : undefined;
-  }, [comments, originalCommentIds, editable, pendingDeletes]);
-
-  const handleSoftDelete = (commentId: string) => {
-    setPendingDeletes((prev) => new Set(prev).add(commentId));
-    onDelete(commentId);
-  };
-
-  const handleRestore = (comment: DocumentComment) => {
-    setPendingDeletes((prev) => { const next = new Set(prev); next.delete(comment.id); return next; });
-    onRestore?.(comment);
-  };
-
   const threads = React.useMemo(() => buildThreads(comments), [comments]);
-  const totalCount = comments.filter((c) => !c.deletedAt && !pendingDeletes.has(c.id)).length;
+  const totalCount = comments.filter((c) => !c.deletedAt).length;
+
+  const canDeleteComment = React.useCallback((comment: DocumentComment) => (
+    canManageComments || Boolean(currentUserId && comment.authorUserId === currentUserId)
+  ), [canManageComments, currentUserId]);
+  const canRestoreComment = React.useCallback((comment: DocumentComment) => (
+    Boolean(currentUserId && comment.deletedByUserId === currentUserId)
+  ), [currentUserId]);
+  const canViewDeletedDetails = React.useCallback((comment: DocumentComment) => (
+    canManageComments || Boolean(currentUserId && comment.deletedByUserId === currentUserId)
+  ), [canManageComments, currentUserId]);
 
   return (
     <CollapsibleSection
@@ -223,27 +277,29 @@ export function CommentsSection({
       ) : (
         <div className="space-y-1">
           {threads.map((thread) => {
-            const isRootDeleted = pendingDeletes.has(thread.root.id);
             return (
               <div key={thread.root.id}>
                 <CommentItem
                   comment={thread.root}
-                  isNew={newCommentIds?.has(thread.root.id)}
-                  isDeleted={isRootDeleted}
-                  editable={editable}
-                  onDelete={handleSoftDelete}
-                  onRestore={handleRestore}
+                  canDelete={canDeleteComment(thread.root)}
+                  canRestore={canRestoreComment(thread.root)}
+                  canViewDeletedDetails={canViewDeletedDetails(thread.root)}
+                  canReply={canReply && !thread.root.deletedAt}
+                  onDelete={onDelete}
+                  onRestore={onRestore}
                   onReply={onReply}
                 />
                 {thread.replies.length > 0 && (
                   <RepliesGroup
                     replies={thread.replies}
                     rootAuthor={thread.root.author || 'Unknown'}
-                    pendingDeletes={pendingDeletes}
-                    newCommentIds={newCommentIds}
-                    editable={editable}
-                    onDelete={handleSoftDelete}
-                    onRestore={handleRestore}
+                    currentUserId={currentUserId}
+                    canManageComments={canManageComments}
+                    canRestoreComment={canRestoreComment}
+                    canViewDeletedDetails={canViewDeletedDetails}
+                    canReply={canReply}
+                    onDelete={onDelete}
+                    onRestore={onRestore}
                     onReply={onReply}
                   />
                 )}
@@ -259,20 +315,24 @@ export function CommentsSection({
 function RepliesGroup({
   replies,
   rootAuthor,
-  pendingDeletes,
-  newCommentIds,
-  editable,
+  currentUserId,
+  canManageComments,
+  canRestoreComment,
+  canViewDeletedDetails,
+  canReply,
   onDelete,
   onRestore,
   onReply,
 }: {
   replies: DocumentComment[];
   rootAuthor: string;
-  pendingDeletes: Set<string>;
-  newCommentIds?: Set<string>;
-  editable?: boolean;
-  onDelete: (id: string) => void;
-  onRestore: (comment: DocumentComment) => void;
+  currentUserId?: string;
+  canManageComments: boolean;
+  canRestoreComment: (comment: DocumentComment) => boolean;
+  canViewDeletedDetails: (comment: DocumentComment) => boolean;
+  canReply: boolean;
+  onDelete: (id: string) => void | Promise<void>;
+  onRestore?: (comment: DocumentComment) => void | Promise<void>;
   onReply?: (comment: DocumentComment) => void;
 }) {
   const [expanded, setExpanded] = React.useState(false);
@@ -286,9 +346,10 @@ function RepliesGroup({
           key={reply.id}
           comment={reply}
           isReply
-          isNew={newCommentIds?.has(reply.id)}
-          isDeleted={pendingDeletes.has(reply.id)}
-          editable={editable}
+          canDelete={canManageComments || Boolean(currentUserId && reply.authorUserId === currentUserId)}
+          canRestore={canRestoreComment(reply)}
+          canViewDeletedDetails={canViewDeletedDetails(reply)}
+          canReply={canReply && !reply.deletedAt}
           mentionAuthor={rootAuthor}
           onDelete={onDelete}
           onRestore={onRestore}

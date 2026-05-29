@@ -1,6 +1,6 @@
 # DMS 에이전트 가이드 (AGENTS)
 
-> 최종 업데이트: 2026-02-04  
+> 최종 업데이트: 2026-05-27
 > 범위: DMS 프로젝트 (`apps/web/dms/` + `docs/dms/`) 전용
 
 ---
@@ -29,17 +29,20 @@
 ### 1. 변경 작업 흐름
 
 ```
-코드 변경 → 문서 업데이트 → 빌드 검증 → 커밋 → 양방향 배포
+GitLab workspace sync → 코드 변경 → 문서 업데이트 → 빌드 검증 → 커밋 → GitLab workspace 재sync → 양방향 배포
 ```
 
 | 단계 | 내용 |
 |------|------|
-| **1. 코드 변경** | 패턴 표준 준수, 영향 범위 파악 |
-| **2. 문서 업데이트** | 관련 문서의 Backlog/Changelog 갱신 |
-| **3. 빌드 검증** | `pnpm run build:web-dms` 성공 확인 |
-| **4. 커밋** | 변경 내용과 문서를 함께 커밋 |
-| **5. GitLab workspace 동기화** | 원격 GitLab workspace branch가 앞서 있으면 `pnpm run codex:workspace-sync-from-gitlab` 실행 |
-| **6. 양방향 배포** | `pnpm run codex:workspace-publish` 실행 (GitHub + GitLab workspace + 사전검사 + 검증) |
+| **1. GitLab workspace 선동기화** | 작업 시작 전 `pnpm run codex:workspace-sync-from-gitlab`로 `development`를 로컬에 먼저 재통합 |
+| **2. 코드 변경** | 패턴 표준 준수, 영향 범위 파악 |
+| **3. 문서 업데이트** | 관련 문서의 Backlog/Changelog 갱신 |
+| **4. 빌드 검증** | `pnpm run codex:preflight`, DMS 변경 시 `pnpm run codex:dms-guard` 확인 |
+| **5. 커밋** | 변경 내용과 문서를 함께 커밋 |
+| **6. GitLab workspace 재동기화** | push 직전에도 `pnpm run codex:workspace-sync-from-gitlab` 실행. 원격 변경이 병합되면 검증 재실행 |
+| **7. 양방향 배포** | `pnpm run codex:workspace-publish` 실행 (GitHub + GitLab workspace + 사전검사 + 검증) |
+
+GitLab issue branch가 `development`에 병합되는 병행 개발 단계에서는 로컬 변경이 있으면 먼저 체크포인트 커밋 또는 stash를 만든 뒤 sync한다. 더러운 작업트리 위에서 원격 `development`를 병합하지 않는다.
 
 ### 2. 삭제/수정 작업 흐름
 
@@ -76,6 +79,7 @@ pnpm dev:web-dms
 - [ ] 이 문서(AGENTS.md)를 읽었는지 확인
 - [ ] `package.json` 의존성 확인 (공유 패키지 사용이 현재 규칙과 맞는지)
 - [ ] Copilot 규칙 확인: `dms.instructions.md`
+- [ ] GitLab `development` 최신 상태를 `pnpm run codex:workspace-sync-from-gitlab`로 로컬에 반영했는지 확인
 
 ### 코드 변경 시
 
@@ -161,6 +165,7 @@ pnpm dev:web-dms
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-05-27 | GitLab issue branch 병행 개발에 맞춰 작업 전·push 전 workspace sync, dirty worktree 금지, 재검증 절차를 표준 프로세스에 반영 |
 | 2026-04-07 | DMS workspace 통합에 맞춰 빌드/실행 기준과 공유 패키지 점검 항목을 pnpm 기준으로 갱신 |
 | 2026-04-06 | GitLab 기본 흐름을 full-workspace `development` branch 기준으로 전환하고 `codex:workspace-*` 표준 명령/legacy alias 안내를 반영 |
 | 2026-04-02 | `codex:dms-sync-from-gitlab`와 `codex:dms-publish` 사전검사/인증 fallback 흐름 반영 |

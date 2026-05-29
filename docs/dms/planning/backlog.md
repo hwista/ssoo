@@ -1,6 +1,6 @@
 # DMS 백로그
 
-> 최종 업데이트: 2026-05-27 (검색/권한 런칭 게이트 closeout)
+> 최종 업데이트: 2026-05-29 (협업/권한/알림/댓글 closeout)
 
 ---
 
@@ -29,6 +29,11 @@
 | DMS-PERM-UX-07 | 권한 없는 검색 결과 카드 스니펫/키워드 노출 정책 정리 | P1 | - | ✅ 완료: unreadable 결과 excerpt 안전 문구, snippets 빈 배열, totalSnippetCount 0으로 서버 redaction 고정 |
 | DMS-PERM-UX-04 | 권한 UX 회귀 검증 자동화 | P1 | - | ✅ 완료: live HTTP gate에 요청 생성, 승인/거절, grant 반영, grant 회수, 소유권 이전/복귀 검증 추가 |
 | DMS-DB-MIG-01 | DB 검색 기록 정식 migration 산출물 | P1 | - | ✅ 완료: `dm_search_query_m` 배포 migration 추가 |
+| DMS-SIDECAR-02 | 문서 사이드카 상태/권한/댓글 런칭 UX 정리 | P1 | - | ✅ 완료: 상태/정보/권한/댓글 섹션 정렬, 공개 범위 정보 하위 통합, 권한자/요청 카운트 분리 |
+| DMS-NOTIF-02 | 알림 패널 읽음 상태 제어와 대상 문서 자동 읽음 처리 | P1 | - | ✅ 완료: 개별 읽음/안읽음, 모두 읽음, 대상 문서 접근 시 자동 읽음, 패널 dim 처리 |
+| DMS-COMMENT-01 | 댓글 DB relation 분리와 실시간 알림/삭제 이력 | P1 | - | ✅ 완료: 댓글 API 분리, 작성/삭제/복원 권한, 알림 SSE, tombstone/감사 정보 표시 |
+| DMS-COLLAB-01 | WebSocket soft lock 과 잠금 해제 요청 승인 lifecycle | P1 | - | ✅ 완료: 반복 heartbeat 제거, 편집 진입 lock 검증, 해제 요청/승인/거절, pending 복원과 중복 요청 방지 |
+| DMS-AI-SUMMARY-02 | AI 요약 새 문서 첨부 유지와 링크 라우팅 복구 | P1 | - | ✅ 완료: 요약 원본 파일 첨부 보존, 내부 문서/외부 URL 라우팅 판별 보정 |
 | DMS-STO-01 | 저장소 어댑터 3종(Local/SharePoint/NAS) 구현 | P1 | - | 🔄 1차 완료: 어댑터+API 도입, 라우팅 고도화 필요 |
 | DMS-ING-01 | 자동 수집 큐 + 컨펌 후 게시 플로우 | P1 | - | 🔄 1차 완료: 큐+confirm API 구현, 채널 어댑터 연동 필요 |
 | DMS-AI-01 | AI 모드 분리(wiki/deep) + 세컨드브레인 UI | P1 | - | 🔄 1차 완료: API 분기/응답 확장, 화면 표시 강화 필요 |
@@ -115,6 +120,7 @@
 | DMS-PERM-UX-01-A | Search/Ask 전체 차단 소스 수와 제외 사유 요약 표시 | ✅ 완료 | 검색/Ask 응답과 스트리밍 이벤트, 검색 화면/어시스턴트 대화 UI에 반영 |
 | DMS-PERM-UX-07-A | Unreadable 검색 결과 카드의 원문 스니펫/키워드 제거 또는 preview-only 제한 | ✅ 완료 | AI 요약은 유지하고 원문 기반 발췌/스니펫은 서버 응답에서 제거 |
 | DMS-PERM-UX-04-A | 권한 요청·승인·회수·소유권 이전 회귀 검증 추가 | ✅ 완료 | `verify:access-dms:raw` live HTTP gate에 편입 |
+| DMS-LAUNCH-SMOKE-01 | 최종 브라우저 연속 스모크 | ⬜ 대기 | 검색/권한/댓글/soft lock/AI 요약 첨부/링크 라우팅을 두 계정 이상으로 연속 확인 |
 | DMS-QA-02-A | hard refresh Application error 브라우저 재현 케이스 확보 | ⬜ 대기 | 현재 `build:web-dms`, DMS root HTTP 200, server/DMS logs 기준 재현 없음 |
 
 ---
@@ -123,6 +129,7 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-05-29 | 협업/권한/알림/댓글 closeout: 사이드카 권한/상태 정리, 알림 읽음 상태 제어, DB 댓글, AI 요약 첨부/링크 복구, WebSocket soft lock 과 잠금 해제 요청 lifecycle을 완료로 반영하고 최종 브라우저 연속 스모크를 남은 P1로 등록 |
 | 2026-05-27 | 검색/권한 런칭 게이트 closeout: unreadable 검색 결과 redaction, Search/Ask 차단 소스 수/사유 요약, 권한 요청 승인/거절/grant 회수/소유권 이전 회귀 검증, 검색 기록 DB migration 산출물을 완료로 반영 |
 | 2026-05-20 | AI 검색 기록/인기검색어를 DB 기준으로 정리하고, 검증/테스트 검색어 저장 차단 및 popular 최소 노출 조건을 적용. 권한 없는 문서 클릭은 즉시 팝업이 아니라 잠긴 문서 preview-only 화면 + 권한 요청 CTA로 전환했으며, Docker/browser 확인까지 완료. 다음 런칭 P1은 unreadable 검색 결과 카드의 스니펫/키워드 노출 정책 정리 |
 | 2026-05-18 | 공통 알림 모듈, DMS 헤더 알림/SSE, 사용자별 client state isolation, 권한 요청 취소/owner 알림 archive 정리를 완료 상태로 반영. 현재 검증 기준선(`types/database build`, server/web-dms type check, server test 110개, DMS guard, DMS access verification, DMS build)을 통과했으며, hard refresh client-side error는 브라우저 재현 시 추가 추적 대상으로 분리 |

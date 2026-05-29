@@ -1,24 +1,57 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { AlertTriangle, Bell, CheckCircle2, FileText, Inbox, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
-import type { CommonNotificationActionType, CommonNotificationItem, CommonNotificationJsonValue } from '@ssoo/types/common';
+import { useQueryClient } from '@tanstack/react-query';
 import {
+  AlertTriangle,
+  Bell,
+  CheckCheck,
+  CheckCircle2,
+  FileText,
+  Inbox,
+  KeyRound,
+  Loader2,
+  Mail,
+  MailOpen,
+  MessageSquare,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react';
+import type {
+  CommonNotificationActionType,
+  CommonNotificationItem,
+  CommonNotificationJsonValue,
+  CommonNotificationStreamEvent,
+} from '@ssoo/types/common';
+import { accessRequestKeys } from '@/features/access';
+import {
+  useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
+  useMarkNotificationUnreadMutation,
   useNotificationEventStream,
   useNotificationUnreadCountQuery,
   useNotificationsQuery,
 } from '@/features/notifications';
 import { useOpenDocumentTab } from '@/hooks';
+import { aiSearchKeys } from '@/hooks/queries/useAiSearch';
+import { fileTreeKeys } from '@/hooks/queries/useFileTree';
 import { LAYOUT_SIZES } from '@/lib/constants/layout';
-import { DMS_ACCESS_REQUEST_FOCUS_EVENT } from '@/lib/notification-events';
+import { PopupBackdrop } from '@/components/ui/popup-backdrop';
+import {
+  DMS_ACCESS_REQUEST_FOCUS_EVENT,
+  DMS_DOCUMENT_ACCESS_REFRESH_EVENT,
+  DMS_LOCK_TAKEOVER_REQUEST_FOCUS_EVENT,
+  DMS_LOCK_TAKEOVER_RESPONSE_NOTICE_EVENT,
+  type DmsDocumentAccessRefreshEventDetail,
+  type DmsLockTakeoverRequestFocusEventDetail,
+  type DmsLockTakeoverResponseNoticeEventDetail,
+} from '@/lib/notification-events';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { useGitStore, useSettingsShellStore } from '@/stores';
 
 const NOTIFICATION_PAGE_SIZE = 20;
-const MAX_VISIBLE_GROUP_ITEMS = 8;
 const NOTIFICATION_PANEL_ID = 'dms-header-notifications-panel';
 const NOTIFICATION_PANEL_STYLE: CSSProperties = {
   top: LAYOUT_SIZES.header.height,
@@ -27,6 +60,16 @@ const NOTIFICATION_PANEL_STYLE: CSSProperties = {
   width: `min(${LAYOUT_SIZES.rightPanel.overlayWidth}px, calc(100vw - ${LAYOUT_SIZES.rightPanel.inset * 2}px))`,
 };
 const NOTIFICATION_TOAST_DURATION_MS = 5000;
+const DOCUMENT_ACCESS_REFRESH_NOTIFICATION_TYPES = new Set([
+  'dms.document-access-request.created',
+  'dms.document-access-request.cancelled',
+  'dms.document-access-request.approved',
+  'dms.document-access-request.rejected',
+  'dms.document-access-grant.created',
+  'dms.document-access-grant.updated',
+  'dms.document-access-grant.revoked',
+]);
+const DOCUMENT_ACCESS_CHANGED_DOMAIN_EVENT_TYPE = 'dms.document-access.changed';
 
 function showNotificationToast(item: CommonNotificationItem): void {
   const title = item.title.trim() || '새 알림';
@@ -108,6 +151,43 @@ function NotificationActionButton({
   );
 }
 
+interface NotificationIconButtonProps {
+  title: string;
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: 'secondary' | 'primary';
+}
+
+function NotificationIconButton({
+  title,
+  children,
+  onClick,
+  disabled = false,
+  variant = 'secondary',
+}: NotificationIconButtonProps) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled}
+      className={cn(
+        'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border text-ssoo-primary transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+        variant === 'primary'
+          ? 'border-ssoo-primary bg-ssoo-primary text-white hover:bg-ssoo-primary-hover'
+          : 'border-ssoo-content-border bg-white hover:bg-ssoo-content-bg',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 function getPayloadValue(
   item: CommonNotificationItem,
   key: string,
@@ -124,10 +204,109 @@ function getNotificationPath(item: CommonNotificationItem): string | undefined {
   return getPayloadString(item, 'path') ?? item.reference?.path;
 }
 
+function dispatchDocumentAccessRefresh(item: CommonNotificationItem): void {
+  if (
+    typeof window === 'undefined'
+    || !DOCUMENT_ACCESS_REFRESH_NOTIFICATION_TYPES.has(item.notificationType)
+  ) {
+    return;
+  }
+
+  const path = getNotificationPath(item);
+  if (!path) {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent<DmsDocumentAccessRefreshEventDetail>(
+    DMS_DOCUMENT_ACCESS_REFRESH_EVENT,
+    {
+      detail: {
+        path,
+        notificationType: item.notificationType,
+        notificationId: item.id,
+      },
+    },
+  ));
+}
+
+function isDocumentAccessChangedDomainEvent(event: CommonNotificationStreamEvent): boolean {
+  return event.domainEvent?.type === DOCUMENT_ACCESS_CHANGED_DOMAIN_EVENT_TYPE;
+}
+
 function getNotificationRequestId(item: CommonNotificationItem): string | undefined {
   return getPayloadString(item, 'requestId') ?? (
     item.reference?.type === 'dms.document-access-request' ? item.reference.id : undefined
   );
+}
+
+function isSoftLockTakeoverRequestNotification(item: CommonNotificationItem): boolean {
+  return item.notificationType === 'dms.document-soft-lock.takeover-requested';
+}
+
+function getSoftLockTakeoverResponseStatus(
+  item: CommonNotificationItem,
+): DmsLockTakeoverResponseNoticeEventDetail['status'] | null {
+  const payloadStatus = getPayloadString(item, 'status');
+  const status = payloadStatus ?? item.notificationType.replace('dms.document-soft-lock.takeover-', '');
+  if (status === 'approved' || status === 'rejected' || status === 'expired') {
+    return status;
+  }
+  return null;
+}
+
+function isSoftLockTakeoverResponseNotification(item: CommonNotificationItem): boolean {
+  return item.notificationType.startsWith('dms.document-soft-lock.takeover-')
+    && Boolean(getSoftLockTakeoverResponseStatus(item));
+}
+
+function dispatchSoftLockTakeoverRequestFocus(item: CommonNotificationItem): void {
+  if (typeof window === 'undefined' || !isSoftLockTakeoverRequestNotification(item)) {
+    return;
+  }
+
+  const requestId = getNotificationRequestId(item);
+  const path = getNotificationPath(item);
+  if (!requestId || !path) {
+    return;
+  }
+
+  window.setTimeout(() => {
+    window.dispatchEvent(new CustomEvent<DmsLockTakeoverRequestFocusEventDetail>(
+      DMS_LOCK_TAKEOVER_REQUEST_FOCUS_EVENT,
+      {
+        detail: {
+          requestId,
+          path,
+          requesterName: getPayloadString(item, 'requesterName'),
+        },
+      },
+    ));
+  }, 160);
+}
+
+function dispatchSoftLockTakeoverResponseNotice(item: CommonNotificationItem): void {
+  if (typeof window === 'undefined' || !isSoftLockTakeoverResponseNotification(item)) {
+    return;
+  }
+
+  const requestId = getNotificationRequestId(item);
+  const path = getNotificationPath(item);
+  const status = getSoftLockTakeoverResponseStatus(item);
+  if (!requestId || !path || !status) {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent<DmsLockTakeoverResponseNoticeEventDetail>(
+    DMS_LOCK_TAKEOVER_RESPONSE_NOTICE_EVENT,
+    {
+      detail: {
+        requestId,
+        path,
+        status,
+        message: item.message?.trim() || undefined,
+      },
+    },
+  ));
 }
 
 function getCategory(item: CommonNotificationItem): {
@@ -140,6 +319,13 @@ function getCategory(item: CommonNotificationItem): {
       label: '동기화',
       icon: <AlertTriangle className="h-4 w-4" />,
       tone: item.severity === 'error' ? 'error' : 'warning',
+    };
+  }
+  if (item.notificationType.includes('soft-lock')) {
+    return {
+      label: '잠금',
+      icon: <KeyRound className="h-4 w-4" />,
+      tone: item.severity === 'success' ? 'success' : item.severity === 'error' ? 'error' : 'warning',
     };
   }
   if (item.notificationType.includes('access-request')) {
@@ -158,6 +344,13 @@ function getCategory(item: CommonNotificationItem): {
       label: '권한',
       icon: <ShieldCheck className="h-4 w-4" />,
       tone: item.severity === 'warning' ? 'warning' : 'success',
+    };
+  }
+  if (item.notificationType.includes('document-comment')) {
+    return {
+      label: '댓글',
+      icon: <MessageSquare className="h-4 w-4" />,
+      tone: 'info',
     };
   }
   if (item.notificationType.includes('ownership')) {
@@ -191,16 +384,22 @@ interface NotificationCardProps {
   item: CommonNotificationItem;
   read: boolean;
   isRetryingPublish: boolean;
+  isReadStateChanging: boolean;
   onPrimaryAction: (item: CommonNotificationItem) => void;
   onOpenDocument: (item: CommonNotificationItem) => void;
+  onMarkRead: (item: CommonNotificationItem) => void;
+  onMarkUnread: (item: CommonNotificationItem) => void;
 }
 
 function NotificationCard({
   item,
   read,
   isRetryingPublish,
+  isReadStateChanging,
   onPrimaryAction,
   onOpenDocument,
+  onMarkRead,
+  onMarkUnread,
 }: NotificationCardProps) {
   const category = getCategory(item);
   const path = getNotificationPath(item);
@@ -218,47 +417,63 @@ function NotificationCard({
         'hover:bg-white',
       )}
     >
-      <button
-        type="button"
-        onClick={() => onPrimaryAction(item)}
-        className="flex w-full items-start gap-2 text-left"
-      >
-        <span
-          className={cn(
-            'mt-1 h-2 w-2 shrink-0 rounded-full',
-            read ? 'border border-ssoo-primary/25 bg-transparent' : 'bg-ssoo-primary',
-          )}
-          aria-hidden="true"
-        />
-        <span className={cn(
-          'mt-0.5 shrink-0',
-          category.tone === 'error' && 'text-red-500',
-          category.tone === 'warning' && 'text-amber-600',
-          category.tone === 'success' && 'text-emerald-600',
-          category.tone === 'info' && 'text-ssoo-primary/60',
-        )}
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={() => onPrimaryAction(item)}
+          className="flex min-w-0 flex-1 items-start gap-2 text-left"
         >
-          {category.icon}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="mb-1 inline-flex rounded-full bg-ssoo-content-bg px-1.5 py-0.5 text-[10px] font-medium text-ssoo-primary/70">
-            {category.label}
+          <span
+            className={cn(
+              'mt-1 h-2 w-2 shrink-0 rounded-full',
+              read ? 'border border-ssoo-primary/25 bg-transparent' : 'bg-ssoo-primary',
+            )}
+            aria-hidden="true"
+          />
+          <span className={cn(
+            'mt-0.5 shrink-0',
+            category.tone === 'error' && 'text-red-500',
+            category.tone === 'warning' && 'text-amber-600',
+            category.tone === 'success' && 'text-emerald-600',
+            category.tone === 'info' && 'text-ssoo-primary/60',
+          )}
+          >
+            {category.icon}
           </span>
-          <span className={cn('block truncate text-body-sm', read && 'text-ssoo-primary/70')}>
-            {item.title}
+          <span className="min-w-0 flex-1">
+            <span className="mb-1 inline-flex rounded-full bg-ssoo-content-bg px-1.5 py-0.5 text-[10px] font-medium text-ssoo-primary/70">
+              {category.label}
+            </span>
+            <span className={cn('block truncate text-body-sm', read && 'text-ssoo-primary/70')}>
+              {item.title}
+            </span>
+            {item.message ? (
+              <span className={cn('mt-0.5 line-clamp-2 text-caption text-ssoo-primary/60', read && 'text-ssoo-primary/50')}>
+                {item.message}
+              </span>
+            ) : null}
+            {path ? (
+              <span className="mt-0.5 block truncate text-caption text-ssoo-primary/45">
+                {path}
+              </span>
+            ) : null}
           </span>
-          {item.message ? (
-            <span className={cn('mt-0.5 line-clamp-2 text-caption text-ssoo-primary/60', read && 'text-ssoo-primary/50')}>
-              {item.message}
-            </span>
-          ) : null}
-          {path ? (
-            <span className="mt-0.5 block truncate text-caption text-ssoo-primary/45">
-              {path}
-            </span>
-          ) : null}
-        </span>
-      </button>
+        </button>
+        <NotificationIconButton
+          title={read ? '안 읽음으로 표시' : '읽음 처리'}
+          onClick={() => {
+            if (read) {
+              onMarkUnread(item);
+            } else {
+              onMarkRead(item);
+            }
+          }}
+          disabled={isReadStateChanging}
+          variant={read ? 'secondary' : 'primary'}
+        >
+          {read ? <Mail className="h-3.5 w-3.5" /> : <MailOpen className="h-3.5 w-3.5" />}
+        </NotificationIconButton>
+      </div>
       <div className="mt-2 flex flex-wrap gap-1.5 pl-8">
         <NotificationActionButton
           variant={isPublishRetry ? 'danger' : 'primary'}
@@ -284,55 +499,122 @@ function NotificationCard({
 interface NotificationGroupProps {
   title: string;
   items: CommonNotificationItem[];
+  total: number;
   read: boolean;
+  isFetching: boolean;
   isRetryingPublish: boolean;
+  isReadStateChanging: boolean;
+  headerAction?: ReactNode;
+  onShowMore: () => void;
   onPrimaryAction: (item: CommonNotificationItem) => void;
   onOpenDocument: (item: CommonNotificationItem) => void;
+  onMarkRead: (item: CommonNotificationItem) => void;
+  onMarkUnread: (item: CommonNotificationItem) => void;
 }
 
 function NotificationGroup({
   title,
   items,
+  total,
   read,
+  isFetching,
   isRetryingPublish,
+  isReadStateChanging,
+  headerAction,
+  onShowMore,
   onPrimaryAction,
   onOpenDocument,
+  onMarkRead,
+  onMarkUnread,
 }: NotificationGroupProps) {
-  if (items.length === 0) {
+  if (items.length === 0 && total === 0) {
     return null;
   }
 
-  const visibleItems = items.slice(0, MAX_VISIBLE_GROUP_ITEMS);
+  const remainingCount = Math.max(total - items.length, 0);
 
   return (
     <section className="space-y-2">
-      <h3 className="px-1 text-caption font-semibold text-ssoo-primary/60">{title}</h3>
+      <div className="flex items-center justify-between gap-2 px-1">
+        <h3 className="text-caption font-semibold text-ssoo-primary/60">{title}</h3>
+        <div className="flex items-center gap-1.5">
+          {headerAction}
+          <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ssoo-primary/60">
+            {total}
+          </span>
+        </div>
+      </div>
       <div className="space-y-2">
-        {visibleItems.map((item) => (
+        {items.map((item) => (
           <NotificationCard
             key={item.id}
             item={item}
             read={read}
             isRetryingPublish={isRetryingPublish}
+            isReadStateChanging={isReadStateChanging}
             onPrimaryAction={onPrimaryAction}
             onOpenDocument={onOpenDocument}
+            onMarkRead={onMarkRead}
+            onMarkUnread={onMarkUnread}
           />
         ))}
       </div>
+      {remainingCount > 0 ? (
+        <button
+          type="button"
+          onClick={onShowMore}
+          disabled={isFetching}
+          className="flex h-8 w-full items-center justify-center rounded border border-ssoo-content-border bg-white text-caption font-medium text-ssoo-primary transition-colors hover:bg-ssoo-content-bg disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isFetching ? '불러오는 중' : `더 보기 ${remainingCount}`}
+        </button>
+      ) : null}
     </section>
   );
 }
 
 export function HeaderNotifications() {
-  useNotificationEventStream('dms', { onNotification: showNotificationToast });
+  const queryClient = useQueryClient();
+  const handleNotification = useCallback((item: CommonNotificationItem) => {
+    showNotificationToast(item);
+    dispatchDocumentAccessRefresh(item);
+    dispatchSoftLockTakeoverRequestFocus(item);
+    dispatchSoftLockTakeoverResponseNotice(item);
+  }, []);
+  const handleDomainEvent = useCallback((event: CommonNotificationStreamEvent) => {
+    if (!isDocumentAccessChangedDomainEvent(event)) {
+      return;
+    }
 
-  const notificationsQuery = useNotificationsQuery({
+    void queryClient.invalidateQueries({ queryKey: aiSearchKeys.results() });
+    void queryClient.invalidateQueries({ queryKey: fileTreeKeys.tree() });
+    void queryClient.invalidateQueries({ queryKey: accessRequestKeys.all });
+    void queryClient.invalidateQueries({ queryKey: accessRequestKeys.managedDocuments });
+  }, [queryClient]);
+
+  useNotificationEventStream('dms', {
+    onNotification: handleNotification,
+    onDomainEvent: handleDomainEvent,
+  });
+
+  const [unreadLimit, setUnreadLimit] = useState(NOTIFICATION_PAGE_SIZE);
+  const [readLimit, setReadLimit] = useState(NOTIFICATION_PAGE_SIZE);
+  const unreadNotificationsQuery = useNotificationsQuery({
     sourceApp: 'dms',
     page: 1,
-    pageSize: NOTIFICATION_PAGE_SIZE,
+    pageSize: unreadLimit,
+    unreadOnly: true,
+  });
+  const readNotificationsQuery = useNotificationsQuery({
+    sourceApp: 'dms',
+    page: 1,
+    pageSize: readLimit,
+    readOnly: true,
   });
   const unreadCountQuery = useNotificationUnreadCountQuery();
   const markReadMutation = useMarkNotificationReadMutation();
+  const markUnreadMutation = useMarkNotificationUnreadMutation();
+  const markAllReadMutation = useMarkAllNotificationsReadMutation();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -340,12 +622,15 @@ export function HeaderNotifications() {
   const openDocumentTab = useOpenDocumentTab();
   const { isRetryingPublish, retryPublish } = useGitStore();
 
-  const notifications = notificationsQuery.data?.items ?? [];
-  const unreadNotifications = notifications.filter((item) => !item.isRead);
-  const readNotifications = notifications.filter((item) => item.isRead);
-  const unreadCount = unreadCountQuery.data?.count ?? unreadNotifications.length;
-  const isFetching = notificationsQuery.isFetching || unreadCountQuery.isFetching;
-  const hasNotifications = notifications.length > 0;
+  const unreadNotifications = unreadNotificationsQuery.data?.items ?? [];
+  const readNotifications = readNotificationsQuery.data?.items ?? [];
+  const unreadTotal = unreadNotificationsQuery.data?.total ?? unreadCountQuery.data?.count ?? unreadNotifications.length;
+  const readTotal = readNotificationsQuery.data?.total ?? readNotifications.length;
+  const unreadCount = unreadCountQuery.data?.count ?? unreadTotal;
+  const isFetching = unreadNotificationsQuery.isFetching || readNotificationsQuery.isFetching || unreadCountQuery.isFetching;
+  const isReadStateChanging = markReadMutation.isPending || markUnreadMutation.isPending || markAllReadMutation.isPending;
+  const hasNotificationData = Boolean(unreadNotificationsQuery.data || readNotificationsQuery.data);
+  const hasNotifications = unreadTotal + readTotal > 0;
 
   useEffect(() => {
     if (!open) {
@@ -388,6 +673,32 @@ export function HeaderNotifications() {
     }
   };
 
+  const markAsUnread = async (item: CommonNotificationItem) => {
+    if (!item.isRead || markUnreadMutation.isPending) {
+      return;
+    }
+
+    try {
+      await markUnreadMutation.mutateAsync(item.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '알림 안읽음 처리에 실패했습니다.';
+      toast.error(message);
+    }
+  };
+
+  const markAllUnreadAsRead = async () => {
+    if (unreadTotal <= 0 || markAllReadMutation.isPending) {
+      return;
+    }
+
+    try {
+      await markAllReadMutation.mutateAsync();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '알림 전체 읽음 처리에 실패했습니다.';
+      toast.error(message);
+    }
+  };
+
   const openAccessRequest = (requestId?: string) => {
     openSettingsSection('system', 'documentAccess');
     setOpen(false);
@@ -423,6 +734,7 @@ export function HeaderNotifications() {
     const path = getNotificationPath(item);
     if (path) {
       await handleOpenDocument(path);
+      dispatchSoftLockTakeoverRequestFocus(item);
     }
   };
 
@@ -450,11 +762,13 @@ export function HeaderNotifications() {
 
     if (actionType === 'open-dms-document' && path) {
       await handleOpenDocument(path);
+      dispatchSoftLockTakeoverRequestFocus(item);
       return;
     }
 
     if (path) {
       await handleOpenDocument(path);
+      dispatchSoftLockTakeoverRequestFocus(item);
       return;
     }
 
@@ -479,42 +793,66 @@ export function HeaderNotifications() {
       </button>
 
       {open ? (
-        <div
-          ref={panelRef}
-          id={NOTIFICATION_PANEL_ID}
-          role="dialog"
-          aria-label="알림"
-          style={NOTIFICATION_PANEL_STYLE}
-          className={cn(
-            'fixed z-[60] flex overflow-hidden rounded-l-lg border border-ssoo-content-border bg-ssoo-content-bg text-ssoo-primary shadow-2xl',
-            'flex-col',
-          )}
-        >
-          <div className="flex items-center justify-between gap-3 border-b border-ssoo-content-border bg-white px-4 py-3">
-            <p className="text-label-strong text-ssoo-primary">알림</p>
-            {isFetching ? <Loader2 className="h-4 w-4 animate-spin text-ssoo-primary/60" /> : null}
-          </div>
+        <>
+          <PopupBackdrop className="z-[55]" />
+          <div
+            ref={panelRef}
+            id={NOTIFICATION_PANEL_ID}
+            role="dialog"
+            aria-label="알림"
+            style={NOTIFICATION_PANEL_STYLE}
+            className={cn(
+              'fixed z-[60] flex overflow-hidden rounded-l-lg border border-ssoo-content-border bg-ssoo-content-bg text-ssoo-primary shadow-2xl',
+              'flex-col',
+            )}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-ssoo-content-border bg-white px-4 py-3">
+              <p className="text-label-strong text-ssoo-primary">알림</p>
+              {isFetching ? <Loader2 className="h-4 w-4 animate-spin text-ssoo-primary/60" /> : null}
+            </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-2">
-            {!hasNotifications ? <EmptyNotifications /> : null}
-            <NotificationGroup
-              title="새 알림"
-              items={unreadNotifications}
-              read={false}
-              isRetryingPublish={isRetryingPublish}
-              onPrimaryAction={(item) => void handlePrimaryAction(item)}
-              onOpenDocument={(item) => void handleOpenDocumentFromNotification(item)}
-            />
-            <NotificationGroup
-              title="읽은 알림"
-              items={readNotifications}
-              read
-              isRetryingPublish={isRetryingPublish}
-              onPrimaryAction={(item) => void handlePrimaryAction(item)}
-              onOpenDocument={(item) => void handleOpenDocumentFromNotification(item)}
-            />
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-2">
+              {hasNotificationData && !isFetching && !hasNotifications ? <EmptyNotifications /> : null}
+              <NotificationGroup
+                title="새 알림"
+                items={unreadNotifications}
+                total={unreadTotal}
+                read={false}
+                isFetching={unreadNotificationsQuery.isFetching}
+                isRetryingPublish={isRetryingPublish}
+                isReadStateChanging={isReadStateChanging}
+                headerAction={unreadTotal > 0 ? (
+                  <NotificationActionButton
+                    onClick={() => void markAllUnreadAsRead()}
+                    disabled={markAllReadMutation.isPending}
+                  >
+                    <CheckCheck className="h-3 w-3" />
+                    모두 읽음
+                  </NotificationActionButton>
+                ) : null}
+                onShowMore={() => setUnreadLimit((currentLimit) => currentLimit + NOTIFICATION_PAGE_SIZE)}
+                onPrimaryAction={(item) => void handlePrimaryAction(item)}
+                onOpenDocument={(item) => void handleOpenDocumentFromNotification(item)}
+                onMarkRead={(item) => void markAsRead(item)}
+                onMarkUnread={(item) => void markAsUnread(item)}
+              />
+              <NotificationGroup
+                title="읽은 알림"
+                items={readNotifications}
+                total={readTotal}
+                read
+                isFetching={readNotificationsQuery.isFetching}
+                isRetryingPublish={isRetryingPublish}
+                isReadStateChanging={isReadStateChanging}
+                onShowMore={() => setReadLimit((currentLimit) => currentLimit + NOTIFICATION_PAGE_SIZE)}
+                onPrimaryAction={(item) => void handlePrimaryAction(item)}
+                onOpenDocument={(item) => void handleOpenDocumentFromNotification(item)}
+                onMarkRead={(item) => void markAsRead(item)}
+                onMarkUnread={(item) => void markAsUnread(item)}
+              />
+            </div>
           </div>
-        </div>
+        </>
       ) : null}
     </>
   );

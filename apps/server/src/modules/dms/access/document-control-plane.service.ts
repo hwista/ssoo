@@ -112,6 +112,10 @@ const DOCUMENT_CONTROL_PLANE_SELECT = {
       avatarUrl: true,
       commentCreatedAt: true,
       commentDeletedAt: true,
+      commentDeletedBy: true,
+      commentDeletedByName: true,
+      createdBy: true,
+      updatedBy: true,
       sortOrder: true,
     },
     orderBy: [
@@ -213,6 +217,8 @@ function normalizeComments(value: unknown): DocumentComment[] {
       avatarUrl: pickString(entry['avatarUrl']),
       parentId: pickString(entry['parentId']),
       deletedAt: pickString(entry['deletedAt']),
+      deletedByUserId: pickString(entry['deletedByUserId']),
+      deletedByName: pickString(entry['deletedByName']),
     }];
   });
 }
@@ -348,12 +354,19 @@ function mapCommentRows(entries: ControlPlaneDocument['comments']): DocumentComm
   return entries.map((entry) => ({
     id: entry.commentKey,
     author: entry.authorName,
+    authorUserId: entry.createdBy?.toString(),
     content: entry.commentContent,
     createdAt: entry.commentCreatedAt.toISOString(),
     email: entry.authorEmail ?? undefined,
     avatarUrl: entry.avatarUrl ?? undefined,
     parentId: entry.parentCommentKey ?? undefined,
     deletedAt: entry.commentDeletedAt?.toISOString(),
+    deletedByUserId: entry.commentDeletedAt
+      ? (entry.commentDeletedBy ?? entry.updatedBy)?.toString()
+      : undefined,
+    deletedByName: entry.commentDeletedAt
+      ? entry.commentDeletedByName ?? undefined
+      : undefined,
   }));
 }
 

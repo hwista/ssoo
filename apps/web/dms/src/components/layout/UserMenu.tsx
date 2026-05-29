@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FileQuestion, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { AuthUserMenu } from '@ssoo/web-auth';
 import { LOGIN_PATH } from '@/lib/constants/routes';
 import { resetDmsFileTreeSession } from '@/lib/file-tree-session';
@@ -17,11 +17,9 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
   const { user, logout } = useAuthStore();
   const accessFeatures = useAccessStore((state) => state.snapshot?.features);
   const canManageSettings = accessFeatures?.canManageSettings ?? false;
-  const canOpenAccessManagement = Boolean(accessFeatures?.canReadDocuments || accessFeatures?.canUseSearch);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
   const applyWorkspacePreferences = useSettingsShellStore((state) => state.applyWorkspacePreferences);
   const enterSettings = useSettingsShellStore((state) => state.enterSettings);
-  const openSection = useSettingsShellStore((state) => state.openSection);
 
   const openSettings = async () => {
     await loadSettings();
@@ -30,10 +28,6 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
       applyWorkspacePreferences(settings.personal.workspace);
     }
     enterSettings();
-  };
-
-  const openAccessManagement = () => {
-    openSection('system', 'documentAccess');
   };
 
   const handleLogout = async () => {
@@ -48,13 +42,6 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
       dropdownWidth={dropdownWidth}
       onLogout={handleLogout}
       actions={[
-        {
-          key: 'document-access',
-          label: '권한 요청/승인',
-          icon: FileQuestion,
-          disabled: !canOpenAccessManagement,
-          onSelect: openAccessManagement,
-        },
         {
           key: 'settings',
           label: '설정',

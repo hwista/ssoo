@@ -65,6 +65,7 @@ function toInputJson(value: Record<string, CommonNotificationJsonValue> | undefi
 @Injectable()
 export class CommonNotificationService {
   private readonly streamListeners = new Map<string, Set<NotificationStreamListener>>();
+  private readonly sourceAppStreamListeners = new Map<CommonNotificationSourceApp, Set<NotificationStreamListener>>();
 
   constructor(private readonly db: DatabaseService) {}
 
@@ -83,6 +84,9 @@ export class CommonNotificationService {
       };
 
       this.addStreamListener(recipientKey, listener);
+      if (sourceApp) {
+        this.addSourceAppStreamListener(sourceApp, listener);
+      }
       subscriber.next({
         type: 'connected',
         data: {
@@ -106,6 +110,9 @@ export class CommonNotificationService {
       return () => {
         clearInterval(heartbeatId);
         this.removeStreamListener(recipientKey, listener);
+        if (sourceApp) {
+          this.removeSourceAppStreamListener(sourceApp, listener);
+        }
       };
     });
   }
@@ -119,7 +126,7 @@ export class CommonNotificationService {
       recipientUserId,
       isActive: true,
       archivedAt: null,
-      ...(params.unreadOnly ? { isRead: false } : {}),
+      ...(params.unreadOnly ? { isRead: false } : params.readOnly ? { isRead: true } : {}),
       ...(params.sourceApp ? { sourceAppCode: params.sourceApp } : {}),
       ...(params.notificationType ? { notificationType: params.notificationType } : {}),
     };
@@ -192,6 +199,43 @@ export class CommonNotificationService {
     return item;
   }
 
+  async markAsUnread(
+    notificationId: bigint,
+    recipientUserId: bigint,
+    sourceApp?: CommonNotificationSourceApp,
+  ): Promise<CommonNotificationItem> {
+    const notification = await this.db.client.commonNotification.findFirst({
+      where: {
+        id: notificationId,
+        recipientUserId,
+        isActive: true,
+        archivedAt: null,
+        ...(sourceApp ? { sourceAppCode: sourceApp } : {}),
+      },
+    });
+    if (!notification) {
+      throw new NotFoundException(`Notification ${notificationId.toString()} not found`);
+    }
+
+    const updated = await this.db.client.commonNotification.update({
+      where: { id: notification.id },
+      data: notification.isRead
+        ? { isRead: false, readAt: null }
+        : {},
+    });
+
+    const item = this.toItem(updated);
+    this.publishToUser(recipientUserId, {
+      type: 'notification-unread',
+      sourceApp: item.sourceApp,
+      notificationId: item.id,
+      notification: item,
+      emittedAt: new Date().toISOString(),
+    });
+
+    return item;
+  }
+
   async markAllAsRead(recipientUserId: bigint, sourceApp?: CommonNotificationSourceApp) {
     const result = await this.db.client.commonNotification.updateMany({
       where: {
@@ -212,6 +256,58 @@ export class CommonNotificationService {
     });
 
     return { count: result.count };
+  }
+
+  async markByReferencePathAsRead(
+    recipientUserId: bigint,
+    referencePath: string,
+    sourceApp?: CommonNotificationSourceApp,
+  ) {
+    const normalizedPath = referencePath.trim();
+    if (!normalizedPath) {
+      return { count: 0 };
+    }
+
+    const notifications = await this.db.client.commonNotification.findMany({
+      where: {
+        recipientUserId,
+        referencePath: normalizedPath,
+        isRead: false,
+        archivedAt: null,
+        isActive: true,
+        ...(sourceApp ? { sourceAppCode: sourceApp } : {}),
+      },
+      select: {
+        id: true,
+        sourceAppCode: true,
+      },
+    });
+
+    if (notifications.length === 0) {
+      return { count: 0 };
+    }
+
+    await this.db.client.commonNotification.updateMany({
+      where: {
+        id: { in: notifications.map((notification) => notification.id) },
+      },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    });
+
+    const emittedAt = new Date().toISOString();
+    for (const notification of notifications) {
+      this.publishToUser(recipientUserId, {
+        type: 'notification-read',
+        sourceApp: notification.sourceAppCode as CommonNotificationSourceApp,
+        notificationId: notification.id.toString(),
+        emittedAt,
+      });
+    }
+
+    return { count: notifications.length };
   }
 
   async archiveByDedupeKey(
@@ -316,6 +412,22 @@ export class CommonNotificationService {
     })));
   }
 
+  publishDomainEvent(
+    sourceApp: CommonNotificationSourceApp,
+    type: string,
+    payload?: Record<string, CommonNotificationJsonValue>,
+  ): void {
+    this.publishToSourceApp(sourceApp, {
+      type: 'domain-event',
+      sourceApp,
+      domainEvent: {
+        type,
+        payload,
+      },
+      emittedAt: new Date().toISOString(),
+    });
+  }
+
   private toCreateData(input: NotifyUserInput): Prisma.CommonNotificationCreateInput {
     return {
       recipientUserId: input.recipientUserId,
@@ -356,6 +468,30 @@ export class CommonNotificationService {
     }
   }
 
+  private addSourceAppStreamListener(
+    sourceApp: CommonNotificationSourceApp,
+    listener: NotificationStreamListener,
+  ): void {
+    const listeners = this.sourceAppStreamListeners.get(sourceApp) ?? new Set<NotificationStreamListener>();
+    listeners.add(listener);
+    this.sourceAppStreamListeners.set(sourceApp, listeners);
+  }
+
+  private removeSourceAppStreamListener(
+    sourceApp: CommonNotificationSourceApp,
+    listener: NotificationStreamListener,
+  ): void {
+    const listeners = this.sourceAppStreamListeners.get(sourceApp);
+    if (!listeners) {
+      return;
+    }
+
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      this.sourceAppStreamListeners.delete(sourceApp);
+    }
+  }
+
   private publishNotification(notification: CommonNotificationItem): void {
     this.publishToUser(BigInt(notification.recipientUserId), {
       type: 'notification',
@@ -367,6 +503,17 @@ export class CommonNotificationService {
 
   private publishToUser(recipientUserId: bigint, event: CommonNotificationStreamEvent): void {
     const listeners = this.streamListeners.get(recipientUserId.toString());
+    if (!listeners) {
+      return;
+    }
+
+    for (const listener of listeners) {
+      listener(event);
+    }
+  }
+
+  private publishToSourceApp(sourceApp: CommonNotificationSourceApp, event: CommonNotificationStreamEvent): void {
+    const listeners = this.sourceAppStreamListeners.get(sourceApp);
     if (!listeners) {
       return;
     }

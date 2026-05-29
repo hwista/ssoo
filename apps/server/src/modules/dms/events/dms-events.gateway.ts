@@ -11,6 +11,11 @@ import { Logger } from '@nestjs/common';
 import type { Server, Socket } from 'socket.io';
 import { verifyWsToken } from './ws-jwt.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import type {
+  DocumentCollaborationSnapshot,
+  SoftLockTakeoverRequest,
+  SoftLockTakeoverResponse,
+} from '../collaboration/collaboration.service.js';
 
 const logger = new Logger('DmsEventsGateway');
 
@@ -38,15 +43,10 @@ export interface DmsTreeChangedEvent {
   action: 'create' | 'rename' | 'delete' | 'sync';
 }
 
-/**
- * 문서 access state 변경 이벤트 — visibility / grant / ownership 등 ACL 영향 변경 시 emit.
- * 모든 dms 클라이언트가 받아 search / file tree / managed documents query 를 invalidate.
- */
-export interface DmsAccessChangedEvent {
-  documentId: string;
-  relativePath?: string;
-  reason: 'visibility' | 'ownership' | 'grant-revoked' | 'grant-created' | 'grant-direct' | 'request-cancelled';
-  actorUserId?: string;
+export interface DmsCollaborationChangedEvent {
+  path: string;
+  reason: 'join' | 'mode' | 'leave' | 'lock' | 'takeover' | 'publish' | 'refresh';
+  snapshot: DocumentCollaborationSnapshot;
 }
 
 interface AuthenticatedSocket extends Socket {
@@ -198,16 +198,16 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.server?.to('dms:tree').emit('dms:tree-changed', event);
   }
 
-  /**
-   * 문서 ACL/visibility 변경 broadcast — 모든 dms 사용자가 search/tree cache 를 invalidate 하도록.
-   * tree room 으로 보내 모든 인증된 dms 클라이언트에게 도달 (개별 doc room 가입 여부와 무관).
-   */
-  emitAccessChanged(event: DmsAccessChangedEvent): void {
-    this.server?.to('dms:tree').emit('dms:access-changed', event);
-    if (event.relativePath) {
-      const roomName = this.documentRoom(event.relativePath);
-      this.server?.to(roomName).emit('dms:access-changed', event);
-    }
+  emitCollaborationChanged(event: DmsCollaborationChangedEvent): void {
+    this.server?.to(this.documentRoom(event.path)).emit('dms:collaboration-changed', event);
+  }
+
+  emitLockTakeoverRequested(ownerUserId: string, event: SoftLockTakeoverRequest): void {
+    this.emitToUser(ownerUserId, 'dms:lock-takeover-requested', event);
+  }
+
+  emitLockTakeoverResponded(requesterUserId: string, event: SoftLockTakeoverResponse): void {
+    this.emitToUser(requesterUserId, 'dms:lock-takeover-responded', event);
   }
 
   // --------------------------------------------------------------------------
@@ -218,7 +218,19 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
     return `doc:${filePath}`;
   }
 
+  private emitToUser(userId: string, eventName: string, payload: unknown): void {
+    const socketIds = this.connectedUsers.get(userId);
+    if (!socketIds?.size) return;
+    for (const socketId of socketIds) {
+      this.server?.to(socketId).emit(eventName, payload);
+    }
+  }
+
   getConnectedUserCount(): number {
     return this.connectedUsers.size;
+  }
+
+  isUserConnected(userId: string): boolean {
+    return Boolean(this.connectedUsers.get(userId)?.size);
   }
 }

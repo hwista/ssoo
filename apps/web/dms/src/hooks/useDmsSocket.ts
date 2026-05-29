@@ -6,9 +6,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getSharedAccessToken } from '@ssoo/web-auth';
 import { useAuthStore } from '@/stores';
 import { fileTreeKeys } from '@/hooks/queries/useFileTree';
-import { aiSearchKeys } from '@/hooks/queries/useAiSearch';
-import { accessRequestKeys } from '@/features/access';
 import { toast } from '@/lib/toast';
+import {
+  DMS_COLLABORATION_CHANGED_EVENT,
+  DMS_LOCK_TAKEOVER_REQUESTED_EVENT,
+  DMS_LOCK_TAKEOVER_RESPONDED_EVENT,
+} from '@/lib/notification-events';
+import type {
+  DocumentCollaborationSnapshotClient,
+  SoftLockTakeoverRequestClient,
+  SoftLockTakeoverResponseClient,
+} from '@/lib/api/collaborationApi';
 
 // ============================================================================
 // Types
@@ -32,6 +40,12 @@ interface DmsPublishStatusEvent {
   status: string;
   commitHash?: string;
   error?: string;
+}
+
+interface DmsCollaborationChangedSocketEvent {
+  path: string;
+  reason: 'join' | 'mode' | 'leave' | 'lock' | 'takeover' | 'publish' | 'refresh';
+  snapshot: DocumentCollaborationSnapshotClient;
 }
 
 interface UseDmsSocketOptions {
@@ -79,6 +93,8 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
     currentUserIdRef.current = currentUserId;
   }, [currentUserId]);
   const prevDocPath = useRef<string | undefined>(undefined);
+  const activeDocumentPathRef = useRef(activeDocumentPath);
+  activeDocumentPathRef.current = activeDocumentPath;
 
   // Invalidate file tree query
   const invalidateFileTree = useCallback(() => {
@@ -97,7 +113,7 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
 
     const socket = io(`${wsUrl}/dms`, {
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
@@ -110,10 +126,12 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
       // 트리 변경 구독
       socket.emit('subscribe:tree');
 
-      // 현재 보고 있는 문서가 있으면 구독
-      if (activeDocumentPath) {
-        socket.emit('subscribe:document', { path: activeDocumentPath });
-        prevDocPath.current = activeDocumentPath;
+      // 현재 보고 있는 문서가 있으면 구독.
+      // connect handler 는 socket lifecycle 동안 유지되므로 최신 경로는 ref 에서 읽는다.
+      const latestActiveDocumentPath = activeDocumentPathRef.current;
+      if (latestActiveDocumentPath) {
+        socket.emit('subscribe:document', { path: latestActiveDocumentPath });
+        prevDocPath.current = latestActiveDocumentPath;
       }
     });
 
@@ -148,13 +166,16 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
       onPublishStatus?.(event);
     });
 
-    // ACL/visibility 변경 이벤트 — 모든 client 가 search/tree/access-request cache 를 즉시 invalidate.
-    // 정식 cross-client invalidation 통로. F1 staleTime 단축의 정식 대체.
-    socket.on('dms:access-changed', () => {
-      void queryClient.invalidateQueries({ queryKey: aiSearchKeys.results() });
-      void queryClient.invalidateQueries({ queryKey: fileTreeKeys.tree() });
-      void queryClient.invalidateQueries({ queryKey: accessRequestKeys.all });
-      void queryClient.invalidateQueries({ queryKey: accessRequestKeys.managedDocuments });
+    socket.on('dms:collaboration-changed', (event: DmsCollaborationChangedSocketEvent) => {
+      window.dispatchEvent(new CustomEvent(DMS_COLLABORATION_CHANGED_EVENT, { detail: event }));
+    });
+
+    socket.on('dms:lock-takeover-requested', (event: SoftLockTakeoverRequestClient) => {
+      window.dispatchEvent(new CustomEvent(DMS_LOCK_TAKEOVER_REQUESTED_EVENT, { detail: event }));
+    });
+
+    socket.on('dms:lock-takeover-responded', (event: SoftLockTakeoverResponseClient) => {
+      window.dispatchEvent(new CustomEvent(DMS_LOCK_TAKEOVER_RESPONDED_EVENT, { detail: event }));
     });
 
     return () => {

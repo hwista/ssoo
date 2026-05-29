@@ -87,6 +87,7 @@ export function NewDocumentLauncher({
           size: file.size,
           textContent,
           images,
+          rawFile: file,
         };
       })
     );

@@ -61,6 +61,7 @@ export interface CommonNotificationListQuery {
   page?: number;
   pageSize?: number;
   unreadOnly?: boolean;
+  readOnly?: boolean;
   sourceApp?: CommonNotificationSourceApp;
   notificationType?: string;
 }
@@ -87,14 +88,22 @@ export interface CommonNotificationArchiveResult {
 export type CommonNotificationStreamEventType =
   | 'connected'
   | 'heartbeat'
+  | 'domain-event'
   | 'notification'
   | 'notification-read'
+  | 'notification-unread'
   | 'notification-archived'
   | 'notifications-read-all';
+
+export interface CommonNotificationDomainEvent {
+  type: string;
+  payload?: Record<string, CommonNotificationJsonValue>;
+}
 
 export interface CommonNotificationStreamEvent {
   type: CommonNotificationStreamEventType;
   sourceApp?: CommonNotificationSourceApp;
+  domainEvent?: CommonNotificationDomainEvent;
   notification?: CommonNotificationItem;
   notificationId?: string;
   readCount?: number;
