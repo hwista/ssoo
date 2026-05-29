@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { FileNode, BookmarkItem } from '@/types';
 import { filesApi } from '@/lib/api/endpoints/files';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
+import { getFileNodeDisplayTitle } from '@/lib/utils/fileTree';
+import { resolveDocPath } from '@/lib/utils/linkUtils';
 import {
   getCurrentUserScopeId,
   isUserScopeTransition,
@@ -25,6 +27,44 @@ const buildFileMap = (nodes: FileNode[]): Map<string, FileNode> => {
 
   traverse(nodes);
   return map;
+};
+
+const resolveBookmarkTitle = (
+  bookmark: Pick<BookmarkItem, 'path' | 'title'>,
+  fileMap: Map<string, FileNode>,
+): string => {
+  const documentPath = resolveDocPath(bookmark.path);
+  if (!documentPath) {
+    return bookmark.title;
+  }
+
+  const node = fileMap.get(documentPath);
+  if (!node) {
+    return bookmark.title;
+  }
+
+  return getFileNodeDisplayTitle(node);
+};
+
+const reconcileBookmarksWithFileMap = (
+  bookmarks: BookmarkItem[],
+  fileMap: Map<string, FileNode>,
+): BookmarkItem[] => {
+  let changed = false;
+  const nextBookmarks = bookmarks.map((bookmark) => {
+    const title = resolveBookmarkTitle(bookmark, fileMap);
+    if (title === bookmark.title) {
+      return bookmark;
+    }
+
+    changed = true;
+    return {
+      ...bookmark,
+      title,
+    };
+  });
+
+  return changed ? nextBookmarks : bookmarks;
 };
 
 interface FileStoreState {
@@ -140,9 +180,14 @@ export const useFileStore = create<FileStore>()(
               return { success: false, error: '사용자 전환으로 파일 트리 응답을 폐기했습니다.' };
             }
             const fileMap = buildFileMap(nextFiles);
+            const { bookmarks, ownerUserId } = get();
+            const nextBookmarks = ownerUserId === requestScope.userId
+              ? reconcileBookmarksWithFileMap(bookmarks, fileMap)
+              : bookmarks;
             set({
               files: nextFiles,
               fileMap,
+              bookmarks: nextBookmarks,
               isLoading: false,
               isInitialized: true,
               error: null,
@@ -197,9 +242,14 @@ export const useFileStore = create<FileStore>()(
               return;
             }
             const fileMap = buildFileMap(nextFiles);
+            const { bookmarks, ownerUserId } = get();
+            const nextBookmarks = ownerUserId === requestScope.userId
+              ? reconcileBookmarksWithFileMap(bookmarks, fileMap)
+              : bookmarks;
             set({
               files: nextFiles,
               fileMap,
+              bookmarks: nextBookmarks,
               isLoading: false,
               isInitialized: true,
               error: null,
@@ -234,7 +284,17 @@ export const useFileStore = create<FileStore>()(
       setFiles: (files) => {
         const currentUserId = getCurrentUserScopeId();
         const fileMap = buildFileMap(files);
-        set({ files, fileMap, lastUpdatedAt: new Date(), filesOwnerUserId: currentUserId });
+        const { bookmarks, ownerUserId } = get();
+        const nextBookmarks = ownerUserId === currentUserId
+          ? reconcileBookmarksWithFileMap(bookmarks, fileMap)
+          : bookmarks;
+        set({
+          files,
+          fileMap,
+          bookmarks: nextBookmarks,
+          lastUpdatedAt: new Date(),
+          filesOwnerUserId: currentUserId,
+        });
       },
 
       // 경로로 파일 찾기 (O(1) - PMS getMenuByCode 대응)
@@ -256,11 +316,14 @@ export const useFileStore = create<FileStore>()(
         const { bookmarks, ownerUserId } = get();
         const scopedBookmarks = ownerUserId === currentUserId ? bookmarks : [];
         if (scopedBookmarks.some((b) => b.id === bookmark.id)) return;
+        const resolvedTitle = get().filesOwnerUserId === currentUserId
+          ? resolveBookmarkTitle(bookmark, get().fileMap)
+          : bookmark.title;
 
         set({
           bookmarks: [
             ...scopedBookmarks,
-            { ...bookmark, addedAt: new Date() },
+            { ...bookmark, title: resolvedTitle, addedAt: new Date() },
           ],
           ownerUserId: currentUserId,
         });
