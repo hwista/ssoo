@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(
+  git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || {
+    cd "$SCRIPT_DIR/../../.." && pwd
+  }
+)"
 cd "$ROOT_DIR"
 
 RUNTIME_DIR="${PLAYWRIGHT_RUNTIME_DIR:-$ROOT_DIR/.runtime/playwright}"

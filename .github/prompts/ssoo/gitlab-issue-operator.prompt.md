@@ -48,7 +48,7 @@ pnpm run copilot:issue:close-duplicate -- --issue <duplicate-iid> --canonical <c
 
 ## Implementation boundary
 
-- Stateful logic lives in `scripts/copilot-issue/**`.
+- Stateful logic lives in `automation/scripts/copilot-issue/**`.
 - Merge/publish transport lives in `codex:workspace-*` scripts.
 - This wrapper is an instruction layer only.
 - Skill extraction may be considered later, but it must not become a baseline requirement.

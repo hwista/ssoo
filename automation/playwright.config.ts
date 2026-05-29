@@ -1,7 +1,12 @@
 import { defineConfig } from '@playwright/test';
+import { resolve } from 'path';
+
+const automationDir = __dirname;
+const repoRoot = resolve(automationDir, '..');
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: resolve(automationDir, 'tests/e2e'),
+  outputDir: resolve(repoRoot, 'test-results'),
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
@@ -17,7 +22,8 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'bash scripts/playwright/start-dms-e2e-stack.sh',
+    command: 'bash automation/scripts/playwright/start-dms-e2e-stack.sh',
+    cwd: repoRoot,
     url: 'http://127.0.0.1:3001/login',
     reuseExistingServer: false,
     timeout: 10 * 60 * 1000,

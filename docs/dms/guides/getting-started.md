@@ -179,6 +179,11 @@ pnpm run codex:workspace-publish
 
 > `pnpm run test:e2e:dms` 는 Docker 없이 `.runtime/playwright/` 아래 로컬 PostgreSQL cluster를 띄우고, fresh schema/seed를 적용한 뒤 DMS direct-run server + `web-dms` production server를 함께 올려 **로그인 smoke** 를 실행합니다. pgvector가 필요한 AI/search E2E는 별도 DB profile 또는 Docker 스택이 필요합니다.
 
+관련 문서:
+
+- [GitLab issue operator mode](./gitlab-issue-operator-mode.md)
+- [DMS automation surface index](../../../automation/README.md)
+
 ---
 
 ## 6. 문제 해결
