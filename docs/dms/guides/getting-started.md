@@ -151,6 +151,12 @@ pnpm docker:logs
 # DMS 빌드
 pnpm run build:web-dms
 
+# Playwright browser install (1회)
+pnpm run playwright:install
+
+# DMS Playwright smoke
+pnpm run test:e2e:dms
+
 # Direct-run local-test server (emitted server + local-test profile)
 pnpm run dms:local-test:start
 
@@ -170,6 +176,13 @@ pnpm run codex:workspace-publish
 
 > 일반 `git push origin ...` 은 `codex.gitlabLastPublished` marker가 현재 HEAD와 다르면 pre-push guard에서 차단됩니다.  
 > 운영 push 절차는 `docs/dms/explanation/architecture/git-subtree-integration.md`의 workspace publish 흐름을 기준으로 따르세요.
+
+> `pnpm run test:e2e:dms` 는 Docker 없이 `.runtime/playwright/` 아래 로컬 PostgreSQL cluster를 띄우고, fresh schema/seed를 적용한 뒤 DMS direct-run server + `web-dms` production server를 함께 올려 **로그인 smoke** 를 실행합니다. pgvector가 필요한 AI/search E2E는 별도 DB profile 또는 Docker 스택이 필요합니다.
+
+관련 문서:
+
+- [GitLab issue operator mode](./gitlab-issue-operator-mode.md)
+- [DMS automation surface index](../../../automation/README.md)
 
 ---
 

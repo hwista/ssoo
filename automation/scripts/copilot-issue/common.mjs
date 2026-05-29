@@ -15,6 +15,11 @@ export const ISSUE_LABELS = Object.freeze({
 
 export const EXECUTION_LABEL = ISSUE_LABELS.ready;
 
+export const STRUCTURED_NOTE_MARKERS = Object.freeze({
+  v1: '<!-- copilot-issue-registry:v1 -->',
+  v2: '<!-- copilot-issue-registry:v2 -->',
+});
+
 const EXECUTION_STATE_LABELS = [
   ISSUE_LABELS.ready,
   ISSUE_LABELS.inProgress,
@@ -147,8 +152,8 @@ export function printUsage(scriptName, detailLines = []) {
     'Options:',
     '  --issue <iid>        Single GitLab issue IID',
     '  --issues <csv>       Batch GitLab issue IIDs (for n:1 current slice)',
-    '  --base <branch>      Base branch to diff/branch from (default: current branch for prepare, manifest base for verify/report)',
-    '  --manifest <path>    Explicit manifest path (verify/report only)',
+    '  --base <branch>      Base branch to diff/branch from (default: current branch for prepare, manifest base for verify/report/merge)',
+    '  --manifest <path>    Explicit manifest path (verify/report/merge)',
     '  --dry-run            Print the resolved actions without mutating state',
     '  --help               Show this help',
   ];
@@ -398,6 +403,18 @@ export function getIssueNotePath(repoRoot, issueKey) {
   return path.join(getArtifactDir(repoRoot, issueKey), 'issue-note.md');
 }
 
+export function getDuplicateTriageArtifactPath(repoRoot, issueKey) {
+  return path.join(getArtifactDir(repoRoot, issueKey), 'duplicate-triage.json');
+}
+
+export function getDuplicateNotePath(repoRoot, issueKey) {
+  return path.join(getArtifactDir(repoRoot, issueKey), 'duplicate-note.md');
+}
+
+export function getMergeNotePath(repoRoot, issueKey) {
+  return path.join(getArtifactDir(repoRoot, issueKey), 'merge-note.md');
+}
+
 export function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -477,7 +494,9 @@ export function buildNormalizedSpec(manifest) {
     '- issue가 canonical tracking record다.',
     '- current slice에서는 `--issue` / `--issues`만 허용한다.',
     '- 1:n split는 열지 않는다.',
-    '- current slice는 issue registration -> local verification/report -> branch push까지다.',
+    '- current slice는 issue registration -> duplicate triage comment -> prepare -> local verification/report -> branch push -> merge finalize까지다.',
+    '- duplicate suspected issue는 triage 단계에서 자동 close하지 않고 comment-first / user-handled close로 처리한다.',
+    '- executionBranch와 reflectedBranches는 서로 다른 audit field로 유지한다.',
     '',
     ...sectionBlocks,
   ].join('\n').trimEnd();
@@ -556,6 +575,10 @@ export function buildGitLabStateNote(
     report = null,
     checkoutMode = null,
     supersededBranch = null,
+    reflectedBranches = null,
+    terminalReason = null,
+    merge = null,
+    duplicate = null,
   },
 ) {
   const issueLines = sortIssuesByIid(manifest.issues)
@@ -586,8 +609,9 @@ export function buildGitLabStateNote(
   const artifactLines = Object.entries(artifactPaths)
     .filter(([, value]) => value)
     .map(([label, value]) => `- ${label}: \`${value}\``);
+  const reflectedBranchList = normalizeStringList(reflectedBranches ?? manifest.reflectedBranches ?? []);
   const notePayload = {
-    version: 1,
+    version: 2,
     phase,
     stateLabel,
     verificationStatus,
@@ -598,22 +622,31 @@ export function buildGitLabStateNote(
     baseBranch: manifest.baseBranch,
     baseRef: manifest.baseRef ?? manifest.baseBranch,
     executionBranch: manifest.branchName,
+    reflectedBranches: reflectedBranchList,
     checkoutMode: checkoutMode ?? manifest.checkoutMode ?? null,
     participatingIssues: sortIssuesByIid(manifest.issues).map((issue) => issue.iid),
     artifactPaths,
     supersededBranch: supersededBranch ?? manifest.registry?.supersededBranch ?? null,
+    terminalReason,
+    merge,
+    duplicate,
     reportStatus: report?.status ?? null,
   };
-  const nextAction = phase === 'prepare'
-    ? '- checkout된 execution branch에서 구현을 진행한 뒤 `pnpm run copilot:issue:verify -- ...`와 `pnpm run copilot:issue:report -- ...`를 이어간다.'
-    : report?.status === 'passed'
-      ? '- GitLab issue state/note를 확인하고 execution branch를 push 상태로 유지한다.'
-      : '- 실패 원인을 수정한 뒤 같은 execution branch에서 verify/report를 다시 수행한다.';
+  const nextAction = resolveNextAction({ phase, report, merge, duplicate });
+  const reflectedLines = reflectedBranchList.length > 0
+    ? reflectedBranchList.map((branch) => `- \`${branch}\``)
+    : ['- (none yet)'];
+  const mergeLines = merge
+    ? Object.entries(merge).map(([key, value]) => `- ${key}: \`${formatPayloadValue(value)}\``)
+    : ['- (not applicable)'];
+  const duplicateLines = duplicate
+    ? Object.entries(duplicate).map(([key, value]) => `- ${key}: \`${formatPayloadValue(value)}\``)
+    : ['- (not applicable)'];
 
   return [
     '## Copilot local operator registry',
     '',
-    '<!-- copilot-issue-registry:v1 -->',
+    STRUCTURED_NOTE_MARKERS.v2,
     '',
     `- Phase: \`${phase}\``,
     `- State label: \`${stateLabel}\``,
@@ -623,13 +656,19 @@ export function buildGitLabStateNote(
     `- Base branch: \`${notePayload.baseBranch}\``,
     `- Base ref: \`${notePayload.baseRef}\``,
     `- Execution branch: \`${notePayload.executionBranch}\``,
+    `- Reflected branches: \`${reflectedBranchList.length > 0 ? reflectedBranchList.join(', ') : 'none'}\``,
     `- Checkout mode: \`${notePayload.checkoutMode ?? 'n/a'}\``,
     `- Superseded branch: \`${notePayload.supersededBranch ?? 'none'}\``,
+    `- Terminal reason: \`${terminalReason ?? 'none'}\``,
     `- Timestamp: \`${noteTimestamp}\``,
     '',
     '### Participating issues',
     '',
     ...issueLines,
+    '',
+    '### Reflected branches',
+    '',
+    ...reflectedLines,
     '',
     '### Changed files',
     '',
@@ -643,6 +682,14 @@ export function buildGitLabStateNote(
     '',
     ...artifactLines,
     '',
+    '### Merge audit',
+    '',
+    ...mergeLines,
+    '',
+    '### Duplicate audit',
+    '',
+    ...duplicateLines,
+    '',
     '### Next action',
     '',
     nextAction,
@@ -653,6 +700,93 @@ export function buildGitLabStateNote(
     JSON.stringify(notePayload, null, 2),
     '```',
   ].join('\n');
+}
+
+export function buildDuplicateTriageNote({
+  issue,
+  canonicalIssue,
+  reason,
+  operator,
+  candidates = [],
+  noteTimestamp = new Date().toISOString(),
+}) {
+  const duplicate = {
+    policy: 'comment-first-user-handled-close',
+    suspectedDuplicate: true,
+    canonicalIssueIid: Number(canonicalIssue.iid),
+    canonicalIssueTitle: canonicalIssue.title ?? null,
+    canonicalIssueUrl: canonicalIssue.webUrl ?? canonicalIssue.web_url ?? null,
+    reason,
+    candidates: candidates.map((candidate) => ({
+      iid: Number(candidate.iid),
+      title: candidate.title,
+      state: candidate.state ?? candidate.issueState ?? null,
+      webUrl: candidate.webUrl ?? candidate.web_url ?? null,
+    })),
+  };
+
+  return buildGitLabStateNote(
+    {
+      issueKey: `issue-${issue.iid}`,
+      mode: 'single',
+      topology: 'single',
+      operator,
+      baseBranch: null,
+      baseRef: null,
+      branchName: null,
+      reflectedBranches: [],
+      issues: [normalizeIssueForNote(issue)],
+      artifactPaths: {},
+    },
+    {
+      phase: 'duplicate-triage',
+      stateLabel: ISSUE_LABELS.blocked,
+      verificationStatus: 'not-run',
+      noteTimestamp,
+      duplicate,
+    },
+  );
+}
+
+export function buildDuplicateCloseNote({
+  issue,
+  canonicalIssue,
+  reason,
+  operator,
+  noteTimestamp = new Date().toISOString(),
+}) {
+  const duplicate = {
+    policy: 'explicit-user-handled-close',
+    suspectedDuplicate: true,
+    canonicalIssueIid: Number(canonicalIssue.iid),
+    canonicalIssueTitle: canonicalIssue.title ?? null,
+    canonicalIssueUrl: canonicalIssue.webUrl ?? canonicalIssue.web_url ?? null,
+    reason,
+    closeSource: 'explicit-user-or-operator-instruction',
+  };
+
+  return buildGitLabStateNote(
+    {
+      issueKey: `issue-${issue.iid}`,
+      mode: 'single',
+      topology: 'single',
+      operator,
+      baseBranch: null,
+      baseRef: null,
+      branchName: null,
+      reflectedBranches: [],
+      issues: [normalizeIssueForNote(issue)],
+      artifactPaths: {},
+    },
+    {
+      phase: 'duplicate-close',
+      stateLabel: ISSUE_LABELS.blocked,
+      verificationStatus: 'not-run',
+      noteTimestamp,
+      terminalReason: 'duplicate-explicit-close',
+      duplicate,
+    },
+  );
 }
 
 export async function resolveGitLabContext(repoRoot) {
@@ -715,6 +849,52 @@ export async function postIssueNote(gitLabContext, issueIid, body) {
   );
 }
 
+export async function fetchIssueNotes(gitLabContext, issueIid, { perPage = 100 } = {}) {
+  const params = new URLSearchParams({
+    sort: 'desc',
+    order_by: 'created_at',
+    per_page: String(perPage),
+  });
+  return gitLabFetchJson(gitLabContext, `/projects/${gitLabContext.projectId}/issues/${issueIid}/notes?${params.toString()}`);
+}
+
+export async function fetchLatestStructuredNote(gitLabContext, issueIid) {
+  const notes = await fetchIssueNotes(gitLabContext, issueIid);
+  return findLatestStructuredNote(notes);
+}
+
+export async function fetchDuplicateCandidateIssues(
+  gitLabContext,
+  issue,
+  { candidateIids = [], state = 'all', perPage = 20 } = {},
+) {
+  const searchQuery = buildDuplicateSearchQuery(issue);
+  const params = new URLSearchParams({
+    state,
+    scope: 'all',
+    search: searchQuery,
+    in: 'title,description',
+    per_page: String(perPage),
+  });
+  const searchedIssues = searchQuery
+    ? await gitLabFetchJson(gitLabContext, `/projects/${gitLabContext.projectId}/issues?${params.toString()}`)
+    : [];
+  const explicitIssues = candidateIids.length > 0
+    ? await fetchIssues(gitLabContext, candidateIids)
+    : [];
+  const candidates = [...explicitIssues, ...searchedIssues]
+    .filter((candidate) => Number(candidate.iid) !== Number(issue.iid));
+  const byIid = new Map();
+  for (const candidate of candidates) {
+    byIid.set(Number(candidate.iid), summarizeIssueCandidate(candidate));
+  }
+  return [...byIid.values()].sort((left, right) => {
+    const leftUpdated = left.updatedAt ? Date.parse(left.updatedAt) : 0;
+    const rightUpdated = right.updatedAt ? Date.parse(right.updatedAt) : 0;
+    return rightUpdated - leftUpdated;
+  });
+}
+
 export async function updateIssueLabels(gitLabContext, issueIid, labels) {
   return gitLabFetchJson(
     gitLabContext,
@@ -726,6 +906,23 @@ export async function updateIssueLabels(gitLabContext, issueIid, labels) {
       },
     },
   );
+}
+
+export async function updateIssueState(gitLabContext, issueIid, stateEvent) {
+  return gitLabFetchJson(
+    gitLabContext,
+    `/projects/${gitLabContext.projectId}/issues/${issueIid}`,
+    {
+      method: 'PUT',
+      body: {
+        state_event: stateEvent,
+      },
+    },
+  );
+}
+
+export async function closeIssue(gitLabContext, issueIid) {
+  return updateIssueState(gitLabContext, issueIid, 'close');
 }
 
 export function buildManagedIssueLabels(currentLabels, { stateLabel, mode }) {
@@ -772,10 +969,44 @@ export function validateIssue(issue) {
       issueState: issue.state,
       executionState,
       labels,
+      assignee: normalizeIssueAssignee(issue.assignee),
+      assignees: normalizeIssueAssignees(issue.assignees),
       sections,
     },
     errors,
   };
+}
+
+export function findLatestStructuredNote(notes) {
+  for (const note of notes ?? []) {
+    const payload = parseStructuredPayloadFromNoteBody(note.body ?? '');
+    if (payload) {
+      return {
+        note,
+        payload,
+      };
+    }
+  }
+  return null;
+}
+
+export function parseStructuredPayloadFromNoteBody(body) {
+  if (!body.includes(STRUCTURED_NOTE_MARKERS.v1) && !body.includes(STRUCTURED_NOTE_MARKERS.v2)) {
+    return null;
+  }
+
+  const jsonBlocks = [...body.matchAll(/```json\s*([\s\S]*?)```/g)];
+  for (let index = jsonBlocks.length - 1; index >= 0; index -= 1) {
+    try {
+      const parsed = JSON.parse(jsonBlocks[index][1]);
+      if (parsed && typeof parsed === 'object' && parsed.phase) {
+        return parsed;
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }
 
 function parseIssueSections(body) {
@@ -853,6 +1084,113 @@ function getTopology(mode) {
   return mode === 'batch' ? 'batch' : 'single';
 }
 
+function normalizeStringList(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return dedupe(
+    values
+      .map((value) => String(value).trim())
+      .filter((value) => value.length > 0),
+  );
+}
+
+function resolveNextAction({ phase, report, merge, duplicate }) {
+  if (phase === 'prepare') {
+    return '- checkout된 execution branch에서 구현을 진행한 뒤 `pnpm run copilot:issue:verify -- ...`와 `pnpm run copilot:issue:report -- ...`를 이어간다.';
+  }
+
+  if (phase === 'duplicate-triage') {
+    return '- duplicate suspected 상태다. 자동 close하지 말고 사용자가 GitLab에서 직접 close하거나 `copilot:issue:close-duplicate`를 명시적으로 실행할 때까지 issue를 open/blocked로 둔다.';
+  }
+
+  if (phase === 'duplicate-close') {
+    return '- explicit duplicate close 지시에 따라 canonical issue reference를 남긴 뒤 issue를 close한다.';
+  }
+
+  if (phase === 'merge-finalize') {
+    if (merge?.pushStatus === 'verified') {
+      return '- merge target remote push/publish 검증이 끝났으므로 issue를 close한다.';
+    }
+    return '- merge는 local에서 확인됐지만 remote push/publish 검증이 실패했으므로 issue를 open 상태와 `ai/blocked` label로 유지한다.';
+  }
+
+  if (duplicate?.suspectedDuplicate) {
+    return '- duplicate suspected 상태다. 사용자 결정 전 자동 close하지 않는다.';
+  }
+
+  return report?.status === 'passed'
+    ? '- GitLab issue state/note를 확인하고 execution branch를 push 상태로 유지한다.'
+    : '- 실패 원인을 수정한 뒤 같은 execution branch에서 verify/report를 다시 수행한다.';
+}
+
+function formatPayloadValue(value) {
+  if (Array.isArray(value) || (value && typeof value === 'object')) {
+    return JSON.stringify(value);
+  }
+  if (value === null || value === undefined) {
+    return 'null';
+  }
+  return String(value);
+}
+
+function normalizeIssueForNote(issue) {
+  return {
+    iid: Number(issue.iid),
+    title: issue.title,
+    webUrl: issue.webUrl ?? issue.web_url ?? null,
+    issueState: issue.issueState ?? issue.state ?? null,
+    executionState: issue.executionState ?? null,
+    labels: Array.isArray(issue.labels) ? issue.labels : [],
+    assignee: normalizeIssueAssignee(issue.assignee),
+    assignees: normalizeIssueAssignees(issue.assignees),
+    sections: issue.sections ?? Object.fromEntries(REQUIRED_SECTIONS.map((section) => [section.key, ''])),
+  };
+}
+
+function normalizeIssueAssignee(assignee) {
+  if (!assignee || typeof assignee !== 'object') {
+    return null;
+  }
+  return {
+    id: assignee.id ?? null,
+    username: assignee.username ?? null,
+    name: assignee.name ?? null,
+    displayName: assignee.name ?? assignee.username ?? null,
+    webUrl: assignee.web_url ?? assignee.webUrl ?? null,
+  };
+}
+
+function normalizeIssueAssignees(assignees) {
+  if (!Array.isArray(assignees)) {
+    return [];
+  }
+  return assignees
+    .map((assignee) => normalizeIssueAssignee(assignee))
+    .filter((assignee) => assignee !== null);
+}
+
+function buildDuplicateSearchQuery(issue) {
+  const stopWords = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'issue']);
+  const tokens = String(issue.title ?? '')
+    .toLowerCase()
+    .split(/[^a-z0-9가-힣]+/u)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2 && !stopWords.has(token));
+  return dedupe(tokens).slice(0, 6).join(' ');
+}
+
+function summarizeIssueCandidate(issue) {
+  return {
+    iid: Number(issue.iid),
+    title: issue.title,
+    state: issue.state,
+    labels: Array.isArray(issue.labels) ? issue.labels : [],
+    webUrl: issue.web_url ?? issue.webUrl ?? null,
+    updatedAt: issue.updated_at ?? issue.updatedAt ?? null,
+  };
+}
+
 function isExecutionBranchName(branchName) {
   return branchName.startsWith('ai/');
 }
@@ -890,7 +1228,7 @@ function parseIssueIid(value) {
   return parsed;
 }
 
-function readOptionValue(argv, names) {
+export function readOptionValue(argv, names) {
   for (const name of names) {
     const flag = `--${name}`;
     const index = argv.indexOf(flag);
@@ -903,6 +1241,10 @@ function readOptionValue(argv, names) {
     }
   }
   return null;
+}
+
+export function hasFlag(argv, names) {
+  return names.some((name) => argv.includes(`--${name}`));
 }
 
 function parseGitLabRemote(remoteUrl) {
@@ -969,7 +1311,7 @@ function isAccessBoundaryFile(filePath) {
   );
 }
 
-function readGitConfig(repoRoot, key) {
+export function readGitConfig(repoRoot, key) {
   const result = runCommand('git', ['config', '--local', '--get', key], {
     cwd: repoRoot,
     allowFailure: true,

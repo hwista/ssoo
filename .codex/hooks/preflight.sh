@@ -7,13 +7,10 @@ cd "$ROOT_DIR"
 emit_stage() {
   local action="$1"
   shift
-  if [ -z "${HERMES_HARNESS_RUN_ID:-}" ]; then
+  if [ -z "${LSWIKI_HARNESS_RUN_ID:-}" ]; then
     return 0
   fi
-  if [ ! -x ".hermes/scripts/harness-stage-event" ]; then
-    return 0
-  fi
-  bash .hermes/scripts/harness-stage-event "$action" --run-id "$HERMES_HARNESS_RUN_ID" "$@" >/dev/null 2>&1 || true
+  bash scripts/harness-compat.sh "$action" --run-id "$LSWIKI_HARNESS_RUN_ID" "$@" >/dev/null 2>&1 || true
 }
 
 emit_stage start --role planner --provider github-copilot --model claude-sonnet-4.6 --notes "ssoo preflight planner"

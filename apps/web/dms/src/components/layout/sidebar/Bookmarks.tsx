@@ -1,8 +1,12 @@
 'use client';
 
+import { useMemo } from 'react';
 import { FileText, X } from 'lucide-react';
 import { useAuthStore, useTabStore, useFileStore } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
+import { getFileNodeDisplayTitle } from '@/lib/utils/fileTree';
+import { resolveDocPath } from '@/lib/utils/linkUtils';
+import type { BookmarkItem } from '@/types';
 import { FlatList, FlatListItem } from './FlatList';
 
 /**
@@ -13,11 +17,41 @@ import { FlatList, FlatListItem } from './FlatList';
 export function Bookmarks() {
   const { activeTabId } = useTabStore();
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
-  const { bookmarks, ownerUserId, removeBookmark } = useFileStore();
-  const scopedBookmarks = currentUserId && ownerUserId === currentUserId ? bookmarks : [];
+  const { bookmarks, ownerUserId, fileMap, filesOwnerUserId, removeBookmark } = useFileStore();
+  const scopedBookmarks = useMemo(
+    () => (currentUserId && ownerUserId === currentUserId ? bookmarks : []),
+    [bookmarks, currentUserId, ownerUserId],
+  );
   const openTabWithConfirm = useOpenTabWithConfirm();
+  const resolvedBookmarks = useMemo(() => {
+    if (!currentUserId || filesOwnerUserId !== currentUserId) {
+      return scopedBookmarks;
+    }
 
-  if (scopedBookmarks.length === 0) {
+    return scopedBookmarks.map((bookmark) => {
+      const documentPath = resolveDocPath(bookmark.path);
+      if (!documentPath) {
+        return bookmark;
+      }
+
+      const node = fileMap.get(documentPath);
+      if (!node) {
+        return bookmark;
+      }
+
+      const resolvedTitle = getFileNodeDisplayTitle(node);
+      if (resolvedTitle === bookmark.title) {
+        return bookmark;
+      }
+
+      return {
+        ...bookmark,
+        title: resolvedTitle,
+      };
+    });
+  }, [currentUserId, fileMap, filesOwnerUserId, scopedBookmarks]);
+
+  if (resolvedBookmarks.length === 0) {
     return (
       <div className="px-3 py-2 text-caption text-gray-400">
         책갈피가 없습니다.
@@ -25,7 +59,7 @@ export function Bookmarks() {
     );
   }
 
-  const handleClick = async (bookmark: typeof scopedBookmarks[0]) => {
+  const handleClick = async (bookmark: BookmarkItem) => {
     await openTabWithConfirm({
       id: bookmark.id,
       title: bookmark.title,
@@ -43,7 +77,7 @@ export function Bookmarks() {
 
   return (
     <FlatList>
-      {scopedBookmarks.map((bookmark) => {
+      {resolvedBookmarks.map((bookmark) => {
         const isActive = bookmark.id === activeTabId;
 
         return (

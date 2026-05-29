@@ -116,7 +116,20 @@ pnpm dev:web-dms
 
 # 프로덕션 빌드
 pnpm build:web-dms
+
+# Playwright browser install (1회)
+pnpm run playwright:install
+
+# DMS login smoke (local Postgres + direct-run server bootstrap)
+pnpm run test:e2e:dms
 ```
+
+> `test:e2e:dms` 는 현재 로그인 smoke 기준입니다. AI/search처럼 pgvector가 필요한 흐름은 별도 DB profile 또는 Docker 기반 실행이 필요합니다.
+
+관련 문서:
+
+- [DMS automation surface index](../../../automation/README.md)
+- [GitLab issue operator mode](../../../docs/dms/guides/gitlab-issue-operator-mode.md)
 
 ### ⚙️ 런타임 구성
 
