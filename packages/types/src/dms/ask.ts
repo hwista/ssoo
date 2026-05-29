@@ -1,5 +1,6 @@
 import type {
   SearchCitation,
+  SearchBlockedSourceSummary,
   SearchConfidence,
   SearchContextMode,
   SearchResultItem,
@@ -38,4 +39,5 @@ export interface AskResponse {
   sources: SearchResultItem[];
   confidence: SearchConfidence;
   citations: SearchCitation[];
+  blockedSources?: SearchBlockedSourceSummary;
 }

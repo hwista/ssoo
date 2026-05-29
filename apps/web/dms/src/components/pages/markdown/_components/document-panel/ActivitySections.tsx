@@ -45,6 +45,7 @@ export function AttachmentsSection({
   originalAttachmentPaths,
   deletedReferenceKeys,
   defaultOpen = true,
+  locked = false,
 }: {
   attachments: SourceFileMeta[];
   editable?: boolean;
@@ -57,6 +58,7 @@ export function AttachmentsSection({
   /** 인라인 컴포저에서 소프트 삭제된 참조/템플릿 키 (표시 전용, undo 없음) */
   deletedReferenceKeys?: Set<string>;
   defaultOpen?: boolean;
+  locked?: boolean;
 }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
@@ -208,22 +210,23 @@ export function AttachmentsSection({
     <ActivityListSection
       icon={templateMode ? <FileText className="mr-1.5 h-4 w-4 shrink-0" /> : <Paperclip className="mr-1.5 h-4 w-4 shrink-0" />}
       title={templateMode ? '참조' : '파일'}
-      badge={attachments.length > 0 ? <span className="mr-1 text-caption text-gray-400">({attachments.length})</span> : undefined}
-      items={items}
+      badge={!locked && attachments.length > 0 ? <span className="mr-1 text-caption text-gray-400">({attachments.length})</span> : undefined}
+      items={locked ? [] : items}
       variant="compact"
       highlightedItemIds={newAttachmentPaths}
       deletedItemIds={deletedIds}
       nonRestorableItemIds={deletedReferenceKeys}
-      onItemRestore={handleRestore}
-      onItemClick={(item) => {
+      onItemRestore={locked ? undefined : handleRestore}
+      onItemClick={locked ? undefined : (item) => {
         if (pendingDeletes.has(item.id) || deletedReferenceKeys?.has(item.id)) return;
         const attachment = attachments.find((a) => attachmentKey(a) === item.id);
         if (attachment) onItemClick?.(attachment);
       }}
       emptyText={templateMode ? '참조 문서 없음' : '파일없음'}
       defaultOpen={defaultOpen}
+      locked={locked}
     >
-      {editable && !templateMode && (
+      {editable && !templateMode && !locked && (
         <div className="pt-2">
           <button
             type="button"

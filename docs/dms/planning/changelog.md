@@ -1,9 +1,19 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-05-20
+> 최종 업데이트: 2026-05-27
 > 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
 
 ---
+
+## 2026-05-27
+
+### DMS 런칭 준비: 검색/권한 게이트 closeout
+
+- unreadable 검색 결과는 원문 excerpt/snippets/totalSnippetCount를 서버 응답에서 제거하고, AI 요약과 권한 요청 상태만 유지하도록 고정했습니다.
+- Search/Ask 응답에 권한 때문에 제외된 소스 수와 제외 사유 요약을 추가하고, 검색 화면과 어시스턴트 대화 스트리밍 UI에서 같은 요약을 표시하도록 정렬했습니다.
+- DMS access live gate에 요청 생성 → 승인 → grant 반영 → grant 회수 → 거절 → 소유권 이전/복귀 회귀 검증을 추가했습니다.
+- DB 기반 검색 기록 원천 테이블의 정식 Prisma migration 산출물을 추가해 런타임 fallback 생성에만 의존하지 않도록 했습니다.
+- 검증: 공용 타입 빌드, 서버 빌드, DMS 웹 빌드, 검색 helper focused test, DMS guard, Codex preflight, access live gate, Docker 재빌드/health 확인을 통과했습니다.
 
 ## 2026-05-20
 

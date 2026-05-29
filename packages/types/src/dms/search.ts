@@ -31,12 +31,26 @@ export interface SearchResultItem {
   readRequest?: DmsDocumentAccessRequestState;
 }
 
+export type SearchBlockedSourceReasonCode = 'document_access_denied';
+
+export interface SearchBlockedSourceReason {
+  code: SearchBlockedSourceReasonCode;
+  label: string;
+  count: number;
+}
+
+export interface SearchBlockedSourceSummary {
+  totalCount: number;
+  reasons: SearchBlockedSourceReason[];
+}
+
 export interface SearchResponse {
   query: string;
   results: SearchResultItem[];
   contextMode?: SearchContextMode;
   confidence?: SearchConfidence;
   citations?: SearchCitation[];
+  blockedSources?: SearchBlockedSourceSummary;
 }
 
 export interface SearchHistoryItem {

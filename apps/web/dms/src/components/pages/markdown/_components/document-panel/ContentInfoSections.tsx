@@ -33,6 +33,7 @@ export function TagsSection({
   externalSuggestedTags,
   externalLoading = false,
   onExternalSuggestedTagsConsumed,
+  locked = false,
 }: {
   editable: boolean;
   tags: string[];
@@ -44,6 +45,7 @@ export function TagsSection({
   externalLoading?: boolean;
   /** 외부 추천 태그가 소비(표시)된 후 호출 */
   onExternalSuggestedTagsConsumed?: () => void;
+  locked?: boolean;
 }) {
   const [inputValue, setInputValue] = React.useState('');
   const [suggestedTags, setSuggestedTags] = React.useState<string[]>([]);
@@ -151,15 +153,16 @@ export function TagsSection({
     <ChipListSection
       title="태그"
       icon={<Tag className="mr-1.5 h-4 w-4 shrink-0" />}
-      headerRight={editable && getEditorContent ? <WandButton loading={isWandLoading} onClick={handleWand} label="AI 태그 추천" /> : undefined}
-      chips={allChips}
+      headerRight={editable && getEditorContent && !locked ? <WandButton loading={isWandLoading} onClick={handleWand} label="AI 태그 추천" /> : undefined}
+      chips={locked ? [] : allChips}
       highlightedChipIds={highlightedTagIds}
       deletedChipIds={pendingDeletes.size > 0 ? pendingDeletes : undefined}
       emptyText="태그없음"
-      onChipRemove={editable ? handleSoftDelete : undefined}
-      onChipRestore={editable ? handleRestore : undefined}
+      onChipRemove={editable && !locked ? handleSoftDelete : undefined}
+      onChipRestore={editable && !locked ? handleRestore : undefined}
+      locked={locked}
     >
-      {suggestedTags.length > 0 && (
+      {suggestedTags.length > 0 && !locked && (
         <div className="flex flex-wrap gap-1.5 pt-2">
           {suggestedTags.map((tag) => (
             <button
@@ -175,7 +178,7 @@ export function TagsSection({
           ))}
         </div>
       )}
-      {editable && (
+      {editable && !locked && (
         <div className="flex gap-1 pt-2">
           <input
             type="text"
@@ -209,6 +212,7 @@ export function SummarySection({
   externalAiSuggestion,
   externalLoading = false,
   onExternalAiSuggestionConsumed,
+  locked = false,
 }: {
   editable: boolean;
   summary: string;
@@ -221,6 +225,7 @@ export function SummarySection({
   externalLoading?: boolean;
   /** 외부 요약 제안이 소비(표시)된 후 호출 */
   onExternalAiSuggestionConsumed?: () => void;
+  locked?: boolean;
 }) {
   const [aiSuggestion, setAiSuggestion] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -274,7 +279,7 @@ export function SummarySection({
     setAiSuggestion(null);
   };
 
-  const wandButton = editable && getEditorContent
+  const wandButton = editable && getEditorContent && !locked
     ? <WandButton loading={isWandLoading} onClick={handleWand} label="AI 요약 생성" />
     : undefined;
   const isChanged = editable && originalSummary !== undefined && summary !== originalSummary;
@@ -285,6 +290,7 @@ export function SummarySection({
         title="요약"
         icon={<FileText className="mr-1.5 h-4 w-4 shrink-0" />}
         headerRight={wandButton}
+        locked={locked}
         content={
           <div className="space-y-2">
             <textarea
@@ -340,8 +346,9 @@ export function SummarySection({
     <TextSection
       title="요약"
       icon={<FileText className="mr-1.5 h-4 w-4 shrink-0" />}
-      text={summary}
+      text={locked ? undefined : summary}
       emptyText="요약없음"
+      locked={locked}
     />
   );
 }
@@ -355,6 +362,7 @@ export function SourceLinksSection({
   onScrollToBodyLink,
   onOpenLink,
   defaultOpen = true,
+  locked = false,
 }: {
   editable: boolean;
   sourceLinks: string[];
@@ -364,6 +372,7 @@ export function SourceLinksSection({
   onScrollToBodyLink?: (url: string) => void;
   onOpenLink?: (url: string, type?: 'link' | 'image') => void;
   defaultOpen?: boolean;
+  locked?: boolean;
 }) {
   const [inputValue, setInputValue] = React.useState('');
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
@@ -477,12 +486,12 @@ export function SourceLinksSection({
     <ActivityListSection
       title="링크"
       icon={<Link2 className="mr-1.5 h-4 w-4 shrink-0" />}
-      badge={items.length > 0 ? <span className="mr-1 text-caption text-gray-400">({items.length})</span> : undefined}
-      items={items}
+      badge={!locked && items.length > 0 ? <span className="mr-1 text-caption text-gray-400">({items.length})</span> : undefined}
+      items={locked ? [] : items}
       highlightedItemIds={newLinkSet}
       deletedItemIds={manualDeletedIds}
-      onItemRestore={handleRestore}
-      onItemClick={(item) => {
+      onItemRestore={locked ? undefined : handleRestore}
+      onItemClick={locked ? undefined : (item) => {
         if (pendingDeletes.has(item.id)) return;
         const isBody = item.id.startsWith('body:');
         const url = isBody ? item.id.slice(5) : item.title;
@@ -493,8 +502,9 @@ export function SourceLinksSection({
       variant="compact"
       itemAppearance="link"
       defaultOpen={defaultOpen}
+      locked={locked}
     >
-      {editable && (
+      {editable && !locked && (
         <div className="flex gap-1 pt-2">
           <input
             type="text"

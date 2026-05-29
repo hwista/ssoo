@@ -28,6 +28,7 @@ import {
   buildHistoryItems,
   buildSearchTocItems,
   rankSearchResults,
+  type SearchBlockedSourceSummary,
   type SearchResultItem,
   tokenizeHighlightTerms,
 } from './searchPageUtils';
@@ -41,6 +42,7 @@ export function AiSearchPage() {
   const [sourceQuery, setSourceQuery] = useState('');
   const [allResults, setAllResults] = useState<SearchResultItem[]>([]);
   const [results, setResults] = useState<SearchResultItem[]>([]);
+  const [blockedSources, setBlockedSources] = useState<SearchBlockedSourceSummary | undefined>();
   const [matchedResultIndices, setMatchedResultIndices] = useState<number[]>([]);
   const [attachFilteredOnly, setAttachFilteredOnly] = useState(true);
   const [hasSearched, setHasSearched] = useState(false);
@@ -80,6 +82,7 @@ export function AiSearchPage() {
     if (!trimmed) {
       setAllResults([]);
       setResults([]);
+      setBlockedSources(undefined);
       setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
       lastProcessedSearchKeyRef.current = '';
@@ -106,22 +109,24 @@ export function AiSearchPage() {
       const nextResults = searchQuery.data.data.results ?? [];
       setAllResults(nextResults);
       setResults(nextResults);
+      setBlockedSources(searchQuery.data.data.blockedSources);
       setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
-      } else {
-        const fallbackResults = [
-          {
-            id: 'search-error',
-            title: '검색 실패',
-            excerpt: getErrorMessage(searchQuery.data ?? { success: false, error: '검색 실패' }),
-            path: '-',
-            score: 0,
-            isReadable: false,
-            canRequestRead: false,
-          },
-        ];
-        setAllResults(fallbackResults);
+    } else {
+      const fallbackResults = [
+        {
+          id: 'search-error',
+          title: '검색 실패',
+          excerpt: getErrorMessage(searchQuery.data ?? { success: false, error: '검색 실패' }),
+          path: '-',
+          score: 0,
+          isReadable: false,
+          canRequestRead: false,
+        },
+      ];
+      setAllResults(fallbackResults);
       setResults(fallbackResults);
+      setBlockedSources(undefined);
       setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
     }
@@ -353,6 +358,7 @@ export function AiSearchPage() {
               isSearching={isSearching}
               hasCompletedSearch={hasCompletedSearch}
               results={results}
+              blockedSources={blockedSources}
               filterQuery={filterQuery}
               matchedIndexSet={matchedIndexSet}
               snippetHighlightTerms={snippetHighlightTerms}

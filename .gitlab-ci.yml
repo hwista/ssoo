@@ -1,0 +1,74 @@
+stages:
+  - verify
+  - ai_review
+  - build
+  - deploy
+
+variables:
+  APP_DIR: "/opt/ssoo/app"
+  DOCKER_BUILDKIT: "1"
+  COMPOSE_DOCKER_CLI_BUILD: "1"
+
+verify:
+  stage: verify
+  tags:
+    - ssoo
+  script:
+    - echo "파이프라인 동작 확인"
+    - echo "푸시한 사람 $GITLAB_USER_NAME"
+    - echo "브랜치 $CI_COMMIT_REF_NAME"
+    - echo "커밋 $CI_COMMIT_SHORT_SHA"
+  only:
+    - development
+
+ai_review:
+  stage: ai_review
+  tags:
+    - ssoo
+  script:
+    - cd "$APP_DIR"
+    - bash scripts/ci/ai-review.sh
+  artifacts:
+    paths:
+      - ai-review-report.md
+    expire_in: 30 days
+  allow_failure: true
+  only:
+    - development
+
+build:
+  stage: build
+  tags:
+    - ssoo
+  script:
+    - echo "전체 이미지 빌드 시작 (BuildKit, 순차)"
+    - cd "$APP_DIR"
+    - git reset --hard "origin/$CI_COMMIT_REF_NAME"
+    - docker compose build
+    - echo "빌드 완료"
+  only:
+    - development
+
+deploy_dev:
+  stage: deploy
+  tags:
+    - ssoo
+  when: manual
+  environment:
+    name: development
+    url: http://10.125.12.170:3001
+  script:
+    - echo "development 배포 시작"
+    - cd "$APP_DIR"
+    - BACKUP_TAG="ci-backup-$(date +%Y%m%d_%H%M%S)"
+    - echo "백업 태그 $BACKUP_TAG"
+    - for svc in server pms dms cms admin db-init; do docker image inspect "app-$svc:latest" >/dev/null 2>&1 && docker tag "app-$svc:latest" "app-$svc:$BACKUP_TAG" && echo "백업 app-$svc:$BACKUP_TAG"; done
+    - echo "$BACKUP_TAG" > /tmp/ssoo-ci-last-backup-tag
+    - docker compose up -d
+    - echo "60초 대기 후 health check"
+    - sleep 60
+    - docker compose ps
+    - for svc in postgres server pms dms cms admin; do st=$(docker inspect "ssoo-$svc" --format '{{.State.Health.Status}}' 2>/dev/null || echo "na"); echo "ssoo-$svc $st"; done
+    - echo "배포 완료"
+  only:
+    - development

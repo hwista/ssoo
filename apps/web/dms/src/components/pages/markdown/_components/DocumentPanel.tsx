@@ -75,6 +75,15 @@ function formatGitSyncSummary(syncStatus?: GitSyncStatusClient) {
   }
 }
 
+export interface DocumentPanelLockedPreview {
+  title: string;
+  path: string;
+  owner?: string;
+  visibilityScope?: string;
+  canRequestRead: boolean;
+  onRequestAccess?: () => void;
+}
+
 /**
  * 문서 메타데이터 (표시용)
  */
@@ -199,6 +208,8 @@ export interface DocumentPanelProps {
   currentUserLoginId?: string;
   /** 저장소 관리 가능 여부 */
   canManageStorage?: boolean;
+  /** 권한 없는 문서 미리보기 상태 */
+  lockedPreview?: DocumentPanelLockedPreview | null;
 }
 
 function normalizeStorageProvider(provider?: string): 'local' | 'sharepoint' | 'nas' | undefined {
@@ -308,6 +319,7 @@ export function DocumentPanel({
   onRetryPublish,
   currentUserLoginId,
   canManageStorage = false,
+  lockedPreview,
 }: DocumentPanelProps) {
   const attachments = documentMetadata?.sourceFiles ?? [];
   const summary = documentMetadata?.summary ?? '';
@@ -329,11 +341,12 @@ export function DocumentPanel({
   const [isSaveLocationOpen, setIsSaveLocationOpen] = React.useState(false);
   const [replyTarget, setReplyTarget] = React.useState<{ id: string; author: string } | undefined>();
 
-  const normalizedFilePath = filePath ? normalizeDocumentPath(filePath) : '';
+  const displayPath = lockedPreview?.path || filePath || '';
+  const normalizedFilePath = displayPath ? normalizeDocumentPath(displayPath) : '';
   const fileName = normalizedFilePath.split('/').pop() || '';
-  const documentTitle = isNewDocument
+  const documentTitle = lockedPreview?.title || (isNewDocument
     ? (documentMetadata?.title || displayDocumentTitle || '')
-    : (documentMetadata?.title || fileName.replace(/\.md$/, ''));
+    : (documentMetadata?.title || fileName.replace(/\.md$/, '')));
   const currentDirectory = normalizedFilePath.split('/').slice(0, -1).join('/');
 
   const handleSaveLocationConfirm = (result: SaveLocationResult) => {
@@ -517,7 +530,7 @@ export function DocumentPanel({
     <PanelFrame
       className={className}
       footerClassName="border-t-0"
-      footer={!editable && !isTemplatePanel ? (
+      footer={!editable && !isTemplatePanel && !lockedPreview ? (
         <CommentInput
           onAdd={handleCommentAdd}
           replyTo={replyTarget}
@@ -611,7 +624,7 @@ export function DocumentPanel({
             isNewDocument={isNewDocument}
             onConfirm={handleSaveLocationConfirm}
           />
-          {documentMetadata?.visibility && !isNewDocument && !isTemplatePanel ? (
+          {documentMetadata?.visibility && !isNewDocument && !isTemplatePanel && !lockedPreview ? (
             <VisibilitySection
               scope={documentMetadata.visibility.scope}
               canManage={
@@ -625,70 +638,77 @@ export function DocumentPanel({
               }}
             />
           ) : null}
-          <TagsSection
-            editable={editable}
-            tags={tags ?? []}
-            onChange={handleTagsChange}
-            getEditorContent={getEditorContent}
-            originalTags={originalMetaSnapshot?.tags}
-            externalSuggestedTags={externalSuggestedTags}
-            externalLoading={externalSuggestedTagsLoading}
-            onExternalSuggestedTagsConsumed={onExternalSuggestedTagsConsumed}
-          />
-          {!isTemplatePanel && (
-            <SummarySection
+          <>
+            <TagsSection
               editable={editable}
-              summary={summary}
-              onChange={handleSummaryChange}
-              onSummaryReplace={(text) => onMetadataChange?.({ summary: text })}
+              tags={tags ?? []}
+              onChange={handleTagsChange}
               getEditorContent={getEditorContent}
-              originalSummary={originalMetaSnapshot?.summary}
-              externalAiSuggestion={externalAiSuggestion}
-              externalLoading={externalAiSuggestionLoading}
-              onExternalAiSuggestionConsumed={onExternalAiSuggestionConsumed}
+              originalTags={originalMetaSnapshot?.tags}
+              externalSuggestedTags={externalSuggestedTags}
+              externalLoading={externalSuggestedTagsLoading}
+              onExternalSuggestedTagsConsumed={onExternalSuggestedTagsConsumed}
+              locked={Boolean(lockedPreview)}
             />
-          )}
-          {!isTemplatePanel && (
-            <SourceLinksSection
+            {!isTemplatePanel && (
+              <SummarySection
+                editable={editable}
+                summary={summary}
+                onChange={handleSummaryChange}
+                onSummaryReplace={(text) => onMetadataChange?.({ summary: text })}
+                getEditorContent={getEditorContent}
+                originalSummary={originalMetaSnapshot?.summary}
+                externalAiSuggestion={externalAiSuggestion}
+                externalLoading={externalAiSuggestionLoading}
+                onExternalAiSuggestionConsumed={onExternalAiSuggestionConsumed}
+                locked={Boolean(lockedPreview)}
+              />
+            )}
+            {!isTemplatePanel && (
+              <SourceLinksSection
+                editable={editable}
+                sourceLinks={sourceLinks}
+                onChange={handleSourceLinksChange}
+                originalSourceLinks={originalMetaSnapshot?.sourceLinks}
+                bodyLinks={bodyLinks}
+                onScrollToBodyLink={onScrollToBodyLink}
+                onOpenLink={onOpenLink}
+                defaultOpen={editable}
+                locked={Boolean(lockedPreview)}
+              />
+            )}
+            <AttachmentsSection
+              attachments={isTemplatePanel ? templateReferenceAttachments : attachments}
               editable={editable}
-              sourceLinks={sourceLinks}
-              onChange={handleSourceLinksChange}
-              originalSourceLinks={originalMetaSnapshot?.sourceLinks}
-              bodyLinks={bodyLinks}
-              onScrollToBodyLink={onScrollToBodyLink}
-              onOpenLink={onOpenLink}
-              defaultOpen={editable}
+              templateMode={isTemplatePanel}
+              onChange={isTemplatePanel ? undefined : handleAttachmentsChange}
+              onItemClick={handleAttachmentClick}
+              onDownload={handleAttachmentDownload}
+              onResync={!isTemplatePanel && canManageStorage ? handleAttachmentResync : undefined}
+              originalAttachmentPaths={isTemplatePanel ? undefined : originalMetaSnapshot?.attachmentPaths}
+              deletedReferenceKeys={isTemplatePanel ? undefined : deletedReferenceKeys}
+              defaultOpen={isTemplatePanel || editable}
+              locked={Boolean(lockedPreview)}
             />
-          )}
-          <AttachmentsSection
-            attachments={isTemplatePanel ? templateReferenceAttachments : attachments}
-            editable={editable}
-            templateMode={isTemplatePanel}
-            onChange={isTemplatePanel ? undefined : handleAttachmentsChange}
-            onItemClick={handleAttachmentClick}
-            onDownload={handleAttachmentDownload}
-            onResync={!isTemplatePanel && canManageStorage ? handleAttachmentResync : undefined}
-            originalAttachmentPaths={isTemplatePanel ? undefined : originalMetaSnapshot?.attachmentPaths}
-            deletedReferenceKeys={isTemplatePanel ? undefined : deletedReferenceKeys}
-            defaultOpen={isTemplatePanel || editable}
-          />
-          {!isNewDocument && !isTemplatePanel && (
-            <CommentsSection
-              comments={comments}
-              editable={editable}
-              onDelete={handleCommentDelete}
-              onRestore={handleCommentRestore}
-              onReply={(comment) => {
-                const commentMap = new Map(comments.map((c) => [c.id, c]));
-                let current = comment;
-                while (current.parentId && commentMap.has(current.parentId)) {
-                  current = commentMap.get(current.parentId)!;
-                }
-                setReplyTarget({ id: current.id, author: comment.author || 'Unknown' });
-              }}
-              originalCommentIds={originalMetaSnapshot?.commentIds}
-            />
-          )}
+            {!isNewDocument && !isTemplatePanel && (
+              <CommentsSection
+                comments={comments}
+                editable={editable}
+                onDelete={handleCommentDelete}
+                onRestore={handleCommentRestore}
+                onReply={(comment) => {
+                  const commentMap = new Map(comments.map((c) => [c.id, c]));
+                  let current = comment;
+                  while (current.parentId && commentMap.has(current.parentId)) {
+                    current = commentMap.get(current.parentId)!;
+                  }
+                  setReplyTarget({ id: current.id, author: comment.author || 'Unknown' });
+                }}
+                originalCommentIds={originalMetaSnapshot?.commentIds}
+                locked={Boolean(lockedPreview)}
+              />
+            )}
+          </>
         </>
       )}
     </PanelFrame>

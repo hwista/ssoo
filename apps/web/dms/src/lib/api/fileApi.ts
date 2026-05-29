@@ -1,5 +1,6 @@
 import type { FileNode } from '@/types/file-tree';
 import type { DocumentMetadata } from '@/types/document-metadata';
+import type { LockedContentPreviewData } from './contentApi';
 import { request, type ApiResponse } from './core';
 
 export type FileAction =
@@ -36,6 +37,7 @@ export interface FileReadMetadata {
 export interface FileReadResponse {
   content: string;
   metadata: FileReadMetadata;
+  lockedPreview?: LockedContentPreviewData;
 }
 
 export const fileApi = {

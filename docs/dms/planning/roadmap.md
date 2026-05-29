@@ -1,6 +1,6 @@
 # DMS 로드맵
 
-> 최종 업데이트: 2026-05-20 (AI 검색 기록 + 잠긴 문서 미리보기 closeout)
+> 최종 업데이트: 2026-05-27 (검색/권한 런칭 게이트 closeout)
 
 ---
 
@@ -22,15 +22,16 @@
 - 권한 요청 취소와 수신자 알림 cleanup 적용: requester pending 취소, owner 알림 archive/read 처리, notification archived 이벤트 기반 패널 갱신 연결
 - AI 검색 런칭 정리: 검색 결과 AI 요약 표시, DB 기반 내 자주 검색/인기 검색어/검색 기록, 인기 검색어 최소 노출 조건과 검증/테스트 검색어 저장 차단 적용
 - 잠긴 문서 미리보기 적용: unreadable 검색/AI 결과 클릭 시 즉시 팝업 대신 문서 탭을 열고, 서버 preview-only 응답 기반 잠금 화면과 권한 요청 CTA를 표시
+- 검색/권한 런칭 게이트 closeout: unreadable 검색 결과 원문 발췌 redaction, Search/Ask 차단 소스 수와 제외 사유 요약, 권한 요청 승인/거절/grant 회수/소유권 이전 live HTTP 회귀 검증, DB 검색 기록 migration 산출물 반영
 - 현재 검증 기준선 통과: locked preview 서버 테스트, server/web-dms build, DMS access verification, Codex preflight, Docker server/dms rebuild, health/browser 확인
 
 ## 2. 단기 우선순위 (P1)
 
-**Phase B — 권한 UX 잔여 정리**:
+**런칭 스모크 / 운영 freeze**:
 
-1. **DMS-PERM-UX-01** Search/Ask 차단 소스 수와 제외 사유 표시 UI ("권한 부족으로 N개 제외됨")
-2. **DMS-PERM-UX-07** 권한 없는 검색 결과 카드 스니펫/키워드 노출 정책 정리: AI 요약은 유지하되 원문 기반 발췌는 제거하거나 서버 preview-only 기준으로 제한
-3. **DMS-PERM-UX-04** 권한 UX 회귀 검증 자동화: 요청 생성 → 승인/거절 → grant 반영 → 회수/소유권 이전
+1. 브라우저 기준 로그인, 검색, 잠긴 문서, 권한 요청 CTA, 승인/회수 스모크 확인
+2. 런칭 체크리스트 freeze 및 운영 데이터/계정 seed 상태 확인
+3. 원격 push 상태와 배포 대상 브랜치 확인
 4. **DMS-QA-02** hard refresh client-side error 브라우저 재현 케이스 확보: 현재 CLI/HTTP/build 기준 문제 없음, 재현 시 console 첫 오류 기준으로 regression 추가
 
 **기타 P1**:
@@ -38,7 +39,7 @@
 5. 저장소 어댑터 3종(Local/SharePoint/NAS) 라우팅 관통 적용
 6. 정본/첨부 Open/Copy/Resync UX 고도화 (에러 표준화 — Phase C)
 7. 자동 수집 채널 연동 + 컨펌 후 게시 운영화
-8. Ask/Search 화면의 citations/confidence UI 완결 (Phase B-1 일부)
+8. Ask/Search 화면의 citations/confidence UI 완결
 
 ## 3. 중기 우선순위 (P2)
 
@@ -62,6 +63,7 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-05-27 | 검색/권한 런칭 게이트 closeout을 현재 완료로 반영. Search/Ask 차단 소스 요약, unreadable 검색 redaction, 권한 요청 승인/거절/grant 회수/소유권 이전 회귀 검증, 검색 기록 migration 산출물까지 Phase B 핵심 잔여를 닫고 단기 우선순위를 최종 게이트/스모크로 재정렬 |
 | 2026-05-20 | AI 검색 결과 요약, DB 기반 검색 기록/인기 검색어, 잠긴 문서 미리보기, 권한 요청 CTA, Docker/browser 검증 완료를 현재 완료 범위에 반영. 단기 P1에 unreadable 검색 결과 카드 스니펫/키워드 노출 정책 정리를 추가 |
 | 2026-05-18 | 공통 알림/SSE, DMS 헤더 알림, 사용자별 client state isolation, 권한 요청 취소/알림 cleanup 을 현재 완료 범위에 반영. 현재 기준 검증 통과 상태를 명시하고, hard refresh client-side error는 브라우저 재현 기반 QA 항목으로 분리 |
 | 2026-05-14 | DMS 접근 검증 게이트 복구(`verify:access-dms:raw` 통과)와 권한 UX 재감사 결과 반영. 액세스 요청 워크플로우와 관리자 권한 운영 surface 를 완료로 재분류하고, 잔여 P1을 차단 소스 수 표시와 권한 UX 회귀 자동화로 축소 |

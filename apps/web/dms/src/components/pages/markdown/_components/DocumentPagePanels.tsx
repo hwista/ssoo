@@ -4,6 +4,7 @@ import { AssistantComposer } from '@/components/common/assistant/Composer';
 import { Editor } from './editor';
 import { Viewer } from '@/components/common/viewer';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
+import { Lock } from 'lucide-react';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TocItem } from '@/components/templates/page-frame';
 import type { EditorRef, EditorSaveConflictPayload } from './editor';
@@ -256,6 +257,11 @@ export function InlineComposerPanel({
   );
 }
 
+interface LockedPreviewBannerProps {
+  title: string;
+  canRequestRead: boolean;
+}
+
 interface DocumentPageContentProps {
   error: string | null;
   handleRetry: () => void;
@@ -288,6 +294,7 @@ interface DocumentPageContentProps {
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   /** 저장 충돌 감지 시 */
   onSaveConflict?: (conflict: EditorSaveConflictPayload) => Promise<void> | void;
+  lockedPreview?: LockedPreviewBannerProps;
 }
 
 export function DocumentPageContent({
@@ -316,6 +323,7 @@ export function DocumentPageContent({
   onImageClick,
   onHistoryChange,
   onSaveConflict,
+  lockedPreview,
 }: DocumentPageContentProps) {
   if (error) {
     return (
@@ -335,17 +343,47 @@ export function DocumentPageContent({
 
   if (mode === 'viewer') {
     return (
-      <Viewer
-        content={htmlContent}
-        toc={toc}
-        onTocClick={handleTocClick}
-        onSearch={handleSearch}
-        onAttachToAssistant={handleAttachCurrentDocToAssistant}
-        variant="embedded"
-        onLinkClick={onLinkClick}
-        onImageClick={onImageClick}
-        initialSearchQuery={initialSearchQuery}
-      />
+      <div className="relative h-full min-h-0 overflow-hidden">
+        <Viewer
+          content={htmlContent}
+          toc={toc}
+          onTocClick={handleTocClick}
+          onSearch={handleSearch}
+          onAttachToAssistant={lockedPreview ? undefined : handleAttachCurrentDocToAssistant}
+          variant="embedded"
+          onLinkClick={lockedPreview ? undefined : onLinkClick}
+          onImageClick={lockedPreview ? undefined : onImageClick}
+          initialSearchQuery={lockedPreview ? undefined : initialSearchQuery}
+        />
+        {lockedPreview ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[20%] z-10 overflow-hidden [mask-image:linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.04)_16%,rgba(0,0,0,0.24)_30%,rgba(0,0,0,0.72)_48%,black_68%)]">
+            <div className="absolute inset-0 shadow-[inset_0_64px_90px_color-mix(in_srgb,var(--ssoo-primary)_10%,transparent)] backdrop-blur-[3px] [background:linear-gradient(to_bottom,transparent_0%,color-mix(in_srgb,var(--ssoo-sitemap-background)_42%,transparent)_38%,color-mix(in_srgb,var(--ssoo-content-background)_92%,white)_100%)]" />
+            <div className="absolute inset-x-0 top-0 h-56 backdrop-blur-[1px] [background:linear-gradient(to_bottom,transparent_0%,color-mix(in_srgb,var(--ssoo-sitemap-background)_28%,transparent)_48%,color-mix(in_srgb,var(--ssoo-content-background)_68%,transparent)_100%)]" />
+            <div className="absolute inset-0 [background:radial-gradient(circle_at_center,color-mix(in_srgb,var(--ssoo-sitemap-background)_58%,transparent),color-mix(in_srgb,var(--ssoo-content-background)_54%,transparent)_52%,color-mix(in_srgb,var(--ssoo-content-border)_34%,transparent)_100%)]" />
+            <div className="absolute inset-x-[8%] top-[34%] space-y-5 opacity-50 blur-[1.8px]">
+              <div className="h-3 w-[78%] rounded-full bg-ssoo-content-border/35" />
+              <div className="h-3 w-[92%] rounded-full bg-ssoo-content-border/30" />
+              <div className="h-3 w-[64%] rounded-full bg-ssoo-content-border/25" />
+              <div className="h-3 w-[86%] rounded-full bg-ssoo-content-border/22" />
+              <div className="h-3 w-[70%] rounded-full bg-ssoo-content-border/20" />
+            </div>
+            <div className="absolute inset-x-[12%] bottom-12 space-y-4 opacity-35 blur-[2px]">
+              <div className="h-2.5 w-[88%] rounded-full bg-ssoo-primary/16" />
+              <div className="h-2.5 w-[58%] rounded-full bg-ssoo-primary/14" />
+              <div className="h-2.5 w-[76%] rounded-full bg-ssoo-primary/12" />
+            </div>
+            <div className="absolute inset-0 [background:linear-gradient(to_bottom,transparent_0%,color-mix(in_srgb,var(--ssoo-sitemap-background)_22%,transparent)_54%,color-mix(in_srgb,var(--ssoo-background)_42%,transparent)_100%)]" />
+            <div className="absolute left-1/2 top-1/2 flex w-full -translate-x-1/2 -translate-y-1/2 justify-center px-6">
+              <div className="flex flex-col items-center gap-3 text-center text-ssoo-primary">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/85 text-ssoo-primary shadow-sm ring-1 ring-ssoo-primary/20 backdrop-blur">
+                  <Lock className="h-5 w-5" />
+                </span>
+                <span className="text-sm font-semibold drop-shadow-sm">현 문서는 열람 권한 요청이 필요합니다.</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
     );
   }
 

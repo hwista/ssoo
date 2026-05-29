@@ -22,6 +22,7 @@ import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import {
   buildAutoSummary,
+  buildBlockedSourceSummary,
   buildExcerpt,
   buildPreviewSnippets,
   buildSearchResponse,
@@ -29,6 +30,7 @@ import {
   getErrorMessage,
   listMarkdownFiles,
   normalizePath,
+  redactUnreadableSearchResult,
   resolveAbsolutePath,
   resolveDocumentPresentation,
   stripMarkdown,
@@ -107,10 +109,12 @@ export class SearchService implements OnModuleInit {
       currentUser,
       resultsWithSummaries,
     );
+    const redactedResults = resultsWithRequests.map(redactUnreadableSearchResult);
 
     const finalResponse = {
       ...response,
-      results: resultsWithRequests,
+      results: redactedResults,
+      blockedSources: buildBlockedSourceSummary(redactedResults),
     };
 
     await this.searchHistoryService.recordSearch(currentUser, query, finalResponse.results.length);
