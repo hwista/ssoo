@@ -15,6 +15,8 @@ pnpm run codex:workspace-publish -- development
 pnpm run copilot:issue:merge -- --issue 123 --target development --merged-by '<담당자 이름>'
 ```
 
+`development` finalization은 보수적으로 처리한다. 먼저 `codex:workspace-sync-from-gitlab` 로 최신 `development`를 execution branch에 merge해 drift/conflict를 그 브랜치에서 정리하고, 그 결과만 `codex:workspace-publish -- development` 로 반영한다. target branch가 다시 움직였으면 finalize 전에 같은 sync 단계를 반복한다.
+
 Duplicate close remains explicit:
 
 ```bash

@@ -29,6 +29,7 @@ last_reviewed: 2026-05-29
     - `git config --local codex.gitlabProjectPath '<group/project>'`
 - current slice는 `--issue <iid>`와 `--issues <iid1,iid2>`만 지원한다.
 - shared rule은 `automation/scripts/copilot-issue/**`, 이 가이드, issue template, shared prompt wrapper에 둔다. 개인 agent 파일이나 machine-local overlay에는 공통 규칙을 저장하지 않는다.
+- `development` 같은 shared integration branch 반영은 보수적으로 처리한다. 최신 target branch를 execution branch에 먼저 merge해서 검증한 뒤, 그 execution branch를 `development`에 반영한다. target branch가 final merge 직전에 다시 움직였으면 같은 sync/검증 사이클을 반복한다.
 
 ---
 
@@ -46,6 +47,8 @@ pnpm run codex:workspace-sync-from-gitlab
 pnpm run codex:workspace-publish -- development
 pnpm run copilot:issue:merge -- --issue 123 --target development --merged-by '<담당자 이름>'
 ```
+
+`codex:workspace-sync-from-gitlab` 는 현재 checkout된 execution branch 위로 최신 GitLab `development`를 먼저 merge하는 단계다. shared branch가 다시 움직였으면 `copilot:issue:merge` 전까지 이 단계를 다시 수행한다.
 
 ### batch issue (`n:1`)
 
@@ -84,7 +87,7 @@ pnpm run copilot:issue:close-duplicate -- --issue 124 --canonical 123 --reason '
 | verify | `copilot:issue:verify` | baseline + changed-area verification 실행, 로컬 report 생성 |
 | report | `copilot:issue:report` | verification 결과를 GitLab issue note와 label state(`ai/verified` 또는 `ai/blocked`)로 반영 |
 | branch push | `git push origin <execution-branch>` | execution branch를 원격에 게시 |
-| safe merge/publish | `codex:workspace-sync-from-gitlab` + `codex:workspace-publish` | `WS-011` safe merge/publish 경로를 재사용해 `development` 원격 push/publish를 검증 |
+| safe merge/publish | `codex:workspace-sync-from-gitlab` + `codex:workspace-publish` | `WS-011` safe merge/publish 경로를 재사용해 최신 `development`를 execution branch에 먼저 merge하고, 그 결과를 `development`로 push/publish 검증 |
 | merge finalize | `copilot:issue:merge` | reflected branch, merge commit, `mergedBy`, push verification을 note에 남기고 검증 성공 시에만 issue close |
 
 `prepare` 이후 산출물은 `.runtime/copilot-issue/<issue-key>/` 아래에 쌓인다.
@@ -150,6 +153,7 @@ pnpm run copilot:issue:close-duplicate -- --issue 124 --canonical 123 --reason '
 
 ## 6. merge close gate
 
+- `development` 대상 finalization은 항상 `target -> execution branch` 최신화가 먼저다. `codex:workspace-sync-from-gitlab` 는 현재 execution branch에 최신 GitLab `development`를 merge하며, `development`가 다시 움직였으면 publish/merge finalize 전에 다시 실행한다.
 - `development` local merge는 intermediate state다.
 - `development` 대상 issue close는 아래가 모두 통과해야 한다.
   1. 현재 branch가 `development`
@@ -181,7 +185,7 @@ pnpm run copilot:issue:close-duplicate -- --issue 124 --canonical 123 --reason '
 6. `verify`로 repo-native gate를 통과시킨다.
 7. `report`로 GitLab issue note/state를 갱신한다.
 8. execution branch를 push한다.
-9. `WS-011` safe merge/publish 경로로 `development`에 반영하고 원격 push/publish를 검증한다.
+9. `WS-011` safe merge/publish 경로로 최신 `development`를 execution branch에 먼저 반영하고 검증한 뒤, 그 결과를 `development`에 publish한다.
 10. `merge`로 reflected branch와 merge audit를 기록한 뒤 issue를 close한다.
 
 ---
