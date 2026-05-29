@@ -1,6 +1,6 @@
 /label ~"ai-exec-ready"
 
-> current slice: GitLab issue -> local operator bootstrap -> local verification -> GitLab issue state/note -> execution branch push
+> current slice: GitLab issue -> duplicate triage comment -> local operator bootstrap -> local verification -> branch/reflected-branch audit -> development remote push verification -> merge close
 
 ## Problem statement
 
@@ -22,8 +22,11 @@
 
 <!-- 추가 제약, 관련 이슈, 배치 실행 여부, 참고 링크를 적는다. -->
 <!-- optional hints:
+- possible duplicate/canonical issue:
 - batch candidate issues: #123, #124
 - preferred base branch:
+- expected reflected branch: development
+- merge owner / 담당자:
 - operator handoff note:
 - validation notes:
 -->
