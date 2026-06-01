@@ -125,6 +125,7 @@ export function SettingsPage() {
   const isCustomSection = currentSection?.kind === 'custom';
   const isAccessCenterSection = currentSection?.slotKey === 'document-access';
   const isAdminTemplateSection = currentSection?.slotKey === 'admin-templates';
+  const isReadOnlySection = currentSection?.id === 'git';
   const templateListQuery = useTemplateList({
     enabled: isAdminTemplateSection,
   });
@@ -433,7 +434,7 @@ export function SettingsPage() {
   }, [activeViewMode, currentSection, hasSectionJsonChanges, keyToLabel, modifiedKeys]);
 
   const headerActions = useMemo<HeaderAction[]>(() => {
-    if (isCustomSection) {
+    if (isCustomSection || isReadOnlySection) {
       return [];
     }
 
@@ -466,7 +467,7 @@ export function SettingsPage() {
     });
 
     return actions;
-  }, [activeViewMode, handleReset, handleSave, hasChanges, hasValidationErrors, isCustomSection, isSaving, parsedJsonDraft.success, pendingLabels.length]);
+  }, [activeViewMode, handleReset, handleSave, hasChanges, hasValidationErrors, isCustomSection, isReadOnlySection, isSaving, parsedJsonDraft.success, pendingLabels.length]);
 
   const viewerRightSlot = currentSection && supportsJsonModes ? (
     <div className="flex items-center gap-2">
@@ -610,6 +611,7 @@ export function SettingsPage() {
                 validationErrors={validationErrors}
                 getValue={getNestedValue}
                 onChange={handleStructuredChange}
+                readOnly={isReadOnlySection}
               />
             )}
           </main>

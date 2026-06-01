@@ -169,8 +169,9 @@ git --no-pager remote -v
 ```
 
 - 워킹 트리는 항상 clean (DMS save 후 자동 commit).
-- `origin` 은 `LSWIKI_DOC` 원격을 가리켜야 함.
-- 운영 `.env` 에 `DMS_GIT_BOOTSTRAP_REMOTE_URL` / `DMS_GIT_BOOTSTRAP_BRANCH` 를 넣으면 `compose.yaml` 이 server 컨테이너 환경변수로 전달하고, 서버 시작 시 empty dir clone, 기존 `.git` fast-forward auto-pull, non-empty remote reconcile-merge, non-empty no remote fail 분기가 적용됩니다.
+- `origin` 은 현재 `DMS_INSTANCE_ENV` 가 요구하는 문서 원격(`prod -> LSWIKI_DOC.git`, `dev -> LSWIKI_DOC_DEV.git`)을 가리켜야 함.
+- 운영/개발 `.env` 는 먼저 `DMS_INSTANCE_ENV` 를 정하고, 필요 시 `DMS_GIT_PROD_REMOTE_URL` / `DMS_GIT_DEV_REMOTE_URL` / `DMS_GIT_BOOTSTRAP_BRANCH` 를 함께 전달합니다.
+- `DMS_GIT_BOOTSTRAP_REMOTE_URL` 은 기본 운영 스위치가 아니라 cleanup/override 용입니다. 역할이 기대하는 remote 와 다르면 startup-fatal 또는 mutation-blocking 상태가 됩니다.
 - `inspectRemoteParity` 가 ahead/diverged 라면 control-plane sync 가 보류됨 → 운영자가 명시적으로 정리 필요.
 
 ## 7. 시나리오 E — DMS 챗봇 / Azure OpenAI 환경변수

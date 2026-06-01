@@ -64,9 +64,14 @@ export type SettingsServiceResult =
 function sanitizeSystemConfig(config: DmsConfig): DmsSystemConfig {
   const { author, ...git } = config.git;
   void author;
+  const binding = configService.getGitBootstrapBinding();
   return {
     ...config,
-    git,
+    git: {
+      ...git,
+      bootstrapRemoteUrl: binding.bootstrapRemoteUrl ?? '',
+      bootstrapBranch: binding.bootstrapBranch ?? '',
+    },
   };
 }
 
@@ -84,13 +89,7 @@ function sanitizeMutableSettingsPartial(
 
   const system = { ...partial.system };
   if (partial.system.git) {
-    const git = { ...partial.system.git } as Record<string, unknown>;
-    delete git.repositoryPath;
-    if (Object.keys(git).length > 0) {
-      system.git = git as DeepPartial<DmsSettingsConfig['system']['git']>;
-    } else {
-      delete system.git;
-    }
+    delete system.git;
   }
 
   // templates config is now derived from markdownRoot — strip entirely
@@ -106,6 +105,15 @@ function sanitizeMutableSettingsPartial(
 }
 
 class SettingsService {
+  private getImmutableGitSettingKeys(partial?: DeepPartial<DmsSettingsConfig>): string[] {
+    const git = partial?.system?.git;
+    if (!git || typeof git !== 'object') {
+      return [];
+    }
+
+    return Object.keys(git).map((key) => `system.git.${key}`);
+  }
+
   async getSettings(includeRuntime = false, userId?: string): Promise<SettingsSnapshot> {
     return this.buildSnapshot(includeRuntime, userId);
   }
@@ -121,6 +129,7 @@ class SettingsService {
     const docRootBinding = configService.getDocumentRootBinding();
     const resolvedDocDir = docRootBinding.resolvedPath;
     const runtimeGit = await gitService.getRepositoryBindingStatus();
+    const gitBinding = configService.getGitBootstrapBinding();
     const runtimePaths: SettingsRuntimePathsSnapshot = {
       markdownRoot: this.toRuntimePathInfo(docRootBinding),
       ingestQueue: this.toRuntimePathInfo(configService.getIngestQueueBinding()),
@@ -135,6 +144,8 @@ class SettingsService {
       git: runtimeGit.success
         ? runtimeGit.data
         : {
+          instanceEnv: gitBinding.instanceEnv,
+          expectedRemoteUrl: gitBinding.bootstrapRemoteUrl,
           appRoot: docRootBinding.appRoot,
           configuredRootInput: docRootBinding.effectiveInput,
           configuredRoot: resolvedDocDir,
@@ -145,6 +156,9 @@ class SettingsService {
           rootMismatch: false,
           state: 'git-unavailable',
           reason: runtimeGit.error,
+          bindingSeverity: 'ok',
+          bindingReason: undefined,
+          actualRemoteMatchesExpected: null,
           gitAvailable: false,
           isRepository: false,
           hasGitMetadata: false,
@@ -160,8 +174,8 @@ class SettingsService {
             canTreatLocalAsCanonical: false,
             reason: runtimeGit.error,
           },
-          bootstrapRemoteUrl: configService.getGitBootstrapRemoteUrl(),
-          bootstrapBranch: configService.getGitBootstrapBranch(),
+          bootstrapRemoteUrl: gitBinding.bootstrapRemoteUrl,
+          bootstrapBranch: gitBinding.bootstrapBranch,
           autoInit: configService.getAutoInit(),
           reconcileRequired: false,
         },
@@ -197,6 +211,14 @@ class SettingsService {
   async updateSettings(partial?: DeepPartial<DmsSettingsConfig>, userId?: string): Promise<SettingsServiceResult> {
     if (!partial) {
       return { success: true, ...(await this.buildSnapshot(false, userId)) };
+    }
+
+    const immutableGitSettingKeys = this.getImmutableGitSettingKeys(partial);
+    if (immutableGitSettingKeys.length > 0) {
+      return {
+        success: false,
+        error: `Git binding settings are runtime-managed and read-only. Remove these keys: ${immutableGitSettingKeys.join(', ')}`,
+      };
     }
 
     const sanitizedPartial = sanitizeMutableSettingsPartial(partial);

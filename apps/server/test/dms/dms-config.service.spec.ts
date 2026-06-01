@@ -5,8 +5,12 @@ describe('DmsConfigService (singleton)', () => {
   const ORIGINAL_ENV = { ...process.env };
 
   beforeEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+    delete process.env.DMS_INSTANCE_ENV;
     delete process.env.DMS_GIT_BOOTSTRAP_REMOTE_URL;
     delete process.env.DMS_GIT_BOOTSTRAP_BRANCH;
+    delete process.env.DMS_GIT_PROD_REMOTE_URL;
+    delete process.env.DMS_GIT_DEV_REMOTE_URL;
     configService.invalidateCache();
   });
 
@@ -43,39 +47,80 @@ describe('DmsConfigService (singleton)', () => {
     });
   });
 
-  describe('git bootstrap env overrides', () => {
-    it('returns undefined when no env or config remote URL is set', () => {
-      const url = configService.getGitBootstrapRemoteUrl();
-      expect(url === undefined || typeof url === 'string').toBe(true);
-      // 환경 + 기본값 둘 다 없으면 undefined 여야 함
-      if (!process.env.DMS_GIT_BOOTSTRAP_REMOTE_URL) {
-        const cfgUrl = configService.getConfig().git.bootstrapRemoteUrl;
-        if (!cfgUrl || cfgUrl.trim().length === 0) {
-          expect(url).toBeUndefined();
-        }
-      }
+  describe('git role contract', () => {
+    it('requires DMS_INSTANCE_ENV before resolving the bootstrap binding', () => {
+      expect(() => configService.getGitBootstrapBinding()).toThrow(/DMS_INSTANCE_ENV/);
     });
 
-    it('env DMS_GIT_BOOTSTRAP_REMOTE_URL takes precedence', () => {
-      process.env.DMS_GIT_BOOTSTRAP_REMOTE_URL = 'https://example.com/dms.git';
-      expect(configService.getGitBootstrapRemoteUrl()).toBe('https://example.com/dms.git');
+    it('uses the prod document repo by default for prod instances', () => {
+      process.env.DMS_INSTANCE_ENV = 'prod';
+
+      expect(configService.getGitBootstrapBinding()).toEqual({
+        instanceEnv: 'prod',
+        bootstrapRemoteUrl: 'http://10.125.31.72:8010/LSITC_WEB/LSWIKI_DOC.git',
+        bootstrapBranch: 'master',
+      });
     });
 
-    it('trims whitespace in env override', () => {
-      process.env.DMS_GIT_BOOTSTRAP_REMOTE_URL = '  https://x/y.git  ';
-      expect(configService.getGitBootstrapRemoteUrl()).toBe('https://x/y.git');
+    it('uses the dev document repo by default for dev instances', () => {
+      process.env.DMS_INSTANCE_ENV = 'dev';
+
+      expect(configService.getGitBootstrapBinding()).toEqual({
+        instanceEnv: 'dev',
+        bootstrapRemoteUrl: 'git@10.125.31.72:LSITC_WEB/LSWIKI_DOC_DEV.git',
+        bootstrapBranch: 'master',
+      });
     });
 
-    it('treats blank env value as not set (falls back)', () => {
+    it('allows local-test instances to stay remote-empty', () => {
+      process.env.DMS_INSTANCE_ENV = 'local-test';
+
+      expect(configService.getGitBootstrapBinding()).toEqual({
+        instanceEnv: 'local-test',
+        bootstrapRemoteUrl: undefined,
+        bootstrapBranch: 'master',
+      });
+    });
+
+    it('accepts role-specific remote overrides', () => {
+      process.env.DMS_INSTANCE_ENV = 'dev';
+      process.env.DMS_GIT_DEV_REMOTE_URL = 'ssh://git@10.125.31.72/LSITC_WEB/LSWIKI_DOC_DEV_ALT.git';
+
+      expect(configService.getGitBootstrapBinding()).toEqual({
+        instanceEnv: 'dev',
+        bootstrapRemoteUrl: 'ssh://git@10.125.31.72/LSITC_WEB/LSWIKI_DOC_DEV_ALT.git',
+        bootstrapBranch: 'master',
+      });
+    });
+
+    it('rejects explicit bootstrap remotes that do not match the role contract', () => {
+      process.env.DMS_INSTANCE_ENV = 'dev';
+      process.env.DMS_GIT_BOOTSTRAP_REMOTE_URL = 'http://10.125.31.72:8010/LSITC_WEB/LSWIKI_DOC.git';
+
+      expect(() => configService.assertGitBootstrapContract()).toThrow(/DMS git role contract invalid/);
+    });
+
+    it('treats a blank bootstrap remote env as an explicit cleanup override', async () => {
+      await configService.updateConfig({
+        git: {
+          bootstrapRemoteUrl: 'http://10.125.31.72:8010/LSITC_WEB/LSWIKI_DOC.git',
+        },
+      });
+      process.env.DMS_INSTANCE_ENV = 'local-test';
       process.env.DMS_GIT_BOOTSTRAP_REMOTE_URL = '   ';
-      const url = configService.getGitBootstrapRemoteUrl();
-      // blank env value 는 무시되고 config 기본값 사용 — 정의되어 있을 수도, 없을 수도 있음
-      expect(url).not.toBe('   ');
+
+      expect(configService.getGitBootstrapBinding()).toEqual({
+        instanceEnv: 'local-test',
+        bootstrapRemoteUrl: undefined,
+        bootstrapBranch: 'master',
+      });
     });
 
-    it('env DMS_GIT_BOOTSTRAP_BRANCH takes precedence', () => {
-      process.env.DMS_GIT_BOOTSTRAP_BRANCH = 'production';
-      expect(configService.getGitBootstrapBranch()).toBe('production');
+    it('lets an explicit branch override win over the default', () => {
+      process.env.DMS_INSTANCE_ENV = 'dev';
+      process.env.DMS_GIT_BOOTSTRAP_BRANCH = 'release';
+
+      expect(configService.getGitBootstrapBinding().bootstrapBranch).toBe('release');
     });
   });
 

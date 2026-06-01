@@ -12,6 +12,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createDmsLogger } from './dms-logger.js';
+import { gitRemoteIdentitiesMatch } from './git-remote-identity.util.js';
 import type { DmsConfigDbClient } from './settings.types.js';
 const logger = createDmsLogger('DmsConfigService');
 
@@ -36,6 +37,14 @@ export interface GitConfig {
   };
   /** 경로에 .git이 없을 때 자동 git init */
   autoInit: boolean;
+}
+
+export type DmsInstanceEnv = 'prod' | 'dev' | 'local-test';
+
+export interface GitBootstrapBindingInfo {
+  instanceEnv: DmsInstanceEnv;
+  bootstrapRemoteUrl?: string;
+  bootstrapBranch?: string;
 }
 
 export type StorageProvider = 'local' | 'sharepoint' | 'nas';
@@ -175,6 +184,9 @@ export const DEFAULT_INGEST_QUEUE_PATH = '../../../.runtime/dms/ingest';
 export const DEFAULT_LOCAL_STORAGE_ROOT_PATH = '../../../.runtime/dms/storage/local';
 export const DEFAULT_SHAREPOINT_STORAGE_BASE_PATH = '/sites/dms/shared-documents';
 export const DEFAULT_NAS_STORAGE_BASE_PATH = '/mnt/nas/dms';
+export const DEFAULT_GIT_PROD_REMOTE_URL = 'http://10.125.31.72:8010/LSITC_WEB/LSWIKI_DOC.git';
+export const DEFAULT_GIT_DEV_REMOTE_URL = 'git@10.125.31.72:LSITC_WEB/LSWIKI_DOC_DEV.git';
+export const DEFAULT_GIT_BOOTSTRAP_BRANCH = 'master';
 
 const RUNTIME_PATH_ENV_KEYS = {
   markdownRoot: 'DMS_MARKDOWN_ROOT',
@@ -189,7 +201,15 @@ const GIT_BOOTSTRAP_ENV_KEYS = {
   branch: 'DMS_GIT_BOOTSTRAP_BRANCH',
 } as const;
 
+const DMS_INSTANCE_ENV_KEY = 'DMS_INSTANCE_ENV';
+const DMS_INSTANCE_ENV_VALUES = ['prod', 'dev', 'local-test'] as const;
+const GIT_ROLE_REMOTE_ENV_KEYS = {
+  prod: 'DMS_GIT_PROD_REMOTE_URL',
+  dev: 'DMS_GIT_DEV_REMOTE_URL',
+} as const;
+
 type RuntimePathEnvKey = (typeof RUNTIME_PATH_ENV_KEYS)[keyof typeof RUNTIME_PATH_ENV_KEYS];
+type GitBootstrapSource = 'env' | 'config' | 'none';
 
 interface NormalizeConfigResult {
   config: DmsConfig;
@@ -373,18 +393,80 @@ class ConfigService {
     return this.getConfig().git.autoInit;
   }
 
+  getDmsInstanceEnv(): DmsInstanceEnv {
+    const rawValue = process.env[DMS_INSTANCE_ENV_KEY]?.trim();
+    if (!rawValue) {
+      throw new Error(
+        `${DMS_INSTANCE_ENV_KEY} must be explicitly set to one of: ${DMS_INSTANCE_ENV_VALUES.join(', ')}. NODE_ENV is not used for DMS document Git binding.`,
+      );
+    }
+
+    if ((DMS_INSTANCE_ENV_VALUES as readonly string[]).includes(rawValue)) {
+      return rawValue as DmsInstanceEnv;
+    }
+
+    throw new Error(
+      `${DMS_INSTANCE_ENV_KEY}="${rawValue}" is invalid. Use one of: ${DMS_INSTANCE_ENV_VALUES.join(', ')}.`,
+    );
+  }
+
+  getGitBootstrapBinding(): GitBootstrapBindingInfo {
+    const instanceEnv = this.getDmsInstanceEnv();
+    const bootstrapBranch = this.getGitBootstrapBranch();
+    const configuredBootstrapRemote = this.getConfiguredBootstrapRemote();
+    const roleBootstrapRemote = this.getRoleBootstrapRemoteUrl(instanceEnv);
+
+    if (instanceEnv === 'local-test') {
+      if (configuredBootstrapRemote.remoteUrl) {
+        throw new Error(
+          `DMS git role contract invalid: ${DMS_INSTANCE_ENV_KEY}=local-test must keep the bootstrap remote empty, but ${configuredBootstrapRemote.source} configured ${configuredBootstrapRemote.remoteUrl}.`,
+        );
+      }
+
+      return {
+        instanceEnv,
+        bootstrapRemoteUrl: undefined,
+        bootstrapBranch,
+      };
+    }
+
+    if (!roleBootstrapRemote) {
+      throw new Error(
+        `DMS git role contract invalid: ${DMS_INSTANCE_ENV_KEY}=${instanceEnv} has no role-bound document remote.`,
+      );
+    }
+
+    if (
+      configuredBootstrapRemote.remoteUrl
+      && !gitRemoteIdentitiesMatch(configuredBootstrapRemote.remoteUrl, roleBootstrapRemote)
+    ) {
+      throw new Error(
+        `DMS git role contract invalid: ${DMS_INSTANCE_ENV_KEY}=${instanceEnv} expects ${roleBootstrapRemote}, but ${configuredBootstrapRemote.source} configured ${configuredBootstrapRemote.remoteUrl}.`,
+      );
+    }
+
+    return {
+      instanceEnv,
+      bootstrapRemoteUrl: roleBootstrapRemote,
+      bootstrapBranch,
+    };
+  }
+
+  assertGitBootstrapContract(): GitBootstrapBindingInfo {
+    return this.getGitBootstrapBinding();
+  }
+
   getGitBootstrapRemoteUrl(): string | undefined {
-    const envOverride = process.env[GIT_BOOTSTRAP_ENV_KEYS.remoteUrl]?.trim();
-    if (envOverride && envOverride.length > 0) return envOverride;
-    const remoteUrl = this.getConfig().git.bootstrapRemoteUrl?.trim();
-    return remoteUrl ? remoteUrl : undefined;
+    return this.getGitBootstrapBinding().bootstrapRemoteUrl;
   }
 
   getGitBootstrapBranch(): string | undefined {
-    const envOverride = process.env[GIT_BOOTSTRAP_ENV_KEYS.branch]?.trim();
-    if (envOverride && envOverride.length > 0) return envOverride;
+    const envOverride = this.readExplicitEnvValue(GIT_BOOTSTRAP_ENV_KEYS.branch);
+    if (envOverride.present) {
+      return envOverride.value ?? DEFAULT_GIT_BOOTSTRAP_BRANCH;
+    }
     const branch = this.getConfig().git.bootstrapBranch?.trim();
-    return branch ? branch : undefined;
+    return branch ? branch : DEFAULT_GIT_BOOTSTRAP_BRANCH;
   }
 
   /** 캐시 무효화 (설정 파일이 외부에서 변경된 경우) */
@@ -431,7 +513,7 @@ class ConfigService {
       git: {
         repositoryPath: DEFAULT_DOCUMENT_REPOSITORY_PATH,
         bootstrapRemoteUrl: '',
-        bootstrapBranch: '',
+        bootstrapBranch: DEFAULT_GIT_BOOTSTRAP_BRANCH,
         autoInit: true,
       },
       storage: {
@@ -554,6 +636,55 @@ class ConfigService {
       source: envOverride && envOverride.length > 0 ? 'env' : 'config',
       envVar: envOverride && envOverride.length > 0 ? envVar : undefined,
     };
+  }
+
+  private readExplicitEnvValue(envKey: string): { present: boolean; value?: string } {
+    if (!Object.prototype.hasOwnProperty.call(process.env, envKey)) {
+      return { present: false };
+    }
+
+    const trimmed = process.env[envKey]?.trim();
+    return {
+      present: true,
+      value: trimmed && trimmed.length > 0 ? trimmed : undefined,
+    };
+  }
+
+  private getConfiguredBootstrapRemote(): {
+    remoteUrl?: string;
+    source: GitBootstrapSource;
+  } {
+    const envOverride = this.readExplicitEnvValue(GIT_BOOTSTRAP_ENV_KEYS.remoteUrl);
+    if (envOverride.present) {
+      return {
+        remoteUrl: envOverride.value,
+        source: 'env',
+      };
+    }
+
+    const remoteUrl = this.getConfig().git.bootstrapRemoteUrl?.trim();
+    if (remoteUrl) {
+      return {
+        remoteUrl,
+        source: 'config',
+      };
+    }
+
+    return {
+      remoteUrl: undefined,
+      source: 'none',
+    };
+  }
+
+  private getRoleBootstrapRemoteUrl(instanceEnv: DmsInstanceEnv): string | undefined {
+    switch (instanceEnv) {
+      case 'prod':
+        return this.readExplicitEnvValue(GIT_ROLE_REMOTE_ENV_KEYS.prod).value ?? DEFAULT_GIT_PROD_REMOTE_URL;
+      case 'dev':
+        return this.readExplicitEnvValue(GIT_ROLE_REMOTE_ENV_KEYS.dev).value ?? DEFAULT_GIT_DEV_REMOTE_URL;
+      case 'local-test':
+        return undefined;
+    }
   }
 
   private normalizeConfig(config: DmsConfig, defaults: DmsConfig): NormalizeConfigResult {

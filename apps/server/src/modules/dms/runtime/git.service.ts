@@ -15,7 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import { simpleGit, type SimpleGit, type StatusResult, type DefaultLogFields, type ListLogLine } from 'simple-git';
 import { createDmsLogger } from './dms-logger.js';
-import { configService } from './dms-config.service.js';
+import { configService, DEFAULT_GIT_BOOTSTRAP_BRANCH, type DmsInstanceEnv } from './dms-config.service.js';
 import { isMarkdownFile } from './file-utils.js';
 import { personalSettingsService } from './personal-settings.service.js';
 import {
@@ -92,6 +92,11 @@ export type GitBindingState =
   | 'reconcile-needed'
   | 'git-unavailable';
 
+export type GitBindingSeverity =
+  | 'ok'
+  | 'blocking'
+  | 'fatal';
+
 export type GitRootRelation =
   | 'exact'
   | 'configured-subdirectory'
@@ -140,6 +145,8 @@ export interface GitPathParityStatus {
 }
 
 export interface GitRepositoryBindingStatus {
+  instanceEnv: DmsInstanceEnv;
+  expectedRemoteUrl?: string;
   appRoot: string;
   configuredRootInput: string;
   configuredRoot: string;
@@ -150,6 +157,9 @@ export interface GitRepositoryBindingStatus {
   rootMismatch: boolean;
   state: GitBindingState;
   reason?: string;
+  bindingSeverity: GitBindingSeverity;
+  bindingReason?: string;
+  actualRemoteMatchesExpected: boolean | null;
   gitAvailable: boolean;
   isRepository: boolean;
   hasGitMetadata: boolean;
@@ -202,7 +212,7 @@ class GitService {
    * - truly empty working tree 에서만 git init + 초기 커밋
    * - non-empty + non-git + bootstrapRemoteUrl → reconcile-merge (fetch + checkout)
    * - non-empty + non-git + no remote → reconcile 필요 상태로 간주하고 실패 반환
-   * - .git이 있으면 그대로 사용하되 origin remote 맞추고 auto-pull (ff-only)
+   * - .git이 있으면 role-bound remote contract 확인 후 auto-pull (ff-only)
    */
   async initialize(): Promise<GitResult<GitInitializeResult>> {
     if (this.initialized) {
@@ -230,7 +240,10 @@ class GitService {
         const shouldClone = Boolean(bootstrapRemoteUrl) && isEmptyWorkingTree;
         if (shouldClone && bootstrapRemoteUrl) {
           await this.cloneBootstrapRepository(bootstrapRemoteUrl, bootstrapBranch);
-          await this.ensureConfiguredRemote(bootstrapRemoteUrl);
+          const bindingGuard = await this.ensureRemoteMutationAllowed('origin');
+          if (!bindingGuard.success) {
+            return { success: false, error: bindingGuard.error };
+          }
           await this.configureGit();
           this.initialized = true;
           logger.info('Document Git 저장소 bootstrap clone 완료', {
@@ -281,7 +294,10 @@ class GitService {
         return { success: true, data: { isNew: true, mode: 'init' } };
       }
 
-      await this.ensureConfiguredRemote(bootstrapRemoteUrl);
+      const existingBindingGuard = await this.ensureRemoteMutationAllowed('origin');
+      if (!existingBindingGuard.success) {
+        return { success: false, error: existingBindingGuard.error };
+      }
       await this.configureGit();
 
       // GAP 2: auto-pull on existing repo — fetch & fast-forward only
@@ -325,6 +341,22 @@ class GitService {
 
   private listWorkingTreeEntries(): string[] {
     return listWorkingTreeEntriesAt(this.docDir);
+  }
+
+  private async ensureRemoteMutationAllowed(remote = 'origin'): Promise<GitResult<GitRepositoryBindingStatus>> {
+    const bindingResult = await this.getRepositoryBindingStatus(remote);
+    if (!bindingResult.success) {
+      return bindingResult;
+    }
+
+    if (bindingResult.data.bindingSeverity === 'ok') {
+      return bindingResult;
+    }
+
+    return {
+      success: false,
+      error: bindingResult.data.bindingReason ?? `${remote} mutation is blocked by the DMS git binding guard.`,
+    };
   }
 
   private async cloneBootstrapRepository(remoteUrl: string, branch?: string): Promise<void> {
@@ -448,6 +480,11 @@ class GitService {
       return { pulled: false, commitCount: 0, reason: 'git-not-initialized' };
     }
 
+    const bindingGuard = await this.ensureRemoteMutationAllowed(remote);
+    if (!bindingGuard.success) {
+      return { pulled: false, commitCount: 0, reason: bindingGuard.error };
+    }
+
     try {
       // 실제 remote 존재 확인 (config와 무관하게)
       const remotes = await this.git.getRemotes(true);
@@ -525,7 +562,7 @@ class GitService {
       // fallback
     }
 
-    return 'main';
+    return DEFAULT_GIT_BOOTSTRAP_BRANCH;
   }
 
   /** Git 사용 가능 여부 */
@@ -839,6 +876,10 @@ class GitService {
 
   async fetch(remote = 'origin'): Promise<GitResult<{ remote: string }>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
+    const bindingGuard = await this.ensureRemoteMutationAllowed(remote);
+    if (!bindingGuard.success) {
+      return { success: false, error: bindingGuard.error };
+    }
     try {
       await this.git.fetch(remote);
       return { success: true, data: { remote } };
@@ -881,6 +922,21 @@ class GitService {
       return { success: true, data: buildParityStatus(remote, undefined, 'PARITY_UNAVAILABLE: Git not initialized') };
     }
 
+    const bindingResult = await this.getRepositoryBindingStatus(remote);
+    if (!bindingResult.success) {
+      return { success: true, data: buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${bindingResult.error}`) };
+    }
+    if (bindingResult.data.bindingSeverity !== 'ok') {
+      return {
+        success: true,
+        data: buildParityStatus(
+          remote,
+          undefined,
+          bindingResult.data.bindingReason ?? `PARITY_CHECK_FAILED: ${remote} is blocked by the DMS git binding guard`,
+        ),
+      };
+    }
+
     const syncResult = await this.inspectSyncStatus(remote);
     if (!syncResult.success) {
       return { success: true, data: buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${syncResult.error}`) };
@@ -916,6 +972,36 @@ class GitService {
           localAheadPaths: [],
           remoteAheadPaths: [],
           reason: 'PARITY_UNAVAILABLE: Git not initialized',
+        },
+      };
+    }
+
+    const bindingResult = await this.getRepositoryBindingStatus(remote);
+    if (!bindingResult.success) {
+      return {
+        success: true,
+        data: {
+          remote,
+          verified: false,
+          clean: false,
+          workingTreePaths: [],
+          localAheadPaths: [],
+          remoteAheadPaths: [],
+          reason: `PARITY_CHECK_FAILED: ${bindingResult.error}`,
+        },
+      };
+    }
+    if (bindingResult.data.bindingSeverity !== 'ok') {
+      return {
+        success: true,
+        data: {
+          remote,
+          verified: false,
+          clean: false,
+          workingTreePaths: [],
+          localAheadPaths: [],
+          remoteAheadPaths: [],
+          reason: bindingResult.data.bindingReason ?? `${remote} is blocked by the DMS git binding guard`,
         },
       };
     }
@@ -1038,6 +1124,10 @@ class GitService {
 
   async inspectSyncStatus(remote = 'origin'): Promise<GitResult<GitSyncStatus>> {
     if (!this.initialized) return { success: false, error: 'Git not initialized' };
+    const bindingGuard = await this.ensureRemoteMutationAllowed(remote);
+    if (!bindingGuard.success) {
+      return { success: false, error: bindingGuard.error };
+    }
     return inspectSyncStatusWithGit(this.git, remote);
   }
 }

@@ -121,6 +121,16 @@ export type GitBindingStateClient =
   | 'reconcile-needed'
   | 'git-unavailable';
 
+export type DmsInstanceEnvClient =
+  | 'prod'
+  | 'dev'
+  | 'local-test';
+
+export type GitBindingSeverityClient =
+  | 'ok'
+  | 'blocking'
+  | 'fatal';
+
 export type GitRootRelationClient =
   | 'exact'
   | 'configured-subdirectory'
@@ -135,6 +145,8 @@ export interface GitParityStatusClient {
 }
 
 export interface SettingsRuntimeGitClient {
+  instanceEnv: DmsInstanceEnvClient;
+  expectedRemoteUrl?: string;
   appRoot: string;
   configuredRootInput: string;
   configuredRoot: string;
@@ -145,6 +157,9 @@ export interface SettingsRuntimeGitClient {
   rootMismatch: boolean;
   state: GitBindingStateClient;
   reason?: string;
+  bindingSeverity: GitBindingSeverityClient;
+  bindingReason?: string;
+  actualRemoteMatchesExpected: boolean | null;
   gitAvailable: boolean;
   isRepository: boolean;
   hasGitMetadata: boolean;

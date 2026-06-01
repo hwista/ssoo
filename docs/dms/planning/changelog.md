@@ -7,6 +7,12 @@
 
 ## 2026-05-29
 
+### DMS 문서 Git 역할 분리
+
+- DMS runtime 이 `DMS_INSTANCE_ENV=prod|dev|local-test` 역할 계약으로 문서 Git binding 을 결정하도록 정리했습니다.
+- `prod` 는 기존 `LSWIKI_DOC.git`, `dev` 는 `git@10.125.31.72:LSITC_WEB/LSWIKI_DOC_DEV.git`, `local-test` 는 remote-empty isolated profile 로 고정했습니다.
+- existing repo 의 실제 `origin` 이 역할이 기대하는 remote 와 다르면 자동 rewrite 대신 mutation 차단/관측 상태로 남기고, settings 는 Git binding 을 runtime-managed read-only surface 로 바꿨습니다.
+
 ### DMS 런칭 인계 문서 현행화
 
 - 협업/권한/알림/댓글 closeout 상태를 `2026-05-29` 런칭 핸드오프 문서로 분리해, 다음 작업자가 최종 브라우저 스모크와 운영 freeze 를 바로 이어갈 수 있도록 정리했습니다.

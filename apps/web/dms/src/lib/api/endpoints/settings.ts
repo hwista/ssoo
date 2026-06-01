@@ -1,10 +1,12 @@
 export { settingsApi } from '../settingsApi';
 export type {
+  DmsInstanceEnvClient,
   DeepPartialClient,
   DmsPersonalSettingsClient,
   DmsSettingsConfigClient,
   DmsSystemConfigClient,
   GitBindingStateClient,
+  GitBindingSeverityClient,
   GitParityStatusClient,
   GitRootRelationClient,
   SettingsAccessClient,
