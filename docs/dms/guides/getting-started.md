@@ -101,7 +101,7 @@ DMS_DATABASE_URL=
 - Docker 배포에서는 위 경로들을 `compose.yaml` bind mount + env override 로 image 밖에 둡니다.
 - settings 화면(`/settings`)은 persisted config 와 runtime snapshot 을 함께 보여 줄 수 있으며, env override 가 실제 runtime path 를 덮어쓸 수 있습니다.
 - markdown working tree root 는 settings 에서 관측만 제공하고, 실제 변경은 deploy/runtime config 로 관리합니다.
-- 대신 admin 은 settings 에서 Git bootstrap 정책(`bootstrapRemoteUrl`, `bootstrapBranch`, `autoInit`)은 계속 관리할 수 있습니다.
+- Git binding 은 `DMS_INSTANCE_ENV` 역할 계약으로 runtime 에서 결정되며, settings 는 read-only observability 만 제공합니다.
 - 문서 Git bootstrap/sync 는 앱 빌드 시점이 아니라 server runtime initialize/reconcile 시점에 수행됩니다.
 
 운영 저장소 정책 정본:
@@ -121,6 +121,7 @@ DMS_DATABASE_URL=
 권장 `.env.local-test` 예시:
 
 ```bash
+DMS_INSTANCE_ENV=local-test
 DMS_MARKDOWN_ROOT=$HOME/dev/LSWIKI_DOC_LOCAL
 DMS_INGEST_QUEUE_PATH=/absolute/path/to/LSWIKI/.runtime/dms/ingest
 DMS_STORAGE_LOCAL_BASE_PATH=/absolute/path/to/LSWIKI/.runtime/dms/storage/local
@@ -130,11 +131,26 @@ DMS_GIT_BOOTSTRAP_BRANCH=master
 
 직접 실행 원칙:
 
+- `DMS_INSTANCE_ENV=local-test` 를 명시해야 하며, `NODE_ENV` 로 대체하지 않습니다.
 - `DMS_MARKDOWN_ROOT` 는 반드시 `LSWIKI` repo 밖 경로를 가리켜야 합니다.
 - `DMS_GIT_BOOTSTRAP_REMOTE_URL` 은 기본 local-test profile에서는 비워 둡니다.
 - 기본 local-test profile에서는 remote가 없어도 현재 local repo를 canonical source로 간주합니다.
 - 테스트 문서와 템플릿은 로컬에서 생성합니다.
 - 운영 문서/운영 템플릿이 꼭 필요할 때만 명시 승인 후 예외 반입합니다.
+
+### Ordinary local-dev profile (development document repo)
+
+일반 로컬 실행(`pnpm dev:server`, `pnpm dev`, local compose)은 운영 문서 repo가 아니라 개발 문서 repo를 사용해야 합니다.
+
+```bash
+DMS_INSTANCE_ENV=dev
+DMS_GIT_DEV_REMOTE_URL=git@10.125.31.72:LSITC_WEB/LSWIKI_DOC_DEV.git
+DMS_GIT_BOOTSTRAP_BRANCH=master
+```
+
+- ordinary local run 기본값은 `DMS_INSTANCE_ENV=dev` 입니다.
+- 배포 서버/운영 compose 는 `DMS_INSTANCE_ENV=prod` 로 명시하거나 compose default(prod)를 그대로 사용합니다.
+- `DMS_GIT_BOOTSTRAP_REMOTE_URL` 은 local-dev 기본 스위치가 아니라 cleanup/override 용으로만 사용합니다.
 
 ---
 
