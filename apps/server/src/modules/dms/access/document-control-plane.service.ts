@@ -406,6 +406,9 @@ export class DocumentControlPlaneService {
       where: {
         isActive: true,
         documentStatusCode: 'active',
+        syncStatusCode: {
+          notIn: ['missing', 'deleted'],
+        },
       },
       select: DOCUMENT_CONTROL_PLANE_SELECT,
       orderBy: {

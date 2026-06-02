@@ -41,6 +41,9 @@ class FakeEventsGateway {
   readonly takeoverRequests: unknown[] = [];
   readonly takeoverResponses: unknown[] = [];
   readonly collaborationEvents: unknown[] = [];
+  readonly fileChanges: unknown[] = [];
+  readonly publishStatuses: unknown[] = [];
+  readonly connectedUserIds = new Set<string>();
 
   emitLockTakeoverRequested(_ownerUserId: string, event: unknown): void {
     this.takeoverRequests.push(event);
@@ -54,8 +57,16 @@ class FakeEventsGateway {
     this.collaborationEvents.push(event);
   }
 
-  isUserConnected(): boolean {
-    return false;
+  emitFileChanged(event: unknown): void {
+    this.fileChanges.push(event);
+  }
+
+  emitPublishStatus(event: unknown): void {
+    this.publishStatuses.push(event);
+  }
+
+  isUserConnected(userId: string): boolean {
+    return this.connectedUserIds.has(userId);
   }
 }
 
@@ -110,6 +121,154 @@ describe('CollaborationService (D-2 phase 2)', () => {
         sessionId: 's1',
         mode: 'edit',
       });
+      expect(snapshot.path).toBe('docs/a.md');
+      expect(snapshot.softLock).toMatchObject({ userId: '1', sessionId: 's1', path: 'docs/a.md' });
+    });
+
+    it('blocks another writable user from entering edit mode while a soft lock is active', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+
+      await expect(service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('2', 'bob'),
+        sessionId: 's2',
+        mode: 'edit',
+      })).rejects.toThrow('사용자가 편집 중입니다');
+
+      const snapshot = await service.getSnapshot('docs/a.md');
+      expect(snapshot.softLock).toMatchObject({ userId: '1', sessionId: 's1' });
+    });
+
+    it('blocks a different session from the same user while a soft lock is active', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+
+      await expect(service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's2',
+        mode: 'edit',
+      })).rejects.toThrow('사용자가 편집 중입니다');
+
+      const snapshot = await service.getSnapshot('docs/a.md');
+      expect(snapshot.softLock).toMatchObject({ userId: '1', sessionId: 's1' });
+    });
+
+    it('renews only the current edit lock session', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+
+      await expect(service.renewSoftLock({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's2',
+      })).rejects.toThrow('사용자가 편집 중입니다');
+
+      const renewed = await service.renewSoftLock({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+      });
+      expect(renewed.softLock).toMatchObject({ userId: '1', sessionId: 's1' });
+    });
+
+    it('expires a stale soft lock even when the lock user remains connected', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+      eventsGateway.connectedUserIds.add('1');
+
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
+      const expiredSnapshot = service.getSnapshot('docs/a.md');
+      expect(expiredSnapshot.softLock).toBeNull();
+
+      nowSpy.mockRestore();
+      const nextEditorSnapshot = await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('2', 'bob'),
+        sessionId: 's2',
+        mode: 'edit',
+      });
+      expect(nextEditorSnapshot.softLock).toMatchObject({ userId: '2', sessionId: 's2' });
+    });
+
+    it('expires stale edit presence even when that user remains connected elsewhere', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+      eventsGateway.connectedUserIds.add('1');
+
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
+      const snapshot = service.getSnapshot('docs/a.md');
+      expect(snapshot.members.some((member) => member.userId === '1' && member.mode === 'edit')).toBe(false);
+      expect(snapshot.softLock).toBeNull();
+
+      nowSpy.mockRestore();
+    });
+
+    it('allows writes only from the current edit lock session while a lock is active', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+
+      expect(() => service.assertCurrentSoftLockOwner({
+        action: 'write',
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+      })).not.toThrow();
+      expect(() => service.assertCurrentSoftLockOwner({
+        action: 'write',
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's2',
+      })).toThrow('현재 편집 잠금 세션만 저장할 수 있습니다');
+      expect(() => service.assertCurrentSoftLockOwner({
+        action: 'write',
+        path: 'docs/a.md',
+        currentUser: tokenFor('2', 'bob'),
+        sessionId: 's2',
+      })).toThrow('현재 편집 잠금 세션만 저장할 수 있습니다');
+    });
+
+    it('normalizes equivalent document paths before checking active soft locks', async () => {
+      await service.heartbeat({
+        path: '/docs//a.md/',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+
+      await expect(service.heartbeat({
+        path: 'docs\\a.md',
+        currentUser: tokenFor('2', 'bob'),
+        sessionId: 's2',
+        mode: 'edit',
+      })).rejects.toThrow('사용자가 편집 중입니다');
+
+      const snapshot = await service.getSnapshot('docs/a.md');
       expect(snapshot.path).toBe('docs/a.md');
       expect(snapshot.softLock).toMatchObject({ userId: '1', sessionId: 's1', path: 'docs/a.md' });
     });
@@ -236,6 +395,59 @@ describe('CollaborationService (D-2 phase 2)', () => {
       expect(response.status).toBe('approved');
       expect(response.snapshot.softLock).toMatchObject({ userId: '2', sessionId: 's2' });
     });
+
+    it('keeps the owner lock when the owner responds after a takeover request expires', async () => {
+      const startedAt = new Date('2026-06-02T00:00:00.000Z');
+      jest.useFakeTimers({ now: startedAt });
+      try {
+        await service.heartbeat({
+          path: 'docs/a.md',
+          currentUser: tokenFor('1', 'alice'),
+          sessionId: 's1',
+          mode: 'edit',
+        });
+        const result = await service.takeover({
+          path: 'docs/a.md',
+          currentUser: tokenFor('2', 'bob'),
+          sessionId: 's2',
+        });
+
+        jest.setSystemTime(new Date(startedAt.getTime() + 31_000));
+        expect(service.getTakeoverPendingState({
+          path: 'docs/a.md',
+          currentUser: tokenFor('2', 'bob'),
+        }).requesterRequest).toBeNull();
+        expect(service.getTakeoverPendingState({
+          path: 'docs/a.md',
+          currentUser: tokenFor('1', 'alice'),
+        }).ownerRequest).toBeNull();
+
+        const response = await service.respondToTakeover({
+          requestId: result.request?.requestId ?? '',
+          approved: false,
+          currentUser: tokenFor('1', 'alice'),
+        });
+
+        expect(response.status).toBe('expired');
+        expect(response.snapshot.softLock).toMatchObject({ userId: '1', sessionId: 's1' });
+        await expect(service.heartbeat({
+          path: 'docs/a.md',
+          currentUser: tokenFor('2', 'bob'),
+          sessionId: 's2',
+          mode: 'edit',
+        })).rejects.toThrow('사용자가 편집 중입니다');
+
+        const retry = await service.takeover({
+          path: 'docs/a.md',
+          currentUser: tokenFor('2', 'bob'),
+          sessionId: 's2',
+        });
+        expect(retry.status).toBe('requested');
+        expect(retry.snapshot.softLock).toMatchObject({ userId: '1', sessionId: 's1' });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
   });
 
   describe('leave', () => {
@@ -322,6 +534,30 @@ describe('CollaborationService (D-2 phase 2)', () => {
       expect(() =>
         service.assertMutationAllowed({ action: 'write', paths: ['', '   '] }),
       ).not.toThrow();
+    });
+  });
+
+  describe('noteMutation', () => {
+    it('keeps ignored verification documents out of publish state while emitting file changes', () => {
+      jest.spyOn(configService, 'getGitPublishIgnoredPathPrefixes').mockReturnValue(['launch-smoke/']);
+
+      service.noteMutation({
+        primaryPath: 'launch-smoke/a.md',
+        operationType: 'create',
+        currentUser: tokenFor('1', 'alice'),
+        publishDelayMs: 0,
+      });
+
+      expect(service.getSnapshot('launch-smoke/a.md').publishState).toMatchObject({
+        path: 'launch-smoke/a.md',
+        status: 'clean',
+      });
+      expect(eventsGateway.fileChanges).toHaveLength(1);
+      expect(eventsGateway.fileChanges[0]).toMatchObject({
+        action: 'create',
+        paths: ['launch-smoke/a.md'],
+      });
+      expect(notificationService.notifications).toHaveLength(0);
     });
   });
 

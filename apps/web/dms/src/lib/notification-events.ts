@@ -7,6 +7,8 @@ import type {
 export const DMS_ACCESS_REQUEST_FOCUS_EVENT = 'dms:access-request-focus';
 export const DMS_DOCUMENT_ACCESS_REFRESH_EVENT = 'dms:document-access-refresh';
 export const DMS_DOCUMENT_COMMENT_CHANGED_DOMAIN_EVENT_TYPE = 'dms.document-comment.changed';
+export const DMS_COLLABORATION_SUBSCRIBE_DOCUMENT_EVENT = 'dms:collaboration-subscribe-document';
+export const DMS_COLLABORATION_UNSUBSCRIBE_DOCUMENT_EVENT = 'dms:collaboration-unsubscribe-document';
 export const DMS_COLLABORATION_CHANGED_EVENT = 'dms:collaboration-changed';
 export const DMS_LOCK_TAKEOVER_REQUESTED_EVENT = 'dms:lock-takeover-requested';
 export const DMS_LOCK_TAKEOVER_RESPONDED_EVENT = 'dms:lock-takeover-responded';
@@ -32,6 +34,9 @@ export interface DmsCollaborationChangedEventDetail {
   path: string;
   reason: 'join' | 'mode' | 'leave' | 'lock' | 'takeover' | 'publish' | 'refresh';
   snapshot: DocumentCollaborationSnapshotClient;
+}
+export interface DmsCollaborationDocumentSubscriptionEventDetail {
+  path: string;
 }
 
 export type DmsLockTakeoverRequestedEventDetail = SoftLockTakeoverRequestClient;
@@ -79,6 +84,17 @@ export function isDmsCollaborationChangedEventDetail(
 
   const detail = value as Partial<DmsCollaborationChangedEventDetail>;
   return typeof detail.path === 'string' && Boolean(detail.snapshot);
+}
+
+export function isDmsCollaborationDocumentSubscriptionEventDetail(
+  value: unknown,
+): value is DmsCollaborationDocumentSubscriptionEventDetail {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const detail = value as Partial<DmsCollaborationDocumentSubscriptionEventDetail>;
+  return typeof detail.path === 'string';
 }
 
 export function isDmsLockTakeoverRequestedEventDetail(

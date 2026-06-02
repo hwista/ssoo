@@ -11,6 +11,7 @@ import { Logger } from '@nestjs/common';
 import type { Server, Socket } from 'socket.io';
 import { verifyWsToken } from './ws-jwt.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { normalizePath } from '../collaboration/collaboration-paths.util.js';
 import type {
   DocumentCollaborationSnapshot,
   SoftLockTakeoverRequest,
@@ -137,9 +138,10 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
   ): { success: boolean } {
     if (!client.data.user || !data?.path) return { success: false };
 
-    const roomName = this.documentRoom(data.path);
+    const documentPath = normalizePath(data.path);
+    const roomName = this.documentRoom(documentPath);
     client.join(roomName);
-    client.data.subscribedPaths?.add(data.path);
+    client.data.subscribedPaths?.add(documentPath);
 
     return { success: true };
   }
@@ -151,9 +153,10 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
   ): { success: boolean } {
     if (!data?.path) return { success: false };
 
-    const roomName = this.documentRoom(data.path);
+    const documentPath = normalizePath(data.path);
+    const roomName = this.documentRoom(documentPath);
     client.leave(roomName);
-    client.data.subscribedPaths?.delete(data.path);
+    client.data.subscribedPaths?.delete(documentPath);
 
     return { success: true };
   }
@@ -199,7 +202,11 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   emitCollaborationChanged(event: DmsCollaborationChangedEvent): void {
-    this.server?.to(this.documentRoom(event.path)).emit('dms:collaboration-changed', event);
+    const documentPath = normalizePath(event.path);
+    this.server?.to(this.documentRoom(documentPath)).emit('dms:collaboration-changed', {
+      ...event,
+      path: documentPath,
+    });
   }
 
   emitLockTakeoverRequested(ownerUserId: string, event: SoftLockTakeoverRequest): void {
@@ -215,7 +222,7 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
   // --------------------------------------------------------------------------
 
   private documentRoom(filePath: string): string {
-    return `doc:${filePath}`;
+    return `doc:${normalizePath(filePath)}`;
   }
 
   private emitToUser(userId: string, eventName: string, payload: unknown): void {

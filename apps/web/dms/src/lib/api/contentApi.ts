@@ -63,7 +63,7 @@ export const contentApi = {
     contentPath: string,
     content: string,
     metadata?: Record<string, unknown>,
-    options?: { skipMetadata?: boolean; signal?: AbortSignal; expectedRevisionSeq?: number },
+    options?: { skipMetadata?: boolean; signal?: AbortSignal; expectedRevisionSeq?: number; collaborationSessionId?: string },
   ): Promise<ApiResponse<ContentSaveResult>> => {
     return request<ContentSaveResult>('/api/content', {
       method: 'POST',
@@ -73,6 +73,7 @@ export const contentApi = {
         metadata,
         skipMetadata: options?.skipMetadata,
         expectedRevisionSeq: options?.expectedRevisionSeq,
+        collaborationSessionId: options?.collaborationSessionId,
       },
       signal: options?.signal,
     });
@@ -101,11 +102,16 @@ export const contentApi = {
   updateMetadata: async (
     contentPath: string,
     update: Record<string, unknown>,
-    options?: { signal?: AbortSignal; expectedRevisionSeq?: number },
+    options?: { signal?: AbortSignal; expectedRevisionSeq?: number; collaborationSessionId?: string },
   ): Promise<ApiResponse<Record<string, unknown>>> => {
     return request<Record<string, unknown>>('/api/content', {
       method: 'POST',
-      body: { path: contentPath, metadataUpdate: update, expectedRevisionSeq: options?.expectedRevisionSeq },
+      body: {
+        path: contentPath,
+        metadataUpdate: update,
+        expectedRevisionSeq: options?.expectedRevisionSeq,
+        collaborationSessionId: options?.collaborationSessionId,
+      },
       signal: options?.signal,
     });
   },

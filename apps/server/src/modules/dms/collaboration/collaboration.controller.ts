@@ -39,6 +39,14 @@ export class CollaborationController {
     return success(await this.collaborationService.heartbeat({ path: body.path, mode: body.mode, sessionId: body.sessionId, currentUser }));
   }
 
+  @Post('lock/renew')
+  @ApiOperation({ summary: '문서 soft lock 세션 갱신' })
+  @ApiOkResponse({ description: '문서 collaboration snapshot 반환' })
+  async renewSoftLock(@CurrentUser() currentUser: TokenPayload, @Body() body: { path?: string; sessionId?: string }) {
+    if (!body.path?.trim()) throw new BadRequestException('path는 필수입니다.');
+    return success(await this.collaborationService.renewSoftLock({ path: body.path, sessionId: body.sessionId, currentUser }));
+  }
+
   @Post('takeover')
   @ApiOperation({ summary: '문서 soft lock takeover' })
   @ApiOkResponse({ description: '문서 collaboration snapshot 반환' })

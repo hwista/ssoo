@@ -294,6 +294,10 @@ interface DocumentPageContentProps {
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   /** 저장 충돌 감지 시 */
   onSaveConflict?: (conflict: EditorSaveConflictPayload) => Promise<void> | void;
+  /** 현재 문서 편집 잠금 세션 ID */
+  collaborationSessionId?: string;
+  /** 메타데이터 변경을 서버에 저장할 수 있는지 여부 */
+  canManageMetadata?: boolean;
   lockedPreview?: LockedPreviewBannerProps;
 }
 
@@ -323,6 +327,8 @@ export function DocumentPageContent({
   onImageClick,
   onHistoryChange,
   onSaveConflict,
+  collaborationSessionId,
+  canManageMetadata = true,
   lockedPreview,
 }: DocumentPageContentProps) {
   if (error) {
@@ -403,6 +409,8 @@ export function DocumentPageContent({
         onContentChange={onEditorContentChange}
         onHistoryChange={onHistoryChange}
         onSaveConflict={onSaveConflict}
+        collaborationSessionId={collaborationSessionId}
+        canManageMetadata={canManageMetadata}
       />
       {isTemplateGenerating && !(currentDraftContent?.trim()) ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">

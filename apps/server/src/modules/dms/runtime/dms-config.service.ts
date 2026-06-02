@@ -191,9 +191,25 @@ const GIT_BOOTSTRAP_ENV_KEYS = {
 
 type RuntimePathEnvKey = (typeof RUNTIME_PATH_ENV_KEYS)[keyof typeof RUNTIME_PATH_ENV_KEYS];
 
+const GIT_PUBLISH_IGNORED_PATH_PREFIXES_ENV_KEY = 'DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES';
+
 interface NormalizeConfigResult {
   config: DmsConfig;
   usedDefaultRepositoryPath: boolean;
+}
+
+function parseIgnoredPathPrefixes(raw: string | undefined): string[] {
+  if (!raw?.trim()) {
+    return [];
+  }
+
+  return Array.from(new Set(
+    raw
+      .split(',')
+      .map((item) => item.trim().replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+/, '').replace(/\/+$/, ''))
+      .filter(Boolean)
+      .map((item) => `${item}/`),
+  ));
 }
 
 // ============================================================================
@@ -385,6 +401,10 @@ class ConfigService {
     if (envOverride && envOverride.length > 0) return envOverride;
     const branch = this.getConfig().git.bootstrapBranch?.trim();
     return branch ? branch : undefined;
+  }
+
+  getGitPublishIgnoredPathPrefixes(): string[] {
+    return parseIgnoredPathPrefixes(process.env[GIT_PUBLISH_IGNORED_PATH_PREFIXES_ENV_KEY]);
   }
 
   /** 캐시 무효화 (설정 파일이 외부에서 변경된 경우) */

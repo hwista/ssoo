@@ -36,7 +36,7 @@ interface StatusMeta {
 
 interface DocumentStatusSummaryProps {
   snapshot: DocumentCollaborationSnapshotClient;
-  currentUserLoginId?: string;
+  currentUserId?: string;
   onRefreshPublishState?: () => Promise<void> | void;
   onRetryPublish?: () => Promise<void> | void;
 }
@@ -191,9 +191,9 @@ function buildPublishDetail(state: DocumentPublishStateClient, isolation: Docume
   return lines.join('\n');
 }
 
-function getPresenceMeta(members: CollaborationMemberClient[], currentUserLoginId?: string): StatusMeta {
-  const otherMembers = currentUserLoginId
-    ? members.filter((member) => member.loginId !== currentUserLoginId)
+function getPresenceMeta(members: CollaborationMemberClient[], currentUserId?: string): StatusMeta {
+  const otherMembers = currentUserId
+    ? members.filter((member) => member.userId !== currentUserId)
     : members;
   const otherEditors = otherMembers.filter((member) => member.mode === 'edit');
 
@@ -223,7 +223,7 @@ function getPresenceMeta(members: CollaborationMemberClient[], currentUserLoginI
   };
 }
 
-function getLockMeta(lock: DocumentSoftLockClient | null, currentUserLoginId?: string): StatusMeta {
+function getLockMeta(lock: DocumentSoftLockClient | null, currentUserId?: string): StatusMeta {
   if (!lock) {
     return {
       label: '잠금 없음',
@@ -235,7 +235,7 @@ function getLockMeta(lock: DocumentSoftLockClient | null, currentUserLoginId?: s
 
   const owner = lock.displayName || lock.loginId;
   const acquiredAt = formatDateTime(lock.acquiredAt);
-  const sameUser = Boolean(currentUserLoginId && lock.loginId === currentUserLoginId);
+  const sameUser = Boolean(currentUserId && lock.userId === currentUserId);
 
   return {
     label: sameUser ? '내 잠금' : '잠금 있음',
@@ -248,7 +248,7 @@ function getLockMeta(lock: DocumentSoftLockClient | null, currentUserLoginId?: s
   };
 }
 
-function getSummary(snapshot: DocumentCollaborationSnapshotClient, currentUserLoginId?: string): { label: string; tone: StatusTone } {
+function getSummary(snapshot: DocumentCollaborationSnapshotClient, currentUserId?: string): { label: string; tone: StatusTone } {
   const publishStatus = snapshot.publishState.status;
   const hasPublishProblem = publishStatus === 'sync-blocked' || publishStatus === 'push-failed' || Boolean(snapshot.isolation);
   if (hasPublishProblem) {
@@ -256,8 +256,8 @@ function getSummary(snapshot: DocumentCollaborationSnapshotClient, currentUserLo
   }
 
   const hasPendingPublish = publishStatus === 'dirty-uncommitted' || publishStatus === 'committed-unpushed' || publishStatus === 'publishing';
-  const hasOtherEditor = snapshot.members.some((member) => member.mode === 'edit' && (!currentUserLoginId || member.loginId !== currentUserLoginId));
-  const hasOtherLock = Boolean(snapshot.softLock && (!currentUserLoginId || snapshot.softLock.loginId !== currentUserLoginId));
+  const hasOtherEditor = snapshot.members.some((member) => member.mode === 'edit' && (!currentUserId || member.userId !== currentUserId));
+  const hasOtherLock = Boolean(snapshot.softLock && (!currentUserId || snapshot.softLock.userId !== currentUserId));
   if (hasPendingPublish || hasOtherEditor || hasOtherLock) {
     return { label: '주의', tone: 'warning' };
   }
@@ -318,14 +318,14 @@ function ActionIconButton({
 
 export function DocumentStatusSummary({
   snapshot,
-  currentUserLoginId,
+  currentUserId,
   onRefreshPublishState,
   onRetryPublish,
 }: DocumentStatusSummaryProps) {
   const publishMeta = getPublishMeta(snapshot.publishState.status);
-  const presenceMeta = getPresenceMeta(snapshot.members, currentUserLoginId);
-  const lockMeta = getLockMeta(snapshot.softLock, currentUserLoginId);
-  const summary = getSummary(snapshot, currentUserLoginId);
+  const presenceMeta = getPresenceMeta(snapshot.members, currentUserId);
+  const lockMeta = getLockMeta(snapshot.softLock, currentUserId);
+  const summary = getSummary(snapshot, currentUserId);
   const canRefresh = Boolean(
     onRefreshPublishState
     && (snapshot.isolation || snapshot.publishState.status === 'sync-blocked' || snapshot.publishState.status === 'push-failed')

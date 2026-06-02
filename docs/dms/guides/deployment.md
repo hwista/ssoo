@@ -178,6 +178,7 @@ tar czf dms-runtime-backup-$(date +%Y%m%d).tar.gz \
 | `DMS_STORAGE_LOCAL_BASE_PATH` | `/var/lib/ssoo/dms/storage/local` | server 컨테이너 내 local binary storage root |
 | `DMS_STORAGE_SHAREPOINT_BASE_PATH` | `/sites/dms/shared-documents` | SharePoint provider base path override |
 | `DMS_STORAGE_NAS_BASE_PATH` | `/mnt/nas/dms` | NAS provider base path override |
+| `DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES` | `launch-smoke/,codex-lock-ui/,codex-lock-probe/,verify-access/` | 쉼표로 구분한 local-only 검증 문서 디렉터리 prefix. 이 prefix 의 markdown 변경은 DMS Git publish/알림 대상에서 제외 |
 
 ### AI 기능 사용 시 추가 필요
 

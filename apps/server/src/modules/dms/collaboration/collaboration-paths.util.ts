@@ -3,7 +3,12 @@ import { isMarkdownFile } from '../runtime/file-utils.js';
 export const PRESENCE_TTL_MS = 30_000;
 
 export function normalizePath(pathValue: string): string {
-  return pathValue.trim().replace(/\\/g, '/');
+  return pathValue
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '');
 }
 
 export function isGitManagedDocumentPath(pathValue: string): boolean {

@@ -51,6 +51,10 @@ export interface EditorProps {
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   /** 저장 충돌 감지 시 */
   onSaveConflict?: (conflict: EditorSaveConflictPayload) => Promise<void> | void;
+  /** 현재 문서 편집 잠금 세션 ID */
+  collaborationSessionId?: string;
+  /** 메타데이터 변경을 서버에 저장할 수 있는지 여부 */
+  canManageMetadata?: boolean;
 }
 
 export interface EditorRef {
@@ -93,6 +97,8 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   onContentChange,
   onHistoryChange,
   onSaveConflict,
+  collaborationSessionId,
+  canManageMetadata = true,
 }: EditorProps, ref) {
   const { showSuccess, showError } = useToast();
   
@@ -104,6 +110,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     setIsEditing,
     pendingMetadataUpdate,
     saveFile: storeSaveFile,
+    saveFileKeepEditing: storeSaveFileKeepEditing,
     discardPendingMetadata,
     setLocalDocumentMetadata,
     contentType,
@@ -116,13 +123,17 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   } = useEditorStore();
 
   const interactions = useEditorInteractions(currentFilePath);
+  const saveOptions = React.useMemo(
+    () => ({ collaborationSessionId, flushMetadata: canManageMetadata }),
+    [canManageMetadata, collaborationSessionId],
+  );
 
   // 탭 ID (keep-alive context) + 탭 스토어 (새 문서 저장 시 탭 업데이트용)
   const tabId = useTabInstanceId();
   const { updateTab, closeTab } = useTabStore();
   
   // 확인 다이얼로그
-  const { confirm } = useConfirmStore();
+  const confirm = useConfirmStore((state) => state.confirm);
 
   // useEditor 훅 (Undo/Redo 등)
   const {
@@ -138,7 +149,7 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   } = useEditorState(content, {
     onSave: async (c: string) => {
       if (!currentFilePath) return;
-      await storeSaveFile(currentFilePath, c);
+      await storeSaveFile(currentFilePath, c, saveOptions);
     },
   });
 
@@ -254,9 +265,11 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     },
     actions: {
       save,
-      storeSaveFile,
+      storeSaveFile: (path, content) => storeSaveFile(path, content, saveOptions),
+      storeSaveFileKeepEditing: (path, content) => storeSaveFileKeepEditing(path, content, saveOptions),
       resetContent,
       replaceEditorContent: replaceContent,
+      markAsSaved,
       discardPendingMetadata,
       setIsEditing,
       setMetadataTitle: (title: string) => setLocalDocumentMetadata({ title }),

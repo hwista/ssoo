@@ -4,7 +4,7 @@ import * as React from 'react';
 import type { BlockEditorRef } from './block-editor/BlockEditor';
 
 interface EditorHandlerShape {
-  save: () => Promise<boolean>;
+  save: (options?: { keepEditing?: boolean }) => Promise<boolean>;
   cancel: () => void;
   getMarkdown: () => string;
   getSelection: () => { from: number; to: number };
@@ -86,7 +86,7 @@ export function useEditorRuntimeEffects({
 
   React.useEffect(() => {
     setEditorHandlers({
-      save: () => handlersRef.current.save(),
+      save: (options) => handlersRef.current.save(options),
       cancel: () => handlersRef.current.cancel(),
       getMarkdown: () => handlersRef.current.getMarkdown(),
       getSelection: () => handlersRef.current.getSelection(),

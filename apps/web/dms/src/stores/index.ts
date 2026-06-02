@@ -15,7 +15,7 @@ export { useAccessStore } from './access.store';
 export { useFileStore } from './file.store';
 
 // Editor (문서 편집 상태 - core store + React adapter 분리)
-export { useEditorStore, useActiveEditorFilePath } from './editor.store';
+export { useEditorStore, useActiveEditorFilePath, useOpenEditorFilePaths } from './editor.store';
 export { useEditorMultiStore } from './editor-core.store';
 
 // UI

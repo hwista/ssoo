@@ -562,7 +562,7 @@ export function DocumentPanel({
           {collaborationSnapshot ? (
             <DocumentStatusSummary
               snapshot={collaborationSnapshot}
-              currentUserLoginId={currentUserLoginId}
+              currentUserId={currentUserId}
               onRefreshPublishState={onRefreshPublishState}
               onRetryPublish={onRetryPublish}
             />

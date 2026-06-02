@@ -3,6 +3,11 @@ import { resolve } from 'path';
 
 const automationDir = __dirname;
 const repoRoot = resolve(automationDir, '..');
+const dmsPort = process.env.PLAYWRIGHT_DMS_PORT ?? '3001';
+const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === '1'
+  || process.env.PLAYWRIGHT_SKIP_WEB_SERVER === 'true';
+const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === '1'
+  || process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === 'true';
 
 export default defineConfig({
   testDir: resolve(automationDir, 'tests/e2e'),
@@ -15,17 +20,17 @@ export default defineConfig({
   },
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:3001',
+    baseURL: `http://127.0.0.1:${dmsPort}`,
     headless: true,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  webServer: {
-    command: 'bash automation/scripts/playwright/start-dms-e2e-stack.sh',
-    cwd: repoRoot,
-    url: 'http://127.0.0.1:3001/login',
-    reuseExistingServer: false,
-    timeout: 10 * 60 * 1000,
-  },
+  webServer: skipWebServer ? undefined : {
+      command: 'bash automation/scripts/playwright/start-dms-e2e-stack.sh',
+      cwd: repoRoot,
+      url: `http://127.0.0.1:${dmsPort}/login`,
+      reuseExistingServer,
+      timeout: 10 * 60 * 1000,
+    },
 });

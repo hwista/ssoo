@@ -32,7 +32,7 @@ interface FileMetadata {
 }
 
 export interface EditorHandlers {
-  save: () => Promise<boolean>;
+  save: (options?: { keepEditing?: boolean }) => Promise<boolean>;
   cancel: () => void;
   getMarkdown: () => string;
   getSelection: () => { from: number; to: number };
@@ -81,6 +81,11 @@ interface EditorMultiStoreState {
   editors: Record<string, EditorTabState>;
 }
 
+interface EditorSaveOptions {
+  collaborationSessionId?: string;
+  flushMetadata?: boolean;
+}
+
 interface EditorMultiStoreActions {
   _updateTab: (tabId: string, patch: Partial<EditorTabState>) => void;
   _getTab: (tabId: string) => EditorTabState;
@@ -90,16 +95,16 @@ interface EditorMultiStoreActions {
    */
   resetAllEditors: () => void;
   loadFile: (tabId: string, path: string) => Promise<void>;
-  saveFile: (tabId: string, path: string, content: string) => Promise<void>;
-  saveFileKeepEditing: (tabId: string, path: string, content: string) => Promise<void>;
+  saveFile: (tabId: string, path: string, content: string, options?: EditorSaveOptions) => Promise<void>;
+  saveFileKeepEditing: (tabId: string, path: string, content: string, options?: EditorSaveOptions) => Promise<void>;
   refreshFileMetadata: (tabId: string, path: string) => Promise<void>;
-  updateDocumentMetadata: (tabId: string, update: Partial<DocumentMetadata>) => Promise<void>;
+  updateDocumentMetadata: (tabId: string, update: Partial<DocumentMetadata>, options?: EditorSaveOptions) => Promise<void>;
   setLocalDocumentMetadata: (tabId: string, update: Partial<DocumentMetadata>) => void;
   replaceLocalDocumentMetadata: (tabId: string, next: DocumentMetadata | null) => void;
-  flushPendingMetadata: (tabId: string) => Promise<void>;
+  flushPendingMetadata: (tabId: string, options?: EditorSaveOptions) => Promise<void>;
   discardPendingMetadata: (tabId: string) => Promise<void>;
   /** 통합 콘텐츠 저장 (contentApi 사용) */
-  saveContent: (tabId: string, path: string, content: string, metadata?: Record<string, unknown>) => Promise<void>;
+  saveContent: (tabId: string, path: string, content: string, metadata?: Record<string, unknown>, options?: EditorSaveOptions) => Promise<void>;
   /** 통합 콘텐츠 로드 (contentApi 사용) */
   loadContent: (tabId: string, path: string, options?: { strict?: boolean; contentType?: ContentType }) => Promise<void>;
   /** contentType 설정 */
@@ -163,6 +168,9 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       const patch: Partial<EditorTabState> = {
         content: fileData?.content || '',
         lockedPreview: fileData?.lockedPreview ?? null,
+        hasUnsavedChanges: false,
+        pendingMetadataUpdate: null,
+        isSaving: false,
       };
 
       if (fileData?.metadata) {
@@ -202,7 +210,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     }
   },
 
-  saveFile: async (tabId, path, content) => {
+  saveFile: async (tabId, path, content, options) => {
     const timer = new PerformanceTimer('파일 저장');
     const tabState = get()._getTab(tabId);
     const normalizedPath = normalizeDocumentPath(path);
@@ -245,7 +253,9 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
       }
 
       // 문서 저장: fileApi.update() 사용 (기존 동작)
-      const response = await fileApi.update(normalizedPath, content, tabState.documentMetadata?.revisionSeq);
+      const response = await fileApi.update(normalizedPath, content, tabState.documentMetadata?.revisionSeq, {
+        collaborationSessionId: options?.collaborationSessionId,
+      });
       if (!response.success) {
         throw createApiRequestError(response, '파일 저장 실패');
       }
@@ -256,7 +266,11 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         currentFilePath: normalizedPath,
         documentMetadata: response.data?.metadata ?? tabState.documentMetadata,
       });
-      await get().flushPendingMetadata(tabId);
+      if (options?.flushMetadata === false) {
+        get()._updateTab(tabId, { pendingMetadataUpdate: null });
+      } else {
+        await get().flushPendingMetadata(tabId, options);
+      }
       await get().refreshFileMetadata(tabId, normalizedPath);
 
       logger.info('파일 저장 성공', { path: normalizedPath });
@@ -272,12 +286,14 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     }
   },
 
-  saveFileKeepEditing: async (tabId, path, content) => {
+  saveFileKeepEditing: async (tabId, path, content, options) => {
     const timer = new PerformanceTimer('임시 파일 저장');
     const normalizedPath = normalizeDocumentPath(path);
 
     try {
-      const response = await fileApi.update(normalizedPath, content, get()._getTab(tabId).documentMetadata?.revisionSeq);
+      const response = await fileApi.update(normalizedPath, content, get()._getTab(tabId).documentMetadata?.revisionSeq, {
+        collaborationSessionId: options?.collaborationSessionId,
+      });
       if (!response.success) {
         throw createApiRequestError(response, '파일 저장 실패');
       }
@@ -287,7 +303,11 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         currentFilePath: normalizedPath,
         documentMetadata: response.data?.metadata ?? get()._getTab(tabId).documentMetadata,
       });
-      await get().flushPendingMetadata(tabId);
+      if (options?.flushMetadata === false) {
+        get()._updateTab(tabId, { pendingMetadataUpdate: null });
+      } else {
+        await get().flushPendingMetadata(tabId, options);
+      }
       await get().refreshFileMetadata(tabId, normalizedPath);
 
       logger.info('임시 저장 성공 (편집 모드 유지)', { path: normalizedPath });
@@ -354,7 +374,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     });
   },
 
-  flushPendingMetadata: async (tabId) => {
+  flushPendingMetadata: async (tabId, options) => {
     const tabState = get()._getTab(tabId);
     if (!tabState.pendingMetadataUpdate || !tabState.currentFilePath) return;
 
@@ -363,6 +383,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         tabState.currentFilePath,
         tabState.pendingMetadataUpdate,
         tabState.documentMetadata?.revisionSeq,
+        { collaborationSessionId: options?.collaborationSessionId },
       );
       if (!response.success) {
         throw createApiRequestError(response, '메타데이터 플러시 실패');
@@ -391,7 +412,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     logger.info('보류 메타데이터 폐기', { path: tabState.currentFilePath });
   },
 
-  updateDocumentMetadata: async (tabId, update) => {
+  updateDocumentMetadata: async (tabId, update, options) => {
     const tabState = get()._getTab(tabId);
     if (!tabState.currentFilePath) {
       logger.warn('메타데이터 업데이트 실패: 파일 경로 없음');
@@ -403,6 +424,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         tabState.currentFilePath,
         update,
         tabState.documentMetadata?.revisionSeq,
+        { collaborationSessionId: options?.collaborationSessionId },
       );
       if (!response.success) {
         throw new Error(`메타데이터 업데이트 실패: ${getErrorMessage(response)}`);
@@ -434,7 +456,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     get()._updateTab(tabId, { templateSaveData: data });
   },
 
-  saveContent: async (tabId, path, content, metadata) => {
+  saveContent: async (tabId, path, content, metadata, options) => {
     const timer = new PerformanceTimer('통합 콘텐츠 저장');
     const normalizedPath = normalizeDocumentPath(path);
     get()._updateTab(tabId, { isSaving: true, error: null });
@@ -442,6 +464,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     try {
       const response = await contentApi.save(normalizedPath, content, metadata, {
         expectedRevisionSeq: get()._getTab(tabId).documentMetadata?.revisionSeq,
+        collaborationSessionId: options?.collaborationSessionId,
       });
       if (!response.success) {
         throw new Error(`콘텐츠 저장 실패: ${getErrorMessage(response)}`);
@@ -528,15 +551,15 @@ export function createEditorTabActions(tabId: string) {
     setLocalDocumentMetadata: (update: Partial<DocumentMetadata>) => gs().setLocalDocumentMetadata(tabId, update),
     replaceLocalDocumentMetadata: (next: DocumentMetadata | null) => gs().replaceLocalDocumentMetadata(tabId, next),
     loadFile: (path: string) => gs().loadFile(tabId, path),
-    saveFile: (path: string, content: string) => gs().saveFile(tabId, path, content),
-    saveFileKeepEditing: (path: string, content: string) => gs().saveFileKeepEditing(tabId, path, content),
+    saveFile: (path: string, content: string, options?: EditorSaveOptions) => gs().saveFile(tabId, path, content, options),
+    saveFileKeepEditing: (path: string, content: string, options?: EditorSaveOptions) => gs().saveFileKeepEditing(tabId, path, content, options),
     refreshFileMetadata: (path: string) => gs().refreshFileMetadata(tabId, path),
-    updateDocumentMetadata: (update: Partial<DocumentMetadata>) => gs().updateDocumentMetadata(tabId, update),
-    flushPendingMetadata: () => gs().flushPendingMetadata(tabId),
+    updateDocumentMetadata: (update: Partial<DocumentMetadata>, options?: EditorSaveOptions) => gs().updateDocumentMetadata(tabId, update, options),
+    flushPendingMetadata: (options?: EditorSaveOptions) => gs().flushPendingMetadata(tabId, options),
     discardPendingMetadata: () => gs().discardPendingMetadata(tabId),
     setContentType: (contentType: ContentType) => gs().setContentType(tabId, contentType),
     setTemplateSaveData: (data: TemplateSaveData | null) => gs().setTemplateSaveData(tabId, data),
-    saveContent: (path: string, content: string, metadata?: Record<string, unknown>) => gs().saveContent(tabId, path, content, metadata),
+    saveContent: (path: string, content: string, metadata?: Record<string, unknown>, options?: EditorSaveOptions) => gs().saveContent(tabId, path, content, metadata, options),
     loadContent: (path: string, options?: { strict?: boolean; contentType?: ContentType }) => gs().loadContent(tabId, path, options),
     reset: () => gs()._updateTab(tabId, { ...initialEditorTabState }),
     removeTabEditor: () => gs().removeTab(tabId),

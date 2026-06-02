@@ -47,6 +47,7 @@ import {
 const logger = createDmsLogger('DmsCollaborationService');
 const STATE_FILE = '.dms-collaboration-state.json';
 const TAKEOVER_REQUEST_TTL_MS = 30_000;
+const TAKEOVER_REQUEST_EXPIRED_RETENTION_MS = 5 * 60_000;
 
 type CollaborationMode = 'view' | 'edit';
 export type PublishStatus = 'clean' | 'dirty-uncommitted' | 'publishing' | 'committed-unpushed' | 'sync-blocked' | 'push-failed';
@@ -184,7 +185,7 @@ export class CollaborationService implements OnModuleDestroy {
   }): Promise<DocumentCollaborationSnapshot> {
     const normalizedPath = normalizePath(input.path);
     const actor = await this.resolveActorProfile(input.currentUser);
-    const sessionId = input.sessionId?.trim() || input.currentUser.sessionId || 'default';
+    const sessionId = this.resolveSessionId(input.currentUser, input.sessionId);
     const key = buildPresenceKey(input.currentUser.userId, sessionId);
     const now = new Date().toISOString();
     const mode = input.mode ?? 'view';
@@ -195,7 +196,7 @@ export class CollaborationService implements OnModuleDestroy {
     const existing = members.get(key);
 
     if (mode === 'edit') {
-      this.assertCanEnterEditMode(normalizedPath, input.currentUser);
+      this.assertCanEnterEditMode(normalizedPath, input.currentUser, sessionId);
       this.touchOrAcquireSoftLock(normalizedPath, input.currentUser, actor, sessionId, now);
     } else {
       this.releaseOwnSoftLock(normalizedPath, input.currentUser, sessionId);
@@ -217,17 +218,44 @@ export class CollaborationService implements OnModuleDestroy {
     return snapshot;
   }
 
+  async renewSoftLock(input: {
+    path: string;
+    currentUser: TokenPayload;
+    sessionId?: string;
+  }): Promise<DocumentCollaborationSnapshot> {
+    const normalizedPath = normalizePath(input.path);
+    const sessionId = this.resolveSessionId(input.currentUser, input.sessionId);
+    const actor = await this.resolveActorProfile(input.currentUser);
+    const now = new Date().toISOString();
+
+    this.cleanupInactiveMembers(normalizedPath);
+    this.cleanupInactiveLock(normalizedPath);
+    this.assertCanEnterEditMode(normalizedPath, input.currentUser, sessionId);
+    this.touchOrAcquireSoftLock(normalizedPath, input.currentUser, actor, sessionId, now);
+    this.upsertPresenceMember(normalizedPath, {
+      userId: input.currentUser.userId,
+      loginId: input.currentUser.loginId,
+      displayName: actor.displayName,
+      email: actor.email,
+      sessionId,
+    }, 'edit', now);
+
+    const snapshot = this.getSnapshot(normalizedPath);
+    this.emitCollaborationChanged(normalizedPath, snapshot, 'lock');
+    return snapshot;
+  }
+
   async takeover(input: { path: string; currentUser: TokenPayload; sessionId?: string }): Promise<SoftLockTakeoverResult> {
     const normalizedPath = normalizePath(input.path);
     const actor = await this.resolveActorProfile(input.currentUser);
-    const sessionId = input.sessionId?.trim() || input.currentUser.sessionId || 'default';
+    const sessionId = this.resolveSessionId(input.currentUser, input.sessionId);
     const now = new Date().toISOString();
     this.cleanupInactiveMembers(normalizedPath);
     this.cleanupInactiveLock(normalizedPath);
     this.cleanupStaleTakeoverRequests(normalizedPath);
 
     const existing = this.softLockByPath.get(normalizedPath);
-    if (!existing || !this.isSoftLockActive(existing) || existing.userId === input.currentUser.userId) {
+    if (!existing || !this.isSoftLockActive(existing) || this.isSoftLockOwnedBy(existing, input.currentUser, sessionId)) {
       this.softLockByPath.set(normalizedPath, {
         path: normalizedPath,
         userId: input.currentUser.userId,
@@ -312,6 +340,13 @@ export class CollaborationService implements OnModuleDestroy {
     const expired = getTimestampMs(request.expiresAt) <= Date.now();
     if (expired) {
       this.softLockTakeoverRequestsById.delete(request.requestId);
+      const currentLock = this.softLockByPath.get(request.path);
+      if (!currentLock || (
+        currentLock.userId === request.owner.userId
+        && currentLock.sessionId === request.owner.sessionId
+      )) {
+        this.touchOwnerSoftLock(request.path, request.owner, now);
+      }
       const snapshot = this.getSnapshot(request.path);
       const response: SoftLockTakeoverResponse = {
         requestId: request.requestId,
@@ -320,6 +355,7 @@ export class CollaborationService implements OnModuleDestroy {
         snapshot,
         message: '편집 잠금 요청이 만료되었습니다.',
       };
+      this.emitCollaborationChanged(request.path, snapshot, 'lock');
       this.eventsGateway?.emitLockTakeoverResponded(request.requester.userId, response);
       await this.notificationService.archiveByDedupeKey(BigInt(request.owner.userId), 'dms', this.getTakeoverOwnerDedupeKey(request.requestId));
       await this.notifyTakeoverResponded(request, response);
@@ -392,7 +428,7 @@ export class CollaborationService implements OnModuleDestroy {
 
   leave(input: { path: string; currentUser: TokenPayload; sessionId?: string }): DocumentCollaborationSnapshot {
     const normalizedPath = normalizePath(input.path);
-    const sessionId = input.sessionId?.trim() || input.currentUser.sessionId || 'default';
+    const sessionId = this.resolveSessionId(input.currentUser, input.sessionId);
     const key = buildPresenceKey(input.currentUser.userId, sessionId);
     const members = this.presenceByPath.get(normalizedPath);
     members?.delete(key);
@@ -466,6 +502,13 @@ export class CollaborationService implements OnModuleDestroy {
     const currentIsolation = this.findPublishIsolation(normalizedPath);
     const primaryPath = this.resolvePublishPrimaryPath(normalizedPath, currentIsolation);
     if (!primaryPath) {
+      return this.getSnapshot(normalizedPath);
+    }
+    if (this.isPublishIgnoredPath(primaryPath)) {
+      this.publishStateByPath.delete(primaryPath);
+      this.releasePublishIsolation(primaryPath, { persist: false });
+      this.persistState();
+      await this.archivePublishFailure(primaryPath, currentUser);
       return this.getSnapshot(normalizedPath);
     }
     const blockingIsolation = this.findPathIsolation(normalizedPath);
@@ -547,6 +590,13 @@ export class CollaborationService implements OnModuleDestroy {
       .filter((state) => state.status === 'push-failed' || state.status === 'sync-blocked');
 
     for (const state of failureStates) {
+      if (this.isPublishIgnoredPath(state.path)) {
+        this.publishStateByPath.delete(state.path);
+        this.releasePublishIsolation(state.path, { persist: false });
+        this.persistState();
+        continue;
+      }
+
       const currentState = this.getPublishState(state.path);
       const currentIsolation = this.findPublishIsolation(state.path);
       const trackedPaths = resolveTrackedPaths(state.path, currentState, currentIsolation);
@@ -643,6 +693,35 @@ export class CollaborationService implements OnModuleDestroy {
     }
   }
 
+  assertCurrentSoftLockOwner(input: {
+    action: DocumentMutationAction;
+    path: string;
+    currentUser: TokenPayload;
+    sessionId?: string;
+  }): void {
+    const normalizedPath = normalizePath(input.path);
+    if (!isGitManagedDocumentPath(normalizedPath)) {
+      return;
+    }
+
+    const isolation = this.findPathIsolation(normalizedPath);
+    if (isolation?.blockedActions.includes(input.action)) {
+      throw buildIsolationException(input.action, normalizedPath, isolation);
+    }
+
+    this.cleanupInactiveMembers(normalizedPath);
+    this.cleanupInactiveLock(normalizedPath);
+    const lock = this.softLockByPath.get(normalizedPath);
+    if (!lock || !this.isSoftLockActive(lock)) {
+      return;
+    }
+
+    const sessionId = this.resolveSessionId(input.currentUser, input.sessionId);
+    if (!this.isSoftLockOwnedBy(lock, input.currentUser, sessionId)) {
+      throw new ConflictException(`${lock.displayName || lock.loginId} 사용자가 편집 중입니다. 현재 편집 잠금 세션만 저장할 수 있습니다.`);
+    }
+  }
+
   noteMutation(input: {
     primaryPath: string;
     affectedPaths?: string[];
@@ -654,43 +733,50 @@ export class CollaborationService implements OnModuleDestroy {
     const affectedPaths = filterGitManagedDocumentPaths(
       input.gitManagedPaths ?? [input.primaryPath, ...(input.affectedPaths ?? [])],
     );
-    const primaryPath = resolveGitManagedPrimaryPath(input.primaryPath, affectedPaths);
-    if (!primaryPath || affectedPaths.length === 0) {
+    if (affectedPaths.length === 0) {
       return;
     }
-    const now = new Date().toISOString();
-    const currentState = this.getPublishState(primaryPath);
-    const nextState: DocumentPublishState = {
-      ...currentState,
-      path: primaryPath,
-      status: 'dirty-uncommitted',
-      operationType: input.operationType,
-      affectedPaths,
-      lastActorLoginId: input.currentUser.loginId,
-      lastQueuedAt: now,
-      lastError: undefined,
-    };
-    this.publishStateByPath.set(primaryPath, nextState);
-    this.persistState();
 
-    const existingJob = this.publishJobsByPath.get(primaryPath);
-    const job: PublishJob = existingJob ?? {
-      primaryPath,
-      affectedPaths: new Set<string>(),
-      operationType: input.operationType,
-      actor: input.currentUser,
-      queuedAt: now,
-      timer: null,
-      processing: false,
-    };
-    job.operationType = input.operationType;
-    job.actor = input.currentUser;
-    job.queuedAt = now;
-    affectedPaths.forEach((item) => job.affectedPaths.add(item));
-    if (job.timer) clearTimeout(job.timer);
-    const publishDelayMs = Math.max(0, input.publishDelayMs ?? 4000);
-    job.timer = setTimeout(() => void this.publishJob(primaryPath), publishDelayMs);
-    this.publishJobsByPath.set(primaryPath, job);
+    const publishablePaths = this.filterPublishableDocumentPaths(affectedPaths);
+    const normalizedPrimaryPath = normalizePath(input.primaryPath);
+    const primaryPath = publishablePaths.includes(normalizedPrimaryPath)
+      ? normalizedPrimaryPath
+      : publishablePaths[0] ?? null;
+    if (primaryPath && publishablePaths.length > 0) {
+      const now = new Date().toISOString();
+      const currentState = this.getPublishState(primaryPath);
+      const nextState: DocumentPublishState = {
+        ...currentState,
+        path: primaryPath,
+        status: 'dirty-uncommitted',
+        operationType: input.operationType,
+        affectedPaths: publishablePaths,
+        lastActorLoginId: input.currentUser.loginId,
+        lastQueuedAt: now,
+        lastError: undefined,
+      };
+      this.publishStateByPath.set(primaryPath, nextState);
+      this.persistState();
+
+      const existingJob = this.publishJobsByPath.get(primaryPath);
+      const job: PublishJob = existingJob ?? {
+        primaryPath,
+        affectedPaths: new Set<string>(),
+        operationType: input.operationType,
+        actor: input.currentUser,
+        queuedAt: now,
+        timer: null,
+        processing: false,
+      };
+      job.operationType = input.operationType;
+      job.actor = input.currentUser;
+      job.queuedAt = now;
+      publishablePaths.forEach((item) => job.affectedPaths.add(item));
+      if (job.timer) clearTimeout(job.timer);
+      const publishDelayMs = Math.max(0, input.publishDelayMs ?? 4000);
+      job.timer = setTimeout(() => void this.publishJob(primaryPath), publishDelayMs);
+      this.publishJobsByPath.set(primaryPath, job);
+    }
 
     // WebSocket: 파일 변경 이벤트 전파
     this.eventsGateway?.emitFileChanged({
@@ -826,6 +912,7 @@ export class CollaborationService implements OnModuleDestroy {
       });
       this.releasePublishIsolation(primaryPath, { persist: false });
       this.persistState();
+      await this.archivePublishFailure(primaryPath, job.actor);
 
       // WebSocket: publish 완료 이벤트
       this.eventsGateway?.emitPublishStatus({
@@ -893,13 +980,7 @@ export class CollaborationService implements OnModuleDestroy {
             status: state.status,
           },
         },
-        dedupeKey: [
-          'dms',
-          'publish',
-          'failed',
-          actor.userId,
-          state.path,
-        ].join(':'),
+        dedupeKey: this.getPublishFailureDedupeKey(actor.userId, state.path),
       });
     } catch (error) {
       logger.warn('publish 실패 알림 생성 실패', {
@@ -988,21 +1069,21 @@ export class CollaborationService implements OnModuleDestroy {
     return gitService.inspectRemoteParity('origin');
   }
 
-  private assertCanEnterEditMode(pathValue: string, currentUser: TokenPayload): void {
+  private assertCanEnterEditMode(pathValue: string, currentUser: TokenPayload, sessionId: string): void {
     const isolation = this.findPathIsolation(pathValue);
     if (isolation?.blockedActions.includes('write')) {
       throw buildIsolationException('write', pathValue, isolation);
     }
 
     const existing = this.softLockByPath.get(pathValue);
-    if (existing && this.isSoftLockActive(existing) && existing.userId !== currentUser.userId) {
+    if (existing && this.isSoftLockActive(existing) && !this.isSoftLockOwnedBy(existing, currentUser, sessionId)) {
       throw new ConflictException(`${existing.displayName || existing.loginId} 사용자가 편집 중입니다. 잠금 가져오기 요청을 먼저 보내야 합니다.`);
     }
   }
 
   private touchOrAcquireSoftLock(pathValue: string, currentUser: TokenPayload, actor: ActorProfile, sessionId: string, now: string): void {
     const existing = this.softLockByPath.get(pathValue);
-    if (!existing || !this.isSoftLockActive(existing) || existing.userId === currentUser.userId) {
+    if (!existing || !this.isSoftLockActive(existing) || this.isSoftLockOwnedBy(existing, currentUser, sessionId)) {
       this.softLockByPath.set(pathValue, {
         path: pathValue,
         userId: currentUser.userId,
@@ -1015,6 +1096,14 @@ export class CollaborationService implements OnModuleDestroy {
       });
       this.persistState();
     }
+  }
+
+  private resolveSessionId(currentUser: TokenPayload, sessionId?: string): string {
+    return sessionId?.trim() || currentUser.sessionId || 'default';
+  }
+
+  private isSoftLockOwnedBy(lock: DocumentSoftLock, currentUser: TokenPayload, sessionId: string): boolean {
+    return lock.userId === currentUser.userId && lock.sessionId === sessionId;
   }
 
   private touchOwnerSoftLock(pathValue: string, owner: SoftLockTakeoverActor, now: string): void {
@@ -1081,7 +1170,7 @@ export class CollaborationService implements OnModuleDestroy {
       if (pathValue && request.path !== pathValue) {
         continue;
       }
-      if (!this.isTakeoverRequestProcessable(request)) {
+      if (!this.isTakeoverRequestRetainable(request)) {
         this.softLockTakeoverRequestsById.delete(requestId);
       }
     }
@@ -1100,12 +1189,54 @@ export class CollaborationService implements OnModuleDestroy {
     );
   }
 
+  private isTakeoverRequestRetainable(request: SoftLockTakeoverRequest): boolean {
+    const expiresAt = getTimestampMs(request.expiresAt);
+    if (expiresAt + TAKEOVER_REQUEST_EXPIRED_RETENTION_MS <= Date.now()) {
+      return false;
+    }
+
+    const lock = this.softLockByPath.get(request.path);
+    return Boolean(
+      !lock
+      || (
+        lock.userId === request.owner.userId
+        && lock.sessionId === request.owner.sessionId
+      ),
+    );
+  }
+
   private getTakeoverOwnerDedupeKey(requestId: string): string {
     return `dms:soft-lock:takeover:${requestId}:owner`;
   }
 
+  private getPublishFailureDedupeKey(actorUserId: string, pathValue: string): string {
+    return [
+      'dms',
+      'publish',
+      'failed',
+      actorUserId,
+      pathValue,
+    ].join(':');
+  }
+
+  private async archivePublishFailure(pathValue: string, actor: TokenPayload): Promise<void> {
+    try {
+      await this.notificationService.archiveByDedupeKey(
+        BigInt(actor.userId),
+        'dms',
+        this.getPublishFailureDedupeKey(actor.userId, pathValue),
+      );
+    } catch (error) {
+      logger.warn('publish 실패 알림 archive 실패', {
+        path: pathValue,
+        actorUserId: actor.userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   private isSoftLockActive(lock: DocumentSoftLock): boolean {
-    return !isExpired(lock.lastSeenAt) || Boolean(this.eventsGateway?.isUserConnected(lock.userId));
+    return !isExpired(lock.lastSeenAt);
   }
 
   private emitCollaborationChanged(
@@ -1147,12 +1278,28 @@ export class CollaborationService implements OnModuleDestroy {
     return this.publishStateByPath.get(pathValue) ?? { path: pathValue, status: 'clean', retryCount: 0 };
   }
 
+  private filterPublishableDocumentPaths(paths: string[]): string[] {
+    const ignoredPrefixes = configService.getGitPublishIgnoredPathPrefixes();
+    if (ignoredPrefixes.length === 0) {
+      return paths;
+    }
+
+    return paths.filter((item) => !this.isPublishIgnoredPath(item, ignoredPrefixes));
+  }
+
+  private isPublishIgnoredPath(pathValue: string, ignoredPrefixes = configService.getGitPublishIgnoredPathPrefixes()): boolean {
+    const normalizedPath = normalizePath(pathValue);
+    return ignoredPrefixes.some((prefix) => normalizedPath.startsWith(prefix));
+  }
+
   private cleanupInactiveMembers(pathValue: string): void {
     const members = this.presenceByPath.get(pathValue);
     if (!members) return;
     const now = Date.now();
     for (const [key, member] of members.entries()) {
-      if (now - new Date(member.lastSeenAt).getTime() > PRESENCE_TTL_MS && !this.eventsGateway?.isUserConnected(member.userId)) {
+      const isStale = now - new Date(member.lastSeenAt).getTime() > PRESENCE_TTL_MS;
+      const isConnectedViewer = member.mode === 'view' && Boolean(this.eventsGateway?.isUserConnected(member.userId));
+      if (isStale && !isConnectedViewer) {
         members.delete(key);
       }
     }

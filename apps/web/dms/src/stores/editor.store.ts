@@ -42,3 +42,27 @@ export function useActiveEditorFilePath(activeTabId: string | null): string | nu
     )
   );
 }
+
+/**
+ * 열린 문서 탭들의 파일 경로.
+ *
+ * 협업 WebSocket 구독은 활성 탭만 보면 inactive keep-alive 탭의 lock 상태가
+ * stale 해질 수 있으므로, 현재 열린 문서 경로 전체를 구독 대상으로 제공한다.
+ */
+export function useOpenEditorFilePaths(): string[] {
+  const editors = useEditorMultiStore((state) => state.editors);
+
+  return useMemo(() => {
+    const paths = new Set<string>();
+    for (const editor of Object.values(editors)) {
+      if (editor.contentType !== 'document') {
+        continue;
+      }
+      const path = editor.currentFilePath?.trim();
+      if (path) {
+        paths.add(path);
+      }
+    }
+    return Array.from(paths).sort();
+  }, [editors]);
+}

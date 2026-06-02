@@ -1,28 +1,32 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSharedAccessToken } from '@ssoo/web-auth';
 import { useAuthStore } from '@/stores';
 import { fileTreeKeys } from '@/hooks/queries/useFileTree';
-import { toast } from '@/lib/toast';
+import { normalizeDocumentPath } from '@/lib/utils/linkUtils';
 import {
   DMS_COLLABORATION_CHANGED_EVENT,
+  DMS_COLLABORATION_SUBSCRIBE_DOCUMENT_EVENT,
+  DMS_COLLABORATION_UNSUBSCRIBE_DOCUMENT_EVENT,
   DMS_LOCK_TAKEOVER_REQUESTED_EVENT,
   DMS_LOCK_TAKEOVER_RESPONDED_EVENT,
+  isDmsCollaborationDocumentSubscriptionEventDetail,
 } from '@/lib/notification-events';
-import type {
-  DocumentCollaborationSnapshotClient,
-  SoftLockTakeoverRequestClient,
-  SoftLockTakeoverResponseClient,
+import {
+  collaborationApi,
+  type DocumentCollaborationSnapshotClient,
+  type SoftLockTakeoverRequestClient,
+  type SoftLockTakeoverResponseClient,
 } from '@/lib/api/collaborationApi';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface DmsFileChangedEvent {
+export interface DmsFileChangedEvent {
   action: 'create' | 'update' | 'rename' | 'delete' | 'metadata';
   path: string;
   paths: string[];
@@ -51,6 +55,8 @@ interface DmsCollaborationChangedSocketEvent {
 interface UseDmsSocketOptions {
   /** 현재 보고 있는 문서 경로 */
   activeDocumentPath?: string;
+  /** 열린 문서 탭들의 경로. 협업 이벤트는 열린 문서 전체에 대해 즉시 수신한다. */
+  documentPaths?: string[];
   /** 파일 변경 시 추가 콜백 */
   onFileChanged?: (event: DmsFileChangedEvent) => void;
   /** 트리 변경 시 추가 콜백 */
@@ -81,25 +87,76 @@ function getWsUrl(): string {
 // ============================================================================
 
 export function useDmsSocket(options: UseDmsSocketOptions = {}) {
-  const { activeDocumentPath, onFileChanged, onTreeChanged, onPublishStatus } = options;
+  const { activeDocumentPath, documentPaths, onFileChanged, onTreeChanged, onPublishStatus } = options;
   const socketRef = useRef<Socket | null>(null);
   const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const currentUserId = useAuthStore((state) => state.user?.userId);
-  // currentUserId 를 ref 로도 보관 — socket 이벤트 핸들러는 effect 내부 closure 라
-  // dependency 에 currentUserId 를 추가하면 socket 이 재생성됨. ref 로 최신값 참조.
-  const currentUserIdRef = useRef(currentUserId);
+  const onFileChangedRef = useRef(onFileChanged);
+  const onTreeChangedRef = useRef(onTreeChanged);
+  const onPublishStatusRef = useRef(onPublishStatus);
+
+  // Socket lifecycle 은 인증 단위로만 유지하되, 이벤트 콜백은 최신 closure 를 참조한다.
   useEffect(() => {
-    currentUserIdRef.current = currentUserId;
-  }, [currentUserId]);
-  const prevDocPath = useRef<string | undefined>(undefined);
-  const activeDocumentPathRef = useRef(activeDocumentPath);
-  activeDocumentPathRef.current = activeDocumentPath;
+    onFileChangedRef.current = onFileChanged;
+  }, [onFileChanged]);
+  useEffect(() => {
+    onTreeChangedRef.current = onTreeChanged;
+  }, [onTreeChanged]);
+  useEffect(() => {
+    onPublishStatusRef.current = onPublishStatus;
+  }, [onPublishStatus]);
+  const subscribedDocumentPaths = useMemo(() => {
+    const paths = new Set<string>();
+    for (const path of documentPaths ?? []) {
+      const normalized = normalizeDocumentPath(path);
+      if (normalized) paths.add(normalized);
+    }
+    const normalizedActivePath = normalizeDocumentPath(activeDocumentPath ?? '');
+    if (normalizedActivePath) paths.add(normalizedActivePath);
+    return Array.from(paths).sort();
+  }, [activeDocumentPath, documentPaths]);
+  const subscribedDocumentPathKey = subscribedDocumentPaths.join('\n');
+  const prevDocPaths = useRef<Set<string>>(new Set());
+  const subscribedDocumentPathsRef = useRef(subscribedDocumentPaths);
+  const directDocumentSubscriptionCountsRef = useRef<Map<string, number>>(new Map());
+  subscribedDocumentPathsRef.current = subscribedDocumentPaths;
 
   // Invalidate file tree query
   const invalidateFileTree = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: fileTreeKeys.tree() });
   }, [queryClient]);
+
+  const dispatchCollaborationSnapshot = useCallback(async (documentPath: string) => {
+    const normalizedPath = normalizeDocumentPath(documentPath);
+    if (!normalizedPath) return;
+
+    const response = await collaborationApi.getSnapshot(normalizedPath);
+    if (!response.success || !response.data) return;
+
+    if (
+      !subscribedDocumentPathsRef.current.includes(normalizedPath)
+      && !directDocumentSubscriptionCountsRef.current.has(normalizedPath)
+    ) {
+      return;
+    }
+
+    window.dispatchEvent(new CustomEvent<DmsCollaborationChangedSocketEvent>(DMS_COLLABORATION_CHANGED_EVENT, {
+      detail: {
+        path: response.data.path,
+        reason: 'refresh',
+        snapshot: response.data,
+      },
+    }));
+  }, []);
+
+  const subscribeDocument = useCallback((socket: Socket, documentPath: string) => {
+    const normalizedPath = normalizeDocumentPath(documentPath);
+    if (!normalizedPath) return;
+
+    socket.emit('subscribe:document', { path: normalizedPath }, () => {
+      void dispatchCollaborationSnapshot(normalizedPath);
+    });
+  }, [dispatchCollaborationSnapshot]);
 
   // Connect/disconnect based on auth state
   useEffect(() => {
@@ -126,28 +183,21 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
       // 트리 변경 구독
       socket.emit('subscribe:tree');
 
-      // 현재 보고 있는 문서가 있으면 구독.
+      // 열린 문서가 있으면 구독.
       // connect handler 는 socket lifecycle 동안 유지되므로 최신 경로는 ref 에서 읽는다.
-      const latestActiveDocumentPath = activeDocumentPathRef.current;
-      if (latestActiveDocumentPath) {
-        socket.emit('subscribe:document', { path: latestActiveDocumentPath });
-        prevDocPath.current = latestActiveDocumentPath;
+      const latestDocumentPaths = Array.from(new Set([
+        ...subscribedDocumentPathsRef.current,
+        ...directDocumentSubscriptionCountsRef.current.keys(),
+      ])).sort();
+      for (const documentPath of latestDocumentPaths) {
+        subscribeDocument(socket, documentPath);
       }
+      prevDocPaths.current = new Set(latestDocumentPaths);
     });
 
     // 파일 변경 이벤트
     socket.on('dms:file-changed', (event: DmsFileChangedEvent) => {
-      onFileChanged?.(event);
-
-      // 다른 사용자가 현재 보고 있는 문서를 수정한 경우 알림.
-      // ref 로 최신 currentUserId 참조 (socket effect 의 closure 가 stale 한 문제 회피).
-      if (event.userId && event.userId !== currentUserIdRef.current && event.action === 'update') {
-        const who = event.userName ?? '다른 사용자';
-        toast.warning(`${who}가 이 문서를 수정했습니다.`, {
-          description: '저장 시 충돌이 발생할 수 있습니다. 최신 내용을 확인하세요.',
-          duration: 6000,
-        });
-      }
+      onFileChangedRef.current?.(event);
 
       // create/rename/delete는 트리도 갱신
       if (event.action !== 'update' && event.action !== 'metadata') {
@@ -157,13 +207,13 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
 
     // 트리 변경 이벤트
     socket.on('dms:tree-changed', (event: DmsTreeChangedEvent) => {
-      onTreeChanged?.(event);
+      onTreeChangedRef.current?.(event);
       invalidateFileTree();
     });
 
     // publish 상태 이벤트
     socket.on('dms:publish-status', (event: DmsPublishStatusEvent) => {
-      onPublishStatus?.(event);
+      onPublishStatusRef.current?.(event);
     });
 
     socket.on('dms:collaboration-changed', (event: DmsCollaborationChangedSocketEvent) => {
@@ -181,26 +231,93 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
     return () => {
       socket.disconnect();
       socketRef.current = null;
-      prevDocPath.current = undefined;
+      prevDocPaths.current = new Set();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleSubscribeDocument = (event: Event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (!isDmsCollaborationDocumentSubscriptionEventDetail(detail)) {
+        return;
+      }
+
+      const normalizedPath = normalizeDocumentPath(detail.path);
+      if (!normalizedPath) {
+        return;
+      }
+
+      const counts = directDocumentSubscriptionCountsRef.current;
+      counts.set(normalizedPath, (counts.get(normalizedPath) ?? 0) + 1);
+      const socket = socketRef.current;
+      if (socket?.connected) {
+        subscribeDocument(socket, normalizedPath);
+      }
+    };
+
+    const handleUnsubscribeDocument = (event: Event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (!isDmsCollaborationDocumentSubscriptionEventDetail(detail)) {
+        return;
+      }
+
+      const normalizedPath = normalizeDocumentPath(detail.path);
+      if (!normalizedPath) {
+        return;
+      }
+
+      const counts = directDocumentSubscriptionCountsRef.current;
+      const nextCount = (counts.get(normalizedPath) ?? 0) - 1;
+      if (nextCount > 0) {
+        counts.set(normalizedPath, nextCount);
+        return;
+      }
+
+      counts.delete(normalizedPath);
+      if (subscribedDocumentPathsRef.current.includes(normalizedPath)) {
+        return;
+      }
+
+      const socket = socketRef.current;
+      if (socket?.connected) {
+        socket.emit('unsubscribe:document', { path: normalizedPath });
+      }
+    };
+
+    window.addEventListener(DMS_COLLABORATION_SUBSCRIBE_DOCUMENT_EVENT, handleSubscribeDocument);
+    window.addEventListener(DMS_COLLABORATION_UNSUBSCRIBE_DOCUMENT_EVENT, handleUnsubscribeDocument);
+    return () => {
+      window.removeEventListener(DMS_COLLABORATION_SUBSCRIBE_DOCUMENT_EVENT, handleSubscribeDocument);
+      window.removeEventListener(DMS_COLLABORATION_UNSUBSCRIBE_DOCUMENT_EVENT, handleUnsubscribeDocument);
+    };
+  }, [subscribeDocument]);
 
   // Document path subscription management
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket?.connected) return;
 
-    // 이전 문서 구독 해제
-    if (prevDocPath.current && prevDocPath.current !== activeDocumentPath) {
-      socket.emit('unsubscribe:document', { path: prevDocPath.current });
+    const nextPaths = new Set(subscribedDocumentPathsRef.current);
+
+    // 닫힌 문서 구독 해제
+    for (const previousPath of prevDocPaths.current) {
+      if (!nextPaths.has(previousPath)) {
+        if (!directDocumentSubscriptionCountsRef.current.has(previousPath)) {
+          socket.emit('unsubscribe:document', { path: previousPath });
+        }
+      }
     }
 
-    // 새 문서 구독
-    if (activeDocumentPath) {
-      socket.emit('subscribe:document', { path: activeDocumentPath });
+    // 새로 열린 문서 구독
+    for (const nextPath of nextPaths) {
+      if (!prevDocPaths.current.has(nextPath)) {
+        subscribeDocument(socket, nextPath);
+      }
     }
 
-    prevDocPath.current = activeDocumentPath;
-  }, [activeDocumentPath]);
+    prevDocPaths.current = nextPaths;
+  }, [subscribeDocument, subscribedDocumentPathKey]);
 }

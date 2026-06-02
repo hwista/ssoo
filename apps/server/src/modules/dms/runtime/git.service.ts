@@ -26,6 +26,7 @@ import {
   parseGitPathList,
   pathsOverlap,
 } from './git-paths.util.js';
+import { filterStageableGitManagedFiles } from './git-stage.util.js';
 import { buildParityStatus } from './git-sync.util.js';
 import {
   getRepositoryBindingStatus,
@@ -634,7 +635,17 @@ class GitService {
     }
 
     try {
-      await this.git.raw(['add', '-A', '--', ...normalizedFiles]);
+      const trackedFiles = parseGitPathList(await this.git.raw(['ls-files', '--', ...normalizedFiles]));
+      const stageableFiles = filterStageableGitManagedFiles(
+        normalizedFiles,
+        trackedFiles,
+        (normalizedFile) => fs.existsSync(path.join(this.docDir, normalizedFile)),
+      );
+      if (stageableFiles.length === 0) {
+        return { success: false, error: 'nothing to commit' };
+      }
+
+      await this.git.raw(['add', '-A', '--', ...stageableFiles]);
 
       const commitMessage = buildCommitMessage(message, footerLines);
       const authorArgs = buildCommitAuthorArgs(author);
@@ -643,7 +654,7 @@ class GitService {
         : await this.git.commit(commitMessage);
       const hash = result.commit || 'unknown';
 
-      logger.info('Git 파일 커밋 완료', { hash, files: normalizedFiles, message });
+      logger.info('Git 파일 커밋 완료', { hash, files: stageableFiles, message });
       return { success: true, data: { hash } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';

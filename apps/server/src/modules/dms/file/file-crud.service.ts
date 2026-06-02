@@ -12,6 +12,10 @@ import { contentService } from '../runtime/content.service.js';
 import { resolveContainedPath } from '../runtime/path-utils.js';
 
 const logger = createDmsLogger('DmsFileCrudService');
+const LOCKED_PREVIEW_CONTENT = [
+  '이 문서는 열람 권한 요청이 필요합니다.',
+  '소유자 승인 후 본문을 확인할 수 있습니다.',
+].join('\n\n');
 
 export interface FileStatMetadata {
   size: number;
@@ -113,22 +117,9 @@ export class FileCrudService {
   }
 
   private buildPreviewContent(content: string): { preview: string; truncated: boolean } {
-    const safeLines = content
-      .split(/\r?\n/)
-      .map((line) => line.trimEnd())
-      .filter((line) => {
-        const trimmed = line.trim();
-        if (!trimmed) return true;
-        if (trimmed.startsWith('|')) return false;
-        if (/^!\[[^\]]*\]\([^)]*\)/.test(trimmed)) return false;
-        if (/\.(png|jpe?g|gif|webp|svg|pdf|xlsx?|docx?|pptx?)\b/i.test(trimmed)) return false;
-        return true;
-      });
-    const previewLines = safeLines.slice(0, 4);
-    const preview = previewLines.join('\n').trimEnd();
     return {
-      preview,
-      truncated: preview.length < content.length,
+      preview: LOCKED_PREVIEW_CONTENT,
+      truncated: content.trim().length > 0,
     };
   }
 

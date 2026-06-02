@@ -184,11 +184,12 @@ function sortNodes(nodes: FileNode[]): FileNode[] {
  */
 export function FileTree() {
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
-  const { files, filesOwnerUserId, isLoading, isInitialized } = useFileStore();
+  const { files, filesOwnerUserId, isLoading, isInitialized, error } = useFileStore();
   const { fileTreeResetEpoch, searchOwnerUserId, searchQuery } = useSidebarStore();
   const isCurrentFileTree = Boolean(currentUserId && filesOwnerUserId === currentUserId);
   const isScopedInitialized = isInitialized && isCurrentFileTree;
   const scopedSearchQuery = currentUserId && searchOwnerUserId === currentUserId ? searchQuery : '';
+  const shouldShowLoading = isLoading || Boolean(currentUserId && !isScopedInitialized && !error);
   
   const displayTree = useMemo(() => {
     const sourceFiles = isCurrentFileTree ? files : [];
@@ -196,10 +197,18 @@ export function FileTree() {
     return sortNodes(filtered);
   }, [files, isCurrentFileTree, scopedSearchQuery]);
 
-  if (isLoading && !isScopedInitialized) {
+  if (shouldShowLoading) {
     return (
       <div className="px-3 py-4 flex items-center justify-center">
         <LoadingSpinner message="파일을 불러오는 중..." className="text-gray-400" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-3 py-4 text-body-sm text-red-500 text-center">
+        {error}
       </div>
     );
   }

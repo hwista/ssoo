@@ -35,6 +35,10 @@ import { contentService } from '../runtime/content.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 
 const logger = createDmsLogger('DmsContentController');
+const LOCKED_PREVIEW_CONTENT = [
+  '이 문서는 열람 권한 요청이 필요합니다.',
+  '소유자 승인 후 본문을 확인할 수 있습니다.',
+].join('\n\n');
 
 function isSearchIndexSyncTarget(targetPath: string): boolean {
   const normalized = targetPath.toLowerCase();
@@ -42,22 +46,9 @@ function isSearchIndexSyncTarget(targetPath: string): boolean {
 }
 
 function buildPreviewContent(content: string): { preview: string; truncated: boolean } {
-  const safeLines = content
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return true;
-      if (trimmed.startsWith('|')) return false;
-      if (/^!\[[^\]]*\]\([^)]*\)/.test(trimmed)) return false;
-      if (/\.(png|jpe?g|gif|webp|svg|pdf|xlsx?|docx?|pptx?)\b/i.test(trimmed)) return false;
-      return true;
-    });
-  const previewLines = safeLines.slice(0, 4);
-  const preview = previewLines.join('\n').trimEnd();
   return {
-    preview,
-    truncated: preview.length < content.length,
+    preview: LOCKED_PREVIEW_CONTENT,
+    truncated: content.trim().length > 0,
   };
 }
 
@@ -235,6 +226,9 @@ export class ContentController {
     const expectedRevisionSeq = typeof body.expectedRevisionSeq === 'number'
       ? body.expectedRevisionSeq
       : undefined;
+    const collaborationSessionId = typeof body.collaborationSessionId === 'string'
+      ? body.collaborationSessionId
+      : undefined;
     if (!contentPath) {
       throw new BadRequestException('path는 필수입니다.');
     }
@@ -250,6 +244,12 @@ export class ContentController {
         throw new NotFoundException('Content not found');
       }
       this.collaborationService.assertMutationAllowed({ action: 'updateMetadata', paths: [contentPath] });
+      this.collaborationService.assertCurrentSoftLockOwner({
+        action: 'updateMetadata',
+        path: contentPath,
+        currentUser,
+        sessionId: collaborationSessionId,
+      });
       this.documentAclService.assertIsOwnerAbsolutePath(currentUser, targetPath);
       const baseContent = fs.readFileSync(targetPath, 'utf-8');
       const existing = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath)
@@ -331,6 +331,12 @@ export class ContentController {
     }
 
     this.collaborationService.assertMutationAllowed({ action: 'write', paths: [contentPath] });
+    this.collaborationService.assertCurrentSoftLockOwner({
+      action: 'write',
+      path: contentPath,
+      currentUser,
+      sessionId: collaborationSessionId,
+    });
     const result = contentService.save(
       contentPath,
       body.content,

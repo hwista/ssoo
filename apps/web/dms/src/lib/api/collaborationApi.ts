@@ -122,6 +122,7 @@ export const collaborationApi = {
   getSnapshot: async (path: string): Promise<ApiResponse<DocumentCollaborationSnapshotClient>> => request(`/api/collaboration?path=${encodeURIComponent(path)}`),
   listPublishFailures: async (): Promise<ApiResponse<DocumentPublishStateClient[]>> => request('/api/collaboration/publish-failures'),
   heartbeat: async (path: string, mode: 'view' | 'edit', sessionId: string): Promise<ApiResponse<DocumentCollaborationSnapshotClient>> => request('/api/collaboration', { method: 'POST', body: { path, mode, sessionId } }),
+  renewLock: async (path: string, sessionId: string): Promise<ApiResponse<DocumentCollaborationSnapshotClient>> => request('/api/collaboration/lock/renew', { method: 'POST', body: { path, sessionId } }),
   takeover: async (path: string, sessionId: string): Promise<ApiResponse<SoftLockTakeoverResultClient>> => request('/api/collaboration/takeover', { method: 'POST', body: { path, sessionId } }),
   getPendingTakeover: async (path: string): Promise<ApiResponse<SoftLockTakeoverPendingStateClient>> => request(`/api/collaboration/takeover/pending?path=${encodeURIComponent(path)}`),
   respondToTakeover: async (requestId: string, approved: boolean): Promise<ApiResponse<SoftLockTakeoverResponseClient>> => request('/api/collaboration/takeover/respond', { method: 'POST', body: { requestId, approved } }),

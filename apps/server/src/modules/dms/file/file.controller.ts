@@ -84,6 +84,7 @@ export interface FileActionBody {
   autoNumber?: boolean;
   metadata?: Partial<DocumentMetadata>;
   expectedRevisionSeq?: number;
+  collaborationSessionId?: string;
 }
 
 @ApiTags('dms')
@@ -143,7 +144,8 @@ export class FileController {
       newPath,
       autoNumber,
       metadata,
-      expectedRevisionSeq } = body;
+      expectedRevisionSeq,
+      collaborationSessionId } = body;
 
     if (action === 'read' || action === 'metadata') {
       await this.accessService.assertFeatures(currentUser, ['canReadDocuments']);
@@ -180,7 +182,7 @@ export class FileController {
         if (!filePath || content === undefined) {
           throw new BadRequestException('Missing file path or content');
         }
-        return success(await this.writeFile(filePath, content, currentUser, { expectedRevisionSeq }));
+        return success(await this.writeFile(filePath, content, currentUser, { expectedRevisionSeq, collaborationSessionId }));
       case 'create':
         if (!filePath && !name) throw new BadRequestException('Missing file path or name');
         return success(await this.createFile(filePath || name || '', parent, content, currentUser));
@@ -197,7 +199,7 @@ export class FileController {
       case 'updateMetadata':
         if (!filePath) throw new BadRequestException('Missing file path');
         if (!metadata) throw new BadRequestException('Missing metadata');
-        return success(await this.updateDocumentMetadata(filePath, metadata, currentUser, { expectedRevisionSeq }));
+        return success(await this.updateDocumentMetadata(filePath, metadata, currentUser, { expectedRevisionSeq, collaborationSessionId }));
       default:
         throw new BadRequestException('Invalid action');
     }
@@ -648,9 +650,15 @@ export class FileController {
     filePath: string,
     content: string,
     currentUser: TokenPayload,
-    options?: { expectedRevisionSeq?: number },
+    options?: { expectedRevisionSeq?: number; collaborationSessionId?: string },
   ) {
     this.collaborationService.assertMutationAllowed({ action: 'write', paths: [filePath] });
+    this.collaborationService.assertCurrentSoftLockOwner({
+      action: 'write',
+      path: filePath,
+      currentUser,
+      sessionId: options?.collaborationSessionId,
+    });
     const result = await this.unwrap(this.fileCrudService.write(filePath, content, currentUser, options));
     const gitManagedPaths = this.resolveGitManagedMutationPaths([filePath]);
     if (gitManagedPaths.length > 0) {
@@ -748,7 +756,7 @@ export class FileController {
     filePath: string,
     update: Partial<DocumentMetadata>,
     currentUser: TokenPayload,
-    options?: { expectedRevisionSeq?: number },
+    options?: { expectedRevisionSeq?: number; collaborationSessionId?: string },
   ) {
     const { targetPath, valid, safeRelPath } = this.fileCrudService.resolveFilePath(filePath);
     if (!valid) {
@@ -759,6 +767,12 @@ export class FileController {
     }
 
     this.collaborationService.assertMutationAllowed({ action: 'updateMetadata', paths: [filePath] });
+    this.collaborationService.assertCurrentSoftLockOwner({
+      action: 'updateMetadata',
+      path: filePath,
+      currentUser,
+      sessionId: options?.collaborationSessionId,
+    });
     this.documentAclService.assertIsOwnerAbsolutePath(currentUser, targetPath);
     const projectedMetadata = await this.documentControlPlaneService.getProjectedMetadataByRelativePath(safeRelPath);
     const existing = projectedMetadata

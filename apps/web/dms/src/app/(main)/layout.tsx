@@ -9,9 +9,10 @@ import {
   useNotificationEventStream,
 } from '@/features/notifications';
 import { useLayoutViewportSync } from '@/hooks';
-import { useDmsSocket } from '@/hooks/useDmsSocket';
+import { useDmsSocket, type DmsFileChangedEvent } from '@/hooks/useDmsSocket';
 import { LOGIN_PATH } from '@/lib/constants/routes';
 import { commentsApi } from '@/lib/api/comments';
+import { toast } from '@/lib/toast';
 import {
   DMS_DOCUMENT_COMMENT_CHANGED_DOMAIN_EVENT_TYPE,
   DMS_DOCUMENT_ACCESS_REFRESH_EVENT,
@@ -26,6 +27,7 @@ import {
   useFileStore,
   useTabStore,
   useActiveEditorFilePath,
+  useOpenEditorFilePaths,
   useEditorMultiStore,
   useGitStore,
 } from '@/stores';
@@ -51,6 +53,17 @@ function hasOpenDocumentPath(normalizedPath: string): boolean {
     editorState.contentType === 'document'
     && normalizeDocumentPath(editorState.currentFilePath ?? '') === normalizedPath
   ));
+}
+
+function getChangedDocumentPaths(event: DmsFileChangedEvent): string[] {
+  const paths = new Set<string>();
+  for (const path of [event.path, ...(event.paths ?? [])]) {
+    const normalizedPath = normalizeDocumentPath(path ?? '');
+    if (normalizedPath) {
+      paths.add(normalizedPath);
+    }
+  }
+  return Array.from(paths);
 }
 
 /**
@@ -80,6 +93,7 @@ export default function MainLayout({
   const refreshPublishFailures = useGitStore((state) => state.refreshPublishFailures);
   const activeTabId = useTabStore((s) => s.activeTabId);
   const activeDocumentPath = useActiveEditorFilePath(activeTabId);
+  const openDocumentPaths = useOpenEditorFilePaths();
   const { mutate: markDocumentNotificationsRead } = useMarkDocumentNotificationsReadMutation();
   const markDocumentNotificationsForPathRead = useCallback((path: string | null | undefined) => {
     const normalizedPath = normalizeDocumentPath(path ?? '');
@@ -147,6 +161,75 @@ export default function MainLayout({
       });
     }
   }, []);
+  const refreshOpenDocumentTabsForFileChange = useCallback((event: DmsFileChangedEvent) => {
+    if (
+      event.userId === currentUserId
+      || (event.action !== 'update' && event.action !== 'metadata')
+    ) {
+      return;
+    }
+
+    const changedPaths = getChangedDocumentPaths(event);
+    if (changedPaths.length === 0) {
+      return;
+    }
+
+    const normalizedActivePath = normalizeDocumentPath(activeDocumentPath ?? '');
+    const editorStore = useEditorMultiStore.getState();
+    const reloadedActivePaths = new Set<string>();
+    const blockedActivePaths = new Set<string>();
+
+    for (const changedPath of changedPaths) {
+      for (const [tabId, editorState] of Object.entries(editorStore.editors)) {
+        if (
+          editorState.contentType !== 'document'
+          || normalizeDocumentPath(editorState.currentFilePath ?? '') !== changedPath
+        ) {
+          continue;
+        }
+
+        const isActiveDocument = normalizedActivePath === changedPath;
+        const hasLocalWork = editorState.isEditing || editorState.hasUnsavedChanges || editorState.isSaving;
+
+        if (event.action === 'metadata') {
+          if (!editorState.pendingMetadataUpdate) {
+            void editorStore.refreshFileMetadata(tabId, changedPath);
+          }
+          continue;
+        }
+
+        if (hasLocalWork) {
+          if (isActiveDocument) {
+            blockedActivePaths.add(changedPath);
+          }
+          continue;
+        }
+
+        void editorStore.loadFile(tabId, changedPath);
+        if (isActiveDocument) {
+          reloadedActivePaths.add(changedPath);
+        }
+      }
+    }
+
+    if (blockedActivePaths.size > 0) {
+      const who = event.userName ?? '다른 사용자';
+      toast.warning(`${who}가 이 문서를 수정했습니다.`, {
+        description: '현재 편집 중인 내용이 있어 자동 갱신하지 않았습니다. 저장 전 최신 내용을 확인하세요.',
+        duration: 7000,
+      });
+      return;
+    }
+
+    if (reloadedActivePaths.size > 0) {
+      const who = event.userName ?? '다른 사용자';
+      toast.info(`${who}가 이 문서를 수정했습니다.`, {
+        description: '현재 문서를 최신 내용으로 갱신했습니다.',
+        duration: 5000,
+      });
+      markDocumentNotificationsForPathRead(Array.from(reloadedActivePaths)[0]);
+    }
+  }, [activeDocumentPath, currentUserId, markDocumentNotificationsForPathRead]);
   const redirectToLogin = useCallback(() => {
     router.replace(LOGIN_PATH);
   }, [router]);
@@ -174,6 +257,8 @@ export default function MainLayout({
   // WebSocket 실시간 동기화
   useDmsSocket({
     activeDocumentPath: activeDocumentPath ?? undefined,
+    documentPaths: openDocumentPaths,
+    onFileChanged: refreshOpenDocumentTabsForFileChange,
     onPublishStatus: () => {
       void refreshPublishFailures();
     },

@@ -24,6 +24,7 @@ import { configService } from './runtime/dms-config.service.js';
 import { personalSettingsService } from './runtime/personal-settings.service.js';
 import { gitService } from './runtime/git.service.js';
 import { TemplateService } from './templates/template.service.js';
+import { ControlPlaneSyncService } from './access/control-plane-sync.service.js';
 
 const logger = new Logger('DmsModule');
 
@@ -75,6 +76,7 @@ export class DmsModule implements OnModuleInit {
     private readonly hydration: DocumentHydrationService,
     private readonly db: DatabaseService,
     private readonly templateService: TemplateService,
+    private readonly controlPlaneSyncService: ControlPlaneSyncService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -103,6 +105,13 @@ export class DmsModule implements OnModuleInit {
       await this.hydration.hydrateFromDisk();
     } catch (err) {
       logger.warn('문서 하이드레이션 중 예외', err instanceof Error ? err.message : String(err));
+    }
+
+    try {
+      await this.controlPlaneSyncService.ensureRepoControlPlaneSynced(true);
+      logger.log('DMS 문서 control-plane 초기 동기화 완료');
+    } catch (err) {
+      logger.warn('DMS 문서 control-plane 초기 동기화 중 예외', err instanceof Error ? err.message : String(err));
     }
 
     try {

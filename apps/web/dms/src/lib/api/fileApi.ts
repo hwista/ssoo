@@ -24,6 +24,7 @@ export interface FileApiRequest {
   autoNumber?: boolean;
   metadata?: Partial<DocumentMetadata>;
   expectedRevisionSeq?: number;
+  collaborationSessionId?: string;
 }
 
 export interface FileReadMetadata {
@@ -66,10 +67,11 @@ export const fileApi = {
     path: string,
     content: string,
     expectedRevisionSeq?: number,
+    options?: { collaborationSessionId?: string },
   ): Promise<ApiResponse<{ message: string; metadata?: DocumentMetadata }>> => {
     return request('/api/file', {
       method: 'POST',
-      body: { action: 'write', path, content, expectedRevisionSeq },
+      body: { action: 'write', path, content, expectedRevisionSeq, collaborationSessionId: options?.collaborationSessionId },
     });
   },
 
@@ -98,10 +100,11 @@ export const fileApi = {
     path: string,
     metadata: Partial<DocumentMetadata>,
     expectedRevisionSeq?: number,
+    options?: { collaborationSessionId?: string },
   ): Promise<ApiResponse<DocumentMetadata>> => {
     return request('/api/file', {
       method: 'POST',
-      body: { action: 'updateMetadata', path, metadata, expectedRevisionSeq },
+      body: { action: 'updateMetadata', path, metadata, expectedRevisionSeq, collaborationSessionId: options?.collaborationSessionId },
     });
   },
 

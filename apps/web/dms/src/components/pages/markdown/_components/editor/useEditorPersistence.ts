@@ -40,8 +40,10 @@ interface EditorPersistenceState {
 interface EditorPersistenceActions {
   save: () => Promise<void>;
   storeSaveFile: (path: string, content: string) => Promise<void>;
+  storeSaveFileKeepEditing?: (path: string, content: string) => Promise<void>;
   resetContent: (content: string) => void;
   replaceEditorContent: (content: string) => void;
+  markAsSaved?: () => void;
   discardPendingMetadata: () => Promise<void>;
   setIsEditing: (editing: boolean) => void;
   setMetadataTitle: (title: string) => void;
@@ -65,6 +67,10 @@ interface EditorPersistenceDeps {
   /** 저장 직전 콘텐츠 변환 (예: blob URL → 실제 경로 치환) */
   transformBeforeSave?: (content: string) => Promise<string>;
   onSaveConflict?: (conflict: EditorSaveConflictPayload) => Promise<void> | void;
+}
+
+interface EditorSaveOptions {
+  keepEditing?: boolean;
 }
 
 export function useEditorPersistence({
@@ -118,7 +124,7 @@ export function useEditorPersistence({
     return false;
   }, [deps, isConflictError, syncFailedContent]);
 
-  const handleSave = React.useCallback(async () => {
+  const handleSave = React.useCallback(async (options: EditorSaveOptions = {}) => {
     // blob URL 등 변환이 필요한 경우 적용
     const finalContent = deps.transformBeforeSave
       ? await deps.transformBeforeSave(state.editorContent)
@@ -192,7 +198,14 @@ export function useEditorPersistence({
         ? normalizeDocumentPath(state.currentFilePath)
         : null;
 
-      if (isTemplate) {
+      if (options.keepEditing && !isTemplate && currentFilePath && actions.storeSaveFileKeepEditing) {
+        await actions.storeSaveFileKeepEditing(currentFilePath, finalContent);
+        if (finalContent !== state.editorContent) {
+          actions.resetContent(finalContent);
+        } else {
+          actions.markAsSaved?.();
+        }
+      } else if (isTemplate) {
         // 템플릿 재저장: storeSaveFile이 contentType 기반으로 templateApi 호출
         await actions.storeSaveFile(currentFilePath || '__template__', finalContent);
         // 탭 제목을 현재 메타데이터 제목으로 갱신
@@ -206,7 +219,9 @@ export function useEditorPersistence({
       } else {
         await actions.save();
       }
-      actions.setIsEditing(false);
+      if (!options.keepEditing) {
+        actions.setIsEditing(false);
+      }
       const successMsg = isTemplate ? '템플릿이 저장되었습니다.' : '파일이 저장되었습니다.';
       deps.showSuccess('저장 완료', successMsg);
       return true;

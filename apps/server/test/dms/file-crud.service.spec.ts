@@ -57,17 +57,15 @@ describe('FileCrudService locked preview', () => {
     fs.rmSync(rootDir, { recursive: true, force: true });
   });
 
-  it('returns only a truncated locked preview when a markdown document is not readable', async () => {
+  it('returns a locked notice without source markdown when a markdown document is not readable', async () => {
     const absolutePath = path.join(rootDir, 'locked', 'secret.md');
     fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
     const fullContent = [
       '# 잠긴 문서',
       '',
-      '첫 번째 공개 미리보기 줄입니다.',
-      '두 번째 공개 미리보기 줄입니다.',
-      '세 번째 공개 미리보기 줄입니다.',
-      '절대 내려가면 안 되는 네 번째 줄입니다.',
-      '절대 내려가면 안 되는 다섯 번째 줄입니다.',
+      '첫 번째 원문 줄입니다.',
+      '두 번째 원문 줄입니다.',
+      '절대 내려가면 안 되는 비밀 줄입니다.',
     ].join('\n');
     fs.writeFileSync(absolutePath, fullContent, 'utf-8');
 
@@ -77,8 +75,9 @@ describe('FileCrudService locked preview', () => {
     if (!result.success) return;
     expect(result.data.lockedPreview?.isLocked).toBe(true);
     expect(result.data.lockedPreview?.canRequestRead).toBe(true);
-    expect(result.data.content).toContain('첫 번째 공개 미리보기 줄입니다.');
-    expect(result.data.content).not.toContain('절대 내려가면 안 되는 네 번째 줄입니다.');
+    expect(result.data.content).toContain('열람 권한 요청이 필요합니다.');
+    expect(result.data.content).not.toContain('첫 번째 원문 줄입니다.');
+    expect(result.data.content).not.toContain('절대 내려가면 안 되는 비밀 줄입니다.');
     expect(result.data.content.length).toBeLessThan(fullContent.length);
     expect(result.data.lockedPreview?.preview).toBe(result.data.content);
     expect(result.data.lockedPreview?.truncated).toBe(true);
