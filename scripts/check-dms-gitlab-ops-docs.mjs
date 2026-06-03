@@ -34,12 +34,17 @@ try {
   requireIncludes(
     guide,
     [
+      'DMS_INSTANCE_ENV',
+      'DMS_GIT_PROD_REMOTE_URL',
+      'DMS_GIT_DEV_REMOTE_URL',
       'DMS_GIT_BOOTSTRAP_REMOTE_URL',
       'DMS_GIT_BOOTSTRAP_BRANCH',
       'LSWIKI_DOC.git',
-      'apps/server/src/modules/dms/dms.module.ts:75-95',
+      'LSWIKI_DOC_DEV.git',
+      'apps/server/src/modules/dms/dms.module.ts',
+      'apps/server/src/modules/dms/runtime/dms-config.service.ts',
       'gitService.initialize()',
-      'apps/server/src/modules/dms/runtime/git.service.ts:207-505',
+      'apps/server/src/modules/dms/runtime/git.service.ts',
       'pnpm run codex:workspace-sync-from-gitlab',
       'compose.yaml',
       '.env',
@@ -50,11 +55,11 @@ try {
   requireRegex(
     guide,
     [
-      { name: 'empty-dir clone mode', pattern: /empty[^\n]+dir[^\n]+remote[^\n]+git clone/i },
-      { name: 'existing repo fast-forward mode', pattern: /\.git[^\n]+fast-forward[^\n]+auto-pull/i },
-      { name: 'non-empty reconcile merge mode', pattern: /non-empty[^\n]+remote[^\n]+reconcile-merge/i },
-      { name: 'non-empty no remote fail mode', pattern: /non-empty[^\n]+no remote[^\n]+fail/i },
-      { name: 'operator-owned env boundary', pattern: /운영자[^\n]+\.env[^\n]+DMS_GIT_BOOTSTRAP_REMOTE_URL/ },
+      { name: 'prod role mapping', pattern: /DMS_INSTANCE_ENV[^\n]+prod[^\n]+LSWIKI_DOC\.git/i },
+      { name: 'dev role mapping', pattern: /DMS_INSTANCE_ENV[^\n]+dev[^\n]+LSWIKI_DOC_DEV\.git/i },
+      { name: 'local-test remote empty mapping', pattern: /local-test[^\n]+remote-empty|local-test[^\n]+remote[^\n]+비워/i },
+      { name: 'wrong remote blocking', pattern: /wrong-remote|wrong remote|mismatch[^\n]+차단|mutation 차단/i },
+      { name: 'operator-owned env boundary', pattern: /운영자[^\n]+\.env[^\n]+DMS_INSTANCE_ENV/ },
       { name: 'phase out of scope boundary', pattern: /이번 묶음[^\n]+out of scope/ },
       { name: 'no secrets in docs', pattern: /secret|token|credential|값은 기록하지 않는다/i },
     ],
@@ -67,8 +72,9 @@ try {
     [
       'docs/dms/guides/gitlab-document-sync.md',
       'DMS GitLab 문서 자동 싱크',
-      'DMS_GIT_BOOTSTRAP_REMOTE_URL',
-      'reconcile-merge',
+      'DMS_INSTANCE_ENV',
+      'DMS_GIT_PROD_REMOTE_URL',
+      'DMS_GIT_DEV_REMOTE_URL',
       'DMS 챗봇 / Azure OpenAI 환경변수',
       'AZURE_OPENAI_ENDPOINT',
       'AZURE_OPENAI_DEPLOYMENT',
@@ -81,8 +87,11 @@ try {
   requireIncludes(
     compose,
     [
+      'DMS_INSTANCE_ENV: ${DMS_INSTANCE_ENV:-prod}',
+      'DMS_GIT_PROD_REMOTE_URL: ${DMS_GIT_PROD_REMOTE_URL:-http://10.125.31.72:8010/LSITC_WEB/LSWIKI_DOC.git}',
+      'DMS_GIT_DEV_REMOTE_URL: ${DMS_GIT_DEV_REMOTE_URL:-git@10.125.31.72:LSITC_WEB/LSWIKI_DOC_DEV.git}',
       'DMS_GIT_BOOTSTRAP_REMOTE_URL: ${DMS_GIT_BOOTSTRAP_REMOTE_URL:-}',
-      'DMS_GIT_BOOTSTRAP_BRANCH: ${DMS_GIT_BOOTSTRAP_BRANCH:-main}',
+      'DMS_GIT_BOOTSTRAP_BRANCH: ${DMS_GIT_BOOTSTRAP_BRANCH:-master}',
       'AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}',
       'AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-}',
       'AZURE_OPENAI_EMBEDDING_DEPLOYMENT: ${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-}',
@@ -97,8 +106,11 @@ try {
   requireIncludes(
     envExample,
     [
+      'DMS_INSTANCE_ENV=dev',
+      'DMS_GIT_PROD_REMOTE_URL=http://10.125.31.72:8010/LSITC_WEB/LSWIKI_DOC.git',
+      'DMS_GIT_DEV_REMOTE_URL=git@10.125.31.72:LSITC_WEB/LSWIKI_DOC_DEV.git',
       'DMS_GIT_BOOTSTRAP_REMOTE_URL=',
-      'DMS_GIT_BOOTSTRAP_BRANCH=main',
+      'DMS_GIT_BOOTSTRAP_BRANCH=master',
       'AZURE_OPENAI_ENDPOINT=',
       'AZURE_OPENAI_DEPLOYMENT=',
       'AZURE_OPENAI_EMBEDDING_DEPLOYMENT=',
@@ -114,8 +126,9 @@ try {
     changelog,
     [
       'DMS GitLab 문서 자동 싱크 운영 가이드',
-      'DMS_GIT_BOOTSTRAP_REMOTE_URL',
+      'DMS_INSTANCE_ENV',
       'LSWIKI_DOC.git',
+      'LSWIKI_DOC_DEV.git',
     ],
     'docs/dms/planning/changelog.md',
   );

@@ -166,6 +166,7 @@ DMS_LOCAL_TEST_PROFILE=playwright-direct-run
 DATABASE_URL=$DATABASE_URL
 PORT=$SERVER_PORT
 NODE_ENV=development
+DMS_INSTANCE_ENV=local-test
 CORS_ORIGIN=http://127.0.0.1:$DMS_PORT
 JWT_SECRET=playwright-jwt-secret
 JWT_REFRESH_SECRET=playwright-jwt-refresh-secret

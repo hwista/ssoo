@@ -91,6 +91,15 @@ export class DmsModule implements OnModuleInit {
     }
 
     try {
+      const binding = configService.assertGitBootstrapContract();
+      logger.log(`DMS Git role contract 확인 완료 (instanceEnv: ${binding.instanceEnv})`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`DMS Git role contract 검증 실패: ${message}`);
+      throw err;
+    }
+
+    try {
       const gitResult = await gitService.initialize();
       if (gitResult.success) {
         logger.log(`Git 초기화 완료 (mode: ${gitResult.data?.mode})`);

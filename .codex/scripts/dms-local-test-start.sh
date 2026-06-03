@@ -34,10 +34,15 @@ fi
 
 load_env_file "$LOCAL_ENV_FILE"
 
+: "${DMS_INSTANCE_ENV:?DMS_INSTANCE_ENV must be set in .env.local-test}"
 : "${DMS_MARKDOWN_ROOT:?DMS_MARKDOWN_ROOT must be set in .env.local-test}"
 : "${DMS_INGEST_QUEUE_PATH:?DMS_INGEST_QUEUE_PATH must be set in .env.local-test}"
 : "${DMS_STORAGE_LOCAL_BASE_PATH:?DMS_STORAGE_LOCAL_BASE_PATH must be set in .env.local-test}"
 : "${DMS_GIT_BOOTSTRAP_BRANCH:?DMS_GIT_BOOTSTRAP_BRANCH must be set in .env.local-test}"
+
+if [ "$DMS_INSTANCE_ENV" != "local-test" ]; then
+  fail "DMS_INSTANCE_ENV must be 'local-test' for the default local-test profile."
+fi
 
 if [ "$DMS_INGEST_QUEUE_PATH" != "$EXPECTED_INGEST_PATH" ]; then
   fail "DMS_INGEST_QUEUE_PATH must stay on the repo runtime path: $EXPECTED_INGEST_PATH"
@@ -81,6 +86,7 @@ if [ ! -f "$SERVER_DIR/dist/main.js" ]; then
 fi
 
 echo "[dms-local-test] profile: ${DMS_LOCAL_TEST_PROFILE:-local-test-direct-run}"
+echo "[dms-local-test] instance env: $DMS_INSTANCE_ENV"
 echo "[dms-local-test] markdown root: $DMS_MARKDOWN_ROOT"
 echo "[dms-local-test] ingest queue: $DMS_INGEST_QUEUE_PATH"
 echo "[dms-local-test] storage root: $DMS_STORAGE_LOCAL_BASE_PATH"

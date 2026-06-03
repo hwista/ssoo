@@ -7,6 +7,7 @@ import type {
   GitSyncStatus,
 } from './git.service.js';
 import { configService } from './dms-config.service.js';
+import { gitRemoteIdentitiesMatch } from './git-remote-identity.util.js';
 import { buildParityStatus, computeSyncState } from './git-sync.util.js';
 
 export function listWorkingTreeEntriesAt(rootPath: string): string[] {
@@ -167,6 +168,7 @@ export async function getRepositoryBindingStatus(
   remote = 'origin',
 ): Promise<GitResult<GitRepositoryBindingStatus>> {
   const rootBinding = configService.getDocumentRootBinding();
+  const bootstrapBinding = configService.getGitBootstrapBinding();
   const configuredRoot = rootBinding.resolvedPath;
   const configuredRootExists = fs.existsSync(configuredRoot);
   const workingTreeEntries = configuredRootExists
@@ -174,12 +176,14 @@ export async function getRepositoryBindingStatus(
     : [];
   const visibleEntries = workingTreeEntries.filter((entry) => entry !== '.git');
   const hasGitMetadata = workingTreeEntries.includes('.git');
-  const bootstrapRemoteUrl = configService.getGitBootstrapRemoteUrl();
-  const bootstrapBranch = configService.getGitBootstrapBranch();
+  const bootstrapRemoteUrl = bootstrapBinding.bootstrapRemoteUrl;
+  const bootstrapBranch = bootstrapBinding.bootstrapBranch;
   const autoInit = configService.getAutoInit();
   const gitAvailable = await isGitBinaryAvailable();
 
   const baseBinding: Omit<GitRepositoryBindingStatus, 'state' | 'parityStatus' | 'syncState'> = {
+    instanceEnv: bootstrapBinding.instanceEnv,
+    expectedRemoteUrl: bootstrapRemoteUrl,
     appRoot: rootBinding.appRoot,
     configuredRootInput: rootBinding.effectiveInput,
     configuredRoot,
@@ -189,6 +193,9 @@ export async function getRepositoryBindingStatus(
     rootRelation: 'not-inside-repository',
     rootMismatch: false,
     reason: undefined,
+    bindingSeverity: 'ok',
+    bindingReason: undefined,
+    actualRemoteMatchesExpected: null,
     gitAvailable,
     isRepository: false,
     hasGitMetadata,
@@ -212,6 +219,8 @@ export async function getRepositoryBindingStatus(
         syncState: 'unavailable',
         parityStatus: buildParityStatus(remote, undefined, 'PARITY_UNAVAILABLE: Git not available'),
         reason: 'Git not available',
+        bindingSeverity: 'fatal',
+        bindingReason: 'Git not available',
       },
     };
   }
@@ -264,12 +273,25 @@ export async function getRepositoryBindingStatus(
 
   const remoteDetails = await resolveRemoteDetails(git, remote);
   const branchResult = await resolveCurrentBranchWithGit(git);
-  const syncResult = branchResult.success
+  const bindingStatus = resolveBindingStatus({
+    instanceEnv: bootstrapBinding.instanceEnv,
+    remote,
+    expectedRemoteUrl: bootstrapRemoteUrl,
+    remoteConfigured: remoteDetails.remoteConfigured,
+    actualRemoteUrl: remoteDetails.remoteUrl,
+  });
+  const syncResult = bindingStatus.bindingSeverity === 'ok' && branchResult.success
     ? await inspectSyncStatusWithGit(git, remote, branchResult.data)
-    : { success: false as const, error: branchResult.error };
-  const parityStatus = syncResult.success
-    ? buildParityStatus(remote, syncResult.data)
-    : buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${syncResult.error}`);
+    : branchResult.success
+      ? { success: false as const, error: bindingStatus.bindingReason ?? `${remote} is blocked by the DMS git binding guard` }
+      : { success: false as const, error: branchResult.error };
+  const parityStatus = bindingStatus.bindingSeverity === 'ok'
+    ? (
+        syncResult.success
+          ? buildParityStatus(remote, syncResult.data)
+          : buildParityStatus(remote, undefined, `PARITY_CHECK_FAILED: ${syncResult.error}`)
+      )
+    : buildParityStatus(remote, undefined, bindingStatus.bindingReason);
 
   return {
     success: true,
@@ -286,6 +308,9 @@ export async function getRepositoryBindingStatus(
       reason: actualGitRoot && path.resolve(actualGitRoot) !== configuredRoot
         ? `Configured root is nested under actual Git root ${actualGitRoot}`
         : undefined,
+      bindingSeverity: bindingStatus.bindingSeverity,
+      bindingReason: bindingStatus.bindingReason,
+      actualRemoteMatchesExpected: bindingStatus.actualRemoteMatchesExpected,
       isRepository: true,
       branch: branchResult.success ? branchResult.data : undefined,
       remoteUrl: syncResult.success ? syncResult.data.remoteUrl : remoteDetails.remoteUrl,
@@ -293,5 +318,65 @@ export async function getRepositoryBindingStatus(
       syncStatus: syncResult.success ? syncResult.data : undefined,
       parityStatus,
     },
+  };
+}
+
+function resolveBindingStatus({
+  instanceEnv,
+  remote,
+  expectedRemoteUrl,
+  remoteConfigured,
+  actualRemoteUrl,
+}: {
+  instanceEnv: GitRepositoryBindingStatus['instanceEnv'];
+  remote: string;
+  expectedRemoteUrl?: string;
+  remoteConfigured: boolean;
+  actualRemoteUrl?: string;
+}): Pick<GitRepositoryBindingStatus, 'bindingSeverity' | 'bindingReason' | 'actualRemoteMatchesExpected'> {
+  if (instanceEnv === 'local-test') {
+    if (remoteConfigured || actualRemoteUrl) {
+      return {
+        bindingSeverity: 'blocking',
+        bindingReason: `DMS_INSTANCE_ENV=local-test requires ${remote} to stay unconfigured, but the existing repository points to ${actualRemoteUrl ?? '(configured remote)'}.`,
+        actualRemoteMatchesExpected: false,
+      };
+    }
+
+    return {
+      bindingSeverity: 'ok',
+      bindingReason: undefined,
+      actualRemoteMatchesExpected: true,
+    };
+  }
+
+  if (!expectedRemoteUrl) {
+    return {
+      bindingSeverity: 'fatal',
+      bindingReason: `DMS_INSTANCE_ENV=${instanceEnv} has no expected document remote.`,
+      actualRemoteMatchesExpected: null,
+    };
+  }
+
+  if (!remoteConfigured || !actualRemoteUrl) {
+    return {
+      bindingSeverity: 'blocking',
+      bindingReason: `DMS_INSTANCE_ENV=${instanceEnv} expects ${remote} to resolve to ${expectedRemoteUrl}, but the existing repository has no ${remote} remote configured.`,
+      actualRemoteMatchesExpected: false,
+    };
+  }
+
+  if (!gitRemoteIdentitiesMatch(actualRemoteUrl, expectedRemoteUrl)) {
+    return {
+      bindingSeverity: 'blocking',
+      bindingReason: `DMS_INSTANCE_ENV=${instanceEnv} expects ${remote} to resolve to ${expectedRemoteUrl}, but the existing repository points to ${actualRemoteUrl}.`,
+      actualRemoteMatchesExpected: false,
+    };
+  }
+
+  return {
+    bindingSeverity: 'ok',
+    bindingReason: undefined,
+    actualRemoteMatchesExpected: true,
   };
 }

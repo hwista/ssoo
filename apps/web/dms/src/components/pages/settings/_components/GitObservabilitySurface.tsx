@@ -40,6 +40,19 @@ function formatBindingState(state: SettingsRuntimeGitClient['state']) {
   }
 }
 
+function formatInstanceEnv(instanceEnv: SettingsRuntimeGitClient['instanceEnv']) {
+  switch (instanceEnv) {
+    case 'prod':
+      return 'prod (운영 서버)';
+    case 'dev':
+      return 'dev (개발/로컬 서버)';
+    case 'local-test':
+      return 'local-test (격리 테스트)';
+    default:
+      return instanceEnv;
+  }
+}
+
 function formatSyncState(git: SettingsRuntimeGitClient) {
   switch (git.syncState) {
     case 'in-sync':
@@ -81,7 +94,32 @@ function formatRootRelation(git: SettingsRuntimeGitClient) {
   }
 }
 
+function formatBindingSeverity(git: SettingsRuntimeGitClient) {
+  switch (git.bindingSeverity) {
+    case 'fatal':
+      return '시작 차단';
+    case 'blocking':
+      return 'mutation 차단';
+    default:
+      return '정상';
+  }
+}
+
 function getStatusTone(git: SettingsRuntimeGitClient) {
+  if (git.bindingSeverity === 'fatal') {
+    return {
+      icon: <AlertTriangle className="h-4 w-4" />,
+      pillClassName: 'border-red-200 bg-red-50 text-red-700',
+    };
+  }
+
+  if (git.bindingSeverity === 'blocking') {
+    return {
+      icon: <AlertTriangle className="h-4 w-4" />,
+      pillClassName: 'border-amber-200 bg-amber-50 text-amber-700',
+    };
+  }
+
   if (git.state === 'reconcile-needed' || (git.parityStatus.verified && !git.parityStatus.canTreatLocalAsCanonical)) {
     return {
       icon: <AlertTriangle className="h-4 w-4" />,
@@ -115,11 +153,9 @@ export function GitObservabilitySurface({
   const actualRemote = git.remoteUrl ? `${git.remoteName} · ${git.remoteUrl}` : `${git.remoteName} · (미구성)`;
   const configuredBootstrap = git.bootstrapRemoteUrl
     ? `${git.bootstrapRemoteUrl}${git.bootstrapBranch ? ` · branch ${git.bootstrapBranch}` : ''}`
-    : '설정 없음';
-  const driftNote = git.bootstrapRemoteUrl && git.remoteUrl && git.bootstrapRemoteUrl !== git.remoteUrl
-    ? 'configured bootstrap remote 와 actual origin URL 이 다릅니다. 다음 initialize/rebind 전까지 현재 repo binding 이 우선됩니다.'
-    : null;
-  const reason = git.reason ?? git.parityStatus.reason;
+    : '원격 미사용 (local-test)';
+  const expectedRemote = git.expectedRemoteUrl ?? '원격 미사용 (local-test)';
+  const reason = git.bindingReason ?? git.reason ?? git.parityStatus.reason;
 
   return (
     <section className="mb-3 space-y-3">
@@ -129,7 +165,7 @@ export function GitObservabilitySurface({
             <p className="text-badge text-ssoo-primary/70">문서 정본 바인딩 / Git 운영 상태</p>
             <h3 className="mt-1 text-label-strong text-ssoo-primary">현재 runtime 이 실제로 바라보는 문서 저장소</h3>
             <p className="mt-2 text-body-sm text-ssoo-primary/80">
-              configured root, actual Git root, remote/branch, sync/parity, reconcile-needed 상태를 함께 보여 줍니다.
+              expected role, configured bootstrap, actual Git root/remote/branch, sync/parity, mutation-blocking 상태를 함께 보여 줍니다.
             </p>
           </div>
           <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-badge ${tone.pillClassName}`}>
@@ -139,8 +175,11 @@ export function GitObservabilitySurface({
         </div>
 
         <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <InfoRow label="Instance role" value={formatInstanceEnv(git.instanceEnv)} />
+          <InfoRow label="Binding guard" value={formatBindingSeverity(git)} />
           <InfoRow label="Configured root (resolved)" value={git.configuredRoot} breakAll />
           <InfoRow label="Actual Git root" value={git.actualGitRoot ?? '감지되지 않음'} breakAll />
+          <InfoRow label="Expected remote" value={expectedRemote} breakAll />
           <InfoRow label="Actual remote" value={actualRemote} breakAll />
           <InfoRow label="Actual branch" value={git.branch ?? '브랜치 미확인'} />
           <InfoRow label="Configured bootstrap" value={configuredBootstrap} breakAll />
@@ -158,14 +197,15 @@ export function GitObservabilitySurface({
         )}
 
         {reason && (
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body-sm text-amber-800">
+          <div
+            className={[
+              'mt-3 rounded-lg border px-3 py-2 text-body-sm',
+              git.bindingSeverity === 'fatal'
+                ? 'border-red-200 bg-red-50 text-red-800'
+                : 'border-amber-200 bg-amber-50 text-amber-800',
+            ].join(' ')}
+          >
             {reason}
-          </div>
-        )}
-
-        {driftNote && (
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body-sm text-amber-800">
-            {driftNote}
           </div>
         )}
       </article>

@@ -7,6 +7,7 @@ export function SettingsFieldList({
   validationErrors,
   getValue,
   onChange,
+  readOnly = false,
 }: {
   items: JsonFieldDescriptor[];
   localConfig: Record<string, unknown>;
@@ -14,6 +15,7 @@ export function SettingsFieldList({
   validationErrors: Record<string, string>;
   getValue: (obj: Record<string, unknown>, path: string) => unknown;
   onChange: (key: string, value: unknown) => void;
+  readOnly?: boolean;
 }) {
   return (
     <JsonRenderer
@@ -23,6 +25,7 @@ export function SettingsFieldList({
       validationErrors={validationErrors}
       getValue={getValue}
       onChange={onChange}
+      readOnly={readOnly}
     />
   );
 }
