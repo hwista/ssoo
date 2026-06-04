@@ -37,6 +37,8 @@ export interface ViewerProps {
   onLinkClick?: (href: string) => void;
   /** 본문 <img> 클릭 시 호출 */
   onImageClick?: (src: string, alt: string) => void;
+  /** task checkbox 클릭 시 호출 */
+  onCheckboxClick?: (taskIndex: number) => void | Promise<void>;
   /** 검색어 — 문서 열 때 자동 하이라이트 */
   initialSearchQuery?: string | null;
 }
@@ -69,6 +71,7 @@ export function Viewer({
   className,
   onLinkClick,
   onImageClick,
+  onCheckboxClick,
   initialSearchQuery,
 }: ViewerProps) {
   void _showContentSurface;
@@ -188,6 +191,7 @@ export function Viewer({
           showSurface={false}
           onLinkClick={onLinkClick}
           onImageClick={onImageClick}
+          onCheckboxClick={onCheckboxClick}
         />
       )}
     />

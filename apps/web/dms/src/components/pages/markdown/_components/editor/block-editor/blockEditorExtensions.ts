@@ -1,7 +1,7 @@
 'use client';
 
-import { Annotation, EditorState, StateEffect, StateField, type StateEffectType } from '@codemirror/state';
-import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view';
+import { Annotation, EditorState, RangeSetBuilder, StateEffect, StateField, type StateEffectType } from '@codemirror/state';
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from '@codemirror/view';
 import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 
@@ -13,6 +13,9 @@ export const setPendingInsertEffect = StateEffect.define<{
   range?: SelectionRange | null;
   loading?: boolean;
 }>();
+
+const HIGHLIGHT_PATTERN = /==(?![=\s])([\s\S]*?\S)==(?![=])/g;
+const CODE_FENCE_PATTERN = /^\s*(`{3,}|~{3,})/;
 
 function normalizeRange(docLength: number, range: SelectionRange | null): SelectionRange | null {
   if (!range) return null;
@@ -59,6 +62,134 @@ function createSelectionDecorationField(
     provide: (field) => EditorView.decorations.from(field),
   });
 }
+
+function toggleCodeFence(currentFence: string | null, lineText: string): string | null {
+  const match = CODE_FENCE_PATTERN.exec(lineText);
+  if (!match) {
+    return currentFence;
+  }
+
+  const marker = match[1];
+  if (!currentFence) {
+    return marker;
+  }
+
+  if (marker[0] === currentFence[0] && marker.length >= currentFence.length) {
+    return null;
+  }
+
+  return currentFence;
+}
+
+function findClosingBacktickRun(text: string, from: number, tickCount: number): number {
+  for (let index = from; index < text.length; index += 1) {
+    if (text[index] !== '`') {
+      continue;
+    }
+
+    let length = 1;
+    while (text[index + length] === '`') {
+      length += 1;
+    }
+
+    if (length === tickCount) {
+      return index;
+    }
+
+    index += length - 1;
+  }
+
+  return -1;
+}
+
+function getInlineCodeRanges(text: string): SelectionRange[] {
+  const ranges: SelectionRange[] = [];
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] !== '`') {
+      continue;
+    }
+
+    let tickCount = 1;
+    while (text[index + tickCount] === '`') {
+      tickCount += 1;
+    }
+
+    const closingIndex = findClosingBacktickRun(text, index + tickCount, tickCount);
+    if (closingIndex === -1) {
+      index += tickCount - 1;
+      continue;
+    }
+
+    ranges.push({
+      from: index,
+      to: closingIndex + tickCount,
+    });
+    index = closingIndex + tickCount - 1;
+  }
+
+  return ranges;
+}
+
+function overlapsRange(from: number, to: number, ranges: SelectionRange[]): boolean {
+  return ranges.some((range) => from < range.to && to > range.from);
+}
+
+function buildMarkdownHighlightDecorations(state: EditorState): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  let activeFence: string | null = null;
+
+  for (let lineNumber = 1; lineNumber <= state.doc.lines; lineNumber += 1) {
+    const line = state.doc.line(lineNumber);
+    const nextFence = toggleCodeFence(activeFence, line.text);
+
+    if (activeFence) {
+      activeFence = nextFence;
+      continue;
+    }
+
+    if (nextFence) {
+      activeFence = nextFence;
+      continue;
+    }
+
+    const inlineCodeRanges = getInlineCodeRanges(line.text);
+    HIGHLIGHT_PATTERN.lastIndex = 0;
+
+    let match: RegExpExecArray | null;
+    while ((match = HIGHLIGHT_PATTERN.exec(line.text)) !== null) {
+      const from = match.index;
+      const to = from + match[0].length;
+      if (overlapsRange(from, to, inlineCodeRanges)) {
+        continue;
+      }
+
+      builder.add(
+        line.from + from,
+        line.from + to,
+        Decoration.mark({ class: 'cm-mdHighlight' }),
+      );
+    }
+  }
+
+  return builder.finish();
+}
+
+export const markdownHighlightDecorations = ViewPlugin.fromClass(class {
+  decorations: DecorationSet;
+
+  constructor(view: EditorView) {
+    this.decorations = buildMarkdownHighlightDecorations(view.state);
+  }
+
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = buildMarkdownHighlightDecorations(update.state);
+    }
+  }
+}, {
+  decorations: (value) => value.decorations,
+});
 
 class PendingInsertSpinnerWidget extends WidgetType {
   toDOM() {
@@ -173,6 +304,10 @@ export const editorTheme = EditorView.theme({
   '.cm-activeLine': { backgroundColor: 'transparent' },
   '.cm-selectionBackground': { backgroundColor: '#dbeafe' },
   '&.cm-focused .cm-selectionBackground': { backgroundColor: '#93c5fd' },
+  '.cm-mdHighlight': {
+    backgroundColor: 'rgba(250, 204, 21, 0.35)',
+    borderRadius: '2px',
+  },
   '.cm-savedCursorLine': { backgroundColor: 'rgba(99, 102, 241, 0.08)' },
   '.cm-savedSelection': { backgroundColor: 'rgba(99, 102, 241, 0.15)', borderRadius: '2px' },
   '.cm-pendingInsertLine': { backgroundColor: 'rgba(245, 158, 11, 0.12)' },
