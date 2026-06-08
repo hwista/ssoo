@@ -2,7 +2,7 @@
 # AI 코드 검증 (Azure OpenAI) - 직전 푸시 diff 검토
 set -uo pipefail
 
-REPORT="$(pwd)/ai-review-report.md"
+REPORT="${CI_PROJECT_DIR:-$(pwd)}/ai-review-report.md"
 APP_DIR="${APP_DIR:-/opt/ssoo/app}"
 
 # 변수 trim
@@ -73,7 +73,7 @@ fi
   echo "# AI 코드 검증 리포트"
   echo ""
   echo "- 범위: \`$RANGE\`"
-  echo "- 커밋: ${CI_COMMIT_SHORT_SHA:-?}"
+  echo "- 커밋: ${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:0:8}}"
   echo "- 생성: $(date '+%Y-%m-%d %H:%M:%S')"
   echo ""
   echo "$CONTENT"
