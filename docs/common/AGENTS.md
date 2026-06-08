@@ -29,7 +29,7 @@ sooo/
 │   ├── server/              # NestJS 백엔드 API 서버
 │   └── web/
 │       ├── pms/             # PMS 프론트엔드 (Next.js 15)
-│       ├── cms/             # CMS 프론트엔드 (Next.js 15)
+│       ├── sns/             # SNS 프론트엔드 (Next.js 15)
 │       └── dms/             # DMS 프론트엔드 (pnpm workspace 앱)
 ├── packages/
 │   ├── database/            # Prisma ORM, DB 스키마
@@ -56,7 +56,7 @@ sooo/
 | [copilot-instructions.md](../../.github/copilot-instructions.md) | 전역 | 핵심 원칙, 패키지 경계, 네이밍 |
 | [server.instructions.md](../../.github/instructions/server.instructions.md) | `apps/server/**` | NestJS 패턴, 보안, API |
 | [pms.instructions.md](../../.github/instructions/pms.instructions.md) | `apps/web/pms/**` | 컴포넌트, 스토어, 색상 |
-| [cms.instructions.md](../../.github/instructions/cms.instructions.md) | `apps/web/cms/**` | 인증, feed/board visibility, 공용 auth shell |
+| [sns.instructions.md](../../.github/instructions/sns.instructions.md) | `apps/web/sns/**` | 인증, feed/board visibility, 공용 auth shell |
 | [dms.instructions.md](../../.github/instructions/dms.instructions.md) | `apps/web/dms/**` | Tiptap, 파일시스템 |
 | [database.instructions.md](../../.github/instructions/database.instructions.md) | `packages/database/**` | Prisma, 히스토리, 트리거 |
 | [types.instructions.md](../../.github/instructions/types.instructions.md) | `packages/types/**` | 타입 정의 규칙 |
@@ -112,7 +112,7 @@ pnpm dev:web-dms                  # DMS :3001
 
 ### 2. DMS 작업 시 주의
 
-> ⚠️ **PMS/CMS/DMS는 공통 `@ssoo/web-auth` surface 를 사용하고, DMS는 추가로 pnpm workspace 앱 기준을 따릅니다. DMS에서 `@ssoo/database` 직접 import는 금지입니다.**  
+> ⚠️ **PMS/SNS/DMS는 공통 `@ssoo/web-auth` surface 를 사용하고, DMS는 추가로 pnpm workspace 앱 기준을 따릅니다. DMS에서 `@ssoo/database` 직접 import는 금지입니다.**  
 > DMS 작업 시: [docs/dms/AGENTS.md](../../docs/dms/AGENTS.md)
 
 ---

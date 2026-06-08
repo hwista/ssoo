@@ -150,16 +150,16 @@ export type {
    PmsAccessSnapshot,
 } from './pms';
 
-// CMS (Content Management System)
-export type { CmsVisibilityScopeCode, Post, CreatePostDto, UpdatePostDto } from './cms/post';
-export type { Comment, CreateCommentDto, UpdateCommentDto } from './cms/comment';
-export type { Board, BoardCategory, CreateBoardDto, UpdateBoardDto } from './cms/board';
-export type { UserProfile, UserCareer, UpdateProfileDto, CreateCareerDto } from './cms/profile';
-export type { Skill, UserSkill, Endorsement, CreateSkillDto, AddUserSkillDto, EndorseSkillDto, SearchExpertsDto } from './cms/skill';
-export type { Follow, FollowStats } from './cms/follow';
-export type { NotificationType, Notification } from './cms/notification';
-export type { FeedItem, FeedQueryDto, ReactionDto } from './cms/feed';
-export type { CmsFeatureAccess, CmsAccessSnapshot } from './cms/access';
+// SNS
+export type { SnsVisibilityScopeCode, Post, CreatePostDto, UpdatePostDto } from './sns/post';
+export type { Comment, CreateCommentDto, UpdateCommentDto } from './sns/comment';
+export type { Board, BoardCategory, CreateBoardDto, UpdateBoardDto } from './sns/board';
+export type { UserProfile, UserCareer, UpdateProfileDto, CreateCareerDto } from './sns/profile';
+export type { Skill, UserSkill, Endorsement, CreateSkillDto, AddUserSkillDto, EndorseSkillDto, SearchExpertsDto } from './sns/skill';
+export type { Follow, FollowStats } from './sns/follow';
+export type { NotificationType, Notification } from './sns/notification';
+export type { FeedItem, FeedQueryDto, ReactionDto } from './sns/feed';
+export type { SnsFeatureAccess, SnsAccessSnapshot } from './sns/access';
 
 // DMS (Document Management System)
 export type {
@@ -234,3 +234,15 @@ export type {
   DmsDocumentCommentsResult,
   MutateDmsDocumentCommentPayload,
 } from './dms';
+export type {
+  CrmAdminBoundary,
+  CrmIntegrationStatus,
+  CrmOpportunity,
+  CrmOpportunityLine,
+  CrmOpportunityListQuery,
+  CrmOpportunityListResponse,
+  CrmOpportunityPriority,
+  CrmOpportunitySort,
+  CrmOpportunityStatus,
+  CrmOpportunitySummary,
+} from './crm/index.js';

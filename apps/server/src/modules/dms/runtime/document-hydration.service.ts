@@ -274,6 +274,33 @@ export class DocumentHydrationService {
     }
 
     // DB에는 있지만 디스크에 없는 문서 → missing 마킹
+    //
+    // 부팅 직후 Git bootstrap clone/pull 이 실패하거나 아직 완료되지 않은 상태에서
+    // 문서 루트가 비어 있거나 템플릿만 남아 있으면, 실제 문서가 사라진 것이 아니라
+    // content-plane 이 아직 준비되지 않은 상태다. 이때 DB control-plane 을 missing 으로
+    // 바꾸면 사이드바 파일 목록이 0건으로 보이는 치명적인 런칭 장애가 된다.
+    //
+    // 안전한 삭제/누락 판정은 ControlPlaneSyncService 가 Git parity 를 확인한 뒤 처리한다.
+    // Hydration 은 bootstrap/sidecar 보강만 담당하고, Git 저장소가 확인되지 않은 런타임
+    // 루트에서는 기존 문서를 missing 으로 강등하지 않는다.
+    const rootEntries = fs.readdirSync(docDir);
+    const hasGitRepository = rootEntries.includes('.git');
+    const bootstrapRemoteConfigured = Boolean(configService.getGitBootstrapRemoteUrl());
+    const shouldMarkMissing = hasGitRepository || !bootstrapRemoteConfigured;
+
+    if (!shouldMarkMissing) {
+      const missingCandidateCount = existingDocs.length - skipped;
+      if (missingCandidateCount > 0) {
+        logger.warn('문서 missing 체크 스킵 — Git content-plane 준비 전 DB 문서 상태 보존', {
+          missingCandidateCount,
+          docFileCount: docFiles.length,
+          hasGitRepository,
+          bootstrapRemoteConfigured,
+        });
+      }
+      return { documentsCreated: created, documentsSkipped: skipped, documentsMissing: 0 };
+    }
+
     const diskPaths = new Set(docFiles);
     const missingPaths = existingDocs
       .map((d) => d.relativePath)

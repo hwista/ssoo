@@ -221,7 +221,7 @@ pnpm db:setup
 이 명령어는 모든 workspace의 의존성을 자동으로 설치합니다:
 - `apps/web/pms` (Next.js)
 - `apps/web/dms` (Next.js)
-- `apps/web/cms` (Next.js)
+- `apps/web/sns` (Next.js)
 - `apps/server` (NestJS)
 - `packages/database` (Prisma)
 - `packages/types` (TypeScript Types)

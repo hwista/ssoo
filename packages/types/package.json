@@ -17,9 +17,13 @@
       "types": "./dist/pms/index.d.ts",
       "default": "./dist/pms/index.js"
     },
-    "./cms": {
-      "types": "./dist/cms/index.d.ts",
-      "default": "./dist/cms/index.js"
+    "./sns": {
+      "types": "./dist/sns/index.d.ts",
+      "default": "./dist/sns/index.js"
+    },
+    "./crm": {
+      "types": "./dist/crm/index.d.ts",
+      "default": "./dist/crm/index.js"
     },
     "./dms": {
       "types": "./dist/dms/index.d.ts",

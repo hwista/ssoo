@@ -73,8 +73,8 @@ jobs:
       - name: Type Check (PMS)
         run: pnpm --filter web-pms exec tsc --noEmit
 
-      - name: Type Check (CMS)
-        run: pnpm --filter web-cms exec tsc --noEmit
+      - name: Type Check (SNS)
+        run: pnpm --filter web-sns exec tsc --noEmit
 
       - name: Type Check (DMS)
         run: pnpm --filter web-dms exec tsc --noEmit
@@ -192,7 +192,7 @@ jobs:
       server: ${{ steps.filter.outputs.server }}
       pms: ${{ steps.filter.outputs.pms }}
       dms: ${{ steps.filter.outputs.dms }}
-      cms: ${{ steps.filter.outputs.cms }}
+      sns: ${{ steps.filter.outputs.sns }}
       database: ${{ steps.filter.outputs.database }}
       admin: ${{ steps.filter.outputs.admin }}
     
@@ -213,8 +213,8 @@ jobs:
               - 'apps/web/dms/**'
             database:
               - 'packages/database/**'
-            cms:
-              - 'apps/web/cms/**'
+            sns:
+              - 'apps/web/sns/**'
             admin:
               - 'apps/web/admin/**'
 
@@ -299,11 +299,11 @@ jobs:
       - name: Build
         run: pnpm build:web-dms
 
-  # CMS 빌드 (CMS 변경 시에만)
-  build-cms:
-    name: Build CMS
+  # SNS 빌드 (SNS 변경 시에만)
+  build-sns:
+    name: Build SNS
     needs: [validate, analyze-changes]
-    if: needs.analyze-changes.outputs.cms == 'true'
+    if: needs.analyze-changes.outputs.sns == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -324,7 +324,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm build:web-cms
+        run: pnpm build:web-sns
 
   # Admin 빌드 (Admin 변경 시에만)
   build-admin:
@@ -370,7 +370,7 @@ jobs:
             const server = '${{ needs.analyze-changes.outputs.server }}';
             const pms = '${{ needs.analyze-changes.outputs.pms }}';
             const dms = '${{ needs.analyze-changes.outputs.dms }}';
-            const cms = '${{ needs.analyze-changes.outputs.cms }}';
+            const sns = '${{ needs.analyze-changes.outputs.sns }}';
             const admin = '${{ needs.analyze-changes.outputs.admin }}';
             const database = '${{ needs.analyze-changes.outputs.database }}';
             const formatResult = (result) => {
@@ -400,7 +400,7 @@ jobs:
             body += `| Server | ${server === 'true' ? '✅' : '➖'} |\n`;
             body += `| PMS | ${pms === 'true' ? '✅' : '➖'} |\n`;
             body += `| DMS | ${dms === 'true' ? '✅' : '➖'} |\n`;
-            body += `| CMS | ${cms === 'true' ? '✅' : '➖'} |\n`;
+            body += `| SNS | ${sns === 'true' ? '✅' : '➖'} |\n`;
             body += `| Admin | ${admin === 'true' ? '✅' : '➖'} |\n`;
             body += `| Database | ${database === 'true' ? '✅' : '➖'} |\n`;
             

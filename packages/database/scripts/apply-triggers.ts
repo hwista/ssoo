@@ -89,11 +89,11 @@ async function main() {
          '55_dm_document_comment_h_trigger.sql',
          '56_dm_template_h_trigger.sql',
          '57_cm_notification_h_trigger.sql',
-         // CMS (Content Management System)
-        '50_cms_board_h_trigger.sql',
-     '51_cms_post_h_trigger.sql',
-     '52_cms_comment_h_trigger.sql',
-     '53_cms_user_profile_h_trigger.sql',
+         // SNS
+        '50_sns_board_h_trigger.sql',
+     '51_sns_post_h_trigger.sql',
+     '52_sns_comment_h_trigger.sql',
+     '53_sns_user_profile_h_trigger.sql',
      '54_pr_project_issue_h_trigger.sql',
    ];
 

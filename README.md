@@ -105,7 +105,7 @@ sooo/
 │       │   ├── server/          # Next API / 서비스 레이어
 │       │   └── package.json     # workspace 패키지 정의
 │       │
-│       └── cms/                 # CMS 프론트엔드 (Next.js 15)
+│       └── sns/                 # SNS 프론트엔드 (Next.js 15)
 │           ├── src/
 │           └── package.json
 │
@@ -137,7 +137,7 @@ sooo/
 │   │   └── architecture/        # 개발 표준, 보안, 패키지 명세
 │   ├── pms/                     # PMS 도메인 문서
 │   ├── dms/                     # DMS 산출물 문서 정본
-│   └── cms/                     # CMS 도메인 문서
+│   └── sns/                     # SNS 도메인 문서
 │
 ├── package.json                 # 루트 워크스페이스 설정
 ├── pnpm-workspace.yaml          # pnpm 워크스페이스 정의
@@ -213,7 +213,7 @@ Docker compose는 컨테이너 내부 DB 연결에 `DOCKER_DATABASE_URL`/`DOCKER
 - `server` (`4000`)
 - `pms` (`3000`)
 - `dms` (`3001`)
-- `cms` (`3002`)
+- `sns` (`3002`)
 
 ### 4. 대안: 직접 개발 서버 실행
 
@@ -225,7 +225,7 @@ pnpm dev
 pnpm dev:server   # 백엔드: http://localhost:4000
 pnpm dev:web-pms  # PMS: http://localhost:3000
 pnpm dev:web-dms  # DMS: http://localhost:3001
-pnpm dev:web-cms  # CMS: http://localhost:3002
+pnpm dev:web-sns  # SNS: http://localhost:3002
 ```
 
 ### 5. 동작 확인
@@ -355,8 +355,8 @@ pnpm build:server
 # Web만 실행/빌드
 pnpm dev:web-pms
 pnpm build:web-pms
-pnpm dev:web-cms
-pnpm build:web-cms
+pnpm dev:web-sns
+pnpm build:web-sns
 pnpm dev:web-dms
 pnpm build:web-dms
 

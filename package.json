@@ -39,8 +39,8 @@
     "dev:web-dms": "turbo dev --filter=web-dms",
     "build:server": "turbo build --filter=server",
     "build:web-pms": "turbo build --filter=web-pms",
-    "dev:web-cms": "turbo dev --filter=web-cms",
-    "build:web-cms": "turbo build --filter=web-cms",
+    "dev:web-sns": "turbo dev --filter=web-sns",
+    "build:web-sns": "turbo build --filter=web-sns",
     "build:web-dms": "turbo build --filter=web-dms",
     "dev:web-admin": "turbo dev --filter=web-admin",
     "build:web-admin": "turbo build --filter=web-admin",
@@ -58,6 +58,9 @@
     "verify:access-admin:raw": "pnpm --filter @ssoo/database build && DATABASE_URL=${DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@localhost:5432/ssoo_dev?schema=public} node scripts/verify-access-admin.mjs",
     "verify:access-dms": "pnpm run verify:access-dms:observed",
     "verify:access-dms:raw": "node scripts/verify-access-dms.mjs",
+    "verify:pms-launch": "pnpm run verify:pms-launch:observed",
+    "verify:pms-launch:raw": "node scripts/verify-pms-launch-readiness.mjs",
+    "verify:pms-launch:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:pms-launch:raw' --verification-command-label 'pnpm run verify:pms-launch:raw'",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
@@ -91,7 +94,9 @@
     "docs:verify:observed": "bash scripts/run-observed-command.sh --command 'pnpm run docs:verify:raw' --verification-command-label 'pnpm run docs:verify:raw'",
     "verify:access-smoke:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:access-smoke:raw' --verification-command-label 'pnpm run verify:access-smoke:raw'",
     "verify:access-admin:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:access-admin:raw' --verification-command-label 'pnpm run verify:access-admin:raw'",
-    "verify:access-dms:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:access-dms:raw' --verification-command-label 'pnpm run verify:access-dms:raw'"
+    "verify:access-dms:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:access-dms:raw' --verification-command-label 'pnpm run verify:access-dms:raw'",
+    "dev:web-crm": "turbo dev --filter=web-crm",
+    "build:web-crm": "turbo build --filter=web-crm"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.3.1",

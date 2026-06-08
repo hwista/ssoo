@@ -14,7 +14,7 @@
 
 - DMS domain 변경: 237 files
 - PMS domain 변경: 132 files
-- CHS removal / CMS 전환 흔적: 117 files
+- CHS removal / SNS 전환 흔적: 117 files
 - database 변경: 66 files
 - common auth/access: 16 files
 - repo tooling/docs: 23 files
@@ -35,34 +35,34 @@
 - `apps/server/src/modules/common/access/**`
 - `apps/server/src/modules/pms/**`
 - `apps/server/src/modules/dms/**`
-- `apps/server/src/modules/cms/**`
+- `apps/server/src/modules/sns/**`
 - `apps/web/pms/**`
 - `apps/web/dms/**`
-- `apps/web/cms/**`
+- `apps/web/sns/**`
 - `packages/types/src/common/**`
 - `packages/types/src/pms/**`
 - `packages/types/src/dms/**`
-- `packages/types/src/cms/**`
+- `packages/types/src/sns/**`
 - `packages/web-auth/**`
 - `packages/web-shell/**`
 - `packages/database/**`
 
 관찰:
-- shared auth/access foundation, PMS project access, DMS ACL, CMS access surface, shared packages, DB foundation 이 함께 움직이고 있습니다.
+- shared auth/access foundation, PMS project access, DMS ACL, SNS access surface, shared packages, DB foundation 이 함께 움직이고 있습니다.
 - `docs/common/guides/access-verification-runbook.md`, `docs/dms/planning/auth-access-readiness.md`, `docs/common/explanation/architecture/access-cutover-cleanup-plan.md` 는 모두 현재 최우선 리스크를 cross-domain access/platform 안정화로 설명합니다.
 
-### WS-B. CHS removal -> CMS replacement cleanup
+### WS-B. CHS removal -> SNS replacement cleanup
 
 핵심 경로:
 - `apps/server/src/modules/chs/**` 삭제
 - `apps/web/chs/**` 삭제
 - `docs/chs/**` 삭제
 - `packages/types/src/chs/**` 삭제
-- 대응하는 `cms/**` 신규 경로
+- 대응하는 `sns/**` 신규 경로
 
 관찰:
 - rename/replacement 성격이 강하며, access/platform convergence 와 섞여 있습니다.
-- 그러나 CMS 자체 feature 확장보다 먼저 “shared access contract 위에 CMS가 제대로 올라탔는가”를 닫아야 안전합니다.
+- 그러나 SNS 자체 feature 확장보다 먼저 “shared access contract 위에 SNS가 제대로 올라탔는가”를 닫아야 안전합니다.
 
 ### WS-C. PMS long-horizon design reconciliation
 
@@ -100,13 +100,13 @@
 ## Tranche T1 — Access/platform convergence stabilization
 
 한 줄 정의:
-- **shared auth/access foundation + PMS/CMS/DMS runtime parity + CHS->CMS cutover 를 같은 기준선 위에 올려서, 현재 dirty tree 를 release 가능한 단일 플랫폼 tranche 로 정리한다.**
+- **shared auth/access foundation + PMS/SNS/DMS runtime parity + CHS->SNS cutover 를 같은 기준선 위에 올려서, 현재 dirty tree 를 release 가능한 단일 플랫폼 tranche 로 정리한다.**
 
 이 tranche 를 먼저 고르는 이유:
 1. 공통 문서들이 모두 현재 리스크를 cross-domain access/platform 안정화로 지목한다.
 2. DMS는 regression gate 역할이라, 단독 feature 구현보다 공통 contract 안정화가 먼저다.
 3. PMS 장기 설계 정합화는 foundation 위에서 이어가야 하므로, 지금은 platform tranche 를 닫는 편이 맞다.
-4. CHS removal 과 CMS 신규 경로도 shared access/auth contract 위에서 먼저 정렬되어야 한다.
+4. CHS removal 과 SNS 신규 경로도 shared access/auth contract 위에서 먼저 정렬되어야 한다.
 
 ---
 
@@ -114,18 +114,18 @@
 
 ### 포함
 - common auth/session/access foundation 최종 정렬
-- PMS/CMS/DMS browser auth surface 정렬 확인
+- PMS/SNS/DMS browser auth surface 정렬 확인
 - PMS project access / menu/admin / access ops 와 공통 foundation parity 확인
-- CMS access snapshot / visibility surface 가 공통 foundation 위에 올라왔는지 확인
+- SNS access snapshot / visibility surface 가 공통 foundation 위에 올라왔는지 확인
 - DMS regression gate 유지 (`verify:access-dms` 기준)
 - DB seed/trigger/type/shared package 가 위 계약과 일치하는지 확인
-- CHS 삭제 경로와 CMS 신규 경로가 공존하지 않도록 정리 방향 확정
+- CHS 삭제 경로와 SNS 신규 경로가 공존하지 않도록 정리 방향 확정
 - 관련 문서/검증 루틴/overlay 정합성 고정
 
 ### 제외
 - PMS 신규 product feature 확장
 - DMS 신규 UX feature 추가
-- CMS moderation/board policy 심화 확장
+- SNS moderation/board policy 심화 확장
 - PMS spec-reconciliation 의 다음 상세 설계 slice 확장
 - schema-last 이후의 추가 모델 재설계
 
@@ -142,14 +142,14 @@
 - `docs/dms/planning/auth-access-readiness.md`
 가 같은 runtime 기준선을 설명한다.
 
-2. PMS/CMS/DMS parity
+2. PMS/SNS/DMS parity
 - PMS: navigation snapshot + project access + admin tooling 이 공통 foundation trace 와 모순되지 않는다.
-- CMS: feature snapshot + visibility/object policy 가 공통 foundation trace 와 모순되지 않는다.
+- SNS: feature snapshot + visibility/object policy 가 공통 foundation trace 와 모순되지 않는다.
 - DMS: feature snapshot + object ACL/runtime 결과가 regression gate 기준과 모순되지 않는다.
 
-3. CHS/CMS cutover hygiene
-- CHS 경로는 제거 대상으로만 남고, runtime 주체는 CMS 경로로 수렴한다.
-- 문서와 instruction 에서 CHS/CMS naming drift 가 최소화된다.
+3. CHS/SNS cutover hygiene
+- CHS 경로는 제거 대상으로만 남고, runtime 주체는 SNS 경로로 수렴한다.
+- 문서와 instruction 에서 CHS/SNS naming drift 가 최소화된다.
 
 4. Validation automation
 - `pnpm run codex:preflight`
@@ -177,8 +177,8 @@ T1 안에서는 아래 순서로 본다.
 - 목표: 현재 server/web/types/database/docs 간 naming/contract drift 를 표로 고정
 - 산출물: mismatch inventory, owner path, verification impact
 
-### Slice 2 — CMS/CHS cutover parity
-- 목표: CHS 제거와 CMS 신규 경로의 중복/누락을 access contract 기준으로 정리
+### Slice 2 — SNS/CHS cutover parity
+- 목표: CHS 제거와 SNS 신규 경로의 중복/누락을 access contract 기준으로 정리
 - focus: server module wiring, web shell bootstrap, docs/instructions naming
 
 ### Slice 3 — PMS admin/project access stabilization

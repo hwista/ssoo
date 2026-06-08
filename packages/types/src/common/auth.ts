@@ -9,7 +9,7 @@ export interface LoginRequest {
 /**
  * SSOO 앱 식별자
  */
-export type SsooAppKey = 'pms' | 'cms' | 'dms';
+export type SsooAppKey = 'pms' | 'sns' | 'dms';
 
 /**
  * 인증 토큰 묶음

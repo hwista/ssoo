@@ -34,7 +34,7 @@
 
 `Organization / OrgMember` 검토 전에 아래 작업 내역을 함께 본다.
 
-### PMS/CMS/DMS/shared user-auth-access 정렬 문서
+### PMS/SNS/DMS/shared user-auth-access 정렬 문서
 
 - `docs/common/explanation/architecture/auth-system.md`
 - `docs/common/guides/access-verification-runbook.md`
@@ -59,7 +59,7 @@
 - organization baseline permission
 - user/org bridge compatibility
 - object permission / policy trace
-- PMS/CMS/DMS cross-app runtime parity
+- PMS/SNS/DMS cross-app runtime parity
 
 ---
 
@@ -140,7 +140,7 @@
 이 검토는 PMS 모델링만이 아니라 다음과 함께 맞춰야 합니다.
 
 1. PMS navigation snapshot + project object access
-2. CMS feature snapshot + visibility policy
+2. SNS feature snapshot + visibility policy
 3. DMS feature snapshot + document/object ACL
 4. shared auth/session bootstrap
 5. inspect `organizationIds` 와 runtime allow/deny parity
@@ -172,9 +172,9 @@
 - project object capability (`/api/projects/:id/access`)
 - owner organization / project member / project role permission
 
-#### CMS
+#### SNS
 
-- feature snapshot (`/api/cms/access/me`)
+- feature snapshot (`/api/sns/access/me`)
 - content visibility (`public / organization / followers / self`)
 
 #### DMS
@@ -191,7 +191,7 @@
 
 ### 사용자 확정
 
-- 공용 layer는 baseline/trace까지만 맡고, 실제 권한 의미와 object 권한은 PMS/CMS/DMS 각 도메인이 해석한다.
+- 공용 layer는 baseline/trace까지만 맡고, 실제 권한 의미와 object 권한은 PMS/SNS/DMS 각 도메인이 해석한다.
 
 ---
 
@@ -287,7 +287,7 @@
 
 ### 현재 open decision
 
-남은 질문은 이 해법을 **그대로 채택할지**, 아니면 PMS/CMS/DMS shared foundation 제약에 맞게 **수정 채택할지** 입니다.
+남은 질문은 이 해법을 **그대로 채택할지**, 아니면 PMS/SNS/DMS shared foundation 제약에 맞게 **수정 채택할지** 입니다.
 
 ---
 
@@ -327,7 +327,7 @@
 ### 이유
 
 1. 외부 설계서의 방향(`Organization + OrgMember + ProjectOrg`)을 최대한 유지합니다.
-2. 동시에 PMS/CMS/DMS shared foundation 경계를 보존합니다.
+2. 동시에 PMS/SNS/DMS shared foundation 경계를 보존합니다.
 3. 같은 `Organization` 테이블을 쓰더라도 **공용 baseline** 과 **도메인 project semantics** 를 분리할 수 있습니다.
 
 ---
@@ -816,8 +816,8 @@ Implementation note (2026-04-16):
 | Date | Change |
 |------|--------|
 | 2026-04-16 | 계획 문서를 세션 전용 plan 에서 레포 planning 문서로 승격하고, `Organization / OrgMember` 를 다음 상세 설계 slice 로 고정. DMS/shared access 통합 맥락 재검토를 선행 조건으로 명시. |
-| 2026-04-16 | `Organization / OrgMember` 검토 범위를 DMS 단독 맥락이 아니라 PMS/CMS/DMS 공통 user/auth/access foundation 으로 확장하고, cross-app runtime parity 를 선행 검토 기준으로 명시. |
-| 2026-04-16 | shared auth/access foundation 과 PMS/CMS/DMS 도메인 특화 권한 해석의 경계를 구분하고, `Organization / OrgMember` 검토가 이 공용/도메인 경계를 보존해야 한다는 기준을 추가. |
+| 2026-04-16 | `Organization / OrgMember` 검토 범위를 DMS 단독 맥락이 아니라 PMS/SNS/DMS 공통 user/auth/access foundation 으로 확장하고, cross-app runtime parity 를 선행 검토 기준으로 명시. |
+| 2026-04-16 | shared auth/access foundation 과 PMS/SNS/DMS 도메인 특화 권한 해석의 경계를 구분하고, `Organization / OrgMember` 검토가 이 공용/도메인 경계를 보존해야 한다는 기준을 추가. |
 | 2026-04-16 | 현재 `UserOrganizationRelation` 이 사실상 common affiliation bridge 로 동작하고 있으며, `CreateUserDto`/`UpdateUserDto`/`UserManagementPage`/`syncOrganizationFoundation()`/inspect `organizationIds` 가 이미 그 위에 정렬되어 있다는 점을 기준선에 반영. |
 | 2026-04-16 | 외부 설계서가 `Organization(org_class=permanent/project)` + `OrgMember` + `ProjectOrg` 조합을 명시적으로 제안한다는 점과, 현재 레포와의 직접 충돌 지점을 문서에 반영. |
 | 2026-04-16 | `Organization / OrgMember` slice 의 임시 결정안으로 `Organization(org_class)` 수정 채택, `permanent`만 shared baseline 계산 참여, `UserOrganizationRelation` common OrgMember storage 승격, project 참여는 PMS 도메인 해석 유지 방향을 추가. |

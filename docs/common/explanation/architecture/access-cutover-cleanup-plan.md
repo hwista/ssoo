@@ -10,7 +10,7 @@
 
 ## 1. 목적
 
-현재 레포는 shared auth/session, shared permission foundation, DMS reference ACL rollout, PMS/CMS alignment 까지는 완료되었다.  
+현재 레포는 shared auth/session, shared permission foundation, DMS reference ACL rollout, PMS/SNS alignment 까지는 완료되었다.  
 이제 남은 주된 리스크는 **legacy auth/org/menu compatibility 제거 순서** 와 **rollback-safe cutover sequencing** 이다.
 
 이 문서의 목적은 다음 네 가지다.
@@ -23,7 +23,7 @@
 ### 1.1 현재 cutover baseline
 
 - live `:4000` 기준 runtime parity 는 복구되었고, `pnpm verify:access-smoke` 가 통과하는 상태를 출발점으로 삼는다.
-- 기본 runtime persona 는 `viewer.han` 이며, 이 smoke 는 PMS foreign project deny, CMS post deny, DMS git/settings deny 와 PMS/CMS/DMS allow path 를 함께 검증한다.
+- 기본 runtime persona 는 `viewer.han` 이며, 이 smoke 는 PMS foreign project deny, SNS post deny, DMS git/settings deny 와 PMS/SNS/DMS allow path 를 함께 검증한다.
 - PMS project-scoped route 는 이미 `ProjectFeatureGuard` + `RequireProjectFeature(...)` 기준으로 정렬되어 있어, 남은 리스크는 route migration 자체가 아니라 legacy auth/org/menu cleanup sequencing 이다.
 - DMS 는 더 이상 cleanup blocker 가 아니라 regression gate 이며, 각 phase 에서 `/api/dms/access/me`, `raw/serve-attachment`, `search/ask`, `storage/open` 안정성을 계속 증명해야 한다.
 
@@ -72,7 +72,7 @@
 | Phase 0 | live `:4000` + `pnpm verify:access-smoke` 기준선이 이미 green 인 상태 | blocker/debt inventory freeze, 관련 문서(`auth-system.md`, DMS readiness, changelog) 동기화, CP-0~CP-5 순서 고정 | `pnpm run codex:preflight`<br>`pnpm verify:access-smoke`<br>`node .github/scripts/check-docs.js --all` | cleanup plan / auth-system / DMS readiness / `docs/CHANGELOG.md` 가 **같은 blocker 집합**, **같은 phase 순서**, **같은 DMS regression-gate 입장**을 설명한다 | docs-only 이므로 문서 revert 로 즉시 복귀 가능 |
 | Phase 1 | CP-0 종료 | code baseline + legacy override fallback 을 `/api/menus/my` / `GET /api/roles/:roleCode/menus` / `RoleManagementPage` 에 반영하고, admin menu row 를 `system.override` read-only 로 정렬 | runbook Step 0 + Step 3(PMS)<br>admin/non-admin `/api/menus/my` 비교<br>`GET /api/roles/:roleCode/menus` + `RoleManagementPage` 조회/수정 smoke | replacement path 와 legacy fallback 이 모두 runtime/API/UI 에 반영되어 있고, admin 은 admin menu 유지 / non-admin 은 admin menu 미노출 / PMS foreign project deny 가 계속 유지된다 | code baseline path 비활성화 후 `cm_role_menu_r` direct read/write 로 복귀 |
 | Phase 2 | CP-1 종료 | explicit `primaryAffiliationType` 계약을 create/update/UI 에 반영하고, `syncOrganizationFoundation()` 을 explicit selection 우선 + current primary relation 유지 + data-driven fallback 구조로 전환한 뒤 internal/external backfill/parity 절차를 닫는다 | runbook Step 1~3<br>internal/external 사용자 생성·수정 검증<br>`organizationIds` inspect 대조 | create/update + backfill sample 모두에서 `userOrganizationRelation` active/primary row 가 동일하고, inspect 의 `organizationIds` 와 runtime gate 가 모순되지 않는다 | explicit affiliation input 경로와 current primary relation 유지 로직을 복구 |
-| Phase 3 | CP-2 종료 | foundation role baseline 을 token-carried `roleCode` 에서 분리하고, JWT payload shrink 후에도 runtime parity 를 유지한다 | login → session restore → PMS/CMS/DMS bootstrap → `/api/access/ops/inspect` → `pnpm verify:access-smoke`<br>non-admin inspect `403` 재확인 | `admin`, `viewer.han` 기준 runtime/inspect 결과가 baseline 과 동일하고, `roleCode` 가 access token 없이도 같은 role baseline 을 만든다 | JWT `TokenPayload.roleCode` 와 기존 access resolution 경로를 복구 |
+| Phase 3 | CP-2 종료 | foundation role baseline 을 token-carried `roleCode` 에서 분리하고, JWT payload shrink 후에도 runtime parity 를 유지한다 | login → session restore → PMS/SNS/DMS bootstrap → `/api/access/ops/inspect` → `pnpm verify:access-smoke`<br>non-admin inspect `403` 재확인 | `admin`, `viewer.han` 기준 runtime/inspect 결과가 baseline 과 동일하고, `roleCode` 가 access token 없이도 같은 role baseline 을 만든다 | JWT `TokenPayload.roleCode` 와 기존 access resolution 경로를 복구 |
 | Phase 4 | CP-3 종료 | `CreateUserDto`/`UpdateUserDto`, `UserItem`, `AccessInspectionSubject`, PMS inspect/admin UI 에서 `userTypeCode` / `isAdmin` legacy field 를 숨기고 operator 문서를 업데이트한다 | user admin CRUD<br>inspect trace walkthrough<br>PMS operator flow + runbook 재검증 | operator 가 `userTypeCode` / `isAdmin` 없이도 allow/deny 원인을 동일하게 설명할 수 있고, `roleCode` 는 공식 role vocabulary 로만 유지된다 | inspect/user admin field 를 복구 |
 | Phase 5 | CP-4 종료 | DB snapshot, migration dry-run 보고, rollback 절차 문서화 후 마지막으로 `is_admin`, `user_type_code`, `permission_codes` schema tail 을 제거한다 | migration dry-run 보고<br>`pnpm verify:access-smoke`<br>runbook Step 1~3<br>`node .github/scripts/check-docs.js --all` | runtime code read/write 가 legacy column/relation 을 더 이상 사용하지 않고, migration/rollback 문서 + smoke/inspect/menu/domain bootstrap 재검증이 모두 green 이다 | DB backup / migration revert. 운영 DB 에서는 schema drop 직전 snapshot 필수 |
 
@@ -112,7 +112,7 @@
 
 - **Phase 1 (menu/admin)**: runbook Step 3 의 PMS 항목 + `GET /api/roles/:roleCode/menus` + `RoleManagementPage` read/write smoke
 - **Phase 2 (organization bridge)**: internal/external 사용자 생성·수정 + inspect `organizationIds` 비교
-- **Phase 3 (`roleCode` minimization)**: login/session restore/PMS·CMS·DMS bootstrap/inspect/non-admin `403`
+- **Phase 3 (`roleCode` minimization)**: login/session restore/PMS·SNS·DMS bootstrap/inspect/non-admin `403`
 - **Phase 4 (contract cleanup)**: user admin CRUD + PMS operator walkthrough + runbook 문서 parity
 - **Phase 5 (schema cleanup)**: migration dry-run, DB snapshot 확인, smoke + inspect + domain bootstrap 재검증
 
@@ -130,7 +130,7 @@
    - PMS `AccessInspectDialog`
 4. **도메인 bootstrap**
    - PMS `/api/menus/my`, `/api/projects/:id/access`
-   - CMS `/api/cms/access/me`
+   - SNS `/api/sns/access/me`
    - DMS `/api/dms/access/me`, `raw/serve-attachment`, `search/ask`, `storage/open`
 
 ---
@@ -163,5 +163,5 @@
 | 2026-04-15 | runtime blocker(`roleCode` runtime propagation, PMS `cm_role_menu_r`, `userTypeCode` organization bridge)와 cleanup-only debt(`isAdmin`, user/admin contract, `permission_codes`)를 분리하고, phase별 validation gate / rollback point / schema-last cutover 순서를 실행 가능 수준으로 구체화 |
 | 2026-04-14 | `RolesGuard` 의 `@Roles('admin')` 를 `system.override` 기준으로 정렬하고 PMS operator inspect dialog + `pnpm verify:access-smoke` automation 을 추가해 후속 안정화 backlog 를 닫음 |
 | 2026-04-14 | JWT `TokenPayload.isAdmin` 제거, `AccessFoundationService` admin shortcut 제거, PMS project filter / admin menu inclusion 을 `system.override` 기준으로 정렬하는 major cleanup slice 를 반영 |
-| 2026-04-14 | CMS browser-facing access snapshot 의 redundant `isAdmin` 제거, `GET /api/users/profile` legacy field 축소, JWT `TokenPayload.userTypeCode` 제거를 safe cleanup slice 로 반영 |
+| 2026-04-14 | SNS browser-facing access snapshot 의 redundant `isAdmin` 제거, `GET /api/users/profile` legacy field 축소, JWT `TokenPayload.userTypeCode` 제거를 safe cleanup slice 로 반영 |
 | 2026-04-14 | shared auth/access rollout 이후 남아 있는 legacy compatibility path inventory 와 cleanup 순서를 문서화 |

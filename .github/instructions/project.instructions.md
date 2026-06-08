@@ -37,7 +37,7 @@
 apps/server ──→ packages/database
      ↓                 ↓
 apps/web/pms ──→ packages/types
-apps/web/cms ──→ packages/types
+apps/web/sns ──→ packages/types
 apps/web/dms ──→ packages/types
 ```
 

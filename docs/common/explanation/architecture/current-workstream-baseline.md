@@ -1,11 +1,14 @@
 # Current Workstream Baseline
 
 > 최종 업데이트: 2026-04-17
+
+> 현행화: 2026-06-08 14:50 KST — 현재 repo-wide closeout 는 DMS 파일 목록 초기 기동 장애 방지, CMS 제거/SNS+CRM workspace rebaseline, PMS launch-readiness updates, GitHub `main` + GitLab workspace `development` publish 절차를 함께 닫는 slice 로 취급한다. DMS는 `verify:access-dms:raw` 및 hydration focused spec 이 green 이며, 다음 작업은 신규 기능보다 publish 후 원격 정렬/런타임 smoke 재확인이다.
+
 > 상위 문서:
 > - `docs/common/explanation/architecture/current-tranche-execution-contract.md`
 > - `docs/common/explanation/architecture/current-tranche-inventory-freeze.md`
 
-이 문서는 현재 SSOO 레포에서 실제로 진행 중인 3개 작업축(DMS / PMS / CMS)을 기준으로,
+이 문서는 현재 SSOO 레포에서 실제로 진행 중인 3개 작업축(DMS / PMS / SNS)을 기준으로,
 어디까지 진행됐고 어디서 끊겼으며 무엇을 먼저 닫아야 하는지 고정하는 운영 기준선입니다.
 
 ---
@@ -16,13 +19,13 @@
 
 1. DMS monorepo/auth-access integration 이후의 도메인 ACL/문서 접근 모델 구현
 2. PMS 신규 PRD 기준 reconciliation / model cleanup / foundation 구현
-3. CMS의 CHS replacement + branding/layout shell + access integration
+3. SNS의 CHS replacement + branding/layout shell + access integration
 
 세 축 모두 실제 코드가 많이 들어가 있지만, 각 축의 상태가 다릅니다.
 
 - DMS: 구현은 많이 되어 있으나 verification 이 깨져 있음
 - PMS: 설계/모델링은 많이 진행됐으나 공식 baseline, migration, validation 이 닫히지 않음
-- CMS: 런타임 replacement 는 상당히 진행됐으나 workstream 통제가 약하고 docs/instructions drift 가 큼
+- SNS: 런타임 replacement 는 상당히 진행됐으나 workstream 통제가 약하고 docs/instructions drift 가 큼
 
 따라서 지금은 **새 기능 확장보다 현재 상태를 닫고 다음 작업 순서를 고정하는 것**이 우선입니다.
 
@@ -146,62 +149,62 @@ PMS 다음 단계로 넘어가기 위한 최소 기준:
 
 ---
 
-## 4. CMS baseline snapshot
+## 4. SNS baseline snapshot
 
 ### 4.1 현재 상태
 
-CMS는 생각보다 구현량이 있습니다.
+SNS는 생각보다 구현량이 있습니다.
 
 이미 존재하는 축:
-- server runtime 에서 `CmsModule` 사용
-- `apps/web/cms` 기반의 실제 web app 존재
-- `packages/types/src/cms/*` 존재
+- server runtime 에서 `SnsModule` 사용
+- `apps/web/sns` 기반의 실제 web app 존재
+- `packages/types/src/sns/*` 존재
 - shared auth/session/bootstrap 연동
 - feature snapshot / visibility policy 기반 access service 존재
 - LinkedIn-style main/feed shell, branding/layout work 존재
 
 대표 근거 경로:
 - `apps/server/src/app.module.ts`
-- `apps/server/src/modules/cms/*`
-- `apps/web/cms/src/app/(main)/layout.tsx`
-- `apps/web/cms/src/components/layout/*`
-- `apps/web/cms/src/components/pages/feed/*`
-- `packages/types/src/cms/*`
-- `docs/cms/README.md`
+- `apps/server/src/modules/sns/*`
+- `apps/web/sns/src/app/(main)/layout.tsx`
+- `apps/web/sns/src/components/layout/*`
+- `apps/web/sns/src/components/pages/feed/*`
+- `packages/types/src/sns/*`
+- `docs/sns/README.md`
 
 ### 4.2 어디서 끊겼는가
 
-CMS의 핵심 끊김은 다음입니다.
+SNS의 핵심 끊김은 다음입니다.
 
-- CHS -> CMS replacement 는 runtime 기준으로 상당히 진행됐지만 workstream 통제가 안 됨
+- CHS -> SNS replacement 는 runtime 기준으로 상당히 진행됐지만 workstream 통제가 안 됨
 - 많은 파일이 untracked/new 상태라 baseline 이 약함
-- docs/cms 와 instructions 가 현재 코드와 어긋남
+- docs/sns 와 instructions 가 현재 코드와 어긋남
 - placeholder surface 와 실제 구현 surface 가 명확히 분리되지 않음
 - validation / seed / naming 에 CHS 잔재가 남아 있음
 
-즉 CMS는 **구현은 있으나 정리되지 않은 replacement workstream** 입니다.
+즉 SNS는 **구현은 있으나 정리되지 않은 replacement workstream** 입니다.
 
 ### 4.3 지금 멈춰야 할 것
 
-- 신규 CMS feature 추가
+- 신규 SNS feature 추가
 - feed 외 product 확장
 - moderation / board policy 심화 구현
 - branding polish 추가
 
 ### 4.4 지금 이어가야 할 것
 
-- CHS/CMS naming drift 정리
-- CMS current state 문서화
+- CHS/SNS naming drift 정리
+- SNS current state 문서화
 - placeholder surface 명시
 - docs/instructions/seed/verify 경로에서 CHS 잔재 정리
 - current implementation 을 reviewable slice 로 묶기
 
-### 4.5 CMS next gate
+### 4.5 SNS next gate
 
-CMS 다음 단계로 넘어가기 위한 최소 기준:
-- CHS/CMS cutover hygiene 문서화
-- CMS current implemented/placeholder matrix 고정
-- CMS build/type/access smoke 기준선 정리
+SNS 다음 단계로 넘어가기 위한 최소 기준:
+- CHS/SNS cutover hygiene 문서화
+- SNS current implemented/placeholder matrix 고정
+- SNS build/type/access smoke 기준선 정리
 
 ---
 
@@ -213,7 +216,7 @@ CMS 다음 단계로 넘어가기 위한 최소 기준:
 
 - DMS 신규 feature 확장
 - PMS 신규 feature 확장
-- CMS 신규 feature 확장
+- SNS 신규 feature 확장
 - 공통 schema foundation 추가 확장
 - shared auth/access foundation 의 대규모 구조 변경
 - branding polish / UX 확장
@@ -222,7 +225,7 @@ CMS 다음 단계로 넘어가기 위한 최소 기준:
 
 - DMS verification recovery
 - PMS reconciliation baseline close
-- CMS cutover hygiene recovery
+- SNS cutover hygiene recovery
 - docs/instructions/runtime truth sync
 
 ---
@@ -275,18 +278,18 @@ CMS 다음 단계로 넘어가기 위한 최소 기준:
 - backlog/roadmap 재정렬
 - foundation build/type validation 기준 확정
 
-### Step 3 — CMS cutover hygiene (최하위)
+### Step 3 — SNS cutover hygiene (최하위)
 목표:
-- CHS -> CMS replacement 를 reviewable baseline 으로 고정
+- CHS -> SNS replacement 를 reviewable baseline 으로 고정
 
 이유:
-- CMS는 현재 세 축 중 우선순위가 가장 낮다.
-- runtime 주체는 이미 CMS로 수렴 중이지만, 지금은 신규 확장보다 cutover hygiene 만 유지하면 된다.
+- SNS는 현재 세 축 중 우선순위가 가장 낮다.
+- runtime 주체는 이미 SNS로 수렴 중이지만, 지금은 신규 확장보다 cutover hygiene 만 유지하면 된다.
 - DMS recovery 및 PMS baseline close 이후 정리해도 된다.
 
 종료 조건:
-- CHS/CMS drift inventory 정리
-- CMS current-state 문서화
+- CHS/SNS drift inventory 정리
+- SNS current-state 문서화
 - docs/instructions parity 복구
 
 ---
@@ -332,12 +335,12 @@ CMS 다음 단계로 넘어가기 위한 최소 기준:
 
 1. DMS verification recovery 를 현재 active slice 로 잡는다.
 2. PMS baseline close 는 공통 영역을 건드리지 않는 범위에서 가능하면 병렬로 진행한다.
-3. CMS cutover hygiene 는 가장 낮은 우선순위로 유지한다.
+3. SNS cutover hygiene 는 가장 낮은 우선순위로 유지한다.
 
 즉, 지금부터의 작업 우선순위는
 - DMS 최우선
 - PMS는 가능하면 병렬
-- CMS는 최하위
+- SNS는 최하위
 기준으로 봅니다.
 
 ---
@@ -346,4 +349,4 @@ CMS 다음 단계로 넘어가기 위한 최소 기준:
 
 | 날짜 | 변경 내용 |
 |------|----------|
-| 2026-04-17 | DMS/PMS/CMS 3개 워크스트림의 실제 상태, stop/continue boundary, 실행 순서, 병렬 규칙을 묶은 current baseline 문서를 추가 |
+| 2026-04-17 | DMS/PMS/SNS 3개 워크스트림의 실제 상태, stop/continue boundary, 실행 순서, 병렬 규칙을 묶은 current baseline 문서를 추가 |

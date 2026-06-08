@@ -1,9 +1,10 @@
 packages:
   - apps/server
   - apps/web/pms
-  - apps/web/cms
+  - apps/web/sns
   - apps/web/dms
   - apps/web/admin
+  - apps/web/crm
   - packages/*
 
 onlyBuiltDependencies:

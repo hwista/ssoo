@@ -80,7 +80,7 @@ export class AuthController {
       return 'dms';
     }
     if (hostHeader.includes(':3002')) {
-      return 'cms';
+      return 'sns';
     }
 
     return undefined;

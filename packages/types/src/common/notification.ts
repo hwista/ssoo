@@ -1,7 +1,7 @@
 export type CommonNotificationSourceApp =
   | 'system'
   | 'dms'
-  | 'cms'
+  | 'sns'
   | 'pms'
   | 'admin';
 
@@ -17,7 +17,7 @@ export type CommonNotificationActionType =
   | 'focus-dms-access-request'
   | 'retry-dms-publish'
   | 'open-dms-settings-section'
-  | 'open-cms-reference';
+  | 'open-sns-reference';
 
 export type CommonNotificationJsonValue =
   | string

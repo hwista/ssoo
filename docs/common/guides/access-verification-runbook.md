@@ -2,7 +2,7 @@
 
 > 최종 업데이트: 2026-04-15
 
-공용 auth/access contract, PMS/CMS/DMS object policy, permission exception 운영 상황을 **같은 절차로 반복 검증**하기 위한 운영 가이드입니다.
+공용 auth/access contract, PMS/SNS/DMS object policy, permission exception 운영 상황을 **같은 절차로 반복 검증**하기 위한 운영 가이드입니다.
 
 ---
 
@@ -12,7 +12,7 @@
 
 1. 특정 사용자가 왜 allow/deny 되었는지 확인해야 할 때
 2. permission exception 이 실제로 반영되었는지 확인해야 할 때
-3. PMS/CMS/DMS 가 같은 상위 contract 위에 있는지 점검해야 할 때
+3. PMS/SNS/DMS 가 같은 상위 contract 위에 있는지 점검해야 할 때
 4. cutover 직전 운영 검증을 반복해야 할 때
 
 ---
@@ -25,7 +25,7 @@
 - `pnpm dev:server`
 - 필요 시 웹 앱:
   - `pnpm dev:web-pms`
-  - `pnpm dev:web-cms`
+  - `pnpm dev:web-sns`
   - `pnpm dev:web-dms`
 
 ### 기본 운영 계정
@@ -73,7 +73,7 @@
 2. `GET /api/users/profile` legacy field contract 확인
 3. `GET /api/access/ops/inspect` 성공 경로 확인
 4. PMS runtime 경계 확인 (`/api/menus/my`, 접근 가능한 프로젝트 allow, foreign project deny)
-5. CMS runtime 경계 확인 (`/api/cms/access/me`, `/api/cms/feed`, post create deny)
+5. SNS runtime 경계 확인 (`/api/sns/access/me`, `/api/sns/feed`, post create deny)
 6. DMS runtime 경계 확인 (`/api/dms/access/me`, `/api/dms/files`, `/api/dms/search`, `/api/dms/settings`, `/api/dms/git`)
 7. runtime persona 또는 explicit non-admin credential 기준 `GET /api/access/ops/inspect` 403 확인
 
@@ -193,7 +193,7 @@ curl -s \
 | 도메인 | 확인 surface | 기대 결과 |
 |--------|--------------|-----------|
 | PMS | `/api/menus/my`, `/api/roles/:roleCode/menus`, `/api/projects/:id/access`, `/api/access/ops/inspect?targetObjectType=pms.project...` | navigation snapshot + role-menu baseline/role override semantics + project capability + object inspect trace 가 같은 방향으로 동작 |
-| CMS | `/api/cms/access/me`, feed/post visibility | feature snapshot + post visibility 가 inspect 결과와 모순되지 않음 |
+| SNS | `/api/sns/access/me`, feed/post visibility | feature snapshot + post visibility 가 inspect 결과와 모순되지 않음 |
 | DMS | `/api/dms/access/me`, file/content/raw/serve-attachment/search/ask/git/settings/storage/open | feature snapshot + `DocumentMetadata.acl` enforcement 가 inspect 결과와 모순되지 않음 (`pnpm verify:access-dms` fixture pack 기준) |
 
 Phase 2 organization bridge 확인이 필요하면 같은 Step 1~3 사이클에서 다음 항목도 함께 비교합니다.
@@ -230,7 +230,7 @@ deny 사례가 나오면 아래 순서로 기록합니다.
 1. DMS document read/tree/search 는 허용
 2. DMS write/delete/upload/local `storage/open` 은 대상 ACL 없으면 거부
 3. PMS same-org read-only 시나리오가 깨지지 않음
-4. CMS feed read 는 가능하지만 create/comment/react 는 snapshot 기준으로 제한될 수 있음
+4. SNS feed read 는 가능하지만 create/comment/react 는 snapshot 기준으로 제한될 수 있음
 
 ### 5.2 Standard user same-org 시나리오
 
@@ -240,7 +240,7 @@ deny 사례가 나오면 아래 순서로 기록합니다.
 
 확인:
 
-1. CMS organization visibility 게시물이 same-org 기준으로 읽힘
+1. SNS organization visibility 게시물이 same-org 기준으로 읽힘
 2. DMS document read/write 는 feature + object ACL 조합으로 판단됨
 3. PMS project access 는 owner org/member/object exception 조합으로 판단됨
 
@@ -284,7 +284,7 @@ deny 사례가 나오면 아래 순서로 기록합니다.
 4. 같은 대상에 대해 `/api/access/ops/inspect?targetObjectType=pms.project&targetObjectId=<projectId>&domainPermissionCodes=pms.project.manage` 를 호출했을 때 trace 와 runtime capability 가 모순되지 않는지 확인
 5. revoke 대상 capability 가 있으면 mutation endpoint 가 deny 방향으로 동작하는지 확인
 
-### 5.5 CMS visibility boundary 시나리오
+### 5.5 SNS visibility boundary 시나리오
 
 대상:
 
@@ -294,7 +294,7 @@ deny 사례가 나오면 아래 순서로 기록합니다.
 
 1. `organization` scope post 는 same-org 사용자에게만 노출되는지 확인
 2. `followers` scope post 는 실제 follower 관계가 있는 사용자에게만 노출되는지 확인
-3. `/api/cms/access/me` 의 feature snapshot 과 실제 feed/post visibility 결과가 같은 방향으로 움직이는지 확인
+3. `/api/sns/access/me` 의 feature snapshot 과 실제 feed/post visibility 결과가 같은 방향으로 움직이는지 확인
 4. 읽을 수 없는 post 에 대한 comment/mutation 시도가 release-grade cutover 전에는 허용되지 않도록 별도 점검 항목으로 기록
 
 ---
@@ -308,9 +308,9 @@ deny 사례가 나오면 아래 순서로 기록합니다.
 - [ ] PMS navigation snapshot 정상
 - [ ] PMS project access snapshot 정상
 - [ ] PMS project object exception trace 와 runtime 결과 일치
-- [ ] CMS feature snapshot 정상
-- [ ] CMS content visibility 정상
-- [ ] CMS organization/follower visibility 와 restricted write boundary 점검
+- [ ] SNS feature snapshot 정상
+- [ ] SNS content visibility 정상
+- [ ] SNS organization/follower visibility 와 restricted write boundary 점검
 - [ ] DMS feature snapshot 정상
 - [ ] DMS object ACL(file/content/search/ask/template/upload/storage/open) 정상
 - [ ] inspect endpoint 와 runtime 결과 일치
@@ -332,7 +332,7 @@ deny 사례가 나오면 아래 순서로 기록합니다.
 |------|----------|
 | 2026-04-15 | `pnpm verify:access-dms` fixture-driven DMS regression script 를 추가하고, temp probe document/image/attachment/local storage fixture 기반으로 `files/file/content/raw/serve-attachment/search/ask/settings/git/storage/open` matrix 를 검증하는 절차를 runbook 에 반영 |
 | 2026-04-15 | `pnpm verify:access-admin` repo-native admin regression script 를 추가하고, PMS role-menu read/update/reset semantics + admin user CRUD/org bridge parity + temp user inspect/organizationIds 검증 절차를 runbook 에 반영 |
-| 2026-04-15 | `pnpm verify:access-smoke` 가 기본 demo runtime persona(`viewer.han`) 기준으로 PMS foreign project deny, CMS post deny, DMS git/settings deny 와 allow path(files/search/feed)를 함께 검증하도록 확장되고 `--skip-runtime` / runtime env 변수를 문서화 |
-| 2026-04-14 | PMS project object/exception 시나리오와 CMS visibility boundary 시나리오를 추가하고 release-grade checklist 를 cross-domain validation 기준으로 확장 |
+| 2026-04-15 | `pnpm verify:access-smoke` 가 기본 demo runtime persona(`viewer.han`) 기준으로 PMS foreign project deny, SNS post deny, DMS git/settings deny 와 allow path(files/search/feed)를 함께 검증하도록 확장되고 `--skip-runtime` / runtime env 변수를 문서화 |
+| 2026-04-14 | PMS project object/exception 시나리오와 SNS visibility boundary 시나리오를 추가하고 release-grade checklist 를 cross-domain validation 기준으로 확장 |
 | 2026-04-14 | `pnpm verify:access-smoke` repo-native smoke script 와 사용 환경변수를 runbook 에 추가하고 자동 선검증 절차를 반영 |
 | 2026-04-14 | 관리자 inspect API(`/api/access/ops/inspect`, `/api/access/ops/exceptions`)와 cross-domain access verification 절차를 runbook으로 정리 |

@@ -42,9 +42,9 @@ Codex 작업 시 참조 순서, 규칙 정본, 검증 루틴을 고정해 일관
 
 ## 현재 앱/패키지 기준선
 
-- 앱: `apps/server`, `apps/web/pms`, `apps/web/cms`, `apps/web/dms`
+- 앱: `apps/server`, `apps/web/pms`, `apps/web/sns`, `apps/web/dms`
 - 공용 패키지: `packages/database`, `packages/types`, `packages/web-auth`, `packages/web-shell`
-- path-specific instruction 은 server/pms/cms/dms/database/types/testing 기준으로 적용됩니다.
+- path-specific instruction 은 server/pms/sns/dms/database/types/testing 기준으로 적용됩니다.
 
 ## 주의
 
