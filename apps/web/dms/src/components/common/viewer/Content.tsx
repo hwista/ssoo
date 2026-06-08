@@ -33,6 +33,8 @@ export interface ContentProps {
   onLinkClick?: (href: string) => void;
   /** 본문 <img> 클릭 시 호출 */
   onImageClick?: (src: string, alt: string) => void;
+  /** task checkbox 클릭 시 호출 */
+  onCheckboxClick?: (taskIndex: number) => void | Promise<void>;
 }
 
 /**
@@ -53,13 +55,14 @@ export function Content({
   className,
   onLinkClick,
   onImageClick,
+  onCheckboxClick,
 }: ContentProps) {
   const isEmbedded = variant === 'embedded';
   const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
   const shouldShowSurface = showSurface ?? !isEmbedded;
   const articleRef = React.useRef<HTMLDivElement>(null);
   useMermaidRenderer(articleRef, content);
-  useContentClickHandler(articleRef, { onLinkClick, onImageClick });
+  useContentClickHandler(articleRef, { onLinkClick, onImageClick, onCheckboxClick });
 
   return (
     <div

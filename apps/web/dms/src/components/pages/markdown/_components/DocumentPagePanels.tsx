@@ -292,6 +292,8 @@ interface DocumentPageContentProps {
   onLinkClick?: (href: string) => void;
   /** 본문 <img> 클릭 */
   onImageClick?: (src: string, alt: string) => void;
+  /** task checkbox 클릭 */
+  onCheckboxClick?: (taskIndex: number) => void | Promise<void>;
   /** undo/redo 가용성 변경 콜백 */
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   /** 저장 충돌 감지 시 */
@@ -331,6 +333,7 @@ export function DocumentPageContent({
   onRestoredDraftApplied,
   onLinkClick,
   onImageClick,
+  onCheckboxClick,
   onHistoryChange,
   onSaveConflict,
   collaborationSessionId,
@@ -366,6 +369,7 @@ export function DocumentPageContent({
           variant="embedded"
           onLinkClick={lockedPreview ? undefined : onLinkClick}
           onImageClick={lockedPreview ? undefined : onImageClick}
+          onCheckboxClick={lockedPreview ? undefined : onCheckboxClick}
           initialSearchQuery={lockedPreview ? undefined : initialSearchQuery}
           bodyHeader={documentAccessNotice}
         />

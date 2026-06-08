@@ -7,6 +7,8 @@ export interface ContentClickHandlerOptions {
   onLinkClick?: (href: string) => void;
   /** <img> 클릭 시 호출. src(원본 경로 우선)와 alt를 전달한다. */
   onImageClick?: (src: string, alt: string) => void;
+  /** task checkbox 클릭 시 호출. checkbox index를 전달한다. */
+  onCheckboxClick?: (taskIndex: number) => void | Promise<void>;
 }
 
 /**
@@ -15,12 +17,13 @@ export interface ContentClickHandlerOptions {
  *
  * - `<a>` 클릭 → `preventDefault` + `onLinkClick(href)`
  * - `<img>` 클릭 → `onImageClick(originalSrc, alt)`
+ * - task checkbox 클릭 → `preventDefault` + `onCheckboxClick(taskIndex)`
  */
 export function useContentClickHandler(
   containerRef: React.RefObject<HTMLElement | null>,
   options: ContentClickHandlerOptions,
 ) {
-  const { onLinkClick, onImageClick } = options;
+  const { onLinkClick, onImageClick, onCheckboxClick } = options;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -39,6 +42,18 @@ export function useContentClickHandler(
         return;
       }
 
+      const checkbox = target.closest('input[type="checkbox"][data-task-index]') as HTMLInputElement | null;
+      if (checkbox && onCheckboxClick) {
+        const rawIndex = checkbox.getAttribute('data-task-index');
+        const taskIndex = rawIndex ? Number.parseInt(rawIndex, 10) : Number.NaN;
+        if (!Number.isNaN(taskIndex)) {
+          e.preventDefault();
+          e.stopPropagation();
+          void onCheckboxClick(taskIndex);
+          return;
+        }
+      }
+
       // 링크 클릭 (target 자체 또는 부모가 <a>)
       const anchor = target.closest('a') as HTMLAnchorElement | null;
       if (anchor && onLinkClick) {
@@ -52,5 +67,5 @@ export function useContentClickHandler(
 
     container.addEventListener('click', handleClick);
     return () => container.removeEventListener('click', handleClick);
-  }, [containerRef, onLinkClick, onImageClick]);
+  }, [containerRef, onCheckboxClick, onLinkClick, onImageClick]);
 }

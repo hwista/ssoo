@@ -37,6 +37,8 @@ export interface ViewerProps {
   onLinkClick?: (href: string) => void;
   /** 본문 <img> 클릭 시 호출 */
   onImageClick?: (src: string, alt: string) => void;
+  /** task checkbox 클릭 시 호출 */
+  onCheckboxClick?: (taskIndex: number) => void | Promise<void>;
   /** 검색어 — 문서 열 때 자동 하이라이트 */
   initialSearchQuery?: string | null;
   /** 문서 본문 상단에 고정해 표시할 안내 영역 */
@@ -45,16 +47,16 @@ export interface ViewerProps {
 
 /**
  * Viewer 컴포넌트
- * 
+ *
  * 문서를 읽기 전용으로 렌더링
  * - 상단 툴바: 검색, 줌, 목차
  * - 최대 너비 975px로 읽기 최적화
  * - prose 스타일 적용
- * 
+ *
  * @example
  * ```tsx
- * <Viewer 
- *   content={htmlContent} 
+ * <Viewer
+ *   content={htmlContent}
  *   toc={headings}
  *   onTocClick={(id) => scrollTo(id)}
  * />
@@ -71,6 +73,7 @@ export function Viewer({
   className,
   onLinkClick,
   onImageClick,
+  onCheckboxClick,
   initialSearchQuery,
   bodyHeader,
 }: ViewerProps) {
@@ -198,6 +201,7 @@ export function Viewer({
             showSurface={false}
             onLinkClick={onLinkClick}
             onImageClick={onImageClick}
+            onCheckboxClick={onCheckboxClick}
           />
         </div>
       )}

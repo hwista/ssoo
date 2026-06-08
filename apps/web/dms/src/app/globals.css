@@ -943,6 +943,17 @@ a:hover {
   @apply bg-yellow-200 py-0.5;
 }
 
+.prose mark.md-highlight,
+.markdown-preview mark.md-highlight {
+  @apply rounded bg-yellow-200 px-0.5 py-0.5 text-inherit;
+}
+
+.dark .prose mark.md-highlight,
+.dark .markdown-preview mark.md-highlight {
+  background-color: rgba(250, 204, 21, 0.35);
+  color: inherit;
+}
+
 /* 슬래시 커맨드 메뉴 스타일 */
 .slash-command-menu {
   @apply min-w-[200px] max-w-xs;

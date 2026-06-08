@@ -15,6 +15,7 @@ import {
 import type { TemplateConversionPendingData } from '@/stores/new-doc.store';
 import type { TemplateSaveData } from '@/stores/editor-core.store';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
+import { getDocumentConflictDetails } from '@/lib/api/core';
 import { docAssistApi } from '@/lib/api/endpoints/ai';
 import { fileApi } from '@/lib/api/endpoints/files';
 import { templateApi } from '@/lib/api/endpoints/templates';
@@ -28,7 +29,7 @@ import {
 import { EditorToolbar } from './_components/editor';
 import type { EditorRef, EditorSaveConflictPayload } from './_components/editor';
 import { type TocItem } from '@/components/templates/page-frame';
-import { markdownToHtmlSync } from '@/lib/utils/markdown';
+import { markdownToHtmlSync, toggleMarkdownTaskCheckbox } from '@/lib/utils/markdown';
 import { generateUniqueFilename } from '@/lib/utils';
 import { extractMarkdownLinks } from '@/lib/utils/extractMarkdownLinks';
 import { useBodyLinks } from '@/hooks/useBodyLinks';
@@ -191,6 +192,7 @@ export function DocumentPage() {
     discardPendingMetadata,
     currentFilePath: storeCurrentFilePath,
     setCurrentFilePath,
+    saveFileKeepEditing,
     patchDocumentMetadata,
     refreshFileMetadata,
     setContentType,
@@ -273,6 +275,7 @@ export function DocumentPage() {
 
   // 첨부파일 deferred upload: 파일 선택 시 File 객체를 저장, 문서 저장 시 업로드
   const pendingAttachmentsRef = useRef<Map<string, File>>(new Map());
+  const viewerCheckboxSaveInFlightRef = useRef(false);
 
   // 경로 변경 지연: 기존문서 경로 변경을 저장 시까지 보류
   const [pendingFileMove, setPendingFileMove] = useState<string | null>(null);
@@ -381,6 +384,7 @@ export function DocumentPage() {
     || (canWriteDocuments && canEditDocument(documentMetadata, currentUser));
   const canManageCurrentDocument = isCreateMode
     || (canWriteDocuments && canManageDocument(documentMetadata, currentUser));
+  const isLockedPreview = Boolean(lockedPreview);
   const currentAccessRole = documentAclRole === 'editor'
     ? 'write'
     : documentAclRole === 'viewer'
@@ -606,8 +610,10 @@ export function DocumentPage() {
 
   const htmlContent = useMemo(() => {
     if (!content) return '';
-    return markdownToHtmlSync(content);
-  }, [content]);
+    return markdownToHtmlSync(content, {
+      interactiveTaskCheckboxes: mode === 'viewer' && canEditCurrentDocument && !isLockedPreview,
+    });
+  }, [canEditCurrentDocument, content, isLockedPreview, mode]);
 
   const toc = useMemo((): TocItem[] => buildMarkdownToc(content), [content]);
 
@@ -745,8 +751,6 @@ export function DocumentPage() {
 
 
   const tags = useMemo(() => documentMetadata?.tags || [], [documentMetadata]);
-  const isLockedPreview = Boolean(lockedPreview);
-
   const handleRequestLockedPreviewAccess = useCallback(() => {
     if (!lockedPreview?.canRequestRead) return;
     openAccessRequestDialog({
@@ -1700,6 +1704,53 @@ export function DocumentPage() {
     setPendingRestoredDraftContent(null);
     toast.info('저장하지 않은 편집 초안을 복구했습니다.');
   }, []);
+
+  const handleViewerCheckboxClick = useCallback(async (taskIndex: number) => {
+    if (!filePath || !canEditCurrentDocument || isLockedPreview) {
+      return;
+    }
+
+    if (isCollaborationWriteBlocked) {
+      toast.error('다른 사용자가 편집 중입니다.', {
+        description: '문서 헤더의 해제 요청 버튼으로 잠금 해제를 요청할 수 있습니다.',
+      });
+      return;
+    }
+
+    if (viewerCheckboxSaveInFlightRef.current) {
+      return;
+    }
+
+    const nextContent = toggleMarkdownTaskCheckbox(content, taskIndex);
+    if (!nextContent || nextContent === content) {
+      return;
+    }
+
+    viewerCheckboxSaveInFlightRef.current = true;
+    try {
+      await saveFileKeepEditing(filePath, nextContent, {
+        collaborationSessionId,
+      });
+    } catch (error) {
+      const conflictDetails = getDocumentConflictDetails(error);
+      if (typeof conflictDetails?.currentRevisionSeq === 'number') {
+        patchDocumentMetadata({ revisionSeq: conflictDetails.currentRevisionSeq });
+      }
+
+      toast.error(error instanceof Error ? error.message : '체크박스 저장에 실패했습니다.');
+    } finally {
+      viewerCheckboxSaveInFlightRef.current = false;
+    }
+  }, [
+    canEditCurrentDocument,
+    collaborationSessionId,
+    content,
+    filePath,
+    isCollaborationWriteBlocked,
+    isLockedPreview,
+    patchDocumentMetadata,
+    saveFileKeepEditing,
+  ]);
   const focusedTakeoverRequestForPath = focusedTakeoverRequest?.path === collaborationPath ? focusedTakeoverRequest : null;
   const ownerTakeoverRequestId = collaborationLockTakeoverRequest?.requestId ?? focusedTakeoverRequestForPath?.requestId ?? null;
   const ownerTakeoverRequesterName = collaborationLockTakeoverRequest?.requester.displayName
@@ -2083,13 +2134,14 @@ export function DocumentPage() {
   }, [content, documentMetadata?.title, filePath]);
 
   const handleDownloadCurrentPdf = useCallback(() => {
-    if (!htmlContent.trim()) {
+    const printableHtmlContent = markdownToHtmlSync(content);
+    if (!printableHtmlContent.trim()) {
       toast.warning('출력할 문서 내용이 없습니다.');
       return;
     }
     const title = documentMetadata?.title?.trim() || filePath?.split('/').pop()?.replace(/\.md$/, '') || '문서';
-    printHtmlContent(htmlContent, title);
-  }, [documentMetadata?.title, filePath, htmlContent]);
+    printHtmlContent(printableHtmlContent, title);
+  }, [content, documentMetadata?.title, filePath]);
 
   const headerViewerRightSlot = templateModeEnabled || isLockedPreview ? null : (
     <DocumentExportMenu
@@ -2336,6 +2388,7 @@ export function DocumentPage() {
                 onRestoredDraftApplied={handleRestoredDraftApplied}
                 onLinkClick={handleViewerLinkClick}
                 onImageClick={handleViewerImageClick}
+                onCheckboxClick={handleViewerCheckboxClick}
                 onHistoryChange={handleHistoryChange}
                 onSaveConflict={handleSaveConflict}
                 collaborationSessionId={collaborationSessionId}
