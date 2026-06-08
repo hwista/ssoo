@@ -23,3 +23,7 @@ export type { ImageLightboxProps } from './ImageLightbox';
 // 유저 아바타
 export { UserAvatar } from './UserAvatar';
 export type { UserAvatarProps } from './UserAvatar';
+
+// 최신 위치 이동
+export { ScrollToLatestButton } from './ScrollToLatestButton';
+export type { ScrollToLatestButtonProps } from './ScrollToLatestButton';

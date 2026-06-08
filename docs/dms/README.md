@@ -5,6 +5,8 @@
 
 Document Management System(DMS) 문서의 단일 정본 인덱스입니다.
 
+DMS는 PMS와 CRM에서 발생한 견적서, 계약서, 회의록, 보고서, 검수 자료, 산출물 파일을 연결하는 문서 자산 계층입니다. 견적, 계약, 회의록, 보고서 작성 흐름은 각 도메인 기능이 소유하고, DMS는 문서 뷰어, 문서 허브, 첨부, 버전, 공개 범위, 검토 상태, 템플릿 또는 레퍼런스를 제공합니다.
+
 ## 구조
 
 ```
@@ -30,6 +32,7 @@ docs/dms/
 | [기술 스택](./explanation/architecture/tech-stack.md) | DMS 기술 스택 |
 | [패키지 구조](./explanation/architecture/package-spec.md) | 의존성/구조 규칙 |
 | [하이브리드 document control-plane](./explanation/architecture/hybrid-document-control-plane.md) | file/Git vs DB metadata projection 경계, `revisionSeq`, reconciliation |
+| [일-사람-산출물 운영 모델](../common/explanation/architecture/work-people-artifact-operating-model.md) | CRM/PMS에서 생성되는 문서와 산출물을 DMS 문서 자산 계층으로 연결하는 공통 기준 |
 | [문서 공개 범위 및 접근 모델](./explanation/domain/document-visibility-and-access-model.md) | visibility, explicit grant, request flow, search/tree 경계 |
 | [인증/권한 준비도](./planning/auth-access-readiness.md) | 공통 auth/access 경계, DMS 현재 상태, 다음 우선순위 |
 | [상태 관리](./explanation/architecture/state-management.md) | 스토어/상태 흐름 |
@@ -68,6 +71,8 @@ docs/dms/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-05 | DMS의 역할을 PMS/CRM 도메인 기능 안에서 산출물 파일, 문서 뷰어, 문서 허브, 첨부, 검토 상태를 연결하는 문서 자산 계층으로 정정 |
+| 2026-06-05 | CRM/PMS 산출물을 DMS 문서 자산 계층으로 연결하는 공통 운영 모델을 핵심 문서에 추가 |
 | 2026-05-29 | 협업/권한/알림/댓글 런칭 closeout 핸드오프를 핵심 문서에 추가하고, 로드맵/백로그/API/변경 이력 기준을 2026-05-29 현재 상태로 현행화 |
 | 2026-05-27 | GitHub-GitLab workspace 통합 가이드와 DMS AGENTS에 병행 개발용 작업 전·push 전 GitLab sync 절차를 반영 |
 | 2026-05-18 | 현재 검증 기준선을 추가하고, 공통 알림/SSE·사용자별 state isolation·권한 요청 취소/알림 cleanup 상태를 로드맵/백로그에 반영 |

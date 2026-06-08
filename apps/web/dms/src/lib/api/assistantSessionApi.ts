@@ -10,25 +10,25 @@ export interface AssistantSessionPayload {
 }
 
 export const assistantSessionApi = {
-  list: async (clientId: string, limit = 100): Promise<ApiResponse<AssistantSessionPayload[]>> => {
-    const query = new URLSearchParams({ clientId, limit: String(limit) });
+  list: async (_clientId: string, limit = 100): Promise<ApiResponse<AssistantSessionPayload[]>> => {
+    const query = new URLSearchParams({ limit: String(limit) });
     return request<AssistantSessionPayload[]>(`/api/chat-sessions?${query.toString()}`);
   },
 
   save: async (
-    clientId: string,
+    _clientId: string,
     session: AssistantSessionPayload
   ): Promise<ApiResponse<{ id: string }>> => {
     return request<{ id: string }>('/api/chat-sessions', {
       method: 'POST',
-      body: { clientId, session },
+      body: { session },
     });
   },
 
-  remove: async (clientId: string, sessionId: string): Promise<ApiResponse<{ id: string }>> => {
+  remove: async (_clientId: string, sessionId: string): Promise<ApiResponse<{ id: string }>> => {
     return request<{ id: string }>('/api/chat-sessions', {
       method: 'DELETE',
-      body: { clientId, sessionId },
+      body: { sessionId },
     });
   },
 };

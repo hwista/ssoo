@@ -257,11 +257,18 @@ export const useAssistantSessionStore = create<AssistantSessionStore>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         clientId: state.clientId,
-        messages: state.messages,
-        sessions: state.sessions,
-        activeSessionId: state.activeSessionId,
         ownerUserId: state.ownerUserId,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<AssistantSessionState>;
+        return {
+          ...currentState,
+          clientId: typeof persisted.clientId === 'string' ? persisted.clientId : currentState.clientId,
+          ownerUserId: typeof persisted.ownerUserId === 'string' || persisted.ownerUserId === null
+            ? persisted.ownerUserId
+            : currentState.ownerUserId,
+        };
+      },
     }
   )
 );

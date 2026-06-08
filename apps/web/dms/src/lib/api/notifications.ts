@@ -1,46 +1,25 @@
 import type {
-  CommonNotificationListQuery,
-  CommonNotificationListResult,
-  CommonNotificationMarkAllReadResult,
-  CommonNotificationUnreadCountResult,
-  CommonNotificationItem,
   CommonNotificationSourceApp,
 } from '@ssoo/types/common';
-import { get, put } from './core';
+import { createCommonNotificationApi } from '@ssoo/web-auth';
 
-function buildQueryString(query: CommonNotificationListQuery = {}) {
-  const params = new URLSearchParams();
-  params.set('sourceApp', query.sourceApp ?? 'dms');
-  if (query.page) params.set('page', String(query.page));
-  if (query.pageSize) params.set('pageSize', String(query.pageSize));
-  if (query.unreadOnly) params.set('unreadOnly', 'true');
-  if (query.readOnly) params.set('readOnly', 'true');
-  if (query.notificationType?.trim()) params.set('notificationType', query.notificationType.trim());
-
-  return `?${params.toString()}`;
-}
-
-function buildSourceQuery(sourceApp: CommonNotificationSourceApp = 'dms') {
-  return `?sourceApp=${encodeURIComponent(sourceApp)}`;
-}
+const commonNotificationApi = createCommonNotificationApi({ defaultSourceApp: 'dms' });
 
 export const notificationApi = {
-  list: (query: CommonNotificationListQuery = {}) => (
-    get<CommonNotificationListResult>(`/api/notifications${buildQueryString(query)}`)
-  ),
+  list: commonNotificationApi.list,
   unreadCount: (sourceApp: CommonNotificationSourceApp = 'dms') => (
-    get<CommonNotificationUnreadCountResult>(`/api/notifications/unread-count${buildSourceQuery(sourceApp)}`)
+    commonNotificationApi.unreadCount(sourceApp)
   ),
   markAsRead: (notificationId: string) => (
-    put<CommonNotificationItem>(`/api/notifications/${encodeURIComponent(notificationId)}/read`)
+    commonNotificationApi.markAsRead(notificationId)
   ),
   markAsUnread: (notificationId: string) => (
-    put<CommonNotificationItem>(`/api/notifications/${encodeURIComponent(notificationId)}/unread`)
+    commonNotificationApi.markAsUnread(notificationId)
   ),
   markAllAsRead: (sourceApp: CommonNotificationSourceApp = 'dms') => (
-    put<CommonNotificationMarkAllReadResult>(`/api/notifications/read-all${buildSourceQuery(sourceApp)}`)
+    commonNotificationApi.markAllAsRead(sourceApp)
   ),
   markByReferencePathAsRead: (path: string, sourceApp: CommonNotificationSourceApp = 'dms') => (
-    put<CommonNotificationMarkAllReadResult>('/api/notifications/read-by-reference', { path, sourceApp })
+    commonNotificationApi.markByReferencePathAsRead(path, sourceApp)
   ),
 };

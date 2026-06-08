@@ -35,6 +35,10 @@ class FakeNotificationService {
   async archiveByDedupeKey(_recipientUserId: bigint, _sourceApp: string, dedupeKey: string): Promise<void> {
     this.archivedDedupeKeys.push(dedupeKey);
   }
+
+  async archiveByReferencePathPrefixes(): Promise<{ count: number }> {
+    return { count: 0 };
+  }
 }
 
 class FakeEventsGateway {
@@ -123,6 +127,29 @@ describe('CollaborationService (D-2 phase 2)', () => {
       });
       expect(snapshot.path).toBe('docs/a.md');
       expect(snapshot.softLock).toMatchObject({ userId: '1', sessionId: 's1', path: 'docs/a.md' });
+    });
+
+    it('releases the current session soft lock when the owner returns to view mode', async () => {
+      await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+
+      const snapshot = await service.heartbeat({
+        path: 'docs/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'view',
+      });
+
+      expect(snapshot.softLock).toBeNull();
+      expect(snapshot.members).toContainEqual(expect.objectContaining({
+        userId: '1',
+        sessionId: 's1',
+        mode: 'view',
+      }));
     });
 
     it('blocks another writable user from entering edit mode while a soft lock is active', async () => {
@@ -325,6 +352,25 @@ describe('CollaborationService (D-2 phase 2)', () => {
       });
       expect(notificationService.notifications).toHaveLength(1);
       expect(eventsGateway.takeoverRequests).toHaveLength(1);
+    });
+
+    it('blocks hidden verification document takeover requests in user-facing runtimes', async () => {
+      jest.spyOn(configService, 'getUserSurfaceHiddenPathPrefixes').mockReturnValue(['launch-smoke/']);
+
+      await service.heartbeat({
+        path: 'launch-smoke/a.md',
+        currentUser: tokenFor('1', 'alice'),
+        sessionId: 's1',
+        mode: 'edit',
+      });
+
+      await expect(service.takeover({
+        path: 'launch-smoke/a.md',
+        currentUser: tokenFor('2', 'bob'),
+        sessionId: 's2',
+      })).rejects.toThrow('사용자 문서 표면에서 제외');
+      expect(notificationService.notifications).toHaveLength(0);
+      expect(eventsGateway.takeoverRequests).toHaveLength(0);
     });
 
     it('reuses an active pending takeover request for the same requester', async () => {

@@ -18,6 +18,18 @@ export interface CollapsibleSectionProps {
   children: React.ReactNode;
 }
 
+function findScrollParent(element: HTMLElement | null): HTMLElement | null {
+  let current = element?.parentElement ?? null;
+  while (current) {
+    const overflowY = window.getComputedStyle(current).overflowY;
+    if (overflowY === 'auto' || overflowY === 'scroll') {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
 export function CollapsibleSection({
   icon,
   title,
@@ -29,6 +41,9 @@ export function CollapsibleSection({
   children,
 }: CollapsibleSectionProps) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
+  const sectionRef = React.useRef<HTMLElement>(null);
+  const headerRef = React.useRef<HTMLDivElement>(null);
+  const shouldAlignOnOpenRef = React.useRef(false);
 
   React.useEffect(() => {
     setIsOpen(locked ? false : defaultOpen);
@@ -38,12 +53,55 @@ export function CollapsibleSection({
   const canToggle = !locked;
   const toggle = () => {
     if (!canToggle) return;
-    setIsOpen((prev) => !prev);
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        shouldAlignOnOpenRef.current = true;
+      }
+      return next;
+    });
   };
 
+  React.useEffect(() => {
+    if (!isOpen || !shouldAlignOnOpenRef.current) {
+      return;
+    }
+
+    shouldAlignOnOpenRef.current = false;
+    const rafId = window.requestAnimationFrame(() => {
+      const section = sectionRef.current;
+      const header = headerRef.current;
+      if (!section || !header) {
+        return;
+      }
+
+      const scrollParent = findScrollParent(section);
+      if (!scrollParent) {
+        header.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        return;
+      }
+
+      const sectionRect = section.getBoundingClientRect();
+      const headerRect = header.getBoundingClientRect();
+      const parentRect = scrollParent.getBoundingClientRect();
+      const needsAlignment = headerRect.top < parentRect.top || sectionRect.bottom > parentRect.bottom;
+      if (!needsAlignment) {
+        return;
+      }
+
+      scrollParent.scrollTo({
+        top: scrollParent.scrollTop + headerRect.top - parentRect.top,
+        behavior: 'smooth',
+      });
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, [isOpen]);
+
   return (
-    <section className="border-b border-ssoo-content-border last:border-b-0">
+    <section ref={sectionRef} className="border-b border-ssoo-content-border last:border-b-0">
       <div
+        ref={headerRef}
         className={cn(
           'flex w-full items-center text-ssoo-primary',
           isDense ? 'gap-2 px-3 py-2 text-label-strong' : 'gap-2 px-4 py-3 text-label-md'

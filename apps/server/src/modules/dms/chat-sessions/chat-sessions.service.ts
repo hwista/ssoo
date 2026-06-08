@@ -26,29 +26,27 @@ interface ChatSessionPayload {
   messages: unknown[];
 }
 
-const CLIENT_ID_REGEX = /^[a-zA-Z0-9_-]{8,80}$/;
+const OWNER_USER_ID_REGEX = /^\d{1,20}$/;
 const SESSION_ID_REGEX = /^[a-zA-Z0-9._:-]{8,120}$/;
 const MAX_TITLE_LENGTH = 120;
 const MAX_MESSAGES_COUNT = 200;
 const MAX_MESSAGES_BYTES = 512_000;
+const CHAT_SESSION_TABLE = '"dms"."dm_chat_session_m"';
 
 @Injectable()
 export class ChatSessionsService {
-  private tableInitialized = false;
-
   constructor(private readonly db: DatabaseService) {}
 
-  async list(clientId: string, limit = 50): Promise<PersistedChatSession[]> {
-    this.assertClientId(clientId);
-    await this.ensureTable();
+  async list(ownerUserId: string, limit = 50): Promise<PersistedChatSession[]> {
+    const parsedOwnerUserId = this.parseOwnerUserId(ownerUserId);
 
     const rows = await this.db.client.$queryRawUnsafe<ChatSessionRow[]>(
-      `SELECT id, title, messages, created_at, updated_at
-       FROM dms_chat_sessions
-       WHERE client_id = $1
+      `SELECT chat_session_id AS id, title, messages, created_at, updated_at
+       FROM ${CHAT_SESSION_TABLE}
+       WHERE owner_user_id = $1
        ORDER BY updated_at DESC
        LIMIT $2`,
-      clientId,
+      parsedOwnerUserId,
       Math.max(1, Math.min(limit, 200)),
     );
 
@@ -62,75 +60,54 @@ export class ChatSessionsService {
     }));
   }
 
-  async save(clientId: string, session: ChatSessionPayload): Promise<{ id: string }> {
-    this.assertClientId(clientId);
+  async save(ownerUserId: string, session: ChatSessionPayload): Promise<{ id: string }> {
+    const parsedOwnerUserId = this.parseOwnerUserId(ownerUserId);
     this.assertSession(session);
-    await this.ensureTable();
 
-    await this.db.client.$executeRawUnsafe(
-      `INSERT INTO dms_chat_sessions (id, client_id, title, messages, created_at, updated_at, persisted_at)
+    const affectedRows = await this.db.client.$executeRawUnsafe(
+      `INSERT INTO ${CHAT_SESSION_TABLE} AS target (chat_session_id, owner_user_id, title, messages, created_at, updated_at, persisted_at)
        VALUES ($1, $2, $3, $4::jsonb, $5::timestamptz, $6::timestamptz, NOW())
-       ON CONFLICT (id)
+       ON CONFLICT (chat_session_id)
        DO UPDATE SET
-         client_id = EXCLUDED.client_id,
+         owner_user_id = EXCLUDED.owner_user_id,
          title = EXCLUDED.title,
          messages = EXCLUDED.messages,
          updated_at = EXCLUDED.updated_at,
-         persisted_at = NOW()`,
+         persisted_at = NOW()
+       WHERE target.owner_user_id = EXCLUDED.owner_user_id`,
       session.id,
-      clientId,
+      parsedOwnerUserId,
       session.title,
       JSON.stringify(session.messages),
       session.createdAt,
       session.updatedAt,
     );
+    if (affectedRows === 0) {
+      throw new BadRequestException('다른 사용자의 채팅 세션은 저장할 수 없습니다.');
+    }
 
     return { id: session.id };
   }
 
-  async remove(clientId: string, sessionId: string): Promise<{ id: string }> {
-    this.assertClientId(clientId);
+  async remove(ownerUserId: string, sessionId: string): Promise<{ id: string }> {
+    const parsedOwnerUserId = this.parseOwnerUserId(ownerUserId);
     this.assertSessionId(sessionId);
-    await this.ensureTable();
 
     await this.db.client.$executeRawUnsafe(
-      `DELETE FROM dms_chat_sessions WHERE id = $1 AND client_id = $2`,
+      `DELETE FROM ${CHAT_SESSION_TABLE} WHERE chat_session_id = $1 AND owner_user_id = $2`,
       sessionId,
-      clientId,
+      parsedOwnerUserId,
     );
 
     return { id: sessionId };
   }
 
-  private async ensureTable(): Promise<void> {
-    if (this.tableInitialized) {
-      return;
+  private parseOwnerUserId(ownerUserId: string): bigint {
+    const normalizedOwnerUserId = ownerUserId.trim();
+    if (!OWNER_USER_ID_REGEX.test(normalizedOwnerUserId)) {
+      throw new BadRequestException('유효한 사용자 정보가 필요합니다.');
     }
-
-    await this.db.client.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS dms_chat_sessions (
-        id TEXT PRIMARY KEY,
-        client_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        messages JSONB NOT NULL DEFAULT '[]'::jsonb,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        persisted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-
-    await this.db.client.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS idx_dms_chat_sessions_client_updated
-      ON dms_chat_sessions (client_id, updated_at DESC)
-    `);
-
-    this.tableInitialized = true;
-  }
-
-  private assertClientId(clientId: string): void {
-    if (!CLIENT_ID_REGEX.test(clientId.trim())) {
-      throw new BadRequestException('유효한 clientId가 필요합니다.');
-    }
+    return BigInt(normalizedOwnerUserId);
   }
 
   private assertSessionId(sessionId: string): void {

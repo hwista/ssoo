@@ -20,6 +20,7 @@ import { DatabaseService } from '../../../database/database.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
+import { configService } from '../runtime/dms-config.service.js';
 import {
   buildAutoSummary,
   buildBlockedSourceSummary,
@@ -246,6 +247,10 @@ export class SearchService implements OnModuleInit {
       const results: SearchResultItem[] = [];
 
       for (const [index, row] of rows.entries()) {
+        if (configService.isUserSurfaceHiddenPath(row.file_path)) {
+          continue;
+        }
+
         const displayPath = toDisplayPath(row.file_path, rootDir);
         const resolvedPath = resolveAbsolutePath(row.file_path, rootDir);
         const access = this.documentAclService.describeSearchResultAccess(currentUser, resolvedPath);
@@ -317,10 +322,14 @@ export class SearchService implements OnModuleInit {
     const results: SearchResultItem[] = [];
 
     for (const filePath of files) {
+      const relativePath = toRelativePath(filePath, rootDir);
+      if (configService.isUserSurfaceHiddenPath(relativePath)) {
+        continue;
+      }
+
       const content = fs.readFileSync(filePath, 'utf-8');
       const metadata = await this.readDocumentMetadata(filePath);
       const lowerContent = content.toLowerCase();
-      const relativePath = toRelativePath(filePath, rootDir);
       const lowerPath = relativePath.toLowerCase();
       const fileName = path.basename(filePath);
       const fallbackTitle = extractTitle(content, fileName);
@@ -489,6 +498,14 @@ export class SearchService implements OnModuleInit {
 
   private async syncIndexForPath(docPath: string): Promise<PathSyncCounts> {
     const rootDir = this.runtime.getDocDir();
+    if (configService.isUserSurfaceHiddenPath(docPath)) {
+      return {
+        indexedFileCount: 0,
+        indexedChunkCount: 0,
+        deletedChunkCount: await this.deleteEmbeddingsForPath(docPath),
+      };
+    }
+
     const resolvedPath = resolveAbsolutePath(docPath, rootDir);
 
     if (!fs.existsSync(resolvedPath)) {
@@ -504,7 +521,8 @@ export class SearchService implements OnModuleInit {
     if (stats.isDirectory()) {
       const prefix = toRelativePath(resolvedPath, rootDir);
       const deletedChunkCount = await this.deleteEmbeddingsForPath(prefix);
-      const markdownFiles = listMarkdownFiles(resolvedPath);
+      const markdownFiles = listMarkdownFiles(resolvedPath)
+        .filter((markdownFile) => !configService.isUserSurfaceHiddenPath(toRelativePath(markdownFile, rootDir)));
       let indexedChunkCount = 0;
 
       for (const markdownFile of markdownFiles) {
@@ -540,6 +558,10 @@ export class SearchService implements OnModuleInit {
   private async upsertFileEmbeddings(filePath: string, rootDir: string): Promise<number> {
     const searchConfig = this.runtime.getSearchConfig();
     const relativePath = toRelativePath(filePath, rootDir);
+    if (configService.isUserSurfaceHiddenPath(relativePath)) {
+      return 0;
+    }
+
     const content = fs.readFileSync(filePath, 'utf-8');
     const chunks = this.chunkText(
       content,

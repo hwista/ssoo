@@ -12,7 +12,6 @@ const FLOATING_ASSISTANT_PANEL_STYLE: CSSProperties = {
 interface UseFloatingAssistantPanelBehaviorOptions {
   isOpen: boolean;
   messagesLength: number;
-  scrollRef: RefObject<HTMLDivElement | null>;
   inputRef: RefObject<HTMLTextAreaElement | null>;
   historyRef: RefObject<HTMLDivElement | null>;
   regenerateSuggestions: (count?: number) => void;
@@ -23,7 +22,6 @@ interface UseFloatingAssistantPanelBehaviorOptions {
 export function useFloatingAssistantPanelBehavior({
   isOpen,
   messagesLength,
-  scrollRef,
   inputRef,
   historyRef,
   regenerateSuggestions,
@@ -34,14 +32,6 @@ export function useFloatingAssistantPanelBehavior({
   const hadMessagesRef = useRef(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const hasMessages = messagesLength > 0;
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const container = scrollRef.current;
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-    }
-  }, [isOpen, messagesLength, scrollRef]);
 
   useEffect(() => {
     const justOpened = isOpen && !wasOpenRef.current;

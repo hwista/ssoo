@@ -1,9 +1,9 @@
 # DMS / SSOO Docker 배포 가이드
 
-> 최종 업데이트: 2026-04-22
+> 최종 업데이트: 2026-06-04
 
 DMS를 **모노레포 통합 런타임 기준**으로 Docker 컨테이너에 배포하는 가이드입니다.  
-지원 경로는 **repo root `compose.yaml`** 하나로 정리하며, 기본 배포 단위는 `postgres + server + pms + cms + dms` 전체 스택입니다.
+지원 경로는 **repo root `compose.yaml`** 하나로 정리하며, 기본 배포 단위는 `postgres + server + pms + sns + dms` 전체 스택입니다.
 
 ---
 
@@ -19,7 +19,7 @@ DMS를 **모노레포 통합 런타임 기준**으로 Docker 컨테이너에 배
 
 ```
 ┌─────────────────┐    ┌─────────────────┐
-│  ssoo-pms       │    │  ssoo-cms       │
+│  ssoo-pms       │    │  ssoo-sns       │
 │  Port: 3000     │    │  Port: 3002     │
 └────────┬────────┘    └────────┬────────┘
          │                      │
@@ -46,7 +46,7 @@ DMS를 **모노레포 통합 런타임 기준**으로 Docker 컨테이너에 배
 | `server` | `apps/server/Dockerfile` | 4000 | NestJS API + 공통 auth + DMS server module |
 | `pms` | `apps/web/pms/Dockerfile` | 3000 | PMS Next.js 앱 |
 | `dms` | `apps/web/dms/Dockerfile` | 3001 | DMS Next.js 앱 |
-| `cms` | `apps/web/cms/Dockerfile` | 3002 | CMS Next.js 앱 |
+| `sns` | `apps/web/sns/Dockerfile` | 3002 | SNS Next.js 앱 |
 
 > **참고**: `pgvector/pgvector:pg17`은 표준 PostgreSQL 17에 pgvector 확장이 포함된 이미지입니다.
 > DMS의 AI 임베딩/시맨틱 검색 기능에 필요합니다.
@@ -91,7 +91,7 @@ pnpm docker:logs
 ### 3. 확인
 
 ```bash
-# PMS / DMS / CMS 접속
+# PMS / DMS / SNS 접속
 curl http://localhost:3000
 curl http://localhost:3001
 curl http://localhost:3002
@@ -171,14 +171,14 @@ tar czf dms-runtime-backup-$(date +%Y%m%d).tar.gz \
 | `DMS_SERVER_API_URL` | `http://server:4000/api` | compose 내부 server 검색/질문/요약 슬라이스 브리지 |
 | `PMS_NEXT_PUBLIC_API_URL` | `http://localhost:4000/api` | PMS 브라우저 번들용 API 주소 |
 | `PMS_SERVER_API_URL` | `http://server:4000/api` | PMS same-origin auth proxy가 내부 server 컨테이너로 연결할 주소 |
-| `CMS_NEXT_PUBLIC_API_URL` | `http://localhost:4000/api` | CMS 브라우저 번들용 API 주소 |
-| `CMS_SERVER_API_URL` | `http://server:4000/api` | CMS same-origin auth proxy가 내부 server 컨테이너로 연결할 주소 |
+| `SNS_NEXT_PUBLIC_API_URL` | `http://localhost:4000/api` | SNS 브라우저 번들용 API 주소 |
+| `SNS_SERVER_API_URL` | `http://server:4000/api` | SNS same-origin auth proxy가 내부 server 컨테이너로 연결할 주소 |
 | `DMS_MARKDOWN_ROOT` | `/var/lib/ssoo/dms/documents` | server 컨테이너 내 external markdown working tree. 템플릿은 이 경로의 `_templates/` 하위에 자동 포함 |
 | `DMS_INGEST_QUEUE_PATH` | `/var/lib/ssoo/dms/ingest` | server 컨테이너 내 ingest queue root |
 | `DMS_STORAGE_LOCAL_BASE_PATH` | `/var/lib/ssoo/dms/storage/local` | server 컨테이너 내 local binary storage root |
 | `DMS_STORAGE_SHAREPOINT_BASE_PATH` | `/sites/dms/shared-documents` | SharePoint provider base path override |
 | `DMS_STORAGE_NAS_BASE_PATH` | `/mnt/nas/dms` | NAS provider base path override |
-| `DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES` | `launch-smoke/,codex-lock-ui/,codex-lock-probe/,verify-access/` | 쉼표로 구분한 local-only 검증 문서 디렉터리 prefix. 이 prefix 의 markdown 변경은 DMS Git publish/알림 대상에서 제외 |
+| `DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES` | `launch-smoke/,codex-lock-ui/,codex-lock-probe/,verify-access/` | 쉼표로 구분한 local-only 검증 문서 디렉터리 prefix. 일반 운영/개발 런타임에서는 이 prefix 의 문서를 파일 트리/검색/편집 잠금 알림 사용자 표면에서 숨기고 DMS Git publish/실패 알림 대상에서도 제외. `local-test` 하네스에서는 브라우저 스모크 검증을 위해 사용자 표면 숨김을 적용하지 않음 |
 
 ### AI 기능 사용 시 추가 필요
 
@@ -252,6 +252,6 @@ docker compose ps postgres
 | 날짜 | 변경 내용 |
 |------|----------|
 | 2026-04-22 | 데이터 경로 트러블슈팅을 server-owned external runtime mount(`DMS_MARKDOWN_ROOT`, `DMS_TEMPLATE_ROOT`, `DMS_INGEST_QUEUE_PATH`, `DMS_STORAGE_LOCAL_BASE_PATH`) 기준으로 정리 |
-| 2026-04-08 | full-stack compose 기준으로 `postgres + server + pms + cms + dms` 기본 배포, DMS internal server bridge, PMS/CMS browser API URL 기준으로 정리 |
+| 2026-04-08 | full-stack compose 기준으로 `postgres + server + pms + sns + dms` 기본 배포, DMS internal server bridge, PMS/SNS browser API URL 기준으로 정리 |
 | 2026-04-07 | root compose 단일 지원 경로, workspace Dockerfile, monorepo root tracing 기준 standalone runtime, `DMS_SERVER_API_URL` 브리지 기준으로 정규화 |
 | 2026-03-17 | 초기 버전 — DMS Docker 독립 배포 가이드 |

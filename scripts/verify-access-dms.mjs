@@ -94,6 +94,12 @@ const NOTIFICATION_CLEANUP_PREFIXES = [
   'copilot-access-cancel-smoke-',
   '_templates/personal/verify-template-',
 ];
+const DEFAULT_USER_SURFACE_HIDDEN_PREFIXES = [
+  'launch-smoke/',
+  'codex-lock-ui/',
+  'codex-lock-probe/',
+  'verify-access/',
+];
 
 const options = {
   dryRun: argv.includes('--dry-run'),
@@ -859,7 +865,11 @@ async function verifyReadSurfaces(baseUrl, accessToken, canReadDocuments, probe)
 
   assertArray(files, 'DMS file tree');
   const filePaths = flattenFileTree(files);
-  if (!filePaths.includes(probe.documentPath)) {
+  const probeHiddenFromUserSurface = isVerificationUserSurfaceHiddenPath(probe.documentPath);
+  if (probeHiddenFromUserSurface && filePaths.includes(probe.documentPath)) {
+    throw new Error(`DMS file tree 에 사용자 표면 제외 probe 문서(${probe.documentPath})가 노출되었습니다.`);
+  }
+  if (!probeHiddenFromUserSurface && !filePaths.includes(probe.documentPath)) {
     throw new Error(`DMS file tree 에 probe 문서(${probe.documentPath})가 없습니다.`);
   }
 
@@ -982,6 +992,9 @@ async function verifyCommentApi(baseUrl, accessToken, adminAccessToken, canReadD
   }
 
   assertArray(listData.comments, '/dms/comments list comments');
+  const existingCommentIds = listData.comments
+    .filter((comment) => isPlainObject(comment) && typeof comment.id === 'string')
+    .map((comment) => comment.id);
   const content = `Runtime comment API verification ${Date.now()}`;
   const created = await fetchSuccessData(
     `${baseUrl}/dms/comments`,
@@ -1006,9 +1019,52 @@ async function verifyCommentApi(baseUrl, accessToken, adminAccessToken, canReadD
   ))) {
     throw new Error('/dms/comments create 응답 comments 에 새 댓글이 없습니다.');
   }
+  const createdCommentIds = new Set(created.comments
+    .filter((comment) => isPlainObject(comment) && typeof comment.id === 'string')
+    .map((comment) => comment.id));
+  for (const existingCommentId of existingCommentIds) {
+    if (!createdCommentIds.has(existingCommentId)) {
+      throw new Error('/dms/comments create 응답 comments 에 기존 댓글이 보존되지 않았습니다.');
+    }
+  }
 
   const commentId = created.comment.id;
   await verifyCommentNotification(prisma, probe.documentPath, commentId);
+  if (typeof created.comment.authorUserId !== 'string') {
+    throw new Error('/dms/comments create 응답 comment.authorUserId 가 없습니다.');
+  }
+
+  const replyContent = `Runtime comment reply notification ${Date.now()}`;
+  const reply = await fetchSuccessData(
+    `${baseUrl}/dms/comments`,
+    authHeaders(adminAccessToken, {
+      'Content-Type': 'application/json',
+    }),
+    [200],
+    '/dms/comments reply',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        path: probe.documentPath,
+        content: replyContent,
+        parentId: commentId,
+      }),
+    },
+  );
+  if (
+    !isPlainObject(reply.comment)
+    || typeof reply.comment.id !== 'string'
+    || reply.comment.parentId !== commentId
+  ) {
+    throw new Error('/dms/comments reply 응답에 답글 comment 가 없습니다.');
+  }
+  await verifyCommentReplyNotification(
+    prisma,
+    probe.documentPath,
+    reply.comment.id,
+    commentId,
+    created.comment.authorUserId,
+  );
 
   const deleted = await fetchSuccessData(
     `${baseUrl}/dms/comments/${encodeURIComponent(commentId)}?path=${encodeURIComponent(probe.documentPath)}`,
@@ -1140,6 +1196,41 @@ async function verifyCommentNotification(prisma, documentPath, commentId) {
     || notification.actionPayload.commentId !== commentId
   ) {
     throw new Error('댓글 알림 action payload 가 문서/댓글을 가리키지 않습니다.');
+  }
+}
+
+async function verifyCommentReplyNotification(prisma, documentPath, replyCommentId, parentCommentId, parentAuthorUserId) {
+  const notification = await prisma.commonNotification.findFirst({
+    where: {
+      recipientUserId: BigInt(parentAuthorUserId),
+      sourceAppCode: 'dms',
+      notificationType: 'dms.document-comment.replied',
+      referenceType: 'dms.document-comment',
+      referenceId: replyCommentId,
+      referencePath: documentPath,
+      archivedAt: null,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      actionType: true,
+      actionPayload: true,
+    },
+  });
+
+  if (!notification) {
+    throw new Error('댓글 답글 작성 시 원 댓글 작성자 알림이 생성되지 않았습니다.');
+  }
+  if (notification.actionType !== 'open-dms-document') {
+    throw new Error('댓글 답글 알림 action 이 문서 열기가 아닙니다.');
+  }
+  if (
+    !isPlainObject(notification.actionPayload)
+    || notification.actionPayload.path !== documentPath
+    || notification.actionPayload.commentId !== replyCommentId
+    || notification.actionPayload.parentCommentId !== parentCommentId
+  ) {
+    throw new Error('댓글 답글 알림 action payload 가 문서/댓글을 가리키지 않습니다.');
   }
 }
 
@@ -1411,6 +1502,12 @@ async function verifyBlockedSearchResult(baseUrl, accessToken, doc) {
 
   assertArray(search.results, `DMS blocked source search results (${doc.path})`);
   const target = search.results.find((item) => isPlainObject(item) && item.path === doc.path);
+  if (isVerificationUserSurfaceHiddenPath(doc.path)) {
+    if (target) {
+      throw new Error(`DMS hidden verification document 가 search results 에 노출되었습니다: ${doc.path}`);
+    }
+    return;
+  }
   if (!target) {
     throw new Error(`DMS blocked source search results 에 대상 문서가 없습니다: ${doc.path}`);
   }
@@ -2375,6 +2472,41 @@ function readOption(name, envKey, defaultValue = undefined) {
   const prefix = `--${name}=`;
   const argValue = argv.find((arg) => arg.startsWith(prefix))?.slice(prefix.length);
   return argValue ?? process.env[envKey] ?? defaultValue;
+}
+
+function parsePathPrefixList(value) {
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((item) => item.trim().replace(/\\/g, '/').replace(/^\/+/, ''))
+    .filter(Boolean)
+    .map((item) => item.endsWith('/') ? item : `${item}/`);
+}
+
+function getVerificationUserSurfaceHiddenPrefixes() {
+  const configuredValue = process.env.ACCESS_VERIFY_DMS_HIDDEN_PREFIXES
+    ?? process.env.DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES;
+  if (configuredValue !== undefined) {
+    return parsePathPrefixList(configuredValue);
+  }
+
+  return DEFAULT_USER_SURFACE_HIDDEN_PREFIXES;
+}
+
+function isVerificationUserSurfaceHiddenPath(pathValue) {
+  if (typeof pathValue !== 'string') {
+    return false;
+  }
+
+  const normalizedPath = pathValue.trim().replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!normalizedPath) {
+    return false;
+  }
+
+  return getVerificationUserSurfaceHiddenPrefixes().some((prefix) => normalizedPath.startsWith(prefix));
 }
 
 function errorMessage(error) {

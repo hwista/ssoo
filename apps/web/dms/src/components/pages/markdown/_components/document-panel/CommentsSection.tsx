@@ -56,6 +56,15 @@ function buildThreads(comments: DocumentComment[]): CommentThread[] {
   }));
 }
 
+function resolveMentionAuthor(comment: DocumentComment, commentMap: Map<string, DocumentComment>): string | undefined {
+  if (!comment.parentId) {
+    return undefined;
+  }
+
+  const parent = commentMap.get(comment.parentId);
+  return parent?.author || 'Unknown';
+}
+
 function CommentItem({
   comment,
   isReply,
@@ -252,6 +261,7 @@ export function CommentsSection({
   locked = false,
 }: CommentsSectionProps) {
   const threads = React.useMemo(() => buildThreads(comments), [comments]);
+  const commentMap = React.useMemo(() => new Map(comments.map((comment) => [comment.id, comment])), [comments]);
   const totalCount = comments.filter((c) => !c.deletedAt).length;
 
   const canDeleteComment = React.useCallback((comment: DocumentComment) => (
@@ -292,7 +302,7 @@ export function CommentsSection({
                 {thread.replies.length > 0 && (
                   <RepliesGroup
                     replies={thread.replies}
-                    rootAuthor={thread.root.author || 'Unknown'}
+                    commentMap={commentMap}
                     currentUserId={currentUserId}
                     canManageComments={canManageComments}
                     canRestoreComment={canRestoreComment}
@@ -314,7 +324,7 @@ export function CommentsSection({
 
 function RepliesGroup({
   replies,
-  rootAuthor,
+  commentMap,
   currentUserId,
   canManageComments,
   canRestoreComment,
@@ -325,7 +335,7 @@ function RepliesGroup({
   onReply,
 }: {
   replies: DocumentComment[];
-  rootAuthor: string;
+  commentMap: Map<string, DocumentComment>;
   currentUserId?: string;
   canManageComments: boolean;
   canRestoreComment: (comment: DocumentComment) => boolean;
@@ -350,7 +360,7 @@ function RepliesGroup({
           canRestore={canRestoreComment(reply)}
           canViewDeletedDetails={canViewDeletedDetails(reply)}
           canReply={canReply && !reply.deletedAt}
-          mentionAuthor={rootAuthor}
+          mentionAuthor={resolveMentionAuthor(reply, commentMap)}
           onDelete={onDelete}
           onRestore={onRestore}
           onReply={onReply}

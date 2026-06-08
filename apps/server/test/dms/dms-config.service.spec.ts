@@ -11,6 +11,7 @@ describe('DmsConfigService (singleton)', () => {
     delete process.env.DMS_GIT_BOOTSTRAP_BRANCH;
     delete process.env.DMS_GIT_PROD_REMOTE_URL;
     delete process.env.DMS_GIT_DEV_REMOTE_URL;
+    delete process.env.DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES;
     configService.invalidateCache();
   });
 
@@ -136,6 +137,25 @@ describe('DmsConfigService (singleton)', () => {
       const root = configService.getDocDir();
       expect(tmpl.startsWith(root)).toBe(true);
       expect(tmpl.endsWith('_templates')).toBe(true);
+    });
+  });
+
+  describe('user surface hidden document paths', () => {
+    it('hides publish-ignored verification paths outside local-test', () => {
+      process.env.DMS_INSTANCE_ENV = 'prod';
+      process.env.DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES = 'launch-smoke/, codex-lock-ui/';
+
+      expect(configService.isUserSurfaceHiddenPath('launch-smoke/a.md')).toBe(true);
+      expect(configService.isUserSurfaceHiddenPath('/codex-lock-ui/a.md')).toBe(true);
+      expect(configService.isUserSurfaceHiddenPath('docs/a.md')).toBe(false);
+    });
+
+    it('keeps verification paths visible for local-test harnesses', () => {
+      process.env.DMS_INSTANCE_ENV = 'local-test';
+      process.env.DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES = 'launch-smoke/';
+
+      expect(configService.getUserSurfaceHiddenPathPrefixes()).toEqual([]);
+      expect(configService.isUserSurfaceHiddenPath('launch-smoke/a.md')).toBe(false);
     });
   });
 });

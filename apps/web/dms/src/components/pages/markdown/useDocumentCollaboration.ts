@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   collaborationApi,
   type DocumentCollaborationSnapshotClient,
@@ -26,15 +26,100 @@ function createSessionId(): string {
   return `sess_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function useDocumentCollaboration(path: string | null, mode: 'view' | 'edit') {
+const COLLABORATION_SESSION_STORAGE_PREFIX = 'dms-collaboration-session-v1';
+const COLLABORATION_SESSION_ID_PATTERN = /^sess_[a-z0-9]{8,}$/;
+
+interface CollaborationSessionState {
+  storageKey: string | null;
+  sessionId: string;
+}
+
+interface UseDocumentCollaborationOptions {
+  sessionScopeKey?: string | null;
+}
+
+function buildSessionStorageKey(documentPath: string, sessionScopeKey: string): string {
+  return [
+    COLLABORATION_SESSION_STORAGE_PREFIX,
+    encodeURIComponent(sessionScopeKey),
+    encodeURIComponent(documentPath),
+  ].join(':');
+}
+
+function resolveSessionState(storageKey: string | null): CollaborationSessionState {
+  if (!storageKey || typeof window === 'undefined') {
+    return { storageKey, sessionId: createSessionId() };
+  }
+
+  try {
+    const storedSessionId = window.sessionStorage.getItem(storageKey);
+    if (storedSessionId && COLLABORATION_SESSION_ID_PATTERN.test(storedSessionId)) {
+      return { storageKey, sessionId: storedSessionId };
+    }
+
+    const nextSessionId = createSessionId();
+    window.sessionStorage.setItem(storageKey, nextSessionId);
+    return { storageKey, sessionId: nextSessionId };
+  } catch {
+    return { storageKey, sessionId: createSessionId() };
+  }
+}
+
+export function useDocumentCollaboration(
+  path: string | null,
+  mode: 'view' | 'edit',
+  options: UseDocumentCollaborationOptions = {},
+) {
   const documentPath = useMemo(() => normalizeDocumentPath(path ?? ''), [path]);
+  const normalizedSessionScopeKey = useMemo(() => {
+    const scopeKey = options.sessionScopeKey?.trim();
+    return scopeKey || 'default';
+  }, [options.sessionScopeKey]);
+  const sessionStorageKey = useMemo(() => (
+    documentPath
+      ? buildSessionStorageKey(documentPath, normalizedSessionScopeKey)
+      : null
+  ), [documentPath, normalizedSessionScopeKey]);
+  const documentSubscriptionId = useMemo(() => (
+    documentPath
+      ? `${COLLABORATION_SESSION_STORAGE_PREFIX}:${normalizedSessionScopeKey}:${documentPath}`
+      : null
+  ), [documentPath, normalizedSessionScopeKey]);
   const [snapshot, setSnapshot] = useState<DocumentCollaborationSnapshotClient | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [takeoverRequest, setTakeoverRequest] = useState<SoftLockTakeoverRequestClient | null>(null);
   const [takeoverResponse, setTakeoverResponse] = useState<SoftLockTakeoverResponseClient | null>(null);
   const [pendingTakeoverRequest, setPendingTakeoverRequest] = useState<SoftLockTakeoverRequestClient | null>(null);
-  const [sessionId] = useState(() => createSessionId());
+  const [sessionState, setSessionState] = useState<CollaborationSessionState>(() => resolveSessionState(sessionStorageKey));
+  const isSessionReady = Boolean(documentPath && sessionState.storageKey === sessionStorageKey);
+  const sessionId = sessionState.sessionId;
   const pendingTakeoverRequestId = pendingTakeoverRequest?.requestId ?? null;
+  const modeRef = useRef(mode);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    setSessionState((current) => (
+      current.storageKey === sessionStorageKey
+        ? current
+        : resolveSessionState(sessionStorageKey)
+    ));
+  }, [sessionStorageKey]);
+
+  const resolveReadySessionId = useCallback(() => {
+    if (!documentPath || !sessionStorageKey) {
+      return null;
+    }
+    if (sessionState.storageKey === sessionStorageKey) {
+      return sessionState.sessionId;
+    }
+
+    const nextSessionState = resolveSessionState(sessionStorageKey);
+    setSessionState(nextSessionState);
+    return nextSessionState.sessionId;
+  }, [documentPath, sessionState.sessionId, sessionState.storageKey, sessionStorageKey]);
 
   const refreshTakeoverPendingState = useCallback(async () => {
     if (!documentPath) {
@@ -53,8 +138,9 @@ export function useDocumentCollaboration(path: string | null, mode: 'view' | 'ed
   }, [documentPath]);
 
   const join = useCallback(async (nextMode: 'view' | 'edit' = mode) => {
-    if (!documentPath) return null;
-    const response = await collaborationApi.heartbeat(documentPath, nextMode, sessionId);
+    const readySessionId = resolveReadySessionId();
+    if (!documentPath || !readySessionId) return null;
+    const response = await collaborationApi.heartbeat(documentPath, nextMode, readySessionId);
     if (response.success && response.data) {
       setSnapshot(response.data);
       setLastError(null);
@@ -68,15 +154,16 @@ export function useDocumentCollaboration(path: string | null, mode: 'view' | 'ed
       void refreshTakeoverPendingState();
     }
     return null;
-  }, [documentPath, mode, refreshTakeoverPendingState, sessionId]);
+  }, [documentPath, mode, refreshTakeoverPendingState, resolveReadySessionId]);
 
   const startEditing = useCallback(async () => join('edit'), [join]);
 
   const heartbeat = useCallback(async () => join(mode), [join, mode]);
 
   const renewLock = useCallback(async () => {
-    if (!documentPath) return null;
-    const response = await collaborationApi.renewLock(documentPath, sessionId);
+    const readySessionId = resolveReadySessionId();
+    if (!documentPath || !readySessionId) return null;
+    const response = await collaborationApi.renewLock(documentPath, readySessionId);
     if (response.success && response.data) {
       setSnapshot(response.data);
       setLastError(null);
@@ -88,11 +175,12 @@ export function useDocumentCollaboration(path: string | null, mode: 'view' | 'ed
       setSnapshot(snapshotResponse.data);
     }
     return null;
-  }, [documentPath, sessionId]);
+  }, [documentPath, resolveReadySessionId]);
 
   const takeover = useCallback(async (): Promise<SoftLockTakeoverResultClient | null> => {
-    if (!documentPath) return null;
-    const response = await collaborationApi.takeover(documentPath, sessionId);
+    const readySessionId = resolveReadySessionId();
+    if (!documentPath || !readySessionId) return null;
+    const response = await collaborationApi.takeover(documentPath, readySessionId);
     if (response.success && response.data) {
       setSnapshot(response.data.snapshot);
       setLastError(null);
@@ -105,7 +193,7 @@ export function useDocumentCollaboration(path: string | null, mode: 'view' | 'ed
     }
     setLastError(response.error ?? '편집 잠금 요청에 실패했습니다.');
     return null;
-  }, [documentPath, sessionId]);
+  }, [documentPath, resolveReadySessionId]);
 
   const respondToTakeover = useCallback(async (requestId: string, approved: boolean) => {
     const response = await collaborationApi.respondToTakeover(requestId, approved);
@@ -152,20 +240,31 @@ export function useDocumentCollaboration(path: string | null, mode: 'view' | 'ed
       return;
     }
 
-    window.dispatchEvent(new CustomEvent(DMS_COLLABORATION_SUBSCRIBE_DOCUMENT_EVENT, {
-      detail: { path: documentPath },
-    }));
-    return () => {
-      window.dispatchEvent(new CustomEvent(DMS_COLLABORATION_UNSUBSCRIBE_DOCUMENT_EVENT, {
-        detail: { path: documentPath },
+    const dispatchSubscribe = () => {
+      window.dispatchEvent(new CustomEvent(DMS_COLLABORATION_SUBSCRIBE_DOCUMENT_EVENT, {
+        detail: { path: documentPath, subscriptionId: documentSubscriptionId ?? undefined },
       }));
     };
-  }, [documentPath]);
+
+    dispatchSubscribe();
+    const retryIds = [0, 250, 1_000].map((delayMs) => (
+      window.setTimeout(dispatchSubscribe, delayMs)
+    ));
+    return () => {
+      retryIds.forEach((retryId) => window.clearTimeout(retryId));
+      window.dispatchEvent(new CustomEvent(DMS_COLLABORATION_UNSUBSCRIBE_DOCUMENT_EVENT, {
+        detail: { path: documentPath, subscriptionId: documentSubscriptionId ?? undefined },
+      }));
+    };
+  }, [documentPath, documentSubscriptionId]);
 
   useEffect(() => {
     if (!documentPath) {
       setSnapshot(null);
       setPendingTakeoverRequest(null);
+      return;
+    }
+    if (!isSessionReady) {
       return;
     }
     let active = true;
@@ -189,22 +288,25 @@ export function useDocumentCollaboration(path: string | null, mode: 'view' | 'ed
     return () => {
       active = false;
     };
-  }, [documentPath, mode, refreshTakeoverPendingState, sessionId]);
+  }, [documentPath, isSessionReady, mode, refreshTakeoverPendingState, sessionId]);
 
   useEffect(() => {
-    if (!documentPath) return;
+    if (!documentPath || !isSessionReady) return;
     return () => {
+      if (modeRef.current === 'edit') {
+        return;
+      }
       void collaborationApi.leave(documentPath, sessionId);
     };
-  }, [documentPath, sessionId]);
+  }, [documentPath, isSessionReady, sessionId]);
 
   useEffect(() => {
-    if (!documentPath || mode !== 'edit' || typeof window === 'undefined') return;
+    if (!documentPath || !isSessionReady || mode !== 'edit' || typeof window === 'undefined') return;
     const intervalId = window.setInterval(() => {
       void renewLock();
     }, 10_000);
     return () => window.clearInterval(intervalId);
-  }, [documentPath, mode, renewLock]);
+  }, [documentPath, isSessionReady, mode, renewLock]);
 
   useEffect(() => {
     if (!documentPath || typeof window === 'undefined') {

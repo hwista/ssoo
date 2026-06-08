@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { getSharedAccessToken } from '@ssoo/web-auth';
 import { useAuthStore } from '@/stores';
 import { fileTreeKeys } from '@/hooks/queries/useFileTree';
 import { normalizeDocumentPath } from '@/lib/utils/linkUtils';
@@ -53,6 +52,8 @@ interface DmsCollaborationChangedSocketEvent {
 }
 
 interface UseDmsSocketOptions {
+  /** 인증/권한 부트스트랩 완료 후에만 실시간 연결을 시작한다. */
+  enabled?: boolean;
   /** 현재 보고 있는 문서 경로 */
   activeDocumentPath?: string;
   /** 열린 문서 탭들의 경로. 협업 이벤트는 열린 문서 전체에 대해 즉시 수신한다. */
@@ -87,10 +88,18 @@ function getWsUrl(): string {
 // ============================================================================
 
 export function useDmsSocket(options: UseDmsSocketOptions = {}) {
-  const { activeDocumentPath, documentPaths, onFileChanged, onTreeChanged, onPublishStatus } = options;
+  const {
+    enabled = true,
+    activeDocumentPath,
+    documentPaths,
+    onFileChanged,
+    onTreeChanged,
+    onPublishStatus,
+  } = options;
   const socketRef = useRef<Socket | null>(null);
   const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const onFileChangedRef = useRef(onFileChanged);
   const onTreeChangedRef = useRef(onTreeChanged);
   const onPublishStatusRef = useRef(onPublishStatus);
@@ -116,9 +125,11 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
     return Array.from(paths).sort();
   }, [activeDocumentPath, documentPaths]);
   const subscribedDocumentPathKey = subscribedDocumentPaths.join('\n');
+  const socketAccessToken = accessToken?.trim() || null;
   const prevDocPaths = useRef<Set<string>>(new Set());
   const subscribedDocumentPathsRef = useRef(subscribedDocumentPaths);
   const directDocumentSubscriptionCountsRef = useRef<Map<string, number>>(new Map());
+  const directDocumentSubscriptionIdsRef = useRef<Map<string, Set<string>>>(new Map());
   subscribedDocumentPathsRef.current = subscribedDocumentPaths;
 
   // Invalidate file tree query
@@ -160,16 +171,13 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
 
   // Connect/disconnect based on auth state
   useEffect(() => {
-    if (!isAuthenticated || typeof window === 'undefined') return;
-
-    const token = getSharedAccessToken();
-    if (!token) return;
+    if (!enabled || !isAuthenticated || !socketAccessToken || typeof window === 'undefined') return;
 
     const wsUrl = getWsUrl();
     if (!wsUrl) return;
 
     const socket = io(`${wsUrl}/dms`, {
-      auth: { token },
+      auth: { token: socketAccessToken },
       transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
@@ -178,6 +186,22 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
     });
 
     socketRef.current = socket;
+
+    let authRefreshInFlight = false;
+    let lastAuthRefreshRequestedAt = 0;
+    const refreshAuthSession = () => {
+      const now = Date.now();
+      if (authRefreshInFlight || now - lastAuthRefreshRequestedAt < 3_000) {
+        return;
+      }
+
+      authRefreshInFlight = true;
+      lastAuthRefreshRequestedAt = now;
+      void useAuthStore.getState().refreshTokens()
+        .finally(() => {
+          authRefreshInFlight = false;
+        });
+    };
 
     socket.on('connect', () => {
       // 트리 변경 구독
@@ -228,13 +252,19 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
       window.dispatchEvent(new CustomEvent(DMS_LOCK_TAKEOVER_RESPONDED_EVENT, { detail: event }));
     });
 
+    socket.on('connect_error', refreshAuthSession);
+    socket.on('disconnect', (reason) => {
+      if (reason === 'io server disconnect') {
+        refreshAuthSession();
+      }
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
       prevDocPaths.current = new Set();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [enabled, invalidateFileTree, isAuthenticated, socketAccessToken, subscribeDocument]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -248,6 +278,17 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
       const normalizedPath = normalizeDocumentPath(detail.path);
       if (!normalizedPath) {
         return;
+      }
+
+      const subscriptionId = typeof detail.subscriptionId === 'string' ? detail.subscriptionId.trim() : '';
+      if (subscriptionId) {
+        const idsByPath = directDocumentSubscriptionIdsRef.current;
+        const ids = idsByPath.get(normalizedPath) ?? new Set<string>();
+        if (ids.has(subscriptionId)) {
+          return;
+        }
+        ids.add(subscriptionId);
+        idsByPath.set(normalizedPath, ids);
       }
 
       const counts = directDocumentSubscriptionCountsRef.current;
@@ -267,6 +308,19 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
       const normalizedPath = normalizeDocumentPath(detail.path);
       if (!normalizedPath) {
         return;
+      }
+
+      const subscriptionId = typeof detail.subscriptionId === 'string' ? detail.subscriptionId.trim() : '';
+      if (subscriptionId) {
+        const idsByPath = directDocumentSubscriptionIdsRef.current;
+        const ids = idsByPath.get(normalizedPath);
+        if (!ids?.has(subscriptionId)) {
+          return;
+        }
+        ids.delete(subscriptionId);
+        if (ids.size === 0) {
+          idsByPath.delete(normalizedPath);
+        }
       }
 
       const counts = directDocumentSubscriptionCountsRef.current;
@@ -300,7 +354,10 @@ export function useDmsSocket(options: UseDmsSocketOptions = {}) {
     const socket = socketRef.current;
     if (!socket?.connected) return;
 
-    const nextPaths = new Set(subscribedDocumentPathsRef.current);
+    const nextPaths = new Set([
+      ...subscribedDocumentPathsRef.current,
+      ...directDocumentSubscriptionCountsRef.current.keys(),
+    ]);
 
     // 닫힌 문서 구독 해제
     for (const previousPath of prevDocPaths.current) {

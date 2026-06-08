@@ -6,16 +6,20 @@ import {
   Get,
   Post,
   Query,
-  UseGuards } from '@nestjs/common';
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
   ApiBearerAuth,
-  ApiTags } from '@nestjs/swagger';
+  ApiTags,
+} from '@nestjs/swagger';
 import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
+import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { ChatSessionsService } from './chat-sessions.service.js';
@@ -34,12 +38,12 @@ export class ChatSessionsController {
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   async list(
-    @Query('clientId') clientId = '',
+    @CurrentUser() currentUser: TokenPayload,
     @Query('limit') limit = '50',
   ) {
     const parsedLimit = Number(limit);
     const data = await this.chatSessionsService.list(
-      clientId,
+      currentUser.userId,
       Number.isFinite(parsedLimit) ? parsedLimit : 50,
     );
     return success(data);
@@ -50,10 +54,12 @@ export class ChatSessionsController {
   @ApiOkResponse({ description: '채팅 세션 저장 결과 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  async save(@Body() body: Record<string, unknown>) {
-    const clientId = typeof body.clientId === 'string' ? body.clientId : '';
+  async save(
+    @CurrentUser() currentUser: TokenPayload,
+    @Body() body: Record<string, unknown>,
+  ) {
     const session = this.parseSessionPayload(body.session);
-    const data = await this.chatSessionsService.save(clientId, session);
+    const data = await this.chatSessionsService.save(currentUser.userId, session);
     return success(data);
   }
 
@@ -62,10 +68,12 @@ export class ChatSessionsController {
   @ApiOkResponse({ description: '채팅 세션 삭제 결과 반환' })
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
-  async remove(@Body() body: Record<string, unknown>) {
-    const clientId = typeof body.clientId === 'string' ? body.clientId : '';
+  async remove(
+    @CurrentUser() currentUser: TokenPayload,
+    @Body() body: Record<string, unknown>,
+  ) {
     const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
-    const data = await this.chatSessionsService.remove(clientId, sessionId);
+    const data = await this.chatSessionsService.remove(currentUser.userId, sessionId);
     return success(data);
   }
 
@@ -90,6 +98,7 @@ export class ChatSessionsController {
       title: candidate.title,
       createdAt: candidate.createdAt,
       updatedAt: candidate.updatedAt,
-      messages: candidate.messages };
+      messages: candidate.messages,
+    };
   }
 }

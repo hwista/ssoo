@@ -45,7 +45,7 @@ import { ImageLightbox } from '@/components/common/ImageLightbox';
 import type { TemplateItem } from '@/types/template';
 import { cn } from '@/lib/utils';
 import { Divider } from '@/components/ui/divider';
-import { AlertTriangle, Undo2, Redo2, Lock, Unlock } from 'lucide-react';
+import { AlertTriangle, Undo2, Redo2, Lock, Unlock, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { SplitDiffViewer } from '@/components/common/diff/SplitDiffViewer';
@@ -60,6 +60,12 @@ import { useDocumentPageComposeActions } from './useDocumentPageComposeActions';
 import { useTemplateSaveFlow } from './useTemplateSaveFlow';
 import { useViewerTemplatePicker } from './useViewerTemplatePicker';
 import { useDocumentCollaboration } from './useDocumentCollaboration';
+import {
+  buildDocumentEditDraftStorageKey,
+  readDocumentEditDraft,
+  removeDocumentEditDraft,
+  writeDocumentEditDraft,
+} from './documentEditDraftStorage';
 import { useDocumentInfoRecommendation } from './useDocumentInfoRecommendation';
 import { useDocumentLauncherActions } from './useDocumentLauncherActions';
 import { useDocumentReferenceLifecycle } from './useDocumentReferenceLifecycle';
@@ -78,6 +84,7 @@ import {
   resolveDocumentAclRole,
   resolveSaveDisplayName,
   stringifyDocumentMetadataDiffSnapshot,
+  type DocumentAclRole,
   type DocumentMetadataDiffSnapshot,
 } from './documentPageUtils';
 import { useDocumentAccessRequestStore } from '@/features/access';
@@ -92,6 +99,33 @@ type EditorSurfaceMode = 'edit' | 'preview' | 'diff' | 'conflict';
 type DiffTarget = 'content' | 'metadata';
 
 type SaveConflictState = EditorSaveConflictPayload;
+
+function getDocumentAclNoticeMessage(role: DocumentAclRole): string | null {
+  if (role === 'viewer') {
+    return '현재 본문 열람은 가능하지만 편집은 제한됩니다.';
+  }
+
+  if (role === 'editor') {
+    return '현재 본문 편집은 가능하지만 문서 정보 변경과 삭제는 제한됩니다.';
+  }
+
+  return null;
+}
+
+function DocumentAclNotice({ message }: { message: string }) {
+  return (
+    <div
+      className="mb-5 flex items-center gap-2 rounded-sm border border-dashed border-ssoo-content-border/80 bg-ssoo-content-bg/25 px-3 py-1.5 text-caption text-ssoo-primary/55"
+      role="note"
+      aria-label="문서 권한 안내"
+    >
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-ssoo-primary/15 bg-white/45 text-ssoo-primary/45">
+        <ShieldCheck className="h-2.5 w-2.5" aria-hidden="true" />
+      </span>
+      <span>{message}</span>
+    </div>
+  );
+}
 
 function buildSummarySourceFileMeta(file: InlineSummaryFileItem): SourceFileMeta {
   return {
@@ -163,7 +197,33 @@ export function DocumentPage() {
     setTemplateSaveData,
   } = useEditorStore();
 
-  const [mode, setMode] = useState<PageMode>('viewer');
+  const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
+  const createEntryType = useMemo<'launcher' | 'doc' | 'template' | 'ai-summary' | null>(() => {
+    const path = activeTab?.path;
+    if (path === '/doc/new') return 'launcher';
+    if (path === '/doc/new-doc') return 'doc';
+    if (path === '/doc/new-template') return 'template';
+    if (path === '/doc/new-ai-summary') return 'ai-summary';
+    return null;
+  }, [activeTab?.path]);
+  const isCreateMode = createEntryType !== null && createEntryType !== 'launcher';
+  const filePath = useMemo(() => getDocumentFilePath(activeTab?.path), [activeTab?.path]);
+  const highlightQuery = useMemo(() => getDocumentHighlightQuery(activeTab?.path), [activeTab?.path]);
+  const documentEditDraftStorageKey = useMemo(() => buildDocumentEditDraftStorageKey({
+    userId: currentUser?.userId,
+    tabId,
+    path: filePath,
+  }), [currentUser?.userId, filePath, tabId]);
+  const canResumeExistingEdit = Boolean(
+    activeTab?.isEditing
+    && filePath
+    && documentEditDraftStorageKey
+    && !isCreateMode,
+  );
+  const [resumeEditAfterRefresh, setResumeEditAfterRefresh] = useState(() => canResumeExistingEdit);
+  const shouldResumeExistingEdit = resumeEditAfterRefresh && canResumeExistingEdit;
+
+  const [mode, setMode] = useState<PageMode>(() => (shouldResumeExistingEdit ? 'editor' : 'viewer'));
   const [inlineInstruction, setInlineInstruction] = useState('');
   const [isComposing, setIsComposing] = useState(false);
   const [createPath, setCreatePath] = useState('drafts/new-doc.md');
@@ -181,6 +241,7 @@ export function DocumentPage() {
   const [focusedTakeoverRequest, setFocusedTakeoverRequest] = useState<DmsLockTakeoverRequestFocusEventDetail | null>(null);
   const editorRef = useRef<EditorRef | null>(null);
   const [liveEditorContent, setLiveEditorContent] = useState<string | null>(null);
+  const [pendingRestoredDraftContent, setPendingRestoredDraftContent] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<{ src: string; alt: string } | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
   const [templateConversionSource, setTemplateConversionSource] = useState<TemplateConversionPendingData | null>(null);
@@ -215,10 +276,6 @@ export function DocumentPage() {
 
   // 경로 변경 지연: 기존문서 경로 변경을 저장 시까지 보류
   const [pendingFileMove, setPendingFileMove] = useState<string | null>(null);
-
-  const handleEditorContentChange = useCallback((editorContent: string) => {
-    setLiveEditorContent(editorContent);
-  }, []);
 
   /** 편집 진입 시 메타데이터 스냅샷 (변경 하이라이트용) */
   const [originalMetaSnapshot, setOriginalMetaSnapshot] = useState<DocumentMetadataDiffSnapshot | null>(null);
@@ -274,13 +331,19 @@ export function DocumentPage() {
   }, []);
 
   useEffect(() => {
+    if (shouldResumeExistingEdit && !isEditing) {
+      setIsEditing(true);
+      setMode('editor');
+      return;
+    }
+
     if (mode === 'create' && !isEditing && storeCurrentFilePath) {
       // create 모드에서 저장 완료 (currentFilePath가 설정됨) → viewer 전환
       setMode('viewer');
     } else if (mode !== 'create') {
-      setMode(isEditing ? 'editor' : 'viewer');
+      setMode(isEditing || shouldResumeExistingEdit ? 'editor' : 'viewer');
     }
-  }, [isEditing, mode, storeCurrentFilePath]);
+  }, [isEditing, mode, setIsEditing, shouldResumeExistingEdit, storeCurrentFilePath]);
 
   useEffect(() => {
     if (mode === 'viewer') {
@@ -309,19 +372,7 @@ export function DocumentPage() {
     updateTab(tabId, { isEditing: mode === 'editor' || mode === 'create' });
   }, [mode, tabId, updateTab]);
 
-  const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
   const lastDocumentLoadRef = useRef<{ path: string; reloadSeq: number } | null>(null);
-
-  const createEntryType = useMemo<'launcher' | 'doc' | 'template' | 'ai-summary' | null>(() => {
-    const path = activeTab?.path;
-    if (path === '/doc/new') return 'launcher';
-    if (path === '/doc/new-doc') return 'doc';
-    if (path === '/doc/new-template') return 'template';
-    if (path === '/doc/new-ai-summary') return 'ai-summary';
-    return null;
-  }, [activeTab?.path]);
-
-  const isCreateMode = createEntryType !== null && createEntryType !== 'launcher';
   const documentAclRole = useMemo(
     () => resolveDocumentAclRole(documentMetadata, currentUser),
     [documentMetadata, currentUser],
@@ -348,9 +399,6 @@ export function DocumentPage() {
     setDiffTarget('content');
     setSaveConflict(null);
   }, [canEditCurrentDocument, isCreateMode, mode, setHasUnsavedChanges, setIsEditing]);
-
-  const filePath = useMemo(() => getDocumentFilePath(activeTab?.path), [activeTab?.path]);
-  const highlightQuery = useMemo(() => getDocumentHighlightQuery(activeTab?.path), [activeTab?.path]);
 
   const consumeAiSummaryPending = useNewDocStore((s) => s.consumeAiSummaryPending);
   const setTemplateConversionPending = useNewDocStore((s) => s.setTemplateConversionPending);
@@ -396,15 +444,49 @@ export function DocumentPage() {
       }
 
       lastDocumentLoadRef.current = { path: filePath, reloadSeq };
-      loadFile(filePath);
-      setMode('viewer');
-      setIsEditing(false);
-      setCreatePath(filePath);
-      resetInfoRecommendation();
-      setSaveConflict(null);
+      void (async () => {
+        await loadFile(filePath);
+        setCreatePath(filePath);
+        resetInfoRecommendation();
+        setSaveConflict(null);
+
+        if (shouldResumeExistingEdit) {
+          const draft = readDocumentEditDraft(documentEditDraftStorageKey, filePath);
+          setIsEditing(true);
+          setMode('editor');
+          setResumeEditAfterRefresh(false);
+          if (draft) {
+            setPendingRestoredDraftContent(draft.content);
+            setLiveEditorContent(draft.content);
+          }
+          return;
+        }
+
+        setMode('viewer');
+        setIsEditing(false);
+      })();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- resetInfoRecommendation is referentially stable
-  }, [activeTab?.reloadSeq, filePath, hasUnsavedChanges, isCreateMode, isEditing, loadFile, setIsEditing]);
+  }, [
+    activeTab?.reloadSeq,
+    documentEditDraftStorageKey,
+    filePath,
+    hasUnsavedChanges,
+    isCreateMode,
+    isEditing,
+    loadFile,
+    setIsEditing,
+    shouldResumeExistingEdit,
+  ]);
+
+  useEffect(() => {
+    if (mode !== 'viewer' || isEditing || isCreateMode) {
+      return;
+    }
+
+    removeDocumentEditDraft(documentEditDraftStorageKey);
+    setPendingRestoredDraftContent(null);
+  }, [documentEditDraftStorageKey, isCreateMode, isEditing, mode]);
 
   // AI 요약 자동 실행: 진입 시 pending 파일을 소비하고 본문 기반으로 compose 호출
   useEffect(() => {
@@ -1170,6 +1252,8 @@ export function DocumentPage() {
     if (!didSave) {
       return false;
     }
+    removeDocumentEditDraft(documentEditDraftStorageKey);
+    setPendingRestoredDraftContent(null);
     setSaveConflict(null);
 
     // 저장 성공 후 diff 스냅샷 갱신 (하이라이트 초기화)
@@ -1236,6 +1320,7 @@ export function DocumentPage() {
     setTemplateSaveData,
     canEditCurrentDocument,
     canManageCurrentDocument,
+    documentEditDraftStorageKey,
   ]);
 
   const handleSaveConflict = useCallback(async (conflict: EditorSaveConflictPayload) => {
@@ -1263,6 +1348,7 @@ export function DocumentPage() {
   }, [handleSave, isEditing]);
 
   const handleCancel = useCallback(() => {
+    setResumeEditAfterRefresh(false);
     if (templateModeEnabled && !isGeneratedTemplateMode) {
       toggleTemplateMode(false);
     }
@@ -1299,14 +1385,15 @@ export function DocumentPage() {
     setHasUnsavedChanges(true);
   }, [setLocalDocumentMetadata, setHasUnsavedChanges]);
   const handleCommentsChange = useCallback((comments: DocumentMetadata['comments']) => {
-    if (!documentMetadata) {
+    const currentMetadata = documentMetadataRef.current;
+    if (!currentMetadata) {
       return;
     }
     replaceLocalDocumentMetadata({
-      ...documentMetadata,
+      ...currentMetadata,
       comments,
     });
-  }, [documentMetadata, replaceLocalDocumentMetadata]);
+  }, [replaceLocalDocumentMetadata]);
   const composeRequestLifecycle = useRequestLifecycle();
 
   interface MetadataRecommendationResult {
@@ -1543,9 +1630,12 @@ export function DocumentPage() {
     },
   });
 
-  const isEditorMode = mode === 'editor' || mode === 'create';
+  const isEditorMode = mode === 'editor' || mode === 'create' || shouldResumeExistingEdit;
   const collaborationPath = currentDocumentPath || createPath || null;
   const collaborationMode = isEditorMode ? 'edit' : 'view';
+  const collaborationSessionScopeKey = useMemo(() => (
+    currentUser?.userId ? `${currentUser.userId}:${tabId}` : null
+  ), [currentUser?.userId, tabId]);
   const {
     snapshot: collaborationSnapshot,
     startEditing: startCollaborationEditing,
@@ -1560,7 +1650,11 @@ export function DocumentPage() {
     refresh: refreshCollaborationState,
     retryPublish: retryCollaborationPublish,
     sessionId: collaborationSessionId,
-  } = useDocumentCollaboration(collaborationPath, collaborationMode);
+  } = useDocumentCollaboration(
+    collaborationSessionScopeKey ? collaborationPath : null,
+    collaborationMode,
+    { sessionScopeKey: collaborationSessionScopeKey },
+  );
   collaborationStartEditingRef.current = startCollaborationEditing;
   collaborationPathRef.current = collaborationPath;
   const isOwnCollaborationSoftLock = Boolean(
@@ -1577,6 +1671,35 @@ export function DocumentPage() {
     isCollaborativelyLockedByOther
     || collaborationSnapshot?.isolation?.blockedActions.includes('write'),
   );
+  const handleEditorContentChange = useCallback((editorContent: string) => {
+    setLiveEditorContent(editorContent);
+
+    if (!documentEditDraftStorageKey || !filePath || !isEditorMode || isCreateMode) {
+      return;
+    }
+
+    if (editorContent === content) {
+      removeDocumentEditDraft(documentEditDraftStorageKey);
+      return;
+    }
+
+    writeDocumentEditDraft(documentEditDraftStorageKey, {
+      path: filePath,
+      content: editorContent,
+      ...(typeof documentMetadata?.revisionSeq === 'number' ? { revisionSeq: documentMetadata.revisionSeq } : {}),
+    });
+  }, [
+    content,
+    documentEditDraftStorageKey,
+    documentMetadata?.revisionSeq,
+    filePath,
+    isCreateMode,
+    isEditorMode,
+  ]);
+  const handleRestoredDraftApplied = useCallback(() => {
+    setPendingRestoredDraftContent(null);
+    toast.info('저장하지 않은 편집 초안을 복구했습니다.');
+  }, []);
   const focusedTakeoverRequestForPath = focusedTakeoverRequest?.path === collaborationPath ? focusedTakeoverRequest : null;
   const ownerTakeoverRequestId = collaborationLockTakeoverRequest?.requestId ?? focusedTakeoverRequestForPath?.requestId ?? null;
   const ownerTakeoverRequesterName = collaborationLockTakeoverRequest?.requester.displayName
@@ -2041,12 +2164,11 @@ export function DocumentPage() {
     );
   }
 
-  const documentAclNotice = !isCreateMode && canWriteDocuments
-    ? documentAclRole === 'viewer'
-      ? '이 문서는 viewer 권한으로 열려 편집이 제한됩니다.'
-      : documentAclRole === 'editor'
-        ? '이 문서는 editor 권한으로 열려 메타데이터 변경과 삭제가 제한됩니다.'
-        : null
+  const documentAclNoticeMessage = !isCreateMode
+    ? getDocumentAclNoticeMessage(documentAclRole)
+    : null;
+  const documentAclNoticeNode = documentAclNoticeMessage
+    ? <DocumentAclNotice message={documentAclNoticeMessage} />
     : null;
   const headerExtraActions = [
     ...(lockedPreviewHeaderActions ?? []),
@@ -2188,11 +2310,6 @@ export function DocumentPage() {
                   </div>
                 </div>
               ) : null}
-              {documentAclNotice ? (
-                <div className="mb-3 rounded-md border border-ssoo-primary/20 bg-ssoo-content-bg/60 px-4 py-3 text-sm text-ssoo-primary/80">
-                  {documentAclNotice}
-                </div>
-              ) : null}
               <DocumentPageContent
                 error={error}
                 handleRetry={handleRetry}
@@ -2215,12 +2332,15 @@ export function DocumentPage() {
                 currentDraftContent={currentTemplateDraftContent}
                 streamingAutoScroll={isConvertingToTemplate || isComposing}
                 onEditorContentChange={handleEditorContentChange}
+                restoredDraftContent={pendingRestoredDraftContent}
+                onRestoredDraftApplied={handleRestoredDraftApplied}
                 onLinkClick={handleViewerLinkClick}
                 onImageClick={handleViewerImageClick}
                 onHistoryChange={handleHistoryChange}
                 onSaveConflict={handleSaveConflict}
                 collaborationSessionId={collaborationSessionId}
                 canManageMetadata={canManageCurrentDocument}
+                documentAccessNotice={documentAclNoticeNode}
                 lockedPreview={lockedPreviewUi}
               />
             </>

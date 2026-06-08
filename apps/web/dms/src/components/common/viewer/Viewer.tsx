@@ -39,6 +39,8 @@ export interface ViewerProps {
   onImageClick?: (src: string, alt: string) => void;
   /** 검색어 — 문서 열 때 자동 하이라이트 */
   initialSearchQuery?: string | null;
+  /** 문서 본문 상단에 고정해 표시할 안내 영역 */
+  bodyHeader?: React.ReactNode;
 }
 
 /**
@@ -70,6 +72,7 @@ export function Viewer({
   onLinkClick,
   onImageClick,
   initialSearchQuery,
+  bodyHeader,
 }: ViewerProps) {
   void _showContentSurface;
 
@@ -180,15 +183,23 @@ export function Viewer({
         />
       )}
       body={(
-        <Content
-          content={displayContent}
-          zoomLevel={zoomLevel}
-          contentRef={contentRef}
-          variant={variant}
-          showSurface={false}
-          onLinkClick={onLinkClick}
-          onImageClick={onImageClick}
-        />
+        <div className="flex h-full min-h-0 flex-col">
+          {bodyHeader ? (
+            <div className="shrink-0">
+              {bodyHeader}
+            </div>
+          ) : null}
+          <Content
+            className="min-h-0 flex-1"
+            content={displayContent}
+            zoomLevel={zoomLevel}
+            contentRef={contentRef}
+            variant={variant}
+            showSurface={false}
+            onLinkClick={onLinkClick}
+            onImageClick={onImageClick}
+          />
+        </div>
       )}
     />
   );

@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthLoadingScreen, useProtectedAppBootstrap } from '@ssoo/web-auth';
-import type { CommonNotificationStreamEvent } from '@ssoo/types/common';
+import type { CommonNotificationItem, CommonNotificationJsonValue, CommonNotificationStreamEvent } from '@ssoo/types/common';
 import {
   useMarkDocumentNotificationsReadMutation,
   useNotificationEventStream,
@@ -55,6 +55,14 @@ function hasOpenDocumentPath(normalizedPath: string): boolean {
   ));
 }
 
+function getStringPayloadValue(
+  payload: Record<string, CommonNotificationJsonValue> | undefined,
+  key: string,
+): string | null {
+  const value = payload?.[key];
+  return typeof value === 'string' ? value : null;
+}
+
 function getChangedDocumentPaths(event: DmsFileChangedEvent): string[] {
   const paths = new Set<string>();
   for (const path of [event.path, ...(event.paths ?? [])]) {
@@ -64,6 +72,19 @@ function getChangedDocumentPaths(event: DmsFileChangedEvent): string[] {
     }
   }
   return Array.from(paths);
+}
+
+function getDocumentPathFromTabPath(tabPath: string): string | null {
+  if (!tabPath.startsWith('/doc/') || tabPath.startsWith('/doc/new')) {
+    return null;
+  }
+
+  const encodedPath = tabPath.slice('/doc/'.length);
+  try {
+    return normalizeDocumentPath(decodeURIComponent(encodedPath));
+  } catch {
+    return normalizeDocumentPath(encodedPath);
+  }
 }
 
 /**
@@ -92,8 +113,22 @@ export default function MainLayout({
   const { refreshFileTree } = useFileStore();
   const refreshPublishFailures = useGitStore((state) => state.refreshPublishFailures);
   const activeTabId = useTabStore((s) => s.activeTabId);
+  const tabs = useTabStore((s) => s.tabs);
   const activeDocumentPath = useActiveEditorFilePath(activeTabId);
   const openDocumentPaths = useOpenEditorFilePaths();
+  const openTabDocumentPaths = useMemo(() => {
+    const paths = new Set<string>();
+    for (const tab of tabs) {
+      const documentPath = getDocumentPathFromTabPath(tab.path);
+      if (documentPath) {
+        paths.add(documentPath);
+      }
+    }
+    return Array.from(paths).sort();
+  }, [tabs]);
+  const collaborationDocumentPaths = useMemo(() => (
+    Array.from(new Set([...openDocumentPaths, ...openTabDocumentPaths])).sort()
+  ), [openDocumentPaths, openTabDocumentPaths]);
   const { mutate: markDocumentNotificationsRead } = useMarkDocumentNotificationsReadMutation();
   const markDocumentNotificationsForPathRead = useCallback((path: string | null | undefined) => {
     const normalizedPath = normalizeDocumentPath(path ?? '');
@@ -138,27 +173,32 @@ export default function MainLayout({
       return;
     }
 
-    const response = await commentsApi.list(normalizedPath);
-    if (!response.success || !response.data) {
-      return;
-    }
-
-    const editorStore = useEditorMultiStore.getState();
-    for (const [tabId, editorState] of Object.entries(editorStore.editors)) {
-      if (
-        editorState.contentType !== 'document'
-        || normalizeDocumentPath(editorState.currentFilePath ?? '') !== normalizedPath
-        || !editorState.documentMetadata
-      ) {
-        continue;
+    try {
+      const response = await commentsApi.list(normalizedPath);
+      if (!response.success || !response.data) {
+        console.warn('댓글 목록 실시간 갱신 실패', { path: normalizedPath, error: response.error });
+        return;
       }
 
-      editorStore._updateTab(tabId, {
-        documentMetadata: {
-          ...editorState.documentMetadata,
-          comments: response.data.comments,
-        },
-      });
+      const editorStore = useEditorMultiStore.getState();
+      for (const [tabId, editorState] of Object.entries(editorStore.editors)) {
+        if (
+          editorState.contentType !== 'document'
+          || normalizeDocumentPath(editorState.currentFilePath ?? '') !== normalizedPath
+          || !editorState.documentMetadata
+        ) {
+          continue;
+        }
+
+        editorStore._updateTab(tabId, {
+          documentMetadata: {
+            ...editorState.documentMetadata,
+            comments: response.data.comments,
+          },
+        });
+      }
+    } catch (error) {
+      console.warn('댓글 목록 실시간 갱신 중 오류', { path: normalizedPath, error });
     }
   }, []);
   const refreshOpenDocumentTabsForFileChange = useCallback((event: DmsFileChangedEvent) => {
@@ -248,16 +288,45 @@ export default function MainLayout({
       return;
     }
 
-    void refreshOpenDocumentComments(normalizedPath);
-    markDocumentNotificationsForPathRead(normalizedPath);
+    void refreshOpenDocumentComments(normalizedPath)
+      .finally(() => markDocumentNotificationsForPathRead(normalizedPath));
+  }, [markDocumentNotificationsForPathRead, refreshOpenDocumentComments]);
+  const handleNotificationEvent = useCallback((notification: CommonNotificationItem) => {
+    if (!notification.notificationType.includes('document-comment')) {
+      return;
+    }
+
+    const path = getStringPayloadValue(notification.action?.payload, 'path')
+      ?? notification.reference?.path
+      ?? null;
+    const normalizedPath = normalizeDocumentPath(path ?? '');
+    if (!hasOpenDocumentPath(normalizedPath)) {
+      return;
+    }
+
+    void refreshOpenDocumentComments(normalizedPath)
+      .finally(() => markDocumentNotificationsForPathRead(normalizedPath));
   }, [markDocumentNotificationsForPathRead, refreshOpenDocumentComments]);
 
   useLayoutViewportSync();
 
+  const { showLoading, shouldRender } = useProtectedAppBootstrap({
+    hasHydrated,
+    isAuthenticated,
+    authIsLoading,
+    accessHasLoaded,
+    accessIsLoading,
+    checkAuth,
+    hydrateAccess,
+    resetAccess,
+    onUnauthenticated: redirectToLogin,
+  });
+
   // WebSocket 실시간 동기화
   useDmsSocket({
+    enabled: shouldRender,
     activeDocumentPath: activeDocumentPath ?? undefined,
-    documentPaths: openDocumentPaths,
+    documentPaths: collaborationDocumentPaths,
     onFileChanged: refreshOpenDocumentTabsForFileChange,
     onPublishStatus: () => {
       void refreshPublishFailures();
@@ -266,6 +335,7 @@ export default function MainLayout({
 
   useNotificationEventStream('dms', {
     enabled: isAuthenticated,
+    onNotification: handleNotificationEvent,
     onDomainEvent: handleNotificationDomainEvent,
   });
 
@@ -294,18 +364,6 @@ export default function MainLayout({
 
     markDocumentNotificationsForPathRead(activeDocumentPath);
   }, [activeDocumentPath, isAuthenticated, markDocumentNotificationsForPathRead]);
-
-  const { showLoading, shouldRender } = useProtectedAppBootstrap({
-    hasHydrated,
-    isAuthenticated,
-    authIsLoading,
-    accessHasLoaded,
-    accessIsLoading,
-    checkAuth,
-    hydrateAccess,
-    resetAccess,
-    onUnauthenticated: redirectToLogin,
-  });
 
   useEffect(() => {
     if (!isAuthenticated || !currentUserId || !accessSnapshot?.features.canReadDocuments) {

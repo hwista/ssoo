@@ -268,7 +268,7 @@ export const useTabStore = create<TabStore>()(
           state.tabs = state.tabs.map((tab) => ({
             ...tab,
             title: normalizeAiTabTitle(tab.path, tab.title),
-            isEditing: false,
+            isEditing: Boolean(tab.isEditing),
             reloadSeq: tab.reloadSeq ?? 0,
             openedAt: new Date(tab.openedAt),
             lastActiveAt: new Date(tab.lastActiveAt),

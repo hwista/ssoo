@@ -4,6 +4,7 @@ import * as React from 'react';
 import { toast } from '@/lib/toast';
 import { commentsApi, storageApi } from '@/lib/api';
 import { useConfirmStore } from '@/stores';
+import { ScrollToLatestButton } from '@/components/common';
 import type { SourceFileMeta, DocumentMetadata, DocumentComment, BodyLink } from '@/types';
 import type { DmsDocumentAccessRequestRole } from '@ssoo/types/dms';
 import type { DocumentCollaborationSnapshotClient } from '@/lib/api/collaborationApi';
@@ -26,7 +27,10 @@ import {
 } from './document-panel';
 import { VisibilityValue } from '@/features/access';
 import { joinDocumentPath, normalizeDocumentPath } from '@/lib/utils/linkUtils';
+import { useAutoScroll } from '@/hooks/useAutoScroll';
 import type { DocumentMetadataDiffSnapshot } from '../documentPageUtils';
+
+const EMPTY_COMMENTS: DocumentComment[] = [];
 
 export interface DocumentPanelLockedPreview {
   title: string;
@@ -284,7 +288,11 @@ export function DocumentPanel({
   const attachments = documentMetadata?.sourceFiles ?? [];
   const summary = documentMetadata?.summary ?? '';
   const sourceLinks = documentMetadata?.sourceLinks ?? [];
-  const comments = documentMetadata?.comments ?? [];
+  const comments = documentMetadata?.comments ?? EMPTY_COMMENTS;
+  const commentChangeKey = React.useMemo(
+    () => comments.map((comment) => `${comment.id}:${comment.createdAt}:${comment.deletedAt ?? ''}:${comment.content}`).join('|'),
+    [comments],
+  );
   const isTemplatePanel = templateModeEnabled;
   const templateReferenceAttachments = React.useMemo<SourceFileMeta[]>(() => (
     isTemplatePanel
@@ -300,6 +308,16 @@ export function DocumentPanel({
   ), [isTemplatePanel, templateReferenceDocuments]);
   const [isSaveLocationOpen, setIsSaveLocationOpen] = React.useState(false);
   const [replyTarget, setReplyTarget] = React.useState<{ id: string; author: string } | undefined>();
+  const panelBodyRef = React.useRef<HTMLDivElement>(null);
+  const previousCommentChangeKeyRef = React.useRef<string | null>(null);
+  const shouldForceCommentScrollRef = React.useRef(false);
+  const {
+    showScrollToBottom: showCommentScrollToBottom,
+    scrollToBottom,
+  } = useAutoScroll({
+    scrollRef: panelBodyRef,
+    active: true,
+  });
 
   const displayPath = lockedPreview?.path || filePath || '';
   const normalizedFilePath = displayPath ? normalizeDocumentPath(displayPath) : '';
@@ -371,6 +389,22 @@ export function DocumentPanel({
     return true;
   };
 
+  React.useEffect(() => {
+    if (previousCommentChangeKeyRef.current === null) {
+      previousCommentChangeKeyRef.current = commentChangeKey;
+      return;
+    }
+    if (previousCommentChangeKeyRef.current === commentChangeKey) {
+      return;
+    }
+
+    previousCommentChangeKeyRef.current = commentChangeKey;
+    if (shouldForceCommentScrollRef.current) {
+      shouldForceCommentScrollRef.current = false;
+      scrollToBottom({ force: true, behavior: 'smooth' });
+    }
+  }, [commentChangeKey, scrollToBottom]);
+
   const handleCommentAdd = async (content: string, parentId?: string) => {
     if (!normalizedFilePath) {
       toast.info('문서를 저장한 후 댓글을 작성할 수 있습니다.');
@@ -387,6 +421,9 @@ export function DocumentPanel({
       return false;
     }
 
+    if (response.data?.comments) {
+      shouldForceCommentScrollRef.current = true;
+    }
     return applyCommentMutation(response.data?.comments);
   };
 
@@ -546,7 +583,16 @@ export function DocumentPanel({
   return (
     <PanelFrame
       className={className}
+      bodyRef={panelBodyRef}
       footerClassName="border-t-0"
+      floatingContent={(
+        <ScrollToLatestButton
+          visible={showCommentScrollToBottom}
+          onClick={() => scrollToBottom({ force: true, behavior: 'smooth' })}
+          label="최신 댓글로 이동"
+          className={canComment ? 'bottom-[92px]' : undefined}
+        />
+      )}
       footer={canComment ? (
         <CommentInput
           onAdd={handleCommentAdd}
@@ -671,12 +717,7 @@ export function DocumentPanel({
                 onDelete={handleCommentDelete}
                 onRestore={handleCommentRestore}
                 onReply={(comment) => {
-                  const commentMap = new Map(comments.map((c) => [c.id, c]));
-                  let current = comment;
-                  while (current.parentId && commentMap.has(current.parentId)) {
-                    current = commentMap.get(current.parentId)!;
-                  }
-                  setReplyTarget({ id: current.id, author: comment.author || 'Unknown' });
+                  setReplyTarget({ id: comment.id, author: comment.author || 'Unknown' });
                 }}
                 locked={Boolean(lockedPreview)}
               />

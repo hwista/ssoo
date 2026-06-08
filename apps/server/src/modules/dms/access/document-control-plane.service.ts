@@ -12,6 +12,7 @@ import type {
 } from '@ssoo/types/dms';
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
+import { configService } from '../runtime/dms-config.service.js';
 import { normalizeRelativePath } from '../runtime/path-utils.js';
 
 const DOCUMENT_CONTROL_PLANE_SELECT = {
@@ -415,6 +416,11 @@ export class DocumentControlPlaneService {
         relativePath: 'asc',
       },
     });
+  }
+
+  async listUserVisibleActiveDocuments(): Promise<ControlPlaneDocument[]> {
+    const documents = await this.listActiveDocuments();
+    return documents.filter((document) => !configService.isUserSurfaceHiddenPath(document.relativePath));
   }
 
   async getProjectedMetadataByRelativePath(relativePath: string): Promise<DocumentMetadata | null> {

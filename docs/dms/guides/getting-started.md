@@ -31,7 +31,7 @@ pnpm db:setup
 
 - PMS: `http://localhost:3000`
 - DMS: `http://localhost:3001`
-- CMS: `http://localhost:3002`
+- SNS: `http://localhost:3002`
 - Server health: `http://localhost:4000/api/health`
 
 직접 DMS 개발 서버가 필요하면 대안으로 `pnpm dev:web-dms`를 사용할 수 있습니다.

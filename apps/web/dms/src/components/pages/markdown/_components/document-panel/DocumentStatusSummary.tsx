@@ -49,14 +49,6 @@ const toneClassNames: Record<StatusTone, string> = {
   muted: 'border-ssoo-content-border bg-white text-ssoo-primary/55',
 };
 
-const summaryToneClassNames: Record<StatusTone, string> = {
-  success: 'bg-emerald-50 text-emerald-700',
-  info: 'bg-sky-50 text-sky-700',
-  warning: 'bg-amber-50 text-amber-700',
-  danger: 'bg-red-50 text-red-700',
-  muted: 'bg-ssoo-content-bg text-ssoo-primary/60',
-};
-
 const blockedActionLabels: Record<DocumentPathIsolationStateClient['blockedActions'][number], string> = {
   write: '작성',
   updateMetadata: '정보 수정',
@@ -110,7 +102,19 @@ function formatSyncSummary(syncStatus?: GitSyncStatusClient): string | null {
   }
 }
 
-function getPublishMeta(status: DocumentPublishStateClient['status']): StatusMeta {
+function getPublishMeta(
+  status: DocumentPublishStateClient['status'],
+  isolation?: DocumentPathIsolationStateClient | null,
+): StatusMeta {
+  if (isolation && status !== 'sync-blocked' && status !== 'push-failed') {
+    return {
+      label: '작업 제한',
+      detail: '문서 상태 확인이 필요해 일부 작업이 제한될 수 있습니다.',
+      tone: 'danger',
+      icon: AlertTriangle,
+    };
+  }
+
   switch (status) {
     case 'clean':
       return {
@@ -166,7 +170,7 @@ function getPublishMeta(status: DocumentPublishStateClient['status']): StatusMet
 }
 
 function buildPublishDetail(state: DocumentPublishStateClient, isolation: DocumentPathIsolationStateClient | null): string {
-  const meta = getPublishMeta(state.status);
+  const meta = getPublishMeta(state.status, isolation);
   const lines = [meta.detail];
   const syncSummary = formatSyncSummary(state.syncStatus);
   const actor = state.lastActorDisplayName || state.lastActorLoginId;
@@ -248,23 +252,6 @@ function getLockMeta(lock: DocumentSoftLockClient | null, currentUserId?: string
   };
 }
 
-function getSummary(snapshot: DocumentCollaborationSnapshotClient, currentUserId?: string): { label: string; tone: StatusTone } {
-  const publishStatus = snapshot.publishState.status;
-  const hasPublishProblem = publishStatus === 'sync-blocked' || publishStatus === 'push-failed' || Boolean(snapshot.isolation);
-  if (hasPublishProblem) {
-    return { label: '조치 필요', tone: 'danger' };
-  }
-
-  const hasPendingPublish = publishStatus === 'dirty-uncommitted' || publishStatus === 'committed-unpushed' || publishStatus === 'publishing';
-  const hasOtherEditor = snapshot.members.some((member) => member.mode === 'edit' && (!currentUserId || member.userId !== currentUserId));
-  const hasOtherLock = Boolean(snapshot.softLock && (!currentUserId || snapshot.softLock.userId !== currentUserId));
-  if (hasPendingPublish || hasOtherEditor || hasOtherLock) {
-    return { label: '주의', tone: 'warning' };
-  }
-
-  return { label: '정상', tone: 'success' };
-}
-
 function StatusIcon({
   meta,
   detail,
@@ -322,10 +309,9 @@ export function DocumentStatusSummary({
   onRefreshPublishState,
   onRetryPublish,
 }: DocumentStatusSummaryProps) {
-  const publishMeta = getPublishMeta(snapshot.publishState.status);
+  const publishMeta = getPublishMeta(snapshot.publishState.status, snapshot.isolation);
   const presenceMeta = getPresenceMeta(snapshot.members, currentUserId);
   const lockMeta = getLockMeta(snapshot.softLock, currentUserId);
-  const summary = getSummary(snapshot, currentUserId);
   const canRefresh = Boolean(
     onRefreshPublishState
     && (snapshot.isolation || snapshot.publishState.status === 'sync-blocked' || snapshot.publishState.status === 'push-failed')
@@ -335,7 +321,6 @@ export function DocumentStatusSummary({
     && !snapshot.isolation
     && (snapshot.publishState.status === 'sync-blocked' || snapshot.publishState.status === 'push-failed')
   );
-  const showSummaryBadge = summary.tone !== 'success';
   const visibleStatusItems = [
     {
       key: 'publish',
@@ -361,11 +346,6 @@ export function DocumentStatusSummary({
           </span>
           <span className="min-w-0 truncate">상태</span>
         </span>
-        {showSummaryBadge ? (
-          <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-badge', summaryToneClassNames[summary.tone])}>
-            {summary.label}
-          </span>
-        ) : null}
         <div className="flex shrink-0 items-center gap-1">
           {visibleStatusItems.map((item) => (
             <StatusIcon key={item.key} meta={item.meta} detail={item.detail} />

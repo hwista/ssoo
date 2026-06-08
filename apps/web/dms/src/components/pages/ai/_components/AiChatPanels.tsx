@@ -4,6 +4,7 @@ import * as React from 'react';
 import { ExternalLink } from 'lucide-react';
 import { AssistantComposer } from '@/components/common/assistant/Composer';
 import { AssistantMessageList } from '@/components/common/assistant/MessageList';
+import { ScrollToLatestButton } from '@/components/common';
 import { SHELL_BODY_WRAPPER_PRESETS } from '@/components/templates/page-frame';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
@@ -27,9 +28,13 @@ export function AiChatBody({
   submitUserMessage,
 }: AiChatBodyProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
-  const { scrollToBottomIfNeeded } = useAutoScroll({
+  const {
+    showScrollToBottom,
+    scrollToBottom,
+    scrollToBottomIfNeeded,
+  } = useAutoScroll({
     scrollRef,
-    active: isProcessing,
+    active: messages.length > 0,
   });
   const streamingContentLength = React.useMemo(() => {
     const lastMessage = messages[messages.length - 1];
@@ -38,50 +43,51 @@ export function AiChatBody({
 
   React.useEffect(() => {
     scrollToBottomIfNeeded();
-  }, [scrollToBottomIfNeeded, streamingContentLength]);
-
-  React.useEffect(() => {
-    const element = scrollRef.current;
-    if (!element || messages.length === 0) return;
-    element.scrollTop = element.scrollHeight;
-  }, [messages.length]);
+  }, [messages.length, scrollToBottomIfNeeded, streamingContentLength]);
 
   return (
-    <div
-      ref={scrollRef}
-      className={[
-        SHELL_BODY_WRAPPER_PRESETS.aiChat,
-        messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto',
-      ].join(' ')}
-    >
-      <div className="sticky left-0 top-0 z-10 h-0">
-        <button
-          type="button"
-          onClick={startNewSession}
-          className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-border/60 text-ssoo-primary/75 opacity-55 transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary hover:opacity-100 focus-visible:opacity-100"
-          title="새 채팅 세션"
-          aria-label="새 채팅 세션"
-        >
-          <ExternalLink className="h-4 w-4" />
-        </button>
-      </div>
+    <div className="relative h-full min-h-0">
+      <div
+        ref={scrollRef}
+        className={[
+          SHELL_BODY_WRAPPER_PRESETS.aiChat,
+          messages.length === 0 ? 'overflow-hidden' : 'overflow-y-auto',
+        ].join(' ')}
+      >
+        <div className="sticky left-0 top-0 z-10 h-0">
+          <button
+            type="button"
+            onClick={startNewSession}
+            className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-border/60 text-ssoo-primary/75 opacity-55 transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary hover:opacity-100 focus-visible:opacity-100"
+            title="새 채팅 세션"
+            aria-label="새 채팅 세션"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </button>
+        </div>
 
-      {messages.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-body-sm text-ssoo-primary/60">
-          첫 질문을 입력해 대화를 시작하세요.
-        </div>
-      ) : (
-        <div className="space-y-4 pb-8 pt-12">
-          <AssistantMessageList
-            messages={messages}
-            onOpenFile={handleOpenFile}
-            onOpenHelpAction={handleOpenHelpAction}
-            onResendUserMessage={submitUserMessage}
-            actionDisabled={isProcessing}
-            variant="page"
-          />
-        </div>
-      )}
+        {messages.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-body-sm text-ssoo-primary/60">
+            첫 질문을 입력해 대화를 시작하세요.
+          </div>
+        ) : (
+          <div className="space-y-4 pb-16 pt-12">
+            <AssistantMessageList
+              messages={messages}
+              onOpenFile={handleOpenFile}
+              onOpenHelpAction={handleOpenHelpAction}
+              onResendUserMessage={submitUserMessage}
+              actionDisabled={isProcessing}
+              variant="page"
+            />
+          </div>
+        )}
+      </div>
+      <ScrollToLatestButton
+        visible={showScrollToBottom}
+        onClick={() => scrollToBottom({ force: true, behavior: 'smooth' })}
+        label="최신 응답으로 이동"
+      />
     </div>
   );
 }

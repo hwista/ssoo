@@ -37,7 +37,7 @@ export class FilesController {
   @ApiUnauthorizedResponse({ type: ApiError, description: '인증 필요' })
   async getFileTree(@CurrentUser() currentUser: TokenPayload) {
     await this.accessRequestService.ensureRepoControlPlaneSynced();
-    const documents = await this.documentControlPlaneService.listActiveDocuments();
+    const documents = await this.documentControlPlaneService.listUserVisibleActiveDocuments();
     const projectedDocuments = documents.map((document) => this.documentControlPlaneService.projectMetadata(document));
     const tree = this.documentControlPlaneService.buildFileTree(projectedDocuments);
 

@@ -47,6 +47,10 @@ export interface EditorProps {
   streamingAutoScroll?: boolean;
   /** 콘텐츠 변경 콜백 (실시간 동기화용) */
   onContentChange?: (content: string) => void;
+  /** 새로고침 이후 복구할 미저장 초안 */
+  restoredDraftContent?: string | null;
+  /** 미저장 초안 복구 적용 완료 콜백 */
+  onRestoredDraftApplied?: () => void;
   /** undo/redo 가용성 변경 콜백 */
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   /** 저장 충돌 감지 시 */
@@ -95,6 +99,8 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   isPendingInsertLoading = false,
   streamingAutoScroll = false,
   onContentChange,
+  restoredDraftContent,
+  onRestoredDraftApplied,
   onHistoryChange,
   onSaveConflict,
   collaborationSessionId,
@@ -178,7 +184,8 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
   // =====================
   const handleBlockEditorChange = React.useCallback((markdown: string) => {
     updateContent(markdown);
-  }, [updateContent]);
+    onContentChange?.(markdown);
+  }, [onContentChange, updateContent]);
   const blockEditorRef = React.useRef<BlockEditorRef>(null);
   const lastResetContentRef = React.useRef<string | null>(null);
   const handleToolbarCommand = React.useCallback((id: ToolbarCommandId) => {
@@ -303,6 +310,16 @@ export const Editor = React.forwardRef<EditorRef, EditorProps>(function Editor({
     setEditorHandlers,
     clearEditorHandlers,
   });
+
+  React.useEffect(() => {
+    if (typeof restoredDraftContent !== 'string') {
+      return;
+    }
+
+    replaceContent(restoredDraftContent);
+    onContentChange?.(restoredDraftContent);
+    onRestoredDraftApplied?.();
+  }, [onContentChange, onRestoredDraftApplied, replaceContent, restoredDraftContent]);
 
   // 파일이 없고, 편집 중도 아닐 때 (새 문서 작성 시에는 isEditing=true)
   if (!currentFilePath && !isEditing) {

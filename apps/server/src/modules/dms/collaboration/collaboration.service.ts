@@ -247,6 +247,10 @@ export class CollaborationService implements OnModuleDestroy {
 
   async takeover(input: { path: string; currentUser: TokenPayload; sessionId?: string }): Promise<SoftLockTakeoverResult> {
     const normalizedPath = normalizePath(input.path);
+    if (configService.isUserSurfaceHiddenPath(normalizedPath)) {
+      throw new BadRequestException('DMS 사용자 문서 표면에서 제외된 경로입니다.');
+    }
+
     const actor = await this.resolveActorProfile(input.currentUser);
     const sessionId = this.resolveSessionId(input.currentUser, input.sessionId);
     const now = new Date().toISOString();
@@ -992,6 +996,10 @@ export class CollaborationService implements OnModuleDestroy {
   }
 
   private async notifyTakeoverRequested(request: SoftLockTakeoverRequest, actor: TokenPayload): Promise<void> {
+    if (configService.isUserSurfaceHiddenPath(request.path)) {
+      return;
+    }
+
     try {
       await this.notificationService.notifyUser({
         recipientUserId: BigInt(request.owner.userId),
@@ -1030,6 +1038,10 @@ export class CollaborationService implements OnModuleDestroy {
     request: SoftLockTakeoverRequest,
     response: SoftLockTakeoverResponse,
   ): Promise<void> {
+    if (configService.isUserSurfaceHiddenPath(request.path)) {
+      return;
+    }
+
     const approved = response.status === 'approved';
     try {
       await this.notificationService.notifyUser({
@@ -1232,6 +1244,24 @@ export class CollaborationService implements OnModuleDestroy {
         actorUserId: actor.userId,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  async archiveUserSurfaceHiddenNotifications(): Promise<number> {
+    const hiddenPrefixes = configService.getUserSurfaceHiddenPathPrefixes();
+    if (hiddenPrefixes.length === 0) {
+      return 0;
+    }
+
+    try {
+      const result = await this.notificationService.archiveByReferencePathPrefixes('dms', hiddenPrefixes);
+      return result.count;
+    } catch (error) {
+      logger.warn('사용자 표면 제외 경로 알림 archive 실패', {
+        prefixes: hiddenPrefixes,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return 0;
     }
   }
 
