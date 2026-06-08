@@ -34,6 +34,9 @@ interface SummaryFileInput {
   type?: string;
   textContent: string;
   images?: { base64: string; mimeType: string; name: string }[];
+  warningReason?: string;
+  unsupportedReason?: string;
+  protectedMarkerDetected?: boolean;
 }
 
 function flattenTree(nodes: FileNode[], prefix = ''): { dirs: string[]; files: string[] } {
@@ -191,9 +194,43 @@ export class DocAssistController {
   }
 
   private readSummaryFiles(value: unknown): SummaryFileInput[] {
-    return Array.isArray(value) ? value.filter((item): item is SummaryFileInput => (
-      typeof item === 'object' && item !== null && typeof (item as SummaryFileInput).name === 'string'
-    )) : [];
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.flatMap((item): SummaryFileInput[] => {
+      if (typeof item !== 'object' || item === null) {
+        return [];
+      }
+
+      const candidate = item as Record<string, unknown>;
+      if (typeof candidate.name !== 'string') {
+        return [];
+      }
+
+      const images = Array.isArray(candidate.images)
+        ? candidate.images.filter((image): image is { base64: string; mimeType: string; name: string } => (
+          typeof image === 'object'
+          && image !== null
+          && typeof (image as Record<string, unknown>).base64 === 'string'
+          && typeof (image as Record<string, unknown>).mimeType === 'string'
+          && typeof (image as Record<string, unknown>).name === 'string'
+        ))
+        : undefined;
+
+      return [{
+        id: typeof candidate.id === 'string' ? candidate.id : undefined,
+        name: candidate.name,
+        type: typeof candidate.type === 'string' ? candidate.type : undefined,
+        textContent: typeof candidate.textContent === 'string' ? candidate.textContent : '',
+        images,
+        warningReason: typeof candidate.warningReason === 'string' ? candidate.warningReason : undefined,
+        unsupportedReason: typeof candidate.unsupportedReason === 'string' ? candidate.unsupportedReason : undefined,
+        protectedMarkerDetected: typeof candidate.protectedMarkerDetected === 'boolean'
+          ? candidate.protectedMarkerDetected
+          : undefined,
+      }];
+    });
   }
 
   private assertReadableActivePath(

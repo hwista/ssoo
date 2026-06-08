@@ -22,7 +22,31 @@ export interface ExtractedImage {
 export interface ExtractionResult {
   text: string;
   images: ExtractedImage[];
+  warningReason?: string;
+  unsupportedReason?: string;
+  protectedMarkerDetected?: boolean;
 }
+
+const MIN_USABLE_TEXT_LENGTH = 50;
+const PROTECTED_PDF_MARKERS = [
+  'MicrosoftIRMServices',
+  'EncryptedPayload',
+  'Protected PDF',
+  'Microsoft Information Rights Management',
+  'Information Rights Management',
+  'MSIP_Label',
+  'mip_label',
+];
+
+const IRM_WRAPPER_TEXT_PATTERNS = [
+  /Microsoft\s+Information\s+Rights\s+Management/i,
+  /Information\s+Rights\s+Management/i,
+  /MicrosoftIRMServices/i,
+  /EncryptedPayload/i,
+  /Protected\s+PDF/i,
+  /보호된?\s*(PDF|문서)/i,
+  /권한\s*관리/i,
+];
 
 function getExtractionConfig() {
   try {
@@ -55,6 +79,7 @@ export async function extractTextFromFile(
 ): Promise<ExtractionResult> {
   const ext = extname(fileName).toLowerCase();
   const cfg = getExtractionConfig();
+  const protectedMarkerDetected = ext === '.pdf' && hasProtectedPdfMarker(buffer);
 
   try {
     switch (ext) {
@@ -81,12 +106,19 @@ export async function extractTextFromFile(
       case '.htm':
         return { text: buffer.toString('utf-8').slice(0, cfg.maxTextLength), images: [] };
       default:
-        return { text: '', images: [] };
+        return { text: '', images: [], unsupportedReason: 'unsupported-file-type' };
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error('텍스트 추출 실패', undefined, { fileName, ext, error: message });
-    return { text: '', images: [] };
+    const unsupportedReason = protectedMarkerDetected ? 'protected-pdf' : 'extraction-error';
+    logger.error('텍스트 추출 실패', undefined, {
+      fileName,
+      ext,
+      error: message,
+      unsupportedReason,
+      protectedMarkerDetected,
+    });
+    return { text: '', images: [], unsupportedReason, protectedMarkerDetected };
   }
 }
 
@@ -167,6 +199,79 @@ function extractOfficeZip(
   };
 }
 
+function hasProtectedPdfMarker(buffer: Buffer, text = ''): boolean {
+  const raw = `${buffer.toString('latin1', 0, Math.min(buffer.length, 1024 * 1024))}\n${text}`;
+  const normalizedRaw = raw.toLowerCase();
+  return PROTECTED_PDF_MARKERS.some((marker) => normalizedRaw.includes(marker.toLowerCase()));
+}
+
+function isIrmWrapperOnlyText(text: string): boolean {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return false;
+  }
+
+  const hasWrapperPattern = IRM_WRAPPER_TEXT_PATTERNS.some((pattern) => pattern.test(normalized));
+  if (!hasWrapperPattern) {
+    return false;
+  }
+
+  const textWithoutKnownWrapperWords = normalized
+    .replace(/Microsoft/gi, ' ')
+    .replace(/Information/gi, ' ')
+    .replace(/Rights/gi, ' ')
+    .replace(/Management/gi, ' ')
+    .replace(/Services/gi, ' ')
+    .replace(/EncryptedPayload/gi, ' ')
+    .replace(/Protected/gi, ' ')
+    .replace(/PDF/gi, ' ')
+    .replace(/보호된?|문서|권한|관리|열람|암호화/gi, ' ')
+    .replace(/[^a-z0-9가-힣]+/gi, ' ')
+    .trim();
+
+  return textWithoutKnownWrapperWords.length < MIN_USABLE_TEXT_LENGTH;
+}
+
+function isUsableExtraction(text: string, images: ExtractedImage[], protectedMarkerDetected: boolean): boolean {
+  const trimmedText = text.trim();
+  const hasUsableText = trimmedText.length >= MIN_USABLE_TEXT_LENGTH && !isIrmWrapperOnlyText(trimmedText);
+  if (hasUsableText) {
+    return true;
+  }
+
+  if (images.length > 0 && !isIrmWrapperOnlyText(trimmedText)) {
+    return true;
+  }
+
+  return !protectedMarkerDetected && trimmedText.length > 0;
+}
+
+function finalizePdfExtraction(
+  buffer: Buffer,
+  text: string,
+  images: ExtractedImage[],
+): ExtractionResult {
+  const protectedMarkerDetected = hasProtectedPdfMarker(buffer, text);
+  const wrapperOnlyText = isIrmWrapperOnlyText(text);
+  const usable = isUsableExtraction(text, images, protectedMarkerDetected);
+
+  if (!usable) {
+    return {
+      text,
+      images,
+      unsupportedReason: protectedMarkerDetected || wrapperOnlyText ? 'protected-pdf' : 'empty-content',
+      protectedMarkerDetected,
+    };
+  }
+
+  return {
+    text,
+    images,
+    warningReason: protectedMarkerDetected ? 'protected-pdf-detected' : undefined,
+    protectedMarkerDetected,
+  };
+}
+
 let pdfjsModuleDefined = false;
 
 async function ensurePdfJsModule() {
@@ -219,7 +324,7 @@ async function extractPdf(buffer: Buffer, cfg: ExtractionCfg): Promise<Extractio
     }
   }
 
-  return { text, images };
+  return finalizePdfExtraction(buffer, text, images);
 }
 
 async function extractDocx(buffer: Buffer, cfg: ExtractionCfg): Promise<ExtractionResult> {

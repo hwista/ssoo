@@ -1,7 +1,8 @@
 'use client';
 
-import { Check, FileUp, Loader2, Paperclip, RefreshCw, Shapes, Undo2, X } from 'lucide-react';
+import { AlertTriangle, Check, FileUp, Loader2, Paperclip, RefreshCw, Shapes, Undo2, X } from 'lucide-react';
 import { useAssistantContextStore } from '@/stores';
+import { getSummaryFileIssueMessage } from '@/lib/summaryFileStatus';
 import type { TemplateItem } from '@/types/template';
 import type { InlineSummaryFileItem } from './Picker';
 
@@ -194,20 +195,24 @@ export function AssistantReferenceChips({
         {summaryFiles.map((file) => {
           const isUsed = usedSummaryFileIds?.has(file.id) ?? false;
           const isDeleted = deletedFileIds?.has(file.id) ?? false;
+          const fileIssue = getSummaryFileIssueMessage(file);
           return (
             <span
               key={file.id}
               className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-caption ${
                 isDeleted
                   ? 'border-destructive/30 bg-destructive/5 text-destructive/60 line-through'
+                  : fileIssue
+                    ? 'border-amber-200 bg-amber-50 text-amber-800'
                   : isUsed
                     ? 'border-ssoo-content-border bg-ssoo-content-border text-ssoo-primary'
                     : 'border-ssoo-content-border bg-white text-ssoo-primary'
               }`}
-              title={file.name}
+              title={fileIssue ? `${file.name} - ${fileIssue}` : file.name}
             >
               <FileUp className="h-3 w-3" />
               <span className="max-w-[180px] truncate">파일: {file.name}</span>
+              {!isDeleted && fileIssue && <AlertTriangle className="h-3 w-3 text-amber-600" />}
               {!isDeleted && isUsed && <Check className="h-3 w-3 text-ssoo-primary" />}
               {isDeleted && onInlineRestoreSummaryFile ? (
                 <button

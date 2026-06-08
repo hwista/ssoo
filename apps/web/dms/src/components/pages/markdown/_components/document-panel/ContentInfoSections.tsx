@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { ActivityListSection, ChipListSection, TextSection } from '@/components/templates/page-frame/panel';
 import type { ActivityAction } from '@/components/templates/page-frame/panel';
 import { docAssistApi } from '@/lib/api/endpoints/ai';
+import { toast } from '@/lib/toast';
 import { isExternalUrl } from '@/lib/utils/linkUtils';
 import type { BodyLink } from '@/types';
 
@@ -140,8 +141,8 @@ export function TagsSection({
           .filter((t: string) => t.length > 0 && !tags.includes(t));
         setSuggestedTags(parsed);
       }
-    } catch {
-      // silent fail
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'AI 요약 생성에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }

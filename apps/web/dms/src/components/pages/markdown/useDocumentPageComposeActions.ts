@@ -3,6 +3,7 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { docAssistApi } from '@/lib/api/endpoints/ai';
 import { toast } from '@/lib/toast';
+import { collectSummaryFileIssues, filterUsableSummaryFiles } from '@/lib/summaryFileStatus';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TemplateItem, TemplateReferenceDoc } from '@/types/template';
 import type { SourceFileMeta } from '@/types';
@@ -78,6 +79,9 @@ function mapSummaryFiles(summaryFiles: InlineSummaryFileItem[]) {
     type: item.type,
     textContent: item.textContent,
     images: item.images,
+    warningReason: item.warningReason,
+    unsupportedReason: item.unsupportedReason,
+    protectedMarkerDetected: item.protectedMarkerDetected,
   }));
 }
 
@@ -222,7 +226,18 @@ export function useDocumentPageComposeActions({
       pendingDeletedRefPaths,
     });
     const activeTemplate = isTemplatePendingDelete ? null : inlineTemplate;
-    const usedSummaryFiles = [...composeSummaryFiles];
+    const fileIssueWarnings = collectSummaryFileIssues(composeSummaryFiles);
+    const usableSummaryFiles = filterUsableSummaryFiles(composeSummaryFiles);
+
+    if (composeSummaryFiles.length > 0 && usableSummaryFiles.length === 0) {
+      const warnings = [...preComposeWarnings, ...fileIssueWarnings];
+      const message = warnings.join(' ') || '첨부 파일에서 요약할 수 있는 본문을 추출하지 못했습니다.';
+      setInlineRelevanceWarnings(warnings.length > 0 ? warnings : [message]);
+      toast.warning(message);
+      return;
+    }
+
+    const usedSummaryFiles = [...usableSummaryFiles];
     const usedTemplate = activeTemplate;
 
     handlers?.setPendingInsert?.(selection);
@@ -235,30 +250,45 @@ export function useDocumentPageComposeActions({
     let generatedText = '';
 
     try {
-      const completed = await docAssistApi.composeStream(
-        {
-          instruction,
-          currentContent: baseContent,
-          selectedText,
-          activeDocPath: filePath || createPath,
-          templates: activeTemplate ? [activeTemplate] : [],
-          summaryFiles: mapSummaryFiles(composeSummaryFiles),
-          contentType: state.contentType,
-        },
-        {
-          onMeta: (meta) => {
-            if (!requestLifecycle.isRequestActive(token)) return;
-            applyMode = meta.applyMode;
-            suggestedPath = meta.suggestedPath;
-            relevanceWarnings = meta.relevanceWarnings;
+      const summaryFilesPayload = mapSummaryFiles(usableSummaryFiles);
+      const composePayload = {
+        instruction,
+        currentContent: baseContent,
+        selectedText,
+        activeDocPath: filePath || createPath,
+        templates: activeTemplate ? [activeTemplate] : [],
+        summaryFiles: summaryFilesPayload,
+        contentType: state.contentType,
+      };
+
+      const completed = summaryFilesPayload.length > 0
+        ? await (async () => {
+          const response = await docAssistApi.compose(composePayload, { signal });
+          if (!response.success || !response.data) {
+            throw new Error(response.error || 'AI 작성에 실패했습니다.');
+          }
+          applyMode = response.data.applyMode;
+          suggestedPath = response.data.suggestedPath;
+          relevanceWarnings = response.data.relevanceWarnings;
+          generatedText = response.data.text;
+          return true;
+        })()
+        : await docAssistApi.composeStream(
+          composePayload,
+          {
+            onMeta: (meta) => {
+              if (!requestLifecycle.isRequestActive(token)) return;
+              applyMode = meta.applyMode;
+              suggestedPath = meta.suggestedPath;
+              relevanceWarnings = meta.relevanceWarnings;
+            },
+            onTextDelta: (delta) => {
+              if (!requestLifecycle.isRequestActive(token)) return;
+              generatedText += delta;
+            },
           },
-          onTextDelta: (delta) => {
-            if (!requestLifecycle.isRequestActive(token)) return;
-            generatedText += delta;
-          },
-        },
-        { signal },
-      );
+          { signal },
+        );
 
       if (!completed || !requestLifecycle.isRequestActive(token)) return;
 
@@ -336,9 +366,13 @@ export function useDocumentPageComposeActions({
 
       if (!requestLifecycle.isRequestActive(token)) return;
       setInlineInstruction('');
-      setInlineRelevanceWarnings([...preComposeWarnings, ...relevanceWarnings]);
-    } catch {
-      // Network errors — silently ignored
+      setInlineRelevanceWarnings([...preComposeWarnings, ...fileIssueWarnings, ...relevanceWarnings]);
+    } catch (error) {
+      if (!signal.aborted) {
+        const message = error instanceof Error ? error.message : 'AI 작성 중 오류가 발생했습니다.';
+        setInlineRelevanceWarnings([...preComposeWarnings, ...fileIssueWarnings, message]);
+        toast.error(message);
+      }
     } finally {
       editorHandlersRef.current?.setPendingInsert?.(null);
       const shouldFinalize = requestLifecycle.isRequestActive(token);

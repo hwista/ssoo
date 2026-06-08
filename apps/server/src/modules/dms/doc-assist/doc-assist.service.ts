@@ -21,6 +21,9 @@ interface SummaryFileInput {
   type?: string;
   textContent: string;
   images?: ImageInput[];
+  warningReason?: string;
+  unsupportedReason?: string;
+  protectedMarkerDetected?: boolean;
 }
 
 interface ComposeInput {
@@ -64,6 +67,12 @@ function buildRelevanceWarnings(instruction: string, files: SummaryFileInput[]):
   const warnings: string[] = [];
 
   for (const file of files) {
+    const extractionWarning = buildSummaryFileWarning(file);
+    if (extractionWarning) {
+      warnings.push(extractionWarning);
+      continue;
+    }
+
     const hasImages = (file.images?.length ?? 0) > 0;
     const terms = tokenize(file.textContent).slice(0, 200);
     const overlap = terms.filter((term) => baseTerms.has(term)).length;
@@ -73,6 +82,56 @@ function buildRelevanceWarnings(instruction: string, files: SummaryFileInput[]):
     }
   }
   return warnings;
+}
+
+function buildSummaryFileWarning(file: SummaryFileInput): string | null {
+  if (file.unsupportedReason === 'protected-pdf') {
+    return `'${file.name}' 파일은 문서보안이 적용되어 본문을 추출할 수 없어 요약에 반영되지 않았습니다.`;
+  }
+  if (file.unsupportedReason === 'extraction-error') {
+    return `'${file.name}' 파일은 텍스트 추출에 실패해 요약에 반영되지 않았습니다.`;
+  }
+  if (file.unsupportedReason === 'empty-content') {
+    return `'${file.name}' 파일에서 요약할 수 있는 본문을 찾지 못했습니다.`;
+  }
+  if (file.unsupportedReason === 'unsupported-file-type') {
+    return `'${file.name}' 파일 형식은 텍스트 추출을 지원하지 않습니다.`;
+  }
+  if (file.warningReason === 'protected-pdf-detected') {
+    return `'${file.name}' 파일에서 문서보안 흔적이 감지되었습니다. 추출 가능한 본문 기준으로 요약합니다.`;
+  }
+  return null;
+}
+
+function hasUsableSummaryContent(file: SummaryFileInput): boolean {
+  if (file.unsupportedReason) {
+    return false;
+  }
+  return file.textContent.trim().length > 0 || (file.images?.length ?? 0) > 0;
+}
+
+function ensureUsableSummaryFiles(files: SummaryFileInput[]): SummaryFileInput[] {
+  if (files.length === 0) {
+    return [];
+  }
+
+  const usableFiles = files.filter(hasUsableSummaryContent);
+  if (usableFiles.length === 0) {
+    logger.warn('doc-assist summary files have no usable content', {
+      summaryFileCount: files.length,
+      files: files.map((file) => ({
+        name: file.name,
+        type: file.type,
+        textLength: file.textContent.length,
+        imageCount: file.images?.length ?? 0,
+        warningReason: file.warningReason,
+        unsupportedReason: file.unsupportedReason,
+        protectedMarkerDetected: file.protectedMarkerDetected,
+      })),
+    });
+    throw new Error('첨부 파일에서 요약할 수 있는 본문을 추출하지 못했습니다.');
+  }
+  return usableFiles;
 }
 
 function recommendPath(input: ComposeInput): string {
@@ -187,7 +246,8 @@ class DocAssistService {
     const templateContext = documentTemplate
       ? `${documentTemplate.name}\n${documentTemplate.content.slice(0, docAssistConfig.maxTemplateChars)}`
       : '';
-    const boundedFiles = (input.summaryFiles ?? []).slice(0, docAssistConfig.maxSummaryFileCount);
+    const inputSummaryFiles = input.summaryFiles ?? [];
+    const boundedFiles = ensureUsableSummaryFiles(inputSummaryFiles).slice(0, docAssistConfig.maxSummaryFileCount);
     const summaryContext = boundedFiles
       .map((file, index) => (
         `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, docAssistConfig.maxSummaryFileChars)}`
@@ -207,6 +267,7 @@ class DocAssistService {
         selectedTextLength: selectedText.length,
         templateCount: documentTemplate ? 1 : 0,
         summaryFileCount: boundedFiles.length,
+        skippedSummaryFileCount: Math.max(0, inputSummaryFiles.length - boundedFiles.length),
         imageCount: imageParts.length,
       });
 
@@ -254,7 +315,7 @@ class DocAssistService {
         text: result.text.trim(),
         applyMode,
         suggestedPath: recommendPath(input),
-        relevanceWarnings: buildRelevanceWarnings(instruction, input.summaryFiles ?? []),
+        relevanceWarnings: buildRelevanceWarnings(instruction, inputSummaryFiles),
       };
     } catch (error) {
       logger.error('doc-assist compose failed', error, {
@@ -262,7 +323,8 @@ class DocAssistService {
         currentContentLength: input.currentContent.length,
         selectedTextLength: selectedText.length,
         templateCount: documentTemplate ? 1 : 0,
-        summaryFileCount: input.summaryFiles?.length ?? 0,
+        summaryFileCount: inputSummaryFiles.length,
+        usableSummaryFileCount: boundedFiles.length,
         imageCount: imageParts.length,
       });
       throw error;
@@ -306,7 +368,8 @@ class DocAssistService {
     const templateContext = documentTemplate
       ? `${documentTemplate.name}\n${documentTemplate.content.slice(0, docAssistConfig.maxTemplateChars)}`
       : '';
-    const boundedFiles = (input.summaryFiles ?? []).slice(0, docAssistConfig.maxSummaryFileCount);
+    const inputSummaryFiles = input.summaryFiles ?? [];
+    const boundedFiles = ensureUsableSummaryFiles(inputSummaryFiles).slice(0, docAssistConfig.maxSummaryFileCount);
     const summaryContext = boundedFiles
       .map((file, index) => (
         `[요약 첨부 ${index + 1}: ${file.name}]\n${file.textContent.slice(0, docAssistConfig.maxSummaryFileChars)}`
@@ -322,6 +385,7 @@ class DocAssistService {
       selectedTextLength: selectedText.length,
       templateCount: documentTemplate ? 1 : 0,
       summaryFileCount: boundedFiles.length,
+      skippedSummaryFileCount: Math.max(0, inputSummaryFiles.length - boundedFiles.length),
       imageCount: imageParts.length,
     });
 
@@ -391,7 +455,7 @@ class DocAssistService {
       stream,
       applyMode,
       suggestedPath: recommendPath(input),
-      relevanceWarnings: buildRelevanceWarnings(instruction, input.summaryFiles ?? []),
+      relevanceWarnings: buildRelevanceWarnings(instruction, inputSummaryFiles),
     };
   }
 

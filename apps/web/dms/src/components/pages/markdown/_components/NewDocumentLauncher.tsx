@@ -5,6 +5,8 @@ import { Bot, FileText, FileCode, X, Loader2 } from 'lucide-react';
 import { LoadingState } from '@/components/common/StateDisplay';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
+import { toast } from '@/lib/toast';
+import { collectSummaryFileIssues } from '@/lib/summaryFileStatus';
 
 interface LauncherAction {
   id: string;
@@ -65,6 +67,9 @@ export function NewDocumentLauncher({
       files.map(async (file) => {
         let textContent = '';
         let images: InlineSummaryFileItem['images'];
+        let warningReason: string | undefined;
+        let unsupportedReason: string | undefined;
+        let protectedMarkerDetected: boolean | undefined;
         try {
           const formData = new FormData();
           formData.append('file', file);
@@ -72,13 +77,20 @@ export function NewDocumentLauncher({
             method: 'POST',
             body: formData,
           });
+          const data = await res.json().catch(() => null);
           if (res.ok) {
-            const data = await res.json();
             textContent = typeof data?.textContent === 'string' ? data.textContent : '';
             images = Array.isArray(data?.images) ? data.images : undefined;
+            warningReason = typeof data?.warningReason === 'string' ? data.warningReason : undefined;
+            unsupportedReason = typeof data?.unsupportedReason === 'string' ? data.unsupportedReason : undefined;
+            protectedMarkerDetected = typeof data?.protectedMarkerDetected === 'boolean'
+              ? data.protectedMarkerDetected
+              : undefined;
+          } else {
+            unsupportedReason = 'extraction-error';
           }
         } catch {
-          textContent = '';
+          unsupportedReason = 'extraction-error';
         }
         return {
           id: `${file.name}-${file.lastModified}-${file.size}`,
@@ -87,10 +99,18 @@ export function NewDocumentLauncher({
           size: file.size,
           textContent,
           images,
+          warningReason,
+          unsupportedReason,
+          protectedMarkerDetected,
           rawFile: file,
         };
       })
     );
+
+    const issues = collectSummaryFileIssues(mapped);
+    if (issues.length > 0) {
+      toast.warning(issues.join(' '));
+    }
 
     onSelectAiSummary(mapped);
     e.target.value = '';
