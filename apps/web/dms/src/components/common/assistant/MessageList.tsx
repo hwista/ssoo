@@ -46,8 +46,8 @@ export function AssistantMessageList({
 }: AssistantMessageListProps) {
   const stackClass = variant === 'panel' ? 'space-y-3' : 'space-y-4';
   const assistantBubbleClass = variant === 'panel'
-    ? 'max-w-[80%] rounded-xl px-3 py-2 text-body-sm'
-    : 'max-w-[78%] rounded-xl px-4 py-3 text-body-sm leading-relaxed';
+    ? 'w-fit max-w-[min(88%,_28rem)] rounded-xl px-3 py-2 text-body-sm'
+    : 'w-fit max-w-[min(78%,_44rem)] rounded-xl px-4 py-3 text-body-sm leading-relaxed';
   const avatarClass = variant === 'panel'
     ? 'mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-ssoo-content-bg'
     : 'flex h-control-h w-control-h shrink-0 items-center justify-center rounded-full bg-ssoo-content-bg';
@@ -59,10 +59,10 @@ export function AssistantMessageList({
     : 'inline-flex h-8 w-8 items-center justify-center rounded-full border border-ssoo-content-border bg-white text-ssoo-primary/75 transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg hover:text-ssoo-primary disabled:cursor-not-allowed disabled:opacity-60';
   const messageActionIconClass = variant === 'panel' ? 'h-3.5 w-3.5' : 'h-4 w-4';
 
-  const handleCopyUserMessage = useCallback(async (text: string) => {
+  const handleCopyMessage = useCallback(async (text: string, successMessage: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success('질문을 클립보드에 복사했습니다.');
+      toast.success(successMessage);
     } catch {
       toast.error('클립보드 복사에 실패했습니다.');
     }
@@ -135,6 +135,7 @@ export function AssistantMessageList({
         }
 
         const isUser = message.role === 'user';
+        const canCopyText = message.text.trim().length > 0;
 
         return (
           <div key={message.id} className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -143,71 +144,78 @@ export function AssistantMessageList({
                 <Bot className={variant === 'panel' ? 'h-4 w-4 text-ssoo-primary' : 'h-5 w-5 text-ssoo-primary'} />
               </div>
             )}
-            {isUser && message.text.trim().length > 0 && (
-              <div className="flex items-center gap-1.5 self-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleCopyUserMessage(message.text);
-                  }}
-                  disabled={actionDisabled}
-                  className={messageActionButtonClass}
-                  title="복사"
-                  aria-label="질문 복사"
-                >
-                  <Copy className={messageActionIconClass} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!onResendUserMessage) return;
-                    void onResendUserMessage(message.text);
-                  }}
-                  disabled={actionDisabled || !onResendUserMessage}
-                  className={messageActionButtonClass}
-                  title="재전송"
-                  aria-label="질문 재전송"
-                >
-                  <RotateCcw className={messageActionIconClass} />
-                </button>
-              </div>
-            )}
-            <div className={`${assistantBubbleClass} ${isUser ? 'bg-ssoo-primary text-white' : 'bg-ssoo-content-bg text-ssoo-primary'}`}>
-              {message.pending && !message.text ? (
-                <span className="inline-flex items-center gap-1 text-ssoo-primary/70">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  응답 생성 중...
-                </span>
-              ) : (
-                isUser ? (
-                  <span className="whitespace-pre-wrap break-words">{message.text}</span>
+            <div className={`flex min-w-0 flex-1 flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+              <div className={`${assistantBubbleClass} ${isUser ? 'bg-ssoo-primary text-white' : 'bg-ssoo-content-bg text-ssoo-primary'}`}>
+                {message.pending && !message.text ? (
+                  <span className="inline-flex items-center gap-1 text-ssoo-primary/70">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    응답 생성 중...
+                  </span>
                 ) : (
-                  <div className="assistant-markdown break-words text-ssoo-primary">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                          >
-                            {children}
-                          </a>
-                        ),
-                        code: ({ className, children, ...rest }) => {
-                          const match = /language-(\w+)/.exec(className ?? '');
-                          if (match?.[1] === 'mermaid') {
-                            return <MermaidBlock code={String(children).replace(/\n$/, '')} />;
-                          }
-                          return <code className={className} {...rest}>{children}</code>;
-                        },
+                  isUser ? (
+                    <span className="whitespace-pre-wrap break-words">{message.text}</span>
+                  ) : (
+                    <div className="assistant-markdown break-words text-ssoo-primary">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          code: ({ className, children, ...rest }) => {
+                            const match = /language-(\w+)/.exec(className ?? '');
+                            if (match?.[1] === 'mermaid') {
+                              return <MermaidBlock code={String(children).replace(/\n$/, '')} />;
+                            }
+                            return <code className={className} {...rest}>{children}</code>;
+                          },
+                        }}
+                      >
+                        {message.text}
+                      </ReactMarkdown>
+                    </div>
+                  )
+                )}
+              </div>
+              {canCopyText && (
+                <div className={`mt-1.5 flex items-center gap-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleCopyMessage(
+                        message.text,
+                        isUser ? '질문을 클립보드에 복사했습니다.' : '응답을 클립보드에 복사했습니다.',
+                      );
+                    }}
+                    disabled={actionDisabled}
+                    className={messageActionButtonClass}
+                    title={isUser ? '질문 복사' : '응답 복사'}
+                    aria-label={isUser ? '질문 복사' : '응답 복사'}
+                  >
+                    <Copy className={messageActionIconClass} />
+                  </button>
+                  {isUser && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!onResendUserMessage) return;
+                        void onResendUserMessage(message.text);
                       }}
+                      disabled={actionDisabled || !onResendUserMessage}
+                      className={messageActionButtonClass}
+                      title="재전송"
+                      aria-label="질문 재전송"
                     >
-                      {message.text}
-                    </ReactMarkdown>
-                  </div>
-                )
+                      <RotateCcw className={messageActionIconClass} />
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             {isUser && (

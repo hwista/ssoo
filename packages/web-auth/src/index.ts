@@ -73,3 +73,17 @@ export type {
   AuthUserMenuAction,
   AuthUserMenuProps,
 } from './user-menu';
+
+export {
+  createCommonNotificationApi,
+  useCommonNotificationEventStream,
+} from './notifications';
+export type {
+  CommonNotificationApi,
+  CommonNotificationApiResult,
+  CreateCommonNotificationApiOptions,
+  UseCommonNotificationEventStreamOptions,
+} from './notifications';
+
+export { proxyCommonNotificationJson } from './notification-proxy';
+export type { ProxyCommonNotificationJsonOptions } from './notification-proxy';

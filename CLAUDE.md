@@ -22,9 +22,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 항목 | 값 |
 |------|-----|
 | 구조 | pnpm workspace + Turborepo |
-| 앱 | `apps/server` (NestJS, 4000), `apps/web/pms` (Next.js, 3000), `apps/web/cms` (Next.js, 3002), `apps/web/dms` (Next.js, 3001), `apps/web/admin` (Next.js, 3003) |
+| 앱 | `apps/server` (NestJS, 4000), `apps/web/pms` (Next.js, 3000), `apps/web/sns` (Next.js, 3002), `apps/web/dms` (Next.js, 3001), `apps/web/admin` (Next.js, 3003) |
 | 공유 패키지 | `packages/database` (Prisma), `packages/types`, `packages/web-auth`, `packages/web-shell` |
-| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/cms) |
+| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/sns) |
 
 ---
 
@@ -107,7 +107,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 
 ### 데이터베이스 (Multi-Schema Prisma)
 
-- PostgreSQL 4개 스키마: `common`, `pms`, `dms`, `cms`
+- PostgreSQL 4개 스키마: `common`, `pms`, `dms`, `sns`
 - 히스토리 테이블 패턴: 주 테이블 `cm_code` → 이력 테이블 `cm_code_h` (historySeq 복합 PK)
 - 공통 감사 컬럼: `createdBy`, `createdAt`, `updatedBy`, `updatedAt`
 - DB 테이블 네이밍은 `{스키마접두사}_{도메인}_m` 패턴을 사용
@@ -117,7 +117,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 ### 서버 아키텍처 핵심
 
 - `DatabaseService`는 Prisma 래퍼이며 Controller에서 직접 Prisma를 사용하지 않음
-- 도메인 모듈은 `modules/common/`, `modules/pms/`, `modules/cms/`, `modules/dms/` 구조를 따른다
+- 도메인 모듈은 `modules/common/`, `modules/pms/`, `modules/sns/`, `modules/dms/` 구조를 따른다
 - 인증은 `JwtAuthGuard`, `RolesGuard`, `@CurrentUser()`, `@Public()` 패턴을 사용
 - `GlobalHttpExceptionFilter`, `RequestContextInterceptor`, 전역 `ValidationPipe`를 기본 전제로 한다
 - 모든 엔드포인트는 `/api` prefix를 사용하고, OpenAPI 스펙은 `/api/openapi.json`에서 제공한다
@@ -163,7 +163,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 ```
 
 - **Type**: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
-- **Scope**: `server` | `web-pms` | `web-cms` | `web-dms` | `web-admin` | `database` | `types` | `docs`
+- **Scope**: `server` | `web-pms` | `web-sns` | `web-dms` | `web-admin` | `database` | `types` | `docs`
 - `commitlint.config.mjs`로 자동 검증 (subject 최대 100자)
 
 ---
@@ -176,7 +176,7 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 | server | `pnpm dev:server` | 4000 | NestJS |
 | web-pms | `pnpm dev:web-pms` | 3000 | Next.js |
 | web-dms | `pnpm dev:web-dms` | 3001 | Next.js |
-| web-cms | `pnpm dev:web-cms` | 3002 | Next.js |
+| web-sns | `pnpm dev:web-sns` | 3002 | Next.js |
 | web-admin | `pnpm dev:web-admin` | 3003 | Next.js |
 
 ### 앱별 빌드 / 린트 / 타입 체크
@@ -268,7 +268,7 @@ pnpm install
 | 단일 파일 | `pnpm -C apps/server exec jest <path>` |
 
 - **server**: Jest 운영 중. 위치 `apps/server/test/**/*.spec.ts`, 설정 `apps/server/jest.config.ts`
-- **web 앱 (pms/dms/cms/admin)**: test 스크립트 없음 (미도입). `turbo test` 시 노옵 처리
+- **web 앱 (pms/dms/sns/admin)**: test 스크립트 없음 (미도입). `turbo test` 시 노옵 처리
 - 작성 규칙: `.github/instructions/testing.instructions.md`
 
 ### CI
@@ -308,7 +308,7 @@ PR 생성/업데이트 시 `.github/workflows/pr-validation.yml` 자동 실행 (
 | `apps/server/**` | `.github/instructions/server.instructions.md` |
 | `apps/web/pms/**` | `.github/instructions/pms.instructions.md` |
 | `apps/web/dms/**` | `.github/instructions/dms.instructions.md` + `apps/web/dms/CLAUDE.md` |
-| `apps/web/cms/**` | `.github/instructions/cms.instructions.md` |
+| `apps/web/sns/**` | `.github/instructions/sns.instructions.md` |
 | `apps/web/admin/**` | 전용 인스트럭션 미작성. `.github/instructions/pms.instructions.md` 패턴 준용 |
 | `packages/database/**` | `.github/instructions/database.instructions.md` |
 | `packages/types/**` | `.github/instructions/types.instructions.md` |

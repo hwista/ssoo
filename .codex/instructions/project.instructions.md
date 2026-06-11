@@ -13,7 +13,7 @@ applyTo: "**"
 | 프로젝트명 | SSOO (삼삼오오) |
 | 목적 | SI/SM 조직의 Opportunity-Project-System 통합 업무 허브 |
 | 구조 | pnpm workspace + Turborepo |
-| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/cms) |
+| 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/sns) |
 
 ## 기술 스택
 
@@ -30,7 +30,7 @@ applyTo: "**"
 apps/server ──→ packages/database
      ↓                 ↓
 apps/web/pms ──→ packages/types, packages/web-auth, packages/web-shell
-apps/web/cms ──→ packages/types, packages/web-auth, packages/web-shell
+apps/web/sns ──→ packages/types, packages/web-auth, packages/web-shell
 apps/web/dms ──→ packages/types, packages/web-auth, packages/web-shell
 ```
 
@@ -56,7 +56,7 @@ modules/
 │   ├── project/
 │   ├── menu/
 │   └── pms.module.ts
-├── cms/              # CMS 도메인 모듈
+├── sns/              # SNS 도메인 모듈
 └── dms/              # DMS 도메인 모듈
 ```
 
@@ -94,7 +94,7 @@ modules/
 |------|-------------------|-------------------|
 | `apps/server/**` | `server.instructions.md` | `server.instructions.md` |
 | `apps/web/pms/**` | `pms.instructions.md` | `pms.instructions.md` |
-| `apps/web/cms/**` | `cms.instructions.md` | `cms.instructions.md` |
+| `apps/web/sns/**` | `sns.instructions.md` | `sns.instructions.md` |
 | `apps/web/dms/**` | `dms.instructions.md` | `dms.instructions.md` |
 | `packages/database/**` | `database.instructions.md` | `database.instructions.md` |
 | `packages/types/**` | `types.instructions.md` | `types.instructions.md` |

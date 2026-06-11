@@ -56,7 +56,7 @@ function failCurrentRole(error, reason) {
 }
 
 const argv = process.argv.slice(2);
-const COMMUNITY_ROUTE_PREFIX_CANDIDATES = ['chs', 'cms'];
+const COMMUNITY_ROUTE_PREFIX_CANDIDATES = ['chs', 'sns'];
 
 const COMMUNITY_FEATURE_PERMISSION_SUFFIXES = {
   canReadFeed: 'feed.read',
@@ -267,7 +267,7 @@ async function verifyRuntimeDomainChecks(config, adminAccessToken) {
     runtimeInspection,
     config.runtimeProjectId,
   );
-  await verifyCmsRuntime(
+  await verifySnsRuntime(
     config.baseUrl,
     runtimeAccessToken,
     runtimeInspection,
@@ -402,7 +402,7 @@ async function verifyPmsRuntime(
   }
 }
 
-async function verifyCmsRuntime(baseUrl, runtimeAccessToken, runtimeInspection, communityRoutePrefix) {
+async function verifySnsRuntime(baseUrl, runtimeAccessToken, runtimeInspection, communityRoutePrefix) {
   const communityRoute = await resolveCommunityRoute(
     baseUrl,
     runtimeAccessToken,
@@ -426,12 +426,12 @@ async function verifyCmsRuntime(baseUrl, runtimeAccessToken, runtimeInspection, 
     communityFeaturePermissionCodes,
     runtimeInspection.action.grantedPermissionCodes,
     runtimeInspection.action.policy.hasSystemOverride,
-    'CMS access snapshot',
+    'SNS access snapshot',
   );
   assertPolicyTrace(
     accessSnapshot.policy,
     runtimeInspection.action.policy,
-    'CMS access policy',
+    'SNS access policy',
     FULL_POLICY_TRACE_KEYS,
   );
 
@@ -444,11 +444,11 @@ async function verifyCmsRuntime(baseUrl, runtimeAccessToken, runtimeInspection, 
     { allowNonSuccessEnvelope: !accessSnapshot.features.canReadFeed },
   );
   if (accessSnapshot.features.canReadFeed) {
-    assertArray(feed.items, 'CMS feed items');
+    assertArray(feed.items, 'SNS feed items');
   }
 
   if (!accessSnapshot.features.canCreatePost) {
-    console.log('→ verify: CMS create post forbidden');
+    console.log('→ verify: SNS create post forbidden');
     const { response } = await requestJson(`${baseUrl}/${communityRoute.routePrefix}/posts`, {
       method: 'POST',
       headers: authHeaders(runtimeAccessToken, {
@@ -462,7 +462,7 @@ async function verifyCmsRuntime(baseUrl, runtimeAccessToken, runtimeInspection, 
     });
     assertStatus(response, 403, `/${communityRoute.routePrefix}/posts create forbidden`);
   } else {
-    console.log('! runtime persona 가 CMS 게시물 작성 권한이 있어 create deny probe 는 건너뜁니다.');
+    console.log('! runtime persona 가 SNS 게시물 작성 권한이 있어 create deny probe 는 건너뜁니다.');
   }
 }
 
@@ -798,7 +798,7 @@ function resolveCommunityPermissionPrefix(accessSnapshotPolicy, runtimeInspectio
     permissionCodes.some((code) => code.startsWith(`${prefix}.`)),
   );
 
-  return discoveredPrefix ?? fallbackPrefix ?? 'cms';
+  return discoveredPrefix ?? fallbackPrefix ?? 'sns';
 }
 
 function normalizeStringArray(value) {
@@ -922,7 +922,7 @@ Options:
   --runtime-login-id=viewer.han
   --runtime-password=user123!
   --runtime-project-id=<projectId>
-  --community-route-prefix=<chs|cms>
+  --community-route-prefix=<chs|sns>
   --non-admin-login-id=<loginId>
   --non-admin-password=<password>
 
@@ -962,11 +962,11 @@ function printDryRun(config) {
   console.log('2. /users/profile legacy field contract');
   console.log('3. /access/ops/inspect success for admin/system.override subject');
   if (config.skipRuntime) {
-    console.log('4. runtime PMS/CMS/DMS verification skipped');
+    console.log('4. runtime PMS/SNS/DMS verification skipped');
   } else {
     console.log('4. runtime user login');
     console.log('5. PMS menus + accessible project allow + foreign project deny');
-    console.log('6. CHS/CMS access/feed + post create boundary');
+    console.log('6. CHS/SNS access/feed + post create boundary');
     console.log('7. DMS access/files/search/settings/git boundary');
   }
   console.log('8. /access/ops/inspect 403 for non-admin runtime or explicit credential');

@@ -21,9 +21,9 @@
 |------|-----------|-----------|-------------|
 | 공통 auth/session | ✅ 기준선 완료 | `apps/server/src/modules/common/auth`, `packages/web-auth`, `packages/types/src/common/auth.ts` | legacy `cm_user_m` 필드 cleanup phase |
 | 공통 permission foundation | ✅ runtime contract 정렬 완료 | `packages/database/prisma/schema.prisma`, `apps/server/src/modules/common/access/access-foundation.service.ts`, `packages/types/src/common/access.ts` | legacy role/org 필드 정리 |
-| 공통 validation baseline | ✅ matrix + 검증 루틴 고정 | `docs/common/explanation/architecture/auth-system.md`, `node .github/scripts/check-patterns.js`, `pnpm run codex:dms-guard` | PMS/CMS 운영 시나리오 확장 |
+| 공통 validation baseline | ✅ matrix + 검증 루틴 고정 | `docs/common/explanation/architecture/auth-system.md`, `node .github/scripts/check-patterns.js`, `pnpm run codex:dms-guard` | PMS/SNS 운영 시나리오 확장 |
 | PMS access | ✅ navigation snapshot + project object policy 적용 | `apps/server/src/modules/pms/project/project-access.service.ts` | admin tooling / 예외 정책 운영화 |
-| CMS access | ✅ feature policy + content visibility/object policy 적용 | `apps/server/src/modules/cms/access/access.service.ts` | moderation / board policy 확장 |
+| SNS access | ✅ feature policy + content visibility/object policy 적용 | `apps/server/src/modules/sns/access/access.service.ts` | moderation / board policy 확장 |
 | DMS access | ✅ feature baseline + object ACL pilot 완료 | `apps/server/src/modules/dms/access/document-acl.service.ts`, `apps/server/src/modules/dms/file/*`, `apps/server/src/modules/dms/content/*`, `apps/server/src/modules/dms/search/*`, `apps/server/src/modules/dms/ask/*`, `apps/server/src/modules/dms/templates/*`, `apps/server/src/modules/dms/doc-assist/*`, `apps/server/src/modules/dms/storage/*`, `apps/web/dms/src/components/pages/markdown/*` | legacy cleanup 동안 regression gate 유지 |
 | DMS locked preview | ✅ unreadable markdown preview-only 완료 | `apps/server/src/modules/dms/file/*`, `apps/server/src/modules/dms/content/*`, `apps/web/dms/src/stores/editor-core.store.ts`, `apps/web/dms/src/components/pages/markdown/*` | 검색 결과 카드 스니펫/키워드 노출 정책 정리 |
 
@@ -32,8 +32,8 @@
 ### 3.1 완료된 기준선
 
 - **모노레포 통합**: DMS는 `pnpm-workspace`에 편입되었고 `@ssoo/types`, `@ssoo/web-auth`를 재사용합니다.
-- **공통 로그인/세션 복원**: `/api/auth/[action]` 프록시, shared session cookie, `createAuthStore()` 기반 auth runtime이 PMS/CMS와 같은 표면으로 정렬되었습니다.
-- **공통 permission/runtime contract**: DMS/CMS/PMS project access 가 server common `AccessFoundationService` + shared `policy` trace 기준으로 같은 상위 계약을 사용합니다.
+- **공통 로그인/세션 복원**: `/api/auth/[action]` 프록시, shared session cookie, `createAuthStore()` 기반 auth runtime이 PMS/SNS와 같은 표면으로 정렬되었습니다.
+- **공통 permission/runtime contract**: DMS/SNS/PMS project access 가 server common `AccessFoundationService` + shared `policy` trace 기준으로 같은 상위 계약을 사용합니다.
 - **도메인 access bootstrap**: `/api/access` -> `access.store` -> `(main)` layout 흐름으로 DMS shell 초기화 전에 access snapshot을 hydrate 합니다.
 - **서버 feature gating**: `DmsFeatureGuard + RequireDmsFeature(...)` 가 `files/content/search/ask/create/doc-assist/chat-sessions/git/settings/storage/templates/ingest/file` surface를 보호합니다.
 - **바이너리 전달 경계 보강**: `raw`, `serve-attachment` 는 same-origin 프록시가 shared session cookie로 access token을 복원하고, 서버는 `canReadDocuments`를 다시 검사합니다.

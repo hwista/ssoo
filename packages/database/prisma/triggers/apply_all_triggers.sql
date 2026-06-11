@@ -145,20 +145,20 @@
 \i 56_dm_template_h_trigger.sql
 
 \echo ''
-\echo '-- CMS (Content Management System) --'
+\echo '-- SNS --'
 \echo ''
 
-\echo 'Installing: cms_board_h trigger...'
-\i 50_cms_board_h_trigger.sql
+\echo 'Installing: sns_board_h trigger...'
+\i 50_sns_board_h_trigger.sql
 
-\echo 'Installing: cms_post_h trigger...'
-\i 51_cms_post_h_trigger.sql
+\echo 'Installing: sns_post_h trigger...'
+\i 51_sns_post_h_trigger.sql
 
-\echo 'Installing: cms_comment_h trigger...'
-\i 52_cms_comment_h_trigger.sql
+\echo 'Installing: sns_comment_h trigger...'
+\i 52_sns_comment_h_trigger.sql
 
-\echo 'Installing: cms_user_profile_h trigger...'
-\i 53_cms_user_profile_h_trigger.sql
+\echo 'Installing: sns_user_profile_h trigger...'
+\i 53_sns_user_profile_h_trigger.sql
 
 \echo 'Installing: pr_project_issue_h trigger...'
 \i 54_pr_project_issue_h_trigger.sql

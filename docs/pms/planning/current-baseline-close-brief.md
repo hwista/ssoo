@@ -41,6 +41,7 @@ PMS의 핵심 끊김은 구현 부족보다는 baseline close 부족입니다.
 - reconciliation wave 가 local worktree 에는 존재하지만 공식 baseline 으로 닫히지 않음
 - schema 변화가 formal migration / rollout 단위로 닫히지 않음
 - backlog / roadmap / execution 기준선이 최신 구현 상태를 완전히 반영하지 않음
+- 런칭 전 PMS 단독 실행 제품으로 닫기 위한 PM 지휘판/상세 closeout surface 는 1차 보강됐지만, 런타임 데이터 기반의 전용 검증 범위는 계속 확장 필요
 - handoff / contract / payment 는 backend foundation 대비 web surface 가 아직 얕음
 
 즉 PMS는 “설계 초기”가 아니라 **foundation 구현 후 baseline 미확정 상태**로 봅니다.
@@ -91,7 +92,7 @@ PMS의 핵심 끊김은 구현 부족보다는 baseline close 부족입니다.
 
 주의:
 - F 그룹은 shared infra 와 인접하므로 가장 마지막에 분리 검토
-- DMS/CMS/common artifact 와 한 커밋에 섞지 않음
+- DMS/SNS/common artifact 와 한 커밋에 섞지 않음
 
 ---
 
@@ -114,8 +115,13 @@ PMS의 핵심 끊김은 구현 부족보다는 baseline close 부족입니다.
 
 2. schema 변화 대비 formal migration bundle 부재
 
-3. PMS 전용 verification script 부재
-필요 검증 축:
+3. PMS 전용 verification script 1차 추가
+현재 고정된 검증 축:
+- PM 홈 운영 포커스 surface 존재
+- 프로젝트 상세 closeout surface 존재
+- 기본 Docker runtime 응답(server/PMS web)
+
+추가로 확장할 검증 축:
 - project access snapshot
 - org / relation compatibility rows
 - objective / WBS CRUD
@@ -143,12 +149,18 @@ PMS baseline close 는 아래가 맞아야 닫습니다.
 추천 다음 tranche:
 
 ### Tranche 1
-- handoff / contract / contract payment web surface 노출
+- PMS 단독 실행 제품 closeout surface 강화
+  - PM 홈 운영 포커스
+  - 프로젝트 상세 다음 액션/막힌 조건/종료 가능 여부
+  - 산출물/종료조건 readiness 가시화
 
 ### Tranche 2
 - PMS verification / migration debt 해소
 - trigger installer coverage 수정
-- PMS verification script 추가
+- PMS verification script 를 runtime 데이터/API smoke 로 확장
+
+### Tranche 2b
+- handoff / contract / contract payment web surface 노출
 
 ### Tranche 3
 - PMS 내부 compatibility cleanup
@@ -160,4 +172,5 @@ PMS baseline close 는 아래가 맞아야 닫습니다.
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-08 | PMS 런칭 closeout 1차 보강: 홈 운영 포커스, 프로젝트 상세 closeout 패널, `verify:pms-launch` 전용 검증 명령 추가 |
 | 2026-04-17 | PMS 병렬 세션 결과를 current baseline-close brief 로 고정하고, commit grouping / migration gap / 다음 tranche 를 정리 |

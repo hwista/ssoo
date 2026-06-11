@@ -61,7 +61,10 @@
 | FLOW-01 | UI 흐름 | 상태별 목록/상세 탭 계약 안정화 | ✅ |
 | RULE-01 | 비즈니스 규칙 | `requiresDeliverable` 종료조건 체크 가드 보강 | ✅ |
 | DOC-01 | Planning | roadmap/backlog/changelog 기준선 현행화 | ✅ |
-| DOC-02 | Planning | current baseline-close brief 기준으로 PMS foundation/migration/validation gap 재고정 | 🔄 |
+| DOC-02 | Planning | current baseline-close brief 기준으로 PMS foundation/migration/validation gap 재고정 | ✅ |
+| DASH-02 | 대시보드 | PM 운영 포커스 위젯으로 정체/담당자/종료 후보 노출 | ✅ |
+| CLOSE-01 | 프로젝트 상세 | 다음 액션/막힌 조건/종료 가능 여부 closeout 패널 노출 | ✅ |
+| VER-01 | 검증 | `verify:pms-launch` PMS 전용 런칭 검증 명령 추가 | ✅ |
 
 ### P2 (Medium) - 다음 배치
 
@@ -77,6 +80,7 @@
 | ID | 영역 | 항목 | 상태 |
 |----|------|------|------|
 | DASH-01 | 대시보드 | 리스크/리포트/집계 위젯 확장 | 🔲 |
+| VER-02 | 검증 | PMS 전용 런칭 검증을 인증 API smoke와 프로젝트 상세 데이터 검증까지 확장 | 🔲 |
 | LAY-02 | 레이아웃 | Header 브레드크럼 구현 | 🔲 |
 | UTL-01 | 유틸리티 | 날짜/숫자/금액 포맷 유틸리티 정리 | 🔲 |
 | API-01 | API | 에러 응답 상세 코드 정의 | 🔲 |
@@ -89,6 +93,9 @@
 
 | 완료일 | ID | 항목 |
 |--------|-----|------|
+| 2026-06-08 | DASH-02 | PM 운영 포커스 위젯으로 수행/정체/담당자/종료 후보를 홈에서 노출 |
+| 2026-06-08 | CLOSE-01 | 프로젝트 상세 상단에 산출물/종료조건 readiness 기반 closeout 패널 추가 |
+| 2026-06-08 | VER-01 | `scripts/verify-pms-launch-readiness.mjs` 및 `verify:pms-launch` 명령 추가 |
 | 2026-04-07 | FLOW-01 | 대시보드 프로젝트 상세 진입 계약을 목록 화면 규약에 맞춤 |
 | 2026-04-07 | RULE-01 | 종료조건 체크 시 산출물 필요 조건 검증 추가 |
 | 2026-04-07 | DOC-01 | planning 문서를 실제 PMS 구현 단계에 맞게 재기준화 |
@@ -113,5 +120,6 @@
 
 | Date | Change |
 |------|--------|
+| 2026-06-08 | Added PMS launch closeout dashboard/detail/verification backlog closeout entries. |
 | 2026-04-07 | Reorganized backlog around the next executable PMS batches. |
 | 2026-02-09 | Add changelog section. |

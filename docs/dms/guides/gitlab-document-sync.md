@@ -1,6 +1,6 @@
 # DMS GitLab 문서 자동 싱크 운영 가이드
 
-> 최종 업데이트: 2026-06-01
+> 최종 업데이트: 2026-06-04
 > 범위: DMS 서버가 runtime markdown root를 어떤 문서 GitLab 저장소에 연결하는지 운영/개발/테스트 역할별로 고정하는 절차.
 
 이 문서는 코드 구현이 아니라 운영 handoff 문서입니다. 현재 DMS 서버는 시작 시 이미 `gitService.initialize()` 를 호출하며, 운영자는 `.env` 와 배포 runtime 역할만 올바르게 고정하면 됩니다.
@@ -38,6 +38,8 @@
 
 운영 원칙:
 
+- `DMS_INSTANCE_ENV=prod` 런타임은 `LSWIKI_DOC.git` 문서 저장소를 canonical remote 로 사용합니다.
+- `DMS_INSTANCE_ENV=dev` 런타임은 `LSWIKI_DOC_DEV.git` 문서 저장소를 canonical remote 로 사용합니다.
 - 현재 "서버에 올라가는" 배포 런타임은 `DMS_INSTANCE_ENV=prod` 로 취급합니다.
 - ordinary local run(`pnpm dev`, `pnpm dev:server`, local compose)은 `DMS_INSTANCE_ENV=dev` 로 취급합니다.
 - Playwright / local-test 는 `DMS_INSTANCE_ENV=local-test` 로 고정하고 remote 를 비워 둡니다.
@@ -161,6 +163,7 @@ pnpm run verify:access-dms:raw
 
 | 날짜 | 변경 내용 |
 |---|---|
+| 2026-06-04 | 역할 매핑 검증 문장을 명시해 docs verify 의 prod/dev canonical remote 점검 기준을 보강 |
 | 2026-06-01 | `DMS_INSTANCE_ENV` 기준 prod/dev/local-test 문서 repo 분리 계약, wrong-remote blocking, local-test 격리 규칙을 반영 |
 | 2026-05-08 | 사이드바 변경사항 표시를 실패/차단 publish 복구 전용 UI로 조정 |
 | 2026-05-08 | 앱 내부 문서/템플릿 변경 자동 publish 기준과 사이드바 변경사항 화면의 진단 역할을 추가 |

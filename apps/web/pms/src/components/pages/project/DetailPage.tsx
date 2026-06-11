@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useCurrentTab } from '@/hooks/useCurrentTab';
-import { useProjectDetail } from '@/hooks/queries';
+import { useProjectDetail, useTransitionReadiness } from '@/hooks/queries';
 import { LoadingState, ErrorState } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Users, ListTodo, Flag, AlertCircle, FileOutput, ClipboardCheck } from 'lucide-react';
@@ -20,7 +20,7 @@ import { DeliverablesTab } from './tabs/DeliverablesTab';
 import { CloseConditionsTab } from './tabs/CloseConditionsTab';
 import { StatusTimeline } from './sections/StatusTimeline';
 import { StageActionBar } from './sections/StageActionBar';
-import type { Project, ProjectStatusCode } from '@/lib/api/endpoints/projects';
+import type { Project, ProjectStatusCode, TransitionReadiness } from '@/lib/api/endpoints/projects';
 import type { LucideIcon } from 'lucide-react';
 
 type ManagementTabKey =
@@ -47,6 +47,76 @@ const STATUS_TABS: { key: ProjectStatusCode; label: string }[] = [
   { key: 'transition', label: '전환' },
 ];
 
+function getNextAction(project: Project, readiness: TransitionReadiness | null): string {
+  if (project.stageCode !== 'in_progress') {
+    return project.stageCode === 'waiting' ? '단계 시작 여부를 확인하세요.' : '완료 결과와 후속 상태를 확인하세요.';
+  }
+  if (readiness && !readiness.canComplete) {
+    const pending = readiness.deliverables.pending + readiness.closeConditions.unchecked;
+    return `완료 전 차단 항목 ${pending}건을 먼저 정리하세요.`;
+  }
+  if (project.statusCode === 'execution') return '수행 상태, 산출물, 종료조건을 점검하세요.';
+  if (project.statusCode === 'transition') return '운영 전환 담당과 전환 예정일을 확인하세요.';
+  return '현재 단계의 담당자, 일정, 메모를 확인하세요.';
+}
+
+function ProjectReadinessPanel({
+  project,
+  readiness,
+}: {
+  project: Project;
+  readiness: TransitionReadiness | null;
+}) {
+  const blockingDeliverables = readiness?.deliverables.pending ?? 0;
+  const blockingCloseConditions = readiness?.closeConditions.unchecked ?? 0;
+  const canComplete = readiness?.canComplete ?? false;
+  const nextAction = getNextAction(project, readiness);
+
+  const cards = [
+    {
+      label: '다음 액션',
+      value: nextAction,
+      tone: 'bg-blue-50 border-blue-100 text-blue-800',
+    },
+    {
+      label: '막힌 조건',
+      value: readiness ? `${blockingDeliverables + blockingCloseConditions}건` : '확인 중',
+      tone: blockingDeliverables + blockingCloseConditions > 0
+        ? 'bg-amber-50 border-amber-100 text-amber-800'
+        : 'bg-green-50 border-green-100 text-green-800',
+    },
+    {
+      label: '종료 가능 여부',
+      value: readiness ? (canComplete ? '가능' : '대기') : '확인 중',
+      tone: canComplete ? 'bg-green-50 border-green-100 text-green-800' : 'bg-gray-50 border-gray-100 text-gray-700',
+    },
+  ];
+
+  return (
+    <div className="rounded-lg border bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <ClipboardCheck className="h-4 w-4 text-green-600" />
+        <h2 className="text-sm font-semibold text-gray-700">PM 실행 closeout</h2>
+        <span className="text-xs text-muted-foreground">산출물·종료조건 기준의 현재 조치 판단</span>
+      </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {cards.map((card) => (
+          <div key={card.label} className={`rounded-lg border px-3 py-2 ${card.tone}`}>
+            <div className="text-[11px] font-medium opacity-80">{card.label}</div>
+            <div className="mt-1 text-sm font-semibold">{card.value}</div>
+          </div>
+        ))}
+      </div>
+      {readiness && !readiness.canComplete && (
+        <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+          <span>미확정 산출물 {blockingDeliverables}/{readiness.deliverables.total}</span>
+          <span>미체크 종료조건 {blockingCloseConditions}/{readiness.closeConditions.total}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProjectDetailPage() {
   const tab = useCurrentTab();
   const { openTab } = useTabStore();
@@ -55,6 +125,7 @@ export function ProjectDetailPage() {
   const [currentManagementTab, setCurrentManagementTab] = useState<ManagementTabKey>('members');
 
   const { data: response, isLoading, error, refetch } = useProjectDetail(projectId);
+  const { data: readinessResponse } = useTransitionReadiness(projectId || undefined);
 
   const project: Project | null = useMemo(() => {
     if (!response?.success || !response.data) return null;
@@ -121,6 +192,8 @@ export function ProjectDetailPage() {
           doneResultCode={project.doneResultCode}
           onTransitioned={() => refetch()}
         />
+
+        <ProjectReadinessPanel project={project} readiness={readinessResponse?.data ?? null} />
 
         {/* Status Tabs */}
         <div className="border rounded-lg bg-white">

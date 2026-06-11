@@ -17,7 +17,7 @@
 - 문서 정본 GitLab `LSWIKI_DOC.git` 원격 운영 종결 (2026-04-30, Phase A): canonical `master` 직접 push 정책 확정/검증. `document-repo-three-issue-status.md` 3개 이슈 모두 closed. versionHistory dead feature 제거 + 의도(`DMS-FE-versionHistory`) backlog 등재. Track 2 / 5 / 7 closed → 100%
 - DMS 접근 검증 게이트 복구: 문서 저장/설정 저장 응답 계약, 저장소 기반 원본 이미지 제공, 기존 sidecar 기준선 검증을 정렬해 `verify:access-dms:raw` 통과
 - 권한 요청 UX와 관리자 권한 운영 surface 1차 완결: 검색/질의 결과의 발견 전용 표시와 권한 요청, 내 요청 목록, 승인/거절 inbox, 직접 권한 부여, 공개 범위 전환, 소유권 이전, grant 취소가 실제 API와 연결됨
-- 공통 알림 모듈 1차 완결: common notification DB/API/types/history trigger, DMS same-origin proxy, SSE stream, 헤더 알림 패널/토스트, CMS bridge 를 공통 알림 계약으로 정렬
+- 공통 알림 모듈 1차 완결: common notification DB/API/types/history trigger, DMS same-origin proxy, SSE stream, 헤더 알림 패널/토스트, SNS bridge 를 공통 알림 계약으로 정렬
 - 사용자별 DMS client state isolation 적용: 로그인 사용자 변경 시 tab/file tree/sidebar/editor/settings/query cache 상태를 분리하고, user-scope contract 검증을 추가
 - 권한 요청 취소와 수신자 알림 cleanup 적용: requester pending 취소, owner 알림 archive/read 처리, notification archived 이벤트 기반 패널 갱신 연결
 - AI 검색 런칭 정리: 검색 결과 AI 요약 표시, DB 기반 내 자주 검색/인기 검색어/검색 기록, 인기 검색어 최소 노출 조건과 검증/테스트 검색어 저장 차단 적용
@@ -90,7 +90,7 @@
 | 2026-05-14 | DMS 접근 검증 게이트 복구(`verify:access-dms:raw` 통과)와 권한 UX 재감사 결과 반영. 액세스 요청 워크플로우와 관리자 권한 운영 surface 를 완료로 재분류하고, 잔여 P1을 차단 소스 수 표시와 권한 UX 회귀 자동화로 축소 |
 | 2026-04-30 | Phase A 종결 — 문서 정본 GitLab push 정책 확정 (canonical `master`), versionHistory dead code 제거 + 의도 backlog 등재. Track 2/5/7 closed (100%). 단기 우선순위를 Phase B (권한 UX 3종, `DMS-PERM-UX-01/02/03`) 로 재정렬 |
 | 2026-04-30 | DMS 핵심 서비스 분해 트랙 (C-2 / C-3 / C-4, 13 slices, 7 commits) 종료를 현재 완료에 반영. `access-request.service.ts` 2150 → 1121 (-48%) 외 collaboration / git 서비스도 cohesive 단위로 분리 |
-| 2026-04-14 | DMS object ACL pilot을 file/content write-read + template/doc-assist source hint + creator owner default + 기본 UI affordance + upload inheritance + local storage/open + validation matrix까지 확장한 상태를 현재 완료에 반영하고, 단기 우선순위를 PMS/CMS alignment로 전환 |
+| 2026-04-14 | DMS object ACL pilot을 file/content write-read + template/doc-assist source hint + creator owner default + 기본 UI affordance + upload inheritance + local storage/open + validation matrix까지 확장한 상태를 현재 완료에 반영하고, 단기 우선순위를 PMS/SNS alignment로 전환 |
 | 2026-04-14 | 공통 permission contract / auth-access validation baseline 완료를 현재 완료 항목에 반영하고, 단기 우선순위를 object ACL 중심으로 재정렬 |
 | 2026-04-13 | auth/access readiness 기준으로 로드맵을 재정렬하고, DMS의 다음 우선순위를 object ACL + 검증 시나리오 고정으로 갱신 |
 | 2026-02-24 | P1 항목별 1차 구현/잔여 작업 상태표 추가 |

@@ -261,7 +261,7 @@ node ./node_modules/prisma/build/index.js db push
 | `14_demo_milestones.sql` | pms | 프로젝트별 데모 마일스톤 |
 | `15_dms_access_policy_foundation.sql` | **common** | DMS access feature baseline |
 | `15_demo_issues.sql` | pms | 프로젝트별 데모 이슈 |
-| `16_cms_access_policy_foundation.sql` | **common** | CMS access feature baseline |
+| `16_sns_access_policy_foundation.sql` | **common** | SNS access feature baseline |
 | `16_demo_deliverables_conditions.sql` | pms | 프로젝트별 데모 산출물/종료조건 |
 | `17_demo_project_access_context.sql` | common+pms | Docker 런타임 검증용 PMS owner/org baseline |
 | `99_user_initial_admin.sql` | **common** | 초기 관리자 계정 |

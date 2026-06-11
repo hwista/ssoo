@@ -4,8 +4,9 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { DatabaseModule } from './database/database.module.js';
 import { CommonModule } from './modules/common/common.module.js';
 import { PmsModule } from './modules/pms/pms.module.js';
-import { CmsModule } from './modules/cms/cms.module.js';
+import { SnsModule } from './modules/sns/sns.module.js';
 import { DmsModule } from './modules/dms/dms.module.js';
+import { CrmModule } from './modules/crm/crm.module.js';
 import { RequestContextInterceptor } from './common/interceptors/request-context.interceptor.js';
 import { configValidationSchema } from './config/config.validation.js';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter.js';
@@ -26,8 +27,9 @@ import { JwtAuthGuard } from './modules/common/auth/guards/jwt-auth.guard.js';
     DatabaseModule,
     CommonModule,
     PmsModule,
-    CmsModule,
+    SnsModule,
     DmsModule,
+    CrmModule,
   ],
   controllers: [],
   providers: [

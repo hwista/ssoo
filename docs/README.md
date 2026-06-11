@@ -57,6 +57,8 @@ docs/
 │   │   └── design/         # UI/UX 설계 (디자인 시스템, 레이아웃)
 │   ├── planning/           # 기획 및 로드맵 (backlog, changelog)
 │   └── tests/              # 테스트 문서
+├── crm/                    # 💼 CRM 문서
+│   └── planning/           # 외부 영업관리 데모 이식 PRD/백로그
 └── dms/                    # 📄 DMS 문서 (정본)
     ├── tutorials/          # Tutorial: 학습 자료
     ├── guides/             # How-to: 개발 가이드
@@ -95,6 +97,14 @@ docs/
 | [디자인 시스템](./pms/explanation/design/design-system.md) | UI/UX 디자인 표준 |
 | [변경 이력](./pms/planning/changelog.md) | 최신 변경사항 |
 | [백로그](./pms/planning/backlog.md) | 작업 현황 |
+
+### CRM (Customer / Sales Management)
+
+| 문서 | 설명 |
+|------|------|
+| [CRM README](./crm/README.md) | CRM 문서 인덱스 |
+| [CRM 원천 데모 마이그레이션 PRD](./crm/planning/source-migration-prd.md) | 외부 영업관리 데모 기능 범위와 SSOO 이식 계획 |
+| [CRM 백로그](./crm/planning/backlog.md) | 단계별 실행 항목 |
 
 ### DMS (Document Management System)
 

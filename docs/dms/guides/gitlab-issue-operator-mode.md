@@ -218,7 +218,7 @@ changed-area 추가 규칙:
 
 - `apps/server/**` -> server type-check + `pnpm build:server`
 - `apps/web/pms/**` -> PMS type-check + `pnpm build:web-pms`
-- `apps/web/cms/**` -> CMS type-check + `pnpm build:web-cms`
+- `apps/web/sns/**` -> SNS type-check + `pnpm build:web-sns`
 - `apps/web/dms/**` -> DMS type-check + `pnpm build:web-dms`
 - `apps/web/admin/**` -> Admin type-check + `pnpm build:web-admin`
 - `packages/database/**` 또는 auth/access boundary -> `@ssoo/database build` + `pnpm verify:access-ci`

@@ -1,11 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { toast } from '@/lib/toast';
+import { ScrollToLatestButton } from '@/components/common/ScrollToLatestButton';
 import { useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { useAssistantChat } from '../chat/useAssistantChat';
-import { useAssistantSessionPersistence } from '../session/useAssistantSessionPersistence';
 import { AssistantMessageList } from '../MessageList';
 import {
   FloatingAssistantFooter,
@@ -41,7 +40,6 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
   const selectSession = useAssistantSessionStore((state) => state.selectSession);
 
   const { submitUserMessage, abortChat, handleOpenFile, handleOpenHelpAction, openExpandedChatPage } = useAssistantChat();
-  const { saveSession, removeSessionFromDb } = useAssistantSessionPersistence();
   const {
     hasMessages,
     historyOpen,
@@ -51,16 +49,19 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
   } = useFloatingAssistantPanelBehavior({
     isOpen,
     messagesLength: messages.length,
-    scrollRef,
     inputRef,
     historyRef,
     regenerateSuggestions,
     setSuggestionsCollapsed,
     setInputDraft,
   });
-  const { scrollToBottomIfNeeded } = useAutoScroll({
+  const {
+    showScrollToBottom,
+    scrollToBottom,
+    scrollToBottomIfNeeded,
+  } = useAutoScroll({
     scrollRef,
-    active: isProcessing,
+    active: isOpen && hasMessages,
   });
   const streamingContentLength = useMemo(() => {
     const lastMessage = messages[messages.length - 1];
@@ -69,7 +70,12 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
 
   useEffect(() => {
     scrollToBottomIfNeeded();
-  }, [scrollToBottomIfNeeded, streamingContentLength]);
+  }, [messages.length, scrollToBottomIfNeeded, streamingContentLength]);
+
+  useEffect(() => {
+    if (!isOpen || !hasMessages) return;
+    scrollToBottom({ force: true });
+  }, [activeSessionId, hasMessages, isOpen, scrollToBottom]);
 
   const onExpand = useCallback(async () => {
     await openExpandedChatPage();
@@ -99,43 +105,31 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
           resetContext();
           setHistoryOpen(false);
         }}
-        onTogglePersist={(item) => {
-          if (item.persistedToDb) {
-            void removeSessionFromDb(item.id).then((result) => {
-              if (!result.success) {
-                toast.error(result.error);
-                return;
-              }
-              toast.success('세션 DB 저장을 해제했습니다.');
-            });
-            return;
-          }
-
-          void saveSession(item.id).then((result) => {
-            if (!result.success) {
-              toast.error(result.error);
-              return;
-            }
-            toast.success('세션을 DB에 저장했습니다.');
-          });
-        }}
       />
 
-      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-3">
-        {!hasMessages ? (
-          <div className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/30 p-4 text-body-sm text-ssoo-primary/70">
-            우리 서비스의 기능과 문서 내용에 대해 자유롭게 대화해 보세요 !
-          </div>
-        ) : (
-          <AssistantMessageList
-            messages={messages}
-            onOpenFile={handleOpenFile}
-            onOpenHelpAction={handleOpenHelpAction}
-            onResendUserMessage={submitUserMessage}
-            actionDisabled={isProcessing}
-            variant="panel"
-          />
-        )}
+      <div className="relative min-h-0 flex-1">
+        <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto px-4 py-3 pb-12">
+          {!hasMessages ? (
+            <div className="rounded-lg border border-dashed border-ssoo-content-border bg-ssoo-content-bg/30 p-4 text-body-sm text-ssoo-primary/70">
+              우리 서비스의 기능과 문서 내용에 대해 자유롭게 대화해 보세요 !
+            </div>
+          ) : (
+            <AssistantMessageList
+              messages={messages}
+              onOpenFile={handleOpenFile}
+              onOpenHelpAction={handleOpenHelpAction}
+              onResendUserMessage={submitUserMessage}
+              actionDisabled={isProcessing}
+              variant="panel"
+            />
+          )}
+        </div>
+        <ScrollToLatestButton
+          visible={showScrollToBottom}
+          onClick={() => scrollToBottom({ force: true, behavior: 'smooth' })}
+          label="최신 응답으로 이동"
+          className="bottom-3 right-3 h-8 w-8"
+        />
       </div>
 
       <FloatingAssistantFooter

@@ -11,7 +11,10 @@ import { Logger } from '@nestjs/common';
 import type { Server, Socket } from 'socket.io';
 import { verifyWsToken } from './ws-jwt.guard.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { DocumentAclService } from '../access/document-acl.service.js';
 import { normalizePath } from '../collaboration/collaboration-paths.util.js';
+import { configService } from '../runtime/dms-config.service.js';
+import { resolveAbsolutePath } from '../search/search.helpers.js';
 import type {
   DocumentCollaborationSnapshot,
   SoftLockTakeoverRequest,
@@ -77,6 +80,10 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   private readonly connectedUsers = new Map<string, Set<string>>(); // userId → socketIds
 
+  constructor(
+    private readonly documentAclService: DocumentAclService,
+  ) {}
+
   // --------------------------------------------------------------------------
   // Connection lifecycle
   // --------------------------------------------------------------------------
@@ -135,10 +142,19 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
   handleSubscribeDocument(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() data: { path: string },
-  ): { success: boolean } {
+  ): { success: boolean; error?: string } {
     if (!client.data.user || !data?.path) return { success: false };
 
     const documentPath = normalizePath(data.path);
+    if (!documentPath || !this.canSubscribeDocument(client.data.user, documentPath)) {
+      logger.warn('WebSocket 문서 구독 거부: 읽기 권한 없음', {
+        userId: client.data.user.userId,
+        loginId: client.data.user.loginId,
+        documentPath,
+      });
+      return { success: false, error: 'forbidden' };
+    }
+
     const roomName = this.documentRoom(documentPath);
     client.join(roomName);
     client.data.subscribedPaths?.add(documentPath);
@@ -168,6 +184,15 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
     if (!client.data.user) return { success: false };
     client.join('dms:tree');
     return { success: true };
+  }
+
+  private canSubscribeDocument(user: TokenPayload, documentPath: string): boolean {
+    if (!/\.md$/i.test(documentPath)) {
+      return false;
+    }
+
+    const absolutePath = resolveAbsolutePath(documentPath, configService.getDocDir());
+    return this.documentAclService.isReadableAbsolutePath(user, absolutePath);
   }
 
   // --------------------------------------------------------------------------

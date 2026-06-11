@@ -2,7 +2,6 @@
 
 import type { RefObject } from 'react';
 import { Bot, ExternalLink, History, Maximize2 } from 'lucide-react';
-import { toast } from '@/lib/toast';
 import { AssistantComposer } from '../Composer';
 import { AssistantSessionHistoryList } from '../session/HistoryList';
 import type { AssistantSession } from '@/stores';
@@ -46,7 +45,6 @@ interface FloatingAssistantHistoryProps {
   onStartNewSession: () => void;
   onToggleHistory: () => void;
   onSelectSession: (id: string) => void;
-  onTogglePersist: (item: AssistantSession) => void;
 }
 
 export function FloatingAssistantHistory({
@@ -58,7 +56,6 @@ export function FloatingAssistantHistory({
   onStartNewSession,
   onToggleHistory,
   onSelectSession,
-  onTogglePersist,
 }: FloatingAssistantHistoryProps) {
   return (
     <div ref={historyRef} className="absolute top-14 -left-12 z-20">
@@ -89,13 +86,6 @@ export function FloatingAssistantHistory({
               items={sessions.slice(0, 20)}
               isActive={(item) => item.id === activeSessionId}
               onSelect={(item) => onSelectSession(item.id)}
-              onTogglePersist={(item) => {
-                try {
-                  onTogglePersist(item as AssistantSession);
-                } catch {
-                  toast.error('세션 저장 상태를 변경하지 못했습니다.');
-                }
-              }}
               variant="panel"
             />
           </div>

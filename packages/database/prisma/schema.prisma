@@ -14,7 +14,7 @@ generator dbml {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["common", "pms", "dms", "cms"]
+  schemas  = ["common", "pms", "dms", "sns"]
 }
 
 // ============================================
@@ -4248,14 +4248,14 @@ model DmsConfig {
 }
 
 // ============================================
-// CMS (Content Management System) Models
-// Schema: cms, Prefix: cms_
+// SNS Models
+// Schema: sns, Prefix: sns_
 // ============================================
 
 // ============================================
 // Board (게시판 정의)
 // ============================================
-model CmsBoard {
+model SnsBoard {
   id BigInt @id @default(autoincrement()) @map("board_id")
 
   boardCode   String  @unique @map("board_code") @db.VarChar(50)
@@ -4275,16 +4275,16 @@ model CmsBoard {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  categories CmsBoardCategory[]
-  posts      CmsPost[]
+  categories SnsBoardCategory[]
+  posts      SnsPost[]
 
-  @@index([boardType], name: "ix_cms_board_m_type")
-  @@index([sortOrder], name: "ix_cms_board_m_sort")
-  @@map("cms_board_m")
-  @@schema("cms")
+  @@index([boardType], name: "ix_sns_board_m_type")
+  @@index([sortOrder], name: "ix_sns_board_m_sort")
+  @@map("sns_board_m")
+  @@schema("sns")
 }
 
-model CmsBoardHistory {
+model SnsBoardHistory {
   boardId    BigInt @map("board_id")
   historySeq BigInt @map("history_seq")
 
@@ -4309,17 +4309,17 @@ model CmsBoardHistory {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  @@id([boardId, historySeq], name: "pk_cms_board_h")
-  @@index([eventAt], name: "ix_cms_board_h_event_at")
-  @@index([transactionId], name: "ix_cms_board_h_tx")
-  @@map("cms_board_h")
-  @@schema("cms")
+  @@id([boardId, historySeq], name: "pk_sns_board_h")
+  @@index([eventAt], name: "ix_sns_board_h_event_at")
+  @@index([transactionId], name: "ix_sns_board_h_tx")
+  @@map("sns_board_h")
+  @@schema("sns")
 }
 
 // ============================================
 // Board Category (게시판 카테고리)
 // ============================================
-model CmsBoardCategory {
+model SnsBoardCategory {
   id BigInt @id @default(autoincrement()) @map("category_id")
 
   boardId      BigInt @map("board_id")
@@ -4335,18 +4335,18 @@ model CmsBoardCategory {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  board CmsBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  posts CmsPost[]
+  board SnsBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  posts SnsPost[]
 
-  @@index([boardId], name: "ix_cms_board_category_m_board")
-  @@map("cms_board_category_m")
-  @@schema("cms")
+  @@index([boardId], name: "ix_sns_board_category_m_board")
+  @@map("sns_board_category_m")
+  @@schema("sns")
 }
 
 // ============================================
 // Post (게시물 — 피드 + 게시판 통합)
 // ============================================
-model CmsPost {
+model SnsPost {
   id BigInt @id @default(autoincrement()) @map("post_id")
 
   authorUserId BigInt  @map("author_user_id")
@@ -4371,27 +4371,27 @@ model CmsPost {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  board       CmsBoard?         @relation(fields: [boardId], references: [id], onDelete: SetNull)
-  category    CmsBoardCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  comments    CmsComment[]
-  reactions   CmsReaction[]
-  postTags    CmsPostTag[]
-  mentions    CmsMention[]
-  attachments CmsAttachment[]
-  bookmarks   CmsBookmark[]
+  board       SnsBoard?         @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  category    SnsBoardCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  comments    SnsComment[]
+  reactions   SnsReaction[]
+  postTags    SnsPostTag[]
+  mentions    SnsMention[]
+  attachments SnsAttachment[]
+  bookmarks   SnsBookmark[]
 
-  @@index([authorUserId], name: "ix_cms_post_m_author")
-  @@index([boardId], name: "ix_cms_post_m_board")
-  @@index([categoryId], name: "ix_cms_post_m_category")
-  @@index([createdAt], name: "ix_cms_post_m_created")
-  @@index([isPinned, createdAt], name: "ix_cms_post_m_pinned")
-  @@index([visibilityScopeCode, createdAt], name: "ix_cms_post_m_visibility")
-  @@index([targetOrgId, createdAt], name: "ix_cms_post_m_target_org")
-  @@map("cms_post_m")
-  @@schema("cms")
+  @@index([authorUserId], name: "ix_sns_post_m_author")
+  @@index([boardId], name: "ix_sns_post_m_board")
+  @@index([categoryId], name: "ix_sns_post_m_category")
+  @@index([createdAt], name: "ix_sns_post_m_created")
+  @@index([isPinned, createdAt], name: "ix_sns_post_m_pinned")
+  @@index([visibilityScopeCode, createdAt], name: "ix_sns_post_m_visibility")
+  @@index([targetOrgId, createdAt], name: "ix_sns_post_m_target_org")
+  @@map("sns_post_m")
+  @@schema("sns")
 }
 
-model CmsPostHistory {
+model SnsPostHistory {
   postId     BigInt @map("post_id")
   historySeq BigInt @map("history_seq")
 
@@ -4420,17 +4420,17 @@ model CmsPostHistory {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  @@id([postId, historySeq], name: "pk_cms_post_h")
-  @@index([eventAt], name: "ix_cms_post_h_event_at")
-  @@index([transactionId], name: "ix_cms_post_h_tx")
-  @@map("cms_post_h")
-  @@schema("cms")
+  @@id([postId, historySeq], name: "pk_sns_post_h")
+  @@index([eventAt], name: "ix_sns_post_h_event_at")
+  @@index([transactionId], name: "ix_sns_post_h_tx")
+  @@map("sns_post_h")
+  @@schema("sns")
 }
 
 // ============================================
 // Comment (댓글 — 대댓글 self-reference)
 // ============================================
-model CmsComment {
+model SnsComment {
   id BigInt @id @default(autoincrement()) @map("comment_id")
 
   postId          BigInt  @map("post_id")
@@ -4449,20 +4449,20 @@ model CmsComment {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  post          CmsPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parentComment CmsComment?   @relation("CommentThread", fields: [parentCommentId], references: [id], onDelete: SetNull)
-  childComments CmsComment[]  @relation("CommentThread")
-  reactions     CmsReaction[]
-  mentions      CmsMention[]
+  post          SnsPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentComment SnsComment?   @relation("CommentThread", fields: [parentCommentId], references: [id], onDelete: SetNull)
+  childComments SnsComment[]  @relation("CommentThread")
+  reactions     SnsReaction[]
+  mentions      SnsMention[]
 
-  @@index([postId, createdAt], name: "ix_cms_comment_m_post")
-  @@index([authorUserId], name: "ix_cms_comment_m_author")
-  @@index([parentCommentId], name: "ix_cms_comment_m_parent")
-  @@map("cms_comment_m")
-  @@schema("cms")
+  @@index([postId, createdAt], name: "ix_sns_comment_m_post")
+  @@index([authorUserId], name: "ix_sns_comment_m_author")
+  @@index([parentCommentId], name: "ix_sns_comment_m_parent")
+  @@map("sns_comment_m")
+  @@schema("sns")
 }
 
-model CmsCommentHistory {
+model SnsCommentHistory {
   commentId  BigInt @map("comment_id")
   historySeq BigInt @map("history_seq")
 
@@ -4485,17 +4485,17 @@ model CmsCommentHistory {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  @@id([commentId, historySeq], name: "pk_cms_comment_h")
-  @@index([eventAt], name: "ix_cms_comment_h_event_at")
-  @@index([transactionId], name: "ix_cms_comment_h_tx")
-  @@map("cms_comment_h")
-  @@schema("cms")
+  @@id([commentId, historySeq], name: "pk_sns_comment_h")
+  @@index([eventAt], name: "ix_sns_comment_h_event_at")
+  @@index([transactionId], name: "ix_sns_comment_h_tx")
+  @@map("sns_comment_h")
+  @@schema("sns")
 }
 
 // ============================================
 // Reaction (반응/좋아요 — 다형성: 게시물·댓글)
 // ============================================
-model CmsReaction {
+model SnsReaction {
   id BigInt @id @default(autoincrement()) @map("reaction_id")
 
   userId       BigInt  @map("user_id")
@@ -4505,21 +4505,21 @@ model CmsReaction {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  post    CmsPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  comment CmsComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post    SnsPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment SnsComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, postId, reactionType], name: "uq_cms_reaction_post")
-  @@unique([userId, commentId, reactionType], name: "uq_cms_reaction_comment")
-  @@index([postId], name: "ix_cms_reaction_m_post")
-  @@index([commentId], name: "ix_cms_reaction_m_comment")
-  @@map("cms_reaction_m")
-  @@schema("cms")
+  @@unique([userId, postId, reactionType], name: "uq_sns_reaction_post")
+  @@unique([userId, commentId, reactionType], name: "uq_sns_reaction_comment")
+  @@index([postId], name: "ix_sns_reaction_m_post")
+  @@index([commentId], name: "ix_sns_reaction_m_comment")
+  @@map("sns_reaction_m")
+  @@schema("sns")
 }
 
 // ============================================
 // Tag (태그 마스터)
 // ============================================
-model CmsTag {
+model SnsTag {
   id BigInt @id @default(autoincrement()) @map("tag_id")
 
   tagName    String @unique @map("tag_name") @db.VarChar(100)
@@ -4528,35 +4528,35 @@ model CmsTag {
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
 
-  postTags CmsPostTag[]
+  postTags SnsPostTag[]
 
-  @@index([usageCount], name: "ix_cms_tag_m_usage")
-  @@map("cms_tag_m")
-  @@schema("cms")
+  @@index([usageCount], name: "ix_sns_tag_m_usage")
+  @@map("sns_tag_m")
+  @@schema("sns")
 }
 
 // ============================================
 // Post-Tag Relation (게시물-태그)
 // ============================================
-model CmsPostTag {
+model SnsPostTag {
   postId BigInt @map("post_id")
   tagId  BigInt @map("tag_id")
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  post CmsPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tag  CmsTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  post SnsPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  SnsTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  @@id([postId, tagId], name: "pk_cms_post_tag_r")
-  @@index([tagId], name: "ix_cms_post_tag_r_tag")
-  @@map("cms_post_tag_r")
-  @@schema("cms")
+  @@id([postId, tagId], name: "pk_sns_post_tag_r")
+  @@index([tagId], name: "ix_sns_post_tag_r_tag")
+  @@map("sns_post_tag_r")
+  @@schema("sns")
 }
 
 // ============================================
 // Mention (멘션 @유저)
 // ============================================
-model CmsMention {
+model SnsMention {
   id BigInt @id @default(autoincrement()) @map("mention_id")
 
   mentionedUserId BigInt  @map("mentioned_user_id")
@@ -4565,20 +4565,20 @@ model CmsMention {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  post    CmsPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  comment CmsComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post    SnsPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment SnsComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
-  @@index([mentionedUserId], name: "ix_cms_mention_m_user")
-  @@index([postId], name: "ix_cms_mention_m_post")
-  @@index([commentId], name: "ix_cms_mention_m_comment")
-  @@map("cms_mention_m")
-  @@schema("cms")
+  @@index([mentionedUserId], name: "ix_sns_mention_m_user")
+  @@index([postId], name: "ix_sns_mention_m_post")
+  @@index([commentId], name: "ix_sns_mention_m_comment")
+  @@map("sns_mention_m")
+  @@schema("sns")
 }
 
 // ============================================
 // Attachment (첨부파일)
 // ============================================
-model CmsAttachment {
+model SnsAttachment {
   id BigInt @id @default(autoincrement()) @map("attachment_id")
 
   postId    BigInt @map("post_id")
@@ -4591,17 +4591,17 @@ model CmsAttachment {
   createdBy BigInt?  @map("created_by")
   createdAt DateTime @default(now()) @map("created_at")
 
-  post CmsPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post SnsPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  @@index([postId], name: "ix_cms_attachment_m_post")
-  @@map("cms_attachment_m")
-  @@schema("cms")
+  @@index([postId], name: "ix_sns_attachment_m_post")
+  @@map("sns_attachment_m")
+  @@schema("sns")
 }
 
 // ============================================
 // User Profile (확장 프로필)
 // ============================================
-model CmsUserProfile {
+model SnsUserProfile {
   id BigInt @id @default(autoincrement()) @map("profile_id")
 
   userId        BigInt  @unique @map("user_id")
@@ -4619,15 +4619,15 @@ model CmsUserProfile {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  userSkills           CmsUserSkill[]
-  careers              CmsUserCareer[]
-  endorsementsReceived CmsEndorsement[] @relation("EndorseeProfile")
+  userSkills           SnsUserSkill[]
+  careers              SnsUserCareer[]
+  endorsementsReceived SnsEndorsement[] @relation("EndorseeProfile")
 
-  @@map("cms_user_profile_m")
-  @@schema("cms")
+  @@map("sns_user_profile_m")
+  @@schema("sns")
 }
 
-model CmsUserProfileHistory {
+model SnsUserProfileHistory {
   profileId  BigInt @map("profile_id")
   historySeq BigInt @map("history_seq")
 
@@ -4650,17 +4650,17 @@ model CmsUserProfileHistory {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  @@id([profileId, historySeq], name: "pk_cms_user_profile_h")
-  @@index([eventAt], name: "ix_cms_user_profile_h_event_at")
-  @@index([transactionId], name: "ix_cms_user_profile_h_tx")
-  @@map("cms_user_profile_h")
-  @@schema("cms")
+  @@id([profileId, historySeq], name: "pk_sns_user_profile_h")
+  @@index([eventAt], name: "ix_sns_user_profile_h_event_at")
+  @@index([transactionId], name: "ix_sns_user_profile_h_tx")
+  @@map("sns_user_profile_h")
+  @@schema("sns")
 }
 
 // ============================================
 // Skill (스킬 마스터)
 // ============================================
-model CmsSkill {
+model SnsSkill {
   id BigInt @id @default(autoincrement()) @map("skill_id")
 
   skillName     String   @unique @map("skill_name") @db.VarChar(200)
@@ -4678,21 +4678,21 @@ model CmsSkill {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  parentSkill  CmsSkill?        @relation("SkillHierarchy", fields: [parentSkillId], references: [id], onDelete: SetNull)
-  childSkills  CmsSkill[]       @relation("SkillHierarchy")
-  userSkills   CmsUserSkill[]
-  endorsements CmsEndorsement[]
+  parentSkill  SnsSkill?        @relation("SkillHierarchy", fields: [parentSkillId], references: [id], onDelete: SetNull)
+  childSkills  SnsSkill[]       @relation("SkillHierarchy")
+  userSkills   SnsUserSkill[]
+  endorsements SnsEndorsement[]
 
-  @@index([skillCategory], name: "ix_cms_skill_m_category")
-  @@index([parentSkillId], name: "ix_cms_skill_m_parent")
-  @@map("cms_skill_m")
-  @@schema("cms")
+  @@index([skillCategory], name: "ix_sns_skill_m_category")
+  @@index([parentSkillId], name: "ix_sns_skill_m_parent")
+  @@map("sns_skill_m")
+  @@schema("sns")
 }
 
 // ============================================
 // User-Skill Relation (유저-스킬 매핑)
 // ============================================
-model CmsUserSkill {
+model SnsUserSkill {
   id BigInt @id @default(autoincrement()) @map("user_skill_id")
 
   profileId         BigInt @map("profile_id")
@@ -4704,20 +4704,20 @@ model CmsUserSkill {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  profile      CmsUserProfile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  skill        CmsSkill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  endorsements CmsEndorsement[]
+  profile      SnsUserProfile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skill        SnsSkill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  endorsements SnsEndorsement[]
 
-  @@unique([profileId, skillId], name: "uq_cms_user_skill")
-  @@index([skillId], name: "ix_cms_user_skill_r_skill")
-  @@map("cms_user_skill_r")
-  @@schema("cms")
+  @@unique([profileId, skillId], name: "uq_sns_user_skill")
+  @@index([skillId], name: "ix_sns_user_skill_r_skill")
+  @@map("sns_user_skill_r")
+  @@schema("sns")
 }
 
 // ============================================
 // User Career (프로젝트 이력)
 // ============================================
-model CmsUserCareer {
+model SnsUserCareer {
   id BigInt @id @default(autoincrement()) @map("career_id")
 
   profileId   BigInt    @map("profile_id")
@@ -4738,18 +4738,18 @@ model CmsUserCareer {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  profile CmsUserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile SnsUserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  @@index([profileId], name: "ix_cms_user_career_m_profile")
-  @@index([projectId], name: "ix_cms_user_career_m_project")
-  @@map("cms_user_career_m")
-  @@schema("cms")
+  @@index([profileId], name: "ix_sns_user_career_m_profile")
+  @@index([projectId], name: "ix_sns_user_career_m_project")
+  @@map("sns_user_career_m")
+  @@schema("sns")
 }
 
 // ============================================
 // Endorsement (스킬 추천/보증)
 // ============================================
-model CmsEndorsement {
+model SnsEndorsement {
   id BigInt @id @default(autoincrement()) @map("endorsement_id")
 
   endorserUserId    BigInt  @map("endorser_user_id")
@@ -4760,21 +4760,21 @@ model CmsEndorsement {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  endorseeProfile CmsUserProfile @relation("EndorseeProfile", fields: [endorseeProfileId], references: [id], onDelete: Cascade)
-  userSkill       CmsUserSkill   @relation(fields: [userSkillId], references: [id], onDelete: Cascade)
-  skill           CmsSkill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  endorseeProfile SnsUserProfile @relation("EndorseeProfile", fields: [endorseeProfileId], references: [id], onDelete: Cascade)
+  userSkill       SnsUserSkill   @relation(fields: [userSkillId], references: [id], onDelete: Cascade)
+  skill           SnsSkill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
-  @@unique([endorserUserId, userSkillId], name: "uq_cms_endorsement")
-  @@index([endorseeProfileId], name: "ix_cms_endorsement_m_endorsee")
-  @@index([skillId], name: "ix_cms_endorsement_m_skill")
-  @@map("cms_endorsement_m")
-  @@schema("cms")
+  @@unique([endorserUserId, userSkillId], name: "uq_sns_endorsement")
+  @@index([endorseeProfileId], name: "ix_sns_endorsement_m_endorsee")
+  @@index([skillId], name: "ix_sns_endorsement_m_skill")
+  @@map("sns_endorsement_m")
+  @@schema("sns")
 }
 
 // ============================================
 // Follow (팔로우 관계)
 // ============================================
-model CmsFollow {
+model SnsFollow {
   id BigInt @id @default(autoincrement()) @map("follow_id")
 
   followerUserId  BigInt @map("follower_user_id")
@@ -4782,16 +4782,16 @@ model CmsFollow {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([followerUserId, followingUserId], name: "uq_cms_follow")
-  @@index([followingUserId], name: "ix_cms_follow_r_following")
-  @@map("cms_follow_r")
-  @@schema("cms")
+  @@unique([followerUserId, followingUserId], name: "uq_sns_follow")
+  @@index([followingUserId], name: "ix_sns_follow_r_following")
+  @@map("sns_follow_r")
+  @@schema("sns")
 }
 
 // ============================================
 // Bookmark (게시물 북마크)
 // ============================================
-model CmsBookmark {
+model SnsBookmark {
   id BigInt @id @default(autoincrement()) @map("bookmark_id")
 
   userId BigInt @map("user_id")
@@ -4799,18 +4799,18 @@ model CmsBookmark {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  post CmsPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post SnsPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, postId], name: "uq_cms_bookmark")
-  @@index([userId, createdAt], name: "ix_cms_bookmark_m_user")
-  @@map("cms_bookmark_m")
-  @@schema("cms")
+  @@unique([userId, postId], name: "uq_sns_bookmark")
+  @@index([userId, createdAt], name: "ix_sns_bookmark_m_user")
+  @@map("sns_bookmark_m")
+  @@schema("sns")
 }
 
 // ============================================
 // Notification (알림)
 // ============================================
-model CmsNotification {
+model SnsNotification {
   id BigInt @id @default(autoincrement()) @map("notification_id")
 
   recipientUserId  BigInt    @map("recipient_user_id")
@@ -4824,8 +4824,8 @@ model CmsNotification {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@index([recipientUserId, isRead, createdAt], name: "ix_cms_notification_m_recipient")
-  @@index([actorUserId], name: "ix_cms_notification_m_actor")
-  @@map("cms_notification_m")
-  @@schema("cms")
+  @@index([recipientUserId, isRead, createdAt], name: "ix_sns_notification_m_recipient")
+  @@index([actorUserId], name: "ix_sns_notification_m_actor")
+  @@map("sns_notification_m")
+  @@schema("sns")
 }

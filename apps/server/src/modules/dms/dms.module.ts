@@ -25,6 +25,7 @@ import { personalSettingsService } from './runtime/personal-settings.service.js'
 import { gitService } from './runtime/git.service.js';
 import { TemplateService } from './templates/template.service.js';
 import { ControlPlaneSyncService } from './access/control-plane-sync.service.js';
+import { CollaborationService } from './collaboration/collaboration.service.js';
 
 const logger = new Logger('DmsModule');
 
@@ -77,6 +78,7 @@ export class DmsModule implements OnModuleInit {
     private readonly db: DatabaseService,
     private readonly templateService: TemplateService,
     private readonly controlPlaneSyncService: ControlPlaneSyncService,
+    private readonly collaborationService: CollaborationService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -121,6 +123,15 @@ export class DmsModule implements OnModuleInit {
       logger.log('DMS 문서 control-plane 초기 동기화 완료');
     } catch (err) {
       logger.warn('DMS 문서 control-plane 초기 동기화 중 예외', err instanceof Error ? err.message : String(err));
+    }
+
+    try {
+      const archivedCount = await this.collaborationService.archiveUserSurfaceHiddenNotifications();
+      if (archivedCount > 0) {
+        logger.log(`DMS 사용자 표면 제외 경로 알림 archive 완료 (${archivedCount}건)`);
+      }
+    } catch (err) {
+      logger.warn('DMS 사용자 표면 제외 경로 알림 archive 중 예외', err instanceof Error ? err.message : String(err));
     }
 
     try {

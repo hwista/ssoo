@@ -173,13 +173,12 @@ AZURE_MANAGED_IDENTITY_CLIENT_ID=
 
 ## AI 채팅 세션 API (`/api/chat-sessions`)
 
-브라우저 메모리 세션과 별개로, 선택한 채팅 세션만 DB에 저장/복원할 때 사용합니다.
+AI 대화 기록을 로그인 사용자 기준 DB 세션으로 저장/복원할 때 사용합니다. 클라이언트가 보낸 브라우저 식별자는 소유권 기준으로 사용하지 않고, 서버 인증 토큰의 사용자 ID가 세션 소유자입니다.
 
 ### GET /api/chat-sessions
 
 Query:
 
-- `clientId` (필수, 영문/숫자/`_`/`-`, 8~80자)
 - `limit` (선택, 기본 50, 최대 200)
 
 Response:
@@ -203,7 +202,6 @@ Request:
 
 ```json
 {
-  "clientId": "assistant_client_abcd1234",
   "session": {
     "id": "session_20260223_120000",
     "title": "릴리즈 체크리스트 정리",
@@ -226,7 +224,6 @@ Request:
 
 ```json
 {
-  "clientId": "assistant_client_abcd1234",
   "sessionId": "session_20260223_120000"
 }
 ```

@@ -20,6 +20,7 @@ import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.j
 import { CommonNotificationService } from '../../common/notification/notification.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import { DocumentRecordService } from '../access/document-record.service.js';
+import { normalizeComments } from '../access/access-request.util.js';
 import { contentService } from '../runtime/content.service.js';
 import { normalizeRelativePath } from '../runtime/path-utils.js';
 
@@ -55,6 +56,7 @@ interface ParentCommentRecord {
   commentId: bigint;
   commentKey: string;
   authorName: string;
+  authorEmail: string | null;
   createdBy: bigint | null;
 }
 
@@ -106,6 +108,7 @@ export class CommentsService {
 
   async list(pathValue: string, currentUser: TokenPayload): Promise<DmsDocumentCommentsResult> {
     const context = await this.resolveContext(pathValue, currentUser);
+    await this.ensureMetadataCommentsBackfilled(context.documentId, toBigIntUserId(currentUser));
     const comments = await this.listComments(context.documentId);
     return {
       path: context.relativePath,
@@ -118,6 +121,7 @@ export class CommentsService {
     currentUser: TokenPayload,
   ): Promise<DmsDocumentCommentMutationResult> {
     const context = await this.resolveContext(payload.path, currentUser);
+    await this.ensureMetadataCommentsBackfilled(context.documentId, toBigIntUserId(currentUser));
     const content = payload.content.trim();
     if (!content) {
       throw new BadRequestException('댓글 내용을 입력하세요.');
@@ -170,6 +174,7 @@ export class CommentsService {
     currentUser: TokenPayload,
   ): Promise<DmsDocumentCommentMutationResult> {
     const context = await this.resolveContext(pathValue, currentUser);
+    await this.ensureMetadataCommentsBackfilled(context.documentId, toBigIntUserId(currentUser));
     const comment = await this.getCommentRecord(context.documentId, commentKey);
     this.assertCanModerateComment(context, comment, currentUser);
 
@@ -203,6 +208,7 @@ export class CommentsService {
     currentUser: TokenPayload,
   ): Promise<DmsDocumentCommentMutationResult> {
     const context = await this.resolveContext(pathValue, currentUser);
+    await this.ensureMetadataCommentsBackfilled(context.documentId, toBigIntUserId(currentUser));
     const comment = await this.getCommentRecord(context.documentId, commentKey);
     this.assertCanRestoreComment(comment, currentUser);
 
@@ -280,6 +286,7 @@ export class CommentsService {
         commentId: true,
         commentKey: true,
         authorName: true,
+        authorEmail: true,
         createdBy: true,
       },
     });
@@ -381,8 +388,11 @@ export class CommentsService {
   ): Promise<void> {
     const recipientIds = new Set<string>();
     recipientIds.add(context.ownerUserId.toString());
-    if (parentComment?.createdBy) {
-      recipientIds.add(parentComment.createdBy.toString());
+    const parentAuthorUserId = parentComment
+      ? await this.resolveParentAuthorUserId(parentComment)
+      : null;
+    if (parentAuthorUserId) {
+      recipientIds.add(parentAuthorUserId.toString());
     }
     recipientIds.delete(actorUserId.toString());
 
@@ -435,6 +445,88 @@ export class CommentsService {
         comment.commentKey,
       ].join(':'),
     })));
+  }
+
+  private async ensureMetadataCommentsBackfilled(documentId: bigint, actorUserId: bigint): Promise<void> {
+    const document = await this.db.client.dmsDocument.findUnique({
+      where: { documentId },
+      select: { metadataJson: true },
+    });
+    const metadataComments = normalizeComments(isRecord(document?.metadataJson) ? document.metadataJson : null);
+    if (metadataComments.length === 0) {
+      return;
+    }
+
+    const existingRows = await this.db.client.dmsDocumentComment.findMany({
+      where: { documentId },
+      select: { commentKey: true },
+    });
+    const existingKeys = new Set(existingRows.map((row) => row.commentKey));
+    const missingComments = metadataComments
+      .map((comment, index) => ({ comment, index }))
+      .filter(({ comment }) => !existingKeys.has(comment.id));
+    if (missingComments.length === 0) {
+      return;
+    }
+
+    await this.db.client.dmsDocumentComment.createMany({
+      data: await Promise.all(missingComments.map(async ({ comment, index }) => ({
+        documentId,
+        commentKey: comment.id,
+        parentCommentKey: comment.parentId ?? null,
+        commentContent: comment.content,
+        authorName: comment.author,
+        authorEmail: comment.email ?? null,
+        avatarUrl: comment.avatarUrl ?? null,
+        commentCreatedAt: new Date(comment.createdAt),
+        commentDeletedAt: comment.deletedAt ? new Date(comment.deletedAt) : null,
+        commentDeletedBy: comment.deletedAt ? this.parseOptionalUserId(comment.deletedByUserId) : null,
+        commentDeletedByName: comment.deletedAt ? comment.deletedByName ?? null : null,
+        sortOrder: index,
+        isActive: true,
+        createdBy: await this.resolveCommentAuthorUserId(comment, actorUserId),
+        updatedBy: actorUserId,
+        lastSource: 'dms-comments-api',
+        lastActivity: 'metadata-comment-backfill',
+      }))),
+      skipDuplicates: true,
+    });
+  }
+
+  private parseOptionalUserId(value: string | undefined): bigint | null {
+    if (!value || !/^\d+$/.test(value)) {
+      return null;
+    }
+    return BigInt(value);
+  }
+
+  private async resolveCommentAuthorUserId(comment: DocumentComment, fallbackUserId: bigint): Promise<bigint> {
+    const explicitUserId = this.parseOptionalUserId(comment.authorUserId);
+    if (explicitUserId) {
+      return explicitUserId;
+    }
+
+    const email = comment.email?.trim();
+    if (email) {
+      const user = await this.userService.findByEmail(email);
+      if (user?.id) {
+        return user.id;
+      }
+    }
+
+    return fallbackUserId;
+  }
+
+  private async resolveParentAuthorUserId(parentComment: ParentCommentRecord): Promise<bigint | null> {
+    const email = parentComment.authorEmail?.trim();
+    if (email) {
+      const user = await this.userService.findByEmail(email);
+      if (user?.id) {
+        return user.id;
+      }
+    }
+
+    return parentComment.createdBy;
   }
 
   private async refreshDocumentCommentProjection(

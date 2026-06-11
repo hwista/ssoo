@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import { toast } from '@/lib/toast';
 import { ErrorState } from '@/components/common/StateDisplay';
 import { PageTemplate } from '@/components/templates';
 import {
@@ -11,7 +10,6 @@ import {
 } from '@/components/templates/page-frame';
 import { useAccessStore, useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
 import { useAssistantChat } from '@/components/common/assistant/chat/useAssistantChat';
-import { useAssistantSessionPersistence } from '@/components/common/assistant/session/useAssistantSessionPersistence';
 import { AiPanel } from './_components/AiPanel';
 import { AiChatBody, AiChatFooter } from './_components/AiChatPanels';
 import { buildSessionHistoryItems } from './chatPageUtils';
@@ -33,7 +31,6 @@ export function AiChatPage() {
   const resetDraftState = useAssistantPanelStore((state) => state.resetDraftState);
   const resetContext = useAssistantContextStore((state) => state.resetContext);
   const { submitUserMessage, abortChat, handleOpenFile, handleOpenHelpAction } = useAssistantChat();
-  const { saveSession, removeSessionFromDb } = useAssistantSessionPersistence();
 
   const historyItems = useMemo(
     () => buildSessionHistoryItems(sessions, activeSessionId),
@@ -74,25 +71,6 @@ export function AiChatPage() {
               selectSession(item.id);
               resetDraftState();
               resetContext();
-            }}
-            onHistoryPersistToggle={(item) => {
-              if (item.persistedToDb) {
-                void removeSessionFromDb(item.id).then((result) => {
-                  if (!result.success) {
-                    toast.error(result.error);
-                    return;
-                  }
-                  toast.success('세션 DB 저장을 해제했습니다.');
-                });
-                return;
-              }
-              void saveSession(item.id).then((result) => {
-                if (!result.success) {
-                  toast.error(result.error);
-                  return;
-                }
-                toast.success('세션을 DB에 저장했습니다.');
-              });
             }}
             suggestions={suggestions}
             onSuggestionSelect={(suggestion) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Info, History, BookOpen, CloudOff, CloudUpload } from 'lucide-react';
+import { Info, History, BookOpen } from 'lucide-react';
 import { PanelFrame, CollapsibleSection, TextSection, ChipListSection, ActivityListSection } from '@/components/templates/page-frame/panel';
 
 /**
@@ -22,8 +22,6 @@ export interface AiPanelProps {
   sources?: Array<{ title: string; path: string }>;
   /** 히스토리 선택 콜백 */
   onHistorySelect?: (item: { id: string; title: string; updatedAt: string; active?: boolean; persistedToDb?: boolean }) => void;
-  /** 히스토리 DB 저장/해제 */
-  onHistoryPersistToggle?: (item: { id: string; title: string; updatedAt: string; active?: boolean; persistedToDb?: boolean }) => void;
   /** 추천 질문 또는 전체 인기 검색어 */
   suggestions?: string[];
   /** 개인 자주 검색어 */
@@ -72,7 +70,6 @@ export function AiPanel({
   history = [],
   sources = [],
   onHistorySelect,
-  onHistoryPersistToggle,
   suggestions = [],
   frequentSearches = [],
   onSuggestionSelect,
@@ -91,16 +88,6 @@ export function AiPanel({
     title: item.title,
     meta: new Date(item.updatedAt).toLocaleString('ko-KR', { hour12: false }),
     active: item.active,
-    actions: onHistoryPersistToggle ? [
-      {
-        id: `${item.id}-persist`,
-        kind: 'icon' as const,
-        icon: item.persistedToDb ? <CloudOff className="h-3.5 w-3.5" /> : <CloudUpload className="h-3.5 w-3.5" />,
-        title: item.persistedToDb ? 'DB 저장 해제' : 'DB에 저장',
-        ariaLabel: item.persistedToDb ? 'DB 저장 해제' : 'DB에 저장',
-        onClick: () => onHistoryPersistToggle(item),
-      },
-    ] : undefined,
   }));
 
   return (

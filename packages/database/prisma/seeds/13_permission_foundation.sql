@@ -44,8 +44,8 @@ values
   ('pms.code.manage', 'PMS 코드 관리', 'pms', 'action', 'PMS 코드 마스터 관리 권한', 100, true, 'Permission foundation seed', 'permission-foundation-seed', 'seed.permission-foundation', current_timestamp),
   ('pms.customer.manage', 'PMS 고객사 관리', 'pms', 'action', 'PMS 고객사 관리 권한', 110, true, 'Permission foundation seed', 'permission-foundation-seed', 'seed.permission-foundation', current_timestamp),
   ('pms.menu.manage', 'PMS 메뉴 권한 관리', 'pms', 'action', 'PMS 메뉴/역할 권한 관리 권한', 120, true, 'Permission foundation seed', 'permission-foundation-seed', 'seed.permission-foundation', current_timestamp),
-  ('cms.board.manage', 'CMS 게시판 관리', 'cms', 'action', 'CMS 게시판 관리 권한', 200, true, 'Permission foundation seed', 'permission-foundation-seed', 'seed.permission-foundation', current_timestamp),
-  ('cms.skill.manage', 'CMS 스킬 관리', 'cms', 'action', 'CMS 스킬 관리 권한', 210, true, 'Permission foundation seed', 'permission-foundation-seed', 'seed.permission-foundation', current_timestamp)
+  ('sns.board.manage', 'SNS 게시판 관리', 'sns', 'action', 'SNS 게시판 관리 권한', 200, true, 'Permission foundation seed', 'permission-foundation-seed', 'seed.permission-foundation', current_timestamp),
+  ('sns.skill.manage', 'SNS 스킬 관리', 'sns', 'action', 'SNS 스킬 관리 권한', 210, true, 'Permission foundation seed', 'permission-foundation-seed', 'seed.permission-foundation', current_timestamp)
 on conflict (permission_code) do update
 set permission_name = excluded.permission_name,
     domain_code = excluded.domain_code,
@@ -77,8 +77,8 @@ join common.cm_permission_m p
     'pms.code.manage',
     'pms.customer.manage',
     'pms.menu.manage',
-    'cms.board.manage',
-    'cms.skill.manage'
+    'sns.board.manage',
+    'sns.skill.manage'
   )
 where r.role_code = 'admin'
 on conflict (role_id, permission_id) do update

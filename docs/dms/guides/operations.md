@@ -21,7 +21,7 @@ docker ps --format '{{.Names}}\t{{.Status}}' | grep ssoo
 ssoo-postgres   Up ... (healthy)
 ssoo-server     Up ... (healthy)
 ssoo-dms        Up ... (healthy)
-ssoo-cms        Up ... (healthy)
+ssoo-sns        Up ... (healthy)
 ssoo-pms        Up ... (healthy)
 ssoo-admin      Up ... (healthy)
 ```
@@ -205,7 +205,7 @@ docker ps --format '{{.Names}}\t{{.Status}}' | grep ssoo \
 
 ## 8. 알려진 제약 / 주의사항
 
-- 현재 server에 자동화 테스트가 없음(Phase D에서 추가 예정). 본 런북이 임시 회귀 검증 수단입니다.
+- 현재 server에는 DMS 협업/댓글/권한/설정 등 핵심 서비스 단위 테스트가 있으며, 런칭 접근권한 회귀는 `pnpm run verify:access-dms:raw` 로 반복 검증합니다. 브라우저 전용 하드 새로고침 오류처럼 재현 기반 보강이 필요한 항목은 별도 회귀 케이스로 추가합니다.
 - `_templates/personal/*` 는 `visibility=self` 이므로 작성자 외 계정에선 트리에 노출되지 않을 수 있습니다.
 - WebSocket 게이트웨이는 `/dms` 네임스페이스이며 JWT handshake 가 필요합니다(`useDmsSocket.ts` 참조).
 - 정본 git 저장소가 빈 상태로 부팅되면 hydration이 0건을 만들 수 있으므로, 최초 1회는 시드 문서 또는 원격 pull로 채운 뒤 서버 재기동을 권장합니다.
@@ -214,4 +214,5 @@ docker ps --format '{{.Names}}\t{{.Status}}' | grep ssoo \
 
 ## Changelog
 
+- 2026-06-05: DMS 서버 자동화 테스트와 access live gate 현황에 맞춰 알려진 제약 설명을 갱신
 - 2026-04-28: 초안 작성 (Phase A-1 / A-3 / A-4 종단 검증 절차)

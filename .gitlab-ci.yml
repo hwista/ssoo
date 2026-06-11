@@ -62,13 +62,13 @@ deploy_dev:
     - cd "$APP_DIR"
     - BACKUP_TAG="ci-backup-$(date +%Y%m%d_%H%M%S)"
     - echo "백업 태그 $BACKUP_TAG"
-    - for svc in server pms dms cms admin db-init; do docker image inspect "app-$svc:latest" >/dev/null 2>&1 && docker tag "app-$svc:latest" "app-$svc:$BACKUP_TAG" && echo "백업 app-$svc:$BACKUP_TAG"; done
+    - for svc in server pms dms sns admin db-init; do docker image inspect "app-$svc:latest" >/dev/null 2>&1 && docker tag "app-$svc:latest" "app-$svc:$BACKUP_TAG" && echo "백업 app-$svc:$BACKUP_TAG"; done
     - echo "$BACKUP_TAG" > /tmp/ssoo-ci-last-backup-tag
     - docker compose up -d
     - echo "60초 대기 후 health check"
     - sleep 60
     - docker compose ps
-    - for svc in postgres server pms dms cms admin; do st=$(docker inspect "ssoo-$svc" --format '{{.State.Health.Status}}' 2>/dev/null || echo "na"); echo "ssoo-$svc $st"; done
+    - for svc in postgres server pms dms sns admin; do st=$(docker inspect "ssoo-$svc" --format '{{.State.Health.Status}}' 2>/dev/null || echo "na"); echo "ssoo-$svc $st"; done
     - echo "배포 완료"
   only:
     - development

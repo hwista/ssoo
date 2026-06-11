@@ -8,8 +8,9 @@ import {
   ArrowRightLeft,
   Clock,
   Activity,
-  Construction,
   AlertCircle,
+  ClipboardCheck,
+  ListTodo,
 } from 'lucide-react';
 import { useProjectList } from '@/hooks/queries/useProjects';
 import { useTabStore } from '@/stores';
@@ -71,12 +72,18 @@ function formatRelativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('ko-KR');
 }
 
+function getDaysSince(dateStr: string): number {
+  const then = new Date(dateStr).getTime();
+  if (Number.isNaN(then)) return 0;
+  return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
+}
+
 /**
  * 홈 대시보드 페이지
  * - 프로젝트 현황 (상태별 건수)
  * - 최근 프로젝트 (최근 업데이트 5건)
  * - 진행중 프로젝트 (stageCode = in_progress)
- * - 준비중 위젯 (이슈 현황 등 예정)
+ * - PM 운영 포커스 (정체/담당자/종료 후보)
  */
 export function HomeDashboardPage() {
   const { data, isLoading, error } = useProjectList({ pageSize: 100 });
@@ -111,6 +118,25 @@ export function HomeDashboardPage() {
     [projects],
   );
 
+  const operationalSummary = useMemo(() => {
+    const executionProjects = projects.filter((p) => p.statusCode === 'execution');
+    const staleActiveProjects = activeProjects.filter((p) => getDaysSince(p.updatedAt) >= 7);
+    const unownedActiveProjects = activeProjects.filter((p) => !p.currentOwnerUserId);
+    const closeoutCandidates = projects.filter(
+      (p) => p.statusCode === 'transition' || (p.statusCode === 'execution' && p.stageCode === 'done'),
+    );
+
+    return {
+      executionProjects,
+      staleActiveProjects,
+      unownedActiveProjects,
+      closeoutCandidates,
+      topQueue: [...activeProjects]
+        .sort((a, b) => getDaysSince(b.updatedAt) - getDaysSince(a.updatedAt))
+        .slice(0, 4),
+    };
+  }, [activeProjects, projects]);
+
   if (error) {
     return (
       <div className="h-full flex items-center justify-center p-8">
@@ -137,7 +163,7 @@ export function HomeDashboardPage() {
           <StatusSummaryWidget counts={statusCounts} isLoading={isLoading} />
           <RecentProjectsWidget projects={recentProjects} isLoading={isLoading} />
           <ActiveProjectsWidget projects={activeProjects} isLoading={isLoading} />
-          <ComingSoonWidget />
+          <OperationalFocusWidget summary={operationalSummary} isLoading={isLoading} />
         </div>
       </div>
     </div>
@@ -330,14 +356,109 @@ function ActiveProjectsWidget({
   );
 }
 
-/* ── Widget: 준비중 ──────────────────────────────── */
+/* ── Widget: PM 운영 포커스 ───────────────────────── */
 
-function ComingSoonWidget() {
+function OperationalFocusWidget({
+  summary,
+  isLoading,
+}: {
+  summary: {
+    executionProjects: Project[];
+    staleActiveProjects: Project[];
+    unownedActiveProjects: Project[];
+    closeoutCandidates: Project[];
+    topQueue: Project[];
+  };
+  isLoading: boolean;
+}) {
+  const openTab = useTabStore((s) => s.openTab);
+
+  const handleClick = (project: Project) => {
+    openTab({
+      menuCode: 'project.detail',
+      menuId: `project.detail.${project.id}`,
+      title: `PRJ-${String(project.id).padStart(6, '0')} ${project.projectName}`,
+      path: '/project/detail',
+      params: { id: String(project.id) },
+      replaceExisting: false,
+    });
+  };
+
+  const signals = [
+    {
+      label: '수행 프로젝트',
+      value: summary.executionProjects.length,
+      icon: ListTodo,
+      tone: 'bg-blue-50 text-blue-700',
+    },
+    {
+      label: '7일 이상 정체',
+      value: summary.staleActiveProjects.length,
+      icon: AlertCircle,
+      tone: 'bg-amber-50 text-amber-700',
+    },
+    {
+      label: '담당자 미지정',
+      value: summary.unownedActiveProjects.length,
+      icon: Activity,
+      tone: 'bg-red-50 text-red-700',
+    },
+    {
+      label: '종료/전환 확인',
+      value: summary.closeoutCandidates.length,
+      icon: ClipboardCheck,
+      tone: 'bg-green-50 text-green-700',
+    },
+  ];
+
   return (
-    <div className="bg-white rounded-lg border shadow-sm p-4 flex flex-col items-center justify-center min-h-[180px]">
-      <Construction className="w-8 h-8 text-gray-300 mb-2" />
-      <p className="text-sm font-medium text-gray-400">준비 중</p>
-      <p className="text-xs text-gray-300 mt-1">이슈 현황 · 마일스톤 임박</p>
+    <div className="bg-white rounded-lg border shadow-sm p-4 min-h-[180px]">
+      <div className="flex items-center gap-2 mb-3">
+        <ClipboardCheck className="w-4 h-4 text-green-600" />
+        <h2 className="text-sm font-semibold text-gray-700">PM 운영 포커스</h2>
+      </div>
+      {isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-4 w-4/5" />
+          <Skeleton className="h-4 w-3/5" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            {signals.map((signal) => {
+              const Icon = signal.icon;
+              return (
+                <div key={signal.label} className={`rounded-lg px-3 py-2 ${signal.tone}`}>
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium">
+                    <Icon className="h-3.5 w-3.5" />
+                    {signal.label}
+                  </div>
+                  <div className="mt-1 text-lg font-bold">{signal.value}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 space-y-1.5">
+            <p className="text-xs font-medium text-gray-500">먼저 확인할 프로젝트</p>
+            {summary.topQueue.length === 0 ? (
+              <p className="text-xs text-gray-400 py-2">진행 중인 확인 대상이 없습니다.</p>
+            ) : (
+              summary.topQueue.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => handleClick(project)}
+                  className="w-full flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-gray-50"
+                >
+                  <span className="truncate text-gray-700">{project.projectName}</span>
+                  <span className="shrink-0 text-gray-400">{getDaysSince(project.updatedAt)}일 정체</span>
+                </button>
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

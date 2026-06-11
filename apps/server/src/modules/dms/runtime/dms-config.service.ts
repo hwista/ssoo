@@ -232,6 +232,10 @@ function parseIgnoredPathPrefixes(raw: string | undefined): string[] {
   ));
 }
 
+function normalizePathForPrefixMatch(pathValue: string): string {
+  return pathValue.trim().replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+/, '');
+}
+
 // ============================================================================
 // Config Service
 // ============================================================================
@@ -487,6 +491,28 @@ class ConfigService {
 
   getGitPublishIgnoredPathPrefixes(): string[] {
     return parseIgnoredPathPrefixes(process.env[GIT_PUBLISH_IGNORED_PATH_PREFIXES_ENV_KEY]);
+  }
+
+  getUserSurfaceHiddenPathPrefixes(): string[] {
+    const prefixes = this.getGitPublishIgnoredPathPrefixes();
+    if (prefixes.length === 0) {
+      return [];
+    }
+
+    try {
+      return this.getDmsInstanceEnv() === 'local-test' ? [] : prefixes;
+    } catch {
+      return prefixes;
+    }
+  }
+
+  isUserSurfaceHiddenPath(pathValue: string): boolean {
+    const normalizedPath = normalizePathForPrefixMatch(pathValue);
+    if (!normalizedPath) {
+      return false;
+    }
+
+    return this.getUserSurfaceHiddenPathPrefixes().some((prefix) => normalizedPath.startsWith(prefix));
   }
 
   /** 캐시 무효화 (설정 파일이 외부에서 변경된 경우) */

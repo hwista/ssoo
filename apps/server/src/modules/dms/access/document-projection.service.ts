@@ -131,7 +131,7 @@ export class DocumentProjectionService {
         commentDeletedByName: comment.deletedAt ? comment.deletedByName ?? null : null,
         sortOrder: index,
         isActive: true,
-        createdBy: actorUserId,
+        createdBy: parseOptionalBigInt(comment.authorUserId) ?? actorUserId,
         updatedBy: actorUserId,
         lastSource: ACTIVE_REQUEST_SOURCE,
         lastActivity: ACTIVE_REQUEST_ACTIVITY,

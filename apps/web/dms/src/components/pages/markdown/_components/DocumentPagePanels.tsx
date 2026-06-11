@@ -286,6 +286,8 @@ interface DocumentPageContentProps {
   currentDraftContent?: string | null;
   streamingAutoScroll?: boolean;
   onEditorContentChange?: (content: string) => void;
+  restoredDraftContent?: string | null;
+  onRestoredDraftApplied?: () => void;
   /** 본문 <a> 클릭 */
   onLinkClick?: (href: string) => void;
   /** 본문 <img> 클릭 */
@@ -300,6 +302,8 @@ interface DocumentPageContentProps {
   collaborationSessionId?: string;
   /** 메타데이터 변경을 서버에 저장할 수 있는지 여부 */
   canManageMetadata?: boolean;
+  /** 문서 본문 상단 권한/상태 안내 */
+  documentAccessNotice?: React.ReactNode;
   lockedPreview?: LockedPreviewBannerProps;
 }
 
@@ -325,6 +329,8 @@ export function DocumentPageContent({
   currentDraftContent,
   streamingAutoScroll = false,
   onEditorContentChange,
+  restoredDraftContent,
+  onRestoredDraftApplied,
   onLinkClick,
   onImageClick,
   onCheckboxClick,
@@ -332,6 +338,7 @@ export function DocumentPageContent({
   onSaveConflict,
   collaborationSessionId,
   canManageMetadata = true,
+  documentAccessNotice,
   lockedPreview,
 }: DocumentPageContentProps) {
   if (error) {
@@ -364,6 +371,7 @@ export function DocumentPageContent({
           onImageClick={lockedPreview ? undefined : onImageClick}
           onCheckboxClick={lockedPreview ? undefined : onCheckboxClick}
           initialSearchQuery={lockedPreview ? undefined : initialSearchQuery}
+          bodyHeader={documentAccessNotice}
         />
         {lockedPreview ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[20%] z-10 overflow-hidden [mask-image:linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.04)_16%,rgba(0,0,0,0.24)_30%,rgba(0,0,0,0.72)_48%,black_68%)]">
@@ -398,10 +406,15 @@ export function DocumentPageContent({
   }
 
   return (
-    <div className="relative h-full min-h-0">
+    <div className="relative flex h-full min-h-0 flex-col">
+      {documentAccessNotice ? (
+        <div className="shrink-0">
+          {documentAccessNotice}
+        </div>
+      ) : null}
       <Editor
         ref={editorRef}
-        className="h-full min-h-0"
+        className="min-h-0 flex-1"
         variant="embedded"
         showToolbar={false}
         preferredCreatePath={isCreateMode ? createPath : undefined}
@@ -411,6 +424,8 @@ export function DocumentPageContent({
         isPendingInsertLoading={isComposing}
         streamingAutoScroll={streamingAutoScroll}
         onContentChange={onEditorContentChange}
+        restoredDraftContent={restoredDraftContent}
+        onRestoredDraftApplied={onRestoredDraftApplied}
         onHistoryChange={onHistoryChange}
         onSaveConflict={onSaveConflict}
         collaborationSessionId={collaborationSessionId}

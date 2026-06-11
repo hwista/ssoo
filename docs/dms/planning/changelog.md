@@ -1,9 +1,86 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-06-02
+> 최종 업데이트: 2026-06-05
 > 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
 
 ---
+
+## 2026-06-05
+
+### DMS 알림 웹 런타임 공통 소비 전환
+
+- DMS 알림 목록, 미읽음 수, 읽음/미읽음, 모두 읽음, 문서 경로 기준 읽음 처리를 shared notification client 경로로 전환했습니다.
+- DMS 알림 SSE hook 은 기존 알림 센터 query cache 갱신과 domain-event callback 계약을 유지하면서 shared SSE hook 을 소비하도록 정리했습니다.
+- DMS 알림 패널과 문서 댓글/잠금 알림 동작은 도메인 경계를 유지하고, 공통화 범위는 브라우저 알림 client/SSE 소비 계층으로 제한했습니다.
+
+### DMS 런칭 검증/DB/소켓 권한 경계 보강
+
+- `verify:access-dms:raw` 가 Docker 기본 숨김 prefix(`verify-access/`) 아래 probe 문서를 파일 트리/검색 결과에서 찾아 실패하던 계약을 정리했습니다. 사용자 표면 제외 문서는 파일 트리와 검색에 없어야 정상으로 검증하고, 직접 파일/본문/메타데이터/첨부 권한 검증은 그대로 수행합니다.
+- AI 채팅 기록 정본 테이블을 런타임 생성 테이블에서 DMS 정식 스키마의 `dm_chat_session_m` 마이그레이션 산출물로 승격했습니다. 기존 임시 테이블에 숫자 사용자 ID로 귀속된 세션은 마이그레이션에서 새 테이블로 이관합니다.
+- DMS WebSocket 문서 방 구독 시 서버에서 문서 읽기 권한을 다시 검사하도록 보강했습니다. 인증된 사용자라도 읽을 수 없는 문서 경로에는 collaboration/file 이벤트 room 을 만들 수 없습니다.
+
+### DMS 문서 권한 안내 표시 정렬
+
+- 문서 권한 안내가 읽기 모드에서는 본문 바깥, 편집 모드에서는 편집 영역 안쪽에 표시되던 위치 차이를 정리해 두 모드 모두 문서 본문 상단 슬롯 안에서 같은 방식으로 보이도록 맞췄습니다.
+- 사용자에게 노출되는 권한 문구는 사이드카 권한 칩과 중복되지 않도록 권한명 반복을 제거하고, 현재 가능한 본문 작업과 제한되는 작업만 같은 문장 체계로 설명하도록 조정했습니다.
+- 권한 안내가 문서 본문 첫 문단처럼 보이지 않도록 작은 아이콘, 점선 경계, 낮은 대비 배경과 caption 계층 텍스트를 가진 보조 메타 안내 바로 시각적으로 분리했습니다.
+
+### DMS 협업 WebSocket 인증 재연결 보강
+
+- 새로고침 직후 앱 세션은 HTTP 세션 복구로 새 토큰을 받았지만, DMS WebSocket 이 이전 만료 토큰으로 먼저 연결을 시도해 `유효하지 않은 토큰`으로 거부된 뒤 문서 실시간 구독을 놓칠 수 있던 경로를 정리했습니다.
+- 실시간 소켓은 인증/권한 부트스트랩이 완료된 뒤에만 열고, 현재 인증 스토어의 access token 을 소켓 lifecycle 의 기준으로 삼아 토큰 교체 시 재연결과 열린 문서 재구독이 일어나도록 보강했습니다.
+- WebSocket 이 서버에서 인증 사유로 끊기거나 연결 오류를 받으면 세션 복구를 한 번만 요청하도록 중복 방지를 넣어, 서버 재시작/토큰 만료 뒤 첫 새로고침에서도 편집 상태 전파가 죽지 않게 했습니다.
+
+### DMS 패널 스크롤 동작 보정
+
+- 댓글 목록은 문서 최초 로드나 실시간 댓글 갱신 시 자동으로 하단 이동하지 않고, 현재 사용자가 댓글/답글을 작성한 직후에만 최신 댓글 위치로 이동하도록 조정했습니다.
+- 접힌 패널 섹션을 사용자가 펼칠 때 내용이 패널 밖으로 길게 이어지면 섹션 제목이 패널 상단 기준점에 맞도록 자동 정렬해, 열린 섹션의 시작점을 놓치지 않게 했습니다.
+
+## 2026-06-04
+
+### DMS 문서 상태 표시 단순화
+
+- 문서 상태 행의 `정상`/`주의`/`조치 필요` 요약 칩을 제거하고, 원격 반영·공동 작업·편집 잠금 아이콘만 표시하도록 정리했습니다.
+- 원격 동기화 충돌, publish 실패, 경로 격리처럼 실제 조치가 필요한 상태는 별도 요약 칩 대신 원격 반영 아이콘 자체를 빨간 danger 톤으로 표시하도록 맞췄습니다.
+
+### DMS 협업 잠금 첫 로드 구독 보강
+
+- 새로고침 직후 에디터 스토어가 문서 경로를 로드하기 전에도 복원된 열린 탭의 문서 경로를 WebSocket 구독 대상으로 포함하도록 정리했습니다.
+- 문서 화면의 직접 협업 구독 요청은 첫 렌더 순서 때문에 레이아웃 소켓 리스너보다 먼저 발생해도 유실되지 않도록 짧은 one-shot 재전송을 추가했습니다.
+- 소켓의 문서 구독 diff 계산이 열린 문서 경로와 직접 구독 경로를 같은 집합으로 관리하도록 맞춰, 첫 새로고침 직후 편집 진입/종료 이벤트가 대기 중인 화면에 늦게 반영되는 경로를 줄였습니다.
+
+### DMS 댓글/AI 대화 최신 위치 스크롤 보강
+
+- 댓글 패널에서 댓글 작성 성공 시 새 댓글 위치로 자동 이동하도록 연결했습니다.
+- 댓글 목록이 실시간 갱신될 때 사용자가 패널 하단 근처에 있으면 최신 댓글을 따라가고, 사용자가 위쪽을 보고 있으면 현재 위치를 유지한 채 `최신 댓글로 이동` 버튼을 표시하도록 정리했습니다.
+- 전체 AI 대화 페이지와 플로팅 AI 패널의 강제 하단 이동 코드를 공용 자동 스크롤 훅으로 교체했습니다.
+- AI 응답 스트리밍 중 사용자가 위로 스크롤하면 자동 추적을 멈추고, 최신 응답으로 돌아가는 플로팅 버튼을 제공하도록 맞췄습니다.
+- AI 대화의 사용자 메시지 복사/재전송 버튼을 버블 아래로 이동하고, AI 텍스트 응답에도 같은 위치의 복사 버튼을 추가했습니다.
+- AI 대화 말풍선 컨테이너 폭을 보정해 사용자가 직접 줄바꿈하지 않은 짧은 질문이 좁은 말풍선에서 단어 단위로 강제 줄바꿈되는 문제를 수정했습니다.
+- 채팅 기록은 브라우저 로컬 저장소가 아니라 로그인 사용자 기준 `dms_chat_sessions` DB 기록을 정본으로 사용하도록 전환했습니다.
+- AI 응답이 완료된 활성 대화는 자동으로 DB에 저장하고, 채팅 기록의 수동 DB 저장/해제 구름 아이콘은 제거했습니다.
+- 인라인 AI 작성은 기존 CodeMirror 런타임에서 하단 근처일 때만 AI 삽입 내용을 따라가는 기준이 이미 적용되어 있음을 확인했습니다.
+
+### DMS 댓글 보존과 답글 알림 보강
+
+- 문서 메타데이터에만 남아 있던 기존 댓글이 첫 댓글 API 작성 시 새 댓글 1건으로 덮어써질 수 있는 경로를 차단했습니다.
+- 댓글 목록 조회/작성/삭제/복원 전에 메타데이터 댓글을 댓글 relation 으로 먼저 보강해, 기존 댓글과 새 댓글이 함께 유지되도록 정리했습니다.
+- 답글 작성 시 문서 소유자뿐 아니라 원 댓글 작성자도 알림을 받도록, 댓글 작성자 식별을 작성자 ID와 이메일 기준으로 보정했습니다.
+- 답글에 다시 답글을 달 때 루트 댓글 작성자가 아니라 실제로 누른 댓글 작성자를 멘션 대상으로 표시하도록 정리했습니다.
+- 댓글 변경 실시간 이벤트 수신 시 열린 문서 댓글 목록 재조회가 실패하면 경고를 남기고, 댓글 알림 이벤트도 같은 갱신 경로의 fallback 으로 사용하도록 보강했습니다.
+- 댓글 작성 후 화면 갱신은 현재 탭의 최신 문서 메타데이터에 댓글 목록만 병합하도록 보강해, 오래된 화면 상태가 다른 메타데이터 필드를 되돌리지 않도록 했습니다.
+
+### DMS 책갈피 문서 탭 중복 차단
+
+- 책갈피에 등록된 문서를 열 때 기존 문서 탭이 있어도 책갈피 식별자로 별도 탭이 추가로 생기던 흐름을 문서 경로 기준으로 정규화했습니다.
+- 책갈피 선택 강조도 책갈피 자체 식별자가 아니라 실제 활성 문서 경로를 기준으로 계산해, 파일 트리·열린 문서·책갈피가 같은 문서를 같은 탭으로 인식하도록 맞췄습니다.
+
+### DMS 검증 문서 사용자 표면 격리
+
+- 일반 운영/개발 런타임에서 `DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES` 경로의 검증 문서가 파일 트리와 검색 결과에 노출되지 않도록 사용자 표면 숨김 판정을 추가했습니다.
+- `launch-smoke/` 등 검증 문서 경로에서 편집 잠금 해제 요청이 생성되어 실사용자에게 알림 또는 실시간 처리 다이얼로그가 전달되는 경로를 차단했습니다.
+- 서버 부팅 시 숨김 prefix 를 참조하는 기존 DMS 알림을 archive 하도록 정리해, 삭제되었거나 사용자 표면에서 제외된 검증 문서 알림이 헤더에 계속 남지 않도록 보강했습니다.
+- `local-test` 하네스에서는 같은 검증 prefix 를 숨기지 않아 기존 브라우저 스모크의 직접 문서 생성/협업 검증 흐름은 유지합니다.
 
 ## 2026-06-02
 
@@ -236,7 +313,7 @@
 
 - `common` notification DB/API/types/history trigger 를 추가하고, DMS는 same-origin proxy와 React Query/SSE hook을 통해 공통 알림 API를 사용하도록 정렬했습니다.
 - DMS 헤더 알림 패널과 토스트를 공통 알림 이벤트(`notification`, `notification-read`, `notification-archived`, `notifications-read-all`)에 연결했습니다.
-- CMS bridge도 common notification contract를 사용하도록 맞췄습니다.
+- SNS bridge도 common notification contract를 사용하도록 맞췄습니다.
 
 ### 권한 요청 취소와 알림 cleanup
 
@@ -533,7 +610,7 @@
 ### Shared session bootstrap + DMS access snapshot 기준선
 
 - 공통 auth backend에 HttpOnly `ssoo-session` cookie와 `/api/auth/session` bootstrap 흐름을 추가하고, DMS는 same-origin `/api/auth/[action]` proxy가 `Set-Cookie` 를 브라우저로 그대로 전달하도록 정리
-- DMS `sharedAuth` retry 경로를 refresh token localStorage 의존에서 session bootstrap 기반으로 전환해 PMS/CMS와 같은 사용자 세션을 복원할 수 있도록 정리
+- DMS `sharedAuth` retry 경로를 refresh token localStorage 의존에서 session bootstrap 기반으로 전환해 PMS/SNS와 같은 사용자 세션을 복원할 수 있도록 정리
 - 서버에 `GET /api/dms/access/me` snapshot endpoint를 추가해 DMS 도메인 권한을 공통 JWT와 분리하는 기준점을 마련
 - same-origin `/api/access` proxy와 DMS access store를 추가해 `(main)` layout이 파일 트리 bootstrap 전에 domain access snapshot을 먼저 hydrate 하도록 정리
 - `FloatingAssistant` / `AssistantSessionSync` 는 `canUseAssistant`, 파일 트리 초기화는 `canReadDocuments` 기준으로만 동작하도록 연결
@@ -542,27 +619,27 @@
 
 ### DMS typography stack alignment
 
-- 실제 로그인 렌더의 typography 비교 결과, `font-size / line-height / weight / letter-spacing` 는 이미 PMS/CMS와 같고 DMS만 `font-family` 스택이 다른 것이 확인됨
-- DMS 전역 `--font-sans` 값을 PMS/CMS와 같은 system font stack으로 정렬해 login 뿐 아니라 DMS 전체 기본 typography 기준을 통일
+- 실제 로그인 렌더의 typography 비교 결과, `font-size / line-height / weight / letter-spacing` 는 이미 PMS/SNS와 같고 DMS만 `font-family` 스택이 다른 것이 확인됨
+- DMS 전역 `--font-sans` 값을 PMS/SNS와 같은 system font stack으로 정렬해 login 뿐 아니라 DMS 전체 기본 typography 기준을 통일
 - 이로써 `docs/dms/explanation/design/design-system.md` 의 “PMS/DMS 통합 표준” 설명과 실제 구현이 일치
 
 ### DMS login render token alignment
 
-- 실제 `/login` 렌더 비교 결과, 레이아웃은 PMS/CMS와 같았지만 DMS만 `primary`/`foreground` 계열 토큰이 섞여 h1은 블루, h2는 블랙, 버튼은 퍼플로 보이는 충돌이 확인됨
+- 실제 `/login` 렌더 비교 결과, 레이아웃은 PMS/SNS와 같았지만 DMS만 `primary`/`foreground` 계열 토큰이 섞여 h1은 블루, h2는 블랙, 버튼은 퍼플로 보이는 충돌이 확인됨
 - DMS auth route layout에 전용 theme wrapper(`.dms-auth-theme`)를 두고, login surface에서 쓰는 `background/foreground/primary/muted/ring` 토큰을 퍼플 계열로 다시 정렬
 - 이 수정은 로그인 화면의 실제 렌더만 바로잡고, DMS 메인 앱 전체 토큰 체계는 건드리지 않도록 범위를 제한함
 
 ### PMS 기준 로그인 UI 정렬
 
-- DMS login 진입점을 `src/app/(auth)/login/page.tsx` 로 옮기고 `(auth)/layout.tsx` 를 추가해 PMS/CMS와 같은 auth shell 패턴으로 정리
+- DMS login 진입점을 `src/app/(auth)/login/page.tsx` 로 옮기고 `(auth)/layout.tsx` 를 추가해 PMS/SNS와 같은 auth shell 패턴으로 정리
 - 공용 `packages/web-auth` 의 PMS 기준 표준 login card를 사용하도록 바꿔 레이아웃, 문구, footer를 PMS와 동일하게 맞춤
 - DMS의 퍼플 계열 테마 색상은 기존 `globals.css` 토큰을 유지
 
 ### Full-stack Docker compose 기준 정렬
 
-- repo root `compose.yaml`을 `postgres + server + pms + cms + dms` 기본 스택으로 확장하는 방향으로 정리
+- repo root `compose.yaml`을 `postgres + server + pms + sns + dms` 기본 스택으로 확장하는 방향으로 정리
 - DMS의 Docker bridge 기본값을 `host.docker.internal`에서 compose 내부 `server` 서비스로 전환
-- PMS/CMS도 standalone + Dockerfile 기준으로 컨테이너화해 로컬 검증을 docker-first 흐름으로 전환
+- PMS/SNS도 standalone + Dockerfile 기준으로 컨테이너화해 로컬 검증을 docker-first 흐름으로 전환
 - `server`와 `dms`가 동일한 `/app/apps/web/dms/data` 볼륨을 공유하도록 정리해 DMS 문서/Git 런타임을 compose 내부에서 함께 사용
 - root `.env`의 host용 `DATABASE_URL` 과 충돌하지 않도록 compose 전용 `DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` override 키를 분리
 
@@ -573,9 +650,9 @@
 - DMS `UserMenu`를 settings 기반 placeholder에서 shared auth 기반 사용자 메뉴로 전환해 헤더와 settings shell 양쪽에서 실제 로그아웃이 동작하도록 정리
 - PMS와 겹치는 메뉴 shell은 `packages/web-auth/src/user-menu.tsx` 로 끌어올리고, DMS-specific 설정 진입 액션만 주입형으로 유지
 
-### PMS/CMS/DMS 공용 auth runtime 정렬
+### PMS/SNS/DMS 공용 auth runtime 정렬
 
-- `packages/types/src/common/auth.ts` 와 `packages/web-auth` 를 추가해 DMS login/auth store/runtime/UI가 PMS/CMS와 같은 공용 surface 위에서 동작하도록 정리
+- `packages/types/src/common/auth.ts` 와 `packages/web-auth` 를 추가해 DMS login/auth store/runtime/UI가 PMS/SNS와 같은 공용 surface 위에서 동작하도록 정리
 - DMS login page는 공용 `AuthLoginCard` / `AuthPageShell` 을 사용하고, DMS-specific bootstrap(`checkAuth` 이후 file tree/workspace 초기화)은 `(main)` layout 책임으로 유지
 - DMS `sharedAuth` 유틸은 storage parsing/header 적용 계약을 `packages/web-auth` 기준으로 재사용하도록 얇게 정리
 
@@ -1593,6 +1670,11 @@ npm uninstall @fluentui/react @fluentui/react-components @fluentui/react-icons
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-04 | 편집 복구 one-shot 보정 및 협업 구독 경합 보강. 새로고침 복구 플래그가 편집종료 이후 다시 편집 상태로 되돌리는 경로를 차단하고, 문서 협업 구독 이벤트에 중복 방지 ID와 다음 tick 재시도를 추가해 편집 진입 상태 전파 누락 가능성을 줄임 |
+| 2026-06-04 | 편집 중 새로고침 복구 정책 적용. 편집 중이던 문서 탭은 새로고침 후에도 편집 모드와 soft lock 세션을 유지하고, 미저장 본문 초안을 사용자/탭/문서 기준 세션 저장소에서 복구하도록 보강 |
+| 2026-06-04 | soft lock 새로고침 소유권 안정화. 문서별 협업 세션을 로그인 사용자와 탭 기준으로 브라우저 세션 저장소에 고정해, 새로고침 후 자기 편집 잠금을 타인 잠금으로 오인해 양쪽 모두 해제 요청 상태가 되는 경로를 차단 |
+| 2026-06-04 | AI 대화 메시지 액션 UX 보강. 사용자 메시지의 복사/재전송 액션을 버블 아래로 이동하고 AI 응답 복사 버튼을 추가. 채팅 기록은 로그인 사용자 기준 DB 자동 저장/조회 구조로 전환하고 수동 저장 아이콘 제거 |
+| 2026-06-04 | 댓글 패널과 AI 대화 화면의 최신 위치 자동 추적 UX를 보강. 하단 근처일 때만 새 댓글/스트리밍 응답을 따라가고, 사용자가 위쪽을 보고 있으면 위치를 유지하며 최신 위치 이동 버튼을 표시하도록 공용 훅과 버튼을 적용 |
 | 2026-04-17 | 문서 레포 3개 이슈(정본 정책, 원격 push blocker, detach 검증)를 `document-repo-three-issue-status.md`로 정리하고 남은 핵심 이슈를 push 정책/권한 문제로 축소 |
 | 2026-04-17 | 외부 문서 Git working tree 구조에서 파일 CRUD 이후 Git sync/publish 경계를 정리한 `document-repo-git-sync-pattern.md` 를 추가하고, canonical branch `master` 와 원격 초기 push 완료 상태를 source-of-truth policy 에 반영 |
 | 2026-04-17 | 동시 편집 위험, dirty tree 장기화 방지, 사용자별 Git attribution 요구를 반영한 `document-repo-concurrency-autopublish-pattern.md` 를 추가하고, auto publish queue / sync-blocked / per-user commit author 기준선을 정의 |

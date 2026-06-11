@@ -37,6 +37,7 @@ export interface DmsCollaborationChangedEventDetail {
 }
 export interface DmsCollaborationDocumentSubscriptionEventDetail {
   path: string;
+  subscriptionId?: string;
 }
 
 export type DmsLockTakeoverRequestedEventDetail = SoftLockTakeoverRequestClient;

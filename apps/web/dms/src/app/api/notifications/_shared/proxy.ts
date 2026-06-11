@@ -1,52 +1,21 @@
+import { proxyCommonNotificationJson } from '@ssoo/web-auth';
+
 import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
 
-interface BackendSuccessResponse<T> {
-  success: true;
-  data: T;
-}
-
-interface BackendErrorResponse {
-  success?: false;
-  error?: { message?: string } | string;
-  message?: string;
-}
-
-function getBackendErrorMessage(
-  responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null,
-  fallbackMessage: string,
-): string {
-  if (!responseBody || responseBody.success === true) {
-    return fallbackMessage;
-  }
-
-  return (
-    typeof responseBody.error === 'string'
-      ? responseBody.error
-      : responseBody.error?.message
-  ) || responseBody.message || fallbackMessage;
-}
-
-export async function proxyNotificationJson<T>(
+export function proxyNotificationJson<T>(
   request: Request,
   pathname: string,
   fallbackMessage: string,
   init?: RequestInit,
-) {
-  const response = await fetch(
-    createServerApiUrl(pathname),
-    createServerApiProxyInit(request, init),
+): Promise<Response> {
+  return proxyCommonNotificationJson<T>(
+    request,
+    pathname,
+    fallbackMessage,
+    {
+      createBackendUrl: createServerApiUrl,
+      createBackendInit: createServerApiProxyInit,
+    },
+    init,
   );
-  const responseBody = await response.json().catch(() => null) as
-    | BackendSuccessResponse<T>
-    | BackendErrorResponse
-    | null;
-
-  if (!response.ok || !responseBody || responseBody.success !== true) {
-    return Response.json(
-      { error: getBackendErrorMessage(responseBody, fallbackMessage) },
-      { status: response.status || 500 },
-    );
-  }
-
-  return Response.json(responseBody.data);
 }

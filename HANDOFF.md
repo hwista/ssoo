@@ -10,6 +10,46 @@ Context
 - DMS is integrated as the canonical document store (git-backed working tree + DB metadata)
 - Primary goal: refactor large files, stabilize auto-commit/publish pipeline, and add tests for core DMS logic
 
+
+Publish/handoff snapshot — 2026-06-08 14:50 KST
+---------------------------------------
+
+Purpose
+- This snapshot closes the current SSOO workspace session so the whole repository can be resumed from `main` after publishing to GitHub and the GitLab workspace branch.
+- It records both the broad dirty-tree baseline already present in the repo and the DMS file-list startup fix completed in this session.
+
+Repository state before final publish
+- Branch: `main`.
+- GitHub remote: `origin` (`hwista/ssoo.git`). Local `HEAD` matched `origin/main` before this closeout commit.
+- GitLab workspace remote: `gitlab` / publish script target branch `development`. Direct unauthenticated `git fetch --all` cannot fetch GitLab; use `pnpm run codex:workspace-sync-from-gitlab` and `pnpm run codex:workspace-publish -- main`, which read local `codex.gitlabUser` / `codex.gitlabToken` without printing the token.
+- Worktree scope at closeout was intentionally repo-wide: CMS removal / SNS and CRM introduction, PMS launch-readiness updates, common docs/instructions alignment, compose/workspace/package updates, and DMS hydration hardening.
+
+DMS critical fix completed in this session
+- Symptom: after PC/Docker startup, DMS could initially show an empty file list even though documents existed on the host/runtime repository.
+- Evidence captured during diagnosis:
+  - Container document root temporarily showed only template markdown files while the host/runtime document tree had the real workspace documents.
+  - DB active documents were observed as `sync_status_code='missing'` in the broken state, which can make the file tree appear empty.
+  - After Docker rebuild/recreate and sync, DB returned `synced=34` and browser `/api/files` returned HTTP 200 with a non-empty tree.
+- Code change: `DocumentHydrationService` now skips DB `missing` downgrades when the runtime document root is not a Git working tree but a Git bootstrap remote is configured. This prevents startup/bind-mount/bootstrap races from erasing the control-plane view.
+- Regression test added: `apps/server/test/dms/document-hydration.service.spec.ts`.
+
+Verification performed before this handoff
+- `pnpm --filter server test -- document-hydration.service.spec.ts` — passed.
+- `pnpm run codex:preflight` — passed.
+- `pnpm run verify:access-dms:raw` — passed.
+- Docker runtime after rebuild/recreate: server/dms/postgres healthy; server health returned HTTP 200; DMS browser `/api/files` returned a non-empty tree.
+
+Known operational boundaries
+- Do not show or commit GitLab tokens or remote credential-bearing URLs. The publish scripts inject auth via `http.extraHeader` and should be used instead of embedding credentials in remotes.
+- If GitLab `development` has advanced, first merge it into a clean local worktree with `pnpm run codex:workspace-sync-from-gitlab`, rerun verification, then publish.
+- The DMS settings-screen IA analysis is not implemented in this closeout. Its retained decision is: split 운영 상태 / 시스템 설정 / 관리 업무 / 내 설정, promote 문서 저장소 연결 상태 to a masked 운영 상태 card, and keep sensitive runtime details collapsed/masked.
+
+Recommended next pickup
+1. Start from `HANDOFF.md`, `AGENTS.md`, `.codex/instructions/project.instructions.md`, and this snapshot.
+2. Confirm remote alignment: `git status --short --branch`, then `pnpm run codex:workspace-sync-from-gitlab` only from a clean worktree.
+3. For DMS startup regressions, first check DB active document sync counts and `/api/files` response before changing UI.
+4. For the broader SSOO repo, treat the current large workspace delta as a launch closeout/rebaseline slice; avoid adding new feature scope until publish verification is green.
+
 Completed
 ---------
 - **DMS collaboration/permission closeout (2026-05-29)**: sidecar status/permission/comment UX, notification read-state controls, DB-backed comments, AI summary attachment preservation, internal/external link routing, WebSocket soft-lock flow, and lock release request lifecycle are complete and Docker-reflected.
@@ -255,7 +295,7 @@ Launch closeout snapshot — 2026-05-27 08:30 KST
 
 Purpose of this snapshot
 - This section is the current re-entry handoff for DMS launch-prep work.
-- Scope is DMS only. PMS/CMS integration acceptance is intentionally out of scope.
+- Scope is DMS only. PMS/SNS integration acceptance is intentionally out of scope.
 - Detailed task handoff lives in `docs/dms/planning/2026-05-20-launch-closeout-handoff.md`.
 
 1) Current goal / last completed slice
@@ -303,7 +343,7 @@ sed -n '1,260p' docs/dms/planning/2026-05-20-launch-closeout-handoff.md
 6) Important constraints
 - Do not implement CSS-only blur over full downloaded content.
 - Do not replace locked sidecar sections with a new placeholder UI; reuse existing section components with locked collapsed state.
-- Do not broaden this session into PMS/CMS unless explicitly instructed.
+- Do not broaden this session into PMS/SNS unless explicitly instructed.
 - Do not close a DMS runtime change without Docker rebuild and health/browser verification.
 
 Contact

@@ -460,6 +460,7 @@ export function normalizeComments(metadata: Record<string, unknown> | null): Doc
     return [{
       id,
       author,
+      authorUserId: typeof entry['authorUserId'] === 'string' ? entry['authorUserId'].trim() || undefined : undefined,
       content,
       createdAt: createdAt.toISOString(),
       email: typeof entry['email'] === 'string' ? entry['email'].trim() || undefined : undefined,

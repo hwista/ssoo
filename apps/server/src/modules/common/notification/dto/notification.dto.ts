@@ -6,7 +6,7 @@ import type { CommonNotificationListQuery, CommonNotificationSourceApp } from '@
 export const COMMON_NOTIFICATION_SOURCE_APPS = [
   'system',
   'dms',
-  'cms',
+  'sns',
   'pms',
   'admin',
 ] as const;

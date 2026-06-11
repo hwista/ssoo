@@ -151,7 +151,7 @@ http://localhost:3001
 # repo root 기준
 cp apps/web/dms/.env.example apps/web/dms/.env.local
 
-# 전체 스택 (postgres + server + pms + cms + dms)
+# 전체 스택 (postgres + server + pms + sns + dms)
 pnpm docker:up
 
 # 최초 1회 또는 DB 초기화가 필요할 때
@@ -163,7 +163,7 @@ docker compose logs -f dms server
 
 > 루트 `compose.yaml` 이 DMS의 지원 경로입니다.  
 > DMS는 full-stack compose의 일부로 동작하며, server-backed search/create/ask는 기본적으로 compose 내부 `server` 서비스(`http://server:4000/api`)로 연결됩니다.  
-> 브라우저에서 접근하는 PMS/CMS는 `http://localhost:4000/api`를 바라보고, DMS만 server-side proxy용 `DMS_SERVER_API_URL`을 별도로 사용합니다.
+> 브라우저에서 접근하는 PMS/SNS는 `http://localhost:4000/api`를 바라보고, DMS만 server-side proxy용 `DMS_SERVER_API_URL`을 별도로 사용합니다.
 
 > 상세 가이드: [docs/dms/guides/deployment.md](../../../docs/dms/guides/deployment.md)
 

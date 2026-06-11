@@ -360,6 +360,66 @@ export class CommonNotificationService {
     return { count: notifications.length };
   }
 
+  async archiveByReferencePathPrefixes(
+    sourceApp: CommonNotificationSourceApp,
+    pathPrefixes: string[],
+  ): Promise<CommonNotificationArchiveResult> {
+    const prefixes = Array.from(new Set(
+      pathPrefixes
+        .map((prefix) => prefix.trim().replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+/, '').replace(/\/+$/, ''))
+        .filter(Boolean)
+        .map((prefix) => `${prefix}/`),
+    ));
+    if (prefixes.length === 0) {
+      return { count: 0 };
+    }
+
+    const notifications = await this.db.client.commonNotification.findMany({
+      where: {
+        sourceAppCode: sourceApp,
+        archivedAt: null,
+        isActive: true,
+        OR: prefixes.map((prefix) => ({
+          referencePath: {
+            startsWith: prefix,
+          },
+        })),
+      },
+      select: {
+        id: true,
+        recipientUserId: true,
+      },
+    });
+
+    if (notifications.length === 0) {
+      return { count: 0 };
+    }
+
+    const archivedAt = new Date();
+    await this.db.client.commonNotification.updateMany({
+      where: {
+        id: { in: notifications.map((notification) => notification.id) },
+      },
+      data: {
+        isRead: true,
+        readAt: archivedAt,
+        archivedAt,
+      },
+    });
+
+    for (const notification of notifications) {
+      this.publishToUser(notification.recipientUserId, {
+        type: 'notification-archived',
+        sourceApp,
+        notificationId: notification.id.toString(),
+        archivedCount: notifications.length,
+        emittedAt: new Date().toISOString(),
+      });
+    }
+
+    return { count: notifications.length };
+  }
+
   async notifyUser(input: NotifyUserInput): Promise<CommonNotificationItem> {
     const data = this.toCreateData(input);
     const dedupeKey = input.dedupeKey?.trim();
