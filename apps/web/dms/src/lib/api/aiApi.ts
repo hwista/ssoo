@@ -16,6 +16,9 @@ export interface DocAssistSummaryFileClient {
   type?: string;
   textContent: string;
   images?: { base64: string; mimeType: string; name: string }[];
+  warningReason?: string;
+  unsupportedReason?: string;
+  protectedMarkerDetected?: boolean;
 }
 
 export interface DocAssistComposeResponse {

@@ -24,6 +24,7 @@ export async function buildComposeContextFiles(params: {
   } = params;
 
   const activeSummaryFiles = inlineSummaryFiles.filter((file) => !pendingDeletedFileIds.has(file.id));
+  const activeSummaryFileById = new Map(activeSummaryFiles.map((file) => [file.id, file]));
   const inlineRefIds = new Set(
     templateReferenceDocuments.flatMap((ref) => ref.tempId ? [ref.tempId] : []),
   );
@@ -36,15 +37,25 @@ export async function buildComposeContextFiles(params: {
   for (const doc of templateReferenceDocuments) {
     if (pendingDeletedRefPaths.has(doc.path)) continue;
 
-    if (doc.storage === 'inline' && doc.textContent) {
-      refFiles.push({
-        id: doc.tempId || `tpl-ref-${doc.path}`,
-        name: doc.title || doc.path,
-        type: doc.mimeType || 'text/plain',
-        size: doc.textContent.length,
-        textContent: doc.textContent,
-      });
-      resolvedRefPaths.push(doc.path);
+    if (doc.storage === 'inline') {
+      const inlineSource = doc.tempId ? activeSummaryFileById.get(doc.tempId) : undefined;
+      if (inlineSource) {
+        refFiles.push(inlineSource);
+        resolvedRefPaths.push(doc.path);
+        continue;
+      }
+      if (doc.textContent) {
+        refFiles.push({
+          id: doc.tempId || `tpl-ref-${doc.path}`,
+          name: doc.title || doc.path,
+          type: doc.mimeType || 'text/plain',
+          size: doc.textContent.length,
+          textContent: doc.textContent,
+        });
+        resolvedRefPaths.push(doc.path);
+        continue;
+      }
+      warnings.push(`참조 파일 복원 실패: ${doc.title || doc.path}. AI 작성 시 해당 파일 내용이 반영되지 않을 수 있습니다.`);
       continue;
     }
 

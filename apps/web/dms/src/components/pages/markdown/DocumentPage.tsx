@@ -72,6 +72,7 @@ import { useDocumentLauncherActions } from './useDocumentLauncherActions';
 import { useDocumentReferenceLifecycle } from './useDocumentReferenceLifecycle';
 import { useSyncReferencesToMetadata } from './useSyncReferencesToMetadata';
 import { toast } from '@/lib/toast';
+import { collectSummaryFileIssues, filterUsableSummaryFiles } from '@/lib/summaryFileStatus';
 import { downloadMarkdown, printHtmlContent } from '@/lib/utils/downloadUtils';
 import { resolveTitlePathRecommendation } from '@/lib/utils/titlePathRecommendation';
 import {
@@ -512,14 +513,26 @@ export function DocumentPage() {
       syncAiSummarySourceFiles(pending.summaryFiles);
 
       try {
-        const fileNames = pending.summaryFiles.map((f) => f.name).join(', ');
+        const fileIssueWarnings = collectSummaryFileIssues(pending.summaryFiles);
+        const usableSummaryFiles = filterUsableSummaryFiles(pending.summaryFiles);
+        if (usableSummaryFiles.length === 0) {
+          const message = fileIssueWarnings.join(' ') || '첨부 파일에서 요약할 수 있는 본문을 추출하지 못했습니다.';
+          setInlineRelevanceWarnings(fileIssueWarnings.length > 0 ? fileIssueWarnings : [message]);
+          toast.warning(message);
+          return;
+        }
+
+        const fileNames = usableSummaryFiles.map((f) => f.name).join(', ');
         const instruction = `다음 파일의 본문 내용을 면밀히 파악한 뒤, 본문 내용에 맞게 문단을 구성하고 요약해주세요: ${fileNames}`;
-        const summaryFilesPayload = pending.summaryFiles.map((item) => ({
+        const summaryFilesPayload = usableSummaryFiles.map((item) => ({
           id: item.id,
           name: item.name,
           type: item.type,
           textContent: item.textContent,
           images: item.images,
+          warningReason: item.warningReason,
+          unsupportedReason: item.unsupportedReason,
+          protectedMarkerDetected: item.protectedMarkerDetected,
         }));
 
         const response = await docAssistApi.compose({
@@ -565,7 +578,11 @@ export function DocumentPage() {
             setContent(generated);
             aiSummaryCompletedRef.current = true;
           }
-          setInlineRelevanceWarnings([]);
+          setInlineRelevanceWarnings(fileIssueWarnings);
+        } else {
+          const message = response.error || 'AI 요약 생성에 실패했습니다.';
+          setInlineRelevanceWarnings([...fileIssueWarnings, message]);
+          toast.error(message);
         }
       } finally {
         setIsComposing(false);

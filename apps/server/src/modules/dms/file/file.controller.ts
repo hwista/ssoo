@@ -319,11 +319,17 @@ export class FileController {
       ext,
       size: uploadedFile.size,
       textLength: result.text.length,
-      imageCount: result.images.length });
+      imageCount: result.images.length,
+      warningReason: result.warningReason,
+      unsupportedReason: result.unsupportedReason,
+      protectedMarkerDetected: result.protectedMarkerDetected });
 
     return success({
       textContent: result.text,
       images: result.images,
+      warningReason: result.warningReason,
+      unsupportedReason: result.unsupportedReason,
+      protectedMarkerDetected: result.protectedMarkerDetected,
       fileName: uploadedFile.originalname,
       size: uploadedFile.size });
   }

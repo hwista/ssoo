@@ -7,6 +7,8 @@ import type { TemplateItem } from '@/types/template';
 import { useFileTreeQuery } from '@/hooks/queries/useFileTree';
 import { useTemplateList } from '@/hooks/queries/useTemplates';
 import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
+import { toast } from '@/lib/toast';
+import { collectSummaryFileIssues } from '@/lib/summaryFileStatus';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +40,9 @@ export interface InlineSummaryFileItem {
   size: number;
   textContent: string;
   images?: ExtractedImageItem[];
+  warningReason?: string;
+  unsupportedReason?: string;
+  protectedMarkerDetected?: boolean;
   rawFile?: File;
 }
 
@@ -147,6 +152,9 @@ export function AssistantReferencePicker({
     const mapped = await Promise.all(files.map(async (file) => {
       let textContent = '';
       let images: InlineSummaryFileItem['images'];
+      let warningReason: string | undefined;
+      let unsupportedReason: string | undefined;
+      let protectedMarkerDetected: boolean | undefined;
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -154,13 +162,20 @@ export function AssistantReferencePicker({
           method: 'POST',
           body: formData,
         });
+        const data = await res.json().catch(() => null);
         if (res.ok) {
-          const data = await res.json();
           textContent = typeof data?.textContent === 'string' ? data.textContent : '';
           images = Array.isArray(data?.images) ? data.images : undefined;
+          warningReason = typeof data?.warningReason === 'string' ? data.warningReason : undefined;
+          unsupportedReason = typeof data?.unsupportedReason === 'string' ? data.unsupportedReason : undefined;
+          protectedMarkerDetected = typeof data?.protectedMarkerDetected === 'boolean'
+            ? data.protectedMarkerDetected
+            : undefined;
+        } else {
+          unsupportedReason = 'extraction-error';
         }
       } catch {
-        textContent = '';
+        unsupportedReason = 'extraction-error';
       }
       return {
         id: `${file.name}-${file.lastModified}-${file.size}`,
@@ -169,9 +184,17 @@ export function AssistantReferencePicker({
         size: file.size,
         textContent,
         images,
+        warningReason,
+        unsupportedReason,
+        protectedMarkerDetected,
         rawFile: file,
       } satisfies InlineSummaryFileItem;
     }));
+
+    const issues = collectSummaryFileIssues(mapped);
+    if (issues.length > 0) {
+      toast.warning(issues.join(' '));
+    }
 
     inlineContext?.onUpsertSummaryFiles(mapped);
     event.target.value = '';
