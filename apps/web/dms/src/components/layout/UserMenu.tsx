@@ -17,11 +17,18 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
   const { user, logout } = useAuthStore();
   const accessFeatures = useAccessStore((state) => state.snapshot?.features);
   const canManageSettings = accessFeatures?.canManageSettings ?? false;
+  const canUseAccessCenter = Boolean(accessFeatures?.canReadDocuments || accessFeatures?.canUseSearch);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
   const applyWorkspacePreferences = useSettingsShellStore((state) => state.applyWorkspacePreferences);
   const enterSettings = useSettingsShellStore((state) => state.enterSettings);
+  const openSection = useSettingsShellStore((state) => state.openSection);
 
   const openSettings = async () => {
+    if (!canManageSettings) {
+      openSection('system', 'documentAccess');
+      return;
+    }
+
     await loadSettings();
     const settings = useSettingsStore.getState().config;
     if (settings?.personal.workspace) {
@@ -44,9 +51,9 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
       actions={[
         {
           key: 'settings',
-          label: '설정',
+          label: canManageSettings ? '설정' : '권한 요청/승인',
           icon: Settings,
-          disabled: !canManageSettings,
+          disabled: !(canManageSettings || canUseAccessCenter),
           onSelect: openSettings,
         },
       ]}
