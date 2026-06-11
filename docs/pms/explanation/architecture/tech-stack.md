@@ -34,7 +34,7 @@ PMS(Project Management System) 프론트엔드 전용 기술 스택입니다.
 
 | 서비스 | URL | 설명 |
 |--------|-----|------|
-| PMS Frontend | http://localhost:3000 | Next.js 웹 앱 |
+| PMS Frontend | http://localhost:3002 | Next.js 웹 앱 |
 
 ---
 

@@ -19,7 +19,7 @@ export default function DmsGitPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">DMS Git 관측</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            저장소 바인딩 / sync 상태 / 최근 커밋 로그.
+            저장소 바인딩 / sync 상태 / 최근 커밋 로그를 read-only로 관측합니다. DMS Git 설정·제어·운영 owner는 DMS입니다.
           </p>
         </div>
         <button

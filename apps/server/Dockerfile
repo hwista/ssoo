@@ -24,7 +24,7 @@ RUN pnpm --filter @ssoo/database db:generate && \
 
 FROM node:20 AS runner
 RUN apt-get update -qq && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
-RUN git config --global --add safe.directory /var/lib/ssoo/dms/documents
+RUN git config --global --add safe.directory /var/lib/ssoo/documents
 WORKDIR /app
 
 ENV NODE_ENV=production

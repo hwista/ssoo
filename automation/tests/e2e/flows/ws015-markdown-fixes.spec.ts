@@ -10,7 +10,7 @@ interface LaunchUser {
 }
 
 const WS015_USER: LaunchUser = { loginId: 'admin', password: 'admin123!' };
-const DMS_BASE_URL = `http://127.0.0.1:${process.env.PLAYWRIGHT_DMS_PORT ?? '3001'}`;
+const DMS_BASE_URL = `http://127.0.0.1:${process.env.PLAYWRIGHT_DMS_PORT ?? '3003'}`;
 
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null;

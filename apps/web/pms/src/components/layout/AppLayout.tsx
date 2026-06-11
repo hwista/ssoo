@@ -1,6 +1,6 @@
 'use client';
 
-import { ShellFrame } from '@ssoo/web-shell';
+import { SsooWorkbenchShell } from '@ssoo/web-shell';
 import { useLayoutStore, useSidebarStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/types';
 import { Sidebar } from './sidebar';
@@ -30,15 +30,16 @@ export function AppLayout() {
     );
   }
 
-  const sidebarWidth = isCollapsed
-    ? LAYOUT_SIZES.sidebar.collapsedWidth
-    : LAYOUT_SIZES.sidebar.expandedWidth;
-
   return (
-    <ShellFrame sidebar={<Sidebar />} mainOffset={sidebarWidth}>
-      <Header />
-      <TabBar />
-      <ContentArea />
-    </ShellFrame>
+    <SsooWorkbenchShell
+      sidebarMode="collapsible"
+      sidebarExpanded={!isCollapsed}
+      sidebarWidth={LAYOUT_SIZES.sidebar.expandedWidth}
+      collapsedSidebarWidth={LAYOUT_SIZES.sidebar.collapsedWidth}
+      sidebarSlot={<Sidebar />}
+      headerSlot={<Header />}
+      tabBarSlot={<TabBar />}
+      contentSlot={<ContentArea />}
+    />
   );
 }

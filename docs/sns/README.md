@@ -21,7 +21,7 @@ SNS는 **일(PMS) + 문서(DMS) + 콘텐츠(SNS)** 흐름을 담당하는 앱입
 - **상태**: Zustand 5 + TanStack Query 5
 - **백엔드**: NestJS (모듈러 모놀리스, `modules/sns/`)
 - **DB**: PostgreSQL `sns` 스키마 (`sns_` 접두사)
-- **포트**: 3002
+- **포트**: 3004
 
 ## 현재 라우팅 계약
 

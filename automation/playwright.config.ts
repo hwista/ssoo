@@ -3,7 +3,7 @@ import { resolve } from 'path';
 
 const automationDir = __dirname;
 const repoRoot = resolve(automationDir, '..');
-const dmsPort = process.env.PLAYWRIGHT_DMS_PORT ?? '3001';
+const dmsPort = process.env.PLAYWRIGHT_DMS_PORT ?? '3003';
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === '1'
   || process.env.PLAYWRIGHT_SKIP_WEB_SERVER === 'true';
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === '1'

@@ -2,11 +2,22 @@
 
 import { useMemo, useState } from 'react';
 import type { ComponentType, KeyboardEvent } from 'react';
-import { ArrowLeft, Shield, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, Menu, Search as SearchIcon, Shield, SlidersHorizontal, X } from 'lucide-react';
+import {
+  SsooHeader,
+  SsooCollapsedRailButton,
+  SsooSidebarBrandHeader,
+  SsooSidebarFooter,
+  SsooSidebarList,
+  SsooSidebarListItem,
+  SsooSidebarSearchBox,
+  SsooSidebarShell,
+  SsooSidebarToolbar,
+} from '@ssoo/web-shell';
 import { SettingsPage } from '@/components/pages/settings/SettingsPage';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { useAccessStore, useSettingsShellStore, useSettingsStore } from '@/stores';
+import { useSettingsShellStore, useSettingsStore } from '@/stores';
 import { LAYOUT_SIZES } from '@/lib/constants/layout';
 import { cn } from '@/lib/utils';
 import {
@@ -15,13 +26,10 @@ import {
 } from '@/components/pages/settings/_config/settingsPageConfig';
 import type { SettingsScope } from '@/types/settings';
 import { UserMenu } from '../UserMenu';
-import { FlatList, FlatListItem } from '../sidebar/FlatList';
-import { SearchInput } from '../sidebar/SearchInput';
 
 interface SettingsShellSidebarProps {
-  isCompactMode?: boolean;
-  isOpen?: boolean;
-  onClose?: () => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 const SCOPE_META: Record<
@@ -39,25 +47,27 @@ const SCOPE_META: Record<
 };
 
 export function SettingsShellSidebar({
-  isCompactMode = false,
-  isOpen = true,
-  onClose,
+  isCollapsed,
+  onToggleCollapse,
 }: SettingsShellSidebarProps) {
   const access = useSettingsStore((state) => state.access);
-  const accessFeatures = useAccessStore((state) => state.snapshot?.features);
   const { activeScope, activeSectionId, exitSettings, openSection, setScope } = useSettingsShellStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const canManageSettings = accessFeatures?.canManageSettings ?? false;
-  const canUseAccessCenter = Boolean(accessFeatures?.canReadDocuments || accessFeatures?.canUseSearch);
-  const canManageSystem = Boolean(access?.canManageSystem ?? canManageSettings);
-  const canManagePersonal = Boolean(access?.canManagePersonal ?? canManageSettings);
+  const canManageSystem = Boolean(access?.canManageSystem ?? false);
+  const canManagePersonal = Boolean(access?.canManagePersonal ?? true);
 
   const scopePermissions: Record<SettingsScope, boolean> = {
-    system: canManageSystem || canUseAccessCenter,
+    system: canManageSystem,
     personal: canManagePersonal,
   };
+  const visibleScopes = useMemo<SettingsScope[]>(() => {
+    const scopes: SettingsScope[] = [];
+    if (canManageSystem) scopes.push('system');
+    if (canManagePersonal) scopes.push('personal');
+    return scopes;
+  }, [canManagePersonal, canManageSystem]);
 
   const searchResults = useMemo(() => {
     return searchSettingEntries(searchQuery)
@@ -65,21 +75,15 @@ export function SettingsShellSidebar({
         if (result.scope === 'personal') {
           return canManagePersonal;
         }
-        if (canManageSystem) {
-          return true;
-        }
-        return canUseAccessCenter && result.sectionId === 'documentAccess';
+        return canManageSystem;
       })
       .slice(0, 8);
-  }, [canManagePersonal, canManageSystem, canUseAccessCenter, searchQuery]);
+  }, [canManagePersonal, canManageSystem, searchQuery]);
 
   const handleSelectResult = (scope: SettingsScope, sectionId: string) => {
     openSection(scope, sectionId);
     setSearchQuery('');
     setIsSearchOpen(false);
-    if (isCompactMode) {
-      onClose?.();
-    }
   };
 
   const handleSearchChange = (nextQuery: string) => {
@@ -104,126 +108,170 @@ export function SettingsShellSidebar({
   const shouldShowResults = isSearchOpen && searchQuery.trim().length > 0;
 
   return (
-      <aside
-        className={cn(
-        'fixed left-0 top-0 z-30 flex h-full flex-col overflow-hidden border-r border-ssoo-content-border bg-ssoo-content-bg font-sans',
-        'transition-transform duration-300 ease-in-out',
-        isCompactMode && 'shadow-xl',
-        isCompactMode && !isOpen && '-translate-x-full'
-      )}
-      style={{ width: LAYOUT_SIZES.sidebar.expandedWidth }}
-    >
-      <div className="flex h-header-h items-center border-b border-ssoo-content-border bg-ssoo-primary px-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={exitSettings}
-          aria-label="설정 모드 닫기"
-          className="h-9 w-9 rounded bg-white text-ssoo-primary hover:bg-white/90 hover:text-ssoo-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-
-        <div className="ml-2 min-w-0">
-          <p className="truncate text-title-card text-white">설정</p>
-        </div>
-      </div>
-
-      <div className="border-b border-gray-200 p-2">
-        <div className="relative">
-          <SearchInput
-            value={searchQuery}
-            onChange={handleSearchChange}
-            onFocus={() => setIsSearchOpen(true)}
-            onBlur={() => {
-              window.setTimeout(() => setIsSearchOpen(false), 120);
-            }}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="설정 검색..."
-            clearAriaLabel="설정 검색 초기화"
-          />
-
-          {shouldShowResults && (
-            <div className="absolute left-0 top-[calc(100%+4px)] z-20 w-full overflow-hidden rounded-lg border border-ssoo-content-border bg-white shadow-lg">
-              {searchResults.length > 0 ? (
-                <div className="max-h-80 overflow-y-auto py-1">
-                  {searchResults.map((result) => {
-                    const isCurrentSection =
-                      result.scope === activeScope && result.sectionId === activeSectionId;
-
-                    return (
-                      <button
-                        key={result.id}
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => handleSelectResult(result.scope, result.sectionId)}
-                        className={cn(
-                          'flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors',
-                          isCurrentSection ? 'bg-ssoo-content-bg/70' : 'hover:bg-ssoo-content-bg/50'
-                        )}
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-label-md text-ssoo-primary">
-                            {result.title}
-                          </span>
-                          <span className="mt-0.5 block truncate text-caption text-ssoo-primary/70">
-                            {result.subtitle}
-                          </span>
-                        </span>
-                        <span className="shrink-0 rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-2 py-0.5 text-caption text-ssoo-primary/70">
-                          {result.kind === 'section' ? '섹션' : '필드'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="px-3 py-2 text-body-sm text-ssoo-primary/70">
-                  일치하는 설정이 없습니다.
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <ScrollArea variant="sidebar" className="flex-1">
-        <FlatList as="nav" ariaLabel="설정 범위" className="py-2">
-          {(['system', 'personal'] as const).map((scope) => {
+    <SsooSidebarShell
+      mode="collapsible"
+      expanded={!isCollapsed}
+      width={LAYOUT_SIZES.sidebar.expandedWidth}
+      collapsedWidth={LAYOUT_SIZES.sidebar.collapsedWidth}
+      className="font-sans"
+      headerSlot={
+        <SsooSidebarBrandHeader
+          title="설정"
+          collapsed={isCollapsed}
+          revealOnHover={isCollapsed}
+          mark={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={exitSettings}
+              aria-label="설정 모드 닫기"
+              className="h-9 w-9 rounded bg-white text-ssoo-primary hover:bg-white/90 hover:text-ssoo-primary"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          }
+          actionsSlot={
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="rounded-lg p-2 transition-colors hover:bg-white/10"
+              title={isCollapsed ? '펼치기' : '접기'}
+            >
+              <Menu className="h-5 w-5 text-white" />
+            </button>
+          }
+        />
+      }
+      railSlot={
+        <nav className="flex flex-col items-center gap-1 py-2">
+          {visibleScopes.map((scope) => {
             const { title, icon: ScopeIcon } = SCOPE_META[scope];
             const isDisabled = !scopePermissions[scope];
             const isActive = activeScope === scope;
 
             return (
-              <FlatListItem
+              <SsooCollapsedRailButton
                 key={scope}
-                icon={ScopeIcon}
                 label={title}
+                icon={ScopeIcon}
                 active={isActive}
                 disabled={isDisabled}
-                onSelect={() => {
-                  setScope(scope);
-                  if (isCompactMode) {
-                    onClose?.();
-                  }
-                }}
+                onClick={() => setScope(scope)}
               />
             );
           })}
-        </FlatList>
-      </ScrollArea>
-    </aside>
+        </nav>
+      }
+      beforeContentSlot={
+        <SsooSidebarToolbar>
+          <div className="relative">
+            <SsooSidebarSearchBox
+              value={searchQuery}
+              onChange={handleSearchChange}
+              onFocus={() => setIsSearchOpen(true)}
+              onBlur={() => {
+                window.setTimeout(() => setIsSearchOpen(false), 120);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="설정 검색..."
+              iconSlot={<SearchIcon className="h-4 w-4 text-gray-400" />}
+              trailingSlot={
+                searchQuery ? (
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => handleSearchChange('')}
+                    className="absolute right-2 top-1/2 flex h-control-h-sm w-control-h-sm -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    aria-label="설정 검색 초기화"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null
+              }
+            />
+
+            {shouldShowResults && (
+              <div className="absolute left-0 top-[calc(100%+4px)] z-20 w-full overflow-hidden rounded-lg border border-ssoo-content-border bg-white shadow-lg">
+                {searchResults.length > 0 ? (
+                  <div className="max-h-80 overflow-y-auto py-1">
+                    {searchResults.map((result) => {
+                      const isCurrentSection =
+                        result.scope === activeScope && result.sectionId === activeSectionId;
+
+                      return (
+                        <button
+                          key={result.id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => handleSelectResult(result.scope, result.sectionId)}
+                          className={cn(
+                            'flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors',
+                            isCurrentSection ? 'bg-ssoo-content-bg/70' : 'hover:bg-ssoo-content-bg/50'
+                          )}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-label-md text-ssoo-primary">
+                              {result.title}
+                            </span>
+                            <span className="mt-0.5 block truncate text-caption text-ssoo-primary/70">
+                              {result.subtitle}
+                            </span>
+                          </span>
+                          <span className="shrink-0 rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-2 py-0.5 text-caption text-ssoo-primary/70">
+                            {result.kind === 'section' ? '섹션' : '필드'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="px-3 py-2 text-body-sm text-ssoo-primary/70">
+                    일치하는 설정이 없습니다.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </SsooSidebarToolbar>
+      }
+      contentSlot={
+        <ScrollArea variant="sidebar" className="flex-1">
+          <SsooSidebarList as="nav" ariaLabel="설정 범위" className="py-2">
+            {visibleScopes.map((scope) => {
+              const { title, icon: ScopeIcon } = SCOPE_META[scope];
+              const isDisabled = !scopePermissions[scope];
+              const isActive = activeScope === scope;
+
+              return (
+                <SsooSidebarListItem
+                  key={scope}
+                  icon={ScopeIcon}
+                  label={title}
+                  active={isActive}
+                  disabled={isDisabled}
+                  onSelect={() => {
+                    setScope(scope);
+                  }}
+                />
+              );
+            })}
+          </SsooSidebarList>
+        </ScrollArea>
+      }
+      footerSlot={<SsooSidebarFooter collapsed={isCollapsed} revealOnHover={isCollapsed} />}
+    />
   );
 }
 
 export function SettingsShellHeader() {
   return (
-    <header className="flex h-header-h items-center justify-end gap-2 bg-ssoo-primary px-4">
-      <div className="flex shrink-0 items-center">
+    <SsooHeader
+      mode="primary"
+      actionsSlot={
         <UserMenu />
-      </div>
-    </header>
+      }
+    />
   );
 }
 

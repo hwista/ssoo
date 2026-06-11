@@ -1,8 +1,11 @@
 'use client';
 
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { FlatList, FlatListItem } from '@/components/layout/sidebar/FlatList';
-import type { SettingSection } from '../_config/settingsPageConfig';
+import { SsooSettingsNavigation as SsooSettingsNavigationSurface } from '@ssoo/web-shell';
+import {
+  SETTINGS_SECTION_GROUP_LABELS,
+  SETTINGS_SECTION_GROUP_ORDER,
+  type SettingSection,
+} from '../_config/settingsPageConfig';
 
 interface SettingsNavigationProps {
   title: string;
@@ -17,25 +20,24 @@ export function SettingsNavigation({
   activeSectionId,
   onSelect,
 }: SettingsNavigationProps) {
-  return (
-    <aside className="flex h-full w-[280px] shrink-0 flex-col border-r border-ssoo-content-border bg-ssoo-content-bg font-sans">
-      <ScrollArea variant="sidebar" className="flex-1">
-        <FlatList as="nav" ariaLabel={`${title} 세부 메뉴`} className="py-2">
-          {sections.map((section) => {
-            const isActive = section.id === activeSectionId;
+  const groupedSections = SETTINGS_SECTION_GROUP_ORDER.map((group) => ({
+    id: group,
+    label: SETTINGS_SECTION_GROUP_LABELS[group],
+    items: sections
+      .filter((section) => section.group === group)
+      .map((section) => ({
+        id: section.id,
+        label: section.label,
+        icon: section.icon,
+      })),
+  })).filter((entry) => entry.items.length > 0);
 
-            return (
-              <FlatListItem
-                key={section.id}
-                icon={section.icon}
-                label={section.label}
-                active={isActive}
-                onSelect={() => onSelect(section.id)}
-              />
-            );
-          })}
-        </FlatList>
-      </ScrollArea>
-    </aside>
+  return (
+    <SsooSettingsNavigationSurface
+      title={title}
+      groups={groupedSections}
+      activeItemId={activeSectionId}
+      onSelect={onSelect}
+    />
   );
 }

@@ -28,8 +28,11 @@ export default function MainLayout({
   const hydrateAccess = useAccessStore((state) => state.hydrate);
   const resetAccess = useAccessStore((state) => state.reset);
   const router = useRouter();
-  const redirectToLogin = useCallback(() => {
-    router.replace(LOGIN_PATH);
+  const redirectToLogin = useCallback((currentPath: string) => {
+    const returnTo = currentPath && currentPath !== LOGIN_PATH
+      ? `?returnTo=${encodeURIComponent(currentPath)}`
+      : '';
+    router.replace(`${LOGIN_PATH}${returnTo}`);
   }, [router]);
 
   const { showLoading, shouldRender } = useProtectedAppBootstrap({

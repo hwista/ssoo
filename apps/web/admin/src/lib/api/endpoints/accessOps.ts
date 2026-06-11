@@ -1,5 +1,6 @@
 import type {
   AccessInspectionResult,
+  PermissionCatalogResult,
   PermissionExceptionListResult,
 } from '@ssoo/types/common';
 import { apiClient } from '../client';
@@ -26,6 +27,16 @@ export interface ListExceptionsParams {
 }
 
 export const accessOpsApi = {
+  catalog: async () => {
+    const response = await apiClient.get<ApiResponse<PermissionCatalogResult>>(
+      '/access/ops/catalog',
+    );
+    if (!response.data.data) {
+      throw new Error('권한 기능 명세 응답이 비어 있습니다.');
+    }
+    return response.data.data;
+  },
+
   inspect: async (params: InspectAccessParams) => {
     const response = await apiClient.get<ApiResponse<AccessInspectionResult>>(
       '/access/ops/inspect',

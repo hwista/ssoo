@@ -57,7 +57,7 @@ DMS는 pnpm workspace 앱으로 운영되며, 공통 계약 타입은 `@ssoo/typ
 
 | 서비스 | URL | 설명 |
 |--------|-----|------|
-| DMS Frontend | http://localhost:3001 | 도큐먼트 관리 시스템 |
+| DMS Frontend | http://localhost:3003 | 도큐먼트 관리 시스템 |
 
 ---
 

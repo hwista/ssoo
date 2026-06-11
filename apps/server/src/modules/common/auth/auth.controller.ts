@@ -74,12 +74,18 @@ export class AuthController {
     }
 
     if (hostHeader.includes(':3000')) {
-      return 'pms';
+      return 'admin';
     }
     if (hostHeader.includes(':3001')) {
-      return 'dms';
+      return 'crm';
     }
     if (hostHeader.includes(':3002')) {
+      return 'pms';
+    }
+    if (hostHeader.includes(':3003')) {
+      return 'dms';
+    }
+    if (hostHeader.includes(':3004')) {
       return 'sns';
     }
 

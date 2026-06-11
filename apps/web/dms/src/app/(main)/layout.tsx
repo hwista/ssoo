@@ -270,8 +270,11 @@ export default function MainLayout({
       markDocumentNotificationsForPathRead(Array.from(reloadedActivePaths)[0]);
     }
   }, [activeDocumentPath, currentUserId, markDocumentNotificationsForPathRead]);
-  const redirectToLogin = useCallback(() => {
-    router.replace(LOGIN_PATH);
+  const redirectToLogin = useCallback((currentPath: string) => {
+    const returnTo = currentPath && currentPath !== LOGIN_PATH
+      ? `?returnTo=${encodeURIComponent(currentPath)}`
+      : '';
+    router.replace(`${LOGIN_PATH}${returnTo}`);
   }, [router]);
   const handleNotificationDomainEvent = useCallback((event: CommonNotificationStreamEvent) => {
     if (event.domainEvent?.type !== DMS_DOCUMENT_COMMENT_CHANGED_DOMAIN_EVENT_TYPE) {

@@ -176,14 +176,14 @@ export type DocumentRootBindingInfo = RuntimePathBindingInfo;
 // Constants
 // ============================================================================
 
-export const DEFAULT_DOCUMENT_REPOSITORY_PATH = '../../../.runtime/dms/documents';
+export const DEFAULT_DOCUMENT_REPOSITORY_PATH = '../../../.runtime/documents';
 /** @deprecated templates are now derived from markdownRoot/_templates */
 export const DEFAULT_TEMPLATE_ROOT_PATH = '_templates';
 export const TEMPLATE_SUBDIR = '_templates';
-export const DEFAULT_INGEST_QUEUE_PATH = '../../../.runtime/dms/ingest';
-export const DEFAULT_LOCAL_STORAGE_ROOT_PATH = '../../../.runtime/dms/storage/local';
-export const DEFAULT_SHAREPOINT_STORAGE_BASE_PATH = '/sites/dms/shared-documents';
-export const DEFAULT_NAS_STORAGE_BASE_PATH = '/mnt/nas/dms';
+export const DEFAULT_INGEST_QUEUE_PATH = '../../../.runtime/document-ingest';
+export const DEFAULT_LOCAL_STORAGE_ROOT_PATH = '../../../.runtime/document-storage/local';
+export const DEFAULT_SHAREPOINT_STORAGE_BASE_PATH = '/sites/documents/shared-documents';
+export const DEFAULT_NAS_STORAGE_BASE_PATH = '/mnt/nas/documents';
 export const DEFAULT_GIT_PROD_REMOTE_URL = 'http://10.125.31.72:8010/LSITC_WEB/LSWIKI_DOC.git';
 export const DEFAULT_GIT_DEV_REMOTE_URL = 'git@10.125.31.72:LSITC_WEB/LSWIKI_DOC_DEV.git';
 export const DEFAULT_GIT_BOOTSTRAP_BRANCH = 'master';
@@ -576,7 +576,7 @@ class ConfigService {
         nas: {
           enabled: true,
           basePath: DEFAULT_NAS_STORAGE_BASE_PATH,
-          webBaseUrl: 'file:///mnt/nas/dms',
+          webBaseUrl: 'file:///mnt/nas/documents',
         },
       },
       ingest: {
@@ -613,7 +613,7 @@ class ConfigService {
       m365: {
         sharepoint: {
           tenantDomain: '',
-          sitePath: '/sites/dms',
+          sitePath: '/sites/documents',
           defaultLibrary: 'shared-documents',
         },
         teams: {

@@ -3,7 +3,7 @@
 > 최종 업데이트: 2026-06-04
 
 DMS를 **모노레포 통합 런타임 기준**으로 Docker 컨테이너에 배포하는 가이드입니다.  
-지원 경로는 **repo root `compose.yaml`** 하나로 정리하며, 기본 배포 단위는 `postgres + server + pms + sns + dms` 전체 스택입니다.
+지원 경로는 **repo root `compose.yaml`** 하나로 정리하며, 기본 배포 단위는 `postgres + server + admin + crm + pms + dms + sns` 전체 스택입니다.
 
 ---
 
@@ -18,24 +18,24 @@ DMS를 **모노레포 통합 런타임 기준**으로 Docker 컨테이너에 배
 ## 아키텍처
 
 ```
-┌─────────────────┐    ┌─────────────────┐
-│  ssoo-pms       │    │  ssoo-sns       │
-│  Port: 3000     │    │  Port: 3002     │
-└────────┬────────┘    └────────┬────────┘
-         │                      │
-         └──────────┬───────────┘
-                    ▼
-             ┌───────────────┐
-             │  ssoo-server  │
-             │  Port: 4000   │
-             └──────┬────────┘
-                    │
-┌─────────────────┐ │  ┌───────────────────────┐
-│  ssoo-dms       │─┘  │  ssoo-postgres        │
-│  Port: 3001     │────▶  (pgvector/pg17)      │
-│  same-origin    │    │  Port: 5432           │
-│  proxy / UI     │    │                       │
-└─────────────────┘    └───────────────────────┘
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│  ssoo-admin     │ │  ssoo-crm       │ │  ssoo-pms       │
+│  Port: 3000     │ │  Port: 3001     │ │  Port: 3002     │
+└────────┬────────┘ └────────┬────────┘ └────────┬────────┘
+         │                   │                   │
+         └───────────────────┼───────────────────┘
+                             ▼
+                      ┌───────────────┐
+                      │  ssoo-server  │
+                      │  Port: 4000   │
+                      └──────┬────────┘
+                             │
+┌─────────────────┐ ┌────────┴────────┐ ┌───────────────────────┐
+│  ssoo-dms       │ │  ssoo-sns       │ │  ssoo-postgres        │
+│  Port: 3003     │ │  Port: 3004     │ │  Port: 5432           │
+│  same-origin    │ │  standalone UI  │ │  (pgvector/pg17)      │
+│  proxy / UI     │ │                 │ │                       │
+└─────────────────┘ └─────────────────┘ └───────────────────────┘
 ```
 
 ### 서비스 구성
@@ -44,9 +44,11 @@ DMS를 **모노레포 통합 런타임 기준**으로 Docker 컨테이너에 배
 |--------|--------|------|------|
 | `postgres` | `pgvector/pgvector:pg17` | 5432 | PostgreSQL + pgvector 확장 |
 | `server` | `apps/server/Dockerfile` | 4000 | NestJS API + 공통 auth + DMS server module |
-| `pms` | `apps/web/pms/Dockerfile` | 3000 | PMS Next.js 앱 |
-| `dms` | `apps/web/dms/Dockerfile` | 3001 | DMS Next.js 앱 |
-| `sns` | `apps/web/sns/Dockerfile` | 3002 | SNS Next.js 앱 |
+| `admin` | `apps/web/admin/Dockerfile` | 3000 | Admin Next.js 앱 |
+| `crm` | `apps/web/crm/Dockerfile` | 3001 | CRM Next.js 앱 |
+| `pms` | `apps/web/pms/Dockerfile` | 3002 | PMS Next.js 앱 |
+| `dms` | `apps/web/dms/Dockerfile` | 3003 | DMS Next.js 앱 |
+| `sns` | `apps/web/sns/Dockerfile` | 3004 | SNS Next.js 앱 |
 
 > **참고**: `pgvector/pgvector:pg17`은 표준 PostgreSQL 17에 pgvector 확장이 포함된 이미지입니다.
 > DMS의 AI 임베딩/시맨틱 검색 기능에 필요합니다.
@@ -91,10 +93,12 @@ pnpm docker:logs
 ### 3. 확인
 
 ```bash
-# PMS / DMS / SNS 접속
+# Admin / CRM / PMS / DMS / SNS 접속
 curl http://localhost:3000
 curl http://localhost:3001
 curl http://localhost:3002
+curl http://localhost:3003
+curl http://localhost:3004
 
 # Server health
 curl http://localhost:4000/api/health
@@ -128,9 +132,9 @@ docker compose exec postgres pg_isready -U ssoo -d ssoo_dev
 
 | 호스트 변수 | 컨테이너 변수 | 기본 컨테이너 경로 | 용도 |
 |------------|---------------|-------------------|------|
-| `DMS_MARKDOWN_HOST_PATH` | `DMS_MARKDOWN_ROOT` | `/var/lib/ssoo/dms/documents` | markdown working tree (Git-managed). 템플릿은 이 경로의 `_templates/` 하위에 배치됩니다 |
-| `DMS_INGEST_HOST_PATH` | `DMS_INGEST_QUEUE_PATH` | `/var/lib/ssoo/dms/ingest` | ingest queue (`jobs.json`) |
-| `DMS_STORAGE_LOCAL_HOST_PATH` | `DMS_STORAGE_LOCAL_BASE_PATH` | `/var/lib/ssoo/dms/storage/local` | local binary storage |
+| `DMS_MARKDOWN_HOST_PATH` | `DMS_MARKDOWN_ROOT` | `/var/lib/ssoo/documents` | markdown working tree (Git-managed). 템플릿은 이 경로의 `_templates/` 하위에 배치됩니다 |
+| `DMS_INGEST_HOST_PATH` | `DMS_INGEST_QUEUE_PATH` | `/var/lib/ssoo/document-ingest` | ingest queue (`jobs.json`) |
+| `DMS_STORAGE_LOCAL_HOST_PATH` | `DMS_STORAGE_LOCAL_BASE_PATH` | `/var/lib/ssoo/document-storage/local` | local binary storage |
 
 핵심 원칙:
 
@@ -173,11 +177,11 @@ tar czf dms-runtime-backup-$(date +%Y%m%d).tar.gz \
 | `PMS_SERVER_API_URL` | `http://server:4000/api` | PMS same-origin auth proxy가 내부 server 컨테이너로 연결할 주소 |
 | `SNS_NEXT_PUBLIC_API_URL` | `http://localhost:4000/api` | SNS 브라우저 번들용 API 주소 |
 | `SNS_SERVER_API_URL` | `http://server:4000/api` | SNS same-origin auth proxy가 내부 server 컨테이너로 연결할 주소 |
-| `DMS_MARKDOWN_ROOT` | `/var/lib/ssoo/dms/documents` | server 컨테이너 내 external markdown working tree. 템플릿은 이 경로의 `_templates/` 하위에 자동 포함 |
-| `DMS_INGEST_QUEUE_PATH` | `/var/lib/ssoo/dms/ingest` | server 컨테이너 내 ingest queue root |
-| `DMS_STORAGE_LOCAL_BASE_PATH` | `/var/lib/ssoo/dms/storage/local` | server 컨테이너 내 local binary storage root |
-| `DMS_STORAGE_SHAREPOINT_BASE_PATH` | `/sites/dms/shared-documents` | SharePoint provider base path override |
-| `DMS_STORAGE_NAS_BASE_PATH` | `/mnt/nas/dms` | NAS provider base path override |
+| `DMS_MARKDOWN_ROOT` | `/var/lib/ssoo/documents` | server 컨테이너 내 external markdown working tree. 템플릿은 이 경로의 `_templates/` 하위에 자동 포함 |
+| `DMS_INGEST_QUEUE_PATH` | `/var/lib/ssoo/document-ingest` | server 컨테이너 내 ingest queue root |
+| `DMS_STORAGE_LOCAL_BASE_PATH` | `/var/lib/ssoo/document-storage/local` | server 컨테이너 내 local binary storage root |
+| `DMS_STORAGE_SHAREPOINT_BASE_PATH` | `/sites/documents/shared-documents` | SharePoint provider base path override |
+| `DMS_STORAGE_NAS_BASE_PATH` | `/mnt/nas/documents` | NAS provider base path override |
 | `DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES` | `launch-smoke/,codex-lock-ui/,codex-lock-probe/,verify-access/` | 쉼표로 구분한 local-only 검증 문서 디렉터리 prefix. 일반 운영/개발 런타임에서는 이 prefix 의 문서를 파일 트리/검색/편집 잠금 알림 사용자 표면에서 숨기고 DMS Git publish/실패 알림 대상에서도 제외. `local-test` 하네스에서는 브라우저 스모크 검증을 위해 사용자 표면 숨김을 적용하지 않음 |
 
 ### AI 기능 사용 시 추가 필요
@@ -201,11 +205,11 @@ tar czf dms-runtime-backup-$(date +%Y%m%d).tar.gz \
 ```yaml
 server:
   environment:
-    DMS_MARKDOWN_ROOT: /var/lib/ssoo/dms/documents
-    DMS_STORAGE_LOCAL_BASE_PATH: /var/lib/ssoo/dms/storage/local
+    DMS_MARKDOWN_ROOT: /var/lib/ssoo/documents
+    DMS_STORAGE_LOCAL_BASE_PATH: /var/lib/ssoo/document-storage/local
   volumes:
-    - /srv/dms/documents:/var/lib/ssoo/dms/documents
-    - /srv/dms/storage/local:/var/lib/ssoo/dms/storage/local
+    - /srv/documents:/var/lib/ssoo/documents
+    - /srv/document-storage/local:/var/lib/ssoo/document-storage/local
 ```
 
 ---
@@ -242,7 +246,7 @@ docker compose ps postgres
 
 ### 데이터 경로 문제
 - 실제 runtime data owner는 `server` 컨테이너입니다. 먼저 `docker compose exec server printenv DMS_MARKDOWN_ROOT DMS_INGEST_QUEUE_PATH DMS_STORAGE_LOCAL_BASE_PATH` 로 effective path 를 확인하세요. 템플릿은 `$DMS_MARKDOWN_ROOT/_templates/` 에 자동 포함됩니다.
-- 기본 compose 는 host `.runtime/dms/*` 를 server 컨테이너 `/var/lib/ssoo/dms/*` 로 bind mount 합니다. 필요 시 `docker compose exec server ls -la "$DMS_MARKDOWN_ROOT"` 같이 mounted contents 를 직접 확인하세요.
+- 기본 compose 는 host `.runtime/documents`, `.runtime/document-ingest`, `.runtime/document-storage/*` 를 server 컨테이너 `/var/lib/ssoo/*` document runtime 경로로 bind mount 합니다. 필요 시 `docker compose exec server ls -la "$DMS_MARKDOWN_ROOT"` 같이 mounted contents 를 직접 확인하세요.
 - `dms` web 컨테이너는 UI/same-origin proxy 이므로 `/app/apps/web/dms/data` 를 운영 데이터 경로로 진단하지 않습니다.
 
 ---

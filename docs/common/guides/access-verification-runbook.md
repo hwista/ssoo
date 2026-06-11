@@ -74,7 +74,7 @@
 3. `GET /api/access/ops/inspect` 성공 경로 확인
 4. PMS runtime 경계 확인 (`/api/menus/my`, 접근 가능한 프로젝트 allow, foreign project deny)
 5. SNS runtime 경계 확인 (`/api/sns/access/me`, `/api/sns/feed`, post create deny)
-6. DMS runtime 경계 확인 (`/api/dms/access/me`, `/api/dms/files`, `/api/dms/search`, `/api/dms/settings`, `/api/dms/git`)
+6. DMS runtime 경계 확인 (`/api/dms/access/me`, `/api/dms/files`, `/api/dms/search`, `/api/dms/settings` personal/system split, `/api/dms/git`)
 7. runtime persona 또는 explicit non-admin credential 기준 `GET /api/access/ops/inspect` 403 확인
 
 `pnpm verify:access-admin` 의도:
@@ -88,7 +88,7 @@
 
 1. admin 기준 temp DMS probe document + image/attachment/local storage fixture 를 생성하고 cleanup 한다
 2. `GET /api/dms/access/me` 와 `GET /api/access/ops/inspect` 의 policy trace 가 같은 방향인지 확인한다
-3. `files/file/content/raw/serve-attachment/search/ask/settings/git/storage/open` surface 가 runtime persona(`viewer.han`) 기준 allow/deny matrix 와 모순되지 않는지 확인한다
+3. `files/file/content/raw/serve-attachment/search/ask/settings/git/storage/open` surface 가 runtime persona(`viewer.han`) 기준 allow/deny matrix 와 모순되지 않는지 확인한다. settings 는 personal 조회/저장 allow 와 system/runtime deny 를 함께 본다
 4. admin 기준 `settings/git/storage/open` privileged surface 가 접근 제어를 통과하는지 확인한다
 
 ### 주요 검증용 seed persona
@@ -330,9 +330,10 @@ deny 사례가 나오면 아래 순서로 기록합니다.
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-10 | DMS settings 검증 기준을 일반 사용자 personal allow + admin-only system/runtime deny 로 보정 |
 | 2026-04-15 | `pnpm verify:access-dms` fixture-driven DMS regression script 를 추가하고, temp probe document/image/attachment/local storage fixture 기반으로 `files/file/content/raw/serve-attachment/search/ask/settings/git/storage/open` matrix 를 검증하는 절차를 runbook 에 반영 |
 | 2026-04-15 | `pnpm verify:access-admin` repo-native admin regression script 를 추가하고, PMS role-menu read/update/reset semantics + admin user CRUD/org bridge parity + temp user inspect/organizationIds 검증 절차를 runbook 에 반영 |
-| 2026-04-15 | `pnpm verify:access-smoke` 가 기본 demo runtime persona(`viewer.han`) 기준으로 PMS foreign project deny, SNS post deny, DMS git/settings deny 와 allow path(files/search/feed)를 함께 검증하도록 확장되고 `--skip-runtime` / runtime env 변수를 문서화 |
+| 2026-04-15 | `pnpm verify:access-smoke` 가 기본 demo runtime persona(`viewer.han`) 기준으로 PMS foreign project deny, SNS post deny, DMS git/settings system deny 와 allow path(files/search/feed)를 함께 검증하도록 확장되고 `--skip-runtime` / runtime env 변수를 문서화 |
 | 2026-04-14 | PMS project object/exception 시나리오와 SNS visibility boundary 시나리오를 추가하고 release-grade checklist 를 cross-domain validation 기준으로 확장 |
 | 2026-04-14 | `pnpm verify:access-smoke` repo-native smoke script 와 사용 환경변수를 runbook 에 추가하고 자동 선검증 절차를 반영 |
 | 2026-04-14 | 관리자 inspect API(`/api/access/ops/inspect`, `/api/access/ops/exceptions`)와 cross-domain access verification 절차를 runbook으로 정리 |

@@ -1,46 +1,21 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  :root {
-    --background: 220 20% 98%;
-    --foreground: 224 48% 16%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 48% 16%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 48% 16%;
-    --primary: 224 72% 20%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 64% 36%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 214 32% 93%;
-    --muted-foreground: 215 16% 42%;
-    --accent: 196 100% 35%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 353 98% 49%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 224 72% 20%;
-    --radius: 0.5rem;
-    --ssoo-primary: #0A1E5A;
-    --ssoo-primary-hover: #14327A;
-    --ssoo-secondary: #0569A0;
-    --ssoo-background: #F7F9FC;
-    --ssoo-content-border: #D9E2F1;
-    --ssoo-content-background: #EEF4FB;
-    --ssoo-sitemap-title: #0A1E5A;
-    --ssoo-sitemap-bullet: #0569A0;
-    --ssoo-sitemap-background: #F2F6FB;
-    --ls-blue: #0A1E5A;
-    --ls-red: #FA002D;
-    --ls-green: #009BB4;
-    --ls-sub-blue: #0569A0;
-    --ls-gray: #7D8282;
-    --ls-silver: #87827D;
-    --ls-gold: #7D0D0D;
-  }
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+:root {
+  --background: 220 20% 98%;
+  --foreground: 224 48% 16%;
+  --card-foreground: 224 48% 16%;
+  --popover-foreground: 224 48% 16%;
+  --primary: 224 72% 20%;
+  --secondary: 210 64% 36%;
+  --muted: 214 32% 93%;
+  --muted-foreground: 215 16% 42%;
+  --accent: 196 100% 35%;
+  --ring: 224 72% 20%;
+  --ssoo-primary: #0A1E5A;
+  --ssoo-primary-hover: #14327A;
+  --ssoo-secondary: #0569A0;
+  --ssoo-background: #F7F9FC;
+  --ssoo-content-border: #D9E2F1;
+  --ssoo-content-background: #EEF4FB;
+  --ssoo-sitemap-title: #0A1E5A;
+  --ssoo-sitemap-bullet: #0569A0;
+  --ssoo-sitemap-background: #F2F6FB;
 }

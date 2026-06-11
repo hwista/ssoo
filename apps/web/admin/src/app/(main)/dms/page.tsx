@@ -11,8 +11,8 @@ export default function DmsAdminPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">DMS 관리</h1>
-          <p className="mt-1 text-sm text-muted-foreground">문서 관리 시스템 운영 개요</p>
+          <h1 className="text-2xl font-bold text-foreground">DMS 관측 브리지</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Admin은 플랫폼/base 운영을 소유하고, DMS 세부 시스템 설정·제어·운영은 DMS가 소유합니다. 이 화면은 플랫폼 운영자용 read-only 현황입니다.</p>
         </div>
         <div className="flex items-center gap-3">
           {overview?.generatedAt && (
@@ -24,13 +24,13 @@ export default function DmsAdminPage() {
             href="/dms/documents"
             className="rounded-md border bg-card px-3 py-1.5 text-xs hover:bg-accent"
           >
-            문서 관리 →
+            문서 현황 →
           </Link>
           <Link
             href="/dms/templates"
             className="rounded-md border bg-card px-3 py-1.5 text-xs hover:bg-accent"
           >
-            템플릿 관리 →
+            템플릿 현황 →
           </Link>
           <Link
             href="/dms/git"
@@ -42,7 +42,7 @@ export default function DmsAdminPage() {
             href="/dms/settings"
             className="rounded-md border bg-card px-3 py-1.5 text-xs hover:bg-accent"
           >
-            설정 inspector →
+            설정 관측 →
           </Link>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import type { AuthIdentity } from '@ssoo/types/common';
 import { createAuthStore, toBaseAuthIdentity } from '@ssoo/web-auth';
 import { authApi } from '@/lib/api/auth';
+import { useAccessStore } from './access.store';
 
 export interface AuthUser extends AuthIdentity {
   userName?: string;
@@ -30,4 +31,7 @@ function toAuthUser(value: unknown): AuthUser | null {
 export const useAuthStore = createAuthStore<AuthUser>({
   authApi,
   normalizeUser: toAuthUser,
+  onAuthCleared: () => {
+    useAccessStore.getState().reset();
+  },
 });

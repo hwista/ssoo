@@ -5,6 +5,7 @@ import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { ChevronDown, LogOut, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { resolveCurrentSsooAccountCenterHref } from './account-center';
 
 export interface AuthUserMenuAction {
   key: string;
@@ -15,10 +16,21 @@ export interface AuthUserMenuAction {
   onSelect?: () => void | Promise<void>;
 }
 
+export interface AuthUserMenuAccountCenter {
+  href?: string;
+  snsAppUrl?: string | null;
+  path?: string | null;
+  label?: ReactNode;
+  disabled?: boolean;
+  includeReturnTo?: boolean;
+  onSelect?: (href: string) => void | Promise<void>;
+}
+
 export interface AuthUserMenuProps {
   user: Pick<AuthIdentity, 'loginId' | 'userName'> | null;
   dropdownWidth?: number;
   onLogout: () => void | Promise<void>;
+  accountCenter?: AuthUserMenuAccountCenter;
   actions?: AuthUserMenuAction[];
   fallbackLoginId?: string;
   secondaryLabel?: string | null;
@@ -29,6 +41,7 @@ export function AuthUserMenu({
   user,
   dropdownWidth,
   onLogout,
+  accountCenter,
   actions = [],
   fallbackLoginId = '사용자',
   secondaryLabel,
@@ -37,6 +50,33 @@ export function AuthUserMenu({
   const loginId = user?.loginId ?? fallbackLoginId;
   const displayName = user?.userName?.trim() || loginId;
   const resolvedSecondaryLabel = secondaryLabel ?? fallbackSecondaryLabel;
+  const resolvedActions = [
+    ...(accountCenter
+      ? [{
+        key: 'account-center',
+        label: accountCenter.label ?? '내 계정',
+        icon: User,
+        disabled: accountCenter.disabled,
+        onSelect: async () => {
+          const href = accountCenter.href ?? resolveCurrentSsooAccountCenterHref({
+            snsAppUrl: accountCenter.snsAppUrl,
+            path: accountCenter.path,
+            includeReturnTo: accountCenter.includeReturnTo,
+          });
+
+          if (accountCenter.onSelect) {
+            await accountCenter.onSelect(href);
+            return;
+          }
+
+          if (typeof window !== 'undefined') {
+            window.location.assign(href);
+          }
+        },
+      } satisfies AuthUserMenuAction]
+      : []),
+    ...actions,
+  ];
 
   return (
     <DropdownMenuPrimitive.Root>
@@ -76,7 +116,7 @@ export function AuthUserMenu({
 
           <DropdownMenuPrimitive.Separator className="my-1 h-px bg-white/15" />
 
-          {actions.map((action, index) => {
+          {resolvedActions.map((action, index) => {
             const Icon = action.icon;
 
             return (
@@ -95,14 +135,14 @@ export function AuthUserMenu({
                   <span>{action.label}</span>
                   {action.trailing}
                 </DropdownMenuPrimitive.Item>
-                {index < actions.length - 1 ? (
+                {index < resolvedActions.length - 1 ? (
                   <DropdownMenuPrimitive.Separator className="my-1 h-px bg-white/15" />
                 ) : null}
               </div>
             );
           })}
 
-          {actions.length > 0 ? (
+          {resolvedActions.length > 0 ? (
             <DropdownMenuPrimitive.Separator className="my-1 h-px bg-white/15" />
           ) : null}
 

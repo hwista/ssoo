@@ -26,7 +26,7 @@ ssoo-pms        Up ... (healthy)
 ssoo-admin      Up ... (healthy)
 ```
 
-서버의 글로벌 prefix는 `/api`이며, DMS 정본 저장소는 컨테이너 내부 `.runtime/dms/documents/` 경로(호스트 bind mount)입니다.
+서버의 글로벌 prefix는 `/api`이며, DMS 정본 저장소는 컨테이너 내부 `.runtime/documents/` 경로(호스트 bind mount)입니다.
 
 ---
 
@@ -52,13 +52,13 @@ TOKEN=$(curl -s http://localhost:4000/api/auth/login \
 
 ## 3. 시나리오 A — 파일 트리가 보이는가
 
-DMS 정본(.runtime/dms/documents) → DB(`dms.dm_document_m`) → API(`/api/dms/files`) → ACL 필터까지 살아 있는지 확인합니다.
+DMS 정본(.runtime/documents) → DB(`dms.dm_document_m`) → API(`/api/dms/files`) → ACL 필터까지 살아 있는지 확인합니다.
 
 ### 3.1 디스크 / DB 정합
 
 ```bash
 # 디스크 markdown 개수
-find .runtime/dms/documents -type f -name '*.md' | wc -l
+find .runtime/documents -type f -name '*.md' | wc -l
 
 # DB 활성 문서 개수 (둘이 일치해야 함)
 docker exec ssoo-postgres psql -U ssoo -d ssoo_dev -c \
@@ -104,7 +104,7 @@ curl -s -X POST http://localhost:4000/api/dms/file/save \
   -d '{"path":"drafts/runbook-test.md","content":"# runbook smoke","createIfMissing":true}'
 ```
 
-기대: 두 호출 모두 `success: true`. 저장 후 `.runtime/dms/documents/drafts/runbook-test.md` 파일과 DB 행이 함께 생겨야 합니다.
+기대: 두 호출 모두 `success: true`. 저장 후 `.runtime/documents/drafts/runbook-test.md` 파일과 DB 행이 함께 생겨야 합니다.
 
 ---
 
@@ -162,7 +162,7 @@ sock.on('connect_error', (e) => { console.log('ERR', e.message); process.exit(1)
 DMS GitLab 문서 자동 싱크 운영 변수와 bootstrap mode 세부 절차는 `docs/dms/guides/gitlab-document-sync.md` 를 정본으로 봅니다.
 
 ```bash
-cd .runtime/dms/documents
+cd .runtime/documents
 git --no-pager status
 git --no-pager log --oneline -3
 git --no-pager remote -v

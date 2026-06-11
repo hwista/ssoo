@@ -90,3 +90,39 @@ export interface PermissionExceptionListResult {
   total: number;
   items: PermissionExceptionRecord[];
 }
+
+
+export type PermissionCatalogOwner = 'admin-platform' | 'dms' | 'pms' | 'crm' | 'sns' | 'cms' | 'unknown';
+
+export type PermissionCatalogStatus = 'launch-active' | 'foundation' | 'planned';
+
+export interface PermissionCatalogItem {
+  permissionCode: string;
+  permissionName: string;
+  owner: PermissionCatalogOwner;
+  appCode: string;
+  capability: string;
+  status: PermissionCatalogStatus;
+  menuSurface: string;
+  operationSurface: string;
+  notes: string;
+}
+
+export interface PermissionCatalogGroup {
+  owner: PermissionCatalogOwner;
+  title: string;
+  responsibility: string;
+  launchFocus: boolean;
+  items: PermissionCatalogItem[];
+}
+
+export interface PermissionCatalogResult {
+  generatedAt: string;
+  summary: {
+    total: number;
+    launchActive: number;
+    foundation: number;
+    planned: number;
+  };
+  groups: PermissionCatalogGroup[];
+}

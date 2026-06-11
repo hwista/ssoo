@@ -326,7 +326,7 @@ describe('CollaborationService (D-2 phase 2)', () => {
         mode: 'view',
       });
       expect(snapshot.members[0].displayName).toBe('ghost');
-      expect(snapshot.members[0].email).toBe('ghost@dms.local');
+      expect(snapshot.members[0].email).toBe('ghost@documents.local');
     });
   });
 

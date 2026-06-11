@@ -1,6 +1,7 @@
 'use client';
 
-import { ShellFrame, ShellPageContainer } from '@ssoo/web-shell';
+import { useState } from 'react';
+import { ShellPageContainer, SsooAppFrame } from '@ssoo/web-shell';
 import { SNS_SHELL_SIZES } from '@/lib/constants/layout';
 import { Header } from './Header';
 import { SecondaryStrip } from './SecondaryStrip';
@@ -11,19 +12,31 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const toggleSidebar = () => setIsSidebarCollapsed((current) => !current);
+
   return (
-    <ShellFrame
-      sidebar={<Sidebar />}
-      mainOffset={SNS_SHELL_SIZES.sidebar.collapsedWidth}
-      className="bg-gray-50"
-    >
-      <Header />
-      <SecondaryStrip />
-      <div className="flex-1 overflow-auto bg-background">
+    <SsooAppFrame
+      mode="social"
+      sidebarMode="collapsible"
+      sidebarExpanded={!isSidebarCollapsed}
+      collapsedSidebarWidth={SNS_SHELL_SIZES.sidebar.collapsedWidth}
+      sidebarWidth={SNS_SHELL_SIZES.sidebar.expandedWidth}
+      sidebarSlot={
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
+        />
+      }
+      headerSlot={<Header />}
+      tabBarSlot={<SecondaryStrip />}
+      contentSlot={
         <ShellPageContainer as="div" className="max-w-[1440px] px-4 py-6">
           {children}
         </ShellPageContainer>
-      </div>
-    </ShellFrame>
+      }
+      className="bg-gray-50"
+      contentClassName="bg-background"
+    />
   );
 }

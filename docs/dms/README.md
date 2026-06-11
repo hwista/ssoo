@@ -1,6 +1,6 @@
 # DMS 문서
 
-> 최종 업데이트: 2026-05-29
+> 최종 업데이트: 2026-06-10
 > 정본 위치: `docs/dms/`
 
 Document Management System(DMS) 문서의 단일 정본 인덱스입니다.
@@ -32,6 +32,7 @@ docs/dms/
 | [기술 스택](./explanation/architecture/tech-stack.md) | DMS 기술 스택 |
 | [패키지 구조](./explanation/architecture/package-spec.md) | 의존성/구조 규칙 |
 | [하이브리드 document control-plane](./explanation/architecture/hybrid-document-control-plane.md) | file/Git vs DB metadata projection 경계, `revisionSeq`, reconciliation |
+| [DMS 설정/제어/운영 책임 경계](./explanation/architecture/settings-control-operations-boundary.md) | Admin=플랫폼/base, DMS=DMS 세부 시스템 설정/제어/운영 정본 |
 | [일-사람-산출물 운영 모델](../common/explanation/architecture/work-people-artifact-operating-model.md) | CRM/PMS에서 생성되는 문서와 산출물을 DMS 문서 자산 계층으로 연결하는 공통 기준 |
 | [문서 공개 범위 및 접근 모델](./explanation/domain/document-visibility-and-access-model.md) | visibility, explicit grant, request flow, search/tree 경계 |
 | [인증/권한 준비도](./planning/auth-access-readiness.md) | 공통 auth/access 경계, DMS 현재 상태, 다음 우선순위 |
@@ -71,6 +72,7 @@ docs/dms/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-10 | DMS 설정/제어/운영 책임 경계 정본을 추가하고 Admin/platform vs DMS/domain-specific ownership 기준을 핵심 문서에 연결 |
 | 2026-06-05 | DMS의 역할을 PMS/CRM 도메인 기능 안에서 산출물 파일, 문서 뷰어, 문서 허브, 첨부, 검토 상태를 연결하는 문서 자산 계층으로 정정 |
 | 2026-06-05 | CRM/PMS 산출물을 DMS 문서 자산 계층으로 연결하는 공통 운영 모델을 핵심 문서에 추가 |
 | 2026-05-29 | 협업/권한/알림/댓글 런칭 closeout 핸드오프를 핵심 문서에 추가하고, 로드맵/백로그/API/변경 이력 기준을 2026-05-29 현재 상태로 현행화 |

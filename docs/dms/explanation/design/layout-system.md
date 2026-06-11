@@ -160,12 +160,12 @@ const checkCompactMode = () => {
 - 상단 브랜드 슬롯은 workspace의 `S + SSOT` 패턴을 재사용하되, `S` 아이콘 자리에는 뒤로가기 버튼을 배치하고 텍스트는 `설정` 으로 표기합니다.
 - `설정` 타이틀 아래 보조 메타 문구는 두지 않습니다.
 - header 대신 sidebar 상단 검색 슬롯에서 registry 기반 전역 설정 검색을 수행합니다.
-- 검색 입력은 workspace 파일 검색과 동일한 visual primitive(`components/layout/sidebar/SearchInput.tsx`)를 공유합니다.
+- 검색 입력은 workspace 파일 검색과 동일한 `@ssoo/web-shell`의 `SsooSidebarSearchBox`를 공유합니다.
 - shell sidebar는 section tree를 직접 들지 않고 `시스템 설정`, `개인 설정` 두 개의 scope selector만 노출합니다.
 - outer scope selector와 inner settings navigation 모두 기존 sidebar의 flat row list(`OpenTabs`, `Bookmarks`)와 같은 rhythm을 사용하며, navigation 내부 설명 문구는 두지 않습니다.
-- settings row는 `FlatListItem` 을 쓰되, **trailing action이 없는 settings rail 경로에서는 row 자체를 direct button으로 렌더링**해 불필요한 wrapper 계층 없이 `text-body-sm` / `text-label-md` semantic token을 바로 받도록 유지합니다.
+- settings row는 `SsooSidebarListItem` 을 쓰되, trailing action이 없는 settings rail 경로에서는 row 자체를 direct button으로 렌더링해 불필요한 wrapper 계층을 두지 않습니다.
 - settings navigation은 현재 IA가 평면 구조이므로 `Section` / collapse affordance를 두지 않습니다.
-- 대신 `components/layout/sidebar/FlatList.tsx`의 `FlatList`, `FlatListItem` primitive를 기준으로 outer/inner settings menu와 `OpenTabs`/`Bookmarks` row가 가능한 한 같은 row primitive를 공유하되, settings rail은 direct button path를 통해 실제 비교 기준과 더 가까운 DOM/class 경로를 사용합니다.
+- 대신 `@ssoo/web-shell`의 `SsooSidebarList`, `SsooSidebarListItem` primitive를 기준으로 outer/inner settings menu와 `OpenTabs`/`Bookmarks` row가 같은 row primitive를 공유합니다.
 - `SettingsPage` 내부에서는 좌측 navigation과 우측 detail surface를 하나의 공용 카드로 묶지 않고 분리해, 좌측 영역이 page 안의 또 다른 sidebar처럼 읽히도록 유지합니다.
 - 검색 결과를 선택하면 해당 scope와 section을 즉시 열고, 실제 `Git`, `Storage`, `Ingest`, `Identity` 같은 세부 menu는 `SettingsPage` 내부 좌측 navigation에서 렌더링합니다.
 - 현재는 로그인 필수 기준에서도 두 그룹을 모두 노출하며, 이후 권한 도입 시 `canManageSystem`, `canManagePersonal` 로 노출/사용을 분리합니다.

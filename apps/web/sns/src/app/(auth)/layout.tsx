@@ -1,9 +1,9 @@
-import { AuthPageShell } from '@ssoo/web-auth';
+import type { ReactNode } from 'react';
 
 export default function AuthLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
-  return <AuthPageShell>{children}</AuthPageShell>;
+  return <>{children}</>;
 }

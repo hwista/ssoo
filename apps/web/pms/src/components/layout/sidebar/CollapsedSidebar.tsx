@@ -1,22 +1,19 @@
 'use client';
 
+import { SsooCollapsedRailButton } from '@ssoo/web-shell';
 import type { SidebarSection } from '@/types';
 import { SIDEBAR_SECTION_LABELS } from '@/types';
 import { SECTION_ICONS } from './constants';
 import { useMenuStore } from '@/stores';
 
 interface CollapsedSidebarProps {
-  onMouseEnter: (section: SidebarSection) => void;
-  onMouseLeave: () => void;
+  onSelect?: (section: SidebarSection) => void;
 }
 
 /**
  * 접힌 사이드바 (아이콘만)
  */
-export function CollapsedSidebar({
-  onMouseEnter,
-  onMouseLeave,
-}: CollapsedSidebarProps) {
+export function CollapsedSidebar({ onSelect }: CollapsedSidebarProps) {
   const { adminMenus } = useMenuStore();
 
   const showAdminSection = adminMenus.length > 0;
@@ -34,15 +31,12 @@ export function CollapsedSidebar({
       {sections.map((section) => {
         const Icon = SECTION_ICONS[section];
         return (
-          <button
+          <SsooCollapsedRailButton
             key={section}
-            className="p-3 hover:bg-ssoo-sitemap-bg rounded-lg transition-colors"
-            title={SIDEBAR_SECTION_LABELS[section]}
-            onMouseEnter={() => onMouseEnter(section)}
-            onMouseLeave={onMouseLeave}
-          >
-            <Icon className="w-5 h-5 text-ssoo-primary" />
-          </button>
+            icon={Icon}
+            label={SIDEBAR_SECTION_LABELS[section]}
+            onClick={() => onSelect?.(section)}
+          />
         );
       })}
     </div>

@@ -20,7 +20,7 @@
   - 기존 `/feed` 전용 인증 홈 라우트와 landing placeholder 연결을 제거
   - `login`, `Header`, `not-found`, `middleware`, README 설명을 PMS/DMS와 같은 첫 진입 계약 기준으로 갱신
 - **public landing route split + shared bootstrap alignment**
-  - SNS가 `3002` 포트의 독립 앱이라는 점을 기준으로, 앱 간 `/` 충돌 걱정 없이 SNS 내부에서만 `/` 퍼블릭 랜딩 + `/feed` 인증 홈 계약으로 정렬
+  - SNS가 `3004` 포트의 독립 앱이라는 점을 기준으로, 앱 간 `/` 충돌 걱정 없이 SNS 내부에서만 `/` 퍼블릭 랜딩 + `/feed` 인증 홈 계약으로 정렬
   - SNS `Header`, `login`, `not-found`, `(main)` 라우트가 `/feed` 기준 인증 홈 계약을 사용하도록 정리
   - PMS/SNS/DMS `(main)` layout의 auth/access bootstrap 흐름을 `@ssoo/web-auth` 공용 hook 기준으로 맞출 수 있는 기반을 추가
 - **browser-facing legacy flag 축소**
@@ -66,7 +66,7 @@
 
 ### Added
 - **Phase 0**: 프로젝트 인프라 보일러플레이트
-  - Next.js 15 앱 (`apps/web/sns`), 포트 3002
+  - Next.js 15 앱 (`apps/web/sns`), 포트 3004
   - 틸 컬러 테마 (`#0A3D3D`, hue 180°)
   - JWT 인증 공유 (`ssoo-auth` localStorage)
   - pnpm workspace 통합, Turborepo 빌드

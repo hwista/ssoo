@@ -1,13 +1,9 @@
-import { AuthPageShell } from '@ssoo/web-auth';
+import type { ReactNode } from 'react';
 
 export default function AuthLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
-  return (
-    <div className="dms-auth-theme">
-      <AuthPageShell>{children}</AuthPageShell>
-    </div>
-  );
+  return <>{children}</>;
 }

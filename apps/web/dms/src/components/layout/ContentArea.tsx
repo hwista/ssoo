@@ -1,7 +1,7 @@
 'use client';
 
 import { lazy, Suspense, type ComponentType, useEffect } from 'react';
-import { useSettingsShellStore, useTabStore, HOME_TAB } from '@/stores';
+import { useSettingsShellStore, useSettingsStore, useTabStore, HOME_TAB } from '@/stores';
 import { LoadingState } from '@/components/common/StateDisplay';
 import { AiChatPage } from '@/components/pages/ai/ChatPage';
 import { TabInstanceProvider } from './tab-instance/TabInstanceContext';
@@ -66,11 +66,16 @@ function LegacySettingsRedirect() {
   const tabId = useTabInstanceId();
   const closeTab = useTabStore((state) => state.closeTab);
   const enterSettings = useSettingsShellStore((state) => state.enterSettings);
+  const loadSettings = useSettingsStore((state) => state.loadSettings);
 
   useEffect(() => {
-    enterSettings();
-    closeTab(tabId);
-  }, [closeTab, enterSettings, tabId]);
+    void (async () => {
+      await loadSettings();
+      const settingsAccess = useSettingsStore.getState().access;
+      enterSettings(settingsAccess?.canManageSystem ? undefined : 'personal');
+      closeTab(tabId);
+    })();
+  }, [closeTab, enterSettings, loadSettings, tabId]);
 
   return (
     <div className="flex flex-1 items-center justify-center bg-white">
@@ -82,12 +87,22 @@ function LegacySettingsRedirect() {
 function LegacyAccessRequestsRedirect() {
   const tabId = useTabInstanceId();
   const closeTab = useTabStore((state) => state.closeTab);
+  const enterSettings = useSettingsShellStore((state) => state.enterSettings);
   const openSection = useSettingsShellStore((state) => state.openSection);
+  const loadSettings = useSettingsStore((state) => state.loadSettings);
 
   useEffect(() => {
-    openSection('system', 'documentAccess');
-    closeTab(tabId);
-  }, [closeTab, openSection, tabId]);
+    void (async () => {
+      await loadSettings();
+      const settingsAccess = useSettingsStore.getState().access;
+      if (settingsAccess?.canManageSystem) {
+        openSection('system', 'documentAccess');
+      } else {
+        enterSettings('personal');
+      }
+      closeTab(tabId);
+    })();
+  }, [closeTab, enterSettings, loadSettings, openSection, tabId]);
 
   return (
     <div className="flex flex-1 items-center justify-center bg-white">

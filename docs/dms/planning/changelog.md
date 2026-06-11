@@ -1,9 +1,50 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-06-05
+> 최종 업데이트: 2026-06-11
 > 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
 
 ---
+
+## 2026-06-11
+
+### DMS 설정 표기와 Docker 런타임 반영 마감
+
+- 사용자 메뉴의 설정 진입점에서 앱명 반복 표기를 제거해 `설정` 단일 라벨로 정리했습니다. `DMS 설정`, `내 DMS 설정`, `DMS 시스템 설정`, `문서 설정` 문구는 설정 진입점과 설정 화면 closeout 범위에서 재도입하지 않습니다.
+- Docker compose/runtime 기본 경로와 DMS 설정 seed/runtime fallback 을 `.runtime/documents`, `.runtime/document-ingest`, `.runtime/document-storage/local`, `/sites/documents/shared-documents`, `/mnt/nas/documents` 기준으로 맞췄습니다.
+- 실행 중인 Docker Postgres 의 기존 `dms.dm_config_m` 시스템 설정도 같은 값으로 갱신해, 새 seed 뿐 아니라 현재 컨테이너 설정 조회에도 legacy `.runtime/dms/*`, `/sites/dms`, `/mnt/nas/dms` 값이 남지 않도록 반영했습니다.
+- `server`/`dms` 이미지를 재빌드하고 컨테이너를 재생성해 Next standalone 산출물과 서버 runtime env/mount 까지 현재 변경을 반영했습니다.
+- `@ssoo/web-auth` 빌드가 Docker 안에서 `process.env` 타입을 해석할 수 있도록 `@types/node` devDependency 를 명시했습니다.
+
+### 설정 화면 공통 양식 적용
+
+- `@ssoo/web-shell` 의 `SsooSettings*` primitives 를 도입해 설정 페이지 내부의 세부 메뉴, 본문 surface, 상태 banner, 저장 예정 요약, structured/json/diff 보기 모드 control 을 SSOO 공통 설정 화면 양식으로 전환했습니다.
+- DMS 전용 설정 정의, JSON editor/diff, runtime path 관측, 문서 권한 관리, 관리자 템플릿 슬롯, 저장/검증 로직은 DMS 소유로 유지해 공통 visual form 과 도메인 동작 경계를 분리했습니다.
+- 이후 PMS/CRM/SNS/Admin 설정 화면은 같은 `SsooSettings*` surface 를 소비하고, 각 앱의 schema/API/access/custom slot 만 adapter 로 얹는 기준을 공통 frame 문서와 맞췄습니다.
+- 공통 설정 양식에 맞춰 설정 화면 노출 라벨의 앱명 반복을 제거하고 `시스템 설정`, `내 설정`, `관리자 템플릿`처럼 앱 독립적인 문구로 정리했습니다.
+
+## 2026-06-10
+
+### 설정 권한 경계 보정
+
+- 설정 진입은 인증 사용자 공통 개인 설정 surface 로 열고, 시스템/운영/관리 섹션은 admin 계정으로만 열리도록 UI와 access snapshot 기준을 분리했습니다.
+- `/api/dms/settings` 는 일반 사용자에게 `config.personal` 조회/저장을 허용하되, `config.system`, runtime snapshot, system update 는 admin-only 로 유지합니다.
+- 비-admin 설정 shell 에서는 시스템 설정 scope, system menu row, system search result, 기본 설정 스코프의 system 선택지를 숨기도록 정리했습니다.
+- `dms.settings.manage` seed baseline 을 admin 전용으로 정리하고, 예전 manager/user baseline grant 는 재시드 시 비활성화되도록 보정했습니다.
+- Admin 앱의 DMS 관측 하위 경로(`/dms/*`)는 Admin 레이아웃의 admin gate 아래에서 직접 접근/새로고침 가능하도록 middleware 허용 경계를 넓혔습니다.
+
+## 2026-06-09
+
+### 설정/제어/운영 책임 경계 보강
+
+- Admin은 SSOO 플랫폼/base 설정·제어·운영을 소유하고, 각 도메인 앱은 자기 도메인의 세부 시스템 설정·제어·운영을 소유한다는 corrected rule 을 문서화했습니다.
+- 문서 도메인의 세부 시스템 설정·제어·운영은 DMS가 소유한다는 기준을 `docs/dms/explanation/architecture/settings-control-operations-boundary.md` 로 분리해, 문서 저장소/스토리지/수집/검색/색인/문서 AI 보조/추출/권한 요청/템플릿/런타임 운영 상태가 누락되지 않게 고정했습니다.
+- Admin 안의 DMS 표면은 플랫폼 운영자를 위한 read-only 관측/inspector bridge 로만 취급하고, DMS 제어 owner 로 표시하지 않도록 화면 문구를 정렬했습니다.
+
+### 설정 IA 1차 경계 정렬
+
+- SSOO 설정/Admin/Auth/Profile/AI Control Plane 책임 경계를 `docs/common/explanation/architecture/settings-admin-control-plane.md` 로 고정했습니다.
+- 설정 화면은 `운영 상태 / 시스템 설정 / 관리 업무 / 내 설정 / 외부 설정 링크` 그룹으로 재배치했습니다.
+- Microsoft 365 / Teams / SSO / 글로벌 AI provider-model-persona-agent 설정은 DMS 소유 editable 설정이 아니라 공통 Admin/Auth/AI Control Plane 링크 표면으로 분리했습니다.
 
 ## 2026-06-05
 

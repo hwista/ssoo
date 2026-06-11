@@ -106,8 +106,11 @@ pnpm build
 
 # 개별 서비스 실행
 cd apps/server && pnpm dev        # 백엔드 :4000
-cd apps/web/pms && pnpm dev       # PMS :3000
-pnpm dev:web-dms                  # DMS :3001
+pnpm dev:web-admin                # Admin :3000
+pnpm dev:web-crm                  # CRM :3001
+pnpm dev:web-pms                  # PMS :3002
+pnpm dev:web-dms                  # DMS :3003
+pnpm dev:web-sns                  # SNS :3004
 ```
 
 ### 2. DMS 작업 시 주의

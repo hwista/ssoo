@@ -11,13 +11,21 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
+      },
       fontSize: {
-        'h1': ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],
-        'h2': ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
-        'h3': ['1.25rem', { lineHeight: '1.75rem', fontWeight: '600' }],
-        'body': ['0.875rem', { lineHeight: '1.5rem', fontWeight: '400' }],
+        h1: ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],
+        h2: ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
+        h3: ['1.25rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+        body: ['0.875rem', { lineHeight: '1.5rem', fontWeight: '400' }],
       },
       spacing: {
+        'icon-h1': '1.75rem',
+        'icon-h2': '1.5rem',
+        'icon-h3': '1.25rem',
+        'icon-body': '1rem',
         'control-h': '2.25rem',
         'control-h-sm': '2rem',
         'control-h-lg': '2.75rem',
@@ -56,6 +64,27 @@ const config: Config = {
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
+        },
+        ssoo: {
+          primary: 'var(--ssoo-primary)',
+          'primary-hover': 'var(--ssoo-primary-hover)',
+          secondary: 'var(--ssoo-secondary)',
+          background: 'var(--ssoo-background)',
+          'content-border': 'var(--ssoo-content-border)',
+          'content-bg': 'var(--ssoo-content-background)',
+          'sitemap-title': 'var(--ssoo-sitemap-title)',
+          'sitemap-bullet': 'var(--ssoo-sitemap-bullet)',
+          'sitemap-bg': 'var(--ssoo-sitemap-background)',
+        },
+        ls: {
+          blue: 'var(--ls-blue)',
+          red: 'var(--ls-red)',
+          'red-hover': '#d90027',
+          green: 'var(--ls-green)',
+          'sub-blue': 'var(--ls-sub-blue)',
+          gray: 'var(--ls-gray)',
+          silver: 'var(--ls-silver)',
+          gold: 'var(--ls-gold)',
         },
       },
       borderRadius: {

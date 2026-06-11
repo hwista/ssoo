@@ -21,6 +21,19 @@ import { ListPermissionExceptionsQueryDto } from './dto/list-permission-exceptio
 export class AccessOperationsController {
   constructor(private readonly accessOperationsService: AccessOperationsService) {}
 
+  @Get('catalog')
+  @ApiOperation({
+    summary: '플랫폼/앱별 권한 기능 명세 조회 (관리자)',
+    description:
+      'permission vocabulary를 Admin/platform, DMS, PMS, CRM, SNS 등 책임 소유자별로 분류하고 각 메뉴/운영 surface를 반환합니다.' })
+  @ApiOkResponse({ description: '권한 기능 명세 조회 성공' })
+  @ApiUnauthorizedResponse({ description: '인증되지 않은 요청' })
+  @ApiForbiddenResponse({ description: '관리자만 접근 가능' })
+  async listPermissionCatalog() {
+    const result = await this.accessOperationsService.listPermissionCatalog();
+    return success(result, '권한 기능 명세 조회 성공');
+  }
+
   @Get('inspect')
   @ApiOperation({
     summary: '권한 해석 inspect (관리자)',

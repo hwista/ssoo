@@ -90,7 +90,7 @@ applyTo: "docs/**"
 |------|------|------|
 | `docs/` | **모노레포 전체 정본** | common, pms, dms |
 | `docs/dms/` | **DMS 정본** | DMS 전용 산출물 문서 |
-| `dm_config_m` 테이블 (DB) + `compose.yaml` (`.runtime/dms/*` 기본값, `DMS_*` override) | **런타임 자산 계약** | DMS markdown/Git/binary storage runtime path |
+| `dm_config_m` 테이블 (DB) + `compose.yaml` (`.runtime/documents`, `.runtime/document-ingest`, `.runtime/document-storage/*` 기본값, `DMS_*` override) | **런타임 자산 계약** | DMS markdown/Git/binary storage runtime path |
 
 ---
 

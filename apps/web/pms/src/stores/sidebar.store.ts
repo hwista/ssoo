@@ -10,10 +10,9 @@ interface SidebarStore extends SidebarState, SidebarActions {}
 // 기본 펼쳐진 섹션
 const DEFAULT_EXPANDED_SECTIONS: SidebarSection[] = ['favorites', 'menuTree'];
 
-export const useSidebarStore = create<SidebarStore>()((set, get) => ({
+export const useSidebarStore = create<SidebarStore>()((set) => ({
   // Initial State
   isCollapsed: false,
-  activeFloatSection: null,
   expandedSections: DEFAULT_EXPANDED_SECTIONS,
   searchQuery: '',
   expandedMenuIds: new Set<string>(),
@@ -22,27 +21,13 @@ export const useSidebarStore = create<SidebarStore>()((set, get) => ({
   toggleCollapse: () => {
     set((state) => ({
       isCollapsed: !state.isCollapsed,
-      activeFloatSection: null, // 토글 시 플로팅 닫기
     }));
   },
 
   setCollapsed: (collapsed: boolean) => {
     set({
       isCollapsed: collapsed,
-      activeFloatSection: null,
     });
-  },
-
-  // 플로팅 패널
-  openFloatSection: (section: SidebarSection) => {
-    // 접힌 상태에서만 플로팅 열기
-    if (get().isCollapsed) {
-      set({ activeFloatSection: section });
-    }
-  },
-
-  closeFloatSection: () => {
-    set({ activeFloatSection: null });
   },
 
   // 섹션 접기/펼치기

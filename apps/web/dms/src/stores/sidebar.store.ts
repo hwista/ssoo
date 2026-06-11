@@ -29,7 +29,7 @@ export const useSidebarStore = create<SidebarStore>()((set, get) => ({
   fileTreeOwnerUserId: null,
   fileTreeResetEpoch: 0,
   isCompactMode: false,
-  sidebarOpen: false,
+  sidebarOpen: true,
 
   // 섹션 접기/펼치기
   toggleSection: (section: SidebarSection) => {
@@ -148,7 +148,7 @@ export const useSidebarStore = create<SidebarStore>()((set, get) => ({
   setCompactMode: (isCompact: boolean) => {
     set({
       isCompactMode: isCompact,
-      sidebarOpen: isCompact ? false : get().sidebarOpen,
+      sidebarOpen: get().sidebarOpen,
     });
   },
 
@@ -170,7 +170,7 @@ export const useSidebarStore = create<SidebarStore>()((set, get) => ({
       isFileTreeOpen: initialFileTreeOwnerUserId !== null,
       fileTreeOwnerUserId: initialFileTreeOwnerUserId,
       fileTreeResetEpoch: state.fileTreeResetEpoch + 1,
-      sidebarOpen: false,
+      sidebarOpen: true,
     }));
   },
 }));

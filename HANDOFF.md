@@ -10,6 +10,53 @@ Context
 - DMS is integrated as the canonical document store (git-backed working tree + DB metadata)
 - Primary goal: refactor large files, stabilize auto-commit/publish pipeline, and add tests for core DMS logic
 
+Publish/handoff snapshot — 2026-06-11 16:53 KST
+-----------------------------------------------
+
+Purpose
+- This snapshot closes the current repo-wide SSOO workspace slice so the next operator can continue immediately from `main`.
+- Scope is intentionally whole-workspace: shared auth/user lifecycle convergence, common web shell/sidebar/settings primitives, DMS settings/runtime terminology cleanup, Docker runtime path normalization, generated docs alignment, and launch/rebaseline documentation.
+
+Current runtime state
+- Docker `ssoo-server` and `ssoo-dms` were rebuilt from the current workspace and recreated with `docker compose up -d --no-deps server dms`.
+- `ssoo-server` and `ssoo-dms` are healthy. DMS web `http://localhost:3003` returned HTTP 200.
+- `ssoo-server` runtime env now points to document-neutral paths:
+  - `DMS_MARKDOWN_ROOT=/var/lib/ssoo/documents`
+  - `DMS_INGEST_QUEUE_PATH=/var/lib/ssoo/document-ingest`
+  - `DMS_STORAGE_LOCAL_BASE_PATH=/var/lib/ssoo/document-storage/local`
+  - `DMS_STORAGE_SHAREPOINT_BASE_PATH=/sites/documents/shared-documents`
+  - `DMS_STORAGE_NAS_BASE_PATH=/mnt/nas/documents`
+- Docker bind mounts now use `.runtime/documents`, `.runtime/document-ingest`, and `.runtime/document-storage/local`.
+- Existing Docker Postgres `dms.dm_config_m` system settings were updated from legacy `.runtime/dms/*`, `/sites/dms`, `/mnt/nas/dms` values to the same document-neutral paths. Fresh deploy seed defaults were updated as well.
+
+User-facing DMS settings cleanup
+- The DMS user menu settings entry is now just `설정`; do not reintroduce `DMS 설정`, `내 DMS 설정`, `DMS 시스템 설정`, or `문서 설정` for that entry.
+- DMS settings surface still owns DMS-specific system/personal config behavior. The cleanup only removes repeated app/domain naming from the settings label and related user-facing copy.
+- Docker image rebuild is required for future DMS UI copy changes because the Next standalone output bakes the string into `ssoo-dms`.
+
+Verification completed in this closeout
+- `docker compose config --quiet`
+- `docker compose build server`
+- `docker compose build dms`
+- `docker compose up -d --no-deps server dms`
+- Runtime DB/env/mount checks against Docker containers and Postgres
+- Built DMS image grep: no `DMS 설정`, `문서 설정`, `내 DMS 설정`, or `DMS 시스템 설정`
+- `curl --max-time 10 -I http://localhost:3003` returned HTTP 200
+- `pnpm run codex:verify-sync`
+- `pnpm run codex:preflight` — passed with one existing warning for `apps/server/src/main.ts` `console.log`
+- `pnpm run codex:dms-guard`
+- `DMS_MARKDOWN_ROOT=/tmp/ssoo-documents-test DMS_INGEST_QUEUE_PATH=/tmp/ssoo-document-ingest-test DMS_STORAGE_LOCAL_BASE_PATH=/tmp/ssoo-document-storage-test pnpm --filter server exec node --experimental-vm-modules node_modules/jest/bin/jest.js test/dms/collaboration.service.spec.ts --runInBand`
+
+Remote/publish procedure for continuation
+- GitHub remote is `origin` (`https://github.com/hwista/ssoo.git`) and target branch is `main`.
+- GitLab workspace remote is `gitlab` (`http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git`) and workspace branch is `development`.
+- Direct unauthenticated `git fetch gitlab` fails by design in this environment. Use `pnpm run codex:workspace-sync-from-gitlab` and `pnpm run codex:workspace-publish -- main`; these scripts read local `codex.gitlabUser` / `codex.gitlabToken` or `GL_USER` / `GL_TOKEN` without printing the token.
+- `codex:workspace-sync-from-gitlab` refuses dirty worktrees. Commit the current checkpoint first, run the sync script, resolve/verify if it merges new GitLab commits, then rerun Docker reflection for changed services.
+- If GitLab `development` has new commits, merge content must be reported explicitly in the next handoff/final note and Docker must be refreshed before publishing.
+
+Known notes
+- `packages/web-auth` now declares `@types/node` because shared login code reads `process.env` during app builds; without this, Docker `web-dms` production build fails in `@ssoo/web-auth`.
+- Do not print GitLab tokens or credential-bearing URLs in logs, docs, or final reports.
 
 Publish/handoff snapshot — 2026-06-08 14:50 KST
 ---------------------------------------
@@ -22,7 +69,7 @@ Repository state before final publish
 - Branch: `main`.
 - GitHub remote: `origin` (`hwista/ssoo.git`). Local `HEAD` matched `origin/main` before this closeout commit.
 - GitLab workspace remote: `gitlab` / publish script target branch `development`. Direct unauthenticated `git fetch --all` cannot fetch GitLab; use `pnpm run codex:workspace-sync-from-gitlab` and `pnpm run codex:workspace-publish -- main`, which read local `codex.gitlabUser` / `codex.gitlabToken` without printing the token.
-- Worktree scope at closeout was intentionally repo-wide: CMS removal / SNS and CRM introduction, PMS launch-readiness updates, common docs/instructions alignment, compose/workspace/package updates, and DMS hydration hardening.
+- Worktree scope at closeout was intentionally repo-wide: legacy content-app naming removal, SNS and CRM introduction, PMS launch-readiness updates, common docs/instructions alignment, compose/workspace/package updates, and DMS hydration hardening.
 
 DMS critical fix completed in this session
 - Symptom: after PC/Docker startup, DMS could initially show an empty file list even though documents existed on the host/runtime repository.
@@ -233,7 +280,8 @@ Purpose of this snapshot
   - This handoff request did not push.
   - After saving this HANDOFF section, the working tree will include this documentation edit until committed or reverted.
 - Runtime document repo status at snapshot:
-  - `.runtime/dms/documents`: `## master...origin/master`, with untracked `_templates/`.
+  - `.runtime/documents`: default Docker/local runtime document root after the current path normalization.
+  - Previous `.runtime/dms/documents` snapshots may still exist locally from older runs.
   - `/home/a0122024330/src/lswiki-docs`: `## master...origin/master`, with many modified/untracked `.sidecar.json` files.
 
 3) Changed files / verification results
@@ -242,7 +290,7 @@ Purpose of this snapshot
   - `HANDOFF.md` — appended this recovery snapshot section.
 - Verification commands run during this handoff request:
   - `date '+%Y-%m-%d %H:%M:%S %Z' && git status --short --branch && git log --oneline -5` — success.
-  - `git -C .runtime/dms/documents status --short --branch && git -C /home/a0122024330/src/lswiki-docs status --short --branch` — success.
+  - `git -C .runtime/documents status --short --branch && git -C /home/a0122024330/src/lswiki-docs status --short --branch` — success.
 - Verification known from the immediately preceding diagnostic pass, not re-run in this handoff request:
   - `pnpm run codex:verify-sync` — passed.
   - `pnpm run docs:verify:raw` — passed.
@@ -253,7 +301,7 @@ Purpose of this snapshot
   - `pnpm run verify:access-dms:raw` — failed: `/dms/file/raw` returned 404 for a probe image path like `_assets/images/verify-*.png`.
 - Important diagnostic conclusion:
   - `upload-image` stores files through `storageAdapterService.upload(...)` under the configured storage provider/root.
-  - Current config had `storage.defaultProvider = sharepoint`; probe images were observed under `/sites/dms/shared-documents/_assets/images/...` inside the server container.
+  - Current config had `storage.defaultProvider = sharepoint`; probe images were observed under the SharePoint storage root, now normalized to `/sites/documents/shared-documents` for Docker/default settings.
   - `GET /dms/file/raw` only resolves against markdown root via `fileCrudService.resolveFilePath(...)`, so it misses storage-backed images.
   - `GET /dms/file/serve-attachment` already has a storage-backed fallback path; raw image serving needs equivalent behavior or a deliberate alternative contract.
 
@@ -262,7 +310,7 @@ Purpose of this snapshot
   1. `cd /home/a0122024330/src/ssoo`
   2. `git status --short --branch`
   3. `git log --oneline -5`
-  4. `git -C .runtime/dms/documents status --short --branch`
+  4. `git -C .runtime/documents status --short --branch`
   5. `git -C /home/a0122024330/src/lswiki-docs status --short --branch`
   6. Read: `HANDOFF.md`, `.codex/instructions/codex-instructions.md`, `.codex/instructions/project.instructions.md`
 - Next smallest implementation step, if the user asks to proceed:
@@ -278,13 +326,13 @@ Purpose of this snapshot
 - Push confirmation needed:
   - Current branch is ahead of `origin/main` by 1 commit. Confirm before pushing.
 - Runtime source-of-truth risk:
-  - Docker server currently binds `.runtime/dms/documents`, while `/home/a0122024330/src/lswiki-docs` also exists as a GitLab document clone and is dirty. Confirm which path should be treated as the canonical local runtime working tree.
+  - Docker server now binds `.runtime/documents`, while `/home/a0122024330/src/lswiki-docs` also exists as a GitLab document clone and is dirty. Confirm which path should be treated as the canonical local runtime working tree.
 - Sidecar risk:
   - `.sidecar.json` files remain in document repos despite the current no-sidecar runtime contract. Need a deliberate cleanup/archival policy before deleting or committing them.
 - Raw binary risk:
   - `verify:access-dms:raw` is red until raw image endpoint supports storage-backed assets or the upload/materialization contract is changed.
 - Storage provider risk:
-  - DB config currently routes default uploads to `sharepoint`, represented locally by `/sites/dms/shared-documents`. Confirm whether this is intentional for local Docker verification.
+  - DB config currently routes default uploads to `sharepoint`, represented locally by `/sites/documents/shared-documents`. Confirm whether this is intentional for local Docker verification.
 - Test-command risk:
   - Use the direct Jest command for `--runInBand`; `pnpm --filter server test -- --runInBand` is known to fail due to argument forwarding.
 - Documentation edit risk:

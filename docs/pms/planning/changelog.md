@@ -2,7 +2,7 @@
 
 > 전체 변경 이력 요약 및 영역별 문서 링크
 
-**마지막 업데이트**: 2026-04-16
+**마지막 업데이트**: 2026-06-11
 
 ---
 
@@ -33,6 +33,15 @@
 ---
 
 ## 📅 최근 변경 요약
+
+### 2026-06-11
+
+| 시간 | 커밋 | 영역 | 변경 내용 |
+|------|------|------|----------|
+| - | - | PMS 홈/권한 | **홈 권한별 action 노출 연결**: `PmsHomeSummary` 에 `allowedActions`, `primaryAction`, `accessProjects` 를 추가하고, 홈 화면이 프로젝트별 `features` capability 기준으로 조치 버튼과 상세 management tab 진입을 동적으로 구성 |
+| - | - | PMS 홈/API | **서버 정책 기반 홈 summary 연결**: `GET /api/home/summary` 와 `PmsHomeSummary` 공유 계약을 추가하고, 홈 화면을 프로젝트 access policy 기반 briefing/signal/flow/recent change 소비 구조로 전환 |
+| - | - | DB/검증 | **PMS trigger installer coverage 연결**: `apply_all_triggers.sql` 에 handoff/contract/payment/objective/WBS/project org/relation/control/event/project issue history trigger 설치 경로를 포함 |
+| - | - | 검증 | **PMS 런칭 검증 확장**: `verify:pms-launch` 가 홈/상세 closeout 외에 access, readiness, org/relation, planning/control/output API surface 와 trigger installer coverage 를 확인 |
 
 ### 2026-06-08
 

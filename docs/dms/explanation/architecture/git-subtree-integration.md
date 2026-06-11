@@ -215,7 +215,7 @@ git push http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git HEAD:development
 | 이슈 | 원인 | 해결 방법 |
 |------|------|----------|
 | Turbopack vs Webpack | Next.js 16+ 기본값 변경 | `--webpack` 플래그 사용 |
-| 포트 충돌 | PMS가 3000 사용 | DMS는 자동으로 3001 사용 |
+| 포트 충돌 | Admin/CRM/PMS가 3000-3002 사용 | DMS는 3003 사용 |
 | lockfile 경고 | `package-lock.json` 중복 | 경고 무시 (DMS 원본 유지) |
 
 ---
@@ -233,7 +233,7 @@ cd apps/web/dms
 npx next dev --webpack
 
 # 방법 3: 포트 지정
-npx next dev --webpack -p 3001
+npx next dev --webpack -p 3003
 ```
 
 ### 5.2 빌드
@@ -255,7 +255,7 @@ pnpm dev
 
 # DMS는 별도 터미널에서
 cd apps/web/dms
-npx next dev --webpack -p 3001
+npx next dev --webpack -p 3003
 ```
 
 ---
@@ -265,8 +265,11 @@ npx next dev --webpack -p 3001
 | 서비스 | 포트 | 비고 |
 |--------|------|------|
 | **Server (NestJS)** | 4000 | API 서버 |
-| **PMS (Next.js)** | 3000 | 프로젝트 관리 |
-| **DMS (Next.js)** | 3001 | 문서 관리 |
+| **Admin (Next.js)** | 3000 | 관리 설정/제어 진입점 |
+| **CRM (Next.js)** | 3001 | 영업/계약/청구 원장 |
+| **PMS (Next.js)** | 3002 | 프로젝트 관리 |
+| **DMS (Next.js)** | 3003 | 문서 관리 |
+| **SNS (Next.js)** | 3004 | 소셜/협업 피드 |
 
 ---
 

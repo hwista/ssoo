@@ -204,16 +204,18 @@ pnpm docker:up
 pnpm db:setup
 ```
 
-Docker compose는 컨테이너 내부 DB 연결에 `DOCKER_DATABASE_URL`/`DOCKER_DMS_DATABASE_URL`을 사용합니다.  
+Docker compose는 컨테이너 내부 DB 연결에 `DOCKER_DATABASE_URL`/`DOCKER_DMS_DATABASE_URL`을 사용합니다.
 루트 `.env`의 `DATABASE_URL=...@localhost...` 값은 host CLI 기준으로 유지하고, compose 내부 주소 override가 필요할 때만 Docker 전용 키를 수정하세요.
 
 기본 compose 스택은 다음 서비스를 함께 올립니다.
 
 - `postgres` (`5432`)
 - `server` (`4000`)
-- `pms` (`3000`)
-- `dms` (`3001`)
-- `sns` (`3002`)
+- `admin` (`3000`)
+- `crm` (`3001`)
+- `pms` (`3002`)
+- `dms` (`3003`)
+- `sns` (`3004`)
 
 ### 4. 대안: 직접 개발 서버 실행
 
@@ -223,9 +225,11 @@ pnpm dev
 
 # 또는 개별 실행
 pnpm dev:server   # 백엔드: http://localhost:4000
-pnpm dev:web-pms  # PMS: http://localhost:3000
-pnpm dev:web-dms  # DMS: http://localhost:3001
-pnpm dev:web-sns  # SNS: http://localhost:3002
+pnpm dev:web-admin  # Admin: http://localhost:3000
+pnpm dev:web-crm    # CRM:   http://localhost:3001
+pnpm dev:web-pms    # PMS:   http://localhost:3002
+pnpm dev:web-dms    # DMS:   http://localhost:3003
+pnpm dev:web-sns    # SNS:   http://localhost:3004
 ```
 
 ### 5. 동작 확인
@@ -235,7 +239,7 @@ pnpm dev:web-sns  # SNS: http://localhost:3002
 curl http://localhost:4000/api/health
 
 # 웹 브라우저에서 확인
-open http://localhost:3000
+open http://localhost:3002
 ```
 
 ---
@@ -306,7 +310,7 @@ node dist/main.js
 
 # 9. 웹 실행 (새 터미널에서)
 cd c:\WorkSpace\dev\source\sooo\apps\web-pms
-node ./node_modules/next/dist/bin/next dev --port 3000
+node ./node_modules/next/dist/bin/next dev --port 3002
 ```
 
 ### 실행 확인
@@ -315,7 +319,7 @@ node ./node_modules/next/dist/bin/next dev --port 3000
 ✅ Server: http://localhost:4000/api/health
    → {"success":true,"data":{"status":"ok","service":"ssoo-server","version":"0.0.1"}}
 
-✅ Web PMS: http://localhost:3000
+✅ Web PMS: http://localhost:3002
    → SSOO 메인 페이지 + Server Status 연동 확인
 ```
 

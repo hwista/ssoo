@@ -2,7 +2,7 @@
 
 import { FileText, X } from 'lucide-react';
 import { useTabStore, HOME_TAB } from '@/stores';
-import { FlatList, FlatListItem } from './FlatList';
+import { SsooSidebarEmptyState, SsooSidebarList, SsooSidebarListItem } from '@ssoo/web-shell';
 
 /**
  * 사이드바 현재 열린 페이지 목록
@@ -19,22 +19,23 @@ export function OpenTabs() {
 
   if (openTabs.length === 0) {
     return (
-      <div className="px-3 py-2 text-caption text-gray-400">
+      <SsooSidebarEmptyState>
         열린 페이지가 없습니다.
-      </div>
+      </SsooSidebarEmptyState>
     );
   }
 
   return (
-    <FlatList>
+    <SsooSidebarList>
       {openTabs.map((tab) => {
         const isActive = tab.id === activeTabId;
 
         return (
-          <FlatListItem
+          <SsooSidebarListItem
             key={tab.id}
             icon={FileText}
             label={tab.title}
+            title={tab.title}
             active={isActive}
             onSelect={() => activateTab(tab.id)}
             trailingAction={
@@ -54,6 +55,6 @@ export function OpenTabs() {
           />
         );
       })}
-    </FlatList>
+    </SsooSidebarList>
   );
 }

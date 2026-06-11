@@ -13,7 +13,6 @@ export type SidebarSection = 'search' | 'favorites' | 'openTabs' | 'menuTree' | 
  */
 export interface SidebarState {
   isCollapsed: boolean; // 접힘 여부
-  activeFloatSection: SidebarSection | null; // 현재 플로팅 중인 섹션
   expandedSections: SidebarSection[]; // 펼쳐진 섹션들
   searchQuery: string; // 메뉴 검색어
   expandedMenuIds: Set<string>; // 펼쳐진 메뉴 폴더 ID들
@@ -25,10 +24,6 @@ export interface SidebarState {
 export interface SidebarActions {
   toggleCollapse: () => void;
   setCollapsed: (collapsed: boolean) => void;
-  
-  // 플로팅 패널
-  openFloatSection: (section: SidebarSection) => void;
-  closeFloatSection: () => void;
   
   // 섹션 접기/펼치기
   toggleSection: (section: SidebarSection) => void;
@@ -65,12 +60,4 @@ export const SIDEBAR_SECTION_LABELS: Record<SidebarSection, string> = {
   openTabs: '현재 열린 페이지',
   menuTree: '전체 메뉴',
   admin: '관리자 페이지',
-};
-
-/**
- * 플로팅 패널 설정
- */
-export const FLOAT_PANEL_CONFIG = {
-  closeDelay: 300, // ms - 마우스 벗어난 후 닫히기까지 딜레이
-  openDelay: 100, // ms - 마우스 진입 후 열리기까지 딜레이
 };

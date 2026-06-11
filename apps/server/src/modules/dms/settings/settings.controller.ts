@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Post,
@@ -19,16 +20,25 @@ import { success } from '../../../common/responses.js';
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { AccessService } from '../access/access.service.js';
 import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
-import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { settingsService, type DmsSettingsConfig } from './settings.service.js';
 
 @ApiTags('dms')
 @ApiBearerAuth()
 @Controller('dms/settings')
 @UseGuards(DmsFeatureGuard)
-@RequireDmsFeature('canManageSettings')
 export class SettingsController {
+  constructor(private readonly accessService: AccessService) {}
+
+  private async getAccess(currentUser: TokenPayload) {
+    const snapshot = await this.accessService.getAccessSnapshot(currentUser);
+    return {
+      canManageSystem: snapshot.features.canManageSettings,
+      canManagePersonal: true,
+    };
+  }
+
   @Get()
   @ApiOperation({ summary: 'DMS 설정 조회' })
   @ApiOkResponse({ description: '설정 스냅샷 반환' })
@@ -40,7 +50,8 @@ export class SettingsController {
   ) {
     const shouldIncludeRuntime = includeRuntime === '1' || includeRuntime === 'true';
     const userId = String(currentUser.userId);
-    return success(await settingsService.getSettings(shouldIncludeRuntime, userId));
+    const access = await this.getAccess(currentUser);
+    return success(await settingsService.getSettings(shouldIncludeRuntime, userId, access));
   }
 
   @Post()
@@ -63,7 +74,11 @@ export class SettingsController {
     const partial = config && typeof config === 'object'
       ? config as DeepPartial<DmsSettingsConfig>
       : undefined;
-    const result = await settingsService.updateSettings(partial, userId);
+    const access = await this.getAccess(currentUser);
+    if (partial?.system && !access.canManageSystem) {
+      throw new ForbiddenException('DMS 시스템 설정은 admin 계정만 변경할 수 있습니다.');
+    }
+    const result = await settingsService.updateSettings(partial, userId, access);
     if (!result.success) {
       throw new BadRequestException(result.error);
     }

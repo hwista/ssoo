@@ -23,7 +23,7 @@ SSOO 데이터베이스 구조 및 사용 가이드입니다.
 
 | 항목 | 값 |
 |------|-----|
-| Service Name | `ssoo` ("삼삼오오 모여서 일한다") |
+| Service Name | `SSOT` (임시 플랫폼 표기; repository slug는 `ssoo`) |
 | DBMS | PostgreSQL 15+ |
 | ORM | Prisma 6.x |
 | 스키마 관리 | Multi-Schema (common, pms, dms) |

@@ -70,7 +70,6 @@ const DMS_FEATURE_PERMISSION_CODES = {
   canManageTemplates: 'dms.template.manage',
   canUseAssistant: 'dms.assistant.use',
   canUseSearch: 'dms.search.use',
-  canManageSettings: 'dms.settings.manage',
   canManageStorage: 'dms.storage.manage',
   canUseGit: 'dms.git.use',
 };
@@ -608,7 +607,7 @@ function resolveDmsRuntimeBindings() {
     markdownRoot: resolveRuntimeBinding(
       { defaultConfig: null, userConfig: null },
       ['git', 'repositoryPath'],
-      '../../../.runtime/dms/documents',
+      '../../../.runtime/documents',
       'DMS_MARKDOWN_ROOT',
     ),
   };
@@ -774,6 +773,13 @@ async function verifyAccessSnapshot(baseUrl, accessToken, inspection, label) {
     inspection.action.policy.hasSystemOverride,
     `DMS ${label} access snapshot`,
   );
+  const expectedCanManageSettings = inspection.subject?.roleCode === 'admin';
+  if (accessSnapshot.features.canManageSettings !== expectedCanManageSettings) {
+    throw new Error(
+      `DMS ${label} access snapshot canManageSettings=${String(accessSnapshot.features.canManageSettings)} `
+      + `이지만 expected=${String(expectedCanManageSettings)} 입니다.`,
+    );
+  }
   assertPolicyTrace(
     accessSnapshot.policy,
     inspection.action.policy,
@@ -1770,27 +1776,66 @@ async function verifySettingsBoundary(baseUrl, accessToken, canManageSettings, l
   const getResult = await requestJson(`${baseUrl}/dms/settings?includeRuntime=1`, {
     headers: authHeaders(accessToken),
   });
-  assertStatus(getResult.response, canManageSettings ? 200 : 403, `/dms/settings GET (${label})`);
+  assertStatus(getResult.response, 200, `/dms/settings GET (${label})`);
+  assertSuccessEnvelope(getResult.data, `/dms/settings GET (${label})`);
 
+  const snapshot = getResult.data.data;
+  if (!snapshot?.config?.personal) {
+    throw new Error(`/dms/settings GET (${label}) personal 설정이 반환되지 않았습니다.`);
+  }
+  if (snapshot.config.system && Object.prototype.hasOwnProperty.call(snapshot.config.system, 'm365')) {
+    throw new Error(`/dms/settings GET (${label}) system.m365 잔존 키가 노출되었습니다.`);
+  }
   if (canManageSettings) {
-    assertSuccessEnvelope(getResult.data, `/dms/settings GET (${label})`);
-    assertSettingsSnapshot(getResult.data.data, `/dms/settings GET (${label})`);
+    assertSettingsSnapshot(snapshot, `/dms/settings GET (${label})`);
+    if (snapshot.access?.canManageSystem !== true || snapshot.runtime == null) {
+      throw new Error(`/dms/settings GET (${label}) admin system/runtime 접근 플래그가 올바르지 않습니다.`);
+    }
+  } else {
+    if (snapshot.config.system != null || snapshot.runtime != null || snapshot.access?.canManageSystem !== false) {
+      throw new Error(`/dms/settings GET (${label}) 일반 사용자에게 system/runtime 설정이 노출되었습니다.`);
+    }
   }
 
-  const postResult = await requestJson(`${baseUrl}/dms/settings`, {
+  const personalResult = await requestJson(`${baseUrl}/dms/settings`, {
     method: 'POST',
     headers: authHeaders(accessToken, {
       'Content-Type': 'application/json',
     }),
     body: JSON.stringify({
       action: 'update',
-      config: {},
+      config: {
+        personal: {
+          viewer: {
+            defaultZoom: snapshot.config.personal.viewer.defaultZoom,
+          },
+        },
+      },
     }),
   });
-  assertStatus(postResult.response, canManageSettings ? 200 : 403, `/dms/settings POST (${label})`);
+  assertStatus(personalResult.response, 200, `/dms/settings personal POST (${label})`);
+  assertSuccessEnvelope(personalResult.data, `/dms/settings personal POST (${label})`);
+
+  const systemResult = await requestJson(`${baseUrl}/dms/settings`, {
+    method: 'POST',
+    headers: authHeaders(accessToken, {
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify({
+      action: 'update',
+      config: {
+        system: {
+          uploads: {
+            attachmentMaxSizeMb: snapshot.config.system?.uploads?.attachmentMaxSizeMb ?? 20,
+          },
+        },
+      },
+    }),
+  });
+  assertStatus(systemResult.response, canManageSettings ? 200 : 403, `/dms/settings system POST (${label})`);
   if (canManageSettings) {
-    assertSuccessEnvelope(postResult.data, `/dms/settings POST (${label})`);
-    assertSettingsSnapshot(postResult.data.data, `/dms/settings POST (${label})`);
+    assertSuccessEnvelope(systemResult.data, `/dms/settings system POST (${label})`);
+    assertSettingsSnapshot(systemResult.data.data, `/dms/settings system POST (${label})`);
   }
 }
 

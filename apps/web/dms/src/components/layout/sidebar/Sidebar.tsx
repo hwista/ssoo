@@ -3,66 +3,50 @@
 import { useState } from 'react';
 import {
   ChevronDown,
-  ChevronLeft,
+  ChevronRight,
   RefreshCw,
   Bookmark,
   Layers,
   FolderTree,
   GitBranch,
-  BookOpen,
-  Code,
+  Menu,
 } from 'lucide-react';
-import { useAccessStore, useAuthStore, useLayoutStore, useSidebarStore, useFileStore, useGitStore } from '@/stores';
-import type { DocumentType } from '@/types';
-import { DOCUMENT_TYPE_LABELS, LAYOUT_SIZES } from '@/lib/constants/layout';
-import { cn } from '@/lib/utils';
+import {
+  SsooCollapsedRailButton,
+  SsooSidebarBrandHeader,
+  SsooSidebarFooter,
+  SsooSidebarSection,
+  SsooSidebarSectionChevron,
+  SsooSidebarShell,
+  SsooSidebarToolbar,
+  SsooSidebarToolbarAction,
+} from '@ssoo/web-shell';
+import { useAccessStore, useAuthStore, useSidebarStore, useFileStore, useGitStore } from '@/stores';
+import { LAYOUT_SIZES } from '@/lib/constants/layout';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search } from './Search';
-import { Section } from './Section';
 import { Bookmarks } from './Bookmarks';
 import { OpenTabs } from './OpenTabs';
 import { FileTree } from './FileTree';
 import { Changes } from './Changes';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown';
-
-// 문서 타입별 아이콘
-const DOCUMENT_TYPE_ICONS: Record<DocumentType, React.ComponentType<{ className?: string }>> = {
-  doc: BookOpen,
-  dev: Code,
-};
 
 /**
  * Sidebar Props
  */
 interface SidebarProps {
-  /** 컴팩트 모드 (오버레이로 표시) */
-  isCompactMode?: boolean;
-  /** 사이드바 열림 상태 */
-  isOpen?: boolean;
-  /** 닫기 핸들러 */
-  onClose?: () => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 /**
  * DMS 사이드바 (PMS 표준 적용)
- * - 로고: S 아이콘 + SSOO 텍스트
- * - 문서 타입 선택: 헤더 영역 (사이드바 접기 버튼 위치)
+ * - 로고: S 아이콘 + SSOT 텍스트
+ * - 공통 접기/펼치기 토글
  * - 검색 + 새로고침
  * - 책갈피 / 현재 열린 페이지 / 전체 파일
  * - 하단 카피라이트
- * - 컴팩트 모드: 오버레이로 표시 + 그립 버튼
  */
-export function Sidebar({ 
-  isCompactMode = false, 
-  isOpen = true,
-  onClose,
-}: SidebarProps) {
-  const { documentType, setDocumentType } = useLayoutStore();
+export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
   const { expandedSections, isFileTreeOpen, fileTreeOwnerUserId, fileTreeResetEpoch, toggleSection } = useSidebarStore();
   const { refreshFileTree } = useFileStore();
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
@@ -89,158 +73,129 @@ export function Sidebar({
     }
   };
 
-  const DocumentTypeIcon = DOCUMENT_TYPE_ICONS[documentType];
-
   return (
-    <aside
-      className={cn(
-        'fixed left-0 top-0 h-full bg-ssoo-content-bg border-r border-ssoo-content-border flex flex-col overflow-hidden',
-        'transition-transform duration-300 ease-in-out',
-        // 컴팩트 모드에서 오버레이
-        isCompactMode && 'z-30 shadow-xl',
-        isCompactMode && !isOpen && '-translate-x-full'
-      )}
-      style={{ width: LAYOUT_SIZES.sidebar.expandedWidth }}
-    >
-      {/* 컴팩트 모드: 닫기 그립 버튼 */}
-      {isCompactMode && isOpen && (
-        <button
-          onClick={onClose}
-          className={cn(
-            'absolute right-0 top-1/2 -translate-y-1/2 translate-x-full z-10',
-            'flex items-center justify-center',
-            'w-5 h-12 rounded-r-md',
-            'bg-ssoo-content-bg hover:bg-ssoo-content-border/50 border border-l-0 border-ssoo-content-border',
-            'transition-all duration-300 ease-in-out',
-            'shadow-sm'
-          )}
-          aria-label="사이드바 접기"
-        >
-          <ChevronLeft className="h-4 w-4 text-gray-500" />
-        </button>
-      )}
-
-      {/* 헤더 영역: 로고 + 문서 타입 선택 */}
-      <div className="h-header-h flex items-center justify-between px-3 bg-ssoo-primary">
-        {/* 로고 (PMS 스타일) */}
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 bg-white rounded flex items-center justify-center">
-            <span className="text-control-lg text-ssoo-primary">S</span>
-          </div>
-          <span className="text-title-card text-white">SSOT</span>
-        </div>
-
-        {/* 문서 타입 선택 드롭다운 (헤더 AI 검색 스타일) */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+    <SsooSidebarShell
+      mode="collapsible"
+      expanded={!isCollapsed}
+      width={LAYOUT_SIZES.sidebar.expandedWidth}
+      collapsedWidth={LAYOUT_SIZES.sidebar.collapsedWidth}
+      headerSlot={
+        <SsooSidebarBrandHeader
+          title="SSOT"
+          subtitle="DMS · 문서 허브"
+          collapsed={isCollapsed}
+          revealOnHover={isCollapsed}
+          actionsSlot={
             <button
-              className="flex h-control-h cursor-pointer items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 text-body-sm text-white transition-colors hover:bg-white/20"
+              type="button"
+              onClick={onToggleCollapse}
+              className="rounded-lg p-2 transition-colors hover:bg-white/10"
+              title={isCollapsed ? '펼치기' : '접기'}
             >
-              <DocumentTypeIcon className="w-4 h-4" />
-              <span className="text-body-sm">{DOCUMENT_TYPE_LABELS[documentType]}</span>
-              <ChevronDown className="w-3 h-3" />
+              <Menu className="h-5 w-5 text-white" />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            sideOffset={4}
-            className="!min-w-0 bg-ssoo-primary text-white border-white/20"
-            style={{ width: 'var(--radix-popper-anchor-width)' }}
-          >
-            {(Object.keys(DOCUMENT_TYPE_LABELS) as DocumentType[]).map((type) => {
-              const TypeIcon = DOCUMENT_TYPE_ICONS[type];
-              const isActiveType = documentType === type;
-              return (
-                <DropdownMenuItem
-                  key={type}
-                  onClick={() => setDocumentType(type)}
-                  className={cn(
-                    'text-white focus:bg-white/10 focus:text-white',
-                    isActiveType && 'bg-white/10'
-                  )}
-                >
-                  <TypeIcon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{DOCUMENT_TYPE_LABELS[type]}</span>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-        {/* 검색 + 새로고침 */}
-      <div className="p-2 border-b border-gray-200 flex-shrink-0">
-        <div className="flex items-center gap-1">
-          <Search />
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing || !canReadDocuments}
-            className="h-control-h w-control-h flex items-center justify-center hover:bg-ssoo-sitemap-bg rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-            title="새로고침"
-          >
-            <RefreshCw
-              className={`w-4 h-4 text-ssoo-primary ${isRefreshing ? 'animate-spin' : ''}`}
+          }
+        />
+      }
+      railSlot={
+        <nav className="flex flex-col items-center gap-1 py-2">
+          <SsooCollapsedRailButton
+            label="책갈피"
+            icon={Bookmark}
+            active={expandedSections.includes('bookmarks')}
+            onClick={() => toggleSection('bookmarks')}
+          />
+          <SsooCollapsedRailButton
+            label="현재 열린 페이지"
+            icon={Layers}
+            active={expandedSections.includes('openTabs')}
+            onClick={() => toggleSection('openTabs')}
+          />
+          {canReadDocuments ? (
+            <SsooCollapsedRailButton
+              label="전체 파일"
+              icon={FolderTree}
+              active={isFileTreeExpanded}
+              onClick={() => toggleSection('fileTree')}
             />
-          </button>
-        </div>
-      </div>
+          ) : null}
+          {gitAvailable && canUseGit && failureCount > 0 ? (
+            <SsooCollapsedRailButton
+              label={`publish 복구 (${failureCount})`}
+              icon={GitBranch}
+              active={expandedSections.includes('changes')}
+              onClick={() => toggleSection('changes')}
+            />
+          ) : null}
+        </nav>
+      }
+      beforeContentSlot={
+        <SsooSidebarToolbar>
+          <div className="flex items-center gap-1">
+            <Search />
+            <SsooSidebarToolbarAction
+              label="새로고침"
+              icon={RefreshCw}
+              onClick={handleRefresh}
+              disabled={isRefreshing || !canReadDocuments}
+              loading={isRefreshing}
+            />
+          </div>
+        </SsooSidebarToolbar>
+      }
+      contentSlot={
+        <ScrollArea variant="sidebar" className="flex-1">
+            <SsooSidebarSection
+              title="책갈피"
+              icon={Bookmark}
+              collapsible
+              expanded={expandedSections.includes('bookmarks')}
+              onToggle={() => toggleSection('bookmarks')}
+              actionSlot={<SsooSidebarSectionChevron expanded={expandedSections.includes('bookmarks')} expandedIcon={ChevronDown} collapsedIcon={ChevronRight} />}
+            >
+              <Bookmarks />
+            </SsooSidebarSection>
 
-      {/* 스크롤 영역 */}
-      <ScrollArea variant="sidebar" className="flex-1">
-        {/* 책갈피 */}
-        <Section
-          title="책갈피"
-          icon={Bookmark}
-          isExpanded={expandedSections.includes('bookmarks')}
-          onToggle={() => toggleSection('bookmarks')}
-        >
-          <Bookmarks />
-        </Section>
+            <SsooSidebarSection
+              title="현재 열린 페이지"
+              icon={Layers}
+              collapsible
+              expanded={expandedSections.includes('openTabs')}
+              onToggle={() => toggleSection('openTabs')}
+              actionSlot={<SsooSidebarSectionChevron expanded={expandedSections.includes('openTabs')} expandedIcon={ChevronDown} collapsedIcon={ChevronRight} />}
+            >
+              <OpenTabs />
+            </SsooSidebarSection>
 
-        {/* 현재 열린 페이지 */}
-        <Section
-          title="현재 열린 페이지"
-          icon={Layers}
-          isExpanded={expandedSections.includes('openTabs')}
-          onToggle={() => toggleSection('openTabs')}
-        >
-          <OpenTabs />
-        </Section>
+            {canReadDocuments ? (
+              <SsooSidebarSection
+                key={`file-tree-section-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`}
+                title="전체 파일"
+                icon={FolderTree}
+                collapsible
+                expanded={isFileTreeExpanded}
+                onToggle={() => toggleSection('fileTree')}
+                actionSlot={<SsooSidebarSectionChevron expanded={isFileTreeExpanded} expandedIcon={ChevronDown} collapsedIcon={ChevronRight} />}
+              >
+                <FileTree key={`file-tree-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`} />
+              </SsooSidebarSection>
+            ) : null}
 
-        {/* 전체 파일 */}
-        {canReadDocuments ? (
-          <Section
-            key={`file-tree-section-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`}
-            title="전체 파일"
-            icon={FolderTree}
-            isExpanded={isFileTreeExpanded}
-            onToggle={() => toggleSection('fileTree')}
-          >
-            <FileTree key={`file-tree-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`} />
-          </Section>
-        ) : null}
-
-        {/* 변경 사항 (Git) */}
-        {gitAvailable && canUseGit && failureCount > 0 ? (
-          <Section
-            title={`publish 복구 (${failureCount})`}
-            icon={GitBranch}
-            isExpanded={expandedSections.includes('changes')}
-            onToggle={() => toggleSection('changes')}
-          >
-            <Changes />
-          </Section>
-        ) : null}
-      </ScrollArea>
-
-      {/* 하단 카피라이트 (PMS 스타일) */}
-      <div className="flex-shrink-0 border-t border-ssoo-content-border bg-ssoo-content-bg px-3 py-2">
-        <div className="text-caption text-gray-500 space-y-0.5">
-          <div className="text-label-sm text-gray-600">DMS v1.0.0</div>
-          <div>© 2026 LS ITC Co., Ltd.</div>
-          <div className="text-caption text-gray-400">All rights reserved.</div>
-        </div>
-      </div>
-    </aside>
+            {gitAvailable && canUseGit && failureCount > 0 ? (
+              <SsooSidebarSection
+                title={`publish 복구 (${failureCount})`}
+                icon={GitBranch}
+                collapsible
+                expanded={expandedSections.includes('changes')}
+                onToggle={() => toggleSection('changes')}
+                actionSlot={<SsooSidebarSectionChevron expanded={expandedSections.includes('changes')} expandedIcon={ChevronDown} collapsedIcon={ChevronRight} />}
+              >
+                <Changes />
+              </SsooSidebarSection>
+            ) : null}
+        </ScrollArea>
+      }
+      footerSlot={<SsooSidebarFooter collapsed={isCollapsed} revealOnHover={isCollapsed} />}
+    />
   );
 }

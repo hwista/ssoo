@@ -42,7 +42,6 @@ export type {
 
 export type {
   DeviceType,
-  DocumentType,
   LayoutState,
   LayoutActions,
 } from './layout';

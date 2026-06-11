@@ -32,6 +32,12 @@ export {
   useRemoveFavorite,
 } from './useMenus';
 
+// Home
+export {
+  homeSummaryKeys,
+  useHomeSummary,
+} from './useHomeSummary';
+
 // Projects
 export {
   projectKeys,
@@ -47,6 +53,10 @@ export {
   useCreateProjectRelation,
   useRemoveProjectRelation,
   useProjectRelations,
+  useProjectControlIssues,
+  useCreateProjectIssue,
+  useUpdateProjectIssue,
+  useDeleteProjectIssue,
   useProjectRequirements,
   useCreateRequirement,
   useUpdateRequirement,

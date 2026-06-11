@@ -70,8 +70,6 @@ layout/
 ├── ContentArea.tsx     # keep-alive 탭 렌더링 coordinator
 ├── sidebar/
 │   ├── Sidebar.tsx     # 사이드바 컨테이너
-│   ├── FlatList.tsx    # flat row list primitive
-│   ├── Section.tsx     # 접이식 섹션
 │   ├── Bookmarks.tsx   # 북마크 섹션
 │   ├── OpenTabs.tsx    # 열린 탭 섹션
 │   ├── FileTree.tsx    # 파일 트리 섹션
@@ -90,7 +88,9 @@ layout/
 | `TabBar` | 탭 목록 표시, 탭 전환/닫기 |
 | `ContentArea` | 열린 탭의 keep-alive 렌더링 및 페이지 lazy mount |
 | `Sidebar` | 사이드바 컨테이너, 리사이즈 |
-| `FileTree` | 파일 시스템 트리 표시, 파일 열기 |
+| `FileTree` | `SsooSidebarTree`에 DMS 파일 데이터와 파일 열기/북마크 action을 바인딩 |
+
+사이드바 내부 검색 입력, refresh action, 접이식 section, flat row list, recursive tree row는 `@ssoo/web-shell`의 `SsooSidebar*` primitive를 소비합니다. DMS 로컬 컴포넌트는 문서/파일/북마크 데이터 adapter와 action만 소유합니다.
 
 ---
 

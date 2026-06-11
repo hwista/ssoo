@@ -140,6 +140,11 @@ function getStatusTone(git: SettingsRuntimeGitClient) {
   };
 }
 
+function redactUrlCredentials(url: string | undefined): string | undefined {
+  if (!url) return url;
+  return url.replace(/^(https?:\/\/)([^:@\s]+):([^@\s]+)@/, '$1$2:***@');
+}
+
 export function GitObservabilitySurface({
   git,
 }: {
@@ -150,11 +155,11 @@ export function GitObservabilitySurface({
   }
 
   const tone = getStatusTone(git);
-  const actualRemote = git.remoteUrl ? `${git.remoteName} · ${git.remoteUrl}` : `${git.remoteName} · (미구성)`;
+  const actualRemote = git.remoteUrl ? `${git.remoteName} · ${redactUrlCredentials(git.remoteUrl)}` : `${git.remoteName} · (미구성)`;
   const configuredBootstrap = git.bootstrapRemoteUrl
-    ? `${git.bootstrapRemoteUrl}${git.bootstrapBranch ? ` · branch ${git.bootstrapBranch}` : ''}`
+    ? `${redactUrlCredentials(git.bootstrapRemoteUrl)}${git.bootstrapBranch ? ` · branch ${git.bootstrapBranch}` : ''}`
     : '원격 미사용 (local-test)';
-  const expectedRemote = git.expectedRemoteUrl ?? '원격 미사용 (local-test)';
+  const expectedRemote = redactUrlCredentials(git.expectedRemoteUrl) ?? '원격 미사용 (local-test)';
   const reason = git.bindingReason ?? git.reason ?? git.parityStatus.reason;
 
   return (

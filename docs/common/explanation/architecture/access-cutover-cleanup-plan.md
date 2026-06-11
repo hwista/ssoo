@@ -23,7 +23,7 @@
 ### 1.1 현재 cutover baseline
 
 - live `:4000` 기준 runtime parity 는 복구되었고, `pnpm verify:access-smoke` 가 통과하는 상태를 출발점으로 삼는다.
-- 기본 runtime persona 는 `viewer.han` 이며, 이 smoke 는 PMS foreign project deny, SNS post deny, DMS git/settings deny 와 PMS/SNS/DMS allow path 를 함께 검증한다.
+- 기본 runtime persona 는 `viewer.han` 이며, 이 smoke 는 PMS foreign project deny, SNS post deny, DMS git/settings system deny 와 PMS/SNS/DMS allow path 를 함께 검증한다. DMS settings 는 personal 조회/저장 allow 와 system/runtime deny 를 구분한다.
 - PMS project-scoped route 는 이미 `ProjectFeatureGuard` + `RequireProjectFeature(...)` 기준으로 정렬되어 있어, 남은 리스크는 route migration 자체가 아니라 legacy auth/org/menu cleanup sequencing 이다.
 - DMS 는 더 이상 cleanup blocker 가 아니라 regression gate 이며, 각 phase 에서 `/api/dms/access/me`, `raw/serve-attachment`, `search/ask`, `storage/open` 안정성을 계속 증명해야 한다.
 
@@ -35,7 +35,7 @@
 
 | 항목 | 현재 근거 | 왜 blocker 인가 | 제거 gate |
 |------|-----------|-----------------|-----------|
-| `roleCode` runtime propagation | `apps/server/src/modules/common/auth/auth.service.ts`, `apps/server/src/modules/common/auth/strategies/jwt.strategy.ts`, `apps/server/src/modules/common/access/access-foundation.service.ts` | **Closed.** JWT payload 는 더 이상 `roleCode` 를 carry 하지 않고, `JwtStrategy` 가 current role 을 request user 에 주입하며 `AccessFoundationService` 는 userId 기준 DB role lookup 으로 baseline 을 계산한다. | rollback 이 필요하면 `TokenPayload.roleCode` carry + 기존 resolution 경로를 복구 |
+| `roleCode` runtime propagation | `apps/server/src/modules/common/auth/auth.service.ts`, `apps/server/src/modules/common/auth/strategies/jwt.strategy.ts`, `apps/server/src/modules/common/auth/guards/roles.guard.ts`, `apps/server/src/modules/common/access/access-foundation.service.ts` | **Closed.** JWT payload 와 request auth context 는 더 이상 `roleCode` 를 carry 하지 않고, `RolesGuard` / domain access service 가 `AccessFoundationService` 의 userId 기준 DB-backed policy 로 role baseline 과 `system.override` 를 계산한다. | rollback 이 필요하면 `TokenPayload.roleCode` carry + 기존 resolution 경로를 복구 |
 | PMS `cm_role_menu_r` role override layer / role-menu admin surface | `apps/server/src/modules/pms/menu/menu.service.ts`, `apps/server/src/modules/pms/menu/role-permission.service.ts`, `apps/server/src/modules/pms/menu/role-permission.controller.ts`, `apps/web/pms/src/components/pages/admin/RoleManagementPage.tsx`, `packages/database/prisma/schema.prisma` 의 `pms.cm_role_menu_r` | 현재 선택된 방향은 removal 이 아니라 **formalization** 이다. `/api/menus/my` 일반 메뉴 baseline 은 코드 기준선 + user grant/revoke + `cm_role_menu_r` role override layer 로 계산되고, 운영 화면도 그 diff row 를 공식 write path 로 사용한다. 관리자 메뉴 row 는 `system.override` 기준 read-only 로 정렬된다. | follow-up 목표는 replacement 가 아니라 runtime/API/UI/docs naming 과 guardrail 을 이 현재 모델에 맞게 정렬하는 것이다. |
 | organization bridge primary affiliation | `apps/server/src/modules/common/user/user.service.ts` 의 `syncOrganizationFoundation()`, `CreateUserDto` / `UpdateUserDto`, PMS `UserManagementPage` | **Closed.** explicit `primaryAffiliationType` 계약 + current primary relation + data-driven fallback 으로 정렬되었고 `user_type_code` mirror 는 제거되었다. | rollback 이 필요하면 explicit affiliation input 이전 contract 와 bridge sync 로직을 복구 |
 
@@ -161,7 +161,7 @@
 | 2026-04-15 | Phase 2 organization bridge 를 explicit `primaryAffiliationType` 계약 + current primary relation 유지 + data-driven fallback 구조로 재정의하고 parity 검증 기준을 고정 |
 | 2026-04-15 | live `:4000` + `viewer.han` smoke baseline 을 cutover 출발점으로 명시하고, Phase 0~5 의 시작 조건 / acceptance criteria / 필수 증빙 / rollback floor 를 실행 패키지 수준으로 고정 |
 | 2026-04-15 | runtime blocker(`roleCode` runtime propagation, PMS `cm_role_menu_r`, `userTypeCode` organization bridge)와 cleanup-only debt(`isAdmin`, user/admin contract, `permission_codes`)를 분리하고, phase별 validation gate / rollback point / schema-last cutover 순서를 실행 가능 수준으로 구체화 |
-| 2026-04-14 | `RolesGuard` 의 `@Roles('admin')` 를 `system.override` 기준으로 정렬하고 PMS operator inspect dialog + `pnpm verify:access-smoke` automation 을 추가해 후속 안정화 backlog 를 닫음 |
+| 2026-04-14 | `RolesGuard` 의 `@Roles('admin')` 를 access foundation `system.override` 기준으로 정렬하고 PMS operator inspect dialog + `pnpm verify:access-smoke` automation 을 추가해 후속 안정화 backlog 를 닫음 |
 | 2026-04-14 | JWT `TokenPayload.isAdmin` 제거, `AccessFoundationService` admin shortcut 제거, PMS project filter / admin menu inclusion 을 `system.override` 기준으로 정렬하는 major cleanup slice 를 반영 |
 | 2026-04-14 | SNS browser-facing access snapshot 의 redundant `isAdmin` 제거, `GET /api/users/profile` legacy field 축소, JWT `TokenPayload.userTypeCode` 제거를 safe cleanup slice 로 반영 |
 | 2026-04-14 | shared auth/access rollout 이후 남아 있는 legacy compatibility path inventory 와 cleanup 순서를 문서화 |

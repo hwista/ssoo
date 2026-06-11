@@ -41,11 +41,11 @@ export function useAssistantNavigationActions() {
   const handleOpenHelpAction = useCallback(async (action: AssistantHelpAction) => {
     if (action.path === '/settings') {
       await loadSettings();
-      const settings = useSettingsStore.getState().config;
-      if (settings?.personal.workspace) {
-        applyWorkspacePreferences(settings.personal.workspace);
+      const settingsState = useSettingsStore.getState();
+      if (settingsState.config?.personal.workspace) {
+        applyWorkspacePreferences(settingsState.config.personal.workspace);
       }
-      enterSettings();
+      enterSettings(settingsState.access?.canManageSystem ? undefined : 'personal');
       return;
     }
 

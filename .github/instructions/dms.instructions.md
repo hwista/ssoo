@@ -15,9 +15,11 @@ applyTo: "apps/web/dms/**"
 |------|-----|-----|
 | 패키지 매니저 | **pnpm workspace** | pnpm |
 | 공유 패키지 | `@ssoo/types` 사용 가능 (`@ssoo/database` 직접 참조 금지) | `@ssoo/types` 사용 |
-| 포트 | 3001 | 3000 |
+| 포트 | 3003 | 3002 |
 
 DMS는 이제 모노레포 워크스페이스에 포함되지만, 파일/Git/스토리지 런타임과 `src/app/api/* -> server/*` 구조는 여전히 독립 배포 가능성을 고려해 유지합니다.
+
+Docker/compose도 DMS 런타임 계약의 일부입니다. DMS 포트, runtime path, 설정 노출 문구, server proxy/env 계약을 바꾸면 `apps/web/dms/Dockerfile`, 루트 `compose.yaml`, 루트 `.env.example`, Docker/E2E 스크립트, `docs/dms/guides/deployment.md` 를 같은 변경 범위에서 확인하고 같이 갱신합니다.
 
 ## 양방향 배포 표준
 

@@ -42,9 +42,19 @@ export interface AuthStoreActions<TUser extends AuthIdentity> {
 
 export type AuthStore<TUser extends AuthIdentity> = AuthStoreState<TUser> & AuthStoreActions<TUser>;
 
+export type AuthClearReason =
+  | 'login-start'
+  | 'login-profile-failed'
+  | 'logout'
+  | 'check-failed'
+  | 'refresh-failed'
+  | 'storage-missing'
+  | 'manual-clear';
+
 export interface CreateAuthStoreOptions<TUser extends AuthIdentity> {
   authApi: AuthApiAdapter<TUser>;
   normalizeUser: (value: unknown) => TUser | null;
+  onAuthCleared?: (reason: AuthClearReason) => void;
   shouldKeepSessionOnCheckFailure?: (result: AuthApiResult<unknown>) => boolean;
   storageKey?: string;
 }
@@ -74,72 +84,66 @@ export function createAuthStore<TUser extends AuthIdentity>(
   const {
     authApi,
     normalizeUser,
+    onAuthCleared,
     shouldKeepSessionOnCheckFailure = (result) => !isUnauthorizedResult(result),
     storageKey = SHARED_AUTH_STORAGE_KEY,
   } = options;
 
+  const notifyAuthCleared = (reason: AuthClearReason) => {
+    if (!onAuthCleared) {
+      return;
+    }
+
+    try {
+      onAuthCleared(reason);
+    } catch (error) {
+      if (typeof console !== 'undefined') {
+        console.warn('[web-auth] 인증 상태 정리 후크 실행에 실패했습니다.', error);
+      }
+    }
+  };
+
   return create<AuthStore<TUser>>()(
     persist(
-      (set, get) => ({
-        accessToken: null,
-        refreshToken: null,
-        user: null,
-        isLoading: false,
-        isAuthenticated: false,
-        _hasHydrated: false,
-
-        login: async (loginId: string, password: string) => {
+      (set, get) => {
+        const clearAuthState = (
+          reason: AuthClearReason,
+          overrides: Partial<Pick<AuthStoreState<TUser>, 'isLoading'>> = {},
+        ) => {
           set({
             accessToken: null,
             refreshToken: null,
             user: null,
             isAuthenticated: false,
-            isLoading: true,
+            isLoading: false,
+            ...overrides,
           });
+          notifyAuthCleared(reason);
+        };
 
-          const loginResponse = await authApi.login({ loginId, password });
-          if (!loginResponse.success || !loginResponse.data) {
-            set({ isLoading: false });
-            throw new Error(getAuthErrorMessage(loginResponse, '로그인에 실패했습니다.'));
-          }
+        return {
+          accessToken: null,
+          refreshToken: null,
+          user: null,
+          isLoading: false,
+          isAuthenticated: false,
+          _hasHydrated: false,
 
-          const { accessToken } = loginResponse.data;
-          const meResponse = await authApi.me(accessToken);
-          if (meResponse.success && meResponse.data) {
-            set({
-              accessToken,
-              refreshToken: null,
-              user: meResponse.data,
-              isAuthenticated: true,
-              isLoading: false,
-            });
-            return;
-          }
+          login: async (loginId: string, password: string) => {
+            clearAuthState('login-start', { isLoading: true });
 
-          get().clearAuth();
-          throw new Error(getAuthErrorMessage(meResponse, '사용자 정보를 불러오지 못했습니다.'));
-        },
+            const loginResponse = await authApi.login({ loginId, password });
+            if (!loginResponse.success || !loginResponse.data) {
+              set({ isLoading: false });
+              throw new Error(getAuthErrorMessage(loginResponse, '로그인에 실패했습니다.'));
+            }
 
-        logout: async () => {
-          const { accessToken } = get();
-
-          try {
-            await authApi.logout(accessToken);
-          } finally {
-            get().clearAuth();
-          }
-        },
-
-        checkAuth: async () => {
-          const { accessToken } = get();
-          const hadAccessToken = Boolean(accessToken);
-
-          set({ isLoading: true });
-
-          if (accessToken) {
+            const { accessToken } = loginResponse.data;
             const meResponse = await authApi.me(accessToken);
             if (meResponse.success && meResponse.data) {
               set({
+                accessToken,
+                refreshToken: null,
                 user: meResponse.data,
                 isAuthenticated: true,
                 isLoading: false,
@@ -147,89 +151,109 @@ export function createAuthStore<TUser extends AuthIdentity>(
               return;
             }
 
-            if (shouldKeepSessionOnCheckFailure(meResponse)) {
+            clearAuthState('login-profile-failed');
+            throw new Error(getAuthErrorMessage(meResponse, '사용자 정보를 불러오지 못했습니다.'));
+          },
+
+          logout: async () => {
+            const { accessToken } = get();
+
+            try {
+              await authApi.logout(accessToken);
+            } finally {
+              clearAuthState('logout');
+            }
+          },
+
+          checkAuth: async () => {
+            const { accessToken } = get();
+            const hadAccessToken = Boolean(accessToken);
+
+            set({ isLoading: true });
+
+            if (accessToken) {
+              const meResponse = await authApi.me(accessToken);
+              if (meResponse.success && meResponse.data) {
+                set({
+                  user: meResponse.data,
+                  isAuthenticated: true,
+                  isLoading: false,
+                });
+                return;
+              }
+
+              if (shouldKeepSessionOnCheckFailure(meResponse)) {
+                set({ isLoading: false });
+                return;
+              }
+            }
+
+            const restored = await authApi.restoreSession();
+            if (restored.success && restored.data) {
+              set({
+                ...toRestoredUser(restored.data),
+                isLoading: false,
+              });
+              return;
+            }
+
+            if (hadAccessToken && shouldKeepSessionOnCheckFailure(restored)) {
               set({ isLoading: false });
               return;
             }
-          }
 
-          const restored = await authApi.restoreSession();
-          if (restored.success && restored.data) {
-            set({
-              ...toRestoredUser(restored.data),
-              isLoading: false,
-            });
-            return;
-          }
+            clearAuthState('check-failed');
+          },
 
-          if (hadAccessToken && shouldKeepSessionOnCheckFailure(restored)) {
-            set({ isLoading: false });
-            return;
-          }
+          refreshTokens: async () => {
+            const restored = await authApi.restoreSession();
+            if (!restored.success || !restored.data) {
+              if (shouldKeepSessionOnCheckFailure(restored)) {
+                return false;
+              }
 
-          get().clearAuth();
-        },
-
-        refreshTokens: async () => {
-          const restored = await authApi.restoreSession();
-          if (!restored.success || !restored.data) {
-            if (shouldKeepSessionOnCheckFailure(restored)) {
+              clearAuthState('refresh-failed');
               return false;
             }
 
-            get().clearAuth();
-            return false;
-          }
-
-          set({
-            ...toRestoredUser(restored.data),
-          });
-          return true;
-        },
-
-        setTokens: (accessToken: string, refreshToken: string) => {
-          set({ accessToken, refreshToken, isAuthenticated: true });
-        },
-
-        setUser: (user: TUser | null) => {
-          set({ user });
-        },
-
-        clearAuth: () => {
-          set({
-            accessToken: null,
-            refreshToken: null,
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-          });
-        },
-
-        syncFromStorage: () => {
-          const snapshot = readSharedAuthSnapshot();
-          if (!snapshot) {
             set({
-              accessToken: null,
-              refreshToken: null,
-              user: null,
-              isAuthenticated: false,
-              isLoading: false,
+              ...toRestoredUser(restored.data),
             });
-            return;
-          }
+            return true;
+          },
 
-          set({
-            accessToken: snapshot.accessToken,
-            refreshToken: snapshot.refreshToken,
-            user: normalizeUser(snapshot.user),
-            isAuthenticated: snapshot.isAuthenticated,
-          });
-        },
+          setTokens: (accessToken: string, refreshToken: string) => {
+            set({ accessToken, refreshToken, isAuthenticated: true });
+          },
 
-        setHasHydrated: (state: boolean) => {
-          set({ _hasHydrated: state });
-        },
-      }),
+          setUser: (user: TUser | null) => {
+            set({ user });
+          },
+
+          clearAuth: () => {
+            clearAuthState('manual-clear');
+          },
+
+          syncFromStorage: () => {
+            const snapshot = readSharedAuthSnapshot();
+            if (!snapshot) {
+              clearAuthState('storage-missing');
+              return;
+            }
+
+            set({
+              accessToken: snapshot.accessToken,
+              refreshToken: snapshot.refreshToken,
+              user: normalizeUser(snapshot.user),
+              isAuthenticated: snapshot.isAuthenticated,
+            });
+          },
+
+          setHasHydrated: (state: boolean) => {
+            set({ _hasHydrated: state });
+          },
+        };
+      },
       {
         name: storageKey,
         storage: createJSONStorage(() => createSafeJsonStateStorage(() => localStorage)),

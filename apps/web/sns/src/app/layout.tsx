@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { Providers } from './providers';
+import '../../../../../packages/web-shell/src/styles/ssoo-global.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'SSOO SNS - 소셜 네트워크 서비스',
-  description: '사용자가 콘텐츠를 발행하고 공유하는 소셜 네트워크 서비스',
+  title: 'SSOT SNS | 소셜 허브',
+  description: 'SSOT 사용자 소셜 허브',
 };
 
 export default function RootLayout({

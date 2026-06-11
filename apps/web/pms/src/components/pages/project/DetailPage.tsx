@@ -47,6 +47,10 @@ const STATUS_TABS: { key: ProjectStatusCode; label: string }[] = [
   { key: 'transition', label: '전환' },
 ];
 
+function isManagementTabKey(value?: string): value is ManagementTabKey {
+  return Boolean(value && MANAGEMENT_TABS.some((tab) => tab.key === value));
+}
+
 function getNextAction(project: Project, readiness: TransitionReadiness | null): string {
   if (project.stageCode !== 'in_progress') {
     return project.stageCode === 'waiting' ? '단계 시작 여부를 확인하세요.' : '완료 결과와 후속 상태를 확인하세요.';
@@ -121,8 +125,12 @@ export function ProjectDetailPage() {
   const tab = useCurrentTab();
   const { openTab } = useTabStore();
   const projectId = Number(tab?.params?.id);
+  const requestedManagementTab = tab?.params?.managementTab;
+  const initialManagementTab = isManagementTabKey(requestedManagementTab)
+    ? requestedManagementTab
+    : 'members';
   const [activeStatusTab, setActiveStatusTab] = useState<ProjectStatusCode | null>(null);
-  const [currentManagementTab, setCurrentManagementTab] = useState<ManagementTabKey>('members');
+  const [currentManagementTab, setCurrentManagementTab] = useState<ManagementTabKey>(initialManagementTab);
 
   const { data: response, isLoading, error, refetch } = useProjectDetail(projectId);
   const { data: readinessResponse } = useTransitionReadiness(projectId || undefined);

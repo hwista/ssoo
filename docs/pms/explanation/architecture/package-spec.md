@@ -12,7 +12,7 @@
 | **프로젝트명** | web-pms |
 | **경로** | `apps/web/pms/` |
 | **용도** | 프로젝트 관리 시스템 (Project Management System) |
-| **포트** | 3000 |
+| **포트** | 3002 |
 
 ---
 
@@ -142,7 +142,7 @@
 
 ```json
 {
-  "dev": "next dev --port 3000",
+  "dev": "next dev --port 3002",
   "build": "next build",
   "start": "next start",
   "lint": "next lint",

@@ -85,6 +85,8 @@ docs/
 | [공통 기술 스택](./common/explanation/architecture/tech-stack.md) | 백엔드, 데이터베이스, 공통 도구 |
 | [개발 표준](./common/explanation/architecture/development-standards.md) | 코딩 규칙 및 표준 |
 | [보안 표준](./common/explanation/architecture/security-standards.md) | 보안 정책 |
+| [설정/Admin/AI 경계](./common/explanation/architecture/settings-admin-control-plane.md) | SSOO 설정, Account/Auth, Profile, Admin/Organization, AI Control Plane, 도메인 앱 설정 책임 경계 |
+| [로컬 포트 맵](./common/explanation/architecture/local-port-map.md) | SSOO 앱별 로컬/Docker 포트와 주변 프로젝트 충돌 회피 기준 |
 | [워크플로우](./common/explanation/architecture/workflow-process.md) | 개발 프로세스 |
 
 ### PMS (Project Management System)

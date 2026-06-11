@@ -1,42 +1,36 @@
 'use client';
 
+import type { MouseEvent } from 'react';
 import { useMenuStore, useSidebarStore, useTabStore } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
 import { MenuItem } from '@/types';
 import { ChevronRight, Folder, FolderOpen, FileText, Star } from 'lucide-react';
 import { getIconComponent } from '@/lib/utils/icons';
-
-interface MenuTreeNodeProps {
-  item: MenuItem;
-  level: number;
-}
+import { SsooSidebarEmptyState, SsooSidebarTree, filterSsooSidebarTree } from '@ssoo/web-shell';
 
 /**
- * 메뉴 트리 노드
+ * 사이드바 메뉴 트리
  */
-function MenuTreeNode({ item, level }: MenuTreeNodeProps) {
-  const { expandedMenuIds, toggleMenuExpand } = useSidebarStore();
-  const { isFavorite, addFavorite, removeFavorite } = useMenuStore();
+export function MenuTree() {
+  const { generalMenus, isFavorite, addFavorite, removeFavorite } = useMenuStore();
+  const { expandedMenuIds, searchQuery, toggleMenuExpand } = useSidebarStore();
   const { tabs, activeTabId } = useTabStore();
   const openTabWithConfirm = useOpenTabWithConfirm();
-  
-  const isExpanded = expandedMenuIds.has(item.menuId);
-  const isFolder = item.menuType === 'group';
-  const hasChildren = item.children && item.children.length > 0;
-  
-  // 현재 활성 탭과 매칭되는지 확인
-  const activeTab = tabs.find(tab => tab.id === activeTabId);
-  const isActive = !isFolder && activeTab?.menuId === item.menuId;
-  
-  const CustomIcon = getIconComponent(item.icon);
-  const IconComponent = CustomIcon 
-    || (isFolder ? (isExpanded ? FolderOpen : Folder) : FileText);
+  const activeTab = tabs.find((tab) => tab.id === activeTabId);
 
-  const handleClick = async () => {
-    if (isFolder) {
+  const displayTree = searchQuery ? filterSsooSidebarTree(generalMenus, searchQuery, {
+    getNodeSearchText: (item) => [item.menuName, item.menuCode],
+    getNodeChildren: (item) => item.children ?? [],
+    cloneNodeWithChildren: (item, children) => ({ ...item, children }),
+  }) : generalMenus;
+
+  const handleNodeSelect = async (item: MenuItem) => {
+    if (item.menuType === 'group') {
       toggleMenuExpand(item.menuId);
-    } else if (item.menuPath) {
-      // 탭만 열기 (URL 변경 없음)
+      return;
+    }
+
+    if (item.menuPath) {
       await openTabWithConfirm({
         menuCode: item.menuCode,
         menuId: item.menuId,
@@ -47,129 +41,73 @@ function MenuTreeNode({ item, level }: MenuTreeNodeProps) {
     }
   };
 
-  const handleFavoriteToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleFavoriteToggle = (event: MouseEvent<HTMLButtonElement>, item: MenuItem) => {
+    event.stopPropagation();
+
     if (isFavorite(item.menuId)) {
       removeFavorite(item.menuId);
-    } else {
-      addFavorite({
-        menuId: item.menuId,
-        menuCode: item.menuCode,
-        menuName: item.menuName,
-        menuPath: item.menuPath || '',
-        icon: item.icon,
-      });
+      return;
     }
+
+    addFavorite({
+      menuId: item.menuId,
+      menuCode: item.menuCode,
+      menuName: item.menuName,
+      menuPath: item.menuPath || '',
+      icon: item.icon,
+    });
   };
 
+  if (displayTree.length === 0) {
+    return (
+      <SsooSidebarEmptyState className="px-3 py-4 text-center text-sm">
+        {searchQuery ? '검색 결과가 없습니다.' : '메뉴가 없습니다.'}
+      </SsooSidebarEmptyState>
+    );
+  }
+
   return (
-    <div>
-      <div
-        onClick={handleClick}
-        className={`flex items-center gap-1 w-full h-control-h px-2 text-sm rounded-md transition-colors cursor-pointer group ${
-          isActive 
-            ? 'bg-ssoo-content-border text-ssoo-primary font-medium' 
-            : 'hover:bg-ssoo-sitemap-bg text-gray-700'
-        }`}
-        style={{ paddingLeft: `${8 + level * 16}px` }}
-      >
-        {/* 폴더 확장/축소 아이콘 */}
-        {isFolder && hasChildren ? (
-          <ChevronRight
-            className={`w-4 h-4 flex-shrink-0 text-gray-400 transition-transform ${
-              isExpanded ? 'rotate-90' : ''
-            }`}
-          />
-        ) : (
-          <span className="w-4 h-4 flex-shrink-0" />
-        )}
+    <SsooSidebarTree<MenuItem>
+      nodes={displayTree}
+      getNodeId={(item) => item.menuId}
+      getNodeLabel={(item) => item.menuName}
+      getNodeTitle={(item) => item.menuName}
+      getNodeChildren={(item) => item.children ?? []}
+      isNodeFolder={(item) => item.menuType === 'group'}
+      isNodeExpanded={(item) => expandedMenuIds.has(item.menuId)}
+      isNodeActive={(item) => item.menuType !== 'group' && activeTab?.menuId === item.menuId}
+      getNodeIcon={(item, state) => {
+        const CustomIcon = getIconComponent(item.icon);
+        return CustomIcon || (state.folder ? (state.expanded ? FolderOpen : Folder) : FileText);
+      }}
+      renderNodeTrailingAction={(item, state) => {
+        if (state.folder) {
+          return null;
+        }
 
-        {/* 메뉴 아이콘 */}
-        <IconComponent className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+        const favorite = isFavorite(item.menuId);
 
-        {/* 메뉴명 */}
-        <span className={`flex-1 truncate ${isActive ? 'text-ssoo-primary' : 'text-gray-700'}`}>{item.menuName}</span>
-
-        {/* 즐겨찾기 버튼 (메뉴만) */}
-        {!isFolder && (
+        return (
           <button
-            onClick={handleFavoriteToggle}
-            className={`opacity-0 group-hover:opacity-100 h-control-h-sm w-control-h-sm flex items-center justify-center hover:bg-gray-200 rounded transition-opacity ${
-              isFavorite(item.menuId) ? 'opacity-100' : ''
+            type="button"
+            onClick={(event) => handleFavoriteToggle(event, item)}
+            className={`flex h-control-h-sm w-control-h-sm items-center justify-center rounded opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100 ${
+              favorite ? 'opacity-100' : ''
             }`}
+            aria-label={favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
           >
             <Star
-              className={`w-3.5 h-3.5 ${
-                isFavorite(item.menuId)
+              className={`h-3.5 w-3.5 ${
+                favorite
                   ? 'fill-yellow-400 text-yellow-400'
                   : 'text-gray-400'
               }`}
             />
           </button>
-        )}
-      </div>
-
-      {/* 자식 메뉴 */}
-      {isFolder && hasChildren && isExpanded && (
-        <div>
-          {item.children?.map((child) => (
-            <MenuTreeNode key={child.menuId} item={child} level={level + 1} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * 검색어에 따라 메뉴 트리 필터링
- */
-function filterMenuTree(items: MenuItem[], query: string): MenuItem[] {
-  if (!query.trim()) return items;
-  
-  const lowerQuery = query.toLowerCase();
-  
-  return items.reduce<MenuItem[]>((acc, item) => {
-    const matchesName = item.menuName.toLowerCase().includes(lowerQuery);
-    const matchesCode = item.menuCode.toLowerCase().includes(lowerQuery);
-    
-    // 자식 필터링
-    const filteredChildren = item.children ? filterMenuTree(item.children, query) : [];
-    
-    // 본인이 매치되거나, 자식 중 매치되는 게 있으면 포함
-    if (matchesName || matchesCode || filteredChildren.length > 0) {
-      acc.push({
-        ...item,
-        children: filteredChildren.length > 0 ? filteredChildren : item.children,
-      });
-    }
-    
-    return acc;
-  }, []);
-}
-
-/**
- * 사이드바 메뉴 트리
- */
-export function MenuTree() {
-  const { generalMenus } = useMenuStore();
-  const { searchQuery } = useSidebarStore();
-  
-  const displayTree = searchQuery ? filterMenuTree(generalMenus, searchQuery) : generalMenus;
-
-  if (displayTree.length === 0) {
-    return (
-      <div className="px-3 py-4 text-sm text-gray-400 text-center">
-        {searchQuery ? '검색 결과가 없습니다.' : '메뉴가 없습니다.'}
-      </div>
-    );
-  }
-
-  return (
-    <div className="py-1">
-      {displayTree.map((item) => (
-        <MenuTreeNode key={item.menuId} item={item} level={0} />
-      ))}
-    </div>
+        );
+      }}
+      onNodeSelect={handleNodeSelect}
+      disclosureIcon={ChevronRight}
+    />
   );
 }

@@ -10,9 +10,9 @@ export default function DmsSettingsPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">DMS 설정 inspector</h1>
+          <h1 className="text-2xl font-bold text-foreground">DMS 설정 관측</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            런타임 경로 바인딩 / Git 메타 / 정규화된 설정. 민감 필드는 자동 마스킹됩니다.
+            DMS 세부 시스템 설정·제어·운영은 DMS가 소유합니다. Admin에서는 런타임 경로 바인딩 / Git 메타 / 정규화된 설정을 read-only로 확인하며 민감 필드는 자동 마스킹됩니다.
           </p>
         </div>
         <button

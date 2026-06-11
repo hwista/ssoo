@@ -74,7 +74,6 @@ const DMS_FEATURE_PERMISSION_CODES = {
   canManageTemplates: 'dms.template.manage',
   canUseAssistant: 'dms.assistant.use',
   canUseSearch: 'dms.search.use',
-  canManageSettings: 'dms.settings.manage',
   canManageStorage: 'dms.storage.manage',
   canUseGit: 'dms.git.use',
 };
@@ -486,6 +485,13 @@ async function verifyDmsRuntime(baseUrl, runtimeAccessToken, runtimeInspection) 
     runtimeInspection.action.policy.hasSystemOverride,
     'DMS access snapshot',
   );
+  const expectedCanManageSettings = runtimeInspection.subject?.roleCode === 'admin';
+  if (accessSnapshot.features.canManageSettings !== expectedCanManageSettings) {
+    throw new Error(
+      `DMS access snapshot canManageSettings=${String(accessSnapshot.features.canManageSettings)} `
+      + `이지만 expected=${String(expectedCanManageSettings)} 입니다.`,
+    );
+  }
   assertPolicyTrace(
     accessSnapshot.policy,
     runtimeInspection.action.policy,
@@ -525,14 +531,26 @@ async function verifyDmsRuntime(baseUrl, runtimeAccessToken, runtimeInspection) 
     }
   }
 
-  const dmsSettingsExpectedStatus = accessSnapshot.features.canManageSettings ? [200] : [403];
-  await fetchSuccessData(
-    `${baseUrl}/dms/settings`,
+  const settingsSnapshot = await fetchSuccessData(
+    `${baseUrl}/dms/settings?includeRuntime=1`,
     authHeaders(runtimeAccessToken),
-    dmsSettingsExpectedStatus,
+    [200],
     '/dms/settings',
-    { allowNonSuccessEnvelope: !accessSnapshot.features.canManageSettings },
   );
+  if (!settingsSnapshot?.config?.personal) {
+    throw new Error('/dms/settings personal 설정이 반환되지 않았습니다.');
+  }
+  if (accessSnapshot.features.canManageSettings) {
+    if (!settingsSnapshot.config.system || settingsSnapshot.runtime == null) {
+      throw new Error('/dms/settings admin 설정 snapshot 에 system/runtime 이 필요합니다.');
+    }
+  } else if (
+    settingsSnapshot.config.system != null
+    || settingsSnapshot.runtime != null
+    || settingsSnapshot.access?.canManageSystem !== false
+  ) {
+    throw new Error('/dms/settings 일반 사용자 snapshot 에 system/runtime 이 노출되었습니다.');
+  }
 
   if (!accessSnapshot.features.canUseGit) {
     console.log('→ verify: DMS git forbidden');
@@ -960,7 +978,7 @@ function printDryRun(config) {
   console.log('planned checks:');
   console.log('1. admin login');
   console.log('2. /users/profile legacy field contract');
-  console.log('3. /access/ops/inspect success for admin/system.override subject');
+  console.log('3. /access/ops/inspect success for admin subject');
   if (config.skipRuntime) {
     console.log('4. runtime PMS/SNS/DMS verification skipped');
   } else {

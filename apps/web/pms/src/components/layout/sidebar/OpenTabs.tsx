@@ -3,6 +3,7 @@
 import { useTabStore } from '@/stores';
 import { X } from 'lucide-react';
 import { getIconComponent } from '@/lib/utils/icons';
+import { SsooSidebarEmptyState, SsooSidebarList, SsooSidebarListItem } from '@ssoo/web-shell';
 
 /**
  * 사이드바 현재 열린 탭 목록
@@ -16,50 +17,44 @@ export function OpenTabs() {
 
   if (openTabs.length === 0) {
     return (
-      <div className="px-3 py-2 text-xs text-gray-400">
+      <SsooSidebarEmptyState>
         열린 페이지가 없습니다.
-      </div>
+      </SsooSidebarEmptyState>
     );
   }
 
   return (
-    <div className="space-y-0.5">
+    <SsooSidebarList padded={false}>
       {openTabs.map((tab) => {
         const IconComponent = getIconComponent(tab.icon);
         const isActive = tab.id === activeTabId;
 
         return (
-          <div
+          <SsooSidebarListItem
             key={tab.id}
-            className={`flex items-center gap-2 w-full h-control-h px-3 text-sm rounded-md transition-colors group ${
-              isActive
-                ? 'bg-ssoo-content-border text-ssoo-primary font-medium'
-                : 'text-gray-700 hover:bg-ssoo-sitemap-bg'
-            }`}
-          >
-            <button
-              onClick={() => activateTab(tab.id)}
-              className="flex items-center gap-2 flex-1 min-w-0"
-            >
-              {IconComponent && (
-                <IconComponent className="w-4 h-4 flex-shrink-0" />
-              )}
-              <span className="truncate">{tab.title}</span>
-            </button>
-              {tab.closable && (
+            icon={IconComponent ?? undefined}
+            label={tab.title}
+            title={tab.title}
+            active={isActive}
+            onSelect={() => activateTab(tab.id)}
+            trailingAction={
+              tab.closable ? (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(tab.id);
                   }}
-                  className="opacity-0 group-hover:opacity-100 h-control-h-sm w-control-h-sm flex items-center justify-center hover:bg-gray-200 rounded transition-opacity"
+                  className="flex h-control-h-sm w-control-h-sm items-center justify-center rounded opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
+                  aria-label={`${tab.title} 닫기`}
                 >
-                <X className="w-3 h-3 text-gray-500" />
-              </button>
-            )}
-          </div>
+                  <X className="h-3 w-3 text-gray-500" />
+                </button>
+              ) : null
+            }
+          />
         );
       })}
-    </div>
+    </SsooSidebarList>
   );
 }

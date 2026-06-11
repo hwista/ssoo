@@ -120,6 +120,46 @@
 \i 33_pr_project_role_permission_h_trigger.sql
 
 \echo ''
+\echo '-- PMS project foundation expansion --'
+\echo ''
+
+\echo 'Installing: pr_handoff_h trigger...'
+\i 34_pr_handoff_h_trigger.sql
+
+\echo 'Installing: pr_contract_h trigger...'
+\i 35_pr_contract_h_trigger.sql
+
+\echo 'Installing: pr_contract_payment_h trigger...'
+\i 36_pr_contract_payment_h_trigger.sql
+
+\echo 'Installing: pr_objective_h trigger...'
+\i 37_pr_objective_h_trigger.sql
+
+\echo 'Installing: pr_wbs_h trigger...'
+\i 38_pr_wbs_h_trigger.sql
+
+\echo 'Installing: pr_project_org_r_h trigger...'
+\i 39_pr_project_org_r_h_trigger.sql
+
+\echo 'Installing: pr_project_relation_r_h trigger...'
+\i 40_pr_project_relation_r_h_trigger.sql
+
+\echo 'Installing: pr_requirement_h trigger...'
+\i 41_pr_requirement_h_trigger.sql
+
+\echo 'Installing: pr_risk_h trigger...'
+\i 42_pr_risk_h_trigger.sql
+
+\echo 'Installing: pr_change_request_h trigger...'
+\i 43_pr_change_request_h_trigger.sql
+
+\echo 'Installing: pr_event_h trigger...'
+\i 44_pr_event_h_trigger.sql
+
+\echo 'Installing: pr_project_issue_h trigger...'
+\i 54_pr_project_issue_h_trigger.sql
+
+\echo ''
 \echo '-- DMS (Document Management System) --'
 \echo ''
 
@@ -159,9 +199,6 @@
 
 \echo 'Installing: sns_user_profile_h trigger...'
 \i 53_sns_user_profile_h_trigger.sql
-
-\echo 'Installing: pr_project_issue_h trigger...'
-\i 54_pr_project_issue_h_trigger.sql
 
 \echo '=========================================='
 \echo 'All triggers installed successfully!'

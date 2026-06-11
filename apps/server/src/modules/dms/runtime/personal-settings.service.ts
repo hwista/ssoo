@@ -190,7 +190,7 @@ class PersonalSettingsService {
     return {
       identity: {
         displayName: legacyAuthor.name || 'Anonymous',
-        email: legacyAuthor.email || 'anonymous@dms.local',
+        email: legacyAuthor.email || 'anonymous@documents.local',
       },
       workspace: {
         defaultSettingsScope: 'system',

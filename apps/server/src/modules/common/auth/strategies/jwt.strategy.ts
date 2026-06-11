@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { TokenPayload } from '../interfaces/auth.interface.js';
 import { UserService } from '../../user/user.service.js';
 import { AccessFoundationService } from '../../access/access-foundation.service.js';
+import { DatabaseService } from '../../../../database/database.service.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -14,6 +15,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     private readonly accessFoundationService: AccessFoundationService,
+    private readonly db: DatabaseService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -39,6 +41,37 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return normalized.length > 0 ? normalized : undefined;
   }
 
+  private async assertSessionIsValid(payload: TokenPayload, userId: bigint): Promise<void> {
+    if (!payload.sessionId) {
+      this.logger.warn(`Access token missing sessionId for user: ${payload.userId}`);
+      throw new UnauthorizedException('유효하지 않은 세션입니다.');
+    }
+
+    const session = await this.db.client.userSession.findUnique({
+      where: { sessionId: payload.sessionId },
+    });
+
+    if (!session) {
+      this.logger.warn(`Session not found: ${payload.sessionId}`);
+      throw new UnauthorizedException('유효하지 않은 세션입니다.');
+    }
+
+    if (session.userId !== userId) {
+      this.logger.warn(`Session user mismatch for session: ${payload.sessionId}`);
+      throw new UnauthorizedException('유효하지 않은 세션입니다.');
+    }
+
+    if (session.revokedAt) {
+      this.logger.warn(`Session revoked: ${payload.sessionId}`);
+      throw new UnauthorizedException('만료된 세션입니다. 다시 로그인하세요.');
+    }
+
+    if (session.expiresAt < new Date()) {
+      this.logger.warn(`Session expired: ${payload.sessionId}`);
+      throw new UnauthorizedException('만료된 세션입니다. 다시 로그인하세요.');
+    }
+  }
+
   async validate(payload: TokenPayload): Promise<TokenPayload> {
     this.logger.debug(`Validating JWT payload: ${JSON.stringify(payload)}`);
 
@@ -53,6 +86,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const [user, organizationIds] = await Promise.all([
       this.userService.findAuthUserById(userId),
       this.accessFoundationService.getUserOrganizationIds(userId),
+      this.assertSessionIsValid(payload, userId),
     ]);
     if (!user) {
       this.logger.warn(`User not found: ${payload.userId}`);
@@ -68,7 +102,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: payload.userId,
       loginId: user.loginId,
       userName: user.userName,
-      roleCode: user.roleCode,
       organizationIds: organizationIds.map((orgId) => orgId.toString()),
       // 현재 공통 런타임에서 안정적으로 해석되는 principal membership 은 organization 까지다.
       // team/group membership source 가 연결되면 payload 주입만으로 ACL matching 경로를 재사용할 수 있다.

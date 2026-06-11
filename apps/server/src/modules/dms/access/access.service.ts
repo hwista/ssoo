@@ -21,7 +21,7 @@ const FEATURE_ERROR_MESSAGES: Record<DmsFeatureKey, string> = {
   canManageTemplates: '템플릿을 관리할 권한이 없습니다.',
   canUseAssistant: 'AI 기능을 사용할 권한이 없습니다.',
   canUseSearch: '검색 기능을 사용할 권한이 없습니다.',
-  canManageSettings: '설정 화면에 접근할 권한이 없습니다.',
+  canManageSettings: 'DMS 시스템 설정을 관리할 권한이 없습니다.',
   canManageStorage: '외부 저장소를 관리할 권한이 없습니다.',
   canUseGit: 'Git 기능을 사용할 권한이 없습니다.',
 };
@@ -45,10 +45,15 @@ export class AccessService {
 
   async getAccessSnapshot(user: TokenPayload): Promise<DmsAccessSnapshot> {
     const accessContext = await this.accessFoundationService.resolveActionPermissionContext(user);
+    const canManageSettings = accessContext.roleCode === 'admin';
+
     if (accessContext.policy.hasSystemOverride) {
       return {
         isAuthenticated: true,
-        features: buildFeatureAccess(true),
+        features: {
+          ...buildFeatureAccess(true),
+          canManageSettings,
+        },
         policy: accessContext.policy,
       };
     }
@@ -61,7 +66,7 @@ export class AccessService {
         canManageTemplates: accessContext.grantedPermissionCodes.has(DMS_PERMISSION_CODES.manageTemplates),
         canUseAssistant: accessContext.grantedPermissionCodes.has(DMS_PERMISSION_CODES.useAssistant),
         canUseSearch: accessContext.grantedPermissionCodes.has(DMS_PERMISSION_CODES.useSearch),
-        canManageSettings: accessContext.grantedPermissionCodes.has(DMS_PERMISSION_CODES.manageSettings),
+        canManageSettings,
         canManageStorage: accessContext.grantedPermissionCodes.has(DMS_PERMISSION_CODES.manageStorage),
         canUseGit: accessContext.grantedPermissionCodes.has(DMS_PERMISSION_CODES.useGit),
       },

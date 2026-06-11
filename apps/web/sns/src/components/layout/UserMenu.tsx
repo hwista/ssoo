@@ -1,8 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Settings } from 'lucide-react';
-import { AuthUserMenu } from '@ssoo/web-auth';
+import { AuthUserMenu, useSharedLogout } from '@ssoo/web-auth';
 import { LOGIN_PATH } from '@/lib/constants/routes';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -12,12 +11,12 @@ interface UserMenuProps {
 
 export function UserMenu({ dropdownWidth }: UserMenuProps) {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace(LOGIN_PATH);
-  };
+  const user = useAuthStore((state) => state.user);
+  const handleLogout = useSharedLogout({
+    authStore: useAuthStore,
+    navigate: (path) => router.replace(path),
+    loginPath: LOGIN_PATH,
+  });
 
   return (
     <AuthUserMenu
@@ -25,14 +24,7 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
       dropdownWidth={dropdownWidth}
       onLogout={handleLogout}
       secondaryLabel={user?.displayName ?? user?.userName ?? null}
-      actions={[
-        {
-          key: 'settings',
-          label: '설정',
-          icon: Settings,
-          onSelect: () => router.push('/settings'),
-        },
-      ]}
+      accountCenter={{ snsAppUrl: process.env.NEXT_PUBLIC_SNS_APP_URL }}
     />
   );
 }

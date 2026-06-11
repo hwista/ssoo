@@ -47,11 +47,11 @@ services:
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       DMS_INSTANCE_ENV: ${DMS_INSTANCE_ENV:-prod}
-      DMS_MARKDOWN_ROOT: ${DMS_MARKDOWN_ROOT:-/var/lib/ssoo/dms/documents}
-      DMS_INGEST_QUEUE_PATH: ${DMS_INGEST_QUEUE_PATH:-/var/lib/ssoo/dms/ingest}
-      DMS_STORAGE_LOCAL_BASE_PATH: ${DMS_STORAGE_LOCAL_BASE_PATH:-/var/lib/ssoo/dms/storage/local}
-      DMS_STORAGE_SHAREPOINT_BASE_PATH: ${DMS_STORAGE_SHAREPOINT_BASE_PATH:-/sites/dms/shared-documents}
-      DMS_STORAGE_NAS_BASE_PATH: ${DMS_STORAGE_NAS_BASE_PATH:-/mnt/nas/dms}
+      DMS_MARKDOWN_ROOT: ${DMS_MARKDOWN_ROOT:-/var/lib/ssoo/documents}
+      DMS_INGEST_QUEUE_PATH: ${DMS_INGEST_QUEUE_PATH:-/var/lib/ssoo/document-ingest}
+      DMS_STORAGE_LOCAL_BASE_PATH: ${DMS_STORAGE_LOCAL_BASE_PATH:-/var/lib/ssoo/document-storage/local}
+      DMS_STORAGE_SHAREPOINT_BASE_PATH: ${DMS_STORAGE_SHAREPOINT_BASE_PATH:-/sites/documents/shared-documents}
+      DMS_STORAGE_NAS_BASE_PATH: ${DMS_STORAGE_NAS_BASE_PATH:-/mnt/nas/documents}
       DMS_GIT_PROD_REMOTE_URL: ${DMS_GIT_PROD_REMOTE_URL:-http://10.125.31.72:8010/LSITC_WEB/LSWIKI_DOC.git}
       DMS_GIT_DEV_REMOTE_URL: ${DMS_GIT_DEV_REMOTE_URL:-git@10.125.31.72:LSITC_WEB/LSWIKI_DOC_DEV.git}
       DMS_GIT_BOOTSTRAP_REMOTE_URL: ${DMS_GIT_BOOTSTRAP_REMOTE_URL:-}
@@ -68,9 +68,9 @@ services:
       AZURE_MANAGED_IDENTITY_CLIENT_ID: ${AZURE_MANAGED_IDENTITY_CLIENT_ID:-}
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
     volumes:
-      - ${DMS_MARKDOWN_HOST_PATH:-./.runtime/dms/documents}:${DMS_MARKDOWN_ROOT:-/var/lib/ssoo/dms/documents}
-      - ${DMS_INGEST_HOST_PATH:-./.runtime/dms/ingest}:${DMS_INGEST_QUEUE_PATH:-/var/lib/ssoo/dms/ingest}
-      - ${DMS_STORAGE_LOCAL_HOST_PATH:-./.runtime/dms/storage/local}:${DMS_STORAGE_LOCAL_BASE_PATH:-/var/lib/ssoo/dms/storage/local}
+      - ${DMS_MARKDOWN_HOST_PATH:-./.runtime/documents}:${DMS_MARKDOWN_ROOT:-/var/lib/ssoo/documents}
+      - ${DMS_INGEST_HOST_PATH:-./.runtime/document-ingest}:${DMS_INGEST_QUEUE_PATH:-/var/lib/ssoo/document-ingest}
+      - ${DMS_STORAGE_LOCAL_HOST_PATH:-./.runtime/document-storage/local}:${DMS_STORAGE_LOCAL_BASE_PATH:-/var/lib/ssoo/document-storage/local}
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -92,47 +92,18 @@ services:
       dockerfile: apps/web/pms/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${PMS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
         PMS_SERVER_API_URL: ${PMS_SERVER_API_URL:-http://server:4000/api}
     container_name: ssoo-pms
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      NEXT_PUBLIC_API_URL: ${PMS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
-      PMS_SERVER_API_URL: ${PMS_SERVER_API_URL:-http://server:4000/api}
-    depends_on:
-      server:
-        condition: service_healthy
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-
-  sns:
-    build:
-      context: .
-      dockerfile: apps/web/sns/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${SNS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
-        SNS_SERVER_API_URL: ${SNS_SERVER_API_URL:-http://server:4000/api}
-    container_name: ssoo-sns
     restart: unless-stopped
     ports:
       - "3002:3002"
     environment:
       NODE_ENV: production
       PORT: 3002
-      NEXT_PUBLIC_API_URL: ${SNS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
-      SNS_SERVER_API_URL: ${SNS_SERVER_API_URL:-http://server:4000/api}
+      NEXT_PUBLIC_API_URL: ${PMS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
+      PMS_SERVER_API_URL: ${PMS_SERVER_API_URL:-http://server:4000/api}
     depends_on:
       server:
         condition: service_healthy
@@ -148,26 +119,25 @@ services:
       timeout: 5s
       retries: 20
 
-  dms:
+  sns:
     build:
       context: .
-      dockerfile: apps/web/dms/Dockerfile
-    container_name: ssoo-dms
+      dockerfile: apps/web/sns/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${SNS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
+        SNS_SERVER_API_URL: ${SNS_SERVER_API_URL:-http://server:4000/api}
+    container_name: ssoo-sns
     restart: unless-stopped
     ports:
-      - "3001:3001"
-    env_file:
-      - path: ./apps/web/dms/.env.local
-        required: false
+      - "3004:3004"
     environment:
       NODE_ENV: production
-      PORT: 3001
-      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
-      DMS_DATABASE_URL: ${DOCKER_DMS_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
-      DMS_SERVER_API_URL: ${DMS_SERVER_API_URL:-http://server:4000/api}
+      PORT: 3004
+      NEXT_PUBLIC_API_URL: ${SNS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
+      SNS_SERVER_API_URL: ${SNS_SERVER_API_URL:-http://server:4000/api}
     depends_on:
-      postgres:
-        condition: service_healthy
       server:
         condition: service_healthy
     healthcheck:
@@ -176,27 +146,35 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3001').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3004').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
       retries: 20
 
-  admin:
+  dms:
     build:
       context: .
-      dockerfile: apps/web/admin/Dockerfile
+      dockerfile: apps/web/dms/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${ADMIN_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
-    container_name: ssoo-admin
+        NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
+    container_name: ssoo-dms
     restart: unless-stopped
     ports:
       - "3003:3003"
+    env_file:
+      - path: ./apps/web/dms/.env.local
+        required: false
     environment:
       NODE_ENV: production
       PORT: 3003
-      NEXT_PUBLIC_API_URL: ${ADMIN_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
+      DMS_DATABASE_URL: ${DOCKER_DMS_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
+      DMS_SERVER_API_URL: ${DMS_SERVER_API_URL:-http://server:4000/api}
+      NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
     depends_on:
+      postgres:
+        condition: service_healthy
       server:
         condition: service_healthy
     healthcheck:
@@ -211,23 +189,24 @@ services:
       timeout: 5s
       retries: 20
 
-
-  crm:
+  admin:
     build:
       context: .
-      dockerfile: apps/web/crm/Dockerfile
+      dockerfile: apps/web/admin/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${CRM_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
-        CRM_SERVER_API_URL: ${CRM_SERVER_API_URL:-http://server:4000/api}
-    container_name: ssoo-crm
+        NEXT_PUBLIC_API_URL: ${ADMIN_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        ADMIN_SERVER_API_URL: ${ADMIN_SERVER_API_URL:-http://server:4000/api}
+        NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
+    container_name: ssoo-admin
     restart: unless-stopped
     ports:
-      - "3004:3004"
+      - "3000:3000"
     environment:
       NODE_ENV: production
-      PORT: 3004
-      NEXT_PUBLIC_API_URL: ${CRM_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
-      CRM_SERVER_API_URL: ${CRM_SERVER_API_URL:-http://server:4000/api}
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${ADMIN_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      ADMIN_SERVER_API_URL: ${ADMIN_SERVER_API_URL:-http://server:4000/api}
+      NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
     depends_on:
       server:
         condition: service_healthy
@@ -237,7 +216,41 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3004').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3000').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+
+  crm:
+    build:
+      context: .
+      dockerfile: apps/web/crm/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${CRM_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+        CRM_SERVER_API_URL: ${CRM_SERVER_API_URL:-http://server:4000/api}
+        NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
+    container_name: ssoo-crm
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      NEXT_PUBLIC_API_URL: ${CRM_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      CRM_SERVER_API_URL: ${CRM_SERVER_API_URL:-http://server:4000/api}
+      NEXT_PUBLIC_SNS_APP_URL: ${NEXT_PUBLIC_SNS_APP_URL:-http://localhost:3004}
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s

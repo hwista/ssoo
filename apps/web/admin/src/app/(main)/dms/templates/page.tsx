@@ -44,9 +44,9 @@ export default function DmsTemplatesPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">DMS 템플릿 관리</h1>
+          <h1 className="text-2xl font-bold text-foreground">DMS 템플릿 현황</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            관리자용 템플릿 목록. 키/경로 검색, 스코프 / 종류 / 상태 / 활성 여부 필터를 지원합니다.
+            플랫폼 운영자용 read-only 템플릿 현황입니다. DMS 템플릿 설정·제어 owner는 DMS이며, 이 화면은 키/경로 검색, 스코프 / 종류 / 상태 / 활성 여부 필터만 제공합니다.
           </p>
         </div>
         <button

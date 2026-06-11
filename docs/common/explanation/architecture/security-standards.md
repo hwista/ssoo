@@ -49,9 +49,12 @@ export const passwordSchema = z.string()
 // auth/guards/roles.guard.ts
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private accessFoundationService: AccessFoundationService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>('roles', [
       context.getHandler(),
       context.getClass(),
@@ -59,7 +62,10 @@ export class RolesGuard implements CanActivate {
     if (!requiredRoles) return true;
     
     const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.includes(user.roleCode);
+    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user);
+    return requiredRoles.includes('admin')
+      ? actionContext.policy.hasSystemOverride
+      : false;
   }
 }
 ```
@@ -268,4 +274,3 @@ app.use(helmet({
 | Date | Change |
 |------|--------|
 | 2026-02-09 | Add changelog section. |
-

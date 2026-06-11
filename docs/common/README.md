@@ -44,6 +44,11 @@ PMS와 DMS 모두에 공통 적용되는 개발 표준, 가이드, 아키텍처 
 | [development-standards.md](explanation/architecture/development-standards.md) | 개발 표준 (계층 구조, SRP, 컴포넌트 설계) |
 | [security-standards.md](explanation/architecture/security-standards.md) | 보안 표준 (인증, 인가, 데이터 보호) |
 | [auth-system.md](explanation/architecture/auth-system.md) | 인증 시스템 (JWT, 토큰 갱신, 보안 정책) |
+| [auth-profile-boundary.md](explanation/architecture/auth-profile-boundary.md) | Account/Auth + Admin + SNS Profile 책임 경계와 앱별 로그인 wrapper 기준 |
+| [user-lifecycle-commonization.md](explanation/architecture/user-lifecycle-commonization.md) | SSOO 5앱 공용 사용자 생명주기 완료 기준과 logout/session-revoke acceptance gate |
+| [user-lifecycle-commonization-plan.md](explanation/architecture/user-lifecycle-commonization-plan.md) | 공용 사용자 생명주기 적용을 위한 단계별 구현 계획 |
+| [settings-admin-control-plane.md](explanation/architecture/settings-admin-control-plane.md) | SSOO 설정/Admin/Auth/Profile/AI/DMS 책임 경계와 Admin 후속 구현 체크리스트 |
+| [local-port-map.md](explanation/architecture/local-port-map.md) | SSOO 로컬/Docker 포트 정본과 주변 프로젝트 충돌 회피 기준 |
 | [workflow-process.md](explanation/architecture/workflow-process.md) | 개발 작업 프로세스 (코드→문서→커밋) |
 | [docs-management.md](explanation/architecture/docs-management.md) | 문서 관리 전략 (자동/수동 구분) |
 | [docs-structure-plan.md](explanation/architecture/docs-structure-plan.md) | 문서 구조 계획 |

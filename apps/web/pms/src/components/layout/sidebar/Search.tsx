@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooSidebarSearchBox } from '@ssoo/web-shell';
 import { useSidebarStore } from '@/stores';
 import { Search as SearchIcon, X } from 'lucide-react';
 
@@ -11,23 +12,22 @@ export function Search() {
   const { searchQuery, setSearchQuery, clearSearch } = useSidebarStore();
 
   return (
-    <div className="relative flex-1">
-      <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-      <input
-        type="text"
-        placeholder="메뉴 검색..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full h-control-h pl-8 pr-3 text-sm border border-ssoo-content-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ssoo-primary focus:border-transparent"
-      />
-      {searchQuery && (
-        <button
-          onClick={clearSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 h-control-h-sm w-control-h-sm flex items-center justify-center hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      )}
-    </div>
+    <SsooSidebarSearchBox
+      placeholder="메뉴 검색..."
+      value={searchQuery}
+      onChange={setSearchQuery}
+      iconSlot={<SearchIcon className="h-4 w-4 text-gray-400" />}
+      trailingSlot={
+        searchQuery ? (
+          <button
+            type="button"
+            onClick={clearSearch}
+            className="absolute right-2 top-1/2 flex h-control-h-sm w-control-h-sm -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : null
+      }
+    />
   );
 }

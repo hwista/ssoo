@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SERVER_DIR="$ROOT_DIR/apps/server"
 LOCAL_ENV_FILE="${DMS_LOCAL_TEST_ENV_FILE:-$ROOT_DIR/.env.local-test}"
-EXPECTED_INGEST_PATH="$ROOT_DIR/.runtime/dms/ingest"
-EXPECTED_STORAGE_PATH="$ROOT_DIR/.runtime/dms/storage/local"
+EXPECTED_INGEST_PATH="$ROOT_DIR/.runtime/document-ingest"
+EXPECTED_STORAGE_PATH="$ROOT_DIR/.runtime/document-storage/local"
 
 fail() {
   echo "[dms-local-test] $*" >&2
@@ -66,8 +66,8 @@ case "$DMS_MARKDOWN_ROOT" in
     ;;
 esac
 
-if [ "$DMS_MARKDOWN_ROOT" = "$ROOT_DIR/.runtime/dms/documents" ]; then
-  fail "DMS_MARKDOWN_ROOT must not point back to .runtime/dms/documents."
+if [ "$DMS_MARKDOWN_ROOT" = "$ROOT_DIR/.runtime/documents" ]; then
+  fail "DMS_MARKDOWN_ROOT must not point back to .runtime/documents."
 fi
 
 mkdir -p "$DMS_MARKDOWN_ROOT" "$DMS_INGEST_QUEUE_PATH" "$DMS_STORAGE_LOCAL_BASE_PATH"

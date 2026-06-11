@@ -7,7 +7,7 @@ import { useOpenDocumentTab, useOpenTabWithConfirm } from '@/hooks';
 import { getFileNodeDisplayTitle } from '@/lib/utils/fileTree';
 import { resolveDocPath } from '@/lib/utils/linkUtils';
 import type { BookmarkItem } from '@/types';
-import { FlatList, FlatListItem } from './FlatList';
+import { SsooSidebarEmptyState, SsooSidebarList, SsooSidebarListItem } from '@ssoo/web-shell';
 
 type ResolvedBookmarkItem = BookmarkItem & {
   documentPath: string | null;
@@ -63,9 +63,9 @@ export function Bookmarks() {
 
   if (resolvedBookmarks.length === 0) {
     return (
-      <div className="px-3 py-2 text-caption text-gray-400">
+      <SsooSidebarEmptyState>
         책갈피가 없습니다.
-      </div>
+      </SsooSidebarEmptyState>
     );
   }
 
@@ -95,17 +95,18 @@ export function Bookmarks() {
   };
 
   return (
-    <FlatList>
+    <SsooSidebarList>
       {resolvedBookmarks.map((bookmark) => {
         const isActive = bookmark.documentPath
           ? bookmark.documentPath === activeDocumentPath
           : bookmark.id === activeTabId;
 
         return (
-          <FlatListItem
+          <SsooSidebarListItem
             key={bookmark.id}
             icon={FileText}
             label={bookmark.title}
+            title={bookmark.title}
             active={isActive}
             onSelect={() => {
               void handleClick(bookmark);
@@ -123,6 +124,6 @@ export function Bookmarks() {
           />
         );
       })}
-    </FlatList>
+    </SsooSidebarList>
   );
 }

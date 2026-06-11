@@ -4,13 +4,24 @@ import { useQuery } from '@tanstack/react-query';
 import { accessOpsApi } from '@/lib/api/endpoints/accessOps';
 import type { InspectAccessParams, ListExceptionsParams } from '@/lib/api/endpoints/accessOps';
 
+const ACCESS_OPS_ALL = ['access-ops'] as const;
+
 export const accessOpsKeys = {
-  all: ['access-ops'] as const,
+  all: ACCESS_OPS_ALL,
+  catalog: () => [...ACCESS_OPS_ALL, 'catalog'] as const,
   inspect: (params?: InspectAccessParams | null) =>
-    [...accessOpsKeys.all, 'inspect', params] as const,
+    [...ACCESS_OPS_ALL, 'inspect', params] as const,
   exceptions: (params?: ListExceptionsParams | null) =>
-    [...accessOpsKeys.all, 'exceptions', params] as const,
+    [...ACCESS_OPS_ALL, 'exceptions', params] as const,
 };
+
+export function usePermissionCatalog(enabled: boolean = true) {
+  return useQuery({
+    queryKey: accessOpsKeys.catalog(),
+    queryFn: () => accessOpsApi.catalog(),
+    enabled,
+  });
+}
 
 export function useInspectAccess(
   params?: InspectAccessParams | null,

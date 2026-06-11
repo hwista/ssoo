@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 항목 | 값 |
 |------|-----|
 | 구조 | pnpm workspace + Turborepo |
-| 앱 | `apps/server` (NestJS, 4000), `apps/web/pms` (Next.js, 3000), `apps/web/sns` (Next.js, 3002), `apps/web/dms` (Next.js, 3001), `apps/web/admin` (Next.js, 3003) |
+| 앱 | `apps/server` (NestJS, 4000), `apps/web/admin` (Next.js, 3000), `apps/web/crm` (Next.js, 3001), `apps/web/pms` (Next.js, 3002), `apps/web/dms` (Next.js, 3003), `apps/web/sns` (Next.js, 3004) |
 | 공유 패키지 | `packages/database` (Prisma), `packages/types`, `packages/web-auth`, `packages/web-shell` |
 | 아키텍처 | 모듈러 모놀리스 (도메인별 모듈 분리: common/pms/dms/sns) |
 
@@ -174,10 +174,11 @@ src/app/api/*/route.ts → server/handlers/*.handler.ts → server/services/*/
 |----|--------|------|------|
 | 전체 | `pnpm dev` | - | 모든 워크스페이스 dev 스크립트 병렬 실행 (turbo) |
 | server | `pnpm dev:server` | 4000 | NestJS |
-| web-pms | `pnpm dev:web-pms` | 3000 | Next.js |
-| web-dms | `pnpm dev:web-dms` | 3001 | Next.js |
-| web-sns | `pnpm dev:web-sns` | 3002 | Next.js |
-| web-admin | `pnpm dev:web-admin` | 3003 | Next.js |
+| web-admin | `pnpm dev:web-admin` | 3000 | Next.js |
+| web-crm | `pnpm dev:web-crm` | 3001 | Next.js |
+| web-pms | `pnpm dev:web-pms` | 3002 | Next.js |
+| web-dms | `pnpm dev:web-dms` | 3003 | Next.js |
+| web-sns | `pnpm dev:web-sns` | 3004 | Next.js |
 
 ### 앱별 빌드 / 린트 / 타입 체크
 

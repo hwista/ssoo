@@ -16,6 +16,7 @@ interface PermissionExceptionBuckets {
 interface PermissionResolutionContext {
   grantedPermissionCodes: Set<string>;
   policy: PermissionResolutionTrace;
+  roleCode: string | null;
 }
 
 interface ResolveObjectPermissionContextOptions {
@@ -91,6 +92,7 @@ export class AccessFoundationService {
 
     return {
       grantedPermissionCodes,
+      roleCode,
       policy: this.createPolicyTrace({
         hasSystemOverride,
         grantedPermissionCodes,
@@ -134,6 +136,7 @@ export class AccessFoundationService {
 
     return {
       grantedPermissionCodes,
+      roleCode: actionContext.roleCode,
       policy: {
         ...actionContext.policy,
         grantedPermissionCodes: this.toSortedCodes(grantedPermissionCodes),
@@ -176,7 +179,7 @@ export class AccessFoundationService {
     return Array.from(new Set(codes ?? [])).sort((left, right) => left.localeCompare(right));
   }
 
-  private async getCurrentRoleCode(userId: bigint): Promise<string | null> {
+  async getCurrentRoleCode(userId: bigint): Promise<string | null> {
     const user = await this.db.user.findUnique({
       where: { id: userId },
       select: {

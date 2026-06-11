@@ -128,6 +128,24 @@ export type {
   UpdateCustomerDto,
 } from './customer';
 
+// Home
+export type {
+  PmsHomeRelation,
+  PmsHomeCapabilityKey,
+  PmsHomeActionKind,
+  PmsHomeTargetTab,
+  PmsHomeAllowedAction,
+  PmsHomeSignalKind,
+  PmsHomeSignalSeverity,
+  PmsHomeSignal,
+  PmsHomeRelationCounts,
+  PmsHomeMetrics,
+  PmsHomeFlowItem,
+  PmsHomeRecentChange,
+  PmsHomeAccessProject,
+  PmsHomeSummary,
+} from './home';
+
 // Access
 export type {
   PmsAccessType,

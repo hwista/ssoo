@@ -14,7 +14,7 @@
 --
 --   3. git.repositoryPath: 문서 루트 경로.
 --      Docker 환경에서는 DMS_MARKDOWN_ROOT 환경변수가 우선 적용됩니다.
---      compose.yaml 기본값: /var/lib/ssoo/dms/documents
+--      compose.yaml 기본값: /var/lib/ssoo/documents
 --
 --   4. 이 시드는 ON CONFLICT DO NOTHING이므로 이미 설정이 있으면
 --      덮어쓰지 않습니다. 기존 설정 변경은 DMS 설정 UI를 사용하세요.
@@ -30,25 +30,25 @@ VALUES (
   '_system_',
   '{
     "git": {
-      "repositoryPath": "../../../.runtime/dms/documents",
+      "repositoryPath": "../../../.runtime/documents",
       "bootstrapRemoteUrl": "",
       "bootstrapBranch": "",
       "autoInit": true
     },
     "storage": {
       "defaultProvider": "sharepoint",
-      "local": { "enabled": true, "basePath": "../../../.runtime/dms/storage/local" },
-      "sharepoint": { "enabled": true, "basePath": "/sites/dms/shared-documents", "webBaseUrl": "https://sharepoint.local" },
-      "nas": { "enabled": true, "basePath": "/mnt/nas/dms", "webBaseUrl": "file:///mnt/nas/dms" }
+      "local": { "enabled": true, "basePath": "../../../.runtime/document-storage/local" },
+      "sharepoint": { "enabled": true, "basePath": "/sites/documents/shared-documents", "webBaseUrl": "https://sharepoint.local" },
+      "nas": { "enabled": true, "basePath": "/mnt/nas/documents", "webBaseUrl": "file:///mnt/nas/documents" }
     },
-    "ingest": { "queuePath": "../../../.runtime/dms/ingest", "autoPublish": false, "maxConcurrentJobs": 2 },
+    "ingest": { "queuePath": "../../../.runtime/document-ingest", "autoPublish": false, "maxConcurrentJobs": 2 },
     "templates": {},
     "extraction": { "maxTextLength": 12000, "maxImages": 5, "maxImageSizeMb": 1, "pdfMaxRenderPages": 3, "pdfRenderScale": 1.0 },
     "uploads": { "attachmentMaxSizeMb": 20, "imageMaxSizeMb": 10 },
     "search": { "maxResults": 100, "semanticThreshold": 0.5, "chunkSize": 1000, "chunkOverlap": 200, "summaryConcurrency": 3 },
     "docAssist": { "maxCurrentContentChars": 6000, "maxTemplateChars": 1500, "maxSummaryFileCount": 2, "maxSummaryFileChars": 2000, "maxImagesPerRequest": 5 },
     "m365": {
-      "sharepoint": { "tenantDomain": "", "sitePath": "/sites/dms", "defaultLibrary": "shared-documents" },
+      "sharepoint": { "tenantDomain": "", "sitePath": "/sites/documents", "defaultLibrary": "shared-documents" },
       "teams": { "enabled": false, "ingestEnabled": false, "defaultTeam": "", "defaultChannel": "", "defaultDropPath": "" },
       "auth": { "mode": "anonymous-first", "allowedTenantIds": [], "allowedDomains": [], "identityMapping": "mail" }
     }

@@ -21,6 +21,7 @@ export interface DmsFeatureAccess {
   canManageTemplates: boolean;
   canUseAssistant: boolean;
   canUseSearch: boolean;
+  /** DMS system/runtime/admin settings capability. Personal DMS preferences are controlled by settings access. */
   canManageSettings: boolean;
   canManageStorage: boolean;
   canUseGit: boolean;

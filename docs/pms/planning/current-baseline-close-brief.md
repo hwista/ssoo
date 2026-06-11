@@ -1,6 +1,6 @@
 # PMS Current Baseline-Close Brief
 
-> 최종 업데이트: 2026-04-17
+> 최종 업데이트: 2026-06-11
 > 범위: PMS 전용 baseline close 준비
 > 공통 제약: `apps/server/src/modules/common/**`, `packages/types/src/common/**`, `packages/web-auth/**`, `packages/web-shell/**`, `docs/common/**`, root instructions / root changelog / 공통 verification scripts 는 직접 수정하지 않음
 
@@ -100,33 +100,28 @@ PMS의 핵심 끊김은 구현 부족보다는 baseline close 부족입니다.
 
 현재 드러난 핵심 gap:
 
-1. `apply_all_triggers.sql` 가 PMS trigger 34-44를 설치하지 않음
-- handoff
-- contract
-- contract payment
-- objective
-- WBS
-- project org
-- project relation
-- requirement
-- risk
-- change request
-- event
+1. `apply_all_triggers.sql` PMS trigger coverage
+- 2026-06-11 기준 `34_pr_handoff_h_trigger.sql` ~ `44_pr_event_h_trigger.sql` 및 `54_pr_project_issue_h_trigger.sql` 설치 경로를 연결함
+- `verify:pms-launch` 가 해당 installer coverage 를 소스 기준으로 확인함
 
 2. schema 변화 대비 formal migration bundle 부재
 
-3. PMS 전용 verification script 1차 추가
+3. PMS 전용 verification script 확장
 현재 고정된 검증 축:
 - PM 홈 운영 포커스 surface 존재
 - 프로젝트 상세 closeout surface 존재
+- project access snapshot endpoint / hook / API surface 존재
+- org / relation compatibility API / hook surface 존재
+- objective / WBS, control domain, deliverable / close-condition API surface 존재
+- PMS trigger installer coverage 존재
 - 기본 Docker runtime 응답(server/PMS web)
 
 추가로 확장할 검증 축:
-- project access snapshot
-- org / relation compatibility rows
-- objective / WBS CRUD
-- control domain CRUD
-- deliverable / close-condition event rollup
+- runtime 데이터 기반 project access snapshot smoke
+- org / relation compatibility rows runtime smoke
+- objective / WBS CRUD runtime smoke
+- control domain CRUD runtime smoke
+- deliverable / close-condition event rollup runtime smoke
 
 4. backend/type/schema 대비 handoff/contract/payment web surface 얕음
 
@@ -139,7 +134,7 @@ PMS baseline close 는 아래가 맞아야 닫습니다.
 - `spec-reconciliation-plan.md` 를 PMS 공식 baseline 으로 참조 가능
 - backlog / roadmap / changelog 가 현재 구현 상태를 반영
 - PMS-owned file groups 가 review 가능한 묶음으로 분해됨
-- migration / trigger installer gap 이 명시됨
+- trigger installer coverage 가 검증으로 고정되고, 남은 formal migration gap 이 명시됨
 - foundation build / type validation 기준이 정해짐
 
 ---
@@ -172,5 +167,6 @@ PMS baseline close 는 아래가 맞아야 닫습니다.
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-11 | PMS trigger installer coverage 연결: handoff/contract/payment/objective/WBS/project org/relation/control/event/project issue history trigger 를 `apply_all_triggers.sql` 경로에 포함하고 `verify:pms-launch` 검증 축에 추가 |
 | 2026-06-08 | PMS 런칭 closeout 1차 보강: 홈 운영 포커스, 프로젝트 상세 closeout 패널, `verify:pms-launch` 전용 검증 명령 추가 |
 | 2026-04-17 | PMS 병렬 세션 결과를 current baseline-close brief 로 고정하고, commit grouping / migration gap / 다음 tranche 를 정리 |

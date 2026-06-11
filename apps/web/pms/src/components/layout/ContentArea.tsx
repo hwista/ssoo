@@ -8,13 +8,18 @@ import { TabContext } from '@/hooks/useCurrentTab';
 // 페이지 컴포넌트 동적 import (named export 사용)
 const pageComponents: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
   '/home': lazy(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.HomeDashboardPage }))),
+  '/my-projects': lazy(() => import('@/components/pages/work-queues/WorkQueuePages').then(m => ({ default: m.MyProjectsPage }))),
+  '/action-required': lazy(() => import('@/components/pages/work-queues/WorkQueuePages').then(m => ({ default: m.ActionRequiredPage }))),
+  '/closeout': lazy(() => import('@/components/pages/work-queues/WorkQueuePages').then(m => ({ default: m.CloseoutPage }))),
+  '/operations': lazy(() => import('@/components/pages/work-queues/WorkQueuePages').then(m => ({ default: m.OperationsOverviewPage }))),
+  // Legacy/status routes kept for existing tabs and deep state while the sidebar IA moves to work-queue entries.
   '/request': lazy(() => import('@/components/pages/request/ListPage').then(m => ({ default: m.RequestListPage }))),
   '/request/create': lazy(() => import('@/components/pages/request/CreatePage').then(m => ({ default: m.RequestCreatePage }))),
   '/proposal': lazy(() => import('@/components/pages/proposal/ListPage').then(m => ({ default: m.ProposalListPage }))),
   '/execution': lazy(() => import('@/components/pages/execution/ListPage').then(m => ({ default: m.ExecutionListPage }))),
   '/transition': lazy(() => import('@/components/pages/transition/ListPage').then(m => ({ default: m.TransitionListPage }))),
   '/project/detail': lazy(() => import('@/components/pages/project/DetailPage').then(m => ({ default: m.ProjectDetailPage }))),
-  // Admin pages
+  // Settings/Admin pages are no longer primary PMS sidebar entries; keep routable until the shared settings shell lands.
   '/admin/code': lazy(() => import('@/components/pages/admin/CodeManagementPage').then(m => ({ default: m.CodeManagementPage }))),
   '/admin/role': lazy(() => import('@/components/pages/admin/RoleManagementPage').then(m => ({ default: m.RoleManagementPage }))),
   '/admin/menu': lazy(() => import('@/components/pages/admin/MenuManagementPage').then(m => ({ default: m.MenuManagementPage }))),
@@ -23,7 +28,7 @@ const pageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
 
 /**
  * 메인 콘텐츠 영역 (Keep-Alive MDI)
- * 
+ *
  * - 모든 열린 탭의 컴포넌트를 동시에 마운트
  * - 비활성 탭은 CSS display:none으로 숨김 (DOM 유지)
  * - 탭 전환 시 unmount/remount 없이 상태 보존

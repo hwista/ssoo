@@ -31,7 +31,6 @@ export type {
 export {
   SIDEBAR_SECTION_ICONS,
   SIDEBAR_SECTION_LABELS,
-  FLOAT_PANEL_CONFIG,
 } from './sidebar';
 
 // Layout

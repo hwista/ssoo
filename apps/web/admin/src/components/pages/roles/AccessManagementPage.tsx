@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { RefreshCcw, Search, Shield, AlertTriangle, Users } from 'lucide-react';
 import type {
   AccessInspectionResult,
+  PermissionCatalogGroup,
   PermissionExceptionRecord,
   PermissionResolutionTrace,
 } from '@ssoo/types/common';
@@ -17,12 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useInspectAccess, useListExceptions } from '@/hooks/queries/useAccessOps';
+import { useInspectAccess, useListExceptions, usePermissionCatalog } from '@/hooks/queries/useAccessOps';
 import { useUserList } from '@/hooks/queries/useUsers';
 import type { InspectAccessParams, ListExceptionsParams } from '@/lib/api/endpoints/accessOps';
-import type { UserItem } from '@/lib/api/endpoints/users';
 
-type TabId = 'inspect' | 'exceptions';
+type TabId = 'catalog' | 'inspect' | 'exceptions';
 
 interface InspectDraft {
   targetObjectType: string;
@@ -256,6 +256,141 @@ function ExceptionTable({
   );
 }
 
+
+
+function AdminSummaryCard({
+  title,
+  value,
+  icon,
+}: {
+  title: string;
+  value: string | number;
+  icon: ReactNode;
+}) {
+  return (
+    <article className="rounded-lg border bg-background px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs text-muted-foreground">{title}</p>
+          <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
+        </div>
+        <div className="rounded-full border bg-muted/40 p-2 text-muted-foreground">{icon}</div>
+      </div>
+    </article>
+  );
+}
+
+function CatalogGroupCard({ group }: { group: PermissionCatalogGroup }) {
+  return (
+    <section className="space-y-3 rounded-lg border bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">{group.title}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">{group.responsibility}</p>
+        </div>
+        <span
+          className={
+            group.launchFocus
+              ? 'rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700'
+              : 'rounded-full border px-2 py-0.5 text-xs text-muted-foreground'
+          }
+        >
+          {group.launchFocus ? 'launch 검증 대상' : '개발 진행/후순위'}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-xs">Permission</TableHead>
+              <TableHead className="text-xs">기능</TableHead>
+              <TableHead className="text-xs">메뉴/노출 위치</TableHead>
+              <TableHead className="text-xs">운영 책임</TableHead>
+              <TableHead className="text-xs">상태</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {group.items.map((item) => (
+              <TableRow key={item.permissionCode}>
+                <TableCell>
+                  <div className="font-mono text-xs font-medium">{item.permissionCode}</div>
+                  <div className="text-xs text-muted-foreground">{item.permissionName}</div>
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">{item.capability}</TableCell>
+                <TableCell className="max-w-xs text-xs text-muted-foreground">{item.menuSurface}</TableCell>
+                <TableCell className="max-w-sm text-xs text-muted-foreground">{item.operationSurface}</TableCell>
+                <TableCell>
+                  <span
+                    className={
+                      item.status === 'launch-active'
+                        ? 'rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700'
+                        : item.status === 'foundation'
+                          ? 'rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700'
+                          : 'rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground'
+                    }
+                  >
+                    {item.status}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </section>
+  );
+}
+
+function CatalogTab() {
+  const catalogQuery = usePermissionCatalog();
+  const catalog = catalogQuery.data;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold">플랫폼/앱별 권한 기능 명세</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Admin은 SSOT 플랫폼/base 권한을 운영하고, DMS는 문서 도메인 내부 권한·설정·운영을 소유합니다. PMS/CRM/SNS는 앱 개발 진행에 맞춰 같은 분류로 이어갑니다.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => catalogQuery.refetch()}>
+            <RefreshCcw className="mr-1 h-3 w-3" />
+            새로고침
+          </Button>
+        </div>
+        {catalog ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <AdminSummaryCard title="전체 권한" value={catalog.summary.total} icon={<Shield className="h-4 w-4" />} />
+            <AdminSummaryCard title="런칭 검증" value={catalog.summary.launchActive} icon={<CheckIcon />} />
+            <AdminSummaryCard title="Foundation" value={catalog.summary.foundation} icon={<Users className="h-4 w-4" />} />
+            <AdminSummaryCard title="Planned" value={catalog.summary.planned} icon={<AlertTriangle className="h-4 w-4" />} />
+          </div>
+        ) : null}
+      </div>
+
+      {catalogQuery.isLoading ? (
+        <p className="text-sm text-muted-foreground">권한 명세를 불러오는 중...</p>
+      ) : catalogQuery.isError ? (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+          권한 명세를 불러오지 못했습니다.
+        </div>
+      ) : catalog ? (
+        <div className="space-y-4">
+          {catalog.groups.map((group) => (
+            <CatalogGroupCard key={group.owner} group={group} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CheckIcon() {
+  return <Shield className="h-4 w-4" />;
+}
+
 /* ────────────── Inspect Tab ────────────── */
 function InspectTab() {
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -264,7 +399,7 @@ function InspectTab() {
   const [inspectParams, setInspectParams] = useState<InspectAccessParams | null>(null);
 
   const usersQuery = useUserList();
-  const users: UserItem[] = usersQuery.data?.data ?? [];
+  const users = useMemo(() => usersQuery.data?.data ?? [], [usersQuery.data?.data]);
 
   const filteredUsers = useMemo(() => {
     if (!userSearch) return users;
@@ -622,45 +757,49 @@ function ExceptionsTab() {
 
 /* ────────────── Main Page ────────────── */
 export function AccessManagementPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('inspect');
+  const [activeTab, setActiveTab] = useState<TabId>('catalog');
+
+  const tabItems: Array<{ id: TabId; label: string; icon: typeof Shield }> = [
+    { id: 'catalog', label: '권한 기능 명세', icon: Shield },
+    { id: 'inspect', label: '권한 조회', icon: Search },
+    { id: 'exceptions', label: '예외 내역', icon: Users },
+  ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">역할 & 권한</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          시스템 공통 권한 조회 및 사용자별 예외 관리
+          Admin/platform 권한과 앱별 도메인 권한을 분류하고, 사용자별 실제 해석/예외를 검증합니다.
         </p>
       </div>
 
-      <div className="flex gap-1 rounded-lg border bg-muted/30 p-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab('inspect')}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'inspect'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Shield className="h-4 w-4" />
-          권한 조회
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('exceptions')}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'exceptions'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          예외 내역
-        </button>
+      <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/30 p-1">
+        {tabItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === item.id
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </button>
+          );
+        })}
       </div>
 
-      {activeTab === 'inspect' ? <InspectTab /> : <ExceptionsTab />}
+      {activeTab === 'catalog'
+        ? <CatalogTab />
+        : activeTab === 'inspect'
+          ? <InspectTab />
+          : <ExceptionsTab />}
     </div>
   );
 }

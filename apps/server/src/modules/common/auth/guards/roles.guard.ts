@@ -3,16 +3,14 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
-  InternalServerErrorException,
   Logger,
-  Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@ssoo/types';
-import { AccessFoundationService } from '../../access/access-foundation.service.js';
 import { ROLES_KEY } from '../decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { TokenPayload } from '../interfaces/auth.interface.js';
+import { AccessFoundationService } from '../../access/access-foundation.service.js';
 
 /**
  * 역할 기반 접근 제어 가드
@@ -34,8 +32,7 @@ export class RolesGuard implements CanActivate {
 
   constructor(
     private reflector: Reflector,
-    @Optional()
-    private readonly accessFoundationService?: AccessFoundationService,
+    private readonly accessFoundationService: AccessFoundationService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -69,26 +66,17 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('접근 권한이 없습니다.');
     }
 
-    const userRole = user.roleCode as UserRole | undefined;
+    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user);
+    const userRole = actionContext.roleCode;
     const roleMatched = Boolean(
       userRole && requiredRoles.some((role) => role !== 'admin' && role === userRole),
     );
     const adminRequested = requiredRoles.includes('admin');
-    if (adminRequested && !this.accessFoundationService) {
-      throw new InternalServerErrorException(
-        '관리자 권한 검사용 AccessFoundationService 가 연결되지 않았습니다.',
-      );
-    }
+    const systemOverrideMatched = adminRequested && actionContext.policy.hasSystemOverride;
+    const allowed = systemOverrideMatched || roleMatched;
 
-    const hasSystemOverride = adminRequested && this.accessFoundationService
-      ? (
-        await this.accessFoundationService.resolveActionPermissionContext(user)
-      ).policy.hasSystemOverride
-      : false;
-    const allowed = roleMatched || hasSystemOverride;
-
-      this.logger.debug(
-      `RolesGuard: user=${user.loginId}, role=${userRole ?? '-'}, required=${requiredRoles.join(',')}, roleMatched=${roleMatched}, systemOverride=${hasSystemOverride}, allowed=${allowed}`,
+    this.logger.debug(
+      `RolesGuard: user=${user.loginId}, role=${userRole ?? '-'}, required=${requiredRoles.join(',')}, roleMatched=${roleMatched}, adminRequested=${adminRequested}, systemOverride=${actionContext.policy.hasSystemOverride}, allowed=${allowed}`,
     );
 
     if (!allowed) {

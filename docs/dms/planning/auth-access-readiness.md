@@ -1,6 +1,6 @@
 # DMS 인증/권한 준비도
 
-> 최종 업데이트: 2026-05-20
+> 최종 업데이트: 2026-06-10
 
 ---
 
@@ -10,7 +10,7 @@
 - DMS는 **pnpm workspace 앱 + same-origin Next route handler + apps/server DMS module** 구조로 재정렬되었고, 로그인/세션 복원/feature baseline gating까지는 완료된 상태입니다.
 - 공통 auth/access validation baseline(`auth-system.md` 기준 matrix + repo-native 검증 루틴)도 고정되어, 이제 남은 핵심 리스크는 **DMS 내부 구현이 아니라 common auth/PMS/user/menu legacy cleanup cutover sequencing** 으로 이동했습니다.
 - 현재 기준에서 DMS의 auth/access 핵심 과제는 **reference domain 수준까지 완료** 되었습니다. `file/content` read/write/metadata/rename/delete, search/ask, template reference/doc-assist tree hint, 새 문서 owner default ACL, 기본 DocumentPage affordance, attachment/reference/image upload inheritance, local `storage/open` policy, validation matrix 까지 pilot enforcement가 들어갔습니다.
-- 2026-04-15 기준으로 `pnpm verify:access-dms` 가 admin 기준 temp probe document/image/attachment/local storage fixture 를 만들고 정리하면서 `files/file/content/raw/serve-attachment/search/ask/settings/git/storage/open` surface 를 fixture-driven 으로 반복 검증할 수 있습니다.
+- 2026-06-10 기준으로 `pnpm verify:access-dms` 가 admin 기준 temp probe document/image/attachment/local storage fixture 를 만들고 정리하면서 `files/file/content/raw/serve-attachment/search/ask/settings/git/storage/open` surface 를 fixture-driven 으로 반복 검증할 수 있습니다. settings 검증은 일반 사용자 `config.personal` 조회/저장 허용과 admin-only `config.system`/runtime/system update 차단을 함께 확인합니다.
 - 2026-04-13 기준으로 `/api/file/raw`, `/api/file/serve-attachment` 는 더 이상 anonymous bypass surface가 아니며, **shared session cookie -> access token 복원 -> server `canReadDocuments` 검사** 흐름으로 보강되었습니다.
 - 2026-05-20 기준으로 unreadable markdown 문서는 검색/AI 결과에서 즉시 권한 요청 팝업을 띄우지 않고 문서 화면을 열며, 서버가 전체 원문 대신 preview-only 응답을 내려 잠긴 문서 미리보기와 권한 요청 CTA를 표시합니다.
 - 다음 access readiness 잔여 리스크는 문서 화면이 아니라 **검색 결과 카드의 unreadable 원문 스니펫/키워드 노출 정책** 입니다. AI 요약은 유지하되 원문 기반 발췌는 제거하거나 preview-only 기준으로 제한해야 합니다.
@@ -26,6 +26,7 @@
 | SNS access | ✅ feature policy + content visibility/object policy 적용 | `apps/server/src/modules/sns/access/access.service.ts` | moderation / board policy 확장 |
 | DMS access | ✅ feature baseline + object ACL pilot 완료 | `apps/server/src/modules/dms/access/document-acl.service.ts`, `apps/server/src/modules/dms/file/*`, `apps/server/src/modules/dms/content/*`, `apps/server/src/modules/dms/search/*`, `apps/server/src/modules/dms/ask/*`, `apps/server/src/modules/dms/templates/*`, `apps/server/src/modules/dms/doc-assist/*`, `apps/server/src/modules/dms/storage/*`, `apps/web/dms/src/components/pages/markdown/*` | legacy cleanup 동안 regression gate 유지 |
 | DMS locked preview | ✅ unreadable markdown preview-only 완료 | `apps/server/src/modules/dms/file/*`, `apps/server/src/modules/dms/content/*`, `apps/web/dms/src/stores/editor-core.store.ts`, `apps/web/dms/src/components/pages/markdown/*` | 검색 결과 카드 스니펫/키워드 노출 정책 정리 |
+| DMS settings access | ✅ personal/system 경계 보정 완료 | `apps/server/src/modules/dms/settings/*`, `apps/web/dms/src/components/pages/settings/*`, `packages/database/prisma/seeds/15_dms_access_policy_foundation.sql` | admin-only system/runtime 설정 회귀 방지 |
 
 ## 3. DMS 현재 구현 상태
 
@@ -40,6 +41,7 @@
 - **object ACL pilot**: `DocumentMetadata.acl` 이 `file/content` read/write/metadata/rename/delete, `GET /dms/file`, `/dms/files`, `raw`, `serve-attachment`, `/dms/search`, `/dms/ask`, template reference filtering, doc-assist visible tree hint, attachment/reference/image upload inheritance, local `storage/open` 에 연결되어 unreadable document/tree/result/context와 unauthorized mutation을 차단합니다. ACL이 비어 있는 기존 문서는 feature gate fallback을 유지합니다.
 - **잠긴 문서 미리보기**: unreadable markdown read/content 경로는 전체 원문 대신 서버에서 잘라낸 preview-only 응답을 반환하고, 웹 문서 화면은 일반 편집기가 아니라 잠긴 문서 안내/미리보기/권한 요청 CTA를 표시합니다. 비마크다운 unreadable 파일은 preview 없이 기존 차단을 유지합니다.
 - **검증 baseline 고정**: login/session/access/binary/upload/search/ask/doc-assist/git/settings/storage 시나리오를 공통 matrix + repo-native 루틴(`pnpm verify:access-smoke`, `pnpm verify:access-dms`)으로 반복 검증할 수 있습니다.
+- **DMS settings personal/system split**: 인증 사용자는 `내 설정`을 열고 저장할 수 있으며, 시스템/운영 설정과 runtime snapshot은 admin 계정에서만 노출됩니다. 비-admin 설정 shell 은 시스템 설정 scope/menu/search 결과를 표시하지 않습니다.
 
 ### 3.2 아직 남아 있는 핵심 공백
 
@@ -56,7 +58,7 @@
 | Phase | 공통 cutover 목표 | DMS가 계속 확인할 것 | DMS pass 조건 |
 |-------|-------------------|----------------------|---------------|
 | Phase 0 | cleanup package freeze | readiness / auth-system / cleanup plan 의 phase 정의가 같은지 확인 | live `:4000` + `pnpm verify:access-smoke` + `pnpm verify:access-dms` green, DMS가 blocker 가 아니라 regression gate 로 명시됨 |
-| Phase 1 | PMS menu/admin parity | `/api/dms/access/me`, `/api/dms/files`, `/api/dms/search` allow 와 `/api/dms/settings`, `/api/dms/git` deny 가 그대로 유지되는지 확인 | PMS menu 작업과 무관하게 `viewer.han` 기준 DMS allow/deny 조합이 unchanged |
+| Phase 1 | PMS menu/admin parity | `/api/dms/access/me`, `/api/dms/files`, `/api/dms/search` allow 와 `/api/dms/settings` personal-only allow, system/runtime deny, `/api/dms/git` deny 가 그대로 유지되는지 확인 | PMS menu 작업과 무관하게 `viewer.han` 기준 DMS allow/deny 조합이 unchanged |
 | Phase 2 | organization bridge parity | internal/external 사용자 변경 이후에도 DMS access snapshot + file tree/search 결과가 entitlement 과 모순되지 않는지 확인 | org bridge 정리 중에도 DMS feature/object 결과가 inspect 와 같은 방향으로 유지 |
 | Phase 3 | `roleCode` token/runtime parity | login → session restore → DMS bootstrap → `raw/serve-attachment` → `search/ask` → `storage/open` 순서를 `pnpm verify:access-dms` 로 반복 검증 | `viewer.han` 및 admin 기준 DMS bootstrap/binary/search/storage 결과가 baseline 과 동일 |
 | Phase 4 | operator contract cleanup | DMS browser auth 는 계속 `userId`, `loginId` 만 사용하고, DMS route/API 가 legacy field 재의존을 만들지 않는지 확인 | DMS는 legacy user/profile field 없이도 same-origin proxy + access snapshot 계약을 유지 |
@@ -78,6 +80,7 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-10 | DMS settings access 를 일반 사용자 personal 설정 허용 + admin-only system/runtime 설정 차단 기준으로 보정 |
 | 2026-05-20 | unreadable markdown 문서에 대해 서버 preview-only 응답과 잠긴 문서 화면/권한 요청 CTA를 readiness에 반영. 런칭 전 잔여 P1로 검색 결과 카드의 unreadable 스니펫/키워드 노출 정책 정리를 명시 |
 | 2026-04-15 | `pnpm verify:access-dms` fixture-driven DMS regression script 를 추가하고, temp probe document/image/attachment/local storage fixture 기반으로 `files/file/content/raw/serve-attachment/search/ask/settings/git/storage/open` surface 를 반복 검증하는 gate 를 readiness 에 반영 |
 | 2026-04-15 | Phase 3~5 closeout 상태를 반영해 `roleCode` token/runtime cleanup, operator contract slimming, user schema tail cleanup 이후에도 DMS가 regression gate 로 동일하게 동작해야 함을 명시 |

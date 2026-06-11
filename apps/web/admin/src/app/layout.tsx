@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { Providers } from './providers';
+import '../../../../../packages/web-shell/src/styles/ssoo-global.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'SSOO Admin',
-  description: '시스템 관리 포탈',
+  title: 'SSOT Admin | 플랫폼 관리',
+  description: 'SSOT 플랫폼 관리 허브',
 };
 
 export default function RootLayout({

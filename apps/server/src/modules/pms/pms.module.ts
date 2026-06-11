@@ -6,11 +6,12 @@ import { DeliverableModule } from './deliverable/deliverable.module.js';
 import { IssueModule } from './issue/issue.module.js';
 import { MemberModule } from './member/member.module.js';
 import { MenuModule } from './menu/menu.module.js';
+import { HomeModule } from './home/home.module.js';
 import { ProjectModule } from './project/project.module.js';
 import { TaskModule } from './task/task.module.js';
 
 @Module({
-  imports: [CodeModule, ControlModule, CustomerModule, DeliverableModule, IssueModule, MemberModule, MenuModule, ProjectModule, TaskModule],
-  exports: [CodeModule, ControlModule, CustomerModule, DeliverableModule, IssueModule, MemberModule, MenuModule, ProjectModule, TaskModule],
+  imports: [CodeModule, ControlModule, CustomerModule, DeliverableModule, HomeModule, IssueModule, MemberModule, MenuModule, ProjectModule, TaskModule],
+  exports: [CodeModule, ControlModule, CustomerModule, DeliverableModule, HomeModule, IssueModule, MemberModule, MenuModule, ProjectModule, TaskModule],
 })
 export class PmsModule {}

@@ -11,7 +11,7 @@ import type {
 export const HOME_TAB = {
   menuCode: 'HOME',
   menuId: 'home',
-  title: 'Home',
+  title: '홈',
   icon: 'Home',
   path: '/home',
   closable: false,

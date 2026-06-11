@@ -2,7 +2,7 @@
 
 > 최종 업데이트: 2026-04-17
 
-> 현행화: 2026-06-08 14:50 KST — 현재 repo-wide closeout 는 DMS 파일 목록 초기 기동 장애 방지, CMS 제거/SNS+CRM workspace rebaseline, PMS launch-readiness updates, GitHub `main` + GitLab workspace `development` publish 절차를 함께 닫는 slice 로 취급한다. DMS는 `verify:access-dms:raw` 및 hydration focused spec 이 green 이며, 다음 작업은 신규 기능보다 publish 후 원격 정렬/런타임 smoke 재확인이다.
+> 현행화: 2026-06-08 14:50 KST — 현재 repo-wide closeout 는 DMS 파일 목록 초기 기동 장애 방지, legacy content-app naming removal, SNS/CRM workspace rebaseline, PMS launch-readiness updates, GitHub `main` + GitLab workspace `development` publish 절차를 함께 닫는 slice 로 취급한다. DMS는 `verify:access-dms:raw` 및 hydration focused spec 이 green 이며, 다음 작업은 신규 기능보다 publish 후 원격 정렬/런타임 smoke 재확인이다.
 
 > 상위 문서:
 > - `docs/common/explanation/architecture/current-tranche-execution-contract.md`

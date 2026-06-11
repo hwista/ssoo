@@ -29,9 +29,11 @@ pnpm db:setup
 
 접속:
 
-- PMS: `http://localhost:3000`
-- DMS: `http://localhost:3001`
-- SNS: `http://localhost:3002`
+- Admin: `http://localhost:3000`
+- CRM: `http://localhost:3001`
+- PMS: `http://localhost:3002`
+- DMS: `http://localhost:3003`
+- SNS: `http://localhost:3004`
 - Server health: `http://localhost:4000/api/health`
 
 직접 DMS 개발 서버가 필요하면 대안으로 `pnpm dev:web-dms`를 사용할 수 있습니다.
@@ -110,7 +112,7 @@ DMS_DATABASE_URL=
 
 ### Direct-run local-test profile (document repo isolation)
 
-로컬에서 DMS Git/save/publish 테스트를 할 때는 `LSWIKI/.runtime/dms/documents` 를 markdown working tree로 쓰지 않습니다. 대신 문서 Git working tree만 repo 밖으로 분리하고, ingest/storage는 기존 `.runtime` 경로를 유지합니다.
+로컬에서 DMS Git/save/publish 테스트를 할 때는 `LSWIKI/.runtime/documents` 를 markdown working tree로 쓰지 않습니다. 대신 문서 Git working tree만 repo 밖으로 분리하고, ingest/storage는 기존 `.runtime` 경로를 유지합니다.
 
 - supported direct-run entrypoint: `pnpm run dms:local-test:start`
 - tracked launcher: `.codex/scripts/dms-local-test-start.sh`
@@ -123,8 +125,8 @@ DMS_DATABASE_URL=
 ```bash
 DMS_INSTANCE_ENV=local-test
 DMS_MARKDOWN_ROOT=$HOME/dev/LSWIKI_DOC_LOCAL
-DMS_INGEST_QUEUE_PATH=/absolute/path/to/LSWIKI/.runtime/dms/ingest
-DMS_STORAGE_LOCAL_BASE_PATH=/absolute/path/to/LSWIKI/.runtime/dms/storage/local
+DMS_INGEST_QUEUE_PATH=/absolute/path/to/LSWIKI/.runtime/document-ingest
+DMS_STORAGE_LOCAL_BASE_PATH=/absolute/path/to/LSWIKI/.runtime/document-storage/local
 DMS_GIT_BOOTSTRAP_REMOTE_URL=
 DMS_GIT_BOOTSTRAP_BRANCH=master
 ```
@@ -204,10 +206,10 @@ pnpm run codex:workspace-publish
 
 ## 6. 문제 해결
 
-### 포트 충돌 (3001)
+### 포트 충돌 (3003)
 
 ```bash
-lsof -ti:3001 | xargs kill -9
+lsof -ti:3003 | xargs kill -9
 ```
 
 ### 빌드 캐시 이슈

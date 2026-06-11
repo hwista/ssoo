@@ -1,5 +1,3 @@
-import type { DocumentType } from '@/types/layout';
-
 export const BREAKPOINTS = {
   mobile: 768,
   desktop: 768,
@@ -8,6 +6,7 @@ export const BREAKPOINTS = {
 export const LAYOUT_SIZES = {
   sidebar: {
     expandedWidth: 340,
+    collapsedWidth: 56,
   },
   header: {
     height: 60,
@@ -22,9 +21,4 @@ export const LAYOUT_SIZES = {
     inset: 16,
     overlayWidth: 504,
   },
-} as const;
-
-export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  doc: 'DOC',
-  dev: 'DEV',
 } as const;

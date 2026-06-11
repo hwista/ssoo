@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { SsooHeader, SsooHeaderActionButton, SsooHeaderSearchBox } from '@ssoo/web-shell';
 import { Search, Plus } from 'lucide-react';
 import { useAccessStore, useTabStore } from '@/stores';
 import { UserMenu } from './UserMenu';
@@ -72,41 +73,36 @@ export function Header() {
   }, [canWriteDocuments, openTab]);
 
   return (
-    <header className="h-header-h flex items-center justify-between px-4 bg-ssoo-primary">
-      {/* 왼쪽: 검색 */}
-      <div className="flex items-center flex-1 max-w-md gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleSearch}
-            placeholder="찾고 싶은 내용을 자유롭게 물어보세요!"
-            disabled={!canUseSearch}
-            className="w-full h-control-h rounded-lg border border-white/20 bg-white/10 pl-9 pr-4 text-body-sm text-white placeholder-white/50 focus:border-white/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          />
+    <SsooHeader
+      mode="primary"
+      searchSlot={
+        <SsooHeaderSearchBox
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onKeyDown={handleSearch}
+          placeholder="문서·지식 검색..."
+          disabled={!canUseSearch}
+          iconSlot={<Search className="h-4 w-4 text-white/50" />}
+        />
+      }
+      actionsSlot={
+        <div ref={actionsRef} className="flex items-center gap-2">
+          <SsooHeaderActionButton
+            type="button"
+            onClick={handleCreateDocument}
+            disabled={!canWriteDocuments}
+            tone="primary-on-color"
+            title="새 문서를 작성합니다."
+          >
+            <Plus className="h-4 w-4" />
+            <span>새 문서</span>
+          </SsooHeaderActionButton>
+
+          <HeaderNotifications />
+
+          <UserMenu dropdownWidth={actionsWidth} />
         </div>
-      </div>
-
-      {/* 오른쪽: 액션 버튼들 */}
-      <div ref={actionsRef} className="flex items-center gap-2">
-        {/* 새 도큐먼트 */}
-        <button
-          type="button"
-          onClick={handleCreateDocument}
-          disabled={!canWriteDocuments}
-          className="flex items-center gap-1 h-control-h px-3 bg-white text-ssoo-primary text-label-md rounded-md hover:bg-gray-100 transition-colors disabled:cursor-not-allowed disabled:bg-white/70 disabled:text-ssoo-primary/60"
-        >
-          <Plus className="w-4 h-4" />
-          <span>새 도큐먼트</span>
-        </button>
-
-        <HeaderNotifications />
-
-        {/* 사용자 프로필 */}
-        <UserMenu dropdownWidth={actionsWidth} />
-      </div>
-    </header>
+      }
+    />
   );
 }

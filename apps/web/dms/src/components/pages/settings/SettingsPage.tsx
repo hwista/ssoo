@@ -3,15 +3,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Check, RotateCcw } from 'lucide-react';
+import {
+  SsooSettingsBanner,
+  SsooSettingsMainPanel,
+  SsooSettingsPendingSummary,
+  SsooSettingsSurface,
+  SsooSettingsViewModeTabs,
+} from '@ssoo/web-shell';
 import { JsonDiffView, JsonEditor } from '@/components/common/json';
 import { ErrorState, LoadingSpinner } from '@/components/common/StateDisplay';
-import { Button } from '@/components/ui/button';
 import { PageTemplate } from '@/components/templates';
 import type { HeaderAction } from '@/components/templates/page-frame';
 import { templateApi } from '@/lib/api/endpoints/templates';
 import { templateKeys, useTemplateList } from '@/hooks/queries/useTemplates';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
-import { useAccessStore, useSettingsShellStore, useSettingsStore } from '@/stores';
+import { useSettingsShellStore, useSettingsStore } from '@/stores';
 import {
   SETTING_SECTIONS,
   SETTINGS_SCOPE_LABELS,
@@ -46,6 +52,7 @@ export function SettingsPage() {
     error,
     loadSettings,
     updateSettings,
+    access: settingsAccess,
     runtime,
   } = useSettingsStore();
   const {
@@ -56,10 +63,8 @@ export function SettingsPage() {
     setSection,
     setViewMode,
   } = useSettingsShellStore();
-  const canManageSettings = useAccessStore((state) => state.snapshot?.features.canManageSettings ?? false);
-  const canViewOwnAccessRequests = useAccessStore((state) => state.snapshot?.features.canUseSearch ?? false);
-  const canOperateDocumentAccess = useAccessStore((state) => state.snapshot?.features.canReadDocuments ?? false);
-  const canUseAccessCenter = canViewOwnAccessRequests || canOperateDocumentAccess;
+  const canManageSystemSettings = Boolean(settingsAccess?.canManageSystem ?? false);
+  const canManagePersonalSettings = Boolean(settingsAccess?.canManagePersonal ?? true);
   const queryClient = useQueryClient();
 
   const [localConfig, setLocalConfig] = useState<Record<string, unknown>>({});
@@ -77,24 +82,24 @@ export function SettingsPage() {
   const runtimeSectionIds = useMemo(() => new Set(['git', 'storage', 'ingest', 'templates-runtime']), []);
 
   useEffect(() => {
-    if (!canManageSettings || activeSectionId === 'documentAccess') {
+    if (activeSectionId === 'documentAccess') {
       return;
     }
-    const includeRuntime = runtimeSectionIds.has(activeSectionId);
+    const includeRuntime = canManageSystemSettings && runtimeSectionIds.has(activeSectionId);
     if (isLoaded && (!includeRuntime || runtime)) {
       return;
     }
     void loadSettings(includeRuntime);
-  }, [activeSectionId, canManageSettings, isLoaded, loadSettings, runtime, runtimeSectionIds]);
+  }, [activeSectionId, canManageSystemSettings, isLoaded, loadSettings, runtime, runtimeSectionIds]);
 
   useEffect(() => {
-    if (canManageSettings || !canUseAccessCenter) {
+    if (!isLoaded || canManageSystemSettings) {
       return;
     }
-    if (activeScope !== 'system' || activeSectionId !== 'documentAccess') {
-      openSection('system', 'documentAccess');
+    if (activeScope === 'system') {
+      openSection('personal', 'identity');
     }
-  }, [activeScope, activeSectionId, canManageSettings, canUseAccessCenter, openSection]);
+  }, [activeScope, canManageSystemSettings, isLoaded, openSection]);
 
   useEffect(() => {
     if (!config) return;
@@ -111,21 +116,34 @@ export function SettingsPage() {
 
   const allScopeSections = useMemo(() => getSettingSectionsByScope(activeScope), [activeScope]);
   const scopeSections = useMemo(() => {
-    if (canManageSettings) {
+    if (canManageSystemSettings) {
       return allScopeSections;
     }
-    if (activeScope === 'system' && canUseAccessCenter) {
-      return allScopeSections.filter((section) => section.id === 'documentAccess');
+    if (activeScope === 'personal' && canManagePersonalSettings) {
+      return allScopeSections;
     }
     return [];
-  }, [activeScope, allScopeSections, canManageSettings, canUseAccessCenter]);
+  }, [activeScope, allScopeSections, canManagePersonalSettings, canManageSystemSettings]);
   const currentSection = useMemo(() => {
     return scopeSections.find((section) => section.id === activeSectionId) ?? scopeSections[0];
   }, [activeSectionId, scopeSections]);
   const isCustomSection = currentSection?.kind === 'custom';
-  const isAccessCenterSection = currentSection?.slotKey === 'document-access';
   const isAdminTemplateSection = currentSection?.slotKey === 'admin-templates';
   const isReadOnlySection = currentSection?.id === 'git';
+  const currentSectionItems = useMemo(() => {
+    if (!currentSection || canManageSystemSettings || currentSection.id !== 'workspace') {
+      return currentSection?.items ?? [];
+    }
+    return currentSection.items.map((item) => {
+      if (item.key !== 'personal.workspace.defaultSettingsScope') {
+        return item;
+      }
+      return {
+        ...item,
+        options: item.options?.filter((option) => option.value === 'personal'),
+      };
+    });
+  }, [canManageSystemSettings, currentSection]);
   const templateListQuery = useTemplateList({
     enabled: isAdminTemplateSection,
   });
@@ -175,13 +193,20 @@ export function SettingsPage() {
     return buildKeyToLabelMap(SETTING_SECTIONS);
   }, []);
 
+  const editableSections = useMemo(() => {
+    if (canManageSystemSettings) {
+      return SETTING_SECTIONS;
+    }
+    return SETTING_SECTIONS.filter((section) => section.scope === 'personal');
+  }, [canManageSystemSettings]);
+
   const modifiedKeys = useMemo(() => {
-    return getModifiedKeys(SETTING_SECTIONS, comparableConfig, originalConfig);
-  }, [comparableConfig, originalConfig]);
+    return getModifiedKeys(editableSections, comparableConfig, originalConfig);
+  }, [comparableConfig, editableSections, originalConfig]);
 
   const validationErrors = useMemo(() => {
-    return getValidationErrors(SETTING_SECTIONS, comparableConfig);
-  }, [comparableConfig]);
+    return getValidationErrors(editableSections, comparableConfig);
+  }, [comparableConfig, editableSections]);
 
   const currentSectionOriginalText = useMemo(() => {
     if (!currentSection || !supportsJsonModes) return '{}';
@@ -261,13 +286,13 @@ export function SettingsPage() {
       setJsonDraft(buildSectionJsonDraft(resolved.config, currentSection.jsonPath));
     }
 
-    if (Object.keys(getValidationErrors(SETTING_SECTIONS, workingConfig)).length > 0) {
+    if (Object.keys(getValidationErrors(editableSections, workingConfig)).length > 0) {
       return;
     }
 
     setSaveSuccess(false);
     let success = true;
-    let payload = buildSettingsUpdatePayload(modifiedKeys, workingConfig, SETTING_SECTIONS);
+    let payload = buildSettingsUpdatePayload(modifiedKeys, workingConfig, editableSections);
 
     if (supportsJsonModes && activeViewMode === 'json') {
       payload = mergeSettingsPayloads(
@@ -291,6 +316,7 @@ export function SettingsPage() {
     activeViewMode,
     comparableConfig,
     currentSection,
+    editableSections,
     modifiedKeys,
     resolveConfigFromJsonDraft,
     supportsJsonModes,
@@ -414,15 +440,13 @@ export function SettingsPage() {
   }, [currentSection, runtime?.paths]);
 
   const topStatusBanner = error ? (
-    <div className="mb-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-body-sm text-destructive">
-      <AlertCircle className="h-4 w-4 shrink-0" />
-      <span>{error}</span>
-    </div>
+    <SsooSettingsBanner tone="danger" leadingSlot={<AlertCircle className="h-4 w-4" />}>
+      {error}
+    </SsooSettingsBanner>
   ) : saveSuccess ? (
-    <div className="mb-3 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-body-sm text-emerald-700">
-      <Check className="h-4 w-4 shrink-0" />
-      <span>설정을 저장했습니다.</span>
-    </div>
+    <SsooSettingsBanner tone="success" leadingSlot={<Check className="h-4 w-4" />}>
+      설정을 저장했습니다.
+    </SsooSettingsBanner>
   ) : null;
 
   const pendingLabels = useMemo(() => {
@@ -470,56 +494,32 @@ export function SettingsPage() {
   }, [activeViewMode, handleReset, handleSave, hasChanges, hasValidationErrors, isCustomSection, isReadOnlySection, isSaving, parsedJsonDraft.success, pendingLabels.length]);
 
   const viewerRightSlot = currentSection && supportsJsonModes ? (
-    <div className="flex items-center gap-2">
-      {(['structured', 'json', 'diff'] as const).map((mode) => {
-        if (!supportsJsonModes && mode !== 'structured') return null;
-        const isActive = activeViewMode === mode;
-        return (
-          <Button
-            key={mode}
-            variant={isActive ? 'default' : 'outline'}
-            size="default"
-            onClick={() => handleViewModeChange(mode)}
-            className={isActive ? 'text-white' : 'text-ssoo-primary'}
-          >
-            {SETTINGS_VIEW_MODE_LABELS[mode]}
-          </Button>
-        );
-      })}
-    </div>
+    <SsooSettingsViewModeTabs
+      value={activeViewMode}
+      options={(['structured', 'json', 'diff'] as const).map((mode) => ({
+        value: mode,
+        label: SETTINGS_VIEW_MODE_LABELS[mode],
+      }))}
+      onChange={handleViewModeChange}
+    />
   ) : null;
 
   if (!currentSection) {
-    if (!canManageSettings && !canUseAccessCenter) {
-      return (
-        <PageTemplate
-          filePath="settings"
-          mode="viewer"
-          description="권한 요청/승인 또는 설정 권한이 필요합니다."
-          panelMode="hidden"
-        >
-          <div className="flex h-full items-center justify-center">
-            <ErrorState error="권한 요청/승인 또는 설정 화면을 사용할 권한이 없습니다." />
-          </div>
-        </PageTemplate>
-      );
-    }
-
     return (
       <PageTemplate
-        filePath="settings/documentAccess"
+        filePath="settings"
         mode="viewer"
-        description="권한 요청/승인 화면으로 이동 중입니다."
+        description="사용 가능한 설정 메뉴가 없습니다."
         panelMode="hidden"
       >
         <div className="flex h-full items-center justify-center">
-          <LoadingSpinner message="권한 요청/승인 화면으로 이동 중입니다." className="text-ssoo-primary/70" />
+          <ErrorState error="사용 가능한 설정 메뉴가 없습니다." />
         </div>
       </PageTemplate>
     );
   }
 
-  if (!canManageSettings && !isAccessCenterSection) {
+  if (!canManageSystemSettings && currentSection.scope !== 'personal') {
     return (
       <PageTemplate
         filePath="settings"
@@ -545,78 +545,73 @@ export function SettingsPage() {
       panelMode="hidden"
       contentMaxWidth={null}
     >
-      <section className="flex h-full min-h-0 gap-4 overflow-hidden">
-        <SettingsNavigation
-          title={SETTINGS_SCOPE_LABELS[activeScope]}
-          sections={scopeSections}
-          activeSectionId={currentSection.id}
-          onSelect={setSection}
-        />
+      <SsooSettingsSurface
+        navigationSlot={
+          <SettingsNavigation
+            title={SETTINGS_SCOPE_LABELS[activeScope]}
+            sections={scopeSections}
+            activeSectionId={currentSection.id}
+            onSelect={setSection}
+          />
+        }
+      >
+        <SsooSettingsMainPanel>
+          {topStatusBanner}
 
-        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-ssoo-content-border bg-white">
-          <main className="h-full min-h-0 overflow-y-auto p-4">
-            {canManageSettings ? topStatusBanner : null}
+          {hasChanges && pendingLabels.length > 0 && (
+            <SsooSettingsPendingSummary labels={pendingLabels} />
+          )}
 
-            {hasChanges && pendingLabels.length > 0 && (
-              <section className="mb-3 rounded-md border border-ssoo-content-border bg-ssoo-content-bg/50 px-3 py-2">
-                <p className="text-badge text-ssoo-primary">저장 예정 항목</p>
-                <p className="mt-1 text-caption text-ssoo-primary/80">
-                  {pendingLabels.join(', ')}
-                </p>
-              </section>
-            )}
+          {runtimePathSurface}
+          {currentSection.id === 'git' && <GitObservabilitySurface git={runtime?.git ?? null} />}
 
-            {runtimePathSurface}
-            {currentSection.id === 'git' && <GitObservabilitySurface git={runtime?.git ?? null} />}
-
-            {isLoading && !isCustomSection ? (
-              <div className="flex min-h-full items-center justify-center">
-                <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
-              </div>
-            ) : isCustomSection && currentSection.slotKey ? (
-              <SettingsCustomSlot
-                slotKey={currentSection.slotKey}
-                templates={templates}
-                isLoadingTemplates={isLoadingTemplates}
-                templateDraft={templateDraft}
-                setTemplateDraft={setTemplateDraft}
-                onSave={() => {
-                  void handleTemplateSave();
-                }}
-                onDelete={(template) => {
-                  void handleTemplateDelete(template);
-                }}
-              />
-            ) : activeViewMode === 'json' ? (
-              <JsonEditor
-                value={jsonDraft}
-                onChange={(nextValue) => {
-                  setJsonDraft(nextValue);
-                  if (jsonError) setJsonError(null);
-                }}
-                errorMessage={!parsedJsonDraft.success ? parsedJsonDraft.error : jsonError}
-                className="min-h-[480px]"
-              />
-            ) : activeViewMode === 'diff' ? (
-              <JsonDiffView
-                originalText={currentSectionOriginalText}
-                currentText={currentSectionComparableText}
-                className="min-h-[480px]"
-              />
-            ) : (
-              <SettingsFieldList
-                items={currentSection.items}
-                localConfig={comparableConfig}
-                originalConfig={originalConfig}
-                validationErrors={validationErrors}
-                getValue={getNestedValue}
-                onChange={handleStructuredChange}
-                readOnly={isReadOnlySection}
-              />
-            )}
-          </main>
-        </div>
-      </section>
+          {isLoading && !isCustomSection ? (
+            <div className="flex min-h-full items-center justify-center">
+              <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
+            </div>
+          ) : isCustomSection && currentSection.slotKey ? (
+            <SettingsCustomSlot
+              slotKey={currentSection.slotKey}
+              templates={templates}
+              isLoadingTemplates={isLoadingTemplates}
+              templateDraft={templateDraft}
+              setTemplateDraft={setTemplateDraft}
+              onSave={() => {
+                void handleTemplateSave();
+              }}
+              onDelete={(template) => {
+                void handleTemplateDelete(template);
+              }}
+            />
+          ) : activeViewMode === 'json' ? (
+            <JsonEditor
+              value={jsonDraft}
+              onChange={(nextValue) => {
+                setJsonDraft(nextValue);
+                if (jsonError) setJsonError(null);
+              }}
+              errorMessage={!parsedJsonDraft.success ? parsedJsonDraft.error : jsonError}
+              className="min-h-[480px]"
+            />
+          ) : activeViewMode === 'diff' ? (
+            <JsonDiffView
+              originalText={currentSectionOriginalText}
+              currentText={currentSectionComparableText}
+              className="min-h-[480px]"
+            />
+          ) : (
+            <SettingsFieldList
+              items={currentSectionItems}
+              localConfig={comparableConfig}
+              originalConfig={originalConfig}
+              validationErrors={validationErrors}
+              getValue={getNestedValue}
+              onChange={handleStructuredChange}
+              readOnly={isReadOnlySection}
+            />
+          )}
+        </SsooSettingsMainPanel>
+      </SsooSettingsSurface>
     </PageTemplate>
   );
 }

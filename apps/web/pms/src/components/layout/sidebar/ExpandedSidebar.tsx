@@ -1,13 +1,18 @@
 'use client';
 
 import type { SidebarSection as SidebarSectionType } from '@/types';
-import { Star, Layers, FolderTree, RefreshCw, Shield } from 'lucide-react';
+import { ChevronDown, ChevronRight, Star, Layers, FolderTree, RefreshCw, Shield } from 'lucide-react';
+import {
+  SsooSidebarSection,
+  SsooSidebarSectionChevron,
+  SsooSidebarToolbar,
+  SsooSidebarToolbarAction,
+} from '@ssoo/web-shell';
 import { Search } from './Search';
 import { Favorites } from './Favorites';
 import { OpenTabs } from './OpenTabs';
 import { MenuTree } from './MenuTree';
 import { AdminMenu } from './AdminMenu';
-import { Section } from './Section';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMenuStore } from '@/stores';
 
@@ -33,65 +38,64 @@ export function ExpandedSidebar({
 
   return (
     <div className="flex flex-col h-full">
-      {/* 검색 + 새로고침 (고정) */}
-      <div className="p-2 border-b border-gray-200 flex-shrink-0">
+      <SsooSidebarToolbar>
         <div className="flex items-center gap-1">
           <Search />
-          <button
+          <SsooSidebarToolbarAction
+            label="새로고침"
+            icon={RefreshCw}
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="h-control-h w-control-h flex items-center justify-center hover:bg-ssoo-sitemap-bg rounded-lg transition-colors disabled:opacity-50"
-            title="새로고침"
-          >
-            <RefreshCw
-              className={`w-4 h-4 text-ssoo-primary ${isRefreshing ? 'animate-spin' : ''}`}
-            />
-          </button>
+            loading={isRefreshing}
+          />
         </div>
-      </div>
+      </SsooSidebarToolbar>
 
-      {/* 스크롤 영역 (검색란 아래) */}
       <ScrollArea variant="sidebar" className="flex-1">
-        {/* 즐겨찾기 */}
-        <Section
-        title="즐겨찾기"
-        icon={Star}
-        isExpanded={expandedSections.includes('favorites')}
-        onToggle={() => onToggleSection('favorites')}
-      >
-        <Favorites />
-      </Section>
+        <SsooSidebarSection
+          title="즐겨찾기"
+          icon={Star}
+          collapsible
+          expanded={expandedSections.includes('favorites')}
+          onToggle={() => onToggleSection('favorites')}
+          actionSlot={<SsooSidebarSectionChevron expanded={expandedSections.includes('favorites')} expandedIcon={ChevronDown} collapsedIcon={ChevronRight} />}
+        >
+          <Favorites />
+        </SsooSidebarSection>
 
-      {/* 현재 열린 페이지 */}
-      <Section
-        title="현재 열린 페이지"
-        icon={Layers}
-        isExpanded={expandedSections.includes('openTabs')}
-        onToggle={() => onToggleSection('openTabs')}
-      >
-        <OpenTabs />
-      </Section>
+        <SsooSidebarSection
+          title="현재 열린 페이지"
+          icon={Layers}
+          collapsible
+          expanded={expandedSections.includes('openTabs')}
+          onToggle={() => onToggleSection('openTabs')}
+          actionSlot={<SsooSidebarSectionChevron expanded={expandedSections.includes('openTabs')} expandedIcon={ChevronDown} collapsedIcon={ChevronRight} />}
+        >
+          <OpenTabs />
+        </SsooSidebarSection>
 
-      {/* 전체 메뉴 */}
-      <Section
-        title="전체 메뉴"
-        icon={FolderTree}
-        isExpanded={expandedSections.includes('menuTree')}
-        onToggle={() => onToggleSection('menuTree')}
-      >
-        <MenuTree />
-      </Section>
+        <SsooSidebarSection
+          title="전체 메뉴"
+          icon={FolderTree}
+          collapsible
+          expanded={expandedSections.includes('menuTree')}
+          onToggle={() => onToggleSection('menuTree')}
+          actionSlot={<SsooSidebarSectionChevron expanded={expandedSections.includes('menuTree')} expandedIcon={ChevronDown} collapsedIcon={ChevronRight} />}
+        >
+          <MenuTree />
+        </SsooSidebarSection>
 
-        {/* 관리자 메뉴 */}
         {showAdminSection && (
-          <Section
+          <SsooSidebarSection
             title="관리자"
             icon={Shield}
-            isExpanded={expandedSections.includes('admin')}
+            collapsible
+            expanded={expandedSections.includes('admin')}
             onToggle={() => onToggleSection('admin')}
+            actionSlot={<SsooSidebarSectionChevron expanded={expandedSections.includes('admin')} expandedIcon={ChevronDown} collapsedIcon={ChevronRight} />}
           >
             <AdminMenu />
-          </Section>
+          </SsooSidebarSection>
         )}
       </ScrollArea>
     </div>

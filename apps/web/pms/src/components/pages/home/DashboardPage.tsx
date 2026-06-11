@@ -1,75 +1,113 @@
 'use client';
 
-import { useMemo } from 'react';
+import type { ElementType } from 'react';
 import {
-  FileText,
-  Send,
-  Cog,
-  ArrowRightLeft,
-  Clock,
-  Activity,
   AlertCircle,
-  ClipboardCheck,
-  ListTodo,
+  ArrowRight,
+  ArrowRightLeft,
+  Bot,
+  CheckCircle2,
+  FileText,
+  FolderKanban,
+  Gauge,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  UserCheck,
+  Users,
 } from 'lucide-react';
-import { useProjectList } from '@/hooks/queries/useProjects';
+import type {
+  PmsHomeAccessProject,
+  PmsHomeAllowedAction,
+  PmsHomeFlowItem,
+  PmsHomeMetrics,
+  PmsHomeRecentChange,
+  PmsHomeRelation,
+  PmsHomeSignal,
+  PmsHomeSignalSeverity,
+  PmsHomeTargetTab,
+  ProjectStageCode,
+  ProjectStatusCode,
+} from '@ssoo/types/pms';
+import { useHomeSummary } from '@/hooks/queries';
 import { useTabStore } from '@/stores';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Project, ProjectStatusCode } from '@/lib/api/endpoints/projects';
+import { cn } from '@/lib/utils';
 
-const STATUS_CONFIG: Record<
-  ProjectStatusCode,
-  { label: string; icon: React.ElementType; bgColor: string; textColor: string; iconColor: string }
-> = {
+const STATUS_META: Record<ProjectStatusCode, { label: string; shortLabel: string; icon: ElementType; tone: string; dot: string }> = {
   request: {
-    label: '요청',
+    label: '요청/인계',
+    shortLabel: '요청',
     icon: FileText,
-    bgColor: 'bg-amber-50',
-    textColor: 'text-amber-700',
-    iconColor: 'text-amber-500',
+    tone: 'border-amber-200 bg-amber-50 text-amber-800',
+    dot: 'bg-amber-500',
   },
   proposal: {
-    label: '제안',
+    label: '제안 참조',
+    shortLabel: '제안',
     icon: Send,
-    bgColor: 'bg-blue-50',
-    textColor: 'text-blue-700',
-    iconColor: 'text-blue-500',
+    tone: 'border-blue-200 bg-blue-50 text-blue-800',
+    dot: 'bg-blue-500',
   },
   execution: {
     label: '수행',
-    icon: Cog,
-    bgColor: 'bg-green-50',
-    textColor: 'text-green-700',
-    iconColor: 'text-green-500',
+    shortLabel: '수행',
+    icon: FolderKanban,
+    tone: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    dot: 'bg-emerald-500',
   },
   transition: {
-    label: '전환',
+    label: '종료/전환',
+    shortLabel: '전환',
     icon: ArrowRightLeft,
-    bgColor: 'bg-purple-50',
-    textColor: 'text-purple-700',
-    iconColor: 'text-purple-500',
+    tone: 'border-purple-200 bg-purple-50 text-purple-800',
+    dot: 'bg-purple-500',
   },
 };
 
-const STAGE_LABELS: Record<string, { label: string; color: string }> = {
-  waiting: { label: '대기', color: 'bg-gray-100 text-gray-600' },
-  in_progress: { label: '진행중', color: 'bg-blue-100 text-blue-700' },
-  done: { label: '완료', color: 'bg-green-100 text-green-700' },
+const STAGE_LABELS: Record<ProjectStageCode, string> = {
+  waiting: '대기',
+  in_progress: '진행중',
+  done: '완료',
 };
 
-function formatRelativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60_000);
+const RELATION_META: Record<PmsHomeRelation, { label: string; tone: string; icon: ElementType }> = {
+  pm: { label: 'PM', tone: 'border-ssoo-primary/20 bg-ssoo-sitemap-bg text-ssoo-primary', icon: UserCheck },
+  member: { label: '멤버', tone: 'border-blue-200 bg-blue-50 text-blue-700', icon: Users },
+  pmo: { label: 'PMO', tone: 'border-purple-200 bg-purple-50 text-purple-700', icon: Gauge },
+  viewer: { label: '참조', tone: 'border-gray-200 bg-gray-50 text-gray-600', icon: FileText },
+};
 
-  if (diffMin < 1) return '방금 전';
-  if (diffMin < 60) return `${diffMin}분 전`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 30) return `${diffDay}일 전`;
-  return new Date(dateStr).toLocaleDateString('ko-KR');
+const SEVERITY_TONE: Record<PmsHomeSignalSeverity, string> = {
+  critical: 'text-red-700',
+  warning: 'text-amber-700',
+  normal: 'text-gray-800',
+  info: 'text-gray-500',
+};
+
+type ProjectTarget = {
+  projectId: string;
+  projectName: string;
+  primaryAction?: PmsHomeAllowedAction;
+};
+
+type ManagementTargetTab = Extract<PmsHomeTargetTab, 'members' | 'tasks' | 'milestones' | 'controls' | 'deliverables' | 'closeConditions'>;
+
+const MANAGEMENT_TARGET_TABS: ManagementTargetTab[] = [
+  'members',
+  'tasks',
+  'milestones',
+  'controls',
+  'deliverables',
+  'closeConditions',
+];
+
+function formatProjectCode(projectId: string): string {
+  return `PRJ-${projectId.padStart(6, '0')}`;
+}
+
+function formatOwnerLabel(ownerUserId?: string | null): string {
+  return ownerUserId ? `담당 ${ownerUserId}` : '담당 미지정';
 }
 
 function getDaysSince(dateStr: string): number {
@@ -78,387 +116,446 @@ function getDaysSince(dateStr: string): number {
   return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
 }
 
-/**
- * 홈 대시보드 페이지
- * - 프로젝트 현황 (상태별 건수)
- * - 최근 프로젝트 (최근 업데이트 5건)
- * - 진행중 프로젝트 (stageCode = in_progress)
- * - PM 운영 포커스 (정체/담당자/종료 후보)
- */
-export function HomeDashboardPage() {
-  const { data, isLoading, error } = useProjectList({ pageSize: 100 });
+function formatRelativeDate(dateStr: string): string {
+  const days = getDaysSince(dateStr);
+  if (days === 0) return '오늘';
+  if (days === 1) return '어제';
+  if (days < 30) return `${days}일 전`;
+  return new Date(dateStr).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' });
+}
 
-  const projects = useMemo(() => data?.data?.items ?? [], [data]);
+function isManagementTargetTab(value?: PmsHomeTargetTab): value is ManagementTargetTab {
+  return Boolean(value && MANAGEMENT_TARGET_TABS.includes(value as ManagementTargetTab));
+}
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<ProjectStatusCode, number> = {
-      request: 0,
-      proposal: 0,
-      execution: 0,
-      transition: 0,
-    };
-    for (const p of projects) {
-      if (p.statusCode in counts) {
-        counts[p.statusCode]++;
-      }
-    }
-    return counts;
-  }, [projects]);
+function isActionable(action?: PmsHomeAllowedAction): boolean {
+  return Boolean(action && action.kind !== 'view-project');
+}
 
-  const recentProjects = useMemo(
-    () =>
-      [...projects]
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-        .slice(0, 5),
-    [projects],
-  );
-
-  const activeProjects = useMemo(
-    () => projects.filter((p) => p.stageCode === 'in_progress'),
-    [projects],
-  );
-
-  const operationalSummary = useMemo(() => {
-    const executionProjects = projects.filter((p) => p.statusCode === 'execution');
-    const staleActiveProjects = activeProjects.filter((p) => getDaysSince(p.updatedAt) >= 7);
-    const unownedActiveProjects = activeProjects.filter((p) => !p.currentOwnerUserId);
-    const closeoutCandidates = projects.filter(
-      (p) => p.statusCode === 'transition' || (p.statusCode === 'execution' && p.stageCode === 'done'),
-    );
-
-    return {
-      executionProjects,
-      staleActiveProjects,
-      unownedActiveProjects,
-      closeoutCandidates,
-      topQueue: [...activeProjects]
-        .sort((a, b) => getDaysSince(b.updatedAt) - getDaysSince(a.updatedAt))
-        .slice(0, 4),
-    };
-  }, [activeProjects, projects]);
-
-  if (error) {
-    return (
-      <div className="h-full flex items-center justify-center p-8">
-        <div className="text-center text-gray-500">
-          <AlertCircle className="w-10 h-10 mx-auto mb-3 text-red-400" />
-          <p className="text-sm">데이터를 불러오지 못했습니다</p>
-          <p className="text-xs text-gray-400 mt-1">잠시 후 다시 시도해주세요</p>
-        </div>
-      </div>
-    );
+function openProjectDetail(openTab: ReturnType<typeof useTabStore.getState>['openTab'], target: ProjectTarget) {
+  const params: Record<string, string> = { id: target.projectId };
+  if (isManagementTargetTab(target.primaryAction?.targetTab)) {
+    params.managementTab = target.primaryAction.targetTab;
   }
 
-  return (
-    <div className="h-full overflow-auto p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* 페이지 헤더 */}
-        <div>
-          <h1 className="text-lg font-bold text-gray-800">대시보드</h1>
-          <p className="text-sm text-gray-500 mt-0.5">프로젝트 현황을 한눈에 확인하세요</p>
-        </div>
+  openTab({
+    menuCode: 'project.detail',
+    menuId: `project.detail.${target.projectId}`,
+    title: `${formatProjectCode(target.projectId)} ${target.projectName}`,
+    path: '/project/detail',
+    params,
+    replaceExisting: false,
+  });
+}
 
-        {/* 2x2 위젯 그리드 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <StatusSummaryWidget counts={statusCounts} isLoading={isLoading} />
-          <RecentProjectsWidget projects={recentProjects} isLoading={isLoading} />
-          <ActiveProjectsWidget projects={activeProjects} isLoading={isLoading} />
-          <OperationalFocusWidget summary={operationalSummary} isLoading={isLoading} />
+function StatusBadge({ status }: { status: ProjectStatusCode }) {
+  const meta = STATUS_META[status];
+  return <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', meta.tone)}>{meta.label}</span>;
+}
+
+function StageBadge({ stage }: { stage: ProjectStageCode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+      {STAGE_LABELS[stage] ?? stage}
+    </span>
+  );
+}
+
+function RelationBadge({ relation }: { relation: PmsHomeRelation }) {
+  const meta = RELATION_META[relation];
+  const Icon = meta.icon;
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold', meta.tone)}>
+      <Icon className="h-3 w-3" />
+      {meta.label}
+    </span>
+  );
+}
+
+function LoadingHome() {
+  return (
+    <div className="h-full overflow-auto bg-gray-50 p-5">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
+          <Skeleton className="h-96 rounded-xl" />
+          <Skeleton className="h-96 rounded-xl" />
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Widget: 프로젝트 현황 ──────────────────────── */
+function ErrorHome() {
+  return (
+    <div className="flex h-full items-center justify-center p-8">
+      <div className="rounded-xl border bg-white px-10 py-8 text-center shadow-sm">
+        <AlertCircle className="mx-auto mb-3 h-9 w-9 text-red-400" />
+        <p className="text-sm font-semibold text-gray-800">홈 요약을 불러오지 못했습니다.</p>
+        <p className="mt-1 text-xs text-gray-500">잠시 후 다시 시도해주세요.</p>
+      </div>
+    </div>
+  );
+}
 
-function StatusSummaryWidget({
-  counts,
-  isLoading,
-}: {
-  counts: Record<ProjectStatusCode, number>;
-  isLoading: boolean;
-}) {
-  const statuses: ProjectStatusCode[] = ['request', 'proposal', 'execution', 'transition'];
+function BriefingPanel({ bullets, signalCount }: { bullets: string[]; signalCount: number }) {
+  return (
+    <section className="rounded-xl border border-ssoo-primary/15 bg-white p-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="rounded-lg bg-ssoo-sitemap-bg p-2 text-ssoo-primary">
+          <Bot className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-gray-900">업무 브리핑</h2>
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-500">정책 요약</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {bullets.map((bullet) => (
+              <div key={bullet} className="flex gap-2 text-sm text-gray-700">
+                <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ssoo-primary" />
+                <span className="leading-5">{bullet}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="hidden rounded-lg border bg-gray-50 px-3 py-2 text-center sm:block">
+          <p className="text-[11px] font-medium text-gray-500">신호</p>
+          <p className="text-xl font-bold text-gray-900">{signalCount}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MetricStrip({ metrics }: { metrics: PmsHomeMetrics }) {
+  const items = [
+    { label: '진행중', value: metrics.active, icon: FolderKanban, tone: 'text-emerald-700' },
+    { label: '내 액션', value: metrics.directActions, icon: UserCheck, tone: 'text-ssoo-primary' },
+    { label: '권한 프로젝트', value: metrics.actionableProjects, icon: ShieldCheck, tone: 'text-blue-700' },
+    { label: '운영 신호', value: metrics.pmoSignals, icon: AlertCircle, tone: 'text-amber-700' },
+    { label: '종료/전환', value: metrics.closeout, icon: CheckCircle2, tone: 'text-purple-700' },
+  ];
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm p-4">
-      <h2 className="text-sm font-semibold text-gray-700 mb-3">프로젝트 현황</h2>
-      <div className="grid grid-cols-2 gap-3">
-        {statuses.map((status) => {
-          const cfg = STATUS_CONFIG[status];
-          const Icon = cfg.icon;
-          return (
-            <div
-              key={status}
-              className={`${cfg.bgColor} rounded-lg p-3 flex items-center gap-3`}
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      {items.map((metric) => {
+        const Icon = metric.icon;
+        return (
+          <div key={metric.label} className="rounded-xl border bg-white px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-medium text-gray-500">{metric.label}</p>
+              <Icon className={cn('h-4 w-4', metric.tone)} />
+            </div>
+            <p className="mt-2 text-2xl font-semibold text-gray-950">{metric.value}</p>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function ActionPills({ actions, compact = false }: { actions: PmsHomeAllowedAction[]; compact?: boolean }) {
+  const visibleActions = actions.filter((action) => action.kind !== 'view-project').slice(0, compact ? 2 : 4);
+
+  if (visibleActions.length === 0) {
+    return (
+      <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-500">
+        읽기 전용
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {visibleActions.map((action) => (
+        <span
+          key={`${action.kind}-${action.targetTab}`}
+          className="rounded-full border border-ssoo-primary/15 bg-ssoo-sitemap-bg px-2 py-0.5 text-[11px] font-semibold text-ssoo-primary"
+        >
+          {action.label}
+        </span>
+      ))}
+      {actions.filter((action) => action.kind !== 'view-project').length > visibleActions.length ? (
+        <span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-500">
+          더보기
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function SignalQueue({ signals }: { signals: PmsHomeSignal[] }) {
+  const openTab = useTabStore((state) => state.openTab);
+  const visibleSignals = signals.slice(0, 7);
+
+  return (
+    <section className="rounded-xl border bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="text-sm font-semibold text-gray-900">지금 봐야 할 것</h2>
+        <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">{signals.length}</span>
+      </div>
+
+      {visibleSignals.length === 0 ? (
+        <div className="p-8 text-center text-sm text-gray-500">지금 즉시 확인할 신호가 없습니다.</div>
+      ) : (
+        <div className="divide-y">
+          {visibleSignals.map((signal) => (
+            <button
+              key={signal.id}
+              type="button"
+              onClick={() => openProjectDetail(openTab, signal)}
+              className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 px-4 py-3 text-left transition hover:bg-gray-50"
             >
-              <div className="shrink-0">
-                <Icon className={`w-5 h-5 ${cfg.iconColor}`} />
-              </div>
               <div className="min-w-0">
-                {isLoading ? (
-                  <Skeleton className="h-6 w-10 mb-1" />
-                ) : (
-                  <p className={`text-xl font-bold ${cfg.textColor}`}>{counts[status]}</p>
-                )}
-                <p className="text-xs text-gray-500 truncate">{cfg.label}</p>
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-semibold text-gray-900">{signal.projectName}</span>
+                  <RelationBadge relation={signal.relation} />
+                  <StatusBadge status={signal.statusCode} />
+                  <StageBadge stage={signal.stageCode} />
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                  <span>{formatProjectCode(signal.projectId)}</span>
+                  <span>{formatOwnerLabel(signal.currentOwnerUserId)}</span>
+                  <span>업데이트 {formatRelativeDate(signal.updatedAt)}</span>
+                  {signal.relatedSignalCount ? <span>외 {signal.relatedSignalCount}건</span> : null}
+                </div>
+              </div>
+              <div className="flex min-w-[160px] items-center justify-end gap-2">
+                <div className="text-right">
+                  <p className={cn('text-xs font-semibold', SEVERITY_TONE[signal.severity])}>{signal.label}</p>
+                  <p className="mt-0.5 text-[11px] text-gray-500">{signal.reason}</p>
+                  <p className="mt-1 text-[11px] font-semibold text-ssoo-primary">{signal.primaryAction?.label ?? signal.nextActionLabel}</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-gray-300" />
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MyActionPanel({ signals }: { signals: PmsHomeSignal[] }) {
+  const openTab = useTabStore((state) => state.openTab);
+  const directSignals = signals.filter((signal) => isActionable(signal.primaryAction)).slice(0, 4);
+  if (directSignals.length === 0) return null;
+
+  return (
+    <section className="rounded-xl border bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="text-sm font-semibold text-gray-900">내 액션</h2>
+        <span className="text-xs text-gray-500">{directSignals.length}</span>
+      </div>
+      <div className="divide-y">
+        {directSignals.map((signal) => (
+          <button
+            key={`action-${signal.id}`}
+            type="button"
+            onClick={() => openProjectDetail(openTab, signal)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-gray-50"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <RelationBadge relation={signal.relation} />
+                <p className="truncate text-sm font-medium text-gray-900">{signal.projectName}</p>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">{signal.label} · {signal.reason}</p>
+            </div>
+            <span className="shrink-0 text-xs font-semibold text-ssoo-primary">{signal.primaryAction?.label ?? signal.nextActionLabel}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function StatusFlow({ flow }: { flow: PmsHomeFlowItem[] }) {
+  const total = Math.max(flow.reduce((sum, item) => sum + item.count, 0), 1);
+
+  return (
+    <section className="rounded-xl border bg-white p-4 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-gray-900">운영 흐름</h2>
+        <Gauge className="h-4 w-4 text-gray-400" />
+      </div>
+      <div className="space-y-3">
+        {flow.map((item) => {
+          const meta = STATUS_META[item.statusCode];
+          const percent = Math.round((item.count / total) * 100);
+          const Icon = meta.icon;
+          return (
+            <div key={item.statusCode}>
+              <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 font-medium text-gray-700">
+                  <Icon className="h-3.5 w-3.5 text-gray-400" />
+                  {meta.label}
+                </div>
+                <span className="text-gray-500">{item.count}</span>
+              </div>
+              <div className="h-2 rounded-full bg-gray-100">
+                <div className={cn('h-2 rounded-full', meta.dot)} style={{ width: `${percent}%` }} />
               </div>
             </div>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
-/* ── Widget: 최근 프로젝트 ──────────────────────── */
-
-function RecentProjectsWidget({
-  projects,
-  isLoading,
-}: {
-  projects: Project[];
-  isLoading: boolean;
-}) {
-  const openTab = useTabStore((s) => s.openTab);
-
-  const handleClick = (project: Project) => {
-    openTab({
-      menuCode: 'project.detail',
-      menuId: `project.detail.${project.id}`,
-      title: `PRJ-${String(project.id).padStart(6, '0')} ${project.projectName}`,
-      path: '/project/detail',
-      params: { id: String(project.id) },
-      replaceExisting: false,
-    });
-  };
+function RecentChangeList({ recentChanges }: { recentChanges: PmsHomeRecentChange[] }) {
+  const openTab = useTabStore((state) => state.openTab);
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Clock className="w-4 h-4 text-gray-400" />
-        <h2 className="text-sm font-semibold text-gray-700">최근 프로젝트</h2>
+    <section className="rounded-xl border bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="text-sm font-semibold text-gray-900">최근 움직임</h2>
+        <span className="text-xs text-gray-500">{recentChanges.length}</span>
       </div>
-      <div className="space-y-2">
-        {isLoading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Skeleton className="h-4 flex-1" />
-              <Skeleton className="h-5 w-12 rounded-full" />
-              <Skeleton className="h-4 w-16" />
-            </div>
-          ))
-        ) : projects.length === 0 ? (
-          <p className="text-xs text-gray-400 py-4 text-center">프로젝트가 없습니다</p>
+      <div className="divide-y">
+        {recentChanges.length === 0 ? (
+          <div className="p-6 text-sm text-gray-500">최근 프로젝트가 없습니다.</div>
         ) : (
-          projects.map((p) => {
-            const statusCfg = STATUS_CONFIG[p.statusCode];
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handleClick(p)}
-                className="w-full flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-50 transition-colors text-left"
-              >
-                <span className="text-sm text-gray-800 truncate flex-1 min-w-0">
-                  {p.projectName}
-                </span>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusCfg.bgColor} ${statusCfg.textColor}`}
-                >
-                  {statusCfg.label}
-                </span>
-                <span className="shrink-0 text-xs text-gray-400 w-16 text-right">
-                  {formatRelativeTime(p.updatedAt)}
-                </span>
-              </button>
-            );
-          })
+          recentChanges.map((change) => (
+            <button
+              key={`${change.projectId}-${change.changedAt}`}
+              type="button"
+              onClick={() => openProjectDetail(openTab, change)}
+              className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 px-4 py-3 text-left transition hover:bg-gray-50"
+            >
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="truncate text-sm font-medium text-gray-900">{change.projectName}</p>
+                  <RelationBadge relation={change.relation} />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">{formatProjectCode(change.projectId)} · {formatOwnerLabel(change.currentOwnerUserId)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusBadge status={change.statusCode} />
+                <span className="hidden text-xs font-semibold text-ssoo-primary sm:inline">{change.primaryAction?.label ?? '상세 보기'}</span>
+                <span className="w-12 text-right text-xs text-gray-500">{formatRelativeDate(change.changedAt)}</span>
+              </div>
+            </button>
+          ))
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
-/* ── Widget: 진행중 프로젝트 ─────────────────────── */
-
-function ActiveProjectsWidget({
-  projects,
-  isLoading,
-}: {
-  projects: Project[];
-  isLoading: boolean;
-}) {
-  const openTab = useTabStore((s) => s.openTab);
-
-  const handleClick = (project: Project) => {
-    openTab({
-      menuCode: 'project.detail',
-      menuId: `project.detail.${project.id}`,
-      title: `PRJ-${String(project.id).padStart(6, '0')} ${project.projectName}`,
-      path: '/project/detail',
-      params: { id: String(project.id) },
-      replaceExisting: false,
-    });
-  };
+function PermissionWorkPanel({ projects }: { projects: PmsHomeAccessProject[] }) {
+  const openTab = useTabStore((state) => state.openTab);
+  const visibleProjects = projects.slice(0, 5);
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Activity className="w-4 h-4 text-blue-500" />
-        <h2 className="text-sm font-semibold text-gray-700">진행중 프로젝트</h2>
+    <section className="rounded-xl border bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="text-sm font-semibold text-gray-900">권한별 업무</h2>
+        <span className="text-xs text-gray-500">{projects.filter((project) => isActionable(project.primaryAction)).length}</span>
       </div>
-      <div className="space-y-2">
-        {isLoading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Skeleton className="h-4 flex-1" />
-              <Skeleton className="h-5 w-12 rounded-full" />
-              <Skeleton className="h-5 w-14 rounded-full" />
-            </div>
-          ))
-        ) : projects.length === 0 ? (
-          <p className="text-xs text-gray-400 py-4 text-center">진행중인 프로젝트가 없습니다</p>
+      <div className="divide-y">
+        {visibleProjects.length === 0 ? (
+          <div className="p-6 text-sm text-gray-500">권한 기준으로 표시할 프로젝트가 없습니다.</div>
         ) : (
-          projects.map((p) => {
-            const statusCfg = STATUS_CONFIG[p.statusCode];
-            const stageCfg = STAGE_LABELS[p.stageCode] ?? {
-              label: p.stageCode,
-              color: 'bg-gray-100 text-gray-600',
-            };
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handleClick(p)}
-                className="w-full flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-50 transition-colors text-left"
-              >
-                <span className="text-sm text-gray-800 truncate flex-1 min-w-0">
-                  {p.projectName}
-                </span>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusCfg.bgColor} ${statusCfg.textColor}`}
-                >
-                  {statusCfg.label}
-                </span>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${stageCfg.color}`}
-                >
-                  {stageCfg.label}
-                </span>
-              </button>
-            );
-          })
+          visibleProjects.map((project) => (
+            <button
+              key={`access-${project.projectId}`}
+              type="button"
+              onClick={() => openProjectDetail(openTab, project)}
+              className="w-full px-4 py-3 text-left transition hover:bg-gray-50"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-sm font-medium text-gray-900">{project.projectName}</p>
+                    <RelationBadge relation={project.relation} />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">{formatProjectCode(project.projectId)} · {formatOwnerLabel(project.currentOwnerUserId)}</p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-ssoo-primary">{project.primaryAction?.label ?? '상세 보기'}</span>
+              </div>
+              <div className="mt-2">
+                <ActionPills actions={project.allowedActions} compact />
+              </div>
+            </button>
+          ))
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
-/* ── Widget: PM 운영 포커스 ───────────────────────── */
-
-function OperationalFocusWidget({
-  summary,
-  isLoading,
-}: {
-  summary: {
-    executionProjects: Project[];
-    staleActiveProjects: Project[];
-    unownedActiveProjects: Project[];
-    closeoutCandidates: Project[];
-    topQueue: Project[];
-  };
-  isLoading: boolean;
-}) {
-  const openTab = useTabStore((s) => s.openTab);
-
-  const handleClick = (project: Project) => {
-    openTab({
-      menuCode: 'project.detail',
-      menuId: `project.detail.${project.id}`,
-      title: `PRJ-${String(project.id).padStart(6, '0')} ${project.projectName}`,
-      path: '/project/detail',
-      params: { id: String(project.id) },
-      replaceExisting: false,
-    });
-  };
-
-  const signals = [
+function QuickDrilldown({ signals }: { signals: PmsHomeSignal[] }) {
+  const openTab = useTabStore((state) => state.openTab);
+  const routes = [
+    { title: '내 프로젝트', meta: '업무 이어가기', count: undefined, menuCode: 'my-projects', menuId: 'my-projects', path: '/my-projects' },
+    { title: '조치 필요', meta: '신호 모아보기', count: signals.length, menuCode: 'action-required', menuId: 'action-required', path: '/action-required' },
     {
-      label: '수행 프로젝트',
-      value: summary.executionProjects.length,
-      icon: ListTodo,
-      tone: 'bg-blue-50 text-blue-700',
-    },
-    {
-      label: '7일 이상 정체',
-      value: summary.staleActiveProjects.length,
-      icon: AlertCircle,
-      tone: 'bg-amber-50 text-amber-700',
-    },
-    {
-      label: '담당자 미지정',
-      value: summary.unownedActiveProjects.length,
-      icon: Activity,
-      tone: 'bg-red-50 text-red-700',
-    },
-    {
-      label: '종료/전환 확인',
-      value: summary.closeoutCandidates.length,
-      icon: ClipboardCheck,
-      tone: 'bg-green-50 text-green-700',
+      title: '종료/전환',
+      meta: '완료 조건 확인',
+      count: signals.filter((signal) => signal.kind === 'closeout-blocked' || signal.kind === 'stage-transition-ready').length,
+      menuCode: 'closeout',
+      menuId: 'closeout',
+      path: '/closeout',
     },
   ];
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm p-4 min-h-[180px]">
-      <div className="flex items-center gap-2 mb-3">
-        <ClipboardCheck className="w-4 h-4 text-green-600" />
-        <h2 className="text-sm font-semibold text-gray-700">PM 운영 포커스</h2>
+    <section className="rounded-xl border bg-white p-4 shadow-sm">
+      <h2 className="mb-3 text-sm font-semibold text-gray-900">바로 이동</h2>
+      <div className="space-y-2">
+        {routes.map((route) => (
+          <button
+            key={route.path}
+            type="button"
+            onClick={() => openTab({ ...route, title: route.title })}
+            className="flex w-full items-center justify-between rounded-lg border border-gray-100 px-3 py-2 text-left transition hover:border-ssoo-primary/30 hover:bg-gray-50"
+          >
+            <div>
+              <p className="text-sm font-medium text-gray-900">{route.title}</p>
+              <p className="mt-0.5 text-xs text-gray-500">{route.meta}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {typeof route.count === 'number' ? <span className="text-sm font-semibold text-gray-900">{route.count}</span> : null}
+              <ArrowRight className="h-4 w-4 text-gray-300" />
+            </div>
+          </button>
+        ))}
       </div>
-      {isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-4 w-4/5" />
-          <Skeleton className="h-4 w-3/5" />
+    </section>
+  );
+}
+
+export function HomeDashboardPage() {
+  const { data, isLoading, error } = useHomeSummary();
+  const summary = data?.data;
+
+  if (isLoading) return <LoadingHome />;
+  if (error || !summary) return <ErrorHome />;
+
+  return (
+    <div className="h-full overflow-auto bg-gray-50 p-5">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.7fr)]">
+          <BriefingPanel bullets={summary.briefing} signalCount={summary.metrics.attention} />
+          <MetricStrip metrics={summary.metrics} />
         </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            {signals.map((signal) => {
-              const Icon = signal.icon;
-              return (
-                <div key={signal.label} className={`rounded-lg px-3 py-2 ${signal.tone}`}>
-                  <div className="flex items-center gap-1.5 text-[11px] font-medium">
-                    <Icon className="h-3.5 w-3.5" />
-                    {signal.label}
-                  </div>
-                  <div className="mt-1 text-lg font-bold">{signal.value}</div>
-                </div>
-              );
-            })}
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
+          <div className="space-y-4">
+            <SignalQueue signals={summary.signals} />
+            <MyActionPanel signals={summary.signals} />
+            <RecentChangeList recentChanges={summary.recentChanges} />
           </div>
-          <div className="mt-3 space-y-1.5">
-            <p className="text-xs font-medium text-gray-500">먼저 확인할 프로젝트</p>
-            {summary.topQueue.length === 0 ? (
-              <p className="text-xs text-gray-400 py-2">진행 중인 확인 대상이 없습니다.</p>
-            ) : (
-              summary.topQueue.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  onClick={() => handleClick(project)}
-                  className="w-full flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-gray-50"
-                >
-                  <span className="truncate text-gray-700">{project.projectName}</span>
-                  <span className="shrink-0 text-gray-400">{getDaysSince(project.updatedAt)}일 정체</span>
-                </button>
-              ))
-            )}
+          <div className="space-y-4">
+            <PermissionWorkPanel projects={summary.accessProjects} />
+            <StatusFlow flow={summary.flow} />
+            <QuickDrilldown signals={summary.signals} />
           </div>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -53,26 +53,6 @@ export interface DmsSystemConfigClient {
     maxSummaryFileChars: number;
     maxImagesPerRequest: number;
   };
-  m365: {
-    sharepoint: {
-      tenantDomain: string;
-      sitePath: string;
-      defaultLibrary: string;
-    };
-    teams: {
-      enabled: boolean;
-      ingestEnabled: boolean;
-      defaultTeam: string;
-      defaultChannel: string;
-      defaultDropPath: string;
-    };
-    auth: {
-      mode: 'anonymous-first' | 'organization-sso';
-      allowedTenantIds: string[];
-      allowedDomains: string[];
-      identityMapping: 'mail' | 'userPrincipalName' | 'displayName';
-    };
-  };
 }
 
 export interface DmsPersonalSettingsClient {
@@ -100,7 +80,7 @@ export interface DmsPersonalSettingsClient {
 }
 
 export interface DmsSettingsConfigClient {
-  system: DmsSystemConfigClient;
+  system?: DmsSystemConfigClient;
   personal: DmsPersonalSettingsClient;
 }
 

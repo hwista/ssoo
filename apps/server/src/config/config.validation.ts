@@ -4,7 +4,7 @@ import Joi from 'joi';
 export const configValidationSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().port().default(4000),
-  CORS_ORIGIN: Joi.string().allow('').default('http://localhost:3000,http://localhost:3001,http://localhost:3002'),
+  CORS_ORIGIN: Joi.string().allow('').default('http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004'),
 
   // JWT
   JWT_SECRET: Joi.string().min(16).required(),

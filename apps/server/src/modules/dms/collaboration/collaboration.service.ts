@@ -1290,7 +1290,7 @@ export class CollaborationService implements OnModuleDestroy {
     const profile = await this.userService.findProfileById(BigInt(currentUser.userId)).catch(() => null);
     const resolved: ActorProfile = {
       displayName: profile?.displayName?.trim() || profile?.userName?.trim() || currentUser.loginId,
-      email: profile?.email?.trim() || `${currentUser.loginId}@dms.local`,
+      email: profile?.email?.trim() || `${currentUser.loginId}@documents.local`,
     };
     this.actorCache.set(currentUser.userId, resolved);
     return resolved;

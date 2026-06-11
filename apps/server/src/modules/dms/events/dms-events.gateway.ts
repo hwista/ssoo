@@ -67,7 +67,7 @@ interface AuthenticatedSocket extends Socket {
 @WebSocketGateway({
   namespace: '/dms',
   cors: {
-    origin: (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003')
+    origin: (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004')
       .split(',')
       .map((o) => o.trim())
       .filter(Boolean),

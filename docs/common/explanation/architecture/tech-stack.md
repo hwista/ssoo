@@ -93,8 +93,11 @@ sooo/
 
 | 서비스 | URL | 설명 |
 |--------|-----|------|
-| PMS Frontend | http://localhost:3000 | 프로젝트 관리 시스템 |
-| DMS Frontend | http://localhost:3001 | 도큐먼트 관리 시스템 |
+| Admin Frontend | http://localhost:3000 | 계정/조직/관리 설정 및 현재 제어 진입점 |
+| CRM Frontend | http://localhost:3001 | 영업/계약/청구 원장 |
+| PMS Frontend | http://localhost:3002 | 프로젝트 관리 시스템 |
+| DMS Frontend | http://localhost:3003 | 도큐먼트 관리 시스템 |
+| SNS Frontend | http://localhost:3004 | 소셜/협업 피드 |
 | Backend | http://localhost:4000 | NestJS API 서버 |
 | API Docs | http://localhost:4000/api/docs | Swagger UI |
 

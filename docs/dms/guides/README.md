@@ -54,7 +54,7 @@ pnpm install
 pnpm dev:web-dms
 ```
 
-기본 포트: `http://localhost:3001`
+기본 포트: `http://localhost:3003`
 
 ---
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useTabStore, HOME_TAB } from '@/stores';
+import { SsooTabBarControlButton, SsooTabBarHomeButton, SsooTabBarItem, SsooTabBarShell } from '@ssoo/web-shell';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getIconComponent } from '@/lib/utils/icons';
 import { useRef, useState, useEffect, useCallback } from 'react';
@@ -83,113 +84,80 @@ export function TabBar() {
   }
 
   return (
-    <div
-      className="flex items-end bg-gray-50 border-b border-gray-200"
-      style={{ height: LAYOUT_SIZES.tabBar.containerHeight }}
+    <SsooTabBarShell
+      mode="mdi"
+      height={LAYOUT_SIZES.tabBar.containerHeight}
+      scrollRef={scrollRef}
+      onScroll={checkScrollState}
+      leftControlSlot={
+        showLeftArrow ? (
+          <SsooTabBarControlButton onClick={() => handleScroll('left')}>
+            <ChevronLeft className="h-4 w-4 text-gray-500" />
+          </SsooTabBarControlButton>
+        ) : null
+      }
+      rightControlSlot={
+        showRightArrow ? (
+          <SsooTabBarControlButton onClick={() => handleScroll('right')}>
+            <ChevronRight className="h-4 w-4 text-gray-500" />
+          </SsooTabBarControlButton>
+        ) : null
+      }
     >
-      {/* 왼쪽 스크롤 버튼 */}
-      {showLeftArrow && (
-        <button
-          onClick={() => handleScroll('left')}
-          className="flex-shrink-0 h-control-h px-2 hover:bg-gray-100 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4 text-gray-500" />
-        </button>
-      )}
+      {tabs.map((tab, index) => {
+        const IconComponent = getIconComponent(tab.icon);
+        const isActive = tab.id === activeTabId;
+        const isHomeTab = tab.menuCode === HOME_TAB.menuCode;
+        const isDragging = draggedIndex === index;
+        const isDragOver = dragOverIndex === index;
 
-      {/* 탭 목록 */}
-      <div
-        ref={scrollRef}
-        onScroll={checkScrollState}
-        className="flex-1 flex items-end overflow-x-auto scrollbar-hide"
-      >
-        {tabs.map((tab, index) => {
-          const IconComponent = getIconComponent(tab.icon);
-          const isActive = tab.id === activeTabId;
-          const isHomeTab = tab.menuCode === HOME_TAB.menuCode;
-          const isDragging = draggedIndex === index;
-          const isDragOver = dragOverIndex === index;
-
-          // Home 탭 전용 스타일
-          if (isHomeTab) {
-            return (
-              <div
-                key={tab.id}
-                className={`flex-shrink-0 flex items-center justify-center w-10 h-control-h border-r border-gray-200 transition-colors cursor-pointer ${
-                  isActive
-                    ? 'bg-ssoo-content-border border-b-2 border-b-ls-red'
-                    : 'bg-ls-gray hover:bg-ssoo-content-border/80'
-                }`}
-              >
-                <button
-                  onClick={() => activateTab(tab.id)}
-                  className="flex items-center justify-center w-full h-full"
-                >
-                  {IconComponent && (
-                    <IconComponent className={`w-5 h-5 ${isActive ? 'text-ssoo-primary' : 'text-white'}`} />
-                  )}
-                </button>
-              </div>
-            );
-          }
-
-          // 일반 탭 (드래그 가능)
+        if (isHomeTab) {
           return (
-            <div
-              key={tab.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragEnd={handleDragEnd}
-              onDragLeave={handleDragLeave}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 h-control-h border-r border-gray-200 transition-all cursor-grab group ${
-                isActive
-                  ? 'bg-ssoo-content-border border-b-2 border-b-ls-red'
-                  : 'hover:bg-gray-100'
-              } ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'border-l-2 border-l-ssoo-primary' : ''}`}
-            >
-              <button
-                onClick={() => activateTab(tab.id)}
-                className="flex items-center gap-1.5"
-              >
-                {IconComponent && (
-                  <IconComponent className={`w-4 h-4 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
-                )}
-                <span
-                  className={`text-sm truncate max-w-[120px] ${
-                    isActive ? 'text-ssoo-primary font-medium' : 'text-gray-600'
-                  }`}
-                >
-                  {tab.title}
-                </span>
-              </button>
-              {tab.closable && (
+            <SsooTabBarHomeButton key={tab.id} active={isActive} onClick={() => activateTab(tab.id)}>
+              {IconComponent && (
+                <IconComponent className={`h-5 w-5 ${isActive ? 'text-ssoo-primary' : 'text-white'}`} />
+              )}
+            </SsooTabBarHomeButton>
+          );
+        }
+
+        return (
+          <SsooTabBarItem
+            key={tab.id}
+            title={tab.title}
+            active={isActive}
+            draggable
+            dragging={isDragging}
+            dragOver={isDragOver}
+            onClick={() => activateTab(tab.id)}
+            onDragStart={(e) => handleDragStart(e, index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDragEnd={handleDragEnd}
+            onDragLeave={handleDragLeave}
+            iconSlot={
+              IconComponent ? (
+                <IconComponent className={`h-4 w-4 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+              ) : null
+            }
+            closeSlot={
+              tab.closable ? (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(tab.id);
                   }}
-                  className={`h-control-h-sm w-control-h-sm flex items-center justify-center opacity-0 group-hover:opacity-100 rounded transition-opacity ${
+                  className={`flex h-control-h-sm w-control-h-sm items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 ${
                     isActive ? 'hover:bg-ssoo-primary/20' : 'hover:bg-gray-200'
                   }`}
                 >
-                  <X className={`w-3 h-3 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
+                  <X className={`h-3 w-3 ${isActive ? 'text-ssoo-primary' : 'text-gray-500'}`} />
                 </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 오른쪽 스크롤 버튼 */}
-      {showRightArrow && (
-        <button
-          onClick={() => handleScroll('right')}
-          className="flex-shrink-0 h-control-h px-2 hover:bg-gray-100 transition-colors"
-        >
-          <ChevronRight className="w-4 h-4 text-gray-500" />
-        </button>
-      )}
-    </div>
+              ) : null
+            }
+          />
+        );
+      })}
+    </SsooTabBarShell>
   );
 }

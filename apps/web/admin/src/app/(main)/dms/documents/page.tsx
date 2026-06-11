@@ -42,9 +42,9 @@ export default function DmsDocumentsPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">DMS 문서 관리</h1>
+          <h1 className="text-2xl font-bold text-foreground">DMS 문서 현황</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            관리자용 문서 목록. 경로 검색, 가시성 / sync 상태 / 활성 여부 필터를 지원합니다.
+            플랫폼 운영자용 read-only 문서 현황입니다. 문서 도메인의 설정·제어·운영 owner는 DMS이며, 이 화면은 경로 검색, 가시성 / sync 상태 / 활성 여부 필터만 제공합니다.
           </p>
         </div>
         <button

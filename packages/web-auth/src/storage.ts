@@ -173,7 +173,16 @@ export function isBaseAuthIdentity(value: unknown): value is AuthIdentity {
 }
 
 export function toBaseAuthIdentity(value: unknown): AuthIdentity | null {
-  return isBaseAuthIdentity(value) ? value : null;
+  if (!isBaseAuthIdentity(value)) {
+    return null;
+  }
+
+  const candidate = value;
+  return {
+    userId: candidate.userId,
+    loginId: candidate.loginId,
+    userName: typeof candidate.userName === 'string' ? candidate.userName : undefined,
+  };
 }
 
 export function readSharedAuthSnapshot(): SharedAuthSnapshot | null {

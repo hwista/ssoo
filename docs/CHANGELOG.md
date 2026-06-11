@@ -2,9 +2,43 @@
 
 ## [Unreleased]
 
+### Bug Fixes
+
+* **web-auth, scripts, docs:** 로그인 확장 action 기본 provider를 사내 SSO + Microsoft 365 기준으로 축소. `NEXT_PUBLIC_AUTH_SSO_URL` / `NEXT_PUBLIC_AUTH_OAUTH_MICROSOFT_URL` 이 설정될 때만 추가 로그인 버튼을 노출하고, generic OAuth/Google은 명시 props 없이 기본 surface에 나타나지 않도록 정리했다. 가입은 `NEXT_PUBLIC_AUTH_SIGNUP_REQUEST_URL` 을 우선하고, 셀프 가입/SSO backend/비밀번호 재설정 채널은 후속 결정 항목으로 문서화했다.
+
+* **web-auth, scripts, docs:** 임시 플랫폼 표기를 `SSOT` 로 유지하는 기준에 맞춰 로그인 surface 카피를 정리. 로고는 `SSOT`, 제목은 `로그인`, 푸터는 `© 2026 SSOT` 만 남기고 보조 설명 문구를 제거했으며, 비밀번호 찾기/가입 요청/사내 SSO/Microsoft 365 action 은 URL/provider 가 설정될 때만 노출되는 공용 확장 슬롯으로 정리했다. `verify:auth-commonization` gate가 descriptive tagline/app-specific copy 재유입을 차단한다.
+
+* **web-auth, web-admin, web-crm, web-pms, web-dms, web-sns, scripts:** 5앱 로그인 UI surface drift를 차단. `SharedAuthLoginPage` 가 공용 `AuthPageShell` 을 직접 소유하도록 바꾸고, 앱별 auth layout/theme 래핑과 app-specific login copy를 제거했으며, CRM Tailwind content 누락과 Admin auth layout 부재를 보정. `verify:auth-commonization` gate가 login shell ownership, Tailwind web-auth scan, app-specific login copy 재유입을 검증한다.
+
+* **server, web-auth, web-admin, web-pms, web-sns, types, scripts:** 로그인/권한 공용화 잔여 드리프트를 차단. browser `AuthIdentity` 와 JWT `TokenPayload` 에서 `roleCode` 를 제거하고, `@Roles('admin')`/Admin shell/DMS settings system gate 를 `system.override`/domain access snapshot 기준으로 정렬했으며, `@ssoo/web-auth` auth clear hook + PMS/SNS user-scoped cleanup wiring 및 검증 스크립트 gate를 추가.
+
+* **server, web-dms, web-admin, database, scripts:** DMS settings 권한 경계를 personal entry + admin-only system settings 로 정렬. 일반 사용자는 DMS 개인 설정을 열고 저장할 수 있으며, 시스템/runtime 설정은 admin 계정에서만 노출·수정된다. `dms.settings.manage` seed baseline 과 access verifier도 같은 계약으로 보정.
+
+* **web-dms, docs/dms:** 비-admin DMS 설정 shell 에서 시스템 설정 scope/menu/search 항목과 기본 설정 스코프의 system 선택지를 숨기고, legacy settings/access-request redirect 도 admin 여부에 맞춰 personal 설정으로 보정.
+
+* **server, web-auth, scripts:** 5앱 auth lifecycle revoked-session convergence를 보정. `JwtStrategy` 가 access token의 `sessionId` 를 `cm_user_session_m` row와 대조해 missing/mismatch/revoked/expired 세션을 401로 거부하고, protected app bootstrap은 focus/visibility 복귀 시 서버 auth state를 재확인하며, `pnpm verify:auth-lifecycle` 로 Admin/CRM/PMS/DMS/SNS app-local auth proxy의 logout 후 old-token rejection을 검증.
+
+### Documentation
+
+* **docs/common:** SSOO 5앱 공용 사용자 생명주기 기준을 정본화하고, “공용 로그인 코드”가 아니라 logout/session-revoke/profile/access/cache cleanup까지 같은 사용자 상태로 수렴해야 완료라고 명시. 적용 계획은 server revoked-session 검증 → shared auth bootstrap/401 보정 → domain cleanup hook → browser lifecycle check → Docker/5앱 verifier 순서로 고정.
+
+### Refactoring
+
+* **web-auth, web-admin, web-crm, web-pms, web-dms, web-sns:** 사용자 메뉴의 계정/프로필/보안 진입점을 공용 `AuthUserMenu` account center action 으로 수렴. `NEXT_PUBLIC_SNS_APP_URL` 기준 SNS account center 를 canonical destination 으로 사용하고, DMS 문서 도메인 설정은 별도 `DMS 설정` 액션으로 분리.
+
+* **web-auth, web-admin, web-crm, web-sns, web-pms, web-dms:** Account/Auth + Admin + SNS Profile 장기 경계를 정본화하고, 앱별 `/login` route를 유지하되 공용 로그인 카드/세션 엔진을 쓰는 현재 구현 단계로 정렬. Admin/CRM 포함 5앱 로그인은 앱별 화면 문구나 theme override 없이 공용 SSOT 로그인 surface를 사용한다.
+
+* **web-shell, web-pms, web-crm:** SSOO sidebar를 서비스별 데이터/컨텐츠 slot과 `fixed`/`collapsible`/`collapsed-only`/`hover-reveal`/`overlay`/`floating-handle` mode 기반 공용 primitive로 분리하고, PMS는 기존 접힘/플로팅 동작을 보존한 기준 적용, CRM은 고정형 sidebar frame/section/item을 공용 primitive로 이관.
+
+* **web-shell, web-dms, docs/common:** SSOO 전체 앱에서 재사용할 설정 화면 양식을 `SsooSettings*` primitives로 추가하고, DMS 설정 페이지의 내부 section navigation/status/pending summary/view-mode controls 를 공통 surface 소비 구조로 전환.
+
+* **web-dms, docs/dms:** 공통 설정 양식에 맞춰 설정 화면의 앱명 반복 표기를 제거하고 scope/group/empty/template/link 문구를 `시스템 설정`, `내 설정`, `관리자 템플릿` 중심으로 단순화.
+
 ### Closeout
 
-* **workspace:** SSOO repo-wide closeout handoff updated for the current launch/rebaseline slice, including CMS removal/SNS+CRM workspace drift context, GitHub/GitLab publish procedure, and DMS startup file-list recovery notes.
+* **workspace, docker, dms:** 2026-06-11 repo-wide closeout handoff를 추가하고 DMS 설정 표기 cleanup을 Docker까지 반영했다. `ssoo-server`/`ssoo-dms` 이미지를 재빌드·재기동하고, 실행 중인 Docker Postgres `dms.dm_config_m` 시스템 설정도 document-neutral runtime path로 갱신해 기존 `.runtime/dms/*`, `/sites/dms`, `/mnt/nas/dms` 값이 남지 않도록 정리했다.
+
+* **workspace:** SSOO repo-wide closeout handoff updated for the current launch/rebaseline slice, including legacy content-app naming removal, SNS/CRM workspace drift context, GitHub/GitLab publish procedure, and DMS startup file-list recovery notes.
 
 ### Bug Fixes
 
@@ -47,7 +81,7 @@
 
 * **server, web-pms, docs/common:** Phase 1 menu baseline cutover — PMS `/api/menus/my` 일반 메뉴를 legacy seed 와 같은 역할 기준선(`admin/manager = full`, `user = read`, `viewer = dashboard read`) 위에 `cm_role_menu_r` legacy override fallback 과 `cm_user_menu_r` grant/revoke 를 덧씌우는 구조로 정렬하고, `GET /api/roles/:roleCode/menus` / `RoleManagementPage` 는 관리자 메뉴를 `system.override` 기준 read-only row 로 표시하도록 정리
 
-* **server, docs/common:** access smoke runtime 확장 — `pnpm verify:access-smoke` 가 기본 demo runtime persona(`viewer.han`) 기준으로 PMS foreign project deny / SNS post deny / DMS git-settings deny 와 PMS·SNS·DMS allow path 를 함께 검증하도록 넓어지고, PMS project access 가 action permission 누수 없이 project capability 로만 `canViewProject` 를 계산하도록 보정
+* **server, docs/common:** access smoke runtime 확장 — `pnpm verify:access-smoke` 가 기본 demo runtime persona(`viewer.han`) 기준으로 PMS foreign project deny / SNS post deny / DMS git-settings system deny 와 PMS·SNS·DMS allow path 를 함께 검증하도록 넓어지고, PMS project access 가 action permission 누수 없이 project capability 로만 `canViewProject` 를 계산하도록 보정
 
 * **server, docs/common, types:** Wave 5 access alignment 정렬 — PMS project-scoped route 를 `ProjectFeatureGuard` + `RequireProjectFeature(...)` 패턴으로 올리고, PMS two-stage bootstrap(`/api/menus/my` + `/api/projects/:id/access`)와 navigation-centric `PmsAccessSnapshot` 경계를 문서화하며, PMS/SNS cross-domain validation target 을 auth/access 문서와 runbook에 추가
 
@@ -61,7 +95,7 @@
 
 * **server, docs/common:** legacy cleanup major slice — JWT `TokenPayload` 에서 `isAdmin` 을 제거하고, `AccessFoundationService` / PMS project list filter / PMS admin menu inclusion 이 `system.override` 기준으로만 관리자 우회를 계산하도록 정렬
 
-* **server, web-pms, types, docs/common:** route-level admin gate + ops hardening 마감 — `RolesGuard` 의 `@Roles('admin')` 를 `system.override` 기준으로 전환하고, PMS 사용자 관리 화면에 access inspect dialog 를 추가하며, `pnpm verify:access-smoke` repo-native smoke script 로 admin success / profile contract / optional non-admin 403 검증 경로를 자동화
+* **server, web-pms, types, docs/common:** route-level admin gate + ops hardening 마감 — `RolesGuard` 의 `@Roles('admin')` 를 access foundation `system.override` 기준으로 전환하고, PMS 사용자 관리 화면에 access inspect dialog 를 추가하며, `pnpm verify:access-smoke` repo-native smoke script 로 admin success / profile contract / optional non-admin 403 검증 경로를 자동화
 
 * **docs/common, docs/dms:** auth/access validation baseline 문서화 — 공통 matrix(anonymous/feature denied/object denied/allow)와 repo-native 검증 루틴을 정리하고, DMS readiness/backlog/roadmap를 object ACL 중심 상태로 재정렬
 
@@ -140,6 +174,7 @@
 * **web-dms:** settings navigation exact flat row render — `FlatListItem` 에서 실제 clickable element와 label span에 typography token을 직접 적용하고, `cn()`/`tailwind-merge` 가 custom `text-*` size token을 color class와 함께 제거하던 경로를 피해 settings/OpenTabs/Bookmarks가 동일 14px row render를 유지하도록 정리
 * **web-dms:** settings flat row font inheritance fix — `FlatListItem` row container가 semantic typography token을 직접 들고, settings/OpenTabs/Bookmarks가 동일한 typography inheritance 경로를 공유하도록 보정
 * **web-dms:** settings direct row button path — trailing action이 없는 outer/inner settings row를 direct button 경로로 렌더링해 두 rail의 DOM/class 경로를 다시 맞춤
+* **web-shell, web-pms, web-dms, web-crm, web-admin, web-sns:** sidebar internals commonization — 검색 입력, refresh action, section chevron, flat list row, recursive tree row/filter를 `@ssoo/web-shell`의 `SsooSidebar*` primitive로 승격하고 PMS/DMS/CRM/Admin/SNS가 같은 렌더링 경로를 공유하도록 정리
 
 ### Improvements
 

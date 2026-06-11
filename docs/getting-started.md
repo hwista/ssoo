@@ -397,8 +397,11 @@ pnpm dev
 
 이 명령어는 다음을 동시에 실행합니다:
 - 백엔드 서버 (port 4000)
-- 프론트엔드 서버 (port 3000)
-- DMS 서버 (port 3001)
+- Admin 서버 (port 3000)
+- CRM 서버 (port 3001)
+- PMS 서버 (port 3002)
+- DMS 서버 (port 3003)
+- SNS 서버 (port 3004)
 
 ### 방법 2: 개별 실행
 
@@ -424,7 +427,7 @@ pnpm dev
 서버가 정상 실행되면:
 ```
 ▲ Next.js 15.5.9
-- Local:        http://localhost:3000
+- Local:        http://localhost:3002
 ```
 
 #### DMS 서버
@@ -437,17 +440,23 @@ pnpm dev
 서버가 정상 실행되면:
 ```
 ▲ Next.js 15.x
-- Local:        http://localhost:3001
+- Local:        http://localhost:3003
 ```
 
 ---
 
 ## 포트 설정
 
+정본 포트 맵은 [로컬 포트 맵](./common/explanation/architecture/local-port-map.md)을 따릅니다. SSOO는 웹 앱 `3000-3009`, API `4000`, PostgreSQL `5432`를 예약하므로 다른 로컬 프로젝트는 이 범위를 점유하지 않습니다.
+
 | 서비스 | 포트 | URL |
 |--------|------|-----|
-| **프론트엔드** | 3000 | http://localhost:3000 |
-| **DMS** | 3001 | http://localhost:3001 |
+| **Admin** | 3000 | http://localhost:3000 |
+| **CRM** | 3001 | http://localhost:3001 |
+| **PMS** | 3002 | http://localhost:3002 |
+| **DMS** | 3003 | http://localhost:3003 |
+| **SNS** | 3004 | http://localhost:3004 |
+| **Settings/Control reserved** | 3005 | http://localhost:3005 |
 | **백엔드 API** | 4000 | http://localhost:4000 |
 | **PostgreSQL** | 5432 | localhost:5432 |
 

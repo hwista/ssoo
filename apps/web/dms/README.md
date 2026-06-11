@@ -142,7 +142,7 @@ pnpm run test:e2e:dms
 ### 접속
 
 ```
-http://localhost:3001
+http://localhost:3003
 ```
 
 ### Docker 배포

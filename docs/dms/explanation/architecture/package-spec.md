@@ -14,7 +14,7 @@
 | **프로젝트명** | web-dms |
 | **경로** | `apps/web/dms/` |
 | **용도** | 문서 관리 시스템 (Document Management System) |
-| **포트** | 3001 |
+| **포트** | 3003 |
 | **원본 저장소** | GitLab `http://10.125.31.72:8010/LSITC_WEB/LSWIKI.git` |
 
 ---
@@ -144,7 +144,7 @@
 
 ```json
 {
-  "dev": "next dev --port 3001",
+  "dev": "next dev --port 3003",
   "build": "next build",
   "start": "next start"
 }

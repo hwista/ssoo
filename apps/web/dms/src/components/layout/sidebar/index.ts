@@ -10,12 +10,7 @@
 // 메인 컴포넌트
 export { Sidebar } from './Sidebar';
 
-// 섹션 컴포넌트
-export { Section } from './Section';
 export { Search } from './Search';
 export { Bookmarks } from './Bookmarks';
 export { OpenTabs } from './OpenTabs';
 export { FileTree } from './FileTree';
-
-// 상수
-export { SECTION_ICONS, SECTION_LABELS } from './constants';

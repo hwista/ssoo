@@ -26,6 +26,7 @@
     "lucide-react": "^0.548.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "rimraf": "^6.0.0",

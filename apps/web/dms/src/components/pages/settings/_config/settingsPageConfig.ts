@@ -2,8 +2,8 @@ import type { JsonFieldDescriptor } from '@/components/common/json';
 import type { SettingsScope, SettingsViewMode } from '@/types/settings';
 import {
   Bot,
-  Cloud,
   Database,
+  ExternalLink,
   FileSearch,
   FolderOpen,
   GitBranch,
@@ -26,14 +26,17 @@ export interface SettingItem extends JsonFieldDescriptor {
 export interface SettingSection {
   id: string;
   scope: SettingsScope;
+  group: SettingSectionGroup;
   jsonPath: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
   kind?: 'fields' | 'custom';
-  slotKey?: 'document-access' | 'admin-templates';
+  slotKey?: 'document-access' | 'admin-templates' | 'external-settings';
   items: SettingItem[];
 }
+
+export type SettingSectionGroup = 'operations' | 'system' | 'management' | 'personal' | 'external';
 
 export interface SettingSearchEntry {
   id: string;
@@ -49,12 +52,6 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const toNumber = (value: unknown) => Number(value);
 const toInteger = (value: unknown) => Math.trunc(Number(value));
-const toStringArray = (value: unknown) =>
-  String(value ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-
 const normalizeSearchText = (value: string) => value.trim().toLowerCase();
 
 const getSearchScore = (query: string, ...values: Array<string | undefined>) => {
@@ -93,8 +90,24 @@ export const SYSTEM_STORAGE_PROVIDER_OPTIONS = STORAGE_PROVIDER_OPTIONS.filter((
 
 export const SETTINGS_SCOPE_LABELS: Record<SettingsScope, string> = {
   system: '시스템 설정',
-  personal: '개인 설정',
+  personal: '내 설정',
 };
+
+export const SETTINGS_SECTION_GROUP_LABELS: Record<SettingSectionGroup, string> = {
+  operations: '운영 상태',
+  system: '시스템 설정',
+  management: '관리 업무',
+  personal: '내 설정',
+  external: '외부 설정 링크',
+};
+
+export const SETTINGS_SECTION_GROUP_ORDER: SettingSectionGroup[] = [
+  'operations',
+  'system',
+  'management',
+  'personal',
+  'external',
+];
 
 export const SETTINGS_VIEW_MODE_LABELS: Record<SettingsViewMode, string> = {
   structured: '구조화',
@@ -109,7 +122,7 @@ export const SETTINGS_VIEW_MODE_OPTIONS = [
 
 export const SETTINGS_SCOPE_OPTIONS = [
   { label: '시스템 설정', value: 'system' },
-  { label: '개인 설정', value: 'personal' },
+  { label: '내 설정', value: 'personal' },
 ] as const;
 
 const VIEWER_ZOOM_OPTIONS = [
@@ -121,17 +134,6 @@ const VIEWER_ZOOM_OPTIONS = [
   { label: '200%', value: '200' },
 ] as const;
 
-const AUTH_MODE_OPTIONS = [
-  { label: 'Anonymous-first', value: 'anonymous-first' },
-  { label: 'Organization SSO', value: 'organization-sso' },
-] as const;
-
-const IDENTITY_MAPPING_OPTIONS = [
-  { label: '메일 주소(mail)', value: 'mail' },
-  { label: 'UPN(userPrincipalName)', value: 'userPrincipalName' },
-  { label: '표시 이름(displayName)', value: 'displayName' },
-] as const;
-
 const validatePositiveInteger = (value: unknown, minimum: number, message: string) => {
   const num = Number(value);
   if (!Number.isFinite(num) || !Number.isInteger(num) || num < minimum) {
@@ -140,21 +142,15 @@ const validatePositiveInteger = (value: unknown, minimum: number, message: strin
   return null;
 };
 
-const validateCommaSeparatedList = (value: unknown) => {
-  if (Array.isArray(value)) return null;
-  const text = String(value ?? '').trim();
-  if (!text) return null;
-  return toStringArray(value).length > 0 ? null : '쉼표로 구분된 값을 입력하세요.';
-};
-
 export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'documentAccess',
     scope: 'system',
+    group: 'management',
     jsonPath: 'system.documentAccess',
-    label: '권한 요청/승인',
+    label: '문서 권한 관리',
     icon: Shield,
-    description: '내 요청 상태와 처리해야 할 문서 권한 승인 요청을 한 화면에서 확인합니다.',
+    description: '문서의 접근 권한, 요청/승인, grant 회수, 공개 범위, 소유권 이전을 실제 운영 화면에서 처리합니다.',
     kind: 'custom',
     slotKey: 'document-access',
     items: [],
@@ -162,8 +158,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'git',
     scope: 'system',
+    group: 'operations',
     jsonPath: 'system.git',
-    label: 'Git',
+    label: '문서 저장소 상태',
     icon: GitBranch,
     description: 'runtime role(prod/dev/local-test) 기준으로 결정되는 document Git binding observability 를 읽기 전용으로 확인합니다.',
     items: [
@@ -171,7 +168,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
         key: 'system.git.bootstrapRemoteUrl',
         label: 'Bootstrap Remote URL',
         helpKey: 'system.git.bootstrapRemoteUrl',
-        description: 'DMS_INSTANCE_ENV 역할 계약으로 결정된 canonical document remote 입니다. settings 에서 수정하지 않습니다.',
+        description: '런타임 역할 계약으로 결정된 canonical document remote 입니다. settings 에서 수정하지 않습니다.',
         type: 'text',
         placeholder: 'runtime-managed',
       },
@@ -195,8 +192,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'storage',
     scope: 'system',
+    group: 'system',
     jsonPath: 'system.storage',
-    label: 'Storage',
+    label: '첨부 저장소 정책',
     icon: HardDrive,
     description: 'Git 비대상 binary/runtime storage roots 와 provider 정책을 관리합니다.',
     items: [
@@ -214,7 +212,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
         helpKey: 'system.storage.local.basePath',
         description: 'Local binary storage root 입니다. attachment/reference/image 는 이 외부 경로를 사용할 수 있습니다.',
         type: 'text',
-        placeholder: '/var/lib/ssoo/dms/storage/local',
+        placeholder: '/var/lib/ssoo/document-storage/local',
       },
       {
         key: 'system.storage.local.enabled',
@@ -229,7 +227,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
         helpKey: 'system.storage.local.webBaseUrl',
         description: '브라우저 열기 시 사용할 public base URL입니다. 비워두면 내부 open API를 사용합니다.',
         type: 'text',
-        placeholder: 'http://localhost:3001/storage/local',
+        placeholder: 'http://localhost:3003/storage/local',
       },
       {
         key: 'system.storage.sharepoint.basePath',
@@ -237,7 +235,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
         helpKey: 'system.storage.sharepoint.basePath',
         description: 'SharePoint provider 가 사용할 library/mount 기준 경로입니다.',
         type: 'text',
-        placeholder: '/sites/dms/shared-documents',
+        placeholder: '/sites/documents/shared-documents',
       },
       {
         key: 'system.storage.sharepoint.enabled',
@@ -260,7 +258,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
         helpKey: 'system.storage.nas.basePath',
         description: 'NAS provider 가 사용할 mount/gateway 기준 경로입니다.',
         type: 'text',
-        placeholder: '/mnt/nas/dms',
+        placeholder: '/mnt/nas/documents',
       },
       {
         key: 'system.storage.nas.enabled',
@@ -275,15 +273,16 @@ export const SETTING_SECTIONS: SettingSection[] = [
         helpKey: 'system.storage.nas.webBaseUrl',
         description: '브라우저 열기 시 사용할 gateway 또는 file URL입니다.',
         type: 'text',
-        placeholder: 'file:///mnt/nas/dms',
+        placeholder: 'file:///mnt/nas/documents',
       },
     ],
   },
   {
     id: 'ingest',
     scope: 'system',
+    group: 'operations',
     jsonPath: 'system.ingest',
-    label: 'Ingest',
+    label: '수집 큐 상태',
     icon: Database,
     description: '빌드 이미지 밖의 ingest queue 경로와 게시 정책을 관리합니다.',
     items: [
@@ -293,7 +292,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
         helpKey: 'system.ingest.queuePath',
         description: '수집 작업 JSON 큐 파일을 저장하는 external runtime path 입니다.',
         type: 'text',
-        placeholder: '/var/lib/ssoo/dms/ingest',
+        placeholder: '/var/lib/ssoo/document-ingest',
       },
       {
         key: 'system.ingest.autoPublish',
@@ -321,8 +320,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'templates-runtime',
     scope: 'system',
+    group: 'operations',
     jsonPath: 'system.templates',
-    label: 'Template Runtime',
+    label: '템플릿 저장 위치',
     icon: FolderOpen,
     description: '템플릿은 문서 Git 레포의 _templates/ 하위에 자동 배치됩니다 (markdownRoot 파생, 변경 불가).',
     items: [],
@@ -330,8 +330,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'uploads',
     scope: 'system',
+    group: 'system',
     jsonPath: 'system.uploads',
-    label: 'Uploads',
+    label: '업로드 한도',
     icon: Upload,
     description: '첨부/이미지 업로드 한도를 관리합니다.',
     items: [
@@ -360,8 +361,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'search',
     scope: 'system',
+    group: 'system',
     jsonPath: 'system.search',
-    label: 'Search',
+    label: '검색 정책',
     icon: Search,
     description: '검색 결과 수, 시맨틱 threshold, 임베딩 chunk 정책을 관리합니다.',
     items: [
@@ -424,8 +426,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'docAssist',
     scope: 'system',
+    group: 'system',
     jsonPath: 'system.docAssist',
-    label: 'Doc Assist',
+    label: '문서 AI 보조 정책',
     icon: Bot,
     description: 'AI 문서 작성 컨텍스트 길이와 요약 첨부 한도를 관리합니다.',
     items: [
@@ -484,10 +487,11 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'templates',
     scope: 'system',
+    group: 'management',
     jsonPath: 'system.templates',
     label: '관리자 템플릿',
     icon: Shapes,
-    description: '관리자 기준의 전역/개인 템플릿 관리 슬롯입니다.',
+    description: '문서 도메인 안에서 전역/개인 템플릿을 관리하는 슬롯입니다.',
     kind: 'custom',
     slotKey: 'admin-templates',
     items: [],
@@ -495,8 +499,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'extraction',
     scope: 'system',
+    group: 'system',
     jsonPath: 'system.extraction',
-    label: 'Extraction',
+    label: '문서 분석/추출 정책',
     icon: FileSearch,
     description: 'AI 문서 분석 시 텍스트/이미지 추출 설정을 관리합니다.',
     items: [
@@ -573,116 +578,21 @@ export const SETTING_SECTIONS: SettingSection[] = [
     ],
   },
   {
-    id: 'm365',
+    id: 'externalSettings',
     scope: 'system',
-    jsonPath: 'system.m365',
-    label: 'M365',
-    icon: Cloud,
-    description: 'Microsoft 365 / Teams / SharePoint / SSO 연결 메타를 관리합니다. Secret/token은 env에서 관리합니다.',
-    items: [
-      {
-        key: 'system.m365.sharepoint.tenantDomain',
-        label: 'SharePoint 테넌트 도메인',
-        helpKey: 'system.m365.sharepoint.tenantDomain',
-        description: '예: contoso.sharepoint.com. 연결 메타만 저장하며 secret은 포함하지 않습니다.',
-        type: 'text',
-        placeholder: 'contoso.sharepoint.com',
-      },
-      {
-        key: 'system.m365.sharepoint.sitePath',
-        label: 'SharePoint 사이트 경로',
-        helpKey: 'system.m365.sharepoint.sitePath',
-        description: '예: /sites/dms',
-        type: 'text',
-        placeholder: '/sites/dms',
-      },
-      {
-        key: 'system.m365.sharepoint.defaultLibrary',
-        label: '기본 SharePoint 라이브러리',
-        helpKey: 'system.m365.sharepoint.defaultLibrary',
-        description: '예: shared-documents',
-        type: 'text',
-        placeholder: 'shared-documents',
-      },
-      {
-        key: 'system.m365.teams.enabled',
-        label: 'Teams 메타 설정 활성화',
-        helpKey: 'system.m365.teams.enabled',
-        description: 'Teams 연결 메타를 settings 에서 관리합니다. 실제 Teams runtime 연동은 별도 구현 범위입니다.',
-        type: 'checkbox',
-      },
-      {
-        key: 'system.m365.teams.ingestEnabled',
-        label: 'Teams ingest 메타 활성화',
-        helpKey: 'system.m365.teams.ingestEnabled',
-        description: 'Teams 채널 ingest 정책 메타를 저장합니다.',
-        type: 'checkbox',
-      },
-      {
-        key: 'system.m365.teams.defaultTeam',
-        label: '기본 Teams 팀',
-        helpKey: 'system.m365.teams.defaultTeam',
-        description: '예: DMS 운영팀',
-        type: 'text',
-        placeholder: 'DMS 운영팀',
-      },
-      {
-        key: 'system.m365.teams.defaultChannel',
-        label: '기본 Teams 채널',
-        helpKey: 'system.m365.teams.defaultChannel',
-        description: '예: documents',
-        type: 'text',
-        placeholder: 'documents',
-      },
-      {
-        key: 'system.m365.teams.defaultDropPath',
-        label: '기본 Teams drop 경로',
-        helpKey: 'system.m365.teams.defaultDropPath',
-        description: 'Teams 입력을 저장할 문서 경로 정책입니다.',
-        type: 'text',
-        placeholder: 'ingest/teams',
-      },
-      {
-        key: 'system.m365.auth.mode',
-        label: '조직 인증 모드',
-        helpKey: 'system.m365.auth.mode',
-        description: '현재는 metadata only 설정입니다. 실제 로그인 플로우는 별도 구현 범위입니다.',
-        type: 'select',
-        options: [...AUTH_MODE_OPTIONS],
-      },
-      {
-        key: 'system.m365.auth.allowedTenantIds',
-        label: '허용 테넌트 ID 목록',
-        helpKey: 'system.m365.auth.allowedTenantIds',
-        description: '쉼표로 구분해 입력합니다. 비워두면 제한을 두지 않습니다.',
-        type: 'text',
-        placeholder: 'tenant-a, tenant-b',
-        coerce: toStringArray,
-        validate: validateCommaSeparatedList,
-      },
-      {
-        key: 'system.m365.auth.allowedDomains',
-        label: '허용 도메인 목록',
-        helpKey: 'system.m365.auth.allowedDomains',
-        description: '쉼표로 구분해 입력합니다. 예: contoso.com, partner.co.kr',
-        type: 'text',
-        placeholder: 'contoso.com, partner.co.kr',
-        coerce: toStringArray,
-        validate: validateCommaSeparatedList,
-      },
-      {
-        key: 'system.m365.auth.identityMapping',
-        label: '사용자 식별자 매핑 기준',
-        helpKey: 'system.m365.auth.identityMapping',
-        description: '향후 조직 계정 연결 시 어떤 식별자를 우선 매핑할지 정의합니다.',
-        type: 'select',
-        options: [...IDENTITY_MAPPING_OPTIONS],
-      },
-    ],
+    group: 'external',
+    jsonPath: 'system.externalLinks',
+    label: '공통 설정으로 이동',
+    icon: ExternalLink,
+    description: '플랫폼 공통은 Admin, 문서 도메인의 세부 시스템 설정/제어/운영은 이 설정 화면이라는 책임 경계를 보여 주고, SNS Profile/Account·Admin/조직·AI Control Plane 은 외부 surface로 분리합니다.',
+    kind: 'custom',
+    slotKey: 'external-settings',
+    items: [],
   },
   {
     id: 'identity',
     scope: 'personal',
+    group: 'personal',
     jsonPath: 'personal.identity',
     label: 'Identity',
     icon: UserRound,
@@ -703,7 +613,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
         helpKey: 'personal.identity.email',
         description: 'Git 커밋 작성자 이메일로 사용됩니다.',
         type: 'email',
-        placeholder: 'anonymous@dms.local',
+        placeholder: 'anonymous@documents.local',
         validate: (value) => {
           const text = String(value ?? '').trim();
           if (!text) return '작성자 이메일은 필수입니다.';
@@ -715,6 +625,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'workspace',
     scope: 'personal',
+    group: 'personal',
     jsonPath: 'personal.workspace',
     label: 'Workspace',
     icon: Workflow,
@@ -756,6 +667,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'viewer',
     scope: 'personal',
+    group: 'personal',
     jsonPath: 'personal.viewer',
     label: 'Viewer',
     icon: FileSearch,
@@ -782,6 +694,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
   {
     id: 'sidebar',
     scope: 'personal',
+    group: 'personal',
     jsonPath: 'personal.sidebar',
     label: 'Sidebar',
     icon: PanelLeft,
