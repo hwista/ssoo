@@ -66,6 +66,7 @@ function toInputJson(value: Record<string, CommonNotificationJsonValue> | undefi
 export class CommonNotificationService {
   private readonly streamListeners = new Map<string, Set<NotificationStreamListener>>();
   private readonly sourceAppStreamListeners = new Map<CommonNotificationSourceApp, Set<NotificationStreamListener>>();
+  private readonly globalDomainStreamListeners = new Set<NotificationStreamListener>();
 
   constructor(private readonly db: DatabaseService) {}
 
@@ -86,6 +87,8 @@ export class CommonNotificationService {
       this.addStreamListener(recipientKey, listener);
       if (sourceApp) {
         this.addSourceAppStreamListener(sourceApp, listener);
+      } else {
+        this.globalDomainStreamListeners.add(listener);
       }
       subscriber.next({
         type: 'connected',
@@ -112,6 +115,8 @@ export class CommonNotificationService {
         this.removeStreamListener(recipientKey, listener);
         if (sourceApp) {
           this.removeSourceAppStreamListener(sourceApp, listener);
+        } else {
+          this.globalDomainStreamListeners.delete(listener);
         }
       };
     });
@@ -574,11 +579,13 @@ export class CommonNotificationService {
 
   private publishToSourceApp(sourceApp: CommonNotificationSourceApp, event: CommonNotificationStreamEvent): void {
     const listeners = this.sourceAppStreamListeners.get(sourceApp);
-    if (!listeners) {
-      return;
+    if (listeners) {
+      for (const listener of listeners) {
+        listener(event);
+      }
     }
 
-    for (const listener of listeners) {
+    for (const listener of this.globalDomainStreamListeners) {
       listener(event);
     }
   }

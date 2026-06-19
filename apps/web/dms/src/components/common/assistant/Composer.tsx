@@ -9,6 +9,7 @@ import {
   type PickerSectionsConfig,
 } from './reference/Picker';
 import { AssistantReferenceChips } from './reference/Chips';
+import { Button, Textarea } from '@ssoo/web-ui';
 
 interface InlineContextProps {
   selectedTemplate: TemplateItem | null;
@@ -135,21 +136,21 @@ export function AssistantComposer({
     >
       {onToggleSuggestions && (
         <div className="mb-2">
-          <button
+          <Button variant="plain" size="plain"
             type="button"
             onClick={onToggleSuggestions}
             className="flex w-full items-center justify-between rounded-md border border-transparent px-1 py-1 text-label-sm text-ssoo-primary/70 transition-colors hover:border-ssoo-content-border hover:bg-ssoo-content-bg/40"
           >
             <span>추천 질문</span>
             {suggestionsCollapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
+          </Button>
         </div>
       )}
 
       {onToggleSuggestions && !suggestionsCollapsed && (
         <div className="mb-2 flex flex-wrap gap-2">
           {suggestions.map((suggestion) => (
-            <button
+            <Button variant="plain" size="plain"
               key={suggestion}
               type="button"
               disabled={isProcessing}
@@ -160,7 +161,7 @@ export function AssistantComposer({
               title={suggestion}
             >
               {suggestion}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -197,7 +198,7 @@ export function AssistantComposer({
           overrideAttachedPaths={overrideAttachedPaths}
         />
         <div className="relative flex-1">
-          <textarea
+          <Textarea
             ref={setRefs}
             value={inputDraft}
             onChange={(event) => {
@@ -224,7 +225,8 @@ export function AssistantComposer({
         </div>
         {submitVariant === 'text' ? (
           isProcessing && onAbort ? (
-            <button
+            <Button
+              variant="destructive"
               type="button"
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -234,24 +236,24 @@ export function AssistantComposer({
                 event.stopPropagation();
                 onAbort();
               }}
-              className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-label-md leading-none text-white transition-colors hover:bg-destructive/90"
+              className="h-10 shrink-0 rounded-lg leading-none"
             >
               <Square className="h-3.5 w-3.5 fill-current" />
               중단
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               type="submit"
               disabled={isProcessing || !inputDraft.trim()}
-              className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-ssoo-primary px-4 text-label-md leading-none text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-10 shrink-0 rounded-lg leading-none"
             >
               {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
               {submitLabel}
-            </button>
+            </Button>
           )
         ) : (
           isProcessing && onAbort ? (
-            <button
+            <Button variant="plain" size="plain"
               type="button"
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -265,16 +267,16 @@ export function AssistantComposer({
               aria-label="중단"
             >
               <Square className="h-3.5 w-3.5 fill-current" />
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button variant="plain" size="plain"
               type="submit"
               disabled={isProcessing || !inputDraft.trim()}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ssoo-primary text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
               aria-label="전송"
             >
               {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-            </button>
+            </Button>
           )
         )}
       </div>

@@ -3,12 +3,14 @@ import { DatabaseService } from '../../../database/database.service.js';
 import type { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessService } from '../access/access.service.js';
+import { CommonNotificationService } from '../../common/notification/notification.service.js';
 
 @Injectable()
 export class CommentService {
   constructor(
     private readonly db: DatabaseService,
     private readonly accessService: AccessService,
+    private readonly notificationService: CommonNotificationService,
   ) {}
 
   async findByPost(postId: bigint, user: TokenPayload) {
@@ -38,7 +40,7 @@ export class CommentService {
       depth = parent.depth + 1;
     }
 
-    return this.db.client.snsComment.create({
+    const comment = await this.db.client.snsComment.create({
       data: {
         postId,
         authorUserId,
@@ -47,6 +49,8 @@ export class CommentService {
         depth,
       },
     });
+    await this.publishFeedChanged(authorUserId, postId);
+    return comment;
   }
 
   async update(id: bigint, dto: UpdateCommentDto, user: TokenPayload) {
@@ -62,12 +66,14 @@ export class CommentService {
       '본인이 작성한 댓글만 수정할 수 있습니다.',
     );
 
-    return this.db.client.snsComment.update({
+    const comment = await this.db.client.snsComment.update({
       where: { id },
       data: {
         ...(dto.content !== undefined && { content: dto.content }),
       },
     });
+    await this.publishFeedChanged(BigInt(user.userId), existing.postId);
+    return comment;
   }
 
   async softDelete(id: bigint, user: TokenPayload) {
@@ -83,9 +89,24 @@ export class CommentService {
       '본인이 작성한 댓글만 삭제할 수 있습니다.',
     );
 
-    return this.db.client.snsComment.update({
+    const comment = await this.db.client.snsComment.update({
       where: { id },
       data: { isActive: false },
+    });
+    await this.publishFeedChanged(BigInt(user.userId), existing.postId);
+    return comment;
+  }
+
+  private async publishFeedChanged(actorUserId: bigint, postId: bigint): Promise<void> {
+    const post = await this.db.client.snsPost.findUnique({
+      where: { id: postId },
+      select: { authorUserId: true },
+    });
+
+    this.notificationService.publishDomainEvent('sns', 'sns.feed.changed', {
+      actorUserId: actorUserId.toString(),
+      postId: postId.toString(),
+      ...(post ? { userId: post.authorUserId.toString() } : {}),
     });
   }
 }

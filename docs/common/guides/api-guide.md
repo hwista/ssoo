@@ -131,10 +131,12 @@ Authorization: Bearer <access_token>
 
 ```
 1. API 요청 → 401 Unauthorized 응답
-2. Refresh Token으로 POST /auth/refresh 호출
-3. 새로운 Access Token 수신
+2. HttpOnly shared session cookie로 POST /auth/session 호출
+3. 새로운 Access Token + 사용자 bootstrap payload 수신
 4. 원래 요청 재시도
 ```
+
+브라우저 앱은 refresh token을 JSON body나 localStorage에 보관하지 않습니다. 서버 직접 `POST /auth/refresh` 엔드포인트는 제거되었고, Admin/CRM/PMS/DMS/SNS app-local auth proxy는 `login/session/logout/me` 및 password reset proxy만 노출합니다. Access token 재발급은 HttpOnly shared session cookie 기반 `POST /auth/session`으로만 수행합니다.
 
 ### 토큰 유효기간
 

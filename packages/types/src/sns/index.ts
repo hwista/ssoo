@@ -5,7 +5,15 @@ export { Comment, CreateCommentDto, UpdateCommentDto } from './comment';
 // Board
 export { Board, BoardCategory, CreateBoardDto, UpdateBoardDto } from './board';
 // Profile
-export { UserProfile, UserCareer, UpdateProfileDto, CreateCareerDto } from './profile';
+export {
+  ProfileSkill,
+  ProfileUserSummary,
+  UserProfile,
+  UserProfileSurface,
+  UserCareer,
+  UpdateProfileDto,
+  CreateCareerDto,
+} from './profile';
 // Skill
 export { Skill, UserSkill, Endorsement, CreateSkillDto, AddUserSkillDto, EndorseSkillDto, SearchExpertsDto } from './skill';
 // Follow

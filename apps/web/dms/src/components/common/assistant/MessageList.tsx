@@ -9,6 +9,7 @@ import { toast } from '@/lib/toast';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
 import { SearchResultCard } from '@/components/common/assistant/_components/ResultCard';
+import { Button } from '@ssoo/web-ui';
 
 interface AssistantMessageListProps {
   messages: AssistantMessage[];
@@ -107,7 +108,7 @@ export function AssistantMessageList({
                   {message.actions.map((action) => {
                     const ActionIcon = iconMap[action.icon as AssistantHelpAction['icon']] ?? Bot;
                     return (
-                      <button
+                      <Button variant="plain" size="plain"
                         key={`${message.id}-${action.id}`}
                         type="button"
                         onClick={() => {
@@ -125,7 +126,7 @@ export function AssistantMessageList({
                           </div>
                           <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-ssoo-primary/50" />
                         </div>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -185,7 +186,7 @@ export function AssistantMessageList({
               </div>
               {canCopyText && (
                 <div className={`mt-1.5 flex items-center gap-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                  <button
+                  <Button variant="plain" size="plain"
                     type="button"
                     onClick={() => {
                       void handleCopyMessage(
@@ -199,9 +200,9 @@ export function AssistantMessageList({
                     aria-label={isUser ? '질문 복사' : '응답 복사'}
                   >
                     <Copy className={messageActionIconClass} />
-                  </button>
+                  </Button>
                   {isUser && (
-                    <button
+                    <Button variant="plain" size="plain"
                       type="button"
                       onClick={() => {
                         if (!onResendUserMessage) return;
@@ -213,7 +214,7 @@ export function AssistantMessageList({
                       aria-label="질문 재전송"
                     >
                       <RotateCcw className={messageActionIconClass} />
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}

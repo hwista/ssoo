@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const projectRoot = path.resolve(process.cwd());
+const workspaceRoot = path.resolve(projectRoot, '../../..');
 
-function read(relPath) {
-  const absPath = path.join(projectRoot, relPath);
+function read(relPath, base = projectRoot) {
+  const absPath = path.join(base, relPath);
   return fs.readFileSync(absPath, 'utf8');
 }
 
@@ -12,10 +13,19 @@ const checks = [
   {
     file: 'src/components/templates/page-frame/SectionedShell.tsx',
     patterns: [
-      "const BODY_SLOT_CONTENT_CLASS = 'h-full min-h-0 overflow-hidden';",
-      '<div className={BODY_SLOT_CONTENT_CLASS}>',
+      'SsooSectionedShell',
+      'SsooSectionedShellProps',
     ],
-    description: 'SectionedShell body slot content wrapper contract',
+    description: 'DMS SectionedShell delegates body slot ownership to web-shell',
+  },
+  {
+    base: workspaceRoot,
+    file: 'packages/web-shell/src/sectioned-shell.tsx',
+    patterns: [
+      "const BODY_SLOT_CONTENT_CLASS = 'h-full min-h-0 overflow-hidden';",
+      '<div className={BODY_SLOT_CONTENT_CLASS}>{body}</div>',
+    ],
+    description: 'Shared SectionedShell body slot content wrapper contract',
   },
   {
     file: 'src/components/templates/page-frame/layoutPresets.ts',
@@ -44,7 +54,7 @@ const checks = [
 const failures = [];
 
 for (const check of checks) {
-  const text = read(check.file);
+  const text = read(check.file, check.base);
   for (const pattern of check.patterns) {
     if (!text.includes(pattern)) {
       failures.push(`- ${check.description} (${check.file}) missing pattern: ${pattern}`);

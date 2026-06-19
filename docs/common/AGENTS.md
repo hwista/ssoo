@@ -1,6 +1,6 @@
 # SSOO 모노레포 에이전트 가이드 (AGENTS)
 
-> 최종 업데이트: 2026-04-13  
+> 최종 업데이트: 2026-06-17  
 > 범위: SSOO 모노레포 전체 (`sooo/`)
 
 ---
@@ -28,6 +28,8 @@ sooo/
 ├── apps/
 │   ├── server/              # NestJS 백엔드 API 서버
 │   └── web/
+│       ├── admin/           # Admin 프론트엔드 (Next.js 15)
+│       ├── crm/             # CRM 프론트엔드 (Next.js 15)
 │       ├── pms/             # PMS 프론트엔드 (Next.js 15)
 │       ├── sns/             # SNS 프론트엔드 (Next.js 15)
 │       └── dms/             # DMS 프론트엔드 (pnpm workspace 앱)
@@ -35,7 +37,8 @@ sooo/
 │   ├── database/            # Prisma ORM, DB 스키마
 │   ├── types/               # 공유 TypeScript 타입
 │   ├── web-auth/            # 공용 브라우저 auth/session/bootstrap
-│   └── web-shell/           # 공용 웹 shell/layout surface
+│   ├── web-shell/           # 공용 웹 shell/layout surface
+│   └── web-ui/              # 공용 디자인 토큰/Tailwind preset/UI primitive
 ├── docs/                    # 문서
 └── .github/                 # Copilot 규칙
     ├── copilot-instructions.md
@@ -115,7 +118,7 @@ pnpm dev:web-sns                  # SNS :3004
 
 ### 2. DMS 작업 시 주의
 
-> ⚠️ **PMS/SNS/DMS는 공통 `@ssoo/web-auth` surface 를 사용하고, DMS는 추가로 pnpm workspace 앱 기준을 따릅니다. DMS에서 `@ssoo/database` 직접 import는 금지입니다.**  
+> ⚠️ **Admin/CRM/PMS/SNS/DMS는 공통 `@ssoo/web-auth`, `@ssoo/web-shell`, `@ssoo/web-ui` surface를 사용하고, DMS는 추가로 pnpm workspace 앱 기준을 따릅니다. DMS에서 `@ssoo/database` 직접 import는 금지입니다.**  
 > DMS 작업 시: [docs/dms/AGENTS.md](../../docs/dms/AGENTS.md)
 
 ---
@@ -124,6 +127,8 @@ pnpm dev:web-sns                  # SNS :3004
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-17 | `@ssoo/web-ui` 공용 디자인 토큰/Tailwind preset/UI primitive 패키지를 현재 패키지 기준선에 추가 |
+| 2026-06-17 | Admin/CRM을 현재 웹 앱 구조에 추가하고 quick start의 5개 웹 앱 기준선과 맞춤 |
 | 2026-04-13 | DMS를 pnpm workspace 앱 기준으로 현행화하고 quick start / 주의사항을 공통 auth-access 구조에 맞게 갱신 |
 | 2026-02-22 | Codex 정본 진입점(`AGENTS.md`) 및 `.codex/instructions` 참조 경로 추가 |
 | 2026-02-04 | **리팩토링**: 중복 내용 삭제, Copilot 규칙 링크로 대체, 온보딩 가이드로 단순화 |

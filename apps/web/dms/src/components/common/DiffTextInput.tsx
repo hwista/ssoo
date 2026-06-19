@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { buildDiffChunks } from '@/lib/utils/diffChunks';
+import { Textarea } from '@ssoo/web-ui';
 
 export interface DiffTextInputProps {
   /** 현재 값 */
@@ -58,7 +59,7 @@ export function DiffTextInput({
   if (!diffChunks) {
     // 변경 없음 — 일반 textarea
     return (
-      <textarea
+      <Textarea
         value={value}
         onChange={onChange}
         placeholder={placeholder}
@@ -92,7 +93,7 @@ export function DiffTextInput({
             </div>
           ))}
         </div>
-        <textarea
+        <Textarea
           value={value}
           onChange={onChange}
           placeholder={placeholder}
@@ -125,7 +126,7 @@ export function DiffTextInput({
         })}
       </div>
       {/* Textarea (앞, 텍스트 투명) */}
-      <textarea
+      <Textarea
         ref={textareaRef}
         value={value}
         onChange={onChange}

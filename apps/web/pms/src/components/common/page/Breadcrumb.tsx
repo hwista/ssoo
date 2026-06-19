@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@ssoo/web-ui';
 
 /**
  * 브레드크럼 아이템
@@ -48,12 +49,12 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
           <React.Fragment key={index}>
             <ChevronRight className="mx-1 h-3.5 w-3.5 text-gray-400" />
             {onClick && !isLast ? (
-              <button
+              <Button variant="plain" size="plain"
                 onClick={onClick}
                 className="hover:text-foreground hover:underline transition-colors"
               >
                 {label}
-              </button>
+              </Button>
             ) : (
               <span className={cn(isLast && 'text-foreground font-medium')}>
                 {label}

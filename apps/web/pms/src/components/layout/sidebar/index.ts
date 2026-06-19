@@ -11,11 +11,6 @@
 // 메인 컴포넌트
 export { Sidebar } from './Sidebar';
 
-// 레이아웃 서브 컴포넌트
-export { CollapsedSidebar } from './CollapsedSidebar';
-export { ExpandedSidebar } from './ExpandedSidebar';
-
-export { Search } from './Search';
 export { Favorites } from './Favorites';
 export { OpenTabs } from './OpenTabs';
 export { MenuTree } from './MenuTree';

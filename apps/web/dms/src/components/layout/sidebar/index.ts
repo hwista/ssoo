@@ -10,7 +10,6 @@
 // 메인 컴포넌트
 export { Sidebar } from './Sidebar';
 
-export { Search } from './Search';
 export { Bookmarks } from './Bookmarks';
 export { OpenTabs } from './OpenTabs';
 export { FileTree } from './FileTree';

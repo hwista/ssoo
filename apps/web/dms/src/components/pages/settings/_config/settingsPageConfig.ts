@@ -23,6 +23,13 @@ export interface SettingItem extends JsonFieldDescriptor {
   coerce?: (value: unknown) => unknown;
 }
 
+export interface SettingSectionIndexItem {
+  id: string;
+  label: string;
+  description?: string;
+  meta?: string;
+}
+
 export interface SettingSection {
   id: string;
   scope: SettingsScope;
@@ -33,6 +40,7 @@ export interface SettingSection {
   description: string;
   kind?: 'fields' | 'custom';
   slotKey?: 'document-access' | 'admin-templates' | 'external-settings';
+  indexItems?: SettingSectionIndexItem[];
   items: SettingItem[];
 }
 
@@ -153,6 +161,33 @@ export const SETTING_SECTIONS: SettingSection[] = [
     description: '문서의 접근 권한, 요청/승인, grant 회수, 공개 범위, 소유권 이전을 실제 운영 화면에서 처리합니다.',
     kind: 'custom',
     slotKey: 'document-access',
+    indexItems: [
+      {
+        id: 'status',
+        label: '운영 현황',
+        description: '권한 요청/승인 요약과 현재 운영 상태입니다.',
+      },
+      {
+        id: 'manageable-documents',
+        label: '관리 가능한 문서',
+        description: '내가 권한을 운영할 수 있는 문서 목록입니다.',
+      },
+      {
+        id: 'direct-grants',
+        label: '권한 직접 부여',
+        description: '요청 없이 사용자에게 문서 권한을 발급합니다.',
+      },
+      {
+        id: 'approval-inbox',
+        label: '승인 대기 inbox',
+        description: '처리해야 하는 pending 요청입니다.',
+      },
+      {
+        id: 'my-requests',
+        label: '내 요청 내역',
+        description: '내가 보낸 권한 요청의 최신 상태입니다.',
+      },
+    ],
     items: [],
   },
   {
@@ -494,6 +529,23 @@ export const SETTING_SECTIONS: SettingSection[] = [
     description: '문서 도메인 안에서 전역/개인 템플릿을 관리하는 슬롯입니다.',
     kind: 'custom',
     slotKey: 'admin-templates',
+    indexItems: [
+      {
+        id: 'status',
+        label: '운영 상태',
+        description: '관리자 템플릿 기능의 현재 상태입니다.',
+      },
+      {
+        id: 'template-create',
+        label: '템플릿 추가',
+        description: '전역/개인 템플릿을 새로 등록합니다.',
+      },
+      {
+        id: 'template-list',
+        label: '템플릿 목록',
+        description: '현재 등록된 템플릿을 확인하고 삭제합니다.',
+      },
+    ],
     items: [],
   },
   {
@@ -587,6 +639,18 @@ export const SETTING_SECTIONS: SettingSection[] = [
     description: '플랫폼 공통은 Admin, 문서 도메인의 세부 시스템 설정/제어/운영은 이 설정 화면이라는 책임 경계를 보여 주고, SNS Profile/Account·Admin/조직·AI Control Plane 은 외부 surface로 분리합니다.',
     kind: 'custom',
     slotKey: 'external-settings',
+    indexItems: [
+      {
+        id: 'boundary',
+        label: '설정 경계',
+        description: '플랫폼 공통과 문서 도메인 설정의 책임 경계입니다.',
+      },
+      {
+        id: 'external-links',
+        label: '외부 설정 링크',
+        description: '다른 앱이나 공통 surface로 이동하는 진입점입니다.',
+      },
+    ],
     items: [],
   },
   {

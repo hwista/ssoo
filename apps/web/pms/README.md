@@ -79,7 +79,6 @@ apps/web/pms/
 // src/stores/auth.store.ts
 interface AuthState {
   accessToken: string | null;
-  refreshToken: string | null;
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -94,16 +93,14 @@ interface AuthState {
 
 | 클라이언트 | 용도 |
 |------------|------|
-| `publicClient` | 인증 불필요 (로그인, 토큰 갱신) |
-| `apiClient` | 토큰 자동 첨부 + 401 시 자동 갱신 |
+| `publicClient` | 인증 불필요 (로그인, 세션 bootstrap) |
+| `apiClient` | runtime access token 자동 첨부 + 401 시 HttpOnly session cookie 기반 복원 |
 
 ### 로컬 스토리지
 
 ```json
 // Key: "ssoo-auth"
 {
-  "accessToken": "...",
-  "refreshToken": "...",
   "user": { ... },
   "isAuthenticated": true
 }

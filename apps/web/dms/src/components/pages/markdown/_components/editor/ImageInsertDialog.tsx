@@ -4,6 +4,7 @@ import * as React from 'react';
 import Image from 'next/image';
 import { ImageIcon, Upload, Link2 } from 'lucide-react';
 import { EditorDialog } from '@/components/common/editor-dialog';
+import { Button, Input } from '@ssoo/web-ui';
 
 export interface ImageInsertDialogProps {
   open: boolean;
@@ -81,7 +82,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
     >
       {/* 탭 */}
       <div className="flex gap-1 rounded-lg border border-ssoo-content-border p-1">
-        <button
+        <Button variant="plain" size="plain"
           type="button"
           onClick={() => setActiveTab('url')}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-label-sm transition-colors ${
@@ -92,8 +93,8 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
         >
           <Link2 className="h-3.5 w-3.5" />
           URL 입력
-        </button>
-        <button
+        </Button>
+        <Button variant="plain" size="plain"
           type="button"
           onClick={() => setActiveTab('upload')}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-label-sm transition-colors ${
@@ -104,7 +105,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
         >
           <Upload className="h-3.5 w-3.5" />
           파일 업로드
-        </button>
+        </Button>
       </div>
 
       {/* 탭 콘텐츠 영역 */}
@@ -114,7 +115,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
             <label className="text-label-md text-ssoo-primary" htmlFor="image-url-input">
               이미지 URL
             </label>
-            <input
+            <Input
               id="image-url-input"
               type="text"
               value={urlValue}
@@ -156,10 +157,10 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
                 </p>
               )}
             </div>
-            <input
+            <Input
               ref={fileInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+              accept="image/png,image/jpeg,image/gif,image/webp"
               onChange={handleFileChange}
               className="hidden"
             />

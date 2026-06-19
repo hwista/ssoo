@@ -10,7 +10,17 @@ import type {
   DocumentPermissionGrant,
 } from '@ssoo/types/dms';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateDisplay';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import {
@@ -27,6 +37,7 @@ import {
 } from '@/features/access';
 import { useAccessStore } from '@/stores';
 import { DMS_ACCESS_REQUEST_FOCUS_EVENT } from '@/lib/notification-events';
+import { NativeSelect, Textarea } from '@ssoo/web-ui';
 
 type RequestStatus = DmsDocumentAccessRequestSummary['status'];
 const ACCESS_ROLE_OPTIONS: Array<{ value: DmsDocumentAccessRequestRole; label: string }> = [
@@ -115,9 +126,9 @@ function SummaryCard({
 
 function StatusBadge({ status }: { status: RequestStatus }) {
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-badge ${STATUS_META[status].className}`}>
+    <Badge variant="outline" className={cn('rounded-full px-2 py-0.5', STATUS_META[status].className)}>
       {STATUS_META[status].label}
-    </span>
+    </Badge>
   );
 }
 
@@ -171,12 +182,12 @@ function GrantRow({
   isRevoking: boolean;
 }) {
   return (
-    <tr className="border-b border-ssoo-content-border/50 last:border-0">
-      <td className="px-2 py-1.5 text-body-sm text-ssoo-primary/80">{grant.principalId}</td>
-      <td className="px-2 py-1.5 text-body-sm text-ssoo-primary/80">{formatGrantRole(grant.role)}</td>
-      <td className="px-2 py-1.5 text-caption text-ssoo-primary/60">{formatGrantSource(grant.source)}</td>
-      <td className="px-2 py-1.5 text-caption text-ssoo-primary/60">{grant.grantedAt ? formatDateTime(grant.grantedAt) : '-'}</td>
-      <td className="px-2 py-1.5 text-right">
+    <TableRow className="border-ssoo-content-border/50 hover:bg-transparent">
+      <TableCell className="px-2 py-1.5 text-body-sm text-ssoo-primary/80">{grant.principalId}</TableCell>
+      <TableCell className="px-2 py-1.5 text-body-sm text-ssoo-primary/80">{formatGrantRole(grant.role)}</TableCell>
+      <TableCell className="px-2 py-1.5 text-caption text-ssoo-primary/60">{formatGrantSource(grant.source)}</TableCell>
+      <TableCell className="px-2 py-1.5 text-caption text-ssoo-primary/60">{grant.grantedAt ? formatDateTime(grant.grantedAt) : '-'}</TableCell>
+      <TableCell className="px-2 py-1.5 text-right">
         {grant.grantId && !isOwnerGrant ? (
           <Button
             variant="ghost"
@@ -194,8 +205,8 @@ function GrantRow({
         ) : isOwnerGrant ? (
           <span className="text-badge text-ssoo-primary/40">소유자</span>
         ) : null}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -230,9 +241,9 @@ function ManagedDocumentCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-label-strong text-ssoo-primary">{document.documentTitle}</h3>
-            <span className="rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-2 py-0.5 text-badge text-ssoo-primary/70">
+            <Badge variant="outline" className="rounded-full border-ssoo-content-border bg-ssoo-content-bg px-2 py-0.5 text-ssoo-primary/70">
               {formatVisibilityScope(document.visibilityScope)}
-            </span>
+            </Badge>
             {canToggle && (
               <Button
                 variant="ghost"
@@ -250,9 +261,17 @@ function ManagedDocumentCard({
                 {nextScope === 'organization' ? '조직 공개로 변경' : '비공개로 변경'}
               </Button>
             )}
-            <span className={`rounded-full border px-2 py-0.5 text-badge ${document.syncStatusCode === 'repair_needed' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+            <Badge
+              variant="outline"
+              className={cn(
+                'rounded-full px-2 py-0.5',
+                document.syncStatusCode === 'repair_needed'
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700',
+              )}
+            >
               {formatSyncStatus(document.syncStatusCode)}
-            </span>
+            </Badge>
           </div>
           <p className="mt-1 break-all text-caption text-ssoo-primary/70">{document.path}</p>
           <p className="mt-2 text-body-sm text-ssoo-primary/80">
@@ -368,12 +387,12 @@ function ManagedDocumentCard({
             새 소유자의 로그인 ID를 입력하세요. 현재 소유자의 기존 grant는 유지됩니다.
           </p>
           <div className="mt-2 flex items-center gap-2">
-            <input
+            <Input
               type="text"
               value={transferLoginId}
               onChange={(event) => setTransferLoginId(event.target.value)}
               placeholder="새 소유자 loginId"
-              className="h-control-h flex-1 rounded-md border border-ssoo-content-border bg-white px-3 text-body-sm text-ssoo-primary outline-none transition focus:border-ssoo-primary/40 focus:ring-2 focus:ring-ssoo-primary/10"
+              className="flex-1 border-ssoo-content-border bg-white text-ssoo-primary focus:border-ssoo-primary/40 focus-visible:ring-ssoo-primary/10"
             />
             <Button
               size="sm"
@@ -407,17 +426,17 @@ function ManagedDocumentCard({
             Grant 상세 목록
           </div>
           <div className="mt-2 overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-ssoo-content-border text-badge text-ssoo-primary/60">
-                  <th className="px-2 py-1.5 font-medium">사용자/대상</th>
-                  <th className="px-2 py-1.5 font-medium">역할</th>
-                  <th className="px-2 py-1.5 font-medium">출처</th>
-                  <th className="px-2 py-1.5 font-medium">부여일</th>
-                  <th className="px-2 py-1.5 text-right font-medium">작업</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="text-left">
+              <TableHeader>
+                <TableRow className="border-ssoo-content-border text-badge text-ssoo-primary/60 hover:bg-transparent">
+                  <TableHead className="h-auto px-2 py-1.5 text-ssoo-primary/60">사용자/대상</TableHead>
+                  <TableHead className="h-auto px-2 py-1.5 text-ssoo-primary/60">역할</TableHead>
+                  <TableHead className="h-auto px-2 py-1.5 text-ssoo-primary/60">출처</TableHead>
+                  <TableHead className="h-auto px-2 py-1.5 text-ssoo-primary/60">부여일</TableHead>
+                  <TableHead className="h-auto px-2 py-1.5 text-right text-ssoo-primary/60">작업</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {document.grants.map((grant, index) => (
                   <GrantRow
                     key={grant.grantId ?? `${grant.principalId}-${grant.role}-${index}`}
@@ -432,8 +451,8 @@ function ManagedDocumentCard({
                     isRevoking={isRevoking && revokingGrantId === grant.grantId}
                   />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}
@@ -514,7 +533,7 @@ function RequestCard({
           <div className="grid gap-3 lg:grid-cols-[1fr_180px]">
             <label className="space-y-1">
               <span className="text-caption text-ssoo-primary/70">응답 메모</span>
-              <textarea
+              <Textarea
                 value={actionDraft?.responseMessage ?? ''}
                 onChange={(event) => onActionDraftChange(request.requestId, { responseMessage: event.target.value })}
                 rows={3}
@@ -525,11 +544,11 @@ function RequestCard({
             </label>
             <label className="space-y-1">
               <span className="text-caption text-ssoo-primary/70">grant 만료일 (선택)</span>
-              <input
+              <Input
                 type="date"
                 value={actionDraft?.grantExpiresAt ?? ''}
                 onChange={(event) => onActionDraftChange(request.requestId, { grantExpiresAt: event.target.value })}
-                className="h-control-h rounded-md border border-ssoo-content-border bg-white px-3 text-body-sm text-ssoo-primary outline-none transition focus:border-ssoo-primary/40 focus:ring-2 focus:ring-ssoo-primary/10"
+                className="border-ssoo-content-border bg-white text-ssoo-primary focus:border-ssoo-primary/40 focus-visible:ring-ssoo-primary/10"
               />
             </label>
           </div>
@@ -617,17 +636,19 @@ function DirectGrantSection({
   onDraftChange,
   onSubmit,
   isSubmitting,
+  anchorId,
 }: {
   documents: DmsManagedDocumentSummary[];
   draft: DirectGrantDraft;
   onDraftChange: (patch: Partial<DirectGrantDraft>) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  anchorId?: string;
 }) {
   const canSubmit = !!draft.documentId && !!draft.principalUserId && !isSubmitting;
 
   return (
-    <section className="space-y-3 rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+    <section id={anchorId} className="scroll-mt-4 space-y-3 rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
       <header>
         <h3 className="text-label-strong text-ssoo-primary">권한 직접 부여</h3>
         <p className="text-caption text-ssoo-primary/70">
@@ -638,7 +659,7 @@ function DirectGrantSection({
       <div className="grid gap-3 md:grid-cols-2">
         <label className="block">
           <span className="text-caption text-ssoo-primary/70">대상 문서</span>
-          <select
+          <NativeSelect
             value={draft.documentId}
             onChange={(event) => onDraftChange({ documentId: event.target.value })}
             className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
@@ -649,24 +670,24 @@ function DirectGrantSection({
                 {document.documentTitle || document.path}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
 
         <label className="block">
           <span className="text-caption text-ssoo-primary/70">대상 사용자 ID</span>
-          <input
+          <Input
             type="text"
             value={draft.principalUserId}
             onChange={(event) => onDraftChange({ principalUserId: event.target.value.trim() })}
             placeholder="예: 12345"
             inputMode="numeric"
-            className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
+            className="mt-1 border-ssoo-content-border bg-white text-ssoo-primary"
           />
         </label>
 
         <label className="block">
           <span className="text-caption text-ssoo-primary/70">부여 권한</span>
-          <select
+          <NativeSelect
             value={draft.role}
             onChange={(event) => onDraftChange({ role: event.target.value as DmsDocumentAccessRequestRole })}
             className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
@@ -676,22 +697,22 @@ function DirectGrantSection({
                 {option.label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
 
         <label className="block">
           <span className="text-caption text-ssoo-primary/70">만료일 (선택)</span>
-          <input
+          <Input
             type="date"
             value={draft.grantExpiresAt}
             onChange={(event) => onDraftChange({ grantExpiresAt: event.target.value })}
-            className="mt-1 w-full rounded border border-ssoo-content-border bg-white px-2 py-1.5 text-body-sm text-ssoo-primary"
+            className="mt-1 border-ssoo-content-border bg-white text-ssoo-primary"
           />
         </label>
 
         <label className="block md:col-span-2">
           <span className="text-caption text-ssoo-primary/70">메모 (선택, 최대 500자)</span>
-          <textarea
+          <Textarea
             value={draft.memo}
             onChange={(event) => onDraftChange({ memo: event.target.value })}
             rows={2}
@@ -716,7 +737,7 @@ function DirectGrantSection({
   );
 }
 
-export function DocumentAccessSurface() {
+export function DocumentAccessSurface({ anchorIds = {} }: { anchorIds?: Record<string, string> }) {
   const accessFeatures = useAccessStore((state) => state.snapshot?.features);
   const canManageDocumentAccess = accessFeatures?.canReadDocuments ?? false;
   const canViewMyRequests = accessFeatures?.canUseSearch ?? false;
@@ -954,7 +975,7 @@ export function DocumentAccessSurface() {
 
   return (
     <div className="space-y-4">
-      <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+      <article id={anchorIds.status} className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
         <p className="text-badge text-ssoo-primary/70">현재 운영 중</p>
         <h3 className="mt-1 text-label-strong text-ssoo-primary">권한 요청/승인</h3>
         <p className="mt-2 text-body-sm text-ssoo-primary/80">
@@ -980,7 +1001,7 @@ export function DocumentAccessSurface() {
 
       {canManageDocumentAccess ? (
         <>
-          <section className="space-y-3">
+          <section id={anchorIds['manageable-documents']} className="scroll-mt-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-label-strong text-ssoo-primary">내가 관리 가능한 문서</h3>
@@ -1023,9 +1044,10 @@ export function DocumentAccessSurface() {
             onDraftChange={handleDirectGrantDraftChange}
             onSubmit={() => void handleDirectGrantSubmit()}
             isSubmitting={directGrantMutation.isPending}
+            anchorId={anchorIds['direct-grants']}
           />
 
-          <section className="space-y-3">
+          <section id={anchorIds['approval-inbox']} className="scroll-mt-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-label-strong text-ssoo-primary">승인 대기 inbox</h3>
@@ -1067,7 +1089,7 @@ export function DocumentAccessSurface() {
       ) : null}
 
       {canViewMyRequests ? (
-        <section className="space-y-3">
+        <section id={anchorIds['my-requests']} className="scroll-mt-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-label-strong text-ssoo-primary">내 요청 내역</h3>

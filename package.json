@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "pnpm run build:observed",
-    "build:raw": "turbo build",
+    "build:raw": "pnpm run verify:ui-primitives && pnpm run verify:ui-consumption && turbo build --concurrency=1",
     "build:observed": "bash scripts/run-observed-command.sh --command 'pnpm run build:raw' --verification-command-label 'pnpm run build:raw'",
     "lint": "pnpm run lint:observed",
     "lint:raw": "turbo lint",
@@ -64,6 +64,8 @@
     "verify:ssoo-frame": "pnpm run verify:ssoo-frame:observed",
     "verify:ssoo-frame:raw": "node scripts/verify-ssoo-frame.mjs",
     "verify:ssoo-frame:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:ssoo-frame:raw' --verification-command-label 'pnpm run verify:ssoo-frame:raw'",
+    "verify:ui-primitives": "node .github/scripts/verify-ui-primitives.js",
+    "verify:ui-consumption": "node .github/scripts/verify-ui-consumption.js",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
@@ -102,8 +104,9 @@
     "verify:auth-lifecycle:raw": "node scripts/verify-auth-user-lifecycle.mjs",
     "verify:auth-lifecycle:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:auth-lifecycle:raw' --verification-command-label 'pnpm run verify:auth-lifecycle:raw'",
     "verify:auth-commonization": "pnpm run verify:auth-commonization:observed",
-    "verify:auth-commonization:raw": "node scripts/verify-auth-commonization.mjs && node scripts/verify-auth-product-hardening.mjs",
+    "verify:auth-commonization:raw": "node scripts/verify-auth-commonization.mjs && node scripts/verify-auth-product-hardening.mjs && node scripts/verify-dms-markdown-security.mjs",
     "verify:auth-commonization:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:auth-commonization:raw' --verification-command-label 'pnpm run verify:auth-commonization:raw'",
+    "verify:dms-markdown-security": "node scripts/verify-dms-markdown-security.mjs",
     "dev:web-crm": "turbo dev --filter=web-crm",
     "build:web-crm": "turbo build --filter=web-crm"
   },

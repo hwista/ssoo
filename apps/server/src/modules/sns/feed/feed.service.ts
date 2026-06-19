@@ -4,6 +4,7 @@ import { DatabaseService } from '../../../database/database.service.js';
 import type { FeedQueryDto, ReactionDto } from './dto/feed.dto.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessService } from '../access/access.service.js';
+import { CommonNotificationService } from '../../common/notification/notification.service.js';
 
 type TimelinePostRecord = Prisma.SnsPostGetPayload<{
   include: {
@@ -17,6 +18,7 @@ export class FeedService {
   constructor(
     private readonly db: DatabaseService,
     private readonly accessService: AccessService,
+    private readonly notificationService: CommonNotificationService,
   ) {}
 
   async getTimeline(user: TokenPayload, params: FeedQueryDto) {
@@ -27,7 +29,9 @@ export class FeedService {
 
     const feedWhere: Prisma.SnsPostWhereInput = {};
 
-    if (params.feedType === 'following') {
+    if (params.authorUserId) {
+      feedWhere.authorUserId = BigInt(params.authorUserId);
+    } else if (params.feedType === 'following') {
       const followings = await this.db.client.snsFollow.findMany({
         where: { followerUserId: userId },
         select: { followingUserId: true },
@@ -76,9 +80,11 @@ export class FeedService {
       throw new ConflictException('Reaction already exists');
     }
 
-    return this.db.client.snsReaction.create({
+    const reaction = await this.db.client.snsReaction.create({
       data: { userId, postId, reactionType },
     });
+    await this.publishFeedChanged(userId, postId);
+    return reaction;
   }
 
   async removeReaction(user: TokenPayload, postId: bigint) {
@@ -92,9 +98,11 @@ export class FeedService {
       throw new NotFoundException('Reaction not found');
     }
 
-    return this.db.client.snsReaction.delete({
+    const deleted = await this.db.client.snsReaction.delete({
       where: { id: existing.id },
     });
+    await this.publishFeedChanged(userId, postId);
+    return deleted;
   }
 
   async addBookmark(user: TokenPayload, postId: bigint) {
@@ -108,9 +116,11 @@ export class FeedService {
       throw new ConflictException('Bookmark already exists');
     }
 
-    return this.db.client.snsBookmark.create({
+    const bookmark = await this.db.client.snsBookmark.create({
       data: { userId, postId },
     });
+    await this.publishFeedChanged(userId, postId);
+    return bookmark;
   }
 
   async removeBookmark(user: TokenPayload, postId: bigint) {
@@ -124,8 +134,23 @@ export class FeedService {
       throw new NotFoundException('Bookmark not found');
     }
 
-    return this.db.client.snsBookmark.delete({
+    const deleted = await this.db.client.snsBookmark.delete({
       where: { id: existing.id },
+    });
+    await this.publishFeedChanged(userId, postId);
+    return deleted;
+  }
+
+  private async publishFeedChanged(actorUserId: bigint, postId: bigint): Promise<void> {
+    const post = await this.db.client.snsPost.findUnique({
+      where: { id: postId },
+      select: { authorUserId: true },
+    });
+
+    this.notificationService.publishDomainEvent('sns', 'sns.feed.changed', {
+      actorUserId: actorUserId.toString(),
+      postId: postId.toString(),
+      ...(post ? { userId: post.authorUserId.toString() } : {}),
     });
   }
 

@@ -3,14 +3,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ErrorState } from '@/components/common/StateDisplay';
 import { PageTemplate } from '@/components/templates';
-import {
-  DOC_PAGE_SURFACE_PRESETS,
-  PAGE_BACKGROUND_PRESETS,
-  SectionedShell,
-} from '@/components/templates/page-frame';
+import { SectionedShell } from '@/components/templates/page-frame';
 import { useAccessStore, useAssistantContextStore, useAssistantPanelStore, useAssistantSessionStore } from '@/stores';
 import { useAssistantChat } from '@/components/common/assistant/chat/useAssistantChat';
-import { AiPanel } from './_components/AiPanel';
+import { AiPanel } from '@ssoo/web-shell';
 import { AiChatBody, AiChatFooter } from './_components/AiChatPanels';
 import { buildSessionHistoryItems } from './chatPageUtils';
 
@@ -46,67 +42,71 @@ export function AiChatPage() {
 
   if (!canUseAssistant) {
     return (
-      <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
-        <div className="flex h-full items-center justify-center">
-          <ErrorState error="AI 어시스턴트를 사용할 권한이 없습니다." />
-        </div>
-      </main>
+      <PageTemplate
+        filePath="ai/chat"
+        mode="viewer"
+        pageTone="ai"
+        breadcrumbRootIconVariant="ai"
+        description="질문, 문서 검색, 기능 안내를 요청하세요."
+        panelMode="hidden"
+        stateSlot={<ErrorState error="AI 어시스턴트를 사용할 권한이 없습니다." />}
+      >
+        {null}
+      </PageTemplate>
     );
   }
 
   return (
-    <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
-      <PageTemplate
-        filePath="ai/chat"
-        mode="viewer"
-        breadcrumbRootIconVariant="ai"
-        contentOrientation="portrait"
-        description="질문, 문서 검색, 기능 안내를 요청하세요."
-        contentSurfaceClassName={DOC_PAGE_SURFACE_PRESETS.ai}
-        panelContent={(
-          <AiPanel
-            variant="chat"
-            history={historyItems}
-            onHistorySelect={(item) => {
-              selectSession(item.id);
+    <PageTemplate
+      filePath="ai/chat"
+      mode="viewer"
+      pageTone="ai"
+      breadcrumbRootIconVariant="ai"
+      description="질문, 문서 검색, 기능 안내를 요청하세요."
+      contentSurface="transparent-rounded"
+      panelContent={(
+        <AiPanel
+          variant="chat"
+          history={historyItems}
+          onHistorySelect={(item) => {
+            selectSession(item.id);
+            resetDraftState();
+            resetContext();
+          }}
+          suggestions={suggestions}
+          onSuggestionSelect={(suggestion) => {
+            void submitUserMessage(suggestion);
+          }}
+        />
+      )}
+    >
+      <SectionedShell
+        variant="chat_with_footer"
+        body={(
+          <AiChatBody
+            messages={messages}
+            isProcessing={isProcessing}
+            startNewSession={() => {
+              startNewSession();
               resetDraftState();
               resetContext();
             }}
-            suggestions={suggestions}
-            onSuggestionSelect={(suggestion) => {
-              void submitUserMessage(suggestion);
-            }}
+            handleOpenFile={handleOpenFile}
+            handleOpenHelpAction={handleOpenHelpAction}
+            submitUserMessage={submitUserMessage}
           />
         )}
-      >
-        <SectionedShell
-          variant="chat_with_footer"
-          body={(
-            <AiChatBody
-              messages={messages}
-              isProcessing={isProcessing}
-              startNewSession={() => {
-                startNewSession();
-                resetDraftState();
-                resetContext();
-              }}
-              handleOpenFile={handleOpenFile}
-              handleOpenHelpAction={handleOpenHelpAction}
-              submitUserMessage={submitUserMessage}
-            />
-          )}
-          footer={(
-            <AiChatFooter
-              inputRef={inputRef}
-              inputDraft={inputDraft}
-              isProcessing={isProcessing}
-              setInputDraft={setInputDraft}
-              submitUserMessage={submitUserMessage}
-              onAbort={abortChat}
-            />
-          )}
-        />
-      </PageTemplate>
-    </main>
+        footer={(
+          <AiChatFooter
+            inputRef={inputRef}
+            inputDraft={inputDraft}
+            isProcessing={isProcessing}
+            setInputDraft={setInputDraft}
+            submitUserMessage={submitUserMessage}
+            onAbort={abortChat}
+          />
+        )}
+      />
+    </PageTemplate>
   );
 }

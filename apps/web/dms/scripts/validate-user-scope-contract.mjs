@@ -10,33 +10,45 @@ function read(relPath) {
 
 const checks = [
   {
-    file: 'src/lib/user-scope.ts',
+    file: '../../../packages/web-auth/src/user-scope.ts',
     patterns: [
       'export function isUserScopeTransition',
       'export function shouldResetPersistedUserState',
-      'export function getCurrentUserScopeId',
       'function getCurrentAccessToken',
       'AUTH_TOKEN_BOUNDARY_PREV',
       'function emitUserChangeListener',
       'if (lastUserId !== null)',
-      'emitUserChangeListener(listener, lastUserId, null);',
+      'emitUserChangeListener(listener, lastUserId, null, logPrefix);',
       'const didTokenChange = nextAccessToken !== lastAccessToken;',
-      'emitUserChangeListener(fn, null, prev)',
-      'listeners.forEach((fn) => emitUserChangeListener(fn, next, prev));',
+      'emitUserChangeListener(fn, null, prev, logPrefix)',
+      'listeners.forEach((fn) => emitUserChangeListener(fn, next, prev, logPrefix));',
+      'export function useUserScopeQueryCacheReset',
     ],
-    description: 'user-scope exposes shared transition helpers and replays current scope',
+    description: 'shared web-auth user-scope exposes transition helpers and replays current scope',
+  },
+  {
+    file: 'src/lib/user-scope.ts',
+    patterns: [
+      'createAuthUserScopeLifecycle',
+      'dmsUserScopeLifecycle',
+      'getCurrentUserScopeId',
+      'registerUserScopedReset',
+      'useDmsUserScopeQueryCacheReset',
+    ],
+    description: 'DMS user-scope is a thin adapter over the shared web-auth lifecycle',
   },
   {
     file: 'src/app/providers.tsx',
     patterns: [
+      'SharedAuthStateSync',
+      'useDmsUserScopeQueryCacheReset(queryClient);',
+      '<SharedAuthStateSync authStore={useAuthStore} />',
+    ],
+    forbiddenPatterns: [
       'function QueryCacheUserScopeSync',
       'useAuthStore.subscribe',
-      'lastAccessToken',
-      'nextAccessToken',
-      'queryClient.clear();',
-      '<QueryCacheUserScopeSync queryClient={queryClient} />',
     ],
-    description: 'query cache is cleared on auth user changes',
+    description: 'query cache and storage sync use shared auth lifecycle helpers',
   },
   {
     file: 'src/stores/file.store.ts',
@@ -71,7 +83,6 @@ const checks = [
   ...[
     'src/stores/tab.store.ts',
     'src/stores/file.store.ts',
-    'src/stores/ai-search.store.ts',
     'src/stores/assistant-session.store.ts',
   ].map((file) => ({
     file,
@@ -90,7 +101,7 @@ const checks = [
     'src/stores/editor-core.store.ts',
     'src/stores/git.store.ts',
     'src/stores/new-doc.store.ts',
-    'src/stores/settings-shell.store.ts',
+    'src/stores/settings-page-navigation.store.ts',
     'src/stores/settings.store.ts',
     'src/stores/sidebar.store.ts',
     'src/features/access/dialog-store.ts',
@@ -134,10 +145,12 @@ const checks = [
       'isFileTreeOpen',
       'fileTreeOwnerUserId === currentUserId',
       'fileTreeResetEpoch',
-      'key={`file-tree-section-${currentUserId',
+      "id: 'fileTree'",
       'key={`file-tree-${currentUserId',
+      'searchOwnerUserId === currentUserId',
+      'value: scopedSearchQuery',
     ],
-    description: 'sidebar renders file tree expansion only for the current user scope',
+    description: 'sidebar renders file tree expansion and search only for the current user scope',
   },
   {
     file: 'src/components/layout/sidebar/FileTree.tsx',
@@ -150,38 +163,26 @@ const checks = [
     description: 'file tree nodes ignore stale expansion and search state from previous users',
   },
   {
-    file: 'src/components/layout/sidebar/Search.tsx',
-    patterns: [
-      'searchOwnerUserId === currentUserId',
-      'value={scopedSearchQuery}',
-    ],
-    description: 'file tree search input ignores stale query state from previous users',
-  },
-  {
     file: 'src/components/layout/UserMenu.tsx',
     patterns: [
-      'resetDmsFileTreeSession();',
-      'await logout();',
+      'useSharedLogout',
     ],
-    description: 'logout clears file tree UI and data before leaving the account',
+    forbiddenPatterns: [
+      'beforeLogout',
+      'resetDmsFileTreeSession',
+    ],
+    description: 'logout uses shared orchestration without a DMS-local reset exception',
   },
   {
     file: 'src/app/(auth)/login/page.tsx',
     patterns: [
-      'resetDmsFileTreeSession();',
-      'if (!hasHydrated || isAuthenticated) return;',
-      'await login(loginId, password);',
+      'SharedAuthLoginPage',
     ],
-    description: 'login screen clears file tree state before the next account enters',
-  },
-  {
-    file: 'src/lib/file-tree-session.ts',
-    patterns: [
-      'export function resetDmsFileTreeSession',
-      'useSidebarStore.getState().resetUserState();',
-      'useFileStore.getState().clearFiles();',
+    forbiddenPatterns: [
+      'beforeSubmit=',
+      'resetDmsFileTreeSession',
     ],
-    description: 'file tree hard reset clears both UI state and file data',
+    description: 'login uses SharedAuthLoginPage without a DMS-local submit reset exception',
   },
   {
     file: 'src/components/layout/AppLayout.tsx',
@@ -189,7 +190,7 @@ const checks = [
       'sidebarAutoExpandSections',
       "['bookmarks', 'openTabs', 'changes']",
       'const nextExpandedSections = sidebarAutoExpandSections.filter',
-      'key={`dms-sidebar-${currentUserId',
+      "key={`dms-sidebar-${isSettingsModeActive ? 'settings' : 'workspace'}-${currentUserId",
     ],
     forbiddenPatterns: [
       "['bookmarks', 'openTabs', 'fileTree', 'changes']",

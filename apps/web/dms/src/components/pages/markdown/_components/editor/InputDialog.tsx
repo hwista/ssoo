@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@ssoo/web-ui';
 
 export interface EditorInputDialogProps {
   open: boolean;
@@ -60,7 +61,7 @@ export function EditorInputDialog({
           <label className="text-label-md text-ssoo-primary" htmlFor="editor-input-dialog-field">
             {label}
           </label>
-          <input
+          <Input
             id="editor-input-dialog-field"
             type="text"
             value={value}

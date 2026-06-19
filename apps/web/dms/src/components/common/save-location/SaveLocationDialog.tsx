@@ -6,6 +6,7 @@ import { EditorDialog } from '@/components/common/editor-dialog';
 import { PickerTree } from '@/components/common/picker-tree';
 import { normalizeDocumentPath } from '@/lib/utils/linkUtils';
 import { useAuthStore, useFileStore } from '@/stores';
+import { Input } from '@ssoo/web-ui';
 
 export interface SaveLocationResult {
   title: string;
@@ -94,7 +95,7 @@ export function SaveLocationDialog({
           <FileText className="h-3.5 w-3.5" />
           {nameLabel}
         </label>
-        <input
+        <Input
           id="doc-title"
           type="text"
           value={title}
@@ -112,7 +113,7 @@ export function SaveLocationDialog({
             <FolderPlus className="h-3.5 w-3.5" />
             저장 위치
           </label>
-          <input
+          <Input
             id="save-dir-input"
             type="text"
             value={directory}

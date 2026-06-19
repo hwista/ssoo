@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Maximize2, Minus, Plus, X } from 'lucide-react';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import { resolveImageSrc } from '@/lib/utils/linkUtils';
+import { Button } from '@ssoo/web-ui';
 
 function LightboxControls({ scale, onClose }: { scale: number; onClose: () => void }) {
   const { zoomIn, zoomOut, resetTransform } = useControls();
@@ -13,22 +14,22 @@ function LightboxControls({ scale, onClose }: { scale: number; onClose: () => vo
       className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[101] flex items-center gap-1 rounded-full bg-black/60 px-3 py-1.5 backdrop-blur-sm"
       onClick={(e) => e.stopPropagation()}
     >
-      <button onClick={() => zoomOut(0.5)} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="축소">
+      <Button variant="plain" size="plain" onClick={() => zoomOut(0.5)} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="축소">
         <Minus className="h-4 w-4" />
-      </button>
+      </Button>
       <span className="min-w-[3.5rem] text-center text-label-sm text-white/90 select-none">
         {Math.round(scale * 100)}%
       </span>
-      <button onClick={() => zoomIn(0.5)} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="확대">
+      <Button variant="plain" size="plain" onClick={() => zoomIn(0.5)} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="확대">
         <Plus className="h-4 w-4" />
-      </button>
+      </Button>
       <div className="mx-1 h-4 w-px bg-white/30" />
-      <button onClick={() => resetTransform()} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="원래 크기">
+      <Button variant="plain" size="plain" onClick={() => resetTransform()} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="원래 크기">
         <Maximize2 className="h-4 w-4" />
-      </button>
-      <button onClick={onClose} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="닫기">
+      </Button>
+      <Button variant="plain" size="plain" onClick={onClose} className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors" title="닫기">
         <X className="h-4 w-4" />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -111,13 +112,13 @@ export function ImageLightbox({ open, onClose, src, alt = '이미지' }: ImageLi
       </TransformWrapper>
 
       {/* 우상단 닫기 */}
-      <button
+      <Button variant="plain" size="plain"
         className="absolute top-4 right-4 z-[101] rounded-full bg-white/20 p-2 text-white hover:bg-white/40 transition-colors"
         onClick={onClose}
         aria-label="닫기"
       >
         <X className="h-5 w-5" />
-      </button>
+      </Button>
     </div>
   );
 }

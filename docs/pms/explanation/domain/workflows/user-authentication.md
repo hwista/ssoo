@@ -113,8 +113,7 @@ Response (Success):
 {
   "success": true,
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+    "accessToken": "eyJhbGciOiJIUzI1NiIs..."
   },
   "message": "로그인 성공"
 }
@@ -130,15 +129,11 @@ Response (Failure):
 
 ---
 
-### POST /api/auth/refresh
-**토큰 갱신**
+### POST /api/auth/session
+**세션 복원**
 
 Request:
-```json
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
-}
-```
+HttpOnly `ssoo-session` cookie를 사용하므로 JSON body에 refresh token을 싣지 않습니다.
 
 Response:
 ```json
@@ -146,9 +141,12 @@ Response:
   "success": true,
   "data": {
     "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+    "user": {
+      "userId": "1",
+      "loginId": "admin"
+    }
   },
-  "message": "토큰 갱신 성공"
+  "message": "세션 복원 성공"
 }
 ```
 
@@ -203,7 +201,6 @@ Response:
 interface AuthState {
   // State
   accessToken: string | null;
-  refreshToken: string | null;
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -222,7 +219,8 @@ interface AuthState {
 
 ### 로컬 스토리지 영속화
 - 키: `ssoo-auth`
-- 저장 항목: `accessToken`, `refreshToken`, `user`, `isAuthenticated`
+- 저장 항목: `user`, `isAuthenticated`
+- access token은 runtime memory에만 유지하고, refresh/session token은 HttpOnly cookie + 서버 세션 row에만 둡니다.
 
 ---
 

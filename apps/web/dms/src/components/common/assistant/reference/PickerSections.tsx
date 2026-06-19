@@ -2,6 +2,7 @@
 
 import type { TemplateItem } from '@/types/template';
 import type { DocReferenceItem } from './pickerUtils';
+import { Button } from '@ssoo/web-ui';
 
 function ReferenceButton({
   item,
@@ -13,7 +14,7 @@ function ReferenceButton({
   onToggle: (item: DocReferenceItem) => void;
 }) {
   return (
-    <button
+    <Button variant="plain" size="plain"
       type="button"
       onClick={() => onToggle(item)}
       className={`w-full rounded-md border px-2 py-1.5 text-left transition-colors ${
@@ -24,7 +25,7 @@ function ReferenceButton({
     >
       <p className="truncate text-label-sm text-ssoo-primary">{item.title}</p>
       <p className="truncate text-caption text-ssoo-primary/60">{item.path}</p>
-    </button>
+    </Button>
   );
 }
 
@@ -38,7 +39,7 @@ function TemplateButton({
   onSelect: (template: TemplateItem) => void | Promise<void>;
 }) {
   return (
-    <button
+    <Button variant="plain" size="plain"
       type="button"
       onClick={() => {
         void onSelect(template);
@@ -53,7 +54,7 @@ function TemplateButton({
       <p className="truncate text-caption text-ssoo-primary/60">
         {template.scope === 'global' ? '공용' : '개인'} · {template.kind === 'document' ? '문서 템플릿' : '폴더 템플릿'}
       </p>
-    </button>
+    </Button>
   );
 }
 

@@ -22,6 +22,7 @@ import {
 } from '@/hooks/queries/useCodes';
 import type { CodeItem, CreateCodeRequest, UpdateCodeRequest } from '@/lib/api/endpoints/codes';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 type FormMode = 'create' | 'edit';
 
@@ -153,7 +154,7 @@ export function CodeManagementPage() {
               <ul className="py-1">
                 {groups.map((g) => (
                   <li key={g.codeGroup}>
-                    <button
+                    <Button variant="plain" size="plain"
                       onClick={() => handleGroupClick(g.codeGroup)}
                       className={cn(
                         'w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors',
@@ -171,7 +172,7 @@ export function CodeManagementPage() {
                       )}>
                         {g.count}
                       </span>
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -203,25 +204,25 @@ export function CodeManagementPage() {
                     <p className="text-sm text-muted-foreground">이 그룹에 등록된 코드가 없습니다.</p>
                   </div>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-gray-50">
-                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">코드값</th>
-                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">한국어명</th>
-                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">영어명</th>
-                        <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">정렬</th>
-                        <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">상태</th>
-                        <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">작업</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table className="w-full text-sm">
+                    <TableHeader>
+                      <TableRow className="border-b bg-gray-50">
+                        <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground">코드값</TableHead>
+                        <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground">한국어명</TableHead>
+                        <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground">영어명</TableHead>
+                        <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">정렬</TableHead>
+                        <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">상태</TableHead>
+                        <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">작업</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {codes.map((code) => (
-                        <tr key={code.id} className="border-b hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-2.5 font-mono text-xs">{code.codeValue}</td>
-                          <td className="px-4 py-2.5">{code.displayNameKo}</td>
-                          <td className="px-4 py-2.5 text-muted-foreground">{code.displayNameEn ?? '-'}</td>
-                          <td className="px-4 py-2.5 text-center">{code.sortOrder}</td>
-                          <td className="px-4 py-2.5 text-center">
+                        <TableRow key={code.id} className="border-b hover:bg-gray-50 transition-colors">
+                          <TableCell className="px-4 py-2.5 font-mono text-xs">{code.codeValue}</TableCell>
+                          <TableCell className="px-4 py-2.5">{code.displayNameKo}</TableCell>
+                          <TableCell className="px-4 py-2.5 text-muted-foreground">{code.displayNameEn ?? '-'}</TableCell>
+                          <TableCell className="px-4 py-2.5 text-center">{code.sortOrder}</TableCell>
+                          <TableCell className="px-4 py-2.5 text-center">
                             <span className={cn(
                               'px-2 py-0.5 rounded text-xs font-medium',
                               code.isActive
@@ -230,8 +231,8 @@ export function CodeManagementPage() {
                             )}>
                               {code.isActive ? '활성' : '비활성'}
                             </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-center">
+                          </TableCell>
+                          <TableCell className="px-4 py-2.5 text-center">
                             <div className="flex items-center justify-center gap-1">
                               <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(code)}>
                                 <Pencil className="h-3.5 w-3.5" />
@@ -245,11 +246,11 @@ export function CodeManagementPage() {
                                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 )}
               </div>
             </>

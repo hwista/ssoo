@@ -50,8 +50,7 @@ apps/web/pms/src/stores/
 
 ```typescript
 interface AuthState {
-  accessToken: string | null;      // JWT 액세스 토큰
-  refreshToken: string | null;     // JWT 리프레시 토큰
+  accessToken: string | null;      // runtime memory JWT 액세스 토큰
   user: AuthUser | null;           // 로그인한 사용자 정보
   isLoading: boolean;              // 인증 처리 중 여부
   isAuthenticated: boolean;        // 인증 여부
@@ -69,9 +68,9 @@ interface AuthUser {
 |------|------|
 | `login(loginId, password)` | 로그인 (API 호출 → 토큰 저장 → 사용자 정보 조회) |
 | `logout()` | 로그아웃 (API 호출 → 상태 초기화) |
-| `checkAuth()` | 인증 상태 확인 (토큰 유효성 검사) |
-| `refreshTokens()` | 토큰 갱신 |
-| `setTokens(access, refresh)` | 토큰 직접 설정 |
+| `checkAuth()` | 인증 상태 확인 (access token 검증 또는 session bootstrap) |
+| `refreshTokens()` | HttpOnly session cookie 기반 access token 재발급 |
+| `setTokens(access)` | runtime access token 직접 설정 |
 | `setUser(user)` | 사용자 정보 설정 |
 | `clearAuth()` | 인증 상태 초기화 |
 
@@ -97,7 +96,8 @@ const isAuthenticated = useAuthStore.getState().isAuthenticated;
 
 - **저장소**: localStorage
 - **키**: `ssoo-auth`
-- **저장 항목**: accessToken, refreshToken, user, isAuthenticated
+- **저장 항목**: user, isAuthenticated
+- **토큰 저장**: access token은 runtime memory에만 유지하고, refresh/session token은 JavaScript에서 읽을 수 없는 HttpOnly cookie + 서버 세션 row로만 다룹니다.
 
 ---
 

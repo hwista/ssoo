@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
+import { getSsooAppMetadata, SsooFaviconSync } from '@ssoo/web-shell';
 import { Providers } from './providers';
 import '../../../../../packages/web-shell/src/styles/ssoo-global.css';
 import './globals.css';
 
-export const metadata: Metadata = {
-  title: 'SSOT SNS | 소셜 허브',
-  description: 'SSOT 사용자 소셜 허브',
-};
+export const metadata: Metadata = getSsooAppMetadata('sns');
 
 export default function RootLayout({
   children,
@@ -15,7 +13,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body>
+      <body data-ssoo-theme="sns">
+        <SsooFaviconSync appKey="sns" />
         <Providers>{children}</Providers>
       </body>
     </html>

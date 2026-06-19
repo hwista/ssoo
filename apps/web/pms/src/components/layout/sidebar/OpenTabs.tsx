@@ -3,7 +3,12 @@
 import { useTabStore } from '@/stores';
 import { X } from 'lucide-react';
 import { getIconComponent } from '@/lib/utils/icons';
-import { SsooSidebarEmptyState, SsooSidebarList, SsooSidebarListItem } from '@ssoo/web-shell';
+import {
+  SsooSidebarEmptyState,
+  SsooSidebarSearchableTree,
+  SsooSidebarTreeActionButton,
+  SsooSidebarTreeNodeIcon,
+} from '@ssoo/web-shell';
 
 /**
  * 사이드바 현재 열린 탭 목록
@@ -24,37 +29,30 @@ export function OpenTabs() {
   }
 
   return (
-    <SsooSidebarList padded={false}>
-      {openTabs.map((tab) => {
+    <SsooSidebarSearchableTree<(typeof openTabs)[number]>
+      nodes={openTabs}
+      getNodeId={(tab) => tab.id}
+      getNodeLabel={(tab) => tab.title}
+      getNodeTitle={(tab) => tab.title}
+      getNodeSearchText={(tab) => [tab.title, tab.menuCode, tab.path ?? '']}
+      isNodeActive={(tab) => tab.id === activeTabId}
+      renderNodeIcon={(tab, state) => {
         const IconComponent = getIconComponent(tab.icon);
-        const isActive = tab.id === activeTabId;
-
-        return (
-          <SsooSidebarListItem
-            key={tab.id}
-            icon={IconComponent ?? undefined}
-            label={tab.title}
-            title={tab.title}
-            active={isActive}
-            onSelect={() => activateTab(tab.id)}
-            trailingAction={
-              tab.closable ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTab(tab.id);
-                  }}
-                  className="flex h-control-h-sm w-control-h-sm items-center justify-center rounded opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
-                  aria-label={`${tab.title} 닫기`}
-                >
-                  <X className="h-3 w-3 text-gray-500" />
-                </button>
-              ) : null
-            }
+        return IconComponent ? (
+          <SsooSidebarTreeNodeIcon icon={IconComponent} active={state.active} />
+        ) : null;
+      }}
+      renderNodeTrailingAction={(tab) => (
+        tab.closable ? (
+          <SsooSidebarTreeActionButton
+            label={`${tab.title} 닫기`}
+            icon={X}
+            onClick={() => closeTab(tab.id)}
           />
-        );
-      })}
-    </SsooSidebarList>
+        ) : null
+      )}
+      onNodeSelect={(tab) => activateTab(tab.id)}
+      emptyState={<SsooSidebarEmptyState>열린 페이지가 없습니다.</SsooSidebarEmptyState>}
+    />
   );
 }

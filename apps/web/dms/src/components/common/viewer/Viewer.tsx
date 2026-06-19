@@ -1,14 +1,20 @@
 'use client';
 
 import * as React from 'react';
+import {
+  DEFAULT_ZOOM,
+  Toolbar,
+  ZOOM_LEVELS,
+  type ViewerSearchControls,
+  type ViewerTocControls,
+  type ViewerZoomControls,
+} from '@ssoo/web-shell';
 import { cn } from '@/lib/utils';
 import type { TocItem } from '@/components/templates/page-frame';
-import { Toolbar, ZOOM_LEVELS, DEFAULT_ZOOM } from './toolbar/Toolbar';
 import { Content, DOCUMENT_WIDTH } from './Content';
 import { SectionedShell } from '@/components/templates/page-frame';
 import { useViewerSearch } from './runtime/useViewerSearch';
 import { findTocTarget, getNearestZoomIndex } from './runtime/viewerUtils';
-import type { ViewerSearchControls, ViewerTocControls, ViewerZoomControls } from './toolbar/toolbarTypes';
 import { useSettingsStore } from '@/stores';
 
 type ViewerVariant = 'standalone' | 'embedded';

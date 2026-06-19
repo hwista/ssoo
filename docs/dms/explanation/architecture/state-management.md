@@ -1,6 +1,6 @@
 # 상태 관리 (State Management)
 
-> 최종 업데이트: 2026-04-02
+> 최종 업데이트: 2026-06-19
 
 DMS의 Zustand 기반 상태 관리 구조를 정의합니다.
 
@@ -22,12 +22,13 @@ src/stores/
 ├── confirm.store.ts        # 전역 확인 다이얼로그
 ├── git.store.ts            # Git 변경/히스토리 상태
 ├── settings.store.ts       # 시스템+개인 설정 조회/저장 상태
-├── settings-shell.store.ts # settings shell UI 상태
+├── settings-page-navigation.store.ts # 설정 모드와 내부 선택 상태
 ├── assistant-session.store.ts   # AI 세션/메시지 persist
 ├── assistant-panel.store.ts     # AI 패널 UI transient 상태
-├── assistant-context.store.ts   # AI 첨부/템플릿/요약 컨텍스트
-└── ai-search.store.ts      # AI 검색 기록
+└── assistant-context.store.ts   # AI 첨부/템플릿/요약 컨텍스트
 ```
+
+`ai-search.store.ts` 기반 검색 기록 persist는 DMS 로컬 AI 검색 화면 전용 잔여물이었으므로 제거했다. 현재 DMS `/ai/search`와 플랫폼 `/ssoo/search`는 `@ssoo/web-shell` 검색 page recipe와 각 화면 adapter가 상태를 소유하며, DMS store index는 전역 검색 기록 store를 export하지 않는다.
 
 ---
 
@@ -236,12 +237,12 @@ interface SettingsStore {
 }
 ```
 
-#### `useSettingsShellStore`
+#### `useSettingsPageNavigationStore`
 
-workspace shell ↔ settings shell 전환과 active scope/section/view mode를 관리합니다.
+설정 모드 전환과 내부 active scope/section/view mode 관리 store입니다. 별도 설정 shell store 파일은 만들지 않습니다.
 
 ```typescript
-interface SettingsShellStore {
+interface SettingsPageNavigationStore {
   isActive: boolean;
   activeScope: 'system' | 'personal';
   activeSectionId: string;
@@ -259,9 +260,11 @@ interface SettingsShellStore {
 ```
 
 **특징:**
-- `activeScope` 는 outer settings sidebar의 `시스템 설정` / `개인 설정` 선택 상태를 담당
-- `activeSectionId` 는 `SettingsPage` 내부 좌측 navigation의 active section을 담당
-- settings 검색 UI는 workspace 파일 검색과 input primitive를 공유하지만, query/result 상태는 `useSidebarStore.searchQuery` 와 분리된 shell 로컬 상태로 유지
+- `enterSettings()` 는 settings mode를 켜고 열 scope/section/view 기준을 맞춥니다.
+- `exitSettings()` 는 settings mode를 끄고 workspace frame content로 복귀합니다.
+- `activeScope` 는 settings sidebar 메뉴 트리와 현재 settings tab의 scope 선택 상태를 담당합니다.
+- `activeSectionId` 는 settings sidebar active section과 현재 settings tab path의 section 동기화 상태를 담당합니다.
+- settings 검색 UI는 workspace 파일 검색과 input primitive를 공유하지만, query/result 상태는 `useSidebarStore.searchQuery` 와 분리된 settings sidebar local 상태로 유지합니다.
 
 ### 5. Assistant Stores
 
@@ -392,7 +395,9 @@ persist(
 
 | 날짜 | 변경 내용 |
 |------|----------|
-| 2026-04-02 | `useSettingsShellStore` 기준으로 outer scope navigation과 `SettingsPage` inner section navigation 책임을 분리 |
-| 2026-04-02 | `useSettingsStore`를 system/personal/access snapshot 기반으로 확장하고 `useSettingsShellStore`를 추가해 settings shell 전환 상태를 분리 |
+| 2026-06-15 | settings active scope/section을 settings sidebar 메뉴 트리와 settings tab path 동기화 상태로 재정의 |
+| 2026-06-12 | `settings-page-navigation.store.ts`가 settings mode 활성/종료와 내부 active scope/section/view 상태를 함께 소유하도록 재정렬 |
+| 2026-04-02 | 과거 설정 전용 frame 실험에서 outer scope navigation과 `SettingsPage` inner section navigation 책임을 분리 |
+| 2026-04-02 | `useSettingsStore`를 system/personal/access snapshot 기반으로 확장하고 설정 화면 상태 store를 추가 |
 | 2026-03-12 | assistant session/panel/context store 분리, editor 멀티 스토어 구조, tab sessionStorage 정책 반영 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

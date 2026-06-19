@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { CheckAuthOptions } from './store';
 
 export interface UseProtectedAppBootstrapOptions {
   hasHydrated: boolean;
@@ -6,7 +7,7 @@ export interface UseProtectedAppBootstrapOptions {
   authIsLoading: boolean;
   accessHasLoaded: boolean;
   accessIsLoading: boolean;
-  checkAuth: () => Promise<void>;
+  checkAuth: (options?: CheckAuthOptions) => Promise<void>;
   hydrateAccess: () => Promise<void>;
   resetAccess: () => void;
   onUnauthenticated: (currentPath: string) => void;
@@ -55,7 +56,7 @@ export function useProtectedAppBootstrap(
     }
 
     initCalled.current = true;
-    void checkAuth();
+    void checkAuth({ mode: 'blocking' });
   }, [checkAuth, hasHydrated]);
 
   useEffect(() => {
@@ -70,7 +71,7 @@ export function useProtectedAppBootstrap(
       }
 
       lastLifecycleCheckAt.current = now;
-      void checkAuth();
+      void checkAuth({ mode: 'background' });
     };
 
     const handleFocus = () => {

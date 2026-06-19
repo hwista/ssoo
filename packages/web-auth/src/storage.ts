@@ -15,7 +15,6 @@ interface PersistedAuthState {
 
 export interface SharedAuthSnapshot {
   accessToken: string | null;
-  refreshToken: string | null;
   user: unknown;
   isAuthenticated: boolean;
   version: number;
@@ -25,6 +24,8 @@ export interface SharedAuthHeaderOptions {
   forceAuthorization?: boolean;
   skipAuth?: boolean;
 }
+
+let runtimeAccessToken: string | null = null;
 
 interface SafeJsonStateStorage {
   getItem: (name: string) => string | null;
@@ -84,7 +85,15 @@ export function createSafeJsonStateStorage(getStorage: () => Storage): SafeJsonS
 
       try {
         JSON.parse(rawValue);
-        return rawValue;
+        if (name !== SHARED_AUTH_STORAGE_KEY) {
+          return rawValue;
+        }
+
+        const sanitizedValue = removePersistedTokens(rawValue);
+        if (sanitizedValue !== rawValue) {
+          resolvedStorage.setItem(name, sanitizedValue);
+        }
+        return sanitizedValue;
       } catch (error) {
         warnStorageRecovery('손상된 인증 상태를 제거하고 다시 초기화합니다.', error);
         try {
@@ -102,7 +111,8 @@ export function createSafeJsonStateStorage(getStorage: () => Storage): SafeJsonS
       }
 
       try {
-        resolvedStorage.setItem(name, value);
+        const valueToStore = name === SHARED_AUTH_STORAGE_KEY ? removePersistedTokens(value) : value;
+        resolvedStorage.setItem(name, valueToStore);
       } catch (error) {
         warnStorageRecovery('인증 상태를 저장하지 못했습니다.', error);
       }
@@ -131,8 +141,25 @@ function readPersistedAuthState(rawValue: string): PersistedAuthState | null {
   }
 }
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
+function removePersistedTokens(rawValue: string): string {
+  const parsed = readPersistedAuthState(rawValue);
+  if (!parsed?.state || typeof parsed.state !== 'object') {
+    return rawValue;
+  }
+
+  const state = { ...parsed.state };
+  const hadPersistedToken = 'accessToken' in state || 'refreshToken' in state;
+  delete state.accessToken;
+  delete state.refreshToken;
+
+  if (!hadPersistedToken) {
+    return rawValue;
+  }
+
+  return JSON.stringify({
+    ...parsed,
+    state,
+  });
 }
 
 function normalizeSnapshot(state: PersistedAuthState | null): SharedAuthSnapshot | null {
@@ -140,14 +167,10 @@ function normalizeSnapshot(state: PersistedAuthState | null): SharedAuthSnapshot
     return null;
   }
 
-  const accessToken = isNonEmptyString(state.state.accessToken) ? state.state.accessToken : null;
-  const refreshToken = isNonEmptyString(state.state.refreshToken) ? state.state.refreshToken : null;
-
   return {
-    accessToken,
-    refreshToken,
+    accessToken: runtimeAccessToken,
     user: state.state.user ?? null,
-    isAuthenticated: state.state.isAuthenticated === true || accessToken !== null || refreshToken !== null,
+    isAuthenticated: state.state.isAuthenticated === true || runtimeAccessToken !== null,
     version: typeof state.version === 'number' ? state.version : 0,
   };
 }
@@ -192,18 +215,28 @@ export function readSharedAuthSnapshot(): SharedAuthSnapshot | null {
 
   const rawValue = window.localStorage.getItem(SHARED_AUTH_STORAGE_KEY);
   if (!rawValue) {
+    if (runtimeAccessToken) {
+      return {
+        accessToken: runtimeAccessToken,
+        user: null,
+        isAuthenticated: true,
+        version: 0,
+      };
+    }
+
     return null;
   }
 
-  return normalizeSnapshot(readPersistedAuthState(rawValue));
+  const sanitizedValue = removePersistedTokens(rawValue);
+  if (sanitizedValue !== rawValue) {
+    window.localStorage.setItem(SHARED_AUTH_STORAGE_KEY, sanitizedValue);
+  }
+
+  return normalizeSnapshot(readPersistedAuthState(sanitizedValue));
 }
 
 export function getSharedAccessToken(): string | null {
-  return readSharedAuthSnapshot()?.accessToken ?? null;
-}
-
-export function getSharedRefreshToken(): string | null {
-  return readSharedAuthSnapshot()?.refreshToken ?? null;
+  return runtimeAccessToken;
 }
 
 export function writeSharedAuthSnapshot(snapshot: SharedAuthSnapshot | null): void {
@@ -212,17 +245,17 @@ export function writeSharedAuthSnapshot(snapshot: SharedAuthSnapshot | null): vo
   }
 
   if (!snapshot) {
+    runtimeAccessToken = null;
     window.localStorage.removeItem(SHARED_AUTH_STORAGE_KEY);
     dispatchSharedAuthChanged();
     return;
   }
 
+  runtimeAccessToken = snapshot.accessToken;
   window.localStorage.setItem(
     SHARED_AUTH_STORAGE_KEY,
     JSON.stringify({
       state: {
-        accessToken: snapshot.accessToken,
-        refreshToken: snapshot.refreshToken,
         user: snapshot.user,
         isAuthenticated: snapshot.isAuthenticated,
       },
@@ -232,24 +265,11 @@ export function writeSharedAuthSnapshot(snapshot: SharedAuthSnapshot | null): vo
   dispatchSharedAuthChanged();
 }
 
-export function setSharedAuthTokens(accessToken: string, refreshToken: string): void {
-  const currentSnapshot = readSharedAuthSnapshot();
-
-  writeSharedAuthSnapshot({
-    accessToken,
-    refreshToken,
-    user: currentSnapshot?.user ?? null,
-    isAuthenticated: true,
-    version: currentSnapshot?.version ?? 0,
-  });
-}
-
 export function setSharedAuthSession(accessToken: string, user: unknown): void {
   const currentSnapshot = readSharedAuthSnapshot();
 
   writeSharedAuthSnapshot({
     accessToken,
-    refreshToken: null,
     user,
     isAuthenticated: true,
     version: currentSnapshot?.version ?? 0,

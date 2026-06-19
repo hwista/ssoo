@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { APP_HOME_PATH } from '@/lib/constants/routes';
 import { useAccessStore, useAuthStore } from '@/stores';
 import { useCreatePost } from '@/hooks/queries/usePosts';
+import { NativeSelect } from '@ssoo/web-ui';
 
 const VISIBILITY_OPTIONS: Array<{
   value: SnsVisibilityScopeCode;
@@ -85,7 +86,7 @@ export function ComposeBox() {
                   >
                     공개 범위
                   </label>
-                  <select
+                  <NativeSelect
                     id="post-visibility-scope"
                     value={visibilityScopeCode}
                     onChange={(e) => setVisibilityScopeCode(e.target.value as SnsVisibilityScopeCode)}
@@ -96,7 +97,7 @@ export function ComposeBox() {
                         {option.label}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex gap-1">
@@ -131,13 +132,13 @@ export function ComposeBox() {
                 </div>
               </div>
             ) : (
-                <button
+                <Button variant="plain" size="plain"
                   disabled={!canCreatePost}
                   className="w-full text-left px-4 py-3 rounded-full border border-input text-muted-foreground hover:bg-muted/50 transition-colors text-sm"
                   onClick={() => setIsExpanded(true)}
                 >
                   {canCreatePost ? '무슨 생각을 하고 계신가요?' : '게시물 작성 권한이 없습니다.'}
-                </button>
+                </Button>
               )}
             </div>
         </div>

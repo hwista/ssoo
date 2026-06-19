@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -35,8 +35,11 @@ export class FilesController {
   @ApiBadRequestResponse({ type: ApiError, description: '잘못된 요청' })
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   @ApiUnauthorizedResponse({ type: ApiError, description: '인증 필요' })
-  async getFileTree(@CurrentUser() currentUser: TokenPayload) {
-    await this.accessRequestService.ensureRepoControlPlaneSynced();
+  async getFileTree(
+    @CurrentUser() currentUser: TokenPayload,
+    @Query('force') force?: string,
+  ) {
+    await this.accessRequestService.ensureRepoControlPlaneSynced(force === '1' || force === 'true');
     const documents = await this.documentControlPlaneService.listUserVisibleActiveDocuments();
     const projectedDocuments = documents.map((document) => this.documentControlPlaneService.projectMetadata(document));
     const tree = this.documentControlPlaneService.buildFileTree(projectedDocuments);

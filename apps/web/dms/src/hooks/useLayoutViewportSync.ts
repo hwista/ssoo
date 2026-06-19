@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { BREAKPOINTS } from '@/lib/constants/layout';
+import { SSOO_SHELL_METRICS } from '@ssoo/web-shell';
 import { useLayoutStore } from '@/stores';
 
 function detectDeviceType(): 'desktop' | 'mobile' {
-  return window.innerWidth < BREAKPOINTS.mobile ? 'mobile' : 'desktop';
+  return window.innerWidth < SSOO_SHELL_METRICS.breakpoint.mobile ? 'mobile' : 'desktop';
 }
 
 export function useLayoutViewportSync() {

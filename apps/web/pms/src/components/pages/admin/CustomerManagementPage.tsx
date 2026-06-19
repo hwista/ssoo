@@ -25,6 +25,7 @@ import type {
   UpdateCustomerRequest,
 } from '@/lib/api/endpoints/customers';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 type FormMode = 'create' | 'edit';
 
@@ -206,27 +207,27 @@ export function CustomerManagementPage() {
             </p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-32">코드</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">고객사명</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-32">연락처</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-28">담당자</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-28">업종</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">상태</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">작업</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-sm">
+            <TableHeader>
+              <TableRow className="border-b bg-gray-50">
+                <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground w-32">코드</TableHead>
+                <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground">고객사명</TableHead>
+                <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground w-32">연락처</TableHead>
+                <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground w-28">담당자</TableHead>
+                <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground w-28">업종</TableHead>
+                <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">상태</TableHead>
+                <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">작업</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {customers.map((customer) => (
-                <tr key={customer.id} className="border-b hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-2.5 font-mono text-xs">{customer.customerCode}</td>
-                  <td className="px-4 py-2.5 font-medium">{customer.customerName}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{customer.phone ?? '-'}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{customer.contactPerson ?? '-'}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{customer.industry ?? '-'}</td>
-                  <td className="px-4 py-2.5 text-center">
+                <TableRow key={customer.id} className="border-b hover:bg-gray-50 transition-colors">
+                  <TableCell className="px-4 py-2.5 font-mono text-xs">{customer.customerCode}</TableCell>
+                  <TableCell className="px-4 py-2.5 font-medium">{customer.customerName}</TableCell>
+                  <TableCell className="px-4 py-2.5 text-muted-foreground">{customer.phone ?? '-'}</TableCell>
+                  <TableCell className="px-4 py-2.5 text-muted-foreground">{customer.contactPerson ?? '-'}</TableCell>
+                  <TableCell className="px-4 py-2.5 text-muted-foreground">{customer.industry ?? '-'}</TableCell>
+                  <TableCell className="px-4 py-2.5 text-center">
                     <span className={cn(
                       'px-2 py-0.5 rounded text-xs font-medium',
                       customer.isActive
@@ -235,8 +236,8 @@ export function CustomerManagementPage() {
                     )}>
                       {customer.isActive ? '활성' : '비활성'}
                     </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-center">
+                  </TableCell>
+                  <TableCell className="px-4 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(customer)}>
                         <Pencil className="h-3.5 w-3.5" />
@@ -250,11 +251,11 @@ export function CustomerManagementPage() {
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
 

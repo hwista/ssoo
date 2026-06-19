@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { Textarea } from '@ssoo/web-ui';
 
 export function JsonEditor({
   value,
@@ -15,7 +16,7 @@ export function JsonEditor({
 }) {
   return (
     <div className={cn('flex h-full flex-col overflow-hidden rounded-lg border border-ssoo-content-border bg-white', className)}>
-      <textarea
+      <Textarea
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
         readOnly={readOnly}

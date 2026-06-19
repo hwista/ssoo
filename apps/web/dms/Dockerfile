@@ -14,6 +14,7 @@ COPY apps/web/dms/package.json apps/web/dms/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY packages/web-auth/package.json packages/web-auth/package.json
 COPY packages/web-shell/package.json packages/web-shell/package.json
+COPY packages/web-ui/package.json packages/web-ui/package.json
 COPY packages/types/tsconfig.json packages/types/tsconfig.json
 RUN pnpm install --filter web-dms... --frozen-lockfile
 
@@ -25,6 +26,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_SNS_APP_URL=${NEXT_PUBLIC_SNS_APP_URL}
 RUN pnpm --filter @ssoo/types build && \
+    pnpm --filter @ssoo/web-ui build && \
     pnpm --filter @ssoo/web-auth build && \
     pnpm --filter @ssoo/web-shell build && \
     pnpm --filter web-dms build

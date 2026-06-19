@@ -2,7 +2,11 @@
 
 import { FileText, X } from 'lucide-react';
 import { useTabStore, HOME_TAB } from '@/stores';
-import { SsooSidebarEmptyState, SsooSidebarList, SsooSidebarListItem } from '@ssoo/web-shell';
+import {
+  SsooSidebarEmptyState,
+  SsooSidebarSearchableTree,
+  SsooSidebarTreeActionButton,
+} from '@ssoo/web-shell';
 
 /**
  * 사이드바 현재 열린 페이지 목록
@@ -26,35 +30,25 @@ export function OpenTabs() {
   }
 
   return (
-    <SsooSidebarList>
-      {openTabs.map((tab) => {
-        const isActive = tab.id === activeTabId;
-
-        return (
-          <SsooSidebarListItem
-            key={tab.id}
-            icon={FileText}
-            label={tab.title}
-            title={tab.title}
-            active={isActive}
-            onSelect={() => activateTab(tab.id)}
-            trailingAction={
-              tab.closable ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTab(tab.id);
-                  }}
-                  className="h-control-h-sm w-control-h-sm opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100 rounded flex items-center justify-center"
-                >
-                  <X className="w-3 h-3 text-gray-500" />
-                </button>
-              ) : null
-            }
+    <SsooSidebarSearchableTree<(typeof openTabs)[number]>
+      nodes={openTabs}
+      getNodeId={(tab) => tab.id}
+      getNodeLabel={(tab) => tab.title}
+      getNodeTitle={(tab) => tab.title}
+      getNodeSearchText={(tab) => [tab.title, tab.path]}
+      getNodeIcon={() => FileText}
+      isNodeActive={(tab) => tab.id === activeTabId}
+      renderNodeTrailingAction={(tab) => (
+        tab.closable ? (
+          <SsooSidebarTreeActionButton
+            label={`${tab.title} 닫기`}
+            icon={X}
+            onClick={() => closeTab(tab.id)}
           />
-        );
-      })}
-    </SsooSidebarList>
+        ) : null
+      )}
+      onNodeSelect={(tab) => activateTab(tab.id)}
+      emptyState={<SsooSidebarEmptyState>열린 페이지가 없습니다.</SsooSidebarEmptyState>}
+    />
   );
 }

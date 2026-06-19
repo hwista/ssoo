@@ -3,7 +3,10 @@
 import { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { SharedAuthStateSync } from '@ssoo/web-auth';
 import { Toaster } from 'sonner';
+import { useSnsUserScopeQueryCacheReset } from '@/lib/user-scope';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -38,9 +41,11 @@ function getQueryClient() {
 
 export function Providers({ children }: ProvidersProps) {
   const [queryClient] = useState(() => getQueryClient());
+  useSnsUserScopeQueryCacheReset(queryClient);
 
   return (
     <QueryClientProvider client={queryClient}>
+      <SharedAuthStateSync authStore={useAuthStore} />
       {children}
       <Toaster
         position="top-right"

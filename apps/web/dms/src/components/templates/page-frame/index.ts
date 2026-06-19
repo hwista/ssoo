@@ -18,8 +18,6 @@ export { SectionedShell } from './SectionedShell';
 export type { SectionedShellProps, SectionedShellVariant } from './SectionedShell';
 
 export {
-  DOC_PAGE_SURFACE_PRESETS,
-  PAGE_BACKGROUND_PRESETS,
   SHELL_BODY_WRAPPER_PRESETS,
 } from './layoutPresets';
 

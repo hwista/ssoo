@@ -1,8 +1,16 @@
 'use client';
 
-import { SsooWorkbenchShell } from '@ssoo/web-shell';
-import { useLayoutStore, useSidebarStore } from '@/stores';
-import { LAYOUT_SIZES } from '@/types';
+import { useEffect, useMemo } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import {
+  SSOO_GLOBAL_SEARCH_APP_PATH,
+  SsooAppFrame,
+  SsooContentAreaState,
+  SsooWorkbenchShell,
+  getSsooGlobalSearchQueryFromPath,
+  getSsooGlobalSearchTitle,
+} from '@ssoo/web-shell';
+import { useLayoutStore, useSidebarStore, useTabStore } from '@/stores';
 import { Sidebar } from './sidebar';
 import { Header } from './Header';
 import { TabBar } from './TabBar';
@@ -17,16 +25,44 @@ import { ContentArea } from './ContentArea';
 export function AppLayout() {
   const { deviceType } = useLayoutStore();
   const { isCollapsed } = useSidebarStore();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const openTab = useTabStore((state) => state.openTab);
+  const currentPath = useMemo(() => {
+    const search = searchParams.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (!currentPath.startsWith(SSOO_GLOBAL_SEARCH_APP_PATH)) {
+      return;
+    }
+
+    const query = getSsooGlobalSearchQueryFromPath(currentPath);
+    openTab({
+      menuCode: 'PMS-GLOBAL-SEARCH',
+      menuId: 'pms-global-search',
+      title: getSsooGlobalSearchTitle(query),
+      path: currentPath,
+      icon: 'Search',
+      params: query ? { q: query } : undefined,
+      closable: true,
+      activate: true,
+    });
+  }, [currentPath, openTab]);
 
   // 모바일은 별도 UI (추후 개발)
   if (deviceType === 'mobile') {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="text-center p-8">
-          <h1 className="heading-1 mb-2">모바일 버전 준비 중</h1>
-          <p className="text-gray-600">데스크톱에서 접속해주세요.</p>
-        </div>
-      </div>
+      <SsooAppFrame
+        mode="content-only"
+        contentSlot={(
+          <SsooContentAreaState
+            title="모바일 버전 준비 중"
+            description="데스크톱에서 접속해주세요."
+          />
+        )}
+      />
     );
   }
 
@@ -34,8 +70,6 @@ export function AppLayout() {
     <SsooWorkbenchShell
       sidebarMode="collapsible"
       sidebarExpanded={!isCollapsed}
-      sidebarWidth={LAYOUT_SIZES.sidebar.expandedWidth}
-      collapsedSidebarWidth={LAYOUT_SIZES.sidebar.collapsedWidth}
       sidebarSlot={<Sidebar />}
       headerSlot={<Header />}
       tabBarSlot={<TabBar />}

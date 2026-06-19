@@ -13,11 +13,29 @@ export type {
   AuthTokens,
   AuthIdentity,
   ProfileSummary,
+  AuthProfileDisplayProjection,
+  AuthIdentityProfileProjection,
   SsooAppKey,
   AuthSessionStatus,
   AuthSessionBootstrap,
   AuthLogoutResult,
   AuthUser,
+  AuthIdentityProviderKey,
+  AuthRegistrationRequestStatus,
+  AuthEmailDeliveryMode,
+  AuthPublicActionLink,
+  AuthPublicIdentityProvider,
+  AuthPublicLoginConfig,
+  AuthProviderSettings,
+  UpdateAuthProviderSettingsRequest,
+  AuthRegistrationRequestItem,
+  AuthRegistrationRequestListResult,
+  AuthAssignableRole,
+  DecideAuthRegistrationRequest,
+  RequestPasswordResetRequest,
+  RequestPasswordResetResult,
+  ConfirmPasswordResetRequest,
+  ConfirmPasswordResetResult,
 } from './auth';
 
 // Access
@@ -56,6 +74,25 @@ export type {
   CommonNotificationStreamEventType,
   CommonNotificationUnreadCountResult,
 } from './notification';
+
+// Search
+export type {
+  CommonSearchBadge,
+  CommonSearchBlockedSourceReason,
+  CommonSearchBlockedSourceSummary,
+  CommonSearchCapabilities,
+  CommonSearchEntityFacet,
+  CommonSearchEntityType,
+  CommonSearchFacets,
+  CommonSearchPermissionState,
+  CommonSearchRanker,
+  CommonSearchRequest,
+  CommonSearchResponse,
+  CommonSearchResult,
+  CommonSearchSourceApp,
+  CommonSearchSourceFacet,
+  CommonSearchTarget,
+} from './search';
 
 // User
 export type {

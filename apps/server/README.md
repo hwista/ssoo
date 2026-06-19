@@ -69,7 +69,7 @@ apps/server/
 | 기능 | 엔드포인트 | 설명 |
 |------|-----------|------|
 | 로그인 | `POST /api/auth/login` | ID/PW 검증 후 JWT 발급 |
-| 토큰 갱신 | `POST /api/auth/refresh` | Refresh Token으로 새 토큰 발급 |
+| 세션 복원 | `POST /api/auth/session` | HttpOnly shared session cookie로 새 Access Token 발급 |
 | 로그아웃 | `POST /api/auth/logout` | Refresh Token 무효화 |
 | 사용자 정보 | `POST /api/auth/me` | 현재 로그인 사용자 조회 |
 

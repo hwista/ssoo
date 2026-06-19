@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { Button } from '@ssoo/web-ui';
 
 /**
  * (main) 그룹 에러 바운더리
@@ -46,18 +47,18 @@ export default function MainError({
             : '예기치 않은 오류가 발생했습니다. 다시 시도해주세요.'}
         </p>
         <div className="flex gap-3 justify-center">
-          <button
+          <Button variant="plain" size="plain"
             onClick={() => window.location.reload()}
             className="px-6 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             새로고침
-          </button>
-          <button
+          </Button>
+          <Button variant="plain" size="plain"
             onClick={reset}
             className="px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
           >
             다시 시도
-          </button>
+          </Button>
         </div>
       </div>
     </div>

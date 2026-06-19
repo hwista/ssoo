@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type {
   CommonNotificationItem,
   CommonNotificationListQuery,
@@ -11,6 +11,10 @@ import type {
 } from '@ssoo/types/common';
 import { applySharedAuthHeaders } from './storage';
 import { restoreSharedAuthSession } from './session-bootstrap';
+import {
+  SSOO_STATE_CHANGE_CSRF_HEADER_NAME,
+  SSOO_STATE_CHANGE_CSRF_HEADER_VALUE,
+} from './state-changing-proxy';
 
 export interface CommonNotificationApiResult<T> {
   success: boolean;
@@ -72,6 +76,11 @@ function buildSourceQuery(sourceApp?: CommonNotificationSourceApp): string {
   return sourceApp ? `?sourceApp=${encodeURIComponent(sourceApp)}` : '';
 }
 
+function resolveFetchImpl(fetchImpl?: typeof fetch): typeof fetch {
+  const candidate = fetchImpl ?? globalThis.fetch;
+  return candidate.bind(globalThis) as typeof fetch;
+}
+
 function getErrorMessage(payload: unknown, fallback: string): string {
   if (!payload || typeof payload !== 'object') {
     return fallback;
@@ -102,21 +111,29 @@ async function requestJson<T>(
     fetchImpl: typeof fetch;
   },
 ): Promise<CommonNotificationApiResult<T>> {
+  const isStateChangingMethod = Boolean(options.method && options.method !== 'GET');
+  const baseHeaders = {
+    'Content-Type': 'application/json',
+    ...(isStateChangingMethod
+      ? { [SSOO_STATE_CHANGE_CSRF_HEADER_NAME]: SSOO_STATE_CHANGE_CSRF_HEADER_VALUE }
+      : {}),
+  };
   const requestInit: RequestInit = {
     method: options.method ?? 'GET',
     credentials: options.credentials,
-    headers: applySharedAuthHeaders({ 'Content-Type': 'application/json' }),
+    headers: applySharedAuthHeaders(baseHeaders),
     body: options.body ? JSON.stringify(options.body) : undefined,
   };
+  const { fetchImpl } = options;
 
-  let response = await options.fetchImpl(path, requestInit);
+  let response = await fetchImpl(path, requestInit);
 
   if (response.status === 401) {
     const restored = await restoreSharedAuthSession();
     if (restored.success) {
-      response = await options.fetchImpl(path, {
+      response = await fetchImpl(path, {
         ...requestInit,
-        headers: applySharedAuthHeaders({ 'Content-Type': 'application/json' }, { forceAuthorization: true }),
+        headers: applySharedAuthHeaders(baseHeaders, { forceAuthorization: true }),
       });
     }
   }
@@ -142,7 +159,7 @@ export function createCommonNotificationApi(
   const basePath = normalizeBasePath(options.basePath ?? DEFAULT_NOTIFICATION_BASE_PATH);
   const defaultSourceApp = options.defaultSourceApp;
   const credentials = options.credentials ?? 'same-origin';
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = resolveFetchImpl(options.fetchImpl);
 
   return {
     list: (query = {}) => requestJson<CommonNotificationListResult>(
@@ -191,6 +208,7 @@ function isNotificationStreamEvent(value: unknown): value is CommonNotificationS
       || value.sourceApp === 'sns'
       || value.sourceApp === 'pms'
       || value.sourceApp === 'admin'
+      || value.sourceApp === 'crm'
     )
   );
 }
@@ -208,8 +226,8 @@ function parseNotificationStreamEvent(event: Event): CommonNotificationStreamEve
   }
 }
 
-function shouldHandleEvent(sourceApp: CommonNotificationSourceApp, payload: CommonNotificationStreamEvent): boolean {
-  return !payload.sourceApp || payload.sourceApp === sourceApp;
+function shouldHandleEvent(sourceApp: CommonNotificationSourceApp | undefined, payload: CommonNotificationStreamEvent): boolean {
+  return !sourceApp || !payload.sourceApp || payload.sourceApp === sourceApp;
 }
 
 export interface UseCommonNotificationEventStreamOptions {
@@ -233,32 +251,97 @@ interface NotificationStreamSubscriber {
 }
 
 interface NotificationStreamConnection {
-  eventSource: EventSource;
+  eventSource: EventSource | null;
+  reconnectTimerId: number | null;
+  reconnectAttempt: number;
   subscribers: Set<NotificationStreamSubscriber>;
+  connect: () => void;
 }
 
 const notificationStreamConnections = new Map<string, NotificationStreamConnection>();
+const NOTIFICATION_STREAM_INITIAL_RECONNECT_DELAY_MS = 5000;
+const NOTIFICATION_STREAM_MAX_RECONNECT_DELAY_MS = 60000;
 
-function getConnectionKey(sourceApp: CommonNotificationSourceApp, eventsPath: string): string {
-  return `${eventsPath}::${sourceApp}`;
+function getConnectionKey(sourceApp: CommonNotificationSourceApp | undefined, eventsPath: string): string {
+  return `${eventsPath}::${sourceApp ?? 'all'}`;
 }
 
-function createEventSourceUrl(sourceApp: CommonNotificationSourceApp, eventsPath: string): string {
+function createEventSourceUrl(sourceApp: CommonNotificationSourceApp | undefined, eventsPath: string): string {
+  if (!sourceApp) {
+    return eventsPath;
+  }
+
   const params = new URLSearchParams({ sourceApp });
   return `${eventsPath}${eventsPath.includes('?') ? '&' : '?'}${params.toString()}`;
 }
 
 function createNotificationStreamConnection(
-  sourceApp: CommonNotificationSourceApp,
+  sourceApp: CommonNotificationSourceApp | undefined,
   eventsPath: string,
 ): NotificationStreamConnection {
-  const eventSource = new EventSource(createEventSourceUrl(sourceApp, eventsPath), {
-    withCredentials: true,
-  });
+  const connectionKey = getConnectionKey(sourceApp, eventsPath);
   const connection: NotificationStreamConnection = {
-    eventSource,
+    eventSource: null,
+    reconnectTimerId: null,
+    reconnectAttempt: 0,
     subscribers: new Set(),
+    connect: () => undefined,
   };
+
+  const connect = (): void => {
+    if (
+      !notificationStreamConnections.has(connectionKey)
+      || connection.subscribers.size === 0
+      || connection.eventSource
+      || connection.reconnectTimerId !== null
+    ) {
+      return;
+    }
+
+    const eventSource = new EventSource(createEventSourceUrl(sourceApp, eventsPath), {
+      withCredentials: true,
+    });
+    connection.eventSource = eventSource;
+
+    const resetReconnectAttempt = (): void => {
+      connection.reconnectAttempt = 0;
+    };
+
+    const scheduleReconnect = (): void => {
+      if (!notificationStreamConnections.has(connectionKey) || connection.subscribers.size === 0) {
+        return;
+      }
+
+      eventSource.close();
+      if (connection.eventSource === eventSource) {
+        connection.eventSource = null;
+      }
+      if (connection.reconnectTimerId !== null) {
+        window.clearTimeout(connection.reconnectTimerId);
+      }
+
+      const delay = Math.min(
+        NOTIFICATION_STREAM_MAX_RECONNECT_DELAY_MS,
+        NOTIFICATION_STREAM_INITIAL_RECONNECT_DELAY_MS * (2 ** connection.reconnectAttempt),
+      );
+      connection.reconnectAttempt += 1;
+      connection.reconnectTimerId = window.setTimeout(() => {
+        connection.reconnectTimerId = null;
+        connect();
+      }, delay);
+    };
+
+    eventSource.addEventListener('open', resetReconnectAttempt);
+    eventSource.addEventListener('error', scheduleReconnect);
+    eventSource.addEventListener('connected', handleRefreshEvent);
+    eventSource.addEventListener('domain-event', handleDomainEvent);
+    eventSource.addEventListener('notification', handleRefreshEvent);
+    eventSource.addEventListener('notification-read', handleRefreshEvent);
+    eventSource.addEventListener('notification-unread', handleRefreshEvent);
+    eventSource.addEventListener('notification-archived', handleRefreshEvent);
+    eventSource.addEventListener('notifications-read-all', handleRefreshEvent);
+  };
+  connection.connect = connect;
 
   const handleRefreshEvent: EventListener = (event) => {
     const payload = parseNotificationStreamEvent(event);
@@ -285,20 +368,12 @@ function createNotificationStreamConnection(
     }
   };
 
-  eventSource.addEventListener('connected', handleRefreshEvent);
-  eventSource.addEventListener('domain-event', handleDomainEvent);
-  eventSource.addEventListener('notification', handleRefreshEvent);
-  eventSource.addEventListener('notification-read', handleRefreshEvent);
-  eventSource.addEventListener('notification-unread', handleRefreshEvent);
-  eventSource.addEventListener('notification-archived', handleRefreshEvent);
-  eventSource.addEventListener('notifications-read-all', handleRefreshEvent);
-
-  notificationStreamConnections.set(getConnectionKey(sourceApp, eventsPath), connection);
+  notificationStreamConnections.set(connectionKey, connection);
   return connection;
 }
 
 function getNotificationStreamConnection(
-  sourceApp: CommonNotificationSourceApp,
+  sourceApp: CommonNotificationSourceApp | undefined,
   eventsPath: string,
 ): NotificationStreamConnection {
   return notificationStreamConnections.get(getConnectionKey(sourceApp, eventsPath))
@@ -306,7 +381,7 @@ function getNotificationStreamConnection(
 }
 
 function releaseNotificationStreamConnection(
-  sourceApp: CommonNotificationSourceApp,
+  sourceApp: CommonNotificationSourceApp | undefined,
   eventsPath: string,
   subscriber: NotificationStreamSubscriber,
 ): void {
@@ -315,12 +390,15 @@ function releaseNotificationStreamConnection(
   if (!connection) return;
   connection.subscribers.delete(subscriber);
   if (connection.subscribers.size > 0) return;
-  connection.eventSource.close();
+  connection.eventSource?.close();
+  if (connection.reconnectTimerId !== null) {
+    window.clearTimeout(connection.reconnectTimerId);
+  }
   notificationStreamConnections.delete(key);
 }
 
 export function useCommonNotificationEventStream(
-  sourceApp: CommonNotificationSourceApp,
+  sourceApp?: CommonNotificationSourceApp,
   options: boolean | UseCommonNotificationEventStreamOptions = {},
 ): void {
   const enabled = typeof options === 'boolean' ? options : options.enabled ?? true;
@@ -330,6 +408,19 @@ export function useCommonNotificationEventStream(
   const onRefresh = typeof options === 'boolean' ? undefined : options.onRefresh;
   const onNotification = typeof options === 'boolean' ? undefined : options.onNotification;
   const onDomainEvent = typeof options === 'boolean' ? undefined : options.onDomainEvent;
+  const callbacksRef = useRef<NotificationStreamSubscriber>({
+    onRefresh,
+    onNotification,
+    onDomainEvent,
+  });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onRefresh,
+      onNotification,
+      onDomainEvent,
+    };
+  }, [onDomainEvent, onNotification, onRefresh]);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -337,15 +428,16 @@ export function useCommonNotificationEventStream(
     }
 
     const subscriber: NotificationStreamSubscriber = {
-      onRefresh,
-      onNotification,
-      onDomainEvent,
+      onRefresh: (event) => callbacksRef.current.onRefresh?.(event),
+      onNotification: (notification, event) => callbacksRef.current.onNotification?.(notification, event),
+      onDomainEvent: (event) => callbacksRef.current.onDomainEvent?.(event),
     };
     const connection = getNotificationStreamConnection(sourceApp, eventsPath);
     connection.subscribers.add(subscriber);
+    connection.connect();
 
     return () => {
       releaseNotificationStreamConnection(sourceApp, eventsPath, subscriber);
     };
-  }, [enabled, eventsPath, onDomainEvent, onNotification, onRefresh, sourceApp]);
+  }, [enabled, eventsPath, sourceApp]);
 }

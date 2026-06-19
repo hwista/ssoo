@@ -1,197 +1,58 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from '@/lib/toast';
-import { ErrorState } from '@/components/common/StateDisplay';
+import { useCallback, useMemo } from 'react';
 import {
-  useTabStore,
+  SsooAiSearchPage,
+  buildHistoryItems,
+  getTopSearchKeywords,
+  type SsooAiSearchResultItem,
+} from '@ssoo/web-shell';
+import { toast } from '@/lib/toast';
+import {
+  useAccessStore,
   useAssistantContextStore,
   useAssistantPanelStore,
   useConfirmStore,
-  useAccessStore,
+  useSidebarStore,
+  useTabStore,
 } from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
-import { PageTemplate } from '@/components/templates';
-import {
-  DOC_PAGE_SURFACE_PRESETS,
-  PAGE_BACKGROUND_PRESETS,
-  SectionedShell,
-} from '@/components/templates/page-frame';
-import { Toolbar, DOCUMENT_WIDTH } from '@/components/common/viewer';
-import { useAiSearchInsightsQuery, useAiSearchQuery, useOpenDocumentTab } from '@/hooks';
+import { useAiSearchInsightsQuery, useOpenDocumentTab } from '@/hooks';
+import { aiApi } from '@/lib/api/endpoints/ai';
 import { getErrorMessage } from '@/lib/api/core';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
-import { getQueryFromTabPath } from './utils/queryPath';
-import { AiPanel } from './_components/AiPanel';
-import { SearchResultsPanel } from './_components/SearchResultsPanel';
 import {
-  buildHistoryItems,
-  buildSearchTocItems,
-  rankSearchResults,
-  type SearchBlockedSourceSummary,
-  type SearchResultItem,
-  tokenizeHighlightTerms,
-} from './searchPageUtils';
+  SearchResultCard,
+  type SearchResultCardData,
+} from '@/components/common/assistant/_components/ResultCard';
+import { getQueryFromTabPath } from './utils/queryPath';
 
 export function AiSearchPage() {
   const tabId = useTabInstanceId();
   const { tabs, updateTab } = useTabStore();
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === tabId), [tabs, tabId]);
   const initialQuery = useMemo(() => getQueryFromTabPath(activeTab?.path), [activeTab?.path]);
-  const [filterQuery, setFilterQuery] = useState('');
-  const [sourceQuery, setSourceQuery] = useState('');
-  const [allResults, setAllResults] = useState<SearchResultItem[]>([]);
-  const [results, setResults] = useState<SearchResultItem[]>([]);
-  const [blockedSources, setBlockedSources] = useState<SearchBlockedSourceSummary | undefined>();
-  const [matchedResultIndices, setMatchedResultIndices] = useState<number[]>([]);
-  const [attachFilteredOnly, setAttachFilteredOnly] = useState(true);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [currentResultIndex, setCurrentResultIndex] = useState(-1);
-  const autoQueryRef = useRef('');
-  const lastProcessedSearchKeyRef = useRef('');
   const confirm = useConfirmStore((state) => state.confirm);
   const setReferences = useAssistantContextStore((state) => state.setReferences);
   const openPanel = useAssistantPanelStore((state) => state.openPanel);
   const accessSnapshot = useAccessStore((state) => state.snapshot);
+  const isCompactMode = useSidebarStore((state) => state.isCompactMode);
   const canUseSearch = accessSnapshot?.features.canUseSearch ?? false;
   const canUseAssistant = accessSnapshot?.features.canUseAssistant ?? false;
   const openDocumentTab = useOpenDocumentTab();
-  const searchQuery = useAiSearchQuery(sourceQuery, {
-    contextMode: 'deep',
-    enabled: hasSearched && sourceQuery.trim().length > 0,
-  });
   const searchInsightsQuery = useAiSearchInsightsQuery({
     enabled: canUseSearch,
     historyLimit: 50,
     popularLimit: 5,
   });
-  const isSearching = searchQuery.isFetching;
-  const hasCompletedSearch = !isSearching;
 
-  const scrollToResult = useCallback((index: number) => {
-    const element = document.getElementById(`search-result-${index}`);
-    if (!element) return;
-    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
-
-  const performSearch = useCallback((inputQuery: string) => {
-    const trimmed = inputQuery.trim();
-    setHasSearched(true);
-    setSourceQuery(trimmed);
-
-    if (!trimmed) {
-      setAllResults([]);
-      setResults([]);
-      setBlockedSources(undefined);
-      setMatchedResultIndices([]);
-      setCurrentResultIndex(-1);
-      lastProcessedSearchKeyRef.current = '';
-      return;
-    }
-
-    if (trimmed === sourceQuery) {
-      lastProcessedSearchKeyRef.current = '';
-      void searchQuery.refetch();
-    }
-  }, [searchQuery, sourceQuery]);
-
-  useEffect(() => {
-    if (!hasSearched || !sourceQuery.trim() || !searchQuery.isFetched || isSearching) {
-      return;
-    }
-
-    const searchKey = `${sourceQuery}:${searchQuery.dataUpdatedAt}`;
-    if (lastProcessedSearchKeyRef.current === searchKey) {
-      return;
-    }
-
-    if (searchQuery.data?.success && searchQuery.data.data) {
-      const nextResults = searchQuery.data.data.results ?? [];
-      setAllResults(nextResults);
-      setResults(nextResults);
-      setBlockedSources(searchQuery.data.data.blockedSources);
-      setMatchedResultIndices([]);
-      setCurrentResultIndex(-1);
-    } else {
-      const fallbackResults = [
-        {
-          id: 'search-error',
-          title: '검색 실패',
-          excerpt: getErrorMessage(searchQuery.data ?? { success: false, error: '검색 실패' }),
-          path: '-',
-          score: 0,
-          isReadable: false,
-          canRequestRead: false,
-        },
-      ];
-      setAllResults(fallbackResults);
-      setResults(fallbackResults);
-      setBlockedSources(undefined);
-      setMatchedResultIndices([]);
-      setCurrentResultIndex(-1);
-    }
-
-    lastProcessedSearchKeyRef.current = searchKey;
-  }, [
-    hasSearched,
-    isSearching,
-    searchQuery.data,
-    searchQuery.dataUpdatedAt,
-    searchQuery.isFetched,
-    sourceQuery,
-  ]);
-
-  const sortResultsByQuery = useCallback((inputQuery: string) => {
-    const rankedResults = rankSearchResults(allResults, inputQuery);
-    setResults(rankedResults.results);
-    setMatchedResultIndices(rankedResults.matchedResultIndices);
-    setCurrentResultIndex(rankedResults.currentResultIndex);
-  }, [allResults]);
-
-  const handleSearch = useCallback(() => {
-    if (isSearching) return;
-    if (!hasSearched) {
-      performSearch(filterQuery);
-      return;
-    }
-    sortResultsByQuery(filterQuery);
-  }, [filterQuery, hasSearched, isSearching, performSearch, sortResultsByQuery]);
-
-  const handleFilterQueryChange = useCallback((value: string) => {
-    setFilterQuery(value);
-    if (!hasSearched) return;
-    sortResultsByQuery(value);
-  }, [hasSearched, sortResultsByQuery]);
-
-  useEffect(() => {
-    if (initialQuery && autoQueryRef.current !== initialQuery) {
-      autoQueryRef.current = initialQuery;
-      setFilterQuery('');
-      lastProcessedSearchKeyRef.current = '';
-      performSearch(initialQuery);
-    }
-  }, [initialQuery, performSearch]);
-
-  useEffect(() => {
-    if (!tabId) return;
-    if (!sourceQuery.trim()) return;
-    updateTab(tabId, {
-      title: `AI 검색: ${sourceQuery.slice(0, 20)}...`,
-      path: `/ai/search?q=${encodeURIComponent(sourceQuery)}`,
-      icon: 'Bot',
-    });
-  }, [sourceQuery, tabId, updateTab]);
-
-  const tocItems = useMemo(() => buildSearchTocItems(results), [results]);
-  const matchedIndexSet = useMemo(() => new Set(matchedResultIndices), [matchedResultIndices]);
-  const snippetHighlightTerms = useMemo(() => tokenizeHighlightTerms(sourceQuery), [sourceQuery]);
   const dbSearchInsights = searchInsightsQuery.data?.success ? searchInsightsQuery.data.data : undefined;
   const historyItems = useMemo(
-    () => buildHistoryItems(dbSearchInsights?.history ?? [], sourceQuery),
-    [dbSearchInsights?.history, sourceQuery],
+    () => buildHistoryItems(dbSearchInsights?.history ?? [], ''),
+    [dbSearchInsights?.history],
   );
   const topSearchKeywords = useMemo(
-    () => (dbSearchInsights?.popular ?? []).map((item) => item.query),
+    () => getTopSearchKeywords(dbSearchInsights?.popular ?? []),
     [dbSearchInsights?.popular],
   );
   const frequentSearchKeywords = useMemo(
@@ -202,41 +63,38 @@ export function AiSearchPage() {
     [dbSearchInsights?.history],
   );
 
-  const handleNavigateResult = useCallback((direction: 'prev' | 'next') => {
-    if (matchedResultIndices.length === 0) return;
-    const nextIndex = direction === 'next'
-      ? (currentResultIndex + 1) % matchedResultIndices.length
-      : (currentResultIndex - 1 + matchedResultIndices.length) % matchedResultIndices.length;
-    setCurrentResultIndex(nextIndex);
-    scrollToResult(matchedResultIndices[nextIndex]);
-  }, [currentResultIndex, matchedResultIndices, scrollToResult]);
+  const handleSearch = useCallback(async (query: string) => {
+    const response = await aiApi.search(query, { contextMode: 'deep' });
+    if (response.success && response.data) {
+      void searchInsightsQuery.refetch();
+      return {
+        query,
+        results: response.data.results,
+        total: response.data.results.length,
+        blockedSources: response.data.blockedSources,
+        raw: response.data,
+      };
+    }
 
-  const handleTocClick = useCallback((id: string) => {
-    const index = Number.parseInt(id.replace('search-result-', ''), 10);
-    if (Number.isNaN(index)) return;
-    const matchPointer = matchedResultIndices.findIndex((matchedIndex) => matchedIndex === index);
-    setCurrentResultIndex(matchPointer);
-    scrollToResult(index);
-  }, [matchedResultIndices, scrollToResult]);
+    throw new Error(getErrorMessage(response));
+  }, [searchInsightsQuery]);
 
-  const handleSearchClose = useCallback(() => {
-    setFilterQuery('');
-    setResults(allResults);
-    setMatchedResultIndices([]);
-    setCurrentResultIndex(-1);
-  }, [allResults]);
+  const handleSourceQueryChange = useCallback((query: string) => {
+    if (!tabId || !query.trim()) return;
+    updateTab(tabId, {
+      title: `AI 검색: ${query.slice(0, 20)}...`,
+      path: `/ai/search?q=${encodeURIComponent(query)}`,
+      icon: 'Bot',
+    });
+  }, [tabId, updateTab]);
 
-  const handleAttachSearchResultsToAssistant = useCallback(async () => {
+  const handleAttachSearchResultsToAssistant = useCallback(async (items: SsooAiSearchResultItem[]) => {
     if (!canUseAssistant) {
       toast.error('AI 어시스턴트를 사용할 권한이 없습니다.');
       return;
     }
 
-    const attachTargets = attachFilteredOnly && filterQuery.trim().length > 0
-      ? matchedResultIndices.map((index) => results[index]).filter(Boolean)
-      : results;
-
-    const candidates = attachTargets
+    const candidates = items
       .filter((item) => item.isReadable)
       .filter((item) => item.path.trim().length > 0 && item.path !== '-')
       .map((item) => ({
@@ -263,110 +121,57 @@ export function AiSearchPage() {
     openPanel();
     window.dispatchEvent(new Event(ASSISTANT_FOCUS_INPUT_EVENT));
     toast.success(`${candidates.length}개 문서를 첨부했습니다.`);
-  }, [attachFilteredOnly, canUseAssistant, confirm, filterQuery, matchedResultIndices, openPanel, results, setReferences]);
+  }, [canUseAssistant, confirm, openPanel, setReferences]);
 
-  const handleOpenSearchResult = useCallback(async (item: SearchResultItem) => {
+  const handleOpenSearchResult = useCallback(async (item: SsooAiSearchResultItem, context: { sourceQuery: string }) => {
     if (!item.path || item.path === '-') return;
     await openDocumentTab({
       path: item.path,
       title: item.title,
       activate: true,
-      highlightQuery: sourceQuery.trim() || undefined,
+      highlightQuery: context.sourceQuery.trim() || undefined,
     });
-  }, [openDocumentTab, sourceQuery]);
-
-  if (!canUseSearch) {
-    return (
-      <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
-        <div className="flex h-full items-center justify-center">
-          <ErrorState error="AI 검색을 사용할 권한이 없습니다." />
-        </div>
-      </main>
-    );
-  }
+  }, [openDocumentTab]);
 
   return (
-    <main className={`h-full overflow-hidden ${PAGE_BACKGROUND_PRESETS.ai}`}>
-      <PageTemplate
-        filePath="ai/search"
-        mode="viewer"
-        breadcrumbRootIconVariant="ai"
-        contentOrientation="portrait"
-        description="문서 기반 검색 결과를 확인하세요."
-        contentSurfaceClassName={DOC_PAGE_SURFACE_PRESETS.ai}
-        panelContent={(
-          <AiPanel
-            variant="search"
-            history={historyItems}
-            onHistorySelect={(item) => {
-              setFilterQuery('');
-              void performSearch(item.title);
-            }}
-            suggestions={topSearchKeywords}
-            frequentSearches={frequentSearchKeywords}
-            onSuggestionSelect={(keyword) => {
-              setFilterQuery('');
-              void performSearch(keyword);
-            }}
-          />
-        )}
-      >
-        <SectionedShell
-          variant="search_with_toolbar"
-          toolbar={(
-            <Toolbar
-              maxWidth={DOCUMENT_WIDTH}
-              variant="embedded"
-              toc={{
-                items: tocItems,
-                label: '목록',
-                listStyle: 'flat',
-                onItemClick: handleTocClick,
-              }}
-              search={{
-                query: filterQuery,
-                placeholder: '결과 내 재검색...',
-                onQueryChange: handleFilterQueryChange,
-                onSubmit: handleSearch,
-                onClose: handleSearchClose,
-                resultCount: matchedResultIndices.length,
-                currentResultIndex,
-                hasSearched: filterQuery.trim().length > 0,
-                onNavigateResult: handleNavigateResult,
-              }}
-               assistant={canUseAssistant ? {
-                 onAttach: handleAttachSearchResultsToAssistant,
-                 title: '현재 검색 결과 문서를 AI에 첨부하고 질문하기',
-                 filterControl: filterQuery.trim().length > 0 && matchedResultIndices.length > 0 ? (
-                   <label className="inline-flex items-center gap-1.5 text-caption text-ssoo-primary/80 select-none">
-                     <input
-                       type="checkbox"
-                       checked={attachFilteredOnly}
-                       onChange={(event) => setAttachFilteredOnly(event.target.checked)}
-                       className="h-3.5 w-3.5 cursor-pointer rounded border border-ssoo-content-border accent-ssoo-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ssoo-primary/30"
-                     />
-                     재검색 결과만 첨부
-                   </label>
-                 ) : null,
-               } : undefined}
-               zoom={{ level: 100, show: false }}
-             />
-          )}
-          body={(
-            <SearchResultsPanel
-              hasSearched={hasSearched}
-              isSearching={isSearching}
-              hasCompletedSearch={hasCompletedSearch}
-              results={results}
-              blockedSources={blockedSources}
-              filterQuery={filterQuery}
-              matchedIndexSet={matchedIndexSet}
-              snippetHighlightTerms={snippetHighlightTerms}
-              onOpenSearchResult={handleOpenSearchResult}
-            />
-          )}
+    <SsooAiSearchPage
+      filePath="ai/search"
+      description="문서 기반 검색 결과를 확인하세요."
+      initialQuery={initialQuery}
+      canUseSearch={canUseSearch}
+      canUseAssistant={canUseAssistant}
+      noPermissionMessage="AI 검색을 사용할 권한이 없습니다."
+      search={handleSearch}
+      onSourceQueryChange={handleSourceQueryChange}
+      onAttachSearchResultsToAssistant={handleAttachSearchResultsToAssistant}
+      onOpenSearchResult={handleOpenSearchResult}
+      history={historyItems}
+      suggestions={topSearchKeywords}
+      frequentSearches={frequentSearchKeywords}
+      compactMode={isCompactMode}
+      renderResult={(item, state) => (
+        <SearchResultCard
+          id={state.id}
+          result={{
+            id: item.id,
+            title: item.title,
+            excerpt: item.excerpt,
+            path: item.path,
+            summary: item.summary,
+            summarySource: item.summarySource,
+            snippets: item.snippets,
+            totalSnippetCount: item.totalSnippetCount,
+            owner: item.owner,
+            visibilityScope: item.visibilityScope,
+            isReadable: item.isReadable,
+            canRequestRead: item.canRequestRead,
+            readRequest: item.readRequest as SearchResultCardData['readRequest'],
+          }}
+          highlighted={state.highlighted}
+          highlightTerms={state.highlightTerms}
+          onClick={state.onOpen}
         />
-      </PageTemplate>
-    </main>
+      )}
+    />
   );
 }

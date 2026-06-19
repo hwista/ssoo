@@ -1,7 +1,7 @@
 # SSOO Shared User Lifecycle Commonization
 
 > Status: canonical target and implementation gate
-> Last updated: 2026-06-11
+> Last updated: 2026-06-16
 > Scope: Admin, CRM, PMS, DMS, SNS login/session/profile/access lifecycle when one SSOO user moves across all apps.
 
 ## Why this document exists
@@ -99,7 +99,7 @@ Allowed minimal shape:
 - `loginId`
 - `userName`
 
-Profile display data must use SNS-owned profile contracts such as `ProfileSummary`. Role, organization, app access, and domain permission state must come from Admin/common access and domain access snapshots, not from `AuthIdentity`.
+Profile display data must use SNS-owned profile contracts such as `ProfileSummary`. When an auth snapshot needs only display fields, it must use the common `AuthIdentityProfileProjection` type instead of widening `AuthIdentity`. Role, organization, app access, and domain permission state must come from Admin/common access and domain access snapshots, not from `AuthIdentity`.
 
 ### 5. Access snapshots are per-domain and disposable
 
@@ -138,6 +138,37 @@ Required lifecycle hooks:
 - Admin forced session revoke handling.
 
 Because the five local apps use different ports, they are different browser origins. `localStorage`/`storage` event propagation cannot be assumed across Admin `3000`, CRM `3001`, PMS `3002`, DMS `3003`, and SNS `3004`. Cross-app convergence must therefore be server-state driven, not localStorage-event driven.
+
+### 8. Notification center is a shared user surface
+
+The notification center belongs to the shared user layer. The header notification center is intentionally app-neutral: whichever app the user is using, it shows all notifications addressed to the user and opens the notification's source app when an action target is available.
+
+Shared ownership:
+
+- `@ssoo/types` owns the notification item/source/action contract. `CommonNotificationSourceApp` covers `system`, `admin`, `crm`, `pms`, `dms`, and `sns`.
+- Server common notification owns recipient isolation, list/unread/read/unread-all/read-by-reference APIs, SSE, and optional source filtering for domain-specific screens.
+- `@ssoo/web-auth` owns the browser notification API client, same-origin notification proxy route factory, SSE client helper, notification center state hook, app URL/path resolver, and CSRF/Origin validation for state-changing notification proxy calls.
+- `@ssoo/web-shell` owns the notification panel/list/card/read-state UI primitive and the common header notification center wrapper. Header placement may be provided by each app frame, but the panel content, trigger state, outside-click/Escape handling, badge binding, read/unread mutations, pagination, and SSE refresh behavior must use the shared surfaces.
+
+Current app coverage:
+
+- Admin, CRM, PMS, DMS, and SNS expose same-origin `/api/notifications/*` proxy paths for common notification list, unread count, read/unread, read-all, read-by-reference, and SSE.
+- Admin, CRM, PMS, DMS, and SNS mount the common `useCommonNotificationCenter` + `SsooHeaderNotificationCenter` flow in their app header without passing `sourceApp`, so the header panel is the user's all-app notification center rather than the current app's source-specific inbox.
+- The header panel keeps `전체` as the default view and renders shared app source filter chips for Admin, CRM, PMS, DMS, and SNS with unread badges. Each app may pass its own `preferredSourceApp` only to place the current app chip first; the chip UI, selected filter state, per-app unread counts, and filtered list/read-all behavior remain owned by the common hook and shell panel.
+- The panel surface uses shared copy, dim/backdrop behavior, category rendering, read/unread controls, and `open`/`confirm` semantics. Source-specific behavior is limited to opening the target app/path; domain workflow buttons such as retry/focus/process are not exposed in the common header panel.
+- DMS may still listen to DMS domain SSE events for background refresh side effects such as document access refresh or soft-lock notices, but those effects do not fork the visible notification center surface.
+
+Domain ownership:
+
+- Each source app owns the notification target path it emits. The header panel consumes `action.payload.path` or `reference.path` and uses the shared app URL resolver to switch to Admin/CRM/PMS/DMS/SNS.
+- Domain-specific notification screens may still use source filtering and richer domain actions outside the common header notification center.
+
+Security requirements:
+
+- Browser-facing notification state changes must use same-origin proxy calls with CSRF/Origin/Referer validation.
+- The server must scope every notification mutation by `recipientUserId`.
+- Notification IDs must be validated before `BigInt` conversion.
+- Global notification SSE subscriptions must receive user-specific notification events and source-app domain events without requiring each app to open several EventSource connections.
 
 ## Security requirements
 
@@ -230,13 +261,19 @@ After logout, protected API calls must return 401 across:
    - Add regression tests proving a revoked session rejects `/auth/me` and protected APIs.
 
 2. Shared auth bootstrap correction.
-   - Treat localStorage access tokens as cache only.
+   - Keep access tokens in runtime memory only and treat persisted auth snapshots as non-authoritative.
    - Prefer server session validation/restore during app bootstrap.
    - Clear auth on authoritative 401.
 
 3. Shared 401/session handling.
    - Centralize auth failure handling in `@ssoo/web-auth` helpers and app API clients.
    - Ensure all apps route to login and clear app-scoped auth/access state consistently.
+
+4. Shared notification center.
+   - Keep the frame/header notification trigger separate from the notification panel primitive.
+   - Use the shared notification proxy route factory in every app.
+   - Use the shared notification panel primitive for list/read/unread/read-all/show-more behavior.
+   - Keep the header notification center app-neutral: show all recipient notifications, then open the source app/path instead of exposing domain workflow buttons in the header panel.
 
 4. Domain cleanup hooks.
    - Add explicit per-app cleanup hooks invoked on auth clear/logout/401.
@@ -247,9 +284,9 @@ After logout, protected API calls must return 401 across:
    - Ensure sockets disconnect/reconnect with current auth state.
 
 6. SNS user/profile surface.
-   - Stabilize SNS-owned profile/account-experience entry points and `ProfileSummary` projection.
-   - Link account/profile/security entry points from other apps to SNS rather than duplicating profile editors.
-   - Keep domain settings separate: DMS may expose `설정`, but global account/profile/security remains SNS-owned.
+   - Stabilize the shared SSOO user profile/settings surface and `ProfileSummary` projection.
+   - Keep SNS as the profile/feed/follow domain owner, but render the user-facing profile/settings UI through the shared frame-tab surface in every app.
+   - Keep domain settings separate: DMS may expose `문서 설정`, but global `내 프로필` and `내 설정` resolve to the shared user surface.
 
 7. Admin operator session/access controls.
    - Add session list/revoke surfaces and audit visibility for operators.
@@ -261,17 +298,20 @@ After logout, protected API calls must return 401 across:
 
 ## Current implementation status
 
-As of the 2026-06-11 implementation slice, the first cross-app logout convergence blocker is closed at the server/shared-bootstrap layer, the auth identity/cleanup contract has been tightened, and account/profile/security entry points now converge on SNS:
+As of the 2026-06-11 implementation slice, the first cross-app logout convergence blocker is closed at the server/shared-bootstrap layer, the auth identity/cleanup contract has been tightened, and account/profile/security entry points now converge on the shared user surface backed by SNS-owned profile/social APIs:
 
 - `JwtStrategy.validate()` now rejects protected access tokens whose `sessionId` is absent, missing in `common.cm_user_session_m`, owned by another user, revoked, or expired.
 - Server regression coverage proves that a revoked backing session rejects an otherwise valid access token.
 - JWT access payloads and browser-facing `AuthIdentity` no longer carry `roleCode`; route-level admin gates resolve the current request's `system.override` policy through `AccessFoundationService` at request time.
-- `SharedAuthLoginPage` owns the full standard `AuthPageShell` + login card. Admin, CRM, PMS, DMS, and SNS keep app-local `/login` routes only as route adapters; they no longer provide app-specific auth layout chrome, login copy, or theme overrides. Until the platform name is finalized, the default login surface keeps only the `SSOT` logo, `로그인` title, and `© 2026 SSOT` footer without descriptive tagline/copy. Password recovery, registration request, internal SSO, and Microsoft 365 actions are rendered only when a shared URL/provider is configured. The default env-driven provider set is intentionally limited to internal SSO and Microsoft 365; generic OAuth/Google providers require an explicit product/security decision before they become default login surface.
-- Login expansion surfaces are UI/link contracts only at this layer. Actual Microsoft Entra ID or internal SSO callback handling, self-registration versus operator-approved registration request, and password reset channel are separate implementation decisions.
+- SNS auth display data is formalized as `AuthIdentityProfileProjection`, a `ProfileSummary`-derived projection that keeps `displayName` and `avatarUrl` outside the minimal auth identity contract.
+- `SharedAuthLoginPage` owns the full standard `AuthPageShell` + login card. Admin, CRM, PMS, DMS, and SNS keep app-local `/login` routes only as route adapters; they no longer provide app-specific auth layout chrome, login copy, or theme overrides. Until the platform name is finalized, the default login surface keeps only the `SSOT` logo, `로그인` title, and `© 2026 SSOT` footer without descriptive tagline/copy. Password recovery, registration request, internal SSO, and Microsoft 365 actions are resolved from the Admin-managed `/api/auth/public-config` policy first, with `NEXT_PUBLIC_AUTH_*` fallback for bootstrap environments. The default fallback provider set is intentionally limited to internal SSO and Microsoft 365; generic OAuth/Google providers require an explicit product/security decision before they become default login surface.
+- Admin, CRM, PMS, DMS, and SNS `/api/auth/[action]` routes are kept as identical thin adapters around `createAuthProxyPostHandler({ createServerApiUrl, createServerApiProxyInit })`. The browser-facing action allowlist is `login/session/logout/me`; body-based `refresh` is not exposed through app-local proxies, and the server direct `/api/auth/refresh` endpoint has been removed. App-id stamping belongs to each app's `_shared/serverApiProxy.ts` helper, not to the auth route itself.
+- Microsoft 365 signup/login is now a backend flow, not just a link contract. The server verifies Microsoft ID tokens against JWKS, records applicant-created signup requests for Admin approval, maps approved Microsoft identities to local users, and issues the same shared session cookie/JWT as password login. Password reset is separated from password change through a five-app `/password-reset` route and a five-app identical `/api/auth/password-reset/[action]` same-origin proxy for the email-code challenge/outbox flow.
 - `@ssoo/web-auth` protected-layout bootstrap checks server auth state on first hydration and on focus/visibility re-entry, so stale tabs converge from server session truth rather than cross-origin `localStorage` events.
-- `@ssoo/web-auth` exposes `onAuthCleared`, and PMS/SNS wire it to user-scoped access state cleanup. DMS keeps its richer `user-scope` registry, which subscribes to the same auth store transition and clears file tree, tabs, settings shell, assistant/editor state, git/settings/access stores, and query cache.
-- `@ssoo/web-auth` owns the shared account center resolver and `AuthUserMenu` account action. Admin, CRM, PMS, DMS, and SNS route global "내 계정" / profile / security entry points to the SNS account center via `NEXT_PUBLIC_SNS_APP_URL`; DMS keeps a separate `설정` action for document-domain settings.
-- `pnpm verify:auth-lifecycle` provides the repo-native HTTP verifier for the five app-local auth proxies: login, `/me` before logout, logout, old-token `/me` rejection across Admin/CRM/PMS/DMS/SNS, and revoked-cookie `/session` rejection.
+- `@ssoo/web-auth` owns `SharedAuthStateSync`, `createAuthUserScopeLifecycle`, and `useUserScopeQueryCacheReset`. Admin, CRM, PMS, DMS, and SNS each keep a thin `src/lib/user-scope.ts` adapter over that lifecycle. QueryClient apps clear query cache on auth user-scope transitions; PMS resets access/menu/open tabs; DMS stores register their existing file tree, tabs, settings navigation, assistant/editor, git/settings/access cleanup listeners; SNS resets access and query cache. Login submit and logout menu code no longer carry DMS-only reset exceptions.
+- `@ssoo/web-auth` owns the shared user-surface routing helpers, `AuthUserMenu` profile/settings actions, and `SsooUserSurfacePage` renderer. Admin, CRM, PMS, DMS, and SNS open global "내 프로필" and "내 설정" as `contentPage` tabs inside the current app frame through the `@ssoo/web-shell` shared-surface content page helper; there is no product-level SNS app link for these entry points. SNS remains the server/domain owner for profile, follow, and feed data. Profile/follow/feed mutations publish `domain-event` refresh signals so simultaneously open app tabs refetch from server truth, but profile GET/read APIs must stay side-effect free to avoid refresh/event loops. DMS keeps a separate `문서 설정` action for document-domain settings.
+- SNS profile projection now combines common `User` display fields, SNS profile content, normalized skills/careers, follow stats, and author-filtered feed access so `/__user/profile/me` and `/__user/profile/:userId` are the same product surface across apps. Legacy `/profile/*` and `/settings` paths are compatibility handoff inputs only and must not render local SNS profile/settings pages.
+- `pnpm verify:auth-lifecycle` provides the repo-native HTTP verifier for the five app-local auth proxies: login, `/me` before logout, logout, old-token `/me` rejection across Admin/CRM/PMS/DMS/SNS, and revoked-cookie `/session` rejection. The verifier sends the same custom CSRF header and same-origin `Origin`/`Referer` headers required by the hardened app-local auth proxy.
 
 Remaining lifecycle hardening is browser/manual validation depth and broader operator-session surface:
 
@@ -282,6 +322,12 @@ Remaining lifecycle hardening is browser/manual validation depth and broader ope
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-06-19 | 공용 사용자 표면 canonical route를 `__user`로 명시하고, SNS profile GET은 side-effect free, mutation 이후 domain event 발행만 허용하도록 생명주기 기준을 강화 |
+| 2026-06-17 | 공용 사용자 표면을 5개 앱 프레임 탭 내부 렌더링으로 정렬하고, SNS profile projection 을 common 사용자 표시값 + SNS profile + skills/careers + follow stats + 작성자 feed 기준으로 정렬 |
+| 2026-06-16 | DMS binary/SSE session-backed proxy helper를 `@ssoo/web-auth`로 공용화하고, SNS auth display projection을 `AuthIdentityProfileProjection`으로 타입화 |
+| 2026-06-15 | Browser-facing auth proxy allowlist 에서 body 기반 `refresh` 를 제거하고, 5앱 password reset 을 동일 same-origin proxy 로 고정했으며, auth lifecycle verifier 를 CSRF/Origin 하드닝 기준에 맞게 갱신 |
+| 2026-06-12 | 5앱 auth route 를 동일 thin adapter 기준으로 고정하고 CRM의 중복 app-id stamping wrapper 를 제거. DMS/PMS/SNS에 남는 앱별 코드는 login surface 차이가 아니라 user-scoped domain cleanup/profile projection hook 으로만 허용한다고 명시 |
+| 2026-06-12 | Admin-managed auth policy, Microsoft 365 OAuth 가입 신청/외부 ID 로그인, 5앱 `/password-reset` + 이메일 코드 outbox 기반 비밀번호 찾기 흐름을 공용 사용자 생명주기 구현 상태에 반영 |
 | 2026-06-11 | 기본 로그인 확장 provider를 사내 SSO + Microsoft 365로 축소하고, generic OAuth/Google은 명시적 결정 전 기본 노출에서 제외. 가입 요청/비밀번호 찾기 링크 surface는 유지하되 실제 SSO backend, 셀프 가입 허용 여부, 비밀번호 재설정 채널은 후속 결정 항목으로 분리 |
 | 2026-06-11 | 플랫폼명 확정 전 login surface 브랜드 기준을 `SSOT` 로 고정하고, 보조 설명 문구 없이 로고/제목/푸터만 노출하며 계정 복구/가입 요청/사내 SSO/Microsoft 365 확장 action 은 설정된 경우에만 렌더링하도록 정리 |
 | 2026-06-11 | `SharedAuthLoginPage` 가 공용 `AuthPageShell` 을 직접 소유하도록 고정하고 5앱 login route 에서 app-specific login copy/layout/theme 래핑을 제거. CRM Tailwind web-auth scan 과 Admin auth layout 누락을 보정하고 `verify:auth-commonization` 에 UI drift gate 를 추가 |

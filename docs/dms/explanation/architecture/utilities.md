@@ -143,7 +143,7 @@ getPathDepth('docs/guides/api.md')  // 2
 
 ## JSON 유틸리티 (`json.ts`, `objectPath.ts`)
 
-settings shell과 document metadata diff에서 공통으로 쓰는 JSON 처리를 담당합니다.
+설정 탭 page와 document metadata diff에서 공통으로 쓰는 JSON 처리를 담당합니다.
 
 ### `getNestedValue()` / `setNestedValue()`
 
@@ -309,5 +309,5 @@ export const PATH_SEPARATORS = {
 
 | 날짜 | 변경 내용 |
 |------|----------|
-| 2026-04-02 | `json.ts`, `objectPath.ts` 추가 및 settings shell / document metadata diff 공용 JSON 유틸 계층 반영 |
+| 2026-04-02 | `json.ts`, `objectPath.ts` 추가 및 settings page / document metadata diff 공용 JSON 유틸 계층 반영 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

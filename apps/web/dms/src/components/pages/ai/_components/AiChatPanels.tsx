@@ -9,6 +9,7 @@ import { SHELL_BODY_WRAPPER_PRESETS } from '@/components/templates/page-frame';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
+import { Button } from '@ssoo/web-ui';
 
 interface AiChatBodyProps {
   messages: AssistantMessage[];
@@ -55,7 +56,7 @@ export function AiChatBody({
         ].join(' ')}
       >
         <div className="sticky left-0 top-0 z-10 h-0">
-          <button
+          <Button variant="plain" size="plain"
             type="button"
             onClick={startNewSession}
             className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-border/60 text-ssoo-primary/75 opacity-55 transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary hover:opacity-100 focus-visible:opacity-100"
@@ -63,7 +64,7 @@ export function AiChatBody({
             aria-label="새 채팅 세션"
           >
             <ExternalLink className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         {messages.length === 0 ? (

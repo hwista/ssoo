@@ -4,6 +4,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { markdownToHtmlSync } from '@/lib/utils/markdown';
 import type { EditorCommandDefinition, ToolbarCommandId } from '../Toolbar';
+import { Button } from '@ssoo/web-ui';
 
 export const SLASH_MENU_WIDTH = 320;
 export const SLASH_MENU_MAX_HEIGHT = 288;
@@ -67,7 +68,7 @@ export function SlashCommandMenu({
       }}
     >
       {items.map((item, index) => (
-        <button
+        <Button variant="plain" size="plain"
           key={item.id}
           ref={(element) => {
             itemRefs.current[index] = element;
@@ -88,7 +89,7 @@ export function SlashCommandMenu({
             <span className="text-label-md">{item.title}</span>
             <span className="text-caption text-ssoo-primary/60">{item.description}</span>
           </div>
-        </button>
+        </Button>
       ))}
     </div>
   );

@@ -39,6 +39,7 @@ export const postsApi = {
     cursor?: string;
     limit?: number;
     feedType?: string;
+    authorUserId?: string;
   }) =>
     apiClient.get<
       ApiResponse<{ items: FeedItem[]; nextCursor: string | null }>

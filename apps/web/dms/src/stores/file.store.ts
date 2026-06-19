@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { FileNode, BookmarkItem } from '@/types';
-import { filesApi } from '@/lib/api/endpoints/files';
+import { filesApi, type GetFileTreeOptions } from '@/lib/api/endpoints/files';
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 import { getFileNodeDisplayTitle } from '@/lib/utils/fileTree';
 import { resolveDocPath } from '@/lib/utils/linkUtils';
@@ -28,6 +28,40 @@ const buildFileMap = (nodes: FileNode[]): Map<string, FileNode> => {
   traverse(nodes);
   return map;
 };
+
+const FORCE_SYNC_EMPTY_RETRY_COUNT = 2;
+const FORCE_SYNC_EMPTY_RETRY_DELAY_MS = 700;
+
+type FileTreeLoadResult = { success: boolean; error?: string };
+
+function waitForFileTreeRetry(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, FORCE_SYNC_EMPTY_RETRY_DELAY_MS);
+  });
+}
+
+async function requestFileTree(options: GetFileTreeOptions): Promise<Awaited<ReturnType<typeof filesApi.getFileTree>>> {
+  const maxAttempt = options.forceSync ? FORCE_SYNC_EMPTY_RETRY_COUNT + 1 : 1;
+
+  for (let attempt = 1; attempt <= maxAttempt; attempt += 1) {
+    const result = await filesApi.getFileTree(options);
+    const files = toFileNodes(result.data);
+    const shouldRetryEmptyForceSync = Boolean(
+      options.forceSync
+      && result.success
+      && files.length === 0
+      && attempt < maxAttempt,
+    );
+
+    if (!shouldRetryEmptyForceSync) {
+      return result;
+    }
+
+    await waitForFileTreeRetry();
+  }
+
+  return filesApi.getFileTree(options);
+}
 
 const resolveBookmarkTitle = (
   bookmark: Pick<BookmarkItem, 'path' | 'title'>,
@@ -93,8 +127,8 @@ interface FileStoreState {
 
 interface FileStoreActions {
   // 파일 트리 로드
-  loadFileTree: () => Promise<{ success: boolean; error?: string }>;
-  refreshFileTree: () => Promise<void>;
+  loadFileTree: (options?: GetFileTreeOptions) => Promise<FileTreeLoadResult>;
+  refreshFileTree: (options?: GetFileTreeOptions) => Promise<FileTreeLoadResult>;
   // 데이터 설정
   setFiles: (files: FileNode[]) => void;
   // 유틸리티
@@ -153,7 +187,7 @@ export const useFileStore = create<FileStore>()(
       ownerUserId: null,
 
       // 파일 트리 로드
-      loadFileTree: async () => {
+      loadFileTree: async (options = {}) => {
         const currentUserId = getCurrentUserScopeId();
         if (!currentUserId) {
           set({ isLoading: false, error: '인증 사용자 정보가 없어 파일 트리를 불러올 수 없습니다.' });
@@ -171,7 +205,7 @@ export const useFileStore = create<FileStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const result = await filesApi.getFileTree();
+          const result = await requestFileTree(options);
           const nextFiles = toFileNodes(result.data);
 
           if (result.success) {
@@ -221,11 +255,11 @@ export const useFileStore = create<FileStore>()(
       },
 
       // 파일 트리 새로고침
-      refreshFileTree: async () => {
+      refreshFileTree: async (options = {}) => {
         const currentUserId = getCurrentUserScopeId();
         if (!currentUserId) {
           set({ isLoading: false, error: '인증 사용자 정보가 없어 파일 트리를 새로고침할 수 없습니다.' });
-          return;
+          return { success: false, error: '인증 사용자 정보가 없어 파일 트리를 새로고침할 수 없습니다.' };
         }
 
         const requestScope = beginFileTreeRequest(currentUserId);
@@ -233,13 +267,13 @@ export const useFileStore = create<FileStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const result = await filesApi.getFileTree();
+          const result = await requestFileTree(options);
           const nextFiles = toFileNodes(result.data);
 
           if (result.success) {
             if (!isCurrentFileTreeRequest(requestScope)) {
               timer.end({ success: false, discarded: true });
-              return;
+              return { success: false, error: '사용자 전환으로 파일 트리 응답을 폐기했습니다.' };
             }
             const fileMap = buildFileMap(nextFiles);
             const { bookmarks, ownerUserId } = get();
@@ -258,25 +292,28 @@ export const useFileStore = create<FileStore>()(
             });
             logger.info('파일 트리 새로고침 성공', { fileCount: nextFiles.length, mapSize: fileMap.size });
             timer.end({ success: true });
+            return { success: true };
           } else {
             if (!isCurrentFileTreeRequest(requestScope)) {
               timer.end({ success: false, discarded: true });
-              return;
+              return { success: false, error: '사용자 전환으로 파일 트리 응답을 폐기했습니다.' };
             }
             const errorMsg = result.error || '파일 트리 새로고침 실패';
             set({ isLoading: false, error: typeof errorMsg === 'string' ? errorMsg : '파일 트리 새로고침 실패' });
             logger.error('파일 트리 새로고침 실패', { error: errorMsg });
             timer.end({ success: false });
+            return { success: false, error: typeof errorMsg === 'string' ? errorMsg : '파일 트리 새로고침 실패' };
           }
         } catch (error) {
           if (!isCurrentFileTreeRequest(requestScope)) {
             timer.end({ success: false, discarded: true });
-            return;
+            return { success: false, error: '사용자 전환으로 파일 트리 응답을 폐기했습니다.' };
           }
           const errorMsg = error instanceof Error ? error.message : '파일 트리 새로고침 실패';
           logger.error('파일 트리 새로고침 중 오류', error);
           set({ isLoading: false, error: errorMsg });
           timer.end({ success: false });
+          return { success: false, error: errorMsg };
         }
       },
 

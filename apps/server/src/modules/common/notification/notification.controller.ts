@@ -1,12 +1,25 @@
-import { Body, Controller, Get, Param, Put, Query, Sse } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Put, Query, Sse } from '@nestjs/common';
 import type { MessageEvent } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Observable } from 'rxjs';
 import { success } from '../../../common/responses.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { TokenPayload } from '../auth/interfaces/auth.interface.js';
-import { ListNotificationsDto, MarkNotificationsByReferenceDto } from './dto/notification.dto.js';
+import {
+  ListNotificationsDto,
+  MarkNotificationsByReferenceDto,
+  NotificationSourceAppQueryDto,
+} from './dto/notification.dto.js';
 import { CommonNotificationService } from './notification.service.js';
+
+function parseNotificationId(id: string): bigint {
+  if (!/^\d+$/.test(id)) {
+    throw new BadRequestException('Invalid notification id');
+  }
+
+  return BigInt(id);
+}
 
 @ApiTags('common-notifications')
 @ApiBearerAuth()
@@ -28,19 +41,20 @@ export class CommonNotificationController {
   @ApiOperation({ summary: '내 미읽음 알림 수 조회' })
   @ApiOkResponse({ description: '내 미읽음 알림 수 반환' })
   async getUnreadCount(
-    @Query('sourceApp') sourceApp: ListNotificationsDto['sourceApp'],
+    @Query() params: NotificationSourceAppQueryDto,
     @CurrentUser() user: TokenPayload,
   ) {
-    return success(await this.notificationService.getUnreadCount(BigInt(user.userId), sourceApp));
+    return success(await this.notificationService.getUnreadCount(BigInt(user.userId), params.sourceApp));
   }
 
   @Sse('events')
+  @SkipThrottle()
   @ApiOperation({ summary: '내 알림 이벤트 스트림 구독' })
   streamEvents(
-    @Query('sourceApp') sourceApp: ListNotificationsDto['sourceApp'],
+    @Query() params: NotificationSourceAppQueryDto,
     @CurrentUser() user: TokenPayload,
   ): Observable<MessageEvent> {
-    return this.notificationService.streamForUser(BigInt(user.userId), sourceApp);
+    return this.notificationService.streamForUser(BigInt(user.userId), params.sourceApp);
   }
 
   @Put(':id/read')
@@ -50,7 +64,7 @@ export class CommonNotificationController {
     @Param('id') id: string,
     @CurrentUser() user: TokenPayload,
   ) {
-    return success(await this.notificationService.markAsRead(BigInt(id), BigInt(user.userId)));
+    return success(await this.notificationService.markAsRead(parseNotificationId(id), BigInt(user.userId)));
   }
 
   @Put(':id/unread')
@@ -60,17 +74,17 @@ export class CommonNotificationController {
     @Param('id') id: string,
     @CurrentUser() user: TokenPayload,
   ) {
-    return success(await this.notificationService.markAsUnread(BigInt(id), BigInt(user.userId)));
+    return success(await this.notificationService.markAsUnread(parseNotificationId(id), BigInt(user.userId)));
   }
 
   @Put('read-all')
   @ApiOperation({ summary: '내 알림 전체 읽음 처리' })
   @ApiOkResponse({ description: '읽음 처리 건수 반환' })
   async markAllAsRead(
-    @Query('sourceApp') sourceApp: ListNotificationsDto['sourceApp'],
+    @Query() params: NotificationSourceAppQueryDto,
     @CurrentUser() user: TokenPayload,
   ) {
-    return success(await this.notificationService.markAllAsRead(BigInt(user.userId), sourceApp));
+    return success(await this.notificationService.markAllAsRead(BigInt(user.userId), params.sourceApp));
   }
 
   @Put('read-by-reference')

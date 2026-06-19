@@ -31,18 +31,21 @@ SNS는 PMS/DMS와 같은 첫 진입 계약을 따른다.
 |------|------|
 | `/` | 인증 후 기본 홈 |
 | `/login` | 인증 진입 |
-| `/board`, `/profile`, `/search`, `/settings` | 인증 앱 영역 |
+| `/board`, `/search`, `/ssoo/search` | SNS 인증 앱 영역 |
+| `/__user/profile/me`, `/__user/profile/:userId`, `/__user/settings` | 현재 앱 프레임 탭 안에서 렌더링되는 공용 사용자 profile/settings 표면 |
+| `/profile/*`, `/settings` | 기존 링크 호환용 route-entry 입력. `ContentArea`에서 canonical `__user` route로 인계하며 물리 SNS page를 렌더링하지 않는다. |
 
 인증 메인 레이아웃 bootstrap은 PMS/DMS와 같은 패턴으로 정렬하고, 루트(`/`)가 기본 앱 진입점 역할을 맡는다.
 
 ## 현재 UI shell 방향
 
 - **outer shell**: PMS/DMS와 같은 shared shell frame 기준으로 정렬
-- **routing model**: SNS는 routed app 구조를 유지
+- **routing model**: App Router 경로는 MDI 탭 open/active state를 동기화하는 입력
 - **shell chrome**:
   - 컬러 header
-  - icon-only 기본 sidebar + hover 시 full-width reveal
-  - actual MDI tab 이 아닌 route-aware secondary strip
+  - collapsible shared sidebar
+  - `SsooMdiTabBar` 기반 full MDI tabbar
+  - 공용 알림 센터는 source app 필터 없이 사용자의 전체 수신 알림을 표시하고, 알림 source app으로 전환할 수 있게 한다
 - **feed surface**: 홈(`/`)은 LinkedIn 스타일의 3열 SNS 구성을 사용
   - 좌측: 내 프로필/빠른 이동
   - 중앙: compose + 피드 타임라인

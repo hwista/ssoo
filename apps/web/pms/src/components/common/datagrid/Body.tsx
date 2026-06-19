@@ -12,7 +12,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '../StateDisplay';
 
 interface BodyProps<TData, TValue> {
   table: ReactTable<TData>;

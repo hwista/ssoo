@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./route-policy": {
+      "types": "./dist/route-policy.d.ts",
+      "default": "./dist/route-policy.js"
     }
   },
   "scripts": {
@@ -20,7 +24,10 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "@ssoo/types": "workspace:*",
+    "@ssoo/web-ui": "workspace:*",
     "clsx": "^2.1.1",
+    "lucide-react": "^0.548.0",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {

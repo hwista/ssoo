@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
+import { getSsooAppMetadata, SsooFaviconSync } from '@ssoo/web-shell';
 import { Providers } from './providers';
 import '../../../../../packages/web-shell/src/styles/ssoo-global.css';
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: 'SSOT DMS | 문서 허브',
-  description: '위키, 시스템 개발문서, 블로그 통합 문서 관리 시스템',
-};
+export const metadata: Metadata = getSsooAppMetadata('dms');
 
 export default function RootLayout({
   children,
@@ -15,7 +13,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body>
+      <body data-ssoo-theme="dms">
+        <SsooFaviconSync appKey="dms" />
         <Providers>{children}</Providers>
       </body>
     </html>

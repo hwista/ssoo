@@ -4,12 +4,14 @@ import { DatabaseService } from '../../../database/database.service.js';
 import type { CreatePostDto, UpdatePostDto, FindPostsDto } from './dto/post.dto.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessService } from '../access/access.service.js';
+import { CommonNotificationService } from '../../common/notification/notification.service.js';
 
 @Injectable()
 export class PostService {
   constructor(
     private readonly db: DatabaseService,
     private readonly accessService: AccessService,
+    private readonly notificationService: CommonNotificationService,
   ) {}
 
   async findAll(params: FindPostsDto, user: TokenPayload) {
@@ -79,7 +81,7 @@ export class PostService {
     const authorUserId = BigInt(user.userId);
     const visibility = await this.accessService.resolvePostVisibility(user, dto.visibilityScopeCode);
 
-    return this.db.client.$transaction(async (tx) => {
+    const result = await this.db.client.$transaction(async (tx) => {
       const post = await tx.snsPost.create({
         data: {
           authorUserId,
@@ -113,6 +115,10 @@ export class PostService {
         },
       });
     });
+    if (result) {
+      this.publishFeedChanged(authorUserId, result.id, result.authorUserId);
+    }
+    return result;
   }
 
   async update(id: bigint, dto: UpdatePostDto, user: TokenPayload) {
@@ -132,7 +138,7 @@ export class PostService {
         ? await this.accessService.resolvePostVisibility(user, dto.visibilityScopeCode)
         : null;
 
-    return this.db.client.$transaction(async (tx) => {
+    const result = await this.db.client.$transaction(async (tx) => {
       const post = await tx.snsPost.update({
         where: { id },
         data: {
@@ -169,6 +175,10 @@ export class PostService {
         },
       });
     });
+    if (result) {
+      this.publishFeedChanged(BigInt(user.userId), result.id, result.authorUserId);
+    }
+    return result;
   }
 
   async softDelete(id: bigint, user: TokenPayload) {
@@ -183,9 +193,19 @@ export class PostService {
       '본인이 작성한 게시물만 삭제할 수 있습니다.',
     );
 
-    return this.db.client.snsPost.update({
+    const deletedPost = await this.db.client.snsPost.update({
       where: { id },
       data: { isActive: false },
+    });
+    this.publishFeedChanged(BigInt(user.userId), id, existing.authorUserId);
+    return deletedPost;
+  }
+
+  private publishFeedChanged(actorUserId: bigint, postId: bigint, authorUserId: bigint): void {
+    this.notificationService.publishDomainEvent('sns', 'sns.feed.changed', {
+      actorUserId: actorUserId.toString(),
+      userId: authorUserId.toString(),
+      postId: postId.toString(),
     });
   }
 }

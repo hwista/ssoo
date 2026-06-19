@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { followsApi } from '@/lib/api/endpoints/follows';
 import { profilesApi } from '@/lib/api/endpoints/profiles';
 
 const profileKeys = {
@@ -27,5 +28,19 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: profilesApi.update,
     onSuccess: () => { qc.invalidateQueries({ queryKey: profileKeys.all }); },
+  });
+}
+
+export function useToggleProfileFollow(userId: string, isFollowing: boolean) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => isFollowing
+      ? followsApi.unfollow(userId)
+      : followsApi.follow(userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: profileKeys.all });
+      qc.invalidateQueries({ queryKey: ['sns', 'posts'] });
+    },
   });
 }

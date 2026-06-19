@@ -66,7 +66,7 @@ interface DiffTargetToggleProps {
 export function DiffTargetToggle({ value, onChange }: DiffTargetToggleProps) {
   return (
     <div className="inline-flex h-control-h items-center rounded-md border border-ssoo-content-border bg-ssoo-content-bg p-1">
-      <button
+      <Button variant="plain" size="plain"
         type="button"
         onClick={() => onChange('content')}
         className={cn(
@@ -75,8 +75,8 @@ export function DiffTargetToggle({ value, onChange }: DiffTargetToggleProps) {
         )}
       >
         본문
-      </button>
-      <button
+      </Button>
+      <Button variant="plain" size="plain"
         type="button"
         onClick={() => onChange('metadata')}
         className={cn(
@@ -85,7 +85,7 @@ export function DiffTargetToggle({ value, onChange }: DiffTargetToggleProps) {
         )}
       >
         메타데이터
-      </button>
+      </Button>
     </div>
   );
 }

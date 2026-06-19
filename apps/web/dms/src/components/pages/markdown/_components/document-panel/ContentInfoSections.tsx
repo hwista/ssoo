@@ -9,10 +9,11 @@ import { docAssistApi } from '@/lib/api/endpoints/ai';
 import { toast } from '@/lib/toast';
 import { isExternalUrl } from '@/lib/utils/linkUtils';
 import type { BodyLink } from '@/types';
+import { Button, Input, Textarea } from '@ssoo/web-ui';
 
 function WandButton({ loading, onClick, label }: { loading: boolean; onClick: () => void; label: string }) {
   return (
-    <button
+    <Button variant="plain" size="plain"
       type="button"
       onClick={onClick}
       disabled={loading}
@@ -21,7 +22,7 @@ function WandButton({ loading, onClick, label }: { loading: boolean; onClick: ()
       title={label}
     >
       {loading ? <LoadingSpinner className="h-3.5 w-3.5 text-current" /> : <Sparkles className="h-3.5 w-3.5" />}
-    </button>
+    </Button>
   );
 }
 
@@ -166,7 +167,7 @@ export function TagsSection({
       {suggestedTags.length > 0 && !locked && (
         <div className="flex flex-wrap gap-1.5 pt-2">
           {suggestedTags.map((tag) => (
-            <button
+            <Button variant="plain" size="plain"
               key={tag}
               type="button"
               onClick={() => handleAcceptSuggested(tag)}
@@ -175,13 +176,13 @@ export function TagsSection({
             >
               <Plus className="h-3 w-3" />
               {tag}
-            </button>
+            </Button>
           ))}
         </div>
       )}
       {editable && !locked && (
         <div className="flex gap-1 pt-2">
-          <input
+          <Input
             type="text"
             value={inputValue}
             onChange={(event) => setInputValue(event.target.value)}
@@ -189,14 +190,14 @@ export function TagsSection({
             placeholder="태그 추가..."
             className="h-7 flex-1 rounded border border-ssoo-content-border bg-transparent px-2 text-caption text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
           />
-          <button
+          <Button variant="plain" size="plain"
             onClick={handleAdd}
             disabled={!inputValue.trim()}
             className="flex h-7 items-center p-1 text-ssoo-primary/60 transition-colors hover:text-ssoo-primary disabled:opacity-30"
             aria-label="태그 추가"
           >
             <Plus className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
       )}
     </ChipListSection>
@@ -294,7 +295,7 @@ export function SummarySection({
         locked={locked}
         content={
           <div className="space-y-2">
-            <textarea
+            <Textarea
               value={summary}
               onChange={onChange}
               placeholder="문서 요약을 입력하세요..."
@@ -310,30 +311,30 @@ export function SummarySection({
               <div className="rounded border border-dashed border-ssoo-primary/30 bg-ssoo-primary/5 p-2">
                 <p className="mb-2 text-caption leading-relaxed text-ssoo-primary/80 whitespace-pre-wrap">{aiSuggestion}</p>
                 <div className="flex gap-1.5">
-                  <button
+                  <Button variant="plain" size="plain"
                     type="button"
                     onClick={handleAppend}
                     className="inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-caption text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
                   >
                     <Plus className="h-3 w-3" />
                     덧붙이기
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="plain" size="plain"
                     type="button"
                     onClick={handleReplace}
                     className="inline-flex items-center gap-1 rounded bg-ssoo-primary/10 px-2 py-0.5 text-caption text-ssoo-primary transition-colors hover:bg-ssoo-primary/20"
                   >
                     <Check className="h-3 w-3" />
                     변경
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="plain" size="plain"
                     type="button"
                     onClick={handleDismiss}
                     className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption text-ssoo-primary/60 transition-colors hover:text-ssoo-primary"
                   >
                     <X className="h-3 w-3" />
                     취소
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -507,7 +508,7 @@ export function SourceLinksSection({
     >
       {editable && !locked && (
         <div className="flex gap-1 pt-2">
-          <input
+          <Input
             type="text"
             value={inputValue}
             onChange={(event) => setInputValue(event.target.value)}
@@ -515,14 +516,14 @@ export function SourceLinksSection({
             placeholder="링크 추가..."
             className="h-7 flex-1 rounded border border-ssoo-content-border bg-transparent px-2 text-caption text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
           />
-          <button
+          <Button variant="plain" size="plain"
             onClick={handleAdd}
             disabled={!inputValue.trim()}
             className="flex h-7 items-center p-1 text-ssoo-primary/60 transition-colors hover:text-ssoo-primary disabled:opacity-30"
             aria-label="링크 추가"
           >
             <Plus className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
       )}
     </ActivityListSection>

@@ -73,8 +73,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: TokenPayload): Promise<TokenPayload> {
-    this.logger.debug(`Validating JWT payload: ${JSON.stringify(payload)}`);
-
     // Access Token인지 확인
     if (payload.type !== 'access') {
       this.logger.warn(`Invalid token type: ${payload.type}`);

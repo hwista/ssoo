@@ -1,5 +1,6 @@
 'use client';
 
+import type { MouseEvent } from 'react';
 import { useMemo } from 'react';
 import { FileText, X } from 'lucide-react';
 import { useAuthStore, useTabStore, useFileStore, useActiveEditorFilePath } from '@/stores';
@@ -7,7 +8,11 @@ import { useOpenDocumentTab, useOpenTabWithConfirm } from '@/hooks';
 import { getFileNodeDisplayTitle } from '@/lib/utils/fileTree';
 import { resolveDocPath } from '@/lib/utils/linkUtils';
 import type { BookmarkItem } from '@/types';
-import { SsooSidebarEmptyState, SsooSidebarList, SsooSidebarListItem } from '@ssoo/web-shell';
+import {
+  SsooSidebarEmptyState,
+  SsooSidebarSearchableTree,
+  SsooSidebarTreeActionButton,
+} from '@ssoo/web-shell';
 
 type ResolvedBookmarkItem = BookmarkItem & {
   documentPath: string | null;
@@ -89,41 +94,35 @@ export function Bookmarks() {
     });
   };
 
-  const handleRemove = (e: React.MouseEvent, bookmarkId: string) => {
+  const handleRemove = (e: MouseEvent<HTMLButtonElement>, bookmarkId: string) => {
     e.stopPropagation();
     removeBookmark(bookmarkId);
   };
 
   return (
-    <SsooSidebarList>
-      {resolvedBookmarks.map((bookmark) => {
-        const isActive = bookmark.documentPath
+    <SsooSidebarSearchableTree<ResolvedBookmarkItem>
+      nodes={resolvedBookmarks}
+      getNodeId={(bookmark) => bookmark.id}
+      getNodeLabel={(bookmark) => bookmark.title}
+      getNodeTitle={(bookmark) => bookmark.title}
+      getNodeSearchText={(bookmark) => [bookmark.title, bookmark.path, bookmark.documentPath ?? '']}
+      getNodeIcon={() => FileText}
+      isNodeActive={(bookmark) => (
+        bookmark.documentPath
           ? bookmark.documentPath === activeDocumentPath
-          : bookmark.id === activeTabId;
-
-        return (
-          <SsooSidebarListItem
-            key={bookmark.id}
-            icon={FileText}
-            label={bookmark.title}
-            title={bookmark.title}
-            active={isActive}
-            onSelect={() => {
-              void handleClick(bookmark);
-            }}
-            trailingAction={
-              <button
-                type="button"
-                onClick={(e) => handleRemove(e, bookmark.id)}
-                className="h-control-h-sm w-control-h-sm flex-shrink-0 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100 rounded flex items-center justify-center"
-                title="책갈피 해제"
-              >
-                <X className="w-3 h-3 text-gray-500" />
-              </button>
-            }
-          />
-        );
-      })}
-    </SsooSidebarList>
+          : bookmark.id === activeTabId
+      )}
+      renderNodeTrailingAction={(bookmark) => (
+        <SsooSidebarTreeActionButton
+          label="책갈피 해제"
+          icon={X}
+          onClick={(event) => handleRemove(event, bookmark.id)}
+        />
+      )}
+      onNodeSelect={(bookmark) => {
+        void handleClick(bookmark);
+      }}
+      emptyState={<SsooSidebarEmptyState>책갈피가 없습니다.</SsooSidebarEmptyState>}
+    />
   );
 }

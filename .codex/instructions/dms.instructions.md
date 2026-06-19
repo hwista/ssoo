@@ -4,7 +4,7 @@ applyTo: "apps/web/dms/**"
 
 # Codex DMS Instructions
 
-> 최종 업데이트: 2026-04-06
+> 최종 업데이트: 2026-06-17
 > 정본: `.github/instructions/dms.instructions.md`
 
 ## 독립 배포 고려사항
@@ -12,7 +12,7 @@ applyTo: "apps/web/dms/**"
 | 항목 | DMS | PMS |
 |------|-----|-----|
 | 패키지 매니저 | **pnpm workspace** | pnpm |
-| 공유 패키지 | `@ssoo/types` 사용 가능 (`@ssoo/database` 직접 참조 금지) | 사용 |
+| 공유 패키지 | `@ssoo/types`, `@ssoo/web-auth`, `@ssoo/web-shell`, `@ssoo/web-ui` 사용 (`@ssoo/database` 직접 참조 금지) | 사용 |
 | 포트 | **3003** | 3002 |
 
 DMS는 workspace 앱으로 통합되었지만, 파일/Git/스토리지 런타임과 `src/app/api/* -> server/*` 구조는 독립 배포 가능성을 고려해 유지합니다.
@@ -36,7 +36,7 @@ Docker/compose도 DMS 런타임 계약의 일부입니다. DMS 포트, runtime p
 ## 기술 스택
 
 - Next.js 15.x (App Router), React 19.x, TypeScript 5.x
-- Tailwind CSS 3.x + Radix UI
+- Tailwind CSS 3.x + Radix UI + `@ssoo/web-ui`
 - Zustand 5.x
 - CodeMirror 6 기반 block editor, react-markdown 기반 viewer
 
@@ -49,7 +49,7 @@ src/
 │   ├── api/               # API Routes
 │   └── layout.tsx
 ├── components/
-│   ├── ui/                # Radix UI 기반 원자
+│   ├── ui/                # @ssoo/web-ui thin re-export adapter + Radix UI 기반 원자
 │   ├── common/            # 공통 (ConfirmDialog, StateDisplay, editor/viewer/assistant)
 │   ├── layout/            # AppLayout, Sidebar, Header, TabBar
 │   ├── templates/         # 페이지 템플릿 + page-frame building blocks
@@ -105,6 +105,13 @@ const useTabStore = create<TabStoreState & TabStoreActions>()(
 - 트리 상태는 `file.store.ts` 가 소유하고, 렌더 컴포넌트는 presentation 역할만 맡는다
 - 폴더 생성/이동/이름변경 액션은 `/api/file` 계약과 동일한 action vocabulary를 사용한다
 
+## UI primitive 사용법
+
+- Button/Badge/Card/Input/NativeSelect/Table/Textarea 등 inventory 원자는 `@ssoo/web-ui`가 소유하고 DMS `components/ui/*`는 thin re-export adapter로 유지한다.
+- `components/ui/*`에서 앱별 primitive variant recipe를 재정의하지 않는다.
+- DMS TSX surface에서는 원시 `button/input/textarea/select/table/thead/tbody/tfoot/tr/th/td`를 직접 렌더링하지 않고 공용 primitive 또는 앱 thin adapter를 사용한다.
+- 이 기준은 `pnpm run verify:ui-consumption`에서 전역 검증된다.
+
 ## 타입 정의 규칙
 
 ```typescript
@@ -136,10 +143,10 @@ export * from './components';
 
 | 영역 | 값 |
 |------|-----|
-| Header | 56px |
-| Sidebar (펼침) | 280px |
-| Sidebar (접힘) | 48px |
-| TabBar | 40px |
+| Header | 60px |
+| Sidebar (펼침) | 340px |
+| Sidebar (접힘) | 56px |
+| TabBar | 53px |
 
 ## 컴포넌트 크기 가이드
 
@@ -181,6 +188,8 @@ export * from './components';
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-06-17 | `@ssoo/web-ui`를 DMS 공유 패키지 기준에 추가하고 access-requests/settings 선별 UI 기준선 검증 규칙 명시 |
+| 2026-06-15 | DMS 공유 패키지 기준을 `@ssoo/types`, `@ssoo/web-auth`, `@ssoo/web-shell`로 보정하고 SSOO 공용 frame 레이아웃 치수와 동기화 |
 | 2026-04-06 | GitLab 기본 흐름을 full-workspace `development` branch 기준으로 전환하고 `codex:workspace-*` 명령/호환 래퍼를 추가 |
 | 2026-04-02 | `codex:dms-sync-from-gitlab` 추가, `codex:dms-publish` GitLab 선검사 및 git config 인증 fallback 반영 |
 | 2026-02-27 | 독립성/기술스택/폴더구조/서버패턴/스토어/에디터/TreeView/타입/Export/치수/크기가이드/금지사항 추가 |

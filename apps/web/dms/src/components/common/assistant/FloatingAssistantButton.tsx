@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@ssoo/web-ui';
 
 interface FloatingAssistantButtonProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export function FloatingAssistantButton({
   }, [consumeDrag, onClick]);
 
   return (
-    <button
+    <Button variant="plain" size="plain"
       type="button"
       onClick={handleClick}
       onPointerDown={onPointerDown}
@@ -52,6 +53,6 @@ export function FloatingAssistantButton({
       style={dragStyle}
     >
       {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
-    </button>
+    </Button>
   );
 }

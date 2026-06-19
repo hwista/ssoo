@@ -39,7 +39,3 @@ export type {
   LayoutState,
   LayoutActions,
 } from './layout';
-export {
-  BREAKPOINTS,
-  LAYOUT_SIZES,
-} from './layout';

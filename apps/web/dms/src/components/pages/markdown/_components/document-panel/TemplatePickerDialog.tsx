@@ -2,6 +2,7 @@
 
 import { EditorDialog } from '@/components/common/editor-dialog';
 import type { TemplateItem } from '@/types/template';
+import { Button } from '@ssoo/web-ui';
 
 interface TemplatePickerDialogProps {
   open: boolean;
@@ -44,7 +45,7 @@ export function TemplatePickerDialog({
     >
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
         {templates.map((template) => (
-          <button
+          <Button variant="plain" size="plain"
             key={`${template.scope}-${template.id}`}
             type="button"
             onClick={() => onSelectTemplate(template)}
@@ -61,7 +62,7 @@ export function TemplatePickerDialog({
                 {template.scope === 'global' ? '공통' : '개인'}
               </span>
             </div>
-          </button>
+          </Button>
         ))}
         {templates.length === 0 ? (
           <div className="rounded-md border border-dashed border-ssoo-content-border px-3 py-6 text-center text-body-sm text-ssoo-primary/60">

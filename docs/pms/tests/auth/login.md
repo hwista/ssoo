@@ -29,23 +29,21 @@
 | **예상 결과** | 200 OK, accessToken + refreshToken 반환 |
 | **검증 항목** | |
 | | ☑️ accessToken이 JWT 형식 |
-| | ☑️ refreshToken이 JWT 형식 |
+| | ☑️ refresh/session token이 HttpOnly cookie로 설정됨 |
 | | ☑️ user 객체에 password_hash 미포함 |
 | | ☑️ DB: last_login_at 업데이트됨 |
 | | ☑️ DB: login_fail_count = 0 |
-| | ☑️ DB: refresh_token_hash 저장됨 |
+| | ☑️ DB: session_token_hash 저장됨 |
 | **자동화** | ✅ 가능 |
 
 **응답 예시:**
 ```json
 {
   "accessToken": "eyJhbG...",
-  "refreshToken": "eyJhbG...",
   "user": {
     "id": "1",
     "loginId": "admin",
-    "userName": "시스템관리자",
-    "roleCode": "admin"
+    "userName": "시스템관리자"
   }
 }
 ```

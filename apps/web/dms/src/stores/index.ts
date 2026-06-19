@@ -26,17 +26,13 @@ export { useGitStore } from './git.store';
 
 // Settings
 export { useSettingsStore } from './settings.store';
-export { useSettingsShellStore } from './settings-shell.store';
+export { useSettingsPageNavigationStore } from './settings-page-navigation.store';
 
 // Assistant
 export { useAssistantSessionStore } from './assistant-session.store';
 export { useAssistantPanelStore } from './assistant-panel.store';
 export { useAssistantContextStore } from './assistant-context.store';
 export type { AssistantMessage, AssistantSearchResult, AssistantSession } from './assistant-session.store';
-
-// AI Search
-export { useAiSearchStore } from './ai-search.store';
-export type { AiSearchHistoryItem } from './ai-search.store';
 
 // New Document
 export { useNewDocStore } from './new-doc.store';

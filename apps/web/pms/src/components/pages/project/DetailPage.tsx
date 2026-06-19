@@ -207,7 +207,7 @@ export function ProjectDetailPage() {
         <div className="border rounded-lg bg-white">
           <div className="flex border-b">
             {STATUS_TABS.map((st) => (
-              <button
+              <Button variant="plain" size="plain"
                 key={st.key}
                 onClick={() => setActiveStatusTab(st.key)}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -222,7 +222,7 @@ export function ProjectDetailPage() {
                     현재
                   </span>
                 )}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -249,7 +249,7 @@ export function ProjectDetailPage() {
               {MANAGEMENT_TABS.map((tab) => {
                 const Icon = tab.icon;
                 return (
-                  <button
+                  <Button variant="plain" size="plain"
                     key={tab.key}
                     onClick={() => setCurrentManagementTab(tab.key)}
                     className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
@@ -260,7 +260,7 @@ export function ProjectDetailPage() {
                   >
                     <Icon className="h-3.5 w-3.5" />
                     {tab.label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>

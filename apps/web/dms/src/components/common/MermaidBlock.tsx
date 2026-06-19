@@ -11,7 +11,7 @@ function loadMermaid() {
         startOnLoad: false,
         theme: 'neutral',
         fontFamily: 'inherit',
-        securityLevel: 'loose',
+        securityLevel: 'strict',
       });
       return mod;
     });

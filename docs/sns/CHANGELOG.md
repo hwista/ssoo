@@ -3,13 +3,18 @@
 ## [Unreleased]
 
 ### Changed
+- **shared full MDI shell + all-app notification center alignment**
+  - SNS shell 설명을 실제 구현 기준인 `SsooMdiTabBar` full MDI tabbar와 route-as-tab-input 계약으로 갱신
+  - Header 알림센터는 SNS source 전용 필터가 아니라 5개 앱 공통 전체 수신 알림 surface를 소비하도록 정렬
+  - 공용 header 알림센터의 `전체`/앱별 filter chip과 unread badge를 소비하되, SNS는 현재 앱 chip 우선순위만 힌트로 제공
+  - SNS legacy notification bridge가 가능한 profile/board reference path를 common notification payload/reference에 실어 전역 알림 패널에서 SNS 대상 화면으로 전환할 수 있게 보강
 - **board detail surface now resolves real board context**
   - `/board/:id` 가 더 이상 목록 placeholder 를 다시 렌더하지 않고 실제 게시판 메타데이터와 board-scoped 게시물 목록을 보여주도록 정리
   - SNS board detail route 의 TODO/unused param 상태를 제거해 라우트 계약과 실제 화면 동작을 일치시킴
-- **stronger shell chrome parity without real MDI tabs**
-  - SNS shell 을 colored header + hover-reveal icon rail sidebar + route-aware secondary strip 조합으로 재구성
-  - PMS/DMS 계열의 shell 모양을 더 가깝게 맞추되, SNS는 routed app 의미를 유지
-  - sidebar hover reveal 은 PMS collapsed toggle state 와 분리된 SNS 전용 interaction 으로 정의
+- **stronger shell chrome parity with full MDI tabs**
+  - SNS shell 을 colored header + collapsible shared sidebar + `SsooMdiTabBar` full MDI tabbar 조합으로 정렬
+  - App Router 경로는 화면 표면 자체가 아니라 MDI tab open/active state를 동기화하는 입력으로 유지
+  - sidebar 상태는 `SsooAppFrame`/`SsooSidebarSurface` collapsible 계약을 따른다
 - **shared shell frame + LinkedIn-style feed surface**
   - `@ssoo/web-shell` 기반 outer shell frame 을 도입해 PMS/DMS와 같은 shell chassis를 공유
   - PMS/DMS `AppLayout` 이 같은 shared shell frame 위로 올라가도록 정리

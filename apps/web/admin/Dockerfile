@@ -9,6 +9,7 @@ COPY apps/web/admin/package.json apps/web/admin/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY packages/web-auth/package.json packages/web-auth/package.json
 COPY packages/web-shell/package.json packages/web-shell/package.json
+COPY packages/web-ui/package.json packages/web-ui/package.json
 RUN pnpm install --filter web-admin... --frozen-lockfile
 
 FROM base AS builder
@@ -24,6 +25,7 @@ COPY --from=deps /app/ ./
 COPY . .
 
 RUN pnpm --filter @ssoo/types build && \
+    pnpm --filter @ssoo/web-ui build && \
     pnpm --filter @ssoo/web-auth build && \
     pnpm --filter @ssoo/web-shell build && \
     pnpm --filter web-admin build

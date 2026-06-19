@@ -30,6 +30,7 @@ import {
 } from '@/hooks/queries/useProjects';
 import type { MilestoneItem, CreateMilestoneRequest } from '@/lib/api/endpoints/projects';
 import { ObjectivesPanel } from './planning/ObjectivesPanel';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 const NO_OBJECTIVE_VALUE = '__none__';
 
@@ -146,24 +147,24 @@ export function MilestonesTab({ projectId }: Props) {
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left p-3 font-medium">코드</th>
-                <th className="text-left p-3 font-medium">마일스톤명</th>
-                <th className="text-left p-3 font-medium">목표</th>
-                <th className="text-center p-3 font-medium">상태</th>
-                <th className="text-left p-3 font-medium">기한</th>
-                <th className="text-left p-3 font-medium">달성일</th>
-                <th className="text-center p-3 font-medium w-10"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+          <Table className="w-full text-sm">
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead className="text-left p-3 font-medium">코드</TableHead>
+                <TableHead className="text-left p-3 font-medium">마일스톤명</TableHead>
+                <TableHead className="text-left p-3 font-medium">목표</TableHead>
+                <TableHead className="text-center p-3 font-medium">상태</TableHead>
+                <TableHead className="text-left p-3 font-medium">기한</TableHead>
+                <TableHead className="text-left p-3 font-medium">달성일</TableHead>
+                <TableHead className="text-center p-3 font-medium w-10"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y">
               {milestones.map((m: MilestoneItem) => (
-                <tr key={String(m.id)} className="hover:bg-muted/30 group">
-                  <td className="p-3 font-mono text-xs">{m.milestoneCode}</td>
-                  <td className="p-3">{m.milestoneName}</td>
-                  <td className="p-3">
+                <TableRow key={String(m.id)} className="hover:bg-muted/30 group">
+                  <TableCell className="p-3 font-mono text-xs">{m.milestoneCode}</TableCell>
+                  <TableCell className="p-3">{m.milestoneName}</TableCell>
+                  <TableCell className="p-3">
                     <Select
                       value={m.objectiveId ? String(m.objectiveId) : NO_OBJECTIVE_VALUE}
                       onValueChange={(value) => handleObjectiveChange(m, value)}
@@ -181,8 +182,8 @@ export function MilestonesTab({ projectId }: Props) {
                         ))}
                       </SelectContent>
                     </Select>
-                  </td>
-                  <td className="p-3 text-center">
+                  </TableCell>
+                  <TableCell className="p-3 text-center">
                     <Select
                       value={m.statusCode}
                       onValueChange={(v) => handleStatusChange(m, v)}
@@ -197,14 +198,14 @@ export function MilestonesTab({ projectId }: Props) {
                         ))}
                       </SelectContent>
                     </Select>
-                  </td>
-                  <td className="p-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="p-3 text-muted-foreground">
                     {m.dueAt ? new Date(m.dueAt).toLocaleDateString('ko-KR') : '-'}
-                  </td>
-                  <td className="p-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="p-3 text-muted-foreground">
                     {m.achievedAt ? new Date(m.achievedAt).toLocaleDateString('ko-KR') : '-'}
-                  </td>
-                  <td className="p-3 text-center">
+                  </TableCell>
+                  <TableCell className="p-3 text-center">
                     {canManageMilestones && (
                       <Button
                         variant="ghost"
@@ -215,11 +216,11 @@ export function MilestonesTab({ projectId }: Props) {
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

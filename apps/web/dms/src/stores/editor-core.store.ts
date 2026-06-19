@@ -11,6 +11,7 @@ import type { TemplateReferenceDoc, TemplateGeneration, TemplateOriginType } fro
 import { logger, PerformanceTimer } from '@/lib/utils/errorUtils';
 import { normalizeDocumentPath } from '@/lib/utils/linkUtils';
 import { isUserScopeTransition, registerUserScopedReset } from '@/lib/user-scope';
+import { useFileStore } from './file.store';
 
 /**
  * 템플릿 저장 시 필요한 메타데이터.
@@ -23,6 +24,10 @@ export interface TemplateSaveData {
   originType: TemplateOriginType;
   referenceDocuments: TemplateReferenceDoc[];
   generation: TemplateGeneration;
+}
+
+function isFileNotFoundError(message: string): boolean {
+  return message.includes('File not found') || message.includes('파일을 찾을 수 없습니다');
 }
 
 interface FileMetadata {
@@ -200,8 +205,9 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         error: errorMsg,
       });
 
-      if (errorMsg.includes('파일을 찾을 수 없습니다')) {
+      if (isFileNotFoundError(errorMsg)) {
         logger.warn('존재하지 않는 파일 로드 요청', { path: normalizedPath, tabId });
+        void useFileStore.getState().refreshFileTree({ forceSync: true });
       } else {
         logger.error('파일 로드 중 오류', error);
       }

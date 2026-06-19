@@ -33,6 +33,7 @@ import { useHomeSummary } from '@/hooks/queries';
 import { useTabStore } from '@/stores';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { Button } from '@ssoo/web-ui';
 
 const STATUS_META: Record<ProjectStatusCode, { label: string; shortLabel: string; icon: ElementType; tone: string; dot: string }> = {
   request: {
@@ -301,7 +302,7 @@ function SignalQueue({ signals }: { signals: PmsHomeSignal[] }) {
       ) : (
         <div className="divide-y">
           {visibleSignals.map((signal) => (
-            <button
+            <Button variant="plain" size="plain"
               key={signal.id}
               type="button"
               onClick={() => openProjectDetail(openTab, signal)}
@@ -329,7 +330,7 @@ function SignalQueue({ signals }: { signals: PmsHomeSignal[] }) {
                 </div>
                 <ArrowRight className="h-4 w-4 text-gray-300" />
               </div>
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -350,7 +351,7 @@ function MyActionPanel({ signals }: { signals: PmsHomeSignal[] }) {
       </div>
       <div className="divide-y">
         {directSignals.map((signal) => (
-          <button
+          <Button variant="plain" size="plain"
             key={`action-${signal.id}`}
             type="button"
             onClick={() => openProjectDetail(openTab, signal)}
@@ -364,7 +365,7 @@ function MyActionPanel({ signals }: { signals: PmsHomeSignal[] }) {
               <p className="mt-1 text-xs text-gray-500">{signal.label} · {signal.reason}</p>
             </div>
             <span className="shrink-0 text-xs font-semibold text-ssoo-primary">{signal.primaryAction?.label ?? signal.nextActionLabel}</span>
-          </button>
+          </Button>
         ))}
       </div>
     </section>
@@ -419,7 +420,7 @@ function RecentChangeList({ recentChanges }: { recentChanges: PmsHomeRecentChang
           <div className="p-6 text-sm text-gray-500">최근 프로젝트가 없습니다.</div>
         ) : (
           recentChanges.map((change) => (
-            <button
+            <Button variant="plain" size="plain"
               key={`${change.projectId}-${change.changedAt}`}
               type="button"
               onClick={() => openProjectDetail(openTab, change)}
@@ -437,7 +438,7 @@ function RecentChangeList({ recentChanges }: { recentChanges: PmsHomeRecentChang
                 <span className="hidden text-xs font-semibold text-ssoo-primary sm:inline">{change.primaryAction?.label ?? '상세 보기'}</span>
                 <span className="w-12 text-right text-xs text-gray-500">{formatRelativeDate(change.changedAt)}</span>
               </div>
-            </button>
+            </Button>
           ))
         )}
       </div>
@@ -460,7 +461,7 @@ function PermissionWorkPanel({ projects }: { projects: PmsHomeAccessProject[] })
           <div className="p-6 text-sm text-gray-500">권한 기준으로 표시할 프로젝트가 없습니다.</div>
         ) : (
           visibleProjects.map((project) => (
-            <button
+            <Button variant="plain" size="plain"
               key={`access-${project.projectId}`}
               type="button"
               onClick={() => openProjectDetail(openTab, project)}
@@ -479,7 +480,7 @@ function PermissionWorkPanel({ projects }: { projects: PmsHomeAccessProject[] })
               <div className="mt-2">
                 <ActionPills actions={project.allowedActions} compact />
               </div>
-            </button>
+            </Button>
           ))
         )}
       </div>
@@ -507,7 +508,7 @@ function QuickDrilldown({ signals }: { signals: PmsHomeSignal[] }) {
       <h2 className="mb-3 text-sm font-semibold text-gray-900">바로 이동</h2>
       <div className="space-y-2">
         {routes.map((route) => (
-          <button
+          <Button variant="plain" size="plain"
             key={route.path}
             type="button"
             onClick={() => openTab({ ...route, title: route.title })}
@@ -521,7 +522,7 @@ function QuickDrilldown({ signals }: { signals: PmsHomeSignal[] }) {
               {typeof route.count === 'number' ? <span className="text-sm font-semibold text-gray-900">{route.count}</span> : null}
               <ArrowRight className="h-4 w-4 text-gray-300" />
             </div>
-          </button>
+          </Button>
         ))}
       </div>
     </section>

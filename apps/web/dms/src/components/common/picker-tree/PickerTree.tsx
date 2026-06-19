@@ -5,6 +5,7 @@ import { ChevronRight, Folder, FolderOpen, FileText, Search, X } from 'lucide-re
 import { cn } from '@/lib/utils';
 import { filterFileTree } from '@/lib/utils/fileTree';
 import type { FileNode } from '@/types/file-tree';
+import { Button, Input } from '@ssoo/web-ui';
 
 export interface PickerTreeProps {
   files: FileNode[];
@@ -261,7 +262,7 @@ export function PickerTree({
       {showSearch && (
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-          <input
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -269,12 +270,12 @@ export function PickerTree({
             className="w-full h-control-h-sm rounded-md border border-ssoo-content-border bg-transparent pl-7 pr-7 text-caption focus:border-ssoo-primary focus:outline-none"
           />
           {searchQuery && (
-            <button
+            <Button variant="plain" size="plain"
               onClick={() => setSearchQuery('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
               <X className="w-3 h-3" />
-            </button>
+            </Button>
           )}
         </div>
       )}

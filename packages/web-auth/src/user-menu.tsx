@@ -2,10 +2,13 @@
 
 import type { AuthIdentity } from '@ssoo/types/common';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
-import { ChevronDown, LogOut, User } from 'lucide-react';
+import { ChevronDown, LogOut, Settings, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { resolveCurrentSsooAccountCenterHref } from './account-center';
+import { Button } from '@ssoo/web-ui';
+
+const DEFAULT_AUTH_USER_MENU_DROPDOWN_WIDTH = 256;
 
 export interface AuthUserMenuAction {
   key: string;
@@ -26,11 +29,23 @@ export interface AuthUserMenuAccountCenter {
   onSelect?: (href: string) => void | Promise<void>;
 }
 
+export interface AuthUserMenuUserSurfaceAction {
+  label?: ReactNode;
+  disabled?: boolean;
+  onSelect?: () => void | Promise<void>;
+}
+
+export interface AuthUserMenuUserSurfaces {
+  myProfile?: false | AuthUserMenuUserSurfaceAction;
+  personalSettings?: false | AuthUserMenuUserSurfaceAction;
+}
+
 export interface AuthUserMenuProps {
   user: Pick<AuthIdentity, 'loginId' | 'userName'> | null;
   dropdownWidth?: number;
   onLogout: () => void | Promise<void>;
   accountCenter?: AuthUserMenuAccountCenter;
+  userSurfaces?: AuthUserMenuUserSurfaces;
   actions?: AuthUserMenuAction[];
   fallbackLoginId?: string;
   secondaryLabel?: string | null;
@@ -42,6 +57,7 @@ export function AuthUserMenu({
   dropdownWidth,
   onLogout,
   accountCenter,
+  userSurfaces,
   actions = [],
   fallbackLoginId = '사용자',
   secondaryLabel,
@@ -50,8 +66,45 @@ export function AuthUserMenu({
   const loginId = user?.loginId ?? fallbackLoginId;
   const displayName = user?.userName?.trim() || loginId;
   const resolvedSecondaryLabel = secondaryLabel ?? fallbackSecondaryLabel;
+  const buildSurfaceAction = (
+    key: string,
+    icon: LucideIcon,
+    defaultLabel: ReactNode,
+    config: AuthUserMenuUserSurfaceAction,
+  ): AuthUserMenuAction => ({
+    key,
+    label: config.label ?? defaultLabel,
+    icon,
+    disabled: config.disabled,
+    onSelect: async () => {
+      if (config.onSelect) {
+        await config.onSelect();
+      }
+    },
+  });
+  const resolvedUserSurfaceActions = userSurfaces
+    ? [
+      ...(userSurfaces.myProfile === false
+        ? []
+        : [buildSurfaceAction(
+          'my-profile',
+          User,
+          '내 프로필',
+          userSurfaces.myProfile ?? {},
+        )]),
+      ...(userSurfaces.personalSettings === false
+        ? []
+        : [buildSurfaceAction(
+          'personal-settings',
+          Settings,
+          '내 설정',
+          userSurfaces.personalSettings ?? {},
+        )]),
+    ]
+    : [];
   const resolvedActions = [
-    ...(accountCenter
+    ...resolvedUserSurfaceActions,
+    ...(!userSurfaces && accountCenter
       ? [{
         key: 'account-center',
         label: accountCenter.label ?? '내 계정',
@@ -81,7 +134,7 @@ export function AuthUserMenu({
   return (
     <DropdownMenuPrimitive.Root>
       <DropdownMenuPrimitive.Trigger asChild>
-        <button
+        <Button variant="plain" size="plain"
           type="button"
           className="flex h-control-h cursor-pointer items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2 text-sm text-white transition-colors hover:bg-white/20"
         >
@@ -90,7 +143,7 @@ export function AuthUserMenu({
           </div>
           <span className="max-w-[80px] truncate text-sm font-medium text-white">{displayName}</span>
           <ChevronDown className="h-3 w-3 text-white/70" />
-        </button>
+        </Button>
       </DropdownMenuPrimitive.Trigger>
 
       <DropdownMenuPrimitive.Portal>
@@ -98,7 +151,7 @@ export function AuthUserMenu({
           align="end"
           sideOffset={4}
           className="z-50 overflow-hidden rounded-md border border-white/20 bg-ssoo-primary p-1 text-white shadow-md"
-          style={dropdownWidth ? { width: dropdownWidth } : { width: 208 }}
+          style={{ width: dropdownWidth ?? DEFAULT_AUTH_USER_MENU_DROPDOWN_WIDTH }}
         >
           <DropdownMenuPrimitive.Label className="px-3 py-2.5 font-normal">
             <div className="flex items-center gap-2.5">

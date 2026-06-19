@@ -1,7 +1,10 @@
 import type { JsonFieldDescriptor } from './types';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@ssoo/web-ui';
 
 export function JsonFieldRow({
   item,
+  id,
   value,
   originalValue,
   errorMessage,
@@ -9,6 +12,7 @@ export function JsonFieldRow({
   readOnly = false,
 }: {
   item: JsonFieldDescriptor;
+  id?: string;
   value: unknown;
   originalValue: unknown;
   errorMessage?: string;
@@ -20,7 +24,7 @@ export function JsonFieldRow({
   const boolVal = Boolean(value);
 
   return (
-    <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+    <article id={id} className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
       <div className="flex items-start gap-3">
         <span
           className={[
@@ -39,7 +43,7 @@ export function JsonFieldRow({
 
           {item.type === 'checkbox' ? (
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-body-sm text-ssoo-primary/80">
-              <input
+              <Input
                 id={`json-field-${item.key}`}
                 type="checkbox"
                 checked={boolVal}
@@ -50,7 +54,7 @@ export function JsonFieldRow({
               <span>{boolVal ? '활성화됨' : '비활성화됨'}</span>
             </label>
           ) : item.type === 'select' ? (
-            <select
+            <NativeSelect
               id={`json-field-${item.key}`}
               value={strVal}
               onChange={(event) => onChange?.(item.key, event.target.value)}
@@ -67,9 +71,9 @@ export function JsonFieldRow({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           ) : (
-            <input
+            <Input
               id={`json-field-${item.key}`}
               type={item.type}
               value={strVal}
@@ -77,8 +81,8 @@ export function JsonFieldRow({
               placeholder={item.placeholder}
               disabled={readOnly}
               className={[
-                'mt-3 flex h-control-h w-full max-w-2xl rounded-md border bg-white px-3 text-body-sm text-ssoo-primary',
-                'placeholder:text-ssoo-primary/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ssoo-primary',
+                'mt-3 max-w-2xl border bg-white text-ssoo-primary',
+                'placeholder:text-ssoo-primary/40 focus-visible:ring-ssoo-primary',
                 'disabled:cursor-not-allowed disabled:bg-ssoo-content-bg/40 disabled:text-ssoo-primary/60',
                 errorMessage ? 'border-destructive' : 'border-ssoo-content-border',
               ].join(' ')}

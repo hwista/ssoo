@@ -5,6 +5,7 @@ import { Calendar, Check, Eye, FileText, Pencil, Sparkles, User, X } from 'lucid
 import { LoadingSpinner } from '@/components/common/StateDisplay';
 import { KeyValueSection } from '@/components/templates/page-frame/panel';
 import type { KeyValueItem } from '@/components/templates/page-frame/panel';
+import { Button } from '@ssoo/web-ui';
 
 function formatDate(date: Date | string | undefined): string {
   if (!date) return '-';
@@ -32,7 +33,7 @@ function Truncated({ text, title }: { text: string; title?: string }) {
 
 function WandButton({ loading, onClick, label }: { loading: boolean; onClick: () => void; label: string }) {
   return (
-    <button
+    <Button variant="plain" size="plain"
       type="button"
       onClick={onClick}
       disabled={loading}
@@ -41,7 +42,7 @@ function WandButton({ loading, onClick, label }: { loading: boolean; onClick: ()
       title={label}
     >
       {loading ? <LoadingSpinner className="h-3.5 w-3.5 text-current" /> : <Sparkles className="h-3.5 w-3.5" />}
-    </button>
+    </Button>
   );
 }
 
@@ -102,9 +103,9 @@ export function DocumentInfoSection({
   if (!metadata) return null;
 
   const editButton = editable ? (
-    <button onClick={onOpenSaveLocation} className="text-gray-400 hover:text-ssoo-primary">
+    <Button variant="plain" size="plain" onClick={onOpenSaveLocation} className="text-gray-400 hover:text-ssoo-primary">
       <Pencil className="h-3 w-3" />
-    </button>
+    </Button>
   ) : null;
 
   const titleValue = (
@@ -221,14 +222,14 @@ export function DocumentInfoSection({
         <div className={suggestionCardClassName}>
           <p className="mb-2 text-caption text-ssoo-primary/80">AI 추천 {titleLabel}: <span className="text-label-sm text-ssoo-primary">{pendingSuggestedTitle}</span></p>
           <div className="flex gap-1.5">
-            <button type="button" onClick={onAcceptSuggestedTitle} className={actionButtonClassName}>
+            <Button variant="plain" size="plain" type="button" onClick={onAcceptSuggestedTitle} className={actionButtonClassName}>
               <Check className="h-3 w-3" />
               적용
-            </button>
-            <button type="button" onClick={onDismissSuggestedTitle} className={dismissButtonClassName}>
+            </Button>
+            <Button variant="plain" size="plain" type="button" onClick={onDismissSuggestedTitle} className={dismissButtonClassName}>
               <X className="h-3 w-3" />
               취소
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -236,14 +237,14 @@ export function DocumentInfoSection({
         <div className={suggestionCardClassName}>
           <p className="mb-2 text-caption text-ssoo-primary/80">AI 추천 {pathLabel}: <span className="font-mono text-ssoo-primary">{pendingSuggestedPath}</span></p>
           <div className="flex gap-1.5">
-            <button type="button" onClick={onAcceptSuggestedPath} className={actionButtonClassName}>
+            <Button variant="plain" size="plain" type="button" onClick={onAcceptSuggestedPath} className={actionButtonClassName}>
               <Check className="h-3 w-3" />
               적용
-            </button>
-            <button type="button" onClick={onDismissSuggestedPath} className={dismissButtonClassName}>
+            </Button>
+            <Button variant="plain" size="plain" type="button" onClick={onDismissSuggestedPath} className={dismissButtonClassName}>
               <X className="h-3 w-3" />
               취소
-            </button>
+            </Button>
           </div>
         </div>
       )}

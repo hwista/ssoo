@@ -136,18 +136,18 @@ The DMS settings surface is organized into these groups:
 | 시스템 설정 | DMS-owned editable domain policies | 첨부 저장소 정책, 업로드 한도, 검색 정책, 문서 AI 보조 정책, 문서 분석/추출 정책 |
 | 관리 업무 | DMS domain management actions | 권한 요청/승인, 관리자 템플릿 |
 | 내 설정 | User-scoped DMS preferences | Identity fallback, workspace, viewer, sidebar |
-| 외부 설정 링크 | Common control-plane entry points | Account/Auth, Profile, Admin/Organization, AI Control Plane |
+| 공용 설정 진입점 | Common control-plane entry points | Account/Auth, Profile, Admin/Organization, AI Control Plane |
 
 ## Boundary rules
 
 - Admin is the platform/base settings-control-ops surface; it owns common account/org/permission/app-registry/service-exposure/platform policy responsibilities.
 - Domain apps own their domain-specific system settings-control-ops; do not move DMS repository/storage/search/index/template/document-runtime settings to Admin merely because they are “system settings.”
-- DMS settings must not add a second account/profile/security settings surface; user-facing profile/account settings attach to SNS/Profile plus common auth runtime.
+- DMS settings must not add a second account/profile/security settings surface; user-facing profile/account settings open the shared user surface tab, backed by SNS Profile APIs plus common auth runtime.
 - DMS settings must not become the organization admin console.
 - DMS settings must not store or show unmasked AI/Microsoft/SSO secrets.
 - Microsoft 365 / Teams / SharePoint organization policy belongs to Admin/Organization. DMS may only keep DMS-specific ingest/drop/storage mapping when the common integration exists.
 - AI provider/model/persona/soul/prompt/agent ownership belongs to AI Control Plane. DMS may only select or display the DMS capability mapping that the common control plane exposes.
-- Domain apps link out to common surfaces instead of copying their forms.
+- Domain apps open common surfaces through semantic actions instead of copying their forms. User profile/settings open inside the current app frame tab; true operator/admin surfaces may still switch to their owning app.
 
 ## Admin app implementation backlog
 
@@ -160,8 +160,8 @@ The DMS split creates follow-up work for `apps/web/admin`, but those surfaces mu
 | Roles / permissions / app grants | Admin `/roles` and user access operations | Role baseline, permission catalog, app access grants, role-menu overrides, access inspect / exceptions visibility | Partially implemented; must stay under Admin, not DMS/PMS/CRM/SNS settings. |
 | Microsoft tenant / M365 / Teams / SharePoint policy | Admin future `/settings/integrations/microsoft` | Entra ID tenant metadata, allowed tenants/domains, SharePoint site/library policy, Teams org integration policy, secret reference metadata only | Not implemented. Removed from DMS-owned editable settings; DMS may later consume DMS-specific ingest/drop mappings only after common integration exists. |
 | AI Control Plane | Admin future `/settings/ai` | Provider references, model catalog/routing, feature capability mapping, prompt templates, personas/souls, agent definitions, tool permissions, quotas, safety/logging/eval policy | Not implemented. Removed from DMS ownership; DMS can only display/select capability mappings exposed by this control plane. |
-| SNS Profile and account entry | SNS Profile surface + profile APIs + common auth runtime entry points | Display name, avatar, headline, bio, skills, links, public/work profile, cross-app `ProfileSummary` projection, account/security entry cards backed by common auth | Not Admin-owned except operator moderation/audit if added later. No separate Account app is planned for launch. |
-| Domain app settings links | DMS/PMS/CRM/SNS domain apps | Link-out cards to Account/Auth, Profile, Admin/Organization, AI Control Plane where relevant | DMS link-out implemented as the first baseline. Other apps should copy the boundary, not the DMS implementation blindly. |
+| SNS Profile and account entry | Shared user surface renderer + SNS profile APIs + common auth runtime entry points | Display name, avatar, headline, bio, skills, links, public/work profile, cross-app `ProfileSummary` projection, account/security entry cards backed by common auth | Not Admin-owned except operator moderation/audit if added later. No separate Account app is planned for launch. |
+| Domain app common settings entries | DMS/PMS/CRM/SNS domain apps | Semantic actions to Account/Auth, Profile, Admin/Organization, AI Control Plane where relevant | DMS common entry slot is the first baseline. Other apps should copy the boundary, not the DMS implementation blindly. |
 | Admin domain observability bridge | Admin read-only overview routes, if needed | Platform operator summary, masked runtime metadata, route links to the owning domain app | Must not be named or implemented as the owner of DMS system settings/control/operations. DMS-owned changes happen in DMS. |
 
 ## Implementation notes

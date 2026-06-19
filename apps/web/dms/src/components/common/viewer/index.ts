@@ -7,7 +7,7 @@
 export { Viewer } from './Viewer';
 export type { ViewerProps } from './Viewer';
 
-export { Toolbar } from './toolbar/Toolbar';
-export type { ToolbarProps } from './toolbar/Toolbar';
+export { Toolbar } from '@ssoo/web-shell';
+export type { ToolbarProps } from '@ssoo/web-shell';
 
 export { DOCUMENT_WIDTH } from './Content';

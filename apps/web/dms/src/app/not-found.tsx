@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { LoadingState } from '@/components/common/StateDisplay';
 import { APP_HOME_PATH } from '@/lib/constants/routes';
 
 /**
@@ -20,10 +19,13 @@ export default function NotFound() {
   }, [router]);
 
   return (
-    <LoadingState
-      message="유효하지 않은 경로입니다. 루트 화면으로 이동 중..."
-      fullHeight
-      className="min-h-screen bg-gray-50"
-    />
+    <div className="flex min-h-screen items-center justify-center bg-ssoo-background">
+      <div className="text-center">
+        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-3 border-teal-600 border-t-transparent" />
+        <p className="text-body-sm text-muted-foreground">
+          유효하지 않은 경로입니다. 루트 화면으로 이동 중...
+        </p>
+      </div>
+    </div>
   );
 }

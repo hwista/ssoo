@@ -1,16 +1,18 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AuthLoadingScreen, useProtectedAppBootstrap } from '@ssoo/web-auth';
 import { SsooWorkbenchShell } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
+import { useTabStore } from '@/stores/tab.store';
 import { AdminSidebar } from '@/components/layout/Sidebar';
 import { AdminHeader } from '@/components/layout/Header';
+import { AdminTabBar } from '@/components/layout/TabBar';
+import { AdminContentArea } from '@/components/layout/ContentArea';
+import { getAdminTabOptions } from '@/components/layout/navigation';
 import { usePermissionCatalog } from '@/hooks/queries/useAccessOps';
 
-const ADMIN_SIDEBAR_WIDTH = 340;
-const ADMIN_COLLAPSED_SIDEBAR_WIDTH = 56;
 const LOGIN_PATH = '/login';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -19,8 +21,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const openTab = useTabStore((s) => s.openTab);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const toggleSidebar = () => setIsSidebarCollapsed((current) => !current);
+  const currentPath = useMemo(() => {
+    const search = searchParams.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
 
   const redirectToLogin = useCallback((currentPath: string) => {
     const returnTo = currentPath && currentPath !== LOGIN_PATH
@@ -41,6 +50,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     onUnauthenticated: redirectToLogin,
   });
   const adminAccess = usePermissionCatalog(shouldRender);
+
+  useEffect(() => {
+    if (shouldRender) {
+      openTab(getAdminTabOptions(currentPath));
+    }
+  }, [currentPath, openTab, shouldRender]);
+
+  void children;
 
   if (showLoading || (shouldRender && adminAccess.isLoading)) {
     return <AuthLoadingScreen />;
@@ -67,18 +84,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     <SsooWorkbenchShell
       sidebarMode="collapsible"
       sidebarExpanded={!isSidebarCollapsed}
-      sidebarWidth={ADMIN_SIDEBAR_WIDTH}
-      collapsedSidebarWidth={ADMIN_COLLAPSED_SIDEBAR_WIDTH}
       sidebarSlot={
         <AdminSidebar
-          width={ADMIN_SIDEBAR_WIDTH}
-          collapsedWidth={ADMIN_COLLAPSED_SIDEBAR_WIDTH}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={toggleSidebar}
         />
       }
       headerSlot={<AdminHeader />}
-      contentSlot={<main className="h-full overflow-auto bg-muted/30 p-6">{children}</main>}
+      tabBarSlot={<AdminTabBar />}
+      contentSlot={<AdminContentArea />}
     />
   );
 }

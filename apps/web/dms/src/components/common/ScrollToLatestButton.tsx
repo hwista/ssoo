@@ -2,6 +2,7 @@
 
 import { ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@ssoo/web-ui';
 
 export interface ScrollToLatestButtonProps {
   visible: boolean;
@@ -21,17 +22,19 @@ export function ScrollToLatestButton({
   }
 
   return (
-    <button
+    <Button
+      variant="outline"
+      size="icon"
       type="button"
       onClick={onClick}
       className={cn(
-        'pointer-events-auto absolute bottom-4 right-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-ssoo-content-border bg-white text-ssoo-primary shadow-lg transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg',
+        'pointer-events-auto absolute bottom-4 right-4 z-20 h-9 w-9 rounded-full shadow-lg hover:border-ssoo-primary/40',
         className,
       )}
       title={label}
       aria-label={label}
     >
       <ArrowDown className="h-4 w-4" />
-    </button>
+    </Button>
   );
 }

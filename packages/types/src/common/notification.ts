@@ -3,7 +3,8 @@ export type CommonNotificationSourceApp =
   | 'dms'
   | 'sns'
   | 'pms'
-  | 'admin';
+  | 'admin'
+  | 'crm';
 
 export type CommonNotificationSeverity =
   | 'info'
@@ -13,11 +14,15 @@ export type CommonNotificationSeverity =
 
 export type CommonNotificationActionType =
   | 'none'
+  | 'open-reference'
   | 'open-dms-document'
   | 'focus-dms-access-request'
   | 'retry-dms-publish'
   | 'open-dms-settings-section'
-  | 'open-sns-reference';
+  | 'open-sns-reference'
+  | 'open-pms-reference'
+  | 'open-crm-reference'
+  | 'open-admin-reference';
 
 export type CommonNotificationJsonValue =
   | string

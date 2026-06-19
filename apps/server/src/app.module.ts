@@ -22,7 +22,7 @@ import { JwtAuthGuard } from './modules/common/auth/guards/jwt-auth.guard.js';
     }),
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 100,
+      limit: 600,
     }]),
     DatabaseModule,
     CommonModule,

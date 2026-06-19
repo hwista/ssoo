@@ -29,6 +29,7 @@ import {
 } from '@/hooks/queries/useProjects';
 import type { TaskItem, CreateTaskRequest } from '@/lib/api/endpoints/projects';
 import { WbsPanel } from './planning/WbsPanel';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 const NO_WBS_VALUE = '__none__';
 
@@ -180,23 +181,23 @@ export function TasksTab({ projectId }: Props) {
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left p-3 font-medium">계획 구조</th>
-                <th className="text-left p-3 font-medium">WBS</th>
-                <th className="text-left p-3 font-medium">태스크명</th>
-                <th className="text-center p-3 font-medium">상태</th>
-                <th className="text-center p-3 font-medium">진척률</th>
-                <th className="text-left p-3 font-medium">담당자</th>
-                <th className="text-left p-3 font-medium">기간</th>
-                <th className="text-center p-3 font-medium w-10"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+          <Table className="w-full text-sm">
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead className="text-left p-3 font-medium">계획 구조</TableHead>
+                <TableHead className="text-left p-3 font-medium">WBS</TableHead>
+                <TableHead className="text-left p-3 font-medium">태스크명</TableHead>
+                <TableHead className="text-center p-3 font-medium">상태</TableHead>
+                <TableHead className="text-center p-3 font-medium">진척률</TableHead>
+                <TableHead className="text-left p-3 font-medium">담당자</TableHead>
+                <TableHead className="text-left p-3 font-medium">기간</TableHead>
+                <TableHead className="text-center p-3 font-medium w-10"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y">
               {tasks.map((t: TaskItem) => (
-                <tr key={String(t.id)} className="hover:bg-muted/30 group">
-                  <td className="p-3">
+                <TableRow key={String(t.id)} className="hover:bg-muted/30 group">
+                  <TableCell className="p-3">
                     <Select
                       value={t.wbsId ? String(t.wbsId) : NO_WBS_VALUE}
                       onValueChange={(value) => handleWbsChange(t, value)}
@@ -214,12 +215,12 @@ export function TasksTab({ projectId }: Props) {
                         ))}
                       </SelectContent>
                     </Select>
-                  </td>
-                  <td className="p-3 font-mono text-xs" style={{ paddingLeft: `${(t.depth * 16) + 12}px` }}>
+                  </TableCell>
+                  <TableCell className="p-3 font-mono text-xs" style={{ paddingLeft: `${(t.depth * 16) + 12}px` }}>
                     {t.taskCode}
-                  </td>
-                  <td className="p-3">{t.taskName}</td>
-                  <td className="p-3 text-center">
+                  </TableCell>
+                  <TableCell className="p-3">{t.taskName}</TableCell>
+                  <TableCell className="p-3 text-center">
                     <Select
                       value={t.statusCode}
                       onValueChange={(v) => handleStatusChange(t, v)}
@@ -234,8 +235,8 @@ export function TasksTab({ projectId }: Props) {
                         ))}
                       </SelectContent>
                     </Select>
-                  </td>
-                  <td className="p-3 text-center">
+                  </TableCell>
+                  <TableCell className="p-3 text-center">
                     <div className="flex items-center gap-2 justify-center">
                       <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div className="h-full bg-blue-500 rounded-full" style={{ width: `${t.progressRate}%` }} />
@@ -254,14 +255,14 @@ export function TasksTab({ projectId }: Props) {
                       />
                       <span className="text-xs text-muted-foreground">%</span>
                     </div>
-                  </td>
-                  <td className="p-3 text-muted-foreground">{t.assignee?.displayName || t.assignee?.userName || '-'}</td>
-                  <td className="p-3 text-xs text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="p-3 text-muted-foreground">{t.assignee?.displayName || t.assignee?.userName || '-'}</TableCell>
+                  <TableCell className="p-3 text-xs text-muted-foreground">
                     {t.plannedStartAt ? new Date(t.plannedStartAt).toLocaleDateString('ko-KR') : ''}
                     {t.plannedStartAt && t.plannedEndAt ? ' ~ ' : ''}
                     {t.plannedEndAt ? new Date(t.plannedEndAt).toLocaleDateString('ko-KR') : ''}
-                  </td>
-                  <td className="p-3 text-center">
+                  </TableCell>
+                  <TableCell className="p-3 text-center">
                     {canManageTasks && (
                       <Button
                         variant="ghost"
@@ -272,11 +273,11 @@ export function TasksTab({ projectId }: Props) {
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

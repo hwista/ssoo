@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 const PROJECT_MEMBER_ROLE_GROUP = 'PROJECT_MEMBER_ROLE';
 const DEFAULT_ROLE_CODE = 'developer';
@@ -160,40 +161,40 @@ export function MembersTab({ projectId }: Props) {
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-                <tr>
-                  <th className="text-left p-3 font-medium">이름</th>
-                  <th className="text-left p-3 font-medium">역할</th>
-                  <th className="text-left p-3 font-medium">권한등급</th>
-                  <th className="text-center p-3 font-medium">Phase 담당</th>
-                  <th className="text-left p-3 font-medium">부서</th>
-                  <th className="text-center p-3 font-medium">투입률</th>
-                  <th className="text-left p-3 font-medium">배정일</th>
-                <th className="text-center p-3 font-medium w-16">삭제</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+          <Table className="w-full text-sm">
+            <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="text-left p-3 font-medium">이름</TableHead>
+                  <TableHead className="text-left p-3 font-medium">역할</TableHead>
+                  <TableHead className="text-left p-3 font-medium">권한등급</TableHead>
+                  <TableHead className="text-center p-3 font-medium">Phase 담당</TableHead>
+                  <TableHead className="text-left p-3 font-medium">부서</TableHead>
+                  <TableHead className="text-center p-3 font-medium">투입률</TableHead>
+                  <TableHead className="text-left p-3 font-medium">배정일</TableHead>
+                <TableHead className="text-center p-3 font-medium w-16">삭제</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y">
               {members.map((m: ProjectMember) => (
-                <tr key={`${m.userId}-${m.roleCode}`} className="hover:bg-muted/30">
-                  <td className="p-3">{m.user?.displayName || m.user?.userName || '-'}</td>
-                  <td className="p-3">
+                <TableRow key={`${m.userId}-${m.roleCode}`} className="hover:bg-muted/30">
+                  <TableCell className="p-3">{m.user?.displayName || m.user?.userName || '-'}</TableCell>
+                  <TableCell className="p-3">
                     <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
                       {roleLabels[m.roleCode] || m.roleCode}
                     </span>
-                  </td>
-                  <td className="p-3">
+                  </TableCell>
+                  <TableCell className="p-3">
                     <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                       {ACCESS_LEVEL_LABELS[m.accessLevel]}
                     </span>
-                  </td>
-                  <td className="p-3 text-center">{m.isPhaseOwner ? '예' : '-'}</td>
-                  <td className="p-3 text-muted-foreground">{m.user?.departmentCode || '-'}</td>
-                  <td className="p-3 text-center">{m.allocationRate}%</td>
-                  <td className="p-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="p-3 text-center">{m.isPhaseOwner ? '예' : '-'}</TableCell>
+                  <TableCell className="p-3 text-muted-foreground">{m.user?.departmentCode || '-'}</TableCell>
+                  <TableCell className="p-3 text-center">{m.allocationRate}%</TableCell>
+                  <TableCell className="p-3 text-muted-foreground">
                     {m.assignedAt ? new Date(m.assignedAt).toLocaleDateString('ko-KR') : '-'}
-                  </td>
-                  <td className="p-3 text-center">
+                  </TableCell>
+                  <TableCell className="p-3 text-center">
                     {canManageMembers ? (
                       <Button
                         variant="ghost"
@@ -207,11 +208,11 @@ export function MembersTab({ projectId }: Props) {
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

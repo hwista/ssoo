@@ -6,6 +6,7 @@ import type { SourceFileMeta } from '@/types';
 import { ActivityListSection } from '@/components/templates/page-frame/panel';
 import type { ActivityAction } from '@/components/templates/page-frame/panel';
 import { getAttachmentCategory, ATTACHMENT_ACCEPT_STRING } from '@/lib/constants/file';
+import { Button, Input } from '@ssoo/web-ui';
 
 function formatSize(size: number): string {
   if (size < 1024) return `${size} B`;
@@ -228,15 +229,15 @@ export function AttachmentsSection({
     >
       {editable && !templateMode && !locked && (
         <div className="pt-2">
-          <button
+          <Button variant="plain" size="plain"
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex h-7 w-full items-center justify-center gap-1.5 rounded border border-dashed border-ssoo-content-border px-2 text-caption text-ssoo-primary/60 transition-colors hover:border-ssoo-primary hover:text-ssoo-primary"
           >
             <Plus className="h-3.5 w-3.5" />
             파일 첨부
-          </button>
-          <input
+          </Button>
+          <Input
             ref={fileInputRef}
             type="file"
             accept={ATTACHMENT_ACCEPT_STRING}

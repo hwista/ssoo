@@ -1,3 +1,9 @@
+import {
+  createForbiddenStateChangingProxyRequestResponse,
+  isValidStateChangingProxyRequest,
+  type StateChangingProxyRequestValidationOptions,
+} from './state-changing-proxy';
+
 interface BackendSuccessResponse<T> {
   success: true;
   data: T;
@@ -12,7 +18,10 @@ interface BackendErrorResponse {
 export interface ProxyCommonNotificationJsonOptions {
   createBackendUrl: (pathname: string) => string;
   createBackendInit: (request: Request, init?: RequestInit) => RequestInit;
+  trustedOrigins?: StateChangingProxyRequestValidationOptions['trustedOrigins'];
 }
+
+const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 function getBackendErrorMessage(
   responseBody: BackendSuccessResponse<unknown> | BackendErrorResponse | null,
@@ -36,6 +45,14 @@ export async function proxyCommonNotificationJson<T>(
   options: ProxyCommonNotificationJsonOptions,
   init?: RequestInit,
 ): Promise<Response> {
+  const method = (init?.method ?? request.method).toUpperCase();
+  if (
+    STATE_CHANGING_METHODS.has(method)
+    && !isValidStateChangingProxyRequest(request, options.trustedOrigins)
+  ) {
+    return createForbiddenStateChangingProxyRequestResponse();
+  }
+
   const response = await fetch(
     options.createBackendUrl(pathname),
     options.createBackendInit(request, init),

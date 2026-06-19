@@ -1,23 +1,54 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { postsApi } from '@/lib/api/endpoints/posts';
 
+interface UseFeedOptions {
+  feedType?: string;
+  authorUserId?: string;
+  limit?: number;
+}
+
 const postKeys = {
   all: ['sns', 'posts'] as const,
-  feed: (feedType?: string) => [...postKeys.all, 'feed', feedType] as const,
+  feed: (params: UseFeedOptions) => [
+    ...postKeys.all,
+    'feed',
+    params.feedType ?? 'all',
+    params.authorUserId ?? 'all-authors',
+    params.limit ?? 10,
+  ] as const,
   lists: () => [...postKeys.all, 'list'] as const,
   list: (filters: Record<string, unknown>) => [...postKeys.lists(), filters] as const,
   details: () => [...postKeys.all, 'detail'] as const,
   detail: (id: string) => [...postKeys.details(), id] as const,
 };
 
-export function useFeed(feedType?: string, enabled = true) {
+function normalizeFeedOptions(feedTypeOrOptions?: string | UseFeedOptions): UseFeedOptions {
+  if (typeof feedTypeOrOptions === 'string') {
+    return { feedType: feedTypeOrOptions };
+  }
+
+  return feedTypeOrOptions ?? {};
+}
+
+export function useFeed(feedTypeOrOptions?: string | UseFeedOptions, enabled = true) {
+  const params = normalizeFeedOptions(feedTypeOrOptions);
+
   return useInfiniteQuery({
-    queryKey: postKeys.feed(feedType),
-    queryFn: ({ pageParam }) => postsApi.feed({ cursor: pageParam as string | undefined, limit: 10, feedType }),
+    queryKey: postKeys.feed(params),
+    queryFn: ({ pageParam }) => postsApi.feed({
+      cursor: pageParam as string | undefined,
+      limit: params.limit ?? 10,
+      feedType: params.feedType,
+      authorUserId: params.authorUserId,
+    }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.data?.data?.nextCursor ?? undefined,
     enabled,
   });
+}
+
+export function useProfileFeed(userId: string, enabled = true) {
+  return useFeed({ authorUserId: userId }, enabled && Boolean(userId));
 }
 
 export function usePostDetail(id: string) {

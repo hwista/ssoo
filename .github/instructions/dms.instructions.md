@@ -5,7 +5,7 @@ applyTo: "apps/web/dms/**"
 # DMS 프론트엔드 개발 규칙
 
 > 이 규칙은 `apps/web/dms/` 경로의 파일 작업 시 적용됩니다.
-> ⚠️ **DMS는 pnpm workspace 앱입니다. 공유 패키지는 선택적으로 사용하고, 현재는 `@ssoo/types`만 허용합니다.**
+> ⚠️ **DMS는 pnpm workspace 앱입니다. 공유 타입/auth/frame/design surface는 `@ssoo/types`, `@ssoo/web-auth`, `@ssoo/web-shell`, `@ssoo/web-ui`를 사용하며, `@ssoo/database` 직접 참조는 금지합니다.**
 
 ---
 
@@ -14,7 +14,7 @@ applyTo: "apps/web/dms/**"
 | 항목 | DMS | PMS |
 |------|-----|-----|
 | 패키지 매니저 | **pnpm workspace** | pnpm |
-| 공유 패키지 | `@ssoo/types` 사용 가능 (`@ssoo/database` 직접 참조 금지) | `@ssoo/types` 사용 |
+| 공유 패키지 | `@ssoo/types`, `@ssoo/web-auth`, `@ssoo/web-shell`, `@ssoo/web-ui` 사용 (`@ssoo/database` 직접 참조 금지) | `@ssoo/types`, `@ssoo/web-auth`, `@ssoo/web-shell`, `@ssoo/web-ui` 사용 |
 | 포트 | 3003 | 3002 |
 
 DMS는 이제 모노레포 워크스페이스에 포함되지만, 파일/Git/스토리지 런타임과 `src/app/api/* -> server/*` 구조는 여전히 독립 배포 가능성을 고려해 유지합니다.
@@ -40,7 +40,7 @@ Docker/compose도 DMS 런타임 계약의 일부입니다. DMS 포트, runtime p
 ## 기술 스택
 
 - Next.js 15.x (App Router), React 19.x, TypeScript 5.x
-- Tailwind CSS 3.x + Radix UI
+- Tailwind CSS 3.x + Radix UI + `@ssoo/web-ui`
 - Zustand 5.x
 - CodeMirror 6 기반 block editor
 - react-markdown 기반 viewer / markdown rendering
@@ -56,7 +56,7 @@ src/
 │   ├── api/               # API Routes
 │   └── layout.tsx
 ├── components/
-│   ├── ui/                # Radix UI 기반 원자
+│   ├── ui/                # @ssoo/web-ui thin re-export adapter + Radix UI 기반 원자
 │   ├── common/            # 공통 (ConfirmDialog, StateDisplay, editor/viewer/assistant)
 │   ├── layout/            # AppLayout, Sidebar, Header, TabBar
 │   ├── templates/         # 페이지 템플릿 + page-frame building blocks
@@ -122,6 +122,9 @@ hooks → lib/api → stores
 - 요청한 컨트롤만 생성 (컨테이너 금지)
 - 컨트롤 높이 표준 준수 (`h-control-h`)
 - 폰트/타이포그래피 표준 준수
+- Button/Badge/Card/Input/NativeSelect/Table/Textarea 등 inventory 원자는 `@ssoo/web-ui`가 소유하고 DMS `components/ui/*`는 thin re-export adapter로 유지
+- DMS TSX surface에서는 원시 `button/input/textarea/select/table/thead/tbody/tfoot/tr/th/td`를 직접 렌더링하지 않고 공용 primitive 또는 앱 thin adapter 사용
+- 이 기준은 `pnpm run verify:ui-consumption`에서 전역 검증
 
 ---
 
@@ -358,10 +361,10 @@ const tabId = await openTabWithConfirm({
 
 | 영역 | 값 | 비고 |
 |------|-----|------|
-| Header | 56px | 상단 고정 |
-| Sidebar (펼침) | 280px | 확장 상태 |
-| Sidebar (접힘) | 48px | 컴팩트 상태 |
-| TabBar | 40px | 탭 컨테이너 |
+| Header | 60px | 상단 고정 |
+| Sidebar (펼침) | 340px | 확장 상태 |
+| Sidebar (접힘) | 56px | 컴팩트 상태 |
+| TabBar | 53px | 탭 컨테이너 (`h-control-h` 36px tab row 포함) |
 
 ---
 

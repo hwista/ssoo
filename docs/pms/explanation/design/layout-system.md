@@ -46,22 +46,18 @@ const LAYOUT_SIZES = {
 
 ```
 AppLayout
-├── Sidebar
-│   ├── Header (로고, 토글 버튼)
-│   ├── CollapsedSidebar (접힌 상태)
-│   │   └── 아이콘 버튼들
-│   ├── ExpandedSidebar (펼친 상태)
-│   │   ├── Search (검색창 - 고정)
-│   │   ├── ScrollArea
-│   │   │   ├── Favorites (즐겨찾기 섹션)
-│   │   │   ├── OpenTabs (현재 열린 페이지 섹션)
-│   │   │   ├── MenuTree (메뉴 탐색 섹션)
-│   │   │   └── AdminMenu (관리자 섹션, isAdmin만)
-│   │   └── Footer (카피라이트 - 고정)
-│   └── FloatingPanel (접힌 상태에서 hover 시)
-├── Header (상단 바)
-├── TabBar (MDI 탭)
-└── ContentArea (페이지 렌더링)
+└── SsooWorkbenchShell
+    ├── sidebarSlot: Sidebar
+    │   └── SsooSidebarSurface
+    │       ├── search / refresh / collapse / rail / footer
+    │       └── sections
+    │           ├── Favorites  → SsooSidebarTree leaf rows
+    │           ├── OpenTabs   → SsooSidebarTree leaf rows
+    │           ├── MenuTree   → SsooSidebarTree recursive rows
+    │           └── AdminMenu  → SsooSidebarTree recursive rows
+    ├── headerSlot: Header
+    ├── tabBarSlot: TabBar
+    └── contentSlot: ContentArea
 ```
 
 ---
@@ -77,17 +73,13 @@ AppLayout
 ### 구조
 
 ```tsx
-<div className="flex h-screen overflow-hidden bg-gray-50">
-  {/* 사이드바 - 고정 위치 */}
-  <MainSidebar />
-
-  {/* 메인 컨텐츠 영역 */}
-  <div style={{ marginLeft: sidebarWidth }}>
-    <Header />
-    <TabBar />
-    <ContentArea>{children}</ContentArea>
-  </div>
-</div>
+<SsooWorkbenchShell
+  sidebarMode="collapsible"
+  sidebarSlot={<Sidebar />}
+  headerSlot={<Header />}
+  tabBarSlot={<TabBar />}
+  contentSlot={<ContentArea />}
+/>
 ```
 
 ### 반응형 처리
@@ -99,7 +91,7 @@ AppLayout
 
 ## Sidebar
 
-사이드바 컴포넌트입니다. 두 가지 상태를 가집니다.
+사이드바 컴포넌트입니다. PMS는 앱별 DOM을 조립하지 않고 `@ssoo/web-shell`의 `SsooSidebarSurface`에 도메인 데이터와 이벤트만 주입합니다.
 
 ### 파일 위치
 
@@ -108,12 +100,7 @@ AppLayout
 ```
 sidebar/
 ├── index.ts
-├── Sidebar.tsx           # 메인 컴포넌트
-├── CollapsedSidebar.tsx  # 접힌 상태
-├── ExpandedSidebar.tsx   # 펼친 상태
-├── FloatingPanel.tsx     # 플로팅 패널
-├── Section.tsx           # 섹션 컴포넌트
-├── Search.tsx            # 검색 컴포넌트
+├── Sidebar.tsx           # SsooSidebarSurface adapter
 ├── Favorites.tsx         # 즐겨찾기 섹션
 ├── OpenTabs.tsx          # 열린 탭 섹션
 ├── MenuTree.tsx          # 메뉴 트리 섹션
@@ -127,26 +114,26 @@ sidebar/
 
 ```
 ┌─────────────────────┐
-│ 🏠 SSOO    [<<]     │  Header (60px)
+│ SSOT       [<<]     │  SsooSidebarSurface brand/toggle
 ├─────────────────────┤
-│ 🔍 검색...           │  Search (고정)
+│ 검색...        [↻]  │  공용 search/refresh toolbar
 ├─────────────────────┤
 │ ▼ 즐겨찾기           │
-│   ⭐ 프로젝트 목록    │
+│   프로젝트 목록       │
 │                     │
 │ ▼ 현재 열린 페이지    │  ScrollArea
-│   📄 요청서 작성      │  (스크롤 가능)
+│   요청서 작성         │  (스크롤 가능)
 │                     │
 │ ▼ 메뉴 탐색          │
-│   📁 프로젝트        │
-│     └ 요청          │
-│     └ 제안          │
+│   프로젝트            │
+│     요청              │
+│     제안              │
 │                     │
 │ ▼ 관리자            │
-│   ⚙️ 사용자 관리     │
+│   사용자 관리         │
 ├─────────────────────┤
 │ v1.0.0              │  Footer (고정)
-│ © 2026 HWISTA       │
+│ © 2026 LS ITC       │
 └─────────────────────┘
 ```
 
@@ -154,28 +141,18 @@ sidebar/
 
 ```
 ┌────┐
-│ 🏠 │ Header
+│ S  │ Brand
 ├────┤
-│ ⭐ │ 즐겨찾기
-│ 📄 │ 열린 페이지
-│ 📁 │ 메뉴 탐색
-│ ⚙️ │ 관리자 (isAdmin)
+│ ☆ │ 즐겨찾기
+│ □ │ 열린 페이지
+│ ≡ │ 메뉴 탐색
+│ ⚙ │ 관리자 (isAdmin)
 ├────┤
 │ >> │ 펼치기 버튼
 └────┘
 ```
 
-### 플로팅 패널
-
-접힌 상태에서 아이콘 hover 시 나타나는 플로팅 패널입니다.
-
-```typescript
-const FLOAT_PANEL_CONFIG = {
-  width: 288,      // w-72 기준
-  openDelay: 100,  // hover 후 100ms 후 열림
-  closeDelay: 300, // leave 후 300ms 후 닫힘
-};
-```
+접힌 상태에서는 rail만 표시하고, hover 시 별도 패널을 띄우지 않고 동일 sidebar surface가 expanded width로 펼쳐집니다. collapse/hover reveal 동작과 rail button 양식은 `SsooSidebarSurface`가 소유합니다.
 
 ### 4개 섹션
 
