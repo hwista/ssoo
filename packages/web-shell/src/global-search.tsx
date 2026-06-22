@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -60,6 +61,25 @@ export interface SsooGlobalSearchResultRenderState {
   onOpen: () => void;
 }
 
+export interface SsooGlobalSearchOpenContext {
+  sourceQuery: string;
+}
+
+export interface SsooGlobalSearchSourceFilterContext {
+  sourceQuery: string;
+}
+
+export interface SsooGlobalSearchSourceQueryContext {
+  sourceApp?: SsooGlobalSearchSourceApp;
+}
+
+export interface SsooGlobalSearchAttachContext {
+  sourceQuery: string;
+  filterQuery: string;
+  matchedResultIndices: number[];
+  attachFilteredOnly: boolean;
+}
+
 export interface SsooGlobalSearchHistoryItem {
   id: string;
   title: string;
@@ -69,8 +89,18 @@ export interface SsooGlobalSearchHistoryItem {
 
 export interface SsooGlobalSearchPageProps {
   initialQuery?: string;
+  initialSourceApp?: SsooGlobalSearchSourceApp;
   search: (request: SsooGlobalSearchRequest) => Promise<SsooGlobalSearchResponse>;
-  onOpenResult?: (result: SsooGlobalSearchResult) => void | Promise<void>;
+  onOpenResult?: (result: SsooGlobalSearchResult, context: SsooGlobalSearchOpenContext) => void | Promise<void>;
+  onSourceFilterChange?: (
+    sourceApp: SsooGlobalSearchSourceApp | undefined,
+    context: SsooGlobalSearchSourceFilterContext,
+  ) => void;
+  onSourceQueryChange?: (query: string, context: SsooGlobalSearchSourceQueryContext) => void;
+  onAttachSearchResultsToAssistant?: (
+    results: SsooGlobalSearchResult[],
+    context: SsooGlobalSearchAttachContext,
+  ) => void | Promise<void>;
   renderResult?: (result: SsooGlobalSearchResult, state: SsooGlobalSearchResultRenderState) => ReactNode;
   title?: ReactNode;
   description?: string;
@@ -79,7 +109,12 @@ export interface SsooGlobalSearchPageProps {
   frequentSearches?: string[];
   onSuggestionSelect?: (suggestion: string) => void;
   onHistorySelect?: (item: SsooGlobalSearchHistoryItem) => void;
+  canUseSearch?: boolean;
+  canUseAssistant?: boolean;
+  noPermissionMessage?: string;
   compactMode?: boolean;
+  sidecarMode?: 'search' | 'hidden';
+  breadcrumbLastSegmentLabel?: string;
 }
 
 interface SsooGlobalSearchAiResult extends SsooAiSearchResultItem {
@@ -158,14 +193,17 @@ function toAiSearchResult(result: SsooGlobalSearchResult): SsooGlobalSearchAiRes
   return {
     id: result.id,
     title: result.title,
-    excerpt: result.summary ?? result.snippets?.[0] ?? result.matchReason ?? '',
+    excerpt: result.excerpt ?? result.summary ?? result.snippets?.[0] ?? result.matchReason ?? '',
     path: result.target.path,
     score: result.score,
     summary: result.summary,
+    summarySource: result.summarySource,
     snippets: result.snippets,
+    totalSnippetCount: result.totalSnippetCount,
     owner: result.ownerLabel,
     isReadable: result.permissionState === 'readable',
     canRequestRead: result.permissionState === 'requestable',
+    readRequest: result.readRequest,
     raw: result,
   };
 }
@@ -253,28 +291,57 @@ export function SsooGlobalSearchResultCard({
 
 export function SsooGlobalSearchPage({
   initialQuery,
+  initialSourceApp,
   search,
   onOpenResult,
+  onSourceFilterChange,
+  onSourceQueryChange,
+  onAttachSearchResultsToAssistant,
   renderResult,
   description,
   history = [],
   suggestions = [],
   frequentSearches = [],
+  canUseSearch,
+  canUseAssistant,
+  noPermissionMessage,
   compactMode,
+  sidecarMode,
+  breadcrumbLastSegmentLabel,
 }: SsooGlobalSearchPageProps) {
-  const [selectedSourceApp, setSelectedSourceApp] = useState<SsooGlobalSearchSourceApp | undefined>();
+  const [selectedSourceApp, setSelectedSourceApp] = useState<SsooGlobalSearchSourceApp | undefined>(initialSourceApp);
+
+  useEffect(() => {
+    setSelectedSourceApp(initialSourceApp);
+  }, [initialSourceApp]);
 
   const handleSearch = useCallback(async (query: string) => {
-    const response = await search({
-      query,
-      sourceApp: selectedSourceApp,
-    });
+    const request: SsooGlobalSearchRequest = { query };
+    if (selectedSourceApp) {
+      request.sourceApp = selectedSourceApp;
+    }
+
+    const response = await search(request);
     return toAiSearchResponse(response);
   }, [search, selectedSourceApp]);
 
-  const handleOpenSearchResult = useCallback((item: SsooGlobalSearchAiResult) => {
-    void onOpenResult?.(item.raw);
+  const handleOpenSearchResult = useCallback((
+    item: SsooGlobalSearchAiResult,
+    context: { sourceQuery: string },
+  ) => {
+    void onOpenResult?.(item.raw, { sourceQuery: context.sourceQuery });
   }, [onOpenResult]);
+
+  const handleSourceQueryChange = useCallback((query: string) => {
+    onSourceQueryChange?.(query, selectedSourceApp ? { sourceApp: selectedSourceApp } : {});
+  }, [onSourceQueryChange, selectedSourceApp]);
+
+  const handleAttachSearchResultsToAssistant = useCallback((
+    items: SsooGlobalSearchAiResult[],
+    context: SsooGlobalSearchAttachContext,
+  ) => {
+    void onAttachSearchResultsToAssistant?.(items.map((item) => item.raw), context);
+  }, [onAttachSearchResultsToAssistant]);
 
   const handleRenderResult = useCallback((item: SsooGlobalSearchAiResult, state: SsooAiSearchResultRenderState) => {
     const globalState: SsooGlobalSearchResultRenderState = {
@@ -310,9 +377,11 @@ export function SsooGlobalSearchPage({
       initialQuery={initialQuery}
       search={handleSearch}
       searchKey={selectedSourceApp ?? 'all'}
+      onSourceQueryChange={handleSourceQueryChange}
       onOpenSearchResult={handleOpenSearchResult}
+      onAttachSearchResultsToAssistant={onAttachSearchResultsToAssistant ? handleAttachSearchResultsToAssistant : undefined}
       renderResult={handleRenderResult}
-      resultTopSlot={({ hasSearched, response }) => {
+      resultTopSlot={({ hasSearched, response, sourceQuery }) => {
         const globalResponse = getGlobalResponse(response);
         if (!hasSearched && !globalResponse) return null;
         const filters = getSourceFilters(globalResponse, selectedSourceApp);
@@ -320,7 +389,9 @@ export function SsooGlobalSearchPage({
           <SsooSourceFilterBar
             filters={filters}
             onSelect={(filter) => {
-              setSelectedSourceApp(filter.key === 'all' ? undefined : filter.key as SsooGlobalSearchSourceApp);
+              const nextSourceApp = filter.key === 'all' ? undefined : filter.key as SsooGlobalSearchSourceApp;
+              setSelectedSourceApp(nextSourceApp);
+              onSourceFilterChange?.(nextSourceApp, { sourceQuery });
             }}
           />
         );
@@ -328,9 +399,12 @@ export function SsooGlobalSearchPage({
       history={normalizedHistory}
       suggestions={suggestions}
       frequentSearches={frequentSearches}
-      canUseAssistant={false}
+      canUseSearch={canUseSearch}
+      canUseAssistant={canUseAssistant}
+      noPermissionMessage={noPermissionMessage}
       compactMode={compactMode}
-      sidecarMode="hidden"
+      sidecarMode={sidecarMode}
+      breadcrumbLastSegmentLabel={breadcrumbLastSegmentLabel}
       blockedSourceNoun="콘텐츠"
     />
   );

@@ -23,7 +23,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/ ./
 COPY . .
 
-RUN pnpm --filter @ssoo/types build &&     pnpm --filter @ssoo/web-ui build &&     pnpm --filter @ssoo/web-auth build &&     pnpm --filter @ssoo/web-shell build &&     pnpm --filter web-crm build
+RUN pnpm --filter @ssoo/types build &&     pnpm --filter @ssoo/web-ui build &&     pnpm --filter @ssoo/web-shell build &&     pnpm --filter @ssoo/web-auth build &&     pnpm --filter web-crm build
 
 FROM node:20 AS runner
 WORKDIR /app

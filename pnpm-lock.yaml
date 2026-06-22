@@ -960,6 +960,9 @@ importers:
       '@ssoo/types':
         specifier: workspace:*
         version: link:../types
+      '@ssoo/web-shell':
+        specifier: workspace:*
+        version: link:../web-shell
       '@ssoo/web-ui':
         specifier: workspace:*
         version: link:../web-ui

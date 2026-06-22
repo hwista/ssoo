@@ -1,6 +1,6 @@
 # 페이지 라우팅 (Page Routing)
 
-> 최종 업데이트: 2026-06-16
+> 최종 업데이트: 2026-06-22
 
 DMS의 탭 기반 라우팅과 설정 모드 구조를 정의합니다.
 
@@ -11,7 +11,7 @@ DMS의 탭 기반 라우팅과 설정 모드 구조를 정의합니다.
 DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 **`/`, `/login`, `/password-reset`** 만 사용하고 실제 업무 화면 전환은 **workspace 탭 frame** 안에서 처리합니다.
 
 - 브라우저 공개 URL: `/`, `/login`, `/password-reset`
-- 내부 탭 경로: `/home`, `/doc/...`, `/doc/new*`, `/ai/chat`, `/ai/search`
+- 내부 탭 경로: `/home`, `/doc/...`, `/doc/new*`, `/ai/chat`, `/ssoo/search`
 - 정책: 내부 탭 경로는 주소창에 직접 노출하거나 딥링크로 사용하는 대상이 아니다.
 - `/settings` 는 현재 기준의 workspace 탭 경로가 아니라, stale session/tab migration 을 위한 legacy handoff 경로다.
 
@@ -89,7 +89,7 @@ interface TabItem {
 | 새 문서 (문서) | 상황별 생성 | `/doc/new-doc` | ✅ 가능 |
 | 새 문서 (템플릿) | 상황별 생성 | `/doc/new-template` | ✅ 가능 |
 | 새 문서 (AI 요약) | 상황별 생성 | `/doc/new-ai-summary` | ✅ 가능 |
-| AI 검색 | 상황별 생성 | `/ai/search` | ✅ 가능 |
+| 통합 검색 | `global-search` | `/ssoo/search` | ✅ 가능 |
 | 설정 legacy handoff | `settings` | `/settings` | ✅ 가능 |
 
 ### 탭 → 페이지 매핑
@@ -101,22 +101,24 @@ const pageComponents = {
   home: lazy(() => import('@/components/pages/home/DashboardPage')),
   markdown: lazy(() => import('@/components/pages/markdown/DocumentPage')),
   aiChat: lazy(() => import('@/components/pages/ai/ChatPage')),
-  aiSearch: lazy(() => import('@/components/pages/ai/SearchPage')),
+  globalSearch: lazy(() => import('@/components/pages/global-search/GlobalSearchPage')),
   legacySettings: LegacySettingsRedirect,
   settings: SettingsPage,
 };
 
-function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiChat' | 'aiSearch' | 'legacySettings' | 'settings' | null {
+function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiChat' | 'globalSearch' | 'legacySettings' | 'settings' | null {
   if (tab.id === 'home') return 'home';
   if (tab.path.startsWith('/doc/')) return 'markdown';
   if (tab.path.startsWith('/doc/new')) return 'markdown';
   if (tab.path.startsWith('/ai/chat')) return 'aiChat';
-  if (tab.path.startsWith('/ai/search')) return 'aiSearch';
+  if (tab.path.startsWith('/ssoo/search')) return 'globalSearch';
   if (parseSettingsTabPath(tab.path)) return 'settings';
   if (tab.path === '/settings') return 'legacySettings';
   return null;
 }
 ```
+
+DMS 검색 진입점은 `/ssoo/search` 하나다. DMS에서 검색을 열어도 기본 범위는 모든 provider이며, source filter chip을 명시적으로 선택한 경우에만 앱별 범위로 좁힌다. 이전 DMS AI 검색의 sidecar/검색 기록/AI 첨부 표면은 공용 검색 page에서 유지한다.
 
 ### Settings mode 전환
 

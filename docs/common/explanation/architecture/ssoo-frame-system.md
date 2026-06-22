@@ -33,8 +33,8 @@ SSOO 서비스 shell은 특정 서비스 화면을 다른 서비스가 복사하
 - 앱별 색상 theme은 의도된 식별 장치다. 공용화 대상은 색 자체의 단일화가 아니라 theme preset registry, header/sidebar/tabbar/content primitive의 형태, slot 구조, 직접 상호작용 계약이다.
 - 눈으로 다른 shell surface가 남아 있으면 공용화 미완료로 본다. `SsooAppFrame`을 사용하는 것만으로는 완료가 아니며, header/sidebar/tabbar 표면은 실제 shared primitive를 소비해야 한다.
 - 5개 앱의 header entrypoint는 `SsooAppHeader`다. 앱 메인 header는 검색/새로 만들기/알림/사용자 메뉴 surface를 같은 순서와 크기로 노출한다. header 검색 placeholder는 `SSOO_HEADER_SEARCH_PLACEHOLDER`/`SSOO_GLOBAL_SEARCH_PLACEHOLDER`의 “무엇이든 찾아드릴게요! 무엇이 필요하신가요?”로 통일한다. header 검색의 입력 상태, Enter submit 처리, `/ssoo/search?q=` 경로 생성, 검색 아이콘 주입은 `packages/web-shell/src/global-header-search.tsx`의 `useSsooGlobalHeaderSearch`가 소유한다. 앱은 검색 가능 여부와 통합 검색 탭을 여는 navigation adapter만 주입한다. header 내부 button/input/icon size, action spacing, 사용자 메뉴 폭 측정, notification trigger/badge shape를 직접 소유하지 않는다.
-- header 검색 submit은 공용 `/ssoo/search` 통합 검색 탭으로 연결한다. DMS `/ai/search`의 기준 구조(검색 실행 query와 결과 내 재검색 분리, toolbar, 결과 panel, blocked source summary, AI sidecar panel, 결과 card renderer slot)는 `@ssoo/web-shell`의 `SsooAiSearchPage` 계열 공용 모듈로 물리 승격한다. 통합 검색 표면인 `SsooGlobalSearchPage`는 새 화면 복제가 아니라 이 공통 `SsooAiSearchPage`를 소비하면서 source-app filter chip과 전역 검색 adapter만 주입한다. 단, `/ssoo/search`는 DMS 문서 AI 검색 sidecar 콘텐츠를 임의로 재사용하지 않고 전역 검색 전용 sidecar 콘텐츠가 정의될 때까지 `sidecarMode="hidden"`으로 둔다. 앱은 `@ssoo/web-auth`의 `useCommonGlobalSearchAdapter`에 현재 앱, 탭 path, 앱별 결과 열기 action만 주입하고 API 호출, API base URL, cross-app app URL map, 초기 query parsing, cross-app URL routing을 다시 구현하지 않는다.
-- 서버 `/api/search`는 앱별 검색 provider registry를 조합하는 platform endpoint다. common search service/module은 DMS `SearchService`, CRM demo fixture, PMS/SNS/Admin 도메인 DB 조회를 직접 import하지 않는다. DMS provider는 DMS DB를 직접 keyword 조회하지 않고 기존 DMS `SearchService`를 재사용해 semantic/vector 시도, keyword fallback, ACL/redaction, read request state, blocked source summary를 유지한다. CRM demo fixture는 실제 CRM search provider가 정의되기 전까지 전역 검색에 노출하지 않는다. PMS provider는 owner/member project만, SNS provider는 public/own post만, Admin provider는 `system.override` access foundation 권한이 있는 사용자에게만 결과를 반환한다. 응답 capability는 `keyword`, `metadata`, `semantic`, `vector`, `ragContext`를 분리해 표시하며, `ragReady`는 `ragContext` 조립까지 제공되는 경우에만 true로 둔다.
+- header 검색 submit은 공용 `/ssoo/search` 통합 검색 탭으로 연결한다. 검색 실행 query와 결과 내 재검색 분리, toolbar, 결과 panel, blocked source summary, 결과 card renderer slot, 기존 DMS AI 검색의 sidecar/검색 기록/인기 검색어/AI 첨부 표면은 `@ssoo/web-shell`의 `SsooAiSearchPage` 계열 공용 모듈이 소유한다. 통합 검색 표면인 `SsooGlobalSearchPage`는 새 화면 복제가 아니라 이 공통 `SsooAiSearchPage`를 소비하면서 source-app filter chip과 전역 검색 adapter만 주입한다. DMS 검색 진입점은 `/ssoo/search` 하나이며 `/ai/search` 호환 alias를 유지하지 않는다. 기본 검색 요청에는 `sourceApp`을 넣지 않고 모든 provider를 대상으로 검색하며, source filter chip을 선택한 경우에만 `sourceApp` query와 요청 filter를 적용한다. 앱은 `@ssoo/web-auth`의 `useCommonGlobalSearchAdapter`에 현재 앱, 탭 path, 앱별 결과 열기 action만 주입하고 API 호출, API base URL, cross-app app URL map, 초기 query/source filter parsing, cross-app URL routing을 다시 구현하지 않는다.
+- 서버 `/api/search`는 앱별 검색 provider registry를 조합하는 platform endpoint다. common search service/module은 DMS `SearchService`, CRM opportunity service, PMS/SNS/Admin 도메인 DB 조회를 직접 import하지 않는다. DMS provider는 DMS DB를 직접 keyword 조회하지 않고 기존 DMS `SearchService`를 재사용해 semantic/vector 시도, keyword fallback, ACL/redaction, read request state, blocked source summary를 유지한다. CRM provider는 CRM `OpportunityService`를 재사용해 영업기회 결과를 등록한다. PMS provider는 owner/member project만, SNS provider는 public/own post만, Admin provider는 `system.override` access foundation 권한이 있는 사용자에게만 결과를 반환한다. 응답 capability는 `keyword`, `metadata`, `semantic`, `vector`, `ragContext`를 분리해 표시하며, `ragReady`는 `ragContext` 조립까지 제공되는 경우에만 true로 둔다.
 - Header 알림센터는 5개 앱 모두 `SsooHeaderNotificationCenter`/`SsooNotificationPanel`을 소비한다. 패널 문구, dim/backdrop, source-app 카테고리, 상단 `전체`/앱별 filter chip과 unread badge, read/unread, 모두 읽음, pagination, 열기/확인 action, typography 표면은 공용이고, 앱은 현재 앱 chip 우선순위, notification source/query/mutation과 action data/handler만 주입한다.
 - DMS settings context는 앱 상단 header slot을 유지하되 `SsooAppHeader` shell 내부 content를 비우고, 설정 sidebar brand 영역의 뒤로가기 action과 `설정` title만 노출한다. 설정 검색은 header가 아니라 settings sidebar 검색 슬롯에서만 처리한다.
 - 메뉴/프로젝트/문서/사용자 같은 실제 데이터와 클릭 시 주입되는 도메인 action 함수는 각 앱이 소유한다. 데이터 차이나 action 구현 차이는 공용 component를 fork하는 사유가 아니다.
@@ -95,9 +95,9 @@ SSOO 서비스 shell은 특정 서비스 화면을 다른 서비스가 복사하
   - 실제 입력 상태, Enter submit, 검색 path/title 생성은 `useSsooGlobalHeaderSearch`가 소유하고, 각 서비스 adapter는 통합 검색 탭 open action만 소유한다.
 
 - `SsooAiSearchPage`, `SsooGlobalSearchPage`, `SsooGlobalSearchResultCard`, `SsooSourceFilterBar`
-  - 기존 DMS AI 검색 화면의 content page 조립, toolbar, 결과 내 재검색, 결과 panel, blocked source summary, AI sidecar panel, loading/empty/error 표면은 `SsooAiSearchPage` 계열 공용 모듈이 소유한다.
-  - SSOO 통합 검색 화면은 `SsooGlobalSearchPage`가 `SsooAiSearchPage`를 소비하는 adapter로 제공한다. source-app filter chip은 main content slot의 toolbar 아래 결과 영역 첫 상단에 `SsooSourceFilterBar`로 주입하고, DMS AI 검색 sidecar는 전역 검색에 노출하지 않는다.
-  - 앱별 `/ssoo/search` 페이지는 `useCommonGlobalSearchAdapter`만 소비한다. 앱은 현재 앱 탭 열기 action만 주입하고 `createCommonSearchApi`, API base URL, app URL config, `resolveCommonSearchResultHref`, query string parsing을 페이지 안에서 반복하지 않는다.
+  - 검색 content page 조립, toolbar, 결과 내 재검색, 결과 panel, blocked source summary, loading/empty/error 표면은 `SsooAiSearchPage` 계열 공용 모듈이 소유한다.
+  - SSOO 통합 검색 화면은 `SsooGlobalSearchPage`가 `SsooAiSearchPage`를 소비하는 adapter로 제공한다. source-app filter chip은 main content slot의 toolbar 아래 결과 영역 첫 상단에 `SsooSourceFilterBar`로 주입하고, source filter 선택 전 기본 검색 범위는 모든 provider다.
+  - 앱별 `/ssoo/search` 페이지는 `useCommonGlobalSearchAdapter`만 소비한다. 앱은 현재 앱 탭 열기 action만 주입하고 `createCommonSearchApi`, API base URL, app URL config, `resolveCommonSearchResultHref`, query/source filter parsing을 페이지 안에서 반복하지 않는다.
   - DMS 문서 결과처럼 도메인 특화 card가 이미 존재하는 경우 앱은 `renderResult` slot으로 자기 카드만 주입한다. 공용 recipe는 renderer slot을 제공하고, 앱은 새 page shell을 만들지 않는다.
   - 현재 전역 endpoint는 provider registry의 keyword/metadata 검색과 DMS hybrid 검색을 조합한다. 공용 타입은 `ranker`, `capabilities`, `blockedSources`를 포함하며, `capabilities`는 provider별 `keyword`/`metadata`/`semantic`/`vector`/`ragContext` 준비 수준을 구분한다. `ragReady`는 하위 호환 필드이며 RAG context assembly가 실제 제공되는 경우에만 true로 둔다.
 
@@ -134,8 +134,9 @@ SSOO 서비스 shell은 특정 서비스 화면을 다른 서비스가 복사하
 - `SsooRegisteredMdiContentArea`, `SsooMdiContentArea`, `SsooMdiContentPane`, `SsooContentAreaSurface`, `SsooContentAreaEmptyState`, `SsooContentAreaState`
   - 열린 탭 목록 기반 keep-alive MDI content mapper, active/hidden pane, route/admin/workspace content surface, empty state layout을 공통화한다.
   - 앱 ContentArea는 `SsooRegisteredMdiContentArea`와 `defineSsooMdiPageRegistry`만 root public API로 소비한다. 저수준 `SsooMdiTabbedContentArea`는 `web-shell` 내부 구현으로 남기고 root public API로 export하지 않는다.
-  - 5개 앱은 content slot을 route `children` fallback이나 local `<main>` 중첩으로 처리하지 않고, 열린 탭 배열과 registry를 기준으로 `SsooRegisteredMdiContentArea`/`SsooMdiContentPane`을 소비한다.
-  - page route는 `contentPage`만 사용한다. `contentPage`는 `SsooContentPageTemplate` 또는 이를 감싼 domain/shared-surface/handoff adapter를 거쳐야 하고, 공용 user profile/settings surface도 `createSsooSharedSurfaceContentPageElement()`를 통해 `contentPage`로 렌더링한다. shared-surface adapter는 기본 constrained 폭을 유지하고 `contentSurface="plain"`으로 page tone을 노출하며, `mainContentLayout`, `mainContentMaxWidth`, `mainContentSurface` 같은 raw opt-out을 사용하지 않는다. shared user profile/settings 내부 root도 `max-w-*`/`mx-auto`로 폭을 다시 정의하거나 page-level `h1`/description을 중복 렌더링하지 않는다. canonical `/__user/*` path는 `SSOO_SHARED_USER_SURFACE_PATH_PREFIX` route-policy 상수와 5앱 middleware rewrite로 루트 셸에 연결하고, 실제 렌더링은 각 앱 ContentArea registry가 수행한다. stale route redirect는 `routeHandoffPage` adapter boundary를 통과하는 `contentPage`로만 허용한다. `legacyException` route kind는 public page assembly contract가 아니다. `shellPage` route kind와 `ShellPageContainer`는 public page assembly contract가 아니다.
+  - 앱 TS/TSX 소스 전체에서 저수준 `SsooMdiContentArea`, `SsooMdiContentPane`, `SsooMdiTabbedContentArea` 직접 소비를 금지한다. 이 우회는 `verify:ssoo-frame`가 앱 소스 전역 스캔으로 차단한다.
+  - 5개 앱은 content slot을 route `children` fallback이나 local `<main>` 중첩으로 처리하지 않고, 열린 탭 배열과 registry를 기준으로 `SsooRegisteredMdiContentArea`를 소비해 공용 MDI pane을 간접 소비한다.
+  - page route는 `contentPage`만 사용한다. `contentPage`는 `SsooContentPageTemplate` 또는 이를 감싼 domain/shared-surface/handoff adapter를 거쳐야 하고, 공용 user profile/settings surface도 `createSsooSharedSurfaceContentPageElement()`를 통해 `contentPage`로 렌더링한다. shared-surface adapter는 기본 constrained 폭을 유지하고 `contentSurface="plain"`으로 page tone을 노출하며, `mainContentLayout`, `mainContentMaxWidth`, `mainContentSurface` 같은 raw opt-out을 사용하지 않는다. shared user profile/settings 내부 root도 `max-w-*`/`mx-auto`로 폭을 다시 정의하거나 page-level `h1`/description을 중복 렌더링하지 않는다. 저장/편집/취소 같은 page-level action은 `useSsooSharedSurfacePageHeaderActions()`로 shared header action bridge에 등록하고, 본문 내부 action button으로 다시 렌더링하지 않는다. canonical `/__user/*` path는 `SSOO_SHARED_USER_SURFACE_PATH_PREFIX` route-policy 상수와 5앱 middleware rewrite로 루트 셸에 연결하고, 실제 렌더링은 각 앱 ContentArea registry가 수행한다. stale route redirect는 `routeHandoffPage` adapter boundary를 통과하는 `contentPage`로만 허용한다. `legacyException` route kind는 public page assembly contract가 아니다. `shellPage` route kind와 `ShellPageContainer`는 public page assembly contract가 아니다.
   - `contentPage.render`는 임의 `ReactNode`를 반환하지 않고 branded `SsooMdiContentPageElement`를 반환한다. 직접 recipe는 `createSsooContentPageTemplateElement()`, 승인된 domain adapter는 `SSOO_CONTENT_PAGE_ADAPTER_NAMES`에 등록된 `adapterName`과 `createSsooContentPageAdapterElement()`를 사용한다.
   - 앱은 page registry, tab context/provider, route path를 탭 옵션으로 바꾸는 adapter만 소유하고 pane positioning/display/overflow/background/hidden 처리는 `web-shell` primitive가 소유한다.
   - 저수준 MDI mapper는 앱별 `paneClassName`/`paneScroll`/`paneTone` 같은 format override를 받지 않는다. 페이지 여백, 폭, 세부 스크롤은 content pane 밖의 frame 형식이 아니라 각 page/template component가 소유한다.
@@ -251,7 +252,7 @@ PMS는 SSOO 플랫폼의 workbench 기준 앱이다. 여기서 말하는 100%는
    - 홈 탭은 고정이고, 업무 탭은 열기/활성화/닫기/순서변경/스크롤 컨트롤이 동작한다.
    - tab icon, close action, dirty/status affordance는 `SsooMdiTabBar` 내부 보조 primitive가 소유하고 PMS는 icon 종류와 click action만 주입한다.
 5. content area는 keep-alive MDI 계약을 제공한다.
-   - keep-alive wrapper와 pane surface는 `SsooMdiContentArea`, `SsooMdiContentPane`, `SsooContentAreaEmptyState`를 사용한다.
+   - 앱 keep-alive entrypoint는 `SsooRegisteredMdiContentArea`이며, pane surface는 `web-shell` 내부의 `SsooMdiContentPane`과 `SsooContentAreaEmptyState`가 담당한다.
    - 열린 탭의 컴포넌트를 동시에 마운트하고 비활성 탭은 숨김 처리하여 state를 보존한다.
    - 비활성 pane의 숨김은 Tailwind `hidden` class와 소비 앱 display class의 CSS 순서에 의존하지 않고, 공용 `SsooMdiContentPane`의 inline display guard가 보장한다.
    - route/page registry는 PMS가 소유하되, 앱 ContentArea는 `SsooRegisteredMdiContentArea`를 통해 registry를 주입하고 등록되지 않은 path는 명시적인 준비 상태로 표시한다.
@@ -266,8 +267,8 @@ PMS는 SSOO 플랫폼의 workbench 기준 앱이다. 여기서 말하는 100%는
 8. 검증은 소스, 빌드, 런타임, Docker 반영까지 닫는다.
    - 소스 계약: `pnpm run verify:ssoo-frame -- --skip-runtime`.
    - PMS readiness: `pnpm run verify:pms-launch -- --skip-runtime`.
-   - 빌드: `pnpm --filter @ssoo/web-shell build`, `pnpm --filter web-pms build`.
-   - 레포 하네스: `pnpm run codex:preflight`.
+   - 빌드: `pnpm --filter @ssoo/web-shell build`, `pnpm --filter @ssoo/web-auth build`, `pnpm --filter web-pms build`.
+   - 레포 하네스: `pnpm run codex:preflight`, `pnpm run codex:push-guard`가 `verify:ssoo-frame` 소스 계약을 포함한다.
    - 턴 종료 전 affected Docker 서비스를 rebuild/up 하고 HTTP status를 확인한다.
 
 ## 서비스 적용 기준
@@ -302,13 +303,13 @@ PMS는 SSOO 플랫폼의 workbench 기준 앱이다. 여기서 말하는 100%는
 - 설정 sidebar의 collapse toggle, collapsed rail, search toolbar, refresh affordance, section chevron, group tree expand/collapse는 문서 main sidebar와 같은 `SsooSidebarSurface`/`SsooSidebarTree` 동작을 따른다. 설정 모드라고 section collapse나 refresh surface를 제거하지 않는다.
 - 설정 메뉴 클릭은 `useSettingsPageNavigationStore.openSection()`과 설정 탭 열기를 함께 수행하지만, frame tabbar slot의 `TabBar`는 settings/workspace로 열린 탭 배열을 필터링하지 않고 전체 열린 탭을 같은 `SsooMdiTabBar`에 넘긴다.
 - 설정 모드 활성 상태는 settings path를 가진 active MDI tab과 동기화한다. `ContentArea`는 설정 모드 fallback active pane을 만들지 않고 `activeTabId` 하나로 공용 `SsooRegisteredMdiContentArea`의 active pane을 결정한다.
-- settings mode는 `useSettingsPageNavigationStore`가 `useTabStore` active tab path를 구독해 동기화한다. 문서 생성/파일 열기/AI 검색처럼 non-settings 탭을 여는 workspace action은 settings mode를 즉시 종료해야 하며, settings mode가 다시 해당 action을 설정 화면으로 되돌려서는 안 된다.
+- settings mode는 `useSettingsPageNavigationStore`가 `useTabStore` active tab path를 구독해 동기화한다. 문서 생성/파일 열기/통합 검색처럼 non-settings 탭을 여는 workspace action은 settings mode를 즉시 종료해야 하며, settings mode가 다시 해당 action을 설정 화면으로 되돌려서는 안 된다.
 - 문서 파일 트리, 책갈피, 현재 열린 페이지, publish 복구 항목은 데이터와 열기/북마크/retry action만 DMS가 소유하고, row/action/icon/status/state/note 렌더링은 `SsooSidebarTree` 및 sidebar tree/state primitives가 소유한다.
 - 설정 페이지 내부는 `PageTemplate` breadcrumb/header, `leftSubContentSlot` 내부 색인, 본문 shell, 상태 banner, 저장 예정 요약, 보기 모드 toggle을 맡는다. section navigation과 내부 색인은 목적이 다르므로 section navigation은 sidebar menu + main tabbar, 내부 색인은 sub-content rail로 분리한다.
 - 문서 탭바는 `SsooMdiTabBar`를 소비하고, DMS의 저장/편집/AI 최소화 상태는 데이터/action prop으로 표현한다.
-- 문서 content는 `SsooRegisteredMdiContentArea`를 소비하고, DMS는 typed page route registry, tab instance provider, stale route redirect action만 소유한다. DMS registry에서 문서/설정/AI 대화/기존 DMS AI 검색/전역 검색/사용자 surface/DMS 홈은 `contentPage`이고, stale `/settings`, `/access-requests/me` redirect도 `routeHandoffPage` adapter를 통과하는 `contentPage`다.
+- 문서 content는 `SsooRegisteredMdiContentArea`를 소비하고, DMS는 typed page route registry, tab instance provider, stale route redirect action만 소유한다. DMS registry에서 문서/설정/AI 대화/전역 검색/사용자 surface/DMS 홈은 `contentPage`이고, stale `/settings`, `/access-requests/me` redirect도 `routeHandoffPage` adapter를 통과하는 `contentPage`다. DMS 검색은 `/ssoo/search` 전역 검색 contentPage로만 렌더링하며 `/ai/search` 별도 alias를 두지 않는다.
 - settings tab과 document tab이 동시에 mount되어도 비활성 document pane은 공용 `SsooMdiContentPane` inline display guard로 숨겨져야 하며, DMS는 pane layout/display class를 주입하지 않는다.
-- DMS `PageTemplate`은 문서/설정/AI page 조립의 DMS adapter이고 정본 recipe는 `@ssoo/web-shell`의 `SsooContentPageTemplate`이다. DMS에 남는 책임은 breadcrumb path/icon adapter, domain header action adapter, document body/sidecar/custom slot이며, neutral content surface, sidecar lane/toggle, page state surface는 `web-shell`이 소유한다. 기존 `/ai/search`는 DMS 문서 AI 검색 기능으로 유지하고, header 검색은 공용 `/ssoo/search` 통합 검색으로 연결한다.
+- DMS `PageTemplate`은 문서/설정/AI 대화 page 조립의 DMS adapter이고 정본 recipe는 `@ssoo/web-shell`의 `SsooContentPageTemplate`이다. DMS에 남는 책임은 breadcrumb path/icon adapter, domain header action adapter, document body/sidecar/custom slot이며, neutral content surface, sidecar lane/toggle, page state surface는 `web-shell`이 소유한다. DMS 검색은 공용 `/ssoo/search` 통합 검색으로만 연결한다.
 - DMS 도메인 전용 dark CSS는 editor/prose/document content selector로 제한한다. `.dms-shell` scope 안이라도 shared shell surface의 `.bg-white`, `.bg-gray-*`, `.border*`, `.text-gray-*`, `.shadow*` utility를 재정의하지 않는다.
 - DMS toast/assistant panel처럼 도메인 overlay가 header/tabbar offset에 의존하는 경우에도 offset/breakpoint/inset/panel width는 `SSOO_SHELL_METRICS`를 소비한다. overlay의 데이터, 열림 상태, 입력/대화 내용은 DMS가 소유한다.
 - DMS sidebar header의 dev/wiki 선택기는 제거한다. 필요해지면 sidebar header control이 아니라 도메인 메뉴 entry로 제공한다.
@@ -337,9 +338,10 @@ PMS는 SSOO 플랫폼의 workbench 기준 앱이다. 여기서 말하는 100%는
 공용 shell 변경 후에는 최소한 다음을 확인한다.
 
 - `pnpm --filter @ssoo/web-shell build`
+- `pnpm --filter @ssoo/web-auth build`
 - 변경 소비 앱 build, 예: `pnpm --filter web-pms build`, `pnpm --filter web-crm build`, `pnpm --filter web-sns build`, `pnpm --filter web-admin build`, `pnpm --filter web-dms build`
 - source contract: `pnpm run verify:ssoo-frame -- --skip-runtime`
-- repo preflight: `pnpm run codex:preflight`
+- repo preflight/push guard: `pnpm run codex:preflight`, `pnpm run codex:push-guard`
 - shared `web-shell` 변경이 런타임에 영향을 주면 affected Docker web surface를 함께 rebuild/restart하고 HTTP status를 확인한다.
 
 ## 금지 패턴
@@ -355,6 +357,7 @@ PMS는 SSOO 플랫폼의 workbench 기준 앱이다. 여기서 말하는 100%는
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-06-22 | `verify:ssoo-frame`를 preflight/push guard/PR validation에 연결하고, 앱 TS/TSX 전역의 저수준 MDI content primitive 직접 소비를 차단하는 강제 기준을 추가 |
 | 2026-06-19 | `contentPage` 단일 route contract와 UI primitive consumption gate 적용 후 Docker stack 재빌드/기동, HTTP health, access smoke/admin/DMS, PMS launch readiness 검증을 완료하고 `platform-content-page-runtime-handoff.md`를 후속 운영/설정/제어 작업 진입점으로 추가 |
 | 2026-06-18 | 원자 UI raw 태그 소비를 `apps/web`, `web-shell`, `web-auth` 전역에서 금지하는 `verify:ui-consumption` 추가 |
 | 2026-06-18 | 원자 UI inventory 중간 상태를 제거하고 모든 등록 원자를 `platform` 단일 상태로 정리 |
@@ -367,6 +370,7 @@ PMS는 SSOO 플랫폼의 workbench 기준 앱이다. 여기서 말하는 100%는
 | 2026-06-17 | DMS access/settings와 PMS DataGrid/request를 선별 UI 기준선으로 정의하고 `selected-web-ui-primitives` 검증 기준 추가 |
 | 2026-06-17 | `SsooContentPageTemplate`을 `web-shell` recipe 정본으로 추가하고 content page main/sub-content/sidecar/bottom/state slot 스타일 책임을 공용화 |
 | 2026-06-17 | `@ssoo/web-ui`를 Tailwind preset과 기본 UI primitive 공용 경계로 추가하고 `web-shell`의 frame/page recipe 책임과 분리 |
+| 2026-06-22 | DMS `/ai/search` 별도 화면과 호환 alias를 제거하고 `/ssoo/search` 단일 진입점으로 고정, 기존 DMS AI 검색 sidecar/기록/AI 첨부 표면은 공용 검색 모듈에서 유지 |
 | 2026-06-18 | 기존 DMS AI 검색 화면 본체를 `SsooAiSearchPage` 계열 공용 모듈로 물리 승격하고, `SsooGlobalSearchPage`를 그 공통 모듈의 전역 검색 adapter로 정리해 5개 앱 `/ssoo/search` route를 `contentPage`로 승격 |
 | 2026-06-17 | header/sidebar 검색 문구와 검색 표면을 공용화하고, sidebar 내부 필터링은 `SsooSidebarSearchableTree`, header 통합 검색은 DMS 검색 기준을 반영한 `SsooGlobalSearchPage` adapter + 서버 `/api/search` provider 조합으로 5개 앱에 적용 |
 | 2026-06-17 | `ShellFrame` root public export와 frame/tabbar metric override prop을 제거하고, `SsooTabBarShell`을 `SsooMdiTabBar` 내부 primitive로 고정 |

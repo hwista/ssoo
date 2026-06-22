@@ -7,8 +7,8 @@ cd "$ROOT_DIR"
 rm -rf apps/web/dms/.next apps/web/dms/tsconfig.tsbuildinfo
 pnpm --filter @ssoo/types build
 pnpm --filter @ssoo/web-ui build
-pnpm --filter @ssoo/web-auth build
 pnpm --filter @ssoo/web-shell build
+pnpm --filter @ssoo/web-auth build
 
 if pnpm -C apps/web/dms run build; then
   exit 0

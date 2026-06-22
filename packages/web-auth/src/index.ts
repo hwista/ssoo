@@ -212,9 +212,11 @@ export type {
 
 export {
   getCommonGlobalSearchQueryFromPath,
+  getCommonGlobalSearchSourceAppFromPath,
   useCommonGlobalSearchAdapter,
 } from './global-search-adapter';
 export type {
+  CommonGlobalSearchOpenContext,
   CommonGlobalSearchPageAdapter,
   UseCommonGlobalSearchAdapterOptions,
 } from './global-search-adapter';

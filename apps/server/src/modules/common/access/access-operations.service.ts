@@ -241,7 +241,7 @@ export class AccessOperationsService {
       if (permissionCode.includes('document')) return 'DMS > 문서 / 설정 > 문서 권한 관리';
       if (permissionCode.includes('settings') || permissionCode.includes('storage') || permissionCode.includes('git')) return 'DMS > 설정 > DMS 시스템 설정 / 운영 상태';
       if (permissionCode.includes('template')) return 'DMS > 설정 > 관리자 템플릿';
-      if (permissionCode.includes('search') || permissionCode.includes('assistant')) return 'DMS > AI 검색 / 문서 보조';
+      if (permissionCode.includes('search') || permissionCode.includes('assistant')) return 'DMS > 통합 검색 / 문서 보조';
       return 'DMS > 설정';
     }
     if (owner === 'pms') return 'PMS > 프로젝트/코드/멤버 관리 (개발 진행 중)';

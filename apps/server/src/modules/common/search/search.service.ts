@@ -158,10 +158,11 @@ export class CommonSearchService {
       entityTypes,
     })));
     const capabilities = mergeCapabilities(collections);
-    const rankedResults = filterByEntityTypes(
+    const providerResults = filterByEntityTypes(
       collections.flatMap((collection) => collection.results),
       entityTypes,
-    ).sort((left, right) => {
+    );
+    const rankedResults = request.sourceApp ? providerResults : [...providerResults].sort((left, right) => {
       if (right.score !== left.score) return right.score - left.score;
       return (Date.parse(right.updatedAt ?? '') || 0) - (Date.parse(left.updatedAt ?? '') || 0);
     });

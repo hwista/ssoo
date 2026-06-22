@@ -28,6 +28,9 @@ node .github/scripts/verify-ui-primitives.js
 echo "[push-guard] running: node .github/scripts/verify-ui-consumption.js"
 node .github/scripts/verify-ui-consumption.js
 
+echo "[push-guard] running: pnpm run verify:ssoo-frame -- --skip-runtime"
+pnpm run verify:ssoo-frame -- --skip-runtime
+
 CHANGED="$(git diff --name-only --cached || true)"
 if [ -z "$CHANGED" ]; then
   CHANGED="$(git diff --name-only HEAD || true)"

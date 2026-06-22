@@ -1,6 +1,6 @@
 # Platform content page runtime handoff
 
-> Last updated: 2026-06-19
+> Last updated: 2026-06-22
 
 This document is the handoff point for continuing from platform shell/content-page standardization into operations, settings, and control-plane completion work.
 
@@ -13,7 +13,8 @@ The platform shell and internal page recipe normalization work is complete for t
 - PMS, CRM, SNS, and Admin local pages are promoted to `contentPage` through app-local domain adapters.
 - DMS home and stale route handoff pages are promoted to `contentPage` through `DMS PageTemplate` and `routeHandoffPage` adapters.
 - User profile/settings and global search routes remain shared content-page surfaces.
-- `verify:ssoo-frame` blocks reintroduction of legacy route kinds, raw low-level MDI mapper consumption, stale header/search contracts, and page-recipe escape hatches.
+- `verify:ssoo-frame` blocks reintroduction of legacy route kinds, app-wide direct low-level MDI content primitive consumption, stale header/search contracts, and page-recipe escape hatches.
+- `codex:preflight`, `codex:push-guard`, and PR validation include the `verify:ssoo-frame -- --skip-runtime` source contract gate.
 - `verify:ui-primitives` and `verify:ui-consumption` block app-local primitive recipes, raw control tags, pseudo-controls, and primitive recipe className duplication.
 
 The remaining app-local adapters are not exceptions to the route contract. They are compatibility wrappers that preserve existing screen appearance until each screen is individually refined into narrower page recipes.
@@ -46,6 +47,7 @@ Verification:
 - `.codex/hooks/preflight.sh`
 - `.codex/hooks/dms-guard.sh`
 - `.codex/hooks/push-guard.sh`
+- `.github/workflows/pr-validation.yml`
 
 Canonical docs:
 
@@ -141,4 +143,5 @@ If GitLab `development` is ahead, `codex:workspace-publish` stops before pushing
 
 | Date | Change |
 | --- | --- |
+| 2026-06-22 | Wired `verify:ssoo-frame -- --skip-runtime` into preflight, push guard, and PR validation; added app-wide low-level MDI content primitive bypass detection. |
 | 2026-06-19 | Added platform content-page runtime handoff, Docker/runtime verification evidence, and the operations/settings/control-plane resume path. |

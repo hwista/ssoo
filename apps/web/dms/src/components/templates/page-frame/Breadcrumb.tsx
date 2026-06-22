@@ -30,7 +30,6 @@ export interface BreadcrumbProps {
  */
 const SEGMENT_DISPLAY_NAMES: Record<string, string> = {
   'ai/chat': 'AI 대화',
-  'ai/search': 'AI 검색',
   settings: '설정',
   git: 'Git',
   storage: 'Storage',

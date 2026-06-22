@@ -61,11 +61,13 @@ export {
 } from './global-search';
 export type {
   SsooGlobalSearchBadge,
+  SsooGlobalSearchAttachContext,
   SsooGlobalSearchBlockedSourceReason,
   SsooGlobalSearchBlockedSourceSummary,
   SsooGlobalSearchEntityFacet,
   SsooGlobalSearchEntityType,
   SsooGlobalSearchHistoryItem,
+  SsooGlobalSearchOpenContext,
   SsooGlobalSearchPageProps,
   SsooGlobalSearchPermissionState,
   SsooGlobalSearchRanker,
@@ -75,6 +77,8 @@ export type {
   SsooGlobalSearchResultRenderState,
   SsooGlobalSearchSourceApp,
   SsooGlobalSearchSourceFacet,
+  SsooGlobalSearchSourceFilterContext,
+  SsooGlobalSearchSourceQueryContext,
   SsooGlobalSearchTarget,
 } from './global-search';
 
@@ -332,9 +336,11 @@ export {
 
 export {
   createSsooSharedSurfaceContentPageElement,
+  useSsooSharedSurfacePageHeaderActions,
 } from './shared-surface-content-page';
 export type {
   SsooSharedSurfaceContentPageOptions,
+  SsooSharedSurfacePageHeaderActions,
 } from './shared-surface-content-page';
 
 export {

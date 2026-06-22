@@ -73,7 +73,6 @@ const pageComponents = {
   home: lazyWithChunkRetry(() => import('@/components/pages/home/DashboardPage').then(m => ({ default: m.DashboardPage }))),
   markdown: lazyWithChunkRetry(() => import('@/components/pages/markdown/DocumentPage').then(m => ({ default: m.DocumentPage }))),
   aiChat: AiChatPage,
-  aiSearch: lazyWithChunkRetry(() => import('@/components/pages/ai/SearchPage').then(m => ({ default: m.AiSearchPage }))),
   globalSearch: lazyWithChunkRetry(() => import('@/components/pages/global-search/GlobalSearchPage').then(m => ({ default: m.DmsGlobalSearchPage }))),
   myAccessRequests: LegacyAccessRequestsRedirect,
   legacySettings: LegacySettingsRedirect,
@@ -263,14 +262,6 @@ export function ContentArea() {
       adapterName: DMS_CONTENT_PAGE_ADAPTER_NAME,
       match: (tab) => tab.path.startsWith('/ai/chat'),
       render: ({ tabId }) => renderDmsContentPageComponent('aiChat', tabId),
-    },
-    {
-      key: 'ai-search-page',
-      kind: 'contentPage',
-      template: 'domainAdapter',
-      adapterName: DMS_CONTENT_PAGE_ADAPTER_NAME,
-      match: (tab) => tab.path.startsWith('/ai/search'),
-      render: ({ tabId }) => renderDmsContentPageComponent('aiSearch', tabId),
     },
     {
       key: 'legacy-access-requests-handoff',

@@ -65,6 +65,7 @@ export function SsooPageBreadcrumb({
         minHeight: SSOO_PAGE_CHROME_METRICS.breadcrumbHeightPx,
       }}
       aria-label={ariaLabel}
+      data-ssoo-page-breadcrumb
     >
       {rootIconSlot ? (
         onRootClick ? (
@@ -85,10 +86,11 @@ export function SsooPageBreadcrumb({
         const isLast = index === items.length - 1;
         const label = isLast && lastItemLabel ? lastItemLabel : item.label;
         const key = item.id ?? item.path ?? index;
+        const shouldRenderSeparator = index > 0 || Boolean(rootIconSlot);
 
         return (
           <span key={key} className="contents">
-            {separator}
+            {shouldRenderSeparator ? separator : null}
             {isLast ? (
               <span
                 className="flex shrink-0 items-center gap-1 text-label-md text-ssoo-primary"

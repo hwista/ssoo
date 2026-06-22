@@ -40,10 +40,10 @@ DMS `ContentArea`는 `SsooRegisteredMdiContentArea`와 `defineSsooMdiPageRegistr
 
 현재 DMS route 분류:
 
-- `contentPage`: 문서 페이지, 설정 페이지, AI 대화, 기존 DMS AI 검색, 전역 검색, 공용 사용자 profile/settings surface, DMS 홈
+- `contentPage`: 문서 페이지, 설정 페이지, AI 대화, 전역 검색, 공용 사용자 profile/settings surface, DMS 홈
 - `contentPage` handoff: stale `/settings`, `/access-requests/me` redirect. 이 경로는 `routeHandoffPage` adapter를 통과하고, 저장된 탭이 소거되면 route 자체를 제거한다.
 
-DMS 홈은 `DMS PageTemplate` adapter boundary를 통과하는 `contentPage`다. 기존 DMS `/ai/search` 화면의 page body, toolbar, results panel, AI sidecar panel, search utility는 `@ssoo/web-shell`의 `SsooAiSearchPage` 계열로 물리 승격한다. 전역 검색 페이지는 이 공통 `SsooAiSearchPage`를 소비하는 `SsooGlobalSearchPage` adapter boundary를 통과하는 `contentPage`이며, 앱은 검색 API adapter와 결과 열기 action만 소유한다. 단, `/ssoo/search`는 DMS 문서 AI 검색 sidecar 콘텐츠를 임의로 표시하지 않고 전역 검색용 sidecar 기준이 생길 때까지 sidecar를 숨긴다.
+DMS 홈은 `DMS PageTemplate` adapter boundary를 통과하는 `contentPage`다. 검색 page body, toolbar, results panel, search utility, sidecar, 검색 기록/인기 검색어/AI 첨부 표면은 `@ssoo/web-shell`의 `SsooAiSearchPage` 계열이 소유한다. 전역 검색 페이지는 이 공통 `SsooAiSearchPage`를 소비하는 `SsooGlobalSearchPage` adapter boundary를 통과하는 `contentPage`이며, 앱은 검색 API adapter와 결과 열기 action만 소유한다. DMS 검색 진입점은 `/ssoo/search` 하나이고, source filter chip을 선택한 경우에만 검색 범위가 특정 앱으로 좁혀진다.
 
 ## 파일 배치 기준
 

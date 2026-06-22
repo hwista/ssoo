@@ -102,7 +102,6 @@ function getBreadcrumbItems(filePath: string): SsooPageBreadcrumbItem[] {
   const cleanPath = filePath.replace(/^\/+|\/+$/g, '');
   const displayNames: Record<string, string> = {
     'ai/chat': 'AI 대화',
-    'ai/search': 'AI 검색',
     'ssoo/search': '통합 검색',
     settings: '설정',
     git: 'Git',

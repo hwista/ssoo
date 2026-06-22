@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 
 const config = {
   skipRuntime: process.argv.includes('--skip-runtime'),
@@ -37,6 +37,7 @@ async function main() {
   await verifyCommonNotificationHeaderSource();
   await verifySharedSidebarSurfaceSource();
   await verifySharedTabbarAndContentSource();
+  await verifyAppMdiContentBypassGuard();
   await verifySharedPageFrameSource();
   await verifyVisibleBrandSurfaceSource();
   await verifySharedAppIdentitySource();
@@ -99,8 +100,8 @@ async function verifyCanonicalDocs() {
   assertIncludes(doc, 'header 내부 button/input/icon size, action spacing, 사용자 메뉴 폭 측정, notification trigger/badge shape를 직접 소유하지 않는다', 'frame doc records app headers do not own internal header shape');
   assertIncludes(doc, '`useCommonGlobalSearchAdapter`에 현재 앱, 탭 path, 앱별 결과 열기 action만 주입', 'frame doc records app-owned global search adapter boundary');
   assertIncludes(doc, 'API base URL, cross-app app URL map', 'frame doc records web-auth ownership of common search URL wiring');
-  assertIncludes(doc, 'common search service/module은 DMS `SearchService`, CRM demo fixture, PMS/SNS/Admin 도메인 DB 조회를 직접 import하지 않는다', 'frame doc records common search service/provider dependency boundary');
-  assertIncludes(doc, 'CRM demo fixture는 실제 CRM search provider가 정의되기 전까지 전역 검색에 노출하지 않는다', 'frame doc records CRM fixture exclusion from global search');
+  assertIncludes(doc, 'common search service/module은 DMS `SearchService`, CRM opportunity service, PMS/SNS/Admin 도메인 DB 조회를 직접 import하지 않는다', 'frame doc records common search service/provider dependency boundary');
+  assertIncludes(doc, 'CRM provider는 CRM `OpportunityService`를 재사용해 영업기회 결과를 등록한다', 'frame doc records CRM opportunity provider boundary');
   assertIncludes(doc, 'Admin provider는 `system.override` access foundation 권한이 있는 사용자에게만 결과를 반환한다', 'frame doc records Admin search permission boundary');
   assertIncludes(doc, '`keyword`, `metadata`, `semantic`, `vector`, `ragContext`', 'frame doc records common search capability split');
   assertIncludes(doc, 'Header 알림센터는 5개 앱 모두 `SsooHeaderNotificationCenter`/`SsooNotificationPanel`을 소비한다', 'frame doc records notification panel as shared header notification center work');
@@ -115,6 +116,7 @@ async function verifyCanonicalDocs() {
   assertIncludes(doc, '`SsooTabBarItem` public API는 `closeSlot` 같은 arbitrary action slot을 제공하지 않는다', 'frame doc records tab item has no arbitrary action slot escape hatch');
   assertIncludes(doc, '`SsooRegisteredMdiContentArea`, `SsooMdiContentArea`, `SsooMdiContentPane`, `SsooContentAreaSurface`', 'frame doc records shared registered content area primitives');
   assertIncludes(doc, '앱 ContentArea는 `SsooRegisteredMdiContentArea`와 `defineSsooMdiPageRegistry`만 root public API로 소비한다', 'frame doc records registered MDI content API as the app entrypoint');
+  assertIncludes(doc, '앱 TS/TSX 소스 전체에서 저수준 `SsooMdiContentArea`, `SsooMdiContentPane`, `SsooMdiTabbedContentArea` 직접 소비를 금지한다', 'frame doc records app-wide low-level MDI content bypass ban');
   assertIncludes(doc, '공용 user profile/settings surface도 `createSsooSharedSurfaceContentPageElement()`를 통해 `contentPage`로 렌더링한다', 'frame doc records shared user surfaces as contentPage routes');
   assertIncludes(doc, '`shellPage` route kind와 `ShellPageContainer`는 public page assembly contract가 아니다', 'frame doc records shellPage as removed from the public page assembly contract');
   assertIncludes(doc, 'SsooSidebarSurface', 'frame doc records shared sidebar surface as the app sidebar entrypoint');
@@ -439,6 +441,16 @@ async function verifySharedGlobalSearchSource() {
     assertExcludes(source, 'function getQueryFromPath', `${app} global search page does not duplicate query parsing`);
   }
 
+  const dmsGlobalSearchPage = await readText('apps/web/dms/src/components/pages/global-search/GlobalSearchPage.tsx');
+  assertIncludes(dmsGlobalSearchPage, 'useAiSearchInsightsQuery', 'DMS global search preserves the promoted AI search sidecar insights source');
+  assertIncludes(dmsGlobalSearchPage, 'buildHistoryItems', 'DMS global search keeps existing AI search history sidecar items');
+  assertIncludes(dmsGlobalSearchPage, 'getTopSearchKeywords', 'DMS global search keeps existing AI search popular keyword sidecar items');
+  assertIncludes(dmsGlobalSearchPage, 'onAttachSearchResultsToAssistant', 'DMS global search keeps existing AI assistant attach affordance');
+  assertIncludes(dmsGlobalSearchPage, 'history={historyItems}', 'DMS global search passes history into the shared search sidecar');
+  assertIncludes(dmsGlobalSearchPage, 'frequentSearches={frequentSearchKeywords}', 'DMS global search passes frequent searches into the shared search sidecar');
+  assertIncludes(dmsGlobalSearchPage, 'breadcrumbLastSegmentLabel="AI 검색"', 'DMS global search preserves the existing AI search page label while using the shared route');
+  assertExcludes(dmsGlobalSearchPage, "startsWith('/ai/search')", 'DMS global search does not normalize legacy AI search paths');
+
   const dmsStoresIndex = await readText('apps/web/dms/src/stores/index.ts');
   const dmsUserScopeGuard = await readText('apps/web/dms/scripts/validate-user-scope-contract.mjs');
   await assertMissing('apps/web/dms/src/stores/ai-search.store.ts', 'DMS legacy AI search history store is removed');
@@ -607,6 +619,8 @@ async function verifySharedPageFrameSource() {
     'SsooPageChromeStack',
     'SsooContentPageTemplate',
     'createSsooSharedSurfaceContentPageElement',
+    'useSsooSharedSurfacePageHeaderActions',
+    'SsooSharedSurfacePageHeaderActions',
     'SsooPageIndexRail',
     'SsooSectionedShell',
     'SsooPanelFrame',
@@ -627,7 +641,12 @@ async function verifySharedPageFrameSource() {
   assertIncludes(breadcrumb, 'SSOO_PAGE_CHROME_CLASSES.breadcrumb', 'shared page breadcrumb consumes the platform page chrome class contract');
   assertIncludes(breadcrumb, 'SSOO_PAGE_CHROME_METRICS.breadcrumbHeightPx', 'shared page breadcrumb consumes the platform page chrome metric contract');
   assertIncludes(breadcrumb, 'onItemClick?: (item: SsooPageBreadcrumbItem, index: number) => void', 'shared page breadcrumb keeps path action binding outside the primitive');
+  assertIncludes(breadcrumb, 'data-ssoo-page-breadcrumb', 'shared page breadcrumb marks the standard breadcrumb surface for browser verification');
+  assertIncludes(breadcrumb, 'const shouldRenderSeparator = index > 0 || Boolean(rootIconSlot);', 'shared page breadcrumb does not render a leading separator when no root icon exists');
   assertIncludes(header, 'iconSlots?: SsooPageHeaderIconSlots', 'shared page header receives icons through slots');
+  assertIncludes(header, 'title?: ReactNode;', 'shared page header owns standard page title rendering');
+  assertIncludes(header, 'data-ssoo-page-header', 'shared page header marks the standard page header surface for browser verification');
+  assertIncludes(header, '<h1 className="truncate text-title-card text-ssoo-primary">{title}</h1>', 'shared page header renders the standard page title');
   assertIncludes(header, 'extraActions?: SsooPageHeaderAction[]', 'shared page header owns common action button layout');
   assertIncludes(header, 'SSOO_PAGE_CHROME_CLASSES.header', 'shared page header consumes the platform page chrome class contract');
   assertIncludes(header, 'SSOO_PAGE_CHROME_METRICS.headerMinHeightPx', 'shared page header consumes the platform page chrome metric contract');
@@ -671,6 +690,11 @@ async function verifySharedPageFrameSource() {
   assertIncludes(sharedSurfaceContentPage, 'createSsooContentPageTemplateElement', 'shared surface content page helper returns the typed content page template element');
   assertIncludes(sharedSurfaceContentPage, 'SsooPageBreadcrumb', 'shared surface content page helper owns shared breadcrumb assembly');
   assertIncludes(sharedSurfaceContentPage, 'SsooPageHeader', 'shared surface content page helper owns shared page header assembly');
+  assertIncludes(sharedSurfaceContentPage, 'useSyncExternalStore', 'shared surface content page helper bridges child-owned actions into the standard header surface');
+  assertIncludes(sharedSurfaceContentPage, 'SsooSharedSurfacePageHeaderActionProvider', 'shared surface content page helper owns the page header action registration provider');
+  assertIncludes(sharedSurfaceContentPage, 'useSsooSharedSurfacePageHeaderActions', 'shared surface content page helper exports the only shared user-surface header action bridge');
+  assertIncludes(sharedSurfaceContentPage, "mode={actions.mode ?? 'viewer'}", 'shared surface content page helper keeps viewer mode as the default header action state');
+  assertIncludes(sharedSurfaceContentPage, 'title={title}', 'shared surface content page helper passes the canonical page title into the shared header');
   assertIncludes(sharedSurfaceContentPage, 'data-ssoo-shared-surface-content', 'shared surface content page helper owns the internal scroll/padding lane');
   assertIncludes(sharedSurfaceContentPage, "contentSurface: 'plain'", 'shared surface content page helper keeps the page tone visible instead of covering it with the default white main surface');
   assertExcludes(sharedSurfaceContentPage, 'mainContentLayout:', 'shared surface content page helper does not opt out of the standard constrained content width');
@@ -681,6 +705,11 @@ async function verifySharedPageFrameSource() {
   }
   assertExcludes(userSurface, '<h1', 'shared user profile/settings surface does not render page-level h1 inside the shared content page');
   assertExcludes(userSurface, '내 설정</h1>', 'shared user settings surface does not render a second page-level settings title inside the shared content page');
+  assertIncludes(userSurface, 'useSsooSharedSurfacePageHeaderActions(sharedHeaderActions)', 'shared user profile/settings surface registers page-level actions through the shared page header bridge');
+  assertIncludes(userSurface, 'onEdit: startProfileEditing', 'shared user profile page edit action is registered through the standard page header');
+  assertIncludes(userSurface, 'onCancel: cancelProfileEditing', 'shared user profile page cancel action is registered through the standard page header');
+  assertExcludes(userSurface, '프로필 편집', 'shared user profile page does not render a local profile edit page action inside the body');
+  assertExcludes(userSurface, 'onSave={saveProfile}', 'shared user profile/settings surface does not pass save as a local body page action');
   assertIncludes(userSurface, '프로필 기본 정보', 'shared user settings surface uses a section heading below the shared page title');
   assertIncludes(pageIndexRail, 'export function SsooPageIndexRail', 'shared page index rail owns sub-content index rendering');
   assertIncludes(pageIndexRail, 'ssoo-border-content-70', 'shared page index rail owns CSS-backed index header surface');
@@ -721,6 +750,37 @@ async function verifySharedPageFrameSource() {
       'hover:text-ssoo-primary/',
     ]) {
       assertExcludes(source, needle, `${label} does not use CSS-variable slash opacity utility ${needle}`);
+    }
+  }
+}
+
+async function verifyAppMdiContentBypassGuard() {
+  const forbiddenPrimitives = [
+    {
+      name: 'SsooMdiTabbedContentArea',
+      pattern: /\bSsooMdiTabbedContentArea(?:Props)?\b/,
+    },
+    {
+      name: 'SsooMdiContentArea',
+      pattern: /\bSsooMdiContentArea(?:Props)?\b/,
+    },
+    {
+      name: 'SsooMdiContentPane',
+      pattern: /\bSsooMdiContentPane(?:Props)?\b/,
+    },
+  ];
+
+  const files = await listSourceFiles('apps/web');
+
+  for (const file of files) {
+    const source = await readText(file);
+
+    for (const primitive of forbiddenPrimitives) {
+      if (primitive.pattern.test(source)) {
+        throw new Error(
+          `SSOO frame check failed: app source ${file} directly consumes low-level MDI content primitive ${primitive.name}`,
+        );
+      }
     }
   }
 }
@@ -1124,7 +1184,6 @@ async function verifyDmsSource() {
   const settingsPage = await readText('apps/web/dms/src/components/pages/settings/SettingsPage.tsx');
   const documentPage = await readText('apps/web/dms/src/components/pages/markdown/DocumentPage.tsx');
   const aiChatPage = await readText('apps/web/dms/src/components/pages/ai/ChatPage.tsx');
-  const aiSearchPage = await readText('apps/web/dms/src/components/pages/ai/SearchPage.tsx');
   const tabbar = await readText('apps/web/dms/src/components/layout/TabBar.tsx');
   const settingsNavigationStore = await readText('apps/web/dms/src/stores/settings-page-navigation.store.ts');
   const settingsConfig = await readText('apps/web/dms/src/components/pages/settings/_config/settingsPageConfig.ts');
@@ -1182,13 +1241,15 @@ async function verifyDmsSource() {
   assertIncludes(contentArea, "key: 'document-page'", 'DMS content classifies document tabs as content pages');
   assertIncludes(contentArea, "key: 'settings-page'", 'DMS content classifies settings tabs as content pages');
   assertIncludes(contentArea, "key: 'ai-chat-page'", 'DMS content classifies AI chat tabs as content pages');
-  assertIncludes(contentArea, "key: 'ai-search-page'", 'DMS content classifies existing DMS AI search tabs as content pages');
+  assertExcludes(contentArea, "key: 'ai-search-global-search-alias'", 'DMS content does not keep a DMS AI search alias route');
+  assertExcludes(contentArea, "/ai/search", 'DMS content does not route legacy AI search paths');
   assertIncludes(contentArea, 'adapterName: DMS_CONTENT_PAGE_ADAPTER_NAME', 'DMS contentPage routes identify the approved domain adapter');
   assertIncludes(contentArea, "renderDmsContentPageComponent('markdown', tabId)", 'DMS document contentPage route returns the typed content page adapter element');
   assertIncludes(contentArea, "renderDmsContentPageComponent('settings', tabId)", 'DMS settings contentPage route returns the typed content page adapter element');
   assertIncludes(contentArea, "renderDmsContentPageComponent('aiChat', tabId)", 'DMS AI chat contentPage route returns the typed content page adapter element');
-  assertIncludes(contentArea, "renderDmsContentPageComponent('aiSearch', tabId)", 'DMS AI search contentPage route returns the typed content page adapter element');
   assertIncludes(contentArea, "renderDmsContentPageComponent('home', tabId)", 'DMS home route returns the typed content page adapter element');
+  assertExcludes(contentArea, "renderDmsContentPageComponent('aiSearch', tabId)", 'DMS AI search alias does not render a local DMS AI search page');
+  assertExcludes(contentArea, 'aiSearch:', 'DMS page component map does not keep a local AI search page entry');
   assertIncludes(contentArea, 'adapterName: ROUTE_HANDOFF_CONTENT_PAGE_ADAPTER_NAME', 'DMS stale handoff routes identify the approved handoff adapter');
   assertIncludes(contentArea, 'function renderDmsGlobalSearchContentPageComponent', 'DMS global search route uses a dedicated shared global search content page adapter');
   assertIncludes(contentArea, "key: 'global-search-page'", 'DMS content classifies global search as a content page');
@@ -1202,8 +1263,11 @@ async function verifyDmsSource() {
   const webShellGlobalSearch = await readText('packages/web-shell/src/global-search.tsx');
   const webShellAiSearchPage = await readText('packages/web-shell/src/ai-search/AiSearchPage.tsx');
   const webShellAiSearchResultsPanel = await readText('packages/web-shell/src/ai-search/SearchResultsPanel.tsx');
-  const dmsAiSearchPage = await readText('apps/web/dms/src/components/pages/ai/SearchPage.tsx');
   const dmsAiChatPage = await readText('apps/web/dms/src/components/pages/ai/ChatPage.tsx');
+  await assertMissing(
+    'apps/web/dms/src/components/pages/ai/SearchPage.tsx',
+    'DMS AI search no longer keeps a local page adapter file; /ssoo/search is the single shared search route'
+  );
   assertIncludes(webShellGlobalSearch, '<SsooAiSearchPage', 'Global search consumes the promoted shared DMS AI search page');
   assertIncludes(webShellGlobalSearch, 'SsooSourceFilterBar', 'Global search injects source filter chips into the shared AI search result area');
   assertExcludes(webShellGlobalSearch, 'function SearchToolbar', 'Global search does not keep a duplicate toolbar implementation');
@@ -1214,12 +1278,6 @@ async function verifyDmsSource() {
   assertIncludes(webShellAiSearchPage, 'SsooAiSearchToolbar', 'Shared AI search page owns the DMS search toolbar');
   assertIncludes(webShellAiSearchPage, 'pageTone="ai"', 'Shared AI search page selects shared AI page tone');
   assertIncludes(webShellAiSearchResultsPanel, 'SsooAiSearchResultsPanel', 'Shared AI search results panel is promoted to web-shell');
-  assertIncludes(dmsAiSearchPage, 'SsooAiSearchPage', 'DMS AI search page is reduced to a shared page adapter');
-  assertExcludes(dmsAiSearchPage, "from './_components/AiPanel'", 'DMS AI search no longer imports a local AI panel copy');
-  assertExcludes(dmsAiSearchPage, "from './_components/SearchResultsPanel'", 'DMS AI search no longer imports a local results panel copy');
-  assertExcludes(dmsAiSearchPage, "from './searchPageUtils'", 'DMS AI search no longer imports local search page utilities');
-  assertExcludes(dmsAiSearchPage, 'SsooSectionedShell', 'DMS AI search adapter does not own the search shell layout');
-  assertExcludes(dmsAiSearchPage, 'pageTone="ai"', 'DMS AI search adapter does not own the shared AI page tone');
   assertIncludes(dmsAiChatPage, "import { AiPanel } from '@ssoo/web-shell';", 'DMS AI chat consumes the promoted shared AI panel');
 
   assertExcludes(contentArea, '<SsooMdiTabbedContentArea', 'DMS content does not directly render the low-level MDI content mapper');
@@ -1355,9 +1413,7 @@ async function verifyDmsSource() {
   assertExcludes(documentPage, 'contentMaxWidth={isCompareSurface ? null : undefined}', 'DMS document page does not use raw max-width opt-out');
   assertExcludes(documentPage, '<main className="h-full flex items-center justify-center bg-ssoo-content-bg/30">', 'DMS document page state screens use shared page state surface');
   assertExcludes(aiChatPage, 'PAGE_BACKGROUND_PRESETS', 'DMS AI chat page does not own page background presets');
-  assertExcludes(aiSearchPage, 'PAGE_BACKGROUND_PRESETS', 'DMS AI search page does not own page background presets');
   assertIncludes(aiChatPage, 'pageTone="ai"', 'DMS AI chat page selects shared AI page tone');
-  assertExcludes(aiSearchPage, 'pageTone="ai"', 'DMS AI search adapter does not own shared AI page tone');
   assertIncludes(pageBreadcrumb, 'SsooPageBreadcrumb', 'DMS page breadcrumb wraps the shared page breadcrumb primitive');
   assertIncludes(pageBreadcrumb, 'SEGMENT_DISPLAY_NAMES', 'DMS page breadcrumb keeps DMS path label mapping in the adapter');
   assertExcludes(pageBreadcrumb, '<nav', 'DMS page breadcrumb no longer owns the breadcrumb DOM shell');
@@ -1546,6 +1602,29 @@ async function verifyRuntime() {
       throw new Error(`${app} custom browser tab icon cache policy is not revalidation-safe (${customIconUrl})`);
     }
   }
+}
+
+const ignoredSourceDirectories = new Set(['node_modules', '.next', 'dist', 'build', 'coverage']);
+
+async function listSourceFiles(dir) {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const path = `${dir}/${entry.name}`;
+
+    if (entry.isDirectory()) {
+      if (ignoredSourceDirectories.has(entry.name)) continue;
+      files.push(...(await listSourceFiles(path)));
+      continue;
+    }
+
+    if (entry.isFile() && /\.(?:ts|tsx)$/.test(entry.name)) {
+      files.push(path);
+    }
+  }
+
+  return files;
 }
 
 async function readText(path) {

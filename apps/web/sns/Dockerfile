@@ -24,8 +24,8 @@ COPY . .
 
 RUN pnpm --filter @ssoo/types build && \
     pnpm --filter @ssoo/web-ui build && \
-    pnpm --filter @ssoo/web-auth build && \
     pnpm --filter @ssoo/web-shell build && \
+    pnpm --filter @ssoo/web-auth build && \
     pnpm --filter web-sns build
 
 FROM node:20 AS runner

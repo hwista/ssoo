@@ -230,6 +230,34 @@ check(
 );
 
 check(
+  'packages/web-auth/package.json',
+  'shared user profile/settings surface must depend on @ssoo/web-shell for the standard page header action bridge',
+  (content) => content.includes('"@ssoo/web-shell": "workspace:*"'),
+);
+
+check(
+  'packages/web-auth/src/user-surface.tsx',
+  'shared user profile/settings page-level actions must register with the shared page header action bridge',
+  (content) => content.includes('useSsooSharedSurfacePageHeaderActions(sharedHeaderActions)')
+    && content.includes("surface === 'personal-settings'")
+    && content.includes("mode: 'editor'")
+    && content.includes('onEdit: startProfileEditing')
+    && content.includes('onCancel: cancelProfileEditing')
+    && !content.includes('프로필 편집')
+    && !content.includes('onSave={saveProfile}'),
+);
+
+check(
+  'packages/web-shell/src/shared-surface-content-page.tsx',
+  'shared user-surface content page helper must pass canonical page title and registered actions to the standard shared page header',
+  (content) => content.includes('SsooSharedSurfacePageHeader')
+    && content.includes('useSsooSharedSurfacePageHeaderActions')
+    && content.includes("mode={actions.mode ?? 'viewer'}")
+    && content.includes('title={title}')
+    && content.includes('description={description}'),
+);
+
+check(
   'packages/web-auth/src/user-scope.ts',
   'shared auth user-scope lifecycle must own cross-app user transition detection and listener replay',
   (content) => content.includes('createAuthUserScopeLifecycle')
@@ -247,6 +275,18 @@ check(
     && content.includes('SHARED_AUTH_CHANGE_EVENT')
     && content.includes("window.addEventListener('storage'")
     && content.includes('syncFromStorage()'),
+);
+
+check(
+  'packages/web-auth/src/server-api-proxy.ts',
+  'session-backed SSE proxy must return retrying SSE frames instead of JSON auth/throttle errors on session restore failure',
+  (content) => {
+    const streamProxy = content.match(/const proxySessionBackedStreamResponse[\s\S]*?const responseHeaders = createSseResponseHeaders\(response\);/)?.[0] ?? '';
+    return streamProxy.includes("if ('errorResponse' in restoredSession)")
+      && streamProxy.includes('appendSetCookieHeader(responseHeaders, restoredSession.errorResponse)')
+      && streamProxy.includes('return createRetryingSseResponse(responseHeaders);')
+      && !streamProxy.includes('return restoredSession.errorResponse;');
+  },
 );
 
 for (const app of ['admin', 'crm', 'pms', 'dms', 'sns']) {
@@ -396,7 +436,9 @@ for (const path of [
   check(
     path,
     `${path} must not expose NEXT_PUBLIC_USER_SURFACE_APP_URL`,
-    (content) => !content.includes('NEXT_PUBLIC_USER_SURFACE_APP_URL'),
+    (content) => !content.includes('NEXT_PUBLIC_USER_SURFACE_APP_URL')
+      && content.indexOf('pnpm --filter @ssoo/web-shell build') <
+        content.indexOf('pnpm --filter @ssoo/web-auth build'),
   );
 }
 

@@ -1,6 +1,6 @@
 # 상태 관리 (State Management)
 
-> 최종 업데이트: 2026-06-19
+> 최종 업데이트: 2026-06-22
 
 DMS의 Zustand 기반 상태 관리 구조를 정의합니다.
 
@@ -28,7 +28,7 @@ src/stores/
 └── assistant-context.store.ts   # AI 첨부/템플릿/요약 컨텍스트
 ```
 
-`ai-search.store.ts` 기반 검색 기록 persist는 DMS 로컬 AI 검색 화면 전용 잔여물이었으므로 제거했다. 현재 DMS `/ai/search`와 플랫폼 `/ssoo/search`는 `@ssoo/web-shell` 검색 page recipe와 각 화면 adapter가 상태를 소유하며, DMS store index는 전역 검색 기록 store를 export하지 않는다.
+`ai-search.store.ts` 기반 검색 기록 persist는 DMS 로컬 AI 검색 화면 전용 잔여물이었으므로 제거했다. 현재 DMS 검색 진입점은 플랫폼 `/ssoo/search` 전역 검색 page recipe 하나만 소비하며, `/ai/search` 호환 alias를 유지하지 않는다. 기존 DMS AI 검색의 검색 기록/인기 검색어/내 자주 검색 표면은 공용 검색 page의 sidecar props로 주입한다. DMS store index는 전역 검색 기록 store를 export하지 않는다.
 
 ---
 
@@ -38,19 +38,15 @@ src/stores/
 
 #### `useLayoutStore`
 
-디바이스 타입 및 문서 타입 관리
+디바이스 타입 관리
 
 ```typescript
 interface LayoutStore {
   // State
   deviceType: DeviceType;       // 'desktop' | 'mobile'
-  documentType: DocumentType;   // 'wiki' | 'blog' | 'dev'
-  aiSearchType: AISearchType;   // 'rag' | 'summary'
   
   // Actions
   setDeviceType: (type: DeviceType) => void;
-  setDocumentType: (type: DocumentType) => void;
-  setAISearchType: (type: AISearchType) => void;
 }
 ```
 

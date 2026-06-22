@@ -18,6 +18,7 @@ export function SnsGlobalSearchPage({ path }: { path?: string }) {
   return (
     <SsooGlobalSearchPage
       initialQuery={globalSearch.initialQuery}
+      initialSourceApp={globalSearch.initialSourceApp}
       search={globalSearch.search}
       onOpenResult={globalSearch.openResult}
     />

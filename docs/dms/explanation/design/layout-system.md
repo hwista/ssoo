@@ -73,7 +73,7 @@ Settings mode
 
 - Header 높이, 배경, action spacing, 검색 input, 알림 trigger, 사용자 메뉴 폭은 `@ssoo/web-shell`의 `SsooAppHeader`/`SsooHeader` 계층이 소유합니다.
 - DMS `Header` adapter는 검색값, 통합 검색 탭 열기 action, 새 문서 action, 알림 데이터, 사용자 메뉴 slot만 주입합니다.
-- 기존 `/ai/search`는 DMS 문서 AI 검색 페이지로 유지하고, header 검색은 공용 `/ssoo/search` 통합 검색 탭으로 연결합니다.
+- DMS 검색은 공용 `/ssoo/search` 통합 검색 탭 하나로 연결합니다. 기존 DMS AI 검색의 sidecar, 검색 기록, 인기 검색어, AI 첨부 표면은 공용 검색 page에서 유지합니다.
 - 앱 로컬 `h-header-h`, `bg-ssoo-primary`, `px-*` 조합으로 header shell을 다시 만들지 않습니다.
 
 ### Settings Header
@@ -278,7 +278,7 @@ import { SSOO_CONTENT_PAGE_METRICS } from '@ssoo/web-shell';
 import { PageTemplate } from '@/components/templates';
 
 <PageTemplate
-  filePath="ai/search"
+  filePath="ssoo/search"
   mode="viewer"
   pageTone="ai"
   pageVariant="standard"
@@ -308,15 +308,13 @@ AI 페이지는 `PageTemplate` + `SectionedShell` 조합으로 헤더/툴바/본
 ```tsx
 import { PageTemplate } from '@/components/templates';
 import { SectionedShell } from '@/components/templates/page-frame';
-import { AiPanel } from '@/components/pages/ai/_components/AiPanel';
 
 <PageTemplate
-  filePath="ai/search"
+  filePath="ssoo/search"
   mode="viewer"
   pageTone="ai"
   breadcrumbRootIconVariant="ai"
   contentSurface="transparent"
-  panelContent={<AiPanel variant="search" />}
 >
   <SectionedShell
     variant="search_with_toolbar"
@@ -337,7 +335,7 @@ import { AiPanel } from '@/components/pages/ai/_components/AiPanel';
 | 문서 에디터 | 툴바 + 바디 + 푸터 | `editor_with_footer` |
 | 문서 뷰어 | 툴바 + 바디 | `viewer_with_toolbar` |
 | AI 대화 | 바디 + 푸터 | `chat_with_footer` |
-| AI 검색 | 툴바 + 바디 | `search_with_toolbar` |
+| 통합 검색 | 툴바 + 바디 | `search_with_toolbar` |
 
 ### 참고
 

@@ -260,7 +260,9 @@ export function createServerApiProxyHelpers({
         return createRetryingSseResponse(createSseResponseHeaders());
       }
       if ('errorResponse' in restoredSession) {
-        return restoredSession.errorResponse;
+        const responseHeaders = createSseResponseHeaders();
+        appendSetCookieHeader(responseHeaders, restoredSession.errorResponse);
+        return createRetryingSseResponse(responseHeaders);
       }
 
       sessionResponse = restoredSession.sessionResponse;

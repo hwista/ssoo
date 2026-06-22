@@ -1,9 +1,19 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-06-19
+> 최종 업데이트: 2026-06-22
 > 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
 
 ---
+
+## 2026-06-22
+
+### DMS AI 검색 잔여 화면 제거 / 전역 검색 전체 범위 고정
+
+- DMS `/ai/search` 내부 탭과 호환 alias는 제거하고, DMS 검색 진입점은 공용 `/ssoo/search` 전체 앱 통합 검색 하나로 고정합니다.
+- DMS에서 통합 검색을 열어도 기본 요청에는 `sourceApp`을 넣지 않으며, DMS 문서뿐 아니라 Admin/CRM/PMS/SNS provider 결과까지 함께 검색하는 전체 범위가 기본입니다.
+- CRM provider는 CRM `OpportunityService`를 재사용해 영업기회 결과를 공용 검색 registry에 등록합니다.
+- source filter chip을 선택한 경우에만 `sourceApp` query와 API 요청 filter를 적용합니다.
+- DMS 전용 `components/pages/ai/SearchPage.tsx`와 전용 query parser를 제거하고, 기존 DMS AI 검색의 sidecar, 검색 기록, 인기 검색어, 내 자주 검색, AI 첨부 동작은 공용 `SsooAiSearchPage`/`SsooGlobalSearchPage` 경로에서 유지합니다. DMS 문서 결과 표현에 필요한 `excerpt`, `summarySource`, `totalSnippetCount`, `readRequest`는 공용 `CommonSearchResult` 계약에서 보존하도록 정리했습니다.
 
 ## 2026-06-19
 
@@ -15,9 +25,9 @@
 
 ### 통합 검색 공용화 잔여물 정리
 
-- DMS `/ai/search`와 플랫폼 `/ssoo/search`가 `@ssoo/web-shell` 검색 page recipe를 공유하는 기준에 맞춰, DMS 로컬 `ai-search.store.ts` 검색 기록 persist 잔여물을 제거했습니다.
+- DMS 로컬 `ai-search.store.ts` 검색 기록 persist 잔여물을 제거했습니다.
 - DMS/SNS 전역 검색 페이지도 `@ssoo/web-auth`의 `useCommonGlobalSearchAdapter`를 소비하도록 정렬해 앱별 API 호출/query parsing/cross-app routing 중복을 제거했습니다.
-- 서버 공용 `/api/search`는 앱별 provider registry만 조합하는 경계로 고정하고, DMS `SearchService` bridge는 DMS provider에만 남기며 CRM demo fixture/PMS customer/SNS profile 검색은 통합 검색에서 제외했습니다.
+- 서버 공용 `/api/search`는 앱별 provider registry만 조합하는 경계로 고정하고, DMS `SearchService` bridge는 DMS provider에, CRM opportunity 검색은 CRM provider에만 남겨 common service가 앱 데이터를 직접 조회하지 않도록 했습니다.
 - `verify:ssoo-frame`이 DMS 검색 store 잔여물, common search service의 도메인 직접 의존, 앱별 전역 검색 adapter 중복 재유입을 검증하도록 보강했습니다.
 
 ### 헤더 통합 검색 중앙화 / RAG readiness 분리
@@ -31,9 +41,8 @@
 
 ### AI 검색 공용 모듈 승격 / 전역 검색 contentPage 승격
 
-- 기존 DMS `/ai/search` 화면의 page body, toolbar, results panel, AI sidecar panel, search utility를 `@ssoo/web-shell`의 `SsooAiSearchPage` 계열 공용 모듈로 물리 승격했습니다.
-- DMS `/ai/search`는 공통 `SsooAiSearchPage`에 DMS 검색 API, 권한, 문서 열기, AI 첨부 action, DMS 문서 card renderer만 주입하는 adapter로 축소했습니다.
-- `/ssoo/search`는 더 이상 제거 대상 `legacyException`이 아니라, `SsooGlobalSearchPage` adapter가 같은 `SsooAiSearchPage`를 소비하는 `contentPage`로 분류합니다. 전역 검색은 DMS 문서 AI 검색 sidecar 콘텐츠를 임의로 재사용하지 않고, 전역 검색 전용 sidecar가 정의되기 전까지 공용 `sidecarMode="hidden"` 경로를 사용합니다.
+- 기존 DMS AI 검색 화면의 page body, toolbar, results panel, search utility를 `@ssoo/web-shell`의 `SsooAiSearchPage` 계열 공용 모듈로 물리 승격했습니다.
+- `/ssoo/search`는 더 이상 제거 대상 `legacyException`이 아니라, `SsooGlobalSearchPage` adapter가 같은 `SsooAiSearchPage`를 소비하는 `contentPage`로 분류합니다. 기존 DMS AI 검색 sidecar와 검색 기록 표면은 공용 검색 page 경로에서 유지합니다.
 - 5개 앱은 검색 API 호출과 결과 열기 action만 주입하고, 결과 영역 상단의 `전체`/앱별 source filter chip, 결과 내 재검색 toolbar, blocked source summary, 기본 결과 card surface는 공용 recipe가 소유합니다.
 - DMS 문서 결과는 기존 DMS `SearchResultCard` renderer를 계속 사용해 문서 권한/권한 요청 상태 표현을 유지합니다.
 
@@ -47,7 +56,7 @@
 - `@ssoo/web-shell`에 `SsooRegisteredMdiContentArea`와 `defineSsooMdiPageRegistry` 기반 typed page route registry를 추가했습니다.
 - `contentPage.render`는 임의 `ReactNode`가 아니라 branded `SsooMdiContentPageElement`를 반환하도록 강화했습니다. DMS 문서/설정/AI page는 `DMS PageTemplate` adapterName과 `createSsooContentPageAdapterElement()`를 통해 승인된 page template adapter boundary를 통과합니다.
 - 5개 앱 ContentArea가 저수준 `SsooMdiTabbedContentArea`를 직접 소비하지 않고 registered registry 진입점을 소비하도록 전환했습니다.
-- DMS ContentArea는 문서/설정/AI 대화/기존 DMS AI 검색/전역 검색/사용자 surface/DMS 홈과 stale handoff를 모두 승인된 adapter boundary를 통과하는 `contentPage`로 분류합니다.
+- DMS ContentArea는 문서/설정/AI 대화/전역 검색/사용자 surface/DMS 홈과 stale handoff를 모두 승인된 adapter boundary를 통과하는 `contentPage`로 분류합니다.
 - 공용 사용자 profile/settings surface는 `createSsooSharedSurfaceContentPageElement()`를 통해 page chrome/content template을 통과하며, 앱 ContentArea는 `shellPage` route kind를 사용하지 않습니다. shared-surface helper는 contentPage 기본 constrained 폭을 유지하고 `contentSurface="plain"`으로 page tone을 노출하며, 유저 표면 내부 root도 별도 `max-w-*`/`mx-auto` 폭을 만들지 않도록 보정했습니다.
 - 전역 검색 페이지는 승격된 공통 `SsooAiSearchPage`를 `SsooGlobalSearchPage` adapter가 소비하는 `contentPage`로 정리했습니다.
 - `verify:ssoo-frame`이 5개 앱의 registered content area 소비, DMS route 분류, 저수준 MDI mapper 직접 소비 회귀를 검증하도록 보강했습니다.
@@ -70,7 +79,7 @@
 ### DMS header/sidebar 검색 공용화
 
 - DMS header 검색을 기존 AI 검색 직접 진입이 아니라 5개 앱 공용 `/ssoo/search` 통합 검색 탭으로 연결했습니다.
-- 기존 `/ai/search`는 문서 AI 검색 기능으로 유지하고, 플랫폼 통합 검색은 DMS 검색 화면 본체를 승격한 `@ssoo/web-shell`의 `SsooAiSearchPage`를 `SsooGlobalSearchPage` adapter가 소비하도록 연결했습니다. 공용 모듈은 입력/source filter chip/결과 내 재검색/blocked source summary/default card/renderer slot을 소유하고, DMS 문서 결과는 기존 DMS `SearchResultCard`를 renderer로 주입합니다.
+- 플랫폼 통합 검색은 DMS 검색 화면 본체를 승격한 `@ssoo/web-shell`의 `SsooAiSearchPage`를 `SsooGlobalSearchPage` adapter가 소비하도록 연결했습니다. 공용 모듈은 입력/source filter chip/결과 내 재검색/blocked source summary/default card/renderer slot을 소유하고, DMS 문서 결과는 기존 DMS `SearchResultCard`를 renderer로 주입합니다.
 - DMS workspace sidebar의 책갈피, 열린 탭, 파일 트리, publish 복구 목록은 `SsooSidebarSearchableTree`를 소비해 공용 “목록 내 검색..” 입력으로 같은 방식으로 필터링됩니다.
 - 설정 sidebar의 검색 입력도 공용 placeholder/clear/rail 표면을 사용하되, 결과는 기존 `searchSettingEntries()` 기반 section/field 검색으로 유지합니다. 검색 결과 section과 설정 메뉴 tree section의 row/status/empty 표현은 `@ssoo/web-shell`의 `createSsooSettingsSidebarSections`가 렌더링하고, DMS는 registry/access/action만 주입합니다.
 
@@ -1718,12 +1727,12 @@ src/app/
 | Store | 경로 | 설명 |
 |-------|------|------|
 | `tab-store` | `stores/tab-store.ts` | 탭 상태 관리 (persist) |
-| `layout-store` | `stores/layout-store.ts` | 레이아웃 상태 (문서 타입, AI 검색 타입) |
+| `layout-store` | `stores/layout-store.ts` | 레이아웃 상태 (현재 구현은 디바이스 타입만 유지) |
 
 **생성된 Type:**
 | Type | 경로 | 내용 |
 |------|------|------|
-| `layout.ts` | `types/layout.ts` | TabItem, DocumentType, AISearchType 등 |
+| `layout.ts` | `types/layout.ts` | TabItem, DocumentType 등 |
 
 #### ✅ Step 6: 페이지 연결
 

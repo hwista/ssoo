@@ -86,8 +86,9 @@ export function buildCommonSearchRequest(
   query: string,
   sourceApp?: CommonSearchSourceApp,
 ): CommonSearchRequest {
-  return {
-    query,
-    sourceApp,
-  };
+  const request: CommonSearchRequest = { query };
+  if (sourceApp) {
+    request.sourceApp = sourceApp;
+  }
+  return request;
 }

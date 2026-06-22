@@ -29,6 +29,7 @@ export function PmsGlobalSearchPage() {
   return (
     <SsooGlobalSearchPage
       initialQuery={globalSearch.initialQuery}
+      initialSourceApp={globalSearch.initialSourceApp}
       search={globalSearch.search}
       onOpenResult={globalSearch.openResult}
     />

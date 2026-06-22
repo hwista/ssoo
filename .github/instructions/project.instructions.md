@@ -75,6 +75,9 @@ apps/web/dms ──→ packages/types, packages/web-auth, packages/web-shell, pa
 - 정적 intrinsic 태그에 `role=button/tab/checkbox/...`, `onClick+tabIndex`, `onClick+onKeyDown`을 붙여 interactive primitive처럼 쓰는 pseudo-control은 금지합니다.
 - `@ssoo/web-ui` 원자 컴포넌트 사용처의 `className`에는 배치/간격 같은 문맥 override만 허용합니다. Button/Input/NativeSelect/SelectTrigger/Textarea/Checkbox의 색상, 높이, radius, border, typography, focus recipe를 다시 조합하면 `pnpm run verify:ui-consumption`에서 실패합니다.
 - 이 전역 소비 기준은 `pnpm run verify:ui-consumption`에서 실패 처리되며, `build`, `codex:preflight`, `codex:push-guard`에 묶입니다.
+- 내부 페이지 recipe는 `@ssoo/web-shell`의 `SsooRegisteredMdiContentArea`와 `defineSsooMdiPageRegistry`를 통해 `contentPage` 단일 route contract로 조립합니다.
+- 앱 TS/TSX 소스는 저수준 `SsooMdiContentArea`, `SsooMdiContentPane`, `SsooMdiTabbedContentArea`를 직접 소비하지 않습니다.
+- `legacyException`, `shellPage`, app-local page recipe clone, 저수준 MDI content primitive 우회는 `pnpm run verify:ssoo-frame`에서 실패 처리되며, `codex:preflight`, `codex:push-guard`, PR validation에 묶입니다.
 
 ---
 
@@ -190,6 +193,7 @@ modules/
 | 2026-06-18 | 원자 UI raw 태그 소비를 `apps/web`, `web-shell`, `web-auth` 전역에서 금지하는 `verify:ui-consumption` 추가 |
 | 2026-06-18 | 원자 UI inventory 중간 상태를 제거하고 모든 등록 원자를 `platform` 단일 상태로 정리 |
 | 2026-06-18 | 원자 UI inventory 정본과 `verify:ui-primitives` 빌드/preflight/push guard 강제 기준 추가 |
+| 2026-06-22 | 내부 페이지 `contentPage` route contract와 `verify:ssoo-frame` preflight/push/PR validation 강제 기준 추가 |
 | 2026-06-17 | DMS 확정 화면과 PMS DataGrid/요청 목록을 선별 UI 기준선으로 정의하고 `selected-web-ui-primitives` 검증 기준 추가 |
 | 2026-06-17 | `@ssoo/web-ui`를 공용 디자인 토큰/Tailwind preset/UI primitive 경계로 추가 |
 | 2026-06-17 | Admin/CRM과 `@ssoo/web-auth`/`@ssoo/web-shell` 공유 경계를 현재 모노레포 기준으로 보정 |

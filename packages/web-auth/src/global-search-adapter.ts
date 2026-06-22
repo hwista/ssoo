@@ -20,19 +20,39 @@ export interface UseCommonGlobalSearchAdapterOptions {
   currentPath?: string;
   appUrls?: SsooSearchAppUrls;
   searchPath?: string;
-  openCurrentAppResult: (result: CommonSearchResult) => void | Promise<void>;
+  openCurrentAppResult: (result: CommonSearchResult, context: CommonGlobalSearchOpenContext) => void | Promise<void>;
+}
+
+export interface CommonGlobalSearchOpenContext {
+  sourceQuery: string;
 }
 
 export interface CommonGlobalSearchPageAdapter {
   initialQuery: string;
+  initialSourceApp?: CommonSearchSourceApp;
   search: (request: CommonSearchRequest) => Promise<CommonSearchResponse>;
-  openResult: (result: CommonSearchResult) => void | Promise<void>;
+  openResult: (result: CommonSearchResult, context: CommonGlobalSearchOpenContext) => void | Promise<void>;
+}
+
+const COMMON_SEARCH_SOURCE_APPS = new Set<CommonSearchSourceApp>(['admin', 'crm', 'pms', 'dms', 'sns']);
+
+function normalizeCommonSearchSourceApp(value: string | null): CommonSearchSourceApp | undefined {
+  if (!value) return undefined;
+  return COMMON_SEARCH_SOURCE_APPS.has(value as CommonSearchSourceApp)
+    ? value as CommonSearchSourceApp
+    : undefined;
 }
 
 export function getCommonGlobalSearchQueryFromPath(path?: string): string {
   const queryString = path?.split('?')[1];
   if (!queryString) return '';
   return new URLSearchParams(queryString).get('q') ?? '';
+}
+
+export function getCommonGlobalSearchSourceAppFromPath(path?: string): CommonSearchSourceApp | undefined {
+  const queryString = path?.split('?')[1];
+  if (!queryString) return undefined;
+  return normalizeCommonSearchSourceApp(new URLSearchParams(queryString).get('sourceApp'));
 }
 
 export function useCommonGlobalSearchAdapter({
@@ -55,6 +75,10 @@ export function useCommonGlobalSearchAdapter({
     () => getCommonGlobalSearchQueryFromPath(currentPath),
     [currentPath],
   );
+  const initialSourceApp = useMemo(
+    () => getCommonGlobalSearchSourceAppFromPath(currentPath),
+    [currentPath],
+  );
 
   const search = useCallback(async (request: CommonSearchRequest): Promise<CommonSearchResponse> => {
     const response = await searchApi.search(request);
@@ -64,9 +88,9 @@ export function useCommonGlobalSearchAdapter({
     return response.data;
   }, [searchApi]);
 
-  const openResult = useCallback((result: CommonSearchResult) => {
+  const openResult = useCallback((result: CommonSearchResult, context: CommonGlobalSearchOpenContext) => {
     if (result.sourceApp === currentApp) {
-      return openCurrentAppResult(result);
+      return openCurrentAppResult(result, context);
     }
 
     const href = resolveCommonSearchResultHref(result, { appUrls });
@@ -78,6 +102,7 @@ export function useCommonGlobalSearchAdapter({
 
   return {
     initialQuery,
+    initialSourceApp,
     search,
     openResult,
   };

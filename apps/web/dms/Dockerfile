@@ -27,8 +27,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_SNS_APP_URL=${NEXT_PUBLIC_SNS_APP_URL}
 RUN pnpm --filter @ssoo/types build && \
     pnpm --filter @ssoo/web-ui build && \
-    pnpm --filter @ssoo/web-auth build && \
     pnpm --filter @ssoo/web-shell build && \
+    pnpm --filter @ssoo/web-auth build && \
     pnpm --filter web-dms build
 
 FROM node:20 AS runner

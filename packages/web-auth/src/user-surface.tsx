@@ -28,6 +28,10 @@ import {
   type SsooUserSurfaceChangedDetail,
 } from './user-surface-events';
 import type { SsooUserSurfaceTabKind } from './user-surface-routing';
+import {
+  useSsooSharedSurfacePageHeaderActions,
+  type SsooSharedSurfacePageHeaderActions,
+} from '@ssoo/web-shell';
 import { Button, Input, Textarea } from '@ssoo/web-ui';
 
 const DEFAULT_API_BASE_URL = 'http://localhost:4000/api';
@@ -527,6 +531,76 @@ export function SsooUserSurfacePage({
     }
   }, [api, refresh]);
 
+  const startProfileEditing = useCallback(() => {
+    if (!profile) {
+      return;
+    }
+
+    setForm(toProfileForm(profile));
+    setIsEditing(true);
+  }, [profile]);
+
+  const cancelProfileEditing = useCallback(() => {
+    if (!profile) {
+      return;
+    }
+
+    setForm(toProfileForm(profile));
+    setIsEditing(false);
+  }, [profile]);
+
+  const headerIconSlots = useMemo(() => ({
+    edit: <Pencil className="h-4 w-4" />,
+    save: <Save className="h-4 w-4" />,
+    cancel: <X className="h-4 w-4" />,
+    loading: <Loader2 className="h-4 w-4 animate-spin" />,
+  }), []);
+
+  const sharedHeaderActions = useMemo<SsooSharedSurfacePageHeaderActions>(() => {
+    if (surface === 'personal-settings') {
+      return {
+        mode: 'editor',
+        onSave: form ? saveProfile : undefined,
+        saving: isSaving,
+        saveDisabled: !form,
+        iconSlots: headerIconSlots,
+      };
+    }
+
+    if (!profile?.isOwnProfile) {
+      return {};
+    }
+
+    if (isEditing) {
+      return {
+        mode: 'editor',
+        onSave: form ? saveProfile : undefined,
+        onCancel: cancelProfileEditing,
+        saving: isMutating || isSaving,
+        saveDisabled: !form,
+        iconSlots: headerIconSlots,
+      };
+    }
+
+    return {
+      mode: 'viewer',
+      onEdit: startProfileEditing,
+      iconSlots: headerIconSlots,
+    };
+  }, [
+    cancelProfileEditing,
+    form,
+    headerIconSlots,
+    isEditing,
+    isMutating,
+    isSaving,
+    profile?.isOwnProfile,
+    saveProfile,
+    startProfileEditing,
+    surface,
+  ]);
+  useSsooSharedSurfacePageHeaderActions(sharedHeaderActions);
+
   if (isLoading && !profile) {
     return (
       <div className="flex min-h-[360px] items-center justify-center rounded-lg border border-ssoo-content-border bg-white text-body-sm text-muted-foreground">
@@ -557,9 +631,7 @@ export function SsooUserSurfacePage({
       <UserSettingsSurface
         form={form}
         error={error}
-        isSaving={isSaving}
         onChange={setForm}
-        onSave={saveProfile}
       />
     );
   }
@@ -574,16 +646,7 @@ export function SsooUserSurfacePage({
       error={error}
       activePanel={activePanel}
       onPanelChange={setActivePanel}
-      onEdit={() => {
-        setForm(toProfileForm(profile));
-        setIsEditing(true);
-      }}
-      onCancelEdit={() => {
-        setForm(toProfileForm(profile));
-        setIsEditing(false);
-      }}
       onChange={setForm}
-      onSave={saveProfile}
       onToggleFollow={toggleFollow}
       onToggleReaction={toggleReaction}
       onToggleBookmark={toggleBookmark}
@@ -595,28 +658,16 @@ export function SsooUserSurfacePage({
 function UserSettingsSurface({
   form,
   error,
-  isSaving,
   onChange,
-  onSave,
 }: {
   form: ProfileFormState;
   error: string | null;
-  isSaving: boolean;
   onChange: (next: ProfileFormState) => void;
-  onSave: () => void;
 }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center">
         <h2 className="text-heading-sm font-semibold text-ssoo-content-strong">프로필 기본 정보</h2>
-        <Button
-          type="button"
-          disabled={isSaving}
-          onClick={onSave}
-        >
-          {isSaving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
-          저장
-        </Button>
       </div>
 
       {error ? <SurfaceError message={error} /> : null}
@@ -653,10 +704,7 @@ function UserProfileSurfaceView({
   error,
   activePanel,
   onPanelChange,
-  onEdit,
-  onCancelEdit,
   onChange,
-  onSave,
   onToggleFollow,
   onToggleReaction,
   onToggleBookmark,
@@ -670,10 +718,7 @@ function UserProfileSurfaceView({
   error: string | null;
   activePanel: 'posts' | 'about';
   onPanelChange: (panel: 'posts' | 'about') => void;
-  onEdit: () => void;
-  onCancelEdit: () => void;
   onChange: (next: ProfileFormState) => void;
-  onSave: () => void;
   onToggleFollow: () => void;
   onToggleReaction: (item: FeedItem) => void;
   onToggleBookmark: (item: FeedItem) => void;
@@ -721,26 +766,8 @@ function UserProfileSurfaceView({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {profile.isOwnProfile && !isEditing ? (
-                <SurfaceButton variant="outline" onClick={onEdit}>
-                  <Pencil className="mr-1.5 h-4 w-4" />
-                  프로필 편집
-                </SurfaceButton>
-              ) : null}
-              {profile.isOwnProfile && isEditing ? (
-                <>
-                  <SurfaceButton onClick={onSave} disabled={isMutating}>
-                    <Save className="mr-1.5 h-4 w-4" />
-                    저장
-                  </SurfaceButton>
-                  <SurfaceButton variant="outline" onClick={onCancelEdit}>
-                    <X className="mr-1.5 h-4 w-4" />
-                    취소
-                  </SurfaceButton>
-                </>
-              ) : null}
-              {!profile.isOwnProfile ? (
+            {!profile.isOwnProfile ? (
+              <div className="flex flex-wrap gap-2">
                 <SurfaceButton
                   variant={profile.followStats.isFollowing ? 'outline' : 'default'}
                   disabled={isMutating}
@@ -749,8 +776,8 @@ function UserProfileSurfaceView({
                   {profile.followStats.isFollowing ? <UserMinus className="mr-1.5 h-4 w-4" /> : <UserPlus className="mr-1.5 h-4 w-4" />}
                   {profile.followStats.isFollowing ? '팔로우 해제' : '팔로우'}
                 </SurfaceButton>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
 
           {isEditing ? (

@@ -6,6 +6,7 @@ import { useOpenTabWithConfirm } from '@/hooks';
 import { useAccessStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { Button } from '@ssoo/web-ui';
+import { GLOBAL_SEARCH_PATH } from '@/lib/constants/routes';
 
 /**
  * DMS 홈 대시보드 페이지
@@ -23,9 +24,9 @@ export function DashboardPage() {
       return;
     }
     await openTabWithConfirm({
-      id: 'ai-search',
+      id: 'global-search',
       title: 'AI 검색',
-      path: '/ai/search',
+      path: GLOBAL_SEARCH_PATH,
       icon: 'Bot',
       closable: true,
       activate: true,
@@ -85,7 +86,7 @@ export function DashboardPage() {
               <h3 className="text-label-md text-ssoo-primary">AI 검색</h3>
             </div>
             <p className="text-body-sm text-ssoo-primary/70">
-              {canUseSearch ? 'AI로 문서를 검색합니다' : 'AI 검색 권한이 필요합니다'}
+              {canUseSearch ? 'AI로 전역 결과를 검색합니다' : 'AI 검색 권한이 필요합니다'}
             </p>
           </Button>
 

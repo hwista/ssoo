@@ -7,6 +7,7 @@ import type {
   CommonSearchProviderResult,
 } from '../../common/search/search-provider.js';
 import { shouldSkipEntityTypes } from '../../common/search/search-provider.js';
+import { AccessService } from '../access/access.service.js';
 import { SearchService } from './search.service.js';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class DmsCommonSearchProvider implements CommonSearchProvider, OnModuleIn
 
   constructor(
     private readonly searchService: SearchService,
+    private readonly accessService: AccessService,
     private readonly registry: CommonSearchRegistryService,
   ) {}
 
@@ -27,6 +29,8 @@ export class DmsCommonSearchProvider implements CommonSearchProvider, OnModuleIn
     if (query.length < 2 || shouldSkipEntityTypes(entityTypes, ['document'])) {
       return { results: [] };
     }
+
+    await this.accessService.assertFeatures(currentUser, ['canUseSearch']);
 
     const response = await this.searchService.search({
       query,
@@ -48,8 +52,11 @@ export class DmsCommonSearchProvider implements CommonSearchProvider, OnModuleIn
           sourceApp: 'dms',
           entityType: 'document',
           title: document.title,
+          excerpt: document.excerpt,
           summary: document.summary ?? document.excerpt,
+          summarySource: document.summarySource,
           snippets: document.snippets ?? [document.excerpt],
+          totalSnippetCount: document.totalSnippetCount,
           score: document.score,
           ranker: 'hybrid',
           matchReason: document.summarySource === 'ai' ? 'DMS 검색 · AI 요약' : 'DMS 검색',
@@ -80,6 +87,7 @@ export class DmsCommonSearchProvider implements CommonSearchProvider, OnModuleIn
             path: document.path,
             visibilityScope: document.visibilityScope ?? 'legacy',
           },
+          readRequest: document.readRequest,
         };
       }),
       blockedSources: response.blockedSources,

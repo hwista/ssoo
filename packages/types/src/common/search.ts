@@ -53,8 +53,11 @@ export interface CommonSearchResult {
   sourceApp: CommonSearchSourceApp;
   entityType: CommonSearchEntityType;
   title: string;
+  excerpt?: string;
   summary?: string;
+  summarySource?: 'ai';
   snippets?: string[];
+  totalSnippetCount?: number;
   score: number;
   ranker: CommonSearchRanker;
   matchReason?: string;
@@ -64,6 +67,7 @@ export interface CommonSearchResult {
   updatedAt?: string;
   ownerLabel?: string;
   metadata?: Record<string, string>;
+  readRequest?: unknown;
 }
 
 export interface CommonSearchSourceFacet {

@@ -32,6 +32,7 @@ export interface SsooPageHeaderIconSlots {
 
 export interface SsooPageHeaderProps {
   mode: SsooPageHeaderMode;
+  title?: ReactNode;
   description?: string;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -81,6 +82,7 @@ function IconText({
 
 export function SsooPageHeader({
   mode,
+  title,
   description,
   onEdit,
   onDelete,
@@ -122,10 +124,20 @@ export function SsooPageHeader({
         className
       )}
       style={{ minHeight: SSOO_PAGE_CHROME_METRICS.headerMinHeightPx }}
+      data-ssoo-page-header
     >
-      <div className="flex items-center gap-2">
-        {description ? (
-          <span className="text-[0.8125rem] ssoo-text-primary-70">{description}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {title || description ? (
+          <div className="min-w-0">
+            {title ? (
+              <h1 className="truncate text-title-card text-ssoo-primary">{title}</h1>
+            ) : null}
+            {description ? (
+              <p className={cn(title ? 'mt-0.5 truncate text-body-sm' : 'text-[0.8125rem]', 'ssoo-text-primary-70')}>
+                {description}
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         {mode === 'viewer' && onEdit ? (
@@ -157,7 +169,7 @@ export function SsooPageHeader({
         {extraActionsPosition === 'left' ? extraActions?.map(renderActionButton) : null}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         {mode === 'viewer' ? (
           <>
             {viewerRightSlot}
