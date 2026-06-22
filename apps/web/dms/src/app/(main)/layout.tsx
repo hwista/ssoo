@@ -12,6 +12,7 @@ import { useLayoutViewportSync } from '@/hooks';
 import { useDmsSocket, type DmsFileChangedEvent } from '@/hooks/useDmsSocket';
 import { LOGIN_PATH } from '@/lib/constants/routes';
 import { commentsApi } from '@/lib/api/comments';
+import { shouldSkipProtectedAppLifecycleCheck } from '@/lib/protectedAppLifecycleCheck';
 import { toast } from '@/lib/toast';
 import {
   DMS_DOCUMENT_COMMENT_CHANGED_DOMAIN_EVENT_TYPE,
@@ -323,6 +324,7 @@ export default function MainLayout({
     hydrateAccess,
     resetAccess,
     onUnauthenticated: redirectToLogin,
+    shouldSkipLifecycleCheck: shouldSkipProtectedAppLifecycleCheck,
   });
 
   // WebSocket 실시간 동기화

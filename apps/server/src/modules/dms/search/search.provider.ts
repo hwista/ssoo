@@ -10,6 +10,7 @@ import {
 
 const AZURE_OPENAI_SCOPE = 'https://cognitiveservices.azure.com/.default';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+const DEFAULT_OPENAI_API_VERSION = '2024-10-21';
 
 let cachedToken: AccessToken | null = null;
 let pendingTokenRequest: Promise<string | null> | null = null;
@@ -30,9 +31,9 @@ function getAzureResourceName(): string {
   }
 }
 
-function getApiVersion(): string | undefined {
+function getApiVersion(): string {
   const version = process.env.OPENAI_API_VERSION?.trim();
-  return version ? version : undefined;
+  return version || DEFAULT_OPENAI_API_VERSION;
 }
 
 function getEmbeddingDeployment(): string | null {

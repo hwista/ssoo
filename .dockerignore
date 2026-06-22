@@ -37,6 +37,8 @@ apps/web/dms/dms.personal.config.json
 
 # Development tooling
 .hermes/
+.tmp-bin
+**/.tmp-bin
 
 # Logs
 npm-debug.log*

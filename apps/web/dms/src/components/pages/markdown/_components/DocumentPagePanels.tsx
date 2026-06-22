@@ -4,6 +4,7 @@ import { AssistantComposer } from '@/components/common/assistant/Composer';
 import { Editor } from './editor';
 import { Viewer } from '@/components/common/viewer';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
+import { isSummaryFileExtracting } from '@/lib/summaryFileStatus';
 import { Lock } from 'lucide-react';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TocItem } from '@/components/templates/page-frame';
@@ -192,6 +193,11 @@ export function InlineComposerPanel({
     await onRemoveTemplateReference?.(path);
   };
 
+  const hasExtractingSummaryFiles = inlineSummaryFiles.some((file) => {
+    if (deletedFileIds?.has(file.id)) return false;
+    return isSummaryFileExtracting(file);
+  });
+
   return (
     <AssistantComposer
       inputDraft={inlineInstruction}
@@ -253,6 +259,8 @@ export function InlineComposerPanel({
       hasFailedRestore={hasFailedRestore}
       isRetryingRestore={isRetryingRestore}
       onRetryRestore={onRetryRestore}
+      submitDisabled={hasExtractingSummaryFiles}
+      submitDisabledReason={hasExtractingSummaryFiles ? '선택한 파일의 본문을 분석하는 중입니다.' : undefined}
     />
   );
 }

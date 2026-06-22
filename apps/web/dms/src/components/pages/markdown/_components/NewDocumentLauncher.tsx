@@ -4,9 +4,8 @@ import { useRef, useCallback, useState, useEffect, type ChangeEvent } from 'reac
 import { Bot, FileText, FileCode, X, Loader2 } from 'lucide-react';
 import { LoadingState } from '@/components/common/StateDisplay';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
-import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
-import { toast } from '@/lib/toast';
-import { collectSummaryFileIssues } from '@/lib/summaryFileStatus';
+import { extractSummaryFile } from '@/components/common/assistant/reference/summaryFileExtraction';
+import { armProtectedAppLifecycleCheckSkip } from '@/lib/protectedAppLifecycleCheck';
 
 interface LauncherAction {
   id: string;
@@ -45,6 +44,7 @@ export function NewDocumentLauncher({
       return;
     }
     setIsPreparing(true);
+    armProtectedAppLifecycleCheckSkip();
     fileInputRef.current?.click();
   }, [canUseAssistant, canWriteDocuments]);
 
@@ -64,53 +64,8 @@ export function NewDocumentLauncher({
 
     setIsExtracting(true);
     const mapped: InlineSummaryFileItem[] = await Promise.all(
-      files.map(async (file) => {
-        let textContent = '';
-        let images: InlineSummaryFileItem['images'];
-        let warningReason: string | undefined;
-        let unsupportedReason: string | undefined;
-        let protectedMarkerDetected: boolean | undefined;
-        try {
-          const formData = new FormData();
-          formData.append('file', file);
-          const res = await fetchWithSharedAuth('/api/file/extract-text', {
-            method: 'POST',
-            body: formData,
-          });
-          const data = await res.json().catch(() => null);
-          if (res.ok) {
-            textContent = typeof data?.textContent === 'string' ? data.textContent : '';
-            images = Array.isArray(data?.images) ? data.images : undefined;
-            warningReason = typeof data?.warningReason === 'string' ? data.warningReason : undefined;
-            unsupportedReason = typeof data?.unsupportedReason === 'string' ? data.unsupportedReason : undefined;
-            protectedMarkerDetected = typeof data?.protectedMarkerDetected === 'boolean'
-              ? data.protectedMarkerDetected
-              : undefined;
-          } else {
-            unsupportedReason = 'extraction-error';
-          }
-        } catch {
-          unsupportedReason = 'extraction-error';
-        }
-        return {
-          id: `${file.name}-${file.lastModified}-${file.size}`,
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          textContent,
-          images,
-          warningReason,
-          unsupportedReason,
-          protectedMarkerDetected,
-          rawFile: file,
-        };
-      })
+      files.map((file) => extractSummaryFile(file))
     );
-
-    const issues = collectSummaryFileIssues(mapped);
-    if (issues.length > 0) {
-      toast.warning(issues.join(' '));
-    }
 
     onSelectAiSummary(mapped);
     e.target.value = '';
@@ -193,6 +148,7 @@ export function NewDocumentLauncher({
         multiple
         accept=".md,.txt,.json,.csv,.pdf,.docx,.pptx,.xlsx"
         className="hidden"
+        onClick={armProtectedAppLifecycleCheckSkip}
         onChange={handleFilesSelected}
       />
     </div>

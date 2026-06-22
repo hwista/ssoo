@@ -2,7 +2,11 @@
 
 import { AlertTriangle, Check, FileUp, Loader2, Paperclip, RefreshCw, Shapes, Undo2, X } from 'lucide-react';
 import { useAssistantContextStore } from '@/stores';
-import { getSummaryFileIssueMessage } from '@/lib/summaryFileStatus';
+import {
+  getSummaryFileExtractionState,
+  getSummaryFileIssueMessage,
+  getSummaryFileStatusLabel,
+} from '@/lib/summaryFileStatus';
 import type { TemplateItem } from '@/types/template';
 import type { InlineSummaryFileItem } from './Picker';
 
@@ -196,12 +200,17 @@ export function AssistantReferenceChips({
           const isUsed = usedSummaryFileIds?.has(file.id) ?? false;
           const isDeleted = deletedFileIds?.has(file.id) ?? false;
           const fileIssue = getSummaryFileIssueMessage(file);
+          const extractionState = getSummaryFileExtractionState(file);
+          const statusLabel = getSummaryFileStatusLabel(file);
+          const isExtracting = extractionState === 'extracting';
           return (
             <span
               key={file.id}
               className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-caption ${
                 isDeleted
                   ? 'border-destructive/30 bg-destructive/5 text-destructive/60 line-through'
+                  : isExtracting
+                    ? 'border-sky-200 bg-sky-50 text-sky-800'
                   : fileIssue
                     ? 'border-amber-200 bg-amber-50 text-amber-800'
                   : isUsed
@@ -210,10 +219,27 @@ export function AssistantReferenceChips({
               }`}
               title={fileIssue ? `${file.name} - ${fileIssue}` : file.name}
             >
-              <FileUp className="h-3 w-3" />
+              {isExtracting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <FileUp className="h-3 w-3" />
+              )}
               <span className="max-w-[180px] truncate">파일: {file.name}</span>
-              {!isDeleted && fileIssue && <AlertTriangle className="h-3 w-3 text-amber-600" />}
-              {!isDeleted && isUsed && <Check className="h-3 w-3 text-ssoo-primary" />}
+              {!isDeleted && statusLabel && (
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                    isExtracting
+                      ? 'bg-sky-100 text-sky-700'
+                    : fileIssue
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-ssoo-content-bg text-ssoo-primary/70'
+                  }`}
+                >
+                  {statusLabel}
+                </span>
+              )}
+              {!isDeleted && !isExtracting && fileIssue && <AlertTriangle className="h-3 w-3 text-amber-600" />}
+              {!isDeleted && !fileIssue && !isExtracting && isUsed && <Check className="h-3 w-3 text-ssoo-primary" />}
               {isDeleted && onInlineRestoreSummaryFile ? (
                 <button
                   type="button"

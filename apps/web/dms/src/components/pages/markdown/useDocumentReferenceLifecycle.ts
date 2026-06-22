@@ -233,6 +233,16 @@ export function useDocumentReferenceLifecycle(
   const handleRetryRestoreFiles = useCallback(async () => {
     if (failedRestoreFiles.length === 0) return;
     setIsRetryingRestore(true);
+    const retryNames = new Set(failedRestoreFiles.map((file) => file.name));
+    setInlineSummaryFiles((prev) =>
+      prev.map((item) => retryNames.has(item.name)
+        ? {
+            ...item,
+            extractionState: 'extracting',
+            unsupportedReason: undefined,
+          }
+        : item),
+    );
     const stillFailed: FailedRestoreFile[] = [];
     const fetched: Array<{ name: string; textContent: string }> = [];
 
@@ -268,8 +278,28 @@ export function useDocumentReferenceLifecycle(
       setInlineSummaryFiles((prev) =>
         prev.map((item) => {
           const match = fetched.find((c) => c.name === item.name);
-          return match ? { ...item, textContent: match.textContent } : item;
+          return match
+            ? {
+                ...item,
+                textContent: match.textContent,
+                unsupportedReason: undefined,
+                extractionState: 'ready',
+              }
+            : item;
         }),
+      );
+    }
+
+    if (stillFailed.length > 0) {
+      const failedNames = new Set(stillFailed.map((file) => file.name));
+      setInlineSummaryFiles((prev) =>
+        prev.map((item) => failedNames.has(item.name)
+          ? {
+              ...item,
+              extractionState: 'failed',
+              unsupportedReason: item.unsupportedReason ?? 'extraction-error',
+            }
+          : item),
       );
     }
 

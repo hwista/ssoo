@@ -219,6 +219,8 @@ export function useDocumentPageComposeActions({
       composeSummaryFiles,
       warnings: preComposeWarnings,
       resolvedRefPaths,
+      hasSelectedSummaryFiles,
+      hasExtractingSummaryFiles,
     } = await buildComposeContextFiles({
       inlineSummaryFiles,
       templateReferenceDocuments,
@@ -229,7 +231,14 @@ export function useDocumentPageComposeActions({
     const fileIssueWarnings = collectSummaryFileIssues(composeSummaryFiles);
     const usableSummaryFiles = filterUsableSummaryFiles(composeSummaryFiles);
 
-    if (composeSummaryFiles.length > 0 && usableSummaryFiles.length === 0) {
+    if (hasExtractingSummaryFiles) {
+      const message = '선택한 파일의 본문을 확인하는 중입니다. 분석이 끝난 뒤 다시 적용해주세요.';
+      setInlineRelevanceWarnings([...preComposeWarnings, ...fileIssueWarnings, message]);
+      toast.warning(message);
+      return;
+    }
+
+    if (hasSelectedSummaryFiles && usableSummaryFiles.length === 0) {
       const warnings = [...preComposeWarnings, ...fileIssueWarnings];
       const message = warnings.join(' ') || '첨부 파일에서 요약할 수 있는 본문을 추출하지 못했습니다.';
       setInlineRelevanceWarnings(warnings.length > 0 ? warnings : [message]);
@@ -248,6 +257,7 @@ export function useDocumentPageComposeActions({
     let suggestedPath = '';
     let relevanceWarnings: string[] = [];
     let generatedText = '';
+    let streamErrorMessage = '';
 
     try {
       const summaryFilesPayload = mapSummaryFiles(usableSummaryFiles);
@@ -286,14 +296,28 @@ export function useDocumentPageComposeActions({
               if (!requestLifecycle.isRequestActive(token)) return;
               generatedText += delta;
             },
+            onError: (error) => {
+              streamErrorMessage = error.message;
+            },
           },
           { signal },
         );
 
-      if (!completed || !requestLifecycle.isRequestActive(token)) return;
+      if (!completed || !requestLifecycle.isRequestActive(token)) {
+        if (signal.aborted || !requestLifecycle.isRequestActive(token)) return;
+        const message = streamErrorMessage || 'AI 응답이 중간에 끊어졌습니다. 잠시 후 다시 시도해주세요.';
+        setInlineRelevanceWarnings([...preComposeWarnings, ...fileIssueWarnings, message]);
+        toast.error(message);
+        return;
+      }
 
       const generated = generatedText.trim();
-      if (!generated && applyMode !== 'replace-document') return;
+      if (!generated) {
+        const message = 'AI가 적용할 내용을 생성하지 못했습니다.';
+        setInlineRelevanceWarnings([...preComposeWarnings, ...fileIssueWarnings, message]);
+        toast.error(message);
+        return;
+      }
 
       if (!requestLifecycle.isRequestActive(token)) return;
       const finalContent = buildComposedDocument({
@@ -410,7 +434,7 @@ export function useDocumentPageComposeActions({
       const response = await docAssistApi.recommendPath({
         instruction,
         activeDocPath: createPath,
-        summaryFiles: mapSummaryFiles(inlineSummaryFiles),
+        summaryFiles: mapSummaryFiles(filterUsableSummaryFiles(inlineSummaryFiles)),
       });
       if (!response.success || !response.data) return;
       setCreatePath(response.data.suggestedPath || createPath);
@@ -455,7 +479,6 @@ export function useDocumentPageComposeActions({
     requestLifecycle.abortActiveRequest();
     editorHandlersRef.current?.setPendingInsert?.(null);
     setIsComposing(false);
-    toast.info('AI 작성이 중단되었습니다.');
   }, [requestLifecycle, setIsComposing]);
 
   return {

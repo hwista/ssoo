@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { DocumentMetadata, SourceFileMeta } from '@/types';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
+import { isSummaryFileReady } from '@/lib/summaryFileStatus';
 
 interface UseSyncReferencesToMetadataOptions {
   documentMetadata: DocumentMetadata | null;
@@ -44,6 +45,7 @@ export function useSyncReferencesToMetadata(
     (files, rawFiles, resolvedRefPaths) => {
       const currentFiles = documentMetadata?.sourceFiles ?? [];
       const existingKeys = new Set(currentFiles.map((f) => f.name));
+      const readySummaryFiles = inlineSummaryFiles.filter((file) => isSummaryFileReady(file));
 
       const newFiles = files.filter((f) => !existingKeys.has(f.name));
       if (newFiles.length > 0) {
@@ -53,7 +55,8 @@ export function useSyncReferencesToMetadata(
 
       for (const f of files) {
         if (f.origin === 'reference') {
-          const matched = inlineSummaryFiles.find((sf) => sf.name === f.name);
+          const matched = readySummaryFiles.find((sf) => sf.id === f.tempId) ??
+            readySummaryFiles.find((sf) => sf.name === f.name);
           if (matched) {
             setUsedSummaryFileIds((prev) => new Set(prev).add(matched.id));
           }

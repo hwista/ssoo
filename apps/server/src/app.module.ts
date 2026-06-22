@@ -13,11 +13,20 @@ import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filte
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from './modules/common/auth/guards/jwt-auth.guard.js';
 
+const SERVER_ENV_FILE_PATHS = [
+  '.env.local',
+  'apps/web/dms/.env.local',
+  '../../apps/web/dms/.env.local',
+  '../../.env.local',
+  '.env',
+  '../../.env',
+];
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: SERVER_ENV_FILE_PATHS,
       validationSchema: configValidationSchema,
     }),
     ThrottlerModule.forRoot([{

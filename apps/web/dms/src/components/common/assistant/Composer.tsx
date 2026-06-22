@@ -53,6 +53,8 @@ interface AssistantComposerProps {
   suggestions?: string[];
   suggestionsCollapsed?: boolean;
   onToggleSuggestions?: () => void;
+  submitDisabled?: boolean;
+  submitDisabledReason?: string;
 }
 
 export function AssistantComposer({
@@ -91,6 +93,8 @@ export function AssistantComposer({
   suggestions = [],
   suggestionsCollapsed,
   onToggleSuggestions,
+  submitDisabled = false,
+  submitDisabledReason,
 }: AssistantComposerProps) {
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -125,10 +129,13 @@ export function AssistantComposer({
     resizeTextarea(internalRef.current);
   }, [inputDraft, resizeTextarea]);
 
+  const isSubmitBlocked = isProcessing || submitDisabled || !inputDraft.trim();
+
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
+        if (isSubmitBlocked) return;
         void submitUserMessage(inputDraft);
       }}
       className="w-full"
@@ -208,12 +215,14 @@ export function AssistantComposer({
               if (event.key !== 'Enter') return;
               if (event.ctrlKey) {
                 event.preventDefault();
+                if (isSubmitBlocked) return;
                 void submitUserMessage(inputDraft);
                 return;
               }
               if (event.shiftKey) return;
               if (!inputDraft.includes('\n')) {
                 event.preventDefault();
+                if (isSubmitBlocked) return;
                 void submitUserMessage(inputDraft);
               }
             }}
@@ -242,7 +251,8 @@ export function AssistantComposer({
           ) : (
             <button
               type="submit"
-              disabled={isProcessing || !inputDraft.trim()}
+              disabled={isSubmitBlocked}
+              title={isSubmitBlocked ? submitDisabledReason : undefined}
               className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-ssoo-primary px-4 text-label-md leading-none text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
@@ -269,7 +279,8 @@ export function AssistantComposer({
           ) : (
             <button
               type="submit"
-              disabled={isProcessing || !inputDraft.trim()}
+              disabled={isSubmitBlocked}
+              title={isSubmitBlocked ? submitDisabledReason : undefined}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ssoo-primary text-white transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
               aria-label="전송"
             >

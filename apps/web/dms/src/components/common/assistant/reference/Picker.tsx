@@ -1,14 +1,11 @@
 'use client';
 
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { FileUp, Plus, Search } from 'lucide-react';
 import { useAssistantContextStore, useTabStore } from '@/stores';
 import type { TemplateItem } from '@/types/template';
 import { useFileTreeQuery } from '@/hooks/queries/useFileTree';
 import { useTemplateList } from '@/hooks/queries/useTemplates';
-import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
-import { toast } from '@/lib/toast';
-import { collectSummaryFileIssues } from '@/lib/summaryFileStatus';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +22,8 @@ import {
   flattenFileTreeDocs,
   type DocReferenceItem,
 } from './pickerUtils';
+import { createPendingSummaryFile, extractSummaryFile } from './summaryFileExtraction';
+import { armProtectedAppLifecycleCheckSkip } from '@/lib/protectedAppLifecycleCheck';
 
 export interface ExtractedImageItem {
   base64: string;
@@ -44,6 +43,7 @@ export interface InlineSummaryFileItem {
   unsupportedReason?: string;
   protectedMarkerDetected?: boolean;
   rawFile?: File;
+  extractionState?: 'extracting' | 'ready' | 'failed';
 }
 
 export interface PickerSectionsConfig {
@@ -88,6 +88,9 @@ export function AssistantReferencePicker({
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const activeSummaryFileIdsRef = useRef<Set<string>>(new Set());
+  const extractionControllersRef = useRef<Map<string, AbortController>>(new Map());
 
   const tabs = useTabStore((state) => state.tabs);
   const assistantReferences = useAssistantContextStore((state) => state.attachedReferences);
@@ -144,60 +147,82 @@ export function AssistantReferencePicker({
     [personalDocumentTemplates, query]
   );
 
-  const handlePickSummaryFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    const activeIds = new Set(inlineContext?.summaryFiles.map((file) => file.id) ?? []);
+    activeSummaryFileIdsRef.current = activeIds;
+    for (const [id, controller] of extractionControllersRef.current.entries()) {
+      if (!activeIds.has(id)) {
+        controller.abort();
+        extractionControllersRef.current.delete(id);
+      }
+    }
+  }, [inlineContext?.summaryFiles]);
+
+  useEffect(() => () => {
+    for (const controller of extractionControllersRef.current.values()) {
+      controller.abort();
+    }
+    extractionControllersRef.current.clear();
+  }, []);
+
+  const handleOpenSummaryFilePicker = () => {
+    if (!resolved.fileUpload || !inlineContext) {
+      return;
+    }
+
+    armProtectedAppLifecycleCheckSkip();
+    fileInputRef.current?.click();
+    setOpen(false);
+  };
+
+  const handlePickSummaryFiles = (event: ChangeEvent<HTMLInputElement>) => {
     if (!resolved.fileUpload) return;
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
-
-    const mapped = await Promise.all(files.map(async (file) => {
-      let textContent = '';
-      let images: InlineSummaryFileItem['images'];
-      let warningReason: string | undefined;
-      let unsupportedReason: string | undefined;
-      let protectedMarkerDetected: boolean | undefined;
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetchWithSharedAuth('/api/file/extract-text', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json().catch(() => null);
-        if (res.ok) {
-          textContent = typeof data?.textContent === 'string' ? data.textContent : '';
-          images = Array.isArray(data?.images) ? data.images : undefined;
-          warningReason = typeof data?.warningReason === 'string' ? data.warningReason : undefined;
-          unsupportedReason = typeof data?.unsupportedReason === 'string' ? data.unsupportedReason : undefined;
-          protectedMarkerDetected = typeof data?.protectedMarkerDetected === 'boolean'
-            ? data.protectedMarkerDetected
-            : undefined;
-        } else {
-          unsupportedReason = 'extraction-error';
-        }
-      } catch {
-        unsupportedReason = 'extraction-error';
-      }
-      return {
-        id: `${file.name}-${file.lastModified}-${file.size}`,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        textContent,
-        images,
-        warningReason,
-        unsupportedReason,
-        protectedMarkerDetected,
-        rawFile: file,
-      } satisfies InlineSummaryFileItem;
-    }));
-
-    const issues = collectSummaryFileIssues(mapped);
-    if (issues.length > 0) {
-      toast.warning(issues.join(' '));
+    if (!inlineContext) {
+      event.target.value = '';
+      return;
     }
 
-    inlineContext?.onUpsertSummaryFiles(mapped);
+    const pendingFiles = files.map(createPendingSummaryFile);
+    const nextIds = new Set(activeSummaryFileIdsRef.current);
+    for (const pendingFile of pendingFiles) {
+      nextIds.add(pendingFile.id);
+    }
+    activeSummaryFileIdsRef.current = nextIds;
+    inlineContext.onUpsertSummaryFiles(pendingFiles);
     event.target.value = '';
+
+    void Promise.all(pendingFiles.map(async (pendingFile) => {
+      const rawFile = pendingFile.rawFile;
+      if (!rawFile) return;
+
+      const existingController = extractionControllersRef.current.get(pendingFile.id);
+      existingController?.abort();
+
+      const controller = new AbortController();
+      extractionControllersRef.current.set(pendingFile.id, controller);
+
+      try {
+        const extracted = await extractSummaryFile(rawFile, { signal: controller.signal });
+        if (!activeSummaryFileIdsRef.current.has(extracted.id)) {
+          return;
+        }
+        inlineContext.onUpsertSummaryFiles([extracted]);
+      } catch {
+        if (!controller.signal.aborted) {
+          inlineContext.onUpsertSummaryFiles([{
+            ...pendingFile,
+            unsupportedReason: 'extraction-error',
+            extractionState: 'failed',
+          }]);
+        }
+      } finally {
+        if (extractionControllersRef.current.get(pendingFile.id) === controller) {
+          extractionControllersRef.current.delete(pendingFile.id);
+        }
+      }
+    }));
   };
 
   const handleTemplateSelect = (template: TemplateItem) => {
@@ -263,13 +288,17 @@ export function AssistantReferencePicker({
               <p className="mb-1 flex items-center gap-1 text-badge text-ssoo-primary/80">
                 <FileUp className="h-3.5 w-3.5" /> 참조 파일 첨부
               </p>
-              <input
-                type="file"
-                multiple
-                onChange={handlePickSummaryFiles}
-                className="block w-full text-caption text-ssoo-primary file:mr-2 file:rounded-md file:border file:border-ssoo-content-border file:bg-white file:px-2 file:py-1 file:text-label-sm file:text-ssoo-primary"
-                accept=".md,.txt,.json,.csv,.pdf,.docx,.pptx,.xlsx"
-              />
+              <button
+                type="button"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                }}
+                onClick={handleOpenSummaryFilePicker}
+                className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-ssoo-content-border bg-white px-2 text-label-sm text-ssoo-primary transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg/40"
+              >
+                <FileUp className="h-3.5 w-3.5" />
+                파일 선택
+              </button>
             </div>
           )}
 
@@ -312,6 +341,19 @@ export function AssistantReferencePicker({
           </div>
         </div>
       </DropdownMenuContent>
+      {resolved.fileUpload && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          onClick={armProtectedAppLifecycleCheckSkip}
+          onChange={handlePickSummaryFiles}
+          className="hidden"
+          accept=".md,.txt,.json,.csv,.pdf,.docx,.pptx,.xlsx"
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+      )}
     </DropdownMenu>
   );
 }
