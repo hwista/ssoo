@@ -18,6 +18,7 @@ import {
   normalizeDocumentAccessRequestPath,
   useDocumentAccessRequestStore,
 } from './dialog-store';
+import { Textarea } from '@ssoo/web-ui';
 
 const STATUS_LABELS: Record<NonNullable<DmsDocumentAccessRequestState['status']>, string> = {
   pending: '요청 대기',
@@ -177,7 +178,7 @@ export function DocumentAccessRequestDialogHost() {
                 <label className="block text-label-md text-ssoo-primary" htmlFor="document-access-request-message">
                   요청 메모
                 </label>
-                <textarea
+                <Textarea
                   id="document-access-request-message"
                   value={requestMessage}
                   onChange={(event) => setRequestMessage(event.target.value)}

@@ -62,7 +62,7 @@ docs/pms/tests/
 |------|------|------|--------------|
 | 로그인 | [login.md](auth/login.md) | ✅ 완료 | 2026-01-17 |
 | 로그아웃 | [logout.md](auth/logout.md) | 🔲 대기 | - |
-| 토큰 갱신 | [refresh-token.md](auth/refresh-token.md) | 🔲 대기 | - |
+| 세션 복원 | [refresh-token.md](auth/refresh-token.md) | 🔲 대기 | - |
 
 ### 5.2 프로젝트 (Project)
 

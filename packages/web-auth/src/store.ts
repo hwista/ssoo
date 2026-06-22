@@ -1,7 +1,13 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { AuthIdentity, AuthSessionBootstrap, AuthTokens, LoginRequest } from '@ssoo/types/common';
-import { createSafeJsonStateStorage, readSharedAuthSnapshot, SHARED_AUTH_STORAGE_KEY } from './storage';
+import {
+  clearSharedAuthState,
+  createSafeJsonStateStorage,
+  readSharedAuthSnapshot,
+  setSharedAuthSession,
+  SHARED_AUTH_STORAGE_KEY,
+} from './storage';
 
 export interface AuthApiResult<T> {
   success: boolean;
@@ -13,7 +19,6 @@ export interface AuthApiResult<T> {
 
 export interface AuthApiAdapter<TUser extends AuthIdentity = AuthIdentity> {
   login: (data: LoginRequest) => Promise<AuthApiResult<AuthTokens>>;
-  refresh: (refreshToken: string) => Promise<AuthApiResult<AuthTokens>>;
   restoreSession: () => Promise<AuthApiResult<AuthSessionBootstrap<TUser>>>;
   logout: (accessToken: string | null) => Promise<AuthApiResult<null>>;
   me: (accessToken: string) => Promise<AuthApiResult<TUser>>;
@@ -21,7 +26,6 @@ export interface AuthApiAdapter<TUser extends AuthIdentity = AuthIdentity> {
 
 export interface AuthStoreState<TUser extends AuthIdentity> {
   accessToken: string | null;
-  refreshToken: string | null;
   user: TUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -31,9 +35,9 @@ export interface AuthStoreState<TUser extends AuthIdentity> {
 export interface AuthStoreActions<TUser extends AuthIdentity> {
   login: (loginId: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
+  checkAuth: (options?: CheckAuthOptions) => Promise<void>;
   refreshTokens: () => Promise<boolean>;
-  setTokens: (accessToken: string, refreshToken: string) => void;
+  setTokens: (accessToken: string) => void;
   setUser: (user: TUser | null) => void;
   clearAuth: () => void;
   syncFromStorage: () => void;
@@ -50,6 +54,12 @@ export type AuthClearReason =
   | 'refresh-failed'
   | 'storage-missing'
   | 'manual-clear';
+
+export type CheckAuthMode = 'blocking' | 'background';
+
+export interface CheckAuthOptions {
+  mode?: CheckAuthMode;
+}
 
 export interface CreateAuthStoreOptions<TUser extends AuthIdentity> {
   authApi: AuthApiAdapter<TUser>;
@@ -69,10 +79,9 @@ function getAuthErrorMessage(result: AuthApiResult<unknown>, fallback: string): 
 
 function toRestoredUser<TUser extends AuthIdentity>(
   data: AuthSessionBootstrap<TUser>,
-): Pick<AuthStoreState<TUser>, 'accessToken' | 'refreshToken' | 'user' | 'isAuthenticated'> {
+): Pick<AuthStoreState<TUser>, 'accessToken' | 'user' | 'isAuthenticated'> {
   return {
     accessToken: data.accessToken,
-    refreshToken: null,
     user: data.user,
     isAuthenticated: true,
   };
@@ -109,21 +118,23 @@ export function createAuthStore<TUser extends AuthIdentity>(
         const clearAuthState = (
           reason: AuthClearReason,
           overrides: Partial<Pick<AuthStoreState<TUser>, 'isLoading'>> = {},
+          options: { clearSharedState?: boolean } = {},
         ) => {
           set({
             accessToken: null,
-            refreshToken: null,
             user: null,
             isAuthenticated: false,
             isLoading: false,
             ...overrides,
           });
+          if (options.clearSharedState !== false) {
+            clearSharedAuthState();
+          }
           notifyAuthCleared(reason);
         };
 
         return {
           accessToken: null,
-          refreshToken: null,
           user: null,
           isLoading: false,
           isAuthenticated: false,
@@ -143,11 +154,11 @@ export function createAuthStore<TUser extends AuthIdentity>(
             if (meResponse.success && meResponse.data) {
               set({
                 accessToken,
-                refreshToken: null,
                 user: meResponse.data,
                 isAuthenticated: true,
                 isLoading: false,
               });
+              setSharedAuthSession(accessToken, meResponse.data);
               return;
             }
 
@@ -165,11 +176,14 @@ export function createAuthStore<TUser extends AuthIdentity>(
             }
           },
 
-          checkAuth: async () => {
+          checkAuth: async (options?: CheckAuthOptions) => {
             const { accessToken } = get();
             const hadAccessToken = Boolean(accessToken);
+            const isBackgroundCheck = options?.mode === 'background';
 
-            set({ isLoading: true });
+            if (!isBackgroundCheck) {
+              set({ isLoading: true });
+            }
 
             if (accessToken) {
               const meResponse = await authApi.me(accessToken);
@@ -177,13 +191,15 @@ export function createAuthStore<TUser extends AuthIdentity>(
                 set({
                   user: meResponse.data,
                   isAuthenticated: true,
-                  isLoading: false,
+                  ...(!isBackgroundCheck ? { isLoading: false } : {}),
                 });
                 return;
               }
 
               if (shouldKeepSessionOnCheckFailure(meResponse)) {
-                set({ isLoading: false });
+                if (!isBackgroundCheck) {
+                  set({ isLoading: false });
+                }
                 return;
               }
             }
@@ -192,13 +208,16 @@ export function createAuthStore<TUser extends AuthIdentity>(
             if (restored.success && restored.data) {
               set({
                 ...toRestoredUser(restored.data),
-                isLoading: false,
+                ...(!isBackgroundCheck ? { isLoading: false } : {}),
               });
+              setSharedAuthSession(restored.data.accessToken, restored.data.user);
               return;
             }
 
             if (hadAccessToken && shouldKeepSessionOnCheckFailure(restored)) {
-              set({ isLoading: false });
+              if (!isBackgroundCheck) {
+                set({ isLoading: false });
+              }
               return;
             }
 
@@ -219,11 +238,13 @@ export function createAuthStore<TUser extends AuthIdentity>(
             set({
               ...toRestoredUser(restored.data),
             });
+            setSharedAuthSession(restored.data.accessToken, restored.data.user);
             return true;
           },
 
-          setTokens: (accessToken: string, refreshToken: string) => {
-            set({ accessToken, refreshToken, isAuthenticated: true });
+          setTokens: (accessToken: string) => {
+            set({ accessToken, isAuthenticated: true });
+            setSharedAuthSession(accessToken, get().user);
           },
 
           setUser: (user: TUser | null) => {
@@ -237,13 +258,17 @@ export function createAuthStore<TUser extends AuthIdentity>(
           syncFromStorage: () => {
             const snapshot = readSharedAuthSnapshot();
             if (!snapshot) {
-              clearAuthState('storage-missing');
+              const current = get();
+              if (!current.accessToken && !current.user && !current.isAuthenticated) {
+                return;
+              }
+
+              clearAuthState('storage-missing', {}, { clearSharedState: false });
               return;
             }
 
             set({
               accessToken: snapshot.accessToken,
-              refreshToken: snapshot.refreshToken,
               user: normalizeUser(snapshot.user),
               isAuthenticated: snapshot.isAuthenticated,
             });
@@ -258,7 +283,6 @@ export function createAuthStore<TUser extends AuthIdentity>(
         name: storageKey,
         storage: createJSONStorage(() => createSafeJsonStateStorage(() => localStorage)),
         partialize: (state) => ({
-          accessToken: state.accessToken,
           user: state.user,
           isAuthenticated: state.isAuthenticated,
         }),

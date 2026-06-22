@@ -1,7 +1,10 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { Check, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
+import { NativeSelect, Textarea } from '@ssoo/web-ui';
 
 interface TemplateDraft {
   name: string;
@@ -18,6 +21,7 @@ export function TemplateSection({
   setTemplateDraft,
   onSave,
   onDelete,
+  anchorIds = {},
 }: {
   templates: TemplateItem[];
   isLoadingTemplates: boolean;
@@ -25,60 +29,61 @@ export function TemplateSection({
   setTemplateDraft: Dispatch<SetStateAction<TemplateDraft>>;
   onSave: () => void;
   onDelete: (template: TemplateItem) => void;
+  anchorIds?: Partial<Record<'template-create' | 'template-list', string>>;
 }) {
   return (
     <div className="space-y-3">
-      <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+      <article id={anchorIds['template-create']} className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
         <h3 className="text-label-strong text-ssoo-primary">템플릿 추가</h3>
         <div className="mt-3 grid gap-2 md:grid-cols-2">
-          <input
+          <Input
             value={templateDraft.name}
             onChange={(event) => setTemplateDraft((prev) => ({ ...prev, name: event.target.value }))}
             placeholder="템플릿 이름"
-            className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+            className="border-ssoo-content-border text-ssoo-primary focus-visible:ring-ssoo-primary"
           />
-          <input
+          <Input
             value={templateDraft.description}
             onChange={(event) => setTemplateDraft((prev) => ({ ...prev, description: event.target.value }))}
             placeholder="설명"
-            className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
+            className="border-ssoo-content-border text-ssoo-primary focus-visible:ring-ssoo-primary"
           />
-          <select
+          <NativeSelect
             value={templateDraft.scope}
             onChange={(event) => setTemplateDraft((prev) => ({ ...prev, scope: event.target.value as TemplateScope }))}
             className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
           >
             <option value="personal">개인 템플릿</option>
             <option value="global">전역 템플릿</option>
-          </select>
-          <select
+          </NativeSelect>
+          <NativeSelect
             value={templateDraft.kind}
             onChange={(event) => setTemplateDraft((prev) => ({ ...prev, kind: event.target.value as TemplateKind }))}
             className="h-control-h rounded-md border border-ssoo-content-border px-3 text-body-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
           >
             <option value="document">문서 템플릿</option>
             <option value="folder">폴더 템플릿</option>
-          </select>
+          </NativeSelect>
         </div>
-        <textarea
+        <Textarea
           value={templateDraft.content}
           onChange={(event) => setTemplateDraft((prev) => ({ ...prev, content: event.target.value }))}
           placeholder="템플릿 본문 (마크다운/텍스트)"
           className="mt-2 min-h-[120px] w-full rounded-md border border-ssoo-content-border px-3 py-2 text-body-sm text-ssoo-primary focus:outline-none focus:ring-1 focus:ring-ssoo-primary"
         />
         <div className="mt-2 flex justify-end">
-          <button
+          <Button
             type="button"
             onClick={onSave}
-            className="inline-flex h-control-h items-center gap-1 rounded-md bg-ssoo-primary px-3 text-label-md text-white hover:bg-ssoo-primary/90"
+            className="gap-1"
           >
             <Check className="h-4 w-4" />
             템플릿 저장
-          </button>
+          </Button>
         </div>
       </article>
 
-      <article className="rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
+      <article id={anchorIds['template-list']} className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-white px-4 py-3">
         <h3 className="text-label-strong text-ssoo-primary">템플릿 목록</h3>
         {isLoadingTemplates ? (
           <div className="mt-2">
@@ -98,14 +103,16 @@ export function TemplateSection({
                     </p>
                     {template.description && <p className="mt-0.5 text-caption text-ssoo-primary/70">{template.description}</p>}
                   </div>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="icon"
                     onClick={() => onDelete(template)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-ssoo-content-border text-ssoo-primary/70 hover:border-destructive/40 hover:text-destructive"
+                    className="h-8 w-8 text-ssoo-primary/70 hover:border-destructive/40 hover:text-destructive"
                     aria-label={`${template.name} 삭제`}
                   >
                     <Trash2 className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}

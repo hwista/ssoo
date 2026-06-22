@@ -32,7 +32,11 @@ import { DmsFeatureGuard } from '../access/dms-feature.guard.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { contentService } from '../runtime/content.service.js';
 import type { StorageProvider } from '../runtime/dms-config.service.js';
-import { getMimeType } from '../file/file.constants.js';
+import {
+  formatContentDisposition,
+  getMimeType,
+  resolveAttachmentDisposition,
+} from '../file/file.constants.js';
 import {
   storageAdapterService,
   type StorageOpenRequest,
@@ -195,22 +199,8 @@ export class StorageController {
       const result = storageAdapterService.open(request);
       await this.assertStorageOpenAllowed(currentUser, request, result);
 
-      if (result.provider === 'local' || result.openUrl.startsWith('/api/')) {
-        const resolved = storageAdapterService.resolveContainedPath(result.provider, result.path);
-        if (!fs.existsSync(resolved.fullPath)) {
-          throw new NotFoundException('대상 파일을 찾을 수 없습니다.');
-        }
-
-        const fileBuffer = fs.readFileSync(resolved.fullPath);
-        const fileName = originalName?.trim() || path.basename(resolved.fullPath) || 'download.bin';
-        response.setHeader('Content-Type', getMimeType(fileName));
-        response.setHeader('Content-Length', String(fileBuffer.length));
-        response.setHeader('Cache-Control', 'private, no-store');
-        response.setHeader(
-          'Content-Disposition',
-          `${download === '1' ? 'attachment' : 'inline'}; filename="${encodeURIComponent(fileName)}"`,
-        );
-        response.status(200).send(fileBuffer);
+      if (this.shouldServeStorageBinary(result, download)) {
+        this.sendStorageBinaryResponse(result, originalName, download, response);
         return;
       }
 
@@ -218,6 +208,32 @@ export class StorageController {
     } catch (error) {
       this.throwStorageError(error);
     }
+  }
+
+  private shouldServeStorageBinary(result: StorageOpenResult, download: string | undefined): boolean {
+    return download === '1' || result.provider === 'local' || result.openUrl.startsWith('/api/');
+  }
+
+  private sendStorageBinaryResponse(
+    result: StorageOpenResult,
+    originalName: string | undefined,
+    download: string | undefined,
+    response: ExpressResponse,
+  ): void {
+    const resolved = storageAdapterService.resolveContainedPath(result.provider, result.path);
+    if (!fs.existsSync(resolved.fullPath)) {
+      throw new NotFoundException('대상 파일을 찾을 수 없습니다.');
+    }
+
+    const fileBuffer = fs.readFileSync(resolved.fullPath);
+    const fileName = originalName?.trim() || path.basename(resolved.fullPath) || 'download.bin';
+    const disposition = resolveAttachmentDisposition(fileName, download);
+    response.setHeader('Content-Type', getMimeType(fileName));
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Content-Length', String(fileBuffer.length));
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('Content-Disposition', formatContentDisposition(disposition, fileName));
+    response.status(200).send(fileBuffer);
   }
 
   private async assertStorageOpenAllowed(

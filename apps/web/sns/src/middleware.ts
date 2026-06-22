@@ -1,15 +1,27 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { ALLOWED_PATH_PREFIXES } from '@/lib/constants/routes';
+import {
+  resolveSsooRoutePolicyDecision,
+} from '@ssoo/web-shell/route-policy';
+import { ALLOWED_PATH_PREFIXES, APP_HOME_PATH } from '@/lib/constants/routes';
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const decision = resolveSsooRoutePolicyDecision(request.nextUrl.pathname, {
+    allowedPrefixes: ALLOWED_PATH_PREFIXES,
+    fallbackPath: '/not-found',
+    mode: 'rewrite',
+    sharedUserSurfaceRewritePath: APP_HOME_PATH,
+  });
 
-  if (ALLOWED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + '/'))) {
+  if (decision.action === 'next') {
     return NextResponse.next();
   }
 
-  return NextResponse.rewrite(new URL('/not-found', request.url));
+  if (decision.action === 'rewrite') {
+    return NextResponse.rewrite(new URL(decision.path, request.url));
+  }
+
+  return NextResponse.redirect(new URL(decision.path, request.url));
 }
 
 export const config = {

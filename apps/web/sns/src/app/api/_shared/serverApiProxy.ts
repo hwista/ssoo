@@ -7,6 +7,7 @@ const {
   createServerApiUrl,
   buildServerApiProxyHeaders,
   createServerApiProxyInit,
+  proxySessionBackedStreamResponse,
 } = createServerApiProxyHelpers({
   resolveServerApiBaseUrl: () => (
     process.env.SNS_SERVER_API_URL?.trim()
@@ -24,4 +25,5 @@ export {
   createServerApiUrl,
   buildServerApiProxyHeaders,
   createServerApiProxyInit,
+  proxySessionBackedStreamResponse,
 };

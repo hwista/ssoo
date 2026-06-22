@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { BellRing, MessageSquareText, Search, Sparkles, UserPlus } from 'lucide-react';
+import { SSOO_USER_SURFACE_MY_PROFILE_PATH } from '@ssoo/web-auth';
 import { useUnreadCount } from '@/hooks/queries/useNotifications';
 import { useAccessStore } from '@/stores';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export function FeedContextRail() {
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const unreadCountQuery = useUnreadCount();
-  const unreadCount = unreadCountQuery.data?.data?.data?.count ?? 0;
+  const unreadCount = unreadCountQuery.data?.count ?? 0;
   const enabledFeatures = [
     { enabled: accessSnapshot?.features.canCreatePost ?? false, label: '게시물 작성' },
     { enabled: accessSnapshot?.features.canComment ?? false, label: '댓글 참여' },
@@ -58,7 +59,7 @@ export function FeedContextRail() {
               </div>
             </Link>
             <Link
-              href="/profile/me"
+              href={SSOO_USER_SURFACE_MY_PROFILE_PATH}
               className="flex items-start gap-3 rounded-md px-3 py-2 transition-colors hover:bg-muted"
             >
               <UserPlus className="mt-0.5 h-4 w-4 text-muted-foreground" />

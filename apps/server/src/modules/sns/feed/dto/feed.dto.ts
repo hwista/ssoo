@@ -19,6 +19,11 @@ export class FeedQueryDto {
   @IsString()
   @IsOptional()
   feedType?: string;
+
+  @ApiPropertyOptional({ description: '작성자 사용자 ID 필터' })
+  @IsString()
+  @IsOptional()
+  authorUserId?: string;
 }
 
 export class ReactionDto {

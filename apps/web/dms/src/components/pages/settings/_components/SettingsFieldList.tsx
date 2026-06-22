@@ -8,6 +8,7 @@ export function SettingsFieldList({
   getValue,
   onChange,
   readOnly = false,
+  getItemAnchorId,
 }: {
   items: JsonFieldDescriptor[];
   localConfig: Record<string, unknown>;
@@ -16,6 +17,7 @@ export function SettingsFieldList({
   getValue: (obj: Record<string, unknown>, path: string) => unknown;
   onChange: (key: string, value: unknown) => void;
   readOnly?: boolean;
+  getItemAnchorId?: (item: JsonFieldDescriptor) => string;
 }) {
   return (
     <JsonRenderer
@@ -26,6 +28,7 @@ export function SettingsFieldList({
       getValue={getValue}
       onChange={onChange}
       readOnly={readOnly}
+      getItemAnchorId={getItemAnchorId}
     />
   );
 }

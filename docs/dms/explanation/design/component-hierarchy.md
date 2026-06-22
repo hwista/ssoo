@@ -160,8 +160,9 @@ src/components/pages/
 ├── markdown/
 │   └── DocumentPage.tsx
 ├── ai/
-│   ├── ChatPage.tsx
-│   └── SearchPage.tsx
+│   └── ChatPage.tsx
+├── global-search/
+│   └── GlobalSearchPage.tsx
 └── settings/
     └── SettingsPage.tsx
 ```

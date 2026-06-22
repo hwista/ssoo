@@ -45,17 +45,34 @@ import { contentService } from '../runtime/content.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
 import { isMarkdownFile } from '../runtime/file-utils.js';
 import {
+  formatContentDisposition,
   ATTACHMENT_ALLOWED_EXTENSIONS,
   ATTACHMENT_STORAGE_DIR,
   getMimeType,
   IMAGE_ALLOWED_MIME_TYPES,
   IMAGE_STORAGE_DIR,
-  REFERENCE_STORAGE_DIR } from './file.constants.js';
-import { FileCrudService } from './file-crud.service.js';
+  isActiveContentAttachment,
+  REFERENCE_STORAGE_DIR,
+  resolveAttachmentDisposition } from './file.constants.js';
+import { FileCrudService, type FileCrudResult, type FileData } from './file-crud.service.js';
 import { extractTextFromFile } from './text-extractor.js';
 import { storageAdapterService } from '../storage/storage-adapter.service.js';
 
 const logger = createDmsLogger('DmsFileController');
+const BYTES_PER_MEGABYTE = 1024 * 1024;
+
+function getConfiguredUploadLimitBytes(kind: 'attachment' | 'image'): number {
+  const uploads = configService.getConfig().uploads;
+  const maxSizeMb = kind === 'image' ? uploads.imageMaxSizeMb : uploads.attachmentMaxSizeMb;
+  return Math.max(1, Math.floor(maxSizeMb * BYTES_PER_MEGABYTE));
+}
+
+const AttachmentFileInterceptor = FileInterceptor('file', {
+  limits: { fileSize: getConfiguredUploadLimitBytes('attachment') },
+});
+const ImageFileInterceptor = FileInterceptor('file', {
+  limits: { fileSize: getConfiguredUploadLimitBytes('image') },
+});
 
 interface UploadedFormFile {
   buffer: Buffer;
@@ -120,8 +137,7 @@ export class FileController {
       throw new BadRequestException('Missing file path header or query');
     }
 
-    await this.accessRequestService.ensureRepoControlPlaneSynced();
-    const data = await this.unwrap(this.fileCrudService.read(filePath, currentUser));
+    const data = await this.unwrap(this.readFileWithControlPlaneRecovery(filePath, currentUser));
     return success(this.withIsolationOnFilePayload(filePath, data));
   }
 
@@ -166,10 +182,9 @@ export class FileController {
     switch (action) {
       case 'read':
         if (!filePath) throw new BadRequestException('Missing file path');
-        await this.accessRequestService.ensureRepoControlPlaneSynced();
         return success(this.withIsolationOnFilePayload(
           filePath,
-          await this.unwrap(this.fileCrudService.read(filePath, currentUser)),
+          await this.unwrap(this.readFileWithControlPlaneRecovery(filePath, currentUser)),
         ));
       case 'metadata':
         if (!filePath) throw new BadRequestException('Missing file path');
@@ -211,7 +226,7 @@ export class FileController {
   @UseGuards(DmsFeatureGuard)
   @RequireDmsFeature('canReadDocuments')
   @ApiOperation({ summary: 'DMS raw 이미지 반환' })
-  @ApiProduces('image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml')
+  @ApiProduces('image/png', 'image/jpeg', 'image/gif', 'image/webp')
   async raw(
     @Query('path') filePath: string | undefined,
     @CurrentUser() currentUser: TokenPayload,
@@ -241,11 +256,15 @@ export class FileController {
     }
 
     const contentType = getMimeType(filePath || resolvedAbsolutePath);
+    if (isActiveContentAttachment(filePath || resolvedAbsolutePath)) {
+      throw new UnsupportedMediaTypeException('SVG/HTML 파일은 raw preview로 제공하지 않습니다.');
+    }
     if (!contentType.startsWith('image/')) {
       throw new UnsupportedMediaTypeException('지원하지 않는 파일 형식입니다.');
     }
 
     response.setHeader('Content-Type', contentType);
+    response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Cache-Control', 'private, max-age=3600, must-revalidate');
     response.status(200).send(fs.readFileSync(resolvedAbsolutePath));
   }
@@ -282,20 +301,19 @@ export class FileController {
 
     const buffer = fs.readFileSync(resolvedAbsolutePath);
     const displayName = originalName || path.basename(filePath);
+    const disposition = resolveAttachmentDisposition(displayName, download);
     response.setHeader('Content-Type', getMimeType(displayName));
+    response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Content-Length', String(buffer.length));
     response.setHeader('Cache-Control', 'private, no-store');
-    response.setHeader(
-      'Content-Disposition',
-      `${download === '1' ? 'attachment' : 'inline'}; filename="${encodeURIComponent(displayName)}"`,
-    );
+    response.setHeader('Content-Disposition', formatContentDisposition(disposition, displayName));
     response.status(200).send(buffer);
   }
 
   @Post('extract-text')
   @UseGuards(DmsFeatureGuard)
   @RequireDmsFeature('canWriteDocuments')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(AttachmentFileInterceptor)
   @ApiOperation({ summary: 'DMS 첨부파일 텍스트 추출' })
   @ApiConsumes('multipart/form-data')
   async extractText(
@@ -337,7 +355,7 @@ export class FileController {
   @Post('upload-attachment')
   @UseGuards(DmsFeatureGuard)
   @RequireDmsFeature('canWriteDocuments')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(AttachmentFileInterceptor)
   @ApiOperation({ summary: 'DMS 첨부파일 업로드' })
   @ApiConsumes('multipart/form-data')
   async uploadAttachment(
@@ -392,7 +410,7 @@ export class FileController {
   @Post('upload-image')
   @UseGuards(DmsFeatureGuard)
   @RequireDmsFeature('canWriteDocuments')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(ImageFileInterceptor)
   @ApiOperation({ summary: 'DMS 이미지 업로드' })
   @ApiConsumes('multipart/form-data')
   async uploadImage(
@@ -410,9 +428,7 @@ export class FileController {
     const imageMaxSizeMb = configService.getConfig().uploads.imageMaxSizeMb;
     const imageMaxSize = imageMaxSizeMb * 1024 * 1024;
 
-    if (!IMAGE_ALLOWED_MIME_TYPES.has(uploadedFile.mimetype)) {
-      throw new BadRequestException(`허용되지 않는 파일 형식입니다: ${uploadedFile.mimetype}`);
-    }
+    this.assertValidImageUpload(uploadedFile);
     if (uploadedFile.size > imageMaxSize) {
       throw new BadRequestException(`파일 크기는 ${imageMaxSizeMb}MB 이하여야 합니다.`);
     }
@@ -446,7 +462,7 @@ export class FileController {
   @Post('upload-reference')
   @UseGuards(DmsFeatureGuard)
   @RequireDmsFeature('canWriteDocuments')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(AttachmentFileInterceptor)
   @ApiOperation({ summary: 'DMS 참조 파일 업로드' })
   @ApiConsumes('multipart/form-data')
   async uploadReference(
@@ -496,6 +512,55 @@ export class FileController {
       checksum: saved.checksum,
       status: saved.status,
       webUrl: saved.webUrl });
+  }
+
+  private assertValidImageUpload(uploadedFile: UploadedFormFile): void {
+    if (!IMAGE_ALLOWED_MIME_TYPES.has(uploadedFile.mimetype)) {
+      throw new BadRequestException(`허용되지 않는 파일 형식입니다: ${uploadedFile.mimetype}`);
+    }
+
+    const expectedMimeType = getMimeType(uploadedFile.originalname);
+    if (expectedMimeType !== uploadedFile.mimetype) {
+      throw new BadRequestException('파일 확장자와 이미지 형식이 일치하지 않습니다.');
+    }
+
+    if (!this.matchesImageSignature(uploadedFile.buffer, uploadedFile.mimetype)) {
+      throw new BadRequestException('파일 내용이 이미지 형식과 일치하지 않습니다.');
+    }
+  }
+
+  private matchesImageSignature(buffer: Buffer, mimeType: string): boolean {
+    if (mimeType === 'image/png') {
+      return buffer.length >= 8
+        && buffer[0] === 0x89
+        && buffer[1] === 0x50
+        && buffer[2] === 0x4e
+        && buffer[3] === 0x47
+        && buffer[4] === 0x0d
+        && buffer[5] === 0x0a
+        && buffer[6] === 0x1a
+        && buffer[7] === 0x0a;
+    }
+
+    if (mimeType === 'image/jpeg') {
+      return buffer.length >= 3
+        && buffer[0] === 0xff
+        && buffer[1] === 0xd8
+        && buffer[2] === 0xff;
+    }
+
+    if (mimeType === 'image/gif') {
+      const signature = buffer.subarray(0, 6).toString('ascii');
+      return signature === 'GIF87a' || signature === 'GIF89a';
+    }
+
+    if (mimeType === 'image/webp') {
+      return buffer.length >= 12
+        && buffer.subarray(0, 4).toString('ascii') === 'RIFF'
+        && buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+    }
+
+    return false;
   }
 
   private requireFile(file: UploadedFormFile | undefined): UploadedFormFile {
@@ -853,6 +918,21 @@ export class FileController {
     >,
   ) {
     return this.unwrapSync(await result);
+  }
+
+  private async readFileWithControlPlaneRecovery(
+    filePath: string,
+    currentUser: TokenPayload,
+  ): Promise<FileCrudResult<FileData>> {
+    await this.accessRequestService.ensureRepoControlPlaneSynced();
+    let result = await this.fileCrudService.read(filePath, currentUser);
+    if (!result.success && result.status === 404) {
+      logger.warn('파일 read 404 감지: control-plane 강제 동기화 후 재시도', { filePath });
+      await this.accessRequestService.ensureRepoControlPlaneSynced(true);
+      result = await this.fileCrudService.read(filePath, currentUser);
+    }
+
+    return result;
   }
 
   private unwrapSync<T>(

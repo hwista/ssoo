@@ -6,6 +6,9 @@ import { LoadingState } from '@/components/common/StateDisplay';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import { extractSummaryFile } from '@/components/common/assistant/reference/summaryFileExtraction';
 import { armProtectedAppLifecycleCheckSkip } from '@/lib/protectedAppLifecycleCheck';
+import { toast } from '@/lib/toast';
+import { collectSummaryFileIssues } from '@/lib/summaryFileStatus';
+import { Button, Input } from '@ssoo/web-ui';
 
 interface LauncherAction {
   id: string;
@@ -67,6 +70,11 @@ export function NewDocumentLauncher({
       files.map((file) => extractSummaryFile(file))
     );
 
+    const issues = collectSummaryFileIssues(mapped);
+    if (issues.length > 0) {
+      toast.warning(issues.join(' '));
+    }
+
     onSelectAiSummary(mapped);
     e.target.value = '';
   }, [onSelectAiSummary]);
@@ -122,7 +130,7 @@ export function NewDocumentLauncher({
       <div className="flex flex-col items-center gap-2 -mt-16">
         <div className="flex flex-col gap-1 w-64">
           {actions.map((action) => (
-            <button
+            <Button variant="plain" size="plain"
               key={action.id}
               type="button"
               disabled={action.disabled}
@@ -138,11 +146,11 @@ export function NewDocumentLauncher({
                   <span className="text-caption text-ssoo-primary/40 truncate">{action.description}</span>
                 )}
               </div>
-            </button>
+            </Button>
           ))}
         </div>
       </div>
-      <input
+      <Input
         ref={fileInputRef}
         type="file"
         multiple

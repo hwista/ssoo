@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build",
+    "build": "NEXT_PRIVATE_BUILD_WORKER=0 NODE_OPTIONS=--max-old-space-size=8192 next build",
     "start": "next start",
     "lint": "next lint",
     "clean": "rimraf .next"
@@ -23,6 +23,7 @@
     "@ssoo/types": "workspace:*",
     "@ssoo/web-auth": "workspace:*",
     "@ssoo/web-shell": "workspace:*",
+    "@ssoo/web-ui": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.7.0",

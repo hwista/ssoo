@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Share2 } from 'lucide-react';
 import type { SnsVisibilityScopeCode } from '@ssoo/types/sns';
+import { getSsooUserSurfaceTabPath } from '@ssoo/web-auth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -34,19 +36,27 @@ export function PostCard({ item }: PostCardProps) {
 
   const initials = author.displayName?.slice(0, 2) || author.userName.slice(0, 2);
   const timeAgo = getTimeAgo(post.createdAt);
+  const authorProfilePath = getSsooUserSurfaceTabPath('user-profile', author.id);
 
   return (
     <Card>
       <CardContent className="p-4">
         {/* Author Header */}
         <div className="flex items-start gap-3 mb-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={author.avatarUrl || undefined} />
-            <AvatarFallback className="bg-ssoo-primary text-white text-sm">{initials}</AvatarFallback>
-          </Avatar>
+          <Link href={authorProfilePath} className="shrink-0 rounded-full outline-none focus:ring-2 focus:ring-ssoo-primary">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={author.avatarUrl || undefined} />
+              <AvatarFallback className="bg-ssoo-primary text-white text-sm">{initials}</AvatarFallback>
+            </Avatar>
+          </Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm truncate">{author.displayName || author.userName}</span>
+              <Link
+                href={authorProfilePath}
+                className="truncate text-sm font-semibold hover:text-ssoo-primary hover:underline"
+              >
+                {author.displayName || author.userName}
+              </Link>
               {author.positionCode && (
                 <span className="text-xs text-muted-foreground">· {author.positionCode}</span>
               )}
@@ -88,9 +98,9 @@ export function PostCard({ item }: PostCardProps) {
           <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
             {reactionCount > 0 && <span>좋아요 {reactionCount}</span>}
             {commentCount > 0 && (
-              <button className="hover:underline" onClick={() => setShowComments(!showComments)}>
+              <Button variant="plain" size="plain" className="hover:underline" onClick={() => setShowComments(!showComments)}>
                 댓글 {commentCount}
-              </button>
+              </Button>
             )}
           </div>
         )}

@@ -5,6 +5,7 @@ import { Bot, ExternalLink, History, Maximize2 } from 'lucide-react';
 import { AssistantComposer } from '../Composer';
 import { AssistantSessionHistoryList } from '../session/HistoryList';
 import type { AssistantSession } from '@/stores';
+import { Button } from '@ssoo/web-ui';
 
 interface FloatingAssistantHeaderProps {
   onExpand: () => void | Promise<void>;
@@ -22,16 +23,18 @@ export function FloatingAssistantHeader({ onExpand }: FloatingAssistantHeaderPro
           <p className="text-caption text-ssoo-primary/60">질문, 문서 검색, 기능 안내를 한 번에 처리합니다.</p>
         </div>
       </div>
-      <button
+      <Button
+        variant="outline"
+        size="xs"
         type="button"
         onClick={() => {
           void onExpand();
         }}
-        className="inline-flex h-8 items-center gap-1 rounded-md border border-ssoo-content-border px-2 text-caption text-ssoo-primary transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg"
+        className="h-8 gap-1 px-2 text-caption hover:border-ssoo-primary/40"
         title="크게보기"
       >
         <Maximize2 className="h-3.5 w-3.5" />
-      </button>
+      </Button>
     </header>
   );
 }
@@ -61,7 +64,7 @@ export function FloatingAssistantHistory({
     <div ref={historyRef} className="absolute top-14 -left-12 z-20">
       <div className={`${isOpen ? 'pointer-events-auto' : 'pointer-events-none'} w-fit space-y-2`}>
         <div className="flex flex-col items-start gap-2">
-          <button
+          <Button variant="plain" size="plain"
             type="button"
             onClick={onStartNewSession}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg text-ssoo-primary/75 shadow-sm transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary"
@@ -69,8 +72,8 @@ export function FloatingAssistantHistory({
             aria-label="새 채팅 세션"
           >
             <ExternalLink className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button variant="plain" size="plain"
             type="button"
             onClick={onToggleHistory}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg text-ssoo-primary/75 shadow-sm transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary"
@@ -78,7 +81,7 @@ export function FloatingAssistantHistory({
             aria-label="채팅 세션 히스토리"
           >
             <History className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
         {historyOpen && (
           <div className="max-h-48 w-64 overflow-y-auto rounded-lg border border-ssoo-content-border bg-white p-2 shadow-sm">

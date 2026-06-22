@@ -5,6 +5,8 @@ import { ListPageTemplate } from '@/components/templates';
 import { Plus, Trash2 } from 'lucide-react';
 import { useTabStore } from '@/stores';
 import { DataGrid, ColumnDef } from '@/components/common';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { FilterValues } from '@/components/common/page/Header';
 import { useProjectList } from '@/hooks/queries';
 import type { Project, ProjectFilters, ProjectRequestDetail, ProjectStageCode, ProjectStatusCode } from '@/lib/api/endpoints/projects';
@@ -36,9 +38,10 @@ const columns: ColumnDef<Project>[] = [
     cell: ({ row }) => {
       const label = `REQ-${String(row.original.id).padStart(6, '0')}`;
       return (
-        <button
+        <Button
           type="button"
-          className="text-ssoo-primary hover:underline font-medium"
+          variant="link"
+          className="h-auto p-0 text-label-md font-medium text-ssoo-primary"
           onClick={(e) => {
             e.stopPropagation();
             const { openTab } = useTabStore.getState();
@@ -52,7 +55,7 @@ const columns: ColumnDef<Project>[] = [
           }}
         >
           {label}
-        </button>
+        </Button>
       );
     },
   },
@@ -74,9 +77,9 @@ const columns: ColumnDef<Project>[] = [
     cell: ({ row }) => {
       const status = row.original.statusCode;
       return (
-        <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+        <Badge variant="outline" className="rounded border-transparent bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
           {statusLabels[status]}
-        </span>
+        </Badge>
       );
     },
   },
@@ -92,9 +95,9 @@ const columns: ColumnDef<Project>[] = [
         done: 'bg-gray-100 text-gray-800',
       };
       return (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${colorMap[stage]}`}>
+        <Badge variant="outline" className={`rounded border-transparent px-2 py-1 text-xs font-medium ${colorMap[stage]}`}>
           {stageLabels[stage]}
-        </span>
+        </Badge>
       );
     },
   },

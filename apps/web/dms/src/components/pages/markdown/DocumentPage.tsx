@@ -21,11 +21,7 @@ import { fileApi } from '@/lib/api/endpoints/files';
 import { templateApi } from '@/lib/api/endpoints/templates';
 import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
 import { PageTemplate } from '@/components/templates';
-import {
-  DOC_PAGE_SURFACE_PRESETS,
-  PAGE_BACKGROUND_PRESETS,
-  SectionedShell,
-} from '@/components/templates/page-frame';
+import { SectionedShell } from '@/components/templates/page-frame';
 import { EditorToolbar } from './_components/editor';
 import type { EditorRef, EditorSaveConflictPayload } from './_components/editor';
 import { type TocItem } from '@/components/templates/page-frame';
@@ -2171,8 +2167,6 @@ export function DocumentPage() {
     return keys.size > 0 ? keys : undefined;
   }, [pendingDeletedFileIds, isTemplatePendingDelete, pendingDeletedRefPaths, documentMetadata?.sourceFiles, inlineSummaryFiles]);
 
-  const contentSurfaceClassName = DOC_PAGE_SURFACE_PRESETS.document;
-
   const setAiSummaryPending = useNewDocStore((s) => s.setAiSummaryPending);
 
   const handleDownloadCurrentMarkdown = useCallback(() => {
@@ -2241,25 +2235,46 @@ export function DocumentPage() {
 
   if (createDeniedMessage) {
     return (
-      <main className="h-full flex items-center justify-center bg-ssoo-content-bg/30">
-        <ErrorState error={createDeniedMessage} />
-      </main>
+      <PageTemplate
+        filePath="새 문서.md"
+        mode="create"
+        breadcrumbRootIconVariant="editor"
+        contentSurface="transparent"
+        panelMode="hidden"
+        stateSlot={<ErrorState error={createDeniedMessage} />}
+      >
+        {null}
+      </PageTemplate>
     );
   }
 
   if (createEntryType === 'ai-summary' && isComposing) {
     return (
-      <main className="h-full flex items-center justify-center bg-ssoo-content-bg/30">
-        <LoadingState message="AI가 문서를 요약하는 중..." />
-      </main>
+      <PageTemplate
+        filePath="새 문서.md"
+        mode="create"
+        breadcrumbRootIconVariant="editor"
+        contentSurface="transparent"
+        panelMode="hidden"
+        stateSlot={<LoadingState message="AI가 문서를 요약하는 중..." />}
+      >
+        {null}
+      </PageTemplate>
     );
   }
 
   if (!filePath && !isCreateMode) {
     return (
-      <main className="h-full flex items-center justify-center bg-ssoo-content-bg/30">
-        <p className="text-ssoo-primary/70">사이드바에서 파일을 선택해주세요.</p>
-      </main>
+      <PageTemplate
+        filePath="문서"
+        mode="viewer"
+        breadcrumbRootIconVariant="folder"
+        contentSurface="transparent"
+        panelMode="hidden"
+        stateSlot={<p className="text-ssoo-primary/70">사이드바에서 파일을 선택해주세요.</p>}
+      >
+        {null}
+      </PageTemplate>
     );
   }
 
@@ -2281,20 +2296,15 @@ export function DocumentPage() {
   ];
 
   return (
-    <main
-      className={cn(
-        'h-full overflow-hidden',
-        isEditorMode ? PAGE_BACKGROUND_PRESETS.documentEditor : PAGE_BACKGROUND_PRESETS.documentViewer
-      )}
-    >
+    <>
       <PageTemplate
         filePath={lockedPreview?.path || filePath || '새 문서.md'}
         mode={mode}
+        pageTone={isEditorMode ? 'document-editor' : 'document-viewer'}
         breadcrumbRootIconVariant={isCreateMode ? 'editor' : 'folder'}
         breadcrumbLastSegmentLabel={lockedPreview?.title || documentMetadata?.title?.trim() || undefined}
-        contentOrientation="portrait"
-        contentMaxWidth={isCompareSurface ? null : undefined}
-        contentSurfaceClassName={contentSurfaceClassName}
+        pageVariant={isCompareSurface ? 'fluid' : 'standard'}
+        contentSurface="transparent"
         panelMode={isCompareSurface ? 'hidden' : undefined}
         panelNarrowBehavior="auto-close"
         panelContent={(
@@ -2638,6 +2648,6 @@ export function DocumentPage() {
         src={lightboxImage?.src ?? ''}
         alt={lightboxImage?.alt}
       />
-    </main>
+    </>
   );
 }

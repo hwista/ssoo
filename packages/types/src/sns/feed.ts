@@ -20,6 +20,7 @@ export interface FeedQueryDto {
   limit?: number;
   feedType?: 'all' | 'following' | 'board';
   boardId?: string;
+  authorUserId?: string;
 }
 
 export interface ReactionDto {

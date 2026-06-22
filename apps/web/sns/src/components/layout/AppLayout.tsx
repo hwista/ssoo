@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { ShellPageContainer, SsooAppFrame } from '@ssoo/web-shell';
-import { SNS_SHELL_SIZES } from '@/lib/constants/layout';
+import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { SsooAppFrame } from '@ssoo/web-shell';
 import { Header } from './Header';
-import { SecondaryStrip } from './SecondaryStrip';
 import { Sidebar } from './Sidebar';
+import { TabBar } from './TabBar';
+import { ContentArea } from './ContentArea';
+import { getSnsShellTabOptions } from './shell-navigation';
+import { useTabStore } from '@/stores';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -14,14 +17,25 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const toggleSidebar = () => setIsSidebarCollapsed((current) => !current);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const openTab = useTabStore((state) => state.openTab);
+  const currentPath = useMemo(() => {
+    const search = searchParams.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    openTab(getSnsShellTabOptions(currentPath));
+  }, [currentPath, openTab]);
+
+  void children;
 
   return (
     <SsooAppFrame
       mode="social"
       sidebarMode="collapsible"
       sidebarExpanded={!isSidebarCollapsed}
-      collapsedSidebarWidth={SNS_SHELL_SIZES.sidebar.collapsedWidth}
-      sidebarWidth={SNS_SHELL_SIZES.sidebar.expandedWidth}
       sidebarSlot={
         <Sidebar
           isCollapsed={isSidebarCollapsed}
@@ -29,14 +43,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       }
       headerSlot={<Header />}
-      tabBarSlot={<SecondaryStrip />}
-      contentSlot={
-        <ShellPageContainer as="div" className="max-w-[1440px] px-4 py-6">
-          {children}
-        </ShellPageContainer>
-      }
-      className="bg-gray-50"
-      contentClassName="bg-background"
+      tabBarSlot={<TabBar />}
+      contentSlot={<ContentArea />}
     />
   );
 }

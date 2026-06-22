@@ -61,6 +61,9 @@ jobs:
       - name: Codex Preflight
         run: pnpm run codex:preflight
 
+      - name: SSOO Frame Verify
+        run: pnpm run verify:ssoo-frame -- --skip-runtime
+
       - name: Codex Push Guard
         run: pnpm run codex:push-guard
 

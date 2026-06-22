@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { AuthLoadingScreen, useProtectedAppBootstrap } from '@ssoo/web-auth';
+import { AuthLoadingScreen, AuthPageShell, useProtectedAppBootstrap } from '@ssoo/web-auth';
 import type { CommonNotificationItem, CommonNotificationJsonValue, CommonNotificationStreamEvent } from '@ssoo/types/common';
 import {
   useMarkDocumentNotificationsReadMutation,
@@ -32,6 +32,7 @@ import {
   useEditorMultiStore,
   useGitStore,
 } from '@/stores';
+import { Button } from '@ssoo/web-ui';
 
 const FORCE_ACCESS_RELOAD_NOTIFICATION_TYPES = new Set([
   'dms.document-access-grant.updated',
@@ -88,6 +89,42 @@ function getDocumentPathFromTabPath(tabPath: string): string | null {
   }
 }
 
+interface DocumentTreeBootstrapScreenProps {
+  error: string | null;
+  isEmpty: boolean;
+  isLoading: boolean;
+  onRetry: () => void;
+}
+
+function DocumentTreeBootstrapScreen({
+  error,
+  isEmpty,
+  isLoading,
+  onRetry,
+}: DocumentTreeBootstrapScreenProps) {
+  if (isLoading || (!error && !isEmpty)) {
+    return <AuthLoadingScreen message="문서 목록을 동기화하는 중..." />;
+  }
+
+  return (
+    <AuthPageShell>
+      <div className="rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-xl font-semibold text-slate-950">문서 목록을 준비하지 못했습니다.</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {error ?? '문서 저장소 동기화 결과가 비어 있습니다. 저장소와 권한 정보를 다시 확인하세요.'}
+        </p>
+        <Button variant="plain" size="plain"
+          type="button"
+          onClick={onRetry}
+          className="mt-6 rounded-md bg-[#0B3B3B] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0f4c4c]"
+        >
+          문서 목록 다시 불러오기
+        </Button>
+      </div>
+    </AuthPageShell>
+  );
+}
+
 /**
  * (main) 그룹 레이아웃
  * - 루트 셸 초기화
@@ -111,7 +148,12 @@ export default function MainLayout({
   const accessIsLoading = useAccessStore((state) => state.isLoading);
   const hydrateAccess = useAccessStore((state) => state.hydrate);
   const resetAccess = useAccessStore((state) => state.reset);
-  const { refreshFileTree } = useFileStore();
+  const refreshFileTree = useFileStore((state) => state.refreshFileTree);
+  const fileTreeFiles = useFileStore((state) => state.files);
+  const fileTreeOwnerUserId = useFileStore((state) => state.filesOwnerUserId);
+  const fileTreeIsInitialized = useFileStore((state) => state.isInitialized);
+  const fileTreeIsLoading = useFileStore((state) => state.isLoading);
+  const fileTreeError = useFileStore((state) => state.error);
   const refreshPublishFailures = useGitStore((state) => state.refreshPublishFailures);
   const activeTabId = useTabStore((s) => s.activeTabId);
   const tabs = useTabStore((s) => s.tabs);
@@ -326,6 +368,29 @@ export default function MainLayout({
     onUnauthenticated: redirectToLogin,
     shouldSkipLifecycleCheck: shouldSkipProtectedAppLifecycleCheck,
   });
+  const shouldPrepareDocumentTree = Boolean(
+    shouldRender
+    && isAuthenticated
+    && currentUserId
+    && accessSnapshot?.features.canReadDocuments,
+  );
+  const isCurrentDocumentTreeReady = Boolean(
+    currentUserId
+    && fileTreeOwnerUserId === currentUserId
+    && fileTreeIsInitialized,
+  );
+  const isDocumentTreeEmpty = isCurrentDocumentTreeReady && fileTreeFiles.length === 0;
+  const shouldBlockForDocumentTree = Boolean(
+    shouldPrepareDocumentTree
+    && (!isCurrentDocumentTreeReady || isDocumentTreeEmpty || fileTreeError),
+  );
+  const retryFileTreeBootstrap = useCallback(() => {
+    if (!shouldPrepareDocumentTree) {
+      return;
+    }
+
+    void refreshFileTree({ forceSync: true });
+  }, [refreshFileTree, shouldPrepareDocumentTree]);
 
   // WebSocket 실시간 동기화
   useDmsSocket({
@@ -375,7 +440,7 @@ export default function MainLayout({
       return;
     }
 
-    void refreshFileTree();
+    void refreshFileTree({ forceSync: true });
   }, [accessSnapshot?.features.canReadDocuments, currentUserId, isAuthenticated, refreshFileTree]);
 
   if (showLoading) {
@@ -384,6 +449,17 @@ export default function MainLayout({
 
   if (!shouldRender) {
     return null;
+  }
+
+  if (shouldBlockForDocumentTree) {
+    return (
+      <DocumentTreeBootstrapScreen
+        error={fileTreeError}
+        isEmpty={isDocumentTreeEmpty}
+        isLoading={fileTreeIsLoading || (!isCurrentDocumentTreeReady && !fileTreeError)}
+        onRetry={retryFileTreeBootstrap}
+      />
+    );
   }
 
   return children;

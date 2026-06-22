@@ -11,7 +11,7 @@ applyTo: "apps/web/pms/**"
 ## 기술 스택
 
 - Next.js 15.x (App Router), React 19.x, TypeScript 5.x
-- Tailwind CSS 3.x, shadcn/ui (Radix UI primitives)
+- Tailwind CSS 3.x, shadcn/ui (Radix UI primitives), `@ssoo/web-ui`
 - Zustand 5.x (클라이언트 상태), TanStack Query 5.x (서버 상태)
 - TanStack Table 8.x, React Hook Form + Zod
 
@@ -26,7 +26,7 @@ src/
 │   ├── api/               # Route Handlers
 │   └── layout.tsx
 ├── components/
-│   ├── ui/                # Level 1 - shadcn/ui 기반 원자
+│   ├── ui/                # Level 1 - @ssoo/web-ui thin re-export adapter + Radix 원자
 │   ├── common/            # Level 2 - 재사용 가능한 조합
 │   │   ├── datagrid/      # DataGrid, Pagination
 │   │   ├── form/          # FormSection, FormField
@@ -79,6 +79,24 @@ hooks → lib/api → stores
 | `h-control-h-lg` | 44px | 큰 버튼 |
 
 컨테이너 규칙: 36px 컨트롤을 담는 바는 `min-h-[52px] px-4 py-2`
+
+---
+
+## UI primitive 사용법
+
+- Button/Badge/Card/Input/NativeSelect/Table/Textarea 등 inventory 원자는 `@ssoo/web-ui`가 소유하고 `components/ui/*`는 thin re-export adapter로 유지합니다.
+- `components/ui/*`에서 앱별 primitive variant recipe를 재정의하지 않습니다.
+- Radix 기반 신규 primitive가 필요하면 앱 로컬에 먼저 두지 않고 `@ssoo/web-ui` inventory 원자로 추가합니다.
+- 색상은 `ssoo-primary`, `ssoo-secondary`, `ssoo-accent`, `ls-blue`, `ls-red` 같은 theme token을 사용합니다.
+- 하드코딩 색상은 금지합니다. 예: `bg-[#1E40AF]`
+
+---
+
+## UI primitive 소비 기준
+
+- PMS TSX surface에서는 원시 `button/input/textarea/select/table/thead/tbody/tfoot/tr/th/td`를 직접 렌더링하지 않고 공용 primitive 또는 앱 thin adapter를 사용합니다.
+- DataGrid 본문/툴바/페이지네이션과 요청 목록의 행 액션/상태 토큰도 같은 전역 기준을 따릅니다.
+- 이 기준은 `pnpm run verify:ui-consumption`에서 전역 검증됩니다.
 
 ---
 

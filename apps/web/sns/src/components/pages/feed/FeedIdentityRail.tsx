@@ -2,6 +2,10 @@
 
 import Link from 'next/link';
 import { Bookmark, LayoutGrid, Search, Settings, UserRound } from 'lucide-react';
+import {
+  SSOO_USER_SURFACE_MY_PROFILE_PATH,
+  SSOO_USER_SURFACE_SETTINGS_PATH,
+} from '@ssoo/web-auth';
 import { useMyProfile } from '@/hooks/queries/useProfiles';
 import { APP_HOME_PATH } from '@/lib/constants/routes';
 import { useAuthStore } from '@/stores/auth.store';
@@ -14,8 +18,8 @@ const QUICK_LINKS = [
   { href: APP_HOME_PATH, label: '내 피드', icon: Bookmark },
   { href: '/board', label: '게시판', icon: LayoutGrid },
   { href: '/search', label: '전문가 검색', icon: Search },
-  { href: '/profile/me', label: '내 프로필', icon: UserRound },
-  { href: '/settings', label: '설정', icon: Settings },
+  { href: SSOO_USER_SURFACE_MY_PROFILE_PATH, label: '내 프로필', icon: UserRound },
+  { href: SSOO_USER_SURFACE_SETTINGS_PATH, label: '설정', icon: Settings },
 ] as const;
 
 export function FeedIdentityRail() {

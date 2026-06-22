@@ -38,8 +38,11 @@ export class ProfileController {
   @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
   @UseGuards(SnsFeatureGuard)
   @RequireSnsFeature('canReadFeed')
-  async getProfileByUserId(@Param('userId') userId: string) {
-    const profile = await this.profileService.getProfileByUserId(BigInt(userId));
+  async getProfileByUserId(@Param('userId') userId: string, @CurrentUser() user: TokenPayload) {
+    const profile = await this.profileService.getProfileByUserId(
+      BigInt(userId),
+      BigInt(user.userId),
+    );
     return success(serializeBigInt(profile));
   }
 

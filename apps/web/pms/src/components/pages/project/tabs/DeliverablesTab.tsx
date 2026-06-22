@@ -30,6 +30,7 @@ import {
 } from '@/hooks/queries/useProjects';
 import type { DeliverableItem } from '@/lib/api/endpoints/projects';
 import { EventRollupSummary } from './EventRollupSummary';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 const SUBMISSION_STATUS_COLORS: Record<string, string> = {
   not_submitted: 'bg-gray-100 text-gray-700',
@@ -132,28 +133,28 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left p-3 font-medium">코드</th>
-                <th className="text-left p-3 font-medium">산출물명</th>
-                <th className="text-left p-3 font-medium">연결 이벤트 / 요약</th>
-                <th className="text-center p-3 font-medium">제출상태</th>
-                <th className="text-left p-3 font-medium">제출일</th>
-                <th className="text-left p-3 font-medium">파일명</th>
-                <th className="text-left p-3 font-medium">메모</th>
-                <th className="text-center p-3 font-medium w-16">삭제</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+          <Table className="w-full text-sm">
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead className="text-left p-3 font-medium">코드</TableHead>
+                <TableHead className="text-left p-3 font-medium">산출물명</TableHead>
+                <TableHead className="text-left p-3 font-medium">연결 이벤트 / 요약</TableHead>
+                <TableHead className="text-center p-3 font-medium">제출상태</TableHead>
+                <TableHead className="text-left p-3 font-medium">제출일</TableHead>
+                <TableHead className="text-left p-3 font-medium">파일명</TableHead>
+                <TableHead className="text-left p-3 font-medium">메모</TableHead>
+                <TableHead className="text-center p-3 font-medium w-16">삭제</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y">
               {deliverables.map((d: DeliverableItem) => {
                 const linkedEvent = d.eventId ? eventLookup.get(String(d.eventId)) : undefined;
 
                 return (
-                  <tr key={`${d.statusCode}-${d.deliverableCode}`} className="hover:bg-muted/30">
-                    <td className="p-3 font-mono text-xs">{d.deliverableCode}</td>
-                    <td className="p-3">{d.deliverable?.deliverableName ?? d.deliverableName ?? '-'}</td>
-                    <td className="p-3">
+                  <TableRow key={`${d.statusCode}-${d.deliverableCode}`} className="hover:bg-muted/30">
+                    <TableCell className="p-3 font-mono text-xs">{d.deliverableCode}</TableCell>
+                    <TableCell className="p-3">{d.deliverable?.deliverableName ?? d.deliverableName ?? '-'}</TableCell>
+                    <TableCell className="p-3">
                       <Select
                         value={d.eventId ? String(d.eventId) : 'none'}
                         onValueChange={(value) =>
@@ -183,8 +184,8 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
                         </SelectContent>
                       </Select>
                       <EventRollupSummary rollup={linkedEvent?.rollup} className="mt-1" />
-                    </td>
-                    <td className="p-3 text-center">
+                    </TableCell>
+                    <TableCell className="p-3 text-center">
                       <Select
                         value={d.submissionStatusCode}
                         onValueChange={(value) => handleStatusChange(d, value)}
@@ -203,17 +204,17 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
                           ))}
                         </SelectContent>
                       </Select>
-                    </td>
-                    <td className="p-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="p-3 text-muted-foreground">
                       {d.submittedAt ? new Date(d.submittedAt).toLocaleDateString('ko-KR') : '-'}
-                    </td>
-                    <td className="p-3 text-muted-foreground text-xs truncate max-w-[160px]">
+                    </TableCell>
+                    <TableCell className="p-3 text-muted-foreground text-xs truncate max-w-[160px]">
                       {d.originalFileName ?? '-'}
-                    </td>
-                    <td className="p-3 text-muted-foreground text-xs truncate max-w-[160px]">
+                    </TableCell>
+                    <TableCell className="p-3 text-muted-foreground text-xs truncate max-w-[160px]">
                       {d.memo ?? '-'}
-                    </td>
-                    <td className="p-3 text-center">
+                    </TableCell>
+                    <TableCell className="p-3 text-center">
                       {canManageDeliverables ? (
                         <Button
                           variant="ghost"
@@ -227,12 +228,12 @@ export function DeliverablesTab({ projectId, statusCode }: Props) {
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

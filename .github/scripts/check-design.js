@@ -274,6 +274,72 @@ const DESIGN_RULES = [
       return issues;
     },
   },
+  {
+    name: 'selected-web-ui-primitives',
+    description: '선별 기준선 화면에서 공용 UI primitive 우회 감지',
+    severity: 'error',
+    pathPattern: /apps\/web\/(?:pms\/src\/components\/(?:common\/datagrid|pages\/request)|dms\/src\/components\/(?:common\/json|pages\/(?:access-requests|settings)))\//,
+    filePattern: /\.(tsx)$/,
+    exclude: ['node_modules', 'dist', '.next', '.stories.tsx'],
+    check: (content, filePath) => {
+      const issues = [];
+      const lines = content.split('\n');
+      const intrinsicPrimitivePattern = /<(button|input|table|thead|tbody|tr|th|td)\b/;
+      const tablePrimitivePattern = /<(table|thead|tbody|tr|th|td)\b/;
+      const exceptionPattern = /data-ssoo-ui-primitive-exception|ssoo-ui-primitive-exception/;
+      const allowedRawInputPattern = /type\s*=\s*["'](?:checkbox|radio|file|hidden)["']/;
+
+      const collectTagSnippet = (startIndex) => {
+        const snippetLines = [];
+        for (let offset = 0; offset < 8 && startIndex + offset < lines.length; offset += 1) {
+          const nextLine = lines[startIndex + offset];
+          snippetLines.push(nextLine.trim());
+          if (nextLine.includes('>')) {
+            break;
+          }
+        }
+        return snippetLines.join(' ');
+      };
+
+      lines.forEach((line, index) => {
+        if (line.trim().startsWith('//') || line.trim().startsWith('*')) {
+          return;
+        }
+        if (!intrinsicPrimitivePattern.test(line)) {
+          return;
+        }
+
+        const snippet = collectTagSnippet(index);
+        if (exceptionPattern.test(snippet)) {
+          return;
+        }
+
+        const matchesButton = /<button\b/.test(snippet);
+        const matchesInput = /<input\b/.test(snippet) && !allowedRawInputPattern.test(snippet);
+        const matchesTable = tablePrimitivePattern.test(snippet);
+        if (!matchesButton && !matchesInput && !matchesTable) {
+          return;
+        }
+
+        const primitive = matchesButton
+          ? 'Button'
+          : matchesInput
+            ? 'Input'
+            : 'Table';
+
+        issues.push({
+          file: filePath,
+          line: index + 1,
+          rule: 'selected-web-ui-primitives',
+          severity: 'error',
+          message: `선별 기준선 화면에서는 원시 ${primitive} 계열 태그 대신 @ssoo/web-ui 기반 앱 어댑터를 사용해야 합니다.`,
+          code: line.trim(),
+        });
+      });
+
+      return issues;
+    },
+  },
 ];
 
 function shouldExclude(filePath, excludePatterns) {

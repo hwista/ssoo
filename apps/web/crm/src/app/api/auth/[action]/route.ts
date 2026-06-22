@@ -5,12 +5,5 @@ import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/
 
 export const POST = createAuthProxyPostHandler({
   createServerApiUrl,
-  createServerApiProxyInit: (request, init = {}) => {
-    const headers = new Headers(init.headers);
-    headers.set('X-SSOO-App', 'crm');
-    return createServerApiProxyInit(request, {
-      ...init,
-      headers,
-    });
-  },
+  createServerApiProxyInit,
 });

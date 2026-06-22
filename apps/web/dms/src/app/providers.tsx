@@ -1,16 +1,17 @@
 'use client';
 
-import { ReactNode, useEffect, useState, type CSSProperties } from 'react';
+import { ReactNode, useState, type CSSProperties } from 'react';
 import { usePathname } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SharedAuthStateSync } from '@ssoo/web-auth';
+import { SSOO_SHELL_METRICS } from '@ssoo/web-shell';
 import { Toaster } from 'sonner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { FloatingAssistant } from '@/components/common/assistant';
 import { DocumentAccessRequestDialogHost } from '@/features/access';
-import { AuthStateSync } from '@/components/common/auth/StateSync';
 import { AssistantSessionSync } from '@/components/common/assistant/session/AssistantSessionSync';
-import { LAYOUT_SIZES } from '@/lib/constants/layout';
 import { LOGIN_PATH } from '@/lib/constants/routes';
+import { useDmsUserScopeQueryCacheReset } from '@/lib/user-scope';
 import { useAccessStore, useAuthStore } from '@/stores';
 
 interface ProvidersProps {
@@ -18,15 +19,15 @@ interface ProvidersProps {
 }
 
 const TOAST_OFFSET = {
-  top: LAYOUT_SIZES.header.height,
-  right: LAYOUT_SIZES.rightPanel.inset,
+  top: SSOO_SHELL_METRICS.header.height,
+  right: SSOO_SHELL_METRICS.overlay.inset,
 } as const;
 const TOAST_MOBILE_OFFSET = {
-  top: LAYOUT_SIZES.header.height,
-  right: LAYOUT_SIZES.rightPanel.inset,
-  left: LAYOUT_SIZES.rightPanel.inset,
+  top: SSOO_SHELL_METRICS.header.height,
+  right: SSOO_SHELL_METRICS.overlay.inset,
+  left: SSOO_SHELL_METRICS.overlay.inset,
 } as const;
-const TOAST_WIDTH = `min(420px, calc(100vw - ${LAYOUT_SIZES.rightPanel.inset * 2}px))`;
+const TOAST_WIDTH = `min(420px, calc(100vw - ${SSOO_SHELL_METRICS.overlay.inset * 2}px))`;
 const TOASTER_STYLE = {
   '--width': TOAST_WIDTH,
 } as CSSProperties;
@@ -60,29 +61,9 @@ function getQueryClient() {
   return browserQueryClient;
 }
 
-function QueryCacheUserScopeSync({ queryClient }: { queryClient: QueryClient }) {
-  useEffect(() => {
-    let lastUserId = useAuthStore.getState().user?.userId ?? null;
-    let lastAccessToken = useAuthStore.getState().accessToken ?? null;
-
-    return useAuthStore.subscribe((state) => {
-      const nextUserId = state.user?.userId ?? null;
-      const nextAccessToken = state.accessToken ?? null;
-      if (nextUserId === lastUserId && nextAccessToken === lastAccessToken) {
-        return;
-      }
-
-      queryClient.clear();
-      lastUserId = nextUserId;
-      lastAccessToken = nextAccessToken;
-    });
-  }, [queryClient]);
-
-  return null;
-}
-
 export function Providers({ children }: ProvidersProps) {
   const [queryClient] = useState(() => getQueryClient());
+  useDmsUserScopeQueryCacheReset(queryClient);
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasHydrated = useAuthStore((state) => state._hasHydrated);
@@ -92,8 +73,7 @@ export function Providers({ children }: ProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <QueryCacheUserScopeSync queryClient={queryClient} />
-      <AuthStateSync />
+      <SharedAuthStateSync authStore={useAuthStore} />
       {children}
       {showAssistantUi && (
         <>

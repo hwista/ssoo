@@ -1,6 +1,6 @@
 # SSOO Codex Agent Entry
 
-> 최종 업데이트: 2026-04-17
+> 최종 업데이트: 2026-06-17
 > 범위: SSOO 모노레포 전체 (`/home/hwista/src/ssoo`)
 
 ## 목적
@@ -42,9 +42,9 @@ Codex 작업 시 참조 순서, 규칙 정본, 검증 루틴을 고정해 일관
 
 ## 현재 앱/패키지 기준선
 
-- 앱: `apps/server`, `apps/web/pms`, `apps/web/sns`, `apps/web/dms`
-- 공용 패키지: `packages/database`, `packages/types`, `packages/web-auth`, `packages/web-shell`
-- path-specific instruction 은 server/pms/sns/dms/database/types/testing 기준으로 적용됩니다.
+- 앱: `apps/server`, `apps/web/admin`, `apps/web/crm`, `apps/web/pms`, `apps/web/dms`, `apps/web/sns`
+- 공용 패키지: `packages/database`, `packages/types`, `packages/web-auth`, `packages/web-shell`, `packages/web-ui`
+- path-specific instruction 은 server/pms/dms/database/types/testing 기준으로 적용하고, SNS/Admin/CRM 웹 앱은 `.github/instructions/sns.instructions.md`, `.github/copilot-instructions.md`, `docs/common/explanation/architecture/ssoo-frame-system.md`의 공용 auth/shell 기준을 함께 적용합니다.
 
 ## 주의
 

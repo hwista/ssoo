@@ -26,6 +26,21 @@
 \echo 'Installing: cm_notification_h trigger...'
 \i 57_cm_notification_h_trigger.sql
 
+\echo 'Installing: cm_auth_provider_setting_h trigger...'
+\i 58_cm_auth_provider_setting_h_trigger.sql
+
+\echo 'Installing: cm_user_external_identity_h trigger...'
+\i 59_cm_user_external_identity_h_trigger.sql
+
+\echo 'Installing: cm_user_registration_request_h trigger...'
+\i 60_cm_user_registration_request_h_trigger.sql
+
+\echo 'Installing: cm_user_password_reset_challenge_h trigger...'
+\i 61_cm_user_password_reset_challenge_h_trigger.sql
+
+\echo 'Installing: cm_auth_email_outbox_h trigger...'
+\i 62_cm_auth_email_outbox_h_trigger.sql
+
 \echo 'Installing: pr_project_h trigger...'
 \i 03_pr_project_h_trigger.sql
 

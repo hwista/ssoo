@@ -57,7 +57,7 @@ export function ImagePreviewDialog({ open, onOpenChange, src, alt = '이미지 �
           </DialogHeader>
 
           <div className="flex-1 min-h-0 flex items-center justify-center p-2">
-            <button
+            <Button variant="plain" size="plain"
               type="button"
               className="relative h-full w-full cursor-pointer rounded-md transition-opacity hover:opacity-80"
               onClick={handleOpenLightbox}
@@ -71,7 +71,7 @@ export function ImagePreviewDialog({ open, onOpenChange, src, alt = '이미지 �
                 className="object-contain rounded-md"
                 sizes="(max-width: 768px) 100vw, 32rem"
               />
-            </button>
+            </Button>
           </div>
 
           <div className="flex justify-end">

@@ -14,9 +14,9 @@ export interface AssistantHelpResponse {
 const HELP_ACTIONS = {
   search: {
     id: 'help-search',
-    title: 'AI 검색 열기',
-    description: '키워드로 문서를 검색하고 관련 파일을 찾습니다.',
-    path: '/ai/search',
+    title: '통합 검색 열기',
+    description: '키워드로 앱 전역 데이터를 검색하고 관련 항목을 찾습니다.',
+    path: '/ssoo/search',
     icon: 'Bot',
   },
   newDoc: {
@@ -79,7 +79,7 @@ function buildSummary(input: string, actions: AssistantHelpAction[]): string {
     return 'AI 작성은 새 문서 편집 화면 하단의 인라인 지시창에서 실행합니다. 템플릿/첨부 파일/문서를 함께 붙일 수 있습니다.';
   }
   if (/(검색|search|찾아)/i.test(text)) {
-    return '문서 검색은 검색어를 입력해 결과를 확인하고, 결과 항목을 눌러 문서를 여는 흐름입니다. 바로 검색 화면으로 이동할 수 있습니다.';
+    return '통합 검색은 검색어를 입력해 앱 전역 결과를 확인하고, 결과 항목을 눌러 대상 화면으로 이동하는 흐름입니다. 바로 검색 화면으로 이동할 수 있습니다.';
   }
   if (/(새 문서|편집|에디터|작성)/i.test(text)) {
     return '직접 작성은 새 문서 화면에서 시작해 저장 시 문서 경로로 전환됩니다. 아래 버튼으로 바로 이동할 수 있습니다.';

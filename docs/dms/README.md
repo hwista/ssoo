@@ -1,6 +1,6 @@
 # DMS 문서
 
-> 최종 업데이트: 2026-06-10
+> 최종 업데이트: 2026-06-17
 > 정본 위치: `docs/dms/`
 
 Document Management System(DMS) 문서의 단일 정본 인덱스입니다.
@@ -33,6 +33,7 @@ docs/dms/
 | [패키지 구조](./explanation/architecture/package-spec.md) | 의존성/구조 규칙 |
 | [하이브리드 document control-plane](./explanation/architecture/hybrid-document-control-plane.md) | file/Git vs DB metadata projection 경계, `revisionSeq`, reconciliation |
 | [DMS 설정/제어/운영 책임 경계](./explanation/architecture/settings-control-operations-boundary.md) | Admin=플랫폼/base, DMS=DMS 세부 시스템 설정/제어/운영 정본 |
+| [SSOO 내부 페이지 조립 표준](../common/explanation/architecture/content-page-assembly-standard.md) | content-area 내부 페이지를 web-shell 재료와 recipe로 조립하는 공통 표준 |
 | [일-사람-산출물 운영 모델](../common/explanation/architecture/work-people-artifact-operating-model.md) | CRM/PMS에서 생성되는 문서와 산출물을 DMS 문서 자산 계층으로 연결하는 공통 기준 |
 | [문서 공개 범위 및 접근 모델](./explanation/domain/document-visibility-and-access-model.md) | visibility, explicit grant, request flow, search/tree 경계 |
 | [인증/권한 준비도](./planning/auth-access-readiness.md) | 공통 auth/access 경계, DMS 현재 상태, 다음 우선순위 |
@@ -72,6 +73,7 @@ docs/dms/
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-17 | SSOO 내부 페이지 조립 표준을 핵심 문서에 연결하고 DMS 문서 페이지를 골든 이그잼플 기준으로 명시 |
 | 2026-06-10 | DMS 설정/제어/운영 책임 경계 정본을 추가하고 Admin/platform vs DMS/domain-specific ownership 기준을 핵심 문서에 연결 |
 | 2026-06-05 | DMS의 역할을 PMS/CRM 도메인 기능 안에서 산출물 파일, 문서 뷰어, 문서 허브, 첨부, 검토 상태를 연결하는 문서 자산 계층으로 정정 |
 | 2026-06-05 | CRM/PMS 산출물을 DMS 문서 자산 계층으로 연결하는 공통 운영 모델을 핵심 문서에 추가 |
@@ -87,6 +89,6 @@ docs/dms/
 | 2026-04-06 | GitLab 운영 기준을 full-workspace `development` branch로 전환하고 `codex:workspace-sync-from-gitlab` / `codex:workspace-publish` 표준 명령을 추가 |
 | 2026-04-06 | settings IA 슬롯 확장: 시스템에 권한/전체문서관리/전역스케줄러/템플릿 마켓/관리자 템플릿, 개인에 공개·내 템플릿/내 문서·내 활동 surface 추가 |
 | 2026-04-06 | settings surface 확장 — storage runtime 필드, upload/search/DocAssist 정책, viewer/sidebar 개인 기본값, M365 metadata-only 설정 추가 |
-| 2026-04-02 | settings shell 도입, system/personal 설정 분리, 공용 JSON renderer/editor/diff 계층 추가, 3뎁스 settings navigation 정리 |
+| 2026-04-02 | 과거 설정 전용 frame 실험, system/personal 설정 분리, 공용 JSON renderer/editor/diff 계층 추가, 3뎁스 settings navigation 정리 |
 | 2026-03-17 | 첨부파일 섹션 구현, 파일 업로드 API (해시 기반 중복 제거), 이미지 미리보기 개선, UI 통일 |
 | 2026-02-23 | DMS 정본 경로를 `docs/dms/` 단일화하고 인덱스 구조를 PMS와 정렬 |

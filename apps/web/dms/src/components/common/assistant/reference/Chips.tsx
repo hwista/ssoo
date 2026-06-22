@@ -9,6 +9,7 @@ import {
 } from '@/lib/summaryFileStatus';
 import type { TemplateItem } from '@/types/template';
 import type { InlineSummaryFileItem } from './Picker';
+import { Button } from '@ssoo/web-ui';
 
 interface InlineReferenceChipItem {
   path: string;
@@ -100,7 +101,7 @@ export function AssistantReferenceChips({
           <Paperclip className="h-3.5 w-3.5" />
           첨부 컨텍스트
         </div>
-        <button
+        <Button variant="plain" size="plain"
           type="button"
           disabled={disabled}
           onClick={handleClearAll}
@@ -108,7 +109,7 @@ export function AssistantReferenceChips({
           aria-label="첨부 컨텍스트 전체 삭제"
         >
           전체 해제
-        </button>
+        </Button>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {references.map((ref) => (
@@ -126,7 +127,7 @@ export function AssistantReferenceChips({
           >
             <span className="max-w-[180px] truncate">{inlineRef.kind === 'file' ? '파일' : '문서'}: {ref.title}</span>
             {inlineRef.isDeleted && onRestoreReference ? (
-              <button
+              <Button variant="plain" size="plain"
                 type="button"
                 onClick={() => onRestoreReference(ref.path)}
                 className="rounded p-0.5 transition-colors text-destructive/50 hover:text-ssoo-primary"
@@ -134,9 +135,9 @@ export function AssistantReferenceChips({
                 title="되돌리기"
               >
                 <Undo2 className="h-3 w-3" />
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button variant="plain" size="plain"
                 type="button"
                 disabled={disabled}
                 onClick={() => {
@@ -150,7 +151,7 @@ export function AssistantReferenceChips({
                 aria-label={`첨부 해제: ${ref.title}`}
               >
                 <X className="h-3 w-3" />
-              </button>
+              </Button>
             )}
           </span>
             );
@@ -173,7 +174,7 @@ export function AssistantReferenceChips({
             <span className="max-w-[180px] truncate">템플릿: {template.name}</span>
             {!isTemplateDeleted && isTemplateUsed && <Check className="h-3 w-3 text-ssoo-primary" />}
             {isTemplateDeleted && onInlineRestoreTemplate ? (
-              <button
+              <Button variant="plain" size="plain"
                 type="button"
                 onClick={() => onInlineRestoreTemplate()}
                 className="rounded p-0.5 transition-colors text-destructive/50 hover:text-ssoo-primary"
@@ -181,9 +182,9 @@ export function AssistantReferenceChips({
                 title="되돌리기"
               >
                 <Undo2 className="h-3 w-3" />
-              </button>
+              </Button>
             ) : !isTemplateDeleted ? (
-              <button
+              <Button variant="plain" size="plain"
                 type="button"
                 disabled={disabled}
                 onClick={() => onInlineRemoveTemplate?.()}
@@ -191,7 +192,7 @@ export function AssistantReferenceChips({
                 aria-label={`템플릿 해제: ${template.name}`}
               >
                 <X className="h-3 w-3" />
-              </button>
+              </Button>
             ) : null}
           </span>
         ) : null}
@@ -241,7 +242,7 @@ export function AssistantReferenceChips({
               {!isDeleted && !isExtracting && fileIssue && <AlertTriangle className="h-3 w-3 text-amber-600" />}
               {!isDeleted && !fileIssue && !isExtracting && isUsed && <Check className="h-3 w-3 text-ssoo-primary" />}
               {isDeleted && onInlineRestoreSummaryFile ? (
-                <button
+                <Button variant="plain" size="plain"
                   type="button"
                   onClick={() => onInlineRestoreSummaryFile(file.id)}
                   className="rounded p-0.5 transition-colors text-destructive/50 hover:text-ssoo-primary"
@@ -249,9 +250,9 @@ export function AssistantReferenceChips({
                   title="되돌리기"
                 >
                   <Undo2 className="h-3 w-3" />
-                </button>
+                </Button>
               ) : !isDeleted ? (
-                <button
+                <Button variant="plain" size="plain"
                   type="button"
                   disabled={disabled}
                   onClick={() => onInlineRemoveSummaryFile?.(file.id)}
@@ -259,7 +260,7 @@ export function AssistantReferenceChips({
                   aria-label={`파일 해제: ${file.name}`}
                 >
                   <X className="h-3 w-3" />
-                </button>
+                </Button>
               ) : null}
             </span>
           );
@@ -270,7 +271,7 @@ export function AssistantReferenceChips({
         <div className="mt-2 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-caption text-amber-700">
           <span className="flex-1">{warnings.join(' ')}</span>
           {hasFailedRestore && onRetryRestore && (
-            <button
+            <Button variant="plain" size="plain"
               type="button"
               disabled={isRetryingRestore}
               onClick={onRetryRestore}
@@ -283,7 +284,7 @@ export function AssistantReferenceChips({
                 <RefreshCw className="h-3 w-3" />
               )}
               재시도
-            </button>
+            </Button>
           )}
         </div>
       )}

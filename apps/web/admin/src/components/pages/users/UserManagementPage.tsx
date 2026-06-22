@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Search, Plus, Pencil, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,7 +103,11 @@ const INITIAL_FORM: UserFormData = {
   primaryAffiliationType: 'internal',
 };
 
-export function UserManagementPage() {
+interface UserManagementPageProps {
+  path?: string;
+}
+
+export function UserManagementPage({ path }: UserManagementPageProps) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -125,6 +129,9 @@ export function UserManagementPage() {
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const deactivateMutation = useDeactivateUser();
+  const pathParams = useMemo(() => new URLSearchParams(path?.split('?')[1] ?? ''), [path]);
+  const pathSearch = pathParams.get('search')?.trim() ?? '';
+  const shouldOpenCreateDialog = pathParams.get('create') === '1';
 
   const users = response?.data ?? [];
   const total = response?.meta?.total ?? 0;
@@ -148,6 +155,18 @@ export function UserManagementPage() {
     setFormErrors({});
     setDialogOpen(true);
   }, []);
+
+  useEffect(() => {
+    setSearchInput(pathSearch);
+    setSearch(pathSearch);
+    setPage(1);
+  }, [pathSearch]);
+
+  useEffect(() => {
+    if (shouldOpenCreateDialog) {
+      openCreateDialog();
+    }
+  }, [openCreateDialog, shouldOpenCreateDialog]);
 
   const openEditDialog = useCallback((user: UserItem) => {
     setEditingUser(user);

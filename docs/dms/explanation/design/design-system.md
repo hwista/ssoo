@@ -1,8 +1,12 @@
 # DMS 디자인 시스템
 
-> 최종 업데이트: 2026-02-09
+> 최종 업데이트: 2026-06-17
 
 마크다운 위키 시스템의 일관된 디자인 언어와 UI 구성 요소에 대한 가이드입니다.
+
+현재 DMS의 앱 공통 디자인 토큰 정본은 `@ssoo/web-ui/tailwind-preset`과 `@ssoo/web-ui` primitive입니다. 이 문서의 레거시 색상/간격 예시는 도메인 콘텐츠 이해용으로 남아 있지만, 신규/수정 UI에서 Tailwind theme, Button/Badge/Card/Input/Table recipe를 앱 로컬에 재정의하지 않습니다.
+
+선별 기준선인 DMS `access-requests`, `settings`, settings JSON field row에서는 원시 `button`, 일반 `input`, 원시 `table/thead/tbody/tr/th/td`를 직접 스타일링하지 않고 앱 `components/ui/*` 어댑터를 통해 공용 primitive를 사용합니다.
 
 ---
 
@@ -463,6 +467,7 @@ AI가 컨트롤(버튼, 입력, 토글 등) 생성 요청을 받았을 때:
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-17 | `@ssoo/web-ui` Tailwind preset/UI primitive를 현재 정본으로 명시하고 DMS 선별 기준선 primitive 사용 규칙 추가 |
 | 2026-04-02 | 실제 DMS typography token(`text-title-*`, `text-body-*`, `text-label-*`, `text-code-*`) 기준으로 문서를 정렬하고 settings JSON editor 적용 기준을 반영 |
 | 2026-02-09 | 뷰어 줌 컨트롤 높이 표준 적용 (h-control-h-sm → h-control-h, 32px → 36px) |
 | 2026-02-06 | 컨트롤 컨테이너 원칙 추가 (컨테이너 없이 컨트롤만 사용, 예외 보고 프로세스) |

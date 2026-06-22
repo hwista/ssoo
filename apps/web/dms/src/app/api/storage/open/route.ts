@@ -1,6 +1,10 @@
 export const dynamic = 'force-dynamic';
 
-import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/serverApiProxy';
+import {
+  createServerApiProxyInit,
+  createServerApiUrl,
+  proxySessionBackedBinaryResponse,
+} from '@/app/api/_shared/serverApiProxy';
 
 interface BackendSuccessResponse<T> {
   success: true;
@@ -24,28 +28,7 @@ function getBackendErrorMessage(responseBody: BackendSuccessResponse<unknown> | 
 export async function GET(req: Request) {
   const query = new URL(req.url).searchParams.toString();
   const pathname = query ? `/dms/storage/open?${query}` : '/dms/storage/open';
-  const response = await fetch(createServerApiUrl(pathname), createServerApiProxyInit(req));
-  const contentType = response.headers.get('content-type') || '';
-
-  if (contentType.includes('application/json')) {
-    const responseBody = await response.json().catch(() => null) as BackendSuccessResponse<unknown> | BackendErrorResponse | unknown;
-    if (response.ok && responseBody && typeof responseBody === 'object' && 'success' in responseBody) {
-      const typedBody = responseBody as BackendSuccessResponse<unknown> | BackendErrorResponse;
-      if (typedBody.success === true) {
-        return Response.json(typedBody.data);
-      }
-
-      return Response.json({ error: getBackendErrorMessage(typedBody) }, { status: response.status || 500 });
-    }
-
-    return Response.json(responseBody, { status: response.status, headers: new Headers(response.headers) });
-  }
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: new Headers(response.headers),
-  });
+  return proxySessionBackedBinaryResponse(req, pathname);
 }
 
 export async function POST(req: Request) {

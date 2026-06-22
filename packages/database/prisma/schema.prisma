@@ -377,14 +377,18 @@ model User {
   transactionId String?  @map("transaction_id") @db.Uuid
 
   // Auth foundation relations
-  authAccount           UserAuth?
-  authSessions          UserSession[]
-  userInvitations       UserInvitation[]           @relation("UserInvitationUser")
-  sentInvitations       UserInvitation[]           @relation("UserInvitationInviter")
-  organizationRelations UserOrganizationRelation[]
-  permissionExceptions  UserPermissionException[]
-  ownedDmsDocuments     DmsDocument[]              @relation("DmsDocumentOwner")
-  dmsSearchQueries      DmsSearchQuery[]
+  authAccount                   UserAuth?
+  authSessions                  UserSession[]
+  externalIdentities            UserExternalIdentity[]
+  registrationRequests          UserRegistrationRequest[] @relation("UserRegistrationRequestCreatedUser")
+  decidedRegistrationRequests   UserRegistrationRequest[] @relation("UserRegistrationRequestDecider")
+  passwordResetChallenges       UserPasswordResetChallenge[]
+  userInvitations               UserInvitation[]           @relation("UserInvitationUser")
+  sentInvitations               UserInvitation[]           @relation("UserInvitationInviter")
+  organizationRelations         UserOrganizationRelation[]
+  permissionExceptions          UserPermissionException[]
+  ownedDmsDocuments             DmsDocument[]              @relation("DmsDocumentOwner")
+  dmsSearchQueries              DmsSearchQuery[]
 
   // Relations - as project owner
   ownedProjects Project[] @relation("ProjectOwner")
@@ -545,6 +549,185 @@ model UserInvitation {
   @@index([userId], name: "ix_cm_user_invitation_m_user")
   @@index([expiresAt], name: "ix_cm_user_invitation_m_expires_at")
   @@map("cm_user_invitation_m")
+  @@schema("common")
+}
+
+// ============================================
+// Auth Provider Setting - cm_auth_provider_setting_m
+// Admin-owned platform authentication policy/configuration
+// ============================================
+model AuthProviderSetting {
+  settingKey String @id @default("default") @map("setting_key") @db.VarChar(40)
+
+  passwordLoginEnabled Boolean @default(true) @map("password_login_enabled")
+  passwordResetEnabled Boolean @default(true) @map("password_reset_enabled")
+  passwordChangeEnabled Boolean @default(true) @map("password_change_enabled")
+  resetCodeTtlMinutes  Int     @default(15) @map("reset_code_ttl_minutes")
+  resetCodeLength      Int     @default(6) @map("reset_code_length")
+
+  internalSsoEnabled  Boolean @default(false) @map("internal_sso_enabled")
+  internalSsoLoginUrl String? @map("internal_sso_login_url") @db.VarChar(1000)
+
+  microsoftLoginEnabled           Boolean  @default(false) @map("microsoft_login_enabled")
+  microsoftSignupRequestEnabled   Boolean  @default(false) @map("microsoft_signup_request_enabled")
+  microsoftTenantId               String?  @map("microsoft_tenant_id") @db.VarChar(120)
+  microsoftClientId               String?  @map("microsoft_client_id") @db.VarChar(120)
+  microsoftClientSecretCiphertext String?  @map("microsoft_client_secret_ciphertext")
+  microsoftClientSecretNonce      String?  @map("microsoft_client_secret_nonce") @db.VarChar(80)
+  microsoftClientSecretTag        String?  @map("microsoft_client_secret_tag") @db.VarChar(80)
+  microsoftRedirectUri            String?  @map("microsoft_redirect_uri") @db.VarChar(1000)
+  microsoftScopes                 String[] @default(["openid", "profile", "email", "User.Read"]) @map("microsoft_scopes")
+  allowedTenantIds                String[] @default([]) @map("allowed_tenant_ids")
+  allowedEmailDomains             String[] @default([]) @map("allowed_email_domains")
+
+  selfSignupEnabled Boolean @default(false) @map("self_signup_enabled")
+  emailDeliveryMode String  @default("outbox") @map("email_delivery_mode") @db.VarChar(40)
+  emailFromAddress  String? @map("email_from_address") @db.VarChar(320)
+
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@map("cm_auth_provider_setting_m")
+  @@schema("common")
+}
+
+// ============================================
+// User External Identity - cm_user_external_identity_m
+// Approved SSO/OAuth identity mapping for a local user
+// ============================================
+model UserExternalIdentity {
+  externalIdentityId String   @id @default(uuid()) @map("external_identity_id") @db.Uuid
+  userId             BigInt   @map("user_id")
+  providerCode       String   @map("provider_code") @db.VarChar(40)
+  tenantId           String   @default("") @map("tenant_id") @db.VarChar(120)
+  subjectId          String   @map("subject_id") @db.VarChar(200)
+  email              String?  @db.VarChar(320)
+  userPrincipalName  String?  @map("user_principal_name") @db.VarChar(320)
+  displayName        String?  @map("display_name") @db.VarChar(200)
+  linkedAt           DateTime @default(now()) @map("linked_at")
+  lastLoginAt        DateTime? @map("last_login_at")
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerCode, tenantId, subjectId], name: "ux_cm_user_external_identity_m_provider_subject")
+  @@index([userId], name: "ix_cm_user_external_identity_m_user")
+  @@index([email], name: "ix_cm_user_external_identity_m_email")
+  @@map("cm_user_external_identity_m")
+  @@schema("common")
+}
+
+// ============================================
+// User Registration Request - cm_user_registration_request_m
+// Applicant-created signup request, usually verified by Microsoft OAuth
+// ============================================
+model UserRegistrationRequest {
+  registrationRequestId String   @id @default(uuid()) @map("registration_request_id") @db.Uuid
+  providerCode          String   @map("provider_code") @db.VarChar(40)
+  tenantId              String   @default("") @map("tenant_id") @db.VarChar(120)
+  subjectId             String   @map("subject_id") @db.VarChar(200)
+  email                 String   @db.VarChar(320)
+  userPrincipalName     String?  @map("user_principal_name") @db.VarChar(320)
+  displayName           String?  @map("display_name") @db.VarChar(200)
+  rawClaims             Json?    @map("raw_claims") @db.JsonB
+  statusCode            String   @default("pending") @map("status_code") @db.VarChar(40)
+  requestedAt           DateTime @default(now()) @map("requested_at")
+  decidedAt             DateTime? @map("decided_at")
+  decidedByUserId       BigInt?  @map("decided_by_user_id")
+  decisionMemo          String?  @map("decision_memo") @db.VarChar(1000)
+  createdUserId         BigInt?  @map("created_user_id")
+
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  createdUser User? @relation("UserRegistrationRequestCreatedUser", fields: [createdUserId], references: [id], onDelete: SetNull)
+  decider     User? @relation("UserRegistrationRequestDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([providerCode, tenantId, subjectId], name: "ux_cm_user_registration_request_m_provider_subject")
+  @@index([statusCode, requestedAt], name: "ix_cm_user_registration_request_m_status_requested")
+  @@index([email], name: "ix_cm_user_registration_request_m_email")
+  @@map("cm_user_registration_request_m")
+  @@schema("common")
+}
+
+// ============================================
+// User Password Reset Challenge - cm_user_password_reset_challenge_m
+// Short-lived email code for unauthenticated password reset
+// ============================================
+model UserPasswordResetChallenge {
+  challengeId String    @id @default(uuid()) @map("challenge_id") @db.Uuid
+  userId      BigInt    @map("user_id")
+  email       String    @db.VarChar(320)
+  codeHash    String    @map("code_hash")
+  expiresAt   DateTime  @map("expires_at")
+  consumedAt  DateTime? @map("consumed_at")
+  failCount   Int       @default(0) @map("fail_count")
+  lockedUntil DateTime? @map("locked_until")
+
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt], name: "ix_cm_user_password_reset_challenge_m_user_expires")
+  @@index([email, createdAt], name: "ix_cm_user_password_reset_challenge_m_email_created")
+  @@map("cm_user_password_reset_challenge_m")
+  @@schema("common")
+}
+
+// ============================================
+// Auth Email Outbox - cm_auth_email_outbox_m
+// Delivery-neutral email queue for auth workflows
+// ============================================
+model AuthEmailOutbox {
+  messageId     String    @id @default(uuid()) @map("message_id") @db.Uuid
+  toEmail       String    @map("to_email") @db.VarChar(320)
+  fromEmail     String?   @map("from_email") @db.VarChar(320)
+  templateCode  String    @map("template_code") @db.VarChar(80)
+  subject       String    @db.VarChar(300)
+  bodyText      String    @map("body_text")
+  referenceType String?   @map("reference_type") @db.VarChar(80)
+  referenceId   String?   @map("reference_id") @db.VarChar(120)
+  statusCode    String    @default("pending") @map("status_code") @db.VarChar(40)
+  sentAt        DateTime? @map("sent_at")
+  failedAt      DateTime? @map("failed_at")
+  failReason    String?   @map("fail_reason") @db.VarChar(1000)
+
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@index([statusCode, createdAt], name: "ix_cm_auth_email_outbox_m_status_created")
+  @@index([referenceType, referenceId], name: "ix_cm_auth_email_outbox_m_reference")
+  @@map("cm_auth_email_outbox_m")
   @@schema("common")
 }
 
@@ -2172,6 +2355,199 @@ model UserInvitationHistory {
   @@index([eventAt], name: "ix_cm_user_invitation_h_event_at")
   @@index([transactionId], name: "ix_cm_user_invitation_h_tx")
   @@map("cm_user_invitation_h")
+  @@schema("common")
+}
+
+// ============================================
+// Auth Provider Setting History - cm_auth_provider_setting_h
+// ============================================
+model AuthProviderSettingHistory {
+  settingKey String @map("setting_key") @db.VarChar(40)
+  historySeq BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at")
+
+  passwordLoginEnabled Boolean @map("password_login_enabled")
+  passwordResetEnabled Boolean @map("password_reset_enabled")
+  passwordChangeEnabled Boolean @map("password_change_enabled")
+  resetCodeTtlMinutes  Int     @map("reset_code_ttl_minutes")
+  resetCodeLength      Int     @map("reset_code_length")
+  internalSsoEnabled   Boolean @map("internal_sso_enabled")
+  internalSsoLoginUrl  String? @map("internal_sso_login_url") @db.VarChar(1000)
+  microsoftLoginEnabled           Boolean  @map("microsoft_login_enabled")
+  microsoftSignupRequestEnabled   Boolean  @map("microsoft_signup_request_enabled")
+  microsoftTenantId               String?  @map("microsoft_tenant_id") @db.VarChar(120)
+  microsoftClientId               String?  @map("microsoft_client_id") @db.VarChar(120)
+  microsoftClientSecretCiphertext String?  @map("microsoft_client_secret_ciphertext")
+  microsoftClientSecretNonce      String?  @map("microsoft_client_secret_nonce") @db.VarChar(80)
+  microsoftClientSecretTag        String?  @map("microsoft_client_secret_tag") @db.VarChar(80)
+  microsoftRedirectUri            String?  @map("microsoft_redirect_uri") @db.VarChar(1000)
+  microsoftScopes                 String[] @map("microsoft_scopes")
+  allowedTenantIds                String[] @map("allowed_tenant_ids")
+  allowedEmailDomains             String[] @map("allowed_email_domains")
+  selfSignupEnabled Boolean @map("self_signup_enabled")
+  emailDeliveryMode String  @map("email_delivery_mode") @db.VarChar(40)
+  emailFromAddress  String? @map("email_from_address") @db.VarChar(320)
+
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([settingKey, historySeq], name: "pk_cm_auth_provider_setting_h")
+  @@index([eventAt], name: "ix_cm_auth_provider_setting_h_event_at")
+  @@index([transactionId], name: "ix_cm_auth_provider_setting_h_tx")
+  @@map("cm_auth_provider_setting_h")
+  @@schema("common")
+}
+
+// ============================================
+// User External Identity History - cm_user_external_identity_h
+// ============================================
+model UserExternalIdentityHistory {
+  externalIdentityId String @map("external_identity_id") @db.Uuid
+  historySeq         BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at")
+
+  userId            BigInt    @map("user_id")
+  providerCode      String    @map("provider_code") @db.VarChar(40)
+  tenantId          String    @map("tenant_id") @db.VarChar(120)
+  subjectId         String    @map("subject_id") @db.VarChar(200)
+  email             String?   @db.VarChar(320)
+  userPrincipalName String?   @map("user_principal_name") @db.VarChar(320)
+  displayName       String?   @map("display_name") @db.VarChar(200)
+  linkedAt          DateTime  @map("linked_at")
+  lastLoginAt       DateTime? @map("last_login_at")
+  isActive          Boolean   @map("is_active")
+  memo              String?
+
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([externalIdentityId, historySeq], name: "pk_cm_user_external_identity_h")
+  @@index([eventAt], name: "ix_cm_user_external_identity_h_event_at")
+  @@index([transactionId], name: "ix_cm_user_external_identity_h_tx")
+  @@map("cm_user_external_identity_h")
+  @@schema("common")
+}
+
+// ============================================
+// User Registration Request History - cm_user_registration_request_h
+// ============================================
+model UserRegistrationRequestHistory {
+  registrationRequestId String @map("registration_request_id") @db.Uuid
+  historySeq            BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at")
+
+  providerCode      String   @map("provider_code") @db.VarChar(40)
+  tenantId          String   @map("tenant_id") @db.VarChar(120)
+  subjectId         String   @map("subject_id") @db.VarChar(200)
+  email             String   @db.VarChar(320)
+  userPrincipalName String?  @map("user_principal_name") @db.VarChar(320)
+  displayName       String?  @map("display_name") @db.VarChar(200)
+  rawClaims         Json?    @map("raw_claims") @db.JsonB
+  statusCode        String   @map("status_code") @db.VarChar(40)
+  requestedAt       DateTime @map("requested_at")
+  decidedAt         DateTime? @map("decided_at")
+  decidedByUserId   BigInt?  @map("decided_by_user_id")
+  decisionMemo      String?  @map("decision_memo") @db.VarChar(1000)
+  createdUserId     BigInt?  @map("created_user_id")
+
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([registrationRequestId, historySeq], name: "pk_cm_user_registration_request_h")
+  @@index([eventAt], name: "ix_cm_user_registration_request_h_event_at")
+  @@index([transactionId], name: "ix_cm_user_registration_request_h_tx")
+  @@map("cm_user_registration_request_h")
+  @@schema("common")
+}
+
+// ============================================
+// User Password Reset Challenge History - cm_user_password_reset_challenge_h
+// ============================================
+model UserPasswordResetChallengeHistory {
+  challengeId String @map("challenge_id") @db.Uuid
+  historySeq  BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at")
+
+  userId      BigInt    @map("user_id")
+  email       String    @db.VarChar(320)
+  codeHash    String    @map("code_hash")
+  expiresAt   DateTime  @map("expires_at")
+  consumedAt  DateTime? @map("consumed_at")
+  failCount   Int       @map("fail_count")
+  lockedUntil DateTime? @map("locked_until")
+
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([challengeId, historySeq], name: "pk_cm_user_password_reset_challenge_h")
+  @@index([eventAt], name: "ix_cm_user_password_reset_challenge_h_event_at")
+  @@index([transactionId], name: "ix_cm_user_password_reset_challenge_h_tx")
+  @@map("cm_user_password_reset_challenge_h")
+  @@schema("common")
+}
+
+// ============================================
+// Auth Email Outbox History - cm_auth_email_outbox_h
+// ============================================
+model AuthEmailOutboxHistory {
+  messageId  String @map("message_id") @db.Uuid
+  historySeq BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at")
+
+  toEmail       String    @map("to_email") @db.VarChar(320)
+  fromEmail     String?   @map("from_email") @db.VarChar(320)
+  templateCode  String    @map("template_code") @db.VarChar(80)
+  subject       String    @db.VarChar(300)
+  bodyText      String    @map("body_text")
+  referenceType String?   @map("reference_type") @db.VarChar(80)
+  referenceId   String?   @map("reference_id") @db.VarChar(120)
+  statusCode    String    @map("status_code") @db.VarChar(40)
+  sentAt        DateTime? @map("sent_at")
+  failedAt      DateTime? @map("failed_at")
+  failReason    String?   @map("fail_reason") @db.VarChar(1000)
+
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([messageId, historySeq], name: "pk_cm_auth_email_outbox_h")
+  @@index([eventAt], name: "ix_cm_auth_email_outbox_h_event_at")
+  @@index([transactionId], name: "ix_cm_auth_email_outbox_h_tx")
+  @@map("cm_auth_email_outbox_h")
   @@schema("common")
 }
 

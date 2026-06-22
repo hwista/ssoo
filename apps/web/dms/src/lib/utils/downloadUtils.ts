@@ -4,6 +4,15 @@ function ensureFileExtension(filename: string, extension: string): string {
   return filename.endsWith(extension) ? filename : `${filename}${extension}`;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function downloadAsFile(content: string, filename: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -24,7 +33,7 @@ export function printHtmlContent(htmlContent: string, title: string): void {
   const printWindow = window.open('', '_blank', 'width=960,height=720');
   if (!printWindow) return;
 
-  const safeTitle = title || '문서';
+  const safeTitle = escapeHtml(title || '문서');
   printWindow.document.open();
   printWindow.document.write(`<!doctype html>
 <html lang="ko">

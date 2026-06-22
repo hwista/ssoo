@@ -6,6 +6,7 @@ import {
   normalizeDocumentAccessRequestPath,
   useDocumentAccessRequestStore,
 } from '@/features/access';
+import { Button } from '@ssoo/web-ui';
 
 export interface SearchResultCardData {
   id: string;
@@ -154,7 +155,7 @@ export function SearchResultCard({
   const previewSnippets = uniqueSnippets.filter((snippet) => canonicalize(snippet) !== canonicalize(previewText));
 
   const content = (
-    <div className={cn(compact ? 'p-3' : 'p-4', 'text-left')}>
+    <div className={cn(compact ? 'p-3' : 'p-4', 'min-w-0 overflow-hidden text-left')}>
       <h3 className="text-title-card text-ssoo-primary">
         {result.title}
       </h3>
@@ -228,7 +229,8 @@ export function SearchResultCard({
   );
 
   const rootClassName = cn(
-    'w-full rounded-lg border border-ssoo-content-border transition-colors',
+    'block w-full min-w-0 overflow-hidden whitespace-normal rounded-lg border border-ssoo-content-border text-left transition-colors',
+    'items-stretch justify-start gap-0',
     highlighted ? 'bg-ssoo-content-bg' : 'bg-white',
     onClick && 'hover:bg-ssoo-content-bg/40',
     className,
@@ -236,9 +238,9 @@ export function SearchResultCard({
 
   if (onClick) {
     return (
-      <button id={id} type="button" onClick={onClick} className={rootClassName}>
+      <Button variant="plain" size="plain" id={id} type="button" onClick={onClick} className={rootClassName}>
         {content}
-      </button>
+      </Button>
     );
   }
 

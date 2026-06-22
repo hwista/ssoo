@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Check, RotateCcw } from 'lucide-react';
 import {
+  AlertCircle,
+  Check,
+  RotateCcw,
+} from 'lucide-react';
+import {
+  SsooPageIndexRail,
   SsooSettingsBanner,
   SsooSettingsMainPanel,
   SsooSettingsPendingSummary,
@@ -17,18 +22,20 @@ import type { HeaderAction } from '@/components/templates/page-frame';
 import { templateApi } from '@/lib/api/endpoints/templates';
 import { templateKeys, useTemplateList } from '@/hooks/queries/useTemplates';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
-import { useSettingsShellStore, useSettingsStore } from '@/stores';
+import { useAccessStore, useSettingsPageNavigationStore, useSettingsStore, useTabStore } from '@/stores';
+import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import {
   SETTING_SECTIONS,
   SETTINGS_SCOPE_LABELS,
   SETTINGS_VIEW_MODE_LABELS,
   getSettingSectionsByScope,
 } from './_config/settingsPageConfig';
+import type { SettingSection } from './_config/settingsPageConfig';
 import { GitObservabilitySurface } from './_components/GitObservabilitySurface';
 import { RuntimePathSurface } from './_components/RuntimePathSurface';
 import { SettingsCustomSlot } from './_components/SettingsCustomSlot';
-import { SettingsNavigation } from './_components/SettingsNavigation';
 import { SettingsFieldList } from './_components/SettingsFieldList';
+import { getSettingsTabOptions, parseSettingsTabPath } from './_utils/settingsNavigation';
 import {
   buildKeyToLabelMap,
   buildSectionJsonDraft,
@@ -42,6 +49,29 @@ import {
   replaceSectionValue,
   setNestedValue,
 } from './_utils/settingsPageUtils';
+
+function toSettingsAnchorId(value: string) {
+  return value.replace(/[^A-Za-z0-9_-]/g, '-');
+}
+
+function getSettingsSectionOverviewAnchorId(sectionId: string) {
+  return `settings-section-${toSettingsAnchorId(sectionId)}-overview`;
+}
+
+function getSettingsFieldAnchorId(sectionId: string, itemKey: string) {
+  return `settings-field-${toSettingsAnchorId(sectionId)}-${toSettingsAnchorId(itemKey)}`;
+}
+
+function getSettingsSectionIndexAnchorId(sectionId: string, itemId: string) {
+  return `settings-section-${toSettingsAnchorId(sectionId)}-index-${toSettingsAnchorId(itemId)}`;
+}
+
+interface SettingsIndexItem {
+  id: string;
+  label: string;
+  description?: string;
+  meta?: string;
+}
 
 export function SettingsPage() {
   const {
@@ -60,11 +90,22 @@ export function SettingsPage() {
     activeSectionId,
     activeViewMode,
     openSection,
-    setSection,
     setViewMode,
-  } = useSettingsShellStore();
+  } = useSettingsPageNavigationStore();
+  const tabId = useTabInstanceId();
+  const activeTabId = useTabStore((state) => state.activeTabId);
+  const tabPath = useTabStore((state) => state.tabs.find((tab) => tab.id === tabId)?.path ?? '');
+  const openTab = useTabStore((state) => state.openTab);
+  const tabTarget = useMemo(() => parseSettingsTabPath(tabPath), [tabPath]);
+  const effectiveScope = tabTarget?.scope ?? activeScope;
+  const effectiveSectionId = tabTarget?.sectionId ?? activeSectionId;
+  const isActiveSettingsTab = activeTabId === tabId;
+  const accessSnapshot = useAccessStore((state) => state.snapshot);
   const canManageSystemSettings = Boolean(settingsAccess?.canManageSystem ?? false);
   const canManagePersonalSettings = Boolean(settingsAccess?.canManagePersonal ?? true);
+  const canUseDocumentAccessCenter = Boolean(
+    accessSnapshot?.features.canReadDocuments || accessSnapshot?.features.canUseSearch
+  );
   const queryClient = useQueryClient();
 
   const [localConfig, setLocalConfig] = useState<Record<string, unknown>>({});
@@ -81,25 +122,41 @@ export function SettingsPage() {
   });
   const runtimeSectionIds = useMemo(() => new Set(['git', 'storage', 'ingest', 'templates-runtime']), []);
 
-  useEffect(() => {
-    if (activeSectionId === 'documentAccess') {
-      return;
+  const canOpenSection = useCallback((section: SettingSection) => {
+    if (section.scope === 'personal') {
+      return canManagePersonalSettings;
     }
-    const includeRuntime = canManageSystemSettings && runtimeSectionIds.has(activeSectionId);
+    if (section.id === 'documentAccess') {
+      return canManageSystemSettings || canUseDocumentAccessCenter;
+    }
+    return canManageSystemSettings;
+  }, [canManagePersonalSettings, canManageSystemSettings, canUseDocumentAccessCenter]);
+
+  useEffect(() => {
+    const includeRuntime = canManageSystemSettings && runtimeSectionIds.has(effectiveSectionId);
     if (isLoaded && (!includeRuntime || runtime)) {
       return;
     }
     void loadSettings(includeRuntime);
-  }, [activeSectionId, canManageSystemSettings, isLoaded, loadSettings, runtime, runtimeSectionIds]);
+  }, [canManageSystemSettings, effectiveSectionId, isLoaded, loadSettings, runtime, runtimeSectionIds]);
 
   useEffect(() => {
     if (!isLoaded || canManageSystemSettings) {
       return;
     }
-    if (activeScope === 'system') {
+    if (effectiveScope === 'system' && !(effectiveSectionId === 'documentAccess' && canUseDocumentAccessCenter)) {
       openSection('personal', 'identity');
+      openTab(getSettingsTabOptions('personal', 'identity'));
     }
-  }, [activeScope, canManageSystemSettings, isLoaded, openSection]);
+  }, [
+    canManageSystemSettings,
+    canUseDocumentAccessCenter,
+    effectiveScope,
+    effectiveSectionId,
+    isLoaded,
+    openSection,
+    openTab,
+  ]);
 
   useEffect(() => {
     if (!config) return;
@@ -114,19 +171,13 @@ export function SettingsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [saveSuccess]);
 
-  const allScopeSections = useMemo(() => getSettingSectionsByScope(activeScope), [activeScope]);
+  const allScopeSections = useMemo(() => getSettingSectionsByScope(effectiveScope), [effectiveScope]);
   const scopeSections = useMemo(() => {
-    if (canManageSystemSettings) {
-      return allScopeSections;
-    }
-    if (activeScope === 'personal' && canManagePersonalSettings) {
-      return allScopeSections;
-    }
-    return [];
-  }, [activeScope, allScopeSections, canManagePersonalSettings, canManageSystemSettings]);
+    return allScopeSections.filter(canOpenSection);
+  }, [allScopeSections, canOpenSection]);
   const currentSection = useMemo(() => {
-    return scopeSections.find((section) => section.id === activeSectionId) ?? scopeSections[0];
-  }, [activeSectionId, scopeSections]);
+    return scopeSections.find((section) => section.id === effectiveSectionId) ?? scopeSections[0];
+  }, [effectiveSectionId, scopeSections]);
   const isCustomSection = currentSection?.kind === 'custom';
   const isAdminTemplateSection = currentSection?.slotKey === 'admin-templates';
   const isReadOnlySection = currentSection?.id === 'git';
@@ -157,10 +208,13 @@ export function SettingsPage() {
   const isLoadingTemplates = templateListQuery.isLoading || templateListQuery.isFetching;
 
   useEffect(() => {
-    if (currentSection && currentSection.id !== activeSectionId) {
-      setSection(currentSection.id);
+    if (!isActiveSettingsTab || !currentSection) {
+      return;
     }
-  }, [activeSectionId, currentSection, setSection]);
+    if (currentSection.id !== activeSectionId || currentSection.scope !== activeScope) {
+      openSection(currentSection.scope, currentSection.id);
+    }
+  }, [activeScope, activeSectionId, currentSection, isActiveSettingsTab, openSection]);
 
   useEffect(() => {
     if (!currentSection || isCustomSection) {
@@ -203,10 +257,73 @@ export function SettingsPage() {
   const modifiedKeys = useMemo(() => {
     return getModifiedKeys(editableSections, comparableConfig, originalConfig);
   }, [comparableConfig, editableSections, originalConfig]);
+  const modifiedKeySet = useMemo(() => new Set(modifiedKeys), [modifiedKeys]);
 
   const validationErrors = useMemo(() => {
     return getValidationErrors(editableSections, comparableConfig);
   }, [comparableConfig, editableSections]);
+
+  const settingsSectionOverviewAnchorId = useMemo(() => {
+    return currentSection ? getSettingsSectionOverviewAnchorId(currentSection.id) : 'settings-section-overview';
+  }, [currentSection]);
+
+  const settingsIndexItems = useMemo<SettingsIndexItem[]>(() => {
+    if (!currentSection) {
+      return [];
+    }
+
+    const items: SettingsIndexItem[] = [
+      {
+        id: getSettingsSectionOverviewAnchorId(currentSection.id),
+        label: '개요',
+        description: currentSection.description,
+        meta: SETTINGS_SCOPE_LABELS[currentSection.scope],
+      },
+    ];
+
+    currentSectionItems.forEach((item) => {
+      const hasError = Boolean(validationErrors[item.key]);
+      const isModified = modifiedKeySet.has(item.key);
+
+      items.push({
+        id: getSettingsFieldAnchorId(currentSection.id, item.key),
+        label: item.label,
+        description: item.helpKey,
+        meta: hasError ? '오류' : isModified ? '변경됨' : undefined,
+      });
+    });
+
+    currentSection.indexItems?.forEach((item) => {
+      items.push({
+        id: getSettingsSectionIndexAnchorId(currentSection.id, item.id),
+        label: item.label,
+        description: item.description,
+        meta: item.meta,
+      });
+    });
+
+    return items;
+  }, [currentSection, currentSectionItems, modifiedKeySet, validationErrors]);
+
+  const settingsCustomSlotAnchorIds = useMemo(() => {
+    if (!currentSection?.indexItems) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      currentSection.indexItems.map((item) => [
+        item.id,
+        getSettingsSectionIndexAnchorId(currentSection.id, item.id),
+      ])
+    );
+  }, [currentSection]);
+
+  const handleSettingsIndexSelect = useCallback((itemId: string) => {
+    document.getElementById(itemId)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, []);
 
   const currentSectionOriginalText = useMemo(() => {
     if (!currentSection || !supportsJsonModes) return '{}';
@@ -504,112 +621,136 @@ export function SettingsPage() {
     />
   ) : null;
 
+  const settingsIndexSlot = currentSection ? (
+    <SsooPageIndexRail
+      ariaLabel="설정 항목 색인"
+      description={currentSection.description}
+      items={settingsIndexItems}
+      onItemSelect={(item) => handleSettingsIndexSelect(item.id)}
+    />
+  ) : null;
+
+  if (!settingsAccess) {
+    return (
+      <PageTemplate
+        filePath="settings"
+        mode="viewer"
+        pageTone="settings"
+        description={error ? '설정 정보를 불러오지 못했습니다.' : '설정 정보를 불러오는 중입니다.'}
+        panelMode="hidden"
+        stateSlot={error ? (
+          <ErrorState error={error} />
+        ) : (
+          <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
+        )}
+      >
+        {null}
+      </PageTemplate>
+    );
+  }
+
   if (!currentSection) {
     return (
       <PageTemplate
         filePath="settings"
         mode="viewer"
+        pageTone="settings"
         description="사용 가능한 설정 메뉴가 없습니다."
         panelMode="hidden"
+        stateSlot={<ErrorState error="사용 가능한 설정 메뉴가 없습니다." />}
       >
-        <div className="flex h-full items-center justify-center">
-          <ErrorState error="사용 가능한 설정 메뉴가 없습니다." />
-        </div>
+        {null}
       </PageTemplate>
     );
   }
 
-  if (!canManageSystemSettings && currentSection.scope !== 'personal') {
+  if (!canOpenSection(currentSection)) {
     return (
       <PageTemplate
         filePath="settings"
         mode="viewer"
+        pageTone="settings"
         description="설정 권한이 필요합니다."
         panelMode="hidden"
+        stateSlot={<ErrorState error="설정을 관리할 권한이 없습니다." />}
       >
-        <div className="flex h-full items-center justify-center">
-          <ErrorState error="설정을 관리할 권한이 없습니다." />
-        </div>
+        {null}
       </PageTemplate>
     );
   }
 
   return (
     <PageTemplate
-      filePath={`settings/${activeScope}/${currentSection.id}`}
+      filePath={`settings/${effectiveScope}/${currentSection.id}`}
       mode="viewer"
-      description={`${SETTINGS_SCOPE_LABELS[activeScope]} · ${currentSection.description}`}
+      description={`${SETTINGS_SCOPE_LABELS[effectiveScope]} · ${currentSection.description}`}
       headerExtraActions={headerActions}
       headerExtraActionsPosition="right"
       headerViewerRightSlot={viewerRightSlot}
+      leftSubContentSlot={settingsIndexSlot}
       panelMode="hidden"
-      contentMaxWidth={null}
+      pageTone="settings"
+      contentSurface="plain"
     >
-      <SsooSettingsSurface
-        navigationSlot={
-          <SettingsNavigation
-            title={SETTINGS_SCOPE_LABELS[activeScope]}
-            sections={scopeSections}
-            activeSectionId={currentSection.id}
-            onSelect={setSection}
-          />
-        }
-      >
+      <SsooSettingsSurface>
         <SsooSettingsMainPanel>
-          {topStatusBanner}
+            <div id={settingsSectionOverviewAnchorId} className="scroll-mt-4" />
+            {topStatusBanner}
 
-          {hasChanges && pendingLabels.length > 0 && (
-            <SsooSettingsPendingSummary labels={pendingLabels} />
-          )}
+            {hasChanges && pendingLabels.length > 0 && (
+              <SsooSettingsPendingSummary labels={pendingLabels} />
+            )}
 
-          {runtimePathSurface}
-          {currentSection.id === 'git' && <GitObservabilitySurface git={runtime?.git ?? null} />}
+            {runtimePathSurface}
+            {currentSection.id === 'git' && <GitObservabilitySurface git={runtime?.git ?? null} />}
 
-          {isLoading && !isCustomSection ? (
-            <div className="flex min-h-full items-center justify-center">
-              <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
-            </div>
-          ) : isCustomSection && currentSection.slotKey ? (
-            <SettingsCustomSlot
-              slotKey={currentSection.slotKey}
-              templates={templates}
-              isLoadingTemplates={isLoadingTemplates}
-              templateDraft={templateDraft}
-              setTemplateDraft={setTemplateDraft}
-              onSave={() => {
-                void handleTemplateSave();
-              }}
-              onDelete={(template) => {
-                void handleTemplateDelete(template);
-              }}
-            />
-          ) : activeViewMode === 'json' ? (
-            <JsonEditor
-              value={jsonDraft}
-              onChange={(nextValue) => {
-                setJsonDraft(nextValue);
-                if (jsonError) setJsonError(null);
-              }}
-              errorMessage={!parsedJsonDraft.success ? parsedJsonDraft.error : jsonError}
-              className="min-h-[480px]"
-            />
-          ) : activeViewMode === 'diff' ? (
-            <JsonDiffView
-              originalText={currentSectionOriginalText}
-              currentText={currentSectionComparableText}
-              className="min-h-[480px]"
-            />
-          ) : (
-            <SettingsFieldList
-              items={currentSectionItems}
-              localConfig={comparableConfig}
-              originalConfig={originalConfig}
-              validationErrors={validationErrors}
-              getValue={getNestedValue}
-              onChange={handleStructuredChange}
-              readOnly={isReadOnlySection}
-            />
-          )}
+            {isLoading && !isCustomSection ? (
+              <div className="flex min-h-full items-center justify-center">
+                <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
+              </div>
+            ) : isCustomSection && currentSection.slotKey ? (
+              <SettingsCustomSlot
+                slotKey={currentSection.slotKey}
+                templates={templates}
+                isLoadingTemplates={isLoadingTemplates}
+                templateDraft={templateDraft}
+                setTemplateDraft={setTemplateDraft}
+                onSave={() => {
+                  void handleTemplateSave();
+                }}
+                onDelete={(template) => {
+                  void handleTemplateDelete(template);
+                }}
+                anchorIds={settingsCustomSlotAnchorIds}
+              />
+            ) : activeViewMode === 'json' ? (
+              <JsonEditor
+                value={jsonDraft}
+                onChange={(nextValue) => {
+                  setJsonDraft(nextValue);
+                  if (jsonError) setJsonError(null);
+                }}
+                errorMessage={!parsedJsonDraft.success ? parsedJsonDraft.error : jsonError}
+                className="min-h-[480px]"
+              />
+            ) : activeViewMode === 'diff' ? (
+              <JsonDiffView
+                originalText={currentSectionOriginalText}
+                currentText={currentSectionComparableText}
+                className="min-h-[480px]"
+              />
+            ) : (
+              <SettingsFieldList
+                items={currentSectionItems}
+                localConfig={comparableConfig}
+                originalConfig={originalConfig}
+                validationErrors={validationErrors}
+                getValue={getNestedValue}
+                onChange={handleStructuredChange}
+                readOnly={isReadOnlySection}
+                getItemAnchorId={(item) => getSettingsFieldAnchorId(currentSection.id, item.key)}
+              />
+            )}
         </SsooSettingsMainPanel>
       </SsooSettingsSurface>
     </PageTemplate>

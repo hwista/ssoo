@@ -6,6 +6,7 @@ import type { DocumentComment } from '@/types';
 import { UserAvatar } from '@/components/common';
 import { CollapsibleSection } from '@/components/templates/page-frame/panel/CollapsibleSection';
 import { cn } from '@/lib/utils';
+import { Button } from '@ssoo/web-ui';
 
 function formatDate(date: Date | string | undefined): string {
   if (!date) return '-';
@@ -123,23 +124,23 @@ function CommentItem({
           </p>
         </div>
         <div className="mt-0.5 flex shrink-0 items-center gap-1">
-          <button
+          <Button variant="plain" size="plain"
             type="button"
             onClick={() => setDetailsOpen(false)}
             className="inline-flex h-5 w-5 items-center justify-center rounded text-ssoo-primary/50 hover:text-ssoo-primary"
             title="삭제된 댓글 숨기기"
           >
             <EyeOff className="h-3 w-3" />
-          </button>
+          </Button>
           {canRestore && onRestore ? (
-            <button
+            <Button variant="plain" size="plain"
               type="button"
               onClick={() => { void onRestore(comment); }}
               className="inline-flex h-5 w-5 items-center justify-center rounded text-ssoo-primary/50 hover:text-ssoo-primary"
               title="되돌리기"
             >
               ↩
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>
@@ -160,24 +161,24 @@ function CommentItem({
         </div>
         <div className="mt-0.5 flex shrink-0 items-center gap-1">
           {canViewDeletedDetails ? (
-            <button
+            <Button variant="plain" size="plain"
               type="button"
               onClick={() => setDetailsOpen((value) => !value)}
               className="inline-flex h-5 w-5 items-center justify-center rounded text-ssoo-primary/50 hover:text-ssoo-primary"
               title="삭제된 댓글 보기"
             >
               <Eye className="h-3 w-3" />
-            </button>
+            </Button>
           ) : null}
           {canRestore && onRestore ? (
-            <button
+            <Button variant="plain" size="plain"
               type="button"
               onClick={() => { void onRestore(comment); }}
               className="inline-flex h-5 w-5 items-center justify-center rounded text-ssoo-primary/50 hover:text-ssoo-primary"
               title="되돌리기"
             >
               ↩
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>
@@ -213,26 +214,26 @@ function CommentItem({
           {comment.content}
         </p>
         {canReply && onReply && (
-          <button
+          <Button variant="plain" size="plain"
             type="button"
             onClick={() => onReply(comment)}
             className="mt-1 inline-flex items-center gap-0.5 text-ssoo-primary/50 hover:text-ssoo-primary"
           >
             <Reply className="h-3 w-3" />
             <span>답글</span>
-          </button>
+          </Button>
         )}
       </div>
       <div className="mt-0.5 flex shrink-0 items-center gap-1">
         {canDelete && onDelete ? (
-          <button
+          <Button variant="plain" size="plain"
             type="button"
             onClick={() => { void onDelete(comment.id); }}
             className="inline-flex h-5 w-5 items-center justify-center rounded text-red-400 hover:text-red-600"
             title="댓글 삭제"
           >
             <X className="h-3 w-3" />
-          </button>
+          </Button>
         ) : null}
       </div>
     </div>
@@ -367,13 +368,13 @@ function RepliesGroup({
         />
       ))}
       {hiddenCount > 0 && !expanded && (
-        <button
+        <Button variant="plain" size="plain"
           type="button"
           onClick={() => setExpanded(true)}
           className="ml-6 mt-0.5 text-caption text-blue-500 hover:text-blue-700"
         >
           답글 {hiddenCount}개 더 보기
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -27,6 +27,7 @@ import {
   useProjectWbs,
   useUpdateWbs,
 } from '@/hooks/queries/useProjects';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 const NO_OBJECTIVE = '__none__';
 const NO_PARENT_WBS = '__none__';
@@ -148,35 +149,35 @@ export function WbsPanel({ projectId, canManageWbs }: Props) {
         <div className="text-sm text-muted-foreground">아직 등록된 WBS가 없습니다.</div>
       ) : (
         <div className="overflow-hidden rounded-md border bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40">
-              <tr>
-                <th className="p-3 text-left font-medium">코드</th>
-                <th className="p-3 text-left font-medium">WBS명</th>
-                <th className="p-3 text-left font-medium">목표</th>
-                <th className="p-3 text-left font-medium">상위WBS</th>
-                <th className="p-3 text-center font-medium">상태</th>
-                <th className="w-10 p-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+          <Table className="w-full text-sm">
+            <TableHeader className="bg-muted/40">
+              <TableRow>
+                <TableHead className="p-3 text-left font-medium">코드</TableHead>
+                <TableHead className="p-3 text-left font-medium">WBS명</TableHead>
+                <TableHead className="p-3 text-left font-medium">목표</TableHead>
+                <TableHead className="p-3 text-left font-medium">상위WBS</TableHead>
+                <TableHead className="p-3 text-center font-medium">상태</TableHead>
+                <TableHead className="w-10 p-3"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y">
               {wbsItems.map((wbs) => {
                 const objective = wbs.objectiveId ? objectiveMap.get(String(wbs.objectiveId)) : null;
                 const parentWbs = wbs.parentWbsId ? wbsMap.get(String(wbs.parentWbsId)) : null;
 
                 return (
-                  <tr key={String(wbs.id)} className="group hover:bg-muted/20">
-                    <td className="p-3 font-mono text-xs" style={{ paddingLeft: `${(wbs.depth * 16) + 12}px` }}>
+                  <TableRow key={String(wbs.id)} className="group hover:bg-muted/20">
+                    <TableCell className="p-3 font-mono text-xs" style={{ paddingLeft: `${(wbs.depth * 16) + 12}px` }}>
                       {wbs.wbsCode}
-                    </td>
-                    <td className="p-3">{wbs.wbsName}</td>
-                    <td className="p-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="p-3">{wbs.wbsName}</TableCell>
+                    <TableCell className="p-3 text-muted-foreground">
                       {objective ? `${objective.objectiveCode} · ${objective.objectiveName}` : '-'}
-                    </td>
-                    <td className="p-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="p-3 text-muted-foreground">
                       {parentWbs ? `${parentWbs.wbsCode} · ${parentWbs.wbsName}` : '-'}
-                    </td>
-                    <td className="p-3 text-center">
+                    </TableCell>
+                    <TableCell className="p-3 text-center">
                       <Select
                         value={wbs.statusCode}
                         onValueChange={(value) => handleStatusChange(String(wbs.id), value)}
@@ -193,8 +194,8 @@ export function WbsPanel({ projectId, canManageWbs }: Props) {
                           ))}
                         </SelectContent>
                       </Select>
-                    </td>
-                    <td className="p-3 text-center">
+                    </TableCell>
+                    <TableCell className="p-3 text-center">
                       {canManageWbs && (
                         <Button
                           variant="ghost"
@@ -205,12 +206,12 @@ export function WbsPanel({ projectId, canManageWbs }: Props) {
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

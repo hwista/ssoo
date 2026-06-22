@@ -3,17 +3,18 @@
 import { useCallback } from 'react';
 import { useOpenDocumentTab, useOpenTabWithConfirm } from '@/hooks';
 import { toast } from '@/lib/toast';
-import { useSettingsShellStore, useSettingsStore } from '@/stores';
+import { useSettingsPageNavigationStore, useSettingsStore } from '@/stores';
 import type { AssistantSearchResult } from '@/stores';
 import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import { useDocumentAccessRequestStore } from '@/features/access';
+import { getSettingsTabOptions } from '@/components/pages/settings/_utils/settingsNavigation';
 
 export function useAssistantNavigationActions() {
   const openTabWithConfirm = useOpenTabWithConfirm();
   const openDocumentTab = useOpenDocumentTab();
   const loadSettings = useSettingsStore((state) => state.loadSettings);
-  const applyWorkspacePreferences = useSettingsShellStore((state) => state.applyWorkspacePreferences);
-  const enterSettings = useSettingsShellStore((state) => state.enterSettings);
+  const applyWorkspacePreferences = useSettingsPageNavigationStore((state) => state.applyWorkspacePreferences);
+  const enterSettings = useSettingsPageNavigationStore((state) => state.enterSettings);
   const openAccessRequestDialog = useDocumentAccessRequestStore((state) => state.open);
 
   const handleOpenFile = useCallback(async (result: AssistantSearchResult) => {
@@ -46,6 +47,8 @@ export function useAssistantNavigationActions() {
         applyWorkspacePreferences(settingsState.config.personal.workspace);
       }
       enterSettings(settingsState.access?.canManageSystem ? undefined : 'personal');
+      const settingsNavigation = useSettingsPageNavigationStore.getState();
+      await openTabWithConfirm(getSettingsTabOptions(settingsNavigation.activeScope, settingsNavigation.activeSectionId));
       return;
     }
 

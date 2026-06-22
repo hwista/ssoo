@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { SSOO_SHELL_METRICS } from '@ssoo/web-shell';
 import { ASSISTANT_FOCUS_INPUT_EVENT } from '@/lib/constants/assistant';
-import { LAYOUT_SIZES } from '@/lib/constants/layout';
 
 const FLOATING_ASSISTANT_PANEL_STYLE: CSSProperties = {
-  right: LAYOUT_SIZES.rightPanel.inset,
-  width: `min(${LAYOUT_SIZES.rightPanel.overlayWidth}px, calc(100vw - ${LAYOUT_SIZES.rightPanel.inset * 2}px))`,
+  top: SSOO_SHELL_METRICS.header.height + SSOO_SHELL_METRICS.tabBar.containerHeight + 12,
+  right: SSOO_SHELL_METRICS.overlay.inset,
+  width: `min(${SSOO_SHELL_METRICS.overlay.panelWidth}px, calc(100vw - ${SSOO_SHELL_METRICS.overlay.inset * 2}px))`,
 };
 
 interface UseFloatingAssistantPanelBehaviorOptions {
@@ -108,8 +109,8 @@ export function useFloatingAssistantPanelBehavior({
 
   const panelClassName = useMemo(() => (
     [
-      'fixed top-[calc(3.75rem+53px+0.75rem)] bottom-[92px] z-40',
-      'rounded-xl border border-ssoo-content-border bg-white shadow-2xl',
+      'fixed bottom-[92px] z-40',
+      'rounded-xl border border-ssoo-content-border bg-background shadow-2xl',
       'flex flex-col',
       'transition-all duration-200',
       isOpen ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0',

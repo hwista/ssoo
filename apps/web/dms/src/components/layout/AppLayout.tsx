@@ -1,14 +1,20 @@
 'use client';
 
 import * as React from 'react';
-import { SsooAppFrame } from '@ssoo/web-shell';
-import { useAuthStore, useLayoutStore, useSettingsShellStore, useSettingsStore, useSidebarStore } from '@/stores';
-import { LAYOUT_SIZES } from '@/lib/constants/layout';
+import { usePathname, useSearchParams } from 'next/navigation';
+import {
+  SSOO_GLOBAL_SEARCH_APP_PATH,
+  SsooAppFrame,
+  SsooContentAreaState,
+  getSsooGlobalSearchQueryFromPath,
+  getSsooGlobalSearchTitle,
+} from '@ssoo/web-shell';
+import { useAuthStore, useLayoutStore, useSettingsPageNavigationStore, useSettingsStore, useSidebarStore, useTabStore } from '@/stores';
+import { parseSettingsTabPath } from '@/components/pages/settings/_utils/settingsNavigation';
 import { Sidebar } from './sidebar';
 import { Header } from './Header';
 import { TabBar } from './TabBar';
 import { ContentArea } from './ContentArea';
-import { SettingsShellContent, SettingsShellHeader, SettingsShellSidebar } from './settings/Shell';
 
 /**
  * DMS 메인 앱 레이아웃
@@ -25,8 +31,22 @@ export function AppLayout() {
   const { sidebarOpen, toggleSidebar, setExpandedSections } = useSidebarStore();
   const fileTreeResetEpoch = useSidebarStore((state) => state.fileTreeResetEpoch);
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
-  const isSettingsShellActive = useSettingsShellStore((state) => state.isActive);
-  const applyWorkspacePreferences = useSettingsShellStore((state) => state.applyWorkspacePreferences);
+  const applyWorkspacePreferences = useSettingsPageNavigationStore((state) => state.applyWorkspacePreferences);
+  const isSettingsModeActive = useSettingsPageNavigationStore((state) => state.isActive);
+  const openSettingsSection = useSettingsPageNavigationStore((state) => state.openSection);
+  const exitSettings = useSettingsPageNavigationStore((state) => state.exitSettings);
+  const activeTabPath = useTabStore((state) => {
+    const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId);
+    return activeTab?.path ?? null;
+  });
+  const openTab = useTabStore((state) => state.openTab);
+  const updateTab = useTabStore((state) => state.updateTab);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentRoutePath = React.useMemo(() => {
+    const search = searchParams.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
   const settingsConfig = useSettingsStore((state) => state.config);
   const isSettingsLoaded = useSettingsStore((state) => state.isLoaded);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
@@ -37,10 +57,46 @@ export function AppLayout() {
   }, [currentUserId, isSettingsLoaded, loadSettings]);
 
   React.useEffect(() => {
+    if (!currentRoutePath.startsWith(SSOO_GLOBAL_SEARCH_APP_PATH)) {
+      return;
+    }
+
+    const query = getSsooGlobalSearchQueryFromPath(currentRoutePath);
+    const tabId = openTab({
+      id: 'global-search',
+      title: getSsooGlobalSearchTitle(query),
+      path: currentRoutePath,
+      icon: 'Search',
+      closable: true,
+      activate: true,
+    });
+    if (tabId) {
+      updateTab(tabId, {
+        title: getSsooGlobalSearchTitle(query),
+        path: currentRoutePath,
+        icon: 'Search',
+      });
+    }
+  }, [currentRoutePath, openTab, updateTab]);
+
+  React.useEffect(() => {
     const workspace = settingsConfig?.personal.workspace;
     if (!workspace) return;
     applyWorkspacePreferences(workspace);
   }, [applyWorkspacePreferences, settingsConfig]);
+
+  React.useLayoutEffect(() => {
+    if (isSettingsModeActive || !activeTabPath) return;
+    const settingsTabTarget = parseSettingsTabPath(activeTabPath);
+    if (!settingsTabTarget) return;
+    openSettingsSection(settingsTabTarget.scope, settingsTabTarget.sectionId);
+  }, [activeTabPath, isSettingsModeActive, openSettingsSection]);
+
+  React.useLayoutEffect(() => {
+    if (!isSettingsModeActive) return;
+    if (activeTabPath && parseSettingsTabPath(activeTabPath)) return;
+    exitSettings();
+  }, [activeTabPath, exitSettings, isSettingsModeActive]);
 
   React.useEffect(() => {
     const sections = settingsConfig?.personal.sidebar?.sections;
@@ -59,12 +115,15 @@ export function AppLayout() {
   // 모바일은 별도 UI (추후 개발)
   if (deviceType === 'mobile') {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="text-center p-8">
-          <h1 className="heading-1 mb-2">모바일 버전 준비 중</h1>
-          <p className="text-gray-600">데스크톱에서 접속해주세요.</p>
-        </div>
-      </div>
+      <SsooAppFrame
+        mode="content-only"
+        contentSlot={(
+          <SsooContentAreaState
+            title="모바일 버전 준비 중"
+            description="데스크톱에서 접속해주세요."
+          />
+        )}
+      />
     );
   }
 
@@ -73,26 +132,17 @@ export function AppLayout() {
       mode="document"
       sidebarMode="collapsible"
       sidebarExpanded={sidebarOpen}
-      sidebarWidth={LAYOUT_SIZES.sidebar.expandedWidth}
-      collapsedSidebarWidth={LAYOUT_SIZES.sidebar.collapsedWidth}
       sidebarSlot={
-        isSettingsShellActive ? (
-          <SettingsShellSidebar
-            isCollapsed={!sidebarOpen}
-            onToggleCollapse={toggleSidebar}
-          />
-        ) : (
-          <Sidebar
-            key={`dms-sidebar-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`}
-            isCollapsed={!sidebarOpen}
-            onToggleCollapse={toggleSidebar}
-          />
-        )
+        <Sidebar
+          key={`dms-sidebar-${isSettingsModeActive ? 'settings' : 'workspace'}-${currentUserId ?? 'anonymous'}-${fileTreeResetEpoch}`}
+          variant={isSettingsModeActive ? 'settings' : 'workspace'}
+          isCollapsed={!sidebarOpen}
+          onToggleCollapse={toggleSidebar}
+        />
       }
-      contentClassName="bg-background"
-      headerSlot={isSettingsShellActive ? <SettingsShellHeader /> : <Header />}
-      tabBarSlot={isSettingsShellActive ? undefined : <TabBar />}
-      contentSlot={isSettingsShellActive ? <SettingsShellContent /> : <ContentArea />}
+      headerSlot={<Header variant={isSettingsModeActive ? 'settings' : 'workspace'} />}
+      tabBarSlot={<TabBar />}
+      contentSlot={<ContentArea />}
     />
   );
 }

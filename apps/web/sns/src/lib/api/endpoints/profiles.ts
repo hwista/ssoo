@@ -1,45 +1,8 @@
 import { apiClient } from '../client';
 import type { ApiResponse } from '../types';
+import type { UpdateProfileDto, UserProfileSurface } from '@ssoo/types/sns';
 
-export interface ProfileItem {
-  id: string;
-  userId: string;
-  bio: string | null;
-  coverImageUrl: string | null;
-  linkedinUrl: string | null;
-  websiteUrl: string | null;
-  user?: {
-    id: string;
-    userName: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-    departmentCode: string | null;
-    positionCode: string | null;
-    email: string;
-  };
-  skills?: Array<{
-    id: string;
-    skillId: string;
-    skillName: string;
-    skillCategory: string;
-    proficiencyLevel: number;
-    yearsOfExperience: number;
-    endorsementCount: number;
-  }>;
-  careers?: Array<{
-    id: string;
-    projectName: string;
-    roleName: string;
-    companyName: string | null;
-    startDate: string;
-    endDate: string | null;
-  }>;
-  followStats?: {
-    followersCount: number;
-    followingCount: number;
-    isFollowing: boolean;
-  };
-}
+export type ProfileItem = UserProfileSurface;
 
 export const profilesApi = {
   me: () => apiClient.get<ApiResponse<ProfileItem>>('/sns/profiles/me'),
@@ -47,12 +10,8 @@ export const profilesApi = {
   byUser: (userId: string) =>
     apiClient.get<ApiResponse<ProfileItem>>(`/sns/profiles/${userId}`),
 
-  update: (data: {
-    bio?: string;
-    coverImageUrl?: string;
-    linkedinUrl?: string;
-    websiteUrl?: string;
-  }) => apiClient.put<ApiResponse<ProfileItem>>('/sns/profiles/me', data),
+  update: (data: UpdateProfileDto) =>
+    apiClient.put<ApiResponse<ProfileItem>>('/sns/profiles/me', data),
 
   addCareer: (data: {
     projectName: string;

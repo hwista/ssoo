@@ -1,5 +1,5 @@
 /* SSOO canonical frame/global surface CSS.
-   PMS is the reference desktop workbench; domain apps may override only theme tokens below. */
+   PMS is the reference desktop workbench; app themes are selected by data-ssoo-theme. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -69,6 +69,406 @@
     --border: 213 50% 25%;
     --input: 213 50% 25%;
     --ring: 213 80% 50%;
+
+    --ssoo-primary: #8FB4FF;
+    --ssoo-primary-hover: #A9C7FF;
+    --ssoo-secondary: #5C7DC0;
+    --ssoo-background: #0F1A2E;
+    --ssoo-content-border: #2F4A78;
+    --ssoo-content-background: #172340;
+    --ssoo-sitemap-title: #B8CAFF;
+    --ssoo-sitemap-bullet: #8FB4FF;
+    --ssoo-sitemap-background: #101A2D;
+  }
+
+  [data-ssoo-theme="pms"] {
+    --background: 210 33% 98.8%;
+    --foreground: 213 100% 23%;
+    --card-foreground: 213 100% 23%;
+    --popover-foreground: 213 100% 23%;
+    --primary: 213 100% 23%;
+    --secondary: 213 63% 37%;
+    --muted: 213 33% 90%;
+    --muted-foreground: 213 50% 35%;
+    --accent: 200 100% 32%;
+    --ring: 213 100% 23%;
+    --ssoo-primary: #0A1E5A;
+    --ssoo-primary-hover: #314278;
+    --ssoo-secondary: #314278;
+    --ssoo-background: #F9FBFD;
+    --ssoo-content-border: #9FB1E7;
+    --ssoo-content-background: #DEE3F1;
+    --ssoo-sitemap-title: #0148A2;
+    --ssoo-sitemap-bullet: #00398A;
+    --ssoo-sitemap-background: #F6F9FF;
+  }
+
+  [data-ssoo-theme="crm"] {
+    --background: 220 20% 98%;
+    --foreground: 224 48% 16%;
+    --card-foreground: 224 48% 16%;
+    --popover-foreground: 224 48% 16%;
+    --primary: 224 72% 20%;
+    --secondary: 210 64% 36%;
+    --muted: 214 32% 93%;
+    --muted-foreground: 215 16% 42%;
+    --accent: 196 100% 35%;
+    --ring: 224 72% 20%;
+    --ssoo-primary: #0A1E5A;
+    --ssoo-primary-hover: #14327A;
+    --ssoo-secondary: #0569A0;
+    --ssoo-background: #F7F9FC;
+    --ssoo-content-border: #D9E2F1;
+    --ssoo-content-background: #EEF4FB;
+    --ssoo-sitemap-title: #0A1E5A;
+    --ssoo-sitemap-bullet: #0569A0;
+    --ssoo-sitemap-background: #F2F6FB;
+  }
+
+  [data-ssoo-theme="dms"] {
+    --background: 0 0% 100%;
+    --foreground: 277 36% 22%;
+    --card-foreground: 277 36% 22%;
+    --popover-foreground: 277 36% 22%;
+    --primary: 277 64% 18%;
+    --secondary: 270 18% 96%;
+    --secondary-foreground: 277 36% 22%;
+    --muted: 270 30% 96%;
+    --muted-foreground: 270 18% 46%;
+    --accent: 270 34% 92%;
+    --accent-foreground: 277 36% 22%;
+    --ring: 277 64% 18%;
+    --ssoo-primary: #34104A;
+    --ssoo-primary-hover: #4A1A68;
+    --ssoo-secondary: #FAFAFA;
+    --ssoo-background: #FAFAFA;
+    --ssoo-content-border: #BFC6F4;
+    --ssoo-content-background: #E9ECFB;
+    --ssoo-sitemap-title: #2A2E8A;
+    --ssoo-sitemap-bullet: #BFC6F4;
+    --ssoo-sitemap-background: #FAFBFF;
+  }
+
+  [data-ssoo-theme="sns"] {
+    --background: 180 20% 98.8%;
+    --foreground: 180 76% 14%;
+    --card-foreground: 180 76% 14%;
+    --popover-foreground: 180 76% 14%;
+    --primary: 180 76% 14%;
+    --secondary: 180 53% 23%;
+    --muted: 180 30% 90%;
+    --muted-foreground: 180 30% 35%;
+    --accent: 180 100% 25%;
+    --ring: 180 76% 14%;
+    --ssoo-primary: #0A3D3D;
+    --ssoo-primary-hover: #1A5C5C;
+    --ssoo-secondary: #2A7A7A;
+    --ssoo-background: #F7FBFB;
+    --ssoo-content-border: #9FD4D4;
+    --ssoo-content-background: #DEF0F0;
+    --ssoo-sitemap-title: #0A6B6B;
+    --ssoo-sitemap-bullet: #0A5050;
+    --ssoo-sitemap-background: #F0FAFA;
+  }
+
+  [data-ssoo-theme="admin"] {
+    --background: 0 0% 98%;
+    --foreground: 220 9% 20%;
+    --card-foreground: 220 9% 20%;
+    --popover-foreground: 220 9% 20%;
+    --primary: 220 9% 20%;
+    --secondary: 220 9% 46%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 14% 92%;
+    --accent-foreground: 220 9% 20%;
+    --ring: 220 9% 46%;
+    --ssoo-primary: #2F343A;
+    --ssoo-primary-hover: #4B5563;
+    --ssoo-secondary: #6B7280;
+    --ssoo-background: #F8FAFC;
+    --ssoo-content-border: #D1D5DB;
+    --ssoo-content-background: #F3F4F6;
+    --ssoo-sitemap-title: #374151;
+    --ssoo-sitemap-bullet: #6B7280;
+    --ssoo-sitemap-background: #F9FAFB;
+  }
+
+  [data-ssoo-theme="forest"] {
+    --background: 150 30% 98%;
+    --foreground: 154 50% 16%;
+    --card-foreground: 154 50% 16%;
+    --popover-foreground: 154 50% 16%;
+    --primary: 154 58% 22%;
+    --secondary: 150 40% 32%;
+    --muted: 150 24% 92%;
+    --muted-foreground: 154 20% 38%;
+    --accent: 145 56% 35%;
+    --ring: 154 58% 22%;
+    --ssoo-primary: #14532D;
+    --ssoo-primary-hover: #166534;
+    --ssoo-secondary: #2F855A;
+    --ssoo-background: #F4FBF7;
+    --ssoo-content-border: #A7D7B9;
+    --ssoo-content-background: #DFF3E7;
+    --ssoo-sitemap-title: #166534;
+    --ssoo-sitemap-bullet: #14532D;
+    --ssoo-sitemap-background: #F0FAF4;
+  }
+
+  [data-ssoo-theme="amber"] {
+    --background: 42 45% 98%;
+    --foreground: 35 55% 20%;
+    --card-foreground: 35 55% 20%;
+    --popover-foreground: 35 55% 20%;
+    --primary: 35 75% 26%;
+    --secondary: 38 60% 36%;
+    --muted: 42 40% 92%;
+    --muted-foreground: 35 24% 40%;
+    --accent: 42 88% 42%;
+    --ring: 35 75% 26%;
+    --ssoo-primary: #7C2D12;
+    --ssoo-primary-hover: #9A3412;
+    --ssoo-secondary: #B45309;
+    --ssoo-background: #FFFBEB;
+    --ssoo-content-border: #F3C779;
+    --ssoo-content-background: #FEF3C7;
+    --ssoo-sitemap-title: #92400E;
+    --ssoo-sitemap-bullet: #B45309;
+    --ssoo-sitemap-background: #FFFBEB;
+  }
+
+  [data-ssoo-theme="rose"] {
+    --background: 345 35% 98%;
+    --foreground: 342 58% 18%;
+    --card-foreground: 342 58% 18%;
+    --popover-foreground: 342 58% 18%;
+    --primary: 342 64% 28%;
+    --secondary: 340 48% 38%;
+    --muted: 345 35% 92%;
+    --muted-foreground: 342 22% 42%;
+    --accent: 336 70% 42%;
+    --ring: 342 64% 28%;
+    --ssoo-primary: #831843;
+    --ssoo-primary-hover: #9F1239;
+    --ssoo-secondary: #BE185D;
+    --ssoo-background: #FFF7FA;
+    --ssoo-content-border: #F4A9C4;
+    --ssoo-content-background: #FCE7F0;
+    --ssoo-sitemap-title: #9F1239;
+    --ssoo-sitemap-bullet: #BE185D;
+    --ssoo-sitemap-background: #FFF1F6;
+  }
+
+  .dark [data-ssoo-theme="pms"] {
+    --background: 213 50% 10%;
+    --foreground: 210 40% 98%;
+    --card: 213 50% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 213 50% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 213 80% 50%;
+    --secondary: 213 50% 25%;
+    --muted: 213 50% 20%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 200 80% 45%;
+    --border: 213 50% 25%;
+    --input: 213 50% 25%;
+    --ring: 213 80% 50%;
+    --ssoo-primary: #8FB4FF;
+    --ssoo-primary-hover: #A9C7FF;
+    --ssoo-secondary: #5C7DC0;
+    --ssoo-background: #0F1A2E;
+    --ssoo-content-border: #2F4A78;
+    --ssoo-content-background: #172340;
+    --ssoo-sitemap-title: #B8CAFF;
+    --ssoo-sitemap-bullet: #8FB4FF;
+    --ssoo-sitemap-background: #101A2D;
+  }
+
+  .dark [data-ssoo-theme="crm"] {
+    --background: 224 48% 10%;
+    --foreground: 210 40% 98%;
+    --card: 224 48% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 224 48% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 224 72% 56%;
+    --secondary: 210 50% 25%;
+    --muted: 214 32% 20%;
+    --muted-foreground: 215 20% 70%;
+    --accent: 196 80% 48%;
+    --border: 224 35% 25%;
+    --input: 224 35% 25%;
+    --ring: 224 72% 56%;
+    --ssoo-primary: #93B7FF;
+    --ssoo-primary-hover: #B1CBFF;
+    --ssoo-secondary: #63B3ED;
+    --ssoo-background: #0E1729;
+    --ssoo-content-border: #2D456F;
+    --ssoo-content-background: #17223A;
+    --ssoo-sitemap-title: #B8CBFF;
+    --ssoo-sitemap-bullet: #63B3ED;
+    --ssoo-sitemap-background: #101827;
+  }
+
+  .dark [data-ssoo-theme="dms"] {
+    --background: 277 36% 10%;
+    --foreground: 270 40% 98%;
+    --card: 277 36% 12%;
+    --card-foreground: 270 40% 98%;
+    --popover: 277 36% 12%;
+    --popover-foreground: 270 40% 98%;
+    --primary: 277 64% 58%;
+    --secondary: 270 20% 22%;
+    --secondary-foreground: 270 40% 98%;
+    --muted: 270 20% 22%;
+    --muted-foreground: 270 18% 70%;
+    --accent: 270 34% 26%;
+    --accent-foreground: 270 40% 98%;
+    --border: 270 24% 28%;
+    --input: 270 24% 28%;
+    --ring: 277 64% 58%;
+    --ssoo-primary: #C8A6FF;
+    --ssoo-primary-hover: #D9C2FF;
+    --ssoo-secondary: #A78BFA;
+    --ssoo-background: #151022;
+    --ssoo-content-border: #49385F;
+    --ssoo-content-background: #231A33;
+    --ssoo-sitemap-title: #E5D8FF;
+    --ssoo-sitemap-bullet: #C8A6FF;
+    --ssoo-sitemap-background: #171121;
+  }
+
+  .dark [data-ssoo-theme="sns"] {
+    --background: 180 50% 10%;
+    --foreground: 170 40% 98%;
+    --card: 180 50% 12%;
+    --card-foreground: 170 40% 98%;
+    --popover: 180 50% 12%;
+    --popover-foreground: 170 40% 98%;
+    --primary: 180 80% 50%;
+    --secondary: 180 50% 25%;
+    --muted: 180 50% 20%;
+    --muted-foreground: 175 20.2% 65.1%;
+    --accent: 180 80% 45%;
+    --border: 180 50% 25%;
+    --input: 180 50% 25%;
+    --ring: 180 80% 50%;
+    --ssoo-primary: #5EEAD4;
+    --ssoo-primary-hover: #99F6E4;
+    --ssoo-secondary: #2DD4BF;
+    --ssoo-background: #0A1F1F;
+    --ssoo-content-border: #235A5A;
+    --ssoo-content-background: #123333;
+    --ssoo-sitemap-title: #99F6E4;
+    --ssoo-sitemap-bullet: #5EEAD4;
+    --ssoo-sitemap-background: #0B2424;
+  }
+
+  .dark [data-ssoo-theme="admin"] {
+    --background: 220 18% 10%;
+    --foreground: 220 20% 96%;
+    --card: 220 18% 12%;
+    --card-foreground: 220 20% 96%;
+    --popover: 220 18% 12%;
+    --popover-foreground: 220 20% 96%;
+    --primary: 220 14% 72%;
+    --secondary: 220 12% 28%;
+    --muted: 220 14% 20%;
+    --muted-foreground: 220 12% 70%;
+    --accent: 220 14% 26%;
+    --accent-foreground: 220 20% 96%;
+    --border: 220 12% 26%;
+    --input: 220 12% 26%;
+    --ring: 220 14% 72%;
+    --ssoo-primary: #D1D5DB;
+    --ssoo-primary-hover: #F3F4F6;
+    --ssoo-secondary: #9CA3AF;
+    --ssoo-background: #111827;
+    --ssoo-content-border: #374151;
+    --ssoo-content-background: #1F2937;
+    --ssoo-sitemap-title: #F9FAFB;
+    --ssoo-sitemap-bullet: #D1D5DB;
+    --ssoo-sitemap-background: #111827;
+  }
+
+  .dark [data-ssoo-theme="forest"] {
+    --background: 154 35% 10%;
+    --foreground: 150 40% 96%;
+    --card: 154 35% 12%;
+    --card-foreground: 150 40% 96%;
+    --popover: 154 35% 12%;
+    --popover-foreground: 150 40% 96%;
+    --primary: 145 55% 48%;
+    --secondary: 154 32% 24%;
+    --muted: 154 30% 20%;
+    --muted-foreground: 150 20% 70%;
+    --accent: 145 50% 42%;
+    --border: 154 30% 25%;
+    --input: 154 30% 25%;
+    --ring: 145 55% 48%;
+    --ssoo-primary: #86EFAC;
+    --ssoo-primary-hover: #BBF7D0;
+    --ssoo-secondary: #4ADE80;
+    --ssoo-background: #0B1E15;
+    --ssoo-content-border: #24543A;
+    --ssoo-content-background: #123323;
+    --ssoo-sitemap-title: #BBF7D0;
+    --ssoo-sitemap-bullet: #86EFAC;
+    --ssoo-sitemap-background: #0D2218;
+  }
+
+  .dark [data-ssoo-theme="amber"] {
+    --background: 35 42% 10%;
+    --foreground: 42 40% 96%;
+    --card: 35 42% 12%;
+    --card-foreground: 42 40% 96%;
+    --popover: 35 42% 12%;
+    --popover-foreground: 42 40% 96%;
+    --primary: 42 88% 55%;
+    --secondary: 35 35% 24%;
+    --muted: 35 35% 20%;
+    --muted-foreground: 42 20% 70%;
+    --accent: 42 80% 48%;
+    --border: 35 30% 25%;
+    --input: 35 30% 25%;
+    --ring: 42 88% 55%;
+    --ssoo-primary: #FCD34D;
+    --ssoo-primary-hover: #FDE68A;
+    --ssoo-secondary: #F59E0B;
+    --ssoo-background: #24170B;
+    --ssoo-content-border: #704D1A;
+    --ssoo-content-background: #36230F;
+    --ssoo-sitemap-title: #FDE68A;
+    --ssoo-sitemap-bullet: #FCD34D;
+    --ssoo-sitemap-background: #211507;
+  }
+
+  .dark [data-ssoo-theme="rose"] {
+    --background: 342 42% 10%;
+    --foreground: 345 40% 96%;
+    --card: 342 42% 12%;
+    --card-foreground: 345 40% 96%;
+    --popover: 342 42% 12%;
+    --popover-foreground: 345 40% 96%;
+    --primary: 336 70% 58%;
+    --secondary: 342 35% 24%;
+    --muted: 342 35% 20%;
+    --muted-foreground: 345 20% 70%;
+    --accent: 336 64% 50%;
+    --border: 342 30% 25%;
+    --input: 342 30% 25%;
+    --ring: 336 70% 58%;
+    --ssoo-primary: #FDA4AF;
+    --ssoo-primary-hover: #FECDD3;
+    --ssoo-secondary: #FB7185;
+    --ssoo-background: #25101A;
+    --ssoo-content-border: #6A2D43;
+    --ssoo-content-background: #3A1725;
+    --ssoo-sitemap-title: #FECDD3;
+    --ssoo-sitemap-bullet: #FDA4AF;
+    --ssoo-sitemap-background: #221019;
   }
 
   * {
@@ -92,6 +492,122 @@ a:hover {
 }
 
 @layer components {
+  .ssoo-content-page-tone-neutral {
+    background-color: var(--ssoo-background);
+  }
+
+  .ssoo-content-page-tone-document-viewer,
+  .ssoo-content-page-tone-ai,
+  .ssoo-content-page-tone-settings {
+    background-color: color-mix(in srgb, var(--ssoo-content-background) 30%, var(--ssoo-background) 70%);
+  }
+
+  .ssoo-content-page-tone-document-editor {
+    background-color: color-mix(in srgb, var(--ssoo-primary) 15%, var(--ssoo-background) 85%);
+  }
+
+  .ssoo-content-page-tone-transparent {
+    background-color: transparent;
+  }
+
+  .ssoo-content-page-state-tone-neutral {
+    background-color: hsl(var(--card));
+  }
+
+  .ssoo-content-page-state-tone-document-viewer,
+  .ssoo-content-page-state-tone-ai,
+  .ssoo-content-page-state-tone-settings {
+    background-color: color-mix(in srgb, hsl(var(--card)) 82%, var(--ssoo-content-background) 18%);
+  }
+
+  .ssoo-content-page-state-tone-document-editor {
+    background-color: color-mix(in srgb, hsl(var(--card)) 88%, var(--ssoo-primary) 12%);
+  }
+
+  .ssoo-content-page-state-tone-transparent {
+    background-color: transparent;
+  }
+
+  .ssoo-sectioned-shell-toolbar-tone {
+    background-color: color-mix(in srgb, var(--ssoo-content-background) 30%, hsl(var(--card)) 70%);
+  }
+
+  .ssoo-settings-subtle-surface {
+    background-color: color-mix(in srgb, var(--ssoo-content-background) 50%, hsl(var(--card)) 50%);
+  }
+
+  .ssoo-bg-primary-60 {
+    background-color: color-mix(in srgb, var(--ssoo-primary) 60%, transparent);
+  }
+
+  .ssoo-bg-primary-80 {
+    background-color: color-mix(in srgb, var(--ssoo-primary) 80%, transparent);
+  }
+
+  .ssoo-text-primary-60 {
+    color: color-mix(in srgb, var(--ssoo-primary) 60%, transparent);
+  }
+
+  .ssoo-text-primary-70 {
+    color: color-mix(in srgb, var(--ssoo-primary) 70%, transparent);
+  }
+
+  .ssoo-text-primary-75 {
+    color: color-mix(in srgb, var(--ssoo-primary) 75%, transparent);
+  }
+
+  .ssoo-text-primary-80 {
+    color: color-mix(in srgb, var(--ssoo-primary) 80%, transparent);
+  }
+
+  .ssoo-border-content-70 {
+    border-color: color-mix(in srgb, var(--ssoo-content-border) 70%, transparent);
+  }
+
+  .ssoo-border-primary-30 {
+    border-color: color-mix(in srgb, var(--ssoo-primary) 30%, transparent);
+  }
+
+  .ssoo-border-primary-35 {
+    border-color: color-mix(in srgb, var(--ssoo-primary) 35%, transparent);
+  }
+
+  .ssoo-border-primary-50 {
+    border-color: color-mix(in srgb, var(--ssoo-primary) 50%, transparent);
+  }
+
+  .ssoo-hover-bg-content-60:hover {
+    background-color: color-mix(in srgb, var(--ssoo-content-background) 60%, transparent);
+  }
+
+  .ssoo-hover-bg-content-border-50:hover {
+    background-color: color-mix(in srgb, var(--ssoo-content-border) 50%, transparent);
+  }
+
+  .ssoo-hover-bg-primary-70:hover {
+    background-color: color-mix(in srgb, var(--ssoo-primary) 70%, transparent);
+  }
+
+  .ssoo-hover-bg-primary-90:hover {
+    background-color: color-mix(in srgb, var(--ssoo-primary) 90%, transparent);
+  }
+
+  .ssoo-hover-border-primary-30:hover {
+    border-color: color-mix(in srgb, var(--ssoo-primary) 30%, transparent);
+  }
+
+  .ssoo-hover-border-primary-40:hover {
+    border-color: color-mix(in srgb, var(--ssoo-primary) 40%, transparent);
+  }
+
+  .ssoo-hover-text-primary-80:hover {
+    color: color-mix(in srgb, var(--ssoo-primary) 80%, transparent);
+  }
+
+  .ssoo-ring-primary-30 {
+    --tw-ring-color: color-mix(in srgb, var(--ssoo-primary) 30%, transparent);
+  }
+
   .heading-1 {
     @apply text-h1 text-gray-900 font-bold;
   }
@@ -182,6 +698,48 @@ a:hover {
 }
 
 @layer utilities {
+  .text-body-md {
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.5rem;
+  }
+
+  .text-body-sm {
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.25rem;
+  }
+
+  .text-label-md {
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+  }
+
+  .text-label-sm {
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1rem;
+  }
+
+  .text-label-strong {
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+  }
+
+  .text-caption {
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1rem;
+  }
+
+  .text-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1rem;
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

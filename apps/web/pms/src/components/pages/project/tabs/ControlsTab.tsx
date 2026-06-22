@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ControlDomainPanels } from './control/DomainPanels';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-red-50 text-red-700',
@@ -123,24 +124,24 @@ export function ControlsTab({ projectId }: Props) {
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-3 text-left font-medium">코드</th>
-                <th className="p-3 text-left font-medium">제목</th>
-                <th className="p-3 text-center font-medium">유형</th>
-                <th className="p-3 text-center font-medium">상태</th>
-                <th className="p-3 text-center font-medium">우선순위</th>
-                <th className="p-3 text-left font-medium">기존 담당자</th>
-                <th className="w-16 p-3 text-center font-medium">삭제</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+          <Table className="w-full text-sm">
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead className="p-3 text-left font-medium">코드</TableHead>
+                <TableHead className="p-3 text-left font-medium">제목</TableHead>
+                <TableHead className="p-3 text-center font-medium">유형</TableHead>
+                <TableHead className="p-3 text-center font-medium">상태</TableHead>
+                <TableHead className="p-3 text-center font-medium">우선순위</TableHead>
+                <TableHead className="p-3 text-left font-medium">기존 담당자</TableHead>
+                <TableHead className="w-16 p-3 text-center font-medium">삭제</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y">
               {issues.map((issue) => (
-                <tr key={String(issue.id)} className="hover:bg-muted/30">
-                  <td className="p-3 font-mono text-xs">{issue.issueCode}</td>
-                  <td className="p-3">{issue.issueTitle}</td>
-                  <td className="p-3 text-center text-xs">
+                <TableRow key={String(issue.id)} className="hover:bg-muted/30">
+                  <TableCell className="p-3 font-mono text-xs">{issue.issueCode}</TableCell>
+                  <TableCell className="p-3">{issue.issueTitle}</TableCell>
+                  <TableCell className="p-3 text-center text-xs">
                     <div className="flex flex-col items-center gap-1">
                       <span>{TYPE_LABELS[issue.issueTypeCode] || issue.issueTypeCode}</span>
                       {CANONICAL_SURFACE_HINTS[issue.issueTypeCode] ? (
@@ -149,8 +150,8 @@ export function ControlsTab({ projectId }: Props) {
                           </span>
                       ) : null}
                     </div>
-                  </td>
-                  <td className="p-3 text-center">
+                  </TableCell>
+                  <TableCell className="p-3 text-center">
                     <Select
                       value={issue.statusCode}
                       onValueChange={(value) => handleStatusChange(issue, value)}
@@ -171,14 +172,14 @@ export function ControlsTab({ projectId }: Props) {
                         ))}
                       </SelectContent>
                     </Select>
-                  </td>
-                  <td className={`p-3 text-center text-xs ${PRIORITY_COLORS[issue.priorityCode] || ''}`}>
+                  </TableCell>
+                  <TableCell className={`p-3 text-center text-xs ${PRIORITY_COLORS[issue.priorityCode] || ''}`}>
                     {PRIORITY_LABELS[issue.priorityCode] || issue.priorityCode}
-                  </td>
-                  <td className="p-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="p-3 text-muted-foreground">
                     {issue.assignee?.displayName || issue.assignee?.userName || '-'}
-                  </td>
-                  <td className="p-3 text-center">
+                  </TableCell>
+                  <TableCell className="p-3 text-center">
                     {canManageIssues ? (
                       <Button
                         variant="ghost"
@@ -192,11 +193,11 @@ export function ControlsTab({ projectId }: Props) {
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

@@ -26,6 +26,7 @@ import {
   useProjectObjectives,
   useUpdateObjective,
 } from '@/hooks/queries/useProjects';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 const NO_PARENT_OBJECTIVE = '__none__';
 
@@ -140,33 +141,33 @@ export function ObjectivesPanel({ projectId, canManageObjectives }: Props) {
         <div className="text-sm text-muted-foreground">아직 등록된 목표가 없습니다.</div>
       ) : (
         <div className="overflow-hidden rounded-md border bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40">
-              <tr>
-                <th className="p-3 text-left font-medium">코드</th>
-                <th className="p-3 text-left font-medium">목표명</th>
-                <th className="p-3 text-left font-medium">상위목표</th>
-                <th className="p-3 text-center font-medium">상태</th>
-                <th className="p-3 text-left font-medium">기한</th>
-                <th className="w-10 p-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+          <Table className="w-full text-sm">
+            <TableHeader className="bg-muted/40">
+              <TableRow>
+                <TableHead className="p-3 text-left font-medium">코드</TableHead>
+                <TableHead className="p-3 text-left font-medium">목표명</TableHead>
+                <TableHead className="p-3 text-left font-medium">상위목표</TableHead>
+                <TableHead className="p-3 text-center font-medium">상태</TableHead>
+                <TableHead className="p-3 text-left font-medium">기한</TableHead>
+                <TableHead className="w-10 p-3"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y">
               {objectives.map((objective) => {
                 const parentObjective = objective.parentObjectiveId
                   ? objectiveMap.get(String(objective.parentObjectiveId))
                   : null;
 
                 return (
-                  <tr key={String(objective.id)} className="group hover:bg-muted/20">
-                    <td className="p-3 font-mono text-xs" style={{ paddingLeft: `${(objective.depth * 16) + 12}px` }}>
+                  <TableRow key={String(objective.id)} className="group hover:bg-muted/20">
+                    <TableCell className="p-3 font-mono text-xs" style={{ paddingLeft: `${(objective.depth * 16) + 12}px` }}>
                       {objective.objectiveCode}
-                    </td>
-                    <td className="p-3">{objective.objectiveName}</td>
-                    <td className="p-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="p-3">{objective.objectiveName}</TableCell>
+                    <TableCell className="p-3 text-muted-foreground">
                       {parentObjective ? `${parentObjective.objectiveCode} · ${parentObjective.objectiveName}` : '-'}
-                    </td>
-                    <td className="p-3 text-center">
+                    </TableCell>
+                    <TableCell className="p-3 text-center">
                       <Select
                         value={objective.statusCode}
                         onValueChange={(value) => handleStatusChange(String(objective.id), value)}
@@ -183,11 +184,11 @@ export function ObjectivesPanel({ projectId, canManageObjectives }: Props) {
                           ))}
                         </SelectContent>
                       </Select>
-                    </td>
-                    <td className="p-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="p-3 text-muted-foreground">
                       {objective.dueAt ? new Date(objective.dueAt).toLocaleDateString('ko-KR') : '-'}
-                    </td>
-                    <td className="p-3 text-center">
+                    </TableCell>
+                    <TableCell className="p-3 text-center">
                       {canManageObjectives && (
                         <Button
                           variant="ghost"
@@ -198,12 +199,12 @@ export function ObjectivesPanel({ projectId, canManageObjectives }: Props) {
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

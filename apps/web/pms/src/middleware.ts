@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import {
+  resolveSsooRoutePolicyDecision,
+} from '@ssoo/web-shell/route-policy';
 import { APP_HOME_PATH, ROOT_ENTRY_PATHS } from '@/lib/constants/routes';
 
 /**
@@ -8,27 +11,25 @@ import { APP_HOME_PATH, ROOT_ENTRY_PATHS } from '@/lib/constants/routes';
  * - API, 정적 파일은 matcher에서 제외
  */
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const decision = resolveSsooRoutePolicyDecision(request.nextUrl.pathname, {
+    allowedPaths: ROOT_ENTRY_PATHS,
+    fallbackPath: APP_HOME_PATH,
+    sharedUserSurfaceRewritePath: APP_HOME_PATH,
+  });
 
-  // 허용된 경로면 통과
-  if (ROOT_ENTRY_PATHS.some((path) => pathname === path)) {
+  if (decision.action === 'next') {
     return NextResponse.next();
   }
 
   // shell-app은 잘못된 경로를 기본 루트 셸로 복구한다.
-  return NextResponse.redirect(new URL(APP_HOME_PATH, request.url));
+  if (decision.action === 'rewrite') {
+    return NextResponse.rewrite(new URL(decision.path, request.url));
+  }
+
+  return NextResponse.redirect(new URL(decision.path, request.url));
 }
 
 export const config = {
   // 매칭할 경로 - 정적 파일과 API는 제외
-  matcher: [
-    /*
-     * Match all paths except:
-     * - api (API routes)
-     * - _next (Next.js internals)
-     * - static files (with extensions)
-     * - favicon.ico
-     */
-    '/((?!api|_next|.*\\..*|favicon.ico).*)',
-  ],
+  matcher: ['/((?!api|_next|.*\\..*|favicon.ico).*)'],
 };

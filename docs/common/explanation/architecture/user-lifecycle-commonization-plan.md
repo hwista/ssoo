@@ -116,8 +116,9 @@ Target behavior:
 1. Add unit coverage if the package has tests; otherwise add a small verifier script later in Task 8.
 2. Update `checkAuth()` failure ordering so 401 always clears local state.
 3. Ensure `restoreSession()` remains the canonical path to rebuild auth state from the HttpOnly cookie.
-4. Run `pnpm --filter @ssoo/web-auth build`.
-5. Run five web focused builds if touched package consumers require it:
+4. Run `pnpm --filter @ssoo/web-shell build`.
+5. Run `pnpm --filter @ssoo/web-auth build`.
+6. Run five web focused builds if touched package consumers require it:
    - `pnpm --filter web-admin build`
    - `pnpm --filter web-crm build`
    - `pnpm --filter web-pms build`

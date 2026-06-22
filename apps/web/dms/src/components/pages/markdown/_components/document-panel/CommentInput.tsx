@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Send, X } from 'lucide-react';
+import { Button, Textarea } from '@ssoo/web-ui';
 
 export interface CommentInputProps {
   onAdd: (content: string, parentId?: string) => boolean | void | Promise<boolean | void>;
@@ -54,18 +55,18 @@ export function CommentInput({ onAdd, replyTo, onCancelReply, disabled = false }
       {replyTo && (
         <div className="mb-1.5 flex items-center gap-1 text-caption text-ssoo-primary/60">
           <span>@{replyTo.author}에게 답글</span>
-          <button
+          <Button variant="plain" size="plain"
             type="button"
             onClick={onCancelReply}
             className="ml-auto rounded p-0.5 hover:bg-ssoo-content-border"
             aria-label="답글 취소"
           >
             <X className="h-3 w-3" />
-          </button>
+          </Button>
         </div>
       )}
       <div className="relative">
-        <textarea
+        <Textarea
           ref={textareaRef}
           value={inputValue}
           onChange={(event) => setInputValue(event.target.value)}
@@ -75,14 +76,14 @@ export function CommentInput({ onAdd, replyTo, onCancelReply, disabled = false }
           disabled={disabled || isSubmitting}
           className="w-full resize-none rounded border border-ssoo-content-border bg-transparent px-2 py-1.5 pr-8 text-caption text-ssoo-primary focus:border-ssoo-primary focus:outline-none"
         />
-        <button
+        <Button variant="plain" size="plain"
           onClick={handleSubmit}
           disabled={!inputValue.trim() || disabled || isSubmitting}
           className="absolute bottom-1.5 right-1.5 p-1 text-ssoo-primary/60 transition-colors hover:text-ssoo-primary disabled:opacity-30"
           aria-label="댓글 추가"
         >
           <Send className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       </div>
     </div>
   );

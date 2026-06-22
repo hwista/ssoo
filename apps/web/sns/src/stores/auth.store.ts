@@ -1,13 +1,8 @@
-import type { AuthIdentity } from '@ssoo/types/common';
+import type { AuthIdentityProfileProjection } from '@ssoo/types/common';
 import { createAuthStore, toBaseAuthIdentity } from '@ssoo/web-auth';
 import { authApi } from '@/lib/api/auth';
-import { useAccessStore } from './access.store';
 
-export interface AuthUser extends AuthIdentity {
-  userName?: string;
-  displayName?: string;
-  avatarUrl?: string;
-}
+export type AuthUser = AuthIdentityProfileProjection;
 
 function toAuthUser(value: unknown): AuthUser | null {
   const base = toBaseAuthIdentity(value);
@@ -23,15 +18,12 @@ function toAuthUser(value: unknown): AuthUser | null {
   return {
     ...base,
     userName: typeof candidate.userName === 'string' ? candidate.userName : undefined,
-    displayName: typeof candidate.displayName === 'string' ? candidate.displayName : undefined,
-    avatarUrl: typeof candidate.avatarUrl === 'string' ? candidate.avatarUrl : undefined,
+    displayName: typeof candidate.displayName === 'string' ? candidate.displayName : null,
+    avatarUrl: typeof candidate.avatarUrl === 'string' ? candidate.avatarUrl : null,
   };
 }
 
 export const useAuthStore = createAuthStore<AuthUser>({
   authApi,
   normalizeUser: toAuthUser,
-  onAuthCleared: () => {
-    useAccessStore.getState().reset();
-  },
 });

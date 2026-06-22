@@ -1,12 +1,20 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
 import type { FollowPaginationDto } from './dto/follow.dto.js';
+import { CommonNotificationService } from '../../common/notification/notification.service.js';
 
 @Injectable()
 export class FollowService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly notificationService: CommonNotificationService,
+  ) {}
 
   async follow(followerUserId: bigint, followingUserId: bigint) {
+    if (followerUserId === followingUserId) {
+      throw new BadRequestException('자기 자신은 팔로우할 수 없습니다.');
+    }
+
     const existing = await this.db.client.snsFollow.findFirst({
       where: { followerUserId, followingUserId },
     });
@@ -14,9 +22,11 @@ export class FollowService {
       throw new ConflictException('Already following this user');
     }
 
-    return this.db.client.snsFollow.create({
+    const follow = await this.db.client.snsFollow.create({
       data: { followerUserId, followingUserId },
     });
+    this.publishFollowChanged(followerUserId, followingUserId);
+    return follow;
   }
 
   async unfollow(followerUserId: bigint, followingUserId: bigint) {
@@ -27,8 +37,17 @@ export class FollowService {
       throw new NotFoundException('Follow relationship not found');
     }
 
-    return this.db.client.snsFollow.delete({
+    const deleted = await this.db.client.snsFollow.delete({
       where: { id: existing.id },
+    });
+    this.publishFollowChanged(followerUserId, followingUserId);
+    return deleted;
+  }
+
+  private publishFollowChanged(followerUserId: bigint, followingUserId: bigint): void {
+    this.notificationService.publishDomainEvent('sns', 'sns.follow.changed', {
+      actorUserId: followerUserId.toString(),
+      userId: followingUserId.toString(),
     });
   }
 

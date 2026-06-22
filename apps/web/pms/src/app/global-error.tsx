@@ -1,6 +1,7 @@
 'use client';
 
 import { LOGIN_PATH } from '@/lib/constants/routes';
+import { Button } from '@ssoo/web-ui';
 
 /**
  * 전역 에러 바운더리
@@ -11,7 +12,6 @@ import { LOGIN_PATH } from '@/lib/constants/routes';
  */
 export default function GlobalError({
   error,
-  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -56,7 +56,7 @@ export default function GlobalError({
                 : '예기치 않은 오류가 발생했습니다.'}
             </p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button
+              <Button variant="plain" size="plain"
                 onClick={() => window.location.reload()}
                 style={{
                   padding: '8px 24px',
@@ -70,8 +70,8 @@ export default function GlobalError({
                 }}
               >
                 새로고침
-              </button>
-              <button
+              </Button>
+              <Button variant="plain" size="plain"
                 onClick={() => { window.location.href = LOGIN_PATH; }}
                 style={{
                   padding: '8px 24px',
@@ -85,7 +85,7 @@ export default function GlobalError({
                 }}
               >
                 로그인 페이지로
-              </button>
+              </Button>
             </div>
           </div>
         </div>

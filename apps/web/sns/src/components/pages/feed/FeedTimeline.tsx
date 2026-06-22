@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/common/StateDisplay';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeed } from '@/hooks/queries/usePosts';
 import { useAccessStore } from '@/stores';
+import { Button } from '@ssoo/web-ui';
 
 export function FeedTimeline() {
   const accessSnapshot = useAccessStore((state) => state.snapshot);
@@ -59,13 +60,13 @@ export function FeedTimeline() {
           </div>
           {hasNextPage && (
             <div className="py-4 text-center">
-              <button
+              <Button variant="plain" size="plain"
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
                 className="text-sm text-ssoo-primary hover:underline"
               >
                 {isFetchingNextPage ? '불러오는 중...' : '더 보기'}
-              </button>
+              </Button>
             </div>
           )}
         </>

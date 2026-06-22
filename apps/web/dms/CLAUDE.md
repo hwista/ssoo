@@ -99,10 +99,10 @@ const useTabStore = create<TabStoreState & TabStoreActions>()(
 
 | 영역 | 값 |
 |------|-----|
-| Header | 56px |
-| Sidebar (펼침) | 280px |
-| Sidebar (접힘) | 48px |
-| TabBar | 40px |
+| Header | 60px |
+| Sidebar (펼침) | 340px |
+| Sidebar (접힘) | 56px |
+| TabBar | 53px |
 
 ---
 

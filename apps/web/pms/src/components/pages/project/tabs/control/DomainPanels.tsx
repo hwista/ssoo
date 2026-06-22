@@ -58,6 +58,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { EventRollupSummary } from '../EventRollupSummary';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 const PRIORITY_LABELS: Record<string, string> = {
   critical: '긴급',
@@ -351,26 +352,26 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
 
     return (
       <div className="overflow-hidden rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40">
-            <tr>
-              <th className="p-3 text-left font-medium">코드</th>
-              <th className="p-3 text-left font-medium">제목</th>
-              <th className="p-3 text-center font-medium">유형</th>
-              <th className="p-3 text-center font-medium">상태</th>
-              <th className="p-3 text-center font-medium">우선순위</th>
-              <th className="p-3 text-center font-medium w-16">삭제</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+        <Table className="w-full text-sm">
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead className="p-3 text-left font-medium">코드</TableHead>
+              <TableHead className="p-3 text-left font-medium">제목</TableHead>
+              <TableHead className="p-3 text-center font-medium">유형</TableHead>
+              <TableHead className="p-3 text-center font-medium">상태</TableHead>
+              <TableHead className="p-3 text-center font-medium">우선순위</TableHead>
+              <TableHead className="p-3 text-center font-medium w-16">삭제</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y">
             {items.map((item) => (
-              <tr key={String(item.projectIssueId)} className="hover:bg-muted/20">
-                <td className="p-3 font-mono text-xs">{item.issueCode}</td>
-                <td className="p-3">{item.issueTitle}</td>
-                <td className="p-3 text-center text-xs">
+              <TableRow key={String(item.projectIssueId)} className="hover:bg-muted/20">
+                <TableCell className="p-3 font-mono text-xs">{item.issueCode}</TableCell>
+                <TableCell className="p-3">{item.issueTitle}</TableCell>
+                <TableCell className="p-3 text-center text-xs">
                   {PROJECT_ISSUE_TYPE_LABELS[item.issueTypeCode] || item.issueTypeCode}
-                </td>
-                <td className="p-3 text-center">
+                </TableCell>
+                <TableCell className="p-3 text-center">
                   <Select
                     value={item.statusCode}
                     onValueChange={(statusCode) =>
@@ -393,11 +394,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                       ))}
                     </SelectContent>
                   </Select>
-                </td>
-                <td className="p-3 text-center text-xs">
+                </TableCell>
+                <TableCell className="p-3 text-center text-xs">
                   {PRIORITY_LABELS[item.priorityCode] || item.priorityCode}
-                </td>
-                <td className="p-3 text-center">
+                </TableCell>
+                <TableCell className="p-3 text-center">
                   {canManage ? (
                     <Button
                       variant="ghost"
@@ -415,11 +416,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                   ) : (
                     <span className="text-xs text-muted-foreground">-</span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     );
   };
@@ -435,22 +436,22 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
 
     return (
       <div className="overflow-hidden rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40">
-            <tr>
-              <th className="p-3 text-left font-medium">코드</th>
-              <th className="p-3 text-left font-medium">제목</th>
-              <th className="p-3 text-center font-medium">상태</th>
-              <th className="p-3 text-center font-medium">우선순위</th>
-              <th className="p-3 text-center font-medium w-16">삭제</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+        <Table className="w-full text-sm">
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead className="p-3 text-left font-medium">코드</TableHead>
+              <TableHead className="p-3 text-left font-medium">제목</TableHead>
+              <TableHead className="p-3 text-center font-medium">상태</TableHead>
+              <TableHead className="p-3 text-center font-medium">우선순위</TableHead>
+              <TableHead className="p-3 text-center font-medium w-16">삭제</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y">
             {items.map((item) => (
-              <tr key={String(item.requirementId)} className="hover:bg-muted/20">
-                <td className="p-3 font-mono text-xs">{item.requirementCode}</td>
-                <td className="p-3">{item.requirementTitle}</td>
-                <td className="p-3 text-center">
+              <TableRow key={String(item.requirementId)} className="hover:bg-muted/20">
+                <TableCell className="p-3 font-mono text-xs">{item.requirementCode}</TableCell>
+                <TableCell className="p-3">{item.requirementTitle}</TableCell>
+                <TableCell className="p-3 text-center">
                   <Select
                     value={item.statusCode}
                     onValueChange={(statusCode) =>
@@ -473,11 +474,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                       ))}
                     </SelectContent>
                   </Select>
-                </td>
-                <td className="p-3 text-center text-xs">
+                </TableCell>
+                <TableCell className="p-3 text-center text-xs">
                   {PRIORITY_LABELS[item.priorityCode] || item.priorityCode}
-                </td>
-                <td className="p-3 text-center">
+                </TableCell>
+                <TableCell className="p-3 text-center">
                   {canManage ? (
                     <Button
                       variant="ghost"
@@ -495,11 +496,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                   ) : (
                     <span className="text-xs text-muted-foreground">-</span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     );
   };
@@ -515,22 +516,22 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
 
     return (
       <div className="overflow-hidden rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40">
-            <tr>
-              <th className="p-3 text-left font-medium">코드</th>
-              <th className="p-3 text-left font-medium">제목</th>
-              <th className="p-3 text-center font-medium">상태</th>
-              <th className="p-3 text-center font-medium">영향/가능성</th>
-              <th className="p-3 text-center font-medium w-16">삭제</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+        <Table className="w-full text-sm">
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead className="p-3 text-left font-medium">코드</TableHead>
+              <TableHead className="p-3 text-left font-medium">제목</TableHead>
+              <TableHead className="p-3 text-center font-medium">상태</TableHead>
+              <TableHead className="p-3 text-center font-medium">영향/가능성</TableHead>
+              <TableHead className="p-3 text-center font-medium w-16">삭제</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y">
             {items.map((item) => (
-              <tr key={String(item.riskId)} className="hover:bg-muted/20">
-                <td className="p-3 font-mono text-xs">{item.riskCode}</td>
-                <td className="p-3">{item.riskTitle}</td>
-                <td className="p-3 text-center">
+              <TableRow key={String(item.riskId)} className="hover:bg-muted/20">
+                <TableCell className="p-3 font-mono text-xs">{item.riskCode}</TableCell>
+                <TableCell className="p-3">{item.riskTitle}</TableCell>
+                <TableCell className="p-3 text-center">
                   <Select
                     value={item.statusCode}
                     onValueChange={(statusCode) =>
@@ -553,11 +554,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                       ))}
                     </SelectContent>
                   </Select>
-                </td>
-                <td className="p-3 text-center text-xs">
+                </TableCell>
+                <TableCell className="p-3 text-center text-xs">
                   {`${SCALE_LABELS[item.impactCode] || item.impactCode} / ${SCALE_LABELS[item.likelihoodCode] || item.likelihoodCode}`}
-                </td>
-                <td className="p-3 text-center">
+                </TableCell>
+                <TableCell className="p-3 text-center">
                   {canManage ? (
                     <Button
                       variant="ghost"
@@ -575,11 +576,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                   ) : (
                     <span className="text-xs text-muted-foreground">-</span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     );
   };
@@ -595,22 +596,22 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
 
     return (
       <div className="overflow-hidden rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40">
-            <tr>
-              <th className="p-3 text-left font-medium">코드</th>
-              <th className="p-3 text-left font-medium">제목</th>
-              <th className="p-3 text-center font-medium">상태</th>
-              <th className="p-3 text-center font-medium">우선순위</th>
-              <th className="p-3 text-center font-medium w-16">삭제</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+        <Table className="w-full text-sm">
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead className="p-3 text-left font-medium">코드</TableHead>
+              <TableHead className="p-3 text-left font-medium">제목</TableHead>
+              <TableHead className="p-3 text-center font-medium">상태</TableHead>
+              <TableHead className="p-3 text-center font-medium">우선순위</TableHead>
+              <TableHead className="p-3 text-center font-medium w-16">삭제</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y">
             {items.map((item) => (
-              <tr key={String(item.changeRequestId)} className="hover:bg-muted/20">
-                <td className="p-3 font-mono text-xs">{item.changeCode}</td>
-                <td className="p-3">{item.changeTitle}</td>
-                <td className="p-3 text-center">
+              <TableRow key={String(item.changeRequestId)} className="hover:bg-muted/20">
+                <TableCell className="p-3 font-mono text-xs">{item.changeCode}</TableCell>
+                <TableCell className="p-3">{item.changeTitle}</TableCell>
+                <TableCell className="p-3 text-center">
                   <Select
                     value={item.statusCode}
                     onValueChange={(statusCode) =>
@@ -633,11 +634,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                       ))}
                     </SelectContent>
                   </Select>
-                </td>
-                <td className="p-3 text-center text-xs">
+                </TableCell>
+                <TableCell className="p-3 text-center text-xs">
                   {PRIORITY_LABELS[item.priorityCode] || item.priorityCode}
-                </td>
-                <td className="p-3 text-center">
+                </TableCell>
+                <TableCell className="p-3 text-center">
                   {canManage ? (
                     <Button
                       variant="ghost"
@@ -655,11 +656,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                   ) : (
                     <span className="text-xs text-muted-foreground">-</span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     );
   };
@@ -675,21 +676,21 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
 
     return (
       <div className="overflow-hidden rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40">
-            <tr>
-              <th className="p-3 text-left font-medium">코드</th>
-              <th className="p-3 text-left font-medium">이벤트</th>
-              <th className="p-3 text-center font-medium">유형</th>
-              <th className="p-3 text-center font-medium">상태</th>
-              <th className="p-3 text-center font-medium w-16">삭제</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+        <Table className="w-full text-sm">
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead className="p-3 text-left font-medium">코드</TableHead>
+              <TableHead className="p-3 text-left font-medium">이벤트</TableHead>
+              <TableHead className="p-3 text-center font-medium">유형</TableHead>
+              <TableHead className="p-3 text-center font-medium">상태</TableHead>
+              <TableHead className="p-3 text-center font-medium w-16">삭제</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y">
             {items.map((item) => (
-              <tr key={String(item.eventId)} className="hover:bg-muted/20">
-                <td className="p-3 font-mono text-xs">{item.eventCode}</td>
-                <td className="p-3">
+              <TableRow key={String(item.eventId)} className="hover:bg-muted/20">
+                <TableCell className="p-3 font-mono text-xs">{item.eventCode}</TableCell>
+                <TableCell className="p-3">
                   <div>{item.eventName}</div>
                   {item.summary && (
                     <div className="mt-1 text-xs text-muted-foreground">{item.summary}</div>
@@ -699,11 +700,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                     className="mt-2"
                     showByStatus
                   />
-                </td>
-                <td className="p-3 text-center text-xs">
+                </TableCell>
+                <TableCell className="p-3 text-center text-xs">
                   {EVENT_TYPE_LABELS[item.eventTypeCode] || item.eventTypeCode}
-                </td>
-                <td className="p-3 text-center">
+                </TableCell>
+                <TableCell className="p-3 text-center">
                   <Select
                     value={item.statusCode}
                     onValueChange={(statusCode) =>
@@ -726,8 +727,8 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                       ))}
                     </SelectContent>
                   </Select>
-                </td>
-                <td className="p-3 text-center">
+                </TableCell>
+                <TableCell className="p-3 text-center">
                   {canManage ? (
                     <Button
                       variant="ghost"
@@ -745,11 +746,11 @@ export function ControlDomainPanels({ projectId, canManage }: ControlDomainPanel
                   ) : (
                     <span className="text-xs text-muted-foreground">-</span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     );
   };

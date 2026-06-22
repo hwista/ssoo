@@ -1,21 +1,31 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
-const ALLOWED_PATHS = ['/login', '/', '/users', '/organizations', '/roles'];
-const ALLOWED_PATH_PREFIXES = ['/dms'];
+import {
+  resolveSsooRoutePolicyDecision,
+} from '@ssoo/web-shell/route-policy';
+import {
+  ADMIN_ALLOWED_PATH_PREFIXES,
+  ADMIN_ROOT_ENTRY_PATHS,
+  APP_HOME_PATH,
+} from '@/lib/constants/routes';
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const decision = resolveSsooRoutePolicyDecision(request.nextUrl.pathname, {
+    allowedPaths: ADMIN_ROOT_ENTRY_PATHS,
+    allowedPrefixes: ADMIN_ALLOWED_PATH_PREFIXES,
+    fallbackPath: APP_HOME_PATH,
+    sharedUserSurfaceRewritePath: APP_HOME_PATH,
+  });
 
-  if (
-    ALLOWED_PATHS.some((p) => pathname === p)
-    || ALLOWED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
-  ) {
+  if (decision.action === 'next') {
     return NextResponse.next();
   }
 
-  // Unknown routes redirect to dashboard
-  return NextResponse.redirect(new URL('/', request.url));
+  if (decision.action === 'rewrite') {
+    return NextResponse.rewrite(new URL(decision.path, request.url));
+  }
+
+  return NextResponse.redirect(new URL(decision.path, request.url));
 }
 
 export const config = {

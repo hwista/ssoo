@@ -3,8 +3,11 @@
 import { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { SharedAuthStateSync } from '@ssoo/web-auth';
 import { Toaster } from 'sonner';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { usePmsUserScopeQueryCacheReset } from '@/lib/user-scope';
+import { useAuthStore } from '@/stores/auth.store';
 
 // DevExtreme 라이선스 설정 (상용 라이선스 보유 시)
 // import { licenseKey } from './devextreme-license';
@@ -53,9 +56,11 @@ function getQueryClient() {
 export function Providers({ children }: ProvidersProps) {
   // useState로 초기화하여 SSR에서 일관성 유지
   const [queryClient] = useState(() => getQueryClient());
+  usePmsUserScopeQueryCacheReset(queryClient);
 
   return (
     <QueryClientProvider client={queryClient}>
+      <SharedAuthStateSync authStore={useAuthStore} />
       {children}
       {/* 전역 Confirm Dialog */}
       <ConfirmDialog />

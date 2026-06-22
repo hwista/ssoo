@@ -10,6 +10,7 @@ export function JsonRenderer({
   onChange,
   readOnly = false,
   emptyMessage = '표시할 설정 항목이 없습니다.',
+  getItemAnchorId,
 }: {
   items: JsonFieldDescriptor[];
   localConfig: Record<string, unknown>;
@@ -19,6 +20,7 @@ export function JsonRenderer({
   onChange?: (key: string, value: unknown) => void;
   readOnly?: boolean;
   emptyMessage?: string;
+  getItemAnchorId?: (item: JsonFieldDescriptor) => string;
 }) {
   if (items.length === 0) {
     return (
@@ -33,6 +35,7 @@ export function JsonRenderer({
       {items.map((item) => (
         <JsonFieldRow
           key={item.key}
+          id={getItemAnchorId?.(item)}
           item={item}
           value={getValue(localConfig, item.key)}
           originalValue={getValue(originalConfig, item.key)}

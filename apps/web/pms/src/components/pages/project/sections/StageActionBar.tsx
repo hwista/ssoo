@@ -187,14 +187,14 @@ export function StageActionBar({
                   />
                   <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-md border bg-white shadow-lg py-1">
                     {(DONE_RESULT_OPTIONS[statusCode] || []).map((option) => (
-                      <button
+                      <Button variant="plain" size="plain"
                         key={option.value}
                         onClick={() => handleComplete(option.value)}
                         disabled={advanceMutation.isPending}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 disabled:opacity-50"
                       >
                         {option.label}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </>

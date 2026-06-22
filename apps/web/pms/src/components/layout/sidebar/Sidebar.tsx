@@ -1,13 +1,25 @@
 'use client';
 
-import { Menu } from 'lucide-react';
-import { SsooSidebarBrandHeader, SsooSidebarFooter, SsooSidebarShell } from '@ssoo/web-shell';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useAccessStore, useSidebarStore } from '@/stores';
-import { LAYOUT_SIZES } from '@/types';
+import {
+  ChevronDown,
+  ChevronRight,
+  FolderTree,
+  Layers,
+  Menu,
+  RefreshCw,
+  Search as SearchIcon,
+  Shield,
+  Star,
+  X,
+} from 'lucide-react';
+import { getSsooAppIdentity, SsooSidebarSurface } from '@ssoo/web-shell';
+import { useAccessStore, useMenuStore, useSidebarStore } from '@/stores';
+import { Favorites } from './Favorites';
+import { OpenTabs } from './OpenTabs';
+import { MenuTree } from './MenuTree';
+import { AdminMenu } from './AdminMenu';
 
-import { CollapsedSidebar } from './CollapsedSidebar';
-import { ExpandedSidebar } from './ExpandedSidebar';
+const PMS_APP_IDENTITY = getSsooAppIdentity('pms');
 
 /**
  * 사이드바 컴포넌트
@@ -18,60 +30,82 @@ export function Sidebar() {
   const {
     isCollapsed,
     expandedSections,
+    searchQuery,
     toggleCollapse,
     toggleSection,
+    setSearchQuery,
+    clearSearch,
   } = useSidebarStore();
 
   const isAccessLoading = useAccessStore((state) => state.isLoading);
   const hydrateAccess = useAccessStore((state) => state.hydrate);
+  const { adminMenus } = useMenuStore();
 
-  const headerSlot = (
-    <SsooSidebarBrandHeader
-      title="SSOT"
-      subtitle="PMS · 업무 허브"
-      collapsed={isCollapsed}
-      revealOnHover={isCollapsed}
-      actionsSlot={
-        <button
-          type="button"
-          onClick={toggleCollapse}
-          className="rounded-lg p-2 transition-colors hover:bg-white/10"
-          title={isCollapsed ? '펼치기' : '접기'}
-        >
-          <Menu className="h-5 w-5 text-white" />
-        </button>
-      }
-    />
-  );
-
-  const railSlot = (
-    <ScrollArea variant="sidebar" className="flex-1">
-      <CollapsedSidebar onSelect={(section) => section !== 'search' && toggleSection(section)} />
-    </ScrollArea>
-  );
-
-  const contentSlot = (
-    <ExpandedSidebar
-      expandedSections={expandedSections}
-      onToggleSection={toggleSection}
-      onRefresh={hydrateAccess}
-      isRefreshing={isAccessLoading}
-    />
-  );
-
-  const footerSlot = <SsooSidebarFooter collapsed={isCollapsed} revealOnHover={isCollapsed} />;
+  const showAdminSection = adminMenus.length > 0;
 
   return (
-    <SsooSidebarShell
-      mode="collapsible"
+    <SsooSidebarSurface
       expanded={!isCollapsed}
-      width={LAYOUT_SIZES.sidebar.expandedWidth}
-      collapsedWidth={LAYOUT_SIZES.sidebar.collapsedWidth}
-      headerSlot={headerSlot}
-      railSlot={railSlot}
-      contentSlot={contentSlot}
-      footerSlot={footerSlot}
-      contentClassName="bg-ssoo-content-bg"
+      onToggleCollapse={toggleCollapse}
+      toggleIcon={Menu}
+      brandTitle={PMS_APP_IDENTITY.brandTitle}
+      search={{
+        value: searchQuery,
+        onChange: setSearchQuery,
+        onClear: clearSearch,
+        railIcon: SearchIcon,
+        onRailSelect: () => {
+          if (isCollapsed) {
+            toggleCollapse();
+          }
+        },
+        clearLabel: '검색어 지우기',
+        clearIcon: X,
+      }}
+      refreshAction={{
+        label: '새로고침',
+        icon: RefreshCw,
+        onClick: hydrateAccess,
+        disabled: isAccessLoading,
+        loading: isAccessLoading,
+      }}
+      expandedIcon={ChevronDown}
+      collapsedIcon={ChevronRight}
+      sections={[
+        {
+          id: 'favorites',
+          title: '즐겨찾기',
+          icon: Star,
+          expanded: expandedSections.includes('favorites'),
+          onToggle: () => toggleSection('favorites'),
+          children: <Favorites />,
+        },
+        {
+          id: 'openTabs',
+          title: '현재 열린 페이지',
+          icon: Layers,
+          expanded: expandedSections.includes('openTabs'),
+          onToggle: () => toggleSection('openTabs'),
+          children: <OpenTabs />,
+        },
+        {
+          id: 'menuTree',
+          title: '전체 메뉴',
+          icon: FolderTree,
+          expanded: expandedSections.includes('menuTree'),
+          onToggle: () => toggleSection('menuTree'),
+          children: <MenuTree />,
+        },
+        {
+          id: 'admin',
+          title: '관리자',
+          icon: Shield,
+          hidden: !showAdminSection,
+          expanded: expandedSections.includes('admin'),
+          onToggle: () => toggleSection('admin'),
+          children: <AdminMenu />,
+        },
+      ]}
     />
   );
 }

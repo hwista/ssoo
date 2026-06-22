@@ -7,6 +7,7 @@ import { useProjectList } from '@/hooks/queries';
 import { useTabStore } from '@/stores';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Project, ProjectStatusCode } from '@/lib/api/endpoints/projects';
+import { Button } from '@ssoo/web-ui';
 
 const STATUS_LABELS: Record<ProjectStatusCode, string> = {
   request: '요청/인계',
@@ -128,7 +129,7 @@ function ProjectCard({
   const staleDays = getDaysSince(project.updatedAt);
 
   return (
-    <button
+    <Button variant="plain" size="plain"
       type="button"
       onClick={() => openProject(project)}
       className="rounded-lg border bg-white p-4 text-left shadow-sm transition hover:border-ssoo-primary/40 hover:shadow-md"
@@ -151,7 +152,7 @@ function ProjectCard({
         <p className="mt-3 text-xs font-medium text-ssoo-primary">{reason}</p>
       ) : null}
       {meta ? <p className="mt-1 text-xs text-gray-500">{meta}</p> : null}
-    </button>
+    </Button>
   );
 }
 

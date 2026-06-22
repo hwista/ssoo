@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Clock, CheckCircle2, XCircle, FileQuestion, ArrowRight, Hourglass, Ban } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type {
   DmsDocumentAccessRequestStatus,
   DmsDocumentAccessRequestStatusFilter,
@@ -10,6 +11,8 @@ import type {
 import { useMyDocumentAccessRequestsQuery } from '@/features/access';
 import { useOpenDocumentTab } from '@/hooks';
 import { ErrorState, LoadingState } from '@/components/common/StateDisplay';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const STATUS_FILTERS: { value: DmsDocumentAccessRequestStatusFilter; label: string }[] = [
@@ -22,6 +25,43 @@ const STATUS_FILTERS: { value: DmsDocumentAccessRequestStatusFilter; label: stri
   { value: 'revoked', label: '회수' },
 ];
 
+const STATUS_META: Record<DmsDocumentAccessRequestStatus, {
+  label: string;
+  icon: LucideIcon;
+  className: string;
+}> = {
+  pending: {
+    label: '요청 대기',
+    icon: Clock,
+    className: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+  },
+  approved: {
+    label: '승인',
+    icon: CheckCircle2,
+    className: 'border-green-200 bg-green-50 text-green-700',
+  },
+  rejected: {
+    label: '거부',
+    icon: XCircle,
+    className: 'border-rose-200 bg-rose-50 text-rose-700',
+  },
+  expired: {
+    label: '만료',
+    icon: Hourglass,
+    className: 'border-zinc-200 bg-zinc-50 text-zinc-600',
+  },
+  cancelled: {
+    label: '취소',
+    icon: Ban,
+    className: 'border-orange-200 bg-orange-50 text-orange-700',
+  },
+  revoked: {
+    label: '회수',
+    icon: Ban,
+    className: 'border-orange-200 bg-orange-50 text-orange-700',
+  },
+};
+
 function formatDateTime(value?: string): string {
   if (!value) return '-';
   const d = new Date(value);
@@ -30,51 +70,13 @@ function formatDateTime(value?: string): string {
 }
 
 function StatusBadge({ status }: { status: DmsDocumentAccessRequestStatus }) {
-  if (status === 'pending') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-yellow-50 text-yellow-700 border border-yellow-200">
-        <Clock className="h-3 w-3" />
-        요청 대기
-      </span>
-    );
-  }
-  if (status === 'approved') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-green-50 text-green-700 border border-green-200">
-        <CheckCircle2 className="h-3 w-3" />
-        승인
-      </span>
-    );
-  }
-  if (status === 'rejected') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-rose-50 text-rose-700 border border-rose-200">
-        <XCircle className="h-3 w-3" />
-        거부
-      </span>
-    );
-  }
-  if (status === 'expired') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-zinc-50 text-zinc-600 border border-zinc-200">
-        <Hourglass className="h-3 w-3" />
-        만료
-      </span>
-    );
-  }
-  if (status === 'cancelled') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-orange-50 text-orange-700 border border-orange-200">
-        <Ban className="h-3 w-3" />
-        취소
-      </span>
-    );
-  }
+  const meta = STATUS_META[status];
+  const StatusIcon = meta.icon;
   return (
-    <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-caption bg-orange-50 text-orange-700 border border-orange-200">
-      <Ban className="h-3 w-3" />
-      회수
-    </span>
+    <Badge variant="outline" className={cn('gap-1 rounded px-2 py-0.5 text-caption', meta.className)}>
+      <StatusIcon className="h-3 w-3" />
+      {meta.label}
+    </Badge>
   );
 }
 
@@ -110,14 +112,16 @@ function RequestRow({ request, onOpenDocument }: {
         </div>
       </div>
       {canOpen ? (
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => onOpenDocument(request.path, request.documentTitle || request.path)}
-          className="inline-flex items-center gap-1 rounded border border-ssoo-content-border bg-white px-2 py-1 text-caption text-ssoo-primary hover:bg-ssoo-content-bg"
+          className="gap-1 text-caption"
         >
           문서 열기
           <ArrowRight className="h-3 w-3" />
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -168,22 +172,22 @@ export function MyRequestsPage() {
             const isActive = filter === item.value;
             const count = item.value === 'all' ? counts.total : counts[item.value];
             return (
-              <button
+              <Button
                 key={item.value}
                 type="button"
+                variant={isActive ? 'default' : 'outline'}
+                size="sm"
                 onClick={() => setFilter(item.value)}
                 className={cn(
-                  'inline-flex items-center gap-1 rounded px-2 py-1 text-caption border transition-colors',
-                  isActive
-                    ? 'border-ssoo-primary bg-ssoo-primary text-white'
-                    : 'border-ssoo-content-border bg-white text-ssoo-primary hover:bg-ssoo-content-bg',
+                  'gap-1 px-2 text-caption',
+                  !isActive && 'bg-white',
                 )}
               >
                 {item.label}
                 <span className={cn('text-caption', isActive ? 'text-white/80' : 'text-gray-500')}>
                   {count}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>

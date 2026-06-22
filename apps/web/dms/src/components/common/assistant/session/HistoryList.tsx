@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@ssoo/web-ui';
 
 export interface AssistantSessionHistoryItem {
   id: string;
@@ -52,7 +53,7 @@ export function AssistantSessionHistoryList({
               : 'hover:bg-ssoo-content-bg/60'
           }`}
         >
-          <button
+          <Button variant="plain" size="plain"
             type="button"
             onClick={() => onSelect(item)}
             className="min-w-0 flex-1 rounded-md px-1 py-1 text-left"
@@ -62,17 +63,17 @@ export function AssistantSessionHistoryList({
             <p className="mt-0.5 text-caption text-ssoo-primary/60">
               {new Date(item.updatedAt).toLocaleString('ko-KR', { hour12: false })}
             </p>
-          </button>
+          </Button>
         </div>
       ))}
       {hasMore && (
-        <button
+        <Button variant="plain" size="plain"
           type="button"
           onClick={() => setVisibleCount((prev) => Math.min(prev + STEP, items.length))}
           className="w-full rounded-md border border-ssoo-content-border bg-white px-2 py-1.5 text-caption text-ssoo-primary transition-colors hover:bg-ssoo-content-bg"
         >
           more (+{Math.min(STEP, items.length - visibleCount)})
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -40,6 +40,15 @@ fi
 echo "[preflight] running: node .codex/scripts/verify-codex-sync.js"
 node .codex/scripts/verify-codex-sync.js
 
+echo "[preflight] running: node .github/scripts/verify-ui-primitives.js"
+node .github/scripts/verify-ui-primitives.js
+
+echo "[preflight] running: node .github/scripts/verify-ui-consumption.js"
+node .github/scripts/verify-ui-consumption.js
+
+echo "[preflight] running: pnpm run verify:ssoo-frame -- --skip-runtime"
+pnpm run verify:ssoo-frame -- --skip-runtime
+
 CHANGED="$(git diff --name-only --cached || true)"
 if [ -z "$CHANGED" ]; then
   CHANGED="$(git diff --name-only HEAD || true)"

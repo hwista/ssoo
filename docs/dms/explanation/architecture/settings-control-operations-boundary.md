@@ -40,8 +40,8 @@ DMS owns the settings/control/operations that directly govern document-domain be
 ## Access model
 
 - Authenticated users may open this settings surface for **내 설정**.
-- Only an admin account may open or mutate **시스템 설정**, **운영 상태 runtime details**, and **관리 업무** sections in the settings shell.
-- Non-admin users must not see the system settings scope, system menu rows, or system search results in the settings shell.
+- Only an admin account may open or mutate **시스템 설정**, **운영 상태 runtime details**, and **관리 업무** sections in the settings tab page.
+- Non-admin users must not see the system settings scope, system menu rows, or system search results in the settings tab page.
 - The `dms.settings.manage` permission is an admin-only system settings capability, not a prerequisite for personal DMS preferences.
 - The DMS settings API returns `config.personal` for authenticated users, but returns `config.system`, `docDir`, and runtime snapshots only when `access.canManageSystem=true`.
 
@@ -86,7 +86,7 @@ The DMS settings screen should keep this grouping:
 - DMS docs list every DMS-owned settings/control/operations area above.
 - DMS settings UI exposes the grouping and boundary copy.
 - Admin DMS pages, if visible, are labelled as read-only observability/inspector surfaces rather than DMS-owned management/control surfaces.
-- Non-admin DMS users can open and save personal DMS preferences, while the settings shell hides system scope/menu/search entries and system updates return 403.
+- Non-admin DMS users can open and save personal DMS preferences, while the settings tab page hides system scope/menu/search entries and system updates return 403.
 - Build/preflight and Docker runtime checks are run before closeout.
 
 ## Changelog

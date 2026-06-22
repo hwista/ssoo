@@ -1,62 +1,58 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { SsooHeader, SsooHeaderActionButton, SsooHeaderSearchBox } from '@ssoo/web-shell';
-import { Search, Plus } from 'lucide-react';
+import { useCallback } from 'react';
+import { SsooAppHeader, useSsooGlobalHeaderSearch } from '@ssoo/web-shell';
+import { Plus } from 'lucide-react';
 import { useAccessStore, useTabStore } from '@/stores';
 import { UserMenu } from './UserMenu';
 import { HeaderNotifications } from './HeaderNotifications';
 
+interface HeaderProps {
+  variant?: 'workspace' | 'settings';
+}
+
 /**
  * DMS 상단 헤더 컴포넌트
- * - AI 검색
+ * - 통합 검색
  * - 새 도큐먼트 버튼 (탭 내 런처 페이지로 이동)
  * - 알림
  * - 사용자 프로필
  */
-export function Header() {
+export function Header({ variant = 'workspace' }: HeaderProps) {
+  if (variant === 'settings') {
+    return <SsooAppHeader mode="primary" />;
+  }
+
+  return <WorkspaceHeader />;
+}
+
+function WorkspaceHeader() {
   const { openTab, updateTab } = useTabStore();
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const canUseSearch = accessSnapshot?.features.canUseSearch ?? false;
   const canWriteDocuments = accessSnapshot?.features.canWriteDocuments ?? false;
-  const [searchQuery, setSearchQuery] = useState('');
-  const actionsRef = useRef<HTMLDivElement>(null);
-  const [actionsWidth, setActionsWidth] = useState(0);
 
-  useEffect(() => {
-    const el = actionsRef.current;
-    if (!el) return;
-    const update = () => setActionsWidth(el.getBoundingClientRect().width);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const handleSearch = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!canUseSearch) {
-      return;
-    }
-    if (e.key === 'Enter' && searchQuery.trim()) {
-      const trimmedQuery = searchQuery.trim();
+  const globalHeaderSearch = useSsooGlobalHeaderSearch({
+    disabled: !canUseSearch,
+    clearOnOpen: true,
+    onOpenSearch: ({ path, title, icon }) => {
       const tabId = openTab({
-        id: 'ai-search',
-        title: 'AI 검색',
-        path: `/ai/search?q=${encodeURIComponent(trimmedQuery)}`,
-        icon: 'Bot',
+        id: 'global-search',
+        title,
+        path,
+        icon,
         closable: true,
         activate: true,
       });
       if (tabId) {
         updateTab(tabId, {
-          title: `AI 검색: ${trimmedQuery.slice(0, 20)}...`,
-          path: `/ai/search?q=${encodeURIComponent(trimmedQuery)}`,
-          icon: 'Bot',
+          title,
+          path,
+          icon,
         });
       }
-      setSearchQuery('');
-    }
-  }, [canUseSearch, searchQuery, openTab, updateTab]);
+    },
+  });
 
   const handleCreateDocument = useCallback(() => {
     if (!canWriteDocuments) {
@@ -73,36 +69,20 @@ export function Header() {
   }, [canWriteDocuments, openTab]);
 
   return (
-    <SsooHeader
+    <SsooAppHeader
       mode="primary"
-      searchSlot={
-        <SsooHeaderSearchBox
-          value={searchQuery}
-          onChange={setSearchQuery}
-          onKeyDown={handleSearch}
-          placeholder="문서·지식 검색..."
-          disabled={!canUseSearch}
-          iconSlot={<Search className="h-4 w-4 text-white/50" />}
-        />
-      }
-      actionsSlot={
-        <div ref={actionsRef} className="flex items-center gap-2">
-          <SsooHeaderActionButton
-            type="button"
-            onClick={handleCreateDocument}
-            disabled={!canWriteDocuments}
-            tone="primary-on-color"
-            title="새 문서를 작성합니다."
-          >
-            <Plus className="h-4 w-4" />
-            <span>새 문서</span>
-          </SsooHeaderActionButton>
-
-          <HeaderNotifications />
-
-          <UserMenu dropdownWidth={actionsWidth} />
-        </div>
-      }
+      search={globalHeaderSearch.search}
+      primaryAction={{
+        label: '새 문서',
+        iconSlot: <Plus />,
+        type: 'button',
+        onClick: handleCreateDocument,
+        disabled: !canWriteDocuments,
+        tone: 'primary-on-color',
+        title: '새 문서를 작성합니다.',
+      }}
+      notificationSlot={<HeaderNotifications />}
+      userMenuSlot={({ dropdownWidth }) => <UserMenu dropdownWidth={dropdownWidth} />}
     />
   );
 }

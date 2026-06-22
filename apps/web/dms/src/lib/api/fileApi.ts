@@ -41,6 +41,10 @@ export interface FileReadResponse {
   lockedPreview?: LockedContentPreviewData;
 }
 
+export interface GetFileTreeOptions {
+  forceSync?: boolean;
+}
+
 export const fileApi = {
   create: async (path: string, content: string): Promise<ApiResponse> => {
     return request('/api/file', {
@@ -117,8 +121,9 @@ export const fileApi = {
 };
 
 export const filesApi = {
-  getFileTree: async (): Promise<ApiResponse<FileNode[]>> => {
-    return request<FileNode[]>('/api/files');
+  getFileTree: async (options: GetFileTreeOptions = {}): Promise<ApiResponse<FileNode[]>> => {
+    const url = options.forceSync ? '/api/files?force=1' : '/api/files';
+    return request<FileNode[]>(url);
   },
 
   getFiles: async (path?: string): Promise<ApiResponse<FileNode[]>> => {

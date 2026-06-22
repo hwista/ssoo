@@ -133,34 +133,34 @@
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  7. 클라이언트 처리                                                   │
-│     - Zustand store에 토큰 저장                                       │
-│     - LocalStorage 영속화 (ssoo-auth 키)                              │
+│     - runtime memory에 access token 저장                              │
+│     - LocalStorage의 ssoo-auth snapshot에는 토큰을 저장하지 않음       │
 │     - /로 리다이렉트                                                  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 토큰 갱신 (Refresh)
+### 5.2 세션 복원
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  1. 토큰 갱신 요청                                                    │
-│     - 401 응답 시 자동 호출 (apiClient 인터셉터)                       │
-│     - 또는 명시적 호출                                                │
+│  1. 세션 복원 요청                                                    │
+│     - 401 응답 시 app-local same-origin proxy로 자동 호출              │
+│     - POST /api/auth/session                                          │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  2. Refresh Token 검증 (AuthService.refreshTokens)                   │
-│     - JWT 디코딩으로 userId 추출                                      │
-│     - DB의 해시와 비교 검증                                           │
+│  2. HttpOnly shared session cookie 검증                               │
+│     - 브라우저는 refresh token을 JSON body/localStorage에 저장하지 않음│
+│     - 서버 내부 AuthService.refreshTokens로 session row 검증           │
 │     - 사용자 상태 재확인                                              │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  3. 새 토큰 발급                                                      │
-│     - 새 Access Token + Refresh Token 발급 (Rotation)                │
-│     - DB의 Refresh Token 갱신                                        │
+│  3. 새 access token 발급                                               │
+│     - response JSON에는 accessToken + user만 반환                     │
+│     - rotated session cookie는 HttpOnly Set-Cookie로만 전달           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -247,7 +247,7 @@ login: async (loginId: string, password: string) => {
     const user = await authApi.me();
     set({ user, isAuthenticated: true });
   } catch (error) {
-    set({ accessToken: null, refreshToken: null, user: null });
+    set({ accessToken: null, user: null });
     throw error;
   } finally {
     set({ isLoading: false });
@@ -269,26 +269,26 @@ Body: {
 Response: {
   "success": true,
   "data": {
-    "accessToken": "eyJhbG...",
-    "refreshToken": "eyJhbG..."
+    "accessToken": "eyJhbG..."
   },
   "message": "로그인 성공"
 }
 ```
 
-### 7.2 토큰 갱신
+### 7.2 세션 복원
 ```
-POST /api/auth/refresh
-Body: {
-  "refreshToken": "eyJhbG..."
-}
+POST /api/auth/session
+Cookie: ssoo-session=...
 Response: {
   "success": true,
   "data": {
     "accessToken": "eyJhbG...",
-    "refreshToken": "eyJhbG..."
+    "user": {
+      "userId": "1",
+      "loginId": "admin"
+    }
   },
-  "message": "토큰 갱신 성공"
+  "message": "세션 복원 성공"
 }
 ```
 
@@ -354,8 +354,7 @@ const user = await this.userService.findById(BigInt(payload.userId));  // string
 export interface TokenPayload {
   userId: string;     // BigInt를 JSON 직렬화할 수 없어 string으로 저장
   loginId: string;
-  roleCode: string;
-  isAdmin: boolean;   // 관리자 여부
+  sessionId: string;
   type?: 'access' | 'refresh';
 }
 ```

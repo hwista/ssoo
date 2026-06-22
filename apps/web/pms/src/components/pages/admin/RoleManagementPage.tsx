@@ -19,6 +19,7 @@ import {
 import type { RoleMenuPermission, RoleMenuAccessSource } from '@/lib/api/endpoints/roles';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 type AccessType = 'full' | 'read' | 'none';
 
@@ -89,8 +90,8 @@ function MenuRow({
 
   return (
     <>
-      <tr className="border-b hover:bg-gray-50 transition-colors">
-        <td className="px-4 py-2.5">
+      <TableRow className="border-b hover:bg-gray-50 transition-colors">
+        <TableCell className="px-4 py-2.5">
           <div className="flex items-center" style={{ paddingLeft: `${depth * 24}px` }}>
             {hasChildren && (
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground mr-1.5 rotate-90" />
@@ -120,11 +121,11 @@ function MenuRow({
               </span>
             )}
           </div>
-        </td>
-        <td className="px-4 py-2.5 text-xs text-muted-foreground font-mono">
+        </TableCell>
+        <TableCell className="px-4 py-2.5 text-xs text-muted-foreground font-mono">
           {node.menuPath ?? '-'}
-        </td>
-        <td className="px-4 py-2.5 w-36">
+        </TableCell>
+        <TableCell className="px-4 py-2.5 w-36">
           <Select
             value={currentAccess}
             onValueChange={(val: AccessType) => onChangeAccess(node.menuId, val)}
@@ -144,8 +145,8 @@ function MenuRow({
               이 메뉴는 system.override 기준으로 계산됩니다.
             </p>
           )}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
       {node.children.map((child) => (
         <MenuRow
           key={child.menuId}
@@ -280,7 +281,7 @@ export function RoleManagementPage() {
               <ul className="py-1">
                 {roles.map((role) => (
                   <li key={role.codeValue}>
-                    <button
+                    <Button variant="plain" size="plain"
                       onClick={() => handleRoleClick(role.codeValue)}
                       className={cn(
                         'w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors',
@@ -300,7 +301,7 @@ export function RoleManagementPage() {
                           {role.codeValue}
                         </span>
                       </div>
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -342,21 +343,21 @@ export function RoleManagementPage() {
                     <p className="text-sm text-muted-foreground">등록된 메뉴가 없습니다.</p>
                   </div>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-gray-50">
-                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
+                  <Table className="w-full text-sm">
+                    <TableHeader>
+                      <TableRow className="border-b bg-gray-50">
+                        <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground">
                           메뉴명
-                        </th>
-                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
+                        </TableHead>
+                        <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground">
                           경로
-                        </th>
-                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-36">
+                        </TableHead>
+                        <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground w-36">
                           접근 권한
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {menuTree.map((node) => (
                         <MenuRow
                           key={node.menuId}
@@ -366,8 +367,8 @@ export function RoleManagementPage() {
                           depth={0}
                         />
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 )}
               </div>
             </>

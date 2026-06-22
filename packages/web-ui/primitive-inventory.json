@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "package": "@ssoo/web-ui",
+  "policy": {
+    "platform": "Every declared primitive is owned by @ssoo/web-ui. App-local components/ui files may only thin re-export it.",
+    "appAdapter": "Apps may keep components/ui/* compatibility files, but primitive recipes, Radix wrappers, markup, variant, color, size, radius, focus, and control-height classes must not be redefined outside @ssoo/web-ui."
+  },
+  "primitives": {
+    "alert-dialog": {
+      "status": "platform",
+      "source": "packages/web-ui/src/alert-dialog.tsx",
+      "exports": ["AlertDialog", "AlertDialogPortal", "AlertDialogOverlay", "AlertDialogTrigger", "AlertDialogContent", "AlertDialogHeader", "AlertDialogFooter", "AlertDialogTitle", "AlertDialogDescription", "AlertDialogAction", "AlertDialogCancel"],
+      "parameters": ["open", "defaultOpen", "onOpenChange", "className"]
+    },
+    "avatar": {
+      "status": "platform",
+      "source": "packages/web-ui/src/avatar.tsx",
+      "exports": ["Avatar", "AvatarImage", "AvatarFallback"],
+      "parameters": ["className", "src", "alt", "children"]
+    },
+    "badge": {
+      "status": "platform",
+      "source": "packages/web-ui/src/badge.tsx",
+      "exports": ["Badge", "BadgeProps", "badgeVariants"],
+      "parameters": ["variant", "className"],
+      "classNamePolicy": "layout-only overrides allowed at call sites; recipe classes must stay in @ssoo/web-ui"
+    },
+    "button": {
+      "status": "platform",
+      "source": "packages/web-ui/src/button.tsx",
+      "exports": ["Button", "ButtonProps", "buttonVariants"],
+      "parameters": ["variant", "size", "asChild", "className", "disabled"],
+      "classNamePolicy": "layout-only overrides allowed at call sites; recipe classes must stay in @ssoo/web-ui"
+    },
+    "card": {
+      "status": "platform",
+      "source": "packages/web-ui/src/card.tsx",
+      "exports": ["Card", "CardHeader", "CardFooter", "CardTitle", "CardDescription", "CardContent"],
+      "parameters": ["className"],
+      "classNamePolicy": "layout-only overrides allowed at call sites; recipe classes must stay in @ssoo/web-ui"
+    },
+    "checkbox": {
+      "status": "platform",
+      "source": "packages/web-ui/src/checkbox.tsx",
+      "exports": ["Checkbox"],
+      "parameters": ["checked", "defaultChecked", "onCheckedChange", "disabled", "className"]
+    },
+    "dialog": {
+      "status": "platform",
+      "source": "packages/web-ui/src/dialog.tsx",
+      "exports": ["Dialog", "DialogPortal", "DialogOverlay", "DialogTrigger", "DialogClose", "DialogContent", "DialogHeader", "DialogFooter", "DialogTitle", "DialogDescription", "DialogSurface", "DialogBody"],
+      "parameters": ["open", "defaultOpen", "onOpenChange", "className"]
+    },
+    "divider": {
+      "status": "platform",
+      "source": "packages/web-ui/src/separator.tsx",
+      "exports": ["Divider", "DividerProps"],
+      "parameters": ["orientation", "className"]
+    },
+    "dropdown": {
+      "status": "platform",
+      "source": "packages/web-ui/src/dropdown.tsx",
+      "exports": ["Dropdown", "Option", "DropdownProps", "OptionProps", "DropdownMenu", "DropdownMenuTrigger", "DropdownMenuContent", "DropdownMenuItem", "DropdownMenuCheckboxItem", "DropdownMenuRadioItem", "DropdownMenuLabel", "DropdownMenuSeparator", "DropdownMenuShortcut", "DropdownMenuGroup", "DropdownMenuPortal", "DropdownMenuSub", "DropdownMenuSubContent", "DropdownMenuSubTrigger", "DropdownMenuRadioGroup"],
+      "parameters": ["value", "onOptionSelect", "onValueChange", "className", "contentClassName", "itemClassName", "placeholder"]
+    },
+    "dropdown-menu": {
+      "status": "platform",
+      "source": "packages/web-ui/src/dropdown.tsx",
+      "exports": ["DropdownMenu", "DropdownMenuTrigger", "DropdownMenuContent", "DropdownMenuItem", "DropdownMenuCheckboxItem", "DropdownMenuRadioItem", "DropdownMenuLabel", "DropdownMenuSeparator", "DropdownMenuShortcut", "DropdownMenuGroup", "DropdownMenuPortal", "DropdownMenuSub", "DropdownMenuSubContent", "DropdownMenuSubTrigger", "DropdownMenuRadioGroup"],
+      "parameters": ["open", "defaultOpen", "onOpenChange", "className", "sideOffset"]
+    },
+    "input": {
+      "status": "platform",
+      "source": "packages/web-ui/src/input.tsx",
+      "exports": ["Input"],
+      "parameters": ["type", "className", "disabled", "placeholder", "value", "onChange"],
+      "classNamePolicy": "layout-only overrides allowed at call sites; recipe classes must stay in @ssoo/web-ui"
+    },
+    "native-select": {
+      "status": "platform",
+      "source": "packages/web-ui/src/native-select.tsx",
+      "exports": ["NativeSelect"],
+      "parameters": ["name", "value", "defaultValue", "onChange", "disabled", "className"]
+    },
+    "popup-backdrop": {
+      "status": "platform",
+      "source": "packages/web-ui/src/popup-backdrop.tsx",
+      "exports": ["PopupBackdrop", "PopupBackdropProps", "POPUP_BACKDROP_TONE_CLASS", "POPUP_BACKDROP_ANIMATION_CLASS"],
+      "parameters": ["className"]
+    },
+    "scroll-area": {
+      "status": "platform",
+      "source": "packages/web-ui/src/scroll-area.tsx",
+      "exports": ["ScrollArea", "ScrollAreaProps"],
+      "parameters": ["orientation", "scrollbarSize", "scrollbarTheme", "showOnHover", "variant", "className"]
+    },
+    "segmented-control": {
+      "status": "platform",
+      "source": "packages/web-ui/src/segmented-control.tsx",
+      "exports": ["SegmentedControl", "SegmentedControlItem", "SegmentedControlItemProps", "SegmentedControlProps"],
+      "parameters": ["selected", "disabled", "badge", "size", "surface", "className"],
+      "classNamePolicy": "layout-only overrides allowed at call sites; state, size, color, radius, and badge recipe classes must stay in @ssoo/web-ui"
+    },
+    "select": {
+      "status": "platform",
+      "source": "packages/web-ui/src/select.tsx",
+      "exports": ["Select", "SelectGroup", "SelectValue", "SelectTrigger", "SelectContent", "SelectLabel", "SelectItem", "SelectSeparator", "SelectScrollUpButton", "SelectScrollDownButton"],
+      "parameters": ["value", "defaultValue", "onValueChange", "disabled", "className"]
+    },
+    "separator": {
+      "status": "platform",
+      "source": "packages/web-ui/src/separator.tsx",
+      "exports": ["Separator"],
+      "parameters": ["orientation", "decorative", "className"]
+    },
+    "skeleton": {
+      "status": "platform",
+      "source": "packages/web-ui/src/skeleton.tsx",
+      "exports": ["Skeleton"],
+      "parameters": ["className"]
+    },
+    "table": {
+      "status": "platform",
+      "source": "packages/web-ui/src/table.tsx",
+      "exports": ["Table", "TableHeader", "TableBody", "TableFooter", "TableHead", "TableRow", "TableCell", "TableCaption"],
+      "parameters": ["className"],
+      "classNamePolicy": "layout-only overrides allowed at call sites; recipe classes must stay in @ssoo/web-ui"
+    },
+    "textarea": {
+      "status": "platform",
+      "source": "packages/web-ui/src/textarea.tsx",
+      "exports": ["Textarea"],
+      "parameters": ["className", "disabled", "placeholder", "value", "onChange"]
+    }
+  }
+}

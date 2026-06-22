@@ -86,6 +86,7 @@ docs/
 | [개발 표준](./common/explanation/architecture/development-standards.md) | 코딩 규칙 및 표준 |
 | [보안 표준](./common/explanation/architecture/security-standards.md) | 보안 정책 |
 | [설정/Admin/AI 경계](./common/explanation/architecture/settings-admin-control-plane.md) | SSOO 설정, Account/Auth, Profile, Admin/Organization, AI Control Plane, 도메인 앱 설정 책임 경계 |
+| [내부 페이지 조립 표준](./common/explanation/architecture/content-page-assembly-standard.md) | content-area 내부 페이지를 web-shell 재료와 recipe로 조립하는 표준 |
 | [로컬 포트 맵](./common/explanation/architecture/local-port-map.md) | SSOO 앱별 로컬/Docker 포트와 주변 프로젝트 충돌 회피 기준 |
 | [워크플로우](./common/explanation/architecture/workflow-process.md) | 개발 프로세스 |
 

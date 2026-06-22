@@ -65,7 +65,7 @@ const response = await apiClient.delete(`/projects/${id}`);
 
 ```typescript
 // 자동으로 Authorization 헤더 추가
-// localStorage의 'ssoo-auth'에서 accessToken 읽음
+// @ssoo/web-auth runtime memory에서 accessToken 읽음
 config.headers.Authorization = `Bearer ${accessToken}`;
 ```
 
@@ -74,7 +74,7 @@ config.headers.Authorization = `Bearer ${accessToken}`;
 ```typescript
 // 401 에러 시 자동 토큰 갱신
 if (error.response?.status === 401 && !originalRequest._retry) {
-  // refreshToken으로 새 accessToken 발급
+  // same-origin /api/auth/session + HttpOnly session cookie로 새 accessToken 발급
   // 실패 시 /로 리다이렉트 (로그인 폼 노출)
 }
 ```
@@ -96,7 +96,7 @@ import { authApi } from '@/lib/api/auth';
 | 함수 | 설명 |
 |------|------|
 | `authApi.login(data)` | 로그인 → 토큰 반환 |
-| `authApi.refresh(refreshToken)` | 토큰 갱신 |
+| `authApi.restoreSession()` | HttpOnly session cookie 기반 세션 복원 |
 | `authApi.logout(accessToken)` | 로그아웃 |
 | `authApi.me(accessToken)` | 현재 사용자 정보 |
 
@@ -110,7 +110,6 @@ interface LoginRequest {
 
 interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
 }
 
 interface UserInfo {

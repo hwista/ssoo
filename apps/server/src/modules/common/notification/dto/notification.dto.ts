@@ -9,6 +9,7 @@ export const COMMON_NOTIFICATION_SOURCE_APPS = [
   'sns',
   'pms',
   'admin',
+  'crm',
 ] as const;
 
 export class ListNotificationsDto implements CommonNotificationListQuery {
@@ -56,6 +57,13 @@ export class MarkNotificationsByReferenceDto {
   @MaxLength(500)
   path!: string;
 
+  @ApiPropertyOptional({ description: '출처 앱', enum: COMMON_NOTIFICATION_SOURCE_APPS })
+  @IsIn(COMMON_NOTIFICATION_SOURCE_APPS)
+  @IsOptional()
+  sourceApp?: CommonNotificationSourceApp;
+}
+
+export class NotificationSourceAppQueryDto {
   @ApiPropertyOptional({ description: '출처 앱', enum: COMMON_NOTIFICATION_SOURCE_APPS })
   @IsIn(COMMON_NOTIFICATION_SOURCE_APPS)
   @IsOptional()

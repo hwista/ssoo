@@ -31,7 +31,7 @@ const SERVER_ENV_FILE_PATHS = [
     }),
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 100,
+      limit: 600,
     }]),
     DatabaseModule,
     CommonModule,

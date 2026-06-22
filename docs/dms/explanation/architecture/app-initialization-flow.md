@@ -1,6 +1,6 @@
 # 앱 초기화 흐름 (App Initialization Flow)
 
-> 최종 업데이트: 2026-04-16
+> 최종 업데이트: 2026-06-16
 
 DMS 앱의 현재 초기화 흐름을 **로그인 진입**, **protected shell bootstrap**, **파일 트리 preload** 기준으로 정리합니다.
 
@@ -15,7 +15,7 @@ app/layout.tsx
     ↓
 Providers
     ├─ QueryClient / Toaster / ConfirmDialog
-    ├─ AuthStateSync
+    ├─ SharedAuthStateSync / user-scope query cache reset
     └─ (로그인 후 + 권한 허용 시) Assistant UI
     ↓
 경로 판별
@@ -23,7 +23,8 @@ Providers
     │   ↓
     │   app/(auth)/login/page.tsx
     │   ↓
-    │   AuthStandardLoginCard
+    │   SharedAuthLoginPage
+    │   └─ AuthPageShell + AuthStandardLoginCard
     │
     └─ /
         ↓
@@ -39,8 +40,9 @@ Providers
         app/(main)/page.tsx
         ↓
         AppLayout
-        ├─ workspace shell
-        └─ settings shell
+        └─ workspace frame
+            ├─ workspace mode → ContentArea tabs
+            └─ settings mode → Sidebar/Header/TabBar/ContentArea variants
 ```
 
 ---
@@ -51,10 +53,10 @@ Providers
 apps/web/dms/src/
 ├── app/
 │   ├── layout.tsx                  # RootLayout + Providers
-│   ├── providers.tsx               # QueryClient / AuthStateSync / assistant gating
+│   ├── providers.tsx               # QueryClient / SharedAuthStateSync / user-scope cache reset / assistant gating
 │   ├── (auth)/
-│   │   ├── layout.tsx              # AuthPageShell + DMS auth theme
-│   │   └── login/page.tsx          # 실제 로그인 진입점
+│   │   ├── layout.tsx              # fragment layout; 공용 auth shell은 SharedAuthLoginPage가 소유
+│   │   └── login/page.tsx          # SharedAuthLoginPage route adapter
 │   ├── (main)/
 │   │   ├── layout.tsx              # protected shell gate + file tree preload
 │   │   └── page.tsx                # actual root shell entry
@@ -65,7 +67,7 @@ apps/web/dms/src/
     ├── auth.store.ts
     ├── access.store.ts
     ├── file.store.ts
-    └── settings-shell.store.ts
+    └── settings-page-navigation.store.ts
 ```
 
 ---
@@ -101,8 +103,9 @@ bootstrap 이후에도 DMS는 app-specific 후속 단계가 하나 더 있다.
 
 `app/(main)/page.tsx` 가 루트 shell entry 다.
 
-- `AppLayout` 이 workspace shell 과 settings shell 전환을 담당한다.
-- `ContentArea` 는 active tab 의 internal path 를 기준으로 Home / Markdown / AI / legacy settings handoff 를 렌더한다.
+- `AppLayout` 은 같은 `SsooAppFrame` 위에서 workspace mode와 settings mode를 전환한다.
+- workspace mode에서 `ContentArea` 는 active tab 의 internal path 를 기준으로 Home / Markdown / AI 를 렌더한다.
+- settings mode에서 `AppLayout` 은 같은 `Sidebar`, `Header`, `TabBar`, `ContentArea` frame slot을 유지하고 settings variant/tab path 데이터만 주입한다.
 
 ---
 
@@ -111,7 +114,8 @@ bootstrap 이후에도 DMS는 app-specific 후속 단계가 하나 더 있다.
 | 항목 | 역할 |
 |------|------|
 | `QueryClientProvider` | query cache 경계 |
-| `AuthStateSync` | browser-facing auth state 동기화 |
+| `SharedAuthStateSync` | browser-facing auth state 동기화 |
+| `useDmsUserScopeQueryCacheReset` | auth user-scope 전환 시 query cache 정리 |
 | `ConfirmDialog` / `Toaster` | 전역 UX surface |
 | `FloatingAssistant` / `AssistantSessionSync` | 로그인 후 + `canUseAssistant` 권한이 있을 때만 노출 |
 
@@ -124,10 +128,10 @@ bootstrap 이후에도 DMS는 app-specific 후속 단계가 하나 더 있다.
 
 | 항목 | PMS | DMS |
 |------|-----|-----|
-| 공개 진입점 | `/`, `/login` | `/`, `/login` |
+| 공개 진입점 | `/`, `/login`, `/password-reset` | `/`, `/login`, `/password-reset` |
 | 공통 bootstrap | auth + access snapshot | auth + access snapshot |
 | 앱별 후속 bootstrap | 메뉴 snapshot apply | 파일 트리 preload |
-| shell 종류 | workspace shell | workspace + settings dual shell |
+| frame 종류 | workspace frame | workspace frame + settings mode |
 
 ---
 
@@ -141,5 +145,8 @@ bootstrap 이후에도 DMS는 app-specific 후속 단계가 하나 더 있다.
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-16 | DMS `(auth)/layout.tsx`가 app-specific auth shell/theme를 소유하지 않고 `SharedAuthLoginPage`가 `AuthPageShell` + login card를 직접 소유하는 현재 구현으로 정렬 |
+| 2026-06-15 | settings mode가 별도 settings tabbar/content 주입이 아니라 기존 4개 frame slot 유지 + settings tab path 데이터 전환임을 명시 |
+| 2026-06-12 | 설정 화면을 workspace `/settings` tab page가 아니라 공유 frame 위 settings mode로 현행화 |
 | 2026-04-16 | shared protected bootstrap, `/login` public entry, file tree preload 후속 단계까지 현재 구현 기준으로 재작성 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

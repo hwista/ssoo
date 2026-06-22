@@ -1,24 +1,25 @@
 # 페이지 라우팅 (Page Routing)
 
-> 최종 업데이트: 2026-05-29
+> 최종 업데이트: 2026-06-22
 
-DMS의 탭 기반 라우팅과 settings shell 전환 구조를 정의합니다.
+DMS의 탭 기반 라우팅과 설정 모드 구조를 정의합니다.
 
 ---
 
 ## 라우팅 개요
 
-DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 **`/` 와 `/login` 두 개만** 사용하고 실제 화면 전환은 **workspace 탭 셸**과 **settings 전용 셸** 사이를 전환하는 방식으로 동작합니다.
+DMS는 Next.js App Router를 사용하지만, 브라우저 공개 진입점은 **`/`, `/login`, `/password-reset`** 만 사용하고 실제 업무 화면 전환은 **workspace 탭 frame** 안에서 처리합니다.
 
-- 브라우저 공개 URL: `/`, `/login`
-- 내부 탭 경로: `/home`, `/doc/...`, `/doc/new*`, `/ai/chat`, `/ai/search`
-- 레거시 핸드오프 경로: `/settings`
+- 브라우저 공개 URL: `/`, `/login`, `/password-reset`
+- 내부 탭 경로: `/home`, `/doc/...`, `/doc/new*`, `/ai/chat`, `/ssoo/search`
 - 정책: 내부 탭 경로는 주소창에 직접 노출하거나 딥링크로 사용하는 대상이 아니다.
+- `/settings` 는 현재 기준의 workspace 탭 경로가 아니라, stale session/tab migration 을 위한 legacy handoff 경로다.
 
 ``` 
-URL 경로 → Next.js Route → (main)/layout → (main)/page → AppLayout(shellMode)
-                                                                   ├─ workspace → Header + TabBar + ContentArea
-                                                                   └─ settings  → SettingsShellHeader + SettingsShellContent
+URL 경로 → Next.js Route → (main)/layout → (main)/page → AppLayout
+                                                               └─ Header + Sidebar + TabBar + ContentArea
+                                                                  ├─ workspace mode → ContentArea tabs
+                                                                  └─ settings mode → settings tab paths + SettingsPage
 ```
 
 브라우저에서 `/doc/...` 같은 경로로 직접 들어오면 [`src/middleware.ts`](/home/a0122024330/src/ssoo/apps/web/dms/src/middleware.ts) 가 이를 내부 virtual path 로 간주하고 `/` 루트 셸로 복구한다.
@@ -30,6 +31,7 @@ URL 경로 → Next.js Route → (main)/layout → (main)/page → AppLayout(she
 | 경로 | 의미 | 담당 파일 |
 |------|------|----------|
 | `/login` | public 로그인 진입점 | `app/(auth)/login/page.tsx` |
+| `/password-reset` | public 비밀번호 찾기 진입점 | `app/(auth)/password-reset/page.tsx` |
 | `/` | 인증된 DMS 루트 shell | `app/(main)/layout.tsx`, `app/(main)/page.tsx` |
 | 그 외 브라우저 경로 | 내부 virtual path 로 간주하고 `/` 로 복구 | `middleware.ts`, `app/not-found.tsx` |
 
@@ -46,8 +48,9 @@ src/app/
 ├── globals.css            # 글로벌 스타일
 ├── not-found.tsx          # 예외적 404 발생 시 루트 복구
 ├── (auth)/
-│   ├── layout.tsx         # AuthPageShell + DMS auth theme
-│   └── login/page.tsx     # public 로그인 진입점
+│   ├── layout.tsx         # fragment layout; 공용 auth shell은 SharedAuthLoginPage/SharedPasswordResetPage가 소유
+│   ├── login/page.tsx     # public 로그인 진입점
+│   └── password-reset/page.tsx # public 비밀번호 찾기 진입점
 ├── (main)/
 │   ├── layout.tsx         # protected shell gate + 파일 트리 preload
 │   └── page.tsx           # 루트 페이지(/) → AppLayout
@@ -86,8 +89,8 @@ interface TabItem {
 | 새 문서 (문서) | 상황별 생성 | `/doc/new-doc` | ✅ 가능 |
 | 새 문서 (템플릿) | 상황별 생성 | `/doc/new-template` | ✅ 가능 |
 | 새 문서 (AI 요약) | 상황별 생성 | `/doc/new-ai-summary` | ✅ 가능 |
-| AI 검색 | 상황별 생성 | `/ai/search` | ✅ 가능 |
-| 설정(레거시) | `settings` 계열 | `/settings` | ✅ 가능 |
+| 통합 검색 | `global-search` | `/ssoo/search` | ✅ 가능 |
+| 설정 legacy handoff | `settings` | `/settings` | ✅ 가능 |
 
 ### 탭 → 페이지 매핑
 
@@ -98,28 +101,33 @@ const pageComponents = {
   home: lazy(() => import('@/components/pages/home/DashboardPage')),
   markdown: lazy(() => import('@/components/pages/markdown/DocumentPage')),
   aiChat: lazy(() => import('@/components/pages/ai/ChatPage')),
-  aiSearch: lazy(() => import('@/components/pages/ai/SearchPage')),
-  settings: LegacySettingsRedirect,
+  globalSearch: lazy(() => import('@/components/pages/global-search/GlobalSearchPage')),
+  legacySettings: LegacySettingsRedirect,
+  settings: SettingsPage,
 };
 
-function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiChat' | 'aiSearch' | 'settings' | null {
+function getPageType(tab: TabItem): 'home' | 'markdown' | 'aiChat' | 'globalSearch' | 'legacySettings' | 'settings' | null {
   if (tab.id === 'home') return 'home';
   if (tab.path.startsWith('/doc/')) return 'markdown';
   if (tab.path.startsWith('/doc/new')) return 'markdown';
   if (tab.path.startsWith('/ai/chat')) return 'aiChat';
-  if (tab.path.startsWith('/ai/search')) return 'aiSearch';
-  if (tab.path === '/settings') return 'settings'; // settings shell 핸드오프
+  if (tab.path.startsWith('/ssoo/search')) return 'globalSearch';
+  if (parseSettingsTabPath(tab.path)) return 'settings';
+  if (tab.path === '/settings') return 'legacySettings';
   return null;
 }
 ```
 
-### Settings shell 전환
+DMS 검색 진입점은 `/ssoo/search` 하나다. DMS에서 검색을 열어도 기본 범위는 모든 provider이며, source filter chip을 명시적으로 선택한 경우에만 앱별 범위로 좁힌다. 이전 DMS AI 검색의 sidecar/검색 기록/AI 첨부 표면은 공용 검색 page에서 유지한다.
 
-- 사용자 메뉴와 assistant help action은 `/settings` 탭을 새로 열지 않고 `useSettingsShellStore.enterSettings()` 로 settings shell에 진입합니다.
-- settings shell은 기존 `Sidebar + Header + TabBar + ContentArea` 를 대체하는 전역 모드입니다.
-- outer sidebar는 `시스템 설정`, `개인 설정` 두 개의 scope selector만 렌더링합니다.
-- 실제 section 탐색은 `SettingsPage` 내부의 좌측 navigation(`Git`, `Storage`, `Ingest`, `Identity` 등)에서 처리하고, 우측 detail surface가 현재 section 본문을 렌더링합니다.
-- 세션 복원 등으로 레거시 `/settings` 탭이 남아 있는 경우 `ContentArea` 의 `LegacySettingsRedirect` 가 해당 탭을 닫고 settings shell로 전환합니다.
+### Settings mode 전환
+
+- 사용자 메뉴, 알림, assistant help action은 workspace `settings` 탭을 열지 않고 `useSettingsPageNavigationStore.enterSettings()` 또는 `openSection()` 으로 settings mode를 켠 뒤, `/settings/{scope}/{sectionId}` 설정 탭을 엽니다.
+- `useSettingsPageNavigationStore.isActive` 가 true이면 `AppLayout`은 같은 `SsooAppFrame`의 sidebar/header/tabbar/content slot을 유지하면서 settings variant 데이터를 주입합니다.
+- settings mode가 켜진 동안 active content tab은 `/settings/{scope}/{sectionId}` 경로여야 합니다. `AppLayout`은 설정 모드와 활성 탭을 첫 페인트 전에 맞추고, `ContentArea`는 설정 모드에서 문서 탭을 active pane으로 렌더링하지 않습니다.
+- section 탐색은 settings sidebar 메뉴 트리 클릭으로 시작하고, 클릭 결과는 같은 `TabBar`의 settings tab으로 열립니다.
+- 설정 본문 내부 anchor index는 `PageTemplate`의 `leftSubContentSlot` rail로 렌더링합니다.
+- 세션 복원 등으로 `/settings` 탭이 남아 있는 경우 `ContentArea` 의 `LegacySettingsRedirect` 가 settings mode로 handoff하고 해당 탭을 닫습니다.
 
 ---
 
@@ -232,10 +240,10 @@ const pageComponents = {
 
 | 항목 | PMS | DMS |
 |------|-----|-----|
-| 라우팅 방식 | 루트 고정 shell app | 루트 고정 + workspace/settings dual shell |
+| 라우팅 방식 | 루트 고정 shell app | 루트 고정 workspace shell + settings mode |
 | 인증 | `/login` + protected shell bootstrap | `/login` + protected shell bootstrap |
 | URL 동기화 | 불필요 (internal path 중심) | 불필요 (internal path 중심) |
-| 페이지 타입 | 업무 탭 중심 | Home, Markdown, AI, Settings shell |
+| 페이지 타입 | 업무 탭 중심 | Home, Markdown, AI + settings mode handoff |
 
 ---
 
@@ -267,9 +275,12 @@ const pageComponents = {
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-15 | settings mode 활성 중 active content tab이 문서 탭으로 남아 문서 panel이 설정 화면에 표시되는 혼합 상태를 차단하는 라우팅 invariant를 문서화 |
+| 2026-06-15 | settings sidebar 메뉴 클릭이 `/settings/{scope}/{sectionId}` 탭을 열고, 같은 `TabBar`/`ContentArea` 슬롯에서 `SettingsPage`를 렌더링하는 기준으로 보정 |
+| 2026-06-12 | `/settings` 일반 탭을 settings mode legacy handoff로 되돌리고, 설정 section navigation은 settings tabbar로 정리 |
 | 2026-04-16 | `/login` public entry, route constants, protected shell bootstrap 기준으로 공개 라우트 계약을 현행화 |
-| 2026-04-02 | settings shell 네비게이션을 scope sidebar + inner section menu 3뎁스 구조로 정리 |
-| 2026-04-02 | `/settings` 탭을 settings shell 핸드오프로 전환하고, `AppLayout(shellMode)` 기반 workspace/settings 이중 셸 구조를 반영 |
+| 2026-04-02 | 과거 설정 전용 frame 실험에서 scope selector + inner section menu 3뎁스 구조를 정리 |
+| 2026-04-02 | 과거 설정 전용 frame 실험에서 workspace/settings 이중 frame 구조를 반영했으나, 2026-06-12 기준 폐기 |
 | 2026-03-16 | 새 문서 런처 페이지 추가: `/wiki/new` → 런처, `/wiki/new-wiki`·`new-template`·`new-ai-summary` 진입점 분기 |
 | 2026-03-10 | 루트 고정 라우팅 정책과 내부 탭 경로 개념을 현재 구현 기준으로 정리 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |

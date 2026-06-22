@@ -5,6 +5,10 @@ import type {
   LoginRequest,
 } from '@ssoo/types/common';
 import type { AuthProxyAction } from './auth-proxy';
+import {
+  AUTH_PROXY_CSRF_HEADER_NAME,
+  AUTH_PROXY_CSRF_HEADER_VALUE,
+} from './auth-proxy';
 import type { AuthApiAdapter, AuthApiResult } from './store';
 
 const DEFAULT_AUTH_API_BASE_PATH = '/api/auth';
@@ -40,6 +44,7 @@ async function authProxyPost<T>(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        [AUTH_PROXY_CSRF_HEADER_NAME]: AUTH_PROXY_CSRF_HEADER_VALUE,
         ...extraHeaders,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -79,8 +84,6 @@ export function createAuthApiAdapter<TUser extends AuthIdentity = AuthIdentity>(
 
   return {
     login: (data: LoginRequest) => authProxyPost<AuthTokens>(resolvedOptions, 'login', data),
-    refresh: (refreshToken: string) =>
-      authProxyPost<AuthTokens>(resolvedOptions, 'refresh', { refreshToken }),
     restoreSession: () =>
       authProxyPost<AuthSessionBootstrap<TUser>>(resolvedOptions, 'session', {}),
     logout: (accessToken: string | null) =>

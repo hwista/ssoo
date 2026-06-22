@@ -1,6 +1,6 @@
 # UI 컴포넌트
 
-> 최종 업데이트: 2026-02-02
+> 최종 업데이트: 2026-06-17
 
 DMS에서 사용하는 UI 컴포넌트 목록과 사용법을 정의합니다.
 
@@ -8,19 +8,24 @@ DMS에서 사용하는 UI 컴포넌트 목록과 사용법을 정의합니다.
 
 ## 컴포넌트 개요
 
-DMS는 **Radix UI**를 기반으로 primitive 컴포넌트를 구성합니다.
+DMS는 `@ssoo/web-ui`의 공용 Button/Badge/Card/Input/Table primitive를 앱 로컬 `components/ui/*` thin adapter로 소비하고, 아직 공용화되지 않은 low-level 동작만 Radix UI 기반 wrapper로 유지합니다.
 
 ```
 src/components/ui/
 ├── alert-dialog.tsx    # 경고 대화상자
+├── badge.tsx           # @ssoo/web-ui re-export
 ├── button.tsx          # 버튼
 ├── card.tsx            # 카드
 ├── dialog.tsx          # 모달 대화상자
 ├── divider.tsx         # 구분선
 ├── dropdown.tsx        # 드롭다운 메뉴
+├── input.tsx           # @ssoo/web-ui re-export
 ├── scroll-area.tsx     # 스크롤 영역
+├── table.tsx           # @ssoo/web-ui re-export
 └── tooltip.tsx         # 툴팁
 ```
+
+선별 기준선인 DMS `access-requests`, `settings`, settings JSON field row에서는 원시 `button`, 일반 `input`, 원시 table 계열 태그를 직접 스타일링하지 않습니다. Button/Badge/Card/Input/Table은 `@ssoo/web-ui` 어댑터를 사용하고, `.github/scripts/check-design.js`의 `selected-web-ui-primitives` rule이 이를 검증합니다.
 
 ---
 
@@ -43,10 +48,10 @@ src/components/ui/
 
 | Size | 용도 | 크기 |
 |------|------|------|
-| `sm` | 작은 버튼 | h-8, px-3, text-xs |
-| `default` | 기본 | h-9, px-4, text-sm |
-| `lg` | 큰 버튼 | h-10, px-6 |
-| `icon` | 아이콘 전용 | h-9, w-9 |
+| `sm` | 작은 버튼 | `h-control-h-sm`, px-3, `text-caption` |
+| `default` | 기본 | `h-control-h`, px-4, `text-label-md` |
+| `lg` | 큰 버튼 | `h-control-h-lg`, px-6, `text-control-lg` |
+| `icon` | 아이콘 전용 | `h-control-h`, `w-control-h` |
 
 ### 사용 예
 

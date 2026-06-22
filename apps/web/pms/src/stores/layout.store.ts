@@ -1,13 +1,13 @@
 import { create } from 'zustand';
+import { SSOO_SHELL_METRICS } from '@ssoo/web-shell';
 import type { DeviceType, LayoutState, LayoutActions } from '@/types';
-import { BREAKPOINTS } from '@/types';
 
 interface LayoutStore extends LayoutState, LayoutActions {}
 
 // 현재 디바이스 타입 감지
 const detectDeviceType = (): DeviceType => {
   if (typeof window === 'undefined') return 'desktop';
-  return window.innerWidth < BREAKPOINTS.mobile ? 'mobile' : 'desktop';
+  return window.innerWidth < SSOO_SHELL_METRICS.breakpoint.mobile ? 'mobile' : 'desktop';
 };
 
 export const useLayoutStore = create<LayoutStore>()((set) => ({

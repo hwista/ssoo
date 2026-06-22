@@ -1,21 +1,3 @@
 :root {
-  --background: 220 20% 98%;
-  --foreground: 224 48% 16%;
-  --card-foreground: 224 48% 16%;
-  --popover-foreground: 224 48% 16%;
-  --primary: 224 72% 20%;
-  --secondary: 210 64% 36%;
-  --muted: 214 32% 93%;
-  --muted-foreground: 215 16% 42%;
-  --accent: 196 100% 35%;
-  --ring: 224 72% 20%;
-  --ssoo-primary: #0A1E5A;
-  --ssoo-primary-hover: #14327A;
-  --ssoo-secondary: #0569A0;
-  --ssoo-background: #F7F9FC;
-  --ssoo-content-border: #D9E2F1;
-  --ssoo-content-background: #EEF4FB;
-  --ssoo-sitemap-title: #0A1E5A;
-  --ssoo-sitemap-bullet: #0569A0;
-  --ssoo-sitemap-background: #F2F6FB;
+  /* App theme tokens are provided by @ssoo/web-shell via body[data-ssoo-theme="crm"]. */
 }

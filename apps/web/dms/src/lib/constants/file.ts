@@ -1,7 +1,7 @@
 export const FILE_EXTENSIONS = {
   MARKDOWN: ['.md', '.markdown'],
   TEXT: ['.txt', '.text'],
-  IMAGE: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'],
+  IMAGE: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
   JSON: '.json',
   TYPESCRIPT: '.ts',
   TYPESCRIPT_REACT: '.tsx',
@@ -67,7 +67,7 @@ export const ATTACHMENT_TYPES: AttachmentTypeInfo[] = [
   { ext: '.jpeg', mime: 'image/jpeg', category: 'image' },
   { ext: '.gif', mime: 'image/gif', category: 'image' },
   { ext: '.webp', mime: 'image/webp', category: 'image' },
-  { ext: '.svg', mime: 'image/svg+xml', category: 'image' },
+  { ext: '.svg', mime: 'image/svg+xml', category: 'web' },
 
   // 웹
   { ext: '.html', mime: 'text/html', category: 'web' },

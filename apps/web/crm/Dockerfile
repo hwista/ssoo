@@ -8,6 +8,7 @@ COPY apps/web/crm/package.json apps/web/crm/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY packages/web-auth/package.json packages/web-auth/package.json
 COPY packages/web-shell/package.json packages/web-shell/package.json
+COPY packages/web-ui/package.json packages/web-ui/package.json
 RUN pnpm install --filter web-crm... --frozen-lockfile
 
 FROM base AS builder
@@ -22,7 +23,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/ ./
 COPY . .
 
-RUN pnpm --filter @ssoo/types build &&     pnpm --filter @ssoo/web-auth build &&     pnpm --filter @ssoo/web-shell build &&     pnpm --filter web-crm build
+RUN pnpm --filter @ssoo/types build &&     pnpm --filter @ssoo/web-ui build &&     pnpm --filter @ssoo/web-shell build &&     pnpm --filter @ssoo/web-auth build &&     pnpm --filter web-crm build
 
 FROM node:20 AS runner
 WORKDIR /app

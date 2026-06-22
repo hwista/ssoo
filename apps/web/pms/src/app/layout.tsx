@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
+import { getSsooAppMetadata, SsooFaviconSync } from '@ssoo/web-shell';
 import { Providers } from './providers';
 import '../../../../../packages/web-shell/src/styles/ssoo-global.css';
 import './globals.css';
 
-export const metadata: Metadata = {
-  title: 'SSOT PMS | 업무 허브',
-  description: 'SI/SM 조직의 Opportunity-Project-System 통합 업무 허브',
-};
+export const metadata: Metadata = getSsooAppMetadata('pms');
 
 export default function RootLayout({
   children,
@@ -15,7 +13,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body>
+      <body data-ssoo-theme="pms">
+        <SsooFaviconSync appKey="pms" />
         <Providers>{children}</Providers>
       </body>
     </html>

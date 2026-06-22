@@ -2,6 +2,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 're
 import { KeyRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { LoginRequest } from '@ssoo/types/common';
+import { Button, Input } from '@ssoo/web-ui';
 
 export interface LoginValidationErrors {
   loginId?: string;
@@ -21,6 +22,7 @@ export interface AuthLoginCardProps {
   header: ReactNode;
   footer?: ReactNode;
   isLoading?: boolean;
+  passwordLoginEnabled?: boolean;
   passwordResetHref?: string;
   registrationLink?: AuthLoginActionLink;
   identityProviders?: AuthIdentityProviderAction[];
@@ -36,6 +38,7 @@ export interface AuthLoginCardProps {
 
 export interface AuthStandardLoginCardProps {
   isLoading?: boolean;
+  passwordLoginEnabled?: boolean;
   appName?: string;
   appDescription?: string;
   title?: string;
@@ -149,6 +152,7 @@ export function AuthLoginCard({
   header,
   footer,
   isLoading = false,
+  passwordLoginEnabled = true,
   passwordResetHref,
   registrationLink,
   identityProviders = [],
@@ -206,68 +210,70 @@ export function AuthLoginCard({
     <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
       <div className="mb-7">{header}</div>
 
-      <form className="space-y-5" onSubmit={handleSubmit}>
-        {formError && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {formError}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-slate-900" htmlFor="loginId">
-            {loginIdLabel}
-          </label>
-          <input
-            id="loginId"
-            type="text"
-            autoComplete="username"
-            value={loginId}
-            onChange={(event) => setLoginId(event.target.value)}
-            className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0B3B3B] focus:ring-2 focus:ring-[#0B3B3B]/15"
-            placeholder={loginIdPlaceholder}
-          />
-          {fieldErrors.loginId && (
-            <p className="text-sm text-red-700">{fieldErrors.loginId}</p>
+      {passwordLoginEnabled ? (
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          {formError && (
+            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
+            </div>
           )}
-        </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <label className="block text-sm font-medium text-slate-900" htmlFor="password">
-              {passwordLabel}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-900" htmlFor="loginId">
+              {loginIdLabel}
             </label>
-            {passwordResetHref ? (
-              <a
-                href={passwordResetHref}
-                className="text-sm font-medium text-[#0B3B3B] underline-offset-4 transition-colors hover:text-[#114F4F] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B3B3B]/20"
-                {...actionLinkProps({ href: passwordResetHref, label: '비밀번호 찾기' })}
-              >
-                비밀번호 찾기
-              </a>
-            ) : null}
+            <Input
+              id="loginId"
+              type="text"
+              autoComplete="username"
+              value={loginId}
+              onChange={(event) => setLoginId(event.target.value)}
+              className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0B3B3B] focus:ring-2 focus:ring-[#0B3B3B]/15"
+              placeholder={loginIdPlaceholder}
+            />
+            {fieldErrors.loginId && (
+              <p className="text-sm text-red-700">{fieldErrors.loginId}</p>
+            )}
           </div>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0B3B3B] focus:ring-2 focus:ring-[#0B3B3B]/15"
-            placeholder={passwordPlaceholder}
-          />
-          {fieldErrors.password && (
-            <p className="text-sm text-red-700">{fieldErrors.password}</p>
-          )}
-        </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="h-11 w-full cursor-pointer rounded-md bg-[#0B3B3B] px-4 text-sm font-medium text-white transition hover:bg-[#114F4F] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isLoading ? loadingLabel : submitLabel}
-        </button>
-      </form>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <label className="block text-sm font-medium text-slate-900" htmlFor="password">
+                {passwordLabel}
+              </label>
+              {passwordResetHref ? (
+                <a
+                  href={passwordResetHref}
+                  className="text-sm font-medium text-[#0B3B3B] underline-offset-4 transition-colors hover:text-[#114F4F] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B3B3B]/20"
+                  {...actionLinkProps({ href: passwordResetHref, label: '비밀번호 찾기' })}
+                >
+                  비밀번호 찾기
+                </a>
+              ) : null}
+            </div>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0B3B3B] focus:ring-2 focus:ring-[#0B3B3B]/15"
+              placeholder={passwordPlaceholder}
+            />
+            {fieldErrors.password && (
+              <p className="text-sm text-red-700">{fieldErrors.password}</p>
+            )}
+          </div>
+
+          <Button variant="plain" size="plain"
+            type="submit"
+            disabled={isLoading}
+            className="h-11 w-full cursor-pointer rounded-md bg-[#0B3B3B] px-4 text-sm font-medium text-white transition hover:bg-[#114F4F] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isLoading ? loadingLabel : submitLabel}
+          </Button>
+        </form>
+      ) : null}
 
       {identityProviders.length > 0 ? (
         <div className="mt-6 space-y-3">
@@ -321,6 +327,7 @@ export function AuthLoginCard({
 
 export function AuthStandardLoginCard({
   isLoading = false,
+  passwordLoginEnabled = true,
   title,
   passwordResetHref,
   registrationLink,
@@ -336,6 +343,7 @@ export function AuthStandardLoginCard({
       )}
       footer={<AuthStandardLoginFooter />}
       isLoading={isLoading}
+      passwordLoginEnabled={passwordLoginEnabled}
       passwordResetHref={passwordResetHref}
       registrationLink={registrationLink}
       identityProviders={identityProviders}

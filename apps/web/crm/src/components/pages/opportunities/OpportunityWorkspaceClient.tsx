@@ -12,6 +12,7 @@ import type {
   CrmOpportunityStatus,
 } from '@ssoo/types/crm';
 import { useAuthStore } from '@/stores/auth.store';
+import { Button, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 export interface OpportunityWorkspaceQuery {
   search: string;
@@ -137,7 +138,7 @@ export function OpportunityWorkspaceClient({ data, query }: { data: CrmOpportuni
   );
 
   return (
-    <main className="flex h-full flex-col gap-4 p-4">
+    <div className="flex h-full flex-col gap-4">
       <Breadcrumb items={['CRM', '영업기회 목록']} />
       {loadError ? (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{loadError}</div>
@@ -165,7 +166,7 @@ export function OpportunityWorkspaceClient({ data, query }: { data: CrmOpportuni
           />
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -194,53 +195,54 @@ function PageHeader({
     <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 min-h-[52px] border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2">
-          <button
+          <Button
             type="button"
             disabled
-            className="inline-flex h-control-h cursor-not-allowed items-center justify-center gap-2 rounded-md bg-ssoo-primary/60 px-4 py-2 text-sm font-medium text-white shadow opacity-70"
+            className="cursor-not-allowed opacity-70"
             title="CRM 등록 API가 아직 구현되지 않아 이 화면에서는 조회만 가능합니다."
           >
             <Plus className="h-4 w-4" /> 등록 API 미구현
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="destructive"
             type="button"
             disabled
-            className="inline-flex h-control-h cursor-not-allowed items-center justify-center gap-2 rounded-md bg-ls-red/60 px-4 py-2 text-sm font-medium text-white shadow-sm opacity-70"
+            className="cursor-not-allowed opacity-70"
             title="삭제 API 연결 후 활성화됩니다."
           >
             <Trash2 className="h-4 w-4" /> 삭제 준비 중
-          </button>
+          </Button>
         </div>
-        <button
+        <Button variant="plain" size="plain"
           type="button"
           className="inline-flex h-8 items-center justify-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-ssoo-content-bg"
           aria-expanded={isOpen}
           onClick={() => onOpenChange(!isOpen)}
         >
           {isOpen ? '접기' : '펼치기'} {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
+        </Button>
       </div>
 
       {isOpen && (
         <form className="flex min-h-[52px] items-center gap-3 bg-gray-50 px-4 py-2" method="get">
           <div className="w-[200px]">
-            <input name="search" defaultValue={query.search} placeholder="고객사, 건명, 담당자" className="flex h-control-h w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:ring-1 focus:ring-ring" />
+            <Input name="search" defaultValue={query.search} placeholder="고객사, 건명, 담당자" />
           </div>
           <div className="w-[150px]">
-            <select name="status" defaultValue={query.status} className="flex h-control-h w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring">
+            <NativeSelect name="status" defaultValue={query.status}>
               <option value="all">전체</option>
               {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            </NativeSelect>
           </div>
           <div className="w-[150px]">
-            <select name="sort" defaultValue={query.sort} className="flex h-control-h w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring">
+            <NativeSelect name="sort" defaultValue={query.sort}>
               {Object.entries(sortLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            </NativeSelect>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <button type="submit" className="inline-flex h-control-h items-center justify-center gap-2 rounded-md bg-ssoo-primary px-4 py-2 text-sm font-medium text-white shadow transition-colors hover:bg-ssoo-primary-hover">
+            <Button type="submit">
               <Search className="h-4 w-4" /> 검색
-            </button>
+            </Button>
             <Link href="/" className="inline-flex h-control-h items-center justify-center gap-2 rounded-md border border-ssoo-content-border bg-white px-4 py-2 text-sm font-medium text-ssoo-primary shadow-sm transition-colors hover:bg-ssoo-sitemap-bg">
               <RotateCcw className="h-4 w-4" /> 초기화
             </Link>
@@ -265,30 +267,30 @@ function OpportunityTable({
   return (
     <div className="flex h-full flex-col rounded-md border">
       <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full min-w-[1100px] caption-bottom text-sm">
-          <thead className="sticky top-0 z-10 bg-ssoo-content-bg text-left text-sm font-medium text-muted-foreground shadow-sm [&_tr]:border-b">
-            <tr className="h-9">
-              <th className="w-[120px] px-2 py-2">기회번호</th>
-              <th className="w-[260px] px-2 py-2">영업기회명</th>
-              <th className="w-[180px] px-2 py-2">고객사</th>
-              <th className="w-[100px] px-2 py-2">상태</th>
-              <th className="w-[90px] px-2 py-2">우선순위</th>
-              <th className="w-[120px] px-2 py-2 text-right">매출</th>
-              <th className="w-[120px] px-2 py-2 text-right">원가</th>
-              <th className="w-[100px] px-2 py-2 text-right">손익률</th>
-              <th className="w-[120px] px-2 py-2">수정일</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
+        <Table className="w-full min-w-[1100px] caption-bottom text-sm">
+          <TableHeader className="sticky top-0 z-10 bg-ssoo-content-bg text-left text-sm font-medium text-muted-foreground shadow-sm [&_tr]:border-b">
+            <TableRow className="h-9">
+              <TableHead className="w-[120px] px-2 py-2">기회번호</TableHead>
+              <TableHead className="w-[260px] px-2 py-2">영업기회명</TableHead>
+              <TableHead className="w-[180px] px-2 py-2">고객사</TableHead>
+              <TableHead className="w-[100px] px-2 py-2">상태</TableHead>
+              <TableHead className="w-[90px] px-2 py-2">우선순위</TableHead>
+              <TableHead className="w-[120px] px-2 py-2 text-right">매출</TableHead>
+              <TableHead className="w-[120px] px-2 py-2 text-right">원가</TableHead>
+              <TableHead className="w-[100px] px-2 py-2 text-right">손익률</TableHead>
+              <TableHead className="w-[120px] px-2 py-2">수정일</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-gray-100">
             {items.map((item) => <OpportunityRow key={item.id} item={item} selected={item.id === selectedId} href={buildHref(query, { selected: item.id })} />)}
-            {items.length === 0 ? <tr><td className="h-9 px-2 py-2 text-center text-gray-500" colSpan={9}>조회된 영업기회가 없습니다.</td></tr> : null}
+            {items.length === 0 ? <TableRow><TableCell className="h-9 px-2 py-2 text-center text-gray-500" colSpan={9}>조회된 영업기회가 없습니다.</TableCell></TableRow> : null}
             {Array.from({ length: Math.max(0, pageSize - items.length) }).map((_, index) => (
-              <tr key={`empty-${index}`} className="h-9 border-b bg-white" aria-hidden="true">
-                <td colSpan={9}>&nbsp;</td>
-              </tr>
+              <TableRow key={`empty-${index}`} className="h-9 border-b bg-white" aria-hidden="true">
+                <TableCell colSpan={9}>&nbsp;</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
@@ -300,7 +302,7 @@ function OpportunityRow({ item, selected, href }: { item: CrmOpportunity; select
   const linkClass = 'block h-full w-full px-2 py-2 text-inherit no-underline';
 
   return (
-    <tr
+    <TableRow
       tabIndex={0}
       onClick={openRow}
       onKeyDown={(event) => {
@@ -312,20 +314,20 @@ function OpportunityRow({ item, selected, href }: { item: CrmOpportunity; select
       data-active={selected ? 'true' : undefined}
       className={selected ? 'h-9 cursor-pointer border-b bg-ssoo-content-border transition-colors' : 'h-9 cursor-pointer border-b bg-white transition-colors hover:bg-ssoo-sitemap-bg'}
     >
-      <td className="whitespace-nowrap p-0">
+      <TableCell className="whitespace-nowrap p-0">
         <Link className={`${linkClass} font-medium text-ssoo-primary hover:underline`} href={href}>OPP-{item.id}</Link>
-      </td>
-      <td className="whitespace-nowrap p-0">
+      </TableCell>
+      <TableCell className="whitespace-nowrap p-0">
         <Link className={linkClass} href={href}><span className="block max-w-[244px] truncate font-medium text-gray-800">{item.opportunityName}</span></Link>
-      </td>
-      <td className="whitespace-nowrap p-0 text-gray-700"><Link className={linkClass} href={href}>{item.customerName}</Link></td>
-      <td className="whitespace-nowrap p-0"><Link className={linkClass} href={href}><span className={`rounded px-2 py-1 text-xs font-medium ${statusTone[item.status]}`}>{statusLabels[item.status]}</span></Link></td>
-      <td className="whitespace-nowrap p-0 text-gray-700"><Link className={linkClass} href={href}>{priorityLabels[item.priority]}</Link></td>
-      <td className="whitespace-nowrap p-0 text-right font-medium text-gray-800"><Link className={linkClass} href={href}>{formatCurrency(item.revenueTotal)}</Link></td>
-      <td className="whitespace-nowrap p-0 text-right text-gray-700"><Link className={linkClass} href={href}>{formatCurrency(item.costTotal)}</Link></td>
-      <td className="whitespace-nowrap p-0 text-right font-medium text-ssoo-secondary"><Link className={linkClass} href={href}>{item.marginRate}%</Link></td>
-      <td className="whitespace-nowrap p-0 text-gray-600"><Link className={linkClass} href={href}>{formatDate(item.updatedAt)}</Link></td>
-    </tr>
+      </TableCell>
+      <TableCell className="whitespace-nowrap p-0 text-gray-700"><Link className={linkClass} href={href}>{item.customerName}</Link></TableCell>
+      <TableCell className="whitespace-nowrap p-0"><Link className={linkClass} href={href}><span className={`rounded px-2 py-1 text-xs font-medium ${statusTone[item.status]}`}>{statusLabels[item.status]}</span></Link></TableCell>
+      <TableCell className="whitespace-nowrap p-0 text-gray-700"><Link className={linkClass} href={href}>{priorityLabels[item.priority]}</Link></TableCell>
+      <TableCell className="whitespace-nowrap p-0 text-right font-medium text-gray-800"><Link className={linkClass} href={href}>{formatCurrency(item.revenueTotal)}</Link></TableCell>
+      <TableCell className="whitespace-nowrap p-0 text-right text-gray-700"><Link className={linkClass} href={href}>{formatCurrency(item.costTotal)}</Link></TableCell>
+      <TableCell className="whitespace-nowrap p-0 text-right font-medium text-ssoo-secondary"><Link className={linkClass} href={href}>{item.marginRate}%</Link></TableCell>
+      <TableCell className="whitespace-nowrap p-0 text-gray-600"><Link className={linkClass} href={href}>{formatDate(item.updatedAt)}</Link></TableCell>
+    </TableRow>
   );
 }
 
@@ -403,17 +405,17 @@ function DetailSection({ title, children }: { title: string; children: React.Rea
 function LineTable({ lines }: { lines: CrmOpportunityLine[] }) {
   return (
     <div className="overflow-hidden rounded-md border border-gray-200">
-      <table className="w-full text-xs">
-        <tbody className="divide-y divide-gray-100">
+      <Table className="w-full text-xs">
+        <TableBody className="divide-y divide-gray-100">
           {lines.map((line) => (
-            <tr key={line.id}>
-              <td className="px-3 py-2 text-gray-600">{line.label}</td>
-              <td className="px-3 py-2 text-right font-medium text-gray-800">{formatCurrency(line.amount)}</td>
-            </tr>
+            <TableRow key={line.id}>
+              <TableCell className="px-3 py-2 text-gray-600">{line.label}</TableCell>
+              <TableCell className="px-3 py-2 text-right font-medium text-gray-800">{formatCurrency(line.amount)}</TableCell>
+            </TableRow>
           ))}
-          {lines.length === 0 ? <tr><td className="px-3 py-4 text-center text-gray-500">내역 없음</td></tr> : null}
-        </tbody>
-      </table>
+          {lines.length === 0 ? <TableRow><TableCell className="px-3 py-4 text-center text-gray-500">내역 없음</TableCell></TableRow> : null}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -451,36 +453,36 @@ function TableFooter({
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <span>페이지당</span>
-          <select
+          <NativeSelect
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="h-control-h w-[70px] rounded-md border border-input bg-white px-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring"
+            className="w-[70px] bg-white px-2"
           >
             {[10, 20, 30, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
-          </select>
+          </NativeSelect>
           <span>개</span>
         </div>
         <span>{startItem}-{endItem} / 총 {total.toLocaleString()}개</span>
       </div>
 
       <div className="flex items-center gap-1">
-        <button type="button" className="inline-flex h-control-h w-control-h items-center justify-center rounded-md border border-ssoo-content-border bg-white text-ssoo-primary shadow-sm disabled:opacity-50" onClick={() => onPageChange(1)} disabled={!canGoPrevious}>
+        <Button variant="outline" size="icon" type="button" onClick={() => onPageChange(1)} disabled={!canGoPrevious}>
           <ChevronsLeft className="h-4 w-4" /><span className="sr-only">첫 페이지</span>
-        </button>
-        <button type="button" className="inline-flex h-control-h w-control-h items-center justify-center rounded-md border border-ssoo-content-border bg-white text-ssoo-primary shadow-sm disabled:opacity-50" onClick={() => onPageChange(page - 1)} disabled={!canGoPrevious}>
+        </Button>
+        <Button variant="outline" size="icon" type="button" onClick={() => onPageChange(page - 1)} disabled={!canGoPrevious}>
           <ChevronLeft className="h-4 w-4" /><span className="sr-only">이전 페이지</span>
-        </button>
+        </Button>
         <div className="flex items-center gap-1 px-2">
           <span className="text-sm font-medium text-gray-800">{page}</span>
           <span>/</span>
           <span>{totalPages}</span>
         </div>
-        <button type="button" className="inline-flex h-control-h w-control-h items-center justify-center rounded-md border border-ssoo-content-border bg-white text-ssoo-primary shadow-sm disabled:opacity-50" onClick={() => onPageChange(page + 1)} disabled={!canGoNext}>
+        <Button variant="outline" size="icon" type="button" onClick={() => onPageChange(page + 1)} disabled={!canGoNext}>
           <ChevronRight className="h-4 w-4" /><span className="sr-only">다음 페이지</span>
-        </button>
-        <button type="button" className="inline-flex h-control-h w-control-h items-center justify-center rounded-md border border-ssoo-content-border bg-white text-ssoo-primary shadow-sm disabled:opacity-50" onClick={() => onPageChange(totalPages)} disabled={!canGoNext}>
+        </Button>
+        <Button variant="outline" size="icon" type="button" onClick={() => onPageChange(totalPages)} disabled={!canGoNext}>
           <ChevronsRight className="h-4 w-4" /><span className="sr-only">마지막 페이지</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

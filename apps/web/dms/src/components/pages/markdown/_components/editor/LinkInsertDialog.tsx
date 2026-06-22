@@ -5,6 +5,7 @@ import { Link2 } from 'lucide-react';
 import { EditorDialog } from '@/components/common/editor-dialog';
 import { PickerTree } from '@/components/common/picker-tree';
 import { useAuthStore, useFileStore } from '@/stores';
+import { Input } from '@ssoo/web-ui';
 
 export interface LinkInsertDialogProps {
   open: boolean;
@@ -68,7 +69,7 @@ export function LinkInsertDialog({ open, currentFilePath, onConfirm, onCancel }:
         <label className="text-label-md text-ssoo-primary" htmlFor="link-url-input">
           링크 URL
         </label>
-        <input
+        <Input
           id="link-url-input"
           type="text"
           value={inputValue}

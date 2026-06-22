@@ -58,6 +58,7 @@ export class NotificationService {
     referenceId: bigint;
     message: string;
   }) {
+    const referencePath = this.resolveReferencePath(data.referenceType, data.referenceId);
     const notification = await this.notificationService.notifyUser({
       recipientUserId: data.recipientUserId,
       actorUserId: data.actorUserId,
@@ -69,6 +70,7 @@ export class NotificationService {
       reference: {
         type: data.referenceType,
         id: data.referenceId.toString(),
+        path: referencePath,
       },
       action: {
         type: 'open-sns-reference',
@@ -76,6 +78,7 @@ export class NotificationService {
         payload: {
           referenceType: data.referenceType,
           referenceId: data.referenceId.toString(),
+          ...(referencePath ? { path: referencePath } : {}),
         },
       },
     });
@@ -90,6 +93,7 @@ export class NotificationService {
     });
 
     for (const legacy of legacyNotifications) {
+      const referencePath = this.resolveReferencePath(legacy.referenceType, legacy.referenceId);
       await this.notificationService.notifyUser({
         recipientUserId: legacy.recipientUserId,
         actorUserId: legacy.actorUserId,
@@ -101,6 +105,7 @@ export class NotificationService {
         reference: {
           type: legacy.referenceType,
           id: legacy.referenceId.toString(),
+          path: referencePath,
         },
         action: {
           type: 'open-sns-reference',
@@ -108,6 +113,7 @@ export class NotificationService {
           payload: {
             referenceType: legacy.referenceType,
             referenceId: legacy.referenceId.toString(),
+            ...(referencePath ? { path: referencePath } : {}),
           },
         },
         dedupeKey: `sns:legacy:${legacy.id.toString()}`,
@@ -150,6 +156,18 @@ export class NotificationService {
     }
 
     return BigInt(legacyKey);
+  }
+
+  private resolveReferencePath(referenceType: string, referenceId: bigint): string | undefined {
+    const normalizedReferenceType = referenceType.toLowerCase();
+    const id = encodeURIComponent(referenceId.toString());
+    if (normalizedReferenceType.includes('profile') || normalizedReferenceType.includes('user')) {
+      return `/profile/${id}`;
+    }
+    if (normalizedReferenceType.includes('board')) {
+      return `/board/${id}`;
+    }
+    return undefined;
   }
 
   private toSnsNotification(notification: CommonNotificationItem): Notification {

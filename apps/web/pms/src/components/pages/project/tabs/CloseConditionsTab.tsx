@@ -173,7 +173,7 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
                 c.isChecked ? 'bg-green-50/50 border-green-200' : 'bg-white hover:bg-muted/30'
               }`}
             >
-              <button
+              <Button variant="plain" size="plain"
                 className="mt-0.5 shrink-0"
                 onClick={() => handleToggle(c)}
                 disabled={toggleCondition.isPending || !canManageCloseConditions}
@@ -183,7 +183,7 @@ export function CloseConditionsTab({ projectId, statusCode }: Props) {
                 ) : (
                   <Circle className="h-5 w-5 text-muted-foreground" />
                 )}
-              </button>
+              </Button>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">

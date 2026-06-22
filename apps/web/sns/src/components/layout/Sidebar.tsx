@@ -1,26 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
-  SsooCollapsedRailButton,
-  SsooSidebarBrandHeader,
-  SsooSidebarFooter,
-  SsooSidebarList,
-  SsooSidebarListItem,
-  SsooSidebarSearchBox,
-  SsooSidebarSection,
-  SsooSidebarSectionChevron,
-  SsooSidebarShell,
-  SsooSidebarToolbar,
-  SsooSidebarToolbarAction,
+  getSsooAppIdentity,
+  SsooSidebarEmptyState,
+  SsooSidebarSearchableTree,
+  SsooSidebarSurface,
 } from '@ssoo/web-shell';
-import { ChevronDown, ChevronRight, LayoutGrid, Menu, RefreshCw, Search } from 'lucide-react';
-import { useAccessStore } from '@/stores';
-import { SNS_SHELL_NAV_ITEMS, getSnsShellSection } from './shell-navigation';
+import { ChevronDown, ChevronRight, LayoutGrid, Menu, RefreshCw, Search, X } from 'lucide-react';
+import { useAccessStore, useTabStore } from '@/stores';
+import { SNS_SHELL_NAV_ITEMS, getSnsShellSection, getSnsShellTabOptions } from './shell-navigation';
 
-const SIDEBAR_COLLAPSED_WIDTH = 56;
-const SIDEBAR_EXPANDED_WIDTH = 340;
+const SNS_APP_IDENTITY = getSsooAppIdentity('sns');
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -28,128 +20,67 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isCollapsed, onToggleCollapse }: SidebarProps) {
-  const pathname = usePathname();
   const router = useRouter();
-  const currentSection = getSnsShellSection(pathname);
+  const tabs = useTabStore((state) => state.tabs);
+  const activeTabId = useTabStore((state) => state.activeTabId);
+  const openTab = useTabStore((state) => state.openTab);
+  const activeTab = tabs.find((tab) => tab.id === activeTabId);
+  const currentSection = getSnsShellSection(activeTab?.path ?? '/');
   const canReadFeed = useAccessStore((state) => state.snapshot?.features.canReadFeed ?? false);
   const [isSocialSectionExpanded, setIsSocialSectionExpanded] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <SsooSidebarShell
-      mode="collapsible"
+    <SsooSidebarSurface
       expanded={!isCollapsed}
-      collapsedWidth={SIDEBAR_COLLAPSED_WIDTH}
-      width={SIDEBAR_EXPANDED_WIDTH}
-      headerSlot={
-        <SsooSidebarBrandHeader
-          title="SSOT"
-          subtitle="SNS · 소셜 허브"
-          collapsed={isCollapsed}
-          revealOnHover={isCollapsed}
-          actionsSlot={
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className="rounded-lg p-2 transition-colors hover:bg-white/10"
-              title={isCollapsed ? '펼치기' : '접기'}
-            >
-              <Menu className="h-5 w-5 text-white" />
-            </button>
+      onToggleCollapse={onToggleCollapse}
+      toggleIcon={Menu}
+      brandTitle={SNS_APP_IDENTITY.brandTitle}
+      search={{
+        value: searchQuery,
+        onChange: setSearchQuery,
+        railIcon: Search,
+        onRailSelect: () => {
+          if (isCollapsed) {
+            onToggleCollapse();
           }
-        />
-      }
-      railSlot={
-        <nav className="flex flex-col items-center gap-1 py-2">
-          {SNS_SHELL_NAV_ITEMS.map((item) => {
-            const isActive = currentSection === item.key;
-            const isDisabled = item.requiresFeedAccess && !canReadFeed;
-            return (
-              <SsooCollapsedRailButton
-                key={item.key}
-                label={item.label}
-                icon={item.icon}
-                active={isActive}
-                disabled={isDisabled}
-                onClick={() => {
-                  if (!isDisabled) {
-                    router.push(item.href);
-                  }
-                }}
-              />
-            );
-          })}
-        </nav>
-      }
-      beforeContentSlot={
-        <SsooSidebarToolbar>
-          <div className="flex items-center gap-1">
-            <SsooSidebarSearchBox
-              placeholder="소셜 메뉴 검색... (준비 중)"
-              disabled
-              iconSlot={<Search className="h-4 w-4 text-gray-400" />}
+        },
+        clearLabel: '검색어 지우기',
+        clearIcon: X,
+      }}
+      refreshAction={{
+        label: '새로고침',
+        icon: RefreshCw,
+        onClick: () => router.refresh(),
+      }}
+      expandedIcon={ChevronDown}
+      collapsedIcon={ChevronRight}
+      sections={[
+        {
+          id: 'social',
+          title: '소셜 메뉴',
+          icon: LayoutGrid,
+          expanded: isSocialSectionExpanded,
+          onToggle: () => setIsSocialSectionExpanded((current) => !current),
+          children: (
+            <SsooSidebarSearchableTree<(typeof SNS_SHELL_NAV_ITEMS)[number]>
+              nodes={SNS_SHELL_NAV_ITEMS}
+              getNodeId={(item) => item.key}
+              getNodeLabel={(item) => item.label}
+              getNodeTitle={(item) => item.label}
+              getNodeSearchText={(item) => [item.label, item.description]}
+              getNodeIcon={(item) => item.icon}
+              isNodeActive={(item) => currentSection === item.key}
+              isNodeDisabled={(item) => Boolean(item.requiresFeedAccess && !canReadFeed)}
+              onNodeSelect={(item) => {
+                openTab(getSnsShellTabOptions(item.href));
+              }}
+              disclosureIcon={ChevronRight}
+              emptyState={<SsooSidebarEmptyState>검색 결과가 없습니다.</SsooSidebarEmptyState>}
             />
-            <SsooSidebarToolbarAction
-              label="소셜 메뉴 새로고침은 SNS 접근 스냅샷 갱신 흐름에서 처리합니다."
-              icon={RefreshCw}
-              disabled
-            />
-          </div>
-        </SsooSidebarToolbar>
-      }
-      contentSlot={
-        <nav className="min-h-0 flex-1 overflow-auto">
-          <SsooSidebarSection
-            title="소셜 메뉴"
-            icon={LayoutGrid}
-            collapsible
-            expanded={isSocialSectionExpanded}
-            onToggle={() => setIsSocialSectionExpanded((current) => !current)}
-            actionSlot={
-              <SsooSidebarSectionChevron
-                expanded={isSocialSectionExpanded}
-                expandedIcon={ChevronDown}
-                collapsedIcon={ChevronRight}
-              />
-            }
-          >
-            <SsooSidebarList as="nav" ariaLabel="소셜 메뉴">
-              {SNS_SHELL_NAV_ITEMS.map((item) => {
-                const isActive = currentSection === item.key;
-                const isDisabled = item.requiresFeedAccess && !canReadFeed;
-                const Icon = item.icon;
-
-                return (
-                  <SsooSidebarListItem
-                    key={item.key}
-                    label={item.label}
-                    title={item.label}
-                    description={item.description}
-                    icon={Icon}
-                    active={isActive}
-                    disabled={isDisabled}
-                    onSelect={() => {
-                      if (isDisabled) {
-                        return;
-                      }
-                      router.push(item.href);
-                    }}
-                  />
-                );
-              })}
-            </SsooSidebarList>
-          </SsooSidebarSection>
-        </nav>
-      }
-      footerSlot={
-        <SsooSidebarFooter
-          title="SSOT SNS"
-          description="소셜 허브"
-          meta={null}
-          collapsedLabel="SNS"
-          collapsed={isCollapsed}
-          revealOnHover={isCollapsed}
-        />
-      }
+          ),
+        },
+      ]}
     />
   );
 }

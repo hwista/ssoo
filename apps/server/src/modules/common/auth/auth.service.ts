@@ -115,6 +115,65 @@ export class AuthService {
     return tokens;
   }
 
+  async loginWithExternalIdentity(
+    providerCode: string,
+    tenantId: string,
+    subjectId: string,
+    sessionContext: AuthSessionContext = {},
+  ): Promise<AuthTokens> {
+    const externalIdentity = await this.db.client.userExternalIdentity.findFirst({
+      where: {
+        providerCode,
+        tenantId,
+        subjectId,
+        isActive: true,
+      },
+      include: {
+        user: {
+          include: {
+            authAccount: true,
+          },
+        },
+      },
+    });
+
+    const authAccount = externalIdentity?.user.authAccount;
+    if (!externalIdentity || !authAccount) {
+      throw new UnauthorizedException('승인된 외부 인증 계정이 아닙니다.');
+    }
+
+    if (!externalIdentity.user.isActive || authAccount.accountStatusCode !== 'active') {
+      throw new UnauthorizedException('비활성화된 계정입니다. 관리자에게 문의하세요.');
+    }
+
+    const authUser: AuthUserRecord = {
+      userId: externalIdentity.user.id,
+      loginId: authAccount.loginId,
+      userName: externalIdentity.user.userName,
+      passwordHash: authAccount.passwordHash,
+      accountStatusCode: authAccount.accountStatusCode,
+      lastLoginAt: authAccount.lastLoginAt,
+      loginFailCount: authAccount.loginFailCount,
+      lockedUntil: authAccount.lockedUntil,
+      roleCode: externalIdentity.user.roleCode,
+      isActive: externalIdentity.user.isActive,
+    };
+
+    const sessionId = randomUUID();
+    const tokens = await this.generateTokens(this.buildTokenPayload(authUser, sessionId));
+    await this.persistSession(authUser.userId, sessionId, tokens.refreshToken, sessionContext);
+
+    await Promise.all([
+      this.userService.updateLastLogin(authUser.userId),
+      this.db.client.userExternalIdentity.update({
+        where: { externalIdentityId: externalIdentity.externalIdentityId },
+        data: { lastLoginAt: new Date() },
+      }),
+    ]);
+
+    return tokens;
+  }
+
   /**
    * 토큰 갱신
    */

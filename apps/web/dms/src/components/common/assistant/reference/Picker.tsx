@@ -24,6 +24,7 @@ import {
 } from './pickerUtils';
 import { createPendingSummaryFile, extractSummaryFile } from './summaryFileExtraction';
 import { armProtectedAppLifecycleCheckSkip } from '@/lib/protectedAppLifecycleCheck';
+import { Button, Input } from '@ssoo/web-ui';
 
 export interface ExtractedImageItem {
   base64: string;
@@ -266,7 +267,7 @@ export function AssistantReferencePicker({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <button
+        <Button variant="plain" size="plain"
           type="button"
           disabled={disabled}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ssoo-primary text-white shadow-sm transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
@@ -274,7 +275,7 @@ export function AssistantReferencePicker({
           aria-label="컨텍스트 첨부"
         >
           <Plus className="h-4 w-4" />
-        </button>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
@@ -288,17 +289,19 @@ export function AssistantReferencePicker({
               <p className="mb-1 flex items-center gap-1 text-badge text-ssoo-primary/80">
                 <FileUp className="h-3.5 w-3.5" /> 참조 파일 첨부
               </p>
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 type="button"
                 onMouseDown={(event) => {
                   event.preventDefault();
                 }}
                 onClick={handleOpenSummaryFilePicker}
-                className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-ssoo-content-border bg-white px-2 text-label-sm text-ssoo-primary transition-colors hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg/40"
+                className="w-full gap-1.5 hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg/40"
               >
                 <FileUp className="h-3.5 w-3.5" />
                 파일 선택
-              </button>
+              </Button>
             </div>
           )}
 
@@ -309,7 +312,7 @@ export function AssistantReferencePicker({
 
           <div className="relative">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ssoo-primary/50" />
-            <input
+            <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={searchPlaceholder}
@@ -342,7 +345,7 @@ export function AssistantReferencePicker({
         </div>
       </DropdownMenuContent>
       {resolved.fileUpload && (
-        <input
+        <Input
           ref={fileInputRef}
           type="file"
           multiple

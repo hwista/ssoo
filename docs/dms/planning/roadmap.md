@@ -12,7 +12,7 @@
 - 공통 permission resolution contract + auth/access validation baseline 고정
 - `DocumentMetadata.acl` object ACL pilot 적용 (`file/content` read-write-metadata, `file/files/raw/serve-attachment/search/ask`, template reference/doc-assist tree hint, creator owner default, 기본 DocumentPage affordance, upload inheritance, local storage/open, validation matrix)
 - DMS 주요 business API를 `apps/server` DMS module로 이관하고 Next route handler를 proxy boundary로 정렬
-- 저장소/수집/AI 기본 기능 및 settings shell, template pipeline, file/git runtime 유지
+- 저장소/수집/AI 기본 기능 및 설정 탭 page, template pipeline, file/git runtime 유지
 - DMS 핵심 서비스 분해 (refactoring decomposition, 2026-04-28 ~ 04-30): `collaboration.service.ts` / `git.service.ts` / `access-request.service.ts` 3개 god service 를 cohesive Nest 서비스 + util 로 분해 (C-2 / C-3 / C-4 트랙 종료, 합 13 slices). `access-request.service.ts` 만으로 2150 → 1121 lines (-48%). 회귀 안전망: `pnpm --filter server test` 110 tests / 6 suites (D-2 트랙)
 - 문서 정본 GitLab `LSWIKI_DOC.git` 원격 운영 종결 (2026-04-30, Phase A): canonical `master` 직접 push 정책 확정/검증. `document-repo-three-issue-status.md` 3개 이슈 모두 closed. versionHistory dead feature 제거 + 의도(`DMS-FE-versionHistory`) backlog 등재. Track 2 / 5 / 7 closed → 100%
 - DMS 접근 검증 게이트 복구: 문서 저장/설정 저장 응답 계약, 저장소 기반 원본 이미지 제공, 기존 sidecar 기준선 검증을 정렬해 `verify:access-dms:raw` 통과

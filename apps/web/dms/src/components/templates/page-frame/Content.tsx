@@ -2,8 +2,10 @@
 
 import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { SSOO_CONTENT_PAGE_METRICS } from '@ssoo/web-shell';
 import { cn } from '@/lib/utils';
 import { useLayoutStore } from '@/stores';
+import { Button } from '@ssoo/web-ui';
 
 /**
  * Content Props
@@ -34,7 +36,7 @@ export interface ContentProps {
  * ```tsx
  * <Content
  *   panel={<Panel metadata={metadata} />}
- *   panelWidth={280}
+ *   panelWidth={SSOO_CONTENT_PAGE_METRICS.auxiliarySlotWidthPx}
  * >
  *   <article>문서 본문...</article>
  * </Content>
@@ -43,7 +45,7 @@ export interface ContentProps {
 export function Content({
   children,
   panel,
-  panelWidth = 280,
+  panelWidth = SSOO_CONTENT_PAGE_METRICS.auxiliarySlotWidthPx,
   panelOpen: controlledOpen,
   onPanelToggle,
   className,
@@ -87,7 +89,7 @@ export function Content({
       {panel && !isVertical && (
         <>
           {/* 패널 토글 버튼 (그립 버튼) */}
-          <button
+          <Button variant="plain" size="plain"
             onClick={handleToggle}
             className={cn(
               'absolute top-1/2 -translate-y-1/2 z-10',
@@ -107,7 +109,7 @@ export function Content({
             ) : (
               <ChevronLeft className="h-4 w-4 text-gray-500" />
             )}
-          </button>
+          </Button>
 
           {/* 보조 패널 */}
           <div

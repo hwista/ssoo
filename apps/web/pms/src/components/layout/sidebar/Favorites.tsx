@@ -5,7 +5,12 @@ import { useMenuStore } from '@/stores';
 import { useOpenTabWithConfirm } from '@/hooks';
 import { Star, X } from 'lucide-react';
 import { getIconComponent } from '@/lib/utils/icons';
-import { SsooSidebarEmptyState, SsooSidebarList, SsooSidebarListItem } from '@ssoo/web-shell';
+import {
+  SsooSidebarEmptyState,
+  SsooSidebarSearchableTree,
+  SsooSidebarTreeActionButton,
+  SsooSidebarTreeNodeIcon,
+} from '@ssoo/web-shell';
 
 /**
  * 사이드바 즐겨찾기 목록
@@ -40,37 +45,31 @@ export function Favorites() {
   };
 
   return (
-    <SsooSidebarList padded={false}>
-      {favorites.map((favorite) => {
+    <SsooSidebarSearchableTree<(typeof favorites)[number]>
+      nodes={favorites}
+      getNodeId={(favorite) => favorite.id}
+      getNodeLabel={(favorite) => favorite.menuName}
+      getNodeTitle={(favorite) => favorite.menuName}
+      getNodeSearchText={(favorite) => [favorite.menuName, favorite.menuCode, favorite.menuPath ?? '']}
+      renderNodeIcon={(favorite) => {
         const IconComponent = getIconComponent(favorite.icon);
-
-        return (
-          <SsooSidebarListItem
-            key={favorite.id}
-            icon={IconComponent ?? undefined}
-            leadingSlot={
-              IconComponent ? null : (
-                <Star className="h-4 w-4 flex-shrink-0 fill-yellow-400 text-yellow-400" />
-              )
-            }
-            label={favorite.menuName}
-            title={favorite.menuName}
-            onSelect={() => {
-              void handleClick(favorite);
-            }}
-            trailingAction={
-              <button
-                type="button"
-                onClick={(e) => handleRemove(e, favorite.menuId)}
-                className="flex h-control-h-sm w-control-h-sm flex-shrink-0 items-center justify-center rounded opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
-                title="즐겨찾기 해제"
-              >
-                <X className="h-3 w-3 text-gray-500" />
-              </button>
-            }
-          />
+        return IconComponent ? (
+          <SsooSidebarTreeNodeIcon icon={IconComponent} />
+        ) : (
+          <SsooSidebarTreeNodeIcon icon={Star} tone="warning" filled />
         );
-      })}
-    </SsooSidebarList>
+      }}
+      renderNodeTrailingAction={(favorite) => (
+        <SsooSidebarTreeActionButton
+          label="즐겨찾기 해제"
+          icon={X}
+          onClick={(event) => handleRemove(event, favorite.menuId)}
+        />
+      )}
+      onNodeSelect={(favorite) => {
+        void handleClick(favorite);
+      }}
+      emptyState={<SsooSidebarEmptyState>즐겨찾기한 메뉴가 없습니다.</SsooSidebarEmptyState>}
+    />
   );
 }

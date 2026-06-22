@@ -1,9 +1,181 @@
 # DMS 변경 이력
 
-> 최종 업데이트: 2026-06-11
+> 최종 업데이트: 2026-06-22
 > 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
 
 ---
+
+## 2026-06-22
+
+### DMS AI 검색 잔여 화면 제거 / 전역 검색 전체 범위 고정
+
+- DMS `/ai/search` 내부 탭과 호환 alias는 제거하고, DMS 검색 진입점은 공용 `/ssoo/search` 전체 앱 통합 검색 하나로 고정합니다.
+- DMS에서 통합 검색을 열어도 기본 요청에는 `sourceApp`을 넣지 않으며, DMS 문서뿐 아니라 Admin/CRM/PMS/SNS provider 결과까지 함께 검색하는 전체 범위가 기본입니다.
+- CRM provider는 CRM `OpportunityService`를 재사용해 영업기회 결과를 공용 검색 registry에 등록합니다.
+- source filter chip을 선택한 경우에만 `sourceApp` query와 API 요청 filter를 적용합니다.
+- DMS 전용 `components/pages/ai/SearchPage.tsx`와 전용 query parser를 제거하고, 기존 DMS AI 검색의 sidecar, 검색 기록, 인기 검색어, 내 자주 검색, AI 첨부 동작은 공용 `SsooAiSearchPage`/`SsooGlobalSearchPage` 경로에서 유지합니다. DMS 문서 결과 표현에 필요한 `excerpt`, `summarySource`, `totalSnippetCount`, `readRequest`는 공용 `CommonSearchResult` 계약에서 보존하도록 정리했습니다.
+
+## 2026-06-19
+
+### 내부 페이지 recipe legacy route 제거
+
+- DMS 홈을 `DMS PageTemplate` adapter boundary를 통과하는 `contentPage`로 승격했습니다.
+- stale `/settings`, `/access-requests/me` redirect는 `legacyException`이 아니라 `routeHandoffPage` adapter boundary를 통과하는 `contentPage`로 분류합니다.
+- route registry public 계약에서 `legacyException` route kind를 제거해 신규 DMS 내부 페이지가 contentPage adapter boundary 밖으로 등록되지 않도록 잠갔습니다.
+
+### 통합 검색 공용화 잔여물 정리
+
+- DMS 로컬 `ai-search.store.ts` 검색 기록 persist 잔여물을 제거했습니다.
+- DMS/SNS 전역 검색 페이지도 `@ssoo/web-auth`의 `useCommonGlobalSearchAdapter`를 소비하도록 정렬해 앱별 API 호출/query parsing/cross-app routing 중복을 제거했습니다.
+- 서버 공용 `/api/search`는 앱별 provider registry만 조합하는 경계로 고정하고, DMS `SearchService` bridge는 DMS provider에, CRM opportunity 검색은 CRM provider에만 남겨 common service가 앱 데이터를 직접 조회하지 않도록 했습니다.
+- `verify:ssoo-frame`이 DMS 검색 store 잔여물, common search service의 도메인 직접 의존, 앱별 전역 검색 adapter 중복 재유입을 검증하도록 보강했습니다.
+
+### 헤더 통합 검색 중앙화 / RAG readiness 분리
+
+- 5개 앱 header 검색은 `@ssoo/web-shell`의 `useSsooGlobalHeaderSearch`가 검색 상태, Enter submit, `/ssoo/search?q=` path, title, icon 생성을 소유하도록 정렬했습니다.
+- DMS header는 검색 가능 여부와 통합 검색 탭 open adapter만 주입하며, 검색 input 조립과 query/path 생성은 앱 내부에서 재정의하지 않습니다.
+- 전역 검색 페이지는 `@ssoo/web-auth`의 기본 API base URL과 cross-app URL resolver를 사용하고, 앱은 현재 앱/현재 탭 path/앱 내부 결과 열기 action만 주입합니다.
+- 서버 공용 검색 응답은 `keyword`, `metadata`, `semantic`, `vector`, `ragContext` capability를 분리하고, `ragReady`는 실제 RAG context 조립 capability가 있을 때만 true가 되도록 보정했습니다.
+
+## 2026-06-18
+
+### AI 검색 공용 모듈 승격 / 전역 검색 contentPage 승격
+
+- 기존 DMS AI 검색 화면의 page body, toolbar, results panel, search utility를 `@ssoo/web-shell`의 `SsooAiSearchPage` 계열 공용 모듈로 물리 승격했습니다.
+- `/ssoo/search`는 더 이상 제거 대상 `legacyException`이 아니라, `SsooGlobalSearchPage` adapter가 같은 `SsooAiSearchPage`를 소비하는 `contentPage`로 분류합니다. 기존 DMS AI 검색 sidecar와 검색 기록 표면은 공용 검색 page 경로에서 유지합니다.
+- 5개 앱은 검색 API 호출과 결과 열기 action만 주입하고, 결과 영역 상단의 `전체`/앱별 source filter chip, 결과 내 재검색 toolbar, blocked source summary, 기본 결과 card surface는 공용 recipe가 소유합니다.
+- DMS 문서 결과는 기존 DMS `SearchResultCard` renderer를 계속 사용해 문서 권한/권한 요청 상태 표현을 유지합니다.
+
+### Settings mode header 정리
+
+- 설정 모드에서 앱 상단 header slot과 `SsooAppHeader` shell은 유지하되 내부 content를 비워 검색 입력, 사용자 메뉴, 설정 제목/보조문구가 노출되지 않도록 정리했습니다.
+- 설정 sidebar brand 영역은 뒤로가기 버튼과 `설정` 단일 title만 표시하고, 설정 검색은 settings sidebar 검색 슬롯에서만 처리하도록 기준을 맞췄습니다.
+
+### ContentArea typed route registry 적용
+
+- `@ssoo/web-shell`에 `SsooRegisteredMdiContentArea`와 `defineSsooMdiPageRegistry` 기반 typed page route registry를 추가했습니다.
+- `contentPage.render`는 임의 `ReactNode`가 아니라 branded `SsooMdiContentPageElement`를 반환하도록 강화했습니다. DMS 문서/설정/AI page는 `DMS PageTemplate` adapterName과 `createSsooContentPageAdapterElement()`를 통해 승인된 page template adapter boundary를 통과합니다.
+- 5개 앱 ContentArea가 저수준 `SsooMdiTabbedContentArea`를 직접 소비하지 않고 registered registry 진입점을 소비하도록 전환했습니다.
+- DMS ContentArea는 문서/설정/AI 대화/전역 검색/사용자 surface/DMS 홈과 stale handoff를 모두 승인된 adapter boundary를 통과하는 `contentPage`로 분류합니다.
+- 공용 사용자 profile/settings surface는 `createSsooSharedSurfaceContentPageElement()`를 통해 page chrome/content template을 통과하며, 앱 ContentArea는 `shellPage` route kind를 사용하지 않습니다. shared-surface helper는 contentPage 기본 constrained 폭을 유지하고 `contentSurface="plain"`으로 page tone을 노출하며, 유저 표면 내부 root도 별도 `max-w-*`/`mx-auto` 폭을 만들지 않도록 보정했습니다.
+- 전역 검색 페이지는 승격된 공통 `SsooAiSearchPage`를 `SsooGlobalSearchPage` adapter가 소비하는 `contentPage`로 정리했습니다.
+- `verify:ssoo-frame`이 5개 앱의 registered content area 소비, DMS route 분류, 저수준 MDI mapper 직접 소비 회귀를 검증하도록 보강했습니다.
+
+### Content page recipe 표현 계층 보정
+
+- `SsooContentPageTemplate`의 `pageTone`이 Tailwind slash opacity utility가 아니라 `web-shell` 전역 CSS의 `ssoo-content-page-tone-*` class를 타도록 수정했습니다.
+- loading/error/empty 같은 state surface에도 `ssoo-content-page-state-tone-*`를 적용해 문서/설정/AI 페이지의 상태 화면이 흰 카드로 톤을 덮지 않게 했습니다.
+- 내부 페이지 재료인 page header, breadcrumb, page index rail, section shell, settings surface, page panel에서 `bg-ssoo-content-bg/30`, `text-ssoo-primary/70`류 CSS-variable opacity utility를 제거하고 CSS-backed class로 치환했습니다.
+- `verify:ssoo-frame`이 내부 페이지 재료의 page tone/state CSS class와 slash opacity utility 재유입을 검증하도록 보강했습니다.
+
+## 2026-06-17
+
+### Content page recipe web-shell 승격
+
+- `@ssoo/web-shell`에 `SsooContentPageTemplate`을 추가해 breadcrumb/header/main content/left sub-content/right sub-content/sidecar/bottom panel/state surface 조립과 폭, padding, border, overflow 책임을 공용 recipe로 승격했습니다.
+- DMS `PageTemplate`은 DMS breadcrumb/header/icon/action adapter로 축소하고, 문서/AI 페이지는 기존 sidecar 구조를 유지한 채 `contentSurface="transparent"`를 통해 공용 recipe surface variant만 선택합니다.
+- 설정 페이지의 항목 색인은 더 이상 상단 2차 navigation이 아니라 `leftSubContentSlot`에 주입되는 필수 sub-content rail로 정리했습니다.
+
+### DMS header/sidebar 검색 공용화
+
+- DMS header 검색을 기존 AI 검색 직접 진입이 아니라 5개 앱 공용 `/ssoo/search` 통합 검색 탭으로 연결했습니다.
+- 플랫폼 통합 검색은 DMS 검색 화면 본체를 승격한 `@ssoo/web-shell`의 `SsooAiSearchPage`를 `SsooGlobalSearchPage` adapter가 소비하도록 연결했습니다. 공용 모듈은 입력/source filter chip/결과 내 재검색/blocked source summary/default card/renderer slot을 소유하고, DMS 문서 결과는 기존 DMS `SearchResultCard`를 renderer로 주입합니다.
+- DMS workspace sidebar의 책갈피, 열린 탭, 파일 트리, publish 복구 목록은 `SsooSidebarSearchableTree`를 소비해 공용 “목록 내 검색..” 입력으로 같은 방식으로 필터링됩니다.
+- 설정 sidebar의 검색 입력도 공용 placeholder/clear/rail 표면을 사용하되, 결과는 기존 `searchSettingEntries()` 기반 section/field 검색으로 유지합니다. 검색 결과 section과 설정 메뉴 tree section의 row/status/empty 표현은 `@ssoo/web-shell`의 `createSsooSettingsSidebarSections`가 렌더링하고, DMS는 registry/access/action만 주입합니다.
+
+### DMS 문서 페이지 골든 이그잼플 / page recipe 승격 기준 정리
+
+- SSOO content-area 내부 페이지 조립 표준을 공통 문서로 추가하고, DMS 문서 페이지를 첫 골든 이그잼플로 고정했습니다.
+- DMS `PageTemplate`은 도메인 최종 페이지가 아니라 `@ssoo/web-shell` page recipe 승격 전 기준 구현으로 정의했습니다.
+- DMS에 남는 책임은 문서 데이터/API/권한/action, breadcrumb path/icon adapter, header action adapter, document body/sidecar/custom slot이며, content surface, sidecar lane/toggle, page state surface는 web-shell recipe 책임으로 분리했습니다.
+- DMS `golden-example`, `frontend-standards`, `layout-system` 문서를 새 경계에 맞춰 정리했습니다.
+
+### DMS header 알림센터 공용 surface 정렬
+
+- DMS header 알림 패널을 DMS source 전용 도메인 어댑터에서 5개 앱 공통 `useCommonNotificationCenter` + `SsooHeaderNotificationCenter` flow로 정렬했습니다.
+- Header 패널은 source filter 없이 사용자의 전체 수신 알림을 보여주고, DMS 전용 문서 접근/soft-lock 갱신은 visible panel action이 아니라 SSE 콜백 부작용으로만 유지합니다.
+- 공용 header 패널 상단의 `전체`/앱별 filter chip과 unread badge를 소비하도록 연결했습니다. DMS는 현재 앱 chip 우선순위만 힌트로 제공하고, chip 표면과 선택 상태는 `web-auth`/`web-shell`이 소유합니다.
+
+## 2026-06-16
+
+### DMS page-frame 하위 UI 조각 공용화
+
+- DMS `PageTemplate`은 문서/설정/AI page 조립 템플릿으로 유지하고, 반복되는 하위 UI 조각만 `@ssoo/web-shell`로 승격했습니다.
+- `SsooPageBreadcrumb`, `SsooPageHeader`, `SsooSectionedShell`, `SsooPanelFrame`, `SsooCollapsibleSection`, `SsooKeyValueSection`, `SsooTextSection`, `SsooChipListSection`, `SsooActivityListSection`를 추가했습니다.
+- DMS 기존 `templates/page-frame` export는 호환 래퍼로 유지해 기존 호출부는 그대로 두면서, file path parsing과 DMS 아이콘/로딩 슬롯 주입만 DMS가 소유하도록 정리했습니다.
+- 설정 페이지, 문서 페이지, Admin 운영성 page에서 공유할 대상은 전체 page template이 아니라 breadcrumb/header/section/panel 같은 하위 UI 조각이라는 공용화 경계를 문서와 `verify:ssoo-frame`에 고정했습니다.
+- `SsooPageChromeStack`을 추가해 문서/설정 page의 breadcrumb/header 상단 리듬, 높이, padding, border를 같은 공용 계약으로 맞췄습니다. `SSOO_PAGE_CHROME_METRICS`/`SSOO_PAGE_CHROME_CLASSES`가 플랫폼 전역 기준이며, breadcrumb row는 24px, page header는 54px 기준으로 고정합니다.
+
+### DMS storage open 다운로드 경로 안정화
+
+- `GET /api/storage/open` 이 `raw`/`serve-attachment` 와 같은 `@ssoo/web-auth` session-backed binary proxy helper를 사용하도록 정렬했습니다.
+- 배포 환경에서 브라우저 direct download가 Authorization 헤더 없이 진입해 서버 JSON/401 응답이 엑셀 파일처럼 저장되는 흐름을 차단했습니다.
+- `download=1` 요청은 provider별 external `webUrl` 이 있어도 redirect 하지 않고 server가 직접 binary body와 `Content-Disposition` 을 반환합니다.
+- `Content-Disposition` 은 ASCII fallback `filename` 과 UTF-8 `filename*` 를 함께 내려 한글 파일명 다운로드 호환성을 보강했습니다.
+
+### DMS settings mode 상태 전이 안정화
+
+- settings mode가 `activeTabId`와 분리된 별도 flag처럼 남아, 문서 생성/파일 열기/AI 검색 같은 workspace 기능을 실행한 뒤 다시 설정 화면으로 전환될 수 있는 상태 drift를 차단했습니다.
+- `useSettingsPageNavigationStore`는 `useTabStore`의 active tab path를 구독합니다. active tab이 `/settings/{scope}/{sectionId}`이면 settings mode를 켜고 해당 scope/section을 동기화하며, active tab이 문서/홈/AI 등 non-settings path이면 즉시 settings mode를 해제합니다.
+- AppLayout 렌더 이후 effect에만 의존하지 않고 tab store 변경 시점에 mode를 맞춰, workspace action 한 턴이 settings mode에 의해 무시되는 흐름을 줄였습니다.
+
+### DMS settings/document pane 혼합 렌더 차단
+
+- settings tab과 document tab이 keep-alive로 동시에 mount된 상태에서 비활성 document pane이 `flex` display class 때문에 계속 보이며 settings 본문과 document sidecar가 겹치던 문제를 공용 `SsooMdiContentPane`에서 수정했습니다.
+- `SsooMdiContentPane`는 비활성 상태를 Tailwind `hidden` class에만 맡기지 않고 inline `display: none` guard로 보장합니다. 이후 frame 공용화에서 DMS의 pane layout class 주입도 제거해 content pane 형식은 `web-shell` 기본값을 그대로 따릅니다.
+- `verify:ssoo-frame`에 공용 MDI pane 숨김 계약 검증을 추가해 같은 회귀가 다시 들어오지 않도록 했습니다.
+
+### DMS 앱 본체 클라이언트 예외 복구
+
+- DMS 로그인 후 앱 본체 hydrate 단계에서 React 최대 업데이트 깊이 오류가 발생해 화면이 `Application error` 로 교체되던 문제를 수정했습니다.
+- `AppLayout`의 `useTabStore` selector가 매 렌더마다 새 object snapshot을 반환하지 않도록 `activeTabId`와 `activeTabPath`를 원시값 selector로 분리해 Zustand/React 구독 루프를 차단했습니다.
+- Docker 재빌드 후 Playwright 로그인 재현에서 `PAGEERROR` 없이 DMS 홈 화면이 렌더링되는 것을 확인했습니다.
+
+## 2026-06-12
+
+### DMS 파일 업로드/바이너리 응답 보안 보강
+
+- `extract-text`, `upload-attachment`, `upload-reference`, `upload-image` multipart endpoint에 Multer `fileSize` limit을 적용해 파일이 메모리 버퍼에 올라오기 전 업로드 상한을 먼저 적용합니다.
+- 이미지 업로드는 SVG를 제외한 PNG/JPEG/GIF/WebP만 허용하고, MIME 선언과 확장자 및 magic byte signature가 일치하는지 확인합니다.
+- `.html`, `.htm`, `.svg` 는 첨부파일로 저장할 수 있지만 `serve-attachment` 와 local `storage/open` binary fallback 에서 항상 `Content-Disposition: attachment` 로 내려 active content inline 실행 표면을 막습니다.
+- `raw`, `serve-attachment`, `storage/open` binary 응답에 `X-Content-Type-Options: nosniff` 를 추가했습니다.
+
+### DMS Markdown/링크 렌더링 보안 보강
+
+- Markdown preview/print 경로가 `DOMPurify` sanitizer를 거친 HTML만 사용하도록 보강하고, `script`/`iframe`/`object`/`form` 등 실행·삽입성 태그를 제거합니다.
+- Markdown 링크와 이미지 src는 http/https/mailto/blob 및 앱 내부 상대 경로만 허용하고, `javascript:`/`data:` 같은 브라우저 실행·inline payload 프로토콜은 제거합니다.
+- Mermaid rendering은 `securityLevel: 'strict'` 로 전환해 diagram payload가 DOM/script 실행 표면으로 확장되지 않도록 조정했습니다.
+
+### DMS 설정/제어/운영 settings mode 표준 재정렬
+
+- 설정 진입을 workspace `/settings` 일반 탭이 아니라 `useSettingsPageNavigationStore.isActive` 기반 settings mode 전환으로 되돌렸습니다.
+- DMS app frame은 같은 `SsooAppFrame`을 유지하고, settings mode에서도 `Sidebar` + `Header` + `TabBar` + `ContentArea` 4개 slot을 그대로 사용합니다.
+- settings sidebar는 별도 shell sidebar가 아니라 기존 `Sidebar` adapter의 settings variant이며, `SsooSidebarSurface`에 `SETTING_SECTIONS` group/section 메뉴 트리와 `searchSettingEntries()` 검색 결과를 주입합니다.
+- settings sidebar도 문서 sidebar와 같은 refresh action, section 접기/펼치기, group tree 접기/펼치기 동작을 유지하도록 보정했습니다.
+- 설정 메뉴 클릭은 `openSection()`과 `/settings/{scope}/{sectionId}` 탭 열기를 함께 수행하고, 기존 `TabBar`는 settings mode에서 settings tab path만 표시합니다.
+- settings mode가 켜졌는데 `activeTabId`가 문서 탭으로 남아 문서 `DocumentPanel`이 설정 화면에 표시되는 혼합 상태를 차단했습니다. `AppLayout`은 settings mode와 active settings tab을 첫 페인트 전에 동기화하고, `ContentArea`는 settings mode에서 문서 pane을 active로 렌더링하지 않습니다.
+- `ContentArea`는 settings tab path를 `SettingsPage`로 라우팅하고, stale `/settings` 탭은 `LegacySettingsRedirect`가 settings tab으로 handoff합니다.
+- `SettingsPage`는 `PageTemplate` breadcrumb/header를 유지하고, 현재 section 내부 색인은 `leftSubContentSlot` rail로 렌더링합니다. `SsooSettingsSurface`는 본문 surface 역할만 맡습니다.
+- `verify:ssoo-frame` 는 DMS 설정 화면이 별도 settings shell/tabbar로 퇴행하지 않고 메인 frame 4슬롯 + settings tab path 구조를 유지하는지 검증하도록 갱신했습니다.
+
+### DMS main sidebar 공용 양식 수렴
+
+- DMS main sidebar 검색 clear 버튼은 `SsooSidebarSurface`의 공용 clear affordance 로 전환해 앱 코드가 버튼 위치/크기/hover class 를 직접 소유하지 않도록 정리했습니다.
+- 책갈피, 현재 열린 페이지, 전체 파일, publish 복구 row 의 후행 action 버튼과 icon/status badge 는 `SsooSidebarTreeActionButton`, `SsooSidebarTreeNodeIcon`, `SsooSidebarTreeStatusBadge` 를 소비하도록 전환했습니다.
+- 파일 트리의 loading/error/empty 상태와 publish 복구 안내문은 `SsooSidebarState`, `SsooSidebarEmptyState`, `SsooSidebarSectionNote` 로 통일해 section content state 양식을 web-shell 이 소유합니다.
+
+### 포커스 복귀 재검증 중 DMS cache 안정화
+
+- 공용 auth 재검증이 focus/visibility 복귀 시 background mode 로 동작하도록 전역 보정되면서 DMS main layout 이 인증 재확인만으로 full-screen loading 을 다시 표시하지 않습니다.
+- DMS TanStack Query cache 는 access token 회전이 아니라 로그인 사용자 scope 변경에만 clear 되도록 좁혀, 같은 사용자의 session restore/token rotation 이 파일 목록과 화면 query cache 를 불필요하게 비우지 않도록 정리했습니다.
+- `validate-user-scope-contract` 는 DMS query cache reset 기준을 token boundary 가 아니라 user scope boundary 로 검증합니다.
+
+### DMS 홈 진입 파일 목록 부트스트랩 보강
+
+- DMS 메인 레이아웃이 인증/권한 확인 후 파일 트리 강제 동기화가 끝나기 전에는 홈 화면을 렌더하지 않도록 조정해, 진입 직후 빈 파일 목록 화면이 먼저 열리는 흐름을 차단했습니다.
+- `/api/files?force=1` → `/dms/files?force=1` 계약을 추가해 초기 진입과 수동 새로고침은 서버 control-plane sync cache 를 우회하고 현재 Git working tree/DB projection 기준으로 파일 목록을 확정합니다.
+- 강제 동기화 결과가 일시적으로 빈 배열이면 짧게 재시도한 뒤에도 비어 있을 때만 명시적인 재시도 화면을 표시하도록 해, 사용자가 단순 빈 상태를 정상 목록처럼 보지 않게 했습니다.
+- 목록에는 남아 있지만 실제 파일 read 가 404 로 실패하는 경우 서버가 control-plane 강제 동기화를 한 번 더 수행하고 재시도하며, 클라이언트도 파일 트리를 즉시 강제 새로고침하도록 보강했습니다.
 
 ## 2026-06-11
 
@@ -688,7 +860,7 @@
 
 ### DMS logout surface commonization
 
-- DMS `UserMenu`를 settings 기반 placeholder에서 shared auth 기반 사용자 메뉴로 전환해 헤더와 settings shell 양쪽에서 실제 로그아웃이 동작하도록 정리
+- DMS `UserMenu`를 settings 기반 placeholder에서 shared auth 기반 사용자 메뉴로 전환해 헤더와 과거 설정 전용 frame 양쪽에서 실제 로그아웃이 동작하도록 정리
 - PMS와 겹치는 메뉴 shell은 `packages/web-auth/src/user-menu.tsx` 로 끌어올리고, DMS-specific 설정 진입 액션만 주입형으로 유지
 
 ### PMS/SNS/DMS 공용 auth runtime 정렬
@@ -800,34 +972,34 @@
 
 ## 2026-04-02
 
-### Settings shell + 설정 구조 분리
+### 과거 설정 전용 frame + 설정 구조 분리
 
-- 설정 진입을 `/settings` 탭 생성 방식에서 `AppLayout` 전역 settings shell 전환 방식으로 재구성
-- settings shell은 로고 영역 대신 `뒤로가기 + 설정 제목`, 전용 settings sidebar, `SettingsPage` 본문 조합으로 렌더링
+- 설정 진입을 `/settings` 탭 생성 방식에서 `AppLayout` 전역 설정 전용 frame 전환 방식으로 재구성
+- 설정 전용 frame은 로고 영역 대신 `뒤로가기 + 설정 제목`, 전용 설정 sidebar, `SettingsPage` 본문 조합으로 렌더링
 - 설정 모델을 `system` / `personal` 로 분리하고, API/store/service 계약도 같은 구조로 정렬
 - 개인화 설정 전용 `PersonalSettingsService` 와 `dms.personal.config.default.json` 을 추가해 anonymous-first 기준의 작성자/워크스페이스 선호값을 저장
 - 기존 settings UI를 공용 `JsonRenderer`, `JsonEditor`, `JsonDiffView` 기반 structured / JSON / diff 모드로 재구성
 - sidecar metadata diff 와 settings JSON draft 가 `stringifyJson`, `getNestedValue`, `setNestedValue`, `deepMergeRecords` 공용 유틸을 재사용하도록 정리
 
-### Settings shell 헤더 1차 정리
+### 과거 설정 전용 frame 헤더 1차 정리
 
-- settings sidebar 상단을 workspace 브랜드 슬롯 패턴에 맞춰 재구성하고, 기존 `S` 아이콘 위치에 뒤로가기 버튼을 배치
+- 설정 sidebar 상단을 workspace 브랜드 슬롯 패턴에 맞춰 재구성하고, 기존 `S` 아이콘 위치에 뒤로가기 버튼을 배치
 - 브랜드 텍스트를 `SSOT` 계열 표기 대신 `설정` 으로 통일
-- settings shell 상단 헤더는 문서/AI 검색 대신 registry 기반 전역 설정 검색으로 전환하고, 결과는 해당 설정 섹션으로 바로 이동하도록 정리
+- 설정 전용 frame 상단 헤더는 문서/AI 검색 대신 registry 기반 전역 설정 검색으로 전환하고, 결과는 해당 설정 섹션으로 바로 이동하도록 정리
 - 헤더 우측의 scope badge(`시스템`/`개인화`)는 제거하고 `UserMenu` 중심으로 단순화
 
-### Settings shell 2차 단순화
+### 과거 설정 전용 frame 2차 단순화
 
-- settings sidebar 브랜드 블록의 `anonymous-first · anonymous-first` 보조 문구를 제거하고 `뒤로가기 + 설정` 만 남기도록 정리
-- settings 검색 입력을 상단 header에서 제거하고, workspace sidebar와 동일한 검색 슬롯 위치로 이동
-- settings 검색 상태는 파일 검색 store와 분리한 settings shell 전용 로컬 상태로 유지해 기존 파일 검색과 섞이지 않도록 보정
+- 설정 sidebar 브랜드 블록의 `anonymous-first · anonymous-first` 보조 문구를 제거하고 `뒤로가기 + 설정` 만 남기도록 정리
+- 설정 검색 입력을 상단 header에서 제거하고, workspace sidebar와 동일한 검색 슬롯 위치로 이동
+- 설정 검색 상태는 파일 검색 store와 분리한 설정 전용 frame 로컬 상태로 유지해 기존 파일 검색과 섞이지 않도록 보정
 - `UserMenu` 의 `시스템 설정`, `개인화 설정`, `마지막 설정 다시 열기`를 하나의 `설정` 진입점으로 축소
 
-### Settings shell 3차 네비게이션 정리
+### 과거 설정 전용 frame 3차 네비게이션 정리
 
-- settings shell sidebar를 section tree가 아니라 `시스템 설정`, `개인 설정` 두 개의 scope selector 전용으로 축소
+- 설정 전용 frame sidebar를 section tree가 아니라 `시스템 설정`, `개인 설정` 두 개의 scope selector 전용으로 축소
 - `SettingsPage` 내부에 좌측 `SettingsNavigation` + 우측 detail surface 2열 구조를 도입해 `Git`, `Storage`, `Ingest`, `Identity`, `Workspace` 같은 세부 설정 메뉴를 page 내부로 이동
-- settings 검색 입력은 workspace 파일 검색과 동일한 `sidebar/SearchInput.tsx` visual primitive를 공유하도록 추출
+- 설정 검색 입력은 workspace 파일 검색과 동일한 `sidebar/SearchInput.tsx` visual primitive를 공유하도록 추출
 - 설정 검색 결과는 outer sidebar에서 바로 scope/section을 열고, 활성 section의 실제 본문 렌더링은 inner navigation + detail pane 조합이 담당하도록 책임을 분리
 
 ### Settings navigation list rhythm 정렬
@@ -838,7 +1010,7 @@
 
 ### Settings typography token 정렬
 
-- settings shell / page / JSON surface 경로를 다시 점검해 공용 typography token 적용 여부를 확인
+- 설정 전용 frame / page / JSON surface 경로를 다시 점검해 공용 typography token 적용 여부를 확인
 - 일반 settings UI는 기존 `text-body-sm`, `text-label-*`, `text-caption`, `text-badge` 토큰 구성을 유지하고, raw JSON editor는 `font-mono + text-code-block` 기준으로 정리
 - 디자인 시스템 문서도 실제 DMS semantic typography token 목록 기준으로 갱신
 
@@ -1555,12 +1727,12 @@ src/app/
 | Store | 경로 | 설명 |
 |-------|------|------|
 | `tab-store` | `stores/tab-store.ts` | 탭 상태 관리 (persist) |
-| `layout-store` | `stores/layout-store.ts` | 레이아웃 상태 (문서 타입, AI 검색 타입) |
+| `layout-store` | `stores/layout-store.ts` | 레이아웃 상태 (현재 구현은 디바이스 타입만 유지) |
 
 **생성된 Type:**
 | Type | 경로 | 내용 |
 |------|------|------|
-| `layout.ts` | `types/layout.ts` | TabItem, DocumentType, AISearchType 등 |
+| `layout.ts` | `types/layout.ts` | TabItem, DocumentType 등 |
 
 #### ✅ Step 6: 페이지 연결
 

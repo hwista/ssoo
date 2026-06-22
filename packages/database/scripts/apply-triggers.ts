@@ -89,6 +89,11 @@ async function main() {
          '55_dm_document_comment_h_trigger.sql',
          '56_dm_template_h_trigger.sql',
          '57_cm_notification_h_trigger.sql',
+         '58_cm_auth_provider_setting_h_trigger.sql',
+         '59_cm_user_external_identity_h_trigger.sql',
+         '60_cm_user_registration_request_h_trigger.sql',
+         '61_cm_user_password_reset_challenge_h_trigger.sql',
+         '62_cm_auth_email_outbox_h_trigger.sql',
          // SNS
         '50_sns_board_h_trigger.sql',
      '51_sns_post_h_trigger.sql',

@@ -26,9 +26,9 @@ applyTo: "apps/web/sns/**"
 | **API 클라이언트** | Axios + 인터셉터 | ✅ 동일 |
 | **인증 토큰** | `ssoo-auth` localStorage 키 | ✅ 동일 (공유) |
 | **색상 테마** | 네이비 (hue 213°) | 틸 (hue 180°) — `globals.css` |
-| **포트** | 3000 | 3002 |
-| **라우팅** | MDI 탭 (ContentArea) | 페이지 라우팅 (App Router) |
-| **TabBar** | ✅ 있음 (53px) | ❌ 없음 |
+| **포트** | 3002 | 3004 |
+| **라우팅** | MDI 탭 (ContentArea) | ✅ 동일 — route 진입은 MDI 탭 open 입력 |
+| **TabBar** | ✅ 있음 (53px MDI) | ✅ 동일 — `SsooMdiTabBar` full MDI |
 | **패키지 매니저** | pnpm (모노레포) | ✅ 동일 |
 
 ---
@@ -50,9 +50,7 @@ src/
 │   └── pages/             # 비즈니스 페이지 컴포넌트
 │       ├── feed/          # 피드/타임라인
 │       ├── board/         # 게시판
-│       ├── profile/       # 프로필·스킬맵
-│       ├── search/        # 전문가 검색
-│       └── settings/      # 개인 설정
+│       └── search/        # 전문가 검색
 ├── hooks/
 │   ├── queries/           # TanStack Query 훅
 │   └── useAuth.ts
@@ -90,15 +88,16 @@ hooks → lib/api → stores
 | Header | 60px | 상단 고정 (PMS와 동일) |
 | Sidebar (펼침) | 340px | 확장 상태 (PMS와 동일) |
 | Sidebar (접힘) | 56px | 컴팩트 상태 (PMS와 동일) |
-| TabBar | ❌ 없음 | SNS는 페이지 라우팅 사용 |
+| TabBar | 53px MDI tabbar | SNS도 `SsooMdiTabBar` full MDI 탭바 사용 |
 | Control 높이 | 36px (`h-control-h`) | PMS와 동일 |
 
-### PMS와의 레이아웃 차이
+### PMS와의 레이아웃 계약
 
-SNS는 MDI 탭 시스템 대신 **페이지 라우팅**을 사용합니다:
-- 피드 → 프로필 → 게시판 → 검색은 컨텍스트가 독립적
-- Header 바로 아래에 콘텐츠 영역 시작 (TabBar 53px 만큼 콘텐츠 공간 확보)
-- Next.js App Router 기본 라우팅 활용
+SNS도 PMS와 같은 full MDI shell을 사용합니다:
+- 피드 → 프로필 → 게시판 → 검색 진입은 `getSnsShellTabOptions()`를 통해 MDI 탭을 엽니다.
+- Header 아래 tabbar slot은 `@ssoo/web-shell`의 `SsooMdiTabBar`를 소비합니다.
+- App Router 경로는 탭 open/active state를 동기화하는 입력이며, 별도 route strip이나 route-mode shell 형태를 만들지 않습니다.
+- Header 알림 slot은 source app별 고정 필터를 걸지 않고 공용 `useCommonNotificationCenter` + `SsooHeaderNotificationCenter`를 사용해 사용자의 전체 수신 알림을 표시합니다. 상단 `전체`/앱별 filter chip과 unread badge는 공용 표면이며, SNS는 현재 앱 chip 우선순위와 SNS 대상 열기 action만 주입합니다.
 
 ---
 
@@ -205,9 +204,11 @@ const useFeedStore = create<FeedStoreState & FeedStoreActions>()(
 | 홈/피드 | `/` | 피드 타임라인 |
 | 게시판 | `/board` | 게시판 목록 |
 | 게시판 상세 | `/board/:id` | 게시판 게시물 목록 |
-| 프로필 | `/profile/:userId` | 프로필·스킬맵 |
 | 전문가 검색 | `/search` | 스킬 기반 검색 |
-| 설정 | `/settings` | 개인 설정 |
+| 프로필 | `/__user/profile/me`, `/__user/profile/:userId` | `@ssoo/web-auth` 공용 사용자 표면. SNS는 profile/feed/follow API 소유자일 뿐 물리 `ProfilePage`를 렌더링하지 않는다. |
+| 설정 | `/__user/settings` | `@ssoo/web-auth` 공용 사용자 설정 표면. SNS 물리 `SettingsPage`를 두지 않는다. |
+
+`/profile/*`와 `/settings`는 기존 링크 호환을 위해 App Router path로만 남길 수 있다. 이 경로는 `ContentArea`의 `legacy-user-surface-handoff`가 canonical `__user` route로 넘기는 입력이며, local profile/settings page 컴포넌트를 렌더링하면 공용 표면 계약 위반이다. SNS 내부 피드, 작성자, 빠른 이동 링크도 `@ssoo/web-auth`의 `SSOO_USER_SURFACE_*` 상수와 `getSsooUserSurfaceTabPath()`를 사용한다.
 
 ---
 

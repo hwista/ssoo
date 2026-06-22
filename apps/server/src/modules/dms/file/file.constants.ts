@@ -27,12 +27,13 @@ export const ATTACHMENT_TYPES: AttachmentTypeInfo[] = [
   { ext: '.jpeg', mime: 'image/jpeg', category: 'image' },
   { ext: '.gif', mime: 'image/gif', category: 'image' },
   { ext: '.webp', mime: 'image/webp', category: 'image' },
-  { ext: '.svg', mime: 'image/svg+xml', category: 'image' },
+  { ext: '.svg', mime: 'image/svg+xml', category: 'web' },
   { ext: '.html', mime: 'text/html', category: 'web' },
   { ext: '.htm', mime: 'text/html', category: 'web' },
 ];
 
 export const ATTACHMENT_ALLOWED_EXTENSIONS = new Set(ATTACHMENT_TYPES.map((item) => item.ext));
+export const ACTIVE_CONTENT_ATTACHMENT_EXTENSIONS = new Set(['.html', '.htm', '.svg']);
 export const ATTACHMENT_STORAGE_DIR = '_assets/attachments';
 export const IMAGE_STORAGE_DIR = '_assets/images';
 export const REFERENCE_STORAGE_DIR = '_assets/references';
@@ -41,7 +42,6 @@ export const IMAGE_ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/gif',
   'image/webp',
-  'image/svg+xml',
 ]);
 
 export const MAX_EXTRACTED_TEXT_LENGTH = 12_000;
@@ -61,4 +61,30 @@ export function getMimeType(fileName: string): string {
   const ext = lastDotIndex >= 0 ? fileName.slice(lastDotIndex).toLowerCase() : '';
   const info = ATTACHMENT_TYPES.find((item) => item.ext === ext);
   return info?.mime ?? 'application/octet-stream';
+}
+
+export function getFileExtension(fileName: string): string {
+  const lastDotIndex = fileName.lastIndexOf('.');
+  return lastDotIndex >= 0 ? fileName.slice(lastDotIndex).toLowerCase() : '';
+}
+
+export function isActiveContentAttachment(fileName: string): boolean {
+  return ACTIVE_CONTENT_ATTACHMENT_EXTENSIONS.has(getFileExtension(fileName));
+}
+
+export function resolveAttachmentDisposition(fileName: string, download?: string): 'attachment' | 'inline' {
+  return download === '1' || isActiveContentAttachment(fileName) ? 'attachment' : 'inline';
+}
+
+export function formatContentDisposition(disposition: 'attachment' | 'inline', fileName: string): string {
+  const fallbackName = fileName
+    .normalize('NFKD')
+    .replace(/[^\x20-\x7E]/g, '_')
+    .replace(/["\\/;]/g, '_')
+    .trim() || 'download.bin';
+  const encodedFileName = encodeURIComponent(fileName).replace(
+    /['()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `${disposition}; filename="${fallbackName}"; filename*=UTF-8''${encodedFileName}`;
 }

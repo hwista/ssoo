@@ -1,6 +1,6 @@
 # DMS 아키텍처 문서
 
-> 최종 업데이트: 2026-04-07
+> 최종 업데이트: 2026-06-17
 
 DMS(Document Management System) 아키텍처 및 개발 기준 문서입니다.
 
@@ -19,6 +19,7 @@ DMS(Document Management System) 아키텍처 및 개발 기준 문서입니다.
 | 문서 | 설명 |
 |------|------|
 | [frontend-standards.md](frontend-standards.md) | 프론트엔드 표준 - 컴포넌트 계층, 네이밍 규칙 |
+| [content-page-assembly-standard.md](../../../common/explanation/architecture/content-page-assembly-standard.md) | SSOO content-area 내부 페이지 조립 표준과 DMS 문서 페이지 골든 이그잼플 기준 |
 | [development-standards.md](../../../../docs/common/architecture/development-standards.md) | 개발 표준 (공용) |
 
 ## 상태 관리 & 라우팅

@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { StoreApi, UseBoundStore } from 'zustand';
 import { AuthLoadingScreen, AuthPageShell, AuthStandardLoginCard } from './ui';
 import type { AuthIdentityProviderAction, AuthLoginActionLink } from './ui';
 import { useLoginPageBootstrap } from './login-bootstrap';
-import type { AuthIdentity } from '@ssoo/types/common';
+import type { AuthIdentity, AuthPublicLoginConfig } from '@ssoo/types/common';
 import type { AuthStore } from './store';
 
 export interface SharedAuthLoginPageProps<TUser extends AuthIdentity = AuthIdentity> {
@@ -18,6 +18,7 @@ export interface SharedAuthLoginPageProps<TUser extends AuthIdentity = AuthIdent
   loadingMessage?: string;
   returnTo?: string | null;
   passwordResetHref?: string;
+  passwordLoginEnabled?: boolean;
   registrationLink?: AuthLoginActionLink;
   identityProviders?: AuthIdentityProviderAction[];
 }
@@ -87,6 +88,38 @@ function resolveDefaultIdentityProviders(): AuthIdentityProviderAction[] {
   ].filter((provider): provider is AuthIdentityProviderAction => provider !== null);
 }
 
+function resolvePublicConfigUrl(): string | null {
+  const apiBaseUrl = readPublicHref(process.env.NEXT_PUBLIC_API_URL);
+  if (!apiBaseUrl) {
+    return null;
+  }
+
+  return `${apiBaseUrl.replace(/\/+$/, '')}/auth/public-config`;
+}
+
+async function fetchPublicLoginConfig(): Promise<AuthPublicLoginConfig | null> {
+  const configUrl = resolvePublicConfigUrl();
+  if (!configUrl) {
+    return null;
+  }
+
+  const response = await fetch(configUrl, {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json().catch(() => null) as {
+    success?: boolean;
+    data?: AuthPublicLoginConfig;
+  } | null;
+
+  return payload?.success && payload.data ? payload.data : null;
+}
+
 export function SharedAuthLoginPage<TUser extends AuthIdentity = AuthIdentity>({
   homePath,
   authStore,
@@ -95,9 +128,11 @@ export function SharedAuthLoginPage<TUser extends AuthIdentity = AuthIdentity>({
   loadingMessage,
   returnTo,
   passwordResetHref,
+  passwordLoginEnabled,
   registrationLink,
   identityProviders,
 }: SharedAuthLoginPageProps<TUser>) {
+  const [publicConfig, setPublicConfig] = useState<AuthPublicLoginConfig | null>(null);
   const login = authStore((state) => state.login);
   const checkAuth = authStore((state) => state.checkAuth);
   const isLoading = authStore((state) => state.isLoading);
@@ -113,9 +148,31 @@ export function SharedAuthLoginPage<TUser extends AuthIdentity = AuthIdentity>({
     [effectiveReturnTo, homePath],
   );
   const resolvedPasswordResetHref = passwordResetHref
+    ?? publicConfig?.passwordResetHref
     ?? readPublicHref(process.env.NEXT_PUBLIC_AUTH_PASSWORD_RESET_URL);
-  const resolvedRegistrationLink = registrationLink ?? resolveDefaultRegistrationLink();
-  const resolvedIdentityProviders = identityProviders ?? resolveDefaultIdentityProviders();
+  const resolvedPasswordLoginEnabled = passwordLoginEnabled ?? publicConfig?.passwordLoginEnabled ?? true;
+  const resolvedRegistrationLink = registrationLink ?? publicConfig?.registrationLink ?? resolveDefaultRegistrationLink();
+  const resolvedIdentityProviders = identityProviders ?? publicConfig?.identityProviders ?? resolveDefaultIdentityProviders();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchPublicLoginConfig()
+      .then((config) => {
+        if (isMounted && config) {
+          setPublicConfig(config);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setPublicConfig(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const { showLoading, shouldRenderLogin } = useLoginPageBootstrap({
     hasHydrated,
@@ -137,6 +194,7 @@ export function SharedAuthLoginPage<TUser extends AuthIdentity = AuthIdentity>({
     <AuthPageShell>
       <AuthStandardLoginCard
         isLoading={isLoading}
+        passwordLoginEnabled={resolvedPasswordLoginEnabled}
         passwordResetHref={resolvedPasswordResetHref}
         registrationLink={resolvedRegistrationLink}
         identityProviders={resolvedIdentityProviders}

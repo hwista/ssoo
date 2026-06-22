@@ -9,6 +9,8 @@ const appEndpoints = [
 const loginApp = process.env.AUTH_LIFECYCLE_LOGIN_APP || 'pms';
 const loginId = process.env.AUTH_LIFECYCLE_LOGIN_ID || 'admin';
 const password = process.env.AUTH_LIFECYCLE_PASSWORD || 'admin123!';
+const csrfHeaderName = 'X-SSOO-CSRF';
+const csrfHeaderValue = '1';
 
 function appUrl(app, action) {
   const entry = appEndpoints.find(([name]) => name === app);
@@ -32,10 +34,15 @@ function toCookieHeader(setCookies) {
 }
 
 async function postJson(url, body, headers = {}) {
+  const origin = new URL(url).origin;
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      [csrfHeaderName]: csrfHeaderValue,
+      Origin: origin,
+      Referer: `${origin}/login`,
+      'Sec-Fetch-Site': 'same-origin',
       ...headers,
     },
     body: JSON.stringify(body ?? {}),

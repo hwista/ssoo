@@ -21,6 +21,7 @@ import {
 import { useInspectAccess, useListExceptions, usePermissionCatalog } from '@/hooks/queries/useAccessOps';
 import { useUserList } from '@/hooks/queries/useUsers';
 import type { InspectAccessParams, ListExceptionsParams } from '@/lib/api/endpoints/accessOps';
+import { NativeSelect } from '@ssoo/web-ui';
 
 type TabId = 'catalog' | 'inspect' | 'exceptions';
 
@@ -474,7 +475,7 @@ function InspectTab() {
             {filteredUsers.length > 0 && (
           <div className="mt-2 max-h-48 overflow-auto rounded-md border">
             {filteredUsers.map((u) => (
-              <button
+              <Button variant="plain" size="plain"
                 key={u.id}
                 type="button"
                 onClick={() => setSelectedUserId(u.id)}
@@ -487,7 +488,7 @@ function InspectTab() {
                 <span className="rounded-full border px-1.5 py-0.5 text-[10px] text-muted-foreground">
                   {u.roleCode}
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -543,7 +544,7 @@ function InspectTab() {
             </div>
             <div className="flex items-end gap-2">
               <label className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
-                <input
+                <Input
                   type="checkbox"
                   checked={draft.includeInactive}
                   onChange={(e) =>
@@ -663,7 +664,7 @@ function ExceptionsTab() {
             onChange={(e) => setLoginIdSearch(e.target.value)}
             className="max-w-xs"
           />
-          <select
+          <NativeSelect
             value={filters.exceptionAxis ?? ''}
             onChange={(e) =>
               setFilters((prev) => ({
@@ -676,9 +677,9 @@ function ExceptionsTab() {
             <option value="">전체 axis</option>
             <option value="action">action</option>
             <option value="object">object</option>
-          </select>
+          </NativeSelect>
           <label className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
-            <input
+            <Input
               type="checkbox"
               checked={filters.includeInactive ?? false}
               onChange={(e) =>
@@ -778,7 +779,7 @@ export function AccessManagementPage() {
         {tabItems.map((item) => {
           const Icon = item.icon;
           return (
-            <button
+            <Button variant="plain" size="plain"
               key={item.id}
               type="button"
               onClick={() => setActiveTab(item.id)}
@@ -790,7 +791,7 @@ export function AccessManagementPage() {
             >
               <Icon className="h-4 w-4" />
               {item.label}
-            </button>
+            </Button>
           );
         })}
       </div>

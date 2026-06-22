@@ -156,8 +156,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 ## 4. 적용 위치
 
 ### 이미 적용된 곳
-- `MainSidebar.tsx` - 사이드바 메인 영역
-- `FloatingPanel.tsx` - 접힌 사이드바의 플로팅 패널
+- `SsooSidebarSurface` - 5개 앱 main sidebar scroll surface
+- `SsooSidebarTree` - menu/file/favorite/open-tab tree rows
 
 ### 권장 적용 위치
 - 드롭다운 메뉴 (긴 목록)

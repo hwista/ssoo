@@ -5,6 +5,8 @@ import { FileText, Search, Clock, Plus } from 'lucide-react';
 import { useOpenTabWithConfirm } from '@/hooks';
 import { useAccessStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import { Button } from '@ssoo/web-ui';
+import { GLOBAL_SEARCH_PATH } from '@/lib/constants/routes';
 
 /**
  * DMS 홈 대시보드 페이지
@@ -22,9 +24,9 @@ export function DashboardPage() {
       return;
     }
     await openTabWithConfirm({
-      id: 'ai-search',
+      id: 'global-search',
       title: 'AI 검색',
-      path: '/ai/search',
+      path: GLOBAL_SEARCH_PATH,
       icon: 'Bot',
       closable: true,
       activate: true,
@@ -60,7 +62,7 @@ export function DashboardPage() {
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <button
+          <Button variant="plain" size="plain"
             onClick={handleNewDocument}
             disabled={!canWriteDocuments}
             className={cn(enabledActionCardClassName, !canWriteDocuments && disabledActionCardClassName)}
@@ -72,9 +74,9 @@ export function DashboardPage() {
             <p className="text-body-sm text-ssoo-primary/70">
               {canWriteDocuments ? '새로운 문서를 작성합니다' : '문서 작성 권한이 필요합니다'}
             </p>
-          </button>
+          </Button>
 
-          <button
+          <Button variant="plain" size="plain"
             onClick={handleAISearch}
             disabled={!canUseSearch}
             className={cn(enabledActionCardClassName, !canUseSearch && disabledActionCardClassName)}
@@ -84,9 +86,9 @@ export function DashboardPage() {
               <h3 className="text-label-md text-ssoo-primary">AI 검색</h3>
             </div>
             <p className="text-body-sm text-ssoo-primary/70">
-              {canUseSearch ? 'AI로 문서를 검색합니다' : 'AI 검색 권한이 필요합니다'}
+              {canUseSearch ? 'AI로 전역 결과를 검색합니다' : 'AI 검색 권한이 필요합니다'}
             </p>
-          </button>
+          </Button>
 
           <div className="p-4 bg-ssoo-content-bg/30 rounded-lg border border-ssoo-content-border hover:border-ssoo-primary cursor-pointer transition-colors group">
             <div className="flex items-center gap-2 mb-2">

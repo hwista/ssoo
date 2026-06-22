@@ -33,6 +33,7 @@ import type {
   UpdateMenuAdminRequest,
 } from '@/lib/api/endpoints/menusAdmin';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 
 type FormMode = 'create' | 'edit';
 
@@ -71,6 +72,8 @@ const MENU_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   menu: { label: '메뉴', color: 'bg-blue-100 text-blue-800' },
   action: { label: '액션', color: 'bg-amber-100 text-amber-800' },
 };
+
+const EMPTY_MENUS: MenuAdminItem[] = [];
 
 /** 트리 구조 플랫 렌더링을 위해 부모-자식 순서로 정렬 */
 function buildOrderedList(menus: MenuAdminItem[]): MenuAdminItem[] {
@@ -130,7 +133,7 @@ export function MenuManagementPage() {
   const updateMutation = useUpdateMenu();
   const deactivateMutation = useDeactivateMenu();
 
-  const menus = menusResponse?.data ?? [];
+  const menus = menusResponse?.data ?? EMPTY_MENUS;
 
   const orderedMenus = useMemo(() => buildOrderedList(menus), [menus]);
 
@@ -272,20 +275,20 @@ export function MenuManagementPage() {
             <p className="text-sm text-muted-foreground">등록된 메뉴가 없습니다.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50 sticky top-0 z-10">
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground min-w-[240px]">메뉴명</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">메뉴코드</th>
-                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">경로</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">유형</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">관리자메뉴</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">표시</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-16">정렬</th>
-                <th className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">작업</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-sm">
+            <TableHeader>
+              <TableRow className="border-b bg-gray-50 sticky top-0 z-10">
+                <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground min-w-[240px]">메뉴명</TableHead>
+                <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground">메뉴코드</TableHead>
+                <TableHead className="text-left px-4 py-2.5 font-medium text-muted-foreground">경로</TableHead>
+                <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">유형</TableHead>
+                <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">관리자메뉴</TableHead>
+                <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-20">표시</TableHead>
+                <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-16">정렬</TableHead>
+                <TableHead className="text-center px-4 py-2.5 font-medium text-muted-foreground w-24">작업</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {visibleMenus.map((item) => {
                 const hasChildren = hasChildrenSet.has(item.id);
                 const isCollapsed = collapsed.has(item.id);
@@ -296,11 +299,11 @@ export function MenuManagementPage() {
                 };
 
                 return (
-                  <tr key={item.id} className="border-b hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-2.5">
+                  <TableRow key={item.id} className="border-b hover:bg-gray-50 transition-colors">
+                    <TableCell className="px-4 py-2.5">
                       <div className="flex items-center" style={{ paddingLeft: indent }}>
                         {hasChildren ? (
-                          <button
+                          <Button variant="plain" size="plain"
                             onClick={() => toggleCollapse(item.id)}
                             className="mr-1 p-0.5 rounded hover:bg-gray-200 transition-colors"
                           >
@@ -309,7 +312,7 @@ export function MenuManagementPage() {
                             ) : (
                               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                             )}
-                          </button>
+                          </Button>
                         ) : (
                           <span className="w-[22px] inline-block" />
                         )}
@@ -317,22 +320,22 @@ export function MenuManagementPage() {
                           {item.menuName}
                         </span>
                       </div>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{item.menuCode}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{item.menuPath ?? '-'}</td>
-                    <td className="px-4 py-2.5 text-center">
+                    </TableCell>
+                    <TableCell className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{item.menuCode}</TableCell>
+                    <TableCell className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{item.menuPath ?? '-'}</TableCell>
+                    <TableCell className="px-4 py-2.5 text-center">
                       <span className={cn('px-2 py-0.5 rounded text-xs font-medium', typeInfo.color)}>
                         {typeInfo.label}
                       </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
+                    </TableCell>
+                    <TableCell className="px-4 py-2.5 text-center">
                       {item.isAdminMenu ? (
                         <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">관리자</span>
                       ) : (
                         <span className="text-muted-foreground text-xs">-</span>
                       )}
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
+                    </TableCell>
+                    <TableCell className="px-4 py-2.5 text-center">
                       <span
                         className={cn(
                           'px-2 py-0.5 rounded text-xs font-medium',
@@ -341,9 +344,9 @@ export function MenuManagementPage() {
                       >
                         {item.isVisible ? '표시' : '숨김'}
                       </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-center">{item.sortOrder}</td>
-                    <td className="px-4 py-2.5 text-center">
+                    </TableCell>
+                    <TableCell className="px-4 py-2.5 text-center">{item.sortOrder}</TableCell>
+                    <TableCell className="px-4 py-2.5 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(item)}>
                           <Pencil className="h-3.5 w-3.5" />
@@ -352,12 +355,12 @@ export function MenuManagementPage() {
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
 

@@ -1,73 +1,20 @@
 'use client';
 
-import * as React from 'react';
 import { ArrowLeft, Edit, Trash2, History, Save, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { SsooPageHeader } from '@ssoo/web-shell';
+import type { SsooPageHeaderAction, SsooPageHeaderProps } from '@ssoo/web-shell';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
 
 /**
  * HeaderAction 액션 버튼 정의
  */
-export interface HeaderAction {
-  /** 버튼 라벨 */
-  label: string;
-  /** 아이콘 */
-  icon?: React.ReactNode;
-  /** 버튼 스타일 */
-  variant?: 'default' | 'secondary' | 'outline' | 'destructive' | 'ghost';
-  /** 클릭 핸들러 */
-  onClick: () => void;
-  /** 비활성화 여부 */
-  disabled?: boolean;
-  /** 로딩 상태 */
-  loading?: boolean;
-}
+export type HeaderAction = SsooPageHeaderAction;
 
 /**
  * Header Props
  * PMS Header 참조 - 문서 특화
  */
-export interface HeaderProps {
-  /** 모드: viewer | editor | create */
-  mode: 'viewer' | 'editor' | 'create';
-  
-  /** 페이지 부가 설명 (헤더 왼쪽에 표시) */
-  description?: string;
-  
-  /** 뷰어 모드 액션 */
-  onEdit?: () => void;
-  onDelete?: () => void;
-  onHistory?: () => void;
-  
-  /** 에디터/생성 모드 액션 */
-  onSave?: () => void;
-  onCancel?: () => void;
-
-  /** diff 모드 뒤로가기 (onCancel 대신 렌더링) */
-  onBack?: () => void;
-  
-  /** 저장 중 상태 */
-  saving?: boolean;
-
-  /** 저장 버튼 비활성화 (미저장 변경 없을 때) */
-  saveDisabled?: boolean;
-  
-  /** 미리보기 모드 (에디터 모드에서 미리보기 토글만 표시) */
-  isPreview?: boolean;
-  
-  /** 추가 액션 버튼 */
-  extraActions?: HeaderAction[];
-  /** 추가 액션 버튼 위치 */
-  extraActionsPosition?: 'left' | 'right';
-  /** viewer 모드 우측 슬롯 (History 버튼 앞에 배치) */
-  viewerRightSlot?: React.ReactNode;
-  /** editor/create 모드 좌측 슬롯 (편집종료/작성취소 버튼 뒤에 배치) */
-  editorPreviewSlot?: React.ReactNode;
-  
-  /** 추가 className */
-  className?: string;
-}
+export type HeaderProps = SsooPageHeaderProps;
 
 /**
  * Header 컴포넌트
@@ -94,160 +41,22 @@ export interface HeaderProps {
  * ```
  */
 export function Header({
-  mode,
-  description,
-  onEdit,
-  onDelete,
-  onHistory,
-  onSave,
-  onCancel,
-  onBack,
-  saving = false,
-  saveDisabled = false,
-  isPreview = false,
-  extraActions,
-  extraActionsPosition = 'left',
-  viewerRightSlot,
-  editorPreviewSlot,
-  className,
+  iconSlots,
+  ...props
 }: HeaderProps) {
-  const renderActionButton = (action: HeaderAction, index: number) => {
-    const variant = action.variant || 'ghost';
-    const isFilledVariant = variant === 'default' || variant === 'secondary' || variant === 'destructive';
-
-    return (
-      <Button
-        key={index}
-        variant={variant}
-        size="default"
-        onClick={action.onClick}
-        disabled={action.disabled || action.loading}
-        className={cn('h-control-h text-[0.8125rem]', isFilledVariant ? 'text-white' : 'text-ssoo-primary')}
-      >
-        {action.loading ? (
-          <LoadingSpinner className="mr-1.5" />
-        ) : action.icon ? (
-          <span className="mr-1.5">{action.icon}</span>
-        ) : null}
-        {action.label}
-      </Button>
-    );
-  };
-
   return (
-    <div
-      className={cn(
-        'flex items-center justify-between px-4 py-2 min-h-[52px]',
-        'bg-white border border-ssoo-content-border rounded-lg text-ssoo-primary',
-        className
-      )}
-    >
-      {/* 좌측: 설명 또는 모드별 액션 버튼 */}
-      <div className="flex items-center gap-2">
-        {description && (
-          <span className="text-[0.8125rem] text-ssoo-primary/70">{description}</span>
-        )}
-        {mode === 'viewer' && (
-          <>
-            {onEdit && (
-              <Button
-                variant="default"
-                size="default"
-                onClick={onEdit}
-                className="h-control-h text-[0.8125rem] text-white"
-              >
-                <Edit className="h-4 w-4 mr-1.5" />
-                편집
-              </Button>
-            )}
-          </>
-        )}
-
-        {(mode === 'editor' || mode === 'create') && (
-          <>
-            {onBack ? (
-              <Button
-                variant="ghost"
-                size="default"
-                onClick={onBack}
-                className="h-control-h text-[0.8125rem] text-ssoo-primary"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1.5" />
-                뒤로가기
-              </Button>
-            ) : onCancel ? (
-              <Button
-                variant="ghost"
-                size="default"
-                onClick={onCancel}
-                disabled={saving}
-                className="h-control-h text-[0.8125rem] text-ssoo-primary"
-              >
-                <X className="h-4 w-4 mr-1.5" />
-                {mode === 'create' ? '작성취소' : '편집종료'}
-              </Button>
-            ) : null}
-            {editorPreviewSlot}
-          </>
-        )}
-
-        {extraActionsPosition === 'left' && extraActions?.map(renderActionButton)}
-      </div>
-
-      {/* 우측 */}
-      <div className="flex items-center gap-3">
-        {mode === 'viewer' && (
-          <>
-            {viewerRightSlot}
-            {onHistory && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onHistory}
-                className="h-control-h w-control-h"
-              >
-                <History className="h-4 w-4" />
-              </Button>
-            )}
-          </>
-        )}
-
-        {/* 에디터/생성 모드 우측: 주입 슬롯 → 저장 → 삭제 (미리보기 시 숨김) */}
-        {(mode === 'editor' || mode === 'create') && !isPreview && (
-          <>
-            {onSave && (
-              <Button
-                variant="default"
-                size="default"
-                onClick={onSave}
-                disabled={saving || saveDisabled}
-                className={cn('h-control-h text-[0.8125rem] text-white', saveDisabled && 'disabled:opacity-60')}
-              >
-                {saving ? (
-                  <LoadingSpinner className="mr-1.5" />
-                ) : (
-                  <Save className="h-4 w-4 mr-1.5" />
-                )}
-                저장
-              </Button>
-            )}
-            {onDelete && (
-              <Button
-                variant="destructive"
-                size="default"
-                onClick={onDelete}
-                disabled={saving}
-                className="h-control-h text-[0.8125rem] text-white"
-              >
-                <Trash2 className="h-4 w-4 mr-1.5" />
-                삭제
-              </Button>
-            )}
-          </>
-        )}
-
-        {extraActionsPosition === 'right' && extraActions?.map(renderActionButton)}
-      </div>
-    </div>
+    <SsooPageHeader
+      {...props}
+      iconSlots={{
+        edit: <Edit className="h-4 w-4" />,
+        delete: <Trash2 className="h-4 w-4" />,
+        history: <History className="h-4 w-4" />,
+        save: <Save className="h-4 w-4" />,
+        cancel: <X className="h-4 w-4" />,
+        back: <ArrowLeft className="h-4 w-4" />,
+        loading: <LoadingSpinner />,
+        ...iconSlots,
+      }}
+    />
   );
 }

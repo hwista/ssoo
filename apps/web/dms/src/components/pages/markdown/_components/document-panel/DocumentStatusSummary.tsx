@@ -263,7 +263,7 @@ function StatusIcon({
   const content = detail || meta.detail;
 
   return (
-    <button
+    <Button variant="plain" size="plain"
       type="button"
       className={cn(
         'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:bg-white',
@@ -273,7 +273,7 @@ function StatusIcon({
       title={content}
     >
       <Icon className={cn('h-3.5 w-3.5', meta.animate && 'animate-spin')} />
-    </button>
+    </Button>
   );
 }
 
