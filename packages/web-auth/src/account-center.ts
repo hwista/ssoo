@@ -1,6 +1,13 @@
-export const DEFAULT_SSOO_ACCOUNT_CENTER_PATH = '/settings';
+import {
+  SSOO_USER_SURFACE_MY_PROFILE_PATH,
+  SSOO_USER_SURFACE_SETTINGS_PATH,
+  getSsooUserSurfaceTabPath,
+  normalizeSsooUserSurfaceRouteEntryPath,
+} from './user-surface-routing';
+
+export const DEFAULT_SSOO_ACCOUNT_CENTER_PATH = SSOO_USER_SURFACE_SETTINGS_PATH;
 export const DEFAULT_SSOO_ACCOUNT_CENTER_URL = 'http://localhost:3004';
-export const DEFAULT_SSOO_MY_PROFILE_PATH = '/profile/me';
+export const DEFAULT_SSOO_MY_PROFILE_PATH = SSOO_USER_SURFACE_MY_PROFILE_PATH;
 
 export type SsooUserSurfaceKey = 'my-profile' | 'user-profile' | 'personal-settings';
 
@@ -36,7 +43,8 @@ function normalizePath(path?: string | null): string {
     return DEFAULT_SSOO_ACCOUNT_CENTER_PATH;
   }
 
-  return trimmedPath.startsWith('/') ? trimmedPath : `/${trimmedPath}`;
+  const normalizedPath = trimmedPath.startsWith('/') ? trimmedPath : `/${trimmedPath}`;
+  return normalizeSsooUserSurfaceRouteEntryPath(normalizedPath) ?? normalizedPath;
 }
 
 function normalizeBaseUrl(appUrl?: string | null, snsAppUrl?: string | null): string {
@@ -60,8 +68,7 @@ function getUserSurfacePath(
   }
 
   if (surface === 'user-profile') {
-    const normalizedUserId = userId?.trim() || 'me';
-    return `/profile/${encodeURIComponent(normalizedUserId)}`;
+    return getSsooUserSurfaceTabPath('user-profile', userId);
   }
 
   return DEFAULT_SSOO_ACCOUNT_CENTER_PATH;

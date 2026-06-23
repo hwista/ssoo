@@ -8,15 +8,10 @@ import {
   SsooContentAreaState,
   SsooRegisteredMdiContentArea,
   createSsooContentPageAdapterElement,
-  createSsooSharedSurfaceContentPageElement,
   defineSsooMdiPageRegistry,
 } from '@ssoo/web-shell';
 import {
-  SsooUserSurfacePage,
-  getSsooUserSurfacePageDescription,
-  getSsooUserSurfaceTabId,
-  getSsooUserSurfaceTabPath,
-  getSsooUserSurfaceTabTitle,
+  createSsooUserSurfaceRouteContentPageElement,
   parseSsooUserSurfaceRoute,
 } from '@ssoo/web-auth';
 import { useTabStore, type AdminTabItem } from '@/stores/tab.store';
@@ -47,28 +42,8 @@ function stripQuery(path: string): string {
   return path.split('?')[0] || '/';
 }
 
-function renderAdminPage(tab: AdminTabItem, openTab: ReturnType<typeof useTabStore.getState>['openTab']) {
+function renderAdminPage(tab: AdminTabItem) {
   const pathname = stripQuery(tab.path);
-  const userSurfaceRoute = parseSsooUserSurfaceRoute(tab.path);
-
-  if (userSurfaceRoute) {
-    return (
-      <SsooUserSurfacePage
-        surface={userSurfaceRoute.kind}
-        userId={userSurfaceRoute.userId}
-        apiBaseUrl={API_BASE_URL}
-        onOpenProfile={(nextUserId) => {
-          openTab({
-            id: getSsooUserSurfaceTabId('user-profile', nextUserId),
-            title: getSsooUserSurfaceTabTitle('user-profile'),
-            path: getSsooUserSurfaceTabPath('user-profile', nextUserId),
-            closable: true,
-            activate: true,
-          });
-        }}
-      />
-    );
-  }
 
   if (pathname === '/') return <DashboardPage />;
   if (pathname === '/users') return <UsersPage path={tab.path} />;
@@ -89,18 +64,14 @@ function renderAdminUserSurfaceContentPage(
   tab: AdminTabItem,
   openTab: ReturnType<typeof useTabStore.getState>['openTab'],
 ) {
-  const userSurfaceRoute = parseSsooUserSurfaceRoute(tab.path);
-
-  return createSsooSharedSurfaceContentPageElement({
-    surfaceId: userSurfaceRoute ? `ssoo-user-${userSurfaceRoute.kind}` : 'ssoo-user-surface',
-    title: userSurfaceRoute?.title ?? tab.title,
-    description: userSurfaceRoute
-      ? getSsooUserSurfacePageDescription(userSurfaceRoute.kind)
-      : undefined,
-    pageTone: userSurfaceRoute?.kind === 'personal-settings' ? 'settings' : 'neutral',
-    children: (
+  return createSsooUserSurfaceRouteContentPageElement({
+    path: tab.path,
+    title: tab.title,
+    apiBaseUrl: API_BASE_URL,
+    onOpenProfileTab: openTab,
+    wrapChildren: (children) => (
       <Suspense fallback={<LoadingFallback />}>
-        {renderAdminPage(tab, openTab)}
+        {children}
       </Suspense>
     ),
   });
@@ -129,7 +100,7 @@ export function AdminContentArea() {
           adapterName: GLOBAL_SEARCH_CONTENT_PAGE_ADAPTER_NAME,
           children: (
             <Suspense fallback={<LoadingFallback />}>
-              {renderAdminPage(tab, openTab)}
+              {renderAdminPage(tab)}
             </Suspense>
           ),
         })
@@ -145,7 +116,7 @@ export function AdminContentArea() {
         adapterName: ADMIN_LOCAL_PAGE_CONTENT_PAGE_ADAPTER_NAME,
         children: (
           <Suspense fallback={<LoadingFallback />}>
-            {renderAdminPage(tab, openTab)}
+            {renderAdminPage(tab)}
           </Suspense>
         ),
       }),

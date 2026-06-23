@@ -8,15 +8,10 @@ import {
   SsooContentAreaState,
   SsooRegisteredMdiContentArea,
   createSsooContentPageAdapterElement,
-  createSsooSharedSurfaceContentPageElement,
   defineSsooMdiPageRegistry,
 } from '@ssoo/web-shell';
 import {
-  SsooUserSurfacePage,
-  getSsooUserSurfacePageDescription,
-  getSsooUserSurfaceTabId,
-  getSsooUserSurfaceTabPath,
-  getSsooUserSurfaceTabTitle,
+  createSsooUserSurfaceRouteContentPageElement,
   parseSsooUserSurfaceRoute,
 } from '@ssoo/web-auth';
 import { useTabStore, type CrmTabItem } from '@/stores/tab.store';
@@ -32,28 +27,8 @@ function stripQuery(path: string): string {
   return path.split('?')[0] || '/';
 }
 
-function renderCrmPage(tab: CrmTabItem, openTab: ReturnType<typeof useTabStore.getState>['openTab']) {
+function renderCrmPage(tab: CrmTabItem) {
   const pathname = stripQuery(tab.path);
-  const userSurfaceRoute = parseSsooUserSurfaceRoute(tab.path);
-
-  if (userSurfaceRoute) {
-    return (
-      <SsooUserSurfacePage
-        surface={userSurfaceRoute.kind}
-        userId={userSurfaceRoute.userId}
-        apiBaseUrl={API_BASE_URL}
-        onOpenProfile={(nextUserId) => {
-          openTab({
-            id: getSsooUserSurfaceTabId('user-profile', nextUserId),
-            title: getSsooUserSurfaceTabTitle('user-profile'),
-            path: getSsooUserSurfaceTabPath('user-profile', nextUserId),
-            closable: true,
-            activate: true,
-          });
-        }}
-      />
-    );
-  }
 
   if (pathname === SSOO_GLOBAL_SEARCH_APP_PATH) {
     return (
@@ -74,16 +49,11 @@ function renderCrmUserSurfaceContentPage(
   tab: CrmTabItem,
   openTab: ReturnType<typeof useTabStore.getState>['openTab'],
 ) {
-  const userSurfaceRoute = parseSsooUserSurfaceRoute(tab.path);
-
-  return createSsooSharedSurfaceContentPageElement({
-    surfaceId: userSurfaceRoute ? `ssoo-user-${userSurfaceRoute.kind}` : 'ssoo-user-surface',
-    title: userSurfaceRoute?.title ?? tab.title,
-    description: userSurfaceRoute
-      ? getSsooUserSurfacePageDescription(userSurfaceRoute.kind)
-      : undefined,
-    pageTone: userSurfaceRoute?.kind === 'personal-settings' ? 'settings' : 'neutral',
-    children: renderCrmPage(tab, openTab),
+  return createSsooUserSurfaceRouteContentPageElement({
+    path: tab.path,
+    title: tab.title,
+    apiBaseUrl: API_BASE_URL,
+    onOpenProfileTab: openTab,
   });
 }
 
@@ -107,7 +77,7 @@ export function ContentArea() {
       match: (tab) => stripQuery(tab.path) === SSOO_GLOBAL_SEARCH_APP_PATH,
       render: ({ tab }) => createSsooContentPageAdapterElement({
         adapterName: GLOBAL_SEARCH_CONTENT_PAGE_ADAPTER_NAME,
-        children: renderCrmPage(tab, openTab),
+        children: renderCrmPage(tab),
       }),
     },
     {
@@ -118,7 +88,7 @@ export function ContentArea() {
       match: () => true,
       render: ({ tab }) => createSsooContentPageAdapterElement({
         adapterName: CRM_LOCAL_PAGE_CONTENT_PAGE_ADAPTER_NAME,
-        children: renderCrmPage(tab, openTab),
+        children: renderCrmPage(tab),
       }),
     },
   ]);

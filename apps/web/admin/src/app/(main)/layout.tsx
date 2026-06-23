@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { AuthLoadingScreen, useProtectedAppBootstrap } from '@ssoo/web-auth';
+import {
+  AuthLoadingScreen,
+  getSsooUserSurfaceTabId,
+  parseSsooUserSurfaceRouteEntry,
+  useProtectedAppBootstrap,
+} from '@ssoo/web-auth';
 import { SsooWorkbenchShell } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useTabStore } from '@/stores/tab.store';
@@ -53,6 +58,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (shouldRender) {
+      const userSurfaceRoute = parseSsooUserSurfaceRouteEntry(currentPath);
+      if (userSurfaceRoute) {
+        openTab({
+          id: getSsooUserSurfaceTabId(userSurfaceRoute.kind, userSurfaceRoute.userId),
+          title: userSurfaceRoute.title,
+          path: userSurfaceRoute.path,
+          closable: true,
+        });
+        return;
+      }
+
       openTab(getAdminTabOptions(currentPath));
     }
   }, [currentPath, openTab, shouldRender]);

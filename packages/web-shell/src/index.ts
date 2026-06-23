@@ -290,6 +290,17 @@ export type {
 } from './route-policy';
 
 export {
+  createSsooSettingsPageContentPageElement,
+  SsooSettingsPage,
+  useSsooSettingsPageHeaderActions,
+} from './settings-page';
+export type {
+  SsooSettingsPageHeaderActions,
+  SsooSettingsPageIndexOptions,
+  SsooSettingsPageProps,
+} from './settings-page';
+
+export {
   SsooSettingsBanner,
   SsooSettingsMainPanel,
   SsooSettingsPendingSummary,

@@ -498,6 +498,7 @@ a:hover {
 
   .ssoo-content-page-tone-document-viewer,
   .ssoo-content-page-tone-ai,
+  .ssoo-content-page-tone-profile,
   .ssoo-content-page-tone-settings {
     background-color: color-mix(in srgb, var(--ssoo-content-background) 30%, var(--ssoo-background) 70%);
   }
@@ -516,6 +517,7 @@ a:hover {
 
   .ssoo-content-page-state-tone-document-viewer,
   .ssoo-content-page-state-tone-ai,
+  .ssoo-content-page-state-tone-profile,
   .ssoo-content-page-state-tone-settings {
     background-color: color-mix(in srgb, hsl(var(--card)) 82%, var(--ssoo-content-background) 18%);
   }

@@ -29,6 +29,7 @@ import {
 } from './user-surface-events';
 import type { SsooUserSurfaceTabKind } from './user-surface-routing';
 import {
+  useSsooSettingsPageHeaderActions,
   useSsooSharedSurfacePageHeaderActions,
   type SsooSharedSurfacePageHeaderActions,
 } from '@ssoo/web-shell';
@@ -600,6 +601,7 @@ export function SsooUserSurfacePage({
     surface,
   ]);
   useSsooSharedSurfacePageHeaderActions(sharedHeaderActions);
+  useSsooSettingsPageHeaderActions(sharedHeaderActions);
 
   if (isLoading && !profile) {
     return (
@@ -673,6 +675,7 @@ function UserSettingsSurface({
       {error ? <SurfaceError message={error} /> : null}
 
       <div className="rounded-lg border border-ssoo-content-border bg-white p-4">
+        <div id="ssoo-user-settings-basic" className="scroll-mt-4" />
         <h2 className="text-body-md font-semibold text-ssoo-content-strong">기본 정보</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <TextField label="표시 이름" value={form.displayName} onChange={(value) => onChange({ ...form, displayName: value })} />
@@ -684,6 +687,7 @@ function UserSettingsSurface({
       </div>
 
       <div className="rounded-lg border border-ssoo-content-border bg-white p-4">
+        <div id="ssoo-user-settings-profile-intro" className="scroll-mt-4" />
         <h2 className="text-body-md font-semibold text-ssoo-content-strong">프로필 소개</h2>
         <Textarea
           value={form.bio}

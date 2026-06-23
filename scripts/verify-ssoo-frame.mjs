@@ -117,7 +117,7 @@ async function verifyCanonicalDocs() {
   assertIncludes(doc, '`SsooRegisteredMdiContentArea`, `SsooMdiContentArea`, `SsooMdiContentPane`, `SsooContentAreaSurface`', 'frame doc records shared registered content area primitives');
   assertIncludes(doc, '앱 ContentArea는 `SsooRegisteredMdiContentArea`와 `defineSsooMdiPageRegistry`만 root public API로 소비한다', 'frame doc records registered MDI content API as the app entrypoint');
   assertIncludes(doc, '앱 TS/TSX 소스 전체에서 저수준 `SsooMdiContentArea`, `SsooMdiContentPane`, `SsooMdiTabbedContentArea` 직접 소비를 금지한다', 'frame doc records app-wide low-level MDI content bypass ban');
-  assertIncludes(doc, '공용 user profile/settings surface도 `createSsooSharedSurfaceContentPageElement()`를 통해 `contentPage`로 렌더링한다', 'frame doc records shared user surfaces as contentPage routes');
+  assertIncludes(doc, '`createSsooUserSurfaceRouteContentPageElement()`를 통해 `contentPage`로 렌더링한다', 'frame doc records shared user surfaces as contentPage routes');
   assertIncludes(doc, '`shellPage` route kind와 `ShellPageContainer`는 public page assembly contract가 아니다', 'frame doc records shellPage as removed from the public page assembly contract');
   assertIncludes(doc, 'SsooSidebarSurface', 'frame doc records shared sidebar surface as the app sidebar entrypoint');
   assertIncludes(doc, '표현/동작 계층', 'frame doc records expression and behavior layer as shared sidebar ownership');
@@ -236,8 +236,10 @@ async function verifySharedGlobalCss() {
   assertIncludes(sharedCss, '.heading-1', 'shared CSS defines common heading utility');
   assertIncludes(sharedCss, '.scrollbar-sidebar', 'shared CSS defines common scrollbar utility');
   assertIncludes(sharedCss, '.ssoo-content-page-tone-document-viewer', 'shared CSS defines content page viewer tone class');
+  assertIncludes(sharedCss, '.ssoo-content-page-tone-profile', 'shared CSS defines content page profile tone class');
   assertIncludes(sharedCss, '.ssoo-content-page-tone-document-editor', 'shared CSS defines content page editor tone class');
   assertIncludes(sharedCss, '.ssoo-content-page-state-tone-document-viewer', 'shared CSS defines content page state tone class');
+  assertIncludes(sharedCss, '.ssoo-content-page-state-tone-profile', 'shared CSS defines profile state tone class');
   assertIncludes(sharedCss, '.ssoo-sectioned-shell-toolbar-tone', 'shared CSS defines sectioned shell toolbar tone class');
   assertIncludes(sharedCss, '.ssoo-settings-subtle-surface', 'shared CSS defines settings subtle surface class');
   assertIncludes(sharedCss, '.ssoo-ring-primary-30', 'shared CSS defines page header focus ring token class');
@@ -346,6 +348,7 @@ async function verifySharedGlobalSearchSource() {
   const commonSearchProvider = await readText('apps/server/src/modules/common/search/search-provider.ts');
   const commonSearchRegistry = await readText('apps/server/src/modules/common/search/search-registry.service.ts');
   const dmsSearchProvider = await readText('apps/server/src/modules/dms/search/dms-common-search.provider.ts');
+  const dmsSearchService = await readText('apps/server/src/modules/dms/search/search.service.ts');
   const pmsSearchProvider = await readText('apps/server/src/modules/pms/search/pms-common-search.provider.ts');
   const snsSearchProvider = await readText('apps/server/src/modules/sns/search/sns-common-search.provider.ts');
   const adminSearchProvider = await readText('apps/server/src/modules/common/search/providers/admin-common-search.provider.ts');
@@ -373,9 +376,11 @@ async function verifySharedGlobalSearchSource() {
   assertIncludes(dmsSearchProvider, "readonly sourceApp = 'dms'", 'DMS registers global search through its own provider');
   assertIncludes(dmsSearchProvider, 'private readonly searchService: SearchService', 'DMS provider is the only bridge to the DMS search service');
   assertIncludes(dmsSearchProvider, 'blockedSources: response.blockedSources', 'DMS provider preserves blocked source summaries');
-  assertIncludes(dmsSearchProvider, 'semantic: true', 'DMS provider declares semantic search capability');
-  assertIncludes(dmsSearchProvider, 'vector: true', 'DMS provider declares vector search capability');
-  assertIncludes(dmsSearchProvider, 'ragContext: false', 'DMS global search provider does not claim completed RAG context assembly');
+  assertIncludes(dmsSearchService, 'getCommonSearchCapabilities(): CommonSearchCapabilities', 'DMS search service exposes dynamic common search capabilities');
+  assertIncludes(dmsSearchService, 'semantic: this.vectorStoreReady', 'DMS provider does not hard-code semantic readiness');
+  assertIncludes(dmsSearchService, 'vector: this.vectorStoreReady', 'DMS provider does not hard-code vector readiness');
+  assertIncludes(dmsSearchProvider, 'capabilities: this.searchService.getCommonSearchCapabilities()', 'DMS provider reads dynamic capability metadata from DMS search service');
+  assertExcludes(dmsSearchProvider, 'vector: true', 'DMS provider does not hard-code vector search readiness');
   assertIncludes(pmsSearchProvider, "readonly sourceApp = 'pms'", 'PMS registers global search through its own provider');
   assertIncludes(pmsSearchProvider, 'projectMembers: { some: { userId, isActive: true } }', 'PMS provider limits results to owned/member projects');
   assertExcludes(pmsSearchProvider, 'customerM', 'PMS provider does not expose customer records through global search without an access model');
@@ -526,6 +531,20 @@ async function verifySharedTabbarAndContentSource() {
     assertIncludes(middleware, 'sharedUserSurfaceRewritePath: APP_HOME_PATH', `${app} middleware rewrites canonical __user route-entry paths to the app shell`);
     assertIncludes(middleware, "decision.action === 'rewrite'", `${app} middleware executes shared route-policy rewrite decisions`);
   }
+
+  const routeEntryBootstraps = {
+    admin: 'apps/web/admin/src/app/(main)/layout.tsx',
+    crm: 'apps/web/crm/src/components/layout/AppLayout.tsx',
+    pms: 'apps/web/pms/src/components/layout/AppLayout.tsx',
+    dms: 'apps/web/dms/src/components/layout/AppLayout.tsx',
+  };
+  for (const [app, sourcePath] of Object.entries(routeEntryBootstraps)) {
+    const layout = await readText(sourcePath);
+    assertIncludes(layout, 'parseSsooUserSurfaceRouteEntry', `${app} layout parses direct user-surface route entries through web-auth`);
+    assertIncludes(layout, 'getSsooUserSurfaceTabId', `${app} layout derives shared user-surface tab ids through web-auth`);
+    assertIncludes(layout, 'userSurfaceRoute.title', `${app} layout derives shared user-surface tab title from the parsed route`);
+    assertIncludes(layout, 'userSurfaceRoute.path', `${app} layout opens the canonical user-surface tab path instead of leaving the home tab active`);
+  }
   for (const needle of [
     'SsooRegisteredMdiContentArea',
     'SsooContentPageAdapterBoundary',
@@ -597,12 +616,17 @@ async function verifySharedTabbarAndContentSource() {
 
 async function verifySharedPageFrameSource() {
   const index = await readText('packages/web-shell/src/index.ts');
+  const webAuthIndex = await readText('packages/web-auth/src/index.ts');
+  const webAuthPackageJson = await readText('packages/web-auth/package.json');
   const breadcrumb = await readText('packages/web-shell/src/page-breadcrumb.tsx');
   const header = await readText('packages/web-shell/src/page-header.tsx');
   const pageChrome = await readText('packages/web-shell/src/page-chrome.tsx');
   const pageChromeMetrics = await readText('packages/web-shell/src/page-chrome-metrics.ts');
   const contentPageTemplate = await readText('packages/web-shell/src/content-page-template.tsx');
   const sharedSurfaceContentPage = await readText('packages/web-shell/src/shared-surface-content-page.tsx');
+  const accountCenter = await readText('packages/web-auth/src/account-center.ts');
+  const userSurfaceRouting = await readText('packages/web-auth/src/user-surface-routing.ts');
+  const userSurfaceContentPage = await readText('packages/web-auth/src/user-surface-content-page.tsx');
   const userSurface = await readText('packages/web-auth/src/user-surface.tsx');
   const pageIndexRail = await readText('packages/web-shell/src/page-index-rail.tsx');
   const sectionedShell = await readText('packages/web-shell/src/sectioned-shell.tsx');
@@ -632,6 +656,11 @@ async function verifySharedPageFrameSource() {
   ]) {
     assertIncludes(index, needle, `web-shell root exports shared page-frame primitive ${needle}`);
   }
+  assertIncludes(webAuthIndex, 'createSsooUserSurfaceContentPageElement', 'web-auth root exports the canonical user surface content page helper');
+  assertIncludes(webAuthIndex, 'createSsooUserSurfaceRouteContentPageElement', 'web-auth root exports the canonical user surface route content page helper');
+  assertIncludes(webAuthPackageJson, '"./user-surface-routing"', 'web-auth package exposes the middleware-safe user-surface routing subpath');
+  assertIncludes(webAuthPackageJson, '"./dist/user-surface-routing.d.ts"', 'web-auth user-surface routing subpath exposes types');
+  assertIncludes(webAuthPackageJson, '"./dist/user-surface-routing.js"', 'web-auth user-surface routing subpath exposes runtime JS');
 
   assertIncludes(pageChromeMetrics, 'breadcrumbHeightPx: 24', 'shared page chrome metrics fix breadcrumb row height');
   assertIncludes(pageChromeMetrics, 'headerMinHeightPx: 54', 'shared page chrome metrics fix page header minimum height');
@@ -661,7 +690,7 @@ async function verifySharedPageFrameSource() {
   assertIncludes(contentPageTemplate, 'auxiliarySlotWidthPx: 340', 'shared content page template owns auxiliary rail width');
   assertIncludes(contentPageTemplate, 'subContentWidthPx: 340', 'shared content page template keeps sub-content rail width aligned with sidecar width');
   assertIncludes(contentPageTemplate, 'sidecarWidthPx: 340', 'shared content page template owns sidecar width');
-  assertIncludes(contentPageTemplate, "export type SsooContentPageTone = 'neutral' | 'document-viewer' | 'document-editor' | 'ai' | 'settings' | 'transparent';", 'shared content page template owns page tone variants');
+  assertIncludes(contentPageTemplate, "export type SsooContentPageTone = 'neutral' | 'document-viewer' | 'document-editor' | 'ai' | 'profile' | 'settings' | 'transparent';", 'shared content page template owns page tone variants');
   assertIncludes(contentPageTemplate, "export type SsooContentPageLayoutVariant = 'standard' | 'fluid' | 'main-only' | 'canvas';", 'shared content page template owns semantic page layout variants');
   assertIncludes(contentPageTemplate, "export type SsooContentPageSurfaceVariant = 'default' | 'transparent' | 'transparent-rounded' | 'plain';", 'shared content page template owns semantic page surface variants');
   assertIncludes(contentPageTemplate, 'pageTone?: SsooContentPageTone;', 'shared content page template exposes page tone as a semantic recipe prop');
@@ -670,6 +699,7 @@ async function verifySharedPageFrameSource() {
   assertIncludes(contentPageTemplate, 'SSOO_CONTENT_PAGE_STATE_TONE_CLASSES', 'shared content page template applies semantic tone to state surfaces');
   assertIncludes(contentPageTemplate, 'data-ssoo-content-page-state', 'shared content page template marks shared state surfaces');
   assertIncludes(contentPageTemplate, 'ssoo-content-page-tone-document-viewer', 'shared content page template uses CSS-backed viewer tone class');
+  assertIncludes(contentPageTemplate, "profile: 'ssoo-content-page-tone-profile'", 'shared content page template uses the CSS-backed profile tone class');
   assertIncludes(contentPageTemplate, 'ssoo-content-page-tone-document-editor', 'shared content page template uses CSS-backed editor tone class');
   assertIncludes(contentPageTemplate, 'SsooPageChromeStack', 'shared content page template composes shared page chrome stack');
   assertIncludes(contentPageTemplate, 'data-ssoo-content-page-slot="main-content"', 'shared content page template marks the main slot');
@@ -695,22 +725,46 @@ async function verifySharedPageFrameSource() {
   assertIncludes(sharedSurfaceContentPage, 'useSsooSharedSurfacePageHeaderActions', 'shared surface content page helper exports the only shared user-surface header action bridge');
   assertIncludes(sharedSurfaceContentPage, "mode={actions.mode ?? 'viewer'}", 'shared surface content page helper keeps viewer mode as the default header action state');
   assertIncludes(sharedSurfaceContentPage, 'title={title}', 'shared surface content page helper passes the canonical page title into the shared header');
-  assertIncludes(sharedSurfaceContentPage, 'data-ssoo-shared-surface-content', 'shared surface content page helper owns the internal scroll/padding lane');
+  assertIncludes(sharedSurfaceContentPage, 'data-ssoo-shared-surface-content', 'shared surface content page helper marks the shared surface body for browser verification');
   assertIncludes(sharedSurfaceContentPage, "contentSurface: 'plain'", 'shared surface content page helper keeps the page tone visible instead of covering it with the default white main surface');
   assertExcludes(sharedSurfaceContentPage, 'mainContentLayout:', 'shared surface content page helper does not opt out of the standard constrained content width');
   assertExcludes(sharedSurfaceContentPage, 'mainContentMaxWidth:', 'shared surface content page helper does not override the standard content max width');
   assertExcludes(sharedSurfaceContentPage, 'mainContentSurface:', 'shared surface content page helper inherits the standard content surface');
+  assertIncludes(userSurfaceContentPage, 'createSsooSharedSurfaceContentPageElement', 'web-auth user surface content page helper consumes the shared content page template helper');
+  assertIncludes(userSurfaceContentPage, 'createSsooSettingsPageContentPageElement', 'web-auth user settings route consumes the shared settings page recipe helper');
+  assertIncludes(userSurfaceContentPage, "userSurfaceRoute?.kind === 'personal-settings'", 'web-auth user settings route is split to the settings page recipe at the shared route helper boundary');
+  assertIncludes(userSurfaceContentPage, 'parseSsooUserSurfaceRoute', 'web-auth user surface content page helper owns route metadata parsing');
+  assertIncludes(userSurfaceContentPage, 'getSsooUserSurfacePageDescription', 'web-auth user surface content page helper owns shared page description metadata');
+  assertIncludes(userSurfaceContentPage, 'SsooUserSurfacePage', 'web-auth user surface route content page helper owns the shared user surface body rendering');
+  assertIncludes(userSurfaceContentPage, 'getSsooUserSurfaceTabPath', 'web-auth user surface route content page helper owns shared profile tab path assembly');
+  assertIncludes(userSurfaceContentPage, "pageTone: userSurfaceRoute?.kind === 'personal-settings' ? 'settings' : 'profile'", 'web-auth user surface content page helper keeps profile and settings page tones semantically separated');
+  assertIncludes(accountCenter, 'DEFAULT_SSOO_ACCOUNT_CENTER_PATH = SSOO_USER_SURFACE_SETTINGS_PATH', 'web-auth account center defaults to the canonical shared settings route');
+  assertIncludes(accountCenter, 'DEFAULT_SSOO_MY_PROFILE_PATH = SSOO_USER_SURFACE_MY_PROFILE_PATH', 'web-auth account center defaults to the canonical shared my-profile route');
+  assertIncludes(accountCenter, 'normalizeSsooUserSurfaceRouteEntryPath', 'web-auth account center delegates legacy route-entry normalization to the shared user-surface routing helper');
+  assertIncludes(accountCenter, "getSsooUserSurfaceTabPath('user-profile', userId)", 'web-auth account center builds user profile links through the canonical user-surface route helper');
+  assertExcludes(accountCenter, "pathname === '/settings'", 'web-auth account center does not own legacy settings path parsing');
+  assertExcludes(accountCenter, "pathname === '/profile/me'", 'web-auth account center does not own legacy my-profile path parsing');
+  assertExcludes(accountCenter, "pathname.startsWith('/profile/')", 'web-auth account center does not own legacy user profile path parsing');
+  assertExcludes(accountCenter, "DEFAULT_SSOO_ACCOUNT_CENTER_PATH = '/settings'", 'web-auth account center must not default to legacy settings route');
+  assertExcludes(accountCenter, "DEFAULT_SSOO_MY_PROFILE_PATH = '/profile/me'", 'web-auth account center must not default to legacy my-profile route');
+  assertIncludes(userSurfaceRouting, 'normalizeSsooUserSurfaceRouteEntryPath', 'web-auth user-surface routing owns route-entry normalization');
+  assertIncludes(userSurfaceRouting, 'parseSsooUserSurfaceRouteEntry', 'web-auth user-surface routing owns parsing of canonical and legacy route entries');
+  assertIncludes(userSurfaceRouting, 'isSsooUserSurfaceRouteEntry', 'web-auth user-surface routing owns route-entry detection');
+  assertIncludes(userSurfaceRouting, "SSOO_LEGACY_USER_SURFACE_SETTINGS_PATH = '/settings'", 'web-auth user-surface routing centralizes the legacy settings route-entry path');
+  assertIncludes(userSurfaceRouting, "SSOO_LEGACY_USER_SURFACE_MY_PROFILE_PATH = '/profile/me'", 'web-auth user-surface routing centralizes the legacy my-profile route-entry path');
+  assertIncludes(userSurfaceRouting, "SSOO_LEGACY_USER_SURFACE_PROFILE_PATH_PREFIX = '/profile/'", 'web-auth user-surface routing centralizes the legacy user profile route-entry prefix');
   for (const needle of ['mx-auto', 'max-w-2xl', 'max-w-3xl', 'max-w-4xl', 'max-w-5xl']) {
     assertExcludes(userSurface, needle, `shared user profile/settings surface does not create a second local page-width class ${needle}`);
   }
   assertExcludes(userSurface, '<h1', 'shared user profile/settings surface does not render page-level h1 inside the shared content page');
   assertExcludes(userSurface, '내 설정</h1>', 'shared user settings surface does not render a second page-level settings title inside the shared content page');
   assertIncludes(userSurface, 'useSsooSharedSurfacePageHeaderActions(sharedHeaderActions)', 'shared user profile/settings surface registers page-level actions through the shared page header bridge');
+  assertIncludes(userSurface, 'useSsooSettingsPageHeaderActions(sharedHeaderActions)', 'shared user settings surface registers page-level actions through the shared settings page header bridge');
   assertIncludes(userSurface, 'onEdit: startProfileEditing', 'shared user profile page edit action is registered through the standard page header');
   assertIncludes(userSurface, 'onCancel: cancelProfileEditing', 'shared user profile page cancel action is registered through the standard page header');
   assertExcludes(userSurface, '프로필 편집', 'shared user profile page does not render a local profile edit page action inside the body');
   assertExcludes(userSurface, 'onSave={saveProfile}', 'shared user profile/settings surface does not pass save as a local body page action');
-  assertIncludes(userSurface, '프로필 기본 정보', 'shared user settings surface uses a section heading below the shared page title');
+  assertIncludes(userSurface, '프로필 기본 정보', 'shared user profile/settings body keeps the existing shared profile information section');
   assertIncludes(pageIndexRail, 'export function SsooPageIndexRail', 'shared page index rail owns sub-content index rendering');
   assertIncludes(pageIndexRail, 'ssoo-border-content-70', 'shared page index rail owns CSS-backed index header surface');
   assertIncludes(pageIndexRail, 'aria-current={active ?', 'shared page index rail exposes active item state');
@@ -1035,6 +1089,7 @@ async function verifySnsSource() {
   const layout = await readText('apps/web/sns/src/components/layout/AppLayout.tsx');
   const tabbar = await readText('apps/web/sns/src/components/layout/TabBar.tsx');
   const content = await readText('apps/web/sns/src/components/layout/ContentArea.tsx');
+  const shellNavigation = await readText('apps/web/sns/src/components/layout/shell-navigation.ts');
   const tabStore = await readText('apps/web/sns/src/stores/tab.store.ts');
   const header = await readText('apps/web/sns/src/components/layout/Header.tsx');
   const sidebar = await readText('apps/web/sns/src/components/layout/Sidebar.tsx');
@@ -1073,7 +1128,17 @@ async function verifySnsSource() {
   assertExcludes(content, "kind: 'legacyException'", 'SNS content does not allow legacy exception routes');
   assertUsesSharedUserSurfaceContentPage(content, 'SNS content');
   assertIncludes(content, "key: 'legacy-user-surface-handoff'", 'SNS content keeps legacy physical user-surface paths as a handoff, not the canonical page surface');
-  assertIncludes(content, 'parseLegacySnsUserSurfaceRoute', 'SNS content normalizes legacy user-surface paths into canonical __user routes');
+  assertIncludes(content, 'parseSsooUserSurfaceRouteEntry', 'SNS content delegates legacy user-surface route-entry parsing to web-auth');
+  assertExcludes(content, 'parseLegacySnsUserSurfaceRoute', 'SNS content does not keep an app-local legacy user-surface parser');
+  assertExcludes(content, "pathname === '/settings'", 'SNS content does not app-locally parse the legacy settings route');
+  assertExcludes(content, "pathname === '/profile/me'", 'SNS content does not app-locally parse the legacy my-profile route');
+  assertExcludes(content, "pathname.startsWith('/profile/')", 'SNS content does not app-locally parse legacy user profile routes');
+  assertIncludes(shellNavigation, 'normalizeSsooUserSurfaceRouteEntryPath', 'SNS shell navigation delegates legacy route-entry normalization to web-auth');
+  assertIncludes(shellNavigation, 'parseSsooUserSurfaceRouteEntry', 'SNS shell navigation delegates user-surface section/icon detection to web-auth');
+  assertExcludes(shellNavigation, "rawPathname === '/settings'", 'SNS shell navigation does not app-locally normalize legacy settings routes');
+  assertExcludes(shellNavigation, "rawPathname === '/profile/me'", 'SNS shell navigation does not app-locally normalize legacy my-profile routes');
+  assertExcludes(shellNavigation, "rawPathname.startsWith('/profile/')", 'SNS shell navigation does not app-locally normalize legacy profile routes');
+  assertExcludes(shellNavigation, "pathname.startsWith('/profile/')", 'SNS shell navigation does not keep a fallback legacy profile tab route');
   assertExcludes(content, '<SsooMdiTabbedContentArea', 'SNS content does not directly render the low-level MDI content mapper');
   assertIncludes(content, 'SsooContentAreaState', 'SNS content loading fallback consumes the shared content area state');
   assertIncludes(content, 'SsooContentAreaSurface', 'SNS content legacy fallback consumes the shared content area surface');
@@ -1083,6 +1148,11 @@ async function verifySnsSource() {
   assertExcludes(content, 'maxWidth="wide"', 'SNS no longer declares a shell page width escape prop inside panes');
   assertExcludes(routes, 'SSOO_SHARED_USER_SURFACE_PATH_PREFIX', 'SNS route constants do not app-locally allow canonical shared user-surface routes');
   assertIncludes(snsMiddleware, 'sharedUserSurfaceRewritePath: APP_HOME_PATH', 'SNS middleware delegates canonical shared user-surface route entries to the shared route-policy rewrite');
+  assertIncludes(snsMiddleware, "from '@ssoo/web-auth/user-surface-routing'", 'SNS middleware imports route-only user-surface canonicalization from web-auth');
+  assertIncludes(snsMiddleware, 'normalizeSsooUserSurfaceRouteEntryPath(routeEntryPath)', 'SNS middleware canonicalizes legacy user-surface entry paths through web-auth');
+  assertIncludes(snsMiddleware, 'NextResponse.redirect(new URL(normalizedUserSurfaceEntryPath, request.url))', 'SNS middleware redirects legacy user-surface entry paths to canonical shared paths');
+  assertExcludes(snsMiddleware, "request.nextUrl.pathname === '/settings'", 'SNS middleware does not duplicate /settings legacy route detection');
+  assertExcludes(snsMiddleware, "request.nextUrl.pathname.startsWith('/profile/')", 'SNS middleware does not duplicate /profile/* legacy route detection');
   assertIncludes(legacyProfileRoute, 'LegacyProfileRouteMarker', 'SNS legacy profile App Router path is only a route-entry marker');
   assertExcludes(legacyProfileRoute, 'ProfilePage', 'SNS legacy profile App Router path does not render a local physical profile page');
   assertIncludes(legacySettingsRoute, 'LegacySettingsRouteMarker', 'SNS legacy settings App Router path is only a route-entry marker');
@@ -1182,6 +1252,7 @@ async function verifyDmsSource() {
   const openTabs = await readText('apps/web/dms/src/components/layout/sidebar/OpenTabs.tsx');
   const changes = await readText('apps/web/dms/src/components/layout/sidebar/Changes.tsx');
   const settingsPage = await readText('apps/web/dms/src/components/pages/settings/SettingsPage.tsx');
+  const webShellSettingsPage = await readText('packages/web-shell/src/settings-page.tsx');
   const documentPage = await readText('apps/web/dms/src/components/pages/markdown/DocumentPage.tsx');
   const aiChatPage = await readText('apps/web/dms/src/components/pages/ai/ChatPage.tsx');
   const tabbar = await readText('apps/web/dms/src/components/layout/TabBar.tsx');
@@ -1231,7 +1302,7 @@ async function verifyDmsSource() {
   assertIncludes(contentArea, 'parseSettingsTabPath', 'DMS routes setting tab paths to the settings page component');
   assertIncludes(contentArea, 'SsooRegisteredMdiContentArea', 'DMS content consumes the registered full MDI content mapper');
   assertIncludes(contentArea, 'createSsooContentPageAdapterElement', 'DMS content page routes return a typed shared content page adapter element');
-  assertIncludes(contentArea, 'createSsooSharedSurfaceContentPageElement', 'DMS user surface route returns a typed shared content page template element');
+  assertIncludes(contentArea, 'createSsooUserSurfaceRouteContentPageElement', 'DMS user surface route returns a typed centralized user surface content page element');
   assertUsesSharedUserSurfaceContentPage(contentArea, 'DMS content');
   assertIncludes(contentArea, 'const DMS_CONTENT_PAGE_ADAPTER_NAME = SSOO_CONTENT_PAGE_ADAPTER_NAMES.dmsPageTemplate;', 'DMS content declares the approved domain page template adapter name from the shared registry');
   assertIncludes(contentArea, 'const GLOBAL_SEARCH_CONTENT_PAGE_ADAPTER_NAME = SSOO_CONTENT_PAGE_ADAPTER_NAMES.globalSearchPage;', 'DMS content declares the approved global search adapter name from the shared registry');
@@ -1352,14 +1423,23 @@ async function verifyDmsSource() {
   assertExcludes(sidebar, 'DOCUMENT_TYPE_LABELS', 'DMS sidebar no longer exposes dev/wiki document type selector');
   assertExcludes(sidebar, 'DropdownMenu', 'DMS sidebar no longer uses document type dropdown in the header');
 
-  assertIncludes(settingsPage, 'SsooSettingsSurface', 'DMS settings page consumes shared main settings surface');
-  assertIncludes(settingsPage, 'SsooPageIndexRail', 'DMS settings page consumes shared page index rail');
+  assertIncludes(settingsPage, 'SsooSettingsPage', 'DMS settings page consumes the shared settings page recipe');
+  assertIncludes(webShellSettingsPage, 'SsooSettingsSurface', 'web-shell settings page owns the shared main settings surface');
+  assertIncludes(webShellSettingsPage, 'SsooPageIndexRail', 'web-shell settings page owns the shared page index rail');
+  assertIncludes(webShellSettingsPage, 'createSsooSettingsPageContentPageElement', 'web-shell settings page exposes a branded contentPage helper for shared account settings routes');
+  assertIncludes(webShellSettingsPage, 'useSsooSettingsPageHeaderActions', 'web-shell settings page owns the settings page header action bridge');
   assertIncludes(settingsPage, 'useSettingsPageNavigationStore', 'DMS settings page consumes settings page navigation state');
   assertIncludes(settingsPage, 'parseSettingsTabPath', 'DMS settings page derives scope/section from its tab path');
   assertExcludes(settingsPage, 'useSettingsShellStore', 'DMS settings page does not consume a settings shell store');
-  assertIncludes(settingsPage, 'SsooSettingsMainPanel', 'DMS settings page consumes shared main settings panel');
-  assertIncludes(settingsPage, 'leftSubContentSlot={settingsIndexSlot}', 'DMS settings page binds internal index to the left sub-content slot');
-  assertIncludes(settingsPage, 'settingsIndexSlot', 'DMS settings page renders the current section index as a left sub-content rail');
+  assertExcludes(settingsPage, 'PageTemplate', 'DMS settings page does not own the completed settings page through the DMS PageTemplate adapter');
+  assertExcludes(settingsPage, 'SsooSettingsSurface', 'DMS settings page does not wrap the shared settings surface locally');
+  assertExcludes(settingsPage, 'SsooSettingsMainPanel', 'DMS settings page does not wrap the shared settings main panel locally');
+  assertExcludes(settingsPage, '<SsooPageIndexRail ', 'DMS settings page does not render the shared page index rail locally');
+  assertExcludes(settingsPage, '<SsooPageIndexRail\n', 'DMS settings page does not render the shared page index rail locally');
+  assertIncludes(webShellSettingsPage, 'SsooSettingsMainPanel', 'web-shell settings page owns the shared main settings panel');
+  assertIncludes(webShellSettingsPage, 'leftSubContentSlot: createSettingsIndexSlot(props.index)', 'web-shell settings page binds internal index to the left sub-content slot');
+  assertIncludes(settingsPage, 'index={settingsIndex}', 'DMS settings page injects the current section index into the shared settings page recipe');
+  assertIncludes(settingsPage, 'settingsIndex', 'DMS settings page prepares the current section index for the shared left sub-content rail');
   assertExcludes(settingsPage, 'secondaryNavigationSlot', 'DMS settings page does not use a secondary navigation slot');
   assertExcludes(settingsPage, 'SsooSettingsIndexPanel', 'DMS settings page does not render a separate settings index side panel');
   assertExcludes(settingsPage, 'settingsSectionSidebar', 'DMS settings page does not own section navigation inside content');
@@ -1382,8 +1462,8 @@ async function verifyDmsSource() {
   assertExcludes(settingsPage, 'aria-label="설정 항목 색인"\n      className=', 'DMS settings page does not own secondary navigation surface classes');
   assertExcludes(settingsPage, '<nav className="flex h-full min-h-0 flex-col"', 'DMS settings page does not own local page index rail DOM');
   assertExcludes(settingsPage, 'contentMaxWidth={null}', 'DMS settings page does not opt out of the shared constrained page width');
-  assertIncludes(settingsPage, 'pageTone="settings"', 'DMS settings page receives settings page tone from shared recipe');
-  assertIncludes(settingsPage, 'contentSurface="plain"', 'DMS settings page lets the shared settings surface own the content card frame');
+  assertIncludes(webShellSettingsPage, "pageTone: 'settings'", 'web-shell settings page applies the settings page tone through the shared recipe');
+  assertIncludes(webShellSettingsPage, "contentSurface: 'plain'", 'web-shell settings page lets the shared settings surface own the content card frame');
 
   assertIncludes(pageTemplate, 'SsooContentPageTemplate', 'DMS PageTemplate consumes shared content page template');
   assertIncludes(pageTemplate, 'mainContentSlot={children}', 'DMS PageTemplate injects domain page body through the main content slot');
@@ -1538,8 +1618,12 @@ function assertUsesSharedUserSurfaceContentPage(source, label) {
   assertIncludes(source, "key: 'user-surface'", `${label} declares the shared user surface route`);
   assertIncludes(source, "kind: 'contentPage'", `${label} classifies the shared user surface as a content page`);
   assertIncludes(source, "template: 'SsooContentPageTemplate'", `${label} routes the shared user surface through the content page template contract`);
-  assertIncludes(source, 'createSsooSharedSurfaceContentPageElement', `${label} consumes the shared user surface content page helper`);
-  assertIncludes(source, 'getSsooUserSurfacePageDescription', `${label} consumes shared user surface page metadata`);
+  assertIncludes(source, 'createSsooUserSurfaceRouteContentPageElement', `${label} consumes the centralized user surface route content page helper`);
+  assertExcludes(source, 'createSsooSharedSurfaceContentPageElement', `${label} does not assemble shared user surface chrome app-locally`);
+  assertExcludes(source, 'getSsooUserSurfacePageDescription', `${label} does not own shared user surface page metadata app-locally`);
+  assertExcludes(source, 'SsooUserSurfacePage', `${label} does not render the shared user surface body app-locally`);
+  assertExcludes(source, 'getSsooUserSurfaceTabPath', `${label} does not assemble shared profile tab paths app-locally`);
+  assertExcludes(source, "pageTone: userSurfaceRoute?.kind === 'personal-settings' ? 'settings' : 'neutral'", `${label} does not split user profile/settings tone app-locally`);
   assertExcludes(source, "kind: 'shellPage'", `${label} does not classify any app route as shellPage`);
   assertExcludes(source, "surface: 'shared-user-surface'", `${label} does not use the old shellPage user surface escape hatch`);
 }

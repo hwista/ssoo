@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { embed, embedMany, generateText } from 'ai';
+import { generateText } from 'ai';
 import {
   BadRequestException,
   InternalServerErrorException,
@@ -16,7 +16,13 @@ import type {
   SearchResponse,
   SearchResultItem,
 } from '@ssoo/types/dms';
+import type { AiIndexJsonObject, CommonSearchCapabilities } from '@ssoo/types/common';
 import { DatabaseService } from '../../../database/database.service.js';
+import {
+  AiEmbeddingProviderService,
+  AiEmbeddingProviderUnavailableError,
+} from '../../common/ai-index/ai-embedding-provider.service.js';
+import { AiIndexingService } from '../../common/ai-index/ai-indexing.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
@@ -39,7 +45,7 @@ import {
   toRelativePath,
   tokenizeQuery,
 } from './search.helpers.js';
-import { getChatModel, getEmbeddingModel } from './search.provider.js';
+import { getChatModel } from './search.provider.js';
 import { SearchRuntimeService } from './search-runtime.service.js';
 import { SearchHistoryService } from './search-history.service.js';
 
@@ -79,10 +85,22 @@ export class SearchService implements OnModuleInit {
     private readonly accessRequestService: AccessRequestService,
     private readonly documentAclService: DocumentAclService,
     private readonly searchHistoryService: SearchHistoryService,
+    private readonly aiEmbeddingProvider: AiEmbeddingProviderService,
+    private readonly aiIndexingService: AiIndexingService,
   ) {}
 
   async onModuleInit() {
     await this.ensureVectorStore();
+  }
+
+  getCommonSearchCapabilities(): CommonSearchCapabilities {
+    return {
+      keyword: true,
+      metadata: true,
+      semantic: this.vectorStoreReady,
+      vector: this.vectorStoreReady,
+      ragContext: false,
+    };
   }
 
   async search(request: SearchRequest, currentUser: TokenPayload): Promise<SearchResponse> {
@@ -146,6 +164,7 @@ export class SearchService implements OnModuleInit {
 
     if (action === 'delete') {
       deletedChunkCount += await this.deleteEmbeddingsForPath(currentPath);
+      await this.syncCommonAiIndex(currentPath, 'delete', previousPath);
       return {
         action,
         path: currentPath,
@@ -157,6 +176,7 @@ export class SearchService implements OnModuleInit {
     }
 
     const syncCounts = await this.syncIndexForPath(currentPath);
+    await this.syncCommonAiIndex(currentPath, 'upsert', previousPath);
     return {
       action,
       path: currentPath,
@@ -210,6 +230,29 @@ export class SearchService implements OnModuleInit {
     }
   }
 
+  private async syncCommonAiIndex(
+    pathValue: string,
+    action: 'upsert' | 'delete',
+    previousPath?: string,
+  ): Promise<void> {
+    try {
+      await this.aiIndexingService.syncObject({
+        sourceApp: 'dms',
+        entityType: 'document',
+        entityId: pathValue,
+        jobType: action,
+        payload: {
+          path: pathValue,
+          ...(previousPath ? { previousPath } : {}),
+        } satisfies AiIndexJsonObject,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `공용 AI 인덱스 동기화 실패 (${pathValue}): ${getErrorMessage(error)}`,
+      );
+    }
+  }
+
   private async searchSemantic(
     query: string,
     currentUser: TokenPayload,
@@ -218,11 +261,7 @@ export class SearchService implements OnModuleInit {
     try {
       await this.ensureVectorStore();
 
-      const embeddingModel = await getEmbeddingModel();
-      const { embedding } = await embed({
-        model: embeddingModel,
-        value: query,
-      });
+      const { embedding } = await this.aiEmbeddingProvider.embedText(query);
 
       const searchConfig = this.runtime.getSearchConfig();
       const rootDir = this.runtime.getDocDir();
@@ -573,11 +612,19 @@ export class SearchService implements OnModuleInit {
       return 0;
     }
 
-    const embeddingModel = await getEmbeddingModel();
-    const { embeddings } = await embedMany({
-      model: embeddingModel,
-      values: chunks,
-    });
+    let embeddings: number[][];
+    try {
+      ({ embeddings } = await this.aiEmbeddingProvider.embedTexts(chunks));
+    } catch (error) {
+      if (error instanceof AiEmbeddingProviderUnavailableError) {
+        this.logger.warn(
+          `DMS 임베딩 동기화 스킵 (${relativePath}): ${error.status.reasonCode ?? 'provider_unavailable'} - ${error.message}`,
+        );
+        return 0;
+      }
+
+      throw error;
+    }
 
     const metadata = await this.readDocumentMetadata(filePath);
     const title = pickString(metadata['title']) ?? resolveDocumentPresentation(

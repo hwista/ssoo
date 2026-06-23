@@ -5,10 +5,11 @@ import { UserModule } from './user/user.module.js';
 import { HealthController } from './health/health.controller.js';
 import { CommonNotificationModule } from './notification/notification.module.js';
 import { CommonSearchModule } from './search/search.module.js';
+import { CommonAiIndexModule } from './ai-index/ai-index.module.js';
 
 @Module({
-  imports: [AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule, CommonSearchModule],
+  imports: [AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule, CommonSearchModule, CommonAiIndexModule],
   controllers: [HealthController],
-  exports: [AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule, CommonSearchModule],
+  exports: [AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule, CommonSearchModule, CommonAiIndexModule],
 })
 export class CommonModule {}

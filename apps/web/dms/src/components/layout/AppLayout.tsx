@@ -3,6 +3,10 @@
 import * as React from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
+  getSsooUserSurfaceTabId,
+  parseSsooUserSurfaceRouteEntry,
+} from '@ssoo/web-auth';
+import {
   SSOO_GLOBAL_SEARCH_APP_PATH,
   SsooAppFrame,
   SsooContentAreaState,
@@ -57,6 +61,19 @@ export function AppLayout() {
   }, [currentUserId, isSettingsLoaded, loadSettings]);
 
   React.useEffect(() => {
+    const userSurfaceRoute = parseSsooUserSurfaceRouteEntry(currentRoutePath);
+    if (userSurfaceRoute) {
+      openTab({
+        id: getSsooUserSurfaceTabId(userSurfaceRoute.kind, userSurfaceRoute.userId),
+        title: userSurfaceRoute.title,
+        path: userSurfaceRoute.path,
+        icon: userSurfaceRoute.kind === 'personal-settings' ? 'Settings' : 'User',
+        closable: true,
+        activate: true,
+      });
+      return;
+    }
+
     if (!currentRoutePath.startsWith(SSOO_GLOBAL_SEARCH_APP_PATH)) {
       return;
     }

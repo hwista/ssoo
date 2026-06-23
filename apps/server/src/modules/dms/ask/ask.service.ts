@@ -1,11 +1,18 @@
 import fs from 'fs';
-import { createUIMessageStream, generateText, streamText } from 'ai';
+import { createUIMessageStream } from 'ai';
 import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import type {
+  AiReferenceInput,
+  AiRetrievalContextItem,
+  AiRetrievalResultItem,
+  AiRunSourceInput,
+  CommonAiRetrievalResponse,
+} from '@ssoo/types/common';
 import type {
   AskContextMode,
   AskMessageInput,
@@ -18,11 +25,16 @@ import type {
   SearchResultItem,
 } from '@ssoo/types/dms';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { AiConversationService } from '../../common/ai-index/ai-conversation.service.js';
+import {
+  type AiModelGatewayStatus,
+  AiModelGatewayService,
+} from '../../common/ai-index/ai-model-gateway.service.js';
+import { AiRetrievalService } from '../../common/ai-index/ai-retrieval.service.js';
 import {
   getErrorMessage,
   resolveAbsolutePath,
 } from '../search/search.helpers.js';
-import { getChatModel } from '../search/search.provider.js';
 import { SearchRuntimeService } from '../search/search-runtime.service.js';
 import { SearchService } from '../search/search.service.js';
 
@@ -55,6 +67,33 @@ interface AskContextBundle {
   confidence: SearchConfidence;
   citations: AskResponse['citations'];
   blockedSources?: SearchBlockedSourceSummary;
+  retrievalLogId?: string;
+  references: AiReferenceInput[];
+  runSources: AiRunSourceInput[];
+  ragReady: boolean;
+  fallbackUsed: boolean;
+  contextItemCount: number;
+}
+
+interface SearchContextLoadResult {
+  context: string;
+  sources: SearchResultItem[];
+  confidence: SearchConfidence;
+  citations: AskResponse['citations'];
+  blockedSources?: SearchBlockedSourceSummary;
+  retrievalLogId?: string;
+  references: AiReferenceInput[];
+  runSources: AiRunSourceInput[];
+  ragReady: boolean;
+  fallbackUsed: boolean;
+  contextItemCount: number;
+}
+
+interface AskAuditHandle {
+  conversationId: string;
+  requestMessageId: string;
+  runId: string;
+  startedAt: number;
 }
 
 function extractTextFromMessage(message: AskMessageInput): string {
@@ -88,6 +127,14 @@ function inferConfidence(resultCount: number): SearchConfidence {
   return 'low';
 }
 
+function toSearchConfidence(resultCount: number, ragReady: boolean): SearchConfidence {
+  if (ragReady && resultCount >= 3) {
+    return 'high';
+  }
+
+  return inferConfidence(resultCount);
+}
+
 @Injectable()
 export class AskService {
   private readonly logger = new Logger(AskService.name);
@@ -95,15 +142,24 @@ export class AskService {
   constructor(
     private readonly runtime: SearchRuntimeService,
     private readonly searchService: SearchService,
+    private readonly aiRetrievalService: AiRetrievalService,
+    private readonly aiConversationService: AiConversationService,
+    private readonly aiModelGateway: AiModelGatewayService,
   ) {}
 
   async ask(request: AskRequest, currentUser: TokenPayload): Promise<AskResponse> {
+    let auditHandle: AskAuditHandle | undefined;
     try {
       const normalizedRequest = this.normalizeRequest(request);
       const askContext = await this.buildAskContext(normalizedRequest, currentUser);
-      const model = await getChatModel();
-      const completion = await generateText({
-        model,
+      const modelStatus = this.aiModelGateway.getStatus();
+      auditHandle = await this.safeStartAskAudit(
+        normalizedRequest,
+        askContext,
+        modelStatus,
+        currentUser,
+      );
+      const completion = await this.aiModelGateway.generateText({
         temperature: 0.2,
         maxOutputTokens: 512,
         system: this.buildAssistantSystemPrompt(normalizedRequest.contextMode),
@@ -112,6 +168,13 @@ export class AskService {
           content: message.content,
         })),
       });
+      await this.safeCompleteAskAuditSuccess(
+        auditHandle,
+        askContext,
+        completion.text,
+        completion.providerStatus,
+        currentUser,
+      );
 
       return {
         query: normalizedRequest.query,
@@ -122,6 +185,7 @@ export class AskService {
         blockedSources: askContext.blockedSources,
       };
     } catch (error) {
+      await this.safeCompleteAskAuditFailure(auditHandle, error, currentUser);
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -132,24 +196,41 @@ export class AskService {
   }
 
   async stream(request: AskRequest, currentUser: TokenPayload, signal?: AbortSignal) {
+    let auditHandle: AskAuditHandle | undefined;
     try {
       const normalizedRequest = this.normalizeRequest(request);
       const askContext = await this.buildAskContext(normalizedRequest, currentUser);
-      const model = await getChatModel();
-      const result = streamText({
-        model,
+      const modelStatus = this.aiModelGateway.getStatus();
+      auditHandle = await this.safeStartAskAudit(
+        normalizedRequest,
+        askContext,
+        modelStatus,
+        currentUser,
+      );
+      const result = await this.aiModelGateway.streamText({
         system: this.buildAssistantSystemPrompt(normalizedRequest.contextMode),
         abortSignal: signal,
         messages: askContext.messages.map((message) => ({
           role: message.role,
           content: message.content,
         })),
+        onFinish: async ({ text, providerStatus }) => {
+          await this.safeCompleteAskAuditSuccess(
+            auditHandle,
+            askContext,
+            text,
+            providerStatus,
+            currentUser,
+          );
+        },
         onError: (error: unknown) => {
           if (signal?.aborted) {
+            void this.safeCompleteAskAuditCancelled(auditHandle, currentUser);
             return;
           }
 
           this.logger.error(`DMS 질문 스트리밍 실패: ${getErrorMessage(error)}`);
+          void this.safeCompleteAskAuditFailure(auditHandle, error, currentUser);
         },
       });
 
@@ -171,6 +252,7 @@ export class AskService {
         throw error;
       }
 
+      await this.safeCompleteAskAuditFailure(auditHandle, error, currentUser);
       this.logger.error(`DMS 질문 스트림 준비 실패: ${getErrorMessage(error)}`);
       throw new InternalServerErrorException('질문 처리 중 오류가 발생했습니다.');
     }
@@ -241,6 +323,12 @@ export class AskService {
           confidence: 'low' as const,
           citations: [] as AskResponse['citations'],
           blockedSources: undefined,
+          retrievalLogId: undefined,
+          references: [] as AiReferenceInput[],
+          runSources: [] as AiRunSourceInput[],
+          ragReady: false,
+          fallbackUsed: false,
+          contextItemCount: 0,
         }
       : await this.loadSearchContext(currentUser, request.query, {
           contextMode: request.contextMode === 'deep' ? 'deep' : 'doc',
@@ -287,6 +375,12 @@ export class AskService {
       confidence: retrieval.confidence,
       citations: retrieval.citations,
       blockedSources: retrieval.blockedSources,
+      retrievalLogId: retrieval.retrievalLogId,
+      references: retrieval.references,
+      runSources: retrieval.runSources,
+      ragReady: retrieval.ragReady,
+      fallbackUsed: retrieval.fallbackUsed,
+      contextItemCount: retrieval.contextItemCount,
     };
   }
 
@@ -294,13 +388,7 @@ export class AskService {
     currentUser: TokenPayload,
     query: string,
     options: { contextMode: SearchContextMode; activeDocPath?: string },
-  ): Promise<{
-    context: string;
-    sources: SearchResultItem[];
-    confidence: SearchConfidence;
-    citations: AskResponse['citations'];
-    blockedSources?: SearchBlockedSourceSummary;
-  }> {
+  ): Promise<SearchContextLoadResult> {
     if (query.trim().length < 2) {
       return {
         context: '',
@@ -308,8 +396,194 @@ export class AskService {
         confidence: 'low',
         citations: [],
         blockedSources: undefined,
+        retrievalLogId: undefined,
+        references: [],
+        runSources: [],
+        ragReady: false,
+        fallbackUsed: false,
+        contextItemCount: 0,
       };
     }
+
+    const commonContext = await this.loadCommonSearchContext(currentUser, query, options);
+    if (commonContext && commonContext.context) {
+      return commonContext;
+    }
+
+    const legacyContext = await this.loadLegacySearchContext(currentUser, query, options);
+    if (!legacyContext.context && commonContext) {
+      return {
+        ...commonContext,
+        fallbackUsed: true,
+      };
+    }
+
+    return {
+      ...legacyContext,
+      fallbackUsed: true,
+    };
+  }
+
+  private async loadCommonSearchContext(
+    currentUser: TokenPayload,
+    query: string,
+    options: { contextMode: SearchContextMode; activeDocPath?: string },
+  ): Promise<SearchContextLoadResult | undefined> {
+    try {
+      const retrieval = await this.aiRetrievalService.retrieve({
+        query,
+        sourceApp: 'dms',
+        entityTypes: ['document'],
+        limit: options.contextMode === 'deep' ? 8 : 5,
+        contextLimit: options.contextMode === 'deep' ? 5 : 3,
+        includeContext: true,
+      }, currentUser);
+
+      if (retrieval.contextItems.length === 0 && retrieval.results.length === 0) {
+        return undefined;
+      }
+
+      return this.toCommonSearchContextResult(retrieval);
+    } catch (error) {
+      this.logger.warn(
+        `DMS 질문용 공용 RAG 컨텍스트 로드 실패, legacy 검색으로 폴백합니다: ${getErrorMessage(error)}`,
+      );
+      return undefined;
+    }
+  }
+
+  private toCommonSearchContextResult(
+    retrieval: CommonAiRetrievalResponse,
+  ): SearchContextLoadResult {
+    const resultByChunkId = new Map(
+      retrieval.results.map((result) => [result.chunkId, result]),
+    );
+    const context = retrieval.contextItems
+      .map((item, index) => {
+        const result = resultByChunkId.get(item.chunkId);
+        const title = result?.title ?? item.label;
+        const path = item.target?.path ?? result?.target?.path ?? item.entityId;
+        return `[문서 ${index + 1}: ${title}]\n경로: ${path}\n${item.text.slice(0, 2000)}`;
+      })
+      .join('\n\n---\n\n');
+
+    return {
+      context,
+      sources: retrieval.results
+        .filter((result) => result.permissionState === 'readable')
+        .slice(0, 5)
+        .map((result) => this.toDmsSearchResult(result)),
+      confidence: toSearchConfidence(retrieval.contextItems.length, retrieval.ragReady),
+      citations: this.toDmsCitations(retrieval, resultByChunkId),
+      blockedSources: this.toDmsBlockedSources(retrieval.blockedSources),
+      retrievalLogId: retrieval.retrievalLogId,
+      references: this.toAiReferences(retrieval.contextItems),
+      runSources: this.toAiRunSources(retrieval),
+      ragReady: retrieval.ragReady,
+      fallbackUsed: false,
+      contextItemCount: retrieval.contextItems.length,
+    };
+  }
+
+  private toDmsSearchResult(result: AiRetrievalResultItem): SearchResultItem {
+    return {
+      id: result.id,
+      title: result.title,
+      excerpt: result.excerpt,
+      path: result.target?.path ?? result.entityId,
+      score: result.score,
+      summary: result.metadata?.summaryText as string | undefined,
+      summarySource: result.metadata?.summaryText ? 'ai' : undefined,
+      snippets: result.excerpt ? [result.excerpt] : undefined,
+      totalSnippetCount: result.excerpt ? 1 : 0,
+      isReadable: result.permissionState === 'readable',
+      canRequestRead: result.permissionState === 'requestable',
+    };
+  }
+
+  private toDmsCitations(
+    retrieval: CommonAiRetrievalResponse,
+    resultByChunkId: Map<string, AiRetrievalResultItem>,
+  ): AskResponse['citations'] {
+    return retrieval.citations.map((citation) => {
+      const result = resultByChunkId.get(citation.chunkId);
+      const storageUri = citation.target?.path
+        ?? result?.target?.path
+        ?? `${citation.sourceApp}:${citation.entityType}:${citation.entityId}`;
+
+      return {
+        title: result?.title ?? citation.label,
+        storageUri,
+        webUrl: citation.target?.externalHref ?? result?.target?.externalHref,
+      };
+    });
+  }
+
+  private toDmsBlockedSources(
+    blockedSources: CommonAiRetrievalResponse['blockedSources'],
+  ): SearchBlockedSourceSummary | undefined {
+    if (!blockedSources?.totalCount) {
+      return undefined;
+    }
+
+    return {
+      totalCount: blockedSources.totalCount,
+      reasons: blockedSources.reasons.map((reason) => ({
+        code: 'document_access_denied',
+        label: reason.label,
+        count: reason.count,
+      })),
+    };
+  }
+
+  private toAiReferences(contextItems: AiRetrievalContextItem[]): AiReferenceInput[] {
+    return contextItems.map((item) => ({
+      aiObjectId: item.objectId,
+      aiChunkId: item.chunkId,
+      sourceApp: item.sourceApp,
+      entityType: item.entityType,
+      entityId: item.entityId,
+      referenceKindCode: 'retrieval',
+      citationId: item.citationId,
+      citationLabel: item.label,
+      target: item.target,
+      metadata: {
+        score: item.score,
+        adapter: 'dms.ask.common-retrieval',
+      },
+    }));
+  }
+
+  private toAiRunSources(retrieval: CommonAiRetrievalResponse): AiRunSourceInput[] {
+    return retrieval.contextItems.map((item, index) => {
+      const source: AiRunSourceInput = {
+        aiObjectId: item.objectId,
+        aiChunkId: item.chunkId,
+        sourceKindCode: 'retrieval',
+        rankNo: index + 1,
+        includedInPrompt: true,
+        citationId: item.citationId,
+        metadata: {
+          sourceApp: item.sourceApp,
+          entityType: item.entityType,
+          entityId: item.entityId,
+          score: item.score,
+        },
+      };
+
+      if (retrieval.retrievalLogId) {
+        source.aiRetrievalLogId = retrieval.retrievalLogId;
+      }
+
+      return source;
+    });
+  }
+
+  private async loadLegacySearchContext(
+    currentUser: TokenPayload,
+    query: string,
+    options: { contextMode: SearchContextMode; activeDocPath?: string },
+  ): Promise<SearchContextLoadResult> {
 
     try {
       const searchResponse = await this.searchService.search({
@@ -344,6 +618,12 @@ export class AskService {
           ? (searchResponse.citations ?? [])
           : [],
         blockedSources: searchResponse.blockedSources,
+        retrievalLogId: undefined,
+        references: [],
+        runSources: [],
+        ragReady: false,
+        fallbackUsed: true,
+        contextItemCount: topResults.length,
       };
     } catch (error) {
       this.logger.warn(
@@ -355,7 +635,243 @@ export class AskService {
         confidence: 'low',
         citations: [],
         blockedSources: undefined,
+        retrievalLogId: undefined,
+        references: [],
+        runSources: [],
+        ragReady: false,
+        fallbackUsed: true,
+        contextItemCount: 0,
       };
+    }
+  }
+
+  private async safeStartAskAudit(
+    request: NormalizedAskRequest,
+    askContext: AskContextBundle,
+    modelStatus: AiModelGatewayStatus,
+    currentUser: TokenPayload,
+  ): Promise<AskAuditHandle | undefined> {
+    const startedAt = Date.now();
+    try {
+      const conversation = await this.aiConversationService.createConversation({
+        sourceApp: 'dms',
+        conversationScopeCode: 'private',
+        title: request.query.slice(0, 120),
+        metadata: {
+          adapter: 'dms.ask',
+          contextMode: request.contextMode,
+          activeDocPath: request.activeDocPath ?? null,
+          retrievalLogId: askContext.retrievalLogId ?? null,
+          ragReady: askContext.ragReady,
+          fallbackUsed: askContext.fallbackUsed,
+          contextItemCount: askContext.contextItemCount,
+          modelProviderReady: modelStatus.ready,
+          modelProviderReasonCode: modelStatus.reasonCode ?? null,
+          modelProviderCode: modelStatus.providerCode,
+          modelName: modelStatus.modelName ?? null,
+          deploymentName: modelStatus.deploymentName ?? null,
+        },
+      }, currentUser);
+
+      const userMessage = await this.aiConversationService.appendMessage(
+        conversation.aiConversationId,
+        {
+          roleCode: 'user',
+          messageStatusCode: 'completed',
+          contentText: request.query,
+          metadata: {
+            adapter: 'dms.ask',
+            contextMode: request.contextMode,
+            activeDocPath: request.activeDocPath ?? null,
+            retrievalLogId: askContext.retrievalLogId ?? null,
+            ragReady: askContext.ragReady,
+            fallbackUsed: askContext.fallbackUsed,
+            modelProviderReady: modelStatus.ready,
+          },
+          references: askContext.references,
+        },
+        currentUser,
+      );
+
+      const run = await this.aiConversationService.startRun(
+        conversation.aiConversationId,
+        {
+          requestMessageId: userMessage.aiMessageId,
+          runTypeCode: 'chat',
+          providerCode: modelStatus.providerCode,
+          modelName: modelStatus.modelName,
+          deploymentName: modelStatus.deploymentName,
+          requestJson: {
+            query: request.query,
+            contextMode: request.contextMode,
+            activeDocPath: request.activeDocPath ?? null,
+            templateCount: request.templates.length,
+            retrievalLogId: askContext.retrievalLogId ?? null,
+            contextItemCount: askContext.contextItemCount,
+            ragReady: askContext.ragReady,
+            fallbackUsed: askContext.fallbackUsed,
+            modelProviderReady: modelStatus.ready,
+            modelProviderReasonCode: modelStatus.reasonCode ?? null,
+          },
+          metadata: {
+            adapter: 'dms.ask',
+            retrievalLogId: askContext.retrievalLogId ?? null,
+            sourceCount: askContext.sources.length,
+            citationCount: askContext.citations.length,
+            modelProviderCode: modelStatus.providerCode,
+            modelName: modelStatus.modelName ?? null,
+            deploymentName: modelStatus.deploymentName ?? null,
+          },
+          sources: askContext.runSources,
+        },
+        currentUser,
+      );
+
+      return {
+        conversationId: conversation.aiConversationId,
+        requestMessageId: userMessage.aiMessageId,
+        runId: run.aiRunId,
+        startedAt,
+      };
+    } catch (error) {
+      this.logger.warn(`DMS Ask 공용 대화/run 감사 시작 실패: ${getErrorMessage(error)}`);
+      return undefined;
+    }
+  }
+
+  private async safeCompleteAskAuditSuccess(
+    auditHandle: AskAuditHandle | undefined,
+    askContext: AskContextBundle,
+    answer: string | undefined,
+    modelStatus: AiModelGatewayStatus,
+    currentUser: TokenPayload,
+  ): Promise<void> {
+    if (!auditHandle) {
+      return;
+    }
+
+    let responseMessageId: string | undefined;
+    try {
+      const responseMessage = await this.aiConversationService.appendMessage(
+        auditHandle.conversationId,
+        {
+          parentMessageId: auditHandle.requestMessageId,
+          roleCode: 'assistant',
+          messageStatusCode: 'completed',
+          contentText: answer ?? '',
+          metadata: {
+            adapter: 'dms.ask',
+            retrievalLogId: askContext.retrievalLogId ?? null,
+            confidence: askContext.confidence,
+            sourceCount: askContext.sources.length,
+            citationCount: askContext.citations.length,
+            modelProviderCode: modelStatus.providerCode,
+            modelName: modelStatus.modelName ?? null,
+            deploymentName: modelStatus.deploymentName ?? null,
+          },
+          references: askContext.references,
+        },
+        currentUser,
+      );
+      responseMessageId = responseMessage.aiMessageId;
+    } catch (error) {
+      this.logger.warn(`DMS Ask assistant 메시지 감사 실패: ${getErrorMessage(error)}`);
+    }
+
+    try {
+      await this.aiConversationService.completeRun(
+        auditHandle.conversationId,
+        auditHandle.runId,
+        {
+          responseMessageId,
+          runStatusCode: 'succeeded',
+          latencyMs: Date.now() - auditHandle.startedAt,
+          responseJson: {
+            answerLength: answer?.length ?? 0,
+            confidence: askContext.confidence,
+            sourceCount: askContext.sources.length,
+            citationCount: askContext.citations.length,
+            retrievalLogId: askContext.retrievalLogId ?? null,
+            ragReady: askContext.ragReady,
+            fallbackUsed: askContext.fallbackUsed,
+            modelProviderCode: modelStatus.providerCode,
+            modelName: modelStatus.modelName ?? null,
+            deploymentName: modelStatus.deploymentName ?? null,
+          },
+          metadata: {
+            adapter: 'dms.ask',
+            completedBy: 'ask-service',
+            modelProviderCode: modelStatus.providerCode,
+            modelName: modelStatus.modelName ?? null,
+            deploymentName: modelStatus.deploymentName ?? null,
+          },
+        },
+        currentUser,
+      );
+    } catch (error) {
+      this.logger.warn(`DMS Ask run 성공 감사 완료 실패: ${getErrorMessage(error)}`);
+    }
+  }
+
+  private async safeCompleteAskAuditFailure(
+    auditHandle: AskAuditHandle | undefined,
+    error: unknown,
+    currentUser: TokenPayload,
+  ): Promise<void> {
+    if (!auditHandle) {
+      return;
+    }
+
+    try {
+      await this.aiConversationService.completeRun(
+        auditHandle.conversationId,
+        auditHandle.runId,
+        {
+          runStatusCode: 'failed',
+          latencyMs: Date.now() - auditHandle.startedAt,
+          lastErrorMessage: getErrorMessage(error),
+          responseJson: {
+            error: getErrorMessage(error),
+          },
+          metadata: {
+            adapter: 'dms.ask',
+            completedBy: 'ask-service',
+          },
+        },
+        currentUser,
+      );
+    } catch (auditError) {
+      this.logger.warn(`DMS Ask run 실패 감사 완료 실패: ${getErrorMessage(auditError)}`);
+    }
+  }
+
+  private async safeCompleteAskAuditCancelled(
+    auditHandle: AskAuditHandle | undefined,
+    currentUser: TokenPayload,
+  ): Promise<void> {
+    if (!auditHandle) {
+      return;
+    }
+
+    try {
+      await this.aiConversationService.completeRun(
+        auditHandle.conversationId,
+        auditHandle.runId,
+        {
+          runStatusCode: 'cancelled',
+          latencyMs: Date.now() - auditHandle.startedAt,
+          responseJson: {
+            cancelled: true,
+          },
+          metadata: {
+            adapter: 'dms.ask',
+            completedBy: 'ask-service',
+          },
+        },
+        currentUser,
+      );
+    } catch (error) {
+      this.logger.warn(`DMS Ask run 취소 감사 완료 실패: ${getErrorMessage(error)}`);
     }
   }
 

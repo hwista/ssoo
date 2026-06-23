@@ -26,7 +26,7 @@ export const SSOO_CONTENT_PAGE_METRICS = {
   sidecarToggleWidthPx: 20,
 } as const;
 
-export type SsooContentPageTone = 'neutral' | 'document-viewer' | 'document-editor' | 'ai' | 'settings' | 'transparent';
+export type SsooContentPageTone = 'neutral' | 'document-viewer' | 'document-editor' | 'ai' | 'profile' | 'settings' | 'transparent';
 export type SsooContentPageLayoutVariant = 'standard' | 'fluid' | 'main-only' | 'canvas';
 export type SsooContentPageSurfaceVariant = 'default' | 'transparent' | 'transparent-rounded' | 'plain';
 export type SsooContentPageSidecarMode = 'custom' | 'hidden';
@@ -79,6 +79,7 @@ export const SSOO_CONTENT_PAGE_TONE_CLASSES: Record<SsooContentPageTone, string>
   'document-viewer': 'ssoo-content-page-tone-document-viewer',
   'document-editor': 'ssoo-content-page-tone-document-editor',
   ai: 'ssoo-content-page-tone-ai',
+  profile: 'ssoo-content-page-tone-profile',
   settings: 'ssoo-content-page-tone-settings',
   transparent: 'ssoo-content-page-tone-transparent',
 } as const;
@@ -88,6 +89,7 @@ const SSOO_CONTENT_PAGE_STATE_TONE_CLASSES: Record<SsooContentPageTone, string> 
   'document-viewer': 'ssoo-content-page-state-tone-document-viewer',
   'document-editor': 'ssoo-content-page-state-tone-document-editor',
   ai: 'ssoo-content-page-state-tone-ai',
+  profile: 'ssoo-content-page-state-tone-profile',
   settings: 'ssoo-content-page-state-tone-settings',
   transparent: 'ssoo-content-page-state-tone-transparent',
 } as const;

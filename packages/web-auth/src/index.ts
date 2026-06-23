@@ -137,7 +137,10 @@ export {
   getSsooUserSurfacePageDescription,
   getSsooUserSurfaceTabPath,
   getSsooUserSurfaceTabTitle,
+  isSsooUserSurfaceRouteEntry,
   isSsooUserSurfaceRoute,
+  normalizeSsooUserSurfaceRouteEntryPath,
+  parseSsooUserSurfaceRouteEntry,
   parseSsooUserSurfaceRoute,
 } from './user-surface-routing';
 export type {
@@ -156,6 +159,16 @@ export type {
 
 export { SsooUserSurfacePage } from './user-surface';
 export type { SsooUserSurfacePageProps } from './user-surface';
+
+export {
+  createSsooUserSurfaceContentPageElement,
+  createSsooUserSurfaceRouteContentPageElement,
+} from './user-surface-content-page';
+export type {
+  SsooUserSurfaceContentPageOptions,
+  SsooUserSurfaceOpenProfileTabOptions,
+  SsooUserSurfaceRouteContentPageOptions,
+} from './user-surface-content-page';
 
 export { useSharedLogout } from './logout';
 export type { UseSharedLogoutOptions } from './logout';

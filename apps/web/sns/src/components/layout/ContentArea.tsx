@@ -9,16 +9,14 @@ import {
   SsooContentAreaState,
   SsooRegisteredMdiContentArea,
   createSsooContentPageAdapterElement,
-  createSsooSharedSurfaceContentPageElement,
   defineSsooMdiPageRegistry,
 } from '@ssoo/web-shell';
 import {
-  SsooUserSurfacePage,
-  getSsooUserSurfacePageDescription,
+  createSsooUserSurfaceRouteContentPageElement,
   getSsooUserSurfaceTabId,
-  getSsooUserSurfaceTabPath,
   getSsooUserSurfaceTabTitle,
   parseSsooUserSurfaceRoute,
+  parseSsooUserSurfaceRouteEntry,
   type SsooUserSurfaceRoute,
 } from '@ssoo/web-auth';
 import { useTabStore, type SnsTabItem } from '@/stores';
@@ -40,49 +38,6 @@ function stripQuery(path: string): string {
 
 function getPathTail(path: string, prefix: string): string {
   return decodeURIComponent(stripQuery(path).slice(prefix.length));
-}
-
-function renderUserSurface(
-  surface: 'my-profile' | 'user-profile' | 'personal-settings',
-  userId: string | undefined,
-  openTab: ReturnType<typeof useTabStore.getState>['openTab'],
-) {
-  return (
-    <SsooUserSurfacePage
-      surface={surface}
-      userId={userId}
-      apiBaseUrl={API_BASE_URL}
-      onOpenProfile={(nextUserId) => {
-        openTab({
-          id: getSsooUserSurfaceTabId('user-profile', nextUserId),
-          title: getSsooUserSurfaceTabTitle('user-profile'),
-          path: getSsooUserSurfaceTabPath('user-profile', nextUserId),
-          closable: true,
-          activate: true,
-        });
-      }}
-    />
-  );
-}
-
-function parseLegacySnsUserSurfaceRoute(path: string): SsooUserSurfaceRoute | null {
-  const pathname = stripQuery(path);
-
-  if (pathname === '/settings') {
-    return parseSsooUserSurfaceRoute(getSsooUserSurfaceTabPath('personal-settings'));
-  }
-
-  if (pathname === '/profile/me') {
-    return parseSsooUserSurfaceRoute(getSsooUserSurfaceTabPath('my-profile'));
-  }
-
-  if (pathname.startsWith('/profile/')) {
-    return parseSsooUserSurfaceRoute(
-      getSsooUserSurfaceTabPath('user-profile', getPathTail(pathname, '/profile/')),
-    );
-  }
-
-  return null;
 }
 
 function LegacyUserSurfaceRedirect({
@@ -118,30 +73,16 @@ function renderSnsUserSurfaceContentPage(
   tab: SnsTabItem,
   openTab: ReturnType<typeof useTabStore.getState>['openTab'],
 ) {
-  const userSurfaceRoute = parseSsooUserSurfaceRoute(tab.path);
-
-  return createSsooSharedSurfaceContentPageElement({
-    surfaceId: userSurfaceRoute ? `ssoo-user-${userSurfaceRoute.kind}` : 'ssoo-user-surface',
-    title: userSurfaceRoute?.title ?? tab.title,
-    description: userSurfaceRoute
-      ? getSsooUserSurfacePageDescription(userSurfaceRoute.kind)
-      : undefined,
-    pageTone: userSurfaceRoute?.kind === 'personal-settings' ? 'settings' : 'neutral',
-    children: userSurfaceRoute ? (
-      renderUserSurface(userSurfaceRoute.kind, userSurfaceRoute.userId, openTab)
-    ) : (
-      <SsooContentAreaState title="알 수 없는 사용자 표면입니다." description={`경로: ${tab.path}`} />
-    ),
+  return createSsooUserSurfaceRouteContentPageElement({
+    path: tab.path,
+    title: tab.title,
+    apiBaseUrl: API_BASE_URL,
+    onOpenProfileTab: openTab,
   });
 }
 
-function renderSnsPage(tab: SnsTabItem, openTab: ReturnType<typeof useTabStore.getState>['openTab']) {
+function renderSnsPage(tab: SnsTabItem) {
   const pathname = stripQuery(tab.path);
-  const userSurfaceRoute = parseSsooUserSurfaceRoute(tab.path);
-
-  if (userSurfaceRoute) {
-    return renderUserSurface(userSurfaceRoute.kind, userSurfaceRoute.userId, openTab);
-  }
 
   if (pathname === '/') {
     return <FeedPage />;
@@ -164,11 +105,11 @@ function renderSnsPage(tab: SnsTabItem, openTab: ReturnType<typeof useTabStore.g
   );
 }
 
-function renderSnsRegisteredPage(tab: SnsTabItem, openTab: ReturnType<typeof useTabStore.getState>['openTab']) {
+function renderSnsRegisteredPage(tab: SnsTabItem) {
   return (
     <SsooContentAreaSurface padding="lg" scroll="auto" tone="default">
       <Suspense fallback={<SsooContentAreaState variant="loading">페이지 로딩 중...</SsooContentAreaState>}>
-        {renderSnsPage(tab, openTab)}
+        {renderSnsPage(tab)}
       </Suspense>
     </SsooContentAreaSurface>
   );
@@ -190,7 +131,7 @@ function renderSnsUserSurfaceHandoffContentPage(
   openTab: ReturnType<typeof useTabStore.getState>['openTab'],
   closeTab: ReturnType<typeof useTabStore.getState>['closeTab'],
 ) {
-  const route = parseLegacySnsUserSurfaceRoute(tab.path);
+  const route = parseSsooUserSurfaceRouteEntry(tab.path);
 
   return createSsooContentPageAdapterElement({
     adapterName: ROUTE_HANDOFF_CONTENT_PAGE_ADAPTER_NAME,
@@ -225,7 +166,7 @@ export function ContentArea() {
       kind: 'contentPage',
       template: 'domainAdapter',
       adapterName: ROUTE_HANDOFF_CONTENT_PAGE_ADAPTER_NAME,
-      match: (tab) => Boolean(parseLegacySnsUserSurfaceRoute(tab.path)),
+      match: (tab) => !parseSsooUserSurfaceRoute(tab.path) && Boolean(parseSsooUserSurfaceRouteEntry(tab.path)),
       render: ({ tab }) => renderSnsUserSurfaceHandoffContentPage(tab, openTab, closeTab),
     },
     {
@@ -244,7 +185,7 @@ export function ContentArea() {
       match: () => true,
       render: ({ tab }) => createSsooContentPageAdapterElement({
         adapterName: SNS_LOCAL_PAGE_CONTENT_PAGE_ADAPTER_NAME,
-        children: renderSnsRegisteredPage(tab, openTab),
+        children: renderSnsRegisteredPage(tab),
       }),
     },
   ]);

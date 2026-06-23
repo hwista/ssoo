@@ -464,6 +464,613 @@ model CommonNotification {
 }
 
 // ============================================
+// Common AI/RAG Source Registry - cm_ai_source_m
+// 도메인별 원본은 각 도메인이 소유하고, AI/RAG는 공용 projection만 소비한다.
+// ============================================
+model AiSource {
+  aiSourceId BigInt @id @default(autoincrement()) @map("ai_source_id")
+
+  sourceAppCode        String  @unique @map("source_app_code") @db.VarChar(30)
+  sourceName           String  @map("source_name") @db.VarChar(160)
+  sourceKindCode       String  @default("domain") @map("source_kind_code") @db.VarChar(40)
+  adapterCode          String? @map("adapter_code") @db.VarChar(120)
+  embeddingProfileCode String? @map("embedding_profile_code") @db.VarChar(120)
+  sourceStatusCode     String  @default("active") @map("source_status_code") @db.VarChar(40)
+
+  indexingEnabled       Boolean @default(true) @map("indexing_enabled")
+  keywordSearchEnabled  Boolean @default(true) @map("keyword_search_enabled")
+  metadataSearchEnabled Boolean @default(true) @map("metadata_search_enabled")
+  semanticSearchEnabled Boolean @default(false) @map("semantic_search_enabled")
+  vectorSearchEnabled   Boolean @default(false) @map("vector_search_enabled")
+  ragContextEnabled     Boolean @default(false) @map("rag_context_enabled")
+
+  metadataJson Json? @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  objects     AiObject[]
+  indexJobs   AiIndexJob[]
+  indexStates AiIndexState[]
+
+  @@index([sourceStatusCode, isActive], name: "ix_cm_ai_source_m_status_active")
+  @@map("cm_ai_source_m")
+  @@schema("common")
+}
+
+model AiSourceHistory {
+  aiSourceId BigInt @map("ai_source_id")
+  historySeq BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at") @db.Timestamptz(6)
+
+  sourceAppCode        String  @map("source_app_code") @db.VarChar(30)
+  sourceName           String  @map("source_name") @db.VarChar(160)
+  sourceKindCode       String  @map("source_kind_code") @db.VarChar(40)
+  adapterCode          String? @map("adapter_code") @db.VarChar(120)
+  embeddingProfileCode String? @map("embedding_profile_code") @db.VarChar(120)
+  sourceStatusCode     String  @map("source_status_code") @db.VarChar(40)
+  indexingEnabled       Boolean @map("indexing_enabled")
+  keywordSearchEnabled  Boolean @map("keyword_search_enabled")
+  metadataSearchEnabled Boolean @map("metadata_search_enabled")
+  semanticSearchEnabled Boolean @map("semantic_search_enabled")
+  vectorSearchEnabled   Boolean @map("vector_search_enabled")
+  ragContextEnabled     Boolean @map("rag_context_enabled")
+  metadataJson          Json?   @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([aiSourceId, historySeq], name: "pk_cm_ai_source_h")
+  @@index([eventAt], name: "ix_cm_ai_source_h_event_at")
+  @@index([transactionId], name: "ix_cm_ai_source_h_tx")
+  @@map("cm_ai_source_h")
+  @@schema("common")
+}
+
+// ============================================
+// Common AI/RAG Index Object - cm_ai_object_m
+// ============================================
+model AiObject {
+  aiObjectId BigInt @id @default(autoincrement()) @map("ai_object_id")
+
+  aiSourceId         BigInt    @map("ai_source_id")
+  sourceAppCode      String    @map("source_app_code") @db.VarChar(30)
+  entityTypeCode     String    @map("entity_type_code") @db.VarChar(80)
+  entityId           String    @map("entity_id") @db.VarChar(200)
+  sourceVersion      String?   @map("source_version") @db.VarChar(160)
+  title              String    @db.VarChar(500)
+  bodyText           String?   @map("body_text") @db.Text
+  summaryText        String?   @map("summary_text") @db.Text
+  targetPath         String?   @map("target_path") @db.VarChar(1000)
+  targetExternalHref String?   @map("target_external_href") @db.VarChar(1000)
+  sensitivityCode    String    @default("internal") @map("sensitivity_code") @db.VarChar(40)
+  aclPolicyCode      String    @default("acl") @map("acl_policy_code") @db.VarChar(40)
+  searchEligible     Boolean   @default(true) @map("search_eligible")
+  contextEligible    Boolean   @default(false) @map("context_eligible")
+  contentHash        String?   @map("content_hash") @db.VarChar(128)
+  indexedAt          DateTime? @map("indexed_at") @db.Timestamptz(6)
+  metadataJson       Json?     @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  source            AiSource             @relation(fields: [aiSourceId], references: [aiSourceId], onDelete: Cascade)
+  chunks            AiChunk[]
+  aclSnapshots      AiAclSnapshot[]
+  indexJobs         AiIndexJob[]
+  indexStates       AiIndexState[]
+  retrievalLogItems AiRetrievalLogItem[]
+  references        AiReference[]
+  runSources        AiRunSource[]
+
+  @@unique([sourceAppCode, entityTypeCode, entityId], name: "ux_cm_ai_object_m_entity")
+  @@index([aiSourceId, updatedAt], name: "ix_cm_ai_object_m_source_updated")
+  @@index([sourceAppCode, entityTypeCode], name: "ix_cm_ai_object_m_app_entity_type")
+  @@index([sensitivityCode, contextEligible], name: "ix_cm_ai_object_m_sensitivity_context")
+  @@map("cm_ai_object_m")
+  @@schema("common")
+}
+
+model AiObjectHistory {
+  aiObjectId BigInt @map("ai_object_id")
+  historySeq BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at") @db.Timestamptz(6)
+
+  aiSourceId         BigInt    @map("ai_source_id")
+  sourceAppCode      String    @map("source_app_code") @db.VarChar(30)
+  entityTypeCode     String    @map("entity_type_code") @db.VarChar(80)
+  entityId           String    @map("entity_id") @db.VarChar(200)
+  sourceVersion      String?   @map("source_version") @db.VarChar(160)
+  title              String    @db.VarChar(500)
+  bodyText           String?   @map("body_text") @db.Text
+  summaryText        String?   @map("summary_text") @db.Text
+  targetPath         String?   @map("target_path") @db.VarChar(1000)
+  targetExternalHref String?   @map("target_external_href") @db.VarChar(1000)
+  sensitivityCode    String    @map("sensitivity_code") @db.VarChar(40)
+  aclPolicyCode      String    @map("acl_policy_code") @db.VarChar(40)
+  searchEligible     Boolean   @map("search_eligible")
+  contextEligible    Boolean   @map("context_eligible")
+  contentHash        String?   @map("content_hash") @db.VarChar(128)
+  indexedAt          DateTime? @map("indexed_at") @db.Timestamptz(6)
+  metadataJson       Json?     @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([aiObjectId, historySeq], name: "pk_cm_ai_object_h")
+  @@index([eventAt], name: "ix_cm_ai_object_h_event_at")
+  @@index([transactionId], name: "ix_cm_ai_object_h_tx")
+  @@map("cm_ai_object_h")
+  @@schema("common")
+}
+
+model AiChunk {
+  aiChunkId BigInt @id @default(autoincrement()) @map("ai_chunk_id")
+
+  aiObjectId   BigInt  @map("ai_object_id")
+  chunkSeq     Int     @map("chunk_seq")
+  chunkKey     String  @map("chunk_key") @db.VarChar(160)
+  chunkText    String  @map("chunk_text") @db.Text
+  tokenCount   Int?    @map("token_count")
+  charStart    Int?    @map("char_start")
+  charEnd      Int?    @map("char_end")
+  citationLabel String? @map("citation_label") @db.VarChar(120)
+  contentHash  String? @map("content_hash") @db.VarChar(128)
+  metadataJson Json?   @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  object            AiObject             @relation(fields: [aiObjectId], references: [aiObjectId], onDelete: Cascade)
+  embeddings        AiEmbedding[]
+  retrievalLogItems AiRetrievalLogItem[]
+  references        AiReference[]
+  runSources        AiRunSource[]
+
+  @@unique([aiObjectId, chunkSeq], name: "ux_cm_ai_chunk_m_object_seq")
+  @@unique([aiObjectId, chunkKey], name: "ux_cm_ai_chunk_m_object_key")
+  @@index([aiObjectId, isActive], name: "ix_cm_ai_chunk_m_object_active")
+  @@map("cm_ai_chunk_m")
+  @@schema("common")
+}
+
+model AiEmbedding {
+  aiEmbeddingId BigInt @id @default(autoincrement()) @map("ai_embedding_id")
+
+  aiChunkId          BigInt                       @map("ai_chunk_id")
+  profileCode        String                       @default("default") @map("profile_code") @db.VarChar(120)
+  providerCode       String?                      @map("provider_code") @db.VarChar(80)
+  modelName          String?                      @map("model_name") @db.VarChar(160)
+  deploymentName     String?                      @map("deployment_name") @db.VarChar(160)
+  embeddingDimension Int                          @map("embedding_dimension")
+  embedding          Unsupported("vector(1536)")? @map("embedding")
+  embeddingHash      String?                      @map("embedding_hash") @db.VarChar(128)
+  metadataJson       Json?                        @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  chunk AiChunk @relation(fields: [aiChunkId], references: [aiChunkId], onDelete: Cascade)
+
+  @@unique([aiChunkId, profileCode], name: "ux_cm_ai_embedding_m_chunk_profile")
+  @@index([profileCode, providerCode, modelName], name: "ix_cm_ai_embedding_m_profile_model")
+  @@map("cm_ai_embedding_m")
+  @@schema("common")
+}
+
+model AiAclSnapshot {
+  aiAclSnapshotId BigInt @id @default(autoincrement()) @map("ai_acl_snapshot_id")
+
+  aiObjectId          BigInt  @map("ai_object_id")
+  accessScopeCode     String  @default("acl") @map("access_scope_code") @db.VarChar(40)
+  policyHash          String? @map("policy_hash") @db.VarChar(128)
+  sensitivityCode     String  @default("internal") @map("sensitivity_code") @db.VarChar(40)
+  searchEligible      Boolean @default(true) @map("search_eligible")
+  contextEligible     Boolean @default(false) @map("context_eligible")
+  aclSnapshotJson     Json    @map("acl_snapshot_jsonb") @db.JsonB
+  metadataJson        Json?   @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  object AiObject @relation(fields: [aiObjectId], references: [aiObjectId], onDelete: Cascade)
+
+  @@index([aiObjectId, isActive], name: "ix_cm_ai_acl_snapshot_m_object_active")
+  @@index([accessScopeCode, sensitivityCode], name: "ix_cm_ai_acl_snapshot_m_scope")
+  @@map("cm_ai_acl_snapshot_m")
+  @@schema("common")
+}
+
+model AiIndexJob {
+  aiIndexJobId BigInt @id @default(autoincrement()) @map("ai_index_job_id")
+
+  aiSourceId       BigInt?   @map("ai_source_id")
+  aiObjectId       BigInt?   @map("ai_object_id")
+  sourceAppCode    String    @map("source_app_code") @db.VarChar(30)
+  entityTypeCode   String    @map("entity_type_code") @db.VarChar(80)
+  entityId         String    @map("entity_id") @db.VarChar(200)
+  jobTypeCode      String    @default("upsert") @map("job_type_code") @db.VarChar(40)
+  jobStatusCode    String    @default("pending") @map("job_status_code") @db.VarChar(40)
+  priorityNo       Int       @default(100) @map("priority_no")
+  attemptCount     Int       @default(0) @map("attempt_count")
+  maxAttempts      Int       @default(3) @map("max_attempts")
+  sourceVersion    String?   @map("source_version") @db.VarChar(160)
+  requestedBy      BigInt?   @map("requested_by")
+  requestedAt      DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  startedAt        DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt       DateTime? @map("finished_at") @db.Timestamptz(6)
+  nextRetryAt      DateTime? @map("next_retry_at") @db.Timestamptz(6)
+  lastErrorMessage String?   @map("last_error_message") @db.VarChar(1000)
+  payloadJson      Json?     @map("payload_jsonb") @db.JsonB
+  metadataJson     Json?     @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  source AiSource? @relation(fields: [aiSourceId], references: [aiSourceId], onDelete: SetNull)
+  object AiObject? @relation(fields: [aiObjectId], references: [aiObjectId], onDelete: SetNull)
+
+  @@index([jobStatusCode, priorityNo, requestedAt], name: "ix_cm_ai_index_job_m_status_priority")
+  @@index([sourceAppCode, entityTypeCode, entityId], name: "ix_cm_ai_index_job_m_entity")
+  @@index([aiSourceId, jobStatusCode], name: "ix_cm_ai_index_job_m_source_status")
+  @@index([aiObjectId], name: "ix_cm_ai_index_job_m_object")
+  @@map("cm_ai_index_job_m")
+  @@schema("common")
+}
+
+model AiIndexState {
+  aiIndexStateId BigInt @id @default(autoincrement()) @map("ai_index_state_id")
+
+  aiSourceId             BigInt    @map("ai_source_id")
+  aiObjectId             BigInt    @map("ai_object_id")
+  profileCode            String    @default("default") @map("profile_code") @db.VarChar(120)
+  indexStatusCode        String    @default("pending") @map("index_status_code") @db.VarChar(40)
+  chunkCount             Int       @default(0) @map("chunk_count")
+  indexedChunkCount      Int       @default(0) @map("indexed_chunk_count")
+  lastIndexedSourceVersion String? @map("last_indexed_source_version") @db.VarChar(160)
+  lastRequestedAt        DateTime? @map("last_requested_at") @db.Timestamptz(6)
+  lastIndexedAt          DateTime? @map("last_indexed_at") @db.Timestamptz(6)
+  lastFailedAt           DateTime? @map("last_failed_at") @db.Timestamptz(6)
+  lastErrorMessage       String?   @map("last_error_message") @db.VarChar(1000)
+  metadataJson           Json?     @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  source AiSource @relation(fields: [aiSourceId], references: [aiSourceId], onDelete: Cascade)
+  object AiObject @relation(fields: [aiObjectId], references: [aiObjectId], onDelete: Cascade)
+
+  @@unique([aiObjectId, profileCode], name: "ux_cm_ai_index_state_m_object_profile")
+  @@index([aiSourceId, indexStatusCode], name: "ix_cm_ai_index_state_m_source_status")
+  @@index([lastIndexedAt], name: "ix_cm_ai_index_state_m_last_indexed_at")
+  @@map("cm_ai_index_state_m")
+  @@schema("common")
+}
+
+model AiIndexStateHistory {
+  aiIndexStateId BigInt @map("ai_index_state_id")
+  historySeq     BigInt @map("history_seq")
+
+  eventType String   @map("event_type") @db.Char(1)
+  eventAt   DateTime @map("event_at") @db.Timestamptz(6)
+
+  aiSourceId               BigInt    @map("ai_source_id")
+  aiObjectId               BigInt    @map("ai_object_id")
+  profileCode              String    @map("profile_code") @db.VarChar(120)
+  indexStatusCode          String    @map("index_status_code") @db.VarChar(40)
+  chunkCount               Int       @map("chunk_count")
+  indexedChunkCount        Int       @map("indexed_chunk_count")
+  lastIndexedSourceVersion String?   @map("last_indexed_source_version") @db.VarChar(160)
+  lastRequestedAt          DateTime? @map("last_requested_at") @db.Timestamptz(6)
+  lastIndexedAt            DateTime? @map("last_indexed_at") @db.Timestamptz(6)
+  lastFailedAt             DateTime? @map("last_failed_at") @db.Timestamptz(6)
+  lastErrorMessage         String?   @map("last_error_message") @db.VarChar(1000)
+  metadataJson             Json?     @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([aiIndexStateId, historySeq], name: "pk_cm_ai_index_state_h")
+  @@index([eventAt], name: "ix_cm_ai_index_state_h_event_at")
+  @@index([transactionId], name: "ix_cm_ai_index_state_h_tx")
+  @@map("cm_ai_index_state_h")
+  @@schema("common")
+}
+
+model AiRetrievalLog {
+  aiRetrievalLogId BigInt @id @default(autoincrement()) @map("ai_retrieval_log_id")
+
+  requestId      String?  @map("request_id") @db.VarChar(120)
+  conversationId BigInt?  @map("conversation_id")
+  sourceAppCode  String?  @map("source_app_code") @db.VarChar(30)
+  queryText      String   @map("query_text") @db.Text
+  retrievalModeCode String @default("hybrid") @map("retrieval_mode_code") @db.VarChar(40)
+  resultCount    Int      @default(0) @map("result_count")
+  contextCount   Int      @default(0) @map("context_count")
+  blockedCount   Int      @default(0) @map("blocked_count")
+  statusCode     String   @default("succeeded") @map("status_code") @db.VarChar(40)
+  latencyMs      Int?     @map("latency_ms")
+  userId         BigInt?  @map("user_id")
+  metadataJson   Json?    @map("metadata_jsonb") @db.JsonB
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  items AiRetrievalLogItem[]
+
+  @@index([sourceAppCode, createdAt], name: "ix_cm_ai_retrieval_log_m_source_created")
+  @@index([userId, createdAt], name: "ix_cm_ai_retrieval_log_m_user_created")
+  @@map("cm_ai_retrieval_log_m")
+  @@schema("common")
+}
+
+model AiRetrievalLogItem {
+  aiRetrievalLogItemId BigInt @id @default(autoincrement()) @map("ai_retrieval_log_item_id")
+
+  aiRetrievalLogId BigInt  @map("ai_retrieval_log_id")
+  aiObjectId       BigInt? @map("ai_object_id")
+  aiChunkId        BigInt? @map("ai_chunk_id")
+  rankNo           Int     @map("rank_no")
+  score            Float?  @map("score")
+  similarity       Float?  @map("similarity")
+  includedInContext Boolean @default(false) @map("included_in_context")
+  permissionStateCode String @default("unknown") @map("permission_state_code") @db.VarChar(40)
+  citationId       String? @map("citation_id") @db.VarChar(120)
+  metadataJson     Json?   @map("metadata_jsonb") @db.JsonB
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  retrievalLog AiRetrievalLog @relation(fields: [aiRetrievalLogId], references: [aiRetrievalLogId], onDelete: Cascade)
+  object       AiObject?      @relation(fields: [aiObjectId], references: [aiObjectId], onDelete: SetNull)
+  chunk        AiChunk?       @relation(fields: [aiChunkId], references: [aiChunkId], onDelete: SetNull)
+
+  @@index([aiRetrievalLogId, rankNo], name: "ix_cm_ai_retrieval_log_item_m_log_rank")
+  @@index([aiObjectId], name: "ix_cm_ai_retrieval_log_item_m_object")
+  @@map("cm_ai_retrieval_log_item_m")
+  @@schema("common")
+}
+
+model AiConversation {
+  aiConversationId BigInt @id @default(autoincrement()) @map("ai_conversation_id")
+
+  ownerUserId            BigInt?   @map("owner_user_id")
+  sourceAppCode          String?   @map("source_app_code") @db.VarChar(30)
+  conversationScopeCode  String    @default("private") @map("conversation_scope_code") @db.VarChar(40)
+  conversationStatusCode String    @default("active") @map("conversation_status_code") @db.VarChar(40)
+  title                  String?   @db.VarChar(300)
+  summary                String?   @db.Text
+  lastMessageAt          DateTime? @map("last_message_at") @db.Timestamptz(6)
+  metadataJson           Json?     @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  messages   AiMessage[]
+  references AiReference[]
+  runs       AiRun[]
+
+  @@index([ownerUserId, updatedAt], name: "ix_cm_ai_conversation_m_owner_updated")
+  @@index([sourceAppCode, conversationStatusCode], name: "ix_cm_ai_conversation_m_source_status")
+  @@map("cm_ai_conversation_m")
+  @@schema("common")
+}
+
+model AiMessage {
+  aiMessageId BigInt @id @default(autoincrement()) @map("ai_message_id")
+
+  aiConversationId BigInt  @map("ai_conversation_id")
+  parentMessageId  BigInt? @map("parent_message_id")
+  messageSeq       Int     @map("message_seq")
+  roleCode         String  @map("role_code") @db.VarChar(40)
+  messageStatusCode String @default("completed") @map("message_status_code") @db.VarChar(40)
+  contentText      String? @map("content_text") @db.Text
+  contentJson      Json?   @map("content_jsonb") @db.JsonB
+  tokenCount       Int?    @map("token_count")
+  metadataJson     Json?   @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  conversation AiConversation @relation(fields: [aiConversationId], references: [aiConversationId], onDelete: Cascade)
+  references   AiReference[]  @relation("AiMessageReferences")
+  requestRuns  AiRun[]        @relation("AiRunRequestMessage")
+  responseRuns AiRun[]        @relation("AiRunResponseMessage")
+
+  @@unique([aiConversationId, messageSeq], name: "ux_cm_ai_message_m_conversation_seq")
+  @@index([aiConversationId, createdAt], name: "ix_cm_ai_message_m_conversation_created")
+  @@map("cm_ai_message_m")
+  @@schema("common")
+}
+
+model AiReference {
+  aiReferenceId BigInt @id @default(autoincrement()) @map("ai_reference_id")
+
+  aiConversationId BigInt  @map("ai_conversation_id")
+  aiMessageId      BigInt? @map("ai_message_id")
+  aiObjectId       BigInt? @map("ai_object_id")
+  aiChunkId        BigInt? @map("ai_chunk_id")
+  sourceAppCode    String? @map("source_app_code") @db.VarChar(30)
+  entityTypeCode   String? @map("entity_type_code") @db.VarChar(80)
+  entityId         String? @map("entity_id") @db.VarChar(200)
+  referenceKindCode String @default("manual") @map("reference_kind_code") @db.VarChar(40)
+  citationId       String? @map("citation_id") @db.VarChar(120)
+  citationLabel    String? @map("citation_label") @db.VarChar(120)
+  targetJson       Json?   @map("target_jsonb") @db.JsonB
+  metadataJson     Json?   @map("metadata_jsonb") @db.JsonB
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  conversation AiConversation @relation(fields: [aiConversationId], references: [aiConversationId], onDelete: Cascade)
+  message      AiMessage?     @relation("AiMessageReferences", fields: [aiMessageId], references: [aiMessageId], onDelete: SetNull)
+  object       AiObject?      @relation(fields: [aiObjectId], references: [aiObjectId], onDelete: SetNull)
+  chunk        AiChunk?       @relation(fields: [aiChunkId], references: [aiChunkId], onDelete: SetNull)
+  runSources   AiRunSource[]
+
+  @@index([aiConversationId, createdAt], name: "ix_cm_ai_reference_m_conversation_created")
+  @@index([aiObjectId], name: "ix_cm_ai_reference_m_object")
+  @@map("cm_ai_reference_m")
+  @@schema("common")
+}
+
+model AiRun {
+  aiRunId BigInt @id @default(autoincrement()) @map("ai_run_id")
+
+  aiConversationId BigInt  @map("ai_conversation_id")
+  requestMessageId BigInt? @map("request_message_id")
+  responseMessageId BigInt? @map("response_message_id")
+  userId           BigInt? @map("user_id")
+  runTypeCode      String  @default("chat") @map("run_type_code") @db.VarChar(40)
+  runStatusCode    String  @default("pending") @map("run_status_code") @db.VarChar(40)
+  providerCode     String? @map("provider_code") @db.VarChar(80)
+  modelName        String? @map("model_name") @db.VarChar(160)
+  deploymentName   String? @map("deployment_name") @db.VarChar(160)
+  startedAt        DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt       DateTime? @map("finished_at") @db.Timestamptz(6)
+  latencyMs        Int?    @map("latency_ms")
+  inputTokenCount  Int?    @map("input_token_count")
+  outputTokenCount Int?    @map("output_token_count")
+  totalTokenCount  Int?    @map("total_token_count")
+  lastErrorMessage String? @map("last_error_message") @db.VarChar(1000)
+  requestJson      Json?   @map("request_jsonb") @db.JsonB
+  responseJson     Json?   @map("response_jsonb") @db.JsonB
+  metadataJson     Json?   @map("metadata_jsonb") @db.JsonB
+
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  conversation    AiConversation @relation(fields: [aiConversationId], references: [aiConversationId], onDelete: Cascade)
+  requestMessage  AiMessage?     @relation("AiRunRequestMessage", fields: [requestMessageId], references: [aiMessageId], onDelete: SetNull)
+  responseMessage AiMessage?     @relation("AiRunResponseMessage", fields: [responseMessageId], references: [aiMessageId], onDelete: SetNull)
+  sources         AiRunSource[]
+
+  @@index([aiConversationId, createdAt], name: "ix_cm_ai_run_m_conversation_created")
+  @@index([runStatusCode, createdAt], name: "ix_cm_ai_run_m_status_created")
+  @@map("cm_ai_run_m")
+  @@schema("common")
+}
+
+model AiRunSource {
+  aiRunSourceId BigInt @id @default(autoincrement()) @map("ai_run_source_id")
+
+  aiRunId          BigInt  @map("ai_run_id")
+  aiRetrievalLogId BigInt? @map("ai_retrieval_log_id")
+  aiReferenceId    BigInt? @map("ai_reference_id")
+  aiObjectId       BigInt? @map("ai_object_id")
+  aiChunkId        BigInt? @map("ai_chunk_id")
+  sourceKindCode   String  @default("manual") @map("source_kind_code") @db.VarChar(40)
+  rankNo           Int?    @map("rank_no")
+  includedInPrompt Boolean @default(false) @map("included_in_prompt")
+  citationId       String? @map("citation_id") @db.VarChar(120)
+  metadataJson     Json?   @map("metadata_jsonb") @db.JsonB
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  run       AiRun        @relation(fields: [aiRunId], references: [aiRunId], onDelete: Cascade)
+  reference AiReference? @relation(fields: [aiReferenceId], references: [aiReferenceId], onDelete: SetNull)
+  object    AiObject?    @relation(fields: [aiObjectId], references: [aiObjectId], onDelete: SetNull)
+  chunk     AiChunk?     @relation(fields: [aiChunkId], references: [aiChunkId], onDelete: SetNull)
+
+  @@index([aiRunId, rankNo], name: "ix_cm_ai_run_source_r_run_rank")
+  @@index([aiObjectId], name: "ix_cm_ai_run_source_r_object")
+  @@map("cm_ai_run_source_r")
+  @@schema("common")
+}
+
+// ============================================
 // User Auth Account - cm_user_auth_m
 // auth/account 상태 전용 브리지 테이블
 // ============================================

@@ -17,15 +17,10 @@ import {
   SsooContentAreaState,
   SsooRegisteredMdiContentArea,
   createSsooContentPageAdapterElement,
-  createSsooSharedSurfaceContentPageElement,
   defineSsooMdiPageRegistry,
 } from '@ssoo/web-shell';
 import {
-  SsooUserSurfacePage,
-  getSsooUserSurfacePageDescription,
-  getSsooUserSurfaceTabId,
-  getSsooUserSurfaceTabPath,
-  getSsooUserSurfaceTabTitle,
+  createSsooUserSurfaceRouteContentPageElement,
   parseSsooUserSurfaceRoute,
 } from '@ssoo/web-auth';
 
@@ -184,36 +179,14 @@ function renderDmsUserSurfaceContentPage(
   tab: TabItem,
   openTab: ReturnType<typeof useTabStore.getState>['openTab'],
 ) {
-  const userSurfaceRoute = parseSsooUserSurfaceRoute(tab.path);
-
-  return createSsooSharedSurfaceContentPageElement({
-    surfaceId: userSurfaceRoute ? `ssoo-user-${userSurfaceRoute.kind}` : 'ssoo-user-surface',
-    title: userSurfaceRoute?.title ?? tab.title,
-    description: userSurfaceRoute
-      ? getSsooUserSurfacePageDescription(userSurfaceRoute.kind)
-      : undefined,
-    pageTone: userSurfaceRoute?.kind === 'personal-settings' ? 'settings' : 'neutral',
-    children: (
+  return createSsooUserSurfaceRouteContentPageElement({
+    path: tab.path,
+    title: tab.title,
+    apiBaseUrl: API_BASE_URL,
+    onOpenProfileTab: openTab,
+    wrapChildren: (children) => (
       <TabInstanceProvider tabId={tab.id}>
-        {userSurfaceRoute ? (
-          <SsooUserSurfacePage
-            surface={userSurfaceRoute.kind}
-            userId={userSurfaceRoute.userId}
-            apiBaseUrl={API_BASE_URL}
-            onOpenProfile={(nextUserId) => {
-              openTab({
-                id: getSsooUserSurfaceTabId('user-profile', nextUserId),
-                title: getSsooUserSurfaceTabTitle('user-profile'),
-                icon: 'User',
-                path: getSsooUserSurfaceTabPath('user-profile', nextUserId),
-                closable: true,
-                activate: true,
-              });
-            }}
-          />
-        ) : (
-          <SsooContentAreaState title="알 수 없는 사용자 표면입니다." description={`경로: ${tab.path}`} />
-        )}
+        {children}
       </TabInstanceProvider>
     ),
   });

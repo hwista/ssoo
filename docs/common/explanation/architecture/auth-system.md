@@ -531,6 +531,7 @@ location.reload();
 - `packages/web-auth/src/state-sync.tsx` - Admin/CRM/PMS/DMS/SNS auth storage/shared-change event sync
 - `packages/web-auth/src/user-scope.ts` - Admin/CRM/PMS/DMS/SNS user-scope lifecycle + query cache reset hook
 - `packages/web-auth/src/ui.tsx` - Admin/CRM/PMS/DMS/SNS 공용 login/auth UI shell + 표준 login card
+- `packages/web-auth/src/account-center.ts` - 공용 user profile/settings href resolver. 기본 경로는 canonical `/__user/profile/me`, `/__user/settings`이며 legacy `/profile/*`, `/settings` 입력은 여기서 canonical path로 정규화합니다.
 - `packages/web-auth/src/storage.ts` - shared auth snapshot/storage helper
 - `packages/web-auth/src/axios-api-client.ts` - Admin/PMS/SNS 공용 Axios client factory. runtime access token 주입, 401 session bootstrap, 공통 `ApiError` mapping을 소유합니다.
 - `packages/web-auth/src/server-api-proxy.ts` - Admin/CRM/PMS/DMS/SNS same-origin server API proxy helper. app id stamping, auth/cookie/origin/referer 전달, DMS binary/SSE session-backed proxy helper를 소유합니다.
@@ -562,7 +563,8 @@ location.reload();
 - **축소된 profile contract**: `GET /api/users/profile` 도 이제 `roleCode`, `userTypeCode`, `isAdmin` 를 다시 노출하지 않고 profile + identity 보조 정보만 반환
 - **서버 내부 auth payload**: JWT `TokenPayload` 는 `userId`, `loginId`, `sessionId` 중심으로 유지되고, `roleCode` 는 token/request auth context 에 저장하지 않는다. 권한 판정이 필요할 때 `RolesGuard` 와 domain access service 가 `AccessFoundationService` 를 통해 DB-backed policy 를 직접 해석한다.
 - **route-level admin gate 정렬**: `@Roles('admin')` 는 토큰/browser identity 의 role field 나 단순 역할명이 아니라 `AccessFoundationService` 가 요청 시점에 계산한 `system.override` policy 기준으로 평가
-- **사용자 UI surface 정렬**: Admin/CRM/PMS/DMS/SNS 사용자 메뉴의 global profile/personal settings entry 는 `@ssoo/web-auth` `AuthUserMenu` user surface action 으로 수렴한다. 앱들은 외부 SNS URL로 이동하지 않고 현재 앱 프레임의 탭바에 `SsooUserSurfacePage`를 열되, 해당 route는 `@ssoo/web-shell` shared-surface helper를 통과하는 `contentPage`로 등록한다. SNS는 profile/feed/follow 도메인 API와 domain event 발행 책임만 소유한다. DMS 문서 도메인 설정은 별도 `문서 설정` action 으로 유지한다.
+- **사용자 UI surface 정렬**: Admin/CRM/PMS/DMS/SNS 사용자 메뉴의 global profile/personal settings entry 는 `@ssoo/web-auth` `AuthUserMenu` user surface action 으로 수렴한다. 앱들은 외부 SNS URL로 이동하지 않고 현재 앱 프레임의 탭바에 canonical `/__user/*` 탭을 열며, ContentArea는 `createSsooUserSurfaceRouteContentPageElement()`만 호출한다. 이 route-level helper가 shared-surface content page와 `SsooUserSurfacePage` body를 함께 소유하므로 앱이 profile/settings page tone, page description, profile tab path, body 렌더링을 직접 조립하지 않는다. `SsooUserSurfacePage`는 저장/편집/취소 같은 page-level action을 `useSsooSharedSurfacePageHeaderActions()`로 shared header에 등록한다. legacy `/profile/*`, `/settings` direct entry redirect는 SNS compatibility boundary에 한정하고, Admin/CRM/PMS/DMS middleware는 `/settings` 같은 도메인 route를 공용 사용자 표면으로 가로채지 않는다. SNS는 profile/feed/follow 도메인 API와 domain event 발행 책임만 소유한다. DMS 문서 도메인 설정은 별도 `문서 설정` action 으로 유지한다.
+- **protected app bootstrap 순서**: `useProtectedAppBootstrap`는 local storage hydration 이후 먼저 `checkAuth({ mode: 'blocking' })` 를 완료하고, 그 뒤에만 domain access hydrate, focus/visibility background check, unauthenticated redirect, protected app render를 허용한다. access API가 auth session 복원보다 먼저 실행되어 401 후 interceptor retry로 회복하는 흐름은 표준 부트스트랩 실패로 본다.
 - **foundation 정렬 완료**: `AccessFoundationService`, PMS project filter, PMS admin menu inclusion 은 더 이상 `isAdmin` shortcut 을 쓰지 않고 `system.override` 기준으로 계산
 - **operator/schema cleanup 완료**: user admin / inspect 계약은 `userTypeCode` / `isAdmin` 없이도 운영 가능하고, user schema tail(`is_admin`, `user_type_code`, `permission_codes`)는 제거되었다
 - **cutover sequencing 완료**: `Phase 1 menu/admin` → `Phase 2 organization bridge` → `Phase 3 token/runtime contract shrink` → `Phase 4 operator contract cleanup` → `Phase 5 schema drop` 실행 순서가 닫혔다
@@ -577,6 +579,7 @@ location.reload();
 
 - **공개 유지**: `/api/auth/login`, `/api/auth/session`
 - **세션 복원 단일화**: `/api/auth/refresh` 직접 엔드포인트는 제거되었다. 브라우저와 same-origin proxy는 `/api/auth/session`만 사용하고, 서버 내부 `AuthService.refreshTokens()` 는 HttpOnly shared session cookie 회전 구현 세부로만 남는다.
+- **세션 복원 throttle**: `/api/auth/session`은 현재 서버 코드의 10/min 기준을 따른다. credential login throttle은 별도로 5/min을 유지한다.
 - **인증 필수**: `dms/files`, `dms/file`, `dms/content`, `dms/templates`, `dms/search`, `dms/ask`, `dms/create`, `dms/doc-assist`, `dms/chat-sessions`, `dms/git`, `dms/storage`, `dms/settings`, `dms/ingest`, `dms/access`
 - **binary 예외 처리 방식 변경**: `dms/file/raw`, `dms/file/serve-attachment`, `dms/storage/open?download=1` 도 server에서는 `JwtAuthGuard + DmsFeatureGuard(canReadDocuments)` 를 사용하고, 브라우저 direct navigation 제약은 same-origin Next proxy가 shared session cookie로 access token을 복원해 해결합니다. `storage/open` 다운로드는 provider별 external `webUrl` 이 있어도 redirect 하지 않고 binary response + `Content-Disposition` 으로 내려 파일명과 파일 바이트를 같은 응답 경계에서 보존합니다.
 - **향후 세분화 대상**:
@@ -624,6 +627,9 @@ location.reload();
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-22 | 공용 account center resolver 기본 profile/settings href를 canonical `/__user/profile/me`, `/__user/settings`로 고정하고 legacy `/profile/*`, `/settings` 입력을 shared resolver boundary에서 정규화하도록 user menu/account center 접근 계약 검증을 추가 |
+| 2026-06-22 | 공용 user profile/settings surface의 page-level action을 shared header action bridge에 등록하고 user-surface route/content/body 조립을 `@ssoo/web-auth` `createSsooUserSurfaceRouteContentPageElement()`로 중앙화해 앱별 `SsooUserSurfacePage` 직접 렌더링과 page metadata 조립 회귀 검증을 추가 |
+| 2026-06-22 | `useProtectedAppBootstrap`가 초기 blocking auth check 완료 전 domain access hydrate/unauth redirect/protected render를 시작하지 않도록 고정해 access API 401→retry 부트스트랩 레이스를 차단 |
 | 2026-06-22 | session-backed SSE proxy의 auth/session 복원 실패를 JSON 오류가 아닌 retry SSE frame으로 정규화해 notification EventSource 재연결 폭주와 429 노이즈를 차단 |
 | 2026-06-16 | DMS `storage/open?download=1` 을 same-origin session-backed binary proxy + 서버 binary response 로 고정해 배포 환경의 direct download 인증/파일명 drift 를 차단 |
 | 2026-06-16 | DMS binary/SSE session-backed proxy helper를 `@ssoo/web-auth` `createServerApiProxyHelpers` 로 공용화하고, SNS auth display projection을 `AuthIdentityProfileProjection` 타입으로 고정 |
@@ -691,7 +697,7 @@ location.reload();
 
 ## Current policies snapshot (2026-01-23)
 - Token TTLs: access 15m, refresh 7d; stored refresh hash invalidated on logout.
-- Throttling: login 5/min, refresh 10/min; default 100/min.
+- Throttling: login 5/min, shared session restore 10/min; default 600/min.
 - Password & lockout: >=8 chars incl. upper/lower/number/special; 5 failed logins -> 30m lock.
 - Error contract: GlobalHttpExceptionFilter + ApiError/ApiSuccess; Swagger documents 401/403/404/429/500 with examples.
 - Module boundary: auth/user live in common module; no direct dependency from domain modules to each other.

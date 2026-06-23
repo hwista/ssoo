@@ -4,9 +4,13 @@
 
 > 현행화: 2026-06-08 14:50 KST — 현재 repo-wide closeout 는 DMS 파일 목록 초기 기동 장애 방지, legacy content-app naming removal, SNS/CRM workspace rebaseline, PMS launch-readiness updates, GitHub `main` + GitLab workspace `development` publish 절차를 함께 닫는 slice 로 취급한다. DMS는 `verify:access-dms:raw` 및 hydration focused spec 이 green 이며, 다음 작업은 신규 기능보다 publish 후 원격 정렬/런타임 smoke 재확인이다.
 
+> 현행화: 2026-06-23 KST — 현재 주 작업축은 AI/RAG platform 공용화다. `common.cm_ai_*` data plane, shared `@ssoo/types/common/ai*` 계약, DMS reference adapter, common retrieval/log/citation assembly, conversation/run audit, DMS Ask common retrieval migration, common model gateway integration이 들어갔다. 현재 진척도는 `docs/common/explanation/architecture/ai-rag-platform-roadmap.md` 기준 66%이며, 이어갈 작업은 `AI-RAG-10A Runtime smoke and runbook`이다. 즉시 재개 문서는 `docs/common/explanation/architecture/ai-rag-platform-handoff.md`를 기준으로 한다.
+
 > 상위 문서:
 > - `docs/common/explanation/architecture/current-tranche-execution-contract.md`
 > - `docs/common/explanation/architecture/current-tranche-inventory-freeze.md`
+> - `docs/common/explanation/architecture/ai-rag-platform-roadmap.md`
+> - `docs/common/explanation/architecture/ai-rag-platform-handoff.md`
 
 이 문서는 현재 SSOO 레포에서 실제로 진행 중인 3개 작업축(DMS / PMS / SNS)을 기준으로,
 어디까지 진행됐고 어디서 끊겼으며 무엇을 먼저 닫아야 하는지 고정하는 운영 기준선입니다.

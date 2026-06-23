@@ -64,6 +64,7 @@
     "verify:ssoo-frame": "pnpm run verify:ssoo-frame:observed",
     "verify:ssoo-frame:raw": "node scripts/verify-ssoo-frame.mjs",
     "verify:ssoo-frame:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:ssoo-frame:raw' --verification-command-label 'pnpm run verify:ssoo-frame:raw'",
+    "verify:ai-rag-platform": "node scripts/verify-ai-rag-platform.mjs",
     "verify:ui-primitives": "node .github/scripts/verify-ui-primitives.js",
     "verify:ui-consumption": "node .github/scripts/verify-ui-consumption.js",
     "docker:build": "docker compose build",

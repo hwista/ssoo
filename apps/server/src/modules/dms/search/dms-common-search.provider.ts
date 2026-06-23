@@ -38,13 +38,7 @@ export class DmsCommonSearchProvider implements CommonSearchProvider, OnModuleIn
     }, currentUser);
 
     return {
-      capabilities: {
-        keyword: true,
-        metadata: true,
-        semantic: true,
-        vector: true,
-        ragContext: false,
-      },
+      capabilities: this.searchService.getCommonSearchCapabilities(),
       results: response.results.map((document): CommonSearchResult => {
         const readablePath = document.path.replace(/^\/+/, '');
         return {

@@ -1,6 +1,9 @@
 export const SSOO_USER_SURFACE_MY_PROFILE_PATH = '/__user/profile/me';
 export const SSOO_USER_SURFACE_SETTINGS_PATH = '/__user/settings';
 export const SSOO_USER_SURFACE_PROFILE_PATH_PREFIX = '/__user/profile/';
+const SSOO_LEGACY_USER_SURFACE_SETTINGS_PATH = '/settings';
+const SSOO_LEGACY_USER_SURFACE_MY_PROFILE_PATH = '/profile/me';
+const SSOO_LEGACY_USER_SURFACE_PROFILE_PATH_PREFIX = '/profile/';
 
 export type SsooUserSurfaceTabKind = 'my-profile' | 'user-profile' | 'personal-settings';
 
@@ -13,6 +16,18 @@ export interface SsooUserSurfaceRoute {
 
 function stripQuery(path: string): string {
   return path.split('?')[0] || '/';
+}
+
+function splitPathAndSuffix(path: string): { pathname: string; suffix: string } {
+  const match = path.match(/^([^?#]*)([?#].*)?$/);
+  return {
+    pathname: match?.[1] || '/',
+    suffix: match?.[2] || '',
+  };
+}
+
+function normalizeLeadingSlash(path: string): string {
+  return path.startsWith('/') ? path : `/${path}`;
 }
 
 export function getSsooUserSurfaceTabPath(kind: SsooUserSurfaceTabKind, userId?: string | null): string {
@@ -105,4 +120,42 @@ export function parseSsooUserSurfaceRoute(path: string | null | undefined): Ssoo
 
 export function isSsooUserSurfaceRoute(path: string | null | undefined): boolean {
   return parseSsooUserSurfaceRoute(path) !== null;
+}
+
+export function normalizeSsooUserSurfaceRouteEntryPath(path: string | null | undefined): string | null {
+  const trimmedPath = path?.trim();
+  if (!trimmedPath) {
+    return null;
+  }
+
+  const normalizedPath = normalizeLeadingSlash(trimmedPath);
+  const { pathname, suffix } = splitPathAndSuffix(normalizedPath);
+
+  if (isSsooUserSurfaceRoute(pathname)) {
+    return `${pathname}${suffix}`;
+  }
+
+  if (pathname === SSOO_LEGACY_USER_SURFACE_SETTINGS_PATH) {
+    return `${SSOO_USER_SURFACE_SETTINGS_PATH}${suffix}`;
+  }
+
+  if (pathname === SSOO_LEGACY_USER_SURFACE_MY_PROFILE_PATH) {
+    return `${SSOO_USER_SURFACE_MY_PROFILE_PATH}${suffix}`;
+  }
+
+  if (pathname.startsWith(SSOO_LEGACY_USER_SURFACE_PROFILE_PATH_PREFIX)) {
+    const encodedUserId = pathname.slice(SSOO_LEGACY_USER_SURFACE_PROFILE_PATH_PREFIX.length);
+    const userId = decodeURIComponent(encodedUserId || 'me');
+    return `${getSsooUserSurfaceTabPath(userId === 'me' ? 'my-profile' : 'user-profile', userId)}${suffix}`;
+  }
+
+  return null;
+}
+
+export function parseSsooUserSurfaceRouteEntry(path: string | null | undefined): SsooUserSurfaceRoute | null {
+  return parseSsooUserSurfaceRoute(normalizeSsooUserSurfaceRouteEntryPath(path));
+}
+
+export function isSsooUserSurfaceRouteEntry(path: string | null | undefined): boolean {
+  return parseSsooUserSurfaceRouteEntry(path) !== null;
 }

@@ -41,6 +41,15 @@
 \echo 'Installing: cm_auth_email_outbox_h trigger...'
 \i 62_cm_auth_email_outbox_h_trigger.sql
 
+\echo 'Installing: cm_ai_source_h trigger...'
+\i 63_cm_ai_source_h_trigger.sql
+
+\echo 'Installing: cm_ai_object_h trigger...'
+\i 64_cm_ai_object_h_trigger.sql
+
+\echo 'Installing: cm_ai_index_state_h trigger...'
+\i 65_cm_ai_index_state_h_trigger.sql
+
 \echo 'Installing: pr_project_h trigger...'
 \i 03_pr_project_h_trigger.sql
 

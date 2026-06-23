@@ -11,15 +11,10 @@ import {
   SsooContentAreaState,
   SsooRegisteredMdiContentArea,
   createSsooContentPageAdapterElement,
-  createSsooSharedSurfaceContentPageElement,
   defineSsooMdiPageRegistry,
 } from '@ssoo/web-shell';
 import {
-  SsooUserSurfacePage,
-  getSsooUserSurfacePageDescription,
-  getSsooUserSurfaceTabId,
-  getSsooUserSurfaceTabPath,
-  getSsooUserSurfaceTabTitle,
+  createSsooUserSurfaceRouteContentPageElement,
   parseSsooUserSurfaceRoute,
 } from '@ssoo/web-auth';
 
@@ -81,36 +76,21 @@ function renderPmsUserSurfaceContentPage(
   tab: TabItem,
   openTab: ReturnType<typeof useTabStore.getState>['openTab'],
 ) {
-  const userSurfaceRoute = parseSsooUserSurfaceRoute(tab.path);
-
-  return createSsooSharedSurfaceContentPageElement({
-    surfaceId: userSurfaceRoute ? `ssoo-user-${userSurfaceRoute.kind}` : 'ssoo-user-surface',
-    title: userSurfaceRoute?.title ?? tab.title,
-    description: userSurfaceRoute
-      ? getSsooUserSurfacePageDescription(userSurfaceRoute.kind)
-      : undefined,
-    pageTone: userSurfaceRoute?.kind === 'personal-settings' ? 'settings' : 'neutral',
-    children: userSurfaceRoute ? (
-      <SsooUserSurfacePage
-        surface={userSurfaceRoute.kind}
-        userId={userSurfaceRoute.userId}
-        apiBaseUrl={API_BASE_URL}
-        onOpenProfile={(nextUserId) => {
-          const title = getSsooUserSurfaceTabTitle('user-profile');
-          openTab({
-            menuCode: getSsooUserSurfaceTabId('user-profile', nextUserId),
-            menuId: getSsooUserSurfaceTabId('user-profile', nextUserId),
-            title,
-            icon: 'User',
-            path: getSsooUserSurfaceTabPath('user-profile', nextUserId),
-            closable: true,
-            activate: true,
-          });
-        }}
-      />
-    ) : (
-      <SsooContentAreaState title="알 수 없는 사용자 표면입니다." description={`경로: ${tab.path}`} />
-    ),
+  return createSsooUserSurfaceRouteContentPageElement({
+    path: tab.path,
+    title: tab.title,
+    apiBaseUrl: API_BASE_URL,
+    onOpenProfileTab: (profileTab) => {
+      openTab({
+        menuCode: profileTab.id,
+        menuId: profileTab.id,
+        title: profileTab.title,
+        icon: profileTab.icon,
+        path: profileTab.path,
+        closable: profileTab.closable,
+        activate: profileTab.activate,
+      });
+    },
   });
 }
 

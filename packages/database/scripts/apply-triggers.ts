@@ -94,6 +94,9 @@ async function main() {
          '60_cm_user_registration_request_h_trigger.sql',
          '61_cm_user_password_reset_challenge_h_trigger.sql',
          '62_cm_auth_email_outbox_h_trigger.sql',
+         '63_cm_ai_source_h_trigger.sql',
+         '64_cm_ai_object_h_trigger.sql',
+         '65_cm_ai_index_state_h_trigger.sql',
          // SNS
         '50_sns_board_h_trigger.sql',
      '51_sns_post_h_trigger.sql',

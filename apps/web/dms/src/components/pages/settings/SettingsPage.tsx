@@ -8,21 +8,19 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import {
-  SsooPageIndexRail,
+  SsooSettingsPage,
   SsooSettingsBanner,
-  SsooSettingsMainPanel,
   SsooSettingsPendingSummary,
-  SsooSettingsSurface,
   SsooSettingsViewModeTabs,
+  type SsooPageHeaderAction,
+  type SsooPageIndexRailItem,
 } from '@ssoo/web-shell';
 import { JsonDiffView, JsonEditor } from '@/components/common/json';
 import { ErrorState, LoadingSpinner } from '@/components/common/StateDisplay';
-import { PageTemplate } from '@/components/templates';
-import type { HeaderAction } from '@/components/templates/page-frame';
 import { templateApi } from '@/lib/api/endpoints/templates';
 import { templateKeys, useTemplateList } from '@/hooks/queries/useTemplates';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
-import { useAccessStore, useSettingsPageNavigationStore, useSettingsStore, useTabStore } from '@/stores';
+import { useAccessStore, useSettingsPageNavigationStore, useSettingsStore, useSidebarStore, useTabStore } from '@/stores';
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import {
   SETTING_SECTIONS,
@@ -66,13 +64,6 @@ function getSettingsSectionIndexAnchorId(sectionId: string, itemId: string) {
   return `settings-section-${toSettingsAnchorId(sectionId)}-index-${toSettingsAnchorId(itemId)}`;
 }
 
-interface SettingsIndexItem {
-  id: string;
-  label: string;
-  description?: string;
-  meta?: string;
-}
-
 export function SettingsPage() {
   const {
     config,
@@ -95,6 +86,7 @@ export function SettingsPage() {
   const tabId = useTabInstanceId();
   const activeTabId = useTabStore((state) => state.activeTabId);
   const tabPath = useTabStore((state) => state.tabs.find((tab) => tab.id === tabId)?.path ?? '');
+  const isCompactMode = useSidebarStore((state) => state.isCompactMode);
   const openTab = useTabStore((state) => state.openTab);
   const tabTarget = useMemo(() => parseSettingsTabPath(tabPath), [tabPath]);
   const effectiveScope = tabTarget?.scope ?? activeScope;
@@ -267,12 +259,12 @@ export function SettingsPage() {
     return currentSection ? getSettingsSectionOverviewAnchorId(currentSection.id) : 'settings-section-overview';
   }, [currentSection]);
 
-  const settingsIndexItems = useMemo<SettingsIndexItem[]>(() => {
+  const settingsIndexItems = useMemo<SsooPageIndexRailItem[]>(() => {
     if (!currentSection) {
       return [];
     }
 
-    const items: SettingsIndexItem[] = [
+    const items: SsooPageIndexRailItem[] = [
       {
         id: getSettingsSectionOverviewAnchorId(currentSection.id),
         label: '개요',
@@ -574,12 +566,12 @@ export function SettingsPage() {
     return Array.from(new Set(labels));
   }, [activeViewMode, currentSection, hasSectionJsonChanges, keyToLabel, modifiedKeys]);
 
-  const headerActions = useMemo<HeaderAction[]>(() => {
+  const headerActions = useMemo<SsooPageHeaderAction[]>(() => {
     if (isCustomSection || isReadOnlySection) {
       return [];
     }
 
-    const actions: HeaderAction[] = [];
+    const actions: SsooPageHeaderAction[] = [];
 
     if (hasChanges) {
       actions.push({
@@ -621,23 +613,19 @@ export function SettingsPage() {
     />
   ) : null;
 
-  const settingsIndexSlot = currentSection ? (
-    <SsooPageIndexRail
-      ariaLabel="설정 항목 색인"
-      description={currentSection.description}
-      items={settingsIndexItems}
-      onItemSelect={(item) => handleSettingsIndexSelect(item.id)}
-    />
-  ) : null;
+  const settingsIndex = currentSection ? {
+    ariaLabel: '설정 항목 색인',
+    description: currentSection.description,
+    items: settingsIndexItems,
+    onItemSelect: (item: SsooPageIndexRailItem) => handleSettingsIndexSelect(item.id),
+  } : null;
 
   if (!settingsAccess) {
     return (
-      <PageTemplate
+      <SsooSettingsPage
         filePath="settings"
-        mode="viewer"
-        pageTone="settings"
         description={error ? '설정 정보를 불러오지 못했습니다.' : '설정 정보를 불러오는 중입니다.'}
-        panelMode="hidden"
+        compactMode={isCompactMode}
         stateSlot={error ? (
           <ErrorState error={error} />
         ) : (
@@ -645,114 +633,103 @@ export function SettingsPage() {
         )}
       >
         {null}
-      </PageTemplate>
+      </SsooSettingsPage>
     );
   }
 
   if (!currentSection) {
     return (
-      <PageTemplate
+      <SsooSettingsPage
         filePath="settings"
-        mode="viewer"
-        pageTone="settings"
         description="사용 가능한 설정 메뉴가 없습니다."
-        panelMode="hidden"
+        compactMode={isCompactMode}
         stateSlot={<ErrorState error="사용 가능한 설정 메뉴가 없습니다." />}
       >
         {null}
-      </PageTemplate>
+      </SsooSettingsPage>
     );
   }
 
   if (!canOpenSection(currentSection)) {
     return (
-      <PageTemplate
+      <SsooSettingsPage
         filePath="settings"
-        mode="viewer"
-        pageTone="settings"
         description="설정 권한이 필요합니다."
-        panelMode="hidden"
+        compactMode={isCompactMode}
         stateSlot={<ErrorState error="설정을 관리할 권한이 없습니다." />}
       >
         {null}
-      </PageTemplate>
+      </SsooSettingsPage>
     );
   }
 
   return (
-    <PageTemplate
+    <SsooSettingsPage
       filePath={`settings/${effectiveScope}/${currentSection.id}`}
-      mode="viewer"
       description={`${SETTINGS_SCOPE_LABELS[effectiveScope]} · ${currentSection.description}`}
-      headerExtraActions={headerActions}
-      headerExtraActionsPosition="right"
-      headerViewerRightSlot={viewerRightSlot}
-      leftSubContentSlot={settingsIndexSlot}
-      panelMode="hidden"
-      pageTone="settings"
-      contentSurface="plain"
+      headerActions={{
+        extraActions: headerActions,
+        extraActionsPosition: 'right',
+        viewerRightSlot,
+      }}
+      index={settingsIndex}
+      overviewAnchorId={settingsSectionOverviewAnchorId}
+      bannerSlot={topStatusBanner}
+      pendingSummarySlot={hasChanges && pendingLabels.length > 0 ? (
+        <SsooSettingsPendingSummary labels={pendingLabels} />
+      ) : null}
+      compactMode={isCompactMode}
     >
-      <SsooSettingsSurface>
-        <SsooSettingsMainPanel>
-            <div id={settingsSectionOverviewAnchorId} className="scroll-mt-4" />
-            {topStatusBanner}
+      {runtimePathSurface}
+      {currentSection.id === 'git' && <GitObservabilitySurface git={runtime?.git ?? null} />}
 
-            {hasChanges && pendingLabels.length > 0 && (
-              <SsooSettingsPendingSummary labels={pendingLabels} />
-            )}
-
-            {runtimePathSurface}
-            {currentSection.id === 'git' && <GitObservabilitySurface git={runtime?.git ?? null} />}
-
-            {isLoading && !isCustomSection ? (
-              <div className="flex min-h-full items-center justify-center">
-                <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
-              </div>
-            ) : isCustomSection && currentSection.slotKey ? (
-              <SettingsCustomSlot
-                slotKey={currentSection.slotKey}
-                templates={templates}
-                isLoadingTemplates={isLoadingTemplates}
-                templateDraft={templateDraft}
-                setTemplateDraft={setTemplateDraft}
-                onSave={() => {
-                  void handleTemplateSave();
-                }}
-                onDelete={(template) => {
-                  void handleTemplateDelete(template);
-                }}
-                anchorIds={settingsCustomSlotAnchorIds}
-              />
-            ) : activeViewMode === 'json' ? (
-              <JsonEditor
-                value={jsonDraft}
-                onChange={(nextValue) => {
-                  setJsonDraft(nextValue);
-                  if (jsonError) setJsonError(null);
-                }}
-                errorMessage={!parsedJsonDraft.success ? parsedJsonDraft.error : jsonError}
-                className="min-h-[480px]"
-              />
-            ) : activeViewMode === 'diff' ? (
-              <JsonDiffView
-                originalText={currentSectionOriginalText}
-                currentText={currentSectionComparableText}
-                className="min-h-[480px]"
-              />
-            ) : (
-              <SettingsFieldList
-                items={currentSectionItems}
-                localConfig={comparableConfig}
-                originalConfig={originalConfig}
-                validationErrors={validationErrors}
-                getValue={getNestedValue}
-                onChange={handleStructuredChange}
-                readOnly={isReadOnlySection}
-                getItemAnchorId={(item) => getSettingsFieldAnchorId(currentSection.id, item.key)}
-              />
-            )}
-        </SsooSettingsMainPanel>
-      </SsooSettingsSurface>
-    </PageTemplate>
+      {isLoading && !isCustomSection ? (
+        <div className="flex min-h-full items-center justify-center">
+          <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
+        </div>
+      ) : isCustomSection && currentSection.slotKey ? (
+        <SettingsCustomSlot
+          slotKey={currentSection.slotKey}
+          templates={templates}
+          isLoadingTemplates={isLoadingTemplates}
+          templateDraft={templateDraft}
+          setTemplateDraft={setTemplateDraft}
+          onSave={() => {
+            void handleTemplateSave();
+          }}
+          onDelete={(template) => {
+            void handleTemplateDelete(template);
+          }}
+          anchorIds={settingsCustomSlotAnchorIds}
+        />
+      ) : activeViewMode === 'json' ? (
+        <JsonEditor
+          value={jsonDraft}
+          onChange={(nextValue) => {
+            setJsonDraft(nextValue);
+            if (jsonError) setJsonError(null);
+          }}
+          errorMessage={!parsedJsonDraft.success ? parsedJsonDraft.error : jsonError}
+          className="min-h-[480px]"
+        />
+      ) : activeViewMode === 'diff' ? (
+        <JsonDiffView
+          originalText={currentSectionOriginalText}
+          currentText={currentSectionComparableText}
+          className="min-h-[480px]"
+        />
+      ) : (
+        <SettingsFieldList
+          items={currentSectionItems}
+          localConfig={comparableConfig}
+          originalConfig={originalConfig}
+          validationErrors={validationErrors}
+          getValue={getNestedValue}
+          onChange={handleStructuredChange}
+          readOnly={isReadOnlySection}
+          getItemAnchorId={(item) => getSettingsFieldAnchorId(currentSection.id, item.key)}
+        />
+      )}
+    </SsooSettingsPage>
   );
 }

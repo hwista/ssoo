@@ -2,7 +2,7 @@
 title: Content Page Assembly Standard
 owner: platform-team
 status: active
-lastReviewed: 2026-06-17
+lastReviewed: 2026-06-22
 ---
 
 # Content Page Assembly Standard
@@ -71,6 +71,7 @@ DMS `DocumentPage`가 표준 최종 형태다.
 - `SsooTextSection`
 - `SsooChipListSection`
 - `SsooActivityListSection`
+- `SsooSettingsPage`
 - `SsooSettingsSurface`
 - `SsooSettingsMainPanel`
 - `SsooSettingsBanner`
@@ -151,11 +152,13 @@ page tone과 state surface는 `SsooContentPageTemplate`의 `pageTone` 의미 pro
 
 Settings page는 문서 페이지와 같은 내부 페이지 조립 표준을 따른다. 다만 settings 자체가 골든 예제는 아니고, 문서 페이지 recipe 위에 settings 전용 재료를 얹는 파생 사례다.
 
-- breadcrumb/header/main content slot은 page recipe를 사용한다.
+- 완성 settings page recipe는 `packages/web-shell`의 `SsooSettingsPage`가 소유한다. 앱이나 도메인은 `PageTemplate` 복사본으로 설정 page chrome/index/body shell을 다시 조립하지 않는다.
+- breadcrumb/header/main content slot은 `SsooSettingsPage`가 `SsooContentPageTemplate` 위에서 조립한다.
+- `SsooSettingsPage`의 기본 page title은 `설정`이며, 앱/도메인이 명시 title을 넘길 때만 이를 대체한다.
 - 설정 본문 내부 색인은 `leftSubContentSlot`으로 주입한다. 이는 접히는 보조 패널이 아니라 설정 본문을 탐색하기 위한 필수 sub-content rail이다.
-- 색인 rail의 header/item/meta chip 표면은 `SsooPageIndexRail`을 사용하고, 설정 page가 nav/button/chip class를 직접 소유하지 않는다.
-- settings 본문 shell은 `SsooSettingsSurface`와 `SsooSettingsMainPanel`을 사용한다.
-- 저장 예정 요약, 상태 banner, view-mode segmented control은 `SsooSettings*` primitive를 사용한다.
+- 색인 rail의 header/item/meta chip 표면은 `SsooSettingsPage` 내부의 `SsooPageIndexRail`을 사용하고, 도메인 settings page가 nav/button/chip class를 직접 소유하지 않는다.
+- settings 본문 shell은 `SsooSettingsPage` 내부의 `SsooSettingsSurface`와 `SsooSettingsMainPanel`을 사용한다.
+- 저장 예정 요약, 상태 banner, view-mode segmented control은 `SsooSettings*` primitive 또는 `SsooSettingsPage` slot으로 배치한다.
 - 설정 schema, persistence API, 권한, validation, JSON/diff renderer, custom slot은 도메인이 소유한다.
 
 ## Framework gate
@@ -178,7 +181,7 @@ route registry의 route는 `contentPage`만 사용한다.
 - `contentPage`: 표준 내부 페이지 조립 대상. `SsooContentPageTemplate` 또는 이를 감싼 승인 domain/shared-surface/handoff adapter를 통해 breadcrumb/header/main/sub-content/sidecar/bottom/state 구조를 사용해야 한다.
 - stale route redirect는 화면 recipe 예외가 아니라 `routeHandoffPage` adapter boundary를 통과하는 `contentPage`다.
 
-`shellPage` route kind와 `ShellPageContainer`는 public page assembly contract가 아니다. main-only 화면은 별도 route kind를 만들지 않고 `SsooContentPageTemplate`의 `pageVariant="main-only"` 또는 `pageVariant="canvas"`로 표현한다. 공용 사용자 profile/settings surface도 `createSsooSharedSurfaceContentPageElement()`를 통해 `contentPage`로 등록한다. 이 shared-surface helper는 `SsooContentPageTemplate`의 기본 constrained main 폭과 page tone class를 유지하되, 유저 표면 내부 카드가 실제 surface를 소유하도록 `contentSurface="plain"`을 고정한다. shared user profile/settings는 `mainContentLayout`, `mainContentMaxWidth`, `mainContentSurface` override로 표준을 끄지 않고, 내부 root도 `max-w-*`/`mx-auto`로 별도 page 폭을 재정의하지 않는다. page title, description, breadcrumb, header action은 shared-surface content page helper가 소유하므로 `SsooUserSurfacePage` 내부에서 `내 설정` 같은 page-level `h1`/description을 다시 렌더링하지 않고 section heading만 둔다. profile/settings의 저장/편집/취소 같은 page-level action은 `useSsooSharedSurfacePageHeaderActions()`로 shared header action bridge에 등록하며, 본문 card/header 안에 별도 page action button을 렌더링하지 않는다. Admin/CRM/PMS/DMS/SNS는 canonical `/__user/profile/:userId`와 `/__user/settings` route-entry를 동일하게 허용해야 하며, App Router 물리 page를 만들지 않고 `SSOO_SHARED_USER_SURFACE_PATH_PREFIX` 기반 route-policy rewrite로 루트 셸을 렌더링한다. 실제 surface 렌더링은 browser URL의 canonical pathname을 읽은 ContentArea route registry가 맡는다.
+`shellPage` route kind와 `ShellPageContainer`는 public page assembly contract가 아니다. main-only 화면은 별도 route kind를 만들지 않고 `SsooContentPageTemplate`의 `pageVariant="main-only"` 또는 `pageVariant="canvas"`로 표현한다. 공용 사용자 profile/settings surface도 `@ssoo/web-auth`의 `createSsooUserSurfaceRouteContentPageElement()`를 통해 `contentPage`로 등록한다. 이 route-level user-surface helper는 내부에서 `createSsooUserSurfaceContentPageElement()`와 `SsooUserSurfacePage`를 함께 소유하므로 앱 ContentArea가 `SsooUserSurfacePage`, profile tab path, page description, page tone을 직접 조립하지 않는다. 하위 content-page helper는 `createSsooSharedSurfaceContentPageElement()`를 감싸 `SsooContentPageTemplate`의 기본 constrained main 폭을 유지하고, 유저 표면 내부 카드가 실제 surface를 소유하도록 `contentSurface="plain"`을 고정하며, title/description/surfaceId/page tone을 중앙에서 결정한다. 사용자 프로필은 `pageTone="profile"`을 사용하고 계정 설정은 `pageTone="settings"`를 사용해 두 표면의 의미를 분리하되, 둘 다 플랫폼 content-page 배경 톤을 따른다. shared user profile/settings는 `mainContentLayout`, `mainContentMaxWidth`, `mainContentSurface` override로 표준을 끄지 않고, 내부 root도 `max-w-*`/`mx-auto`로 별도 page 폭을 재정의하지 않는다. page title, description, breadcrumb, header action은 shared-surface content page helper가 소유하므로 `SsooUserSurfacePage` 내부에서 `내 설정` 같은 page-level `h1`/description을 다시 렌더링하지 않는다. profile/settings의 저장/편집/취소 같은 page-level action은 `useSsooSharedSurfacePageHeaderActions()`로 shared header action bridge에 등록하며 본문 안에 별도 page action button을 렌더링하지 않는다. Admin/CRM/PMS/DMS/SNS는 canonical `/__user/profile/:userId`와 `/__user/settings` route-entry를 동일하게 허용해야 하며, App Router 물리 page를 만들지 않고 `SSOO_SHARED_USER_SURFACE_PATH_PREFIX` 기반 route-policy rewrite로 루트 셸을 렌더링한다. `@ssoo/web-auth` account center resolver의 기본 profile/settings href도 canonical `/__user/profile/me`, `/__user/settings`이고, legacy `/profile/*`, `/settings` 입력은 `normalizeSsooUserSurfaceRouteEntryPath()`/`parseSsooUserSurfaceRouteEntry()` shared helper boundary에서 canonical path로 정규화한다. legacy `/profile/*`, `/settings` direct entry redirect는 SNS compatibility boundary에 한정하며, Admin/CRM/PMS/DMS middleware는 `/settings` 같은 도메인 route를 공용 사용자 표면으로 가로채지 않는다. 각 앱 layout의 direct URL bootstrap도 `parseSsooUserSurfaceRouteEntry()`/`getSsooUserSurfaceTabId()`로 canonical user-surface MDI tab을 열어야 하며, 홈/도메인 local page tab을 active로 둔 채 ContentArea registry에 도달하게 해서는 안 된다. 실제 surface 렌더링은 browser URL의 canonical pathname을 읽은 ContentArea route registry가 맡는다.
 
 `contentPage` route의 `render`는 임의 `ReactNode`를 반환하지 않는다. `SsooContentPageTemplate`을 직접 쓰는 page는 `createSsooContentPageTemplateElement()`를 반환하고, DMS처럼 도메인 breadcrumb/header adapter가 필요한 page는 `SSOO_CONTENT_PAGE_ADAPTER_NAMES`에 등록된 `adapterName`을 명시한 뒤 `createSsooContentPageAdapterElement()`를 반환한다. 이 helper가 반환하는 branded `SsooMdiContentPageElement`가 타입 계약이므로, 새 `contentPage`는 공용 recipe 또는 승인된 domain adapter boundary를 통과하지 않으면 빌드되지 않아야 한다.
 
@@ -187,7 +190,7 @@ DMS 기준 분류:
 - 문서 페이지, 설정 페이지, AI 대화, 전역 검색은 `contentPage`다.
 - 검색 page body, toolbar, results panel, search utility는 `@ssoo/web-shell`의 `SsooAiSearchPage` 계열 공용 모듈이 소유한다. 앱은 전역 검색 API adapter와 결과 열기 action만 주입한다.
 - 전역 검색은 `SsooGlobalSearchPage` adapter를 통해 같은 `SsooAiSearchPage` 공용 모듈을 소비하는 `contentPage`다. DMS 검색 진입점은 `/ssoo/search` 하나이며 `/ai/search` 호환 alias를 유지하지 않는다. source filter chip을 선택한 경우에만 `sourceApp` filter가 적용되며, 기본 검색 범위는 모든 provider다. 기존 DMS AI 검색의 sidecar/검색 기록/인기 검색어/AI 첨부 표면은 공용 `SsooAiSearchPage` 경로에서 그대로 유지한다.
-- 사용자 profile/settings surface는 공용 shared-surface content page helper를 통과하는 `contentPage`다.
+- 사용자 profile surface는 공용 shared-surface content page helper를 통과하고, 사용자 account settings surface는 `SsooSettingsPage` content page helper를 통과하는 `contentPage`다. 둘 다 `@ssoo/web-auth`의 `createSsooUserSurfaceRouteContentPageElement()` 경계에서 중앙 조립한다.
 - stale `/settings`, `/access-requests/me` handoff는 `routeHandoffPage` adapter를 통과하는 `contentPage`이며 설정 page route로 제거될 호환 경로다.
 - DMS 홈은 `DMS PageTemplate` adapter를 통과하는 `contentPage`다.
 - PMS/CRM/SNS/Admin 로컬 화면은 기존 화면 외형을 보존하는 앱별 local page adapter를 통과하는 `contentPage`다. 화면을 개별 개선할 때는 이 adapter 내부의 도메인 page를 `SsooContentPageTemplate` 직접 recipe 또는 더 좁은 domain recipe로 점진 분리한다.
@@ -198,7 +201,7 @@ DMS 기준 분류:
 2. DMS `Header`/`Breadcrumb`는 도메인 icon/action/path adapter로 축소한다.
 3. `PageTemplate`의 content surface, page tone, sidecar lane/toggle, loading/error/empty/denied state surface class를 `web-shell` 재료로 이전한다.
 4. DMS `DocumentPage`는 새 recipe를 소비하는 골든 예제로 고정한다.
-5. `SettingsPage`는 같은 recipe 위에 `leftSubContentSlot`과 `SsooSettings*` 재료를 소비하도록 유지한다.
+5. `SettingsPage` 완성 recipe는 `SsooSettingsPage`로 `web-shell`에 승격하고, DMS에는 `SETTING_SECTIONS`, store/API, validation, JSON/diff/custom slot adapter만 남긴다.
 6. 5개 앱 `ContentArea`는 `SsooRegisteredMdiContentArea`와 typed route registry만 소비하게 전환한다.
 7. PMS/SNS/CRM/Admin 내부 페이지는 앱별 local page adapter를 통과하는 `contentPage`로 일괄 승격한다.
 8. `verify:ssoo-frame`가 app-local recipe clone, page surface class 누수, `legacyException` route kind 재유입, 앱 전역 저수준 MDI content primitive 직접 소비를 탐지하도록 유지한다.
@@ -207,7 +210,13 @@ DMS 기준 분류:
 
 | 날짜 | 변경 내용 |
 | --- | --- |
-| 2026-06-22 | 공용 user profile/settings page-level action을 `useSsooSharedSurfacePageHeaderActions()` 기반 shared header action bridge로 고정하고, 본문 local 저장/편집 action 회귀를 `verify:ssoo-frame`/`verify:auth-commonization`에서 차단 |
+| 2026-06-23 | 완성 settings page recipe를 `SsooSettingsPage`로 `web-shell`에 승격하고, DMS 설정과 공용 account settings가 domain adapter만 주입하도록 content-page 조립 기준을 강화 |
+| 2026-06-23 | 공용 user profile/settings surface의 page tone을 `profile`/`settings`로 분리하고, 프로필이 `neutral` 배경으로 회귀하지 않도록 content-page tone 검증을 강화 |
+| 2026-06-22 | 5개 앱 direct user-surface URL bootstrap을 `@ssoo/web-auth` route-entry helper로 고정하고 canonical `/__user/*` route-policy rewrite와 layout bootstrap을 검증 기준으로 강화 |
+| 2026-06-22 | SNS middleware가 route-only `@ssoo/web-auth/user-surface-routing` helper로 legacy `/profile/*`, `/settings` direct entry를 canonical `/__user/*`로 redirect하도록 content page 접근 경로 gate를 강화 |
+| 2026-06-22 | 공용 account center resolver 기본 profile/settings href를 canonical `/__user/profile/me`, `/__user/settings`로 고정하고 legacy `/profile/*`, `/settings` 입력을 shared resolver boundary에서 정규화하도록 content page 접근 경로 표준과 검증을 보강 |
+| 2026-06-22 | SNS legacy `/profile/*`, `/settings` handoff parsing을 `@ssoo/web-auth` shared route-entry helper로 이동해 앱 layout이 user-surface route construction을 중복하지 않도록 content page 접근 경로 gate를 강화 |
+| 2026-06-22 | 공용 user profile/settings page-level action을 `useSsooSharedSurfacePageHeaderActions()` 기반 shared header action bridge에 등록하고, user-surface route/content/body 조립을 `@ssoo/web-auth` `createSsooUserSurfaceRouteContentPageElement()`로 중앙화해 앱별 `SsooUserSurfacePage` 직접 렌더링과 page metadata 조립 회귀를 `verify:ssoo-frame`/`verify:auth-commonization`에서 차단 |
 | 2026-06-22 | `verify:ssoo-frame`를 preflight/push guard/PR validation에 연결하고, 앱 전역 저수준 MDI content primitive 직접 소비 금지 기준을 추가 |
 | 2026-06-19 | `contentPage` 단일 route 계약 전환 후 Docker stack 재빌드/기동, 5개 웹 앱 HTTP 응답, access smoke/admin/DMS, PMS launch readiness 검증을 완료하고 후속 운영/설정/제어 작업 핸드오프 기준으로 고정 |
 | 2026-06-19 | 공용 user profile/settings surface 내부에서 page-level title/description과 별도 `max-w-*`/`mx-auto` 폭을 재정의하지 못하도록 shared-surface 표준과 검증 기준을 강화하고, 5앱 canonical `__user` route-entry를 route-policy rewrite 계약으로 추가 |

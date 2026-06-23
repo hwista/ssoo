@@ -179,7 +179,18 @@ check(
     && content.includes('SharedAuthStateSync')
     && content.includes("from './user-surface-routing'")
     && content.includes('getSsooUserSurfaceTabPath')
-    && content.includes('SsooUserSurfacePage'),
+    && content.includes('normalizeSsooUserSurfaceRouteEntryPath')
+    && content.includes('parseSsooUserSurfaceRouteEntry')
+    && content.includes('SsooUserSurfacePage')
+    && content.includes('createSsooUserSurfaceRouteContentPageElement'),
+);
+
+check(
+  'packages/web-auth/package.json',
+  'web-auth must expose route-only user-surface routing subpath for middleware-safe canonicalization',
+  (content) => content.includes('"./user-surface-routing"')
+    && content.includes('"./dist/user-surface-routing.d.ts"')
+    && content.includes('"./dist/user-surface-routing.js"'),
 );
 
 check(
@@ -189,6 +200,8 @@ check(
     && content.includes('SSOO_USER_SURFACE_SETTINGS_PATH')
     && content.includes('getSsooUserSurfaceTabPath')
     && content.includes('parseSsooUserSurfaceRoute')
+    && content.includes('normalizeSsooUserSurfaceRouteEntryPath')
+    && content.includes('parseSsooUserSurfaceRouteEntry')
     && !content.includes('NEXT_PUBLIC_USER_SURFACE_APP_URL')
     && !content.includes('resolveSsooUserSurfaceHref'),
 );
@@ -219,8 +232,7 @@ check(
 check(
   'packages/web-auth/src/user-surface.tsx',
   'shared user profile/settings surface must not redefine page chrome title or page width outside the shared content-page helper',
-  (content) => content.includes('프로필 기본 정보')
-    && !content.includes('<h1')
+  (content) => !content.includes('<h1')
     && !content.includes('내 설정</h1>')
     && !content.includes('mx-auto')
     && !content.includes('max-w-2xl')
@@ -255,6 +267,50 @@ check(
     && content.includes("mode={actions.mode ?? 'viewer'}")
     && content.includes('title={title}')
     && content.includes('description={description}'),
+);
+
+check(
+  'packages/web-auth/src/user-surface-content-page.tsx',
+  'shared user profile/settings content page helper must centralize metadata and page tone selection',
+  (content) => content.includes('createSsooSharedSurfaceContentPageElement')
+    && content.includes('parseSsooUserSurfaceRoute')
+    && content.includes('getSsooUserSurfacePageDescription')
+    && content.includes("pageTone: userSurfaceRoute?.kind === 'personal-settings' ? 'settings' : 'profile'")
+    && !content.includes("pageTone: userSurfaceRoute?.kind === 'personal-settings' ? 'settings' : 'neutral'"),
+);
+
+check(
+  'packages/web-auth/src/account-center.ts',
+  'shared account center resolver must default to canonical shared user-surface routes and delegate legacy entry normalization to user-surface routing',
+  (content) => content.includes('DEFAULT_SSOO_ACCOUNT_CENTER_PATH = SSOO_USER_SURFACE_SETTINGS_PATH')
+    && content.includes('DEFAULT_SSOO_MY_PROFILE_PATH = SSOO_USER_SURFACE_MY_PROFILE_PATH')
+    && content.includes('normalizeSsooUserSurfaceRouteEntryPath')
+    && content.includes("getSsooUserSurfaceTabPath('user-profile', userId)")
+    && !content.includes("pathname === '/settings'")
+    && !content.includes("pathname === '/profile/me'")
+    && !content.includes("pathname.startsWith('/profile/')")
+    && !content.includes("DEFAULT_SSOO_ACCOUNT_CENTER_PATH = '/settings'")
+    && !content.includes("DEFAULT_SSOO_MY_PROFILE_PATH = '/profile/me'"),
+);
+
+check(
+  'packages/web-auth/src/user-surface-routing.ts',
+  'shared user-surface routing must own canonical and legacy route-entry normalization',
+  (content) => content.includes('normalizeSsooUserSurfaceRouteEntryPath')
+    && content.includes('parseSsooUserSurfaceRouteEntry')
+    && content.includes('isSsooUserSurfaceRouteEntry')
+    && content.includes("SSOO_LEGACY_USER_SURFACE_SETTINGS_PATH = '/settings'")
+    && content.includes("SSOO_LEGACY_USER_SURFACE_MY_PROFILE_PATH = '/profile/me'")
+    && content.includes("SSOO_LEGACY_USER_SURFACE_PROFILE_PATH_PREFIX = '/profile/'"),
+);
+
+check(
+  'packages/web-auth/src/protected-app-bootstrap.ts',
+  'protected app bootstrap must wait for the initial blocking auth check before access hydration or unauthenticated redirects',
+  (content) => content.includes('initialAuthCheckCompleted')
+    && content.includes("checkAuth({ mode: 'blocking' }).finally")
+    && content.includes('!initialAuthCheckCompleted')
+    && content.includes('shouldRender: hasHydrated && initialAuthCheckCompleted && isAuthenticated && accessHasLoaded'),
 );
 
 check(
@@ -333,11 +389,13 @@ for (const app of ['admin', 'crm', 'pms', 'dms', 'sns']) {
   check(
     `apps/web/${app}/src/components/layout/ContentArea.tsx`,
     `${app.toUpperCase()} content area must render the shared user surface inside the app tab frame`,
-    (content) => content.includes('SsooUserSurfacePage')
+    (content) => content.includes('createSsooUserSurfaceRouteContentPageElement')
       && content.includes('parseSsooUserSurfaceRoute')
-      && content.includes('getSsooUserSurfaceTabId')
-      && content.includes('getSsooUserSurfaceTabPath')
-      && content.includes('onOpenProfile')
+      && !content.includes('createSsooSharedSurfaceContentPageElement')
+      && !content.includes('getSsooUserSurfacePageDescription')
+      && !content.includes('SsooUserSurfacePage')
+      && !content.includes('onOpenProfile={(nextUserId)')
+      && !content.includes('getSsooUserSurfaceTabPath')
       && !content.includes('resolveSsooUserSurfaceHref')
       && !content.includes('NEXT_PUBLIC_USER_SURFACE_APP_URL'),
   );
@@ -474,11 +532,62 @@ check(
       && !content.includes("href: 'http://localhost:3004/settings'"),
 );
 
+for (const app of ['admin', 'crm', 'pms', 'dms', 'sns']) {
+  check(
+    `apps/web/${app}/src/middleware.ts`,
+    `${app.toUpperCase()} middleware must delegate canonical shared user-surface route entries to the shared route policy helper`,
+    (content) => content.includes('sharedUserSurfaceRewritePath: APP_HOME_PATH')
+      && content.includes("decision.action === 'rewrite'")
+      && !content.includes("request.nextUrl.pathname === '/settings'")
+      && !content.includes("request.nextUrl.pathname.startsWith('/profile/')"),
+  );
+}
+
 check(
   'apps/web/sns/src/middleware.ts',
-  'SNS middleware must delegate canonical shared user-surface route entries to shared route-policy rewrite',
-  (content) => content.includes('sharedUserSurfaceRewritePath: APP_HOME_PATH')
-    && content.includes("decision.action === 'rewrite'"),
+  'SNS middleware must canonicalize only SNS legacy profile/settings route entries before shared route-policy handling',
+  (content) => content.includes("from '@ssoo/web-auth/user-surface-routing'")
+    && content.includes('normalizeSsooUserSurfaceRouteEntryPath(routeEntryPath)')
+    && content.includes('NextResponse.redirect(new URL(normalizedUserSurfaceEntryPath, request.url))')
+    && !content.includes("request.nextUrl.pathname === '/settings'")
+    && !content.includes("request.nextUrl.pathname.startsWith('/profile/')"),
+);
+
+for (const [app, sourcePath] of Object.entries({
+  admin: 'apps/web/admin/src/app/(main)/layout.tsx',
+  crm: 'apps/web/crm/src/components/layout/AppLayout.tsx',
+  pms: 'apps/web/pms/src/components/layout/AppLayout.tsx',
+  dms: 'apps/web/dms/src/components/layout/AppLayout.tsx',
+})) {
+  check(
+    sourcePath,
+    `${app.toUpperCase()} layout must open direct user-surface route entries as canonical shared MDI tabs`,
+    (content) => content.includes('parseSsooUserSurfaceRouteEntry')
+      && content.includes('getSsooUserSurfaceTabId')
+      && content.includes('userSurfaceRoute.title')
+      && content.includes('userSurfaceRoute.path'),
+  );
+}
+
+check(
+  'apps/web/sns/src/components/layout/ContentArea.tsx',
+  'SNS content area must delegate legacy user-surface route-entry parsing to @ssoo/web-auth',
+  (content) => content.includes('parseSsooUserSurfaceRouteEntry')
+    && !content.includes('parseLegacySnsUserSurfaceRoute')
+    && !content.includes("pathname === '/settings'")
+    && !content.includes("pathname === '/profile/me'")
+    && !content.includes("pathname.startsWith('/profile/')"),
+);
+
+check(
+  'apps/web/sns/src/components/layout/shell-navigation.ts',
+  'SNS shell navigation must delegate legacy profile/settings normalization to @ssoo/web-auth',
+  (content) => content.includes('normalizeSsooUserSurfaceRouteEntryPath')
+    && content.includes('parseSsooUserSurfaceRouteEntry')
+    && !content.includes("rawPathname === '/settings'")
+    && !content.includes("rawPathname === '/profile/me'")
+    && !content.includes("rawPathname.startsWith('/profile/')")
+    && !content.includes("pathname.startsWith('/profile/')"),
 );
 
 check(

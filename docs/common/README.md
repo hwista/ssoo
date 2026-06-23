@@ -1,7 +1,7 @@
 ````mdc
 # 공용 문서 (Common)
 
-> 최종 업데이트: 2026-06-19
+> 최종 업데이트: 2026-06-23
 
 PMS와 DMS 모두에 공통 적용되는 개발 표준, 가이드, 아키텍처 문서입니다.
 
@@ -48,6 +48,8 @@ PMS와 DMS 모두에 공통 적용되는 개발 표준, 가이드, 아키텍처 
 | [user-lifecycle-commonization.md](explanation/architecture/user-lifecycle-commonization.md) | SSOO 5앱 공용 사용자 생명주기 완료 기준과 logout/session-revoke acceptance gate |
 | [user-lifecycle-commonization-plan.md](explanation/architecture/user-lifecycle-commonization-plan.md) | 공용 사용자 생명주기 적용을 위한 단계별 구현 계획 |
 | [settings-admin-control-plane.md](explanation/architecture/settings-admin-control-plane.md) | SSOO 설정/Admin/Auth/Profile/AI/DMS 책임 경계와 Admin 후속 구현 체크리스트 |
+| [ai-rag-platform-roadmap.md](explanation/architecture/ai-rag-platform-roadmap.md) | 공용 AI/RAG data plane, retrieval, conversation/run, model gateway, domain adapter 확장 로드맵과 진척도 |
+| [ai-rag-platform-handoff.md](explanation/architecture/ai-rag-platform-handoff.md) | AI/RAG 공용화 현재 구현 상태, 검증 증거, Docker rebuild workaround, 원격 publish/다음 smoke 작업 핸드오프 |
 | [content-page-assembly-standard.md](explanation/architecture/content-page-assembly-standard.md) | content-area 내부 페이지 조립 표준, web-shell page recipe/material 경계, DMS 문서 페이지 골든 이그잼플 |
 | [platform-content-page-runtime-handoff.md](explanation/architecture/platform-content-page-runtime-handoff.md) | 플랫폼 shell/content-page 강제화 완료 상태, Docker/runtime 검증 증거, 운영/설정/제어 후속 작업 핸드오프 |
 | [local-port-map.md](explanation/architecture/local-port-map.md) | SSOO 로컬/Docker 포트 정본과 주변 프로젝트 충돌 회피 기준 |

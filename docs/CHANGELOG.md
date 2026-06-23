@@ -4,6 +4,22 @@
 
 ### Features
 
+* **server, scripts, docs:** 공용 AI model gateway를 추가해 DMS Ask의 chat generation/stream 실행 경계를 `CommonAiIndexModule`로 이동했다. Gateway는 Azure chat provider readiness와 deployment/model metadata를 제공하며, DMS Ask run audit는 provider/model/deployment 값을 gateway status 기준으로 기록한다.
+
+* **server, scripts, docs:** DMS Ask를 공용 AI/RAG retrieval와 conversation/run audit 경로에 연결했다. AskService는 `CommonAiIndexModule`의 retrieval 결과를 기존 DMS Ask `sources`/`citations` 응답 shape로 매핑하고, `retrievalLogId`/context item/source를 conversation message와 run-source audit에 남긴다. 공용 retrieval이 비거나 실패하면 기존 DMS SearchService 기반 legacy vector/keyword 검색으로 fallback한다.
+
+* **web-shell, web-auth, web-dms, scripts, docs:** 완성 settings page recipe를 `SsooSettingsPage`로 `@ssoo/web-shell`에 승격했다. DMS 설정 화면은 `SETTING_SECTIONS`, store/API, validation, JSON/diff/custom slot body만 주입하는 adapter로 축소했고, 공용 계정 설정 route는 `createSsooSettingsPageContentPageElement()`와 `useSsooSettingsPageHeaderActions()`를 통해 같은 settings page template을 소비한다. `verify:ssoo-frame`은 DMS `PageTemplate` 기반 설정 page 조립과 account settings의 settings recipe 우회를 차단한다.
+
+* **server, types, scripts, docs:** 공용 AI/RAG conversation/run service를 추가했다. `CommonAiIndexModule`은 conversation 생성/조회/갱신, message/reference append, model run start/complete, run-source audit를 `/ai-index/conversations/*` API로 제공하고, 모든 conversation read/write는 현재 사용자 owner 범위로 제한한다. `@ssoo/types/common/ai`에는 conversation update 계약을 보강했다.
+
+* **server, scripts, docs:** 공용 AI/RAG retrieval log와 context/citation assembly를 추가했다. `CommonAiIndexModule` retrieval query는 `contextItems`와 `citations`를 응답하고, `common.cm_ai_retrieval_log_m`/item에 request/result/context audit를 transaction으로 남기며, log가 남은 context가 있을 때만 `ragReady` capability를 true로 올린다.
+
+* **server, types, scripts, docs:** 공용 AI/RAG retrieval query service를 추가했다. `CommonAiIndexModule`은 `/ai-index/retrieval/query`에서 query embedding, `cm_ai_embedding_m` vector search, keyword fallback, hybrid ranking, ACL snapshot pre-filter를 수행하고, stale index state나 hash/profile 불일치 embedding은 후보에서 제외한다. 이 06A 단계에서는 context/citation assembly와 retrieval log를 skeleton으로 유지하며 `ragReady`를 false로 뒀다.
+
+* **server, types, scripts, docs:** AI/RAG embedding job safety를 보강했다. 공용 AI index job은 embedding batch size, retry/backoff, max attempt 정책을 metadata로 고정하고, provider unavailable/runtime failure/profile mismatch reindex 상태를 job/state metadata와 반환 계약에 기록한다. 변경된 chunk의 stale embedding은 비활성화된 뒤 batch 단위로 재생성되며, partial failure는 retry 대상 job으로 남긴다.
+
+* **server, database, types, docs:** AI/RAG platform 기준선을 재수립했다. `@ssoo/types/common`에 `ai`, `ai-index`, `ai-retrieval` 계약을 복원하고, `common.cm_ai_*` data plane과 source/object/index-state history trigger를 Prisma schema/migration에 추가했으며, 서버 `CommonAiIndexModule`이 adapter registry, source status, job queue/run, projection apply를 제공한다. DMS는 `DmsAiIndexAdapter`를 첫 reference adapter로 등록해 markdown 문서를 공용 AI index projection에 동기화한다.
+
 * **web-shell, web-admin, web-crm, web-pms, web-dms, web-sns, scripts, docs:** 내부 페이지 route registry를 `contentPage` 단일 계약으로 잠갔다. PMS/CRM/SNS/Admin 로컬 페이지와 DMS 홈/stale handoff는 승인된 adapter boundary를 통과하는 `contentPage`로 승격했고, `legacyException` route kind/type export와 verifier 허용 경로를 제거했다.
 
 * **web-shell, web-admin, web-crm, web-pms, web-dms, web-sns, scripts, docs:** content-area 내부 페이지 타입 게이트 기반을 추가했다. 앱 ContentArea는 `SsooRegisteredMdiContentArea`와 `defineSsooMdiPageRegistry`만 소비하고, 탭 route는 `contentPage`/`legacyException`으로 분류한다. 저수준 `SsooMdiTabbedContentArea`는 root public API에서 내리고, `verify:ssoo-frame`이 5개 앱 registry 소비와 DMS route 분류를 검증한다.
@@ -11,6 +27,10 @@
 * **web-shell, web-dms, scripts, docs:** `contentPage.render`를 branded `SsooMdiContentPageElement` 반환 계약으로 강화했다. 직접 recipe는 `createSsooContentPageTemplateElement()`, 승인된 domain adapter는 `SSOO_CONTENT_PAGE_ADAPTER_NAMES`의 `adapterName`과 `createSsooContentPageAdapterElement()`를 사용하며, DMS 문서/설정/AI page는 `DMS PageTemplate` adapter boundary를 통과한다.
 
 ### Bug Fixes
+
+* **web-auth, web-shell, scripts, docs:** 공용 사용자 프로필 surface가 `neutral` page tone으로 렌더링되어 다른 표준 content page와 배경 톤이 어긋나던 문제를 수정했다. `SsooContentPageTemplate`에 `profile` semantic tone을 추가하고, `@ssoo/web-auth` user-surface content-page helper가 프로필은 `profile`, 계정 설정은 `settings` tone으로 중앙 선택하도록 고정했으며, `verify:ssoo-frame`/`verify:auth-commonization`이 profile tone의 `neutral` 회귀를 차단한다.
+
+* **web-auth, web-shell, web-admin, web-crm, web-pms, web-dms, web-sns, scripts, docs:** 공용 user profile/settings 접근 경로의 잔여 레거시 기본값과 앱 로컬 handoff parser를 제거했다. `@ssoo/web-auth` account center resolver 기본 href를 canonical `/__user/profile/me`, `/__user/settings`로 고정하고 `/profile/*`, `/settings` 입력은 `normalizeSsooUserSurfaceRouteEntryPath()`/`parseSsooUserSurfaceRouteEntry()` shared helper boundary에서 canonical path로 정규화한다. 5개 앱 middleware는 canonical `/__user/*` route-entry를 shared route-policy rewrite로 루트 셸에 연결하고, SNS middleware만 legacy `/profile/*`, `/settings` direct entry를 route-only `@ssoo/web-auth/user-surface-routing` subpath로 canonical `/__user/*`에 redirect한다. Admin/CRM/PMS/DMS layout bootstrap은 direct `/__user/*` browser entry를 `parseSsooUserSurfaceRouteEntry()`/`getSsooUserSurfaceTabId()`로 canonical user-surface MDI tab에 연결한다. `verify:auth-commonization`/`verify:ssoo-frame`이 레거시 기본값, 앱 로컬 route construction, SNS 한정 middleware canonicalization, direct route tab bootstrap 누락 재유입을 차단한다.
 
 * **server, types, web-auth, web-shell, web-admin, web-crm, web-pms, web-dms, web-sns, docs:** DMS AI 검색 잔여 화면을 전역 통합 검색으로 흡수했다. DMS `/ai/search` 내부 탭과 호환 alias는 제거하고 DMS 검색 진입점은 `/ssoo/search` 전체 앱 검색 하나로 고정했으며, 기본 검색 요청은 `sourceApp` 없이 모든 provider를 대상으로 실행된다. source filter chip을 선택한 경우에만 `sourceApp` query와 요청 filter가 적용되고, CRM provider는 `OpportunityService`를 재사용해 영업기회 결과를 전역 검색에 등록한다. 기존 DMS AI 검색의 sidecar, 검색 기록, 인기 검색어, 내 자주 검색, AI 첨부 동작은 공용 `SsooAiSearchPage`/`SsooGlobalSearchPage` 경로에서 유지하고, DMS 문서 결과는 공용 검색 계약이 `excerpt`/`summarySource`/`totalSnippetCount`/`readRequest`를 보존해 기존 DMS 결과 카드 표현을 유지한다.
 
@@ -28,7 +48,7 @@
 
 * **web-dms, scripts, docs:** 설정 모드의 앱 상단 header slot과 `SsooAppHeader` shell은 유지하되 내부 content를 비워 검색 입력, 사용자 메뉴, 설정 제목/보조문구를 제거하고 settings sidebar brand 영역은 뒤로가기 버튼과 `설정` 단일 title만 표시하도록 정리했다.
 
-* **server, web-auth, scripts, docs:** 공용 사용자 표면을 여러 앱/탭에서 동시에 열 때 프로필/피드 refresh와 알림 SSE 구독이 서버 전역 throttle을 빠르게 소모해 `Too Many Requests`가 표시되던 문제를 보정했다. 서버 전역 throttle 기준을 확장하고 알림 SSE는 throttle quota에서 제외했으며, `@ssoo/web-auth` 사용자 표면은 GET dedupe와 refresh debounce/in-flight queue로 같은 프로필/피드 조회 폭주를 묶는다.
+* **server, web-auth, scripts, docs:** 공용 사용자 표면을 여러 앱/탭에서 동시에 열 때 프로필/피드 refresh와 알림 SSE 구독이 throttle을 빠르게 소모해 `Too Many Requests`가 표시되던 문제를 보정했다. 알림 SSE는 throttle quota에서 제외했다. `@ssoo/web-auth` 사용자 표면은 GET dedupe와 refresh debounce/in-flight queue로 같은 프로필/피드 조회 폭주를 묶는다.
 
 * **web-shell, web-admin, web-sns, web-dms, scripts, docs:** SSOO frame 4슬롯 표현 계층의 잔여 escape hatch를 정리했다. legacy `ShellFrame` root export와 app frame/sidebar 폭 override, MDI tabbar height/class override를 제거하고, SNS content Suspense fallback과 Admin header user-menu loading state를 공용 `web-shell` 표면으로 이동했으며, DMS global CSS의 legacy shell/tree selector와 stale frame 치수 문서를 정리했다.
 
@@ -98,6 +118,8 @@
 
 ### Documentation
 
+* **docs/common:** AI/RAG platform handoff를 추가하고 공용 문서 색인, current workstream baseline, Docker refresh note를 현행화했다. 다음 작업을 `AI-RAG-10A Runtime smoke and runbook`으로 고정하고, Docker Desktop credential helper 오류 시 `DOCKER_CONFIG=/tmp/ssoo-docker-no-creds` 우회 rebuild 절차를 기록했다.
+
 * **docs/common, docker:** 플랫폼 shell/content-page 강제화 완료 핸드오프 문서를 추가했다. Docker 재빌드/기동, 5개 웹 앱 HTTP 200, access smoke/admin/DMS, PMS launch readiness 검증 결과를 다음 운영/설정/제어 작업의 시작 기준으로 기록했다.
 
 * **docs/common, docs/dms:** content-area 내부 페이지 조립 표준을 추가했다. DMS 문서 페이지를 골든 이그잼플로 고정하고, DMS `PageTemplate`은 장기적으로 `@ssoo/web-shell` page recipe로 승격할 기준 구현이라고 명시했으며, DMS frontend/layout/golden-example 문서를 같은 경계로 정렬했다.
@@ -108,7 +130,7 @@
 
 * **server, types, web-auth, web-shell, web-admin, web-crm, web-pms, web-dms, web-sns, docs:** header/sidebar 검색 표면을 공용화했다. Header placeholder는 “무엇이든 찾아드릴게요! 무엇이 필요하신가요?”, sidebar placeholder는 “목록 내 검색..”으로 고정하고, sidebar 내부 필터링은 `SsooSidebarSearchableTree`가 소유하도록 5개 앱 adapter를 정렬했다. 통합 검색은 검색 실행/결과 내 재검색/blocked source summary 구조를 반영한 `SsooGlobalSearchPage` recipe, 공용 `CommonSearch*` 타입, server `/api/search`, `createCommonSearchApi`, source filter chip, result renderer slot을 통해 `/ssoo/search` 탭으로 연결한다. `SsooGlobalSearchPage`는 공용 content page recipe로 승격되어 5개 앱 route registry에서 `contentPage`로 분류되고, 앱은 검색 API와 결과 open adapter만 소유한다. DMS provider는 기존 DMS `SearchService`를 재사용해 semantic/vector 시도, keyword fallback, ACL/redaction, blocked source summary를 유지한다.
 
-* **web-auth, server-sns, web-sns, web-admin, web-crm, web-pms, web-dms, docs/common:** 공용 사용자 표면을 `내 프로필`/`내 설정` 의미 액션으로 확장했다. `AuthUserMenu`는 5개 앱에서 외부 SNS 링크가 아니라 현재 앱 프레임의 탭바에 `@ssoo/web-auth` `SsooUserSurfacePage`를 열고, SNS profile/feed/follow API는 common 사용자 표시값 + SNS profile + skills/careers + follow stats + 작성자 feed를 단일 projection으로 반환한다. 프로필/개인 설정 수정, follow, feed 반응/북마크/게시물/댓글 변경은 SNS domain event로 발행되어 동시에 열린 앱 탭들이 서버 truth를 다시 읽는다.
+* **web-auth, server-sns, web-sns, web-admin, web-crm, web-pms, web-dms, docs/common:** 공용 사용자 표면을 `내 프로필`/`내 설정` 의미 액션으로 확장했다. `AuthUserMenu`는 5개 앱에서 외부 SNS 링크가 아니라 현재 앱 프레임의 canonical `/__user/*` 탭을 열고, ContentArea는 `@ssoo/web-auth` `createSsooUserSurfaceRouteContentPageElement()`만 호출해 shared page chrome과 `SsooUserSurfacePage` body 렌더링을 패키지로 중앙화한다. SNS profile/feed/follow API는 common 사용자 표시값 + SNS profile + skills/careers + follow stats + 작성자 feed를 단일 projection으로 반환한다. 프로필/개인 설정 수정, follow, feed 반응/북마크/게시물/댓글 변경은 SNS domain event로 발행되어 동시에 열린 앱 탭들이 서버 truth를 다시 읽는다.
 
 * **web-shell, web-admin, web-crm, web-pms, web-dms, web-sns, scripts, docs/common:** 5개 앱의 visible identity를 `@ssoo/web-shell` 공용 source로 승격했다. 브라우저 제목 표시줄은 `SSOT Platform`, `SSOT Sales`, `SSOT Project`, `SSOT Document`, `SSOT Connect` 단일 형식으로 줄이고, 브라우저 탭 아이콘은 공용 `/ssot-icon.svg` route로 통일했으며, 앱 기본 theme 색상과 런타임 `--ssoo-primary` 사용자 커스텀 값을 favicon accent에 반영하도록 `SsooFaviconSync`를 추가했다. main sidebar brand도 같은 한 줄만 노출하도록 정렬했고, `verify:ssoo-frame`가 앱별 하드코딩, app-local `icon.svg`, 도메인 설명 subtitle, favicon theme sync 회귀를 차단한다.
 

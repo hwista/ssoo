@@ -4,6 +4,10 @@ import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
+  getSsooUserSurfaceTabId,
+  parseSsooUserSurfaceRouteEntry,
+} from '@ssoo/web-auth';
+import {
   getSsooAppIdentity,
   SsooSidebarEmptyState,
   SsooSidebarSearchableTree,
@@ -56,6 +60,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
   }, [pathname, searchParams]);
 
   useEffect(() => {
+    const userSurfaceRoute = parseSsooUserSurfaceRouteEntry(currentPath);
+    if (userSurfaceRoute) {
+      openTab({
+        id: getSsooUserSurfaceTabId(userSurfaceRoute.kind, userSurfaceRoute.userId),
+        title: userSurfaceRoute.title,
+        path: userSurfaceRoute.path,
+        closable: true,
+      });
+      return;
+    }
+
     openTab({
       id: CRM_HOME_TAB.id,
       title: CRM_HOME_TAB.title,

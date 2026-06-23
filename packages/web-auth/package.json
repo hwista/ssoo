@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./user-surface-routing": {
+      "types": "./dist/user-surface-routing.d.ts",
+      "default": "./dist/user-surface-routing.js"
     }
   },
   "scripts": {

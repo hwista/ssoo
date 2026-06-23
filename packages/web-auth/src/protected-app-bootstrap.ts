@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CheckAuthOptions } from './store';
 
 export interface UseProtectedAppBootstrapOptions {
@@ -41,6 +41,7 @@ export function useProtectedAppBootstrap(
 
   const initCalled = useRef(false);
   const lastLifecycleCheckAt = useRef(0);
+  const [initialAuthCheckCompleted, setInitialAuthCheckCompleted] = useState(false);
 
   const getCurrentPathname = () => {
     if (typeof window === 'undefined') {
@@ -56,11 +57,20 @@ export function useProtectedAppBootstrap(
     }
 
     initCalled.current = true;
-    void checkAuth({ mode: 'blocking' });
+    let cancelled = false;
+    void checkAuth({ mode: 'blocking' }).finally(() => {
+      if (!cancelled) {
+        setInitialAuthCheckCompleted(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [checkAuth, hasHydrated]);
 
   useEffect(() => {
-    if (!hasHydrated || authIsLoading || !isAuthenticated) {
+    if (!hasHydrated || !initialAuthCheckCompleted || authIsLoading || !isAuthenticated) {
       return undefined;
     }
 
@@ -99,12 +109,20 @@ export function useProtectedAppBootstrap(
     checkOnFocus,
     checkOnVisible,
     hasHydrated,
+    initialAuthCheckCompleted,
     isAuthenticated,
     lifecycleCheckDebounceMs,
   ]);
 
   useEffect(() => {
-    if (!hasHydrated || authIsLoading || !isAuthenticated || accessHasLoaded || accessIsLoading) {
+    if (
+      !hasHydrated
+      || !initialAuthCheckCompleted
+      || authIsLoading
+      || !isAuthenticated
+      || accessHasLoaded
+      || accessIsLoading
+    ) {
       return;
     }
 
@@ -115,20 +133,24 @@ export function useProtectedAppBootstrap(
     authIsLoading,
     hasHydrated,
     hydrateAccess,
+    initialAuthCheckCompleted,
     isAuthenticated,
   ]);
 
   useEffect(() => {
-    if (!hasHydrated || isAuthenticated) {
+    if (!hasHydrated || !initialAuthCheckCompleted || isAuthenticated) {
       return;
     }
 
     resetAccess();
     onUnauthenticated(getCurrentPathname());
-  }, [hasHydrated, isAuthenticated, onUnauthenticated, resetAccess]);
+  }, [hasHydrated, initialAuthCheckCompleted, isAuthenticated, onUnauthenticated, resetAccess]);
 
   return {
-    showLoading: !hasHydrated || authIsLoading || (isAuthenticated && !accessHasLoaded),
-    shouldRender: hasHydrated && isAuthenticated && accessHasLoaded,
+    showLoading: !hasHydrated
+      || !initialAuthCheckCompleted
+      || authIsLoading
+      || (isAuthenticated && !accessHasLoaded),
+    shouldRender: hasHydrated && initialAuthCheckCompleted && isAuthenticated && accessHasLoaded,
   };
 }
