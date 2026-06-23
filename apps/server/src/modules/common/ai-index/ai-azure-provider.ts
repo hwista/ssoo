@@ -11,6 +11,7 @@ import {
 const AZURE_OPENAI_SCOPE = 'https://cognitiveservices.azure.com/.default';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 const DEFAULT_EMBEDDING_DIMENSION = 1536;
+const DEFAULT_OPENAI_API_VERSION = '2024-10-21';
 
 let cachedToken: AccessToken | null = null;
 let pendingTokenRequest: Promise<string | null> | null = null;
@@ -44,8 +45,8 @@ function pickString(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-function getApiVersion(): string | undefined {
-  return pickString(process.env.OPENAI_API_VERSION);
+function getApiVersion(): string {
+  return pickString(process.env.OPENAI_API_VERSION) ?? DEFAULT_OPENAI_API_VERSION;
 }
 
 function getEmbeddingDeployment(): string | undefined {

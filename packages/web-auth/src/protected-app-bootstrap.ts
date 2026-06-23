@@ -11,6 +11,7 @@ export interface UseProtectedAppBootstrapOptions {
   hydrateAccess: () => Promise<void>;
   resetAccess: () => void;
   onUnauthenticated: (currentPath: string) => void;
+  shouldSkipLifecycleCheck?: () => boolean;
   checkOnFocus?: boolean;
   checkOnVisible?: boolean;
   lifecycleCheckDebounceMs?: number;
@@ -34,6 +35,7 @@ export function useProtectedAppBootstrap(
     hydrateAccess,
     resetAccess,
     onUnauthenticated,
+    shouldSkipLifecycleCheck,
     checkOnFocus = true,
     checkOnVisible = true,
     lifecycleCheckDebounceMs = 1000,
@@ -75,6 +77,10 @@ export function useProtectedAppBootstrap(
     }
 
     const runLifecycleCheck = () => {
+      if (shouldSkipLifecycleCheck?.()) {
+        return;
+      }
+
       const now = Date.now();
       if (now - lastLifecycleCheckAt.current < lifecycleCheckDebounceMs) {
         return;
@@ -112,6 +118,7 @@ export function useProtectedAppBootstrap(
     initialAuthCheckCompleted,
     isAuthenticated,
     lifecycleCheckDebounceMs,
+    shouldSkipLifecycleCheck,
   ]);
 
   useEffect(() => {

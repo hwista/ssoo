@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { extname } from 'node:path';
 import { configService } from '../runtime/dms-config.service.js';
 import { createDmsLogger } from '../runtime/dms-logger.js';
@@ -11,6 +12,7 @@ import {
 } from './file.constants.js';
 
 const logger = createDmsLogger('DmsTextExtractor');
+const nodeRequire = createRequire(import.meta.url);
 
 export interface ExtractedImage {
   base64: string;
@@ -143,8 +145,7 @@ interface PdfRuntimeGlobals {
 }
 
 function extractImagesFromZip(buffer: Buffer, mediaPrefix: string, cfg: ExtractionCfg): ExtractedImage[] {
-   
-  const AdmZip = require('adm-zip');
+  const AdmZip = nodeRequire('adm-zip');
   const zip = new AdmZip(buffer);
   const entries: ZipEntry[] = zip.getEntries();
   const images: ExtractedImage[] = [];
@@ -328,8 +329,7 @@ async function extractPdf(buffer: Buffer, cfg: ExtractionCfg): Promise<Extractio
 }
 
 async function extractDocx(buffer: Buffer, cfg: ExtractionCfg): Promise<ExtractionResult> {
-   
-  const mammoth = require('mammoth') as {
+  const mammoth = nodeRequire('mammoth') as {
     extractRawText: (options: { buffer: Buffer }) => Promise<{ value: string }>;
   };
   const result = await mammoth.extractRawText({ buffer });
@@ -340,8 +340,7 @@ async function extractDocx(buffer: Buffer, cfg: ExtractionCfg): Promise<Extracti
 }
 
 function extractXlsxText(buffer: Buffer, cfg: ExtractionCfg): string {
-   
-  const XLSX = require('xlsx');
+  const XLSX = nodeRequire('xlsx');
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const parts: string[] = [];
 
@@ -356,8 +355,7 @@ function extractXlsxText(buffer: Buffer, cfg: ExtractionCfg): string {
 }
 
 function extractPptxText(buffer: Buffer, cfg: ExtractionCfg): string {
-   
-  const AdmZip = require('adm-zip');
+  const AdmZip = nodeRequire('adm-zip');
   const zip = new AdmZip(buffer);
   const entries: ZipEntry[] = zip.getEntries();
 

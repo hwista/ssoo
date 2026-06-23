@@ -4,7 +4,8 @@ import { useRef, useCallback, useState, useEffect, type ChangeEvent } from 'reac
 import { Bot, FileText, FileCode, X, Loader2 } from 'lucide-react';
 import { LoadingState } from '@/components/common/StateDisplay';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
-import { fetchWithSharedAuth } from '@/lib/api/sharedAuth';
+import { extractSummaryFile } from '@/components/common/assistant/reference/summaryFileExtraction';
+import { armProtectedAppLifecycleCheckSkip } from '@/lib/protectedAppLifecycleCheck';
 import { toast } from '@/lib/toast';
 import { collectSummaryFileIssues } from '@/lib/summaryFileStatus';
 import { Button, Input } from '@ssoo/web-ui';
@@ -46,6 +47,7 @@ export function NewDocumentLauncher({
       return;
     }
     setIsPreparing(true);
+    armProtectedAppLifecycleCheckSkip();
     fileInputRef.current?.click();
   }, [canUseAssistant, canWriteDocuments]);
 
@@ -65,47 +67,7 @@ export function NewDocumentLauncher({
 
     setIsExtracting(true);
     const mapped: InlineSummaryFileItem[] = await Promise.all(
-      files.map(async (file) => {
-        let textContent = '';
-        let images: InlineSummaryFileItem['images'];
-        let warningReason: string | undefined;
-        let unsupportedReason: string | undefined;
-        let protectedMarkerDetected: boolean | undefined;
-        try {
-          const formData = new FormData();
-          formData.append('file', file);
-          const res = await fetchWithSharedAuth('/api/file/extract-text', {
-            method: 'POST',
-            body: formData,
-          });
-          const data = await res.json().catch(() => null);
-          if (res.ok) {
-            textContent = typeof data?.textContent === 'string' ? data.textContent : '';
-            images = Array.isArray(data?.images) ? data.images : undefined;
-            warningReason = typeof data?.warningReason === 'string' ? data.warningReason : undefined;
-            unsupportedReason = typeof data?.unsupportedReason === 'string' ? data.unsupportedReason : undefined;
-            protectedMarkerDetected = typeof data?.protectedMarkerDetected === 'boolean'
-              ? data.protectedMarkerDetected
-              : undefined;
-          } else {
-            unsupportedReason = 'extraction-error';
-          }
-        } catch {
-          unsupportedReason = 'extraction-error';
-        }
-        return {
-          id: `${file.name}-${file.lastModified}-${file.size}`,
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          textContent,
-          images,
-          warningReason,
-          unsupportedReason,
-          protectedMarkerDetected,
-          rawFile: file,
-        };
-      })
+      files.map((file) => extractSummaryFile(file))
     );
 
     const issues = collectSummaryFileIssues(mapped);
@@ -173,7 +135,7 @@ export function NewDocumentLauncher({
               type="button"
               disabled={action.disabled}
               onClick={action.onClick}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-left transition-colors text-ssoo-primary/80 hover:bg-ssoo-primary/5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+              className="flex w-full items-center justify-start gap-3 rounded-lg px-4 py-3 text-left font-normal text-ssoo-primary/80 shadow-none transition-colors whitespace-normal hover:bg-ssoo-primary/5 focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent [&_svg]:h-6 [&_svg]:w-6"
             >
               <span className="text-ssoo-primary/50">
                 {action.icon}
@@ -194,6 +156,7 @@ export function NewDocumentLauncher({
         multiple
         accept=".md,.txt,.json,.csv,.pdf,.docx,.pptx,.xlsx"
         className="hidden"
+        onClick={armProtectedAppLifecycleCheckSkip}
         onChange={handleFilesSelected}
       />
     </div>

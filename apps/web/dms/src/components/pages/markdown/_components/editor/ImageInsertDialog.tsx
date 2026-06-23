@@ -4,6 +4,7 @@ import * as React from 'react';
 import Image from 'next/image';
 import { ImageIcon, Upload, Link2 } from 'lucide-react';
 import { EditorDialog } from '@/components/common/editor-dialog';
+import { armProtectedAppLifecycleCheckSkip } from '@/lib/protectedAppLifecycleCheck';
 import { Button, Input } from '@ssoo/web-ui';
 
 export interface ImageInsertDialogProps {
@@ -131,7 +132,10 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
         {activeTab === 'upload' && (
           <div className="flex flex-col gap-3">
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                armProtectedAppLifecycleCheckSkip();
+                fileInputRef.current?.click();
+              }}
               className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ssoo-content-border p-6 transition-colors hover:border-ssoo-primary/50 hover:bg-ssoo-content-bg/30 h-[180px]"
             >
               {previewUrl ? (
@@ -161,6 +165,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
               ref={fileInputRef}
               type="file"
               accept="image/png,image/jpeg,image/gif,image/webp"
+              onClick={armProtectedAppLifecycleCheckSkip}
               onChange={handleFileChange}
               className="hidden"
             />

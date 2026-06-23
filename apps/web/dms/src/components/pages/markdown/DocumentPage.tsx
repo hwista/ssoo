@@ -285,11 +285,12 @@ export function DocumentPage() {
   documentMetadataRef.current = documentMetadata;
 
   const syncAiSummarySourceFiles = useCallback((files: InlineSummaryFileItem[]) => {
-    if (files.length === 0) return;
+    const readyFiles = filterUsableSummaryFiles(files);
+    if (readyFiles.length === 0) return;
 
     const currentFiles = documentMetadataRef.current?.sourceFiles ?? [];
     const existingKeys = new Set(currentFiles.map((file) => file.name));
-    const sourceFiles = files.map(buildSummarySourceFileMeta);
+    const sourceFiles = readyFiles.map(buildSummarySourceFileMeta);
     const newFiles = sourceFiles.filter((file) => !existingKeys.has(file.name));
 
     if (newFiles.length > 0) {
@@ -299,13 +300,13 @@ export function DocumentPage() {
 
     setUsedSummaryFileIds((prev) => {
       const next = new Set(prev);
-      for (const file of files) {
+      for (const file of readyFiles) {
         next.add(file.id);
       }
       return next;
     });
 
-    for (const file of files) {
+    for (const file of readyFiles) {
       pendingAttachmentsRef.current.set(`__pending__/ref-${file.id}`, buildSummaryRawFile(file));
     }
   }, [setHasUnsavedChanges, setLocalDocumentMetadata]);
@@ -506,7 +507,6 @@ export function DocumentPage() {
       }
 
       setInlineSummaryFiles(pending.summaryFiles);
-      syncAiSummarySourceFiles(pending.summaryFiles);
 
       try {
         const fileIssueWarnings = collectSummaryFileIssues(pending.summaryFiles);
@@ -517,6 +517,8 @@ export function DocumentPage() {
           toast.warning(message);
           return;
         }
+
+        syncAiSummarySourceFiles(usableSummaryFiles);
 
         const fileNames = usableSummaryFiles.map((f) => f.name).join(', ');
         const instruction = `다음 파일의 본문 내용을 면밀히 파악한 뒤, 본문 내용에 맞게 문단을 구성하고 요약해주세요: ${fileNames}`;
@@ -573,6 +575,11 @@ export function DocumentPage() {
 
             setContent(generated);
             aiSummaryCompletedRef.current = true;
+          } else {
+            const message = 'AI가 요약 결과를 생성하지 못했습니다.';
+            setInlineRelevanceWarnings([...fileIssueWarnings, message]);
+            toast.error(message);
+            return;
           }
           setInlineRelevanceWarnings(fileIssueWarnings);
         } else {
@@ -580,6 +587,11 @@ export function DocumentPage() {
           setInlineRelevanceWarnings([...fileIssueWarnings, message]);
           toast.error(message);
         }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'AI 요약 생성 중 오류가 발생했습니다.';
+        const fileIssueWarnings = collectSummaryFileIssues(pending.summaryFiles);
+        setInlineRelevanceWarnings([...fileIssueWarnings, message]);
+        toast.error(message);
       } finally {
         setIsComposing(false);
       }
@@ -832,6 +844,7 @@ export function DocumentPage() {
         type: f.type ?? 'application/octet-stream',
         size: f.size ?? 0,
         textContent: '',
+        extractionState: 'extracting',
       }));
       setInlineSummaryFiles((prev) => {
         const map = new Map(prev.map((item) => [item.name, item]));
@@ -878,12 +891,29 @@ export function DocumentPage() {
           setInlineSummaryFiles((prev) =>
             prev.map((item) => {
               const match = fetched.find((c) => c.name === item.name);
-              return match ? { ...item, textContent: match.textContent } : item;
+              return match
+                ? {
+                    ...item,
+                    textContent: match.textContent,
+                    unsupportedReason: undefined,
+                    extractionState: 'ready',
+                  }
+                : item;
             }),
           );
         }
         if (failed.length > 0) {
           const failedNames = failed.map((f) => f.name);
+          const failedNameSet = new Set(failedNames);
+          setInlineSummaryFiles((prev) =>
+            prev.map((item) => failedNameSet.has(item.name)
+              ? {
+                  ...item,
+                  extractionState: 'failed',
+                  unsupportedReason: item.unsupportedReason ?? 'extraction-error',
+                }
+              : item),
+          );
           setFailedRestoreFiles(failed);
           setInlineRelevanceWarnings((prev) => [
             ...prev,

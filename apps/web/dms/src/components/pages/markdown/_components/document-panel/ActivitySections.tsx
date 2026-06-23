@@ -6,6 +6,7 @@ import type { SourceFileMeta } from '@/types';
 import { ActivityListSection } from '@/components/templates/page-frame/panel';
 import type { ActivityAction } from '@/components/templates/page-frame/panel';
 import { getAttachmentCategory, ATTACHMENT_ACCEPT_STRING } from '@/lib/constants/file';
+import { armProtectedAppLifecycleCheckSkip } from '@/lib/protectedAppLifecycleCheck';
 import { Button, Input } from '@ssoo/web-ui';
 
 function formatSize(size: number): string {
@@ -213,6 +214,7 @@ export function AttachmentsSection({
       title={templateMode ? '참조' : '파일'}
       badge={!locked && attachments.length > 0 ? <span className="mr-1 text-caption text-gray-400">({attachments.length})</span> : undefined}
       items={locked ? [] : items}
+      legacyVisuals
       variant="compact"
       highlightedItemIds={newAttachmentPaths}
       deletedItemIds={deletedIds}
@@ -231,8 +233,11 @@ export function AttachmentsSection({
         <div className="pt-2">
           <Button variant="plain" size="plain"
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex h-7 w-full items-center justify-center gap-1.5 rounded border border-dashed border-ssoo-content-border px-2 text-caption text-ssoo-primary/60 transition-colors hover:border-ssoo-primary hover:text-ssoo-primary"
+            onClick={() => {
+              armProtectedAppLifecycleCheckSkip();
+              fileInputRef.current?.click();
+            }}
+            className="flex h-7 w-full items-center justify-center gap-1.5 rounded border border-dashed border-ssoo-content-border px-2 text-caption font-normal text-ssoo-primary/60 shadow-none transition-colors hover:border-ssoo-primary hover:text-ssoo-primary focus-visible:ring-0 [&_svg]:h-3.5 [&_svg]:w-3.5"
           >
             <Plus className="h-3.5 w-3.5" />
             파일 첨부
@@ -241,6 +246,7 @@ export function AttachmentsSection({
             ref={fileInputRef}
             type="file"
             accept={ATTACHMENT_ACCEPT_STRING}
+            onClick={armProtectedAppLifecycleCheckSkip}
             onChange={handleFileSelect}
             className="hidden"
           />

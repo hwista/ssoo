@@ -1,6 +1,7 @@
 'use client';
 
 import { fileApi } from '@/lib/api/endpoints/files';
+import { hasUsableSummaryContent, isSummaryFileExtracting } from '@/lib/summaryFileStatus';
 import type { InlineSummaryFileItem } from '@/components/common/assistant/reference/Picker';
 import type { TemplateReferenceDoc } from '@/types/template';
 
@@ -8,6 +9,8 @@ interface BuildComposeContextResult {
   composeSummaryFiles: InlineSummaryFileItem[];
   warnings: string[];
   resolvedRefPaths: string[];
+  hasSelectedSummaryFiles: boolean;
+  hasExtractingSummaryFiles: boolean;
 }
 
 export async function buildComposeContextFiles(params: {
@@ -25,14 +28,28 @@ export async function buildComposeContextFiles(params: {
 
   const activeSummaryFiles = inlineSummaryFiles.filter((file) => !pendingDeletedFileIds.has(file.id));
   const activeSummaryFileById = new Map(activeSummaryFiles.map((file) => [file.id, file]));
+  const activeInlineReferenceDocs = templateReferenceDocuments.filter(
+    (ref) => !pendingDeletedRefPaths.has(ref.path) && ref.storage === 'inline' && ref.tempId,
+  );
   const inlineRefIds = new Set(
-    templateReferenceDocuments.flatMap((ref) => ref.tempId ? [ref.tempId] : []),
+    activeInlineReferenceDocs.flatMap((ref) => ref.tempId ? [ref.tempId] : []),
   );
   const deduplicatedSummaryFiles = activeSummaryFiles.filter((file) => !inlineRefIds.has(file.id));
-
+  const selectedSummaryFiles: InlineSummaryFileItem[] = [];
+  const selectedSummaryFileIds = new Set<string>();
   const refFiles: InlineSummaryFileItem[] = [];
   const warnings: string[] = [];
   const resolvedRefPaths: string[] = [];
+
+  const registerSelectedSummaryFile = (file: InlineSummaryFileItem) => {
+    if (selectedSummaryFileIds.has(file.id)) return;
+    selectedSummaryFileIds.add(file.id);
+    selectedSummaryFiles.push(file);
+  };
+
+  for (const file of deduplicatedSummaryFiles) {
+    registerSelectedSummaryFile(file);
+  }
 
   for (const doc of templateReferenceDocuments) {
     if (pendingDeletedRefPaths.has(doc.path)) continue;
@@ -40,8 +57,11 @@ export async function buildComposeContextFiles(params: {
     if (doc.storage === 'inline') {
       const inlineSource = doc.tempId ? activeSummaryFileById.get(doc.tempId) : undefined;
       if (inlineSource) {
-        refFiles.push(inlineSource);
-        resolvedRefPaths.push(doc.path);
+        registerSelectedSummaryFile(inlineSource);
+        if (hasUsableSummaryContent(inlineSource)) {
+          refFiles.push(inlineSource);
+          resolvedRefPaths.push(doc.path);
+        }
         continue;
       }
       if (doc.textContent) {
@@ -83,5 +103,7 @@ export async function buildComposeContextFiles(params: {
     composeSummaryFiles: [...deduplicatedSummaryFiles, ...refFiles],
     warnings,
     resolvedRefPaths,
+    hasSelectedSummaryFiles: selectedSummaryFiles.length > 0,
+    hasExtractingSummaryFiles: selectedSummaryFiles.some((file) => isSummaryFileExtracting(file)),
   };
 }

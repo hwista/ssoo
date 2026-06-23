@@ -1,3 +1,5 @@
+name: ssoo
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -37,6 +39,11 @@ services:
     restart: unless-stopped
     ports:
       - "4000:4000"
+    env_file:
+      - path: ./.env
+        required: false
+      - path: ./apps/web/dms/.env.local
+        required: false
     environment:
       NODE_ENV: production
       PORT: 4000
@@ -64,16 +71,6 @@ services:
       DMS_GIT_BOOTSTRAP_REMOTE_URL: ${DMS_GIT_BOOTSTRAP_REMOTE_URL:-}
       DMS_GIT_BOOTSTRAP_BRANCH: ${DMS_GIT_BOOTSTRAP_BRANCH:-master}
       DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES: ${DMS_GIT_PUBLISH_IGNORED_PATH_PREFIXES:-launch-smoke/,codex-lock-ui/,codex-lock-probe/,verify-access/}
-      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
-      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-}
-      AZURE_OPENAI_EMBEDDING_DEPLOYMENT: ${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-}
-      OPENAI_API_VERSION: ${OPENAI_API_VERSION:-2024-10-21}
-      AZURE_USE_MANAGED_IDENTITY: ${AZURE_USE_MANAGED_IDENTITY:-true}
-      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
-      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
-      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
-      AZURE_MANAGED_IDENTITY_CLIENT_ID: ${AZURE_MANAGED_IDENTITY_CLIENT_ID:-}
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
     volumes:
       - ${DMS_MARKDOWN_HOST_PATH:-./.runtime/documents}:${DMS_MARKDOWN_ROOT:-/var/lib/ssoo/documents}
       - ${DMS_INGEST_HOST_PATH:-./.runtime/document-ingest}:${DMS_INGEST_QUEUE_PATH:-/var/lib/ssoo/document-ingest}

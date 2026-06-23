@@ -85,6 +85,7 @@ export interface DocAssistTitleAndPathResponse {
 export interface DocAssistComposeCallbacks {
   onMeta?: (meta: { applyMode: string; suggestedPath: string; relevanceWarnings: string[] }) => void;
   onTextDelta?: (delta: string) => void;
+  onError?: (error: Error) => void;
 }
 
 export const docAssistApi = {
@@ -109,6 +110,7 @@ export const docAssistApi = {
       url: '/api/doc-assist',
       body: payload,
       signal: options?.signal,
+      onError: callbacks.onError,
       onEvent: (event: SSEEvent) => {
         if (event.type === 'meta') {
           callbacks.onMeta?.({

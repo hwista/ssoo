@@ -1,9 +1,11 @@
 # DMS / SSOO Docker 배포 가이드
 
-> 최종 업데이트: 2026-06-04
+> 최종 업데이트: 2026-06-19
 
 DMS를 **모노레포 통합 런타임 기준**으로 Docker 컨테이너에 배포하는 가이드입니다.  
 지원 경로는 **repo root `compose.yaml`** 하나로 정리하며, 기본 배포 단위는 `postgres + server + admin + crm + pms + dms + sns` 전체 스택입니다.
+
+> `compose.yaml` 의 Compose project name 은 `ssoo` 로 고정됩니다. 체크아웃 폴더명이 달라도 Docker Desktop 앱/리소스 이름이 `ssoo-*` 컨테이너 기준으로 일관되게 유지되도록 하기 위한 설정입니다.
 
 ---
 
@@ -75,7 +77,7 @@ cp apps/web/dms/.env.example apps/web/dms/.env.local
 ```
 
 > AI 기능을 쓰지 않더라도 `.env.local` 파일은 같은 자리에서 유지하는 것을 권장합니다.  
-> `compose.yaml`은 DMS `.env.local`을 **web-dms 컨테이너용으로 선택적으로** 읽고, server 컨테이너의 DMS Git/Azure 값은 root `.env`를 `environment:`로 전달합니다.
+> `compose.yaml`은 root `.env`를 shared baseline으로 사용하고, `apps/web/dms/.env.local`을 **web-dms와 server 컨테이너가 함께 읽는 DMS-local override**로 취급합니다. 로컬에서 DMS/Azure 겹치는 키를 `.env.local`에 두면 web UI와 server 요약 경로가 같은 값을 사용합니다.
 
 ### 2. 빌드 & 실행
 
@@ -199,7 +201,7 @@ tar czf dms-runtime-backup-$(date +%Y%m%d).tar.gz \
 | `AZURE_CLIENT_SECRET` | ⭕ | Entra ID 인증 시 |
 | `AZURE_MANAGED_IDENTITY_CLIENT_ID` | ⭕ | user-assigned managed identity 사용 시 |
 
-루트 `compose.yaml` 은 server 컨테이너의 Azure 관련 값을 root `.env` 에서 읽어 `environment:` 로 전달합니다. `apps/web/dms/.env.local` 은 web-dms 컨테이너의 로컬 override 용도입니다. Docker 내부 DB 주소 override가 필요하면 root `.env`의 `DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` 을 수정하세요.
+루트 `compose.yaml` 은 root `.env`를 shared baseline으로 사용하고, `apps/web/dms/.env.local` 을 local compose 기준 DMS-local override로 함께 읽습니다. `apps/web/dms/.env.local` 에 있는 DMS/Azure 겹치는 키는 `web-dms`와 `server` 컨테이너에 동시에 반영되므로, 로컬 요약/검색/질의 경로를 UI와 같은 설정으로 맞출 수 있습니다. Docker 내부 DB 주소 override가 필요하면 root `.env`의 `DOCKER_DATABASE_URL` / `DOCKER_DMS_DATABASE_URL` 을 수정하세요.
 
 예시:
 ```yaml
@@ -234,6 +236,15 @@ docker compose logs dms
 docker compose ps postgres
 ```
 
+### Docker Desktop에 `lswiki`/`sooo` 같은 이전 compose project가 함께 남아 보일 때
+- `compose.yaml` 은 `ssoo` project 이름을 기준으로 스택 식별자를 고정합니다.
+- 과거에 다른 project 이름으로 띄운 컨테이너와 `ssoo-*` 고정 `container_name` 이 충돌하면, 아래 한 번의 정리 후 전체 스택을 다시 올리세요.
+
+```bash
+docker rm -f ssoo-postgres ssoo-db-init ssoo-server ssoo-pms ssoo-sns ssoo-dms ssoo-admin ssoo-crm 2>/dev/null || true
+docker compose up -d --build
+```
+
 ### AI 기능 오류
 - `DATABASE_URL` 또는 `DMS_DATABASE_URL` 환경변수 확인
 - PostgreSQL 컨테이너 healthy 상태 확인
@@ -255,6 +266,8 @@ docker compose ps postgres
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-06-19 | local compose 에서 `apps/web/dms/.env.local` 의 DMS/Azure 값을 `web-dms`와 `server`가 함께 읽도록 정리해 로컬 요약 경로가 UI 설정과 어긋나지 않게 수정 |
+| 2026-06-19 | `compose.yaml` 의 Compose project name 을 `ssoo` 로 고정하고, Docker Desktop 에 남아 있는 이전 project 충돌을 위한 1회 정리 절차를 추가 |
 | 2026-04-22 | 데이터 경로 트러블슈팅을 server-owned external runtime mount(`DMS_MARKDOWN_ROOT`, `DMS_TEMPLATE_ROOT`, `DMS_INGEST_QUEUE_PATH`, `DMS_STORAGE_LOCAL_BASE_PATH`) 기준으로 정리 |
 | 2026-04-08 | full-stack compose 기준으로 `postgres + server + pms + sns + dms` 기본 배포, DMS internal server bridge, PMS/SNS browser API URL 기준으로 정리 |
 | 2026-04-07 | root compose 단일 지원 경로, workspace Dockerfile, monorepo root tracing 기준 standalone runtime, `DMS_SERVER_API_URL` 브리지 기준으로 정규화 |
