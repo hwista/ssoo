@@ -135,7 +135,7 @@ export function NewDocumentLauncher({
               type="button"
               disabled={action.disabled}
               onClick={action.onClick}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-left transition-colors text-ssoo-primary/80 hover:bg-ssoo-primary/5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+              className="flex w-full items-center justify-start gap-3 rounded-lg px-4 py-3 text-left font-normal text-ssoo-primary/80 shadow-none transition-colors whitespace-normal hover:bg-ssoo-primary/5 focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent [&_svg]:h-6 [&_svg]:w-6"
             >
               <span className="text-ssoo-primary/50">
                 {action.icon}

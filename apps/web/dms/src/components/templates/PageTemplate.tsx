@@ -92,7 +92,9 @@ export function PageTemplate({
   onRetry,
 }: PageTemplateProps) {
   const isCompactMode = useSidebarStore((s) => s.isCompactMode);
-  const resolvedPageTone = pageTone ?? (mode === 'editor' || mode === 'create' ? 'document-editor' : 'document-viewer');
+  const resolvedPageTone = pageTone === 'document-editor'
+    ? 'neutral'
+    : (pageTone ?? (mode === 'viewer' ? 'document-viewer' : 'neutral'));
 
   const headerNode = (
     <Header

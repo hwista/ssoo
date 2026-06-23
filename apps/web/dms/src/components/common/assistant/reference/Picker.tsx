@@ -270,7 +270,7 @@ export function AssistantReferencePicker({
         <Button variant="plain" size="plain"
           type="button"
           disabled={disabled}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ssoo-primary text-white shadow-sm transition-colors hover:bg-ssoo-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ssoo-primary text-white shadow-sm transition-colors hover:bg-ssoo-primary/90 focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:h-4 [&_svg]:w-4"
           title="컨텍스트 첨부"
           aria-label="컨텍스트 첨부"
         >
@@ -289,19 +289,30 @@ export function AssistantReferencePicker({
               <p className="mb-1 flex items-center gap-1 text-badge text-ssoo-primary/80">
                 <FileUp className="h-3.5 w-3.5" /> 참조 파일 첨부
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                }}
-                onClick={handleOpenSummaryFilePicker}
-                className="w-full gap-1.5 hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg/40"
-              >
-                <FileUp className="h-3.5 w-3.5" />
-                파일 선택
-              </Button>
+              {mode === 'inline' ? (
+                <Input
+                  variant="filePicker"
+                  type="file"
+                  multiple
+                  onClick={armProtectedAppLifecycleCheckSkip}
+                  onChange={handlePickSummaryFiles}
+                  accept=".md,.txt,.json,.csv,.pdf,.docx,.pptx,.xlsx"
+                />
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                  }}
+                  onClick={handleOpenSummaryFilePicker}
+                  className="w-full gap-1.5 hover:border-ssoo-primary/40 hover:bg-ssoo-content-bg/40"
+                >
+                  <FileUp className="h-3.5 w-3.5" />
+                  파일 선택
+                </Button>
+              )}
             </div>
           )}
 
@@ -316,7 +327,7 @@ export function AssistantReferencePicker({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={searchPlaceholder}
-              className="h-9 w-full rounded-md border border-ssoo-primary/25 bg-white pl-7 pr-2 text-caption text-ssoo-primary placeholder:text-ssoo-primary/45 focus:border-ssoo-primary/50 focus:outline-none"
+              className="h-9 w-full rounded-md border border-ssoo-primary/25 bg-white pl-7 pr-2 text-caption text-ssoo-primary shadow-none placeholder:text-ssoo-primary/45 focus:border-ssoo-primary/50 focus:outline-none focus-visible:ring-0"
             />
           </div>
 
@@ -344,7 +355,7 @@ export function AssistantReferencePicker({
           </div>
         </div>
       </DropdownMenuContent>
-      {resolved.fileUpload && (
+      {resolved.fileUpload && mode !== 'inline' ? (
         <Input
           ref={fileInputRef}
           type="file"
@@ -356,7 +367,7 @@ export function AssistantReferencePicker({
           tabIndex={-1}
           aria-hidden="true"
         />
-      )}
+      ) : null}
     </DropdownMenu>
   );
 }
