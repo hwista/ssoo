@@ -356,6 +356,8 @@ psql -U appuser -d appdb -f prisma/triggers/apply_all_triggers.sql
 
 ## Changelog
 
+- 2026-09-17: 프로젝트 사용자 설정과 변경 이력, 보기 값 제약을 추가. launch migration 12개·trigger 84개, 빈 DB 설치·데이터 백업 복원·drift 0 검증. [계약](../../docs/common/reference/db/pms-user-settings.md).
+
 | 날짜 | 변경 내용 |
 |------|----------|
 | 2026-08-20 | `dm_user_document_activity_m/_h`와 trigger를 추가해 DMS 사용자별 성공 문서 열람을 감사 가능한 홈 최근 문서 정본으로 저장 |

@@ -1,3 +1,4 @@
+import { SSOO_GLOBAL_SEARCH_APP_PATH, createSsooGlobalSearchOpenRequest, getSsooGlobalSearchQueryFromPath } from '@ssoo/web-shell';
 import { CRM_HOME_TAB, type OpenCrmTabOptions } from '@/stores/tab.store';
 
 interface CrmWorkspaceRouteDefinition {
@@ -30,6 +31,16 @@ function splitPath(path: string): { pathname: string; search: string } {
 export function getCrmWorkspaceTabOptions(path: string): OpenCrmTabOptions | null {
   const normalizedPath = path || CRM_HOME_TAB.path;
   const { pathname, search } = splitPath(normalizedPath);
+
+  if (pathname === SSOO_GLOBAL_SEARCH_APP_PATH) {
+    const request = createSsooGlobalSearchOpenRequest(getSsooGlobalSearchQueryFromPath(normalizedPath));
+    return {
+      id: request.query ? `crm-global-search-${request.encodedQuery}` : 'crm-global-search',
+      title: request.title,
+      path: normalizedPath,
+      closable: true,
+    };
+  }
 
   if (pathname === CRM_HOME_TAB.path) {
     const params = new URLSearchParams(search);

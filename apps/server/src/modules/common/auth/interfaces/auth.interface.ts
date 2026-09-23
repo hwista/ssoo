@@ -6,6 +6,7 @@ export interface TokenPayload {
   teamIds?: string[];
   groupIds?: string[];
   sessionId?: string;
+  jti?: string;
   type?: 'access' | 'refresh';
 }
 

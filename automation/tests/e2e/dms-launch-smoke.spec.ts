@@ -281,7 +281,7 @@ async function apiRequestOptional(
 
 async function waitForDmsShell(page: Page) {
   await expect(
-    page.getByRole('searchbox', { name: '무엇이든 찾아드릴게요! 무엇이 필요하신가요?' }),
+    page.getByRole('banner').getByRole('searchbox', { name: '통합 검색', exact: true }),
   ).toBeVisible({ timeout: 15_000 });
 }
 
@@ -411,6 +411,8 @@ async function openDocumentTab(page: Page, path: string, title: string, ownerUse
   }, { ownerUserId, path, title });
   await reloadRotatingAuthenticatedPage(page);
   await waitForDmsShell(page);
+  // Root navigation restores Home; select the preserved document through the UI.
+  await page.getByRole('tab', { name: title, exact: true }).click();
   await expect(page.getByRole('heading', { name: title })).toBeVisible({ timeout: 30_000 });
   const [collaborationResponse, subscriptionResponse] = await Promise.all([
     collaborationReady,
@@ -474,6 +476,7 @@ async function openDocumentTabs(
   if (!activeDocument) {
     throw new Error(`active document is missing from test tabs: ${activePath}`);
   }
+  await page.getByRole('tab', { name: activeDocument.title, exact: true }).click();
   await expect(page.getByRole('heading', { name: activeDocument.title })).toBeVisible({ timeout: 30_000 });
   const collaborationResponses = await Promise.all(collaborationReady);
   const subscriptionResponses = await Promise.all(collaborationSubscriptionsReady);
@@ -591,7 +594,7 @@ test.describe('DMS launch browser smoke', () => {
 
       await waitForUnreadableSearchResult(viewerPage, title, documentPath);
 
-      const globalSearch = viewerPage.getByRole('searchbox', { name: '무엇이든 찾아드릴게요! 무엇이 필요하신가요?' });
+      const globalSearch = viewerPage.getByRole('banner').getByRole('searchbox', { name: '통합 검색', exact: true });
       const commonSearchResponse = viewerPage.waitForResponse((response) => {
         const url = new URL(response.url());
         return response.request().method() === 'GET'
@@ -632,6 +635,7 @@ test.describe('DMS launch browser smoke', () => {
       expect(isRecord(approvedRequest) ? approvedRequest.status : undefined).toBe('approved');
 
       await reloadRotatingAuthenticatedPage(viewerPage);
+      await viewerPage.getByRole('tab', { name: title, exact: true }).click();
       await expect(viewerPage.getByText(secret)).toBeVisible({ timeout: 30_000 });
       await expect(viewerPage.getByText('현 문서는 열람 권한 요청이 필요합니다.')).toHaveCount(0);
       expect(viewerErrors).toEqual([]);

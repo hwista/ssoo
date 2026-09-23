@@ -1,5 +1,6 @@
 'use client';
 
+import { Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   AuthUserMenu,
@@ -52,6 +53,9 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
       user={user}
       dropdownWidth={dropdownWidth}
       onLogout={handleLogout}
+      actions={[{ key: 'project-settings', label: '프로젝트 사용 설정', icon: Settings, onSelect: () => {
+        openTab({ menuCode: 'PMS-SETTINGS', menuId: 'pms-settings', title: '프로젝트 사용 설정', path: '/project-settings', icon: 'Settings', closable: true, activate: true });
+      } }]}
       accountCenter={{ snsAppUrl: process.env.NEXT_PUBLIC_SNS_APP_URL }}
       userSurfaces={{
         myProfile: { onSelect: () => openUserSurfaceTab('my-profile') },

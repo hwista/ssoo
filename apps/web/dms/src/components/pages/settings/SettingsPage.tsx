@@ -22,6 +22,7 @@ import { useAccessStore, useSettingsPageNavigationStore, useSettingsStore, useSi
 import { useTabInstanceId } from '@/components/layout/tab-instance/TabInstanceContext';
 import {
   SETTING_SECTIONS,
+  SETTINGS_SECTION_GROUP_LABELS,
   getSettingSectionsByScope,
 } from './_config/settingsPageConfig';
 import type { SettingSection } from './_config/settingsPageConfig';
@@ -29,6 +30,8 @@ import { GitObservabilitySurface } from './_components/GitObservabilitySurface';
 import { RuntimePathSurface } from './_components/RuntimePathSurface';
 import { RuntimeReadinessSurface } from './_components/RuntimeReadinessSurface';
 import { IngestOperationsSurface } from './_components/IngestOperationsSurface';
+import { SettingsAssistantAction } from './_components/SettingsAssistantAction';
+import headerStyles from './_components/SettingsHeader.module.css';
 import { SettingsCustomSlot } from './_components/SettingsCustomSlot';
 import { SettingsFieldList } from './_components/SettingsFieldList';
 import { getSettingsTabOptions, parseSettingsTabPath } from './_utils/settingsNavigation';
@@ -162,6 +165,14 @@ export function SettingsPage() {
   const currentSection = useMemo(() => {
     return scopeSections.find((section) => section.id === effectiveSectionId) ?? scopeSections[0];
   }, [effectiveSectionId, scopeSections]);
+  useEffect(() => {
+    if (!tabId || !currentSection) return;
+    const tab = useTabStore.getState().tabs.find((candidate) => candidate.id === tabId);
+    if (tab && tab.title !== currentSection.label) {
+      useTabStore.getState().updateTabTitle(tabId, currentSection.label);
+    }
+  }, [currentSection, tabId]);
+
   const isCustomSection = currentSection?.kind === 'custom';
   const isAdminTemplateSection = currentSection?.slotKey === 'admin-templates';
   const isRuntimeSection = currentSection?.settingKind === 'runtime-observability';
@@ -363,13 +374,13 @@ export function SettingsPage() {
       case 'git':
         return (
           <RuntimePathSurface
-            title="Markdown runtime path"
-            description="Git 이 실제로 묶이는 external markdown working tree 경로입니다."
+            title="문서 저장 경로"
+            description="문서 저장소가 실제로 사용하는 작업 폴더 경로입니다."
             entries={[
               {
                 key: 'markdown-root',
-                label: 'Markdown root',
-                description: '서비스가 실제로 바라보는 markdown working tree 입니다.',
+                label: '문서 저장소 기준 폴더',
+                description: '서비스가 실제로 사용하는 문서 작업 폴더입니다.',
                 binding: runtime.paths.markdownRoot,
               },
             ]}
@@ -378,19 +389,19 @@ export function SettingsPage() {
       case 'storage-runtime':
         return (
           <RuntimePathSurface
-            title="Binary storage roots"
-            description="Attachment/reference/image 가 사용하는 provider별 runtime roots 입니다."
+            title="첨부 파일 저장 경로"
+            description="첨부·참조·이미지가 사용하는 저장소별 실제 경로입니다."
             entries={[
               {
                 key: 'storage-local',
-                label: 'Local provider root',
-                description: 'Local binary storage root 입니다.',
+                label: '로컬 저장소 기준 폴더',
+                description: '로컬 첨부 파일 저장소의 기준 폴더입니다.',
                 binding: runtime.paths.storageRoots.local,
               },
               {
                 key: 'storage-nas',
-                label: 'NAS provider root',
-                description: 'NAS provider 의 mount/gateway 기준 경로입니다.',
+                label: '공유 저장소 기준 폴더',
+                description: '공유 저장소의 연결 기준 경로입니다.',
                 binding: runtime.paths.storageRoots.nas,
               },
             ]}
@@ -399,13 +410,13 @@ export function SettingsPage() {
       case 'ingest-runtime':
         return (
           <RuntimePathSurface
-            title="Ingest queue path"
-            description="수집 작업 큐 파일을 저장하는 실제 runtime 경로입니다."
+            title="수집 작업 저장 경로"
+            description="수집 작업 대기열 파일을 저장하는 실제 경로입니다."
             entries={[
               {
                 key: 'ingest-root',
-                label: 'Ingest queue root',
-                description: 'jobs.json 과 관련 ingest queue 파일이 위치하는 경로입니다.',
+                label: '수집 작업 기준 폴더',
+                description: 'jobs.json과 관련 수집 작업 파일이 위치하는 경로입니다.',
                 binding: runtime.paths.ingestQueue,
               },
             ]}
@@ -414,13 +425,13 @@ export function SettingsPage() {
       case 'templates-runtime':
         return (
           <RuntimePathSurface
-            title="Template runtime path"
-            description="템플릿은 문서 Git 레포의 _templates/ 하위에 자동 배치됩니다 (markdownRoot 파생)."
+            title="서식 저장 경로"
+            description="서식은 문서 저장소 안의 _templates/ 폴더에 자동 배치됩니다."
             entries={[
               {
                 key: 'template-root',
-                label: 'Template directory',
-                description: '문서 markdown root 의 _templates/ 하위 경로입니다.',
+                label: '서식 저장 폴더',
+                description: '문서 저장소 안의 _templates/ 폴더입니다.',
                 binding: runtime.paths.template,
               },
             ]}
@@ -504,6 +515,8 @@ export function SettingsPage() {
     return (
       <SsooSettingsPage
         filePath="settings"
+        title={<span className={headerStyles.title}>설정</span>}
+        headerActions={{ viewerRightSlot: <SettingsAssistantAction /> }}
         compactMode={isCompactMode}
         stateSlot={error ? (
           <ErrorState error={error} />
@@ -520,6 +533,8 @@ export function SettingsPage() {
     return (
       <SsooSettingsPage
         filePath="settings"
+        title={<span className={headerStyles.title}>설정</span>}
+        headerActions={{ viewerRightSlot: <SettingsAssistantAction /> }}
         compactMode={isCompactMode}
         stateSlot={<ErrorState error="사용 가능한 설정 메뉴가 없습니다." />}
       >
@@ -532,6 +547,8 @@ export function SettingsPage() {
     return (
       <SsooSettingsPage
         filePath="settings"
+        title={<span className={headerStyles.title}>설정</span>}
+        headerActions={{ viewerRightSlot: <SettingsAssistantAction /> }}
         compactMode={isCompactMode}
         stateSlot={<ErrorState error="설정을 관리할 권한이 없습니다." />}
       >
@@ -543,9 +560,16 @@ export function SettingsPage() {
   return (
     <SsooSettingsPage
       filePath={`settings/${currentSection.surface}/${currentSection.id}`}
+      title={<span className={headerStyles.title}>{currentSection.label}</span>}
+      breadcrumbItems={[
+        { id: 'settings', label: '설정' },
+        { id: currentSection.surface, label: SETTINGS_SECTION_GROUP_LABELS[currentSection.group] },
+        { id: currentSection.id, label: currentSection.label },
+      ]}
       headerActions={{
         extraActions: headerActions,
         extraActionsPosition: 'right',
+        viewerRightSlot: <SettingsAssistantAction />,
       }}
       index={settingsIndex}
       overviewAnchorId={settingsSectionOverviewAnchorId}
@@ -570,6 +594,8 @@ export function SettingsPage() {
           slotKey={currentSection.slotKey}
           templates={templates}
           isLoadingTemplates={isLoadingTemplates}
+          hasTemplateLoadError={templateListQuery.isError || templateListQuery.data?.success === false}
+          onReloadTemplates={() => { void templateListQuery.refetch(); }}
           templateDraft={templateDraft}
           setTemplateDraft={setTemplateDraft}
           onSave={() => {

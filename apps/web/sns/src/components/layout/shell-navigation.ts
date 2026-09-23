@@ -1,5 +1,6 @@
 import { Home, LayoutGrid, Search, Settings, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { getSsooGlobalSearchQueryFromPath, getSsooGlobalSearchTitle, SSOO_GLOBAL_SEARCH_APP_PATH } from '@ssoo/web-shell';
 import {
   SSOO_USER_SURFACE_MY_PROFILE_PATH,
   SSOO_USER_SURFACE_SETTINGS_PATH,
@@ -95,6 +96,25 @@ export function getSnsShellTabOptions(path: string) {
 
   const section = getSnsShellSection(pathname);
   const navItem = SNS_SHELL_NAV_ITEMS.find((item) => item.key === section) ?? SNS_SHELL_NAV_ITEMS[0];
+
+  if (pathname.startsWith('/post/')) {
+    return {
+      id: `post-${pathname.slice('/post/'.length)}`,
+      title: '게시물',
+      path: pathname,
+      closable: true,
+    };
+  }
+
+  if (pathname === SSOO_GLOBAL_SEARCH_APP_PATH) {
+    const query = getSsooGlobalSearchQueryFromPath(normalizedPath);
+    return {
+      id: query ? `sns-global-search-${encodeURIComponent(query)}` : 'sns-global-search',
+      title: getSsooGlobalSearchTitle(query),
+      path: normalizedPath,
+      closable: true,
+    };
+  }
 
   if (pathname.startsWith('/board/') && pathname !== '/board') {
     return {

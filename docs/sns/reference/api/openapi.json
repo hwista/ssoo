@@ -68,6 +68,177 @@
         ]
       }
     },
+    "/api/sns/posts/with-images": {
+      "post": {
+        "operationId": "PostImagesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "submissionId",
+                  "content",
+                  "images"
+                ],
+                "properties": {
+                  "submissionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "content": {
+                    "type": "string",
+                    "maxLength": 20000
+                  },
+                  "visibilityScopeCode": {
+                    "type": "string",
+                    "enum": [
+                      "public",
+                      "organization",
+                      "followers",
+                      "self"
+                    ]
+                  },
+                  "images": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiSuccess"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "success",
+                        "data"
+                      ],
+                      "properties": {
+                        "success": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ],
+                          "example": true
+                        },
+                        "data": {
+                          "$ref": "#/components/schemas/PostDto"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "본문·사진 개수/크기/형식 오류"
+          },
+          "401": {
+            "description": "로그인 필요"
+          },
+          "403": {
+            "description": "기능 권한 없음"
+          },
+          "409": {
+            "description": "같은 요청의 내용 불일치 또는 삭제된 요청"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "사진과 본문 함께 게시 (동일 요청 재시도 중복 방지)",
+        "tags": [
+          "sns-post-images"
+        ]
+      }
+    },
+    "/api/sns/posts/{postId}/images/{imageId}": {
+      "get": {
+        "operationId": "PostImagesController_read",
+        "parameters": [
+          {
+            "name": "postId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "imageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "이미지 파일",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인 필요"
+          },
+          "403": {
+            "description": "기능 권한 없음"
+          },
+          "404": {
+            "description": "이미지 없음 또는 게시물 열람 불가"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "게시물 열람 권한으로 첨부 이미지 조회",
+        "tags": [
+          "sns-post-images"
+        ]
+      }
+    },
     "/api/sns/posts": {
       "get": {
         "operationId": "PostController_findAll",
@@ -2370,6 +2541,75 @@
         ]
       }
     },
+    "/api/sns/feed/posts/{postId}": {
+      "get": {
+        "operationId": "FeedController_getPost",
+        "parameters": [
+          {
+            "name": "postId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "열람 가능한 게시물과 작성자·댓글 수·본인 반응 (조회 수 변경 없음)"
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "공유된 게시물의 피드 카드 조회",
+        "tags": [
+          "sns-feed"
+        ]
+      }
+    },
     "/api/sns/posts/{postId}/reactions": {
       "post": {
         "operationId": "FeedController_addReaction",
@@ -2714,34 +2954,62 @@
           "error"
         ]
       },
-      "ApiPaginationMeta": {
+      "ApiSuccess": {
         "type": "object",
         "properties": {
-          "page": {
-            "type": "number",
-            "minimum": 1,
-            "example": 1
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "example": true
           },
-          "limit": {
-            "type": "number",
-            "minimum": 1,
-            "example": 20
+          "data": {
+            "type": "object",
+            "additionalProperties": true
           },
-          "total": {
-            "type": "number",
-            "minimum": 0,
-            "example": 100
+          "message": {
+            "type": "string"
           }
         },
         "required": [
-          "page",
-          "limit",
-          "total"
+          "success",
+          "data"
+        ]
+      },
+      "PostImageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "fileSize": {
+            "type": "string",
+            "description": "바이트 수 (문자열)"
+          }
+        },
+        "required": [
+          "id",
+          "fileName",
+          "mimeType",
+          "fileSize"
         ]
       },
       "PostDto": {
         "type": "object",
         "properties": {
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostImageDto"
+            }
+          },
           "id": {
             "type": "string",
             "description": "게시물 ID"
@@ -2808,27 +3076,29 @@
           "updatedAt"
         ]
       },
-      "ApiSuccess": {
+      "ApiPaginationMeta": {
         "type": "object",
         "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              true
-            ],
-            "example": true
+          "page": {
+            "type": "number",
+            "minimum": 1,
+            "example": 1
           },
-          "data": {
-            "type": "object",
-            "additionalProperties": true
+          "limit": {
+            "type": "number",
+            "minimum": 1,
+            "example": 20
           },
-          "message": {
-            "type": "string"
+          "total": {
+            "type": "number",
+            "minimum": 0,
+            "example": 100
           }
         },
         "required": [
-          "success",
-          "data"
+          "page",
+          "limit",
+          "total"
         ]
       },
       "CreatePostDto": {

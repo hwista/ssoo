@@ -13,11 +13,19 @@ import {
   SsooSidebarSearchableTree,
   SsooSidebarSurface,
   SsooSidebarTreeStatusBadge,
-  SsooAppFrame,
   SsooMobileSidebarOverlay,
   SsooWorkbenchShell,
   useSsooMobileViewport,
 } from '@ssoo/web-shell';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@ssoo/web-ui';
 import {
   BarChart3,
   Calculator,
@@ -89,6 +97,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const toggleSidebar = () => setIsSidebarCollapsed((current) => !current);
   const closeMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
   const toggleMobileMenu = useCallback(() => setIsMobileMenuOpen((current) => !current), []);
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const openTab = useTabStore((state) => state.openTab);
@@ -107,24 +116,21 @@ export function AppLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!tabsHydrated) return;
     const workspaceTab = getCrmWorkspaceTabOptions(currentPath);
-    if (workspaceTab) {
-      openTab(workspaceTab);
-      return;
-    }
-
     const userSurfaceRoute = parseSsooUserSurfaceRouteEntry(currentPath);
-    if (userSurfaceRoute) {
-      openTab({
-        id: getSsooUserSurfaceTabId(userSurfaceRoute.kind, userSurfaceRoute.userId),
-        title: userSurfaceRoute.title,
-        path: userSurfaceRoute.path,
-        closable: true,
-      });
-      return;
-    }
+    const requestedTab = workspaceTab ?? (userSurfaceRoute ? {
+      id: getSsooUserSurfaceTabId(userSurfaceRoute.kind, userSurfaceRoute.userId),
+      title: userSurfaceRoute.title,
+      path: userSurfaceRoute.path,
+      closable: true,
+    } : CRM_HOME_TAB);
 
-    openTab(CRM_HOME_TAB);
-  }, [currentPath, openTab, tabsHydrated]);
+    if (!openTab(requestedTab)) {
+      // Direct navigation may already have changed the URL; keep the mounted draft and repair it.
+      const { tabs, activeTabId } = useTabStore.getState();
+      const activeTab = tabs.find((tab) => tab.id === activeTabId);
+      router.replace(activeTab?.path ?? CRM_HOME_TAB.path, { scroll: false });
+    }
+  }, [currentPath, openTab, router, tabsHydrated]);
 
   useEffect(() => {
     if (!isMobileViewport && isMobileMenuOpen) {
@@ -134,12 +140,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   void children;
 
-  if (isMobileViewport) {
-    return (
-      <SsooAppFrame
-        mode="workbench"
-        sidebarMode="none"
-        sidebarSlot={isMobileMenuOpen ? (
+  return (
+    <>
+      <SsooWorkbenchShell
+        sidebarMode={isMobileViewport ? 'none' : 'collapsible'}
+        sidebarExpanded={!isSidebarCollapsed}
+        sidebarSlot={isMobileViewport ? (isMobileMenuOpen ? (
           <SsooMobileSidebarOverlay
             id="crm-mobile-sidebar"
             label="CRM 모바일 메뉴"
@@ -151,34 +157,44 @@ export function AppLayout({ children }: { children: ReactNode }) {
               toggleLabel="모바일 메뉴 닫기"
             />
           </SsooMobileSidebarOverlay>
-        ) : null}
-        headerSlot={(
+        ) : null) : (
+          <CrmSidebar
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={toggleSidebar}
+          />
+        )}
+        headerSlot={isMobileViewport ? (
           <Header
             mobile
             mobileMenuOpen={isMobileMenuOpen}
             onMobileMenuClick={toggleMobileMenu}
           />
-        )}
+        ) : <Header />}
         tabBarSlot={<TabBar />}
         contentSlot={<ContentArea />}
       />
-    );
-  }
+      <TabLimitDialog />
+    </>
+  );
+}
+
+function TabLimitDialog() {
+  const open = useTabStore((state) => state.tabLimitReached);
+  const maxTabs = useTabStore((state) => state.maxTabs);
+  const dismiss = useTabStore((state) => state.dismissTabLimit);
 
   return (
-    <SsooWorkbenchShell
-      sidebarMode="collapsible"
-      sidebarExpanded={!isSidebarCollapsed}
-      sidebarSlot={
-        <CrmSidebar
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={toggleSidebar}
-        />
-      }
-      headerSlot={<Header />}
-      tabBarSlot={<TabBar />}
-      contentSlot={<ContentArea />}
-    />
+    <AlertDialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) dismiss(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>열린 화면 한도</AlertDialogTitle>
+          <AlertDialogDescription>
+            열린 화면은 최대 {maxTabs}개입니다. 필요한 입력을 저장한 뒤 사용하지 않는 탭을 닫고 다시 선택해 주세요.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel>확인</AlertDialogCancel></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -326,13 +342,13 @@ function CrmSidebar({
               onNodeSelect={(item) => {
                 if ('path' in item && item.path) {
                   const tab = getCrmWorkspaceTabOptions(item.path);
-                  openTab(tab ?? {
+                  const opened = openTab(tab ?? {
                     id: item.path,
                     title: item.label,
                     path: item.path,
                     closable: item.path !== CRM_HOME_TAB.path,
                   });
-                  router.push(item.path);
+                  if (opened) router.push(item.path);
                 }
               }}
               disclosureIcon={ChevronRight}

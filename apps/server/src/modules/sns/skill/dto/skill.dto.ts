@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsInt, Min, IsArray, MaxLength } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsInt, Min, IsArray, IsNumberString, MaxLength } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateSkillDto {
   @ApiProperty({ description: '스킬명', maxLength: 200 })
@@ -63,8 +63,9 @@ export class EndorseSkillDto {
 
 export class SearchExpertsDto {
   @ApiPropertyOptional({ description: '스킬 ID 목록', type: [String] })
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? [value] : value)
   @IsArray()
-  @IsString({ each: true })
+  @IsNumberString({ no_symbols: true }, { each: true })
   @IsOptional()
   skillIds?: string[];
 

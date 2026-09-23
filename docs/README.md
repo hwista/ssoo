@@ -4,6 +4,16 @@
 
 ---
 
+현재 우선순위: [서비스 품질 재점검](common/explanation/architecture/2026-09-18-service-quality-review.md) · 테스트 배포는 이미 존재 · 운영·서버 용량 검증 보류
+
+이번 확인: 서버 검사 595/595·고객관리 업무 4/4 통과. 프로젝트 목록 글 겹침을 재현하여 기존 항목의 화면 보완 승인 대기로 기록. 문서·커뮤니티·공통 검색의 최신 브라우저 재검증은 미완료.
+
+승인 대장: **20완료·1화면 보완 승인 대기·1운영 보류 / 총 22건**. 제품 전체 품질 점수가 아니다.
+
+직전 완료: [문서 도식·휴대폰 도구](common/explanation/architecture/2026-09-18-document-diagram-handoff.md) · [프로젝트 설정의 이전 기능 검증](common/explanation/architecture/2026-09-17-project-settings-handoff.md)
+
+현재 출시 준비: [5단계 실행 계획](common/explanation/architecture/2026-09-11-launch-ralph-plan.md) · [사용자 승인 대장](common/explanation/architecture/2026-09-11-launch-approval-register.md)
+
 ## ⚠️ 문서 역할 구분
 
 | 폴더 | 역할 | 정본 내용 | 이식성 |

@@ -23,7 +23,7 @@ export function TemplatePreviewDialog({ template, onClose }: TemplatePreviewDial
 
   return (
     <Dialog open={template !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="flex h-[80vh] max-w-4xl flex-col overflow-hidden p-0">
+      <DialogContent aria-describedby={undefined} className="flex h-[80vh] max-w-4xl flex-col overflow-hidden p-0">
         <div className="h-12 shrink-0">
           <DialogTitle className="sr-only">{template?.name ?? '템플릿 미리보기'}</DialogTitle>
         </div>

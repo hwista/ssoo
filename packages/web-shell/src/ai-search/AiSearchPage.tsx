@@ -13,6 +13,7 @@ import { Input } from '@ssoo/web-ui';
 import {
   SSOO_CONTENT_PAGE_METRICS,
   SsooContentPageTemplate,
+  type SsooContentPageSidecarNarrowBehavior,
 } from '../content-page-template';
 import { SsooPageBreadcrumb, type SsooPageBreadcrumbItem } from '../page-breadcrumb';
 import { SsooPageHeader } from '../page-header';
@@ -76,6 +77,7 @@ export interface SsooAiSearchPageProps<T extends SsooAiSearchResultItem = SsooAi
   frequentSearches?: string[];
   compactMode?: boolean;
   sidecarMode?: 'search' | 'hidden';
+  sidecarNarrowBehavior?: SsooContentPageSidecarNarrowBehavior;
   blockedSourceNoun?: string;
   breadcrumbLastSegmentLabel?: string;
 }
@@ -140,6 +142,7 @@ export function SsooAiSearchPage<T extends SsooAiSearchResultItem = SsooAiSearch
   frequentSearches = [],
   compactMode = false,
   sidecarMode = 'search',
+  sidecarNarrowBehavior = 'overlay',
   blockedSourceNoun = '문서',
   breadcrumbLastSegmentLabel,
 }: SsooAiSearchPageProps<T>) {
@@ -435,7 +438,7 @@ export function SsooAiSearchPage<T extends SsooAiSearchResultItem = SsooAiSearch
       )}
       pageTone="ai"
       contentSurface="transparent-rounded"
-      sidecarNarrowBehavior="overlay"
+      sidecarNarrowBehavior={sidecarNarrowBehavior}
       sidecarControlSlots={{
         collapseIcon: <ChevronRight className="h-4 w-4 text-muted-foreground" />,
         expandIcon: <ChevronLeft className="h-4 w-4 text-muted-foreground" />,

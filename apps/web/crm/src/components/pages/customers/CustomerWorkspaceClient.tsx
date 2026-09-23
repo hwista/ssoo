@@ -41,7 +41,7 @@ import {
   TableRow,
   Textarea,
 } from '@ssoo/web-ui';
-import { SsooSearchInput } from '@ssoo/web-shell';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 
 export interface CustomerWorkspaceQuery {
@@ -252,6 +252,7 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
   const accessToken = useAuthStore((state) => state.accessToken);
   const router = useRouter();
   const [currentData, setCurrentData] = useState(data);
+  const [filters, setFilters] = useState(() => ({ search: query.search, type: query.type, sort: query.sort }));
   const [isReloading, setIsReloading] = useState(data.items.length === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
@@ -269,6 +270,10 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
   ), [currentData.items, query.selected]);
   const [customerDraft, setCustomerDraft] = useState<CustomerDraft>(() => toCustomerDraft(selected));
   const [activityDraft, setActivityDraft] = useState<ActivityDraft>(() => emptyActivityDraft(selected));
+
+  useEffect(() => {
+    setFilters({ search: query.search, type: query.type, sort: query.sort });
+  }, [query.search, query.type, query.sort]);
 
   useEffect(() => {
     setCurrentData(data);
@@ -521,9 +526,9 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
   }, [accessToken, activityDraft, customerAccess, loadCustomers, router, selected, selectedAccessMatches]);
 
   return (
-    <div className="h-full overflow-auto bg-ssoo-content-bg">
-      <main className="mx-auto w-full max-w-[1440px] px-4 py-4">
-        <section className="rounded-md border bg-card">
+    <div className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg">
+      <main className="mx-auto w-full min-w-0 p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
+        <section className="min-w-0 rounded-md border bg-card">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-ssoo-primary">
@@ -541,7 +546,7 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
             </Button>
           </div>
 
-          <div className="grid gap-3 border-b bg-ssoo-content-bg px-4 py-3 md:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-1 gap-3 border-b bg-ssoo-content-bg px-4 py-3 md:grid-cols-2 xl:grid-cols-4">
             <Metric label="전체 고객" value={`${currentData.summary.totalCount.toLocaleString('ko-KR')}건`} sub={`조회 ${currentData.summary.filteredCount.toLocaleString('ko-KR')}건`} />
             <Metric label="거래중" value={`${currentData.summary.activeCount.toLocaleString('ko-KR')}건`} sub={`잠재 ${currentData.summary.prospectCount.toLocaleString('ko-KR')}건`} />
             <Metric label="파트너" value={`${currentData.summary.partnerCount.toLocaleString('ko-KR')}건`} sub={`비활성 ${currentData.summary.inactiveCount.toLocaleString('ko-KR')}건`} />
@@ -549,20 +554,20 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
           </div>
 
           <form action="/customers" className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
-            <label className="min-w-[240px] flex-1 text-xs font-medium text-muted-foreground">
+            <label className="min-w-0 flex-[1_1_240px] text-xs font-medium text-muted-foreground">
               검색
-              <SsooSearchInput id="crm-customer-search-input" name="search" ariaLabel="고객과 활동 검색" intent="data-filter" defaultValue={query.search} placeholder="고객명, 산업, 담당자, 활동 요약" className="mt-1" />
+              <SsooSearchInput id="crm-customer-search-input" name="search" ariaLabel="고객과 활동 검색" intent="data-filter" value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="고객명, 산업, 담당자, 활동 요약" className="mt-1 min-w-0" />
             </label>
             <label className="w-40 text-xs font-medium text-muted-foreground">
               유형
-              <NativeSelect name="type" defaultValue={query.type} className="mt-1">
+              <NativeSelect name="type" value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value as CustomerWorkspaceQuery['type'] }))} className="mt-1 min-w-0">
                 <option value="all">전체</option>
                 {Object.entries(customerTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </NativeSelect>
             </label>
             <label className="w-44 text-xs font-medium text-muted-foreground">
               정렬
-              <NativeSelect name="sort" defaultValue={query.sort} className="mt-1">
+              <NativeSelect name="sort" value={filters.sort} onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as CrmCustomerSort }))} className="mt-1 min-w-0">
                 {Object.entries(sortLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </NativeSelect>
             </label>
@@ -598,8 +603,8 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
           </div>
         ) : null}
 
-        <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="space-y-4">
+        <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="min-w-0 space-y-4">
             <CustomerDetail customer={selected} />
             <ActivityPanel
               customer={selected}
@@ -634,10 +639,10 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
 
 function Metric({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="rounded-md border bg-card px-4 py-3">
-      <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className="mt-1 text-lg font-semibold text-foreground">{value}</div>
-      <div className="mt-1 truncate text-xs text-muted-foreground">{sub}</div>
+    <div className="min-w-0 rounded-md border bg-card px-4 py-3">
+      <div className="min-w-0 text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words text-lg font-semibold text-foreground">{value}</div>
+      <div className="mt-1 break-words text-xs text-muted-foreground">{sub}</div>
     </div>
   );
 }
@@ -670,12 +675,12 @@ function CustomerTable({
       <TableBody className="divide-y divide-border">
         {isLoading ? (
           <TableRow>
-            <TableCell className="h-9 px-2 py-2 text-center text-ssoo-info" colSpan={8}>고객 원장을 불러오는 중입니다.</TableCell>
+            <TableCell className="h-9 px-2 py-2 text-left text-ssoo-info" colSpan={8}>고객 원장을 불러오는 중입니다.</TableCell>
           </TableRow>
         ) : null}
         {!isLoading && items.length === 0 ? (
           <TableRow>
-            <TableCell className="h-9 px-2 py-2 text-center text-muted-foreground" colSpan={8}>조회된 고객이 없습니다.</TableCell>
+            <TableCell className="h-9 px-2 py-2 text-left text-muted-foreground" colSpan={8}>조회된 고객이 없습니다.</TableCell>
           </TableRow>
         ) : null}
         {items.map((item) => (
@@ -709,19 +714,19 @@ function CustomerTableRow({ item, query, selected }: { item: CrmCustomer; query:
 
 function CustomerDetail({ customer }: { customer: CrmCustomer | null }) {
   if (!customer) {
-    return <div className="rounded-md border bg-card p-6 text-sm text-muted-foreground">선택된 고객이 없습니다.</div>;
+    return <div className="min-w-0 rounded-md border bg-card p-6 text-sm text-muted-foreground">선택된 고객이 없습니다.</div>;
   }
 
   return (
-    <div className="rounded-md border bg-card">
+    <div className="min-w-0 rounded-md border bg-card">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded px-2 py-1 text-xs font-medium ${customerTypeTone[customer.type]}`}>{customerTypeLabels[customer.type]}</span>
             <span className="rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">{regionLabels[customer.region]}</span>
             <span className="rounded bg-ssoo-content-bg px-2 py-1 text-xs font-medium text-muted-foreground">{customer.adminBoundary === 'shared-admin' ? '공용 Admin 경계' : customer.adminBoundary}</span>
           </div>
-          <h2 className="mt-2 text-lg font-semibold text-foreground">{customer.customerName}</h2>
+          <h2 className="mt-2 break-words text-lg font-semibold text-foreground">{customer.customerName}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{customer.code} · {customer.ownerName} · {customer.industryLine}</p>
         </div>
         <div className="text-right text-sm">
@@ -730,7 +735,7 @@ function CustomerDetail({ customer }: { customer: CrmCustomer | null }) {
         </div>
       </div>
 
-      <div className="grid gap-4 p-4 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 p-4 xl:grid-cols-2">
         <InfoList
           items={[
             ['담당자', customer.ownerName],
@@ -777,8 +782,8 @@ function ActivityPanel({
 }) {
   const controlsDisabled = disabled || !canCreate || !customer;
   return (
-    <div className="rounded-md border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+    <div className="min-w-0 rounded-md border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div>
           <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
             <Activity className="h-4 w-4 text-muted-foreground" />
@@ -798,8 +803,8 @@ function ActivityPanel({
         </Button>
       </div>
 
-      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 p-4 xl:grid-cols-2">
+        <div className="min-w-0 space-y-2">
           {isAccessLoading && customer ? (
             <div className="rounded-md border border-ssoo-info-border bg-ssoo-info-bg px-3 py-4 text-center text-sm text-ssoo-info">활동 권한을 확인하는 중입니다.</div>
           ) : null}
@@ -817,60 +822,60 @@ function ActivityPanel({
           ) : null}
         </div>
 
-        <div className="space-y-3 rounded-md border bg-ssoo-content-bg p-3">
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs font-medium text-muted-foreground">
+        <div className="min-w-0 space-y-3 rounded-md border bg-ssoo-content-bg p-3">
+          <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               유형
               <NativeSelect
                 value={draft.type}
                 onChange={(event) => onDraftChange({ ...draft, type: event.target.value as CrmCustomerActivityType })}
-                className="mt-1"
+                className="mt-1 min-w-0"
                 disabled={controlsDisabled}
               >
                 {Object.entries(activityTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </NativeSelect>
             </label>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               상태
               <NativeSelect
                 value={draft.status}
                 onChange={(event) => onDraftChange({ ...draft, status: event.target.value as CrmCustomerActivityStatus })}
-                className="mt-1"
+                className="mt-1 min-w-0"
                 disabled={controlsDisabled}
               >
                 {Object.entries(activityStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </NativeSelect>
             </label>
           </div>
-          <label className="block text-xs font-medium text-muted-foreground">
+          <label className="block min-w-0 text-xs font-medium text-muted-foreground">
             제목
-            <Input value={draft.subject} onChange={(event) => onDraftChange({ ...draft, subject: event.target.value })} className="mt-1" disabled={controlsDisabled} />
+            <Input value={draft.subject} onChange={(event) => onDraftChange({ ...draft, subject: event.target.value })} className="mt-1 min-w-0" disabled={controlsDisabled} />
           </label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs font-medium text-muted-foreground">
+          <div className="grid min-w-0 grid-cols-1 gap-2">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               발생일시
-              <Input type="datetime-local" value={draft.occurredAt} onChange={(event) => onDraftChange({ ...draft, occurredAt: event.target.value })} className="mt-1" disabled={controlsDisabled} />
+              <Input type="datetime-local" value={draft.occurredAt} onChange={(event) => onDraftChange({ ...draft, occurredAt: event.target.value })} className="mt-1 min-w-0" disabled={controlsDisabled} />
             </label>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               예정일시
-              <Input type="datetime-local" value={draft.dueAt} onChange={(event) => onDraftChange({ ...draft, dueAt: event.target.value })} className="mt-1" disabled={controlsDisabled} />
+              <Input type="datetime-local" value={draft.dueAt} onChange={(event) => onDraftChange({ ...draft, dueAt: event.target.value })} className="mt-1 min-w-0" disabled={controlsDisabled} />
             </label>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs font-medium text-muted-foreground">
+          <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               담당자
-              <Input value={draft.ownerName} onChange={(event) => onDraftChange({ ...draft, ownerName: event.target.value })} className="mt-1" disabled={controlsDisabled} />
+              <Input value={draft.ownerName} onChange={(event) => onDraftChange({ ...draft, ownerName: event.target.value })} className="mt-1 min-w-0" disabled={controlsDisabled} />
             </label>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               담당자 ID
-              <Input value={draft.ownerUserId} onChange={(event) => onDraftChange({ ...draft, ownerUserId: event.target.value })} className="mt-1" disabled={controlsDisabled} />
+              <Input value={draft.ownerUserId} onChange={(event) => onDraftChange({ ...draft, ownerUserId: event.target.value })} className="mt-1 min-w-0" disabled={controlsDisabled} />
             </label>
           </div>
-          <label className="block text-xs font-medium text-muted-foreground">
+          <label className="block min-w-0 text-xs font-medium text-muted-foreground">
             요약
             <Textarea value={draft.summary} onChange={(event) => onDraftChange({ ...draft, summary: event.target.value })} className="mt-1 min-h-[76px]" disabled={controlsDisabled} />
           </label>
-          <label className="block text-xs font-medium text-muted-foreground">
+          <label className="block min-w-0 text-xs font-medium text-muted-foreground">
             다음 액션
             <Textarea value={draft.nextAction} onChange={(event) => onDraftChange({ ...draft, nextAction: event.target.value })} className="mt-1 min-h-[64px]" disabled={controlsDisabled} />
           </label>
@@ -888,16 +893,16 @@ function ActivityPanel({
 
 function ActivityItem({ activity }: { activity: CrmCustomerActivity }) {
   return (
-    <div className="rounded-md border px-3 py-3 text-sm">
+    <div className="min-w-0 rounded-md border px-3 py-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className={`rounded px-2 py-1 text-xs font-medium ${activityStatusTone[activity.status]}`}>{activityStatusLabels[activity.status]}</span>
           <span className="rounded bg-ssoo-content-bg px-2 py-1 text-xs font-medium text-muted-foreground">{activityTypeLabels[activity.type]}</span>
-          <span className="truncate font-medium text-foreground">{activity.subject}</span>
+          <span className="break-words font-medium text-foreground">{activity.subject}</span>
         </div>
         <span className="text-xs text-muted-foreground">{formatDateTime(activity.occurredAt)}</span>
       </div>
-      <p className="mt-2 text-muted-foreground">{activity.summary}</p>
+      <p className="mt-2 break-words text-muted-foreground">{activity.summary}</p>
       <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
         <span>{activity.ownerName}</span>
         {activity.sourceOpportunityCode ? <span>원천 {activity.sourceOpportunityCode}</span> : null}
@@ -934,8 +939,8 @@ function CustomerEditor({
 }) {
   const formDisabled = disabled || (!canCreate && !canUpdate);
   return (
-    <div className="rounded-md border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+    <div className="min-w-0 rounded-md border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div>
           <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
             <UserRound className="h-4 w-4 text-muted-foreground" />
@@ -943,7 +948,7 @@ function CustomerEditor({
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">{selected ? selected.code : '신규 고객'}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"
@@ -969,61 +974,61 @@ function CustomerEditor({
       </div>
 
       <div className="space-y-3 p-4">
-        <label className="block text-xs font-medium text-muted-foreground">
+        <label className="block min-w-0 text-xs font-medium text-muted-foreground">
           고객명
-          <Input value={draft.customerName} onChange={(event) => onDraftChange({ ...draft, customerName: event.target.value })} className="mt-1" disabled={formDisabled} />
+          <Input value={draft.customerName} onChange={(event) => onDraftChange({ ...draft, customerName: event.target.value })} className="mt-1 min-w-0" disabled={formDisabled} />
         </label>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="text-xs font-medium text-muted-foreground">
+        <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+          <label className="min-w-0 text-xs font-medium text-muted-foreground">
             유형
-            <NativeSelect value={draft.type} onChange={(event) => onDraftChange({ ...draft, type: event.target.value as CrmCustomerType })} className="mt-1" disabled={formDisabled}>
+            <NativeSelect value={draft.type} onChange={(event) => onDraftChange({ ...draft, type: event.target.value as CrmCustomerType })} className="mt-1 min-w-0" disabled={formDisabled}>
               {Object.entries(customerTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </NativeSelect>
           </label>
-          <label className="text-xs font-medium text-muted-foreground">
+          <label className="min-w-0 text-xs font-medium text-muted-foreground">
             지역
-            <NativeSelect value={draft.region} onChange={(event) => onDraftChange({ ...draft, region: event.target.value as CrmCustomerRegion })} className="mt-1" disabled={formDisabled}>
+            <NativeSelect value={draft.region} onChange={(event) => onDraftChange({ ...draft, region: event.target.value as CrmCustomerRegion })} className="mt-1 min-w-0" disabled={formDisabled}>
               {Object.entries(regionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </NativeSelect>
           </label>
         </div>
-        <label className="block text-xs font-medium text-muted-foreground">
+        <label className="block min-w-0 text-xs font-medium text-muted-foreground">
           산업/계열
-          <Input value={draft.industryLine} onChange={(event) => onDraftChange({ ...draft, industryLine: event.target.value })} className="mt-1" disabled={formDisabled} />
+          <Input value={draft.industryLine} onChange={(event) => onDraftChange({ ...draft, industryLine: event.target.value })} className="mt-1 min-w-0" disabled={formDisabled} />
         </label>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="text-xs font-medium text-muted-foreground">
+        <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+          <label className="min-w-0 text-xs font-medium text-muted-foreground">
             담당자
-            <Input value={draft.ownerName} onChange={(event) => onDraftChange({ ...draft, ownerName: event.target.value })} className="mt-1" disabled={formDisabled} />
+            <Input value={draft.ownerName} onChange={(event) => onDraftChange({ ...draft, ownerName: event.target.value })} className="mt-1 min-w-0" disabled={formDisabled} />
           </label>
-          <label className="text-xs font-medium text-muted-foreground">
+          <label className="min-w-0 text-xs font-medium text-muted-foreground">
             담당자 ID
-            <Input value={draft.ownerUserId} onChange={(event) => onDraftChange({ ...draft, ownerUserId: event.target.value })} className="mt-1" disabled={formDisabled} />
+            <Input value={draft.ownerUserId} onChange={(event) => onDraftChange({ ...draft, ownerUserId: event.target.value })} className="mt-1 min-w-0" disabled={formDisabled} />
           </label>
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          <label className="text-xs font-medium text-muted-foreground">
+        <div className="grid min-w-0 grid-cols-1 gap-2">
+          <label className="min-w-0 text-xs font-medium text-muted-foreground">
             연락처
-            <Input value={draft.contactName} onChange={(event) => onDraftChange({ ...draft, contactName: event.target.value })} className="mt-1" disabled={formDisabled} />
+            <Input value={draft.contactName} onChange={(event) => onDraftChange({ ...draft, contactName: event.target.value })} className="mt-1 min-w-0" disabled={formDisabled} />
           </label>
-          <label className="text-xs font-medium text-muted-foreground">
+          <label className="min-w-0 text-xs font-medium text-muted-foreground">
             이메일
-            <Input value={draft.contactEmail} onChange={(event) => onDraftChange({ ...draft, contactEmail: event.target.value })} className="mt-1" disabled={formDisabled} />
+            <Input value={draft.contactEmail} onChange={(event) => onDraftChange({ ...draft, contactEmail: event.target.value })} className="mt-1 min-w-0" disabled={formDisabled} />
           </label>
-          <label className="text-xs font-medium text-muted-foreground">
+          <label className="min-w-0 text-xs font-medium text-muted-foreground">
             전화
-            <Input value={draft.contactPhone} onChange={(event) => onDraftChange({ ...draft, contactPhone: event.target.value })} className="mt-1" disabled={formDisabled} />
+            <Input value={draft.contactPhone} onChange={(event) => onDraftChange({ ...draft, contactPhone: event.target.value })} className="mt-1 min-w-0" disabled={formDisabled} />
           </label>
         </div>
-        <label className="block text-xs font-medium text-muted-foreground">
+        <label className="block min-w-0 text-xs font-medium text-muted-foreground">
           최근 영업기회 코드
-          <Input value={draft.latestOpportunityCode} onChange={(event) => onDraftChange({ ...draft, latestOpportunityCode: event.target.value })} className="mt-1" disabled={formDisabled} />
+          <Input value={draft.latestOpportunityCode} onChange={(event) => onDraftChange({ ...draft, latestOpportunityCode: event.target.value })} className="mt-1 min-w-0" disabled={formDisabled} />
         </label>
-        <label className="block text-xs font-medium text-muted-foreground">
+        <label className="block min-w-0 text-xs font-medium text-muted-foreground">
           최근 상호작용
           <Textarea value={draft.lastInteractionSummary} onChange={(event) => onDraftChange({ ...draft, lastInteractionSummary: event.target.value })} className="mt-1 min-h-[72px]" disabled={formDisabled} />
         </label>
-        <label className="block text-xs font-medium text-muted-foreground">
+        <label className="block min-w-0 text-xs font-medium text-muted-foreground">
           다음 액션
           <Textarea value={draft.nextAction} onChange={(event) => onDraftChange({ ...draft, nextAction: event.target.value })} className="mt-1 min-h-[72px]" disabled={formDisabled} />
         </label>
@@ -1055,11 +1060,11 @@ function CustomerEditor({
 
 function InfoList({ items }: { items: Array<[string, string]> }) {
   return (
-    <dl className="grid grid-cols-[112px_minmax(0,1fr)] gap-y-2 text-sm">
+    <dl className="grid min-w-0 grid-cols-[112px_minmax(0,1fr)] gap-y-2 text-sm">
       {items.map(([label, value]) => (
         <div key={label} className="contents">
           <dt className="text-muted-foreground">{label}</dt>
-          <dd className="min-w-0 truncate font-medium text-foreground">{value}</dd>
+          <dd className="min-w-0 break-words font-medium text-foreground">{value}</dd>
         </div>
       ))}
     </dl>

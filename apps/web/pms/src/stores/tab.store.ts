@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { shouldResetPersistedUserState } from '@ssoo/web-auth';
 import type {
   TabItem,
   OpenTabOptions,
@@ -45,7 +46,11 @@ const generateTabId = (menuCode: string, params?: Record<string, string>): strin
   return `${menuCode}?${paramStr}`;
 };
 
-interface TabStore extends TabStoreState, TabStoreActions {}
+interface TabStore extends TabStoreState, TabStoreActions {
+  ownerUserId: string | null;
+  syncUserScope: (next: string | null) => void;
+  updateTabPath: (tabId: string, path: string) => void;
+}
 
 export const useTabStore = create<TabStore>()(
   persist(
@@ -54,8 +59,29 @@ export const useTabStore = create<TabStore>()(
       tabs: [createHomeTab()],
       activeTabId: HOME_TAB.menuCode,
       maxTabs: 16,
+      ownerUserId: null,
 
       // Actions
+      syncUserScope: (next) => {
+        const state = get();
+        if (next === null || shouldResetPersistedUserState(
+          next,
+          state.ownerUserId,
+          state.tabs.some((tab) => tab.closable),
+        )) {
+          state.closeAllTabs();
+        }
+        set({ ownerUserId: next });
+      },
+
+      updateTabPath: (tabId, path) => {
+        set((state) => ({
+          tabs: state.tabs.map((tab) => tab.id === tabId && tab.path !== path
+            ? { ...tab, path }
+            : tab),
+        }));
+      },
+
       openTab: (options: OpenTabOptions): string => {
         const {
           menuCode,
@@ -205,6 +231,7 @@ export const useTabStore = create<TabStore>()(
       name: 'ssoo-tabs',
       storage: createJSONStorage(() => sessionStorage), // 세션 스토리지 (브라우저 닫으면 초기화)
       partialize: (state) => ({
+        ownerUserId: state.ownerUserId,
         tabs: state.tabs,
         activeTabId: state.activeTabId,
       }),

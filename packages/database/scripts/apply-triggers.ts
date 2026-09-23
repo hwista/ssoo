@@ -108,6 +108,8 @@ async function main() {
          '74_crm_business_plan_h_trigger.sql',
          '79_crm_config_h_trigger.sql',
          '80_crm_operation_attempt_h_trigger.sql',
+  '82_crm_contract_approval_h_trigger.sql',
+  '83_pr_user_settings_h_trigger.sql',
          '68_pr_site_h_trigger.sql',
          '69_pr_system_catalog_h_trigger.sql',
          '70_pr_system_instance_h_trigger.sql',

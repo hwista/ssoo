@@ -9,7 +9,6 @@ import {
   useProtectedAppBootstrap,
 } from '@ssoo/web-auth';
 import {
-  SsooAppFrame,
   SsooMobileSidebarOverlay,
   SsooWorkbenchShell,
   useSsooMobileViewport,
@@ -118,48 +117,35 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (isMobileViewport) {
-    return (
-      <SsooAppFrame
-        mode="workbench"
-        sidebarMode="none"
-        sidebarSlot={isMobileMenuOpen ? (
-          <SsooMobileSidebarOverlay
-            id="admin-mobile-sidebar"
-            label="Admin 모바일 메뉴"
-            onDismiss={closeMobileMenu}
-          >
-            <AdminSidebar
-              isCollapsed={false}
-              onToggleCollapse={closeMobileMenu}
-              toggleLabel="모바일 메뉴 닫기"
-            />
-          </SsooMobileSidebarOverlay>
-        ) : null}
-        headerSlot={(
-          <AdminHeader
-            mobile
-            mobileMenuOpen={isMobileMenuOpen}
-            onMobileMenuClick={toggleMobileMenu}
-          />
-        )}
-        tabBarSlot={<AdminTabBar />}
-        contentSlot={<AdminContentArea />}
-      />
-    );
-  }
-
   return (
     <SsooWorkbenchShell
-      sidebarMode="collapsible"
+      sidebarMode={isMobileViewport ? 'none' : 'collapsible'}
       sidebarExpanded={!isSidebarCollapsed}
-      sidebarSlot={
+      sidebarSlot={isMobileViewport ? (isMobileMenuOpen ? (
+        <SsooMobileSidebarOverlay
+          id="admin-mobile-sidebar"
+          label="Admin 모바일 메뉴"
+          onDismiss={closeMobileMenu}
+        >
+          <AdminSidebar
+            isCollapsed={false}
+            onToggleCollapse={closeMobileMenu}
+            toggleLabel="모바일 메뉴 닫기"
+          />
+        </SsooMobileSidebarOverlay>
+      ) : null) : (
         <AdminSidebar
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={toggleSidebar}
         />
-      }
-      headerSlot={<AdminHeader />}
+      )}
+      headerSlot={isMobileViewport ? (
+        <AdminHeader
+          mobile
+          mobileMenuOpen={isMobileMenuOpen}
+          onMobileMenuClick={toggleMobileMenu}
+        />
+      ) : <AdminHeader />}
       tabBarSlot={<AdminTabBar />}
       contentSlot={<AdminContentArea />}
     />

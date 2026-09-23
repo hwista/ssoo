@@ -8,12 +8,14 @@ const root = join(__dirname, '..'); // packages/database
 const workspaceRoot = join(root, '..', '..'); // sooo
 
 const targets = [
+  { schema: 'crm', out: ['docs', 'crm', 'reference', 'db', 'erd.svg'] },
+  { schema: 'sns', out: ['docs', 'sns', 'reference', 'db', 'erd.svg'] },
   { schema: 'common', out: ['docs', 'common', 'reference', 'db', 'erd.svg'] },
   { schema: 'pms', out: ['docs', 'pms', 'reference', 'db', 'erd.svg'] },
   { schema: 'dms', out: ['docs', 'dms', 'reference', 'db', 'erd.svg'] },
 ];
 
-for (const { schema, out } of targets) {
+for (const { schema, out } of targets.filter(target => !process.env.DB_DOC_SCHEMAS || process.env.DB_DOC_SCHEMAS.split(',').includes(target.schema))) {
   const src = join(root, 'dbml', `${schema}.dbml`);
   const dest = join(workspaceRoot, ...out);
   try {

@@ -7,6 +7,7 @@ import { UserService } from '../../user/user.service.js';
 import { AccessFoundationService } from '../../access/access-foundation.service.js';
 import { DatabaseService } from '../../../../database/database.service.js';
 import { getRequiredJwtSecret, getSessionIdleTimeoutMs, isSessionIdle } from '../jwt-config.js';
+import { isCurrentSessionHash } from '../session-token.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -65,6 +66,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (session.revokedAt) {
       this.logger.warn(`Session revoked: ${payload.sessionId}`);
       throw new UnauthorizedException('만료된 세션입니다. 다시 로그인하세요.');
+    }
+
+    if (!isCurrentSessionHash(session.sessionTokenHash)) {
+      throw new UnauthorizedException('세션 보호 방식이 변경되었습니다. 다시 로그인하세요.');
     }
 
     const now = new Date();

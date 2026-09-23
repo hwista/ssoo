@@ -14,7 +14,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from "@nestjs/throttler";
 import { ApiBearerAuth, ApiInternalServerErrorResponse, ApiOkResponse, ApiOperation, ApiTags, ApiTooManyRequestsResponse, ApiUnauthorizedResponse } from "@nestjs/swagger";
-import type { AuthIdentity } from '@ssoo/types/common';
+import type { AuthAnonymousSession, AuthIdentity } from '@ssoo/types/common';
 import type { Request as ExpressRequest, Response as ExpressResponse, CookieOptions } from 'express';
 import { AuthService } from './auth.service.js';
 import { AuthPolicyService } from './auth-policy.service.js';
@@ -25,7 +25,7 @@ import { ConfirmPasswordResetDto, RequestPasswordResetDto } from './dto/password
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { Public } from './decorators/public.decorator.js';
-import { TokenPayload } from './interfaces/auth.interface.js';
+import type { TokenPayload } from './interfaces/auth.interface.js';
 import { success } from '../../../common/index.js';
 import { ApiSuccess, ApiError } from '../../../common/swagger/api-response.dto.js';
 import { ApiOkEnvelopeResponse } from '../../../common/swagger/api-response.decorator.js';
@@ -411,24 +411,58 @@ export class AuthController {
   // Browser navigation and same-origin binary proxies may also restore it repeatedly.
   // Keep this bounded without exhausting the budget during normal multi-app use.
   @Throttle({ default: { limit: 60, ttl: 60000 } })
-  @ApiOperation({ summary: "공유 세션 복원", description: "HttpOnly shared session cookie 로 Access Token 재발급" })
+  @ApiOperation({ summary: "공유 세션 복원", description: "세션 쿠키가 없으면 정상 비로그인 응답, 유효한 HttpOnly shared session cookie 로 Access Token 재발급" })
   @ApiOkResponse({ type: ApiSuccess })
-  @ApiUnauthorizedResponse({ type: ApiError, description: "세션 없음 또는 만료" })
+  @ApiUnauthorizedResponse({ type: ApiError, description: "비어 있거나 유효하지 않은 세션 또는 만료" })
   @ApiTooManyRequestsResponse({ type: ApiError, description: "세션 복원 레이트리밋 초과" })
   @ApiInternalServerErrorResponse({ type: ApiError, description: "서버 오류" })
   async session(
     @Req() request: ExpressRequest,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
+    return this.restoreCookieSession(request, response, true);
+  }
+
+  @Post('session/access')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @ApiOperation({ summary: '파일·이벤트 중계용 세션 확인', description: '현재 쿠키를 검증하며 갱신 토큰을 교체하지 않음' })
+  @ApiOkResponse({ type: ApiSuccess })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  async sessionAccess(
+    @Req() request: ExpressRequest,
+    @Res({ passthrough: true }) response: ExpressResponse,
+  ) {
+    return this.restoreCookieSession(request, response, false);
+  }
+
+  private async restoreCookieSession(
+    request: ExpressRequest,
+    response: ExpressResponse,
+    rotate: boolean,
+  ) {
     this.assertTrustedOrigin(request);
+    const hasSessionCookie = request.headers.cookie?.split(';').some(
+      (entry) => entry.trim().split('=', 1)[0] === this.getSessionCookieName(),
+    );
+    if (!hasSessionCookie) {
+      return success(
+        { status: 'anonymous', accessToken: null, user: null } satisfies AuthAnonymousSession,
+        '비로그인 상태입니다.',
+      );
+    }
+
     const refreshToken = this.readSessionCookie(request);
     if (!refreshToken) {
       this.clearSessionCookie(response);
       throw new UnauthorizedException('세션이 없습니다. 다시 로그인하세요.');
     }
 
-    const tokens = await this.authService.refreshTokens(refreshToken, this.buildSessionContext(request));
-    this.applySessionCookie(response, tokens.refreshToken);
+    const tokens = rotate
+      ? await this.authService.refreshTokens(refreshToken, this.buildSessionContext(request))
+      : { accessToken: await this.authService.getSessionAccessToken(refreshToken) };
+    if ('refreshToken' in tokens) this.applySessionCookie(response, tokens.refreshToken);
 
     const user = await this.authService.validateToken(tokens.accessToken);
     if (!user) {

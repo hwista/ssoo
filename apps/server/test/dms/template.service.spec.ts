@@ -296,7 +296,7 @@ describe('TemplateService', () => {
     const template = templates.global.find((item) => item.id === 'crm-contract-v1');
     expect(template).toBeDefined();
 
-    const uploadedBuffer = createDocxTemplateFromText('계약명: {contractName}');
+    const uploadedBuffer = await createDocxTemplateFromText('계약명: {contractName}');
     const uploaded = await templateService.saveDocxBinary(
       'crm-contract-v1',
       'global',

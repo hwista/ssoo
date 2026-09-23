@@ -8,6 +8,8 @@ import { AccessService } from '../access/access.service.js';
 import { AiIndexingService } from '../../common/ai-index/ai-indexing.service.js';
 import { CommonNotificationService } from '../../common/notification/notification.service.js';
 
+export type PostTransaction = Parameters<Parameters<DatabaseService['client']['$transaction']>[0]>[0];
+
 interface PostAiIndexQueueResult {
   status: 'queued' | 'failed';
   errorMessage?: string;
@@ -54,6 +56,7 @@ export class PostService {
         orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
         include: {
           postTags: { include: { tag: true } },
+          attachments: { select: { id: true, fileName: true, mimeType: true, fileSize: true }, orderBy: { sortOrder: 'asc' } },
           _count: { select: { comments: true, reactions: true } },
         },
       }),
@@ -91,45 +94,54 @@ export class PostService {
     const authorUserId = BigInt(user.userId);
     const visibility = await this.accessService.resolvePostVisibility(user, dto.visibilityScopeCode);
 
-    const result = await this.db.client.$transaction(async (tx) => {
-      const post = await tx.snsPost.create({
-        data: {
-          authorUserId,
-          title: dto.title ?? null,
-          content: dto.content,
-          contentType: dto.contentType ?? 'text',
-          boardId: dto.boardId ? BigInt(dto.boardId) : null,
-          categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
-          visibilityScopeCode: visibility.visibilityScopeCode,
-          targetOrgId: visibility.targetOrgId,
-        },
-      });
-
-      if (dto.tagNames && dto.tagNames.length > 0) {
-        for (const tagName of dto.tagNames) {
-          const tag = await tx.snsTag.upsert({
-            where: { tagName },
-            create: { tagName },
-            update: { usageCount: { increment: 1 } },
-          });
-          await tx.snsPostTag.create({
-            data: { postId: post.id, tagId: tag.id },
-          });
-        }
-      }
-
-      return tx.snsPost.findUnique({
-        where: { id: post.id },
-        include: {
-          postTags: { include: { tag: true } },
-        },
-      });
-    });
-    if (result) {
-      this.publishFeedChanged(authorUserId, result.id, result.authorUserId);
-      await this.queuePostAiIndexJob(result.id, 'upsert', 'post_created', authorUserId);
-    }
+    const result = await this.db.client.$transaction((tx) => this.createInTransaction(tx, dto, authorUserId, visibility));
+    if (result) await this.afterCreate(result.id, authorUserId);
     return result;
+  }
+
+  async createInTransaction(
+    tx: PostTransaction,
+    dto: CreatePostDto,
+    authorUserId: bigint,
+    visibility: { visibilityScopeCode: string; targetOrgId: bigint | null },
+  ) {
+    const post = await tx.snsPost.create({
+      data: {
+        authorUserId,
+        title: dto.title ?? null,
+        content: dto.content,
+        contentType: dto.contentType ?? 'text',
+        boardId: dto.boardId ? BigInt(dto.boardId) : null,
+        categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
+        visibilityScopeCode: visibility.visibilityScopeCode,
+        targetOrgId: visibility.targetOrgId,
+      },
+    });
+
+    if (dto.tagNames && dto.tagNames.length > 0) {
+      for (const tagName of dto.tagNames) {
+        const tag = await tx.snsTag.upsert({
+          where: { tagName },
+          create: { tagName },
+          update: { usageCount: { increment: 1 } },
+        });
+        await tx.snsPostTag.create({
+          data: { postId: post.id, tagId: tag.id },
+        });
+      }
+    }
+
+    return tx.snsPost.findUnique({
+      where: { id: post.id },
+      include: {
+        postTags: { include: { tag: true } },
+      },
+    });
+  }
+
+  async afterCreate(postId: bigint, authorUserId: bigint) {
+    this.publishFeedChanged(authorUserId, postId, authorUserId);
+    await this.queuePostAiIndexJob(postId, 'upsert', 'post_created', authorUserId);
   }
 
   async update(id: bigint, dto: UpdatePostDto, user: TokenPayload) {

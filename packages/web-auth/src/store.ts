@@ -1,8 +1,10 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { AuthIdentity, AuthSessionBootstrap, AuthTokens, LoginRequest } from '@ssoo/types/common';
+import type { AuthIdentity, AuthSessionBootstrap, AuthSessionRestore, AuthTokens, LoginRequest } from '@ssoo/types/common';
 import {
   clearSharedAuthState,
+  getAuthRequestVersion,
+  invalidateSharedAuthRequests,
   createSafeJsonStateStorage,
   readSharedAuthSnapshot,
   setSharedAuthSession,
@@ -19,7 +21,7 @@ export interface AuthApiResult<T> {
 
 export interface AuthApiAdapter<TUser extends AuthIdentity = AuthIdentity> {
   login: (data: LoginRequest) => Promise<AuthApiResult<AuthTokens>>;
-  restoreSession: () => Promise<AuthApiResult<AuthSessionBootstrap<TUser>>>;
+  restoreSession: () => Promise<AuthApiResult<AuthSessionRestore<TUser>>>;
   logout: (accessToken: string | null) => Promise<AuthApiResult<null>>;
   me: (accessToken: string) => Promise<AuthApiResult<TUser>>;
 }
@@ -52,6 +54,7 @@ export type AuthClearReason =
   | 'logout'
   | 'check-failed'
   | 'refresh-failed'
+  | 'session-absent'
   | 'storage-missing'
   | 'manual-clear';
 
@@ -142,8 +145,10 @@ export function createAuthStore<TUser extends AuthIdentity>(
 
           login: async (loginId: string, password: string) => {
             clearAuthState('login-start', { isLoading: true });
+            const version = getAuthRequestVersion();
 
             const loginResponse = await authApi.login({ loginId, password });
+            if (version !== getAuthRequestVersion()) return;
             if (!loginResponse.success || !loginResponse.data) {
               set({ isLoading: false });
               throw new Error(getAuthErrorMessage(loginResponse, '로그인에 실패했습니다.'));
@@ -151,6 +156,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
 
             const { accessToken } = loginResponse.data;
             const meResponse = await authApi.me(accessToken);
+            if (version !== getAuthRequestVersion()) return;
             if (meResponse.success && meResponse.data) {
               set({
                 accessToken,
@@ -168,15 +174,18 @@ export function createAuthStore<TUser extends AuthIdentity>(
 
           logout: async () => {
             const { accessToken } = get();
+            invalidateSharedAuthRequests();
+            const version = getAuthRequestVersion();
 
             try {
               await authApi.logout(accessToken);
             } finally {
-              clearAuthState('logout');
+              if (version === getAuthRequestVersion()) clearAuthState('logout');
             }
           },
 
           checkAuth: async (options?: CheckAuthOptions) => {
+            const version = getAuthRequestVersion();
             const { accessToken } = get();
             const hadAccessToken = Boolean(accessToken);
             const isBackgroundCheck = options?.mode === 'background';
@@ -187,6 +196,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
 
             if (accessToken) {
               const meResponse = await authApi.me(accessToken);
+              if (version !== getAuthRequestVersion()) return;
               if (meResponse.success && meResponse.data) {
                 set({
                   user: meResponse.data,
@@ -205,7 +215,12 @@ export function createAuthStore<TUser extends AuthIdentity>(
             }
 
             const restored = await authApi.restoreSession();
+            if (version !== getAuthRequestVersion()) return;
             if (restored.success && restored.data) {
+              if (restored.data.accessToken === null) {
+                clearAuthState('session-absent');
+                return;
+              }
               set({
                 ...toRestoredUser(restored.data),
                 ...(!isBackgroundCheck ? { isLoading: false } : {}),
@@ -225,13 +240,20 @@ export function createAuthStore<TUser extends AuthIdentity>(
           },
 
           refreshTokens: async () => {
+            const version = getAuthRequestVersion();
             const restored = await authApi.restoreSession();
+            if (version !== getAuthRequestVersion()) return false;
             if (!restored.success || !restored.data) {
               if (shouldKeepSessionOnCheckFailure(restored)) {
                 return false;
               }
 
               clearAuthState('refresh-failed');
+              return false;
+            }
+
+            if (restored.data.accessToken === null) {
+              clearAuthState('session-absent');
               return false;
             }
 

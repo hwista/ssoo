@@ -55,7 +55,7 @@ async function forwardAuthProxyPost(
     }),
   );
 
-  return createAuthProxyRouteResponse(responseAction, response);
+  return createAuthProxyRouteResponse(responseAction, response, request);
 }
 
 export function createAuthProxyPostHandler({

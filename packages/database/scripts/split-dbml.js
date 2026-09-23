@@ -1,5 +1,5 @@
-// Split generated DBML (schema.dbml) into per-schema files: common, pms, dms.
-// Output: packages/database/dbml/{common,pms,dms}.dbml
+// Split generated DBML (schema.dbml) into per-schema files: common, crm, pms, dms, sns.
+// Output: packages/database/dbml/{common,crm,pms,dms,sns}.dbml
 // Refs are kept only if both sides belong to the target schema.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
@@ -13,19 +13,21 @@ const source = join(root, 'schema.dbml');
 const text = readFileSync(source, 'utf8');
 const lines = text.split(/\r?\n/);
 const headers = [];
-const bySchema = { common: [], pms: [], dms: [] };
-const refs = { common: [], pms: [], dms: [] };
+const bySchema = { common: [], crm: [], pms: [], dms: [], sns: [] };
+const refs = { common: [], crm: [], pms: [], dms: [], sns: [] };
 
 const mapByPrefix = (name) => {
   if (name.startsWith('cm_')) return 'common';
   if (name.startsWith('pr_')) return 'pms';
   if (name.startsWith('dm_')) return 'dms';
+  if (name.startsWith('crm_')) return 'crm';
+  if (name.startsWith('sns_')) return 'sns';
   return null;
 };
 
 const getSchemaFromName = (name) => {
   const schemaPart = name.includes('.') ? name.split('.')[0] : null;
-  if (schemaPart && ['common', 'pms', 'dms'].includes(schemaPart)) return schemaPart;
+  if (schemaPart && ['common', 'crm', 'pms', 'dms', 'sns'].includes(schemaPart)) return schemaPart;
   return mapByPrefix(name.includes('.') ? name.split('.')[1] ?? name : name);
 };
 
@@ -53,9 +55,9 @@ while (i < lines.length) {
       .map((p) => p.trim())
       .filter(Boolean);
     const tables = targets.map((t) => t.split('.')[0]);
-    const schemas = tables.map(mapByPrefix).filter(Boolean);
+    const schemas = tables.map(mapByPrefix);
     const unique = [...new Set(schemas)];
-    if (unique.length === 1 && refs[unique[0]]) refs[unique[0]].push(line);
+    if (tables.length === 2 && unique.length === 1 && refs[unique[0]]) refs[unique[0]].push(line);
     i += 1;
   } else {
     if (line.length) headers.push(lines[i]);
@@ -75,4 +77,4 @@ const writeSchema = (schema) => {
   console.log(`Split DBML for ${schema}: ${outFile}`);
 };
 
-['common', 'pms', 'dms'].forEach(writeSchema);
+['common', 'crm', 'pms', 'dms', 'sns'].forEach(writeSchema);

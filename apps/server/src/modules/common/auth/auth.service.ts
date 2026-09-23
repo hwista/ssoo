@@ -10,6 +10,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { type AuthUserRecord, type AuthTokens, type TokenPayload } from './interfaces/auth.interface.js';
 import { getRequiredJwtExpiry, getRequiredJwtSecret, isSessionIdle } from './jwt-config.js';
 import type { ChangePasswordDto } from './dto/change-password.dto.js';
+import { hashSessionToken, isCurrentSessionHash } from './session-token.js';
 
 interface AuthSessionContext {
   issuedApp?: string;
@@ -56,9 +57,13 @@ export class AuthService {
 
   private verifyRefreshToken(refreshToken: string): TokenPayload {
     try {
-      return this.jwtService.verify<TokenPayload>(refreshToken, {
+      const payload = this.jwtService.verify<TokenPayload>(refreshToken, {
         secret: getRequiredJwtSecret(this.configService, 'JWT_REFRESH_SECRET'),
       });
+      if (payload.type !== 'refresh' || !payload.sessionId || !payload.jti) {
+        throw new UnauthorizedException('유효하지 않은 토큰입니다.');
+      }
+      return payload;
     } catch {
       throw new UnauthorizedException('유효하지 않은 토큰입니다.');
     }
@@ -119,25 +124,13 @@ export class AuthService {
     sessionId: string,
     refreshToken: string,
     sessionContext: AuthSessionContext,
-    currentIssuedApp?: string,
-    currentUserAgent?: string | null,
   ): Promise<void> {
-    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-    const issuedApp = sessionContext.issuedApp?.trim() || currentIssuedApp || 'unknown';
-    const userAgent = sessionContext.userAgent ?? currentUserAgent ?? null;
+    const refreshTokenHash = hashSessionToken(refreshToken);
+    const issuedApp = sessionContext.issuedApp?.trim() || 'unknown';
+    const userAgent = sessionContext.userAgent ?? null;
 
-    await this.db.client.userSession.upsert({
-      where: { sessionId },
-      update: {
-        sessionTokenHash: refreshTokenHash,
-        issuedApp,
-        userAgent,
-        lastSeenAt: new Date(),
-        expiresAt: this.getRefreshTokenExpiryDate(),
-        revokedAt: null,
-        revokeReason: null,
-      },
-      create: {
+    await this.db.client.userSession.create({
+      data: {
         sessionId,
         userId,
         sessionTokenHash: refreshTokenHash,
@@ -243,10 +236,7 @@ export class AuthService {
     return tokens;
   }
 
-  /**
-   * 토큰 갱신
-   */
-  async refreshTokens(refreshToken: string, sessionContext: AuthSessionContext = {}): Promise<AuthTokens> {
+  private async validateRefreshSession(refreshToken: string) {
     const payload = this.verifyRefreshToken(refreshToken);
     const user = await this.userService.findAuthUserById(BigInt(payload.userId));
     if (!user) {
@@ -262,8 +252,6 @@ export class AuthService {
     }
 
     const sessionId = payload.sessionId;
-    let currentIssuedApp: string | undefined;
-    let currentUserAgent: string | null | undefined;
 
     if (!sessionId) {
       throw new UnauthorizedException('유효하지 않은 토큰입니다.');
@@ -277,6 +265,7 @@ export class AuthService {
       !session
       || session.userId !== BigInt(payload.userId)
       || session.revokedAt
+      || !isCurrentSessionHash(session.sessionTokenHash)
       || session.expiresAt < new Date()
     ) {
       throw new UnauthorizedException('유효하지 않은 토큰입니다.');
@@ -294,23 +283,44 @@ export class AuthService {
       throw new UnauthorizedException('30분 동안 활동이 없어 세션이 만료되었습니다. 다시 로그인하세요.');
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(refreshToken, session.sessionTokenHash);
-    if (!isRefreshTokenValid) {
-      throw new UnauthorizedException('유효하지 않은 토큰입니다.');
+    const currentHash = hashSessionToken(refreshToken);
+    if (currentHash !== session.sessionTokenHash) {
+      throw new UnauthorizedException({ code: 'SESSION_TOKEN_ROTATED', message: '이미 교체된 세션 토큰입니다.' });
     }
 
-    currentIssuedApp = session.issuedApp;
-    currentUserAgent = session.userAgent;
+    return { user, session, sessionId, currentHash };
+  }
+
+  /** File/event authorization must not consume the cookie when a download is cancelled. */
+  async getSessionAccessToken(refreshToken: string): Promise<string> {
+    const { user, sessionId } = await this.validateRefreshSession(refreshToken);
+    return this.generateAccessToken(this.buildTokenPayload(user, sessionId));
+  }
+
+  async refreshTokens(refreshToken: string, sessionContext: AuthSessionContext = {}): Promise<AuthTokens> {
+    const { user, session, sessionId, currentHash } = await this.validateRefreshSession(refreshToken);
 
     const tokens = await this.generateTokens(this.buildTokenPayload(user, sessionId));
-    await this.persistSession(
-      user.userId,
-      sessionId,
-      tokens.refreshToken,
-      sessionContext,
-      currentIssuedApp,
-      currentUserAgent,
-    );
+    // Compare-and-swap: only one request can consume this token. Never resurrect a revoked row.
+    const updated = await this.db.client.userSession.updateMany({
+      where: {
+        sessionId,
+        userId: user.userId,
+        sessionTokenHash: currentHash,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      data: {
+        sessionTokenHash: hashSessionToken(tokens.refreshToken),
+        issuedApp: sessionContext.issuedApp?.trim() || session.issuedApp,
+        userAgent: sessionContext.userAgent ?? session.userAgent,
+        lastSeenAt: new Date(),
+        expiresAt: this.getRefreshTokenExpiryDate(),
+      },
+    });
+    if (updated.count !== 1) {
+      throw new UnauthorizedException({ code: 'SESSION_TOKEN_ROTATED', message: '세션이 변경되었습니다. 다시 확인하세요.' });
+    }
 
     return tokens;
   }
@@ -353,15 +363,9 @@ export class AuthService {
    */
   private async generateTokens(payload: TokenPayload): Promise<AuthTokens> {
     const [accessToken, refreshToken] = await Promise.all([
+      this.generateAccessToken(payload),
       this.jwtService.signAsync(
-        { ...payload, type: 'access' },
-        {
-          secret: getRequiredJwtSecret(this.configService, 'JWT_SECRET'),
-          expiresIn: getRequiredJwtExpiry(this.configService, 'JWT_ACCESS_EXPIRES_IN'),
-        },
-      ),
-      this.jwtService.signAsync(
-        { ...payload, type: 'refresh' },
+        { ...payload, type: 'refresh', jti: randomUUID() },
         {
           secret: getRequiredJwtSecret(this.configService, 'JWT_REFRESH_SECRET'),
           expiresIn: getRequiredJwtExpiry(this.configService, 'JWT_REFRESH_EXPIRES_IN'),
@@ -370,6 +374,16 @@ export class AuthService {
     ]);
 
     return { accessToken, refreshToken };
+  }
+
+  private generateAccessToken(payload: TokenPayload): Promise<string> {
+    return this.jwtService.signAsync(
+      { ...payload, type: 'access' },
+      {
+        secret: getRequiredJwtSecret(this.configService, 'JWT_SECRET'),
+        expiresIn: getRequiredJwtExpiry(this.configService, 'JWT_ACCESS_EXPIRES_IN'),
+      },
+    );
   }
 
   /**
@@ -398,6 +412,7 @@ export class AuthService {
         || !session
         || session.userId !== userId
         || session.revokedAt
+        || !isCurrentSessionHash(session.sessionTokenHash)
         || session.expiresAt < new Date()
         || isSessionIdle(this.configService, session.lastSeenAt, session.createdAt)
       ) {

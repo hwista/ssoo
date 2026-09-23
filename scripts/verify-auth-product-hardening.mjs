@@ -360,13 +360,15 @@ check(
 
 check(
   'packages/web-auth/src/server-api-proxy.ts',
-  'session-backed SSE proxy must return retrying SSE frames instead of JSON auth/throttle errors on session restore failure',
+  'session-backed SSE proxy must use cookie redirects only for rotation and retrying SSE frames for auth/throttle errors',
   (content) => {
     const streamProxy = content.match(/const proxySessionBackedStreamResponse[\s\S]*?const responseHeaders = createSseResponseHeaders\(response\);/)?.[0] ?? '';
     return streamProxy.includes("if ('errorResponse' in restoredSession)")
       && streamProxy.includes('appendSetCookieHeader(responseHeaders, restoredSession.errorResponse)')
       && streamProxy.includes('return createRetryingSseResponse(responseHeaders);')
-      && !streamProxy.includes('return restoredSession.errorResponse;');
+      && streamProxy.includes('if (restoredSession.errorResponse.status === 307) return restoredSession.errorResponse;')
+      && !streamProxy.replace('if (restoredSession.errorResponse.status === 307) return restoredSession.errorResponse;', '')
+        .includes('return restoredSession.errorResponse;');
   },
 );
 
@@ -690,8 +692,20 @@ check(
 
 check(
   'apps/web/pms/src/lib/user-scope.ts',
-  'PMS user-scope cleanup must reset user-scoped open tabs',
-  (content) => content.includes('useTabStore.getState().closeAllTabs()'),
+  'PMS user-scope lifecycle must delegate tab ownership checks and keep access reset',
+  (content) => content.includes('useTabStore.getState().syncUserScope(next)')
+    && content.includes('useAccessStore.getState().reset()')
+    && content.includes('clearPmsUserScopedState(next)'),
+);
+
+check(
+  'apps/web/pms/src/stores/tab.store.ts',
+  'PMS persisted tabs must preserve only the same owner and clear logout or foreign/unowned state',
+  (content) => content.includes('shouldResetPersistedUserState(')
+    && content.includes('next === null ||')
+    && content.includes('state.closeAllTabs()')
+    && content.includes('ownerUserId: state.ownerUserId')
+    && content.includes('set({ ownerUserId: next })'),
 );
 
 check(
@@ -861,7 +875,7 @@ check(
     && content.includes('restoreServerAccessToken')
     && content.includes('proxySessionBackedBinaryResponse')
     && content.includes('proxySessionBackedStreamResponse')
-    && content.includes("createServerApiUrl('/auth/session')")
+    && content.includes("createServerApiUrl('/auth/session/access')")
     && content.includes("redirect: 'manual'")
     && content.includes('resolveSafeRedirectLocation')
     && content.includes("'content-disposition'")

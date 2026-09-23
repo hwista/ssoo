@@ -13,6 +13,8 @@ export default function LoginPage() {
       homePath={APP_HOME_PATH}
       authStore={useAuthStore}
       navigate={(path) => router.replace(path)}
+      rememberLoginIdEnabled
+      passwordVisibilityEnabled
     />
   );
 }

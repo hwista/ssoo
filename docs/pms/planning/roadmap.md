@@ -4,6 +4,8 @@
 >
 > 2026-07-15 runtime quality gate에서 Prisma `Decimal` 공수 값이 공용 BigInt serializer를 거치며 내부 `{s,e,d}` 구조로 노출되던 결함을 수정했다. 일일 공수 API는 숫자 `actualHours`와 문자열 식별자 계약을 유지한다.
 
+2026-09-17 최신: 승인-13 네 옵션 **4/4** 구현·검증 완료. 프로젝트 사용 설정의 새 진입과 계정별 저장·실제 업무 반영을 연결했다. `/settings` 직접 접속은 개인 설정, `/project-settings`는 프로젝트 사용 설정이다. [최종 핸드오프](../../common/explanation/architecture/2026-09-17-project-settings-handoff.md) 기준 **20완료·2잔여·운영 증거 0/5**.
+
 단계별 구축 전략 (Progressive Delivery)
 
 ---

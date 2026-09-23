@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { postsApi } from '@/lib/api/endpoints/posts';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface UseFeedOptions {
   feedType?: string;
@@ -59,6 +60,23 @@ export function usePostDetail(id: string) {
   });
 }
 
+export function useSharedPost(id: string, enabled: boolean) {
+  const userId = useAuthStore((state) => state.user?.userId);
+  return useQuery({
+    queryKey: [...postKeys.all, 'shared', userId, id],
+    queryFn: async ({ signal }) => {
+      const response = await postsApi.sharedPost(id, signal);
+      if (!response.data.success || !response.data.data) throw new Error('게시물을 불러오지 못했습니다.');
+      return response.data.data;
+    },
+    enabled: enabled && Boolean(userId) && Boolean(id),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
+}
+
 export function usePostList(
   params?: Parameters<typeof postsApi.list>[0],
   enabled = true,
@@ -80,6 +98,27 @@ export function useCreatePost() {
   return useMutation({
     mutationFn: postsApi.create,
     onSuccess: () => { qc.invalidateQueries({ queryKey: postKeys.all }); },
+  });
+}
+
+export function useCreateImagePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: postsApi.createWithImages,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: postKeys.all }); },
+  });
+}
+
+export function usePostImage(postId: string, imageId: string) {
+  const userId = useAuthStore((state) => state.user?.userId);
+  return useQuery({
+    queryKey: [...postKeys.all, 'image', userId, postId, imageId],
+    queryFn: async ({ signal }) => (await postsApi.image(postId, imageId, signal)).data,
+    enabled: Boolean(userId),
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: true,
   });
 }
 

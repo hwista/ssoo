@@ -838,7 +838,7 @@ export class TemplateService {
           ?? getTemplateDocxRelativePath('global', template.id);
         const docxAbsolutePath = getTemplateAbsolutePath(docxRelativePath);
         if (!docxTemplate || !fs.existsSync(docxAbsolutePath)) {
-          const buffer = createDocxTemplateFromText(fs.readFileSync(absolutePath, 'utf-8'));
+          const buffer = await createDocxTemplateFromText(fs.readFileSync(absolutePath, 'utf-8'));
           ensureDir(path.dirname(docxAbsolutePath));
           fs.writeFileSync(docxAbsolutePath, buffer);
           docxTemplate = toDocxTemplateMetadata({
@@ -1110,7 +1110,7 @@ export class TemplateService {
     if (template.kind === 'document' && (!docxTemplate || docxTemplate.origin === 'generated')) {
       const docxRelativePath = docxTemplate?.sourcePath ?? getTemplateDocxRelativePath(scope, nextId);
       const docxAbsolutePath = getTemplateAbsolutePath(docxRelativePath);
-      const buffer = createDocxTemplateFromText(template.content);
+      const buffer = await createDocxTemplateFromText(template.content);
       ensureDir(path.dirname(docxAbsolutePath));
       fs.writeFileSync(docxAbsolutePath, buffer);
       docxTemplate = toDocxTemplateMetadata({
@@ -1215,7 +1215,7 @@ export class TemplateService {
       throw new BadRequestException('.docx 파일만 템플릿 binary로 업로드할 수 있습니다.');
     }
     try {
-      assertValidDocxTemplate(input.buffer);
+      await assertValidDocxTemplate(input.buffer);
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : '유효하지 않은 DOCX 템플릿입니다.');
     }

@@ -1,5 +1,7 @@
 'use client';
 
+import { PostContent } from '../feed/PostContent';
+import { PostImages } from '../feed/PostImages';
 import Link from 'next/link';
 import { ArrowLeft, Eye, FileText, Hash, LayoutGrid } from 'lucide-react';
 import type { SnsVisibilityScopeCode } from '@ssoo/types/sns';
@@ -36,14 +38,6 @@ function formatDate(value: string) {
     month: 'short',
     day: 'numeric',
   });
-}
-
-function truncateText(value: string, maxLength = 180) {
-  const normalized = value.trim();
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-  return `${normalized.slice(0, maxLength).trimEnd()}...`;
 }
 
 interface BoardDetailPageProps {
@@ -174,7 +168,7 @@ export function BoardDetailPage({ boardId }: BoardDetailPageProps) {
                         )}
                       </div>
                       <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-                        {truncateText(post.content)}
+                        <PostContent content={post.content.trim()} maxLength={180} />
                       </p>
                     </div>
                     <div className="shrink-0 text-right text-xs text-muted-foreground">
@@ -183,6 +177,7 @@ export function BoardDetailPage({ boardId }: BoardDetailPageProps) {
                     </div>
                   </div>
 
+                  <PostImages postId={post.id} images={post.attachments ?? []} />
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
                       <Eye className="h-3.5 w-3.5" />

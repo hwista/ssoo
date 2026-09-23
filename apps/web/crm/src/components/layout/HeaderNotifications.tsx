@@ -85,14 +85,14 @@ export function HeaderNotifications() {
       return;
     }
 
-    openTab({
+    const opened = openTab({
       id: `notification-${item.id}`,
       title: item.title.trim() || '알림',
       path,
       closable: true,
       activate: true,
     });
-    router.push(path);
+    if (opened) router.push(path);
   }, [markAsRead, openTab, router]);
 
   return (

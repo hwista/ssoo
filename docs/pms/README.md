@@ -6,6 +6,8 @@
 
 ---
 
+최신 완료: [프로젝트 사용 설정 실행 결과](../common/explanation/architecture/2026-09-17-project-settings-handoff.md). 네 옵션 **4/4** 실제 반영·검증 완료. [사용 가이드](guides/project-settings.md)와 [승인 범위](planning/2026-09-17-settings-approval-proposal.md)를 함께 관리한다.
+
 ## 🚀 시작하기
 
 - **[getting-started.md](../getting-started.md)** - 개발 환경 설정 가이드

@@ -74,7 +74,7 @@ export class DmsCrmQuoteLifecycleService {
     );
     const wordArtifact = this.storage.upload({
       fileName: `${artifactBaseName}.docx`,
-      content: renderDocxTemplate(templateBinary, this.toDocxVariables(normalized, draft, executedAt)),
+      content: await renderDocxTemplate(templateBinary, this.toDocxVariables(normalized, draft, executedAt)),
       relativePath: storageRelativeDir,
       origin: 'manual',
       status: 'published',

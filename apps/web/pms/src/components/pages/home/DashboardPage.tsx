@@ -38,6 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatPmsAmount, formatPmsNumber, formatPmsShortDate, getPmsTime } from '@/lib/pms-format';
 import { cn } from '@/lib/utils';
 import { Button } from '@ssoo/web-ui';
+import { SSOO_CONTENT_PAGE_METRICS } from '@ssoo/web-shell';
 
 const STATUS_META: Record<ProjectStatusCode, { label: string; shortLabel: string; icon: ElementType; tone: string; dot: string }> = {
   request: {
@@ -206,8 +207,8 @@ function RelationBadge({ relation }: { relation: PmsHomeRelation }) {
 
 function LoadingHome() {
   return (
-    <div className="h-full overflow-auto bg-muted p-5">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+    <div className="h-full min-w-0 overflow-auto bg-muted p-4">
+      <div className="mx-auto flex w-full min-w-0 flex-col gap-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
         <Skeleton className="h-24 w-full rounded-xl" />
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
           <Skeleton className="h-96 rounded-xl" />
@@ -277,7 +278,7 @@ function MetricStrip({ metrics }: { metrics: PmsHomeMetrics }) {
         return (
           <div key={metric.label} className="rounded-xl border bg-card px-4 py-3 shadow-sm">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-muted-foreground">{metric.label}</p>
+              <p className="break-keep text-xs font-medium text-muted-foreground">{metric.label}</p>
               <Icon className={cn('h-4 w-4', metric.tone)} />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">{metric.value}</p>
@@ -507,7 +508,7 @@ function SignalQueue({ signals }: { signals: PmsHomeSignal[] }) {
               type="button"
               data-testid="pms-home-signal-action"
               onClick={() => openProjectDetail(openTab, signal)}
-              className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 px-4 py-3 text-left transition hover:bg-muted"
+              className="grid w-full min-w-0 grid-cols-1 gap-3 whitespace-normal break-words px-4 py-3 text-left transition hover:bg-muted sm:grid-cols-[minmax(0,1fr)_auto]"
             >
               <div className="min-w-0">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -523,7 +524,7 @@ function SignalQueue({ signals }: { signals: PmsHomeSignal[] }) {
                   {signal.relatedSignalCount ? <span>외 {signal.relatedSignalCount}건</span> : null}
                 </div>
               </div>
-              <div className="flex min-w-[160px] items-center justify-end gap-2">
+              <div className="flex min-w-0 items-center justify-end gap-2 sm:min-w-[160px]">
                 <div className="text-right">
                   <p className={cn('text-xs font-semibold', SEVERITY_TONE[signal.severity])}>{signal.label}</p>
                   <p className="mt-0.5 text-caption-2xs text-muted-foreground">{signal.reason}</p>
@@ -814,7 +815,7 @@ function PermissionWorkPanel({ projects }: { projects: PmsHomeAccessProject[] })
               type="button"
               data-testid="pms-home-access-project-action"
               onClick={() => openProjectDetail(openTab, project)}
-              className="w-full px-4 py-3 text-left transition hover:bg-muted"
+              className="flex w-full min-w-0 flex-col items-stretch gap-0 whitespace-normal break-words px-4 py-3 text-left transition hover:bg-muted"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -926,8 +927,8 @@ export function HomeDashboardPage() {
   if (error || !summary) return <ErrorHome />;
 
   return (
-    <div className="h-full overflow-auto bg-muted p-5">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+    <div className="h-full min-w-0 overflow-auto bg-muted p-4">
+      <div className="mx-auto flex w-full min-w-0 flex-col gap-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.7fr)]">
           <BriefingPanel bullets={summary.briefing} signalCount={summary.metrics.attention} />
           <MetricStrip metrics={summary.metrics} />
@@ -936,13 +937,13 @@ export function HomeDashboardPage() {
         <PortfolioDashboardPanel dashboard={summary.portfolioDashboard} />
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <SignalQueue signals={summary.signals} />
             <LaunchFeedbackPanel feedbackSignals={summary.feedbackSignals} feedbackCount={summary.metrics.feedback} />
             <MyActionPanel signals={summary.signals} />
             <RecentChangeList recentChanges={summary.recentChanges} />
           </div>
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <PermissionWorkPanel projects={summary.accessProjects} />
             <RiskReportSummaryPanel summary={summary.riskReportSummary} />
             <StatusFlow flow={summary.flow} />

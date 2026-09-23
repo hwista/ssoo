@@ -1,6 +1,6 @@
 import type {
   AuthIdentity,
-  AuthSessionBootstrap,
+  AuthSessionRestore,
   AuthTokens,
   LoginRequest,
 } from '@ssoo/types/common';
@@ -10,8 +10,10 @@ import {
   AUTH_PROXY_CSRF_HEADER_VALUE,
 } from './auth-proxy';
 import type { AuthApiAdapter, AuthApiResult } from './store';
+import { getAuthRequestVersion, registerSharedAuthRequest } from './storage';
 
 const DEFAULT_AUTH_API_BASE_PATH = '/api/auth';
+const sessionRequests = new WeakMap<typeof fetch, Map<string, Promise<AuthApiResult<unknown>>>>();
 
 export interface CreateAuthApiAdapterOptions {
   basePath?: string;
@@ -39,6 +41,9 @@ async function authProxyPost<T>(
   body?: unknown,
   extraHeaders?: Record<string, string>,
 ): Promise<AuthApiResult<T>> {
+  const controller = new AbortController();
+  const unregister = action === 'session' || action === 'me'
+    ? registerSharedAuthRequest(controller) : () => {};
   try {
     const response = await options.fetchImpl(buildAuthApiUrl(options.basePath, action), {
       method: 'POST',
@@ -50,6 +55,9 @@ async function authProxyPost<T>(
       body: body !== undefined ? JSON.stringify(body) : undefined,
       credentials: options.credentials,
       cache: 'no-store',
+      // Finish cookie rotation even when the document navigates away.
+      keepalive: action === 'session',
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -70,6 +78,8 @@ async function authProxyPost<T>(
       success: false,
       error: error instanceof Error ? error.message : '인증 요청에 실패했습니다.',
     };
+  } finally {
+    unregister();
   }
 }
 
@@ -81,11 +91,25 @@ export function createAuthApiAdapter<TUser extends AuthIdentity = AuthIdentity>(
     credentials: options.credentials ?? 'same-origin',
     fetchImpl: resolveFetchImpl(options.fetchImpl),
   };
+  const fetchKey = options.fetchImpl ?? globalThis.fetch;
+  let requests = sessionRequests.get(fetchKey);
+  if (!requests) {
+    requests = new Map();
+    sessionRequests.set(fetchKey, requests);
+  }
+  const restoreSession = (): Promise<AuthApiResult<AuthSessionRestore<TUser>>> => {
+    const key = `${resolvedOptions.basePath}::${resolvedOptions.credentials}::${getAuthRequestVersion()}`;
+    const existing = requests.get(key);
+    if (existing) return existing as Promise<AuthApiResult<AuthSessionRestore<TUser>>>;
+    const pending = authProxyPost<AuthSessionRestore<TUser>>(resolvedOptions, 'session', {})
+      .finally(() => { if (requests.get(key) === pending) requests.delete(key); });
+    requests.set(key, pending);
+    return pending;
+  };
 
   return {
     login: (data: LoginRequest) => authProxyPost<AuthTokens>(resolvedOptions, 'login', data),
-    restoreSession: () =>
-      authProxyPost<AuthSessionBootstrap<TUser>>(resolvedOptions, 'session', {}),
+    restoreSession,
     logout: (accessToken: string | null) =>
       authProxyPost<null>(
         resolvedOptions,

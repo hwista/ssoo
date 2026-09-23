@@ -519,8 +519,8 @@ function scenarioFor(uxId, stateId, target) {
         await waitForSourceSurface(page, 'dashboard');
         await page.getByRole('link', { name: /SCM 플랫폼 고도화/ }).click();
         await waitForSourceSurface(page, 'form');
-        await visibleLocator(page, '#f-customer').waitFor({ state: 'visible' });
-        if (await visibleLocator(page, '#f-customer').inputValue() !== '현대자동차') throw new Error('recent opportunity drilldown did not select 현대자동차');
+        await visibleLocator(page, 'input[placeholder="고객사명 입력"]').waitFor({ state: 'visible' });
+        if (await visibleLocator(page, 'input[placeholder="고객사명 입력"]').inputValue() !== '현대자동차') throw new Error('recent opportunity drilldown did not select 현대자동차');
       } };
     }
   }
@@ -584,7 +584,7 @@ function scenarioFor(uxId, stateId, target) {
         await waitForSourceSurface(page, 'list');
         await page.getByRole('button', { name: /삼성전자 ERP 시스템 구축 프로젝트/ }).click();
         await waitForSourceSurface(page, 'form');
-        if (await visibleLocator(page, '#f-customer').inputValue() !== '삼성전자') throw new Error('opportunity row drilldown did not select 삼성전자');
+        if (await visibleLocator(page, 'input[placeholder="고객사명 입력"]').inputValue() !== '삼성전자') throw new Error('opportunity row drilldown did not select 삼성전자');
       } };
     }
   }
@@ -593,7 +593,7 @@ function scenarioFor(uxId, stateId, target) {
     if (stateId === 'new-empty' || stateId === 'required-validation') {
       return { href: '/?sourceSurface=form&create=opportunity', prepare: async (page) => {
         await waitForSourceSurface(page, 'form');
-        const customer = visibleLocator(page, '#f-customer');
+        const customer = visibleLocator(page, 'input[placeholder="고객사명 입력"]');
         await customer.waitFor({ state: 'visible' });
         if (await customer.inputValue()) throw new Error('new opportunity form is not empty');
         if (stateId === 'required-validation') {
@@ -608,7 +608,7 @@ function scenarioFor(uxId, stateId, target) {
         href: target.normalHref,
         prepare: async (page) => {
           await waitForSourceSurface(page, 'form');
-          if (await visibleLocator(page, '#f-customer').inputValue() !== '삼성전자') throw new Error('seeded opportunity was not loaded');
+          if (await visibleLocator(page, 'input[placeholder="고객사명 입력"]').inputValue() !== '삼성전자') throw new Error('seeded opportunity was not loaded');
           await page.getByRole('button', { name: '계약취소', exact: true }).waitFor({ state: 'visible' });
         },
         classifiedDifferences: stateId === 'confirmed-locked' ? [{

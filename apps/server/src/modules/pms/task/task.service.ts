@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { PmsWorkNotificationService } from '../settings/work-notification.service.js';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service.js';
 import type {
   CreateTaskEffortLogDto,
@@ -50,6 +51,7 @@ export class TaskService {
   constructor(
     private readonly db: DatabaseService,
     private readonly aiIndexingService: AiIndexingService,
+    private readonly workNotifications: PmsWorkNotificationService,
   ) {}
 
   async findByProject(projectId: bigint) {
@@ -64,7 +66,7 @@ export class TaskService {
     });
   }
 
-  async findOne(id: bigint) {
+  async findOne(id: bigint, projectId?: bigint) {
     const task = await this.db.client.task.findUnique({
       where: { id },
       include: {
@@ -77,7 +79,7 @@ export class TaskService {
         },
       },
     });
-    if (!task) throw new NotFoundException(`Task ${id} not found`);
+    if (!task || (projectId !== undefined && task.projectId !== projectId)) throw new NotFoundException(`Task ${id} not found`);
     return task;
   }
 
@@ -265,83 +267,122 @@ export class TaskService {
     };
   }
 
-  async create(projectId: bigint, dto: CreateTaskDto) {
+  async create(projectId: bigint, dto: CreateTaskDto, actorUserId: bigint) {
     const wbsId = await this.resolveWbsId(projectId, dto.wbsId);
 
-    const task = await this.db.client.task.create({
-      data: {
-        projectId,
-        wbsId,
-        parentTaskId: dto.parentTaskId ? BigInt(dto.parentTaskId) : null,
-        taskCode: dto.taskCode,
-        taskName: dto.taskName,
-        description: dto.description,
-        taskTypeCode: dto.taskTypeCode,
-        priorityCode: dto.priorityCode ?? 'normal',
-        assigneeUserId: dto.assigneeUserId ? BigInt(dto.assigneeUserId) : null,
-        plannedStartAt: dto.plannedStartAt ? new Date(dto.plannedStartAt) : null,
-        plannedEndAt: dto.plannedEndAt ? new Date(dto.plannedEndAt) : null,
-        estimatedHours: dto.estimatedHours,
-        depth: dto.depth ?? 0,
-        sortOrder: dto.sortOrder ?? 0,
-        memo: dto.memo,
-      },
-      include: {
-        assignee: {
-          select: { id: true, userName: true, displayName: true },
+    const { task, notifications } = await this.db.client.$transaction(async (tx) => {
+      const assigneeUserId = this.parseAssignee(dto.assigneeUserId);
+      if (assigneeUserId) await this.workNotifications.assertAssignee(tx, projectId, assigneeUserId);
+      const task = await tx.task.create({
+        data: {
+          projectId,
+          wbsId,
+          parentTaskId: dto.parentTaskId ? BigInt(dto.parentTaskId) : null,
+          taskCode: dto.taskCode,
+          taskName: dto.taskName,
+          description: dto.description,
+          taskTypeCode: dto.taskTypeCode,
+          priorityCode: dto.priorityCode ?? 'normal',
+          assigneeUserId,
+          plannedStartAt: dto.plannedStartAt ? new Date(dto.plannedStartAt) : null,
+          plannedEndAt: dto.plannedEndAt ? new Date(dto.plannedEndAt) : null,
+          estimatedHours: dto.estimatedHours,
+          depth: dto.depth ?? 0,
+          sortOrder: dto.sortOrder ?? 0,
+          memo: dto.memo,
         },
-      },
+        include: {
+          assignee: {
+            select: { id: true, userName: true, displayName: true },
+          },
+        },
+      });
+      const notifications = await this.workNotifications.create(tx, {
+        projectId, actorUserId, recipients: [task.assigneeUserId], kind: 'task-assignment',
+        referenceId: task.id, title: task.taskName,
+      });
+      return { task, notifications };
+    }).catch((error: unknown) => {
+      if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+        throw new ConflictException('같은 코드의 작업이 이미 등록되어 있습니다. 목록을 확인해 주세요.');
+      }
+      throw error;
     });
+    this.workNotifications.publish(notifications);
     await this.queueTaskAiIndexJob(task.id, 'upsert', 'task_created', task.projectId);
     return task;
   }
 
-  async update(id: bigint, dto: UpdateTaskDto) {
-    const existing = await this.db.client.task.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException(`Task ${id} not found`);
+  async update(id: bigint, dto: UpdateTaskDto, actorUserId: bigint, projectId: bigint) {
+    const { task, notifications } = await this.db.client.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT task_id FROM pms.pr_task_m WHERE task_id = ${id} AND project_id = ${projectId} FOR UPDATE`;
+      const existing = await tx.task.findUnique({ where: { id } });
+      if (!existing || existing.projectId !== projectId) throw new NotFoundException(`Task ${id} not found`);
 
-    const wbsId =
-      dto.wbsId !== undefined
-        ? await this.resolveWbsId(existing.projectId, dto.wbsId)
-        : undefined;
+      const wbsId =
+        dto.wbsId !== undefined
+          ? await this.resolveWbsId(existing.projectId, dto.wbsId)
+          : undefined;
 
-    const task = await this.db.client.task.update({
-      where: { id },
-      data: {
-        ...(wbsId !== undefined && { wbsId }),
-        ...(dto.taskName !== undefined && { taskName: dto.taskName }),
-        ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.taskTypeCode !== undefined && { taskTypeCode: dto.taskTypeCode }),
-        ...(dto.statusCode !== undefined && { statusCode: dto.statusCode }),
-        ...(dto.priorityCode !== undefined && { priorityCode: dto.priorityCode }),
-        ...(dto.assigneeUserId !== undefined && { assigneeUserId: dto.assigneeUserId ? BigInt(dto.assigneeUserId) : null }),
-        ...(dto.plannedStartAt !== undefined && { plannedStartAt: dto.plannedStartAt ? new Date(dto.plannedStartAt) : null }),
-        ...(dto.plannedEndAt !== undefined && { plannedEndAt: dto.plannedEndAt ? new Date(dto.plannedEndAt) : null }),
-        ...(dto.actualStartAt !== undefined && { actualStartAt: dto.actualStartAt ? new Date(dto.actualStartAt) : null }),
-        ...(dto.actualEndAt !== undefined && { actualEndAt: dto.actualEndAt ? new Date(dto.actualEndAt) : null }),
-        ...(dto.progressRate !== undefined && { progressRate: dto.progressRate }),
-        ...(dto.estimatedHours !== undefined && { estimatedHours: dto.estimatedHours }),
-        ...(dto.actualHours !== undefined && { actualHours: dto.actualHours }),
-        ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
-        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
-        ...(dto.memo !== undefined && { memo: dto.memo }),
-      },
-      include: {
-        assignee: {
-          select: { id: true, userName: true, displayName: true },
+      const assigneeUserId = dto.assigneeUserId !== undefined ? this.parseAssignee(dto.assigneeUserId) : existing.assigneeUserId;
+      if (assigneeUserId && assigneeUserId !== existing.assigneeUserId) {
+        await this.workNotifications.assertAssignee(tx, projectId, assigneeUserId);
+      }
+      const task = await tx.task.update({
+        where: { id },
+        data: {
+          ...(wbsId !== undefined && { wbsId }),
+          ...(dto.taskName !== undefined && { taskName: dto.taskName }),
+          ...(dto.description !== undefined && { description: dto.description }),
+          ...(dto.taskTypeCode !== undefined && { taskTypeCode: dto.taskTypeCode }),
+          ...(dto.statusCode !== undefined && { statusCode: dto.statusCode }),
+          ...(dto.priorityCode !== undefined && { priorityCode: dto.priorityCode }),
+          ...(dto.assigneeUserId !== undefined && { assigneeUserId }),
+          ...(dto.plannedStartAt !== undefined && { plannedStartAt: dto.plannedStartAt ? new Date(dto.plannedStartAt) : null }),
+          ...(dto.plannedEndAt !== undefined && { plannedEndAt: dto.plannedEndAt ? new Date(dto.plannedEndAt) : null }),
+          ...(dto.actualStartAt !== undefined && { actualStartAt: dto.actualStartAt ? new Date(dto.actualStartAt) : null }),
+          ...(dto.actualEndAt !== undefined && { actualEndAt: dto.actualEndAt ? new Date(dto.actualEndAt) : null }),
+          ...(dto.progressRate !== undefined && { progressRate: dto.progressRate }),
+          ...(dto.estimatedHours !== undefined && { estimatedHours: dto.estimatedHours }),
+          ...(dto.actualHours !== undefined && { actualHours: dto.actualHours }),
+          ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+          ...(dto.memo !== undefined && { memo: dto.memo }),
         },
-      },
+        include: {
+          assignee: {
+            select: { id: true, userName: true, displayName: true },
+          },
+        },
+      });
+      const notifications = task.isActive && assigneeUserId !== existing.assigneeUserId
+        ? await this.workNotifications.create(tx, {
+            projectId, actorUserId, recipients: [assigneeUserId], kind: 'task-assignment',
+            referenceId: task.id, title: task.taskName,
+          }) : [];
+      return { task, notifications };
     });
+    this.workNotifications.publish(notifications);
     await this.queueTaskAiIndexJob(task.id, 'upsert', 'task_updated', task.projectId);
     return task;
   }
 
-  async remove(id: bigint) {
+  async remove(id: bigint, projectId?: bigint) {
     const existing = await this.db.client.task.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException(`Task ${id} not found`);
+    if (!existing || (projectId !== undefined && existing.projectId !== projectId)) throw new NotFoundException(`Task ${id} not found`);
     const task = await this.db.client.task.delete({ where: { id } });
     await this.queueTaskAiIndexJob(id, 'delete', 'task_deleted', existing.projectId);
     return task;
+  }
+
+  assignees(projectId: bigint) {
+    return this.workNotifications.assignees(projectId);
+  }
+
+  private parseAssignee(value?: string | null): bigint | null {
+    if (value === undefined || value === null || value === '') return null;
+    if (!/^\d+$/.test(value) || BigInt(value) <= 0n) throw new BadRequestException('유효한 담당자 식별자가 필요합니다.');
+    return BigInt(value);
   }
 
   private async queueTaskAiIndexJob(

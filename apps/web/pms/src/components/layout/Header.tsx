@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SsooAppHeader,
   useSsooGlobalHeaderSearch,
@@ -30,6 +31,7 @@ const HEADER_SECTION_LABELS: Record<string, string> = {
   '/transition': '전환',
   '/project/detail': '프로젝트 상세',
   '/settings': '설정',
+  '/project-settings': '프로젝트 사용 설정',
   '/admin/code': '관리',
   '/admin/role': '관리',
   '/admin/menu': '관리',
@@ -82,6 +84,9 @@ export function Header({
   onMobileMenuClick,
 }: HeaderProps) {
   const openTab = useTabStore((state) => state.openTab);
+  const updateTabPath = useTabStore((state) => state.updateTabPath);
+  const pathname = usePathname();
+  const router = useRouter();
   const tabs = useTabStore((state) => state.tabs);
   const activeTabId = useTabStore((state) => state.activeTabId);
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
@@ -99,7 +104,7 @@ export function Header({
 
   const globalHeaderSearch = useSsooGlobalHeaderSearch({
     onOpenSearch: ({ query, path, title, icon }) => {
-      openTab({
+      const tabId = openTab({
         menuCode: 'PMS-GLOBAL-SEARCH',
         menuId: 'pms-global-search',
         title,
@@ -109,6 +114,10 @@ export function Header({
         closable: true,
         activate: true,
       });
+      if (tabId) {
+        updateTabPath(tabId, path);
+        if (pathname === GLOBAL_SEARCH_PATH) router.replace(path);
+      }
     },
   });
 
@@ -136,7 +145,6 @@ export function Header({
   return (
     <SsooAppHeader
       mode="primary"
-      leading={headerLeading}
       search={globalHeaderSearch.search}
       primaryAction={{
         label: '새 프로젝트',

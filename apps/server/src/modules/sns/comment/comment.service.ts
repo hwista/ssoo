@@ -34,7 +34,7 @@ export class CommentService {
       const parent = await this.db.client.snsComment.findUnique({
         where: { id: BigInt(dto.parentCommentId) },
       });
-      if (!parent || !parent.isActive) {
+      if (!parent || !parent.isActive || parent.postId !== postId) {
         throw new NotFoundException(`Parent comment ${dto.parentCommentId} not found`);
       }
       depth = parent.depth + 1;

@@ -9,7 +9,7 @@ import type {
   CrmContractPerformanceRow,
 } from '@ssoo/types/crm';
 import { Button, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
-import { SsooSearchInput } from '@ssoo/web-shell';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
 import type { ContractPerformanceWorkspaceQuery } from './contractPerformanceQuery';
@@ -145,8 +145,8 @@ export function ContractPerformanceWorkspaceClient({
 
   if (query.mode === 'source-compatible') {
     return (
-      <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="contract-performance">
-        <div className="mx-auto max-w-[1180px]">
+      <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="contract-performance">
+        <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">계약대비실적 (월별)</h1>
           <p className="mt-1 text-sm text-muted-foreground">확정 계약 기준 월별 청구계획·실적을 조회합니다.</p>
 
@@ -184,8 +184,8 @@ export function ContractPerformanceWorkspaceClient({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-ssoo-content-bg">
-      <header className="border-b bg-card px-5 py-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-ssoo-content-bg">
+      <header className="border-b bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase text-muted-foreground">CRM Contract Performance</p>
@@ -199,8 +199,8 @@ export function ContractPerformanceWorkspaceClient({
         <p className="mt-2 text-sm text-muted-foreground">{currentData.summary.boundaryNotice}</p>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-auto p-5">
-        <section className="grid gap-3 md:grid-cols-5">
+      <main className="mx-auto min-h-0 w-full min-w-0 flex-1 overflow-auto p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           <Metric label="확정 계약" value={`${currentData.summary.contractCount}건`} sub={`${currentData.summary.year}년 계획/실적`} />
           <Metric label="계획 매출" value={formatEok(currentData.summary.planRevenueTotal)} sub={formatWon(currentData.summary.planRevenueTotal)} />
           <Metric label="실적 매출" value={formatEok(currentData.summary.actualRevenueTotal)} sub={`달성률 ${currentData.summary.revenueAchievementRate}%`} />
@@ -312,12 +312,12 @@ function PerformanceTable({ items, isLoading, sourceCompatible = false }: { item
         <TableBody className="divide-y divide-border">
           {isLoading ? (
             <TableRow>
-              <TableCell className="px-3 py-5 text-center text-ssoo-info" colSpan={sourceCompatible ? 46 : 44}>계약대비실적을 불러오는 중입니다.</TableCell>
+              <TableCell className="px-3 py-5 text-left text-ssoo-info" colSpan={sourceCompatible ? 46 : 44}>계약대비실적을 불러오는 중입니다.</TableCell>
             </TableRow>
           ) : null}
           {!isLoading && items.length === 0 ? (
             <TableRow>
-              <TableCell className="px-3 py-5 text-center text-muted-foreground" colSpan={sourceCompatible ? 46 : 44}>조회된 계약대비실적이 없습니다.</TableCell>
+              <TableCell className="px-3 py-5 text-left text-muted-foreground" colSpan={sourceCompatible ? 46 : 44}>조회된 계약대비실적이 없습니다.</TableCell>
             </TableRow>
           ) : null}
           {!isLoading ? items.map((item) => <PerformanceRowGroup key={item.contractId} item={item} sourceCompatible={sourceCompatible} />) : null}

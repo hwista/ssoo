@@ -13,7 +13,7 @@ import type {
   CrmReportsPreviewResponse,
 } from '@ssoo/types/crm';
 import { Badge, Button, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
-import { SsooSearchInput } from '@ssoo/web-shell';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
 import { useCrmDomainAccess } from '@/lib/useCrmDomainAccess';
@@ -111,6 +111,7 @@ export function ReportsPreviewWorkspaceClient({
   const { access: domainAccess, error: domainAccessError } = useCrmDomainAccess(accessToken);
   const canConfirmReport = domainAccess?.features.canConfirmReport === true;
   const [currentData, setCurrentData] = useState(data);
+  const [filters, setFilters] = useState(query);
   const [isReloading, setIsReloading] = useState(data.breakdowns.length === 0 && data.attentionItems.length === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -120,6 +121,18 @@ export function ReportsPreviewWorkspaceClient({
   const businessYears = useCrmBusinessYearOptions(query.year, getYearOptions(query.year));
   const yearOptions = businessYears.years;
   const latestConfirmation = currentData.summary.latestConfirmation;
+  const businessTypeOptions = [...new Set([...currentData.summary.businessTypeOptions, filters.businessType].filter(Boolean))];
+  const industryLineOptions = [...new Set([...currentData.summary.industryLineOptions, filters.industryLine].filter(Boolean))];
+
+  useEffect(() => {
+    setFilters({
+      year: query.year,
+      businessType: query.businessType,
+      industryLine: query.industryLine,
+      region: query.region,
+      search: query.search,
+    });
+  }, [query.year, query.businessType, query.industryLine, query.region, query.search]);
 
   useEffect(() => {
     setCurrentData(data);
@@ -223,8 +236,8 @@ export function ReportsPreviewWorkspaceClient({
   }, [loadPreview]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-ssoo-content-bg">
-      <header className="border-b bg-card px-5 py-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-ssoo-content-bg">
+      <header className="border-b bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase text-muted-foreground">CRM Reports Preview</p>
@@ -263,8 +276,8 @@ export function ReportsPreviewWorkspaceClient({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-auto p-5">
-        <section className="grid gap-3 md:grid-cols-5">
+      <main className="mx-auto min-h-0 w-full min-w-0 flex-1 overflow-auto p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
+        <section className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           <Metric label="Pipeline 매출" value={formatEok(currentData.summary.pipelineRevenueTotal)} sub={`${currentData.summary.opportunityCount}개 영업기회`} />
           <Metric label="계획 매출" value={formatEok(currentData.summary.planRevenueTotal)} sub={`${currentData.summary.contractCount}개 확정 계약`} />
           <Metric label="실적 매출" value={formatEok(currentData.summary.actualRevenueTotal)} sub={formatRate(currentData.summary.revenueAchievementRate)} />
@@ -276,33 +289,33 @@ export function ReportsPreviewWorkspaceClient({
           <form action="/reports" className="flex flex-wrap items-end gap-3 border-b p-4">
             <label className="w-[132px] text-sm font-medium text-muted-foreground">
               사업년도
-              <NativeSelect name="year" defaultValue={String(query.year)} className="mt-1">
+              <NativeSelect name="year" value={String(filters.year)} onChange={(event) => setFilters((current) => ({ ...current, year: Number(event.target.value) }))} className="mt-1">
                 {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
               </NativeSelect>
             </label>
             <label className="w-[172px] text-sm font-medium text-muted-foreground">
               사업구분
-              <NativeSelect name="businessType" defaultValue={query.businessType} className="mt-1">
+              <NativeSelect name="businessType" value={filters.businessType} onChange={(event) => setFilters((current) => ({ ...current, businessType: event.target.value }))} className="mt-1">
                 <option value="">전체</option>
-                {currentData.summary.businessTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                {businessTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
               </NativeSelect>
             </label>
             <label className="w-[172px] text-sm font-medium text-muted-foreground">
               계열/산업
-              <NativeSelect name="industryLine" defaultValue={query.industryLine} className="mt-1">
+              <NativeSelect name="industryLine" value={filters.industryLine} onChange={(event) => setFilters((current) => ({ ...current, industryLine: event.target.value }))} className="mt-1">
                 <option value="">전체</option>
-                {currentData.summary.industryLineOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                {industryLineOptions.map((option) => <option key={option} value={option}>{option}</option>)}
               </NativeSelect>
             </label>
             <label className="w-[132px] text-sm font-medium text-muted-foreground">
               국내/해외
-              <NativeSelect name="region" defaultValue={query.region} className="mt-1">
+              <NativeSelect name="region" value={filters.region} onChange={(event) => setFilters((current) => ({ ...current, region: event.target.value as CrmReportsPreviewRegion }))} className="mt-1">
                 {Object.entries(regionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </NativeSelect>
             </label>
-            <label className="min-w-[220px] flex-1 text-sm font-medium text-muted-foreground">
+            <label className="min-w-0 flex-[1_1_220px] text-sm font-medium text-muted-foreground">
               검색
-              <SsooSearchInput id="crm-reports-search-input" name="search" ariaLabel="CRM 보고서 검색" intent="data-filter" defaultValue={query.search} placeholder="고객, 건명, 담당자, WBS" className="mt-1" />
+              <SsooSearchInput id="crm-reports-search-input" name="search" ariaLabel="CRM 보고서 검색" intent="data-filter" value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="고객, 건명, 담당자, WBS" className="mt-1" />
             </label>
             <Button type="submit">
               <Search className="mr-2 h-4 w-4" />
@@ -347,21 +360,21 @@ export function ReportsPreviewWorkspaceClient({
 function Metric({ label, value, sub }: { label: string; value: string; sub: string }) {
   const valueTone = value.startsWith('-') ? 'text-ssoo-danger' : 'text-foreground';
   return (
-    <div className="rounded-md border bg-card px-4 py-3">
+    <div className="min-w-0 rounded-md border bg-card px-4 py-3">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className={`mt-1 text-lg font-semibold ${valueTone}`}>{value}</div>
-      <div className="mt-1 truncate text-xs text-muted-foreground">{sub}</div>
+      <div className={`mt-1 break-words text-lg font-semibold ${valueTone}`}>{value}</div>
+      <div className="mt-1 break-words text-xs text-muted-foreground">{sub}</div>
     </div>
   );
 }
 
 function MonthlyTrend({ months }: { months: CrmReportsMonthlyTrend[] }) {
   return (
-    <div className="grid gap-2 border-b p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+    <div className="grid min-w-0 grid-cols-1 gap-2 border-b p-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
       {months.map((month) => (
-        <div key={month.month} className="rounded-md border bg-ssoo-content-bg px-3 py-2">
+        <div key={month.month} className="min-w-0 rounded-md border bg-ssoo-content-bg px-3 py-2">
           <div className="text-sm font-semibold text-foreground">{month.month}월</div>
-          <div className="mt-2 grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+          <div className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-1 break-words text-xs text-muted-foreground">
             <span>계획</span>
             <span className="text-right font-medium text-foreground">{formatEok(month.planRevenueAmount)}</span>
             <span>실적</span>

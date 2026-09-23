@@ -1,3 +1,4 @@
+import type { AccessRequestService } from '../../dms/access/access-request.service.js';
 import { BadRequestException } from '@nestjs/common';
 import type { CrmQuoteSellerProfile } from '@ssoo/types/crm';
 import type { DatabaseService } from '../../../database/database.service.js';
@@ -558,6 +559,8 @@ function createService(
     fileCrudService as FileCrudService | undefined,
     templateService as TemplateService | undefined,
     dmsCrmContractLifecycleService as DmsCrmContractLifecycleService | undefined,
+    undefined,
+    { syncDocumentProjection: async () => undefined } as unknown as AccessRequestService,
   );
 }
 

@@ -21,7 +21,7 @@ import type {
   CrmCostPlanPreviewRow,
 } from '@ssoo/types/crm';
 import { Badge, Button, Checkbox, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
-import { SsooSearchInput } from '@ssoo/web-shell';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
 import { useCrmDomainAccess } from '@/lib/useCrmDomainAccess';
@@ -218,6 +218,7 @@ export function CostPlanPreviewWorkspaceClient({
   const canWriteCostPlan = domainAccess?.features.canWriteCostPlan === true;
   const canConfirmCostPlan = domainAccess?.features.canConfirmCostPlan === true;
   const [currentData, setCurrentData] = useState(data);
+  const [filters, setFilters] = useState(query);
   const [isReloading, setIsReloading] = useState(data.rows.length === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedInternalRowKey, setSelectedInternalRowKey] = useState(data.rows[0]?.key ?? '');
@@ -259,6 +260,19 @@ export function CostPlanPreviewWorkspaceClient({
   const accountingPaymentApiHref = useMemo(() => buildAccountingPaymentApiHref(query), [query]);
   const businessYears = useCrmBusinessYearOptions(query.year, getYearOptions(query.year));
   const yearOptions = businessYears.years;
+  const businessTypeOptions = [...new Set([...currentData.summary.businessTypeOptions, filters.businessType].filter(Boolean))];
+  const industryLineOptions = [...new Set([...currentData.summary.industryLineOptions, filters.industryLine].filter(Boolean))];
+
+  useEffect(() => {
+    setFilters({
+      year: query.year,
+      businessType: query.businessType,
+      industryLine: query.industryLine,
+      region: query.region,
+      search: query.search,
+      sourceSurface: query.sourceSurface,
+    });
+  }, [query.year, query.businessType, query.industryLine, query.region, query.search, query.sourceSurface]);
   const amsMappingRows = useMemo(() => getAmsMappingRows(currentData.rows), [currentData.rows]);
   const amsExternalRows = useMemo(() => getAmsExternalInputRows(currentData.rows), [currentData.rows]);
   const selectedInternalRow = useMemo(
@@ -881,8 +895,8 @@ export function CostPlanPreviewWorkspaceClient({
 
   if (query.sourceSurface === 'internal-cost') {
     return (
-      <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="internal-cost">
-        <div className="mx-auto max-w-[1180px]">
+      <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="internal-cost">
+        <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">내부원가 등록</h1>
           <p className="mt-1 text-sm text-muted-foreground">년도별 월간 내부원가를 입력합니다.</p>
           <SourceCostYearForm id="ic-year" label="년도 *" year={query.year} yearOptions={yearOptions} sourceSurface="internal-cost" />
@@ -908,8 +922,8 @@ export function CostPlanPreviewWorkspaceClient({
 
   if (query.sourceSurface === 'ams-vendor') {
     return (
-      <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="ams-vendor">
-        <div className="mx-auto max-w-[1180px]">
+      <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="ams-vendor">
+        <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">공급업체 관리</h1>
           <p className="mt-1 text-sm text-muted-foreground">사업년도별 AMS 공급업체와 WBS를 관리합니다.</p>
           <SourceCostYearForm id="av-year" label="사업년도 *" year={query.year} yearOptions={yearOptions} sourceSurface="ams-vendor" />
@@ -935,8 +949,8 @@ export function CostPlanPreviewWorkspaceClient({
 
   if (query.sourceSurface === 'ams-cost') {
     return (
-      <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="ams-cost">
-        <div className="mx-auto max-w-[1180px]">
+      <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="ams-cost">
+        <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">연간 외부원가</h1>
           <p className="mt-1 text-sm text-muted-foreground">공급업체·WBS별 월간 계획과 실적을 입력합니다.</p>
           <SourceCostYearForm id="ac-year" label="사업년도 *" year={query.year} yearOptions={yearOptions} sourceSurface="ams-cost" />
@@ -960,8 +974,8 @@ export function CostPlanPreviewWorkspaceClient({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-ssoo-content-bg">
-      <header className="border-b bg-card px-5 py-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-ssoo-content-bg">
+      <header className="border-b bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase text-muted-foreground">CRM Cost and AMS Preview</p>
@@ -980,8 +994,8 @@ export function CostPlanPreviewWorkspaceClient({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-auto p-5">
-        <section className="grid gap-3 md:grid-cols-6 xl:grid-cols-12">
+      <main className="mx-auto min-h-0 w-full min-w-0 flex-1 overflow-auto p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
+        <section className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
           <Metric label="내부원가 후보" value={formatEok(currentData.summary.internalCostCandidateTotal)} sub={formatWon(currentData.summary.internalCostCandidateTotal)} />
           <Metric label="입력 계획" value={formatEok(currentData.summary.internalCostPlanInputTotal)} sub={`${currentData.summary.internalCostInputRowCount}개 입력`} />
           <Metric label="입력 실적" value={formatEok(currentData.summary.internalCostActualInputTotal)} sub={formatWon(currentData.summary.internalCostActualInputTotal)} />
@@ -1001,33 +1015,33 @@ export function CostPlanPreviewWorkspaceClient({
           <form action="/cost-plan" className="flex flex-wrap items-end gap-3 border-b p-4">
             <label className="w-[132px] text-sm font-medium text-muted-foreground">
               사업년도
-              <NativeSelect name="year" defaultValue={String(query.year)} className="mt-1">
+              <NativeSelect name="year" value={String(filters.year)} onChange={(event) => setFilters((current) => ({ ...current, year: Number(event.target.value) }))} className="mt-1">
                 {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
               </NativeSelect>
             </label>
             <label className="w-[172px] text-sm font-medium text-muted-foreground">
               사업구분
-              <NativeSelect name="businessType" defaultValue={query.businessType} className="mt-1">
+              <NativeSelect name="businessType" value={filters.businessType} onChange={(event) => setFilters((current) => ({ ...current, businessType: event.target.value }))} className="mt-1">
                 <option value="">전체</option>
-                {currentData.summary.businessTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                {businessTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
               </NativeSelect>
             </label>
             <label className="w-[172px] text-sm font-medium text-muted-foreground">
               계열/산업
-              <NativeSelect name="industryLine" defaultValue={query.industryLine} className="mt-1">
+              <NativeSelect name="industryLine" value={filters.industryLine} onChange={(event) => setFilters((current) => ({ ...current, industryLine: event.target.value }))} className="mt-1">
                 <option value="">전체</option>
-                {currentData.summary.industryLineOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                {industryLineOptions.map((option) => <option key={option} value={option}>{option}</option>)}
               </NativeSelect>
             </label>
             <label className="w-[132px] text-sm font-medium text-muted-foreground">
               국내/해외
-              <NativeSelect name="region" defaultValue={query.region} className="mt-1">
+              <NativeSelect name="region" value={filters.region} onChange={(event) => setFilters((current) => ({ ...current, region: event.target.value as CrmCostPlanPreviewRegion }))} className="mt-1">
                 {Object.entries(regionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </NativeSelect>
             </label>
-            <label className="min-w-[220px] flex-1 text-sm font-medium text-muted-foreground">
+            <label className="min-w-0 flex-[1_1_220px] text-sm font-medium text-muted-foreground">
               검색
-              <SsooSearchInput id="crm-cost-plan-search-input" name="search" ariaLabel="원가 계획 검색" intent="data-filter" defaultValue={query.search} placeholder="고객, 건명, 담당자, WBS" className="mt-1" />
+              <SsooSearchInput id="crm-cost-plan-search-input" name="search" ariaLabel="원가 계획 검색" intent="data-filter" value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="고객, 건명, 담당자, WBS" className="mt-1" />
             </label>
             <Button type="submit">
               <Search className="mr-2 h-4 w-4" />
@@ -1251,8 +1265,8 @@ function InternalCostSourceGridPanel({
           <TableHeader className="bg-muted/60 text-muted-foreground">
             {sourceCompatible ? <TableRow><TableHead colSpan={15} className="border-b px-3 py-1 text-right text-xs font-normal">단위: 원</TableHead></TableRow> : null}
             <TableRow>
-              <TableHead className="sticky left-0 z-20 w-[132px] border-b border-r bg-muted px-3 py-2 text-left">항목</TableHead>
-              <TableHead className="sticky left-[132px] z-20 w-[64px] border-b border-r bg-muted px-2 py-2 text-left">구분</TableHead>
+              <TableHead className="md:sticky md:left-0 z-20 w-[132px] border-b border-r bg-muted px-3 py-2 text-left">항목</TableHead>
+              <TableHead className="md:sticky md:left-[132px] z-20 w-[64px] border-b border-r bg-muted px-2 py-2 text-left">구분</TableHead>
               {Array.from({ length: 12 }, (_, index) => <TableHead key={index} className="min-w-[92px] border-b border-r px-2 py-2 text-right">{index + 1}월</TableHead>)}
               <TableHead className="min-w-[112px] border-b px-3 py-2 text-right">합계</TableHead>
             </TableRow>
@@ -1264,9 +1278,9 @@ function InternalCostSourceGridPanel({
               return (
                 <TableRow key={`${item.itemCode}-${type}`} className={type === 'actual' ? 'border-b bg-muted/20' : ''}>
                   {type === 'plan' ? (
-                    <TableHead rowSpan={2} className="sticky left-0 z-10 border-r border-b bg-card px-3 py-2 text-left font-semibold text-foreground">{item.itemName}</TableHead>
+                    <TableHead rowSpan={2} className="md:sticky md:left-0 z-10 border-r border-b bg-card px-3 py-2 text-left font-semibold text-foreground">{item.itemName}</TableHead>
                   ) : null}
-                  <TableHead className="sticky left-[132px] z-10 border-r bg-card px-2 py-2 text-left font-medium text-muted-foreground">{type === 'plan' ? '계획' : '실적'}</TableHead>
+                  <TableHead className="md:sticky md:left-[132px] z-10 border-r bg-card px-2 py-2 text-left font-medium text-muted-foreground">{type === 'plan' ? '계획' : '실적'}</TableHead>
                   {values.map((value, monthIndex) => (
                     <TableCell key={monthIndex} className="border-r p-1">
                       <Input
@@ -1320,8 +1334,8 @@ function InternalCostSourceSummaryRow({
 }) {
   return (
     <TableRow className={difference ? 'border-t-2 bg-ssoo-info-bg font-semibold' : 'border-t bg-muted/40 font-semibold'}>
-      <TableHead className="sticky left-0 z-10 border-r bg-inherit px-3 py-2 text-left">{label}</TableHead>
-      <TableHead className="sticky left-[132px] z-10 border-r bg-inherit px-2 py-2 text-left">{typeLabel}</TableHead>
+      <TableHead className="md:sticky md:left-0 z-10 border-r bg-inherit px-3 py-2 text-left">{label}</TableHead>
+      <TableHead className="md:sticky md:left-[132px] z-10 border-r bg-inherit px-2 py-2 text-left">{typeLabel}</TableHead>
       {values.map((value, index) => (
         <TableCell key={index} className={`border-r px-2 py-2 text-right tabular-nums ${difference ? internalSourceDifferenceTone(value) : ''}`}>{formatInternalSourceAmount(value)}</TableCell>
       ))}
@@ -1341,21 +1355,21 @@ function internalSourceDifferenceTone(value: number) {
 function Metric({ label, value, sub }: { label: string; value: string; sub: string }) {
   const valueTone = value.startsWith('-') ? 'text-ssoo-danger' : 'text-foreground';
   return (
-    <div className="rounded-md border bg-card px-4 py-3">
-      <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className={`mt-1 text-lg font-semibold ${valueTone}`}>{value}</div>
-      <div className="mt-1 truncate text-xs text-muted-foreground">{sub}</div>
+    <div className="min-w-0 rounded-md border bg-card px-4 py-3">
+      <div className="min-w-0 text-xs font-medium text-muted-foreground">{label}</div>
+      <div className={`mt-1 break-words text-lg font-semibold ${valueTone}`}>{value}</div>
+      <div className="mt-1 break-words text-xs text-muted-foreground">{sub}</div>
     </div>
   );
 }
 
 function MonthlyCostSummary({ months }: { months: CrmCostPlanPreviewMonth[] }) {
   return (
-    <div className="grid gap-2 border-b p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+    <div className="grid min-w-0 grid-cols-1 gap-2 border-b p-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
       {months.map((month) => (
-        <div key={month.month} className="rounded-md border bg-ssoo-content-bg px-3 py-2">
+        <div key={month.month} className="min-w-0 rounded-md border bg-ssoo-content-bg px-3 py-2">
           <div className="text-sm font-semibold text-foreground">{month.month}월</div>
-          <div className="mt-2 grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+          <div className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-1 break-words text-xs text-muted-foreground">
             <span>내부</span>
             <span className="text-right font-medium text-foreground">{formatEok(month.pipelineInternalCostAmount + month.contractInternalCostAmount)}</span>
             <span>입력계획</span>
@@ -1425,7 +1439,7 @@ function InternalMonthlyInputPanel({
   return (
     <div className="border-b p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <label className="min-w-[260px] flex-1 text-sm font-medium text-muted-foreground">
+        <label className="min-w-0 flex-[1_1_260px] text-sm font-medium text-muted-foreground">
           내부원가 입력 기준
           <NativeSelect
             value={selectedRowKey}
@@ -1441,7 +1455,7 @@ function InternalMonthlyInputPanel({
             ))}
           </NativeSelect>
         </label>
-        <div className="grid min-w-[420px] grid-cols-4 gap-2 text-xs text-muted-foreground">
+        <div className="grid w-full min-w-0 grid-cols-2 gap-2 text-xs text-muted-foreground xl:max-w-[420px] xl:grid-cols-4">
           <InputMetric label="계획" value={formatEok(planInputTotal)} />
           <InputMetric label="실적" value={formatEok(actualInputTotal)} />
           <InputMetric label="Gap" value={formatEok(gapTotal)} tone={gapTotal < 0 ? 'danger' : 'info'} />
@@ -1474,11 +1488,11 @@ function InternalMonthlyInputPanel({
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
         {monthlyPlanAmounts.map((planAmount, index) => (
-          <div key={index} className="grid grid-cols-[44px_1fr_1fr] items-end gap-2">
+          <div key={index} className="grid min-w-0 grid-cols-[44px_minmax(0,1fr)_minmax(0,1fr)] items-end gap-2">
             <div className="pb-2 text-sm font-semibold text-foreground">{index + 1}월</div>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               계획
               <Input
                 type="number"
@@ -1489,7 +1503,7 @@ function InternalMonthlyInputPanel({
                 onChange={(event) => onChangePlan(index, event.target.value)}
               />
             </label>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               실적
               <Input
                 type="number"
@@ -1539,9 +1553,10 @@ function AmsSourceVendorPanel({
           <h2 className="text-sm font-semibold text-foreground">{sourceCompatible ? '공급업체 관리' : `${workspace.targetYear}년 AMS 공급업체 관리 · 원본 다중 WBS`}</h2>
           {!sourceCompatible ? <p className="mt-1 text-xs text-muted-foreground">{workspace.boundaryNotice}</p> : null}
         </div>
-        <div className="flex min-w-[320px] gap-2">
+        <div className="flex w-full min-w-0 flex-wrap gap-2 sm:max-w-[420px]">
           <Input
             aria-label="AMS 공급업체명"
+            className="min-w-0 flex-[1_1_180px]"
             value={vendorName}
             maxLength={200}
             placeholder="공급업체명"
@@ -1564,9 +1579,9 @@ function AmsSourceVendorPanel({
           {workspace.vendors.map((vendor) => {
             const selected = new Set(vendor.wbs.map((mapping) => mapping.wbsCode));
             return (
-              <div key={vendor.id} className="rounded-md border p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-foreground">{vendor.vendorName}</span>
+              <div key={vendor.id} className="min-w-0 rounded-md border p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="min-w-0 break-words font-semibold text-foreground">{vendor.vendorName}</span>
                   <Button variant="outline" size="sm" type="button" disabled={!canWrite || isSaving} onClick={() => onDelete(vendor.id, vendor.vendorName)}>
                     <Trash2 className="mr-2 h-4 w-4" />삭제
                   </Button>
@@ -1584,7 +1599,7 @@ function AmsSourceVendorPanel({
                           disabled={!canWrite || isSaving}
                           onCheckedChange={(checked) => onToggleWbs(vendor.id, wbs.wbsCode, checked === true)}
                         />
-                        <span>{wbs.label}</span>
+                        <span className="min-w-0 break-words">{wbs.label}</span>
                       </label>
                     ))}
                   </div>
@@ -1644,8 +1659,8 @@ function AmsSourceExternalCostPanel({
           <Table className="min-w-[3420px] border-collapse text-xs">
             <TableHeader className="bg-muted/60 text-muted-foreground">
               <TableRow>
-                <TableHead rowSpan={2} className="sticky left-0 z-30 min-w-[120px] border-b border-r bg-muted px-3 py-2">공급업체</TableHead>
-                <TableHead rowSpan={2} className="sticky left-[120px] z-30 min-w-[100px] border-b border-r-2 bg-muted px-3 py-2">WBS코드</TableHead>
+                <TableHead rowSpan={2} className="md:sticky md:left-0 z-30 min-w-[120px] border-b border-r bg-muted px-3 py-2">공급업체</TableHead>
+                <TableHead rowSpan={2} className="md:sticky md:left-[120px] z-30 min-w-[100px] border-b border-r-2 bg-muted px-3 py-2">WBS코드</TableHead>
                 {Array.from({ length: 12 }, (_, index) => <TableHead key={index} colSpan={3} className="min-w-[240px] border-b border-r px-2 py-2">{index + 1}월</TableHead>)}
                 <TableHead colSpan={3} className="min-w-[240px] border-b px-2 py-2">합계</TableHead>
               </TableRow>
@@ -1668,9 +1683,9 @@ function AmsSourceExternalCostPanel({
                 return (
                   <TableRow key={`${row.vendorId}-${row.wbsCode}`} className="border-b">
                     {firstForVendor ? (
-                      <TableHead rowSpan={vendorRowCounts.get(row.vendorId)} className="sticky left-0 z-20 border-r bg-card px-3 py-2 text-center font-semibold">{row.vendorName}</TableHead>
+                      <TableHead rowSpan={vendorRowCounts.get(row.vendorId)} className="md:sticky md:left-0 z-20 border-r bg-card px-3 py-2 text-center font-semibold">{row.vendorName}</TableHead>
                     ) : null}
-                    <TableHead className="sticky left-[120px] z-20 border-r-2 bg-card px-3 py-2 font-mono text-caption-2xs">{row.wbsCode}</TableHead>
+                    <TableHead className="md:sticky md:left-[120px] z-20 border-r-2 bg-card px-3 py-2 font-mono text-caption-2xs">{row.wbsCode}</TableHead>
                     {Array.from({ length: 12 }, (_, monthIndex) => {
                       const plan = row.planValues[monthIndex] ?? '';
                       const actual = row.actualValues[monthIndex] ?? '';
@@ -1770,8 +1785,8 @@ function AmsVendorMappingPanel({
 }) {
   return (
     <div className="border-b p-4">
-      <div className="grid gap-3 xl:grid-cols-[minmax(260px,1.5fr)_minmax(180px,1fr)_minmax(180px,1fr)_minmax(220px,auto)_auto] xl:items-end">
-        <label className="text-sm font-medium text-muted-foreground">
+      <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 xl:items-end">
+        <label className="min-w-0 text-sm font-medium text-muted-foreground">
           AMS 매핑 기준
           <NativeSelect
             value={selectedRowKey}
@@ -1787,7 +1802,7 @@ function AmsVendorMappingPanel({
             ))}
           </NativeSelect>
         </label>
-        <label className="text-sm font-medium text-muted-foreground">
+        <label className="min-w-0 text-sm font-medium text-muted-foreground">
           업체명
           <Input
             value={vendorName}
@@ -1797,7 +1812,7 @@ function AmsVendorMappingPanel({
             onChange={(event) => onChangeVendorName(event.target.value)}
           />
         </label>
-        <label className="text-sm font-medium text-muted-foreground">
+        <label className="min-w-0 text-sm font-medium text-muted-foreground">
           계약/발주 번호
           <Input
             value={vendorContractNo}
@@ -1874,7 +1889,7 @@ function AmsExternalMonthlyInputPanel({
   return (
     <div className="border-b p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <label className="min-w-[280px] flex-1 text-sm font-medium text-muted-foreground">
+        <label className="min-w-0 flex-[1_1_280px] text-sm font-medium text-muted-foreground">
           AMS 외부원가 입력 기준
           <NativeSelect
             value={selectedRowKey}
@@ -1890,7 +1905,7 @@ function AmsExternalMonthlyInputPanel({
             ))}
           </NativeSelect>
         </label>
-        <div className="grid min-w-[420px] grid-cols-4 gap-2 text-xs text-muted-foreground">
+        <div className="grid w-full min-w-0 grid-cols-2 gap-2 text-xs text-muted-foreground xl:max-w-[420px] xl:grid-cols-4">
           <InputMetric label="상태" value={selectedRow ? amsExternalInputStatusLabels[selectedRow.amsExternalCostInputStatus] : '-'} tone={isConfirmed ? 'info' : undefined} />
           <InputMetric label="계획" value={formatEok(planInputTotal)} />
           <InputMetric label="실적" value={formatEok(actualInputTotal)} />
@@ -1925,11 +1940,11 @@ function AmsExternalMonthlyInputPanel({
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
         {monthlyPlanAmounts.map((planAmount, index) => (
-          <div key={index} className="grid grid-cols-[44px_1fr_1fr] items-end gap-2">
+          <div key={index} className="grid min-w-0 grid-cols-[44px_minmax(0,1fr)_minmax(0,1fr)] items-end gap-2">
             <div className="pb-2 text-sm font-semibold text-foreground">{index + 1}월</div>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               계획
               <Input
                 type="number"
@@ -1940,7 +1955,7 @@ function AmsExternalMonthlyInputPanel({
                 onChange={(event) => onChangePlan(index, event.target.value)}
               />
             </label>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="min-w-0 text-xs font-medium text-muted-foreground">
               실적
               <Input
                 type="number"
@@ -2010,7 +2025,7 @@ function AccountingPaymentHandoffPanel({
       </div>
 
       {preview ? (
-        <div className="mt-4 grid gap-2 md:grid-cols-4">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
           <InputMetric label="확정 line" value={`${preview.lineCount}개`} />
           <InputMetric label="내부원가" value={`${preview.internalLineCount}개`} />
           <InputMetric label="AMS 정산" value={`${preview.amsExternalLineCount}개`} />
@@ -2093,9 +2108,9 @@ function AccountingPaymentHandoffPanel({
 function InputMetric({ label, value, tone }: { label: string; value: string; tone?: 'danger' | 'info' }) {
   const toneClass = tone === 'danger' ? 'text-ssoo-danger' : tone === 'info' ? 'text-ssoo-info' : 'text-foreground';
   return (
-    <div className="rounded-md border bg-ssoo-content-bg px-3 py-2">
+    <div className="min-w-0 rounded-md border bg-ssoo-content-bg px-3 py-2">
       <div className="font-medium">{label}</div>
-      <div className={`mt-1 text-sm font-semibold ${toneClass}`}>{value}</div>
+      <div className={`mt-1 break-words text-sm font-semibold ${toneClass}`}>{value}</div>
     </div>
   );
 }
@@ -2132,12 +2147,12 @@ function CostPlanTable({ rows, isLoading }: { rows: CrmCostPlanPreviewRow[]; isL
         <TableBody className="divide-y divide-border">
           {isLoading ? (
             <TableRow>
-              <TableCell className="px-3 py-5 text-center text-ssoo-info" colSpan={21}>원가/AMS preview를 불러오는 중입니다.</TableCell>
+              <TableCell className="px-3 py-5 text-left text-ssoo-info" colSpan={21}>원가/AMS preview를 불러오는 중입니다.</TableCell>
             </TableRow>
           ) : null}
           {!isLoading && rows.length === 0 ? (
             <TableRow>
-              <TableCell className="px-3 py-5 text-center text-muted-foreground" colSpan={21}>조회된 원가/AMS 후보가 없습니다.</TableCell>
+              <TableCell className="px-3 py-5 text-left text-muted-foreground" colSpan={21}>조회된 원가/AMS 후보가 없습니다.</TableCell>
             </TableRow>
           ) : null}
           {!isLoading ? rows.map((row) => <CostPlanRow key={row.key} row={row} />) : null}

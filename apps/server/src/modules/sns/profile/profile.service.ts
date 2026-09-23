@@ -6,7 +6,7 @@ import { CommonNotificationService } from '../../common/notification/notificatio
 
 const profileInclude = {
   userSkills: {
-    where: { isActive: true },
+    where: { isActive: true, skill: { isActive: true } },
     include: {
       skill: true,
       _count: {
@@ -60,6 +60,7 @@ export class ProfileService {
 
   async updateProfile(userId: bigint, dto: UpdateProfileDto) {
     await this.assertActiveUser(userId);
+    await this.ensureProfile(userId);
 
     const userUpdateData: Prisma.UserUpdateInput = {};
 
@@ -113,8 +114,6 @@ export class ProfileService {
         create: profileCreateData,
         update: profileUpdateData,
       });
-    } else {
-      await this.ensureProfile(userId);
     }
 
     const surface = await this.getProfileSurface(userId, userId);
@@ -196,6 +195,9 @@ export class ProfileService {
     });
 
     if (profile) {
+      if (!profile.isActive) {
+        throw new NotFoundException(`Profile for user ${userId} not found`);
+      }
       return profile;
     }
 

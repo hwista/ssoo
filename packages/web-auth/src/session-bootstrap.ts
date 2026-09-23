@@ -1,6 +1,6 @@
 import type { AuthIdentity } from '@ssoo/types/common';
 import { createAuthApiAdapter, type CreateAuthApiAdapterOptions } from './auth-api';
-import { clearSharedAuthState, setSharedAuthSession } from './storage';
+import { clearSharedAuthState, getAuthRequestVersion, setSharedAuthSession } from './storage';
 
 const DEFAULT_SESSION_RESTORE_ERROR = '세션 복원 중 오류가 발생했습니다.';
 const INVALID_SESSION_PAYLOAD_ERROR = '세션 복원 응답 형식이 올바르지 않습니다.';
@@ -16,7 +16,7 @@ export interface RestoreSharedAuthSessionFailure {
   error: string;
   status?: number;
   clearedAuth: boolean;
-  reason: 'unauthorized' | 'transient' | 'invalid-payload';
+  reason: 'anonymous' | 'unauthorized' | 'transient' | 'invalid-payload' | 'superseded';
 }
 
 export type RestoreSharedAuthSessionResult =
@@ -38,7 +38,7 @@ function resolveRestoreOptions(
 }
 
 function getRestorePromiseKey(options: ResolvedRestoreOptions): string {
-  return `${options.basePath}::${options.credentials}`;
+  return `${options.basePath}::${options.credentials}::${getAuthRequestVersion()}`;
 }
 
 function createFailureResult(
@@ -94,11 +94,27 @@ export async function restoreSharedAuthSession(
   }
 
   const restorePromise = (async (): Promise<RestoreSharedAuthSessionResult> => {
+    const version = getAuthRequestVersion();
     const authApi = createAuthApiAdapter<AuthIdentity>(resolvedOptions);
     const restored = await authApi.restoreSession();
 
+    if (version !== getAuthRequestVersion()) {
+      return { success: false, error: '인증 상태가 변경되었습니다.', clearedAuth: false, reason: 'superseded' };
+    }
+
     if (!restored.success || !restored.data) {
       return createFailureResult(restored, 'transient');
+    }
+
+    if ('status' in restored.data && restored.data.status === 'anonymous'
+      && restored.data.accessToken === null && restored.data.user === null) {
+      clearSharedAuthState();
+      return {
+        success: false,
+        error: '로그인이 필요합니다.',
+        clearedAuth: true,
+        reason: 'anonymous',
+      };
     }
 
     if (typeof restored.data.accessToken !== 'string') {

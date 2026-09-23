@@ -15,9 +15,10 @@ import { useFloatingAssistantPanelBehavior } from './useFloatingAssistantPanelBe
 
 interface FloatingAssistantPanelProps {
   isOpen: boolean;
+  onClose?: () => void;
 }
 
-export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) {
+export function FloatingAssistantPanel({ isOpen, onClose }: FloatingAssistantPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
@@ -84,7 +85,7 @@ export function FloatingAssistantPanel({ isOpen }: FloatingAssistantPanelProps) 
 
   return (
     <section className={panelClassName} style={panelStyle} aria-hidden={!isOpen}>
-      <FloatingAssistantHeader onExpand={onExpand} />
+      <FloatingAssistantHeader onExpand={onExpand} onClose={onClose} />
 
       <FloatingAssistantHistory
         historyRef={historyRef}

@@ -9,6 +9,7 @@ import type {
   CrmQuoteSellerProfileUpsertRequest,
 } from '@ssoo/types/crm';
 import { Button, Input, NativeSelect, Textarea } from '@ssoo/web-ui';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCrmDomainAccess } from '@/lib/useCrmDomainAccess';
 
@@ -242,14 +243,14 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
 
   if (searchParams.get('mode') === 'source-compatible') {
     return (
-      <main className="min-h-full bg-ssoo-content-bg px-5 py-6" data-source-surface="company-profile">
-        <div className="max-w-[320px]">
+      <main className="min-h-full min-w-0 bg-ssoo-content-bg p-4" data-source-surface="company-profile">
+        <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">회사 정보</h1>
           <p className="mt-1 text-sm text-muted-foreground">견적서 등에 표시되는 회사 정보를 관리합니다.</p>
           {errorMessage ? <div className="mt-4 flex items-center gap-2 rounded-md bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger"><AlertCircle className="h-4 w-4" />{errorMessage}</div> : null}
           {noticeMessage ? <div className="mt-4 rounded-md bg-ssoo-success-bg px-3 py-2 text-sm text-ssoo-success">{noticeMessage}</div> : null}
           <section className="mt-6 rounded-xl border bg-card p-6">
-            <div className="space-y-4">
+            <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
               <SourceCompanyField label="회사명 *"><Input required disabled={!canManage} value={draft.companyName} onChange={(event) => updateDraft('companyName', event.target.value)} /></SourceCompanyField>
               <SourceCompanyField label="대표이사"><Input disabled={!canManage} value={draft.ceoName} onChange={(event) => updateDraft('ceoName', event.target.value)} /></SourceCompanyField>
               <SourceCompanyField label="사업자번호"><Input disabled={!canManage} value={draft.businessRegistrationNo} onChange={(event) => updateDraft('businessRegistrationNo', event.target.value)} /></SourceCompanyField>
@@ -267,11 +268,11 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
   }
 
   return (
-    <div className="min-h-full bg-muted">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-6 py-6">
+    <div className="min-h-full min-w-0 bg-muted">
+      <div className="mx-auto flex w-full min-w-0 flex-col gap-5 p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-md border border-border bg-card text-muted-foreground">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground">
               <Building2 className="h-5 w-5" />
             </div>
             <div>
@@ -279,7 +280,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
               <p className="mt-1 text-sm text-muted-foreground">견적서에 표시할 공급자 회사 정보</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" type="button" onClick={() => void loadProfile()} disabled={!accessToken || isLoading || isSaving}>
               <RefreshCw className="h-4 w-4" /> 새로고침
             </Button>
@@ -305,13 +306,13 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
           <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{domainAccessError}</div>
         ) : null}
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <section className="rounded-md border border-border bg-card">
             <div className="border-b border-border px-5 py-4">
               <div className="text-sm font-semibold text-foreground">회사 정보</div>
             </div>
-            <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-              <label className="space-y-1.5 text-sm text-muted-foreground">
+            <div className="grid min-w-0 grid-cols-1 gap-4 px-5 py-5 xl:grid-cols-2">
+              <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground">
                 <span className="font-medium text-muted-foreground">회사명</span>
                 <Input
                   required
@@ -322,7 +323,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   onChange={(event) => updateDraft('companyName', event.target.value)}
                 />
               </label>
-              <label className="space-y-1.5 text-sm text-muted-foreground">
+              <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground">
                 <span className="font-medium text-muted-foreground">대표이사</span>
                 <Input
                   value={draft.ceoName}
@@ -332,7 +333,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   onChange={(event) => updateDraft('ceoName', event.target.value)}
                 />
               </label>
-              <label className="space-y-1.5 text-sm text-muted-foreground">
+              <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground">
                 <span className="font-medium text-muted-foreground">사업자번호</span>
                 <Input
                   value={draft.businessRegistrationNo}
@@ -342,7 +343,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   onChange={(event) => updateDraft('businessRegistrationNo', event.target.value)}
                 />
               </label>
-              <label className="space-y-1.5 text-sm text-muted-foreground">
+              <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground">
                 <span className="font-medium text-muted-foreground">대표 전화</span>
                 <Input
                   value={draft.tel}
@@ -352,7 +353,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   onChange={(event) => updateDraft('tel', event.target.value)}
                 />
               </label>
-              <label className="space-y-1.5 text-sm text-muted-foreground">
+              <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground">
                 <span className="font-medium text-muted-foreground">팩스</span>
                 <Input
                   value={draft.fax}
@@ -362,7 +363,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   onChange={(event) => updateDraft('fax', event.target.value)}
                 />
               </label>
-              <label className="space-y-1.5 text-sm text-muted-foreground">
+              <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground">
                 <span className="font-medium text-muted-foreground">대표 이메일</span>
                 <Input
                   value={draft.email}
@@ -372,7 +373,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   onChange={(event) => updateDraft('email', event.target.value)}
                 />
               </label>
-              <label className="space-y-1.5 text-sm text-muted-foreground md:col-span-2">
+              <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground xl:col-span-2">
                 <span className="font-medium text-muted-foreground">회사 주소</span>
                 <Input
                   value={draft.address}
@@ -382,7 +383,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   onChange={(event) => updateDraft('address', event.target.value)}
                 />
               </label>
-              <label className="space-y-1.5 text-sm text-muted-foreground md:col-span-2">
+              <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground xl:col-span-2">
                 <span className="font-medium text-muted-foreground">웹사이트</span>
                 <Input
                   value={draft.website}
@@ -395,14 +396,14 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
             </div>
           </section>
 
-          <aside className="space-y-5">
+          <aside className="min-w-0 space-y-5">
             <section className="rounded-md border border-border bg-card">
               <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 <div className="text-sm font-semibold text-foreground">CI 연결</div>
               </div>
               <div className="space-y-4 px-4 py-4">
-                <label className="space-y-1.5 text-sm text-muted-foreground">
+                <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground">
                   <span className="font-medium text-muted-foreground">CI 상태</span>
                   <NativeSelect
                     value={draft.ciStatus}
@@ -414,7 +415,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                     ))}
                   </NativeSelect>
                 </label>
-                <label className="space-y-1.5 text-sm text-muted-foreground">
+                <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground">
                   <span className="font-medium text-muted-foreground">CI 저장소 참조</span>
                   <Input
                     value={draft.ciStorageRef}
@@ -424,7 +425,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                     onChange={(event) => updateDraft('ciStorageRef', event.target.value)}
                   />
                 </label>
-                <label className="block space-y-1.5 text-sm text-muted-foreground">
+                <label className="block min-w-0 space-y-1.5 text-sm text-muted-foreground">
                   <span className="font-medium text-muted-foreground">CI 이미지 선택·업로드</span>
                   <Input
                     type="file"
@@ -472,14 +473,14 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
 }
 
 function SourceCompanyField({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="block space-y-1.5 text-sm"><span className="font-medium text-muted-foreground">{label}</span>{children}</label>;
+  return <label className="block min-w-0 space-y-1.5 text-sm"><span className="font-medium text-muted-foreground">{label}</span>{children}</label>;
 }
 
 function StatusRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium text-foreground">{value}</span>
+      <span className="min-w-0 break-words text-right font-medium text-foreground">{value}</span>
     </div>
   );
 }

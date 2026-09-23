@@ -18,14 +18,14 @@ export const pmsUserScopeLifecycle = createAuthUserScopeLifecycle({
 export const getCurrentUserScopeId = pmsUserScopeLifecycle.getCurrentUserScopeId;
 export const registerUserScopedReset = pmsUserScopeLifecycle.registerUserScopedReset;
 
-export function clearPmsUserScopedState(): void {
+export function clearPmsUserScopedState(next: string | null = null): void {
   useAccessStore.getState().reset();
-  useTabStore.getState().closeAllTabs();
+  useTabStore.getState().syncUserScope(next);
 }
 
 registerUserScopedReset((next, prev) => {
   if (isUserScopeTransition(next, prev)) {
-    clearPmsUserScopedState();
+    clearPmsUserScopedState(next);
   }
 });
 

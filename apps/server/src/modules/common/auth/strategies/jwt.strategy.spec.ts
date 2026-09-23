@@ -66,4 +66,13 @@ describe('JwtStrategy session lifecycle validation', () => {
       where: { sessionId: payload.sessionId },
     }]);
   });
+  it('rejects active legacy storage and accepts the new format', async () => {
+    const session = { sessionId: payload.sessionId, userId: 1n, revokedAt: null,
+      expiresAt: new Date('2099-01-01'), createdAt: new Date(), lastSeenAt: new Date(),
+      sessionTokenHash: '$2b$10$legacy' };
+    await expect(createStrategy(session).strategy.validate(payload)).rejects.toBeInstanceOf(UnauthorizedException);
+    session.sessionTokenHash = 'sha256:' + 'a'.repeat(64);
+    await expect(createStrategy(session).strategy.validate(payload)).resolves.toMatchObject({ userId: '1' });
+  });
+
 });

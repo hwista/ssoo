@@ -1,7 +1,7 @@
 # SSOO Shared User Lifecycle Commonization
 
 > Status: canonical target and implementation gate
-> Last updated: 2026-06-16
+> Last updated: 2026-09-16
 > Scope: Admin, CRM, PMS, DMS, SNS login/session/profile/access lifecycle when one SSOO user moves across all apps.
 
 ## Why this document exists
@@ -59,7 +59,8 @@ Browser-local auth state is only a cache.
 
 - A local access token must not keep a user logged in after its `sessionId` has been revoked server-side.
 - `/auth/me`, protected domain APIs, and guards must reject access tokens whose session row is missing, expired, or revoked.
-- `/auth/session` must restore from the HttpOnly shared session cookie only when the backing session row and refresh token hash are valid.
+- `/auth/session` must restore from the HttpOnly shared session cookie only when the backing session row and refresh token hash are valid. With no session cookie at all, the 2026-09-16 approved contract returns explicit anonymous data with null token/user; this clears local state and never authorizes protected APIs. Empty, expired, forged and revoked cookies remain errors.
+- Approval-22 (2026-09-16): full-token hashing, unique issuance and atomic exchange reject consumed cookies. Legacy session storage requires one re-login. Browser restore survives navigation; stale auth work cannot overwrite a newer state. File/event authorization uses `/auth/session/access` without rotating, while still rejecting previously consumed cookies. Bounded same-origin redirects recover only rotation collisions with the latest browser cookie. See [verified scope](2026-09-16-token-replay-handoff.md); production evidence remains separate.
 - Logout must revoke the relevant session row and clear the shared session cookie.
 
 ### 2. Logout is a shared lifecycle event
@@ -322,6 +323,7 @@ Remaining lifecycle hardening is browser/manual validation depth and broader ope
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-09-16 | 승인-22 토큰 재사용 차단·기존 세션 1회 재로그인·동시 복원과 파일 확인 분리 및 실제 검증 |
 | 2026-07-03 | 공용 login/password-reset surface 가 앱 root `body[data-ssoo-theme]` token 을 소비하도록 기준을 보강하고, legacy auth teal/slate 색상 회귀를 `verify:auth-commonization` 대상으로 추가 |
 | 2026-06-22 | SNS middleware의 legacy `/profile/*`, `/settings` direct-entry canonical redirect를 `@ssoo/web-auth/user-surface-routing` route-only helper로 강제해 로그인 returnTo와 stale MDI tab storage도 `/__user/*`로 수렴하도록 사용자 생명주기 기준을 보강 |
 | 2026-06-22 | 공용 사용자 표면 legacy `/profile/*`, `/settings` route-entry 정규화를 `@ssoo/web-auth` user-surface routing helper로 중앙화하고, SNS 앱 layout이 route construction을 중복하지 않도록 검증 기준을 강화 |

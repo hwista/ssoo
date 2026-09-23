@@ -26,6 +26,7 @@ import {
   writeSharedAuthSnapshot,
 } from './storage';
 import { restoreSharedAuthSession } from './session-bootstrap';
+import { SharedApiError } from './axios-api-client';
 import { useCommonNotificationEventStream } from './notifications';
 import {
   dispatchSsooUserSurfaceChanged,
@@ -66,6 +67,11 @@ interface FeedResult {
 }
 
 interface SsooUserSurfaceApi {
+  invalidate: (
+    userId: string | null | undefined,
+    resolvedUserId: string | undefined,
+    includeAccount: boolean,
+  ) => void;
   getProfile: (userId?: string | null) => Promise<UserProfileSurface>;
   updateProfile: (data: UpdateProfileDto) => Promise<UserProfileSurface>;
   getProfileFeed: (userId: string) => Promise<FeedResult>;
@@ -193,7 +199,7 @@ async function performJsonRequest<T>(
 
   const payload = await response.json().catch(() => null) as unknown;
   if (!response.ok) {
-    throw new Error(getErrorMessage(payload, response.statusText || '요청 처리에 실패했습니다.'));
+    throw new SharedApiError(getErrorMessage(payload, response.statusText || '요청 처리에 실패했습니다.'), response.status);
   }
 
   return payload as T;
@@ -240,6 +246,17 @@ function createSsooUserSurfaceApi(apiBaseUrl?: string): SsooUserSurfaceApi {
   const baseUrl = normalizeApiBaseUrl(apiBaseUrl);
 
   return {
+    invalidate(userId, resolvedUserId, includeAccount) {
+      const profileIds = new Set([userId || 'me', resolvedUserId].filter((value): value is string => Boolean(value)));
+      for (const id of profileIds) {
+        const encodedId = encodeURIComponent(id);
+        getRequestCache.delete(`${baseUrl}/sns/profiles/${encodedId}`);
+        getRequestCache.delete(`${baseUrl}/sns/feed?authorUserId=${encodedId}&limit=${PROFILE_FEED_LIMIT}`);
+      }
+      if (includeAccount) {
+        getRequestCache.delete(`${baseUrl}/users/profile`);
+      }
+    },
     async getProfile(userId) {
       const path = userId && userId !== 'me'
         ? `/sns/profiles/${encodeURIComponent(userId)}`
@@ -429,6 +446,12 @@ export function SsooUserSurfacePage({
   const refreshInFlightRef = useRef(false);
   const refreshQueuedRef = useRef(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshRevisionRef = useRef(0);
+
+  const invalidate = useCallback(() => {
+    refreshRevisionRef.current += 1;
+    api.invalidate(targetUserId, profileRef.current?.user.id, surface === 'personal-settings');
+  }, [api, surface, targetUserId]);
 
   useEffect(() => {
     profileRef.current = profile;
@@ -441,14 +464,27 @@ export function SsooUserSurfacePage({
     }
 
     refreshInFlightRef.current = true;
+    const revision = refreshRevisionRef.current;
     setError(null);
     setIsLoading((current) => current || !profileRef.current);
 
     try {
       const [nextProfile, nextAccountProfile] = await Promise.all([
-        api.getProfile(targetUserId),
+        api.getProfile(targetUserId).catch((nextError: unknown) => {
+          if (revision === refreshRevisionRef.current && nextError instanceof SharedApiError && nextError.status === 404) {
+            setProfile(null);
+            setForm(null);
+            setFeedItems([]);
+            setIsEditing(surface === 'personal-settings');
+          }
+          throw nextError;
+        }),
         surface === 'personal-settings' ? api.getAccountProfile() : Promise.resolve(null),
       ]);
+      if (revision !== refreshRevisionRef.current) {
+        refreshQueuedRef.current = true;
+        return;
+      }
       setProfile(nextProfile);
       setForm((current) => current ?? toProfileForm(nextProfile));
       if (nextAccountProfile) {
@@ -457,10 +493,18 @@ export function SsooUserSurfacePage({
       }
       if (surface !== 'personal-settings') {
         const feed = await api.getProfileFeed(nextProfile.user.id);
-        setFeedItems(feed.items);
+        if (revision === refreshRevisionRef.current) {
+          setFeedItems(feed.items);
+        } else {
+          refreshQueuedRef.current = true;
+        }
       }
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : '유저 표면을 불러오지 못했습니다.');
+      if (revision === refreshRevisionRef.current) {
+        setError(nextError instanceof Error ? nextError.message : '유저 표면을 불러오지 못했습니다.');
+      } else {
+        refreshQueuedRef.current = true;
+      }
     } finally {
       setIsLoading(false);
       refreshInFlightRef.current = false;
@@ -489,6 +533,7 @@ export function SsooUserSurfacePage({
   }, []);
 
   useEffect(() => {
+    refreshRevisionRef.current += 1;
     setProfile(null);
     setFeedItems([]);
     setForm(null);
@@ -519,6 +564,7 @@ export function SsooUserSurfacePage({
         ? event.detail as SsooUserSurfaceChangedDetail | undefined
         : undefined;
       if (isRelevantLocalEvent(detail, profileRef.current)) {
+        invalidate();
         scheduleRefresh();
       }
     };
@@ -531,7 +577,7 @@ export function SsooUserSurfacePage({
       window.removeEventListener(SSOO_USER_SURFACE_CHANGED_EVENT, handleLocalChange);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [scheduleRefresh]);
+  }, [invalidate, scheduleRefresh]);
 
   useEffect(() => () => {
     if (refreshTimerRef.current !== null) {
@@ -543,6 +589,7 @@ export function SsooUserSurfacePage({
     eventsPath,
     onDomainEvent: (event) => {
       if (event.domainEvent && SNS_USER_SURFACE_DOMAIN_EVENTS.has(event.domainEvent.type)) {
+        invalidate();
         scheduleRefresh();
       }
     },

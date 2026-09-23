@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { MessageEvent } from '@nestjs/common';
 import type { Prisma } from '@ssoo/database';
 import type {
@@ -69,6 +69,21 @@ export class CommonNotificationService {
   private readonly globalDomainStreamListeners = new Set<NotificationStreamListener>();
 
   constructor(private readonly db: DatabaseService) {}
+
+  async createInTransaction(tx: Pick<DatabaseService['client'], 'commonNotification'>, input: NotifyUserInput): Promise<CommonNotificationItem> {
+    return this.toItem(await tx.commonNotification.create({ data: this.toCreateData(input) }));
+  }
+
+  publishCommittedNotifications(items: CommonNotificationItem[]) {
+    for (const item of items) {
+      try {
+        this.publishNotification(item);
+      } catch (error) {
+        // The durable notification is already committed and remains available through the list API.
+        new Logger(CommonNotificationService.name).warn(error instanceof Error ? error.message : 'Notification stream delivery failed');
+      }
+    }
+  }
 
   streamForUser(
     recipientUserId: bigint,

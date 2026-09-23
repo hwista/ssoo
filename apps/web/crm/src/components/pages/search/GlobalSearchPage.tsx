@@ -13,19 +13,20 @@ export function CrmGlobalSearchPage({ path }: { path?: string }) {
     currentApp: 'crm',
     currentPath: path,
     openCurrentAppResult: (result: CommonSearchResult) => {
-      openTab({
+      const opened = openTab({
         id: `crm-search-${result.id}`,
         title: result.title,
         path: result.target.path,
         closable: true,
         activate: true,
       });
-      router.push(result.target.path);
+      if (opened) router.push(result.target.path);
     },
   });
 
   return (
     <SsooGlobalSearchPage
+      sidecarNarrowBehavior="auto-close"
       initialQuery={globalSearch.initialQuery}
       initialSourceApp={globalSearch.initialSourceApp}
       search={globalSearch.search}

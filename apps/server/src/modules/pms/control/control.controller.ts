@@ -58,11 +58,13 @@ export class ControlController {
     @Param('projectId') projectId: string,
     @Param('projectIssueId') projectIssueId: string,
     @Body() dto: UpdateProjectIssueDto,
+    @CurrentUser() currentUser: TokenPayload,
   ) {
     const result = await this.controlService.updateProjectIssue(
       BigInt(projectId),
       BigInt(projectIssueId),
       dto,
+      BigInt(currentUser.userId),
     );
     return success(serializeBigInt(result));
   }

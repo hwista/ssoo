@@ -3,6 +3,7 @@ import type { SnsVisibilityScopeCode } from '@ssoo/types/sns';
 import type { ApiResponse, PaginatedResponse } from '../types';
 
 export interface PostItem {
+  attachments?: PostImage[];
   id: string;
   authorUserId: string;
   title: string | null;
@@ -16,6 +17,8 @@ export interface PostItem {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PostImage { id: string; fileName: string; mimeType: string; fileSize: string }
 
 export interface FeedItem {
   post: PostItem;
@@ -35,6 +38,17 @@ export interface FeedItem {
 }
 
 export const postsApi = {
+  image: (postId: string, imageId: string, signal?: AbortSignal) =>
+    apiClient.get<Blob>(`/sns/posts/${encodeURIComponent(postId)}/images/${encodeURIComponent(imageId)}`, { responseType: 'blob', signal }),
+
+  createWithImages: (data: { content: string; visibilityScopeCode?: SnsVisibilityScopeCode; submissionId: string; images: File[] }) => {
+    const form = new FormData();
+    form.append('content', data.content);
+    form.append('visibilityScopeCode', data.visibilityScopeCode ?? 'public');
+    form.append('submissionId', data.submissionId);
+    for (const file of data.images) form.append('images', file);
+    return apiClient.post<ApiResponse<PostItem>>('/sns/posts/with-images', form, { headers: { 'Content-Type': undefined }, timeout: 60_000 });
+  },
   feed: (params?: {
     cursor?: string;
     limit?: number;
@@ -55,6 +69,9 @@ export const postsApi = {
 
   detail: (id: string) =>
     apiClient.get<ApiResponse<PostItem>>(`/sns/posts/${id}`),
+
+  sharedPost: (id: string, signal?: AbortSignal) =>
+    apiClient.get<ApiResponse<FeedItem>>(`/sns/feed/posts/${encodeURIComponent(id)}`, { signal }),
 
   create: (data: {
     title?: string;

@@ -27,6 +27,8 @@ interface SettingsCustomSlotProps {
   slotKey: SettingsCustomSlotKey;
   templates: TemplateItem[];
   isLoadingTemplates: boolean;
+  hasTemplateLoadError: boolean;
+  onReloadTemplates: () => void;
   templateDraft: TemplateDraft;
   setTemplateDraft: Dispatch<SetStateAction<TemplateDraft>>;
   onSave: () => void;
@@ -44,6 +46,8 @@ interface SettingsCustomSlotProps {
 function AdminTemplatesSurface({
   templates,
   isLoadingTemplates,
+  hasTemplateLoadError,
+  onReloadTemplates,
   templateDraft,
   setTemplateDraft,
   onSave,
@@ -75,6 +79,8 @@ function AdminTemplatesSurface({
       <TemplateSection
         templates={templates}
         isLoadingTemplates={isLoadingTemplates}
+        hasTemplateLoadError={hasTemplateLoadError}
+        onReloadTemplates={onReloadTemplates}
         templateDraft={templateDraft}
         setTemplateDraft={setTemplateDraft}
         onSave={onSave}
@@ -93,6 +99,8 @@ export function SettingsCustomSlot({
   slotKey,
   templates,
   isLoadingTemplates,
+  hasTemplateLoadError,
+  onReloadTemplates,
   templateDraft,
   setTemplateDraft,
   onSave,
@@ -136,6 +144,8 @@ export function SettingsCustomSlot({
     <AdminTemplatesSurface
       templates={templates}
       isLoadingTemplates={isLoadingTemplates}
+      hasTemplateLoadError={hasTemplateLoadError}
+      onReloadTemplates={onReloadTemplates}
       templateDraft={templateDraft}
       setTemplateDraft={setTemplateDraft}
       onSave={onSave}

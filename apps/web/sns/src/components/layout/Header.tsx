@@ -1,7 +1,7 @@
 'use client';
 
 import { Menu, Plus, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { SsooAppHeader, useSsooGlobalHeaderSearch } from '@ssoo/web-shell';
 import { APP_HOME_PATH } from '@/lib/constants/routes';
 import { useAccessStore, useTabStore } from '@/stores';
@@ -25,19 +25,21 @@ export function Header({
   const activeTabId = useTabStore((state) => state.activeTabId);
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
   const router = useRouter();
+  const pathname = usePathname();
   const canReadFeed = accessSnapshot?.features.canReadFeed ?? false;
   const canCreatePost = accessSnapshot?.features.canCreatePost ?? false;
 
   const globalHeaderSearch = useSsooGlobalHeaderSearch({
     disabled: !canReadFeed,
     onOpenSearch: ({ query, encodedQuery, path, title }) => {
-      openTab({
+      const opened = openTab({
         id: query ? `sns-global-search-${encodedQuery}` : 'sns-global-search',
         title,
         path,
         closable: true,
         activate: true,
       });
+      if (opened && pathname.startsWith('/post/')) router.push(path);
     },
   });
 

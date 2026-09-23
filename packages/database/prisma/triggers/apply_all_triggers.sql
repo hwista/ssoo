@@ -259,6 +259,8 @@
 
 \echo 'Installing: crm_operation_attempt_h trigger...'
 \i 80_crm_operation_attempt_h_trigger.sql
+\i 82_crm_contract_approval_h_trigger.sql
+\i 83_pr_user_settings_h_trigger.sql
 
 \echo ''
 \echo '-- SNS --'

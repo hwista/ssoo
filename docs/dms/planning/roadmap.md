@@ -4,6 +4,8 @@
 
 ---
 
+2026-09-18 출시 검토 후속: [문서 도식·휴대폰 도구](../../common/explanation/architecture/2026-09-18-document-diagram-handoff.md)의 승인 범위 구현·검증 완료. 전 서비스 승인 대장 21/22 완료·1잔여, 실제 운영 증거 0/5. 운영 출시 환경은 계속 미완료이며 아래 과거 완료 기록과 구분한다.
+
 ## 1. 현재 완료
 
 - DMS를 pnpm workspace 앱으로 통합하고 `@ssoo/types`, `@ssoo/web-auth` 기반 공통 계약을 적용
@@ -88,6 +90,7 @@
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-09-17 | 다이어그램·휴대폰 도구 승인안 준비를 출시 잔여로 명시. 구현 완료/운영 출시 집계와 구분 |
 | 2026-08-18 | 격리 브라우저 17/17과 Playwright CLI desktop/mobile 증거로 로컬 launch acceptance 완료, 사용자 테스트·clean release·실제 production/복구/공개 endpoint를 최종 GO 잔여 조건으로 분리 |
 | 2026-08-18 | 격리 운영 제어를 포함한 다섯 트랙과 release SHA/run ID atomic checkpoint/resume·browser evidence 계약을 현행 기준으로 반영 |
 | 2026-08-13 | 프로덕션 인프라·백업/복구·Git/릴리즈 정합성·브라우저 Ralph 네 트랙과 명시적 AI/RAG 외부 provider 런칭 예외를 단기 P1 기준으로 고정 |

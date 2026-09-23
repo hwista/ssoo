@@ -1,0 +1,92 @@
+{
+  "text": "계약번호 {계약번호}\n고객사 {{customerName}}\n한글 & <서식> 내용",
+  "variables": {
+    "계약번호": "계약-001",
+    "customerName": "삼삼오오 & 협력사",
+    "header": "머리말",
+    "footer": "꼬리말",
+    "note": "각주"
+  },
+  "extraction": {
+    "plain.docx": {
+      "text": "계약번호 {계약번호}\n\n고객사 {{customerName}}\n\n한글 & <서식> 내용\n\n",
+      "images": []
+    },
+    "complex.docx": {
+      "text": "계약번호 {계약번호}\n\n고객사 {{customerName}}\n\n한글 & <서식> 내용\n\n",
+      "images": [
+        {
+          "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1cAAAAASUVORK5CYII=",
+          "mimeType": "image/png",
+          "name": "한글 이미지.png",
+          "size": 68
+        }
+      ]
+    },
+    "slides.pptx": {
+      "text": "[슬라이드 1]\n슬라이드 1\n\n[슬라이드 2]\n슬라이드 2\n\n[슬라이드 10]\n슬라이드 10",
+      "images": [
+        {
+          "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1cAAAAASUVORK5CYII=",
+          "mimeType": "image/png",
+          "name": "image1.png",
+          "size": 68
+        },
+        {
+          "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1cAAAAASUVORK5CYII=",
+          "mimeType": "image/png",
+          "name": "image2.png",
+          "size": 68
+        }
+      ]
+    },
+    "sheet.xlsx": {
+      "text": "[한글 시트]\n고객사,금액\n삼삼오오,1234",
+      "images": [
+        {
+          "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1cAAAAASUVORK5CYII=",
+          "mimeType": "image/png",
+          "name": "한글.png",
+          "size": 68
+        }
+      ]
+    },
+    "broken.docx": {
+      "text": "",
+      "images": [],
+      "unsupportedReason": "extraction-error",
+      "protectedMarkerDetected": false
+    },
+    "broken.pptx": {
+      "text": "",
+      "images": [],
+      "unsupportedReason": "extraction-error",
+      "protectedMarkerDetected": false
+    },
+    "broken.xlsx": {
+      "text": "",
+      "images": [],
+      "unsupportedReason": "extraction-error",
+      "protectedMarkerDetected": false
+    }
+  },
+  "entries": {
+    "generated.docx": {
+      "_rels/.rels": "d8b0bad955075e5c5a427fe596520be989739fbcaddd9d837b319ea620740fde",
+      "[Content_Types].xml": "f74571be43c4a670a93b49a64f27bab9e9e2341238a1e0b5b654daceb3023b12",
+      "word/document.xml": "9629285966ded1fbe3b1a674a584459989a60bfa2b30a1d47741a9eb20e46533"
+    },
+    "rendered.docx": {
+      "_rels/.rels": "d8b0bad955075e5c5a427fe596520be989739fbcaddd9d837b319ea620740fde",
+      "[Content_Types].xml": "f74571be43c4a670a93b49a64f27bab9e9e2341238a1e0b5b654daceb3023b12",
+      "word/document.xml": "17ff2dbb1f26fe572641a268e8aacf42310f13a173700afb608fe07484697b39",
+      "word/embeddings/첨부.bin": "1300a159a1d403d33dace7fc88e47a4a35ae004d9598430472a128ac5e59576d",
+      "word/endnotes.xml": "ce9ac3213fc891952f99bfed41eace7180d55d4d7fab2ecf7a0e7bf03307ebb7",
+      "word/footer1.xml": "805818b946c87a3d4fb44598d5bc1539ef355ce2b08ff11a764f1cfdf559895d",
+      "word/footnotes.xml": "ce9ac3213fc891952f99bfed41eace7180d55d4d7fab2ecf7a0e7bf03307ebb7",
+      "word/header1.xml": "7927e37db6633ec951175e6ad7aafc33932395737ecfade7c231a42adaab23e4",
+      "word/media/한글 이미지.png": "ddbf71379b72fa6feb50b47faabaf9f4bff8d247ee257250f718fa0598f61ab7",
+      "word/styles.xml": "566a05cda7f5f2a87aa3a77268c490ec288805c632d2bf8e07ea853cffcd44d0"
+    }
+  }
+}

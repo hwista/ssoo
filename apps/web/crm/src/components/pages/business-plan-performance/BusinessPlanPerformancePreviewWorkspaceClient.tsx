@@ -13,7 +13,7 @@ import type {
   CrmBusinessPlanPreviewRegion,
 } from '@ssoo/types/crm';
 import { Badge, Button, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
-import { SsooSearchInput } from '@ssoo/web-shell';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
 import { useCrmDomainAccess } from '@/lib/useCrmDomainAccess';
@@ -255,8 +255,8 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
 
   if (query.mode === 'source-compatible') {
     return (
-      <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="business-plan-performance">
-        <div className="mx-auto max-w-[1180px]">
+      <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="business-plan-performance">
+        <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">사업계획대비실적 (월별)</h1>
           <p className="mt-1 text-sm text-muted-foreground">확정 사업계획 대비 계약 청구계획 실적을 조회합니다.</p>
           <form action="/business-plan-performance" className="mt-6 flex flex-wrap items-end gap-3">
@@ -279,8 +279,8 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-ssoo-content-bg">
-      <header className="border-b bg-card px-5 py-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-ssoo-content-bg">
+      <header className="border-b bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase text-muted-foreground">CRM Business Plan Performance</p>
@@ -321,8 +321,8 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-auto p-5">
-        <section className="grid gap-3 md:grid-cols-5 xl:grid-cols-6">
+      <main className="mx-auto min-h-0 w-full min-w-0 flex-1 overflow-auto p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <Metric label="기준년도" value={`${currentData.summary.year}년`} sub={`${currentData.summary.rowCount}개 후보`} />
           <Metric label="계획 매출" value={formatEok(currentData.summary.planRevenueTotal)} sub={formatWon(currentData.summary.planRevenueTotal)} />
           <Metric label="실적 매출" value={formatEok(currentData.summary.actualRevenueTotal)} sub={formatWon(currentData.summary.actualRevenueTotal)} />
@@ -347,7 +347,7 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
           />
         ) : null}
 
-        <section className="mt-4 rounded-md border bg-card">
+        <section className="mt-4 min-w-0 rounded-md border bg-card">
           <form action="/business-plan-performance" className="flex flex-wrap items-end gap-3 border-b p-4">
             <label className="w-[220px] text-sm font-medium text-muted-foreground">
               비교 기준
@@ -466,7 +466,7 @@ function DirectActualInputPanel({
   };
 
   return (
-    <fieldset disabled={!canWrite} className="mt-4 rounded-md border bg-card">
+    <fieldset disabled={!canWrite} className="mt-4 min-w-0 rounded-md border bg-card">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">실적 직접 입력</h2>
@@ -477,7 +477,7 @@ function DirectActualInputPanel({
           {isSaving ? '저장 중' : '직접 실적 저장'}
         </Button>
       </div>
-      <div className="grid gap-3 border-b p-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 border-b p-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <label className="text-sm font-medium text-muted-foreground">
           사업구분
           <Input
@@ -522,7 +522,7 @@ function DirectActualInputPanel({
           {industryLineOptions.map((option) => <option key={option} value={option} />)}
         </datalist>
       </div>
-      <div className="grid gap-2 p-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-2 p-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {draft.monthlyRevenueAmounts.map((revenueAmount, index) => (
           <div key={index + 1} className="rounded-md border bg-ssoo-content-bg p-2">
             <div className="text-xs font-semibold text-foreground">{index + 1}월</div>
@@ -562,7 +562,7 @@ function DirectActualInputPanel({
 
 function MonthSummary({ months }: { months: CrmBusinessPlanPerformanceMonth[] }) {
   return (
-    <div className="grid gap-2 border-b p-4 md:grid-cols-4 xl:grid-cols-6">
+    <div className="grid grid-cols-1 gap-2 border-b p-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
       {months.map((month) => (
         <div key={month.month} className="rounded-md border bg-ssoo-content-bg px-3 py-2">
           <div className="text-xs font-semibold text-foreground">{month.month}월</div>
@@ -626,12 +626,12 @@ function PerformanceTable({
         <TableBody className="divide-y divide-border">
           {isLoading ? (
             <TableRow>
-              <TableCell className="px-3 py-5 text-center text-ssoo-info" colSpan={columnCount}>사업계획대비실적 preview를 불러오는 중입니다.</TableCell>
+              <TableCell className="px-3 py-5 text-left text-ssoo-info" colSpan={columnCount}>사업계획대비실적 preview를 불러오는 중입니다.</TableCell>
             </TableRow>
           ) : null}
           {!isLoading && rows.length === 0 ? (
             <TableRow>
-              <TableCell className="px-3 py-5 text-center text-muted-foreground" colSpan={columnCount}>조회된 사업계획대비실적 후보가 없습니다.</TableCell>
+              <TableCell className="px-3 py-5 text-left text-muted-foreground" colSpan={columnCount}>조회된 사업계획대비실적 후보가 없습니다.</TableCell>
             </TableRow>
           ) : null}
           {!isLoading ? rows.map((row) => <PerformanceRows key={row.key} row={row} months={months} sourceCompatible={sourceCompatible} />) : null}

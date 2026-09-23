@@ -1551,7 +1551,7 @@ async function verifySourceSurface() {
   assertIncludes(contentArea, "'/action-required': lazy", 'PMS action-required sidebar route is mapped to a real page component');
   assertIncludes(contentArea, "'/closeout': lazy", 'PMS closeout sidebar route is mapped to a real page component');
   assertIncludes(contentArea, "'/operations': lazy", 'PMS operations sidebar route is mapped to a real page component');
-  assertIncludes(contentArea, "'/settings': lazy", 'PMS local settings route is mapped to a real page component');
+  assertIncludes(contentArea, "'/project-settings': lazy", 'PMS project settings route is mapped to a real page component');
   assertIncludes(contentArea, "'/admin/master': lazy", 'PMS master admin route is mapped to a real page component');
   assertIncludes(contentArea, "'/admin/templates': lazy", 'PMS template admin route is mapped to a real page component');
   assertNotIncludes(contentArea, '페이지 준비 중', 'PMS shell fallback must not present unmapped routes as unfinished launch work');

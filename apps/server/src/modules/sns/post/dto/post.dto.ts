@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional, IsInt, Min, IsArray, IsIn } from 'class-validator';
+import { PostImageDto } from './image-post.dto.js';
 import { Type } from 'class-transformer';
 
 const SNS_VISIBILITY_SCOPE_CODES = ['public', 'organization', 'followers', 'self'] as const;
@@ -120,6 +121,9 @@ export class FindPostsDto {
 }
 
 export class PostDto {
+  @ApiPropertyOptional({ type: [PostImageDto] })
+  attachments?: PostImageDto[];
+
   @ApiProperty({ description: '게시물 ID' })
   id!: string;
 

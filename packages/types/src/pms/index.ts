@@ -217,3 +217,5 @@ export type {
   PmsFavoriteMenuItem,
   PmsAccessSnapshot,
 } from './access';
+
+export type { PmsProjectView, PmsUserSettings, PmsTaskAssignee } from './settings';

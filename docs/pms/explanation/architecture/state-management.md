@@ -182,6 +182,7 @@ interface TabStoreState {
   tabs: TabItem[];          // 열린 탭 목록
   activeTabId: string | null; // 현재 활성 탭 ID
   maxTabs: number;          // 최대 탭 수 (기본: 16)
+  ownerUserId: string | null; // 저장 탭 소유 사용자
 }
 
 interface TabItem {
@@ -208,6 +209,8 @@ interface TabItem {
 | `closeOtherTabs(tabId)` | 다른 탭 모두 닫기 |
 | `activateTab(tabId)` | 탭 활성화 |
 | `updateTabTitle(tabId, title)` | 탭 제목 변경 |
+| `updateTabPath(tabId, path)` | 기존 검색 탭의 검색어/필터 경로 갱신 |
+| `syncUserScope(next)` | 같은 사용자 저장 탭 보존, 로그아웃/다른 소유자/출처 없는 탭 정리 |
 | `updateTabData(tabId, data)` | 탭 데이터 업데이트 |
 | `reorderTabs(from, to)` | 탭 순서 변경 |
 | `getTabByMenuCode(code, params)` | 메뉴 코드로 탭 조회 |
@@ -249,8 +252,8 @@ function MenuTree() {
 
 - **저장소**: sessionStorage
 - **키**: `ssoo-tabs`
-- **저장 항목**: tabs, activeTabId
-- **특징**: 브라우저 탭/창 닫으면 초기화
+- **저장 항목**: tabs, activeTabId, ownerUserId
+- **특징**: 브라우저 탭/창 닫으면 초기화. 동일 사용자의 새로고침은 저장 탭과 활성 탭을 보존한다. 공용 소유자 비교 기준으로 다른 사용자·소유자가 없는 저장 자료는 닫을 수 있는 탭을 정리하고, 로그아웃에도 정리한다. 접근 권한 상태는 별도로 초기화한다. 미저장 양식 입력을 영속 저장하는 계약은 아니다.
 
 ---
 
@@ -472,3 +475,5 @@ function MyComponent() {
 | 2026-01-21 | 상태 관리 문서 최초 작성 |
 | 2026-01-21 | 즐겨찾기 DB 연동 (addFavorite, removeFavorite API 호출) |
 | 2026-01-21 | 현재 열린 페이지에서 홈 탭 제외 |
+
+| 2026-09-15 | 승인-18 검색 새로고침 복원을 위한 저장 탭 소유자 판별 및 검색 경로 갱신 계약 반영 |

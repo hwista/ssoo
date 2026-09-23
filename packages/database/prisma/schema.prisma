@@ -5666,6 +5666,7 @@ model CrmQuoteSellerProfileHistory {
 // CRM Contract (계약 원장) - crm_contract_m
 // ============================================
 model CrmContract {
+  approvals CrmContractApproval[]
   id BigInt @id @default(autoincrement()) @map("contract_id")
 
   contractCode            String   @unique(map: "ux_crm_contract_m_code") @map("contract_code") @db.VarChar(80)
@@ -7938,4 +7939,112 @@ model SnsNotification {
   @@index([actorUserId], name: "ix_sns_notification_m_actor")
   @@map("sns_notification_m")
   @@schema("sns")
+}
+
+model CrmContractApproval {
+  id BigInt @id @default(autoincrement()) @map("contract_approval_id")
+  contractId BigInt @map("contract_id")
+  requestKey String @map("request_key") @db.Uuid @unique(map: "ux_crm_contract_approval_request")
+  requesterId BigInt @map("requester_id")
+  requesterName String @map("requester_name")
+  approverId BigInt @map("approver_id")
+  approverName String @map("approver_name")
+  documentId BigInt @map("document_id")
+  documentTitle String @map("document_title")
+  snapshot Json @map("snapshot_jsonb") @db.JsonB
+  versionKey String @map("version_key")
+  statusCode String @map("status_code")
+  reason String? @map("reason")
+  decidedAt DateTime? @map("decided_at") @db.Timestamptz(6)
+  isActive Boolean @map("is_active") @default(true)
+  createdBy BigInt? @map("created_by")
+  createdAt DateTime @map("created_at") @db.Timestamptz(6) @default(now())
+  updatedBy BigInt? @map("updated_by")
+  updatedAt DateTime @map("updated_at") @db.Timestamptz(6) @default(now()) @updatedAt
+  lastSource String? @map("last_source")
+  lastActivity String? @map("last_activity")
+  transactionId String? @map("transaction_id") @db.Uuid
+  contract CrmContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  @@index([contractId, id], map: "ix_crm_contract_approval_contract")
+  @@index([approverId, statusCode, id], map: "ix_crm_contract_approval_inbox")
+  @@map("crm_contract_approval_m")
+  @@schema("crm")
+}
+
+model CrmContractApprovalHistory {
+  contractApprovalId BigInt @map("contract_approval_id")
+  historySeq BigInt @map("history_seq")
+  eventType String @map("event_type") @db.Char(1)
+  eventAt DateTime @default(now()) @map("event_at")
+  eventBy BigInt? @map("event_by")
+  contractId BigInt @map("contract_id")
+  requestKey String @map("request_key") @db.Uuid
+  requesterId BigInt @map("requester_id")
+  requesterName String @map("requester_name")
+  approverId BigInt @map("approver_id")
+  approverName String @map("approver_name")
+  documentId BigInt @map("document_id")
+  documentTitle String @map("document_title")
+  snapshot Json @map("snapshot_jsonb") @db.JsonB
+  versionKey String @map("version_key")
+  statusCode String @map("status_code")
+  reason String? @map("reason")
+  decidedAt DateTime? @map("decided_at") @db.Timestamptz(6)
+  isActive Boolean @map("is_active")
+  createdBy BigInt? @map("created_by")
+  createdAt DateTime @map("created_at") @db.Timestamptz(6)
+  updatedBy BigInt? @map("updated_by")
+  updatedAt DateTime @map("updated_at") @db.Timestamptz(6)
+  lastSource String? @map("last_source")
+  lastActivity String? @map("last_activity")
+  transactionId String? @map("transaction_id") @db.Uuid
+  @@id([contractApprovalId, historySeq], map: "pk_crm_contract_approval_h")
+  @@index([eventAt], map: "ix_crm_contract_approval_h_event_at")
+  @@map("crm_contract_approval_h")
+  @@schema("crm")
+}
+
+model PmsUserSettings {
+  id BigInt @id @default(autoincrement()) @map("user_settings_id")
+  userId BigInt @unique(map: "ux_pr_user_settings_user") @map("user_id")
+  showCompletedTasks Boolean @default(true) @map("show_completed_tasks")
+  defaultProjectView String @default("board") @map("default_project_view") @db.VarChar(20)
+  notifyTaskAssignment Boolean @default(true) @map("notify_task_assignment")
+  notifyIssueUpdate Boolean @default(true) @map("notify_issue_update")
+  isActive Boolean @default(true) @map("is_active")
+  memo String?
+  createdBy BigInt? @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy BigInt? @map("updated_by")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource String? @map("last_source")
+  lastActivity String? @map("last_activity")
+  transactionId String? @map("transaction_id") @db.Uuid
+  @@map("pr_user_settings_m")
+  @@schema("pms")
+}
+
+model PmsUserSettingsHistory {
+  id BigInt @map("user_settings_id")
+  userId BigInt @map("user_id")
+  showCompletedTasks Boolean @default(true) @map("show_completed_tasks")
+  defaultProjectView String @default("board") @map("default_project_view") @db.VarChar(20)
+  notifyTaskAssignment Boolean @default(true) @map("notify_task_assignment")
+  notifyIssueUpdate Boolean @default(true) @map("notify_issue_update")
+  isActive Boolean @default(true) @map("is_active")
+  memo String?
+  createdBy BigInt? @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy BigInt? @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  lastSource String? @map("last_source")
+  lastActivity String? @map("last_activity")
+  transactionId String? @map("transaction_id") @db.Uuid
+  historySeq BigInt @map("history_seq")
+  eventType String @map("event_type") @db.Char(1)
+  eventAt DateTime @default(now()) @map("event_at") @db.Timestamptz(6)
+  eventBy BigInt? @map("event_by")
+  @@id([id, historySeq], map: "pk_pr_user_settings_h")
+  @@map("pr_user_settings_h")
+  @@schema("pms")
 }

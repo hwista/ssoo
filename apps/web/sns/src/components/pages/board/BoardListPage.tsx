@@ -1,6 +1,8 @@
 'use client';
 
 import { LayoutGrid, Plus } from 'lucide-react';
+import { useState } from 'react';
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAccessStore } from '@/stores';
 import { useBoards } from '@/hooks/queries/useBoards';
 import { useRouter } from 'next/navigation';
+import type { BoardItem } from '@/lib/api/endpoints/boards';
+import { CreateBoardDialog } from './CreateBoardDialog';
 
 const boardTypeLabels: Record<string, string> = {
   notice: '공지사항',
@@ -21,7 +25,9 @@ export function BoardListPage() {
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const canReadFeed = accessSnapshot?.features.canReadFeed ?? false;
   const canManageBoards = accessSnapshot?.features.canManageBoards ?? false;
-  const { data, isLoading } = useBoards(canReadFeed);
+  const { data, isLoading, isError, isFetching, refetch } = useBoards(canReadFeed);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createdBoard, setCreatedBoard] = useState<BoardItem | null>(null);
   const router = useRouter();
   const boards = data?.data?.data || [];
 
@@ -41,11 +47,35 @@ export function BoardListPage() {
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">게시판</h1>
-        <Button size="sm" disabled={!canManageBoards}>
+        <Button size="sm" disabled={!canManageBoards} onClick={() => setIsCreateOpen(true)}>
           <Plus className="h-4 w-4 mr-1" />
           새 게시판
         </Button>
       </div>
+
+      {isCreateOpen && canManageBoards && (
+        <CreateBoardDialog
+          onClose={() => setIsCreateOpen(false)}
+          onCreated={(board) => { setCreatedBoard(board); setIsCreateOpen(false); }}
+        />
+      )}
+
+      {createdBoard && (
+        <div role="status" className="mb-4 space-y-2">
+          <p className="text-body-sm">게시판을 만들었습니다.</p>
+          <Button asChild variant="outline" size="sm" className="max-w-full">
+            <Link href={`/board/${createdBoard.id}`}><span className="truncate">{createdBoard.boardName} 열기</span></Link>
+          </Button>
+          {isError && (
+            <div className="space-y-2">
+              <p className="text-body-sm text-destructive">생성은 완료됐지만 목록을 새로 불러오지 못했습니다.</p>
+              <Button variant="outline" size="sm" disabled={isFetching} onClick={() => void refetch()}>
+                목록 다시 불러오기
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

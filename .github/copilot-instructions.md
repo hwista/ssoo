@@ -82,7 +82,8 @@ SSOO(삼삼오오)는 SI/SM 조직의 **Opportunity -> Project -> System** 흐�
 | DB 시드 | `pnpm db:seed` | `.codex/scripts/db-seed.sh` |
 | DB 트리거 설치 | `pnpm db:triggers` | 히스토리 트리거 적용 |
 | Production 의존성 감사 | `pnpm security:audit` | 관측형 wrapper, high/critical 발견 또는 registry 미검증 시 실패 |
-| Sharp native runtime | `pnpm security:sharp-runtime` | Next.js optional sharp 0.35.3/libvips 8.18.3 로드와 실제 PNG 변환 검증 |
+| Sharp native runtime | `pnpm security:sharp-runtime` | Next.js optional sharp 0.35.4/libvips 8.18.6 로드와 실제 PNG 변환 검증 |
+| Style runtime | `pnpm security:style-runtime` | 실제 스타일 생성에서 탭·사이드바의 기존 hover 표시·클릭 규칙 보존 검증 |
 
 - `turbo.json`에서 `build`는 의존 패키지의 `^build`를 먼저 실행하고, `lint`/`test`도 `^build` 이후 실행됩니다. 특정 워크스페이스만 볼 때는 루트 alias나 `turbo <task> --filter=<workspace>`를 사용합니다.
 

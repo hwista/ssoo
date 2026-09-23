@@ -797,10 +797,11 @@ assertIncludes(dmsCrmQuoteLifecycleService, "'word-export'", 'DMS CRM quote life
 assertIncludes(dmsCrmQuoteLifecycleService, "'pdf-export'", 'DMS CRM quote lifecycle service must execute PDF export evidence');
 
 const dmsDocxTemplateRenderer = readText('apps/server/src/modules/dms/templates/docx-template-renderer.ts');
-assertIncludes(dmsDocxTemplateRenderer, "nodeRequire('adm-zip')", 'DMS DOCX template renderer must operate on real DOCX ZIP binaries');
+assertIncludes(dmsDocxTemplateRenderer, "JSZip.loadAsync", 'DMS DOCX template renderer must operate on real DOCX ZIP binaries');
 assertIncludes(dmsDocxTemplateRenderer, 'REQUIRED_DOCX_ENTRIES', 'DMS DOCX template renderer must validate required OOXML entries');
 assertIncludes(dmsDocxTemplateRenderer, "'word/document.xml'", 'DMS DOCX template renderer must render the main OOXML document part');
-assertIncludes(dmsDocxTemplateRenderer, 'zip.toBuffer()', 'DMS DOCX template renderer must return a downloadable DOCX binary');
+assertIncludes(dmsDocxTemplateRenderer, 'zip.generateAsync(', 'DMS DOCX template renderer must generate a downloadable DOCX binary');
+assertIncludes(dmsDocxTemplateRenderer, "type: 'nodebuffer'", 'DMS DOCX template renderer must return a Node Buffer');
 
 const dmsCrmQuoteLifecycleServiceSpec = readText('apps/server/src/modules/dms/crm-quote-lifecycle/crm-quote-lifecycle.service.spec.ts');
 assertIncludes(dmsCrmQuoteLifecycleServiceSpec, 'creates CRM quote lifecycle artifacts and returns CRM evidence steps', 'DMS CRM quote lifecycle spec must cover artifact execution');

@@ -235,7 +235,7 @@ const serverApiProxy = file('packages/web-auth/src/server-api-proxy.ts');
 assert(serverApiProxy.includes('restoreServerAccessToken'), 'web-auth server API proxy helpers must own session restore');
 assert(serverApiProxy.includes('proxySessionBackedBinaryResponse'), 'web-auth server API proxy helpers must own session-backed binary proxy');
 assert(serverApiProxy.includes('proxySessionBackedStreamResponse'), 'web-auth server API proxy helpers must own session-backed stream proxy');
-assert(serverApiProxy.includes("createServerApiUrl('/auth/session')"), 'session-backed proxy restore must use /auth/session');
+assert(serverApiProxy.includes("createServerApiUrl('/auth/session/access')"), 'session-backed file/event authorization must use /auth/session/access without rotating the cookie');
 
 for (const docPath of [
   'docs/dms/explanation/architecture/app-initialization-flow.md',

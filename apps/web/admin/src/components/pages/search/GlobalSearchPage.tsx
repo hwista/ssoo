@@ -23,6 +23,7 @@ export function AdminGlobalSearchPage({ path }: { path?: string }) {
 
   return (
     <SsooGlobalSearchPage
+      sidecarNarrowBehavior="auto-close"
       initialQuery={globalSearch.initialQuery}
       initialSourceApp={globalSearch.initialSourceApp}
       search={globalSearch.search}

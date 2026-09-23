@@ -34,9 +34,10 @@ import type {
   CrmOpportunityServiceType,
 } from '@ssoo/types/crm';
 import { Button, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
-import { SsooSearchInput } from '@ssoo/web-shell';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCrmDomainAccess } from '@/lib/useCrmDomainAccess';
+import { ContractApprovalInbox, ContractApprovalPanel } from './ContractApprovalPanel';
 import { ContractUpsertPanel } from './ContractUpsertPanel';
 
 export interface ContractWorkspaceQuery {
@@ -256,18 +257,14 @@ export function ContractWorkspaceClient({
   const [isDmsDocumentLifecycleExecuting, setIsDmsDocumentLifecycleExecuting] = useState(false);
   const [dmsDocumentLifecycleExecutionError, setDmsDocumentLifecycleExecutionError] = useState<string | null>(null);
   const apiHref = useMemo(() => buildApiHref(query), [query]);
-  const sourceContracts = useMemo(
-    () => currentData.items.filter((item) => item.code.startsWith('crm-uiux-ct-')),
-    [currentData.items],
-  );
-  const selectionItems = query.sourceSurface ? sourceContracts : currentData.items;
+  const sourceContracts = currentData.items;
   const selected = useMemo(() => (
     query.sourceSurface === 'form' && query.create
       ? null
-      : selectionItems.find((item) => item.id === query.selected || item.code === query.selected)
-        ?? selectionItems[0]
+      : sourceContracts.find((item) => item.id === query.selected || item.code === query.selected)
+        ?? sourceContracts[0]
         ?? null
-  ), [query.create, query.selected, query.sourceSurface, selectionItems]);
+  ), [query.create, query.selected, query.sourceSurface, sourceContracts]);
 
   useEffect(() => {
     setCurrentData(data);
@@ -480,7 +477,7 @@ export function ContractWorkspaceClient({
       return;
     }
 
-    if (!window.confirm('DMS가 템플릿 검토 기록, 첨부 확인/확정 원장, Word/PDF artifact, 승인/결재선 원장을 생성하고 CRM handoff에 evidence를 반영합니다. 계속하시겠습니까?')) {
+    if (!window.confirm('DMS가 템플릿 검토 기록, 첨부 확인/확정 원장, Word/PDF artifact, 역할별 생성 기록과 결재선 원장을 생성하고 CRM handoff에 evidence를 반영합니다. 담당자별 검토·승인 결과가 아닙니다. 계속하시겠습니까?')) {
       return;
     }
 
@@ -644,8 +641,8 @@ export function ContractWorkspaceClient({
 
   if (query.sourceSurface === 'form') {
     return (
-      <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="contract-form">
-        <div className="mx-auto max-w-[984px]">
+      <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="contract-form">
+        <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
           <Link className="text-sm text-muted-foreground hover:text-foreground" href="/contracts?sourceSurface=list">
             ← 계약현황으로 돌아가기
           </Link>
@@ -695,7 +692,7 @@ export function ContractWorkspaceClient({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-ssoo-content-bg">
-      <header className="border-b bg-card px-5 py-4">
+      <header className="border-b bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase text-muted-foreground">CRM Contract Ledger</p>
@@ -709,7 +706,8 @@ export function ContractWorkspaceClient({
         <p className="mt-2 text-sm text-muted-foreground">{currentData.summary.boundaryNotice}</p>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-auto p-5">
+      <main className="mx-auto min-h-0 w-full min-w-0 flex-1 overflow-auto p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
+        <ContractApprovalInbox />
         <section className="grid gap-3 md:grid-cols-5">
           <Metric label="조회 계약" value={`${currentData.summary.filteredCount}건`} sub={`전체 ${currentData.summary.totalCount}건`} />
           <Metric label="검토" value={`${currentData.summary.reviewCount}건`} sub="확정 전" />
@@ -755,9 +753,9 @@ export function ContractWorkspaceClient({
           </div>
         </section>
 
-        <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
           <ContractDetail item={selected} canConfirm={canConfirmContract} workflowError={workflowError} pendingWorkflow={pendingWorkflow} onWorkflow={runWorkflow} />
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <BillingPlanPanel item={selected} />
             <PmsHandoffPreviewPanel
               item={selected}
@@ -780,6 +778,7 @@ export function ContractWorkspaceClient({
               onCreateDraft={createDmsDocumentDraft}
               onExecuteLifecycle={executeDmsDocumentLifecycle}
             />
+            {selected && <ContractApprovalPanel key={selected.id} contractCode={selected.id} revision={JSON.stringify([selected.updatedAt, dmsDocumentDraft, dmsDocumentLifecycleExecution])} />}
             <BillingActualPanel
               item={selected}
               data={billingActual}
@@ -841,7 +840,7 @@ function SourceContractListSurface({
   isLoading: boolean;
   loadError: string | null;
 }) {
-  const sourceItems = data.items.filter((item) => item.code.startsWith('crm-uiux-ct-'));
+  const sourceItems = data.items;
   const totalRevenue = sourceItems.reduce((sum, item) => sum + getSourceContractRevenue(item), 0);
   const totalCost = sourceItems.reduce((sum, item) => sum + getSourceContractCost(item), 0);
   const totalMargin = totalRevenue - totalCost;
@@ -854,8 +853,9 @@ function SourceContractListSurface({
     : 0;
 
   return (
-    <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="contract-list">
-      <div className="mx-auto max-w-[1180px]">
+    <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="contract-list">
+      <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
+        <ContractApprovalInbox />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-foreground">계약현황</h1>
@@ -987,8 +987,9 @@ function SourceBillingActualSurface({
   onSaved: (data: CrmContractBillingActualResponse) => Promise<void>;
 }) {
   return (
-    <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="billing-actual">
-      <div className="mx-auto max-w-[1056px]">
+    <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="billing-actual">
+
+      <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
         <Link className="text-sm text-muted-foreground hover:text-foreground" href="/contracts?sourceSurface=billing-actual&view=list">
           ← 계약청구실적 목록으로 돌아가기
         </Link>
@@ -1027,8 +1028,9 @@ function SourceBillingActualListSurface({
   const confirmedItems = items.filter((item) => item.confirmed);
 
   return (
-    <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="billing-actual-list">
-      <div className="mx-auto max-w-[1180px]">
+    <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="billing-actual-list">
+
+      <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
         <div>
           <h1 className="text-xl font-semibold text-foreground">계약청구실적</h1>
           <p className="mt-1 text-sm text-muted-foreground">확정된 계약을 선택하세요.</p>
@@ -1278,7 +1280,7 @@ function ContractDetail({
         />
       </div>
 
-      <div className="grid gap-4 border-t p-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 border-t p-4 xl:grid-cols-2">
         <LineTable title="매출 라인" lines={item.revenueLines} />
         <LineTable title="원가 라인" lines={item.costLines} />
       </div>
@@ -1616,16 +1618,18 @@ function DmsDocumentPreviewPanel({
               <div className="divide-y rounded-md border text-xs">
                 {lifecycleSteps.map((step) => (
                   <div key={step.key} className="grid gap-2 px-3 py-2 sm:grid-cols-[128px_76px_96px_minmax(0,1fr)]">
-                    <div className="font-medium text-foreground">{step.label}</div>
+                    <div className="font-medium text-foreground">{step.key === 'approval' ? '역할별 생성 기록' : step.label}</div>
                     <div className="text-muted-foreground">{getLifecycleOwnerLabel(step.owner)}</div>
                     <div>
                       <span className={`rounded px-2 py-0.5 font-medium ${getLifecycleStatusClass(step.status)}`}>
-                        {getLifecycleStatusLabel(step.status)}
+                        {step.key === 'approval' && step.status === 'completed' ? '기록 완료' : getLifecycleStatusLabel(step.status)}
                       </span>
                     </div>
                     <div className="min-w-0 text-muted-foreground">
                       <div className="break-all">{step.evidencePath ?? step.evidenceLabel}</div>
-                      <div className="mt-1 break-words">{step.note}</div>
+                      <div className="mt-1 break-words">
+                        {step.key === 'approval' ? '문서 생성 시 자동으로 남기는 역할별 기록입니다. 담당자별 검토·승인 결과가 아닙니다.' : step.note}
+                      </div>
                       {(step.key === 'word-export' || step.key === 'pdf-export') && step.status === 'completed' ? (
                         <a
                           href={`/api/crm/contracts/${encodeURIComponent(item.id)}/dms-document-artifacts/${step.key}`}
@@ -1800,7 +1804,7 @@ function DmsGovernanceEvidencePanel({ governance }: { governance: DmsLifecycleEx
         <div className="grid gap-2 px-3 py-2 sm:grid-cols-[148px_minmax(0,1fr)]">
           <div className="font-medium text-foreground">결재선 원장</div>
           <div className="min-w-0 text-muted-foreground">
-            <div>{approvalRoute.routeName} · {approvalRouteLedger.syncedActorCount}명 동기화</div>
+            <div>{approvalRoute.routeName} · 역할별 기록 {approvalRouteLedger.syncedActorCount}건 동기화</div>
             <div className="mt-1 break-all">{approvalRouteLedger.routeRecordPath}</div>
             <div className="mt-1 break-all">{approvalRouteLedger.workflowRecordPath}</div>
             <div className="mt-1 break-words">{approvalRouteLedger.directorySyncStatus} · {approvalRouteLedger.directorySource}</div>
@@ -1810,11 +1814,12 @@ function DmsGovernanceEvidencePanel({ governance }: { governance: DmsLifecycleEx
 
       {approvalActors.length > 0 ? (
         <div className="mt-2 divide-y rounded-md border text-xs">
+          <p className="px-3 py-2 text-muted-foreground">역할별 생성 기록입니다. 같은 실행자가 여러 역할에 기록될 수 있으며, 담당자별 검토·승인 결과가 아닙니다.</p>
           {approvalActors.map((actor) => (
             <div key={`${actor.sequence}-${actor.role}-${actor.loginId}`} className="grid gap-2 px-3 py-2 sm:grid-cols-[148px_minmax(0,1fr)]">
               <div className="font-medium text-foreground">{actor.role}</div>
               <div className="min-w-0 text-muted-foreground">
-                <div>{actor.displayName} · {actor.status} · {formatDateTime(actor.approvedAt)}</div>
+                <div>{actor.displayName} · {actor.status === 'approved' ? '자동 생성 기록' : actor.status} · 생성 시각 {formatDateTime(actor.approvedAt)}</div>
                 <div className="mt-1 break-words">{actor.note}</div>
               </div>
             </div>
@@ -2058,7 +2063,7 @@ function BillingActualPanel({
           <SourceContractMetric label="실적 외부원가" value={formatSourceAmount(actualSummary.externalCostTotal)} sub={`달성률 ${formatPercent(getBillingAchievementRate(actualSummary.externalCostTotal, planExternalCostTotal))}`} accent />
         </section>
 
-        <section className="mt-4 grid gap-4 lg:grid-cols-2">
+        <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="rounded-xl border bg-card p-5">
             <h2 className="text-sm font-semibold text-foreground"><label>청구계획</label></h2>
             <div className="mt-3 overflow-x-auto rounded-md border"><BillingPlanTable lines={planLines} /></div>

@@ -47,6 +47,7 @@ export function SsooHeaderNotificationCenter<TItem extends SsooNotificationPanel
   ...panelProps
 }: SsooHeaderNotificationCenterProps<TItem>) {
   const [open, setOpen] = useState(false);
+  const [panelTop, setPanelTop] = useState<number>(SSOO_SHELL_METRICS.header.height);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +55,14 @@ export function SsooHeaderNotificationCenter<TItem extends SsooNotificationPanel
     if (!open) {
       return;
     }
+
+    const header = triggerRef.current?.closest('header');
+    const updatePanelTop = () => {
+      setPanelTop(header?.getBoundingClientRect().bottom ?? SSOO_SHELL_METRICS.header.height);
+    };
+    updatePanelTop();
+    const resizeObserver = header ? new ResizeObserver(updatePanelTop) : null;
+    if (header) resizeObserver?.observe(header);
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -73,6 +82,7 @@ export function SsooHeaderNotificationCenter<TItem extends SsooNotificationPanel
     document.addEventListener('pointerdown', handlePointerDown, true);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
+      resizeObserver?.disconnect();
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown);
     };
@@ -117,7 +127,7 @@ export function SsooHeaderNotificationCenter<TItem extends SsooNotificationPanel
             {...resolvedPanelProps}
             panelRef={panelRef}
             id={id}
-            style={DEFAULT_PANEL_STYLE}
+            style={{ ...DEFAULT_PANEL_STYLE, top: panelTop }}
             getSecondaryActions={resolvedGetSecondaryActions}
             onPrimaryAction={(item) => {
               onPrimaryAction(item);

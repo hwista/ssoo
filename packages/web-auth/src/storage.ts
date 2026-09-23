@@ -26,6 +26,23 @@ export interface SharedAuthHeaderOptions {
 }
 
 let runtimeAccessToken: string | null = null;
+let authRequestVersion = 0;
+const pendingAuthRequests = new Set<AbortController>();
+
+export function getAuthRequestVersion(): number {
+  return authRequestVersion;
+}
+
+export function registerSharedAuthRequest(controller: AbortController): () => void {
+  pendingAuthRequests.add(controller);
+  return () => { pendingAuthRequests.delete(controller); };
+}
+
+export function invalidateSharedAuthRequests(): void {
+  authRequestVersion += 1;
+  for (const controller of pendingAuthRequests) controller.abort();
+  pendingAuthRequests.clear();
+}
 
 interface SafeJsonStateStorage {
   getItem: (name: string) => string | null;
@@ -245,6 +262,7 @@ export function writeSharedAuthSnapshot(snapshot: SharedAuthSnapshot | null): vo
   }
 
   if (!snapshot) {
+    invalidateSharedAuthRequests();
     runtimeAccessToken = null;
     window.localStorage.removeItem(SHARED_AUTH_STORAGE_KEY);
     dispatchSharedAuthChanged();

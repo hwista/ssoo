@@ -15,7 +15,7 @@ const requireFromDatabase = createRequire(path.join(repoRoot, 'packages', 'datab
 const requireFromServer = createRequire(path.join(repoRoot, 'apps', 'server', 'package.json'));
 const { config: loadEnv } = requireFromDatabase('dotenv');
 const { Client } = requireFromDatabase('pg');
-const AdmZip = requireFromServer('adm-zip');
+const JSZip = requireFromServer('jszip');
 
 loadEnv({ path: path.join(repoRoot, '.env.local'), quiet: true });
 loadEnv({ path: path.join(repoRoot, '.env'), quiet: true, override: false });
@@ -172,15 +172,15 @@ function assertPdf(buffer, label) {
   assert.match(buffer.subarray(Math.max(0, buffer.length - 1024)).toString('latin1'), /%%EOF\s*$/, `${label} does not have a PDF trailer`);
 }
 
-function assertDocx(buffer, expectedValues) {
+async function assertDocx(buffer, expectedValues) {
   assert.ok(buffer.length > 1_000, `DMS DOCX is unexpectedly small (${buffer.length} bytes)`);
   assert.equal(buffer.subarray(0, 2).toString('ascii'), 'PK', 'DMS DOCX is not a ZIP package');
-  const zip = new AdmZip(buffer);
-  const entryNames = new Set(zip.getEntries().map((entry) => entry.entryName));
+  const zip = await JSZip.loadAsync(buffer);
+  const entryNames = new Set(Object.keys(zip.files));
   for (const required of ['[Content_Types].xml', '_rels/.rels', 'word/document.xml']) {
     assert.ok(entryNames.has(required), `DMS DOCX is missing ${required}`);
   }
-  const documentXml = zip.readAsText('word/document.xml');
+  const documentXml = await zip.file('word/document.xml').async('string');
   for (const expected of expectedValues) {
     assert.ok(documentXml.includes(expected), `DMS DOCX is missing rendered value: ${expected}`);
   }
@@ -656,7 +656,7 @@ async function run() {
 
     const word = await requestBinary(webBaseUrl, `/api/crm/opportunities/${encodeURIComponent(dmsOpportunityCode)}/quote-dms-artifacts/word-export`, { token });
     const pdf = await requestBinary(webBaseUrl, `/api/crm/opportunities/${encodeURIComponent(dmsOpportunityCode)}/quote-dms-artifacts/pdf-export`, { token });
-    const docx = assertDocx(word.buffer, [
+    const docx = await assertDocx(word.buffer, [
       dmsPreview.party.customerName,
       dmsPreview.dmsDocument.opportunityName,
       dmsPreview.summary.quoteTotal.toLocaleString('ko-KR'),

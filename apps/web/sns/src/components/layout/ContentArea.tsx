@@ -1,6 +1,10 @@
 'use client';
 
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/common/StateDisplay';
+import { getSnsShellTabOptions } from './shell-navigation';
 import {
   SSOO_CONTENT_PAGE_ADAPTER_NAMES,
   SSOO_GLOBAL_SEARCH_APP_PATH,
@@ -27,6 +31,7 @@ const ROUTE_HANDOFF_CONTENT_PAGE_ADAPTER_NAME = SSOO_CONTENT_PAGE_ADAPTER_NAMES.
 const SNS_LOCAL_PAGE_CONTENT_PAGE_ADAPTER_NAME = SSOO_CONTENT_PAGE_ADAPTER_NAMES.snsLocalPage;
 
 const FeedPage = lazy(() => import('@/components/pages/feed/FeedPage').then((mod) => ({ default: mod.FeedPage })));
+const PostDetailPage = lazy(() => import('@/components/pages/feed/PostDetailPage').then((mod) => ({ default: mod.PostDetailPage })));
 const BoardListPage = lazy(() => import('@/components/pages/board/BoardListPage').then((mod) => ({ default: mod.BoardListPage })));
 const BoardDetailPage = lazy(() => import('@/components/pages/board/BoardDetailPage').then((mod) => ({ default: mod.BoardDetailPage })));
 const SearchPage = lazy(() => import('@/components/pages/search/SearchPage').then((mod) => ({ default: mod.SearchPage })));
@@ -86,6 +91,9 @@ function renderSnsPage(tab: SnsTabItem) {
 
   if (pathname === '/') {
     return <FeedPage />;
+  }
+  if (pathname.startsWith('/post/')) {
+    return <PostDetailPage postId={pathname.slice('/post/'.length)} />;
   }
   if (pathname === '/board') {
     return <BoardListPage />;
@@ -149,10 +157,20 @@ function renderSnsUserSurfaceHandoffContentPage(
 }
 
 export function ContentArea() {
+  const pathname = usePathname();
+  const [blockedPostPath, setBlockedPostPath] = useState<string | null>(null);
   const tabs = useTabStore((state) => state.tabs);
   const activeTabId = useTabStore((state) => state.activeTabId);
   const openTab = useTabStore((state) => state.openTab);
   const closeTab = useTabStore((state) => state.closeTab);
+  const maxTabs = useTabStore((state) => state.maxTabs);
+  useEffect(() => {
+    if (!pathname.startsWith('/post/') || tabs.some((tab) => tab.path === pathname)) {
+      setBlockedPostPath(null);
+    } else if (tabs.length >= maxTabs) {
+      setBlockedPostPath(pathname);
+    }
+  }, [pathname, tabs, maxTabs]);
   const pageRoutes = defineSsooMdiPageRegistry<SnsTabItem>([
     {
       key: 'user-surface',
@@ -190,13 +208,25 @@ export function ContentArea() {
     },
   ]);
 
+  const postEntryBlocked = pathname.startsWith('/post/') && !tabs.some((tab) => tab.path === pathname);
+
   return (
+    <>
+      {postEntryBlocked && (tabs.length >= maxTabs || blockedPostPath === pathname ? (
+        <SsooContentAreaSurface padding="lg" scroll="auto">
+          <EmptyState title="게시물 탭을 열 수 없습니다."
+            description="열린 탭을 닫은 뒤 다시 시도하거나 기존 탭을 선택해 주세요."
+            action={<Button onClick={() => openTab(getSnsShellTabOptions(pathname))}>다시 시도</Button>} />
+        </SsooContentAreaSurface>
+      ) : <SsooContentAreaState variant="loading">게시물을 여는 중입니다.</SsooContentAreaState>)}
     <SsooRegisteredMdiContentArea
+      className={postEntryBlocked ? 'hidden' : undefined}
       tabs={tabs}
       activeTabId={activeTabId}
       getTabId={(tab) => tab.id}
       routes={pageRoutes}
       emptySlot={<SsooContentAreaEmptyState>탭을 선택하세요.</SsooContentAreaEmptyState>}
     />
+    </>
   );
 }

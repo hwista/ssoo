@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { DOCUMENT_WIDTHS } from '@/components/templates/page-frame';
-import { useMermaidRenderer } from '@/components/common/MermaidBlock';
+import { useDocumentDiagrams } from './runtime/useDocumentDiagrams';
 import { useContentClickHandler } from '@/hooks/useContentClickHandler';
 
 // 문서 본문 최대 너비 (PageTemplate과 동일)
@@ -61,7 +61,7 @@ export function Content({
   const resolvedMaxWidth = maxWidth ?? (isEmbedded ? undefined : DOCUMENT_WIDTHS.portrait);
   const shouldShowSurface = showSurface ?? !isEmbedded;
   const articleRef = React.useRef<HTMLDivElement>(null);
-  useMermaidRenderer(articleRef, content);
+  const { html, diagrams } = useDocumentDiagrams(articleRef, content);
   useContentClickHandler(articleRef, { onLinkClick, onImageClick, onCheckboxClick });
 
   return (
@@ -100,8 +100,9 @@ export function Content({
           style={{
             fontSize: `${zoomLevel}%`,
           }}
-          dangerouslySetInnerHTML={{ __html: content }}
+          dangerouslySetInnerHTML={html}
         />
+        {diagrams}
       </div>
     </div>
   );

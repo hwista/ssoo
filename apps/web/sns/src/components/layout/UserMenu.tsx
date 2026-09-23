@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   AuthUserMenu,
   getSsooUserSurfaceTabId,
@@ -18,6 +18,7 @@ interface UserMenuProps {
 
 export function UserMenu({ dropdownWidth }: UserMenuProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
   const openTab = useTabStore((state) => state.openTab);
   const handleLogout = useSharedLogout({
@@ -27,13 +28,14 @@ export function UserMenu({ dropdownWidth }: UserMenuProps) {
   });
 
   const openUserSurfaceTab = (kind: SsooUserSurfaceTabKind) => {
-    openTab({
+    const opened = openTab({
       id: getSsooUserSurfaceTabId(kind),
       title: getSsooUserSurfaceTabTitle(kind),
       path: getSsooUserSurfaceTabPath(kind),
       closable: true,
       activate: true,
     });
+    if (opened && pathname.startsWith('/post/')) router.push(getSsooUserSurfaceTabPath(kind));
   };
 
   return (

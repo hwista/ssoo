@@ -15,6 +15,7 @@ function toolbarIconButtonClass(className?: string) {
 
 export function SsooAiSearchToolbarSearchControls({
   query,
+  wrap = false,
   placeholder = '문서 내 검색...',
   onQueryChange,
   onSubmit,
@@ -23,7 +24,7 @@ export function SsooAiSearchToolbarSearchControls({
   resultCount,
   currentResultIndex,
   onNavigateResult,
-}: SsooAiSearchViewerSearchControls) {
+}: SsooAiSearchViewerSearchControls & { wrap?: boolean }) {
   return (
     <form
       role="search"
@@ -34,7 +35,7 @@ export function SsooAiSearchToolbarSearchControls({
         event.preventDefault();
         onSubmit();
       }}
-      className="flex min-w-0 items-center gap-1"
+      className={cn("flex min-w-0 items-center gap-1", wrap && "max-w-full flex-wrap shrink-0")}
     >
       <div className="flex min-w-0 items-center">
         <Search className="mr-1 h-4 w-4 shrink-0 text-muted-foreground" />

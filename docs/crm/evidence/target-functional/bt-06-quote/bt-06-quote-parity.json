@@ -1,9 +1,9 @@
 {
   "contract": "BT-06",
   "status": "PASS_CLEANED",
-  "databaseName": "ssoo_crm_ralph_20260825_current_demo_v6",
-  "startedAt": "2026-08-25T02:10:21.825Z",
-  "completedAt": "2026-08-25T02:10:27.115Z",
+  "databaseName": "ssoo_crm_ralph_20260911_launch_v4",
+  "startedAt": "2026-09-11T04:24:04.404Z",
+  "completedAt": "2026-09-11T04:24:09.677Z",
   "credentialsStored": false,
   "evidenceFiles": {
     "desktopPreview": "docs/crm/evidence/target-functional/bt-06-quote/quote-preview-desktop.png",
@@ -71,8 +71,8 @@
       "unexpectedHttpFailures": 0
     },
     "browserPdf": {
-      "size": 44735,
-      "sha256": "199c3b5f1dcef4caa2ffd5ee5d87ecf735989e807a0004d63beee786496b89e1",
+      "size": 44736,
+      "sha256": "5d2365e89efc0dad94bef78c9535a05ac8c8589a7333c0b1e744b4e87d2fab13",
       "reopened": true
     }
   },
@@ -82,7 +82,7 @@
     "lifecycleStatus": 201,
     "word": {
       "size": 1584,
-      "sha256": "8c8cec1fa5ef933345988d559c029c33ec58f7e32195b28a048f18515bede704",
+      "sha256": "c20f692e50e6b535734f6a9c8151f2044199d2720ab526db201389961687c753",
       "contentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "entryCount": 3,
       "documentXmlSha256": "94be8a36d640be5b3f08ccc41624c552868b34b4939ae69ff4c8df0ca29579fb",
@@ -90,7 +90,7 @@
     },
     "pdf": {
       "size": 2292,
-      "sha256": "3041079ba4f97de46bf7eabfab54aa787a3b95859329b6e5ce1ec0cf26550528",
+      "sha256": "85defe84e7980f0573562c071703bc3be476f4b0ea6bd65990744286c8c2664d",
       "contentType": "application/pdf",
       "reopened": true
     }

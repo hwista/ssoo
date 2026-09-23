@@ -3,8 +3,8 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const EXPECTED_SHARP_VERSION = '0.35.3';
-const EXPECTED_VIPS_VERSION = '8.18.3';
+const EXPECTED_SHARP_VERSION = '0.35.4';
+const EXPECTED_VIPS_VERSION = '8.18.6';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dmsRequire = createRequire(

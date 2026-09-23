@@ -7,6 +7,10 @@ Document Management System(DMS) 문서의 단일 정본 인덱스입니다.
 
 DMS는 PMS와 CRM에서 발생한 견적서, 계약서, 회의록, 보고서, 검수 자료, 산출물 파일을 연결하는 문서 자산 계층입니다. 견적, 계약, 회의록, 보고서 작성 흐름은 각 도메인 기능이 소유하고, DMS는 문서 뷰어, 문서 허브, 첨부, 버전, 공개 범위, 검토 상태, 템플릿 또는 레퍼런스를 제공합니다.
 
+최신 완료: [문서 도식·휴대폰 도구 결과](../common/explanation/architecture/2026-09-18-document-diagram-handoff.md). 승인 범위 구현·검증 완료. [사용 안내](guides/document-diagrams.md). 승인 대장 21/22 완료·1잔여, 운영 증거 0/5.
+
+직전 후속: [알림 연결 오류 수정](../common/explanation/architecture/2026-09-17-notification-stream-handoff.md). 기존 화면·연동·사용 방법을 유지한 공통 내부 수정과 검증 기록이다.
+
 ## 구조
 
 ```
@@ -63,6 +67,10 @@ docs/dms/
 - 레거시 문서 보관: `docs/dms/_archive/`
 
 ## 현재 검증 기준선
+
+2026-09-17 후속: [계약 초안 내부 승인](../common/explanation/architecture/2026-09-17-contract-internal-approval-handoff.md)을 고객관리 화면에서 구현·검증했다. 문서관리의 기존 공유·열람 권한을 적용하며 초안 저장 시 기존 문서 등록 절차를 연결했다. 문서관리 화면과 기존 인터페이스 계약은 그대로 유지한다.
+
+2026-09-17: 사용자 승인-01의 1번 선택으로 [계약 문서 생성 기록의 의미 보정](../common/explanation/architecture/2026-09-17-contract-records-handoff.md)을 완료했다. 기존 연동·문서 업무와 과거 기록을 보존하며 실제 담당자별 결재 구현을 뜻하지 않는다. 문서관리 가드·새 빌드·세 크기·기존 회귀 4/4 통과.
 
 - 서버/DMS 타입·빌드 기준선: `pnpm --filter server exec tsc --noEmit`, `pnpm --filter web-dms exec tsc --noEmit`, `pnpm build:server`, `pnpm build:web-dms`
 - DMS 계약 기준선: `pnpm -C apps/web/dms run check:user-scope-contract`, `pnpm -C apps/web/dms run check:golden-example`, `pnpm -C apps/web/dms run check:shell-body-contract`

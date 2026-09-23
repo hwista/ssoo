@@ -1,6 +1,8 @@
 # DMS 백로그
 
-> 최종 업데이트: 2026-08-20 (홈 워크 허브 구현·Ralph 검증 반영)
+> 최종 업데이트: 2026-09-22 (승인된 설정 입력 행 배치 보완)
+
+2026-09-22 설정 입력 행 완료: 사용자 “진행”으로 승인된 10개 설정 메뉴의 항목명·입력란 겹침을 보완했다. 실제 가용 폭에 따른 세로 배치를 적용하고 새 빌드·브라우저 102상태, 승인 비교안 72상태 일치, 입력 유지·초기화·오류 안내를 확인했다. [적용 범위와 검증](2026-09-22-settings-field-layout-handoff.md). 이번 배치 승인 대기 0건. 설정 화면 전체 품질 완료가 아니며 기존 승인 번호를 추가하지 않는다.
 
 ---
 
@@ -8,6 +10,12 @@
 
 | ID | 항목 | 우선순위 | 담당 | 상태 |
 |----|------|----------|------|------|
+| 기존 알림 관찰 후속 | 재접속 안내의 응답 길이 불일치 | P1 | - | 내부 수정과 공통 50/50·문서 회귀 4/4 통과. 다섯 서비스 빌드·실제 알림 연결과 필수 가드까지 완료. 신규 승인 번호·완료 증감 없음. [결과](../../common/explanation/architecture/2026-09-17-notification-stream-handoff.md) |
+| 승인-01 | 생성 기록 구분과 계약 초안 내부 승인 | P1 | 완료 | 사용자 후속 승인으로 고객관리에서 실제 한 명 지정·요청·승인/반려·철회·이력 완료. 기존 문서관리 화면·연동과 원본 열람 권한 유지. [검증 결과](../../common/explanation/architecture/2026-09-17-contract-internal-approval-handoff.md) |
+| DMS-SEARCH-PANEL-20260914 | 좁은 통합 검색 결과 가림 개선 | P1 | - | ✅ 승인-17 완료. 검색 화면만 기존 접기 선택값 지정, 문서 본문·패널 조작·권한·검색/저장 계약 보존. 문서관리 패널 1/1·문서 관련 회귀 4/4 확인. [최신 결과](../../common/explanation/architecture/2026-09-14-service-search-panel-handoff.md) |
+| DMS-SEARCH-ENTRY-20260914 | 검색 주소 직접 접속·새로고침 | P1 | - | ✅ 승인-18 완료. 기존 화면 틀 연결, 검색어/필터/새로고침 복원. 기존 루트 검색·빈 입력·문서 본문·저장 계약 보존. 문서관리 검색/패널/문서 관련 회귀 통과. [결과](../../common/explanation/architecture/2026-09-15-search-entry-handoff.md) |
+| DMS-VIS-20260911 | 문서 다이어그램·휴대폰 도구 표시 | P1 | 2026-09-18 | 완료. [결과](../../common/explanation/architecture/2026-09-18-document-diagram-handoff.md): 네 종류/네 표시 경로·원문·검색·실패 복구·인쇄·네 화면 너비, 기존 업무 11/11 및 다섯 웹 빌드 검증 |
+| DMS-DEP-20260911 | 승인-10 보안 의존성 수정·검수 동작 보존 | P0 | - | ✅ 완료: 잔여 압축 부품 제거·감사 0건·서버 492건·문서관리 회귀 12건. 문서 13개 구성 내용 비교, 실제 양식 업로드·견적 생성/다운로드·편집 첨부 3형식 검증. 화면·사용법·외부 연동 계약 및 기존 스타일 유지. [최종 결과](../../../output/playwright/approval10-zip-20260911/results.md) |
 | DMS-DOC-INT-01 | `docs/dms` 단일 정본 전환 + 경로 정합성 정리 | P1 | - | ✅ 완료 |
 | DMS-INT-01 | 모노레포 통합 | P1 | - | ✅ 완료 |
 | DMS-INT-02 | PMS 디자인 시스템 적용 | P1 | - | ✅ 완료 |
@@ -145,8 +153,15 @@
 
 ## Changelog
 
+2026-09-18: 승인-15 구현·검증 완료. 전 서비스 21/22 완료·1잔여, 운영 증거 0/5. 아래는 준비 당시 기록이다.
+
+2026-09-17: 승인-15 [다이어그램 적용안](2026-09-17-diagram-approval-proposal.md) 준비. 현행 재현과 원문·실패 복구·휴대폰 배치 범위를 구체화했으며 제품 변경·완료 증감은 없다.
+
+2026-09-17: 승인-01 사용자 선택 1번 완료. [계약 생성 기록 처리 결과](../../common/explanation/architecture/2026-09-17-contract-records-handoff.md) 기준 생성 기록 의미 보정·기존 계약 보존·실제 결재 미구현 구분 및 회귀 통과.
+
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-09-11 | 승인-10 수정·최종 회귀 완료. 스타일 호환 회귀·빌드 캐시 보정 및 DMS 검수 동작 보존·잔여 압축 처리 경고·승인-15 분리 |
 | 2026-08-13 | 프로덕션 env/endpoint, backup→isolated restore, Git SHA 정합성 자동화를 완료 항목으로 등록하고 실제 공개 DMS/Admin Ralph를 P0 최종 실행 항목으로 분리. AI/RAG provider-ready 증거는 명시적 외부 provider 예외와 post-launch acceptance로 재분류 |
 | 2026-07-10 | DMS 설정에 `CRM 계약 산출 정책` section을 추가해 `system.crmContractExportPolicy`의 policy key/version, organization scope, markdown record root, Word/PDF storage artifact root를 편집하도록 연결. DMS CRM 계약 lifecycle은 이 정책으로 `export-policy.md`와 `dmsExecution.governance.exportPolicy`를 생성하며, markdown evidence와 DOCX/PDF artifact를 조직 scope별 경로 아래 산출 |
 | 2026-07-10 | DMS 설정에 `CRM 계약 결재선` section을 추가해 `system.crmContractApprovalRoute`의 route key/name, policy version, organization scope, required roles를 편집하도록 연결. DMS CRM 계약 lifecycle은 이 정책으로 승인 route evidence와 결재선 원장 sync evidence를 생성 |
@@ -212,3 +227,11 @@
 | 2026-02-23 | `docs/dms` 단일 정본 전환 완료, 런타임 위키 경로(`apps/web/dms/data/wiki`) 분리 |
 | 2026-01-28 | DMS-UI-02~04 완료, DMS-UI-01 추가, DMS-DOC-02 진행 등록 |
 | 2026-01-27 | 백로그 문서 생성 |
+
+| 2026-09-11 | 승인-10 완료 판정을 정정하고 잔여 압축 처리 경고 해결을 우선. 기존 검증 증거와 화면·사용법·연동 계약은 유지하며 교체 결과는 아직 미검증 |
+
+| 2026-09-11 | 사용자 승인 잔여 보완 완료: 취약 압축 부품 제거·감사 0건, 실제 문서 업로드·생성·다운로드·첨부 및 문서관리 회귀 12건 통과. 화면·외부 연동 규칙 유지 |
+
+| 2026-09-14 | 승인-17 검색 가림 개선·문서 권한/열기/편집 저장 회귀 완료. 승인-18 검색 직접 접속 미해결 분리 |
+
+| 2026-09-15 | 승인-18 검색 진입·복원 완료. DMS 기존 루트의 빈 입력과 문서 권한/열기/저장 보존 검증 |

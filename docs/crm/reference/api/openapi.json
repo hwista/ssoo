@@ -1472,6 +1472,214 @@
         ]
       }
     },
+    "/api/crm/contract-approvals/inbox": {
+      "get": {
+        "operationId": "ContractApprovalController_inbox",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "본인에게 요청된 계약 초안 승인 대기 목록",
+        "tags": [
+          "crm-contract-approvals"
+        ]
+      }
+    },
+    "/api/crm/contract-approvals/contracts/{code}": {
+      "get": {
+        "operationId": "ContractApprovalController_workspace",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "계약 초안 내부 승인 상태와 이력",
+        "tags": [
+          "crm-contract-approvals"
+        ]
+      },
+      "post": {
+        "operationId": "ContractApprovalController_request",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "저장된 계약 초안을 지정한 한 사람에게 승인 요청",
+        "tags": [
+          "crm-contract-approvals"
+        ]
+      }
+    },
+    "/api/crm/contract-approvals/contracts/{code}/candidates": {
+      "get": {
+        "operationId": "ContractApprovalController_candidates",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "계약과 원본 초안을 읽을 수 있는 승인자 후보",
+        "tags": [
+          "crm-contract-approvals"
+        ]
+      }
+    },
+    "/api/crm/contract-approvals/{id}/snapshot": {
+      "get": {
+        "operationId": "ContractApprovalController_snapshot",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "원본 열람 권한을 확인한 후 요청 당시 계약 초안 조회",
+        "tags": [
+          "crm-contract-approvals"
+        ]
+      }
+    },
+    "/api/crm/contract-approvals/{id}/decision": {
+      "post": {
+        "operationId": "ContractApprovalController_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "지정된 승인자의 승인·반려 또는 요청자의 철회",
+        "tags": [
+          "crm-contract-approvals"
+        ]
+      }
+    },
     "/api/crm/customers": {
       "get": {
         "operationId": "CustomerController_list",
@@ -4685,6 +4893,45 @@
             "description": "DMS lifecycle 실행 메모"
           }
         }
+      },
+      "ApprovalRequestDto": {
+        "type": "object",
+        "properties": {
+          "approverId": {
+            "type": "string"
+          },
+          "versionKey": {
+            "type": "string"
+          },
+          "requestKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "approverId",
+          "versionKey",
+          "requestKey"
+        ]
+      },
+      "ApprovalDecisionDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject",
+              "withdraw"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "action"
+        ]
       },
       "CrmCustomerAiIndexBackfillDto": {
         "type": "object",

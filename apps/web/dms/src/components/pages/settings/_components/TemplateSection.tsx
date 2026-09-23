@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { TemplateItem, TemplateKind, TemplateScope } from '@/types/template';
 import { NativeSelect, Textarea } from '@ssoo/web-ui';
+import { formatTemplateUpdatedAt } from '../_utils/templatePresentation';
 
 interface TemplateDraft {
   name: string;
@@ -18,6 +19,8 @@ interface TemplateDraft {
 export function TemplateSection({
   templates,
   isLoadingTemplates,
+  hasTemplateLoadError,
+  onReloadTemplates,
   templateDraft,
   setTemplateDraft,
   onSave,
@@ -30,6 +33,8 @@ export function TemplateSection({
 }: {
   templates: TemplateItem[];
   isLoadingTemplates: boolean;
+  hasTemplateLoadError: boolean;
+  onReloadTemplates: () => void;
   templateDraft: TemplateDraft;
   setTemplateDraft: Dispatch<SetStateAction<TemplateDraft>>;
   onSave: () => void;
@@ -41,58 +46,76 @@ export function TemplateSection({
   anchorIds?: Partial<Record<'template-create' | 'template-list', string>>;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 pb-20">
       <article id={anchorIds['template-create']} className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3">
         <h3 className="text-label-strong text-ssoo-primary">템플릿 추가</h3>
         <div className="mt-3 grid gap-2 md:grid-cols-2">
-          <Input
-            value={templateDraft.name}
-            onChange={(event) => setTemplateDraft((prev) => ({ ...prev, name: event.target.value }))}
-            placeholder="템플릿 이름"
-          />
-          <Input
-            value={templateDraft.description}
-            onChange={(event) => setTemplateDraft((prev) => ({ ...prev, description: event.target.value }))}
-            placeholder="설명"
-          />
-          <NativeSelect
-            value={templateDraft.scope}
-            onChange={(event) => setTemplateDraft((prev) => ({ ...prev, scope: event.target.value as TemplateScope }))}
-          >
-            <option value="personal">개인 템플릿</option>
-            <option value="global">전역 템플릿</option>
-          </NativeSelect>
-          <NativeSelect
-            value={templateDraft.kind}
-            onChange={(event) => setTemplateDraft((prev) => ({
-              ...prev,
-              kind: event.target.value as TemplateKind,
-              ...(event.target.value === 'folder' ? { usage: 'general' as const } : {}),
-            }))}
-          >
-            <option value="document">문서 템플릿</option>
-            <option value="folder">폴더 템플릿</option>
-          </NativeSelect>
-          <NativeSelect
-            value={templateDraft.usage}
-            disabled={templateDraft.kind !== 'document'}
-            onChange={(event) => setTemplateDraft((prev) => ({
-              ...prev,
-              usage: event.target.value as TemplateDraft['usage'],
-            }))}
-          >
-            <option value="general">일반 문서</option>
-            <option value="crm-quote-document">CRM 견적서</option>
-            <option value="crm-contract-document">CRM 계약서</option>
-            <option value="crm-opportunity-contract-document">CRM 영업기회 계약서</option>
-          </NativeSelect>
+          <label className="min-w-0 space-y-1">
+            <span className="text-caption text-ssoo-primary/70">템플릿 이름</span>
+            <Input
+              value={templateDraft.name}
+              onChange={(event) => setTemplateDraft((prev) => ({ ...prev, name: event.target.value }))}
+              placeholder="템플릿 이름"
+            />
+          </label>
+          <label className="min-w-0 space-y-1">
+            <span className="text-caption text-ssoo-primary/70">설명</span>
+            <Input
+              value={templateDraft.description}
+              onChange={(event) => setTemplateDraft((prev) => ({ ...prev, description: event.target.value }))}
+              placeholder="설명"
+            />
+          </label>
+          <label className="min-w-0 space-y-1">
+            <span className="text-caption text-ssoo-primary/70">공개 범위</span>
+            <NativeSelect
+              value={templateDraft.scope}
+              onChange={(event) => setTemplateDraft((prev) => ({ ...prev, scope: event.target.value as TemplateScope }))}
+            >
+              <option value="personal">개인 템플릿</option>
+              <option value="global">전역 템플릿</option>
+            </NativeSelect>
+          </label>
+          <label className="min-w-0 space-y-1">
+            <span className="text-caption text-ssoo-primary/70">서식 종류</span>
+            <NativeSelect
+              value={templateDraft.kind}
+              onChange={(event) => setTemplateDraft((prev) => ({
+                ...prev,
+                kind: event.target.value as TemplateKind,
+                ...(event.target.value === 'folder' ? { usage: 'general' as const } : {}),
+              }))}
+            >
+              <option value="document">문서 템플릿</option>
+              <option value="folder">폴더 템플릿</option>
+            </NativeSelect>
+          </label>
+          <label className="min-w-0 space-y-1">
+            <span className="text-caption text-ssoo-primary/70">사용 목적</span>
+            <NativeSelect
+              value={templateDraft.usage}
+              disabled={templateDraft.kind !== 'document'}
+              onChange={(event) => setTemplateDraft((prev) => ({
+                ...prev,
+                usage: event.target.value as TemplateDraft['usage'],
+              }))}
+            >
+              <option value="general">일반 문서</option>
+              <option value="crm-quote-document">CRM 견적서</option>
+              <option value="crm-contract-document">CRM 계약서</option>
+              <option value="crm-opportunity-contract-document">CRM 영업기회 계약서</option>
+            </NativeSelect>
+          </label>
         </div>
-        <Textarea
-          value={templateDraft.content}
-          onChange={(event) => setTemplateDraft((prev) => ({ ...prev, content: event.target.value }))}
-          placeholder="템플릿 본문 (마크다운/텍스트)"
-          className="mt-2 min-h-[120px]"
-        />
+        <label className="mt-2 block space-y-1">
+          <span className="text-caption text-ssoo-primary/70">템플릿 본문</span>
+          <Textarea
+            value={templateDraft.content}
+            onChange={(event) => setTemplateDraft((prev) => ({ ...prev, content: event.target.value }))}
+            placeholder="템플릿 본문 (마크다운/텍스트)"
+            className="min-h-[120px]"
+          />
+        </label>
         <div className="mt-2 flex justify-end">
           <Button
             type="button"
@@ -107,11 +130,21 @@ export function TemplateSection({
 
       <article id={anchorIds['template-list']} className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3">
         <h3 className="text-label-strong text-ssoo-primary">템플릿 목록</h3>
+        {hasTemplateLoadError && !isLoadingTemplates && (
+          <div role="alert" className="mt-2 space-y-2">
+            <p className="text-caption text-destructive">
+              템플릿 목록을 불러오지 못했습니다. 잠시 후 다시 불러와 주세요.
+            </p>
+            <Button type="button" variant="outline" onClick={onReloadTemplates}>
+              다시 불러오기
+            </Button>
+          </div>
+        )}
         {isLoadingTemplates ? (
           <div className="mt-2">
             <LoadingSpinner message="템플릿을 불러오는 중입니다." className="text-caption text-ssoo-primary/70" />
           </div>
-        ) : templates.length === 0 ? (
+        ) : templates.length === 0 && hasTemplateLoadError ? null : templates.length === 0 ? (
           <p className="mt-2 text-caption text-ssoo-primary/70">등록된 템플릿이 없습니다.</p>
         ) : (
           <div className="mt-2 space-y-2">
@@ -132,7 +165,7 @@ export function TemplateSection({
                     <div className="min-w-0">
                       <p className="truncate text-label-strong text-ssoo-primary">{template.name}</p>
                       <p className="text-caption text-ssoo-primary/70">
-                        {template.scope === 'global' ? '전역' : '개인'} · {template.kind === 'document' ? '문서' : '폴더'} · {template.updatedAt.slice(0, 10)}
+                        {template.scope === 'global' ? '전역' : '개인'} · {template.kind === 'document' ? '문서' : '폴더'} · {formatTemplateUpdatedAt(template.updatedAt)}
                       </p>
                       {template.description && <p className="mt-0.5 text-caption text-ssoo-primary/70">{template.description}</p>}
                       {template.kind === 'document' && (
@@ -156,7 +189,7 @@ export function TemplateSection({
                         </div>
                       )}
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    <div className="flex min-w-0 max-w-full flex-wrap items-center justify-start gap-2">
                       {template.kind === 'document' && onUploadDocx && (
                         <Button asChild variant="outline" size="sm" className="gap-1">
                           <label className={isDocxUploading ? 'pointer-events-none opacity-50' : 'cursor-pointer'}>

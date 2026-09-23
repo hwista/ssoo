@@ -22,6 +22,8 @@ interface CrmTabStore {
   tabs: CrmTabItem[];
   activeTabId: string | null;
   maxTabs: number;
+  tabLimitReached: boolean;
+  dismissTabLimit: () => void;
   openTab: (options: OpenCrmTabOptions) => string;
   closeTab: (tabId: string) => void;
   activateTab: (tabId: string) => void;
@@ -59,6 +61,8 @@ export const useTabStore = create<CrmTabStore>()(
       tabs: [createHomeTab()],
       activeTabId: CRM_HOME_TAB.id,
       maxTabs: 16,
+      tabLimitReached: false,
+      dismissTabLimit: () => set({ tabLimitReached: false }),
       openTab: (options) => {
         const tabId = createTabId(options.path, options.id);
         const existing = get().tabs.find((tab) => tab.id === tabId);
@@ -77,6 +81,7 @@ export const useTabStore = create<CrmTabStore>()(
         }
 
         if (get().tabs.length >= get().maxTabs) {
+          set({ tabLimitReached: true });
           return '';
         }
 

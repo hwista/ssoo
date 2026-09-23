@@ -1,3 +1,4 @@
+import JSZip from 'jszip';
 import { createRequire } from 'node:module';
 import { extname } from 'node:path';
 import { configService } from '../runtime/dms-config.service.js';
@@ -92,10 +93,10 @@ export async function extractTextFromFile(
         return await extractDocx(buffer, cfg);
       case '.ppt':
       case '.pptx':
-        return extractOfficeZip(buffer, 'ppt/media/', extractPptxText, cfg);
+        return await extractOfficeZip(buffer, 'ppt/media/', extractPptxText, cfg);
       case '.xls':
       case '.xlsx':
-        return extractOfficeZip(buffer, 'xl/media/', extractXlsxText, cfg);
+        return await extractOfficeZip(buffer, 'xl/media/', extractXlsxText, cfg);
       case '.txt':
       case '.md':
       case '.json':
@@ -132,11 +133,6 @@ interface ExtractionCfg {
   pdfRenderScale: number;
 }
 
-interface ZipEntry {
-  entryName: string;
-  getData: () => Buffer;
-}
-
 interface PdfRuntimeGlobals {
   DOMMatrix?: unknown;
   DOMPoint?: unknown;
@@ -144,22 +140,21 @@ interface PdfRuntimeGlobals {
   ImageData?: unknown;
 }
 
-function extractImagesFromZip(buffer: Buffer, mediaPrefix: string, cfg: ExtractionCfg): ExtractedImage[] {
-  const AdmZip = nodeRequire('adm-zip');
-  const zip = new AdmZip(buffer);
-  const entries: ZipEntry[] = zip.getEntries();
+async function extractImagesFromZip(buffer: Buffer, mediaPrefix: string, cfg: ExtractionCfg): Promise<ExtractedImage[]> {
+  const zip = await JSZip.loadAsync(buffer);
+  const entries = Object.values(zip.files);
   const images: ExtractedImage[] = [];
 
   const mediaEntries = entries
-    .filter((entry) => entry.entryName.startsWith(mediaPrefix))
-    .sort((left, right) => left.entryName.localeCompare(right.entryName));
+    .filter((entry) => entry.name.startsWith(mediaPrefix))
+    .sort((left, right) => left.name.localeCompare(right.name));
 
   for (const entry of mediaEntries) {
     if (images.length >= cfg.maxImages) {
       break;
     }
 
-    const ext = extname(entry.entryName).toLowerCase();
+    const ext = extname(entry.name).toLowerCase();
     const mimeMap: Record<string, string> = {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
@@ -172,7 +167,7 @@ function extractImagesFromZip(buffer: Buffer, mediaPrefix: string, cfg: Extracti
       continue;
     }
 
-    const data = entry.getData();
+    const data = await entry.async('nodebuffer');
     if (data.length > cfg.maxImageSize) {
       continue;
     }
@@ -180,7 +175,7 @@ function extractImagesFromZip(buffer: Buffer, mediaPrefix: string, cfg: Extracti
     images.push({
       base64: data.toString('base64'),
       mimeType,
-      name: entry.entryName.split('/').pop() ?? entry.entryName,
+      name: entry.name.split('/').pop() ?? entry.name,
       size: data.length,
     });
   }
@@ -188,15 +183,15 @@ function extractImagesFromZip(buffer: Buffer, mediaPrefix: string, cfg: Extracti
   return images;
 }
 
-function extractOfficeZip(
+async function extractOfficeZip(
   buffer: Buffer,
   mediaPrefix: string,
-  textFn: (buffer: Buffer, cfg: ExtractionCfg) => string,
+  textFn: (buffer: Buffer, cfg: ExtractionCfg) => string | Promise<string>,
   cfg: ExtractionCfg,
-): ExtractionResult {
+): Promise<ExtractionResult> {
   return {
-    text: textFn(buffer, cfg),
-    images: extractImagesFromZip(buffer, mediaPrefix, cfg),
+    text: await textFn(buffer, cfg),
+    images: await extractImagesFromZip(buffer, mediaPrefix, cfg),
   };
 }
 
@@ -335,7 +330,7 @@ async function extractDocx(buffer: Buffer, cfg: ExtractionCfg): Promise<Extracti
   const result = await mammoth.extractRawText({ buffer });
   return {
     text: (result.value ?? '').slice(0, cfg.maxTextLength),
-    images: extractImagesFromZip(buffer, 'word/media/', cfg),
+    images: await extractImagesFromZip(buffer, 'word/media/', cfg),
   };
 }
 
@@ -354,22 +349,21 @@ function extractXlsxText(buffer: Buffer, cfg: ExtractionCfg): string {
   return parts.join('\n---\n').slice(0, cfg.maxTextLength);
 }
 
-function extractPptxText(buffer: Buffer, cfg: ExtractionCfg): string {
-  const AdmZip = nodeRequire('adm-zip');
-  const zip = new AdmZip(buffer);
-  const entries: ZipEntry[] = zip.getEntries();
+async function extractPptxText(buffer: Buffer, cfg: ExtractionCfg): Promise<string> {
+  const zip = await JSZip.loadAsync(buffer);
+  const entries = Object.values(zip.files);
 
   const slideEntries = entries
-    .filter((entry) => /^ppt\/slides\/slide\d+\.xml$/i.test(entry.entryName))
+    .filter((entry) => /^ppt\/slides\/slide\d+\.xml$/i.test(entry.name))
     .sort((left, right) => {
-      const leftValue = parseInt(left.entryName.match(/slide(\d+)/)?.[1] ?? '0', 10);
-      const rightValue = parseInt(right.entryName.match(/slide(\d+)/)?.[1] ?? '0', 10);
+      const leftValue = parseInt(left.name.match(/slide(\d+)/)?.[1] ?? '0', 10);
+      const rightValue = parseInt(right.name.match(/slide(\d+)/)?.[1] ?? '0', 10);
       return leftValue - rightValue;
     });
 
   const parts: string[] = [];
   for (const entry of slideEntries) {
-    const xml = entry.getData().toString('utf-8');
+    const xml = await entry.async('string');
     const texts: string[] = [];
     const regex = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g;
     let match: RegExpExecArray | null;
@@ -383,7 +377,7 @@ function extractPptxText(buffer: Buffer, cfg: ExtractionCfg): string {
     }
 
     if (texts.length > 0) {
-      const slideNumber = entry.entryName.match(/slide(\d+)/)?.[1] ?? '?';
+      const slideNumber = entry.name.match(/slide(\d+)/)?.[1] ?? '?';
       parts.push(`[슬라이드 ${slideNumber}]\n${texts.join(' ')}`);
     }
   }

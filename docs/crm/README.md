@@ -1,7 +1,7 @@
 # CRM 문서
 
 > 작성: 2026-06-08
-> 최종 업데이트: 2026-08-24
+> 최종 업데이트: 2026-08-28
 
 이 폴더는 외부 영업관리 데모를 SSOO 프레임워크와 디자인 문법에 맞게 이식하기 위한 CRM 정본 문서입니다.
 
@@ -10,6 +10,8 @@
 데모 패리티와 운영 런칭 준비는 서로 다른 판정입니다. CRM의 운영·제어·관리 런칭 준비는 [CRM 런칭 운영 PRD](./planning/launch-operations-prd.md)의 `OPS-01~17`, 외부 배포 입력 `OPS-18`/`EXT-01~02`, [CRM·DMS 런칭 운영 브라우저 검증 계획](./planning/launch-operations-test-plan.md)의 `BT-01~27`을 모두 충족해야 완료로 판정합니다.
 
 ## 현재 상태
+
+- 2026-09-17: [계약 초안 내부 승인](../common/explanation/architecture/2026-09-17-contract-internal-approval-handoff.md) 완료. 실제 승인자 한 명 지정·요청·승인/반려·철회·이력을 지원한다. [사용 방법](guides/contract-internal-approval.md), [데이터 구조](reference/db/schema.dbml)를 참조한다. 기존 역할별 자동 기록과 별도이며 계약 확정·청구 조건은 유지했다.
 
 - 기존 폐쇄 원장은 S12의 83/83 상태 source/desktop/mobile 회귀와 `BT-06` 견적 artifact 회귀를 근거로 `SRC-01~28` 28/28, `UX-01~17` 17/17, strict demo 45/45를 기록하고 S13~S14에서 운영 성숙도 `OPS-01~17`도 17/17로 기록했습니다. 2026-08-24 감사에서는 이 증거가 현재 작업 트리의 실제 파일내용 지문과 결합되지 않은 공백을 확인했습니다. 현재 revision 점수는 schema 2 local/UI evidence와 current runtime report가 같은 지문으로 PASS한 `output/crm-current-demo/current-demo-parity-report.json`만 정본으로 사용합니다. 실제 런칭 Goal은 `EXT-01` 법인값/CI와 `EXT-02` production endpoint/credential이 적용될 때까지 active입니다.
 - fresh v1은 Admin client bundle의 잘못된 API 기본값을, fresh v2는 UI/UX 17화면·83상태 통과 뒤 runtime manifest 병렬 갱신 경쟁과 실제 login rate limit 소진을 검출해 모두 fail-closed·격리 파기했습니다. 현재 strict runner는 네 process PID를 잠금·원자 갱신하고 production login throttle을 끄지 않은 채 독립 검증 묶음 사이에 새 제한 창을 확보합니다.
@@ -67,6 +69,7 @@
 | [CRM 런칭 운영 PRD](./planning/launch-operations-prd.md) | CRM 운영·제어·관리의 유한 완료 분모 `OPS-01~18`, 책임 경계, 실행 단계 |
 | [CRM·DMS 런칭 운영 브라우저 검증 계획](./planning/launch-operations-test-plan.md) | CRM 운영면과 DMS 기존 운영면을 실제 브라우저에서 입증하는 Ralph 테스트 명세 |
 | [CRM 2단계 실행계획](./planning/launch-operations-handoff.md) | Phase 1 closure, IMP-01~17, S0~S15, Phase 2 Ralph 실행 원장 |
+| [CRM 런칭 UI 다듬기 핸드오프](./planning/2026-08-28-launch-ui-polish-handoff.md) | merge/publish 이후 기능 기준선과 UI 실사용성 판정을 분리하고, 다음 화면 감사·결함 원장·브라우저 Ralph 실행 순서를 고정 |
 | [CRM 도메인 권한·롤백 기준](./reference/crm-domain-access-policy.md) | 역할별 permission 기준, seed 적용·검증, 비파괴 롤백·재적용 절차 |
 | [CRM·DMS·Admin readiness snapshot 계약](./reference/crm-readiness-snapshot-contract.md) | owner/Admin snapshot identity, freshness, failure fallback 정본 |
 | [CRM 운영 실패 복구·비밀정보 마스킹 계약](./reference/crm-operation-recovery-and-secret-masking-contract.md) | attempt correlation/retry chain, owner recovery, secret redaction, BT-21/22 정본 |

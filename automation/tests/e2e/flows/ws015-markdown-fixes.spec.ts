@@ -21,7 +21,8 @@ interface LaunchUser {
 }
 
 const WS015_USER: LaunchUser = { loginId: 'admin', password: 'admin123!' };
-const DMS_BASE_URL = `http://127.0.0.1:${process.env.PLAYWRIGHT_DMS_PORT ?? '3003'}`;
+const DMS_BASE_URL = process.env.PLAYWRIGHT_BASE_URL
+  ?? `http://127.0.0.1:${process.env.PLAYWRIGHT_DMS_PORT ?? '3003'}`;
 
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null;
@@ -53,7 +54,7 @@ function isCollaborationPostForPath(response: Response, path: string, mode?: 'vi
 
 async function waitForDmsShell(page: Page) {
   await expect(
-    page.getByRole('searchbox', { name: '무엇이든 찾아드릴게요! 무엇이 필요하신가요?' }),
+    page.getByRole('banner').getByRole('searchbox', { name: '통합 검색', exact: true }),
   ).toBeVisible({ timeout: 15_000 });
 }
 
@@ -218,6 +219,7 @@ async function openDocumentTab(page: Page, path: string, title: string, ownerUse
   }, { ownerUserId, path, title });
   await reloadRotatingAuthenticatedPage(page);
   await waitForDmsShell(page);
+  await page.getByRole('tab', { name: title, exact: true }).click();
   await expect(page.getByRole('tab', { name: title })).toBeVisible({ timeout: 30_000 });
   await collaborationReady;
 }
@@ -324,6 +326,7 @@ test.describe('WS-015 markdown regressions', () => {
 
       await reloadRotatingAuthenticatedPage(page);
       await waitForDmsShell(page);
+      await page.getByRole('tab', { name: title, exact: true }).click();
       await expect(page.getByRole('tab', { name: title })).toBeVisible({ timeout: 30_000 });
       await expect(page.locator('article input[type="checkbox"][data-task-index="0"]')).toBeChecked();
     } finally {

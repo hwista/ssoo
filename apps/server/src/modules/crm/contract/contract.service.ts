@@ -1,3 +1,4 @@
+import { AccessRequestService } from '../../dms/access/access-request.service.js';
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -320,6 +321,7 @@ export class ContractService {
     @Optional() private readonly templateService?: TemplateService,
     @Optional() private readonly dmsCrmContractLifecycleService?: DmsCrmContractLifecycleService,
     @Optional() private readonly operationAttemptService?: CrmOperationAttemptService,
+    @Optional() private readonly documentAccessService?: AccessRequestService,
   ) {}
 
   async listContracts(query: CrmContractListQuery = {}): Promise<CrmContract[]> {
@@ -411,11 +413,13 @@ export class ContractService {
     const savedPath = this.toDmsDraftPath(preview);
     const draftPreview = this.toSavedDmsDocumentDraftPreview(preview, savedPath, null, templateEvidence);
     const content = this.toDmsDocumentDraftMarkdown(contract, draftPreview, dto.memo);
+    if (!this.documentAccessService) throw new BadRequestException('문서 권한 등록 서비스를 사용할 수 없습니다.');
     const result = await this.fileCrudService.write(savedPath, content, currentUser);
     if (!result.success) {
       throw new BadRequestException(`DMS 문서 초안 저장에 실패했습니다: ${result.error}`);
     }
 
+    await this.documentAccessService.syncDocumentProjection(savedPath, result.data.metadata as unknown as Record<string, unknown>);
     const handoff = await this.persistDmsDocumentHandoff(contract, draftPreview, savedPath, dto, currentUser);
     const handoffSummary = this.toDmsDocumentHandoffSummary(handoff);
     const nextPreview = this.toSavedDmsDocumentDraftPreview(draftPreview, savedPath, handoffSummary, templateEvidence);

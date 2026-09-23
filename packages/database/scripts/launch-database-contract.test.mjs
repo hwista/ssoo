@@ -121,10 +121,13 @@ test('TC-DB-06: repository launch migrations and triggers form the expected cont
       '20260814090000_add_crm_contract_party_identity',
       '20260814100000_add_crm_opportunity_contract_document',
       '20260820090000_add_dms_home_hub',
+      '20260917090000_add_crm_contract_approval',
+      '20260917100000_add_pms_user_settings',
     ],
   );
-  assert.equal(triggers.length, 82);
+  assert.equal(triggers.length, 84);
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_contract_m_h_record'));
+  assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_contract_approval_m_h_record'));
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_config_m_h_record'));
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_operation_attempt_m_h_record'));
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_dm_user_document_activity_h'));

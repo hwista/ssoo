@@ -31,6 +31,7 @@ import {
   TableRow,
   Textarea,
 } from '@ssoo/web-ui';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 
 interface BackendSuccessResponse<T> {
@@ -169,11 +170,11 @@ export function CrmSettingsWorkspaceClient() {
   };
 
   return (
-    <div className="min-h-full bg-muted">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 md:px-6 md:py-6">
+    <div className="min-h-full min-w-0 bg-muted">
+      <div className="mx-auto flex w-full min-w-0 flex-col gap-5 p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-md border bg-card text-muted-foreground">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-card text-muted-foreground">
               <Settings2 className="h-5 w-5" />
             </div>
             <div>
@@ -181,7 +182,7 @@ export function CrmSettingsWorkspaceClient() {
               <p className="mt-1 text-sm text-muted-foreground">비밀정보를 저장하지 않는 문서 연동·운영 임계값 정본</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" type="button" onClick={() => void load()} disabled={!accessToken || isLoading || isSaving}>
               <RefreshCw className="h-4 w-4" /> 새로고침
             </Button>
@@ -213,7 +214,7 @@ export function CrmSettingsWorkspaceClient() {
                 </div>
                 <Badge variant="outline">revision {settings.revision}</Badge>
               </div>
-              <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
+              <div className="grid min-w-0 grid-cols-1 gap-4 px-5 py-5 xl:grid-cols-2">
                 <Field label="견적 DMS 템플릿 key">
                   <Input value={draft.quoteTemplateKey} disabled={!canManage} maxLength={120} onChange={(event) => updateDraft('quoteTemplateKey', event.target.value)} />
                 </Field>
@@ -247,14 +248,14 @@ export function CrmSettingsWorkspaceClient() {
               <div className="border-b px-5 py-4">
                 <h2 className="text-sm font-semibold text-foreground">운영 임계값·provenance</h2>
               </div>
-              <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
+              <div className="grid min-w-0 grid-cols-1 gap-4 px-5 py-5 xl:grid-cols-2">
                 <Field label="정체 판정 시간(분)">
                   <Input type="number" min={5} max={1440} value={draft.stalledAfterMinutes} disabled={!canManage} onChange={(event) => updateDraft('stalledAfterMinutes', Number(event.target.value))} />
                 </Field>
                 <Field label="attempt 보존 기간(일)">
                   <Input type="number" min={7} max={3650} value={draft.attemptRetentionDays} disabled={!canManage} onChange={(event) => updateDraft('attemptRetentionDays', Number(event.target.value))} />
                 </Field>
-                <div className="md:col-span-2">
+                <div className="xl:col-span-2">
                   <Field label="운영 메모">
                     <Textarea value={draft.memo ?? ''} disabled={!canManage} maxLength={4000} rows={3} onChange={(event) => updateDraft('memo', event.target.value)} />
                   </Field>
@@ -277,7 +278,7 @@ export function CrmSettingsWorkspaceClient() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {history.length === 0 ? <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">기록된 변경 이력이 없습니다.</TableCell></TableRow> : null}
+                    {history.length === 0 ? <TableRow><TableCell colSpan={6} className="py-6 text-left text-muted-foreground">기록된 변경 이력이 없습니다.</TableCell></TableRow> : null}
                     {history.map((item) => (
                       <TableRow key={item.historySequence}>
                         <TableCell>{formatDateTime(item.eventAt)}</TableCell>
@@ -314,18 +315,18 @@ export function CrmSettingsWorkspaceClient() {
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="space-y-1.5 text-sm"><span className="font-medium text-muted-foreground">{label}</span>{children}</label>;
+  return <label className="block min-w-0 space-y-1.5 text-sm"><span className="font-medium text-muted-foreground">{label}</span>{children}</label>;
 }
 
 function ToggleField({ label, description, checked, disabled, onChange }: { label: string; description: string; checked: boolean; disabled?: boolean; onChange?: (checked: boolean) => void }) {
   return (
-    <label className="flex items-start gap-3 rounded-md border bg-muted/40 px-4 py-3">
+    <label className="flex min-w-0 items-start gap-3 rounded-md border bg-muted/40 px-4 py-3">
       <Checkbox checked={checked} disabled={disabled} onCheckedChange={(value) => onChange?.(value === true)} aria-label={label} />
-      <span><span className="block text-sm font-medium text-foreground">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{description}</span></span>
+      <span className="min-w-0 break-words"><span className="block text-sm font-medium text-foreground">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{description}</span></span>
     </label>
   );
 }
 
 function ProvenanceItem({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
-  return <div className="flex items-start gap-3 rounded-md border bg-muted/40 px-4 py-3 text-sm"><span className="mt-0.5 text-muted-foreground">{icon}</span><span><span className="block text-xs text-muted-foreground">{label}</span><span className="mt-1 block font-medium text-foreground">{value}</span></span></div>;
+  return <div className="flex min-w-0 items-start gap-3 rounded-md border bg-muted/40 px-4 py-3 text-sm"><span className="mt-0.5 text-muted-foreground">{icon}</span><span className="min-w-0 break-words"><span className="block text-xs text-muted-foreground">{label}</span><span className="mt-1 block font-medium text-foreground">{value}</span></span></div>;
 }

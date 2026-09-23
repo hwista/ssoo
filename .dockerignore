@@ -11,6 +11,8 @@ node_modules
 dist
 **/dist
 coverage
+output/
+.playwright-cli/
 .turbo
 **/.turbo
 *.tsbuildinfo

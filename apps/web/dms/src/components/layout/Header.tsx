@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, type ComponentProps } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { SsooAppHeader, useSsooGlobalHeaderSearch } from '@ssoo/web-shell';
 import { Menu, Plus, X } from 'lucide-react';
 import { useAccessStore, useTabStore } from '@/stores';
+import { GLOBAL_SEARCH_PATH } from '@/lib/constants/routes';
 import { UserMenu } from './UserMenu';
 import { HeaderNotifications } from './HeaderNotifications';
 
@@ -58,6 +60,8 @@ interface WorkspaceHeaderProps {
 
 function WorkspaceHeader({ mobile, mobileHeaderProps }: WorkspaceHeaderProps) {
   const { openTab, updateTab } = useTabStore();
+  const pathname = usePathname();
+  const router = useRouter();
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const canUseSearch = accessSnapshot?.features.canUseSearch ?? false;
   const canWriteDocuments = accessSnapshot?.features.canWriteDocuments ?? false;
@@ -80,6 +84,7 @@ function WorkspaceHeader({ mobile, mobileHeaderProps }: WorkspaceHeaderProps) {
           path,
           icon,
         });
+        if (pathname === GLOBAL_SEARCH_PATH) router.replace(path);
       }
     },
   });

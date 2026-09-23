@@ -1,0 +1,1228 @@
+//// ------------------------------------------------------
+
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+
+//// ------------------------------------------------------
+
+Table crm_opportunity_m {
+  id BigInt [pk, increment]
+  opportunityCode String [unique, not null]
+  opportunityGroupCode String [not null]
+  customerName String [not null]
+  opportunityName String [not null]
+  ownerName String [not null]
+  ownerUserId BigInt
+  businessType String [not null]
+  industryLine String [not null]
+  regionCode String [not null, default: 'domestic']
+  statusCode String [not null, default: 'draft']
+  priorityCode String [not null, default: 'medium']
+  versionNo Int [not null, default: 1]
+  confirmed Boolean [not null, default: false]
+  contractCreated Boolean [not null, default: false]
+  contractCreatedAt DateTime
+  contractCode String
+  expectedStartDate DateTime
+  expectedEndDate DateTime
+  paymentTermCode String
+  quoteStatusCode String [not null, default: 'draft']
+  quoteClientContactName String
+  quoteIssuedAt DateTime
+  quoteValidUntil DateTime
+  quoteMemo String
+  revenueSubtotal BigInt [not null, default: 0]
+  specialDiscountTypeCode String [not null, default: 'amount']
+  specialDiscountValue Decimal
+  specialDiscountAmount BigInt [not null, default: 0]
+  revenueTotal BigInt [not null, default: 0]
+  costTotal BigInt [not null, default: 0]
+  pmsHandoffStatusCode String [not null, default: 'planned']
+  dmsLinkStatusCode String [not null, default: 'planned']
+  adminBoundaryCode String [not null, default: 'shared-admin']
+  nextAction String [not null]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  lines crm_opportunity_line_d [not null]
+  contracts crm_contract_m [not null]
+  quoteDmsHandoffs crm_quote_dms_handoff_m [not null]
+  contractDocumentHandoffs crm_opportunity_contract_dms_handoff_m [not null]
+  customerSources crm_customer_m [not null]
+  customerActivities crm_customer_activity_d [not null]
+
+  indexes {
+    (opportunityGroupCode, versionNo) [unique]
+  }
+}
+
+Table crm_quote_dms_handoff_m {
+  id BigInt [pk, increment]
+  opportunityId BigInt [not null]
+  opportunityCode String [not null]
+  quoteNumber String [not null]
+  documentTypeCode String [not null, default: 'quote']
+  documentTitle String [not null]
+  templateKey String [not null]
+  folderHint String [not null]
+  fileNameHint String [not null]
+  draftPath String [not null]
+  statusCode String [not null, default: 'draft-created']
+  documentSnapshot Json [not null]
+  variablesSnapshot Json [not null]
+  memo String
+  isActive Boolean [not null, default: true]
+  savedBy BigInt
+  savedAt DateTime [default: `now()`, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  opportunity crm_opportunity_m [not null]
+}
+
+Table crm_opportunity_contract_dms_handoff_m {
+  id BigInt [pk, increment]
+  opportunityId BigInt [not null]
+  opportunityCode String [not null]
+  documentTitle String [not null]
+  templateKey String [not null]
+  folderHint String [not null]
+  fileNameHint String [not null]
+  draftPath String [not null]
+  statusCode String [not null, default: 'draft-created']
+  documentSnapshot Json [not null]
+  variablesSnapshot Json [not null]
+  artifactSnapshot Json
+  memo String
+  isActive Boolean [not null, default: true]
+  savedBy BigInt
+  savedAt DateTime [default: `now()`, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  opportunity crm_opportunity_m [not null]
+}
+
+Table crm_opportunity_h {
+  opportunityId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  opportunityCode String [not null]
+  opportunityGroupCode String [not null]
+  customerName String [not null]
+  opportunityName String [not null]
+  ownerName String [not null]
+  ownerUserId BigInt
+  businessType String [not null]
+  industryLine String [not null]
+  regionCode String [not null]
+  statusCode String [not null]
+  priorityCode String [not null]
+  versionNo Int [not null]
+  confirmed Boolean [not null]
+  contractCreated Boolean [not null]
+  contractCreatedAt DateTime
+  contractCode String
+  expectedStartDate DateTime
+  expectedEndDate DateTime
+  paymentTermCode String
+  quoteStatusCode String [not null]
+  quoteClientContactName String
+  quoteIssuedAt DateTime
+  quoteValidUntil DateTime
+  quoteMemo String
+  revenueSubtotal BigInt [not null]
+  specialDiscountTypeCode String [not null]
+  specialDiscountValue Decimal
+  specialDiscountAmount BigInt [not null]
+  revenueTotal BigInt [not null]
+  costTotal BigInt [not null]
+  pmsHandoffStatusCode String [not null]
+  dmsLinkStatusCode String [not null]
+  adminBoundaryCode String [not null]
+  nextAction String [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (opportunityId, historySeq) [pk]
+  }
+}
+
+Table crm_opportunity_line_d {
+  id BigInt [pk, increment]
+  opportunityId BigInt [not null]
+  lineCode String [not null]
+  lineKindCode String [not null]
+  categoryCode String [not null]
+  lineLabel String [not null]
+  quantity Decimal
+  unitPrice BigInt
+  amount BigInt [not null, default: 0]
+  marginRate Decimal
+  truncUnit BigInt
+  department String
+  memberName String
+  grade String
+  serviceTypeCode String
+  revenueLinked Boolean [not null, default: false]
+  linkedCostLineCode String
+  revenueUnitPrice BigInt
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  opportunity crm_opportunity_m [not null]
+
+  indexes {
+    (opportunityId, lineCode) [unique]
+  }
+}
+
+Table crm_opportunity_line_h {
+  opportunityLineId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  opportunityId BigInt [not null]
+  lineCode String [not null]
+  lineKindCode String [not null]
+  categoryCode String [not null]
+  lineLabel String [not null]
+  quantity Decimal
+  unitPrice BigInt
+  amount BigInt [not null]
+  marginRate Decimal
+  truncUnit BigInt
+  department String
+  memberName String
+  grade String
+  serviceTypeCode String
+  revenueLinked Boolean [not null]
+  linkedCostLineCode String
+  revenueUnitPrice BigInt
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (opportunityLineId, historySeq) [pk]
+  }
+}
+
+Table crm_customer_m {
+  id BigInt [pk, increment]
+  customerCode String [unique, not null]
+  customerName String [not null]
+  customerTypeCode String [not null, default: 'prospect']
+  industryLine String [not null]
+  regionCode String [not null, default: 'domestic']
+  ownerName String [not null]
+  ownerUserId BigInt
+  contactName String
+  contactEmail String
+  contactPhone String
+  sourceOpportunityId BigInt
+  latestOpportunityCode String
+  latestActivityAt DateTime
+  lastInteractionSummary String
+  nextAction String [not null]
+  adminBoundaryCode String [not null, default: 'shared-admin']
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  sourceOpportunity crm_opportunity_m
+  activities crm_customer_activity_d [not null]
+}
+
+Table crm_customer_h {
+  customerId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  customerCode String [not null]
+  customerName String [not null]
+  customerTypeCode String [not null]
+  industryLine String [not null]
+  regionCode String [not null]
+  ownerName String [not null]
+  ownerUserId BigInt
+  contactName String
+  contactEmail String
+  contactPhone String
+  sourceOpportunityId BigInt
+  latestOpportunityCode String
+  latestActivityAt DateTime
+  lastInteractionSummary String
+  nextAction String [not null]
+  adminBoundaryCode String [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (customerId, historySeq) [pk]
+  }
+}
+
+Table crm_customer_activity_d {
+  id BigInt [pk, increment]
+  activityCode String [unique, not null]
+  customerId BigInt [not null]
+  sourceOpportunityId BigInt
+  sourceOpportunityCode String
+  activityTypeCode String [not null, default: 'meeting']
+  activityStatusCode String [not null, default: 'done']
+  subject String [not null]
+  occurredAt DateTime [default: `now()`, not null]
+  dueAt DateTime
+  ownerName String [not null]
+  ownerUserId BigInt
+  summary String [not null]
+  nextAction String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  customer crm_customer_m [not null]
+  sourceOpportunity crm_opportunity_m
+}
+
+Table crm_customer_activity_h {
+  activityId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  activityCode String [not null]
+  customerId BigInt [not null]
+  sourceOpportunityId BigInt
+  sourceOpportunityCode String
+  activityTypeCode String [not null]
+  activityStatusCode String [not null]
+  subject String [not null]
+  occurredAt DateTime [not null]
+  dueAt DateTime
+  ownerName String [not null]
+  ownerUserId BigInt
+  summary String [not null]
+  nextAction String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (activityId, historySeq) [pk]
+  }
+}
+
+Table crm_quote_seller_profile_m {
+  id BigInt [pk, increment]
+  profileCode String [unique, not null]
+  companyName String [not null]
+  ceoName String
+  businessRegistrationNo String
+  address String
+  tel String
+  fax String
+  website String
+  email String
+  ciStatusCode String [not null, default: 'dms-planned']
+  ciStorageRef String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table crm_quote_seller_profile_h {
+  sellerProfileId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  profileCode String [not null]
+  companyName String [not null]
+  ceoName String
+  businessRegistrationNo String
+  address String
+  tel String
+  fax String
+  website String
+  email String
+  ciStatusCode String [not null]
+  ciStorageRef String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (sellerProfileId, historySeq) [pk]
+  }
+}
+
+Table crm_contract_m {
+  approvals crm_contract_approval_m [not null]
+  id BigInt [pk, increment]
+  contractCode String [unique, not null]
+  sourceOpportunityId BigInt
+  sourceOpportunityCode String
+  customerName String [not null]
+  contractName String [not null]
+  ownerName String [not null]
+  clientContact String
+  ownerUserId BigInt
+  businessType String [not null]
+  industryLine String [not null]
+  regionCode String [not null, default: 'domestic']
+  statusCode String [not null, default: 'review']
+  confirmed Boolean [not null, default: false]
+  contractStartDate DateTime [not null]
+  contractEndDate DateTime [not null]
+  wbsCode String
+  paymentTermCode String
+  revenueSubtotal BigInt [not null, default: 0]
+  specialDiscountTypeCode String [not null, default: 'amount']
+  specialDiscountValue Decimal
+  specialDiscountAmount BigInt [not null, default: 0]
+  revenueTotal BigInt [not null, default: 0]
+  costTotal BigInt [not null, default: 0]
+  externalCostTotal BigInt [not null, default: 0]
+  pmsHandoffStatusCode String [not null, default: 'planned']
+  dmsLinkStatusCode String [not null, default: 'planned']
+  adminBoundaryCode String [not null, default: 'shared-admin']
+  nextAction String [not null]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  sourceOpportunity crm_opportunity_m
+  ownerUser cm_user_m
+  lines crm_contract_line_d [not null]
+  billingPlans crm_contract_billing_plan_d [not null]
+  billingActuals crm_contract_billing_actual_d [not null]
+  dmsHandoffs crm_contract_dms_handoff_m [not null]
+  amsSourceVendorWbsMappings crm_cost_plan_ams_source_vendor_wbs_r [not null]
+}
+
+Table crm_contract_dms_handoff_m {
+  id BigInt [pk, increment]
+  contractId BigInt [not null]
+  contractCode String [not null]
+  documentTypeCode String [not null, default: 'contract']
+  documentTitle String [not null]
+  templateKey String [not null]
+  folderHint String [not null]
+  fileNameHint String [not null]
+  draftPath String [not null]
+  statusCode String [not null, default: 'draft-created']
+  documentSnapshot Json [not null]
+  variablesSnapshot Json [not null]
+  attachmentsSnapshot Json [not null]
+  memo String
+  isActive Boolean [not null, default: true]
+  savedBy BigInt
+  savedAt DateTime [default: `now()`, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  contract crm_contract_m [not null]
+}
+
+Table crm_contract_h {
+  contractId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  contractCode String [not null]
+  sourceOpportunityId BigInt
+  sourceOpportunityCode String
+  customerName String [not null]
+  contractName String [not null]
+  ownerName String [not null]
+  clientContact String
+  ownerUserId BigInt
+  businessType String [not null]
+  industryLine String [not null]
+  regionCode String [not null]
+  statusCode String [not null]
+  confirmed Boolean [not null]
+  contractStartDate DateTime [not null]
+  contractEndDate DateTime [not null]
+  wbsCode String
+  paymentTermCode String
+  revenueSubtotal BigInt [not null]
+  specialDiscountTypeCode String [not null]
+  specialDiscountValue Decimal
+  specialDiscountAmount BigInt [not null]
+  revenueTotal BigInt [not null]
+  costTotal BigInt [not null]
+  externalCostTotal BigInt [not null]
+  pmsHandoffStatusCode String [not null]
+  dmsLinkStatusCode String [not null]
+  adminBoundaryCode String [not null]
+  nextAction String [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (contractId, historySeq) [pk]
+  }
+}
+
+Table crm_contract_line_d {
+  id BigInt [pk, increment]
+  contractId BigInt [not null]
+  lineCode String [not null]
+  lineKindCode String [not null]
+  categoryCode String [not null]
+  lineLabel String [not null]
+  quantity Decimal
+  unitPrice BigInt
+  amount BigInt [not null, default: 0]
+  marginRate Decimal
+  truncUnit BigInt
+  department String
+  memberName String
+  grade String
+  serviceTypeCode String
+  revenueLinked Boolean [not null, default: false]
+  linkedCostLineCode String
+  revenueUnitPrice BigInt
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  contract crm_contract_m [not null]
+
+  indexes {
+    (contractId, lineCode) [unique]
+  }
+}
+
+Table crm_contract_billing_plan_d {
+  id BigInt [pk, increment]
+  contractId BigInt [not null]
+  billingYm String [not null]
+  revenueAmount BigInt [not null, default: 0]
+  externalCostAmount BigInt [not null, default: 0]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  contract crm_contract_m [not null]
+
+  indexes {
+    (contractId, billingYm) [unique]
+  }
+}
+
+Table crm_contract_billing_actual_d {
+  id BigInt [pk, increment]
+  contractId BigInt [not null]
+  billingYm String [not null]
+  revenueAmount BigInt [not null, default: 0]
+  externalCostAmount BigInt [not null, default: 0]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  contract crm_contract_m [not null]
+
+  indexes {
+    (contractId, billingYm) [unique]
+  }
+}
+
+Table crm_business_plan_m {
+  id BigInt [pk, increment]
+  businessPlanCode String [unique, not null]
+  planName String [not null]
+  baseYear Int [not null]
+  versionNo Int [not null, default: 1]
+  statusCode String [not null, default: 'draft']
+  confirmed Boolean [not null, default: false]
+  confirmedAt DateTime
+  businessTypeFilter String
+  industryLineFilter String
+  regionFilter String [not null, default: 'all']
+  searchFilter String
+  pipelineAmountTotal BigInt [not null, default: 0]
+  contractPlanAmountTotal BigInt [not null, default: 0]
+  contractActualAmountTotal BigInt [not null, default: 0]
+  planCandidateAmountTotal BigInt [not null, default: 0]
+  actualGapAmountTotal BigInt [not null, default: 0]
+  rowCount Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  lines crm_business_plan_line_d [not null]
+
+  indexes {
+    (baseYear, versionNo) [unique]
+  }
+}
+
+Table crm_business_plan_h {
+  businessPlanId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  businessPlanCode String [not null]
+  planName String [not null]
+  baseYear Int [not null]
+  versionNo Int [not null]
+  statusCode String [not null]
+  confirmed Boolean [not null]
+  confirmedAt DateTime
+  businessTypeFilter String
+  industryLineFilter String
+  regionFilter String [not null]
+  searchFilter String
+  pipelineAmountTotal BigInt [not null]
+  contractPlanAmountTotal BigInt [not null]
+  contractActualAmountTotal BigInt [not null]
+  planCandidateAmountTotal BigInt [not null]
+  actualGapAmountTotal BigInt [not null]
+  rowCount Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (businessPlanId, historySeq) [pk]
+  }
+}
+
+Table crm_business_plan_line_d {
+  id BigInt [pk, increment]
+  businessPlanId BigInt [not null]
+  lineCode String [not null]
+  rowCode String [not null]
+  targetYear Int [not null]
+  businessType String [not null]
+  industryLine String [not null]
+  ownerName String [not null]
+  regionCode String [not null, default: 'domestic']
+  businessName String [not null, default: '']
+  wbsCode String [not null, default: '']
+  pipelineAmount BigInt [not null, default: 0]
+  contractPlanAmount BigInt [not null, default: 0]
+  contractActualAmount BigInt [not null, default: 0]
+  planCandidateAmount BigInt [not null, default: 0]
+  planExternalCostAmount BigInt [not null, default: 0]
+  planMonthlyRevenueAmounts Json
+  planMonthlyExternalCostAmounts Json
+  actualGapAmount BigInt [not null, default: 0]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  businessPlan crm_business_plan_m [not null]
+
+  indexes {
+    (businessPlanId, lineCode) [unique]
+  }
+}
+
+Table crm_business_plan_performance_actual_d {
+  id BigInt [pk, increment]
+  targetYear Int [not null]
+  businessType String [not null]
+  industryLine String [not null]
+  ownerName String [not null]
+  regionCode String [not null, default: 'domestic']
+  wbsCode String [not null, default: '']
+  monthlyRevenueAmounts Json [not null]
+  monthlyCostAmounts Json [not null]
+  revenueAmountTotal BigInt [not null, default: 0]
+  costAmountTotal BigInt [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (targetYear, businessType, industryLine, ownerName, regionCode, wbsCode) [unique]
+  }
+}
+
+Table crm_report_confirmation_m {
+  id BigInt [pk, increment]
+  targetYear Int [not null]
+  businessType String [not null, default: '']
+  industryLine String [not null, default: '']
+  regionCode String [not null, default: 'all']
+  searchText String [not null, default: '']
+  statusCode String [not null, default: 'confirmed']
+  querySnapshot Json [not null]
+  summarySnapshot Json [not null]
+  monthlyTrendSnapshot Json [not null]
+  breakdownsSnapshot Json [not null]
+  attentionItemsSnapshot Json [not null]
+  opportunityCount Int [not null, default: 0]
+  contractCount Int [not null, default: 0]
+  breakdownCount Int [not null, default: 0]
+  attentionItemCount Int [not null, default: 0]
+  pipelineRevenueTotal BigInt [not null, default: 0]
+  planRevenueTotal BigInt [not null, default: 0]
+  actualRevenueTotal BigInt [not null, default: 0]
+  revenueDelta BigInt [not null, default: 0]
+  marginDelta BigInt [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  confirmedBy BigInt
+  confirmedAt DateTime [default: `now()`, not null]
+  reopenedBy BigInt
+  reopenedAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table crm_cost_plan_internal_monthly_d {
+  id BigInt [pk, increment]
+  targetYear Int [not null]
+  businessType String [not null]
+  industryLine String [not null]
+  ownerName String [not null]
+  regionCode String [not null, default: 'domestic']
+  wbsCode String [not null, default: '']
+  monthlyPlanAmounts Json [not null]
+  monthlyActualAmounts Json [not null]
+  planAmountTotal BigInt [not null, default: 0]
+  actualAmountTotal BigInt [not null, default: 0]
+  gapAmountTotal BigInt [not null, default: 0]
+  statusCode String [not null, default: 'draft']
+  confirmed Boolean [not null, default: false]
+  confirmedAt DateTime
+  confirmedBy BigInt
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (targetYear, businessType, industryLine, ownerName, regionCode, wbsCode) [unique]
+  }
+}
+
+Table crm_cost_plan_internal_item_monthly_d {
+  id BigInt [pk, increment]
+  targetYear Int [not null]
+  itemCode String [not null]
+  itemName String [not null]
+  monthlyPlanAmounts Json [not null]
+  monthlyActualAmounts Json [not null]
+  planAmountTotal BigInt [not null, default: 0]
+  actualAmountTotal BigInt [not null, default: 0]
+  differenceAmountTotal BigInt [not null, default: 0]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (targetYear, itemCode) [unique]
+  }
+}
+
+Table crm_cost_plan_ams_vendor_wbs_r {
+  id BigInt [pk, increment]
+  targetYear Int [not null]
+  businessType String [not null]
+  industryLine String [not null]
+  ownerName String [not null]
+  regionCode String [not null, default: 'domestic']
+  wbsCode String [not null]
+  vendorName String [not null]
+  vendorContractNo String
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (targetYear, businessType, industryLine, ownerName, regionCode, wbsCode) [unique]
+  }
+}
+
+Table crm_cost_plan_ams_source_vendor_m {
+  id BigInt [pk, increment]
+  targetYear Int [not null]
+  vendorName String [not null]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  wbsMappings crm_cost_plan_ams_source_vendor_wbs_r [not null]
+  externalMonthly crm_cost_plan_ams_source_external_monthly_d [not null]
+}
+
+Table crm_cost_plan_ams_source_vendor_wbs_r {
+  id BigInt [pk, increment]
+  vendorId BigInt [not null]
+  wbsCode String [not null]
+  contractId BigInt
+  sortOrder Int [not null, default: 0]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  vendor crm_cost_plan_ams_source_vendor_m [not null]
+  contract crm_contract_m
+
+  indexes {
+    (vendorId, wbsCode) [unique]
+  }
+}
+
+Table crm_cost_plan_ams_source_external_monthly_d {
+  id BigInt [pk, increment]
+  vendorId BigInt [not null]
+  wbsCode String [not null]
+  monthlyPlanAmounts Json [not null]
+  monthlyActualAmounts Json [not null]
+  planAmountTotal BigInt [not null, default: 0]
+  actualAmountTotal BigInt [not null, default: 0]
+  differenceAmountTotal BigInt [not null, default: 0]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  vendor crm_cost_plan_ams_source_vendor_m [not null]
+
+  indexes {
+    (vendorId, wbsCode) [unique]
+  }
+}
+
+Table crm_cost_plan_ams_external_monthly_d {
+  id BigInt [pk, increment]
+  targetYear Int [not null]
+  businessType String [not null]
+  industryLine String [not null]
+  ownerName String [not null]
+  regionCode String [not null, default: 'domestic']
+  wbsCode String [not null]
+  vendorName String [not null]
+  vendorContractNo String
+  monthlyPlanAmounts Json [not null]
+  monthlyActualAmounts Json [not null]
+  planAmountTotal BigInt [not null, default: 0]
+  actualAmountTotal BigInt [not null, default: 0]
+  gapAmountTotal BigInt [not null, default: 0]
+  statusCode String [not null, default: 'draft']
+  confirmed Boolean [not null, default: false]
+  confirmedAt DateTime
+  confirmedBy BigInt
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (targetYear, businessType, industryLine, ownerName, regionCode, wbsCode, vendorName) [unique]
+  }
+}
+
+Table crm_cost_plan_accounting_handoff_m {
+  id BigInt [pk, increment]
+  targetYear Int [not null]
+  businessTypeFilter String [not null, default: '']
+  industryLineFilter String [not null, default: '']
+  regionFilter String [not null, default: 'all']
+  searchFilter String [not null, default: '']
+  statusCode String [not null, default: 'snapshot-created']
+  lineCount Int [not null, default: 0]
+  settlementAmountTotal BigInt [not null, default: 0]
+  previewSnapshot Json [not null, default: '{}']
+  linesSnapshot Json [not null, default: '[]']
+  executionEvidenceSnapshot Json [not null, default: '[]']
+  executionEvidenceUpdatedAt DateTime
+  savedBy BigInt
+  savedAt DateTime [default: `now()`, not null]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table crm_config_m {
+  id BigInt [pk, increment]
+  configCode String [unique, not null]
+  revision Int [not null, default: 1]
+  quoteTemplateKey String [not null, default: 'crm-quote-v1']
+  contractTemplateKey String [not null, default: 'crm-contract-v1']
+  dmsHandoffEnabled Boolean [not null, default: true]
+  pmsHandoffEnabled Boolean [not null, default: false]
+  accountingHandoffEnabled Boolean [not null, default: false]
+  accountingProviderModeCode String [not null, default: 'disabled']
+  stalledAfterMinutes Int [not null, default: 30]
+  attemptRetentionDays Int [not null, default: 90]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table crm_config_h {
+  crmConfigId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  configCode String [not null]
+  revision Int [not null]
+  quoteTemplateKey String [not null]
+  contractTemplateKey String [not null]
+  dmsHandoffEnabled Boolean [not null]
+  pmsHandoffEnabled Boolean [not null]
+  accountingHandoffEnabled Boolean [not null]
+  accountingProviderModeCode String [not null]
+  stalledAfterMinutes Int [not null]
+  attemptRetentionDays Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (crmConfigId, historySeq) [pk]
+  }
+}
+
+Table crm_operation_attempt_m {
+  id BigInt [pk, increment]
+  targetTypeCode String [not null]
+  actionCode String [not null]
+  sourceEntityType String [not null]
+  sourceEntityId String [not null]
+  statusCode String [not null, default: 'queued']
+  rootAttemptId BigInt
+  retryOfAttemptId BigInt
+  attemptNumber Int [not null, default: 1]
+  idempotencyKey String [unique, not null]
+  payloadFingerprint String [not null]
+  errorCode String
+  errorMessage String
+  evidenceJson Json
+  requestedBy BigInt
+  startedAt DateTime
+  finishedAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table crm_operation_attempt_h {
+  operationAttemptId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  targetTypeCode String [not null]
+  actionCode String [not null]
+  sourceEntityType String [not null]
+  sourceEntityId String [not null]
+  statusCode String [not null]
+  rootAttemptId BigInt
+  retryOfAttemptId BigInt
+  attemptNumber Int [not null]
+  idempotencyKey String [not null]
+  payloadFingerprint String [not null]
+  errorCode String
+  errorMessage String
+  evidenceJson Json
+  requestedBy BigInt
+  startedAt DateTime
+  finishedAt DateTime
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (operationAttemptId, historySeq) [pk]
+  }
+}
+
+Table crm_contract_approval_m {
+  id BigInt [pk, increment]
+  contractId BigInt [not null]
+  requestKey String [unique, not null]
+  requesterId BigInt [not null]
+  requesterName String [not null]
+  approverId BigInt [not null]
+  approverName String [not null]
+  documentId BigInt [not null]
+  documentTitle String [not null]
+  snapshot Json [not null]
+  versionKey String [not null]
+  statusCode String [not null]
+  reason String
+  decidedAt DateTime
+  isActive Boolean [not null, default: true]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  contract crm_contract_m [not null]
+}
+
+Table crm_contract_approval_h {
+  contractApprovalId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  contractId BigInt [not null]
+  requestKey String [not null]
+  requesterId BigInt [not null]
+  requesterName String [not null]
+  approverId BigInt [not null]
+  approverName String [not null]
+  documentId BigInt [not null]
+  documentTitle String [not null]
+  snapshot Json [not null]
+  versionKey String [not null]
+  statusCode String [not null]
+  reason String
+  decidedAt DateTime
+  isActive Boolean [not null]
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (contractApprovalId, historySeq) [pk]
+  }
+}
+
+Ref: crm_quote_dms_handoff_m.opportunityId > crm_opportunity_m.id [delete: Cascade]
+
+Ref: crm_opportunity_contract_dms_handoff_m.opportunityId > crm_opportunity_m.id [delete: Cascade]
+
+Ref: crm_opportunity_line_d.opportunityId > crm_opportunity_m.id [delete: Cascade]
+
+Ref: crm_customer_m.sourceOpportunityId > crm_opportunity_m.id [delete: Set Null]
+
+Ref: crm_customer_activity_d.customerId > crm_customer_m.id [delete: Cascade]
+
+Ref: crm_customer_activity_d.sourceOpportunityId > crm_opportunity_m.id [delete: Set Null]
+
+Ref: crm_contract_m.sourceOpportunityId > crm_opportunity_m.id [delete: Set Null]
+
+Ref: crm_contract_dms_handoff_m.contractId > crm_contract_m.id [delete: Cascade]
+
+Ref: crm_contract_line_d.contractId > crm_contract_m.id [delete: Cascade]
+
+Ref: crm_contract_billing_plan_d.contractId > crm_contract_m.id [delete: Cascade]
+
+Ref: crm_contract_billing_actual_d.contractId > crm_contract_m.id [delete: Cascade]
+
+Ref: crm_business_plan_line_d.businessPlanId > crm_business_plan_m.id [delete: Cascade]
+
+Ref: crm_cost_plan_ams_source_vendor_wbs_r.vendorId > crm_cost_plan_ams_source_vendor_m.id [delete: Cascade]
+
+Ref: crm_cost_plan_ams_source_vendor_wbs_r.contractId > crm_contract_m.id [delete: Set Null]
+
+Ref: crm_cost_plan_ams_source_external_monthly_d.vendorId > crm_cost_plan_ams_source_vendor_m.id [delete: Cascade]
+
+Ref: crm_contract_approval_m.contractId > crm_contract_m.id [delete: Restrict]

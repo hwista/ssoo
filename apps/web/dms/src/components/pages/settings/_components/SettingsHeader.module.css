@@ -1,0 +1,16 @@
+/* Keep this layout local to DMS settings; shared page headers retain their contract. */
+:global([data-ssoo-page-header]):has(.title) {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+:global([data-ssoo-page-header]):has(.title) > div:first-child {
+  flex: 1 1 15rem;
+}
+
+:global([data-ssoo-page-header]):has(.title) > div:last-child {
+  min-width: 0;
+  max-width: 100%;
+  flex-shrink: 1;
+  flex-wrap: wrap;
+}

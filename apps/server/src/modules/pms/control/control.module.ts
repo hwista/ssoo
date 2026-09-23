@@ -1,3 +1,4 @@
+import { PmsSettingsModule } from '../settings/settings.module.js';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../../database/database.module.js';
 import { CommonNotificationModule } from '../../common/notification/notification.module.js';
@@ -7,7 +8,7 @@ import { ControlService } from './control.service.js';
 import { PmrPrrWorkflowRolloverSchedulerService } from './pmr-prr-workflow-rollover.scheduler.js';
 
 @Module({
-  imports: [DatabaseModule, ProjectModule, CommonNotificationModule],
+  imports: [PmsSettingsModule, DatabaseModule, ProjectModule, CommonNotificationModule],
   controllers: [ControlController],
   providers: [ControlService, PmrPrrWorkflowRolloverSchedulerService],
   exports: [ControlService],

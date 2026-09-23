@@ -2,6 +2,7 @@ import {
   SSOO_STATE_CHANGE_CSRF_HEADER_NAME,
   SSOO_STATE_CHANGE_CSRF_HEADER_VALUE,
 } from './state-changing-proxy';
+import { createSessionCookieRetryResponse } from './session-cookie-retry';
 
 export type AuthProxyAction = 'login' | 'logout' | 'me' | 'session';
 export type AuthProxyResponseAction =
@@ -20,6 +21,7 @@ interface BackendSuccessResponse<T> {
 interface BackendErrorResponse {
   success?: false;
   error?: {
+    code?: string;
     message?: string;
   };
   message?: string;
@@ -88,6 +90,7 @@ export function createForbiddenAuthProxyRequestResponse(): Response {
 export async function createAuthProxyRouteResponse(
   action: AuthProxyResponseAction,
   response: Response,
+  request?: Request,
 ): Promise<Response> {
   const responseBody = await response.json().catch(() => null) as
     | BackendSuccessResponse<unknown>
@@ -95,6 +98,10 @@ export async function createAuthProxyRouteResponse(
     | null;
 
   if (!response.ok || !responseBody || responseBody.success !== true) {
+    if (action === 'session' && request && responseBody?.success !== true) {
+      const retry = await createSessionCookieRetryResponse(request, response.status, responseBody?.error?.code);
+      if (retry) return retry;
+    }
     return Response.json(
       { error: getBackendErrorMessage(action, responseBody) },
       {

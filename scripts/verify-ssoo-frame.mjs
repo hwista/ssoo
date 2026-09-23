@@ -1016,8 +1016,11 @@ async function verifyPmsSource() {
   const content = await readText('apps/web/pms/src/components/layout/ContentArea.tsx');
 
   assertIncludes(layout, 'SsooWorkbenchShell', 'PMS uses canonical workbench shell');
-  assertIncludes(layout, 'sidebarSlot={<Sidebar />}', 'PMS injects sidebar through shell slot');
-  assertIncludes(layout, 'headerSlot={<Header />}', 'PMS injects header through shell slot');
+  assertStableWorkbenchShell(layout, 'PMS');
+  assertIncludes(layout, 'sidebarSlot={', 'PMS injects sidebar through shell slot');
+  assertIncludes(layout, '<Sidebar />', 'PMS retains the desktop sidebar adapter');
+  assertIncludes(layout, 'headerSlot={', 'PMS injects header through shell slot');
+  assertIncludes(layout, '<Header />', 'PMS retains the desktop header adapter');
   assertIncludes(layout, 'tabBarSlot={<TabBar />}', 'PMS injects tabbar through shell slot');
   assertIncludes(layout, 'contentSlot={<ContentArea />}', 'PMS injects keep-alive content through shell slot');
   assertIncludes(layout, 'SsooMobileSidebarOverlay', 'PMS consumes the canonical mobile sidebar overlay');
@@ -1091,14 +1094,15 @@ async function verifyCrmSource() {
   assertIncludes(layout, 'SsooWorkbenchShell', 'CRM consumes canonical workbench shell');
   assertUsesSharedSidebarSurface(layout, 'CRM');
   assertUsesSharedMainSidebarBrandIdentity(layout, 'CRM', 'crm');
-  assertIncludes(layout, 'headerSlot={<Header />}', 'CRM injects header through shell slot');
+  assertIncludes(layout, 'headerSlot={', 'CRM injects header through shell slot');
+  assertIncludes(layout, '<Header />', 'CRM retains the desktop header adapter');
   assertExcludes(layout, 'function CrmHeader', 'CRM no longer owns an inline layout header function');
   assertUsesSharedAppHeader(header, 'CRM');
   assertIncludes(layout, 'tabBarSlot={<TabBar />}', 'CRM injects full MDI tabbar through the frame tabbar slot');
   assertIncludes(layout, 'contentSlot={<ContentArea />}', 'CRM injects full MDI content through the frame content slot');
   assertIncludes(layout, 'SsooMobileSidebarOverlay', 'CRM consumes the canonical mobile sidebar overlay');
   assertIncludes(layout, 'useSsooMobileViewport', 'CRM consumes the canonical mobile viewport hook');
-  assertIncludes(layout, 'openTab({', 'CRM syncs route entry into the MDI tab store');
+  assertIncludes(layout, 'openTab(requestedTab)', 'CRM syncs resolved route entry into the MDI tab store');
   assertIncludes(tabbar, 'SsooMdiTabBar', 'CRM consumes shared full MDI tabbar');
   assertIncludes(tabbar, 'onReorderTabs={reorderTabs}', 'CRM exposes full MDI reorder behavior');
   assertIncludes(content, 'SsooRegisteredMdiContentArea', 'CRM consumes the registered full MDI content mapper');
@@ -1116,7 +1120,8 @@ async function verifyCrmSource() {
   assertIncludes(tabStore, 'reorderTabs:', 'CRM tab store supports tab reordering');
   assertExcludes(layout, 'mode="static"', 'CRM does not declare a separate static tabbar mode');
   assertIncludes(layout, 'contentSlot={', 'CRM injects content through the explicit frame content slot');
-  assertIncludes(layout, 'sidebarMode="collapsible"', 'CRM uses canonical collapsible sidebar mode');
+  assertStableWorkbenchShell(layout, 'CRM');
+  assertIncludes(layout, "sidebarMode={isMobileViewport ? 'none' : 'collapsible'}", 'CRM preserves mobile and desktop sidebar modes within one shell');
   assertIncludes(layout, 'sidebarExpanded={!isSidebarCollapsed}', 'CRM wires sidebar expanded state into frame');
   assertIncludes(layout, 'onToggleCollapse', 'CRM wires a real sidebar toggle action');
   assertIncludes(layout, 'SsooSidebarTree', 'CRM menu rows consume shared sidebar tree primitive');
@@ -1242,11 +1247,13 @@ async function verifyAdminSource() {
   const headerNotifications = await readText('apps/web/admin/src/components/layout/HeaderNotifications.tsx');
   const notificationRoute = await readText('apps/web/admin/src/app/api/notifications/[[...path]]/route.ts');
   assertIncludes(layout, 'SsooWorkbenchShell', 'Admin consumes canonical workbench shell');
-  assertIncludes(layout, 'sidebarMode="collapsible"', 'Admin uses canonical collapsible sidebar mode');
+  assertStableWorkbenchShell(layout, 'Admin');
+  assertIncludes(layout, "sidebarMode={isMobileViewport ? 'none' : 'collapsible'}", 'Admin preserves mobile and desktop sidebar modes within one shell');
   assertIncludes(layout, 'sidebarExpanded={!isSidebarCollapsed}', 'Admin wires sidebar expanded state into frame');
   assertIncludes(layout, 'sidebarSlot={', 'Admin injects sidebar through shell slot');
   assertIncludes(layout, '<AdminSidebar', 'Admin injects AdminSidebar through shell slot');
-  assertIncludes(layout, 'headerSlot={<AdminHeader />}', 'Admin injects header through shell slot');
+  assertIncludes(layout, 'headerSlot={', 'Admin injects header through shell slot');
+  assertIncludes(layout, '<AdminHeader />', 'Admin retains the desktop header adapter');
   assertIncludes(layout, 'tabBarSlot={<AdminTabBar />}', 'Admin injects full MDI tabbar through shell slot');
   assertIncludes(layout, 'contentSlot={<AdminContentArea />}', 'Admin injects full MDI content through shell slot');
   assertIncludes(layout, 'openTab(getAdminTabOptions(currentPath))', 'Admin syncs route entry into the MDI tab store');
@@ -1581,6 +1588,14 @@ async function verifyDmsSource() {
   assertIncludes(settingsConfig, 'indexItems:', 'DMS settings config owns internal index metadata for custom sections');
   assertIncludes(customSlot, 'SettingsCustomSlot', 'DMS settings custom slot component exists');
   assertIncludes(customSlot, 'anchorIds', 'DMS settings custom slot binds internal index anchors to custom section surfaces');
+}
+
+function assertStableWorkbenchShell(source, app) {
+  const shells = source.match(/<SsooWorkbenchShell\b/g) ?? [];
+  if (shells.length !== 1) {
+    throw new Error(`SSOO frame check failed: ${app} must keep one workbench shell across viewport changes`);
+  }
+  assertExcludes(source, '<SsooAppFrame', `${app} does not swap the workbench with a different mobile frame`);
 }
 
 function assertUsesSharedSidebarSurface(source, app) {

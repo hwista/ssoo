@@ -59,11 +59,11 @@ function toPolicyDraft(policy?: DmsCrmContractExportPolicy | null): DmsCrmContra
 }
 
 function getValidationError(policy: DmsCrmContractExportPolicy): string | null {
-  if (!policy.policyKey.trim()) return 'Policy key를 입력하세요.';
-  if (!policy.policyVersion.trim()) return 'Policy version을 입력하세요.';
-  if (!policy.organizationScope.trim()) return 'Organization scope를 입력하세요.';
-  if (!policy.markdownRecordRootPath.trim()) return 'Markdown record root path를 입력하세요.';
-  if (!policy.storageArtifactRootPath.trim()) return 'Storage artifact root path를 입력하세요.';
+  if (!policy.policyKey.trim()) return '정책 식별자를 입력하세요.';
+  if (!policy.policyVersion.trim()) return '정책 버전을 입력하세요.';
+  if (!policy.organizationScope.trim()) return '적용 조직을 입력하세요.';
+  if (!policy.markdownRecordRootPath.trim()) return '문서 기록 저장 경로를 입력하세요.';
+  if (!policy.storageArtifactRootPath.trim()) return '산출물 저장 경로를 입력하세요.';
   return null;
 }
 
@@ -119,10 +119,10 @@ export function ContractExportPolicySection({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 pb-20">
       <article
         id={anchorIds.status}
-        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3"
+        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3 [container-type:inline-size]"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -136,14 +136,14 @@ export function ContractExportPolicySection({
             {persistedPolicy.organizationScope}
           </span>
         </div>
-        <dl className="mt-3 grid gap-2 text-caption text-ssoo-primary/75 md:grid-cols-2">
+        <dl className="mt-3 grid gap-2 text-caption text-ssoo-primary/75 md:grid-cols-2 [@container(max-width:559px)]:grid-cols-1">
           <div className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
-            <dt className="text-badge text-ssoo-primary/60">Policy version</dt>
-            <dd className="mt-1 truncate text-label-md text-ssoo-primary">{persistedPolicy.policyVersion}</dd>
+            <dt className="text-badge text-ssoo-primary/60">정책 버전</dt>
+            <dd className="mt-1 [overflow-wrap:anywhere] text-label-md text-ssoo-primary">{persistedPolicy.policyVersion}</dd>
           </div>
           <div className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
-            <dt className="text-badge text-ssoo-primary/60">Artifact root</dt>
-            <dd className="mt-1 truncate text-label-md text-ssoo-primary">
+            <dt className="text-badge text-ssoo-primary/60">산출물 기본 경로</dt>
+            <dd className="mt-1 [overflow-wrap:anywhere] text-label-md text-ssoo-primary">
               {persistedPolicy.storageArtifactRootPath}
             </dd>
           </div>
@@ -152,7 +152,7 @@ export function ContractExportPolicySection({
 
       <article
         id={anchorIds.policy}
-        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3"
+        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3 [container-type:inline-size]"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-label-strong text-ssoo-primary">정책 식별자</h3>
@@ -168,9 +168,9 @@ export function ContractExportPolicySection({
             )}
           </div>
         </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <div className="mt-3 grid gap-2 md:grid-cols-2 [@container(max-width:559px)]:grid-cols-1">
           <label className="min-w-0 space-y-1">
-            <span className="text-caption text-ssoo-primary/70">Policy key</span>
+            <span className="text-caption text-ssoo-primary/70">정책 식별자</span>
             <Input
               value={draft.policyKey}
               onChange={(event) => updateDraftField('policyKey', event.target.value)}
@@ -178,15 +178,15 @@ export function ContractExportPolicySection({
             />
           </label>
           <label className="min-w-0 space-y-1">
-            <span className="text-caption text-ssoo-primary/70">Policy version</span>
+            <span className="text-caption text-ssoo-primary/70">정책 버전</span>
             <Input
               value={draft.policyVersion}
               onChange={(event) => updateDraftField('policyVersion', event.target.value)}
               placeholder="dms-crm-contract-export-standard@2026-07-10"
             />
           </label>
-          <label className="min-w-0 space-y-1 md:col-span-2">
-            <span className="text-caption text-ssoo-primary/70">Organization scope</span>
+          <label className="min-w-0 space-y-1 md:col-span-2 [@container(max-width:559px)]:col-span-1">
+            <span className="text-caption text-ssoo-primary/70">적용 조직</span>
             <Input
               value={draft.organizationScope}
               onChange={(event) => updateDraftField('organizationScope', event.target.value)}
@@ -198,12 +198,12 @@ export function ContractExportPolicySection({
 
       <article
         id={anchorIds.paths}
-        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3"
+        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3 [container-type:inline-size]"
       >
         <h3 className="text-label-strong text-ssoo-primary">산출 경로</h3>
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <div className="mt-3 grid gap-2 md:grid-cols-2 [@container(max-width:559px)]:grid-cols-1">
           <label className="min-w-0 space-y-1">
-            <span className="text-caption text-ssoo-primary/70">Markdown record root path</span>
+            <span className="text-caption text-ssoo-primary/70">문서 기록 저장 경로</span>
             <Input
               value={draft.markdownRecordRootPath}
               onChange={(event) => updateDraftField('markdownRecordRootPath', event.target.value)}
@@ -211,7 +211,7 @@ export function ContractExportPolicySection({
             />
           </label>
           <label className="min-w-0 space-y-1">
-            <span className="text-caption text-ssoo-primary/70">Storage artifact root path</span>
+            <span className="text-caption text-ssoo-primary/70">산출물 저장 경로</span>
             <Input
               value={draft.storageArtifactRootPath}
               onChange={(event) => updateDraftField('storageArtifactRootPath', event.target.value)}
@@ -219,14 +219,14 @@ export function ContractExportPolicySection({
             />
           </label>
         </div>
-        <dl className="mt-3 grid gap-2 text-caption text-ssoo-primary/75 md:grid-cols-2">
+        <dl className="mt-3 grid gap-2 text-caption text-ssoo-primary/75 md:grid-cols-2 [@container(max-width:559px)]:grid-cols-1">
           <div className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
-            <dt className="text-badge text-ssoo-primary/60">Record preview</dt>
-            <dd className="mt-1 truncate text-label-md text-ssoo-primary">{resolvedRecordPreview}</dd>
+            <dt className="text-badge text-ssoo-primary/60">문서 기록 경로 미리보기</dt>
+            <dd className="mt-1 [overflow-wrap:anywhere] text-label-md text-ssoo-primary">{resolvedRecordPreview}</dd>
           </div>
           <div className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
-            <dt className="text-badge text-ssoo-primary/60">Artifact preview</dt>
-            <dd className="mt-1 truncate text-label-md text-ssoo-primary">{resolvedArtifactPreview}</dd>
+            <dt className="text-badge text-ssoo-primary/60">산출물 경로 미리보기</dt>
+            <dd className="mt-1 [overflow-wrap:anywhere] text-label-md text-ssoo-primary">{resolvedArtifactPreview}</dd>
           </div>
         </dl>
 

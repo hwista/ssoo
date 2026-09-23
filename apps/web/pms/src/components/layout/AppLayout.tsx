@@ -9,13 +9,12 @@ import {
 import {
   SSOO_GLOBAL_SEARCH_APP_PATH,
   SSOO_SHELL_METRICS,
-  SsooAppFrame,
   SsooMobileSidebarOverlay,
   SsooWorkbenchShell,
   getSsooGlobalSearchQueryFromPath,
   getSsooGlobalSearchTitle,
 } from '@ssoo/web-shell';
-import { SETTINGS_PATH } from '@/lib/constants/routes';
+import { PROJECT_SETTINGS_PATH } from '@/lib/constants/routes';
 import { useLayoutStore, useSidebarStore, useTabStore } from '@/stores';
 import { Sidebar } from './sidebar';
 import { Header } from './Header';
@@ -26,7 +25,7 @@ import { ContentArea } from './ContentArea';
  * 메인 앱 레이아웃
  * - Desktop: Sidebar + Header + TabBar + Content
  * - Mobile: Header + TabBar + Content + overlay sidebar
- * - 탭 시스템 전용: URL 직접 접근 미지원
+ * - 내부 업무는 탭으로 전환하고 공식 검색·사용자 주소는 기존 탭으로 연결
  */
 export function AppLayout() {
   const {
@@ -39,12 +38,21 @@ export function AppLayout() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const openTab = useTabStore((state) => state.openTab);
+  const updateTabPath = useTabStore((state) => state.updateTabPath);
   const currentPath = useMemo(() => {
     const search = searchParams.toString();
     return search ? `${pathname}?${search}` : pathname;
   }, [pathname, searchParams]);
 
   useEffect(() => {
+    const workParams = new URLSearchParams(currentPath.split('?')[1] ?? '');
+    const workProjectId = workParams.get('projectId');
+    const workTab = workParams.get('tab');
+    if (workParams.get('workNotification') === 'true' && workProjectId && /^\d+$/.test(workProjectId) && (workTab === 'tasks' || workTab === 'controls')) {
+      openTab({ menuCode: 'project.detail', menuId: `project.detail.${workProjectId}`, title: '프로젝트 업무 알림',
+        path: '/project/detail', params: { id: workProjectId, managementTab: workTab }, closable: true, activate: true });
+      return;
+    }
     const userSurfaceRoute = parseSsooUserSurfaceRouteEntry(currentPath);
     if (userSurfaceRoute) {
       const tabId = getSsooUserSurfaceTabId(userSurfaceRoute.kind, userSurfaceRoute.userId);
@@ -61,12 +69,12 @@ export function AppLayout() {
     }
 
     if (!currentPath.startsWith(SSOO_GLOBAL_SEARCH_APP_PATH)) {
-      if (currentPath === SETTINGS_PATH) {
+      if (currentPath === PROJECT_SETTINGS_PATH) {
         openTab({
           menuCode: 'PMS-SETTINGS',
           menuId: 'pms-settings',
-          title: '설정',
-          path: SETTINGS_PATH,
+          title: '프로젝트 사용 설정',
+          path: PROJECT_SETTINGS_PATH,
           icon: 'Settings',
           closable: true,
           activate: true,
@@ -76,7 +84,7 @@ export function AppLayout() {
     }
 
     const query = getSsooGlobalSearchQueryFromPath(currentPath);
-    openTab({
+    const tabId = openTab({
       menuCode: 'PMS-GLOBAL-SEARCH',
       menuId: 'pms-global-search',
       title: getSsooGlobalSearchTitle(query),
@@ -86,7 +94,8 @@ export function AppLayout() {
       closable: true,
       activate: true,
     });
-  }, [currentPath, openTab]);
+    if (tabId) updateTabPath(tabId, currentPath);
+  }, [currentPath, openTab, updateTabPath]);
 
   useEffect(() => {
     if (deviceType === 'desktop' && isMobileMenuOpen) {
@@ -94,47 +103,37 @@ export function AppLayout() {
     }
   }, [closeMobileMenu, deviceType, isMobileMenuOpen]);
 
-  if (deviceType === 'mobile') {
-    const mobileSidebarWidth = `min(${SSOO_SHELL_METRICS.sidebar.expandedWidth}px, calc(100vw - 32px))`;
-
-    return (
-      <SsooAppFrame
-        mode="workbench"
-        sidebarMode="none"
-        sidebarSlot={isMobileMenuOpen ? (
-          <SsooMobileSidebarOverlay
-            id="pms-mobile-sidebar"
-            onDismiss={closeMobileMenu}
-            label="PMS 모바일 메뉴"
-          >
-            <Sidebar
-              expanded
-              width={mobileSidebarWidth}
-              onToggleCollapse={closeMobileMenu}
-              toggleLabel="모바일 메뉴 닫기"
-              variant="mobile"
-            />
-          </SsooMobileSidebarOverlay>
-        ) : null}
-        headerSlot={(
-          <Header
-            mobile
-            mobileMenuOpen={isMobileMenuOpen}
-            onMobileMenuClick={toggleMobileMenu}
-          />
-        )}
-        tabBarSlot={<TabBar />}
-        contentSlot={<ContentArea />}
-      />
-    );
-  }
+  const isMobileViewport = deviceType === 'mobile';
+  const mobileSidebarWidth = `min(${SSOO_SHELL_METRICS.sidebar.expandedWidth}px, calc(100vw - 32px))`;
 
   return (
     <SsooWorkbenchShell
-      sidebarMode="collapsible"
+      sidebarMode={isMobileViewport ? 'none' : 'collapsible'}
       sidebarExpanded={!isCollapsed}
-      sidebarSlot={<Sidebar />}
-      headerSlot={<Header />}
+      sidebarSlot={isMobileViewport ? (isMobileMenuOpen ? (
+        <SsooMobileSidebarOverlay
+          id="pms-mobile-sidebar"
+          onDismiss={closeMobileMenu}
+          label="PMS 모바일 메뉴"
+        >
+          <Sidebar
+            expanded
+            width={mobileSidebarWidth}
+            onToggleCollapse={closeMobileMenu}
+            toggleLabel="모바일 메뉴 닫기"
+            variant="mobile"
+          />
+        </SsooMobileSidebarOverlay>
+      ) : null) : (
+        <Sidebar />
+      )}
+      headerSlot={isMobileViewport ? (
+        <Header
+          mobile
+          mobileMenuOpen={isMobileMenuOpen}
+          onMobileMenuClick={toggleMobileMenu}
+        />
+      ) : <Header />}
       tabBarSlot={<TabBar />}
       contentSlot={<ContentArea />}
     />

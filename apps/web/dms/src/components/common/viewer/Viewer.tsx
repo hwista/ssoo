@@ -184,6 +184,7 @@ export function Viewer({
       toolbar={(
         <Toolbar
           maxWidth={DOCUMENT_WIDTH}
+          wrapControls
           variant={variant}
           toc={tocControls}
           search={searchControls}

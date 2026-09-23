@@ -1,3 +1,4 @@
+import type { PmsWorkNotificationService } from '../settings/work-notification.service.js';
 import type { CreateTaskDto, UpdateTaskDto } from '@ssoo/types';
 import type { AiIndexJobRequest, AiIndexJobSnapshot } from '@ssoo/types/common';
 import type { DatabaseService } from '../../../database/database.service.js';
@@ -57,6 +58,8 @@ function createTaskServiceFixture(): TaskServiceFixture {
 
   const db = {
     client: {
+      $transaction: async (run: (client: DatabaseService['client']) => Promise<unknown>) => run(db.client),
+      $queryRaw: async () => [],
       task: {
         create: async (args: unknown) => {
           calls.taskCreate.push(args);
@@ -100,7 +103,7 @@ function createTaskServiceFixture(): TaskServiceFixture {
   } as unknown as AiIndexingService;
 
   return {
-    service: new TaskService(db, aiIndexingService),
+    service: new TaskService(db, aiIndexingService, { create: async () => [], publish: () => {}, assertAssignee: async () => {} } as unknown as PmsWorkNotificationService),
     calls,
     setTaskFindManyResult: (value: unknown[]) => {
       taskFindManyResult = value;
@@ -123,7 +126,7 @@ describe('TaskService AI index queue hooks', () => {
       description: 'PLC 실적 수집 인터페이스 구현',
     };
 
-    await expect(fixture.service.create(42n, dto)).resolves.toMatchObject({
+    await expect(fixture.service.create(42n, dto, 1n)).resolves.toMatchObject({
       id: 77n,
       projectId: 42n,
     });
@@ -152,7 +155,7 @@ describe('TaskService AI index queue hooks', () => {
       statusCode: 'in_progress',
     };
 
-    await expect(fixture.service.update(77n, dto)).resolves.toMatchObject({
+    await expect(fixture.service.update(77n, dto, 1n, 42n)).resolves.toMatchObject({
       id: 77n,
       projectId: 42n,
     });
@@ -177,7 +180,7 @@ describe('TaskService AI index queue hooks', () => {
 
     await expect(fixture.service.update(77n, {
       taskName: '설비 인터페이스 개발 보정',
-    })).resolves.toMatchObject({
+    }, 1n, 42n)).resolves.toMatchObject({
       id: 77n,
     });
 

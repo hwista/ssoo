@@ -28,11 +28,11 @@ function InfoRow({
 function formatBindingState(state: SettingsRuntimeGitClient['state']) {
   switch (state) {
     case 'ready':
-      return '바인딩 확인됨';
+      return '저장소 연결 확인됨';
     case 'uninitialized':
       return '초기화 대기';
     case 'reconcile-needed':
-      return 'reconcile 필요';
+      return '정합성 확인 필요';
     case 'git-unavailable':
       return 'Git 사용 불가';
     default:
@@ -74,21 +74,21 @@ function formatSyncState(git: SettingsRuntimeGitClient) {
 
 function formatParityState(git: SettingsRuntimeGitClient) {
   if (!git.parityStatus.verified) {
-    return 'Parity 확인 불가';
+    return '게시 정합성 확인 불가';
   }
-  return git.parityStatus.canTreatLocalAsCanonical ? 'Parity 통과' : 'Parity 차단';
+  return git.parityStatus.canTreatLocalAsCanonical ? '게시 정합성 정상' : '게시 정합성 차단';
 }
 
 function formatRootRelation(git: SettingsRuntimeGitClient) {
   switch (git.rootRelation) {
     case 'exact':
-      return 'configured root 와 actual Git root 가 일치합니다.';
+      return '설정된 기준 폴더와 실제 저장소 폴더가 일치합니다.';
     case 'configured-subdirectory':
       return git.actualGitRoot
-        ? `configured root 가 actual Git root(${git.actualGitRoot}) 하위 경로에 있습니다. Git 명령은 actual root 기준으로 동작합니다.`
-        : 'actual Git root 를 확인하지 못했습니다.';
+        ? `설정된 기준 폴더가 실제 저장소 폴더(${git.actualGitRoot}) 하위 경로에 있습니다. Git 명령은 실제 저장소 폴더를 기준으로 동작합니다.`
+        : '실제 저장소 폴더를 확인하지 못했습니다.';
     case 'not-inside-repository':
-      return 'configured root 에서 Git working tree 를 확인하지 못했습니다.';
+      return '설정된 기준 폴더에서 문서 작업 폴더를 확인하지 못했습니다.';
     default:
       return git.rootRelation;
   }
@@ -99,7 +99,7 @@ function formatBindingSeverity(git: SettingsRuntimeGitClient) {
     case 'fatal':
       return '시작 차단';
     case 'blocking':
-      return 'mutation 차단';
+      return '변경 차단';
     default:
       return '정상';
   }
@@ -167,10 +167,10 @@ export function GitObservabilitySurface({
       <article className="rounded-lg border border-ssoo-content-border bg-card px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-badge text-ssoo-primary/70">문서 정본 바인딩 / Git 운영 상태</p>
-            <h3 className="mt-1 text-label-strong text-ssoo-primary">현재 runtime 이 실제로 바라보는 문서 저장소</h3>
+            <p className="text-badge text-ssoo-primary/70">문서 저장소 연결·운영 상태</p>
+            <h3 className="mt-1 text-label-strong text-ssoo-primary">현재 서비스가 사용하는 문서 저장소</h3>
             <p className="mt-2 text-body-sm text-ssoo-primary/80">
-              expected role, configured bootstrap, actual Git root/remote/branch, sync/parity, mutation-blocking 상태를 함께 보여 줍니다.
+              설정된 역할과 실제 저장소·원격·브랜치, 동기화·게시 정합성, 변경 차단 상태를 함께 보여 줍니다.
             </p>
           </div>
           <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-badge ${tone.pillClassName}`}>
@@ -180,20 +180,20 @@ export function GitObservabilitySurface({
         </div>
 
         <div className="mt-3 grid gap-3 lg:grid-cols-2">
-          <InfoRow label="Instance role" value={formatInstanceEnv(git.instanceEnv)} />
-          <InfoRow label="Binding guard" value={formatBindingSeverity(git)} />
-          <InfoRow label="Configured root (resolved)" value={git.configuredRoot} breakAll />
-          <InfoRow label="Actual Git root" value={git.actualGitRoot ?? '감지되지 않음'} breakAll />
-          <InfoRow label="Expected remote" value={expectedRemote} breakAll />
-          <InfoRow label="Actual remote" value={actualRemote} breakAll />
-          <InfoRow label="Actual branch" value={git.branch ?? '브랜치 미확인'} />
-          <InfoRow label="Configured bootstrap" value={configuredBootstrap} breakAll />
-          <InfoRow label="Root relation" value={formatRootRelation(git)} breakAll />
+          <InfoRow label="실행 환경" value={formatInstanceEnv(git.instanceEnv)} />
+          <InfoRow label="연결 보호 상태" value={formatBindingSeverity(git)} />
+          <InfoRow label="설정된 기준 폴더" value={git.configuredRoot} breakAll />
+          <InfoRow label="실제 저장소 폴더" value={git.actualGitRoot ?? '감지되지 않음'} breakAll />
+          <InfoRow label="예정 원격 저장소" value={expectedRemote} breakAll />
+          <InfoRow label="실제 원격 저장소" value={actualRemote} breakAll />
+          <InfoRow label="실제 브랜치" value={git.branch ?? '브랜치 미확인'} />
+          <InfoRow label="초기 연결 설정" value={configuredBootstrap} breakAll />
+          <InfoRow label="폴더 관계" value={formatRootRelation(git)} breakAll />
         </div>
 
         {git.configuredRootRelativeToAppRoot && (
           <p className="mt-3 text-caption text-ssoo-primary/70">
-            상대 경로 설정값 <span className="font-medium">{git.configuredRootInput}</span> 은 app root
+            상대 경로 설정값 <span className="font-medium">{git.configuredRootInput}</span> 은 앱 기준 폴더
             {' '}
             <span className="font-medium">{git.appRoot}</span>
             {' '}
@@ -219,37 +219,37 @@ export function GitObservabilitySurface({
         <article className="rounded-lg border border-ssoo-content-border bg-card px-4 py-3">
           <div className="flex items-center gap-2 text-caption text-ssoo-primary/70">
             <FolderGit2 className="h-4 w-4" />
-            Working tree
+            작업 폴더
           </div>
           <p className="mt-2 text-label-strong text-ssoo-primary">
             {git.isRepository ? 'Git 저장소 연결됨' : 'Git 저장소 아님'}
           </p>
           <p className="mt-1 text-body-sm text-ssoo-primary/80">
-            visible entries {git.visibleEntryCount} · .git {git.hasGitMetadata ? '있음' : '없음'}
+            표시 항목 수 {git.visibleEntryCount} · .git {git.hasGitMetadata ? '있음' : '없음'}
           </p>
         </article>
 
         <article className="rounded-lg border border-ssoo-content-border bg-card px-4 py-3">
           <div className="flex items-center gap-2 text-caption text-ssoo-primary/70">
             <GitBranch className="h-4 w-4" />
-            Sync state
+            동기화 상태
           </div>
           <p className="mt-2 text-label-strong text-ssoo-primary">{formatSyncState(git)}</p>
           <p className="mt-1 text-body-sm text-ssoo-primary/80">
-            ahead {git.syncStatus?.aheadCount ?? 0} · behind {git.syncStatus?.behindCount ?? 0} · diverged
+            로컬 선행 {git.syncStatus?.aheadCount ?? 0} · 원격 선행 {git.syncStatus?.behindCount ?? 0} · 분기 여부
             {' '}
-            {git.syncStatus?.diverged ? 'yes' : 'no'}
+            {git.syncStatus?.diverged ? '있음' : '없음'}
           </p>
         </article>
 
         <article className="rounded-lg border border-ssoo-content-border bg-card px-4 py-3">
           <div className="flex items-center gap-2 text-caption text-ssoo-primary/70">
             <Link2 className="h-4 w-4" />
-            Publish parity
+            게시 정합성
           </div>
           <p className="mt-2 text-label-strong text-ssoo-primary">{formatParityState(git)}</p>
           <p className="mt-1 text-body-sm text-ssoo-primary/80">
-            repo-wide reconcile/publish 기준 · {git.parityStatus.verified ? 'verified' : 'unverified'}
+            전체 저장소의 정합성·게시 기준 · {git.parityStatus.verified ? '확인됨' : '미확인'}
           </p>
         </article>
       </div>

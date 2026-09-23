@@ -73,6 +73,17 @@ export interface AuthSessionBootstrap<TUser extends AuthIdentity = AuthIdentity>
   user: TUser;
 }
 
+/** 세션 쿠키가 전혀 없는 정상 비로그인 응답. 무효한 세션은 오류로 유지한다. */
+export interface AuthAnonymousSession {
+  status: 'anonymous';
+  accessToken: null;
+  user: null;
+}
+
+export type AuthSessionRestore<TUser extends AuthIdentity = AuthIdentity> =
+  | AuthSessionBootstrap<TUser>
+  | AuthAnonymousSession;
+
 /**
  * 로그아웃 결과
  */

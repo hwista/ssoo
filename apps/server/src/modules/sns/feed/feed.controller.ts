@@ -33,6 +33,19 @@ export class FeedController {
       hasMore: result.hasMore });
   }
 
+  @Get('feed/posts/:postId')
+  @ApiOperation({ summary: '공유된 게시물의 피드 카드 조회' })
+  @ApiOkResponse({ description: '열람 가능한 게시물과 작성자·댓글 수·본인 반응 (조회 수 변경 없음)' })
+  @ApiNotFoundResponse({ type: ApiError })
+  @ApiUnauthorizedResponse({ type: ApiError })
+  @ApiForbiddenResponse({ type: ApiError })
+  @ApiInternalServerErrorResponse({ type: ApiError, description: '서버 오류' })
+  @UseGuards(SnsFeatureGuard)
+  @RequireSnsFeature('canReadFeed')
+  async getPost(@Param('postId') postId: string, @CurrentUser() user: TokenPayload) {
+    return success(serializeBigInt(await this.feedService.getPost(user, postId)));
+  }
+
   @Post('posts/:postId/reactions')
   @ApiOperation({ summary: '게시물 반응 추가' })
   @ApiOkResponse({ description: '반응 추가 완료' })

@@ -2,7 +2,7 @@
 title: SSOO Frame System
 owner: platform-team
 status: active
-lastReviewed: 2026-07-16
+lastReviewed: 2026-09-22
 ---
 
 # SSOO Frame System
@@ -41,6 +41,7 @@ SSOO 서비스 shell은 특정 서비스 화면을 다른 서비스가 복사하
 - 5개 앱의 header entrypoint는 `SsooAppHeader`다. 앱 메인 header는 검색/새로 만들기/알림/사용자 메뉴 surface를 같은 순서와 크기로 노출한다. header 검색 placeholder는 `SSOO_HEADER_SEARCH_PLACEHOLDER`/`SSOO_GLOBAL_SEARCH_PLACEHOLDER`의 “무엇이든 찾아드릴게요! 무엇이 필요하신가요?”로 통일한다. header 검색의 입력 상태, Enter submit 처리, `/ssoo/search?q=` 경로 생성, 검색 아이콘 주입은 `packages/web-shell/src/global-header-search.tsx`의 `useSsooGlobalHeaderSearch`가 소유한다. 앱은 검색 가능 여부와 통합 검색 탭을 여는 navigation adapter만 주입한다. header 내부 button/input/icon size, action spacing, 사용자 메뉴 폭 측정, notification trigger/badge shape를 직접 소유하지 않는다.
 - header 검색 submit은 공용 `/ssoo/search` 통합 검색 탭으로 연결한다. 검색 실행 query와 결과 내 재검색 분리, toolbar, 결과 panel, blocked source summary, 결과 card renderer slot, 기존 DMS AI 검색의 sidecar/검색 기록/인기 검색어/AI 첨부 표면은 `@ssoo/web-shell`의 `SsooAiSearchPage` 계열 공용 모듈이 소유한다. 통합 검색 표면인 `SsooGlobalSearchPage`는 새 화면 복제가 아니라 이 공통 `SsooAiSearchPage`를 소비하면서 source-app filter chip과 전역 검색 adapter만 주입한다. DMS 검색 진입점은 `/ssoo/search` 하나이며 `/ai/search` 호환 alias를 유지하지 않는다. 기본 검색 요청에는 `sourceApp`을 넣지 않고 모든 provider를 대상으로 검색하며, source filter chip을 선택한 경우에만 `sourceApp` query와 요청 filter를 적용한다. 앱은 `@ssoo/web-auth`의 `useCommonGlobalSearchAdapter`에 현재 앱, 탭 path, 앱별 결과 열기 action만 주입하고 API 호출, API base URL, cross-app app URL map, 초기 query/source filter parsing, cross-app URL routing을 다시 구현하지 않는다.
 - 서버 `/api/search`는 앱별 검색 provider registry를 조합하는 platform endpoint다. common search service/module은 DMS `SearchService`, CRM opportunity service, PMS/SNS/Admin 도메인 DB 조회를 직접 import하지 않는다. DMS provider는 DMS DB를 직접 keyword 조회하지 않고 기존 DMS `SearchService`를 재사용해 semantic/vector 시도, keyword fallback, ACL/redaction, read request state, blocked source summary를 유지한다. CRM provider는 CRM `OpportunityService`를 재사용해 영업기회 결과를 등록한다. PMS provider는 owner/member project만, SNS provider는 public/own post만, Admin provider는 `system.override` access foundation 권한이 있는 사용자에게만 결과를 반환한다. 응답 capability는 `keyword`, `metadata`, `semantic`, `vector`, `ragContext`를 분리해 표시하며, `ragReady`는 `ragContext` 조립까지 제공되는 경우에만 true로 둔다.
+- 공통 검색 결과 카드 표시(2026-09-22 승인): `global-search-presentation`에서 결과 종류별 업무 명칭·선별 메타정보를 구성하고 원본 결과/이동/권한 계약은 보존한다. 내부 식별번호는 숨기고 이동 주소는 서비스 이름으로 표시하며 문서 실제 위치는 유지한다. 미확인 코드·자유 본문을 임의 번역하지 않는다. 서비스 선택 탭과 DMS 전용 문서 카드는 변경하지 않는다. [적용·검증 핸드오프](2026-09-22-search-results-handoff.md).
 - AI 검색 공용화 이후의 vector DB, embedding, RAG context, AI 대화, domain task adapter 공용화는 [AI/RAG Platform Roadmap](ai-rag-platform-roadmap.md)을 따른다. 현재 `/api/search`와 `SsooGlobalSearchPage`는 통합 검색 표면 기준선이며, 플랫폼 공용 RAG data plane 완료로 간주하지 않는다.
 - Header 알림센터는 5개 앱 모두 `SsooHeaderNotificationCenter`/`SsooNotificationPanel`을 소비한다. 패널 문구, dim/backdrop, source-app 카테고리, 상단 `전체`/앱별 filter chip과 unread badge, read/unread, 모두 읽음, pagination, 열기/확인 action, typography 표면은 공용이고, 앱은 현재 앱 chip 우선순위, notification source/query/mutation과 action data/handler만 주입한다.
 - DMS settings context는 앱 상단 header slot을 유지하되 `SsooAppHeader` shell 내부 content를 비우고, 설정 sidebar brand 영역의 뒤로가기 action과 `설정` title만 노출한다. 설정 검색은 header가 아니라 settings sidebar 검색 슬롯에서만 처리한다.
@@ -93,6 +94,9 @@ SSOO 서비스 shell은 특정 서비스 화면을 다른 서비스가 복사하
 - `SsooAppHeader`
   - 5개 앱의 header slot entrypoint다.
   - 검색 영역, primary/secondary action, notification trigger 또는 panel slot, 사용자 메뉴 slot을 같은 순서와 spacing으로 배치한다.
+  - 2026-09-22 사용자 승인 범위로, 별도 leading/center slot 없이 검색을 제공하는 데스크톱 header는 768~1023px에서 action 위·검색 아래의 두 줄 배치를 사용한다. 기본 60px 대신 36px 두 줄·8px 간격·상하 12px 여백으로 104px가 되며 검색은 좌우 16px를 제외한 폭을 사용한다. 1024px 이상과 검색 없는 설정·모바일 header는 기존 한 줄 기준을 유지한다.
+  - PMS 데스크톱은 검색 앞의 중복 제목을 주입하지 않고 기존 탭·본문에서 화면 이름을 표시한다. 모바일 leading 제목은 유지한다. 키보드 탐색의 기존 DOM 순서는 변경하지 않는다.
+  - 공용 알림 panel은 열릴 때와 header 크기가 바뀔 때 실제 header 하단 위치를 관측해 그 아래에 배치한다. 두 줄 검색 영역을 고정 60px 위치의 panel이 덮지 않도록 한다.
   - 사용자 메뉴 dropdown 폭은 공용 header의 `SSOO_HEADER_USER_MENU_DROPDOWN_WIDTH`가 소유하고, 앱은 사용자 메뉴 렌더러에 전달된 `dropdownWidth`를 그대로 넘긴다.
   - header primary CTA 최소 폭은 공용 header의 `SSOO_HEADER_PRIMARY_ACTION_MIN_WIDTH`가 소유하며, 현재 5개 앱의 최대 label인 `새 프로젝트` 기준으로 맞춘다.
   - 앱 메인 header 검색은 `useSsooGlobalHeaderSearch`가 만든 controlled search config를 소비해야 하며, 앱은 검색 가능 여부와 통합 검색 탭 open action만 주입한다.
@@ -112,7 +116,9 @@ SSOO 서비스 shell은 특정 서비스 화면을 다른 서비스가 복사하
 - `SsooAiSearchPage`, `SsooGlobalSearchPage`, `SsooGlobalSearchResultCard`, `SsooSourceFilterBar`
   - 검색 content page 조립, toolbar, 결과 내 재검색, 결과 panel, blocked source summary, loading/empty/error 표면은 `SsooAiSearchPage` 계열 공용 모듈이 소유한다.
   - SSOO 통합 검색 화면은 `SsooGlobalSearchPage`가 `SsooAiSearchPage`를 소비하는 adapter로 제공한다. source-app filter chip은 main content slot의 toolbar 아래 결과 영역 첫 상단에 `SsooSourceFilterBar`로 주입하고, source filter 선택 전 기본 검색 범위는 모든 provider다.
+  - 검색 보조 영역은 `sidecarNarrowBehavior` 선택값을 기존 content page에 전달한다. 기본값은 `overlay`로 유지하며, 사용자 승인-16(CRM)·승인-17(Admin/PMS/SNS/DMS)에 따라 다섯 앱의 통합 검색 화면이 명시적으로 `auto-close`를 선택해 작업공간이 부족하면 결과를 우선 표시한다. 기존 패널 열기/닫기·충분히 넓은 화면의 나란히 배치와 문서 본문 패널은 보존한다. 공용 기본값 자체는 바꾸지 않는다.
   - 앱별 `/ssoo/search` 페이지는 `useCommonGlobalSearchAdapter`만 소비한다. 앱은 현재 앱 탭 열기 action만 주입하고 `createCommonSearchApi`, API base URL, app URL config, `resolveCommonSearchResultHref`, query/source filter parsing을 페이지 안에서 반복하지 않는다.
+  - 승인-18에 따라 PMS/DMS의 공식 `/ssoo/search` 진입점은 기존 보호 레이아웃 안에서 앱의 기존 화면 틀을 렌더한다. 직접 검색 주소에서 헤더 재검색·필터 선택은 주소와 탭 경로를 맞추고, 루트 주소에서 시작한 기존 검색은 주소를 고정한다. DMS는 루트 새로고침 시 홈 활성화·저장 검색 탭 재선택 동작을 보존한다. PMS는 같은 사용자 저장 검색 탭을 복원하며 사용자 변경·로그아웃 상태 정리는 유지한다.
   - DMS 문서 결과처럼 도메인 특화 card가 이미 존재하는 경우 앱은 `renderResult` slot으로 자기 카드만 주입한다. 공용 recipe는 renderer slot을 제공하고, 앱은 새 page shell을 만들지 않는다.
   - 현재 전역 endpoint는 provider registry의 keyword/metadata 검색과 DMS hybrid 검색을 조합한다. 공용 타입은 `ranker`, `capabilities`, `blockedSources`를 포함하며, `capabilities`는 provider별 `keyword`/`metadata`/`semantic`/`vector`/`ragContext` 준비 수준을 구분한다. `ragReady`는 하위 호환 필드이며 RAG context assembly가 실제 제공되는 경우에만 true로 둔다.
 
@@ -383,6 +389,7 @@ PMS는 SSOO 플랫폼의 workbench 기준 앱이다. 여기서 말하는 100%는
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-09-22 | 사용자 승인에 따라 다섯 서비스 좁은 데스크톱의 상단 검색을 두 줄로 배치하고 PMS 중복 제목을 정리. 알림 panel은 실제 header 하단에 맞추며 모바일·검색 없는 설정 상단은 기존 기준 유지 |
 | 2026-07-16 | Admin/CRM/PMS/SNS 모바일 sidebar를 `useSsooMobileViewport` + `SsooMobileSidebarOverlay` 계약으로 통합하고 390px 실제 브라우저에서 메뉴 열기/Escape 닫기/가로 overflow 없음 기준을 검증. DMS 모바일 준비 안내는 기존 지원 게이트로 유지 |
 | 2026-07-10 | `SsooWorkspacePage`를 일반 업무/데이터 작업 surface recipe로 추가하고, `SsooDataWorkspacePage`를 데이터/grid preset 계층으로 분리 |
 | 2026-07-08 | 전역 디자인 경험 표준 범위를 모든 웹 앱 최종 페이지 내부와 주요 App Router page/error surface까지 확장 |
@@ -446,3 +453,9 @@ PMS는 SSOO 플랫폼의 workbench 기준 앱이다. 여기서 말하는 100%는
 | 2026-06-11 | 설정 화면 공통 양식을 `SsooSettings*` primitives로 추가하고 DMS 설정 페이지 내부 layout/status/view-mode 소비 기준 반영 |
 | 2026-06-11 | 5개 앱 sidebar를 toggle + collapsed hover expand 단일 contract로 통일하고 DMS dev/wiki selector 제거 기준 추가 |
 | 2026-06-09 | slot+mode 기반 SSOO frame system 정본 문서 추가 |
+
+| 2026-09-14 | 승인-16 고객관리 검색만 기존 좁은 화면 접기 동작 선택. 공용 검색 기본값과 다른 앱 동작 보존 |
+
+| 2026-09-14 | 승인-17로 나머지 네 앱 통합 검색도 기존 접기 선택값 지정. 공용 기본값·문서 본문·검색 및 저장 계약 보존 |
+
+| 2026-09-15 | 승인-18 PMS/DMS 검색 직접 진입·필터/주소 정합 및 PMS 사용자별 탭 복원 경계 반영 |

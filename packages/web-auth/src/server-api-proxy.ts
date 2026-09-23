@@ -1,3 +1,6 @@
+import type { AuthAnonymousSession } from '@ssoo/types/common';
+import { createSessionCookieRetryResponse } from './session-cookie-retry';
+
 const DEFAULT_AUTH_FORWARD_HEADERS = ['authorization', 'cookie', 'origin', 'referer'] as const;
 const BINARY_PROXY_RESPONSE_HEADERS = ['cache-control', 'content-disposition', 'content-length', 'content-type', 'x-content-type-options'] as const;
 const REDIRECT_PROXY_RESPONSE_HEADERS = ['cache-control'] as const;
@@ -17,6 +20,7 @@ export interface ServerApiProxyBackendSuccessResponse<T> {
 export interface ServerApiProxyBackendErrorResponse {
   success?: false;
   error?: {
+    code?: string;
     message?: string;
   };
   message?: string;
@@ -88,6 +92,11 @@ function createSseRetryFrame(): Uint8Array {
 
 function createSseResponseHeaders(response?: Response): Headers {
   const headers = new Headers(response?.headers);
+  // Fetch decodes the upstream body, and this proxy can replace or append frames.
+  // Let the downstream server frame that body instead of reusing upstream metadata.
+  headers.delete('content-length');
+  headers.delete('content-encoding');
+  headers.delete('transfer-encoding');
   headers.set('Cache-Control', 'no-cache, no-transform');
   headers.set('Content-Type', 'text/event-stream; charset=utf-8');
   headers.set('X-Accel-Buffering', 'no');
@@ -207,7 +216,7 @@ export function createServerApiProxyHelpers({
     request: Request,
   ): Promise<RestoreServerAccessTokenResult> => {
     const sessionResponse = await fetch(
-      createServerApiUrl('/auth/session'),
+      createServerApiUrl('/auth/session/access'),
       createServerApiProxyInit(request, {
         method: 'POST',
         headers: {
@@ -217,7 +226,7 @@ export function createServerApiProxyHelpers({
     );
 
     const sessionBody = await sessionResponse.json().catch(() => null) as
-      | ServerApiProxyBackendSuccessResponse<SessionBackedAccessTokenPayload>
+      | ServerApiProxyBackendSuccessResponse<SessionBackedAccessTokenPayload | AuthAnonymousSession>
       | ServerApiProxyBackendErrorResponse
       | null;
 
@@ -227,6 +236,10 @@ export function createServerApiProxyHelpers({
       || sessionBody.success !== true
       || typeof sessionBody.data?.accessToken !== 'string'
     ) {
+      if (sessionBody?.success !== true) {
+        const retry = await createSessionCookieRetryResponse(request, sessionResponse.status, sessionBody?.error?.code);
+        if (retry) return { errorResponse: retry };
+      }
       const errorHeaders = new Headers();
       appendSetCookieHeader(errorHeaders, sessionResponse);
 
@@ -236,7 +249,7 @@ export function createServerApiProxyHelpers({
             error: getBackendErrorMessage(sessionBody, '인증 세션을 복원하지 못했습니다. 다시 로그인하세요.'),
           },
           {
-            status: sessionResponse.status || 401,
+            status: sessionResponse.ok ? 401 : sessionResponse.status || 401,
             headers: errorHeaders,
           },
         ),
@@ -336,6 +349,7 @@ export function createServerApiProxyHelpers({
         return createRetryingSseResponse(createSseResponseHeaders());
       }
       if ('errorResponse' in restoredSession) {
+        if (restoredSession.errorResponse.status === 307) return restoredSession.errorResponse;
         const responseHeaders = createSseResponseHeaders();
         appendSetCookieHeader(responseHeaders, restoredSession.errorResponse);
         return createRetryingSseResponse(responseHeaders);

@@ -4,7 +4,7 @@ applyTo: "**"
 
 # SSOO Codex Project Instructions
 
-> 최종 업데이트: 2026-07-16
+> 최종 업데이트: 2026-09-11
 
 ## 프로젝트 정보
 
@@ -124,7 +124,8 @@ modules/
 - 루트 `packageManager`의 pnpm 11.13.1과 Node.js 22.13+ 기준을 유지한다. Docker base/runner도 Node.js 22 LTS를 사용한다.
 - `pnpm-workspace.yaml`은 24시간 release-age strict gate와 package/version 단위 `allowBuilds`를 사용한다. 리뷰되지 않은 dependency install script를 일괄 허용하지 않는다.
 - 공개 전 `pnpm security:audit`로 production high/critical 0을 확인하며, registry 연결 실패는 통과로 간주하지 않는다.
-- Next.js의 optional image runtime이 요구하는 `sharp`는 취약한 `<0.35.0` 요청을 검증된 `0.35.3`으로 override한다. 변경 시 5개 웹 production build와 Linux native image 변환 smoke를 함께 통과시킨다.
+- Next.js의 optional image runtime이 요구하는 `sharp`는 취약한 `<0.35.4` 요청을 검증된 `0.35.4`으로 override한다. 변경 시 5개 웹 production build와 Linux native image 변환 smoke를 함께 통과시킨다.
+- 스타일 선택자 처리 6.x의 보안 수정은 `6.1.4`를 기준으로 고정하고, 변경 시 `pnpm security:style-runtime`과 다섯 웹 빌드·실제 hover 동작을 검증한다. `6.1.3`에서 기존 group-hover 규칙 누락을 재현했으므로 감사 통과만으로 호환성을 판단하지 않는다. 의존성 교체 후에는 웹의 생성 산출물과 캐시를 제거한 뒤 빌드해 이전 CSS 재사용을 배제한다.
 - 서버 spreadsheet extraction은 SheetJS 공식 CDN tarball을 사용하고, 브라우저 앱에는 실제 사용하지 않는 `xlsx` 의존성을 선언하지 않는다.
 
 ## 경로 → Instruction 매핑
@@ -158,6 +159,7 @@ modules/
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-09-11 | 사용자 승인 보안 수정: sharp 0.35.4/libvips 8.18.6, 스타일 선택자 6.1.4 기준과 실제 hover·캐시 없는 웹 빌드 검증 추가 |
 | 2026-08-21 | 외부 원본 문서의 exact visual/print 패리티용 `design/source-fidelity-override`를 final-page renderer와 reference/evidence marker에 한정하고 style-boundary에서 fail-closed 검증하도록 추가 |
 | 2026-08-20 | 검색·필터·lookup 입력의 공용 의미/비의도 autofill 차단 계약과 동적 filter renderer를 포함한 36개 입력 inventory, 자격증명 입력 분리, 정적·브라우저 회귀 게이트를 추가 |
 | 2026-07-22 | Next.js optional image runtime의 취약한 sharp <0.35.0을 0.35.3으로 override하고 웹 production build/Linux native image smoke를 검증 기준으로 추가 |

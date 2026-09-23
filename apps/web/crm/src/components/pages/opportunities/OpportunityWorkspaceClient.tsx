@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
@@ -75,7 +75,7 @@ import {
   TableRow,
   Textarea,
 } from '@ssoo/web-ui';
-import { SsooSearchInput } from '@ssoo/web-shell';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
 import { OpportunityContractDocumentCard } from './OpportunityContractDocumentCard';
 
 export interface OpportunityWorkspaceQuery {
@@ -188,7 +188,6 @@ const ownerContactStatusLabels: Record<CrmQuotePreviewOwnerContactStatus, string
 const formatCurrency = (value: number) => `${Math.round(value / 100000000).toLocaleString('ko-KR')}억`;
 const formatSourceEok = (value: number) => `${(value / 100000000).toFixed(1)}억`;
 const formatWon = (value: number) => `${Math.round(value).toLocaleString('ko-KR')}원`;
-const isSourceUiuxOpportunity = (item: CrmOpportunity) => item.id.startsWith('crm-uiux-opp-');
 const getSourceOpportunityRevenue = (item: CrmOpportunity) => item.revenueLines.reduce((sum, line) => sum + line.amount, 0);
 const getSourceOpportunityCost = (item: CrmOpportunity) => item.costLines.reduce((sum, line) => sum + line.amount, 0);
 const formatSellerInfoStatus = (value: CrmQuotePreviewSellerInfoStatus) => sellerInfoStatusLabels[value] ?? value;
@@ -1027,16 +1026,12 @@ export function OpportunityWorkspaceClient({
     return () => abortController.abort();
   }, [accessToken]);
 
-  const sourceItems = useMemo(
-    () => currentData.items.filter(isSourceUiuxOpportunity),
-    [currentData.items],
-  );
-  const sourceSurfaceItems = query.sourceSurface === 'workspace' ? currentData.items : sourceItems;
+  const sourceItems = currentData.items;
   const selectedFromList = query.selected
-    ? sourceSurfaceItems.find((item) => item.id === query.selected) ?? null
+    ? sourceItems.find((item) => item.id === query.selected) ?? null
     : query.sourceSurface === 'form'
-      ? sourceSurfaceItems.find((item) => item.confirmed && item.isLatest) ?? sourceSurfaceItems[0] ?? null
-      : sourceSurfaceItems[0] ?? null;
+      ? sourceItems.find((item) => item.confirmed && item.isLatest) ?? sourceItems[0] ?? null
+      : sourceItems[0] ?? null;
   const selected = selectedFromList ?? (query.selected && selectedDetail?.id === query.selected ? selectedDetail : null);
   const totalPages = Math.max(1, Math.ceil(currentData.items.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -1671,9 +1666,18 @@ export function OpportunityWorkspaceClient({
     }
   };
 
+  const pageStyle = {
+    maxWidth: (
+      query.sourceSurface === 'list' || query.sourceSurface === 'workspace'
+        ? SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx
+        : SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx
+    ) + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2,
+    padding: SSOO_PAGE_CHROME_METRICS.stackPaddingPx,
+  };
+
   if (query.sourceSurface === 'dashboard') {
     return (
-      <div className="flex min-h-full flex-col gap-4" data-source-surface="dashboard">
+      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4" style={pageStyle} data-source-surface="dashboard">
         <Breadcrumb items={['CRM', '대시보드']} />
         {dashboardError ? (
           <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{dashboardError}</div>
@@ -1692,7 +1696,7 @@ export function OpportunityWorkspaceClient({
   if (query.sourceSurface === 'list') {
     const sourceListQuery: OpportunityWorkspaceQuery = { ...query, sourceSurface: 'form', create: false };
     return (
-      <div className="flex min-h-full flex-col gap-4 [&>*]:shrink-0" data-source-surface="list">
+      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4 [&>*]:shrink-0" style={pageStyle} data-source-surface="list">
         <Breadcrumb items={['CRM', '영업기회 현황']} />
         {loadError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{loadError}</div> : null}
         {workflowError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{workflowError}</div> : null}
@@ -1736,7 +1740,7 @@ export function OpportunityWorkspaceClient({
     const sourceMode: OpportunityEditorMode = editorMode ?? 'edit';
     const sourceReadOnly = !editorMode;
     return (
-      <div className="flex min-h-full flex-col gap-4" data-source-surface="form">
+      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4" style={pageStyle} data-source-surface="form">
         <Breadcrumb items={['CRM', query.create ? '영업기회 등록' : sourceReadOnly ? '영업기회 조회' : '영업기회 수정']} />
         {loadError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{loadError}</div> : null}
         {workflowError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{workflowError}</div> : null}
@@ -1802,7 +1806,7 @@ export function OpportunityWorkspaceClient({
     const confirmedItems = sourceItems.filter((item) => item.confirmed && item.isLatest);
     const documentItem = confirmedItems.find((item) => item.id === query.selected) ?? confirmedItems[0] ?? null;
     return (
-      <div className="flex min-h-full flex-col gap-4" data-source-surface="contract-document">
+      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4" style={pageStyle} data-source-surface="contract-document">
         <Breadcrumb items={['CRM', '계약서 생성']} />
         <header>
           <h2 className="text-base font-semibold text-foreground">계약서 생성</h2>
@@ -1829,7 +1833,7 @@ export function OpportunityWorkspaceClient({
   }
 
   return (
-    <div className="flex min-h-full flex-col gap-4 [&>*]:shrink-0">
+    <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4 [&>*]:shrink-0" style={pageStyle}>
       <Breadcrumb items={['CRM', '영업기회 목록']} />
       {loadError ? (
         <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{loadError}</div>
@@ -1884,8 +1888,8 @@ export function OpportunityWorkspaceClient({
       />
 
       <section className="min-h-[560px] flex-none overflow-hidden rounded-lg border border-border bg-card">
-        <div className="grid grid-rows-[560px_560px_52px] xl:h-full xl:min-h-[560px] xl:grid-cols-[1fr_420px] xl:grid-rows-[1fr_52px]">
-          <div className="min-w-0 overflow-hidden border-b border-ssoo-content-border xl:border-b-0 xl:border-r">
+        <div className="grid grid-cols-[minmax(0,1fr)] grid-rows-[560px_560px_auto] xl:grid-cols-[minmax(0,1fr)_420px] xl:grid-rows-[560px_auto]">
+          <div className="min-h-0 min-w-0 overflow-hidden border-b border-ssoo-content-border xl:border-b-0 xl:border-r">
             <OpportunityTable
               items={pagedItems}
               pageSize={pageSize}
@@ -2447,7 +2451,7 @@ function OpportunityTable({
 
   return (
     <div className="flex h-full flex-col rounded-md border">
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 [&>div]:h-full">
         <Table className="w-full min-w-[1440px] caption-bottom text-sm" data-source-compatibility="opportunity-list">
           <TableHeader className="sticky top-0 z-10 bg-ssoo-content-bg text-left text-sm font-medium text-muted-foreground shadow-sm [&_tr]:border-b">
             <TableRow className="h-9">
@@ -3397,6 +3401,7 @@ function OpportunityEditor({
   canQuote?: boolean;
   canReopen?: boolean;
 }) {
+  const fieldId = useId();
   const commonCodes = useCrmCommonCodeOptions(['biz_type', 'group_type', 'payment_term']);
   const businessTypeOptions = withCurrentCodeOption(commonCodes.options.biz_type ?? [], draft.businessType);
   const groupTypeOptions = withCurrentCodeOption(commonCodes.options.group_type ?? [], draft.industryLine);
@@ -3443,7 +3448,7 @@ function OpportunityEditor({
             </p>
           </div>
 
-          <fieldset disabled={readOnly} className="space-y-5 p-5 disabled:opacity-100">
+          <fieldset disabled={readOnly} className="min-w-0 space-y-5 p-5 disabled:opacity-100">
             {saveError ? (
               <div className="flex items-start gap-2 rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -3452,14 +3457,14 @@ function OpportunityEditor({
             ) : null}
 
             <section className="space-y-4 rounded-lg border border-border bg-card p-5">
-              <SourceEditorField label="고객명 *" htmlFor="f-customer">
-                <Input id="f-customer" required placeholder="고객사명 입력" value={draft.customerName} onChange={(event) => onTextFieldChange('customerName', event.target.value)} />
+              <SourceEditorField label="고객명 *" htmlFor={`${fieldId}-customer`}>
+                <Input id={`${fieldId}-customer`} required placeholder="고객사명 입력" value={draft.customerName} onChange={(event) => onTextFieldChange('customerName', event.target.value)} />
               </SourceEditorField>
-              <SourceEditorField label="고객사 담당자" htmlFor="f-client-contact">
-                <Input id="f-client-contact" placeholder="고객사 담당자명 입력" value={draft.clientContactName} onChange={(event) => onTextFieldChange('clientContactName', event.target.value)} />
+              <SourceEditorField label="고객사 담당자" htmlFor={`${fieldId}-client-contact`}>
+                <Input id={`${fieldId}-client-contact`} placeholder="고객사 담당자명 입력" value={draft.clientContactName} onChange={(event) => onTextFieldChange('clientContactName', event.target.value)} />
               </SourceEditorField>
-              <SourceEditorField label="영업기회명 *" htmlFor="f-opp">
-                <Input id="f-opp" required placeholder="영업기회 제목 입력" value={draft.opportunityName} onChange={(event) => onTextFieldChange('opportunityName', event.target.value)} />
+              <SourceEditorField label="영업기회명 *" htmlFor={`${fieldId}-opportunity-name`}>
+                <Input id={`${fieldId}-opportunity-name`} required placeholder="영업기회 제목 입력" value={draft.opportunityName} onChange={(event) => onTextFieldChange('opportunityName', event.target.value)} />
               </SourceEditorField>
               <SourceEditorField label="영업담당자 *">
                 {readOnly ? (
@@ -3473,7 +3478,7 @@ function OpportunityEditor({
                 ) : (
                   <Fragment>
                     <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <SsooSearchInput id="crm-source-opportunity-owner-lookup-input" name="crm-source-opportunity-owner-lookup-query" ariaLabel="원본 영업기회 담당 사용자 검색" intent="entity-lookup" value={ownerLookupSearch} placeholder="이름, 계정, 이메일" onChange={(event) => onOwnerLookupSearchChange(event.target.value)} />
+                      <SsooSearchInput id={`crm-source-opportunity-owner-lookup-${fieldId}`} name="crm-source-opportunity-owner-lookup-query" ariaLabel="원본 영업기회 담당 사용자 검색" intent="entity-lookup" value={ownerLookupSearch} placeholder="이름, 계정, 이메일" onChange={(event) => onOwnerLookupSearchChange(event.target.value)} />
                       <Button variant="outline" type="button" disabled={isOwnerLookupLoading} onClick={onOwnerLookupReload}><Search className="h-3.5 w-3.5" /> 도움창</Button>
                     </div>
                     <NativeSelect
@@ -3489,31 +3494,31 @@ function OpportunityEditor({
                   </Fragment>
                 )}
               </SourceEditorField>
-              <SourceEditorField label="상태" htmlFor="f-status">
-                <NativeSelect id="f-status" value={draft.status} onChange={(event) => onSelectFieldChange('status', event.target.value)}>
+              <SourceEditorField label="상태" htmlFor={`${fieldId}-status`}>
+                <NativeSelect id={`${fieldId}-status`} value={draft.status} onChange={(event) => onSelectFieldChange('status', event.target.value)}>
                   {Object.keys(statusLabels).map((value) => <option key={value} value={value}>{toSourceOpportunityStatus(value as CrmOpportunityStatus)}</option>)}
                 </NativeSelect>
               </SourceEditorField>
-              <SourceEditorField label="수금조건" htmlFor="f-payment">
-                <NativeSelect id="f-payment" value={draft.paymentTermCode} onChange={(event) => onSelectFieldChange('paymentTermCode', event.target.value)}>
+              <SourceEditorField label="수금조건" htmlFor={`${fieldId}-payment`}>
+                <NativeSelect id={`${fieldId}-payment`} value={draft.paymentTermCode} onChange={(event) => onSelectFieldChange('paymentTermCode', event.target.value)}>
                   <option value="">선택</option>
                   {paymentOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </NativeSelect>
               </SourceEditorField>
-              <SourceEditorField label="사업구분 *" htmlFor="f-biz-type">
-                <NativeSelect id="f-biz-type" required value={draft.businessType} onChange={(event) => onTextFieldChange('businessType', event.target.value)}>
+              <SourceEditorField label="사업구분 *" htmlFor={`${fieldId}-business-type`}>
+                <NativeSelect id={`${fieldId}-business-type`} required value={draft.businessType} onChange={(event) => onTextFieldChange('businessType', event.target.value)}>
                   <option value="">선택</option>
                   {businessTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </NativeSelect>
               </SourceEditorField>
-              <SourceEditorField label="계열구분" htmlFor="f-group-type">
-                <NativeSelect id="f-group-type" value={draft.industryLine} onChange={(event) => onTextFieldChange('industryLine', event.target.value)}>
+              <SourceEditorField label="계열구분 *" htmlFor={`${fieldId}-group-type`}>
+                <NativeSelect id={`${fieldId}-group-type`} required value={draft.industryLine} onChange={(event) => onTextFieldChange('industryLine', event.target.value)}>
                   <option value="">선택</option>
                   {groupTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </NativeSelect>
               </SourceEditorField>
-              <SourceEditorField label="국내/해외" htmlFor="f-domestic">
-                <NativeSelect id="f-domestic" value={draft.region} onChange={(event) => onSelectFieldChange('region', event.target.value)}>
+              <SourceEditorField label="국내/해외" htmlFor={`${fieldId}-region`}>
+                <NativeSelect id={`${fieldId}-region`} value={draft.region} onChange={(event) => onSelectFieldChange('region', event.target.value)}>
                   {Object.entries(regionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </NativeSelect>
               </SourceEditorField>
@@ -3521,11 +3526,15 @@ function OpportunityEditor({
 
             <EditorSection title="예상계약기간" semanticLabel>
               <div className="grid items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
-                <Input id="f-start" type="date" value={draft.expectedStartDate} onChange={(event) => onTextFieldChange('expectedStartDate', event.target.value)} />
+                <Input id={`${fieldId}-expected-start`} type="date" value={draft.expectedStartDate} onChange={(event) => onTextFieldChange('expectedStartDate', event.target.value)} />
                 <span className="text-center text-muted-foreground">~</span>
-                <Input id="f-end" type="date" value={draft.expectedEndDate} onChange={(event) => onTextFieldChange('expectedEndDate', event.target.value)} />
+                <Input id={`${fieldId}-expected-end`} type="date" value={draft.expectedEndDate} onChange={(event) => onTextFieldChange('expectedEndDate', event.target.value)} />
               </div>
             </EditorSection>
+
+            <SourceEditorField label="다음 행동 *" htmlFor={`${fieldId}-next-action`}>
+              <Textarea id={`${fieldId}-next-action`} required value={draft.nextAction} onChange={(event) => onTextFieldChange('nextAction', event.target.value)} />
+            </SourceEditorField>
 
             <LineEditorGroups
               title="예상매출액 *"
@@ -3556,13 +3565,13 @@ function OpportunityEditor({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <span className="mb-1 block text-xs font-medium text-muted-foreground">Special DC 방식</span>
-                  <NativeSelect id="dc-type" value={draft.specialDiscountType} onChange={(event) => onSelectFieldChange('specialDiscountType', event.target.value)}>
+                  <NativeSelect id={`${fieldId}-discount-type`} value={draft.specialDiscountType} onChange={(event) => onSelectFieldChange('specialDiscountType', event.target.value)}>
                     {Object.entries(discountTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                   </NativeSelect>
                 </div>
                 <div>
                   <span className="mb-1 block text-xs font-medium text-muted-foreground">{draft.specialDiscountType === 'rate' ? 'Special DC (%)' : 'Special DC (원)'}</span>
-                  <Input id="dc-value" type="number" min="0" value={draft.specialDiscountValue} onChange={(event) => onTextFieldChange('specialDiscountValue', event.target.value)} />
+                  <Input id={`${fieldId}-discount-value`} type="number" min="0" value={draft.specialDiscountValue} onChange={(event) => onTextFieldChange('specialDiscountValue', event.target.value)} />
                 </div>
               </div>
               <dl className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -3608,7 +3617,7 @@ function OpportunityEditor({
           </div>
         </div>
 
-        <fieldset disabled={readOnly} className="space-y-4 p-4 disabled:opacity-100">
+        <fieldset disabled={readOnly} className="min-w-0 space-y-4 p-4 disabled:opacity-100">
           {saveError ? (
             <div className="flex items-start gap-2 rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -3631,7 +3640,7 @@ function OpportunityEditor({
                 <span className="mb-1 block text-xs font-medium text-muted-foreground">담당 사용자</span>
                 <div className="grid grid-cols-[1fr_auto] gap-2">
                   <SsooSearchInput
-                    id="crm-opportunity-owner-lookup-input"
+                    id={`crm-opportunity-owner-lookup-${fieldId}`}
                     name="crm-opportunity-owner-lookup-query"
                     ariaLabel="영업기회 담당 사용자 검색"
                     intent="entity-lookup"
@@ -4079,8 +4088,8 @@ function TableFooter({
   const canGoNext = page < totalPages;
 
   return (
-    <div className="col-span-full flex min-h-[52px] items-center justify-between border-t border-border bg-muted px-4 py-2 text-sm text-muted-foreground">
-      <div className="flex items-center gap-4">
+    <div className="col-span-full flex min-h-[52px] flex-wrap items-center justify-between gap-3 border-t border-border bg-muted px-4 py-2 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-2">
           <span>페이지당</span>
           <NativeSelect

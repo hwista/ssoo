@@ -1,7 +1,7 @@
 ````mdc
 # 공용 문서 (Common)
 
-> 최종 업데이트: 2026-08-20
+> 최종 업데이트: 2026-09-17
 
 PMS와 DMS 모두에 공통 적용되는 개발 표준, 가이드, 아키텍처 문서입니다.
 
@@ -31,6 +31,30 @@ PMS와 DMS 모두에 공통 적용되는 개발 표준, 가이드, 아키텍처 
 
 | 문서 | 설명 |
 |------|------|
+| [출시 준비 5단계 실행 계획](explanation/architecture/2026-09-11-launch-ralph-plan.md) | 전 서비스 검증과 CRM 선행 정리, DMS 및 공용 사용 환경 보존 경계 |
+| [알림 연결 오류 후속](explanation/architecture/2026-09-17-notification-stream-handoff.md) | 원인 재현·공통 내부 수정과 재접속/만료 검증, 승인 집계 유지 |
+| [계약 초안 내부 승인 결과](explanation/architecture/2026-09-17-contract-internal-approval-handoff.md) | 실제 지정 승인자 한 명의 요청·처리·이력 완료·19완료/3잔여 |
+| [계약 생성 기록 처리 결과](explanation/architecture/2026-09-17-contract-records-handoff.md) | 앞선 1번 처리 범위의 기록·실제 승인 구현 이전 결과 |
+| [계약 승인 기록 검토·처리안](explanation/architecture/2026-09-17-contract-approval-review.md) | 생성 기록과 실제 결재 구분·1번 선택 승인 기록 |
+| [커뮤니티 첨부 완료 핸드오프](explanation/architecture/2026-09-17-post-attachments-handoff.md) | 공유·링크·이미지 전체 완료·18완료/4잔여·운영 증거 0/5 |
+| [커뮤니티 공유 단계 핸드오프](explanation/architecture/2026-09-17-post-sharing-handoff.md) | 공유 완료/첨부 2개 미완료·17완료/5잔여·운영 증거 0/5 |
+| [로그인 유지 토큰 재사용 차단 핸드오프](explanation/architecture/2026-09-16-token-replay-handoff.md) | 승인-22 완료·총 22항목 17완료/5대기·기존 세션 1회 재로그인·운영 증거 0/5 |
+| [로그인 전 세션 확인 핸드오프](explanation/architecture/2026-09-16-anonymous-session-handoff.md) | 승인-09 완료·신규 승인-22·총 22항목 16완료/6대기·운영 증거 0/5 |
+| [답글 원문 검사 핸드오프](explanation/architecture/2026-09-16-reply-parent-handoff.md) | 승인-21 완료·완료 +1/신규 0·총 21항목 15완료/6대기 |
+| [댓글 열람·작성 핸드오프](explanation/architecture/2026-09-16-comments-handoff.md) | 승인-04 완료 당시의 댓글 열람·작성 검증 기록 |
+| [게시판 생성 핸드오프](explanation/architecture/2026-09-16-board-creation-handoff.md) | 승인-03 완료 당시의 생성·검증 기록 |
+| [공용 프로필 갱신 핸드오프](explanation/architecture/2026-09-16-profile-refresh-handoff.md) | 승인-20 완료 당시의 즉시 갱신·검증 기록 |
+| [공용 프로필 상태 핸드오프](explanation/architecture/2026-09-15-profile-state-handoff.md) | 승인-19 완료 당시의 상태 처리·검증 기록 |
+| [공용 프로필 활성 상태](explanation/architecture/profile-active-state.md) | 조회·저장 거절과 갱신 표시 및 기존 활성 동작 보존 기준 |
+| [전문가 검색 핸드오프](explanation/architecture/2026-09-15-expert-search-handoff.md) | 승인-02 완료·승인-19 신규 발견·총 10완료/9대기 |
+| [검색 직접 접속·복원 핸드오프](explanation/architecture/2026-09-15-search-entry-handoff.md) | 승인-18 완료·관련 회귀 20/20·완료 +1/추가 0·총 9완료/9대기 |
+| [네 서비스 검색 가림 개선 핸드오프](explanation/architecture/2026-09-14-service-search-panel-handoff.md) | 승인-17 완료·관련 회귀 15/15·승인-18 검색 복원 대기·총 8완료/10대기 |
+| [고객관리 검색 가림 개선 핸드오프](explanation/architecture/2026-09-14-crm-search-panel-handoff.md) | 좁은 화면 결과 우선 노출 완료·다른 서비스 보존·총 7완료/10대기 |
+| [고객관리 검색 접속 복구 핸드오프](explanation/architecture/2026-09-14-crm-search-route-handoff.md) | 검색 주소 복구 완료 당시 검증 기록 |
+| [고객관리 탭 한도 핸드오프](explanation/architecture/2026-09-14-crm-tab-limit-handoff.md) | 입력 연결·탭 한도 완료 당시 검증 기록 |
+| [영업기회 입력 연결 핸드오프](explanation/architecture/2026-09-14-crm-input-binding-handoff.md) | 입력 연결 완료 당시의 클릭 36/36·저장/잠금 검증 및 후속 탭 한도 기록 |
+| [크기 전환 입력 보존 핸드오프](explanation/architecture/2026-09-11-launch-approval14-handoff.md) | 승인-14 완료 당시의 정량 검증과 후속 입력 연결 발견 기록 |
+| [출시 준비 사용자 승인 대장](explanation/architecture/2026-09-11-launch-approval-register.md) | 임의 변경 없이 별도로 모으는 사용자 검토 항목 |
 | [AGENTS.md](AGENTS.md) | 모노레포 에이전트 학습 가이드 (필독) |
 
 ### explanation/architecture/ - 아키텍처 & 개발 표준

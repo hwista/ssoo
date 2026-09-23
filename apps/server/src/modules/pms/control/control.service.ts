@@ -1,3 +1,4 @@
+import { PmsWorkNotificationService } from '../settings/work-notification.service.js';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@ssoo/database';
 import { DatabaseService } from '../../../database/database.service.js';
@@ -64,6 +65,7 @@ export class ControlService {
   constructor(
     private readonly db: DatabaseService,
     private readonly notificationService: CommonNotificationService,
+    private readonly workNotifications: PmsWorkNotificationService,
   ) {}
 
   async findProjectIssues(projectId: bigint) {
@@ -103,51 +105,67 @@ export class ControlService {
     projectId: bigint,
     projectIssueId: bigint,
     dto: UpdateProjectIssueDto,
+    actorUserId: bigint,
   ) {
-    await this.findProjectIssue(projectId, projectIssueId);
-    const data: Prisma.ProjectIssueUncheckedUpdateInput = {};
+    const { issue, notifications } = await this.db.client.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT project_issue_id FROM pms.pr_project_issue_m WHERE project_issue_id = ${projectIssueId} AND project_id = ${projectId} FOR UPDATE`;
+      const existing = await tx.projectIssue.findFirst({ where: { projectIssueId, projectId } });
+      if (!existing) throw new NotFoundException('프로젝트 이슈를 찾을 수 없습니다.');
+      const data: Prisma.ProjectIssueUncheckedUpdateInput = {};
 
-    if (dto.issueTitle !== undefined) {
-      data.issueTitle = dto.issueTitle;
-    }
-    if (dto.description !== undefined) {
-      data.description = dto.description;
-    }
-    if (dto.issueTypeCode !== undefined) {
-      data.issueTypeCode = dto.issueTypeCode;
-    }
-    if (dto.statusCode !== undefined) {
-      data.statusCode = dto.statusCode;
-    }
-    if (dto.priorityCode !== undefined) {
-      data.priorityCode = dto.priorityCode;
-    }
-    if (dto.ownerUserId !== undefined || dto.assigneeUserId !== undefined) {
-      data.ownerUserId = this.resolveProjectIssueOwnerUserId(dto.ownerUserId, dto.assigneeUserId);
-    }
-    if (dto.dueAt !== undefined) {
-      data.dueAt = dto.dueAt ? new Date(dto.dueAt) : null;
-    }
-    if (dto.resolvedAt !== undefined) {
-      data.resolvedAt = dto.resolvedAt ? new Date(dto.resolvedAt) : null;
-    }
-    if (dto.resolution !== undefined) {
-      data.resolution = dto.resolution;
-    }
-    if (dto.sortOrder !== undefined) {
-      data.sortOrder = dto.sortOrder;
-    }
-    if (dto.isActive !== undefined) {
-      data.isActive = dto.isActive;
-    }
-    if (dto.memo !== undefined) {
-      data.memo = dto.memo;
-    }
+      if (dto.issueTitle !== undefined) {
+        data.issueTitle = dto.issueTitle;
+      }
+      if (dto.description !== undefined) {
+        data.description = dto.description;
+      }
+      if (dto.issueTypeCode !== undefined) {
+        data.issueTypeCode = dto.issueTypeCode;
+      }
+      if (dto.statusCode !== undefined) {
+        data.statusCode = dto.statusCode;
+      }
+      if (dto.priorityCode !== undefined) {
+        data.priorityCode = dto.priorityCode;
+      }
+      if (dto.ownerUserId !== undefined || dto.assigneeUserId !== undefined) {
+        data.ownerUserId = this.resolveProjectIssueOwnerUserId(dto.ownerUserId, dto.assigneeUserId);
+      }
+      if (dto.dueAt !== undefined) {
+        data.dueAt = dto.dueAt ? new Date(dto.dueAt) : null;
+      }
+      if (dto.resolvedAt !== undefined) {
+        data.resolvedAt = dto.resolvedAt ? new Date(dto.resolvedAt) : null;
+      }
+      if (dto.resolution !== undefined) {
+        data.resolution = dto.resolution;
+      }
+      if (dto.sortOrder !== undefined) {
+        data.sortOrder = dto.sortOrder;
+      }
+      if (dto.isActive !== undefined) {
+        data.isActive = dto.isActive;
+      }
+      if (dto.memo !== undefined) {
+        data.memo = dto.memo;
+      }
 
-    return this.db.client.projectIssue.update({
-      where: { projectIssueId },
-      data,
+      const issue = await tx.projectIssue.update({
+        where: { projectIssueId },
+        data,
+      });
+      const fields = ['issueTitle', 'description', 'issueTypeCode', 'statusCode', 'priorityCode', 'ownerUserId', 'dueAt', 'resolvedAt', 'resolution'] as const;
+      const value = (item: unknown) => item instanceof Date ? item.toISOString() : item;
+      const changed = fields.some((key) => value(existing[key]) !== value(issue[key]));
+      const notifications = changed && issue.isActive
+        ? await this.workNotifications.create(tx, {
+            projectId, actorUserId, recipients: [issue.ownerUserId, issue.reportedByUserId],
+            kind: 'issue-update', referenceId: issue.projectIssueId, title: issue.issueTitle,
+          }) : [];
+      return { issue, notifications };
     });
+    this.workNotifications.publish(notifications);
+    return issue;
   }
 
   async removeProjectIssue(projectId: bigint, projectIssueId: bigint) {

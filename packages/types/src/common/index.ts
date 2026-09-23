@@ -18,6 +18,8 @@ export type {
   SsooAppKey,
   AuthSessionStatus,
   AuthSessionBootstrap,
+  AuthAnonymousSession,
+  AuthSessionRestore,
   AuthLogoutResult,
   AuthUser,
   AuthIdentityProviderKey,

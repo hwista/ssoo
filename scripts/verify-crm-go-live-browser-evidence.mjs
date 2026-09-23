@@ -12,7 +12,7 @@ import { DMS_GO_LIVE_TRACK_IDS } from './dms-go-live-contract.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const requireFromServer = createRequire(path.join(repoRoot, 'apps', 'server', 'package.json'));
-const AdmZip = requireFromServer('adm-zip');
+const JSZip = requireFromServer('jszip');
 const { definePDFJSModule, extractText: extractPdfTextWithUnpdf, getDocumentProxy } = requireFromServer('unpdf');
 const pdfJsModulePath = requireFromServer.resolve('pdfjs-dist/legacy/build/pdf.mjs');
 let pdfJsModuleDefined = false;
@@ -616,7 +616,7 @@ async function validateArtifacts(artifacts, context) {
     }
     const documentText = required.mimeType === 'application/pdf'
       ? await extractPdfText(file.buffer, `artifact ${required.id}`)
-      : extractDocxText(file.buffer, `artifact ${required.id}`);
+      : await extractDocxText(file.buffer, `artifact ${required.id}`);
     const expectedText = getArtifactExpectedText(required.id, context);
     for (const expected of expectedText) assertDocumentContains(documentText, expected, `artifact ${required.id}`);
     const unresolvedPlaceholderCount = countUnresolvedPlaceholders(documentText);
@@ -788,20 +788,20 @@ function countUnresolvedPlaceholders(value) {
   return value.match(/\{\{[^{}]+\}\}|\{[^{}]+\}/gu)?.length ?? 0;
 }
 
-function extractDocxText(buffer, label) {
+async function extractDocxText(buffer, label) {
   let zip;
   try {
-    zip = new AdmZip(buffer);
+    zip = await JSZip.loadAsync(buffer);
   } catch {
     throw new Error(`${label} could not be reopened as a DOCX ZIP package`);
   }
-  const entries = new Map(zip.getEntries().map((entry) => [entry.entryName, entry]));
+  const entries = new Map(Object.entries(zip.files));
   for (const required of ['[Content_Types].xml', '_rels/.rels', 'word/document.xml']) {
     if (!entries.has(required)) throw new Error(`${label} is missing required DOCX entry ${required}`);
   }
-  const textParts = [...entries.entries()]
+  const textParts = await Promise.all([...entries.entries()]
     .filter(([entryName]) => /^word\/(?:document|header\d+|footer\d+|footnotes|endnotes)\.xml$/u.test(entryName))
-    .map(([, entry]) => entry.getData().toString('utf8'));
+    .map(([, entry]) => entry.async('string')));
   return decodeXmlText(textParts.join('\n'));
 }
 
@@ -1144,7 +1144,7 @@ async function runSelfTest() {
       throw new Error('bound browser evidence template did not preserve verified identities and endpoints');
     }
     if ((fs.statSync(apiPath).mode & 0o777) !== 0o600) throw new Error('self-test evidence file mode is not 0600');
-    const manifest = createSelfTestManifest({
+    const manifest = await createSelfTestManifest({
       tempDir,
       releaseSha,
       packet,
@@ -1228,7 +1228,7 @@ function createSelfTestReadiness(completedAt) {
   };
 }
 
-function createSelfTestManifest({ tempDir, releaseSha, packet, apiPath, apiReadiness, sellerProfileSha256, completedAt, now }) {
+async function createSelfTestManifest({ tempDir, releaseSha, packet, apiPath, apiReadiness, sellerProfileSha256, completedAt, now }) {
   const capturedAt = new Date(now - 30_000).toISOString();
   const failureCounts = {
     consoleErrors: 0,
@@ -1288,19 +1288,19 @@ function createSelfTestManifest({ tempDir, releaseSha, packet, apiPath, apiReadi
       };
     }),
   }));
-  const artifacts = requiredArtifacts.map((artifact) => {
+  const artifacts = await Promise.all(requiredArtifacts.map(async (artifact) => {
     const filePath = path.join(tempDir, artifact.id);
     const expectedText = getArtifactExpectedText(artifact.id, { sellerProfile: packet.sellerProfile, quoteVerification });
     fs.writeFileSync(filePath, artifact.mimeType === 'application/pdf'
       ? createPdfFixture(expectedText.join(' | '))
-      : createDocxFixture(expectedText.join(' | ')));
+      : await createDocxFixture(expectedText.join(' | ')));
     return {
       id: artifact.id,
       ...describeFile(tempDir, filePath, artifact.mimeType),
       sellerProfileSha256,
       ciSha256: packet.ciAsset.sha256,
     };
-  });
+  }));
   return {
     contract: 'CRM-S15-BROWSER-EVIDENCE',
     schemaVersion: 3,
@@ -1466,15 +1466,15 @@ function createPdfFixture(text) {
   return Buffer.from(pdf, 'ascii');
 }
 
-function createDocxFixture(text) {
+async function createDocxFixture(text) {
   const escaped = text
     .replace(/&/gu, '&amp;')
     .replace(/</gu, '&lt;')
     .replace(/>/gu, '&gt;')
     .replace(/"/gu, '&quot;')
     .replace(/'/gu, '&apos;');
-  const zip = new AdmZip();
-  zip.addFile('[Content_Types].xml', Buffer.from(
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', Buffer.from(
     '<?xml version="1.0" encoding="UTF-8"?>'
     + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
     + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
@@ -1482,18 +1482,18 @@ function createDocxFixture(text) {
     + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
     + '</Types>',
   ));
-  zip.addFile('_rels/.rels', Buffer.from(
+  zip.file('_rels/.rels', Buffer.from(
     '<?xml version="1.0" encoding="UTF-8"?>'
     + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
     + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
     + '</Relationships>',
   ));
-  zip.addFile('word/document.xml', Buffer.from(
+  zip.file('word/document.xml', Buffer.from(
     '<?xml version="1.0" encoding="UTF-8"?>'
     + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
     + `<w:body><w:p><w:r><w:t>${escaped}</w:t></w:r></w:p></w:body></w:document>`,
   ));
-  return zip.toBuffer();
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
 function mutateManifest(value, mutate) {

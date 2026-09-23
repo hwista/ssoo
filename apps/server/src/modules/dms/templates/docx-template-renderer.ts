@@ -1,22 +1,4 @@
-import { createRequire } from 'module';
-
-const nodeRequire = createRequire(import.meta.url);
-
-interface AdmZipEntry {
-  entryName: string;
-  getData(): Buffer;
-}
-
-interface AdmZipArchive {
-  addFile(fileName: string, content: Buffer): void;
-  getEntries(): AdmZipEntry[];
-  getEntry(fileName: string): AdmZipEntry | null;
-  updateFile(fileName: string, content: Buffer): void;
-  toBuffer(): Buffer;
-}
-
-type AdmZipConstructor = new (content?: Buffer) => AdmZipArchive;
-const AdmZip = nodeRequire('adm-zip') as AdmZipConstructor;
+import JSZip from 'jszip';
 
 const REQUIRED_DOCX_ENTRIES = ['[Content_Types].xml', '_rels/.rels', 'word/document.xml'];
 const WORD_TEXT_PART_PATTERN = /^word\/(?:document|header\d+|footer\d+|footnotes|endnotes)\.xml$/;
@@ -115,40 +97,50 @@ function renderXmlTextNodes(xml: string, variables: Record<string, string>): str
   });
 }
 
-export function assertValidDocxTemplate(buffer: Buffer): void {
-  let zip: AdmZipArchive;
+export async function assertValidDocxTemplate(buffer: Buffer): Promise<void> {
+  let zip: JSZip;
   try {
-    zip = new AdmZip(buffer);
+    zip = await JSZip.loadAsync(buffer);
   } catch {
     throw new Error('유효한 DOCX ZIP 파일이 아닙니다.');
   }
 
   for (const entryName of REQUIRED_DOCX_ENTRIES) {
-    if (!zip.getEntry(entryName)) {
+    if (!zip.file(entryName)) {
       throw new Error(`DOCX 필수 entry가 없습니다: ${entryName}`);
     }
   }
 }
 
-export function renderDocxTemplate(
+export async function renderDocxTemplate(
   templateBuffer: Buffer,
   variables: Record<string, string>,
-): Buffer {
-  assertValidDocxTemplate(templateBuffer);
-  const zip = new AdmZip(templateBuffer);
-  for (const entry of zip.getEntries()) {
-    if (!WORD_TEXT_PART_PATTERN.test(entry.entryName)) {
+): Promise<Buffer> {
+  await assertValidDocxTemplate(templateBuffer);
+  const zip = await JSZip.loadAsync(templateBuffer);
+  for (const entry of Object.values(zip.files)) {
+    if (!WORD_TEXT_PART_PATTERN.test(entry.name)) {
       continue;
     }
-    const sourceXml = entry.getData().toString('utf-8');
-    zip.updateFile(entry.entryName, Buffer.from(renderXmlTextNodes(sourceXml, variables), 'utf-8'));
+    const sourceXml = await entry.async('string');
+    zip.file(entry.name, Buffer.from(renderXmlTextNodes(sourceXml, variables), 'utf-8'), {
+      date: entry.date,
+      comment: entry.comment,
+      unixPermissions: entry.unixPermissions,
+      dosPermissions: entry.dosPermissions,
+      createFolders: false,
+    });
   }
-  return zip.toBuffer();
+  return zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    platform: Object.values(zip.files).some((entry) => entry.unixPermissions !== null) ? 'UNIX' : 'DOS',
+  });
 }
 
-export function createDocxTemplateFromText(content: string): Buffer {
-  const zip = new AdmZip();
-  zip.addFile('[Content_Types].xml', Buffer.from(
+export async function createDocxTemplateFromText(content: string): Promise<Buffer> {
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', Buffer.from(
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
     + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
@@ -157,7 +149,7 @@ export function createDocxTemplateFromText(content: string): Buffer {
     + '</Types>',
     'utf-8',
   ));
-  zip.addFile('_rels/.rels', Buffer.from(
+  zip.file('_rels/.rels', Buffer.from(
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
     + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
@@ -165,7 +157,7 @@ export function createDocxTemplateFromText(content: string): Buffer {
     'utf-8',
   ));
   const paragraphs = content.split(/\r?\n/).slice(0, 400);
-  zip.addFile('word/document.xml', Buffer.from([
+  zip.file('word/document.xml', Buffer.from([
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">',
     '<w:body>',
@@ -174,5 +166,5 @@ export function createDocxTemplateFromText(content: string): Buffer {
     '</w:body>',
     '</w:document>',
   ].join(''), 'utf-8'));
-  return zip.toBuffer();
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }

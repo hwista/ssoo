@@ -1,7 +1,7 @@
 'use client';
 
 import type { RefObject } from 'react';
-import { Bot, ExternalLink, History, Maximize2 } from 'lucide-react';
+import { Bot, ExternalLink, History, Maximize2, X } from 'lucide-react';
 import { AssistantComposer } from '../Composer';
 import { AssistantSessionHistoryList } from '../session/HistoryList';
 import type { AssistantSession } from '@/stores';
@@ -9,9 +9,10 @@ import { Button } from '@ssoo/web-ui';
 
 interface FloatingAssistantHeaderProps {
   onExpand: () => void | Promise<void>;
+  onClose?: () => void;
 }
 
-export function FloatingAssistantHeader({ onExpand }: FloatingAssistantHeaderProps) {
+export function FloatingAssistantHeader({ onExpand, onClose }: FloatingAssistantHeaderProps) {
   return (
     <header className="flex items-center justify-between gap-2 border-b border-ssoo-content-border px-4 py-3">
       <div className="flex items-center gap-2">
@@ -23,18 +24,25 @@ export function FloatingAssistantHeader({ onExpand }: FloatingAssistantHeaderPro
           <p className="text-caption text-ssoo-primary/60">질문, 문서 검색, 기능 안내를 한 번에 처리합니다.</p>
         </div>
       </div>
-      <Button
-        variant="outline"
-        size="xs"
-        type="button"
-        onClick={() => {
-          void onExpand();
-        }}
-        className="h-8 gap-1 px-2 text-caption hover:border-ssoo-primary/40"
-        title="크게보기"
-      >
-        <Maximize2 className="h-3.5 w-3.5" />
-      </Button>
+      <div className="flex shrink-0 items-center gap-2">
+        <Button
+          variant="outline"
+          size="xs"
+          type="button"
+          onClick={() => {
+            void onExpand();
+          }}
+          className="h-8 gap-1 px-2 text-caption hover:border-ssoo-primary/40"
+          title="크게보기"
+        >
+          <Maximize2 className="h-3.5 w-3.5" />
+        </Button>
+        {onClose && (
+          <Button type="button" variant="outline" size="icon" aria-label="AI 대화 닫기" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
     </header>
   );
 }
@@ -61,9 +69,9 @@ export function FloatingAssistantHistory({
   onSelectSession,
 }: FloatingAssistantHistoryProps) {
   return (
-    <div ref={historyRef} className="absolute top-14 -left-12 z-20">
-      <div className={`${isOpen ? 'pointer-events-auto' : 'pointer-events-none'} w-fit space-y-2`}>
-        <div className="flex flex-col items-start gap-2">
+    <div ref={historyRef} className="relative z-20 shrink-0 border-b border-ssoo-content-border px-4 py-2 sm:absolute sm:top-14 sm:-left-12 sm:border-0 sm:p-0">
+      <div className={`${isOpen ? 'pointer-events-auto' : 'pointer-events-none'} w-full sm:w-fit sm:space-y-2`}>
+        <div className="flex items-start gap-2 sm:flex-col">
           <Button variant="plain" size="plain"
             type="button"
             onClick={onStartNewSession}
@@ -79,12 +87,13 @@ export function FloatingAssistantHistory({
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ssoo-content-border bg-ssoo-content-bg text-ssoo-primary/75 shadow-sm transition-all hover:border-ssoo-primary/40 hover:bg-ssoo-content-border hover:text-ssoo-primary"
             title="채팅 세션 히스토리"
             aria-label="채팅 세션 히스토리"
+            aria-expanded={historyOpen}
           >
             <History className="h-4 w-4" />
           </Button>
         </div>
         {historyOpen && (
-          <div className="max-h-48 w-64 overflow-y-auto rounded-lg border border-ssoo-content-border bg-card p-2 shadow-sm">
+          <div className="absolute inset-x-4 top-full mt-2 max-h-48 overflow-y-auto rounded-lg border border-ssoo-content-border bg-card p-2 shadow-sm sm:static sm:mt-0 sm:w-64">
             <AssistantSessionHistoryList
               items={sessions.slice(0, 20)}
               isActive={(item) => item.id === activeSessionId}

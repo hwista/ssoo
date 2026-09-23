@@ -896,7 +896,7 @@ export function ContractUpsertPanel({
         </div>
       ) : null}
 
-      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
           <HeaderFields
             header={header}

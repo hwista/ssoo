@@ -1,5 +1,7 @@
 'use client';
 
+import { preparePrintDiagrams } from './printDiagrams';
+
 function ensureFileExtension(filename: string, extension: string): string {
   return filename.endsWith(extension) ? filename : `${filename}${extension}`;
 }
@@ -107,14 +109,16 @@ export function printHtmlContent(htmlContent: string, title: string): void {
 </html>`);
   printWindow.document.close();
 
-  const invokePrint = () => {
+  const invokePrint = async () => {
+    await preparePrintDiagrams(printWindow);
+    if (printWindow.closed) return;
     printWindow.focus();
     printWindow.print();
   };
 
   if (printWindow.document.readyState === 'complete') {
-    invokePrint();
+    void invokePrint();
   } else {
-    printWindow.addEventListener('load', invokePrint, { once: true });
+    printWindow.addEventListener('load', () => { void invokePrint(); }, { once: true });
   }
 }

@@ -147,7 +147,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     jsonPath: 'system.documentAccess',
     label: '문서 권한 관리',
     icon: Shield,
-    description: '문서의 접근 권한, 요청/승인, grant 회수, 공개 범위, 소유권 이전을 실제 운영 화면에서 처리합니다.',
+    description: '문서의 접근 권한, 요청/승인, 권한 회수, 공개 범위, 소유권 이전을 실제 운영 화면에서 처리합니다.',
     kind: 'custom',
     slotKey: 'document-access',
     indexItems: [
@@ -168,8 +168,8 @@ export const SETTING_SECTIONS: SettingSection[] = [
       },
       {
         id: 'approval-inbox',
-        label: '승인 대기 inbox',
-        description: '처리해야 하는 pending 요청입니다.',
+        label: '승인 대기함',
+        description: '처리해야 하는 승인 대기 요청입니다.',
       },
       {
         id: 'my-requests',
@@ -744,7 +744,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     audience: 'user',
     persistence: 'db',
     jsonPath: 'personal.identity',
-    label: 'Identity',
+    label: '작성자 정보',
     icon: UserRound,
     description: '익명/개인 환경에서 사용하는 작성자 이름과 이메일을 관리합니다.',
     items: [
@@ -781,7 +781,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     audience: 'user',
     persistence: 'db',
     jsonPath: 'personal.workspace',
-    label: 'Storage',
+    label: '기본 저장소',
     icon: HardDrive,
     description: '직접 추가하는 첨부·참조·이미지의 기본 저장소를 선택합니다. 파일을 추가할 때 항목별로 다시 선택할 수 있습니다.',
     items: [
@@ -804,9 +804,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
     audience: 'user',
     persistence: 'db',
     jsonPath: 'personal.viewer',
-    label: 'Viewer',
+    label: '문서 보기',
     icon: FileSearch,
-    description: '문서 viewer 기본 확대 배율을 관리합니다.',
+    description: '문서 보기의 기본 확대 배율을 관리합니다.',
     items: [
       {
         key: 'personal.viewer.defaultZoom',
@@ -835,9 +835,9 @@ export const SETTING_SECTIONS: SettingSection[] = [
     audience: 'user',
     persistence: 'db',
     jsonPath: 'personal.sidebar',
-    label: 'Sidebar',
+    label: '메뉴 기본 펼침',
     icon: PanelLeft,
-    description: '앱 진입 시 기본으로 펼칠 sidebar 섹션을 관리합니다.',
+    description: '앱 진입 시 기본으로 펼칠 메뉴 영역을 관리합니다.',
     items: [
       {
         key: 'personal.sidebar.sections.bookmarks',

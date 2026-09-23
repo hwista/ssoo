@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import type { Prisma } from '@ssoo/database';
 import { DatabaseService } from '../../../database/database.service.js';
 import type { CreateSkillDto, AddUserSkillDto, EndorseSkillDto, SearchExpertsDto } from './dto/skill.dto.js';
 
@@ -20,25 +21,49 @@ export class SkillService {
     const pageSize = Number.isFinite(pageSizeValue) && pageSizeValue > 0 ? pageSizeValue : 20;
     const skip = (page - 1) * pageSize;
 
-    const where: Record<string, unknown> = { isActive: true };
+    const keyword = params.keyword?.trim();
+    // Common users and SNS profiles belong to separate schemas; join their IDs here.
+    const [activeUsers, matchingUsers] = await Promise.all([
+      this.db.user.findMany({ where: { isActive: true }, select: { id: true } }),
+      keyword
+        ? this.db.user.findMany({
+          where: {
+            isActive: true,
+            OR: [
+              { userName: { contains: keyword, mode: 'insensitive' } },
+              { displayName: { contains: keyword, mode: 'insensitive' } },
+            ],
+          },
+          select: { id: true },
+        })
+        : Promise.resolve([]),
+    ]);
+    const where: Prisma.SnsUserProfileWhereInput = {
+      isActive: true,
+      userId: { in: activeUsers.map((user) => user.id) },
+    };
 
-    if (params.skillIds && params.skillIds.length > 0) {
+    if (params.skillIds?.length) {
       where.userSkills = {
         some: {
           skillId: { in: params.skillIds.map((id) => BigInt(id)) },
           isActive: true,
+          skill: { isActive: true },
         },
       };
     }
 
-    if (params.keyword) {
+    if (keyword) {
       where.OR = [
-        { bio: { contains: params.keyword, mode: 'insensitive' } },
+        { userId: { in: matchingUsers.map((user) => user.id) } },
+        { bio: { contains: keyword, mode: 'insensitive' } },
         {
           userSkills: {
             some: {
+              isActive: true,
               skill: {
-                skillName: { contains: params.keyword, mode: 'insensitive' },
+                isActive: true,
+                skillName: { contains: keyword, mode: 'insensitive' },
               },
             },
           },
@@ -46,20 +71,41 @@ export class SkillService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [profiles, total] = await Promise.all([
       this.db.client.snsUserProfile.findMany({
         where,
         skip,
         take: pageSize,
+        orderBy: { id: 'asc' },
         include: {
           userSkills: {
-            where: { isActive: true },
+            where: { isActive: true, skill: { isActive: true } },
             include: { skill: true },
+            orderBy: { id: 'asc' },
           },
         },
       }),
       this.db.client.snsUserProfile.count({ where }),
     ]);
+    const users = await this.db.user.findMany({
+      where: { id: { in: profiles.map((profile) => profile.userId) }, isActive: true },
+      select: {
+        id: true, userName: true, displayName: true, avatarUrl: true, departmentCode: true,
+      },
+    });
+    const usersById = new Map(users.map((user) => [user.id, user]));
+    const data = profiles.flatMap((profile) => {
+      const user = usersById.get(profile.userId);
+      if (!user) return [];
+      // Keep the existing profile/userSkills response and add only display fields.
+      return [{
+        ...profile,
+        userName: user.userName,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        departmentCode: user.departmentCode,
+      }];
+    });
 
     return { data, total, page, pageSize };
   }

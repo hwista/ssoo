@@ -11,7 +11,7 @@ import type {
   CrmBusinessPlanPreviewYear,
 } from '@ssoo/types/crm';
 import { Badge, Button, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
-import { SsooSearchInput } from '@ssoo/web-shell';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
 import { useCrmDomainAccess } from '@/lib/useCrmDomainAccess';
@@ -299,8 +299,8 @@ export function BusinessPlanPreviewWorkspaceClient({
 
   if (query.mode === 'source-compatible') {
     return (
-      <main className="h-full min-h-0 overflow-auto bg-ssoo-content-bg px-5 py-6" data-source-surface="business-plan">
-        <div className="mx-auto max-w-[1180px]">
+      <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="business-plan">
+        <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">사업계획 등록</h1>
           <p className="mt-1 text-sm text-muted-foreground">년도별 사업계획을 입력합니다.</p>
           <BusinessPlanLedgerPanel
@@ -331,8 +331,8 @@ export function BusinessPlanPreviewWorkspaceClient({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-ssoo-content-bg">
-      <header className="border-b bg-card px-5 py-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-ssoo-content-bg">
+      <header className="border-b bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase text-muted-foreground">CRM Business Plan Preview</p>
@@ -351,8 +351,8 @@ export function BusinessPlanPreviewWorkspaceClient({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-auto p-5">
-        <section className="grid gap-3 md:grid-cols-5">
+      <main className="mx-auto min-h-0 w-full min-w-0 flex-1 overflow-auto p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           <Metric label="Preview 범위" value={`${currentData.summary.baseYear}~${currentData.summary.baseYear + currentData.summary.yearCount - 1}`} sub={`${currentData.summary.rowCount}개 사업/계열 후보`} />
           <Metric label="Pipeline 후보" value={formatEok(currentData.summary.pipelineAmountTotal)} sub={formatWon(currentData.summary.pipelineAmountTotal)} />
           <Metric label="계약 계획" value={formatEok(currentData.summary.contractPlanAmountTotal)} sub={formatWon(currentData.summary.contractPlanAmountTotal)} />
@@ -663,7 +663,7 @@ function BusinessPlanLedgerPanel({
         </div>
       ) : null}
 
-      <div className="grid gap-3 p-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-3">
         <LedgerMetric label="저장 차수" value={`${planData?.summary.rowCount ?? 0}개`} sub={`draft ${planData?.summary.draftCount ?? 0} · confirmed ${planData?.summary.confirmedCount ?? 0}`} />
         <LedgerMetric label="최신 차수" value={latestPlan ? `v${latestPlan.version}` : '-'} sub={latestPlan?.planName ?? '저장된 차수가 없습니다.'} />
         <LedgerMetric label="확정 차수" value={confirmedPlan ? `v${confirmedPlan.version}` : '-'} sub={confirmedPlan?.planName ?? '확정된 차수가 없습니다.'} />
@@ -675,8 +675,8 @@ function BusinessPlanLedgerPanel({
         ) : plans.length === 0 ? (
           <div className="text-sm text-muted-foreground">현재 기준년도에 저장된 사업계획 차수가 없습니다.</div>
         ) : (
-          <div className="grid gap-2">
-            <label className="max-w-[360px] text-xs font-medium text-muted-foreground">
+          <div className="grid min-w-0 grid-cols-1 gap-2">
+            <label className="w-full min-w-0 max-w-[360px] text-xs font-medium text-muted-foreground">
               조회 차수
               <NativeSelect value={selectedPlan?.id ?? ''} onChange={(event) => setSelectedPlanId(event.target.value)} className="mt-1">
                 {plans.map((plan) => (
@@ -689,22 +689,23 @@ function BusinessPlanLedgerPanel({
                 <Button
                   type="button"
                   variant="ghost"
+                  size="plain"
                   onClick={() => setSelectedPlanId(plan.id)}
-                  className="h-auto min-w-0 flex-1 justify-start p-0 text-left hover:bg-transparent"
+                  className="min-w-0 flex-[1_1_240px] justify-start whitespace-normal break-words p-0 text-left hover:bg-transparent"
                   aria-pressed={selectedPlan?.id === plan.id}
                 >
                   <span className="min-w-0">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-foreground">{plan.planName}</span>
+                    <span className="min-w-0 font-medium text-foreground">{plan.planName}</span>
                     <Badge variant={plan.confirmed ? 'default' : 'outline'}>{plan.confirmed ? '확정' : 'draft'}</Badge>
-                    <span className="text-xs text-muted-foreground">{plan.code}</span>
+                    <span className="min-w-0 text-xs text-muted-foreground">{plan.code}</span>
                   </span>
                   <span className="mt-1 block text-xs text-muted-foreground">
                     v{plan.version} · {plan.baseYear} 기준 · 매출 {formatEok(plan.planCandidateAmountTotal)} · 외부원가 {formatEok(plan.planExternalCostAmountTotal)} · {plan.rows.length}행
                   </span>
                   </span>
                 </Button>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {index === 0 && plan.confirmed ? (
                     <Button variant="outline" size="sm" type="button" onClick={(event) => { event.stopPropagation(); onReopen(plan); }} disabled={!canConfirm || busyPlanId === plan.id}>
                       <RotateCcw className="mr-2 h-4 w-4" />
@@ -905,7 +906,7 @@ function BusinessPlanSourceGrid({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {drafts.length === 0 ? <TableRow><TableCell colSpan={50} className="py-8 text-center text-muted-foreground">등록된 사업계획 행이 없습니다.</TableCell></TableRow> : drafts.map((draft, rowIndex) => {
+              {drafts.length === 0 ? <TableRow><TableCell colSpan={50} className="px-3 py-8 text-left text-muted-foreground">등록된 사업계획 행이 없습니다.</TableCell></TableRow> : drafts.map((draft, rowIndex) => {
                 const monthPairs = Array.from({ length: 12 }, (_, index) => [draft.amounts[index * 2] ?? '', draft.amounts[index * 2 + 1] ?? ''] as const);
                 const totalRevenue = monthPairs.reduce((sum, pair) => sum + amount(pair[0]), 0);
                 const totalCost = monthPairs.reduce((sum, pair) => sum + amount(pair[1]), 0);
@@ -952,7 +953,7 @@ function BusinessPlanSourceGrid({
             {plan.baseYear}년은 12개월 매출·외부원가, 이후 2개년은 연간 매출·외부원가입니다. 숫자 셀에서 탭/줄바꿈 표를 붙여넣을 수 있습니다.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {editable ? (
             <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setDrafts((current) => [...current, createEmptyBusinessPlanGridDraft()])}>
               <Plus className="mr-2 h-4 w-4" />
@@ -989,7 +990,7 @@ function BusinessPlanSourceGrid({
           </TableHeader>
           <TableBody>
             {drafts.length === 0 ? (
-              <TableRow><TableCell colSpan={35} className="py-6 text-center text-muted-foreground">저장된 행이 없습니다. 최신 draft 차수에서 행을 추가해 주세요.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={35} className="px-3 py-6 text-left text-muted-foreground"><span className="block w-[220px]">저장된 행이 없습니다. 최신 draft 차수에서 행을 추가해 주세요.</span></TableCell></TableRow>
             ) : drafts.map((draft, rowIndex) => (
               <TableRow key={draft.rowCode ?? `new-${rowIndex}`}>
                 <TableCell className="px-2">
@@ -1113,7 +1114,7 @@ function formatDateTime(value: string) {
 
 function YearSummary({ years }: { years: CrmBusinessPlanPreviewYear[] }) {
   return (
-    <div className="grid gap-3 border-b p-4 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 border-b p-4 lg:grid-cols-3">
       {years.map((year) => (
         <div key={year.year} className="rounded-md border bg-ssoo-content-bg px-4 py-3">
           <div className="text-sm font-semibold text-foreground">{year.year}년 후보</div>
@@ -1166,12 +1167,12 @@ function BusinessPlanTable({
         <TableBody className="divide-y divide-border">
           {isLoading ? (
             <TableRow>
-              <TableCell className="px-3 py-5 text-center text-ssoo-info" colSpan={columnCount}>사업계획 preview를 불러오는 중입니다.</TableCell>
+              <TableCell className="px-3 py-5 text-left text-ssoo-info" colSpan={columnCount}>사업계획 preview를 불러오는 중입니다.</TableCell>
             </TableRow>
           ) : null}
           {!isLoading && rows.length === 0 ? (
             <TableRow>
-              <TableCell className="px-3 py-5 text-center text-muted-foreground" colSpan={columnCount}>조회된 사업계획 후보가 없습니다.</TableCell>
+              <TableCell className="px-3 py-5 text-left text-muted-foreground" colSpan={columnCount}>조회된 사업계획 후보가 없습니다.</TableCell>
             </TableRow>
           ) : null}
           {!isLoading ? rows.map((row) => <BusinessPlanRow key={row.key} row={row} years={years} />) : null}

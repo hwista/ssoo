@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCommonGlobalSearchAdapter } from '@ssoo/web-auth';
 import {
   SSOO_GLOBAL_SEARCH_APP_PATH,
@@ -65,6 +66,8 @@ function createGlobalSearchPath(query: string, sourceApp?: SsooGlobalSearchSourc
 }
 
 export function DmsGlobalSearchPage() {
+  const pathname = usePathname();
+  const router = useRouter();
   const tabId = useTabInstanceId();
   const tabPath = useTabStore((state) => state.tabs.find((tab) => tab.id === tabId)?.path);
   const updateTab = useTabStore((state) => state.updateTab);
@@ -104,13 +107,14 @@ export function DmsGlobalSearchPage() {
   ) => {
     if (!tabId || !query.trim()) return;
     const nextPath = createGlobalSearchPath(query, sourceApp);
+    if (tabPath === nextPath) return;
     const nextTitle = getSsooGlobalSearchTitle(query);
     updateTab(tabId, {
       title: nextTitle,
       path: nextPath,
       icon: 'Search',
     });
-  }, [tabId, updateTab]);
+  }, [tabId, tabPath, updateTab]);
 
   const {
     initialQuery,
@@ -235,15 +239,24 @@ export function DmsGlobalSearchPage() {
 
   return (
     <SsooGlobalSearchPage
+      key={pathname === SSOO_GLOBAL_SEARCH_APP_PATH && !initialQuery ? 'empty' : 'query'}
+      sidecarNarrowBehavior="auto-close"
       initialQuery={initialQuery}
       initialSourceApp={initialSourceApp}
       search={handleSearch}
       onOpenResult={openResult}
       onSourceQueryChange={(query, context) => {
+        if (query === initialQuery) return;
         updateSearchTab(query, context.sourceApp);
+        if (pathname === SSOO_GLOBAL_SEARCH_APP_PATH) {
+          router.replace(createGlobalSearchPath(query, context.sourceApp));
+        }
       }}
       onSourceFilterChange={(sourceApp, context) => {
         updateSearchTab(context.sourceQuery, sourceApp);
+        if (pathname === SSOO_GLOBAL_SEARCH_APP_PATH) {
+          router.replace(createGlobalSearchPath(context.sourceQuery, sourceApp));
+        }
       }}
       canUseSearch={canUseSearch}
       canUseAssistant={canUseAssistant}

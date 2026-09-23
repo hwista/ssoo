@@ -25,6 +25,13 @@ import type {
 import { Button } from '@ssoo/web-ui';
 import { cn } from './cn';
 import {
+  SEARCH_RESULT_SOURCE_LABELS,
+  getSearchResultBadgeLabel,
+  getSearchResultMetadata,
+  getSearchResultSummary,
+} from './global-search-presentation';
+import type { SsooContentPageSidecarNarrowBehavior } from './content-page-template';
+import {
   SsooAiSearchPage,
   type SsooAiSearchResponse,
 } from './ai-search/AiSearchPage';
@@ -114,6 +121,7 @@ export interface SsooGlobalSearchPageProps {
   noPermissionMessage?: string;
   compactMode?: boolean;
   sidecarMode?: 'search' | 'hidden';
+  sidecarNarrowBehavior?: SsooContentPageSidecarNarrowBehavior;
   breadcrumbLastSegmentLabel?: string;
 }
 
@@ -178,12 +186,6 @@ function getSourceFilters(
   ];
 }
 
-function getMetadataEntries(result: SsooGlobalSearchResult): Array<[string, string]> {
-  return Object.entries(result.metadata ?? {})
-    .filter(([, value]) => value.trim().length > 0)
-    .slice(0, 3);
-}
-
 function getResultPermissionLabel(result: SsooGlobalSearchResult): string {
   if (result.permissionState === 'readable') {
     return result.entityType === 'document' ? '문서 열기' : '열기';
@@ -239,7 +241,7 @@ export function SsooGlobalSearchResultCard({
   highlightTerms?: string[];
   onOpen?: () => void;
 }) {
-  const metadataEntries = getMetadataEntries(result);
+  const metadataEntries = getSearchResultMetadata(result);
 
   return (
     <Button
@@ -256,7 +258,7 @@ export function SsooGlobalSearchResultCard({
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex rounded-full border border-ssoo-content-border bg-ssoo-content-bg px-1.5 py-0 text-badge text-ssoo-primary/75">
-          {SOURCE_LABELS[result.sourceApp]}
+          {SEARCH_RESULT_SOURCE_LABELS[result.sourceApp]}
         </span>
         <span className="inline-flex rounded-full border border-ssoo-content-border bg-card px-1.5 py-0 text-badge text-ssoo-primary/75">
           {ENTITY_LABELS[result.entityType]}
@@ -266,25 +268,25 @@ export function SsooGlobalSearchResultCard({
             key={`${result.id}-${badge.label}`}
             className={cn('inline-flex rounded-full border px-1.5 py-0 text-badge', getBadgeToneClass(badge.tone))}
           >
-            {badge.label}
+            {getSearchResultBadgeLabel(result, badge.label)}
           </span>
         ))}
       </div>
       <h3 className="mt-2 text-title-card text-ssoo-primary">{result.title}</h3>
       <p className="mt-1.5 line-clamp-2 text-body-sm text-ssoo-primary/80">
-        {result.summary ?? result.snippets?.[0] ?? result.matchReason ?? '표시할 요약이 없습니다.'}
+        {getSearchResultSummary(result)}
       </p>
       {metadataEntries.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {metadataEntries.map(([key, value]) => (
-            <span key={key} className="rounded bg-ssoo-content-bg px-1.5 py-0.5 text-caption text-ssoo-primary/65">
+            <span key={key} className="min-w-0 [overflow-wrap:anywhere] rounded bg-ssoo-content-bg px-1.5 py-0.5 text-caption text-ssoo-primary/65">
               {key}: {value}
             </span>
           ))}
         </div>
       ) : null}
       <div className="mt-3 flex items-center justify-between gap-3 text-ssoo-primary/70">
-        <span className="min-w-0 truncate text-caption">{result.target.path}</span>
+        <span className="min-w-0 truncate text-caption">{SEARCH_RESULT_SOURCE_LABELS[result.target.sourceApp]}로 이동</span>
         <span className="shrink-0 rounded-full bg-ssoo-content-bg px-2 py-0.5 text-caption text-ssoo-primary">
           {getResultPermissionLabel(result)}
         </span>
@@ -311,6 +313,7 @@ export function SsooGlobalSearchPage({
   noPermissionMessage,
   compactMode,
   sidecarMode,
+  sidecarNarrowBehavior,
   breadcrumbLastSegmentLabel,
 }: SsooGlobalSearchPageProps) {
   const [selectedSourceApp, setSelectedSourceApp] = useState<SsooGlobalSearchSourceApp | undefined>(initialSourceApp);
@@ -408,6 +411,7 @@ export function SsooGlobalSearchPage({
       noPermissionMessage={noPermissionMessage}
       compactMode={compactMode}
       sidecarMode={sidecarMode}
+      sidecarNarrowBehavior={sidecarNarrowBehavior}
       breadcrumbLastSegmentLabel={breadcrumbLastSegmentLabel}
       blockedSourceNoun="콘텐츠"
     />

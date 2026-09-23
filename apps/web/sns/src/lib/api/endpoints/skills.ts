@@ -14,25 +14,27 @@ export interface ExpertItem {
   displayName: string | null;
   avatarUrl: string | null;
   departmentCode: string | null;
-  skills: Array<{
-    skillName: string;
+  userSkills: Array<{
+    id: string;
     proficiencyLevel: number;
-    endorsementCount: number;
+    skill: SkillItem;
   }>;
 }
 
 export const skillsApi = {
-  list: (params?: { category?: string }) =>
-    apiClient.get<ApiResponse<SkillItem[]>>('/sns/skills', { params }),
+  list: (params?: { category?: string }, signal?: AbortSignal) =>
+    apiClient.get<ApiResponse<SkillItem[]>>('/sns/skills', { params, signal }),
 
   search: (params: {
     skillIds?: string[];
     keyword?: string;
     page?: number;
     pageSize?: number;
-  }) =>
+  }, signal?: AbortSignal) =>
     apiClient.get<PaginatedResponse<ExpertItem>>('/sns/skills/search', {
       params,
+      signal,
+      paramsSerializer: { indexes: null },
     }),
 
   endorse: (data: { userSkillId: string; comment?: string }) =>

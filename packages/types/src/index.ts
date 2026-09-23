@@ -64,6 +64,8 @@ export type {
   SsooAppKey,
   AuthSessionStatus,
   AuthSessionBootstrap,
+  AuthAnonymousSession,
+  AuthSessionRestore,
   AuthLogoutResult,
   AuthUser,
   AuthIdentityProviderKey,
@@ -567,3 +569,7 @@ export type {
   CrmQuoteWorkflowStatus,
   CrmQuoteWorkflowUpdateRequest,
 } from './crm/index.js';
+
+export type { CrmContractApprovalStatus, CrmContractApproval, CrmContractApprovalSource, CrmContractApprovalWorkspace, CrmContractApprovalCandidates, CrmContractApprovalInbox, CrmContractApprovalRequest, CrmContractApprovalDecision } from './crm/contract-approval.js';
+
+export type { PmsProjectView, PmsUserSettings, PmsTaskAssignee } from './pms/settings';

@@ -1,5 +1,7 @@
 # DMS 프론트엔드 표준
 
+> 2026-09-15 승인-18: 공식 통합 검색 주소는 기존 AppLayout과 보호 레이아웃을 연결해 직접 접속·새로고침을 지원한다. 직접 검색에서만 재검색·필터를 주소와 맞추며 일반 루트 검색과 문서 탭·본문·편집/저장은 보존한다. [검증 핸드오프](../../../common/explanation/architecture/2026-09-15-search-entry-handoff.md)를 따른다.
+
 > 최종 업데이트: 2026-06-17
 
 DMS 프론트엔드 개발 시 준수해야 할 표준 구조와 패턴을 정의합니다.
@@ -303,3 +305,5 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 | 2026-06-15 | settings mode 기준을 기존 `Sidebar`/`Header`/`TabBar`/`ContentArea` 슬롯 유지와 settings sidebar 메뉴 트리 + settings tab path 구조로 보정 |
 | 2026-03-11 | `ui/layout/templates/pages` 기준으로 레이어 정의 재정렬, `common` 혼합 레이어 상태 명시 |
 | 2026-02-24 | Codex 품질 게이트 엄격 모드 적용에 맞춰 문서 메타 섹션 보강 |
+
+| 2026-09-15 | 승인-18 공식 검색 진입점 연결과 문서 본문/기존 루트 보존 경계 기록 |

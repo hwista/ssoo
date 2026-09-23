@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   getSsooAppIdentity,
   SsooSidebarEmptyState,
@@ -22,6 +22,7 @@ interface SidebarProps {
 
 export function Sidebar({ isCollapsed, onToggleCollapse, toggleLabel }: SidebarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const tabs = useTabStore((state) => state.tabs);
   const activeTabId = useTabStore((state) => state.activeTabId);
   const openTab = useTabStore((state) => state.openTab);
@@ -78,7 +79,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse, toggleLabel }: SidebarP
               isNodeActive={(item) => currentSection === item.key}
               isNodeDisabled={(item) => Boolean(item.requiresFeedAccess && !canReadFeed)}
               onNodeSelect={(item) => {
-                openTab(getSnsShellTabOptions(item.href));
+                const opened = openTab(getSnsShellTabOptions(item.href));
+                if (opened && pathname.startsWith('/post/')) router.push(item.href);
               }}
               disclosureIcon={ChevronRight}
               emptyState={<SsooSidebarEmptyState>검색 결과가 없습니다.</SsooSidebarEmptyState>}

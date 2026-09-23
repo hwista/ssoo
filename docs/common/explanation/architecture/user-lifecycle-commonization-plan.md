@@ -247,7 +247,7 @@ Minimum script checks:
 3. Verify `/api/auth/me` succeeds before logout.
 4. Logout through one app-local proxy.
 5. Verify old access token fails against all app-local `/api/auth/me` proxies.
-6. Verify `/api/auth/session` returns 401 without a valid shared cookie/session.
+6. Verify `/api/auth/session` returns 401 for an invalid, expired or revoked shared cookie/session. Under the 2026-09-16 approved anonymous contract, a completely absent cookie returns explicit anonymous data with null token/user and must not authorize protected requests. Approval-22 now rejects consumed tokens using full-token hashing and atomic exchange. Verify non-rotating file/event session checks reject the same consumed token, navigation preserves cookie delivery, and late auth responses cannot restore logged-out state. Existing legacy sessions require the approved one-time re-login. See [current evidence](2026-09-16-token-replay-handoff.md).
 
 Browser extension checks:
 

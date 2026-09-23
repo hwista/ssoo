@@ -30,6 +30,7 @@ export function FloatingAssistant() {
     return activePath.startsWith('/doc/') || activePath === '/doc/new';
   }, [activePath]);
   const isChatPageActive = activePath === '/ai/chat';
+  const isSettingsActive = activePath === '/settings' || activePath.startsWith('/settings/');
 
   useEffect(() => {
     if (isChatPageActive && isOpen) {
@@ -43,7 +44,7 @@ export function FloatingAssistant() {
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       const elementTarget = target as Element | null;
-      if (elementTarget?.closest('[data-assistant-dropdown="true"]')) {
+      if (elementTarget?.closest('[data-assistant-dropdown="true"], [data-settings-assistant-toggle]')) {
         return;
       }
       if (!wrapperRef.current?.contains(target)) {
@@ -58,8 +59,8 @@ export function FloatingAssistant() {
   return (
     <div ref={wrapperRef}>
       {isOpen ? <PopupBackdrop className="z-[35]" onMouseDown={closePanel} /> : null}
-      <FloatingAssistantPanel isOpen={isOpen} />
-      {!isChatPageActive && (
+      <FloatingAssistantPanel isOpen={isOpen} onClose={isSettingsActive ? closePanel : undefined} />
+      {!isChatPageActive && !isSettingsActive && (
         <FloatingAssistantButton
           isOpen={isOpen}
           isDocumentActive={isDocumentActive}

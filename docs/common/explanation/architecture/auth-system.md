@@ -229,6 +229,14 @@ export const useAuthStore = create<AuthState>()(
 - Admin의 관리 대상 사용자 ID/이메일/새 비밀번호와 Microsoft Client Secret은 현재 관리자 로그인 field가 아닙니다. `managed-credential-*` 또는 `noncredential-secret` intent, 목적별 stable name/id, `new-password` 또는 non-credential autofill 차단 hint를 사용해 현재 관리자 자격증명과 분리합니다.
 - 검색·필터·lookup은 credential surface가 아니며 `@ssoo/web-shell`의 `SsooSearchInput` 계약을 사용합니다. 이 구분과 현행 credential surface는 `pnpm run verify:input-intent`가 정적으로 검사합니다.
 
+### 3.1.2 다섯 서비스 로그인 편의 옵션
+
+2026-09-22 사용자 승인에 따라 Admin/PMS/DMS/SNS도 CRM과 동일하게 공용 로그인 화면의 `rememberLoginIdEnabled`와 `passwordVisibilityEnabled`를 명시적으로 켠다. 공용 기본값은 바꾸지 않으며 별도 로그인 form을 복제하지 않는다. [적용·검증 핸드오프](2026-09-22-login-options-handoff.md)를 따른다.
+
+- 아이디 저장은 처음에 선택하지 않은 상태이며, 기억한 아이디가 있는 브라우저에서는 복원한다. 선택한 상태에서 로그인에 성공하면 아이디만 저장하고 선택을 해제하면 저장한 아이디를 제거한다.
+- 비밀번호 표시는 기본 숨김 상태에서 입력값을 유지하며 표시·숨기기를 전환한다. 이 편의 옵션은 비밀번호나 인증 토큰을 저장하지 않는다.
+- 비밀번호 찾기는 아이디 저장과 같은 줄에 표시하되 기존 이동 주소를 유지한다. 서비스별 테마, 자격증명 자동완성, 세션·권한, 로그인 후 복귀, 외부 로그인·가입·재설정 계약은 보존한다.
+
 ### 3.2 앱 시작 시 인증 체크
 
 앱이 시작되면 항상 서버에서 토큰 유효성을 검증합니다:
@@ -361,7 +369,7 @@ checkAuth: async (options = { mode: 'blocking' }) => {
 | Surface | Anonymous | Feature denied | Object denied | Allow |
 |---------|-----------|----------------|---------------|-------|
 | `/api/auth/login` | credential 검증 후 토큰 + shared session cookie 발급 | N/A | N/A | 성공 시 `accessToken` + rotated session cookie |
-| `/api/auth/session` | cookie 없거나 만료 시 401 + local auth clear | N/A | N/A | 새 access token 발급 + original request 재시도 |
+| `/api/auth/session` | 세션 쿠키가 전혀 없으면 200 + `{status: "anonymous", accessToken: null, user: null}` + local auth clear. 비어 있거나 무효/만료/철회된 쿠키는 기존 오류 | N/A | N/A | 새 access token 발급 + original request 재시도 |
 | PMS bootstrap (`/api/menus/my`, `/api/projects/:id/access`) | login redirect 또는 401 | 메뉴/프로젝트 capability 비노출 | `ProjectFeatureGuard` 또는 project object policy 불일치 시 deny/feature false | 메뉴/navigation + project capability hydrate |
 | SNS bootstrap (`/api/sns/access/me`) | login redirect 또는 401 | `SnsFeatureGuard` 403, compose/search/feed disabled | post visibility/object policy 불일치 시 404/403 경계 | feed/board/profile/search surface 활성 |
 | DMS bootstrap (`/api/dms/access/me`, `/api/access`) | login redirect 또는 401 | `DmsFeatureGuard` 403, file/search/assistant disabled, system settings hidden | Wave 4에서 document ACL deny 시 read/write/binary/search exclusion | file tree/assistant/personal settings/document surface 활성 |
@@ -458,11 +466,15 @@ runtime parity 복구 이후의 cleanup phase 는 현재 모두 닫혔고, 아�
 
 ### 4.2 토큰 만료 처리
 
+2026-09-16 승인-09: 정상 비로그인 응답은 인증 성공이 아니다. 공용 store와 bootstrap은 토큰/사용자를 지우며 보호된 파일 중계는 자료를 조회하지 않고 401을 반환한다. 이벤트 스트림은 기존 재시도 heartbeat만 유지한다. 로그인 화면 디자인·입력 방식과 인증된 성공 payload는 보존한다.
+
+**2026-09-16 승인-22 완료**: 전체 토큰 SHA-256 요약값·매회 고유값·원자적 교체로 이전 값 재사용을 거절한다. 기존 해시 방식의 세션은 접근과 갱신 모두 거절하여 승인된 한 번의 재로그인을 적용한다. 브라우저 복원은 keepalive와 중복 요청 통합·인증 세대 검사로 이동/로그아웃 충돌을 방어하며, 교체 충돌만 최대 다섯 번 307로 최신 쿠키를 재요청한다. 파일·이벤트는 `/auth/session/access`에서 현재 값을 검증하되 회전하지 않으며, `/auth/session`으로 교체된 이전 값은 이 경로에서도 거절한다. [최종 검증](2026-09-16-token-replay-handoff.md)과 실제 운영 미검증 범위를 함께 따른다.
+
 1. **Access Token 만료 (15분)**
    - 401 응답 시 자동으로 `/api/auth/session` bootstrap 으로 새 access token 발급
    - 갱신 성공 시 원래 요청 자동 재시도
    - PMS/SNS/DMS는 `packages/web-auth` 의 공용 session bootstrap helper를 사용해 동시 401 복원 요청을 dedupe
-   - session bootstrap 이 `401/403` 또는 invalid payload로 끝난 경우에만 local auth snapshot을 정리하고, 네트워크/5xx 실패는 세션을 유지한 채 오류를 surface
+   - session bootstrap 이 명시적인 정상 비로그인 응답, `401/403` 또는 invalid payload로 끝나면 local auth snapshot을 정리하고, 네트워크/5xx 실패는 세션을 유지한 채 오류를 surface
 
 2. **Shared Session 만료 (7일)**
    - 갱신 실패 시 로그인 페이지로 이동
@@ -565,7 +577,7 @@ location.reload();
 - **로그인 UI/API surface 정렬**: `SharedAuthLoginPage` 가 `AuthPageShell` 을 직접 소유하며, Admin/CRM/PMS/DMS/SNS 의 `(auth)/layout.tsx` 는 app-specific chrome/theme 를 덧씌우지 않는다. 5앱 `/login` route 는 app-specific `appName`/`appDescription` 을 넘기지 않고 동일한 SSOT 로그인 화면을 사용하며, `homePath` 는 각 앱의 `APP_HOME_PATH` 상수로만 주입한다. 공용 login/password-reset surface 는 앱 root `body[data-ssoo-theme]` 에서 상속되는 `@ssoo/web-ui`/`web-shell` theme token 을 소비하고, teal/slate 같은 하드코딩 색상이나 앱별 auth theme wrapper 를 두지 않는다. credential submit 중에는 로그인 카드를 유지하고 제출 control만 loading/disabled 처리해 `401` 등 서버 오류 문구가 카드의 form error로 남아야 하며, 초기 session restore loading과 사용자 submit loading을 같은 full-screen gate로 취급하지 않는다. 인증 성공 후 이동은 안정된 `onAuthenticated` callback 한 곳에서만 수행해 중복 route replace를 만들지 않는다. 5앱 `/api/auth/[action]` route 는 `createAuthProxyPostHandler({ createServerApiUrl, createServerApiProxyInit })` thin adapter 로만 유지하고, `X-SSOO-App` 발급 앱 식별자는 각 앱의 `_shared/serverApiProxy.ts` helper 가 단일하게 소유한다. 브라우저 app-local auth proxy action allowlist 는 `login/session/logout/me` 로 제한하고 body 기반 `refresh` 는 노출하지 않는다. 플랫폼 명칭 확정 전까지 login surface 는 `SSOT` 로고, `로그인` 제목, `© 2026 SSOT` 푸터만 유지하고 설명성 tagline/copy 를 노출하지 않는다. 비밀번호 찾기, 가입 요청, 사내 SSO, Microsoft 365 로그인 action 은 우선 `GET /api/auth/public-config` 의 Admin-managed auth policy 를 따르고, 설정 API를 사용할 수 없는 환경에서는 `NEXT_PUBLIC_AUTH_*` URL 또는 `SharedAuthLoginPage` props fallback 을 사용한다. 기본 env 기반 provider 는 사내 SSO와 Microsoft 365만 포함하고, generic OAuth/Google 같은 추가 provider는 제품/보안 결정 전에는 기본 surface에 노출하지 않는다. 회원가입은 open signup보다 Microsoft OAuth 기반 `가입 요청` 링크를 우선한다.
 - **공용 user-scope lifecycle**: 로그인 surface/프록시 정책 차이는 허용하지 않는다. 사용자 전환/로그아웃/세션 소실 시 client-side state 정리는 `@ssoo/web-auth` `createAuthUserScopeLifecycle`, `SharedAuthStateSync`, `useUserScopeQueryCacheReset` 를 통해 Admin/CRM/PMS/DMS/SNS가 모두 같은 이벤트 흐름을 소비한다. DMS 파일 트리, PMS 탭/메뉴/access, SNS access/profile query cache, Admin query cache는 앱별 adapter가 등록한 reset listener에서 정리하며, 로그인 submit/logout 메뉴에 별도 도메인 예외 hook을 두지 않는다. SNS auth snapshot의 `displayName`/`avatarUrl` 은 `ProfileSummary` 기반 `AuthIdentityProfileProjection` 으로만 허용하고, `AuthIdentity` 자체는 세션 식별자로 유지한다.
 - **공용 notification center surface**: Admin/CRM/PMS/DMS/SNS header 알림 slot 은 모두 `@ssoo/web-auth` `useCommonNotificationCenter` 와 `@ssoo/web-shell` `SsooHeaderNotificationCenter` 를 source filter 없이 소비해 사용자의 전체 수신 알림을 같은 패널 문구, dim/backdrop, read/unread, pagination 표면으로 표시한다. 공용 패널 상단에는 `전체`와 앱별 source filter chip/badge가 표시되며, 각 앱은 `preferredSourceApp` 으로 현재 앱 chip 순서만 힌트로 제공한다. 선택된 chip은 목록과 모두 읽음 범위를 바꾸지만 header trigger badge는 사용자 전체 미확인 수를 유지한다. 알림의 source app/path 전환은 `@ssoo/web-auth` app URL/path resolver 가 맡고, 도메인별 처리 버튼은 공통 header 패널에 노출하지 않는다.
-- **공용 server API proxy helper**: 5앱 `_shared/serverApiProxy.ts` 는 base URL과 `X-SSOO-App` 값만 주입하고, URL 생성/forward header/default header 병합은 `@ssoo/web-auth` `createServerApiProxyHelpers` 가 소유한다. DMS `raw`/`serve-attachment` binary proxy 와 assistant/notification SSE proxy 의 shared-session access token restore도 같은 helper가 소유해 binary/SSE 경로가 auth/session 복원 규칙에서 drift 나지 않게 한다. session restore가 401/429 같은 JSON 오류를 반환해도 SSE proxy는 오류 JSON을 EventSource에 직접 반환하지 않고 retry frame으로 정규화한다.
+- **공용 server API proxy helper**: 5앱 `_shared/serverApiProxy.ts` 는 base URL과 `X-SSOO-App` 값만 주입하고, URL 생성/forward header/default header 병합은 `@ssoo/web-auth` `createServerApiProxyHelpers` 가 소유한다. DMS `raw`/`serve-attachment` binary proxy 와 assistant/notification SSE proxy 의 shared-session access token restore도 같은 helper가 소유해 binary/SSE 경로가 auth/session 복원 규칙에서 drift 나지 않게 한다. session restore가 401/429 같은 JSON 오류를 반환해도 SSE proxy는 오류 JSON을 EventSource에 직접 반환하지 않고 retry frame으로 정규화한다. SSE 본문은 fetch 압축 해제·오류 본문 교체·중도 단절 안내 추가가 가능하므로 upstream `content-length`, `content-encoding`, `transfer-encoding`은 전달하지 않는다. downstream 서버가 실제 본문의 전송 프레이밍을 결정하며 binary 다운로드 헤더와 session cookie 전달은 유지한다.
 - **Admin auth control plane**: Admin `/auth` 는 `common.cm_auth_provider_setting_m` 을 통해 비밀번호 로그인/찾기/변경, 사내 SSO URL, Microsoft 365 tenant/client/redirect/scope/allowlist, 가입 신청 노출, auth email outbox 정책을 관리한다. Microsoft client secret 은 `AUTH_CONFIG_ENCRYPTION_KEY` 로 암호화 저장되며 Admin 응답에는 configured 여부만 노출된다.
 - **Microsoft 365 OAuth signup/login**: `/api/auth/microsoft/start` 와 `/api/auth/microsoft/callback` 은 Microsoft Entra ID auth code flow 를 사용한다. OAuth state cookie 는 HMAC 서명하고, Callback 은 ID token 을 Microsoft JWKS 로 서명 검증한 뒤 issuer/audience/nonce/clock claim 과 `tid` + `oid/sub` + email claim 을 확인한다. 가입 신청 intent 는 `common.cm_user_registration_request_m` 에 `pending` 으로 저장되고, Admin 승인 시 활성 role 검증 후 `common.cm_user_external_identity_m` 매핑과 로컬 `User/UserAuth` 가 생성된다. 로그인 intent 는 승인된 외부 ID 매핑이 있는 사용자만 shared session cookie/JWT 를 발급한다.
 - **비밀번호 찾기/변경 분리**: `/password-reset` 은 5앱 공용 route 로 제공되고, 브라우저는 각 앱의 same-origin `/api/auth/password-reset/request|confirm` proxy 를 호출한다. 해당 proxy 는 로그인 proxy 와 같은 CSRF + trusted Origin/Referer 검사를 통과한 뒤 서버 `/api/auth/password-reset/request|confirm` 으로 전달한다. 서버는 가입 메일 기준 단기 코드를 생성해 `common.cm_auth_email_outbox_m` 에 발송 대기 row 를 쌓고, 새 코드 발급 시 이전 활성 challenge/outbox 를 supersede 하며, confirm 성공 후 같은 사용자/메일의 남은 challenge 를 모두 consumed 처리하고 기존 세션을 `password-reset` 사유로 revoke 한다. 로그인 상태의 비밀번호 변경은 별도 authenticated flow 로 유지한다.
@@ -637,6 +649,7 @@ location.reload();
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-09-16 | 승인-22 토큰 재사용 차단·기존 세션 1회 재로그인·동시 복원과 파일 확인 분리 및 실제 검증 |
 | 2026-08-13 | 자기 계정 설정의 읽기 전용 시스템 역할 표시는 `/api/users/profile`의 `roleCode` projection으로 허용하되 JWT/browser `AuthIdentity`와 UI/서버 권한 판정에는 사용하지 않고, `userTypeCode`·`isAdmin` legacy shortcut은 계속 금지하는 경계를 명시 |
 | 2026-07-22 | credential submit 중 로그인 카드를 유지해 `401` 오류 문구를 보존하고, 인증 성공 navigation을 단일 callback으로 정리했으며, `useProtectedAppBootstrap`가 React Strict Mode effect replay에서도 진행 중 blocking auth check의 완료 처리를 이어받도록 보정 |
 | 2026-07-15 | HTTP와 DMS WebSocket이 동일한 active access-token session 검증을 사용하도록 `AuthService.validateToken()`을 현재 사용자/조직/session revoke·expiry 기준으로 강화하고, WebSocket 연결 전에 DMS 문서 읽기 permission을 재검증하도록 정렬 |
@@ -646,6 +659,7 @@ location.reload();
 | 2026-06-22 | 공용 account center resolver 기본 profile/settings href를 canonical `/__user/profile/me`, `/__user/settings`로 고정하고 legacy `/profile/*`, `/settings` 입력을 shared resolver boundary에서 정규화하도록 user menu/account center 접근 계약 검증을 추가 |
 | 2026-06-22 | 공용 user profile/settings surface의 page-level action을 shared header action bridge에 등록하고 user-surface route/content/body 조립을 `@ssoo/web-auth` `createSsooUserSurfaceRouteContentPageElement()`로 중앙화해 앱별 `SsooUserSurfacePage` 직접 렌더링과 page metadata 조립 회귀 검증을 추가 |
 | 2026-06-22 | `useProtectedAppBootstrap`가 초기 blocking auth check 완료 전 domain access hydrate/unauth redirect/protected render를 시작하지 않도록 고정해 access API 401→retry 부트스트랩 레이스를 차단 |
+| 2026-09-16 | 승인-09 세션 쿠키 부재만 명시적 비로그인 200으로 구분. 인증 상태 정리·보호된 파일 401·기존 오류 보존. 갱신 전 토큰 재사용 허용은 승인-22 미해결로 구분 |
 | 2026-06-22 | session-backed SSE proxy의 auth/session 복원 실패를 JSON 오류가 아닌 retry SSE frame으로 정규화해 notification EventSource 재연결 폭주와 429 노이즈를 차단 |
 | 2026-06-16 | DMS `storage/open?download=1` 을 same-origin session-backed binary proxy + 서버 binary response 로 고정해 배포 환경의 direct download 인증/파일명 drift 를 차단 |
 | 2026-06-16 | DMS binary/SSE session-backed proxy helper를 `@ssoo/web-auth` `createServerApiProxyHelpers` 로 공용화하고, SNS auth display projection을 `AuthIdentityProfileProjection` 타입으로 고정 |

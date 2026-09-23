@@ -51,7 +51,8 @@ function createFileCrudMock(): FileCrudMock {
   };
 }
 
-function createTemplateServiceMock(status: 'active' | 'archived' = 'active'): TemplateServiceMock {
+async function createTemplateServiceMock(status: 'active' | 'archived' = 'active'): Promise<TemplateServiceMock> {
+  const templateBinary = await createDocxTemplateFromText('# {견적번호} / {{customerName}}');
   const getCalls: Parameters<TemplateService['get']>[] = [];
   const readDocxBinaryCalls: Parameters<TemplateService['readDocxBinary']>[] = [];
   return {
@@ -90,7 +91,7 @@ function createTemplateServiceMock(status: 'active' | 'archived' = 'active'): Te
     },
     readDocxBinary: (...args) => {
       readDocxBinaryCalls.push(args);
-      return createDocxTemplateFromText('# {견적번호} / {{customerName}}');
+      return templateBinary;
     },
   };
 }
@@ -176,7 +177,7 @@ function createRequest(): DmsCrmQuoteLifecycleExecutionRequest {
 describe('DmsCrmQuoteLifecycleService', () => {
   it('creates CRM quote lifecycle artifacts and returns CRM evidence steps', async () => {
     const fileCrud = createFileCrudMock();
-    const templateService = createTemplateServiceMock();
+    const templateService = await createTemplateServiceMock();
     const storage = createStorageMock();
     const service = new DmsCrmQuoteLifecycleService(
       fileCrud as unknown as FileCrudService,
@@ -224,7 +225,7 @@ describe('DmsCrmQuoteLifecycleService', () => {
 
   it('rejects blocked quote lifecycle steps before artifact creation', async () => {
     const fileCrud = createFileCrudMock();
-    const templateService = createTemplateServiceMock();
+    const templateService = await createTemplateServiceMock();
     const storage = createStorageMock();
     const service = new DmsCrmQuoteLifecycleService(
       fileCrud as unknown as FileCrudService,
@@ -247,7 +248,7 @@ describe('DmsCrmQuoteLifecycleService', () => {
 
   it('rejects inactive CRM quote templates', async () => {
     const fileCrud = createFileCrudMock();
-    const templateService = createTemplateServiceMock('archived');
+    const templateService = await createTemplateServiceMock('archived');
     const storage = createStorageMock();
     const service = new DmsCrmQuoteLifecycleService(
       fileCrud as unknown as FileCrudService,

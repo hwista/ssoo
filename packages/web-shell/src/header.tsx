@@ -31,23 +31,38 @@ export function SsooHeader({
   centerClassName,
   actionsClassName,
 }: SsooHeaderProps) {
+  const stackSearchOnNarrowDesktop = Boolean(searchSlot) && !leadingSlot && !centerSlot;
+
   return (
     <header
       data-ssoo-header-mode={mode}
       className={cn(
         'flex h-header-h shrink-0 items-center justify-between px-4',
+        stackSearchOnNarrowDesktop && 'md:max-lg:grid md:max-lg:h-auto md:max-lg:grid-cols-1 md:max-lg:gap-2 md:max-lg:py-3',
         mode === 'primary' && 'bg-ssoo-primary',
         mode === 'neutral' && 'border-b border-ssoo-content-border bg-ssoo-content-bg',
         mode === 'transparent' && 'bg-transparent',
         className
       )}
     >
-      <div className={cn('flex min-w-0 flex-1 items-center gap-3', leadingClassName)}>
+      <div className={cn(
+        'flex min-w-0 flex-1 items-center gap-3',
+        stackSearchOnNarrowDesktop && 'md:max-lg:col-start-1 md:max-lg:row-start-2',
+        leadingClassName
+      )}>
         {leadingSlot}
-        {searchSlot && <div className={cn('flex w-full max-w-md items-center', searchClassName)}>{searchSlot}</div>}
+        {searchSlot && <div className={cn(
+          'flex w-full max-w-md items-center',
+          stackSearchOnNarrowDesktop && 'md:max-lg:max-w-none',
+          searchClassName
+        )}>{searchSlot}</div>}
       </div>
       {centerSlot && <div className={cn('min-w-0 flex-1', centerClassName)}>{centerSlot}</div>}
-      {actionsSlot && <div className={cn('flex shrink-0 items-center gap-2', actionsClassName)}>{actionsSlot}</div>}
+      {actionsSlot && <div className={cn(
+        'flex shrink-0 items-center gap-2',
+        stackSearchOnNarrowDesktop && 'md:max-lg:col-start-1 md:max-lg:row-start-1 md:max-lg:justify-self-end',
+        actionsClassName
+      )}>{actionsSlot}</div>}
     </header>
   );
 }

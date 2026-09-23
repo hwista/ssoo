@@ -1,3 +1,4 @@
+import { CurrentUser } from '../../common/auth/decorators/current-user.decorator.js';
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../../common/auth/guards/roles.guard.js';
@@ -86,35 +87,42 @@ export class TaskController {
     return deleted(true);
   }
 
+  @Get('assignees')
+  @RequireProjectFeature('canViewProject')
+  @ApiOperation({ summary: '지정 가능한 작업 담당자 목록' })
+  async assignees(@Param('projectId') projectId: string) {
+    return success(await this.taskService.assignees(BigInt(projectId)));
+  }
+
   @Get(':id')
   @RequireProjectFeature('canViewProject')
   @ApiOperation({ summary: '태스크 상세' })
-  async findOne(@Param('id') id: string) {
-    const result = await this.taskService.findOne(BigInt(id));
+  async findOne(@Param('id') id: string, @Param('projectId') projectId: string) {
+    const result = await this.taskService.findOne(BigInt(id), BigInt(projectId));
     return success(serializeBigInt(result));
   }
 
   @Post()
   @RequireProjectFeature('canManageTasks')
   @ApiOperation({ summary: '태스크 생성' })
-  async create(@Param('projectId') projectId: string, @Body() dto: CreateTaskDto) {
-    const result = await this.taskService.create(BigInt(projectId), dto);
+  async create(@Param('projectId') projectId: string, @Body() dto: CreateTaskDto, @CurrentUser('userId') userId: string) {
+    const result = await this.taskService.create(BigInt(projectId), dto, BigInt(userId));
     return success(serializeBigInt(result));
   }
 
   @Put(':id')
   @RequireProjectFeature('canManageTasks')
   @ApiOperation({ summary: '태스크 수정' })
-  async update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
-    const result = await this.taskService.update(BigInt(id), dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @CurrentUser('userId') userId: string, @Param('projectId') projectId: string) {
+    const result = await this.taskService.update(BigInt(id), dto, BigInt(userId), BigInt(projectId));
     return success(serializeBigInt(result));
   }
 
   @Delete(':id')
   @RequireProjectFeature('canManageTasks')
   @ApiOperation({ summary: '태스크 삭제' })
-  async remove(@Param('id') id: string) {
-    await this.taskService.remove(BigInt(id));
+  async remove(@Param('id') id: string, @Param('projectId') projectId: string) {
+    await this.taskService.remove(BigInt(id), BigInt(projectId));
     return deleted(true);
   }
 }

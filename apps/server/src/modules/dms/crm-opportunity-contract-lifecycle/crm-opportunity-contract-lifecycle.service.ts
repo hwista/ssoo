@@ -89,7 +89,7 @@ export class DmsCrmOpportunityContractLifecycleService {
     );
     const wordArtifact = this.storage.upload({
       fileName: this.toDocxFileName(normalized.fileNameHint),
-      content: renderDocxTemplate(
+      content: await renderDocxTemplate(
         this.templateService.readDocxBinary(template),
         this.toDocxVariables(normalized, draft, executedAt),
       ),

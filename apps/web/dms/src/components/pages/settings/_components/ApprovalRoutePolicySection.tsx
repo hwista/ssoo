@@ -49,10 +49,10 @@ function toPolicyDraft(policy?: DmsCrmContractApprovalRoutePolicy | null): DmsCr
 }
 
 function getValidationError(policy: DmsCrmContractApprovalRoutePolicy): string | null {
-  if (!policy.routeKey.trim()) return 'Route key를 입력하세요.';
-  if (!policy.routeName.trim()) return 'Route name을 입력하세요.';
-  if (!policy.policyVersion.trim()) return 'Policy version을 입력하세요.';
-  if (!policy.organizationScope.trim()) return 'Organization scope를 입력하세요.';
+  if (!policy.routeKey.trim()) return '정책 식별자를 입력하세요.';
+  if (!policy.routeName.trim()) return '정책 이름을 입력하세요.';
+  if (!policy.policyVersion.trim()) return '정책 버전을 입력하세요.';
+  if (!policy.organizationScope.trim()) return '적용 조직을 입력하세요.';
   if (normalizeRoles(policy.requiredRoles).length === 0) return '승인 역할을 1개 이상 추가하세요.';
   return null;
 }
@@ -130,38 +130,38 @@ export function ApprovalRoutePolicySection({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 pb-20">
       <article
         id={anchorIds.status}
-        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3"
+        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3 [container-type:inline-size]"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-badge text-ssoo-primary/70">현재 적용 정책</p>
             <h3 className="mt-1 text-label-strong text-ssoo-primary">{persistedPolicy.routeName}</h3>
             <p className="mt-2 text-body-sm text-ssoo-primary/80">
-              CRM 계약 산출 lifecycle은 이 정책으로 승인 route, workflow artifact, 결재선 원장을 생성합니다.
+              이 설정은 문서 생성 시 역할별 기록을 만듭니다. 담당자를 지정하거나 승인을 요청하는 기능은 아닙니다.
             </p>
           </div>
           <span className="shrink-0 rounded-full border px-2 py-0.5 text-caption ssoo-tone-success-surface">
-            {persistedPolicy.requiredRoles.length} roles
+            {persistedPolicy.requiredRoles.length}개 역할
           </span>
         </div>
-        <dl className="mt-3 grid gap-2 text-caption text-ssoo-primary/75 md:grid-cols-2">
+        <dl className="mt-3 grid gap-2 text-caption text-ssoo-primary/75 md:grid-cols-2 [@container(max-width:559px)]:grid-cols-1">
           <div className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
-            <dt className="text-badge text-ssoo-primary/60">Route key</dt>
-            <dd className="mt-1 truncate text-label-md text-ssoo-primary">{persistedPolicy.routeKey}</dd>
+            <dt className="text-badge text-ssoo-primary/60">정책 식별자</dt>
+            <dd className="mt-1 [overflow-wrap:anywhere] text-label-md text-ssoo-primary">{persistedPolicy.routeKey}</dd>
           </div>
           <div className="rounded-md border border-ssoo-content-border bg-ssoo-content-bg/30 px-3 py-2">
-            <dt className="text-badge text-ssoo-primary/60">Policy version</dt>
-            <dd className="mt-1 truncate text-label-md text-ssoo-primary">{persistedPolicy.policyVersion}</dd>
+            <dt className="text-badge text-ssoo-primary/60">정책 버전</dt>
+            <dd className="mt-1 [overflow-wrap:anywhere] text-label-md text-ssoo-primary">{persistedPolicy.policyVersion}</dd>
           </div>
         </dl>
       </article>
 
       <article
         id={anchorIds.policy}
-        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3"
+        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3 [container-type:inline-size]"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-label-strong text-ssoo-primary">정책 식별자</h3>
@@ -177,9 +177,9 @@ export function ApprovalRoutePolicySection({
             )}
           </div>
         </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <div className="mt-3 grid gap-2 md:grid-cols-2 [@container(max-width:559px)]:grid-cols-1">
           <label className="min-w-0 space-y-1">
-            <span className="text-caption text-ssoo-primary/70">Route key</span>
+            <span className="text-caption text-ssoo-primary/70">정책 식별자</span>
             <Input
               value={draft.routeKey}
               onChange={(event) => updateDraftField('routeKey', event.target.value)}
@@ -187,7 +187,7 @@ export function ApprovalRoutePolicySection({
             />
           </label>
           <label className="min-w-0 space-y-1">
-            <span className="text-caption text-ssoo-primary/70">Route name</span>
+            <span className="text-caption text-ssoo-primary/70">정책 이름</span>
             <Input
               value={draft.routeName}
               onChange={(event) => updateDraftField('routeName', event.target.value)}
@@ -195,7 +195,7 @@ export function ApprovalRoutePolicySection({
             />
           </label>
           <label className="min-w-0 space-y-1">
-            <span className="text-caption text-ssoo-primary/70">Policy version</span>
+            <span className="text-caption text-ssoo-primary/70">정책 버전</span>
             <Input
               value={draft.policyVersion}
               onChange={(event) => updateDraftField('policyVersion', event.target.value)}
@@ -203,7 +203,7 @@ export function ApprovalRoutePolicySection({
             />
           </label>
           <label className="min-w-0 space-y-1">
-            <span className="text-caption text-ssoo-primary/70">Organization scope</span>
+            <span className="text-caption text-ssoo-primary/70">적용 조직</span>
             <Input
               value={draft.organizationScope}
               onChange={(event) => updateDraftField('organizationScope', event.target.value)}
@@ -215,7 +215,7 @@ export function ApprovalRoutePolicySection({
 
       <article
         id={anchorIds.roles}
-        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3"
+        className="scroll-mt-4 rounded-lg border border-ssoo-content-border bg-card px-4 py-3 [container-type:inline-size]"
       >
         <h3 className="text-label-strong text-ssoo-primary">승인 역할</h3>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -244,7 +244,7 @@ export function ApprovalRoutePolicySection({
             >
               <div className="min-w-0">
                 <p className="truncate text-label-md text-ssoo-primary">{role}</p>
-                <p className="text-caption text-ssoo-primary/60">sequence {index + 1}</p>
+                <p className="text-caption text-ssoo-primary/60">순서 {index + 1}</p>
               </div>
               <Button
                 type="button"

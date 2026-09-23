@@ -11,6 +11,7 @@ import type {
   CrmOperationsPreviewResponse,
 } from '@ssoo/types/crm';
 import { Badge, Button, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
+import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
 import { LaunchOperationsSurface } from './LaunchOperationsSurface';
@@ -73,11 +74,16 @@ export function OperationsPreviewWorkspaceClient({
 }) {
   const accessToken = useAuthStore((state) => state.accessToken);
   const [currentData, setCurrentData] = useState(data);
+  const [selectedYear, setSelectedYear] = useState(query.year);
   const [isReloading, setIsReloading] = useState(data.codeGroups.length === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const apiHref = useMemo(() => buildApiHref(query), [query]);
-  const businessYears = useCrmBusinessYearOptions(query.year, getYearOptions(query.year, currentData.businessYears));
+  const businessYears = useCrmBusinessYearOptions(selectedYear, getYearOptions(query.year, currentData.businessYears));
   const yearOptions = businessYears.years;
+
+  useEffect(() => {
+    setSelectedYear(query.year);
+  }, [query.year]);
 
   useEffect(() => {
     setCurrentData(data);
@@ -125,8 +131,8 @@ export function OperationsPreviewWorkspaceClient({
   }, [loadPreview]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-ssoo-content-bg">
-      <header className="border-b bg-card px-5 py-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-ssoo-content-bg">
+      <header className="mx-auto w-full min-w-0 border-b bg-card p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase text-muted-foreground">CRM Launch Operations</p>
@@ -145,7 +151,7 @@ export function OperationsPreviewWorkspaceClient({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-auto p-5">
+      <main className="mx-auto min-h-0 w-full min-w-0 flex-1 overflow-auto p-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx + SSOO_PAGE_CHROME_METRICS.stackPaddingPx * 2 }}>
         <LaunchOperationsSurface accessToken={accessToken} />
 
         <section className="mt-4 rounded-md border border-dashed bg-muted/30 px-4 py-3">
@@ -155,7 +161,7 @@ export function OperationsPreviewWorkspaceClient({
           </p>
         </section>
 
-        <section className="mt-4 grid gap-3 md:grid-cols-5">
+        <section className="mt-4 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           <Metric label="코드 그룹" value={`${currentData.summary.codeGroupCount}개`} sub={`${currentData.summary.codeOptionCount}개 후보`} />
           <Metric label="사업년도" value={`${currentData.summary.businessYearCount}개`} sub={`${currentData.summary.selectedYear}년 선택`} />
           <Metric label="CRM 소유" value={`${currentData.summary.crmOwnedCount}개`} sub="원장/표시 설정" />
@@ -167,7 +173,7 @@ export function OperationsPreviewWorkspaceClient({
           <form action="/operations" className="flex flex-wrap items-end gap-3 border-b p-4">
             <label className="w-[132px] text-sm font-medium text-muted-foreground">
               기준년도
-              <NativeSelect name="year" defaultValue={String(query.year)} className="mt-1">
+              <NativeSelect name="year" value={String(selectedYear)} onChange={(event) => setSelectedYear(Number(event.target.value))} className="mt-1">
                 {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
               </NativeSelect>
             </label>
@@ -196,10 +202,10 @@ export function OperationsPreviewWorkspaceClient({
 
 function Metric({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="rounded-md border bg-card px-4 py-3">
+    <div className="min-w-0 rounded-md border bg-card px-4 py-3">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div className="mt-1 text-lg font-semibold text-foreground">{value}</div>
-      <div className="mt-1 truncate text-xs text-muted-foreground">{sub}</div>
+      <div className="mt-1 break-words text-xs text-muted-foreground">{sub}</div>
     </div>
   );
 }
@@ -227,7 +233,7 @@ function SellerProfilePanel({ data }: { data: CrmOperationsPreviewResponse }) {
           <ReadinessBadge value={seller.readiness} />
         </div>
       </div>
-      <div className="mt-3 grid gap-3 text-sm md:grid-cols-4">
+      <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
         <InfoItem label="회사명" value={seller.profile.companyName} />
         <InfoItem label="대표이사" value={seller.profile.ceoName ?? '-'} />
         <InfoItem label="사업자번호" value={seller.profile.businessRegistrationNo ?? '-'} />
@@ -242,9 +248,9 @@ function SellerProfilePanel({ data }: { data: CrmOperationsPreviewResponse }) {
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border bg-ssoo-content-bg px-3 py-2">
+    <div className="min-w-0 rounded-md border bg-ssoo-content-bg px-3 py-2">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate font-medium text-foreground">{value}</div>
+      <div className="mt-1 break-words font-medium text-foreground">{value}</div>
     </div>
   );
 }
@@ -253,7 +259,7 @@ function BusinessYearTable({ items, isLoading }: { items: CrmOperationsBusinessY
   return (
     <section className="border-b">
       <div className="px-4 py-3 text-sm font-semibold text-foreground">사업년도 기준</div>
-      <Table className="w-full text-xs">
+      <Table className="min-w-[640px] text-xs">
         <TableHeader className="bg-ssoo-content-bg text-muted-foreground">
           <TableRow>
             <TableHead className="px-3 py-2">사업년도</TableHead>
@@ -265,8 +271,8 @@ function BusinessYearTable({ items, isLoading }: { items: CrmOperationsBusinessY
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isLoading ? <TableRow><TableCell className="px-3 py-5 text-center text-ssoo-info" colSpan={6}>사업년도 기준을 불러오는 중입니다.</TableCell></TableRow> : null}
-          {!isLoading && items.length === 0 ? <TableRow><TableCell className="px-3 py-5 text-center text-muted-foreground" colSpan={6}>조회된 사업년도 기준이 없습니다.</TableCell></TableRow> : null}
+          {isLoading ? <TableRow><TableCell className="px-3 py-5 text-left text-ssoo-info" colSpan={6}>사업년도 기준을 불러오는 중입니다.</TableCell></TableRow> : null}
+          {!isLoading && items.length === 0 ? <TableRow><TableCell className="px-3 py-5 text-left text-muted-foreground" colSpan={6}>조회된 사업년도 기준이 없습니다.</TableCell></TableRow> : null}
           {!isLoading ? items.map((item) => (
             <TableRow key={item.year}>
               <TableCell className="px-3 py-2 font-medium text-foreground">{item.year}{item.selected ? ' · 선택' : ''}</TableCell>
@@ -287,7 +293,7 @@ function CodeGroupTable({ items, isLoading }: { items: CrmOperationsCodeGroup[];
   return (
     <section className="border-b">
       <div className="px-4 py-3 text-sm font-semibold text-foreground">코드 기준</div>
-      <Table className="w-full text-xs">
+      <Table className="min-w-[980px] text-xs">
         <TableHeader className="bg-ssoo-content-bg text-muted-foreground">
           <TableRow>
             <TableHead className="w-[150px] px-3 py-2">그룹</TableHead>
@@ -298,8 +304,8 @@ function CodeGroupTable({ items, isLoading }: { items: CrmOperationsCodeGroup[];
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isLoading ? <TableRow><TableCell className="px-3 py-5 text-center text-ssoo-info" colSpan={5}>코드 기준을 불러오는 중입니다.</TableCell></TableRow> : null}
-          {!isLoading && items.length === 0 ? <TableRow><TableCell className="px-3 py-5 text-center text-muted-foreground" colSpan={5}>조회된 코드 기준이 없습니다.</TableCell></TableRow> : null}
+          {isLoading ? <TableRow><TableCell className="px-3 py-5 text-left text-ssoo-info" colSpan={5}>코드 기준을 불러오는 중입니다.</TableCell></TableRow> : null}
+          {!isLoading && items.length === 0 ? <TableRow><TableCell className="px-3 py-5 text-left text-muted-foreground" colSpan={5}>조회된 코드 기준이 없습니다.</TableCell></TableRow> : null}
           {!isLoading ? items.map((item) => (
             <TableRow key={item.key}>
               <TableCell className="px-3 py-2 font-medium text-foreground">{item.label}</TableCell>
@@ -325,7 +331,7 @@ function AdminBoundaryTable({ items, isLoading }: { items: CrmOperationsAdminBou
   return (
     <section>
       <div className="px-4 py-3 text-sm font-semibold text-foreground">공용 운영 경계</div>
-      <Table className="w-full text-xs">
+      <Table className="min-w-[980px] text-xs">
         <TableHeader className="bg-ssoo-content-bg text-muted-foreground">
           <TableRow>
             <TableHead className="w-[150px] px-3 py-2">항목</TableHead>
@@ -336,8 +342,8 @@ function AdminBoundaryTable({ items, isLoading }: { items: CrmOperationsAdminBou
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isLoading ? <TableRow><TableCell className="px-3 py-5 text-center text-ssoo-info" colSpan={5}>공용 운영 경계를 불러오는 중입니다.</TableCell></TableRow> : null}
-          {!isLoading && items.length === 0 ? <TableRow><TableCell className="px-3 py-5 text-center text-muted-foreground" colSpan={5}>조회된 공용 운영 경계가 없습니다.</TableCell></TableRow> : null}
+          {isLoading ? <TableRow><TableCell className="px-3 py-5 text-left text-ssoo-info" colSpan={5}>공용 운영 경계를 불러오는 중입니다.</TableCell></TableRow> : null}
+          {!isLoading && items.length === 0 ? <TableRow><TableCell className="px-3 py-5 text-left text-muted-foreground" colSpan={5}>조회된 공용 운영 경계가 없습니다.</TableCell></TableRow> : null}
           {!isLoading ? items.map((item) => (
             <TableRow key={item.key}>
               <TableCell className="px-3 py-2 font-medium text-foreground">{item.label}</TableCell>

@@ -127,11 +127,11 @@ export function IngestOperationsSurface() {
   };
 
   return (
-    <section className="mt-3 space-y-3">
+    <section className="mt-3 space-y-3 pb-20">
       <article className="rounded-lg border border-ssoo-content-border bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-badge text-ssoo-primary/70">실제 queue 운영 제어</p>
+            <p className="text-badge text-ssoo-primary/70">수집 작업 운영 제어</p>
             <h3 className="mt-1 text-label-strong text-ssoo-primary">수집 작업 처리</h3>
             <p className="mt-1 text-body-sm text-ssoo-primary/75">승인·재시도·취소·보존 정리를 큐 상태와 함께 수행합니다.</p>
           </div>
@@ -166,10 +166,10 @@ export function IngestOperationsSurface() {
         )}
       </article>
 
-      <article className="rounded-lg border border-ssoo-content-border bg-card p-4">
-        <h3 className="text-label-strong text-ssoo-primary">수동 smoke 작업 등록</h3>
-        <p className="mt-1 text-body-sm text-ssoo-primary/70">운영자가 ingest → 승인 → 문서 게시 흐름을 검증할 때 사용합니다.</p>
-        <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(14rem,0.4fr)_minmax(20rem,1fr)_auto]">
+      <article className="rounded-lg border border-ssoo-content-border bg-card p-4 [container-type:inline-size]">
+        <h3 className="text-label-strong text-ssoo-primary">수동 점검 작업 등록</h3>
+        <p className="mt-1 text-body-sm text-ssoo-primary/70">운영자가 수집 → 승인 → 문서 게시 흐름을 확인할 때 사용합니다.</p>
+        <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(14rem,0.4fr)_minmax(20rem,1fr)_auto] [@container(max-width:719px)]:grid-cols-1">
           <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="수집 작업 제목" maxLength={240} />
           <Textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="테스트 문서 내용" className="min-h-20" />
           <Button className="self-end" onClick={submitSmokeJob} disabled={activeAction === 'submit'}>

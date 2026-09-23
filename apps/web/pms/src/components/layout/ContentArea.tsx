@@ -36,6 +36,8 @@ const pageComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   '/execution': lazy(() => import('@/components/pages/execution/ListPage').then(m => ({ default: m.ExecutionListPage }))),
   '/transition': lazy(() => import('@/components/pages/transition/ListPage').then(m => ({ default: m.TransitionListPage }))),
   '/project/detail': lazy(() => import('@/components/pages/project/DetailPage').then(m => ({ default: m.ProjectDetailPage }))),
+  '/project-settings': lazy(() => import('@/components/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))),
+  // Preserve already stored legacy PMS settings tabs; direct /settings still enters personal settings.
   '/settings': lazy(() => import('@/components/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage }))),
   // Settings/Admin pages are no longer primary PMS sidebar entries; keep routable as direct admin paths.
   [SSOO_GLOBAL_SEARCH_APP_PATH]: lazy(() => import('@/components/pages/search/GlobalSearchPage').then(m => ({ default: m.PmsGlobalSearchPage }))),

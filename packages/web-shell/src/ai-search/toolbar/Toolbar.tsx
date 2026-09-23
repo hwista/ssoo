@@ -19,6 +19,8 @@ export const DEFAULT_ZOOM = 100;
 export interface SsooAiSearchToolbarProps {
   maxWidth: number;
   variant?: 'standalone' | 'embedded';
+  /** Opt in to wrapping controls inside narrow document panes. */
+  wrapControls?: boolean;
   toc?: SsooAiSearchViewerTocControls;
   search: SsooAiSearchViewerSearchControls;
   assistant?: SsooAiSearchViewerAssistantControls;
@@ -30,6 +32,7 @@ export type ToolbarProps = SsooAiSearchToolbarProps;
 export function SsooAiSearchToolbar({
   maxWidth,
   variant = 'standalone',
+  wrapControls = false,
   toc,
   search,
   assistant,
@@ -46,10 +49,10 @@ export function SsooAiSearchToolbar({
       )}
     >
       <div
-        className={cn('grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 overflow-visible')}
+        className={cn('w-full min-w-0 items-center gap-3 overflow-visible', wrapControls ? 'flex flex-wrap' : 'grid grid-cols-[minmax(0,1fr)_auto]')}
         style={isEmbedded ? undefined : { maxWidth }}
       >
-        <div className="z-0 flex min-w-0 items-center gap-2 overflow-visible pr-1">
+        <div className={cn("z-0 flex min-w-0 items-center gap-2 overflow-visible pr-1", wrapControls && "flex-[1_1_22rem] flex-wrap")}>
           <SsooAiSearchToolbarTocMenu
             items={toc?.items}
             label={toc?.label}
@@ -57,6 +60,7 @@ export function SsooAiSearchToolbar({
             onItemClick={toc?.onItemClick}
           />
           <SsooAiSearchToolbarSearchControls
+            wrap={wrapControls}
             query={search.query}
             placeholder={search.placeholder}
             onQueryChange={search.onQueryChange}

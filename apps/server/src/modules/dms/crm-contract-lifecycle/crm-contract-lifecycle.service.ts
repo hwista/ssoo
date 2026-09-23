@@ -71,6 +71,9 @@ export interface DmsCrmContractLifecycleStorage {
 const DMS_CRM_CONTRACT_LIFECYCLE_BOUNDARY_NOTICE =
   'DMS는 CRM 계약 handoff의 markdown 초안을 입력으로 받아 템플릿 버전 snapshot, 템플릿 변경 검토, 템플릿 변경 요청 원장, 첨부 확인과 추가 첨부 확정 원장, Word/PDF 산출물, 승인 route/workflow artifact, 결재선 원장 동기화 기록을 생성하고 CRM은 evidence snapshot만 수신합니다.';
 
+const GENERATED_ROLE_RECORD_NOTICE =
+  '이 문서는 문서 생성 시 자동으로 남긴 역할별 기록입니다. 담당자별 검토·승인 결과가 아닙니다. 기존 연동의 approved 상태와 approvedAt 값은 자동 기록의 상태와 생성 시각이며, 사람의 개별 승인 의사를 증명하지 않습니다.';
+
 const EXECUTION_STEP_KEYS: DmsCrmContractLifecycleStepKey[] = [
   'template-review',
   'attachment-confirmation',
@@ -188,7 +191,7 @@ export class DmsCrmContractLifecycleService {
     );
     const wordArtifact = this.storage.upload({
       fileName: `${artifactBaseName}.docx`,
-      content: renderDocxTemplate(templateBinary, this.toDocxVariables(normalized, draft, executedAt)),
+      content: await renderDocxTemplate(templateBinary, this.toDocxVariables(normalized, draft, executedAt)),
       relativePath: storageRelativeDir,
       origin: 'manual',
       status: 'published',
@@ -1021,11 +1024,13 @@ export class DmsCrmContractLifecycleService {
     executedAt: string,
   ): string {
     return [
-      `# ${request.documentTitle} 승인 기록`,
+      `# ${request.documentTitle} 역할별 생성 기록`,
+      '',
+      GENERATED_ROLE_RECORD_NOTICE,
       '',
       `- 계약 코드: ${request.contractCode}`,
-      `- 승인자: ${currentUser.loginId}`,
-      `- 승인 시각: ${executedAt}`,
+      `- 생성자: ${currentUser.loginId}`,
+      `- 생성 시각: ${executedAt}`,
       `- Word/PDF artifact: DMS storage`,
       '',
       DMS_CRM_CONTRACT_LIFECYCLE_BOUNDARY_NOTICE,
@@ -1039,21 +1044,23 @@ export class DmsCrmContractLifecycleService {
     executedAt: string,
   ): string {
     return [
-      `# ${request.documentTitle} 다자 승인 workflow 기록`,
+      `# ${request.documentTitle} 역할별 자동 생성 내역`,
+      '',
+      GENERATED_ROLE_RECORD_NOTICE,
       '',
       `- 계약 코드: ${request.contractCode}`,
       `- route: ${approvalRoute.routeKey}`,
       `- policy: ${approvalRoute.policyVersion}`,
       `- 실행 시각: ${executedAt}`,
-      `- 승인 단계 수: ${approvalActors.length}`,
+      `- 역할별 기록 수: ${approvalActors.length}`,
       '',
-      '## 승인 matrix',
+      '## 역할별 생성자와 생성 시각',
       '',
       ...approvalActors.map((actor) => [
         `- ${actor.sequence}. ${actor.role}`,
-        `  - approver: ${actor.displayName} (${actor.loginId})`,
-        `  - status: ${actor.status}`,
-        `  - approvedAt: ${actor.approvedAt}`,
+        `  - 기록 주체: ${actor.displayName} (${actor.loginId})`,
+        `  - 기존 연동 상태: ${actor.status} (자동 생성 기록)`,
+        `  - 생성 시각: ${actor.approvedAt}`,
         `  - evidence: ${actor.evidenceLabel}`,
         `  - note: ${actor.note}`,
       ].join('\n')),
@@ -1070,6 +1077,8 @@ export class DmsCrmContractLifecycleService {
   ): string {
     return [
       `# ${request.documentTitle} 승인 route policy 기록`,
+      '',
+      GENERATED_ROLE_RECORD_NOTICE,
       '',
       `- 계약 코드: ${request.contractCode}`,
       `- route key: ${approvalRoute.routeKey}`,
@@ -1112,6 +1121,9 @@ export class DmsCrmContractLifecycleService {
   ): string {
     return [
       `# ${request.documentTitle} 결재선 원장 동기화 기록`,
+      '',
+      GENERATED_ROLE_RECORD_NOTICE,
+      '역할별 기록 수는 서로 다른 승인자 수가 아닙니다. 같은 실행자가 여러 역할에 기록될 수 있습니다.',
       '',
       `- 계약 코드: ${request.contractCode}`,
       `- ledger id: ${ledger.ledgerId}`,

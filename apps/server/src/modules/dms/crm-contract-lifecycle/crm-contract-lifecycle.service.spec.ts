@@ -61,7 +61,8 @@ function createFileCrudMock(): FileCrudMock {
   };
 }
 
-function createTemplateServiceMock(status: 'active' | 'archived' = 'active'): TemplateServiceMock {
+async function createTemplateServiceMock(status: 'active' | 'archived' = 'active'): Promise<TemplateServiceMock> {
+  const templateBinary = await createDocxTemplateFromText('# {계약번호} / {{customerName}}');
   const getCalls: Parameters<TemplateService['get']>[] = [];
   const readDocxBinaryCalls: Parameters<TemplateService['readDocxBinary']>[] = [];
   return {
@@ -100,7 +101,7 @@ function createTemplateServiceMock(status: 'active' | 'archived' = 'active'): Te
     },
     readDocxBinary: (...args) => {
       readDocxBinaryCalls.push(args);
-      return createDocxTemplateFromText('# {계약번호} / {{customerName}}');
+      return templateBinary;
     },
   };
 }
@@ -268,7 +269,7 @@ describe('DmsCrmContractLifecycleService', () => {
   it('creates CRM contract lifecycle artifacts and returns CRM evidence steps', async () => {
     const fileCrud = createFileCrudMock();
     const db = createDatabaseMock();
-    const templateService = createTemplateServiceMock();
+    const templateService = await createTemplateServiceMock();
     const storage = createStorageMock();
     const service = new DmsCrmContractLifecycleService(
       fileCrud as unknown as FileCrudService,
@@ -412,7 +413,7 @@ describe('DmsCrmContractLifecycleService', () => {
     });
     const fileCrud = createFileCrudMock();
     const db = createDatabaseMock();
-    const templateService = createTemplateServiceMock();
+    const templateService = await createTemplateServiceMock();
     const storage = createStorageMock();
     const service = new DmsCrmContractLifecycleService(
       fileCrud as unknown as FileCrudService,
@@ -463,7 +464,7 @@ describe('DmsCrmContractLifecycleService', () => {
     });
     const fileCrud = createFileCrudMock();
     const db = createDatabaseMock();
-    const templateService = createTemplateServiceMock();
+    const templateService = await createTemplateServiceMock();
     const storage = createStorageMock();
     const service = new DmsCrmContractLifecycleService(
       fileCrud as unknown as FileCrudService,
@@ -513,7 +514,7 @@ describe('DmsCrmContractLifecycleService', () => {
   it('rejects blocked attachments before artifact creation', async () => {
     const fileCrud = createFileCrudMock();
     const db = createDatabaseMock();
-    const templateService = createTemplateServiceMock();
+    const templateService = await createTemplateServiceMock();
     const storage = createStorageMock();
     const service = new DmsCrmContractLifecycleService(
       fileCrud as unknown as FileCrudService,
@@ -538,7 +539,7 @@ describe('DmsCrmContractLifecycleService', () => {
   it('rejects inactive CRM contract templates', async () => {
     const fileCrud = createFileCrudMock();
     const db = createDatabaseMock();
-    const templateService = createTemplateServiceMock('archived');
+    const templateService = await createTemplateServiceMock('archived');
     const storage = createStorageMock();
     const service = new DmsCrmContractLifecycleService(
       fileCrud as unknown as FileCrudService,

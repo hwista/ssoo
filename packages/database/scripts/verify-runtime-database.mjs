@@ -90,7 +90,7 @@ try {
        to_regclass('crm.crm_business_plan_performance_actual_d') IS NOT NULL AS performance_table_exists,
        to_regclass('crm.crm_report_confirmation_m') IS NOT NULL AS confirmation_table_exists,
        (
-         SELECT COUNT(*) = 6
+         SELECT COUNT(*) = 10
            FROM pg_constraint
           WHERE conname IN (
             'ck_dm_chat_session_m_messages_array',
@@ -98,11 +98,15 @@ try {
             'ck_pr_project_closeout_approval_step_m_status',
             'ck_pr_project_closeout_approval_step_m_sequence',
             'ck_pr_task_effort_log_m_actual_hours',
-            'ck_pr_legacy_issue_archive_m_reason'
+            'ck_pr_legacy_issue_archive_m_reason',
+            'ck_crm_contract_approval_actor',
+            'ck_crm_contract_approval_state',
+            'ck_crm_contract_approval_reason',
+            'ck_pr_user_settings_view'
           )
        ) AS native_checks_exist,
        (
-         SELECT COUNT(*) = 6
+         SELECT COUNT(*) = 7
            FROM pg_indexes
           WHERE indexname IN (
             'ux_crm_report_confirmation_m_active_basis',
@@ -110,7 +114,8 @@ try {
             'ux_crm_business_plan_m_confirmed_year',
             'ux_crm_contract_dms_handoff_m_active_contract_template',
             'ux_crm_quote_dms_handoff_m_active_opportunity_template',
-            'ux_crm_cost_plan_accounting_handoff_m_active_basis'
+            'ux_crm_cost_plan_accounting_handoff_m_active_basis',
+            'ux_crm_contract_approval_pending'
           )
        ) AS native_partial_indexes_exist,
        EXISTS (

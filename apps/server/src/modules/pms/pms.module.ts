@@ -1,3 +1,4 @@
+import { PmsSettingsModule } from './settings/settings.module.js';
 import { Module } from '@nestjs/common';
 import { CodeModule } from './code/code.module.js';
 import { ControlModule } from './control/control.module.js';
@@ -13,7 +14,7 @@ import { PmsSearchModule } from './search/search.module.js';
 import { TaskModule } from './task/task.module.js';
 
 @Module({
-  imports: [CodeModule, ControlModule, CustomerModule, DeliverableModule, HomeModule, IssueModule, MasterModule, MemberModule, MenuModule, ProjectModule, PmsSearchModule, TaskModule],
+  imports: [PmsSettingsModule, CodeModule, ControlModule, CustomerModule, DeliverableModule, HomeModule, IssueModule, MasterModule, MemberModule, MenuModule, ProjectModule, PmsSearchModule, TaskModule],
   exports: [CodeModule, ControlModule, CustomerModule, DeliverableModule, HomeModule, IssueModule, MasterModule, MemberModule, MenuModule, ProjectModule, PmsSearchModule, TaskModule],
 })
 export class PmsModule {}

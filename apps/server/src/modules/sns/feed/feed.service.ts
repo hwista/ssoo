@@ -4,11 +4,13 @@ import { DatabaseService } from '../../../database/database.service.js';
 import type { FeedQueryDto, ReactionDto } from './dto/feed.dto.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { AccessService } from '../access/access.service.js';
+import { postImageSelect } from '../post/post-images.service.js';
 import { CommonNotificationService } from '../../common/notification/notification.service.js';
 
 type TimelinePostRecord = Prisma.SnsPostGetPayload<{
   include: {
     postTags: { include: { tag: true } };
+    attachments: { select: typeof postImageSelect };
     _count: { select: { comments: true; reactions: true; bookmarks: true } };
   };
 }>;
@@ -54,7 +56,8 @@ export class FeedService {
       orderBy: { createdAt: 'desc' },
       include: {
         postTags: { include: { tag: true } },
-        _count: { select: { comments: true, reactions: true, bookmarks: true } },
+        attachments: { select: postImageSelect, orderBy: { sortOrder: 'asc' } },
+        _count: { select: { comments: { where: { isActive: true } }, reactions: true, bookmarks: true } },
       },
     });
 
@@ -65,6 +68,24 @@ export class FeedService {
     const items = await this.buildTimelineItems(postRecords, userId);
 
     return { items, nextCursor, hasMore };
+  }
+
+  async getPost(user: TokenPayload, postId: string) {
+    if (!/^[1-9]\d{0,18}$/.test(postId) || BigInt(postId) > 9223372036854775807n) {
+      throw new NotFoundException('게시물을 볼 수 없습니다.');
+    }
+    const visibilityWhere = await this.accessService.buildVisiblePostWhere(user);
+    const post = await this.db.client.snsPost.findFirst({
+      where: { AND: [visibilityWhere, { id: BigInt(postId) }] },
+      include: {
+        postTags: { include: { tag: true } },
+        attachments: { select: postImageSelect, orderBy: { sortOrder: 'asc' } },
+        _count: { select: { comments: { where: { isActive: true } }, reactions: true, bookmarks: true } },
+      },
+    });
+    if (!post) throw new NotFoundException('게시물을 볼 수 없습니다.');
+    const [item] = await this.buildTimelineItems([post], BigInt(user.userId));
+    return item;
   }
 
   async addReaction(user: TokenPayload, postId: bigint, dto: ReactionDto) {
@@ -222,6 +243,7 @@ export class FeedService {
       return {
         post: {
           id: post.id,
+          attachments: post.attachments ?? [],
           authorUserId: post.authorUserId,
           title: post.title,
           content: post.content,

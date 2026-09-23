@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import Link from 'next/link';
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Share2 } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, MoreHorizontal } from 'lucide-react';
 import type { SnsVisibilityScopeCode } from '@ssoo/types/sns';
 import { getSsooUserSurfaceTabPath } from '@ssoo/web-auth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,10 @@ import { cn } from '@/lib/utils';
 import { useToggleReaction, useToggleBookmark } from '@/hooks/queries/usePosts';
 import { useAccessStore } from '@/stores';
 import type { FeedItem } from '@/lib/api/endpoints/posts';
+import { PostComments } from './PostComments';
+import { PostContent } from './PostContent';
+import { PostImages } from './PostImages';
+import { SharePostButton } from './SharePostButton';
 
 interface PostCardProps {
   item: FeedItem;
@@ -29,10 +33,12 @@ export function PostCard({ item }: PostCardProps) {
   const { post, author, reactionCount, commentCount, isLiked, isBookmarked, tags } = item;
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const [showComments, setShowComments] = useState(false);
+  const commentsId = useId();
   const toggleReaction = useToggleReaction();
   const toggleBookmark = useToggleBookmark();
   const canReact = accessSnapshot?.features.canReact ?? false;
   const canComment = accessSnapshot?.features.canComment ?? false;
+  const canReadFeed = accessSnapshot?.features.canReadFeed ?? false;
 
   const initials = author.displayName?.slice(0, 2) || author.userName.slice(0, 2);
   const timeAgo = getTimeAgo(post.createdAt);
@@ -80,7 +86,8 @@ export function PostCard({ item }: PostCardProps) {
 
         {/* Content */}
         {post.title && <h3 className="font-semibold mb-2">{post.title}</h3>}
-        <p className="text-sm text-foreground whitespace-pre-wrap mb-3">{post.content}</p>
+        <p className="text-sm text-foreground whitespace-pre-wrap mb-3"><PostContent content={post.content} /></p>
+        <PostImages postId={post.id} images={post.attachments ?? []} />
 
         {/* Tags */}
         {tags.length > 0 && (
@@ -98,7 +105,8 @@ export function PostCard({ item }: PostCardProps) {
           <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
             {reactionCount > 0 && <span>좋아요 {reactionCount}</span>}
             {commentCount > 0 && (
-              <Button variant="plain" size="plain" className="hover:underline" onClick={() => setShowComments(!showComments)}>
+              <Button variant="plain" size="plain" className="hover:underline" onClick={() => setShowComments(!showComments)}
+                aria-expanded={showComments} aria-controls={commentsId} disabled={!canReadFeed}>
                 댓글 {commentCount}
               </Button>
             )}
@@ -129,15 +137,14 @@ export function PostCard({ item }: PostCardProps) {
             size="sm"
             className="gap-1"
             onClick={() => setShowComments(!showComments)}
-            disabled={!canComment}
+            disabled={!canReadFeed}
+            aria-expanded={showComments}
+            aria-controls={commentsId}
           >
             <MessageCircle className="h-4 w-4" />
             댓글
           </Button>
-          <Button variant="ghost" size="sm" className="gap-1">
-            <Share2 className="h-4 w-4" />
-            공유
-          </Button>
+          <SharePostButton postId={post.id} />
           <Button
             variant="ghost"
             size="sm"
@@ -148,6 +155,7 @@ export function PostCard({ item }: PostCardProps) {
             저장
           </Button>
         </div>
+        {canReadFeed && <PostComments id={commentsId} postId={post.id} open={showComments} canWrite={canComment} />}
       </CardContent>
     </Card>
   );

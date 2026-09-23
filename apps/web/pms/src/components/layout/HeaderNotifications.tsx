@@ -92,6 +92,16 @@ export function HeaderNotifications() {
       return;
     }
 
+    if (item.notificationType === 'task-assignment' || item.notificationType === 'issue-update') {
+      const projectId = item.action?.payload?.projectId;
+      if (typeof projectId === 'string' && /^\d+$/.test(projectId)) {
+        openTab({ menuCode: 'project.detail', menuId: `project.detail.${projectId}`, title: item.title,
+          path: '/project/detail', params: { id: projectId, managementTab: item.notificationType === 'task-assignment' ? 'tasks' : 'controls' },
+          closable: true, activate: true });
+        return;
+      }
+    }
+
     openTab({
       menuCode: `notification-${item.id}`,
       menuId: `notification-${item.id}`,
@@ -125,7 +135,7 @@ export function HeaderNotifications() {
       markUnreadIconSlot={<Mail />}
       markAllUnreadIconSlot={<CheckCheck />}
       getCategory={getCategory}
-      getReferenceLabel={() => null}
+      getReferenceLabel={(item) => item.notificationType === 'task-assignment' ? '프로젝트 작업' : item.notificationType === 'issue-update' ? '프로젝트 이슈' : null}
       getPrimaryActionLabel={getPrimaryActionLabel}
       getPrimaryActionIconSlot={(item) => (item.sourceApp === 'system' ? null : <ExternalLink />)}
       withBackdrop

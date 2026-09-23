@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { markdownToHtmlSync } from '@/lib/utils/markdown';
+import { useDocumentDiagrams } from '@/components/common/viewer/runtime/useDocumentDiagrams';
 import type { EditorCommandDefinition, ToolbarCommandId } from '../Toolbar';
 import { Button } from '@ssoo/web-ui';
 
@@ -20,9 +21,13 @@ export function BlockEditorPreview({
   markdown,
   onModifiedClick,
 }: BlockEditorPreviewProps) {
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const content = React.useMemo(() => markdownToHtmlSync(markdown), [markdown]);
+  const { html, diagrams } = useDocumentDiagrams(contentRef, content);
   return (
     <div className="h-full overflow-auto px-8 py-6" onClick={onModifiedClick}>
       <div
+        ref={contentRef}
         className={cn(
           'prose prose-base max-w-none font-sans',
           'prose-headings:scroll-mt-4',
@@ -30,8 +35,9 @@ export function BlockEditorPreview({
           'prose-pre:bg-ssoo-content-bg prose-pre:text-ssoo-primary prose-pre:border-0 prose-pre:font-mono',
           'prose-code:text-ssoo-primary prose-code:bg-ssoo-content-bg prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:border-0 prose-code:font-mono'
         )}
-        dangerouslySetInnerHTML={{ __html: markdownToHtmlSync(markdown) }}
+        dangerouslySetInnerHTML={html}
       />
+      {diagrams}
     </div>
   );
 }

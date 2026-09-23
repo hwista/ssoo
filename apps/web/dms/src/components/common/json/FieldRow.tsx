@@ -27,8 +27,8 @@ export function JsonFieldRow({
   const boolVal = Boolean(value);
 
   return (
-    <article id={id} className="scroll-mt-4 px-3 py-2.5">
-      <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,360px)] md:items-center">
+    <article id={id} className="scroll-mt-4 px-3 py-2.5 [container-type:inline-size]">
+      <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,360px)] md:items-center [@container(max-width:559px)]:grid-cols-1 [@container(max-width:559px)]:items-start">
         <div className="flex min-w-0 items-start gap-2.5">
           <span
             className={cn(

@@ -1,5 +1,7 @@
 'use client';
 
+import { usePmsSettings, useUpdatePmsSettings } from '@/hooks/queries/usePmsSettings';
+import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { type ReactNode, useState } from 'react';
 import { CalendarClock, Clock3, ListTodo, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -84,6 +86,7 @@ const PRIORITY_OPTIONS = [
 const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }));
 
 interface TaskFormState {
+  assigneeUserId: string | null;
   wbsId: string;
   taskCode: string;
   taskName: string;
@@ -105,6 +108,7 @@ interface EffortLogFormState {
 }
 
 const INITIAL_FORM: TaskFormState = {
+  assigneeUserId: null,
   wbsId: NO_WBS_VALUE,
   taskCode: '',
   taskName: '',
@@ -332,6 +336,10 @@ export function TasksTab({ projectId }: Props) {
   const { data, isLoading } = useProjectTasks(projectId);
   const { data: effortLogResponse, isLoading: isEffortLogsLoading } = useProjectTaskEffortLogs(projectId);
   const tasks = data?.data ?? [];
+  const settings = usePmsSettings();
+  const saveSettings = useUpdatePmsSettings();
+  const visibleTasks = !settings.isError && settings.data?.showCompletedTasks === false ? tasks.filter((task) => task.statusCode !== 'completed') : tasks;
+  const hiddenCount = tasks.length - visibleTasks.length;
   const wbsItems = wbsResponse?.data ?? [];
   const effortLogs = effortLogResponse?.data ?? [];
   const canManageTasks = accessResponse?.data?.features.canManageTasks ?? false;
@@ -378,6 +386,7 @@ export function TasksTab({ projectId }: Props) {
       ...(formData.wbsId !== NO_WBS_VALUE ? { wbsId: formData.wbsId } : {}),
       taskCode: formData.taskCode,
       taskName: formData.taskName,
+      ...(formData.assigneeUserId ? { assigneeUserId: formData.assigneeUserId } : {}),
       taskTypeCode: formData.taskTypeCode,
       priorityCode: formData.priorityCode,
       ...(formData.plannedStartAt ? { plannedStartAt: new Date(formData.plannedStartAt).toISOString() } : {}),
@@ -385,7 +394,7 @@ export function TasksTab({ projectId }: Props) {
       ...(toTaskHours(formData.estimatedHours) !== null ? { estimatedHours: toTaskHours(formData.estimatedHours) ?? undefined } : {}),
     };
 
-    await createTask.mutateAsync({ projectId, data: payload });
+    try { await createTask.mutateAsync({ projectId, data: payload }); } catch { return; }
     setShowAddDialog(false);
     setFormData(INITIAL_FORM);
   };
@@ -408,6 +417,12 @@ export function TasksTab({ projectId }: Props) {
     setShowEffortDialog(false);
     setEffortFormData(createInitialEffortLogForm(selectedTask));
   };
+
+  const assigneeControl = (task: TaskItem) => (
+    <TaskAssigneeSelect projectId={String(projectId)} value={task.assigneeUserId ? String(task.assigneeUserId) : null}
+      label={task.assignee?.displayName || task.assignee?.userName} disabled={!canManageTasks || updateTask.isPending}
+      onChange={(assigneeUserId) => updateTask.mutate({ projectId, taskId: String(task.id), data: { assigneeUserId } })} />
+  );
 
   const handleStatusChange = (task: TaskItem, statusCode: string) => {
     updateTask.mutate({
@@ -616,6 +631,12 @@ export function TasksTab({ projectId }: Props) {
         )}
       </div>
 
+      {settings.isError && <p role="alert" className="text-sm text-destructive">표시 설정을 확인하지 못해 모든 작업을 표시합니다. <Button variant="outline" size="sm" onClick={() => settings.refetch()}>다시 확인</Button></p>}
+      {hiddenCount > 0 && <div className="flex flex-wrap items-center gap-2 text-sm" role="status">완료 작업 {hiddenCount}개 숨김
+        <Button variant="outline" size="sm" disabled={saveSettings.isPending} onClick={() => saveSettings.mutate({ showCompletedTasks: true })}>완료 작업 표시</Button>
+      </div>}
+      {saveSettings.isError && <p role="alert" className="text-sm text-destructive">설정을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
+      {updateTask.isError && <p role="alert" className="text-sm text-destructive">작업을 저장하지 못했습니다. 담당자와 권한을 확인하고 다시 시도해 주세요.</p>}
       {tasks.length === 0 ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           아직 등록된 태스크가 없습니다.
@@ -623,7 +644,7 @@ export function TasksTab({ projectId }: Props) {
       ) : (
         <>
         <div className="space-y-3 md:hidden">
-          {tasks.map((task: TaskItem) => (
+          {visibleTasks.map((task: TaskItem) => (
             <div key={String(task.id)} className="rounded-lg border bg-card p-3 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1">
@@ -664,9 +685,7 @@ export function TasksTab({ projectId }: Props) {
                 </TaskMetaField>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <TaskMetaField label="담당자">
-                    <span className="text-muted-foreground">
-                      {task.assignee?.displayName || task.assignee?.userName || '-'}
-                    </span>
+                    {assigneeControl(task)}
                   </TaskMetaField>
                   <TaskMetaField label="기간">
                     <span className="text-muted-foreground">{formatTaskPeriod(task)}</span>
@@ -693,7 +712,7 @@ export function TasksTab({ projectId }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y">
-              {tasks.map((t: TaskItem) => (
+              {visibleTasks.map((t: TaskItem) => (
                 <TableRow key={String(t.id)} className="hover:bg-muted/30 group">
                   <TableCell className="p-3">
                     <TaskWbsSelect
@@ -718,7 +737,7 @@ export function TasksTab({ projectId }: Props) {
                   <TableCell className="p-3">
                     <TaskEffortControl task={t} canManageTasks={canManageTasks} onChange={handleEffortChange} />
                   </TableCell>
-                  <TableCell className="p-3 text-muted-foreground">{t.assignee?.displayName || t.assignee?.userName || '-'}</TableCell>
+                  <TableCell className="p-3 text-muted-foreground">{assigneeControl(t)}</TableCell>
                   <TableCell className="p-3 text-xs text-muted-foreground">
                     {formatTaskPeriod(t)}
                   </TableCell>
@@ -859,6 +878,10 @@ export function TasksTab({ projectId }: Props) {
             </div>
           </div>
 
+          <div className="space-y-2"><span className="text-sm font-medium">담당자</span>
+            <TaskAssigneeSelect projectId={String(projectId)} value={formData.assigneeUserId} onChange={(assigneeUserId) => setFormData({ ...formData, assigneeUserId })} />
+          </div>
+          {createTask.isError && <p role="alert" className="text-sm text-destructive">작업을 등록하지 못했습니다. 입력값과 담당자를 확인하고 다시 시도해 주세요.</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="w-full sm:w-auto">취소</Button>
             <Button
@@ -893,7 +916,13 @@ export function TasksTab({ projectId }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {tasks.length === 0 ? (
+                  {settings.isError && <p role="alert" className="text-sm text-destructive">표시 설정을 확인하지 못해 모든 작업을 표시합니다. <Button variant="outline" size="sm" onClick={() => settings.refetch()}>다시 확인</Button></p>}
+      {hiddenCount > 0 && <div className="flex flex-wrap items-center gap-2 text-sm" role="status">완료 작업 {hiddenCount}개 숨김
+        <Button variant="outline" size="sm" disabled={saveSettings.isPending} onClick={() => saveSettings.mutate({ showCompletedTasks: true })}>완료 작업 표시</Button>
+      </div>}
+      {saveSettings.isError && <p role="alert" className="text-sm text-destructive">설정을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
+      {updateTask.isError && <p role="alert" className="text-sm text-destructive">작업을 저장하지 못했습니다. 담당자와 권한을 확인하고 다시 시도해 주세요.</p>}
+      {tasks.length === 0 ? (
                     <SelectItem value={NO_TASK_VALUE}>작업 없음</SelectItem>
                   ) : (
                     tasks.map((task) => (

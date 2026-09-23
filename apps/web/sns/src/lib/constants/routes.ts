@@ -7,6 +7,7 @@ export const ROOT_ENTRY_PATHS = [APP_HOME_PATH, LOGIN_PATH, PASSWORD_RESET_PATH]
 export const ALLOWED_PATH_PREFIXES = [
   ...ROOT_ENTRY_PATHS,
   '/board',
+  '/post',
   '/profile',
   '/search',
   '/ssoo',

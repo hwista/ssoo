@@ -1,3 +1,4 @@
+import { PmsSettingsModule } from '../settings/settings.module.js';
 import { Module } from '@nestjs/common';
 import { TaskController } from './task.controller.js';
 import { TaskService } from './task.service.js';
@@ -12,7 +13,7 @@ import { CommonAiIndexModule } from '../../common/ai-index/ai-index.module.js';
 import { ProjectModule } from '../project/project.module.js';
 
 @Module({
-  imports: [DatabaseModule, ProjectModule, CommonAiIndexModule],
+  imports: [PmsSettingsModule, DatabaseModule, ProjectModule, CommonAiIndexModule],
   controllers: [TaskController, MilestoneController, ObjectiveController, WbsController],
   providers: [TaskService, MilestoneService, ObjectiveService, WbsService],
   exports: [TaskService, MilestoneService, ObjectiveService, WbsService],

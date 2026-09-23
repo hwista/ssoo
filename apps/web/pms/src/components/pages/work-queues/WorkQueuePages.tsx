@@ -1,5 +1,7 @@
 'use client';
 
+import { usePmsSettings } from '@/hooks/queries/usePmsSettings';
+import { ProjectViews } from './ProjectViews';
 import { useMemo } from 'react';
 import type { ElementType, ReactNode } from 'react';
 import { AlertCircle, BarChart3, CheckCircle2, Clock, FolderKanban, ListTodo, UserRoundX } from 'lucide-react';
@@ -10,6 +12,7 @@ import type { Project, ProjectStatusCode } from '@/lib/api/endpoints/projects';
 import { formatProjectCustomerName, formatProjectExecutionAssetLabel } from '@/lib/project-display';
 import { formatPmsDate, getPmsTime } from '@/lib/pms-format';
 import { Button } from '@ssoo/web-ui';
+import { SSOO_CONTENT_PAGE_METRICS } from '@ssoo/web-shell';
 
 const STATUS_LABELS: Record<ProjectStatusCode, string> = {
   request: '요청/인계',
@@ -69,8 +72,8 @@ function PageShell({
   children: ReactNode;
 }) {
   return (
-    <div className="h-full overflow-auto bg-muted p-6">
-      <div className="mx-auto max-w-6xl space-y-5">
+    <div className="h-full min-w-0 overflow-auto bg-muted p-4">
+      <div className="mx-auto w-full min-w-0 space-y-4" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
         <div>
           <h1 className="text-lg font-bold text-foreground">{title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
@@ -131,7 +134,7 @@ function ProjectCard({
     <Button variant="plain" size="plain"
       type="button"
       onClick={() => openProject(project)}
-      className="rounded-lg border bg-card p-4 text-left shadow-sm transition hover:border-ssoo-primary/40 hover:shadow-md"
+      className="flex w-full min-w-0 flex-col items-stretch justify-start gap-0 whitespace-normal break-words rounded-lg border bg-card p-4 text-left shadow-sm transition hover:border-ssoo-primary/40 hover:shadow-md"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -145,10 +148,10 @@ function ProjectCard({
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
         <span className="rounded bg-muted px-2 py-1">{STAGE_LABELS[project.stageCode]}</span>
         {customerLabel !== '-' ? (
-          <span className="rounded bg-muted px-2 py-1">고객사 {customerLabel}</span>
+          <span className="max-w-full rounded bg-muted px-2 py-1">고객사 {customerLabel}</span>
         ) : null}
         {executionAssetLabel !== '-' ? (
-          <span className="rounded bg-muted px-2 py-1">자산 {executionAssetLabel}</span>
+          <span className="max-w-full rounded bg-muted px-2 py-1">자산 {executionAssetLabel}</span>
         ) : null}
         <span className="rounded bg-muted px-2 py-1">최근 업데이트 {staleDays}일 전</span>
         <span className="rounded bg-muted px-2 py-1">담당자 {project.currentOwnerUserId ? '지정됨' : '미지정'}</span>
@@ -189,6 +192,9 @@ function SummaryCard({
 }
 
 export function MyProjectsPage() {
+  const settings = usePmsSettings();
+  const openProject = useOpenProjectDetail();
+  const view = settings.isError ? 'board' : settings.data?.defaultProjectView ?? 'board';
   const { projects, isLoading, error } = useProjects();
   const visibleProjects = useMemo(
     () => [...projects].sort((a, b) => getPmsTime(b.updatedAt) - getPmsTime(a.updatedAt)),
@@ -197,8 +203,11 @@ export function MyProjectsPage() {
 
   return (
     <PageShell title="내 프로젝트" description="내가 맡았거나 최근 확인해야 하는 프로젝트에서 업무를 이어갑니다.">
+      {settings.isError && <p role="alert" className="text-sm text-destructive">저장된 보기를 확인하지 못해 기본 보기를 표시합니다. <Button variant="outline" size="sm" onClick={() => settings.refetch()}>다시 확인</Button></p>}
       {isLoading ? <LoadingCards /> : error ? <ErrorState /> : visibleProjects.length === 0 ? (
         <EmptyState message="표시할 프로젝트가 없습니다." />
+      ) : view !== 'board' ? (
+        <ProjectViews projects={visibleProjects} view={view} onOpen={openProject} />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {visibleProjects.map((project) => (

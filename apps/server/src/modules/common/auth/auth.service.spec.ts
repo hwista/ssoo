@@ -30,6 +30,7 @@ function createService(
   payload: TokenPayload = accessPayload,
   sessionRecord: object | null = {
     sessionId: accessPayload.sessionId,
+    sessionTokenHash: 'sha256:' + 'a'.repeat(64),
     userId: 42n,
     revokedAt: null,
     expiresAt: new Date('2099-01-01T00:00:00.000Z'),
@@ -78,6 +79,14 @@ describe('AuthService validateToken', () => {
       where: { sessionId: accessPayload.sessionId },
     });
     expect(getUserOrganizationIds).toHaveBeenCalledWith(42n);
+  });
+
+  it('rejects legacy sessions even while the access token has not expired', async () => {
+    const { service } = createService(accessPayload, {
+      sessionId: accessPayload.sessionId, userId: 42n, revokedAt: null,
+      sessionTokenHash: '$2b$10$legacy', expiresAt: new Date('2099-01-01'),
+    });
+    await expect(service.validateToken('legacy-access')).resolves.toBeNull();
   });
 
   it('rejects refresh tokens before loading identity or session state', async () => {
