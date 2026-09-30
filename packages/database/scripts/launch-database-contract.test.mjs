@@ -158,6 +158,10 @@ test('TC-DB-08: db push accepts existing local development targets', () => {
     databaseUrl: 'postgresql://user:secret@postgres:5432/ssoo_launch_candidate?schema=public',
     baselineMode: 'compat',
   }));
+  assert.doesNotThrow(() => assertDisposableDbPushTarget({
+    databaseUrl: 'postgresql://user:secret@ssoo-postgres:5432/ssoo_dev?schema=public',
+    baselineMode: 'compat',
+  }));
 });
 
 test('TC-DB-09: db push rejects production modes and non-disposable targets without exposing credentials', () => {

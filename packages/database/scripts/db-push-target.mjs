@@ -16,7 +16,9 @@ function assertDisposableDbPushTarget({ databaseUrl, nodeEnv, baselineMode }) {
 
   const host = target.hostname.toLowerCase();
   const databaseName = decodeURIComponent(target.pathname.replace(/^\//u, ''));
-  const localHosts = new Set(['localhost', '127.0.0.1', '::1', 'postgres']);
+  // `postgres` is the compose service name and `ssoo-postgres` its container_name;
+  // both address the compose-local database container.
+  const localHosts = new Set(['localhost', '127.0.0.1', '::1', 'postgres', 'ssoo-postgres']);
   const disposableName = /(^|[_-])(dev|test|local|scratch|tmp|candidate)([_-]|$)/iu.test(databaseName);
 
   if (nodeEnv?.toLowerCase() === 'production' || baselineMode?.toLowerCase() === 'strict') {

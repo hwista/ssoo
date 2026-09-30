@@ -1,5 +1,7 @@
 # Changelog
 
+* **database, docs:** guarded `db push`가 compose postgres의 `container_name`(`ssoo-postgres`)도 compose-local host로 허용한다. 준운영 서버 DB URL이 이 이름을 사용해 호환 경로 `db-init`이 거부되던 문제를 복구했다.
+
 * **database, docker, docs:** pre-baseline DB 호환 경로의 `db-init`을 복구했다. compat SQL의 legacy `snapshot_json`/`ranker_code` 참조를 컬럼 존재 확인 후 실행하고, protected baseline migration이 만든 `pk_*` history 기본키를 Prisma 정본 `<table>_pkey`로 정규화해 `db push` 문법 오류를 막으며, seed 전에 history trigger를 갱신한다. 배포 중인 commit 상태를 재현한 로컬 PostgreSQL 리허설에서 2회 연속 완료를 확인했다.
 
 * **ci, docker, docs:** GitLab 준운영 배포가 강화된 base compose만 사용해 server가 config validation으로 기동하지 못하던 문제를 준운영 전용 `compose.staging.yaml`(검증 우회 한정, DMS `prod` 역할 고정)과 pipeline `COMPOSE_FILE`로 복구했다. runtime profile contract가 overlay 고정값과 pipeline 적용을 검증하며, 진단 trace는 모든 URL의 userinfo 비밀번호를 마스킹한다.
