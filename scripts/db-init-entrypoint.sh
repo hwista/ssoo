@@ -15,6 +15,7 @@ BASELINE_MODE="${DB_INIT_BASELINE_MODE:-compat}"
 SEED_DIR="/workspace/packages/database/prisma/seeds"
 TRIGGER_DIR="/workspace/packages/database/prisma/triggers"
 COMPAT_DIR="/workspace/packages/database/prisma/compat"
+POST_BASELINE_COMPAT_FILE="$COMPAT_DIR/post-baseline/normalize_protected_primary_keys.sql"
 MIGRATION_DIR="/workspace/packages/database/prisma/migrations"
 PROTECTED_BASELINE_MIGRATIONS=(
   "$MIGRATION_DIR/20260702090000_add_crm_opportunity_ledger/migration.sql"
@@ -156,6 +157,9 @@ else
     psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "$migration_file"
   done
 
+  echo "[db-init] ▶ normalizing protected baseline primary key names"
+  psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "$POST_BASELINE_COMPAT_FILE"
+
   run_prisma_db_push=true
 
   if [ "$PRISMA_PUSH_MODE" = "skip" ]; then
@@ -175,6 +179,11 @@ else
   else
     echo "[db-init] ▶ prisma db push skipped (DB_INIT_PRISMA_PUSH_MODE=$PRISMA_PUSH_MODE)"
   fi
+
+  # Existing databases still run the previous history triggers, which do not know the
+  # columns added above; refresh them before seeds write history rows.
+  echo "[db-init] ▶ refreshing history triggers before seeds"
+  (cd "$TRIGGER_DIR" && psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "apply_all_triggers.sql")
 fi
 
 echo "[db-init] ▶ applying seeds"

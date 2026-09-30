@@ -45,6 +45,10 @@
 - legacy AI/RAG 컬럼은 삭제하지 않고 `packages/database/prisma/compat/20260623_ai_rag_legacy_backfill.sql`로 canonical runtime column/table/default/index를 추가한다.
 - `db-init`은 seed 전에 non-destructive protected baseline migration을 적용한다. 2026-07-03 기준 포함 대상은 CRM opportunity ledger migration이며, `auto` 모드에서 `prisma db push`를 건너뛰어도 CRM seed가 요구하는 원장 테이블을 먼저 만든다.
 - `auto` 모드가 `db push`를 건너뛰더라도 seed와 trigger apply는 계속 실행한다.
+- compat SQL이 legacy 컬럼(`snapshot_json`, `ranker_code`, `metadata_json` 등)을 읽거나 변경할 때는 `information_schema.columns`로 존재를 확인한 뒤 `EXECUTE`로 실행한다. legacy 컬럼이 없는 기존 DB에서도 `psql ON_ERROR_STOP` 실패(`exit 3`) 없이 통과해야 한다.
+- protected baseline migration 직후 `compat/post-baseline/normalize_protected_primary_keys.sql`이 이 migration들이 만든 `pk_<table>` 기본키를 Prisma schema·launch baseline 정본 이름 `<table>_pkey`로 맞춘다. Prisma `db push`가 기본키 이름 변경을 다른 `ALTER TABLE` 동작과 한 문장으로 생성해 PostgreSQL이 거부하기 때문이다. schema에서 `map: "pk_..."`로 명시한 `crm_contract_approval_h`, `dm_user_document_activity_h`, `pr_user_settings_h`는 제외한다.
+- 기존 DB에는 이전 버전 history trigger가 남아 있으므로 호환 경로는 seed 전에 `apply_all_triggers.sql`을 한 번 더 적용해, 새 NOT NULL history 컬럼을 모르는 trigger가 seed 이력 행을 쓰다 실패하지 않게 한다.
+- 호환 경로 변경은 배포 전 WSL/로컬 PostgreSQL에서 배포 중인 commit의 `schema.prisma`·seed·trigger로 DB를 만든 뒤 현재 `db-init`을 두 번 연속 실행해 `✅ complete`와 재실행 안전성을 확인한다.
 
 ## AI Index Worker Scheduler
 

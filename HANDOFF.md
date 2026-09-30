@@ -10,6 +10,40 @@ Context
 - DMS is integrated as the canonical document store (git-backed working tree + DB metadata)
 - Primary goal: refactor large files, stabilize auto-commit/publish pipeline, and add tests for core DMS logic
 
+GitLab staging deploy recovery — 2026-09-30 (in progress)
+---------------------------------------------------------
+
+Status at handoff (≈19:40 KST)
+- The staging server (10.125.12.170, ports 3000–3004, API 4000) is DOWN since pipeline #179 deploy (17:24). `ssoo-server` restart-loops on config validation; the five web containers stay `Created`; postgres is healthy.
+- Latest pushed commit: `2b6ca2d6 fix(ci): deploy staging with an explicit compose overlay`. Pipeline #182 built all 7 images; its deploy (job #391) failed in the NEW `db-init` and auto-rolled back (rollback cannot start the old server either, see cause 2).
+- The db-init fixes below were rehearsed in WSL (PostgreSQL 18 + pgvector, DB rebuilt from `cbd9d7e0` schema/seeds/triggers; table counts per schema match the staging diagnostics) and then committed as `fix(database): ...` after `2b6ca2d6`.
+
+Root causes found today
+1. New `db-init` compat path failures, found one by one by the rehearsal:
+   - `compat/20260623_ai_rag_legacy_backfill.sql` referenced legacy columns without checking they exist (`cm_ai_acl_snapshot_m.snapshot_json`, `cm_ai_retrieval_log_m.ranker_code`) → psql `ON_ERROR_STOP` exit 3. Now guarded with the file's own `IF EXISTS (information_schema.columns ...)` + `EXECUTE` pattern.
+   - Protected baseline migrations create history PKs as `pk_<table>`; Prisma schema/launch baseline expect `<table>_pkey`, and `prisma db push` emits `RENAME CONSTRAINT ..., ALTER COLUMN ...` in one statement (PostgreSQL syntax error). New `compat/post-baseline/normalize_protected_primary_keys.sql` renames them right after the protected migrations (excludes the 3 models that explicitly map `pk_*`).
+   - Seeds wrote history rows through the previous trigger functions (unaware of new NOT NULL history columns). The compat path now re-applies `apply_all_triggers.sql` before seeds.
+   - Rehearsal result: two consecutive `db-init` runs end with `[db-init] ✅ complete`. Rehearsal script: `wsl-db-rehearsal.sh` pattern described in `docs/common/guides/ai-rag-runtime-runbook.md` (DB Init Modes).
+   - Unrelated pre-existing failure noticed: `node scripts/verify-pms-launch-readiness.mjs` fails on "PMS mobile layout removes desktop sidebar offset" with or without these changes.
+2. Server config validation: since the base `compose.yaml` was hardened (`AUTH_ALLOW_INSECURE_PRODUCTION_DEFAULTS` default `false`, `DMS_INSTANCE_ENV: ""`), deploying `compose.yaml` alone fails for ANY image on this HTTP server. Fixed in `2b6ca2d6` by `compose.staging.yaml` (bypass confined to staging + DMS `prod` role / `LSWIKI_DOC`) applied via `.gitlab-ci.yml` `COMPOSE_FILE`. Takes effect on the next successful deploy.
+
+Next steps (in order)
+1. (done) Local db-init rehearsal. WSL has PostgreSQL 18 + pgvector (`ssoo`/`ssoo_dev_pw` superuser, DB `ssoo_dev`) and `/workspace` → `~/dev/LSWIKI-src` for re-running it.
+2. (done) Commit + push the db-init fixes.
+3. Pipeline: verify → ai_review → build (~30 min). The shell runner runs ONE job at a time — cancel superseded pipelines so the newest starts.
+4. The user presses `deploy_dev`. On failure, `scripts/ci/diagnose-runtime.sh` output is in the deploy trace BEFORE the rollback section.
+5. After success: check 3000–3004 and `/api/health`, then move `diagnose_runtime` out of the `verify` stage (its manual state makes the verify stage look unfinished in the GitLab UI).
+
+Environment facts (do not rediscover)
+- Develop, commit and push only in WSL `~/dev/LSWIKI-src`. The Windows checkout `D:\dev\LSWIKI-src` cannot run the pnpm hooks (64-bit `cmd.exe` spawn is blocked there) and is stale.
+- GitLab is 10.4.4: pipeline API `variables` are IGNORED (dry-run via API does not work); `-o ci.skip` is unsupported (use `[ci skip]` in the commit body). SSH port 22 to 10.125.31.72 and 10.125.12.170 is blocked from this PC, so there is no direct host access; use the `diagnose_runtime` manual job (read-only, no runtime lock, masks secrets).
+- GitLab API from WSL: the PAT in `~/.git-credentials` works as `PRIVATE-TOKEN` (never print it). Project `LSITC_WEB%2FLSWIKI`; `POST /jobs/:id/play` and `/pipelines/:id/cancel` work with Developer access.
+- Corporate TLS root `LSITC_ePrism` is trusted in WSL (`/usr/local/share/ca-certificates/lsitc-eprism.crt`, `NODE_EXTRA_CA_CERTS` via `/etc/profile.d/node-extra-ca.sh`).
+
+Security follow-ups (owner: user/operator)
+- A GitLab password embedded in the host `.env` `DMS_GIT_BOOTSTRAP_REMOTE_URL` was exposed in diagnose job #383's trace; the trace was erased and URL-userinfo masking was added. Rotate that account's password and remove the credential from the host `.env` (the new compose no longer reads it).
+- Staging hardening still open: HTTPS + `AUTH_SESSION_COOKIE_SECURE=true`, a real `AUTH_CONFIG_ENCRYPTION_KEY` (check for data encrypted with the current placeholder key before rotating), DMS Git HTTP credential secret (`DMS_GIT_HTTP_CREDENTIALS_FILE` + `DMS_GIT_HTTP_AUTH_SCOPE`) for pushes to `LSWIKI_DOC`.
+
 Publish/handoff snapshot — 2026-06-11 16:53 KST
 -----------------------------------------------
 

@@ -1,5 +1,7 @@
 # Changelog
 
+* **database, docker, docs:** pre-baseline DB 호환 경로의 `db-init`을 복구했다. compat SQL의 legacy `snapshot_json`/`ranker_code` 참조를 컬럼 존재 확인 후 실행하고, protected baseline migration이 만든 `pk_*` history 기본키를 Prisma 정본 `<table>_pkey`로 정규화해 `db push` 문법 오류를 막으며, seed 전에 history trigger를 갱신한다. 배포 중인 commit 상태를 재현한 로컬 PostgreSQL 리허설에서 2회 연속 완료를 확인했다.
+
 * **ci, docker, docs:** GitLab 준운영 배포가 강화된 base compose만 사용해 server가 config validation으로 기동하지 못하던 문제를 준운영 전용 `compose.staging.yaml`(검증 우회 한정, DMS `prod` 역할 고정)과 pipeline `COMPOSE_FILE`로 복구했다. runtime profile contract가 overlay 고정값과 pipeline 적용을 검증하며, 진단 trace는 모든 URL의 userinfo 비밀번호를 마스킹한다.
 
 * **ci, docs:** deploy 실패 시 rollback이 container를 재생성하기 전에 읽기 전용 runtime 진단(container 상태·health·로그·DB migration 이력, 비밀값 마스킹)을 trace에 남기고, 같은 진단을 `diagnose_runtime` manual job으로 제공한다.
