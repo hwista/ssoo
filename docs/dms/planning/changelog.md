@@ -1,5 +1,7 @@
 # DMS 변경 이력
 
+2026-09-30 CI runtime 진단: pipeline #179 deploy에서 새 `db-init`이 `exit 3`으로 실패하고 rollback한 이전 server도 unhealthy가 되었지만, rollback이 container를 재생성해 실패 로그가 사라졌다. deploy 실패 직후·rollback 실패 시 읽기 전용 진단(container 상태·health·로그·DB migration 이력, 비밀값 마스킹)을 trace에 남기고, 같은 진단을 `diagnose_runtime` manual job으로 제공한다.
+
 2026-09-30 CI build secret 권한: image 정리 후 처음 진행된 build가 Buildx filesystem entitlement(`fs.read=/dev/null`) 요구로 중단되던 문제를 compose 최상위 secret 파일 경로만 명시 허용해 복구했다. 상세는 아래 2026-09-30 항목에 기록한다.
 
 2026-09-30 CI runner image 정리: Docker 용량 부족으로 `verify`가 반복 실패하던 문제를 서비스별 최근 commit build 3개·`ci-backup` 2개 보관 정책으로 복구했다. 사용 중·현재 `latest`·현재 pipeline SHA·last-backup manifest image는 항상 보존한다. 상세는 아래 2026-09-30 항목에 기록한다.

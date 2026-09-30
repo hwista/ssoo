@@ -1,5 +1,7 @@
 # Changelog
 
+* **ci, docs:** deploy 실패 시 rollback이 container를 재생성하기 전에 읽기 전용 runtime 진단(container 상태·health·로그·DB migration 이력, 비밀값 마스킹)을 trace에 남기고, 같은 진단을 `diagnose_runtime` manual job으로 제공한다.
+
 * **ci, docs:** image 정리 후 처음 진행된 GitLab build가 Buildx filesystem entitlement(`fs.read=/dev/null`) 요구로 중단되던 문제를 복구했다. `docker compose config`로 확정된 최상위 secret 파일 경로만 `--allow=fs.read`로 허용하고 entitlement 검사 전체 해제는 사용하지 않으며, pipeline contract로 허용 경로를 검증한다.
 
 * **ci, docs:** GitLab shell runner의 Docker 용량 부족으로 `verify`가 반복 실패하던 문제를 image 보관 정책으로 복구했다. verify/build 직전 서비스별 최근 commit build 3개와 `ci-backup` 2개만 남기고 중단된 verify image를 제거하며, container 참조 image·현재 `latest`·현재 pipeline SHA·last-backup manifest image는 항상 보존한다. 보관 개수와 dry-run은 CI 변수로 조정하고 pipeline contract로 보호 대상을 검증한다.

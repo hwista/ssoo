@@ -400,7 +400,10 @@ case "$job" in
     deploy_status=$?
     set -e
     if [[ "$deploy_status" != "0" ]]; then
-      echo "[ci-job] deployment failed status=$deploy_status; starting automatic rollback" >&2
+      echo "[ci-job] deployment failed status=$deploy_status; capturing diagnostics before automatic rollback" >&2
+      # Rollback recreates the containers, so capture the failed release logs first.
+      bash scripts/ci/diagnose-runtime.sh || true
+      echo "[ci-job] starting automatic rollback" >&2
       set +e
       restore_previous_images "$backup_manifest"
       rollback_status=$?
@@ -408,6 +411,7 @@ case "$job" in
       if [[ "$rollback_status" == "0" ]]; then
         echo "[ci-job] deployment failed but automatic rollback succeeded" >&2
       else
+        bash scripts/ci/diagnose-runtime.sh || true
         echo "[ci-job] deployment and automatic rollback failed rollback_status=$rollback_status; manual recovery required manifest=$backup_manifest" >&2
       fi
       exit 1

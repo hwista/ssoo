@@ -31,6 +31,17 @@ verify:
   only:
     - development
 
+diagnose_runtime:
+  stage: verify
+  tags:
+    - ssoo
+  when: manual
+  allow_failure: true
+  script:
+    - bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"
+  only:
+    - development
+
 ai_review:
   stage: ai_review
   tags:

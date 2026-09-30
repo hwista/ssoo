@@ -6,6 +6,7 @@ pipeline="$repo_root/.gitlab-ci.yml"
 source_sync="$repo_root/scripts/ci/prepare-app-source.sh"
 image_provenance="$repo_root/scripts/ci/image-provenance.sh"
 job_runner="$repo_root/scripts/ci/run-app-job.sh"
+runtime_diagnose="$repo_root/scripts/ci/diagnose-runtime.sh"
 ci_verify_dockerfile="$repo_root/docker/ci-verify.Dockerfile"
 compose_file="$repo_root/compose.yaml"
 gitignore="$repo_root/.gitignore"
@@ -48,8 +49,14 @@ assert_count() {
 bash -n "$source_sync"
 bash -n "$image_provenance"
 bash -n "$job_runner"
+bash -n "$runtime_diagnose"
 
 assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 4
+assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"'
+assert_contains "$job_runner" 'capturing diagnostics before automatic rollback'
+if grep -Eq 'docker (compose|rm|rmi|restart|stop|start|kill|image rm|volume|system prune|builder prune)' "$runtime_diagnose"; then
+  fail "runtime diagnostics must stay read-only"
+fi
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" verify'
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" ai-review'
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" build'
@@ -133,8 +140,9 @@ git -C "$seed" config user.email "ci-contract@example.invalid"
 cp "$gitignore" "$seed/.gitignore"
 mkdir -p "$seed/scripts/ci"
 cp "$image_provenance" "$seed/scripts/ci/image-provenance.sh"
+cp "$runtime_diagnose" "$seed/scripts/ci/diagnose-runtime.sh"
 printf 'first\n' > "$seed/version.txt"
-git -C "$seed" add .gitignore scripts/ci/image-provenance.sh version.txt
+git -C "$seed" add .gitignore scripts/ci/image-provenance.sh scripts/ci/diagnose-runtime.sh version.txt
 git -C "$seed" commit -m "first" >/dev/null
 git -C "$seed" remote add origin "$remote"
 git -C "$seed" push -u origin development >/dev/null
@@ -262,6 +270,12 @@ case "${1:-}" in
     ;;
   ps)
     awk -F '|' '$1 ~ /^container:/ { print substr($1, length("container:") + 1) }' "$state"
+    ;;
+  logs)
+    printf 'DATABASE_URL=postgresql://ssoo:contract-secret@postgres:5432/ssoo_dev\n'
+    ;;
+  exec)
+    printf 'schema|public|3\n'
     ;;
   system)
     [[ "${2:-}" == "df" ]] || exit 2
@@ -673,6 +687,9 @@ if run_deploy_contract rollback-success env FAKE_DOCKER_FAIL_FIRST_DEPLOY_HEALTH
   fail "deploy contract accepted an unhealthy deployment after rollback"
 fi
 assert_contains "$test_root/rollback-success.log" 'deployment failed but automatic rollback succeeded'
+assert_contains "$test_root/rollback-success.log" '[ci-diagnose] ===== ssoo-db-init logs'
+assert_contains "$test_root/rollback-success.log" 'postgresql://ssoo:***@postgres'
+assert_not_contains "$test_root/rollback-success.log" 'contract-secret'
 rollback_manifest="$(<"$test_root/rollback-success.last-manifest")"
 PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" CI_COMMIT_SHA="$second_sha" \
   bash "$image_provenance" verify-backup "$rollback_manifest" >/dev/null
