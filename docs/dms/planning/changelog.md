@@ -1,5 +1,7 @@
 # DMS 변경 이력
 
+2026-09-30 준운영 배포 overlay: GitLab deploy가 `compose.yaml`만 사용해, 강화된 base(`AUTH_ALLOW_INSECURE_PRODUCTION_DEFAULTS` 기본 `false`, `DMS_INSTANCE_ENV: ""`)에서 server가 config validation으로 기동하지 못했다. 준운영 서버 전용 `compose.staging.yaml`로 #160 당시 동작(검증 우회, DMS `prod` 역할·`LSWIKI_DOC`)을 명시 overlay로 보존하고 pipeline `COMPOSE_FILE`로 적용한다. 진단 trace는 모든 URL의 userinfo 비밀번호를 마스킹한다.
+
 2026-09-30 CI runtime 진단: pipeline #179 deploy에서 새 `db-init`이 `exit 3`으로 실패하고 rollback한 이전 server도 unhealthy가 되었지만, rollback이 container를 재생성해 실패 로그가 사라졌다. deploy 실패 직후·rollback 실패 시 읽기 전용 진단(container 상태·health·로그·DB migration 이력, 비밀값 마스킹)을 trace에 남기고, 같은 진단을 `diagnose_runtime` manual job으로 제공한다.
 
 2026-09-30 CI build secret 권한: image 정리 후 처음 진행된 build가 Buildx filesystem entitlement(`fs.read=/dev/null`) 요구로 중단되던 문제를 compose 최상위 secret 파일 경로만 명시 허용해 복구했다. 상세는 아래 2026-09-30 항목에 기록한다.

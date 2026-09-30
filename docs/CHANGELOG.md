@@ -1,5 +1,7 @@
 # Changelog
 
+* **ci, docker, docs:** GitLab 준운영 배포가 강화된 base compose만 사용해 server가 config validation으로 기동하지 못하던 문제를 준운영 전용 `compose.staging.yaml`(검증 우회 한정, DMS `prod` 역할 고정)과 pipeline `COMPOSE_FILE`로 복구했다. runtime profile contract가 overlay 고정값과 pipeline 적용을 검증하며, 진단 trace는 모든 URL의 userinfo 비밀번호를 마스킹한다.
+
 * **ci, docs:** deploy 실패 시 rollback이 container를 재생성하기 전에 읽기 전용 runtime 진단(container 상태·health·로그·DB migration 이력, 비밀값 마스킹)을 trace에 남기고, 같은 진단을 `diagnose_runtime` manual job으로 제공한다.
 
 * **ci, docs:** image 정리 후 처음 진행된 GitLab build가 Buildx filesystem entitlement(`fs.read=/dev/null`) 요구로 중단되던 문제를 복구했다. `docker compose config`로 확정된 최상위 secret 파일 경로만 `--allow=fs.read`로 허용하고 entitlement 검사 전체 해제는 사용하지 않으며, pipeline contract로 허용 경로를 검증한다.

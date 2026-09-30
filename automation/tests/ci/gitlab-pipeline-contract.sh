@@ -53,6 +53,7 @@ bash -n "$runtime_diagnose"
 
 assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 4
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"'
+assert_contains "$pipeline" 'COMPOSE_FILE: "compose.yaml:compose.staging.yaml"'
 assert_contains "$job_runner" 'capturing diagnostics before automatic rollback'
 if grep -Eq 'docker (rm|rmi|restart|stop|start|kill|image rm|volume|system prune|builder prune)|docker compose [^|]*(up|down|rm|restart|stop|start|create|run|pull|build)( |$)' "$runtime_diagnose"; then
   fail "runtime diagnostics must stay read-only"
@@ -273,6 +274,7 @@ case "${1:-}" in
     ;;
   logs)
     printf 'DATABASE_URL=postgresql://ssoo:contract-secret@postgres:5432/ssoo_dev\n'
+    printf 'DMS_GIT_BOOTSTRAP_REMOTE_URL=http://doc.user%%40example.com:git-contract-secret%%21@gitlab.example:8010/doc.git\n'
     ;;
   exec)
     printf 'schema|public|3\n'
@@ -690,6 +692,8 @@ assert_contains "$test_root/rollback-success.log" 'deployment failed but automat
 assert_contains "$test_root/rollback-success.log" '[ci-diagnose] ===== ssoo-db-init logs'
 assert_contains "$test_root/rollback-success.log" 'postgresql://ssoo:***@postgres'
 assert_not_contains "$test_root/rollback-success.log" 'contract-secret'
+assert_contains "$test_root/rollback-success.log" 'http://doc.user%40example.com:***@gitlab.example'
+assert_not_contains "$test_root/rollback-success.log" 'git-contract-secret'
 rollback_manifest="$(<"$test_root/rollback-success.last-manifest")"
 PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" CI_COMMIT_SHA="$second_sha" \
   bash "$image_provenance" verify-backup "$rollback_manifest" >/dev/null

@@ -7,6 +7,7 @@ stages:
 variables:
   APP_DIR: "/opt/ssoo/app"
   COMPOSE_PROJECT_NAME: "app"
+  COMPOSE_FILE: "compose.yaml:compose.staging.yaml"
   POSTGRES_DATA_VOLUME: "app_ssoo-postgres-data"
   ADMIN_PORT: "3000"
   CRM_PORT: "3001"

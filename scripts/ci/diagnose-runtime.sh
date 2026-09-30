@@ -12,8 +12,9 @@ if [[ ! "$log_tail" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 redact() {
+  # Mask userinfo passwords in every URL scheme (git remotes embed credentials too).
   sed -E \
-    -e 's#(postgres(ql)?://[^:/@[:space:]]+:)[^@[:space:]]+@#\1***@#g' \
+    -e 's#(://[^:/@[:space:]]+:)[^@[:space:]]+@#\1***@#g' \
     -e 's#((PASSWORD|SECRET|TOKEN)[A-Z_]*=)[^[:space:]]+#\1***#g'
 }
 
@@ -57,7 +58,7 @@ if [[ -d "$app_dir" ]]; then
     echo "[ci-diagnose] app_dir=$app_dir head=$(git rev-parse --short HEAD 2>/dev/null)"
     ls -la .env* compose*.yaml apps/web/dms/.env.local 2>&1 | awk '{print $1, $NF}'
     echo "[ci-diagnose] .env keys (compose interpolation source)"
-    if [[ -f .env ]]; then describe_env < .env; fi
+    if [[ -f .env ]]; then describe_env < .env | redact; fi
     echo "[ci-diagnose] resolved compose files"
     docker compose -p "${COMPOSE_PROJECT_NAME:-app}" config --format json 2>/dev/null \
       | grep -o '"working_dir"[^,]*\|"COMPOSE_FILE"[^,]*' | head -5
@@ -66,7 +67,7 @@ if [[ -d "$app_dir" ]]; then
 fi
 
 echo "[ci-diagnose] ===== ssoo-server effective environment"
-docker inspect ssoo-server --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | describe_env
+docker inspect ssoo-server --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | describe_env | redact
 docker inspect ssoo-server --format 'compose_files={{index .Config.Labels "com.docker.compose.project.config_files"}} env_files={{index .Config.Labels "com.docker.compose.project.environment_file"}}' 2>&1
 
 echo "[ci-diagnose] ===== database migration state"

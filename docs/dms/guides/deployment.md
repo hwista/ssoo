@@ -345,7 +345,8 @@ server:
 
 ## 지원 범위
 
-- 지원 compose base는 repo root `compose.yaml` 하나이며, 실행 환경에 따라 `compose.local.yaml` 또는 `compose.production.yaml` 중 하나를 반드시 병합합니다.
+- 지원 compose base는 repo root `compose.yaml` 하나이며, 실행 환경에 따라 `compose.local.yaml`, `compose.staging.yaml`, `compose.production.yaml` 중 하나를 반드시 병합합니다.
+- `compose.staging.yaml`은 GitLab `development` pipeline이 배포하는 준운영 서버(10.125.12.170) 전용 overlay입니다. 내부망 HTTP로 production build를 제공하므로 Secure cookie를 요구할 수 없어 `AUTH_ALLOW_INSECURE_PRODUCTION_DEFAULTS: "true"`를 이 overlay에만 두고, 문서 저장소는 기존과 같이 `DMS_INSTANCE_ENV: "prod"`(`LSWIKI_DOC.git`)를 literal로 고정하며 bootstrap remote는 비웁니다. `.gitlab-ci.yml`의 `COMPOSE_FILE: "compose.yaml:compose.staging.yaml"`이 verify/build/deploy/진단의 모든 compose 호출에 이 overlay를 적용합니다. HTTPS 전환, 실제 `AUTH_CONFIG_ENCRYPTION_KEY` 회전, DMS Git HTTP credential secret 구성은 준운영 서버의 후속 hardening 항목입니다.
 - 레거시 root / app-local `docker-compose.yml` 경로는 제거했습니다.
 - Docker DMS는 workspace 빌드(`pnpm`, `@ssoo/types`, `@ssoo/web-auth`)를 전제로 합니다.
 - 기본 compose는 DMS 단독이 아니라 **모노레포 full-stack**을 띄웁니다.
