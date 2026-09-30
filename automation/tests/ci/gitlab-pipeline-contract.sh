@@ -28,6 +28,14 @@ assert_contains() {
   grep -Fq -- "$expected" "$file" || fail "missing '$expected' in $file"
 }
 
+assert_not_contains() {
+  local file="$1"
+  local unexpected="$2"
+  if grep -Fq -- "$unexpected" "$file"; then
+    fail "unexpected '$unexpected' in $file"
+  fi
+}
+
 assert_count() {
   local file="$1"
   local expected="$2"
@@ -225,9 +233,16 @@ case "${1:-}" in
   image)
     case "${2:-}" in
       inspect)
-        if ! print_fake_config "$@"; then
+        if [[ "$*" == *'{{.Created}}'* ]]; then
+          image="$(resolve_image "$3")"
+          created="$(lookup_key "created:$image" 2>/dev/null || printf '2026-01-01T00:00:00Z\n')"
+          printf '%s|%s\n' "$created" "$image"
+        elif ! print_fake_config "$@"; then
           resolve_image "$3"
         fi
+        ;;
+      ls)
+        awk -F '|' '$1 ~ /^(app-[a-z-]+|pgvector\/pgvector):/ { split_at = index($1, ":"); print substr($1, 1, split_at - 1) "|" substr($1, split_at + 1) }' "$state"
         ;;
       prune)
         prune_count="$(lookup_key image:prune-count 2>/dev/null || printf '0\n')"
@@ -236,6 +251,7 @@ case "${1:-}" in
       rm)
         rm_count="$(lookup_key image:rm-count 2>/dev/null || printf '0\n')"
         set_value image:rm-count "$((rm_count + 1))"
+        set_value "removed:$3" 1
         exit 0
         ;;
       *) exit 2 ;;
@@ -243,6 +259,9 @@ case "${1:-}" in
     ;;
   info)
     printf '%s\n' "${FAKE_DOCKER_ROOT:?}"
+    ;;
+  ps)
+    awk -F '|' '$1 ~ /^container:/ { print substr($1, length("container:") + 1) }' "$state"
     ;;
   system)
     [[ "${2:-}" == "df" ]] || exit 2
@@ -411,6 +430,7 @@ run_build_contract() {
     CI_COMMIT_SHORT_SHA="${second_sha:0:8}" \
     CI_APP_LOCK_FILE="$test_root/$scenario.lock" \
     CI_BACKUP_MANIFEST_DIR="$test_root" \
+    CI_LAST_BACKUP_MANIFEST_FILE="$test_root/$scenario.last-manifest" \
     CI_BUILD_CACHE_KEEP_STORAGE=1GB \
     CI_BUILD_MIN_FREE_KB="$minimum_free_kb" \
     CI_BUILD_TARGET_MIN_FREE_KB=0 \
@@ -456,6 +476,68 @@ assert_contains "$fake_state" 'compose:build-print-count|0'
 assert_contains "$fake_state" 'buildx:bake-count|0'
 assert_contains "$test_root/capacity-blocked.log" 'Docker capacity pressure detected; pruning all unused BuildKit cache'
 assert_contains "$test_root/capacity-blocked.log" 'insufficient Docker filesystem capacity after safe cache cleanup'
+
+retention_commit_sha() {
+  printf '%040x\n' "$1"
+}
+
+seed_image_retention_state() {
+  local scenario="$1"
+  local index
+
+  reset_fake_state
+  for index in 1 2 3 4 5; do
+    set_state "image:sha256:server-c$index" "sha256:server-c$index"
+    set_state "created:sha256:server-c$index" "2026-09-0${index}T00:00:00Z"
+    set_state "app-server:$(retention_commit_sha "$index")" "sha256:server-c$index"
+  done
+  for index in 1 2 3 4; do
+    set_state "image:sha256:server-b$index" "sha256:server-b$index"
+    set_state "app-server:ci-backup-20260901_00000$index-$index" "sha256:server-b$index"
+  done
+  set_state container:ssoo-legacy sha256:server-c1
+  set_state "app-server:manual-keep" sha256:server-c2
+  set_state "pgvector/pgvector:pg17" sha256:postgres
+  set_state "app-pms:$(retention_commit_sha 9)" sha256:pms-built
+  set_state "app-ci-verify:$(retention_commit_sha 7)" sha256:server-c2
+  printf 'server|app-server:ci-backup-20260901_000001-1|sha256:server-b1|image|sha256:server-b1\n' > "$test_root/$scenario.manifest"
+  printf '%s\n' "$test_root/$scenario.manifest" > "$test_root/$scenario.last-manifest"
+}
+
+seed_image_retention_state image-retention
+run_build_contract image-retention 0
+assert_contains "$fake_state" "removed:app-server:$(retention_commit_sha 2)|1"
+assert_contains "$fake_state" 'removed:app-server:ci-backup-20260901_000002-2|1'
+assert_contains "$fake_state" "removed:app-ci-verify:$(retention_commit_sha 7)|1"
+for index in 1 3 4 5; do
+  assert_not_contains "$fake_state" "removed:app-server:$(retention_commit_sha "$index")|"
+done
+assert_not_contains "$fake_state" "removed:app-server:$second_sha|"
+for index in 1 3 4; do
+  assert_not_contains "$fake_state" "removed:app-server:ci-backup-20260901_00000$index-$index|"
+done
+assert_not_contains "$fake_state" 'removed:app-server:manual-keep|'
+assert_not_contains "$fake_state" 'removed:pgvector/pgvector:pg17|'
+assert_not_contains "$fake_state" "removed:app-pms:$(retention_commit_sha 9)|"
+assert_contains "$fake_state" 'image:rm-count|10'
+assert_contains "$fake_state" 'buildx:bake-count|7'
+assert_contains "$test_root/image-retention.log" "kept image=app-server:$(retention_commit_sha 1) reason=in-use"
+assert_contains "$test_root/image-retention.log" 'kept image=app-server:ci-backup-20260901_000001-1 reason=in-use'
+
+seed_image_retention_state image-retention-dry-run
+CI_IMAGE_RETENTION_DRY_RUN=1 run_build_contract image-retention-dry-run 0
+assert_contains "$test_root/image-retention-dry-run.log" "dry-run would remove image=app-server:$(retention_commit_sha 2)"
+assert_not_contains "$fake_state" "removed:app-server:$(retention_commit_sha 2)|"
+assert_not_contains "$fake_state" 'removed:app-server:ci-backup-'
+assert_not_contains "$fake_state" 'removed:app-ci-verify:'
+assert_contains "$fake_state" 'image:rm-count|7'
+
+reset_fake_state
+if CI_IMAGE_RETENTION_COMMIT_KEEP=0 run_build_contract image-retention-invalid 0; then
+  fail "build job accepted an image retention window that keeps no commit image"
+fi
+assert_contains "$fake_state" 'image:rm-count|0'
+assert_contains "$fake_state" 'buildx:bake-count|0'
 
 reset_fake_state
 PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" CI_COMMIT_SHA="$second_sha" \

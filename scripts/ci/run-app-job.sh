@@ -14,6 +14,9 @@ last_backup_manifest_file="${CI_LAST_BACKUP_MANIFEST_FILE:-/tmp/ssoo-ci-last-bac
 build_cache_keep_storage="${CI_BUILD_CACHE_KEEP_STORAGE:-8GB}"
 build_min_free_kb="${CI_BUILD_MIN_FREE_KB:-8388608}"
 build_target_min_free_kb="${CI_BUILD_TARGET_MIN_FREE_KB:-3145728}"
+image_retention_commit_keep="${CI_IMAGE_RETENTION_COMMIT_KEEP:-3}"
+image_retention_backup_keep="${CI_IMAGE_RETENTION_BACKUP_KEEP:-2}"
+image_retention_dry_run="${CI_IMAGE_RETENTION_DRY_RUN:-0}"
 build_services=(server db-init pms dms sns admin crm)
 
 if [[ ! "$deploy_health_wait" =~ ^[0-9]+$ ]]; then
@@ -34,6 +37,18 @@ if [[ ! "$build_min_free_kb" =~ ^[0-9]+$ ]]; then
 fi
 if [[ ! "$build_target_min_free_kb" =~ ^[0-9]+$ ]]; then
   echo "[ci-job] CI_BUILD_TARGET_MIN_FREE_KB must be a non-negative integer" >&2
+  exit 1
+fi
+if [[ ! "$image_retention_commit_keep" =~ ^[1-9][0-9]*$ ]]; then
+  echo "[ci-job] CI_IMAGE_RETENTION_COMMIT_KEEP must be a positive integer" >&2
+  exit 1
+fi
+if [[ ! "$image_retention_backup_keep" =~ ^[1-9][0-9]*$ ]]; then
+  echo "[ci-job] CI_IMAGE_RETENTION_BACKUP_KEEP must be a positive integer" >&2
+  exit 1
+fi
+if [[ "$image_retention_dry_run" != "0" && "$image_retention_dry_run" != "1" ]]; then
+  echo "[ci-job] CI_IMAGE_RETENTION_DRY_RUN must be 0 or 1" >&2
   exit 1
 fi
 case "$job" in
@@ -62,6 +77,137 @@ prune_unreferenced_app_latest() {
     echo "[ci-job] removing undeployed latest tag service=$service image=$image_tag id=$latest_id running_id=$container_id"
     docker image rm "$image_tag"
   done
+}
+
+remove_retired_image() {
+  local image_ref="$1"
+  local reason="$2"
+
+  if [[ "$image_retention_dry_run" == "1" ]]; then
+    echo "[ci-job] image retention dry-run would remove image=$image_ref reason=$reason"
+    return 0
+  fi
+  if docker image rm "$image_ref" >/dev/null; then
+    echo "[ci-job] image retention removed image=$image_ref reason=$reason"
+  else
+    echo "[ci-job] image retention kept image=$image_ref reason=remove-failed" >&2
+  fi
+}
+
+prune_retired_app_images() {
+  local service repository tag image_ref image_id created container_id last_manifest
+  local manifest_service backup_image backup_id manifest_mode manifest_source
+  local container_ids image_rows row recent_count
+  local -A protected_ids=()
+  local -A protected_refs=()
+  local -A recent_ids=()
+  local -a commit_rows=()
+  local -a backup_tags=()
+
+  container_ids="$(docker ps -aq)"
+  for container_id in $container_ids; do
+    image_id="$(docker inspect "$container_id" --format '{{.Image}}')"
+    if [[ -n "$image_id" ]]; then
+      protected_ids[$image_id]=1
+    fi
+  done
+
+  for service in "${build_services[@]}"; do
+    image_id="$(docker image inspect "app-$service:latest" --format '{{.Id}}' 2>/dev/null || true)"
+    if [[ -n "$image_id" ]]; then
+      protected_ids[$image_id]=1
+    fi
+    if [[ -n "${CI_COMMIT_SHA:-}" ]]; then
+      protected_refs["app-$service:$CI_COMMIT_SHA"]=1
+    fi
+  done
+
+  if [[ -f "$last_backup_manifest_file" ]]; then
+    last_manifest="$(<"$last_backup_manifest_file")"
+    if [[ -n "$last_manifest" && -f "$last_manifest" ]]; then
+      while IFS='|' read -r manifest_service backup_image backup_id manifest_mode manifest_source; do
+        if [[ -n "$backup_image" ]]; then
+          protected_refs[$backup_image]=1
+        fi
+        if [[ -n "$backup_id" ]]; then
+          protected_ids[$backup_id]=1
+        fi
+      done < "$last_manifest"
+    fi
+  fi
+
+  echo "[ci-job] image retention start commit_keep=$image_retention_commit_keep backup_keep=$image_retention_backup_keep dry_run=$image_retention_dry_run protected_images=${#protected_ids[@]}"
+  image_rows="$(docker image ls --format '{{.Repository}}|{{.Tag}}')"
+  if [[ "$image_retention_dry_run" == "1" ]]; then
+    docker image ls --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}\t{{.Size}}' || true
+  fi
+
+  for service in "${build_services[@]}"; do
+    commit_rows=()
+    backup_tags=()
+    recent_ids=()
+    while IFS='|' read -r repository tag; do
+      if [[ "$repository" != "app-$service" ]]; then
+        continue
+      fi
+      if [[ "$tag" =~ ^[0-9a-f]{40}$ ]]; then
+        row="$(docker image inspect "app-$service:$tag" --format '{{.Created}}|{{.Id}}')"
+        commit_rows+=("$row|app-$service:$tag")
+      elif [[ "$tag" =~ ^ci-backup-[A-Za-z0-9_.-]+$ ]]; then
+        backup_tags+=("$tag")
+      fi
+    done <<< "$image_rows"
+
+    # Commit tags back manual deploys of older pipelines; keep the newest distinct builds.
+    if [[ "${#commit_rows[@]}" -gt 0 ]]; then
+      recent_count=0
+      while IFS='|' read -r created image_id image_ref; do
+        if [[ -z "${recent_ids[$image_id]:-}" && "$recent_count" -lt "$image_retention_commit_keep" ]]; then
+          recent_ids[$image_id]=1
+          recent_count=$((recent_count + 1))
+        fi
+        if [[ -n "${protected_refs[$image_ref]:-}" || -n "${protected_ids[$image_id]:-}" ]]; then
+          echo "[ci-job] image retention kept image=$image_ref reason=in-use created=$created"
+        elif [[ -n "${recent_ids[$image_id]:-}" ]]; then
+          echo "[ci-job] image retention kept image=$image_ref reason=recent-build created=$created"
+        else
+          remove_retired_image "$image_ref" "stale-build created=$created"
+        fi
+      done < <(printf '%s\n' "${commit_rows[@]}" | sort -r)
+    fi
+
+    # Backup tags are named ci-backup-<YYYYmmdd_HHMMSS>-<job>, so reverse name order is newest first.
+    if [[ "${#backup_tags[@]}" -gt 0 ]]; then
+      recent_count=0
+      while IFS= read -r tag; do
+        image_ref="app-$service:$tag"
+        recent_count=$((recent_count + 1))
+        image_id="$(docker image inspect "$image_ref" --format '{{.Id}}')"
+        if [[ -n "${protected_refs[$image_ref]:-}" || -n "${protected_ids[$image_id]:-}" ]]; then
+          echo "[ci-job] image retention kept image=$image_ref reason=in-use"
+        elif [[ "$recent_count" -le "$image_retention_backup_keep" ]]; then
+          echo "[ci-job] image retention kept image=$image_ref reason=recent-backup"
+        else
+          remove_retired_image "$image_ref" stale-backup
+        fi
+      done < <(printf '%s\n' "${backup_tags[@]}" | sort -r)
+    fi
+  done
+
+  # Verify images are job-local; a leftover only exists when an earlier verify job was killed.
+  while IFS='|' read -r repository tag; do
+    if [[ "$repository" != "app-ci-verify" || ! "$tag" =~ ^[0-9a-f]{40}$ ]]; then
+      continue
+    fi
+    image_ref="app-ci-verify:$tag"
+    image_id="$(docker image inspect "$image_ref" --format '{{.Id}}')"
+    if [[ -n "${protected_ids[$image_id]:-}" ]]; then
+      echo "[ci-job] image retention kept image=$image_ref reason=in-use"
+    else
+      remove_retired_image "$image_ref" verify-leftover
+    fi
+  done <<< "$image_rows"
+  echo "[ci-job] image retention complete dry_run=$image_retention_dry_run"
 }
 
 prepare_build_capacity() {
@@ -128,6 +274,7 @@ fi
 echo "[ci-job] acquired lock job=$job"
 if [[ "$job" == "verify" || "$job" == "build" ]]; then
   prune_unreferenced_app_latest
+  prune_retired_app_images
   prepare_build_capacity "$job"
 fi
 bash "$CI_PROJECT_DIR/scripts/ci/prepare-app-source.sh"

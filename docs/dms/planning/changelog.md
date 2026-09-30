@@ -1,5 +1,7 @@
 # DMS 변경 이력
 
+2026-09-30 CI runner image 정리: Docker 용량 부족으로 `verify`가 반복 실패하던 문제를 서비스별 최근 commit build 3개·`ci-backup` 2개 보관 정책으로 복구했다. 사용 중·현재 `latest`·현재 pipeline SHA·last-backup manifest image는 항상 보존한다. 상세는 아래 2026-09-30 항목에 기록한다.
+
 2026-09-23 대화 도구 후속 완료: 사용자 “승인”으로 작은 화면의 새 대화·기록 버튼을 제목 아래로 옮기고 목록을 창 안에 배치했다. 넓은 화면·기존 대화 처리·문서 드래그를 유지한다. 설정/문서 14개 크기별 상태와 총 204개 동작 검사, 새 빌드·보호 검사를 통과했다. [핸드오프](2026-09-23-assistant-history-layout-handoff.md). 별도 승인 대기 1→0건, 검색창 배경 차이는 미재현으로 유지한다.
 
 2026-09-23 설정 잔여 승인 적용: 사용자 “적용하자”로 설정 18개 메뉴의 제목·현재 위치·상단 대화 버튼, 서식 항목명·날짜와 운영 표시를 정리했다. 최종 빌드·보호 검사와 90개 기본 화면 상태, 입력·복구·날짜·운영 표시를 확인했다. 기존 문서 대화 버튼·저장·서버 계약을 유지한다. 작은 화면의 대화 도구 잘림은 별도 승인 대기 1건으로 분리했으며 검색 배경 차이는 미재현이다. [핸드오프](2026-09-23-settings-residual-handoff.md).
@@ -24,10 +26,18 @@
 
 2026-09-17: 사용자 1번 선택 승인에 따라 계약 역할별 생성 기록 안내를 설정·계약 화면·새 기록에 반영했다. 실제 담당자별 결재 미구현과 구분하며 과거 기록·기존 요청/응답·상태값을 보존한다. [처리 결과](../../common/explanation/architecture/2026-09-17-contract-records-handoff.md).
 
-> 최종 업데이트: 2026-08-27
+> 최종 업데이트: 2026-09-30
 > 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
 
 ---
+
+## 2026-09-30
+
+### CI runner image 누적 정리
+
+- shell runner의 Docker root 여유 공간이 1.4 GiB까지 줄어 `verify`가 용량 preflight에서 반복 실패하던 문제를 복구합니다. 원인은 build마다 남는 `app-<service>:<SHA>`와 deploy마다 남는 `app-<service>:ci-backup-*` tag가 기존 dangling/BuildKit 정리 대상이 아니어서 image 112개(사용 11개, 44.9 GB)가 누적된 것입니다.
+- verify/build 직전 서비스별 최근 commit build 3개와 backup 2개만 남기고, 중단된 verify image를 제거합니다. container 참조 image, 현재 `latest`, 현재 pipeline SHA, last-backup manifest image는 항상 보존하며 `-f` 없이 삭제합니다. 보관 개수와 dry-run은 `CI_IMAGE_RETENTION_COMMIT_KEEP`, `CI_IMAGE_RETENTION_BACKUP_KEEP`, `CI_IMAGE_RETENTION_DRY_RUN`으로 조정합니다.
+- pipeline contract에 보관 범위·보호 대상·범위 밖 tag/외부 image 비접촉·dry-run 무삭제·잘못된 보관값 차단 시나리오를 추가했습니다.
 
 ## 2026-08-27
 
