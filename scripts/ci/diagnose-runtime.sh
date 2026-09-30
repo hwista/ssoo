@@ -32,6 +32,43 @@ for container in "${containers[@]}"; do
   docker logs --timestamps --tail "$log_tail" "$container" 2>&1 | redact
 done
 
+describe_env() {
+  # Print variable names; secret-like values are reduced to length and placeholder markers.
+  awk -F '=' '
+    NF == 0 || $1 ~ /^#/ { next }
+    {
+      key = $1
+      value = substr($0, length(key) + 2)
+      if (key ~ /(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL|DATABASE_URL)/) {
+        marker = (tolower(value) ~ /(change-me|development|your-|placeholder|replace-)/) ? "yes" : "no"
+        printf "%s=<set len=%d placeholder=%s>\n", key, length(value), marker
+      } else {
+        printf "%s=%s\n", key, value
+      }
+    }
+  ' | sort
+}
+
+echo "[ci-diagnose] ===== compose resolution"
+app_dir="${APP_DIR:-/opt/ssoo/app}"
+if [[ -d "$app_dir" ]]; then
+  (
+    cd "$app_dir" || exit 0
+    echo "[ci-diagnose] app_dir=$app_dir head=$(git rev-parse --short HEAD 2>/dev/null)"
+    ls -la .env* compose*.yaml apps/web/dms/.env.local 2>&1 | awk '{print $1, $NF}'
+    echo "[ci-diagnose] .env keys (compose interpolation source)"
+    if [[ -f .env ]]; then describe_env < .env; fi
+    echo "[ci-diagnose] resolved compose files"
+    docker compose -p "${COMPOSE_PROJECT_NAME:-app}" config --format json 2>/dev/null \
+      | grep -o '"working_dir"[^,]*\|"COMPOSE_FILE"[^,]*' | head -5
+    docker compose -p "${COMPOSE_PROJECT_NAME:-app}" ls 2>&1 | head -5
+  )
+fi
+
+echo "[ci-diagnose] ===== ssoo-server effective environment"
+docker inspect ssoo-server --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | describe_env
+docker inspect ssoo-server --format 'compose_files={{index .Config.Labels "com.docker.compose.project.config_files"}} env_files={{index .Config.Labels "com.docker.compose.project.environment_file"}}' 2>&1
+
 echo "[ci-diagnose] ===== database migration state"
 if docker inspect ssoo-postgres >/dev/null 2>&1; then
   docker exec ssoo-postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "

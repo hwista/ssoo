@@ -54,7 +54,7 @@ bash -n "$runtime_diagnose"
 assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 4
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"'
 assert_contains "$job_runner" 'capturing diagnostics before automatic rollback'
-if grep -Eq 'docker (compose|rm|rmi|restart|stop|start|kill|image rm|volume|system prune|builder prune)' "$runtime_diagnose"; then
+if grep -Eq 'docker (rm|rmi|restart|stop|start|kill|image rm|volume|system prune|builder prune)|docker compose [^|]*(up|down|rm|restart|stop|start|create|run|pull|build)( |$)' "$runtime_diagnose"; then
   fail "runtime diagnostics must stay read-only"
 fi
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" verify'
