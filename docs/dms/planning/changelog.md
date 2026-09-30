@@ -1,5 +1,7 @@
 # DMS 변경 이력
 
+2026-09-30 CI build secret 권한: image 정리 후 처음 진행된 build가 Buildx filesystem entitlement(`fs.read=/dev/null`) 요구로 중단되던 문제를 compose 최상위 secret 파일 경로만 명시 허용해 복구했다. 상세는 아래 2026-09-30 항목에 기록한다.
+
 2026-09-30 CI runner image 정리: Docker 용량 부족으로 `verify`가 반복 실패하던 문제를 서비스별 최근 commit build 3개·`ci-backup` 2개 보관 정책으로 복구했다. 사용 중·현재 `latest`·현재 pipeline SHA·last-backup manifest image는 항상 보존한다. 상세는 아래 2026-09-30 항목에 기록한다.
 
 2026-09-23 대화 도구 후속 완료: 사용자 “승인”으로 작은 화면의 새 대화·기록 버튼을 제목 아래로 옮기고 목록을 창 안에 배치했다. 넓은 화면·기존 대화 처리·문서 드래그를 유지한다. 설정/문서 14개 크기별 상태와 총 204개 동작 검사, 새 빌드·보호 검사를 통과했다. [핸드오프](2026-09-23-assistant-history-layout-handoff.md). 별도 승인 대기 1→0건, 검색창 배경 차이는 미재현으로 유지한다.
@@ -38,6 +40,13 @@
 - shell runner의 Docker root 여유 공간이 1.4 GiB까지 줄어 `verify`가 용량 preflight에서 반복 실패하던 문제를 복구합니다. 원인은 build마다 남는 `app-<service>:<SHA>`와 deploy마다 남는 `app-<service>:ci-backup-*` tag가 기존 dangling/BuildKit 정리 대상이 아니어서 image 112개(사용 11개, 44.9 GB)가 누적된 것입니다.
 - verify/build 직전 서비스별 최근 commit build 3개와 backup 2개만 남기고, 중단된 verify image를 제거합니다. container 참조 image, 현재 `latest`, 현재 pipeline SHA, last-backup manifest image는 항상 보존하며 `-f` 없이 삭제합니다. 보관 개수와 dry-run은 `CI_IMAGE_RETENTION_COMMIT_KEEP`, `CI_IMAGE_RETENTION_BACKUP_KEEP`, `CI_IMAGE_RETENTION_DRY_RUN`으로 조정합니다.
 - pipeline contract에 보관 범위·보호 대상·범위 밖 tag/외부 image 비접촉·dry-run 무삭제·잘못된 보관값 차단 시나리오를 추가했습니다.
+- pipeline #178에서 정리 후 여유 공간이 1.4 GiB에서 20.5 GiB로 회복되어 verify가 통과했습니다. GitLab 10.4는 pipeline API `variables`를 job에 전달하지 않아 dry-run 없이 실제 정리가 실행됐으며, 운영 image·최근 build·최근 backup은 정책대로 보존됐습니다.
+
+### CI build secret 권한
+
+- 최신 Buildx가 compose build secret의 context 밖 파일 읽기(`/dev/null` 기본값)에 filesystem entitlement를 요구해 build가 첫 target 전에 중단됐습니다. 이 secret 기본값은 마지막 build 성공(#160) 이후 추가되어 verify 실패에 가려져 있었습니다.
+- `docker compose config`로 확정된 최상위 `secrets.*.file` 경로만 `--allow=fs.read=<path>`로 허용하고, 서비스 수준 항목이나 entitlement 전체 해제(`BUILDX_BAKE_ENTITLEMENTS_FS=0`)는 사용하지 않습니다.
+- pipeline contract가 허용 인자의 정확한 경로(공백 포함)와 서비스 수준 경로 비허용을 검증합니다.
 
 ## 2026-08-27
 

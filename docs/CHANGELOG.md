@@ -1,5 +1,7 @@
 # Changelog
 
+* **ci, docs:** image 정리 후 처음 진행된 GitLab build가 Buildx filesystem entitlement(`fs.read=/dev/null`) 요구로 중단되던 문제를 복구했다. `docker compose config`로 확정된 최상위 secret 파일 경로만 `--allow=fs.read`로 허용하고 entitlement 검사 전체 해제는 사용하지 않으며, pipeline contract로 허용 경로를 검증한다.
+
 * **ci, docs:** GitLab shell runner의 Docker 용량 부족으로 `verify`가 반복 실패하던 문제를 image 보관 정책으로 복구했다. verify/build 직전 서비스별 최근 commit build 3개와 `ci-backup` 2개만 남기고 중단된 verify image를 제거하며, container 참조 image·현재 `latest`·현재 pipeline SHA·last-backup manifest image는 항상 보존한다. 보관 개수와 dry-run은 CI 변수로 조정하고 pipeline contract로 보호 대상을 검증한다.
 
 * **web, docs:** 2026-09-23 승인된 공용 로그인 옵션·검색 결과 표현·상단 검색 배치와 문서관리 설정·작은 화면 대화 도구 보완을 현재 작업 기준으로 묶었다. [문서관리 최신 핸드오프](dms/planning/2026-09-23-assistant-history-layout-handoff.md)와 [로컬 Docker 배포 기록](common/explanation/architecture/2026-09-23-local-docker-handoff.md)을 따른다. 기존 개발 데이터 유지, 다섯 서비스 실제 접속 확인 완료. 권한 관리 요약 카드 줄바꿈과 검색창 배경 차이 잔여는 해결로 집계하지 않는다.

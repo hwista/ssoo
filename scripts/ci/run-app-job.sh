@@ -360,13 +360,27 @@ case "$job" in
     }
     trap cleanup_bake_definition EXIT
     docker compose -p "$COMPOSE_PROJECT_NAME" build --print > "$bake_definition"
+    # Bake requires explicit read entitlements for compose secret files outside the build context.
+    compose_config="$(docker compose -p "$COMPOSE_PROJECT_NAME" config)"
+    bake_allow_args=()
+    while IFS= read -r secret_file; do
+      bake_allow_args+=("--allow=fs.read=$secret_file")
+      echo "[ci-job] bake secret read allowed file=$secret_file"
+    done < <(awk '
+      /^[^ ]/ { in_secrets = ($0 == "secrets:"); next }
+      in_secrets && /^    file: / {
+        value = substr($0, length("    file: ") + 1)
+        gsub(/^["\047]|["\047]$/, "", value)
+        if (value != "") print value
+      }
+    ' <<< "$compose_config" | sort -u)
     echo "전체 이미지 완전 순차 빌드 시작 (BuildKit, services=${build_services[*]})"
     for service in "${build_services[@]}"; do
       if [[ "$service" != "${build_services[0]}" ]]; then
         prepare_build_capacity "build-$service" "$build_target_min_free_kb" full
       fi
       echo "[ci-job] building service=$service"
-      docker buildx bake --file "$bake_definition" --load "$service"
+      docker buildx bake "${bake_allow_args[@]}" --file "$bake_definition" --load "$service"
       echo "[ci-job] built service=$service"
     done
     bash scripts/ci/image-provenance.sh tag-build

@@ -83,7 +83,7 @@ assert_contains "$job_runner" 'build_services=(server db-init pms dms sns admin 
 assert_contains "$job_runner" 'prune_unreferenced_app_latest'
 assert_contains "$job_runner" 'if [[ "$job" == "verify" || "$job" == "build" ]]; then'
 assert_contains "$job_runner" 'docker compose -p "$COMPOSE_PROJECT_NAME" build --print > "$bake_definition"'
-assert_contains "$job_runner" 'docker buildx bake --file "$bake_definition" --load "$service"'
+assert_contains "$job_runner" 'docker buildx bake "${bake_allow_args[@]}" --file "$bake_definition" --load "$service"'
 assert_contains "$job_runner" 'prepare_build_capacity "build-$service" "$build_target_min_free_kb" full'
 assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh tag-build'
 assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh backup-running "$backup_tag" "$backup_manifest"'
@@ -317,12 +317,33 @@ case "${1:-}" in
     operation=""
     for argument in "$@"; do
       case "$argument" in
-        build|up|ps) operation="$argument" ;;
+        build|up|ps|config) operation="$argument" ;;
       esac
     done
     case "$operation" in
       ps)
         exit 0
+        ;;
+      config)
+        cat <<'FAKE_COMPOSE_CONFIG'
+name: app
+services:
+  server:
+    secrets:
+      - source: ssoo_tls_ca
+        target: ssoo_tls_ca
+        file: /service/level/ignored
+secrets:
+  dms_git_http_credentials:
+    name: app_dms_git_http_credentials
+    file: "/srv/ci secrets/dms-git"
+  ssoo_tls_ca:
+    name: app_ssoo_tls_ca
+    file: /dev/null
+volumes:
+  ssoo-postgres-data:
+    name: app_ssoo-postgres-data
+FAKE_COMPOSE_CONFIG
         ;;
       up)
         up_count="$(lookup_key compose:up-count 2>/dev/null || printf '0\n')"
@@ -357,6 +378,13 @@ case "${1:-}" in
     [[ "${2:-}" == "bake" ]] || exit 2
     build_count="$(lookup_key buildx:bake-count 2>/dev/null || printf '0\n')"
     set_value buildx:bake-count "$((build_count + 1))"
+    bake_allow=""
+    for argument in "$@"; do
+      if [[ "$argument" == --allow=* ]]; then
+        bake_allow="$bake_allow[$argument]"
+      fi
+    done
+    set_value buildx:bake-allow "$bake_allow"
     service="${@: -1}"
     build_sequence="$(lookup_key buildx:bake-sequence 2>/dev/null || true)"
     if [[ -n "$build_sequence" ]]; then
@@ -449,6 +477,8 @@ assert_contains "$fake_state" 'image:rm-count|7'
 assert_contains "$fake_state" 'compose:build-print-count|1'
 assert_contains "$fake_state" 'buildx:bake-count|7'
 assert_contains "$fake_state" 'buildx:bake-sequence|server,db-init,pms,dms,sns,admin,crm'
+assert_contains "$fake_state" 'buildx:bake-allow|[--allow=fs.read=/dev/null][--allow=fs.read=/srv/ci secrets/dms-git]'
+assert_not_contains "$fake_state" 'fs.read=/service/level/ignored'
 
 reset_fake_state
 if FAKE_DOCKER_FAIL_BUILD_SERVICE=pms run_build_contract serial-build-failed 0; then
