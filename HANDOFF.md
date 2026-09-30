@@ -13,10 +13,13 @@ Context
 GitLab staging deploy recovery — 2026-09-30 (in progress)
 ---------------------------------------------------------
 
-Status at handoff (≈19:40 KST)
-- The staging server (10.125.12.170, ports 3000–3004, API 4000) is DOWN since pipeline #179 deploy (17:24). `ssoo-server` restart-loops on config validation; the five web containers stay `Created`; postgres is healthy.
-- Latest pushed commit: `2b6ca2d6 fix(ci): deploy staging with an explicit compose overlay`. Pipeline #182 built all 7 images; its deploy (job #391) failed in the NEW `db-init` and auto-rolled back (rollback cannot start the old server either, see cause 2).
-- The db-init fixes below were rehearsed in WSL (PostgreSQL 18 + pgvector, DB rebuilt from `cbd9d7e0` schema/seeds/triggers; table counts per schema match the staging diagnostics) and then committed as `fix(database): ...` after `2b6ca2d6`.
+Status at end of day (2026-09-30 21:20 KST) — READ FIRST
+- The staging server is fully DOWN: 3000–3004 and API 4000 do not respond.
+- Pipeline #184 (`704ea3b1`) deploy: the NEW `db-init` completed (exit 0) and upgraded the staging DB. The NEW server started normally (DMS prod role, 17 documents synced, "Nest application successfully started") but its compose healthcheck `GET /api/health/readiness` kept failing, so the five web containers were never started and the deploy failed.
+- Rollback to the old images is no longer possible: the old `db-init` (`cbd9d7e0`) runs `prisma db push` against the old schema and Prisma refuses because it would drop new columns that hold data (e.g. `pms.pr_close_condition_group_m.approval_status_code`, `version_no`). Forward-only from here, as the user decided.
+- Remaining blocker: one DMS readiness check returns `blocked` (`apps/server/src/modules/dms/settings/settings.service.ts` `buildReadiness`). Suspects: `git-binding` parity (log shows `pullSkipReason: git-not-initialized`; the prod remote `LSWIKI_DOC` has no HTTP credential secret) or a runtime path such as NAS `/mnt/nas/dms`. The readiness body was not captured.
+- Proposed next step (awaiting user approval, not implemented): in `compose.staging.yaml` only, switch the server healthcheck to liveness `GET /api/health` (the pre-#160-era gate) so all apps start while DMS shows its readiness warning in the admin UI; add the readiness JSON (`docker exec ssoo-server` fetch of `/api/health/readiness`, masked) to `scripts/ci/diagnose-runtime.sh`; after the deploy, read `http://10.125.12.170:4000/api/health/readiness` and fix the blocked check. One more pipeline (~40 min) is needed.
+- Recurrence prevention work is planned in `docs/dms/planning/2026-09-30-staging-deploy-hardening-plan.md` (WP-2 must also handle rollback when the DB has moved forward).
 
 Root causes found today
 1. New `db-init` compat path failures, found one by one by the rehearsal:
