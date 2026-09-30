@@ -1,5 +1,7 @@
 # DMS 변경 이력
 
+2026-09-30 준운영 배포 재발 방지 계획: 오늘 장애(#176~#184)에서 배포하면서 결함을 발견하던 흐름을 막기 위해 build 전 배포 리허설 stage, 무중단 배포 순서·rollback compose snapshot, 변경 서비스만 빌드, 진단 stage 정리, 준운영 보안 후속을 [실행 계획](2026-09-30-staging-deploy-hardening-plan.md)으로 정리했다. 구현 대기.
+
 2026-09-30 준운영 db push 대상 host: pipeline #183 deploy에서 compat SQL·protected baseline·기본키 정규화는 통과했으나, 준운영 DB URL host가 compose `container_name`인 `ssoo-postgres`라 guarded `db push`가 거부됐다. 같은 compose postgres 컨테이너를 가리키는 `ssoo-postgres`를 허용 host에 추가하고, 리허설도 실제 host 이름으로 2회 연속 완료를 확인했다.
 
 2026-09-30 준운영 db-init 호환 경로 복구: pipeline #179/#182 deploy에서 새 `db-init`이 compat SQL의 비보호 legacy 컬럼 참조(`snapshot_json`)로 `exit 3` 실패했다. 배포 중인 `cbd9d7e0` 상태를 WSL PostgreSQL에 재현(서버 진단과 schema별 table 수 일치)한 리허설로 후속 결함 3건(`ranker_code` 참조, protected baseline `pk_*` 기본키 이름으로 인한 Prisma `db push` 문법 오류, 이전 history trigger의 seed 이력 NOT NULL 위반)을 함께 찾아 수정했고, 수정 후 `db-init` 2회 연속 `✅ complete`를 확인했다. 상세 절차는 [AI/RAG runtime runbook](../../common/guides/ai-rag-runtime-runbook.md)의 DB Init Modes에 기록한다.

@@ -34,6 +34,9 @@ Next steps (in order)
 4. The user presses `deploy_dev`. On failure, `scripts/ci/diagnose-runtime.sh` output is in the deploy trace BEFORE the rollback section.
 5. After success: check 3000–3004 and `/api/health`, then move `diagnose_runtime` out of the `verify` stage (its manual state makes the verify stage look unfinished in the GitLab UI).
 
+Follow-up plan
+- Recurrence prevention work (pre-build deploy rehearsal stage, no-downtime deploy order, rollback compose snapshot, incremental builds, diagnose stage move, staging security follow-ups) is specified in `docs/dms/planning/2026-09-30-staging-deploy-hardening-plan.md`. Start with WP-1.
+
 Environment facts (do not rediscover)
 - Develop, commit and push only in WSL `~/dev/LSWIKI-src`. The Windows checkout `D:\dev\LSWIKI-src` cannot run the pnpm hooks (64-bit `cmd.exe` spawn is blocked there) and is stale.
 - GitLab is 10.4.4: pipeline API `variables` are IGNORED (dry-run via API does not work); `-o ci.skip` is unsupported (use `[ci skip]` in the commit body). SSH port 22 to 10.125.31.72 and 10.125.12.170 is blocked from this PC, so there is no direct host access; use the `diagnose_runtime` manual job (read-only, no runtime lock, masks secrets).
