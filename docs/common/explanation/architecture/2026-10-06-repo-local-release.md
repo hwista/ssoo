@@ -31,3 +31,11 @@
 GitLab `4bc0af35`까지의 DB 복구·진단·선택 빌드 이력을 병합했다. DB 호환 SQL과 두 번 실행 계약은 동일 구현을 유지한다. 새 DMS runtime 경로 접근과 Git 상태/remote 도달 진단은 프로젝트 label로 찾은 서버에 적용하며 비밀값을 마스킹한다.
 
 기존 원격의 `build-inputs.sh` 선택 빌드는 현재 `release-state.mjs`의 서비스별 입력·secret·base image hash 및 immutable manifest 검증으로 통합한다. 중복된 이전 실행 스크립트는 남기지 않는다. 실제 CI 승격 전 기본값은 `CI_INCREMENTAL_BUILD=false`, `CI_DEPLOY_MODE=plan-only`다. 원격의 liveness overlay가 해결하려던 DMS 장애에 의한 전체 앱 기동 차단은 현재 core-readiness와 앱별 readiness 분리로 해결하며, DB/auth 확인을 생략하지 않는다.
+
+## 실제 로컬 적용에서 발견한 Git 인증 호환 문제
+
+첫 이미지 `347cccc6`의 격리 복원·초기화 2회·API 25개·비밀번호 인증 4개 검사는 통과했다. 실제 로컬 DMS는 Docker secret을 읽는 Git credential helper를 사용하며, simple-git 4의 환경변수 필터가 entrypoint의 `GIT_CONFIG_*` 전달을 차단해 원격 parity/readiness가 실패했다. 원격 push를 보류하고 이전 서버 이미지로 복구해 readiness 정상화를 확인했다. 격리 환경의 file remote는 HTTP credential helper 경로를 검증하지 못했다.
+
+DMS Git client는 entrypoint의 origin·count·key·고정 helper·useHttpPath가 모두 일치할 때만 해당 두 설정을 명시적 command config로 재구성한다. Docker secret 내용은 읽거나 로그에 복사하지 않는다. credential helper 실행 opt-in은 이 고정 계약을 확인한 클라이언트에만 적용하며, 임의 환경변수·다른 unsafe Git 옵션은 계속 차단한다. 실제 Git 설정 전달과 6가지 변조 거부를 포함한 10개 검사를 통과했다.
+
+첫 로컬 교체 후 문서 테이블 지문 차이를 조사했다. 159건의 추가·삭제 및 문서 내용 변화는 없으며, 86건의 `last_scanned_at`, `last_reconciled_at`, `updated_at`만 자동 스캔으로 변경됐다. 이 세 필드의 변경은 원본 지문 차이와 별도로 기록하고, 업무 데이터 보존 판정에 섞어 숨기지 않는다.

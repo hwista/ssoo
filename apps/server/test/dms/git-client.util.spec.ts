@@ -56,4 +56,41 @@ describe('DMS Git client configuration', () => {
     await expect(trustedGit.status()).resolves.toBeDefined();
     await expect(createDmsGitClient(repositoryRoot).status()).resolves.toBeDefined();
   });
+
+  const credentialEnvironment = {
+    DMS_GIT_HTTP_AUTH_SCOPE: 'https://git.example.test',
+    GIT_CONFIG_COUNT: '2',
+    GIT_CONFIG_KEY_0: 'credential.https://git.example.test.helper',
+    GIT_CONFIG_VALUE_0: '!f() { cat /run/secrets/dms_git_http_credentials; }; f',
+    GIT_CONFIG_KEY_1: 'credential.https://git.example.test.useHttpPath',
+    GIT_CONFIG_VALUE_1: 'false',
+  };
+
+  it('passes the exact container credential helper to real Git without allowing inherited variables', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dms-git-credential-'));
+    temporaryDirectories.push(root);
+    execFileSync('git', ['init', root], { stdio: 'ignore' });
+    const options = buildDmsGitOptions(root, credentialEnvironment);
+    expect(options).not.toHaveProperty('allowEnvironment');
+    expect(options.unsafe).toEqual({ allowUnsafeCredentialHelper: true });
+    const git = simpleGit(options);
+    await expect(git.raw(['config', '--get', credentialEnvironment.GIT_CONFIG_KEY_0]))
+      .resolves.toBe(`${credentialEnvironment.GIT_CONFIG_VALUE_0}\n`);
+    await expect(git.raw(['config', '--get', credentialEnvironment.GIT_CONFIG_KEY_1]))
+      .resolves.toBe('false\n');
+  });
+
+  it.each([
+    { GIT_CONFIG_COUNT: '3' },
+    { GIT_CONFIG_VALUE_0: '!arbitrary-command' },
+    { GIT_CONFIG_KEY_0: 'core.sshCommand' },
+    { GIT_CONFIG_VALUE_1: 'true' },
+    { DMS_GIT_HTTP_AUTH_SCOPE: 'https://user:secret@git.example.test' },
+    { DMS_GIT_HTTP_AUTH_SCOPE: 'https://git.example.test/path' },
+  ])('does not propagate altered or unscoped credential environment: %o', (override) => {
+    const options = buildDmsGitOptions('/documents', { ...credentialEnvironment, ...override });
+    expect(options.config)
+      .toEqual(['safe.directory=/documents']);
+    expect(options).not.toHaveProperty('unsafe');
+  });
 });

@@ -1,5 +1,7 @@
 # Changelog
 
+2026-10-06 DMS의 simple-git 4 Docker secret 인증 전달 호환성을 고정 credential helper 계약으로 복구했다. [실제 적용 검증 기록](common/explanation/architecture/2026-10-06-repo-local-release.md).
+
 2026-10-06 GitLab `4bc0af35`의 DB 복구·선택 빌드·DMS 진단 이력을 현재 immutable release 계약에 통합했다. [통합 기준](common/explanation/architecture/2026-10-06-repo-local-release.md).
 
 * **workspace:** 2026-10-06 전체 레포의 로컬 Docker 갱신과 GitHub/GitLab 동기화를 준비하며 공개 전 의존성 감사 차단을 복구한다. [진행 기록](common/explanation/architecture/2026-10-06-repo-local-release.md).
