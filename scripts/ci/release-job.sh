@@ -48,7 +48,7 @@ capacity() {
     docker image prune --force
     free="$(engine_free_kb "$root")"
   fi
-  (( free >= required )) || { echo '[release] insufficient disk space; running/recovery images preserved' >&2; return 1; }
+  (( free >= required )) || { echo "[release] insufficient disk space; running/recovery images preserved (free_kb=$free required_kb=$required)" >&2; return 1; }
 }
 engine_free_kb() {
   if [[ -d "$1" ]]; then
@@ -145,7 +145,8 @@ prepare() {
       state retired-images > "$release_dir/retired-images.txt"
       while IFS= read -r ref; do docker image rm "$ref"; done < "$release_dir/retired-images.txt"
     fi
-    capacity
+    # verify/plan: the verify image build leaves BuildKit cache behind on the small runner (#194 plan).
+    capacity "" full
 }
 state env-overlay "$CI_RELEASE_ENV_FILE" "${CI_RELEASE_DMS_ENV_FILE:?}" "$APP_DIR"
 case "$job" in

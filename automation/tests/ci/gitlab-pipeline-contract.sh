@@ -59,6 +59,7 @@ assert_contains "$repo_root/scripts/ci/release-job.sh" '-e DB_INIT_BASELINE_MODE
 # Build targets escalate to a full BuildKit cache prune on the small runner disk (#193).
 assert_contains "$repo_root/scripts/ci/release-job.sh" 'docker builder prune --all --force'
 assert_contains "$repo_root/scripts/ci/release-job.sh" 'capacity "${CI_BUILD_TARGET_MIN_FREE_KB:-3145728}" full'
+assert_count "$repo_root/scripts/ci/release-job.sh" 'capacity "" full' 2
 assert_contains "$job_runner" 'git -C "$CI_PROJECT_DIR" worktree add --detach'
 assert_contains "$repo_root/scripts/ci/release-job.sh" '--no-build --no-deps'
 assert_contains "$repo_root/scripts/ci/release-job.sh" 'automatic rollback forbidden'
