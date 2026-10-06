@@ -9,7 +9,8 @@ lock_file="${CI_APP_LOCK_FILE:-/tmp/ssoo-app-runtime.lock}"
 lock_timeout="${CI_APP_LOCK_TIMEOUT_SECONDS:-7200}"
 exec 9>"$lock_file"
 flock -w "$lock_timeout" 9 || { echo '[ci-job] host lock timeout' >&2; exit 1; }
-export CI_RELEASE_STATE_DIR="${CI_RELEASE_STATE_DIR:-/var/lib/ssoo/releases}"
+export CI_RELEASE_STATE_DIR="${CI_RELEASE_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases}"
+[[ "$CI_RELEASE_STATE_DIR" == /* && "$CI_RELEASE_STATE_DIR" != / && "$CI_RELEASE_STATE_DIR" != *:* ]] || exit 2
 export CI_RELEASE_RUNTIME_DIR="${CI_RELEASE_RUNTIME_DIR:-$APP_DIR}"
 export CI_RELEASE_ENV_FILE="${CI_RELEASE_ENV_FILE:-$APP_DIR/.env}"
 export CI_RELEASE_DMS_ENV_FILE="${CI_RELEASE_DMS_ENV_FILE:-$APP_DIR/apps/web/dms/.env.local}"

@@ -451,3 +451,7 @@ docker desktop status
 ### 2026-10-06 게시 직전 CI 이력 동기화
 
 GitLab `6115462b`를 통합했다. AI review는 최신 성공 development 배포를 전체 페이지에서 찾고 파일 단위 예산·우선순위·누락 파일/UNKNOWN 판정을 보고한다. AI/API 문제는 report로 남겨 비차단 처리하되 실제 runner 실패는 job 실패로 유지한다. diagnose는 마지막 stage에서 선행 실패 시 자동 실행한다. exact-commit source/manifest/rehearsal/수동 deploy 및 기본 전체 빌드는 유지하며 과거 mutable-image runner의 `[full build]` marker 코드는 다시 도입하지 않는다.
+
+### GitLab runner 상태 디렉터리 복구
+
+양쪽 원격 `6ffc1693` 게시 후 pipeline #189의 verify가 `/var/lib/ssoo` 생성 권한 부족으로 중단됐다. 기본 release state를 runner 계정의 `${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases`로 옮기고 명시 `CI_RELEASE_STATE_DIR`는 보존한다. 저장소 checkout/임시 경로 밖의 지속 저장소와 `umask 077`을 유지한다. root 권한이나 실서버 변경 없이 exact-commit worktree와 직접 release entrypoint의 같은 경로 선택·명시 override·plan-only 차단을 회귀 검사한다.

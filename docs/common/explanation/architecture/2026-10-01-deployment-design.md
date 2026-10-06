@@ -70,7 +70,7 @@ Compose 변경안:
 
 ## 4. 이미지와 release manifest
 
-위치 제안: 호스트의 `/var/lib/ssoo/releases/<pipeline-id>-<sha>/`. 임시 `/tmp`를 유일한 복구 기록 저장소로 사용하지 않는다. CI artifact에는 비밀 없는 manifest/검증 요약만 올린다.
+기본 위치: runner 계정의 `${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases/<pipeline-id>-<sha>/`. 관리자가 준비한 `/var/lib/ssoo/releases` 등은 `CI_RELEASE_STATE_DIR`로 명시한다. 임시 `/tmp`를 유일한 복구 기록 저장소로 사용하지 않는다. CI artifact에는 비밀 없는 manifest/검증 요약만 올린다.
 
 | 파일 | 내용 |
 |---|---|
@@ -127,7 +127,7 @@ release 예시의 필드 계약:
 | 배치 | 기존 `COMPOSE_PROJECT_NAME=app`, 포트 3000~3004/4000, DB volume 유지 |
 | DMS | staging의 prod 역할과 `LSWIKI_DOC` 유지. Git 인증secret·branch·mount 권한 검증 |
 | DB | 일회성 baseline 전환 후 staging/production 모두 `DB_INIT_BASELINE_MODE=strict` |
-| 상태 저장 | 신규 `CI_RELEASE_STATE_DIR=/var/lib/ssoo/releases` |
+| 상태 저장 | `CI_RELEASE_STATE_DIR` 명시값 우선, 기본 `${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases` |
 | 호스트 잠금 | 우선 기존 `/tmp/ssoo-app-runtime.lock` 유지. build/정리/rehearse/deploy 직렬화 |
 | 활성화 | 신규 `CI_DEPLOY_MODE=plan-only`로 검증 후 `apply`로 전환 (다른 값은 거부). `CI_INCREMENTAL_BUILD=false`에서 회귀 통과 후 true. GitLab 10.4 API 변수 대신 보호된 설정 사용 |
 

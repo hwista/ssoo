@@ -5,7 +5,7 @@ umask 077
 job="${1:?job required}"
 : "${APP_DIR:?}" "${CI_COMMIT_SHA:?}" "${CI_PIPELINE_ID:?}"
 [[ "$CI_COMMIT_SHA" =~ ^[a-f0-9]{40}$ && "$CI_PIPELINE_ID" =~ ^[0-9]+$ ]] || exit 2
-release_root="${CI_RELEASE_STATE_DIR:-/var/lib/ssoo/releases}"
+release_root="${CI_RELEASE_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases}"
 [[ "$release_root" == /* && "$release_root" != / && "$release_root" != *:* ]] || exit 2
 release_dir="$release_root/$CI_PIPELINE_ID-$CI_COMMIT_SHA"
 mkdir -p "$release_dir"

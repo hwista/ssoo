@@ -8,7 +8,6 @@ stages:
   - diagnose
 
 variables:
-  CI_RELEASE_STATE_DIR: "/var/lib/ssoo/releases"
   CI_DEPLOY_MODE: "plan-only"
   CI_INCREMENTAL_BUILD: "false"
   APP_DIR: "/opt/ssoo/app"

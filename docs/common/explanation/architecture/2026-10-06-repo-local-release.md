@@ -62,3 +62,7 @@ DMS Git client는 entrypoint의 origin·count·key·고정 helper·useHttpPath�
 ## 게시 직전 원격 동시 변경
 
 첫 publish는 GitLab에 새 `6115462b`가 추가돼 fast-forward 검증에서 중단됐다. GitHub push 전에 중단됐으며 강제 push 없이 해당 CI 이력을 병합했다. AI review의 최신 성공 배포 선택·파일 예산 및 누락 표시, CI 이미지의 jq, 진단 safe.directory와 실패 시 자동 진단을 보존했다. 현 immutable release runner 및 수동 deploy는 유지한다. 제품 소스는 배포본과 동일하며 CI 계약·preflight·push guard를 다시 확인한다.
+
+### GitLab runner 상태 디렉터리 복구
+
+양쪽 원격 `6ffc1693` 게시 후 pipeline #189의 verify가 `/var/lib/ssoo` 생성 권한 부족으로 중단됐다. 기본 release state를 runner 계정의 `${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases`로 옮기고 명시 `CI_RELEASE_STATE_DIR`는 보존한다. 저장소 checkout/임시 경로 밖의 지속 저장소와 `umask 077`을 유지한다. root 권한이나 실서버 변경 없이 exact-commit worktree와 직접 release entrypoint의 같은 경로 선택·명시 override·plan-only 차단을 회귀 검사한다.
