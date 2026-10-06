@@ -1,5 +1,7 @@
 # Changelog
 
+2026-10-06 GitLab #190의 verify CA 경로 오류를 수정했다. 추가 CA는 명시 설정일 때만 전달하며 잘못된 파일은 준비 작업 전에 거부한다. TLS 검증은 유지한다.
+
 2026-10-06 GitLab #189의 runner 상태 디렉터리 권한 실패를 사용자 소유의 영속 경로 기본값으로 복구했다. 명시 경로와 plan-only 배포 차단은 유지한다.
 
 2026-10-06 전체 레포의 로컬 Docker 갱신과 실제 복원·인증·5앱 브라우저 인수를 완료했다. Git 인증 호환 복구, 데이터 보존과 이미지 출처는 [최종 결과](common/explanation/architecture/2026-10-06-repo-local-release.md)에 기록했다.

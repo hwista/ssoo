@@ -25,9 +25,19 @@ export APP_DIR="$source_dir"
 cd "$APP_DIR"
 case "$job" in
   verify)
+    # Additional corporate trust is opt-in, just like the Compose build secret.
+    # The runner need not have Debian's CA bundle; node:22 has its own trust store.
+    verify_build_args=()
+    if [[ -n "${CI_VERIFY_TLS_CA_CERT_FILE:-}" ]]; then
+      if [[ ! -f "$CI_VERIFY_TLS_CA_CERT_FILE" || ! -r "$CI_VERIFY_TLS_CA_CERT_FILE" || ! -s "$CI_VERIFY_TLS_CA_CERT_FILE" ]]; then
+        echo '[ci-job] CI_VERIFY_TLS_CA_CERT_FILE must be a readable, non-empty regular file' >&2
+        exit 2
+      fi
+      verify_build_args+=(--secret "id=ssoo_tls_ca,src=$CI_VERIFY_TLS_CA_CERT_FILE")
+    fi
     bash scripts/ci/release-job.sh prepare
     verify_image="app-ci-verify:$CI_COMMIT_SHA"
-    docker build --secret "id=ssoo_tls_ca,src=${CI_VERIFY_TLS_CA_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}" --file docker/ci-verify.Dockerfile --tag "$verify_image" .
+    docker build "${verify_build_args[@]}" --file docker/ci-verify.Dockerfile --tag "$verify_image" .
     git_common="$(git rev-parse --path-format=absolute --git-common-dir)"
     docker run --rm --volume "$APP_DIR/.git:/app/.git:ro" --volume "$git_common:$git_common:ro" \
       "$verify_image" bash -lc 'pnpm run verify:gitlab-pipeline && pnpm run codex:preflight && pnpm lint && pnpm test:server'

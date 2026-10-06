@@ -283,7 +283,7 @@ GitLab `development` 최신 `2a2fbd7a208eb77b6763b16506f32f5bcb4384df`를 fetch�
 
 ### Runner 설정
 
-`CI_RELEASE_STATE_DIR`는 runner 계정이 쓰는 보호 디렉터리여야 한다. `APP_DIR=/opt/ssoo/app`의 기존 `.env`, DMS `.env.local`, 상대 runtime 경로는 보존한다. `CI_RELEASE_ENV_FILE`, `CI_RELEASE_DMS_ENV_FILE`, `CI_RELEASE_RUNTIME_DIR`로 실제 위치를 명시할 수 있다. `CI_VERIFY_TLS_CA_CERT_FILE` 기본값은 `/etc/ssl/certs/ca-certificates.crt`이며 빌드 CA는 Compose의 `SSOO_TLS_CA_CERT_FILE`을 사용한다.
+`CI_RELEASE_STATE_DIR`는 runner 계정이 쓰는 보호 디렉터리여야 한다. `APP_DIR=/opt/ssoo/app`의 기존 `.env`, DMS `.env.local`, 상대 runtime 경로는 보존한다. `CI_RELEASE_ENV_FILE`, `CI_RELEASE_DMS_ENV_FILE`, `CI_RELEASE_RUNTIME_DIR`로 실제 위치를 명시할 수 있다. `CI_VERIFY_TLS_CA_CERT_FILE`은 선택 설정이다. 미설정 시 verify는 Node 이미지의 기본 신뢰 저장소를 사용하며 runner의 특정 배포판 CA 경로를 요구하지 않는다. 사내 CA가 필요하면 runner가 읽을 수 있는 비어 있지 않은 일반 파일을 명시한다. 잘못 지정한 파일은 prepare/빌드 전에 실패하며 TLS 검증을 끄거나 조용히 무시하지 않는다. 앱 빌드 CA는 Compose의 `SSOO_TLS_CA_CERT_FILE`을 사용한다.
 
 | 입력 | 요구 사항 |
 |---|---|

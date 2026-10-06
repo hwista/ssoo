@@ -66,3 +66,11 @@ DMS Git client는 entrypoint의 origin·count·key·고정 helper·useHttpPath�
 ### GitLab runner 상태 디렉터리 복구
 
 양쪽 원격 `6ffc1693` 게시 후 pipeline #189의 verify가 `/var/lib/ssoo` 생성 권한 부족으로 중단됐다. 기본 release state를 runner 계정의 `${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases`로 옮기고 명시 `CI_RELEASE_STATE_DIR`는 보존한다. 저장소 checkout/임시 경로 밖의 지속 저장소와 `umask 077`을 유지한다. root 권한이나 실서버 변경 없이 exact-commit worktree와 직접 release entrypoint의 같은 경로 선택·명시 override·plan-only 차단을 회귀 검사한다.
+
+## GitLab #190 verify CA 경로 복구
+
+#190은 상태 디렉터리 권한 문제를 통과한 뒤 verify 이미지 빌드에서 runner에 없는 `/etc/ssl/certs/ca-certificates.crt`를 필수 secret 입력으로 전달해 실패했다. 추가 CA를 명시하지 않으면 Node 이미지의 기본 신뢰 저장소를 사용하도록 변경했다. `CI_VERIFY_TLS_CA_CERT_FILE`을 지정하면 읽기 가능한 비어 있지 않은 일반 파일인지 prepare 전에 검사하고 BuildKit secret으로 전달한다. TLS 검증과 Dockerfile의 optional CA 처리는 유지한다.
+
+실제 wrapper와 임시 Git worktree를 실행하는 회귀 검사는 CA 미설정·명시 파일(공백 경로 포함)·누락·빈 파일·디렉터리 입력을 다룬다. 이번 변경은 CI 실행 경로에 한정되며 로컬 앱 이미지의 소스는 이전 검증 결과와 같다.
+
+검증: CI 계약 56개와 AI review shell 시나리오, `codex:verify-sync`, `codex:push-guard`, lint, `codex:platform-guard`(서버+5앱 빌드, 서버 100 suites/766 tests)가 통과했다. 서버 테스트 종료 시 기존 worker teardown 경고가 남았으나 테스트 실패는 없었다. 원격 성공 여부는 수정 커밋의 후속 pipeline 결과로 별도 확인한다.
