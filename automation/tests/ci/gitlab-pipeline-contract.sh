@@ -51,8 +51,14 @@ bash -n "$image_provenance"
 bash -n "$job_runner"
 bash -n "$repo_root/scripts/ci/release-job.sh"
 bash -n "$repo_root/scripts/ci/rehearse-release.sh"
-assert_contains "$pipeline" 'stage: rehearse'
-assert_contains "$pipeline" 'CI_DEPLOY_MODE: "plan-only"'
+# Staging deploys without the isolated rehearsal stage; the production apply path keeps it in release-job.sh.
+assert_not_contains "$pipeline" 'stage: rehearse'
+assert_contains "$pipeline" 'CI_DEPLOY_MODE: "staging"'
+assert_contains "$repo_root/scripts/ci/release-job.sh" 'state check-staging'
+assert_contains "$repo_root/scripts/ci/release-job.sh" '-e DB_INIT_BASELINE_MODE=compat db-init'
+# Build targets escalate to a full BuildKit cache prune on the small runner disk (#193).
+assert_contains "$repo_root/scripts/ci/release-job.sh" 'docker builder prune --all --force'
+assert_contains "$repo_root/scripts/ci/release-job.sh" 'capacity "${CI_BUILD_TARGET_MIN_FREE_KB:-3145728}" full'
 assert_contains "$job_runner" 'git -C "$CI_PROJECT_DIR" worktree add --detach'
 assert_contains "$repo_root/scripts/ci/release-job.sh" '--no-build --no-deps'
 assert_contains "$repo_root/scripts/ci/release-job.sh" 'automatic rollback forbidden'
@@ -65,7 +71,7 @@ assert_contains "$pipeline" 'when: on_failure'
 last_stage="$(awk '/^stages:/ { in_stages = 1; next } in_stages && /^  - / { last = $2; next } in_stages { exit } END { print last }' "$pipeline")"
 [[ "$last_stage" == "diagnose" ]] || fail "diagnose must be the last stage"
 
-assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 6
+assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 5
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"'
 assert_contains "$pipeline" 'COMPOSE_FILE: "compose.yaml:compose.staging.yaml"'
 if grep -Eq 'docker (rm|rmi|restart|stop|start|kill|image rm|volume|system prune|builder prune)|docker compose [^|]*(up|down|rm|restart|stop|start|create|run|pull|build)( |$)' "$runtime_diagnose"; then

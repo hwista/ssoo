@@ -234,12 +234,14 @@ export function cli(command, root, dir, ...args) {
       if (secret.file) secret.file = path.join(dir, 'secrets', name);
     }
     atomic(path.join(dir, 'compose.runtime.json'), runtimeCompose(config, plan));
-  } else if (command === 'check') {
+  } else if (command === 'check' || command === 'check-staging') {
     if (fs.existsSync(path.join(dir, 'deploy-attempt.json'))) throw new Error('Deployment already attempted; inspect DB/runtime and create a new release');
     const manifest = validateManifest(read(manifestFile)); assertCurrent(manifest, previous);
     const config = read(path.join(dir, 'config.json'));
     const current = read(path.join(dir, 'current-config.json'));
     if (stable(config) !== stable(current)) throw new Error('Environment changed after planning');
+    // Staging mode deploys without the isolated rehearsal; the production apply path requires it.
+    if (command === 'check-staging') return;
     const proof = read(path.join(dir, 'rehearsal.json'));
     if (proof.status !== 'passed' || proof.manifestHash !== hash(stable(manifest))) throw new Error('Missing or stale rehearsal');
     if (Date.now() - Date.parse(proof.checkedAt) > 24 * 60 * 60 * 1000 || Date.parse(proof.checkedAt) > Date.now() + 30_000 || !Number.isFinite(Date.parse(proof.checkedAt))) throw new Error('Rehearsal expired');
@@ -281,6 +283,10 @@ export function cli(command, root, dir, ...args) {
     console.log(String(read(manifestFile).database.changed));
   } else if (command === 'previous') {
     if (previous) console.log(path.join(root, previous.releaseId));
+  } else if (command === 'staging-evidence') {
+    // Written only after release-job.sh verified image identity and container health in staging mode.
+    const manifest = validateManifest(read(manifestFile));
+    atomic(path.join(dir, 'evidence.json'), { status: 'passed', releaseId: manifest.releaseId, mode: 'staging', checkedAt: new Date().toISOString() });
   } else if (command === 'commit') {
     const manifest = validateManifest(read(manifestFile)); assertCurrent(manifest, previous);
     const evidence = read(path.join(dir, 'evidence.json'));

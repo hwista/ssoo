@@ -3,12 +3,13 @@ stages:
   - ai_review
   - plan
   - build
-  - rehearse
   - deploy
   - diagnose
 
 variables:
-  CI_DEPLOY_MODE: "plan-only"
+  # staging: pre-deploy dump + compat db-init + health checks, without the isolated
+  # rehearsal and smoke-token gates of the production "apply" path (not used on staging yet).
+  CI_DEPLOY_MODE: "staging"
   CI_INCREMENTAL_BUILD: "false"
   APP_DIR: "/opt/ssoo/app"
   COMPOSE_PROJECT_NAME: "app"
@@ -75,15 +76,6 @@ build:
     - ssoo
   script:
     - bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" build
-  only:
-    - development
-
-rehearse:
-  stage: rehearse
-  tags:
-    - ssoo
-  script:
-    - bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" rehearse
   only:
     - development
 

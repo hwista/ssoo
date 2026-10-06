@@ -1,5 +1,7 @@
 # DMS 변경 이력
 
+2026-10-06 준운영 `staging` 배포 모드: 새 release pipeline(#189·#190)이 runner 권한·RHEL CA 경로로 verify에서 멈췄고, 정식 `apply`는 runner host의 복원 검증 백업·리허설·smoke token과 launch baseline DB를 요구해 준운영에 배포할 수 없었다. 사용자 결정으로 준운영은 `rehearse` 없이 배포 직전 DB/DMS 덤프 → compat db-init(기존 앱 무정지) → server·앱 교체 → health 확인으로 배포한다. 정식 `apply` 경로는 유지한다. 상세는 [배포 가이드](../guides/deployment.md)의 준운영 `staging` 배포 모드에 기록한다.
+
 2026-10-06 게시 직전 GitLab `6115462b`의 배포 범위 AI review·실패 시 자동 진단·jq CI 의존성을 통합했다. 실제 앱 소스와 배포 이미지의 변경은 없다.
 
 2026-10-06 GitLab `4bc0af35`의 DB 복구·선택 빌드·DMS 진단 이력을 현재 immutable release 계약에 통합했다. [통합 기준](../../common/explanation/architecture/2026-10-06-repo-local-release.md).

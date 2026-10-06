@@ -33,18 +33,21 @@ if(a[0]==='info'){console.log('/tmp');process.exit(0);}
 if(a[0]==='builder'&&a[1]==='prune') {
  log({event:'cache-prune'});fs.writeFileSync(root+'/cache-pruned','1');process.exit(0);
 }
+if(a[0]==='inspect' && a.some(x=>x.includes('State.Health'))){console.log(scenario==='staging-unhealthy'?'unhealthy':'healthy');process.exit(0);}
 if(a[0]==='inspect') {
  const service=SERVICES.find(s=>a[1]==='ssoo-'+s||a[1]==='fixture-'+s);
  if(!service) process.exit(91);
  console.log(manifest.services[service].imageId);process.exit(0);
 }
+if(a[0]==='exec' && a.join(' ').includes('pg_dump')){log({event:'backup-db'});process.stdout.write('fixture dump');process.exit(0);}
+if(a[0]==='exec' && a.join(' ').includes('tar -czf')){log({event:'backup-runtime'});process.stdout.write('fixture runtime');process.exit(0);}
 if(a[0]==='exec'){log({event:'core'});process.exit(scenario==='core-fail'?1:0);}
 if(a[0]==='compose') {
  if(a.includes('config')){console.log(JSON.stringify(config));process.exit(0);}
  if(a.includes('ps')){console.log('fixture-'+a[a.length-1]);process.exit(0);}
  if(a.includes('stop')){log({event:'stop'});process.exit(0);}
  if(a.includes('run')) {
-  const event=a.includes('node')?'config-check':a.includes('pnpm')?'db-verify':'db-apply';log({event,old});
+  const event=a.includes('node')?'config-check':a.includes('pnpm')?'db-verify':'db-apply';log({event,old,compat:a.includes('DB_INIT_BASELINE_MODE=compat')});
   if(event==='db-apply'&&scenario==='db-kill'){process.kill(process.ppid,'SIGKILL');process.exit(1);}
   if(scenario===event+'-fail') process.exit(1);
   process.exit(0);
@@ -54,7 +57,7 @@ if(a[0]==='compose') {
 console.error('unhandled fixture Docker command',a);process.exit(92);
 `.replace('const a=process.argv', `const SERVICES=${JSON.stringify(SERVICES)};\nconst a=process.argv`);
 
-function fixture(scenario, { changedDb = false } = {}) {
+function fixture(scenario, { changedDb = false, mode = 'apply' } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ssoo-release-job-test-'));
   const source = path.join(root, 'source'); fs.mkdirSync(path.join(source, 'scripts/ci'), { recursive: true });
   for (const file of ['release-job.sh', 'release-state.mjs']) fs.copyFileSync(path.join(repo, 'scripts/ci', file), path.join(source, 'scripts/ci', file));
@@ -97,8 +100,13 @@ printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\\nfixture 3355
   if (scenario === 'stale-evidence-fail') write(path.join(dir, 'evidence.json'), { status: 'passed', releaseId: manifest.releaseId });
   if (scenario === 'stale') write(path.join(root, 'last-successful.json'), { ...old, releaseId: '3-' + oldSha });
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, APP_DIR: source, CI_COMMIT_SHA: sha, CI_PIPELINE_ID: '2', CI_RELEASE_STATE_DIR: root,
-    CI_RELEASE_RUNTIME_DIR: root, CI_RELEASE_ENV_FILE: path.join(root, '.env'), CI_RELEASE_DMS_ENV_FILE: path.join(root, 'dms.env'), CI_DEPLOY_MODE: 'apply',
+    CI_RELEASE_RUNTIME_DIR: root, CI_RELEASE_ENV_FILE: path.join(root, '.env'), CI_RELEASE_DMS_ENV_FILE: path.join(root, 'dms.env'), CI_DEPLOY_MODE: mode,
     CI_BUILD_MIN_FREE_KB: '8388608', CI_SMOKE_TOKEN_FILE: path.join(root, 'token'), CI_RELEASE_BACKUP_EVIDENCE: path.join(root, 'fixture-backup.json'), FIXTURE_ROOT: root, FIXTURE_RELEASE: dir, FIXTURE_SCENARIO: scenario };
+  if (mode === 'staging') {
+    // Staging needs neither a smoke token, verified backup evidence nor a rehearsal proof.
+    delete env.CI_SMOKE_TOKEN_FILE; delete env.CI_RELEASE_BACKUP_EVIDENCE;
+    fs.rmSync(path.join(dir, 'rehearsal.json'));
+  }
   return { root, dir, old, manifest, run: () => {
     const result = spawnSync('bash', [path.join(source, 'scripts/ci/release-job.sh'), 'deploy'], { cwd: source, env, encoding: 'utf8', timeout: 30_000 });
     const events = fs.existsSync(path.join(root, 'events.jsonl')) ? fs.readFileSync(path.join(root, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse) : [];
@@ -153,6 +161,23 @@ check('failed rollback smoke keeps recovery-required and never advances success 
 });
 check('a stale successful smoke report cannot turn a new failed probe into success', 'stale-evidence-fail', {}, (r, f) => {
   assert.notEqual(r.status, 0); assert.equal(r.state, 'rolled-back'); assert.equal(r.last.releaseId, f.old.releaseId);
+});
+check('staging mode dumps first, runs compat db-init without stopping apps and commits on healthy images', 'success', { changedDb: true, mode: 'staging' }, (r, f) => {
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.state, 'committed'); assert.equal(r.last.releaseId, f.manifest.releaseId);
+  const names = r.events.map(e => e.event);
+  assert.ok(names.indexOf('backup-db') >= 0 && names.indexOf('backup-runtime') >= 0);
+  assert.ok(names.indexOf('backup-runtime') < names.indexOf('db-apply'));
+  assert.ok(r.events.find(e => e.event === 'db-apply').compat);
+  assert.ok(!names.includes('stop') && !names.includes('db-verify') && !names.includes('smoke'));
+  assert.deepEqual(r.events.filter(e => e.event === 'up').flatMap(e => e.services), ['server', 'admin', 'crm', 'pms', 'dms', 'sns']);
+  assert.ok(fs.existsSync(path.join(f.dir, 'staging-backup', 'SHA256SUMS')));
+});
+check('staging db-init failure keeps the previous apps running', 'db-apply-fail', { changedDb: true, mode: 'staging' }, (r, f) => {
+  assert.notEqual(r.status, 0); assert.equal(r.state, 'recovery-required'); assert.equal(r.last.releaseId, f.old.releaseId);
+  assert.ok(!r.events.some(e => e.event === 'stop' || e.event === 'up'));
+});
+check('staging never commits a release whose containers are unhealthy', 'staging-unhealthy', { mode: 'staging' }, (r, f) => {
+  assert.notEqual(r.status, 0); assert.notEqual(r.state, 'committed'); assert.equal(r.last.releaseId, f.old.releaseId);
 });
 test('SIGKILL during DB application leaves a durable marker and refuses replay before any new mutation', () => {
   const f = fixture('db-kill', { changedDb: true });

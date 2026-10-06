@@ -84,3 +84,11 @@ DMS Git client는 entrypoint의 origin·count·key·고정 helper·useHttpPath�
 #192의 새 verify 이미지 생성 후 배포 회귀 fixture가 실제 `/tmp` 여유 공간을 읽어 `builder prune` 미구현 분기로 실패했다. 가짜 엔진의 `df`도 fixture 입력으로 고정하고, 공간 부족 시 배포 차단 및 cache 정리 후 재측정·정상 배포를 추가 검증한다. 실제 release 용량 기준이나 정리/보존 정책은 변경하지 않는다.
 
 후속 로컬 검증: CI 계약 62개 및 push guard 통과, 전체 소스 임시 worktree의 preflight 통과(같은 lockfile의 패키지별 설치 의존성 재사용). 추가 로컬 verify 이미지 빌드는 registry 다운로드 시간 초과로 두 번 실패했으나 원격 #191/#192의 실제 이미지 빌드는 통과했다. 실패 로그를 보존하고 원격 최종 verify 성공은 별도로 확인한다.
+
+### 준운영 `staging` 배포 모드 (2026-10-06, 사용자 결정)
+
+정식 `apply` 경로는 1시간 이내 복원 검증 백업 증거, 24시간 이내 격리 리허설 증거, 전용 smoke token 파일을 runner host에 요구한다. 준운영은 아직 실사용 시스템이 아니고 runner host 접근 권한자가 없어 이 전제를 만들 수 없으며, 준운영 DB는 launch baseline 이전 상태(`public._prisma_migrations` 없음)라 `strict` db-init과 `db:runtime:verify`가 설계상 거부한다. 그대로 배포하면 앱을 먼저 정지한 뒤 db-init이 실패해 준운영 전체가 내려간다. 사용자 결정으로 준운영 pipeline은 `CI_DEPLOY_MODE=staging`을 쓰고 `rehearse` stage를 실행하지 않는다.
+
+- `staging`: plan 이후 설정·secret·image 일치 검사(`state check-staging`, 리허설 증거 제외) → 실행 중인 postgres/server에서 `pg_dump`(custom)와 DMS runtime(`DMS_MARKDOWN_ROOT`, `DMS_INGEST_QUEUE_PATH`, `DMS_STORAGE_LOCAL_BASE_PATH`) tar를 release 디렉터리의 `staging-backup/`에 SHA256SUMS와 함께 저장(복원 검증 없음) → server 설정 검증 → DB 변경 시 **기존 앱을 정지하지 않고** `DB_INIT_BASELINE_MODE=compat` db-init 실행(실패 시 이전 앱 유지, `recovery-required`) → `db:runtime:verify` 생략(사유 로그) → server 교체·core-readiness → 앱 교체 → 각 컨테이너가 sealed image이고 Docker health `healthy`인지 확인(최대 36회×5초) → `staging-evidence`·commit.
+- 정식 `apply`·`plan-only`·`rehearse` 경로와 그 검사는 변경하지 않았다. 운영 전환 시에는 DB를 launch baseline으로 옮기고 `apply`로 바꾼다.
+- build 용량: #193은 verify·plan을 통과했지만 server 빌드 후 다음 target의 8 GiB 검사에서 `--keep-storage` 정리가 0B만 비워 중단됐다. build target만 이전 runner와 같은 단계로 정리한다: 첫 target은 `CI_BUILD_MIN_FREE_KB`(8 GiB), 이후 target은 `CI_BUILD_TARGET_MIN_FREE_KB`(3 GiB) 기준이며, 보존량 정리 후에도 부족하면 `docker builder prune --all --force`와 dangling image 정리 후 재측정한다. tag가 있는 image와 실행 container는 지우지 않는다. deploy 단계의 용량 검사(1회 정리 후 판정)는 그대로다.

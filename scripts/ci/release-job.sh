@@ -31,13 +31,21 @@ trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 capacity() {
-  local root free required="${CI_BUILD_MIN_FREE_KB:-8388608}"
+  local root free required="${1:-${CI_BUILD_MIN_FREE_KB:-8388608}}" escalate="${2:-}"
   [[ "$required" =~ ^[0-9]+$ ]] || return 1
   root="$(docker info --format '{{.DockerRootDir}}')"
   free="$(engine_free_kb "$root")"
   [[ "$free" =~ ^[0-9]+$ ]] || return 1
   if (( free < required )); then
     docker builder prune --force --keep-storage "${CI_BUILD_CACHE_KEEP_STORAGE:-8GB}"
+    free="$(engine_free_kb "$root")"
+  fi
+  if (( free < required )) && [[ "$escalate" == full ]]; then
+    # Build targets on the small staging runner: like the previous runner, drop every unused
+    # BuildKit cache entry and dangling image. Tagged images and running containers are kept.
+    echo "[release] disk pressure (free_kb=$free required_kb=$required); pruning all unused BuildKit cache"
+    docker builder prune --all --force
+    docker image prune --force
     free="$(engine_free_kb "$root")"
   fi
   (( free >= required )) || { echo '[release] insufficient disk space; running/recovery images preserved' >&2; return 1; }
@@ -90,6 +98,41 @@ verify_release() {
     [[ "$actual" == "$expected" ]] || { echo "[release] deployed image mismatch: $service" >&2; return 1; }
   done < "$release_dir/image-list.tsv"
 }
+# Staging mode: no smoke account; every app container must run the sealed image and report healthy.
+verify_staging() {
+  local actual container_id service image expected health
+  local verify_compose=(docker compose -p "$project" -f "$release_dir/compose.runtime.json")
+  state list > "$release_dir/image-list.tsv" || return 1
+  while IFS=$'\t' read -r service image expected; do
+    [[ "$service" == db-init ]] && continue
+    container_id="$("${verify_compose[@]}" ps -q "$service")" || return 1
+    [[ -n "$container_id" ]] || return 1
+    actual="$(docker inspect "$container_id" --format '{{.Image}}')" || return 1
+    [[ "$actual" == "$expected" ]] || { echo "[release] deployed image mismatch: $service" >&2; return 1; }
+    health="$(docker inspect "$container_id" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')" || return 1
+    [[ "$health" == healthy ]] || { echo "[release] waiting for $service health=$health"; return 1; }
+  done < "$release_dir/image-list.tsv"
+  state staging-evidence
+}
+verify_deployment() {
+  if [[ "$deploy_mode" == staging ]]; then verify_staging; else verify_release; fi
+}
+# Staging mode: plain dump of the live database and DMS runtime files for manual recovery.
+# No restore drill; the archive stays in the private release directory (umask 077).
+staging_backup() {
+  local backup_dir="$release_dir/staging-backup" postgres_id server_id
+  mkdir -p "$backup_dir"
+  postgres_id="$("${runtime[@]}" ps -q postgres)"
+  [[ -n "$postgres_id" ]] || { echo '[release] staging backup: postgres is not running' >&2; return 1; }
+  docker exec "$postgres_id" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' > "$backup_dir/database.dump"
+  server_id="$("${runtime[@]}" ps -q server)"
+  [[ -n "$server_id" ]] || { echo '[release] staging backup: server is not running' >&2; return 1; }
+  docker exec "$server_id" sh -c 'tar -czf - "$DMS_MARKDOWN_ROOT" "$DMS_INGEST_QUEUE_PATH" "$DMS_STORAGE_LOCAL_BASE_PATH" 2>/dev/null' \
+    > "$backup_dir/dms-runtime.tar.gz"
+  [[ -s "$backup_dir/database.dump" && -s "$backup_dir/dms-runtime.tar.gz" ]] || { echo '[release] staging backup is empty' >&2; return 1; }
+  (cd "$backup_dir" && sha256sum database.dump dms-runtime.tar.gz > SHA256SUMS)
+  echo "[release] staging backup: $backup_dir ($(du -sh "$backup_dir" | cut -f1))"
+}
 prepare() {
   docker image inspect "$node_image" >/dev/null 2>&1 || docker pull "$node_image"
     mapfile -t retention_refs < <(docker image ls 'app-*' --format '{{.Repository}}:{{.Tag}}' | grep -E '^app-[a-z-]+:[a-f0-9]{40}$' || true)
@@ -135,8 +178,12 @@ case "$job" in
     bake_allow_args=()
     while IFS=$'\t' read -r name file; do bake_allow_args+=("--allow=fs.read=$file"); done < "$release_dir/secret-list.tsv"
     state list build > "$release_dir/build-list.tsv"
+    built_targets=0
     while IFS=$'\t' read -r service image expected; do
-      capacity
+      # Full threshold before the first target, the smaller per-target threshold afterwards (#193).
+      if (( built_targets == 0 )); then capacity "" full
+      else capacity "${CI_BUILD_TARGET_MIN_FREE_KB:-3145728}" full; fi
+      built_targets=$((built_targets + 1))
       if docker image inspect "$image" >/dev/null 2>&1; then
         echo "[release] immutable build tag already exists: $image; use a new pipeline" >&2; exit 1
       fi
@@ -158,34 +205,52 @@ case "$job" in
     ;;
   deploy)
     # Validate all inputs BEFORE selecting images or touching the running stack.
-    case "${CI_DEPLOY_MODE:-plan-only}" in
+    deploy_mode="${CI_DEPLOY_MODE:-plan-only}"
+    case "$deploy_mode" in
       plan-only) echo "[release] plan-only: $release_dir (no runtime changes)"; exit 1 ;;
-      apply) ;;
+      apply|staging) ;;
       *) echo '[release] invalid CI_DEPLOY_MODE' >&2; exit 2 ;;
     esac
-    : "${CI_SMOKE_TOKEN_FILE:?required before deployment}"
-    [[ -s "$CI_SMOKE_TOKEN_FILE" ]] || exit 1
+    if [[ "$deploy_mode" == apply ]]; then
+      : "${CI_SMOKE_TOKEN_FILE:?required before deployment}"
+      [[ -s "$CI_SMOKE_TOKEN_FILE" ]] || exit 1
+    fi
     "${compose[@]}" config --format json > "$release_dir/current-config.json"
-    state check
+    if [[ "$deploy_mode" == apply ]]; then state check; else state check-staging; fi
     state secrets > "$release_dir/secret-list.tsv"
     while IFS=$'\t' read -r name file; do
       cmp -s "$file" "$release_dir/secrets/$name" || { echo '[release] secret changed since build' >&2; exit 1; }
     done < "$release_dir/secret-list.tsv"
     assert_images
     capacity
-    # A verified, consistent DB+files backup is an explicit prerequisite. Do not
-    # manufacture restoration evidence from an untested pg_dump or a boolean flag.
-    : "${CI_RELEASE_BACKUP_EVIDENCE:?Path to verified backup JSON for this release}"
-    cp "$CI_RELEASE_BACKUP_EVIDENCE" "$release_dir/backup-evidence.json"
-    state backup-check
+    runtime=(docker compose -p "$project" -f "$release_dir/compose.runtime.json")
+    if [[ "$deploy_mode" == apply ]]; then
+      # A verified, consistent DB+files backup is an explicit prerequisite. Do not
+      # manufacture restoration evidence from an untested pg_dump or a boolean flag.
+      : "${CI_RELEASE_BACKUP_EVIDENCE:?Path to verified backup JSON for this release}"
+      cp "$CI_RELEASE_BACKUP_EVIDENCE" "$release_dir/backup-evidence.json"
+      state backup-check
+    else
+      staging_backup
+    fi
     previous_dir="$(state previous)"
     state state backed-up
-    runtime=(docker compose -p "$project" -f "$release_dir/compose.runtime.json")
     "${runtime[@]}" run --rm --no-deps --entrypoint node server -e "import('/app/apps/server/dist/config/config.validation.js').then(m=>{if(m.configValidationSchema.validate(process.env,{allowUnknown:true}).error)process.exit(1)}).catch(()=>process.exit(1))"
     db_changed="$(state db-changed)"
     state begin-deploy
     deploy_started=true
-    if [[ "$db_changed" == true ]]; then
+    if [[ "$db_changed" == true && "$deploy_mode" == staging ]]; then
+      # The staging DB predates the launch baseline (no public._prisma_migrations), so strict
+      # db-init and db:runtime:verify reject it by design. Use the compat path staging has always
+      # used, and keep the running apps up so a failed db-init leaves the old release serving.
+      state state db-applying
+      if ! "${runtime[@]}" --profile operations run --rm --no-deps -e DB_INIT_BASELINE_MODE=compat db-init; then
+        state state recovery-required
+        bash scripts/ci/diagnose-runtime.sh || true
+        echo "[release] staging db-init failed; previous apps keep running. Dump: $release_dir/staging-backup" >&2
+        exit 1
+      fi
+    elif [[ "$db_changed" == true ]]; then
       # Until old-app/new-schema compatibility is proved, use a maintenance
       # window: no old process may write while migrations change its contract.
       "${runtime[@]}" stop server admin crm pms dms sns
@@ -197,7 +262,9 @@ case "$job" in
         exit 1
       fi
     fi
-    if ! "${runtime[@]}" --profile operations run --rm --no-deps --entrypoint pnpm db-init --filter @ssoo/database db:runtime:verify; then
+    if [[ "$deploy_mode" == staging ]]; then
+      echo '[release] staging: db:runtime:verify skipped (pre-baseline compat database)'
+    elif ! "${runtime[@]}" --profile operations run --rm --no-deps --entrypoint pnpm db-init --filter @ssoo/database db:runtime:verify; then
       state state recovery-required
       exit 1
     fi
@@ -219,10 +286,12 @@ case "$job" in
     fi
     if [[ "$failed" == 0 ]]; then
       state state apps-ready
-      # Bounded retries allow new web listeners to finish starting.
+      # Bounded retries allow new web listeners to finish starting (staging waits for healthchecks).
       verified=0
-      for attempt in $(seq 1 12); do
-        if verify_release; then verified=1; break; fi
+      verify_attempts=12
+      if [[ "$deploy_mode" == staging ]]; then verify_attempts=36; fi
+      for attempt in $(seq 1 "$verify_attempts"); do
+        if verify_deployment; then verified=1; break; fi
         sleep 5
       done
       [[ "$verified" == 1 ]] || failed=1
@@ -235,7 +304,7 @@ case "$job" in
         if docker compose -p "$project" -f "$previous_dir/compose.runtime.json" up -d --no-build --no-deps server admin crm pms dms sns && wait_core; then
           state state rollback-pending-verification
           failed_dir="$release_dir"; release_dir="$previous_dir"
-          if verify_release; then release_dir="$failed_dir"; state state rolled-back
+          if verify_deployment; then release_dir="$failed_dir"; state state rolled-back
           else release_dir="$failed_dir"; state state recovery-required; fi
         else state state recovery-required; fi
       else

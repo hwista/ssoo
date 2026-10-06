@@ -455,3 +455,7 @@ GitLab `6115462b`를 통합했다. AI review는 최신 성공 development 배포
 ### GitLab runner 상태 디렉터리 복구
 
 양쪽 원격 `6ffc1693` 게시 후 pipeline #189의 verify가 `/var/lib/ssoo` 생성 권한 부족으로 중단됐다. 기본 release state를 runner 계정의 `${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases`로 옮기고 명시 `CI_RELEASE_STATE_DIR`는 보존한다. 저장소 checkout/임시 경로 밖의 지속 저장소와 `umask 077`을 유지한다. root 권한이나 실서버 변경 없이 exact-commit worktree와 직접 release entrypoint의 같은 경로 선택·명시 override·plan-only 차단을 회귀 검사한다.
+
+### 준운영 `staging` 배포 모드 (2026-10-06)
+
+준운영 GitLab pipeline은 `verify → ai_review → plan → build → deploy_dev(manual) → diagnose(on_failure)`이며 `CI_DEPLOY_MODE=staging`이다. `rehearse` stage는 실행하지 않는다. deploy는 실행 중인 postgres/server에서 DB `pg_dump`와 DMS runtime tar를 release 디렉터리 `staging-backup/`(SHA256SUMS 포함, 복원 검증 없음)에 먼저 남기고, DB 변경이 있으면 기존 앱을 정지하지 않은 채 `DB_INIT_BASELINE_MODE=compat` db-init을 실행한다. 준운영 DB는 launch baseline 이전 상태라 `strict` db-init과 `db:runtime:verify`를 쓸 수 없기 때문이다. db-init이 실패하면 이전 앱이 계속 응답하고 job은 `recovery-required`로 실패하며, 복구는 해당 덤프로 수동 수행한다. 성공하면 server(core-readiness) → 앱 순으로 교체하고 모든 컨테이너의 sealed image 일치와 Docker health `healthy`를 확인한 뒤 commit한다. 정식 `apply`(복원 검증 백업·격리 리허설·smoke token 필수)와 `plan-only`는 변경하지 않았다. 근거와 결정 경위는 `docs/common/explanation/architecture/2026-10-06-repo-local-release.md`에 기록한다.
