@@ -65,15 +65,15 @@ Platform deployment implementation — 2026-10-01 (local; remote activation pend
 GitLab staging deploy recovery — 2026-09-30 (staging restored 2026-10-06)
 -------------------------------------------------------------------------
 
-End of day 2026-10-06 (17:40 KST) — READ FIRST
-- Staging still serves the morning release `4bc0af35` (3000–3004 and `/api/health` OK; DMS readiness 503 unchanged). Nothing on the runtime has changed since.
-- Pipeline #196 (`6968564f`) was running at hand-off: verify, ai_review and plan passed; build (all 7 images) then the new `db_check` job. It STOPS at manual `deploy_dev`; nothing deploys by itself.
-- Next session:
-  1. Check #196 in GitLab CI/CD → Jobs (the Pipelines list stage icons lag while a pipeline runs, a GitLab 10.4 server-side issue; Jobs is accurate).
-  2. If `db_check` passed: press `deploy_dev` (dump → compat db-init with the 7 launch migrations → server → apps → health → commit). The deploy refuses to start when the db_check is older than 24 hours; then Retry `db_check` first.
-  3. If `db_check` failed: real staging data hit a migration check (e.g. four-digit business years, duplicate CRM planning keys). Staging is untouched; read the job log and fix the data or migration with the DB owner (hwiseong).
-  4. After a successful deploy: check 3000–3004 and `/api/health`, then read DMS settings → operations (`/settings/operations/git`) for the blocked readiness check.
-  5. Clean-up agreed with the user: remove the `ai_review` job (advisory only, nobody reads the report; verify/db_check/health checks are the real gates) together with its script and contract scenarios.
+Late evening 2026-10-06 (23:40 KST) — READ FIRST
+- Staging now serves release `6968564f` (pipeline #196). All jobs passed: build 17:33–17:54, `db_check` 17:55 (two db-init runs on a live-DB copy: 7 launch migrations applied, second run "already applied", db push in sync, 90/90 triggers enabled), `deploy_dev` 23:27–23:28 KST (job 465, 68 s).
+- Deploy log (job 465): pre-deploy backup `staging-backup` 50M in the release dir (`/home/lsi_dmsadmin/.local/state/ssoo/releases/196-6968564f…/`), the 7 launch migrations applied to the real staging DB, db push in sync (no drops), server + 5 apps recreated, `verify_staging` passed (every container runs the sealed image and is Docker `healthy`) → `[release] deployed 196-6968564f…`.
+- NOT yet verified: HTTP responses of 3000–3004, `/api/health`, `/api/health/readiness`. Checked from home over the Cato VPN and every request got the Cato "WAN Firewall policy violation" 403 page (GitLab API on the same VPN works). `verify_staging` only checks Docker health, so DMS readiness 503 is still unknown after this deploy.
+- Next session (from the office network):
+  1. Open 3000–3004 and `http://10.125.12.170:4000/api/health`; if anything fails, restore from `staging-backup/` (see "Release state" below).
+  2. Read `http://10.125.12.170:4000/api/health/readiness` and DMS settings → operations (`/settings/operations/git`) for the blocked readiness check. `diagnose_runtime` is `when: on_failure` now (`.gitlab-ci.yml`), so it is skipped on a successful pipeline and cannot be played for #196.
+  3. Clean-up agreed with the user: remove the `ai_review` job (advisory only, nobody reads the report; verify/db_check/health checks are the real gates) together with its script and contract scenarios.
+  4. Minor follow-up: `20260930090000_move_crm_business_years` and `20260930100000_move_common_codes` print psql `WARNING: there is already a transaction in progress` / `there is no transaction in progress` (their own BEGIN/COMMIT inside the outer transaction of `apply-compat-launch-migrations.sh`), so the file's COMMIT ends the wrapper transaction early. Harmless this time (applied, in sync); check the atomicity in that script.
 - Today's chain on the new release runner: #189/#190 runner state dir and RHEL CA path (teammate fixes), #193/#194 BuildKit cache disk pressure (full prune escalation), #195 deploy stopped safely when db push wanted to drop `cm_code_m`/`cm_code_h` → compat db-init now applies launch migrations newer than `20260917100000` (`packages/database/scripts/apply-compat-launch-migrations.sh`, shims in `prisma/compat/launch-shims/`), verified locally on a DB at the `4bc0af35` schema (7 applied, second run no-op, db push in sync).
 - Work from WSL: run Claude Code inside WSL (`~/dev/LSWIKI-src`) or VS Code Remote-WSL; Windows-side writes to `\\wsl.localhost` fail with EPERM.
 
@@ -112,8 +112,9 @@ Follow-up plan
 
 Environment facts (do not rediscover)
 - Develop, commit and push only in WSL `~/dev/LSWIKI-src`. The Windows checkout `D:\dev\LSWIKI-src` cannot run the pnpm hooks (64-bit `cmd.exe` spawn is blocked there) and is stale.
-- GitLab is 10.4.4: pipeline API `variables` are IGNORED (dry-run via API does not work); `-o ci.skip` is unsupported (use `[ci skip]` in the commit body). SSH port 22 to 10.125.31.72 and 10.125.12.170 is blocked from this PC, so there is no direct host access; use the `diagnose_runtime` manual job (read-only, no runtime lock, masks secrets).
+- GitLab is 10.4.4: pipeline API `variables` are IGNORED (dry-run via API does not work); `-o ci.skip` is unsupported (use `[ci skip]` in the commit body). SSH port 22 to 10.125.31.72 and 10.125.12.170 is blocked from this PC, so there is no direct host access; the `diagnose_runtime` job (read-only, no runtime lock, masks secrets) now runs only when an earlier job fails (`when: on_failure`).
 - GitLab API from WSL: the PAT in `~/.git-credentials` works as `PRIVATE-TOKEN` (never print it). Project `LSITC_WEB%2FLSWIKI`; `POST /jobs/:id/play` and `/pipelines/:id/cancel` work with Developer access.
+- From home over the Cato VPN, staging HTTP (10.125.12.170:3000–3004, 4000) is blocked by a Cato "WAN Firewall policy violation" page; GitLab 10.125.31.72:8010 stays reachable. Do HTTP checks from the office network.
 - Corporate TLS root `LSITC_ePrism` is trusted in WSL (`/usr/local/share/ca-certificates/lsitc-eprism.crt`, `NODE_EXTRA_CA_CERTS` via `/etc/profile.d/node-extra-ca.sh`).
 
 Security follow-ups (owner: user/operator)
