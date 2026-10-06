@@ -78,3 +78,9 @@ DMS Git client는 entrypoint의 origin·count·key·고정 helper·useHttpPath�
 ## GitLab #191 preflight worktree 복구
 
 `f4c2e8b7`의 #191은 추가 CA 없이 verify 이미지 빌드와 CI 계약 56개를 통과했다. 이어진 preflight가 `.git` 디렉터리만 허용해 정상 linked worktree의 `.git` 파일을 거부했다. 저장소 루트를 Git의 `rev-parse --show-toplevel`로 확인하도록 수정하고 일반 checkout·linked worktree 통과 및 저장소 없음·깨진 gitdir 거부를 검사한다. 이후 검증 단계를 생략하지 않는다.
+
+## GitLab #192 배포 테스트의 디스크 입력 격리
+
+#192의 새 verify 이미지 생성 후 배포 회귀 fixture가 실제 `/tmp` 여유 공간을 읽어 `builder prune` 미구현 분기로 실패했다. 가짜 엔진의 `df`도 fixture 입력으로 고정하고, 공간 부족 시 배포 차단 및 cache 정리 후 재측정·정상 배포를 추가 검증한다. 실제 release 용량 기준이나 정리/보존 정책은 변경하지 않는다.
+
+후속 로컬 검증: CI 계약 62개 및 push guard 통과, 전체 소스 임시 worktree의 preflight 통과(같은 lockfile의 패키지별 설치 의존성 재사용). 추가 로컬 verify 이미지 빌드는 registry 다운로드 시간 초과로 두 번 실패했으나 원격 #191/#192의 실제 이미지 빌드는 통과했다. 실패 로그를 보존하고 원격 최종 verify 성공은 별도로 확인한다.

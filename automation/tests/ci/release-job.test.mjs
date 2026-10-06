@@ -30,6 +30,9 @@ if(a[0]==='image'&&a[1]==='inspect') {
  console.log(scenario==='wrong-image'?'sha256:'+'f'.repeat(64):manifest.services[service].imageId);process.exit(0);
 }
 if(a[0]==='info'){console.log('/tmp');process.exit(0);}
+if(a[0]==='builder'&&a[1]==='prune') {
+ log({event:'cache-prune'});fs.writeFileSync(root+'/cache-pruned','1');process.exit(0);
+}
 if(a[0]==='inspect') {
  const service=SERVICES.find(s=>a[1]==='ssoo-'+s||a[1]==='fixture-'+s);
  if(!service) process.exit(91);
@@ -59,6 +62,16 @@ function fixture(scenario, { changedDb = false } = {}) {
   const bin = path.join(root, 'bin'); fs.mkdirSync(bin);
   fs.writeFileSync(path.join(bin, 'docker'), dockerFixture, { mode: 0o755 });
   fs.writeFileSync(path.join(bin, 'sleep'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  // All engine inputs must belong to the fixture, including disk capacity.
+  // Reading the runner's real /tmp made success depend on concurrent builds.
+  fs.writeFileSync(path.join(bin, 'df'), `#!/bin/sh
+free=16777216
+case "$FIXTURE_SCENARIO" in
+  disk-full) free=1024 ;;
+  disk-recovered) [ -f "$FIXTURE_ROOT/cache-pruned" ] || free=1024 ;;
+esac
+printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\\nfixture 33554432 0 %s 0%% /tmp\\n' "$free"
+`, { mode: 0o755 });
   const sha = 'b'.repeat(40), oldSha = 'a'.repeat(40);
   const config = { services: Object.fromEntries(SERVICES.map(s => [s, { build: { context: source }, environment: { DATABASE_URL: 'postgresql://fixture@postgres/fixture' } }])) };
   const old = planRelease({ sha: oldSha, pipeline: '1', files: [], config, key: 'test', baseImages: [] });
@@ -85,7 +98,7 @@ function fixture(scenario, { changedDb = false } = {}) {
   if (scenario === 'stale') write(path.join(root, 'last-successful.json'), { ...old, releaseId: '3-' + oldSha });
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, APP_DIR: source, CI_COMMIT_SHA: sha, CI_PIPELINE_ID: '2', CI_RELEASE_STATE_DIR: root,
     CI_RELEASE_RUNTIME_DIR: root, CI_RELEASE_ENV_FILE: path.join(root, '.env'), CI_RELEASE_DMS_ENV_FILE: path.join(root, 'dms.env'), CI_DEPLOY_MODE: 'apply',
-    CI_SMOKE_TOKEN_FILE: path.join(root, 'token'), CI_RELEASE_BACKUP_EVIDENCE: path.join(root, 'fixture-backup.json'), FIXTURE_ROOT: root, FIXTURE_RELEASE: dir, FIXTURE_SCENARIO: scenario };
+    CI_BUILD_MIN_FREE_KB: '8388608', CI_SMOKE_TOKEN_FILE: path.join(root, 'token'), CI_RELEASE_BACKUP_EVIDENCE: path.join(root, 'fixture-backup.json'), FIXTURE_ROOT: root, FIXTURE_RELEASE: dir, FIXTURE_SCENARIO: scenario };
   return { root, dir, old, manifest, run: () => {
     const result = spawnSync('bash', [path.join(source, 'scripts/ci/release-job.sh'), 'deploy'], { cwd: source, env, encoding: 'utf8', timeout: 30_000 });
     const events = fs.existsSync(path.join(root, 'events.jsonl')) ? fs.readFileSync(path.join(root, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse) : [];
@@ -101,6 +114,17 @@ check('unchanged DB deploy updates CRM alone and commits after smoke', 'success'
   assert.equal(r.status, 0, r.stderr); assert.equal(r.state, 'committed'); assert.equal(r.last.releaseId, f.manifest.releaseId);
   assert.deepEqual(r.events.filter(e => e.event === 'up').flatMap(e => e.services), ['crm']);
   assert.ok(!r.events.some(e => e.event === 'db-apply'));
+});
+check('insufficient disk after cache cleanup blocks deployment without touching apps or DB', 'disk-full', {}, (r, f) => {
+  assert.notEqual(r.status, 0); assert.match(r.stderr, /insufficient disk space/);
+  assert.equal(r.last.releaseId, f.old.releaseId);
+  assert.deepEqual(r.events, [{ event: 'cache-prune' }]);
+});
+check('capacity is rechecked after cache cleanup before allowing deployment', 'disk-recovered', {}, r => {
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.state, 'committed');
+  assert.equal(r.events[0].event, 'cache-prune');
+  assert.equal(r.events.filter(e => e.event === 'cache-prune').length, 1);
+  assert.deepEqual(r.events.filter(e => e.event === 'up').flatMap(e => e.services), ['crm']);
 });
 for (const scenario of ['stale', 'wrong-image', 'config-check-fail']) check(`${scenario} leaves containers and DB untouched`, scenario, {}, r => {
   assert.notEqual(r.status, 0); assert.ok(!r.events.some(e => ['stop', 'db-apply', 'up'].includes(e.event)));
