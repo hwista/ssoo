@@ -3,7 +3,7 @@ set -euo pipefail
 umask 077
 job="${1:-}"
 : "${CI_PROJECT_DIR:?}" "${CI_COMMIT_SHA:?}" "${APP_DIR:?}"
-case "$job" in verify|ai-review|plan|build|rehearse|deploy) ;; *) echo 'Unknown CI job' >&2; exit 2 ;; esac
+case "$job" in verify|ai-review|plan|build|db-check|rehearse|deploy) ;; *) echo 'Unknown CI job' >&2; exit 2 ;; esac
 [[ "$CI_COMMIT_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
 lock_file="${CI_APP_LOCK_FILE:-/tmp/ssoo-app-runtime.lock}"
 lock_timeout="${CI_APP_LOCK_TIMEOUT_SECONDS:-7200}"
@@ -43,5 +43,5 @@ case "$job" in
       "$verify_image" bash -lc 'pnpm run verify:gitlab-pipeline && pnpm run codex:preflight && pnpm lint && pnpm test:server'
     ;;
   ai-review) bash scripts/ci/ai-review.sh ;;
-  plan|build|rehearse|deploy) bash scripts/ci/release-job.sh "$job" ;;
+  plan|build|db-check|rehearse|deploy) bash scripts/ci/release-job.sh "$job" ;;
 esac

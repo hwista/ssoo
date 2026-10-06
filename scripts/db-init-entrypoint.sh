@@ -18,6 +18,7 @@ TRIGGER_DIR="/workspace/packages/database/prisma/triggers"
 COMPAT_DIR="/workspace/packages/database/prisma/compat"
 POST_BASELINE_COMPAT_FILE="$COMPAT_DIR/post-baseline/normalize_protected_primary_keys.sql"
 MIGRATION_DIR="/workspace/packages/database/prisma/migrations"
+LAUNCH_MIGRATION_DIR="/workspace/packages/database/prisma/launch-migrations"
 PROTECTED_BASELINE_MIGRATIONS=(
   "$MIGRATION_DIR/20260702090000_add_crm_opportunity_ledger/migration.sql"
   "$MIGRATION_DIR/20260703093000_add_pms_asset_master/migration.sql"
@@ -164,6 +165,12 @@ else
 
   echo "[db-init] ▶ normalizing protected baseline primary key names"
   psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "$POST_BASELINE_COMPAT_FILE"
+
+  # Data-moving launch migrations (SET SCHEMA, backfills) must run before db push, which would
+  # otherwise turn them into drop/create with data loss.
+  echo "[db-init] ▶ applying launch migrations newer than the compat schema"
+  bash packages/database/scripts/apply-compat-launch-migrations.sh \
+    "$PSQL_URL" "$LAUNCH_MIGRATION_DIR" "$COMPAT_DIR/launch-shims"
 
   run_prisma_db_push=true
 

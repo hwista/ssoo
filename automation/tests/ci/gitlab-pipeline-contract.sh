@@ -60,6 +60,12 @@ assert_contains "$repo_root/scripts/ci/release-job.sh" '-e DB_INIT_BASELINE_MODE
 assert_contains "$repo_root/scripts/ci/release-job.sh" 'docker builder prune --all --force'
 assert_contains "$repo_root/scripts/ci/release-job.sh" 'capacity "${CI_BUILD_TARGET_MIN_FREE_KB:-3145728}" full'
 assert_count "$repo_root/scripts/ci/release-job.sh" 'capacity "" full' 2
+# db_check (copy of the live DB, db-init twice) gates the manual staging deploy.
+assert_contains "$pipeline" 'stage: db_check'
+assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" db-check'
+assert_contains "$repo_root/scripts/ci/release-job.sh" 'state db-check-required'
+assert_contains "$repo_root/scripts/db-init-entrypoint.sh" 'apply-compat-launch-migrations.sh'
+bash -n "$repo_root/packages/database/scripts/apply-compat-launch-migrations.sh"
 assert_contains "$job_runner" 'git -C "$CI_PROJECT_DIR" worktree add --detach'
 assert_contains "$repo_root/scripts/ci/release-job.sh" '--no-build --no-deps'
 assert_contains "$repo_root/scripts/ci/release-job.sh" 'automatic rollback forbidden'
@@ -72,7 +78,7 @@ assert_contains "$pipeline" 'when: on_failure'
 last_stage="$(awk '/^stages:/ { in_stages = 1; next } in_stages && /^  - / { last = $2; next } in_stages { exit } END { print last }' "$pipeline")"
 [[ "$last_stage" == "diagnose" ]] || fail "diagnose must be the last stage"
 
-assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 5
+assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 6
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"'
 assert_contains "$pipeline" 'COMPOSE_FILE: "compose.yaml:compose.staging.yaml"'
 if grep -Eq 'docker (rm|rmi|restart|stop|start|kill|image rm|volume|system prune|builder prune)|docker compose [^|]*(up|down|rm|restart|stop|start|create|run|pull|build)( |$)' "$runtime_diagnose"; then

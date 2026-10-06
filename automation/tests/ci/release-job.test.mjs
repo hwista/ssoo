@@ -34,6 +34,12 @@ if(a[0]==='builder'&&a[1]==='prune') {
  log({event:'cache-prune'});fs.writeFileSync(root+'/cache-pruned','1');process.exit(0);
 }
 if(a[0]==='inspect' && a.some(x=>x.includes('State.Health'))){console.log(scenario==='staging-unhealthy'?'unhealthy':'healthy');process.exit(0);}
+if(a[0]==='inspect' && a.some(x=>x.includes('Config.Image'))){console.log('pgvector/pgvector:pg17');process.exit(0);}
+if(a[0]==='network'||a[0]==='rm'){log({event:'dbcheck-'+a[0]+'-'+a[1]});process.exit(0);}
+if(a[0]==='run' && a[1]==='-d'){log({event:'dbcheck-postgres',alias:a[a.indexOf('--network-alias')+1]});console.log('fixture-dbcheck');process.exit(0);}
+if(a[0]==='run' && a.join(' ').includes('db-check-only')){log({event:'dbcheck-init',compat:a.includes('DB_INIT_BASELINE_MODE=compat')});process.exit(scenario==='dbcheck-fail'?1:0);}
+if(a[0]==='exec' && a.includes('pg_isready')){process.exit(0);}
+if(a[0]==='exec' && a.includes('pg_restore')){log({event:'dbcheck-restore'});process.exit(0);}
 if(a[0]==='inspect') {
  const service=SERVICES.find(s=>a[1]==='ssoo-'+s||a[1]==='fixture-'+s);
  if(!service) process.exit(91);
@@ -57,7 +63,7 @@ if(a[0]==='compose') {
 console.error('unhandled fixture Docker command',a);process.exit(92);
 `.replace('const a=process.argv', `const SERVICES=${JSON.stringify(SERVICES)};\nconst a=process.argv`);
 
-function fixture(scenario, { changedDb = false, mode = 'apply' } = {}) {
+function fixture(scenario, { changedDb = false, mode = 'apply', dbCheck = true } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ssoo-release-job-test-'));
   const source = path.join(root, 'source'); fs.mkdirSync(path.join(source, 'scripts/ci'), { recursive: true });
   for (const file of ['release-job.sh', 'release-state.mjs']) fs.copyFileSync(path.join(repo, 'scripts/ci', file), path.join(source, 'scripts/ci', file));
@@ -106,9 +112,10 @@ printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\\nfixture 3355
     // Staging needs neither a smoke token, verified backup evidence nor a rehearsal proof.
     delete env.CI_SMOKE_TOKEN_FILE; delete env.CI_RELEASE_BACKUP_EVIDENCE;
     fs.rmSync(path.join(dir, 'rehearsal.json'));
+    if (dbCheck) write(path.join(dir, 'db-check.json'), { status: 'passed', releaseId: manifest.releaseId, checkedAt: new Date().toISOString() });
   }
-  return { root, dir, old, manifest, run: () => {
-    const result = spawnSync('bash', [path.join(source, 'scripts/ci/release-job.sh'), 'deploy'], { cwd: source, env, encoding: 'utf8', timeout: 30_000 });
+  return { root, dir, old, manifest, run: (job = 'deploy') => {
+    const result = spawnSync('bash', [path.join(source, 'scripts/ci/release-job.sh'), job], { cwd: source, env, encoding: 'utf8', timeout: 30_000 });
     const events = fs.existsSync(path.join(root, 'events.jsonl')) ? fs.readFileSync(path.join(root, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse) : [];
     const state = fs.existsSync(path.join(dir, 'state.json')) ? JSON.parse(fs.readFileSync(path.join(dir, 'state.json'))).status : null;
     const last = JSON.parse(fs.readFileSync(path.join(root, 'last-successful.json')));
@@ -176,6 +183,32 @@ check('staging db-init failure keeps the previous apps running', 'db-apply-fail'
   assert.notEqual(r.status, 0); assert.equal(r.state, 'recovery-required'); assert.equal(r.last.releaseId, f.old.releaseId);
   assert.ok(!r.events.some(e => e.event === 'stop' || e.event === 'up'));
 });
+check('staging deploy refuses to touch anything without a passed db_check', 'success', { changedDb: true, mode: 'staging', dbCheck: false }, (r, f) => {
+  assert.notEqual(r.status, 0); assert.match(r.stderr, /Run db_check/);
+  assert.equal(r.events.length, 0); assert.equal(r.last.releaseId, f.old.releaseId);
+});
+for (const [name, scenario, passes] of [['db_check runs db-init twice on a copy of the live DB and records the pass', 'success', true],
+  ['a failed db_check records nothing and cleans up', 'dbcheck-fail', false]]) {
+  test(name, () => {
+    const f = fixture(scenario, { changedDb: true, mode: 'staging', dbCheck: false });
+    try {
+      const r = f.run('db-check');
+      const names = r.events.map(e => e.event);
+      if (passes) {
+        assert.equal(r.status, 0, r.stderr);
+        assert.equal(r.events.filter(e => e.event === 'dbcheck-init' && e.compat).length, 2);
+        assert.equal(JSON.parse(fs.readFileSync(path.join(f.dir, 'db-check.json'))).status, 'passed');
+      } else {
+        assert.notEqual(r.status, 0);
+        assert.ok(!fs.existsSync(path.join(f.dir, 'db-check.json')));
+      }
+      assert.equal(r.events.find(e => e.event === 'dbcheck-postgres').alias, 'ssoo-postgres');
+      assert.ok(names.indexOf('backup-db') < names.indexOf('dbcheck-restore'));
+      assert.ok(names.includes('dbcheck-network-rm'));
+      assert.ok(!names.some(n => ['stop', 'up', 'db-apply', 'config-check'].includes(n)));
+    } finally { f.cleanup(); }
+  });
+}
 check('staging never commits a release whose containers are unhealthy', 'staging-unhealthy', { mode: 'staging' }, (r, f) => {
   assert.notEqual(r.status, 0); assert.notEqual(r.state, 'committed'); assert.equal(r.last.releaseId, f.old.releaseId);
 });

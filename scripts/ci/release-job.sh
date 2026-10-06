@@ -133,6 +133,47 @@ staging_backup() {
   (cd "$backup_dir" && sha256sum database.dump dms-runtime.tar.gz > SHA256SUMS)
   echo "[release] staging backup: $backup_dir ($(du -sh "$backup_dir" | cut -f1))"
 }
+# db_check job: run the sealed db-init twice against a throwaway copy of the live database before the
+# manual deploy. Nothing on the running stack changes. The copy keeps the staging host/DB names
+# (ssoo-postgres/ssoo_dev) on its own network so the guarded db push behaves exactly as in deploy.
+db_check_network="ssoo-dbcheck-$CI_PIPELINE_ID"
+db_check_postgres="ssoo-dbcheck-$CI_PIPELINE_ID-postgres"
+cleanup_db_check() {
+  docker rm -f "$db_check_postgres" >/dev/null 2>&1 || true
+  docker network rm "$db_check_network" >/dev/null 2>&1 || true
+}
+db_check() {
+  local check_dir="$release_dir/db-check" live_postgres postgres_image db_init_image attempt ready=0 run
+  local check_url="postgresql://ssoo:db-check-only@ssoo-postgres:5432/ssoo_dev?schema=public"
+  assert_images
+  runtime=(docker compose -p "$project" -f "$release_dir/compose.runtime.json")
+  mkdir -p "$check_dir"
+  live_postgres="$("${runtime[@]}" ps -q postgres)"
+  [[ -n "$live_postgres" ]] || { echo '[release] db-check: postgres is not running' >&2; return 1; }
+  docker exec "$live_postgres" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' > "$check_dir/database.dump"
+  [[ -s "$check_dir/database.dump" ]] || { echo '[release] db-check: empty dump' >&2; return 1; }
+  postgres_image="$(docker inspect "$live_postgres" --format '{{.Config.Image}}')"
+  db_init_image="$(state list | awk -F '\t' '$1 == "db-init" { print $3 }')"
+  [[ -n "$db_init_image" ]] || { echo '[release] db-check: sealed db-init image missing' >&2; return 1; }
+  cleanup_db_check
+  docker network create "$db_check_network" >/dev/null
+  docker run -d --name "$db_check_postgres" --network "$db_check_network" --network-alias ssoo-postgres \
+    -e POSTGRES_USER=ssoo -e POSTGRES_PASSWORD=db-check-only -e POSTGRES_DB=ssoo_dev "$postgres_image" >/dev/null
+  for attempt in $(seq 1 30); do
+    if docker exec "$db_check_postgres" pg_isready -U ssoo -d ssoo_dev >/dev/null 2>&1; then ready=1; break; fi
+    sleep 2
+  done
+  [[ "$ready" == 1 ]] || { echo '[release] db-check: temporary postgres did not start' >&2; return 1; }
+  docker exec -i "$db_check_postgres" pg_restore --exit-on-error --no-owner --no-acl -U ssoo -d ssoo_dev \
+    < "$check_dir/database.dump"
+  for run in 1 2; do
+    echo "[release] db-check: db-init run $run/2 on a copy of the live database"
+    docker run --rm --network "$db_check_network" -e "DATABASE_URL=$check_url" \
+      -e DB_INIT_BASELINE_MODE=compat -e DB_INIT_SEED_MODE=upgrade "$db_init_image"
+  done
+  state db-check-passed
+  echo "[release] db-check passed; deploy_dev may run for this release"
+}
 prepare() {
   docker image inspect "$node_image" >/dev/null 2>&1 || docker pull "$node_image"
     mapfile -t retention_refs < <(docker image ls 'app-*' --format '{{.Repository}}:{{.Tag}}' | grep -E '^app-[a-z-]+:[a-f0-9]{40}$' || true)
@@ -151,6 +192,10 @@ prepare() {
 state env-overlay "$CI_RELEASE_ENV_FILE" "${CI_RELEASE_DMS_ENV_FILE:?}" "$APP_DIR"
 case "$job" in
   prepare) prepare ;;
+  db-check)
+    trap 'cleanup_db_check; finish' EXIT
+    db_check
+    ;;
   plan)
     prepare
     [[ ! -e "$release_dir/plan.json" ]] || { echo '[release] plan exists; use a new pipeline to change it' >&2; exit 1; }
@@ -217,7 +262,7 @@ case "$job" in
       [[ -s "$CI_SMOKE_TOKEN_FILE" ]] || exit 1
     fi
     "${compose[@]}" config --format json > "$release_dir/current-config.json"
-    if [[ "$deploy_mode" == apply ]]; then state check; else state check-staging; fi
+    if [[ "$deploy_mode" == apply ]]; then state check; else state check-staging; state db-check-required; fi
     state secrets > "$release_dir/secret-list.tsv"
     while IFS=$'\t' read -r name file; do
       cmp -s "$file" "$release_dir/secrets/$name" || { echo '[release] secret changed since build' >&2; exit 1; }

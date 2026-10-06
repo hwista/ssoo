@@ -287,6 +287,19 @@ export function cli(command, root, dir, ...args) {
     // Written only after release-job.sh verified image identity and container health in staging mode.
     const manifest = validateManifest(read(manifestFile));
     atomic(path.join(dir, 'evidence.json'), { status: 'passed', releaseId: manifest.releaseId, mode: 'staging', checkedAt: new Date().toISOString() });
+  } else if (command === 'db-check-passed') {
+    // Written by the db_check job after db-init ran twice on a copy of the live database.
+    const manifest = validateManifest(read(manifestFile));
+    atomic(path.join(dir, 'db-check.json'), { status: 'passed', releaseId: manifest.releaseId, checkedAt: new Date().toISOString() });
+  } else if (command === 'db-check-required') {
+    const manifest = validateManifest(read(manifestFile));
+    const file = path.join(dir, 'db-check.json');
+    if (!fs.existsSync(file)) throw new Error('Run db_check for this release before the staging deploy');
+    const check = read(file);
+    if (check.status !== 'passed' || check.releaseId !== manifest.releaseId) throw new Error('db_check did not pass for this release');
+    if (!Number.isFinite(Date.parse(check.checkedAt)) || Date.now() - Date.parse(check.checkedAt) > 24 * 60 * 60 * 1000) {
+      throw new Error('db_check is older than 24 hours; retry the db_check job');
+    }
   } else if (command === 'commit') {
     const manifest = validateManifest(read(manifestFile)); assertCurrent(manifest, previous);
     const evidence = read(path.join(dir, 'evidence.json'));

@@ -3,6 +3,7 @@ stages:
   - ai_review
   - plan
   - build
+  - db_check
   - deploy
   - diagnose
 
@@ -76,6 +77,17 @@ build:
     - ssoo
   script:
     - bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" build
+  only:
+    - development
+
+# Runs db-init twice on a throwaway copy of the live staging database; the running stack is not
+# touched. Review its result before pressing deploy_dev (the stop point before any runtime change).
+db_check:
+  stage: db_check
+  tags:
+    - ssoo
+  script:
+    - bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" db-check
   only:
     - development
 
