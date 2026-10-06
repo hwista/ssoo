@@ -1,6 +1,6 @@
 # 전체 레포 로컬 Docker 갱신과 원격 동기화
 
-> 2026-10-06 · 진행 중. 현재 작업 전체를 검증한 뒤 로컬 Docker에 반영하고 GitHub/GitLab에 동일 커밋을 공유한다.
+> 2026-10-06 · 로컬 Docker 반영·인수 검사 완료. 검증 결과 문서 커밋을 포함한 동일 HEAD를 GitHub/GitLab에 공유한다.
 
 ## 대상과 보존
 
@@ -20,7 +20,7 @@
 
 ## 검증과 결과
 
-최종 소스의 lint/preflight/플랫폼 및 push guard, production 감사, 실제 백업 복원·DB 계약, Docker 서버/5앱 readiness와 인증·도메인 조회, 실제 브라우저 인수 결과를 기록한다. 의존성 갱신 후 production 감사는 high/critical 0, moderate 2/low 3으로 통과했다. 진행 중 로그를 통과로 간주하지 않는다. 최종 배포 식별자·원격 커밋·검증 결과는 완료 후 이 문서와 제외 경로의 증거에 반영한다.
+최종 소스의 lint/preflight/플랫폼 및 push guard, production 감사, 실제 백업 복원·DB 계약, Docker 서버/5앱 readiness와 인증·도메인 조회, 실제 브라우저 인수 결과를 기록한다. 의존성 갱신 후 production 감사는 high/critical 0, moderate 2/low 3으로 통과했다. 진행 중 로그를 통과로 간주하지 않는다. 최종 배포 식별자와 검증 결과는 아래에 기록한다. 원격 최종 HEAD는 publish 후 별도 hash 대조 증거로 남긴다.
 
 ## Changelog
 
@@ -39,3 +39,22 @@ GitLab `4bc0af35`까지의 DB 복구·진단·선택 빌드 이력을 병합했�
 DMS Git client는 entrypoint의 origin·count·key·고정 helper·useHttpPath가 모두 일치할 때만 해당 두 설정을 명시적 command config로 재구성한다. Docker secret 내용은 읽거나 로그에 복사하지 않는다. credential helper 실행 opt-in은 이 고정 계약을 확인한 클라이언트에만 적용하며, 임의 환경변수·다른 unsafe Git 옵션은 계속 차단한다. 실제 Git 설정 전달과 6가지 변조 거부를 포함한 10개 검사를 통과했다.
 
 첫 로컬 교체 후 문서 테이블 지문 차이를 조사했다. 159건의 추가·삭제 및 문서 내용 변화는 없으며, 86건의 `last_scanned_at`, `last_reconciled_at`, `updated_at`만 자동 스캔으로 변경됐다. 이 세 필드의 변경은 원본 지문 차이와 별도로 기록하고, 업무 데이터 보존 판정에 섞어 숨기지 않는다.
+
+## 최종 로컬 결과
+
+- 서버 이미지 소스: `7ed25f9397e894117c9c133ed153224f73b2e5c2`. 웹 5개와 db-init 소스: `347cccc696ece3eb574b4d77f3c9222ec6b6f993`. 수정은 서버에만 있으므로 manifest 입력 hash로 검증된 나머지 6개 이미지를 재사용했다. 각 앱 health와 manifest의 실제 sourceCommit을 대조했다.
+- 서버·Admin·CRM·PMS·DMS·SNS 컨테이너 6개 healthy. 실제 Docker secret으로 Git remote heads 조회 성공. 격리 환경과 실제 localhost 환경에서 각각 API 25개 통과.
+- 실제 백업 복원 및 strict/upgrade 초기화 2회 통과. 실제 DB도 migrations 19 / triggers 90 / schema drift 0. demo seed와 DB reset 없음.
+- 최종 서버 단위 검사 100개 묶음 / 766개 통과. Git credential 계약 검사 10개 포함. 플랫폼 전체 guard(서버·5앱 빌드 및 DMS 계약), lint, preflight, GitLab CI 계약 49개와 production security audit 통과.
+- 복원 DB에서 실제 비밀번호 로그인·사용자 확인·로그아웃·세션 폐기 4개 통과. 실제 로컬 브라우저는 기존 계정의 전용 검증 세션으로 5앱 홈, Admin 사용자 관리, CRM 모바일 영업기회 7개 화면을 확인했다. runtime error 0 / HTTP 5xx 0. 화면 API mock 없음.
+- 계정·권한·업무·문서 13개 테이블과 비밀번호 지문을 대조했다. 문서의 자동 스캔 시각 3개 필드 외 업무 데이터 차이 없음. 문서 159건 유지, 파일 114개 내용 hash 불변, 다른 실행 컨테이너 12개 ID/이미지 불변. 검증 세션 폐기 확인.
+
+이미지 생성 후의 최종 문서 커밋은 제품 소스를 바꾸지 않는다. GitHub `launch/rebaseline-20260721`과 GitLab `development`에 동일 HEAD를 fast-forward push하고 원격 refs를 대조한다. 원격 준운영 수동 deploy는 실행하지 않는다.
+
+증거: `output/local-deploy/20261006-repo-refresh/`의 `release.json`, `rehearsal-smoke.json`, `live-smoke.json`, `rehearsal-login.json`, `live-browser.json`, `data-comparison.json`, `document-row-diff.json`, `live-verification.json` 및 단계별 로그. 화면은 `output/playwright/repo-release-20261006/`. 비밀 설정/백업은 제외 경로의 제한 권한 `private/`에 보관한다.
+
+### 검증 범위와 실패 기록
+
+초기 리허설의 host port/Origin 불일치, 브라우저 결과 수집 형식과 검증 refresh token의 jti 누락은 검사 도구에서 수정했다. 첫 로컬 Git 인증 실패·이전 서버 복구·수정 적용 로그도 보존하며 최종 통과와 구분한다. 한국어 DOM과 실제 화면 기동을 검사했으나 WSL Chromium 글꼴 제약으로 시각적 동일성은 판정하지 않았다.
+
+배포 기술 검증은 CRM 데모 전체 기능 차이 0 판정이나 운영 출시 승인과 다르다. 운영 화면에 표시되는 기존 CRM 업무 준비 조건, 메일 worker/실발송, 외부 AI 제공자와 전체 업무 쓰기 시나리오까지 이번 검사에서 완료했다고 주장하지 않는다.
