@@ -1,3 +1,4 @@
+import type { AppReadiness } from '../../modules/common/health/platform-readiness.service.js';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class HealthStatusDto {
@@ -18,6 +19,9 @@ export class HealthStatusDto {
 }
 
 export class HealthReadinessDto {
+  @ApiProperty({ type: [Object], description: 'Admin/CRM/PMS/DMS/SNS deployment readiness' })
+  services!: AppReadiness[];
+
   @ApiProperty({ example: 'ready' })
   status!: 'ready';
 

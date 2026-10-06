@@ -22,8 +22,8 @@ export class CostPlanController {
   @ApiOkResponse({ description: '영업기회/계약 원가 라인과 확정 계약 외부원가 계획/실적 기반 읽기용 원가 후보' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 원가/AMS preview 조회 권한 없음' })
-  async preview(@Query() query: CrmCostPlanPreviewQueryDto) {
-    return success(await this.costPlanService.getPreview(query));
+  async preview(@Query() query: CrmCostPlanPreviewQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.costPlanService.getPreview(query, currentUser));
   }
 
   @Get('accounting-payment-preview')
@@ -32,8 +32,8 @@ export class CostPlanController {
   @ApiOkResponse({ description: '확정 내부원가와 AMS 정산 확정 row 기반 회계·지급 handoff 후보' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 원가/AMS handoff preview 조회 권한 없음' })
-  async accountingPaymentPreview(@Query() query: CrmCostPlanPreviewQueryDto) {
-    return success(await this.costPlanService.getAccountingPaymentPreview(query));
+  async accountingPaymentPreview(@Query() query: CrmCostPlanPreviewQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.costPlanService.getAccountingPaymentPreview(query, currentUser));
   }
 
   @Post('accounting-payment-handoff')
@@ -154,8 +154,8 @@ export class CostPlanController {
   @Delete('ams/source/vendors/:id')
   @RequireCrmDomainFeature('canWriteCostPlan')
   @ApiOperation({ summary: 'CRM 원본 호환 AMS 공급업체와 연관 원가 삭제' })
-  async deleteAmsSourceVendor(@Param('id') id: string, @Query('year') year: string) {
-    return success(await this.costPlanService.deleteAmsSourceVendor(id, Number(year)));
+  async deleteAmsSourceVendor(@Param('id') id: string, @Query('year') year: string, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.costPlanService.deleteAmsSourceVendor(id, Number(year), BigInt(currentUser.userId)));
   }
 
   @Put('ams/source/vendors/:id/wbs')

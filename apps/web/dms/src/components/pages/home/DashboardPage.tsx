@@ -1,13 +1,12 @@
 'use client';
 
+import { SsooErrorPanel } from '@ssoo/web-shell';
 import { useCallback, useMemo } from 'react';
 import {
   Activity,
-  AlertCircle,
   Clock3,
   FileClock,
   ListTodo,
-  RefreshCw,
   ShieldAlert,
 } from 'lucide-react';
 import type {
@@ -15,7 +14,7 @@ import type {
   DmsHomeDocumentItem,
   DmsHomeOperationalExceptionItem,
 } from '@ssoo/types/dms';
-import { Button, Card, CardContent, Skeleton } from '@ssoo/web-ui';
+import { Card, CardContent, Skeleton } from '@ssoo/web-ui';
 import { useOpenDocumentTab, useOpenTabWithConfirm } from '@/hooks';
 import { useHomeSummary } from '@/hooks/queries/useHomeSummary';
 import { GLOBAL_SEARCH_PATH } from '@/lib/constants/routes';
@@ -159,22 +158,8 @@ export function DashboardPage() {
         {homeQuery.isLoading && !data ? (
           <HomeLoading />
         ) : homeQuery.isError && !data ? (
-          <Card className="border-ls-red/35 shadow-sm" role="alert">
-            <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-ls-red" aria-hidden="true" />
-                <div>
-                  <h2 className="text-label-lg text-foreground">홈 작업 요약을 불러오지 못했습니다.</h2>
-                  <p className="mt-1 text-body-sm text-muted-foreground">
-                    빠른 시작은 계속 사용할 수 있습니다. 요약 데이터만 다시 불러오세요.
-                  </p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => void homeQuery.refetch()}>
-                <RefreshCw aria-hidden="true" /> 다시 시도
-              </Button>
-            </CardContent>
-          </Card>
+          <SsooErrorPanel error={homeQuery.error} title="홈 작업 요약을 불러오지 못했습니다"
+            description="빠른 시작은 계속 사용할 수 있습니다. 요약 데이터만 다시 불러오세요." onRetry={() => homeQuery.refetch()} />
         ) : data ? (
           <>
             <section aria-labelledby="home-summary-heading">

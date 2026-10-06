@@ -1,3 +1,5 @@
+import type { OnboardingServiceCode } from '@ssoo/types/common';
+import { PlatformAdmissionService } from '../onboarding/platform-admission.service.js';
 import { Injectable } from '@nestjs/common';
 import type {
   PermissionExceptionAxis,
@@ -23,13 +25,30 @@ interface ResolveObjectPermissionContextOptions {
   user: TokenPayload;
   targetObjectType: string;
   targetObjectId: string;
+  targetOrganizationId?: bigint | null;
   actionContext?: PermissionResolutionContext;
   domainGrantedPermissionCodes?: Iterable<string>;
 }
 
 @Injectable()
 export class AccessFoundationService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly admission: PlatformAdmissionService = new PlatformAdmissionService(db)) {}
+
+  async getBusinessOrganizationScope(userId: bigint, service: 'pms' | 'crm'): Promise<bigint[] | null> {
+    if (await this.admission.isPlatformAdmin(userId)) return null;
+    const grants = (await this.admission.grants(userId)).filter((grant) => grant.serviceCode === service);
+    // Explicit migration evidence preserves the pre-onboarding object policy.
+    if (grants.some((grant) => grant.sourceCode === 'migration' || grant.sourceCode === 'bootstrap')) return null;
+    return [...new Set(grants.flatMap((grant) => grant.orgId === null ? [] : [grant.orgId]))];
+  }
+
+  async getServiceRoleCodes(userId: bigint, service: OnboardingServiceCode): Promise<string[]> {
+    if (await this.admission.isPlatformAdmin(userId)) return ['admin'];
+    const grants = (await this.admission.grants(userId)).filter((grant) => grant.serviceCode === service);
+    const currentRole = await this.getCurrentRoleCode(userId);
+    return [...new Set(grants.map((grant) => grant.sourceCode === 'migration' || grant.sourceCode === 'bootstrap'
+      ? currentRole ?? 'viewer' : grant.roleCode))];
+  }
 
   async getUserOrganizationIds(userId: bigint, now: Date = new Date()): Promise<bigint[]> {
     const relations = await this.db.client.userOrganizationRelation.findMany({
@@ -57,7 +76,7 @@ export class AccessFoundationService {
     return relations.map((relation) => relation.orgId);
   }
 
-  async resolveActionPermissionContext(user: TokenPayload): Promise<PermissionResolutionContext> {
+  async resolveActionPermissionContext(user: TokenPayload, organizationScope?: { serviceCode: 'pms' | 'crm'; organizationId: bigint | null }): Promise<PermissionResolutionContext> {
     const now = new Date();
     const userId = BigInt(user.userId);
     const [roleCode, userOrgIds, userPermissionExceptions] = await Promise.all([
@@ -88,6 +107,30 @@ export class AccessFoundationService {
       grantedPermissionCodes.delete(permissionCode);
     }
 
+    const admissionState = await this.admission.state(userId);
+    if (!await this.admission.isPlatformAdmin(userId)) grantedPermissionCodes.delete(SYSTEM_OVERRIDE_PERMISSION_CODE);
+    if (admissionState.status !== 'active') {
+      grantedPermissionCodes.clear();
+    } else if (!grantedPermissionCodes.has(SYSTEM_OVERRIDE_PERMISSION_CODE)) {
+      const serviceGrants = await this.admission.grants(userId);
+      // Migrated accounts retain their original action policy. New app roles are
+      // resolved independently so a CRM manager is not a DMS/SNS manager.
+      const scopedPermissions = new Set<string>();
+      for (const grant of serviceGrants) {
+        if (organizationScope && grant.sourceCode === 'approval' && grant.serviceCode === organizationScope.serviceCode && grant.orgId !== organizationScope.organizationId) continue;
+        const prefix = `${grant.serviceCode}.`;
+        if (grant.sourceCode === 'migration' || grant.sourceCode === 'bootstrap') {
+          for (const code of grantedPermissionCodes) if (code.startsWith(prefix)) scopedPermissions.add(code);
+        } else {
+          const permissions = await this.getRolePermissionCodes(grant.roleCode);
+          for (const code of permissions) if (code.startsWith(prefix)) scopedPermissions.add(code);
+        }
+      }
+      for (const code of [...grantedPermissionCodes]) {
+        if (/^(crm|pms|dms|sns)\./.test(code)) grantedPermissionCodes.delete(code);
+      }
+      for (const code of scopedPermissions) if (!userPermissionExceptions.revokedPermissionCodes.has(code)) grantedPermissionCodes.add(code);
+    }
     const hasSystemOverride = grantedPermissionCodes.has(SYSTEM_OVERRIDE_PERMISSION_CODE);
 
     return {
@@ -134,6 +177,17 @@ export class AccessFoundationService {
       grantedPermissionCodes.delete(permissionCode);
     }
 
+    const userIdForAdmission = BigInt(options.user.userId);
+    if ((await this.admission.state(userIdForAdmission)).status !== 'active') grantedPermissionCodes.clear();
+    else if (!actionContext.policy.hasSystemOverride) {
+      const grants = await this.admission.grants(userIdForAdmission);
+      for (const code of [...grantedPermissionCodes]) {
+        const prefix = code.split('.')[0];
+        if (!['crm', 'pms', 'dms', 'sns'].includes(prefix)) continue;
+        const serviceGrants = grants.filter((grant) => grant.serviceCode === prefix && (options.targetOrganizationId === undefined || grant.sourceCode !== 'approval' || grant.orgId === options.targetOrganizationId));
+        if (!serviceGrants.length || (serviceGrants.every((grant) => grant.sourceCode === 'approval' && grant.roleCode === 'viewer') && !code.endsWith('.read'))) grantedPermissionCodes.delete(code);
+      }
+    }
     return {
       grantedPermissionCodes,
       roleCode: actionContext.roleCode,

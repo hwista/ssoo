@@ -269,6 +269,9 @@ export class ContentController {
             currentRevisionSeq } }, 409);
       }
 
+      if (update.visibility !== undefined) {
+        update.visibility = await this.accessRequestService.resolveMetadataVisibility(currentUser, update.visibility, existing.visibility);
+      }
       const merged = {
         ...existing,
         ...update,
@@ -330,6 +333,9 @@ export class ContentController {
       metadata = { ...existingMetadata };
     }
 
+    if (metadata?.visibility !== undefined && canManage) {
+      metadata.visibility = await this.accessRequestService.resolveMetadataVisibility(currentUser, metadata.visibility, existingMetadata?.visibility);
+    }
     this.collaborationService.assertMutationAllowed({ action: 'write', paths: [contentPath] });
     this.collaborationService.assertCurrentSoftLockOwner({
       action: 'write',

@@ -8,7 +8,7 @@
 
 begin;
 
-insert into pms.cm_code_m (
+insert into common.cm_code_m (
   code_group, code_value, display_name_ko, description, sort_order,
   is_active, memo, last_source, last_activity, updated_at
 )
@@ -18,12 +18,22 @@ values
   ('biz_type', 'SI', 'SI', 'CRM source UI/UX reference', 1, true, 'REF-01 normal state', 'crm-source-uiux-reference', 'seed.crm-source-uiux-reference', current_timestamp),
   ('biz_type', 'SM', 'SM', 'CRM source UI/UX reference', 2, true, 'REF-01 normal state', 'crm-source-uiux-reference', 'seed.crm-source-uiux-reference', current_timestamp),
   ('group_type', '삼성', '삼성', 'CRM source UI/UX reference', 1, true, 'REF-01 normal state', 'crm-source-uiux-reference', 'seed.crm-source-uiux-reference', current_timestamp),
-  ('group_type', '현대자동차', '현대자동차', 'CRM source UI/UX reference', 2, true, 'REF-01 normal state', 'crm-source-uiux-reference', 'seed.crm-source-uiux-reference', current_timestamp),
-  ('biz_year', '2026', '2026년', 'CRM source UI/UX reference', 2026, true, 'REF-01 normal state', 'crm-source-uiux-reference', 'seed.crm-source-uiux-reference', current_timestamp),
-  ('biz_year', '2025', '2025년', 'CRM source UI/UX reference', 2025, false, 'REF-01 normal state', 'crm-source-uiux-reference', 'seed.crm-source-uiux-reference', current_timestamp)
+  ('group_type', '현대자동차', '현대자동차', 'CRM source UI/UX reference', 2, true, 'REF-01 normal state', 'crm-source-uiux-reference', 'seed.crm-source-uiux-reference', current_timestamp)
 on conflict (code_group, code_value) do update
 set display_name_ko = excluded.display_name_ko,
     description = excluded.description,
+    sort_order = excluded.sort_order,
+    is_active = excluded.is_active,
+    memo = excluded.memo,
+    last_source = excluded.last_source,
+    last_activity = excluded.last_activity,
+    updated_at = current_timestamp;
+
+insert into crm.crm_business_year_m (year, display_name, sort_order, is_active, memo, last_source, last_activity)
+values (2026, '2026년', 2026, true, 'REF-01 normal state', 'crm-source-uiux-reference', 'seed.crm-source-uiux-reference'),
+       (2025, '2025년', 2025, false, 'REF-01 normal state', 'crm-source-uiux-reference', 'seed.crm-source-uiux-reference')
+on conflict (year) do update
+set display_name = excluded.display_name,
     sort_order = excluded.sort_order,
     is_active = excluded.is_active,
     memo = excluded.memo,

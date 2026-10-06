@@ -1,3 +1,6 @@
+import { ProjectAccessService } from '../project/project-access.service.js';
+import type { AiIndexObjectRef } from '@ssoo/types/common';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { createHash } from 'crypto';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import type {
@@ -849,10 +852,28 @@ export class PmsAiIndexAdapter implements AiIndexAdapter, OnModuleInit {
     private readonly db: DatabaseService,
     private readonly registry: AiIndexRegistryService,
     private readonly embeddingProvider: AiEmbeddingProviderService,
+    private readonly access: ProjectAccessService,
   ) {}
 
   onModuleInit(): void {
     this.registry.register(this);
+  }
+
+  async canRead(request: AiIndexObjectRef, user: TokenPayload): Promise<boolean> {
+    let projectId: bigint | null = null;
+    if (request.entityType === 'project') projectId = parsePositiveBigIntId(request.entityId);
+    else if (request.entityType === 'task') {
+      const id = parsePositiveBigIntId(request.entityId);
+      if (id) projectId = (await this.db.client.task.findUnique({ where: { id }, select: { projectId: true } }))?.projectId ?? null;
+    } else if (request.entityType === 'projectMember') {
+      const ref = parseProjectMemberEntityId(request.entityId);
+      if (ref && await this.findProjectMemberProjection(ref.projectId, ref.userId, ref.roleCode)) projectId = ref.projectId;
+    } else if (request.entityType === 'projectStatus') {
+      const ref = parseProjectStatusEntityId(request.entityId);
+      if (ref && await this.findProjectStatusProjection(ref.projectId, ref.statusCode)) projectId = ref.projectId;
+    }
+    if (!projectId || !await this.db.client.project.count({ where: { id: projectId, isActive: true } })) return false;
+    return (await this.access.getProjectAccess(projectId, user)).features.canViewProject;
   }
 
   async syncObject(request: AiIndexAdapterSyncRequest): Promise<AiIndexAdapterSyncResult> {

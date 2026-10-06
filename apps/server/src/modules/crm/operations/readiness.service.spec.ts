@@ -35,6 +35,7 @@ function createService(options?: { missingPermission?: boolean; missingTemplate?
           permission: { permissionCode },
         })),
       },
+      crmBusinessYear: { findFirst: async () => ({ id: 1n }) },
       cmCode: {
         groupBy: async () => ['biz_type', 'group_type', 'payment_term'].map((codeGroup) => ({ codeGroup, _count: { codeGroup: 1 } })),
         findFirst: async () => ({ id: 1n }),

@@ -1,3 +1,6 @@
+import type { CrmAccessService } from '../access/access.service.js';
+import type { AccessService as DmsAccessService } from '../../dms/access/access.service.js';
+import type { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
 import type { AccessRequestService } from '../../dms/access/access-request.service.js';
 import { BadRequestException } from '@nestjs/common';
 import type { CrmQuoteSellerProfile } from '@ssoo/types/crm';
@@ -561,10 +564,65 @@ function createService(
     dmsCrmContractLifecycleService as DmsCrmContractLifecycleService | undefined,
     undefined,
     { syncDocumentProjection: async () => undefined } as unknown as AccessRequestService,
+    { resolveBusinessOrganization: async () => 13n } as unknown as PlatformAdmissionService,
+    { assertContractCapability: async () => undefined } as unknown as CrmAccessService,
+    { assertFeatures: async () => undefined } as unknown as DmsAccessService,
   );
 }
 
 describe('ContractService', () => {
+  function sourceListService() {
+    const db = createDbMock();
+    const common = {
+      sourceOpportunityId: null, sourceOpportunityCode: null, ownerName: '검수 담당',
+      businessType: 'WBS-only', industryLine: '산업', regionCode: 'domestic', confirmed: false,
+      contractStartDate: new Date('2026-01-01'), contractEndDate: new Date('2026-12-31'),
+      wbsCode: 'WBS-only', specialDiscountTypeCode: 'amount', specialDiscountValue: 0,
+      specialDiscountAmount: 0n, externalCostTotal: 0n, pmsHandoffStatusCode: 'planned',
+      dmsLinkStatusCode: 'planned', nextAction: '',
+    };
+    const rows = [
+      { ...common, id: 1n, contractCode: 'A', customerName: '나 고객', contractName: '소수 계약', statusCode: 'active', revenueSubtotal: 37000n, revenueTotal: 10000n, costTotal: 0n, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-03-01') },
+      { ...common, id: 2n, contractCode: 'B', customerName: '가 고객', contractName: '큰 계약', statusCode: 'review', revenueSubtotal: 37050n, revenueTotal: 37050n, costTotal: 20000n, createdAt: new Date('2026-02-01'), updatedAt: new Date('2026-02-01') },
+    ];
+    const line = { lineKindCode: 'revenue', categoryCode: 'product', lineLabel: '상품', sortOrder: 10, marginRate: null, truncUnit: 0n, revenueUnitPrice: null, department: null, memberName: null, grade: null, serviceTypeCode: null, revenueLinked: false, linkedCostLineCode: null };
+    const lines = [
+      { ...line, contractId: 1n, lineCode: 'A-r', quantity: 3, unitPrice: 12365n, amount: 37000n },
+      { ...line, contractId: 2n, lineCode: 'B-r', quantity: 1, unitPrice: 37050n, amount: 37050n },
+      { ...line, contractId: 2n, lineCode: 'B-c', lineKindCode: 'cost', categoryCode: 'external-cost', quantity: 1, unitPrice: 20000n, amount: 20000n },
+    ];
+    db.$queryRaw.mockResolvedValueOnce(rows).mockResolvedValueOnce(lines).mockResolvedValueOnce([]);
+    return createService(db);
+  }
+
+  it('uses raw source amounts and weighted aggregate margin without changing ledger amounts', async () => {
+    const source = await sourceListService().listResponse({ view: 'source-list', sort: 'revenue-desc' });
+    expect(source.items.map((item) => item.id)).toEqual(['A', 'B']);
+    expect(source.summary.totalRevenue).toBe(74145);
+    expect(source.summary.totalMargin).toBe(54145);
+    expect(source.summary.grossMarginRate).toBe(73);
+    expect(source.items[0].revenueTotal).toBe(10000);
+    const ledger = await sourceListService().listResponse({ sort: 'revenue-desc' });
+    expect(ledger.items.map((item) => item.id)).toEqual(['B', 'A']);
+    expect(ledger.summary.totalRevenue).toBe(47050);
+  });
+
+  it('supports source registration, customer and profit sorts while retaining updated order', async () => {
+    expect((await sourceListService().listResponse({ view: 'source-list' })).items.map((item) => item.id)).toEqual(['B', 'A']);
+    expect((await sourceListService().listResponse({ view: 'source-list', sort: 'customer-asc' })).items.map((item) => item.id)).toEqual(['B', 'A']);
+    expect((await sourceListService().listResponse({ view: 'source-list', sort: 'margin-desc' })).items.map((item) => item.id)).toEqual(['A', 'B']);
+    expect((await sourceListService().listResponse({ sort: 'updated-desc' })).items.map((item) => item.id)).toEqual(['A', 'B']);
+  });
+
+  it('limits source search to customer, contract and owner, and preserves literal whitespace', async () => {
+    expect((await sourceListService().listResponse({ view: 'source-list', search: 'WBS-only' })).items).toHaveLength(0);
+    expect((await sourceListService().listResponse({ search: 'WBS-only' })).items).toHaveLength(2);
+    expect((await sourceListService().listResponse({ view: 'source-list', search: '검수 담당', status: 'review' })).items.map((item) => item.id)).toEqual(['B']);
+    const blank = await sourceListService().listResponse({ view: 'source-list', search: '   ' });
+    expect(blank.items).toHaveLength(0);
+    expect(blank.summary.grossMarginRate).toBe(0);
+  });
+
   it('maps CRM contract ledger rows into list response summaries', async () => {
     const db = createDbMock();
     db.$queryRaw
@@ -718,6 +776,11 @@ describe('ContractService', () => {
     expect(result.summary.splitExternalCostTotal).toBe(244000000);
     expect(result.summary.revenueDelta).toBe(0);
     expect(result.lines.at(-1)?.isRemainderRow).toBe(true);
+  });
+
+  it.each(['2026-02-30', '2026-13-01', '2026-1-01', ''])('rejects nonexistent or malformed billing dates: %s', (startDate) => {
+    const service = createService(createDbMock());
+    expect(() => service.previewBillingSplit({ startDate, endDate: '2026-12-31', totalRevenue: 100, totalExternalCost: 0 })).toThrow('계약 시작일 형식이 올바르지 않습니다.');
   });
 
   it('rejects invalid billing date ranges', () => {
@@ -898,6 +961,7 @@ describe('ContractService', () => {
         {
           id: 10n,
           contractCode: 'crm-ct-doc',
+          ownerOrganizationId: 13n,
           sourceOpportunityId: 77n,
           sourceOpportunityCode: 'crm-opp-077',
           customerName: 'LS ITC',
@@ -1036,6 +1100,7 @@ describe('ContractService', () => {
         {
           id: 10n,
           contractCode: 'crm-ct-doc',
+          ownerOrganizationId: 13n,
           sourceOpportunityId: 77n,
           sourceOpportunityCode: 'crm-opp-077',
           customerName: 'LS ITC',
@@ -1204,6 +1269,7 @@ describe('ContractService', () => {
         {
           id: 10n,
           contractCode: 'crm-ct-doc',
+          ownerOrganizationId: 13n,
           sourceOpportunityId: 77n,
           sourceOpportunityCode: 'crm-opp-077',
           customerName: 'LS ITC',
@@ -1324,6 +1390,7 @@ describe('ContractService', () => {
         {
           id: 10n,
           contractCode: 'crm-ct-doc',
+          ownerOrganizationId: 13n,
           sourceOpportunityId: 77n,
           sourceOpportunityCode: 'crm-opp-077',
           customerName: 'LS ITC',
@@ -1634,6 +1701,7 @@ describe('ContractService', () => {
         {
           id: 10n,
           contractCode: 'crm-ct-doc',
+          ownerOrganizationId: 13n,
           sourceOpportunityId: 77n,
           sourceOpportunityCode: 'crm-opp-077',
           customerName: 'LS ITC',
@@ -1809,6 +1877,40 @@ describe('ContractService', () => {
     expect(result.summary.revenueAchievementRate).toBe(95);
   });
 
+  it('preserves zero-value actual months and sorts plan/actual rows by month', async () => {
+    const db = createDbMock();
+    const contract = { id: 10n, code: 'crm-ct-new', confirmed: true };
+    const row = (billingYm: string, id: bigint, amount: bigint) => ({ contractId: 10n, id, billingYm, revenueAmount: amount, externalCostAmount: 0n, sortOrder: Number(id) });
+    db.$queryRaw.mockResolvedValueOnce([contract]).mockResolvedValueOnce([contract])
+      .mockResolvedValueOnce([row('2026/12', 1n, 100n), row('2026/01', 2n, 200n)])
+      .mockResolvedValueOnce([row('2026/12', 3n, 0n), row('2026/01', 4n, 100n)]);
+    const result = await createService(db).replaceBillingActual('crm-ct-new', { lines: [
+      { billingYm: '2026/12', revenueAmount: 0, externalCostAmount: 0 },
+      { billingYm: '2026/01', revenueAmount: 100, externalCostAmount: 0 },
+    ] }, 7n);
+    expect(db.$executeRaw.calls).toHaveLength(3);
+    expect(result.actualLines.map(line => line.billingYm)).toEqual(['2026/01', '2026/12']);
+    expect(result.planLines.map(line => line.billingYm)).toEqual(['2026/01', '2026/12']);
+    expect(result.actualLines[1].revenueAmount).toBe(0);
+    expect(result.summary.actualRevenueTotal).toBe(100);
+  });
+
+  it.each(['2026/00', '2026/13', '', '2026/1'])('rejects invalid actual month %s before replacing saved rows', async (billingYm) => {
+    const db = createDbMock();
+    db.$queryRaw.mockResolvedValueOnce([{ id: 10n, code: 'crm-ct-new', confirmed: true }]);
+    await expect(createService(db).replaceBillingActual('crm-ct-new', { lines: [{ billingYm, revenueAmount: 100 }] }, 7n)).rejects.toThrow(BadRequestException);
+    expect(db.$executeRaw.calls).toHaveLength(0);
+  });
+
+  it('rejects duplicate zero-value actual months before deleting persisted data', async () => {
+    const db = createDbMock();
+    db.$queryRaw.mockResolvedValueOnce([{ id: 10n, code: 'crm-ct-new', confirmed: true }]);
+    await expect(createService(db).replaceBillingActual('crm-ct-new', { lines: [
+      { billingYm: '2026/01', revenueAmount: 0 }, { billingYm: '2026/01', revenueAmount: 0 },
+    ] }, 7n)).rejects.toThrow('청구 실적월이 중복되었습니다');
+    expect(db.$executeRaw.calls).toHaveLength(0);
+  });
+
   it('rejects billing actual saves for unconfirmed contracts', async () => {
     const db = createDbMock();
     db.$queryRaw.mockResolvedValueOnce([
@@ -1918,7 +2020,54 @@ describe('ContractService', () => {
     expect(result.items[0]?.total.marginDelta).toBe(-75000000);
   });
 
-  it('creates an editable CRM contract with lines and billing plan', async () => {
+  function performanceFixture() {
+    const db = createDbMock();
+    const common = { sourceOpportunityId: null, sourceOpportunityCode: null, customerName: 'customer-only', ownerName: 'owner-only', businessType: 'SI', industryLine: '계열', regionCode: 'unspecified', statusCode: 'active', confirmed: true,
+      contractStartDate: new Date('2025-01-01'), contractEndDate: new Date('2027-12-31'), wbsCode: 'WBS-only', revenueSubtotal: 300n, specialDiscountTypeCode: 'amount', specialDiscountValue: 0, specialDiscountAmount: 0n, revenueTotal: 300n, costTotal: 200n, externalCostTotal: 200n, updatedAt: new Date('2026-01-01'), nextAction: '' };
+    const contracts = [
+      { ...common, id: 1n, contractCode: 'P1', contractName: 'target alpha' },
+      { ...common, id: 2n, contractCode: 'P2', contractName: 'target zero' },
+      { ...common, id: 3n, contractCode: 'P3', contractName: 'target draft', confirmed: false },
+      { ...common, id: 4n, contractCode: 'P4', contractName: 'target other year' },
+    ];
+    const plan = (contractId: bigint, billingYm: string, revenueAmount: bigint, externalCostAmount: bigint) => ({ contractId, id: contractId, billingYm, revenueAmount, externalCostAmount, sortOrder: 1 });
+    db.$queryRaw.mockResolvedValueOnce(contracts).mockResolvedValueOnce([])
+      .mockResolvedValueOnce([plan(1n, '2026/01', 100n, 200n), plan(1n, '2026/12', 200n, 0n), plan(3n, '2026/01', 100n, 0n), plan(4n, '2025/12', 100n, 0n)])
+      .mockResolvedValueOnce([
+        { ...plan(1n, '2026/01', 50n, 20n), contractCode: 'P1' },
+        { ...plan(1n, '2027/01', 999n, 0n), contractCode: 'P1' },
+        { ...plan(2n, '2026/03', 0n, 0n), contractCode: 'P2' },
+      ]);
+    return createService(db);
+  }
+
+  it('includes zero actual-only months, excludes draft/other-year contracts and computes full-precision yearly totals', async () => {
+    const result = await performanceFixture().getMonthlyPerformance({ year: 2026, mode: 'source-compatible', search: 'target' });
+    expect(result.items.map(row => row.contractCode)).toEqual(['P1', 'P2']);
+    expect(result.items[0].months).toHaveLength(12);
+    expect(result.items[0].months[0].planMarginAmount).toBe(-100);
+    expect(result.summary.planRevenueTotal).toBe(300);
+    expect(result.summary.actualRevenueTotal).toBe(50);
+    expect(result.summary.revenueAchievementRate).toBe(16.67);
+    expect(result.items[1].total.actualRevenueAmount).toBe(0);
+    expect(result.items[0].hasBillingPlanInYear).toBe(true);
+    expect(result.items[1].hasBillingPlanInYear).toBe(false);
+  });
+
+  it.each(['customer-only', 'WBS-only', 'owner-only'])('limits source search to contract name while preserving operations search: %s', async (search) => {
+    expect((await performanceFixture().getMonthlyPerformance({ year: 2026, mode: 'source-compatible', search })).items).toHaveLength(0);
+    expect((await performanceFixture().getMonthlyPerformance({ year: 2026, search })).items).toHaveLength(2);
+  });
+
+  it('combines business/industry/unspecified region filters and keeps options for an empty result', async () => {
+    expect((await performanceFixture().getMonthlyPerformance({ year: 2026, businessType: 'SI', industryLine: '계열', region: 'unspecified' })).items).toHaveLength(2);
+    const empty = await performanceFixture().getMonthlyPerformance({ year: 2026, region: 'domestic' });
+    expect(empty.summary.contractCount).toBe(0);
+    expect(empty.summary.businessTypeOptions).toEqual(['SI']);
+    expect(empty.summary.revenueAchievementRate).toBe(0);
+  });
+
+  it.each(['전력/제조', ''])('creates an editable CRM contract with optional industry %p, lines and billing plan', async (industryLine) => {
     const db = createDbMock();
     db.$queryRaw
       .mockResolvedValueOnce([{ id: 7n, userName: 'kim.mj', displayName: '김민준' }])
@@ -1935,7 +2084,7 @@ describe('ContractService', () => {
           clientContactName: '박고객',
           ownerUserId: 7n,
           businessType: 'SI 구축',
-          industryLine: '전력/제조',
+          industryLine,
           regionCode: 'domestic',
           statusCode: 'review',
           confirmed: false,
@@ -2020,7 +2169,7 @@ describe('ContractService', () => {
       clientContactName: '박고객',
       ownerUserId: '7',
       businessType: 'SI 구축',
-      industryLine: '전력/제조',
+      industryLine,
       region: 'domestic',
       contractStartDate: '2026-09-01',
       contractEndDate: '2026-10-31',
@@ -2052,16 +2201,35 @@ describe('ContractService', () => {
           revenueAmount: 190000000,
           externalCostAmount: 60000000,
         },
+        { billingYm: '2027/01', revenueAmount: 0, externalCostAmount: 0 },
       ],
     }, 7n);
 
+    expect(result.industryLine).toBe(industryLine);
     expect(result.id).toBe('crm-ct-new');
     expect(result.revenueTotal).toBe(190000000);
     expect(result.externalCostTotal).toBe(60000000);
     expect(result.clientContactName).toBe('박고객');
     expect(result.ownerUserId).toBe('7');
     expect(result.billingPlan).toHaveLength(1);
-    expect(db.$executeRaw.calls).toHaveLength(5);
+    expect(db.$executeRaw.calls).toHaveLength(6);
+    expect(db.$executeRaw.calls.some((call) => call.includes('2027/01')
+      && call[3] === 0n && call[4] === 0n)).toBe(true);
+  });
+
+  it('rejects duplicate zero-value planned months before writing contract data', async () => {
+    const db = createDbMock();
+    await expect(createService(db).createContract({
+      customerName: '고객', contractName: '중복 청구 예정월', ownerName: '담당자',
+      businessType: 'SI', industryLine: '', region: 'unspecified',
+      contractStartDate: '2027-01-01', contractEndDate: '2027-12-31',
+      revenueLines: [], costLines: [],
+      billingPlan: [
+        { billingYm: '2027/01', revenueAmount: 0, externalCostAmount: 0 },
+        { billingYm: '2027/01', revenueAmount: 0, externalCostAmount: 0 },
+      ],
+    }, 7n)).rejects.toThrow('청구 예정월이 중복되었습니다');
+    expect(db.$executeRaw.calls).toHaveLength(0);
   });
 
   it('rejects a contract owner identity that is not an active common user', async () => {
@@ -2136,6 +2304,19 @@ describe('ContractService', () => {
     expect(db.$executeRaw.calls).toHaveLength(0);
   });
 
+  it.each([
+    [null, new Date('2026-12-31'), 100n, '유효한 시작일과 종료일'],
+    [new Date('2026-01-01'), null, 100n, '유효한 시작일과 종료일'],
+    [new Date('2026-01-01'), new Date('2026-12-31'), 0n, '양수 매출액'],
+  ])('blocks confirmation of incomplete drafts', async (contractStartDate, contractEndDate, revenueTotal, message) => {
+    const db = createDbMock();
+    db.$queryRaw.mockResolvedValueOnce([{ id: 10n, code: 'draft', confirmed: false }])
+      .mockResolvedValueOnce([{ wbsCode: 'WBS', contractStartDate, contractEndDate, revenueTotal, billingCount: 1n, billingRevenueTotal: revenueTotal, externalCostTotal: 0n, billingExternalCostTotal: 0n }]);
+    const service = createService(db);
+    await expect(service.confirmContract('draft', 7n)).rejects.toThrow(String(message));
+    expect(db.$executeRaw.calls).toHaveLength(0);
+  });
+
   it('rejects contract confirmation when billing totals do not match the ledger', async () => {
     const db = createDbMock();
     db.$queryRaw
@@ -2154,6 +2335,8 @@ describe('ContractService', () => {
           wbsCode: 'WBS-CRM-NEW',
           revenueTotal: 190000000n,
           externalCostTotal: 60000000n,
+          contractStartDate: new Date('2026-01-01'),
+          contractEndDate: new Date('2026-12-31'),
           billingCount: 1n,
           billingRevenueTotal: 180000000n,
           billingExternalCostTotal: 60000000n,

@@ -41,16 +41,19 @@ describe('DMS Git client configuration', () => {
     temporaryDirectories.push(repositoryRoot);
     execFileSync('git', ['init', repositoryRoot], { stdio: 'ignore' });
 
-    const untrustedGit = simpleGit(repositoryRoot).env(
+    // simple-git 4 requires an explicit allowlist for this Git test-only flag.
+    const allowEnvironment = ['GIT_TEST_ASSUME_DIFFERENT_OWNER'];
+    const untrustedGit = simpleGit({ baseDir: repositoryRoot, allowEnvironment }).env(
       'GIT_TEST_ASSUME_DIFFERENT_OWNER',
       '1',
     );
     await expect(untrustedGit.status()).rejects.toThrow(/dubious ownership/);
 
-    const trustedGit = createDmsGitClient(repositoryRoot).env(
+    const trustedGit = simpleGit({ ...buildDmsGitOptions(repositoryRoot), allowEnvironment }).env(
       'GIT_TEST_ASSUME_DIFFERENT_OWNER',
       '1',
     );
     await expect(trustedGit.status()).resolves.toBeDefined();
+    await expect(createDmsGitClient(repositoryRoot).status()).resolves.toBeDefined();
   });
 });

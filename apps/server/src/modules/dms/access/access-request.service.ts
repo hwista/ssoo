@@ -10,11 +10,12 @@ import type {
   DmsDocumentAccessRequestListQuery,
   DmsDocumentAccessRequestRole,
   DmsDocumentAccessRequestState,
-  DmsDocumentAccessRequestStatus,
   DmsDocumentAccessRequestSummary,
   DmsDocumentDirectGrantResult,
   DmsManagedDocumentSummary,
   DocumentPermissionGrant,
+  DocumentVisibility,
+  DocumentVisibilityScope,
   RejectDmsDocumentAccessRequestPayload,
   SearchResultItem,
   TransferDocumentOwnershipResult,
@@ -38,6 +39,8 @@ import { DocumentAclService } from './document-acl.service.js';
 import { DocumentControlPlaneService } from './document-control-plane.service.js';
 import { DocumentProjectionService } from './document-projection.service.js';
 import { DocumentRecordService } from './document-record.service.js';
+import { DocumentVisibilityService } from './document-visibility.service.js';
+import { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
 import {
   ACTIVE_REQUEST_ACTIVITY,
   ACTIVE_REQUEST_SOURCE,
@@ -168,7 +171,14 @@ export class AccessRequestService {
     private readonly documentRecordService: DocumentRecordService,
     private readonly controlPlaneSyncService: ControlPlaneSyncService,
     private readonly notificationService: CommonNotificationService,
+    private readonly visibilityService: DocumentVisibilityService = new DocumentVisibilityService(new PlatformAdmissionService(db)),
   ) {}
+
+  async resolveMetadataVisibility(user: TokenPayload, value: unknown, previous?: unknown): Promise<DocumentVisibility> {
+    // Content saves may round-trip a historical, still-unassigned visibility unchanged.
+    if (previous && JSON.stringify(value) === JSON.stringify(previous)) return previous as DocumentVisibility;
+    return this.visibilityService.resolve(user, value);
+  }
 
   private publishAccessChanged(event: DmsAccessChangedEvent): void {
     const payload: Record<string, CommonNotificationJsonValue> = {
@@ -492,6 +502,7 @@ export class AccessRequestService {
         documentTitle,
         owner,
         visibilityScope: document.visibilityScope as DmsManagedDocumentSummary['visibilityScope'],
+        targetOrgId: document.targetOrgId?.toString(),
         syncStatusCode: (document.syncStatusCode === 'repair_needed' ? 'repair_needed' : 'synced') as DmsManagedDocumentSummary['syncStatusCode'],
         repairReason: metadata && isRecord(metadata['controlPlaneRepair']) && typeof metadata['controlPlaneRepair'].reason === 'string'
           ? metadata['controlPlaneRepair'].reason
@@ -512,11 +523,12 @@ export class AccessRequestService {
   async updateDocumentVisibility(
     user: TokenPayload,
     documentId: string,
-    visibilityScope: 'self' | 'organization',
+    visibilityScope: DocumentVisibilityScope,
+    targetOrgId?: string,
   ): Promise<{ documentId: string; visibilityScope: string }> {
     const document = await this.db.client.dmsDocument.findUnique({
       where: { documentId: BigInt(documentId), isActive: true },
-      select: { documentId: true, ownerUserId: true, relativePath: true, visibilityScope: true },
+      select: { documentId: true, ownerUserId: true, relativePath: true, visibilityScope: true, targetOrgId: true, metadataJson: true },
     });
 
     if (!document) {
@@ -527,7 +539,11 @@ export class AccessRequestService {
       throw new ForbiddenException('문서 소유자만 공개범위를 변경할 수 있습니다.');
     }
 
-    if (document.visibilityScope === visibilityScope) {
+    const visibility = await this.visibilityService.resolve(user, { scope: visibilityScope, targetOrgId });
+    const metadata = isRecord(document.metadataJson) ? { ...document.metadataJson } : {};
+    const previousVisibility = isRecord(metadata['visibility']) ? metadata['visibility'] : {};
+    if (document.visibilityScope === visibilityScope && document.targetOrgId?.toString() === visibility.targetOrgId
+      && previousVisibility['scope'] === visibilityScope && previousVisibility['targetOrgId'] === visibility.targetOrgId) {
       return { documentId: document.documentId.toString(), visibilityScope };
     }
 
@@ -535,7 +551,14 @@ export class AccessRequestService {
       where: { documentId: document.documentId },
       data: {
         visibilityScope,
-        targetOrgId: visibilityScope === 'self' ? null : undefined,
+        targetOrgId: visibility.targetOrgId ? BigInt(visibility.targetOrgId) : null,
+        metadataJson: {
+          ...metadata,
+          visibility: { scope: visibilityScope, ...(visibility.targetOrgId ? { targetOrgId: visibility.targetOrgId } : {}) },
+        },
+        updatedBy: BigInt(user.userId),
+        lastSource: ACTIVE_REQUEST_SOURCE,
+        lastActivity: 'dms.access.document.update-visibility',
       },
     });
 
@@ -1332,6 +1355,7 @@ export class AccessRequestService {
         respondedAt: true,
         responseMessage: true,
         createdAt: true,
+        generatedGrant: { select: { expiresAt: true, revokedAt: true } },
       },
       orderBy: [
         { documentId: 'asc' },
@@ -1350,15 +1374,7 @@ export class AccessRequestService {
         continue;
       }
 
-      requestStateByPath.set(pathKey, {
-        requestId: request.accessRequestId.toString(),
-        status: request.statusCode as DmsDocumentAccessRequestStatus,
-        requestedAt: request.createdAt.toISOString(),
-        requestMessage: request.requestMessage ?? undefined,
-        requestedExpiresAt: toIsoString(request.requestedExpiresAt),
-        respondedAt: toIsoString(request.respondedAt),
-        responseMessage: request.responseMessage ?? undefined,
-      });
+      requestStateByPath.set(pathKey, toRequestState(request));
     }
 
     return results.map((result) => ({
@@ -1959,23 +1975,10 @@ export class AccessRequestService {
 
     const baseState = toRequestState(request);
     const grant = request.generatedGrant;
-    const grantRevokedAt = grant?.revokedAt;
     const grantExpiresAt = grant?.expiresAt;
-    const isApproved = baseState.status === 'approved';
-    const isRevoked = isApproved && grantRevokedAt instanceof Date;
-    const isExpired = isApproved
-      && !isRevoked
-      && grantExpiresAt instanceof Date
-      && grantExpiresAt.getTime() < Date.now();
-    const effectiveStatus = isRevoked
-      ? 'revoked'
-      : isExpired
-        ? 'expired'
-        : baseState.status;
 
     return {
       ...baseState,
-      status: effectiveStatus,
       documentId: request.document.documentId.toString(),
       path: request.document.relativePath,
       documentTitle,

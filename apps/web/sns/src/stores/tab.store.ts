@@ -1,3 +1,4 @@
+import { defineSsooHomeEntry, isSsooHomeEntry, normalizeSsooHomeTabs } from '@ssoo/web-shell';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { APP_HOME_PATH } from '@/lib/constants/routes';
@@ -29,12 +30,7 @@ interface SnsTabStore {
   reorderTabs: (fromIndex: number, toIndex: number) => void;
 }
 
-export const SNS_HOME_TAB = {
-  id: 'home',
-  title: '홈',
-  path: APP_HOME_PATH,
-  closable: false,
-} as const;
+export const SNS_HOME_TAB = defineSsooHomeEntry({ path: '/', pageTitle: '피드' });
 
 function createHomeTab(): SnsTabItem {
   const now = new Date();
@@ -62,6 +58,7 @@ export const useTabStore = create<SnsTabStore>()(
       activeTabId: SNS_HOME_TAB.id,
       maxTabs: 16,
       openTab: (options) => {
+        if (isSsooHomeEntry({ path: options.path }, SNS_HOME_TAB)) options = { ...options, ...SNS_HOME_TAB };
         const tabId = createTabId(options.path, options.id);
         const existing = get().tabs.find((tab) => tab.id === tabId);
         if (existing) {
@@ -121,6 +118,7 @@ export const useTabStore = create<SnsTabStore>()(
       },
       reorderTabs: (fromIndex, toIndex) => {
         set((state) => {
+          if (isSsooHomeEntry(state.tabs[fromIndex] ?? {}, SNS_HOME_TAB) || toIndex === 0) return state;
           const nextTabs = [...state.tabs];
           const moved = nextTabs.splice(fromIndex, 1)[0];
           if (!moved) return state;
@@ -140,10 +138,7 @@ export const useTabStore = create<SnsTabStore>()(
           openedAt: new Date(tab.openedAt),
           lastActiveAt: new Date(tab.lastActiveAt),
         }));
-        if (!state.tabs.some((tab) => tab.id === SNS_HOME_TAB.id)) {
-          state.tabs = [createHomeTab(), ...state.tabs];
-        }
-        state.activeTabId = state.activeTabId ?? SNS_HOME_TAB.id;
+        Object.assign(state, normalizeSsooHomeTabs(state.tabs, state.activeTabId, SNS_HOME_TAB, createHomeTab));
       },
     }
   )

@@ -5,6 +5,9 @@ import { Eye, Globe, Building2, Lock } from 'lucide-react';
 import { KeyValueSection } from '@/components/templates/page-frame/panel';
 import { Dropdown, Option } from '@/components/ui/dropdown';
 import type { DocumentVisibilityScope } from '@ssoo/types/dms';
+import { ServiceOrganizationSelect } from '@ssoo/web-auth';
+import { Button } from '@ssoo/web-ui';
+import { useAuthStore } from '@/stores/auth.store';
 
 const VISIBILITY_OPTIONS: { value: DocumentVisibilityScope; label: string; icon: React.ReactNode; description: string }[] = [
   { value: 'public', label: '공개', icon: <Globe className="h-4 w-4" />, description: '모든 사용자가 읽을 수 있습니다' },
@@ -26,15 +29,22 @@ export interface VisibilitySectionProps {
   /** 현재 공개 범위 */
   scope: DocumentVisibilityScope;
   /** 공개 범위 변경 콜백 (null이면 read-only) */
-  onScopeChange?: ((scope: DocumentVisibilityScope) => void) | null;
+  onScopeChange?: ((scope: DocumentVisibilityScope, targetOrgId?: string) => void) | null;
+  targetOrgId?: string;
   /** 변경 가능 여부 (오너 또는 manage 권한) */
   canManage?: boolean;
 }
 
-export function VisibilityValue({ scope, onScopeChange, canManage = false }: VisibilitySectionProps) {
+export function VisibilityValue({ scope, onScopeChange, canManage = false, targetOrgId }: VisibilitySectionProps) {
+  const accessToken = useAuthStore(state => state.accessToken);
+  const [selectingOrganization, setSelectingOrganization] = React.useState(false);
+  const [organizationId, setOrganizationId] = React.useState(targetOrgId ?? '');
+  React.useEffect(() => { setOrganizationId(targetOrgId ?? ''); setSelectingOrganization(false); }, [targetOrgId, scope]);
   const handleChange = React.useCallback(
     (value: string) => {
       if (canManage && onScopeChange) {
+        if (value === 'organization') { setSelectingOrganization(true); return; }
+        setSelectingOrganization(false);
         onScopeChange(value as DocumentVisibilityScope);
       }
     },
@@ -43,7 +53,7 @@ export function VisibilityValue({ scope, onScopeChange, canManage = false }: Vis
 
   if (canManage && onScopeChange) {
     return (
-      <Dropdown
+      <div className="min-w-0 space-y-2"><Dropdown
         value={formatVisibilityScope(scope)}
         onValueChange={handleChange}
         className="h-7 w-[130px] border-ssoo-content-border bg-white text-body-sm text-ssoo-primary"
@@ -59,6 +69,12 @@ export function VisibilityValue({ scope, onScopeChange, canManage = false }: Vis
           </Option>
         ))}
       </Dropdown>
+        {selectingOrganization ? <div className="space-y-2">
+          <ServiceOrganizationSelect service="dms" accessToken={accessToken} value={organizationId} onChange={setOrganizationId} />
+          <Button type="button" size="sm" disabled={!organizationId} onClick={() => { onScopeChange('organization', organizationId); setSelectingOrganization(false); }}>조직 공개 적용</Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setSelectingOrganization(false)}>취소</Button>
+        </div> : null}
+      </div>
     );
   }
 

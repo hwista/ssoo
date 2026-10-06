@@ -1,3 +1,4 @@
+import { PlatformAdmissionGuard } from './modules/common/onboarding/platform-admission.guard.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -12,6 +13,7 @@ import { configValidationSchema } from './config/config.validation.js';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from './modules/common/auth/guards/jwt-auth.guard.js';
+import { PlatformReadinessService } from './modules/common/health/platform-readiness.service.js';
 import { HealthController } from './modules/common/health/health.controller.js';
 
 const SERVER_ENV_FILE_PATHS = [
@@ -43,6 +45,7 @@ const SERVER_ENV_FILE_PATHS = [
   ],
   controllers: [HealthController],
   providers: [
+    PlatformReadinessService,
     // 전역 인터셉터: 요청 컨텍스트 설정 (히스토리 관리용)
     {
       provide: APP_INTERCEPTOR,
@@ -61,6 +64,7 @@ const SERVER_ENV_FILE_PATHS = [
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
+    { provide: APP_GUARD, useClass: PlatformAdmissionGuard },
   ],
 })
 export class AppModule {}

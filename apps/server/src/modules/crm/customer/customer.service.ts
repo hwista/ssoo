@@ -1,3 +1,5 @@
+import { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
+import { CrmAccessService } from '../access/access.service.js';
 import { randomUUID } from 'crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import type {
@@ -67,6 +69,7 @@ interface CrmCustomerActivityLedgerRow {
 }
 
 interface CrmCustomerLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   customerCode: string;
   customerName: string;
@@ -175,18 +178,20 @@ export class CustomerService {
   constructor(
     private readonly db: DatabaseService,
     @Optional() private readonly aiIndexingService?: AiIndexingService,
+    private readonly admission: PlatformAdmissionService = new PlatformAdmissionService(db),
+    private readonly crmAccess?: CrmAccessService,
   ) {}
 
-  async listCustomers(query: CrmCustomerListQuery = {}): Promise<CrmCustomer[]> {
+  async listCustomers(query: CrmCustomerListQuery = {}, currentUser?: TokenPayload): Promise<CrmCustomer[]> {
     const normalized = this.normalizeListQuery(query);
-    const rows = await this.loadActiveCustomerRows();
+    const rows = await this.loadActiveCustomerRows(currentUser);
     const customers = rows.map((row) => this.toCustomer(row));
     return this.filterAndSortCustomers(customers, normalized).slice(0, normalized.limit);
   }
 
-  async listResponse(query: CrmCustomerListQuery = {}): Promise<CrmCustomerListResponse> {
+  async listResponse(query: CrmCustomerListQuery = {}, currentUser?: TokenPayload): Promise<CrmCustomerListResponse> {
     const normalized = this.normalizeListQuery(query);
-    const rows = await this.loadActiveCustomerRows();
+    const rows = await this.loadActiveCustomerRows(currentUser);
     const customers = rows.map((row) => this.toCustomer(row));
     const filtered = this.filterAndSortCustomers(customers, normalized).slice(0, normalized.limit);
 
@@ -222,9 +227,13 @@ export class CustomerService {
 
   async createCustomer(dto: CrmCustomerUpsertRequest, currentUserId?: bigint): Promise<CrmCustomer> {
     const payload = this.normalizeCustomerPayload(dto);
+    if (!currentUserId) throw new BadRequestException('업무 조직을 확인할 사용자 정보가 필요합니다.');
+    const ownerOrganizationId = await this.admission.resolveBusinessOrganization(currentUserId, 'crm', dto.ownerOrganizationId);
+    await this.assertSourceOrganization(payload.sourceOpportunityId, ownerOrganizationId);
     const row = await this.db.client.crmCustomer.create({
       data: {
         customerCode: this.createCustomerCode(),
+        ownerOrganizationId,
         customerName: payload.customerName,
         customerTypeCode: payload.type,
         industryLine: payload.industryLine,
@@ -257,7 +266,11 @@ export class CustomerService {
       throw new NotFoundException('CRM customer not found');
     }
 
+    if (dto.ownerOrganizationId !== undefined && dto.ownerOrganizationId !== existing.ownerOrganizationId?.toString()) {
+      throw new BadRequestException('고객과 연결 자료의 업무 조직은 일반 수정에서 변경할 수 없습니다.');
+    }
     const payload = this.normalizeCustomerPayload(dto);
+    await this.assertSourceOrganization(payload.sourceOpportunityId, existing.ownerOrganizationId);
     await this.db.client.crmCustomer.update({
       where: { id: existing.id },
       data: {
@@ -317,6 +330,7 @@ export class CustomerService {
     }
 
     const payload = this.normalizeActivityPayload(dto);
+    await this.assertSourceOrganization(payload.sourceOpportunityId, customer.ownerOrganizationId);
     const activity = await this.db.client.$transaction(async (tx) => {
       const created = await tx.crmCustomerActivity.create({
         data: {
@@ -484,9 +498,18 @@ export class CustomerService {
     };
   }
 
-  private async loadActiveCustomerRows(): Promise<CrmCustomerLedgerRow[]> {
+  private async assertSourceOrganization(sourceId: bigint | null, organizationId: bigint | null) {
+    if (sourceId === null) return;
+    const source = await this.db.client.crmOpportunity.findFirst({ where: { id: sourceId, isActive: true }, select: { ownerOrganizationId: true } });
+    if (!source || source.ownerOrganizationId !== organizationId) {
+      throw new BadRequestException('같은 업무 조직의 영업기회만 연결할 수 있습니다.');
+    }
+  }
+
+  private async loadActiveCustomerRows(currentUser?: TokenPayload): Promise<CrmCustomerLedgerRow[]> {
+    const scope = currentUser ? await this.crmAccess!.businessOrganizationScope(currentUser) : null;
     return this.db.client.crmCustomer.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...(scope === null ? {} : { ownerOrganizationId: { in: scope } }) },
       include: {
         activities: {
           where: { isActive: true },
@@ -569,6 +592,7 @@ export class CustomerService {
       region: this.toCustomerRegion(row.regionCode),
       ownerName: row.ownerName,
       ownerUserId: row.ownerUserId?.toString(),
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       contactName: row.contactName ?? undefined,
       contactEmail: row.contactEmail ?? undefined,
       contactPhone: row.contactPhone ?? undefined,

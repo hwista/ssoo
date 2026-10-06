@@ -1,3 +1,4 @@
+import { getSsooErrorMessage, readSsooErrorMetadata } from '@ssoo/web-shell';
 import {
   createForbiddenStateChangingProxyRequestResponse,
   isValidStateChangingProxyRequest,
@@ -64,8 +65,8 @@ export async function proxyCommonNotificationJson<T>(
 
   if (!response.ok || !responseBody || responseBody.success !== true) {
     return Response.json(
-      { error: getBackendErrorMessage(responseBody, fallbackMessage) },
-      { status: response.status || 500 },
+      { ...readSsooErrorMetadata(responseBody), error: getSsooErrorMessage({ message: getBackendErrorMessage(responseBody, fallbackMessage), status: response.status }, fallbackMessage) },
+      { status: response.ok ? 502 : response.status, headers: response.headers.has('retry-after') ? { 'retry-after': response.headers.get('retry-after')! } : undefined },
     );
   }
 

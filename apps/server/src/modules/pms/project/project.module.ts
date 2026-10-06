@@ -11,9 +11,11 @@ import { ProjectRelationService } from './project-relation.service.js';
 import { DatabaseModule } from '../../../database/database.module.js';
 import { AccessFoundationModule } from '../../common/access/access-foundation.module.js';
 import { CommonAiIndexModule } from '../../common/ai-index/ai-index.module.js';
+import { ContractModule } from '../../crm/contract/contract.module.js';
+import { CrmAccessModule } from '../../crm/access/access.module.js';
 
 @Module({
-  imports: [DatabaseModule, AccessFoundationModule, CommonAiIndexModule],
+  imports: [DatabaseModule, AccessFoundationModule, CommonAiIndexModule, ContractModule, CrmAccessModule],
   controllers: [ProjectController, ProjectOrgController, ProjectRelationController],
   providers: [
     ProjectService,

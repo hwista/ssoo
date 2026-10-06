@@ -1,5 +1,6 @@
 'use client';
 
+import { SharedApiError } from './axios-api-client';
 import { useCallback, useMemo } from 'react';
 import type {
   CommonSearchRequest,
@@ -83,7 +84,7 @@ export function useCommonGlobalSearchAdapter({
   const search = useCallback(async (request: CommonSearchRequest): Promise<CommonSearchResponse> => {
     const response = await searchApi.search(request);
     if (!response.success || !response.data) {
-      throw new Error(response.error || response.message || '검색 결과를 불러오지 못했습니다.');
+      throw new SharedApiError(response.error || response.message || '검색 결과를 불러오지 못했습니다.', response.status, response);
     }
     return response.data;
   }, [searchApi]);

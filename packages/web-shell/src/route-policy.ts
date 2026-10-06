@@ -6,6 +6,9 @@ export interface SsooRoutePolicyOptions {
   fallbackPath: string;
   mode?: SsooRoutePolicyMode;
   sharedUserSurfaceRewritePath?: string;
+  legacyPaths?: readonly string[];
+  legacyPrefixes?: readonly string[];
+  legacyRedirectPath?: string;
 }
 
 export type SsooRoutePolicyDecision =
@@ -43,6 +46,11 @@ export function resolveSsooRoutePolicyDecision(
 
   if (isSsooRoutePolicyAllowed(pathname, options)) {
     return { action: 'next' };
+  }
+
+  if (options.legacyRedirectPath && (matchesExactPath(pathname, options.legacyPaths ?? [])
+    || matchesPathPrefix(pathname, options.legacyPrefixes ?? []))) {
+    return { action: 'redirect', path: options.legacyRedirectPath };
   }
 
   return {

@@ -59,6 +59,8 @@ interface AuthenticatedSocket extends Socket {
   data: {
     user?: TokenPayload;
     subscribedPaths?: Set<string>;
+    accessToken?: string;
+    treeSubscribed?: boolean;
   };
 }
 
@@ -79,6 +81,8 @@ interface AuthenticatedSocket extends Socket {
 export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
+
+  private readonly clients = new Map<string, AuthenticatedSocket>();
 
   private readonly connectedUsers = new Map<string, Set<string>>(); // userId → socketIds
 
@@ -122,6 +126,8 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
       }
 
       client.data.user = user;
+      client.data.accessToken = token;
+      this.clients.set(client.id, client);
       client.data.subscribedPaths = new Set();
 
       // Track connected user
@@ -138,6 +144,7 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   handleDisconnect(client: AuthenticatedSocket): void {
+    this.clients.delete(client.id);
     const user = client.data?.user;
     if (user) {
       const sockets = this.connectedUsers.get(user.userId);
@@ -154,10 +161,11 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
   // --------------------------------------------------------------------------
 
   @SubscribeMessage('subscribe:document')
-  handleSubscribeDocument(
+  async handleSubscribeDocument(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() data: { path: string },
-  ): { success: boolean; error?: string } {
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!await this.refreshClientUser(client)) return { success: false, error: 'forbidden' };
     if (!client.data.user) return { success: false, error: 'not-ready' };
     if (!data?.path) return { success: false, error: 'invalid-path' };
 
@@ -194,9 +202,11 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   @SubscribeMessage('subscribe:tree')
-  handleSubscribeTree(
+  async handleSubscribeTree(
     @ConnectedSocket() client: AuthenticatedSocket,
-  ): { success: boolean } {
+  ): Promise<{ success: boolean }> {
+    if (!await this.refreshClientUser(client)) return { success: false };
+    client.data.treeSubscribed = true;
     if (!client.data.user) return { success: false };
     client.join('dms:tree');
     return { success: true };
@@ -217,61 +227,72 @@ export class DmsEventsGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   emitFileChanged(event: DmsFileChangedEvent): void {
     for (const filePath of event.paths) {
-      const roomName = this.documentRoom(filePath);
-      this.server?.to(roomName).emit('dms:file-changed', {
-        ...event,
-        path: filePath,
-      });
+      this.dispatch('dms:file-changed', { ...event, paths: [filePath], path: filePath }, filePath);
     }
-
-    // Tree-level notification for create/rename/delete
-    if (event.action !== 'update' && event.action !== 'metadata') {
-      this.server?.to('dms:tree').emit('dms:tree-changed', {
-        action: event.action,
-      } satisfies DmsTreeChangedEvent);
-    }
+    if (event.action !== 'update' && event.action !== 'metadata') this.emitTreeChanged({ action: event.action });
   }
 
   emitPublishStatus(event: DmsPublishStatusEvent): void {
-    const roomName = this.documentRoom(event.path);
-    this.server?.to(roomName).emit('dms:publish-status', event);
-    this.server?.to('dms:tree').emit('dms:publish-status', event);
+    this.dispatch('dms:publish-status', event, event.path, true);
   }
 
   emitTreeChanged(event: DmsTreeChangedEvent): void {
-    this.server?.to('dms:tree').emit('dms:tree-changed', event);
+    this.dispatch('dms:tree-changed', event, undefined, true);
   }
 
   emitCollaborationChanged(event: DmsCollaborationChangedEvent): void {
-    const documentPath = normalizePath(event.path);
-    this.server?.to(this.documentRoom(documentPath)).emit('dms:collaboration-changed', {
-      ...event,
-      path: documentPath,
-    });
+    this.dispatch('dms:collaboration-changed', { ...event, path: normalizePath(event.path) }, event.path);
   }
 
   emitLockTakeoverRequested(ownerUserId: string, event: SoftLockTakeoverRequest): void {
-    this.emitToUser(ownerUserId, 'dms:lock-takeover-requested', event);
+    this.dispatch('dms:lock-takeover-requested', event, event.path, false, ownerUserId);
   }
 
   emitLockTakeoverResponded(requesterUserId: string, event: SoftLockTakeoverResponse): void {
-    this.emitToUser(requesterUserId, 'dms:lock-takeover-responded', event);
+    this.dispatch('dms:lock-takeover-responded', event, event.path, false, requesterUserId);
   }
-
-  // --------------------------------------------------------------------------
-  // Helpers
-  // --------------------------------------------------------------------------
 
   private documentRoom(filePath: string): string {
     return `doc:${normalizePath(filePath)}`;
   }
 
-  private emitToUser(userId: string, eventName: string, payload: unknown): void {
-    const socketIds = this.connectedUsers.get(userId);
-    if (!socketIds?.size) return;
-    for (const socketId of socketIds) {
-      this.server?.to(socketId).emit(eventName, payload);
+  private async refreshClientUser(client: AuthenticatedSocket): Promise<boolean> {
+    try {
+      const token = client.data.accessToken;
+      const user = token ? await verifyWsToken(token, this.authService) : null;
+      if (!user || !(await this.accessService.getAccessSnapshot(user)).features.canReadDocuments) {
+        client.disconnect(true);
+        this.clients.delete(client.id);
+        return false;
+      }
+      client.data.user = user;
+      return true;
+    } catch {
+      client.disconnect(true);
+      this.clients.delete(client.id);
+      return false;
     }
+  }
+
+  private dispatch(eventName: string, payload: unknown, documentPath?: string, includeTree = false, userId?: string): void {
+    const normalizedPath = documentPath ? normalizePath(documentPath) : undefined;
+    for (const client of this.clients.values()) {
+      if (userId ? client.data.user?.userId !== userId
+        : !((normalizedPath && client.data.subscribedPaths?.has(normalizedPath)) || (includeTree && client.data.treeSubscribed))) continue;
+      void this.emitAuthorized(client, eventName, payload, normalizedPath).catch(error => {
+        logger.warn(`DMS event delivery failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }
+  }
+
+  private async emitAuthorized(client: AuthenticatedSocket, eventName: string, payload: unknown, documentPath?: string): Promise<void> {
+    if (!await this.refreshClientUser(client) || !client.data.user) return;
+    if (documentPath && !this.canSubscribeDocument(client.data.user, documentPath)) {
+      client.data.subscribedPaths?.delete(documentPath);
+      await client.leave(this.documentRoom(documentPath));
+      return;
+    }
+    client.emit(eventName, payload);
   }
 
   getConnectedUserCount(): number {

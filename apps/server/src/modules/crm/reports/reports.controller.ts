@@ -22,8 +22,8 @@ export class ReportsController {
   @ApiOkResponse({ description: '사업구분/담당자/WBS별 pipeline과 계약 계획/실적 요약' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 보고 조회 권한 없음' })
-  async preview(@Query() query: CrmReportsPreviewQueryDto) {
-    return success(await this.reportsService.getPreview(query));
+  async preview(@Query() query: CrmReportsPreviewQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.reportsService.getPreview(query, currentUser));
   }
 
   @Post('confirm')

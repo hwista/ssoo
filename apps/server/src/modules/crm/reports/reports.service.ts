@@ -16,16 +16,18 @@ import type {
   CrmReportsPreviewResponse,
   CrmReportsPreviewSummary,
 } from '@ssoo/types/crm';
+import { CrmAccessService } from '../access/access.service.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DatabaseService } from '../../../database/database.service.js';
 import { ContractService } from '../contract/contract.service.js';
 import { OpportunityService } from '../opportunity/opportunity.service.js';
 
-const REPORT_REGIONS: CrmReportsPreviewRegion[] = ['all', 'domestic', 'overseas'];
+const REPORT_REGIONS: CrmReportsPreviewRegion[] = ['all', 'domestic', 'overseas', 'unspecified'];
 const CRM_REPORTS_BOUNDARY_NOTICE = 'CRM 보고 Preview는 영업기회 pipeline과 확정 계약 청구계획/실적 read model을 집계합니다. 보고 확정은 CRM snapshot 원장만 저장하며 전자결재, 회계 전표, PMS 수행 지표, DMS 문서 저장 상태는 이 화면에서 확정하지 않습니다.';
 const CRM_REPORTS_CONFIRMATION_BOUNDARY_NOTICE = 'CRM 보고 확정은 현재 Preview 결과를 CRM 보고 snapshot 원장으로 저장합니다. 회계 전표, PMS 수행 KPI, DMS 문서 저장 확정은 별도 후속 경계입니다.';
 const CRM_REPORTS_UNAVAILABLE_ACTIONS = ['회계 전표 생성', 'PMS 수행 KPI 편집', 'DMS 문서 저장 확정', '사업계획 원장 확정'];
 
-type NormalizedReportsQuery = Required<CrmReportsPreviewQuery>;
+type NormalizedReportsQuery = Required<Omit<CrmReportsPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmReportsPreviewQuery, 'ownerOrganizationId'>;
 
 interface BreakdownDraft {
   id: string;
@@ -42,6 +44,7 @@ interface BreakdownDraft {
 }
 
 interface CrmReportConfirmationLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint | number | string;
   targetYear: number;
   businessType: string;
@@ -75,12 +78,15 @@ export class ReportsService {
     private readonly opportunityService: OpportunityService,
     private readonly contractService: ContractService,
     @Optional() private readonly db?: DatabaseService,
+    private readonly crmAccess?: CrmAccessService,
   ) {}
 
-  async getPreview(query: CrmReportsPreviewQuery = {}): Promise<CrmReportsPreviewResponse> {
-    const normalized = this.normalizeQuery(query);
+  async getPreview(query: CrmReportsPreviewQuery = {}, currentUser?: TokenPayload): Promise<CrmReportsPreviewResponse> {
+    const organizationId = currentUser ? await this.crmAccess!.resolveReadOrganization(currentUser, query.ownerOrganizationId) : null;
+    if (currentUser) await this.crmAccess!.assertOrganizationCapability(currentUser, 'canReadReport', organizationId);
+    const normalized = this.normalizeQuery({ ...query, ownerOrganizationId: organizationId?.toString() });
     const [preview, latestConfirmation] = await Promise.all([
-      this.buildPreview(normalized),
+      this.buildPreview(normalized, currentUser, organizationId ?? undefined),
       this.loadLatestConfirmation(normalized),
     ]);
 
@@ -98,8 +104,9 @@ export class ReportsService {
     currentUserId?: bigint,
   ): Promise<{ confirmation: CrmReportsConfirmation; boundaryNotice: string }> {
     const db = this.requireDb();
-    const normalized = this.normalizeQuery(request);
-    const preview = await this.buildPreview(normalized);
+    const { user, organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, request.ownerOrganizationId, 'canConfirmReport');
+    const normalized = this.normalizeQuery({ ...request, ownerOrganizationId: organizationId.toString() });
+    const preview = await this.buildPreview(normalized, user, organizationId);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { latestConfirmation: _latestConfirmation, ...summarySnapshot } = preview.summary;
     const memo = this.optionalText(request.memo, 1000);
@@ -116,7 +123,8 @@ export class ReportsService {
                last_source = 'crm.reports',
                last_activity = 'report-confirm-replaced',
                transaction_id = ${transactionId}::uuid
-         where target_year = ${normalized.year}
+         where owner_organization_id is not distinct from ${normalized.ownerOrganizationId ? BigInt(normalized.ownerOrganizationId) : null}
+           and target_year = ${normalized.year}
            and business_type = ${normalized.businessType}
            and industry_line = ${normalized.industryLine}
            and region_code = ${normalized.region}
@@ -127,14 +135,14 @@ export class ReportsService {
 
       return tx.$queryRaw<CrmReportConfirmationLedgerRow[]>`
         insert into crm.crm_report_confirmation_m (
-          target_year, business_type, industry_line, region_code, search_text, status_code,
+          owner_organization_id, target_year, business_type, industry_line, region_code, search_text, status_code,
           query_snapshot, summary_snapshot, monthly_trend_snapshot, breakdowns_snapshot, attention_items_snapshot,
           opportunity_count, contract_count, breakdown_count, attention_item_count,
           pipeline_revenue_total, plan_revenue_total, actual_revenue_total, revenue_delta, margin_delta,
           memo, confirmed_by, last_source, last_activity, transaction_id
         )
         values (
-          ${normalized.year}, ${normalized.businessType}, ${normalized.industryLine}, ${normalized.region}, ${normalized.search}, 'confirmed',
+          ${organizationId}, ${normalized.year}, ${normalized.businessType}, ${normalized.industryLine}, ${normalized.region}, ${normalized.search}, 'confirmed',
           ${JSON.stringify(normalized)}::jsonb,
           ${JSON.stringify(summarySnapshot)}::jsonb,
           ${JSON.stringify(preview.monthlyTrend)}::jsonb,
@@ -147,6 +155,7 @@ export class ReportsService {
         )
         returning
           report_confirmation_id as "id",
+          owner_organization_id as "ownerOrganizationId",
           target_year as "targetYear",
           business_type as "businessType",
           industry_line as "industryLine",
@@ -186,6 +195,10 @@ export class ReportsService {
   ): Promise<{ confirmation: CrmReportsConfirmation; boundaryNotice: string }> {
     const db = this.requireDb();
     const id = this.toBigIntId(confirmationId);
+    const user = await this.crmAccess!.actorForUser(currentUserId);
+    const target = await db.client.crmReportConfirmation.findUnique({ where: { id }, select: { ownerOrganizationId: true } });
+    if (!target) throw new NotFoundException('CRM report confirmation not found');
+    await this.crmAccess!.assertOrganizationCapability(user, 'canConfirmReport', target.ownerOrganizationId);
     const transactionId = randomUUID();
     const rows = await db.$queryRaw<CrmReportConfirmationLedgerRow[]>`
       update crm.crm_report_confirmation_m
@@ -202,6 +215,7 @@ export class ReportsService {
          and is_active = true
       returning
         report_confirmation_id as "id",
+          owner_organization_id as "ownerOrganizationId",
         target_year as "targetYear",
         business_type as "businessType",
         industry_line as "industryLine",
@@ -237,10 +251,10 @@ export class ReportsService {
     };
   }
 
-  private async buildPreview(normalized: NormalizedReportsQuery): Promise<CrmReportsPreviewResponse> {
+  private async buildPreview(normalized: NormalizedReportsQuery, currentUser?: TokenPayload, organizationId?: bigint): Promise<CrmReportsPreviewResponse> {
     const [opportunityResponse, performanceResponse] = await Promise.all([
-      this.opportunityService.listResponse({ sort: 'updated-desc' }),
-      this.contractService.getMonthlyPerformance(this.toPerformanceQuery(normalized)),
+      this.opportunityService.listResponse({ sort: 'updated-desc' }, currentUser, organizationId),
+      this.contractService.getMonthlyPerformance(this.toPerformanceQuery(normalized), currentUser, organizationId),
     ]);
     const opportunities = this.filterOpportunities(opportunityResponse.items, normalized);
     const performanceRows = performanceResponse.items;
@@ -281,6 +295,7 @@ export class ReportsService {
     }
     const rows = await this.db.$queryRaw<CrmReportConfirmationLedgerRow[]>`
       select report_confirmation_id as "id",
+          owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type as "businessType",
              industry_line as "industryLine",
@@ -306,7 +321,8 @@ export class ReportsService {
              reopened_at as "reopenedAt",
              updated_at as "updatedAt"
         from crm.crm_report_confirmation_m
-       where target_year = ${normalized.year}
+       where owner_organization_id is not distinct from ${normalized.ownerOrganizationId ? BigInt(normalized.ownerOrganizationId) : null}
+           and target_year = ${normalized.year}
          and business_type = ${normalized.businessType}
          and industry_line = ${normalized.industryLine}
          and region_code = ${normalized.region}
@@ -463,6 +479,7 @@ export class ReportsService {
 
   private toPerformanceQuery(query: NormalizedReportsQuery): Required<CrmContractPerformanceQuery> {
     return {
+      mode: 'operations',
       year: query.year,
       businessType: query.businessType,
       industryLine: query.industryLine,
@@ -481,6 +498,7 @@ export class ReportsService {
       : 'all';
 
     return {
+      ...(query.ownerOrganizationId ? { ownerOrganizationId: query.ownerOrganizationId } : {}),
       year,
       businessType: this.optionalText(query.businessType, 120) ?? '',
       industryLine: this.optionalText(query.industryLine, 120) ?? '',
@@ -663,6 +681,7 @@ export class ReportsService {
   private toConfirmationSummary(row: CrmReportConfirmationLedgerRow): CrmReportsConfirmationSummary {
     return {
       id: row.id.toString(),
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       year: row.targetYear,
       status: row.statusCode,
       query: this.toConfirmationQuery(row),
@@ -682,15 +701,15 @@ export class ReportsService {
     };
   }
 
-  private toConfirmationQuery(row: CrmReportConfirmationLedgerRow): Required<CrmReportsPreviewQuery> {
-    const query = this.fromJson<Required<CrmReportsPreviewQuery>>(row.querySnapshot, {
+  private toConfirmationQuery(row: CrmReportConfirmationLedgerRow): Required<Omit<CrmReportsPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmReportsPreviewQuery, 'ownerOrganizationId'> {
+    const query = this.fromJson<Required<Omit<CrmReportsPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmReportsPreviewQuery, 'ownerOrganizationId'>>(row.querySnapshot, {
       year: row.targetYear,
       businessType: row.businessType,
       industryLine: row.industryLine,
       region: REPORT_REGIONS.includes(row.regionCode) ? row.regionCode : 'all',
       search: row.searchText,
     });
-    return this.normalizeQuery(query);
+    return this.normalizeQuery({ ...query, ownerOrganizationId: row.ownerOrganizationId?.toString() });
   }
 
   private fromJson<T>(value: unknown, fallback: T): T {

@@ -12,6 +12,7 @@ async function loadPerformance(query: ReturnType<typeof toRequiredPerformanceQue
   try {
     const params = new URLSearchParams();
     params.set('year', String(query.year));
+    params.set('mode', query.mode);
     if (query.businessType) params.set('businessType', query.businessType);
     if (query.industryLine) params.set('industryLine', query.industryLine);
     if (query.region !== 'all') params.set('region', query.region);

@@ -36,10 +36,20 @@ export function buildContentHash(content: string): string {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
-export function toRequestState(record: AccessRequestRecord): DmsDocumentAccessRequestState {
+export function toRequestState(record: Pick<AccessRequestRecord,
+  'accessRequestId' | 'statusCode' | 'createdAt' | 'requestMessage'
+  | 'requestedExpiresAt' | 'respondedAt' | 'responseMessage'> & {
+    generatedGrant?: Pick<AccessRequestGrantRecord, 'expiresAt' | 'revokedAt'> | null;
+  }): DmsDocumentAccessRequestState {
+  const grant = record.generatedGrant;
+  const status = record.statusCode === 'approved' && grant?.revokedAt
+    ? 'revoked'
+    : record.statusCode === 'approved' && grant?.expiresAt && grant.expiresAt.getTime() <= Date.now()
+      ? 'expired'
+      : record.statusCode as DmsDocumentAccessRequestStatus;
   return {
     requestId: record.accessRequestId.toString(),
-    status: record.statusCode as DmsDocumentAccessRequestStatus,
+    status,
     requestedAt: record.createdAt.toISOString(),
     requestMessage: record.requestMessage ?? undefined,
     requestedExpiresAt: toIsoString(record.requestedExpiresAt),

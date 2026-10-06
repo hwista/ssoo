@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useMemo, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,7 @@ export function DocumentDiagram({ code, sourceHtml }: { code: string; sourceHtml
   const sourceVisible = showSource || hasSearchMatch || !current.svg;
   return (
     <div className="my-3 min-w-0" data-diagram-state={current.error ? 'error' : current.svg ? 'ready' : 'loading'}>
-      {current.error ? <p role="status" className="text-body-sm text-ssoo-warning">{current.error.message}</p> : null}
+      {current.error ? <SsooErrorNotice as="p" compact error={current.error} /> : null}
       {current.svg && !sourceVisible ? (
         <div role="region" aria-label="다이어그램" tabIndex={0} className="overflow-x-auto [&>svg]:mx-auto" dangerouslySetInnerHTML={{ __html: current.svg }} />
       ) : null}

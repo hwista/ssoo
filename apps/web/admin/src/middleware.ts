@@ -13,7 +13,8 @@ export function middleware(request: NextRequest) {
   const decision = resolveSsooRoutePolicyDecision(request.nextUrl.pathname, {
     allowedPaths: ADMIN_ROOT_ENTRY_PATHS,
     allowedPrefixes: ADMIN_ALLOWED_PATH_PREFIXES,
-    fallbackPath: APP_HOME_PATH,
+    fallbackPath: '/not-found',
+    mode: 'rewrite',
     sharedUserSurfaceRewritePath: APP_HOME_PATH,
   });
 

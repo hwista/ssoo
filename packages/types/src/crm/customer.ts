@@ -30,6 +30,8 @@ export interface CrmCustomerActivity {
 }
 
 export interface CrmCustomer {
+  /** Owning business organization; absent only for preserved legacy records. */
+  ownerOrganizationId?: string;
   id: string;
   code: string;
   customerName: string;
@@ -76,6 +78,8 @@ export interface CrmCustomerListResponse {
 }
 
 export interface CrmCustomerUpsertRequest {
+  /** Owning business organization; absent only for preserved legacy records. */
+  ownerOrganizationId?: string;
   customerName: string;
   type?: CrmCustomerType;
   industryLine: string;

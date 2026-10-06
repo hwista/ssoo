@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CrmAccessModule } from '../../crm/access/access.module.js';
 import { DatabaseModule } from '../../../database/database.module.js';
 import { AccessModule } from '../access/access.module.js';
 import { FileModule } from '../file/file.module.js';
@@ -11,7 +12,7 @@ import {
 } from './crm-contract-lifecycle.service.js';
 
 @Module({
-  imports: [AccessModule, DatabaseModule, FileModule, TemplatesModule],
+  imports: [AccessModule, DatabaseModule, FileModule, TemplatesModule, CrmAccessModule],
   controllers: [DmsCrmContractLifecycleController],
   providers: [
     DmsCrmContractLifecycleService,

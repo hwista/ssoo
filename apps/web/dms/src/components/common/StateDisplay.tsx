@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Loader2, AlertCircle, RefreshCw, FileX } from 'lucide-react';
+import { SsooErrorPanel, type SsooErrorKind } from '@ssoo/web-shell';
+import { Loader2, FileX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -83,6 +84,7 @@ export function LoadingSpinner({
  * ErrorState Props
  */
 export interface ErrorStateProps {
+  kind?: SsooErrorKind;
   /** 에러 객체 또는 메시지 */
   error?: Error | string | null;
   /** 기본 에러 메시지 */
@@ -96,30 +98,8 @@ export interface ErrorStateProps {
 /**
  * ErrorState 컴포넌트
  */
-export function ErrorState({
-  error,
-  defaultMessage = '데이터를 불러오는데 실패했습니다.',
-  onRetry,
-  className,
-}: ErrorStateProps) {
-  const message = error
-    ? typeof error === 'string'
-      ? error
-      : error.message
-    : defaultMessage;
-
-  return (
-    <div className={cn('flex flex-col items-center justify-center py-12', className)}>
-      <AlertCircle className="h-10 w-10 text-destructive" />
-      <p className="mt-4 text-body-sm text-muted-foreground">{message}</p>
-      {onRetry && (
-        <Button variant="outline" className="mt-4" onClick={onRetry}>
-          <RefreshCw className="icon-body" />
-          다시 시도
-        </Button>
-      )}
-    </div>
-  );
+export function ErrorState({ error, defaultMessage = '데이터를 불러오는데 실패했습니다.', onRetry, className, kind }: ErrorStateProps) {
+  return <SsooErrorPanel error={error} kind={kind} description={error ? undefined : defaultMessage} onRetry={onRetry} className={className} />;
 }
 
 /**

@@ -1,3 +1,6 @@
+import { AccessService } from '../access/access.service.js';
+import type { AiIndexObjectRef } from '@ssoo/types/common';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { createHash } from 'crypto';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import type { Prisma } from '@ssoo/database';
@@ -19,6 +22,7 @@ type SnsPostProjection = Prisma.SnsPostGetPayload<{
     board: { select: { boardCode: true; boardName: true; boardType: true } };
     category: { select: { categoryName: true } };
     postTags: { include: { tag: true } };
+    accessRequests: { select: { requesterUserId: true } };
     _count: { select: { comments: true; reactions: true; attachments: true; bookmarks: true } };
   };
 }>;
@@ -146,6 +150,7 @@ function buildMetadata(post: SnsPostProjection, sourceVersion: string): AiIndexJ
 
 function buildAcl(post: SnsPostProjection): { sensitivity: AiIndexSensitivityCode; acl: AiIndexAclProjection } {
   const authorUserId = post.authorUserId.toString();
+  const readableUserIds = [...new Set([authorUserId, ...post.accessRequests.map(request => request.requesterUserId.toString())])];
   const visibilityScopeCode = post.visibilityScopeCode;
 
   if (visibilityScopeCode === 'public') {
@@ -179,7 +184,7 @@ function buildAcl(post: SnsPostProjection): { sensitivity: AiIndexSensitivityCod
       visibilityScopeCode,
       authorUserId,
       ownerUserId: authorUserId,
-      readableUserIds: [authorUserId],
+      readableUserIds,
       organizationIds,
       targetOrgId: post.targetOrgId?.toString() ?? null,
     };
@@ -200,18 +205,18 @@ function buildAcl(post: SnsPostProjection): { sensitivity: AiIndexSensitivityCod
   const sensitivity: AiIndexSensitivityCode = 'restricted';
   const snapshot: AiIndexJsonObject = {
     policy: 'sns.post.read',
-    access: 'owner-only',
+    access: readableUserIds.length > 1 ? 'individual-acl' : 'owner-only',
     visibilityScopeCode,
     authorUserId,
     ownerUserId: authorUserId,
-    readableUserIds: [authorUserId],
-    userIds: [authorUserId],
+    readableUserIds,
+    userIds: readableUserIds,
   };
 
   return {
     sensitivity,
     acl: {
-      accessScope: 'owner',
+      accessScope: readableUserIds.length > 1 ? 'acl' : 'owner',
       sensitivity,
       searchEligible: true,
       contextEligible: true,
@@ -259,10 +264,17 @@ export class SnsAiIndexAdapter implements AiIndexAdapter, OnModuleInit {
     private readonly db: DatabaseService,
     private readonly registry: AiIndexRegistryService,
     private readonly embeddingProvider: AiEmbeddingProviderService,
+    private readonly access: AccessService,
   ) {}
 
   onModuleInit(): void {
     this.registry.register(this);
+  }
+
+  async canRead(request: AiIndexObjectRef, user: TokenPayload): Promise<boolean> {
+    if (request.entityType !== 'post' || !/^\d+$/.test(request.entityId)) return false;
+    if (!(await this.access.getAccessSnapshot(user)).features.canReadFeed) return false;
+    return Boolean(await this.db.client.snsPost.findFirst({ where: { AND: [{ id: BigInt(request.entityId) }, await this.access.buildVisiblePostWhere(user)] }, select: { id: true } }));
   }
 
   async syncObject(request: AiIndexAdapterSyncRequest): Promise<AiIndexAdapterSyncResult> {
@@ -342,6 +354,10 @@ export class SnsAiIndexAdapter implements AiIndexAdapter, OnModuleInit {
         isActive: true,
       },
       include: {
+        accessRequests: {
+          where: { isActive: true, statusCode: 'approved', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+          select: { requesterUserId: true },
+        },
         board: {
           select: {
             boardCode: true,

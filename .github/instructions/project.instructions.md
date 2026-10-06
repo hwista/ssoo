@@ -74,7 +74,7 @@ apps/web/dms ──→ packages/types, packages/web-auth, packages/web-shell, pa
 - 각 웹 앱의 `components/ui/*`는 앱별 Button/Badge/Card/Input/Table/Dialog/Select 등 primitive recipe를 새로 정의하지 않습니다.
 - `apps/web`, `packages/web-shell`, `packages/web-auth`의 TSX surface는 원시 `button/input/textarea/select/table/thead/tbody/tfoot/tr/th/td`를 직접 렌더링하지 않고 `@ssoo/web-ui` primitive 또는 앱 thin adapter를 소비합니다.
 - `@ssoo/web-ui`의 `Input`은 목적 중립 원자입니다. 검색·필터·lookup 입력은 `@ssoo/web-shell`의 `SsooSearchInput`으로 `id/name/ariaLabel/intent`를 선언하고, query state·URL·API·선택 로직은 화면 소유로 유지합니다. 로그인·재설정·비밀번호 변경·관리 대상 사용자·비자격증명 secret은 각 목적에 맞는 `name/id/autocomplete`와 `data-ssoo-input-intent`를 명시합니다.
-- header/sidebar/독립 검색 페이지처럼 구조상 검색 시설인 표면만 고유 이름의 `role="search"` landmark를 사용합니다. 화면 내부 조건·lookup마다 form/landmark를 추가하거나 기존 submit/DOM 경계를 바꾸지 않습니다. 이 계약과 36개 입력 inventory는 `pnpm run verify:input-intent`가 build/preflight/push guard/PR validation에서 검사합니다.
+- header/sidebar/독립 검색 페이지처럼 구조상 검색 시설인 표면만 고유 이름의 `role="search"` landmark를 사용합니다. 화면 내부 조건·lookup마다 form/landmark를 추가하거나 기존 submit/DOM 경계를 바꾸지 않습니다. 이 계약과 37개 입력 inventory는 `pnpm run verify:input-intent`가 build/preflight/push guard/PR validation에서 검사합니다.
 - 입력 의도 회귀 계약의 앱 범위는 Admin/CRM/PMS/DMS/SNS 고정 5앱이며 앱 선택·제외 분기를 두지 않습니다. 비의도 autofill 차단은 `admin` 같은 값의 내용이나 앱 이름을 판별하지 않고, 앱 소유값과의 불일치·브라우저 native autofill 상태·최근 실제 입력 의도만으로 결정합니다.
 - 정적 intrinsic 태그에 `role=button/tab/checkbox/...`, `onClick+tabIndex`, `onClick+onKeyDown`을 붙여 interactive primitive처럼 쓰는 pseudo-control은 금지합니다.
 - `@ssoo/web-ui` 원자 컴포넌트 사용처의 `className`에는 배치/간격 같은 문맥 override만 허용합니다. Button/Input/NativeSelect/SelectTrigger/Textarea/Checkbox의 색상, 높이, radius, border, typography, focus recipe를 다시 조합하면 `pnpm run verify:ui-consumption`에서 실패합니다.
@@ -204,13 +204,22 @@ modules/
 
 ---
 
+## 공용 오류 처리 경계
+
+- 업무·오류 종류와 무관하게 사용자에게 표시하는 오류는 `SsooErrorPage`, `SsooErrorPanel`, `SsooErrorNotice`, `SsooErrorToast`, `SsooFatalError` 또는 이를 위임하는 기존 공용 adapter를 통한다.
+- 앱 provider는 `SsooToaster`로 미처리 이벤트/Promise 오류를 공용 안내에 연결한다. 사용자 취소는 제외하고 브라우저 진단 이벤트는 유지한다.
+- 오류/검증 경고 토스트는 `@ssoo/web-shell`의 `ssooToast`를 사용한다. 오류 `window.alert`는 `showSsooErrorAlert` 또는 화면 안의 공용 오류 표면에 연결한다. 확인·재시도·초안·충돌 비교 등 도메인 복구는 보존한다.
+- 완료 기준은 개별 업무 오류 조합의 전수 재현이 아니라 오류 처리/표시 경로의 공용 템플릿 경유다. 정상 빈 상태·진행 상태·건수/업무 상태값·사용자 취소·정상 fallback 자체를 오류로 바꾸지 않는다.
+- `pnpm run verify:error-routing`은 raw toast import, 오류 alert, 공용 템플릿 밖의 식별 가능한 오류 값/안내 렌더를 검사한다. build/preflight/push-guard/PR 검사에 연결하며 의미상 모든 런타임 오류를 정적으로 증명한다고 주장하지 않는다.
+
 ## Changelog
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-09-30 | 공용 오류 처리 경계와 `verify:error-routing` 강제 검사 추가 |
 | 2026-09-11 | 사용자 승인 보안 수정: sharp 0.35.4/libvips 8.18.6, 스타일 선택자 6.1.4 기준과 실제 hover·캐시 없는 웹 빌드 검증 추가 |
 | 2026-08-21 | 외부 원본 문서의 exact visual/print 패리티용 `design/source-fidelity-override`를 final-page renderer와 reference/evidence marker에 한정하고 style-boundary에서 fail-closed 검증하도록 추가 |
-| 2026-08-20 | 검색·필터·lookup 입력의 공용 의미/비의도 autofill 차단 계약과 동적 filter renderer를 포함한 36개 입력 inventory, 자격증명 입력 분리, 정적·브라우저 회귀 게이트를 추가 |
+| 2026-08-20 | 검색·필터·lookup 입력의 공용 의미/비의도 autofill 차단 계약과 동적 filter renderer를 포함한 37개 입력 inventory, 자격증명 입력 분리, 정적·브라우저 회귀 게이트를 추가 |
 | 2026-07-22 | Next.js optional image runtime의 취약한 sharp <0.35.0을 0.35.3으로 override하고 웹 production build/Linux native image smoke를 검증 기준으로 추가 |
 | 2026-07-16 | Node.js 22.13+/NestJS 11/pnpm 11.13.1 기준, release-age strict gate, install-script allowlist, production dependency audit와 SheetJS 공식 배포 경로를 공급망 표준으로 추가 |
 | 2026-07-08 | SSOO 커스텀 typography token과 color token이 같이 보존되도록 `@ssoo/web-ui` class merge 정본을 고정하고, DMS 문서 page action 리듬(36px/12px/13px medium)을 공용 Button role size 기준선으로 추가 |
@@ -225,3 +234,8 @@ modules/
 | 2026-06-17 | `@ssoo/web-ui`를 공용 디자인 토큰/Tailwind preset/UI primitive 경계로 추가 |
 | 2026-06-17 | Admin/CRM과 `@ssoo/web-auth`/`@ssoo/web-shell` 공유 경계를 현재 모노레포 기준으로 보정 |
 | 2026-02-06 | 초기 버전 - copilot-instructions.md에서 레포 특화 내용 분리 |
+
+## 플랫폼 배포 검증
+
+- 배포 공통 검사는 `pnpm run codex:platform-guard`로 공통 서버와 Admin/CRM/PMS/DMS/SNS 5개 앱을 함께 검증한다. DMS 소유 계약은 기존 `codex:dms-guard`로 보존한다.
+- GitLab 배포는 정확한 SHA의 별도 checkout, 7개 이미지 manifest, 구성/secret snapshot, 실제 백업 복원 리허설과 5앱 인증·도메인 검사를 요구한다. 상세 절차와 활성화 조건은 `docs/common/explanation/architecture/2026-10-01-deployment-design.md`를 따른다.

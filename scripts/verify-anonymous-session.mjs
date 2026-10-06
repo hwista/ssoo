@@ -304,4 +304,35 @@ try {
     assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
   });
 } finally { globalThis.fetch = originalFetch; }
-console.log(JSON.stringify({ passed: results.length, results }, null, 2));
+
+
+await check('initial transient session restore is visible and does not clear an unknown session', async () => {
+  const { instance, cleared } = store({ success: false, status: 503 });
+  await instance.getState().checkAuth();
+  assert.match(instance.getState().sessionError, /로그인 상태를 확인하지 못했습니다/);
+  assert.equal(instance.getState().isLoading, false);
+  assert.equal(cleared.length, 0);
+});
+await check('successful retry clears transient session notice', async () => {
+  let failure = true;
+  const instance = createAuthStore({ authApi: { restoreSession: async () => failure ? { success: false, status: 503 } : { success: true, data: authenticated } }, normalizeUser: value => value });
+  await instance.getState().checkAuth();
+  assert.ok(instance.getState().sessionError);
+  failure = false;
+  await instance.getState().checkAuth();
+  assert.equal(instance.getState().sessionError, null);
+  assert.equal(instance.getState().isAuthenticated, true);
+});
+await check('logout failure preserves account and rejects navigation contract; retry clears it', async () => {
+  let success = false;
+  const instance = createAuthStore({ authApi: { logout: async () => ({ success, status: success ? 200 : 503 }) }, normalizeUser: value => value });
+  instance.getState().setTokens('test-token'); instance.getState().setUser(user);
+  await assert.rejects(instance.getState().logout(), /로그아웃하지 못했습니다/);
+  assert.equal(instance.getState().isAuthenticated, true);
+  assert.equal(instance.getState().user.userId, user.userId);
+  assert.equal(storage.getSharedAccessToken(), 'test-token');
+  success = true; await instance.getState().logout();
+  assert.equal(instance.getState().isAuthenticated, false);
+  assert.equal(storage.getSharedAccessToken(), null);
+});
+console.log(`[session-recovery] ${results.length} checks passed including transient bootstrap and failed logout.`);

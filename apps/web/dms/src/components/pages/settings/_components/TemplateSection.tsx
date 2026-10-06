@@ -1,3 +1,4 @@
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import type { Dispatch, SetStateAction } from 'react';
 import { BadgeCheck, Check, FileUp, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
@@ -132,9 +133,9 @@ export function TemplateSection({
         <h3 className="text-label-strong text-ssoo-primary">템플릿 목록</h3>
         {hasTemplateLoadError && !isLoadingTemplates && (
           <div role="alert" className="mt-2 space-y-2">
-            <p className="text-caption text-destructive">
+            <SsooErrorNotice as="p" compact>
               템플릿 목록을 불러오지 못했습니다. 잠시 후 다시 불러와 주세요.
-            </p>
+            </SsooErrorNotice>
             <Button type="button" variant="outline" onClick={onReloadTemplates}>
               다시 불러오기
             </Button>

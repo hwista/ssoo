@@ -174,6 +174,18 @@ export class UserService {
   private readonly organizationBridgeActivity = 'user.service.sync-organization-foundation';
   private readonly organizationBridgeMemoPrefix = 'Backfilled from legacy';
 
+  private requiredText(value: unknown, label: string): string {
+    if (typeof value !== 'string' || !value.trim()) throw new BadRequestException(`${label}은 필수입니다.`);
+    return value.trim();
+  }
+
+  private rethrowUserConflict(error: unknown): never {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      throw new ConflictException('이미 사용 중인 로그인 ID 또는 이메일입니다.');
+    }
+    throw error;
+  }
+
   private normalizeOptionalText(value: string | null | undefined): string | null {
     if (typeof value !== 'string') {
       return null;
@@ -505,6 +517,8 @@ export class UserService {
       preferredPrimaryAffiliationType?: string | null;
     },
   ): Promise<void> {
+    const enrollment = await this.db.client.platformEnrollment.findUnique({ where: { userId } });
+    if (enrollment?.sourceCode !== 'migration' && enrollment?.sourceCode !== 'bootstrap') return;
     const user = await this.loadLegacyOrganizationUser(userId);
     if (!user) {
       return;
@@ -641,7 +655,7 @@ export class UserService {
     };
 
     if (dto.userName !== undefined) {
-      const userName = dto.userName.trim();
+      const userName = this.requiredText(dto.userName, '이름');
       if (!userName) throw new BadRequestException('이름은 필수입니다.');
       updateData.userName = userName;
     }
@@ -758,7 +772,7 @@ export class UserService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: adminUserViewSelect,
       }),
       this.db.user.count({ where }),
@@ -771,6 +785,8 @@ export class UserService {
    * 사용자 생성 (관리자)
    */
   async create(dto: CreateUserDto, operatorUserId?: bigint) {
+    const loginId = this.requiredText(dto.loginId, '로그인 ID');
+    const userName = this.requiredText(dto.userName, '이름');
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(dto.password, salt);
     const departmentCode = this.normalizeOptionalText(dto.departmentCode);
@@ -781,7 +797,7 @@ export class UserService {
     const user = await this.db.client.$transaction(async (tx) => {
       const createdUser = await tx.user.create({
         data: {
-          userName: dto.userName,
+          userName,
           displayName: dto.displayName,
           email: dto.email,
           phone: dto.phone,
@@ -801,7 +817,7 @@ export class UserService {
       await tx.userAuth.create({
         data: {
           userId: createdUser.id,
-          loginId: dto.loginId,
+          loginId,
           passwordHash,
           accountStatusCode: 'active',
           createdBy: operatorUserId,
@@ -811,12 +827,11 @@ export class UserService {
         },
       });
 
-      return createdUser;
-    });
+      await tx.platformEnrollment.create({ data: { userId: createdUser.id, createdBy: operatorUserId, updatedBy: operatorUserId, lastSource: 'admin-user-operations', lastActivity: 'onboarding.account-created' } });
 
-    await this.syncOrganizationFoundation(user.id, {
-      preferredPrimaryAffiliationType: dto.primaryAffiliationType ?? null,
-    });
+      return createdUser;
+    }).catch((error: unknown) => this.rethrowUserConflict(error));
+
 
     const createdUser = await this.findAdminUserView(user.id);
     if (!createdUser) {
@@ -833,7 +848,7 @@ export class UserService {
     const updateData: Record<string, unknown> = {};
     let passwordHash: string | null = null;
 
-    if (dto.userName !== undefined) updateData.userName = dto.userName;
+    if (dto.userName !== undefined) updateData.userName = this.requiredText(dto.userName, '이름');
     if (dto.displayName !== undefined) updateData.displayName = dto.displayName;
     if (dto.email !== undefined) updateData.email = dto.email;
     if (dto.phone !== undefined) updateData.phone = dto.phone;
@@ -926,7 +941,7 @@ export class UserService {
           },
         });
       }
-    });
+    }).catch((error: unknown) => this.rethrowUserConflict(error));
 
     await this.syncOrganizationFoundation(userId, {
       preferredPrimaryAffiliationType: dto.primaryAffiliationType ?? null,
@@ -1004,7 +1019,7 @@ export class UserService {
       return;
     }
     const activeAdminCount = await this.db.user.count({
-      where: { roleCode: 'admin', isActive: true },
+      where: { roleCode: 'admin', isActive: true, platformEnrollment: { statusCode: 'active', isActive: true } },
     });
     if (activeAdminCount <= 1) {
       throw new BadRequestException('마지막 활성 관리자 계정은 비활성화하거나 일반 역할로 변경할 수 없습니다.');

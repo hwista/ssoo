@@ -1,3 +1,4 @@
+import { CRM_OPPORTUNITY_WORKSPACE_PATH, CRM_OPPORTUNITY_WORKSPACE_TITLE, normalizeCrmNavigationPath } from './crmNavigation';
 import { SSOO_GLOBAL_SEARCH_APP_PATH, createSsooGlobalSearchOpenRequest, getSsooGlobalSearchQueryFromPath } from '@ssoo/web-shell';
 import { CRM_HOME_TAB, type OpenCrmTabOptions } from '@/stores/tab.store';
 
@@ -7,6 +8,7 @@ interface CrmWorkspaceRouteDefinition {
 }
 
 const CRM_WORKSPACE_ROUTE_DEFINITIONS: readonly CrmWorkspaceRouteDefinition[] = [
+  { pathname: '/business-years', title: '사업연도 관리' },
   { pathname: '/customers', title: '고객/활동' },
   { pathname: '/quote-settings', title: '견적 설정' },
   { pathname: '/contracts', title: '계약 원장' },
@@ -29,7 +31,7 @@ function splitPath(path: string): { pathname: string; search: string } {
 }
 
 export function getCrmWorkspaceTabOptions(path: string): OpenCrmTabOptions | null {
-  const normalizedPath = path || CRM_HOME_TAB.path;
+  const normalizedPath = normalizeCrmNavigationPath(path || CRM_HOME_TAB.path);
   const { pathname, search } = splitPath(normalizedPath);
 
   if (pathname === SSOO_GLOBAL_SEARCH_APP_PATH) {
@@ -42,11 +44,13 @@ export function getCrmWorkspaceTabOptions(path: string): OpenCrmTabOptions | nul
     };
   }
 
-  if (pathname === CRM_HOME_TAB.path) {
+  if (normalizedPath === CRM_HOME_TAB.path) return { ...CRM_HOME_TAB };
+
+  if (pathname === CRM_OPPORTUNITY_WORKSPACE_PATH) {
     const params = new URLSearchParams(search);
     const sourceSurface = params.get('sourceSurface');
     if (sourceSurface === 'dashboard') {
-      return { id: 'crm-source-dashboard', title: '대시보드', path: normalizedPath, closable: true };
+      return { ...CRM_HOME_TAB };
     }
     if (sourceSurface === 'list') {
       return { id: 'crm-source-opportunity-list', title: '영업기회 현황', path: normalizedPath, closable: true };
@@ -72,8 +76,10 @@ export function getCrmWorkspaceTabOptions(path: string): OpenCrmTabOptions | nul
     }
 
     return {
-      ...CRM_HOME_TAB,
+      id: 'crm-opportunity-workspace',
+      title: CRM_OPPORTUNITY_WORKSPACE_TITLE,
       path: normalizedPath,
+      closable: true,
     };
   }
 
@@ -133,8 +139,8 @@ export function getCrmWorkspaceTabOptions(path: string): OpenCrmTabOptions | nul
 
 export function isCrmMenuPathActive(activePath: string | undefined, menuPath: string): boolean {
   if (!activePath) return false;
-  const active = splitPath(activePath);
-  const menu = splitPath(menuPath);
+  const active = splitPath(normalizeCrmNavigationPath(activePath));
+  const menu = splitPath(normalizeCrmNavigationPath(menuPath));
   if (active.pathname !== menu.pathname) return false;
 
   const menuParams = new URLSearchParams(menu.search);
@@ -142,7 +148,7 @@ export function isCrmMenuPathActive(activePath: string | undefined, menuPath: st
   if (menuParams.size > 0) {
     return [...menuParams.entries()].every(([key, value]) => activeParams.get(key) === value);
   }
-  if (menu.pathname === '/') {
+  if (menu.pathname === CRM_OPPORTUNITY_WORKSPACE_PATH) {
     return !activeParams.has('sourceSurface') && !activeParams.has('create');
   }
   if (menu.pathname === '/contracts') {

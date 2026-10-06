@@ -104,17 +104,17 @@ export class CrmReadinessService {
   }
 
   private async checkBusinessYear(checkedAt: string): Promise<CrmReadinessCheck> {
-    const currentYear = String(new Date().getFullYear());
+    const currentYear = new Date().getFullYear();
     try {
-      const row = await this.db.client.cmCode.findFirst({
-        where: { codeGroup: 'biz_year', codeValue: currentYear, isActive: true },
+      const row = await this.db.client.crmBusinessYear.findFirst({
+        where: { year: currentYear, isActive: true },
         select: { id: true },
       });
       return row
-        ? this.result('business-year', '현재 사업연도', 'ready', `${currentYear}년이 활성 상태입니다.`, 'shared-admin', checkedAt, '/business-years')
-        : this.result('business-year', '현재 사업연도', 'blocked', `${currentYear}년 활성 사업연도가 없습니다.`, 'shared-admin', checkedAt, '/business-years');
+        ? this.result('business-year', '현재 사업연도', 'ready', `${currentYear}년이 활성 상태입니다.`, 'crm', checkedAt, '/business-years')
+        : this.result('business-year', '현재 사업연도', 'blocked', `${currentYear}년 활성 사업연도가 없습니다.`, 'crm', checkedAt, '/business-years');
     } catch {
-      return this.result('business-year', '현재 사업연도', 'blocked', '현재 사업연도를 조회하지 못했습니다.', 'shared-admin', checkedAt, '/business-years');
+      return this.result('business-year', '현재 사업연도', 'blocked', '현재 사업연도를 조회하지 못했습니다.', 'crm', checkedAt, '/business-years');
     }
   }
 

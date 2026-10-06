@@ -1,10 +1,10 @@
 'use client';
 
-import { FileText } from 'lucide-react';
+import { SsooErrorPanel } from '@ssoo/web-shell';
+
 import { FeedContextRail } from './FeedContextRail';
 import { FeedIdentityRail } from './FeedIdentityRail';
 import { FeedTimeline } from './FeedTimeline';
-import { EmptyState } from '@/components/common/StateDisplay';
 import { useAccessStore } from '@/stores';
 
 export function FeedPage() {
@@ -14,11 +14,8 @@ export function FeedPage() {
   if (!canReadFeed) {
     return (
       <div className="mx-auto max-w-2xl">
-        <EmptyState
-          icon={<FileText className="h-12 w-12" />}
-          title="피드 접근 권한이 없습니다"
-          description="현재 계정에는 SNS 피드를 조회할 권한이 없습니다."
-        />
+        <SsooErrorPanel kind="forbidden" title="피드 접근 권한이 없습니다" description="현재 계정에는 SNS 피드를 조회할 권한이 없습니다."
+          actions={[{ label: '다른 서비스·계정으로 이동', href: '/recovery' }]} />
       </div>
     );
   }

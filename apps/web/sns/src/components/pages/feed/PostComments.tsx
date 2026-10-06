@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useRef, useState, type FormEvent } from 'react';
 import { Button, Textarea } from '@ssoo/web-ui';
 import { useComments, useCreateComment } from '@/hooks/queries/useComments';
@@ -17,7 +18,7 @@ function CommentAuthor({ userId }: { userId: string }) {
   const user = profile.data?.data.data?.user;
   if (profile.isError) return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-caption text-muted-foreground">작성자 정보를 불러오지 못했습니다.</span>
+      <SsooErrorNotice as="span" compact className="text-caption text-muted-foreground">작성자 정보를 불러오지 못했습니다.</SsooErrorNotice>
       <Button variant="outline" size="sm" disabled={profile.isFetching} onClick={() => void profile.refetch()}>작성자 다시 불러오기</Button>
     </div>
   );
@@ -59,7 +60,7 @@ export function PostComments({ id, postId, open, canWrite }: PostCommentsProps) 
       {comments.isLoading && <p role="status" className="text-body-sm text-muted-foreground">댓글을 불러오는 중...</p>}
       {comments.isError ? (
         <div className="space-y-2">
-          <p role="alert" className="text-body-sm text-destructive">{saved ? '등록은 완료됐지만 댓글 목록을 불러오지 못했습니다.' : '댓글을 불러오지 못했습니다.'}</p>
+          <SsooErrorNotice as="p" compact error={saved ? '등록은 완료됐지만 댓글 목록을 불러오지 못했습니다.' : '댓글을 불러오지 못했습니다.'} />
           <Button variant="outline" size="sm" disabled={comments.isFetching} onClick={() => void comments.refetch()}>댓글 다시 불러오기</Button>
         </div>
       ) : comments.isSuccess && (items.length === 0 ? (
@@ -82,10 +83,10 @@ export function PostComments({ id, postId, open, canWrite }: PostCommentsProps) 
           <Textarea id={`${id}-content`} value={draft} required disabled={create.isPending}
             aria-describedby={error ? `${id}-error` : undefined}
             onChange={(event) => setDraft(event.target.value)} />
-          {error && <p id={`${id}-error`} role="alert" className="text-body-sm text-destructive">{error}</p>}
+          {error && <SsooErrorNotice as="p" compact id={`${id}-error`} error={error} />}
           <Button type="submit" size="sm" disabled={create.isPending}>{create.isPending ? '등록 중...' : '댓글 등록'}</Button>
         </form>
-      ) : <p className="text-body-sm text-muted-foreground">댓글 작성 권한이 없습니다.</p>}
+      ) : <SsooErrorNotice as="p" compact className="text-body-sm text-muted-foreground">댓글 작성 권한이 없습니다.</SsooErrorNotice>}
     </section>
   );
 }

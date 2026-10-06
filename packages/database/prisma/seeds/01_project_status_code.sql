@@ -6,7 +6,7 @@
 begin;
 
 -- PROJECT_STATUS (4단계: 요청 → 제안 → 수행 → 전환)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('PROJECT_STATUS','request','요청','Request','고객 요청 접수 및 검토 단계.',10,now(),now()),
 ('PROJECT_STATUS','proposal','제안','Proposal','견적/제안서 작성 및 계약 협상 단계.',20,now(),now()),
@@ -20,7 +20,7 @@ set display_name_ko=excluded.display_name_ko,
     updated_at=now();
 
 -- PROJECT_STAGE (각 상태 내 진행 단계)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('PROJECT_STAGE','waiting','대기','Waiting','아직 본격 작업 전 대기.',10,now(),now()),
 ('PROJECT_STAGE','in_progress','진행','In Progress','작업 진행 중.',20,now(),now()),
@@ -37,7 +37,7 @@ set display_name_ko=excluded.display_name_ko,
 -- proposal done: won(수주), lost(실주), hold(보류)
 -- execution done: completed(완료), transfer_pending(운영 전환 필요), linked(프로젝트 연계), cancelled(취소), hold(보류)
 -- transition done: transferred(전환완료), cancelled(취소)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 -- 요청 단계 결과
 ('PROJECT_DONE_RESULT','accepted','채용','Accepted','요청 채용 (제안 단계 전환 예정).',10,now(),now()),

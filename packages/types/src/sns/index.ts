@@ -25,3 +25,4 @@ export { FeedItem, FeedQueryDto, ReactionDto } from './feed';
 
 // Access
 export type { SnsFeatureAccess, SnsAccessSnapshot } from './access';
+export type { SnsPostAccessRequest, SnsPostAccessState } from './post-access';

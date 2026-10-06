@@ -31,6 +31,7 @@ const expectedSearchInventory = new Map(Object.entries({
   'apps/web/crm/src/components/pages/business-plan-performance/BusinessPlanPerformancePreviewWorkspaceClient.tsx': 1,
   'apps/web/crm/src/components/pages/contracts/ContractPerformanceWorkspaceClient.tsx': 2,
   'apps/web/crm/src/components/pages/contracts/ContractWorkspaceClient.tsx': 3,
+  'apps/web/crm/src/components/pages/contracts/ContractUpsertPanel.tsx': 1,
   'apps/web/crm/src/components/pages/cost-plan/CostPlanPreviewWorkspaceClient.tsx': 1,
   'apps/web/crm/src/components/pages/customers/CustomerWorkspaceClient.tsx': 1,
   'apps/web/crm/src/components/pages/reports/ReportsPreviewWorkspaceClient.tsx': 1,

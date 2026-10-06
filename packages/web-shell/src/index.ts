@@ -1,3 +1,11 @@
+export { resolveSsooError, readSsooErrorMetadata, getSsooErrorMessage, parseSsooRetryAfter, isSafeSsooRecoveryHref } from './error-model';
+export type { SsooErrorKind, SsooErrorMetadata, SsooResolvedError } from './error-model';
+export { SsooErrorPage, SsooErrorPanel, SsooErrorNotice, SsooRecoveryActions } from './error-recovery';
+export type { SsooErrorPanelProps, SsooErrorNoticeProps, SsooRecoveryAction } from './error-recovery';
+export { SsooRouteError } from './route-error';
+export { SsooAccessRecovery } from './access-recovery';
+export { isSsooChunkError, recoverSsooChunkOnce } from './chunk-recovery';
+
 export {
   getSsooAppIdentity,
   getSsooAppMetadata,
@@ -517,3 +525,7 @@ export type {
   SsooSidebarSearchableTreeProps,
   SsooSidebarTreeStatusBadgeProps,
 } from './sidebar';
+export { useSsooRetryDelay } from './retry-delay';
+export { defineSsooHomeEntry, isSsooHomeEntry, isSsooSidebarDestination, normalizeSsooHomeTabs } from './home-navigation';
+export { SsooErrorToast, SsooToaster, ssooToast, showSsooErrorAlert } from './error-toast';
+export type { SsooHomeEntry } from './home-navigation';

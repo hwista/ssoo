@@ -8,7 +8,8 @@ import { APP_HOME_PATH, ROOT_ENTRY_PATHS } from '@/lib/constants/routes';
 export function middleware(request: NextRequest) {
   const decision = resolveSsooRoutePolicyDecision(request.nextUrl.pathname, {
     allowedPaths: ROOT_ENTRY_PATHS,
-    fallbackPath: APP_HOME_PATH,
+    fallbackPath: '/not-found',
+    mode: 'rewrite',
     sharedUserSurfaceRewritePath: APP_HOME_PATH,
   });
 

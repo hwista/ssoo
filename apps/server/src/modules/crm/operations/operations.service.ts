@@ -1,3 +1,4 @@
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { Injectable } from '@nestjs/common';
 import type {
   CrmContract,
@@ -19,7 +20,7 @@ import { ContractService } from '../contract/contract.service.js';
 import { OpportunityService } from '../opportunity/opportunity.service.js';
 import { QuoteSettingsService } from '../quote-settings/quote-settings.service.js';
 
-const CRM_OPERATIONS_BOUNDARY_NOTICE = '원천 데모의 계정/코드/회사/사업년도 관리는 CRM 내부 복제가 아니라 CRM 원장 설정, 공용 Admin/Auth, DMS 경계로 나누어 관리합니다.';
+const CRM_OPERATIONS_BOUNDARY_NOTICE = '사업연도와 업무 설정은 CRM에서 관리하고, 계정·공통코드는 Admin/Auth, 문서 저장은 DMS에서 관리합니다.';
 const CRM_OPERATIONS_UNAVAILABLE_ACTIONS = [
   'CRM 내부 계정 생성/비밀번호 초기화',
   'CRM 내부 역할/권한 편집',
@@ -38,11 +39,11 @@ export class OperationsService {
     private readonly quoteSettingsService: QuoteSettingsService,
   ) {}
 
-  async getPreview(query: CrmOperationsPreviewQuery = {}): Promise<CrmOperationsPreviewResponse> {
+  async getPreview(query: CrmOperationsPreviewQuery = {}, currentUser?: TokenPayload): Promise<CrmOperationsPreviewResponse> {
     const normalized = this.normalizeQuery(query);
     const [opportunityResponse, contractResponse, sellerProfile] = await Promise.all([
-      this.opportunityService.listResponse({ sort: 'updated-desc' }),
-      this.contractService.listResponse({ sort: 'updated-desc' }),
+      this.opportunityService.listResponse({ sort: 'updated-desc' }, currentUser),
+      this.contractService.listResponse({ sort: 'updated-desc' }, currentUser),
       this.quoteSettingsService.getSellerProfile(),
     ]);
     const opportunities = opportunityResponse.items;
@@ -105,8 +106,9 @@ export class OperationsService {
         options: [
           this.toFixedOption('domestic', '국내', opportunities, contracts),
           this.toFixedOption('overseas', '해외', opportunities, contracts),
+          this.toFixedOption('unspecified', '미선택', opportunities, contracts),
         ],
-        boundaryNote: '국내/해외는 CRM 원장 필수 분류로 고정 코드입니다.',
+        boundaryNote: '국내/해외와 미선택을 구분하는 CRM 원장 고정 코드입니다.',
       }),
       this.toCodeGroup({
         key: 'opportunity-status',
@@ -322,7 +324,7 @@ export class OperationsService {
   }
 
   private toFixedOption(
-    code: 'domestic' | 'overseas',
+    code: 'domestic' | 'overseas' | 'unspecified',
     label: string,
     opportunities: CrmOpportunity[],
     contracts: CrmContract[],

@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from './error-recovery';
 import {
   createContext,
   useEffect,
@@ -685,11 +686,13 @@ export function SsooSidebarState({
         : '표시할 항목이 없습니다.'
   );
 
+  if (variant === 'error') return <SsooErrorNotice className={className}>{content}</SsooErrorNotice>;
+
   return (
     <div
       className={cn(
         'px-3 py-4 text-center text-sm',
-        variant === 'error' ? 'text-ssoo-danger' : 'text-muted-foreground',
+        'text-muted-foreground',
         className
       )}
     >

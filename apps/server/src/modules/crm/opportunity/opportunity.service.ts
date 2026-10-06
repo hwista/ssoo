@@ -1,3 +1,5 @@
+import { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
+import { CrmAccessService } from '../access/access.service.js';
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -68,6 +70,7 @@ import { DatabaseService } from '../../../database/database.service.js';
 import { AiIndexingService } from '../../common/ai-index/ai-indexing.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { UserService } from '../../common/user/user.service.js';
+import { CodeService } from '../../common/code/code.service.js';
 import { FileCrudService } from '../../dms/file/file-crud.service.js';
 import { DmsCrmOpportunityContractLifecycleService } from '../../dms/crm-opportunity-contract-lifecycle/crm-opportunity-contract-lifecycle.service.js';
 import { DmsCrmQuoteLifecycleService } from '../../dms/crm-quote-lifecycle/crm-quote-lifecycle.service.js';
@@ -142,6 +145,7 @@ interface CrmOpportunityLineLedgerRow {
 }
 
 interface CrmOpportunityLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   opportunityCode: string;
   opportunityGroupCode: string;
@@ -280,6 +284,7 @@ interface OpportunityVersionWriter extends OpportunityLineWriter {
     create(args: {
       data: {
         opportunityCode: string;
+        ownerOrganizationId: bigint | null;
         opportunityGroupCode: string;
         customerName: string;
         opportunityName: string;
@@ -394,18 +399,44 @@ export class OpportunityService {
     @Optional() private readonly dmsCrmQuoteLifecycleService?: DmsCrmQuoteLifecycleService,
     @Optional() private readonly dmsCrmOpportunityContractLifecycleService?: DmsCrmOpportunityContractLifecycleService,
     @Optional() private readonly operationAttemptService?: CrmOperationAttemptService,
+    @Optional() private readonly codeService?: CodeService,
+    private readonly admission: PlatformAdmissionService = new PlatformAdmissionService(db),
+    private readonly crmAccess?: CrmAccessService,
   ) {}
 
-  async listOpportunities(query: CrmOpportunityListQuery = {}): Promise<CrmOpportunity[]> {
+  async listOpportunities(query: CrmOpportunityListQuery = {}, currentUser?: TokenPayload, organizationId?: bigint): Promise<CrmOpportunity[]> {
     const normalized = this.normalizeQuery(query);
-    const rows = await this.loadActiveOpportunityRows();
+    const rows = await this.loadActiveOpportunityRows(currentUser, organizationId);
     const versionCounts = this.countVersionsByGroup(rows);
-    const latestRows = this.selectLatestOpportunityRows(rows);
+    const orderedRows = query.view === 'source-list'
+      ? [...rows].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+      : rows;
+    const latestRows = this.selectLatestOpportunityRows(orderedRows);
     const opportunities = latestRows.map((row) => this.toContract(row, {
       versionCount: versionCounts.get(row.opportunityGroupCode) ?? 1,
       isLatest: true,
     }));
-    return this.filterAndSortOpportunities(opportunities, normalized);
+    return this.filterAndSortOpportunities(opportunities, normalized, query.view === 'source-list');
+  }
+
+  async listSourceDashboardOpportunities(currentUser?: TokenPayload): Promise<{ latest: CrmOpportunity[]; confirmed: CrmOpportunity[] }> {
+    const rows = await this.loadActiveOpportunityRows(currentUser);
+    // The demo enumerates numeric group IDs in registration order before reversing
+    // its recent list. Group codes replace those IDs here; the first row's ID
+    // preserves that order, independently of later edits and new versions.
+    const registrationOrder = [...rows].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    const latestRows = this.selectLatestOpportunityRows(registrationOrder);
+    const latestIds = new Set(latestRows.map((row) => row.id));
+    const versionCounts = this.countVersionsByGroup(rows);
+    const convert = (row: CrmOpportunityLedgerRow) => this.toContract(row, {
+      versionCount: versionCounts.get(row.opportunityGroupCode) ?? 1,
+      isLatest: latestIds.has(row.id),
+    });
+    return {
+      latest: latestRows.map(convert),
+      // Select the latest confirmed version even when a newer draft exists.
+      confirmed: this.selectLatestOpportunityRows(registrationOrder.filter((row) => row.confirmed)).map(convert),
+    };
   }
 
   async getOpportunity(id: string): Promise<CrmOpportunity> {
@@ -421,13 +452,18 @@ export class OpportunityService {
     });
   }
 
-  async createOpportunity(dto: CrmOpportunityUpsertRequest): Promise<CrmOpportunity> {
+  async createOpportunity(dto: CrmOpportunityUpsertRequest, currentUserId?: bigint): Promise<CrmOpportunity> {
     const payload = this.normalizeUpsertPayload(dto);
+    if (!currentUserId) throw new BadRequestException('업무 조직을 확인할 사용자 정보가 필요합니다.');
     const opportunityCode = this.createOpportunityCode();
     const createdId = await this.db.client.$transaction(async (tx) => {
+      const ownerOrganizationId = await this.admission.resolveBusinessOrganization(currentUserId, 'crm', dto.ownerOrganizationId, tx);
       const row = await tx.crmOpportunity.create({
         data: {
           opportunityCode,
+          ownerOrganizationId,
+          createdBy: currentUserId,
+          updatedBy: currentUserId,
           opportunityGroupCode: opportunityCode,
           customerName: payload.customerName,
           opportunityName: payload.opportunityName,
@@ -467,10 +503,14 @@ export class OpportunityService {
     return this.getOpportunity(createdId.toString());
   }
 
-  async updateOpportunity(id: string, dto: CrmOpportunityUpsertRequest): Promise<CrmOpportunity> {
+  async updateOpportunity(id: string, dto: CrmOpportunityUpsertRequest, currentUserId?: bigint): Promise<CrmOpportunity> {
     const existing = await this.findOpportunityRow(id);
     if (!existing) {
       throw new NotFoundException('CRM opportunity not found');
+    }
+
+    if (dto.ownerOrganizationId !== undefined && dto.ownerOrganizationId !== existing.ownerOrganizationId?.toString()) {
+      throw new BadRequestException('영업기회 차수와 연결 자료의 업무 조직은 일반 수정에서 변경할 수 없습니다.');
     }
 
     if (existing.confirmed) {
@@ -509,6 +549,7 @@ export class OpportunityService {
           nextAction: payload.nextAction,
           lastSource: 'crm.opportunity',
           lastActivity: 'update',
+          updatedBy: currentUserId,
         },
       });
 
@@ -576,7 +617,6 @@ export class OpportunityService {
       where: { id: existing.id },
       data: {
         confirmed: true,
-        statusCode: 'won',
         lastSource: 'crm.opportunity',
         lastActivity: 'confirm',
       },
@@ -624,7 +664,7 @@ export class OpportunityService {
       where: { id: existing.id },
       data: {
         confirmed: false,
-        statusCode: existing.statusCode === 'won' ? 'proposal' : existing.statusCode,
+        statusCode: 'proposal',
         updatedBy: currentUserId,
         lastSource: 'crm.opportunity',
         lastActivity: 'reopen',
@@ -718,6 +758,7 @@ export class OpportunityService {
   async getOpportunityContractDocumentPreview(
     id: string,
     currentUser?: TokenPayload,
+    templateKey?: string,
   ): Promise<CrmOpportunityContractDocumentPreview> {
     const existing = await this.findOpportunityRow(id);
     if (!existing) {
@@ -742,6 +783,7 @@ export class OpportunityService {
       ownerContact,
       latestHandoff,
       templateOptions,
+      templateKey,
     );
   }
 
@@ -757,12 +799,8 @@ export class OpportunityService {
     if (!existing) {
       throw new NotFoundException('CRM opportunity not found');
     }
-    const preview = await this.getOpportunityContractDocumentPreview(existing.opportunityCode, currentUser);
-    const templateKey = dto.templateKey?.trim() || preview.templateKey;
-    this.assertOpportunityContractDocumentTemplateSelectable(templateKey, preview.templateOptions);
-    const selectedPreview = templateKey === preview.templateKey
-      ? preview
-      : await this.toOpportunityContractDocumentPreviewWithTemplate(existing, templateKey, currentUser);
+    const selectedPreview = await this.getOpportunityContractDocumentPreview(existing.opportunityCode, currentUser, dto.templateKey);
+    this.assertOpportunityContractDocumentTemplateSelectable(selectedPreview.templateKey, selectedPreview.templateOptions);
     if (selectedPreview.readiness !== 'ready') {
       throw new BadRequestException(selectedPreview.blockedReasons.join(' ') || '영업기회 계약서 초안 저장 준비가 완료되지 않았습니다.');
     }
@@ -920,7 +958,7 @@ export class OpportunityService {
       this.loadQuoteDmsTemplateOptions(),
     ]);
     this.assertQuoteDmsTemplateSelectable(templateKey, templateOptions);
-    const preview = this.toQuotePreview(
+    const preview = await this.toQuotePreview(
       opportunity,
       sellerProfile,
       ownerContact,
@@ -1190,6 +1228,7 @@ export class OpportunityService {
       const row = await tx.crmOpportunity.create({
         data: {
           opportunityCode: nextOpportunityCode,
+          ownerOrganizationId: existing.ownerOrganizationId,
           opportunityGroupCode: existing.opportunityGroupCode,
           customerName: existing.customerName,
           opportunityName: existing.opportunityName,
@@ -1198,7 +1237,7 @@ export class OpportunityService {
           businessType: existing.businessType,
           industryLine: existing.industryLine,
           regionCode: this.toRegion(existing.regionCode),
-          statusCode: existing.statusCode === 'won' ? 'proposal' : this.toStatus(existing.statusCode),
+          statusCode: this.toStatus(existing.statusCode),
           priorityCode: this.toPriority(existing.priorityCode),
           versionNo: nextVersion,
           confirmed: false,
@@ -1236,9 +1275,11 @@ export class OpportunityService {
   async getSummary(
     items?: CrmOpportunity[],
     query: CrmOpportunityListQuery = {},
+    currentUser?: TokenPayload,
+    organizationId?: bigint,
   ): Promise<CrmOpportunitySummary> {
     const normalized = this.normalizeQuery(query);
-    const rows = await this.loadActiveOpportunityRows();
+    const rows = await this.loadActiveOpportunityRows(currentUser, organizationId);
     const versionCounts = this.countVersionsByGroup(rows);
     const allItems = this.selectLatestOpportunityRows(rows).map((row) => this.toContract(row, {
       versionCount: versionCounts.get(row.opportunityGroupCode) ?? 1,
@@ -1265,9 +1306,9 @@ export class OpportunityService {
     };
   }
 
-  async listResponse(query: CrmOpportunityListQuery = {}): Promise<CrmOpportunityListResponse> {
-    const items = await this.listOpportunities(query);
-    return { summary: await this.getSummary(items, query), items };
+  async listResponse(query: CrmOpportunityListQuery = {}, currentUser?: TokenPayload, organizationId?: bigint): Promise<CrmOpportunityListResponse> {
+    const items = await this.listOpportunities(query, currentUser, organizationId);
+    return { summary: await this.getSummary(items, query, currentUser, organizationId), items };
   }
 
   async findOwnerLookup(query: CrmOpportunityOwnerLookupQuery = {}): Promise<CrmOpportunityOwnerLookupItem[]> {
@@ -1282,6 +1323,18 @@ export class OpportunityService {
                 { userName: { contains: search, mode: 'insensitive' } },
                 { displayName: { contains: search, mode: 'insensitive' } },
                 { email: { contains: search, mode: 'insensitive' } },
+                { departmentCode: { contains: search, mode: 'insensitive' } },
+                { organizationRelations: { some: {
+                  isActive: true,
+                  organization: {
+                    isActive: true,
+                    orgClass: 'permanent',
+                    OR: [
+                      { orgName: { contains: search, mode: 'insensitive' } },
+                      { orgCode: { contains: search, mode: 'insensitive' } },
+                    ],
+                  },
+                } } },
                 { authAccount: { is: { loginId: { contains: search, mode: 'insensitive' } } } },
               ],
             }
@@ -1346,7 +1399,8 @@ export class OpportunityService {
 
   private filterAndSortOpportunities(
     opportunities: CrmOpportunity[],
-    normalized: Required<CrmOpportunityListQuery>,
+    normalized: Required<Omit<CrmOpportunityListQuery, 'view'>>,
+    sourceList = false,
   ): CrmOpportunity[] {
     const search = normalized.search.toLowerCase();
 
@@ -1355,20 +1409,25 @@ export class OpportunityService {
       const matchesSourceStatus = normalized.sourceStatus === 'all'
         || this.toSourceOpportunityStatus(item.status) === normalized.sourceStatus;
       const searchable = [item.customerName, item.opportunityName, item.ownerName, item.businessType, item.industryLine].join(' ').toLowerCase();
-      const matchesSearch = search.length === 0 || searchable.includes(search);
+      const matchesSearch = search.length === 0 || (sourceList
+        ? [item.customerName, item.opportunityName, item.ownerName].some((value) => value.toLowerCase().includes(search))
+        : searchable.includes(search));
       return matchesStatus && matchesSourceStatus && matchesSearch;
     }).sort((left, right) => {
-      if (normalized.sort === 'revenue-desc') return right.revenueTotal - left.revenueTotal;
-      if (normalized.sort === 'profit-desc') return right.marginTotal - left.marginTotal;
+      const leftTotals = sourceList ? this.sourceOpportunityTotals(left) : left;
+      const rightTotals = sourceList ? this.sourceOpportunityTotals(right) : right;
+      if (normalized.sort === 'revenue-desc') return rightTotals.revenueTotal - leftTotals.revenueTotal;
+      if (normalized.sort === 'profit-desc') return rightTotals.marginTotal - leftTotals.marginTotal;
       if (normalized.sort === 'margin-desc') return right.marginRate - left.marginRate;
       if (normalized.sort === 'customer-asc') return left.customerName.localeCompare(right.customerName, 'ko');
       return Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
     });
   }
 
-  private async loadActiveOpportunityRows(): Promise<CrmOpportunityLedgerRow[]> {
+  private async loadActiveOpportunityRows(currentUser?: TokenPayload, organizationId?: bigint): Promise<CrmOpportunityLedgerRow[]> {
+    const scope = currentUser ? await this.crmAccess!.businessOrganizationScope(currentUser) : null;
     return this.db.client.crmOpportunity.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...(scope === null ? {} : { ownerOrganizationId: { in: scope } }), ...(organizationId === undefined ? {} : { AND: { ownerOrganizationId: organizationId } }) },
       include: {
         lines: {
           where: { isActive: true },
@@ -1631,6 +1690,7 @@ export class OpportunityService {
       opportunityName: row.opportunityName,
       ownerName: row.ownerName,
       ownerUserId: row.ownerUserId?.toString(),
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       businessType: row.businessType,
       industryLine: row.industryLine,
       region: this.toRegion(row.regionCode),
@@ -1669,6 +1729,14 @@ export class OpportunityService {
     };
   }
 
+  private sourceOpportunityTotals(item: Pick<CrmOpportunity, 'revenueLines' | 'costLines'>) {
+    const rawTotal = (lines: CrmOpportunity['revenueLines']) => lines.reduce((sum, line) => sum + (line.quantity ?? 0) * (line.unitPrice ?? 0), 0);
+    const revenueTotal = rawTotal(item.revenueLines);
+    const costTotal = rawTotal(item.costLines);
+    const marginTotal = revenueTotal - costTotal;
+    return { revenueTotal, costTotal, marginTotal, marginRate: revenueTotal > 0 ? Math.round(marginTotal / revenueTotal * 100) : 0 };
+  }
+
   private toVersionSummary(row: CrmOpportunityLedgerRow, isLatest: boolean): CrmOpportunityVersionSummary {
     const revenueSubtotal = Number(row.revenueSubtotal);
     const specialDiscountAmount = Number(row.specialDiscountAmount);
@@ -1677,6 +1745,7 @@ export class OpportunityService {
     const marginTotal = revenueTotal - costTotal;
 
     return {
+      sourceTotals: this.sourceOpportunityTotals(this.toContract(row)),
       id: row.opportunityCode,
       groupId: row.opportunityGroupCode,
       customerName: row.customerName,
@@ -1731,14 +1800,14 @@ export class OpportunityService {
     };
   }
 
-  private toQuotePreview(
+  private async toQuotePreview(
     opportunity: CrmOpportunity,
     sellerProfile: CrmQuoteSellerProfile | null | undefined,
     ownerContact: QuoteOwnerContactResolution,
     latestHandoff: CrmQuoteDmsDocumentHandoff | null,
     templateEvidence: CrmQuoteDmsTemplateEvidence = this.toUnavailableQuoteDmsTemplateEvidence(CRM_QUOTE_DMS_TEMPLATE_KEY),
     templateOptions: CrmDmsDocumentTemplateOption[] = [],
-  ): CrmOpportunityQuotePreview {
+  ): Promise<CrmOpportunityQuotePreview> {
     const productLines = opportunity.revenueLines
       .filter((line) => line.category === 'product')
       .map((line) => ({
@@ -1807,7 +1876,7 @@ export class OpportunityService {
         validUntil: validUntil.toISOString().slice(0, 10),
         validityDays: QUOTE_VALIDITY_DAYS,
         paymentTermCode: opportunity.paymentTermCode,
-        paymentTermLabel: this.formatPaymentTerm(opportunity.paymentTermCode),
+        paymentTermLabel: await this.formatPaymentTerm(opportunity.paymentTermCode),
         quoteMemo: opportunity.quoteMemo,
         readOnly: true,
         unavailableActions: QUOTE_UNAVAILABLE_ACTIONS,
@@ -1845,45 +1914,23 @@ export class OpportunityService {
     };
   }
 
-  private async toOpportunityContractDocumentPreviewWithTemplate(
-    row: CrmOpportunityLedgerRow,
-    templateKey: string,
-    currentUser: TokenPayload,
-  ): Promise<CrmOpportunityContractDocumentPreview> {
-    const preview = await this.getOpportunityContractDocumentPreview(row.opportunityCode, currentUser);
-    const selected = preview.templateOptions.find((option) => option.templateKey === templateKey);
-    this.assertOpportunityContractDocumentTemplateSelectable(templateKey, preview.templateOptions);
-    const hints = this.toOpportunityContractDocumentPathHints(
-      preview.customerName,
-      preview.opportunityName,
-      row.opportunityCode,
-      selected?.templateName ?? templateKey,
-    );
-    return {
-      ...preview,
-      templateKey,
-      ...hints,
-      lifecycle: this.toOpportunityContractDocumentLifecycle(
-        preview.readiness,
-        preview.blockedReasons,
-        preview.latestHandoff,
-        templateKey,
-      ),
-    };
-  }
-
-  private toOpportunityContractDocumentPreview(
+  private async toOpportunityContractDocumentPreview(
     opportunity: CrmOpportunity,
     sellerProfile: CrmQuoteSellerProfile | null | undefined,
     ownerContact: QuoteOwnerContactResolution,
     latestHandoff: OpportunityContractDocumentHandoff | null,
     templateOptions: CrmDmsDocumentTemplateOption[],
-  ): CrmOpportunityContractDocumentPreview {
-    const templateKey = latestHandoff?.templateKey ?? CRM_OPPORTUNITY_CONTRACT_DMS_TEMPLATE_KEY;
+    requestedTemplateKey?: string,
+  ): Promise<CrmOpportunityContractDocumentPreview> {
+    const preferredKey = latestHandoff?.templateKey ?? CRM_OPPORTUNITY_CONTRACT_DMS_TEMPLATE_KEY;
+    const templateKey = requestedTemplateKey?.trim()
+      || (templateOptions.some((option) => option.templateKey === preferredKey && option.selectable)
+        ? preferredKey
+        : templateOptions.find((option) => option.selectable)?.templateKey ?? preferredKey);
     const selectedTemplate = templateOptions.find((option) => option.templateKey === templateKey);
     const now = new Date();
-    const variables = this.toOpportunityContractDocumentVariables(opportunity, sellerProfile, ownerContact, now);
-    const missingVariables = variables.filter((variable) => !variable.value.trim());
+    const variables = this.toOpportunityContractDocumentVariables(opportunity, sellerProfile, ownerContact, now, opportunity.paymentTermCode ? await this.formatPaymentTerm(opportunity.paymentTermCode) : '');
+    const missingVariables = variables.filter((variable) => variable.required && !variable.value.trim());
     const blockedReasons = [
       ...(!opportunity.confirmed ? ['원천 데모와 동일하게 확정된 영업기회만 계약서를 생성할 수 있습니다.'] : []),
       ...(!opportunity.isLatest ? ['이전 차수 영업기회에서는 계약서를 생성할 수 없습니다.'] : []),
@@ -1943,6 +1990,7 @@ export class OpportunityService {
     sellerProfile: CrmQuoteSellerProfile | null | undefined,
     ownerContact: QuoteOwnerContactResolution,
     now: Date,
+    paymentTermLabel: string,
   ): CrmOpportunityContractDocumentVariable[] {
     const startDate = this.toDotDate(opportunity.expectedStartDate);
     const endDate = this.toDotDate(opportunity.expectedEndDate);
@@ -1972,11 +2020,14 @@ export class OpportunityService {
       ['담당자부서', owner?.departmentName?.trim() ?? '', 'owner-profile'],
       ['담당자연락처', owner?.phone?.trim() ?? '', 'owner-profile'],
       ['담당자이메일', owner?.email?.trim() ?? '', 'owner-profile'],
-      ['수금조건', this.formatPaymentTerm(opportunity.paymentTermCode), 'opportunity'],
+      ['수금조건', paymentTermLabel, 'opportunity'],
       ['작성일', `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`, 'system-date'],
       ['계약년도', opportunity.expectedStartDate?.slice(0, 4) || String(now.getFullYear()), 'opportunity'],
     ];
-    return values.map(([key, value, source]) => ({ key, label: key, value, required: true, source }));
+    const requiredKeys = new Set<CrmOpportunityContractDocumentVariable['key']>([
+      '고객사명', '건명', '계약금액', '계약금액_한글', '계약시작일', '계약종료일', '계약기간',
+    ]);
+    return values.map(([key, value, source]) => ({ key, label: key, value, required: requiredKeys.has(key), source }));
   }
 
   private async loadOpportunityContractDocumentTemplateOptions(): Promise<CrmDmsDocumentTemplateOption[]> {
@@ -2158,7 +2209,7 @@ export class OpportunityService {
     if (!latest) {
       throw new BadRequestException('영업기회 계약서 DMS markdown 초안 handoff를 먼저 생성해야 합니다.');
     }
-    const currentPreview = await this.getOpportunityContractDocumentPreview(existing.opportunityCode, currentUser);
+    const currentPreview = await this.getOpportunityContractDocumentPreview(existing.opportunityCode, currentUser, latest.templateKey);
     if (currentPreview.readiness !== 'ready') {
       throw new BadRequestException(currentPreview.blockedReasons.join(' ') || '영업기회 계약서 실행 준비가 완료되지 않았습니다.');
     }
@@ -3445,12 +3496,16 @@ export class OpportunityService {
     return value ? value.toISOString().slice(0, 10) : '';
   }
 
-  private formatPaymentTerm(value: string | undefined): string {
-    return value ? PAYMENT_TERM_LABELS[value] ?? value : '-';
+  private async formatPaymentTerm(value: string | undefined): Promise<string> {
+    if (!value) return '-';
+    // Historical selections still need their name after a code is deactivated.
+    const codes = await this.codeService?.findByGroup('payment_term');
+    return codes?.find((code) => code.codeValue === value)?.displayNameKo
+      || PAYMENT_TERM_LABELS[value] || value;
   }
 
   private toRegion(value: string): CrmOpportunity['region'] {
-    return value === 'overseas' ? 'overseas' : 'domestic';
+    return value === 'unspecified' ? 'unspecified' : value === 'overseas' ? 'overseas' : 'domestic';
   }
 
   private toStatus(value: string): CrmOpportunityStatus {
@@ -3538,7 +3593,7 @@ export class OpportunityService {
       ownerName: this.requiredText(dto.ownerName, '담당자명', 100),
       ownerUserId: this.normalizeOptionalUserId(dto.ownerUserId, '담당자 사용자 ID'),
       businessType: this.requiredText(dto.businessType, '사업구분', 120),
-      industryLine: this.requiredText(dto.industryLine, '계열/산업 구분', 120),
+      industryLine: this.optionalText(dto.industryLine, 120) ?? '',
       regionCode: this.toRegion(dto.region),
       statusCode: this.toStatus(dto.status),
       priorityCode: this.toPriority(dto.priority),
@@ -3550,7 +3605,7 @@ export class OpportunityService {
       specialDiscountTypeCode,
       specialDiscountValue,
       specialDiscountAmount,
-      nextAction: this.requiredText(dto.nextAction, '다음 행동', 1000),
+      nextAction: this.optionalText(dto.nextAction, 1000) ?? '',
       revenueLines,
       costLines,
       revenueTotal,
@@ -3734,13 +3789,13 @@ export class OpportunityService {
     fallbackAmount?: number;
   }): bigint {
     if (quantity !== null && unitPrice !== null) {
-      const rawAmount = Math.round(quantity * Number(unitPrice));
-      const trunc = Number(truncUnit ?? 0n);
-      if (trunc > 0) {
-        return BigInt(Math.floor(rawAmount / trunc) * trunc);
+      // Quantity is normalized to hundredths before this calculation. Truncate
+      // the exact product before rounding so 999.9 never becomes a 1,000 block.
+      const scaledAmount = BigInt(Math.round(quantity * 100)) * unitPrice;
+      if (truncUnit && truncUnit > 0n) {
+        return scaledAmount / (100n * truncUnit) * truncUnit;
       }
-
-      return BigInt(rawAmount);
+      return (scaledAmount + 50n) / 100n;
     }
 
     return this.normalizeAmount(fallbackAmount);
@@ -3875,13 +3930,13 @@ export class OpportunityService {
     }
   }
 
-  private normalizeQuery(query: CrmOpportunityListQuery): Required<CrmOpportunityListQuery> {
+  private normalizeQuery(query: CrmOpportunityListQuery): Required<Omit<CrmOpportunityListQuery, 'view'>> {
     const status = query.status && STATUSES.includes(query.status as CrmOpportunityStatus) ? query.status : 'all';
     const sourceStatus = query.sourceStatus && SOURCE_STATUSES.includes(query.sourceStatus as CrmSourceOpportunityStatus)
       ? query.sourceStatus
       : 'all';
     const sort = query.sort && SORTS.includes(query.sort) ? query.sort : DEFAULT_SORT;
-    return { search: query.search?.trim() ?? '', status, sourceStatus, sort };
+    return { search: query.view === 'source-list' ? query.search ?? '' : query.search?.trim() ?? '', status, sourceStatus, sort };
   }
 
   private toSourceOpportunityStatus(status: CrmOpportunityStatus): CrmSourceOpportunityStatus {

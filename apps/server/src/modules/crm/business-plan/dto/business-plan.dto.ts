@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, ValidateNested, IsIn, IsNumber, IsInt, Max, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import type {
   CrmBusinessPlanCarryForwardRequest,
   CrmBusinessPlanListQuery,
@@ -16,12 +16,18 @@ import type {
   CrmBusinessPlanStatus,
 } from '@ssoo/types/crm';
 
-const CRM_BUSINESS_PLAN_PREVIEW_REGIONS = ['all', 'domestic', 'overseas'] as const;
-const CRM_BUSINESS_PLAN_INPUT_REGIONS = ['domestic', 'overseas'] as const;
+const CRM_BUSINESS_PLAN_PREVIEW_REGIONS = ['all', 'domestic', 'overseas', 'unspecified'] as const;
+const CRM_BUSINESS_PLAN_INPUT_REGIONS = ['domestic', 'overseas', 'unspecified'] as const;
 const CRM_BUSINESS_PLAN_STATUSES = ['all', 'draft', 'confirmed'] as const;
 const CRM_BUSINESS_PLAN_PERFORMANCE_MODES = ['extended-actual', 'source-compatible'] as const;
 
 export class CrmBusinessPlanPreviewQueryDto implements CrmBusinessPlanPreviewQuery {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiPropertyOptional({ description: '3개년 preview 시작 사업년도', default: new Date().getFullYear() })
   @Type(() => Number)
   @IsNumber()
@@ -55,10 +61,17 @@ export class CrmBusinessPlanPreviewQueryDto implements CrmBusinessPlanPreviewQue
 }
 
 export class CrmBusinessPlanPerformanceQueryDto implements CrmBusinessPlanPerformanceQuery {
-  @ApiPropertyOptional({ description: '사업계획대비실적 preview 기준 사업년도', default: new Date().getFullYear() })
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
+  @ApiPropertyOptional({ description: '사업계획대비실적 preview 기준 사업년도', minimum: 2000, maximum: 2100, type: 'integer', default: new Date().getFullYear() })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(2000)
+  @Max(2100)
   @IsOptional()
   year?: number;
 
@@ -94,6 +107,12 @@ export class CrmBusinessPlanPerformanceQueryDto implements CrmBusinessPlanPerfor
 }
 
 export class CrmBusinessPlanListQueryDto implements CrmBusinessPlanListQuery {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiPropertyOptional({ description: '사업계획 기준년도. 생략하면 전체 연도', default: new Date().getFullYear() })
   @Type(() => Number)
   @IsNumber()
@@ -115,6 +134,11 @@ export class CrmBusinessPlanListQueryDto implements CrmBusinessPlanListQuery {
 }
 
 export class CrmBusinessPlanSnapshotDto extends CrmBusinessPlanPreviewQueryDto implements CrmBusinessPlanSnapshotRequest {
+  @ApiPropertyOptional({ description: '후보 없이 빈 최초 차수 생성', default: false })
+  @IsBoolean()
+  @IsOptional()
+  empty?: boolean;
+
   @ApiPropertyOptional({ description: '저장할 사업계획 차수명', maxLength: 200 })
   @IsString()
   @MaxLength(200)
@@ -237,6 +261,12 @@ export class CrmBusinessPlanRowWbsUpdateDto implements CrmBusinessPlanRowWbsUpda
 }
 
 export class CrmBusinessPlanPerformanceActualInputDto implements CrmBusinessPlanPerformanceActualInputRequest {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiPropertyOptional({ description: '사업계획대비실적 직접 입력 기준년도', default: new Date().getFullYear() })
   @Type(() => Number)
   @IsNumber()
@@ -290,4 +320,29 @@ export class CrmBusinessPlanPerformanceActualInputDto implements CrmBusinessPlan
   @MaxLength(1000)
   @IsOptional()
   memo?: string;
+}
+
+export class CrmBusinessPlanBulkRowDto extends CrmBusinessPlanRowUpsertDto {
+  @ApiPropertyOptional({ description: '수정할 기존 행 코드. 생략하면 새 행', maxLength: 80 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  rowCode?: string;
+}
+
+export class CrmBusinessPlanBulkRowsDto {
+  @ApiProperty({ type: [CrmBusinessPlanBulkRowDto], minItems: 1, maxItems: 500 })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => CrmBusinessPlanBulkRowDto)
+  rows!: CrmBusinessPlanBulkRowDto[];
+}
+
+export class CrmBusinessPlanCarryContractsDto extends CrmBusinessPlanPreviewQueryDto {
+  @ApiPropertyOptional({ description: '진행 계약 배분 기준', enum: ['billing', 'progress'], default: 'billing' })
+  @IsOptional()
+  @IsIn(['billing', 'progress'])
+  method?: 'billing' | 'progress';
 }

@@ -1,4 +1,4 @@
-export type CrmBusinessPlanPreviewRegion = 'all' | 'domestic' | 'overseas';
+export type CrmBusinessPlanPreviewRegion = 'all' | 'domestic' | 'overseas' | 'unspecified';
 export type CrmBusinessPlanPreviewSource = 'pipeline' | 'contract-plan' | 'contract-actual';
 export type CrmBusinessPlanPerformanceSource = 'confirmed-plan' | 'pipeline' | 'contract' | 'confirmed-cost' | 'manual-actual' | 'mixed';
 export type CrmBusinessPlanPerformanceMode = 'extended-actual' | 'source-compatible';
@@ -6,6 +6,7 @@ export type CrmBusinessPlanStatus = 'draft' | 'confirmed';
 export type CrmBusinessPlanMonthlyPlanInputMode = 'distributed' | 'manual';
 
 export interface CrmBusinessPlanPreviewQuery {
+  ownerOrganizationId?: string;
   baseYear?: number;
   businessType?: string;
   industryLine?: string;
@@ -50,7 +51,7 @@ export interface CrmBusinessPlanPreviewSummary {
   contractActualAmountTotal: number;
   planCandidateAmountTotal: number;
   actualGapAmountTotal: number;
-  activeFilters: Required<CrmBusinessPlanPreviewQuery>;
+  activeFilters: Required<Omit<CrmBusinessPlanPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmBusinessPlanPreviewQuery, 'ownerOrganizationId'>;
   businessTypeOptions: string[];
   industryLineOptions: string[];
   sourceTypes: CrmBusinessPlanPreviewSource[];
@@ -112,6 +113,7 @@ export interface CrmBusinessPlanRow {
 }
 
 export interface CrmBusinessPlan {
+  ownerOrganizationId?: string;
   id: string;
   code: string;
   planName: string;
@@ -120,7 +122,7 @@ export interface CrmBusinessPlan {
   status: CrmBusinessPlanStatus;
   confirmed: boolean;
   confirmedAt?: string;
-  filters: Required<CrmBusinessPlanPreviewQuery>;
+  filters: Required<Omit<CrmBusinessPlanPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmBusinessPlanPreviewQuery, 'ownerOrganizationId'>;
   pipelineAmountTotal: number;
   contractPlanAmountTotal: number;
   contractActualAmountTotal: number;
@@ -136,6 +138,7 @@ export interface CrmBusinessPlan {
 }
 
 export interface CrmBusinessPlanListQuery {
+  ownerOrganizationId?: string;
   baseYear?: number;
   status?: CrmBusinessPlanStatus | 'all';
   search?: string;
@@ -148,7 +151,7 @@ export interface CrmBusinessPlanListSummary {
   confirmedCount: number;
   latestVersion?: number;
   confirmedPlanId?: string;
-  activeFilters: Required<CrmBusinessPlanListQuery>;
+  activeFilters: Required<Omit<CrmBusinessPlanListQuery, 'ownerOrganizationId'>> & Pick<CrmBusinessPlanListQuery, 'ownerOrganizationId'>;
   boundaryNotice: string;
   unavailableActions: string[];
 }
@@ -159,6 +162,7 @@ export interface CrmBusinessPlanListResponse {
 }
 
 export interface CrmBusinessPlanSnapshotRequest extends CrmBusinessPlanPreviewQuery {
+  empty?: boolean;
   planName?: string;
   memo?: string;
 }
@@ -213,6 +217,7 @@ export interface CrmBusinessPlanDeleteResult {
 }
 
 export interface CrmBusinessPlanPerformanceQuery {
+  ownerOrganizationId?: string;
   year?: number;
   mode?: CrmBusinessPlanPerformanceMode;
   businessType?: string;
@@ -260,7 +265,7 @@ export interface CrmBusinessPlanPerformanceSummary {
   revenueGapTotal: number;
   costGapTotal: number;
   marginGapTotal: number;
-  activeFilters: Required<CrmBusinessPlanPerformanceQuery>;
+  activeFilters: Required<Omit<CrmBusinessPlanPerformanceQuery, 'ownerOrganizationId'>> & Pick<CrmBusinessPlanPerformanceQuery, 'ownerOrganizationId'>;
   businessTypeOptions: string[];
   industryLineOptions: string[];
   planBasisLabel: string;
@@ -279,6 +284,7 @@ export interface CrmBusinessPlanPerformanceSummary {
   confirmedPlanId?: string;
   confirmedPlanCode?: string;
   confirmedPlanName?: string;
+  confirmedPlanVersion?: number;
   boundaryNotice: string;
   unavailableActions: string[];
 }
@@ -290,6 +296,7 @@ export interface CrmBusinessPlanPerformanceResponse {
 }
 
 export interface CrmBusinessPlanPerformanceActualInput {
+  ownerOrganizationId?: string;
   id: string;
   year: number;
   businessType: string;
@@ -306,6 +313,7 @@ export interface CrmBusinessPlanPerformanceActualInput {
 }
 
 export interface CrmBusinessPlanPerformanceActualInputRequest {
+  ownerOrganizationId?: string;
   year: number;
   businessType: string;
   industryLine: string;

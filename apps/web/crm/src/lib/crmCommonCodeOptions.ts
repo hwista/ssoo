@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSharedAccessToken } from '@ssoo/web-auth';
 
-export type CrmSourceCodeGroup = 'payment_term' | 'biz_type' | 'group_type' | 'biz_year';
+export type CrmSourceCodeGroup = 'payment_term' | 'biz_type' | 'group_type';
 
 export interface CrmCommonCodeOption {
   value: string;
   label: string;
+  active?: boolean;
 }
 
 interface CodeItemResponse {
@@ -22,13 +23,13 @@ interface CodeListResponse {
   data?: CodeItemResponse[];
 }
 
-const requestCache = new Map<CrmSourceCodeGroup, Promise<CrmCommonCodeOption[]>>();
+const requestCache = new Map<string, Promise<CrmCommonCodeOption[]>>();
 
-async function fetchGroup(group: CrmSourceCodeGroup): Promise<CrmCommonCodeOption[]> {
-  const existing = requestCache.get(group);
-  if (existing) return existing;
-
+async function fetchGroup(group: CrmSourceCodeGroup, force: boolean): Promise<CrmCommonCodeOption[]> {
   const accessToken = getSharedAccessToken();
+  const key = `${group}:${accessToken ?? ''}`;
+  const existing = requestCache.get(key);
+  if (existing && !force) return existing;
   const request = fetch(`/api/codes?codeGroup=${encodeURIComponent(group)}`, {
     cache: 'no-store',
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
@@ -37,39 +38,47 @@ async function fetchGroup(group: CrmSourceCodeGroup): Promise<CrmCommonCodeOptio
       const payload = await response.json().catch(() => null) as CodeListResponse | null;
       if (!response.ok || payload?.success !== true) throw new Error('공통코드를 불러오지 못했습니다.');
       return (payload.data ?? [])
-        .filter((item) => item.isActive)
         .sort((a, b) => a.sortOrder - b.sortOrder || a.codeValue.localeCompare(b.codeValue))
-        .map((item) => ({ value: item.codeValue, label: item.displayNameKo }));
+        .map((item) => ({ value: item.codeValue, label: item.displayNameKo, active: item.isActive }));
     })
-    .finally(() => requestCache.delete(group));
-  requestCache.set(group, request);
+    .finally(() => { if (requestCache.get(key) === request) requestCache.delete(key); });
+  requestCache.set(key, request);
   return request;
 }
 
 export function useCrmCommonCodeOptions(groups: CrmSourceCodeGroup[]) {
   const groupKey = groups.join(',');
   const [options, setOptions] = useState<Partial<Record<CrmSourceCodeGroup, CrmCommonCodeOption[]>>>({});
+  const [allOptions, setAllOptions] = useState<Partial<Record<CrmSourceCodeGroup, CrmCommonCodeOption[]>>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
+  const requestVersion = useRef(0);
+  const reload = useCallback(async (force = true) => {
+    const version = ++requestVersion.current;
     try {
-      const loaded = await Promise.all(groups.map(async (group) => [group, await fetchGroup(group)] as const));
-      setOptions(Object.fromEntries(loaded));
+      const loaded = await Promise.all(groups.map(async (group) => [group, await fetchGroup(group, force)] as const));
+      if (version !== requestVersion.current) return;
+      setAllOptions(Object.fromEntries(loaded));
+      setOptions(Object.fromEntries(loaded.map(([group, items]) => [group, items.filter((item) => item.active)])));
       setError(null);
     } catch (nextError) {
+      if (version !== requestVersion.current) return;
       setError(nextError instanceof Error ? nextError.message : '공통코드를 불러오지 못했습니다.');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupKey]);
 
   useEffect(() => {
-    void reload();
+    void reload(false);
     const handleFocus = () => void reload();
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    return () => {
+      requestVersion.current += 1;
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [reload]);
 
-  return { options, error, reload };
+  return { options, allOptions, error, reload };
 }
 
 export function withCurrentCodeOption(
@@ -79,17 +88,4 @@ export function withCurrentCodeOption(
 ): CrmCommonCodeOption[] {
   if (!value || options.some((option) => option.value === value)) return options;
   return [{ value, label: fallbackLabel ?? value }, ...options];
-}
-
-export function useCrmBusinessYearOptions(currentYear: number, fallbackYears: number[]) {
-  const commonCodes = useCrmCommonCodeOptions(['biz_year']);
-  const configuredYears = (commonCodes.options.biz_year ?? [])
-    .map((option) => Number.parseInt(option.value, 10))
-    .filter((year) => Number.isInteger(year) && year >= 2000 && year <= 2100);
-  const source = configuredYears.length > 0 ? configuredYears : fallbackYears;
-  return {
-    years: [...new Set([currentYear, ...source])].sort((left, right) => left - right),
-    error: commonCodes.error,
-    reload: commonCodes.reload,
-  };
 }

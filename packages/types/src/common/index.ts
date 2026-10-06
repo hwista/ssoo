@@ -193,6 +193,20 @@ export type {
 
 // User
 export type {
+  OnboardingServiceCode,
+  OnboardingRoleCode,
+  OnboardingRequestKind,
+  OnboardingRequestStatus,
+  PlatformEnrollmentStatus,
+  OnboardingOrganization,
+  OnboardingRequest,
+  OnboardingServiceGrant,
+  OnboardingSnapshot,
+  CreateOnboardingRequest,
+  DecideOnboardingRequest,
+} from './onboarding';
+
+export type {
   UserRole,
   User,
   CreateUserDto,

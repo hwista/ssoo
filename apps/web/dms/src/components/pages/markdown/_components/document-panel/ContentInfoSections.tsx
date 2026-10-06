@@ -254,9 +254,11 @@ export function SummarySection({
       });
       if (res.data?.text) {
         setAiSuggestion(res.data.text.trim());
+      } else {
+        toast.error(res.error || 'AI 요약을 생성하지 못했습니다. 다시 시도해 주세요.');
       }
-    } catch {
-      // silent fail
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'AI 요약 생성에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }

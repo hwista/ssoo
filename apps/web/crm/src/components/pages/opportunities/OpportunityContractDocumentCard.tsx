@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { SsooErrorNotice } from '@ssoo/web-shell';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, ExternalLink, FileCheck2, RefreshCw, Search } from 'lucide-react';
 import type {
   CrmOpportunity,
@@ -38,14 +39,32 @@ function lifecycleStatus(value: CrmOpportunityContractDocumentPreview['lifecycle
   return '대기';
 }
 
-function downloadFrom(url: string): void {
+async function downloadFrom(url: string, accessToken: string | null, fallbackName: string): Promise<void> {
+  const response = await fetch(url, {
+    cache: 'no-store',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as ErrorResponse | null;
+    throw new Error(errorMessage(payload));
+  }
+  if (!response.headers.get('content-type')?.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+    throw new Error('계약서 DOCX 파일을 받지 못했습니다. 다시 다운로드해 주세요.');
+  }
+  const blob = await response.blob();
+  if (!blob.size) throw new Error('계약서 파일이 비어 있습니다. 다시 다운로드해 주세요.');
+  const disposition = response.headers.get('content-disposition') ?? '';
+  const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const fileName = encodedName ? decodeURIComponent(encodedName) : disposition.match(/filename="([^"]+)"/i)?.[1] ?? fallbackName;
+  const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = '';
-  anchor.rel = 'noopener';
+  anchor.href = objectUrl;
+  anchor.download = fileName;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
+  // Allow the browser to consume the download before releasing the object URL.
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
 export function OpportunityContractDocumentCard({
@@ -70,16 +89,26 @@ export function OpportunityContractDocumentCard({
   const [error, setError] = useState<string | null>(null);
   const [sourceNotice, setSourceNotice] = useState<string | null>(null);
   const [sourceSearch, setSourceSearch] = useState('');
+  const selectedTemplateRef = useRef('');
+  const requestVersion = useRef(0);
+  const loadController = useRef<AbortController | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (templateKey = selectedTemplateRef.current) => {
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
+    const version = ++requestVersion.current;
+    const query = templateKey ? `?${new URLSearchParams({ templateKey })}` : '';
     setIsLoading(true);
     setError(null);
     setSourceNotice(null);
     try {
       const response = await fetch(
-        `/api/crm/opportunities/${encodeURIComponent(opportunityId)}/contract-document-preview`,
+        `/api/crm/opportunities/${encodeURIComponent(opportunityId)}/contract-document-preview${query}`,
         {
           cache: 'no-store',
+          signal: controller.signal,
           headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         },
       );
@@ -87,21 +116,29 @@ export function OpportunityContractDocumentCard({
       if (!response.ok || payload?.success !== true) {
         throw new Error(errorMessage(payload));
       }
+      if (version !== requestVersion.current) return;
       setPreview(payload.data);
       setSelectedTemplateKey(payload.data.templateKey);
+      selectedTemplateRef.current = payload.data.templateKey;
     } catch (loadError) {
+      if (controller.signal.aborted || version !== requestVersion.current) return;
       setPreview(null);
       setError(loadError instanceof Error ? loadError.message : '계약서 미리보기를 불러오지 못했습니다.');
     } finally {
-      setIsLoading(false);
+      if (version === requestVersion.current) setIsLoading(false);
     }
   }, [accessToken, opportunityId]);
 
   useEffect(() => {
+    setIsDraftSaving(false);
+    setIsExecuting(false);
+    setIsDownloading(false);
     void load();
+    return () => { loadController.current?.abort(); requestVersion.current += 1; };
   }, [load]);
 
   const saveDraft = async (): Promise<boolean> => {
+    const version = requestVersion.current;
     setIsDraftSaving(true);
     setError(null);
     try {
@@ -124,18 +161,22 @@ export function OpportunityContractDocumentCard({
       if (!response.ok || payload?.success !== true) {
         throw new Error(errorMessage(payload));
       }
+      if (version !== requestVersion.current) return false;
       setPreview(payload.data.preview);
       setSelectedTemplateKey(payload.data.preview.templateKey);
+      selectedTemplateRef.current = payload.data.preview.templateKey;
       return true;
     } catch (saveError) {
+      if (version !== requestVersion.current) return false;
       setError(saveError instanceof Error ? saveError.message : '계약서 초안을 저장하지 못했습니다.');
       return false;
     } finally {
-      setIsDraftSaving(false);
+      if (version === requestVersion.current) setIsDraftSaving(false);
     }
   };
 
   const executeAndDownload = async (): Promise<boolean> => {
+    const version = requestVersion.current;
     setIsExecuting(true);
     setError(null);
     try {
@@ -155,27 +196,49 @@ export function OpportunityContractDocumentCard({
       if (!response.ok || payload?.success !== true) {
         throw new Error(errorMessage(payload));
       }
+      if (version !== requestVersion.current) return false;
       setPreview(payload.data.preview);
-      downloadFrom(`/api/crm/opportunities/${encodeURIComponent(opportunityId)}/contract-document-artifact`);
+      await downloadFrom(`/api/crm/opportunities/${encodeURIComponent(opportunityId)}/contract-document-artifact`, accessToken, payload.data.preview.fileNameHint);
       return true;
     } catch (executeError) {
+      if (version !== requestVersion.current) return false;
       setError(executeError instanceof Error ? executeError.message : '계약서 DOCX를 생성하지 못했습니다.');
       return false;
     } finally {
-      setIsExecuting(false);
+      if (version === requestVersion.current) setIsExecuting(false);
     }
   };
 
-  if (isLoading) {
+  const downloadExisting = async (kind: 'sample' | 'artifact') => {
+    const version = requestVersion.current;
+    setIsDownloading(true);
+    setError(null);
+    setSourceNotice(null);
+    try {
+      await downloadFrom(`/api/crm/opportunities/${encodeURIComponent(opportunityId)}/contract-document-${kind}`, accessToken, kind === 'sample' ? 'CRM_영업기회_계약서_샘플.docx' : preview?.fileNameHint ?? '계약서.docx');
+    } catch (downloadError) {
+      if (version === requestVersion.current) setError(downloadError instanceof Error ? downloadError.message : '계약서를 다운로드하지 못했습니다.');
+    } finally {
+      if (version === requestVersion.current) setIsDownloading(false);
+    }
+  };
+
+  const selectTemplate = (templateKey: string) => {
+    selectedTemplateRef.current = templateKey;
+    setSelectedTemplateKey(templateKey);
+    void load(templateKey);
+  };
+
+  if (isLoading || (preview && preview.opportunityId !== opportunityId)) {
     return <div className="rounded-md border border-ssoo-info-border bg-ssoo-info-bg px-3 py-2 text-xs text-ssoo-info">원천 22개 변수 계약서 준비 상태를 조회하는 중입니다.</div>;
   }
 
   if (!preview) {
     return (
-      <div className="space-y-2 rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-xs text-ssoo-danger">
+      <SsooErrorNotice className="space-y-2 px-3 py-2">
         <p>{error ?? '계약서 준비 상태가 없습니다.'}</p>
         <Button type="button" size="sm" variant="outline" onClick={() => void load()}><RefreshCw className="h-3.5 w-3.5" /> 다시 조회</Button>
-      </div>
+      </SsooErrorNotice>
     );
   }
 
@@ -183,13 +246,16 @@ export function OpportunityContractDocumentCard({
   const draftDisabled = !canGenerate
     || isDraftSaving
     || isExecuting
+    || isDownloading
     || preview.readiness !== 'ready'
     || !selectedTemplate?.selectable;
   const executeDisabled = !canGenerate
     || isExecuting
     || isDraftSaving
+    || isDownloading
     || preview.readiness !== 'ready'
-    || !preview.latestHandoff;
+    || !preview.latestHandoff
+    || preview.latestHandoff.templateKey !== selectedTemplateKey;
 
   if (variant === 'source') {
     const normalizedSearch = sourceSearch.trim().toLocaleLowerCase('ko-KR');
@@ -201,13 +267,14 @@ export function OpportunityContractDocumentCard({
     const sourceGenerateDisabled = !canGenerate
       || isExecuting
       || isDraftSaving
-      || preview.readiness !== 'ready'
+      || isDownloading
+    || preview.readiness !== 'ready'
       || !selectedTemplate?.selectable;
     const generateSourceDocument = async () => {
       setSourceNotice(null);
-      const draftReady = preview.latestHandoff ? true : await saveDraft();
+      const draftReady = await saveDraft();
       if (draftReady && await executeAndDownload()) {
-        setSourceNotice('계약서가 생성되어 다운로드되었습니다.');
+        setSourceNotice('계약서가 생성되어 다운로드를 시작했습니다.');
       }
     };
 
@@ -220,13 +287,9 @@ export function OpportunityContractDocumentCard({
               <p className="mt-1 text-xs text-muted-foreground">.docx 파일에 {'{변수}'} 형태로 플레이스홀더를 삽입하면 자동 치환됩니다.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <a
-                href={`/api/crm/opportunities/${encodeURIComponent(opportunityId)}/contract-document-sample`}
-                download
-                className="inline-flex min-h-9 items-center justify-center gap-1 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-muted"
-              >
+              <Button type="button" variant="outline" disabled={isDownloading} onClick={() => void downloadExisting('sample')}>
                 <Download className="h-3.5 w-3.5" /> 샘플 템플릿 다운로드
-              </a>
+              </Button>
               <a
                 href={`${DMS_APP_URL}/settings/system/templates`}
                 target="_blank"
@@ -260,7 +323,7 @@ export function OpportunityContractDocumentCard({
           </div>
           <div className="flex flex-wrap gap-2 p-4">
             {preview.variables.map((variable) => (
-              <div key={variable.key} title={variable.value || '입력 필요'} className="rounded-md border border-border bg-muted px-2 py-1 text-xs">
+              <div key={variable.key} title={variable.value || (variable.required ? '입력 필요' : '빈 값으로 생성')} className="rounded-md border border-border bg-muted px-2 py-1 text-xs">
                 <code className="font-sans text-ssoo-info">{'{'}{variable.key}{'}'}</code>
                 <span className="ml-1 text-muted-foreground">— {variable.label}</span>
               </div>
@@ -305,23 +368,23 @@ export function OpportunityContractDocumentCard({
                     role="button"
                     tabIndex={0}
                     className={item.id === opportunityId ? 'bg-ssoo-info-bg' : 'cursor-pointer'}
-                    onClick={() => onOpportunitySelect?.(item.id)}
+                    onClick={() => { if (!isDraftSaving && !isExecuting && !isDownloading) onOpportunitySelect?.(item.id); }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (!isDraftSaving && !isExecuting && !isDownloading && (event.key === 'Enter' || event.key === ' ')) {
                         event.preventDefault();
                         onOpportunitySelect?.(item.id);
                       }
                     }}
                   >
                     <TableCell className="text-center">
-                      <Input type="radio" name="cg-opp" readOnly checked={item.id === opportunityId} aria-label={`${item.customerName} ${item.opportunityName}`} className="h-4 w-4 shadow-none" />
+                      <Input type="radio" name="cg-opp" readOnly disabled={isDraftSaving || isExecuting || isDownloading} checked={item.id === opportunityId} aria-label={`${item.customerName} ${item.opportunityName}`} className="h-4 w-4 shadow-none" />
                     </TableCell>
                     <TableCell className="font-medium">{item.customerName}</TableCell>
                     <TableCell>{item.opportunityName}</TableCell>
                     <TableCell className="text-muted-foreground">{item.businessType}</TableCell>
                     <TableCell className="text-right">{Math.round(item.revenueLines.reduce((sum, line) => sum + line.amount, 0)).toLocaleString('ko-KR')}원</TableCell>
-                    <TableCell className="text-center text-muted-foreground">{item.expectedStartDate.replace(/-/g, '.')} ~ {item.expectedEndDate.replace(/-/g, '.')}</TableCell>
-                    <TableCell className="text-center" />
+                    <TableCell className="text-center text-muted-foreground">{item.expectedStartDate && item.expectedEndDate ? `${item.expectedStartDate.replace(/-/g, '.')} ~ ${item.expectedEndDate.replace(/-/g, '.')}` : ''}</TableCell>
+                    <TableCell className="text-center">{item.ownerName}</TableCell>
                   </TableRow>
                 ))}
                 {filteredOpportunities.length === 0 ? (
@@ -332,20 +395,20 @@ export function OpportunityContractDocumentCard({
           </div>
         </section>
 
-        {error ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-xs text-ssoo-danger">{error}</div> : null}
+        {error ? <SsooErrorNotice className="px-3 py-2" error={error} /> : null}
         {preview.blockedReasons.length > 0 ? (
           <div className="space-y-1 rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-3 py-2 text-xs text-ssoo-warning">
             {preview.blockedReasons.map((reason) => <p key={reason}>{reason}</p>)}
           </div>
         ) : null}
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <label className="text-xs font-medium text-muted-foreground">템플릿 선택</label>
+          <label htmlFor="cg-template-select" className="text-xs font-medium text-muted-foreground">템플릿 선택</label>
           <NativeSelect
             id="cg-template-select"
             className="min-w-[260px]"
             value={selectedTemplateKey}
-            disabled={!canGenerate || isDraftSaving || isExecuting || preview.templateOptions.length === 0}
-            onChange={(event) => setSelectedTemplateKey(event.target.value)}
+            disabled={!canGenerate || isDraftSaving || isExecuting || isDownloading || preview.templateOptions.length === 0}
+            onChange={(event) => selectTemplate(event.target.value)}
           >
             {preview.templateOptions.map((option) => (
               <option key={option.templateKey} value={option.templateKey} disabled={!option.selectable}>{option.templateName}</option>
@@ -355,6 +418,7 @@ export function OpportunityContractDocumentCard({
             <Download className="h-4 w-4" /> {isDraftSaving || isExecuting ? '생성 중' : '계약서 생성 (.docx)'}
           </Button>
         </div>
+        {preview.latestHandoff?.artifact ? <div className="flex justify-end"><Button type="button" variant="outline" disabled={isDownloading || isDraftSaving || isExecuting} onClick={() => void downloadExisting('artifact')}><Download className="h-4 w-4" /> 생성본 다운로드</Button></div> : null}
         {sourceNotice ? (
           <div className="fixed bottom-6 right-6 z-50 rounded-lg bg-foreground px-4 py-3 text-sm text-background shadow-lg" role="status">{sourceNotice}</div>
         ) : null}
@@ -378,8 +442,8 @@ export function OpportunityContractDocumentCard({
         <span className="font-medium text-foreground">DOCX 템플릿</span>
         <NativeSelect
           value={selectedTemplateKey}
-          disabled={!canGenerate || isDraftSaving || isExecuting || preview.templateOptions.length === 0}
-          onChange={(event) => setSelectedTemplateKey(event.target.value)}
+          disabled={!canGenerate || isDraftSaving || isExecuting || isDownloading || preview.templateOptions.length === 0}
+          onChange={(event) => selectTemplate(event.target.value)}
         >
           {preview.templateOptions.map((option) => (
             <option key={option.templateKey} value={option.templateKey} disabled={!option.selectable}>
@@ -401,7 +465,7 @@ export function OpportunityContractDocumentCard({
           {preview.variables.map((variable) => (
             <div key={variable.key} className="grid grid-cols-[120px_1fr] gap-2 py-1.5">
               <span>{variable.key}</span>
-              <span className="break-all text-right text-foreground">{variable.value || '입력 필요'}</span>
+              <span className="break-all text-right text-foreground">{variable.value || (variable.required ? '입력 필요' : '빈 값으로 생성')}</span>
             </div>
           ))}
         </div>
@@ -422,7 +486,7 @@ export function OpportunityContractDocumentCard({
           {preview.blockedReasons.map((reason) => <p key={reason}>{reason}</p>)}
         </div>
       ) : null}
-      {error ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-ssoo-danger">{error}</div> : null}
+      {error ? <SsooErrorNotice className="px-3 py-2" error={error} /> : null}
 
       <div className="flex flex-wrap justify-end gap-2">
         <a
@@ -433,22 +497,8 @@ export function OpportunityContractDocumentCard({
         >
           <ExternalLink className="h-3.5 w-3.5" /> DMS 템플릿 관리
         </a>
-        <a
-          href={`/api/crm/opportunities/${encodeURIComponent(opportunityId)}/contract-document-sample`}
-          download
-          className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-border px-3 py-2 font-medium text-foreground hover:bg-muted"
-        >
-          <Download className="h-3.5 w-3.5" /> 샘플 DOCX
-        </a>
-        {preview.latestHandoff?.artifact ? (
-          <a
-            href={`/api/crm/opportunities/${encodeURIComponent(opportunityId)}/contract-document-artifact`}
-            download
-            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-border px-3 py-2 font-medium text-ssoo-accent hover:bg-muted"
-          >
-            <Download className="h-3.5 w-3.5" /> 생성본 다운로드
-          </a>
-        ) : null}
+        <Button type="button" variant="outline" disabled={isDownloading} onClick={() => void downloadExisting('sample')}><Download className="h-3.5 w-3.5" /> 샘플 DOCX</Button>
+        {preview.latestHandoff?.artifact ? <Button type="button" variant="outline" disabled={isDownloading || isDraftSaving || isExecuting} onClick={() => void downloadExisting('artifact')}><Download className="h-3.5 w-3.5" /> 생성본 다운로드</Button> : null}
         <Button type="button" size="sm" className="min-h-10" disabled={draftDisabled} onClick={() => void saveDraft()}>
           <FileCheck2 className="h-3.5 w-3.5" /> {isDraftSaving ? '저장 중' : preview.latestHandoff ? '22개 변수 초안 갱신' : '22개 변수 초안 저장'}
         </Button>
@@ -456,6 +506,7 @@ export function OpportunityContractDocumentCard({
           <Download className="h-3.5 w-3.5" /> {isExecuting ? '생성 중' : 'DOCX 생성 및 다운로드'}
         </Button>
       </div>
+      {preview.latestHandoff && preview.latestHandoff.templateKey !== selectedTemplateKey ? <p className="text-right text-caption-2xs">선택한 템플릿으로 초안을 갱신한 뒤 생성하세요.</p> : null}
       {!canGenerate ? <p className="text-right text-caption-2xs">조회는 가능하지만 계약서 생성에는 영업기회 확정 권한이 필요합니다.</p> : null}
     </div>
   );

@@ -1,3 +1,4 @@
+import type { CrmAccessService } from '../access/access.service.js';
 import type { AiIndexObjectProjection } from '@ssoo/types/common';
 import type { DatabaseService } from '../../../database/database.service.js';
 import type { AiEmbeddingProviderService } from '../../common/ai-index/ai-embedding-provider.service.js';
@@ -169,7 +170,7 @@ function createAdapter(
       reasonCode: embeddingReady ? undefined : 'not_configured',
     }),
   } as unknown as AiEmbeddingProviderService;
-  const adapter = new CrmAiIndexAdapter(db, registry, embeddingProvider);
+  const adapter = new CrmAiIndexAdapter(db, registry, embeddingProvider, {} as CrmAccessService);
 
   return {
     adapter,

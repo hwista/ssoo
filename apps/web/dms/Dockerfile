@@ -3,7 +3,8 @@
 # 모노레포 통합 런타임용 (pnpm workspace + @ssoo/types)
 # ============================================================
 
-FROM node:22 AS base
+ARG SSOO_NODE_IMAGE=node:22
+FROM ${SSOO_NODE_IMAGE} AS base
 RUN corepack enable && \
     corepack prepare pnpm@11.13.1 --activate
 WORKDIR /app
@@ -40,7 +41,11 @@ ARG NEXT_PUBLIC_PMS_APP_URL=http://localhost:3002
 ARG NEXT_PUBLIC_DMS_APP_URL=http://localhost:3003
 ARG NEXT_PUBLIC_SNS_APP_URL=http://localhost:3004
 COPY --from=deps /app/ ./
-COPY . .
+COPY apps/web/dms/ apps/web/dms/
+COPY packages/types/ packages/types/
+COPY packages/web-ui/ packages/web-ui/
+COPY packages/web-shell/ packages/web-shell/
+COPY packages/web-auth/ packages/web-auth/
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SSOO_RELEASE_SHA=${SSOO_RELEASE_SHA}
@@ -61,7 +66,9 @@ RUN --mount=type=secret,id=ssoo_tls_ca,required=false \
     pnpm --filter @ssoo/web-auth build && \
     pnpm --filter web-dms build
 
-FROM node:22 AS runner
+FROM ${SSOO_NODE_IMAGE} AS runner
+ARG SSOO_RELEASE_SHA=local-development
+ENV SSOO_RELEASE_SHA=${SSOO_RELEASE_SHA}
 WORKDIR /app
 
 ENV NODE_ENV=production

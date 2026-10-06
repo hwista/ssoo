@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, NativeSelect, Textarea } from '@ssoo/web-ui';
@@ -37,7 +38,7 @@ export function ContractApprovalInbox() {
   useEffect(() => { void load(); }, [load]);
   return <section aria-label="내 승인 대기" className="mb-4 min-w-0 rounded-xl border border-ssoo-border bg-ssoo-bg-card p-4">
     <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">내 승인 대기</h2><Button size="sm" variant="outline" disabled={busy} onClick={() => void load()}>대기 목록 새로고침</Button></div>
-    {error && <p role="alert" className="mt-2 text-sm text-ssoo-danger">{error}</p>}
+    {error && <SsooErrorNotice as="p" compact className="mt-2" error={error} />}
     {data?.items.length === 0 && <p className="mt-2 text-sm text-ssoo-text-muted">처리할 승인 요청이 없습니다.</p>}
     {!data && !error && <p role="status" className="mt-2 text-sm">승인 대기 목록을 불러오는 중입니다.</p>}
     <ul className="mt-2 space-y-2">{data?.items.map(row => <li key={row.id} className="text-sm break-words"><Link className="text-ssoo-primary underline" href={`/contracts?selected=${encodeURIComponent(row.contractCode)}`}>{row.contractName}</Link><span className="ml-2 text-ssoo-text-muted">{row.requesterName} 요청 · {time(row.requestedAt)}{!row.currentVersion ? ' · 원본 변경 또는 열람 불가' : ''}</span></li>)}</ul>
@@ -117,13 +118,13 @@ export function ContractApprovalPanel({ contractCode, revision }: { contractCode
   return <section aria-label="계약 초안 승인" className="min-w-0 rounded-xl border border-ssoo-border bg-ssoo-bg-card p-4">
     <div className="flex items-center justify-between gap-2"><h2 className="font-semibold">계약 초안 승인</h2><Button size="sm" variant="outline" disabled={busy} onClick={() => { setNotice(''); void load(); }}>승인 새로고침</Button></div>
     <p className="mt-2 text-sm text-ssoo-text-muted">저장된 계약 초안을 한 명에게 요청하고, 지정된 승인자가 직접 처리합니다. 아래 승인은 요청 당시 초안에만 적용됩니다.</p>
-    {error && <p role="alert" className="mt-3 text-sm text-ssoo-danger">{error}</p>}
+    {error && <SsooErrorNotice as="p" compact className="mt-3" error={error} />}
     {notice && <p role="status" className="mt-3 text-sm text-ssoo-success">{notice}</p>}
     {busy && <p role="status" className="mt-2 text-sm text-ssoo-text-muted">처리 중입니다.</p>}
     {data?.sourceMessage && <p className="mt-3 text-sm text-ssoo-text-muted">{data.sourceMessage}</p>}
     {pending && <div className="mt-4 rounded-lg border border-ssoo-border p-3 text-sm">
       <p className="font-medium">승인 대기 · {pending.approverName}</p><p className="mt-1 text-ssoo-text-muted">{pending.requesterName} 요청 · {time(pending.requestedAt)}</p>
-      {!pending.currentVersion && <p className="mt-2 text-ssoo-warning">원본이 변경되었거나 열람할 수 없어 처리할 수 없습니다. 요청자가 철회한 후 원본과 권한을 확인해 다시 요청해 주세요.</p>}
+      {!pending.currentVersion && <SsooErrorNotice as="p" compact className="mt-2 text-ssoo-warning">원본이 변경되었거나 열람할 수 없어 처리할 수 없습니다. 요청자가 철회한 후 원본과 권한을 확인해 다시 요청해 주세요.</SsooErrorNotice>}
       <Button className="mt-3" size="sm" variant="outline" disabled={busy} onClick={() => openSnapshot(pending)}>요청 당시 초안 확인</Button>
       {pending.canDecide && <div className="mt-3 space-y-2">
         <p className="text-ssoo-text-muted">요청 당시 초안을 확인한 후 처리해 주세요.</p>

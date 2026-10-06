@@ -52,6 +52,12 @@ export class CrmCustomerListQueryDto {
 }
 
 export class CrmCustomerUpsertDto implements CrmCustomerUpsertRequest {
+  @ApiPropertyOptional({ description: '승인된 업무 조직 ID (신규 필수, 한 조직만 있으면 자동 선택)', maxLength: 19 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(19)
+  ownerOrganizationId?: string;
+
   @ApiProperty({ description: '고객사명', maxLength: 200 })
   @IsString()
   @MaxLength(200)

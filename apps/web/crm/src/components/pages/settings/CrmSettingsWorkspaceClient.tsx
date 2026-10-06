@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertCircle, ArrowUpRight, Building2, Database, FileText, History, RefreshCw, RotateCcw, Save, Settings2 } from 'lucide-react';
 import type {
@@ -193,10 +194,10 @@ export function CrmSettingsWorkspaceClient() {
         </header>
 
         {error ? (
-          <div role="alert" className="flex items-start gap-2 rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">
+          <SsooErrorNotice className="gap-2 px-3 py-2">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
-          </div>
+          </SsooErrorNotice>
         ) : null}
         {notice ? <div role="status" className="rounded-md border border-ssoo-success-border bg-ssoo-success-bg px-3 py-2 text-sm text-ssoo-success">{notice}</div> : null}
         {!isLoading && access && !canManage ? (

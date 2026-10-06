@@ -4,7 +4,8 @@ import type { AuthIdentity } from '@ssoo/types/common';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { ChevronDown, LogOut, Settings, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { resolveCurrentSsooAccountCenterHref } from './account-center';
 import { Button } from '@ssoo/web-ui';
 
@@ -63,6 +64,8 @@ export function AuthUserMenu({
   secondaryLabel,
   fallbackSecondaryLabel = null,
 }: AuthUserMenuProps) {
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   const loginId = user?.loginId ?? fallbackLoginId;
   const displayName = user?.userName?.trim() || loginId;
   const resolvedSecondaryLabel = secondaryLabel ?? fallbackSecondaryLabel;
@@ -103,6 +106,7 @@ export function AuthUserMenu({
     ]
     : [];
   const resolvedActions = [
+    { key: 'onboarding', label: '소속·서비스 신청 및 승인', icon: User, onSelect: () => { window.location.assign('/?onboarding=1'); } },
     ...resolvedUserSurfaceActions,
     ...(!userSurfaces && accountCenter
       ? [{
@@ -202,14 +206,21 @@ export function AuthUserMenu({
           ) : null}
 
           <DropdownMenuPrimitive.Item
-            onSelect={() => {
-              void onLogout();
+            disabled={isLoggingOut}
+            onSelect={(event) => {
+              event.preventDefault();
+              setLogoutError(null);
+              setIsLoggingOut(true);
+              void Promise.resolve().then(onLogout).catch(() => {
+                setLogoutError('로그아웃하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.');
+              }).finally(() => setIsLoggingOut(false));
             }}
             className="flex cursor-pointer select-none items-center gap-2 rounded-sm px-3 py-2 text-primary-foreground outline-none transition-colors focus:bg-primary-foreground/10 focus:text-primary-foreground"
           >
             <LogOut className="h-4 w-4" />
-            <span>로그아웃</span>
+            <span>{isLoggingOut ? '로그아웃 중...' : '로그아웃'}</span>
           </DropdownMenuPrimitive.Item>
+          {logoutError ? <SsooErrorNotice message={logoutError} /> : null}
         </DropdownMenuPrimitive.Content>
       </DropdownMenuPrimitive.Portal>
     </DropdownMenuPrimitive.Root>

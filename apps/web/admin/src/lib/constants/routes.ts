@@ -3,6 +3,7 @@ export const LOGIN_PATH = '/login';
 export const PASSWORD_RESET_PATH = '/password-reset';
 
 export const ADMIN_ROOT_ENTRY_PATHS = [
+  '/recovery',
   APP_HOME_PATH,
   LOGIN_PATH,
   PASSWORD_RESET_PATH,
@@ -10,7 +11,6 @@ export const ADMIN_ROOT_ENTRY_PATHS = [
   '/users',
   '/organizations',
   '/codes',
-  '/business-years',
   '/roles',
   '/ai-operations',
 ] as const;

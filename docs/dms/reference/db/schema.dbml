@@ -3,3 +3,602 @@
 //// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 
 //// ------------------------------------------------------
+
+Table dm_document_m {
+  documentId BigInt [pk, increment]
+  relativePath String [unique, not null]
+  visibilityScope String [not null, default: 'self']
+  targetOrgId BigInt
+  ownerUserId BigInt [not null]
+  documentStatusCode String [not null, default: 'active']
+  syncStatusCode String [not null, default: 'synced']
+  revisionSeq Int [not null, default: 1]
+  contentHash String [not null]
+  latestGitCommitHash String
+  metadataJson Json
+  lastScannedAt DateTime
+  lastSyncedAt DateTime
+  lastReconciledAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  ownerUser cm_user_m [not null]
+  targetOrganization cm_organization_m
+  grants dm_document_grant_r [not null]
+  accessRequests dm_document_access_request_m [not null]
+  pathHistoryEntries dm_document_path_history_m [not null]
+  sourceFiles dm_document_source_file_m [not null]
+  comments dm_document_comment_m [not null]
+  chunks dm_document_chunk_m [not null]
+  indexState dm_document_index_state_m
+  userActivities dm_user_document_activity_m [not null]
+}
+
+Table dm_user_document_activity_m {
+  userDocumentActivityId BigInt [pk, increment]
+  userId BigInt [not null]
+  documentId BigInt [not null]
+  firstOpenedAt DateTime [default: `now()`, not null]
+  lastOpenedAt DateTime [default: `now()`, not null]
+  openCount Int [not null, default: 1]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+  document dm_document_m [not null]
+
+  indexes {
+    (userId, documentId) [unique]
+  }
+}
+
+Table dm_user_document_activity_h {
+  userDocumentActivityId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  userId BigInt [not null]
+  documentId BigInt [not null]
+  firstOpenedAt DateTime [not null]
+  lastOpenedAt DateTime [not null]
+  openCount Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (userDocumentActivityId, historySeq) [pk]
+  }
+}
+
+Table dm_search_query_m {
+  searchQueryId BigInt [pk, increment]
+  userId BigInt [not null]
+  query String [not null]
+  normalizedQuery String [not null]
+  searchCount Int [not null, default: 1]
+  lastResultCount Int [not null, default: 0]
+  firstSearchedAt DateTime [default: `now()`, not null]
+  lastSearchedAt DateTime [default: `now()`, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  user cm_user_m [not null]
+
+  indexes {
+    (userId, normalizedQuery) [unique]
+  }
+}
+
+Table dm_chat_session_m {
+  chatSessionId String [pk]
+  ownerUserId BigInt [not null]
+  title String [not null]
+  messages Json [not null, default: '[]']
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  persistedAt DateTime [default: `now()`, not null]
+  ownerUser cm_user_m [not null]
+}
+
+Table dm_document_h {
+  documentId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  relativePath String [not null]
+  visibilityScope String [not null]
+  targetOrgId BigInt
+  ownerUserId BigInt [not null]
+  documentStatusCode String [not null]
+  syncStatusCode String [not null]
+  revisionSeq Int [not null]
+  contentHash String [not null]
+  latestGitCommitHash String
+  metadataJson Json
+  lastScannedAt DateTime
+  lastSyncedAt DateTime
+  lastReconciledAt DateTime
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (documentId, historySeq) [pk]
+  }
+}
+
+Table dm_template_m {
+  templateId BigInt [pk, increment]
+  templateKey String [not null]
+  relativePath String [unique, not null]
+  templateScopeCode String [not null, default: 'personal']
+  templateKindCode String [not null]
+  ownerRef String [not null]
+  visibilityCode String [not null, default: 'private']
+  templateStatusCode String [not null, default: 'active']
+  sourceTypeCode String [not null, default: 'markdown-file']
+  originTypeCode String
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (templateScopeCode, ownerRef, templateKey) [unique]
+  }
+}
+
+Table dm_template_h {
+  templateId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  templateKey String [not null]
+  relativePath String [not null]
+  templateScopeCode String [not null]
+  templateKindCode String [not null]
+  ownerRef String [not null]
+  visibilityCode String [not null]
+  templateStatusCode String [not null]
+  sourceTypeCode String [not null]
+  originTypeCode String
+  metadataJson Json
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (templateId, historySeq) [pk]
+  }
+}
+
+Table dm_document_grant_r {
+  documentGrantId BigInt [pk, increment]
+  documentId BigInt [not null]
+  principalType String [not null]
+  principalRef String [not null]
+  roleCode String [not null]
+  grantSourceCode String [not null, default: 'share']
+  grantedFromRequestId BigInt [unique]
+  grantedAt DateTime [default: `now()`, not null]
+  grantedByUserId BigInt
+  expiresAt DateTime
+  revokedAt DateTime
+  revokedByUserId BigInt
+  revokeReason String
+  reason String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  document dm_document_m [not null]
+  sourceRequest dm_document_access_request_m
+
+  indexes {
+    (documentId, principalType, principalRef, roleCode) [unique]
+  }
+}
+
+Table dm_document_grant_h {
+  documentGrantId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  documentId BigInt [not null]
+  principalType String [not null]
+  principalRef String [not null]
+  roleCode String [not null]
+  grantSourceCode String [not null]
+  grantedFromRequestId BigInt
+  grantedAt DateTime [not null]
+  grantedByUserId BigInt
+  expiresAt DateTime
+  revokedAt DateTime
+  revokedByUserId BigInt
+  revokeReason String
+  reason String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (documentGrantId, historySeq) [pk]
+  }
+}
+
+Table dm_document_access_request_m {
+  accessRequestId BigInt [pk, increment]
+  documentId BigInt [not null]
+  requesterUserId BigInt [not null]
+  requestedRole String [not null]
+  statusCode String [not null, default: 'pending']
+  requestMessage String
+  requestedExpiresAt DateTime
+  respondedByUserId BigInt
+  respondedAt DateTime
+  responseMessage String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  document dm_document_m [not null]
+  generatedGrant dm_document_grant_r
+}
+
+Table dm_document_access_request_h {
+  accessRequestId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  documentId BigInt [not null]
+  requesterUserId BigInt [not null]
+  requestedRole String [not null]
+  statusCode String [not null]
+  requestMessage String
+  requestedExpiresAt DateTime
+  respondedByUserId BigInt
+  respondedAt DateTime
+  responseMessage String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (accessRequestId, historySeq) [pk]
+  }
+}
+
+Table dm_document_path_history_m {
+  pathHistoryId BigInt [pk, increment]
+  documentId BigInt [not null]
+  relativePath String [not null]
+  previousRelativePath String
+  reasonCode String [not null, default: 'create']
+  changedAt DateTime [default: `now()`, not null]
+  changedByUserId BigInt
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  document dm_document_m [not null]
+}
+
+Table dm_document_source_file_m {
+  sourceFileId BigInt [pk, increment]
+  documentId BigInt [not null]
+  sourceName String [not null]
+  sourcePath String [not null]
+  mediaType String
+  fileSize Int
+  url String
+  storageUri String
+  providerCode String
+  versionId String
+  etag String
+  checksum String
+  originCode String
+  statusCode String
+  storageMode String
+  kindCode String
+  sortOrder Int [not null, default: 0]
+  projectionJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  document dm_document_m [not null]
+
+  indexes {
+    (documentId, sourcePath) [unique]
+  }
+}
+
+Table dm_document_source_file_h {
+  sourceFileId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  documentId BigInt [not null]
+  sourceName String [not null]
+  sourcePath String [not null]
+  mediaType String
+  fileSize Int
+  url String
+  storageUri String
+  providerCode String
+  versionId String
+  etag String
+  checksum String
+  originCode String
+  statusCode String
+  storageMode String
+  kindCode String
+  sortOrder Int [not null]
+  projectionJson Json
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (sourceFileId, historySeq) [pk]
+  }
+}
+
+Table dm_document_comment_m {
+  commentId BigInt [pk, increment]
+  documentId BigInt [not null]
+  commentKey String [not null]
+  parentCommentKey String
+  commentContent String [not null]
+  authorName String [not null]
+  authorEmail String
+  avatarUrl String
+  commentCreatedAt DateTime [not null]
+  commentDeletedAt DateTime
+  commentDeletedBy BigInt
+  commentDeletedByName String
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  document dm_document_m [not null]
+
+  indexes {
+    (documentId, commentKey) [unique]
+  }
+}
+
+Table dm_document_comment_h {
+  commentId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  documentId BigInt [not null]
+  commentKey String [not null]
+  parentCommentKey String
+  commentContent String [not null]
+  authorName String [not null]
+  authorEmail String
+  avatarUrl String
+  commentCreatedAt DateTime [not null]
+  commentDeletedAt DateTime
+  commentDeletedBy BigInt
+  commentDeletedByName String
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (commentId, historySeq) [pk]
+  }
+}
+
+Table dm_document_chunk_m {
+  chunkId BigInt [pk, increment]
+  documentId BigInt [not null]
+  chunkKey String [not null]
+  chunkSeq Int [not null]
+  chunkHash String [not null]
+  chunkText String [not null]
+  tokenCount Int
+  charStart Int
+  charEnd Int
+  chunkStatusCode String [not null, default: 'pending']
+  indexedAt DateTime
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  document dm_document_m [not null]
+
+  indexes {
+    (documentId, chunkKey) [unique]
+  }
+}
+
+Table dm_document_index_state_m {
+  indexStateId BigInt [pk, increment]
+  documentId BigInt [unique, not null]
+  indexStatusCode String [not null, default: 'pending']
+  indexProvider String
+  embeddingModel String
+  embeddingDimension Int
+  chunkCount Int [not null, default: 0]
+  indexedChunkCount Int [not null, default: 0]
+  lastIndexedRevisionSeq Int
+  lastRequestedAt DateTime
+  lastIndexedAt DateTime
+  lastFailedAt DateTime
+  lastErrorMessage String
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  document dm_document_m [not null]
+}
+
+Table dm_document_index_state_h {
+  indexStateId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  documentId BigInt [not null]
+  indexStatusCode String [not null]
+  indexProvider String
+  embeddingModel String
+  embeddingDimension Int
+  chunkCount Int [not null]
+  indexedChunkCount Int [not null]
+  lastIndexedRevisionSeq Int
+  lastRequestedAt DateTime
+  lastIndexedAt DateTime
+  lastFailedAt DateTime
+  lastErrorMessage String
+  metadataJson Json
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (indexStateId, historySeq) [pk]
+  }
+}
+
+Table dm_config_m {
+  configId BigInt [pk, increment]
+  scopeCode String [not null]
+  ownerRef String [not null, default: '_system_']
+  configData Json [not null]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (scopeCode, ownerRef) [unique]
+  }
+}
+
+Ref: dm_user_document_activity_m.documentId > dm_document_m.documentId [delete: Cascade]
+
+Ref: dm_document_grant_r.documentId > dm_document_m.documentId [delete: Cascade]
+
+Ref: dm_document_access_request_m.documentId > dm_document_m.documentId [delete: Cascade]
+
+Ref: dm_document_path_history_m.documentId > dm_document_m.documentId [delete: Cascade]
+
+Ref: dm_document_source_file_m.documentId > dm_document_m.documentId [delete: Cascade]
+
+Ref: dm_document_comment_m.documentId > dm_document_m.documentId [delete: Cascade]
+
+Ref: dm_document_chunk_m.documentId > dm_document_m.documentId [delete: Cascade]

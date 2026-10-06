@@ -38,8 +38,8 @@ function createOpportunity(seed: Partial<CrmOpportunity>): CrmOpportunity {
     costTotal: 560000000,
     marginTotal: 260000000,
     marginRate: 31.7,
-    revenueLines: [],
-    costLines: [],
+    revenueLines: [{ id: 'r1', category: 'product', label: '매출', quantity: 1, unitPrice: 820000000, amount: 820000000 }],
+    costLines: [{ id: 'c1', category: 'product', label: '원가', quantity: 1, unitPrice: 560000000, amount: 560000000 }],
     pmsHandoffStatus: 'planned',
     dmsLinkStatus: 'planned',
     adminBoundary: 'shared-admin',
@@ -136,6 +136,7 @@ function createContractResponse(items: CrmContract[]): CrmContractListResponse {
 
 function createService(params?: {
   opportunities?: CrmOpportunity[];
+  confirmedOpportunities?: CrmOpportunity[];
   contracts?: CrmContract[];
   sellerProfile?: CrmQuoteSellerProfile;
 }) {
@@ -151,8 +152,12 @@ function createService(params?: {
     ciStatus: 'configured',
     updatedAt: '2026-07-07T00:00:00.000Z',
   };
-  const opportunityService: Pick<OpportunityService, 'listResponse'> = {
+  const opportunityService: Pick<OpportunityService, 'listResponse' | 'listSourceDashboardOpportunities'> = {
     listResponse: async () => createOpportunityResponse(opportunities),
+    listSourceDashboardOpportunities: async () => ({
+      latest: opportunities,
+      confirmed: params?.confirmedOpportunities ?? opportunities.filter((item) => item.confirmed),
+    }),
   };
   const contractService: Pick<ContractService, 'listResponse'> = {
     listResponse: async () => createContractResponse(contracts),
@@ -178,6 +183,52 @@ function createService(params?: {
 }
 
 describe('DashboardService', () => {
+  it('counts an older confirmed version while status and recent entries use the latest draft', async () => {
+    const result = await createService({
+      opportunities: [createOpportunity({ id: 'draft-v2', version: 2, confirmed: false, status: 'proposal' })],
+      confirmedOpportunities: [createOpportunity({ id: 'confirmed-v1', isLatest: false })],
+    }).getDashboard();
+    expect(result.sourceCompatibility.confirmedSummary).toMatchObject({ totalGroupCount: 1, confirmedLatestCount: 1, revenueTotal: 820000000 });
+    expect(result.sourceCompatibility.recentOpportunities[0].id).toBe('draft-v2');
+    expect(result.sourceCompatibility.statusDistribution.find((item) => item.status === '진행중')?.count).toBe(1);
+  });
+
+  it('uses raw quantity and price for every revenue and cost category without DC or truncation', async () => {
+    const result = await createService({ opportunities: [createOpportunity({
+      revenueTotal: 35000, costTotal: 6000, specialDiscountAmount: 500,
+      revenueLines: [
+        { id: 'r1', category: 'product', label: '상품', quantity: 3, unitPrice: 12345, amount: 37000, truncUnit: 1000 },
+        { id: 'r2', category: 'service', label: '용역', quantity: 0.5, unitPrice: 123, amount: 50, truncUnit: 10 },
+      ],
+      costLines: [
+        { id: 'c1', category: 'product', label: '상품', quantity: 1, unitPrice: 1234, amount: 1000 },
+        { id: 'c2', category: 'internal-cost', label: '내부', quantity: 1, unitPrice: 2345, amount: 2000 },
+        { id: 'c3', category: 'external-cost', label: '외부', quantity: 1, unitPrice: 3456, amount: 3000 },
+      ],
+    })] }).getDashboard();
+    expect(result.sourceCompatibility.confirmedSummary).toMatchObject({ revenueTotal: 37096.5, costTotal: 7035, marginTotal: 30061.5, marginRate: 81 });
+    expect(result.opportunitySummary.totalRevenue).toBe(35000);
+    expect(result.opportunitySummary.totalCost).toBe(6000);
+  });
+
+  it('takes five groups in reverse registration order without re-sorting their update timestamps', async () => {
+    const opportunities = Array.from({ length: 7 }, (_, index) => createOpportunity({
+      id: `group-${index + 1}`, updatedAt: `2026-09-${String(30 - index).padStart(2, '0')}T00:00:00Z`,
+    }));
+    const result = await createService({ opportunities }).getDashboard();
+    expect(result.sourceCompatibility.recentOpportunities.map((item) => item.id)).toEqual(['group-7', 'group-6', 'group-5', 'group-4', 'group-3']);
+  });
+
+  it('returns zero totals without NaN for empty and zero-revenue data', async () => {
+    const empty = await createService({ opportunities: [], contracts: [] }).getDashboard();
+    expect(empty.sourceCompatibility.confirmedSummary).toEqual({ totalGroupCount: 0, confirmedLatestCount: 0, revenueTotal: 0, costTotal: 0, marginTotal: 0, marginRate: 0 });
+    expect(empty.sourceCompatibility.recentOpportunities).toEqual([]);
+    expect(empty.sourceCompatibility.statusDistribution.every((item) => item.percentage === 0)).toBe(true);
+    const zero = await createService({ opportunities: [createOpportunity({ revenueLines: [] })] }).getDashboard();
+    expect(zero.sourceCompatibility.confirmedSummary.marginRate).toBe(0);
+    expect(zero.sourceCompatibility.confirmedSummary.marginTotal).toBe(-560000000);
+  });
+
   it('combines opportunity, contract, PMS, and DMS readiness into a CRM home summary', async () => {
     const service = createService();
 
@@ -200,7 +251,7 @@ describe('DashboardService', () => {
       title: 'PMS/DMS readiness 검증 계약',
     });
     expect(result.sourceCompatibility).toMatchObject({
-      calculationBasis: 'latest-version-canonical-total',
+      calculationBasis: 'latest-confirmed-version-raw-total',
       confirmedSummary: {
         totalGroupCount: 1,
         confirmedLatestCount: 1,
@@ -210,7 +261,7 @@ describe('DashboardService', () => {
         marginRate: 32,
       },
       recentOpportunities: [
-        expect.objectContaining({ id: 'crm-opp-001', status: '계약완료', href: '/?selected=crm-opp-001' }),
+        expect.objectContaining({ id: 'crm-opp-001', status: '계약완료', href: '/opportunities?selected=crm-opp-001' }),
       ],
     });
     expect(result.sourceCompatibility.statusDistribution).toEqual([

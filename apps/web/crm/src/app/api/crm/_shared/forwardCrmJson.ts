@@ -3,7 +3,7 @@ import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/
 export async function forwardCrmJson(
   req: Request,
   path: string,
-  method: 'GET' | 'POST' | 'PUT',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
 ): Promise<Response> {
   const requestBody = method === 'GET' ? undefined : await req.text();
   const response = await fetch(

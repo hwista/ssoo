@@ -1,5 +1,7 @@
 'use client';
 
+import { createSharedHttpError } from '@ssoo/web-auth';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, RefreshCw, Search } from 'lucide-react';
 import type {
@@ -13,7 +15,7 @@ import type {
 import { Badge, Button, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS } from '@ssoo/web-shell';
 import { useAuthStore } from '@/stores/auth.store';
-import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
+import { useCrmBusinessYearOptions } from '@/lib/useCrmBusinessYears';
 import { LaunchOperationsSurface } from './LaunchOperationsSurface';
 import type { OperationsPreviewWorkspaceQuery } from './operationsPreviewQuery';
 
@@ -107,7 +109,7 @@ export function OperationsPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOperationsPreviewResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setCurrentData(payload.data);
       return payload.data;
@@ -184,10 +186,10 @@ export function OperationsPreviewWorkspaceClient({
           </form>
 
           {loadError ? (
-            <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+            <SsooErrorNotice className="gap-2 px-4 py-3">
               <AlertCircle className="h-4 w-4" />
               {loadError}
-            </div>
+            </SsooErrorNotice>
           ) : null}
 
           <SellerProfilePanel data={currentData} />
@@ -240,7 +242,7 @@ function SellerProfilePanel({ data }: { data: CrmOperationsPreviewResponse }) {
         <InfoItem label="CI 상태" value={seller.sellerInfoStatus} />
       </div>
       {seller.missingFields.length > 0 ? (
-        <p className="mt-3 text-xs text-ssoo-danger">누락 필드: {seller.missingFields.join(', ')}</p>
+        <SsooErrorNotice as="p" compact className="mt-3">누락 필드: {seller.missingFields.join(', ')}</SsooErrorNotice>
       ) : null}
     </section>
   );

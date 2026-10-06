@@ -5,7 +5,7 @@
 
 begin;
 
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('PROJECT_CLOSE_CONDITION_ITEM','DELIVERABLE_SUBMITTED','산출물 제출','Deliverables Submitted','필요 산출물 제출(확정 포함) 완료를 근거로 종료 조건 충족.',10,now()),
 ('PROJECT_CLOSE_CONDITION_ITEM','CUSTOMER_ACCEPTANCE_SIGNED','검수확인서 서명','Acceptance Signed','고객 검수 인수 확인서 서명 완료.',20,now()),

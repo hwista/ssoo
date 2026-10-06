@@ -1,5 +1,7 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
+
 import {
   AlertTriangle,
   BarChart3,
@@ -66,9 +68,9 @@ export function ProjectControlDashboardPanel({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-foreground">프로젝트 통제 요약</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <SsooErrorNotice as="p" compact className="mt-1 text-xs text-muted-foreground">
               비용·일정·성과·통제 상태를 불러오지 못했습니다.
-            </p>
+            </SsooErrorNotice>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4" />

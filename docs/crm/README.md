@@ -1,5 +1,7 @@
 # CRM 문서
 
+> 2026-09-30: 사업연도 관리는 CRM `/business-years`, `/api/crm/business-years`, `crm.crm_business_year_m`·`crm_business_year_h`가 소유합니다. Admin의 전용 메뉴 및 `biz_year` 공통코드 소비를 제거합니다. [이전 계약](reference/business-year-ownership.md).
+
 > 작성: 2026-06-08
 > 최종 업데이트: 2026-08-28
 

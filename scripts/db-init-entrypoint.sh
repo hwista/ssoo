@@ -12,9 +12,11 @@ DB_URL="${DATABASE_URL:?DATABASE_URL is required}"
 PSQL_URL="${DB_URL%%\?*}"
 PRISMA_PUSH_MODE="${DB_INIT_PRISMA_PUSH_MODE:-auto}"
 BASELINE_MODE="${DB_INIT_BASELINE_MODE:-compat}"
+SEED_MODE="${DB_INIT_SEED_MODE:-upgrade}"
 SEED_DIR="/workspace/packages/database/prisma/seeds"
 TRIGGER_DIR="/workspace/packages/database/prisma/triggers"
 COMPAT_DIR="/workspace/packages/database/prisma/compat"
+POST_BASELINE_COMPAT_FILE="$COMPAT_DIR/post-baseline/normalize_protected_primary_keys.sql"
 MIGRATION_DIR="/workspace/packages/database/prisma/migrations"
 PROTECTED_BASELINE_MIGRATIONS=(
   "$MIGRATION_DIR/20260702090000_add_crm_opportunity_ledger/migration.sql"
@@ -114,13 +116,17 @@ launch_baseline_record_count() {
   "
 }
 
-echo "[db-init] ▶ prisma generate"
 cd /workspace
-pnpm --filter @ssoo/database db:generate
-
 existing_application_tables="$(application_table_count)"
 launch_baseline_records="$(launch_baseline_record_count)"
 launch_managed_database=false
+
+# Validate intent before migrations, compatibility SQL, triggers, or seed writes.
+DB_INIT_SEED_MODE="$SEED_MODE" DB_INIT_BASELINE_MODE="$BASELINE_MODE" \
+  node packages/database/scripts/db-init-policy.mjs "$existing_application_tables"
+
+echo "[db-init] ▶ prisma generate"
+pnpm --filter @ssoo/database db:generate
 
 if [ "${existing_application_tables:-0}" = "0" ] || [ "${launch_baseline_records:-0}" != "0" ]; then
   launch_managed_database=true
@@ -156,6 +162,9 @@ else
     psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "$migration_file"
   done
 
+  echo "[db-init] ▶ normalizing protected baseline primary key names"
+  psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "$POST_BASELINE_COMPAT_FILE"
+
   run_prisma_db_push=true
 
   if [ "$PRISMA_PUSH_MODE" = "skip" ]; then
@@ -175,10 +184,26 @@ else
   else
     echo "[db-init] ▶ prisma db push skipped (DB_INIT_PRISMA_PUSH_MODE=$PRISMA_PUSH_MODE)"
   fi
+
+  # Existing databases still run the previous history triggers, which do not know the
+  # columns added above; refresh them before seeds write history rows.
+  echo "[db-init] ▶ refreshing history triggers before seeds"
+  (cd "$TRIGGER_DIR" && psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "apply_all_triggers.sql")
 fi
 
-echo "[db-init] ▶ applying seeds"
-(cd "$SEED_DIR" && psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "apply_all_seeds.sql")
+case "$SEED_MODE" in
+  upgrade)
+    echo "[db-init] ▶ upgrade: seeds skipped; required data changes must be versioned migrations"
+    ;;
+  bootstrap)
+    echo "[db-init] ▶ fresh database: applying reference data only (no accounts or demo business records)"
+    (cd "$SEED_DIR" && psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "apply_reference_seeds.sql")
+    ;;
+  demo)
+    echo "[db-init] ▶ disposable fresh database: applying explicit development/demo fixtures"
+    (cd "$SEED_DIR" && psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "apply_all_seeds.sql")
+    ;;
+esac
 
 echo "[db-init] ▶ applying triggers"
 (cd "$TRIGGER_DIR" && psql "$PSQL_URL" -v ON_ERROR_STOP=1 -f "apply_all_triggers.sql")

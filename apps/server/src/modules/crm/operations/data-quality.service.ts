@@ -1,21 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import type { CrmDataQualityCheck, CrmDataQualityReport } from '@ssoo/types/crm';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { CrmAccessService } from '../access/access.service.js';
 import { DatabaseService } from '../../../database/database.service.js';
 
 const MAX_DRILLDOWN_IDS = 100;
 
 @Injectable()
 export class CrmDataQualityService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly access?: CrmAccessService) {}
 
-  async getReport(): Promise<CrmDataQualityReport> {
-    const [opportunities, contracts, quoteHandoffs, contractHandoffs] = await Promise.all([
+  async getReport(currentUser?: TokenPayload): Promise<CrmDataQualityReport> {
+    const scope = currentUser ? await this.access!.businessOrganizationScope(currentUser) : null;
+    const scopedWhere = { isActive: true, ...(scope === null ? {} : { ownerOrganizationId: { in: scope } }) };
+    const [opportunities, contracts] = await Promise.all([
       this.db.client.crmOpportunity.findMany({
-        where: { isActive: true },
+        where: scopedWhere,
         select: { opportunityCode: true, opportunityGroupCode: true, versionNo: true },
       }),
       this.db.client.crmContract.findMany({
-        where: { isActive: true },
+        where: scopedWhere,
         select: {
           contractCode: true,
           confirmed: true,
@@ -25,12 +29,14 @@ export class CrmDataQualityService {
           billingPlans: { where: { isActive: true }, select: { revenueAmount: true } },
         },
       }),
+    ]);
+    const [quoteHandoffs, contractHandoffs] = await Promise.all([
       this.db.client.crmQuoteDmsHandoff.findMany({
-        where: { isActive: true },
+        where: { isActive: true, ...(scope === null ? {} : { opportunityCode: { in: opportunities.map(row => row.opportunityCode) } }) },
         select: { opportunityCode: true },
       }),
       this.db.client.crmContractDmsHandoff.findMany({
-        where: { isActive: true },
+        where: { isActive: true, ...(scope === null ? {} : { contractCode: { in: contracts.map(row => row.contractCode) } }) },
         select: { contractCode: true },
       }),
     ]);

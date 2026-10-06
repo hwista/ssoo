@@ -6,7 +6,7 @@
 begin;
 
 -- PROJECT_MEMBER_ROLE (프로젝트 멤버 역할)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('PROJECT_MEMBER_ROLE','pm','프로젝트매니저','Project Manager','프로젝트 총괄 관리자.',10,now(),now()),
 ('PROJECT_MEMBER_ROLE','pmo','PMO','PMO','프로젝트 관리 오피스 담당자.',15,now(),now()),
@@ -26,7 +26,7 @@ set display_name_ko=excluded.display_name_ko,
     updated_at=now();
 
 -- TASK_STATUS (태스크 상태)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('TASK_STATUS','not_started','미착수','Not Started','작업 시작 전.',10,now(),now()),
 ('TASK_STATUS','in_progress','진행중','In Progress','작업 진행 중.',20,now(),now()),
@@ -41,7 +41,7 @@ set display_name_ko=excluded.display_name_ko,
     updated_at=now();
 
 -- TASK_TYPE (태스크 유형)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('TASK_TYPE','analysis','분석','Analysis','업무/요구사항 분석.',10,now(),now()),
 ('TASK_TYPE','design','설계','Design','시스템/화면 설계.',20,now(),now()),
@@ -60,7 +60,7 @@ set display_name_ko=excluded.display_name_ko,
     updated_at=now();
 
 -- TASK_PRIORITY (태스크 우선순위)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('TASK_PRIORITY','critical','긴급','Critical','즉시 처리 필요.',10,now(),now()),
 ('TASK_PRIORITY','high','높음','High','우선 처리 필요.',20,now(),now()),
@@ -74,7 +74,7 @@ set display_name_ko=excluded.display_name_ko,
     updated_at=now();
 
 -- MILESTONE_STATUS (마일스톤 상태)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('MILESTONE_STATUS','not_started','미착수','Not Started','마일스톤 시작 전.',10,now(),now()),
 ('MILESTONE_STATUS','in_progress','진행중','In Progress','마일스톤 진행 중.',20,now(),now()),
@@ -89,7 +89,7 @@ set display_name_ko=excluded.display_name_ko,
     updated_at=now();
 
 -- ISSUE_TYPE (이슈 유형)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('ISSUE_TYPE','bug','버그','Bug','시스템 결함/오류.',10,now(),now()),
 ('ISSUE_TYPE','requirement_change','요구변경','Requirement Change','고객 요구사항 변경.',20,now(),now()),
@@ -105,7 +105,7 @@ set display_name_ko=excluded.display_name_ko,
     updated_at=now();
 
 -- ISSUE_STATUS (이슈 상태)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('ISSUE_STATUS','open','등록','Open','이슈 등록됨.',10,now(),now()),
 ('ISSUE_STATUS','in_progress','처리중','In Progress','이슈 처리 중.',20,now(),now()),
@@ -120,7 +120,7 @@ set display_name_ko=excluded.display_name_ko,
     updated_at=now();
 
 -- ISSUE_PRIORITY (이슈 우선순위 - TASK_PRIORITY와 동일 구조이나 별도 그룹)
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, created_at, updated_at)
 values
 ('ISSUE_PRIORITY','critical','긴급','Critical','즉시 대응 필요.',10,now(),now()),
 ('ISSUE_PRIORITY','high','높음','High','우선 대응.',20,now(),now()),

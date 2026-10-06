@@ -1,9 +1,11 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
+
 import { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SharedAuthStateSync } from '@ssoo/web-auth';
-import { Toaster } from 'sonner';
+import { SharedAuthStateSync, SharedOnboardingBoundary } from '@ssoo/web-auth';
+import { SsooToaster as Toaster } from '@ssoo/web-shell';
 import { useAdminUserScopeQueryCacheReset } from '@/lib/user-scope';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -35,13 +37,14 @@ function getQueryClient() {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [queryClient] = useState(() => getQueryClient());
   useAdminUserScopeQueryCacheReset(queryClient);
 
   return (
     <QueryClientProvider client={queryClient}>
       <SharedAuthStateSync authStore={useAuthStore} />
-      {children}
+      <SharedOnboardingBoundary authStore={useAuthStore} app="admin" pathname={pathname ?? '/'}>{children}</SharedOnboardingBoundary>
       <Toaster position="top-right" richColors closeButton duration={4000} />
     </QueryClientProvider>
   );

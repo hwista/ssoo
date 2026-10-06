@@ -28,7 +28,9 @@ let adminStorageState: MutableStorageState | undefined;
 let editorStorageState: MutableStorageState | undefined;
 
 async function waitForDmsShell(page: Page) {
-  await expect(page.getByRole('heading', { name: '문서 관리 시스템' })).toBeVisible({ timeout: 30_000 });
+  await expect(
+    page.getByRole('banner').getByRole('searchbox', { name: '통합 검색', exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 test.beforeAll(async ({ browser }, testInfo) => {

@@ -82,7 +82,7 @@ CRM 계약 DMS lifecycle 실행 evidence는 `POST /api/crm/contracts/:id/dms-doc
 | 계정 관리 | 사용자 등록, 편집, 비활성화, 비밀번호 초기화 | 공용 Admin/Auth로 치환·브라우저검증. 계정 CRUD, 상태, 역할, 초기화와 역할별 deny/allow를 확인했다. |
 | 코드 관리 | 사업구분, 계열구분, 수금조건 등 코드 | 공용 Admin 코드 master로 치환·브라우저검증. CRUD·비활성·CRM option 반영을 확인했다. |
 | 회사 정보 | 견적서/계약서 공급자 정보 | CRM 설정과 DMS storage 경계로 치환·브라우저검증. 공급자 CRUD, CI upload/download/remove와 견적·계약 소비를 확인했다. |
-| 사업년도 관리 | 계획/실적 조회 기준 연도 | 공용 Admin 사업년도 master로 치환·브라우저검증. CRUD·비활성·CRM 필터 반영을 확인했다. |
+| 사업년도 관리 | 계획/실적 조회 기준 연도 | CRM `/business-years`와 `crm.crm_business_year_m`에서 관리. 기존 추가·활성/비활성·삭제·조회조건 소비를 유지하며 회계 마감은 이번 범위에 포함하지 않는다. |
 | 프로필 편집 | 사용자 정보/비밀번호 | 공용 프로필/Auth로 치환·브라우저검증. 프로필·비밀번호 변경, 이전/신규 암호 로그인과 30분 idle 만료를 확인했다. |
 
 ## 4. 원천 DB 모델 요약

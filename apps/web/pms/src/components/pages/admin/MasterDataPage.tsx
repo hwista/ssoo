@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Database,
@@ -1356,9 +1357,7 @@ export function MasterDataPage() {
           </DialogHeader>
 
           {formError && (
-            <div className="rounded border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">
-              {formError}
-            </div>
+            <SsooErrorNotice className="px-3 py-2" error={formError} />
           )}
 
           <MasterFormFields
@@ -1397,9 +1396,7 @@ export function MasterDataPage() {
           </DialogHeader>
 
           {importError && (
-            <div className="rounded border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">
-              {importError}
-            </div>
+            <SsooErrorNotice className="px-3 py-2" error={importError} />
           )}
 
           <div className="grid gap-4">

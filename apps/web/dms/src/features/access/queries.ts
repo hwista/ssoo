@@ -107,6 +107,8 @@ export function useMyDocumentAccessRequestsForPathQuery(
   return useQuery({
     queryKey: accessRequestKeys.my(query),
     queryFn: () => unwrap(accessApi.listMyRequests(query)),
+    // Grant expiry has no required stream event; reopening must not reuse a fresh five-minute snapshot.
+    staleTime: 0,
     enabled: options.enabled ?? true,
   });
 }

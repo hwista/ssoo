@@ -2,6 +2,12 @@
 
 > 최종 업데이트: 2026-08-20
 
+## 공용 온보딩 추가 (2026-10-01, 미배포)
+
+계정 인증과 조직·서비스 이용 승인을 분리한다. 신규 관리자 생성/외부 가입 승인 계정은 pending 참여 상태로 로그인하고 공용 온보딩에서 조직 소속 또는 신규 조직 생성과 서비스 이용을 각각 신청한다. 플랫폼 관리자 또는 범위가 위임된 승인자가 처리하며 본인 신청은 다른 승인자가 결정한다. Admin 권한은 플랫폼 `system.override`이고 조직 승인 위임과 다르다.
+
+공용 모델·API·이전과 검증은 [구현 대장](2026-10-01-onboarding-implementation.md)을 따른다. `public`은 그룹사 등을 포함하는 폐쇄형 플랫폼의 승인 사용자에게 공개한다. PMS·CRM 업무 조직 집행, 생성 문서 조직 공개, SNS 개별 공유까지 완료된 것으로 보지 않으며 실제 Docker 적용은 통합 검증 뒤에 진행한다.
+
 ## 1. 개요
 
 SSOO 시스템의 인증은 **memory-only JWT Access Token + 서버 관리형 HttpOnly shared session cookie** 기반으로 구현되어 있습니다.
@@ -643,12 +649,21 @@ location.reload();
 
 ---
 
+### Admin 접근 제한 후 복구 동선
+
+Admin의 권한 확인에서 403을 받으면 로그인 성공과 관리자 권한 부족을 구분해 안내한다. 일반 사용자는 이 화면에서 이용 가능한 서비스로 이동하거나 `로그아웃 후 다른 계정으로 로그인`을 선택할 수 있다. 세션을 유지한 채 `/login` 링크로만 이동하면 로그인 bootstrap이 다시 Admin으로 보내므로 계정 전환은 서버 로그아웃 성공 → 공용 인증 상태 초기화 → `/login` 주소 교체 순서로 처리한다. 로그아웃 실패 시 현재 화면과 재시도 버튼을 유지한다.
+
+서비스 이동 버튼은 역할 이름으로 추정하지 않는다. CRM은 `/crm/opportunities/access/me`의 `canViewOpportunity`, PMS는 `/menus/my`의 보이는 접근 가능 일반 메뉴, DMS는 `/dms/access/me`의 인증 여부와 `canReadDocuments`, SNS는 `/sns/access/me`의 `canReadFeed`로 각 서비스 홈 진입 가능 여부를 확인한다. 이동 주소는 기존 공용 앱 URL resolver를 사용한다. 실제 업무·문서별 권한 검사는 대상 서비스가 계속 수행한다.
+
+서비스 접근 응답 일부가 실패하면 확인된 서비스만 표시하고 미확인 안내와 재조회 버튼을 유지한다. 모든 응답이 정상인데 접근 가능한 홈이 없으면 관리자 권한 요청·계정 전환 안내를 표시한다. Admin 권한 API의 네트워크/서버 오류는 권한 부족으로 단정하지 않고 확인 실패와 재시도를 안내한다. 조회 상태는 사용자별로 분리하며 계정 전환 시 공용 query cache 초기화 계약을 따른다.
+
 ## Changelog
 
 > 이 영역 관련 변경 이력
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-09-30 | Admin 접근 제한 화면에 권한 기반 서비스 홈 이동·서버 로그아웃 후 계정 전환·조회 및 로그아웃 실패 재시도 동선을 추가 |
 | 2026-09-16 | 승인-22 토큰 재사용 차단·기존 세션 1회 재로그인·동시 복원과 파일 확인 분리 및 실제 검증 |
 | 2026-08-13 | 자기 계정 설정의 읽기 전용 시스템 역할 표시는 `/api/users/profile`의 `roleCode` projection으로 허용하되 JWT/browser `AuthIdentity`와 UI/서버 권한 판정에는 사용하지 않고, `userTypeCode`·`isAdmin` legacy shortcut은 계속 금지하는 경계를 명시 |
 | 2026-07-22 | credential submit 중 로그인 카드를 유지해 `401` 오류 문구를 보존하고, 인증 성공 navigation을 단일 callback으로 정리했으며, `useProtectedAppBootstrap`가 React Strict Mode effect replay에서도 진행 중 blocking auth check의 완료 처리를 이어받도록 보정 |

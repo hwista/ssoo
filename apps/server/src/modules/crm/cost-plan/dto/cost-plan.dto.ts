@@ -22,7 +22,7 @@ import type {
   CrmCostPlanPreviewRegion,
 } from '@ssoo/types/crm';
 
-const CRM_COST_PLAN_PREVIEW_REGIONS = ['all', 'domestic', 'overseas'] as const;
+const CRM_COST_PLAN_PREVIEW_REGIONS = ['all', 'domestic', 'overseas', 'unspecified'] as const;
 const CRM_COST_PLAN_INTERNAL_SOURCE_ITEM_CODES = ['labor', 'other', 'dept_adj', 'svc', 'dept_common'] as const;
 const CRM_COST_PLAN_ACCOUNTING_PAYMENT_EXECUTION_STEP_KEYS = [
   'accounting-voucher',
@@ -32,6 +32,12 @@ const CRM_COST_PLAN_ACCOUNTING_PAYMENT_EXECUTION_STEP_KEYS = [
 ] as const satisfies readonly CrmCostPlanAccountingPaymentExecutionStepKey[];
 
 export class CrmCostPlanPreviewQueryDto implements CrmCostPlanPreviewQuery {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiPropertyOptional({ description: '사업년도', default: new Date().getFullYear() })
   @Type(() => Number)
   @IsNumber()
@@ -131,6 +137,12 @@ export class CrmCostPlanAccountingPaymentExecutionDto
 }
 
 export class CrmCostPlanInternalMonthlyInputDto implements CrmCostPlanInternalMonthlyInputRequest {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiProperty({ description: '입력 대상 사업년도', minimum: 2000 })
   @Type(() => Number)
   @IsNumber()
@@ -152,9 +164,9 @@ export class CrmCostPlanInternalMonthlyInputDto implements CrmCostPlanInternalMo
   @MaxLength(100)
   ownerName!: string;
 
-  @ApiProperty({ description: '국내/해외', enum: ['domestic', 'overseas'] })
+  @ApiProperty({ description: '국내/해외', enum: ['domestic', 'overseas', 'unspecified'] })
   @IsString()
-  @IsIn(['domestic', 'overseas'])
+  @IsIn(['domestic', 'overseas', 'unspecified'])
   region!: Exclude<CrmCostPlanPreviewRegion, 'all'>;
 
   @ApiPropertyOptional({ description: 'WBS 코드', maxLength: 80 })
@@ -212,6 +224,12 @@ export class CrmCostPlanInternalSourceItemInputDto implements CrmCostPlanInterna
 }
 
 export class CrmCostPlanInternalSourceGridDto implements CrmCostPlanInternalSourceGridRequest {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiProperty({ description: '입력 대상 사업년도', minimum: 2000 })
   @Type(() => Number)
   @IsNumber()
@@ -228,6 +246,12 @@ export class CrmCostPlanInternalSourceGridDto implements CrmCostPlanInternalSour
 }
 
 export class CrmCostPlanAmsSourceVendorCreateDto implements CrmCostPlanAmsSourceVendorCreateRequest {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiProperty({ description: '공급업체 대상 사업년도', minimum: 2000 })
   @Type(() => Number)
   @IsNumber()
@@ -241,6 +265,12 @@ export class CrmCostPlanAmsSourceVendorCreateDto implements CrmCostPlanAmsSource
 }
 
 export class CrmCostPlanAmsSourceVendorWbsDto implements CrmCostPlanAmsSourceVendorWbsRequest {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiProperty({ description: '공급업체 대상 사업년도', minimum: 2000 })
   @Type(() => Number)
   @IsNumber()
@@ -282,6 +312,12 @@ export class CrmCostPlanAmsSourceExternalCostRowDto implements CrmCostPlanAmsSou
 }
 
 export class CrmCostPlanAmsSourceExternalCostDto implements CrmCostPlanAmsSourceExternalCostRequest {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiProperty({ description: '외부원가 대상 사업년도', minimum: 2000 })
   @Type(() => Number)
   @IsNumber()
@@ -296,6 +332,12 @@ export class CrmCostPlanAmsSourceExternalCostDto implements CrmCostPlanAmsSource
 }
 
 export class CrmCostPlanAmsVendorWbsMappingDto implements CrmCostPlanAmsVendorWbsMappingRequest {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiProperty({ description: '매핑 대상 사업년도', minimum: 2000 })
   @Type(() => Number)
   @IsNumber()
@@ -317,9 +359,9 @@ export class CrmCostPlanAmsVendorWbsMappingDto implements CrmCostPlanAmsVendorWb
   @MaxLength(100)
   ownerName!: string;
 
-  @ApiProperty({ description: '국내/해외', enum: ['domestic', 'overseas'] })
+  @ApiProperty({ description: '국내/해외', enum: ['domestic', 'overseas', 'unspecified'] })
   @IsString()
-  @IsIn(['domestic', 'overseas'])
+  @IsIn(['domestic', 'overseas', 'unspecified'])
   region!: Exclude<CrmCostPlanPreviewRegion, 'all'>;
 
   @ApiProperty({ description: 'WBS 코드', maxLength: 80 })
@@ -346,6 +388,12 @@ export class CrmCostPlanAmsVendorWbsMappingDto implements CrmCostPlanAmsVendorWb
 }
 
 export class CrmCostPlanAmsExternalMonthlyInputDto implements CrmCostPlanAmsExternalMonthlyInputRequest {
+  @ApiPropertyOptional({ description: '업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiProperty({ description: '입력 대상 사업년도', minimum: 2000 })
   @Type(() => Number)
   @IsNumber()
@@ -367,9 +415,9 @@ export class CrmCostPlanAmsExternalMonthlyInputDto implements CrmCostPlanAmsExte
   @MaxLength(100)
   ownerName!: string;
 
-  @ApiProperty({ description: '국내/해외', enum: ['domestic', 'overseas'] })
+  @ApiProperty({ description: '국내/해외', enum: ['domestic', 'overseas', 'unspecified'] })
   @IsString()
-  @IsIn(['domestic', 'overseas'])
+  @IsIn(['domestic', 'overseas', 'unspecified'])
   region!: Exclude<CrmCostPlanPreviewRegion, 'all'>;
 
   @ApiProperty({ description: 'WBS 코드', maxLength: 80 })

@@ -1,3 +1,5 @@
+import { isSsooSidebarDestination } from '@ssoo/web-shell';
+import { HOME_TAB } from './tab.store';
 import { create } from 'zustand';
 import type { PmsAccessMenuItem, PmsAccessSnapshot, PmsFavoriteMenuItem } from '@ssoo/types/pms';
 import { menusApi } from '@/lib/api/endpoints/menus';
@@ -100,6 +102,10 @@ const normalizePmsAccessSnapshot = (
   favorites: snapshot.favorites.map(normalizeFavoriteMenu),
 });
 
+const visibleNavigation = (menus: MenuItem[]): MenuItem[] => menus
+  .filter((menu) => menu.isVisible && isSsooSidebarDestination(menu.menuPath, HOME_TAB))
+  .map((menu) => ({ ...menu, children: visibleNavigation(menu.children) }));
+
 // 메뉴 트리를 플랫 맵으로 변환
 const buildMenuMap = (menus: MenuItem[]): Map<string, MenuItem> => {
   const map = new Map<string, MenuItem>();
@@ -138,15 +144,15 @@ export const useMenuStore = create<MenuStore>()((set, get) => ({
     const allMenus = [...generalMenus, ...adminMenus];
     const menuMap = buildMenuMap(allMenus);
     set({
-      generalMenus,
-      adminMenus,
+      generalMenus: visibleNavigation(generalMenus),
+      adminMenus: visibleNavigation(adminMenus),
       menuMap,
       lastUpdatedAt: new Date(),
     });
   },
 
   setFavorites: (favorites: FavoriteMenuItem[]) => {
-    set({ favorites });
+    set({ favorites: favorites.filter((menu) => isSsooSidebarDestination(menu.menuPath, HOME_TAB)) });
   },
 
   isFavorite: (menuId: string): boolean => {

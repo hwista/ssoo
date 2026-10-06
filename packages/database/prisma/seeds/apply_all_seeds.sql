@@ -1,17 +1,17 @@
 -- =========================================================
 -- apply_all_seeds.sql
 -- 모든 시드 파일을 순서대로 실행하는 마스터 스크립트
--- 
+--
 -- 각 시드 파일은 명시적 스키마(common/pms/dms/sns/crm)를 사용합니다.
--- 
+--
 -- 스키마 분류:
 --   - common: cm_user_m (사용자)
---   - pms: cm_code_m, cm_menu_m, cm_*_r (코드, 메뉴, 권한 관련)
+--   - pms: cm_menu_m, cm_*_r (메뉴 권한); common: cm_code_m (공통코드)
 --   - dms: dm_config_m (DMS 시스템 설정)
 --   - sns: sns_board_m, sns_skill_m (게시판, 스킬)
 --   - crm: crm_opportunity_m, crm_opportunity_line_d, crm_customer_m, crm_customer_activity_d (영업/고객)
 -- =========================================================
--- 
+--
 -- 사용법 (psql):
 --   psql -U <user> -d <database> -f apply_all_seeds.sql
 --
@@ -178,3 +178,6 @@
 \echo '=========================================='
 \echo 'Seed Data Application Complete!'
 \echo '=========================================='
+
+-- Explicit seed accounts only: ordinary API-created accounts remain pending.
+\i 40_platform_onboarding_bootstrap.sql

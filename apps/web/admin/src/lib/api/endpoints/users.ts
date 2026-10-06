@@ -72,8 +72,8 @@ export interface UserListParams {
 }
 
 export const usersApi = {
-  list: (params?: UserListParams) =>
-    apiClient.get<UserListResponse>('/users', { params }).then((r) => r.data),
+  list: (params?: UserListParams, signal?: AbortSignal) =>
+    apiClient.get<UserListResponse>('/users', { params, signal }).then((r) => r.data),
 
   create: (data: CreateUserRequest) =>
     apiClient.post<ApiResponse<UserItem>>('/users', data).then((r) => r.data),

@@ -1,5 +1,8 @@
 'use client';
 
+import { isSsooSidebarDestination } from '@ssoo/web-shell';
+import { SNS_HOME_TAB } from '@/stores/tab.store';
+
 import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -70,7 +73,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, toggleLabel }: SidebarP
           onToggle: () => setIsSocialSectionExpanded((current) => !current),
           children: (
             <SsooSidebarSearchableTree<(typeof SNS_SHELL_NAV_ITEMS)[number]>
-              nodes={SNS_SHELL_NAV_ITEMS}
+              nodes={SNS_SHELL_NAV_ITEMS.filter((item) => isSsooSidebarDestination(item.href, SNS_HOME_TAB))}
               getNodeId={(item) => item.key}
               getNodeLabel={(item) => item.label}
               getNodeTitle={(item) => item.label}

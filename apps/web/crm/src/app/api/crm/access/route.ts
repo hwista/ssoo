@@ -4,7 +4,7 @@ import { createServerApiProxyInit, createServerApiUrl } from '@/app/api/_shared/
 
 export async function GET(req: Request) {
   const response = await fetch(
-    createServerApiUrl('/crm/access/me'),
+    createServerApiUrl(`/crm/access/me${new URL(req.url).search}`),
     createServerApiProxyInit(req, { method: 'GET' }),
   );
   return new Response(await response.text(), {

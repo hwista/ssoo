@@ -16,17 +16,19 @@ import type {
 } from './quote.js';
 
 export type CrmContractStatus = 'review' | 'active' | 'completed' | 'terminated';
-export type CrmContractSort = 'updated-desc' | 'revenue-desc' | 'margin-desc' | 'start-asc';
+export type CrmContractSort = 'updated-desc' | 'revenue-desc' | 'margin-desc' | 'start-asc' | 'created-desc' | 'customer-asc';
 export type CrmBillingSplitTarget = 'revenue' | 'external-cost' | 'both';
-export type CrmContractPerformanceRegion = 'all' | 'domestic' | 'overseas';
+export type CrmContractPerformanceRegion = 'all' | 'domestic' | 'overseas' | 'unspecified';
 
 export interface CrmContractListQuery {
+  view?: 'source-list';
   search?: string;
   status?: CrmContractStatus | 'all';
   sort?: CrmContractSort;
 }
 
 export interface CrmContractPerformanceQuery {
+  mode?: 'operations' | 'source-compatible';
   year?: number;
   businessType?: string;
   industryLine?: string;
@@ -97,6 +99,8 @@ export interface CrmContractBillingActualUpsertLine {
 }
 
 export interface CrmContractUpsertRequest {
+  /** Owning business organization; absent only for preserved legacy records. */
+  ownerOrganizationId?: string;
   sourceOpportunityId?: string;
   sourceOpportunityCode?: string;
   customerName: string;
@@ -106,7 +110,7 @@ export interface CrmContractUpsertRequest {
   ownerUserId?: string;
   businessType: string;
   industryLine: string;
-  region: 'domestic' | 'overseas';
+  region: 'domestic' | 'overseas' | 'unspecified';
   status?: CrmContractStatus;
   contractStartDate: string;
   contractEndDate: string;
@@ -125,6 +129,8 @@ export interface CrmContractBillingActualUpsertRequest {
 }
 
 export interface CrmContract {
+  /** Owning business organization; absent only for preserved legacy records. */
+  ownerOrganizationId?: string;
   id: string;
   code: string;
   sourceOpportunityId?: string;
@@ -136,7 +142,7 @@ export interface CrmContract {
   ownerUserId?: string;
   businessType: string;
   industryLine: string;
-  region: 'domestic' | 'overseas';
+  region: 'domestic' | 'overseas' | 'unspecified';
   status: CrmContractStatus;
   confirmed: boolean;
   contractStartDate: string;
@@ -159,6 +165,7 @@ export interface CrmContract {
   dmsLinkStatus: CrmIntegrationStatus;
   adminBoundary: CrmAdminBoundary;
   nextAction: string;
+  createdAt?: string;
   updatedAt: string;
 }
 
@@ -176,6 +183,7 @@ export interface CrmContractPmsHandoffFinancialSnapshot {
 }
 
 export interface CrmContractPmsHandoffPreview {
+  ownerOrganizationId?: string;
   contractId: string;
   contractCode: string;
   sourceOpportunityId?: string;
@@ -187,7 +195,7 @@ export interface CrmContractPmsHandoffPreview {
   ownerUserId?: string;
   businessType: string;
   industryLine: string;
-  region: 'domestic' | 'overseas';
+  region: 'domestic' | 'overseas' | 'unspecified';
   contractStartDate: string;
   contractEndDate: string;
   wbsCode?: string;
@@ -404,7 +412,7 @@ export interface CrmContractSummary {
   grossMarginRate: number;
   boundaryNotice: string;
   unimplementedIntegrations: string[];
-  activeFilters: Required<CrmContractListQuery>;
+  activeFilters: Required<Omit<CrmContractListQuery, 'view'>> & Pick<CrmContractListQuery, 'view'>;
 }
 
 export interface CrmContractListResponse {
@@ -482,6 +490,8 @@ export interface CrmContractPerformanceMonth {
 }
 
 export interface CrmContractPerformanceRow {
+  /** Selected year contains a billing-plan row, including zero amounts. */
+  hasBillingPlanInYear?: boolean;
   contractId: string;
   contractCode: string;
   customerName: string;
@@ -489,7 +499,7 @@ export interface CrmContractPerformanceRow {
   ownerName: string;
   businessType: string;
   industryLine: string;
-  region: 'domestic' | 'overseas';
+  region: 'domestic' | 'overseas' | 'unspecified';
   wbsCode?: string;
   contractStartDate: string;
   contractEndDate: string;
@@ -511,7 +521,7 @@ export interface CrmContractPerformanceSummary {
   marginDelta: number;
   revenueAchievementRate: number;
   externalCostAchievementRate: number;
-  activeFilters: Required<CrmContractPerformanceQuery>;
+  activeFilters: Required<Omit<CrmContractPerformanceQuery, 'mode'>> & Pick<CrmContractPerformanceQuery, 'mode'>;
   businessTypeOptions: string[];
   industryLineOptions: string[];
   boundaryNotice: string;

@@ -36,6 +36,11 @@ async function main() {
   
   // 트리거 파일 목록 (순서대로)
   const triggerFiles = [
+    '85_cm_platform_enrollment_h_trigger.sql',
+    '86_cm_onboarding_request_h_trigger.sql',
+    '87_cm_service_grant_h_trigger.sql',
+    '88_cm_approval_authority_h_trigger.sql',
+    '89_sns_post_access_request_h_trigger.sql',
     '01_cm_code_h_trigger.sql',
     '02_cm_user_h_trigger.sql',
     '03_pr_project_h_trigger.sql',
@@ -110,6 +115,7 @@ async function main() {
          '80_crm_operation_attempt_h_trigger.sql',
   '82_crm_contract_approval_h_trigger.sql',
   '83_pr_user_settings_h_trigger.sql',
+  '84_crm_business_year_h_trigger.sql',
          '68_pr_site_h_trigger.sql',
          '69_pr_system_catalog_h_trigger.sql',
          '70_pr_system_instance_h_trigger.sql',

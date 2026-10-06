@@ -48,6 +48,8 @@ import type {
   CrmOpportunity,
   CrmOpportunityLine,
 } from '@ssoo/types/crm';
+import { CrmAccessService } from '../access/access.service.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DatabaseService } from '../../../database/database.service.js';
 import { ContractService } from '../contract/contract.service.js';
 import { OpportunityService } from '../opportunity/opportunity.service.js';
@@ -119,6 +121,7 @@ interface CostLineLike {
 }
 
 interface CostPlanInternalMonthlyLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   targetYear: number;
   businessType: string;
@@ -153,6 +156,7 @@ interface CostPlanInternalSourceItemLedgerRow {
 }
 
 interface CostPlanAmsVendorWbsMappingLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   targetYear: number;
   businessType: string;
@@ -167,6 +171,7 @@ interface CostPlanAmsVendorWbsMappingLedgerRow {
 }
 
 interface CostPlanAmsExternalMonthlyLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   targetYear: number;
   businessType: string;
@@ -218,6 +223,7 @@ interface CostPlanAmsSourceExternalLedgerRow {
 }
 
 interface CostPlanAccountingPaymentHandoffLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint | number | string;
   targetYear: number;
   businessTypeFilter: string;
@@ -250,27 +256,30 @@ export class CostPlanService {
     @Optional() private readonly db?: DatabaseService,
     @Optional() private readonly externalExecutor?: AccountingPaymentExternalExecutorService,
     @Optional() private readonly operationAttemptService?: CrmOperationAttemptService,
+    private readonly crmAccess?: CrmAccessService,
   ) {}
 
-  async getPreview(query: CrmCostPlanPreviewQuery = {}): Promise<CrmCostPlanPreviewResponse> {
-    const normalized = this.normalizeQuery(query);
+  async getPreview(query: CrmCostPlanPreviewQuery = {}, currentUser?: TokenPayload): Promise<CrmCostPlanPreviewResponse> {
+    const organizationId = currentUser ? await this.crmAccess!.resolveReadOrganization(currentUser, query.ownerOrganizationId) : query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null;
+    if (currentUser) await this.crmAccess!.assertOrganizationCapability(currentUser, 'canReadCostPlan', organizationId);
+    const normalized = this.normalizeQuery({ ...query, ownerOrganizationId: organizationId?.toString() });
     const [opportunityResponse, contractResponse, performanceResponse] = await Promise.all([
-      this.opportunityService.listResponse({ sort: 'updated-desc' }),
-      this.contractService.listResponse({ sort: 'start-asc' }),
+      this.opportunityService.listResponse({ sort: 'updated-desc' }, currentUser, organizationId ?? undefined),
+      this.contractService.listResponse({ sort: 'start-asc' }, currentUser, organizationId ?? undefined),
       this.contractService.getMonthlyPerformance({
         year: normalized.year,
         businessType: normalized.businessType || undefined,
         industryLine: normalized.industryLine || undefined,
         region: normalized.region,
         search: normalized.search || undefined,
-      }),
+      }, currentUser, organizationId ?? undefined),
     ]);
     const [internalMonthlyRows, internalSourceItemRows, amsVendorMappingRows, amsExternalMonthlyRows, amsSourceWorkspace] = await Promise.all([
       this.loadInternalMonthlyRows(normalized),
-      this.loadInternalSourceItemRows(normalized.year),
+      this.loadInternalSourceItemRows(normalized.year, organizationId),
       this.loadAmsVendorMappingRows(normalized),
       this.loadAmsExternalMonthlyRows(normalized),
-      this.loadAmsSourceWorkspace(normalized.year, contractResponse.items),
+      this.loadAmsSourceWorkspace(normalized.year, contractResponse.items, organizationId),
     ]);
     const opportunities = this.filterOpportunities(opportunityResponse.items, normalized);
     const contracts = this.filterContracts(contractResponse.items, normalized);
@@ -330,8 +339,11 @@ export class CostPlanService {
 
   async getAccountingPaymentPreview(
     query: CrmCostPlanPreviewQuery = {},
+    currentUser?: TokenPayload,
   ): Promise<CrmCostPlanAccountingPaymentPreview> {
-    return this.buildAccountingPaymentPreview(this.normalizeQuery(query));
+    const organizationId = currentUser ? await this.crmAccess!.resolveReadOrganization(currentUser, query.ownerOrganizationId) : null;
+    if (currentUser) await this.crmAccess!.assertOrganizationCapability(currentUser, 'canReadCostPlan', organizationId);
+    return this.buildAccountingPaymentPreview(this.normalizeQuery({ ...query, ownerOrganizationId: organizationId?.toString() }), currentUser);
   }
 
   async createAccountingPaymentHandoff(
@@ -343,8 +355,9 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 회계·지급 handoff 저장 DB 연결이 필요합니다.');
     }
 
-    const normalized = this.normalizeQuery(request);
-    const preview = await this.buildAccountingPaymentPreview(normalized);
+    const { user: currentUser, organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, request.ownerOrganizationId, 'canConfirmCostPlan');
+    const normalized = this.normalizeQuery({ ...request, ownerOrganizationId: organizationId.toString() });
+    const preview = await this.buildAccountingPaymentPreview(normalized, currentUser);
     if (preview.readiness !== 'ready') {
       throw new BadRequestException(preview.blockedReasons[0] ?? CRM_COST_PLAN_ACCOUNTING_PAYMENT_BLOCKED_REASON);
     }
@@ -363,7 +376,8 @@ export class CostPlanService {
                last_source = 'crm.cost-plan',
                last_activity = 'accounting-payment-handoff-replaced',
                transaction_id = ${transactionId}::uuid
-         where target_year = ${normalized.year}
+         where owner_organization_id is not distinct from ${normalized.ownerOrganizationId ? BigInt(normalized.ownerOrganizationId) : null}
+           and target_year = ${normalized.year}
            and business_type_filter = ${normalized.businessType}
            and industry_line_filter = ${normalized.industryLine}
            and region_filter = ${normalized.region}
@@ -374,12 +388,12 @@ export class CostPlanService {
 
       return tx.$queryRaw<CostPlanAccountingPaymentHandoffLedgerRow[]>`
         insert into crm.crm_cost_plan_accounting_handoff_m (
-          target_year, business_type_filter, industry_line_filter, region_filter, search_filter,
+          owner_organization_id, target_year, business_type_filter, industry_line_filter, region_filter, search_filter,
           status_code, line_count, settlement_amount_total, preview_snapshot, lines_snapshot,
           memo, saved_by, created_by, updated_by, last_source, last_activity, transaction_id
         )
         values (
-          ${normalized.year}, ${normalized.businessType}, ${normalized.industryLine}, ${normalized.region}, ${normalized.search},
+          ${organizationId}, ${normalized.year}, ${normalized.businessType}, ${normalized.industryLine}, ${normalized.region}, ${normalized.search},
           'snapshot-created', ${preview.lineCount}, ${BigInt(Math.round(preview.settlementAmountTotal))},
           ${JSON.stringify(previewSnapshot)}::jsonb,
           ${JSON.stringify(preview.lines)}::jsonb,
@@ -388,6 +402,7 @@ export class CostPlanService {
         )
         returning
           cost_plan_accounting_handoff_id as "id",
+             owner_organization_id as "ownerOrganizationId",
           target_year as "targetYear",
           business_type_filter as "businessTypeFilter",
           industry_line_filter as "industryLineFilter",
@@ -432,6 +447,7 @@ export class CostPlanService {
     currentUserId?: bigint,
     operationContext?: CrmOperationRunContext,
   ): Promise<CrmCostPlanAccountingPaymentExecutionResult> {
+    if (!await this.loadActiveAccountingPaymentHandoffById(handoffId, currentUserId)) throw new NotFoundException('활성 CRM 회계·지급 handoff snapshot을 찾을 수 없습니다.');
     if (this.operationAttemptService && currentUserId) {
       return this.operationAttemptService.run({
         target: 'accounting',
@@ -459,7 +475,7 @@ export class CostPlanService {
     request: CrmCostPlanAccountingPaymentExecutionRequest,
     currentUserId?: bigint,
   ): Promise<CrmCostPlanAccountingPaymentExecutionResult> {
-    const existing = await this.loadActiveAccountingPaymentHandoffById(handoffId);
+    const existing = await this.loadActiveAccountingPaymentHandoffById(handoffId, currentUserId);
     if (!existing) {
       throw new NotFoundException('활성 CRM 회계·지급 handoff snapshot을 찾을 수 없습니다.');
     }
@@ -580,7 +596,7 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 회계·지급 실행 evidence 저장 DB 연결이 필요합니다.');
     }
 
-    const existing = await this.loadActiveAccountingPaymentHandoffById(handoffId);
+    const existing = await this.loadActiveAccountingPaymentHandoffById(handoffId, currentUserId);
     if (!existing) {
       throw new NotFoundException('활성 CRM 회계·지급 handoff snapshot을 찾을 수 없습니다.');
     }
@@ -615,13 +631,13 @@ export class CostPlanService {
 
       return tx.$queryRaw<CostPlanAccountingPaymentHandoffLedgerRow[]>`
         insert into crm.crm_cost_plan_accounting_handoff_m (
-          target_year, business_type_filter, industry_line_filter, region_filter, search_filter,
+          owner_organization_id, target_year, business_type_filter, industry_line_filter, region_filter, search_filter,
           status_code, line_count, settlement_amount_total, preview_snapshot, lines_snapshot,
           execution_evidence_snapshot, execution_evidence_updated_at,
           memo, saved_by, created_by, updated_by, last_source, last_activity, transaction_id
         )
         values (
-          ${existing.targetYear}, ${existing.businessTypeFilter}, ${existing.industryLineFilter}, ${existing.regionFilter}, ${existing.searchFilter},
+          ${existing.ownerOrganizationId ?? null}, ${existing.targetYear}, ${existing.businessTypeFilter}, ${existing.industryLineFilter}, ${existing.regionFilter}, ${existing.searchFilter},
           'execution-evidence-updated', ${this.toNumber(existing.lineCount)}, ${BigInt(Math.round(this.toNumber(existing.settlementAmountTotal)))},
           ${JSON.stringify(previewSnapshot)}::jsonb,
           ${JSON.stringify(linesSnapshot)}::jsonb,
@@ -632,6 +648,7 @@ export class CostPlanService {
         )
         returning
           cost_plan_accounting_handoff_id as "id",
+             owner_organization_id as "ownerOrganizationId",
           target_year as "targetYear",
           business_type_filter as "businessTypeFilter",
           industry_line_filter as "industryLineFilter",
@@ -682,6 +699,7 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 원가/AMS 저장 DB 연결이 필요합니다.');
     }
 
+    const { organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, dto.ownerOrganizationId, 'canWriteCostPlan');
     const targetYear = this.normalizeInputYear(dto.targetYear);
     const businessType = this.normalizeRequiredText(dto.businessType, '사업구분', 120);
     const industryLine = this.normalizeRequiredText(dto.industryLine, '계열/산업', 120);
@@ -702,6 +720,7 @@ export class CostPlanService {
       ownerName,
       region,
       wbsCode,
+      organizationId,
     );
     if (existing?.confirmed) {
       throw new BadRequestException('확정된 내부원가 월별 입력은 확정 해제 후 수정할 수 있습니다.');
@@ -710,7 +729,7 @@ export class CostPlanService {
     const saved = await client.$transaction(async (tx: RawCostPlanWriter) => {
       await tx.$executeRaw`
         insert into crm.crm_cost_plan_internal_monthly_d (
-          target_year, business_type, industry_line, owner_name, region_code, wbs_code,
+          owner_organization_id, target_year, business_type, industry_line, owner_name, region_code, wbs_code,
           monthly_plan_amounts, monthly_actual_amounts,
           plan_amount_total, actual_amount_total, gap_amount_total,
           status_code, confirmed, confirmed_at, confirmed_by,
@@ -718,14 +737,14 @@ export class CostPlanService {
           created_by, updated_by, last_source, last_activity, transaction_id
         )
         values (
-          ${targetYear}, ${businessType}, ${industryLine}, ${ownerName}, ${region}, ${wbsCode},
+          ${organizationId}, ${targetYear}, ${businessType}, ${industryLine}, ${ownerName}, ${region}, ${wbsCode},
           ${JSON.stringify(monthlyPlanAmounts)}::jsonb, ${JSON.stringify(monthlyActualAmounts)}::jsonb,
           ${BigInt(planAmountTotal)}, ${BigInt(actualAmountTotal)}, ${BigInt(gapAmountTotal)},
           'draft', false, null, null,
           0, true, ${memo ?? null},
           ${currentUserId ?? null}, ${currentUserId ?? null}, 'crm.cost-plan', 'internal-monthly-input', ${transactionId}::uuid
         )
-        on conflict (target_year, business_type, industry_line, owner_name, region_code, wbs_code)
+        on conflict (owner_organization_id, target_year, business_type, industry_line, owner_name, region_code, wbs_code)
         do update
            set monthly_plan_amounts = excluded.monthly_plan_amounts,
                monthly_actual_amounts = excluded.monthly_actual_amounts,
@@ -747,6 +766,7 @@ export class CostPlanService {
 
       const rows = await tx.$queryRaw<CostPlanInternalMonthlyLedgerRow[]>`
         select cost_plan_internal_monthly_id as "id",
+             owner_organization_id as "ownerOrganizationId",
                target_year as "targetYear",
                business_type as "businessType",
                industry_line as "industryLine",
@@ -765,7 +785,8 @@ export class CostPlanService {
                memo,
                updated_at as "updatedAt"
           from crm.crm_cost_plan_internal_monthly_d
-         where target_year = ${targetYear}
+         where owner_organization_id is not distinct from ${organizationId}
+           and target_year = ${targetYear}
            and business_type = ${businessType}
            and industry_line = ${industryLine}
            and owner_name = ${ownerName}
@@ -795,6 +816,7 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 원본 호환 내부원가 저장 DB 연결이 필요합니다.');
     }
 
+    const { organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, dto.ownerOrganizationId, 'canWriteCostPlan');
     const targetYear = this.normalizeInputYear(dto.targetYear);
     if (!Array.isArray(dto.items) || dto.items.length !== CRM_COST_PLAN_INTERNAL_SOURCE_ITEMS.length) {
       throw new BadRequestException('원본 호환 내부원가는 고정 5개 항목을 모두 포함해야 합니다.');
@@ -827,20 +849,20 @@ export class CostPlanService {
         const differenceAmountTotal = planAmountTotal - actualAmountTotal;
         await tx.$executeRaw`
           insert into crm.crm_cost_plan_internal_item_monthly_d (
-            target_year, item_code, item_name,
+            owner_organization_id, target_year, item_code, item_name,
             monthly_plan_amounts, monthly_actual_amounts,
             plan_amount_total, actual_amount_total, difference_amount_total,
             sort_order, is_active, created_by, updated_by,
             last_source, last_activity, transaction_id
           ) values (
-            ${targetYear}, ${definition.code}, ${definition.name},
+            ${organizationId}, ${targetYear}, ${definition.code}, ${definition.name},
             ${JSON.stringify(incoming.monthlyPlanAmounts)}::jsonb,
             ${JSON.stringify(incoming.monthlyActualAmounts)}::jsonb,
             ${BigInt(planAmountTotal)}, ${BigInt(actualAmountTotal)}, ${BigInt(differenceAmountTotal)},
             ${sortOrder}, true, ${currentUserId ?? null}, ${currentUserId ?? null},
             'crm.cost-plan', 'internal-source-grid-save', ${transactionId}::uuid
           )
-          on conflict (target_year, item_code)
+          on conflict (owner_organization_id, target_year, item_code)
           do update
              set item_name = excluded.item_name,
                  monthly_plan_amounts = excluded.monthly_plan_amounts,
@@ -869,7 +891,8 @@ export class CostPlanService {
                difference_amount_total as "differenceAmountTotal",
                updated_at as "updatedAt"
           from crm.crm_cost_plan_internal_item_monthly_d
-         where target_year = ${targetYear}
+         where owner_organization_id is not distinct from ${organizationId}
+           and target_year = ${targetYear}
            and is_active = true
          order by sort_order, cost_plan_internal_item_monthly_id
       `;
@@ -885,38 +908,42 @@ export class CostPlanService {
   ): Promise<CrmCostPlanAmsSourceWorkspaceResult> {
     const client = this.db?.client;
     if (!client) throw new ServiceUnavailableException('CRM 원본 호환 AMS 저장 DB 연결이 필요합니다.');
+    const { user: currentUser, organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, dto.ownerOrganizationId, 'canWriteCostPlan');
     const targetYear = this.normalizeInputYear(dto.targetYear);
     const vendorName = this.normalizeRequiredText(dto.vendorName, '공급업체명', 200);
     const transactionId = randomUUID();
     await client.$executeRaw`
       insert into crm.crm_cost_plan_ams_source_vendor_m (
-        target_year, vendor_name, sort_order, is_active,
+        owner_organization_id, target_year, vendor_name, sort_order, is_active,
         created_by, updated_by, last_source, last_activity, transaction_id
       ) values (
-        ${targetYear}, ${vendorName},
-        (select count(*)::int from crm.crm_cost_plan_ams_source_vendor_m where target_year = ${targetYear} and is_active = true),
+        ${organizationId}, ${targetYear}, ${vendorName},
+        (select coalesce(max(sort_order), -1) + 1 from crm.crm_cost_plan_ams_source_vendor_m where owner_organization_id is not distinct from ${organizationId}
+           and target_year = ${targetYear} and is_active = true),
         true, ${currentUserId ?? null}, ${currentUserId ?? null},
         'crm.cost-plan', 'ams-source-vendor-create', ${transactionId}::uuid
       )
     `;
-    return this.refreshAmsSourceWorkspaceResult(targetYear);
+    return this.refreshAmsSourceWorkspaceResult(targetYear, organizationId, currentUser);
   }
 
   async deleteAmsSourceVendor(
     id: string,
     targetYearValue: number,
+    currentUserId?: bigint,
   ): Promise<CrmCostPlanAmsSourceWorkspaceResult> {
     const client = this.db?.client;
     if (!client) throw new ServiceUnavailableException('CRM 원본 호환 AMS 저장 DB 연결이 필요합니다.');
     const targetYear = this.normalizeInputYear(targetYearValue);
     const vendorId = this.normalizeLedgerId(id, 'AMS 공급업체');
+    const { user: currentUser, organizationId } = await this.authorizeSourceVendor(vendorId, currentUserId);
     const deleted = await client.$executeRaw`
       delete from crm.crm_cost_plan_ams_source_vendor_m
        where cost_plan_ams_source_vendor_id = ${vendorId}
          and target_year = ${targetYear}
     `;
     if (deleted === 0) throw new NotFoundException('삭제할 AMS 공급업체를 찾을 수 없습니다.');
-    return this.refreshAmsSourceWorkspaceResult(targetYear);
+    return this.refreshAmsSourceWorkspaceResult(targetYear, organizationId, currentUser);
   }
 
   async saveAmsSourceVendorWbs(
@@ -928,27 +955,33 @@ export class CostPlanService {
     if (!client) throw new ServiceUnavailableException('CRM 원본 호환 AMS 저장 DB 연결이 필요합니다.');
     const targetYear = this.normalizeInputYear(dto.targetYear);
     const vendorId = this.normalizeLedgerId(id, 'AMS 공급업체');
-    const vendors = await this.loadAmsSourceVendors(targetYear);
+    const { user: currentUser, organizationId } = await this.authorizeSourceVendor(vendorId, currentUserId);
+    const vendors = await this.loadAmsSourceVendors(targetYear, organizationId);
     if (!vendors.some((vendor) => vendor.id === vendorId)) throw new NotFoundException('AMS 공급업체를 찾을 수 없습니다.');
     if (!Array.isArray(dto.wbsCodes)) throw new BadRequestException('AMS WBS 목록은 배열이어야 합니다.');
-    const contractResponse = await this.contractService.listResponse({ sort: 'start-asc' });
+    const contractResponse = await this.contractService.listResponse({ sort: 'start-asc' }, currentUser, organizationId ?? undefined);
     const eligibleWbs = this.getEligibleAmsSourceWbs(contractResponse.items);
     const eligibleByCode = new Map(eligibleWbs.map((item) => [item.wbsCode, item]));
     const wbsCodes = [...new Set(dto.wbsCodes.map((value) => this.normalizeRequiredText(value, 'WBS', 80)))];
-    const invalid = wbsCodes.find((code) => !eligibleByCode.has(code));
-    if (invalid) throw new BadRequestException(`확정 계약 WBS가 아닙니다: ${invalid}`);
+    const existingMappings = new Map((await this.loadAmsSourceVendorWbs(targetYear, organizationId))
+      .filter((mapping) => mapping.vendorId === vendorId).map((mapping) => [mapping.wbsCode, mapping]));
+    const invalid = wbsCodes.find((code) => !eligibleByCode.has(code) && !existingMappings.has(code));
+    if (invalid) throw new BadRequestException(`확정 AMS 계약 WBS가 아닙니다: ${invalid}`);
     const transactionId = randomUUID();
     await client.$transaction(async (tx: RawCostPlanWriter) => {
       await tx.$executeRaw`delete from crm.crm_cost_plan_ams_source_vendor_wbs_r where vendor_id = ${vendorId}`;
       for (const [sortOrder, wbsCode] of wbsCodes.entries()) {
-        const eligible = eligibleByCode.get(wbsCode)!;
+        const eligible = eligibleByCode.get(wbsCode);
         await tx.$executeRaw`
           insert into crm.crm_cost_plan_ams_source_vendor_wbs_r (
             vendor_id, wbs_code, contract_id, sort_order,
             created_by, updated_by, last_source, last_activity, transaction_id
           ) values (
             ${vendorId}, ${wbsCode},
-            (select contract_id from crm.crm_contract_m where contract_code = ${eligible.contractId} and wbs_code = ${wbsCode} and is_active = true limit 1),
+            coalesce((select contract_id from crm.crm_contract_m
+              where contract_code = ${eligible?.contractId ?? null} and wbs_code = ${wbsCode}
+                and owner_organization_id is not distinct from ${organizationId} and is_active = true limit 1),
+              ${existingMappings.get(wbsCode)?.contractId ?? null}::bigint),
             ${sortOrder},
             ${currentUserId ?? null}, ${currentUserId ?? null},
             'crm.cost-plan', 'ams-source-vendor-wbs-save', ${transactionId}::uuid
@@ -956,7 +989,7 @@ export class CostPlanService {
         `;
       }
     });
-    return this.refreshAmsSourceWorkspaceResult(targetYear, contractResponse.items);
+    return this.refreshAmsSourceWorkspaceResult(targetYear, organizationId, currentUser, contractResponse.items);
   }
 
   async saveAmsSourceExternalCost(
@@ -965,10 +998,11 @@ export class CostPlanService {
   ): Promise<CrmCostPlanAmsSourceWorkspaceResult> {
     const client = this.db?.client;
     if (!client) throw new ServiceUnavailableException('CRM 원본 호환 AMS 저장 DB 연결이 필요합니다.');
+    const { user: currentUser, organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, dto.ownerOrganizationId, 'canWriteCostPlan');
     const targetYear = this.normalizeInputYear(dto.targetYear);
-    const vendors = await this.loadAmsSourceVendors(targetYear);
+    const vendors = await this.loadAmsSourceVendors(targetYear, organizationId);
     const vendorIds = new Set(vendors.map((vendor) => vendor.id.toString()));
-    const mappings = await this.loadAmsSourceVendorWbs(targetYear);
+    const mappings = await this.loadAmsSourceVendorWbs(targetYear, organizationId);
     const expectedKeys = new Set(mappings.map((mapping) => `${mapping.vendorId.toString()}\u0000${mapping.wbsCode}`));
     if (!Array.isArray(dto.rows) || dto.rows.length !== expectedKeys.size) {
       throw new BadRequestException('AMS 외부원가는 현재 업체-WBS 매핑 행을 모두 포함해야 합니다.');
@@ -1025,7 +1059,7 @@ export class CostPlanService {
         `;
       }
     });
-    return this.refreshAmsSourceWorkspaceResult(targetYear);
+    return this.refreshAmsSourceWorkspaceResult(targetYear, organizationId, currentUser);
   }
 
   async confirmInternalMonthlyInput(
@@ -1037,7 +1071,7 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 원가/AMS 저장 DB 연결이 필요합니다.');
     }
 
-    const existing = await this.findInternalMonthlyInputById(id);
+    const existing = await this.findInternalMonthlyInputById(id, currentUserId);
     if (!existing) {
       throw new NotFoundException('CRM 내부원가 월별 입력을 찾을 수 없습니다.');
     }
@@ -1085,7 +1119,7 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 원가/AMS 저장 DB 연결이 필요합니다.');
     }
 
-    const existing = await this.findInternalMonthlyInputById(id);
+    const existing = await this.findInternalMonthlyInputById(id, currentUserId);
     if (!existing) {
       throw new NotFoundException('CRM 내부원가 월별 입력을 찾을 수 없습니다.');
     }
@@ -1130,6 +1164,7 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 원가/AMS 저장 DB 연결이 필요합니다.');
     }
 
+    const { organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, dto.ownerOrganizationId, 'canWriteCostPlan');
     const targetYear = this.normalizeInputYear(dto.targetYear);
     const businessType = this.normalizeRequiredText(dto.businessType, '사업구분', 120);
     const industryLine = this.normalizeRequiredText(dto.industryLine, '계열/산업', 120);
@@ -1144,16 +1179,16 @@ export class CostPlanService {
     const saved = await client.$transaction(async (tx: RawCostPlanWriter) => {
       await tx.$executeRaw`
         insert into crm.crm_cost_plan_ams_vendor_wbs_r (
-          target_year, business_type, industry_line, owner_name, region_code, wbs_code,
+          owner_organization_id, target_year, business_type, industry_line, owner_name, region_code, wbs_code,
           vendor_name, vendor_contract_no, sort_order, is_active, memo,
           created_by, updated_by, last_source, last_activity, transaction_id
         )
         values (
-          ${targetYear}, ${businessType}, ${industryLine}, ${ownerName}, ${region}, ${wbsCode},
+          ${organizationId}, ${targetYear}, ${businessType}, ${industryLine}, ${ownerName}, ${region}, ${wbsCode},
           ${vendorName}, ${vendorContractNo ?? null}, 0, true, ${memo ?? null},
           ${currentUserId ?? null}, ${currentUserId ?? null}, 'crm.cost-plan', 'ams-vendor-wbs-mapping', ${transactionId}::uuid
         )
-        on conflict (target_year, business_type, industry_line, owner_name, region_code, wbs_code)
+        on conflict (owner_organization_id, target_year, business_type, industry_line, owner_name, region_code, wbs_code)
         do update
            set vendor_name = excluded.vendor_name,
                vendor_contract_no = excluded.vendor_contract_no,
@@ -1168,6 +1203,7 @@ export class CostPlanService {
 
       const rows = await tx.$queryRaw<CostPlanAmsVendorWbsMappingLedgerRow[]>`
         select cost_plan_ams_vendor_wbs_mapping_id as "id",
+             owner_organization_id as "ownerOrganizationId",
                target_year as "targetYear",
                business_type as "businessType",
                industry_line as "industryLine",
@@ -1179,7 +1215,8 @@ export class CostPlanService {
                memo,
                updated_at as "updatedAt"
           from crm.crm_cost_plan_ams_vendor_wbs_r
-         where target_year = ${targetYear}
+         where owner_organization_id is not distinct from ${organizationId}
+           and target_year = ${targetYear}
            and business_type = ${businessType}
            and industry_line = ${industryLine}
            and owner_name = ${ownerName}
@@ -1209,6 +1246,7 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 원가/AMS 저장 DB 연결이 필요합니다.');
     }
 
+    const { organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, dto.ownerOrganizationId, 'canWriteCostPlan');
     const targetYear = this.normalizeInputYear(dto.targetYear);
     const businessType = this.normalizeRequiredText(dto.businessType, '사업구분', 120);
     const industryLine = this.normalizeRequiredText(dto.industryLine, '계열/산업', 120);
@@ -1232,6 +1270,7 @@ export class CostPlanService {
       region,
       wbsCode,
       vendorName,
+      organizationId,
     );
     if (existing?.confirmed) {
       throw new BadRequestException('확정된 AMS 외부원가 월별 입력은 확정 해제 후 수정할 수 있습니다.');
@@ -1240,7 +1279,7 @@ export class CostPlanService {
     const saved = await client.$transaction(async (tx: RawCostPlanWriter) => {
       await tx.$executeRaw`
         insert into crm.crm_cost_plan_ams_external_monthly_d (
-          target_year, business_type, industry_line, owner_name, region_code, wbs_code,
+          owner_organization_id, target_year, business_type, industry_line, owner_name, region_code, wbs_code,
           vendor_name, vendor_contract_no,
           monthly_plan_amounts, monthly_actual_amounts,
           plan_amount_total, actual_amount_total, gap_amount_total,
@@ -1249,7 +1288,7 @@ export class CostPlanService {
           created_by, updated_by, last_source, last_activity, transaction_id
         )
         values (
-          ${targetYear}, ${businessType}, ${industryLine}, ${ownerName}, ${region}, ${wbsCode},
+          ${organizationId}, ${targetYear}, ${businessType}, ${industryLine}, ${ownerName}, ${region}, ${wbsCode},
           ${vendorName}, ${vendorContractNo ?? null},
           ${JSON.stringify(monthlyPlanAmounts)}::jsonb, ${JSON.stringify(monthlyActualAmounts)}::jsonb,
           ${BigInt(planAmountTotal)}, ${BigInt(actualAmountTotal)}, ${BigInt(gapAmountTotal)},
@@ -1257,7 +1296,7 @@ export class CostPlanService {
           0, true, ${memo ?? null},
           ${currentUserId ?? null}, ${currentUserId ?? null}, 'crm.cost-plan', 'ams-external-monthly-input', ${transactionId}::uuid
         )
-        on conflict (target_year, business_type, industry_line, owner_name, region_code, wbs_code, vendor_name)
+        on conflict (owner_organization_id, target_year, business_type, industry_line, owner_name, region_code, wbs_code, vendor_name)
         do update
            set vendor_contract_no = excluded.vendor_contract_no,
                monthly_plan_amounts = excluded.monthly_plan_amounts,
@@ -1280,6 +1319,7 @@ export class CostPlanService {
 
       const rows = await tx.$queryRaw<CostPlanAmsExternalMonthlyLedgerRow[]>`
         select cost_plan_ams_external_monthly_id as "id",
+             owner_organization_id as "ownerOrganizationId",
                target_year as "targetYear",
                business_type as "businessType",
                industry_line as "industryLine",
@@ -1300,7 +1340,8 @@ export class CostPlanService {
                memo,
                updated_at as "updatedAt"
           from crm.crm_cost_plan_ams_external_monthly_d
-         where target_year = ${targetYear}
+         where owner_organization_id is not distinct from ${organizationId}
+           and target_year = ${targetYear}
            and business_type = ${businessType}
            and industry_line = ${industryLine}
            and owner_name = ${ownerName}
@@ -1331,7 +1372,7 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 원가/AMS 저장 DB 연결이 필요합니다.');
     }
 
-    const existing = await this.findAmsExternalMonthlyInputById(id);
+    const existing = await this.findAmsExternalMonthlyInputById(id, currentUserId);
     if (!existing) {
       throw new NotFoundException('CRM AMS 외부원가 월별 입력을 찾을 수 없습니다.');
     }
@@ -1379,7 +1420,7 @@ export class CostPlanService {
       throw new ServiceUnavailableException('CRM 원가/AMS 저장 DB 연결이 필요합니다.');
     }
 
-    const existing = await this.findAmsExternalMonthlyInputById(id);
+    const existing = await this.findAmsExternalMonthlyInputById(id, currentUserId);
     if (!existing) {
       throw new NotFoundException('CRM AMS 외부원가 월별 입력을 찾을 수 없습니다.');
     }
@@ -1786,6 +1827,7 @@ export class CostPlanService {
       amsReadyCount: rows.reduce((sum, row) => sum + row.amsReadyCount, 0),
       amsBlockedCount: rows.reduce((sum, row) => sum + row.amsBlockedCount, 0),
       activeFilters: {
+        ownerOrganizationId: query.ownerOrganizationId,
         year: query.year,
         businessType: query.businessType,
         industryLine: query.industryLine,
@@ -1802,9 +1844,10 @@ export class CostPlanService {
 
   private async buildAccountingPaymentPreview(
     normalized: NormalizedCostPlanPreviewQuery,
+    currentUser?: TokenPayload,
   ): Promise<CrmCostPlanAccountingPaymentPreview> {
     const [preview, latestHandoff] = await Promise.all([
-      this.getPreview(normalized),
+      this.getPreview(normalized, currentUser),
       this.loadLatestAccountingPaymentHandoff(normalized),
     ]);
     const lines = this.toAccountingPaymentLines(preview.rows, normalized.year);
@@ -1900,6 +1943,7 @@ export class CostPlanService {
 
     const rows = await client.$queryRaw<CostPlanAccountingPaymentHandoffLedgerRow[]>`
       select cost_plan_accounting_handoff_id as "id",
+             owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type_filter as "businessTypeFilter",
              industry_line_filter as "industryLineFilter",
@@ -1917,7 +1961,8 @@ export class CostPlanService {
              saved_at as "savedAt",
              updated_at as "updatedAt"
         from crm.crm_cost_plan_accounting_handoff_m
-       where target_year = ${normalized.year}
+       where owner_organization_id is not distinct from ${normalized.ownerOrganizationId ? BigInt(normalized.ownerOrganizationId) : null}
+           and target_year = ${normalized.year}
          and business_type_filter = ${normalized.businessType}
          and industry_line_filter = ${normalized.industryLine}
          and region_filter = ${normalized.region}
@@ -1933,6 +1978,7 @@ export class CostPlanService {
 
   private async loadActiveAccountingPaymentHandoffById(
     handoffId: string,
+    currentUserId?: bigint,
   ): Promise<CostPlanAccountingPaymentHandoffLedgerRow | null> {
     const client = this.db?.client;
     if (!client) {
@@ -1941,6 +1987,7 @@ export class CostPlanService {
     const id = this.normalizeLedgerId(handoffId, '회계·지급 handoff');
     const rows = await client.$queryRaw<CostPlanAccountingPaymentHandoffLedgerRow[]>`
       select cost_plan_accounting_handoff_id as "id",
+             owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type_filter as "businessTypeFilter",
              industry_line_filter as "industryLineFilter",
@@ -1963,13 +2010,16 @@ export class CostPlanService {
          and is_active = true
        limit 1
     `;
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (row) await this.crmAccess!.assertOrganizationCapability(await this.crmAccess!.actorForUser(currentUserId), 'canConfirmCostPlan', row.ownerOrganizationId ?? null);
+    return row ?? null;
   }
 
   private toAccountingPaymentHandoffSummary(
     row: CostPlanAccountingPaymentHandoffLedgerRow,
   ): CrmCostPlanAccountingPaymentHandoffSummary {
     return {
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       id: this.toIdString(row.id),
       status: row.statusCode,
       targetYear: row.targetYear,
@@ -2157,6 +2207,7 @@ export class CostPlanService {
 
   private toAccountingPaymentHandoffQuery(row: CostPlanAccountingPaymentHandoffLedgerRow): NormalizedCostPlanPreviewQuery {
     return this.normalizeQuery({
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       year: row.targetYear,
       businessType: row.businessTypeFilter,
       industryLine: row.industryLineFilter,
@@ -2223,6 +2274,14 @@ export class CostPlanService {
     return 'planned';
   }
 
+  private async authorizeSourceVendor(vendorId: bigint, currentUserId?: bigint) {
+    const user = await this.crmAccess!.actorForUser(currentUserId);
+    const row = await this.db!.client.crmCostPlanAmsSourceVendor.findUnique({ where: { id: vendorId }, select: { ownerOrganizationId: true } });
+    if (!row) throw new NotFoundException('AMS 공급업체를 찾을 수 없습니다.');
+    await this.crmAccess!.assertOrganizationCapability(user, 'canWriteCostPlan', row.ownerOrganizationId);
+    return { user, organizationId: row.ownerOrganizationId };
+  }
+
   private async loadInternalMonthlyRows(query: NormalizedCostPlanPreviewQuery): Promise<CostPlanInternalMonthlyLedgerRow[]> {
     const client = this.db?.client;
     if (!client) {
@@ -2231,6 +2290,7 @@ export class CostPlanService {
     const search = `%${query.search.toLowerCase()}%`;
     return client.$queryRaw<CostPlanInternalMonthlyLedgerRow[]>`
       select cost_plan_internal_monthly_id as "id",
+             owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type as "businessType",
              industry_line as "industryLine",
@@ -2251,6 +2311,7 @@ export class CostPlanService {
         from crm.crm_cost_plan_internal_monthly_d
        where is_active = true
          and target_year = ${query.year}
+         and owner_organization_id is not distinct from ${query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null}
          and (${query.businessType} = '' or business_type = ${query.businessType})
          and (${query.industryLine} = '' or industry_line = ${query.industryLine})
          and (${query.region} = 'all' or region_code = ${query.region})
@@ -2265,7 +2326,7 @@ export class CostPlanService {
     `;
   }
 
-  private async loadInternalSourceItemRows(targetYear: number): Promise<CostPlanInternalSourceItemLedgerRow[]> {
+  private async loadInternalSourceItemRows(targetYear: number, organizationId: bigint | null = null): Promise<CostPlanInternalSourceItemLedgerRow[]> {
     const client = this.db?.client;
     if (!client) {
       return [];
@@ -2282,13 +2343,14 @@ export class CostPlanService {
              difference_amount_total as "differenceAmountTotal",
              updated_at as "updatedAt"
         from crm.crm_cost_plan_internal_item_monthly_d
-       where target_year = ${targetYear}
+       where owner_organization_id is not distinct from ${organizationId}
+         and target_year = ${targetYear}
          and is_active = true
        order by sort_order, cost_plan_internal_item_monthly_id
     `;
   }
 
-  private async loadAmsSourceVendors(targetYear: number): Promise<CostPlanAmsSourceVendorLedgerRow[]> {
+  private async loadAmsSourceVendors(targetYear: number, organizationId: bigint | null = null): Promise<CostPlanAmsSourceVendorLedgerRow[]> {
     const client = this.db?.client;
     if (!client) return [];
     return client.$queryRaw<CostPlanAmsSourceVendorLedgerRow[]>`
@@ -2298,13 +2360,14 @@ export class CostPlanService {
              sort_order as "sortOrder",
              updated_at as "updatedAt"
         from crm.crm_cost_plan_ams_source_vendor_m
-       where target_year = ${targetYear}
+       where owner_organization_id is not distinct from ${organizationId}
+         and target_year = ${targetYear}
          and is_active = true
        order by sort_order, cost_plan_ams_source_vendor_id
     `;
   }
 
-  private async loadAmsSourceVendorWbs(targetYear: number): Promise<CostPlanAmsSourceVendorWbsLedgerRow[]> {
+  private async loadAmsSourceVendorWbs(targetYear: number, organizationId: bigint | null = null): Promise<CostPlanAmsSourceVendorWbsLedgerRow[]> {
     const client = this.db?.client;
     if (!client) return [];
     return client.$queryRaw<CostPlanAmsSourceVendorWbsLedgerRow[]>`
@@ -2316,13 +2379,14 @@ export class CostPlanService {
         from crm.crm_cost_plan_ams_source_vendor_wbs_r r
         join crm.crm_cost_plan_ams_source_vendor_m v
           on v.cost_plan_ams_source_vendor_id = r.vendor_id
-       where v.target_year = ${targetYear}
+       where v.owner_organization_id is not distinct from ${organizationId}
+         and v.target_year = ${targetYear}
          and v.is_active = true
        order by v.sort_order, r.sort_order, r.cost_plan_ams_source_vendor_wbs_id
     `;
   }
 
-  private async loadAmsSourceExternalRows(targetYear: number): Promise<CostPlanAmsSourceExternalLedgerRow[]> {
+  private async loadAmsSourceExternalRows(targetYear: number, organizationId: bigint | null = null): Promise<CostPlanAmsSourceExternalLedgerRow[]> {
     const client = this.db?.client;
     if (!client) return [];
     return client.$queryRaw<CostPlanAmsSourceExternalLedgerRow[]>`
@@ -2338,18 +2402,19 @@ export class CostPlanService {
         from crm.crm_cost_plan_ams_source_external_monthly_d d
         join crm.crm_cost_plan_ams_source_vendor_m v
           on v.cost_plan_ams_source_vendor_id = d.vendor_id
-       where v.target_year = ${targetYear}
+       where v.owner_organization_id is not distinct from ${organizationId}
+         and v.target_year = ${targetYear}
          and v.is_active = true
          and d.is_active = true
        order by v.sort_order, d.sort_order, d.cost_plan_ams_source_external_monthly_id
     `;
   }
 
-  private async loadAmsSourceWorkspace(targetYear: number, contracts: CrmContract[]): Promise<CrmCostPlanAmsSourceWorkspace> {
+  private async loadAmsSourceWorkspace(targetYear: number, contracts: CrmContract[], organizationId: bigint | null = null): Promise<CrmCostPlanAmsSourceWorkspace> {
     const [vendors, mappings, costs] = await Promise.all([
-      this.loadAmsSourceVendors(targetYear),
-      this.loadAmsSourceVendorWbs(targetYear),
-      this.loadAmsSourceExternalRows(targetYear),
+      this.loadAmsSourceVendors(targetYear, organizationId),
+      this.loadAmsSourceVendorWbs(targetYear, organizationId),
+      this.loadAmsSourceExternalRows(targetYear, organizationId),
     ]);
     const mappingsByVendor = new Map<string, CostPlanAmsSourceVendorWbsLedgerRow[]>();
     mappings.forEach((mapping) => {
@@ -2398,7 +2463,7 @@ export class CostPlanService {
   private getEligibleAmsSourceWbs(contracts: CrmContract[]) {
     const unique = new Map<string, CrmContract>();
     contracts.forEach((contract) => {
-      if (contract.confirmed && contract.wbsCode && !unique.has(contract.wbsCode)) {
+      if (contract.confirmed && contract.businessType === 'AMS' && contract.wbsCode && !unique.has(contract.wbsCode)) {
         unique.set(contract.wbsCode, contract);
       }
     });
@@ -2416,16 +2481,18 @@ export class CostPlanService {
 
   private async refreshAmsSourceWorkspaceResult(
     targetYear: number,
+    organizationId: bigint | null,
+    currentUser: TokenPayload,
     contracts?: CrmContract[],
   ): Promise<CrmCostPlanAmsSourceWorkspaceResult> {
-    const sourceContracts = contracts ?? (await this.contractService.listResponse({ sort: 'start-asc' })).items;
+    const sourceContracts = contracts ?? (await this.contractService.listResponse({ sort: 'start-asc' }, currentUser, organizationId ?? undefined)).items;
     return {
-      workspace: await this.loadAmsSourceWorkspace(targetYear, sourceContracts),
+      workspace: await this.loadAmsSourceWorkspace(targetYear, sourceContracts, organizationId),
       boundaryNotice: CRM_COST_PLAN_AMS_SOURCE_BOUNDARY_NOTICE,
     };
   }
 
-  private async findInternalMonthlyInputById(id: string): Promise<CostPlanInternalMonthlyLedgerRow | null> {
+  private async findInternalMonthlyInputById(id: string, currentUserId?: bigint): Promise<CostPlanInternalMonthlyLedgerRow | null> {
     const client = this.db?.client;
     if (!client) {
       return null;
@@ -2433,6 +2500,7 @@ export class CostPlanService {
     const inputId = this.normalizeLedgerId(id, '내부원가 월별 입력');
     const rows = await client.$queryRaw<CostPlanInternalMonthlyLedgerRow[]>`
       select cost_plan_internal_monthly_id as "id",
+             owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type as "businessType",
              industry_line as "industryLine",
@@ -2455,7 +2523,9 @@ export class CostPlanService {
          and is_active = true
        limit 1
     `;
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (row) await this.crmAccess!.assertOrganizationCapability(await this.crmAccess!.actorForUser(currentUserId), 'canConfirmCostPlan', row.ownerOrganizationId ?? null);
+    return row ?? null;
   }
 
   private async findInternalMonthlyInputByBasis(
@@ -2465,6 +2535,7 @@ export class CostPlanService {
     ownerName: string,
     regionCode: Exclude<CrmCostPlanPreviewRegion, 'all'>,
     wbsCode: string,
+    organizationId: bigint,
   ): Promise<CostPlanInternalMonthlyLedgerRow | null> {
     const client = this.db?.client;
     if (!client) {
@@ -2472,6 +2543,7 @@ export class CostPlanService {
     }
     const rows = await client.$queryRaw<CostPlanInternalMonthlyLedgerRow[]>`
       select cost_plan_internal_monthly_id as "id",
+             owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type as "businessType",
              industry_line as "industryLine",
@@ -2490,7 +2562,8 @@ export class CostPlanService {
              memo,
              updated_at as "updatedAt"
         from crm.crm_cost_plan_internal_monthly_d
-       where target_year = ${targetYear}
+       where owner_organization_id = ${organizationId}
+         and target_year = ${targetYear}
          and business_type = ${businessType}
          and industry_line = ${industryLine}
          and owner_name = ${ownerName}
@@ -2510,6 +2583,7 @@ export class CostPlanService {
     const search = `%${query.search.toLowerCase()}%`;
     return client.$queryRaw<CostPlanAmsVendorWbsMappingLedgerRow[]>`
       select cost_plan_ams_vendor_wbs_mapping_id as "id",
+             owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type as "businessType",
              industry_line as "industryLine",
@@ -2523,6 +2597,7 @@ export class CostPlanService {
         from crm.crm_cost_plan_ams_vendor_wbs_r
        where is_active = true
          and target_year = ${query.year}
+         and owner_organization_id is not distinct from ${query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null}
          and (${query.businessType} = '' or business_type = ${query.businessType})
          and (${query.industryLine} = '' or industry_line = ${query.industryLine})
          and (${query.region} = 'all' or region_code = ${query.region})
@@ -2547,6 +2622,7 @@ export class CostPlanService {
     const search = `%${query.search.toLowerCase()}%`;
     return client.$queryRaw<CostPlanAmsExternalMonthlyLedgerRow[]>`
       select cost_plan_ams_external_monthly_id as "id",
+             owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type as "businessType",
              industry_line as "industryLine",
@@ -2569,6 +2645,7 @@ export class CostPlanService {
         from crm.crm_cost_plan_ams_external_monthly_d
        where is_active = true
          and target_year = ${query.year}
+         and owner_organization_id is not distinct from ${query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null}
          and (${query.businessType} = '' or business_type = ${query.businessType})
          and (${query.industryLine} = '' or industry_line = ${query.industryLine})
          and (${query.region} = 'all' or region_code = ${query.region})
@@ -2585,7 +2662,7 @@ export class CostPlanService {
     `;
   }
 
-  private async findAmsExternalMonthlyInputById(id: string): Promise<CostPlanAmsExternalMonthlyLedgerRow | null> {
+  private async findAmsExternalMonthlyInputById(id: string, currentUserId?: bigint): Promise<CostPlanAmsExternalMonthlyLedgerRow | null> {
     const client = this.db?.client;
     if (!client) {
       return null;
@@ -2593,6 +2670,7 @@ export class CostPlanService {
     const inputId = this.normalizeLedgerId(id, 'AMS 외부원가 월별 입력');
     const rows = await client.$queryRaw<CostPlanAmsExternalMonthlyLedgerRow[]>`
       select cost_plan_ams_external_monthly_id as "id",
+             owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type as "businessType",
              industry_line as "industryLine",
@@ -2617,7 +2695,9 @@ export class CostPlanService {
          and is_active = true
        limit 1
     `;
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (row) await this.crmAccess!.assertOrganizationCapability(await this.crmAccess!.actorForUser(currentUserId), 'canConfirmCostPlan', row.ownerOrganizationId ?? null);
+    return row ?? null;
   }
 
   private async findAmsExternalMonthlyInputByBasis(
@@ -2628,6 +2708,7 @@ export class CostPlanService {
     regionCode: Exclude<CrmCostPlanPreviewRegion, 'all'>,
     wbsCode: string,
     vendorName: string,
+    organizationId: bigint,
   ): Promise<CostPlanAmsExternalMonthlyLedgerRow | null> {
     const client = this.db?.client;
     if (!client) {
@@ -2635,6 +2716,7 @@ export class CostPlanService {
     }
     const rows = await client.$queryRaw<CostPlanAmsExternalMonthlyLedgerRow[]>`
       select cost_plan_ams_external_monthly_id as "id",
+             owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type as "businessType",
              industry_line as "industryLine",
@@ -2655,7 +2737,8 @@ export class CostPlanService {
              memo,
              updated_at as "updatedAt"
         from crm.crm_cost_plan_ams_external_monthly_d
-       where target_year = ${targetYear}
+       where owner_organization_id = ${organizationId}
+         and target_year = ${targetYear}
          and business_type = ${businessType}
          and industry_line = ${industryLine}
          and owner_name = ${ownerName}
@@ -2683,6 +2766,7 @@ export class CostPlanService {
 
   private toInternalMonthlyInput(row: CostPlanInternalMonthlyLedgerRow): CrmCostPlanInternalMonthlyInput {
     return {
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       id: row.id.toString(),
       targetYear: row.targetYear,
       businessType: row.businessType,
@@ -2734,6 +2818,7 @@ export class CostPlanService {
 
   private toAmsVendorMapping(row: CostPlanAmsVendorWbsMappingLedgerRow): CrmCostPlanAmsVendorWbsMapping {
     return {
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       id: row.id.toString(),
       targetYear: row.targetYear,
       businessType: row.businessType,
@@ -2750,6 +2835,7 @@ export class CostPlanService {
 
   private toAmsExternalMonthlyInput(row: CostPlanAmsExternalMonthlyLedgerRow): CrmCostPlanAmsExternalMonthlyInput {
     return {
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       id: row.id.toString(),
       targetYear: row.targetYear,
       businessType: row.businessType,
@@ -2801,10 +2887,10 @@ export class CostPlanService {
   }
 
   private normalizeInputRegion(value: Exclude<CrmCostPlanPreviewRegion, 'all'>): Exclude<CrmCostPlanPreviewRegion, 'all'> {
-    if (value === 'domestic' || value === 'overseas') {
+    if (value === 'domestic' || value === 'overseas' || value === 'unspecified') {
       return value;
     }
-    throw new BadRequestException('원가/AMS 입력 지역은 domestic 또는 overseas여야 합니다.');
+    throw new BadRequestException('원가/AMS 입력 지역은 domestic, overseas 또는 unspecified여야 합니다.');
   }
 
   private normalizeMonthlyAmounts(values: number[], subject: string, label: string): number[] {
@@ -2864,7 +2950,7 @@ export class CostPlanService {
   }
 
   private toRegion(value: string): Exclude<CrmCostPlanPreviewRegion, 'all'> {
-    return value === 'overseas' ? 'overseas' : 'domestic';
+    return value === 'unspecified' ? 'unspecified' : value === 'overseas' ? 'overseas' : 'domestic';
   }
 
   private toIdString(value: bigint | number | string): string {
@@ -2900,8 +2986,9 @@ export class CostPlanService {
   private normalizeQuery(query: CrmCostPlanPreviewQuery): NormalizedCostPlanPreviewQuery {
     const rawYear = Number(query.year ?? new Date().getFullYear());
     const year = Number.isFinite(rawYear) && rawYear >= 2000 ? Math.trunc(rawYear) : new Date().getFullYear();
-    const region = query.region && ['all', 'domestic', 'overseas'].includes(query.region) ? query.region : 'all';
+    const region = query.region && ['all', 'domestic', 'overseas', 'unspecified'].includes(query.region) ? query.region : 'all';
     return {
+      ownerOrganizationId: query.ownerOrganizationId ?? '',
       year,
       businessType: query.businessType?.trim() ?? '',
       industryLine: query.industryLine?.trim() ?? '',

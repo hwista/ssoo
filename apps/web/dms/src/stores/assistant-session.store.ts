@@ -27,6 +27,7 @@ export type AssistantMessage =
       kind: 'text';
       text: string;
       pending?: boolean;
+      error?: string;
     }
   | {
       id: string;
@@ -72,7 +73,7 @@ interface AssistantSessionActions {
   markSessionsLoaded: () => void;
   setSessionPersisted: (sessionId: string, persisted: boolean) => void;
   appendMessage: (message: AssistantMessage) => AssistantMessage[];
-  updateTextMessage: (id: string, updater: (prev: string) => string, pending?: boolean) => void;
+  updateTextMessage: (id: string, updater: (prev: string) => string, pending?: boolean, error?: string) => void;
 }
 
 type AssistantSessionStore = AssistantSessionState & AssistantSessionActions;
@@ -225,7 +226,7 @@ export const useAssistantSessionStore = create<AssistantSessionStore>()(
         return nextMessages;
       },
 
-      updateTextMessage: (id, updater, pending) => {
+      updateTextMessage: (id, updater, pending, error) => {
         const state = get();
         const nextMessages = state.messages.map((message) => {
           if (message.kind === 'text' && message.id === id) {
@@ -233,6 +234,7 @@ export const useAssistantSessionStore = create<AssistantSessionStore>()(
               ...message,
               text: updater(message.text),
               ...(pending !== undefined ? { pending } : {}),
+              ...(error !== undefined ? { error } : {}),
             };
           }
           return message;

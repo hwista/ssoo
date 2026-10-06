@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { SsooErrorNotice } from '@ssoo/web-shell';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,9 +17,10 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { useTabStore } from '@/stores';
-import { useCreateProject, useUpsertRequestDetail } from '@/hooks/queries/useProjects';
+import { useCreateProject, useUpdateProject, useUpsertRequestDetail } from '@/hooks/queries/useProjects';
 import { useCustomerList } from '@/hooks/queries/useCustomers';
 import { usePlantSites, useSystemInstances } from '@/hooks/queries/usePmsMaster';
+import { useBusinessOrganizations } from '@/hooks/queries/useBusinessOrganizations';
 import { formatCustomerLookupCaption } from '@/lib/project-display';
 
 const REQUEST_SOURCE_OPTIONS = [
@@ -49,6 +51,7 @@ const createRequestSchema = z.object({
     .string()
     .min(2, '프로젝트명은 2자 이상이어야 합니다')
     .max(100, '프로젝트명은 100자 이하여야 합니다'),
+  ownerOrganizationId: z.string().min(1, '업무 조직을 선택해 주세요'),
   customerId: z.string().optional(),
   plantId: z.string().optional(),
   systemInstanceId: z.string().optional(),
@@ -66,6 +69,9 @@ const EMPTY_SELECT_VALUE = '__none__';
 export function RequestCreatePage() {
   const { openTab } = useTabStore();
   const createProject = useCreateProject();
+  const updateProject = useUpdateProject();
+  const createdProjectId = useRef<number | null>(null);
+  const submitting = useRef(false);
   const upsertRequestDetail = useUpsertRequestDetail();
   const { data: customersData } = useCustomerList({ page: 1, pageSize: 100 });
   const customers = customersData?.data?.items ?? [];
@@ -75,6 +81,7 @@ export function RequestCreatePage() {
     resolver: zodResolver(createRequestSchema),
     defaultValues: {
       projectName: '',
+      ownerOrganizationId: '',
       customerId: '',
       plantId: '',
       systemInstanceId: '',
@@ -86,6 +93,14 @@ export function RequestCreatePage() {
     },
     mode: 'onChange',
   });
+
+  const organizationQuery = useBusinessOrganizations();
+  const organizations = useMemo(() => organizationQuery.data?.data ?? [], [organizationQuery.data]);
+  useEffect(() => {
+    if (!form.getValues('ownerOrganizationId') && organizations.length === 1) {
+      form.setValue('ownerOrganizationId', organizations[0].id, { shouldValidate: true });
+    }
+  }, [form, organizations]);
 
   const selectedCustomerId = form.watch('customerId');
   const selectedPlantId = form.watch('plantId');
@@ -122,7 +137,7 @@ export function RequestCreatePage() {
     }
   }, [form, instanceQuery.isLoading, instances]);
 
-  const loading = createProject.isPending || upsertRequestDetail.isPending;
+  const loading = createProject.isPending || updateProject.isPending || upsertRequestDetail.isPending;
 
   const navigateToList = () => {
     openTab({
@@ -134,18 +149,24 @@ export function RequestCreatePage() {
   };
 
   const onSubmit = async (data: FormData) => {
+    if (submitting.current) return;
+    submitting.current = true;
     setSubmitError(null);
 
     try {
-      const projectResult = await createProject.mutateAsync({
+      const projectData = {
         projectName: data.projectName,
-        statusCode: 'request',
-        stageCode: 'waiting',
+        ownerOrganizationId: data.ownerOrganizationId,
+        statusCode: 'request' as const,
+        stageCode: 'waiting' as const,
         customerId: data.customerId || undefined,
         plantId: data.plantId || undefined,
         systemInstanceId: data.systemInstanceId || undefined,
         description: data.description || undefined,
-      });
+      };
+      const projectResult = createdProjectId.current === null
+        ? await createProject.mutateAsync(projectData)
+        : await updateProject.mutateAsync({ id: createdProjectId.current, data: projectData });
 
       if (!projectResult.success || !projectResult.data) {
         setSubmitError(projectResult.message || '프로젝트 등록에 실패했습니다');
@@ -153,6 +174,7 @@ export function RequestCreatePage() {
       }
 
       const projectId = projectResult.data.id;
+      createdProjectId.current = projectId;
 
       const hasRequestDetail =
         data.requestSourceCode ||
@@ -172,9 +194,14 @@ export function RequestCreatePage() {
         });
       }
 
+      createdProjectId.current = null;
       navigateToList();
     } catch {
-      setSubmitError('서버 오류가 발생했습니다');
+      setSubmitError(createdProjectId.current === null
+        ? '서버 오류가 발생했습니다'
+        : '프로젝트는 등록되었지만 요청 정보 저장을 완료하지 못했습니다. 다시 등록하면 같은 프로젝트의 정보를 저장합니다.');
+    } finally {
+      submitting.current = false;
     }
   };
 
@@ -192,6 +219,19 @@ export function RequestCreatePage() {
           description: '프로젝트의 기본 정보를 입력합니다',
           children: (
             <>
+              <FormField label="업무 조직" required error={form.formState.errors.ownerOrganizationId?.message}
+                hint="이 조직의 업무 자료로 등록됩니다. 담당자가 변경되어도 업무 조직은 유지됩니다.">
+                <Controller name="ownerOrganizationId" control={form.control} render={({ field }) => (
+                  <Select value={field.value || EMPTY_SELECT_VALUE} onValueChange={(value) => field.onChange(value === EMPTY_SELECT_VALUE ? '' : value)}>
+                    <SelectTrigger aria-label="업무 조직" disabled={organizationQuery.isLoading}><SelectValue placeholder="승인된 조직을 선택하세요" /></SelectTrigger>
+                    <SelectContent><SelectItem value={EMPTY_SELECT_VALUE}>업무 조직 선택</SelectItem>
+                      {organizations.map((organization) => <SelectItem key={organization.id} value={organization.id}>{organization.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )} />
+                {organizationQuery.error ? <SsooErrorNotice error={organizationQuery.error} actions={[{ label: '다시 조회', onClick: () => organizationQuery.refetch(), intent: 'retry' }]} /> : null}
+                {!organizationQuery.isLoading && !organizationQuery.error && organizations.length === 0 ? <p className="text-sm text-muted-foreground">PMS 이용이 승인된 소속 조직이 없습니다. 사용자 메뉴에서 소속·서비스 이용을 신청해 주세요.</p> : null}
+              </FormField>
               <FormField
                 label="프로젝트명"
                 required
@@ -415,9 +455,9 @@ export function RequestCreatePage() {
               </FormField>
 
               {submitError && (
-                <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+                <SsooErrorNotice className="p-4">
                   <p className="text-sm text-destructive">{submitError}</p>
-                </div>
+                </SsooErrorNotice>
               )}
 
               <div className="bg-ssoo-info-bg border border-ssoo-info-border rounded-lg p-4">
@@ -437,7 +477,7 @@ export function RequestCreatePage() {
       onCancel={navigateToList}
       submitLabel="등록"
       cancelLabel="취소"
-      loading={loading}
+      submitting={loading}
       submitDisabled={!form.formState.isValid}
     />
   );

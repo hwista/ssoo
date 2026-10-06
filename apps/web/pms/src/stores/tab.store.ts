@@ -1,3 +1,4 @@
+import { defineSsooHomeEntry, isSsooHomeEntry, normalizeSsooHomeTabs } from '@ssoo/web-shell';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { shouldResetPersistedUserState } from '@ssoo/web-auth';
@@ -10,6 +11,7 @@ import type {
 
 // Home 탭 상수 (닫기 불가)
 export const HOME_TAB = {
+  ...defineSsooHomeEntry({ id: 'HOME', path: '/home', pageTitle: '홈' }),
   menuCode: 'HOME',
   menuId: 'home',
   title: '홈',
@@ -83,6 +85,7 @@ export const useTabStore = create<TabStore>()(
       },
 
       openTab: (options: OpenTabOptions): string => {
+        if (isSsooHomeEntry({ id: options.menuCode, path: options.path }, HOME_TAB)) options = { ...options, ...HOME_TAB, params: undefined };
         const {
           menuCode,
           menuId,
@@ -199,6 +202,7 @@ export const useTabStore = create<TabStore>()(
 
       reorderTabs: (fromIndex: number, toIndex: number): void => {
         set((state) => {
+          if (isSsooHomeEntry(state.tabs[fromIndex] ?? {}, HOME_TAB) || toIndex === 0) return state;
           const newTabs = [...state.tabs];
           const removed = newTabs.splice(fromIndex, 1)[0];
           if (!removed) return state;
@@ -245,16 +249,7 @@ export const useTabStore = create<TabStore>()(
             lastActiveAt: new Date(tab.lastActiveAt),
           }));
 
-          // Home 탭이 없으면 추가 (항상 첫 번째에 위치)
-          const hasHomeTab = state.tabs.some((tab) => tab.menuCode === HOME_TAB.menuCode);
-          if (!hasHomeTab) {
-            state.tabs = [createHomeTab(), ...state.tabs];
-          }
-
-          // activeTabId가 없으면 Home 탭으로 설정
-          if (!state.activeTabId) {
-            state.activeTabId = HOME_TAB.menuCode;
-          }
+          Object.assign(state, normalizeSsooHomeTabs(state.tabs, state.activeTabId, HOME_TAB, createHomeTab));
         }
       },
     }

@@ -29,7 +29,7 @@ BEGIN
   INSERT INTO crm.crm_customer_h (
     customer_id, history_seq, event_type, event_at, event_by,
     customer_code, customer_name, customer_type_code, industry_line, region_code,
-    owner_name, owner_user_id, contact_name, contact_email, contact_phone,
+    owner_name, owner_user_id, owner_organization_id, contact_name, contact_email, contact_phone,
     source_opportunity_id, latest_opportunity_code, latest_activity_at,
     last_interaction_summary, next_action, admin_boundary_code,
     is_active, memo, created_by, created_at, updated_by, updated_at,
@@ -37,7 +37,7 @@ BEGIN
   ) VALUES (
     v_record.customer_id, v_history_seq, v_event_type, NOW(), v_record.updated_by,
     v_record.customer_code, v_record.customer_name, v_record.customer_type_code, v_record.industry_line, v_record.region_code,
-    v_record.owner_name, v_record.owner_user_id, v_record.contact_name, v_record.contact_email, v_record.contact_phone,
+    v_record.owner_name, v_record.owner_user_id, v_record.owner_organization_id, v_record.contact_name, v_record.contact_email, v_record.contact_phone,
     v_record.source_opportunity_id, v_record.latest_opportunity_code, v_record.latest_activity_at,
     v_record.last_interaction_summary, v_record.next_action, v_record.admin_boundary_code,
     v_record.is_active, v_record.memo, v_record.created_by, v_record.created_at, v_record.updated_by, v_record.updated_at,

@@ -20,7 +20,7 @@ import {
   UsersRound,
   XCircle,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { ssooToast as toast } from '@ssoo/web-shell';
 import {
   useCreateEvent,
   useCreateProjectIssue,

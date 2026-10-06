@@ -1,5 +1,7 @@
 'use client';
 
+import { isSsooHomeEntry } from '@ssoo/web-shell';
+
 import { FileText, X } from 'lucide-react';
 import { useTabStore, HOME_TAB } from '@/stores';
 import {
@@ -19,7 +21,7 @@ export function OpenTabs() {
   const { tabs, activeTabId, activateTab, closeTab } = useTabStore();
 
   // Home 탭 제외
-  const openTabs = tabs.filter((tab) => tab.id !== HOME_TAB.id);
+  const openTabs = tabs.filter((tab) => !isSsooHomeEntry(tab, HOME_TAB));
 
   if (openTabs.length === 0) {
     return (

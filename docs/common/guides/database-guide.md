@@ -217,6 +217,28 @@ SSOO는 **하이브리드 히스토리 관리**를 사용합니다:
 
 Seed 파일 위치: `packages/database/prisma/seeds/`
 
+배포 `db-init`은 전체 개발 seed를 재실행하지 않습니다. `DB_INIT_SEED_MODE`를 다음과 같이 구분합니다.
+
+| 모드 | 허용 대상 | 실행 내용 |
+|---|---|---|
+| `upgrade` (기본) | 기존 DB. 운영은 launch-managed DB만 | migration → schema 검사 → trigger → full 검사. seed 실행 없음 |
+| `bootstrap` | application table이 하나도 없는 신규 DB | migration 후 `apply_reference_seeds.sql`의 20개 기준정보 파일. 계정·데모 업무 행 생성 없음 |
+| `demo` | 비어 있는 local/compose host의 dev/test/local/scratch/tmp/candidate DB, compat 모드 | 기존 `apply_all_seeds.sql` 개발 fixture. strict/production에서는 거부 |
+
+운영 Compose와 CI의 release/rehearsal runtime은 `upgrade`를 고정합니다. 빈 DB의 첫 준비는 배포 전에 별도로 수행합니다. 이미 준비된 DB에 `bootstrap`/`demo`를 지정하면 migration 이전에 거부합니다. 실패한 첫 준비를 `upgrade`로 바꾸어 계속 진행하지 말고, 원인 검토 후 빈 DB 또는 검증된 백업에서 다시 시작합니다.
+
+```bash
+# 대상 PostgreSQL이 실행 중이고 빈 DB임을 확인한 뒤, 검토한 db-init 이미지로 실행
+docker compose --env-file .env.production -f compose.yaml -f compose.production.yaml \
+  run --rm --no-deps -e DB_INIT_SEED_MODE=bootstrap db-init
+```
+
+`bootstrap`은 메뉴·역할/권한·공통코드·기본 앱 설정·SNS 게시판/스킬·PMS 템플릿을 준비합니다. 기본 공급자 표시는 실제 법인/CI 확인을 대신하지 않습니다. **최초 관리자·플랫폼 가입/서비스 승인·실제 공급자/템플릿 준비는 별도 계정/온보딩·앱 소유 절차가 필요합니다.** 기본 암호를 가진 관리자를 배포에서 만들지 않습니다. readiness 검사는 그대로 유지합니다.
+
+기존 DB에 필요한 신규 코드/권한/backfill은 사용자 수정값 보존 조건을 포함한 버전별 launch migration으로 추가합니다. seed 파일을 수정하는 것만으로 기존 DB에 반영되지 않습니다. `.codex/scripts/db-seed.sh`/`db:setup`과 직접 psql seed 실행은 기존 개발 도구이며 운영 배포에 사용하지 않습니다.
+
+검증: `node automation/tests/ci/db-init-docker.test.mjs --run --image <검토한-db-init-image> [--dump <managed-dump>]`. 전용 Docker network/volume에서 실행하고 자체 자원만 정리합니다. DB 보존 검증이며 전체 앱 출시 준비 판정은 아닙니다.
+
 | 파일명 | 설명 |
 |--------|------|
 | `user_code.sql` | 사용자 관련 코드 |

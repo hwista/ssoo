@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText } from 'lucide-react';
+import { SsooErrorPanel } from '@ssoo/web-shell';
 import { Button } from '@/components/ui/button';
-import { EmptyState, LoadingState } from '@/components/common/StateDisplay';
+import { LoadingState } from '@/components/common/StateDisplay';
 import { useSharedPost } from '@/hooks/queries/usePosts';
 import { ApiError } from '@/lib/api/client';
 import { useAccessStore, useAuthStore, useTabStore } from '@/stores';
 import { PostCard } from './PostCard';
+import { PostAccessPanel } from './PostAccessPanel';
 
 export function PostDetailPage({ postId }: { postId: string }) {
   const canRead = useAccessStore((state) => state.snapshot?.features.canReadFeed ?? false);
@@ -23,16 +24,17 @@ export function PostDetailPage({ postId }: { postId: string }) {
         <Button asChild variant="outline" size="sm"><Link href="/">피드로 이동</Link></Button>
       </div>
       {unavailable ? (
-        <EmptyState icon={<FileText className="h-12 w-12" />} title="게시물을 볼 수 없습니다."
-          description="게시물이 없거나 열람할 수 없습니다." />
+        <SsooErrorPanel kind="forbidden" title="게시물을 볼 수 없습니다."
+          description="게시물이 없거나 열람할 수 없습니다." actions={[{ label: '피드로 이동', href: '/' }]} />
       ) : query.isError ? (
-        <EmptyState title="게시물을 불러오지 못했습니다."
-          action={<Button onClick={() => void query.refetch()} disabled={query.isFetching}>다시 시도</Button>} />
+        <SsooErrorPanel error={query.error} title="게시물을 불러오지 못했습니다."
+          onRetry={() => query.refetch()} retrying={query.isFetching} />
       ) : !query.data ? (
         <LoadingState message="게시물을 불러오는 중입니다." />
       ) : (
-        <PostCard key={`${userId}:${postId}`} item={query.data} />
+        <PostCard key={`post:${userId}:${postId}`} item={query.data} />
       )}
+      {canRead && active ? <PostAccessPanel key={`access:${userId}:${postId}`} postId={postId} onChanged={() => void query.refetch()} /> : null}
     </div>
   );
 }

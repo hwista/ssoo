@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, Max, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
 import type {
   CrmBillingSplitPreviewRequest,
   CrmBillingSplitTarget,
@@ -24,8 +24,8 @@ import type {
 
 const CRM_BILLING_SPLIT_TARGETS = ['revenue', 'external-cost', 'both'] as const;
 const CRM_CONTRACT_STATUSES = ['review', 'active', 'completed', 'terminated'] as const;
-const CRM_CONTRACT_REGIONS = ['domestic', 'overseas'] as const;
-const CRM_CONTRACT_PERFORMANCE_REGIONS = ['all', 'domestic', 'overseas'] as const;
+const CRM_CONTRACT_REGIONS = ['domestic', 'overseas', 'unspecified'] as const;
+const CRM_CONTRACT_PERFORMANCE_REGIONS = ['all', 'domestic', 'overseas', 'unspecified'] as const;
 const CRM_CONTRACT_LINE_CATEGORIES = ['product', 'service', 'internal-cost', 'external-cost'] as const;
 const CRM_CONTRACT_SERVICE_TYPES = ['internal', 'external'] as const;
 const CRM_CONTRACT_DISCOUNT_TYPES = ['amount', 'rate'] as const;
@@ -237,10 +237,16 @@ export class CrmContractDmsDocumentLifecycleExecutionDto implements CrmContractD
 }
 
 export class CrmContractPerformanceQueryDto implements CrmContractPerformanceQuery {
+  @ApiPropertyOptional({ description: '원천 화면은 계약명만 검색, 기본 운영 화면은 고객사/WBS 등을 함께 검색', enum: ['operations', 'source-compatible'], default: 'operations' })
+  @IsIn(['operations', 'source-compatible'])
+  @IsOptional()
+  mode?: 'operations' | 'source-compatible';
+
   @ApiPropertyOptional({ description: '사업년도', default: new Date().getFullYear() })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(2000)
+  @Max(2100)
   @IsOptional()
   year?: number;
 
@@ -270,6 +276,12 @@ export class CrmContractPerformanceQueryDto implements CrmContractPerformanceQue
 }
 
 export class CrmContractUpsertDto implements CrmContractUpsertRequest {
+  @ApiPropertyOptional({ description: '승인된 업무 조직 ID (신규 필수, 한 조직만 있으면 자동 선택)', maxLength: 19 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(19)
+  ownerOrganizationId?: string;
+
   @ApiPropertyOptional({ description: '전환 원천 영업기회 ID' })
   @IsString()
   @MaxLength(80)
@@ -322,7 +334,7 @@ export class CrmContractUpsertDto implements CrmContractUpsertRequest {
   @ApiProperty({ description: '국내/해외', enum: CRM_CONTRACT_REGIONS })
   @IsString()
   @IsIn(CRM_CONTRACT_REGIONS)
-  region!: 'domestic' | 'overseas';
+  region!: 'domestic' | 'overseas' | 'unspecified';
 
   @ApiPropertyOptional({ description: '계약 상태', enum: CRM_CONTRACT_STATUSES, default: 'review' })
   @IsString()
@@ -330,11 +342,11 @@ export class CrmContractUpsertDto implements CrmContractUpsertRequest {
   @IsOptional()
   status?: CrmContractStatus;
 
-  @ApiProperty({ description: '계약 시작일(YYYY-MM-DD)' })
+  @ApiProperty({ description: '계약 시작일(YYYY-MM-DD). 임시 저장 시 빈 문자열 허용, 확정 시 필수' })
   @IsString()
   contractStartDate!: string;
 
-  @ApiProperty({ description: '계약 종료일(YYYY-MM-DD)' })
+  @ApiProperty({ description: '계약 종료일(YYYY-MM-DD). 임시 저장 시 빈 문자열 허용, 확정 시 필수' })
   @IsString()
   contractEndDate!: string;
 

@@ -12,6 +12,7 @@ services:
     environment:
       DATABASE_URL: ${DOCKER_DATABASE_URL:?Set DOCKER_DATABASE_URL in .env.production}
       DB_INIT_BASELINE_MODE: strict
+      DB_INIT_SEED_MODE: upgrade
 
   dms-restore-verify:
     profiles: ["operations"]

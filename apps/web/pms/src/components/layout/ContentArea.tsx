@@ -1,5 +1,9 @@
 'use client';
 
+import { SsooErrorPanel } from '@ssoo/web-shell';
+import { SsooAccessRecovery } from '@ssoo/web-shell';
+import { useAccessStore } from '@/stores/access.store';
+
 import { Suspense, lazy } from 'react';
 import { useTabStore } from '@/stores';
 import { TabContext } from '@/hooks/useCurrentTab';
@@ -60,10 +64,7 @@ function renderPmsPage(tab: TabItem) {
 
   if (!PageComponent) {
     return (
-      <SsooContentAreaState
-        title={tab.title}
-        description={`등록되지 않은 화면 경로입니다: ${path}`}
-      />
+      <SsooErrorPanel kind="not-found" title="등록되지 않은 화면입니다" description="다른 탭을 선택하거나 홈으로 이동해 주세요." />
     );
   }
 
@@ -106,7 +107,7 @@ function renderPmsUserSurfaceContentPage(
  * - 탭 전환 시 unmount/remount 없이 상태 보존
  *   → 스크롤 위치, 폼 입력, 페이지네이션, 검색 필터 유지
  */
-export function ContentArea() {
+function ContentBody() {
   const { tabs, activeTabId, openTab } = useTabStore();
   const pageRoutes = defineSsooMdiPageRegistry<TabItem>([
     {
@@ -152,12 +153,20 @@ export function ContentArea() {
       activeTabId={activeTabId}
       getTabId={(tab) => tab.id}
       routes={pageRoutes}
-      unknownRouteSlot={(tab) => (
-        <SsooContentAreaState
-          title={tab.title}
-          description={`등록되지 않은 화면 경로입니다: ${tab.path}`}
-        />
+      unknownRouteSlot={() => (
+        <SsooErrorPanel kind="not-found" title="등록되지 않은 화면입니다" description="다른 탭을 선택하거나 홈으로 이동해 주세요." />
       )}
     />
   );
+}
+
+/** Keep the shell usable and preserve mounted drafts after transient access refresh failures. */
+export function ContentArea() {
+  const error = useAccessStore(state => state.error);
+  const hasSnapshot = useAccessStore(state => state.snapshot !== null);
+  const retrying = useAccessStore(state => state.isLoading);
+  const hydrate = useAccessStore(state => state.hydrate);
+  return <SsooAccessRecovery error={error} hasSnapshot={hasSnapshot} retrying={retrying} onRetry={hydrate}>
+    <ContentBody />
+  </SsooAccessRecovery>;
 }

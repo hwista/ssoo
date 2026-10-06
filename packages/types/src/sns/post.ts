@@ -24,6 +24,7 @@ export interface CreatePostDto {
   boardId?: string;
   categoryId?: string;
   visibilityScopeCode?: SnsVisibilityScopeCode;
+  targetOrgId?: string;
   tagNames?: string[];
 }
 
@@ -34,5 +35,6 @@ export interface UpdatePostDto {
   boardId?: string | null;
   categoryId?: string | null;
   visibilityScopeCode?: SnsVisibilityScopeCode;
+  targetOrgId?: string;
   isPinned?: boolean;
 }

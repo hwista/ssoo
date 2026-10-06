@@ -20,6 +20,11 @@ const createPayload = () => ({
 });
 
 describe('CrmOpportunityUpsertDto', () => {
+  it('국내외 미선택을 명시적 코드로 보존한다', async () => {
+    const dto = plainToInstance(CrmOpportunityUpsertDto, { ...createPayload(), region: 'unspecified' });
+    expect(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).toHaveLength(0);
+    expect(dto.region).toBe('unspecified');
+  });
   it('공용 입력 계약의 수금조건과 Special DC 필드를 허용한다', async () => {
     const dto = plainToInstance(CrmOpportunityUpsertDto, createPayload());
 

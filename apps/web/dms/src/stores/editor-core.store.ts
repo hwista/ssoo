@@ -55,6 +55,7 @@ export interface EditorTabState {
   lockedPreview: LockedContentPreviewData | null;
   isLoading: boolean;
   error: string | null;
+  saveError: Error | null;
   hasUnsavedChanges: boolean;
   isSaving: boolean;
   editorHandlers: EditorHandlers | null;
@@ -74,6 +75,7 @@ export const initialEditorTabState: EditorTabState = {
   lockedPreview: null,
   isLoading: false,
   error: null,
+  saveError: null,
   hasUnsavedChanges: false,
   isSaving: false,
   editorHandlers: null,
@@ -149,7 +151,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
   loadFile: async (tabId, path) => {
     const timer = new PerformanceTimer('파일 로드');
     const normalizedPath = normalizeDocumentPath(path);
-    get()._updateTab(tabId, { isLoading: true, error: null, currentFilePath: normalizedPath });
+    get()._updateTab(tabId, { isLoading: true, error: null, saveError: null, currentFilePath: normalizedPath });
 
     try {
       const response = await fileApi.read(normalizedPath);
@@ -224,7 +226,8 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     const timer = new PerformanceTimer('파일 저장');
     const tabState = get()._getTab(tabId);
     const normalizedPath = normalizeDocumentPath(path);
-    get()._updateTab(tabId, { isLoading: true, error: null });
+    // Saving must not unmount the editor or replace its unsaved draft with a load-error surface.
+    get()._updateTab(tabId, { isSaving: true, saveError: null });
 
     try {
       // 템플릿 저장: templateApi.upsert() 사용
@@ -244,7 +247,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         });
 
         if (!response.success) {
-          throw new Error(`템플릿 저장 실패: ${getErrorMessage(response)}`);
+          throw createApiRequestError(response, '템플릿 저장 실패');
         }
 
         const savedId = response.data?.id;
@@ -272,7 +275,6 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
 
       get()._updateTab(tabId, {
         content,
-        isEditing: false,
         currentFilePath: normalizedPath,
         documentMetadata: response.data?.metadata ?? tabState.documentMetadata,
       });
@@ -282,23 +284,24 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         await get().flushPendingMetadata(tabId, options);
       }
       await get().refreshFileMetadata(tabId, normalizedPath);
+      get()._updateTab(tabId, { isEditing: false });
 
       logger.info('파일 저장 성공', { path: normalizedPath });
       timer.end({ success: true });
     } catch (error) {
       timer.end({ success: false });
       logger.error('파일 저장 중 오류', error);
-      const errorMsg = error instanceof Error ? error.message : '파일 저장 실패';
-      get()._updateTab(tabId, { error: errorMsg });
+      get()._updateTab(tabId, { saveError: error instanceof Error ? error : new Error('파일 저장 실패') });
       throw error;
     } finally {
-      get()._updateTab(tabId, { isLoading: false });
+      get()._updateTab(tabId, { isSaving: false });
     }
   },
 
   saveFileKeepEditing: async (tabId, path, content, options) => {
     const timer = new PerformanceTimer('임시 파일 저장');
     const normalizedPath = normalizeDocumentPath(path);
+    get()._updateTab(tabId, { isSaving: true, saveError: null });
 
     try {
       const response = await fileApi.update(normalizedPath, content, get()._getTab(tabId).documentMetadata?.revisionSeq, {
@@ -325,7 +328,10 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     } catch (error) {
       timer.end({ success: false });
       logger.error('임시 저장 중 오류', error);
+      get()._updateTab(tabId, { saveError: error instanceof Error ? error : new Error('파일 저장 실패') });
       throw error;
+    } finally {
+      get()._updateTab(tabId, { isSaving: false });
     }
   },
 
@@ -469,7 +475,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
   saveContent: async (tabId, path, content, metadata, options) => {
     const timer = new PerformanceTimer('통합 콘텐츠 저장');
     const normalizedPath = normalizeDocumentPath(path);
-    get()._updateTab(tabId, { isSaving: true, error: null });
+    get()._updateTab(tabId, { isSaving: true, saveError: null });
 
     try {
       const response = await contentApi.save(normalizedPath, content, metadata, {
@@ -477,7 +483,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
         collaborationSessionId: options?.collaborationSessionId,
       });
       if (!response.success) {
-        throw new Error(`콘텐츠 저장 실패: ${getErrorMessage(response)}`);
+        throw createApiRequestError(response, '콘텐츠 저장 실패');
       }
 
       get()._updateTab(tabId, {
@@ -493,8 +499,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     } catch (error) {
       timer.end({ success: false });
       logger.error('통합 콘텐츠 저장 실패', error);
-      const errorMsg = error instanceof Error ? error.message : '콘텐츠 저장 실패';
-      get()._updateTab(tabId, { error: errorMsg });
+      get()._updateTab(tabId, { saveError: error instanceof Error ? error : new Error('콘텐츠 저장 실패') });
       throw error;
     } finally {
       get()._updateTab(tabId, { isSaving: false });
@@ -505,7 +510,7 @@ export const useEditorMultiStore = create<EditorMultiStore>((set, get) => ({
     const timer = new PerformanceTimer('통합 콘텐츠 로드');
     const contentType = options?.contentType ?? 'document';
     const normalizedPath = normalizeDocumentPath(path);
-    get()._updateTab(tabId, { isLoading: true, error: null, currentFilePath: normalizedPath, contentType });
+    get()._updateTab(tabId, { isLoading: true, error: null, saveError: null, currentFilePath: normalizedPath, contentType });
 
     try {
       const response = await contentApi.load(normalizedPath, { strict: options?.strict });

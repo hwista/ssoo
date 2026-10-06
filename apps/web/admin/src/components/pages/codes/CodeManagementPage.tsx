@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
@@ -27,21 +28,9 @@ import type { CodeItem } from '@/lib/api/endpoints/codes';
 
 const SOURCE_CODE_GROUPS = [
   { value: 'biz_type', label: '사업구분' },
-  { value: 'biz_year', label: 'biz_year' },
   { value: 'group_type', label: '계열구분' },
   { value: 'payment_term', label: '수금조건' },
 ] as const;
-
-const SOURCE_CODE_KEYS = new Set([
-  'payment_term\u0000monthly',
-  'payment_term\u0000quarterly',
-  'biz_type\u0000SI',
-  'biz_type\u0000SM',
-  'group_type\u0000삼성',
-  'group_type\u0000현대자동차',
-  'biz_year\u00002026',
-  'biz_year\u00002025',
-]);
 
 interface CodeForm {
   codeGroup: string;
@@ -81,7 +70,6 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
   const groupsQuery = useCodeGroups();
   const codesQuery = useCodesByGroup(selectedGroup === 'all' ? '' : selectedGroup);
   const businessTypeQuery = useCodesByGroup(sourceCompatible ? 'biz_type' : '');
-  const businessYearQuery = useCodesByGroup(sourceCompatible ? 'biz_year' : '');
   const groupTypeQuery = useCodesByGroup(sourceCompatible ? 'group_type' : '');
   const paymentTermQuery = useCodesByGroup(sourceCompatible ? 'payment_term' : '');
   const createMutation = useCreateCode();
@@ -99,10 +87,9 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
 
   const sourceCodes = useMemo(() => [
     ...(businessTypeQuery.data?.data ?? []),
-    ...(businessYearQuery.data?.data ?? []),
     ...(groupTypeQuery.data?.data ?? []),
     ...(paymentTermQuery.data?.data ?? []),
-  ].filter((item) => SOURCE_CODE_KEYS.has(`${item.codeGroup}\u0000${item.codeValue}`)), [businessTypeQuery.data, businessYearQuery.data, groupTypeQuery.data, paymentTermQuery.data]);
+  ].sort((left, right) => left.codeGroup.localeCompare(right.codeGroup) || left.sortOrder - right.sortOrder || left.codeValue.localeCompare(right.codeValue)), [businessTypeQuery.data, groupTypeQuery.data, paymentTermQuery.data]);
 
   const codes = useMemo(() => {
     const source = sourceCompatible && selectedGroup === 'all'
@@ -118,15 +105,23 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
   }, [codesQuery.data, selectedGroup, sourceCodes, sourceCompatible, statusFilter]);
 
   const codesLoading = sourceCompatible && selectedGroup === 'all'
-    ? businessTypeQuery.isLoading || businessYearQuery.isLoading || groupTypeQuery.isLoading || paymentTermQuery.isLoading
+    ? businessTypeQuery.isLoading || groupTypeQuery.isLoading || paymentTermQuery.isLoading
     : codesQuery.isLoading;
+
+  const activeQueries = sourceCompatible && selectedGroup === 'all'
+    ? [businessTypeQuery, groupTypeQuery, paymentTermQuery] : [codesQuery];
+  const loadError = groupsQuery.error ?? activeQueries.find((query) => query.error)?.error;
+  const fetching = groupsQuery.isFetching || activeQueries.some((query) => query.isFetching);
 
   const pending = createMutation.isPending
     || updateMutation.isPending
     || deactivateMutation.isPending
     || removeMutation.isPending;
+  const blocked = pending || fetching || Boolean(loadError);
 
   const openCreate = () => {
+    if (blocked) return;
+    setNotice(null);
     setEditing(null);
     setForm(emptyForm(selectedGroup === 'all' ? 'payment_term' : selectedGroup));
     setError(null);
@@ -134,6 +129,8 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
   };
 
   const openEdit = (item: CodeItem) => {
+    if (blocked) return;
+    setNotice(null);
     setEditing(item);
     setForm({
       codeGroup: item.codeGroup,
@@ -146,15 +143,17 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
   };
 
   const save = async () => {
+    if (blocked) return;
+    setNotice(null);
     const codeGroup = form.codeGroup.trim();
     const codeValue = form.codeValue.trim();
     const displayNameKo = form.displayNameKo.trim();
-    const sortOrder = Number.parseInt(form.sortOrder, 10);
+    const sortOrder = Number(form.sortOrder);
     if (!codeGroup || !codeValue || !displayNameKo) {
       setError('코드 유형, 코드값, 코드명은 필수입니다.');
       return;
     }
-    if (!Number.isInteger(sortOrder)) {
+    if (!form.sortOrder.trim() || !Number.isSafeInteger(sortOrder) || sortOrder < -2147483648 || sortOrder > 2147483647) {
       setError('정렬 순서는 정수여야 합니다.');
       return;
     }
@@ -179,6 +178,8 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
   };
 
   const toggleActive = async (item: CodeItem) => {
+    if (blocked) return;
+    setNotice(null);
     try {
       setError(null);
       if (item.isActive) {
@@ -193,6 +194,8 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
   };
 
   const remove = async (item: CodeItem) => {
+    if (blocked) return;
+    setNotice(null);
     if (item.isActive) {
       setError('활성 코드는 먼저 비활성화해야 삭제할 수 있습니다.');
       return;
@@ -208,10 +211,10 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
   };
 
   const refreshCodes = () => {
+    void groupsQuery.refetch();
     if (sourceCompatible && selectedGroup === 'all') {
       void Promise.all([
         businessTypeQuery.refetch(),
-        businessYearQuery.refetch(),
         groupTypeQuery.refetch(),
         paymentTermQuery.refetch(),
       ]);
@@ -233,11 +236,11 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
         </div>
         <div className="flex gap-2">
           {!sourceCompatible ? (
-            <Button variant="outline" onClick={refreshCodes} disabled={codesQuery.isFetching}>
+            <Button variant="outline" onClick={refreshCodes} disabled={fetching}>
               <RefreshCw className="mr-2 h-4 w-4" />새로고침
             </Button>
           ) : null}
-          <Button onClick={openCreate}>{sourceCompatible ? '+ 코드 추가' : <><Plus className="mr-2 h-4 w-4" />코드 추가</>}</Button>
+          <Button onClick={openCreate} disabled={blocked}>{sourceCompatible ? '+ 코드 추가' : <><Plus className="mr-2 h-4 w-4" />코드 추가</>}</Button>
         </div>
       </header>
 
@@ -249,7 +252,7 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
 
       <section className="grid gap-3 rounded-lg border bg-background p-4 sm:grid-cols-2">
         <div className="grid gap-1.5 text-sm font-medium">
-          {sourceCompatible ? <span>코드 유형</span> : <label htmlFor="code-group-filter">코드 유형</label>}
+          <label htmlFor={sourceCompatible ? 'code-filter-type' : 'code-group-filter'}>코드 유형</label>
           <NativeSelect
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={selectedGroup}
@@ -262,7 +265,7 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
           </NativeSelect>
         </div>
         <div className="grid gap-1.5 text-sm font-medium">
-          {sourceCompatible ? <span>상태</span> : <label htmlFor="code-status-filter">상태</label>}
+          <label htmlFor={sourceCompatible ? 'code-filter-status' : 'code-status-filter'}>상태</label>
           <NativeSelect
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={statusFilter}
@@ -277,8 +280,9 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
         </div>
       </section>
 
+      {loadError ? <SsooErrorNotice error={loadError} actions={[{ label: '다시 조회', onClick: refreshCodes, disabled: fetching }]} /> : null}
       {notice ? <p className="rounded-md border border-ssoo-success-border bg-ssoo-success-bg p-3 text-sm text-ssoo-success">{notice}</p> : null}
-      {error ? <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}
+      {error ? <SsooErrorNotice as="p" compact className="p-3" error={error} /> : null}
 
       <section className="overflow-hidden rounded-lg border bg-background">
         <div className="overflow-x-auto">
@@ -309,11 +313,11 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
                   </TableCell>
                   <TableCell className="px-4 py-3">
                     <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openEdit(item)}><Pencil className="mr-1 h-3.5 w-3.5" />수정</Button>
-                      <Button size="sm" variant="outline" onClick={() => void toggleActive(item)} disabled={pending}>
+                      <Button size="sm" variant="outline" onClick={() => openEdit(item)} disabled={blocked}><Pencil className="mr-1 h-3.5 w-3.5" />수정</Button>
+                      <Button size="sm" variant="outline" onClick={() => void toggleActive(item)} disabled={blocked}>
                         {item.isActive ? '비활성화' : '활성화'}
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => void remove(item)} disabled={pending || item.isActive}>
+                      <Button size="sm" variant="destructive" onClick={() => void remove(item)} disabled={blocked || item.isActive}>
                         <Trash2 className="mr-1 h-3.5 w-3.5" />삭제
                       </Button>
                     </div>
@@ -326,22 +330,22 @@ export function CodeManagementPage({ path }: CodeManagementPageProps) {
         <footer className="border-t px-4 py-3 text-xs text-muted-foreground">{codes.length}건 표시 중</footer>
       </section>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!pending) setDialogOpen(open); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? '코드 수정' : '코드 추가'}</DialogTitle>
             <DialogDescription>코드 유형과 값의 조합은 중복될 수 없습니다.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
-            <label className="grid gap-1.5 text-sm font-medium">코드 유형<Input value={form.codeGroup} onChange={(event) => setForm((current) => ({ ...current, codeGroup: event.target.value }))} data-testid="code-form-group" /></label>
-            <label className="grid gap-1.5 text-sm font-medium">코드값<Input value={form.codeValue} onChange={(event) => setForm((current) => ({ ...current, codeValue: event.target.value }))} data-testid="code-form-value" /></label>
-            <label className="grid gap-1.5 text-sm font-medium">코드명<Input value={form.displayNameKo} onChange={(event) => setForm((current) => ({ ...current, displayNameKo: event.target.value }))} data-testid="code-form-name" /></label>
-            <label className="grid gap-1.5 text-sm font-medium">정렬 순서<Input type="number" value={form.sortOrder} onChange={(event) => setForm((current) => ({ ...current, sortOrder: event.target.value }))} data-testid="code-form-sort" /></label>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <label className="grid gap-1.5 text-sm font-medium">코드 유형<Input disabled={pending} value={form.codeGroup} onChange={(event) => setForm((current) => ({ ...current, codeGroup: event.target.value }))} data-testid="code-form-group" /></label>
+            <label className="grid gap-1.5 text-sm font-medium">코드값<Input disabled={pending} value={form.codeValue} onChange={(event) => setForm((current) => ({ ...current, codeValue: event.target.value }))} data-testid="code-form-value" /></label>
+            <label className="grid gap-1.5 text-sm font-medium">코드명<Input disabled={pending} value={form.displayNameKo} onChange={(event) => setForm((current) => ({ ...current, displayNameKo: event.target.value }))} data-testid="code-form-name" /></label>
+            <label className="grid gap-1.5 text-sm font-medium">정렬 순서<Input type="number" disabled={pending} value={form.sortOrder} onChange={(event) => setForm((current) => ({ ...current, sortOrder: event.target.value }))} data-testid="code-form-sort" /></label>
+            {error ? <SsooErrorNotice as="p" compact error={error} /> : null}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
-            <Button onClick={() => void save()} disabled={pending} data-testid="code-form-save">저장</Button>
+            <Button variant="outline" disabled={pending} onClick={() => setDialogOpen(false)}>취소</Button>
+            <Button onClick={() => void save()} disabled={blocked} data-testid="code-form-save">저장</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

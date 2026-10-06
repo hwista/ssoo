@@ -28,7 +28,7 @@ BEGIN
 
   INSERT INTO crm.crm_opportunity_h (
     opportunity_id, history_seq, event_type, event_at, event_by,
-    opportunity_code, opportunity_group_code, customer_name, opportunity_name, owner_name, owner_user_id,
+    opportunity_code, opportunity_group_code, customer_name, opportunity_name, owner_name, owner_user_id, owner_organization_id,
     business_type, industry_line, region_code, status_code, priority_code,
     version_no, confirmed, contract_created, contract_created_at, contract_code,
     expected_start_date, expected_end_date,
@@ -39,7 +39,7 @@ BEGIN
     updated_by, updated_at, last_source, last_activity, transaction_id
   ) VALUES (
     v_record.opportunity_id, v_history_seq, v_event_type, NOW(), v_record.updated_by,
-    v_record.opportunity_code, v_record.opportunity_group_code, v_record.customer_name, v_record.opportunity_name, v_record.owner_name, v_record.owner_user_id,
+    v_record.opportunity_code, v_record.opportunity_group_code, v_record.customer_name, v_record.opportunity_name, v_record.owner_name, v_record.owner_user_id, v_record.owner_organization_id,
     v_record.business_type, v_record.industry_line, v_record.region_code, v_record.status_code, v_record.priority_code,
     v_record.version_no, v_record.confirmed, v_record.contract_created, v_record.contract_created_at, v_record.contract_code,
     v_record.expected_start_date, v_record.expected_end_date,

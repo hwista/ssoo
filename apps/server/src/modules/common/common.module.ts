@@ -1,4 +1,6 @@
+import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { Module } from '@nestjs/common';
+import { CodeModule } from './code/code.module.js';
 import { AccessFoundationModule } from './access/access-foundation.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UserModule } from './user/user.module.js';
@@ -7,7 +9,7 @@ import { CommonSearchModule } from './search/search.module.js';
 import { CommonAiIndexModule } from './ai-index/ai-index.module.js';
 
 @Module({
-  imports: [AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule, CommonSearchModule, CommonAiIndexModule],
-  exports: [AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule, CommonSearchModule, CommonAiIndexModule],
+  imports: [OnboardingModule, CodeModule, AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule, CommonSearchModule, CommonAiIndexModule],
+  exports: [CodeModule, AccessFoundationModule, AuthModule, UserModule, CommonNotificationModule, CommonSearchModule, CommonAiIndexModule],
 })
 export class CommonModule {}

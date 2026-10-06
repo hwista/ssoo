@@ -79,15 +79,18 @@ export class MenuService {
       return { generalMenus: [], adminMenus: [] };
     }
 
+    const roles = await this.accessFoundationService.getServiceRoleCodes(userId, 'pms');
+    if (!roles.length) return { generalMenus: [], adminMenus: [] };
+    const effectiveRoleCode = ['admin', 'manager', 'user', 'viewer'].find((role) => roles.includes(role)) ?? roles[0];
     const [menus, roleMenuOverrides, userMenuOverrides, actionContext] = await Promise.all([
       this.db.menu.findMany({
         where: { isActive: true },
         orderBy: [{ menuLevel: 'asc' }, { sortOrder: 'asc' }],
       }),
-      user.roleCode
+      effectiveRoleCode
         ? this.db.client.roleMenu.findMany({
           where: {
-            roleCode: user.roleCode,
+            roleCode: effectiveRoleCode,
             isActive: true,
             menu: {
               isActive: true,
@@ -134,7 +137,7 @@ export class MenuService {
         .filter((menu) => !menu.isAdminMenu)
         .map((menu) => {
           const resolvedAccess = resolvePmsMenuAccess({
-            roleCode: user.roleCode,
+            roleCode: effectiveRoleCode,
             menuCode: menu.menuCode,
             isAdminMenu: false,
             hasSystemOverride: actionContext.policy.hasSystemOverride,

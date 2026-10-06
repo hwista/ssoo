@@ -18,7 +18,9 @@ function loadContract() {
     base: read('compose.yaml'),
     local: read('compose.local.yaml'),
     localTest: read('compose.local-test.yaml'),
+    staging: read('compose.staging.yaml'),
     production: read('compose.production.yaml'),
+    pipeline: read('.gitlab-ci.yml'),
     packageJson: read('package.json'),
     serverEntrypoint: read('docker/node-tls-ca-entrypoint.sh'),
     dmsModule: read('apps/server/src/modules/dms/dms.module.ts'),
@@ -41,7 +43,7 @@ function requireExcludes(content, marker, label) {
 function verifyContract(contract) {
   requireIncludes(contract.base, 'DMS_INSTANCE_ENV: ""', 'compose.yaml');
   requireIncludes(contract.base, 'DMS_GIT_BOOTSTRAP_REMOTE_URL: ""', 'compose.yaml');
-  requireIncludes(contract.base, '/api/health/readiness', 'compose.yaml');
+  requireIncludes(contract.base, '/api/health/core-readiness', 'compose.yaml');
   requireIncludes(contract.base, 'source: dms_git_http_credentials', 'compose.yaml');
   requireIncludes(contract.base, 'DMS_GIT_HTTP_AUTH_SCOPE: ${DMS_GIT_HTTP_AUTH_SCOPE:-}', 'compose.yaml');
   requireExcludes(contract.base, 'DMS_INSTANCE_ENV: ${DMS_INSTANCE_ENV:-prod}', 'compose.yaml');
@@ -70,6 +72,12 @@ function verifyContract(contract) {
   requireExcludes(contract.localTest, 'DMS_INSTANCE_ENV: ${', 'compose.local-test.yaml');
   requireExcludes(contract.localTest, 'DMS_GIT_BOOTSTRAP_REMOTE_URL: ${', 'compose.local-test.yaml');
   requireExcludes(contract.localTest, '@postgres:5432/ssoo_dev?', 'compose.local-test.yaml');
+
+  requireIncludes(contract.staging, 'DMS_INSTANCE_ENV: "prod"', 'compose.staging.yaml');
+  requireIncludes(contract.staging, 'DMS_GIT_BOOTSTRAP_REMOTE_URL: ""', 'compose.staging.yaml');
+  requireExcludes(contract.staging, 'DMS_INSTANCE_ENV: ${', 'compose.staging.yaml');
+  requireExcludes(contract.staging, 'DMS_GIT_BOOTSTRAP_REMOTE_URL: ${', 'compose.staging.yaml');
+  requireIncludes(contract.pipeline, 'COMPOSE_FILE: "compose.yaml:compose.staging.yaml"', '.gitlab-ci.yml');
 
   requireIncludes(
     contract.production,
@@ -169,6 +177,14 @@ try {
         'ssoo-postgres-data:/var/lib/postgresql/data',
       ),
     }), 'local-test reusing the development database volume');
+    expectRejected(contract, (next) => ({
+      ...next,
+      staging: next.staging.replace('DMS_INSTANCE_ENV: "prod"', 'DMS_INSTANCE_ENV: ${DMS_INSTANCE_ENV:-prod}'),
+    }), 'root .env interpolation leaking into staging');
+    expectRejected(contract, (next) => ({
+      ...next,
+      pipeline: next.pipeline.replace('COMPOSE_FILE: "compose.yaml:compose.staging.yaml"', ''),
+    }), 'GitLab deploy running without the staging overlay');
   }
 
   console.log('[dms-runtime-profile-contract] PASS — runtime roles are isolated and startup/readiness fail closed');

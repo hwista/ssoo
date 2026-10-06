@@ -43,7 +43,7 @@ const targets = [
   { uxId: 'UX-09', sourcePage: 'biz-plan', ownerSurface: 'CRM /business-plan?mode=source-compatible', baseUrl: crmBaseUrl, normalHref: '/business-plan?mode=source-compatible' },
   { uxId: 'UX-10', sourcePage: 'bp-rpt', ownerSurface: 'CRM /business-plan-performance?mode=source-compatible', baseUrl: crmBaseUrl, normalHref: '/business-plan-performance?mode=source-compatible' },
   { uxId: 'UX-11', sourcePage: 'internal-cost', ownerSurface: 'CRM /cost-plan?sourceSurface=internal-cost', baseUrl: crmBaseUrl, normalHref: '/cost-plan?sourceSurface=internal-cost' },
-  { uxId: 'UX-12', sourcePage: 'biz-year', ownerSurface: 'Admin /business-years?mode=source-compatible', baseUrl: adminBaseUrl, normalHref: '/business-years?mode=source-compatible' },
+  { uxId: 'UX-12', sourcePage: 'biz-year', ownerSurface: 'CRM /business-years?mode=source-compatible', baseUrl: crmBaseUrl, normalHref: '/business-years?mode=source-compatible' },
   { uxId: 'UX-13', sourcePage: 'ams-vendor', ownerSurface: 'CRM /cost-plan?sourceSurface=ams-vendor', baseUrl: crmBaseUrl, normalHref: '/cost-plan?sourceSurface=ams-vendor' },
   { uxId: 'UX-14', sourcePage: 'ams-cost', ownerSurface: 'CRM /cost-plan?sourceSurface=ams-cost', baseUrl: crmBaseUrl, normalHref: '/cost-plan?sourceSurface=ams-cost' },
   { uxId: 'UX-15', sourcePage: 'codes', ownerSurface: 'Admin /codes?mode=source-compatible', baseUrl: adminBaseUrl, normalHref: '/codes?mode=source-compatible' },
@@ -974,7 +974,7 @@ function scenarioFor(uxId, stateId, target) {
     if (stateId === 'empty-years') {
       return {
         href: target.normalHref,
-        beforeNavigate: (page) => routeAdminCodeGroupEmpty(page, 'biz_year'),
+        beforeNavigate: (page) => page.route('**/api/crm/business-years', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [] }) })),
         prepare: async (page) => {
           await waitForSourceSurface(page, 'business-years');
           await visibleText(page, '등록된 사업년도가 없습니다.', { exact: true }).waitFor({ state: 'visible' });

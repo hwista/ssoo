@@ -50,6 +50,12 @@ It owns, or will own:
 
 Admin consumes the shared auth contract. It must not become the place where every user edits their personal profile.
 
+### Verified account surfaces (2026-10-06)
+
+Admin source-compatible user management loads every page before exposing its directory filters and counters. An incomplete or failed refresh blocks mutations until retry succeeds. Current-account protection uses the authenticated user ID, and account operations provide an explicit retry after a failed status query. Duplicate login/email writes return conflict responses; required account names reject blank/null values.
+
+The shared personal settings renderer locks profile inputs during save and credential inputs during password change. Failed saves keep the draft. SNS profile and account profile remain separate API writes, without an atomic-save guarantee. Existing role authority, enrollment, password policy, session revocation, and reset outbox boundaries remain in effect. Evidence and retained source-demo differences are recorded in the [CRM menu audit](../../../crm/planning/2026-09-30-menu-functional-audit.md).
+
 ### SNS Profile
 
 SNS Profile is the domain owner for user-facing identity data and social activity.

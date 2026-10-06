@@ -30,6 +30,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
     let message = 'Internal server error';
     let code = 'INTERNAL_ERROR';
     let responseCode: string | undefined;
+    let details: Record<string, unknown> | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -46,6 +47,26 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
         }
         if (error) {
           code = String(error);
+        }
+        // Only the authorized DMS revision-conflict contract carries document data.
+        // Do not forward arbitrary exception details from other endpoints.
+        if (
+          status === HttpStatus.CONFLICT
+          && ['/api/dms/file', '/api/dms/content'].includes(requestPath)
+          && error === 'Document conflict'
+        ) {
+          message = 'Document conflict';
+          const source = (res as Record<string, unknown>).details;
+          if (source && typeof source === 'object' && !Array.isArray(source)) {
+            const values = source as Record<string, unknown>;
+            details = {};
+            for (const key of ['expectedRevisionSeq', 'currentRevisionSeq']) {
+              if (typeof values[key] === 'number' && Number.isFinite(values[key])) details[key] = values[key];
+            }
+            for (const key of ['serverContent', 'serverContentHash', 'clientContentHash']) {
+              if (typeof values[key] === 'string') details[key] = values[key];
+            }
+          }
         }
       }
     }
@@ -69,6 +90,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
         statusCode: status,
       },
       timestamp: new Date().toISOString(),
+      ...(details ? { details } : {}),
     });
   }
 }

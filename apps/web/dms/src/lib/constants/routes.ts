@@ -6,6 +6,7 @@ export const OPERATIONS_GIT_SETTINGS_PATH = '/settings/operations/git';
 export const SETTINGS_PATH_PREFIX = '/settings';
 
 export const ROOT_ENTRY_PATHS = [
+  '/recovery',
   APP_HOME_PATH,
   LOGIN_PATH,
   PASSWORD_RESET_PATH,

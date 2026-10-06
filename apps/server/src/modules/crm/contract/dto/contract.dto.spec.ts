@@ -1,6 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { CrmContractUpsertDto } from './contract.dto.js';
+import { CrmContractPerformanceQueryDto, CrmContractUpsertDto } from './contract.dto.js';
 
 const createPayload = () => ({
   customerName: 'LS ITC',
@@ -46,5 +46,17 @@ describe('CrmContractUpsertDto', () => {
     });
 
     expect(errors.some((error) => error.property === 'ownerUserId')).toBe(true);
+  });
+});
+
+
+describe('CrmContractPerformanceQueryDto', () => {
+  it.each(['1999', '2101', '2026.5'])('rejects out-of-range or fractional report year %s', async (year) => {
+    const errors = await validate(plainToInstance(CrmContractPerformanceQueryDto, { year }));
+    expect(errors.some(error => error.property === 'year')).toBe(true);
+  });
+  it('accepts a source-compatible query and rejects an unknown search mode', async () => {
+    expect(await validate(plainToInstance(CrmContractPerformanceQueryDto, { year: '2026', mode: 'source-compatible' }))).toEqual([]);
+    expect((await validate(plainToInstance(CrmContractPerformanceQueryDto, { mode: 'unknown' }))).some(error => error.property === 'mode')).toBe(true);
   });
 });

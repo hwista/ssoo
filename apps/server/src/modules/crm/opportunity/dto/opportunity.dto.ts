@@ -23,7 +23,7 @@ import type {
 
 const CRM_OPPORTUNITY_STATUSES = ['draft', 'qualified', 'proposal', 'won', 'lost', 'hold'] as const;
 const CRM_OPPORTUNITY_PRIORITIES = ['high', 'medium', 'low'] as const;
-const CRM_OPPORTUNITY_REGIONS = ['domestic', 'overseas'] as const;
+const CRM_OPPORTUNITY_REGIONS = ['domestic', 'overseas', 'unspecified'] as const;
 const CRM_OPPORTUNITY_LINE_CATEGORIES = ['product', 'service', 'internal-cost', 'external-cost'] as const;
 const CRM_OPPORTUNITY_SERVICE_TYPES = ['internal', 'external'] as const;
 const CRM_OPPORTUNITY_DISCOUNT_TYPES = ['amount', 'rate'] as const;
@@ -124,6 +124,12 @@ export class CrmOpportunityUpsertLineDto implements CrmOpportunityUpsertLine {
 }
 
 export class CrmOpportunityUpsertDto implements CrmOpportunityUpsertRequest {
+  @ApiPropertyOptional({ description: '승인된 업무 조직 ID (신규 필수, 한 조직만 있으면 자동 선택)', maxLength: 19 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(19)
+  ownerOrganizationId?: string;
+
   @ApiProperty({ description: '고객사명', maxLength: 200 })
   @IsString()
   @MaxLength(200)
@@ -158,7 +164,7 @@ export class CrmOpportunityUpsertDto implements CrmOpportunityUpsertRequest {
   @ApiProperty({ description: '국내/해외', enum: CRM_OPPORTUNITY_REGIONS })
   @IsString()
   @IsIn(CRM_OPPORTUNITY_REGIONS)
-  region!: 'domestic' | 'overseas';
+  region!: 'domestic' | 'overseas' | 'unspecified';
 
   @ApiProperty({ description: '영업상태', enum: CRM_OPPORTUNITY_STATUSES })
   @IsString()

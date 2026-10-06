@@ -27,7 +27,8 @@ export function useAssistantMessageActions() {
         id: createAssistantMessageId(),
         role: 'assistant',
         kind: 'text',
-        text: `검색 중 오류가 발생했습니다. ${getErrorMessage(response)}`,
+        text: '',
+        error: `검색 중 오류가 발생했습니다. ${getErrorMessage(response)}`,
       });
       return;
     }
@@ -107,7 +108,7 @@ export function useAssistantMessageActions() {
       },
       onError: (assistantId, message) => {
         if (options?.shouldHandle && !options.shouldHandle()) return;
-        updateTextMessage(assistantId, () => message, false);
+        updateTextMessage(assistantId, (prev) => prev, false, message);
       },
     });
   }, [appendMessage, updateTextMessage]);

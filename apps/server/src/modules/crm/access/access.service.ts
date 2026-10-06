@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   CrmCustomerAccessFeatures,
   CrmCustomerAccessSnapshot,
@@ -14,6 +14,7 @@ import type {
 import { DatabaseService } from '../../../database/database.service.js';
 import { AccessFoundationService } from '../../common/access/access-foundation.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
 
 const CRM_OPPORTUNITY_OBJECT_TYPE = 'crm.opportunity';
 const CRM_CUSTOMER_OBJECT_TYPE = 'crm.customer';
@@ -39,6 +40,8 @@ const CRM_OPERATIONS_PERMISSION_CODES = {
 } as const;
 
 const CRM_DOMAIN_PERMISSION_CODES = {
+  businessYearRead: 'crm.business-year.read',
+  businessYearManage: 'crm.business-year.manage',
   contractRead: 'crm.contract.read',
   contractWrite: 'crm.contract.write',
   contractConfirm: 'crm.contract.confirm',
@@ -78,6 +81,8 @@ const OPERATIONS_CAPABILITY_ERROR_MESSAGES: Record<CrmOperationsCapabilityKey, s
 };
 
 const DOMAIN_CAPABILITY_ERROR_MESSAGES: Record<CrmDomainAccessCapabilityKey, string> = {
+  canReadBusinessYear: 'CRM 사업연도를 조회할 권한이 없습니다.',
+  canManageBusinessYear: 'CRM 사업연도를 관리할 권한이 없습니다.',
   canReadContract: 'CRM 계약을 조회할 권한이 없습니다.',
   canWriteContract: 'CRM 계약을 등록하거나 수정할 권한이 없습니다.',
   canConfirmContract: 'CRM 계약을 확정하거나 확정 해제할 권한이 없습니다.',
@@ -117,6 +122,8 @@ const buildOperationsFeatures = (enabled: boolean): CrmOperationsAccessFeatures 
 });
 
 const buildDomainFeatures = (enabled: boolean): CrmDomainAccessFeatures => ({
+  canReadBusinessYear: enabled,
+  canManageBusinessYear: enabled,
   canReadContract: enabled,
   canWriteContract: enabled,
   canConfirmContract: enabled,
@@ -144,6 +151,7 @@ interface CrmOpportunityAccessRow {
   opportunityGroupCode: string;
   ownerName: string;
   ownerUserId: bigint | null;
+  ownerOrganizationId: bigint | null;
 }
 
 interface CrmCustomerAccessRow {
@@ -151,6 +159,7 @@ interface CrmCustomerAccessRow {
   customerCode: string;
   ownerName: string;
   ownerUserId: bigint | null;
+  ownerOrganizationId: bigint | null;
 }
 
 @Injectable()
@@ -158,7 +167,50 @@ export class CrmAccessService {
   constructor(
     private readonly db: DatabaseService,
     private readonly accessFoundationService: AccessFoundationService,
+    private readonly admission: PlatformAdmissionService = new PlatformAdmissionService(db),
   ) {}
+
+  async businessOrganizationScope(user: TokenPayload): Promise<bigint[] | null> {
+    return this.accessFoundationService.getBusinessOrganizationScope(BigInt(user.userId), 'crm');
+  }
+
+  /** Aggregate workspaces need one explicit organization; only admitted legacy users retain the old unselected view. */
+  async resolveReadOrganization(user: TokenPayload, requestedId?: string): Promise<bigint | null> {
+    const scope = await this.businessOrganizationScope(user);
+    if (!requestedId) {
+      if (scope === null) return null;
+      if (scope.length === 1) return scope[0];
+      throw new BadRequestException({ code: 'BUSINESS_ORGANIZATION_REQUIRED', message: '조회할 업무 조직을 선택해 주세요.' });
+    }
+    if (!/^[1-9]\d{0,18}$/.test(requestedId) || BigInt(requestedId) > 9223372036854775807n) {
+      throw new BadRequestException('업무 조직 ID가 올바르지 않습니다.');
+    }
+    const id = BigInt(requestedId);
+    if (scope !== null && !scope.includes(id)) throw new ForbiddenException('해당 조직의 CRM 이용 승인이 필요합니다.');
+    return id;
+  }
+
+  async assertOrganizationCapability(user: TokenPayload, capability: CrmDomainAccessCapabilityKey, organizationId: bigint | null) {
+    const scope = await this.businessOrganizationScope(user);
+    const access = await this.getDomainAccess(user, organizationId);
+    if ((scope !== null && (organizationId === null || !scope.includes(organizationId))) || !access.features[capability]) {
+      throw new ForbiddenException(DOMAIN_CAPABILITY_ERROR_MESSAGES[capability]);
+    }
+  }
+
+  async actorForUser(userId?: bigint): Promise<TokenPayload> {
+    if (!userId) throw new ForbiddenException('CRM 작업자 인증이 필요합니다.');
+    const user = await this.db.client.user.findUnique({ where: { id: userId }, select: { authAccount: { select: { loginId: true } }, isActive: true } });
+    if (!user?.isActive || !user.authAccount) throw new ForbiddenException('CRM 작업자 인증이 필요합니다.');
+    return { userId: userId.toString(), loginId: user.authAccount.loginId };
+  }
+
+  async resolveWriteOrganization(userId: bigint | undefined, requestedId: string | undefined, capability: CrmDomainAccessCapabilityKey) {
+    const user = await this.actorForUser(userId);
+    const organizationId = await this.admission.resolveBusinessOrganization(BigInt(user.userId), 'crm', requestedId);
+    await this.assertOrganizationCapability(user, capability, organizationId);
+    return { user, organizationId };
+  }
 
   async getGlobalOpportunityAccess(user: TokenPayload): Promise<CrmOpportunityGlobalAccessSnapshot> {
     const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user);
@@ -185,7 +237,7 @@ export class CrmAccessService {
       throw new NotFoundException('CRM opportunity not found');
     }
 
-    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user);
+    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user, { serviceCode: 'crm', organizationId: row.ownerOrganizationId ?? null });
     const isOpportunityOwnerUserMatch = this.isOwnerUserMatch(row.ownerUserId, user);
     const isOpportunityOwnerNameMatch = this.isOwnerNameMatch(row.ownerName, user);
 
@@ -214,14 +266,17 @@ export class CrmAccessService {
       user,
       targetObjectType: CRM_OPPORTUNITY_OBJECT_TYPE,
       targetObjectId: row.opportunityCode,
+      targetOrganizationId: row.ownerOrganizationId ?? null,
       actionContext,
       domainGrantedPermissionCodes,
     });
 
+    const scope = await this.businessOrganizationScope(user);
+    const withinOrganization = scope === null || (row.ownerOrganizationId != null && scope.includes(row.ownerOrganizationId));
     return {
       opportunityId: row.opportunityCode,
       groupId: row.opportunityGroupCode,
-      features: this.buildFeaturesFromPermissionCodes(objectContext.grantedPermissionCodes),
+      features: withinOrganization ? this.buildFeaturesFromPermissionCodes(objectContext.grantedPermissionCodes) : buildOpportunityFeatures(false),
       roles: {
         isOpportunityOwnerUserMatch,
         isOpportunityOwnerNameMatch,
@@ -275,7 +330,7 @@ export class CrmAccessService {
       throw new NotFoundException('CRM customer not found');
     }
 
-    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user);
+    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user, { serviceCode: 'crm', organizationId: row.ownerOrganizationId ?? null });
     const isCustomerOwnerUserMatch = this.isOwnerUserMatch(row.ownerUserId, user);
     const isCustomerOwnerNameMatch = this.isOwnerNameMatch(row.ownerName, user);
 
@@ -308,14 +363,17 @@ export class CrmAccessService {
       user,
       targetObjectType: CRM_CUSTOMER_OBJECT_TYPE,
       targetObjectId: row.customerCode,
+      targetOrganizationId: row.ownerOrganizationId ?? null,
       actionContext,
       domainGrantedPermissionCodes,
     });
 
+    const scope = await this.businessOrganizationScope(user);
+    const withinOrganization = scope === null || (row.ownerOrganizationId != null && scope.includes(row.ownerOrganizationId));
     return {
       customerId: row.id.toString(),
       customerCode: row.customerCode,
-      features: this.buildCustomerFeaturesFromPermissionCodes(objectContext.grantedPermissionCodes),
+      features: withinOrganization ? this.buildCustomerFeaturesFromPermissionCodes(objectContext.grantedPermissionCodes) : buildCustomerFeatures(false),
       roles: {
         isCustomerOwnerUserMatch,
         isCustomerOwnerNameMatch,
@@ -366,8 +424,8 @@ export class CrmAccessService {
     };
   }
 
-  async getDomainAccess(user: TokenPayload): Promise<CrmDomainAccessSnapshot> {
-    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user);
+  async getDomainAccess(user: TokenPayload, organizationId?: bigint | null): Promise<CrmDomainAccessSnapshot> {
+    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user, organizationId === undefined ? undefined : { serviceCode: 'crm', organizationId });
     if (actionContext.policy.hasSystemOverride) {
       return {
         features: buildDomainFeatures(true),
@@ -379,6 +437,20 @@ export class CrmAccessService {
       features: this.buildDomainFeaturesFromPermissionCodes(actionContext.grantedPermissionCodes),
       policy: actionContext.policy,
     };
+  }
+
+  async assertContractCapability(user: TokenPayload, capability: CrmDomainAccessCapabilityKey, id: string) {
+    const numericId = /^[1-9]\d{0,18}$/.test(id) && BigInt(id) <= 9223372036854775807n ? BigInt(id) : null;
+    const row = await this.db.client.crmContract.findFirst({ where: { isActive: true, OR: [
+      { contractCode: id }, ...(numericId ? [{ id: numericId }] : []),
+    ] }, select: { ownerOrganizationId: true } });
+    if (!row) throw new NotFoundException('CRM contract not found');
+    const scope = await this.businessOrganizationScope(user);
+    const context = await this.accessFoundationService.resolveActionPermissionContext(user, { serviceCode: 'crm', organizationId: row.ownerOrganizationId });
+    if ((scope !== null && (row.ownerOrganizationId === null || !scope.includes(row.ownerOrganizationId)))
+      || (!context.policy.hasSystemOverride && !this.buildDomainFeaturesFromPermissionCodes(context.grantedPermissionCodes)[capability])) {
+      throw new ForbiddenException(DOMAIN_CAPABILITY_ERROR_MESSAGES[capability]);
+    }
   }
 
   async assertDomainCapability(
@@ -474,6 +546,9 @@ export class CrmAccessService {
       canReadQuoteSettings: permissionCodes.has(CRM_DOMAIN_PERMISSION_CODES.quoteSettingsRead)
         || canManageQuoteSettings,
       canManageQuoteSettings,
+      canReadBusinessYear: permissionCodes.has(CRM_DOMAIN_PERMISSION_CODES.businessYearRead)
+        || permissionCodes.has(CRM_DOMAIN_PERMISSION_CODES.businessYearManage),
+      canManageBusinessYear: permissionCodes.has(CRM_DOMAIN_PERMISSION_CODES.businessYearManage),
     };
   }
 
@@ -517,6 +592,7 @@ export class CrmAccessService {
         opportunityGroupCode: true,
         ownerName: true,
         ownerUserId: true,
+        ownerOrganizationId: true,
       },
     }) as Promise<CrmOpportunityAccessRow | null>;
   }
@@ -538,6 +614,7 @@ export class CrmAccessService {
         customerCode: true,
         ownerName: true,
         ownerUserId: true,
+        ownerOrganizationId: true,
       },
     }) as Promise<CrmCustomerAccessRow | null>;
   }

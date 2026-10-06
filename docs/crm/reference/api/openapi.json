@@ -4,7 +4,17 @@
     "/api/crm/access/me": {
       "get": {
         "operationId": "CrmAccessController_myAccess",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "ownerOrganizationId",
+            "required": false,
+            "in": "query",
+            "description": "대상 업무 조직 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "공용 permission resolution 기반 CRM 도메인 접근 스냅샷"
@@ -21,10 +31,137 @@
         ]
       }
     },
+    "/api/crm/business-years": {
+      "get": {
+        "operationId": "BusinessYearController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CRM 사업연도 목록 조회",
+        "tags": [
+          "crm-business-years"
+        ]
+      },
+      "post": {
+        "operationId": "BusinessYearController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBusinessYearDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CRM 사업연도 추가",
+        "tags": [
+          "crm-business-years"
+        ]
+      }
+    },
+    "/api/crm/business-years/{id}": {
+      "put": {
+        "operationId": "BusinessYearController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBusinessYearDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CRM 사업연도 활성·비활성 변경",
+        "tags": [
+          "crm-business-years"
+        ]
+      },
+      "delete": {
+        "operationId": "BusinessYearController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "비활성 CRM 사업연도 삭제",
+        "tags": [
+          "crm-business-years"
+        ]
+      }
+    },
     "/api/crm/opportunities": {
       "get": {
         "operationId": "OpportunityController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "원천 현황의 표시 필드 검색·DC/절사 전 금액 정렬. 응답 원장 금액은 유지합니다.",
+            "schema": {
+              "enum": [
+                "source-list"
+              ],
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "CRM 영업기회 목록과 요약",
@@ -214,6 +351,15 @@
             "name": "id",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "templateKey",
+            "required": false,
+            "in": "query",
+            "description": "선택한 DOCX 템플릿의 준비 상태와 파일명 확인",
             "schema": {
               "type": "string"
             }
@@ -878,7 +1024,36 @@
     "/api/crm/contracts": {
       "get": {
         "operationId": "ContractController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "updated-desc",
+                "created-desc",
+                "customer-asc",
+                "revenue-desc",
+                "margin-desc",
+                "start-asc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "원천 계약현황의 검색·원값 금액·정렬 기준",
+            "schema": {
+              "enum": [
+                "source-list"
+              ],
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "CRM 계약 목록과 요약"
@@ -964,6 +1139,20 @@
         "operationId": "ContractController_monthlyPerformance",
         "parameters": [
           {
+            "name": "mode",
+            "required": false,
+            "in": "query",
+            "description": "원천 화면은 계약명만 검색, 기본 운영 화면은 고객사/WBS 등을 함께 검색",
+            "schema": {
+              "default": "operations",
+              "type": "string",
+              "enum": [
+                "operations",
+                "source-compatible"
+              ]
+            }
+          },
+          {
             "name": "year",
             "required": false,
             "in": "query",
@@ -1004,7 +1193,8 @@
               "enum": [
                 "all",
                 "domestic",
-                "overseas"
+                "overseas",
+                "unspecified"
               ]
             }
           },
@@ -2187,6 +2377,16 @@
         "operationId": "BusinessPlanController_plans",
         "parameters": [
           {
+            "name": "ownerOrganizationId",
+            "required": false,
+            "in": "query",
+            "description": "업무 조직 ID",
+            "schema": {
+              "maxLength": 19,
+              "type": "string"
+            }
+          },
+          {
             "name": "baseYear",
             "required": false,
             "in": "query",
@@ -2316,6 +2516,107 @@
         ]
       }
     },
+    "/api/crm/business-plan/carry-contracts": {
+      "get": {
+        "operationId": "BusinessPlanController_carryContracts",
+        "parameters": [
+          {
+            "name": "ownerOrganizationId",
+            "required": false,
+            "in": "query",
+            "description": "업무 조직 ID",
+            "schema": {
+              "maxLength": 19,
+              "type": "string"
+            }
+          },
+          {
+            "name": "baseYear",
+            "required": false,
+            "in": "query",
+            "description": "3개년 preview 시작 사업년도",
+            "schema": {
+              "default": 2026,
+              "type": "number"
+            }
+          },
+          {
+            "name": "businessType",
+            "required": false,
+            "in": "query",
+            "description": "사업구분",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "industryLine",
+            "required": false,
+            "in": "query",
+            "description": "계열/산업 구분",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "region",
+            "required": false,
+            "in": "query",
+            "description": "국내/해외",
+            "schema": {
+              "default": "all",
+              "type": "string",
+              "enum": [
+                "all",
+                "domestic",
+                "overseas",
+                "unspecified"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "고객/건명/담당자/WBS 검색어",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "name": "method",
+            "required": false,
+            "in": "query",
+            "description": "진행 계약 배분 기준",
+            "schema": {
+              "default": "billing",
+              "type": "string",
+              "enum": [
+                "billing",
+                "progress"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "청구계획 또는 진행률 기준 계약별 입력값 (미저장)"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "전년부터 진행 중인 확정 계약의 사업계획 입력 후보",
+        "tags": [
+          "crm-business-plan"
+        ]
+      }
+    },
     "/api/crm/business-plan/plans/{id}/versions": {
       "post": {
         "operationId": "BusinessPlanController_createVersion",
@@ -2339,7 +2640,7 @@
             "bearer": []
           }
         ],
-        "summary": "최신 확정 CRM 사업계획을 다음 draft 차수로 복사",
+        "summary": "최신 CRM 사업계획을 다음 draft 차수로 복사",
         "tags": [
           "crm-business-plan"
         ]
@@ -2379,6 +2680,43 @@
           }
         ],
         "summary": "최신 draft 사업계획 행 추가",
+        "tags": [
+          "crm-business-plan"
+        ]
+      },
+      "put": {
+        "operationId": "BusinessPlanController_saveRows",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrmBusinessPlanBulkRowsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "전체 행 저장이 반영된 사업계획 차수"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "최신 draft 사업계획 여러 행을 한 트랜잭션으로 저장",
         "tags": [
           "crm-business-plan"
         ]
@@ -2694,6 +3032,16 @@
         "operationId": "BusinessPlanController_preview",
         "parameters": [
           {
+            "name": "ownerOrganizationId",
+            "required": false,
+            "in": "query",
+            "description": "업무 조직 ID",
+            "schema": {
+              "maxLength": 19,
+              "type": "string"
+            }
+          },
+          {
             "name": "baseYear",
             "required": false,
             "in": "query",
@@ -2734,7 +3082,8 @@
               "enum": [
                 "all",
                 "domestic",
-                "overseas"
+                "overseas",
+                "unspecified"
               ]
             }
           },
@@ -2776,13 +3125,25 @@
         "operationId": "BusinessPlanController_performancePreview",
         "parameters": [
           {
+            "name": "ownerOrganizationId",
+            "required": false,
+            "in": "query",
+            "description": "업무 조직 ID",
+            "schema": {
+              "maxLength": 19,
+              "type": "string"
+            }
+          },
+          {
             "name": "year",
             "required": false,
             "in": "query",
             "description": "사업계획대비실적 preview 기준 사업년도",
             "schema": {
+              "minimum": 2000,
+              "maximum": 2100,
               "default": 2026,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -2830,7 +3191,8 @@
               "enum": [
                 "all",
                 "domestic",
-                "overseas"
+                "overseas",
+                "unspecified"
               ]
             }
           },
@@ -2872,6 +3234,16 @@
         "operationId": "CostPlanController_preview",
         "parameters": [
           {
+            "name": "ownerOrganizationId",
+            "required": false,
+            "in": "query",
+            "description": "업무 조직 ID",
+            "schema": {
+              "maxLength": 19,
+              "type": "string"
+            }
+          },
+          {
             "name": "year",
             "required": false,
             "in": "query",
@@ -2912,7 +3284,8 @@
               "enum": [
                 "all",
                 "domestic",
-                "overseas"
+                "overseas",
+                "unspecified"
               ]
             }
           },
@@ -2954,6 +3327,16 @@
         "operationId": "CostPlanController_accountingPaymentPreview",
         "parameters": [
           {
+            "name": "ownerOrganizationId",
+            "required": false,
+            "in": "query",
+            "description": "업무 조직 ID",
+            "schema": {
+              "maxLength": 19,
+              "type": "string"
+            }
+          },
+          {
             "name": "year",
             "required": false,
             "in": "query",
@@ -2994,7 +3377,8 @@
               "enum": [
                 "all",
                 "domestic",
-                "overseas"
+                "overseas",
+                "unspecified"
               ]
             }
           },
@@ -3942,6 +4326,16 @@
         "operationId": "ReportsController_preview",
         "parameters": [
           {
+            "name": "ownerOrganizationId",
+            "required": false,
+            "in": "query",
+            "description": "보고 업무 조직 ID",
+            "schema": {
+              "maxLength": 19,
+              "type": "string"
+            }
+          },
+          {
             "name": "year",
             "required": false,
             "in": "query",
@@ -3984,7 +4378,8 @@
               "enum": [
                 "all",
                 "domestic",
-                "overseas"
+                "overseas",
+                "unspecified"
               ]
             }
           },
@@ -4110,6 +4505,32 @@
       }
     },
     "schemas": {
+      "CreateBusinessYearDto": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "number",
+            "description": "CRM 사업연도",
+            "minimum": 2000,
+            "maximum": 2100
+          }
+        },
+        "required": [
+          "year"
+        ]
+      },
+      "UpdateBusinessYearDto": {
+        "type": "object",
+        "properties": {
+          "isActive": {
+            "type": "boolean",
+            "description": "사업연도 활성 상태"
+          }
+        },
+        "required": [
+          "isActive"
+        ]
+      },
       "CrmOpportunityContractDocumentDraftDto": {
         "type": "object",
         "properties": {
@@ -4339,6 +4760,11 @@
       "CrmOpportunityUpsertDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "승인된 업무 조직 ID (신규 필수, 한 조직만 있으면 자동 선택)",
+            "maxLength": 19
+          },
           "customerName": {
             "type": "string",
             "description": "고객사명",
@@ -4374,7 +4800,8 @@
             "description": "국내/해외",
             "enum": [
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ]
           },
           "status": {
@@ -4646,6 +5073,11 @@
       "CrmContractUpsertDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "승인된 업무 조직 ID (신규 필수, 한 조직만 있으면 자동 선택)",
+            "maxLength": 19
+          },
           "sourceOpportunityId": {
             "type": "string",
             "description": "전환 원천 영업기회 ID"
@@ -4694,7 +5126,8 @@
             "description": "국내/해외",
             "enum": [
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ]
           },
           "status": {
@@ -4710,11 +5143,11 @@
           },
           "contractStartDate": {
             "type": "string",
-            "description": "계약 시작일(YYYY-MM-DD)"
+            "description": "계약 시작일(YYYY-MM-DD). 임시 저장 시 빈 문자열 허용, 확정 시 필수"
           },
           "contractEndDate": {
             "type": "string",
-            "description": "계약 종료일(YYYY-MM-DD)"
+            "description": "계약 종료일(YYYY-MM-DD). 임시 저장 시 빈 문자열 허용, 확정 시 필수"
           },
           "wbsCode": {
             "type": "string",
@@ -4972,6 +5405,11 @@
       "CrmCustomerUpsertDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "승인된 업무 조직 ID (신규 필수, 한 조직만 있으면 자동 선택)",
+            "maxLength": 19
+          },
           "customerName": {
             "type": "string",
             "description": "고객사명",
@@ -5199,6 +5637,11 @@
       "CrmBusinessPlanSnapshotDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "baseYear": {
             "type": "number",
             "description": "3개년 preview 시작 사업년도",
@@ -5220,7 +5663,8 @@
             "enum": [
               "all",
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ],
             "default": "all"
           },
@@ -5228,6 +5672,11 @@
             "type": "string",
             "description": "고객/건명/담당자/WBS 검색어",
             "maxLength": 200
+          },
+          "empty": {
+            "type": "boolean",
+            "description": "후보 없이 빈 최초 차수 생성",
+            "default": false
           },
           "planName": {
             "type": "string",
@@ -5244,6 +5693,11 @@
       "CrmBusinessPlanCarryForwardDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "baseYear": {
             "type": "number",
             "description": "3개년 preview 시작 사업년도",
@@ -5265,7 +5719,8 @@
             "enum": [
               "all",
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ],
             "default": "all"
           },
@@ -5273,6 +5728,11 @@
             "type": "string",
             "description": "고객/건명/담당자/WBS 검색어",
             "maxLength": 200
+          },
+          "empty": {
+            "type": "boolean",
+            "description": "후보 없이 빈 최초 차수 생성",
+            "default": false
           },
           "planName": {
             "type": "string",
@@ -5314,7 +5774,8 @@
             "description": "국내/해외",
             "enum": [
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ]
           },
           "businessName": {
@@ -5381,6 +5842,118 @@
           "followingYearExternalCostAmount"
         ]
       },
+      "CrmBusinessPlanBulkRowDto": {
+        "type": "object",
+        "properties": {
+          "businessType": {
+            "type": "string",
+            "description": "사업구분",
+            "maxLength": 120
+          },
+          "industryLine": {
+            "type": "string",
+            "description": "계열/산업 구분",
+            "maxLength": 120
+          },
+          "ownerName": {
+            "type": "string",
+            "description": "담당자",
+            "maxLength": 100
+          },
+          "region": {
+            "type": "string",
+            "description": "국내/해외",
+            "enum": [
+              "domestic",
+              "overseas",
+              "unspecified"
+            ]
+          },
+          "businessName": {
+            "type": "string",
+            "description": "사업명",
+            "maxLength": 200
+          },
+          "wbsCode": {
+            "type": "string",
+            "description": "WBS 코드",
+            "maxLength": 120
+          },
+          "monthlyRevenueAmounts": {
+            "description": "기준년도 1~12월 계획 매출",
+            "minItems": 12,
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "monthlyExternalCostAmounts": {
+            "description": "기준년도 1~12월 계획 외부원가",
+            "minItems": 12,
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "nextYearRevenueAmount": {
+            "type": "number",
+            "description": "차년도 연간 계획 매출"
+          },
+          "nextYearExternalCostAmount": {
+            "type": "number",
+            "description": "차년도 연간 계획 외부원가"
+          },
+          "followingYearRevenueAmount": {
+            "type": "number",
+            "description": "차차년도 연간 계획 매출"
+          },
+          "followingYearExternalCostAmount": {
+            "type": "number",
+            "description": "차차년도 연간 계획 외부원가"
+          },
+          "memo": {
+            "type": "string",
+            "description": "행 메모",
+            "maxLength": 1000
+          },
+          "rowCode": {
+            "type": "string",
+            "description": "수정할 기존 행 코드. 생략하면 새 행",
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "businessType",
+          "industryLine",
+          "ownerName",
+          "region",
+          "businessName",
+          "monthlyRevenueAmounts",
+          "monthlyExternalCostAmounts",
+          "nextYearRevenueAmount",
+          "nextYearExternalCostAmount",
+          "followingYearRevenueAmount",
+          "followingYearExternalCostAmount"
+        ]
+      },
+      "CrmBusinessPlanBulkRowsDto": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmBusinessPlanBulkRowDto"
+            }
+          }
+        },
+        "required": [
+          "rows"
+        ]
+      },
       "CrmBusinessPlanRowWbsUpdateDto": {
         "type": "object",
         "properties": {
@@ -5425,6 +5998,11 @@
       "CrmBusinessPlanPerformanceActualInputDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "year": {
             "type": "number",
             "description": "사업계획대비실적 직접 입력 기준년도",
@@ -5450,7 +6028,8 @@
             "description": "국내/해외",
             "enum": [
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ],
             "default": "domestic"
           },
@@ -5487,6 +6066,11 @@
       "CrmCostPlanAccountingPaymentHandoffDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "year": {
             "type": "number",
             "description": "사업년도",
@@ -5508,7 +6092,8 @@
             "enum": [
               "all",
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ],
             "default": "all"
           },
@@ -5601,6 +6186,11 @@
       "CrmCostPlanInternalMonthlyInputDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "targetYear": {
             "type": "number",
             "description": "입력 대상 사업년도",
@@ -5626,7 +6216,8 @@
             "description": "국내/해외",
             "enum": [
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ]
           },
           "wbsCode": {
@@ -5710,6 +6301,11 @@
       "CrmCostPlanInternalSourceGridDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "targetYear": {
             "type": "number",
             "description": "입력 대상 사업년도",
@@ -5733,6 +6329,11 @@
       "CrmCostPlanAmsSourceVendorCreateDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "targetYear": {
             "type": "number",
             "description": "공급업체 대상 사업년도",
@@ -5752,6 +6353,11 @@
       "CrmCostPlanAmsSourceVendorWbsDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "targetYear": {
             "type": "number",
             "description": "공급업체 대상 사업년도",
@@ -5811,6 +6417,11 @@
       "CrmCostPlanAmsSourceExternalCostDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "targetYear": {
             "type": "number",
             "description": "외부원가 대상 사업년도",
@@ -5832,6 +6443,11 @@
       "CrmCostPlanAmsVendorWbsMappingDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "targetYear": {
             "type": "number",
             "description": "매핑 대상 사업년도",
@@ -5857,7 +6473,8 @@
             "description": "국내/해외",
             "enum": [
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ]
           },
           "wbsCode": {
@@ -5894,6 +6511,11 @@
       "CrmCostPlanAmsExternalMonthlyInputDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "업무 조직 ID",
+            "maxLength": 19
+          },
           "targetYear": {
             "type": "number",
             "description": "입력 대상 사업년도",
@@ -5919,7 +6541,8 @@
             "description": "국내/해외",
             "enum": [
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ]
           },
           "wbsCode": {
@@ -6037,6 +6660,11 @@
       "CrmReportsConfirmDto": {
         "type": "object",
         "properties": {
+          "ownerOrganizationId": {
+            "type": "string",
+            "description": "보고 업무 조직 ID",
+            "maxLength": 19
+          },
           "year": {
             "type": "number",
             "description": "조회 사업년도",
@@ -6060,7 +6688,8 @@
             "enum": [
               "all",
               "domestic",
-              "overseas"
+              "overseas",
+              "unspecified"
             ],
             "default": "all"
           },
@@ -6075,6 +6704,111 @@
             "maxLength": 1000
           }
         }
+      },
+      "CreateOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "membership",
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "parentOrganizationId": {
+            "type": "string"
+          },
+          "organizationName": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "message"
+        ]
+      },
+      "DecideOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "message"
+        ]
+      },
+      "SetApprovalAuthorityDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "authorityKind": {
+            "type": "string",
+            "enum": [
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "maxRoleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "authorityKind",
+          "maxRoleCode"
+        ]
       },
       "UpdateRolePermissionsDto": {
         "type": "object",

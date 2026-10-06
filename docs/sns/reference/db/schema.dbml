@@ -1,0 +1,489 @@
+//// ------------------------------------------------------
+
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+
+//// ------------------------------------------------------
+
+Table sns_board_m {
+  id BigInt [pk, increment]
+  boardCode String [unique, not null]
+  boardName String [not null]
+  boardType String [not null]
+  description String
+  sortOrder Int [not null, default: 0]
+  isDefault Boolean [not null, default: false]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  categories sns_board_category_m [not null]
+  posts sns_post_m [not null]
+}
+
+Table sns_board_h {
+  boardId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  boardCode String [not null]
+  boardName String [not null]
+  boardType String [not null]
+  description String
+  sortOrder Int [not null]
+  isDefault Boolean [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (boardId, historySeq) [pk]
+  }
+}
+
+Table sns_board_category_m {
+  id BigInt [pk, increment]
+  boardId BigInt [not null]
+  categoryName String [not null]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  board sns_board_m [not null]
+  posts sns_post_m [not null]
+}
+
+Table sns_post_m {
+  id BigInt [pk, increment]
+  authorUserId BigInt [not null]
+  boardId BigInt
+  categoryId BigInt
+  title String
+  content String [not null]
+  contentType String [not null, default: 'text']
+  visibilityScopeCode String [not null, default: 'public']
+  targetOrgId BigInt
+  isPinned Boolean [not null, default: false]
+  viewCount Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  board sns_board_m
+  category sns_board_category_m
+  comments sns_comment_m [not null]
+  reactions sns_reaction_m [not null]
+  postTags sns_post_tag_r [not null]
+  mentions sns_mention_m [not null]
+  attachments sns_attachment_m [not null]
+  bookmarks sns_bookmark_m [not null]
+  accessRequests sns_post_access_request_m [not null]
+}
+
+Table sns_post_h {
+  postId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  authorUserId BigInt [not null]
+  boardId BigInt
+  categoryId BigInt
+  title String
+  content String [not null]
+  contentType String [not null]
+  visibilityScopeCode String [not null]
+  targetOrgId BigInt
+  isPinned Boolean [not null]
+  viewCount Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (postId, historySeq) [pk]
+  }
+}
+
+Table sns_comment_m {
+  id BigInt [pk, increment]
+  postId BigInt [not null]
+  authorUserId BigInt [not null]
+  parentCommentId BigInt
+  content String [not null]
+  depth Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  post sns_post_m [not null]
+  parentComment sns_comment_m
+  childComments sns_comment_m [not null]
+  reactions sns_reaction_m [not null]
+  mentions sns_mention_m [not null]
+}
+
+Table sns_comment_h {
+  commentId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  postId BigInt [not null]
+  authorUserId BigInt [not null]
+  parentCommentId BigInt
+  content String [not null]
+  depth Int [not null]
+  isActive Boolean [not null]
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (commentId, historySeq) [pk]
+  }
+}
+
+Table sns_reaction_m {
+  id BigInt [pk, increment]
+  userId BigInt [not null]
+  postId BigInt
+  commentId BigInt
+  reactionType String [not null, default: 'like']
+  createdAt DateTime [default: `now()`, not null]
+  post sns_post_m
+  comment sns_comment_m
+
+  indexes {
+    (userId, postId, reactionType) [unique]
+    (userId, commentId, reactionType) [unique]
+  }
+}
+
+Table sns_tag_m {
+  id BigInt [pk, increment]
+  tagName String [unique, not null]
+  usageCount Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  createdAt DateTime [default: `now()`, not null]
+  postTags sns_post_tag_r [not null]
+}
+
+Table sns_post_tag_r {
+  postId BigInt [not null]
+  tagId BigInt [not null]
+  createdAt DateTime [default: `now()`, not null]
+  post sns_post_m [not null]
+  tag sns_tag_m [not null]
+
+  indexes {
+    (postId, tagId) [pk]
+  }
+}
+
+Table sns_mention_m {
+  id BigInt [pk, increment]
+  mentionedUserId BigInt [not null]
+  postId BigInt
+  commentId BigInt
+  createdAt DateTime [default: `now()`, not null]
+  post sns_post_m
+  comment sns_comment_m
+}
+
+Table sns_attachment_m {
+  id BigInt [pk, increment]
+  postId BigInt [not null]
+  fileName String [not null]
+  filePath String [not null]
+  fileSize BigInt [not null]
+  mimeType String [not null]
+  sortOrder Int [not null, default: 0]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  post sns_post_m [not null]
+}
+
+Table sns_user_profile_m {
+  id BigInt [pk, increment]
+  userId BigInt [unique, not null]
+  bio String
+  coverImageUrl String
+  linkedinUrl String
+  websiteUrl String
+  isActive Boolean [not null, default: true]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  userSkills sns_user_skill_r [not null]
+  careers sns_user_career_m [not null]
+  endorsementsReceived sns_endorsement_m [not null]
+}
+
+Table sns_user_profile_h {
+  profileId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  userId BigInt [not null]
+  bio String
+  coverImageUrl String
+  linkedinUrl String
+  websiteUrl String
+  isActive Boolean [not null]
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (profileId, historySeq) [pk]
+  }
+}
+
+Table sns_skill_m {
+  id BigInt [pk, increment]
+  skillName String [unique, not null]
+  skillCategory String [not null]
+  parentSkillId BigInt
+  description String
+  synonyms String[] [not null]
+  isActive Boolean [not null, default: true]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  parentSkill sns_skill_m
+  childSkills sns_skill_m [not null]
+  userSkills sns_user_skill_r [not null]
+  endorsements sns_endorsement_m [not null]
+}
+
+Table sns_user_skill_r {
+  id BigInt [pk, increment]
+  profileId BigInt [not null]
+  skillId BigInt [not null]
+  proficiencyLevel Int [not null, default: 1]
+  yearsOfExperience Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  profile sns_user_profile_m [not null]
+  skill sns_skill_m [not null]
+  endorsements sns_endorsement_m [not null]
+
+  indexes {
+    (profileId, skillId) [unique]
+  }
+}
+
+Table sns_user_career_m {
+  id BigInt [pk, increment]
+  profileId BigInt [not null]
+  projectId BigInt
+  companyName String
+  projectName String [not null]
+  roleName String [not null]
+  description String
+  startDate DateTime [not null]
+  endDate DateTime
+  isActive Boolean [not null, default: true]
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  profile sns_user_profile_m [not null]
+}
+
+Table sns_endorsement_m {
+  id BigInt [pk, increment]
+  endorserUserId BigInt [not null]
+  endorseeProfileId BigInt [not null]
+  userSkillId BigInt [not null]
+  skillId BigInt [not null]
+  comment String
+  createdAt DateTime [default: `now()`, not null]
+  endorseeProfile sns_user_profile_m [not null]
+  userSkill sns_user_skill_r [not null]
+  skill sns_skill_m [not null]
+
+  indexes {
+    (endorserUserId, userSkillId) [unique]
+  }
+}
+
+Table sns_follow_r {
+  id BigInt [pk, increment]
+  followerUserId BigInt [not null]
+  followingUserId BigInt [not null]
+  createdAt DateTime [default: `now()`, not null]
+
+  indexes {
+    (followerUserId, followingUserId) [unique]
+  }
+}
+
+Table sns_bookmark_m {
+  id BigInt [pk, increment]
+  userId BigInt [not null]
+  postId BigInt [not null]
+  createdAt DateTime [default: `now()`, not null]
+  post sns_post_m [not null]
+
+  indexes {
+    (userId, postId) [unique]
+  }
+}
+
+Table sns_notification_m {
+  id BigInt [pk, increment]
+  recipientUserId BigInt [not null]
+  actorUserId BigInt [not null]
+  notificationType String [not null]
+  referenceType String [not null]
+  referenceId BigInt [not null]
+  message String [not null]
+  isRead Boolean [not null, default: false]
+  readAt DateTime
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table sns_post_access_request_m {
+  id BigInt [pk, increment]
+  postId BigInt [not null]
+  requesterUserId BigInt [not null]
+  requestedRole String [not null, default: 'read']
+  statusCode String [not null, default: 'pending']
+  requestMessage String [not null]
+  decidedBy BigInt
+  decidedAt DateTime
+  decisionMessage String
+  expiresAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  post sns_post_m [not null]
+  requester cm_user_m [not null]
+}
+
+Table sns_post_access_request_h {
+  id BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  postId BigInt [not null]
+  requesterUserId BigInt [not null]
+  requestedRole String [not null, default: 'read']
+  statusCode String [not null, default: 'pending']
+  requestMessage String [not null]
+  decidedBy BigInt
+  decidedAt DateTime
+  decisionMessage String
+  expiresAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (id, historySeq) [pk]
+  }
+}
+
+Ref: sns_board_category_m.boardId > sns_board_m.id [delete: Cascade]
+
+Ref: sns_post_m.boardId > sns_board_m.id [delete: Set Null]
+
+Ref: sns_post_m.categoryId > sns_board_category_m.id [delete: Set Null]
+
+Ref: sns_comment_m.postId > sns_post_m.id [delete: Cascade]
+
+Ref: sns_reaction_m.postId > sns_post_m.id [delete: Cascade]
+
+Ref: sns_reaction_m.commentId > sns_comment_m.id [delete: Cascade]
+
+Ref: sns_post_tag_r.postId > sns_post_m.id [delete: Cascade]
+
+Ref: sns_post_tag_r.tagId > sns_tag_m.id [delete: Cascade]
+
+Ref: sns_mention_m.postId > sns_post_m.id [delete: Cascade]
+
+Ref: sns_mention_m.commentId > sns_comment_m.id [delete: Cascade]
+
+Ref: sns_attachment_m.postId > sns_post_m.id [delete: Cascade]
+
+Ref: sns_user_skill_r.profileId > sns_user_profile_m.id [delete: Cascade]
+
+Ref: sns_user_skill_r.skillId > sns_skill_m.id [delete: Cascade]
+
+Ref: sns_user_career_m.profileId > sns_user_profile_m.id [delete: Cascade]
+
+Ref: sns_endorsement_m.endorseeProfileId > sns_user_profile_m.id [delete: Cascade]
+
+Ref: sns_endorsement_m.userSkillId > sns_user_skill_r.id [delete: Cascade]
+
+Ref: sns_endorsement_m.skillId > sns_skill_m.id [delete: Cascade]
+
+Ref: sns_bookmark_m.postId > sns_post_m.id [delete: Cascade]
+
+Ref: sns_post_access_request_m.postId > sns_post_m.id [delete: Restrict]

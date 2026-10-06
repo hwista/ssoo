@@ -1,5 +1,33 @@
 # DMS 변경 이력
 
+2026-10-02 실제 조직 공개 저장 후속: 컬럼만 갱신되어 문서 동기화가 공개 범위를 되돌리던 결함을 정본 메타데이터 동시 갱신으로 수정했다. 회귀 3개와 실제 DB 반복 동기화 보존을 확인했다. 모바일 설정의 최초 로딩 뒤 너비 측정 누락도 공용 화면 틀에서 수정해 조직 선택/저장과 데스크톱 색인 복원을 검증했다.
+
+2026-10-02 검증 실패 복구: 권한 요청 상태 조회 실패 안내를 공용 `SsooErrorNotice`로 연결했다. 기존 설명·메모 보존·재시도 동작을 유지하며 raw alert 우회 검사를 해소했다. CRM 재개 과정에서 중단됐던 전체 서버 회귀는 97묶음·739테스트 재실행 통과, 전체 preflight와 공용 오류 템플릿 61검사 통과. 격리 DMS guard/production 빌드와 실제 컴포넌트 브라우저 9검사도 통과했다. 최종 결과는 [복구 검수 기록](../../crm/planning/2026-09-30-menu-functional-audit.md)을 따른다.
+
+2026-10-02 복구 후 실제 격리 DB·두 계정 승인/회수·grant 만료·SSE/WebSocket·알림 원문 차단 검증을 수행했다. 검색 신청 상태가 현재 grant의 회수/만료를 반영하고, 요청 창이 최신 상태를 조회하며 공용 오류 안내와 재시도를 유지하도록 보완했다. 기존 검색 발견 정책과 이미 읽은 본문의 즉시 원격 삭제 비보장은 유지한다. [실행 결과와 한계](../../common/explanation/architecture/2026-10-01-onboarding-implementation.md). Docker 미반영.
+
+2026-10-02 공용 알림 후속: 목록·읽음 응답·SSE 전달에서 현재 문서 ACL을 재검사한다. 권한 없는 원문 정보는 가리고 읽음 이력·승인/회수 상태와 안전한 설정 진입을 유지한다. 로컬 단위 및 모의 API 브라우저 검증과 실제 DB 검증 잔여를 [구현 대장](../../common/explanation/architecture/2026-10-01-onboarding-implementation.md)에 구분했다.
+
+2026-10-02 온보딩 공유 후속: 승인 조직 선택과 개인/조직/전체 공개 API·UI, CRM 생성 문서의 개인 소유/출처 조직 공개, WebSocket 전달 시 현재 권한 재검사를 구현했다. PostgreSQL I/O·Docker API 장애로 새 DB·브라우저 회귀는 미완료이며 Docker 미반영이다. [구현 대장](../../common/explanation/architecture/2026-10-01-onboarding-implementation.md).
+
+2026-10-01 공용 온보딩 1차: DMS를 포함한 5앱 providers에 참여·서비스 승인 boundary를 연결하고 AI adapter가 원본 문서의 현재 ACL을 재확인하도록 추가했다. 문서 소유·개별 공유 동작은 유지하며 조직 공개 대상 누락 이전과 업무 문서 자동 조직 공개는 [공용 구현 대장](../../common/explanation/architecture/2026-10-01-onboarding-implementation.md)의 후속 단계다. 실제 DB/Docker 미반영.
+
+2026-10-01 플랫폼 배포 로컬 구현: GitLab 최신 복구 9개 commit/17개 파일을 개발본과 내용 병합했다. core와 5앱 readiness, 플랫폼 guard, 서비스별 불변 이미지·설정 manifest, 변경분 build, 실제 백업 clone 리허설 및 DB 변경 없는 경우에 한정한 rollback을 추가했다. 원격 배포·기존 DB baseline 전환은 미실행이며 [활성화 조건](../../common/explanation/architecture/2026-10-01-deployment-design.md)을 따른다.
+
+2026-09-30 준운영 배포 재발 방지 계획: 오늘 장애(#176~#184)에서 배포하면서 결함을 발견하던 흐름을 막기 위해 build 전 배포 리허설 stage, 무중단 배포 순서·rollback compose snapshot, 변경 서비스만 빌드, 진단 stage 정리, 준운영 보안 후속을 [실행 계획](2026-09-30-staging-deploy-hardening-plan.md)으로 정리했다. 구현 대기.
+
+2026-09-30 준운영 db push 대상 host: pipeline #183 deploy에서 compat SQL·protected baseline·기본키 정규화는 통과했으나, 준운영 DB URL host가 compose `container_name`인 `ssoo-postgres`라 guarded `db push`가 거부됐다. 같은 compose postgres 컨테이너를 가리키는 `ssoo-postgres`를 허용 host에 추가하고, 리허설도 실제 host 이름으로 2회 연속 완료를 확인했다.
+
+2026-09-30 준운영 db-init 호환 경로 복구: pipeline #179/#182 deploy에서 새 `db-init`이 compat SQL의 비보호 legacy 컬럼 참조(`snapshot_json`)로 `exit 3` 실패했다. 배포 중인 `cbd9d7e0` 상태를 WSL PostgreSQL에 재현(서버 진단과 schema별 table 수 일치)한 리허설로 후속 결함 3건(`ranker_code` 참조, protected baseline `pk_*` 기본키 이름으로 인한 Prisma `db push` 문법 오류, 이전 history trigger의 seed 이력 NOT NULL 위반)을 함께 찾아 수정했고, 수정 후 `db-init` 2회 연속 `✅ complete`를 확인했다. 상세 절차는 [AI/RAG runtime runbook](../../common/guides/ai-rag-runtime-runbook.md)의 DB Init Modes에 기록한다.
+
+2026-09-30 준운영 배포 overlay: GitLab deploy가 `compose.yaml`만 사용해, 강화된 base(`AUTH_ALLOW_INSECURE_PRODUCTION_DEFAULTS` 기본 `false`, `DMS_INSTANCE_ENV: ""`)에서 server가 config validation으로 기동하지 못했다. 준운영 서버 전용 `compose.staging.yaml`로 #160 당시 동작(검증 우회, DMS `prod` 역할·`LSWIKI_DOC`)을 명시 overlay로 보존하고 pipeline `COMPOSE_FILE`로 적용한다. 진단 trace는 모든 URL의 userinfo 비밀번호를 마스킹한다.
+
+2026-09-30 CI runtime 진단: pipeline #179 deploy에서 새 `db-init`이 `exit 3`으로 실패하고 rollback한 이전 server도 unhealthy가 되었지만, rollback이 container를 재생성해 실패 로그가 사라졌다. deploy 실패 직후·rollback 실패 시 읽기 전용 진단(container 상태·health·로그·DB migration 이력, 비밀값 마스킹)을 trace에 남기고, 같은 진단을 `diagnose_runtime` manual job으로 제공한다.
+
+2026-09-30 CI build secret 권한: image 정리 후 처음 진행된 build가 Buildx filesystem entitlement(`fs.read=/dev/null`) 요구로 중단되던 문제를 compose 최상위 secret 파일 경로만 명시 허용해 복구했다. 상세는 아래 2026-09-30 항목에 기록한다.
+
+2026-09-30 CI runner image 정리: Docker 용량 부족으로 `verify`가 반복 실패하던 문제를 서비스별 최근 commit build 3개·`ci-backup` 2개 보관 정책으로 복구했다. 사용 중·현재 `latest`·현재 pipeline SHA·last-backup manifest image는 항상 보존한다. 상세는 아래 2026-09-30 항목에 기록한다.
+
 2026-09-23 대화 도구 후속 완료: 사용자 “승인”으로 작은 화면의 새 대화·기록 버튼을 제목 아래로 옮기고 목록을 창 안에 배치했다. 넓은 화면·기존 대화 처리·문서 드래그를 유지한다. 설정/문서 14개 크기별 상태와 총 204개 동작 검사, 새 빌드·보호 검사를 통과했다. [핸드오프](2026-09-23-assistant-history-layout-handoff.md). 별도 승인 대기 1→0건, 검색창 배경 차이는 미재현으로 유지한다.
 
 2026-09-23 설정 잔여 승인 적용: 사용자 “적용하자”로 설정 18개 메뉴의 제목·현재 위치·상단 대화 버튼, 서식 항목명·날짜와 운영 표시를 정리했다. 최종 빌드·보호 검사와 90개 기본 화면 상태, 입력·복구·날짜·운영 표시를 확인했다. 기존 문서 대화 버튼·저장·서버 계약을 유지한다. 작은 화면의 대화 도구 잘림은 별도 승인 대기 1건으로 분리했으며 검색 배경 차이는 미재현이다. [핸드오프](2026-09-23-settings-residual-handoff.md).
@@ -24,10 +52,25 @@
 
 2026-09-17: 사용자 1번 선택 승인에 따라 계약 역할별 생성 기록 안내를 설정·계약 화면·새 기록에 반영했다. 실제 담당자별 결재 미구현과 구분하며 과거 기록·기존 요청/응답·상태값을 보존한다. [처리 결과](../../common/explanation/architecture/2026-09-17-contract-records-handoff.md).
 
-> 최종 업데이트: 2026-08-27
+> 최종 업데이트: 2026-09-30
 > 참고: 이 문서는 historical entry 를 보존하므로, 과거 항목에는 sidecar-era terminology 가 남아 있을 수 있습니다.
 
 ---
+
+## 2026-09-30
+
+### CI runner image 누적 정리
+
+- shell runner의 Docker root 여유 공간이 1.4 GiB까지 줄어 `verify`가 용량 preflight에서 반복 실패하던 문제를 복구합니다. 원인은 build마다 남는 `app-<service>:<SHA>`와 deploy마다 남는 `app-<service>:ci-backup-*` tag가 기존 dangling/BuildKit 정리 대상이 아니어서 image 112개(사용 11개, 44.9 GB)가 누적된 것입니다.
+- verify/build 직전 서비스별 최근 commit build 3개와 backup 2개만 남기고, 중단된 verify image를 제거합니다. container 참조 image, 현재 `latest`, 현재 pipeline SHA, last-backup manifest image는 항상 보존하며 `-f` 없이 삭제합니다. 보관 개수와 dry-run은 `CI_IMAGE_RETENTION_COMMIT_KEEP`, `CI_IMAGE_RETENTION_BACKUP_KEEP`, `CI_IMAGE_RETENTION_DRY_RUN`으로 조정합니다.
+- pipeline contract에 보관 범위·보호 대상·범위 밖 tag/외부 image 비접촉·dry-run 무삭제·잘못된 보관값 차단 시나리오를 추가했습니다.
+- pipeline #178에서 정리 후 여유 공간이 1.4 GiB에서 20.5 GiB로 회복되어 verify가 통과했습니다. GitLab 10.4는 pipeline API `variables`를 job에 전달하지 않아 dry-run 없이 실제 정리가 실행됐으며, 운영 image·최근 build·최근 backup은 정책대로 보존됐습니다.
+
+### CI build secret 권한
+
+- 최신 Buildx가 compose build secret의 context 밖 파일 읽기(`/dev/null` 기본값)에 filesystem entitlement를 요구해 build가 첫 target 전에 중단됐습니다. 이 secret 기본값은 마지막 build 성공(#160) 이후 추가되어 verify 실패에 가려져 있었습니다.
+- `docker compose config`로 확정된 최상위 `secrets.*.file` 경로만 `--allow=fs.read=<path>`로 허용하고, 서비스 수준 항목이나 entitlement 전체 해제(`BUILDX_BAKE_ENTITLEMENTS_FS=0`)는 사용하지 않습니다.
+- pipeline contract가 허용 인자의 정확한 경로(공백 포함)와 서비스 수준 경로 비허용을 검증합니다.
 
 ## 2026-08-27
 

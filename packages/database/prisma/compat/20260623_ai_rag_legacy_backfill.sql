@@ -513,14 +513,33 @@ BEGIN
       EXECUTE 'UPDATE common.cm_ai_acl_snapshot_m SET metadata_jsonb = COALESCE(metadata_jsonb, metadata_json)';
     END IF;
 
+    IF EXISTS (
+      SELECT 1
+        FROM information_schema.columns
+       WHERE table_schema = 'common'
+         AND table_name = 'cm_ai_acl_snapshot_m'
+         AND column_name = 'snapshot_json'
+    ) THEN
+      EXECUTE 'UPDATE common.cm_ai_acl_snapshot_m SET acl_snapshot_jsonb = COALESCE(acl_snapshot_jsonb, snapshot_json)';
+      EXECUTE 'ALTER TABLE common.cm_ai_acl_snapshot_m ALTER COLUMN snapshot_json SET DEFAULT ''{}''::jsonb';
+    END IF;
+
     UPDATE common.cm_ai_acl_snapshot_m
-       SET acl_snapshot_jsonb = COALESCE(acl_snapshot_jsonb, snapshot_json, '{}'::jsonb),
+       SET acl_snapshot_jsonb = COALESCE(acl_snapshot_jsonb, '{}'::jsonb),
            created_at = COALESCE(created_at, NOW()),
            updated_at = COALESCE(updated_at, created_at, NOW());
 
+    IF EXISTS (
+      SELECT 1
+        FROM information_schema.columns
+       WHERE table_schema = 'common'
+         AND table_name = 'cm_ai_acl_snapshot_m'
+         AND column_name = 'policy_hash'
+    ) THEN
+      EXECUTE 'ALTER TABLE common.cm_ai_acl_snapshot_m ALTER COLUMN policy_hash DROP NOT NULL';
+    END IF;
+
     ALTER TABLE common.cm_ai_acl_snapshot_m
-      ALTER COLUMN policy_hash DROP NOT NULL,
-      ALTER COLUMN snapshot_json SET DEFAULT '{}'::jsonb,
       ALTER COLUMN created_at SET DEFAULT NOW(),
       ALTER COLUMN updated_at SET DEFAULT NOW();
 
@@ -754,8 +773,18 @@ BEGIN
          SET blocked_count = COALESCE(blocked_count, 0);
     END IF;
 
+    IF EXISTS (
+      SELECT 1
+        FROM information_schema.columns
+       WHERE table_schema = 'common'
+         AND table_name = 'cm_ai_retrieval_log_m'
+         AND column_name = 'ranker_code'
+    ) THEN
+      EXECUTE 'UPDATE common.cm_ai_retrieval_log_m SET retrieval_mode_code = COALESCE(retrieval_mode_code, ranker_code)';
+    END IF;
+
     UPDATE common.cm_ai_retrieval_log_m
-       SET retrieval_mode_code = COALESCE(retrieval_mode_code, ranker_code, 'hybrid'),
+       SET retrieval_mode_code = COALESCE(retrieval_mode_code, 'hybrid'),
            context_count = COALESCE(context_count, result_count, 0),
            status_code = COALESCE(status_code, 'succeeded'),
            result_count = COALESCE(result_count, 0),

@@ -1,5 +1,7 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
+
 import { useMemo, useState } from 'react';
 import { Check, Plus, Route, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -198,7 +200,7 @@ export function CloseoutApprovalRoutePanel({
               </div>
             ))}
             {hasDuplicateApprover && (
-              <p className="text-xs text-ssoo-danger">같은 승인자는 한 승인선에 한 번만 지정할 수 있습니다.</p>
+              <SsooErrorNotice as="p" compact>같은 승인자는 한 승인선에 한 번만 지정할 수 있습니다.</SsooErrorNotice>
             )}
             <Button
               variant="outline"

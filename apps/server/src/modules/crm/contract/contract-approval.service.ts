@@ -71,6 +71,7 @@ export class ContractApprovalService {
   }
 
   private async source(contract: Contract, actor: TokenPayload): Promise<Source> {
+    await this.crmAccess.assertContractCapability(actor, 'canReadContract', contract.contractCode);
     const handoff = await this.db.client.crmContractDmsHandoff.findFirst({
       where: { contractId: contract.id, isActive: true }, orderBy: [{ savedAt: 'desc' }, { id: 'desc' }],
     });
@@ -115,12 +116,13 @@ export class ContractApprovalService {
   async workspace(code: string, user: TokenPayload, cursor?: string): Promise<CrmContractApprovalWorkspace> {
     const actor = await this.reader(user);
     const contract = await this.contract(code);
+    await this.crmAccess.assertContractCapability(actor, 'canReadContract', code);
     const { source, message } = await this.optionalSource(contract, actor);
     const where = { contractId: contract.id, isActive: true };
     const [rows, pending, access] = await Promise.all([
       this.db.client.crmContractApproval.findMany({ where: { ...where, ...(cursor ? { id: { lt: positiveId(cursor) } } : {}) }, include: { contract: true }, orderBy: { id: 'desc' }, take: PAGE_SIZE + 1 }),
       this.db.client.crmContractApproval.findFirst({ where: { ...where, statusCode: 'pending' }, include: { contract: true } }),
-      this.crmAccess.getDomainAccess(actor),
+      this.crmAccess.getDomainAccess(actor, contract.ownerOrganizationId),
     ]);
     return {
       source: source ? { title: source.title, content: source.content, versionKey: source.versionKey } : null,
@@ -133,7 +135,7 @@ export class ContractApprovalService {
 
   async candidates(code: string, user: TokenPayload, cursor?: string): Promise<CrmContractApprovalCandidates> {
     const actor = await this.reader(user);
-    await this.crmAccess.assertDomainCapability(actor, 'canWriteContract');
+    await this.crmAccess.assertContractCapability(actor, 'canWriteContract', code);
     const source = await this.source(await this.contract(code), actor);
     const users = await this.db.client.user.findMany({
       where: { isActive: true, id: { not: positiveId(actor.userId), ...(cursor ? { gt: positiveId(cursor) } : {}) }, authAccount: { accountStatusCode: 'active' } },
@@ -143,6 +145,7 @@ export class ContractApprovalService {
     for (const candidate of users.slice(0, 50)) {
       try {
         const person = await this.reader({ userId: candidate.id.toString(), loginId: '' });
+        await this.crmAccess.assertContractCapability(person, 'canReadContract', code);
         await this.document(BigInt(source.documentId), person);
         items.push({ id: person.userId, name: person.userName!, loginId: person.loginId });
       } catch (error) {
@@ -154,8 +157,9 @@ export class ContractApprovalService {
 
   async inbox(user: TokenPayload, cursor?: string): Promise<CrmContractApprovalInbox> {
     const actor = await this.reader(user);
+    const scope = await this.crmAccess.businessOrganizationScope(actor);
     const rows = await this.db.client.crmContractApproval.findMany({
-      where: { approverId: BigInt(actor.userId), statusCode: 'pending', isActive: true, contract: { isActive: true }, ...(cursor ? { id: { lt: positiveId(cursor) } } : {}) },
+      where: { approverId: BigInt(actor.userId), statusCode: 'pending', isActive: true, contract: { isActive: true, ...(scope === null ? {} : { ownerOrganizationId: { in: scope } }) }, ...(cursor ? { id: { lt: positiveId(cursor) } } : {}) },
       include: { contract: true }, orderBy: { id: 'desc' }, take: PAGE_SIZE + 1,
     });
     const items = [];
@@ -170,6 +174,7 @@ export class ContractApprovalService {
     const actor = await this.reader(user);
     const row = await this.db.client.crmContractApproval.findFirst({ where: { id: positiveId(id), isActive: true, contract: { isActive: true } } });
     if (!row) throw new NotFoundException('승인 요청을 찾을 수 없습니다.');
+    await this.crmAccess.assertContractCapability(actor, 'canReadContract', row.contractId.toString());
     await this.document(row.documentId, actor);
     const snapshot = row.snapshot as unknown as Source;
     return { title: row.documentTitle, content: snapshot.content, versionKey: row.versionKey };
@@ -177,9 +182,10 @@ export class ContractApprovalService {
 
   async request(code: string, dto: CrmContractApprovalRequest, user: TokenPayload): Promise<{ id: string }> {
     const actor = await this.reader(user);
-    await this.crmAccess.assertDomainCapability(actor, 'canWriteContract');
+    await this.crmAccess.assertContractCapability(actor, 'canWriteContract', code);
     if (dto.approverId === actor.userId) throw new BadRequestException('본인에게 승인을 요청할 수 없습니다.');
     const contract = await this.contract(code);
+    await this.crmAccess.assertContractCapability(actor, 'canReadContract', code);
     return this.db.client.$transaction(async tx => {
       await tx.$queryRaw`SELECT contract_id FROM crm.crm_contract_m WHERE contract_id = ${contract.id} FOR UPDATE`;
       const current = await tx.crmContract.findFirst({ where: { id: contract.id, isActive: true } });
@@ -193,6 +199,7 @@ export class ContractApprovalService {
       const source = await this.source(current, actor);
       if (source.versionKey !== dto.versionKey) throw new ConflictException('계약 또는 초안이 변경되었습니다. 새로고침 후 내용을 다시 확인해 주세요.');
       const approver = await this.reader({ userId: dto.approverId, loginId: '' });
+      await this.crmAccess.assertContractCapability(approver, 'canReadContract', code);
       await this.document(BigInt(source.documentId), approver);
       const row = await tx.crmContractApproval.create({ data: {
         contractId: contract.id, requestKey: dto.requestKey, requesterId: BigInt(actor.userId), requesterName: actor.userName!,
@@ -215,6 +222,7 @@ export class ContractApprovalService {
     if (dto.action === 'reject' && !reason) throw new BadRequestException('반려 사유를 입력해 주세요.');
     const initial = await this.db.client.crmContractApproval.findFirst({ where: { id: positiveId(id), isActive: true } });
     if (!initial) throw new NotFoundException('승인 요청을 찾을 수 없습니다.');
+    await this.crmAccess.assertContractCapability(actor, 'canReadContract', initial.contractId.toString());
     return this.db.client.$transaction(async tx => {
       await tx.$queryRaw`SELECT contract_id FROM crm.crm_contract_m WHERE contract_id = ${initial.contractId} FOR UPDATE`;
       const row = await tx.crmContractApproval.findFirst({ where: { id: initial.id, isActive: true, contract: { isActive: true } }, include: { contract: true } });

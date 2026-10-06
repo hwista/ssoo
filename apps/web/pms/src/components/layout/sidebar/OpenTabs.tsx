@@ -1,6 +1,8 @@
 'use client';
 
-import { useLayoutStore, useTabStore } from '@/stores';
+import { isSsooHomeEntry } from '@ssoo/web-shell';
+
+import { HOME_TAB, useLayoutStore, useTabStore } from '@/stores';
 import { X } from 'lucide-react';
 import { getIconComponent } from '@/lib/utils/icons';
 import {
@@ -19,7 +21,7 @@ export function OpenTabs() {
   const closeMobileMenu = useLayoutStore((state) => state.closeMobileMenu);
 
   // 홈 탭 제외 (항상 열려있는 고정 탭)
-  const openTabs = tabs.filter((tab) => tab.path !== '/home');
+  const openTabs = tabs.filter((tab) => !isSsooHomeEntry(tab, HOME_TAB));
 
   if (openTabs.length === 0) {
     return (

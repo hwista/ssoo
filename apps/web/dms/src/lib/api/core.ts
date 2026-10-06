@@ -1,7 +1,8 @@
+import { getSsooErrorMessage, readSsooErrorMetadata, parseSsooRetryAfter, type SsooErrorMetadata } from '@ssoo/web-shell';
 import { ERROR_MESSAGES } from '@/lib/constants/common';
 import { fetchWithSharedAuth } from './sharedAuth';
 
-export interface ApiResponse<T = unknown> {
+export interface ApiResponse<T = unknown> extends SsooErrorMetadata {
   success: boolean;
   data?: T;
   error?: string;
@@ -13,12 +14,18 @@ export interface ApiResponse<T = unknown> {
 export class ApiRequestError extends Error {
   readonly status?: number;
   readonly details?: unknown;
+  readonly code?: string;
+  readonly retryAfterSeconds?: number;
+  readonly requestId?: string;
 
-  constructor(message: string, options: { status?: number; details?: unknown } = {}) {
+  constructor(message: string, options: SsooErrorMetadata = {}) {
     super(message);
     this.name = 'ApiRequestError';
     this.status = options.status;
     this.details = options.details;
+    this.code = options.code;
+    this.retryAfterSeconds = options.retryAfterSeconds;
+    this.requestId = options.requestId;
   }
 }
 
@@ -116,35 +123,14 @@ export async function request<T = unknown>(
     }
 
     if (!response.ok) {
-      const contentType = response.headers.get('content-type') || '';
-      let errorText = response.statusText;
-
-      if (contentType.includes('application/json')) {
-        try {
-          const payload = await response.json() as {
-            error?: string;
-            message?: string;
-            details?: unknown;
-          };
-          errorText = payload.error || payload.message || response.statusText;
-          return {
-            success: false,
-            status: response.status,
-            error: `HTTP ${response.status}: ${errorText}`,
-            details: payload.details,
-          };
-        } catch {
-          errorText = response.statusText;
-        }
-      } else {
-        const raw = await response.text();
-        errorText = raw || response.statusText;
-      }
-
+      const payload: unknown = await response.json().catch(() => null);
+      const bodyMetadata = readSsooErrorMetadata(payload);
+      const metadata = { ...bodyMetadata, status: response.status,
+        retryAfterSeconds: parseSsooRetryAfter(response.headers.get('retry-after')) ?? bodyMetadata.retryAfterSeconds };
       return {
         success: false,
-        status: response.status,
-        error: `HTTP ${response.status}: ${errorText}`,
+        ...metadata,
+        error: `HTTP ${response.status}: ${getSsooErrorMessage({ ...(isRecord(payload) ? payload : {}), ...metadata })}`,
       };
     }
 
@@ -174,7 +160,9 @@ export async function request<T = unknown>(
 
       return {
         success: false,
-        error: error.message || ERROR_MESSAGES.NETWORK_ERROR,
+        status: 0,
+        code: 'NETWORK_ERROR',
+        error: getSsooErrorMessage(error, ERROR_MESSAGES.NETWORK_ERROR),
       };
     }
 
@@ -227,7 +215,7 @@ export function createApiRequestError(response: ApiResponse, prefix?: string): A
   const message = getErrorMessage(response);
   return new ApiRequestError(
     prefix ? `${prefix}: ${message}` : message,
-    { status: response.status, details: response.details },
+    readSsooErrorMetadata(response),
   );
 }
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorPanel } from './error-recovery';
 import * as React from 'react';
 import {
   ChevronDown,
@@ -732,17 +733,7 @@ export function SsooDataGrid<TData, TValue>({
   }, [onSelectionChange, rowSelection, table]);
 
   if (error) {
-    const message = typeof error === 'string' ? error : error.message;
-    return (
-      <div className={cn('flex h-full min-h-40 flex-col items-center justify-center gap-3 text-sm text-destructive', className)}>
-        <p>{message || '데이터를 불러오지 못했습니다.'}</p>
-        {onRetry ? (
-          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-            다시 시도
-          </Button>
-        ) : null}
-      </div>
-    );
+    return <SsooErrorPanel className={className} error={error} title="데이터를 불러오지 못했습니다" onRetry={onRetry} />;
   }
 
   if (loading && data.length === 0) {

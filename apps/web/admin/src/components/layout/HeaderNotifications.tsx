@@ -21,7 +21,7 @@ import {
   Mail,
   MailOpen,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { ssooToast as toast } from '@ssoo/web-shell';
 import { useTabStore } from '@/stores/tab.store';
 import { getAdminTabOptions } from './navigation';
 
@@ -101,6 +101,8 @@ export function HeaderNotifications() {
       buttonTitle="알림"
       buttonIconSlot={<Bell />}
       buttonBadge={notificationCenter.unreadCount}
+      error={notificationCenter.error}
+      onRetry={notificationCenter.refresh}
       hasLoaded={notificationCenter.hasLoaded}
       isFetching={notificationCenter.isFetching}
       unreadItems={notificationCenter.unreadItems}

@@ -22,7 +22,7 @@ import {
   Mail,
   MailOpen,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { ssooToast as toast } from '@ssoo/web-shell';
 
 const NOTIFICATION_PAGE_SIZE = 20;
 const NOTIFICATION_APP_URLS: SsooNotificationAppUrls = {
@@ -100,6 +100,8 @@ export function HeaderNotifications() {
       buttonTitle="알림"
       buttonIconSlot={<Bell />}
       buttonBadge={notificationCenter.unreadCount}
+      error={notificationCenter.error}
+      onRetry={notificationCenter.refresh}
       hasLoaded={notificationCenter.hasLoaded}
       isFetching={notificationCenter.isFetching}
       unreadItems={notificationCenter.unreadItems}

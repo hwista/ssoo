@@ -9,6 +9,7 @@ import type {
 } from '../../common/search/search-provider.js';
 import { shouldSkipEntityTypes } from '../../common/search/search-provider.js';
 import { scoreCommonSearchValues } from '../../common/search/search-utils.js';
+import { ProjectAccessService } from '../project/project-access.service.js';
 
 @Injectable()
 export class PmsCommonSearchProvider implements CommonSearchProvider, OnModuleInit {
@@ -18,6 +19,7 @@ export class PmsCommonSearchProvider implements CommonSearchProvider, OnModuleIn
   constructor(
     private readonly db: DatabaseService,
     private readonly registry: CommonSearchRegistryService,
+    private readonly access: ProjectAccessService,
   ) {}
 
   onModuleInit(): void {
@@ -43,6 +45,8 @@ export class PmsCommonSearchProvider implements CommonSearchProvider, OnModuleIn
       orderBy: { updatedAt: 'desc' },
     });
 
+    const snapshots = await Promise.all(projects.map((project) => this.access.getProjectAccess(project.id, currentUser)));
+    const readableProjects = projects.filter((_, index) => snapshots[index].features.canViewProject);
     return {
       capabilities: {
         keyword: true,
@@ -51,7 +55,7 @@ export class PmsCommonSearchProvider implements CommonSearchProvider, OnModuleIn
         vector: false,
         ragContext: false,
       },
-      results: projects.map((project): CommonSearchResult => ({
+      results: readableProjects.map((project): CommonSearchResult => ({
         id: `pms:project:${project.id.toString()}`,
         sourceApp: 'pms',
         entityType: 'project',

@@ -1,5 +1,7 @@
 'use client';
 
+import { SsooErrorPanel } from '../error-recovery';
+import { getSsooErrorMessage } from '../error-model';
 import {
   useCallback,
   useEffect,
@@ -82,24 +84,6 @@ export interface SsooAiSearchPageProps<T extends SsooAiSearchResultItem = SsooAi
   breadcrumbLastSegmentLabel?: string;
 }
 
-function resolveErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  if (typeof error === 'string' && error.trim()) return error;
-  return '검색 결과를 불러오지 못했습니다.';
-}
-
-function buildErrorResult<T extends SsooAiSearchResultItem>(message: string): T {
-  return {
-    id: 'search-error',
-    title: '검색 실패',
-    excerpt: message,
-    path: '-',
-    score: 0,
-    isReadable: false,
-    canRequestRead: false,
-  } as T;
-}
-
 function getBreadcrumbItems(filePath: string): SsooPageBreadcrumbItem[] {
   const cleanPath = filePath.replace(/^\/+|\/+$/g, '');
   const displayNames: Record<string, string> = {
@@ -146,6 +130,7 @@ export function SsooAiSearchPage<T extends SsooAiSearchResultItem = SsooAiSearch
   blockedSourceNoun = '문서',
   breadcrumbLastSegmentLabel,
 }: SsooAiSearchPageProps<T>) {
+  const [searchError, setSearchError] = useState<string | undefined>();
   const [filterQuery, setFilterQuery] = useState('');
   const [sourceQuery, setSourceQuery] = useState('');
   const [allResults, setAllResults] = useState<T[]>([]);
@@ -170,6 +155,7 @@ export function SsooAiSearchPage<T extends SsooAiSearchResultItem = SsooAiSearch
 
   const performSearch = useCallback(async (inputQuery: string) => {
     const trimmed = inputQuery.trim();
+    setSearchError(undefined);
     setHasSearched(true);
     setSourceQuery(trimmed);
     onSourceQueryChange?.(trimmed);
@@ -200,17 +186,13 @@ export function SsooAiSearchPage<T extends SsooAiSearchResultItem = SsooAiSearch
       setLastResponse(response);
     } catch (error) {
       if (requestSeqRef.current !== seq) return;
-      const fallbackResults = [buildErrorResult<T>(resolveErrorMessage(error))];
-      setAllResults(fallbackResults);
-      setResults(fallbackResults);
+      setSearchError(getSsooErrorMessage(error, '검색 결과를 불러오지 못했습니다.'));
+      setAllResults([]);
+      setResults([]);
       setBlockedSources(undefined);
       setMatchedResultIndices([]);
       setCurrentResultIndex(-1);
-      setLastResponse({
-        query: trimmed,
-        results: fallbackResults,
-        total: fallbackResults.length,
-      });
+      setLastResponse(null);
     } finally {
       if (requestSeqRef.current === seq) {
         setIsSearching(false);
@@ -347,9 +329,7 @@ export function SsooAiSearchPage<T extends SsooAiSearchResultItem = SsooAiSearch
         contentSurface="transparent-rounded"
         compactMode={compactMode}
         stateSlot={(
-          <div className="flex h-full min-h-[240px] items-center justify-center text-body-sm text-ssoo-primary/70">
-            {noPermissionMessage}
-          </div>
+          <SsooErrorPanel kind="forbidden" description={noPermissionMessage} actions={[{ label: '서비스 복귀 안내', href: '/recovery' }]} />
         )}
       />
     );
@@ -403,6 +383,8 @@ export function SsooAiSearchPage<T extends SsooAiSearchResultItem = SsooAiSearch
           )}
           body={(
             <SsooAiSearchResultsPanel
+              errorMessage={searchError}
+              onRetry={() => performSearch(sourceQuery)}
               hasSearched={hasSearched}
               isSearching={isSearching}
               hasCompletedSearch={hasCompletedSearch}

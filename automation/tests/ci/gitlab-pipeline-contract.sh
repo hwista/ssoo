@@ -6,6 +6,7 @@ pipeline="$repo_root/.gitlab-ci.yml"
 source_sync="$repo_root/scripts/ci/prepare-app-source.sh"
 image_provenance="$repo_root/scripts/ci/image-provenance.sh"
 job_runner="$repo_root/scripts/ci/run-app-job.sh"
+runtime_diagnose="$repo_root/scripts/ci/diagnose-runtime.sh"
 ci_verify_dockerfile="$repo_root/docker/ci-verify.Dockerfile"
 compose_file="$repo_root/compose.yaml"
 gitignore="$repo_root/.gitignore"
@@ -28,6 +29,14 @@ assert_contains() {
   grep -Fq -- "$expected" "$file" || fail "missing '$expected' in $file"
 }
 
+assert_not_contains() {
+  local file="$1"
+  local unexpected="$2"
+  if grep -Fq -- "$unexpected" "$file"; then
+    fail "unexpected '$unexpected' in $file"
+  fi
+}
+
 assert_count() {
   local file="$1"
   local expected="$2"
@@ -40,8 +49,23 @@ assert_count() {
 bash -n "$source_sync"
 bash -n "$image_provenance"
 bash -n "$job_runner"
+bash -n "$repo_root/scripts/ci/release-job.sh"
+bash -n "$repo_root/scripts/ci/rehearse-release.sh"
+assert_contains "$pipeline" 'stage: rehearse'
+assert_contains "$pipeline" 'CI_DEPLOY_MODE: "plan-only"'
+assert_contains "$job_runner" 'git -C "$CI_PROJECT_DIR" worktree add --detach'
+assert_contains "$repo_root/scripts/ci/release-job.sh" '--no-build --no-deps'
+assert_contains "$repo_root/scripts/ci/release-job.sh" 'automatic rollback forbidden'
+assert_contains "$repo_root/scripts/ci/release-job.sh" 'state backup-check'
 
-assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 4
+bash -n "$runtime_diagnose"
+
+assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 6
+assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"'
+assert_contains "$pipeline" 'COMPOSE_FILE: "compose.yaml:compose.staging.yaml"'
+if grep -Eq 'docker (rm|rmi|restart|stop|start|kill|image rm|volume|system prune|builder prune)|docker compose [^|]*(up|down|rm|restart|stop|start|create|run|pull|build)( |$)' "$runtime_diagnose"; then
+  fail "runtime diagnostics must stay read-only"
+fi
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" verify'
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" ai-review'
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" build'
@@ -67,25 +91,6 @@ assert_contains "$job_runner" 'pnpm run verify:gitlab-pipeline'
 assert_contains "$job_runner" 'pnpm run codex:preflight'
 assert_contains "$job_runner" 'pnpm lint'
 assert_contains "$job_runner" 'pnpm test:server'
-assert_contains "$job_runner" 'docker builder prune --all --force --keep-storage "$build_cache_keep_storage"'
-assert_contains "$job_runner" 'docker image prune --force'
-assert_contains "$job_runner" 'Docker capacity pressure detected; pruning all unused BuildKit cache'
-assert_contains "$job_runner" 'insufficient Docker filesystem capacity after safe cache cleanup'
-assert_contains "$job_runner" 'build_services=(server db-init pms dms sns admin crm)'
-assert_contains "$job_runner" 'prune_unreferenced_app_latest'
-assert_contains "$job_runner" 'if [[ "$job" == "verify" || "$job" == "build" ]]; then'
-assert_contains "$job_runner" 'docker compose -p "$COMPOSE_PROJECT_NAME" build --print > "$bake_definition"'
-assert_contains "$job_runner" 'docker buildx bake --file "$bake_definition" --load "$service"'
-assert_contains "$job_runner" 'prepare_build_capacity "build-$service" "$build_target_min_free_kb" full'
-assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh tag-build'
-assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh backup-running "$backup_tag" "$backup_manifest"'
-assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh prepare-deploy'
-assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh restore-backup "$backup_manifest"'
-assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh verify-deploy'
-assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh verify-backup "$backup_manifest"'
-assert_contains "$job_runner" 'docker compose -p "$COMPOSE_PROJECT_NAME" up -d --no-build'
-assert_contains "$job_runner" 'deployment failed but automatic rollback succeeded'
-assert_contains "$job_runner" 'manual recovery required'
 assert_contains "$image_provenance" 'docker commit "$container" "$backup_image"'
 assert_contains "$image_provenance" 'docker export "$container" | docker import'
 assert_contains "$image_provenance" 'container commit unavailable; trying filesystem export'
@@ -125,8 +130,9 @@ git -C "$seed" config user.email "ci-contract@example.invalid"
 cp "$gitignore" "$seed/.gitignore"
 mkdir -p "$seed/scripts/ci"
 cp "$image_provenance" "$seed/scripts/ci/image-provenance.sh"
+cp "$runtime_diagnose" "$seed/scripts/ci/diagnose-runtime.sh"
 printf 'first\n' > "$seed/version.txt"
-git -C "$seed" add .gitignore scripts/ci/image-provenance.sh version.txt
+git -C "$seed" add .gitignore scripts/ci/image-provenance.sh scripts/ci/diagnose-runtime.sh version.txt
 git -C "$seed" commit -m "first" >/dev/null
 git -C "$seed" remote add origin "$remote"
 git -C "$seed" push -u origin development >/dev/null
@@ -225,9 +231,16 @@ case "${1:-}" in
   image)
     case "${2:-}" in
       inspect)
-        if ! print_fake_config "$@"; then
+        if [[ "$*" == *'{{.Created}}'* ]]; then
+          image="$(resolve_image "$3")"
+          created="$(lookup_key "created:$image" 2>/dev/null || printf '2026-01-01T00:00:00Z\n')"
+          printf '%s|%s\n' "$created" "$image"
+        elif ! print_fake_config "$@"; then
           resolve_image "$3"
         fi
+        ;;
+      ls)
+        awk -F '|' '$1 ~ /^(app-[a-z-]+|pgvector\/pgvector):/ { split_at = index($1, ":"); print substr($1, 1, split_at - 1) "|" substr($1, split_at + 1) }' "$state"
         ;;
       prune)
         prune_count="$(lookup_key image:prune-count 2>/dev/null || printf '0\n')"
@@ -236,6 +249,7 @@ case "${1:-}" in
       rm)
         rm_count="$(lookup_key image:rm-count 2>/dev/null || printf '0\n')"
         set_value image:rm-count "$((rm_count + 1))"
+        set_value "removed:$3" 1
         exit 0
         ;;
       *) exit 2 ;;
@@ -243,6 +257,16 @@ case "${1:-}" in
     ;;
   info)
     printf '%s\n' "${FAKE_DOCKER_ROOT:?}"
+    ;;
+  ps)
+    awk -F '|' '$1 ~ /^container:/ { print substr($1, length("container:") + 1) }' "$state"
+    ;;
+  logs)
+    printf 'DATABASE_URL=postgresql://ssoo:contract-secret@postgres:5432/ssoo_dev\n'
+    printf 'DMS_GIT_BOOTSTRAP_REMOTE_URL=http://doc.user%%40example.com:git-contract-secret%%21@gitlab.example:8010/doc.git\n'
+    ;;
+  exec)
+    printf 'schema|public|3\n'
     ;;
   system)
     [[ "${2:-}" == "df" ]] || exit 2
@@ -298,12 +322,33 @@ case "${1:-}" in
     operation=""
     for argument in "$@"; do
       case "$argument" in
-        build|up|ps) operation="$argument" ;;
+        build|up|ps|config) operation="$argument" ;;
       esac
     done
     case "$operation" in
       ps)
         exit 0
+        ;;
+      config)
+        cat <<'FAKE_COMPOSE_CONFIG'
+name: app
+services:
+  server:
+    secrets:
+      - source: ssoo_tls_ca
+        target: ssoo_tls_ca
+        file: /service/level/ignored
+secrets:
+  dms_git_http_credentials:
+    name: app_dms_git_http_credentials
+    file: "/srv/ci secrets/dms-git"
+  ssoo_tls_ca:
+    name: app_ssoo_tls_ca
+    file: /dev/null
+volumes:
+  ssoo-postgres-data:
+    name: app_ssoo-postgres-data
+FAKE_COMPOSE_CONFIG
         ;;
       up)
         up_count="$(lookup_key compose:up-count 2>/dev/null || printf '0\n')"
@@ -338,6 +383,13 @@ case "${1:-}" in
     [[ "${2:-}" == "bake" ]] || exit 2
     build_count="$(lookup_key buildx:bake-count 2>/dev/null || printf '0\n')"
     set_value buildx:bake-count "$((build_count + 1))"
+    bake_allow=""
+    for argument in "$@"; do
+      if [[ "$argument" == --allow=* ]]; then
+        bake_allow="$bake_allow[$argument]"
+      fi
+    done
+    set_value buildx:bake-allow "$bake_allow"
     service="${@: -1}"
     build_sequence="$(lookup_key buildx:bake-sequence 2>/dev/null || true)"
     if [[ -n "$build_sequence" ]]; then
@@ -398,64 +450,6 @@ remove_state() {
   awk -F '|' -v key="$key" '$1 != key' "$fake_state" > "$next"
   mv "$next" "$fake_state"
 }
-
-run_build_contract() {
-  local scenario="$1"
-  local minimum_free_kb="$2"
-  local output="$test_root/$scenario.log"
-
-  CI_PROJECT_DIR="$repo_root" \
-    APP_DIR="$app" \
-    CI_COMMIT_REF_NAME=development \
-    CI_COMMIT_SHA="$second_sha" \
-    CI_COMMIT_SHORT_SHA="${second_sha:0:8}" \
-    CI_APP_LOCK_FILE="$test_root/$scenario.lock" \
-    CI_BACKUP_MANIFEST_DIR="$test_root" \
-    CI_BUILD_CACHE_KEEP_STORAGE=1GB \
-    CI_BUILD_MIN_FREE_KB="$minimum_free_kb" \
-    CI_BUILD_TARGET_MIN_FREE_KB=0 \
-    COMPOSE_PROJECT_NAME=app \
-    PATH="$fake_bin:$PATH" \
-    FAKE_DOCKER_STATE="$fake_state" \
-    FAKE_DOCKER_ROOT="$test_root" \
-    bash "$job_runner" build >"$output" 2>&1
-}
-
-reset_fake_state
-run_build_contract capacity-ready 0
-assert_contains "$fake_state" 'builder:prune-count|7'
-assert_contains "$fake_state" 'image:prune-count|7'
-assert_contains "$fake_state" 'image:rm-count|7'
-assert_contains "$fake_state" 'compose:build-print-count|1'
-assert_contains "$fake_state" 'buildx:bake-count|7'
-assert_contains "$fake_state" 'buildx:bake-sequence|server,db-init,pms,dms,sns,admin,crm'
-
-reset_fake_state
-if FAKE_DOCKER_FAIL_BUILD_SERVICE=pms run_build_contract serial-build-failed 0; then
-  fail "build job continued after a serial service build failed"
-fi
-assert_contains "$fake_state" 'compose:build-print-count|1'
-assert_contains "$fake_state" 'buildx:bake-count|3'
-assert_contains "$fake_state" 'buildx:bake-sequence|server,db-init,pms'
-
-reset_fake_state
-for service in "${services[@]}"; do
-  set_state "app-$service:latest" "sha256:$service-running"
-done
-run_build_contract deployed-latest-preserved 0
-assert_contains "$fake_state" 'image:rm-count|0'
-assert_contains "$fake_state" 'buildx:bake-count|7'
-
-reset_fake_state
-if run_build_contract capacity-blocked 999999999999; then
-  fail "build job accepted insufficient Docker filesystem capacity"
-fi
-assert_contains "$fake_state" 'builder:prune-count|2'
-assert_contains "$fake_state" 'image:prune-count|2'
-assert_contains "$fake_state" 'compose:build-print-count|0'
-assert_contains "$fake_state" 'buildx:bake-count|0'
-assert_contains "$test_root/capacity-blocked.log" 'Docker capacity pressure detected; pruning all unused BuildKit cache'
-assert_contains "$test_root/capacity-blocked.log" 'insufficient Docker filesystem capacity after safe cache cleanup'
 
 reset_fake_state
 PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" CI_COMMIT_SHA="$second_sha" \
@@ -521,68 +515,5 @@ if PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" FAKE_DOCKER_FAIL_COMMI
 fi
 [[ ! -e "$failed_manifest" ]] || fail "failed backup published a completed manifest"
 
-run_deploy_contract() {
-  local scenario="$1"
-  local output="$test_root/$scenario.log"
-  shift
-
-  CI_PROJECT_DIR="$repo_root" \
-    APP_DIR="$app" \
-    CI_COMMIT_REF_NAME=development \
-    CI_COMMIT_SHA="$second_sha" \
-    CI_COMMIT_SHORT_SHA="${second_sha:0:8}" \
-    CI_JOB_ID="${CI_JOB_ID_OVERRIDE:?}" \
-    CI_APP_LOCK_FILE="$test_root/$scenario.lock" \
-    CI_DEPLOY_HEALTH_WAIT_SECONDS=0 \
-    CI_BACKUP_MANIFEST_DIR="$test_root" \
-    CI_LAST_BACKUP_TAG_FILE="$test_root/$scenario.last-tag" \
-    CI_LAST_BACKUP_MANIFEST_FILE="$test_root/$scenario.last-manifest" \
-    COMPOSE_PROJECT_NAME=app \
-    PATH="$fake_bin:$PATH" \
-    FAKE_DOCKER_STATE="$fake_state" \
-    "$@" \
-    bash "$job_runner" deploy >"$output" 2>&1
-}
-
-reset_fake_state
-set_state container:ssoo-crm sha256:crm-missing
-remove_state image:sha256:crm-missing
-CI_JOB_ID_OVERRIDE=900
-if run_deploy_contract backup-failed env FAKE_DOCKER_FAIL_COMMIT_CONTAINER=ssoo-crm FAKE_DOCKER_FAIL_EXPORT_CONTAINER=ssoo-crm; then
-  fail "deploy job accepted a failed rollback backup"
-fi
-assert_contains "$fake_state" 'compose:up-count|0'
-
-reset_fake_state
-set_state container:ssoo-crm sha256:crm-missing
-remove_state image:sha256:crm-missing
-CI_JOB_ID_OVERRIDE=901
-if run_deploy_contract rollback-success env FAKE_DOCKER_FAIL_FIRST_DEPLOY_HEALTH=1; then
-  fail "deploy contract accepted an unhealthy deployment after rollback"
-fi
-assert_contains "$test_root/rollback-success.log" 'deployment failed but automatic rollback succeeded'
-rollback_manifest="$(<"$test_root/rollback-success.last-manifest")"
-PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" CI_COMMIT_SHA="$second_sha" \
-  bash "$image_provenance" verify-backup "$rollback_manifest" >/dev/null
-assert_contains "$fake_state" 'compose:up-count|2'
-
-reset_fake_state
-set_state container:ssoo-crm sha256:crm-missing
-remove_state image:sha256:crm-missing
-CI_JOB_ID_OVERRIDE=902
-run_deploy_contract deploy-success env
-assert_contains "$test_root/deploy-success.log" '배포 완료'
-PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" CI_COMMIT_SHA="$second_sha" \
-  bash "$image_provenance" verify-deploy >/dev/null
-assert_contains "$fake_state" 'compose:up-count|1'
-
-reset_fake_state
-set_state container:ssoo-crm sha256:crm-missing
-remove_state image:sha256:crm-missing
-CI_JOB_ID_OVERRIDE=903
-if run_deploy_contract rollback-failed env FAKE_DOCKER_FAIL_FIRST_DEPLOY_HEALTH=1 FAKE_DOCKER_FAIL_COMPOSE_UP_NUMBER=2; then
-  fail "deploy contract accepted a failed rollback"
-fi
-assert_contains "$test_root/rollback-failed.log" 'manual recovery required'
-
-echo "[gitlab-pipeline-test] exact source, backup recovery, deploy, and rollback contracts passed"
+node --test "$repo_root/automation/tests/ci/release-state.test.mjs" "$repo_root/automation/tests/ci/release-job.test.mjs" "$repo_root/automation/tests/ci/db-init-policy.test.mjs"
+echo "[gitlab-pipeline-test] exact source, backup recovery and platform release contracts passed"

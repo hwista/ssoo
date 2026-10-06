@@ -6,7 +6,7 @@
 begin;
 
 -- PROJECT_HANDOFF_TYPE
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('PROJECT_HANDOFF_TYPE','PRE_TO_PM','기회→PM 인계','Pre→PM','기회 단계에서 PM에게 수행 인수 목적 인계.',10,now()),
 ('PROJECT_HANDOFF_TYPE','PRE_TO_CONTRACT_OWNER','기회→계약담당자 인계','Pre→Contract Owner','기회 단계에서 AM/계약담당자에게 계약 진행 목적 인계.',20,now()),
@@ -20,7 +20,7 @@ set display_name_ko=excluded.display_name_ko,
     updated_at=now();
 
 -- PROJECT_HANDOFF_STAGE
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('PROJECT_HANDOFF_STAGE','waiting','대기','Waiting','인계 요청 (수신자 미착수).',10,now()),
 ('PROJECT_HANDOFF_STAGE','in_progress','진행','In Progress','수신자가 인수/진행 중.',20,now()),

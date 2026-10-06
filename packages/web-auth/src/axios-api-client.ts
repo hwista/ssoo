@@ -6,14 +6,23 @@ import axios, {
 } from 'axios';
 import { readSharedAuthSnapshot } from './storage';
 import { restoreSharedAuthSession } from './session-bootstrap';
+import { getSsooErrorMessage, readSsooErrorMetadata, parseSsooRetryAfter, type SsooErrorMetadata } from '@ssoo/web-shell';
 
-export class SharedApiError extends Error {
+export class SharedApiError extends Error implements SsooErrorMetadata {
   status?: number;
+  code?: string;
+  details?: unknown;
+  retryAfterSeconds?: number;
+  requestId?: string;
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, metadata: Omit<SsooErrorMetadata, 'status'> = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = metadata.code;
+    this.details = metadata.details;
+    this.retryAfterSeconds = metadata.retryAfterSeconds;
+    this.requestId = metadata.requestId;
   }
 }
 
@@ -30,7 +39,10 @@ function getAxiosErrorMessage(error: AxiosError, fallback: string): string {
   const errorData = error.response?.data as
     | { message?: string; error?: { message?: string } }
     | undefined;
-  return errorData?.error?.message || errorData?.message || error.message || fallback;
+  return getSsooErrorMessage({
+    message: errorData?.error?.message || errorData?.message || error.message,
+    status: error.response?.status ?? 0,
+  }, fallback);
 }
 
 export function createSharedAxiosApiClient({
@@ -97,8 +109,12 @@ export function createSharedAxiosApiClient({
         }
       }
 
+      const metadata = readSsooErrorMetadata(error);
       return Promise.reject(
-        new SharedApiError(getAxiosErrorMessage(error, defaultErrorMessage), error.response?.status),
+        new SharedApiError(getAxiosErrorMessage(error, defaultErrorMessage), error.response?.status ?? 0, {
+          ...metadata,
+          retryAfterSeconds: parseSsooRetryAfter(error.response?.headers?.['retry-after']?.toString() ?? null) ?? metadata.retryAfterSeconds,
+        }),
       );
     },
   );

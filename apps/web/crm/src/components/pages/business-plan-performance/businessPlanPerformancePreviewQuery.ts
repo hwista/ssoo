@@ -5,6 +5,7 @@ import type {
 } from '@ssoo/types/crm';
 
 export interface BusinessPlanPerformancePreviewWorkspaceQuery {
+  ownerOrganizationId?: string;
   year: number;
   mode: CrmBusinessPlanPerformanceMode;
   businessType: string;
@@ -20,21 +21,23 @@ export function normalizeBusinessPlanPerformancePreviewQuery(path: string): Busi
   const mode = searchParams.get('mode');
   const region = searchParams.get('region') as CrmBusinessPlanPreviewRegion | null;
   return {
-    year: Number.isFinite(year) && year >= 2000 ? Math.trunc(year) : new Date().getFullYear(),
+    year: Number.isFinite(year) && year >= 2000 && year <= 2100 ? Math.trunc(year) : new Date().getFullYear(),
     mode: mode === 'source-compatible' ? 'source-compatible' : 'extended-actual',
+    ownerOrganizationId: (searchParams.get('ownerOrganizationId') ?? '').trim(),
     businessType: (searchParams.get('businessType') ?? '').trim(),
     industryLine: (searchParams.get('industryLine') ?? '').trim(),
-    region: region && ['all', 'domestic', 'overseas'].includes(region) ? region : 'all',
+    region: region && ['all', 'domestic', 'overseas', 'unspecified'].includes(region) ? region : 'all',
     search: (searchParams.get('search') ?? '').trim(),
   };
 }
 
 export function toRequiredBusinessPlanPerformancePreviewQuery(
   query: BusinessPlanPerformancePreviewWorkspaceQuery,
-): Required<CrmBusinessPlanPerformanceQuery> {
+): Required<Omit<CrmBusinessPlanPerformanceQuery, 'ownerOrganizationId'>> & Pick<CrmBusinessPlanPerformanceQuery, 'ownerOrganizationId'> {
   return {
     year: query.year,
     mode: query.mode,
+    ownerOrganizationId: query.ownerOrganizationId || undefined,
     businessType: query.businessType,
     industryLine: query.industryLine,
     region: query.region,
@@ -53,11 +56,12 @@ export function normalizeBusinessPlanPerformancePreviewQueryRecord(
   const mode = value('mode');
   const region = value('region') as CrmBusinessPlanPreviewRegion;
   return {
-    year: Number.isFinite(year) && year >= 2000 ? Math.trunc(year) : new Date().getFullYear(),
+    year: Number.isFinite(year) && year >= 2000 && year <= 2100 ? Math.trunc(year) : new Date().getFullYear(),
     mode: mode === 'source-compatible' ? 'source-compatible' : 'extended-actual',
+    ownerOrganizationId: value('ownerOrganizationId').trim(),
     businessType: value('businessType').trim(),
     industryLine: value('industryLine').trim(),
-    region: ['all', 'domestic', 'overseas'].includes(region) ? region : 'all',
+    region: ['all', 'domestic', 'overseas', 'unspecified'].includes(region) ? region : 'all',
     search: value('search').trim(),
   };
 }

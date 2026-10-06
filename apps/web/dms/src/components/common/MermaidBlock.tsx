@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useRef, useState } from 'react';
 
 import { loadMermaid } from '@/lib/utils/documentDiagram';
@@ -45,10 +46,9 @@ export function MermaidBlock({ code }: { code: string }) {
 
   if (error) {
     return (
-      <div className="my-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-        <p className="mb-1 text-label-sm text-amber-700">다이어그램 렌더링 실패</p>
-        <pre className="overflow-x-auto font-mono text-code-block text-amber-900/80">{code}</pre>
-      </div>
+      <SsooErrorNotice className="my-2" message="다이어그램 렌더링 실패">
+        <pre className="overflow-x-auto font-mono text-code-block">{code}</pre>
+      </SsooErrorNotice>
     );
   }
 

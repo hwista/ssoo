@@ -5,6 +5,7 @@ export interface UseProtectedAppBootstrapOptions {
   hasHydrated: boolean;
   isAuthenticated: boolean;
   authIsLoading: boolean;
+  sessionError?: string | null;
   accessHasLoaded: boolean;
   accessIsLoading: boolean;
   checkAuth: (options?: CheckAuthOptions) => Promise<void>;
@@ -29,6 +30,7 @@ export function useProtectedAppBootstrap(
     hasHydrated,
     isAuthenticated,
     authIsLoading,
+    sessionError,
     accessHasLoaded,
     accessIsLoading,
     checkAuth,
@@ -134,6 +136,7 @@ export function useProtectedAppBootstrap(
       || !initialAuthCheckCompleted
       || authIsLoading
       || !isAuthenticated
+      || sessionError
       || accessHasLoaded
       || accessIsLoading
     ) {
@@ -147,24 +150,25 @@ export function useProtectedAppBootstrap(
     authIsLoading,
     hasHydrated,
     hydrateAccess,
+    sessionError,
     initialAuthCheckCompleted,
     isAuthenticated,
   ]);
 
   useEffect(() => {
-    if (!hasHydrated || !initialAuthCheckCompleted || isAuthenticated) {
+    if (!hasHydrated || !initialAuthCheckCompleted || isAuthenticated || sessionError) {
       return;
     }
 
     resetAccess();
     onUnauthenticated(getCurrentPathname());
-  }, [hasHydrated, initialAuthCheckCompleted, isAuthenticated, onUnauthenticated, resetAccess]);
+  }, [hasHydrated, initialAuthCheckCompleted, isAuthenticated, sessionError, onUnauthenticated, resetAccess]);
 
   return {
     showLoading: !hasHydrated
       || !initialAuthCheckCompleted
       || authIsLoading
-      || (isAuthenticated && !accessHasLoaded),
+      || (isAuthenticated && !accessHasLoaded && !sessionError),
     shouldRender: hasHydrated && initialAuthCheckCompleted && isAuthenticated && accessHasLoaded,
   };
 }

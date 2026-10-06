@@ -1,6 +1,7 @@
 import type { CrmBusinessPlanPreviewQuery, CrmBusinessPlanPreviewRegion } from '@ssoo/types/crm';
 
 export interface BusinessPlanPreviewWorkspaceQuery {
+  ownerOrganizationId?: string;
   baseYear: number;
   businessType: string;
   industryLine: string;
@@ -16,9 +17,10 @@ export function normalizeBusinessPlanPreviewQuery(path: string): BusinessPlanPre
   const region = searchParams.get('region') as CrmBusinessPlanPreviewRegion | null;
   return {
     baseYear: Number.isFinite(baseYear) && baseYear >= 2000 ? Math.trunc(baseYear) : new Date().getFullYear(),
+    ownerOrganizationId: (searchParams.get('ownerOrganizationId') ?? '').trim(),
     businessType: (searchParams.get('businessType') ?? '').trim(),
     industryLine: (searchParams.get('industryLine') ?? '').trim(),
-    region: region && ['all', 'domestic', 'overseas'].includes(region) ? region : 'all',
+    region: region && ['all', 'domestic', 'overseas', 'unspecified'].includes(region) ? region : 'all',
     search: (searchParams.get('search') ?? '').trim(),
     mode: searchParams.get('mode') === 'source-compatible' ? 'source-compatible' : 'operations',
   };
@@ -26,9 +28,10 @@ export function normalizeBusinessPlanPreviewQuery(path: string): BusinessPlanPre
 
 export function toRequiredBusinessPlanPreviewQuery(
   query: BusinessPlanPreviewWorkspaceQuery,
-): Required<CrmBusinessPlanPreviewQuery> {
+): Required<Omit<CrmBusinessPlanPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmBusinessPlanPreviewQuery, 'ownerOrganizationId'> {
   return {
     baseYear: query.baseYear,
+    ownerOrganizationId: query.ownerOrganizationId || undefined,
     businessType: query.businessType,
     industryLine: query.industryLine,
     region: query.region,
@@ -47,9 +50,10 @@ export function normalizeBusinessPlanPreviewQueryRecord(
   const region = value('region') as CrmBusinessPlanPreviewRegion;
   return {
     baseYear: Number.isFinite(baseYear) && baseYear >= 2000 ? Math.trunc(baseYear) : new Date().getFullYear(),
+    ownerOrganizationId: value('ownerOrganizationId').trim(),
     businessType: value('businessType').trim(),
     industryLine: value('industryLine').trim(),
-    region: ['all', 'domestic', 'overseas'].includes(region) ? region : 'all',
+    region: ['all', 'domestic', 'overseas', 'unspecified'].includes(region) ? region : 'all',
     search: value('search').trim(),
     mode: value('mode') === 'source-compatible' ? 'source-compatible' : 'operations',
   };

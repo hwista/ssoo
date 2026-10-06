@@ -1,3 +1,4 @@
+import { defineSsooHomeEntry, isSsooHomeEntry, normalizeSsooHomeTabs } from '@ssoo/web-shell';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TabItem, OpenTabOptions } from '@/types/tab';
@@ -5,7 +6,7 @@ import { registerUserScopedReset, shouldResetPersistedUserState } from '@/lib/us
 
 // Home 탭 상수 (닫기 불가)
 export const HOME_TAB = {
-  id: 'home',
+  ...defineSsooHomeEntry({ path: '/home', pageTitle: '대시보드' }),
   title: '홈',
   path: '/home',
   icon: 'Home',
@@ -77,6 +78,7 @@ export const useTabStore = create<TabStore>()(
 
       // Actions
       openTab: (options: OpenTabOptions): string => {
+        if (isSsooHomeEntry({ path: options.path }, HOME_TAB)) options = { ...options, ...HOME_TAB };
         const {
           id,
           title,
@@ -229,6 +231,7 @@ export const useTabStore = create<TabStore>()(
 
       reorderTabs: (fromIndex: number, toIndex: number): void => {
         set((state) => {
+          if (isSsooHomeEntry(state.tabs[fromIndex] ?? {}, HOME_TAB) || toIndex === 0) return state;
           const newTabs = [...state.tabs];
           const removed = newTabs.splice(fromIndex, 1)[0];
           if (!removed) return state;
@@ -273,6 +276,7 @@ export const useTabStore = create<TabStore>()(
             openedAt: new Date(tab.openedAt),
             lastActiveAt: new Date(tab.lastActiveAt),
           }));
+          Object.assign(state, normalizeSsooHomeTabs(state.tabs, state.activeTabId, HOME_TAB, createHomeTab));
         }
       },
     }

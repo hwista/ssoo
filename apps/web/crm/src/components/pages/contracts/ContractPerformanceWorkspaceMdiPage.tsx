@@ -4,6 +4,6 @@ import { ContractPerformanceWorkspaceClient } from './ContractPerformanceWorkspa
 import { normalizeContractPerformanceQuery } from './contractPerformanceQuery';
 import { contractPerformanceFallback } from './contractPerformanceFallback';
 
-export function ContractPerformanceWorkspaceMdiPage({ path }: { path: string }) {
-  return <ContractPerformanceWorkspaceClient data={contractPerformanceFallback} query={normalizeContractPerformanceQuery(path)} />;
+export function ContractPerformanceWorkspaceMdiPage({ path, active }: { path: string; active: boolean }) {
+  return <ContractPerformanceWorkspaceClient active={active} data={contractPerformanceFallback} query={normalizeContractPerformanceQuery(path)} />;
 }

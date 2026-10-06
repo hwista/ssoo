@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice, SsooErrorPanel } from '@ssoo/web-shell';
 import type { PmsUserSettings } from '@ssoo/types';
 import { usePmsSettings, useUpdatePmsSettings } from '@/hooks/queries/usePmsSettings';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -13,7 +14,7 @@ export function SettingsPage() {
 
   if (!settings) return (
     <div className="p-4" role="status">
-      {query.isError ? <>설정을 불러오지 못했습니다. <Button variant="outline" onClick={() => query.refetch()}>다시 시도</Button></> : '설정을 불러오는 중입니다.'}
+      {query.isError ? <SsooErrorPanel error={query.error} title="설정을 불러오지 못했습니다" onRetry={() => query.refetch()} /> : '설정을 불러오는 중입니다.'}
     </div>
   );
 
@@ -23,9 +24,9 @@ export function SettingsPage() {
       <p className="text-sm text-muted-foreground">내 계정에 저장되며 다른 기기에서도 적용됩니다.</p>
       <div role="status" aria-live="polite" className="text-sm">
         {save.isPending ? '저장 중…' : save.isError ? (
-          <div className="text-destructive">저장하지 못했습니다. 기존 설정을 유지합니다. <Button variant="outline" size="sm" onClick={() => save.variables && update(save.variables)}>저장 다시 시도</Button></div>
+          <SsooErrorNotice >저장하지 못했습니다. 기존 설정을 유지합니다. <Button variant="outline" size="sm" onClick={() => save.variables && update(save.variables)}>저장 다시 시도</Button></SsooErrorNotice>
         ) : save.isSuccess ? '저장됨' : null}
-        {query.isError && <p className="text-destructive">최신 설정을 확인하지 못했습니다. <Button variant="outline" size="sm" onClick={() => query.refetch()}>새로 확인</Button></p>}
+        {query.isError && <SsooErrorNotice as="p" compact>최신 설정을 확인하지 못했습니다. <Button variant="outline" size="sm" onClick={() => query.refetch()}>새로 확인</Button></SsooErrorNotice>}
       </div>
       <Card>
         <CardHeader><CardTitle className="text-base">프로젝트 표시</CardTitle></CardHeader>

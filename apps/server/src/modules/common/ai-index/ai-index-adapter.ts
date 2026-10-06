@@ -1,3 +1,4 @@
+import type { TokenPayload } from '../auth/interfaces/auth.interface.js';
 import type {
   AiIndexAdapterSyncRequest,
   AiIndexAdapterSyncResult,
@@ -21,6 +22,7 @@ export interface AiIndexAdapter {
   adapterCode: string;
   capabilities: AiIndexAdapterCapabilities;
   syncObject: (request: AiIndexAdapterSyncRequest) => Promise<AiIndexAdapterSyncResult>;
+  canRead?: (request: AiIndexObjectRef, user: TokenPayload) => Promise<boolean>;
   resolveRef?: (request: AiIndexObjectRef) => Promise<AiIndexObjectRef | null>;
 }
 

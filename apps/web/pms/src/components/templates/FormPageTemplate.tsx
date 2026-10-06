@@ -43,6 +43,8 @@ export interface FormPageTemplateProps extends Omit<FormActionsProps, 'className
   sections: FormSectionConfig[];
   /** 로딩 상태 */
   loading?: boolean;
+  /** 입력 화면을 유지하며 제출 버튼만 잠그는 저장 상태 */
+  submitting?: boolean;
   /** 에러 */
   error?: Error | string | null;
   /** 재시도 핸들러 */
@@ -92,6 +94,7 @@ export function FormPageTemplate({
   header,
   sections,
   loading = false,
+  submitting = false,
   error,
   onRetry,
   onFormSubmit,
@@ -106,7 +109,6 @@ export function FormPageTemplate({
   deleteLabel,
   submitDisabled,
   showDelete,
-  loading: actionLoading,
 }: FormPageTemplateProps) {
   // 헤더 렌더링 (Breadcrumb + Title)
   const renderHeader = () => (
@@ -166,12 +168,13 @@ export function FormPageTemplate({
             {/* 액션 버튼 */}
             <FormActions
               onSubmit={onSubmit}
+              submitForm={Boolean(onFormSubmit)}
               onCancel={onCancel}
               onDelete={onDelete}
               submitLabel={submitLabel}
               cancelLabel={cancelLabel}
               deleteLabel={deleteLabel}
-              loading={actionLoading}
+              loading={submitting}
               submitDisabled={submitDisabled}
               showDelete={showDelete}
             />

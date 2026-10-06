@@ -13,6 +13,8 @@ export type CrmOpportunityHistoryEventType = 'create' | 'update' | 'delete';
 export type CrmQuoteWorkflowStatus = 'draft' | 'review' | 'approved' | 'sent' | 'accepted' | 'rejected' | 'void';
 
 export interface CrmOpportunityListQuery {
+  /** Source list searches three display fields and sorts DC/truncation-free totals. */
+  view?: 'source-list';
   search?: string;
   status?: CrmOpportunityStatus | 'all';
   sourceStatus?: CrmSourceOpportunityStatus | 'all';
@@ -75,13 +77,15 @@ export interface CrmOpportunityUpsertLine {
 }
 
 export interface CrmOpportunityUpsertRequest {
+  /** Owning business organization; absent only for preserved legacy records. */
+  ownerOrganizationId?: string;
   customerName: string;
   opportunityName: string;
   ownerName: string;
   ownerUserId?: string;
   businessType: string;
   industryLine: string;
-  region: 'domestic' | 'overseas';
+  region: 'domestic' | 'overseas' | 'unspecified';
   status: CrmOpportunityStatus;
   priority: CrmOpportunityPriority;
   clientContactName?: string;
@@ -96,6 +100,8 @@ export interface CrmOpportunityUpsertRequest {
 }
 
 export interface CrmOpportunity {
+  /** Owning business organization; absent only for preserved legacy records. */
+  ownerOrganizationId?: string;
   id: string;
   groupId: string;
   customerName: string;
@@ -104,7 +110,7 @@ export interface CrmOpportunity {
   ownerUserId?: string;
   businessType: string;
   industryLine: string;
-  region: 'domestic' | 'overseas';
+  region: 'domestic' | 'overseas' | 'unspecified';
   status: CrmOpportunityStatus;
   priority: CrmOpportunityPriority;
   version: number;
@@ -140,6 +146,8 @@ export interface CrmOpportunity {
 }
 
 export interface CrmOpportunityVersionSummary {
+  /** Display totals before DC/truncation; ledger totals below remain unchanged. */
+  sourceTotals?: Pick<CrmOpportunity, 'revenueTotal' | 'costTotal' | 'marginTotal' | 'marginRate'>;
   id: string;
   groupId: string;
   customerName: string;

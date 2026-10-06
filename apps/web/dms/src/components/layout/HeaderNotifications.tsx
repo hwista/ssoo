@@ -26,7 +26,7 @@ import {
   SsooHeaderNotificationCenter,
   type SsooNotificationPanelCategory,
 } from '@ssoo/web-shell';
-import { accessRequestKeys } from '@/features/access';
+import { accessRequestKeys, useDocumentAccessRequestStore } from '@/features/access';
 import { useOpenDocumentTab } from '@/hooks';
 import { aiSearchKeys } from '@/hooks/queries/useAiSearch';
 import { fileTreeKeys } from '@/hooks/queries/useFileTree';
@@ -217,6 +217,7 @@ export function HeaderNotifications() {
       return;
     }
 
+    useDocumentAccessRequestStore.getState().clearRequestOverrides();
     void queryClient.invalidateQueries({ queryKey: aiSearchKeys.results() });
     void queryClient.invalidateQueries({ queryKey: fileTreeKeys.tree() });
     void queryClient.invalidateQueries({ queryKey: accessRequestKeys.all });
@@ -289,6 +290,8 @@ export function HeaderNotifications() {
       buttonIconSlot={<Bell />}
       buttonBadge={notificationCenter.unreadCount}
       withBackdrop
+      error={notificationCenter.error}
+      onRetry={notificationCenter.refresh}
       hasLoaded={notificationCenter.hasLoaded}
       isFetching={notificationCenter.isFetching}
       unreadItems={notificationCenter.unreadItems}

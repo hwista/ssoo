@@ -1,5 +1,4 @@
 import type {
-  CrmContractListQuery,
   CrmContractListResponse,
   CrmContractSort,
   CrmContractStatus,
@@ -18,24 +17,25 @@ function normalizeQuery(query: Record<string, string | string[] | undefined> = {
   const sort = value('sort') as CrmContractSort;
   const sourceSurface = value('sourceSurface');
   return {
-    search: value('search').trim(),
+    search: (sourceSurface === 'list' || sourceSurface === 'billing-actual') ? value('search') : value('search').trim(),
     status: ['review', 'active', 'completed', 'terminated'].includes(status) ? status : 'all',
-    sort: ['revenue-desc', 'margin-desc', 'start-asc'].includes(sort) ? sort : 'updated-desc',
+    sort: ['updated-desc', 'revenue-desc', 'margin-desc', 'start-asc', 'created-desc', 'customer-asc'].includes(sort) ? sort : (sourceSurface === 'list' || sourceSurface === 'billing-actual') ? 'created-desc' : 'updated-desc',
     selected: value('selected'),
     sourceSurface: ['list', 'form', 'billing-actual'].includes(sourceSurface)
       ? sourceSurface as ContractWorkspaceQuery['sourceSurface']
       : '',
-    billingView: value('view') === 'list' ? 'list' : 'detail',
+    billingView: value('view') === 'list' || !value('selected') ? 'list' : 'detail',
     create: value('create') === 'contract',
   };
 }
 
-async function loadContracts(query: Required<CrmContractListQuery>): Promise<CrmContractListResponse> {
+async function loadContracts(query: ContractWorkspaceQuery): Promise<CrmContractListResponse> {
   try {
     const params = new URLSearchParams();
+    if (query.sourceSurface === 'list' || query.sourceSurface === 'billing-actual') params.set('view', 'source-list');
     if (query.search) params.set('search', query.search);
     if (query.status !== 'all') params.set('status', query.status);
-    if (query.sort !== 'updated-desc') params.set('sort', query.sort);
+    params.set('sort', query.sort);
     const suffix = params.toString() ? `?${params.toString()}` : '';
     const response = await fetch(`${API_BASE_URL}/crm/contracts${suffix}`, { cache: 'no-store' });
     if (!response.ok) return contractFallback;

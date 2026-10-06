@@ -1,5 +1,6 @@
 'use client';
 
+import { SharedSessionRecovery } from '@ssoo/web-auth';
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthLoadingScreen, useProtectedAppBootstrap } from '@ssoo/web-auth';
@@ -8,6 +9,8 @@ import { LOGIN_PATH } from '@/lib/constants/routes';
 import { useAuthStore } from '@/stores/auth.store';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  const sessionError = useAuthStore(state => state.sessionError);
+  const accessToken = useAuthStore(state => state.accessToken);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const authIsLoading = useAuthStore((state) => state.isLoading);
   const hasHydrated = useAuthStore((state) => state._hasHydrated);
@@ -24,6 +27,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     hasHydrated,
     isAuthenticated,
     authIsLoading,
+    sessionError,
     accessHasLoaded: true,
     accessIsLoading: false,
     checkAuth,
@@ -31,6 +35,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     resetAccess: () => {},
     onUnauthenticated: redirectToLogin,
   });
+
+  if (sessionError && !accessToken) return <SharedSessionRecovery authStore={useAuthStore} />;
 
   if (showLoading) {
     return <AuthLoadingScreen />;
@@ -40,5 +46,5 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return null;
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return <SharedSessionRecovery authStore={useAuthStore}><AppLayout>{children}</AppLayout></SharedSessionRecovery>;
 }

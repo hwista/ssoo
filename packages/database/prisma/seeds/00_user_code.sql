@@ -8,7 +8,7 @@ begin;
 -- =========================================================
 -- USER_TYPE: 사용자 유형
 -- =========================================================
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('USER_TYPE','internal','내부','Internal','내부 직원 (우리 회사).',10,now()),
 ('USER_TYPE','external','외부','External','외부 이해관계자 (고객사 담당자, 협력사 등).',20,now())
@@ -22,7 +22,7 @@ set display_name_ko=excluded.display_name_ko,
 -- =========================================================
 -- USER_STATUS: 사용자 상태
 -- =========================================================
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('USER_STATUS','registered','등록됨','Registered','프로젝트 리소스로만 등록됨 (시스템 미사용).',10,now()),
 ('USER_STATUS','invited','초대됨','Invited','시스템 사용 초대됨 (아직 가입 미완료).',20,now()),
@@ -39,7 +39,7 @@ set display_name_ko=excluded.display_name_ko,
 -- =========================================================
 -- USER_ROLE: 사용자 역할
 -- =========================================================
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('USER_ROLE','admin','관리자','Admin','시스템 전체 관리 권한.',10,now()),
 ('USER_ROLE','manager','매니저','Manager','팀/부서 관리 권한. 사용자 초대 가능.',20,now()),
@@ -55,7 +55,7 @@ set display_name_ko=excluded.display_name_ko,
 -- =========================================================
 -- USER_DEPARTMENT: 부서 (예시 - 실제 조직에 맞게 수정 필요)
 -- =========================================================
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('USER_DEPARTMENT','SALES','영업부','Sales','영업/제안 담당.',10,now()),
 ('USER_DEPARTMENT','AM','AM팀','Account Management','고객관리/계약관리 담당.',20,now()),
@@ -73,7 +73,7 @@ set display_name_ko=excluded.display_name_ko,
 -- =========================================================
 -- USER_POSITION: 직급/직책 (예시 - 실제 조직에 맞게 수정 필요)
 -- =========================================================
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('USER_POSITION','EXECUTIVE','임원','Executive','임원.',10,now()),
 ('USER_POSITION','DIRECTOR','이사','Director','이사/파트장.',20,now()),

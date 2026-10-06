@@ -1,8 +1,10 @@
 import type {
   CrmContractPerformanceResponse,
+  CrmContract,
   CrmOpportunity,
   CrmOpportunityListResponse,
 } from '@ssoo/types/crm';
+import type { CrmAccessService } from '../access/access.service.js';
 import type { DatabaseService } from '../../../database/database.service.js';
 import type { ContractService } from '../contract/contract.service.js';
 import type { OpportunityService } from '../opportunity/opportunity.service.js';
@@ -152,7 +154,7 @@ function createPerformanceResponse(year: number, planAmount: number, actualAmoun
   };
 }
 
-function createService(db?: Pick<DatabaseService, '$queryRaw' | '$executeRaw' | 'client'>) {
+function createService(db?: Pick<DatabaseService, '$queryRaw' | '$executeRaw' | 'client'>, contracts: CrmContract[] = []) {
   const performanceQueries: unknown[] = [];
   const opportunityService: Pick<OpportunityService, 'listResponse'> = {
     listResponse: async () => createOpportunityResponse([
@@ -173,7 +175,8 @@ function createService(db?: Pick<DatabaseService, '$queryRaw' | '$executeRaw' | 
       }),
     ]),
   };
-  const contractService: Pick<ContractService, 'getMonthlyPerformance'> = {
+  const contractService: Pick<ContractService, 'getMonthlyPerformance' | 'listContracts'> = {
+    listContracts: async () => contracts,
     getMonthlyPerformance: async (query) => {
       const normalizedQuery = query ?? {};
       performanceQueries.push(normalizedQuery);
@@ -193,12 +196,80 @@ function createService(db?: Pick<DatabaseService, '$queryRaw' | '$executeRaw' | 
       opportunityService as OpportunityService,
       contractService as ContractService,
       db as DatabaseService,
+      {
+        actorForUser: async (id: bigint) => ({ userId: id.toString(), loginId: 'unit-test' }),
+        resolveReadOrganization: async (_actor: unknown, id?: string) => id ? BigInt(id) : null,
+        resolveWriteOrganization: async (id: bigint) => ({ user: { userId: id.toString(), loginId: 'unit-test' }, organizationId: 13n }),
+        assertOrganizationCapability: async () => undefined,
+      } as unknown as CrmAccessService,
     ),
     performanceQueries,
   };
 }
 
 describe('BusinessPlanService', () => {
+  it('rejects all bulk rows before writing when a later row is invalid', async () => {
+    const execute = createValueAsyncMock(1);
+    const db = { $queryRaw: createValueAsyncMock([{ id: 1n, baseYear: 2026, isLatest: true, confirmed: false }]), $executeRaw: execute, client: { $transaction: async () => { throw new Error('must not start transaction'); } } };
+    const { service } = createService(db as unknown as DatabaseService);
+    const row = { businessType: 'SI', industryLine: 'IT', ownerName: '담당', region: 'unspecified' as const, businessName: '유효 행', monthlyRevenueAmounts: Array(12).fill(0) as number[], monthlyExternalCostAmounts: Array(12).fill(0) as number[], nextYearRevenueAmount: 0, nextYearExternalCostAmount: 0, followingYearRevenueAmount: 0, followingYearExternalCostAmount: 0 };
+    await expect(service.savePlanRows('1', [row, { ...row, businessName: '' }], 7n)).rejects.toThrow('사업명');
+    await expect(service.savePlanRows('1', [{ ...row, rowCode: 'A' }, { ...row, rowCode: 'A' }], 7n)).rejects.toThrow('중복');
+    await expect(service.savePlanRows('1', [{ ...row, nextYearRevenueAmount: 1e20 }], 7n)).rejects.toThrow('안전');
+    expect(execute.calls).toHaveLength(0);
+  });
+
+  it('uses only confirmed ongoing contracts and preserves billing cents in won and unspecified region', async () => {
+    const contract = { id: '1', confirmed: true, contractStartDate: '2025-01-01', contractEndDate: '2026-02-28', businessType: 'SI', industryLine: 'IT', ownerName: '담당', contractName: '진행', region: 'unspecified', revenueTotal: 140000000, externalCostTotal: 70000000, billingPlan: [{ billingYm: '2026/01', revenueAmount: 100000001, externalCostAmount: 30000000 }, { billingYm: '2025/12', revenueAmount: 39999999, externalCostAmount: 40000000 }] } as CrmContract;
+    const { service } = createService(undefined, [contract, { ...contract, id: '2', confirmed: false }, { ...contract, id: '3', contractStartDate: '2026-01-01' }, { ...contract, id: '4', contractEndDate: '2025-12-31' }]);
+    const user = { userId: '7', loginId: 'unit-test' } as Parameters<BusinessPlanService['getCarryContracts']>[1];
+    const billing = await service.getCarryContracts({ baseYear: 2026 }, user);
+    expect(billing).toHaveLength(1);
+    expect(billing[0]?.row.region).toBe('unspecified');
+    expect(billing[0]?.row.monthlyRevenueAmounts).toEqual([100000001, ...Array(11).fill(0)]);
+    const progress = await service.getCarryContracts({ baseYear: 2026, method: 'progress' }, user);
+    expect(progress[0]?.row.monthlyRevenueAmounts).toEqual([10000000, 10000000, ...Array(10).fill(0)]);
+    expect(progress[0]?.row.monthlyExternalCostAmounts).toEqual([5000000, 5000000, ...Array(10).fill(0)]);
+  });
+
+  it('keeps zero billing groups, excludes actual-only contracts, and does not require opportunity access in source mode', async () => {
+    const response = createPerformanceResponse(2026, 1, 0);
+    const sample = response.items[0]!;
+    const zeroMonths = sample.months.map((month) => ({ ...month, planRevenueAmount: 0, planExternalCostAmount: 0, planMarginAmount: 0, actualRevenueAmount: 0, actualExternalCostAmount: 0, actualMarginAmount: 0 }));
+    response.items = [
+      { ...sample, contractId: 'zero', wbsCode: undefined, hasBillingPlanInYear: true, months: zeroMonths },
+      { ...sample, contractId: 'actual-only', wbsCode: undefined, hasBillingPlanInYear: false },
+    ];
+    const service = new BusinessPlanService(
+      { listResponse: async () => { throw new Error('opportunities unavailable'); } } as unknown as OpportunityService,
+      { getMonthlyPerformance: async () => response } as unknown as ContractService,
+    );
+    const result = await service.getPerformancePreview({ year: 2026, mode: 'source-compatible' });
+    expect(result.rows.map((row) => row.key)).toEqual(['contract:zero']);
+    expect(result.summary.actualRevenueTotal).toBe(0);
+    expect(result.summary.confirmedPlanAvailable).toBe(false);
+  });
+
+  it('preserves offsetting months and approved case-insensitive WBS grouping', async () => {
+    const response = createPerformanceResponse(2026, 1, 0);
+    const sample = response.items[0]!;
+    const months = sample.months.map((month, index) => ({ ...month, planRevenueAmount: index === 0 ? 100 : index === 1 ? -100 : 0, planExternalCostAmount: 0, actualRevenueAmount: 0, actualExternalCostAmount: 0 }));
+    response.items = [{ ...sample, contractId: 'a', wbsCode: ' abc ', hasBillingPlanInYear: true, months }, { ...sample, contractId: 'b', wbsCode: 'ABC', hasBillingPlanInYear: true, months }];
+    const service = new BusinessPlanService(
+      { listResponse: async () => createOpportunityResponse([]) } as unknown as OpportunityService,
+      { getMonthlyPerformance: async () => response } as unknown as ContractService,
+    );
+    for (const mode of ['source-compatible', 'extended-actual'] as const) {
+      const result = await service.getPerformancePreview({ year: 2026, mode });
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0]?.key).toBe('wbs:ABC');
+      const field = mode === 'source-compatible' ? 'actualRevenueAmount' : 'planRevenueAmount';
+      expect(result.rows[0]?.months[0]?.[field]).toBe(200);
+      expect(result.rows[0]?.months[1]?.[field]).toBe(-200);
+      expect(result.rows[0]?.total[field]).toBe(0);
+    }
+  });
+
   it('builds a three-year read-only preview from pipeline and contract performance', async () => {
     const { service } = createService();
 

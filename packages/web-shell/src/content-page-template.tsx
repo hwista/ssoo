@@ -138,6 +138,7 @@ export function SsooContentPageTemplate({
   const shellRef = useRef<HTMLDivElement | null>(null);
   const [shellWidth, setShellWidth] = useState(0);
   const [hasMeasured, setHasMeasured] = useState(false);
+  const hasStateSlot = Boolean(stateSlot);
   const [sidecarForcedOpen, setSidecarForcedOpen] = useState(false);
   const [uncontrolledSidecarOpen, setUncontrolledSidecarOpen] = useState(() => {
     if (typeof sidecarDefaultOpen === 'boolean') return sidecarDefaultOpen;
@@ -197,7 +198,7 @@ export function SsooContentPageTemplate({
     const observer = new ResizeObserver(() => measure());
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [hasStateSlot]);
 
   useEffect(() => {
     if (compactMode && sidecarNarrowBehavior !== 'auto-close') {

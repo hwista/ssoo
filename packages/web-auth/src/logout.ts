@@ -22,11 +22,8 @@ export function useSharedLogout<TUser extends AuthIdentity = AuthIdentity>({
 
   return useCallback(async () => {
     await beforeLogout?.();
-    try {
-      await logout();
-    } finally {
-      await afterLogout?.();
-      navigate(loginPath);
-    }
+    await logout();
+    await afterLogout?.();
+    navigate(loginPath);
   }, [afterLogout, beforeLogout, loginPath, logout, navigate]);
 }

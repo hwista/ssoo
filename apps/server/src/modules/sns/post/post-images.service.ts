@@ -68,9 +68,9 @@ export class PostImagesService implements OnModuleInit, OnModuleDestroy {
   async create(dto: CreateImagePostDto, files: UploadedPostImage[], user: TokenPayload) {
     if (!uuidPattern.test(dto.submissionId)) throw new BadRequestException('작성 요청 식별자가 올바르지 않습니다.');
     await validatePostImages(files);
-    const visibility = await this.access.resolvePostVisibility(user, dto.visibilityScopeCode);
+    const visibility = await this.access.resolvePostVisibility(user, dto.visibilityScopeCode, dto.targetOrgId);
     const key = `${BigInt(user.userId)}/${dto.submissionId.toLowerCase()}`;
-    const hash = createHash('sha256').update(JSON.stringify([dto.content, dto.visibilityScopeCode ?? 'public']));
+    const hash = createHash('sha256').update(JSON.stringify([dto.content, dto.visibilityScopeCode ?? 'public', dto.targetOrgId ?? null]));
     for (const file of files) hash.update(JSON.stringify([file.originalname, file.mimetype, file.buffer.length])).update(file.buffer);
     const digest = hash.digest('hex');
     const payloadDirectory = `${key}/${digest}`;

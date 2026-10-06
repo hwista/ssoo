@@ -1,5 +1,7 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
+
 import * as React from 'react';
 import { Calendar, Check, Eye, FileText, Pencil, Sparkles, User, X } from 'lucide-react';
 import { LoadingSpinner } from '@/components/common/StateDisplay';
@@ -127,14 +129,14 @@ export function DocumentInfoSection({
 
   const titleErrorValue = (
     <span className="flex items-center gap-1 text-ssoo-danger/80">
-      <span>{titleLabel} 추천 오류</span>
+      <SsooErrorNotice as="span" compact>{titleLabel} 추천 오류</SsooErrorNotice>
       {editButton}
     </span>
   );
 
   const pathErrorValue = (
     <span className="flex items-center gap-1 text-ssoo-danger/80">
-      <span>{pathLabel} 추천 오류</span>
+      <SsooErrorNotice as="span" compact>{pathLabel} 추천 오류</SsooErrorNotice>
       {editButton}
     </span>
   );

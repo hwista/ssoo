@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import {
   useTabStore,
   useEditorStore,
@@ -174,6 +175,7 @@ export function DocumentPage() {
     loadFile,
     isLoading,
     error,
+    saveError,
     content,
     isEditing,
     setIsEditing,
@@ -1055,9 +1057,12 @@ export function DocumentPage() {
         reset();
         closeTab(tabId);
         await refreshFileTree();
+      } else {
+        toast.error(result.error || '파일 삭제에 실패했습니다.');
       }
     } catch (err) {
       console.error('파일 삭제 실패:', err);
+      toast.error(err instanceof Error ? err.message : '파일 삭제에 실패했습니다.');
     }
   }, [canManageCurrentDocument, filePath, tabId, confirm, reset, closeTab, refreshFileTree]);
 
@@ -1374,9 +1379,11 @@ export function DocumentPage() {
           await refreshFileTree();
         } else {
           console.error('파일 이동 실패:', result);
+          toast.error('문서는 저장했지만 파일 이동에 실패했습니다.', { description: result.error });
         }
       } catch (err) {
         console.error('파일 이동 실패:', err);
+        toast.error('문서는 저장했지만 파일 이동에 실패했습니다.', { description: err instanceof Error ? err.message : undefined });
       }
     } else {
       // 경로 이동 없어도 파일 트리 갱신 (문서명 변경 반영)
@@ -2287,7 +2294,7 @@ export function DocumentPage() {
         breadcrumbRootIconVariant="editor"
         contentSurface="transparent"
         panelMode="hidden"
-        stateSlot={<ErrorState error={createDeniedMessage} />}
+        stateSlot={<ErrorState kind="forbidden" error={createDeniedMessage} />}
       >
         {null}
       </PageTemplate>
@@ -2444,6 +2451,7 @@ export function DocumentPage() {
         {(() => {
           const contentBody = (
             <>
+              {saveError && !saveConflict ? <SsooErrorNotice className="mb-3" error={saveError} /> : null}
               {isEditorMode && saveConflict && surfaceMode !== 'conflict' ? (
                 <div className="mb-3 flex flex-wrap items-start gap-3 rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-4 py-3 text-sm text-ssoo-warning">
                   <div className="flex min-w-0 flex-1 items-start gap-2">

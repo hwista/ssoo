@@ -1,5 +1,9 @@
 'use client';
 
+import { BusinessOrganizationField } from '@/components/common/BusinessOrganizationField';
+
+import { createSharedHttpError } from '@ssoo/web-auth';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -69,6 +73,7 @@ interface CustomerDraft {
   type: CrmCustomerType;
   industryLine: string;
   region: CrmCustomerRegion;
+  ownerOrganizationId: string;
   ownerName: string;
   ownerUserId: string;
   contactName: string;
@@ -169,6 +174,7 @@ function emptyCustomerDraft(): CustomerDraft {
     type: 'prospect',
     industryLine: '',
     region: 'domestic',
+    ownerOrganizationId: '',
     ownerName: '',
     ownerUserId: '',
     contactName: '',
@@ -190,6 +196,7 @@ function toCustomerDraft(customer: CrmCustomer | null): CustomerDraft {
     type: customer.type,
     industryLine: customer.industryLine,
     region: customer.region,
+    ownerOrganizationId: customer.ownerOrganizationId ?? '',
     ownerName: customer.ownerName,
     ownerUserId: customer.ownerUserId ?? '',
     contactName: customer.contactName ?? '',
@@ -302,7 +309,7 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCustomerListResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setCurrentData(payload.data);
       return payload.data;
@@ -345,7 +352,7 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
         });
         const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCustomerGlobalAccessSnapshot> | BackendErrorResponse | null;
         if (!response.ok || payload?.success !== true) {
-          throw new Error(getBackendErrorMessage(payload));
+          throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
         }
         setGlobalAccess(payload.data);
       } catch (error) {
@@ -384,7 +391,7 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
         });
         const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCustomerAccessSnapshot> | BackendErrorResponse | null;
         if (!response.ok || payload?.success !== true) {
-          throw new Error(getBackendErrorMessage(payload));
+          throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
         }
         setCustomerAccess(payload.data);
       } catch (error) {
@@ -434,11 +441,17 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
       return;
     }
 
+    if (mode === 'update' && customerDraft.ownerOrganizationId !== (selected?.ownerOrganizationId ?? '')) {
+      setWorkflowError('기존 고객의 업무 조직은 수정 저장으로 변경할 수 없습니다. 다른 조직의 새 고객으로 등록하려면 신규 저장을 사용해 주세요.');
+      return;
+    }
+
     const body: CrmCustomerUpsertRequest = {
       customerName: customerDraft.customerName.trim(),
       type: customerDraft.type,
       industryLine: customerDraft.industryLine.trim(),
       region: customerDraft.region,
+      ownerOrganizationId: customerDraft.ownerOrganizationId || undefined,
       ownerName: customerDraft.ownerName.trim(),
       ownerUserId: optionalText(customerDraft.ownerUserId),
       contactName: optionalText(customerDraft.contactName),
@@ -462,7 +475,7 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCustomer> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       await loadCustomers();
       router.push(buildHref(query, { selected: payload.data.id }));
@@ -513,7 +526,7 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCustomerActivity> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       await loadCustomers();
       setActivityDraft(emptyActivityDraft(selected));
@@ -578,17 +591,14 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
           </form>
 
           {loadError ? (
-            <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+            <SsooErrorNotice className="gap-2 px-4 py-3">
               <AlertCircle className="h-4 w-4" />
               {loadError}
-            </div>
+            </SsooErrorNotice>
           ) : null}
 
           {accessError ? (
-            <div className="flex items-center gap-2 border-b bg-ssoo-warning-bg px-4 py-3 text-sm text-ssoo-warning">
-              <AlertCircle className="h-4 w-4" />
-              {accessError}
-            </div>
+            <SsooErrorNotice error={accessError} />
           ) : null}
 
           <div className="overflow-auto">
@@ -597,10 +607,10 @@ export function CustomerWorkspaceClient({ data, query }: { data: CrmCustomerList
         </section>
 
         {workflowError ? (
-          <div className="mt-4 flex items-center gap-2 rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+          <SsooErrorNotice className="mt-4 gap-2 px-4 py-3">
             <AlertCircle className="h-4 w-4" />
             {workflowError}
-          </div>
+          </SsooErrorNotice>
         ) : null}
 
         <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -809,7 +819,7 @@ function ActivityPanel({
             <div className="rounded-md border border-ssoo-info-border bg-ssoo-info-bg px-3 py-4 text-center text-sm text-ssoo-info">활동 권한을 확인하는 중입니다.</div>
           ) : null}
           {!isAccessLoading && customer && !canView ? (
-            <div className="rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-3 py-4 text-center text-sm text-ssoo-warning">고객 활동 조회 권한이 없습니다.</div>
+            <SsooErrorNotice as="div" compact className="rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-3 py-4 text-center text-sm text-ssoo-warning">고객 활동 조회 권한이 없습니다.</SsooErrorNotice>
           ) : null}
           {!isAccessLoading && canView && customer?.recentActivities.map((activity) => (
             <ActivityItem key={activity.id} activity={activity} />
@@ -880,10 +890,10 @@ function ActivityPanel({
             <Textarea value={draft.nextAction} onChange={(event) => onDraftChange({ ...draft, nextAction: event.target.value })} className="mt-1 min-h-[64px]" disabled={controlsDisabled} />
           </label>
           {!isAccessLoading && customer && !canCreate ? (
-            <div className="flex items-center gap-2 rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-3 py-2 text-xs text-ssoo-warning">
+            <SsooErrorNotice as="div" compact className="flex items-center gap-2 rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-3 py-2 text-xs text-ssoo-warning">
               <AlertCircle className="h-4 w-4" />
               고객 활동 등록 권한이 없습니다.
-            </div>
+            </SsooErrorNotice>
           ) : null}
         </div>
       </div>
@@ -974,6 +984,7 @@ function CustomerEditor({
       </div>
 
       <div className="space-y-3 p-4">
+        <BusinessOrganizationField value={draft.ownerOrganizationId} onChange={value => onDraftChange({ ...draft, ownerOrganizationId: value })} readOnly={formDisabled || !canCreate} autoSelect={!selected} />
         <label className="block min-w-0 text-xs font-medium text-muted-foreground">
           고객명
           <Input value={draft.customerName} onChange={(event) => onDraftChange({ ...draft, customerName: event.target.value })} className="mt-1 min-w-0" disabled={formDisabled} />
@@ -1043,10 +1054,10 @@ function CustomerEditor({
             고객 저장 권한을 확인하는 중입니다.
           </div>
         ) : !canCreate && !canUpdate ? (
-          <div className="flex items-center gap-2 rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-3 py-2 text-xs text-ssoo-warning">
+          <SsooErrorNotice as="div" compact className="flex items-center gap-2 rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-3 py-2 text-xs text-ssoo-warning">
             <AlertCircle className="h-4 w-4" />
             고객 등록/수정 권한이 없습니다.
-          </div>
+          </SsooErrorNotice>
         ) : (
           <div className="flex items-center gap-2 rounded-md border border-ssoo-success-border bg-ssoo-success-bg px-3 py-2 text-xs text-ssoo-success">
             <CheckCircle2 className="h-4 w-4" />

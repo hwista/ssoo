@@ -231,6 +231,8 @@ export class AuthRegistrationService {
         });
       }
 
+      await tx.platformEnrollment.upsert({ where: { userId: user.id }, create: { userId: user.id, createdBy: currentUserId, updatedBy: currentUserId, lastSource: 'auth-registration', lastActivity: 'onboarding.account-created' }, update: {} });
+
       const authAccount = await tx.userAuth.findUnique({
         where: { userId: user.id },
       });

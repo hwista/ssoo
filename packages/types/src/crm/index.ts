@@ -342,3 +342,5 @@ export type {
 } from './quote.js';
 
 export type { CrmContractApprovalStatus, CrmContractApproval, CrmContractApprovalSource, CrmContractApprovalWorkspace, CrmContractApprovalCandidates, CrmContractApprovalInbox, CrmContractApprovalRequest, CrmContractApprovalDecision } from './contract-approval.js';
+
+export type { CrmBusinessYear, CrmBusinessYearCreateInput, CrmBusinessYearUpdateInput } from './business-year';

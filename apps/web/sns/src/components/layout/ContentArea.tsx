@@ -1,5 +1,9 @@
 'use client';
 
+import { SsooErrorPanel } from '@ssoo/web-shell';
+import { SsooAccessRecovery } from '@ssoo/web-shell';
+import { useAccessStore } from '@/stores/access.store';
+
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -109,7 +113,7 @@ function renderSnsPage(tab: SnsTabItem) {
   }
 
   return (
-    <SsooContentAreaEmptyState>페이지 준비 중: {tab.path}</SsooContentAreaEmptyState>
+    <SsooErrorPanel kind="not-found" title="등록되지 않은 화면입니다" description="다른 탭을 선택하거나 홈으로 이동해 주세요." />
   );
 }
 
@@ -151,12 +155,12 @@ function renderSnsUserSurfaceHandoffContentPage(
         closeTab={closeTab}
       />
     ) : (
-      <SsooContentAreaState title="알 수 없는 사용자 표면입니다." description={`경로: ${tab.path}`} />
+      <SsooErrorPanel kind="not-found" title="등록되지 않은 화면입니다" description="다른 탭을 선택하거나 홈으로 이동해 주세요." />
     ),
   });
 }
 
-export function ContentArea() {
+function ContentBody() {
   const pathname = usePathname();
   const [blockedPostPath, setBlockedPostPath] = useState<string | null>(null);
   const tabs = useTabStore((state) => state.tabs);
@@ -229,4 +233,15 @@ export function ContentArea() {
     />
     </>
   );
+}
+
+/** Keep the shell usable and preserve mounted drafts after transient access refresh failures. */
+export function ContentArea() {
+  const error = useAccessStore(state => state.error);
+  const hasSnapshot = useAccessStore(state => state.snapshot !== null);
+  const retrying = useAccessStore(state => state.isLoading);
+  const hydrate = useAccessStore(state => state.hydrate);
+  return <SsooAccessRecovery error={error} hasSnapshot={hasSnapshot} retrying={retrying} onRetry={hydrate}>
+    <ContentBody />
+  </SsooAccessRecovery>;
 }

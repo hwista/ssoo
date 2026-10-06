@@ -181,6 +181,7 @@ async function runBackupRestore(config, initialReport) {
       database: {
         status: 'passed',
         restoreTargetWasEphemeral: true,
+        source: { host: new URL(config.databaseUrl).hostname, port: new URL(config.databaseUrl).port || '5432', name: new URL(config.databaseUrl).pathname.slice(1) },
         restoreDatabaseName,
         verification: 'pnpm --filter @ssoo/database db:runtime:verify',
       },

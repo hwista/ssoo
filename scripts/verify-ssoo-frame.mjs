@@ -28,6 +28,7 @@ const checks = {
 };
 
 async function main() {
+  await import('./verify-home-navigation.mjs');
   await verifyCanonicalDocs();
   await verifyCurrentLayoutDocs();
   await verifySharedFrameSource();

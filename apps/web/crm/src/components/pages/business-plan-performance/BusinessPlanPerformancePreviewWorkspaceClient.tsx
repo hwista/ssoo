@@ -1,6 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createSharedHttpError } from '@ssoo/web-auth';
+import { SsooErrorNotice } from '@ssoo/web-shell';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCrmCommonCodeOptions, withCurrentCodeOption } from '@/lib/crmCommonCodeOptions';
 import { AlertCircle, RefreshCw, Save, Search } from 'lucide-react';
 import type {
   CrmBusinessPlanPerformanceActualInputRequest,
@@ -14,8 +18,9 @@ import type {
 } from '@ssoo/types/crm';
 import { Badge, Button, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
+import { BusinessOrganizationFilter, BusinessOrganizationField } from '@/components/common/BusinessOrganizationField';
 import { useAuthStore } from '@/stores/auth.store';
-import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
+import { useCrmBusinessYearOptions } from '@/lib/useCrmBusinessYears';
 import { useCrmDomainAccess } from '@/lib/useCrmDomainAccess';
 import type { BusinessPlanPerformancePreviewWorkspaceQuery } from './businessPlanPerformancePreviewQuery';
 
@@ -49,6 +54,7 @@ const regionLabels: Record<CrmBusinessPlanPreviewRegion, string> = {
   all: '전체',
   domestic: '국내',
   overseas: '해외',
+  unspecified: '미선택',
 };
 
 const sourceLabels: Record<CrmBusinessPlanPerformanceSource, string> = {
@@ -79,10 +85,11 @@ function formatEok(value: number) {
   return `${(Math.round(value / 1000000) / 100).toLocaleString('ko-KR')}억`;
 }
 
-function formatTableAmount(value: number) {
+function formatTableAmount(value: number, sourceCompatible = false) {
   if (Math.round(value) === 0) {
     return '-';
   }
+  if (sourceCompatible) return (value / 100000000).toFixed(2);
   return (value / 100000000).toLocaleString('ko-KR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -91,6 +98,7 @@ function formatTableAmount(value: number) {
 
 function buildApiHref(query: BusinessPlanPerformancePreviewWorkspaceQuery) {
   const params = new URLSearchParams();
+  if (query.ownerOrganizationId) params.set('ownerOrganizationId', query.ownerOrganizationId);
   params.set('year', String(query.year));
   params.set('mode', query.mode);
   if (query.businessType) params.set('businessType', query.businessType);
@@ -119,7 +127,7 @@ function createDirectActualDraft(query: BusinessPlanPerformancePreviewWorkspaceQ
     businessType: query.businessType,
     industryLine: query.industryLine,
     ownerName: '',
-    region: query.region === 'overseas' ? 'overseas' : 'domestic',
+    region: query.region === 'unspecified' ? 'unspecified' : query.region === 'overseas' ? 'overseas' : 'domestic',
     wbsCode: '',
     monthlyRevenueAmounts: Array.from({ length: 12 }, () => 0),
     monthlyCostAmounts: Array.from({ length: 12 }, () => 0),
@@ -135,12 +143,23 @@ function toInputAmount(value: string): number {
 export function BusinessPlanPerformancePreviewWorkspaceClient({
   data,
   query,
+  active = true,
 }: {
+  active?: boolean;
   data: CrmBusinessPlanPerformanceResponse;
   query: BusinessPlanPerformancePreviewWorkspaceQuery;
 }) {
+  const router = useRouter();
+  const commonCodes = useCrmCommonCodeOptions(['biz_type', 'group_type']);
+  const updateQuery = (patch: Partial<BusinessPlanPerformancePreviewWorkspaceQuery>) => {
+    const next = { ...query, ...patch };
+    const params = new URLSearchParams({ mode: next.mode, year: String(next.year) });
+    for (const key of ['ownerOrganizationId', 'businessType', 'industryLine', 'region', 'search'] as const) if (next[key]) params.set(key, next[key]);
+    router.replace(`/business-plan-performance?${params}`, { scroll: false });
+  };
+  const requestSequence = useRef(0);
   const accessToken = useAuthStore((state) => state.accessToken);
-  const { access: domainAccess } = useCrmDomainAccess(accessToken);
+  const { access: domainAccess } = useCrmDomainAccess(accessToken, query.ownerOrganizationId);
   const canWriteBusinessPlan = domainAccess?.features.canWriteBusinessPlan === true;
   const [currentData, setCurrentData] = useState(data);
   const [isReloading, setIsReloading] = useState(data.rows.length === 0);
@@ -152,6 +171,8 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
   const apiHref = useMemo(() => buildApiHref(query), [query]);
   const businessYears = useCrmBusinessYearOptions(query.year, getYearOptions(query.year));
   const yearOptions = businessYears.years;
+  const businessTypeOptions = currentData.summary.businessTypeOptions.reduce((options, value) => withCurrentCodeOption(options, value), withCurrentCodeOption(commonCodes.options.biz_type ?? [], query.businessType));
+  const industryLineOptions = currentData.summary.industryLineOptions.reduce((options, value) => withCurrentCodeOption(options, value), withCurrentCodeOption(commonCodes.options.group_type ?? [], query.industryLine));
 
   useEffect(() => {
     setCurrentData(data);
@@ -165,7 +186,7 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
       ...current,
       businessType: current.businessType || query.businessType,
       industryLine: current.industryLine || query.industryLine,
-      region: query.region === 'overseas' ? 'overseas' : current.region,
+      region: query.region === 'unspecified' ? 'unspecified' : query.region === 'overseas' ? 'overseas' : current.region,
     }));
   }, [query.businessType, query.industryLine, query.region]);
 
@@ -174,6 +195,7 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
       return null;
     }
 
+    const sequence = ++requestSequence.current;
     setIsReloading(true);
     setLoadError(null);
     try {
@@ -184,18 +206,19 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmBusinessPlanPerformanceResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
+      if (signal?.aborted || sequence !== requestSequence.current) return null;
       setCurrentData(payload.data);
       return payload.data;
     } catch (error) {
-      if (signal?.aborted) {
+      if (signal?.aborted || sequence !== requestSequence.current) {
         return null;
       }
       setLoadError(error instanceof Error ? error.message : '사업계획대비실적 preview 조회에 실패했습니다.');
       return null;
     } finally {
-      if (!signal?.aborted) {
+      if (!signal?.aborted && sequence === requestSequence.current) {
         setIsReloading(false);
       }
     }
@@ -206,6 +229,7 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
       return;
     }
     const payload: CrmBusinessPlanPerformanceActualInputRequest = {
+      ownerOrganizationId: query.ownerOrganizationId || undefined,
       year: query.year,
       businessType: directActualDraft.businessType.trim(),
       industryLine: directActualDraft.industryLine.trim(),
@@ -236,7 +260,7 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
       });
       const result = await response.json().catch(() => null) as BackendSuccessResponse<CrmBusinessPlanPerformanceActualInputResult> | BackendErrorResponse | null;
       if (!response.ok || result?.success !== true) {
-        throw new Error(getBackendErrorMessage(result));
+        throw createSharedHttpError(response, result, getBackendErrorMessage(result));
       }
       setDirectActualMessage(`직접 실적 ${formatWon(result.data.input.revenueAmountTotal)} / 원가 ${formatWon(result.data.input.costAmountTotal)} 저장`);
       await loadPreview();
@@ -245,13 +269,14 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
     } finally {
       setIsDirectActualSaving(false);
     }
-  }, [accessToken, directActualDraft, loadPreview, query.year]);
+  }, [accessToken, directActualDraft, loadPreview, query.ownerOrganizationId, query.year]);
 
   useEffect(() => {
+    if (!active) return;
     const abortController = new AbortController();
     void loadPreview(abortController.signal);
-    return () => abortController.abort();
-  }, [loadPreview]);
+    return () => { abortController.abort(); requestSequence.current += 1; };
+  }, [active, loadPreview]);
 
   if (query.mode === 'source-compatible') {
     return (
@@ -259,20 +284,22 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
         <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">사업계획대비실적 (월별)</h1>
           <p className="mt-1 text-sm text-muted-foreground">확정 사업계획 대비 계약 청구계획 실적을 조회합니다.</p>
-          <form action="/business-plan-performance" className="mt-6 flex flex-wrap items-end gap-3">
+          <form action="/business-plan-performance" className="mt-6 flex flex-wrap items-end gap-3" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); updateQuery({ ownerOrganizationId: String(form.get('ownerOrganizationId') ?? '') }); void loadPreview(); }}>
+            <BusinessOrganizationField purpose="filter" autoSelect={false} name="ownerOrganizationId" value={query.ownerOrganizationId ?? ''} onChange={(ownerOrganizationId) => updateQuery({ ownerOrganizationId })} />
             <Input type="hidden" name="mode" value="source-compatible" />
-            <SourceBprField label="사업년도 *" htmlFor="bpr-year"><NativeSelect id="bpr-year" name="year" defaultValue={String(query.year)}>{yearOptions.map((year) => <option key={year} value={year}>{year}년</option>)}</NativeSelect></SourceBprField>
-            <SourceBprField label="사업구분" htmlFor="bpr-biz-type"><NativeSelect id="bpr-biz-type" name="businessType" defaultValue={query.businessType}><option value="">전체</option>{[...new Set([query.businessType, ...currentData.summary.businessTypeOptions].filter(Boolean))].map((option) => <option key={option} value={option}>{option}</option>)}</NativeSelect></SourceBprField>
-            <SourceBprField label="계열구분" htmlFor="bpr-group-type"><NativeSelect id="bpr-group-type" name="industryLine" defaultValue={query.industryLine}><option value="">전체</option>{[...new Set([query.industryLine, ...currentData.summary.industryLineOptions].filter(Boolean))].map((option) => <option key={option} value={option}>{option}</option>)}</NativeSelect></SourceBprField>
-            <SourceBprField label="국내/해외" htmlFor="bpr-domestic"><NativeSelect id="bpr-domestic" name="region" defaultValue={query.region}>{Object.entries(regionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</NativeSelect></SourceBprField>
+            <SourceBprField label="사업년도 *" htmlFor="bpr-year"><NativeSelect id="bpr-year" name="year" value={String(query.year)} onChange={(event) => updateQuery({ year: Number(event.target.value) })}>{yearOptions.map((year) => <option key={year} value={year}>{year}년</option>)}</NativeSelect></SourceBprField>
+            <SourceBprField label="사업구분" htmlFor="bpr-biz-type"><NativeSelect id="bpr-biz-type" name="businessType" value={query.businessType} onChange={(event) => updateQuery({ businessType: event.target.value })}><option value="">전체</option>{businessTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</NativeSelect></SourceBprField>
+            <SourceBprField label="계열구분" htmlFor="bpr-group-type"><NativeSelect id="bpr-group-type" name="industryLine" value={query.industryLine} onChange={(event) => updateQuery({ industryLine: event.target.value })}><option value="">전체</option>{industryLineOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</NativeSelect></SourceBprField>
+            <SourceBprField label="국내/해외" htmlFor="bpr-domestic"><NativeSelect id="bpr-domestic" name="region" value={query.region} onChange={(event) => updateQuery({ region: event.target.value as CrmBusinessPlanPreviewRegion })}>{Object.entries(regionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</NativeSelect></SourceBprField>
             <Button type="submit" variant="outline">조회</Button>
           </form>
-          <p className="mt-4 text-sm text-muted-foreground">사업계획 {currentData.summary.confirmedPlanName || `${query.year}년`} 기준</p>
-          {loadError ? <div className="mt-3 flex items-center gap-2 rounded-md bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger"><AlertCircle className="h-4 w-4" />{loadError}</div> : null}
+          <p className="mt-4 text-sm text-muted-foreground">{currentData.summary.confirmedPlanAvailable ? `사업계획 ${query.year}년 ${currentData.summary.confirmedPlanVersion ?? '-'}차 (확정) 기준` : '확정된 사업계획이 없습니다.'}</p>
+          {loadError ? <SsooErrorNotice className="mt-3 px-4 py-3" error={loadError} actions={[{ label: '다시 조회', onClick: () => void loadPreview() }]} /> : null}
+          {commonCodes.error ? <SsooErrorNotice error={commonCodes.error} actions={[{ label: '공통코드 다시 조회', onClick: commonCodes.reload }]} /> : null}
           <div className="mt-5 overflow-x-auto rounded-xl border bg-card">
             <PerformanceTable rows={currentData.rows} months={currentData.months} isLoading={isReloading} sourceCompatible />
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">{currentData.summary.rowCount}개 WBS그룹 · {query.year}년 계획 vs 확정계약 청구계획</p>
+          <p className="mt-3 text-sm text-muted-foreground">단위: 억원 · {currentData.summary.rowCount}개 WBS그룹 · {query.year}년 계획 vs 확정계약 청구계획</p>
         </div>
       </main>
     );
@@ -349,6 +376,7 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
 
         <section className="mt-4 min-w-0 rounded-md border bg-card">
           <form action="/business-plan-performance" className="flex flex-wrap items-end gap-3 border-b p-4">
+            <BusinessOrganizationFilter value={query.ownerOrganizationId} />
             <label className="w-[220px] text-sm font-medium text-muted-foreground">
               비교 기준
               <NativeSelect name="mode" defaultValue={query.mode} className="mt-1">
@@ -392,10 +420,10 @@ export function BusinessPlanPerformancePreviewWorkspaceClient({
           </form>
 
           {loadError ? (
-            <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+            <SsooErrorNotice className="gap-2 px-4 py-3">
               <AlertCircle className="h-4 w-4" />
               {loadError}
-            </div>
+            </SsooErrorNotice>
           ) : null}
 
           <div className="border-b px-4 py-2 text-xs text-muted-foreground">
@@ -425,7 +453,7 @@ function Metric({ label, value, sub }: { label: string; value: string; sub: stri
 }
 
 function SourceBprField({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
-  return <div className="w-[160px]"><label data-for={htmlFor} className="mb-1 block text-sm text-muted-foreground">{label}</label>{children}</div>;
+  return <div className="w-[160px]"><label htmlFor={htmlFor} className="mb-1 block text-sm text-muted-foreground">{label}</label>{children}</div>;
 }
 
 function DirectActualInputPanel({
@@ -502,8 +530,8 @@ function DirectActualInputPanel({
         </label>
         <label className="text-sm font-medium text-muted-foreground">
           국내/해외
-          <NativeSelect value={draft.region} onChange={(event) => updateField('region', event.target.value === 'overseas' ? 'overseas' : 'domestic')} className="mt-1">
-            <option value="domestic">국내</option>
+          <NativeSelect value={draft.region} onChange={(event) => updateField('region', event.target.value === 'unspecified' ? 'unspecified' : event.target.value === 'overseas' ? 'overseas' : 'domestic')} className="mt-1">
+            <option value="unspecified">미선택</option><option value="domestic">국내</option>
             <option value="overseas">해외</option>
           </NativeSelect>
         </label>
@@ -551,10 +579,10 @@ function DirectActualInputPanel({
       </div>
       {message ? <div className="border-t px-4 py-3 text-sm text-ssoo-success">{message}</div> : null}
       {error ? (
-        <div className="flex items-center gap-2 border-t bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="gap-2 px-4 py-3">
           <AlertCircle className="h-4 w-4" />
           {error}
-        </div>
+        </SsooErrorNotice>
       ) : null}
     </fieldset>
   );
@@ -598,20 +626,20 @@ function PerformanceTable({
   const columnCount = (sourceCompatible ? 6 : 5) + ((months.length + 1) * 3);
   return (
     <div className="overflow-auto">
-      <Table className="w-full min-w-[2920px] text-xs">
+      <Table className={sourceCompatible ? 'w-[3044px] min-w-[3044px] table-fixed text-xs' : 'w-full min-w-[2920px] text-xs'}>
         <TableHeader className="sticky top-0 z-10 bg-ssoo-content-bg text-left text-muted-foreground shadow-sm">
           <TableRow>
-            <TableHead className="w-[150px] px-2 py-2" rowSpan={2}>사업구분</TableHead>
-            <TableHead className="w-[150px] px-2 py-2" rowSpan={2}>{sourceCompatible ? '계열구분' : '계열/산업'}</TableHead>
+            <TableHead className={sourceCompatible ? 'px-2 py-2 lg:sticky lg:z-20 bg-ssoo-content-bg' : 'w-[150px] px-2 py-2'} style={sourceCompatible ? { left: 0, width: 72 } : undefined} rowSpan={2}>사업구분</TableHead>
+            <TableHead className={sourceCompatible ? 'px-2 py-2 lg:sticky lg:z-20 bg-ssoo-content-bg' : 'w-[150px] px-2 py-2'} style={sourceCompatible ? { left: 72, width: 80 } : undefined} rowSpan={2}>{sourceCompatible ? '계열구분' : '계열/산업'}</TableHead>
             {sourceCompatible ? <>
-              <TableHead className="w-[100px] px-2 py-2" rowSpan={2}>국내/해외</TableHead>
-              <TableHead className="w-[220px] px-2 py-2" rowSpan={2}>사업명</TableHead>
-              <TableHead className="w-[140px] px-2 py-2" rowSpan={2}>WBS코드</TableHead>
+              <TableHead className={sourceCompatible ? 'px-2 py-2 lg:sticky lg:z-20 bg-ssoo-content-bg' : 'w-[100px] px-2 py-2'} style={sourceCompatible ? { left: 152, width: 60 } : undefined} rowSpan={2}>국내/해외</TableHead>
+              <TableHead className={sourceCompatible ? 'px-2 py-2 lg:sticky lg:z-20 bg-ssoo-content-bg' : 'w-[220px] px-2 py-2'} style={sourceCompatible ? { left: 212, width: 200 } : undefined} rowSpan={2}>사업명</TableHead>
+              <TableHead className={sourceCompatible ? 'px-2 py-2 lg:sticky lg:z-20 bg-ssoo-content-bg' : 'w-[140px] px-2 py-2'} style={sourceCompatible ? { left: 412, width: 90 } : undefined} rowSpan={2}>WBS코드</TableHead>
             </> : <>
               <TableHead className="w-[220px] px-2 py-2" rowSpan={2}>사업/WBS</TableHead>
               <TableHead className="w-[88px] px-2 py-2" rowSpan={2}>출처</TableHead>
             </>}
-            <TableHead className="w-[56px] px-2 py-2" rowSpan={2}>구분</TableHead>
+            <TableHead className={sourceCompatible ? 'px-2 py-2 lg:sticky lg:z-20 bg-ssoo-content-bg' : 'w-[56px] px-2 py-2'} style={sourceCompatible ? { left: 502, width: 46 } : undefined} rowSpan={2}>구분</TableHead>
             {months.map((month) => (
               <TableHead key={month.month} className="px-2 py-2 text-center" colSpan={3}>{month.month}월</TableHead>
             ))}
@@ -619,7 +647,7 @@ function PerformanceTable({
           </TableRow>
           <TableRow>
             {[...months, { month: 0 }].map((month) => (
-              <AmountHeads key={month.month} />
+              <AmountHeads key={month.month} sourceCompatible={sourceCompatible} />
             ))}
           </TableRow>
         </TableHeader>
@@ -635,18 +663,19 @@ function PerformanceTable({
             </TableRow>
           ) : null}
           {!isLoading ? rows.map((row) => <PerformanceRows key={row.key} row={row} months={months} sourceCompatible={sourceCompatible} />) : null}
+          {!isLoading && rows.length > 0 ? <PerformanceRows row={createTotalRow(months)} months={months} sourceCompatible={sourceCompatible} total /> : null}
         </TableBody>
       </Table>
     </div>
   );
 }
 
-function AmountHeads() {
+function AmountHeads({ sourceCompatible = false }: { sourceCompatible?: boolean }) {
   return (
     <>
-      <TableHead className="w-[70px] px-2 py-2 text-right">매출</TableHead>
-      <TableHead className="w-[70px] px-2 py-2 text-right">원가</TableHead>
-      <TableHead className="w-[70px] px-2 py-2 text-right">손익</TableHead>
+      <TableHead className="px-2 py-2 text-right" style={{ width: sourceCompatible ? 64 : 70 }}>매출</TableHead>
+      <TableHead className="px-2 py-2 text-right" style={{ width: sourceCompatible ? 64 : 70 }}>원가</TableHead>
+      <TableHead className="px-2 py-2 text-right" style={{ width: sourceCompatible ? 64 : 70 }}>손익</TableHead>
     </>
   );
 }
@@ -655,35 +684,48 @@ function PerformanceRows({
   row,
   months,
   sourceCompatible = false,
+  total = false,
 }: {
   row: CrmBusinessPlanPerformanceRow;
   months: CrmBusinessPlanPerformanceMonth[];
   sourceCompatible?: boolean;
+  total?: boolean;
 }) {
   const rowKinds: PerformanceRowKind[] = ['plan', 'actual', 'gap'];
   return (
     <>
       {rowKinds.map((kind) => (
-        <TableRow key={`${row.key}-${kind}`} className={kind === 'gap' ? 'bg-ssoo-warning-bg' : kind === 'actual' ? 'bg-ssoo-info-bg' : undefined}>
-          <TableCell className="px-2 py-2 font-medium text-foreground">{kind === 'plan' ? row.businessType : ''}</TableCell>
-          <TableCell className="px-2 py-2 text-muted-foreground">{kind === 'plan' ? row.industryLine : ''}</TableCell>
+        <TableRow data-performance-key={row.key} data-row-kind={kind} data-total={total ? true : undefined} key={`${row.key}-${kind}`} className={kind === 'gap' ? 'bg-ssoo-warning-bg' : kind === 'actual' ? 'bg-ssoo-info-bg' : undefined}>
+          <TableCell style={sourceCompatible ? { left: 0 } : undefined} className={`px-2 py-2 font-medium text-foreground ${sourceCompatible ? 'lg:sticky lg:z-10 bg-card' : ''}`}>{kind === 'plan' ? row.businessType : ''}</TableCell>
+          <TableCell style={sourceCompatible ? { left: 72 } : undefined} className={`px-2 py-2 text-muted-foreground ${sourceCompatible ? 'lg:sticky lg:z-10 bg-card' : ''}`}>{kind === 'plan' ? row.industryLine : ''}</TableCell>
           {sourceCompatible ? <>
-            <TableCell className="px-2 py-2 text-muted-foreground">{kind === 'plan' ? regionLabels[row.region] : ''}</TableCell>
-            <TableCell className="px-2 py-2 font-medium text-foreground">{kind === 'plan' ? row.label : ''}</TableCell>
-            <TableCell className="px-2 py-2 text-muted-foreground">{kind === 'plan' ? row.wbsCode || '-' : ''}</TableCell>
+            <TableCell style={sourceCompatible ? { left: 152 } : undefined} className={`px-2 py-2 text-muted-foreground ${sourceCompatible ? 'lg:sticky lg:z-10 bg-card' : ''}`}>{kind === 'plan' && !total ? regionLabels[row.region] : ''}</TableCell>
+            <TableCell style={sourceCompatible ? { left: 212 } : undefined} className={`px-2 py-2 font-medium text-foreground ${sourceCompatible ? 'lg:sticky lg:z-10 bg-card' : ''}`}>{kind === 'plan' ? row.label : ''}</TableCell>
+            <TableCell style={sourceCompatible ? { left: 412 } : undefined} className={`px-2 py-2 text-muted-foreground ${sourceCompatible ? 'lg:sticky lg:z-10 bg-card' : ''}`}>{kind === 'plan' && !total ? row.wbsCode || '-' : ''}</TableCell>
           </> : <>
             <TableCell className="px-2 py-2 text-muted-foreground">
-              {kind === 'plan' ? <div><div className="font-medium text-foreground">{row.label}</div><div className="mt-0.5 text-caption-2xs text-muted-foreground">{row.wbsCode || 'WBS 미지정'} · {row.ownerName} · {regionLabels[row.region]}</div></div> : null}
+              {kind === 'plan' && !total ? <div><div className="font-medium text-foreground">{row.label}</div><div className="mt-0.5 text-caption-2xs text-muted-foreground">{row.wbsCode || 'WBS 미지정'} · {row.ownerName} · {regionLabels[row.region]}</div></div> : null}
             </TableCell>
-            <TableCell className="px-2 py-2">{kind === 'plan' ? <SourceBadge value={row.source} /> : null}</TableCell>
+            <TableCell className="px-2 py-2">{kind === 'plan' && !total ? <SourceBadge value={row.source} /> : null}</TableCell>
           </>}
-          <TableCell className="px-2 py-2 font-medium text-muted-foreground">{rowKindLabels[kind]}</TableCell>
-          {months.map((month) => <AmountCells key={month.month} month={getMonthForKind(row.months[month.month - 1], kind)} kind={kind} />)}
-          <AmountCells month={getMonthForKind(row.total, kind)} kind={kind} isTotal />
+          <TableCell style={sourceCompatible ? { left: 502 } : undefined} className={`px-2 py-2 font-medium text-muted-foreground ${sourceCompatible ? 'lg:sticky lg:z-10 bg-card' : ''}`}>{rowKindLabels[kind]}</TableCell>
+          {months.map((month) => <AmountCells sourceCompatible={sourceCompatible} key={month.month} month={getMonthForKind(row.months[month.month - 1], kind)} kind={kind} />)}
+          <AmountCells sourceCompatible={sourceCompatible} month={getMonthForKind(row.total, kind)} kind={kind} isTotal />
         </TableRow>
       ))}
     </>
   );
+}
+
+function createTotalRow(months: CrmBusinessPlanPerformanceMonth[]): CrmBusinessPlanPerformanceRow {
+  const total = months.reduce((sum, month) => ({
+    month: 0,
+    planRevenueAmount: sum.planRevenueAmount + month.planRevenueAmount, planCostAmount: sum.planCostAmount + month.planCostAmount,
+    planMarginAmount: sum.planMarginAmount + month.planMarginAmount, actualRevenueAmount: sum.actualRevenueAmount + month.actualRevenueAmount,
+    actualCostAmount: sum.actualCostAmount + month.actualCostAmount, actualMarginAmount: sum.actualMarginAmount + month.actualMarginAmount,
+    revenueGapAmount: sum.revenueGapAmount + month.revenueGapAmount, costGapAmount: sum.costGapAmount + month.costGapAmount, marginGapAmount: sum.marginGapAmount + month.marginGapAmount,
+  }), { month: 0, planRevenueAmount: 0, planCostAmount: 0, planMarginAmount: 0, actualRevenueAmount: 0, actualCostAmount: 0, actualMarginAmount: 0, revenueGapAmount: 0, costGapAmount: 0, marginGapAmount: 0 });
+  return { key: '__total__', label: '', businessType: '합계', industryLine: '', ownerName: '', region: 'unspecified', source: 'mixed', months, total };
 }
 
 function SourceBadge({ value }: { value: CrmBusinessPlanPerformanceSource }) {
@@ -725,18 +767,20 @@ function AmountCells({
   month,
   kind,
   isTotal = false,
+  sourceCompatible = false,
 }: {
   month: Pick<CrmBusinessPlanPerformanceMonth, 'planRevenueAmount' | 'planCostAmount' | 'planMarginAmount'>;
   kind: PerformanceRowKind;
   isTotal?: boolean;
+  sourceCompatible?: boolean;
 }) {
   const weight = isTotal ? 'font-semibold' : 'font-normal';
   const tone = kind === 'gap' && month.planRevenueAmount < 0 ? 'text-ssoo-danger' : kind === 'gap' && month.planRevenueAmount > 0 ? 'text-ssoo-info' : 'text-muted-foreground';
   return (
     <>
-      <TableCell className={`px-2 py-2 text-right ${tone} ${weight}`}>{formatTableAmount(month.planRevenueAmount)}</TableCell>
-      <TableCell className={`px-2 py-2 text-right text-muted-foreground ${weight}`}>{formatTableAmount(month.planCostAmount)}</TableCell>
-      <TableCell className={`px-2 py-2 text-right ${tone} ${weight}`}>{formatTableAmount(month.planMarginAmount)}</TableCell>
+      <TableCell className={`px-2 py-2 text-right ${tone} ${weight}`}>{formatTableAmount(month.planRevenueAmount, sourceCompatible)}</TableCell>
+      <TableCell className={`px-2 py-2 text-right text-muted-foreground ${weight}`}>{formatTableAmount(month.planCostAmount, sourceCompatible)}</TableCell>
+      <TableCell className={`px-2 py-2 text-right ${month.planMarginAmount < 0 ? 'text-ssoo-danger' : month.planMarginAmount > 0 ? 'text-ssoo-info' : 'text-muted-foreground'} ${weight}`}>{formatTableAmount(month.planMarginAmount, sourceCompatible)}</TableCell>
     </>
   );
 }

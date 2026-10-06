@@ -7,9 +7,15 @@ import type {
   CrmReportsPreviewRegion,
 } from '@ssoo/types/crm';
 
-const CRM_REPORTS_PREVIEW_REGIONS = ['all', 'domestic', 'overseas'] as const;
+const CRM_REPORTS_PREVIEW_REGIONS = ['all', 'domestic', 'overseas', 'unspecified'] as const;
 
 export class CrmReportsPreviewQueryDto implements CrmReportsPreviewQuery {
+  @ApiPropertyOptional({ description: '보고 업무 조직 ID', maxLength: 19 })
+  @IsString()
+  @MaxLength(19)
+  @IsOptional()
+  ownerOrganizationId?: string;
+
   @ApiPropertyOptional({ description: '조회 사업년도', example: 2026, minimum: 2000, maximum: 2100 })
   @Type(() => Number)
   @IsNumber()

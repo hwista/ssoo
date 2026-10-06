@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { CrmAccessService } from '../access/access.service.js';
 import { ContractService } from '../contract/contract.service.js';
 import { CostPlanService } from '../cost-plan/cost-plan.service.js';
 import { OpportunityService } from '../opportunity/opportunity.service.js';
@@ -15,10 +16,11 @@ export class CrmOperationRetryService {
     private readonly contractService: ContractService,
     private readonly costPlanService: CostPlanService,
     private readonly settingsService: CrmSettingsService,
+    private readonly access?: CrmAccessService,
   ) {}
 
   async retry(id: string, currentUser: TokenPayload): Promise<unknown> {
-    const attempt = await this.attempts.get(id);
+    const attempt = await this.attempts.get(id, currentUser);
     if (attempt.status !== 'failed') {
       throw new BadRequestException('실패 상태의 CRM 운영 attempt만 재시도할 수 있습니다.');
     }
@@ -29,6 +31,7 @@ export class CrmOperationRetryService {
     };
 
     if (attempt.action === 'quote-dms-lifecycle') {
+      await this.access!.assertOpportunityCapability(currentUser, 'canEditOpportunity', attempt.sourceEntityId);
       return this.opportunityService.executeQuoteDmsDocumentLifecycle(
         attempt.sourceEntityId,
         { memo: `운영 attempt ${attempt.id} 재시도` },
@@ -37,6 +40,7 @@ export class CrmOperationRetryService {
       );
     }
     if (attempt.action === 'opportunity-contract-document-lifecycle') {
+      await this.access!.assertOpportunityCapability(currentUser, 'canEditOpportunity', attempt.sourceEntityId);
       return this.opportunityService.executeOpportunityContractDocumentLifecycle(
         attempt.sourceEntityId,
         { memo: `운영 attempt ${attempt.id} 재시도` },
@@ -45,6 +49,7 @@ export class CrmOperationRetryService {
       );
     }
     if (attempt.action === 'contract-dms-lifecycle') {
+      await this.access!.assertContractCapability(currentUser, 'canWriteContract', attempt.sourceEntityId);
       return this.contractService.executeDmsDocumentLifecycle(
         attempt.sourceEntityId,
         { memo: `운영 attempt ${attempt.id} 재시도` },

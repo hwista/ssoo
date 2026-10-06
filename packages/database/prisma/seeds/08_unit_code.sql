@@ -5,7 +5,7 @@
 
 begin;
 
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('UNIT','KRW','원','KRW','대한민국 원화.',10,now()),
 ('UNIT','USD','달러','USD','미국 달러.',20,now()),

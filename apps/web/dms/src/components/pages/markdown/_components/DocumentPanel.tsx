@@ -329,14 +329,15 @@ export function DocumentPanel({
   const visibilityValue = documentMetadata?.visibility && !isNewDocument && !isTemplatePanel && !lockedPreview ? (
     <VisibilityValue
       scope={documentMetadata.visibility.scope}
+      targetOrgId={documentMetadata.visibility.targetOrgId}
       canManage={
         editable &&
         Boolean(currentUserLoginId) &&
         Boolean(documentMetadata.ownerLoginId) &&
         currentUserLoginId === documentMetadata.ownerLoginId
       }
-      onScopeChange={(scope) => {
-        onMetadataChange?.({ visibility: { scope } });
+      onScopeChange={(scope, targetOrgId) => {
+        onMetadataChange?.({ visibility: { scope, ...(targetOrgId ? { targetOrgId } : {}) } });
       }}
     />
   ) : undefined;

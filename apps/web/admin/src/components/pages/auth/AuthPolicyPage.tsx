@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, MailCheck, RefreshCw, RotateCcw, Save, Send, ShieldCheck, X } from 'lucide-react';
 import { SsooSettingsPage, type SsooPageHeaderAction } from '@ssoo/web-shell';
@@ -505,7 +506,7 @@ export function AuthPolicyPage() {
               </div>
             </div>
 
-            {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
+            {saveError ? <SsooErrorNotice as="p" compact error={saveError} /> : null}
 
           </div>
         )}
@@ -555,7 +556,7 @@ export function AuthPolicyPage() {
         {emailDeliveryQuery.isLoading ? (
           <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">로딩 중...</div>
         ) : emailDeliveryQuery.isError || !emailDelivery ? (
-          <div className="px-5 py-6 text-sm text-destructive">메일 전달 상태를 조회하지 못했습니다.</div>
+          <SsooErrorNotice className="px-5 py-6">메일 전달 상태를 조회하지 못했습니다.</SsooErrorNotice>
         ) : (
           <div className="space-y-4 p-5">
             <div className="grid gap-3 md:grid-cols-4">
@@ -589,7 +590,7 @@ export function AuthPolicyPage() {
                       <TableCell className="font-mono text-sm">{message.recipient}</TableCell>
                       <TableCell>{message.templateCode}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDateTime(message.createdAt)}</TableCell>
-                      <TableCell className="max-w-[280px] truncate text-xs text-destructive" title={message.failReason ?? undefined}>{message.failReason ?? '-'}</TableCell>
+                      <TableCell className="max-w-[280px] truncate text-xs text-destructive" title={message.failReason ?? undefined}>{message.failReason ? <SsooErrorNotice compact error={message.failReason} /> : '-'}</TableCell>
                       <TableCell>
                         {message.statusCode === 'failed' ? (
                           <Button

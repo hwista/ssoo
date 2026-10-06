@@ -1,13 +1,13 @@
 -- =========================================================
 -- SSOO History Triggers - Master Installation Script
--- 
+--
 -- 이 스크립트는 모든 히스토리 트리거를 순서대로 설치합니다.
 -- 각 트리거 파일은 명시적 스키마(common/pms)를 사용합니다.
--- 
+--
 -- 스키마 분류:
 --   - common: cm_user_m (사용자)
 --   - pms: cm_code_m, cm_menu_m, pr_* (코드, 메뉴, 프로젝트 관련)
--- 
+--
 -- 실행 방법:
 --   psql -h localhost -U appuser -d appdb -f apply_all_triggers.sql
 -- =========================================================
@@ -279,17 +279,23 @@
 \i 53_sns_user_profile_h_trigger.sql
 
 \echo '=========================================='
+\i 85_cm_platform_enrollment_h_trigger.sql
+\i 86_cm_onboarding_request_h_trigger.sql
+\i 87_cm_service_grant_h_trigger.sql
+\i 88_cm_approval_authority_h_trigger.sql
+\i 89_sns_post_access_request_h_trigger.sql
+
 \echo 'All triggers installed successfully!'
 \echo '=========================================='
 
 -- 애플리케이션 스키마의 non-internal 트리거 전체 확인.
 -- trg_*_h 외에도 CRM migration-managed *_h_record와 PMS legacy-compatible
 -- tr_*_history 이름을 포함해야 실제 설치 상태와 총계가 일치합니다.
-SELECT 
+SELECT
     n.nspname AS schema_name,
     tgname AS trigger_name,
     relname AS table_name,
-    CASE tgenabled 
+    CASE tgenabled
         WHEN 'O' THEN 'ENABLED'
         WHEN 'D' THEN 'DISABLED'
         ELSE tgenabled::text
@@ -300,6 +306,7 @@ JOIN pg_namespace n ON c.relnamespace = n.oid
 WHERE NOT t.tgisinternal
   AND n.nspname IN ('common', 'pms', 'dms', 'crm', 'sns')
 ORDER BY n.nspname, relname, tgname;
+
 
 SELECT
     COUNT(*) AS total_app_triggers,

@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useAdminStats } from '@/hooks/queries/useStats';
 import { Button } from '@ssoo/web-ui';
 import { LaunchReadinessPanel } from './LaunchReadinessPanel';
@@ -16,10 +17,10 @@ export default function DashboardPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+        <SsooErrorNotice className="p-4">
           통계를 불러오지 못했습니다.
           <Button variant="plain" size="plain" onClick={() => refetch()} className="ml-2 underline">다시 시도</Button>
-        </div>
+        </SsooErrorNotice>
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

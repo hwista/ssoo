@@ -878,6 +878,9 @@ export class FileController {
           currentRevisionSeq } }, 409);
     }
 
+    if (update.visibility !== undefined) {
+      update = { ...update, visibility: await this.accessRequestService.resolveMetadataVisibility(currentUser, update.visibility, existing.visibility) };
+    }
     const merged: DocumentMetadata = {
       ...existing,
       ...update,

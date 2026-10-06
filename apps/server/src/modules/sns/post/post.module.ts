@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PostController } from './post.controller.js';
 import { PostService } from './post.service.js';
+import { PostAccessService } from './post-access.service.js';
+import { PostAccessController } from './post-access.controller.js';
 import { PostImagesController } from './post-images.controller.js';
 import { PostImagesService } from './post-images.service.js';
 import { AccessModule } from '../access/access.module.js';
@@ -10,8 +12,8 @@ import { CommonNotificationModule } from '../../common/notification/notification
 
 @Module({
   imports: [DatabaseModule, AccessModule, CommonNotificationModule, CommonAiIndexModule],
-  controllers: [PostImagesController, PostController],
-  providers: [PostService, PostImagesService],
+  controllers: [PostAccessController, PostImagesController, PostController],
+  providers: [PostService, PostImagesService, PostAccessService],
   exports: [PostService],
 })
 export class PostModule {}

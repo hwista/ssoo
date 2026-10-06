@@ -1,3 +1,4 @@
+import type { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
 import type { AiIndexingService } from '../../common/ai-index/ai-indexing.service.js';
 import type { DatabaseService } from '../../../database/database.service.js';
 import { CustomerService } from './customer.service.js';
@@ -312,7 +313,7 @@ function createMockServices(seedCustomer = createCustomerFixture(), seedActivity
       return {};
     },
   } as unknown as AiIndexingService;
-  const service = new CustomerService(db, aiIndexingService);
+  const service = new CustomerService(db, aiIndexingService, { resolveBusinessOrganization: async () => 13n } as unknown as PlatformAdmissionService);
 
   return {
     service,

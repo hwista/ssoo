@@ -1,3 +1,4 @@
+import { getSsooErrorMessage, readSsooErrorMetadata, parseSsooRetryAfter, type SsooErrorMetadata } from '@ssoo/web-shell';
 import type {
   AuthIdentity,
   AuthSessionRestore,
@@ -30,9 +31,12 @@ function resolveFetchImpl(fetchImpl?: typeof fetch): typeof fetch {
   return candidate.bind(globalThis) as typeof fetch;
 }
 
-async function readAuthApiError(response: Response): Promise<string> {
-  const payload = await response.json().catch(() => null) as { error?: string } | null;
-  return payload?.error || response.statusText;
+async function readAuthApiError(response: Response): Promise<SsooErrorMetadata & { error: string }> {
+  const payload: unknown = await response.json().catch(() => null);
+  const metadata = readSsooErrorMetadata(payload);
+  return { ...metadata, status: response.status,
+    retryAfterSeconds: parseSsooRetryAfter(response.headers.get('retry-after')) ?? metadata.retryAfterSeconds,
+    error: getSsooErrorMessage({ message: getSsooErrorMessage(payload), status: response.status }, '인증 요청을 처리하지 못했습니다.') };
 }
 
 async function authProxyPost<T>(
@@ -63,7 +67,7 @@ async function authProxyPost<T>(
     if (!response.ok) {
       return {
         success: false,
-        error: await readAuthApiError(response),
+        ...await readAuthApiError(response),
         status: response.status,
       };
     }

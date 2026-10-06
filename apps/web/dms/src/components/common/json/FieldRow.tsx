@@ -1,3 +1,4 @@
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import type { JsonFieldDescriptor } from './types';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@ssoo/web-ui';
@@ -96,7 +97,7 @@ export function JsonFieldRow({
           )}
 
           {errorMessage && (
-            <p className="mt-2 text-caption text-destructive">{errorMessage}</p>
+            <SsooErrorNotice as="p" compact className="mt-2" error={errorMessage} />
           )}
         </div>
       </div>

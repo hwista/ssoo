@@ -1,8 +1,10 @@
+import type { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
 import { OpportunityService } from './opportunity.service.js';
 import type { DatabaseService } from '../../../database/database.service.js';
 import type { AiIndexingService } from '../../common/ai-index/ai-indexing.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import type { UserService } from '../../common/user/user.service.js';
+import type { CodeService } from '../../common/code/code.service.js';
 import type { FileCrudService } from '../../dms/file/file-crud.service.js';
 import type { DmsCrmQuoteLifecycleService } from '../../dms/crm-quote-lifecycle/crm-quote-lifecycle.service.js';
 import type { DmsCrmOpportunityContractLifecycleService } from '../../dms/crm-opportunity-contract-lifecycle/crm-opportunity-contract-lifecycle.service.js';
@@ -670,7 +672,7 @@ function createDmsCrmOpportunityContractLifecycleService(
   } as unknown as DmsCrmOpportunityContractLifecycleService;
 }
 
-function createService(rows = createOpportunityRows(), historyRows = createOpportunityHistoryRows(rows)) {
+function createService(rows = createOpportunityRows(), historyRows = createOpportunityHistoryRows(rows), codeService?: CodeService) {
   const calls = {
     findMany: [] as unknown[],
     findFirst: [] as unknown[],
@@ -738,7 +740,7 @@ function createService(rows = createOpportunityRows(), historyRows = createOppor
   } as unknown as DatabaseService;
 
   return {
-    service: new OpportunityService(db, undefined, undefined, createQuoteSettingsService(), createUserService()),
+    service: new OpportunityService(db, undefined, undefined, createQuoteSettingsService(), createUserService(), undefined, undefined, undefined, undefined, undefined, codeService, { resolveBusinessOrganization: async () => 13n } as unknown as PlatformAdmissionService),
     calls,
   };
 }
@@ -748,6 +750,9 @@ function createWritableService(
   contractService?: unknown,
   dmsCrmQuoteLifecycleService?: unknown,
   dmsCrmOpportunityContractLifecycleService?: unknown,
+  templateService: TemplateService = createTemplateService(),
+  sellerService: QuoteSettingsService = createQuoteSettingsService(),
+  ownerService: UserService = createUserService(),
 ) {
   const rows = [...seedRows];
   const quoteHandoffs: Array<{
@@ -1119,12 +1124,13 @@ function createWritableService(
       db,
       aiIndexingService,
       contractService as ContractService | undefined,
-      createQuoteSettingsService(),
-      createUserService(),
+      sellerService,
+      ownerService,
       fileCrudService,
-      createTemplateService(),
+      templateService,
       dmsCrmQuoteLifecycleService as DmsCrmQuoteLifecycleService | undefined,
       dmsCrmOpportunityContractLifecycleService as DmsCrmOpportunityContractLifecycleService | undefined,
+      undefined, undefined, { resolveBusinessOrganization: async () => 13n } as unknown as PlatformAdmissionService,
     ),
     rows,
     quoteHandoffs,
@@ -1303,6 +1309,89 @@ describe('OpportunityService', () => {
     expect(contractDocumentHandoffs.filter((handoff) => handoff.isActive)).toHaveLength(1);
   });
 
+  it('selects an active replacement and evaluates an explicitly selected template independently of a blocked default', async () => {
+    const rows = createOpportunityRows(); rows[0].confirmed = true;
+    const templates = createTemplateService();
+    const original = (await templates.list('system')).global.find((item) => item.id === 'crm-opportunity-contract-v1')!;
+    templates.list = async () => ({ global: [
+      { ...original, status: 'archived' },
+      { ...original, id: 'contract-b', name: '고객 지정 B' },
+      { ...original, id: 'contract-empty', docxTemplate: undefined },
+    ], personal: [] });
+    const { service } = createWritableService(rows, undefined, undefined, undefined, templates);
+    const automatic = await service.getOpportunityContractDocumentPreview('crm-opp-001');
+    expect(automatic).toMatchObject({ templateKey: 'contract-b', readiness: 'ready' });
+    const blocked = await service.getOpportunityContractDocumentPreview('crm-opp-001', quotePreviewCurrentUser, original.id);
+    expect(blocked.readiness).toBe('blocked');
+    const selected = await service.getOpportunityContractDocumentPreview('crm-opp-001', quotePreviewCurrentUser, 'contract-b');
+    expect(selected).toMatchObject({ templateKey: 'contract-b', readiness: 'ready' });
+    expect(selected.fileNameHint).toContain('고객_지정_B');
+    const draft = await service.createOpportunityContractDocumentDraft('crm-opp-001', { templateKey: 'contract-b' }, quotePreviewCurrentUser);
+    expect(draft.handoff.templateKey).toBe('contract-b');
+    await expect(service.createOpportunityContractDocumentDraft('crm-opp-001', { templateKey: 'contract-empty' }, quotePreviewCurrentUser)).rejects.toThrow('DOCX binary');
+  });
+
+  it('allows optional source variables to stay empty but keeps the contract business prerequisites', async () => {
+    const rows = createOpportunityRows(); rows[0].confirmed = true; rows[0].ownerUserId = null; rows[0].paymentTermCode = null;
+    const seller = createQuoteSettingsService(); seller.getSellerProfile = async () => null as unknown as Awaited<ReturnType<QuoteSettingsService['getSellerProfile']>>;
+    const { service } = createWritableService(rows, undefined, undefined, undefined, createTemplateService(), seller);
+    const preview = await service.getOpportunityContractDocumentPreview('crm-opp-001');
+    expect(preview.readiness).toBe('ready');
+    for (const key of ['공급자_회사명', '공급자_대표자', '공급자_사업자번호', '공급자_주소', '공급자_전화', '담당자명', '담당자부서', '담당자연락처', '담당자이메일', '수금조건']) {
+      expect(preview.variables.find((item) => item.key === key)).toMatchObject({ value: '', required: false });
+    }
+    expect(preview.variables).toHaveLength(22);
+    rows[0].confirmed = false;
+    expect((await service.getOpportunityContractDocumentPreview('crm-opp-001')).readiness).toBe('blocked');
+    rows[0].confirmed = true; rows[0].revenueTotal = 0n;
+    expect((await service.getOpportunityContractDocumentPreview('crm-opp-001')).blockedReasons.join(' ')).toContain('0원');
+    rows[0].revenueTotal = 100n; rows[0].customerName = ' ';
+    expect((await service.getOpportunityContractDocumentPreview('crm-opp-001')).blockedReasons.join(' ')).toContain('고객사명');
+  });
+
+  it('refreshes the saved template and variable snapshot when generating again after a template or source change', async () => {
+    const rows = createOpportunityRows(); rows[0].confirmed = true;
+    const templates = createTemplateService();
+    const original = (await templates.list('system')).global.find((item) => item.id === 'crm-opportunity-contract-v1')!;
+    templates.list = async () => ({ global: [original, { ...original, id: 'contract-b', name: '고객 B' }], personal: [] });
+    const calls = { dmsOpportunityContractExecute: [] as unknown[] };
+    const { service } = createWritableService(rows, undefined, undefined, createDmsCrmOpportunityContractLifecycleService(calls), templates);
+    await service.createOpportunityContractDocumentDraft('crm-opp-001', { templateKey: original.id }, quotePreviewCurrentUser);
+    rows[0].opportunityName = '변경된 계약 건명';
+    await service.createOpportunityContractDocumentDraft('crm-opp-001', { templateKey: 'contract-b' }, quotePreviewCurrentUser);
+    await service.executeOpportunityContractDocumentLifecycle('crm-opp-001', {}, quotePreviewCurrentUser);
+    expect(calls.dmsOpportunityContractExecute[0]).toMatchObject({ templateKey: 'contract-b', variables: expect.arrayContaining([{ key: '건명', label: '건명', value: '변경된 계약 건명', required: true, source: 'opportunity' }]) });
+    templates.list = async () => ({ global: [original, { ...original, id: 'contract-b', status: 'archived' }], personal: [] });
+    await expect(service.executeOpportunityContractDocumentLifecycle('crm-opp-001', {}, quotePreviewCurrentUser)).rejects.toThrow('archived');
+  });
+
+  it('selects the highest confirmed version separately from the newest draft for the dashboard', async () => {
+    const base = createOpportunityRows()[0];
+    const rows = [
+      { ...base, id: 3n, opportunityCode: 'a-v3', versionNo: 3, confirmed: false },
+      { ...base, id: 1n, opportunityCode: 'a-v1', versionNo: 1, confirmed: true },
+      { ...base, id: 2n, opportunityCode: 'a-v2', versionNo: 2, confirmed: true },
+      { ...base, id: 4n, opportunityCode: 'b-v1', opportunityGroupCode: 'b', versionNo: 1, confirmed: false },
+    ];
+    const { service } = createService(rows);
+    const result = await service.listSourceDashboardOpportunities();
+    expect(result.latest.map((item) => item.id)).toEqual(['a-v3', 'b-v1']);
+    expect(result.confirmed).toHaveLength(1);
+    expect(result.confirmed[0]).toMatchObject({ id: 'a-v2', version: 2, isLatest: false, versionCount: 3 });
+  });
+
+  it('keeps group registration order when an old group receives a new version or edit', async () => {
+    const base = createOpportunityRows()[0];
+    const rows = [
+      { ...base, id: 50n, opportunityCode: 'a-v2', opportunityGroupCode: 'z-old', versionNo: 2 },
+      { ...base, id: 20n, opportunityCode: 'b-v1', opportunityGroupCode: 'a-new', versionNo: 1 },
+      { ...base, id: 10n, opportunityCode: 'a-v1', opportunityGroupCode: 'z-old', versionNo: 1, updatedAt: new Date('2026-09-30T00:00:00Z') },
+    ];
+    const { service } = createService(rows);
+    expect((await service.listSourceDashboardOpportunities()).latest.map((item) => item.id)).toEqual(['a-v2', 'b-v1']);
+    expect((await createService([]).service.listSourceDashboardOpportunities())).toEqual({ latest: [], confirmed: [] });
+  });
+
   it('returns seeded CRM opportunities from the CRM RDB ledger with read-only integration boundaries', async () => {
     const { service, calls } = createService();
 
@@ -1363,6 +1452,40 @@ describe('OpportunityService', () => {
       },
       take: 10,
     });
+    expect(calls.ownerLookupFindMany[0]).toMatchObject({ where: { OR: expect.arrayContaining([
+      { departmentCode: { contains: 'sales', mode: 'insensitive' } },
+      { organizationRelations: { some: { isActive: true, organization: {
+        isActive: true, orgClass: 'permanent', OR: [
+          { orgName: { contains: 'sales', mode: 'insensitive' } },
+          { orgCode: { contains: 'sales', mode: 'insensitive' } },
+        ],
+      } } } },
+    ]) } });
+  });
+
+  it('resolves renamed inactive payment codes through the platform in quote and contract document output', async () => {
+    const groups: string[] = [];
+    const codeService = { findByGroup: async (group: string) => {
+      groups.push(group);
+      return [{ codeValue: 'NET30', displayNameKo: '검수 후 익월 말', isActive: false }];
+    } } as unknown as CodeService;
+    const { service } = createService(undefined, undefined, codeService);
+    expect((await service.getQuotePreview('crm-opp-001')).workflow.paymentTermLabel).toBe('검수 후 익월 말');
+    const document = await service.getOpportunityContractDocumentPreview('crm-opp-001');
+    expect(document.variables.find((variable) => variable.key === '수금조건')?.value).toBe('검수 후 익월 말');
+    expect(groups).toEqual(['payment_term', 'payment_term']);
+  });
+
+  it.each([['CUSTOM-TERM', 'CUSTOM-TERM'], [null, '-'], ['NET30', '계약 후 30일 이내']])('keeps unknown, empty and legacy payment term fallback for %s', async (value, expected) => {
+    const rows = createOpportunityRows();
+    rows.forEach((row) => { row.paymentTermCode = value; });
+    const { service } = createService(rows, undefined, { findByGroup: async () => [] } as unknown as CodeService);
+    expect((await service.getQuotePreview('crm-opp-001')).workflow.paymentTermLabel).toBe(expected);
+  });
+
+  it('surfaces payment-code lookup failures instead of printing a stale label', async () => {
+    const { service } = createService(undefined, undefined, { findByGroup: async () => { throw new Error('code unavailable'); } } as unknown as CodeService);
+    await expect(service.getQuotePreview('crm-opp-001')).rejects.toThrow('code unavailable');
   });
 
   it('calculates summary totals from revenue and cost without claiming contract handoff completion', async () => {
@@ -1739,10 +1862,91 @@ describe('OpportunityService', () => {
     });
   });
 
+  it('sorts source list by raw totals while preserving ledger ranking and values', async () => {
+    const fixture = createOpportunityRows().slice(0, 2).map((row, index) => ({
+      ...row, id: BigInt(index + 1), opportunityGroupCode: `raw-${index}`, opportunityCode: `raw-${index}`,
+      revenueTotal: index === 0 ? 100n : 50000n, costTotal: 0n,
+      lines: [{ ...row.lines[0], lineKindCode: 'revenue', categoryCode: 'product', quantity: index === 0 ? 3 : 1, unitPrice: index === 0 ? 20001n : 50000n, amount: index === 0 ? 60000n : 50000n }],
+    }));
+    const { service } = createService(fixture);
+    for (const sort of ['revenue-desc', 'profit-desc'] as const) {
+      expect((await service.listOpportunities({ view: 'source-list', sort })).map(item => item.id)).toEqual(['raw-0', 'raw-1']);
+      expect((await service.listOpportunities({ sort })).map(item => item.id)).toEqual(['raw-1', 'raw-0']);
+    }
+    expect((await service.listOpportunities({ view: 'source-list' })).find(item => item.id === 'raw-0')?.revenueTotal).toBe(100);
+  });
+
+  it('limits source search to displayed fields and uses registration order for equal keys', async () => {
+    const fixture = createOpportunityRows().slice(0, 2).map((row, index) => ({
+      ...row, id: BigInt(2 - index), opportunityGroupCode: `tie-${index}`, opportunityCode: `tie-${index}`,
+      customerName: '동일 고객', opportunityName: '대조', ownerName: '담당', businessType: 'hidden-only', industryLine: 'hidden-only',
+    }));
+    const { service } = createService(fixture);
+    expect(await service.listOpportunities({ view: 'source-list', search: 'hidden-only' })).toHaveLength(0);
+    expect(await service.listOpportunities({ search: 'hidden-only' })).toHaveLength(2);
+    expect(await service.listOpportunities({ view: 'source-list', search: '담당 ' })).toHaveLength(0);
+    expect(await service.listOpportunities({ search: '담당 ' })).toHaveLength(2);
+    expect((await service.listOpportunities({ view: 'source-list', search: '담당' })).map(item => item.id)).toEqual(['tie-1', 'tie-0']);
+  });
+
+  it('exposes raw fractional version totals without overwriting canonical version amounts', async () => {
+    const fixture = createOpportunityRows();
+    fixture[0].lines = [{ ...fixture[0].lines[0], lineKindCode: 'revenue', categoryCode: 'product', quantity: 0.5, unitPrice: 12345n, amount: 6000n }];
+    const { service } = createService(fixture);
+    const result = await service.listOpportunityVersions(fixture[0].opportunityCode);
+    const version = result.versions.find(item => item.id === fixture[0].opportunityCode);
+    expect(version?.sourceTotals).toEqual({ revenueTotal: 6172.5, costTotal: 0, marginTotal: 6172.5, marginRate: 100 });
+    expect(version?.revenueTotal).toBe(Number(fixture[0].revenueTotal));
+  });
+
+  it.each([
+    [0.1, 9999, 1000, 0],
+    [2.3, 100, 10, 230],
+    [0.29, 100, 1, 29],
+    [0.5, 123, 0, 62],
+    [0.01, 19999, 100, 100],
+    [1.234, 1000, 0, 1230],
+  ])('calculates quantity %s × price %s with truncation %s as %s won', async (quantity, unitPrice, truncUnit, expected) => {
+    const { service } = createWritableService();
+    const result = await service.createOpportunity({
+      ...writablePayload, specialDiscountValue: 0,
+      revenueLines: [{ category: 'product', label: '절사 경계', quantity, unitPrice, truncUnit }],
+      costLines: [],
+    }, 77n);
+    expect(result.revenueLines[0].amount).toBe(expected);
+    expect(result.revenueTotal).toBe(expected);
+  });
+
+  it('normalizes rate precision before discount calculation and caps amount discounts', async () => {
+    const { service } = createWritableService();
+    const payload = { ...writablePayload, revenueLines: [{ category: 'product' as const, label: 'DC 경계', quantity: 1, unitPrice: 1000 }], costLines: [] };
+    const rate = await service.createOpportunity({ ...payload, specialDiscountType: 'rate', specialDiscountValue: 12.345 }, 77n);
+    expect(rate.specialDiscountValue).toBe(12.35);
+    expect(rate.specialDiscountAmount).toBe(124);
+    const amount = await service.createOpportunity({ ...payload, specialDiscountType: 'amount', specialDiscountValue: 1200 }, 77n);
+    expect(amount.specialDiscountAmount).toBe(1000);
+    expect(amount.revenueTotal).toBe(0);
+    await expect(service.createOpportunity({ ...payload, specialDiscountType: 'rate', specialDiscountValue: 100.01 }, 77n)).rejects.toThrow('100 이하');
+  });
+
+  it('saves and reloads source optional fields and zero quantity without reviving the old amount', async () => {
+    const { service } = createWritableService();
+    const result = await service.createOpportunity({
+      ...writablePayload,
+      industryLine: '', nextAction: '',
+      revenueLines: [{ category: 'product', label: '수량 초기화', quantity: 0, unitPrice: 10000, amount: 50000 }],
+      costLines: [],
+    }, 77n);
+    expect(result.industryLine).toBe('');
+    expect(result.nextAction).toBe('');
+    expect(result.revenueTotal).toBe(0);
+    expect((await service.getOpportunity(result.id)).revenueLines[0].amount).toBe(0);
+  });
+
   it('creates an opportunity ledger row with calculated revenue and cost totals', async () => {
     const { service, rows, calls } = createWritableService();
 
-    const result = await service.createOpportunity(writablePayload);
+    const result = await service.createOpportunity(writablePayload, 77n);
 
     expect(result.id).toMatch(/^crm-opp-/);
     expect(result.ownerUserId).toBe('77');
@@ -1785,7 +1989,7 @@ describe('OpportunityService', () => {
       specialDiscountValue: 10,
       revenueLines: [{ category: 'service', label: '할인 대상 매출', amount: 100000000 }],
       costLines: [{ category: 'internal-cost', label: '수행 원가', amount: 30000000 }],
-    });
+    }, 77n);
 
     expect(result.paymentTermCode).toBe('분할납부');
     expect(result.revenueSubtotal).toBe(100000000);
@@ -1802,6 +2006,16 @@ describe('OpportunityService', () => {
       specialDiscountAmount: 10000000n,
       revenueTotal: 90000000n,
     });
+  });
+
+  it('preserves unspecified region through create, reload and update', async () => {
+    const { service, rows } = createWritableService();
+    const created = await service.createOpportunity({ ...writablePayload, region: 'unspecified' }, 77n);
+    expect(created.region).toBe('unspecified');
+    expect(rows[0].regionCode).toBe('unspecified');
+    expect((await service.getOpportunity(created.id)).region).toBe('unspecified');
+    const updated = await service.updateOpportunity(created.id, { ...writablePayload, region: 'unspecified' });
+    expect(updated.region).toBe('unspecified');
   });
 
   it('remaps linked revenue rows from draft cost ids to persisted cost line codes', async () => {
@@ -1828,7 +2042,7 @@ describe('OpportunityService', () => {
         revenueLinked: true,
         revenueUnitPrice: 120000000,
       }],
-    });
+    }, 77n);
 
     expect(result.revenueLines[0]).toMatchObject({
       id: 'revenue-001',
@@ -1924,23 +2138,24 @@ describe('OpportunityService', () => {
     await expect(previousService.deleteOpportunity('crm-opp-001-v2')).rejects.toThrow('이전 차수 영업기회는 삭제할 수 없습니다.');
   });
 
-  it('confirms an active opportunity without creating a new version or contract handoff', async () => {
+  it.each(['draft', 'qualified', 'proposal', 'won'])('confirms an active opportunity without creating a new version or contract handoff, preserving %s', async (statusCode) => {
     const [row] = createOpportunityRows();
+    row.statusCode = statusCode;
     const { service, rows, calls } = createWritableService(row ? [row] : []);
 
     const result = await service.confirmOpportunity('crm-opp-001');
 
     expect(result.confirmed).toBe(true);
-    expect(result.status).toBe('won');
+    expect(result.status).toBe(statusCode);
+    expect(calls.update[0]).not.toHaveProperty('data.statusCode');
     expect(result.version).toBe(3);
     expect(result.pmsHandoffStatus).toBe('planned');
     expect(rows[0]?.confirmed).toBe(true);
-    expect(rows[0]?.statusCode).toBe('won');
+    expect(rows[0]?.statusCode).toBe(statusCode);
     expect(calls.update[0]).toMatchObject({
       where: { id: 1n },
       data: {
         confirmed: true,
-        statusCode: 'won',
         lastActivity: 'confirm',
       },
     });
@@ -2125,8 +2340,9 @@ describe('OpportunityService', () => {
       .rejects.toThrow('계약으로 전환된 영업기회는 차수를 추가할 수 없습니다.');
   });
 
-  it('reopens a confirmed opportunity back to proposal editing without changing amount lines', async () => {
+  it.each(['draft', 'qualified', 'proposal', 'won'])('reopens a confirmed opportunity back to proposal editing from %s without changing amount lines', async (statusCode) => {
     const confirmed = createOpportunityRows().find((row) => row.opportunityCode === 'crm-opp-003');
+    if (confirmed) confirmed.statusCode = statusCode;
     const { service, rows, calls } = createWritableService(confirmed ? [confirmed] : []);
 
     const result = await service.reopenOpportunity('crm-opp-003');
@@ -2203,7 +2419,7 @@ describe('OpportunityService', () => {
     expect(result.version).toBe(5);
     expect(result.versionCount).toBe(2);
     expect(result.confirmed).toBe(false);
-    expect(result.status).toBe('proposal');
+    expect(result.status).toBe('won');
     expect(result.pmsHandoffStatus).toBe('planned');
     expect(rows[0]).toMatchObject({
       opportunityCode: 'crm-opp-003-v5',
@@ -2211,7 +2427,7 @@ describe('OpportunityService', () => {
       ownerUserId: 77n,
       versionNo: 5,
       confirmed: false,
-      statusCode: 'proposal',
+      statusCode: 'won',
     });
     expect(calls.queueJob[calls.queueJob.length - 1]).toMatchObject({
       sourceApp: 'crm',

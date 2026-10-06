@@ -55,7 +55,8 @@ Docker/compose도 DMS 런타임 계약의 일부입니다. DMS 포트, runtime p
 - Docker server가 HTTPS 문서 remote를 사용할 때 credential을 URL, Compose env, 저장소 `.git/config`에 넣지 않습니다. `pnpm run dms:git-http-auth:prepare`로 mode `0600` Docker secret을 만들고 `DMS_GIT_HTTP_AUTH_SCOPE`를 해당 origin으로 제한합니다.
 - readiness는 활성 storage provider의 실제 경로를 필수로 검사합니다. dev에서 사용하지 않는 NAS는 비활성화하고, NAS를 활성화할 때는 실제 host/NAS mount를 먼저 준비합니다.
 - Git 초기화 결과 실패·예외와 최초 document control-plane 동기화 실패는 startup-fatal입니다. 실패한 서버를 liveness만으로 정상 취급하지 않습니다.
-- `/api/health`는 liveness이고 `/api/health/readiness`는 DB와 DMS settings persistence, Git parity, control-plane, runtime path 전체가 ready일 때만 `200`입니다.
+- `/api/health`는 liveness, `/api/health/core-readiness`는 공통 DB/auth 테이블 접근 준비, `/api/health/apps/:app`은 앱별 준비 상태입니다. `/api/health/readiness`는 공통 서버와 Admin/CRM/PMS/DMS/SNS 전체가 ready일 때만 `200`입니다. DMS settings persistence, Git parity, control-plane, runtime path 검사는 그대로 유지합니다.
+- 배포 공통 정적·빌드 검사는 `pnpm run codex:platform-guard`로 서버와 5개 웹 전체를 검사합니다. `codex:dms-guard`는 DMS 전용 계약의 호환 명령으로 유지합니다. 실제 배포 완료에는 추가로 release manifest·백업 복원·플랫폼 인증 및 도메인 runtime 검증이 필요합니다.
 - 기동 후 일시적인 문서 목록 오류에는 기존 error state와 visible retry 동선을 유지합니다. fail-fast/readiness는 사용자 복구 UI를 삭제하는 근거가 아닙니다.
 - 프로필 계약은 `pnpm run verify:dms-runtime-profile-contract:self-test`의 오염 실패주입과 `pnpm run codex:dms-guard`로 검증합니다.
 

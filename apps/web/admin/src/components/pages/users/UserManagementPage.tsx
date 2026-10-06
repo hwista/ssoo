@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { SsooErrorNotice, showSsooErrorAlert } from '@ssoo/web-shell';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { KeyRound, LockOpen, LogOut, Pencil, Plus, ShieldCheck, UserCheck, UserX } from 'lucide-react';
 import {
@@ -9,6 +10,7 @@ import {
   type SsooDataGridColumnDef,
   type SsooDataWorkspaceFilterValues,
 } from '@ssoo/web-shell';
+import { useAuthStore } from '@/stores/auth.store';
 import { NativeSelect } from '@ssoo/web-ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -117,6 +119,9 @@ interface UserManagementPageProps {
 
 export function UserManagementPage({ path }: UserManagementPageProps) {
   const searchParams = useSearchParams();
+  const currentUserId = useAuthStore((state) => state.user?.userId);
+  const submitPending = useRef(false);
+  const createIntentHandled = useRef(false);
   const pathParams = useMemo(() => new URLSearchParams(path?.split('?')[1] ?? ''), [path]);
   const sourceCompatible = searchParams.get('mode') === 'source-compatible'
     || pathParams.get('mode') === 'source-compatible';
@@ -136,12 +141,12 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   const [operationsError, setOperationsError] = useState<string | null>(null);
 
   const limit = 20;
-  const { data: response, isLoading, error: listError, refetch } = useUserList({
+  const { data: response, isLoading, isFetching, error: listError, refetch } = useUserList({
     page: sourceCompatible ? 1 : page,
     limit: sourceCompatible ? 100 : limit,
     search: sourceCompatible ? undefined : search || undefined,
     roleCode: sourceCompatible ? undefined : roleFilter || undefined,
-  });
+  }, sourceCompatible);
 
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
@@ -151,6 +156,10 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   const revokeSessionsMutation = useRevokeUserSessions();
   const unlockMutation = useUnlockUserAccount();
   const passwordResetMutation = useRequestUserPasswordReset();
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const mutationBusy = isSaving || deactivateMutation.isPending || reactivateMutation.isPending || passwordResetMutation.isPending;
+  const blocked = isFetching || Boolean(listError) || mutationBusy;
+  const operationsBusy = revokeSessionsMutation.isPending || unlockMutation.isPending || passwordResetMutation.isPending;
   const pathSearch = pathParams.get('search')?.trim() ?? '';
   const shouldOpenCreateDialog = pathParams.get('create') === '1';
 
@@ -187,11 +196,13 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   }, []);
 
   const openCreateDialog = useCallback(() => {
+    if (blocked) return;
+    setSubmitError(null);
     setEditingUser(null);
     setForm(INITIAL_FORM);
     setFormErrors({});
     setDialogOpen(true);
-  }, []);
+  }, [blocked]);
 
   useEffect(() => {
     setFilterValues((prev) => ({ ...prev, search: pathSearch }));
@@ -200,12 +211,16 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   }, [pathSearch]);
 
   useEffect(() => {
-    if (shouldOpenCreateDialog) {
+    if (!shouldOpenCreateDialog) createIntentHandled.current = false;
+    if (shouldOpenCreateDialog && !blocked && !createIntentHandled.current) {
+      createIntentHandled.current = true;
       openCreateDialog();
     }
-  }, [openCreateDialog, shouldOpenCreateDialog]);
+  }, [openCreateDialog, shouldOpenCreateDialog, blocked]);
 
   const openEditDialog = useCallback((user: UserItem) => {
+    if (blocked) return;
+    setSubmitError(null);
     setEditingUser(user);
     setForm({
       loginId: user.loginId,
@@ -224,17 +239,18 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
     });
     setFormErrors({});
     setDialogOpen(true);
-  }, []);
+  }, [blocked]);
 
   const validateForm = useCallback((): boolean => {
     const errors: Record<string, string> = {};
     if (!editingUser && !form.loginId.trim()) errors.loginId = '로그인 ID를 입력하세요';
     if (!editingUser && !form.password) errors.password = '비밀번호를 입력하세요';
     if (form.password) {
-      if (form.password.length < 8) errors.password = '비밀번호는 8자 이상이어야 합니다';
+      if (form.password.length > 100) errors.password = '비밀번호는 100자 이하여야 합니다';
+      else if (form.password.length < 8) errors.password = '비밀번호는 8자 이상이어야 합니다';
       else if (!/[a-zA-Z]/.test(form.password)) errors.password = '영문자를 포함해야 합니다';
       else if (!/\d/.test(form.password)) errors.password = '숫자를 포함해야 합니다';
-      else if (!/[!@#$%^&*(),.?":{}|<>]/.test(form.password)) errors.password = '특수문자를 포함해야 합니다';
+      else if (!/[!@#$%^&*]/.test(form.password)) errors.password = '특수문자를 포함해야 합니다';
     }
     if (!form.userName.trim()) errors.userName = '이름을 입력하세요';
     if (!form.email.trim()) errors.email = '이메일을 입력하세요';
@@ -244,7 +260,8 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   }, [form, editingUser]);
 
   const handleSubmit = useCallback(async () => {
-    if (!validateForm()) return;
+    if (blocked || submitPending.current || !validateForm()) return;
+    submitPending.current = true;
     setSubmitError(null);
 
     try {
@@ -295,39 +312,44 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
     } catch (err) {
       const message = err instanceof Error ? err.message : '저장에 실패했습니다.';
       setSubmitError(message);
+    } finally {
+      submitPending.current = false;
     }
-  }, [form, editingUser, validateForm, createMutation, updateMutation]);
+  }, [blocked, form, editingUser, validateForm, createMutation, updateMutation]);
 
   const handleDeactivate = useCallback(
     async (user: UserItem) => {
+      if (blocked) return;
       if (!window.confirm(`'${user.userName}' 사용자를 비활성화하시겠습니까?`)) return;
       try {
         await deactivateMutation.mutateAsync(user.id);
       } catch (error) {
-        window.alert(error instanceof Error ? error.message : '사용자 비활성화에 실패했습니다.');
+        showSsooErrorAlert(error instanceof Error ? error.message : '사용자 비활성화에 실패했습니다.');
       }
     },
-    [deactivateMutation],
+    [blocked, deactivateMutation],
   );
 
   const handleReactivate = useCallback(async (user: UserItem) => {
+    if (blocked) return;
     if (!window.confirm(`'${user.userName}' 사용자를 재활성화하시겠습니까? 기존 세션은 모두 회수됩니다.`)) return;
     try {
       await reactivateMutation.mutateAsync(user.id);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : '사용자 재활성화에 실패했습니다.');
+      showSsooErrorAlert(error instanceof Error ? error.message : '사용자 재활성화에 실패했습니다.');
     }
-  }, [reactivateMutation]);
+  }, [blocked, reactivateMutation]);
 
   const handlePasswordReset = useCallback(async (user: UserItem) => {
+    if (blocked) return;
     if (!window.confirm(`'${user.userName}' 사용자의 비밀번호 재설정 절차를 시작하시겠습니까?`)) return;
     try {
       await passwordResetMutation.mutateAsync(user.id);
       window.alert('비밀번호 재설정 요청을 접수했습니다. 메일 outbox/delivery 상태를 확인하세요.');
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : '비밀번호 재설정 요청에 실패했습니다.');
+      showSsooErrorAlert(error instanceof Error ? error.message : '비밀번호 재설정 요청에 실패했습니다.');
     }
-  }, [passwordResetMutation]);
+  }, [blocked, passwordResetMutation]);
 
   const openAccountOperations = useCallback((user: UserItem) => {
     setOperationsUser(user);
@@ -414,6 +436,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
               openEditDialog(row.original);
             }}
             title="수정"
+            disabled={blocked}
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>
@@ -439,7 +462,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 void handleDeactivate(row.original);
               }}
               title="비활성화"
-              disabled={deactivateMutation.isPending}
+              disabled={blocked}
             >
               <UserX className="h-3.5 w-3.5 text-destructive" />
             </Button>
@@ -452,7 +475,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 void handleReactivate(row.original);
               }}
               title="재활성화"
-              disabled={reactivateMutation.isPending}
+              disabled={blocked}
             >
               <UserCheck className="h-3.5 w-3.5 text-ssoo-success" />
             </Button>
@@ -460,7 +483,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
         </div>
       ),
     },
-  ], [deactivateMutation.isPending, handleDeactivate, handleReactivate, openAccountOperations, openEditDialog, reactivateMutation.isPending]);
+  ], [blocked, handleDeactivate, handleReactivate, openAccountOperations, openEditDialog]);
 
   const updateField = useCallback((field: keyof UserFormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -471,13 +494,11 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
     });
   }, []);
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
-
   return (
     <>
       {sourceCompatible ? (
         <main
-          className="flex min-h-full flex-col gap-5 bg-muted/20 p-4 sm:p-6"
+          className="flex min-h-full shrink-0 flex-col gap-5 bg-muted/20 p-4 sm:p-6"
           data-testid="admin-user-management-source"
           data-source-surface="users"
         >
@@ -486,7 +507,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
               <h1 className="text-xl font-semibold text-foreground">계정 관리</h1>
               <p className="mt-1 text-sm text-muted-foreground">시스템 사용자 계정을 조회하고 관리합니다.</p>
             </div>
-            <Button onClick={openCreateDialog}>+ 신규 계정 등록</Button>
+            <Button onClick={openCreateDialog} disabled={blocked}>+ 신규 계정 등록</Button>
           </header>
 
           <p className="rounded-lg border border-ssoo-warning-border bg-ssoo-warning-bg px-4 py-3 text-sm text-ssoo-warning">
@@ -553,7 +574,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                   {isLoading ? (
                     <TableRow><TableCell colSpan={10} className="py-10 text-center text-muted-foreground">계정을 불러오는 중입니다.</TableCell></TableRow>
                   ) : listError ? (
-                    <TableRow><TableCell colSpan={10} className="py-10 text-center text-destructive"><Button type="button" variant="link" className="h-auto p-0 text-destructive" onClick={() => void refetch()}>계정 조회에 실패했습니다. 다시 시도</Button></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10}><SsooErrorNotice message="계정 조회에 실패했습니다." actions={[{ label: '다시 시도', onClick: () => refetch() }]} /></TableCell></TableRow>
                   ) : sourceUsers.length === 0 ? (
                     <TableRow><TableCell colSpan={10} className="py-10 text-center text-muted-foreground">조건에 맞는 계정이 없습니다.</TableCell></TableRow>
                   ) : sourceUsers.map((user) => (
@@ -569,12 +590,12 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                       <TableCell>{user.roleCode === 'admin' ? '관리자' : '일반'}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          <Button size="sm" variant="outline" onClick={() => openEditDialog(user)}>수정</Button>
-                          <Button size="sm" variant="outline" onClick={() => void handlePasswordReset(user)} disabled={passwordResetMutation.isPending}>비밀번호 초기화</Button>
-                          {user.loginId === 'admin' ? <span className="px-2 py-1 text-xs text-muted-foreground">본인 계정</span> : user.isActive ? (
-                            <Button size="sm" variant="destructive" onClick={() => void handleDeactivate(user)} disabled={deactivateMutation.isPending}>비활성화</Button>
+                          <Button size="sm" variant="outline" onClick={() => openEditDialog(user)} disabled={blocked}>수정</Button>
+                          <Button size="sm" variant="outline" onClick={() => void handlePasswordReset(user)} disabled={blocked}>비밀번호 초기화</Button>
+                          {user.id === currentUserId ? <span className="px-2 py-1 text-xs text-muted-foreground">본인 계정</span> : user.isActive ? (
+                            <Button size="sm" variant="destructive" onClick={() => void handleDeactivate(user)} disabled={blocked}>비활성화</Button>
                           ) : (
-                            <Button size="sm" variant="outline" onClick={() => void handleReactivate(user)} disabled={reactivateMutation.isPending}>활성화</Button>
+                            <Button size="sm" variant="outline" onClick={() => void handleReactivate(user)} disabled={blocked}>활성화</Button>
                           )}
                           {user.isSystemUser ? (
                             <Button size="sm" variant="ghost" onClick={() => openAccountOperations(user)}>계정·세션 운영</Button>
@@ -598,6 +619,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 label: '사용자 추가',
                 icon: <Plus className="h-4 w-4" />,
                 onClick: openCreateDialog,
+                disabled: blocked,
               },
             ],
             filters: [
@@ -633,16 +655,16 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
         />
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!isSaving) setDialogOpen(open); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingUser ? '사용자 수정' : '사용자 추가'}</DialogTitle>
             <DialogDescription>
-              {editingUser ? '사용자 정보를 수정합니다.' : '새 사용자를 등록합니다.'}
+              {editingUser ? '사용자 정보를 수정합니다.' : '계정을 생성합니다. 새 사용자는 로그인 후 조직 소속과 서비스 이용을 신청하고 각각 승인받아야 합니다.'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-2" data-ssoo-credential-region="managed-user">
+          <fieldset disabled={isSaving} className="grid gap-4 py-2" data-ssoo-credential-region="managed-user">
             {/* Login ID */}
             <div className="grid gap-1.5">
               <label className="text-sm font-medium" htmlFor="managed-user-login-id">로그인 ID *</label>
@@ -661,7 +683,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 placeholder="로그인 ID"
               />
               {formErrors.loginId && (
-                <p className="text-xs text-destructive">{formErrors.loginId}</p>
+                <SsooErrorNotice as="p" compact error={formErrors.loginId} />
               )}
             </div>
 
@@ -681,7 +703,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 placeholder={editingUser ? '변경하지 않으려면 비워두세요' : '비밀번호 (8자 이상)'}
               />
               {formErrors.password && (
-                <p className="text-xs text-destructive">{formErrors.password}</p>
+                <SsooErrorNotice as="p" compact error={formErrors.password} />
               )}
             </div>
 
@@ -695,7 +717,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                   placeholder="이름"
                 />
                 {formErrors.userName && (
-                  <p className="text-xs text-destructive">{formErrors.userName}</p>
+                  <SsooErrorNotice as="p" compact error={formErrors.userName} />
                 )}
               </div>
               <div className="grid gap-1.5">
@@ -727,7 +749,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                   placeholder="이메일"
                 />
                 {formErrors.email && (
-                  <p className="text-xs text-destructive">{formErrors.email}</p>
+                  <SsooErrorNotice as="p" compact error={formErrors.email} />
                 )}
               </div>
               <div className="grid gap-1.5">
@@ -827,17 +849,17 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 />
               </div>
             </div>
-          </div>
+          </fieldset>
 
           {submitError && (
-            <p className="text-sm text-destructive px-1">{submitError}</p>
+            <SsooErrorNotice as="p" compact className="px-1" error={submitError} />
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" disabled={isSaving} onClick={() => setDialogOpen(false)}>
               취소
             </Button>
-            <Button onClick={handleSubmit} disabled={isSaving}>
+            <Button onClick={handleSubmit} disabled={blocked}>
               {isSaving ? '저장 중...' : editingUser ? '수정' : '등록'}
             </Button>
           </DialogFooter>
@@ -845,7 +867,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
       </Dialog>
 
       <Dialog open={Boolean(operationsUser)} onOpenChange={(open) => {
-        if (!open) setOperationsUser(null);
+        if (!open && !operationsBusy) setOperationsUser(null);
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -858,9 +880,9 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
           {accountQuery.isFetching ? (
             <div className="rounded-lg border p-6 text-sm text-muted-foreground">계정 상태를 확인하는 중...</div>
           ) : accountQuery.isError || !accountQuery.data?.data ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            <SsooErrorNotice className="p-4" actions={[{ label: '계정 상태 다시 조회', onClick: () => void accountQuery.refetch() }]}>
               계정 상태 조회에 실패했습니다.
-            </div>
+            </SsooErrorNotice>
           ) : (() => {
             const account = accountQuery.data.data;
             return (
@@ -888,6 +910,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                     onClick={async () => {
                       if (!operationsUser || !window.confirm('이 사용자의 모든 활성 세션을 회수하시겠습니까?')) return;
                       setOperationsError(null);
+                      setOperationsMessage(null);
                       try {
                         const result = await revokeSessionsMutation.mutateAsync(operationsUser.id);
                         setOperationsMessage(`${result.data?.revokedCount ?? 0}개 세션을 회수했습니다.`);
@@ -895,7 +918,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                         setOperationsError(error instanceof Error ? error.message : '세션 회수에 실패했습니다.');
                       }
                     }}
-                    disabled={revokeSessionsMutation.isPending || account.sessionSummary.active === 0}
+                    disabled={operationsBusy || account.sessionSummary.active === 0}
                   >
                     <LogOut className="mr-1 h-4 w-4" />
                     전체 강제 로그아웃
@@ -905,6 +928,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                     onClick={async () => {
                       if (!operationsUser) return;
                       setOperationsError(null);
+                      setOperationsMessage(null);
                       try {
                         await unlockMutation.mutateAsync(operationsUser.id);
                         setOperationsMessage('로그인 실패 횟수와 잠금을 초기화했습니다.');
@@ -912,7 +936,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                         setOperationsError(error instanceof Error ? error.message : '잠금 해제에 실패했습니다.');
                       }
                     }}
-                    disabled={unlockMutation.isPending || (!account.authAccount?.lockedUntil && !account.authAccount?.loginFailCount)}
+                    disabled={operationsBusy || (!account.authAccount?.lockedUntil && !account.authAccount?.loginFailCount)}
                   >
                     <LockOpen className="mr-1 h-4 w-4" />
                     잠금 해제
@@ -922,6 +946,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                     onClick={async () => {
                       if (!operationsUser || !window.confirm(`${account.email}로 비밀번호 재설정 절차를 시작하시겠습니까?`)) return;
                       setOperationsError(null);
+                      setOperationsMessage(null);
                       try {
                         await passwordResetMutation.mutateAsync(operationsUser.id);
                         setOperationsMessage('비밀번호 재설정 요청을 접수했습니다. 메일 outbox/delivery 상태를 확인하세요.');
@@ -929,7 +954,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                         setOperationsError(error instanceof Error ? error.message : '재설정 요청에 실패했습니다.');
                       }
                     }}
-                    disabled={passwordResetMutation.isPending}
+                    disabled={operationsBusy}
                   >
                     <KeyRound className="mr-1 h-4 w-4" />
                     재설정 메일 요청
@@ -942,9 +967,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                   </p>
                 )}
                 {operationsError && (
-                  <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                    {operationsError}
-                  </p>
+                  <SsooErrorNotice as="p" compact className="p-3" error={operationsError} />
                 )}
 
                 <section className="rounded-lg border">

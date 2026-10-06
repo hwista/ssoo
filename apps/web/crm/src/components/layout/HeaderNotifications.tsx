@@ -100,6 +100,8 @@ export function HeaderNotifications() {
       buttonTitle="알림"
       buttonIconSlot={<Bell />}
       buttonBadge={notificationCenter.unreadCount}
+      error={notificationCenter.error}
+      onRetry={notificationCenter.refresh}
       hasLoaded={notificationCenter.hasLoaded}
       isFetching={notificationCenter.isFetching}
       unreadItems={notificationCenter.unreadItems}

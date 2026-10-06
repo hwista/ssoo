@@ -1,5 +1,7 @@
 'use client';
 
+import { createSharedHttpError } from '@ssoo/web-auth';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, FileCheck2, Plus, RefreshCw, RotateCcw, Save, Search, Trash2 } from 'lucide-react';
 import type {
@@ -22,8 +24,9 @@ import type {
 } from '@ssoo/types/crm';
 import { Badge, Button, Checkbox, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
+import { BusinessOrganizationFilter, BusinessOrganizationField } from '@/components/common/BusinessOrganizationField';
 import { useAuthStore } from '@/stores/auth.store';
-import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
+import { useCrmBusinessYearOptions } from '@/lib/useCrmBusinessYears';
 import { useCrmDomainAccess } from '@/lib/useCrmDomainAccess';
 import {
   applyInternalCostSourceGridPaste,
@@ -36,12 +39,15 @@ import {
 import {
   applyAmsSourceGridPaste,
   sanitizeAmsSourceInput,
+  reconcileAmsSourceDrafts,
   sumAmsSourceValues,
   toAmsSourceExternalCostRequest,
   toAmsSourceGridDrafts,
   type AmsSourceGridDraftRow,
 } from './amsSourceGrid';
 import type { CostPlanPreviewWorkspaceQuery } from './costPlanPreviewQuery';
+
+const AMS_SOURCE_VENDORS_CHANGED = 'crm:ams-source-vendors-changed';
 
 interface BackendSuccessResponse<T> {
   success: true;
@@ -60,6 +66,7 @@ const regionLabels: Record<CrmCostPlanPreviewRegion, string> = {
   all: '전체',
   domestic: '국내',
   overseas: '해외',
+  unspecified: '미선택',
 };
 
 const amsReadinessLabels: Record<CrmCostPlanAmsReadiness, string> = {
@@ -111,6 +118,7 @@ function formatTableAmount(value: number) {
 
 function buildApiHref(query: CostPlanPreviewWorkspaceQuery) {
   const params = new URLSearchParams();
+  if (query.ownerOrganizationId) params.set('ownerOrganizationId', query.ownerOrganizationId);
   params.set('year', String(query.year));
   if (query.businessType) params.set('businessType', query.businessType);
   if (query.industryLine) params.set('industryLine', query.industryLine);
@@ -121,6 +129,7 @@ function buildApiHref(query: CostPlanPreviewWorkspaceQuery) {
 
 function buildAccountingPaymentApiHref(query: CostPlanPreviewWorkspaceQuery) {
   const params = new URLSearchParams();
+  if (query.ownerOrganizationId) params.set('ownerOrganizationId', query.ownerOrganizationId);
   params.set('year', String(query.year));
   if (query.businessType) params.set('businessType', query.businessType);
   if (query.industryLine) params.set('industryLine', query.industryLine);
@@ -214,13 +223,14 @@ export function CostPlanPreviewWorkspaceClient({
   query: CostPlanPreviewWorkspaceQuery;
 }) {
   const accessToken = useAuthStore((state) => state.accessToken);
-  const { access: domainAccess, error: domainAccessError } = useCrmDomainAccess(accessToken);
+  const { access: domainAccess, error: domainAccessError, retry: retryDomainAccess } = useCrmDomainAccess(accessToken, query.ownerOrganizationId);
   const canWriteCostPlan = domainAccess?.features.canWriteCostPlan === true;
   const canConfirmCostPlan = domainAccess?.features.canConfirmCostPlan === true;
   const [currentData, setCurrentData] = useState(data);
   const [filters, setFilters] = useState(query);
   const [isReloading, setIsReloading] = useState(data.rows.length === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadedPreviewHref, setLoadedPreviewHref] = useState<string | null>(null);
   const [selectedInternalRowKey, setSelectedInternalRowKey] = useState(data.rows[0]?.key ?? '');
   const [monthlyPlanAmounts, setMonthlyPlanAmounts] = useState<number[]>(() => getRowPlanDefaults(data.rows[0]));
   const [monthlyActualAmounts, setMonthlyActualAmounts] = useState<number[]>(() => getRowActualDefaults(data.rows[0]));
@@ -257,6 +267,8 @@ export function CostPlanPreviewWorkspaceClient({
   const [accountingPaymentNotice, setAccountingPaymentNotice] = useState<string | null>(null);
   const [accountingPaymentError, setAccountingPaymentError] = useState<string | null>(null);
   const apiHref = useMemo(() => buildApiHref(query), [query]);
+  const canEditSourceWorkspace = canWriteCostPlan && !domainAccessError && !isReloading
+    && !loadError && loadedPreviewHref === apiHref;
   const accountingPaymentApiHref = useMemo(() => buildAccountingPaymentApiHref(query), [query]);
   const businessYears = useCrmBusinessYearOptions(query.year, getYearOptions(query.year));
   const yearOptions = businessYears.years;
@@ -265,6 +277,7 @@ export function CostPlanPreviewWorkspaceClient({
 
   useEffect(() => {
     setFilters({
+      ownerOrganizationId: query.ownerOrganizationId,
       year: query.year,
       businessType: query.businessType,
       industryLine: query.industryLine,
@@ -272,7 +285,7 @@ export function CostPlanPreviewWorkspaceClient({
       search: query.search,
       sourceSurface: query.sourceSurface,
     });
-  }, [query.year, query.businessType, query.industryLine, query.region, query.search, query.sourceSurface]);
+  }, [query.ownerOrganizationId, query.year, query.businessType, query.industryLine, query.region, query.search, query.sourceSurface]);
   const amsMappingRows = useMemo(() => getAmsMappingRows(currentData.rows), [currentData.rows]);
   const amsExternalRows = useMemo(() => getAmsExternalInputRows(currentData.rows), [currentData.rows]);
   const selectedInternalRow = useMemo(
@@ -294,6 +307,7 @@ export function CostPlanPreviewWorkspaceClient({
 
   useEffect(() => {
     setCurrentData(data);
+    setAmsSourceDrafts(toAmsSourceGridDrafts(data.amsSourceWorkspace));
     if (data.rows.length > 0) {
       setIsReloading(false);
     }
@@ -302,10 +316,6 @@ export function CostPlanPreviewWorkspaceClient({
   useEffect(() => {
     setInternalSourceDrafts(toInternalCostSourceGridDraft(currentData.internalCostSourceGrid));
   }, [currentData.internalCostSourceGrid]);
-
-  useEffect(() => {
-    setAmsSourceDrafts(toAmsSourceGridDrafts(currentData.amsSourceWorkspace));
-  }, [currentData.amsSourceWorkspace]);
 
   useEffect(() => {
     if (currentData.rows.length === 0) {
@@ -358,6 +368,7 @@ export function CostPlanPreviewWorkspaceClient({
     }
 
     setIsReloading(true);
+    setLoadedPreviewHref(null);
     setLoadError(null);
     try {
       const response = await fetch(apiHref, {
@@ -367,9 +378,13 @@ export function CostPlanPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanPreviewResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
+      if (signal?.aborted) return null;
       setCurrentData(payload.data);
+      setInternalSourceDrafts(toInternalCostSourceGridDraft(payload.data.internalCostSourceGrid));
+      setAmsSourceDrafts(toAmsSourceGridDrafts(payload.data.amsSourceWorkspace));
+      setLoadedPreviewHref(apiHref);
       return payload.data;
     } catch (error) {
       if (signal?.aborted) {
@@ -399,7 +414,7 @@ export function CostPlanPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanAccountingPaymentPreview> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setAccountingPaymentPreview(payload.data);
       return payload.data;
@@ -460,7 +475,7 @@ export function CostPlanPreviewWorkspaceClient({
   }, []);
 
   const saveInternalSourceGrid = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken || !canEditSourceWorkspace || isSavingInternalSource) return;
     setIsSavingInternalSource(true);
     setInternalSourceNotice(null);
     setInternalSourceError(null);
@@ -471,11 +486,11 @@ export function CostPlanPreviewWorkspaceClient({
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(toInternalCostSourceGridRequest(currentData.summary.year, internalSourceDrafts)),
+        body: JSON.stringify({ ...toInternalCostSourceGridRequest(currentData.summary.year, internalSourceDrafts), ownerOrganizationId: currentData.summary.activeFilters.ownerOrganizationId || undefined }),
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanInternalSourceGridResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setCurrentData((current) => ({ ...current, internalCostSourceGrid: payload.data.grid }));
       setInternalSourceNotice(`${payload.data.grid.targetYear}년 내부원가가 저장되었습니다.`);
@@ -484,14 +499,30 @@ export function CostPlanPreviewWorkspaceClient({
     } finally {
       setIsSavingInternalSource(false);
     }
-  }, [accessToken, currentData.summary.year, internalSourceDrafts]);
+  }, [currentData.summary.activeFilters.ownerOrganizationId, accessToken, canEditSourceWorkspace, isSavingInternalSource, currentData.summary.year, internalSourceDrafts]);
 
-  const applyAmsSourceWorkspaceResult = useCallback((result: CrmCostPlanAmsSourceWorkspaceResult) => {
+  const applyAmsSourceWorkspaceResult = useCallback((result: CrmCostPlanAmsSourceWorkspaceResult, preserveDrafts = false) => {
     setCurrentData((current) => ({ ...current, amsSourceWorkspace: result.workspace }));
-  }, []);
+    setAmsSourceDrafts((drafts) => preserveDrafts
+      ? reconcileAmsSourceDrafts(drafts, currentData.amsSourceWorkspace, result.workspace)
+      : toAmsSourceGridDrafts(result.workspace));
+  }, [currentData.amsSourceWorkspace]);
 
-  const runAmsSourceRequest = useCallback(async (href: string, init: RequestInit) => {
-    if (!accessToken) return null;
+  useEffect(() => {
+    const receive = (event: Event) => {
+      const { organizationId, result } = (event as CustomEvent<{
+        organizationId: string; result: CrmCostPlanAmsSourceWorkspaceResult;
+      }>).detail;
+      if (loadedPreviewHref !== apiHref || result.workspace.targetYear !== currentData.summary.year
+        || organizationId !== currentData.summary.activeFilters.ownerOrganizationId) return;
+      applyAmsSourceWorkspaceResult(result, true);
+    };
+    window.addEventListener(AMS_SOURCE_VENDORS_CHANGED, receive);
+    return () => window.removeEventListener(AMS_SOURCE_VENDORS_CHANGED, receive);
+  }, [apiHref, loadedPreviewHref, currentData.summary.year, currentData.summary.activeFilters.ownerOrganizationId, applyAmsSourceWorkspaceResult]);
+
+  const runAmsSourceRequest = useCallback(async (href: string, init: RequestInit, vendorChange = false) => {
+    if (!accessToken) throw new Error('로그인이 필요합니다.');
     const response = await fetch(href, {
       ...init,
       headers: {
@@ -501,12 +532,17 @@ export function CostPlanPreviewWorkspaceClient({
       },
     });
     const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanAmsSourceWorkspaceResult> | BackendErrorResponse | null;
-    if (!response.ok || payload?.success !== true) throw new Error(getBackendErrorMessage(payload));
-    applyAmsSourceWorkspaceResult(payload.data);
+    if (!response.ok || payload?.success !== true) throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
+    applyAmsSourceWorkspaceResult(payload.data, vendorChange);
+    if (vendorChange) window.dispatchEvent(new CustomEvent(AMS_SOURCE_VENDORS_CHANGED, {
+      detail: { organizationId: currentData.summary.activeFilters.ownerOrganizationId, result: payload.data },
+    }));
     return payload.data;
-  }, [accessToken, applyAmsSourceWorkspaceResult]);
+  }, [accessToken, applyAmsSourceWorkspaceResult, currentData.summary.activeFilters.ownerOrganizationId]);
 
   const createAmsSourceVendor = useCallback(async () => {
+    if (!accessToken || !canEditSourceWorkspace || isSavingAmsSource) return;
+    setAmsSourceNotice(null);
     const vendorName = amsSourceVendorName.trim();
     if (!vendorName) {
       setAmsSourceError('공급업체명을 입력해 주세요.');
@@ -518,8 +554,8 @@ export function CostPlanPreviewWorkspaceClient({
     try {
       await runAmsSourceRequest('/api/crm/cost-plan/ams/source/vendors', {
         method: 'POST',
-        body: JSON.stringify({ targetYear: currentData.summary.year, vendorName }),
-      });
+        body: JSON.stringify({ ownerOrganizationId: currentData.summary.activeFilters.ownerOrganizationId || undefined, targetYear: currentData.summary.year, vendorName }),
+      }, true);
       setAmsSourceVendorName('');
       setAmsSourceNotice('공급업체가 추가되었습니다.');
     } catch (error) {
@@ -527,24 +563,26 @@ export function CostPlanPreviewWorkspaceClient({
     } finally {
       setIsSavingAmsSource(false);
     }
-  }, [amsSourceVendorName, currentData.summary.year, runAmsSourceRequest]);
+  }, [accessToken, canEditSourceWorkspace, isSavingAmsSource, currentData.summary.activeFilters.ownerOrganizationId, amsSourceVendorName, currentData.summary.year, runAmsSourceRequest]);
 
   const deleteAmsSourceVendor = useCallback(async (vendorId: string, vendorName: string) => {
+    if (!accessToken || !canEditSourceWorkspace || isSavingAmsSource) return;
     if (!window.confirm(`"${vendorName}"을 삭제하시겠습니까?\n연관된 외부원가도 모두 삭제됩니다.`)) return;
     setIsSavingAmsSource(true);
     setAmsSourceNotice(null);
     setAmsSourceError(null);
     try {
-      await runAmsSourceRequest(`/api/crm/cost-plan/ams/source/vendors/${encodeURIComponent(vendorId)}?year=${currentData.summary.year}`, { method: 'DELETE' });
+      await runAmsSourceRequest(`/api/crm/cost-plan/ams/source/vendors/${encodeURIComponent(vendorId)}?year=${currentData.summary.year}`, { method: 'DELETE' }, true);
       setAmsSourceNotice('삭제되었습니다.');
     } catch (error) {
       setAmsSourceError(error instanceof Error ? error.message : '공급업체 삭제에 실패했습니다.');
     } finally {
       setIsSavingAmsSource(false);
     }
-  }, [currentData.summary.year, runAmsSourceRequest]);
+  }, [accessToken, canEditSourceWorkspace, isSavingAmsSource, currentData.summary.year, runAmsSourceRequest]);
 
   const toggleAmsSourceVendorWbs = useCallback(async (vendorId: string, wbsCode: string, checked: boolean) => {
+    if (!accessToken || !canEditSourceWorkspace || isSavingAmsSource) return;
     const vendor = currentData.amsSourceWorkspace.vendors.find((item) => item.id === vendorId);
     if (!vendor) return;
     const currentCodes = vendor.wbs.map((item) => item.wbsCode);
@@ -555,15 +593,15 @@ export function CostPlanPreviewWorkspaceClient({
     try {
       await runAmsSourceRequest(`/api/crm/cost-plan/ams/source/vendors/${encodeURIComponent(vendorId)}/wbs`, {
         method: 'PUT',
-        body: JSON.stringify({ targetYear: currentData.summary.year, wbsCodes }),
-      });
+        body: JSON.stringify({ ownerOrganizationId: currentData.summary.activeFilters.ownerOrganizationId || undefined, targetYear: currentData.summary.year, wbsCodes }),
+      }, true);
       setAmsSourceNotice('WBS 매핑이 저장되었습니다.');
     } catch (error) {
       setAmsSourceError(error instanceof Error ? error.message : 'WBS 매핑 저장에 실패했습니다.');
     } finally {
       setIsSavingAmsSource(false);
     }
-  }, [currentData.amsSourceWorkspace.vendors, currentData.summary.year, runAmsSourceRequest]);
+  }, [accessToken, canEditSourceWorkspace, isSavingAmsSource, currentData.summary.activeFilters.ownerOrganizationId, currentData.amsSourceWorkspace.vendors, currentData.summary.year, runAmsSourceRequest]);
 
   const updateAmsSourceAmount = useCallback((rowIndex: number, type: 'plan' | 'actual', monthIndex: number, value: string) => {
     const normalized = sanitizeAmsSourceInput(value);
@@ -589,13 +627,14 @@ export function CostPlanPreviewWorkspaceClient({
   }, []);
 
   const saveAmsSourceExternalCost = useCallback(async () => {
+    if (!accessToken || !canEditSourceWorkspace || isSavingAmsSource || amsSourceDrafts.length === 0) return;
     setIsSavingAmsSource(true);
     setAmsSourceNotice(null);
     setAmsSourceError(null);
     try {
       await runAmsSourceRequest('/api/crm/cost-plan/ams/source/external-cost', {
         method: 'POST',
-        body: JSON.stringify(toAmsSourceExternalCostRequest(currentData.summary.year, amsSourceDrafts)),
+        body: JSON.stringify({ ...toAmsSourceExternalCostRequest(currentData.summary.year, amsSourceDrafts), ownerOrganizationId: currentData.summary.activeFilters.ownerOrganizationId || undefined }),
       });
       setAmsSourceNotice(`${currentData.summary.year}년 외부원가가 저장되었습니다.`);
     } catch (error) {
@@ -603,7 +642,7 @@ export function CostPlanPreviewWorkspaceClient({
     } finally {
       setIsSavingAmsSource(false);
     }
-  }, [amsSourceDrafts, currentData.summary.year, runAmsSourceRequest]);
+  }, [accessToken, canEditSourceWorkspace, isSavingAmsSource, currentData.summary.activeFilters.ownerOrganizationId, amsSourceDrafts, currentData.summary.year, runAmsSourceRequest]);
 
   const saveInternalMonthlyInput = useCallback(async () => {
     if (!accessToken || !selectedInternalRow) {
@@ -626,6 +665,7 @@ export function CostPlanPreviewWorkspaceClient({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          ownerOrganizationId: currentData.summary.activeFilters.ownerOrganizationId || undefined,
           targetYear: currentData.summary.year,
           businessType: selectedInternalRow.businessType,
           industryLine: selectedInternalRow.industryLine,
@@ -639,7 +679,7 @@ export function CostPlanPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanInternalMonthlyInputResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setSaveNotice('내부원가 월별 입력이 저장되었습니다.');
       await Promise.all([loadPreview(), loadAccountingPaymentPreview()]);
@@ -648,7 +688,7 @@ export function CostPlanPreviewWorkspaceClient({
     } finally {
       setIsSavingInternalCost(false);
     }
-  }, [accessToken, currentData.summary.year, loadAccountingPaymentPreview, loadPreview, monthlyActualAmounts, monthlyPlanAmounts, selectedInternalRow]);
+  }, [currentData.summary.activeFilters.ownerOrganizationId, accessToken, currentData.summary.year, loadAccountingPaymentPreview, loadPreview, monthlyActualAmounts, monthlyPlanAmounts, selectedInternalRow]);
 
   const runInternalCostWorkflow = useCallback(async (action: 'confirm' | 'reopen') => {
     if (!accessToken || !selectedInternalRow?.internalCostInputId) {
@@ -665,7 +705,7 @@ export function CostPlanPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanInternalMonthlyWorkflowResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setSaveNotice(action === 'confirm' ? '내부원가 월별 입력이 확정되었습니다.' : '내부원가 월별 입력 확정이 해제되었습니다.');
       await Promise.all([loadPreview(), loadAccountingPaymentPreview()]);
@@ -698,6 +738,7 @@ export function CostPlanPreviewWorkspaceClient({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          ownerOrganizationId: currentData.summary.activeFilters.ownerOrganizationId || undefined,
           targetYear: currentData.summary.year,
           businessType: selectedAmsRow.businessType,
           industryLine: selectedAmsRow.industryLine,
@@ -711,7 +752,7 @@ export function CostPlanPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanAmsVendorWbsMappingResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setAmsSaveNotice('AMS 업체-WBS 매핑이 저장되었습니다.');
       await Promise.all([loadPreview(), loadAccountingPaymentPreview()]);
@@ -720,7 +761,7 @@ export function CostPlanPreviewWorkspaceClient({
     } finally {
       setIsSavingAmsMapping(false);
     }
-  }, [accessToken, amsVendorContractNo, amsVendorName, currentData.summary.year, loadAccountingPaymentPreview, loadPreview, selectedAmsRow]);
+  }, [currentData.summary.activeFilters.ownerOrganizationId, accessToken, amsVendorContractNo, amsVendorName, currentData.summary.year, loadAccountingPaymentPreview, loadPreview, selectedAmsRow]);
 
   const saveAmsExternalMonthlyInput = useCallback(async () => {
     if (!accessToken || !selectedAmsExternalRow) {
@@ -748,6 +789,7 @@ export function CostPlanPreviewWorkspaceClient({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          ownerOrganizationId: currentData.summary.activeFilters.ownerOrganizationId || undefined,
           targetYear: currentData.summary.year,
           businessType: selectedAmsExternalRow.businessType,
           industryLine: selectedAmsExternalRow.industryLine,
@@ -763,7 +805,7 @@ export function CostPlanPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanAmsExternalMonthlyInputResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setAmsExternalSaveNotice('AMS 외부원가 월별 입력이 저장되었습니다.');
       await Promise.all([loadPreview(), loadAccountingPaymentPreview()]);
@@ -772,7 +814,7 @@ export function CostPlanPreviewWorkspaceClient({
     } finally {
       setIsSavingAmsExternalCost(false);
     }
-  }, [
+  }, [currentData.summary.activeFilters.ownerOrganizationId,
     accessToken,
     amsExternalMonthlyActualAmounts,
     amsExternalMonthlyPlanAmounts,
@@ -800,7 +842,7 @@ export function CostPlanPreviewWorkspaceClient({
       );
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanAmsExternalMonthlyWorkflowResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setAmsExternalSaveNotice(action === 'confirm' ? 'AMS 외부원가 월별 입력이 정산 확정되었습니다.' : 'AMS 외부원가 월별 입력 정산 확정이 해제되었습니다.');
       await Promise.all([loadPreview(), loadAccountingPaymentPreview()]);
@@ -827,6 +869,7 @@ export function CostPlanPreviewWorkspaceClient({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          ownerOrganizationId: currentData.summary.activeFilters.ownerOrganizationId || undefined,
           year: currentData.summary.year,
           businessType: currentData.summary.activeFilters.businessType,
           industryLine: currentData.summary.activeFilters.industryLine,
@@ -837,7 +880,7 @@ export function CostPlanPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanAccountingPaymentHandoffResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setAccountingPaymentPreview(payload.data.preview);
       setAccountingPaymentNotice('회계·지급 handoff snapshot이 기록되었습니다.');
@@ -870,7 +913,7 @@ export function CostPlanPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmCostPlanAccountingPaymentExecutionResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setAccountingPaymentPreview(payload.data.preview);
       setAccountingPaymentNotice(`회계·지급 실행 evidence가 생성되었습니다. 실행 ID: ${payload.data.externalExecution.executionId}`);
@@ -899,10 +942,14 @@ export function CostPlanPreviewWorkspaceClient({
         <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">내부원가 등록</h1>
           <p className="mt-1 text-sm text-muted-foreground">년도별 월간 내부원가를 입력합니다.</p>
-          <SourceCostYearForm id="ic-year" label="년도 *" year={query.year} yearOptions={yearOptions} sourceSurface="internal-cost" />
+          <SourceCostYearForm ownerOrganizationId={query.ownerOrganizationId} id="ic-year" label="년도 *" year={query.year} yearOptions={yearOptions} sourceSurface="internal-cost" />
+          {isReloading ? <p className="mt-3 text-sm text-muted-foreground" role="status">내부원가를 불러오는 중입니다.</p> : null}
+          {loadError ? <SsooErrorNotice className="mt-3" error={loadError} actions={[{ label: '다시 조회', onClick: () => void loadPreview() }]} /> : null}
+          {domainAccessError ? <SsooErrorNotice className="mt-3" error={domainAccessError} actions={[{ label: '접근 권한 다시 확인', onClick: retryDomainAccess }]} /> : null}
+          {domainAccess && !canWriteCostPlan ? <p className="mt-3 text-sm text-muted-foreground">원가 변경 권한이 없어 조회 전용으로 표시합니다.</p> : null}
           <section className="mt-5 overflow-hidden rounded-xl border bg-card">
             <InternalCostSourceGridPanel
-              canWrite={canWriteCostPlan}
+              canWrite={canEditSourceWorkspace}
               targetYear={currentData.summary.year}
               boundaryNotice={currentData.internalCostSourceGrid.boundaryNotice}
               drafts={internalSourceDrafts}
@@ -926,10 +973,14 @@ export function CostPlanPreviewWorkspaceClient({
         <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">공급업체 관리</h1>
           <p className="mt-1 text-sm text-muted-foreground">사업년도별 AMS 공급업체와 WBS를 관리합니다.</p>
-          <SourceCostYearForm id="av-year" label="사업년도 *" year={query.year} yearOptions={yearOptions} sourceSurface="ams-vendor" />
+          <SourceCostYearForm ownerOrganizationId={query.ownerOrganizationId} id="av-year" label="사업년도 *" year={query.year} yearOptions={yearOptions} sourceSurface="ams-vendor" />
+          {isReloading ? <p className="mt-3 text-sm text-muted-foreground" role="status">AMS 공급업체를 불러오는 중입니다.</p> : null}
+          {loadError ? <SsooErrorNotice className="mt-3" error={loadError} actions={[{ label: '다시 조회', onClick: () => void loadPreview() }]} /> : null}
+          {domainAccessError ? <SsooErrorNotice className="mt-3" error={domainAccessError} actions={[{ label: '접근 권한 다시 확인', onClick: retryDomainAccess }]} /> : null}
+          {domainAccess && !canWriteCostPlan ? <p className="mt-3 text-sm text-muted-foreground">원가 변경 권한이 없어 조회 전용으로 표시합니다.</p> : null}
           <section className="mt-5 overflow-hidden rounded-xl border bg-card">
             <AmsSourceVendorPanel
-              canWrite={canWriteCostPlan}
+              canWrite={canEditSourceWorkspace}
               workspace={currentData.amsSourceWorkspace}
               vendorName={amsSourceVendorName}
               isSaving={isSavingAmsSource}
@@ -953,10 +1004,15 @@ export function CostPlanPreviewWorkspaceClient({
         <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.landscapeContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">연간 외부원가</h1>
           <p className="mt-1 text-sm text-muted-foreground">공급업체·WBS별 월간 계획과 실적을 입력합니다.</p>
-          <SourceCostYearForm id="ac-year" label="사업년도 *" year={query.year} yearOptions={yearOptions} sourceSurface="ams-cost" />
+          <SourceCostYearForm ownerOrganizationId={query.ownerOrganizationId} id="ac-year" label="사업년도 *" year={query.year} yearOptions={yearOptions} sourceSurface="ams-cost" />
+          {isReloading ? <p className="mt-3 text-sm text-muted-foreground" role="status">AMS 외부원가를 불러오는 중입니다.</p> : null}
+          {loadError ? <SsooErrorNotice className="mt-3" error={loadError} actions={[{ label: '다시 조회', onClick: () => void loadPreview() }]} /> : null}
+          {domainAccessError ? <SsooErrorNotice className="mt-3" error={domainAccessError} actions={[{ label: '접근 권한 다시 확인', onClick: retryDomainAccess }]} /> : null}
+          {domainAccess && !canWriteCostPlan ? <p className="mt-3 text-sm text-muted-foreground">원가 변경 권한이 없어 조회 전용으로 표시합니다.</p> : null}
           <section className="mt-5 overflow-hidden rounded-xl border bg-card">
             <AmsSourceExternalCostPanel
-              canWrite={canWriteCostPlan}
+              canWrite={canEditSourceWorkspace}
+              vendorCount={currentData.amsSourceWorkspace.vendors.length}
               targetYear={currentData.summary.year}
               drafts={amsSourceDrafts}
               isSaving={isSavingAmsSource}
@@ -1013,6 +1069,7 @@ export function CostPlanPreviewWorkspaceClient({
 
         <section className="mt-4 rounded-md border bg-card">
           <form action="/cost-plan" className="flex flex-wrap items-end gap-3 border-b p-4">
+            <BusinessOrganizationField name="ownerOrganizationId" purpose="filter" autoSelect={false} value={filters.ownerOrganizationId ?? ''} onChange={ownerOrganizationId => setFilters(current => ({ ...current, ownerOrganizationId }))} />
             <label className="w-[132px] text-sm font-medium text-muted-foreground">
               사업년도
               <NativeSelect name="year" value={String(filters.year)} onChange={(event) => setFilters((current) => ({ ...current, year: Number(event.target.value) }))} className="mt-1">
@@ -1050,16 +1107,16 @@ export function CostPlanPreviewWorkspaceClient({
           </form>
 
           {loadError ? (
-            <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+            <SsooErrorNotice className="gap-2 px-4 py-3">
               <AlertCircle className="h-4 w-4" />
               {loadError}
-            </div>
+            </SsooErrorNotice>
           ) : null}
           {domainAccess && !canWriteCostPlan ? (
             <div className="border-b bg-ssoo-warning-bg px-4 py-3 text-sm text-ssoo-warning">원가·AMS 변경 권한이 없어 조회 전용으로 표시합니다.</div>
           ) : null}
           {domainAccessError ? (
-            <div className="border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">{domainAccessError}</div>
+            <SsooErrorNotice className="px-4 py-3" error={domainAccessError} actions={[{ label: '접근 권한 다시 확인', onClick: retryDomainAccess }]} />
           ) : null}
 
           <div className="border-b px-4 py-2 text-xs text-muted-foreground">
@@ -1067,7 +1124,7 @@ export function CostPlanPreviewWorkspaceClient({
           </div>
           <MonthlyCostSummary months={currentData.months} />
           <InternalCostSourceGridPanel
-            canWrite={canWriteCostPlan}
+            canWrite={canEditSourceWorkspace}
             targetYear={currentData.summary.year}
             boundaryNotice={currentData.internalCostSourceGrid.boundaryNotice}
             drafts={internalSourceDrafts}
@@ -1100,7 +1157,7 @@ export function CostPlanPreviewWorkspaceClient({
             onReopen={() => void runInternalCostWorkflow('reopen')}
           />
           <AmsSourceVendorPanel
-            canWrite={canWriteCostPlan}
+            canWrite={canEditSourceWorkspace}
             workspace={currentData.amsSourceWorkspace}
             vendorName={amsSourceVendorName}
             isSaving={isSavingAmsSource}
@@ -1112,7 +1169,8 @@ export function CostPlanPreviewWorkspaceClient({
             onToggleWbs={(vendorId, wbsCode, checked) => void toggleAmsSourceVendorWbs(vendorId, wbsCode, checked)}
           />
           <AmsSourceExternalCostPanel
-            canWrite={canWriteCostPlan}
+            canWrite={canEditSourceWorkspace}
+            vendorCount={currentData.amsSourceWorkspace.vendors.length}
             targetYear={currentData.summary.year}
             drafts={amsSourceDrafts}
             isSaving={isSavingAmsSource}
@@ -1180,12 +1238,14 @@ export function CostPlanPreviewWorkspaceClient({
 }
 
 function SourceCostYearForm({
+  ownerOrganizationId,
   id,
   label,
   year,
   yearOptions,
   sourceSurface,
 }: {
+  ownerOrganizationId?: string;
   id: string;
   label: string;
   year: number;
@@ -1194,6 +1254,7 @@ function SourceCostYearForm({
 }) {
   return (
     <form action="/cost-plan" className="mt-6 flex flex-wrap items-end gap-3">
+      <BusinessOrganizationFilter value={ownerOrganizationId} />
       <Input type="hidden" name="sourceSurface" value={sourceSurface} />
       <div className="w-[160px]">
         <label className="mb-1 block text-sm text-muted-foreground">{label}</label>
@@ -1254,10 +1315,10 @@ function InternalCostSourceGridPanel({
 
       {notice ? <div className="mt-3 text-sm text-ssoo-info">{notice}</div> : null}
       {error ? (
-        <div className="mt-3 flex items-center gap-2 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="mt-3 gap-2">
           <AlertCircle className="h-4 w-4" />
           {error}
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       <div className="mt-4 overflow-x-auto rounded-md border">
@@ -1482,10 +1543,10 @@ function InternalMonthlyInputPanel({
 
       {notice ? <div className="mt-3 text-sm text-ssoo-info">{notice}</div> : null}
       {error ? (
-        <div className="mt-3 flex items-center gap-2 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="mt-3 gap-2">
           <AlertCircle className="h-4 w-4" />
           {error}
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
@@ -1570,7 +1631,7 @@ function AmsSourceVendorPanel({
       </div>
 
       {notice ? <div className="mt-3 text-sm text-ssoo-info">{notice}</div> : null}
-      {error ? <div className="mt-3 flex items-center gap-2 text-sm text-ssoo-danger"><AlertCircle className="h-4 w-4" />{error}</div> : null}
+      {error ? <SsooErrorNotice className="mt-3 gap-2"><AlertCircle className="h-4 w-4" />{error}</SsooErrorNotice> : null}
 
       {workspace.vendors.length === 0 ? (
         <div className="mt-4 rounded-md border bg-muted/20 px-4 py-5 text-sm text-muted-foreground">등록된 공급업체가 없습니다. &quot;+ 업체 추가&quot;로 추가하세요.</div>
@@ -1578,6 +1639,9 @@ function AmsSourceVendorPanel({
         <div className="mt-4 grid gap-3 xl:grid-cols-2">
           {workspace.vendors.map((vendor) => {
             const selected = new Set(vendor.wbs.map((mapping) => mapping.wbsCode));
+            const choices = [...workspace.eligibleWbs, ...vendor.wbs
+              .filter((mapping) => !workspace.eligibleWbs.some((item) => item.wbsCode === mapping.wbsCode))
+              .map((mapping) => ({ wbsCode: mapping.wbsCode, label: `${mapping.wbsCode} (현재 AMS 연결 대상 아님 · 해제 가능)` }))];
             return (
               <div key={vendor.id} className="min-w-0 rounded-md border p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1587,11 +1651,11 @@ function AmsSourceVendorPanel({
                   </Button>
                 </div>
                 <div className="mt-3 text-xs font-medium text-muted-foreground">WBS코드 선택 (AMS 확정 계약)</div>
-                {workspace.eligibleWbs.length === 0 ? (
+                {choices.length === 0 ? (
                   <div className="mt-2 text-xs text-muted-foreground">확정된 AMS 계약의 WBS코드가 없습니다.</div>
                 ) : (
                   <div className="mt-2 grid gap-2">
-                    {workspace.eligibleWbs.map((wbs) => (
+                    {choices.map((wbs) => (
                       <label key={wbs.wbsCode} className="flex cursor-pointer items-start gap-2 text-sm text-foreground">
                         <Checkbox
                           aria-label={`${vendor.vendorName} ${wbs.wbsCode} 매핑`}
@@ -1615,6 +1679,7 @@ function AmsSourceVendorPanel({
 
 function AmsSourceExternalCostPanel({
   canWrite,
+  vendorCount,
   targetYear,
   drafts,
   isSaving,
@@ -1626,6 +1691,7 @@ function AmsSourceExternalCostPanel({
   sourceCompatible = false,
 }: {
   canWrite: boolean;
+  vendorCount: number;
   targetYear: number;
   drafts: AmsSourceGridDraftRow[];
   isSaving: boolean;
@@ -1651,12 +1717,17 @@ function AmsSourceExternalCostPanel({
         </Button>
       </div>
       {notice ? <div className="mt-3 text-sm text-ssoo-info">{notice}</div> : null}
-      {error ? <div className="mt-3 flex items-center gap-2 text-sm text-ssoo-danger"><AlertCircle className="h-4 w-4" />{error}</div> : null}
+      {error ? <SsooErrorNotice className="mt-3 gap-2"><AlertCircle className="h-4 w-4" />{error}</SsooErrorNotice> : null}
       {drafts.length === 0 ? (
         <div className="mt-4 rounded-md border bg-muted/20 px-4 py-5 text-sm text-muted-foreground">공급업체 관리에서 먼저 업체와 WBS를 등록하세요.</div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-md border">
-          <Table className="min-w-[3420px] border-collapse text-xs">
+          <Table className="w-[3340px] min-w-[3340px] table-fixed border-collapse text-xs">
+            <colgroup>
+              <col style={{ width: 120 }} />
+              <col style={{ width: 100 }} />
+              {Array.from({ length: 39 }, (_, index) => <col key={index} style={{ width: 80 }} />)}
+            </colgroup>
             <TableHeader className="bg-muted/60 text-muted-foreground">
               <TableRow>
                 <TableHead rowSpan={2} className="md:sticky md:left-0 z-30 min-w-[120px] border-b border-r bg-muted px-3 py-2">공급업체</TableHead>
@@ -1708,7 +1779,7 @@ function AmsSourceExternalCostPanel({
           </Table>
         </div>
       )}
-      <div className="mt-2 text-xs text-muted-foreground">{new Set(drafts.map((row) => row.vendorId)).size}개 업체 · {drafts.length}개 WBS</div>
+      <div className="mt-2 text-xs text-muted-foreground">{vendorCount}개 업체 · {drafts.length}개 WBS</div>
     </div>
   );
 }
@@ -1834,10 +1905,10 @@ function AmsVendorMappingPanel({
 
       {notice ? <div className="mt-3 text-sm text-ssoo-info">{notice}</div> : null}
       {error ? (
-        <div className="mt-3 flex items-center gap-2 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="mt-3 gap-2">
           <AlertCircle className="h-4 w-4" />
           {error}
-        </div>
+        </SsooErrorNotice>
       ) : null}
     </div>
   );
@@ -1934,10 +2005,10 @@ function AmsExternalMonthlyInputPanel({
 
       {notice ? <div className="mt-3 text-sm text-ssoo-info">{notice}</div> : null}
       {error ? (
-        <div className="mt-3 flex items-center gap-2 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="mt-3 gap-2">
           <AlertCircle className="h-4 w-4" />
           {error}
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
@@ -2071,10 +2142,10 @@ function AccountingPaymentHandoffPanel({
 
       {notice ? <div className="mt-3 text-sm text-ssoo-info">{notice}</div> : null}
       {error ? (
-        <div className="mt-3 flex items-center gap-2 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="mt-3 gap-2">
           <AlertCircle className="h-4 w-4" />
           {error}
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       <div className="mt-4 grid gap-2 lg:grid-cols-2">

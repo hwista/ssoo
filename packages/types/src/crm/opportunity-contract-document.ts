@@ -34,7 +34,7 @@ export interface CrmOpportunityContractDocumentVariable {
   key: CrmOpportunityContractDocumentVariableKey;
   label: string;
   value: string;
-  required: true;
+  required: boolean;
   source: CrmOpportunityContractDocumentVariableSource;
 }
 

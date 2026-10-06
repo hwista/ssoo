@@ -123,9 +123,20 @@ test('TC-DB-06: repository launch migrations and triggers form the expected cont
       '20260820090000_add_dms_home_hub',
       '20260917090000_add_crm_contract_approval',
       '20260917100000_add_pms_user_settings',
+      '20260930090000_move_crm_business_years',
+      '20260930100000_move_common_codes',
+      '20261001090000_common_onboarding',
+      '20261001100000_crm_business_organization',
+      '20261001110000_crm_contract_draft_dates',
+      '20261001120000_crm_planning_organization',
+      '20261002090000_sns_post_access_requests',
     ],
   );
-  assert.equal(triggers.length, 84);
+  assert.equal(triggers.length, 90);
+  assert.deepEqual(triggers.find((trigger) => trigger.name === 'trg_cm_code_h'), {
+    name: 'trg_cm_code_h', schema: 'common', table: 'cm_code_m',
+  });
+  assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_business_year_m_h_record'));
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_contract_m_h_record'));
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_contract_approval_m_h_record'));
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_config_m_h_record'));
@@ -156,6 +167,10 @@ test('TC-DB-08: db push accepts existing local development targets', () => {
   );
   assert.doesNotThrow(() => assertDisposableDbPushTarget({
     databaseUrl: 'postgresql://user:secret@postgres:5432/ssoo_launch_candidate?schema=public',
+    baselineMode: 'compat',
+  }));
+  assert.doesNotThrow(() => assertDisposableDbPushTarget({
+    databaseUrl: 'postgresql://user:secret@ssoo-postgres:5432/ssoo_dev?schema=public',
     baselineMode: 'compat',
   }));
 });

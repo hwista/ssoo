@@ -1,10 +1,13 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
+import { SsooErrorPanel } from '@ssoo/web-shell';
+
 import { usePmsSettings } from '@/hooks/queries/usePmsSettings';
 import { ProjectViews } from './ProjectViews';
 import { useMemo } from 'react';
 import type { ElementType, ReactNode } from 'react';
-import { AlertCircle, BarChart3, CheckCircle2, Clock, FolderKanban, ListTodo, UserRoundX } from 'lucide-react';
+import { BarChart3, CheckCircle2, Clock, FolderKanban, ListTodo, UserRoundX } from 'lucide-react';
 import { useProjectList } from '@/hooks/queries';
 import { useTabStore } from '@/stores';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,11 +44,12 @@ function getDaysSince(dateStr: string): number {
 }
 
 function useProjects() {
-  const { data, isLoading, error } = useProjectList({ pageSize: 100 });
+  const { data, isLoading, error, refetch } = useProjectList({ pageSize: 100 });
   return {
     projects: data?.data?.items ?? [],
     isLoading,
     error,
+    refetch,
   };
 }
 
@@ -98,14 +102,8 @@ function LoadingCards() {
   );
 }
 
-function ErrorState() {
-  return (
-    <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground shadow-sm">
-      <AlertCircle className="mx-auto mb-3 h-10 w-10 text-ssoo-danger" />
-      <p className="text-sm font-medium">프로젝트 데이터를 불러오지 못했습니다.</p>
-      <p className="mt-1 text-xs text-muted-foreground">잠시 후 다시 시도해주세요.</p>
-    </div>
-  );
+function ErrorState({ onRetry }: { onRetry: () => Promise<unknown> }) {
+  return <SsooErrorPanel title="프로젝트 데이터를 불러오지 못했습니다" onRetry={onRetry} />;
 }
 
 function EmptyState({ message }: { message: string }) {
@@ -195,7 +193,7 @@ export function MyProjectsPage() {
   const settings = usePmsSettings();
   const openProject = useOpenProjectDetail();
   const view = settings.isError ? 'board' : settings.data?.defaultProjectView ?? 'board';
-  const { projects, isLoading, error } = useProjects();
+  const { projects, isLoading, error, refetch } = useProjects();
   const visibleProjects = useMemo(
     () => [...projects].sort((a, b) => getPmsTime(b.updatedAt) - getPmsTime(a.updatedAt)),
     [projects],
@@ -203,8 +201,8 @@ export function MyProjectsPage() {
 
   return (
     <PageShell title="내 프로젝트" description="내가 맡았거나 최근 확인해야 하는 프로젝트에서 업무를 이어갑니다.">
-      {settings.isError && <p role="alert" className="text-sm text-destructive">저장된 보기를 확인하지 못해 기본 보기를 표시합니다. <Button variant="outline" size="sm" onClick={() => settings.refetch()}>다시 확인</Button></p>}
-      {isLoading ? <LoadingCards /> : error ? <ErrorState /> : visibleProjects.length === 0 ? (
+      {settings.isError && <SsooErrorNotice as="p" compact>저장된 보기를 확인하지 못해 기본 보기를 표시합니다. <Button variant="outline" size="sm" onClick={() => settings.refetch()}>다시 확인</Button></SsooErrorNotice>}
+      {isLoading ? <LoadingCards /> : error ? <ErrorState onRetry={refetch} /> : visibleProjects.length === 0 ? (
         <EmptyState message="표시할 프로젝트가 없습니다." />
       ) : view !== 'board' ? (
         <ProjectViews projects={visibleProjects} view={view} onOpen={openProject} />
@@ -224,7 +222,7 @@ export function MyProjectsPage() {
 }
 
 export function ActionRequiredPage() {
-  const { projects, isLoading, error } = useProjects();
+  const { projects, isLoading, error, refetch } = useProjects();
   const actionItems = useMemo(() => {
     return projects
       .map((project) => {
@@ -246,7 +244,7 @@ export function ActionRequiredPage() {
 
   return (
     <PageShell title="조치 필요" description="프로젝트별로 흩어진 항목 중 지금 확인하거나 처리해야 하는 것만 모읍니다.">
-      {isLoading ? <LoadingCards /> : error ? <ErrorState /> : actionItems.length === 0 ? (
+      {isLoading ? <LoadingCards /> : error ? <ErrorState onRetry={refetch} /> : actionItems.length === 0 ? (
         <EmptyState message="현재 조치가 필요한 항목이 없습니다." />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
@@ -260,7 +258,7 @@ export function ActionRequiredPage() {
 }
 
 export function CloseoutPage() {
-  const { projects, isLoading, error } = useProjects();
+  const { projects, isLoading, error, refetch } = useProjects();
   const closeoutProjects = useMemo(() => {
     return projects
       .filter((project) => project.statusCode === 'transition' || (project.statusCode === 'execution' && project.stageCode === 'done'))
@@ -269,7 +267,7 @@ export function CloseoutPage() {
 
   return (
     <PageShell title="종료/전환" description="완료 후보와 전환 대기 프로젝트의 막힌 조건과 다음 확인 대상을 봅니다.">
-      {isLoading ? <LoadingCards /> : error ? <ErrorState /> : closeoutProjects.length === 0 ? (
+      {isLoading ? <LoadingCards /> : error ? <ErrorState onRetry={refetch} /> : closeoutProjects.length === 0 ? (
         <EmptyState message="종료/전환 확인 대상 프로젝트가 없습니다." />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
@@ -288,7 +286,7 @@ export function CloseoutPage() {
 }
 
 export function OperationsOverviewPage() {
-  const { projects, isLoading, error } = useProjects();
+  const { projects, isLoading, error, refetch } = useProjects();
   const summary = useMemo(() => {
     const staleProjects = projects.filter((project) => project.stageCode === 'in_progress' && getDaysSince(project.updatedAt) >= 7);
     const unownedProjects = projects.filter((project) => project.stageCode === 'in_progress' && !project.currentOwnerUserId);
@@ -301,7 +299,7 @@ export function OperationsOverviewPage() {
 
   return (
     <PageShell title="전체 운영 현황" description="상위 관리자와 PMO가 프로젝트 병목, 부하, 종료 후보를 한눈에 확인합니다.">
-      {isLoading ? <LoadingCards /> : error ? <ErrorState /> : (
+      {isLoading ? <LoadingCards /> : error ? <ErrorState onRetry={refetch} /> : (
         <>
           <div className="grid gap-3 md:grid-cols-4">
             <SummaryCard icon={FolderKanban} label="진행 중" value={summary.activeProjects.length} help="현재 실행 중인 프로젝트" />

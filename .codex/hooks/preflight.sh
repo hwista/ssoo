@@ -58,6 +58,9 @@ pnpm run verify:input-intent
 echo "[preflight] running: pnpm run verify:ssoo-frame -- --skip-runtime"
 pnpm run verify:ssoo-frame -- --skip-runtime
 
+echo "[preflight] running: pnpm run verify:error-routing"
+pnpm run verify:error-routing
+
 CHANGED="$(
   {
     git diff --name-only --cached || true

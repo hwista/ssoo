@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useMemo } from 'react';
 import { useProjectMembers } from '@/hooks/queries';
 import type { ProjectMember } from '@/lib/api/endpoints/projects';
@@ -73,7 +74,7 @@ export function ProjectMemberOwnerSelect({
         </SelectContent>
       </Select>
       {isError ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+        <SsooErrorNotice className="gap-2 px-3 py-2">
           <span>{error?.message ?? '프로젝트 멤버를 불러오지 못했습니다.'}</span>
           <Button
             variant="outline"
@@ -83,7 +84,7 @@ export function ProjectMemberOwnerSelect({
           >
             다시 시도
           </Button>
-        </div>
+        </SsooErrorNotice>
       ) : selectedOwner ? (
         <p className="text-xs text-muted-foreground">{selectedOwner.description}</p>
       ) : hasExternalSelectedOwner ? (

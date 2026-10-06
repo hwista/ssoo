@@ -1,5 +1,7 @@
 'use client';
 
+import { normalizeCrmNavigationPath } from '@/lib/crmNavigation';
+
 import type { CrmOpportunityListResponse, CrmOpportunitySort, CrmOpportunityStatus, CrmSourceOpportunityStatus } from '@ssoo/types/crm';
 import { OpportunityWorkspaceClient, type OpportunityWorkspaceQuery } from './OpportunityWorkspaceClient';
 import { crmDashboardFallback } from './dashboardFallback';
@@ -23,7 +25,8 @@ const fallback: CrmOpportunityListResponse = {
 };
 
 function normalizeQuery(path: string): OpportunityWorkspaceQuery {
-  const [, queryString = ''] = path.split('?');
+  const normalizedPath = normalizeCrmNavigationPath(path);
+  const [, queryString = ''] = normalizedPath.split('?');
   const searchParams = new URLSearchParams(queryString);
   const status = searchParams.get('status') as CrmOpportunityStatus | 'all' | null;
   const sourceStatus = searchParams.get('sourceStatus') as CrmSourceOpportunityStatus | 'all' | null;
@@ -31,14 +34,14 @@ function normalizeQuery(path: string): OpportunityWorkspaceQuery {
   const sourceSurface = searchParams.get('sourceSurface');
 
   return {
-    search: (searchParams.get('search') ?? '').trim(),
+    search: sourceSurface === 'list' ? searchParams.get('search') ?? '' : (searchParams.get('search') ?? '').trim(),
     status: status && ['draft', 'qualified', 'proposal', 'won', 'lost', 'hold'].includes(status) ? status : 'all',
     sourceStatus: sourceStatus && ['진행중', '검토중', '계약완료', '실패'].includes(sourceStatus) ? sourceStatus : 'all',
     sort: sort && ['customer-asc', 'updated-desc', 'revenue-desc', 'profit-desc', 'margin-desc'].includes(sort) ? sort : 'customer-asc',
     selected: searchParams.get('selected') ?? '',
     sourceSurface: sourceSurface && ['dashboard', 'list', 'form', 'contract-document'].includes(sourceSurface)
       ? sourceSurface as OpportunityWorkspaceQuery['sourceSurface']
-      : 'workspace',
+      : normalizedPath === '/' ? 'home' : 'workspace',
     create: searchParams.get('create') === 'opportunity',
   };
 }

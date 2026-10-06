@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { usePmsSettings, useUpdatePmsSettings } from '@/hooks/queries/usePmsSettings';
 import { TaskAssigneeSelect } from './TaskAssigneeSelect';
 import { type ReactNode, useState } from 'react';
@@ -631,12 +632,12 @@ export function TasksTab({ projectId }: Props) {
         )}
       </div>
 
-      {settings.isError && <p role="alert" className="text-sm text-destructive">표시 설정을 확인하지 못해 모든 작업을 표시합니다. <Button variant="outline" size="sm" onClick={() => settings.refetch()}>다시 확인</Button></p>}
+      {settings.isError && <SsooErrorNotice as="p" compact>표시 설정을 확인하지 못해 모든 작업을 표시합니다. <Button variant="outline" size="sm" onClick={() => settings.refetch()}>다시 확인</Button></SsooErrorNotice>}
       {hiddenCount > 0 && <div className="flex flex-wrap items-center gap-2 text-sm" role="status">완료 작업 {hiddenCount}개 숨김
         <Button variant="outline" size="sm" disabled={saveSettings.isPending} onClick={() => saveSettings.mutate({ showCompletedTasks: true })}>완료 작업 표시</Button>
       </div>}
-      {saveSettings.isError && <p role="alert" className="text-sm text-destructive">설정을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
-      {updateTask.isError && <p role="alert" className="text-sm text-destructive">작업을 저장하지 못했습니다. 담당자와 권한을 확인하고 다시 시도해 주세요.</p>}
+      {saveSettings.isError && <SsooErrorNotice as="p" compact>설정을 저장하지 못했습니다. 다시 시도해 주세요.</SsooErrorNotice>}
+      {updateTask.isError && <SsooErrorNotice as="p" compact>작업을 저장하지 못했습니다. 담당자와 권한을 확인하고 다시 시도해 주세요.</SsooErrorNotice>}
       {tasks.length === 0 ? (
         <div className="text-sm text-muted-foreground py-8 text-center">
           아직 등록된 태스크가 없습니다.
@@ -881,7 +882,7 @@ export function TasksTab({ projectId }: Props) {
           <div className="space-y-2"><span className="text-sm font-medium">담당자</span>
             <TaskAssigneeSelect projectId={String(projectId)} value={formData.assigneeUserId} onChange={(assigneeUserId) => setFormData({ ...formData, assigneeUserId })} />
           </div>
-          {createTask.isError && <p role="alert" className="text-sm text-destructive">작업을 등록하지 못했습니다. 입력값과 담당자를 확인하고 다시 시도해 주세요.</p>}
+          {createTask.isError && <SsooErrorNotice as="p" compact>작업을 등록하지 못했습니다. 입력값과 담당자를 확인하고 다시 시도해 주세요.</SsooErrorNotice>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="w-full sm:w-auto">취소</Button>
             <Button
@@ -916,12 +917,12 @@ export function TasksTab({ projectId }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {settings.isError && <p role="alert" className="text-sm text-destructive">표시 설정을 확인하지 못해 모든 작업을 표시합니다. <Button variant="outline" size="sm" onClick={() => settings.refetch()}>다시 확인</Button></p>}
+                  {settings.isError && <SsooErrorNotice as="p" compact>표시 설정을 확인하지 못해 모든 작업을 표시합니다. <Button variant="outline" size="sm" onClick={() => settings.refetch()}>다시 확인</Button></SsooErrorNotice>}
       {hiddenCount > 0 && <div className="flex flex-wrap items-center gap-2 text-sm" role="status">완료 작업 {hiddenCount}개 숨김
         <Button variant="outline" size="sm" disabled={saveSettings.isPending} onClick={() => saveSettings.mutate({ showCompletedTasks: true })}>완료 작업 표시</Button>
       </div>}
-      {saveSettings.isError && <p role="alert" className="text-sm text-destructive">설정을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
-      {updateTask.isError && <p role="alert" className="text-sm text-destructive">작업을 저장하지 못했습니다. 담당자와 권한을 확인하고 다시 시도해 주세요.</p>}
+      {saveSettings.isError && <SsooErrorNotice as="p" compact>설정을 저장하지 못했습니다. 다시 시도해 주세요.</SsooErrorNotice>}
+      {updateTask.isError && <SsooErrorNotice as="p" compact>작업을 저장하지 못했습니다. 담당자와 권한을 확인하고 다시 시도해 주세요.</SsooErrorNotice>}
       {tasks.length === 0 ? (
                     <SelectItem value={NO_TASK_VALUE}>작업 없음</SelectItem>
                   ) : (

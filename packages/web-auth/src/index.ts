@@ -1,3 +1,8 @@
+export { SharedAppRecovery } from './app-recovery';
+export type { SharedAppRecoveryProps } from './app-recovery';
+export { loadAccessibleSsooServices } from './service-access';
+export type { AccessibleSsooService, SsooServiceAccessResult, SsooRecoveryApp } from './service-access';
+
 export {
   SHARED_AUTH_STORAGE_KEY,
   SHARED_AUTH_CHANGE_EVENT,
@@ -290,3 +295,9 @@ export type {
   ServerApiProxyBackendSuccessResponse,
   SessionBackedAccessTokenPayload,
 } from './server-api-proxy';
+export { createSharedHttpError } from './http-error';
+export { SharedSessionRecovery } from './session-recovery';
+
+export { SharedOnboardingBoundary } from './onboarding';
+export { ServiceOrganizationSelect } from './service-organization-select';
+export type { SharedOnboardingBoundaryProps } from './onboarding';

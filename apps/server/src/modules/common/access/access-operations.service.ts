@@ -25,6 +25,8 @@ import type { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto
 type AccessSubjectRow = Awaited<ReturnType<AccessOperationsService['findSubjectOrThrow']>>;
 
 const CRM_LAUNCH_ACTIVE_PERMISSION_CODES = new Set([
+  'crm.business-year.read',
+  'crm.business-year.manage',
   'crm.opportunity.read',
   'crm.opportunity.write',
   'crm.opportunity.confirm',

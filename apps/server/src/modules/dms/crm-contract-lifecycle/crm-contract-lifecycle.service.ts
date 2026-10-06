@@ -35,6 +35,9 @@ import { configService } from '../runtime/dms-config.service.js';
 import { storageAdapterService, type StorageReference } from '../storage/storage-adapter.service.js';
 import { renderDocxTemplate } from '../templates/docx-template-renderer.js';
 import { TemplateService } from '../templates/template.service.js';
+import { CrmAccessService } from '../../crm/access/access.service.js';
+import { AccessRequestService } from '../access/access-request.service.js';
+import { AccessService as DmsAccessService } from '../access/access.service.js';
 
 interface ApprovalDirectoryUser {
   id: bigint;
@@ -90,6 +93,9 @@ export class DmsCrmContractLifecycleService {
     private readonly db: DatabaseService,
     @Inject(DMS_CRM_CONTRACT_LIFECYCLE_STORAGE)
     private readonly storage: DmsCrmContractLifecycleStorage = storageAdapterService,
+    private readonly crmAccess?: CrmAccessService,
+    private readonly documentAccess?: AccessRequestService,
+    private readonly dmsAccess?: DmsAccessService,
   ) {}
 
   async execute(
@@ -99,6 +105,16 @@ export class DmsCrmContractLifecycleService {
     const normalized = this.normalizeRequest(request);
     this.assertExecutableLifecycle(normalized.lifecycle);
     this.assertAttachmentsExecutable(normalized.attachments);
+    if (!this.crmAccess || !this.documentAccess || !this.dmsAccess) throw new BadRequestException('업무 문서 권한 서비스를 사용할 수 없습니다.');
+    await this.crmAccess.assertContractCapability(currentUser, 'canWriteContract', normalized.contractId);
+    await this.dmsAccess.assertFeatures(currentUser, ['canWriteDocuments']);
+    const source = await this.db.client.crmContract.findFirst({ where: { contractCode: normalized.contractCode, isActive: true } });
+    if (!source?.ownerOrganizationId || ![source.id.toString(), source.contractCode].includes(normalized.contractId)) {
+      throw new BadRequestException('업무 조직이 지정된 원천 계약이 필요합니다.');
+    }
+    const handoff = await this.db.client.crmContractDmsHandoff.findFirst({ where: { contractCode: source.contractCode, draftPath: normalized.draftPath, isActive: true } });
+    if (!handoff) throw new BadRequestException('계약에 등록된 DMS 초안 경로가 아닙니다.');
+    const businessOrganizationId = source.ownerOrganizationId.toString();
     const template = await this.loadActiveTemplate(normalized.templateKey);
 
     const draft = await this.readDraft(normalized.draftPath, currentUser);
@@ -126,31 +142,37 @@ export class DmsCrmContractLifecycleService {
       `${documentRelativeDir}/export-policy.md`,
       this.renderExportPolicyRecord(normalized, exportPolicyRecord, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const templateVersionPath = await this.writeMarkdownArtifact(
       `${documentRelativeDir}/template-version.md`,
       this.renderTemplateVersionRecord(templateVersion, normalized, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const templateChangeReviewPath = await this.writeMarkdownArtifact(
       `${documentRelativeDir}/template-change-review.md`,
       this.renderTemplateChangeReviewRecord(templateChangeReview, templateVersion, normalized, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const templateChangeRequestLedgerPath = await this.writeMarkdownArtifact(
       `${documentRelativeDir}/template-change-request-ledger.md`,
       this.renderTemplateChangeRequestLedgerRecord(templateChangeRequestLedger, normalized, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const templateReviewPath = await this.writeMarkdownArtifact(
       `${documentRelativeDir}/template-review.md`,
       this.renderTemplateReviewRecord(normalized, templateVersion, templateChangeReview, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const attachmentRecordPath = await this.writeMarkdownArtifact(
       `${documentRelativeDir}/attachment-confirmation.md`,
       this.renderAttachmentConfirmationRecord(normalized.attachments, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const attachmentFinalizationLedger = this.toAttachmentFinalizationLedger(
       normalized,
@@ -161,21 +183,25 @@ export class DmsCrmContractLifecycleService {
       `${documentRelativeDir}/attachment-finalization-ledger.md`,
       this.renderAttachmentFinalizationLedgerRecord(normalized, attachmentFinalizationLedger, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const approvalRecordPath = await this.writeMarkdownArtifact(
       `${documentRelativeDir}/approval.md`,
       this.renderApprovalRecord(normalized, currentUser, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const approvalRoutePath = await this.writeMarkdownArtifact(
       `${documentRelativeDir}/approval-route.md`,
       this.renderApprovalRouteRecord(normalized, approvalRoute, approvalActors, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const approvalWorkflowPath = await this.writeMarkdownArtifact(
       `${documentRelativeDir}/approval-workflow.md`,
       this.renderApprovalWorkflowRecord(normalized, approvalRoute, approvalActors, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const approvalRouteLedger = this.toApprovalRouteLedger(
       approvalRoute,
@@ -188,6 +214,7 @@ export class DmsCrmContractLifecycleService {
       `${documentRelativeDir}/approval-route-ledger.md`,
       this.renderApprovalRouteLedgerRecord(normalized, approvalRouteLedger, executedAt),
       currentUser,
+      businessOrganizationId,
     );
     const wordArtifact = this.storage.upload({
       fileName: `${artifactBaseName}.docx`,
@@ -830,11 +857,13 @@ export class DmsCrmContractLifecycleService {
     relativePath: string,
     content: string,
     currentUser: TokenPayload,
+    businessOrganizationId: string,
   ): Promise<string> {
-    const result = await this.fileCrudService.write(relativePath, content, currentUser);
+    const result = await this.fileCrudService.write(relativePath, content, currentUser, { businessOrganizationId });
     if (!result.success) {
       throw new BadRequestException(`DMS lifecycle record 저장에 실패했습니다: ${result.error}`);
     }
+    await this.documentAccess!.syncDocumentProjection(relativePath, result.data.metadata as unknown as Record<string, unknown>);
     return relativePath;
   }
 

@@ -1,3 +1,4 @@
+import { readSsooErrorMetadata, type SsooErrorMetadata } from '@ssoo/web-shell';
 import type {
   CommonSearchRequest,
   CommonSearchResponse,
@@ -5,7 +6,7 @@ import type {
 } from '@ssoo/types/common';
 import { createSharedAxiosApiClient } from './axios-api-client';
 
-export interface CommonSearchApiResult<T> {
+export interface CommonSearchApiResult<T> extends SsooErrorMetadata {
   success: boolean;
   data?: T;
   error?: string;
@@ -30,11 +31,10 @@ function normalizeSearchPath(path: string): string {
 
 function getErrorPayload(error: unknown): CommonSearchApiResult<CommonSearchResponse> {
   if (error instanceof Error) {
-    const status = (error as { status?: unknown }).status;
     return {
       success: false,
       error: error.message,
-      status: typeof status === 'number' ? status : undefined,
+      ...readSsooErrorMetadata(error),
     };
   }
 

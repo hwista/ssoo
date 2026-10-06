@@ -1397,7 +1397,7 @@ assertIncludes(crmBusinessPlanService, "'monthly-plan-input'", 'CRM business pla
 assertIncludes(crmBusinessPlanService, 'resolveMonthlyPlanRevenueAmounts', 'CRM business plan reads must return manual monthly inputs or distributed fallback values');
 assertIncludes(crmBusinessPlanService, 'line.monthlyPlanRevenueAmounts', 'CRM business plan performance must consume stored monthly direct input values');
 assertIncludes(crmBusinessPlanService, 'CRM_BUSINESS_PLAN_PERFORMANCE_CONFIRMED_PLAN_BASIS_LABEL', 'CRM business plan performance must expose a confirmed-plan basis label');
-assertIncludes(crmBusinessPlanService, 'loadConfirmedPlan(normalized.year)', 'CRM business plan performance must load confirmed plan ledger rows for the requested year');
+assertIncludes(crmBusinessPlanService, 'loadConfirmedPlan(normalized.year, organizationId, currentUser)', 'CRM business plan performance must load confirmed plan ledger rows for the requested year');
 assertIncludes(crmBusinessPlanService, 'filterConfirmedPlanPerformanceLines', 'CRM business plan performance must filter confirmed plan ledger lines by the active query');
 assertIncludes(crmBusinessPlanService, 'addConfirmedPlanPerformanceGroup', 'CRM business plan performance must add confirmed business plan ledger lines to the preview');
 assertIncludes(crmBusinessPlanService, 'loadConfirmedCostPerformanceRows', 'CRM business plan performance must load confirmed internal/AMS cost rows');
@@ -2094,7 +2094,9 @@ assertIncludes(snsAiIndexAdapter, "accessScope: 'public'", 'SNS AI adapter must 
 assertIncludes(snsAiIndexAdapter, "access: 'organization-acl'", 'SNS AI adapter must use organization ACL snapshot for organization visibility');
 assertIncludes(snsAiIndexAdapter, "accessScope: 'acl'", 'SNS organization AI adapter ACL must avoid broad authenticated organization scope');
 assertIncludes(snsAiIndexAdapter, 'organizationIds', 'SNS organization AI adapter ACL must include organization IDs');
-assertIncludes(snsAiIndexAdapter, "accessScope: 'owner'", 'SNS followers/self AI adapter ACL must narrow to owner scope');
+assertIncludes(snsAiIndexAdapter, "accessScope: readableUserIds.length > 1 ? 'acl' : 'owner'", 'SNS private AI ACL must be limited to owner and approved individual readers');
+assertIncludes(snsAiIndexAdapter, "statusCode: 'approved'", 'SNS individual AI readers must be approved');
+assertIncludes(snsAiIndexAdapter, "{ expiresAt: { gt: new Date() } }", 'SNS individual AI readers must not be expired');
 assertIncludes(snsAiIndexAdapter, 'readableUserIds', 'SNS AI adapter ACL must include explicit readable user IDs');
 assertIncludes(snsAiIndexAdapter, "getStatus('default').ready", 'SNS AI adapter must gate semantic/vector/RAG capabilities on provider readiness');
 assertIncludes(snsAiIndexAdapter, 'semantic: embeddingReady', 'SNS AI adapter semantic capability must follow provider readiness');
@@ -2102,6 +2104,7 @@ assertIncludes(snsAiIndexAdapter, 'vector: embeddingReady', 'SNS AI adapter vect
 assertIncludes(snsAiIndexAdapter, 'ragContext: embeddingReady', 'SNS AI adapter RAG context capability must follow provider readiness');
 
 const snsAiIndexAdapterSpec = readText('apps/server/src/modules/sns/search/sns-ai-index.adapter.spec.ts');
+assertIncludes(snsAiIndexAdapterSpec, 'adds individually approved users to private AI ACL without making it public', 'SNS AI ACL must test additive individual sharing');
 assertIncludes(snsAiIndexAdapterSpec, 'provider-gated SNS post domain adapter', 'SNS AI adapter spec must cover provider-gated capabilities');
 assertIncludes(snsAiIndexAdapterSpec, 'projects public SNS post rows', 'SNS AI adapter spec must cover public post projection');
 assertIncludes(snsAiIndexAdapterSpec, 'organization ACL snapshots', 'SNS AI adapter spec must cover organization ACL projection');

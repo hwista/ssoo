@@ -36,7 +36,7 @@ export function sanitizeInternalCostSourceInput(value: string): string {
   const raw = value.replace(/[^0-9,-]/g, '').replace(/(?!^)-/g, '');
   if (raw === '-') return raw;
   const parsed = raw ? Number.parseInt(raw.replace(/,/g, ''), 10) : 0;
-  return Number.isFinite(parsed) && parsed !== 0 ? String(parsed) : '';
+  return Number.isFinite(parsed) && parsed !== 0 ? parsed.toLocaleString('ko-KR') : '';
 }
 
 export function parseInternalCostSourcePasteAmount(value: string): number {
@@ -116,7 +116,7 @@ export function sumInternalCostSourceValues(values: string[]): number {
 }
 
 function toInputValue(value: number): string {
-  return value === 0 ? '' : String(Math.round(value));
+  return value === 0 ? '' : Math.round(value).toLocaleString('ko-KR');
 }
 
 function toAmount(value: string): number {

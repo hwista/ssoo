@@ -22,6 +22,7 @@ interface DocumentAccessRequestStoreActions {
   close: () => void;
   setRequestState: (path: string, state: DmsDocumentAccessRequestState) => void;
   clearRequestState: (path: string) => void;
+  clearRequestOverrides: () => void;
   reset: () => void;
 }
 
@@ -51,6 +52,7 @@ export const useDocumentAccessRequestStore = create<
     };
   }),
   reset: () => set({ isOpen: false, target: null, overrides: {} }),
+  clearRequestOverrides: () => set({ overrides: {} }),
 }));
 
 registerUserScopedReset((next, prev) => {

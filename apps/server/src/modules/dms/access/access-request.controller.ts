@@ -133,7 +133,7 @@ export class AccessRequestController {
     @Body() dto: UpdateDocumentVisibilityDto,
   ) {
     return success(
-      await this.accessRequestService.updateDocumentVisibility(currentUser, documentId, dto.visibilityScope),
+      await this.accessRequestService.updateDocumentVisibility(currentUser, documentId, dto.visibilityScope, dto.targetOrgId),
     );
   }
 

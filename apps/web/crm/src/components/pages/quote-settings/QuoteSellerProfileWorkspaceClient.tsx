@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createSharedHttpError } from '@ssoo/web-auth';
+import { SsooErrorNotice } from '@ssoo/web-shell';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AlertCircle, Building2, FileText, RefreshCw, Save, Upload } from 'lucide-react';
 import type {
@@ -113,11 +115,15 @@ function formatDateTime(value: string): string {
 export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialProfile: CrmQuoteSellerProfile }) {
   const searchParams = useSearchParams();
   const accessToken = useAuthStore((state) => state.accessToken);
-  const { access: domainAccess, error: domainAccessError } = useCrmDomainAccess(accessToken);
+  const { access: domainAccess, error: domainAccessError, retry: retryDomainAccess } = useCrmDomainAccess(accessToken);
   const canManage = domainAccess?.features.canManageQuoteSettings === true;
   const [profile, setProfile] = useState(initialProfile);
   const [draft, setDraft] = useState(() => toDraft(initialProfile));
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadController = useRef<AbortController | null>(null);
+  const mutationPending = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingCi, setIsUploadingCi] = useState(false);
   const [selectedCiFileName, setSelectedCiFileName] = useState<string | null>(null);
@@ -125,33 +131,41 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
-    if (!accessToken) {
-      return;
-    }
-
+    if (!accessToken || mutationPending.current) return;
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
+    setHasLoaded(false);
+    setLoadError(null);
     setIsLoading(true);
     setErrorMessage(null);
     setNoticeMessage(null);
     try {
       const response = await fetch('/api/crm/quote-seller-profile', {
         cache: 'no-store',
+        signal: controller.signal,
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmQuoteSellerProfile> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
+      if (controller.signal.aborted) return;
       setProfile(payload.data);
       setDraft(toDraft(payload.data));
+      setSelectedCiFileName(null);
+      setHasLoaded(true);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '견적 공급자 정보를 불러오지 못했습니다.');
+      if (controller.signal.aborted) return;
+      setLoadError(error instanceof Error ? error.message : '견적 공급자 정보를 불러오지 못했습니다.');
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) setIsLoading(false);
     }
   }, [accessToken]);
 
   useEffect(() => {
     void loadProfile();
+    return () => loadController.current?.abort();
   }, [loadProfile]);
 
   const isDirty = useMemo(() => {
@@ -160,9 +174,12 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
     return JSON.stringify(source) !== JSON.stringify(current);
   }, [draft, profile]);
 
-  const canSave = Boolean(canManage && accessToken && draft.companyName.trim() && !isSaving && isDirty);
+  const busy = isLoading || isSaving || isUploadingCi;
+  const canEdit = Boolean(canManage && accessToken && hasLoaded && !busy && !loadError);
+  const canSave = Boolean(canEdit && draft.companyName.trim() && isDirty);
 
   const saveProfile = async () => {
+    if (mutationPending.current || busy || !hasLoaded || loadError) return;
     if (!accessToken) {
       setErrorMessage('인증 세션을 확인할 수 없습니다.');
       return;
@@ -176,6 +193,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
       return;
     }
 
+    mutationPending.current = true;
     setIsSaving(true);
     setErrorMessage(null);
     setNoticeMessage(null);
@@ -191,7 +209,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmQuoteSellerProfile> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setProfile(payload.data);
       setDraft(toDraft(payload.data));
@@ -199,6 +217,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '견적 공급자 정보 저장에 실패했습니다.');
     } finally {
+      mutationPending.current = false;
       setIsSaving(false);
     }
   };
@@ -208,7 +227,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
   };
 
   const uploadCi = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || mutationPending.current || busy || !hasLoaded || loadError) return;
     if (!accessToken) {
       setErrorMessage('인증 세션을 확인할 수 없습니다.');
       return;
@@ -218,6 +237,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
       return;
     }
 
+    mutationPending.current = true;
     setIsUploadingCi(true);
     setErrorMessage(null);
     setNoticeMessage(null);
@@ -230,16 +250,23 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
         body,
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CiUploadResult> | BackendErrorResponse | null;
-      if (!response.ok || payload?.success !== true) throw new Error(getBackendErrorMessage(payload));
+      if (!response.ok || payload?.success !== true) throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       setSelectedCiFileName(payload.data.fileName);
       setDraft((current) => ({ ...current, ciStatus: 'configured', ciStorageRef: payload.data.storageRef }));
       setNoticeMessage(`CI “${payload.data.fileName}” 업로드를 확인했습니다. 상단 저장을 눌러 회사 정보에 적용하세요.`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'CI 이미지 업로드에 실패했습니다.');
     } finally {
+      mutationPending.current = false;
       setIsUploadingCi(false);
     }
   };
+
+  const recovery = <>
+    {loadError ? <SsooErrorNotice error={loadError} actions={[{ label: '회사정보 다시 조회', onClick: () => void loadProfile(), disabled: busy }]} /> : null}
+    {domainAccessError ? <SsooErrorNotice error={domainAccessError} actions={[{ label: '접근 권한 다시 확인', onClick: retryDomainAccess }]} /> : null}
+    {!canManage && domainAccess ? <div className="rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-3 py-2 text-sm text-ssoo-warning">공급자 설정 변경 권한이 없어 조회 전용으로 표시합니다.</div> : null}
+  </>;
 
   if (searchParams.get('mode') === 'source-compatible') {
     return (
@@ -247,18 +274,19 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
         <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
           <h1 className="text-xl font-semibold text-foreground">회사 정보</h1>
           <p className="mt-1 text-sm text-muted-foreground">견적서 등에 표시되는 회사 정보를 관리합니다.</p>
-          {errorMessage ? <div className="mt-4 flex items-center gap-2 rounded-md bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger"><AlertCircle className="h-4 w-4" />{errorMessage}</div> : null}
+          <div className="mt-4 space-y-3">{recovery}</div>
+          {errorMessage ? <SsooErrorNotice className="mt-4 gap-2 px-3 py-2"><AlertCircle className="h-4 w-4" />{errorMessage}</SsooErrorNotice> : null}
           {noticeMessage ? <div className="mt-4 rounded-md bg-ssoo-success-bg px-3 py-2 text-sm text-ssoo-success">{noticeMessage}</div> : null}
           <section className="mt-6 rounded-xl border bg-card p-6">
             <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
-              <SourceCompanyField label="회사명 *"><Input required disabled={!canManage} value={draft.companyName} onChange={(event) => updateDraft('companyName', event.target.value)} /></SourceCompanyField>
-              <SourceCompanyField label="대표이사"><Input disabled={!canManage} value={draft.ceoName} onChange={(event) => updateDraft('ceoName', event.target.value)} /></SourceCompanyField>
-              <SourceCompanyField label="사업자번호"><Input disabled={!canManage} value={draft.businessRegistrationNo} onChange={(event) => updateDraft('businessRegistrationNo', event.target.value)} /></SourceCompanyField>
-              <SourceCompanyField label="회사 주소"><Input disabled={!canManage} value={draft.address} onChange={(event) => updateDraft('address', event.target.value)} /></SourceCompanyField>
-              <SourceCompanyField label="대표 전화"><Input disabled={!canManage} value={draft.tel} onChange={(event) => updateDraft('tel', event.target.value)} /></SourceCompanyField>
-              <SourceCompanyField label="팩스"><Input disabled={!canManage} value={draft.fax} onChange={(event) => updateDraft('fax', event.target.value)} /></SourceCompanyField>
-              <SourceCompanyField label="웹사이트"><Input disabled={!canManage} value={draft.website} onChange={(event) => updateDraft('website', event.target.value)} /></SourceCompanyField>
-              <SourceCompanyField label="CI 이미지 경로"><Input disabled={!canManage} value={draft.ciStorageRef} onChange={(event) => updateDraft('ciStorageRef', event.target.value)} /></SourceCompanyField>
+              <SourceCompanyField label="회사명 *"><Input required disabled={!canEdit} maxLength={200} value={draft.companyName} onChange={(event) => updateDraft('companyName', event.target.value)} /></SourceCompanyField>
+              <SourceCompanyField label="대표이사"><Input disabled={!canEdit} maxLength={120} value={draft.ceoName} onChange={(event) => updateDraft('ceoName', event.target.value)} /></SourceCompanyField>
+              <SourceCompanyField label="사업자번호"><Input disabled={!canEdit} maxLength={80} value={draft.businessRegistrationNo} onChange={(event) => updateDraft('businessRegistrationNo', event.target.value)} /></SourceCompanyField>
+              <SourceCompanyField label="회사 주소"><Input disabled={!canEdit} maxLength={500} value={draft.address} onChange={(event) => updateDraft('address', event.target.value)} /></SourceCompanyField>
+              <SourceCompanyField label="대표 전화"><Input disabled={!canEdit} maxLength={80} value={draft.tel} onChange={(event) => updateDraft('tel', event.target.value)} /></SourceCompanyField>
+              <SourceCompanyField label="팩스"><Input disabled={!canEdit} maxLength={80} value={draft.fax} onChange={(event) => updateDraft('fax', event.target.value)} /></SourceCompanyField>
+              <SourceCompanyField label="웹사이트"><Input disabled={!canEdit} maxLength={200} value={draft.website} onChange={(event) => updateDraft('website', event.target.value)} /></SourceCompanyField>
+              <SourceCompanyField label="CI 이미지 경로"><Input disabled={!canEdit} maxLength={300} value={draft.ciStorageRef} onChange={(event) => { const ciStorageRef = event.target.value; setDraft((current) => ({ ...current, ciStorageRef, ciStatus: ciStorageRef.trim() ? 'configured' : 'not-configured' })); }} /></SourceCompanyField>
             </div>
             <div className="mt-5 flex justify-end"><Button type="button" onClick={() => void saveProfile()} disabled={!canSave}>{isSaving ? '저장 중' : '저장'}</Button></div>
           </section>
@@ -281,7 +309,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" type="button" onClick={() => void loadProfile()} disabled={!accessToken || isLoading || isSaving}>
+            <Button variant="outline" size="sm" type="button" onClick={() => void loadProfile()} disabled={!accessToken || busy}>
               <RefreshCw className="h-4 w-4" /> 새로고침
             </Button>
             <Button size="sm" type="button" onClick={() => void saveProfile()} disabled={!canSave}>
@@ -291,20 +319,15 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
         </div>
 
         {errorMessage ? (
-          <div className="flex items-center gap-2 rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">
+          <SsooErrorNotice className="gap-2 px-3 py-2">
             <AlertCircle className="h-4 w-4" />
             <span>{errorMessage}</span>
-          </div>
+          </SsooErrorNotice>
         ) : null}
         {noticeMessage ? (
           <div className="rounded-md border border-ssoo-success-border bg-ssoo-success-bg px-3 py-2 text-sm text-ssoo-success">{noticeMessage}</div>
         ) : null}
-        {!canManage && domainAccess ? (
-          <div className="rounded-md border border-ssoo-warning-border bg-ssoo-warning-bg px-3 py-2 text-sm text-ssoo-warning">공급자 설정 변경 권한이 없어 조회 전용으로 표시합니다.</div>
-        ) : null}
-        {domainAccessError ? (
-          <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{domainAccessError}</div>
-        ) : null}
+        {recovery}
 
         <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <section className="rounded-md border border-border bg-card">
@@ -316,7 +339,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                 <span className="font-medium text-muted-foreground">회사명</span>
                 <Input
                   required
-                  disabled={!canManage}
+                  disabled={!canEdit}
                   value={draft.companyName}
                   maxLength={200}
                   placeholder="회사명 입력"
@@ -327,7 +350,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                 <span className="font-medium text-muted-foreground">대표이사</span>
                 <Input
                   value={draft.ceoName}
-                  disabled={!canManage}
+                  disabled={!canEdit}
                   maxLength={120}
                   placeholder="대표이사명"
                   onChange={(event) => updateDraft('ceoName', event.target.value)}
@@ -337,7 +360,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                 <span className="font-medium text-muted-foreground">사업자번호</span>
                 <Input
                   value={draft.businessRegistrationNo}
-                  disabled={!canManage}
+                  disabled={!canEdit}
                   maxLength={80}
                   placeholder="000-00-00000"
                   onChange={(event) => updateDraft('businessRegistrationNo', event.target.value)}
@@ -347,7 +370,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                 <span className="font-medium text-muted-foreground">대표 전화</span>
                 <Input
                   value={draft.tel}
-                  disabled={!canManage}
+                  disabled={!canEdit}
                   maxLength={80}
                   placeholder="02-0000-0000"
                   onChange={(event) => updateDraft('tel', event.target.value)}
@@ -357,7 +380,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                 <span className="font-medium text-muted-foreground">팩스</span>
                 <Input
                   value={draft.fax}
-                  disabled={!canManage}
+                  disabled={!canEdit}
                   maxLength={80}
                   placeholder="02-0000-0000"
                   onChange={(event) => updateDraft('fax', event.target.value)}
@@ -367,7 +390,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                 <span className="font-medium text-muted-foreground">대표 이메일</span>
                 <Input
                   value={draft.email}
-                  disabled={!canManage}
+                  disabled={!canEdit}
                   maxLength={200}
                   placeholder="sales@example.com"
                   onChange={(event) => updateDraft('email', event.target.value)}
@@ -377,7 +400,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                 <span className="font-medium text-muted-foreground">회사 주소</span>
                 <Input
                   value={draft.address}
-                  disabled={!canManage}
+                  disabled={!canEdit}
                   maxLength={500}
                   placeholder="회사 주소"
                   onChange={(event) => updateDraft('address', event.target.value)}
@@ -387,7 +410,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                 <span className="font-medium text-muted-foreground">웹사이트</span>
                 <Input
                   value={draft.website}
-                  disabled={!canManage}
+                  disabled={!canEdit}
                   maxLength={200}
                   placeholder="https://www.company.com"
                   onChange={(event) => updateDraft('website', event.target.value)}
@@ -407,7 +430,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   <span className="font-medium text-muted-foreground">CI 상태</span>
                   <NativeSelect
                     value={draft.ciStatus}
-                    disabled={!canManage}
+                    disabled={!canEdit}
                     onChange={(event) => updateDraft('ciStatus', event.target.value as CrmQuoteSellerCiStatus)}
                   >
                     {Object.entries(ciStatusLabels).map(([value, label]) => (
@@ -419,7 +442,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   <span className="font-medium text-muted-foreground">CI 저장소 참조</span>
                   <Input
                     value={draft.ciStorageRef}
-                    disabled={!canManage}
+                    disabled={!canEdit}
                     maxLength={300}
                     placeholder="DMS 연결 예정"
                     onChange={(event) => updateDraft('ciStorageRef', event.target.value)}
@@ -430,8 +453,8 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
                   <Input
                     type="file"
                     accept="image/png,image/jpeg,image/gif,image/webp"
-                    disabled={!canManage || !accessToken || isUploadingCi}
-                    onChange={(event) => void uploadCi(event.target.files?.[0])}
+                    disabled={!canEdit}
+                    onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void uploadCi(file); }}
                     data-testid="seller-ci-file-input"
                   />
                 </label>
@@ -460,7 +483,7 @@ export function QuoteSellerProfileWorkspaceClient({ initialProfile }: { initialP
           <div className="px-5 py-5">
             <Textarea
               value={draft.memo}
-              disabled={!canManage}
+              disabled={!canEdit}
               rows={4}
               placeholder="견적서 표시 정보 관리 메모"
               onChange={(event) => updateDraft('memo', event.target.value)}

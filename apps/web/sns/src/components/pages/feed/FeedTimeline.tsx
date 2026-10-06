@@ -1,5 +1,7 @@
 'use client';
 
+import { SsooErrorPanel, SsooErrorNotice } from '@ssoo/web-shell';
+
 import { FileText } from 'lucide-react';
 import { ComposeBox } from './ComposeBox';
 import { PostCard } from './PostCard';
@@ -12,22 +14,21 @@ import { Button } from '@ssoo/web-ui';
 export function FeedTimeline() {
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const canReadFeed = accessSnapshot?.features.canReadFeed ?? false;
-  const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useFeed(undefined, canReadFeed);
+  const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage, isError, error, refetch } = useFeed(undefined, canReadFeed);
   const feedItems = data?.pages.flatMap((page) => page.data?.data?.items || []) || [];
 
   if (!canReadFeed) {
     return (
-      <EmptyState
-        icon={<FileText className="h-12 w-12" />}
-        title="피드 접근 권한이 없습니다"
-        description="현재 계정에는 SNS 피드를 조회할 권한이 없습니다."
-      />
+      <SsooErrorPanel kind="forbidden" title="피드 접근 권한이 없습니다" description="현재 계정에는 SNS 피드를 조회할 권한이 없습니다."
+          actions={[{ label: '다른 서비스·계정으로 이동', href: '/recovery' }]} />
     );
   }
 
   return (
     <div className="min-w-0 space-y-4">
       <ComposeBox />
+      {isError && feedItems.length > 0 ? <SsooErrorNotice error={error}
+        actions={[{ label: '다시 불러오기', onClick: () => refetch() }]} /> : null}
 
       {isLoading ? (
         <div className="space-y-4">
@@ -45,6 +46,9 @@ export function FeedTimeline() {
             </div>
           ))}
         </div>
+      ) : isError && feedItems.length === 0 ? (
+        <SsooErrorPanel error={error} title="피드를 불러오지 못했습니다" onRetry={() => refetch()}
+          actions={[{ label: '다른 서비스·계정으로 이동', href: '/recovery' }]} />
       ) : feedItems.length === 0 ? (
         <EmptyState
           icon={<FileText className="h-12 w-12" />}

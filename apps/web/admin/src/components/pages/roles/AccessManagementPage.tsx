@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { RefreshCcw, Search, Shield, AlertTriangle, Users, Save, ScrollText } from 'lucide-react';
 import { SsooSearchInput, SsooSettingsPage } from '@ssoo/web-shell';
@@ -382,9 +383,9 @@ function CatalogTab() {
       {catalogQuery.isLoading ? (
         <p className="text-sm text-muted-foreground">권한 명세를 불러오는 중...</p>
       ) : catalogQuery.isError ? (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+        <SsooErrorNotice className="p-4">
           권한 명세를 불러오지 못했습니다.
-        </div>
+        </SsooErrorNotice>
       ) : catalog ? (
         <div className="space-y-4">
           {catalog.groups.map((group) => (
@@ -461,13 +462,13 @@ function InspectTab() {
         )}
 
         {usersQuery.isError && (
-          <div className="flex items-center gap-2 text-sm text-destructive">
+          <SsooErrorNotice className="gap-2">
             사용자 목록을 불러오지 못했습니다.
             <Button variant="outline" size="sm" onClick={() => usersQuery.refetch()}>
               <RefreshCcw className="mr-1 h-3 w-3" />
               다시 시도
             </Button>
-          </div>
+          </SsooErrorNotice>
         )}
 
         {!usersQuery.isLoading && !usersQuery.isError && (
@@ -583,7 +584,7 @@ function InspectTab() {
       )}
 
       {inspectQuery.isError && (
-        <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+        <SsooErrorNotice className="space-y-3 p-4">
           <p className="text-sm text-destructive">
             {inspectQuery.error instanceof Error
               ? inspectQuery.error.message
@@ -593,7 +594,7 @@ function InspectTab() {
             <RefreshCcw className="mr-1 h-4 w-4" />
             다시 시도
           </Button>
-        </div>
+        </SsooErrorNotice>
       )}
 
       {result && (
@@ -719,7 +720,7 @@ function ExceptionsTab() {
       )}
 
       {exceptionsQuery.isError && (
-        <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+        <SsooErrorNotice className="space-y-3 p-4">
           <p className="text-sm text-destructive">
             {exceptionsQuery.error instanceof Error
               ? exceptionsQuery.error.message
@@ -729,7 +730,7 @@ function ExceptionsTab() {
             <RefreshCcw className="mr-1 h-4 w-4" />
             다시 시도
           </Button>
-        </div>
+        </SsooErrorNotice>
       )}
 
       {result && (
@@ -843,14 +844,14 @@ function RoleGrantsTab() {
   if (rolesQuery.isError || catalogQuery.isError) {
     const error = rolesQuery.error ?? catalogQuery.error;
     return (
-      <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+      <SsooErrorNotice className="space-y-3 p-4">
         <p className="text-sm text-destructive">
           {error instanceof Error ? error.message : '역할 권한을 불러오지 못했습니다.'}
         </p>
         <Button variant="outline" onClick={() => Promise.all([rolesQuery.refetch(), catalogQuery.refetch()])}>
           <RefreshCcw className="mr-1 h-4 w-4" /> 다시 시도
         </Button>
-      </div>
+      </SsooErrorNotice>
     );
   }
 
@@ -901,9 +902,7 @@ function RoleGrantsTab() {
         )}
         {successMessage && <p className="mt-3 text-sm text-ssoo-success">{successMessage}</p>}
         {updateMutation.isError && (
-          <p className="mt-3 text-sm text-destructive">
-            {updateMutation.error instanceof Error ? updateMutation.error.message : '역할 권한 저장에 실패했습니다.'}
-          </p>
+          <SsooErrorNotice as="p" compact className="mt-3" error={updateMutation.error instanceof Error ? updateMutation.error.message : '역할 권한 저장에 실패했습니다.'} />
         )}
       </section>
 
@@ -983,9 +982,7 @@ function AuditTab() {
       {auditQuery.isLoading ? (
         <div className="p-8 text-center text-sm text-muted-foreground">감사 이벤트를 불러오는 중...</div>
       ) : auditQuery.isError ? (
-        <p className="p-4 text-sm text-destructive">
-          {auditQuery.error instanceof Error ? auditQuery.error.message : '감사 이벤트 조회에 실패했습니다.'}
-        </p>
+        <SsooErrorNotice as="p" compact className="p-4" error={auditQuery.error instanceof Error ? auditQuery.error.message : '감사 이벤트 조회에 실패했습니다.'} />
       ) : events.length === 0 ? (
         <div className="p-8 text-center text-sm text-muted-foreground">기록된 감사 이벤트가 없습니다.</div>
       ) : (

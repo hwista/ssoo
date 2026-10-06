@@ -1,5 +1,7 @@
 'use client';
 
+import { ServiceOrganizationSelect } from '@ssoo/web-auth';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useRef, useState } from 'react';
 import { Send, ImageIcon } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -31,7 +33,8 @@ export function ComposeBox() {
 }
 
 function ComposeDraft() {
-  const { user } = useAuthStore();
+  const { user, accessToken } = useAuthStore();
+  const [targetOrgId, setTargetOrgId] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
   const accessSnapshot = useAccessStore((state) => state.snapshot);
@@ -73,20 +76,22 @@ function ComposeDraft() {
 
   const handleSubmit = async () => {
     if (!canCreatePost || !content.trim() || submitting.current) return;
+    if (visibilityScopeCode === 'organization' && !targetOrgId) { setError('공개 대상 조직을 선택해 주세요.'); return; }
     submitting.current = true;
     setError('');
     try {
       if (images.length) {
         const requestId = submissionId ?? crypto.randomUUID();
         setSubmissionId(requestId);
-        await createImagePost.mutateAsync({ content: content.trim(), visibilityScopeCode, submissionId: requestId, images });
+        await createImagePost.mutateAsync({ content: content.trim(), visibilityScopeCode, targetOrgId: visibilityScopeCode === 'organization' ? targetOrgId : undefined, submissionId: requestId, images });
       } else {
-        await createPost.mutateAsync({ content: content.trim(), visibilityScopeCode });
+        await createPost.mutateAsync({ content: content.trim(), visibilityScopeCode, targetOrgId: visibilityScopeCode === 'organization' ? targetOrgId : undefined });
       }
       setContent('');
       setImages([]);
       setSubmissionId(null);
       setVisibilityScopeCode('public');
+      setTargetOrgId('');
       setIsExpanded(false);
     } catch (cause) {
       const status = (cause as { status?: number }).status;
@@ -117,7 +122,7 @@ function ComposeDraft() {
                   autoFocus
                   className="resize-none"
                 />
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <label
                     htmlFor="post-visibility-scope"
                     className="text-xs font-medium text-muted-foreground"
@@ -137,9 +142,10 @@ function ComposeDraft() {
                       </option>
                     ))}
                   </NativeSelect>
+            {visibilityScopeCode === 'organization' ? <ServiceOrganizationSelect service="sns" accessToken={accessToken} value={targetOrgId} onChange={setTargetOrgId} disabled={locked} /> : null}
                 </div>
                 <ImageDrafts files={images} disabled={locked} onRemove={(index) => setImages((previous) => previous.filter((_, i) => i !== index))} />
-                {error && <p role="alert" className="text-body-sm text-destructive">{error}</p>}
+                {error && <SsooErrorNotice as="p" compact error={error} />}
                 {submissionId && !pending && <p className="text-body-sm text-muted-foreground">이전 게시 결과를 확인하려면 다시 시도해 주세요. 재시도 중에는 같은 내용을 유지합니다.</p>}
                 <div className="flex items-center justify-between">
                   <div className="flex gap-1">
@@ -161,6 +167,7 @@ function ComposeDraft() {
                         setIsExpanded(false);
                         setContent('');
                         setVisibilityScopeCode('public');
+      setTargetOrgId('');
                       }}
                     >
                       취소

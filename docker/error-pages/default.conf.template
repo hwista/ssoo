@@ -1,0 +1,44 @@
+server {
+    listen 8080;
+    server_name _;
+    server_tokens off;
+    root /usr/share/nginx/html;
+
+    # Preserve API JSON/status contracts even when an upstream is unavailable.
+    location /api/ {
+        proxy_pass ${SSOO_ERROR_UPSTREAM};
+        proxy_intercept_errors off;
+        error_page 502 503 504 =503 @api_unavailable;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location @api_unavailable {
+        default_type application/json;
+        add_header Cache-Control "no-store" always;
+        return 503 '{"success":false,"error":{"code":"SERVICE_UNAVAILABLE","message":"일시적으로 서비스를 이용할 수 없습니다.","statusCode":503}}';
+    }
+
+    # This screen remains available while the application process is down.
+    location = /__ssoo_recovery/ {
+        try_files /services.html =404;
+        add_header Cache-Control "no-store" always;
+    }
+    location = /__ssoo_unavailable.html {
+        internal;
+        add_header Cache-Control "no-store" always;
+    }
+    # Browser icon requests must not depend on the failed application upstream.
+    location = /favicon.ico {
+        return 204;
+    }
+    location / {
+        proxy_pass ${SSOO_ERROR_UPSTREAM};
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_intercept_errors on;
+        error_page 502 503 504 /__ssoo_unavailable.html;
+    }
+}

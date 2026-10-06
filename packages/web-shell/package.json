@@ -5,6 +5,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./fatal-error": {
+      "types": "./dist/fatal-error.d.ts",
+      "default": "./dist/fatal-error.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
@@ -29,6 +33,7 @@
     "@tanstack/react-table": "^8.21.3",
     "clsx": "^2.1.1",
     "lucide-react": "^0.548.0",
+    "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {

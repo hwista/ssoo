@@ -1,4 +1,5 @@
-FROM node:22 AS base
+ARG SSOO_NODE_IMAGE=node:22
+FROM ${SSOO_NODE_IMAGE} AS base
 RUN corepack enable && \
     corepack prepare pnpm@11.13.1 --activate
 WORKDIR /app
@@ -27,7 +28,9 @@ RUN --mount=type=secret,id=ssoo_tls_ca,required=false \
 FROM base AS builder
 ARG SSOO_RELEASE_SHA=local-development
 COPY --from=deps /app/ ./
-COPY . .
+COPY apps/server/ apps/server/
+COPY packages/database/ packages/database/
+COPY packages/types/ packages/types/
 
 ENV NODE_ENV=production
 ENV SSOO_RELEASE_SHA=${SSOO_RELEASE_SHA}
@@ -40,7 +43,7 @@ RUN --mount=type=secret,id=ssoo_tls_ca,required=false \
     pnpm --filter @ssoo/database build && \
     pnpm --filter server build
 
-FROM node:22 AS runner
+FROM ${SSOO_NODE_IMAGE} AS runner
 ARG SSOO_RELEASE_SHA=local-development
 RUN apt-get update -qq && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 RUN git config --global --add safe.directory /var/lib/ssoo/documents

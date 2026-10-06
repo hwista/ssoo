@@ -33,7 +33,9 @@ function fixture() {
     $queryRaw: jest.fn(async () => []),
     $transaction: async <T>(callback: (tx: unknown) => Promise<T>): Promise<T> => callback(client),
   };
-  const crmAccess = { assertDomainCapability: jest.fn(async () => ({})), getDomainAccess: jest.fn(async () => ({ features: { canWriteContract: true } })) };
+  const crmAccess = { businessOrganizationScope: async () => null,
+    assertContractCapability: async () => undefined,
+    assertDomainCapability: jest.fn(async () => ({})), getDomainAccess: jest.fn(async () => ({ features: { canWriteContract: true } })) };
   const dmsAccess = { assertFeatures: jest.fn(async () => ({})) };
   const files = { read: jest.fn(async () => ({ success: true, data: { content, metadata: { document: { documentId: '30', revisionSeq: 1 } }, ...(locked ? { lockedPreview: {} } : {}) } })) };
   const service = new ContractApprovalService({ client } as unknown as DatabaseService, crmAccess as unknown as CrmAccessService, dmsAccess as unknown as AccessService, { getUserOrganizationIds: async () => [] } as unknown as AccessFoundationService, files as unknown as FileCrudService);

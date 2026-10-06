@@ -1,5 +1,7 @@
 'use client';
 
+import { SsooErrorPanel } from '@ssoo/web-shell';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { Search, Users } from 'lucide-react';
@@ -17,11 +19,8 @@ import { useAccessStore, useAuthStore } from '@/stores';
 function SearchPermissionState() {
   return (
     <div className="max-w-3xl mx-auto">
-      <EmptyState
-        icon={<Users className="h-12 w-12" />}
-        title="전문가 검색 권한이 없습니다"
-        description="현재 계정에는 SNS 검색 화면에 접근할 권한이 없습니다."
-      />
+      <SsooErrorPanel kind="forbidden" title="전문가 검색 권한이 없습니다" description="현재 계정에는 SNS 검색 화면에 접근할 권한이 없습니다."
+          actions={[{ label: '다른 서비스·계정으로 이동', href: '/recovery' }]} />
     </div>
   );
 }
@@ -98,11 +97,7 @@ function ExpertSearchPage({ userId }: { userId: string }) {
         ) : results.isFetching ? (
           <LoadingState message="전문가를 찾고 있습니다..." />
         ) : results.isError ? (
-          <EmptyState
-            title="전문가 검색을 불러오지 못했습니다"
-            description="잠시 후 다시 시도해 주세요."
-            action={<Button variant="outline" onClick={() => void results.refetch()}>다시 시도</Button>}
-          />
+          <SsooErrorPanel error={results.error} title="전문가 검색을 불러오지 못했습니다" onRetry={() => results.refetch()} />
         ) : !results.data?.data.length ? (
           <EmptyState
             icon={<Users className="h-12 w-12" />}

@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createSharedHttpError } from '@ssoo/web-auth';
+import { SsooErrorNotice } from '@ssoo/web-shell';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -87,6 +89,8 @@ const statusTone: Record<CrmContractStatus, string> = {
 };
 
 const sortLabels: Record<CrmContractSort, string> = {
+  'created-desc': '최근 등록순',
+  'customer-asc': '고객사순',
   'updated-desc': '최근 수정순',
   'revenue-desc': '매출 높은순',
   'margin-desc': '손익률 높은순',
@@ -96,6 +100,7 @@ const sortLabels: Record<CrmContractSort, string> = {
 const regionLabels: Record<CrmContract['region'], string> = {
   domestic: '국내',
   overseas: '해외',
+  unspecified: '미선택',
 };
 
 const lineCategoryLabels: Record<CrmOpportunityLineCategory, string> = {
@@ -167,8 +172,8 @@ function toBillingActualDraftLines(data: CrmContractBillingActualResponse | null
   return data.actualLines.map((line) => ({
     id: line.id,
     billingYm: line.billingYm,
-    revenueAmount: String(line.revenueAmount),
-    externalCostAmount: String(line.externalCostAmount),
+    revenueAmount: line.revenueAmount.toLocaleString('ko-KR'),
+    externalCostAmount: line.externalCostAmount.toLocaleString('ko-KR'),
   }));
 }
 
@@ -199,7 +204,7 @@ function buildHref(query: ContractWorkspaceQuery, patch: Partial<ContractWorkspa
   if (next.create) params.set('create', 'contract');
   if (next.search) params.set('search', next.search);
   if (next.status && next.status !== 'all') params.set('status', next.status);
-  if (next.sort && next.sort !== 'updated-desc') params.set('sort', next.sort);
+  if (next.sort && (next.sourceSurface === 'list' || next.sort !== 'updated-desc')) params.set('sort', next.sort);
   if (next.selected) params.set('selected', next.selected);
   const suffix = params.toString();
   return suffix ? `/contracts?${suffix}` : '/contracts';
@@ -207,9 +212,10 @@ function buildHref(query: ContractWorkspaceQuery, patch: Partial<ContractWorkspa
 
 function buildApiHref(query: ContractWorkspaceQuery) {
   const params = new URLSearchParams();
+  if (query.sourceSurface === 'list' || query.sourceSurface === 'billing-actual') params.set('view', 'source-list');
   if (query.search) params.set('search', query.search);
   if (query.status && query.status !== 'all') params.set('status', query.status);
-  if (query.sort && query.sort !== 'updated-desc') params.set('sort', query.sort);
+  if (query.sort && (query.sourceSurface === 'list' || query.sort !== 'updated-desc')) params.set('sort', query.sort);
   const suffix = params.toString();
   return suffix ? `/api/crm/contracts?${suffix}` : '/api/crm/contracts';
 }
@@ -232,7 +238,7 @@ export function ContractWorkspaceClient({
   active?: boolean;
 }) {
   const accessToken = useAuthStore((state) => state.accessToken);
-  const { access: domainAccess, error: domainAccessError } = useCrmDomainAccess(accessToken);
+  const { access: domainAccess, error: domainAccessError, retry: retryDomainAccess } = useCrmDomainAccess(accessToken);
   const canWriteContract = domainAccess?.features.canWriteContract === true;
   const canConfirmContract = domainAccess?.features.canConfirmContract === true;
   const router = useRouter();
@@ -262,7 +268,7 @@ export function ContractWorkspaceClient({
     query.sourceSurface === 'form' && query.create
       ? null
       : sourceContracts.find((item) => item.id === query.selected || item.code === query.selected)
-        ?? sourceContracts[0]
+        ?? ((query.sourceSurface === 'form' || query.sourceSurface === 'billing-actual') && query.selected ? null : sourceContracts[0])
         ?? null
   ), [query.create, query.selected, query.sourceSurface, sourceContracts]);
 
@@ -288,8 +294,9 @@ export function ContractWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmContractListResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
+      if (signal?.aborted) return null;
       setCurrentData(payload.data);
       return payload.data;
     } catch (error) {
@@ -305,6 +312,10 @@ export function ContractWorkspaceClient({
     }
   }, [accessToken, apiHref]);
 
+  const billingRequestSequence = useRef(0);
+  const selectedContractId = useRef(selected?.id);
+  selectedContractId.current = selected?.id;
+
   const loadBillingActual = useCallback(async (contractId: string, signal?: AbortSignal) => {
     if (!accessToken || !contractId) {
       setBillingActual(null);
@@ -312,6 +323,7 @@ export function ContractWorkspaceClient({
       return null;
     }
 
+    const requestSequence = ++billingRequestSequence.current;
     setIsBillingActualLoading(true);
     setBillingActualError(null);
     try {
@@ -322,19 +334,20 @@ export function ContractWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmContractBillingActualResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
+      if (signal?.aborted || requestSequence !== billingRequestSequence.current || selectedContractId.current !== contractId) return null;
       setBillingActual(payload.data);
       return payload.data;
     } catch (error) {
-      if (signal?.aborted) {
+      if (signal?.aborted || requestSequence !== billingRequestSequence.current || selectedContractId.current !== contractId) {
         return null;
       }
       setBillingActual(null);
       setBillingActualError(error instanceof Error ? error.message : '청구실적 조회에 실패했습니다.');
       return null;
     } finally {
-      if (!signal?.aborted) {
+      if (!signal?.aborted && requestSequence === billingRequestSequence.current && selectedContractId.current === contractId) {
         setIsBillingActualLoading(false);
       }
     }
@@ -357,7 +370,7 @@ export function ContractWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmContractPmsHandoffPreview> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setPmsHandoffPreview(payload.data);
       return payload.data;
@@ -398,7 +411,7 @@ export function ContractWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmContractDmsDocumentPreview> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setDmsDocumentPreview(payload.data);
       return payload.data;
@@ -451,7 +464,7 @@ export function ContractWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmContractDmsDocumentDraft> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setDmsDocumentDraft(payload.data);
       setDmsDocumentPreview(payload.data.preview);
@@ -495,7 +508,7 @@ export function ContractWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmContractDmsDocumentLifecycleExecutionResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setDmsDocumentLifecycleExecution(payload.data);
       setDmsDocumentPreview(payload.data.preview);
@@ -602,7 +615,7 @@ export function ContractWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmContract> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       await loadContracts();
     } catch (error) {
@@ -619,11 +632,11 @@ export function ContractWorkspaceClient({
 
   const handleContractDeleted = useCallback(async () => {
     await loadContracts();
-    router.replace(buildHref(query, { selected: '' }));
+    router.replace(buildHref(query, { selected: '', ...(query.sourceSurface === 'form' ? { sourceSurface: 'list', create: false } : {}) }));
   }, [loadContracts, query, router]);
 
   const handleBillingActualSaved = useCallback(async (next: CrmContractBillingActualResponse) => {
-    setBillingActual(next);
+    if (selectedContractId.current === next.contractId) setBillingActual(next);
     await loadContracts();
   }, [loadContracts]);
 
@@ -635,6 +648,8 @@ export function ContractWorkspaceClient({
         selectedId={selected?.id ?? ''}
         isLoading={isReloading}
         loadError={loadError}
+        onRetry={() => void loadContracts()}
+        canCreate={canWriteContract}
       />
     );
   }
@@ -647,7 +662,13 @@ export function ContractWorkspaceClient({
             ← 계약현황으로 돌아가기
           </Link>
           <div className="mt-5">
+            {workflowError ? <SsooErrorNotice className="mb-4" error={workflowError} /> : null}
+            {loadError ? <SsooErrorNotice error={loadError} actions={[{ label: '계약 다시 조회', onClick: () => void loadContracts() }]} /> :
+              query.selected && !selected && !query.create ? (
+                <div>{isReloading ? '계약을 불러오는 중입니다.' : '선택한 계약을 찾을 수 없습니다.'}</div>
+              ) : (
             <ContractUpsertPanel
+              key={query.create ? 'create' : selected?.id ?? 'empty'}
               selected={selected}
               accessToken={accessToken}
               canWrite={canWriteContract}
@@ -659,9 +680,10 @@ export function ContractWorkspaceClient({
               workflowPending={pendingWorkflow !== null}
               onCancel={() => router.push('/contracts?sourceSurface=list')}
             />
+              )}
           </div>
         </div>
-        {domainAccessError ? <div className="sr-only" role="status">{domainAccessError}</div> : null}
+        {domainAccessError ? <SsooErrorNotice error={domainAccessError} actions={[{ label: '접근 권한 다시 확인', onClick: retryDomainAccess }]} /> : null}
       </main>
     );
   }
@@ -674,15 +696,19 @@ export function ContractWorkspaceClient({
           query={query}
           isLoading={isReloading}
           loadError={loadError}
+          onRetry={() => void loadContracts()}
         />
       );
     }
     return (
       <SourceBillingActualSurface
+        key={selected?.id ?? 'empty'}
+        query={query}
+        onRetry={() => void (loadError ? loadContracts() : selected && loadBillingActual(selected.id))}
         item={selected}
         data={billingActual}
-        isLoading={isBillingActualLoading}
-        error={billingActualError}
+        isLoading={isBillingActualLoading || isReloading}
+        error={loadError ?? billingActualError}
         accessToken={accessToken}
         canWrite={canWriteContract}
         onSaved={handleBillingActualSaved}
@@ -742,10 +768,10 @@ export function ContractWorkspaceClient({
           </form>
 
           {loadError ? (
-            <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+            <SsooErrorNotice className="gap-2 px-4 py-3">
               <AlertCircle className="h-4 w-4" />
               {loadError}
-            </div>
+            </SsooErrorNotice>
           ) : null}
 
           <div className="overflow-auto">
@@ -780,6 +806,8 @@ export function ContractWorkspaceClient({
             />
             {selected && <ContractApprovalPanel key={selected.id} contractCode={selected.id} revision={JSON.stringify([selected.updatedAt, dmsDocumentDraft, dmsDocumentLifecycleExecution])} />}
             <BillingActualPanel
+              key={selected?.id ?? 'empty'}
+              onRetry={() => void (selected && loadBillingActual(selected.id))}
               item={selected}
               data={billingActual}
               isLoading={isBillingActualLoading}
@@ -801,7 +829,7 @@ export function ContractWorkspaceClient({
           />
         </div>
       </main>
-      {domainAccessError ? <div className="sr-only" role="status">{domainAccessError}</div> : null}
+      {domainAccessError ? <SsooErrorNotice error={domainAccessError} actions={[{ label: '접근 권한 다시 확인', onClick: retryDomainAccess }]} /> : null}
     </div>
   );
 }
@@ -827,30 +855,71 @@ function formatSourceDate(value: string) {
   return `${year}.${month}.${day}`;
 }
 
+function SourceContractListFilters({ query }: { query: ContractWorkspaceQuery }) {
+  const router = useRouter();
+  const [searchValue, setSearchValue] = useState(query.search);
+  const submittedSearch = useRef<string | null>(null);
+  useEffect(() => {
+    if (submittedSearch.current !== null && query.search !== submittedSearch.current) return;
+    submittedSearch.current = null;
+    setSearchValue(query.search);
+  }, [query.search]);
+  useEffect(() => {
+    const restore = () => {
+      submittedSearch.current = null;
+      setSearchValue(new URL(window.location.href).searchParams.get('search') ?? '');
+    };
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
+  const update = (patch: Partial<ContractWorkspaceQuery>) => {
+    router.replace(buildHref({ ...query, search: searchValue }, { ...patch, selected: '', create: false }), { scroll: false });
+  };
+  return (
+    <form action="/contracts" className="mt-6 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); update({}); }}>
+      <Input type="hidden" name="sourceSurface" value="list" />
+      <SsooSearchInput id="ct-list-search" name="search" ariaLabel="계약 검색" intent="data-filter" value={searchValue}
+        placeholder="고객사, 계약명, 담당자 검색" className="min-w-0 flex-1"
+        onChange={(event) => { const value = event.currentTarget.value; submittedSearch.current = value; setSearchValue(value); update({ search: value }); }} />
+      <NativeSelect id="ct-list-status" name="status" aria-label="계약 상태" value={query.status} className="sm:w-[144px]" onChange={(event) => update({ status: event.currentTarget.value as ContractWorkspaceQuery['status'] })}>
+        <option value="all">전체 상태</option>
+        {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{value === 'review' ? '검토중' : label}</option>)}
+      </NativeSelect>
+      <NativeSelect id="ct-list-sort" name="sort" aria-label="계약 정렬" value={query.sort} className="sm:w-[144px]" onChange={(event) => update({ sort: event.currentTarget.value as CrmContractSort })}>
+        {Object.entries(sortLabels).map(([value, label]) => <option key={value} value={value}>{value === 'margin-desc' ? '이익 높은순' : label}</option>)}
+      </NativeSelect>
+      <Button type="submit" className="hidden">조회</Button>
+    </form>
+  );
+}
+
 function SourceContractListSurface({
   data,
   query,
   selectedId,
   isLoading,
   loadError,
+  onRetry,
+  canCreate,
 }: {
   data: CrmContractListResponse;
   query: ContractWorkspaceQuery;
   selectedId: string;
   isLoading: boolean;
   loadError: string | null;
+  onRetry: () => void;
+  canCreate: boolean;
 }) {
+  const router = useRouter();
   const sourceItems = data.items;
-  const totalRevenue = sourceItems.reduce((sum, item) => sum + getSourceContractRevenue(item), 0);
-  const totalCost = sourceItems.reduce((sum, item) => sum + getSourceContractCost(item), 0);
+  const revenue = (item: CrmContract) => item.revenueLines.reduce((sum, line) => sum + (line.quantity ?? 0) * (line.unitPrice ?? 0), 0);
+  const cost = (item: CrmContract) => item.costLines.reduce((sum, line) => sum + (line.quantity ?? 0) * (line.unitPrice ?? 0), 0);
+  const amount = (value: number) => Math.abs(value) >= 100000000 ? `${(value / 100000000).toFixed(1)}억` : `${(value / 10000).toLocaleString('ko-KR')}만`;
+  const label = (status: CrmContractStatus) => status === 'review' ? '검토중' : statusLabels[status];
+  const totalRevenue = sourceItems.reduce((sum, item) => sum + revenue(item), 0);
+  const totalCost = sourceItems.reduce((sum, item) => sum + cost(item), 0);
   const totalMargin = totalRevenue - totalCost;
-  const averageMarginRate = sourceItems.length > 0
-    ? Math.round(sourceItems.reduce((sum, item) => {
-      const revenue = getSourceContractRevenue(item);
-      const margin = revenue - getSourceContractCost(item);
-      return sum + (revenue > 0 ? margin / revenue * 100 : 0);
-    }, 0) / sourceItems.length)
-    : 0;
+  const averageMarginRate = totalRevenue > 0 ? Math.round(totalMargin / totalRevenue * 100) : 0;
 
   return (
     <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="contract-list">
@@ -861,44 +930,26 @@ function SourceContractListSurface({
             <h1 className="text-xl font-semibold text-foreground">계약현황</h1>
             <p className="mt-1 text-sm text-muted-foreground">등록된 계약을 조회합니다.</p>
           </div>
-          <Button asChild size="sm" className="bg-foreground text-background hover:bg-foreground/90">
-            <Link href="/contracts?sourceSurface=form&create=contract">+ 계약등록</Link>
+          <Button asChild={canCreate} size="sm" disabled={!canCreate}>
+            {canCreate ? <Link href="/contracts?sourceSurface=form&create=contract">+ 계약등록</Link> : <span>+ 계약등록</span>}
           </Button>
         </div>
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SourceContractMetric label="전체 건수" value={`${sourceItems.length}건`} sub="조회 기준" />
-          <SourceContractMetric label="매출액" value={formatSourceAmount(totalRevenue)} sub={formatWon(totalRevenue)} />
-          <SourceContractMetric label="이익" value={formatSourceAmount(totalMargin)} sub={formatWon(totalMargin)} accent />
+          <SourceContractMetric label="매출액" value={`${(totalRevenue / 100000000).toFixed(1)}억`} sub={`${totalRevenue.toLocaleString('ko-KR')}원`} />
+          <SourceContractMetric label="이익" value={`${(totalMargin / 100000000).toFixed(1)}억`} sub={`${totalMargin.toLocaleString('ko-KR')}원`} accent />
           <SourceContractMetric label="평균 이익률" value={`${averageMarginRate}%`} sub="조회 기준" />
         </section>
 
-        <form action="/contracts" className="mt-6 flex flex-col gap-2 sm:flex-row">
-          <Input type="hidden" name="sourceSurface" value="list" />
-          <SsooSearchInput
-            id="ct-list-search"
-            name="search"
-            ariaLabel="계약 검색"
-            intent="data-filter"
-            defaultValue={query.search}
-            placeholder="고객사, 계약명, 담당자 검색"
-            className="min-w-0 flex-1"
-          />
-          <NativeSelect id="ct-list-status" name="status" defaultValue={query.status} className="sm:w-[144px]" onChange={(event) => event.currentTarget.form?.requestSubmit()}>
-            <option value="all">전체 상태</option>
-            {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </NativeSelect>
-          <NativeSelect id="ct-list-sort" name="sort" defaultValue={query.sort} className="sm:w-[144px]" onChange={(event) => event.currentTarget.form?.requestSubmit()}>
-            {Object.entries(sortLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </NativeSelect>
-          <Button type="submit" className="hidden">조회</Button>
-        </form>
+        <SourceContractListFilters query={query} />
 
         {loadError ? (
-          <div className="mt-4 flex items-center gap-2 rounded-md border border-ssoo-danger/20 bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+          <SsooErrorNotice className="mt-4 gap-2 px-4 py-3">
             <AlertCircle className="h-4 w-4" />
             {loadError}
-          </div>
+            <Button type="button" variant="outline" disabled={isLoading} onClick={onRetry}>다시 조회</Button>
+          </SsooErrorNotice>
         ) : null}
 
         <div className="mt-4 overflow-x-auto rounded-xl border bg-card">
@@ -926,22 +977,24 @@ function SourceContractListSurface({
               ) : null}
               {sourceItems.map((item) => {
                 const ownerInitial = item.ownerName.trim().slice(0, 2);
-                const revenueTotal = getSourceContractRevenue(item);
-                const costTotal = getSourceContractCost(item);
+                const revenueTotal = revenue(item);
+                const costTotal = cost(item);
                 const marginTotal = revenueTotal - costTotal;
                 const marginRate = revenueTotal > 0 ? Math.round(marginTotal / revenueTotal * 100) : 0;
-                const rowText = `${item.customerName} ${item.contractName} ${ownerInitial} ${item.ownerName} ${formatSourceAmount(revenueTotal)} ${formatSourceAmount(costTotal)} ${formatSourceAmount(marginTotal)} ${marginRate}% ${formatSourceDate(item.contractStartDate)}~${formatSourceDate(item.contractEndDate)} ${statusLabels[item.status]} `;
+                const rowText = `${item.customerName} ${item.contractName} ${ownerInitial} ${item.ownerName} ${amount(revenueTotal)} ${amount(costTotal)} ${amount(marginTotal)} ${marginRate}% ${formatSourceDate(item.contractStartDate)}~${formatSourceDate(item.contractEndDate)} ${label(item.status)} `;
                 return (
-                  <TableRow key={item.id} className={item.id === selectedId ? 'bg-ssoo-info-bg/40' : undefined}>
+                  <TableRow key={item.id} role="button" tabIndex={0} className={item.id === selectedId ? 'cursor-pointer bg-ssoo-info-bg/40' : 'cursor-pointer'}
+                    onClick={(event) => { if (!(event.target as HTMLElement).closest('a,button')) router.push(`/contracts?sourceSurface=form&selected=${encodeURIComponent(item.id)}`); }}
+                    onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); router.push(`/contracts?sourceSurface=form&selected=${encodeURIComponent(item.id)}`); } }}>
                     <TableCell className="px-3 py-3 font-medium text-foreground">{item.customerName}</TableCell>
                     <TableCell className="px-3 py-3 text-foreground">{item.contractName}</TableCell>
                     <TableCell className="px-3 py-3 text-muted-foreground"><span className="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-ssoo-success-bg text-xs text-ssoo-success">{ownerInitial}</span>{item.ownerName}</TableCell>
-                    <TableCell className="px-3 py-3 text-right font-medium">{formatSourceAmount(revenueTotal)}</TableCell>
-                    <TableCell className="px-3 py-3 text-right">{formatSourceAmount(costTotal)}</TableCell>
-                    <TableCell className="px-3 py-3 text-right text-ssoo-info">{formatSourceAmount(marginTotal)}</TableCell>
-                    <TableCell className="px-3 py-3 text-right text-ssoo-info">{marginRate}%</TableCell>
+                    <TableCell className="px-3 py-3 text-right font-medium">{amount(revenueTotal)}</TableCell>
+                    <TableCell className="px-3 py-3 text-right">{amount(costTotal)}</TableCell>
+                    <TableCell className={`px-3 py-3 text-right ${marginTotal < 0 ? 'text-ssoo-danger' : 'text-ssoo-info'}`}>{amount(marginTotal)}</TableCell>
+                    <TableCell className={`px-3 py-3 text-right ${marginTotal < 0 ? 'text-ssoo-danger' : 'text-ssoo-info'}`}>{marginRate}%</TableCell>
                     <TableCell className="whitespace-nowrap px-3 py-3 text-muted-foreground">{formatSourceDate(item.contractStartDate)}~{formatSourceDate(item.contractEndDate)}</TableCell>
-                    <TableCell className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs ${statusTone[item.status]}`}>{statusLabels[item.status]}</span></TableCell>
+                    <TableCell className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs ${statusTone[item.status]}`}>{label(item.status)}</span></TableCell>
                     <TableCell className="px-3 py-3 text-right">
                       <Link href={`/contracts?sourceSurface=form&selected=${encodeURIComponent(item.id)}`} className="text-muted-foreground hover:text-foreground">
                         <span className="sr-only">{rowText}</span>→
@@ -959,11 +1012,11 @@ function SourceContractListSurface({
   );
 }
 
-function SourceContractMetric({ label, value, sub, accent = false }: { label: string; value: string; sub: string; accent?: boolean }) {
+function SourceContractMetric({ label, value, sub, accent = false, tone }: { label: string; value: string; sub: string; accent?: boolean; tone?: string }) {
   return (
     <div className="rounded-xl border bg-card px-4 py-4">
       <label className="text-xs text-muted-foreground">{label}</label>
-      <p className={`mt-2 text-xl font-semibold ${accent ? 'text-ssoo-info' : 'text-foreground'}`}>{value}</p>
+      <p className={`mt-2 text-xl font-semibold ${tone ?? (accent ? 'text-ssoo-info' : 'text-foreground')}`}>{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
     </div>
   );
@@ -977,7 +1030,11 @@ function SourceBillingActualSurface({
   accessToken,
   canWrite,
   onSaved,
+  query,
+  onRetry,
 }: {
+  query: ContractWorkspaceQuery;
+  onRetry: () => void;
   item: CrmContract | null;
   data: CrmContractBillingActualResponse | null;
   isLoading: boolean;
@@ -990,7 +1047,7 @@ function SourceBillingActualSurface({
     <main className="h-full min-h-0 min-w-0 overflow-auto bg-ssoo-content-bg p-4" data-source-surface="billing-actual">
 
       <div className="mx-auto w-full min-w-0" style={{ maxWidth: SSOO_CONTENT_PAGE_METRICS.mainContentWidthPx }}>
-        <Link className="text-sm text-muted-foreground hover:text-foreground" href="/contracts?sourceSurface=billing-actual&view=list">
+        <Link className="text-sm text-muted-foreground hover:text-foreground" href={buildHref(query, { billingView: 'list', selected: '' })}>
           ← 계약청구실적 목록으로 돌아가기
         </Link>
         <h1 className="mt-6 text-xl font-semibold text-foreground">계약청구실적 입력</h1>
@@ -998,7 +1055,8 @@ function SourceBillingActualSurface({
           <p className="mt-1 text-sm text-muted-foreground">[{item.customerName}] {item.contractName} · 사업구분: {item.businessType} · 담당: {item.ownerName} · WBS: {item.wbsCode ?? '-'} · {formatSourceDate(item.contractStartDate)}~{formatSourceDate(item.contractEndDate)}</p>
         ) : null}
         <div className="mt-6">
-          <BillingActualPanel
+          {!item ? (error ? <SsooErrorNotice error={error} actions={[{ label: '계약 다시 조회', onClick: onRetry }]} /> : <p>{isLoading ? '계약을 불러오는 중입니다.' : '선택한 계약을 찾을 수 없습니다.'}</p>) : <BillingActualPanel
+            onRetry={onRetry}
             item={item}
             data={data}
             isLoading={isLoading}
@@ -1007,10 +1065,56 @@ function SourceBillingActualSurface({
             canWrite={canWrite}
             onSaved={onSaved}
             variant="source"
-          />
+          />}
         </div>
       </div>
     </main>
+  );
+}
+
+function SourceBillingActualListFilters({ query }: { query: ContractWorkspaceQuery }) {
+  const router = useRouter();
+  const [searchValue, setSearchValue] = useState(query.search);
+  const submittedSearch = useRef<string | null>(null);
+  useEffect(() => {
+    if (submittedSearch.current !== null && query.search !== submittedSearch.current) return;
+    submittedSearch.current = null;
+    setSearchValue(query.search);
+  }, [query.search]);
+  useEffect(() => {
+    const restore = () => {
+      submittedSearch.current = null;
+      setSearchValue(new URL(window.location.href).searchParams.get('search') ?? '');
+    };
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
+  const update = (patch: Partial<ContractWorkspaceQuery>) => {
+    router.replace(buildHref({ ...query, search: searchValue }, { ...patch, selected: '', create: false }), { scroll: false });
+  };
+  return (
+        <form action="/contracts" className="mt-6 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); update({}); }}>
+          <Input type="hidden" name="sourceSurface" value="billing-actual" />
+          <Input type="hidden" name="view" value="list" />
+          <SsooSearchInput
+            id="ba-list-search"
+            name="search"
+            ariaLabel="계약청구실적 계약 검색"
+            intent="data-filter"
+            value={searchValue}
+            onChange={(event) => { const value = event.currentTarget.value; submittedSearch.current = value; setSearchValue(value); update({ search: value }); }}
+            placeholder="고객사, 계약명, 담당자 검색"
+            className="min-w-0 flex-1"
+          />
+          <NativeSelect id="ba-list-sort" name="sort" aria-label="청구실적 계약 정렬" value={query.sort} className="sm:w-[144px]" onChange={(event) => update({ sort: event.currentTarget.value as CrmContractSort })}>
+            <option value="created-desc">최근 등록순</option>
+            <option value="customer-asc">고객사순</option>
+            <option value="updated-desc">최근 수정순</option>
+            <option value="revenue-desc">매출 높은순</option>
+            <option value="start-asc">계약 시작일순</option>
+          </NativeSelect>
+          <Button type="submit" className="hidden">조회</Button>
+        </form>
   );
 }
 
@@ -1019,12 +1123,15 @@ function SourceBillingActualListSurface({
   query,
   isLoading,
   loadError,
+  onRetry,
 }: {
+  onRetry: () => void;
   items: CrmContract[];
   query: ContractWorkspaceQuery;
   isLoading: boolean;
   loadError: string | null;
 }) {
+  const router = useRouter();
   const confirmedItems = items.filter((item) => item.confirmed);
 
   return (
@@ -1036,31 +1143,14 @@ function SourceBillingActualListSurface({
           <p className="mt-1 text-sm text-muted-foreground">확정된 계약을 선택하세요.</p>
         </div>
 
-        <form action="/contracts" className="mt-6 flex flex-col gap-2 sm:flex-row">
-          <Input type="hidden" name="sourceSurface" value="billing-actual" />
-          <Input type="hidden" name="view" value="list" />
-          <SsooSearchInput
-            id="ba-list-search"
-            name="search"
-            ariaLabel="계약청구실적 계약 검색"
-            intent="data-filter"
-            defaultValue={query.search}
-            placeholder="고객사, 계약명, 담당자 검색"
-            className="min-w-0 flex-1"
-          />
-          <NativeSelect id="ba-list-sort" name="sort" defaultValue={query.sort} className="sm:w-[144px]" onChange={(event) => event.currentTarget.form?.requestSubmit()}>
-            <option value="updated-desc">최근등록순</option>
-            <option value="revenue-desc">매출 높은순</option>
-            <option value="start-asc">계약 시작일순</option>
-          </NativeSelect>
-          <Button type="submit" className="hidden">조회</Button>
-        </form>
+        <SourceBillingActualListFilters query={query} />
 
         {loadError ? (
-          <div className="mt-4 flex items-center gap-2 rounded-md border border-ssoo-danger/20 bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+          <SsooErrorNotice className="mt-4 gap-2 px-4 py-3">
             <AlertCircle className="h-4 w-4" />
             {loadError}
-          </div>
+            <Button type="button" variant="outline" disabled={isLoading} onClick={onRetry}>다시 조회</Button>
+          </SsooErrorNotice>
         ) : null}
 
         <div className="mt-4 overflow-x-auto rounded-xl border bg-card">
@@ -1087,16 +1177,19 @@ function SourceBillingActualListSurface({
               ) : null}
               {confirmedItems.map((item) => {
                 const ownerInitial = item.ownerName.trim().slice(0, 2);
-                const revenueTotal = getSourceContractRevenue(item);
+                const revenueTotal = item.revenueLines.reduce((sum, line) => sum + (line.quantity ?? 0) * (line.unitPrice ?? 0), 0);
+                const amount = (value: number) => Math.abs(value) >= 100000000 ? `${(value / 100000000).toFixed(1)}억` : `${(value / 10000).toLocaleString('ko-KR')}만`;
                 const detailHref = buildHref(query, { billingView: 'detail', selected: item.id });
-                const rowText = `${item.customerName} ${item.contractName} ${item.businessType} ${ownerInitial} ${item.ownerName} ${formatSourceAmount(revenueTotal)} ${formatSourceDate(item.contractStartDate)}~${formatSourceDate(item.contractEndDate)} ${item.wbsCode ?? '-'} ${item.billingPlan.length}건`;
+                const rowText = `${item.customerName} ${item.contractName} ${item.businessType} ${ownerInitial} ${item.ownerName} ${amount(revenueTotal)} ${formatSourceDate(item.contractStartDate)}~${formatSourceDate(item.contractEndDate)} ${item.wbsCode ?? '-'} ${item.billingPlan.length}건`;
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} tabIndex={0} className="cursor-pointer hover:bg-muted/50"
+                    onClick={(event) => { if (!(event.target as HTMLElement).closest('a,button')) router.push(detailHref); }}
+                    onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); router.push(detailHref); } }}>
                     <TableCell className="px-3 py-3 font-medium text-foreground">{item.customerName}</TableCell>
                     <TableCell className="px-3 py-3 text-foreground">{item.contractName}</TableCell>
                     <TableCell className="px-3 py-3 text-muted-foreground">{item.businessType}</TableCell>
                     <TableCell className="px-3 py-3 text-muted-foreground"><span className="mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-ssoo-success-bg text-xs text-ssoo-success">{ownerInitial}</span>{item.ownerName}</TableCell>
-                    <TableCell className="px-3 py-3 text-right font-medium">{formatSourceAmount(revenueTotal)}</TableCell>
+                    <TableCell className="px-3 py-3 text-right font-medium">{amount(revenueTotal)}</TableCell>
                     <TableCell className="whitespace-nowrap px-3 py-3 text-muted-foreground">{formatSourceDate(item.contractStartDate)}~{formatSourceDate(item.contractEndDate)}</TableCell>
                     <TableCell className="px-3 py-3 text-muted-foreground">{item.wbsCode ?? '-'}</TableCell>
                     <TableCell className="px-3 py-3"><span className="rounded-full bg-ssoo-info-bg px-2 py-1 text-xs text-ssoo-info">{item.billingPlan.length}건</span></TableCell>
@@ -1249,10 +1342,10 @@ function ContractDetail({
       </div>
 
       {workflowError ? (
-        <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="gap-2 px-4 py-3">
           <AlertCircle className="h-4 w-4" />
           {workflowError}
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       <div className="grid gap-4 p-4 lg:grid-cols-2">
@@ -1392,10 +1485,10 @@ function PmsHandoffPreviewPanel({
       </div>
 
       {error ? (
-        <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="gap-2 px-4 py-3">
           <AlertCircle className="h-4 w-4" />
           {error}
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       {!activePreview && isLoading ? (
@@ -1537,24 +1630,24 @@ function DmsDocumentPreviewPanel({
       </div>
 
       {error ? (
-        <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="gap-2 px-4 py-3">
           <AlertCircle className="h-4 w-4" />
           {error}
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       {draftError ? (
-        <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="gap-2 px-4 py-3">
           <AlertCircle className="h-4 w-4" />
           {draftError}
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       {lifecycleExecutionError ? (
-        <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="gap-2 px-4 py-3">
           <AlertCircle className="h-4 w-4" />
           {lifecycleExecutionError}
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       {!activePreview && isLoading ? (
@@ -1911,6 +2004,25 @@ function getLifecycleStatusClass(status: CrmContractDmsDocumentPreview['lifecycl
   return 'bg-ssoo-warning-bg text-ssoo-warning';
 }
 
+function formatBillingMonthInput(value: string) {
+  const digits = value.replace(/[^0-9]/g, '').slice(0, 6);
+  return digits.length > 4 ? `${digits.slice(0, 4)}/${digits.slice(4)}` : digits;
+}
+
+function formatBillingMoneyInput(value: string) {
+  const digits = value.replace(/,/g, '');
+  return /^\d+$/.test(digits) && Number.isSafeInteger(Number(digits)) ? Number(digits).toLocaleString('ko-KR') : value;
+}
+
+function formatBillingMetricAmount(value: number) {
+  return value >= 100000000 ? `${(value / 100000000).toFixed(1)}억` : value >= 10000 ? `${(value / 10000).toLocaleString('ko-KR')}만` : value.toLocaleString('ko-KR');
+}
+
+function billingAchievementTone(actual: number, plan: number) {
+  const rate = plan > 0 ? Math.round(actual / plan * 100) : 0;
+  return rate >= 100 ? 'text-ssoo-info' : rate >= 50 ? 'text-ssoo-warning' : 'text-ssoo-danger';
+}
+
 function BillingActualPanel({
   item,
   canWrite,
@@ -1919,8 +2031,10 @@ function BillingActualPanel({
   error,
   accessToken,
   onSaved,
+  onRetry,
   variant = 'workspace',
 }: {
+  onRetry: () => void;
   item: CrmContract | null;
   canWrite: boolean;
   data: CrmContractBillingActualResponse | null;
@@ -1946,7 +2060,7 @@ function BillingActualPanel({
     setSaveSuccess(null);
   }, [activeData, item?.id, variant]);
 
-  const planLines = activeData?.planLines ?? item?.billingPlan ?? [];
+  const planLines = [...(activeData?.planLines ?? item?.billingPlan ?? [])].sort((a, b) => a.billingYm.localeCompare(b.billingYm));
   const planRevenueTotal = planLines.reduce((sum, line) => sum + line.revenueAmount, 0);
   const planExternalCostTotal = planLines.reduce((sum, line) => sum + line.externalCostAmount, 0);
   const actualSummary = useMemo(() => {
@@ -1962,20 +2076,23 @@ function BillingActualPanel({
   }, [lines]);
   const revenueDelta = actualSummary.revenueTotal - planRevenueTotal;
   const externalCostDelta = actualSummary.externalCostTotal - planExternalCostTotal;
-  const isReadOnly = !canWrite || !item?.confirmed;
-  const canSave = Boolean(canWrite && item && item.confirmed && accessToken && !isSaving && !isLoading);
+  const isReadOnly = !canWrite || !item?.confirmed || isSaving || isLoading || !activeData || Boolean(error);
+  const canSave = Boolean(!isReadOnly && accessToken);
 
   const updateLine = (id: string, patch: Partial<Omit<BillingActualDraftLine, 'id'>>) => {
+    if (isReadOnly) return;
     setSaveSuccess(null);
     setLines((current) => current.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   };
 
   const addLine = () => {
+    if (isReadOnly) return;
     setSaveSuccess(null);
     setLines((current) => [...current, createBillingActualDraftLine()]);
   };
 
   const removeLine = (id: string) => {
+    if (isReadOnly) return;
     setSaveSuccess(null);
     setLines((current) => {
       const next = current.filter((line) => line.id !== id);
@@ -1984,6 +2101,7 @@ function BillingActualPanel({
   };
 
   const saveActual = async () => {
+    if (!canSave) return;
     if (!item || !accessToken) {
       setSaveError('로그인 세션을 확인해 주세요.');
       return;
@@ -2032,7 +2150,7 @@ function BillingActualPanel({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmContractBillingActualResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       await onSaved(payload.data);
       setSaveSuccess('청구실적이 저장되었습니다.');
@@ -2051,16 +2169,16 @@ function BillingActualPanel({
     return (
       <div data-source-billing-actual-ready={!isLoading && activeData ? 'true' : 'false'}>
         {error ? (
-          <div className="mb-4 flex items-center gap-2 rounded-md bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger"><AlertCircle className="h-4 w-4" />{error}</div>
+          <SsooErrorNotice className="mb-4" error={error} actions={[{ label: '청구실적 다시 조회', onClick: onRetry, disabled: isLoading }]} />
         ) : null}
         {saveError ? (
-          <div className="mb-4 flex items-center gap-2 rounded-md bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger" role="alert"><AlertCircle className="h-4 w-4" />{saveError}</div>
+          <SsooErrorNotice className="mb-4 gap-2 px-4 py-3"><AlertCircle className="h-4 w-4" />{saveError}</SsooErrorNotice>
         ) : null}
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SourceContractMetric label="계획 매출액" value={formatSourceAmount(planRevenueTotal)} sub={formatWon(planRevenueTotal)} />
-          <SourceContractMetric label="실적 매출액" value={formatSourceAmount(actualSummary.revenueTotal)} sub={`달성률 ${formatPercent(getBillingAchievementRate(actualSummary.revenueTotal, planRevenueTotal))}`} accent />
-          <SourceContractMetric label="계획 외부원가" value={formatSourceAmount(planExternalCostTotal)} sub={formatWon(planExternalCostTotal)} />
-          <SourceContractMetric label="실적 외부원가" value={formatSourceAmount(actualSummary.externalCostTotal)} sub={`달성률 ${formatPercent(getBillingAchievementRate(actualSummary.externalCostTotal, planExternalCostTotal))}`} accent />
+          <SourceContractMetric label="계획 매출액" value={formatBillingMetricAmount(planRevenueTotal)} sub={formatWon(planRevenueTotal)} />
+          <SourceContractMetric label="실적 매출액" value={formatBillingMetricAmount(actualSummary.revenueTotal)} sub={`달성률 ${planRevenueTotal > 0 ? Math.round(actualSummary.revenueTotal / planRevenueTotal * 100) : 0}%`} tone={billingAchievementTone(actualSummary.revenueTotal, planRevenueTotal)} />
+          <SourceContractMetric label="계획 외부원가" value={formatBillingMetricAmount(planExternalCostTotal)} sub={formatWon(planExternalCostTotal)} />
+          <SourceContractMetric label="실적 외부원가" value={formatBillingMetricAmount(actualSummary.externalCostTotal)} sub={`달성률 ${planExternalCostTotal > 0 ? Math.round(actualSummary.externalCostTotal / planExternalCostTotal * 100) : 0}%`} tone={billingAchievementTone(actualSummary.externalCostTotal, planExternalCostTotal)} />
         </section>
 
         <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -2084,9 +2202,9 @@ function BillingActualPanel({
                   {isLoading ? <TableRow><TableCell colSpan={4} className="px-3 py-4 text-center text-ssoo-info">청구실적을 불러오는 중입니다.</TableCell></TableRow> : null}
                   {!isLoading ? lines.map((line) => (
                     <TableRow key={line.id}>
-                      <TableCell className="px-3 py-2"><Input value={line.billingYm} placeholder="YYYY/MM" className="h-8" disabled={isReadOnly} onChange={(event) => updateLine(line.id, { billingYm: event.target.value })} /></TableCell>
-                      <TableCell className="px-3 py-2"><Input value={line.revenueAmount} placeholder="0" inputMode="numeric" className="h-8 text-right" disabled={isReadOnly} onChange={(event) => updateLine(line.id, { revenueAmount: event.target.value })} /></TableCell>
-                      <TableCell className="px-3 py-2"><Input value={line.externalCostAmount} placeholder="0" inputMode="numeric" className="h-8 text-right" disabled={isReadOnly} onChange={(event) => updateLine(line.id, { externalCostAmount: event.target.value })} /></TableCell>
+                      <TableCell className="px-3 py-2"><Input value={line.billingYm} placeholder="YYYY/MM" className="h-8" disabled={isReadOnly} onChange={(event) => updateLine(line.id, { billingYm: formatBillingMonthInput(event.target.value) })} /></TableCell>
+                      <TableCell className="px-3 py-2"><Input value={line.revenueAmount} placeholder="0" inputMode="numeric" className="h-8 text-right" disabled={isReadOnly} onChange={(event) => updateLine(line.id, { revenueAmount: formatBillingMoneyInput(event.target.value) })} /></TableCell>
+                      <TableCell className="px-3 py-2"><Input value={line.externalCostAmount} placeholder="0" inputMode="numeric" className="h-8 text-right" disabled={isReadOnly} onChange={(event) => updateLine(line.id, { externalCostAmount: formatBillingMoneyInput(event.target.value) })} /></TableCell>
                       <TableCell className="px-3 py-2"><Button variant="ghost" size="icon" type="button" title="실적 행 삭제" disabled={isReadOnly} onClick={() => removeLine(line.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                     </TableRow>
                   )) : null}
@@ -2128,16 +2246,17 @@ function BillingActualPanel({
       </div>
 
       {error ? (
-        <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="gap-2 px-4 py-3">
           <AlertCircle className="h-4 w-4" />
           {error}
-        </div>
+          <Button type="button" variant="outline" disabled={isLoading} onClick={onRetry}>청구실적 다시 조회</Button>
+        </SsooErrorNotice>
       ) : null}
       {saveError ? (
-        <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="gap-2 px-4 py-3">
           <AlertCircle className="h-4 w-4" />
           {saveError}
-        </div>
+        </SsooErrorNotice>
       ) : null}
       {!item.confirmed ? (
         <div className="flex items-center gap-2 border-b bg-ssoo-warning-bg px-4 py-3 text-sm text-ssoo-warning">

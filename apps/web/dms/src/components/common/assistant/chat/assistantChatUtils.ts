@@ -113,6 +113,7 @@ export async function streamAssistantAsk(params: {
 
   let hasDelta = false;
   let hasBlockedSources = false;
+  let failed = false;
 
   const completed = await streamSSE({
     url: '/api/ask',
@@ -140,10 +141,12 @@ export async function streamAssistantAsk(params: {
       }
     },
     onError: (error) => {
+      failed = true;
       onError(assistantId, error.message);
     },
   });
 
+  if (failed) return;
   if (completed) {
     onComplete(assistantId, hasDelta);
   } else {

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsInt, Min, IsArray, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min, IsArray, IsIn, MaxLength } from 'class-validator';
 import { PostImageDto } from './image-post.dto.js';
 import { Type } from 'class-transformer';
 
@@ -39,6 +39,12 @@ export class CreatePostDto {
   @IsIn(SNS_VISIBILITY_SCOPE_CODES)
   @IsOptional()
   visibilityScopeCode?: string;
+
+  @ApiPropertyOptional({ description: '공개 대상 조직 ID', maxLength: 19 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(19)
+  targetOrgId?: string;
 
   @ApiPropertyOptional({ description: '태그 이름 목록', type: [String] })
   @IsArray()
@@ -81,6 +87,12 @@ export class UpdatePostDto {
   @IsIn(SNS_VISIBILITY_SCOPE_CODES)
   @IsOptional()
   visibilityScopeCode?: string;
+
+  @ApiPropertyOptional({ description: '공개 대상 조직 ID', maxLength: 19 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(19)
+  targetOrgId?: string;
 
   @ApiPropertyOptional({ description: '태그 이름 목록', type: [String] })
   @IsArray()

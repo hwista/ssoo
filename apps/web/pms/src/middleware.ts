@@ -13,7 +13,10 @@ import { APP_HOME_PATH, ROOT_ENTRY_PATHS } from '@/lib/constants/routes';
 export function middleware(request: NextRequest) {
   const decision = resolveSsooRoutePolicyDecision(request.nextUrl.pathname, {
     allowedPaths: ROOT_ENTRY_PATHS,
-    fallbackPath: APP_HOME_PATH,
+    fallbackPath: '/not-found',
+    mode: 'rewrite',
+    legacyPaths: ['/home', '/my-projects', '/action-required', '/closeout', '/operations', '/request', '/request/create', '/proposal', '/execution', '/transition', '/project/detail', '/admin/code', '/admin/role', '/admin/menu', '/admin/master', '/admin/templates'],
+    legacyRedirectPath: APP_HOME_PATH,
     sharedUserSurfaceRewritePath: APP_HOME_PATH,
   });
 
@@ -21,7 +24,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // shell-app은 잘못된 경로를 기본 루트 셸로 복구한다.
+  // 미등록 공개 주소는 공용 404로 안내한다.
   if (decision.action === 'rewrite') {
     return NextResponse.rewrite(new URL(decision.path, request.url));
   }

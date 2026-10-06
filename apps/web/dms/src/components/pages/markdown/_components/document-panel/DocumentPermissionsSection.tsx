@@ -1,8 +1,8 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useMemo } from 'react';
 import {
-  AlertTriangle,
   Check,
   Eye,
   Loader2,
@@ -572,18 +572,7 @@ export function DocumentPermissionsSection({
         ) : null}
 
         {hasError ? (
-          <p
-            className="flex items-center gap-1 text-caption text-ssoo-warning"
-            title={
-              managedDocumentsQuery.error?.message
-              || inboxQuery.error?.message
-              || myRequestsQuery.error?.message
-              || '권한 정보를 불러오지 못했습니다.'
-            }
-          >
-            <AlertTriangle className="h-3.5 w-3.5" />
-            권한 상태 확인 필요
-          </p>
+          <SsooErrorNotice message="권한 상태 확인이 필요합니다." actions={[{ label: '다시 확인', onClick: () => Promise.all([refetchInboxRequests(), refetchManagedDocuments(), refetchMyRequests()]) }]} />
         ) : null}
       </div>
     </ActivityListSection>

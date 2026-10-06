@@ -9,6 +9,8 @@ import { RequireCrmDomainFeature } from '../access/require-crm-domain-feature.de
 import { BusinessPlanService } from './business-plan.service.js';
 import {
   CrmBusinessPlanCarryForwardDto,
+  CrmBusinessPlanBulkRowsDto,
+  CrmBusinessPlanCarryContractsDto,
   CrmBusinessPlanListQueryDto,
   CrmBusinessPlanMonthlyPlanInputDto,
   CrmBusinessPlanPerformanceActualInputDto,
@@ -32,8 +34,8 @@ export class BusinessPlanController {
   @ApiOkResponse({ description: '저장된 사업계획 차수와 확정 상태' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 사업계획 조회 권한 없음' })
-  async plans(@Query() query: CrmBusinessPlanListQueryDto) {
-    return success(await this.businessPlanService.listPlans(query));
+  async plans(@Query() query: CrmBusinessPlanListQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.businessPlanService.listPlans(query, currentUser));
   }
 
   @Post('plans/snapshot')
@@ -58,9 +60,17 @@ export class BusinessPlanController {
     return success(await this.businessPlanService.createCarryForwardSnapshot(body, BigInt(currentUser.userId)));
   }
 
+  @Get('carry-contracts')
+  @RequireCrmDomainFeature('canReadBusinessPlan')
+  @ApiOperation({ summary: '전년부터 진행 중인 확정 계약의 사업계획 입력 후보' })
+  @ApiOkResponse({ description: '청구계획 또는 진행률 기준 계약별 입력값 (미저장)' })
+  async carryContracts(@Query() query: CrmBusinessPlanCarryContractsDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.businessPlanService.getCarryContracts(query, currentUser));
+  }
+
   @Post('plans/:id/versions')
   @RequireCrmDomainFeature('canWriteBusinessPlan')
-  @ApiOperation({ summary: '최신 확정 CRM 사업계획을 다음 draft 차수로 복사' })
+  @ApiOperation({ summary: '최신 CRM 사업계획을 다음 draft 차수로 복사' })
   @ApiOkResponse({ description: '복사 생성된 다음 사업계획 draft 차수' })
   async createVersion(@Param('id') id: string, @CurrentUser() currentUser: TokenPayload) {
     return success(await this.businessPlanService.createPlanVersion(id, BigInt(currentUser.userId)));
@@ -77,6 +87,15 @@ export class BusinessPlanController {
     @CurrentUser() currentUser: TokenPayload,
   ) {
     return success(await this.businessPlanService.createPlanRow(id, body, BigInt(currentUser.userId)));
+  }
+
+  @Put('plans/:id/rows')
+  @RequireCrmDomainFeature('canWriteBusinessPlan')
+  @ApiOperation({ summary: '최신 draft 사업계획 여러 행을 한 트랜잭션으로 저장' })
+  @ApiBody({ type: CrmBusinessPlanBulkRowsDto })
+  @ApiOkResponse({ description: '전체 행 저장이 반영된 사업계획 차수' })
+  async saveRows(@Param('id') id: string, @Body() body: CrmBusinessPlanBulkRowsDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.businessPlanService.savePlanRows(id, body.rows, BigInt(currentUser.userId)));
   }
 
   @Put('plans/:id/rows/:rowCode')
@@ -192,8 +211,8 @@ export class BusinessPlanController {
   @ApiOkResponse({ description: '영업기회 pipeline과 확정 계약 청구계획/실적 기반 읽기용 사업계획 후보' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 사업계획 preview 조회 권한 없음' })
-  async preview(@Query() query: CrmBusinessPlanPreviewQueryDto) {
-    return success(await this.businessPlanService.getPreview(query));
+  async preview(@Query() query: CrmBusinessPlanPreviewQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.businessPlanService.getPreview(query, currentUser));
   }
 
   @Get('performance-preview')
@@ -202,7 +221,7 @@ export class BusinessPlanController {
   @ApiOkResponse({ description: '원천 호환 확정 사업계획 대 확정 계약 청구계획 또는 SSOO 확장 청구실적 기반 월별 사업계획대비실적' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 사업계획대비실적 preview 조회 권한 없음' })
-  async performancePreview(@Query() query: CrmBusinessPlanPerformanceQueryDto) {
-    return success(await this.businessPlanService.getPerformancePreview(query));
+  async performancePreview(@Query() query: CrmBusinessPlanPerformanceQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.businessPlanService.getPerformancePreview(query, currentUser));
   }
 }

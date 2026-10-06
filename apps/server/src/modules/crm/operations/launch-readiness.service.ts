@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { Injectable } from '@nestjs/common';
 import type { CrmLaunchReadinessSnapshot } from '@ssoo/types/crm';
 import { CrmDataQualityService } from './data-quality.service.js';
@@ -20,7 +21,9 @@ export class CrmLaunchReadinessService {
     private readonly attemptService: CrmOperationAttemptService,
   ) {}
 
-  async getSnapshot(): Promise<CrmLaunchReadinessSnapshot> {
+  async getSnapshot(currentUser?: TokenPayload): Promise<CrmLaunchReadinessSnapshot> {
+    // User-visible counts always re-evaluate current grants; the system probe cache is not shared with users.
+    if (currentUser) return this.probe(currentUser);
     const now = Date.now();
     if (this.cached && now < this.cached.refreshAfter) {
       return this.cached.snapshot;
@@ -45,7 +48,7 @@ export class CrmLaunchReadinessService {
     this.cached = null;
   }
 
-  private async probe(): Promise<CrmLaunchReadinessSnapshot> {
+  private async probe(currentUser?: TokenPayload): Promise<CrmLaunchReadinessSnapshot> {
     const checkedAtDate = new Date();
     const identity = {
       owner: 'crm' as const,
@@ -60,8 +63,8 @@ export class CrmLaunchReadinessService {
     try {
       const [dependencies, dataQuality, attempts] = await this.withTimeout(Promise.all([
         this.readinessService.getReadiness(),
-        this.dataQualityService.getReport(),
-        this.attemptService.list({ limit: 1 }),
+        this.dataQualityService.getReport(currentUser),
+        this.attemptService.list({ limit: 1 }, currentUser),
       ]), CRM_READINESS_PROBE_TIMEOUT_MS);
       const blockerCount = dependencies.blockerCount
         + (dataQuality.status === 'blocked' ? dataQuality.violationCount : 0)

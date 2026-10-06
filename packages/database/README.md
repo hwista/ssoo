@@ -55,9 +55,9 @@ packages/database/
 
 | 스키마 | 접두사 | 설명 | 테이블 수 |
 |--------|--------|------|-----------|
-| `common` | `cm_*` | 공통 사용자/인증/세션/조직/권한 foundation (모든 시스템 공유) | 22개 |
-| `pms` | `cm_*`, `pr_*` | PMS 전용 (코드, 메뉴, 프로젝트) | 29개 |
-| `dms` | `dm_*` | 문서 관리 시스템 (미래 확장) | 0개 |
+| `common` | `cm_*` | 공통코드/사용자/인증/세션/조직/권한 foundation (모든 시스템 공유) | schema.prisma 기준 |
+| `pms` | `cm_*`, `pr_*` | PMS 전용 (메뉴, 프로젝트) | schema.prisma 기준 |
+| `dms` | `dm_*` | 문서 관리 시스템 | schema.prisma 기준 |
 
 ### Prisma 설정
 
@@ -79,10 +79,12 @@ datasource db {
 
 ## 📊 주요 모델
 
-### common 스키마 (사용자 관련)
+### common 스키마 (플랫폼 공통코드·사용자 관련)
 
 | 모델 | 테이블명 | 설명 |
 |------|----------|------|
+| `CmCode` | `cm_code_m` | 공통 코드 마스터 |
+| `CmCodeHistory` | `cm_code_h` | 공통 코드 이력 |
 | `User` | `cm_user_m` | 사용자 마스터 |
 | `UserHistory` | `cm_user_h` | 사용자 변경 이력 |
 | `UserAuth` | `cm_user_auth_m` | 인증 계정 bridge |
@@ -124,10 +126,9 @@ model User {
 
 ### pms 스키마 (PMS 전용)
 
-#### 공통 코드/메뉴
+#### 메뉴
 | 모델 | 테이블명 | 설명 |
 |------|----------|------|
-| `CmCode` | `cm_code_m` | 공통 코드 마스터 |
 | `Menu` | `cm_menu_m` | 메뉴 마스터 |
 | `RoleMenu` | `cm_role_menu_r` | 역할별 메뉴 권한 |
 | `UserMenu` | `cm_user_menu_r` | 사용자별 메뉴 권한 |
@@ -257,20 +258,22 @@ TLS 인증서 검증 비활성화는 사용하지 않습니다. 사내 프록시
 
 초기 데이터는 `prisma/seeds/` 폴더에서 관리됩니다.
 
+배포 초기화는 `DB_INIT_SEED_MODE=upgrade`가 기본이며 기존 DB에 seed를 재실행하지 않습니다. 빈 DB만 명시적인 `bootstrap`으로 `apply_reference_seeds.sql`의 기준정보 20개를 적용하거나, 로컬 폐기 DB에서 `demo`로 개발 master를 실행할 수 있습니다. 운영/리허설은 upgrade로 고정하며 demo는 strict/production에서 거부합니다. 최초 계정/온보딩과 공급자·템플릿 준비는 별도 절차입니다. 기존 DB의 필수 기준정보 변경은 seed 수정이 아닌 launch migration으로 관리합니다. [DB 가이드](../../docs/common/guides/database-guide.md#7-seed-데이터)에 실행 조건과 격리 검증 명령을 설명합니다.
+
 ### 파일 구조
 
 | 파일 | 스키마 | 설명 |
 |------|--------|------|
-| `00_user_code.sql` | pms | 사용자 유형/상태 코드 |
-| `01_project_status_code.sql` | pms | 프로젝트 상태 코드 |
-| `02_project_deliverable_status.sql` | pms | 산출물 제출 상태 |
-| `03_project_close_condition.sql` | pms | 종료조건 코드 |
-| `04_project_handoff_type.sql` | pms | 핸드오프 유형 |
+| `00_user_code.sql` | common | 사용자 유형/상태 코드 |
+| `01_project_status_code.sql` | common | 프로젝트 상태 코드 |
+| `02_project_deliverable_status.sql` | common | 산출물 제출 상태 |
+| `03_project_close_condition.sql` | common | 종료조건 코드 |
+| `04_project_handoff_type.sql` | common | 핸드오프 유형 |
 | `05_menu_data.sql` | pms | 메뉴 마스터 데이터 |
 | `06_role_menu_permission.sql` | pms | 역할별 메뉴 권한 |
 | `07_user_menu_permission.sql` | pms | 사용자별 메뉴 권한 |
 | `09_project_request_sample.sql` | pms | PMS 프로젝트/요청 샘플 |
-| `10_project_member_task_issue_code.sql` | pms | PMS 멤버/태스크/이슈 코드 |
+| `10_project_member_task_issue_code.sql` | common | PMS 멤버/태스크/이슈 코드 |
 | `11_demo_users_customers.sql` | common+pms | 데모 사용자/고객사 및 로그인 계정 |
 | `12_org_foundation_bridge.sql` | **common** | legacy user/customer 기준 조직 foundation bridge |
 | `12_demo_project_members.sql` | pms | 프로젝트별 데모 멤버 배정 |
@@ -306,7 +309,7 @@ psql -U appuser -d appdb -f prisma/seeds/00_user_code.sql
 
 | 파일 | 스키마 | 설명 |
 |------|--------|------|
-| `01_cm_code_h_trigger.sql` | pms | 공통 코드 이력 |
+| `01_cm_code_h_trigger.sql` | common | 공통 코드 이력 |
 | `02_cm_user_h_trigger.sql` | **common** | 사용자 이력 |
 | `03~11_pr_*.sql` | pms | 프로젝트 관련 이력 |
 | `12~14_cm_menu_*.sql` | pms | 메뉴/권한 이력 |
@@ -355,6 +358,9 @@ psql -U appuser -d appdb -f prisma/triggers/apply_all_triggers.sql
 ---
 
 ## Changelog
+
+- 2026-09-30: `20260930100000_move_common_codes`로 공통코드 마스터/이력을 `common`으로 이전하고 `/api/codes` 모듈을 CommonModule로 이관. 도메인 의미·특화 화면은 각 서비스 소유로 유지. [소유권 계약](../../docs/common/explanation/architecture/common-code-ownership.md).
+- 2026-09-30: `20260930090000_move_crm_business_years`로 사업연도와 이력을 `crm.crm_business_year_m`/`crm_business_year_h`로 이전. 공용 코드의 `biz_year` 재생성을 CHECK로 차단. `scripts/verify-crm-business-year-migration.mjs`로 populated 이전·rollback·이력 보존을 검증.
 
 - 2026-09-17: 프로젝트 사용자 설정과 변경 이력, 보기 값 제약을 추가. launch migration 12개·trigger 84개, 빈 DB 설치·데이터 백업 복원·drift 0 검증. [계약](../../docs/common/reference/db/pms-user-settings.md).
 

@@ -48,6 +48,10 @@ export class DocumentAclService {
     };
   }
 
+  isReadableMetadata(user: TokenPayload, metadata: DocumentMetadata): boolean {
+    return this.resolveDocumentAccessState(user, metadata).isReadable;
+  }
+
   assertCanReadAbsolutePath(user: TokenPayload, absolutePath: string): void {
     if (this.isReadableAbsolutePath(user, absolutePath)) {
       return;
@@ -565,7 +569,9 @@ export class DocumentAclService {
     }
 
     const normalizedTargetOrgId = targetOrgId?.trim();
-    return !normalizedTargetOrgId || organizationIds.has(normalizedTargetOrgId);
+    return normalizedTargetOrgId
+      ? organizationIds.has(normalizedTargetOrgId)
+      : user.dmsLegacyOrganizationVisibility === true;
   }
 
   private matchesPrincipal(
@@ -580,7 +586,7 @@ export class DocumentAclService {
     return new Set(this.normalizePrincipalIds([
       user.userId,
       user.loginId,
-      ...(user.organizationIds ?? []),
+      ...(user.dmsOrganizationIds ?? user.organizationIds ?? []),
       ...(user.teamIds ?? []),
       ...(user.groupIds ?? []),
     ]));
@@ -592,7 +598,7 @@ export class DocumentAclService {
   ): Set<string> {
     switch (principalType) {
       case 'organization':
-        return new Set(this.normalizePrincipalIds(user.organizationIds ?? []));
+        return new Set(this.normalizePrincipalIds(user.dmsOrganizationIds ?? user.organizationIds ?? []));
       case 'team':
         return new Set(this.normalizePrincipalIds(user.teamIds ?? []));
       case 'group':

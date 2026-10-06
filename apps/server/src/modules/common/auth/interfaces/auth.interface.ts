@@ -3,6 +3,9 @@ export interface TokenPayload {
   loginId: string;
   userName?: string;
   organizationIds?: string[];
+  /** Resolved on the server for DMS access checks; never trusted from a JWT. */
+  dmsOrganizationIds?: string[];
+  dmsLegacyOrganizationVisibility?: boolean;
   teamIds?: string[];
   groupIds?: string[];
   sessionId?: string;

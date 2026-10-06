@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice, showSsooErrorAlert } from '@ssoo/web-shell';
 import { useCallback, useMemo, useState } from 'react';
 import { Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { SsooDataWorkspacePage, type SsooDataGridColumnDef } from '@ssoo/web-shell';
@@ -188,7 +189,7 @@ export function OrgManagementPage() {
                 try {
                   await deactivateMutation.mutateAsync(row.original.orgId);
                 } catch (error) {
-                  window.alert(error instanceof Error ? error.message : '조직 비활성화에 실패했습니다.');
+                  showSsooErrorAlert(error instanceof Error ? error.message : '조직 비활성화에 실패했습니다.');
                 }
               }}
             >
@@ -304,7 +305,7 @@ export function OrgManagementPage() {
               <Input value={form.memo} onChange={(event) => updateField('memo', event.target.value)} />
             </label>
           </div>
-          {formError && <p className="text-sm text-destructive">{formError}</p>}
+          {formError && <SsooErrorNotice as="p" compact error={formError} />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
             <Button onClick={() => void handleSubmit()} disabled={createMutation.isPending || updateMutation.isPending}>

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# release-job's DB verification invokes this test-only executable.
+set -euo pipefail
+[[ "$*" == '--filter @ssoo/database db:runtime:verify' ]] || exit 91
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atqc 'SELECT count(*) FROM deployment_fixture.events' >/dev/null

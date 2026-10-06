@@ -27,6 +27,7 @@ targetUrl.searchParams.delete('schema');
 const marker = `S8-RUNTIME-${Date.now()}`;
 const targetYear = 2098;
 const crmPermissionCodes = [
+  'crm.business-year.read', 'crm.business-year.manage',
   'crm.opportunity.read', 'crm.opportunity.write', 'crm.opportunity.confirm', 'crm.opportunity.version.manage',
   'crm.customer.read', 'crm.customer.write', 'crm.customer.activity.read', 'crm.customer.activity.write',
   'crm.contract.read', 'crm.contract.write', 'crm.contract.confirm',
@@ -93,7 +94,7 @@ async function verifySeedIdempotency(client) {
   const second = await countAssignments();
   assert(before === first && first === second, `CRM permission seed changed total role assignment count: ${before}/${first}/${second}`);
 
-  const expectedCounts = { admin: 25, manager: 21, user: 14, viewer: 8 };
+  const expectedCounts = { admin: 27, manager: 22, user: 15, viewer: 9 };
   const rows = (await client.query(`
     select r.role_code as "roleCode", count(*)::int as count
       from common.cm_role_permission_r rp

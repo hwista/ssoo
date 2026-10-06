@@ -30,6 +30,7 @@ services:
     environment:
       DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://ssoo:ssoo_dev_pw@postgres:5432/ssoo_dev?schema=public}
       DB_INIT_BASELINE_MODE: ${DB_INIT_BASELINE_MODE:-compat}
+      DB_INIT_SEED_MODE: ${DB_INIT_SEED_MODE:-upgrade}
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,7 +120,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:4000/api/health/readiness').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:4000/api/health/core-readiness').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
@@ -133,6 +134,7 @@ services:
         - source: ssoo_tls_ca
           target: ssoo_tls_ca
       args:
+        SSOO_RELEASE_SHA: ${SSOO_RELEASE_SHA:-local-development}
         NEXT_PUBLIC_API_URL: ${PMS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
         NEXT_PUBLIC_ADMIN_APP_URL: ${NEXT_PUBLIC_ADMIN_APP_URL:-http://localhost:3000}
         NEXT_PUBLIC_CRM_APP_URL: ${NEXT_PUBLIC_CRM_APP_URL:-http://localhost:3001}
@@ -177,6 +179,7 @@ services:
         - source: ssoo_tls_ca
           target: ssoo_tls_ca
       args:
+        SSOO_RELEASE_SHA: ${SSOO_RELEASE_SHA:-local-development}
         NEXT_PUBLIC_API_URL: ${SNS_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
         NEXT_PUBLIC_ADMIN_APP_URL: ${NEXT_PUBLIC_ADMIN_APP_URL:-http://localhost:3000}
         NEXT_PUBLIC_CRM_APP_URL: ${NEXT_PUBLIC_CRM_APP_URL:-http://localhost:3001}
@@ -318,6 +321,7 @@ services:
         - source: ssoo_tls_ca
           target: ssoo_tls_ca
       args:
+        SSOO_RELEASE_SHA: ${SSOO_RELEASE_SHA:-local-development}
         NEXT_PUBLIC_API_URL: ${CRM_NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
         CRM_SERVER_API_URL: ${CRM_SERVER_API_URL:-http://server:4000/api}
         NEXT_PUBLIC_ADMIN_APP_URL: ${NEXT_PUBLIC_ADMIN_APP_URL:-http://localhost:3000}

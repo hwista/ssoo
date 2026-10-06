@@ -1,3 +1,5 @@
+import { PATH_METADATA } from '@nestjs/common/constants.js';
+import { serviceForController } from '../../onboarding/platform-admission.service.js';
 import {
   Injectable,
   CanActivate,
@@ -68,9 +70,12 @@ export class RolesGuard implements CanActivate {
 
     const actionContext = await this.accessFoundationService.resolveActionPermissionContext(user);
     const userRole = actionContext.roleCode;
-    const roleMatched = Boolean(
-      userRole && requiredRoles.some((role) => role !== 'admin' && role === userRole),
-    );
+    const controllerPath = this.reflector.get<string>(PATH_METADATA, context.getClass());
+    const service = typeof controllerPath === 'string' ? serviceForController(controllerPath) : null;
+    const effectiveRoles = service
+      ? await this.accessFoundationService.getServiceRoleCodes(BigInt(user.userId), service)
+      : userRole ? [userRole] : [];
+    const roleMatched = requiredRoles.some((role) => role !== 'admin' && effectiveRoles.includes(role));
     const adminRequested = requiredRoles.includes('admin');
     const systemOverrideMatched = adminRequested && actionContext.policy.hasSystemOverride;
     const allowed = systemOverrideMatched || roleMatched;

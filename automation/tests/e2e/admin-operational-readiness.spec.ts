@@ -147,7 +147,6 @@ test('Admin operational surfaces support navigation and direct route entry', asy
         { path: '/users', verify: () => expect(page.getByRole('button', { name: '사용자 추가' })).toBeVisible() },
         { path: '/organizations', verify: () => expect(page.getByRole('button', { name: '조직 추가' })).toBeVisible() },
         { path: '/codes', verify: () => expect(page.getByRole('heading', { name: '공통코드 관리' })).toBeVisible() },
-        { path: '/business-years', verify: () => expect(page.getByRole('heading', { name: '사업연도 관리' })).toBeVisible() },
         { path: '/roles', verify: () => expect(page.getByRole('button', { name: '역할 권한 편집' }).last()).toBeVisible() },
         { path: '/auth', verify: () => expect(page.getByRole('heading', { name: '로그인 설정' })).toBeVisible() },
         { path: '/ai-operations', verify: () => expect(page.getByRole('heading', { name: 'Provider 준비 상태' })).toBeVisible() },

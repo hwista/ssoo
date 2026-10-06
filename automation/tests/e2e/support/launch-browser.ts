@@ -197,8 +197,8 @@ export async function interactiveLogin(page: Page, options: InteractiveLoginOpti
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     await page.goto(loginUrl);
     await expect(page.getByRole('heading', { name: '로그인' })).toBeVisible();
-    await page.getByLabel('아이디').fill(options.loginId);
-    await page.getByLabel('비밀번호').fill(options.password);
+    await page.getByLabel('아이디', { exact: true }).fill(options.loginId);
+    await page.getByLabel('비밀번호', { exact: true }).fill(options.password);
     await page.getByRole('button', { name: '로그인' }).click();
     try {
       await options.waitUntilReady(page);

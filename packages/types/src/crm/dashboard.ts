@@ -56,6 +56,7 @@ export interface CrmDashboardNextAction {
 
 export interface CrmDashboardSourceConfirmedSummary {
   totalGroupCount: number;
+  /** One latest confirmed version per group, including groups with a newer draft. */
   confirmedLatestCount: number;
   revenueTotal: number;
   costTotal: number;
@@ -80,7 +81,7 @@ export interface CrmDashboardSourceRecentOpportunity {
 }
 
 export interface CrmDashboardSourceCompatibility {
-  calculationBasis: 'latest-version-canonical-total';
+  calculationBasis: 'latest-confirmed-version-raw-total';
   calculationNotice: string;
   confirmedSummary: CrmDashboardSourceConfirmedSummary;
   statusDistribution: CrmDashboardSourceStatusDistribution[];

@@ -1,5 +1,6 @@
 'use client';
 
+import { SharedSessionRecovery } from '@ssoo/web-auth';
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -22,6 +23,8 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const sessionError = useAuthStore(state => state.sessionError);
+  const accessToken = useAuthStore(state => state.accessToken);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const authIsLoading = useAuthStore((state) => state.isLoading);
   const hasHydrated = useAuthStore((state) => state._hasHydrated);
@@ -42,6 +45,7 @@ export default function MainLayout({
     hasHydrated,
     isAuthenticated,
     authIsLoading,
+    sessionError,
     accessHasLoaded,
     accessIsLoading,
     checkAuth,
@@ -49,6 +53,8 @@ export default function MainLayout({
     resetAccess,
     onUnauthenticated: redirectToLogin,
   });
+
+  if (sessionError && (!accessToken || !accessHasLoaded)) return <SharedSessionRecovery authStore={useAuthStore} />;
 
   if (showLoading) {
     return <AuthLoadingScreen />;
@@ -58,5 +64,5 @@ export default function MainLayout({
     return null;
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return <SharedSessionRecovery authStore={useAuthStore}><AppLayout>{children}</AppLayout></SharedSessionRecovery>;
 }

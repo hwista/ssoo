@@ -125,6 +125,8 @@ function createPostServiceFixture(): PostServiceFixture {
     },
   } as unknown as DatabaseService;
   const accessService = {
+    hasSystemOverride: async () => false,
+    assertWritablePost: async (...args: unknown[]) => { calls.sameUserChecks.push(args); },
     resolvePostVisibility: async (_user: TokenPayload, requestedScopeCode?: string | null) => {
       calls.visibilityRequests.push(requestedScopeCode);
       return {
@@ -235,7 +237,8 @@ describe('PostService AI index queue hooks', () => {
       id: 303n,
     });
 
-    expect(fixture.calls.sameUserChecks).toHaveLength(1);
+    // The author is accepted directly; per-item grants are checked for other users.
+    expect(fixture.calls.sameUserChecks).toHaveLength(0);
     expect(fixture.calls.postUpdate).toHaveLength(1);
     expect(fixture.calls.aiQueue[0]).toMatchObject({
       sourceApp: 'sns',

@@ -4,9 +4,10 @@ import { BusinessPlanPerformancePreviewWorkspaceClient } from './BusinessPlanPer
 import { businessPlanPerformancePreviewFallback } from './businessPlanPerformancePreviewFallback';
 import { normalizeBusinessPlanPerformancePreviewQuery } from './businessPlanPerformancePreviewQuery';
 
-export function BusinessPlanPerformancePreviewWorkspaceMdiPage({ path }: { path: string }) {
+export function BusinessPlanPerformancePreviewWorkspaceMdiPage({ path, active }: { path: string; active: boolean }) {
   return (
     <BusinessPlanPerformancePreviewWorkspaceClient
+      active={active}
       data={businessPlanPerformancePreviewFallback}
       query={normalizeBusinessPlanPerformancePreviewQuery(path)}
     />

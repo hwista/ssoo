@@ -49,7 +49,7 @@ export function AiChatPage() {
         breadcrumbRootIconVariant="ai"
         description="질문, 문서 검색, 기능 안내를 요청하세요."
         panelMode="hidden"
-        stateSlot={<ErrorState error="AI 어시스턴트를 사용할 권한이 없습니다." />}
+        stateSlot={<ErrorState kind="forbidden" error="AI 어시스턴트를 사용할 권한이 없습니다." />}
       >
         {null}
       </PageTemplate>

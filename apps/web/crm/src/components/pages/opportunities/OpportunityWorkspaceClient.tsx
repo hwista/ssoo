@@ -1,5 +1,13 @@
 'use client';
 
+import { BusinessOrganizationField } from '@/components/common/BusinessOrganizationField';
+
+import { getSourceOpportunityRevenue, getSourceOpportunityCost, formatSourceListAmount } from '@/lib/sourceOpportunityTotals';
+
+import { CRM_HOME_ENTRY, CRM_OPPORTUNITY_WORKSPACE_PATH, CRM_OPPORTUNITY_WORKSPACE_TITLE } from '@/lib/crmNavigation';
+
+import { createSharedHttpError } from '@ssoo/web-auth';
+import { SsooErrorNotice, showSsooErrorAlert } from '@ssoo/web-shell';
 import { Fragment, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -84,7 +92,7 @@ export interface OpportunityWorkspaceQuery {
   sourceStatus: CrmSourceOpportunityStatus | 'all';
   sort: CrmOpportunitySort;
   selected: string;
-  sourceSurface: 'workspace' | 'dashboard' | 'list' | 'form' | 'contract-document';
+  sourceSurface: 'home' | 'workspace' | 'dashboard' | 'list' | 'form' | 'contract-document';
   create: boolean;
 }
 
@@ -94,6 +102,16 @@ const statusLabels: Record<CrmOpportunityStatus, string> = {
   proposal: '제안',
   won: '수주',
   lost: '실주',
+  hold: '보류',
+};
+
+// Keep editable SSOO states distinct while retaining the source sales vocabulary.
+const sourceFormStatusLabels: Record<CrmOpportunityStatus, string> = {
+  draft: '검토중',
+  qualified: '검토중 · 검증',
+  proposal: '진행중',
+  won: '계약완료',
+  lost: '실패',
   hold: '보류',
 };
 
@@ -115,6 +133,7 @@ const priorityLabels: Record<CrmOpportunity['priority'], string> = {
 const regionLabels: Record<CrmOpportunity['region'], string> = {
   domestic: '국내',
   overseas: '해외',
+  unspecified: '미선택',
 };
 
 const paymentTermLabels: Record<string, string> = {
@@ -188,8 +207,6 @@ const ownerContactStatusLabels: Record<CrmQuotePreviewOwnerContactStatus, string
 const formatCurrency = (value: number) => `${Math.round(value / 100000000).toLocaleString('ko-KR')}억`;
 const formatSourceEok = (value: number) => `${(value / 100000000).toFixed(1)}억`;
 const formatWon = (value: number) => `${Math.round(value).toLocaleString('ko-KR')}원`;
-const getSourceOpportunityRevenue = (item: CrmOpportunity) => item.revenueLines.reduce((sum, line) => sum + line.amount, 0);
-const getSourceOpportunityCost = (item: CrmOpportunity) => item.costLines.reduce((sum, line) => sum + line.amount, 0);
 const formatSellerInfoStatus = (value: CrmQuotePreviewSellerInfoStatus) => sellerInfoStatusLabels[value] ?? value;
 const formatOwnerContactStatus = (value: CrmQuotePreviewOwnerContactStatus) => ownerContactStatusLabels[value] ?? value;
 const OWNER_LOOKUP_EMPTY_VALUE = '__none';
@@ -327,7 +344,7 @@ function buildSourceQuoteBodyHtml(preview: CrmOpportunityQuotePreview): string {
 function openQuotePrintPreview(preview: CrmOpportunityQuotePreview): void {
   const printWindow = window.open('', '_blank', 'popup,width=900,height=700,scrollbars=yes');
   if (!printWindow) {
-    window.alert('견적서 인쇄 창을 열 수 없습니다. 브라우저의 팝업 차단 설정을 확인하세요.');
+    showSsooErrorAlert('견적서 인쇄 창을 열 수 없습니다. 브라우저의 팝업 차단 설정을 확인하세요.');
     return;
   }
 
@@ -378,6 +395,7 @@ type OpportunityDraftLineField = keyof Omit<OpportunityDraftLine, 'id'>;
 type OpportunityDraftTextField =
   | 'customerName'
   | 'opportunityName'
+  | 'ownerOrganizationId'
   | 'ownerName'
   | 'ownerUserId'
   | 'clientContactName'
@@ -411,6 +429,7 @@ interface OpportunityDraft {
   id?: string;
   customerName: string;
   opportunityName: string;
+  ownerOrganizationId: string;
   ownerName: string;
   ownerUserId: string;
   clientContactName: string;
@@ -456,11 +475,12 @@ function buildHref(
   if (next.sourceSurface && next.sourceSurface !== 'workspace') params.set('sourceSurface', next.sourceSurface);
   if (next.create === true || next.create === 'opportunity') params.set('create', 'opportunity');
   const suffix = params.toString();
-  return suffix ? `/?${suffix}` : '/';
+  return suffix ? `${CRM_OPPORTUNITY_WORKSPACE_PATH}?${suffix}` : CRM_OPPORTUNITY_WORKSPACE_PATH;
 }
 
-function buildApiHref(query: Pick<OpportunityWorkspaceQuery, 'search' | 'status' | 'sourceStatus' | 'sort'>) {
+function buildApiHref(query: Pick<OpportunityWorkspaceQuery, 'search' | 'status' | 'sourceStatus' | 'sort' | 'sourceSurface'>) {
   const params = new URLSearchParams();
+  if (query.sourceSurface === 'list') params.set('view', 'source-list');
   if (query.search) params.set('search', query.search);
   if (query.status && query.status !== 'all') params.set('status', query.status);
   if (query.sourceStatus && query.sourceStatus !== 'all') params.set('sourceStatus', query.sourceStatus);
@@ -500,12 +520,13 @@ function createEmptyDraft(): OpportunityDraft {
   return {
     customerName: '',
     opportunityName: '',
+    ownerOrganizationId: '',
     ownerName: '',
     ownerUserId: '',
     clientContactName: '',
     businessType: '',
     industryLine: '',
-    region: 'domestic',
+    region: 'unspecified',
     status: 'draft',
     priority: 'medium',
     paymentTermCode: '',
@@ -514,8 +535,8 @@ function createEmptyDraft(): OpportunityDraft {
     expectedStartDate: '',
     expectedEndDate: '',
     nextAction: '',
-    revenueLines: [createDraftLine('revenueLines')],
-    costLines: [createDraftLine('costLines')],
+    revenueLines: [],
+    costLines: [],
   };
 }
 
@@ -524,6 +545,7 @@ function createDraftFromOpportunity(item: CrmOpportunity): OpportunityDraft {
     id: item.id,
     customerName: item.customerName,
     opportunityName: item.opportunityName,
+    ownerOrganizationId: item.ownerOrganizationId ?? '',
     ownerName: item.ownerName,
     ownerUserId: item.ownerUserId ?? '',
     clientContactName: item.clientContactName ?? '',
@@ -556,7 +578,7 @@ function createDraftFromOpportunity(item: CrmOpportunity): OpportunityDraft {
         linkedCostLineId: line.linkedCostLineId,
         revenueUnitPrice: line.revenueUnitPrice === undefined ? undefined : String(line.revenueUnitPrice),
       }))
-      : [createDraftLine('revenueLines')],
+      : [],
     costLines: item.costLines.length > 0
       ? item.costLines.map((line) => createDraftLine('costLines', {
         id: line.id,
@@ -575,7 +597,7 @@ function createDraftFromOpportunity(item: CrmOpportunity): OpportunityDraft {
         linkedCostLineId: line.linkedCostLineId,
         revenueUnitPrice: line.revenueUnitPrice === undefined ? undefined : String(line.revenueUnitPrice),
       }))
-      : [createDraftLine('costLines')],
+      : [],
   };
 }
 
@@ -594,12 +616,15 @@ function parseDraftAmount(value: string): number {
 }
 
 function getDraftLineAmount(line: OpportunityDraftLine): number {
-  const quantity = parseDraftNumber(line.quantity);
+  const quantity = Math.round(parseDraftNumber(line.quantity) * 100) / 100;
   const unitPrice = parseDraftAmount(line.unitPrice);
-  if (quantity > 0 && unitPrice > 0) {
-    const rawAmount = Math.round(quantity * unitPrice);
-    const truncUnit = parseDraftAmount(line.truncUnit);
-    return truncUnit > 0 ? Math.floor(rawAmount / truncUnit) * truncUnit : rawAmount;
+  if (line.quantity !== '' || line.unitPrice !== '') {
+    if (!Number.isFinite(quantity * 100)) return 0;
+    const scaledAmount = BigInt(Math.round(quantity * 100)) * BigInt(unitPrice);
+    const truncUnit = BigInt(parseDraftAmount(line.truncUnit));
+    return Number(truncUnit > BigInt(0)
+      ? scaledAmount / (BigInt(100) * truncUnit) * truncUnit
+      : (scaledAmount + BigInt(50)) / BigInt(100));
   }
 
   return parseDraftAmount(line.amount);
@@ -612,11 +637,11 @@ function sumDraftLines(lines: OpportunityDraftLine[]): number {
 function getMarginRate(costUnitPrice: string, revenueUnitPrice: string): string {
   const cost = parseDraftAmount(costUnitPrice);
   const revenue = parseDraftAmount(revenueUnitPrice);
-  if (cost <= 0 || revenue <= 0) {
+  if (revenue <= 0) {
     return '';
   }
 
-  return String(Math.round((1 - cost / revenue) * 10000) / 100);
+  return ((1 - cost / revenue) * 100).toFixed(2);
 }
 
 function getLinkedRevenueCategory(category: CrmOpportunityLineCategory): CrmOpportunityLineCategory {
@@ -624,7 +649,7 @@ function getLinkedRevenueCategory(category: CrmOpportunityLineCategory): CrmOppo
 }
 
 function createLinkedRevenueLine(costLine: OpportunityDraftLine): OpportunityDraftLine {
-  const revenueUnitPrice = costLine.revenueUnitPrice || costLine.unitPrice;
+  const revenueUnitPrice = parseDraftAmount(costLine.revenueUnitPrice) > 0 ? costLine.revenueUnitPrice : costLine.unitPrice;
   return createDraftLine('revenueLines', {
     id: costLine.linkedCostLineId
       ? `linked-revenue-${costLine.linkedCostLineId}`
@@ -635,7 +660,7 @@ function createLinkedRevenueLine(costLine: OpportunityDraftLine): OpportunityDra
     unitPrice: revenueUnitPrice,
     amount: '',
     marginRate: getMarginRate(costLine.unitPrice, revenueUnitPrice),
-    truncUnit: costLine.truncUnit,
+    truncUnit: '',
     department: costLine.department,
     memberName: costLine.memberName,
     grade: costLine.grade,
@@ -645,38 +670,62 @@ function createLinkedRevenueLine(costLine: OpportunityDraftLine): OpportunityDra
   });
 }
 
-function syncLinkedRevenueLines(draft: OpportunityDraft): OpportunityDraft {
-  const linkedCostLines = draft.costLines.filter((line) => line.revenueLinked);
-  const linkedCostIds = new Set(linkedCostLines.map((line) => line.id));
-  const manualRevenueLines = draft.revenueLines.filter((line) => (
-    !line.linkedCostLineId || linkedCostIds.has(line.linkedCostLineId)
-  ));
-  const syncedLines = linkedCostLines.map((costLine) => {
-    const existing = manualRevenueLines.find((line) => line.linkedCostLineId === costLine.id);
-    return {
-      ...createLinkedRevenueLine(costLine),
-      id: existing?.id ?? `linked-revenue-${costLine.id}`,
-    };
-  });
-  const nextRevenueLines = [
-    ...manualRevenueLines.filter((line) => !line.linkedCostLineId),
-    ...syncedLines,
-  ];
+function syncLinkedRevenueLines(draft: OpportunityDraft, changedCostId?: string): OpportunityDraft {
+  const linkedCosts = draft.costLines.filter((line) => line.revenueLinked);
+  const linkedIds = new Set(linkedCosts.map((line) => line.id));
+  const revenueLines = draft.revenueLines.filter((line) => !line.linkedCostLineId || linkedIds.has(line.linkedCostLineId));
+  for (const cost of linkedCosts) {
+    const index = revenueLines.findIndex((line) => line.linkedCostLineId === cost.id);
+    const existing = revenueLines[index];
+    if (existing && changedCostId !== cost.id) continue;
+    const synced = { ...createLinkedRevenueLine(cost), id: existing?.id ?? `linked-revenue-${cost.id}`, truncUnit: existing?.truncUnit ?? '' };
+    if (index < 0) revenueLines.push(synced);
+    else revenueLines[index] = synced;
+  }
+  return { ...draft, revenueLines };
+}
 
-  return {
-    ...draft,
-    revenueLines: nextRevenueLines.length > 0 ? nextRevenueLines : [createDraftLine('revenueLines')],
-  };
+function patchDraftLine(
+  draft: OpportunityDraft,
+  kind: OpportunityDraftLineKind,
+  index: number,
+  patch: Partial<Pick<OpportunityDraftLine, OpportunityDraftLineField>>,
+): OpportunityDraft {
+  const original = draft[kind][index];
+  if (!original) return draft;
+  const line = { ...original, ...patch };
+  if ('quantity' in patch || 'unitPrice' in patch) line.amount = '';
+  if (kind === 'revenueLines' && line.linkedCostLineId) {
+    const cost = draft.costLines.find((item) => item.id === line.linkedCostLineId);
+    if (cost && 'unitPrice' in patch) line.marginRate = getMarginRate(cost.unitPrice, line.unitPrice);
+    if (cost && 'marginRate' in patch && line.marginRate.trim()) {
+      const margin = Number(line.marginRate);
+      if (Number.isFinite(margin) && margin < 100) {
+        line.unitPrice = String(Math.round(parseDraftAmount(cost.unitPrice) / (1 - margin / 100)));
+        line.amount = '';
+      }
+    }
+  }
+  const next = { ...draft, [kind]: draft[kind].map((item, position) => position === index ? line : item) };
+  return kind === 'costLines' ? syncLinkedRevenueLines(next, line.id) : next;
+}
+
+function formatDraftDuration(start: string, end: string): string {
+  if (!start || !end) return '-';
+  const days = Math.round((Date.parse(end) - Date.parse(start)) / 86400000);
+  if (days < 0) return '종료일이 시작일보다 앞설 수 없습니다.';
+  const months = Math.floor(days / 30), remainder = days % 30;
+  return months === 0 ? `${days}일` : remainder === 0 ? `${months}개월` : `${months}개월 ${remainder}일`;
 }
 
 function getDraftDiscountAmount(revenueSubtotal: number, discountType: CrmOpportunityDiscountType, discountValue: string): number {
-  const value = parseDraftNumber(discountValue);
-  if (revenueSubtotal <= 0 || value <= 0) {
+  const value = Math.round(parseDraftNumber(discountValue) * 100) / 100;
+  if (revenueSubtotal <= 0 || value <= 0 || !Number.isFinite(value * 100)) {
     return 0;
   }
 
   const discountAmount = discountType === 'rate'
-    ? Math.round(revenueSubtotal * value / 100)
+    ? Number((BigInt(Math.round(revenueSubtotal)) * BigInt(Math.round(value * 100)) + BigInt(5000)) / BigInt(10000))
     : parseDraftAmount(discountValue);
   return Math.min(revenueSubtotal, Math.max(0, discountAmount));
 }
@@ -700,13 +749,13 @@ function formatDiscount(item: Pick<CrmOpportunity, 'specialDiscountType' | 'spec
 
 function toUpsertPayload(draft: OpportunityDraft): CrmOpportunityUpsertRequest {
   const normalizeLines = (lines: OpportunityDraftLine[], kind: OpportunityDraftLineKind): CrmOpportunityUpsertLine[] => lines
-    .filter((line) => line.label.trim() || getDraftLineAmount(line) > 0)
+    .filter((line) => line.label.trim() || (line.category !== 'product' && (line.memberName.trim() || line.department.trim())))
     .map((line) => ({
       id: line.id,
       category: line.category,
-      label: line.label.trim(),
-      quantity: parseDraftNumber(line.quantity) || undefined,
-      unitPrice: parseDraftAmount(line.unitPrice) || undefined,
+      label: line.label.trim() || line.memberName.trim() || line.department.trim(),
+      quantity: parseDraftNumber(line.quantity),
+      unitPrice: parseDraftAmount(line.unitPrice),
       amount: getDraftLineAmount(line),
       marginRate: line.marginRate ? Number(line.marginRate) : undefined,
       truncUnit: parseDraftAmount(line.truncUnit) || undefined,
@@ -724,6 +773,7 @@ function toUpsertPayload(draft: OpportunityDraft): CrmOpportunityUpsertRequest {
   return {
     customerName: draft.customerName.trim(),
     opportunityName: draft.opportunityName.trim(),
+    ownerOrganizationId: draft.ownerOrganizationId || undefined,
     ownerName: draft.ownerName.trim(),
     ownerUserId: draft.ownerUserId.trim() || undefined,
     clientContactName: draft.clientContactName.trim() || undefined,
@@ -846,13 +896,14 @@ export function OpportunityWorkspaceClient({
   const [accessError, setAccessError] = useState<string | null>(null);
   const [ownerLookupItems, setOwnerLookupItems] = useState<CrmOpportunityOwnerLookupItem[]>([]);
   const [ownerLookupSearch, setOwnerLookupSearch] = useState('');
+  const ownerLookupRequest = useRef(0);
   const [isOwnerLookupLoading, setIsOwnerLookupLoading] = useState(false);
   const [ownerLookupError, setOwnerLookupError] = useState<string | null>(null);
-  const { search, sort, sourceStatus, status } = query;
+  const { search, sort, sourceStatus, status, sourceSurface } = query;
   const router = useRouter();
   const apiHref = useMemo(
-    () => buildApiHref({ search, sort, sourceStatus, status }),
-    [search, sort, sourceStatus, status],
+    () => buildApiHref({ search, sort, sourceStatus, status, sourceSurface }),
+    [search, sort, sourceStatus, status, sourceSurface],
   );
 
   useEffect(() => {
@@ -882,7 +933,7 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmDashboardResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setDashboardData(payload.data);
       return payload.data;
@@ -914,7 +965,7 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityListResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setCurrentData(payload.data);
       return payload.data;
@@ -948,6 +999,7 @@ export function OpportunityWorkspaceClient({
       return;
     }
 
+    const requestId = ++ownerLookupRequest.current;
     const params = new URLSearchParams({ limit: '50' });
     const normalizedSearch = searchText.trim();
     if (normalizedSearch) {
@@ -968,14 +1020,14 @@ export function OpportunityWorkspaceClient({
           ? payload.error?.message || payload.message || 'CRM 담당자 후보 조회에 실패했습니다.'
           : 'CRM 담당자 후보 조회에 실패했습니다.');
       }
-      setOwnerLookupItems(payload.data);
+      if (requestId === ownerLookupRequest.current && !signal?.aborted) setOwnerLookupItems(payload.data);
     } catch (error) {
-      if (signal?.aborted) {
+      if (signal?.aborted || requestId !== ownerLookupRequest.current) {
         return;
       }
       setOwnerLookupError(error instanceof Error ? error.message : 'CRM 담당자 후보 조회에 실패했습니다.');
     } finally {
-      if (!signal?.aborted) {
+      if (!signal?.aborted && requestId === ownerLookupRequest.current) {
         setIsOwnerLookupLoading(false);
       }
     }
@@ -1007,7 +1059,7 @@ export function OpportunityWorkspaceClient({
         });
         const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityGlobalAccessSnapshot> | BackendErrorResponse | null;
         if (!response.ok || payload?.success !== true) {
-          throw new Error(getBackendErrorMessage(payload));
+          throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
         }
         setGlobalAccess(payload.data);
       } catch (error) {
@@ -1038,10 +1090,6 @@ export function OpportunityWorkspaceClient({
   const pagedItems = useMemo(
     () => currentData.items.slice((safePage - 1) * pageSize, safePage * pageSize),
     [currentData.items, pageSize, safePage]
-  );
-  const sourcePagedItems = useMemo(
-    () => sourceItems.slice((safePage - 1) * pageSize, safePage * pageSize),
-    [pageSize, safePage, sourceItems],
   );
   const isInitialLedgerLoading = isReloading && currentData.items.length === 0 && !loadError;
   const firstConfirmedOpportunityId = sourceItems.find((item) => item.confirmed && item.isLatest)?.id ?? '';
@@ -1081,7 +1129,7 @@ export function OpportunityWorkspaceClient({
         });
         const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunity> | BackendErrorResponse | null;
         if (!response.ok || payload?.success !== true) {
-          throw new Error(getBackendErrorMessage(payload));
+          throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
         }
         setSelectedDetail(payload.data);
       } catch (error) {
@@ -1121,7 +1169,7 @@ export function OpportunityWorkspaceClient({
         });
         const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityAccessSnapshot> | BackendErrorResponse | null;
         if (!response.ok || payload?.success !== true) {
-          throw new Error(getBackendErrorMessage(payload));
+          throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
         }
         setOpportunityAccess(payload.data);
       } catch (error) {
@@ -1160,7 +1208,7 @@ export function OpportunityWorkspaceClient({
         });
         const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityVersionListResponse> | BackendErrorResponse | null;
         if (!response.ok || payload?.success !== true) {
-          throw new Error(getBackendErrorMessage(payload));
+          throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
         }
         setVersionData(payload.data);
       } catch (error) {
@@ -1198,7 +1246,7 @@ export function OpportunityWorkspaceClient({
         });
         const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityHistoryListResponse> | BackendErrorResponse | null;
         if (!response.ok || payload?.success !== true) {
-          throw new Error(getBackendErrorMessage(payload));
+          throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
         }
         setHistoryData(payload.data);
       } catch (error) {
@@ -1237,7 +1285,7 @@ export function OpportunityWorkspaceClient({
         });
         const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityQuotePreview> | BackendErrorResponse | null;
         if (!response.ok || payload?.success !== true) {
-          throw new Error(getBackendErrorMessage(payload));
+          throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
         }
         setQuotePreview(await hydrateQuotePreviewCi(payload.data, accessToken, abortController.signal));
       } catch (error) {
@@ -1323,7 +1371,7 @@ export function OpportunityWorkspaceClient({
     if (
       query.sourceSurface !== 'form'
       || query.create
-      || editorMode
+      || (editorMode && draft?.id === selected?.id)
       || !selected
       || selected.confirmed
       || !selected.isLatest
@@ -1333,19 +1381,19 @@ export function OpportunityWorkspaceClient({
       return;
     }
     openEditEditor(selected);
-  }, [editorMode, openEditEditor, opportunityAccess, query.create, query.sourceSurface, selected]);
+  }, [draft?.id, editorMode, openEditEditor, opportunityAccess, query.create, query.sourceSurface, selected]);
   const updateDraftTextField = (field: OpportunityDraftTextField, value: string) => {
     setDraft((current) => current ? { ...current, [field]: value } : current);
   };
   const updateDraftSelectField = (field: OpportunityDraftSelectField, value: string) => {
     setDraft((current) => current ? { ...current, [field]: value } as OpportunityDraft : current);
   };
-  const updateDraftOwnerUserId = (ownerUserId: string) => {
+  const updateDraftOwnerUserId = (ownerUserId: string, ownerName?: string) => {
     const selectedOwner = ownerLookupItems.find((item) => item.userId === ownerUserId);
     setDraft((current) => current ? {
       ...current,
       ownerUserId,
-      ownerName: selectedOwner ? getOwnerLookupDisplayName(selectedOwner) : current.ownerName,
+      ownerName: !ownerUserId ? '' : ownerName ?? (selectedOwner ? getOwnerLookupDisplayName(selectedOwner) : current.ownerName),
     } : current);
   };
   const updateDraftLine = (
@@ -1353,30 +1401,7 @@ export function OpportunityWorkspaceClient({
     index: number,
     patch: Partial<Pick<OpportunityDraftLine, OpportunityDraftLineField>>,
   ) => {
-    setDraft((current) => {
-      if (!current) {
-        return current;
-      }
-
-      const nextDraft = {
-        ...current,
-        [kind]: current[kind].map((line, lineIndex) => {
-          if (lineIndex !== index) {
-            return line;
-          }
-
-          const nextLine = { ...line, ...patch };
-          if (kind === 'costLines' && patch.revenueLinked === true && !nextLine.revenueUnitPrice) {
-            nextLine.revenueUnitPrice = nextLine.unitPrice;
-          }
-          if (kind === 'costLines' && patch.revenueLinked === false) {
-            nextLine.revenueUnitPrice = '';
-          }
-          return nextLine;
-        }),
-      };
-      return kind === 'costLines' ? syncLinkedRevenueLines(nextDraft) : nextDraft;
-    });
+    setDraft((current) => current ? patchDraftLine(current, kind, index, patch) : current);
   };
   const addDraftLine = (kind: OpportunityDraftLineKind, category?: CrmOpportunityLineCategory) => {
     setDraft((current) => current ? { ...current, [kind]: [...current[kind], createDraftLine(kind, { category })] } : current);
@@ -1395,15 +1420,23 @@ export function OpportunityWorkspaceClient({
       const nextLines = syncedDraft[kind];
       return {
         ...syncedDraft,
-        [kind]: nextLines.length > 0 ? nextLines : [createDraftLine(kind)],
+        [kind]: nextLines,
       };
     });
   };
   const saveDraft = async () => {
-    if (!draft || !editorMode) {
+    if (!draft || !editorMode || isSaving) {
       return;
     }
 
+    if (query.sourceSurface === 'form' && !draft.ownerUserId) {
+      setSaveError('영업담당자를 선택해 주세요.');
+      return;
+    }
+    if (draft.specialDiscountType === 'rate' && parseDraftNumber(draft.specialDiscountValue) > 100) {
+      setSaveError('특별할인율은 0 이상 100 이하의 숫자여야 합니다.');
+      return;
+    }
     setIsSaving(true);
     setSaveError(null);
     try {
@@ -1421,16 +1454,16 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunity> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
 
       closeEditor();
       await loadOpportunities();
       void loadDashboard();
       router.push(buildHref(query, {
-        selected: payload.data.id,
+        selected: query.sourceSurface === 'form' ? '' : payload.data.id,
         create: '',
-        sourceSurface: query.sourceSurface === 'form' ? 'form' : query.sourceSurface,
+        sourceSurface: query.sourceSurface === 'form' ? 'list' : query.sourceSurface,
       }));
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'CRM 영업기회 저장 중 오류가 발생했습니다.');
@@ -1439,6 +1472,7 @@ export function OpportunityWorkspaceClient({
     }
   };
   const runWorkflowAction = async (item: CrmOpportunity, action: 'confirm' | 'reopen' | 'revoke-contract') => {
+    if (action === 'confirm' && !window.confirm('저장된 영업기회를 확정하시겠습니까?\n저장하지 않은 변경은 반영되지 않으며, 확정 후에는 수정할 수 없습니다.')) return;
     if (action === 'reopen' && !window.confirm(
       item.contractCreated
         ? `연결 계약 ${item.contractCode ?? ''}을 회수하고 영업기회 확정을 해제하시겠습니까?\n계약 데이터는 비활성화되고 영업기회는 수정 가능 상태로 복원됩니다.`
@@ -1462,9 +1496,11 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunity> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
 
+      closeEditor();
+      setSelectedDetail(payload.data);
       const refreshed = await loadOpportunities();
       void loadDashboard();
       const selectedId = refreshed?.items.some((candidate) => candidate.id === payload.data.id)
@@ -1478,6 +1514,7 @@ export function OpportunityWorkspaceClient({
     }
   };
   const addVersion = async (item: CrmOpportunity) => {
+    if (!window.confirm(`현재 ${item.version}차수를 기반으로 ${item.version + 1}차수를 생성하시겠습니까?`)) return;
     setIsWorkflowSaving(true);
     setWorkflowError(null);
     try {
@@ -1488,11 +1525,12 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunity> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
 
       await loadOpportunities();
       void loadDashboard();
+      closeEditor();
       setSelectedDetail(payload.data);
       router.push(buildHref(query, { selected: payload.data.id }));
     } catch (error) {
@@ -1516,7 +1554,7 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityContractConversionResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
 
       await loadOpportunities();
@@ -1544,7 +1582,7 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityDeleteResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
 
       closeEditor();
@@ -1556,7 +1594,7 @@ export function OpportunityWorkspaceClient({
         && refreshed?.items.some((candidate) => candidate.id === payload.data.nextOpportunityId)
         ? payload.data.nextOpportunityId
         : refreshed?.items[0]?.id ?? '';
-      router.push(buildHref(query, { selected: nextSelectedId }));
+      router.push(buildHref(query, { selected: query.sourceSurface === 'form' ? '' : nextSelectedId, sourceSurface: query.sourceSurface === 'form' ? 'list' : query.sourceSurface }));
     } catch (error) {
       setWorkflowError(error instanceof Error ? error.message : 'CRM 영업기회 삭제 중 오류가 발생했습니다.');
     } finally {
@@ -1578,7 +1616,7 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityQuotePreview> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
 
       setQuotePreview(payload.data);
@@ -1609,7 +1647,7 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmQuoteDmsDocumentDraft> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
 
       setQuotePreview((current) => {
@@ -1645,7 +1683,7 @@ export function OpportunityWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmQuoteDmsDocumentLifecycleExecutionResult> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
 
       setQuotePreview((current) => {
@@ -1675,19 +1713,18 @@ export function OpportunityWorkspaceClient({
     padding: SSOO_PAGE_CHROME_METRICS.stackPaddingPx,
   };
 
-  if (query.sourceSurface === 'dashboard') {
+  if (query.sourceSurface === 'home' || query.sourceSurface === 'dashboard') {
     return (
       <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4" style={pageStyle} data-source-surface="dashboard">
-        <Breadcrumb items={['CRM', '대시보드']} />
+        <Breadcrumb items={['CRM', CRM_HOME_ENTRY.pageTitle]} />
         {dashboardError ? (
-          <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{dashboardError}</div>
+          <SsooErrorNotice className="px-3 py-2" error={dashboardError} />
         ) : null}
         <DashboardOverview
           data={dashboardData}
-          sourceOpportunities={sourceItems}
           isLoading={isDashboardLoading}
           onRefresh={() => void loadDashboard()}
-          sourceOnly
+          sourceOnly={query.sourceSurface === 'dashboard'}
         />
       </div>
     );
@@ -1698,16 +1735,16 @@ export function OpportunityWorkspaceClient({
     return (
       <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4 [&>*]:shrink-0" style={pageStyle} data-source-surface="list">
         <Breadcrumb items={['CRM', '영업기회 현황']} />
-        {loadError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{loadError}</div> : null}
-        {workflowError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{workflowError}</div> : null}
-        {accessError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{accessError}</div> : null}
+        {loadError ? <SsooErrorNotice className="px-3 py-2" error={loadError} /> : null}
+        {workflowError ? <SsooErrorNotice className="px-3 py-2" error={workflowError} /> : null}
+        {accessError ? <SsooErrorNotice className="px-3 py-2" error={accessError} /> : null}
         <SourceOpportunityListSummary
           items={sourceItems}
           action={(
             <Button
               type="button"
               disabled={globalAccess?.features.canCreateOpportunity !== true || isGlobalAccessLoading}
-              onClick={() => router.push('/?sourceSurface=form&create=opportunity')}
+              onClick={() => router.push('/opportunities?sourceSurface=form&create=opportunity')}
             >
               + 영업기회 등록
             </Button>
@@ -1717,7 +1754,7 @@ export function OpportunityWorkspaceClient({
         <section className="flex-none overflow-hidden rounded-lg border border-border bg-card">
           <div className="min-w-0 overflow-x-auto">
             <OpportunityTable
-              items={sourcePagedItems}
+              items={sourceItems}
               pageSize={pageSize}
               selectedId={query.selected || null}
               query={sourceListQuery}
@@ -1732,20 +1769,44 @@ export function OpportunityWorkspaceClient({
   }
 
   if (query.sourceSurface === 'form') {
-    const sourceDraft = editorMode && draft
+    const sourceEditing = Boolean(editorMode && draft && (query.create || (draft.id === selected?.id && !selected?.confirmed && selected?.isLatest)));
+    const sourceDraft = sourceEditing && draft
       ? draft
       : selected
         ? createDraftFromOpportunity(selected)
         : null;
     const sourceMode: OpportunityEditorMode = editorMode ?? 'edit';
-    const sourceReadOnly = !editorMode;
+    const sourceReadOnly = !sourceEditing;
+    const features = selected && opportunityAccess?.opportunityId === selected.id ? opportunityAccess.features : null;
+    const versions = [...(versionData?.versions ?? [])].sort((a, b) => a.version - b.version);
+    const versionIndex = versions.findIndex((item) => item.id === selected?.id);
+    const navigateVersion = (id: string) => { closeEditor(); router.push(buildHref(query, { selected: id })); };
     return (
       <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4" style={pageStyle} data-source-surface="form">
         <Breadcrumb items={['CRM', query.create ? '영업기회 등록' : sourceReadOnly ? '영업기회 조회' : '영업기회 수정']} />
-        {loadError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{loadError}</div> : null}
-        {workflowError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{workflowError}</div> : null}
-        {selectedDetailError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{selectedDetailError}</div> : null}
-        {accessError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{accessError}</div> : null}
+        {loadError ? <SsooErrorNotice className="px-3 py-2" error={loadError} /> : null}
+        {workflowError ? <SsooErrorNotice className="px-3 py-2" error={workflowError} /> : null}
+        {selectedDetailError ? <SsooErrorNotice className="px-3 py-2" error={selectedDetailError} /> : null}
+        {accessError ? <SsooErrorNotice className="px-3 py-2" error={accessError} /> : null}
+        {versionError ? <SsooErrorNotice error={versionError} /> : null}
+        {quotePreviewError ? <SsooErrorNotice error={quotePreviewError} /> : null}
+        {!query.create && selected ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3" aria-label="영업기회 차수 및 상태 작업">
+            <span className="text-sm font-medium">{selected.version}차수 · {selected.contractCreated ? '계약확정' : selected.confirmed ? '확정' : '작성중'}</span>
+            <Button variant="outline" size="sm" disabled={isVersionLoading || versionIndex <= 0} onClick={() => navigateVersion(versions[versionIndex - 1].id)}>이전 차수</Button>
+            <Button variant="outline" size="sm" disabled={isVersionLoading || versionIndex < 0 || versionIndex >= versions.length - 1} onClick={() => navigateVersion(versions[versionIndex + 1].id)}>다음 차수</Button>
+            {!selected.isLatest ? <Button variant="outline" size="sm" disabled={!versions.length} onClick={() => navigateVersion(versions[versions.length - 1].id)}>최신 차수</Button> : null}
+            {selected.isLatest && !selected.confirmed ? <>
+              <Button size="sm" disabled={isWorkflowSaving || !features?.canConfirmOpportunity || selected.revenueTotal <= 0 || selected.status === 'lost' || selected.status === 'hold'} onClick={() => void runWorkflowAction(selected, 'confirm')}>확정</Button>
+              <Button variant="outline" size="sm" disabled={isWorkflowSaving || !features?.canEditOpportunity} onClick={() => void deleteOpportunity(selected)}>삭제</Button>
+            </> : null}
+            {selected.isLatest && selected.confirmed && !selected.contractCreated ? <>
+              <Button variant="outline" size="sm" disabled={isWorkflowSaving || !features?.canConfirmOpportunity} onClick={() => void runWorkflowAction(selected, 'reopen')}>확정취소</Button>
+              <Button variant="outline" size="sm" disabled={isWorkflowSaving || !features?.canAddVersion} onClick={() => void addVersion(selected)}>차수 추가</Button>
+              <Button size="sm" disabled={isWorkflowSaving || !features?.canConfirmOpportunity || selected.revenueTotal <= 0} onClick={() => void convertToContract(selected)}>계약생성</Button>
+            </> : null}
+          </div>
+        ) : null}
         {sourceDraft ? (
           <section className="overflow-hidden rounded-lg border border-border bg-card">
             <OpportunityEditor
@@ -1753,15 +1814,16 @@ export function OpportunityWorkspaceClient({
               draft={sourceDraft}
               readOnly={sourceReadOnly}
               sourceCompatible
+              opportunity={query.create ? undefined : selected ?? undefined}
               saveError={saveError}
               isSaving={isSaving}
               ownerLookupItems={ownerLookupItems}
-              ownerLookupSearch={ownerLookupSearch || sourceDraft.ownerName}
+              ownerLookupSearch={ownerLookupSearch}
               ownerLookupError={ownerLookupError}
               isOwnerLookupLoading={isOwnerLookupLoading}
               onCancel={() => {
                 closeEditor();
-                router.push('/?sourceSurface=list');
+                router.push('/opportunities?sourceSurface=list');
               }}
               onSave={saveDraft}
               onTextFieldChange={updateDraftTextField}
@@ -1776,14 +1838,16 @@ export function OpportunityWorkspaceClient({
                 if (quotePreview) setSourceQuotePreviewOpen(true);
               }}
               onReopen={() => {
-                if (selected) void runWorkflowAction(selected, 'reopen');
+                if (selected) void runWorkflowAction(selected, 'revoke-contract');
               }}
-              canQuote={Boolean(quotePreview && quotePreview.summary.quoteTotal > 0)}
+              canQuote={Boolean(selected?.confirmed && selected?.isLatest && quotePreview && quotePreview.summary.quoteTotal > 0)}
               canReopen={Boolean(
                 selected
                 && opportunityAccess?.opportunityId === selected.id
                 && opportunityAccess.features.canConfirmOpportunity
                 && selected.confirmed
+                && selected.contractCreated
+                && !isWorkflowSaving
                 && selected.isLatest
               )}
             />
@@ -1812,10 +1876,9 @@ export function OpportunityWorkspaceClient({
           <h2 className="text-base font-semibold text-foreground">계약서 생성</h2>
           <p className="mt-1 text-xs text-muted-foreground">영업기회 정보를 기반으로 계약서 Word 파일을 생성합니다.</p>
         </header>
-        {loadError ? <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{loadError}</div> : null}
+        {loadError ? <SsooErrorNotice className="px-3 py-2" error={loadError} /> : null}
         {documentItem ? (
           <OpportunityContractDocumentCard
-            key={documentItem.id}
             opportunityId={documentItem.id}
             canGenerate={Boolean(
               opportunityAccess?.opportunityId === documentItem.id
@@ -1826,7 +1889,10 @@ export function OpportunityWorkspaceClient({
             onOpportunitySelect={(opportunityId) => router.replace(buildHref(query, { selected: opportunityId }))}
           />
         ) : (
-          <div className="rounded-md border border-dashed border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">계약서를 생성할 수 있는 확정 영업기회가 없습니다.</div>
+          <div className="space-y-4 rounded-md border border-dashed border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
+            <p>계약서를 생성할 수 있는 확정 영업기회가 없습니다.</p>
+            <Button asChild variant="outline"><a href={`${process.env.NEXT_PUBLIC_DMS_APP_URL?.replace(/\/$/, '') || 'http://localhost:3003'}/settings/system/templates`} target="_blank" rel="noreferrer">DMS 템플릿 관리</a></Button>
+          </div>
         )}
       </div>
     );
@@ -1834,39 +1900,31 @@ export function OpportunityWorkspaceClient({
 
   return (
     <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4 [&>*]:shrink-0" style={pageStyle}>
-      <Breadcrumb items={['CRM', '영업기회 목록']} />
+      <Breadcrumb items={['CRM', CRM_OPPORTUNITY_WORKSPACE_TITLE]} />
       {loadError ? (
-        <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{loadError}</div>
+        <SsooErrorNotice className="px-3 py-2" error={loadError} />
       ) : null}
       {workflowError ? (
-        <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{workflowError}</div>
+        <SsooErrorNotice className="px-3 py-2" error={workflowError} />
       ) : null}
       {selectedDetailError ? (
-        <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{selectedDetailError}</div>
+        <SsooErrorNotice className="px-3 py-2" error={selectedDetailError} />
       ) : null}
       {versionError ? (
-        <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{versionError}</div>
+        <SsooErrorNotice className="px-3 py-2" error={versionError} />
       ) : null}
       {historyError ? (
-        <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{historyError}</div>
+        <SsooErrorNotice className="px-3 py-2" error={historyError} />
       ) : null}
       {quotePreviewError ? (
-        <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{quotePreviewError}</div>
+        <SsooErrorNotice className="px-3 py-2" error={quotePreviewError} />
       ) : null}
       {accessError ? (
-        <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{accessError}</div>
+        <SsooErrorNotice className="px-3 py-2" error={accessError} />
       ) : null}
       {isReloading ? (
         <div className="rounded-md border border-ssoo-info-border bg-ssoo-info-bg px-3 py-2 text-sm text-ssoo-info">인증된 CRM 원장 데이터를 조회하는 중입니다.</div>
       ) : null}
-      {dashboardError ? (
-        <div className="rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">{dashboardError}</div>
-      ) : null}
-      <DashboardOverview
-        data={dashboardData}
-        isLoading={isDashboardLoading}
-        onRefresh={() => void loadDashboard()}
-      />
       <SourceOpportunityListSummary items={currentData.items} />
       <PageHeader
         query={query}
@@ -1976,13 +2034,11 @@ function Breadcrumb({ items }: { items: string[] }) {
 
 function DashboardOverview({
   data,
-  sourceOpportunities = [],
   isLoading,
   onRefresh,
   sourceOnly = false,
 }: {
   data: CrmDashboardResponse;
-  sourceOpportunities?: CrmOpportunity[];
   isLoading: boolean;
   onRefresh: () => void;
   sourceOnly?: boolean;
@@ -1990,40 +2046,9 @@ function DashboardOverview({
   const activePipeline = data.pipeline.filter((stage) => stage.status !== 'lost' && stage.status !== 'hold');
   const topActions = data.nextActions.slice(0, 4);
   const source = data.sourceCompatibility;
-  const sourceConfirmed = sourceOpportunities.filter((item) => item.confirmed && item.isLatest);
-  const sourceRevenueTotal = sourceConfirmed.reduce((sum, item) => sum + getSourceOpportunityRevenue(item), 0);
-  const sourceCostTotal = sourceConfirmed.reduce((sum, item) => sum + getSourceOpportunityCost(item), 0);
-  const sourceMarginTotal = sourceRevenueTotal - sourceCostTotal;
-  const sourceSummary = sourceOnly ? {
-    totalGroupCount: sourceOpportunities.length,
-    confirmedLatestCount: sourceConfirmed.length,
-    revenueTotal: sourceRevenueTotal,
-    costTotal: sourceCostTotal,
-    marginTotal: sourceMarginTotal,
-    marginRate: sourceRevenueTotal > 0 ? Math.round(sourceMarginTotal / sourceRevenueTotal * 100) : 0,
-  } : source.confirmedSummary;
-  const sourceStatusDistribution = sourceOnly ? sourceStatusLabels.map((status) => {
-    const count = sourceOpportunities.filter((item) => toSourceOpportunityStatus(item.status) === status).length;
-    return {
-      status,
-      count,
-      percentage: sourceOpportunities.length > 0 ? Math.round(count / sourceOpportunities.length * 100) : 0,
-    };
-  }) : source.statusDistribution;
-  const sourceRecentOpportunities = sourceOnly
-    ? [...sourceOpportunities]
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-      .slice(0, 5)
-      .map((item) => ({
-        id: item.id,
-        customerName: item.customerName,
-        opportunityName: item.opportunityName,
-        ownerName: item.ownerName,
-        status: toSourceOpportunityStatus(item.status),
-        updatedAt: item.updatedAt,
-        href: `/?sourceSurface=form&selected=${encodeURIComponent(item.id)}`,
-      }))
-    : source.recentOpportunities;
+  const sourceSummary = source.confirmedSummary;
+  const sourceStatusDistribution = source.statusDistribution;
+  const sourceRecentOpportunities = source.recentOpportunities;
 
   return (
     <section className="overflow-hidden rounded-lg border border-border bg-card">
@@ -2046,8 +2071,8 @@ function DashboardOverview({
       <div className="space-y-4 p-4" data-source-compatibility="dashboard">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <DashboardMetric label="전체 건수" value={`${sourceSummary.totalGroupCount}건`} sub={`확정 ${sourceSummary.confirmedLatestCount}건`} semanticLabel />
-          <DashboardMetric label="확정 매출액" value={formatSourceEok(sourceSummary.revenueTotal)} sub={formatWon(sourceSummary.revenueTotal)} semanticLabel />
-          <DashboardMetric label="확정 이익" value={formatSourceEok(sourceSummary.marginTotal)} sub={formatWon(sourceSummary.marginTotal)} semanticLabel />
+          <DashboardMetric label="확정 매출액" value={formatSourceEok(sourceSummary.revenueTotal)} sub={`${sourceSummary.revenueTotal.toLocaleString('ko-KR')}원`} semanticLabel />
+          <DashboardMetric label="확정 이익" value={formatSourceEok(sourceSummary.marginTotal)} sub={`${sourceSummary.marginTotal.toLocaleString('ko-KR')}원`} semanticLabel />
           <DashboardMetric label="확정 이익률" value={`${sourceSummary.marginRate}%`} sub="확정 기준" semanticLabel />
         </div>
 
@@ -2071,7 +2096,7 @@ function DashboardOverview({
             <h3 className="text-sm font-semibold text-foreground">최근 영업기회</h3>
             <div className="mt-3 divide-y divide-border">
               {sourceRecentOpportunities.map((item) => (
-                <Link key={item.id} href={sourceOnly ? `/?sourceSurface=form&selected=${encodeURIComponent(item.id)}` : item.href} className="flex items-center justify-between gap-3 py-2 transition-colors hover:bg-ssoo-content-bg">
+                <Link key={item.id} href={`/opportunities?sourceSurface=form&selected=${encodeURIComponent(item.id)}`} className="flex items-center justify-between gap-3 py-2 transition-colors hover:bg-ssoo-content-bg">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-foreground">{item.opportunityName}</div>
                     <div className="mt-0.5 truncate text-xs text-muted-foreground">{item.customerName} · {item.ownerName}</div>
@@ -2198,8 +2223,8 @@ function SourceOpportunityListSummary({ items, action }: { items: CrmOpportunity
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <DashboardMetric label="전체 건수" value={`${items.length}건`} sub="영업기회 그룹 기준" semanticLabel />
-        <DashboardMetric label="예상매출액" value={formatSourceEok(revenueTotal)} sub={formatWon(revenueTotal)} semanticLabel />
-        <DashboardMetric label="예상이익" value={formatSourceEok(marginTotal)} sub={formatWon(marginTotal)} semanticLabel />
+        <DashboardMetric label="예상매출액" value={formatSourceEok(revenueTotal)} sub={`${revenueTotal.toLocaleString('ko-KR')}원`} semanticLabel />
+        <DashboardMetric label="예상이익" value={formatSourceEok(marginTotal)} sub={`${marginTotal.toLocaleString('ko-KR')}원`} semanticLabel />
         <DashboardMetric label="평균 이익률" value={`${marginRate}%`} sub="최신차수 기준" semanticLabel />
       </div>
     </section>
@@ -2208,8 +2233,24 @@ function SourceOpportunityListSummary({ items, action }: { items: CrmOpportunity
 
 function SourceOpportunityListFilters({ query }: { query: OpportunityWorkspaceQuery }) {
   const router = useRouter();
+  const [searchValue, setSearchValue] = useState(query.search);
+  const submittedSearch = useRef<string | null>(null);
+  useEffect(() => {
+    // Earlier router commits must not replace a newer keystroke.
+    if (submittedSearch.current !== null && query.search !== submittedSearch.current) return;
+    submittedSearch.current = null;
+    setSearchValue(query.search);
+  }, [query.search]);
+  useEffect(() => {
+    const restoreSearch = () => {
+      submittedSearch.current = null;
+      setSearchValue(new URL(window.location.href).searchParams.get('search') ?? '');
+    };
+    window.addEventListener('popstate', restoreSearch);
+    return () => window.removeEventListener('popstate', restoreSearch);
+  }, []);
   const update = (patch: Partial<Record<'search' | 'sourceStatus' | 'sort', string>>) => {
-    router.replace(buildHref(query, { ...patch, selected: '', sourceSurface: 'list', create: '' }));
+    router.replace(buildHref({ ...query, search: searchValue }, { ...patch, selected: '', sourceSurface: 'list', create: '' }), { scroll: false });
   };
 
   return (
@@ -2219,11 +2260,10 @@ function SourceOpportunityListFilters({ query }: { query: OpportunityWorkspaceQu
         name="crm-opportunity-live-filter-query"
         ariaLabel="고객명, 영업기회명, 담당자 검색"
         intent="data-filter"
-        key={`source-search-${query.search}`}
-        defaultValue={query.search}
+        value={searchValue}
         placeholder="고객명, 영업기회명, 담당자 검색"
         className="min-w-[260px] flex-1"
-        onChange={(event) => update({ search: event.currentTarget.value })}
+        onChange={(event) => { submittedSearch.current = event.currentTarget.value; setSearchValue(event.currentTarget.value); update({ search: event.currentTarget.value }); }}
       />
       <NativeSelect
         id="list-status"
@@ -2378,7 +2418,7 @@ function PageHeader({
             <Button type="submit">
               <Search className="h-4 w-4" /> 검색
             </Button>
-            <Link href="/" className="inline-flex h-control-h items-center justify-center gap-2 rounded-md border border-ssoo-content-border bg-card px-4 py-2 text-sm font-medium text-ssoo-primary shadow-sm transition-colors hover:bg-ssoo-sitemap-bg">
+            <Link href={CRM_OPPORTUNITY_WORKSPACE_PATH} className="inline-flex h-control-h items-center justify-center gap-2 rounded-md border border-ssoo-content-border bg-card px-4 py-2 text-sm font-medium text-ssoo-primary shadow-sm transition-colors hover:bg-ssoo-sitemap-bg">
               <RotateCcw className="h-4 w-4" /> 초기화
             </Link>
           </div>
@@ -2431,7 +2471,7 @@ function OpportunityTable({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmOpportunityVersionListResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setVersionsByGroup((current) => ({
         ...current,
@@ -2491,11 +2531,12 @@ function OpportunityTable({
                   ) : null}
                   {isExpanded && versionErrors[item.groupId] ? (
                     <TableRow className="bg-ssoo-danger-bg">
-                      <TableCell className="h-9 px-4 py-2 text-sm text-ssoo-danger" colSpan={12}>{versionErrors[item.groupId]}</TableCell>
+                      <TableCell className="h-9 px-4 py-2 text-sm text-ssoo-danger" colSpan={12}><SsooErrorNotice compact error={versionErrors[item.groupId]} /></TableCell>
                     </TableRow>
                   ) : null}
                   {isExpanded ? previousVersions.map((version) => (
                     <PreviousOpportunityVersionRow
+                      sourceCompatible={sourceCompatible}
                       key={version.id}
                       version={version}
                       selected={version.id === selectedId}
@@ -2553,6 +2594,7 @@ function OpportunityRow({
   const marginRate = revenueTotal > 0
     ? sourceCompatible ? Math.round(marginTotal / revenueTotal * 100) : item.marginRate
     : 0;
+  const formatAmount = sourceCompatible ? formatSourceListAmount : formatSourceAmount;
   const ownerInitial = item.ownerName.trim().slice(0, 2);
   const cellContent = (children: ReactNode, ariaLabel?: string) => sourceCompatible
     ? children
@@ -2564,6 +2606,7 @@ function OpportunityRow({
       tabIndex={0}
       onClick={openRow}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           openRow();
@@ -2581,9 +2624,9 @@ function OpportunityRow({
                   {cellContent(sourceCompatible ? <><span className="mr-1 inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-ssoo-success-bg text-[9px] text-ssoo-success">{ownerInitial}</span>{' '}{item.ownerName || '-'}</> : item.ownerName || '-')}
                   {/* design/source-fidelity-override:end */}
       </TableCell>
-      <TableCell className={sourceCompatible ? 'whitespace-nowrap px-2 py-2 text-right font-medium text-foreground' : 'whitespace-nowrap p-0 text-right font-medium text-foreground'}>{cellContent(formatSourceAmount(revenueTotal))}</TableCell>
-      <TableCell className={sourceCompatible ? 'whitespace-nowrap px-2 py-2 text-right text-muted-foreground' : 'whitespace-nowrap p-0 text-right text-muted-foreground'}>{cellContent(formatSourceAmount(costTotal))}</TableCell>
-      <TableCell className={`whitespace-nowrap ${sourceCompatible ? 'px-2 py-2' : 'p-0'} text-right font-medium ${marginTotal >= 0 ? 'text-ssoo-info' : 'text-ssoo-danger'}`}>{cellContent(formatSourceAmount(marginTotal))}</TableCell>
+      <TableCell className={sourceCompatible ? 'whitespace-nowrap px-2 py-2 text-right font-medium text-foreground' : 'whitespace-nowrap p-0 text-right font-medium text-foreground'}>{cellContent(formatAmount(revenueTotal))}</TableCell>
+      <TableCell className={sourceCompatible ? 'whitespace-nowrap px-2 py-2 text-right text-muted-foreground' : 'whitespace-nowrap p-0 text-right text-muted-foreground'}>{cellContent(formatAmount(costTotal))}</TableCell>
+      <TableCell className={`whitespace-nowrap ${sourceCompatible ? 'px-2 py-2' : 'p-0'} text-right font-medium ${marginTotal >= 0 ? 'text-ssoo-info' : 'text-ssoo-danger'}`}>{cellContent(formatAmount(marginTotal))}</TableCell>
       <TableCell className={sourceCompatible ? 'whitespace-nowrap px-2 py-2 text-right font-medium text-ssoo-secondary' : 'whitespace-nowrap p-0 text-right font-medium text-ssoo-secondary'}>{cellContent(`${marginRate}%`)}</TableCell>
       <TableCell className={sourceCompatible ? 'whitespace-nowrap px-2 py-2 text-muted-foreground' : 'whitespace-nowrap p-0 text-muted-foreground'}>{cellContent(formatSourceDateRange(item.expectedStartDate, item.expectedEndDate))}</TableCell>
       <TableCell className={sourceCompatible ? 'whitespace-nowrap px-2 py-2' : 'whitespace-nowrap p-0'}>{cellContent(<span className={`rounded px-2 py-1 text-xs font-medium ${getSourceStatusClass(sourceStatus)}`}>{sourceStatus}</span>)}</TableCell>
@@ -2600,7 +2643,9 @@ function OpportunityRow({
   );
 }
 
-function PreviousOpportunityVersionRow({ version, selected, href }: { version: CrmOpportunityVersionSummary; selected: boolean; href: string }) {
+function PreviousOpportunityVersionRow({ version, selected, href, sourceCompatible }: { version: CrmOpportunityVersionSummary; selected: boolean; href: string; sourceCompatible: boolean }) {
+  const totals = sourceCompatible ? version.sourceTotals ?? version : version;
+  const formatAmount = sourceCompatible ? formatSourceListAmount : formatSourceAmount;
   const sourceStatus = toSourceOpportunityStatus(version.status);
   const linkClass = 'block h-full w-full px-2 py-2 text-inherit no-underline';
   const confirmationLabel = version.contractCreated ? '계약확정' : version.confirmed ? '확정' : '작성중';
@@ -2610,10 +2655,10 @@ function PreviousOpportunityVersionRow({ version, selected, href }: { version: C
       <TableCell className="whitespace-nowrap p-0 pl-3 text-xs text-muted-foreground"><Link className={linkClass} href={href}>↳ {version.customerName}</Link></TableCell>
       <TableCell className="whitespace-nowrap p-0 text-xs text-muted-foreground"><Link className={linkClass} href={href}>{version.opportunityName}</Link></TableCell>
       <TableCell className="whitespace-nowrap p-0 text-xs text-muted-foreground"><Link className={linkClass} href={href}>{version.ownerName || '-'}</Link></TableCell>
-      <TableCell className="whitespace-nowrap p-0 text-right text-xs text-muted-foreground"><Link className={linkClass} href={href}>{formatSourceAmount(version.revenueTotal)}</Link></TableCell>
-      <TableCell className="whitespace-nowrap p-0 text-right text-xs text-muted-foreground"><Link className={linkClass} href={href}>{formatSourceAmount(version.costTotal)}</Link></TableCell>
-      <TableCell className={`whitespace-nowrap p-0 text-right text-xs ${version.marginTotal >= 0 ? 'text-ssoo-info' : 'text-ssoo-danger'}`}><Link className={linkClass} href={href}>{formatSourceAmount(version.marginTotal)}</Link></TableCell>
-      <TableCell className="whitespace-nowrap p-0 text-right text-xs text-muted-foreground"><Link className={linkClass} href={href}>{version.marginRate}%</Link></TableCell>
+      <TableCell className="whitespace-nowrap p-0 text-right text-xs text-muted-foreground"><Link className={linkClass} href={href}>{formatAmount(totals.revenueTotal)}</Link></TableCell>
+      <TableCell className="whitespace-nowrap p-0 text-right text-xs text-muted-foreground"><Link className={linkClass} href={href}>{formatAmount(totals.costTotal)}</Link></TableCell>
+      <TableCell className={`whitespace-nowrap p-0 text-right text-xs ${totals.marginTotal >= 0 ? 'text-ssoo-info' : 'text-ssoo-danger'}`}><Link className={linkClass} href={href}>{formatAmount(totals.marginTotal)}</Link></TableCell>
+      <TableCell className="whitespace-nowrap p-0 text-right text-xs text-muted-foreground"><Link className={linkClass} href={href}>{totals.marginRate}%</Link></TableCell>
       <TableCell className="whitespace-nowrap p-0 text-xs text-muted-foreground"><Link className={linkClass} href={href}>{formatSourceDateRange(version.expectedStartDate, version.expectedEndDate)}</Link></TableCell>
       <TableCell className="whitespace-nowrap p-0"><Link className={linkClass} href={href}><span className={`rounded px-2 py-1 text-xs font-medium ${getSourceStatusClass(sourceStatus)}`}>{sourceStatus}</span></Link></TableCell>
       <TableCell className="whitespace-nowrap p-0"><Link className={linkClass} href={href}><span className="rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">{confirmationLabel}</span></Link></TableCell>
@@ -3349,6 +3394,7 @@ function QuotePreviewLineTable({
 function OpportunityEditor({
   mode,
   draft,
+  opportunity,
   readOnly = false,
   sourceCompatible = false,
   saveError,
@@ -3374,6 +3420,7 @@ function OpportunityEditor({
 }: {
   mode: OpportunityEditorMode;
   draft: OpportunityDraft;
+  opportunity?: CrmOpportunity;
   readOnly?: boolean;
   sourceCompatible?: boolean;
   saveError: string | null;
@@ -3386,7 +3433,7 @@ function OpportunityEditor({
   onSave: () => Promise<void>;
   onTextFieldChange: (field: OpportunityDraftTextField, value: string) => void;
   onSelectFieldChange: (field: OpportunityDraftSelectField, value: string) => void;
-  onOwnerUserIdChange: (ownerUserId: string) => void;
+  onOwnerUserIdChange: (ownerUserId: string, ownerName?: string) => void;
   onOwnerLookupSearchChange: (value: string) => void;
   onOwnerLookupReload: () => void;
   onLineChange: (
@@ -3406,11 +3453,9 @@ function OpportunityEditor({
   const businessTypeOptions = withCurrentCodeOption(commonCodes.options.biz_type ?? [], draft.businessType);
   const groupTypeOptions = withCurrentCodeOption(commonCodes.options.group_type ?? [], draft.industryLine);
   const paymentOptions = withCurrentCodeOption(
-    commonCodes.options.payment_term?.length
-      ? commonCodes.options.payment_term
-      : Object.entries(paymentTermLabels).map(([value, label]) => ({ value, label })),
+    commonCodes.options.payment_term ?? Object.entries(paymentTermLabels).map(([value, label]) => ({ value, label })),
     draft.paymentTermCode,
-    formatPaymentTerm(draft.paymentTermCode),
+    commonCodes.allOptions.payment_term?.find((option) => option.value === draft.paymentTermCode)?.label ?? formatPaymentTerm(draft.paymentTermCode),
   );
   const revenueSubtotal = sumDraftLines(draft.revenueLines);
   const specialDiscountAmount = getDraftDiscountAmount(
@@ -3426,6 +3471,10 @@ function OpportunityEditor({
   const ownerLookupStateText = isOwnerLookupLoading
     ? '조회 중'
     : `${ownerLookupItems.length.toLocaleString('ko-KR')}명`;
+  const [ownerDialogOpen, setOwnerDialogOpen] = useState(false);
+  const [pendingOwnerId, setPendingOwnerId] = useState('');
+  const [pendingOwnerName, setPendingOwnerName] = useState('');
+  const ownerSearchInput = <SsooSearchInput id={`crm-source-opportunity-owner-lookup-${fieldId}`} name="crm-source-opportunity-owner-lookup-query" ariaLabel="원본 영업기회 담당 사용자 검색" intent="entity-lookup" value={ownerLookupSearch} placeholder="이름, 계정, 이메일, 부서" onChange={(event) => onOwnerLookupSearchChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onOwnerLookupReload(); } }} />;
 
   if (sourceCompatible) {
     return (
@@ -3441,22 +3490,23 @@ function OpportunityEditor({
             <Button variant="plain" size="plain" type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={onCancel}>← 영업기회 현황으로 돌아가기</Button>
             <h2 className="mt-4 flex flex-wrap items-center gap-2 text-xl font-semibold text-foreground">
               {mode === 'create' ? '영업기회 등록' : readOnly ? '영업기회 조회' : '영업기회 수정'}
-              {readOnly ? <>{' '}<span className="rounded bg-ssoo-success-bg px-2 py-1 text-xs font-medium text-ssoo-success">확정됨</span></> : null}
+              {opportunity ? <span className="rounded bg-muted px-2 py-1 text-xs font-medium">{opportunity.version}차수 · {opportunity.contractCreated ? '계약확정' : opportunity.confirmed ? '확정' : opportunity.isLatest ? '작성중' : '이전차수'}</span> : null}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {readOnly ? '계약확정 상태입니다. [계약취소] 버튼으로 계약을 회수하고 확정 상태로 되돌릴 수 있습니다.' : '영업기회의 기본 정보와 매출·원가를 입력하세요.'}
+              {opportunity && !opportunity.isLatest ? '이전 차수는 조회만 가능합니다.' : opportunity?.contractCreated ? '계약확정 상태입니다. 계약취소 후에도 영업기회 확정은 유지됩니다.' : opportunity?.confirmed ? '확정된 영업기회입니다. 확정취소 후 수정할 수 있습니다.' : readOnly ? '조회 권한으로 열람 중입니다.' : '영업기회의 기본 정보와 매출·원가를 입력하세요.'}
             </p>
           </div>
 
           <fieldset disabled={readOnly} className="min-w-0 space-y-5 p-5 disabled:opacity-100">
             {saveError ? (
-              <div className="flex items-start gap-2 rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">
+              <SsooErrorNotice className="gap-2 px-3 py-2">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{saveError}</span>
-              </div>
+              </SsooErrorNotice>
             ) : null}
 
             <section className="space-y-4 rounded-lg border border-border bg-card p-5">
+              <BusinessOrganizationField value={draft.ownerOrganizationId} onChange={value => onTextFieldChange('ownerOrganizationId', value)} readOnly={readOnly || mode !== 'create'} />
               <SourceEditorField label="고객명 *" htmlFor={`${fieldId}-customer`}>
                 <Input id={`${fieldId}-customer`} required placeholder="고객사명 입력" value={draft.customerName} onChange={(event) => onTextFieldChange('customerName', event.target.value)} />
               </SourceEditorField>
@@ -3478,8 +3528,8 @@ function OpportunityEditor({
                 ) : (
                   <Fragment>
                     <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <SsooSearchInput id={`crm-source-opportunity-owner-lookup-${fieldId}`} name="crm-source-opportunity-owner-lookup-query" ariaLabel="원본 영업기회 담당 사용자 검색" intent="entity-lookup" value={ownerLookupSearch} placeholder="이름, 계정, 이메일" onChange={(event) => onOwnerLookupSearchChange(event.target.value)} />
-                      <Button variant="outline" type="button" disabled={isOwnerLookupLoading} onClick={onOwnerLookupReload}><Search className="h-3.5 w-3.5" /> 도움창</Button>
+                      {ownerDialogOpen ? <span className="truncate text-sm text-muted-foreground">{ownerLookupSearch}</span> : ownerSearchInput}
+                      <Button variant="outline" type="button" onClick={() => { setPendingOwnerId(draft.ownerUserId); setPendingOwnerName(draft.ownerName); setOwnerDialogOpen(true); onOwnerLookupReload(); }}><Search className="h-3.5 w-3.5" /> 도움창</Button>
                     </div>
                     <NativeSelect
                       className="mt-2"
@@ -3490,13 +3540,33 @@ function OpportunityEditor({
                       {draft.ownerUserId && !selectedOwnerInLookup ? <option value={draft.ownerUserId}>{draft.ownerName} · #{draft.ownerUserId}</option> : null}
                       {ownerLookupItems.map((item) => <option key={item.userId} value={item.userId}>{formatOwnerLookupLabel(item)}</option>)}
                     </NativeSelect>
-                    <p className={`mt-1 text-xs ${ownerLookupError ? 'text-ssoo-danger' : 'text-muted-foreground'}`}>{ownerLookupError ?? ownerLookupStateText}</p>
+                    {ownerLookupError ? <SsooErrorNotice as="p" compact className="mt-1" error={ownerLookupError} /> : <p className="mt-1 text-xs text-muted-foreground">{ownerLookupStateText}</p>}
+                    <Dialog open={ownerDialogOpen} onOpenChange={setOwnerDialogOpen}>
+                      <DialogContent aria-describedby={undefined}>
+                        <DialogTitle>영업담당자 선택</DialogTitle>
+                        <div className="flex gap-2">
+                          {ownerSearchInput}
+                          <Button type="button" variant="outline" disabled={isOwnerLookupLoading} onClick={onOwnerLookupReload}>검색</Button>
+                        </div>
+                        {ownerLookupError ? <SsooErrorNotice error={ownerLookupError} /> : null}
+                        <NativeSelect aria-label="담당자 후보" value={pendingOwnerId || OWNER_LOOKUP_EMPTY_VALUE} onChange={(event) => { const id = event.target.value === OWNER_LOOKUP_EMPTY_VALUE ? '' : event.target.value; setPendingOwnerId(id); const owner = ownerLookupItems.find((item) => item.userId === id); setPendingOwnerName(owner ? getOwnerLookupDisplayName(owner) : ''); }}>
+                          <option value={OWNER_LOOKUP_EMPTY_VALUE}>선택 안함</option>
+                          {pendingOwnerId && !ownerLookupItems.some((item) => item.userId === pendingOwnerId) ? <option value={pendingOwnerId}>{pendingOwnerName} · #{pendingOwnerId}</option> : null}
+                          {ownerLookupItems.map((item) => <option key={item.userId} value={item.userId}>{formatOwnerLookupLabel(item)}</option>)}
+                        </NativeSelect>
+                        <p className="text-sm text-muted-foreground">{isOwnerLookupLoading ? '조회 중' : ownerLookupItems.length ? ownerLookupStateText : '검색 결과가 없습니다.'}</p>
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" onClick={() => setOwnerDialogOpen(false)}>취소</Button>
+                          <Button type="button" disabled={isOwnerLookupLoading || Boolean(ownerLookupError)} onClick={() => { onOwnerUserIdChange(pendingOwnerId, pendingOwnerName); setOwnerDialogOpen(false); }}>선택 확인</Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </Fragment>
                 )}
               </SourceEditorField>
               <SourceEditorField label="상태" htmlFor={`${fieldId}-status`}>
                 <NativeSelect id={`${fieldId}-status`} value={draft.status} onChange={(event) => onSelectFieldChange('status', event.target.value)}>
-                  {Object.keys(statusLabels).map((value) => <option key={value} value={value}>{toSourceOpportunityStatus(value as CrmOpportunityStatus)}</option>)}
+                  {Object.entries(sourceFormStatusLabels).map(([value, label]) => <option key={value} value={value}>{opportunity?.contractCreated && value === draft.status ? '계약확정' : label}</option>)}
                 </NativeSelect>
               </SourceEditorField>
               <SourceEditorField label="수금조건" htmlFor={`${fieldId}-payment`}>
@@ -3511,8 +3581,8 @@ function OpportunityEditor({
                   {businessTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </NativeSelect>
               </SourceEditorField>
-              <SourceEditorField label="계열구분 *" htmlFor={`${fieldId}-group-type`}>
-                <NativeSelect id={`${fieldId}-group-type`} required value={draft.industryLine} onChange={(event) => onTextFieldChange('industryLine', event.target.value)}>
+              <SourceEditorField label="계열구분" htmlFor={`${fieldId}-group-type`}>
+                <NativeSelect id={`${fieldId}-group-type`} value={draft.industryLine} onChange={(event) => onTextFieldChange('industryLine', event.target.value)}>
                   <option value="">선택</option>
                   {groupTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </NativeSelect>
@@ -3530,10 +3600,13 @@ function OpportunityEditor({
                 <span className="text-center text-muted-foreground">~</span>
                 <Input id={`${fieldId}-expected-end`} type="date" value={draft.expectedEndDate} onChange={(event) => onTextFieldChange('expectedEndDate', event.target.value)} />
               </div>
+              {draft.expectedStartDate && draft.expectedEndDate && draft.expectedEndDate < draft.expectedStartDate
+                ? <SsooErrorNotice compact className="mt-2" error={formatDraftDuration(draft.expectedStartDate, draft.expectedEndDate)} />
+                : <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">기간: {formatDraftDuration(draft.expectedStartDate, draft.expectedEndDate)}</p>}
             </EditorSection>
 
-            <SourceEditorField label="다음 행동 *" htmlFor={`${fieldId}-next-action`}>
-              <Textarea id={`${fieldId}-next-action`} required value={draft.nextAction} onChange={(event) => onTextFieldChange('nextAction', event.target.value)} />
+            <SourceEditorField label="다음 행동" htmlFor={`${fieldId}-next-action`}>
+              <Textarea id={`${fieldId}-next-action`} value={draft.nextAction} onChange={(event) => onTextFieldChange('nextAction', event.target.value)} />
             </SourceEditorField>
 
             <LineEditorGroups
@@ -3571,13 +3644,18 @@ function OpportunityEditor({
                 </div>
                 <div>
                   <span className="mb-1 block text-xs font-medium text-muted-foreground">{draft.specialDiscountType === 'rate' ? 'Special DC (%)' : 'Special DC (원)'}</span>
-                  <Input id={`${fieldId}-discount-value`} type="number" min="0" value={draft.specialDiscountValue} onChange={(event) => onTextFieldChange('specialDiscountValue', event.target.value)} />
+                  <Input id={`${fieldId}-discount-value`} type="number" min="0" max={draft.specialDiscountType === 'rate' ? 100 : undefined} step={draft.specialDiscountType === 'rate' ? '0.01' : '1'} value={draft.specialDiscountValue} onChange={(event) => onTextFieldChange('specialDiscountValue', event.target.value)} />
                 </div>
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">금액은 원 단위로, 수량·할인율은 소수 둘째 자리까지 계산합니다. 할인은 매출액 한도 내에서 적용됩니다.</p>
+              {draft.specialDiscountType === 'rate' && parseDraftNumber(draft.specialDiscountValue) > 100
+                ? <SsooErrorNotice compact error="특별할인율은 0 이상 100 이하의 숫자여야 합니다." /> : null}
               <dl className="mt-4 grid gap-2 sm:grid-cols-3">
+                <Field label="할인 전 매출" value={formatWon(revenueSubtotal)} />
+                <Field label="적용 할인" value={formatWon(specialDiscountAmount)} />
                 <Field label="예상매출" value={formatWon(revenueTotal)} />
                 <Field label="예상원가" value={formatWon(costTotal)} />
-                <Field label="예상이익" value={`${formatWon(marginTotal)} · ${marginRate}%`} strong />
+                <Field label="예상이익" value={`${formatWon(marginTotal)} · ${sourceCompatible ? revenueTotal > 0 ? Math.round(marginTotal / revenueTotal * 100) : 0 : marginRate}%`} strong />
               </dl>
             </EditorSection>
           </fieldset>
@@ -3587,7 +3665,7 @@ function OpportunityEditor({
             {readOnly ? (
               <Fragment>
                 <Button variant="outline" type="button" disabled={!canQuote} onClick={onQuote}>견적서</Button>
-                <Button type="button" disabled={!canReopen} onClick={onReopen}>계약취소</Button>
+                {opportunity?.contractCreated ? <Button type="button" disabled={!canReopen} onClick={onReopen}>계약취소</Button> : null}
               </Fragment>
             ) : <Button type="submit" disabled={isSaving}><Save className="h-4 w-4" /> {isSaving ? '저장 중' : '저장'}</Button>}
           </div>
@@ -3619,13 +3697,14 @@ function OpportunityEditor({
 
         <fieldset disabled={readOnly} className="min-w-0 space-y-4 p-4 disabled:opacity-100">
           {saveError ? (
-            <div className="flex items-start gap-2 rounded-md border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">
+            <SsooErrorNotice className="gap-2 px-3 py-2">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{saveError}</span>
-            </div>
+            </SsooErrorNotice>
           ) : null}
 
           <EditorSection title="기본 정보">
+            <BusinessOrganizationField value={draft.ownerOrganizationId} onChange={value => onTextFieldChange('ownerOrganizationId', value)} readOnly={readOnly || mode !== 'create'} />
             <div className="grid grid-cols-2 gap-2">
               <EditorField label="고객사">
                 <Input required value={draft.customerName} onChange={(event) => onTextFieldChange('customerName', event.target.value)} />
@@ -3666,7 +3745,7 @@ function OpportunityEditor({
                   ))}
                 </NativeSelect>
                 {ownerLookupError ? (
-                  <p className="mt-1 text-xs text-ssoo-danger">{ownerLookupError}</p>
+                  <SsooErrorNotice as="p" compact className="mt-1" error={ownerLookupError} />
                 ) : (
                   <p className="mt-1 text-xs text-muted-foreground">{ownerLookupStateText}</p>
                 )}
@@ -3684,11 +3763,11 @@ function OpportunityEditor({
               </EditorField>
               <EditorField label="계열/산업">
                 {groupTypeOptions.length ? (
-                  <NativeSelect required value={draft.industryLine} onChange={(event) => onTextFieldChange('industryLine', event.target.value)} data-testid="opportunity-group-type-code">
+                  <NativeSelect value={draft.industryLine} onChange={(event) => onTextFieldChange('industryLine', event.target.value)} data-testid="opportunity-group-type-code">
                     <option value="">선택</option>
                     {groupTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </NativeSelect>
-                ) : <Input required value={draft.industryLine} onChange={(event) => onTextFieldChange('industryLine', event.target.value)} />}
+                ) : <Input value={draft.industryLine} onChange={(event) => onTextFieldChange('industryLine', event.target.value)} />}
               </EditorField>
               <EditorField label="지역">
                 <NativeSelect value={draft.region} onChange={(event) => onSelectFieldChange('region', event.target.value)}>
@@ -3711,7 +3790,7 @@ function OpportunityEditor({
                   {paymentOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </NativeSelect>
               </EditorField>
-              {commonCodes.error ? <p className="col-span-2 text-xs text-ssoo-warning">{commonCodes.error} 기존 입력 방식을 유지합니다.</p> : null}
+              {commonCodes.error ? <SsooErrorNotice as="p" compact className="col-span-2">{commonCodes.error} 기존 입력 방식을 유지합니다.</SsooErrorNotice> : null}
               <EditorField label="Special DC 방식">
                 <NativeSelect value={draft.specialDiscountType} onChange={(event) => onSelectFieldChange('specialDiscountType', event.target.value)}>
                   {Object.entries(discountTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -3736,7 +3815,7 @@ function OpportunityEditor({
                 <Input type="date" value={draft.expectedEndDate} onChange={(event) => onTextFieldChange('expectedEndDate', event.target.value)} />
               </EditorField>
               <EditorField label="다음 행동" className="col-span-2">
-                <Textarea required value={draft.nextAction} onChange={(event) => onTextFieldChange('nextAction', event.target.value)} />
+                <Textarea value={draft.nextAction} onChange={(event) => onTextFieldChange('nextAction', event.target.value)} />
               </EditorField>
             </div>
           </EditorSection>
@@ -3774,7 +3853,7 @@ function OpportunityEditor({
             <Field label="최종 매출" value={formatWon(revenueTotal)} strong />
             <Field label="원가 합계" value={formatWon(costTotal)} />
             <Field label="손익" value={formatWon(marginTotal)} strong />
-            <Field label="손익률" value={`${marginRate}%`} strong />
+            <Field label="손익률" value={`${sourceCompatible ? revenueTotal > 0 ? Math.round(marginTotal / revenueTotal * 100) : 0 : marginRate}%`} strong />
           </div>
         </fieldset>
       </form>
@@ -3930,42 +4009,42 @@ function LineEditorGroup({
             {indexedLines.map(({ line, index }) => (
               <TableRow key={line.id}>
                 <TableCell className="px-2 py-2">
-                  <Input disabled={kind === 'revenueLines' && Boolean(line.linkedCostLineId)} value={line.label} placeholder={category === 'product' ? '상품명' : '업무/역할'} onChange={(event) => onLineChange(kind, index, { label: event.target.value })} />
+                  <Input value={line.label} placeholder={category === 'product' ? '상품명' : '업무/역할'} onChange={(event) => onLineChange(kind, index, { label: event.target.value })} />
                 </TableCell>
                 {isServiceLike ? (
                   <TableCell className="px-2 py-2">
-                    <Input disabled={kind === 'revenueLines' && Boolean(line.linkedCostLineId)} value={line.department} placeholder="소속" onChange={(event) => onLineChange(kind, index, { department: event.target.value })} />
+                    <Input value={line.department} placeholder="소속" onChange={(event) => onLineChange(kind, index, { department: event.target.value })} />
                   </TableCell>
                 ) : null}
                 {isServiceLike ? (
                   <TableCell className="px-2 py-2">
-                    <Input disabled={kind === 'revenueLines' && Boolean(line.linkedCostLineId)} value={line.memberName} placeholder="성명/그룹" onChange={(event) => onLineChange(kind, index, { memberName: event.target.value })} />
+                    <Input value={line.memberName} placeholder="성명/그룹" onChange={(event) => onLineChange(kind, index, { memberName: event.target.value })} />
                   </TableCell>
                 ) : null}
                 {isServiceLike ? (
                   <TableCell className="px-2 py-2">
-                    <Input disabled={kind === 'revenueLines' && Boolean(line.linkedCostLineId)} value={line.grade} placeholder="등급" onChange={(event) => onLineChange(kind, index, { grade: event.target.value })} />
+                    <Input value={line.grade} placeholder="등급" onChange={(event) => onLineChange(kind, index, { grade: event.target.value })} />
                   </TableCell>
                 ) : null}
                 {isServiceLike ? (
                   <TableCell className="px-2 py-2">
-                    <NativeSelect disabled={kind === 'revenueLines' && Boolean(line.linkedCostLineId)} value={line.serviceType} onChange={(event) => onLineChange(kind, index, { serviceType: event.target.value as CrmOpportunityServiceType })}>
+                    <NativeSelect value={line.serviceType} onChange={(event) => onLineChange(kind, index, { serviceType: event.target.value as CrmOpportunityServiceType })}>
                       {Object.entries(serviceTypeLabels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}
                     </NativeSelect>
                   </TableCell>
                 ) : null}
                 <TableCell className="px-2 py-2">
-                  <Input disabled={kind === 'revenueLines' && Boolean(line.linkedCostLineId)} type="number" min="0" step="0.01" value={line.quantity} className="text-right" placeholder="0" onChange={(event) => onLineChange(kind, index, { quantity: event.target.value })} />
+                  <Input type="number" min="0" step="0.01" value={line.quantity} className="text-right" placeholder="0" onChange={(event) => onLineChange(kind, index, { quantity: event.target.value })} />
                 </TableCell>
                 <TableCell className="px-2 py-2">
-                  <Input disabled={kind === 'revenueLines' && Boolean(line.linkedCostLineId)} type="number" min="0" value={line.unitPrice} className="text-right" placeholder="0" onChange={(event) => onLineChange(kind, index, { unitPrice: event.target.value })} />
+                  <Input type="number" min="0" value={line.unitPrice} className="text-right" placeholder="0" onChange={(event) => onLineChange(kind, index, { unitPrice: event.target.value })} />
                 </TableCell>
                 <TableCell className="px-2 py-2">
-                  <Input disabled={kind === 'revenueLines' && Boolean(line.linkedCostLineId)} type="number" min="0" value={line.truncUnit} className="text-right" placeholder="0" onChange={(event) => onLineChange(kind, index, { truncUnit: event.target.value })} />
+                  <Input type="number" min="0" value={line.truncUnit} className="text-right" placeholder="0" onChange={(event) => onLineChange(kind, index, { truncUnit: event.target.value })} />
                 </TableCell>
                 {kind === 'revenueLines' ? (
                   <TableCell className="px-2 py-2">
-                    <Input disabled={Boolean(line.linkedCostLineId)} type="number" value={line.marginRate} className="text-right" placeholder="—" onChange={(event) => onLineChange(kind, index, { marginRate: event.target.value })} />
+                    <Input disabled={!line.linkedCostLineId} type="number" step="any" value={line.marginRate} className="text-right" placeholder="—" onChange={(event) => onLineChange(kind, index, { marginRate: event.target.value })} />
                   </TableCell>
                 ) : null}
                 {isCost ? (
@@ -3974,7 +4053,7 @@ function LineEditorGroup({
                       checked={line.revenueLinked}
                       onCheckedChange={(checked) => onLineChange(kind, index, {
                         revenueLinked: checked === true,
-                        revenueUnitPrice: checked === true && !line.revenueUnitPrice ? line.unitPrice : checked === true ? line.revenueUnitPrice : '',
+                        revenueUnitPrice: line.revenueUnitPrice,
                       })}
                       aria-label="매출 연동"
                     />

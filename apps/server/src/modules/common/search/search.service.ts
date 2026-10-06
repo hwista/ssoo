@@ -1,3 +1,4 @@
+import { PlatformAdmissionService } from '../onboarding/platform-admission.service.js';
 import { Injectable } from '@nestjs/common';
 import type {
   CommonSearchBlockedSourceSummary,
@@ -131,7 +132,7 @@ function resolveResponseRanker(capabilities: CommonSearchCapabilities): CommonSe
 
 @Injectable()
 export class CommonSearchService {
-  constructor(private readonly registry: CommonSearchRegistryService) {}
+  constructor(private readonly registry: CommonSearchRegistryService, private readonly admission: PlatformAdmissionService) {}
 
   async search(request: CommonSearchRequest, currentUser: TokenPayload): Promise<CommonSearchResponse> {
     const query = normalizeQuery(request.query);
@@ -151,7 +152,11 @@ export class CommonSearchService {
       };
     }
 
-    const providers = this.registry.list(request.sourceApp);
+    const userId = BigInt(currentUser.userId);
+    await this.admission.assertActive(userId);
+    const isAdmin = await this.admission.isPlatformAdmin(userId);
+    const allowed = new Set((await this.admission.grants(userId)).map((grant) => grant.serviceCode));
+    const providers = this.registry.list(request.sourceApp).filter((provider) => isAdmin || allowed.has(provider.sourceApp));
     const collections = await Promise.all(providers.map((provider) => provider.search({
       query,
       currentUser,

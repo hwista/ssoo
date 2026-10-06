@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useState } from 'react';
 import { GitBranchPlus, Link2, Plus, X } from 'lucide-react';
 import {
@@ -235,7 +236,7 @@ export function RelationsSection({ projectId }: RelationsSectionProps) {
             </div>
           </div>
           {isProjectLookupError ? (
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-destructive">
+            <SsooErrorNotice className="mt-2 gap-2">
               <span>프로젝트 조회 결과를 불러오지 못했습니다.</span>
               <Button
                 type="button"
@@ -246,7 +247,7 @@ export function RelationsSection({ projectId }: RelationsSectionProps) {
               >
                 다시 조회
               </Button>
-            </div>
+            </SsooErrorNotice>
           ) : (
             <p className="mt-2 text-xs text-muted-foreground">
               {selectedProject
@@ -260,7 +261,7 @@ export function RelationsSection({ projectId }: RelationsSectionProps) {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">프로젝트 관계를 불러오는 중...</p>
       ) : error ? (
-        <p className="text-sm text-destructive">프로젝트 관계를 불러오지 못했습니다.</p>
+        <SsooErrorNotice as="p" compact>프로젝트 관계를 불러오지 못했습니다.</SsooErrorNotice>
       ) : relations.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           현재 연결된 프로젝트 관계가 없습니다.

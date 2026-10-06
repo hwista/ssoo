@@ -1,5 +1,7 @@
 'use client';
 
+import { SsooErrorPanel, SsooErrorNotice } from '@ssoo/web-shell';
+
 import { LayoutGrid, Plus } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -25,7 +27,7 @@ export function BoardListPage() {
   const accessSnapshot = useAccessStore((state) => state.snapshot);
   const canReadFeed = accessSnapshot?.features.canReadFeed ?? false;
   const canManageBoards = accessSnapshot?.features.canManageBoards ?? false;
-  const { data, isLoading, isError, isFetching, refetch } = useBoards(canReadFeed);
+  const { data, isLoading, isError, isFetching, refetch, error } = useBoards(canReadFeed);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createdBoard, setCreatedBoard] = useState<BoardItem | null>(null);
   const router = useRouter();
@@ -34,11 +36,8 @@ export function BoardListPage() {
   if (!canReadFeed) {
     return (
       <div className="max-w-4xl mx-auto">
-        <EmptyState
-          icon={<LayoutGrid className="h-12 w-12" />}
-          title="게시판 접근 권한이 없습니다"
-          description="현재 계정에는 SNS 게시판을 조회할 권한이 없습니다."
-        />
+        <SsooErrorPanel kind="forbidden" title="게시판 접근 권한이 없습니다" description="현재 계정에는 SNS 게시판을 조회할 권한이 없습니다."
+          actions={[{ label: '다른 서비스·계정으로 이동', href: '/recovery' }]} />
       </div>
     );
   }
@@ -66,23 +65,21 @@ export function BoardListPage() {
           <Button asChild variant="outline" size="sm" className="max-w-full">
             <Link href={`/board/${createdBoard.id}`}><span className="truncate">{createdBoard.boardName} 열기</span></Link>
           </Button>
-          {isError && (
-            <div className="space-y-2">
-              <p className="text-body-sm text-destructive">생성은 완료됐지만 목록을 새로 불러오지 못했습니다.</p>
-              <Button variant="outline" size="sm" disabled={isFetching} onClick={() => void refetch()}>
-                목록 다시 불러오기
-              </Button>
-            </div>
-          )}
+
         </div>
       )}
 
+      {isError && boards.length > 0 ? <SsooErrorNotice error={error}
+        actions={[{ label: '목록 다시 불러오기', onClick: () => refetch(), disabled: isFetching }]} /> : null}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-32 rounded-lg" />
           ))}
         </div>
+      ) : isError && boards.length === 0 ? (
+        <SsooErrorPanel error={error} title={createdBoard ? '생성은 완료됐지만 목록을 불러오지 못했습니다' : '게시판 목록을 불러오지 못했습니다'}
+          onRetry={() => refetch()} retrying={isFetching} actions={[{ label: '피드로 이동', href: '/' }]} />
       ) : boards.length === 0 ? (
         <EmptyState
           icon={<LayoutGrid className="h-12 w-12" />}

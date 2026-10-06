@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useMemo, useState } from 'react';
 import { Users, Plus, X } from 'lucide-react';
 import {
@@ -325,12 +326,12 @@ export function MembersTab({ projectId }: Props) {
                 </SelectContent>
               </Select>
               {isUserLookupError ? (
-                <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                <SsooErrorNotice className="gap-3 px-3 py-2">
                   <span>{userLookupError?.message ?? '사용자 목록을 불러오지 못했습니다.'}</span>
                   <Button variant="outline" size="sm" onClick={() => refetchUserLookup()}>
                     다시 시도
                   </Button>
-                </div>
+                </SsooErrorNotice>
               ) : selectedUser ? (
                 <p className="text-xs text-muted-foreground">
                   {[selectedUser.email, selectedUser.primaryOrganizationName, selectedUser.departmentCode]

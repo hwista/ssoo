@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const require = createRequire(new URL('../packages/web-shell/package.json', import.meta.url));
+const { createElement } = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+const { ssooToast, showSsooErrorAlert, SsooErrorToast } = require('./dist/error-toast.js');
+const { toast: rawToast } = require('sonner');
+let checks=0;
+for (const method of ['error','warning']) {
+  const id=ssooToast[method]('업무 처리 실패', {id:`routing-${method}`, description:'다시 확인해 주세요.', duration:12000, action:{label:'재시도',onClick(){}}});
+  const saved=rawToast.getToasts().find(item=>item.id===id);
+  assert.equal(typeof saved.title, 'function', 'Sonner must retain its standard action layout');
+  const html=renderToStaticMarkup(saved.title());
+  assert.match(html,/data-ssoo-error="notice"/);assert.match(html,/업무 처리 실패/);assert.match(html,/다시 확인해 주세요/);
+  assert.equal(saved.description,undefined);assert.equal(saved.duration,12000);assert.equal(saved.action.label,'재시도');checks++;
+}
+const html=renderToStaticMarkup(createElement(SsooErrorToast,{message:()=>'<html>private upstream</html>',description:'password=secret'}));
+assert.match(html,/data-ssoo-error="notice"/);assert.doesNotMatch(html,/private upstream|password=secret/);checks++;
+const alertId=showSsooErrorAlert('등록하지 못했습니다.');
+const alert=rawToast.getToasts().find(item=>item.id===alertId);
+assert.equal(alert.duration,Infinity);assert.equal(alert.style.display,'none');
+assert.equal(typeof alert.title,'function');
+const acknowledgement=alert.title();assert.equal(acknowledgement.props.message,'등록하지 못했습니다.');
+acknowledgement.props.onDismiss();assert.ok(!rawToast.getToasts().some(item=>item.id===alertId));checks++;
+const result=ssooToast.promise(Promise.reject(new Error('저장 거절')), {id:'routing-promise',loading:'저장 중',success:'저장됨',error:error=>`입력 확인: ${error.message}`,description:()=> 'password=private-value'});
+await assert.rejects(result.unwrap());await new Promise(resolve=>setTimeout(resolve,0));
+const failure=rawToast.getToasts().find(item=>item.id==='routing-promise');
+assert.equal(failure.type,'error');assert.equal(failure.title,'');assert.match(renderToStaticMarkup(failure.description),/data-ssoo-error="notice"/);assert.match(renderToStaticMarkup(failure.description),/입력 확인: 저장 거절/);assert.doesNotMatch(renderToStaticMarkup(failure.description),/private-value/);checks++;
+const successId=ssooToast.success('정상 저장');const success=rawToast.getToasts().find(item=>item.id===successId);assert.equal(success.title,'정상 저장');assert.equal(success.type,'success');checks++;
+assert.notEqual(ssooToast,rawToast);assert.notEqual(ssooToast.error,rawToast.error);checks++;
+console.log(`[error-toast] ${checks} template, redaction, acknowledgement, action, promise and success contracts passed`);

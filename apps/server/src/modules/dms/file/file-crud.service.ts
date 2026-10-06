@@ -231,7 +231,7 @@ export class FileCrudService {
     filePath: string,
     content: string,
     currentUser: TokenPayload,
-    options?: { expectedRevisionSeq?: number },
+    options?: { expectedRevisionSeq?: number; businessOrganizationId?: string },
   ): Promise<FileCrudResult<{ message: string; metadata?: DocumentMetadata }>> {
     const { targetPath, valid, safeRelPath } = this.resolveFilePath(filePath);
     if (!valid) {
@@ -266,6 +266,18 @@ export class FileCrudService {
           ownerLoginId: currentUser.loginId,
           visibility: { scope: 'self' },
         };
+        // Only trusted business services supply this option, after checking the source record.
+        const organizationId = options?.businessOrganizationId;
+        if (organizationId !== undefined) {
+          if (!/^[1-9]\d{0,18}$/.test(organizationId) || BigInt(organizationId) > 9223372036854775807n) {
+            return { success: false, error: '업무 문서의 공개 대상 조직이 필요합니다.', status: 400 };
+          }
+          const previousVisibility = existingMetadata.visibility as DocumentMetadata['visibility'];
+          if (previousVisibility?.targetOrgId && previousVisibility.targetOrgId !== organizationId) {
+            return { success: false, error: '다른 조직의 업무 문서 경로를 덮어쓸 수 없습니다.', status: 403 };
+          }
+          existingMetadata.visibility = { scope: 'organization', targetOrgId: organizationId };
+        }
         const result = contentService.save(
           safeRelPath,
           content,

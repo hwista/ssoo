@@ -41,8 +41,8 @@ export class OperationsController {
   @ApiOkResponse({ description: '원천 데모 시스템 관리 항목을 SSOO 공용 Admin/Auth/DMS 경계로 재해석한 읽기용 preview' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 운영 기준 preview 조회 권한 없음' })
-  async preview(@Query() query: CrmOperationsPreviewQueryDto) {
-    return success(await this.operationsService.getPreview(query));
+  async preview(@Query() query: CrmOperationsPreviewQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.operationsService.getPreview(query, currentUser));
   }
 
   @Get('access')
@@ -60,10 +60,10 @@ export class OperationsController {
   ) {
     const [access, preview, settings, readiness, dataQuality] = await Promise.all([
       this.accessService.getOperationsAccess(currentUser),
-      this.operationsService.getPreview(query),
+      this.operationsService.getPreview(query, currentUser),
       this.settingsService.getDefault(),
       this.readinessService.getReadiness(),
-      this.dataQualityService.getReport(),
+      this.dataQualityService.getReport(currentUser),
     ]);
     return success({ access, preview, settings, readiness, dataQuality });
   }
@@ -78,29 +78,29 @@ export class OperationsController {
   @Get('launch-readiness')
   @RequireCrmOperationsFeature('canReadOperations')
   @ApiOperation({ summary: 'CRM owner launch readiness snapshot' })
-  async launchReadiness() {
-    return success(await this.launchReadinessService.getSnapshot());
+  async launchReadiness(@CurrentUser() currentUser: TokenPayload) {
+    return success(await this.launchReadinessService.getSnapshot(currentUser));
   }
 
   @Get('data-quality')
   @RequireCrmOperationsFeature('canReadOperations')
   @ApiOperation({ summary: 'CRM 원장 데이터 품질 진단' })
-  async dataQuality() {
-    return success(await this.dataQualityService.getReport());
+  async dataQuality(@CurrentUser() currentUser: TokenPayload) {
+    return success(await this.dataQualityService.getReport(currentUser));
   }
 
   @Get('attempts')
   @RequireCrmOperationsFeature('canReadOperations')
   @ApiOperation({ summary: 'CRM 운영 attempt 원장 조회' })
-  async attempts(@Query() query: CrmOperationAttemptListQueryDto) {
-    return success(await this.attemptService.list(query));
+  async attempts(@Query() query: CrmOperationAttemptListQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.attemptService.list(query, currentUser));
   }
 
   @Get('attempts/:id')
   @RequireCrmOperationsFeature('canReadOperations')
   @ApiOperation({ summary: 'CRM 운영 attempt 상세 조회' })
-  async attempt(@Param('id') id: string) {
-    return success(await this.attemptService.get(id));
+  async attempt(@Param('id') id: string, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.attemptService.get(id, currentUser));
   }
 
   @Post('attempts/:id/retry')

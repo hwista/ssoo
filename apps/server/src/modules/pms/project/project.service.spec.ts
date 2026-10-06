@@ -7,6 +7,7 @@ import type {
 } from '@ssoo/types';
 import type { AiIndexJobRequest, AiIndexJobSnapshot } from '@ssoo/types/common';
 import type { DatabaseService } from '../../../database/database.service.js';
+import type { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
 import type { AccessFoundationService } from '../../common/access/access-foundation.service.js';
 import type { AiIndexingService } from '../../common/ai-index/ai-indexing.service.js';
 import type { ProjectOrgService } from './project-org.service.js';
@@ -211,6 +212,7 @@ function createProjectServiceFixture(): ProjectServiceFixture {
     projectOrgService,
     projectRelationService,
     aiIndexingService,
+    { resolveBusinessOrganization: async (_user: bigint, _service: string, id?: string) => BigInt(id ?? '100') } as unknown as PlatformAdmissionService,
   );
 
   return {

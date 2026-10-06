@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, ArrowUpRight, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Badge, Button } from '@ssoo/web-ui';
@@ -86,7 +87,7 @@ export function LaunchReadinessPanel() {
           <RefreshCw className="h-4 w-4" /> {isLoading ? '확인 중' : '새로고침'}
         </Button>
       </div>
-      {error ? <div role="alert" className="flex items-start gap-2 border-b bg-ssoo-danger-bg px-5 py-3 text-sm text-ssoo-danger"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div> : null}
+      {error ? <SsooErrorNotice className="gap-2 px-5 py-3"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}</SsooErrorNotice> : null}
       {isLoading && !data ? <div className="px-5 py-6 text-sm text-muted-foreground">CRM·DMS live readiness를 확인하는 중입니다.</div> : null}
       {data ? (
         <div className="grid gap-4 p-5 lg:grid-cols-2">

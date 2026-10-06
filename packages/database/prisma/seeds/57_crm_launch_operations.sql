@@ -63,7 +63,7 @@ with source_codes(code_group, code_value) as (
          row_number() over (partition by code_group order by trim(code_value)) * 10 as sort_order
     from source_codes
 )
-insert into pms.cm_code_m (
+insert into common.cm_code_m (
   code_group, code_value, display_name_ko, description, sort_order,
   is_active, memo, last_source, last_activity, updated_at
 )
@@ -96,27 +96,10 @@ with years(value) as (
   union
   select extract(year from current_date)::integer
 )
-insert into pms.cm_code_m (
-  code_group, code_value, display_name_ko, description, sort_order,
-  is_active, memo, last_source, last_activity, updated_at
-)
-select
-  'biz_year',
-  value::text,
-  value::text || '년',
-  'CRM 계획·실적 운영 사업연도',
-  value,
-  true,
-  'CRM launch operations business year',
-  'crm-launch-operations-seed',
-  'seed.crm-launch-operations',
-  current_timestamp
-from years
-where value between 2000 and 2100
-on conflict (code_group, code_value) do update
-set is_active = true,
-    last_source = excluded.last_source,
-    last_activity = excluded.last_activity,
-    updated_at = current_timestamp;
+insert into crm.crm_business_year_m (year, display_name, description, sort_order, is_active, memo, last_source, last_activity)
+select value, value::text || '년', 'CRM 계획·실적 운영 사업연도', value, true,
+ 'CRM launch operations business year', 'crm-launch-operations-seed', 'seed.crm-launch-operations'
+from years where value between 2000 and 2100
+on conflict (year) do nothing;
 
 commit;

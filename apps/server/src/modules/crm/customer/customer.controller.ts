@@ -35,8 +35,8 @@ export class CustomerController {
   @ApiOkObjectResponse({ description: 'CRM 고객 원장 목록과 요약' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 고객 조회 권한 없음' })
-  async list(@Query() query: CrmCustomerListQueryDto) {
-    return success(await this.customerService.listResponse(query));
+  async list(@Query() query: CrmCustomerListQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.customerService.listResponse(query, currentUser));
   }
 
   @Get('access/me')

@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "pnpm run build:observed",
-    "build:raw": "pnpm run verify:ui-primitives && pnpm run verify:ui-consumption && pnpm run verify:ui-style-boundary && pnpm run verify:input-intent && turbo build --concurrency=1",
+    "build:raw": "pnpm run verify:ui-primitives && pnpm run verify:ui-consumption && pnpm run verify:ui-style-boundary && pnpm run verify:input-intent && pnpm run verify:error-routing && turbo build --concurrency=1",
     "build:observed": "bash scripts/run-observed-command.sh --command 'pnpm run build:raw' --verification-command-label 'pnpm run build:raw'",
     "lint": "pnpm run lint:observed",
     "lint:raw": "turbo lint",
@@ -152,6 +152,9 @@
     "verify:crm-accounting-payment-provider-report": "node scripts/verify-crm-accounting-payment-provider-report.mjs",
     "verify:crm-accounting-payment-provider-report:template": "node scripts/verify-crm-accounting-payment-provider-report.mjs --template",
     "verify:crm-accounting-payment-provider-report:self-test": "node scripts/verify-crm-accounting-payment-provider-report.mjs --self-test",
+    "verify:crm-source-list": "node scripts/verify-crm-source-list.mjs",
+    "verify:crm-source-form": "node scripts/verify-crm-source-form.mjs",
+    "verify:home-navigation": "node scripts/verify-home-navigation.mjs",
     "verify:ssoo-frame": "pnpm run verify:ssoo-frame:observed",
     "verify:ssoo-frame:raw": "node scripts/verify-ssoo-frame.mjs",
     "verify:ssoo-frame:observed": "bash scripts/run-observed-command.sh --command 'pnpm run verify:ssoo-frame:raw' --verification-command-label 'pnpm run verify:ssoo-frame:raw'",
@@ -233,6 +236,7 @@
     "codex:check": "pnpm run codex:verify-sync && pnpm run codex:preflight",
     "codex:preflight": "pnpm run codex:preflight:observed",
     "codex:preflight:raw": "bash .codex/hooks/preflight.sh",
+    "codex:platform-guard": "bash .codex/hooks/platform-guard.sh",
     "codex:dms-guard": "bash .codex/hooks/dms-guard.sh",
     "codex:push-guard": "bash .codex/hooks/push-guard.sh",
     "codex:workspace-sync-from-gitlab": "bash .codex/scripts/workspace-sync-from-gitlab.sh",
@@ -267,7 +271,9 @@
     "verify:dms-markdown-security": "node scripts/verify-dms-markdown-security.mjs",
     "verify:dms-document-hydration": "pnpm --filter web-dms check:document-hydration-contract",
     "dev:web-crm": "turbo dev --filter=web-crm",
-    "build:web-crm": "turbo build --filter=web-crm"
+    "build:web-crm": "turbo build --filter=web-crm",
+    "verify:error-recovery": "pnpm --filter @ssoo/web-shell build && pnpm --filter @ssoo/web-auth build && node scripts/verify-error-recovery.mjs && node scripts/verify-anonymous-session.mjs && node scripts/verify-access-recovery.mjs && node scripts/verify-editor-recovery.mjs && node scripts/verify-error-toast.mjs && node scripts/verify-assistant-error-recovery.mjs && pnpm run verify:error-routing",
+    "verify:error-routing": "node scripts/verify-error-routing.mjs --self-test && node scripts/verify-error-routing.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.3.1",

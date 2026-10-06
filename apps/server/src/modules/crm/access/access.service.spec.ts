@@ -74,6 +74,7 @@ function createService(options?: {
   const actionPermissionCodes = new Set(options?.actionPermissionCodes ?? []);
   const objectRevokedPermissionCodes = new Set(options?.objectRevokedPermissionCodes ?? []);
   const accessFoundation = {
+    getBusinessOrganizationScope: async () => null,
     resolveActionPermissionContext: async () => ({
       grantedPermissionCodes: new Set(actionPermissionCodes),
       roleCode: 'user',
@@ -384,6 +385,8 @@ describe('CrmAccessService', () => {
       canConfirmReport: false,
       canReadQuoteSettings: true,
       canManageQuoteSettings: false,
+      canReadBusinessYear: false,
+      canManageBusinessYear: false,
     });
     expect((await manager.getDomainAccess(testUser)).features).toEqual({
       canReadContract: true,
@@ -400,11 +403,21 @@ describe('CrmAccessService', () => {
       canConfirmReport: true,
       canReadQuoteSettings: true,
       canManageQuoteSettings: false,
+      canReadBusinessYear: false,
+      canManageBusinessYear: false,
     });
     await expect(viewer.assertDomainCapability(testUser, 'canWriteContract'))
       .rejects.toBeInstanceOf(ForbiddenException);
     await expect(manager.assertDomainCapability(testUser, 'canConfirmCostPlan'))
       .resolves.toBeDefined();
+  });
+
+  it('separates business-year read/manage permissions and allows management to read', async () => {
+    const reader = createService({ actionPermissionCodes: ['crm.business-year.read'] }).service;
+    const manager = createService({ actionPermissionCodes: ['crm.business-year.manage'] }).service;
+    expect((await reader.getDomainAccess(testUser)).features).toMatchObject({ canReadBusinessYear: true, canManageBusinessYear: false });
+    await expect(reader.assertDomainCapability(testUser, 'canManageBusinessYear')).rejects.toBeInstanceOf(ForbiddenException);
+    expect((await manager.getDomainAccess(testUser)).features).toMatchObject({ canReadBusinessYear: true, canManageBusinessYear: true });
   });
 
   it('allows every CRM domain capability with system override', async () => {

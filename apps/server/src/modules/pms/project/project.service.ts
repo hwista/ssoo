@@ -24,6 +24,7 @@ import type {
   ProjectDashboardSummary,
 } from '@ssoo/types';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
 import { AccessFoundationService } from '../../common/access/access-foundation.service.js';
 import { AiIndexingService } from '../../common/ai-index/ai-indexing.service.js';
 import { ProjectOrgService } from './project-org.service.js';
@@ -189,6 +190,7 @@ export class ProjectService {
     private readonly projectOrgService: ProjectOrgService,
     private readonly projectRelationService: ProjectRelationService,
     private readonly aiIndexingService: AiIndexingService,
+    private readonly admission: PlatformAdmissionService,
   ) {}
 
   async findAll(params: FindProjectsParams, currentUser: TokenPayload) {
@@ -244,6 +246,7 @@ export class ProjectService {
     const userId = BigInt(currentUser.userId);
     const now = new Date();
     const userOrgIds = await this.accessFoundationService.getUserOrganizationIds(userId, now);
+    const organizationScope = await this.accessFoundationService.getBusinessOrganizationScope(userId, 'pms');
     const accessFilters: Prisma.ProjectWhereInput[] = [
       { currentOwnerUserId: userId },
       {
@@ -265,6 +268,7 @@ export class ProjectService {
 
     return {
       ...baseWhere,
+      ...(organizationScope !== null && { AND: [...(searchWhere ? [searchWhere] : []), { ownerOrganizationId: { in: organizationScope } }] }),
       OR: accessFilters,
     };
   }
@@ -343,16 +347,16 @@ export class ProjectService {
   }
 
   async create(dto: CreateProjectDto, actorUserId: bigint) {
-    const ownerOrganizationId = await this.resolveCreateOwnerOrganizationId(dto, actorUserId);
     const assetAnchors = await this.resolveCreateAssetAnchors(dto);
 
     const project = await this.db.client.$transaction(async (tx) => {
+      const ownerOrganizationId = await this.admission.resolveBusinessOrganization(actorUserId, 'pms', dto.ownerOrganizationId, tx);
       const project = await tx.project.create({
         data: {
           projectName: dto.projectName,
           statusCode: dto.statusCode || 'request',
           stageCode: dto.stageCode || 'waiting',
-          currentOwnerUserId: dto.ownerId ? BigInt(dto.ownerId) : null,
+          currentOwnerUserId: dto.ownerId ? BigInt(dto.ownerId) : actorUserId,
           ownerOrganizationId,
           customerId: assetAnchors.customerId,
           plantId: assetAnchors.plantId,
@@ -374,7 +378,6 @@ export class ProjectService {
   }
 
   async update(id: bigint, dto: UpdateProjectDto, actorUserId: bigint) {
-    const ownerOrganizationId = await this.resolveUpdateOwnerOrganizationId(dto, actorUserId);
     const existing = await this.db.project.findUnique({
       where: { id },
       select: {
@@ -395,6 +398,9 @@ export class ProjectService {
     });
 
     const project = await this.db.client.$transaction(async (tx) => {
+      // Changing the responsible person never silently transfers the business organization.
+      const ownerOrganizationId = dto.ownerOrganizationId === undefined ? undefined
+        : await this.admission.resolveBusinessOrganization(actorUserId, 'pms', dto.ownerOrganizationId, tx);
       const project = await tx.project.update({
         where: { id },
         data: {
@@ -1157,18 +1163,6 @@ export class ProjectService {
     }
   }
 
-  private async resolveCreateOwnerOrganizationId(
-    dto: CreateProjectDto,
-    actorUserId: bigint,
-  ): Promise<bigint | null> {
-    if (dto.ownerOrganizationId) {
-      return BigInt(dto.ownerOrganizationId);
-    }
-
-    const ownerUserId = dto.ownerId ? BigInt(dto.ownerId) : actorUserId;
-    return this.findPrimaryOrganizationId(ownerUserId);
-  }
-
   private async resolveCreateAssetAnchors(dto: CreateProjectDto): Promise<ProjectAssetAnchors> {
     return this.resolveProjectAssetAnchors({
       customerId: this.parseNullableId(dto.customerId, 'customerId'),
@@ -1352,38 +1346,7 @@ export class ProjectService {
     return instance;
   }
 
-  private async resolveUpdateOwnerOrganizationId(
-    dto: UpdateProjectDto,
-    _actorUserId: bigint,
-  ): Promise<bigint | null | undefined> {
-    if (dto.ownerOrganizationId !== undefined) {
-      return dto.ownerOrganizationId ? BigInt(dto.ownerOrganizationId) : null;
-    }
 
-    if (dto.ownerId) {
-      return this.findPrimaryOrganizationId(BigInt(dto.ownerId));
-    }
-
-    return undefined;
-  }
-
-  private async findPrimaryOrganizationId(userId: bigint): Promise<bigint | null> {
-    const relation = await this.db.client.userOrganizationRelation.findFirst({
-      where: {
-        userId,
-        isActive: true,
-      },
-      orderBy: [
-        { isPrimary: 'desc' },
-        { updatedAt: 'desc' },
-      ],
-      select: {
-        orgId: true,
-      },
-    });
-
-    return relation?.orgId ?? null;
-  }
 
   private async attachProjectReadAnchors<T extends {
     customerId?: bigint | null;

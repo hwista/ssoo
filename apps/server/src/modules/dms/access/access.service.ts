@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import type { DmsAccessSnapshot, DmsFeatureAccess } from '@ssoo/types/dms';
 import { AccessFoundationService } from '../../common/access/access-foundation.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
 
 const DMS_PERMISSION_CODES = {
   readDocuments: 'dms.document.read',
@@ -41,9 +42,20 @@ export type DmsFeatureKey = keyof DmsFeatureAccess;
 
 @Injectable()
 export class AccessService {
-  constructor(private readonly accessFoundationService: AccessFoundationService) {}
+  constructor(
+    private readonly accessFoundationService: AccessFoundationService,
+    private readonly admission: PlatformAdmissionService,
+  ) {}
 
   async getAccessSnapshot(user: TokenPayload): Promise<DmsAccessSnapshot> {
+    const userId = BigInt(user.userId);
+    await this.admission.assertService(userId, 'dms');
+    const grants = (await this.admission.grants(userId)).filter(grant => grant.serviceCode === 'dms');
+    user.dmsLegacyOrganizationVisibility = grants.some(grant => grant.sourceCode === 'migration' || grant.sourceCode === 'bootstrap')
+      || await this.admission.isPlatformAdmin(userId);
+    const membershipIds = new Set((await this.accessFoundationService.getUserOrganizationIds(userId)).map(id => id.toString()));
+    user.dmsOrganizationIds = (await this.admission.businessOrganizations(userId, 'dms'))
+      .map(org => org.orgId.toString()).filter(id => membershipIds.has(id));
     const accessContext = await this.accessFoundationService.resolveActionPermissionContext(user);
     const canManageSettings = accessContext.roleCode === 'admin';
 

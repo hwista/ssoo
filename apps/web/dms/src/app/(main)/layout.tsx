@@ -1,5 +1,6 @@
 'use client';
 
+import { SharedSessionRecovery } from '@ssoo/web-auth';
 import { useCallback, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AuthLoadingScreen, useProtectedAppBootstrap } from '@ssoo/web-auth';
@@ -102,6 +103,8 @@ export default function MainLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const sessionError = useAuthStore(state => state.sessionError);
+  const accessToken = useAuthStore(state => state.accessToken);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
   const authIsLoading = useAuthStore((state) => state.isLoading);
@@ -179,6 +182,7 @@ export default function MainLayout({
       const response = await commentsApi.list(normalizedPath);
       if (!response.success || !response.data) {
         console.warn('댓글 목록 실시간 갱신 실패', { path: normalizedPath, error: response.error });
+        toast.error('댓글 목록을 갱신하지 못했습니다. 기존 목록은 유지됩니다.', { id: `comments-refresh-${normalizedPath}` });
         return;
       }
 
@@ -201,6 +205,7 @@ export default function MainLayout({
       }
     } catch (error) {
       console.warn('댓글 목록 실시간 갱신 중 오류', { path: normalizedPath, error });
+      toast.error('댓글 목록을 갱신하지 못했습니다. 기존 목록은 유지됩니다.', { id: `comments-refresh-${normalizedPath}` });
     }
   }, []);
   const refreshOpenDocumentTabsForFileChange = useCallback((event: DmsFileChangedEvent) => {
@@ -319,6 +324,7 @@ export default function MainLayout({
     hasHydrated,
     isAuthenticated,
     authIsLoading,
+    sessionError,
     accessHasLoaded,
     accessIsLoading,
     checkAuth,
@@ -386,6 +392,8 @@ export default function MainLayout({
     void refreshFileTree({ forceSync: true });
   }, [refreshFileTree, shouldPrepareDocumentTree]);
 
+  if (sessionError && (!accessToken || !accessHasLoaded)) return <SharedSessionRecovery authStore={useAuthStore} />;
+
   if (showLoading) {
     return <AuthLoadingScreen />;
   }
@@ -394,5 +402,5 @@ export default function MainLayout({
     return null;
   }
 
-  return children;
+  return <SharedSessionRecovery authStore={useAuthStore}>{children}</SharedSessionRecovery>;
 }

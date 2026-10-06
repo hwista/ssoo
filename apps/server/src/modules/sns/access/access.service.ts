@@ -4,6 +4,7 @@ import type { SnsAccessSnapshot, SnsFeatureAccess, SnsVisibilityScopeCode } from
 import { DatabaseService } from '../../../database/database.service.js';
 import { AccessFoundationService } from '../../common/access/access-foundation.service.js';
 import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
 
 const SNS_PERMISSION_CODES = {
   readFeed: 'sns.feed.read',
@@ -50,6 +51,7 @@ export class AccessService {
   constructor(
     private readonly db: DatabaseService,
     private readonly accessFoundationService: AccessFoundationService,
+    private readonly admission: PlatformAdmissionService = new PlatformAdmissionService(db),
   ) {}
 
   async getAccessSnapshot(user: TokenPayload): Promise<SnsAccessSnapshot> {
@@ -113,20 +115,25 @@ export class AccessService {
   }
 
   async buildVisiblePostWhere(user: TokenPayload): Promise<Prisma.SnsPostWhereInput> {
+    await this.admission.assertService(BigInt(user.userId), 'sns');
     if (await this.hasSystemOverride(user)) {
       return { isActive: true };
     }
 
     const userId = BigInt(user.userId);
-    const now = new Date();
-    const [userOrgIds, followingUserIds] = await Promise.all([
-      this.accessFoundationService.getUserOrganizationIds(userId, now),
+    const [organizations, followingUserIds] = await Promise.all([
+      this.admission.businessOrganizations(userId, 'sns'),
       this.getFollowingUserIds(userId),
     ]);
+    const userOrgIds = organizations.map(organization => organization.orgId);
 
     const orConditions: Prisma.SnsPostWhereInput[] = [
       { authorUserId: userId },
       { visibilityScopeCode: 'public' },
+      { accessRequests: { some: {
+        requesterUserId: userId, statusCode: 'approved', isActive: true,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      } } },
     ];
 
     if (userOrgIds.length > 0) {
@@ -164,52 +171,32 @@ export class AccessService {
     return post;
   }
 
+  async assertWritablePost(user: TokenPayload, postId: bigint): Promise<void> {
+    const post = await this.assertReadablePost(user, postId);
+    if (post.authorUserId === BigInt(user.userId) || await this.hasSystemOverride(user)) return;
+    const granted = await this.db.client.snsPostAccessRequest.count({ where: {
+      postId, requesterUserId: BigInt(user.userId), requestedRole: 'write', statusCode: 'approved', isActive: true,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    } });
+    if (!granted) throw new ForbiddenException('게시물을 수정할 권한이 없습니다.');
+  }
+
   async resolvePostVisibility(
     user: TokenPayload,
     requestedScopeCode?: string | null,
+    requestedOrganizationId?: string,
   ): Promise<{ visibilityScopeCode: SnsVisibilityScopeCode; targetOrgId: bigint | null }> {
     const visibilityScopeCode = this.normalizeVisibilityScope(requestedScopeCode);
     if (visibilityScopeCode !== 'organization') {
       return { visibilityScopeCode, targetOrgId: null };
     }
 
-    const primaryOrgId = await this.getPrimaryOrganizationId(BigInt(user.userId), new Date());
-    if (!primaryOrgId) {
-      throw new BadRequestException('조직 공개 게시물을 작성하려면 primary 조직 소속이 필요합니다.');
-    }
+    const primaryOrgId = await this.admission.resolveBusinessOrganization(BigInt(user.userId), 'sns', requestedOrganizationId);
 
     return {
       visibilityScopeCode,
       targetOrgId: primaryOrgId,
     };
-  }
-
-  private async getPrimaryOrganizationId(userId: bigint, now: Date): Promise<bigint | null> {
-    const relations = await this.db.client.userOrganizationRelation.findMany({
-      where: {
-        userId,
-        isActive: true,
-        organization: {
-          isActive: true,
-          orgClass: 'permanent',
-        },
-        AND: [
-          {
-            OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }],
-          },
-          {
-            OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
-          },
-        ],
-      },
-      select: {
-        orgId: true,
-        isPrimary: true,
-      },
-      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
-    });
-
-    return relations[0]?.orgId ?? null;
   }
 
   private async getFollowingUserIds(userId: bigint): Promise<bigint[]> {

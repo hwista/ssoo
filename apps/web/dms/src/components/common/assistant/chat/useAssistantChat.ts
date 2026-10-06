@@ -83,8 +83,10 @@ export function useAssistantChat() {
           shouldHandle: () => requestLifecycle.isRequestActive(token),
         });
       }
-    } catch {
-      // Abort or network errors — silently handled
+    } catch (error) {
+      if (!signal.aborted && requestLifecycle.isRequestActive(token)) {
+        toast.error(error instanceof Error ? error.message : 'AI 응답을 받지 못했습니다. 다시 시도해 주세요.');
+      }
     } finally {
       const shouldFinalize = requestLifecycle.isRequestActive(token);
       requestLifecycle.finalizeRequest(token);

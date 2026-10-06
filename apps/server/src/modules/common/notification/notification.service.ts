@@ -14,6 +14,8 @@ import type {
 } from '@ssoo/types/common';
 import { Observable } from 'rxjs';
 import { DatabaseService } from '../../../database/database.service.js';
+import { PlatformAdmissionService } from '../onboarding/platform-admission.service.js';
+import { NotificationObjectPolicyService } from './notification-object-policy.service.js';
 
 type CommonNotificationRecord = Awaited<ReturnType<DatabaseService['client']['commonNotification']['findFirstOrThrow']>>;
 type NotificationStreamListener = (event: CommonNotificationStreamEvent) => void;
@@ -68,7 +70,16 @@ export class CommonNotificationService {
   private readonly sourceAppStreamListeners = new Map<CommonNotificationSourceApp, Set<NotificationStreamListener>>();
   private readonly globalDomainStreamListeners = new Set<NotificationStreamListener>();
 
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly admission: PlatformAdmissionService,
+    private readonly objectPolicy: NotificationObjectPolicyService = new NotificationObjectPolicyService()) {}
+
+  private async visibleSources(recipientUserId: bigint, requested?: CommonNotificationSourceApp): Promise<CommonNotificationSourceApp[]> {
+    if ((await this.admission.state(recipientUserId)).status !== 'active') return [];
+    const sources: CommonNotificationSourceApp[] = await this.admission.isPlatformAdmin(recipientUserId)
+      ? ['system', 'admin', 'crm', 'pms', 'dms', 'sns']
+      : ['system', ...(await this.admission.grants(recipientUserId)).map((grant) => grant.serviceCode as CommonNotificationSourceApp)];
+    return [...new Set(sources)].filter((source) => !requested || source === requested);
+  }
 
   async createInTransaction(tx: Pick<DatabaseService['client'], 'commonNotification'>, input: NotifyUserInput): Promise<CommonNotificationItem> {
     return this.toItem(await tx.commonNotification.create({ data: this.toCreateData(input) }));
@@ -92,11 +103,19 @@ export class CommonNotificationService {
     const recipientKey = recipientUserId.toString();
 
     return new Observable<MessageEvent>((subscriber) => {
+      let delivery = Promise.resolve();
       const listener: NotificationStreamListener = (event) => {
         if (sourceApp && event.sourceApp && event.sourceApp !== sourceApp) {
           return;
         }
-        subscriber.next({ type: event.type, data: event });
+        // Existing subscriptions must honor a revoked app grant, too. Preserve event order.
+        delivery = delivery.then(async () => {
+          const sources = await this.visibleSources(recipientUserId, event.sourceApp);
+          if (!subscriber.closed && sources.length > 0) {
+            const protectedEvent = await this.objectPolicy.protectEvent(recipientUserId, event);
+            if (!subscriber.closed) subscriber.next({ type: event.type, data: protectedEvent });
+          }
+        }).catch(() => { subscriber.complete(); });
       };
 
       this.addStreamListener(recipientKey, listener);
@@ -147,7 +166,7 @@ export class CommonNotificationService {
       isActive: true,
       archivedAt: null,
       ...(params.unreadOnly ? { isRead: false } : params.readOnly ? { isRead: true } : {}),
-      ...(params.sourceApp ? { sourceAppCode: params.sourceApp } : {}),
+      sourceAppCode: { in: await this.visibleSources(recipientUserId, params.sourceApp) },
       ...(params.notificationType ? { notificationType: params.notificationType } : {}),
     };
 
@@ -162,7 +181,7 @@ export class CommonNotificationService {
     ]);
 
     return {
-      items: items.map((item) => this.toItem(item)),
+      items: await Promise.all(items.map((item) => this.objectPolicy.protectItem(this.toItem(item)))),
       total,
       page,
       pageSize,
@@ -176,7 +195,7 @@ export class CommonNotificationService {
         isRead: false,
         archivedAt: null,
         isActive: true,
-        ...(sourceApp ? { sourceAppCode: sourceApp } : {}),
+        sourceAppCode: { in: await this.visibleSources(recipientUserId, sourceApp) },
       },
     });
 
@@ -193,7 +212,7 @@ export class CommonNotificationService {
         id: notificationId,
         recipientUserId,
         isActive: true,
-        ...(sourceApp ? { sourceAppCode: sourceApp } : {}),
+        sourceAppCode: { in: await this.visibleSources(recipientUserId, sourceApp) },
       },
     });
     if (!notification) {
@@ -216,7 +235,7 @@ export class CommonNotificationService {
       emittedAt: new Date().toISOString(),
     });
 
-    return item;
+    return this.objectPolicy.protectItem(item);
   }
 
   async markAsUnread(
@@ -230,7 +249,7 @@ export class CommonNotificationService {
         recipientUserId,
         isActive: true,
         archivedAt: null,
-        ...(sourceApp ? { sourceAppCode: sourceApp } : {}),
+        sourceAppCode: { in: await this.visibleSources(recipientUserId, sourceApp) },
       },
     });
     if (!notification) {
@@ -253,7 +272,7 @@ export class CommonNotificationService {
       emittedAt: new Date().toISOString(),
     });
 
-    return item;
+    return this.objectPolicy.protectItem(item);
   }
 
   async markAllAsRead(recipientUserId: bigint, sourceApp?: CommonNotificationSourceApp) {
@@ -263,7 +282,7 @@ export class CommonNotificationService {
         isRead: false,
         archivedAt: null,
         isActive: true,
-        ...(sourceApp ? { sourceAppCode: sourceApp } : {}),
+        sourceAppCode: { in: await this.visibleSources(recipientUserId, sourceApp) },
       },
       data: { isRead: true, readAt: new Date() },
     });
@@ -295,7 +314,7 @@ export class CommonNotificationService {
         isRead: false,
         archivedAt: null,
         isActive: true,
-        ...(sourceApp ? { sourceAppCode: sourceApp } : {}),
+        sourceAppCode: { in: await this.visibleSources(recipientUserId, sourceApp) },
       },
       select: {
         id: true,

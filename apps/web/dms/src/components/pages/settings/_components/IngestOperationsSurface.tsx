@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Archive, Check, Loader2, Play, RefreshCcw, RotateCcw, X } from 'lucide-react';
 import { NativeSelect, Textarea } from '@ssoo/web-ui';
@@ -64,7 +65,9 @@ export function IngestOperationsSurface() {
       setIsLoading(false);
     });
     const timer = window.setInterval(() => {
-      void load(true).catch(() => undefined);
+      void load(true).catch((error) => {
+        setLoadError(error instanceof Error ? error.message : '수집 큐를 갱신하지 못했습니다. 기존 목록은 유지됩니다.');
+      });
     }, 15_000);
     return () => window.clearInterval(timer);
   }, [load]);
@@ -145,7 +148,7 @@ export function IngestOperationsSurface() {
           </div>
         </div>
 
-        {loadError && <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{loadError}</p>}
+        {loadError && <SsooErrorNotice as="p" compact className="mt-3 p-3" error={loadError} />}
         {metrics && (
           <div className="mt-4 grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
             {[
@@ -160,9 +163,9 @@ export function IngestOperationsSurface() {
           </div>
         )}
         {metrics?.latestFailure && (
-          <p className="mt-3 rounded-md bg-ssoo-danger-bg p-3 text-xs text-ssoo-danger">
-            최근 실패 {metrics.latestFailure.jobId} · {formatDateTime(metrics.latestFailure.at)} · {metrics.latestFailure.error}
-          </p>
+          <SsooErrorNotice as="p" compact className="mt-3 p-3">
+            최근 실패 {metrics.latestFailure.jobId} · {formatDateTime(metrics.latestFailure.at)} · <span>{metrics.latestFailure.error}</span>
+          </SsooErrorNotice>
         )}
       </article>
 
@@ -207,7 +210,7 @@ export function IngestOperationsSurface() {
                     <TableCell>{job.attemptCount}</TableCell>
                     <TableCell className="whitespace-nowrap text-xs"><div>{formatDateTime(job.createdAt)}</div><div className="text-muted-foreground">{formatDateTime(job.updatedAt)}</div></TableCell>
                     <TableCell className="max-w-80 text-xs">
-                      <div className="truncate">{job.docPath ?? job.error ?? '-'}</div>
+                      <div className="truncate">{job.docPath ?? (job.error ? <SsooErrorNotice compact error={job.error} /> : '-')}</div>
                       <div className="text-muted-foreground">
                         {job.commitHash
                           ? `${job.publishedBranch ?? 'Git'} · ${job.commitHash.slice(0, 7)}`

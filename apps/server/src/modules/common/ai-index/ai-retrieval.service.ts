@@ -1,3 +1,6 @@
+import { PlatformAdmissionService } from '../onboarding/platform-admission.service.js';
+import { AccessFoundationService } from '../access/access-foundation.service.js';
+import { AiIndexRegistryService } from './ai-index-registry.service.js';
 import { Injectable, Logger } from '@nestjs/common';
 import type {
   AiIndexJsonObject,
@@ -230,9 +233,17 @@ export class AiRetrievalService {
   constructor(
     private readonly db: DatabaseService,
     private readonly embeddingProvider: AiEmbeddingProviderService,
+    private readonly admission: PlatformAdmissionService,
+    private readonly foundation: AccessFoundationService,
+    private readonly registry: AiIndexRegistryService,
   ) {}
 
   async retrieve(request: CommonAiRetrievalRequest, currentUser: TokenPayload): Promise<CommonAiRetrievalResponse> {
+    const userId = BigInt(currentUser.userId);
+    await this.admission.assertActive(userId);
+    const isAdmin = await this.admission.isPlatformAdmin(userId);
+    const allowedServices = new Set((await this.admission.grants(userId)).map((grant) => grant.serviceCode));
+    currentUser = { ...currentUser, organizationIds: (await this.foundation.getUserOrganizationIds(userId)).map(String) };
     const startedAt = Date.now();
     const query = normalizeQuery(request.query);
     const limit = normalizeLimit(request.limit);
@@ -257,7 +268,13 @@ export class AiRetrievalService {
 
     const vectorRows = await this.findVectorRows(query, sourceApp, entityTypes, currentUser, limit);
     const keywordRows = await this.findKeywordRows(query, sourceApp, entityTypes, currentUser, limit);
-    const candidates = this.mergeCandidates(vectorRows, keywordRows);
+    const candidates = [];
+    for (const candidate of this.mergeCandidates(vectorRows, keywordRows)) {
+      const preview = this.toResultItem(candidate, query, 0);
+      if (!isAdmin && !allowedServices.has(preview.sourceApp)) continue;
+      const adapter = this.registry.get(preview.sourceApp);
+      if (adapter?.canRead && await adapter.canRead({ sourceApp: preview.sourceApp, entityType: preview.entityType, entityId: preview.entityId }, currentUser)) candidates.push(candidate);
+    }
     const rankedCandidates = candidates
       .sort((left, right) => resolveCandidateScore(right) - resolveCandidateScore(left))
       .slice(0, limit);
@@ -697,7 +714,6 @@ export class AiRetrievalService {
     return `
       (
         a.access_scope_code = 'public'
-        OR (a.access_scope_code = 'organization' AND ${userParam}::text IS NOT NULL)
         OR (a.access_scope_code = 'owner' AND a.acl_snapshot_jsonb->>'ownerUserId' = ${userParam}::text)
         OR COALESCE(a.acl_snapshot_jsonb->'readableUserIds', '[]'::jsonb) ? ${userParam}::text
         OR COALESCE(a.acl_snapshot_jsonb->'userIds', '[]'::jsonb) ? ${userParam}::text

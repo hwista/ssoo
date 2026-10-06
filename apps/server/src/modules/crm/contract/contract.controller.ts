@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import type { CrmContractListQuery } from '@ssoo/types/crm';
 import type { Response as ExpressResponse } from 'express';
 import { success } from '../../../common/index.js';
@@ -30,11 +30,13 @@ export class ContractController {
   @Get()
   @RequireCrmDomainFeature('canReadContract')
   @ApiOperation({ summary: 'CRM 계약 현황 목록' })
+  @ApiQuery({ name: 'view', required: false, enum: ['source-list'], description: '원천 계약현황의 검색·원값 금액·정렬 기준' })
+  @ApiQuery({ name: 'sort', required: false, enum: ['updated-desc', 'created-desc', 'customer-asc', 'revenue-desc', 'margin-desc', 'start-asc'] })
   @ApiOkResponse({ description: 'CRM 계약 목록과 요약' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 계약 조회 권한 없음' })
-  async list(@Query() query: CrmContractListQuery) {
-    return success(await this.contractService.listResponse(query));
+  async list(@Query() query: CrmContractListQuery, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.contractService.listResponse(query, currentUser));
   }
 
   @Post('billing-split-preview')
@@ -59,8 +61,8 @@ export class ContractController {
   @RequireCrmDomainFeature('canReadContract')
   @ApiOperation({ summary: 'CRM 계약대비실적 월별 조회' })
   @ApiOkResponse({ description: '확정 계약 기준 월별 청구계획/실적/차이' })
-  async monthlyPerformance(@Query() query: CrmContractPerformanceQueryDto) {
-    return success(await this.contractService.getMonthlyPerformance(query));
+  async monthlyPerformance(@Query() query: CrmContractPerformanceQueryDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.contractService.getMonthlyPerformance(query, currentUser));
   }
 
   @Get(':id/billing-actual')

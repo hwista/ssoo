@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { isDeepStrictEqual } from 'node:util';
 import type {
   ApplyCrmContractHandoffSnapshotDto,
   CreateContractPaymentDto,
@@ -11,6 +12,9 @@ import type {
 import type { ExtendedPrismaClient } from '@ssoo/database';
 import { DatabaseService } from '../../../database/database.service.js';
 import { deriveProjectLifecycle } from './project-lifecycle.js';
+import { CrmAccessService } from '../../crm/access/access.service.js';
+import { ContractService } from '../../crm/contract/contract.service.js';
+import { ProjectAccessService } from './project-access.service.js';
 
 type TxClient = Omit<
   ExtendedPrismaClient,
@@ -26,7 +30,12 @@ const CRM_HANDOFF_SNAPSHOT_BOUNDARY_NOTICE =
 
 @Injectable()
 export class ProjectHandoffContractService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly crmAccess?: CrmAccessService,
+    private readonly crmContracts?: ContractService,
+    private readonly projectAccess?: ProjectAccessService,
+  ) {}
 
   async listHandoffs(projectId: bigint) {
     await this.requireProject(projectId);
@@ -176,7 +185,17 @@ export class ProjectHandoffContractService {
     actorUserId: bigint,
   ) {
     const project = await this.requireProject(projectId);
-    const preview = this.assertReadyCrmContractHandoffPreview(dto.preview);
+    const submitted = this.assertReadyCrmContractHandoffPreview(dto.preview);
+    const actor = await this.crmAccess!.actorForUser(actorUserId);
+    await this.projectAccess!.assertProjectCapability(projectId, actor, 'canEditProject');
+    await this.crmAccess!.assertContractCapability(actor, 'canReadContract', submitted.contractId);
+    const preview = this.assertReadyCrmContractHandoffPreview(await this.crmContracts!.getPmsHandoffPreview(submitted.contractId));
+    if ((preview.ownerOrganizationId ?? null) !== (project.ownerOrganizationId?.toString() ?? null)) {
+      throw new BadRequestException('CRM 계약과 PMS 프로젝트의 업무 조직이 같아야 합니다.');
+    }
+    if (!isDeepStrictEqual(JSON.parse(JSON.stringify(submitted)), JSON.parse(JSON.stringify(preview)))) {
+      throw new ConflictException('CRM 계약 인계 정보가 변경되었습니다. 미리보기를 새로 조회한 뒤 다시 반영해 주세요.');
+    }
     const now = new Date();
     const contractStartDate = this.toRequiredDate(preview.contractStartDate, 'contractStartDate');
     const contractEndDate = this.toRequiredDate(preview.contractEndDate, 'contractEndDate');
@@ -423,6 +442,7 @@ export class ProjectHandoffContractService {
         stageCode: true,
         doneResultCode: true,
         currentOwnerUserId: true,
+        ownerOrganizationId: true,
       },
     });
 

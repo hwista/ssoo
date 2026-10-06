@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import type { CrmOpportunityListQuery, CrmOpportunityOwnerLookupQuery } from '@ssoo/types/crm';
 import type { Response as ExpressResponse } from 'express';
 import { success } from '../../../common/index.js';
@@ -36,11 +36,12 @@ export class OpportunityController {
   @Get()
   @RequireCrmOpportunityFeature('canViewOpportunity')
   @ApiOperation({ summary: 'CRM 영업기회 현황 데모 목록' })
+  @ApiQuery({ name: 'view', required: false, enum: ['source-list'], description: '원천 현황의 표시 필드 검색·DC/절사 전 금액 정렬. 응답 원장 금액은 유지합니다.' })
   @ApiOkObjectResponse({ description: 'CRM 영업기회 목록과 요약' })
   @ApiUnauthorizedResponse({ description: '인증 필요' })
   @ApiForbiddenResponse({ description: 'CRM 영업기회 조회 권한 없음' })
-  async list(@Query() query: CrmOpportunityListQuery) {
-    return success(await this.opportunityService.listResponse(query));
+  async list(@Query() query: CrmOpportunityListQuery, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.opportunityService.listResponse(query, currentUser));
   }
 
   @Get('access/me')
@@ -80,8 +81,9 @@ export class OpportunityController {
   @RequireCrmOpportunityFeature('canViewOpportunity', { opportunityIdParam: 'id' })
   @ApiOperation({ summary: '확정 영업기회 원천 22개 변수 계약서 미리보기' })
   @ApiOkResponse({ description: '원천 데모 호환 계약서 변수·DMS 템플릿·lifecycle 준비 상태' })
-  async contractDocumentPreview(@Param('id') id: string, @CurrentUser() currentUser: TokenPayload) {
-    return success(await this.opportunityService.getOpportunityContractDocumentPreview(id, currentUser));
+  @ApiQuery({ name: 'templateKey', required: false, description: '선택한 DOCX 템플릿의 준비 상태와 파일명 확인' })
+  async contractDocumentPreview(@Param('id') id: string, @CurrentUser() currentUser: TokenPayload, @Query('templateKey') templateKey?: string) {
+    return success(await this.opportunityService.getOpportunityContractDocumentPreview(id, currentUser, templateKey));
   }
 
   @Get(':id/contract-document-sample')
@@ -233,8 +235,8 @@ export class OpportunityController {
   @ApiOperation({ summary: 'CRM 영업기회 생성' })
   @ApiBody({ type: CrmOpportunityUpsertDto })
   @ApiOkResponse({ description: '생성된 CRM 영업기회' })
-  async create(@Body() body: CrmOpportunityUpsertDto) {
-    return success(await this.opportunityService.createOpportunity(body));
+  async create(@Body() body: CrmOpportunityUpsertDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.opportunityService.createOpportunity(body, BigInt(currentUser.userId)));
   }
 
   @Put(':id')
@@ -242,8 +244,8 @@ export class OpportunityController {
   @ApiOperation({ summary: 'CRM 영업기회 수정' })
   @ApiBody({ type: CrmOpportunityUpsertDto })
   @ApiOkResponse({ description: '수정된 CRM 영업기회' })
-  async update(@Param('id') id: string, @Body() body: CrmOpportunityUpsertDto) {
-    return success(await this.opportunityService.updateOpportunity(id, body));
+  async update(@Param('id') id: string, @Body() body: CrmOpportunityUpsertDto, @CurrentUser() currentUser: TokenPayload) {
+    return success(await this.opportunityService.updateOpportunity(id, body, BigInt(currentUser.userId)));
   }
 
   @Delete(':id')

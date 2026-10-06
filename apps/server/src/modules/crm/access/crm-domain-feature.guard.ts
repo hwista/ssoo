@@ -1,3 +1,4 @@
+import { PATH_METADATA } from '@nestjs/common/constants.js';
 import { Injectable, type CanActivate, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
@@ -22,7 +23,12 @@ export class CrmDomainFeatureGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request & { user?: TokenPayload }>();
     if (!request.user) return false;
 
-    await this.accessService.assertDomainCapability(request.user, capability);
+    const controllerPath = this.reflector.get<string>(PATH_METADATA, context.getClass());
+    if (controllerPath === 'crm/contracts' && request.params.id) {
+      await this.accessService.assertContractCapability(request.user, capability, String(request.params.id));
+    } else {
+      await this.accessService.assertDomainCapability(request.user, capability);
+    }
     return true;
   }
 }

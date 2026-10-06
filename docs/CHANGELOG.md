@@ -1,5 +1,133 @@
 # Changelog
 
+* **workspace:** 2026-10-06 전체 레포의 로컬 Docker 갱신과 GitHub/GitLab 동기화를 준비하며 공개 전 의존성 감사 차단을 복구한다. [진행 기록](common/explanation/architecture/2026-10-06-repo-local-release.md).
+
+* **admin, web-auth, server:** 2026-10-06 CRM 사용자 관리 검수에서 전체 사용자 페이지 조회·실제 본인 보호·실패 재시도와 저장 잠금을 보완했다. 중복 계정 409/빈 이름 거부, 공용 프로필·비밀번호 변경 중 입력 잠금을 검증했다. API 33요청·브라우저 35검사·서버 759테스트·서버/5앱 플랫폼 guard 통과. 미착수 메뉴 0개, 기존 판정 대기는 별도 유지. [19차 검수 결과](crm/planning/2026-09-30-menu-functional-audit.md).
+
+* **crm:** 2026-10-06 회사정보의 조회/권한 실패 복구와 저장·CI 업로드 경합을 보완하고 같은 파일 재업로드, 원천 CI 경로/상태 반영과 길이 제한을 연결했다. API 35요청·서버 110테스트·브라우저 27검사·production 빌드 통과, 실제 견적 CI와 계약 DOCX 공급자 치환 확인. [18차 검수 결과](crm/planning/2026-09-30-menu-functional-audit.md).
+
+* **common-code, admin, crm:** 2026-10-06 공통코드 전체 목록의 고정 값 제한과 비활성 유형 누락을 수정하고 조회·저장 실패 복구, 필수값/ID 검증, CRM 최신 재조회와 계약의 비활성 선택 표시명 보존을 보완했다. API 51요청·브라우저 27검사·플랫폼 전체 빌드·서버 99묶음/753테스트 통과. [17차 검수 결과](crm/planning/2026-09-30-menu-functional-audit.md).
+
+* **onboarding, local deployment:** 2026-10-06 클렌징 후 기존 DB를 실제 launch migration 이력으로 이전하고 검증된 서버+5앱 이미지를 로컬 Docker에 배포했다. 계정·로그인·조직·권한·DMS 자료 보존, 19 migrations/90 triggers/drift 0, 플랫폼 98 suites/743 tests, 격리/로컬 runtime 각 24검사 및 실제 두 계정 승인/localhost 브라우저 검증 통과. 원본 DB·백업·이전 이미지를 보관하고 검증 자원을 정리했다. [배포 기준과 직접 테스트 순서](common/explanation/architecture/2026-10-02-onboarding-wsl-resume.md#로컬-docker-배포-완료--2026-10-06).
+
+
+* **crm:** 2026-10-06 AMS 원가의 천 단위 입력/붙여넣기 표시, 조회·권한 실패 재시도와 저장 잠금, 미연결 업체 포함 집계, 업체/WBS 고정 열 정렬을 보완했다. API 32요청·서버 26테스트·브라우저 33검사·production 빌드 통과 및 월별 72금액·9합계 DB 일치 확인. [16차 검수 결과](crm/planning/2026-09-30-menu-functional-audit.md).
+
+* **crm:** 2026-10-02 AMS 공급업체의 신규 WBS를 확정 AMS 계약으로 제한하고 조회/권한 실패 재시도, 기존 연결 해제와 업체 정렬을 보완했다. 업체/WBS 변경은 같은 조직·연도의 열린 원가 탭에도 반영하며 남은 행의 미저장 입력을 보존한다. API 55요청·서버 26테스트·브라우저 29검사·production 빌드 통과. [15차 검수 결과](crm/planning/2026-09-30-menu-functional-audit.md).
+
+* **crm:** 2026-10-02 사업연도의 활성 연도 0개 처리·겹친 조회 취소·오래된 응답 방어와 관리 화면의 로딩/오류/저장 잠금을 보완했다. 관리자·조회 전용 API 26검사, 서버 47테스트, 원천 실행 7검사, 실제 CRM 브라우저 29검사 및 production 빌드/preflight 통과. [14차 검수 결과](crm/planning/2026-09-30-menu-functional-audit.md).
+
+* **onboarding, local data:** 2026-10-02 사용자가 과거 업무 자료는 에이전트 생성 자료임을 정정하고 클렌징을 승인했다. 로컬 `ssoo_dev`의 CRM 영업기회 9건·계약 9건·고객 11건·계획 1건, PMS 프로젝트 6건과 연결 상세·이력·알림·검색 색인, 파일이 이미 없는 DMS 문서 기록 3건을 정리했다. 백업·rollback 시험·transaction 적용 후 대상 잔여 0건과 보존 63개 테이블의 내용 일치를 확인했다. 과거 자료 전환은 온보딩 잔여 과제에서 제외하며, 온보딩 코드 배포는 별도다. [범위와 검증](common/explanation/architecture/2026-10-02-onboarding-wsl-resume.md#2026-10-02-승인된-과거-자료-클렌징).
+
+* **crm:** 2026-10-02 내부원가 입력의 천 단위 표시·조회 실패 복구·조회 결과 반영 전 저장 잠금을 보완하고, WBS 월별 입력 프록시의 JSON 헤더 누락을 수정했다. 격리 API 24요청·원천 12검사·서버 45테스트·실제 CRM 브라우저 25검사 및 production 빌드 통과. [13차 검수 결과](crm/planning/2026-09-30-menu-functional-audit.md).
+
+* **onboarding verification:** 2026-10-02 복구 후 최종 플랫폼 guard가 서버+5앱 production build와 98 suites/742 tests를 통과했다. 최신 preflight·문서·변경 범위 lint 통과 및 일회용 DB/프로세스 정리를 확인했다. [최종 재개 기록](common/explanation/architecture/2026-10-02-onboarding-wsl-resume.md). 온보딩 코드 Docker 미반영, 일반 셀프 가입은 별도 범위이며 과거 자료 전환은 후속 사용자 정정으로 제외했다.
+
+* **web-shell, dms:** 2026-10-02 상태 화면→본문 전환 시 공용 너비 측정을 다시 연결한다. 최초 로딩에서 ref가 없어 모바일 설정 색인이 넓게 남고 조직 선택기를 가리던 결함을 수정했다. 기존 반응형 정책을 유지한다.
+
+* **crm, dms, verification:** 2026-10-02 이전에 남긴 서버 전체 회귀 중단과 preflight 실패를 복구했다. DMS 권한 요청 안내를 공용 오류 표면에 연결하고 메모/재시도를 보존했다. 서버 97묶음·739테스트, 전체 preflight, 격리 DMS guard/production 빌드, 오류 복구 브라우저 9검사 통과. [복구 결과](crm/planning/2026-09-30-menu-functional-audit.md).
+
+* **onboarding, dms, sns:** 2026-10-02 복구 후 격리 DB의 19 migrations/90 triggers/drift 0·백업 복원과 공유 시나리오를 통과했다. 실제 두 계정 승인/회수·만료·알림/SSE/WebSocket·AI 원본 권한 재검사를 확인하고 DMS 회수/만료 신청 상태, 요청 창 최신 조회, SNS 중복 key와 공용 세션 children을 보완했다. 검증 한계와 증거는 [구현 대장](common/explanation/architecture/2026-10-01-onboarding-implementation.md)에 기록한다. Docker 미반영.
+
+* **crm, server:** 2026-10-02 복구 후 실제 사업계획대비실적 검수에서 발견한 0원 청구계획 저장 누락을 수정했다. 월 지정 0원 행을 보존하고 중복 월은 저장 전에 거부한다. API 41요청·관련 서버 69테스트·원천 10조건·실제 브라우저 29검사(보고·MDI 확정/해제·계약 변경·연도·모드)를 통과했다. 전체 preflight는 병행 DMS 오류 표면 검사 실패로 별도 기록한다. [12차 후속 통합 기록](crm/planning/2026-09-30-menu-functional-audit.md)을 따른다.
+
+* **local recovery, storage:** 2026-10-02 임시 설치 파일·미사용 Docker 빌드 캐시·실패 리허설 소유 자원을 정리하고 VHD를 압축해 C: 여유 약 139.6 GB를 확보했다. 사용자 Windows 재부팅 후 기존 18개 컨테이너·이미지 48개·DB 볼륨 보존과 DB 4개·Redis·API·5앱 로그인 화면/세션 응답을 검증했다. 기존 실행물 기준 개발 환경 복구 완료이며 병행 소스의 신규 배포 검증은 별도다. [복구·재개 기록](common/explanation/architecture/2026-10-02-docker-recovery.md).
+
+* **onboarding, handoff:** 2026-10-02 WSL 재시작 전 [재개 지점](common/explanation/architecture/2026-10-02-onboarding-wsl-resume.md)을 작성했다. 검증 완료/잔여, 설계, 혼합 작업트리 보관본과 실제 DB 재개 순서를 기록하고 복구 이후까지 작업을 멈춘다.
+
+* **crm, server, types, docs:** 2026-10-02 사업계획대비실적 BPR-01–06: 0원/월 상쇄·청구계획 존재 기준, 전체 합계, 즉시 필터·차수 안내·조회 복구와 고정 열을 보완했다. 사용자 승인으로 WBS 대소문자 무시를 유지한다. 원천 10조합·서버 29+표적 1테스트·fixture 브라우저 20검사를 통과했으며 Docker/DB 장애로 실제 API/DB/셸 통합 검증은 대기다. [검수 12차](crm/planning/2026-09-30-menu-functional-audit.md)에 검증 경계와 잔여를 기록했다. Docker 미반영.
+
+* **notification, dms, sns:** 2026-10-02 객체 권한 기준 목록·읽음 응답·SSE 재검사를 추가했다. 원문 정보 차단과 상태/읽음 이력 보존, 회수 후 클라이언트 재조회·늦은 응답 무시를 로컬 검증했다. 실제 DB·두 계정 검증과 Docker 반영은 남아 있다. [검증 대장](common/explanation/architecture/2026-10-01-onboarding-implementation.md).
+
+* **deployment recovery, docs:** 2026-10-02 Docker 데이터 디스크 offline/I/O 장애와 부분 복구 실패, Windows 독립 복구 스크립트 및 기존 18개 컨테이너 보존 절차를 기록했다. 전체 WSL 재시작은 다른 세션의 작업 마무리·재개 기록 확인 후 진행한다. 복구/용량 정리 완료를 의미하지 않는다. [배포 설계 §19](common/explanation/architecture/2026-10-01-deployment-design.md#19-분리-후-격리-리허설-및-docker-환경-장애--2026-10-02).
+
+* **deployment verification, docs:** 2026-10-02 배포 검사 분리 후 이전 검증본+수정 4개 파일로 격리 리허설을 시작했다. Admin image와 임시 DB 복원은 완료했으나 Docker SIGBUS/I/O 및 엔진 무응답으로 전체 리허설과 임시 자원 정리는 미완료다. 기존 로컬/실서버 교체·원격 push는 실행하지 않았다. [배포 설계 §19](common/explanation/architecture/2026-10-01-deployment-design.md#19-분리-후-격리-리허설-및-docker-환경-장애--2026-10-02)에 장애 증거, 범위 제한과 복구 후 승인 절차를 기록했다.
+
+* **onboarding, dms, sns:** 2026-10-02 승인 조직 선택·개인/조직/전체 공개, 업무 문서의 개인 소유와 출처 조직 공개, SNS 개별 공유 승인/회수 및 DMS WebSocket 권한 재검사를 구현했다. PostgreSQL I/O 오류와 Docker API 500으로 실제 DB·브라우저 검증은 미완료이며 Docker 미반영이다. [검증 현황과 재개 순서](common/explanation/architecture/2026-10-01-onboarding-implementation.md).
+
+* **crm, server, types, docs:** 2026-10-02 사업계획 등록 BPLAN-01–06: 빈 최초 차수·억원 소수/붙여넣기·행 삭제·일괄 저장과 복구, 승인된 미확정 차수 복사·진행 계약 불러오기와 기존 계획 이월 병존을 구현했다. API 44요청, 원천/변환 6검사, 브라우저 33검사, 관련 서버 23테스트와 빌드·preflight·문서 검증 통과. 전체 서버 검사는 병행 권한 테스트 실패가 남아 별도 기록한다. 격리 검증이며 Docker 미반영. [메뉴 기능 검수 11차](crm/planning/2026-09-30-menu-functional-audit.md).
+
+* **deployment, server, docs:** 2026-10-02 사용자 승인으로 플랫폼 health의 CRM 업무 준비 서비스 의존을 제거하고 CRM schema 접근 검사로 분리했다. 배포 smoke는 업무 준비 API 대신 인증된 영업기회 목록을 조회한다. 로고·템플릿 검토·기존 업무 품질 상태는 CRM 소유 검사에 유지하며 DB/인증/DMS runtime 실패는 계속 배포를 차단한다. health 15개·배포 계약 49개 통과. CRM 업무 코드/설정/DB와 병렬 작업은 수정하지 않았다. [배포 설계 §18](common/explanation/architecture/2026-10-01-deployment-design.md#18-crm-업무-준비와-배포-기술-검사-분리--2026-10-02).
+
+* **deployment verification, docs:** 2026-10-01 사용자 확인에 따라 진행 중 CRM과 중복 수정 없이 완료된 DB 범위만 추가 검증했다. 격리 DB의 12→18 migration, 89 trigger/drift 0, 기존 CRM 37개 테이블·27개 시퀀스 보존과 전체 재실행 보존을 확인했다. CI 저장소 URI 오류와 템플릿의 정상 binary/미확정 검토 상태를 구체화하고 [배포 설계 §17](common/explanation/architecture/2026-10-01-deployment-design.md#17-완료된-db-범위-추가-검증-및-준비-항목-구체화--2026-10-01)에 처리 순서를 기록했다. 전체 앱 최종 판정·원격 배포는 수행하지 않았다.
+
+* **crm, server, types, docs:** 2026-10-01 계약대비실적 PERF-01–06: 원천 사업명 검색/즉시 필터·공통코드, 0원 실적 포함, 월별·연간 전체 합계, 손익 표시와 고정 열, 오류 재조회·보고 탭 활성화 갱신을 보완했다. 운영 검색·차이/달성률 확장을 보존하고 선택 ID 없는 청구실적 메뉴는 목록으로 진입한다. API 검색 모드/연도 검증과 [검수 대장](crm/planning/2026-09-30-menu-functional-audit.md)을 동기화했다. 병행 작업의 사용자 인증 관계 조회와 migration/AI-RAG 정적 기준 불일치도 보완했다. Docker 미반영.
+
+* **ci, verification, docs:** 2026-10-01 고정 작업본 `a36e84e4`로 server/db-init/5웹 Docker build, 복제 DB 이전·백업 복원, 5웹 인증 중계를 검증했다. 전체 리허설은 CRM의 CI 준비·견적/계약 템플릿 검토·기존 UI 표본 청구합계 4개 조건에서 실패했다. DMS 포함 나머지 owner readiness는 통과했다. 기존 런타임과 CRM 병렬 수정을 보존했으며 snapshot 이후 변경은 검증 범위에서 제외한다. [배포 설계 §16](common/explanation/architecture/2026-10-01-deployment-design.md#16-최신-작업본-스냅샷의-전체-앱-리허설--2026-10-01)에 실행 증거와 담당 후속 조치를 기록했다.
+
+* **crm, pms, onboarding, database:** 2026-10-01 CRM 계획·원가·보고·운영 조회/저장/확정/재시도와 회계 인계를 업무 조직으로 제한했다. 조직별 차수·입력 기준과 공유 조직 선택을 추가하고 CRM→PMS 인계에서 양쪽 권한·동일 조직·최신 원천 대조를 적용했다. 기존 테스트 자료는 보존한다. [온보딩 구현·검증 대장](common/explanation/architecture/2026-10-01-onboarding-implementation.md)을 따르며 생성 문서·SNS 공유와 Docker 반영은 잔여다.
+
+* **crm, server, docs:** 2026-10-01 청구실적 BILL-01–05 검수에서 목록의 원천 검색·정렬/매출 표시, 상세 복귀 조건, 월/금액 형식과 달성률, 0원 행·월순 보존을 보완했다. 조회 실패 시 저장을 막고 재조회·저장 실패 입력 보존·저장 중 편집 잠금을 적용했다. [메뉴별 검수 대장](crm/planning/2026-09-30-menu-functional-audit.md)에 API·브라우저·서버 검사 증거와 유지한 월별 한 행 정책을 기록한다. Docker 미반영.
+
+* **ci, database, docs:** 2026-10-01 승인된 배포 초기화 분리를 적용했다. 기존 DB는 `upgrade`로 seed를 재실행하지 않고, 빈 DB의 기준정보 `bootstrap`과 local/disposable `demo`를 명시적으로 구분한다. 운영·리허설은 upgrade를 고정하며 CRM seed 원본과 readiness는 보존한다. 기준정보 20개와 계정/온보딩 별도 준비, 필수 데이터 변경의 migration 승격 규칙은 [배포 설계 §15](common/explanation/architecture/2026-10-01-deployment-design.md#15-배포-upgrade--신규-bootstrap--개발-demo-분리--2026-10-01)에 기록했다.
+
+* **crm, onboarding, database:** 2026-10-01 CRM 영업기회·고객·계약 기본 원장/이력에 업무 조직을 저장하고 신규 생성·원천 연결·차수·목록/상세·대시보드·계약 실적·승인함에 승인 조직 범위를 연결했다. 담당자 변경은 조직을 유지하며 세 입력 화면에 공통 조직 선택을 제공한다. 기존 테스트 데이터는 재배정하지 않는다. 격리 DB 15개 시나리오와 baseline/restore 검증을 수행했고, 계획·원가·보고·업무 문서·SNS 공유 잔여는 [구현 대장](common/explanation/architecture/2026-10-01-onboarding-implementation.md)을 따른다. Docker 미반영.
+
+* **crm, server, database:** 계약 등록·상세 검수: 임시 저장의 빈 기간 보존, 확정 조건 검사, 담당자 도움창, 원가→매출 연동·마진 계산, 자동스플릿 표시·적용과 실패 복구를 보완한다. 계약 담당자 검색을 등록해 현행 37개 header/sidebar/화면 검색 inventory와 규칙 문서를 동기화한다. 실행 증거는 [메뉴별 검수 대장](crm/planning/2026-09-30-menu-functional-audit.md)에 기록한다.
+
+* **ci, docs:** 2026-10-01 CRM 병렬 작업을 보존하며 배포 seed 39개 실행 경로와 인증·공급자 설정 덮어쓰기, 샘플 상세 재생성을 확인했다. [배포 설계 §14](common/explanation/architecture/2026-10-01-deployment-design.md#14-crm-병렬-작업-보존-및-배포-초기화-감사--2026-10-01)에 초기화 분리·기술/업무 gate 변경안을 기록했다. 실제 Docker의 테스트 fixture로 선택 교체·image/설정 복구·DB 변경 후 rollback 금지·SQL 일부 실패 등 5개 제어 검증과 기존 계약 36개가 통과했다. Docker Desktop의 engine 용량 확인 경로를 보완했다. CRM 코드/seed와 기존 readiness 조건은 변경하지 않았다.
+
+* **crm, server, types, docs:** 2026-10-01 빈 계약서 생성 대상에서도 DMS 템플릿 관리에 접근하도록 보완했다. 계약현황 전용 조회에서 원천의 수량×단가·전체 금액 기준 이익률과 등록일/고객사/이익 정렬을 적용하고 검색·행 상세 이동·조회 재시도를 연결했다. 원장/청구 계산은 보존한다. [CTLIST-01–05 검수](crm/planning/2026-09-30-menu-functional-audit.md)에 원천 함수·격리 API·브라우저 증거를 기록하며 Docker 미반영이다.
+
+* **docs, verification:** 2026-10-01 CRM 계약서 검수에서 남았던 preflight 실패를 후속 확인했다. 다른 세션의 온보딩 공용 UI 수정이 반영된 현재 작업본에서 전체 preflight와 규칙 동기화를 재실행해 통과했으며, [검수 대장](crm/planning/2026-09-30-menu-functional-audit.md)에 기존 실패 로그와 후속 통과 증거를 연결했다. 이번 후속에서는 제품 코드를 추가 변경하지 않았다.
+
+* **ci, docker, docs:** 2026-10-01 배포 후속 로컬 검증에서 smoke 실패 전파·중단된 DB 배포 재실행 차단·격리 Git 권한·Prisma 사전 생성을 보완했다. 7개 실제 image build, clone 백업 복원과 strict 초기화 2회, 5웹 인증 중계 및 배포 계약 36개를 검증했다. 전체 리허설은 CRM 준비 4건으로 차단됐으며 성공으로 집계하지 않는다. [실행 증거와 잔여 조건](common/explanation/architecture/2026-10-01-deployment-design.md#13-로컬-후속-검증--2026-10-01)을 기록했다.
+
+* **crm, server, types, dms, docs:** 2026-10-01 계약서 생성에서 선택한 템플릿과 현재 변수를 매번 반영하고, 사용자 승인에 따라 선택 정보 공란 생성과 최신 확정 차수 제한을 적용했다. 다운로드 오류 확인/기존 생성본 재다운로드, 검색·템플릿 선택 보존·담당자 표시와 DMS 한글 업로드 파일명을 보완했다. [DOC-01–05 검수](crm/planning/2026-09-30-menu-functional-audit.md)에 API·브라우저·DOCX 결과와 DC/빈 대상 잔여를 기록했다. Docker 미반영.
+
+* **common, server, web, database:** 2026-10-01 공용 온보딩의 참여·소속/신규 조직/서비스 신청·승인 위임·이용권과 감사 이력을 구현했다. 5앱 공용 진입 화면, 서버 admission 및 검색/AI 현재 권한 재검사, 이용권 회수 후 알림/SSE 제한, 신규 계정 자동 조직 연결 차단을 추가했다. PMS 기본 등록·조회에는 승인된 업무 조직과 조직별 역할을 연결하고 담당자 변경 시 업무 조직을 유지한다. 격리 DB 이전/승인 경합과 Admin 브라우저 신청·승인 흐름을 검증했으며, 업무 조직·생성 문서·SNS 개별 공유는 [구현 대장](common/explanation/architecture/2026-10-01-onboarding-implementation.md)의 잔여 범위다. 실사용 DB/Docker 미반영.
+
+* **web-shell, docs:** 2026-10-01 `showSsooErrorAlert`의 확인 안내를 공용 모달 스택에 표시해 견적 팝업 차단 안내가 기존 Dialog에 가리던 문제를 수정했다. 확인·닫기·Escape와 초안·작업창·포커스 복귀, 인쇄 재시도를 [브라우저로 검증](common/explanation/architecture/2026-10-01-popup-acknowledgement.md)했다. 일반 토스트 동작과 Docker 실행물은 유지했다.
+
+* **docs:** 2026-10-01 [온보딩 서비스 기반 점검](common/explanation/architecture/2026-10-01-service-onboarding-readiness.md)을 추가했다. 그룹사를 포함한 폐쇄형 플랫폼에서 개인 소유·개인/조직/전체 공개 기준을 확정하고, 5앱의 기존 기반과 서비스 승인·업무 조직·생성 문서·검색/AI의 보완 항목 및 통합 검증 11개를 정리했다. 제품·DB 변경 없음.
+
+* **crm, server, types, docs:** 2026-10-01 수금조건의 공통코드 이름을 견적/계약서에 반영하고 비활성 선택 보존·담당자 도움창과 부서 검색을 보완했다. 사용자 승인으로 국내외 미선택(`unspecified`)을 영업기회·계약 및 CRM 보고/계획/원가 경로에서 보존하며 기존 국내 데이터는 유지한다. API enum 문서와 견적 PDF·복구 검증은 [FORM-13–16 검수 기록](crm/planning/2026-09-30-menu-functional-audit.md)을 따른다. Docker 추가 반영은 수행하지 않았다.
+
+* **ci, server, web, docs:** 2026-10-01 DMS 중심 배포 검사를 서버와 Admin/CRM/PMS/DMS/SNS로 확장했다. core/app/full health, `codex:platform-guard`, 서비스별 이미지·설정 manifest와 변경분 build, 백업 clone 리허설·strict DB 및 제한된 rollback을 로컬 구현했다. GitLab 최신 복구 변경은 내용 병합했으며 원격 배포는 미실행이다. [활성화 조건과 미검증 항목](common/explanation/architecture/2026-10-01-deployment-design.md)을 따른다.
+
+* **database, docs:** guarded `db push`가 compose postgres의 `container_name`(`ssoo-postgres`)도 compose-local host로 허용한다. 준운영 서버 DB URL이 이 이름을 사용해 호환 경로 `db-init`이 거부되던 문제를 복구했다.
+
+* **database, docker, docs:** pre-baseline DB 호환 경로의 `db-init`을 복구했다. compat SQL의 legacy `snapshot_json`/`ranker_code` 참조를 컬럼 존재 확인 후 실행하고, protected baseline migration이 만든 `pk_*` history 기본키를 Prisma 정본 `<table>_pkey`로 정규화해 `db push` 문법 오류를 막으며, seed 전에 history trigger를 갱신한다. 배포 중인 commit 상태를 재현한 로컬 PostgreSQL 리허설에서 2회 연속 완료를 확인했다.
+
+* **ci, docker, docs:** GitLab 준운영 배포가 강화된 base compose만 사용해 server가 config validation으로 기동하지 못하던 문제를 준운영 전용 `compose.staging.yaml`(검증 우회 한정, DMS `prod` 역할 고정)과 pipeline `COMPOSE_FILE`로 복구했다. runtime profile contract가 overlay 고정값과 pipeline 적용을 검증하며, 진단 trace는 모든 URL의 userinfo 비밀번호를 마스킹한다.
+
+* **ci, docs:** deploy 실패 시 rollback이 container를 재생성하기 전에 읽기 전용 runtime 진단(container 상태·health·로그·DB migration 이력, 비밀값 마스킹)을 trace에 남기고, 같은 진단을 `diagnose_runtime` manual job으로 제공한다.
+
+* **ci, docs:** image 정리 후 처음 진행된 GitLab build가 Buildx filesystem entitlement(`fs.read=/dev/null`) 요구로 중단되던 문제를 복구했다. `docker compose config`로 확정된 최상위 secret 파일 경로만 `--allow=fs.read`로 허용하고 entitlement 검사 전체 해제는 사용하지 않으며, pipeline contract로 허용 경로를 검증한다.
+
+* **ci, docs:** GitLab shell runner의 Docker 용량 부족으로 `verify`가 반복 실패하던 문제를 image 보관 정책으로 복구했다. verify/build 직전 서비스별 최근 commit build 3개와 `ci-backup` 2개만 남기고 중단된 verify image를 제거하며, container 참조 image·현재 `latest`·현재 pipeline SHA·last-backup manifest image는 항상 보존한다. 보관 개수와 dry-run은 CI 변수로 조정하고 pipeline contract로 보호 대상을 검증한다.
+
+
+* **docs:** 2026-10-01 [온보딩 검토안](common/explanation/architecture/2026-10-01-account-onboarding-review.md)에 생성 경로와 무관한 공용 온보딩 방향과 조직 소유 범위 대조를 반영했다. PMS의 소유 조직, DMS·SNS의 공개 대상 조직, CRM 주요 원장의 소유 조직 부재를 구분하고 활성 DMS 조직 공개 문서 34개의 대상 조직 누락을 기록했다. 제품·DB 변경 없음.
+
+* **crm, server, docs:** 2026-10-01 영업기회 확정/차수 추가의 영업상태 보존과 상태 선택 표시를 수정했다. 소수 수량 절사·DC의 미리보기/저장/계약 전환 계산을 일치시키고 할인 전 매출·실제 할인과 한도 안내를 추가했다. 정수 원장/DC 상한은 유지하며 정책 합의로 집계하지 않는다. FORM-08–12와 잔여 검수는 [메뉴별 검수 대장](crm/planning/2026-09-30-menu-functional-audit.md)을 따른다. 기존 Docker에 추가 반영하지 않았다.
+
+* **docs, ci:** 2026-10-01 실제 GitLab #184 배포 기록과 최신 원격 복구 코드를 기준으로 [배포 구조 개선 설계](common/explanation/architecture/2026-10-01-deployment-design.md)를 작성했다. 공통 서버/DMS 준비 상태 분리, 이미지·설정·DB 계약을 묶은 release 관리, 실제 DB 복제 리허설, DB 호환성에 따른 롤백, 변경분 빌드와 수용 조건을 정의했다. 설계만 작성했으며 구현·원격 설정·DB·배포는 변경하지 않았다.
+
+* **docs:** 2026-10-01 [계정 생성 이후 조직·서비스 승인 점검](common/explanation/architecture/2026-10-01-account-onboarding-review.md)을 기록했다. 조직 없는 일반 계정에도 기존 역할에서 CRM/DMS/SNS 기능 권한과 PMS 메뉴 접근이 부여됨을 읽기 전용으로 확인했다. 관리자 생성·셀프 가입에 공통 온보딩, 조직·서비스별 승인과 기존 계정 이전 검토안을 제안하며 제품·실제 권한은 변경하지 않았다.
+
+* **database, local Docker, docs:** 2026-10-01 현재 작업트리로 서버·다섯 웹을 로컬 Docker에 갱신했다. 기존 DB의 사업연도 권한 이전 시 `updated_at` 기본값 부재를 보완하고 회귀 검증을 추가했다. 계정·공통코드·사업연도와 문서 114개 보존, 전체 baseline 및 다섯 서비스 브라우저 로그인·로그아웃을 확인했다. 회원가입 진입은 다음 검토 대상으로 남긴다. [로컬 반영 기록](common/explanation/architecture/2026-10-01-local-docker-refresh.md)을 따른다.
+
+* **web-shell, web, docs:** 2026-09-30 사용자 확정 기준에 따라 오류 처리 경로를 공용 템플릿으로 통일했다. 오류·검증 경고·Promise toast, native 오류 안내, 이력·권한·SNS 복사 실패와 DMS 대화/부분 실패를 연결하고 우회 검사를 build/preflight/PR에 추가했다. 대화 스트림 실패 시 부분 응답을 유지하고 사용자 취소로 덮이지 않게 수정했다. [오류 처리 경계 검증](common/explanation/architecture/2026-09-30-error-recovery-verification.md)을 따르며 외부 환경 검증은 보류한다.
+
+* **crm, server, docs:** 2026-09-30 영업기회 등록/상세의 연동 매출 편집·절사 보존·0수량 계산·선택 입력과 용역 저장·기간 표시를 수정하고 차수/확정/삭제/계약 작업을 양식에 연결했다. 계약취소는 영업기회 확정을 유지한다. 계약 API도 빈 계열구분을 허용한다. FORM-01–07과 잔여 판단은 [검수 대장](crm/planning/2026-09-30-menu-functional-audit.md)을 따른다.
+
+* **crm, server, types, docs:** 2026-09-30 영업기회 현황의 원천 계산/정렬/표시 단위·검색 범위와 입력 보존·11건 이상 결과 누락·이전 차수 키보드 이동을 수정했다. `view=source-list`와 이전 차수 `sourceTotals`로 표시 계산을 분리하며 견적·계약 원장 금액과 일반 작업공간 pagination은 유지한다. [메뉴별 검수 대장](crm/planning/2026-09-30-menu-functional-audit.md)의 LIST-01–06을 따른다.
+
+* **web-shell, web, crm, docs:** 2026-09-30 [공용 홈·좌측 탐색 계약](common/explanation/architecture/2026-09-30-home-navigation-review.md)을 다섯 서비스에 적용했다. 홈은 고정 탭 하나로 유지하고 좌측은 업무 메뉴로 구분하며 저장 탭·업무 입력을 보존한다. CRM `/`는 대시보드, `/opportunities`는 기존 작업공간이며 과거 query 링크와 저장 탭을 이전한다. 메뉴/권한 데이터의 도메인 소유는 유지한다. 홈 회귀 검증을 기존 frame/preflight에 연결했다.
+
+* **docs:** 2026-09-30 [서비스 홈·좌측 탐색 공용 계약 검토](common/explanation/architecture/2026-09-30-home-navigation-review.md)를 추가했다. 5앱의 메뉴 출처와 홈 연결을 비교하고 PMS 실행 DB의 홈 비표시/비활성을 확인했다. DMS의 고정 홈·업무 트리 구분을 공용 계약으로 확장하는 안과 CRM 홈/작업공간 분리·기존 URL/탭 보존안을 정리했다. 제품 코드·메뉴·DB 변경 없음.
+
+* **crm, server, types, docs:** 2026-09-30 [메뉴별 기능 검수](crm/planning/2026-09-30-menu-functional-audit.md)의 대시보드 차이 3건을 수정했다. 그룹별 최신 확정 차수를 집계하고, DC·절사 전 수량×단가와 그룹 등록 역순 최근 5건을 원천 데모에 맞췄다. 서버 619테스트·실제 API 23요청/원천 함수 8상태 대조·관리자/조회 계정의 데스크톱/모바일·새 차수 생성 후 금액 유지 검증 통과. 견적/계약 및 SSOO 운영 지표의 정본 금액 계산은 보존했다. 공용 DB 적용과 다른 메뉴의 전수 완료를 의미하지 않는다.
+
+* **dms, pms, server, docs:** 2026-09-30 오류 공용화 후속 로컬 검증에서 DMS 저장 실패 시 편집기 유지·실제 409 비교 정보 전달, PMS 등록 버튼·부분 저장 재시도의 중복 생성 방지를 보완했다. 다섯 앱의 대표 양식/부분 실패와 실제 root Provider 예외·복구를 검증했다. 외부 환경은 사용자 확인에 따라 미정으로 유지한다. [후속 검증 기록](common/explanation/architecture/2026-09-30-error-recovery-verification.md)을 따른다.
+
+* **web-auth, web-shell, web, docs:** 2026-09-30 [공용 오류 안내·복귀 계약](common/explanation/architecture/error-recovery.md)을 5앱 경계·본문/양식·인증/접근 복구에 적용했다. 재개 검증에서 계정 초기화 뒤 stale 권한 응답, 세션 복원 전 서비스 조회, 캐시 본문 소실과 Retry-After metadata 유실을 보완했다. 공용 검증 126개·5앱 CLI 57개 묶음·공용 컴포넌트 6개 묶음·DMS 업무 10개와 앞단 Nginx 장애를 확인했다. [검증 보고서](common/explanation/architecture/2026-09-30-error-recovery-verification.md)에 E01–E32/F01–F09의 구현/증거 수준과 미검증 범위를 기록하며 최종 검사 상태는 [실행 대장](common/explanation/architecture/error-recovery-ralph-plan.md)을 따른다. 운영 배포나 모든 업무 실패 조합의 전수 완료로 집계하지 않는다.
+
+* **docs:** 2026-09-30 [웹 오류 안내·복귀 동선 조사](common/explanation/architecture/2026-09-30-error-surface-audit.md)를 추가했다. 5앱과 공용 브라우저 패키지 1,016개 소스 검색 대장, 잘못된 주소 10건·API 장애 주입 4건의 재현 결과, 공용 템플릿과 복귀 계약 제안을 기록한다. 전체 업무 오류의 런타임 검증이나 템플릿 구현 완료를 의미하지 않는다.
+
+* **admin, docs:** 2026-09-30 Admin 접근 제한 화면의 막힌 동선을 보완했다. 기존 서비스 홈 접근 snapshot으로 이동 버튼을 표시하고, 서버 로그아웃 성공 후 로그인 화면으로 돌아가 다른 계정으로 로그인할 수 있다. 권한 확인 실패·서비스 없음·로그아웃 실패의 안내와 재시도를 제공한다. [인증 흐름](common/explanation/architecture/auth-system.md)의 Admin 복구 동선을 따른다.
+
 * **web, docs:** 2026-09-23 승인된 공용 로그인 옵션·검색 결과 표현·상단 검색 배치와 문서관리 설정·작은 화면 대화 도구 보완을 현재 작업 기준으로 묶었다. [문서관리 최신 핸드오프](dms/planning/2026-09-23-assistant-history-layout-handoff.md)와 [로컬 Docker 배포 기록](common/explanation/architecture/2026-09-23-local-docker-handoff.md)을 따른다. 기존 개발 데이터 유지, 다섯 서비스 실제 접속 확인 완료. 권한 관리 요약 카드 줄바꿈과 검색창 배경 차이 잔여는 해결로 집계하지 않는다.
 
 * **docs:** 2026-09-18 승인-06 [운영 출시 입력·실행 준비](common/explanation/architecture/2026-09-18-production-launch-inputs.md) 정리. 출시 검사 도구 7종 자체 검사 통과, 실제 설정 파일 부재·미커밋 작업본으로 운영 검사 차단 확인. 제품 변경·배포·신규 승인 0, 21완료·1잔여·운영 증거 0/5 유지.
@@ -102,6 +230,10 @@
 * **web-crm, web-dms, server, scripts, docs:** CRM Phase 2 S11 production runtime contract를 폐쇄했다. CRM settings alias와 MDI/sidebar URL sync, persisted stale tab, operation source deep link를 보정하고 DMS settings history의 root home 복귀를 URL-first로 고정했다. 종료 점검에서 드러난 reports server→client query helper RSC 오류는 순수 query 모듈로 분리했다. standard와 승인 mapped origin에서 CRM/Admin/DMS login·API·deep link와 Socket.IO frame 송수신, 미승인 origin fail-closed, desktop/mobile E0를 통과해 `SRC-28`, `OPS-01`, `OPS-10`, `OPS-14`, `BT-17`, `BT-23`을 완료 처리했다.
 
 ## [Unreleased]
+
+* **server, database:** 공통코드 마스터·이력과 기본 관리 API를 PMS에서 플랫폼 common으로 이전. 기존 API·화면·도메인별 코드 의미를 유지하고 데이터·이력·시퀀스 보존 migration과 검증을 추가. [소유권 계약](common/explanation/architecture/common-code-ownership.md).
+
+* **crm, admin, server, database, types:** 사업연도 관리의 화면·API·권한·마스터/이력을 CRM으로 이전. 기존 `biz_year` 값·활성 상태·감사 이력을 보존하고 공통코드 재생성을 차단. WSL 중단 후 CRM production 빌드, 데이터 이전·복원, 단위 36개·API 27개와 격리 브라우저 CRUD·조회 전용 권한·모바일 검증을 완료. [이전 계약 및 재개 검증](crm/reference/business-year-ownership.md).
 
 
 * **server, dms, tests:** 사용자 승인으로 남은 압축 처리 부품을 제거하고 기존 설치 계열의 메모리 처리 부품으로 교체했다. 문서 읽기·생성의 비동기 완료를 내부 저장 호출에 연결하고 검증 도구도 교체했다. 교체 전 합성 문서의 본문·서식·첨부·오류 결과를 회귀 기준으로 고정했다. 최종 감사 0건·서버 492건·캐시 없는 다섯 서비스/서버 빌드·영업/문서 회귀 16건을 통과했다. 실제 양식 업로드·견적 생성/다운로드·편집 첨부 3형식 및 문서 내부 13개 구성의 동등성을 확인했고 검증 자료를 정리했다. 화면·외부 연동 계약은 유지했으며 승인-10 완료로 총 3완료·12대기다. 운영 환경에는 배포하지 않았다.

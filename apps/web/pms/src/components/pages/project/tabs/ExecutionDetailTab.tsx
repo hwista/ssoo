@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -241,7 +242,7 @@ export function ExecutionDetailTab({ projectId, detail, onSaved }: Props) {
           </FormField>
           <p className="md:col-span-2 text-xs text-muted-foreground">
             {isProjectLookupError ? (
-              <>
+              <SsooErrorNotice as="span" compact>
                 프로젝트 조회 결과를 불러오지 못했습니다.{' '}
                 <Button
                   type="button"
@@ -252,7 +253,7 @@ export function ExecutionDetailTab({ projectId, detail, onSaved }: Props) {
                 >
                   다시 조회
                 </Button>
-              </>
+              </SsooErrorNotice>
             ) : selectedNextProject ? (
               formatProjectContext(selectedNextProject) || '선택한 프로젝트를 후속 프로젝트로 저장합니다.'
             ) : (

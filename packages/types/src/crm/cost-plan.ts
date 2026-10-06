@@ -1,4 +1,4 @@
-export type CrmCostPlanPreviewRegion = 'all' | 'domestic' | 'overseas';
+export type CrmCostPlanPreviewRegion = 'all' | 'domestic' | 'overseas' | 'unspecified';
 export type CrmCostPlanAmsReadiness = 'ready' | 'blocked' | 'planned';
 export type CrmCostPlanAmsMappingStatus = 'mapped' | 'unmapped' | 'not-required';
 export type CrmCostPlanInternalInputMode = 'candidate' | 'manual';
@@ -24,6 +24,7 @@ export type CrmCostPlanPreviewSource =
   | 'ams-readiness';
 
 export interface CrmCostPlanPreviewQuery {
+  ownerOrganizationId?: string;
   year?: number;
   businessType?: string;
   industryLine?: string;
@@ -112,7 +113,7 @@ export interface CrmCostPlanPreviewSummary {
   amsMappedCount: number;
   amsReadyCount: number;
   amsBlockedCount: number;
-  activeFilters: Required<CrmCostPlanPreviewQuery>;
+  activeFilters: Required<Omit<CrmCostPlanPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmCostPlanPreviewQuery, 'ownerOrganizationId'>;
   businessTypeOptions: string[];
   industryLineOptions: string[];
   sourceTypes: CrmCostPlanPreviewSource[];
@@ -153,6 +154,7 @@ export interface CrmCostPlanInternalSourceItemInput {
 }
 
 export interface CrmCostPlanInternalSourceGridRequest {
+  ownerOrganizationId?: string;
   targetYear: number;
   items: CrmCostPlanInternalSourceItemInput[];
 }
@@ -207,11 +209,13 @@ export interface CrmCostPlanAmsSourceWorkspace {
 }
 
 export interface CrmCostPlanAmsSourceVendorCreateRequest {
+  ownerOrganizationId?: string;
   targetYear: number;
   vendorName: string;
 }
 
 export interface CrmCostPlanAmsSourceVendorWbsRequest {
+  ownerOrganizationId?: string;
   targetYear: number;
   wbsCodes: string[];
 }
@@ -224,6 +228,7 @@ export interface CrmCostPlanAmsSourceExternalCostRowInput {
 }
 
 export interface CrmCostPlanAmsSourceExternalCostRequest {
+  ownerOrganizationId?: string;
   targetYear: number;
   rows: CrmCostPlanAmsSourceExternalCostRowInput[];
 }
@@ -234,6 +239,7 @@ export interface CrmCostPlanAmsSourceWorkspaceResult {
 }
 
 export interface CrmCostPlanInternalMonthlyInput {
+  ownerOrganizationId?: string;
   id: string;
   targetYear: number;
   businessType: string;
@@ -254,6 +260,7 @@ export interface CrmCostPlanInternalMonthlyInput {
 }
 
 export interface CrmCostPlanInternalMonthlyInputRequest {
+  ownerOrganizationId?: string;
   targetYear: number;
   businessType: string;
   industryLine: string;
@@ -276,6 +283,7 @@ export interface CrmCostPlanInternalMonthlyWorkflowResult {
 }
 
 export interface CrmCostPlanAmsVendorWbsMapping {
+  ownerOrganizationId?: string;
   id: string;
   targetYear: number;
   businessType: string;
@@ -290,6 +298,7 @@ export interface CrmCostPlanAmsVendorWbsMapping {
 }
 
 export interface CrmCostPlanAmsVendorWbsMappingRequest {
+  ownerOrganizationId?: string;
   targetYear: number;
   businessType: string;
   industryLine: string;
@@ -307,6 +316,7 @@ export interface CrmCostPlanAmsVendorWbsMappingResult {
 }
 
 export interface CrmCostPlanAmsExternalMonthlyInput {
+  ownerOrganizationId?: string;
   id: string;
   targetYear: number;
   businessType: string;
@@ -329,6 +339,7 @@ export interface CrmCostPlanAmsExternalMonthlyInput {
 }
 
 export interface CrmCostPlanAmsExternalMonthlyInputRequest {
+  ownerOrganizationId?: string;
   targetYear: number;
   businessType: string;
   industryLine: string;
@@ -381,6 +392,7 @@ export interface CrmCostPlanAccountingPaymentExecutionEvidenceStep {
 }
 
 export interface CrmCostPlanAccountingPaymentHandoffSummary {
+  ownerOrganizationId?: string;
   id: string;
   status: CrmCostPlanAccountingPaymentHandoffStatus;
   targetYear: number;

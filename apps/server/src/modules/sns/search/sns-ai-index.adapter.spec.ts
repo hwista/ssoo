@@ -1,3 +1,4 @@
+import type { AccessService } from '../access/access.service.js';
 import type { AiIndexObjectProjection } from '@ssoo/types/common';
 import type { DatabaseService } from '../../../database/database.service.js';
 import type { AiEmbeddingProviderService } from '../../common/ai-index/ai-embedding-provider.service.js';
@@ -42,6 +43,7 @@ function createPostFixture(options: SnsPostFixtureOptions = {}) {
     category: {
       categoryName: '공유',
     },
+    accessRequests: [],
     postTags: [
       {
         tag: {
@@ -85,7 +87,7 @@ function createAdapter(post: unknown, embeddingReady = false) {
       reasonCode: embeddingReady ? undefined : 'not_configured',
     }),
   } as unknown as AiEmbeddingProviderService;
-  const adapter = new SnsAiIndexAdapter(db, registry, embeddingProvider);
+  const adapter = new SnsAiIndexAdapter(db, registry, embeddingProvider, {} as AccessService);
 
   return {
     adapter,
@@ -243,6 +245,14 @@ describe('SnsAiIndexAdapter', () => {
       });
     },
   );
+
+  it('adds individually approved users to private AI ACL without making it public', async () => {
+    const post = { ...createPostFixture({ visibilityScopeCode: 'self' }), accessRequests: [{ requesterUserId: 702n }] };
+    const { adapter, findFirst } = createAdapter(post);
+    const projection = requireProjection(await adapter.syncObject({ sourceApp: 'sns', entityType: 'post', entityId: '303', jobType: 'upsert' }));
+    expect(projection.acl).toMatchObject({ accessScope: 'acl', snapshot: { readableUserIds: ['501', '702'], userIds: ['501', '702'] } });
+    expect(findFirst.calls[0]).toMatchObject({ include: { accessRequests: { where: { isActive: true, statusCode: 'approved', OR: [{ expiresAt: null }, { expiresAt: { gt: expect.any(Date) } }] } } } });
+  });
 
   it('skips unsupported SNS entity types and invalid IDs', async () => {
     const { adapter, findFirst } = createAdapter(createPostFixture(), false);

@@ -92,6 +92,9 @@ jobs:
       - name: SSOO Frame Verify
         run: pnpm run verify:ssoo-frame -- --skip-runtime
 
+      - name: Shared Error Routing Contract
+        run: pnpm run verify:error-routing
+
       - name: Input Intent and Autofill Contract
         run: pnpm run verify:input-intent
 

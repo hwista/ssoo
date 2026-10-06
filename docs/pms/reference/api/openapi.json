@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/api/codes/groups": {
+    "/api/pms/settings": {
       "get": {
-        "operationId": "CodeController_findGroups",
+        "operationId": "PmsSettingsController_read",
         "parameters": [],
         "responses": {
           "200": {
@@ -15,88 +15,20 @@
             "bearer": []
           }
         ],
-        "summary": "코드 그룹 목록",
+        "summary": "내 프로젝트 사용 설정 조회",
         "tags": [
-          "codes"
-        ]
-      }
-    },
-    "/api/codes": {
-      "get": {
-        "operationId": "CodeController_findByGroup",
-        "parameters": [
-          {
-            "name": "codeGroup",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "그룹별 코드 목록",
-        "tags": [
-          "codes"
+          "PMS settings"
         ]
       },
-      "post": {
-        "operationId": "CodeController_create",
+      "patch": {
+        "operationId": "PmsSettingsController_update",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateCodeDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "코드 생성",
-        "tags": [
-          "codes"
-        ]
-      }
-    },
-    "/api/codes/{id}": {
-      "put": {
-        "operationId": "CodeController_update",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateCodeDto"
+                "$ref": "#/components/schemas/UpdatePmsSettingsDto"
               }
             }
           }
@@ -111,65 +43,9 @@
             "bearer": []
           }
         ],
-        "summary": "코드 수정",
+        "summary": "내 프로젝트 사용 설정 저장",
         "tags": [
-          "codes"
-        ]
-      },
-      "delete": {
-        "operationId": "CodeController_deactivate",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "코드 비활성화",
-        "tags": [
-          "codes"
-        ]
-      }
-    },
-    "/api/codes/{id}/permanent": {
-      "delete": {
-        "operationId": "CodeController_removePermanently",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "비활성 코드 영구 삭제",
-        "tags": [
-          "codes"
+          "PMS settings"
         ]
       }
     },
@@ -7652,12 +7528,49 @@
         ]
       }
     },
+    "/api/projects/{projectId}/tasks/assignees": {
+      "get": {
+        "operationId": "TaskController_assignees",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "지정 가능한 작업 담당자 목록",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/projects/{projectId}/tasks/{id}": {
       "get": {
         "operationId": "TaskController_findOne",
         "parameters": [
           {
             "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
             "required": true,
             "in": "path",
             "schema": {
@@ -7690,6 +7603,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -7712,6 +7633,14 @@
         "parameters": [
           {
             "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
             "required": true,
             "in": "path",
             "schema": {
@@ -8218,79 +8147,25 @@
       }
     },
     "schemas": {
-      "CreateCodeDto": {
+      "UpdatePmsSettingsDto": {
         "type": "object",
         "properties": {
-          "codeGroup": {
+          "showCompletedTasks": {
+            "type": "boolean"
+          },
+          "defaultProjectView": {
             "type": "string",
-            "description": "코드 그룹"
+            "enum": [
+              "board",
+              "list",
+              "timeline"
+            ]
           },
-          "codeValue": {
-            "type": "string",
-            "description": "코드 값"
+          "notifyTaskAssignment": {
+            "type": "boolean"
           },
-          "parentCode": {
-            "type": "string",
-            "description": "상위 코드"
-          },
-          "displayNameKo": {
-            "type": "string",
-            "description": "한국어 표시명"
-          },
-          "displayNameEn": {
-            "type": "string",
-            "description": "영어 표시명"
-          },
-          "description": {
-            "type": "string",
-            "description": "설명"
-          },
-          "sortOrder": {
-            "type": "number",
-            "description": "정렬 순서",
-            "default": 0
-          }
-        },
-        "required": [
-          "codeGroup",
-          "codeValue",
-          "displayNameKo"
-        ]
-      },
-      "UpdateCodeDto": {
-        "type": "object",
-        "properties": {
-          "codeGroup": {
-            "type": "string",
-            "description": "코드 그룹"
-          },
-          "codeValue": {
-            "type": "string",
-            "description": "코드 값"
-          },
-          "parentCode": {
-            "type": "string",
-            "description": "상위 코드"
-          },
-          "displayNameKo": {
-            "type": "string",
-            "description": "한국어 표시명"
-          },
-          "displayNameEn": {
-            "type": "string",
-            "description": "영어 표시명"
-          },
-          "description": {
-            "type": "string",
-            "description": "설명"
-          },
-          "sortOrder": {
-            "type": "number",
-            "description": "정렬 순서"
-          },
-          "isActive": {
-            "type": "boolean",
-            "description": "활성 상태"
+          "notifyIssueUpdate": {
+            "type": "boolean"
           }
         }
       },
@@ -11027,6 +10902,111 @@
           "projectName",
           "lifecycle",
           "createdAt"
+        ]
+      },
+      "CreateOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "membership",
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "parentOrganizationId": {
+            "type": "string"
+          },
+          "organizationName": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "message"
+        ]
+      },
+      "DecideOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "message"
+        ]
+      },
+      "SetApprovalAuthorityDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "authorityKind": {
+            "type": "string",
+            "enum": [
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "maxRoleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "authorityKind",
+          "maxRoleCode"
         ]
       },
       "CreateOrganizationDto": {

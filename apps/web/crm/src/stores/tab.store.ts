@@ -1,3 +1,5 @@
+import { isSsooHomeEntry, normalizeSsooHomeTabs } from '@ssoo/web-shell';
+import { CRM_HOME_ENTRY, CRM_OPPORTUNITY_WORKSPACE_PATH, CRM_OPPORTUNITY_WORKSPACE_TITLE, normalizeCrmNavigationPath } from '@/lib/crmNavigation';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -30,12 +32,7 @@ interface CrmTabStore {
   reorderTabs: (fromIndex: number, toIndex: number) => void;
 }
 
-export const CRM_HOME_TAB = {
-  id: 'home',
-  title: '홈',
-  path: '/',
-  closable: false,
-} as const;
+export const CRM_HOME_TAB = CRM_HOME_ENTRY;
 
 function createHomeTab(): CrmTabItem {
   const now = new Date();
@@ -64,6 +61,8 @@ export const useTabStore = create<CrmTabStore>()(
       tabLimitReached: false,
       dismissTabLimit: () => set({ tabLimitReached: false }),
       openTab: (options) => {
+        options = { ...options, path: normalizeCrmNavigationPath(options.path) };
+        if (isSsooHomeEntry({ path: options.path }, CRM_HOME_TAB)) options = { ...options, ...CRM_HOME_TAB };
         const tabId = createTabId(options.path, options.id);
         const existing = get().tabs.find((tab) => tab.id === tabId);
         if (existing) {
@@ -124,6 +123,7 @@ export const useTabStore = create<CrmTabStore>()(
       },
       reorderTabs: (fromIndex, toIndex) => {
         set((state) => {
+          if (isSsooHomeEntry(state.tabs[fromIndex] ?? {}, CRM_HOME_TAB) || toIndex === 0) return state;
           const nextTabs = [...state.tabs];
           const moved = nextTabs.splice(fromIndex, 1)[0];
           if (!moved) return state;
@@ -134,13 +134,26 @@ export const useTabStore = create<CrmTabStore>()(
     }),
     {
       name: 'crm-mdi-tabs',
+      version: 1,
+      migrate: (persisted) => {
+        const state = persisted as Pick<CrmTabStore, 'tabs' | 'activeTabId'>;
+        if (!Array.isArray(state?.tabs)) return { tabs: [createHomeTab()], activeTabId: CRM_HOME_TAB.id };
+        state.tabs = state.tabs.map((tab) => {
+          if (tab.id === CRM_HOME_TAB.id && new URLSearchParams(tab.path.split('?')[1]).get('sourceSurface') !== 'dashboard') {
+            return { ...tab, id: 'crm-opportunity-workspace', title: CRM_OPPORTUNITY_WORKSPACE_TITLE, path: tab.path === '/' ? CRM_OPPORTUNITY_WORKSPACE_PATH : normalizeCrmNavigationPath(tab.path), closable: true };
+          }
+          return tab;
+        });
+        if (state.activeTabId === CRM_HOME_TAB.id && !state.tabs.some((tab) => tab.id === CRM_HOME_TAB.id)) state.activeTabId = 'crm-opportunity-workspace';
+        return state;
+      },
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({ tabs: state.tabs, activeTabId: state.activeTabId }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         const normalizedTabs = state.tabs.map((tab) => ({
           ...tab,
-          ...(tab.id === CRM_HOME_TAB.id ? CRM_HOME_TAB : {}),
+          path: normalizeCrmNavigationPath(tab.path),
           ...(tab.id === '/settings' ? { id: '/operations/settings' } : {}),
           openedAt: new Date(tab.openedAt),
           lastActiveAt: new Date(tab.lastActiveAt),
@@ -151,10 +164,7 @@ export const useTabStore = create<CrmTabStore>()(
         if (state.activeTabId === '/settings') {
           state.activeTabId = '/operations/settings';
         }
-        if (!state.tabs.some((tab) => tab.id === CRM_HOME_TAB.id)) {
-          state.tabs = [createHomeTab(), ...state.tabs];
-        }
-        state.activeTabId = state.activeTabId ?? CRM_HOME_TAB.id;
+        Object.assign(state, normalizeSsooHomeTabs(state.tabs, state.activeTabId, CRM_HOME_TAB, createHomeTab));
       },
     }
   )

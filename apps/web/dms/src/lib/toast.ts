@@ -9,16 +9,18 @@
  * toast.error('오류 발생', { description: '상세 메시지' });
  */
 
-import { toast as sonnerToast } from 'sonner';
+import { ssooToast as sonnerToast } from '@ssoo/web-shell';
 
 interface ToastOptions {
   description?: string;
+  id?: string | number;
   duration?: number;
 }
 
 export const toast = {
   success: (title: string, options?: ToastOptions) => {
     sonnerToast.success(title, {
+      ...options,
       description: options?.description,
       duration: options?.duration ?? 4000,
     });
@@ -26,6 +28,7 @@ export const toast = {
 
   error: (title: string, options?: ToastOptions) => {
     sonnerToast.error(title, {
+      ...options,
       description: options?.description,
       duration: options?.duration ?? 5000,
     });
@@ -33,6 +36,7 @@ export const toast = {
 
   info: (title: string, options?: ToastOptions) => {
     sonnerToast.info(title, {
+      ...options,
       description: options?.description,
       duration: options?.duration ?? 4000,
     });
@@ -40,6 +44,7 @@ export const toast = {
 
   warning: (title: string, options?: ToastOptions) => {
     sonnerToast.warning(title, {
+      ...options,
       description: options?.description,
       duration: options?.duration ?? 4000,
     });
@@ -47,6 +52,7 @@ export const toast = {
 
   loading: (title: string, options?: ToastOptions) => {
     return sonnerToast.loading(title, {
+      ...options,
       description: options?.description,
     });
   },

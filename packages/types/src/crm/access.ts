@@ -29,6 +29,8 @@ export interface CrmOperationsAccessFeatures {
  * 계약·사업계획·원가·보고·공급자 설정은 이 snapshot을 정본으로 사용합니다.
  */
 export interface CrmDomainAccessFeatures {
+  canReadBusinessYear: boolean;
+  canManageBusinessYear: boolean;
   canReadContract: boolean;
   canWriteContract: boolean;
   canConfirmContract: boolean;

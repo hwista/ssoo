@@ -68,7 +68,7 @@ datasource db {
 
 | 스키마 | 접두사 | 용도 |
 |--------|--------|------|
-| `common` | `cm_user_*` | 공통 사용자 관리 |
+| `common` | `cm_*` | 공통코드·사용자·인증·권한 |
 | `pms` | `cm_*`, `pr_*` | PMS 전용 |
 | `dms` | `dm_*` | DMS 전용 (예정) |
 
@@ -218,6 +218,8 @@ FOR EACH ROW EXECUTE FUNCTION {schema}.fn_{table}_history();
 |------|------|
 | 2026-01-27 | 초기 작성 - 현행 패키지 기준 |
 | 2026-02-05 | 테이블 네이밍 규칙, 새 테이블 추가 체크리스트 추가 |
+
+공통코드의 저장·이력·기본 API는 플랫폼이, 업무 의미와 특화 기능은 해당 도메인이 소유한다. [소유권·이전 계약](common-code-ownership.md)을 따른다.
 
 ## Changelog
 

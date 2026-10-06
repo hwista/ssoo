@@ -3820,8 +3820,14 @@
             "description": "문서 공개범위",
             "enum": [
               "self",
-              "organization"
+              "organization",
+              "public"
             ]
+          },
+          "targetOrgId": {
+            "type": "string",
+            "description": "조직 공개 대상 조직 ID",
+            "maxLength": 19
           }
         },
         "required": [
@@ -5079,6 +5085,111 @@
         },
         "required": [
           "seenAt"
+        ]
+      },
+      "CreateOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "membership",
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "parentOrganizationId": {
+            "type": "string"
+          },
+          "organizationName": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "message"
+        ]
+      },
+      "DecideOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "message"
+        ]
+      },
+      "SetApprovalAuthorityDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "authorityKind": {
+            "type": "string",
+            "enum": [
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "maxRoleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "authorityKind",
+          "maxRoleCode"
         ]
       },
       "UpdateRolePermissionsDto": {

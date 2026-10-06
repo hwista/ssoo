@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useId, useRef, useState, type FormEvent } from 'react';
 import {
   Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
@@ -47,7 +48,7 @@ export function CreateBoardDialog({ onClose, onCreated }: CreateBoardDialogProps
           <DialogDescription>코드·이름·유형은 필수이며, 설명은 선택 항목입니다.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4" aria-busy={mutation.isPending}>
-          {error && <p role="alert" id={`${id}-error`} className="text-body-sm text-destructive">{error}</p>}
+          {error && <SsooErrorNotice as="p" compact id={`${id}-error`} error={error} />}
           <fieldset disabled={mutation.isPending} className="space-y-4" aria-describedby={error ? `${id}-error` : undefined}>
             <div className="space-y-1">
               <label htmlFor={`${id}-code`} className="text-body-sm">게시판 코드 (필수)</label>

@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useId, useState } from 'react';
 import { Link2 } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input } from '@ssoo/web-ui';
@@ -32,7 +33,7 @@ export function AttachLinkButton({ disabled, onAdd }: { disabled: boolean; onAdd
         <div className="space-y-2">
           <label htmlFor={id} className="text-body-sm">웹 주소</label>
           <Input id={id} value={value} onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); add(); } }} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} autoComplete="off" />
-          {error && <p id={`${id}-error`} role="alert" className="text-body-sm text-destructive">{error}</p>}
+          {error && <SsooErrorNotice as="p" compact id={`${id}-error`} error={error} />}
         </div>
         <DialogFooter className="gap-2"><Button variant="outline" onClick={() => changeOpen(false)}>취소</Button><Button onClick={add} disabled={disabled}>추가</Button></DialogFooter>
       </DialogContent>

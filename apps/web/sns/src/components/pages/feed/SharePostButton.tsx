@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Share2 } from 'lucide-react';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import {
   Button, Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle, DialogTrigger, Input,
@@ -15,12 +16,14 @@ export function SharePostButton({ postId }: { postId: string }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
   const [copying, setCopying] = useState(false);
 
   useEffect(() => {
     attempt.current++;
     setOpen(false);
     setStatus('');
+    setError('');
     setCopying(false);
   }, [pathname]);
 
@@ -28,6 +31,7 @@ export function SharePostButton({ postId }: { postId: string }) {
     attempt.current++;
     setOpen(next);
     setStatus('');
+    setError('');
     setCopying(false);
     if (next) setUrl(`${window.location.origin}/post/${encodeURIComponent(postId)}`);
   }
@@ -36,11 +40,12 @@ export function SharePostButton({ postId }: { postId: string }) {
     const current = ++attempt.current;
     setCopying(true);
     setStatus('');
+    setError('');
     try {
       await navigator.clipboard.writeText(url);
       if (attempt.current === current) setStatus('링크를 복사했습니다.');
     } catch {
-      if (attempt.current === current) setStatus('자동으로 복사하지 못했습니다. 아래 링크를 직접 복사해 주세요.');
+      if (attempt.current === current) setError('자동으로 복사하지 못했습니다. 아래 링크를 직접 복사해 주세요.');
     } finally {
       if (attempt.current === current) setCopying(false);
     }
@@ -59,6 +64,7 @@ export function SharePostButton({ postId }: { postId: string }) {
           <DialogDescription>링크를 받은 사람도 로그인과 게시물 열람 권한이 필요합니다.</DialogDescription>
         </DialogHeader>
         <p role="status" aria-live="polite" className="text-body-sm">{status}</p>
+        {error && <SsooErrorNotice message={error} />}
         <div className="space-y-1">
           <label htmlFor={id} className="text-body-sm">게시물 링크</label>
           <Input id={id} value={url} readOnly onFocus={(event) => event.currentTarget.select()} />

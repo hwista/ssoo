@@ -1,3 +1,4 @@
+import type { ProjectAccessService } from '../project/project-access.service.js';
 import type { AiIndexObjectProjection } from '@ssoo/types/common';
 import type { DatabaseService } from '../../../database/database.service.js';
 import type { AiEmbeddingProviderService } from '../../common/ai-index/ai-embedding-provider.service.js';
@@ -310,7 +311,7 @@ function createAdapter(
       reasonCode: embeddingReady ? undefined : 'not_configured',
     }),
   } as unknown as AiEmbeddingProviderService;
-  const adapter = new PmsAiIndexAdapter(db, registry, embeddingProvider);
+  const adapter = new PmsAiIndexAdapter(db, registry, embeddingProvider, {} as ProjectAccessService);
 
   return {
     adapter,

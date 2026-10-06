@@ -355,7 +355,7 @@ pnpm run codex:dms-guard
 
 ## 14. 검색 inventory freeze
 
-직접 JSX에서 식별된 32곳과 별도 공용 sidebar 구현, 완료성 감사에서 동적 props 때문에 최초 AST 탐지를 우회했던 공용 DataWorkspace filter renderer와 PMS page FilterBar, 동시 개발 중 추가된 CRM 계약청구실적 검색을 다음 36개 구현 지점으로 고정한다. 실행 도중 CRM source-compatible 계약/실적 조회 3곳과 Admin source-compatible 계정 검색 1곳이 추가된 것을 정적 gate가 감지해 inventory와 공용 계약에 함께 편입했다. 동적 text filter는 이제 타입 수준에서 stable `id/name/ariaLabel`을 필수로 요구하며, 이후 차이가 생기면 `verify:input-intent`가 실패한다.
+직접 JSX에서 식별된 32곳과 별도 공용 sidebar 구현, 완료성 감사에서 동적 props 때문에 최초 AST 탐지를 우회했던 공용 DataWorkspace filter renderer와 PMS page FilterBar, 동시 개발 중 추가된 CRM 계약청구실적 검색을 다음 37개 구현 지점으로 고정한다. 실행 도중 CRM source-compatible 계약/실적 조회 3곳과 Admin source-compatible 계정 검색 1곳이 추가된 것을 정적 gate가 감지해 inventory와 공용 계약에 함께 편입했다. 동적 text filter는 이제 타입 수준에서 stable `id/name/ariaLabel`을 필수로 요구하며, 이후 차이가 생기면 `verify:input-intent`가 실패한다.
 
 | 영역 | 소스 | 수량 | 목적 |
 |---|---|---:|---|
@@ -369,6 +369,7 @@ pnpm run codex:dms-guard
 | CRM | `BusinessPlanPerformancePreviewWorkspaceClient.tsx` | 1 | URL query |
 | CRM | `ContractPerformanceWorkspaceClient.tsx` | 2 | URL query, source-compatible URL query |
 | CRM | `ContractWorkspaceClient.tsx` | 3 | URL query, source-compatible 계약/계약청구실적 URL query |
+| CRM | `ContractUpsertPanel.tsx` | 1 | 계약 담당자 도움창의 공용 사용자 검색(2026-10-01 추가) |
 | CRM | `CostPlanPreviewWorkspaceClient.tsx` | 1 | URL query |
 | CRM | `CustomerWorkspaceClient.tsx` | 1 | URL query |
 | CRM | `ReportsPreviewWorkspaceClient.tsx` | 1 | URL query |

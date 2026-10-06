@@ -8,6 +8,7 @@ import type {
   DmsDocumentAccessRequestSummary,
   DmsManagedDocumentSummary,
   DocumentPermissionGrant,
+  DocumentVisibilityScope,
 } from '@ssoo/types/dms';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateDisplay';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,8 @@ import {
   useUpdateDocumentVisibilityMutation,
 } from '@/features/access';
 import { useAccessStore } from '@/stores';
+import { useAuthStore } from '@/stores/auth.store';
+import { ServiceOrganizationSelect } from '@ssoo/web-auth';
 import { DMS_ACCESS_REQUEST_FOCUS_EVENT } from '@/lib/notification-events';
 import { NativeSelect, Textarea } from '@ssoo/web-ui';
 
@@ -221,7 +224,7 @@ function ManagedDocumentCard({
   revokingGrantId,
 }: {
   document: DmsManagedDocumentSummary;
-  onToggleVisibility: (documentId: string, newScope: 'self' | 'organization') => void;
+  onToggleVisibility: (documentId: string, newScope: DocumentVisibilityScope, targetOrgId?: string) => void;
   isTogglingVisibility: boolean;
   onTransferOwnership: (documentId: string, newOwnerLoginId: string) => void;
   isTransferring: boolean;
@@ -229,8 +232,11 @@ function ManagedDocumentCard({
   isRevoking: boolean;
   revokingGrantId: string | null;
 }) {
-  const canToggle = document.visibilityScope === 'self' || document.visibilityScope === 'organization';
+  const canToggle = document.visibilityScope !== 'legacy';
   const nextScope = document.visibilityScope === 'self' ? 'organization' : 'self';
+  const accessToken = useAuthStore(state => state.accessToken);
+  const [selectingOrganization, setSelectingOrganization] = useState(false);
+  const [organizationId, setOrganizationId] = useState(document.targetOrgId ?? '');
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [transferLoginId, setTransferLoginId] = useState('');
   const [showGrants, setShowGrants] = useState(false);
@@ -250,7 +256,7 @@ function ManagedDocumentCard({
                 size="sm"
                 className="h-6 gap-1 px-2 text-badge"
                 disabled={isTogglingVisibility}
-                onClick={() => onToggleVisibility(document.documentId, nextScope)}
+                onClick={() => nextScope === 'organization' ? setSelectingOrganization(true) : onToggleVisibility(document.documentId, nextScope)}
               >
                 {isTogglingVisibility
                   ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -261,6 +267,13 @@ function ManagedDocumentCard({
                 {nextScope === 'organization' ? '조직 공개로 변경' : '비공개로 변경'}
               </Button>
             )}
+            {canToggle && document.visibilityScope !== 'public' ? <Button variant="ghost" size="sm" disabled={isTogglingVisibility} onClick={() => onToggleVisibility(document.documentId, 'public')}>전체 공개로 변경</Button> : null}
+            {canToggle && document.visibilityScope === 'organization' ? <Button variant="ghost" size="sm" disabled={isTogglingVisibility} onClick={() => setSelectingOrganization(true)}>대상 조직 변경</Button> : null}
+            {selectingOrganization ? <div className="space-y-2">
+              <ServiceOrganizationSelect service="dms" accessToken={accessToken} value={organizationId} onChange={setOrganizationId} disabled={isTogglingVisibility} />
+              <Button type="button" size="sm" disabled={!organizationId || isTogglingVisibility} onClick={() => { onToggleVisibility(document.documentId, 'organization', organizationId); setSelectingOrganization(false); }}>조직 공개 적용</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setSelectingOrganization(false)}>취소</Button>
+            </div> : null}
             <Badge
               variant="outline"
               className={cn(
@@ -824,13 +837,13 @@ export function DocumentAccessSurface({ anchorIds = {} }: { anchorIds?: Record<s
     }));
   };
 
-  const handleToggleVisibility = async (documentId: string, newScope: 'self' | 'organization') => {
+  const handleToggleVisibility = async (documentId: string, newScope: DocumentVisibilityScope, targetOrgId?: string) => {
     try {
       await visibilityMutation.mutateAsync({
         documentId,
-        payload: { visibilityScope: newScope },
+        payload: { visibilityScope: newScope, targetOrgId },
       });
-      toast.success(newScope === 'organization' ? '문서를 조직 내 공개로 변경했습니다.' : '문서를 비공개로 변경했습니다.');
+      toast.success(newScope === 'organization' ? '문서를 조직 내 공개로 변경했습니다.' : newScope === 'public' ? '문서를 플랫폼 전체 공개로 변경했습니다.' : '문서를 비공개로 변경했습니다.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '공개범위 변경에 실패했습니다.');
     }
@@ -938,7 +951,7 @@ export function DocumentAccessSurface({ anchorIds = {} }: { anchorIds?: Record<s
   };
 
   if (!canManageDocumentAccess && !canViewMyRequests) {
-    return <ErrorState error="권한 요청/승인 화면을 사용할 권한이 없습니다." />;
+    return <ErrorState kind="forbidden" error="권한 요청/승인 화면을 사용할 권한이 없습니다." />;
   }
 
   const isInitialLoading = [

@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useState } from 'react';
 import { Bot, Play, RefreshCcw } from 'lucide-react';
 import { SsooSettingsPage } from '@ssoo/web-shell';
@@ -71,9 +72,7 @@ export function AiOperationsPage() {
     >
       {isLoading && <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">AI 운영 상태를 불러오는 중...</div>}
       {queryError && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-          {queryError instanceof Error ? queryError.message : 'AI 운영 상태 조회에 실패했습니다.'}
-        </div>
+        <SsooErrorNotice className="p-4" error={queryError instanceof Error ? queryError.message : 'AI 운영 상태 조회에 실패했습니다.'} />
       )}
 
       {readiness.data && (
@@ -178,12 +177,12 @@ export function AiOperationsPage() {
               <span>interval {scheduler.data.intervalMs}ms</span><span>batch {scheduler.data.batchLimit}</span><span>running {scheduler.data.running ? 'yes' : 'no'}</span>
               <span>최근 완료 {formatDateTime(scheduler.data.lastFinishedAt)}</span>
             </div>
-            {scheduler.data.lastErrorMessage && <p className="mt-2 text-destructive">{scheduler.data.lastErrorMessage}</p>}
+            {scheduler.data.lastErrorMessage && <SsooErrorNotice as="p" compact className="mt-2" error={scheduler.data.lastErrorMessage} />}
           </div>
           {runMutation.data && (
             <p className="text-sm text-ssoo-success">처리 {runMutation.data.processedCount}건 · indexed {runMutation.data.indexedCount} · 실패 {runMutation.data.failedCount}</p>
           )}
-          {runMutation.isError && <p className="text-sm text-destructive">{runMutation.error instanceof Error ? runMutation.error.message : 'AI job 실행에 실패했습니다.'}</p>}
+          {runMutation.isError && <SsooErrorNotice as="p" compact error={runMutation.error instanceof Error ? runMutation.error.message : 'AI job 실행에 실패했습니다.'} />}
         </section>
       )}
     </SsooSettingsPage>

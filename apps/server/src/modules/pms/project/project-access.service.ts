@@ -136,7 +136,7 @@ export class ProjectAccessService {
     const isProjectMember = memberRoleCodes.length > 0;
     const hasOwnerLevelMembership = memberAccessLevels.includes('owner');
     const hasPhaseOwnership = phaseOwnerRoleCodes.length > 0;
-    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(currentUser);
+    const actionContext = await this.accessFoundationService.resolveActionPermissionContext(currentUser, { serviceCode: 'pms', organizationId: project.ownerOrganizationId ?? null });
 
     if (actionContext.policy.hasSystemOverride) {
       return {
@@ -192,6 +192,7 @@ export class ProjectAccessService {
       user: currentUser,
       targetObjectType: PROJECT_OBJECT_TYPE,
       targetObjectId: projectId.toString(),
+      targetOrganizationId: project.ownerOrganizationId ?? null,
       actionContext,
       domainGrantedPermissionCodes,
     });
@@ -199,11 +200,13 @@ export class ProjectAccessService {
     const hasExplicitProjectCapability = Array.from(PROJECT_CAPABILITY_PERMISSION_CODES).some(
       (permissionCode) => objectContext.grantedPermissionCodes.has(permissionCode),
     );
-    const canViewProject =
+    const organizationScope = await this.accessFoundationService.getBusinessOrganizationScope(userId, 'pms');
+    const withinOrganizationScope = organizationScope === null || (project.ownerOrganizationId !== null && organizationScope.includes(project.ownerOrganizationId));
+    const canViewProject = withinOrganizationScope && (
       isProjectOwner
       || isProjectMember
       || isOwnerOrganizationMember
-      || hasExplicitProjectCapability;
+      || hasExplicitProjectCapability);
 
     return {
       projectId: project.id.toString(),

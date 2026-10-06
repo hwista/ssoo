@@ -13,7 +13,7 @@ export const operationsPreviewFallback: CrmOperationsPreviewResponse = {
     crmOwnedCount: 0,
     sharedOwnedCount: 0,
     dmsOwnedCount: 0,
-    boundaryNotice: '원천 데모의 계정/코드/회사/사업년도 관리는 CRM 내부 복제가 아니라 CRM 원장 설정, 공용 Admin/Auth, DMS 경계로 나누어 관리합니다.',
+    boundaryNotice: '사업연도와 업무 설정은 CRM에서 관리하고, 계정·공통코드는 Admin/Auth, 문서 저장은 DMS에서 관리합니다.',
     unavailableActions: [
       'CRM 내부 계정 생성/비밀번호 초기화',
       'CRM 내부 역할/권한 편집',

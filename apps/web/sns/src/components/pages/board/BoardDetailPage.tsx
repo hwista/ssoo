@@ -1,9 +1,13 @@
 'use client';
 
+import { ApiError } from '@/lib/api/client';
+
+import { SsooErrorPanel } from '@ssoo/web-shell';
+
 import { PostContent } from '../feed/PostContent';
 import { PostImages } from '../feed/PostImages';
 import Link from 'next/link';
-import { ArrowLeft, Eye, FileText, Hash, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, Eye, FileText, Hash } from 'lucide-react';
 import type { SnsVisibilityScopeCode } from '@ssoo/types/sns';
 import { EmptyState, LoadingState } from '@/components/common/StateDisplay';
 import { Badge } from '@/components/ui/badge';
@@ -60,11 +64,8 @@ export function BoardDetailPage({ boardId }: BoardDetailPageProps) {
   if (!canReadFeed) {
     return (
       <div className="mx-auto max-w-4xl">
-        <EmptyState
-          icon={<LayoutGrid className="h-12 w-12" />}
-          title="게시판 접근 권한이 없습니다"
-          description="현재 계정에는 SNS 게시판을 조회할 권한이 없습니다."
-        />
+        <SsooErrorPanel kind="forbidden" title="게시판 접근 권한이 없습니다" description="현재 계정에는 SNS 게시판을 조회할 권한이 없습니다."
+          actions={[{ label: '다른 서비스·계정으로 이동', href: '/recovery' }]} />
       </div>
     );
   }
@@ -78,20 +79,15 @@ export function BoardDetailPage({ boardId }: BoardDetailPageProps) {
   }
 
   if (!board || boardQuery.isError) {
-    return (
-      <div className="mx-auto max-w-4xl">
-        <EmptyState
-          icon={<LayoutGrid className="h-12 w-12" />}
-          title="게시판을 찾을 수 없습니다"
-          description={boardQuery.error?.message || '요청한 게시판이 없거나 더 이상 사용할 수 없습니다.'}
-          action={(
-            <Button asChild variant="outline" size="sm">
-              <Link href="/board">게시판 목록으로</Link>
-            </Button>
-          )}
-        />
-      </div>
-    );
+    const status = boardQuery.error instanceof ApiError ? boardQuery.error.status : undefined;
+    const unavailable = status === 403 || status === 404 || (!boardQuery.isError && !board);
+    return <SsooErrorPanel
+      error={boardQuery.error}
+      kind={unavailable ? (status === 403 ? 'forbidden' : 'not-found') : undefined}
+      title={unavailable ? '게시판을 볼 수 없습니다' : '게시판을 불러오지 못했습니다'}
+      description={unavailable ? '게시판이 없거나 열람할 수 없습니다.' : undefined}
+      onRetry={unavailable ? undefined : () => boardQuery.refetch()}
+      actions={[{ label: '게시판 목록으로', href: '/board' }]} />;
   }
 
   return (
@@ -139,11 +135,8 @@ export function BoardDetailPage({ boardId }: BoardDetailPageProps) {
         {postsQuery.isLoading ? (
           <LoadingState message="게시물을 불러오는 중입니다." />
         ) : postsQuery.isError ? (
-          <EmptyState
-            icon={<FileText className="h-12 w-12" />}
-            title="게시물을 불러오지 못했습니다"
-            description={postsQuery.error?.message || '잠시 후 다시 시도해 주세요.'}
-          />
+          <SsooErrorPanel error={postsQuery.error} title="게시물을 불러오지 못했습니다"
+            onRetry={() => postsQuery.refetch()} actions={[{ label: '게시판 목록으로', href: '/board' }]} />
         ) : posts.length === 0 ? (
           <EmptyState
             icon={<FileText className="h-12 w-12" />}

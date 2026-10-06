@@ -11,6 +11,7 @@ Table pr_project_m {
   stageCode String [not null]
   doneResultCode String
   currentOwnerUserId BigInt
+  ownerOrganizationId BigInt
   handoffTypeCode String
   handoffStatusCode String
   handoffRequestedAt DateTime
@@ -24,14 +25,37 @@ Table pr_project_m {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
   currentOwner cm_user_m
+  ownerOrganization cm_organization_m
+  requestDetail pr_project_request_d
+  proposalDetail pr_project_proposal_d
+  executionDetail pr_project_execution_d
+  transitionDetail pr_project_transition_d
+  handoffs pr_handoff_m [not null]
+  contracts pr_contract_m [not null]
   projectStatuses pr_project_status_m [not null]
   projectDeliverables pr_project_deliverable_r_m [not null]
   projectCloseConditions pr_project_close_condition_r_m [not null]
+  closeoutApprovalSteps pr_project_closeout_approval_step_m [not null]
+  projectMembers pr_project_member_r_m [not null]
+  projectOrgs pr_project_org_r_m [not null]
+  sourceRelations pr_project_relation_r_m [not null]
+  targetRelations pr_project_relation_r_m [not null]
+  objectives pr_objective_m [not null]
+  wbsItems pr_wbs_m [not null]
+  tasks pr_task_m [not null]
+  taskEffortLogs pr_task_effort_log_m [not null]
+  milestones pr_milestone_m [not null]
+  issues pr_issue_m [not null]
+  projectIssues pr_project_issue_m [not null]
+  requirements pr_requirement_m [not null]
+  risks pr_risk_m [not null]
+  changeRequests pr_change_request_m [not null]
+  events pr_event_m [not null]
 }
 
 Table pr_project_status_m {
@@ -49,7 +73,7 @@ Table pr_project_status_m {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -58,6 +82,176 @@ Table pr_project_status_m {
   indexes {
     (projectId, statusCode) [pk]
   }
+}
+
+Table pr_project_request_d {
+  projectId BigInt [pk]
+  requestSourceCode String
+  requestChannelCode String
+  requestSummary String
+  requestReceivedAt DateTime
+  requestPriorityCode String
+  requestOwnerUserId BigInt
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+}
+
+Table pr_project_proposal_d {
+  projectId BigInt [pk]
+  proposalOwnerUserId BigInt
+  proposalDueAt DateTime
+  proposalSubmittedAt DateTime
+  proposalVersion Int
+  estimateAmount BigInt
+  estimateUnitCode String
+  proposalScopeSummary String
+  decisionDeadlineAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+}
+
+Table pr_project_execution_d {
+  projectId BigInt [pk]
+  contractSignedAt DateTime
+  contractAmount BigInt
+  contractUnitCode String
+  billingTypeCode String
+  deliveryMethodCode String
+  nextProjectId BigInt
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+}
+
+Table pr_project_transition_d {
+  projectId BigInt [pk]
+  operationOwnerUserId BigInt
+  operationReservedAt DateTime
+  operationStartAt DateTime
+  transitionDueAt DateTime
+  transitionSummary String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+}
+
+Table pr_handoff_m {
+  handoffId BigInt [pk, increment]
+  projectId BigInt [not null]
+  fromPhaseCode String
+  toPhaseCode String [not null]
+  handoffTypeCode String [not null, default: 'phase_transition']
+  fromUserId BigInt
+  toUserId BigInt
+  requestedByUserId BigInt
+  handoffStatusCode String [not null, default: 'pending']
+  conditionNote String
+  assignedRoleCode String
+  requestedAt DateTime [default: `now()`, not null]
+  respondedAt DateTime
+  respondedByUserId BigInt
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  fromUser cm_user_m
+  toUser cm_user_m
+  requestedByUser cm_user_m
+  respondedByUser cm_user_m
+}
+
+Table pr_contract_m {
+  contractId BigInt [pk, increment]
+  projectId BigInt [not null]
+  contractCode String [not null]
+  title String [not null]
+  contractTypeCode String [not null, default: 'new']
+  totalAmount BigInt
+  currencyCode String [not null, default: 'KRW']
+  contractStatusCode String [not null, default: 'draft']
+  contractDate DateTime
+  startDate DateTime
+  endDate DateTime
+  managerUserId BigInt
+  billingTypeCode String
+  deliveryMethodCode String
+  isPrimary Boolean [not null, default: false]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  managerUser cm_user_m
+  payments pr_contract_payment_m [not null]
+
+  indexes {
+    (projectId, contractCode) [unique]
+  }
+}
+
+Table pr_contract_payment_m {
+  contractPaymentId BigInt [pk, increment]
+  contractId BigInt [not null]
+  paymentTypeCode String [not null, default: 'other']
+  amount BigInt
+  triggerEvent String
+  paymentStatusCode String [not null, default: 'scheduled']
+  dueDate DateTime
+  paidDate DateTime
+  requestedByUserId BigInt
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  contract pr_contract_m [not null]
+  requestedByUser cm_user_m
 }
 
 Table pr_deliverable_m {
@@ -71,7 +265,7 @@ Table pr_deliverable_m {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -85,12 +279,16 @@ Table pr_deliverable_group_m {
   groupName String [not null]
   description String
   sortOrder Int [not null, default: 0]
+  approvalStatusCode String [not null, default: 'draft']
+  versionNo Int [not null, default: 1]
+  approvedBy BigInt
+  approvedAt DateTime
   isActive Boolean [not null, default: true]
   memo String
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -106,7 +304,7 @@ Table pr_deliverable_group_item_r_m {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -124,12 +322,16 @@ Table pr_close_condition_group_m {
   groupName String [not null]
   description String
   sortOrder Int [not null, default: 0]
+  approvalStatusCode String [not null, default: 'draft']
+  versionNo Int [not null, default: 1]
+  approvedBy BigInt
+  approvedAt DateTime
   isActive Boolean [not null, default: true]
   memo String
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -139,13 +341,14 @@ Table pr_close_condition_group_m {
 Table pr_close_condition_group_item_r_m {
   groupCode String [not null]
   conditionCode String [not null]
+  requiresDeliverable Boolean [not null, default: false]
   sortOrder Int [not null, default: 0]
   isActive Boolean [not null, default: true]
   memo String
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -160,6 +363,7 @@ Table pr_project_deliverable_r_m {
   projectId BigInt [not null]
   statusCode String [not null]
   deliverableCode String [not null]
+  eventId BigInt
   submissionStatusCode String [not null]
   submittedAt DateTime
   submittedBy BigInt
@@ -172,12 +376,13 @@ Table pr_project_deliverable_r_m {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
   project pr_project_m [not null]
   deliverable pr_deliverable_m [not null]
+  event pr_event_m
 
   indexes {
     (projectId, statusCode, deliverableCode) [pk]
@@ -188,6 +393,7 @@ Table pr_project_close_condition_r_m {
   projectId BigInt [not null]
   statusCode String [not null]
   conditionCode String [not null]
+  eventId BigInt
   requiresDeliverable Boolean [not null, default: false]
   isChecked Boolean [not null, default: false]
   checkedAt DateTime
@@ -198,14 +404,506 @@ Table pr_project_close_condition_r_m {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  event pr_event_m
+
+  indexes {
+    (projectId, statusCode, conditionCode) [pk]
+  }
+}
+
+Table pr_project_closeout_approval_step_m {
+  approvalStepId BigInt [pk, increment]
+  projectId BigInt [not null]
+  statusCode String [not null]
+  targetTypeCode String [not null]
+  targetCode String [not null]
+  sequenceNo Int [not null]
+  approverUserId BigInt [not null]
+  approvalStatusCode String [not null, default: 'pending']
+  requestedAt DateTime [default: `now()`, not null]
+  decidedAt DateTime
+  decidedBy BigInt
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+}
+
+Table pr_project_member_r_m {
+  projectId BigInt [not null]
+  userId BigInt [not null]
+  roleCode String [not null]
+  organizationId BigInt
+  accessLevel String [not null, default: 'participant']
+  isPhaseOwner Boolean [not null, default: false]
+  assignedAt DateTime [default: `now()`, not null]
+  releasedAt DateTime
+  allocationRate Int [not null, default: 100]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  user cm_user_m [not null]
+
+  indexes {
+    (projectId, userId, roleCode) [pk]
+  }
+}
+
+Table pr_project_org_r_m {
+  projectId BigInt [not null]
+  organizationId BigInt [not null]
+  roleCode String [not null]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  organization cm_organization_m [not null]
+
+  indexes {
+    (projectId, organizationId, roleCode) [pk]
+  }
+}
+
+Table pr_project_relation_r_m {
+  sourceProjectId BigInt [not null]
+  targetProjectId BigInt [not null]
+  relationTypeCode String [not null]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  sourceProject pr_project_m [not null]
+  targetProject pr_project_m [not null]
+
+  indexes {
+    (sourceProjectId, targetProjectId, relationTypeCode) [pk]
+  }
+}
+
+Table pr_project_role_permission_r {
+  projectRolePermissionId BigInt [pk, increment]
+  roleCode String [not null]
+  permissionId BigInt [not null]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  permission cm_permission_m [not null]
+
+  indexes {
+    (roleCode, permissionId) [unique]
+  }
+}
+
+Table pr_objective_m {
+  id BigInt [pk, increment]
+  projectId BigInt [not null]
+  parentObjectiveId BigInt
+  objectiveCode String [not null]
+  objectiveName String [not null]
+  description String
+  statusCode String [not null, default: 'not_started']
+  dueAt DateTime
+  achievedAt DateTime
+  depth Int [not null, default: 0]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  parentObjective pr_objective_m
+  childObjectives pr_objective_m [not null]
+  milestones pr_milestone_m [not null]
+  wbsItems pr_wbs_m [not null]
+
+  indexes {
+    (projectId, objectiveCode) [unique]
+  }
+}
+
+Table pr_wbs_m {
+  id BigInt [pk, increment]
+  projectId BigInt [not null]
+  objectiveId BigInt
+  parentWbsId BigInt
+  wbsCode String [not null]
+  wbsName String [not null]
+  description String
+  statusCode String [not null, default: 'not_started']
+  depth Int [not null, default: 0]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  objective pr_objective_m
+  parentWbs pr_wbs_m
+  childWbs pr_wbs_m [not null]
+  tasks pr_task_m [not null]
+
+  indexes {
+    (projectId, wbsCode) [unique]
+  }
+}
+
+Table pr_task_m {
+  id BigInt [pk, increment]
+  projectId BigInt [not null]
+  wbsId BigInt
+  parentTaskId BigInt
+  taskCode String [not null]
+  taskName String [not null]
+  description String
+  taskTypeCode String
+  statusCode String [not null, default: 'not_started']
+  priorityCode String [not null, default: 'normal']
+  assigneeUserId BigInt
+  plannedStartAt DateTime
+  plannedEndAt DateTime
+  actualStartAt DateTime
+  actualEndAt DateTime
+  progressRate Int [not null, default: 0]
+  estimatedHours Decimal
+  actualHours Decimal
+  depth Int [not null, default: 0]
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  wbs pr_wbs_m
+  parentTask pr_task_m
+  childTasks pr_task_m [not null]
+  assignee cm_user_m
+  effortLogs pr_task_effort_log_m [not null]
+
+  indexes {
+    (projectId, taskCode) [unique]
+  }
+}
+
+Table pr_task_effort_log_m {
+  effortLogId BigInt [pk, increment]
+  projectId BigInt [not null]
+  taskId BigInt [not null]
+  userId BigInt
+  workDate DateTime [not null]
+  actualHours Decimal [not null]
+  workTypeCode String [not null, default: 'execution']
+  summary String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  task pr_task_m [not null]
+  user cm_user_m
+}
+
+Table pr_milestone_m {
+  id BigInt [pk, increment]
+  projectId BigInt [not null]
+  objectiveId BigInt
+  milestoneCode String [not null]
+  milestoneName String [not null]
+  description String
+  statusCode String [not null, default: 'not_started']
+  dueAt DateTime
+  achievedAt DateTime
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  objective pr_objective_m
+
+  indexes {
+    (projectId, milestoneCode) [unique]
+  }
+}
+
+Table pr_issue_m {
+  id BigInt [pk, increment]
+  projectId BigInt [not null]
+  issueCode String [not null]
+  issueTitle String [not null]
+  description String
+  issueTypeCode String [not null]
+  statusCode String [not null, default: 'open']
+  priorityCode String [not null, default: 'normal']
+  reportedByUserId BigInt
+  assigneeUserId BigInt
+  reportedAt DateTime [default: `now()`, not null]
+  dueAt DateTime
+  resolvedAt DateTime
+  resolution String
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  reportedBy cm_user_m
+  assignee cm_user_m
+
+  indexes {
+    (projectId, issueCode) [unique]
+  }
+}
+
+Table pr_legacy_issue_archive_m {
+  archiveId BigInt [pk, increment]
+  sourceIssueId BigInt [unique, not null]
+  projectId BigInt [not null]
+  issueCode String [not null]
+  issueTitle String [not null]
+  description String
+  issueTypeCode String [not null]
+  statusCode String [not null]
+  priorityCode String [not null]
+  reportedByUserId BigInt
+  assigneeUserId BigInt
+  reportedAt DateTime [not null]
+  dueAt DateTime
+  resolvedAt DateTime
+  resolution String
+  sortOrder Int [not null]
+  sourceIsActive Boolean [not null]
+  archivedReasonCode String [not null, default: 'hidden_cleanup']
+  archivedAt DateTime [default: `now()`, not null]
+  sourceCreatedBy BigInt
+  sourceCreatedAt DateTime [not null]
+  sourceUpdatedBy BigInt
+  sourceUpdatedAt DateTime [not null]
+  sourceLastSource String
+  sourceLastActivity String
+  sourceTransactionId String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table pr_project_issue_m {
+  projectIssueId BigInt [pk, increment]
+  projectId BigInt [not null]
+  issueCode String [not null]
+  issueTitle String [not null]
+  description String
+  issueTypeCode String [not null, default: 'bug']
+  statusCode String [not null, default: 'open']
+  priorityCode String [not null, default: 'normal']
+  reportedByUserId BigInt
+  ownerUserId BigInt
+  reportedAt DateTime [default: `now()`, not null]
+  dueAt DateTime
+  resolvedAt DateTime
+  resolution String
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  reportedBy cm_user_m
+  owner cm_user_m
+
+  indexes {
+    (projectId, issueCode) [unique]
+  }
+}
+
+Table pr_requirement_m {
+  requirementId BigInt [pk, increment]
+  projectId BigInt [not null]
+  requirementCode String [not null]
+  requirementTitle String [not null]
+  description String
+  statusCode String [not null, default: 'open']
+  priorityCode String [not null, default: 'normal']
+  ownerUserId BigInt
+  dueAt DateTime
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
   project pr_project_m [not null]
 
   indexes {
-    (projectId, statusCode, conditionCode) [pk]
+    (projectId, requirementCode) [unique]
+  }
+}
+
+Table pr_risk_m {
+  riskId BigInt [pk, increment]
+  projectId BigInt [not null]
+  riskCode String [not null]
+  riskTitle String [not null]
+  description String
+  statusCode String [not null, default: 'identified']
+  impactCode String [not null, default: 'medium']
+  likelihoodCode String [not null, default: 'medium']
+  responsePlan String
+  ownerUserId BigInt
+  dueAt DateTime
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+
+  indexes {
+    (projectId, riskCode) [unique]
+  }
+}
+
+Table pr_change_request_m {
+  changeRequestId BigInt [pk, increment]
+  projectId BigInt [not null]
+  changeCode String [not null]
+  changeTitle String [not null]
+  description String
+  statusCode String [not null, default: 'requested']
+  priorityCode String [not null, default: 'normal']
+  requestedAt DateTime [default: `now()`, not null]
+  decidedAt DateTime
+  ownerUserId BigInt
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+
+  indexes {
+    (projectId, changeCode) [unique]
+  }
+}
+
+Table pr_event_m {
+  eventId BigInt [pk, increment]
+  projectId BigInt [not null]
+  eventCode String [not null]
+  eventName String [not null]
+  description String
+  eventTypeCode String [not null, default: 'general']
+  statusCode String [not null, default: 'planned']
+  scheduledAt DateTime
+  occurredAt DateTime
+  summary String
+  ownerUserId BigInt
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  project pr_project_m [not null]
+  projectDeliverables pr_project_deliverable_r_m [not null]
+  projectCloseConditions pr_project_close_condition_r_m [not null]
+
+  indexes {
+    (projectId, eventCode) [unique]
   }
 }
 
@@ -219,6 +917,7 @@ Table pr_project_h {
   stageCode String [not null]
   doneResultCode String
   currentOwnerUserId BigInt
+  ownerOrganizationId BigInt
   handoffTypeCode String
   handoffStatusCode String
   handoffRequestedAt DateTime
@@ -270,6 +969,111 @@ Table pr_project_status_h {
   }
 }
 
+Table pr_project_request_d_h {
+  projectId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  requestSourceCode String
+  requestChannelCode String
+  requestSummary String
+  requestReceivedAt DateTime
+  requestPriorityCode String
+  requestOwnerUserId BigInt
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (projectId, historySeq) [pk]
+  }
+}
+
+Table pr_project_proposal_d_h {
+  projectId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  proposalOwnerUserId BigInt
+  proposalDueAt DateTime
+  proposalSubmittedAt DateTime
+  proposalVersion Int
+  estimateAmount BigInt
+  estimateUnitCode String
+  proposalScopeSummary String
+  decisionDeadlineAt DateTime
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (projectId, historySeq) [pk]
+  }
+}
+
+Table pr_project_execution_d_h {
+  projectId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  contractSignedAt DateTime
+  contractAmount BigInt
+  contractUnitCode String
+  billingTypeCode String
+  deliveryMethodCode String
+  nextProjectId BigInt
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (projectId, historySeq) [pk]
+  }
+}
+
+Table pr_project_transition_d_h {
+  projectId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  operationOwnerUserId BigInt
+  operationReservedAt DateTime
+  operationStartAt DateTime
+  transitionDueAt DateTime
+  transitionSummary String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (projectId, historySeq) [pk]
+  }
+}
+
 Table pr_deliverable_h {
   deliverableId BigInt [not null]
   historySeq BigInt [not null]
@@ -303,6 +1107,10 @@ Table pr_deliverable_group_h {
   groupName String [not null]
   description String
   sortOrder Int [not null]
+  approvalStatusCode String [not null]
+  versionNo Int [not null]
+  approvedBy BigInt
+  approvedAt DateTime
   isActive Boolean [not null]
   memo String
   createdBy BigInt
@@ -349,6 +1157,10 @@ Table pr_close_condition_group_h {
   groupName String [not null]
   description String
   sortOrder Int [not null]
+  approvalStatusCode String [not null]
+  versionNo Int [not null]
+  approvedBy BigInt
+  approvedAt DateTime
   isActive Boolean [not null]
   memo String
   createdBy BigInt
@@ -370,6 +1182,7 @@ Table pr_close_condition_group_item_r_h {
   historySeq BigInt [not null]
   eventType String [not null]
   eventAt DateTime [not null]
+  requiresDeliverable Boolean [not null]
   sortOrder Int [not null]
   isActive Boolean [not null]
   memo String
@@ -393,6 +1206,7 @@ Table pr_project_deliverable_r_h {
   historySeq BigInt [not null]
   eventType String [not null]
   eventAt DateTime [not null]
+  eventId BigInt
   submissionStatusCode String [not null]
   submittedAt DateTime
   submittedBy BigInt
@@ -422,6 +1236,7 @@ Table pr_project_close_condition_r_h {
   historySeq BigInt [not null]
   eventType String [not null]
   eventAt DateTime [not null]
+  eventId BigInt
   requiresDeliverable Boolean [not null]
   isChecked Boolean [not null]
   checkedAt DateTime
@@ -442,7 +1257,875 @@ Table pr_project_close_condition_r_h {
   }
 }
 
+Table pr_project_member_r_h {
+  projectId BigInt [not null]
+  userId BigInt [not null]
+  roleCode String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  organizationId BigInt
+  accessLevel String [not null]
+  isPhaseOwner Boolean [not null]
+  assignedAt DateTime [not null]
+  releasedAt DateTime
+  allocationRate Int [not null]
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (projectId, userId, roleCode, historySeq) [pk]
+  }
+}
+
+Table pr_project_org_r_h {
+  projectId BigInt [not null]
+  organizationId BigInt [not null]
+  roleCode String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (projectId, organizationId, roleCode, historySeq) [pk]
+  }
+}
+
+Table pr_project_relation_r_h {
+  sourceProjectId BigInt [not null]
+  targetProjectId BigInt [not null]
+  relationTypeCode String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (sourceProjectId, targetProjectId, relationTypeCode, historySeq) [pk]
+  }
+}
+
+Table pr_handoff_h {
+  handoffId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  fromPhaseCode String
+  toPhaseCode String [not null]
+  handoffTypeCode String [not null]
+  fromUserId BigInt
+  toUserId BigInt
+  requestedByUserId BigInt
+  handoffStatusCode String [not null]
+  conditionNote String
+  assignedRoleCode String
+  requestedAt DateTime [not null]
+  respondedAt DateTime
+  respondedByUserId BigInt
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (handoffId, historySeq) [pk]
+  }
+}
+
+Table pr_contract_h {
+  contractId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  contractCode String [not null]
+  title String [not null]
+  contractTypeCode String [not null]
+  totalAmount BigInt
+  currencyCode String [not null]
+  contractStatusCode String [not null]
+  contractDate DateTime
+  startDate DateTime
+  endDate DateTime
+  managerUserId BigInt
+  billingTypeCode String
+  deliveryMethodCode String
+  isPrimary Boolean [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (contractId, historySeq) [pk]
+  }
+}
+
+Table pr_contract_payment_h {
+  contractPaymentId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  contractId BigInt [not null]
+  paymentTypeCode String [not null]
+  amount BigInt
+  triggerEvent String
+  paymentStatusCode String [not null]
+  dueDate DateTime
+  paidDate DateTime
+  requestedByUserId BigInt
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (contractPaymentId, historySeq) [pk]
+  }
+}
+
+Table pr_project_role_permission_h {
+  projectRolePermissionId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  roleCode String [not null]
+  permissionId BigInt [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (projectRolePermissionId, historySeq) [pk]
+  }
+}
+
+Table pr_objective_h {
+  objectiveId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  parentObjectiveId BigInt
+  objectiveCode String [not null]
+  objectiveName String [not null]
+  description String
+  statusCode String [not null]
+  dueAt DateTime
+  achievedAt DateTime
+  depth Int [not null]
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (objectiveId, historySeq) [pk]
+  }
+}
+
+Table pr_wbs_h {
+  wbsId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  objectiveId BigInt
+  parentWbsId BigInt
+  wbsCode String [not null]
+  wbsName String [not null]
+  description String
+  statusCode String [not null]
+  depth Int [not null]
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (wbsId, historySeq) [pk]
+  }
+}
+
+Table pr_task_h {
+  taskId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  wbsId BigInt
+  parentTaskId BigInt
+  taskCode String [not null]
+  taskName String [not null]
+  description String
+  taskTypeCode String
+  statusCode String [not null]
+  priorityCode String [not null]
+  assigneeUserId BigInt
+  plannedStartAt DateTime
+  plannedEndAt DateTime
+  actualStartAt DateTime
+  actualEndAt DateTime
+  progressRate Int [not null]
+  estimatedHours Decimal
+  actualHours Decimal
+  depth Int [not null]
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (taskId, historySeq) [pk]
+  }
+}
+
+Table pr_task_effort_log_h {
+  effortLogId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  taskId BigInt [not null]
+  userId BigInt
+  workDate DateTime [not null]
+  actualHours Decimal [not null]
+  workTypeCode String [not null]
+  summary String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (effortLogId, historySeq) [pk]
+  }
+}
+
+Table pr_milestone_h {
+  milestoneId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  objectiveId BigInt
+  milestoneCode String [not null]
+  milestoneName String [not null]
+  description String
+  statusCode String [not null]
+  dueAt DateTime
+  achievedAt DateTime
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (milestoneId, historySeq) [pk]
+  }
+}
+
+Table pr_issue_h {
+  issueId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  issueCode String [not null]
+  issueTitle String [not null]
+  description String
+  issueTypeCode String [not null]
+  statusCode String [not null]
+  priorityCode String [not null]
+  reportedByUserId BigInt
+  assigneeUserId BigInt
+  reportedAt DateTime [not null]
+  dueAt DateTime
+  resolvedAt DateTime
+  resolution String
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (issueId, historySeq) [pk]
+  }
+}
+
+Table pr_legacy_issue_archive_h {
+  archiveId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  sourceIssueId BigInt [not null]
+  projectId BigInt [not null]
+  issueCode String [not null]
+  issueTitle String [not null]
+  description String
+  issueTypeCode String [not null]
+  statusCode String [not null]
+  priorityCode String [not null]
+  reportedByUserId BigInt
+  assigneeUserId BigInt
+  reportedAt DateTime [not null]
+  dueAt DateTime
+  resolvedAt DateTime
+  resolution String
+  sortOrder Int [not null]
+  sourceIsActive Boolean [not null]
+  archivedReasonCode String [not null]
+  archivedAt DateTime [not null]
+  sourceCreatedBy BigInt
+  sourceCreatedAt DateTime [not null]
+  sourceUpdatedBy BigInt
+  sourceUpdatedAt DateTime [not null]
+  sourceLastSource String
+  sourceLastActivity String
+  sourceTransactionId String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (archiveId, historySeq) [pk]
+  }
+}
+
+Table pr_project_issue_h {
+  projectIssueId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  issueCode String [not null]
+  issueTitle String [not null]
+  description String
+  issueTypeCode String [not null]
+  statusCode String [not null]
+  priorityCode String [not null]
+  reportedByUserId BigInt
+  ownerUserId BigInt
+  reportedAt DateTime [not null]
+  dueAt DateTime
+  resolvedAt DateTime
+  resolution String
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (projectIssueId, historySeq) [pk]
+  }
+}
+
+Table pr_requirement_h {
+  requirementId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  requirementCode String [not null]
+  requirementTitle String [not null]
+  description String
+  statusCode String [not null]
+  priorityCode String [not null]
+  ownerUserId BigInt
+  dueAt DateTime
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (requirementId, historySeq) [pk]
+  }
+}
+
+Table pr_risk_h {
+  riskId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  riskCode String [not null]
+  riskTitle String [not null]
+  description String
+  statusCode String [not null]
+  impactCode String [not null]
+  likelihoodCode String [not null]
+  responsePlan String
+  ownerUserId BigInt
+  dueAt DateTime
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (riskId, historySeq) [pk]
+  }
+}
+
+Table pr_change_request_h {
+  changeRequestId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  changeCode String [not null]
+  changeTitle String [not null]
+  description String
+  statusCode String [not null]
+  priorityCode String [not null]
+  requestedAt DateTime [not null]
+  decidedAt DateTime
+  ownerUserId BigInt
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (changeRequestId, historySeq) [pk]
+  }
+}
+
+Table pr_event_h {
+  eventId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  projectId BigInt [not null]
+  eventCode String [not null]
+  eventName String [not null]
+  description String
+  eventTypeCode String [not null]
+  statusCode String [not null]
+  scheduledAt DateTime
+  occurredAt DateTime
+  summary String
+  ownerUserId BigInt
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (eventId, historySeq) [pk]
+  }
+}
+
+Table pr_site_m {
+  siteId BigInt [pk, increment]
+  customerId BigInt
+  siteCode String [unique, not null]
+  siteName String [not null]
+  siteTypeCode String
+  regionCode String
+  address String
+  timezone String
+  operationOwnerName String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table pr_site_h {
+  siteId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  customerId BigInt
+  siteCode String [not null]
+  siteName String [not null]
+  siteTypeCode String
+  regionCode String
+  address String
+  timezone String
+  operationOwnerName String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (siteId, historySeq) [pk]
+  }
+}
+
+Table pr_system_catalog_m {
+  systemCatalogId BigInt [pk, increment]
+  parentSystemCatalogId BigInt
+  catalogCode String [unique, not null]
+  catalogName String [not null]
+  categoryCode String
+  vendorName String
+  description String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table pr_system_catalog_h {
+  systemCatalogId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  parentSystemCatalogId BigInt
+  catalogCode String [not null]
+  catalogName String [not null]
+  categoryCode String
+  vendorName String
+  description String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (systemCatalogId, historySeq) [pk]
+  }
+}
+
+Table pr_system_instance_m {
+  systemInstanceId BigInt [pk, increment]
+  customerId BigInt
+  siteId BigInt
+  systemCatalogId BigInt
+  instanceCode String [unique, not null]
+  instanceName String [not null]
+  environmentCode String
+  operationOwnerTypeCode String
+  operationOwnerName String
+  lifecycleStatusCode String [not null, default: 'active']
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table pr_system_instance_h {
+  systemInstanceId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  customerId BigInt
+  siteId BigInt
+  systemCatalogId BigInt
+  instanceCode String [not null]
+  instanceName String [not null]
+  environmentCode String
+  operationOwnerTypeCode String
+  operationOwnerName String
+  lifecycleStatusCode String [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (systemInstanceId, historySeq) [pk]
+  }
+}
+
+Table pr_integration_m {
+  integrationId BigInt [pk, increment]
+  integrationCode String [unique, not null]
+  integrationName String [not null]
+  sourceSystemInstanceId BigInt [not null]
+  targetSystemInstanceId BigInt [not null]
+  directionCode String
+  interfaceTypeCode String
+  statusCode String [not null, default: 'active']
+  description String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table pr_integration_h {
+  integrationId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  integrationCode String [not null]
+  integrationName String [not null]
+  sourceSystemInstanceId BigInt [not null]
+  targetSystemInstanceId BigInt [not null]
+  directionCode String
+  interfaceTypeCode String
+  statusCode String [not null]
+  description String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (integrationId, historySeq) [pk]
+  }
+}
+
+Table pr_master_import_profile_m {
+  profileId BigInt [pk, increment]
+  entityType String [not null]
+  profileName String [not null]
+  columnMapping Json [not null]
+  isDefault Boolean [not null, default: false]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (entityType, profileName) [unique]
+  }
+}
+
+Table pr_master_import_profile_h {
+  profileId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  entityType String [not null]
+  profileName String [not null]
+  columnMapping Json [not null]
+  isDefault Boolean [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (profileId, historySeq) [pk]
+  }
+}
+
+Table pr_user_settings_m {
+  id BigInt [pk, increment]
+  userId BigInt [unique, not null]
+  showCompletedTasks Boolean [not null, default: true]
+  defaultProjectView String [not null, default: 'board']
+  notifyTaskAssignment Boolean [not null, default: true]
+  notifyIssueUpdate Boolean [not null, default: true]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table pr_user_settings_h {
+  id BigInt [not null]
+  userId BigInt [not null]
+  showCompletedTasks Boolean [not null, default: true]
+  defaultProjectView String [not null, default: 'board']
+  notifyTaskAssignment Boolean [not null, default: true]
+  notifyIssueUpdate Boolean [not null, default: true]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+
+  indexes {
+    (id, historySeq) [pk]
+  }
+}
+
 Ref: pr_project_status_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_handoff_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_contract_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_contract_payment_m.contractId > pr_contract_m.contractId [delete: Cascade]
 
 Ref: pr_deliverable_group_item_r_m.groupCode > pr_deliverable_group_m.groupCode [delete: Cascade]
 
@@ -454,4 +2137,48 @@ Ref: pr_project_deliverable_r_m.projectId > pr_project_m.id [delete: Cascade]
 
 Ref: pr_project_deliverable_r_m.deliverableCode > pr_deliverable_m.deliverableCode [delete: Cascade]
 
+Ref: pr_project_deliverable_r_m.eventId > pr_event_m.eventId [delete: Set Null]
+
 Ref: pr_project_close_condition_r_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_project_close_condition_r_m.eventId > pr_event_m.eventId [delete: Set Null]
+
+Ref: pr_project_closeout_approval_step_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_project_member_r_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_project_org_r_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_project_relation_r_m.sourceProjectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_project_relation_r_m.targetProjectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_objective_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_wbs_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_wbs_m.objectiveId > pr_objective_m.id [delete: Set Null]
+
+Ref: pr_task_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_task_m.wbsId > pr_wbs_m.id [delete: Set Null]
+
+Ref: pr_task_effort_log_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_task_effort_log_m.taskId > pr_task_m.id [delete: Cascade]
+
+Ref: pr_milestone_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_milestone_m.objectiveId > pr_objective_m.id [delete: Set Null]
+
+Ref: pr_issue_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_project_issue_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_requirement_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_risk_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_change_request_m.projectId > pr_project_m.id [delete: Cascade]
+
+Ref: pr_event_m.projectId > pr_project_m.id [delete: Cascade]

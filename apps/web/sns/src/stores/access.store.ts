@@ -25,6 +25,8 @@ function getAccessErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'SNS 접근 권한을 불러오지 못했습니다.';
 }
 
+let accessRequestVersion = 0;
+
 export const useAccessStore = create<AccessStoreState & AccessStoreActions>()((set, get) => ({
   ...INITIAL_STATE,
   hydrate: async () => {
@@ -32,10 +34,12 @@ export const useAccessStore = create<AccessStoreState & AccessStoreActions>()((s
       return;
     }
 
-    set({ isLoading: true, error: null });
+    const requestVersion = ++accessRequestVersion;
+    set({ isLoading: true });
 
     try {
       const response = await accessApi.me();
+      if (requestVersion !== accessRequestVersion) return;
       const snapshot = response.data.data;
 
       if (!snapshot) {
@@ -49,13 +53,17 @@ export const useAccessStore = create<AccessStoreState & AccessStoreActions>()((s
         error: null,
       });
     } catch (error) {
+      if (requestVersion !== accessRequestVersion) return;
       set({
-        snapshot: null,
+        snapshot: get().snapshot,
         isLoading: false,
         hasLoaded: true,
         error: getAccessErrorMessage(error),
       });
     }
   },
-  reset: () => set(INITIAL_STATE),
+  reset: () => {
+    accessRequestVersion++;
+    set(INITIAL_STATE);
+  },
 }));

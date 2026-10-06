@@ -39,21 +39,22 @@ function normalizeQuery(query: Record<string, string | string[] | undefined> = {
   const sort = value('sort') as CrmOpportunitySort;
   const sourceSurface = value('sourceSurface');
   return {
-    search: value('search').trim(),
+    search: sourceSurface === 'list' ? value('search') : value('search').trim(),
     status: ['draft', 'qualified', 'proposal', 'won', 'lost', 'hold'].includes(status) ? status : 'all',
     sourceStatus: ['진행중', '검토중', '계약완료', '실패'].includes(sourceStatus) ? sourceStatus : 'all',
     sort: ['customer-asc', 'updated-desc', 'revenue-desc', 'profit-desc', 'margin-desc'].includes(sort) ? sort : 'customer-asc',
     selected: value('selected'),
     sourceSurface: ['dashboard', 'list', 'form', 'contract-document'].includes(sourceSurface)
       ? sourceSurface as OpportunityWorkspaceQuery['sourceSurface']
-      : 'workspace',
+      : sourceSurface === 'workspace' || Object.keys(query).length > 0 ? 'workspace' : 'home',
     create: value('create') === 'opportunity',
   };
 }
 
-async function loadOpportunities(query: Required<CrmOpportunityListQuery>): Promise<CrmOpportunityListResponse> {
+async function loadOpportunities(query: Required<Omit<CrmOpportunityListQuery, 'view'>> & { sourceSurface?: string }): Promise<CrmOpportunityListResponse> {
   try {
     const params = new URLSearchParams();
+    if (query.sourceSurface === 'list') params.set('view', 'source-list');
     if (query.search) params.set('search', query.search);
     if (query.status !== 'all') params.set('status', query.status);
     if (query.sourceStatus !== 'all') params.set('sourceStatus', query.sourceStatus);

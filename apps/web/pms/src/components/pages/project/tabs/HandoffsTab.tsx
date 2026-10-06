@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Check, CircleAlert, Eye, Handshake, Plus, RefreshCcw, Search, X } from 'lucide-react';
 import {
@@ -376,12 +377,12 @@ function CrmHandoffCandidatePanel({
       </div>
 
       {responseError || candidatesError ? (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-2 text-sm text-ssoo-danger">
+        <SsooErrorNotice className="mt-3 gap-3 px-3 py-2">
           <span>{responseError || candidatesError?.message || 'CRM 계약 후보를 불러오지 못했습니다.'}</span>
           <Button variant="outline" size="sm" onClick={() => void refetchCandidates()}>
             다시 시도
           </Button>
-        </div>
+        </SsooErrorNotice>
       ) : null}
 
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
@@ -468,9 +469,7 @@ function CrmHandoffCandidatePanel({
               PMS 인계 preview를 불러오는 중...
             </div>
           ) : previewResponseError || previewError ? (
-            <div className="rounded-lg border border-ssoo-danger-border bg-ssoo-danger-bg px-3 py-3 text-sm text-ssoo-danger">
-              {previewResponseError || previewError?.message || 'CRM 계약 preview를 불러오지 못했습니다.'}
-            </div>
+            <SsooErrorNotice className="px-3 py-3" error={previewResponseError || previewError?.message || 'CRM 계약 preview를 불러오지 못했습니다.'} />
           ) : preview ? (
             <div className="space-y-3 text-sm">
               <div>

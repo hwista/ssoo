@@ -1,3 +1,7 @@
+import { DocumentAclService } from '../access/document-acl.service.js';
+import { AccessService } from '../access/access.service.js';
+import type { AiIndexObjectRef } from '@ssoo/types/common';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
@@ -150,10 +154,17 @@ export class DmsAiIndexAdapter implements AiIndexAdapter, OnModuleInit {
     private readonly runtime: SearchRuntimeService,
     private readonly registry: AiIndexRegistryService,
     private readonly embeddingProvider: AiEmbeddingProviderService,
+    private readonly acl: DocumentAclService,
+    private readonly access: AccessService,
   ) {}
 
   onModuleInit(): void {
     this.registry.register(this);
+  }
+
+  async canRead(request: AiIndexObjectRef, user: TokenPayload): Promise<boolean> {
+    if (request.entityType !== 'document' || !(await this.access.getAccessSnapshot(user)).features.canReadDocuments) return false;
+    return this.acl.isReadableAbsolutePath(user, resolveAbsolutePath(request.entityId, this.runtime.getDocDir()));
   }
 
   async syncObject(request: AiIndexAdapterSyncRequest): Promise<AiIndexAdapterSyncResult> {

@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@ssoo/database';
 import type { AiIndexJobType, AiIndexJsonObject } from '@ssoo/types/common';
 import { DatabaseService } from '../../../database/database.service.js';
@@ -92,7 +92,7 @@ export class PostService {
 
   async create(dto: CreatePostDto, user: TokenPayload) {
     const authorUserId = BigInt(user.userId);
-    const visibility = await this.accessService.resolvePostVisibility(user, dto.visibilityScopeCode);
+    const visibility = await this.accessService.resolvePostVisibility(user, dto.visibilityScopeCode, dto.targetOrgId);
 
     const result = await this.db.client.$transaction((tx) => this.createInTransaction(tx, dto, authorUserId, visibility));
     if (result) await this.afterCreate(result.id, authorUserId);
@@ -150,15 +150,16 @@ export class PostService {
       throw new NotFoundException(`Post ${id} not found`);
     }
 
-    await this.accessService.assertSameUserOrOverride(
-      user,
-      existing.authorUserId,
-      '본인이 작성한 게시물만 수정할 수 있습니다.',
-    );
+    if (existing.authorUserId !== BigInt(user.userId) && !await this.accessService.hasSystemOverride(user)) {
+      await this.accessService.assertWritablePost(user, id);
+      if (dto.visibilityScopeCode !== undefined || dto.targetOrgId !== undefined || dto.boardId !== undefined || dto.categoryId !== undefined) {
+        throw new ForbiddenException('게시물 소유자만 공개 범위와 게시판을 변경할 수 있습니다.');
+      }
+    }
 
     const visibility =
-      dto.visibilityScopeCode !== undefined
-        ? await this.accessService.resolvePostVisibility(user, dto.visibilityScopeCode)
+      dto.visibilityScopeCode !== undefined || dto.targetOrgId !== undefined
+        ? await this.accessService.resolvePostVisibility(user, dto.visibilityScopeCode ?? existing.visibilityScopeCode, dto.targetOrgId ?? existing.targetOrgId?.toString())
         : null;
 
     const result = await this.db.client.$transaction(async (tx) => {

@@ -56,6 +56,45 @@
         ]
       }
     },
+    "/api/health/core-readiness": {
+      "get": {
+        "operationId": "HealthController_checkCoreReadiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "공통 서버 기동 준비 상태",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/health/apps/{app}": {
+      "get": {
+        "operationId": "HealthController_checkAppReadiness",
+        "parameters": [
+          {
+            "name": "app",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "앱별 배포 준비 상태 (민감정보 제외)",
+        "tags": [
+          "health"
+        ]
+      }
+    },
     "/api/health/readiness": {
       "get": {
         "operationId": "HealthController_checkReadiness",
@@ -105,9 +144,454 @@
             }
           }
         },
-        "summary": "플랫폼 readiness 체크",
+        "summary": "플랫폼 전체 앱 readiness 체크",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/onboarding": {
+      "get": {
+        "operationId": "OnboardingController_snapshot",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 소속·서비스 신청 및 이용 상태",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/business-organizations": {
+      "get": {
+        "operationId": "OnboardingController_businessOrganizations",
+        "parameters": [
+          {
+            "name": "service",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "업무 서비스에서 사용 가능한 승인 조직",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/requests": {
+      "post": {
+        "operationId": "OnboardingController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOnboardingRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "조직 소속·신규 조직·서비스 이용 신청",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/requests/{id}": {
+      "delete": {
+        "operationId": "OnboardingController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 대기 신청 취소",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/reviews": {
+      "get": {
+        "operationId": "OnboardingController_reviews",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "담당 범위의 승인 대기 신청",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/requests/{id}/decision": {
+      "post": {
+        "operationId": "OnboardingController_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideOnboardingRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "담당 범위의 신청 승인·반려",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/authorities": {
+      "get": {
+        "operationId": "OnboardingController_authorities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "플랫폼 관리자의 승인 위임 조회",
+        "tags": [
+          "onboarding"
+        ]
+      },
+      "post": {
+        "operationId": "OnboardingController_delegate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetApprovalAuthorityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "플랫폼 관리자의 조직·서비스 승인 위임",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/authorities/{id}": {
+      "delete": {
+        "operationId": "OnboardingController_revokeAuthority",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "플랫폼 관리자의 승인 위임 회수",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/onboarding/grants/{id}": {
+      "delete": {
+        "operationId": "OnboardingController_revokeGrant",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "담당 서비스 이용권 회수",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/api/codes/groups": {
+      "get": {
+        "operationId": "CodeController_findGroups",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "코드 그룹 목록",
+        "tags": [
+          "codes"
+        ]
+      }
+    },
+    "/api/codes": {
+      "get": {
+        "operationId": "CodeController_findByGroup",
+        "parameters": [
+          {
+            "name": "codeGroup",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "그룹별 코드 목록",
+        "tags": [
+          "codes"
+        ]
+      },
+      "post": {
+        "operationId": "CodeController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "코드 생성",
+        "tags": [
+          "codes"
+        ]
+      }
+    },
+    "/api/codes/{id}": {
+      "put": {
+        "operationId": "CodeController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "코드 수정",
+        "tags": [
+          "codes"
+        ]
+      },
+      "delete": {
+        "operationId": "CodeController_deactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "코드 비활성화",
+        "tags": [
+          "codes"
+        ]
+      }
+    },
+    "/api/codes/{id}/permanent": {
+      "delete": {
+        "operationId": "CodeController_removePermanently",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "비활성 코드 영구 삭제",
+        "tags": [
+          "codes"
         ]
       }
     },
@@ -2741,6 +3225,13 @@
       "HealthReadinessDto": {
         "type": "object",
         "properties": {
+          "services": {
+            "description": "Admin/CRM/PMS/DMS/SNS deployment readiness",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
           "status": {
             "type": "string",
             "example": "ready"
@@ -2767,6 +3258,7 @@
           }
         },
         "required": [
+          "services",
           "status",
           "timestamp",
           "service",
@@ -2774,6 +3266,187 @@
           "dms",
           "releaseSha"
         ]
+      },
+      "CreateOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "membership",
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "parentOrganizationId": {
+            "type": "string"
+          },
+          "organizationName": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "message"
+        ]
+      },
+      "DecideOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "message"
+        ]
+      },
+      "SetApprovalAuthorityDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "authorityKind": {
+            "type": "string",
+            "enum": [
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "maxRoleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "authorityKind",
+          "maxRoleCode"
+        ]
+      },
+      "CreateCodeDto": {
+        "type": "object",
+        "properties": {
+          "codeGroup": {
+            "type": "string",
+            "description": "코드 그룹"
+          },
+          "codeValue": {
+            "type": "string",
+            "description": "코드 값"
+          },
+          "parentCode": {
+            "type": "string",
+            "description": "상위 코드"
+          },
+          "displayNameKo": {
+            "type": "string",
+            "description": "한국어 표시명"
+          },
+          "displayNameEn": {
+            "type": "string",
+            "description": "영어 표시명"
+          },
+          "description": {
+            "type": "string",
+            "description": "설명"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서",
+            "default": 0
+          }
+        },
+        "required": [
+          "codeGroup",
+          "codeValue",
+          "displayNameKo"
+        ]
+      },
+      "UpdateCodeDto": {
+        "type": "object",
+        "properties": {
+          "codeGroup": {
+            "type": "string",
+            "description": "코드 그룹"
+          },
+          "codeValue": {
+            "type": "string",
+            "description": "코드 값"
+          },
+          "parentCode": {
+            "type": "string",
+            "description": "상위 코드"
+          },
+          "displayNameKo": {
+            "type": "string",
+            "description": "한국어 표시명"
+          },
+          "displayNameEn": {
+            "type": "string",
+            "description": "영어 표시명"
+          },
+          "description": {
+            "type": "string",
+            "description": "설명"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "활성 상태"
+          }
+        }
       },
       "UpdateRolePermissionsDto": {
         "type": "object",

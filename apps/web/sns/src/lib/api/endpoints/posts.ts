@@ -41,11 +41,12 @@ export const postsApi = {
   image: (postId: string, imageId: string, signal?: AbortSignal) =>
     apiClient.get<Blob>(`/sns/posts/${encodeURIComponent(postId)}/images/${encodeURIComponent(imageId)}`, { responseType: 'blob', signal }),
 
-  createWithImages: (data: { content: string; visibilityScopeCode?: SnsVisibilityScopeCode; submissionId: string; images: File[] }) => {
+  createWithImages: (data: { content: string; visibilityScopeCode?: SnsVisibilityScopeCode; targetOrgId?: string; submissionId: string; images: File[] }) => {
     const form = new FormData();
     form.append('content', data.content);
     form.append('visibilityScopeCode', data.visibilityScopeCode ?? 'public');
     form.append('submissionId', data.submissionId);
+    if (data.targetOrgId) form.append('targetOrgId', data.targetOrgId);
     for (const file of data.images) form.append('images', file);
     return apiClient.post<ApiResponse<PostItem>>('/sns/posts/with-images', form, { headers: { 'Content-Type': undefined }, timeout: 60_000 });
   },
@@ -78,13 +79,13 @@ export const postsApi = {
     content: string;
     contentType?: string;
     boardId?: string;
-    visibilityScopeCode?: SnsVisibilityScopeCode;
+    visibilityScopeCode?: SnsVisibilityScopeCode; targetOrgId?: string;
     tagNames?: string[];
   }) => apiClient.post<ApiResponse<PostItem>>('/sns/posts', data),
 
   update: (
     id: string,
-    data: { title?: string; content?: string; visibilityScopeCode?: SnsVisibilityScopeCode },
+    data: { title?: string; content?: string; visibilityScopeCode?: SnsVisibilityScopeCode; targetOrgId?: string },
   ) =>
     apiClient.put<ApiResponse<PostItem>>(`/sns/posts/${id}`, data),
 

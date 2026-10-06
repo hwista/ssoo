@@ -12,14 +12,14 @@ function normalizeQuery(path: string): ContractWorkspaceQuery {
   const sourceSurface = searchParams.get('sourceSurface');
 
   return {
-    search: (searchParams.get('search') ?? '').trim(),
+    search: (sourceSurface === 'list' || sourceSurface === 'billing-actual') ? searchParams.get('search') ?? '' : (searchParams.get('search') ?? '').trim(),
     status: status && ['review', 'active', 'completed', 'terminated'].includes(status) ? status : 'all',
-    sort: sort && ['revenue-desc', 'margin-desc', 'start-asc'].includes(sort) ? sort : 'updated-desc',
+    sort: sort && ['updated-desc', 'revenue-desc', 'margin-desc', 'start-asc', 'created-desc', 'customer-asc'].includes(sort) ? sort : (sourceSurface === 'list' || sourceSurface === 'billing-actual') ? 'created-desc' : 'updated-desc',
     selected: searchParams.get('selected') ?? '',
     sourceSurface: sourceSurface && ['list', 'form', 'billing-actual'].includes(sourceSurface)
       ? sourceSurface as ContractWorkspaceQuery['sourceSurface']
       : '',
-    billingView: searchParams.get('view') === 'list' ? 'list' : 'detail',
+    billingView: searchParams.get('view') === 'list' || !searchParams.get('selected') ? 'list' : 'detail',
     create: searchParams.get('create') === 'contract',
   };
 }

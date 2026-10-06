@@ -1,3 +1,4 @@
+import { SsooErrorNotice, useSsooRetryDelay } from '@ssoo/web-shell';
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, KeyRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -178,7 +179,8 @@ export function AuthLoginCard({
   const [rememberLoginId, setRememberLoginId] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<LoginValidationErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | Error | null>(null);
+  const retryDelay = useSsooRetryDelay(formError);
 
   const validateCredentials = useMemo(
     () => validate ?? defaultValidate,
@@ -257,7 +259,7 @@ export function AuthLoginCard({
         }
       }
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : '로그인에 실패했습니다.');
+      setFormError(error instanceof Error ? error : '로그인에 실패했습니다.');
     }
   };
 
@@ -268,9 +270,7 @@ export function AuthLoginCard({
       {passwordLoginEnabled ? (
         <form name="ssoo-login" autoComplete="on" className="space-y-5" onSubmit={handleSubmit}>
           {formError && (
-            <div className="rounded-md border px-4 py-3 text-sm ssoo-tone-danger-surface">
-              {formError}
-            </div>
+            <SsooErrorNotice className="px-4 py-3" error={formError} />
           )}
 
           <div className="space-y-2">
@@ -279,6 +279,8 @@ export function AuthLoginCard({
             </label>
             <Input
               id="loginId"
+              aria-invalid={Boolean(fieldErrors.loginId)}
+              aria-describedby={fieldErrors.loginId ? "loginId-error" : undefined}
               name="username"
               type="text"
               autoComplete="username"
@@ -289,7 +291,7 @@ export function AuthLoginCard({
               placeholder={loginIdPlaceholder}
             />
             {fieldErrors.loginId && (
-              <p className="text-sm ssoo-tone-danger">{fieldErrors.loginId}</p>
+              <SsooErrorNotice as="p" compact id="loginId-error" error={fieldErrors.loginId} />
             )}
           </div>
 
@@ -311,6 +313,8 @@ export function AuthLoginCard({
             <div className="relative">
               <Input
                 id="password"
+                aria-invalid={Boolean(fieldErrors.password)}
+                aria-describedby={fieldErrors.password ? "password-error" : undefined}
                 name="password"
                 type={passwordVisibilityEnabled && passwordVisible ? 'text' : 'password'}
                 autoComplete="current-password"
@@ -327,7 +331,7 @@ export function AuthLoginCard({
                   size="authIcon"
                   aria-label={passwordVisible ? '비밀번호 숨기기' : '비밀번호 표시'}
                   aria-pressed={passwordVisible}
-                  disabled={isLoading}
+                  disabled={isLoading || retryDelay > 0}
                   className="absolute inset-y-0 right-0 my-auto grid place-content-center rounded-l-none rounded-r-md text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ssoo-primary/20"
                   onClick={() => setPasswordVisible((current) => !current)}
                 >
@@ -336,7 +340,7 @@ export function AuthLoginCard({
               ) : null}
             </div>
             {fieldErrors.password && (
-              <p className="text-sm ssoo-tone-danger">{fieldErrors.password}</p>
+              <SsooErrorNotice as="p" compact id="password-error" error={fieldErrors.password} />
             )}
           </div>
 
@@ -347,7 +351,7 @@ export function AuthLoginCard({
                   <Checkbox
                     id="rememberLoginId"
                     checked={rememberLoginId}
-                    disabled={isLoading}
+                    disabled={isLoading || retryDelay > 0}
                     onCheckedChange={(checked) => {
                       const nextChecked = checked === true;
                       setRememberLoginId(nextChecked);
@@ -373,7 +377,7 @@ export function AuthLoginCard({
 
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || retryDelay > 0}
             className="h-11 w-full cursor-pointer"
           >
             {isLoading ? loadingLabel : submitLabel}

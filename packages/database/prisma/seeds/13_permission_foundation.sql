@@ -20,7 +20,7 @@ select
   'legacy-role-bridge' as last_source,
   'seed.permission-foundation' as last_activity,
   current_timestamp as updated_at
-from pms.cm_code_m c
+from common.cm_code_m c
 where c.code_group = 'USER_ROLE'
 on conflict (role_code) do update
 set role_name = excluded.role_name,

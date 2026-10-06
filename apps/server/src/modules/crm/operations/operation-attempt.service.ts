@@ -10,6 +10,8 @@ import type {
   CrmOperationAttemptStatus,
   CrmOperationAttemptTarget,
 } from '@ssoo/types/crm';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
+import { CrmAccessService } from '../access/access.service.js';
 import { DatabaseService } from '../../../database/database.service.js';
 import { redactSecretsInText, redactSecretsInValue } from '../../../common/security/secret-redaction.js';
 
@@ -41,7 +43,7 @@ interface CrmOperationRunInput<T> {
 
 @Injectable()
 export class CrmOperationAttemptService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly access?: CrmAccessService) {}
 
   async run<T>(input: CrmOperationRunInput<T>): Promise<T> {
     const correlationId = input.context?.correlationId ?? crypto.randomUUID();
@@ -72,9 +74,10 @@ export class CrmOperationAttemptService {
     );
   }
 
-  async list(query: CrmOperationAttemptListQuery = {}): Promise<CrmOperationAttemptListResponse> {
+  async list(query: CrmOperationAttemptListQuery = {}, currentUser?: TokenPayload): Promise<CrmOperationAttemptListResponse> {
     const limit = Math.min(Math.max(query.limit ?? 100, 1), 200);
     const baseWhere: Prisma.CrmOperationAttemptWhereInput = {
+      ...await this.sourceScope(currentUser),
       isActive: true,
       ...(query.target ? { targetTypeCode: query.target } : {}),
       ...(query.sourceEntityId?.trim() ? { sourceEntityId: query.sourceEntityId.trim() } : {}),
@@ -147,14 +150,16 @@ export class CrmOperationAttemptService {
     return { unresolvedFailedCount, recoveringFailedCount, recoveredFailedCount };
   }
 
-  async get(id: string): Promise<CrmOperationAttempt> {
+  async get(id: string, currentUser?: TokenPayload): Promise<CrmOperationAttempt> {
+    const sourceScope = await this.sourceScope(currentUser);
     const row = await this.findRow(id);
+    if (row && currentUser && !await this.db.client.crmOperationAttempt.findFirst({ where: { ...sourceScope, id: row.id, isActive: true }, select: { id: true } })) throw new NotFoundException('CRM 운영 attempt를 찾을 수 없습니다.');
     if (!row) {
       throw new NotFoundException('CRM 운영 attempt를 찾을 수 없습니다.');
     }
     const rootAttemptId = row.rootAttemptId ?? row.id;
     const chainRows = await this.db.client.crmOperationAttempt.findMany({
-      where: { OR: [{ id: rootAttemptId }, { rootAttemptId }] },
+      where: { AND: [sourceScope, { OR: [{ id: rootAttemptId }, { rootAttemptId }] }] },
       select: { id: true, rootAttemptId: true, statusCode: true },
     });
     const recoveryByRoot = this.buildRecoveryChainState(chainRows);
@@ -244,6 +249,24 @@ export class CrmOperationAttemptService {
         lastActivity: status === 'succeeded' ? 'operation-succeeded' : 'operation-failed',
       },
     });
+  }
+
+  private async sourceScope(currentUser?: TokenPayload): Promise<Prisma.CrmOperationAttemptWhereInput> {
+    if (!currentUser) return {};
+    const scope = await this.access!.businessOrganizationScope(currentUser);
+    if (scope === null) return {};
+    const where = { isActive: true, ownerOrganizationId: { in: scope } };
+    const [opportunities, contracts, handoffs] = await Promise.all([
+      this.db.client.crmOpportunity.findMany({ where, select: { id: true, opportunityCode: true } }),
+      this.db.client.crmContract.findMany({ where, select: { id: true, contractCode: true } }),
+      // Replaced snapshots still own their historical execution attempts.
+      this.db.client.crmCostPlanAccountingHandoff.findMany({ where: { ownerOrganizationId: { in: scope } }, select: { id: true } }),
+    ]);
+    return { OR: [
+      { sourceEntityType: 'crm.opportunity', sourceEntityId: { in: opportunities.flatMap(row => [row.id.toString(), row.opportunityCode]) } },
+      { sourceEntityType: 'crm.contract', sourceEntityId: { in: contracts.flatMap(row => [row.id.toString(), row.contractCode]) } },
+      { sourceEntityType: 'crm.cost-plan-accounting-handoff', sourceEntityId: { in: handoffs.map(row => row.id.toString()) } },
+    ] };
   }
 
   private async findRow(id: string): Promise<AttemptRow | null> {

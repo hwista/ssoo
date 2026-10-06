@@ -1,3 +1,4 @@
+import { SsooErrorNotice } from './error-recovery';
 import type { CSSProperties, ReactNode, Ref } from 'react';
 import { cn } from './cn';
 import { Button, SegmentedControl, SegmentedControlItem } from '@ssoo/web-ui';
@@ -64,6 +65,8 @@ export interface SsooNotificationPanelProps<TItem extends SsooNotificationPanelI
   unreadTotal: number;
   readTotal: number;
   filters?: SsooNotificationPanelFilter[];
+  error?: unknown;
+  onRetry?: () => void | Promise<unknown>;
   hasLoaded: boolean;
   isFetching?: boolean;
   unreadIsFetching?: boolean;
@@ -431,6 +434,8 @@ export function SsooNotificationPanel<TItem extends SsooNotificationPanelItem>({
   readTotal,
   filters = [],
   hasLoaded,
+  error,
+  onRetry,
   isFetching = false,
   unreadIsFetching = false,
   readIsFetching = false,
@@ -480,7 +485,8 @@ export function SsooNotificationPanel<TItem extends SsooNotificationPanelItem>({
       <SsooNotificationPanelFilters filters={filters} />
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-2">
-        {hasLoaded && !isFetching && !hasNotifications ? (
+        {error ? <SsooErrorNotice error={error} actions={onRetry ? [{ label: '알림 다시 불러오기', onClick: onRetry, disabled: isFetching }] : undefined} /> : null}
+        {hasLoaded && !error && !isFetching && !hasNotifications ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-8 text-center text-ssoo-primary/70">
             {emptyIconSlot ? (
               <div className="text-ssoo-primary/30 [&>svg]:h-8 [&>svg]:w-8">

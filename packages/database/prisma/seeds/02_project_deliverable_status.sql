@@ -6,7 +6,7 @@
 begin;
 
 -- PROJECT_DELIVERABLE_SUBMISSION_STATUS
-insert into pms.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
+insert into common.cm_code_m (code_group, code_value, display_name_ko, display_name_en, description, sort_order, updated_at)
 values
 ('PROJECT_DELIVERABLE_SUBMISSION_STATUS','before_submit','제출 전','Before Submit','산출물 작성/준비 단계.',10,now()),
 ('PROJECT_DELIVERABLE_SUBMISSION_STATUS','submitted','제출됨','Submitted','내부 제출 또는 고객 전달 완료.',20,now()),

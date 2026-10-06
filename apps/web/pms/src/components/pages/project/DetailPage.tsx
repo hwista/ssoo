@@ -1,10 +1,11 @@
 'use client';
 
+import { SsooErrorPanel } from '@ssoo/web-shell';
 import { useMemo, useRef, useState } from 'react';
 import { useCurrentTab } from '@/hooks/useCurrentTab';
 import { useProjectDetail, useTransitionReadiness } from '@/hooks/queries';
 import { useProjectCloseConditions, useProjectDeliverables } from '@/hooks/queries/useProjects';
-import { LoadingState, ErrorState } from '@/components/common/StateDisplay';
+import { LoadingState } from '@/components/common/StateDisplay';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Users, ListTodo, Flag, AlertCircle, FileOutput, ClipboardCheck, Handshake, MessageSquareText } from 'lucide-react';
 import { useTabStore } from '@/stores';
@@ -356,7 +357,8 @@ export function ProjectDetailPage() {
   const currentStatusTab = activeStatusTab ?? project?.statusCode ?? 'request';
 
   if (!projectId) {
-    return <ErrorState error="프로젝트 ID가 없습니다." />;
+    return <SsooErrorPanel kind="not-found" description="프로젝트 ID가 없습니다."
+      actions={[{ label: '프로젝트 목록으로', intent: 'exit', onClick: () => { openTab({ menuCode: 'my-projects', menuId: 'my-projects', title: '내 프로젝트', path: '/my-projects', closable: true }); } }]} />;
   }
 
   if (isLoading) {
@@ -365,10 +367,9 @@ export function ProjectDetailPage() {
 
   if (error || !project) {
     return (
-      <ErrorState
-        error={error?.message || '프로젝트를 찾을 수 없습니다.'}
-        onRetry={() => refetch()}
-      />
+      <SsooErrorPanel error={error} kind={error ? undefined : 'not-found'}
+        title="프로젝트 정보를 불러오지 못했습니다" onRetry={() => refetch()}
+        actions={[{ label: '프로젝트 목록으로', intent: 'exit', onClick: () => { openTab({ menuCode: 'my-projects', menuId: 'my-projects', title: '내 프로젝트', path: '/my-projects', closable: true }); } }]} />
     );
   }
 

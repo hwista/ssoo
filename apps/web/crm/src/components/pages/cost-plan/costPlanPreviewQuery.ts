@@ -1,6 +1,7 @@
 import type { CrmCostPlanPreviewQuery, CrmCostPlanPreviewRegion } from '@ssoo/types/crm';
 
 export interface CostPlanPreviewWorkspaceQuery {
+  ownerOrganizationId?: string;
   year: number;
   businessType: string;
   industryLine: string;
@@ -16,9 +17,10 @@ export function normalizeCostPlanPreviewQuery(path: string): CostPlanPreviewWork
   const region = searchParams.get('region') as CrmCostPlanPreviewRegion | null;
   return {
     year: Number.isFinite(year) && year >= 2000 ? Math.trunc(year) : new Date().getFullYear(),
+    ownerOrganizationId: (searchParams.get('ownerOrganizationId') ?? '').trim(),
     businessType: (searchParams.get('businessType') ?? '').trim(),
     industryLine: (searchParams.get('industryLine') ?? '').trim(),
-    region: region && ['all', 'domestic', 'overseas'].includes(region) ? region : 'all',
+    region: region && ['all', 'domestic', 'overseas', 'unspecified'].includes(region) ? region : 'all',
     search: (searchParams.get('search') ?? '').trim(),
     sourceSurface: ['internal-cost', 'ams-vendor', 'ams-cost'].includes(searchParams.get('sourceSurface') ?? '')
       ? searchParams.get('sourceSurface') as CostPlanPreviewWorkspaceQuery['sourceSurface']
@@ -26,9 +28,10 @@ export function normalizeCostPlanPreviewQuery(path: string): CostPlanPreviewWork
   };
 }
 
-export function toRequiredCostPlanPreviewQuery(query: CostPlanPreviewWorkspaceQuery): Required<CrmCostPlanPreviewQuery> {
+export function toRequiredCostPlanPreviewQuery(query: CostPlanPreviewWorkspaceQuery): Required<Omit<CrmCostPlanPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmCostPlanPreviewQuery, 'ownerOrganizationId'> {
   return {
     year: query.year,
+    ownerOrganizationId: query.ownerOrganizationId || undefined,
     businessType: query.businessType,
     industryLine: query.industryLine,
     region: query.region,
@@ -47,9 +50,10 @@ export function normalizeCostPlanPreviewQueryRecord(
   const region = value('region') as CrmCostPlanPreviewRegion;
   return {
     year: Number.isFinite(year) && year >= 2000 ? Math.trunc(year) : new Date().getFullYear(),
+    ownerOrganizationId: value('ownerOrganizationId').trim(),
     businessType: value('businessType').trim(),
     industryLine: value('industryLine').trim(),
-    region: ['all', 'domestic', 'overseas'].includes(region) ? region : 'all',
+    region: ['all', 'domestic', 'overseas', 'unspecified'].includes(region) ? region : 'all',
     search: value('search').trim(),
     sourceSurface: ['internal-cost', 'ams-vendor', 'ams-cost'].includes(value('sourceSurface'))
       ? value('sourceSurface') as CostPlanPreviewWorkspaceQuery['sourceSurface']

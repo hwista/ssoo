@@ -30,7 +30,7 @@ BEGIN
 
   INSERT INTO "crm"."crm_business_plan_h" (
     business_plan_id, history_seq, event_type, event_at, event_by,
-    business_plan_code, plan_name, base_year, version_no, status_code,
+    owner_organization_id, business_plan_code, plan_name, base_year, version_no, status_code,
     confirmed, confirmed_at, business_type_filter, industry_line_filter,
     region_filter, search_filter, pipeline_amount_total, contract_plan_amount_total,
     contract_actual_amount_total, plan_candidate_amount_total, actual_gap_amount_total,
@@ -39,7 +39,7 @@ BEGIN
   )
   VALUES (
     v_row.business_plan_id, v_history_seq, v_event_type, NOW(), v_row.updated_by,
-    v_row.business_plan_code, v_row.plan_name, v_row.base_year, v_row.version_no, v_row.status_code,
+    v_row.owner_organization_id, v_row.business_plan_code, v_row.plan_name, v_row.base_year, v_row.version_no, v_row.status_code,
     v_row.confirmed, v_row.confirmed_at, v_row.business_type_filter, v_row.industry_line_filter,
     v_row.region_filter, v_row.search_filter, v_row.pipeline_amount_total, v_row.contract_plan_amount_total,
     v_row.contract_actual_amount_total, v_row.plan_candidate_amount_total, v_row.actual_gap_amount_total,

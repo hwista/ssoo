@@ -1,5 +1,7 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
+
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@ssoo/web-ui';
@@ -22,7 +24,7 @@ function ProtectedImage({ postId, image }: { postId: string; image: PostImage })
     return () => URL.revokeObjectURL(next);
   }, [query.data, query.isError]);
   if (query.isError || decodeError) return <div className="space-y-2 rounded-md border p-3 text-body-sm" role="status">
-    <p>이미지를 불러오지 못했습니다.</p>
+    <SsooErrorNotice as="p" compact>이미지를 불러오지 못했습니다.</SsooErrorNotice>
     <Button variant="outline" size="sm" disabled={query.isFetching} onClick={() => { setDecodeError(false); void query.refetch(); }}>다시 시도</Button>
   </div>;
   if (!url) return <p role="status" className="text-body-sm text-muted-foreground">이미지를 불러오는 중입니다.</p>;

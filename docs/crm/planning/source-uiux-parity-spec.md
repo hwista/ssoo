@@ -1,5 +1,6 @@
 # CRM 원천 UI/UX 패리티 명세
 
+> 2026-09-30 사용자 지시: 사업연도 메뉴·화면·API·마스터/이력은 CRM 소유로 이전한다. 아래 과거 Admin 실행 증거는 당시 기록이며 현재 이전 검증을 대체하지 않는다.
 > 기준일: 2026-08-20  
 > 상태: 폐쇄 원장은 `UX-01~17` 17/17이다. S12 schema 1 증거는 현재 작업 트리 지문이 없어 schema 2 current-revision capture로 재증명 중이며, 이 결과만으로 `SRC-*`·`OPS-*`까지 포함한 최종 Goal 100%를 선언하지 않는다.  
 > 목적: SSOO 공용 shell·template·primitive를 사용하면서 원천 CRM의 업무 화면 구조와 상호작용을 임의로 재설계하지 않는다.
@@ -53,7 +54,7 @@ Phase 1 closure에 필요한 입력은 다음과 같다.
 | UX-09 | `biz-plan` | CRM `/business-plan` | 3개년 grid, 12개월+연간 값, row CRUD/paste, 차수·확정·이월·삭제 | 빈/시드·paste·차수·확정/해제·이월·잠금 7상태 완료 | 완료 | IMP-17, BT-11, BT-27 |
 | UX-10 | `bp-rpt` | CRM `/business-plan-performance` | 확정 계획 대 계약 청구계획의 WBS/month comparison과 filter | 시드 계획/계약 비교·빈 필터·필터 조합 3상태 완료 | 완료 | IMP-08, IMP-17, BT-12, BT-27 |
 | UX-11 | `internal-cost` | CRM `/cost-plan` | 고정 5개 항목, 월별 계획·실적·차이, paste와 잠금 | 시드 grid·paste·실저장/원복·잘못된 paste 4상태 완료 | 완료 | IMP-17, BT-13, BT-27 |
-| UX-12 | `biz-year` | Admin `/business-years` | 연도 목록·CRUD·활성 상태와 CRM selector 반영 | 시드/빈·생성 검증·활성/비활성·삭제 확인 5상태 완료 | 완료 | IMP-03, IMP-17, BT-03, BT-27 |
+| UX-12 | `biz-year` | CRM `/business-years` | 연도 목록·CRUD·활성 상태와 CRM selector 반영 | 시드/빈·생성 검증·활성/비활성·삭제 확인 5상태 완료 | 완료 | IMP-03, IMP-17, BT-03, BT-27 |
 | UX-13 | `ams-vendor` | CRM `/cost-plan` | 연도별 업체 CRUD와 복수 WBS mapping | 시드/빈·생성 검증·복수 WBS 실매핑/원복·삭제 확인 5상태 완료 | 완료 | IMP-10, IMP-17, BT-13, BT-27 |
 | UX-14 | `ams-cost` | CRM `/cost-plan` | 업체×WBS 월별 계획·실적·차이 grid와 paste/정산 잠금 | 시드/빈·paste·실저장·잘못된 paste 5상태 완료 | 완료 | IMP-10, IMP-17, BT-13, BT-27 |
 | UX-15 | `codes` | Admin `/codes` | code group/item CRUD·활성 상태와 selector 소비 | 시드/빈·생성/수정 검증·실활성/원복·삭제 확인 5상태 완료 | 완료 | IMP-03, IMP-17, BT-03, BT-27 |

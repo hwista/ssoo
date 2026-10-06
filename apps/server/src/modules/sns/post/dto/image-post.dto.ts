@@ -16,6 +16,12 @@ export class CreateImagePostDto {
   @IsOptional()
   @IsIn(['public', 'organization', 'followers', 'self'])
   visibilityScopeCode?: string;
+
+  @ApiProperty({ description: '공개 대상 조직 ID', required: false, maxLength: 19 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(19)
+  targetOrgId?: string;
 }
 
 export class PostImageDto {

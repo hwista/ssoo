@@ -1,4 +1,7 @@
+import { PlatformAdmissionService } from '../../common/onboarding/platform-admission.service.js';
+import { CrmAccessService } from '../access/access.service.js';
 import { AccessRequestService } from '../../dms/access/access-request.service.js';
+import { AccessService as DmsAccessService } from '../../dms/access/access.service.js';
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -63,8 +66,8 @@ import { CrmOperationAttemptService, type CrmOperationRunContext } from '../oper
 
 const DEFAULT_SORT: CrmContractSort = 'updated-desc';
 const CONTRACT_STATUSES: CrmContractStatus[] = ['review', 'active', 'completed', 'terminated'];
-const CONTRACT_SORTS: CrmContractSort[] = ['updated-desc', 'revenue-desc', 'margin-desc', 'start-asc'];
-const CONTRACT_PERFORMANCE_REGIONS: CrmContractPerformanceRegion[] = ['all', 'domestic', 'overseas'];
+const CONTRACT_SORTS: CrmContractSort[] = ['updated-desc', 'revenue-desc', 'margin-desc', 'start-asc', 'created-desc', 'customer-asc'];
+const CONTRACT_PERFORMANCE_REGIONS: CrmContractPerformanceRegion[] = ['all', 'domestic', 'overseas', 'unspecified'];
 const BILLING_SPLIT_TARGETS: CrmBillingSplitTarget[] = ['revenue', 'external-cost', 'both'];
 const DISCOUNT_TYPES: CrmOpportunityDiscountType[] = ['amount', 'rate'];
 const CRM_CONTRACT_BOUNDARY_NOTICE = 'CRM은 계약/청구 원장과 계약 금액 기준값을 소유하고 PMS는 수행 스냅샷만 소비합니다.';
@@ -93,6 +96,7 @@ interface RawContractWriter {
 }
 
 interface CrmContractLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   contractCode: string;
   sourceOpportunityId: bigint | null;
@@ -107,8 +111,8 @@ interface CrmContractLedgerRow {
   regionCode: string;
   statusCode: string;
   confirmed: boolean;
-  contractStartDate: Date;
-  contractEndDate: Date;
+  contractStartDate: Date | null;
+  contractEndDate: Date | null;
   wbsCode: string | null;
   paymentTermCode: string | null;
   revenueSubtotal: bigint;
@@ -122,6 +126,7 @@ interface CrmContractLedgerRow {
   dmsLinkStatusCode: string;
   adminBoundaryCode: string;
   nextAction: string;
+  createdAt: Date;
   updatedAt: Date;
 }
 
@@ -206,6 +211,7 @@ type CrmContractDmsTemplateEvidence =
   };
 
 interface CrmContractWriteRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   code: string;
   sourceOpportunityId: bigint | null;
@@ -236,6 +242,7 @@ interface CrmConvertedContractRevocationResult {
 }
 
 interface CrmSourceOpportunityRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   code: string;
 }
@@ -288,8 +295,8 @@ interface NormalizedContractPayload {
   industryLine: string;
   regionCode: CrmContract['region'];
   statusCode: CrmContractStatus;
-  contractStartDate: Date;
-  contractEndDate: Date;
+  contractStartDate: Date | null;
+  contractEndDate: Date | null;
   wbsCode: string | null;
   paymentTermCode: string | null;
   revenueSubtotal: bigint;
@@ -322,11 +329,14 @@ export class ContractService {
     @Optional() private readonly dmsCrmContractLifecycleService?: DmsCrmContractLifecycleService,
     @Optional() private readonly operationAttemptService?: CrmOperationAttemptService,
     @Optional() private readonly documentAccessService?: AccessRequestService,
+    private readonly admission: PlatformAdmissionService = new PlatformAdmissionService(db),
+    private readonly crmAccess?: CrmAccessService,
+    private readonly dmsAccess?: DmsAccessService,
   ) {}
 
-  async listContracts(query: CrmContractListQuery = {}): Promise<CrmContract[]> {
+  async listContracts(query: CrmContractListQuery = {}, currentUser?: TokenPayload, organizationId?: bigint): Promise<CrmContract[]> {
     const normalized = this.normalizeQuery(query);
-    const rows = await this.loadContractRows();
+    const rows = await this.loadContractRows(currentUser, organizationId);
     const lineRows = await this.loadContractLineRows();
     const billingRows = await this.loadContractBillingPlanRows();
     const linesByContract = this.groupByContract(lineRows);
@@ -340,9 +350,9 @@ export class ContractService {
     return this.filterAndSortContracts(contracts, normalized);
   }
 
-  async listResponse(query: CrmContractListQuery = {}): Promise<CrmContractListResponse> {
+  async listResponse(query: CrmContractListQuery = {}, currentUser?: TokenPayload, organizationId?: bigint): Promise<CrmContractListResponse> {
     const normalized = this.normalizeQuery(query);
-    const allContracts = await this.listContracts({ sort: normalized.sort });
+    const allContracts = await this.listContracts({ sort: normalized.sort, view: normalized.view }, currentUser, organizationId);
     const items = this.filterAndSortContracts(allContracts, normalized);
 
     return {
@@ -414,7 +424,12 @@ export class ContractService {
     const draftPreview = this.toSavedDmsDocumentDraftPreview(preview, savedPath, null, templateEvidence);
     const content = this.toDmsDocumentDraftMarkdown(contract, draftPreview, dto.memo);
     if (!this.documentAccessService) throw new BadRequestException('문서 권한 등록 서비스를 사용할 수 없습니다.');
-    const result = await this.fileCrudService.write(savedPath, content, currentUser);
+    if (!this.crmAccess) throw new BadRequestException('계약 권한 서비스를 사용할 수 없습니다.');
+    await this.crmAccess.assertContractCapability(currentUser, 'canWriteContract', id);
+    if (!this.dmsAccess) throw new BadRequestException('DMS 권한 서비스를 사용할 수 없습니다.');
+    await this.dmsAccess.assertFeatures(currentUser, ['canWriteDocuments']);
+    if (!contract.ownerOrganizationId) throw new BadRequestException('업무 문서를 생성하려면 계약의 업무 조직을 먼저 지정해 주세요.');
+    const result = await this.fileCrudService.write(savedPath, content, currentUser, { businessOrganizationId: contract.ownerOrganizationId });
     if (!result.success) {
       throw new BadRequestException(`DMS 문서 초안 저장에 실패했습니다: ${result.error}`);
     }
@@ -609,9 +624,9 @@ export class ContractService {
     };
   }
 
-  async getMonthlyPerformance(query: CrmContractPerformanceQuery = {}): Promise<CrmContractPerformanceResponse> {
+  async getMonthlyPerformance(query: CrmContractPerformanceQuery = {}, currentUser?: TokenPayload, organizationId?: bigint): Promise<CrmContractPerformanceResponse> {
     const normalized = this.normalizePerformanceQuery(query);
-    const contracts = await this.listContracts({ sort: 'start-asc' });
+    const contracts = await this.listContracts({ sort: 'start-asc' }, currentUser, organizationId);
     const confirmedContracts = contracts.filter((contract) => contract.confirmed);
     const businessTypeOptions = this.toSortedUniqueOptions(confirmedContracts.map((contract) => contract.businessType));
     const industryLineOptions = this.toSortedUniqueOptions(confirmedContracts.map((contract) => contract.industryLine));
@@ -633,6 +648,7 @@ export class ContractService {
         if (!search) {
           return true;
         }
+        if (normalized.mode === 'source-compatible') return contract.contractName.toLowerCase().includes(search);
         return [
           contract.code,
           contract.contractName,
@@ -643,16 +659,12 @@ export class ContractService {
           contract.wbsCode ?? '',
         ].some((value) => value.toLowerCase().includes(search));
       })
+      .filter((contract) => contract.billingPlan.some((line) => this.getBillingMonthInYear(line.billingYm, normalized.year) !== null)
+        || (actualRowsByContract.get(contract.code) ?? []).some((line) => this.getBillingMonthInYear(line.billingYm, normalized.year) !== null))
       .map((contract) => this.toPerformanceRow(
         contract,
         normalized.year,
         actualRowsByContract.get(contract.code) ?? [],
-      ))
-      .filter((row) => (
-        row.total.planRevenueAmount > 0
-        || row.total.planExternalCostAmount > 0
-        || row.total.actualRevenueAmount > 0
-        || row.total.actualExternalCostAmount > 0
       ));
 
     return {
@@ -685,15 +697,21 @@ export class ContractService {
 
   async createContract(dto: CrmContractUpsertRequest, currentUserId?: bigint): Promise<CrmContract> {
     const payload = this.normalizeUpsertPayload(dto);
+    if (!currentUserId) throw new BadRequestException('업무 조직을 확인할 사용자 정보가 필요합니다.');
     const contractCode = this.createContractCode();
     const createdCode = await this.db.client.$transaction(async (tx) => {
       const writer = tx as unknown as RawContractWriter;
       const sourceOpportunity = await this.resolveSourceOpportunity(writer, payload);
+      const requestedOrganization = sourceOpportunity ? sourceOpportunity.ownerOrganizationId?.toString() ?? null : dto.ownerOrganizationId;
+      if (sourceOpportunity && dto.ownerOrganizationId !== undefined && dto.ownerOrganizationId !== requestedOrganization) {
+        throw new BadRequestException('계약은 원천 영업기회의 업무 조직을 이어받아야 합니다.');
+      }
+      const ownerOrganizationId = await this.admission.resolveBusinessOrganization(currentUserId, 'crm', requestedOrganization, tx);
       const ownerUser = await this.resolveContractOwnerUser(writer, payload.ownerUserId);
       const ownerName = this.resolveContractOwnerName(payload.ownerName, ownerUser);
       const insertedRows = await writer.$queryRaw<CrmContractInsertedRow[]>`
         insert into crm.crm_contract_m (
-          contract_code, source_opportunity_id, source_opportunity_code,
+          owner_organization_id, contract_code, source_opportunity_id, source_opportunity_code,
           customer_name, contract_name, owner_name, client_contact, owner_user_id,
           business_type, industry_line,
           region_code, status_code, confirmed, contract_start_date, contract_end_date,
@@ -703,7 +721,7 @@ export class ContractService {
           admin_boundary_code, next_action, created_by, updated_by, last_source, last_activity
         )
         values (
-          ${contractCode}, ${sourceOpportunity?.id ?? null}, ${sourceOpportunity?.code ?? payload.sourceOpportunityCodeText},
+          ${ownerOrganizationId}, ${contractCode}, ${sourceOpportunity?.id ?? null}, ${sourceOpportunity?.code ?? payload.sourceOpportunityCodeText},
           ${payload.customerName}, ${payload.contractName}, ${ownerName}, ${payload.clientContactName}, ${ownerUser?.id ?? null},
           ${payload.businessType}, ${payload.industryLine},
           ${payload.regionCode}, ${payload.statusCode}, false, ${payload.contractStartDate}, ${payload.contractEndDate},
@@ -736,10 +754,16 @@ export class ContractService {
       throw new BadRequestException('확정된 계약은 수정할 수 없습니다.');
     }
 
+    if (dto.ownerOrganizationId !== undefined && dto.ownerOrganizationId !== existing.ownerOrganizationId?.toString()) {
+      throw new BadRequestException('계약과 연결 자료의 업무 조직은 일반 수정에서 변경할 수 없습니다.');
+    }
     const payload = this.normalizeUpsertPayload(dto);
     await this.db.client.$transaction(async (tx) => {
       const writer = tx as unknown as RawContractWriter;
       const sourceOpportunity = await this.resolveSourceOpportunity(writer, payload);
+      if (sourceOpportunity && sourceOpportunity.ownerOrganizationId !== existing.ownerOrganizationId) {
+        throw new BadRequestException('같은 업무 조직의 영업기회만 연결할 수 있습니다.');
+      }
       const ownerUser = await this.resolveContractOwnerUser(writer, payload.ownerUserId);
       const ownerName = this.resolveContractOwnerName(payload.ownerName, ownerUser);
       await writer.$executeRaw`
@@ -795,7 +819,6 @@ export class ContractService {
     await this.db.$executeRaw`
       update crm.crm_contract_m
          set confirmed = true,
-             status_code = 'active',
              updated_by = ${currentUserId ?? null},
              updated_at = now(),
              last_source = 'crm.contract',
@@ -819,7 +842,6 @@ export class ContractService {
     await this.db.$executeRaw`
       update crm.crm_contract_m
          set confirmed = false,
-             status_code = case when status_code = 'active' then 'review' else status_code end,
              updated_by = ${currentUserId ?? null},
              updated_at = now(),
              last_source = 'crm.contract',
@@ -976,6 +998,7 @@ export class ContractService {
     ];
 
     return {
+      ownerOrganizationId: contract.ownerOrganizationId,
       contractId: contract.id,
       contractCode: contract.code,
       sourceOpportunityId: contract.sourceOpportunityId,
@@ -2169,6 +2192,7 @@ export class ContractService {
           select
             contract_id as "id",
             contract_code as "code",
+            owner_organization_id as "ownerOrganizationId",
             source_opportunity_id as "sourceOpportunityId",
             source_opportunity_code as "sourceOpportunityCode",
             confirmed as "confirmed",
@@ -2184,6 +2208,7 @@ export class ContractService {
           select
             contract_id as "id",
             contract_code as "code",
+            owner_organization_id as "ownerOrganizationId",
             source_opportunity_id as "sourceOpportunityId",
             source_opportunity_code as "sourceOpportunityCode",
             confirmed as "confirmed",
@@ -2255,6 +2280,8 @@ export class ContractService {
   private async assertContractCanConfirm(contractId: bigint): Promise<void> {
     const rows = await this.db.$queryRaw<Array<{
       wbsCode: string | null;
+      contractStartDate: Date | null;
+      contractEndDate: Date | null;
       revenueTotal: bigint;
       externalCostTotal: bigint;
       billingCount: bigint;
@@ -2263,6 +2290,8 @@ export class ContractService {
     }>>`
       select
         c.wbs_code as "wbsCode",
+        c.contract_start_date as "contractStartDate",
+        c.contract_end_date as "contractEndDate",
         c.revenue_total as "revenueTotal",
         c.external_cost_total as "externalCostTotal",
         coalesce(p.billing_count, 0)::bigint as "billingCount",
@@ -2290,6 +2319,12 @@ export class ContractService {
     if (!row.wbsCode?.trim()) {
       throw new BadRequestException('계약 확정에는 WBS 코드가 필요합니다.');
     }
+    if (!row.contractStartDate || !row.contractEndDate || row.contractEndDate < row.contractStartDate) {
+      throw new BadRequestException('계약 확정에는 유효한 시작일과 종료일이 필요합니다.');
+    }
+    if (row.revenueTotal <= 0n) {
+      throw new BadRequestException('계약 확정에는 양수 매출액이 필요합니다.');
+    }
     if (row.billingCount <= 0n) {
       throw new BadRequestException('계약 확정에는 청구계획이 1건 이상 필요합니다.');
     }
@@ -2313,7 +2348,7 @@ export class ContractService {
     const numericId = /^\d+$/.test(candidate) ? BigInt(candidate) : null;
     const rows = numericId
       ? await writer.$queryRaw<CrmSourceOpportunityRow[]>`
-          select opportunity_id as "id", opportunity_code as "code"
+          select opportunity_id as "id", opportunity_code as "code", owner_organization_id as "ownerOrganizationId"
           from crm.crm_opportunity_m
           where is_active = true
             and (opportunity_id = ${numericId} or opportunity_code = ${payload.sourceOpportunityCodeText ?? candidate})
@@ -2321,7 +2356,7 @@ export class ContractService {
           limit 1
         `
       : await writer.$queryRaw<CrmSourceOpportunityRow[]>`
-          select opportunity_id as "id", opportunity_code as "code"
+          select opportunity_id as "id", opportunity_code as "code", owner_organization_id as "ownerOrganizationId"
           from crm.crm_opportunity_m
           where is_active = true
             and opportunity_code = ${candidate}
@@ -2496,9 +2531,9 @@ export class ContractService {
   private normalizeUpsertPayload(dto: CrmContractUpsertRequest): NormalizedContractPayload {
     const revenueLines = this.normalizeLines(dto.revenueLines ?? [], 'revenue');
     const costLines = this.normalizeLines(dto.costLines ?? [], 'cost');
-    const contractStartDate = this.parseDate(dto.contractStartDate, '계약 시작일');
-    const contractEndDate = this.parseDate(dto.contractEndDate, '계약 종료일');
-    if (contractEndDate < contractStartDate) {
+    const contractStartDate = dto.contractStartDate?.trim() ? this.parseDate(dto.contractStartDate, '계약 시작일') : null;
+    const contractEndDate = dto.contractEndDate?.trim() ? this.parseDate(dto.contractEndDate, '계약 종료일') : null;
+    if (contractStartDate && contractEndDate && contractEndDate < contractStartDate) {
       throw new BadRequestException('계약 종료일은 시작일 이후여야 합니다.');
     }
 
@@ -2530,8 +2565,8 @@ export class ContractService {
       clientContactName: this.optionalText(dto.clientContactName, 120),
       ownerUserId: this.normalizeOptionalUserId(dto.ownerUserId, '담당자 사용자 ID'),
       businessType: this.requiredText(dto.businessType, '사업구분', 120),
-      industryLine: this.requiredText(dto.industryLine, '계열/산업 구분', 120),
-      regionCode: dto.region === 'overseas' ? 'overseas' : 'domestic',
+      industryLine: this.optionalText(dto.industryLine, 120) ?? '',
+      regionCode: dto.region === 'unspecified' ? 'unspecified' : dto.region === 'overseas' ? 'overseas' : 'domestic',
       statusCode: this.normalizeStatus(dto.status ?? 'review'),
       contractStartDate,
       contractEndDate,
@@ -2616,7 +2651,6 @@ export class ContractService {
         revenueAmount: this.normalizeMoneyAmount(line.revenueAmount),
         externalCostAmount: this.normalizeMoneyAmount(line.externalCostAmount),
       }))
-      .filter((line) => line.revenueAmount > 0n || line.externalCostAmount > 0n)
       .map((line) => {
         if (seen.has(line.billingYm)) {
           throw new BadRequestException(`청구 예정월이 중복되었습니다: ${line.billingYm}`);
@@ -2634,7 +2668,6 @@ export class ContractService {
         revenueAmount: this.normalizeMoneyAmount(line.revenueAmount),
         externalCostAmount: this.normalizeMoneyAmount(line.externalCostAmount),
       }))
-      .filter((line) => line.revenueAmount > 0n || line.externalCostAmount > 0n)
       .map((line) => {
         if (seen.has(line.billingYm)) {
           throw new BadRequestException(`청구 실적월이 중복되었습니다: ${line.billingYm}`);
@@ -2652,7 +2685,8 @@ export class ContractService {
     return normalized;
   }
 
-  private async loadContractRows(): Promise<CrmContractLedgerRow[]> {
+  private async loadContractRows(currentUser?: TokenPayload, organizationId?: bigint): Promise<CrmContractLedgerRow[]> {
+    const scope = currentUser ? await this.crmAccess!.businessOrganizationScope(currentUser) : null;
     return this.db.$queryRaw<CrmContractLedgerRow[]>`
       select
         c.contract_id as "id",
@@ -2664,6 +2698,7 @@ export class ContractService {
         c.owner_name as "ownerName",
         c.client_contact as "clientContactName",
         c.owner_user_id as "ownerUserId",
+        c.owner_organization_id as "ownerOrganizationId",
         c.business_type as "businessType",
         c.industry_line as "industryLine",
         c.region_code as "regionCode",
@@ -2684,9 +2719,12 @@ export class ContractService {
         c.dms_link_status_code as "dmsLinkStatusCode",
         c.admin_boundary_code as "adminBoundaryCode",
         c.next_action as "nextAction",
+        c.created_at as "createdAt",
         c.updated_at as "updatedAt"
       from crm.crm_contract_m c
       where c.is_active = true
+        and (${scope === null} or c.owner_organization_id = any(${scope ?? []}::bigint[]))
+        and (${organizationId === undefined} or c.owner_organization_id = ${organizationId ?? null})
       order by c.updated_at desc, c.contract_id desc
     `;
   }
@@ -2844,6 +2882,7 @@ export class ContractService {
     }, this.createPerformanceMonth(0));
 
     return {
+      hasBillingPlanInYear: contract.billingPlan.some((line) => this.getBillingMonthInYear(line.billingYm, year) !== null),
       contractId: contract.id,
       contractCode: contract.code,
       customerName: contract.customerName,
@@ -2917,9 +2956,10 @@ export class ContractService {
       ownerName: row.ownerName,
       clientContactName: row.clientContactName ?? undefined,
       ownerUserId: row.ownerUserId?.toString(),
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       businessType: row.businessType,
       industryLine: row.industryLine,
-      region: row.regionCode === 'overseas' ? 'overseas' : 'domestic',
+      region: row.regionCode === 'unspecified' ? 'unspecified' : row.regionCode === 'overseas' ? 'overseas' : 'domestic',
       status: this.normalizeStatus(row.statusCode),
       confirmed: row.confirmed,
       contractStartDate: this.formatDate(row.contractStartDate),
@@ -2946,6 +2986,7 @@ export class ContractService {
           : 'planned',
       adminBoundary: 'shared-admin',
       nextAction: row.nextAction,
+      createdAt: row.createdAt?.toISOString() ?? '',
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -2993,8 +3034,8 @@ export class ContractService {
     planRows: CrmContractBillingPlanLedgerRow[],
     actualRows: CrmContractBillingActualLedgerRow[],
   ): CrmContractBillingActualResponse {
-    const planLines = planRows.map((row) => this.toBillingLine(row));
-    const actualLines = actualRows.map((row) => this.toBillingActualLine(row));
+    const planLines = planRows.map((row) => this.toBillingLine(row)).sort((a, b) => a.billingYm.localeCompare(b.billingYm));
+    const actualLines = actualRows.map((row) => this.toBillingActualLine(row)).sort((a, b) => a.billingYm.localeCompare(b.billingYm));
     const planRevenueTotal = planLines.reduce((sum, line) => sum + line.revenueAmount, 0);
     const planExternalCostTotal = planLines.reduce((sum, line) => sum + line.externalCostAmount, 0);
     const actualRevenueTotal = actualLines.reduce((sum, line) => sum + line.revenueAmount, 0);
@@ -3020,16 +3061,17 @@ export class ContractService {
     };
   }
 
-  private normalizeQuery(query: CrmContractListQuery): Required<CrmContractListQuery> {
+  private normalizeQuery(query: CrmContractListQuery): Required<Omit<CrmContractListQuery, 'view'>> & Pick<CrmContractListQuery, 'view'> {
     const status = CONTRACT_STATUSES.includes(query.status as CrmContractStatus)
       ? query.status as CrmContractStatus
       : 'all';
     const sort = CONTRACT_SORTS.includes(query.sort as CrmContractSort)
       ? query.sort as CrmContractSort
-      : DEFAULT_SORT;
+      : query.view === 'source-list' ? 'created-desc' : DEFAULT_SORT;
 
     return {
-      search: query.search?.trim() ?? '',
+      ...(query.view === 'source-list' ? { view: query.view } : {}),
+      search: query.view === 'source-list' ? query.search ?? '' : query.search?.trim() ?? '',
       status,
       sort,
     };
@@ -3045,6 +3087,7 @@ export class ContractService {
       : 'all';
 
     return {
+      mode: query.mode === 'source-compatible' ? 'source-compatible' : 'operations',
       year,
       businessType: this.optionalText(query.businessType, 120) ?? '',
       industryLine: this.optionalText(query.industryLine, 120) ?? '',
@@ -3053,11 +3096,13 @@ export class ContractService {
     };
   }
 
-  private filterAndSortContracts(contracts: CrmContract[], query: Required<CrmContractListQuery>): CrmContract[] {
+  private filterAndSortContracts(contracts: CrmContract[], query: Required<Omit<CrmContractListQuery, 'view'>> & Pick<CrmContractListQuery, 'view'>): CrmContract[] {
     const search = query.search.toLowerCase();
     const filtered = contracts.filter((contract) => {
       const matchesStatus = query.status === 'all' || contract.status === query.status;
-      const matchesSearch = !search || [
+      const matchesSearch = !search || (query.view === 'source-list' ? [
+        contract.customerName, contract.contractName, contract.ownerName,
+      ] : [
         contract.code,
         contract.customerName,
         contract.contractName,
@@ -3067,18 +3112,24 @@ export class ContractService {
         contract.businessType,
         contract.industryLine,
         contract.wbsCode ?? '',
-      ].some((value) => value.toLowerCase().includes(search));
+      ]).some((value) => value.toLowerCase().includes(search));
 
       return matchesStatus && matchesSearch;
     });
 
     return [...filtered].sort((left, right) => {
       if (query.sort === 'revenue-desc') {
-        return right.revenueTotal - left.revenueTotal;
+        return query.view === 'source-list'
+          ? this.sourceContractTotals(right).revenue - this.sourceContractTotals(left).revenue
+          : right.revenueTotal - left.revenueTotal;
       }
       if (query.sort === 'margin-desc') {
-        return right.marginRate - left.marginRate;
+        return query.view === 'source-list'
+          ? this.sourceContractTotals(right).profit - this.sourceContractTotals(left).profit
+          : right.marginRate - left.marginRate;
       }
+      if (query.sort === 'created-desc') return (right.createdAt ?? '').localeCompare(left.createdAt ?? '');
+      if (query.sort === 'customer-asc') return left.customerName.localeCompare(right.customerName, 'ko-KR');
       if (query.sort === 'start-asc') {
         return left.contractStartDate.localeCompare(right.contractStartDate);
       }
@@ -3122,14 +3173,22 @@ export class ContractService {
     };
   }
 
+  private sourceContractTotals(contract: CrmContract) {
+    const sum = (lines: CrmContract['revenueLines']) => lines.reduce((total, line) => total + (line.quantity ?? 0) * (line.unitPrice ?? 0), 0);
+    const revenue = sum(contract.revenueLines);
+    const cost = sum(contract.costLines);
+    const externalCost = sum(contract.costLines.filter((line) => line.category !== 'internal-cost'));
+    return { revenue, cost, externalCost, profit: revenue - cost };
+  }
+
   private buildSummary(
     allContracts: CrmContract[],
     items: CrmContract[],
-    query: Required<CrmContractListQuery>,
+    query: Required<Omit<CrmContractListQuery, 'view'>> & Pick<CrmContractListQuery, 'view'>,
   ): CrmContractSummary {
-    const totalRevenue = items.reduce((sum, item) => sum + item.revenueTotal, 0);
-    const totalCost = items.reduce((sum, item) => sum + item.costTotal, 0);
-    const totalExternalCost = items.reduce((sum, item) => sum + item.externalCostTotal, 0);
+    const totalRevenue = items.reduce((sum, item) => sum + (query.view === 'source-list' ? this.sourceContractTotals(item).revenue : item.revenueTotal), 0);
+    const totalCost = items.reduce((sum, item) => sum + (query.view === 'source-list' ? this.sourceContractTotals(item).cost : item.costTotal), 0);
+    const totalExternalCost = items.reduce((sum, item) => sum + (query.view === 'source-list' ? this.sourceContractTotals(item).externalCost : item.externalCostTotal), 0);
     const totalMargin = totalRevenue - totalCost;
 
     return {
@@ -3142,7 +3201,7 @@ export class ContractService {
       totalCost,
       totalExternalCost,
       totalMargin,
-      grossMarginRate: totalRevenue > 0 ? Math.round((totalMargin / totalRevenue) * 10000) / 100 : 0,
+      grossMarginRate: totalRevenue > 0 ? (query.view === 'source-list' ? Math.round(totalMargin / totalRevenue * 100) : Math.round((totalMargin / totalRevenue) * 10000) / 100) : 0,
       boundaryNotice: CRM_CONTRACT_BOUNDARY_NOTICE,
       unimplementedIntegrations: CONTRACT_UNIMPLEMENTED_INTEGRATIONS,
       activeFilters: query,
@@ -3194,7 +3253,7 @@ export class ContractService {
 
   private parseDate(value: string, label: string): Date {
     const date = new Date(`${value}T00:00:00.000Z`);
-    if (!value || Number.isNaN(date.getTime())) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
       throw new BadRequestException(`${label} 형식이 올바르지 않습니다.`);
     }
     return date;
@@ -3318,12 +3377,13 @@ export class ContractService {
     fallbackAmount?: number;
   }): bigint {
     if (quantity !== null && unitPrice !== null) {
-      const rawAmount = Math.round(quantity * Number(unitPrice));
-      const trunc = Number(truncUnit ?? 0n);
-      if (trunc > 0) {
-        return BigInt(Math.floor(rawAmount / trunc) * trunc);
+      // Quantity is normalized to hundredths before this calculation. Truncate
+      // the exact product before rounding so 999.9 never becomes a 1,000 block.
+      const scaledAmount = BigInt(Math.round(quantity * 100)) * unitPrice;
+      if (truncUnit && truncUnit > 0n) {
+        return scaledAmount / (100n * truncUnit) * truncUnit;
       }
-      return BigInt(rawAmount);
+      return (scaledAmount + 50n) / 100n;
     }
 
     return this.normalizeMoneyAmount(fallbackAmount);
@@ -3395,8 +3455,8 @@ export class ContractService {
     return `crm-ct-${randomUUID().slice(0, 8)}`;
   }
 
-  private formatDate(value: Date): string {
-    return value.toISOString().slice(0, 10);
+  private formatDate(value: Date | null): string {
+    return value?.toISOString().slice(0, 10) ?? '';
   }
 
   private toAchievementRate(actual: number, plan: number): number {

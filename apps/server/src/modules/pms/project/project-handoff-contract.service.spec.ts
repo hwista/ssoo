@@ -1,4 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
+import type { CrmAccessService } from '../../crm/access/access.service.js';
+import type { ContractService } from '../../crm/contract/contract.service.js';
+import type { ProjectAccessService } from './project-access.service.js';
 import type { CrmContractPmsHandoffPreview } from '@ssoo/types/crm';
 import type { DatabaseService } from '../../../database/database.service.js';
 import { ProjectHandoffContractService } from './project-handoff-contract.service.js';
@@ -182,7 +185,11 @@ function createFixture(): Fixture {
   } as unknown as DatabaseService;
 
   return {
-    service: new ProjectHandoffContractService(db),
+    service: new ProjectHandoffContractService(db,
+      { actorForUser: async () => ({ userId: '9', loginId: 'unit-test' }), assertContractCapability: async () => undefined } as unknown as CrmAccessService,
+      { getPmsHandoffPreview: async () => createReadyPreview() } as unknown as ContractService,
+      { assertProjectCapability: async () => undefined } as unknown as ProjectAccessService,
+    ),
     calls,
   };
 }

@@ -11,11 +11,11 @@ export interface ContractPerformanceWorkspaceQuery {
 
 function normalizeYear(value: string): number {
   const year = Number(value || new Date().getFullYear());
-  return Number.isFinite(year) && year >= 2000 ? Math.trunc(year) : new Date().getFullYear();
+  return Number.isFinite(year) && year >= 2000 && year <= 2100 ? Math.trunc(year) : new Date().getFullYear();
 }
 
 function normalizeRegion(value: string): CrmContractPerformanceRegion {
-  return ['all', 'domestic', 'overseas'].includes(value)
+  return ['all', 'domestic', 'overseas', 'unspecified'].includes(value)
     ? value as CrmContractPerformanceRegion
     : 'all';
 }
@@ -35,6 +35,7 @@ export function normalizeContractPerformanceQuery(path: string): ContractPerform
 
 export function toRequiredPerformanceQuery(query: ContractPerformanceWorkspaceQuery): Required<CrmContractPerformanceQuery> {
   return {
+    mode: query.mode,
     year: query.year,
     businessType: query.businessType,
     industryLine: query.industryLine,

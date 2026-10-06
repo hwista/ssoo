@@ -1,5 +1,6 @@
 'use client';
 
+import { SharedSessionRecovery } from '@ssoo/web-auth';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -9,6 +10,7 @@ import {
   useProtectedAppBootstrap,
 } from '@ssoo/web-auth';
 import {
+  SsooErrorNotice,
   SsooMobileSidebarOverlay,
   SsooWorkbenchShell,
   useSsooMobileViewport,
@@ -21,10 +23,14 @@ import { AdminTabBar } from '@/components/layout/TabBar';
 import { AdminContentArea } from '@/components/layout/ContentArea';
 import { getAdminTabOptions } from '@/components/layout/navigation';
 import { usePermissionCatalog } from '@/hooks/queries/useAccessOps';
+import { ApiError } from '@/lib/api/client';
+import { AccessRecovery } from '@/components/layout/AccessRecovery';
 
 const LOGIN_PATH = '/login';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  const sessionError = useAuthStore(state => state.sessionError);
+  const accessToken = useAuthStore(state => state.accessToken);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authIsLoading = useAuthStore((s) => s.isLoading);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
@@ -62,6 +68,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     hasHydrated,
     isAuthenticated,
     authIsLoading,
+    sessionError,
     accessHasLoaded: true,
     accessIsLoading: false,
     checkAuth,
@@ -96,6 +103,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   void children;
 
+  if (sessionError && !accessToken) return <SharedSessionRecovery authStore={useAuthStore} />;
+
   if (showLoading || (shouldRender && adminAccess.isLoading)) {
     return <AuthLoadingScreen />;
   }
@@ -104,20 +113,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return null;
   }
 
-  if (adminAccess.isError) {
+  const accessDenied = adminAccess.error instanceof ApiError && adminAccess.error.status === 403;
+  if (adminAccess.isError && (!adminAccess.data || accessDenied)) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
-        <section className="max-w-md rounded-lg border bg-background p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-foreground">Admin 접근 권한이 없습니다</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            SSOO Admin 앱은 system.override 권한이 있는 운영자만 사용할 수 있습니다. DMS/PMS/SNS 사용자는 각 도메인 앱을 이용하세요.
-          </p>
-        </section>
-      </main>
+      <AccessRecovery
+        accessDenied={accessDenied}
+        isRetrying={adminAccess.isFetching}
+        onRetry={() => { void adminAccess.refetch(); }}
+      />
     );
   }
 
   return (
+    <SharedSessionRecovery authStore={useAuthStore}>
+    {adminAccess.isError ? <SsooErrorNotice message="최신 접근 권한을 확인하지 못했습니다. 이전에 확인한 화면을 유지하고 있습니다."
+      actions={[{ label: '접근 권한 다시 확인', onClick: () => adminAccess.refetch(), disabled: adminAccess.isFetching }, { label: '다른 서비스·계정으로 이동', href: '/recovery' }]} /> : null}
     <SsooWorkbenchShell
       sidebarMode={isMobileViewport ? 'none' : 'collapsible'}
       sidebarExpanded={!isSidebarCollapsed}
@@ -149,5 +159,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       tabBarSlot={<AdminTabBar />}
       contentSlot={<AdminContentArea />}
     />
+    </SharedSessionRecovery>
   );
 }

@@ -14,10 +14,21 @@ export const userKeys = {
   list: (params?: UserListParams) => [...userKeys.lists(), params] as const,
 };
 
-export function useUserList(params?: UserListParams) {
+export function useUserList(params?: UserListParams, allPages = false) {
   return useQuery({
-    queryKey: userKeys.list(params),
-    queryFn: () => usersApi.list(params),
+    queryKey: [...userKeys.list(params), { allPages }],
+    queryFn: async ({ signal }) => {
+      const first = await usersApi.list(params, signal);
+      if (!allPages) return first;
+      const users = [...first.data];
+      let nextPage = first.meta.page + 1;
+      while (users.length < first.meta.total) {
+        const next = await usersApi.list({ ...params, page: nextPage++ }, signal);
+        if (!next.data.length) throw new Error('사용자 전체 목록을 불러오지 못했습니다. 다시 조회해 주세요.');
+        users.push(...next.data);
+      }
+      return { ...first, data: users };
+    },
     staleTime: 5 * 60 * 1000,
   });
 }

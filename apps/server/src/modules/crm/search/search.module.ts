@@ -1,3 +1,4 @@
+import { CrmAccessModule } from '../access/access.module.js';
 import { Module } from '@nestjs/common';
 import { CommonAiIndexModule } from '../../common/ai-index/ai-index.module.js';
 import { CommonSearchModule } from '../../common/search/search.module.js';
@@ -7,7 +8,7 @@ import { CrmAiIndexAdapter } from './crm-ai-index.adapter.js';
 import { CrmCommonSearchProvider } from './crm-common-search.provider.js';
 
 @Module({
-  imports: [CommonSearchModule, CommonAiIndexModule, OpportunityModule, CustomerModule],
+  imports: [CrmAccessModule, CommonSearchModule, CommonAiIndexModule, OpportunityModule, CustomerModule],
   providers: [CrmCommonSearchProvider, CrmAiIndexAdapter],
 })
 export class CrmSearchModule {}

@@ -54,8 +54,8 @@
       "id": "project-input-intent-inventory",
       "source": ".github/instructions/project.instructions.md",
       "target": ".codex/instructions/project.instructions.md",
-      "sourcePattern": "36개 입력 inventory",
-      "targetPattern": "36개 입력 inventory",
+      "sourcePattern": "37개 입력 inventory",
+      "targetPattern": "37개 입력 inventory",
       "severity": "error"
     },
     {
@@ -145,6 +145,22 @@
       "sourcePattern": "커스텀 renderer",
       "targetPattern": "custom tree",
       "severity": "warning"
+    },
+    {
+      "id": "project-error-routing",
+      "source": ".github/instructions/project.instructions.md",
+      "target": ".codex/instructions/project.instructions.md",
+      "sourcePattern": "공용 오류 처리 경계",
+      "targetPattern": "공용 오류 처리 경계",
+      "severity": "error"
+    },
+    {
+      "id": "platform-release-guard",
+      "source": ".github/instructions/project.instructions.md",
+      "target": ".codex/instructions/project.instructions.md",
+      "sourcePattern": "codex:platform-guard",
+      "targetPattern": "codex:platform-guard",
+      "severity": "error"
     }
   ]
 }

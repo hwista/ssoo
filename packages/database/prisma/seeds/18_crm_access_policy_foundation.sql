@@ -11,6 +11,8 @@ insert into common.cm_permission_m (
   last_source, last_activity, updated_at
 )
 values
+  ('crm.business-year.read', 'CRM 사업연도 조회', 'crm', 'action', 'CRM 사업연도 목록 조회', 274, true, 'CRM business year policy', 'crm-access-policy-seed', 'seed.crm-access-policy', current_timestamp),
+  ('crm.business-year.manage', 'CRM 사업연도 관리', 'crm', 'action', 'CRM 사업연도 등록·활성화·비활성화·삭제', 275, true, 'CRM business year policy', 'crm-access-policy-seed', 'seed.crm-access-policy', current_timestamp),
   ('crm.opportunity.read', 'CRM 영업기회 조회', 'crm', 'action', 'CRM 영업기회 목록, 상세, 차수, 변경 이력을 조회하는 권한', 240, true, 'CRM access policy seed', 'crm-access-policy-seed', 'seed.crm-access-policy', current_timestamp),
   ('crm.opportunity.write', 'CRM 영업기회 등록/수정', 'crm', 'action', 'CRM 영업기회를 등록하고 최신 미확정 차수를 수정하는 권한', 241, true, 'CRM access policy seed', 'crm-access-policy-seed', 'seed.crm-access-policy', current_timestamp),
   ('crm.opportunity.confirm', 'CRM 영업기회 확정 관리', 'crm', 'action', 'CRM 영업기회를 확정하거나 확정 해제하는 권한', 242, true, 'CRM access policy seed', 'crm-access-policy-seed', 'seed.crm-access-policy', current_timestamp),
@@ -61,6 +63,11 @@ select
   current_timestamp as updated_at
 from (
   values
+    ('admin', 'crm.business-year.read'),
+    ('admin', 'crm.business-year.manage'),
+    ('manager', 'crm.business-year.read'),
+    ('user', 'crm.business-year.read'),
+    ('viewer', 'crm.business-year.read'),
     ('admin', 'crm.opportunity.read'),
     ('admin', 'crm.opportunity.write'),
     ('admin', 'crm.opportunity.confirm'),

@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice, SsooErrorPanel } from '@ssoo/web-shell';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -596,6 +597,7 @@ export function SsooUserSurfacePage({
   });
 
   const saveProfile = useCallback(async () => {
+    if (isSaving) return;
     if (!form || (surface === 'personal-settings' && !accountForm)) {
       return;
     }
@@ -641,9 +643,10 @@ export function SsooUserSurfacePage({
     } finally {
       setIsSaving(false);
     }
-  }, [accountForm, api, form, surface]);
+  }, [accountForm, api, form, surface, isSaving]);
 
   const changePassword = useCallback(async () => {
+    if (isChangingPassword) return;
     if (!passwordForm.currentPassword) {
       setError('현재 비밀번호를 입력하세요.');
       return;
@@ -675,7 +678,7 @@ export function SsooUserSurfacePage({
     } finally {
       setIsChangingPassword(false);
     }
-  }, [api, passwordForm]);
+  }, [api, passwordForm, isChangingPassword]);
 
   const toggleFollow = useCallback(async () => {
     if (!profile) {
@@ -829,17 +832,7 @@ export function SsooUserSurfacePage({
 
   if (!profile || !form || (surface === 'personal-settings' && (!accountProfile || !accountForm))) {
     return (
-      <div className="rounded-lg border border-ssoo-content-border bg-card p-8 text-center">
-        <p className="text-body-sm text-muted-foreground">{error ?? '프로필을 찾을 수 없습니다.'}</p>
-        <Button variant="plain" size="plain"
-          type="button"
-          className="mt-4 inline-flex h-control-h items-center rounded-md bg-ssoo-primary px-3 text-body-sm font-medium text-primary-foreground"
-          onClick={() => void refresh()}
-        >
-          <RefreshCw className="mr-1.5 h-4 w-4" />
-          다시 시도
-        </Button>
-      </div>
+      <SsooErrorPanel error={error} kind={error ? undefined : 'not-found'} title="프로필을 불러오지 못했습니다" onRetry={refresh} />
     );
   }
 
@@ -851,6 +844,7 @@ export function SsooUserSurfacePage({
         accountForm={accountForm!}
         passwordForm={passwordForm}
         passwordNotice={passwordNotice}
+        isSaving={isSaving}
         isChangingPassword={isChangingPassword}
         error={error}
         onChange={setForm}
@@ -886,6 +880,7 @@ function UserSettingsSurface({
   accountForm,
   passwordForm,
   passwordNotice,
+  isSaving,
   isChangingPassword,
   error,
   onChange,
@@ -898,6 +893,7 @@ function UserSettingsSurface({
   accountForm: AccountFormState;
   passwordForm: PasswordFormState;
   passwordNotice: string | null;
+  isSaving: boolean;
   isChangingPassword: boolean;
   error: string | null;
   onChange: (next: ProfileFormState) => void;
@@ -906,7 +902,7 @@ function UserSettingsSurface({
   onChangePassword: () => void;
 }) {
   return (
-    <div className="space-y-4">
+    <fieldset disabled={isSaving} className="space-y-4">
       <div className="flex items-center">
         <h2 className="text-heading-sm font-semibold text-ssoo-content-strong">프로필 기본 정보</h2>
       </div>
@@ -956,9 +952,9 @@ function UserSettingsSurface({
         </div>
         <p className="mt-1 text-caption text-muted-foreground">현재 비밀번호를 확인한 뒤 새 비밀번호로 변경합니다.</p>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <label className="block" htmlFor="account-current-password"><span className="text-caption font-medium text-muted-foreground">현재 비밀번호</span><Input id="account-current-password" name="current-password" type="password" autoComplete="current-password" data-ssoo-input-intent="credential-current-password" value={passwordForm.currentPassword} onChange={(event) => onPasswordChange({ ...passwordForm, currentPassword: event.target.value })} data-testid="current-password" className="mt-1" /></label>
-          <label className="block" htmlFor="account-new-password"><span className="text-caption font-medium text-muted-foreground">새 비밀번호</span><Input id="account-new-password" name="new-password" type="password" autoComplete="new-password" data-ssoo-input-intent="credential-new-password" value={passwordForm.newPassword} onChange={(event) => onPasswordChange({ ...passwordForm, newPassword: event.target.value })} data-testid="new-password" className="mt-1" /></label>
-          <label className="block" htmlFor="account-confirm-password"><span className="text-caption font-medium text-muted-foreground">새 비밀번호 확인</span><Input id="account-confirm-password" name="confirm-new-password" type="password" autoComplete="new-password" data-ssoo-input-intent="credential-confirm-password" value={passwordForm.confirmPassword} onChange={(event) => onPasswordChange({ ...passwordForm, confirmPassword: event.target.value })} data-testid="confirm-password" className="mt-1" /></label>
+          <label className="block" htmlFor="account-current-password"><span className="text-caption font-medium text-muted-foreground">현재 비밀번호</span><Input disabled={isChangingPassword} id="account-current-password" name="current-password" type="password" autoComplete="current-password" data-ssoo-input-intent="credential-current-password" value={passwordForm.currentPassword} onChange={(event) => onPasswordChange({ ...passwordForm, currentPassword: event.target.value })} data-testid="current-password" className="mt-1" /></label>
+          <label className="block" htmlFor="account-new-password"><span className="text-caption font-medium text-muted-foreground">새 비밀번호</span><Input disabled={isChangingPassword} id="account-new-password" name="new-password" type="password" autoComplete="new-password" data-ssoo-input-intent="credential-new-password" value={passwordForm.newPassword} onChange={(event) => onPasswordChange({ ...passwordForm, newPassword: event.target.value })} data-testid="new-password" className="mt-1" /></label>
+          <label className="block" htmlFor="account-confirm-password"><span className="text-caption font-medium text-muted-foreground">새 비밀번호 확인</span><Input disabled={isChangingPassword} id="account-confirm-password" name="confirm-new-password" type="password" autoComplete="new-password" data-ssoo-input-intent="credential-confirm-password" value={passwordForm.confirmPassword} onChange={(event) => onPasswordChange({ ...passwordForm, confirmPassword: event.target.value })} data-testid="confirm-password" className="mt-1" /></label>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           {passwordNotice ? <p className="text-body-sm text-ssoo-success">{passwordNotice}</p> : <span />}
@@ -968,7 +964,7 @@ function UserSettingsSurface({
           </Button>
         </div>
       </section>
-    </div>
+    </fieldset>
   );
 }
 
@@ -1323,8 +1319,6 @@ function ExternalLink({
 
 function SurfaceError({ message }: { message: string }) {
   return (
-    <div className="rounded-md border px-3 py-2 text-body-sm ssoo-tone-danger-surface">
-      {message}
-    </div>
+    <SsooErrorNotice message={message} />
   );
 }

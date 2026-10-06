@@ -3,6 +3,7 @@ import type {
   CrmOpportunity,
   CrmOpportunityListResponse,
 } from '@ssoo/types/crm';
+import type { CrmAccessService } from '../access/access.service.js';
 import type { DatabaseService } from '../../../database/database.service.js';
 import type { ContractService } from '../contract/contract.service.js';
 import type { OpportunityService } from '../opportunity/opportunity.service.js';
@@ -217,6 +218,12 @@ function createService(db?: unknown) {
       opportunityService as OpportunityService,
       contractService as ContractService,
       db as DatabaseService,
+      {
+        actorForUser: async (id: bigint) => ({ userId: id.toString(), loginId: 'unit-test' }),
+        resolveReadOrganization: async (_actor: unknown, id?: string) => id ? BigInt(id) : null,
+        resolveWriteOrganization: async (id: bigint) => ({ user: { userId: id.toString(), loginId: 'unit-test' }, organizationId: 13n }),
+        assertOrganizationCapability: async () => undefined,
+      } as unknown as CrmAccessService,
     ),
     performanceQueries,
   };
@@ -271,6 +278,7 @@ describe('ReportsService', () => {
     });
 
     expect(performanceQueries).toEqual([{
+      mode: 'operations',
       year: 2026,
       businessType: 'SI 구축',
       industryLine: '전력/제조',
@@ -282,6 +290,7 @@ describe('ReportsService', () => {
   it('surfaces the latest confirmed report snapshot for the active filters', async () => {
     let queryCalls = 0;
     const db = {
+      client: { crmReportConfirmation: { findUnique: async () => ({ ownerOrganizationId: 13n }) } },
       $queryRaw: async () => {
         queryCalls += 1;
         return [createConfirmationRow()];
@@ -347,6 +356,7 @@ describe('ReportsService', () => {
   it('reopens a confirmed report snapshot without touching accounting or DMS state', async () => {
     let queryCalls = 0;
     const db = {
+      client: { crmReportConfirmation: { findUnique: async () => ({ ownerOrganizationId: 13n }) } },
       $queryRaw: async () => {
         queryCalls += 1;
         return [

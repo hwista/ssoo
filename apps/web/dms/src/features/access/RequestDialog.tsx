@@ -13,12 +13,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/lib/toast';
-import { useCreateReadAccessRequestMutation } from './queries';
+import { useCreateReadAccessRequestMutation, useMyDocumentAccessRequestsForPathQuery } from './queries';
 import {
   normalizeDocumentAccessRequestPath,
   useDocumentAccessRequestStore,
 } from './dialog-store';
 import { Textarea } from '@ssoo/web-ui';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 
 const STATUS_LABELS: Record<NonNullable<DmsDocumentAccessRequestState['status']>, string> = {
   pending: '요청 대기',
@@ -80,7 +81,16 @@ export function DocumentAccessRequestDialogHost() {
     () => normalizeDocumentAccessRequestPath(target?.path ?? ''),
     [target?.path],
   );
-  const currentRequest = pathKey
+  const requestsQuery = useMyDocumentAccessRequestsForPathQuery(
+    { path: pathKey, status: 'all' },
+    { enabled: isOpen && Boolean(pathKey) },
+  );
+  // A locally submitted pending request may already have been approved or revoked.
+  // The path query is invalidated by access events and is authoritative on reopen.
+  const latestReadRequest = requestsQuery.data?.find((request) => request.requestedRole === 'read');
+  const currentRequest = requestsQuery.data !== undefined
+    ? getActiveRequestState(latestReadRequest)
+    : pathKey
     ? getActiveRequestState(overrides[pathKey]) ?? getActiveRequestState(target?.readRequest)
     : getActiveRequestState(target?.readRequest);
 
@@ -134,6 +144,15 @@ export function DocumentAccessRequestDialogHost() {
 
         {target ? (
           <div className="space-y-4">
+            {requestsQuery.isError ? (
+              <SsooErrorNotice
+                error={requestsQuery.error}
+                message="권한 요청 상태를 확인하지 못했습니다. 입력한 메모는 유지됩니다."
+                actions={[{ label: '다시 시도', onClick: () => void requestsQuery.refetch() }]}
+              />
+            ) : requestsQuery.isFetching ? (
+              <p role="status" className="text-body-sm">권한 요청 상태를 확인하고 있습니다.</p>
+            ) : null}
             <section className="rounded-lg border border-ssoo-content-border bg-ssoo-content-bg/40 px-4 py-3">
               <p className="text-badge text-ssoo-primary/70">대상 문서</p>
               <h3 className="mt-1 text-label-strong text-ssoo-primary">{target.title}</h3>
@@ -205,7 +224,7 @@ export function DocumentAccessRequestDialogHost() {
             닫기
           </Button>
           {!isPendingRequest && !isApprovedRequest && (
-            <Button type="button" onClick={() => void handleSubmit()} disabled={isSubmitting || !target}>
+            <Button type="button" onClick={() => void handleSubmit()} disabled={isSubmitting || !target || requestsQuery.isFetching || requestsQuery.isError}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />

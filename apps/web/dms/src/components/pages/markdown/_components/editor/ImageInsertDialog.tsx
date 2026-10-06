@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import * as React from 'react';
 import Image from 'next/image';
 import { ImageIcon, Upload, Link2 } from 'lucide-react';
@@ -173,7 +174,7 @@ export function ImageInsertDialog({ open, onConfirm, onCancel }: ImageInsertDial
         )}
 
         {error && (
-          <p className="text-caption text-destructive">{error}</p>
+          <SsooErrorNotice as="p" compact error={error} />
         )}
       </div>
     </EditorDialog>

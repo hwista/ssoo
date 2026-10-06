@@ -1,6 +1,8 @@
 'use client';
 
+import { SsooErrorPanel } from '@ssoo/web-shell';
 import { lazy, Suspense } from 'react';
+import { BusinessYearManagementPage } from '@/components/pages/business-years/BusinessYearManagementPage';
 import {
   SSOO_CONTENT_PAGE_ADAPTER_NAMES,
   SSOO_GLOBAL_SEARCH_APP_PATH,
@@ -48,7 +50,7 @@ function renderCrmPage(tab: CrmTabItem, active = true) {
     );
   }
 
-  if (tab.path === '/' || tab.path.startsWith('/?')) {
+  if (pathname === '/' || pathname === '/opportunities') {
     return <OpportunityWorkspaceMdiPage path={tab.path} />;
   }
 
@@ -61,19 +63,21 @@ function renderCrmPage(tab: CrmTabItem, active = true) {
   }
 
   if (pathname === '/contract-performance') {
-    return <ContractPerformanceWorkspaceMdiPage path={tab.path} />;
+    return <ContractPerformanceWorkspaceMdiPage path={tab.path} active={active} />;
   }
 
   if (pathname === '/reports') {
     return <ReportsPreviewWorkspaceMdiPage path={tab.path} />;
   }
 
+  if (pathname === '/business-years') return <BusinessYearManagementPage path={tab.path} />;
+
   if (pathname === '/business-plan') {
     return <BusinessPlanPreviewWorkspaceMdiPage path={tab.path} />;
   }
 
   if (pathname === '/business-plan-performance') {
-    return <BusinessPlanPerformancePreviewWorkspaceMdiPage path={tab.path} />;
+    return <BusinessPlanPerformancePreviewWorkspaceMdiPage path={tab.path} active={active} />;
   }
 
   if (pathname === '/cost-plan') {
@@ -92,7 +96,7 @@ function renderCrmPage(tab: CrmTabItem, active = true) {
     return <CrmSettingsWorkspaceMdiPage />;
   }
 
-  return <SsooContentAreaEmptyState>페이지 준비 중: {tab.path}</SsooContentAreaEmptyState>;
+  return <SsooErrorPanel kind="not-found" title="등록되지 않은 화면입니다" description="다른 탭을 선택하거나 홈으로 이동해 주세요." />;
 }
 
 function renderCrmUserSurfaceContentPage(

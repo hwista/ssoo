@@ -10,6 +10,7 @@ import type { AssistantHelpAction } from '@/lib/assistant/assistantHelp';
 import type { AssistantMessage, AssistantSearchResult } from '@/stores';
 import { SearchResultCard } from '@/components/common/assistant/_components/ResultCard';
 import { Button } from '@ssoo/web-ui';
+import { getSsooErrorMessage, SsooErrorNotice } from '@ssoo/web-shell';
 
 interface AssistantMessageListProps {
   messages: AssistantMessage[];
@@ -136,7 +137,8 @@ export function AssistantMessageList({
         }
 
         const isUser = message.role === 'user';
-        const canCopyText = message.text.trim().length > 0;
+        const copyText = [message.text, message.error ? getSsooErrorMessage(message.error) : ''].filter(Boolean).join('\n\n');
+        const canCopyText = copyText.trim().length > 0;
 
         return (
           <div key={message.id} className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -147,6 +149,7 @@ export function AssistantMessageList({
             )}
             <div className={`flex min-w-0 flex-1 flex-col ${isUser ? 'items-end' : 'items-start'}`}>
               <div className={`${assistantBubbleClass} ${isUser ? 'bg-ssoo-primary text-primary-foreground' : 'bg-ssoo-content-bg text-ssoo-primary'}`}>
+                {message.error && <SsooErrorNotice error={message.error} compact />}
                 {message.pending && !message.text ? (
                   <span className="inline-flex items-center gap-1 text-ssoo-primary/70">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -190,7 +193,7 @@ export function AssistantMessageList({
                     type="button"
                     onClick={() => {
                       void handleCopyMessage(
-                        message.text,
+                        copyText,
                         isUser ? '질문을 클립보드에 복사했습니다.' : '응답을 클립보드에 복사했습니다.',
                       );
                     }}

@@ -1,3 +1,5 @@
+import { getSsooErrorMessage, type SsooErrorMetadata } from '@ssoo/web-shell';
+import { SharedApiError } from './axios-api-client';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { AuthIdentity, AuthSessionBootstrap, AuthSessionRestore, AuthTokens, LoginRequest } from '@ssoo/types/common';
@@ -11,7 +13,7 @@ import {
   SHARED_AUTH_STORAGE_KEY,
 } from './storage';
 
-export interface AuthApiResult<T> {
+export interface AuthApiResult<T> extends SsooErrorMetadata {
   success: boolean;
   data?: T | null;
   message?: string;
@@ -32,6 +34,7 @@ export interface AuthStoreState<TUser extends AuthIdentity> {
   isLoading: boolean;
   isAuthenticated: boolean;
   _hasHydrated: boolean;
+  sessionError: string | null;
 }
 
 export interface AuthStoreActions<TUser extends AuthIdentity> {
@@ -77,7 +80,7 @@ function isUnauthorizedResult(result: AuthApiResult<unknown>): boolean {
 }
 
 function getAuthErrorMessage(result: AuthApiResult<unknown>, fallback: string): string {
-  return result.error || result.message || fallback;
+  return getSsooErrorMessage(result, fallback);
 }
 
 function toRestoredUser<TUser extends AuthIdentity>(
@@ -124,6 +127,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
           options: { clearSharedState?: boolean } = {},
         ) => {
           set({
+            sessionError: null,
             accessToken: null,
             user: null,
             isAuthenticated: false,
@@ -142,6 +146,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
           isLoading: false,
           isAuthenticated: false,
           _hasHydrated: false,
+          sessionError: null,
 
           login: async (loginId: string, password: string) => {
             clearAuthState('login-start', { isLoading: true });
@@ -151,7 +156,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
             if (version !== getAuthRequestVersion()) return;
             if (!loginResponse.success || !loginResponse.data) {
               set({ isLoading: false });
-              throw new Error(getAuthErrorMessage(loginResponse, '로그인에 실패했습니다.'));
+              throw new SharedApiError(getAuthErrorMessage(loginResponse, '로그인에 실패했습니다.'), loginResponse.status, loginResponse);
             }
 
             const { accessToken } = loginResponse.data;
@@ -169,7 +174,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
             }
 
             clearAuthState('login-profile-failed');
-            throw new Error(getAuthErrorMessage(meResponse, '사용자 정보를 불러오지 못했습니다.'));
+            throw new SharedApiError(getAuthErrorMessage(meResponse, '사용자 정보를 불러오지 못했습니다.'), meResponse.status, meResponse);
           },
 
           logout: async () => {
@@ -177,17 +182,14 @@ export function createAuthStore<TUser extends AuthIdentity>(
             invalidateSharedAuthRequests();
             const version = getAuthRequestVersion();
 
-            try {
-              await authApi.logout(accessToken);
-            } finally {
-              if (version === getAuthRequestVersion()) clearAuthState('logout');
-            }
+            const result = await authApi.logout(accessToken);
+            if (!result.success) throw new Error('로그아웃하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.');
+            if (version === getAuthRequestVersion()) clearAuthState('logout');
           },
 
           checkAuth: async (options?: CheckAuthOptions) => {
             const version = getAuthRequestVersion();
             const { accessToken } = get();
-            const hadAccessToken = Boolean(accessToken);
             const isBackgroundCheck = options?.mode === 'background';
 
             if (!isBackgroundCheck) {
@@ -199,6 +201,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
               if (version !== getAuthRequestVersion()) return;
               if (meResponse.success && meResponse.data) {
                 set({
+                  sessionError: null,
                   user: meResponse.data,
                   isAuthenticated: true,
                   ...(!isBackgroundCheck ? { isLoading: false } : {}),
@@ -207,9 +210,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
               }
 
               if (shouldKeepSessionOnCheckFailure(meResponse)) {
-                if (!isBackgroundCheck) {
-                  set({ isLoading: false });
-                }
+                set({ sessionError: '로그인 상태를 확인하지 못했습니다. 연결을 확인한 후 다시 시도해 주세요.', isLoading: false });
                 return;
               }
             }
@@ -223,16 +224,15 @@ export function createAuthStore<TUser extends AuthIdentity>(
               }
               set({
                 ...toRestoredUser(restored.data),
+                sessionError: null,
                 ...(!isBackgroundCheck ? { isLoading: false } : {}),
               });
               setSharedAuthSession(restored.data.accessToken, restored.data.user);
               return;
             }
 
-            if (hadAccessToken && shouldKeepSessionOnCheckFailure(restored)) {
-              if (!isBackgroundCheck) {
-                set({ isLoading: false });
-              }
+            if (shouldKeepSessionOnCheckFailure(restored)) {
+              set({ sessionError: '로그인 상태를 확인하지 못했습니다. 연결을 확인한 후 다시 시도해 주세요.', isLoading: false });
               return;
             }
 
@@ -245,6 +245,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
             if (version !== getAuthRequestVersion()) return false;
             if (!restored.success || !restored.data) {
               if (shouldKeepSessionOnCheckFailure(restored)) {
+                set({ sessionError: '로그인 상태를 확인하지 못했습니다. 연결을 확인한 후 다시 시도해 주세요.' });
                 return false;
               }
 
@@ -259,6 +260,7 @@ export function createAuthStore<TUser extends AuthIdentity>(
 
             set({
               ...toRestoredUser(restored.data),
+                sessionError: null,
             });
             setSharedAuthSession(restored.data.accessToken, restored.data.user);
             return true;

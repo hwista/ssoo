@@ -5,6 +5,7 @@ import type {
   CrmOpportunity,
   CrmOpportunityListResponse,
 } from '@ssoo/types/crm';
+import type { CrmAccessService } from '../access/access.service.js';
 import type { DatabaseService } from '../../../database/database.service.js';
 import type { ContractService } from '../contract/contract.service.js';
 import type { OpportunityService } from '../opportunity/opportunity.service.js';
@@ -356,7 +357,7 @@ function createAccountingPaymentHandoffRow(seed?: Partial<{
   targetYear: number;
   businessTypeFilter: string;
   industryLineFilter: string;
-  regionFilter: 'all' | 'domestic' | 'overseas';
+  regionFilter: 'all' | 'domestic' | 'overseas' | 'unspecified';
   searchFilter: string;
   statusCode: 'snapshot-created' | 'execution-evidence-updated' | 'replaced';
   lineCount: number;
@@ -397,6 +398,7 @@ function getSqlText(args: unknown[]): string {
 }
 
 function createService(params?: {
+  contracts?: CrmContract[];
   internalMonthlyRows?: ReturnType<typeof createInternalMonthlyRow>[];
   internalSourceItemRows?: ReturnType<typeof createInternalSourceItemRow>[];
   amsVendorMappingRows?: ReturnType<typeof createAmsMappingRow>[];
@@ -420,7 +422,7 @@ function createService(params?: {
       costLines: [{ id: 'hold-cost', category: 'external-cost', label: '제외 원가', amount: 90000000, serviceType: 'external' }],
     }),
   ];
-  const contracts = [
+  const contracts = params?.contracts ?? [
     createContract({}),
     createContract({
       id: 'crm-ct-review',
@@ -516,6 +518,13 @@ function createService(params?: {
       contractService as ContractService,
       db,
       params?.externalExecutor as AccountingPaymentExternalExecutorService | undefined,
+      undefined,
+      {
+        actorForUser: async (id: bigint = 11n) => ({ userId: id.toString(), loginId: 'unit-test' }),
+        resolveReadOrganization: async (_actor: unknown, id?: string) => id ? BigInt(id) : null,
+        resolveWriteOrganization: async (id: bigint = 11n) => ({ user: { userId: id.toString(), loginId: 'unit-test' }, organizationId: 13n }),
+        assertOrganizationCapability: async () => undefined,
+      } as unknown as CrmAccessService,
     ),
     performanceQueries,
     db,
@@ -527,6 +536,21 @@ function createService(params?: {
 }
 
 describe('CostPlanService', () => {
+  it('offers only confirmed AMS WBS, deduplicated and sorted, independently of year overlap', async () => {
+    const { service } = createService({ contracts: [
+      createContract({ businessType: 'SI', wbsCode: 'SI-1' }),
+      createContract({ businessType: 'SM', wbsCode: 'SM-1' }),
+      createContract({ businessType: 'AMS', confirmed: false, wbsCode: 'DRAFT' }),
+      createContract({ businessType: 'AMS', wbsCode: undefined }),
+      createContract({ businessType: 'AMS', wbsCode: 'Z-1', contractName: 'first' }),
+      createContract({ businessType: 'AMS', wbsCode: 'Z-1', contractName: 'duplicate' }),
+      createContract({ businessType: 'AMS', wbsCode: 'A-1', contractStartDate: '2025-01-01', contractEndDate: '2025-12-31' }),
+    ] });
+    const result = await service.getPreview({ year: 2026 });
+    expect(result.amsSourceWorkspace.eligibleWbs.map((item) => item.wbsCode)).toEqual(['A-1', 'Z-1']);
+    expect(result.amsSourceWorkspace.eligibleWbs[1].contractName).toBe('first');
+  });
+
   it('builds a read-only internal cost and AMS preview from CRM ledger data', async () => {
     const { service } = createService();
 

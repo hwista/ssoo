@@ -1,6 +1,7 @@
 import type { CrmReportsPreviewQuery, CrmReportsPreviewRegion } from '@ssoo/types/crm';
 
 export interface ReportsPreviewWorkspaceQuery {
+  ownerOrganizationId?: string;
   year: number;
   businessType: string;
   industryLine: string;
@@ -20,18 +21,20 @@ export function normalizeReportsPreviewQueryRecord(
   const yearValue = Number(value(query.year) || currentYear);
   const region = value(query.region) as CrmReportsPreviewRegion;
   return {
+    ownerOrganizationId: value(query.ownerOrganizationId),
     year: Number.isFinite(yearValue) && yearValue >= 2000 && yearValue <= 2100 ? Math.trunc(yearValue) : currentYear,
     businessType: value(query.businessType).slice(0, 120),
     industryLine: value(query.industryLine).slice(0, 120),
-    region: region === 'domestic' || region === 'overseas' ? region : 'all',
+    region: region === 'domestic' || region === 'overseas' || region === 'unspecified' ? region : 'all',
     search: value(query.search).slice(0, 200),
   };
 }
 
 export function toRequiredReportsPreviewQuery(
   query: ReportsPreviewWorkspaceQuery,
-): Required<CrmReportsPreviewQuery> {
+): Required<Omit<CrmReportsPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmReportsPreviewQuery, 'ownerOrganizationId'> {
   return {
+    ownerOrganizationId: query.ownerOrganizationId || undefined,
     year: query.year,
     businessType: query.businessType,
     industryLine: query.industryLine,

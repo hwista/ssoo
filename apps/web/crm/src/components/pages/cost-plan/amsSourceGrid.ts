@@ -22,7 +22,7 @@ export function sanitizeAmsSourceInput(value: string): string {
   const raw = value.replace(/[^0-9,-]/g, '').replace(/(?!^)-/g, '');
   if (raw === '-') return raw;
   const parsed = raw ? Number.parseInt(raw.replace(/,/g, ''), 10) : 0;
-  return Number.isFinite(parsed) && parsed !== 0 ? String(parsed) : '';
+  return Number.isFinite(parsed) && parsed !== 0 ? parsed.toLocaleString('ko-KR') : '';
 }
 
 export function parseAmsSourcePasteAmount(value: string): number {
@@ -83,11 +83,32 @@ export function sumAmsSourceValues(values: string[]) {
 }
 
 function toInputValue(value: number) {
-  return value === 0 ? '' : String(Math.round(value));
+  return value === 0 ? '' : Math.round(value).toLocaleString('ko-KR');
 }
 
 function toAmount(value: string) {
   if (!value || value === '-') return 0;
   const parsed = Number(value.replace(/,/g, ''));
   return Number.isFinite(parsed) ? Math.round(parsed) : 0;
+}
+
+// Keep edited cells when a vendor mapping changes in another open CRM tab.
+export function reconcileAmsSourceDrafts(
+  drafts: AmsSourceGridDraftRow[],
+  previous: CrmCostPlanAmsSourceWorkspace,
+  next: CrmCostPlanAmsSourceWorkspace,
+): AmsSourceGridDraftRow[] {
+  const key = (row: AmsSourceGridDraftRow) => JSON.stringify([row.vendorId, row.wbsCode]);
+  const previousByKey = new Map(toAmsSourceGridDrafts(previous).map((row) => [key(row), row]));
+  const draftsByKey = new Map(drafts.map((row) => [key(row), row]));
+  return toAmsSourceGridDrafts(next).map((row) => {
+    const draft = draftsByKey.get(key(row));
+    const baseline = previousByKey.get(key(row));
+    if (!draft || !baseline) return row;
+    return {
+      ...row,
+      planValues: row.planValues.map((value, index) => draft.planValues[index] !== baseline.planValues[index] ? draft.planValues[index] : value),
+      actualValues: row.actualValues.map((value, index) => draft.actualValues[index] !== baseline.actualValues[index] ? draft.actualValues[index] : value),
+    };
+  });
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { type FormEvent, useMemo, useState } from 'react';
 import { ArrowLeft, KeyRound, Mail } from 'lucide-react';
 import { AuthPageShell } from './ui';
@@ -113,9 +114,7 @@ export function SharedPasswordResetPage({
         </div>
 
         {error ? (
-          <div className="mb-5 rounded-md border px-4 py-3 text-sm ssoo-tone-danger-surface">
-            {error}
-          </div>
+          <SsooErrorNotice className="mb-5 px-4 py-3" error={error} />
         ) : null}
 
         {step === 'request' ? (

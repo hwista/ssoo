@@ -97,16 +97,22 @@ describe('DocumentAclService', () => {
       expect(result.canRequestRead).toBe(true);
     });
 
-    it('allows organization visibility for users with any org membership when no targetOrgId', () => {
+    it('allows untargeted legacy organization visibility only for explicit compatibility accounts', () => {
       getCachedMetadataMock.mockReturnValue(makeMetadata({
         ownerId: 'u-99',
         visibility: { scope: 'organization' },
       }));
       const result = service.describeSearchResultAccess(
-        makeUser({ userId: 'u-1', organizationIds: ['org-1'] }),
+        makeUser({ userId: 'u-1', organizationIds: ['org-1'], dmsLegacyOrganizationVisibility: true }),
         ABS,
       );
       expect(result.isReadable).toBe(true);
+    });
+
+    it('does not treat a newly approved user as a legacy untargeted organization reader', () => {
+      getCachedMetadataMock.mockReturnValue(makeMetadata({ ownerId: 'u-99', visibility: { scope: 'organization' } }));
+      const result = service.describeSearchResultAccess(makeUser({ userId: 'u-1', organizationIds: ['org-1'], dmsLegacyOrganizationVisibility: false }), ABS);
+      expect(result.isReadable).toBe(false);
     });
 
     it('blocks organization visibility for users without matching targetOrgId', () => {

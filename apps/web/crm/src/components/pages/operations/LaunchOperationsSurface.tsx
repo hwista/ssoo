@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, ArrowUpRight, CheckCircle2, DatabaseZap, RefreshCw, RotateCw, ShieldAlert } from 'lucide-react';
 import type {
@@ -198,11 +199,11 @@ export function LaunchOperationsSurface({ accessToken }: { accessToken: string |
         </Button>
       </div>
 
-      {error ? <div role="alert" className="flex items-start gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div> : null}
+      {error ? <SsooErrorNotice className="gap-2 px-4 py-3"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></SsooErrorNotice> : null}
       {notice ? <div role="status" className="border-b bg-ssoo-success-bg px-4 py-3 text-sm text-ssoo-success">{notice}</div> : null}
       {isLoading && !overview ? <div className="p-5 text-sm text-muted-foreground">실제 런칭 상태를 확인하는 중입니다.</div> : null}
       {!isLoading && access && !access.features.canReadOperations ? (
-        <div className="p-5 text-sm text-muted-foreground">현재 계정에는 live 운영 상태 조회 권한이 없습니다. 아래 기존 CRM 운영 기준 Preview는 계속 확인할 수 있습니다.</div>
+        <SsooErrorNotice as="div" compact className="p-5 text-sm text-muted-foreground">현재 계정에는 live 운영 상태 조회 권한이 없습니다. 아래 기존 CRM 운영 기준 Preview는 계속 확인할 수 있습니다.</SsooErrorNotice>
       ) : null}
 
       {overview && attempts && launchReadiness ? (
@@ -266,7 +267,7 @@ export function LaunchOperationsSurface({ accessToken }: { accessToken: string |
                       <TableCell>{attempt.sourceEntityType}<div className="mt-1 break-all text-muted-foreground">{attempt.sourceEntityId}</div></TableCell>
                       <TableCell><AttemptStatusBadge status={attempt.status} /></TableCell>
                       <TableCell>{attempt.requestedBy ?? '-'}<div className="mt-1 text-muted-foreground">{formatDateTime(attempt.startedAt ?? attempt.createdAt)}</div></TableCell>
-                      <TableCell className="max-w-[280px] whitespace-normal"><span className={attempt.errorMessage ? 'text-ssoo-danger' : undefined}>{attempt.errorMessage ?? '-'}</span><div className="mt-1 text-muted-foreground">{attempt.recoverySummary}</div></TableCell>
+                      <TableCell className="max-w-[280px] whitespace-normal">{attempt.errorMessage ? <SsooErrorNotice compact error={attempt.errorMessage} /> : '-'}<div className="mt-1 text-muted-foreground">{attempt.recoverySummary}</div></TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-1">
                           {attempt.status === 'failed' ? <Button asChild variant="outline" size="xs"><a href={ownerHref(attempt)} target={attempt.target === 'dms' || attempt.target === 'pms' ? '_blank' : undefined} rel="noreferrer">소유 화면 <ArrowUpRight className="h-3.5 w-3.5" /></a></Button> : null}

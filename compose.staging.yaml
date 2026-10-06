@@ -1,0 +1,11 @@
+services:
+  server:
+    environment:
+      # The GitLab development deploy target is the staging server. It serves
+      # production builds over plain HTTP on the internal network, so Secure
+      # cookies cannot be required yet. This bypass is confined to this overlay.
+      AUTH_ALLOW_INSECURE_PRODUCTION_DEFAULTS: "true"
+      # Staging keeps serving the production document repository (LSWIKI_DOC).
+      # Literal bindings prevent the root .env from changing the staging role.
+      DMS_INSTANCE_ENV: "prod"
+      DMS_GIT_BOOTSTRAP_REMOTE_URL: ""

@@ -25,7 +25,8 @@ Codex 작업 시 참조 순서, 규칙 정본, 검증 루틴을 고정해 일관
 - 작업 전: `pnpm run codex:preflight`
 - 규칙 동기화 점검: `pnpm run codex:verify-sync`
 - push 전: `pnpm run codex:push-guard`
-- DMS 변경 포함 시: `pnpm run codex:dms-guard`
+- 배포/플랫폼 변경 포함 시: `pnpm run codex:platform-guard` (서버 + 5개 앱)
+- DMS 전용 계약: `pnpm run codex:dms-guard` (플랫폼 검사에 포함, 호환 유지)
 
 ## 사용자-visible 동작 변경 게이트
 

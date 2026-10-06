@@ -1,5 +1,7 @@
 'use client';
 
+import { SsooErrorPanel } from '@ssoo/web-shell';
+
 import type { ElementType } from 'react';
 import {
   AlertCircle,
@@ -219,16 +221,8 @@ function LoadingHome() {
   );
 }
 
-function ErrorHome() {
-  return (
-    <div className="flex h-full items-center justify-center p-8">
-      <div className="rounded-xl border bg-card px-10 py-8 text-center shadow-sm">
-        <AlertCircle className="mx-auto mb-3 h-9 w-9 text-ssoo-danger" />
-        <p className="text-sm font-semibold text-foreground">홈 요약을 불러오지 못했습니다.</p>
-        <p className="mt-1 text-xs text-muted-foreground">잠시 후 다시 시도해주세요.</p>
-      </div>
-    </div>
-  );
+function ErrorHome({ onRetry }: { onRetry: () => Promise<unknown> }) {
+  return <SsooErrorPanel title="홈 요약을 불러오지 못했습니다" onRetry={onRetry} />;
 }
 
 function BriefingPanel({ bullets, signalCount }: { bullets: string[]; signalCount: number }) {
@@ -920,11 +914,11 @@ function QuickDrilldown({ signals, feedbackCount }: { signals: PmsHomeSignal[]; 
 }
 
 export function HomeDashboardPage() {
-  const { data, isLoading, error } = useHomeSummary();
+  const { data, isLoading, error, refetch } = useHomeSummary();
   const summary = data?.data;
 
   if (isLoading) return <LoadingHome />;
-  if (error || !summary) return <ErrorHome />;
+  if (error || !summary) return <ErrorHome onRetry={refetch} />;
 
   return (
     <div className="h-full min-w-0 overflow-auto bg-muted p-4">

@@ -1,3 +1,4 @@
+import { SsooErrorNotice } from './error-recovery';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
@@ -45,11 +46,11 @@ export function SsooSettingsBanner({
   leadingSlot,
   className,
 }: SsooSettingsBannerProps) {
+  if (tone === 'danger') return <SsooErrorNotice className={cn('mb-3', className)}>{leadingSlot}{children}</SsooErrorNotice>;
   return (
     <div
       className={cn(
         'mb-3 flex items-center gap-2 rounded-md border px-3 py-2 text-body-sm',
-        tone === 'danger' && 'border-destructive/30 bg-destructive/10 text-destructive',
         tone === 'success' && 'ssoo-tone-success-surface',
         tone === 'warning' && 'ssoo-tone-warning-surface',
         tone === 'neutral' && 'border-ssoo-content-border ssoo-settings-subtle-surface text-ssoo-primary',

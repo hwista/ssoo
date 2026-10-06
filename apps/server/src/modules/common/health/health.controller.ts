@@ -1,4 +1,4 @@
-﻿import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
+﻿import { BadRequestException, Controller, Get, Param, ServiceUnavailableException } from "@nestjs/common";
 import {
   ApiInternalServerErrorResponse,
   ApiOperation,
@@ -10,16 +10,14 @@ import { HealthReadinessDto, HealthStatusDto } from '../../../common/swagger/hea
 import { ApiError } from '../../../common/swagger/api-response.dto.js';
 import { ApiOkEnvelopeResponse } from '../../../common/swagger/api-response.decorator.js';
 import { Public } from '../../common/auth/decorators/public.decorator.js';
-import { DatabaseService } from '../../../database/database.service.js';
-import { SettingsService } from '../../dms/settings/settings.service.js';
+import { PLATFORM_APPS, PlatformReadinessService, type PlatformApp } from './platform-readiness.service.js';
 
 @ApiTags("health")
 @Controller("health")
 @Public()
 export class HealthController {
   constructor(
-    private readonly db: DatabaseService,
-    private readonly dmsSettings: SettingsService,
+    private readonly platform: PlatformReadinessService,
   ) {}
 
   @Get()
@@ -39,40 +37,48 @@ export class HealthController {
     };
   }
 
+  @Get('core-readiness')
+  @ApiOperation({ summary: '공통 서버 기동 준비 상태' })
+  async checkCoreReadiness() {
+    const core = await this.platform.core();
+    if (core.status !== 'ready') {
+      throw new ServiceUnavailableException({ code: 'PLATFORM_NOT_READY', message: 'Core runtime is not ready.' });
+    }
+    return { success: true, data: core };
+  }
+
+  @Get('apps/:app')
+  @ApiOperation({ summary: '앱별 배포 준비 상태 (민감정보 제외)' })
+  async checkAppReadiness(@Param('app') app: string) {
+    if (!PLATFORM_APPS.includes(app as PlatformApp)) throw new BadRequestException('Unknown platform app');
+    const readiness = await this.platform.app(app as PlatformApp);
+    if (readiness.status !== 'ready') {
+      throw new ServiceUnavailableException({ code: readiness.code, message: 'App runtime is not ready.', readiness });
+    }
+    return { success: true, data: readiness };
+  }
+
   @Get('readiness')
-  @ApiOperation({ summary: "플랫폼 readiness 체크" })
+  @ApiOperation({ summary: '플랫폼 전체 앱 readiness 체크' })
   @ApiOkEnvelopeResponse(HealthReadinessDto)
-  @ApiServiceUnavailableResponse({ type: ApiError, description: "플랫폼 readiness 실패" })
+  @ApiServiceUnavailableResponse({ type: ApiError, description: '플랫폼 readiness 실패' })
   async checkReadiness(): Promise<ApiResponse<HealthReadinessDto>> {
-    try {
-      await this.db.client.$queryRawUnsafe('SELECT 1');
-    } catch {
-      throw new ServiceUnavailableException({
-        code: 'PLATFORM_NOT_READY',
-        message: 'Database readiness check failed.',
-      });
+    const snapshot = await this.platform.all();
+    if (snapshot.core.status !== 'ready') {
+      throw new ServiceUnavailableException({ code: 'PLATFORM_NOT_READY', message: 'Core runtime is not ready.' });
     }
-
-    try {
-      const readiness = await this.dmsSettings.getReadiness();
-      if (readiness.status !== 'ready') {
-        throw new Error(`DMS readiness status: ${readiness.status}`);
-      }
-    } catch {
-      throw new ServiceUnavailableException({
-        code: 'DMS_RUNTIME_NOT_READY',
-        message: 'DMS runtime readiness check failed.',
-      });
+    const failed = snapshot.apps.filter((readiness) => readiness.status !== 'ready');
+    if (failed.some((readiness) => readiness.app === 'dms')) {
+      throw new ServiceUnavailableException({ code: 'DMS_RUNTIME_NOT_READY', message: 'DMS runtime readiness check failed.', services: snapshot.apps });
     }
-
+    if (failed.length > 0) {
+      throw new ServiceUnavailableException({ code: 'APP_RUNTIME_NOT_READY', message: 'Platform app readiness check failed.', services: snapshot.apps });
+    }
     return {
       success: true,
       data: {
-        status: 'ready',
-        timestamp: new Date().toISOString(),
-        service: 'ssoo-server',
-        database: 'ready',
-        dms: 'ready',
+        status: 'ready', timestamp: new Date().toISOString(), service: 'ssoo-server',
+        database: 'ready', dms: 'ready', services: snapshot.apps,
         releaseSha: process.env.SSOO_RELEASE_SHA || 'local-development',
       },
     };

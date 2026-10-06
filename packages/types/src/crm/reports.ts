@@ -1,9 +1,10 @@
-export type CrmReportsPreviewRegion = 'all' | 'domestic' | 'overseas';
+export type CrmReportsPreviewRegion = 'all' | 'domestic' | 'overseas' | 'unspecified';
 export type CrmReportsBreakdownKind = 'business-type' | 'owner' | 'wbs';
 export type CrmReportsAttentionKind = 'opportunity' | 'contract';
 export type CrmReportsConfirmationStatus = 'confirmed' | 'reopened';
 
 export interface CrmReportsPreviewQuery {
+  ownerOrganizationId?: string;
   year?: number;
   businessType?: string;
   industryLine?: string;
@@ -74,7 +75,7 @@ export interface CrmReportsPreviewSummary {
   marginDelta: number;
   revenueAchievementRate: number;
   marginAchievementRate: number;
-  activeFilters: Required<CrmReportsPreviewQuery>;
+  activeFilters: Required<Omit<CrmReportsPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmReportsPreviewQuery, 'ownerOrganizationId'>;
   businessTypeOptions: string[];
   industryLineOptions: string[];
   boundaryNotice: string;
@@ -90,10 +91,11 @@ export interface CrmReportsPreviewResponse {
 }
 
 export interface CrmReportsConfirmationSummary {
+  ownerOrganizationId?: string;
   id: string;
   year: number;
   status: CrmReportsConfirmationStatus;
-  query: Required<CrmReportsPreviewQuery>;
+  query: Required<Omit<CrmReportsPreviewQuery, 'ownerOrganizationId'>> & Pick<CrmReportsPreviewQuery, 'ownerOrganizationId'>;
   opportunityCount: number;
   contractCount: number;
   breakdownCount: number;

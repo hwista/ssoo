@@ -15,7 +15,11 @@ async function forwardResponse(response: Response) {
 export async function POST(req: Request) {
   const response = await fetch(
     createServerApiUrl('/crm/cost-plan/internal-cost/monthly'),
-    createServerApiProxyInit(req, { method: 'POST', body: await req.text() }),
+    createServerApiProxyInit(req, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: await req.text(),
+    }),
   );
 
   return forwardResponse(response);

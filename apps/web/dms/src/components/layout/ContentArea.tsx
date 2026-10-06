@@ -1,5 +1,9 @@
 'use client';
 
+import { SsooErrorPanel } from '@ssoo/web-shell';
+import { SsooAccessRecovery } from '@ssoo/web-shell';
+import { useAccessStore } from '@/stores/access.store';
+
 import { lazy, Suspense, type ComponentType, useEffect } from 'react';
 import { useSettingsPageNavigationStore, useSettingsStore, useTabStore, HOME_TAB } from '@/stores';
 import type { TabItem } from '@/types/tab';
@@ -12,6 +16,7 @@ import { TabInstanceProvider } from './tab-instance/TabInstanceContext';
 import { useTabInstanceId } from './tab-instance/TabInstanceContext';
 import {
   SSOO_CONTENT_PAGE_ADAPTER_NAMES,
+  recoverSsooChunkOnce,
   SSOO_GLOBAL_SEARCH_APP_PATH,
   SsooContentAreaEmptyState,
   SsooContentAreaState,
@@ -39,24 +44,10 @@ function lazyWithChunkRetry<T extends ComponentType<unknown>>(
 ) {
   return lazy(async () => {
     try {
-      const loaded = await importer();
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.removeItem('dms_chunk_retry_once');
-      }
-      return loaded;
+      return await importer();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const isChunkError = /ChunkLoadError|Loading chunk .* failed/i.test(message);
-
-      if (isChunkError && typeof window !== 'undefined') {
-        const retried = window.sessionStorage.getItem('dms_chunk_retry_once');
-        if (!retried) {
-          window.sessionStorage.setItem('dms_chunk_retry_once', '1');
-          window.location.reload();
-          return new Promise(() => {
-            // page reload until settled
-          });
-        }
+      if (recoverSsooChunkOnce(error)) {
+        return new Promise(() => { /* navigation replaces the failing document */ });
       }
 
       throw error;
@@ -201,7 +192,7 @@ function renderDmsUserSurfaceContentPage(
  * - 탭 전환 시 unmount/remount 없이 상태 보존
  *   → 스크롤 위치, 에디터 내용, 채팅 기록, 검색 결과 유지
  */
-export function ContentArea() {
+function ContentBody() {
   const { activeTabId, tabs } = useTabStore();
   const openTab = useTabStore((state) => state.openTab);
   const pageRoutes = defineSsooMdiPageRegistry<TabItem>([
@@ -288,12 +279,20 @@ export function ContentArea() {
       activeTabId={activeTabId}
       getTabId={(tab) => tab.id}
       routes={pageRoutes}
-      unknownRouteSlot={(tab) => (
-        <SsooContentAreaState
-          title="알 수 없는 페이지입니다."
-          description={`경로: ${tab.path}`}
-        />
+      unknownRouteSlot={() => (
+        <SsooErrorPanel kind="not-found" title="등록되지 않은 화면입니다" description="다른 탭을 선택하거나 홈으로 이동해 주세요." />
       )}
     />
   );
+}
+
+/** Keep the shell usable and preserve mounted drafts after transient access refresh failures. */
+export function ContentArea() {
+  const error = useAccessStore(state => state.error);
+  const hasSnapshot = useAccessStore(state => state.snapshot !== null);
+  const retrying = useAccessStore(state => state.isLoading);
+  const hydrate = useAccessStore(state => state.hydrate);
+  return <SsooAccessRecovery error={error} hasSnapshot={hasSnapshot} retrying={retrying} onRetry={hydrate}>
+    <ContentBody />
+  </SsooAccessRecovery>;
 }

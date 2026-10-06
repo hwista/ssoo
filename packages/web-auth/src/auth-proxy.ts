@@ -1,3 +1,4 @@
+import { getSsooErrorMessage, readSsooErrorMetadata } from '@ssoo/web-shell';
 import {
   SSOO_STATE_CHANGE_CSRF_HEADER_NAME,
   SSOO_STATE_CHANGE_CSRF_HEADER_VALUE,
@@ -56,6 +57,10 @@ function getDefaultErrorMessage(action: AuthProxyResponseAction): string {
 function createProxyResponseHeaders(response: Response): Headers {
   const headers = new Headers();
   const setCookie = response.headers.get('set-cookie');
+  for (const name of ['retry-after', 'x-request-id']) {
+    const value = response.headers.get(name);
+    if (value) headers.set(name, value);
+  }
 
   if (setCookie) {
     headers.append('set-cookie', setCookie);
@@ -103,9 +108,11 @@ export async function createAuthProxyRouteResponse(
       if (retry) return retry;
     }
     return Response.json(
-      { error: getBackendErrorMessage(action, responseBody) },
+      { ...readSsooErrorMetadata(responseBody),
+        error: getSsooErrorMessage({ message: getBackendErrorMessage(action, responseBody), status: response.status }, getDefaultErrorMessage(action)),
+      },
       {
-        status: response.status || 500,
+        status: response.ok ? 502 : response.status,
         headers: createProxyResponseHeaders(response),
       },
     );

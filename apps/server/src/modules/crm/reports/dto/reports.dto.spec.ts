@@ -8,6 +8,11 @@ const validationOptions = {
 };
 
 describe('CrmReportsPreviewQueryDto', () => {
+  it('accepts unspecified independently from all and domestic', async () => {
+    const dto = plainToInstance(CrmReportsPreviewQueryDto, { year: '2026', region: 'unspecified' });
+    expect(await validate(dto, validationOptions)).toEqual([]);
+    expect(dto.region).toBe('unspecified');
+  });
   it('accepts and transforms every documented preview query field', async () => {
     const dto = plainToInstance(CrmReportsPreviewQueryDto, {
       year: '2026',

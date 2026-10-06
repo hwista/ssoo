@@ -47,7 +47,7 @@ model CmCode {
   @@index([codeGroup], name: "ix_cm_code_m_group")
   @@index([isActive], name: "ix_cm_code_m_active")
   @@map("cm_code_m")
-  @@schema("pms")
+  @@schema("common")
 }
 
 // ============================================
@@ -82,7 +82,7 @@ model CmCodeHistory {
   @@index([eventAt], name: "ix_cm_code_h_event_at")
   @@index([transactionId], name: "ix_cm_code_h_tx")
   @@map("cm_code_h")
-  @@schema("pms")
+  @@schema("common")
 }
 
 // ============================================
@@ -375,6 +375,12 @@ model User {
   lastSource    String?  @map("last_source")
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
+
+  platformEnrollment  PlatformEnrollment?
+  onboardingRequests  OnboardingRequest[]
+  snsPostAccessRequests SnsPostAccessRequest[]
+  serviceGrants       ServiceGrant[]
+  approvalAuthorities ApprovalAuthority[]
 
   // Auth foundation relations
   authAccount                 UserAuth?
@@ -1365,6 +1371,11 @@ model Organization {
   lastSource    String?  @map("last_source")
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
+
+  onboardingRequests        OnboardingRequest[] @relation("OnboardingOrganization")
+  childOrganizationRequests OnboardingRequest[] @relation("OnboardingParent")
+  serviceGrants             ServiceGrant[]
+  approvalAuthorities       ApprovalAuthority[]
 
   parent                       Organization?              @relation("OrganizationHierarchy", fields: [parentOrgId], references: [orgId], onDelete: SetNull)
   children                     Organization[]             @relation("OrganizationHierarchy")
@@ -5124,6 +5135,7 @@ model CrmOpportunity {
   opportunityName      String    @map("opportunity_name") @db.VarChar(300)
   ownerName            String    @map("owner_name") @db.VarChar(100)
   ownerUserId          BigInt?   @map("owner_user_id")
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   businessType         String    @map("business_type") @db.VarChar(120)
   industryLine         String    @map("industry_line") @db.VarChar(120)
   regionCode           String    @default("domestic") @map("region_code") @db.VarChar(30)
@@ -5183,6 +5195,7 @@ model CrmOpportunity {
   @@index([updatedAt], name: "ix_crm_opportunity_m_updated")
   @@map("crm_opportunity_m")
   @@schema("crm")
+  @@index([ownerOrganizationId, isActive], name: "ix_crm_opportunity_m_owner_org")
 }
 
 // ============================================
@@ -5277,6 +5290,7 @@ model CrmOpportunityHistory {
   opportunityName      String    @map("opportunity_name") @db.VarChar(300)
   ownerName            String    @map("owner_name") @db.VarChar(100)
   ownerUserId          BigInt?   @map("owner_user_id")
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   businessType         String    @map("business_type") @db.VarChar(120)
   industryLine         String    @map("industry_line") @db.VarChar(120)
   regionCode           String    @map("region_code") @db.VarChar(30)
@@ -5429,6 +5443,7 @@ model CrmCustomer {
   regionCode             String    @default("domestic") @map("region_code") @db.VarChar(30)
   ownerName              String    @map("owner_name") @db.VarChar(100)
   ownerUserId            BigInt?   @map("owner_user_id")
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   contactName            String?   @map("contact_name") @db.VarChar(120)
   contactEmail           String?   @map("contact_email") @db.VarChar(200)
   contactPhone           String?   @map("contact_phone") @db.VarChar(80)
@@ -5459,6 +5474,7 @@ model CrmCustomer {
   @@index([updatedAt], name: "ix_crm_customer_m_updated")
   @@map("crm_customer_m")
   @@schema("crm")
+  @@index([ownerOrganizationId, isActive], name: "ix_crm_customer_m_owner_org")
 }
 
 // ============================================
@@ -5479,6 +5495,7 @@ model CrmCustomerHistory {
   regionCode             String    @map("region_code") @db.VarChar(30)
   ownerName              String    @map("owner_name") @db.VarChar(100)
   ownerUserId            BigInt?   @map("owner_user_id")
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   contactName            String?   @map("contact_name") @db.VarChar(120)
   contactEmail           String?   @map("contact_email") @db.VarChar(200)
   contactPhone           String?   @map("contact_phone") @db.VarChar(80)
@@ -5667,7 +5684,7 @@ model CrmQuoteSellerProfileHistory {
 // ============================================
 model CrmContract {
   approvals CrmContractApproval[]
-  id BigInt @id @default(autoincrement()) @map("contract_id")
+  id        BigInt                @id @default(autoincrement()) @map("contract_id")
 
   contractCode            String   @unique(map: "ux_crm_contract_m_code") @map("contract_code") @db.VarChar(80)
   sourceOpportunityId     BigInt?  @map("source_opportunity_id")
@@ -5677,13 +5694,14 @@ model CrmContract {
   ownerName               String   @map("owner_name") @db.VarChar(100)
   clientContact           String?  @map("client_contact") @db.VarChar(120)
   ownerUserId             BigInt?  @map("owner_user_id")
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   businessType            String   @map("business_type") @db.VarChar(120)
   industryLine            String   @map("industry_line") @db.VarChar(120)
   regionCode              String   @default("domestic") @map("region_code") @db.VarChar(30)
   statusCode              String   @default("review") @map("status_code") @db.VarChar(40)
   confirmed               Boolean  @default(false)
-  contractStartDate       DateTime @map("contract_start_date") @db.Date
-  contractEndDate         DateTime @map("contract_end_date") @db.Date
+  contractStartDate       DateTime? @map("contract_start_date") @db.Date
+  contractEndDate         DateTime? @map("contract_end_date") @db.Date
   wbsCode                 String?  @map("wbs_code") @db.VarChar(80)
   paymentTermCode         String?  @map("payment_term_code") @db.VarChar(80)
   revenueSubtotal         BigInt   @default(0) @map("revenue_subtotal")
@@ -5723,6 +5741,7 @@ model CrmContract {
   @@index([ownerUserId], name: "ix_crm_contract_m_owner_user")
   @@map("crm_contract_m")
   @@schema("crm")
+  @@index([ownerOrganizationId, isActive], name: "ix_crm_contract_m_owner_org")
 }
 
 // ============================================
@@ -5782,13 +5801,14 @@ model CrmContractHistory {
   ownerName               String   @map("owner_name") @db.VarChar(100)
   clientContact           String?  @map("client_contact") @db.VarChar(120)
   ownerUserId             BigInt?  @map("owner_user_id")
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   businessType            String   @map("business_type") @db.VarChar(120)
   industryLine            String   @map("industry_line") @db.VarChar(120)
   regionCode              String   @map("region_code") @db.VarChar(30)
   statusCode              String   @map("status_code") @db.VarChar(40)
   confirmed               Boolean
-  contractStartDate       DateTime @map("contract_start_date") @db.Date
-  contractEndDate         DateTime @map("contract_end_date") @db.Date
+  contractStartDate       DateTime? @map("contract_start_date") @db.Date
+  contractEndDate         DateTime? @map("contract_end_date") @db.Date
   wbsCode                 String?  @map("wbs_code") @db.VarChar(80)
   paymentTermCode         String?  @map("payment_term_code") @db.VarChar(80)
   revenueSubtotal         BigInt   @map("revenue_subtotal")
@@ -5927,6 +5947,7 @@ model CrmContractBillingActual {
 // CRM Business Plan (사업계획 차수 원장) - crm_business_plan_m
 // ============================================
 model CrmBusinessPlan {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   id BigInt @id @default(autoincrement()) @map("business_plan_id")
 
   businessPlanCode          String    @unique(map: "ux_crm_business_plan_m_code") @map("business_plan_code") @db.VarChar(80)
@@ -5959,7 +5980,7 @@ model CrmBusinessPlan {
 
   lines CrmBusinessPlanLine[]
 
-  @@unique([baseYear, versionNo], name: "ux_crm_business_plan_m_year_version")
+  @@unique([ownerOrganizationId, baseYear, versionNo], map: "ux_crm_business_plan_m_org_year_version")
   @@index([baseYear, isActive], name: "ix_crm_business_plan_m_year_active")
   @@index([statusCode, isActive], name: "ix_crm_business_plan_m_status_active")
   @@index([updatedAt], name: "ix_crm_business_plan_m_updated")
@@ -5971,6 +5992,7 @@ model CrmBusinessPlan {
 // CRM Business Plan History - crm_business_plan_h
 // ============================================
 model CrmBusinessPlanHistory {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   businessPlanId BigInt @map("business_plan_id")
   historySeq     BigInt @map("history_seq")
 
@@ -6063,6 +6085,7 @@ model CrmBusinessPlanLine {
 // CRM Business Plan Performance Actual - crm_business_plan_performance_actual_d
 // ============================================
 model CrmBusinessPlanPerformanceActual {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   id BigInt @id @default(autoincrement()) @map("business_plan_performance_actual_id")
 
   targetYear            Int    @map("target_year")
@@ -6086,7 +6109,7 @@ model CrmBusinessPlanPerformanceActual {
   lastActivity  String?  @map("last_activity") @db.VarChar(100)
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  @@unique([targetYear, businessType, industryLine, ownerName, regionCode, wbsCode], map: "ux_crm_business_plan_performance_actual_d_basis")
+  @@unique([ownerOrganizationId, targetYear, businessType, industryLine, ownerName, regionCode, wbsCode], map: "ux_crm_business_plan_performance_actual_d_basis")
   @@index([targetYear, isActive], name: "ix_crm_business_plan_performance_actual_d_year_active")
   @@index([businessType, industryLine], name: "ix_crm_business_plan_performance_actual_d_business")
   @@map("crm_business_plan_performance_actual_d")
@@ -6097,6 +6120,7 @@ model CrmBusinessPlanPerformanceActual {
 // CRM Report Confirmation Snapshot - crm_report_confirmation_m
 // ============================================
 model CrmReportConfirmation {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   id BigInt @id @default(autoincrement()) @map("report_confirmation_id")
 
   targetYear             Int    @map("target_year")
@@ -6132,6 +6156,7 @@ model CrmReportConfirmation {
   lastActivity  String?   @map("last_activity") @db.VarChar(100)
   transactionId String?   @map("transaction_id") @db.Uuid
 
+  @@index([ownerOrganizationId, targetYear, isActive], map: "ix_crm_report_confirmation_m_org_year")
   @@index([targetYear, statusCode, isActive], name: "ix_crm_report_confirmation_m_year_status")
   @@index([confirmedAt(sort: Desc)], name: "ix_crm_report_confirmation_m_confirmed_at")
   @@map("crm_report_confirmation_m")
@@ -6142,6 +6167,7 @@ model CrmReportConfirmation {
 // CRM Cost Plan Internal Monthly Input (내부원가 월별 입력) - crm_cost_plan_internal_monthly_d
 // ============================================
 model CrmCostPlanInternalMonthly {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   id BigInt @id @default(autoincrement()) @map("cost_plan_internal_monthly_id")
 
   targetYear           Int       @map("target_year")
@@ -6171,7 +6197,7 @@ model CrmCostPlanInternalMonthly {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  @@unique([targetYear, businessType, industryLine, ownerName, regionCode, wbsCode], name: "ux_crm_cost_plan_internal_monthly_d_basis")
+  @@unique([ownerOrganizationId, targetYear, businessType, industryLine, ownerName, regionCode, wbsCode], map: "ux_crm_cost_internal_org_basis")
   @@index([targetYear, isActive], name: "ix_crm_cost_plan_internal_monthly_d_year_active")
   @@index([businessType, industryLine], name: "ix_crm_cost_plan_internal_monthly_d_business")
   @@index([targetYear, statusCode], name: "ix_crm_cost_plan_internal_monthly_d_year_status")
@@ -6183,6 +6209,7 @@ model CrmCostPlanInternalMonthly {
 // CRM Cost Plan Internal Source Grid (원본 내부원가 5개 항목) - crm_cost_plan_internal_item_monthly_d
 // ============================================
 model CrmCostPlanInternalItemMonthly {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   id BigInt @id @default(autoincrement()) @map("cost_plan_internal_item_monthly_id")
 
   targetYear            Int    @map("target_year")
@@ -6204,7 +6231,7 @@ model CrmCostPlanInternalItemMonthly {
   lastActivity  String?  @map("last_activity") @db.VarChar(100)
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  @@unique([targetYear, itemCode], name: "ux_crm_cost_plan_internal_item_monthly_d_year_item")
+  @@unique([ownerOrganizationId, targetYear, itemCode], map: "ux_crm_cost_internal_item_org_basis")
   @@index([targetYear, isActive], name: "ix_crm_cost_plan_internal_item_monthly_d_year_active")
   @@map("crm_cost_plan_internal_item_monthly_d")
   @@schema("crm")
@@ -6214,6 +6241,7 @@ model CrmCostPlanInternalItemMonthly {
 // CRM Cost Plan AMS Vendor-WBS Mapping (AMS 업체-WBS 매핑) - crm_cost_plan_ams_vendor_wbs_r
 // ============================================
 model CrmCostPlanAmsVendorWbsMapping {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   id BigInt @id @default(autoincrement()) @map("cost_plan_ams_vendor_wbs_mapping_id")
 
   targetYear       Int     @map("target_year")
@@ -6236,7 +6264,7 @@ model CrmCostPlanAmsVendorWbsMapping {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  @@unique([targetYear, businessType, industryLine, ownerName, regionCode, wbsCode], name: "ux_crm_cost_plan_ams_vendor_wbs_r_basis")
+  @@unique([ownerOrganizationId, targetYear, businessType, industryLine, ownerName, regionCode, wbsCode], map: "ux_crm_cost_ams_mapping_org_basis")
   @@index([targetYear, isActive], name: "ix_crm_cost_plan_ams_vendor_wbs_r_year_active")
   @@index([vendorName], name: "ix_crm_cost_plan_ams_vendor_wbs_r_vendor")
   @@map("crm_cost_plan_ams_vendor_wbs_r")
@@ -6247,6 +6275,7 @@ model CrmCostPlanAmsVendorWbsMapping {
 // CRM AMS Source Vendor Master - crm_cost_plan_ams_source_vendor_m
 // ============================================
 model CrmCostPlanAmsSourceVendor {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   id BigInt @id @default(autoincrement()) @map("cost_plan_ams_source_vendor_id")
 
   targetYear Int    @map("target_year")
@@ -6326,6 +6355,7 @@ model CrmCostPlanAmsSourceExternalMonthly {
 // CRM Cost Plan AMS External Monthly Input (AMS 외부원가 월별 입력) - crm_cost_plan_ams_external_monthly_d
 // ============================================
 model CrmCostPlanAmsExternalMonthly {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   id BigInt @id @default(autoincrement()) @map("cost_plan_ams_external_monthly_id")
 
   targetYear           Int       @map("target_year")
@@ -6357,7 +6387,7 @@ model CrmCostPlanAmsExternalMonthly {
   lastActivity  String?  @map("last_activity")
   transactionId String?  @map("transaction_id") @db.Uuid
 
-  @@unique([targetYear, businessType, industryLine, ownerName, regionCode, wbsCode, vendorName], name: "ux_crm_cost_plan_ams_external_monthly_d_basis")
+  @@unique([ownerOrganizationId, targetYear, businessType, industryLine, ownerName, regionCode, wbsCode, vendorName], map: "ux_crm_cost_ams_external_org_basis")
   @@index([targetYear, isActive], name: "ix_crm_cost_plan_ams_external_monthly_d_year_active")
   @@index([targetYear, statusCode], name: "ix_crm_cost_plan_ams_external_monthly_d_year_status")
   @@index([vendorName], name: "ix_crm_cost_plan_ams_external_monthly_d_vendor")
@@ -6369,6 +6399,7 @@ model CrmCostPlanAmsExternalMonthly {
 // CRM Cost Plan Accounting/Payment Handoff (회계·지급 handoff snapshot) - crm_cost_plan_accounting_handoff_m
 // ============================================
 model CrmCostPlanAccountingHandoff {
+  ownerOrganizationId BigInt? @map("owner_organization_id")
   id BigInt @id @default(autoincrement()) @map("cost_plan_accounting_handoff_id")
 
   targetYear                 Int       @map("target_year")
@@ -7490,6 +7521,7 @@ model SnsPost {
   mentions    SnsMention[]
   attachments SnsAttachment[]
   bookmarks   SnsBookmark[]
+  accessRequests SnsPostAccessRequest[]
 
   @@index([authorUserId], name: "ix_sns_post_m_author")
   @@index([boardId], name: "ix_sns_post_m_board")
@@ -7942,29 +7974,30 @@ model SnsNotification {
 }
 
 model CrmContractApproval {
-  id BigInt @id @default(autoincrement()) @map("contract_approval_id")
-  contractId BigInt @map("contract_id")
-  requestKey String @map("request_key") @db.Uuid @unique(map: "ux_crm_contract_approval_request")
-  requesterId BigInt @map("requester_id")
-  requesterName String @map("requester_name")
-  approverId BigInt @map("approver_id")
-  approverName String @map("approver_name")
-  documentId BigInt @map("document_id")
-  documentTitle String @map("document_title")
-  snapshot Json @map("snapshot_jsonb") @db.JsonB
-  versionKey String @map("version_key")
-  statusCode String @map("status_code")
-  reason String? @map("reason")
-  decidedAt DateTime? @map("decided_at") @db.Timestamptz(6)
-  isActive Boolean @map("is_active") @default(true)
-  createdBy BigInt? @map("created_by")
-  createdAt DateTime @map("created_at") @db.Timestamptz(6) @default(now())
-  updatedBy BigInt? @map("updated_by")
-  updatedAt DateTime @map("updated_at") @db.Timestamptz(6) @default(now()) @updatedAt
-  lastSource String? @map("last_source")
-  lastActivity String? @map("last_activity")
-  transactionId String? @map("transaction_id") @db.Uuid
-  contract CrmContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  id            BigInt      @id @default(autoincrement()) @map("contract_approval_id")
+  contractId    BigInt      @map("contract_id")
+  requestKey    String      @unique(map: "ux_crm_contract_approval_request") @map("request_key") @db.Uuid
+  requesterId   BigInt      @map("requester_id")
+  requesterName String      @map("requester_name")
+  approverId    BigInt      @map("approver_id")
+  approverName  String      @map("approver_name")
+  documentId    BigInt      @map("document_id")
+  documentTitle String      @map("document_title")
+  snapshot      Json        @map("snapshot_jsonb") @db.JsonB
+  versionKey    String      @map("version_key")
+  statusCode    String      @map("status_code")
+  reason        String?     @map("reason")
+  decidedAt     DateTime?   @map("decided_at") @db.Timestamptz(6)
+  isActive      Boolean     @default(true) @map("is_active")
+  createdBy     BigInt?     @map("created_by")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy     BigInt?     @map("updated_by")
+  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource    String?     @map("last_source")
+  lastActivity  String?     @map("last_activity")
+  transactionId String?     @map("transaction_id") @db.Uuid
+  contract      CrmContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+
   @@index([contractId, id], map: "ix_crm_contract_approval_contract")
   @@index([approverId, statusCode, id], map: "ix_crm_contract_approval_inbox")
   @@map("crm_contract_approval_m")
@@ -7972,32 +8005,33 @@ model CrmContractApproval {
 }
 
 model CrmContractApprovalHistory {
-  contractApprovalId BigInt @map("contract_approval_id")
-  historySeq BigInt @map("history_seq")
-  eventType String @map("event_type") @db.Char(1)
-  eventAt DateTime @default(now()) @map("event_at")
-  eventBy BigInt? @map("event_by")
-  contractId BigInt @map("contract_id")
-  requestKey String @map("request_key") @db.Uuid
-  requesterId BigInt @map("requester_id")
-  requesterName String @map("requester_name")
-  approverId BigInt @map("approver_id")
-  approverName String @map("approver_name")
-  documentId BigInt @map("document_id")
-  documentTitle String @map("document_title")
-  snapshot Json @map("snapshot_jsonb") @db.JsonB
-  versionKey String @map("version_key")
-  statusCode String @map("status_code")
-  reason String? @map("reason")
-  decidedAt DateTime? @map("decided_at") @db.Timestamptz(6)
-  isActive Boolean @map("is_active")
-  createdBy BigInt? @map("created_by")
-  createdAt DateTime @map("created_at") @db.Timestamptz(6)
-  updatedBy BigInt? @map("updated_by")
-  updatedAt DateTime @map("updated_at") @db.Timestamptz(6)
-  lastSource String? @map("last_source")
-  lastActivity String? @map("last_activity")
-  transactionId String? @map("transaction_id") @db.Uuid
+  contractApprovalId BigInt    @map("contract_approval_id")
+  historySeq         BigInt    @map("history_seq")
+  eventType          String    @map("event_type") @db.Char(1)
+  eventAt            DateTime  @default(now()) @map("event_at")
+  eventBy            BigInt?   @map("event_by")
+  contractId         BigInt    @map("contract_id")
+  requestKey         String    @map("request_key") @db.Uuid
+  requesterId        BigInt    @map("requester_id")
+  requesterName      String    @map("requester_name")
+  approverId         BigInt    @map("approver_id")
+  approverName       String    @map("approver_name")
+  documentId         BigInt    @map("document_id")
+  documentTitle      String    @map("document_title")
+  snapshot           Json      @map("snapshot_jsonb") @db.JsonB
+  versionKey         String    @map("version_key")
+  statusCode         String    @map("status_code")
+  reason             String?   @map("reason")
+  decidedAt          DateTime? @map("decided_at") @db.Timestamptz(6)
+  isActive           Boolean   @map("is_active")
+  createdBy          BigInt?   @map("created_by")
+  createdAt          DateTime  @map("created_at") @db.Timestamptz(6)
+  updatedBy          BigInt?   @map("updated_by")
+  updatedAt          DateTime  @map("updated_at") @db.Timestamptz(6)
+  lastSource         String?   @map("last_source")
+  lastActivity       String?   @map("last_activity")
+  transactionId      String?   @map("transaction_id") @db.Uuid
+
   @@id([contractApprovalId, historySeq], map: "pk_crm_contract_approval_h")
   @@index([eventAt], map: "ix_crm_contract_approval_h_event_at")
   @@map("crm_contract_approval_h")
@@ -8005,46 +8039,366 @@ model CrmContractApprovalHistory {
 }
 
 model PmsUserSettings {
-  id BigInt @id @default(autoincrement()) @map("user_settings_id")
-  userId BigInt @unique(map: "ux_pr_user_settings_user") @map("user_id")
-  showCompletedTasks Boolean @default(true) @map("show_completed_tasks")
-  defaultProjectView String @default("board") @map("default_project_view") @db.VarChar(20)
-  notifyTaskAssignment Boolean @default(true) @map("notify_task_assignment")
-  notifyIssueUpdate Boolean @default(true) @map("notify_issue_update")
-  isActive Boolean @default(true) @map("is_active")
-  memo String?
-  createdBy BigInt? @map("created_by")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedBy BigInt? @map("updated_by")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  lastSource String? @map("last_source")
-  lastActivity String? @map("last_activity")
-  transactionId String? @map("transaction_id") @db.Uuid
+  id                   BigInt   @id @default(autoincrement()) @map("user_settings_id")
+  userId               BigInt   @unique(map: "ux_pr_user_settings_user") @map("user_id")
+  showCompletedTasks   Boolean  @default(true) @map("show_completed_tasks")
+  defaultProjectView   String   @default("board") @map("default_project_view") @db.VarChar(20)
+  notifyTaskAssignment Boolean  @default(true) @map("notify_task_assignment")
+  notifyIssueUpdate    Boolean  @default(true) @map("notify_issue_update")
+  isActive             Boolean  @default(true) @map("is_active")
+  memo                 String?
+  createdBy            BigInt?  @map("created_by")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy            BigInt?  @map("updated_by")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSource           String?  @map("last_source")
+  lastActivity         String?  @map("last_activity")
+  transactionId        String?  @map("transaction_id") @db.Uuid
+
   @@map("pr_user_settings_m")
   @@schema("pms")
 }
 
 model PmsUserSettingsHistory {
-  id BigInt @map("user_settings_id")
-  userId BigInt @map("user_id")
-  showCompletedTasks Boolean @default(true) @map("show_completed_tasks")
-  defaultProjectView String @default("board") @map("default_project_view") @db.VarChar(20)
-  notifyTaskAssignment Boolean @default(true) @map("notify_task_assignment")
-  notifyIssueUpdate Boolean @default(true) @map("notify_issue_update")
-  isActive Boolean @default(true) @map("is_active")
-  memo String?
-  createdBy BigInt? @map("created_by")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedBy BigInt? @map("updated_by")
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-  lastSource String? @map("last_source")
-  lastActivity String? @map("last_activity")
-  transactionId String? @map("transaction_id") @db.Uuid
-  historySeq BigInt @map("history_seq")
-  eventType String @map("event_type") @db.Char(1)
-  eventAt DateTime @default(now()) @map("event_at") @db.Timestamptz(6)
-  eventBy BigInt? @map("event_by")
+  id                   BigInt   @map("user_settings_id")
+  userId               BigInt   @map("user_id")
+  showCompletedTasks   Boolean  @default(true) @map("show_completed_tasks")
+  defaultProjectView   String   @default("board") @map("default_project_view") @db.VarChar(20)
+  notifyTaskAssignment Boolean  @default(true) @map("notify_task_assignment")
+  notifyIssueUpdate    Boolean  @default(true) @map("notify_issue_update")
+  isActive             Boolean  @default(true) @map("is_active")
+  memo                 String?
+  createdBy            BigInt?  @map("created_by")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedBy            BigInt?  @map("updated_by")
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  lastSource           String?  @map("last_source")
+  lastActivity         String?  @map("last_activity")
+  transactionId        String?  @map("transaction_id") @db.Uuid
+  historySeq           BigInt   @map("history_seq")
+  eventType            String   @map("event_type") @db.Char(1)
+  eventAt              DateTime @default(now()) @map("event_at") @db.Timestamptz(6)
+  eventBy              BigInt?  @map("event_by")
+
   @@id([id, historySeq], map: "pk_pr_user_settings_h")
   @@map("pr_user_settings_h")
   @@schema("pms")
+}
+
+// CRM owns the operating years consumed by its planning, contract and cost screens.
+model CrmBusinessYear {
+  id            BigInt   @id @default(autoincrement()) @map("business_year_id")
+  year          Int
+  displayName   String   @map("display_name")
+  sortOrder     Int      @default(0) @map("sort_order")
+  description   String?
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@unique([year], map: "ux_crm_business_year_m_year")
+  @@map("crm_business_year_m")
+  @@schema("crm")
+}
+
+model CrmBusinessYearHistory {
+  businessYearId BigInt   @map("business_year_id")
+  historySeq     BigInt   @map("history_seq")
+  eventType      String   @map("event_type") @db.Char(1)
+  eventAt        DateTime @map("event_at")
+  legacySnapshot Json?    @map("legacy_snapshot")
+  year           Int
+  displayName    String   @map("display_name")
+  sortOrder      Int      @map("sort_order")
+  description    String?
+  isActive       Boolean  @map("is_active")
+  memo           String?
+  createdBy      BigInt?  @map("created_by")
+  createdAt      DateTime @map("created_at")
+  updatedBy      BigInt?  @map("updated_by")
+  updatedAt      DateTime @map("updated_at")
+  lastSource     String?  @map("last_source")
+  lastActivity   String?  @map("last_activity")
+  transactionId  String?  @map("transaction_id") @db.Uuid
+
+  @@id([businessYearId, historySeq], map: "pk_crm_business_year_h")
+  @@index([eventAt], name: "ix_crm_business_year_h_event_at")
+  @@map("crm_business_year_h")
+  @@schema("crm")
+}
+
+model PlatformEnrollment {
+  id            BigInt   @id @default(autoincrement())
+  userId        BigInt   @unique @map("user_id")
+  statusCode    String   @default("pending") @map("status_code")
+  sourceCode    String   @default("signup") @map("source_code")
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("cm_platform_enrollment_m")
+  @@schema("common")
+}
+
+model PlatformEnrollmentHistory {
+  id            BigInt
+  historySeq    BigInt   @map("history_seq")
+  eventType     String   @map("event_type") @db.Char(1)
+  eventAt       DateTime @default(now()) @map("event_at") @db.Timestamptz(6)
+  userId        BigInt   @map("user_id")
+  statusCode    String   @default("pending") @map("status_code")
+  sourceCode    String   @default("signup") @map("source_code")
+  isActive      Boolean  @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedBy     BigInt?  @map("updated_by")
+  updatedAt     DateTime @default(now()) @map("updated_at")
+  lastSource    String?  @map("last_source")
+  lastActivity  String?  @map("last_activity")
+  transactionId String?  @map("transaction_id") @db.Uuid
+
+  @@id([id, historySeq])
+  @@map("cm_platform_enrollment_h")
+  @@schema("common")
+}
+
+model OnboardingRequest {
+  id                 BigInt        @id @default(autoincrement())
+  userId             BigInt        @map("user_id")
+  kind               String
+  statusCode         String        @default("pending") @map("status_code")
+  orgId              BigInt?       @map("org_id")
+  parentOrgId        BigInt?       @map("parent_org_id")
+  organizationName   String?       @map("organization_name")
+  serviceCode        String?       @map("service_code")
+  message            String
+  decidedBy          BigInt?       @map("decided_by")
+  decidedAt          DateTime?     @map("decided_at")
+  decisionMessage    String?       @map("decision_message")
+  resolvedOrgId      BigInt?       @map("resolved_org_id")
+  isActive           Boolean       @default(true) @map("is_active")
+  memo               String?
+  createdBy          BigInt?       @map("created_by")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedBy          BigInt?       @map("updated_by")
+  updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at")
+  lastSource         String?       @map("last_source")
+  lastActivity       String?       @map("last_activity")
+  transactionId      String?       @map("transaction_id") @db.Uuid
+  user               User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  organization       Organization? @relation("OnboardingOrganization", fields: [orgId], references: [orgId], onDelete: Restrict)
+  parentOrganization Organization? @relation("OnboardingParent", fields: [parentOrgId], references: [orgId], onDelete: Restrict)
+
+  @@index([statusCode, kind])
+  @@index([userId, createdAt])
+  @@map("cm_onboarding_request_m")
+  @@schema("common")
+}
+
+model OnboardingRequestHistory {
+  id               BigInt
+  historySeq       BigInt    @map("history_seq")
+  eventType        String    @map("event_type") @db.Char(1)
+  eventAt          DateTime  @default(now()) @map("event_at") @db.Timestamptz(6)
+  userId           BigInt    @map("user_id")
+  kind             String
+  statusCode       String    @default("pending") @map("status_code")
+  orgId            BigInt?   @map("org_id")
+  parentOrgId      BigInt?   @map("parent_org_id")
+  organizationName String?   @map("organization_name")
+  serviceCode      String?   @map("service_code")
+  message          String
+  decidedBy        BigInt?   @map("decided_by")
+  decidedAt        DateTime? @map("decided_at")
+  decisionMessage  String?   @map("decision_message")
+  resolvedOrgId    BigInt?   @map("resolved_org_id")
+  isActive         Boolean   @default(true) @map("is_active")
+  memo             String?
+  createdBy        BigInt?   @map("created_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedBy        BigInt?   @map("updated_by")
+  updatedAt        DateTime  @default(now()) @map("updated_at")
+  lastSource       String?   @map("last_source")
+  lastActivity     String?   @map("last_activity")
+  transactionId    String?   @map("transaction_id") @db.Uuid
+
+  @@id([id, historySeq])
+  @@map("cm_onboarding_request_h")
+  @@schema("common")
+}
+
+model ServiceGrant {
+  id            BigInt        @id @default(autoincrement())
+  userId        BigInt        @map("user_id")
+  orgId         BigInt?       @map("org_id")
+  serviceCode   String        @map("service_code")
+  roleCode      String        @default("user") @map("role_code")
+  scopeKey      String        @map("scope_key")
+  sourceCode    String        @map("source_code")
+  expiresAt     DateTime?     @map("expires_at")
+  isActive      Boolean       @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?       @map("created_by")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedBy     BigInt?       @map("updated_by")
+  updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at")
+  lastSource    String?       @map("last_source")
+  lastActivity  String?       @map("last_activity")
+  transactionId String?       @map("transaction_id") @db.Uuid
+  user          User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  organization  Organization? @relation(fields: [orgId], references: [orgId], onDelete: Restrict)
+
+  @@unique([userId, serviceCode, scopeKey])
+  @@map("cm_service_grant_m")
+  @@schema("common")
+}
+
+model ServiceGrantHistory {
+  id            BigInt
+  historySeq    BigInt    @map("history_seq")
+  eventType     String    @map("event_type") @db.Char(1)
+  eventAt       DateTime  @default(now()) @map("event_at") @db.Timestamptz(6)
+  userId        BigInt    @map("user_id")
+  orgId         BigInt?   @map("org_id")
+  serviceCode   String    @map("service_code")
+  roleCode      String    @default("user") @map("role_code")
+  scopeKey      String    @map("scope_key")
+  sourceCode    String    @map("source_code")
+  expiresAt     DateTime? @map("expires_at")
+  isActive      Boolean   @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?   @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedBy     BigInt?   @map("updated_by")
+  updatedAt     DateTime  @default(now()) @map("updated_at")
+  lastSource    String?   @map("last_source")
+  lastActivity  String?   @map("last_activity")
+  transactionId String?   @map("transaction_id") @db.Uuid
+
+  @@id([id, historySeq])
+  @@map("cm_service_grant_h")
+  @@schema("common")
+}
+
+model ApprovalAuthority {
+  id            BigInt        @id @default(autoincrement())
+  userId        BigInt        @map("user_id")
+  orgId         BigInt?       @map("org_id")
+  authorityKind String        @map("authority_kind")
+  serviceCode   String        @default("") @map("service_code")
+  scopeKey      String        @map("scope_key")
+  maxRoleCode   String        @default("user") @map("max_role_code")
+  expiresAt     DateTime?     @map("expires_at")
+  isActive      Boolean       @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?       @map("created_by")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedBy     BigInt?       @map("updated_by")
+  updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at")
+  lastSource    String?       @map("last_source")
+  lastActivity  String?       @map("last_activity")
+  transactionId String?       @map("transaction_id") @db.Uuid
+  user          User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  organization  Organization? @relation(fields: [orgId], references: [orgId], onDelete: Restrict)
+
+  @@unique([userId, authorityKind, serviceCode, scopeKey])
+  @@map("cm_approval_authority_m")
+  @@schema("common")
+}
+
+model ApprovalAuthorityHistory {
+  id            BigInt
+  historySeq    BigInt    @map("history_seq")
+  eventType     String    @map("event_type") @db.Char(1)
+  eventAt       DateTime  @default(now()) @map("event_at") @db.Timestamptz(6)
+  userId        BigInt    @map("user_id")
+  orgId         BigInt?   @map("org_id")
+  authorityKind String    @map("authority_kind")
+  serviceCode   String    @default("") @map("service_code")
+  scopeKey      String    @map("scope_key")
+  maxRoleCode   String    @default("user") @map("max_role_code")
+  expiresAt     DateTime? @map("expires_at")
+  isActive      Boolean   @default(true) @map("is_active")
+  memo          String?
+  createdBy     BigInt?   @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedBy     BigInt?   @map("updated_by")
+  updatedAt     DateTime  @default(now()) @map("updated_at")
+  lastSource    String?   @map("last_source")
+  lastActivity  String?   @map("last_activity")
+  transactionId String?   @map("transaction_id") @db.Uuid
+
+  @@id([id, historySeq])
+  @@map("cm_approval_authority_h")
+  @@schema("common")
+}
+
+model SnsPostAccessRequest {
+  id BigInt @id @default(autoincrement())
+  postId BigInt @map("post_id")
+  requesterUserId BigInt @map("requester_user_id")
+  requestedRole String @default("read") @map("requested_role")
+  statusCode String @default("pending") @map("status_code")
+  requestMessage String @map("request_message")
+  decidedBy BigInt? @map("decided_by")
+  decidedAt DateTime? @map("decided_at")
+  decisionMessage String? @map("decision_message")
+  expiresAt DateTime? @map("expires_at")
+  isActive Boolean @default(true) @map("is_active")
+  memo String?
+  createdBy BigInt? @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy BigInt? @map("updated_by")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  lastSource String? @map("last_source")
+  lastActivity String? @map("last_activity")
+  transactionId String? @map("transaction_id") @db.Uuid
+  post SnsPost @relation(fields: [postId], references: [id], onDelete: Restrict)
+  requester User @relation(fields: [requesterUserId], references: [id], onDelete: Restrict)
+  @@index([postId, statusCode])
+  @@index([requesterUserId, createdAt])
+  @@map("sns_post_access_request_m")
+  @@schema("sns")
+}
+
+model SnsPostAccessRequestHistory {
+  id BigInt
+  historySeq BigInt @map("history_seq")
+  eventType String @map("event_type") @db.Char(1)
+  eventAt DateTime @default(now()) @map("event_at") @db.Timestamptz(6)
+  postId BigInt @map("post_id")
+  requesterUserId BigInt @map("requester_user_id")
+  requestedRole String @default("read") @map("requested_role")
+  statusCode String @default("pending") @map("status_code")
+  requestMessage String @map("request_message")
+  decidedBy BigInt? @map("decided_by")
+  decidedAt DateTime? @map("decided_at")
+  decisionMessage String? @map("decision_message")
+  expiresAt DateTime? @map("expires_at")
+  isActive Boolean @default(true) @map("is_active")
+  memo String?
+  createdBy BigInt? @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy BigInt? @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+  lastSource String? @map("last_source")
+  lastActivity String? @map("last_activity")
+  transactionId String? @map("transaction_id") @db.Uuid
+  @@id([id, historySeq])
+  @@map("sns_post_access_request_h")
+  @@schema("sns")
 }

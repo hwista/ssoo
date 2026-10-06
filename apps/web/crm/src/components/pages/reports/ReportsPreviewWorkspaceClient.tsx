@@ -1,5 +1,7 @@
 'use client';
 
+import { createSharedHttpError } from '@ssoo/web-auth';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2, RefreshCw, RotateCcw, Search } from 'lucide-react';
@@ -14,8 +16,9 @@ import type {
 } from '@ssoo/types/crm';
 import { Badge, Button, Input, NativeSelect, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ssoo/web-ui';
 import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS, SsooSearchInput } from '@ssoo/web-shell';
+import { BusinessOrganizationField } from '@/components/common/BusinessOrganizationField';
 import { useAuthStore } from '@/stores/auth.store';
-import { useCrmBusinessYearOptions } from '@/lib/crmCommonCodeOptions';
+import { useCrmBusinessYearOptions } from '@/lib/useCrmBusinessYears';
 import { useCrmDomainAccess } from '@/lib/useCrmDomainAccess';
 import { toRequiredReportsPreviewQuery, type ReportsPreviewWorkspaceQuery } from './reportsPreviewQuery';
 
@@ -36,6 +39,7 @@ const regionLabels: Record<CrmReportsPreviewRegion, string> = {
   all: '전체',
   domestic: '국내',
   overseas: '해외',
+  unspecified: '미선택',
 };
 
 const breakdownKindLabels: Record<CrmReportsBreakdownKind, string> = {
@@ -79,6 +83,7 @@ function formatDateTime(value: string) {
 function buildApiHref(query: ReportsPreviewWorkspaceQuery) {
   const params = new URLSearchParams();
   params.set('year', String(query.year));
+  if (query.ownerOrganizationId) params.set('ownerOrganizationId', query.ownerOrganizationId);
   if (query.businessType) params.set('businessType', query.businessType);
   if (query.industryLine) params.set('industryLine', query.industryLine);
   if (query.region !== 'all') params.set('region', query.region);
@@ -108,7 +113,7 @@ export function ReportsPreviewWorkspaceClient({
   query: ReportsPreviewWorkspaceQuery;
 }) {
   const accessToken = useAuthStore((state) => state.accessToken);
-  const { access: domainAccess, error: domainAccessError } = useCrmDomainAccess(accessToken);
+  const { access: domainAccess, error: domainAccessError, retry: retryDomainAccess } = useCrmDomainAccess(accessToken, query.ownerOrganizationId);
   const canConfirmReport = domainAccess?.features.canConfirmReport === true;
   const [currentData, setCurrentData] = useState(data);
   const [filters, setFilters] = useState(query);
@@ -126,13 +131,14 @@ export function ReportsPreviewWorkspaceClient({
 
   useEffect(() => {
     setFilters({
+      ownerOrganizationId: query.ownerOrganizationId,
       year: query.year,
       businessType: query.businessType,
       industryLine: query.industryLine,
       region: query.region,
       search: query.search,
     });
-  }, [query.year, query.businessType, query.industryLine, query.region, query.search]);
+  }, [query.ownerOrganizationId, query.year, query.businessType, query.industryLine, query.region, query.search]);
 
   useEffect(() => {
     setCurrentData(data);
@@ -156,7 +162,7 @@ export function ReportsPreviewWorkspaceClient({
       });
       const payload = await response.json().catch(() => null) as BackendSuccessResponse<CrmReportsPreviewResponse> | BackendErrorResponse | null;
       if (!response.ok || payload?.success !== true) {
-        throw new Error(getBackendErrorMessage(payload));
+        throw createSharedHttpError(response, payload, getBackendErrorMessage(payload));
       }
       setCurrentData(payload.data);
       return payload.data;
@@ -192,7 +198,7 @@ export function ReportsPreviewWorkspaceClient({
       });
       const result = await response.json().catch(() => null) as BackendSuccessResponse<CrmReportsConfirmationResult> | BackendErrorResponse | null;
       if (!response.ok || result?.success !== true) {
-        throw new Error(getBackendErrorMessage(result));
+        throw createSharedHttpError(response, result, getBackendErrorMessage(result));
       }
       setConfirmationMessage(`보고 확정 ${formatDateTime(result.data.confirmation.confirmedAt)} · 실적 ${formatEok(result.data.confirmation.actualRevenueTotal)}`);
       await loadPreview();
@@ -218,7 +224,7 @@ export function ReportsPreviewWorkspaceClient({
       });
       const result = await response.json().catch(() => null) as BackendSuccessResponse<CrmReportsConfirmationResult> | BackendErrorResponse | null;
       if (!response.ok || result?.success !== true) {
-        throw new Error(getBackendErrorMessage(result));
+        throw createSharedHttpError(response, result, getBackendErrorMessage(result));
       }
       setConfirmationMessage(`보고 확정 해제 ${formatDateTime(result.data.confirmation.updatedAt)}`);
       await loadPreview();
@@ -287,6 +293,7 @@ export function ReportsPreviewWorkspaceClient({
 
         <section className="mt-4 rounded-md border bg-card">
           <form action="/reports" className="flex flex-wrap items-end gap-3 border-b p-4">
+            <BusinessOrganizationField name="ownerOrganizationId" purpose="filter" autoSelect={false} value={filters.ownerOrganizationId ?? ''} onChange={ownerOrganizationId => setFilters(current => ({ ...current, ownerOrganizationId }))} />
             <label className="w-[132px] text-sm font-medium text-muted-foreground">
               사업년도
               <NativeSelect name="year" value={String(filters.year)} onChange={(event) => setFilters((current) => ({ ...current, year: Number(event.target.value) }))} className="mt-1">
@@ -324,25 +331,25 @@ export function ReportsPreviewWorkspaceClient({
           </form>
 
           {loadError ? (
-            <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+            <SsooErrorNotice className="gap-2 px-4 py-3">
               <AlertCircle className="h-4 w-4" />
               {loadError}
-            </div>
+            </SsooErrorNotice>
           ) : null}
           {domainAccess && !canConfirmReport ? (
             <div className="border-b bg-ssoo-warning-bg px-4 py-3 text-sm text-ssoo-warning">보고 확정 권한이 없어 Preview 조회만 가능합니다.</div>
           ) : null}
           {domainAccessError ? (
-            <div className="border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">{domainAccessError}</div>
+            <SsooErrorNotice className="px-4 py-3" error={domainAccessError} actions={[{ label: '접근 권한 다시 확인', onClick: retryDomainAccess }]} />
           ) : null}
           {confirmationMessage ? (
             <div className="border-b px-4 py-3 text-sm text-ssoo-success">{confirmationMessage}</div>
           ) : null}
           {confirmationError ? (
-            <div className="flex items-center gap-2 border-b bg-ssoo-danger-bg px-4 py-3 text-sm text-ssoo-danger">
+            <SsooErrorNotice className="gap-2 px-4 py-3">
               <AlertCircle className="h-4 w-4" />
               {confirmationError}
-            </div>
+            </SsooErrorNotice>
           ) : null}
 
           <div className="border-b px-4 py-2 text-xs text-muted-foreground">

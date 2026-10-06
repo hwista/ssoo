@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useState } from 'react';
 import { Building2, Link2, Plus, X } from 'lucide-react';
 import {
@@ -246,7 +247,7 @@ export function OrganizationsSection({ projectId }: OrganizationsSectionProps) {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">조직 정보를 불러오는 중...</p>
       ) : error ? (
-        <p className="text-sm text-destructive">조직 정보를 불러오지 못했습니다.</p>
+        <SsooErrorNotice as="p" compact>조직 정보를 불러오지 못했습니다.</SsooErrorNotice>
       ) : projectOrgs.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           현재 연결된 프로젝트 조직이 없습니다.

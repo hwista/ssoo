@@ -1,24 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { APP_HOME_PATH } from '@/lib/constants/routes';
+import { SsooErrorPage } from '@ssoo/web-shell';
 
 export default function NotFound() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace(APP_HOME_PATH);
-  }, [router]);
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-ssoo-background">
-      <div className="text-center">
-        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-3 border-ssoo-primary border-t-transparent" />
-        <p className="text-body-sm text-muted-foreground">
-          페이지를 찾을 수 없습니다. 기본 화면으로 이동 중...
-        </p>
-      </div>
-    </div>
-  );
+  return <SsooErrorPage kind="not-found" title="페이지를 찾을 수 없습니다"
+    description="주소가 올바르지 않거나 페이지가 이동 또는 삭제되었을 수 있습니다."
+    actions={[{ label: '홈으로 이동', href: '/' }, { label: '다른 서비스·계정으로 이동', href: '/recovery' }]} />;
 }

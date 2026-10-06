@@ -1,4 +1,5 @@
-FROM node:22 AS base
+ARG SSOO_NODE_IMAGE=node:22
+FROM ${SSOO_NODE_IMAGE} AS base
 RUN corepack enable && \
     corepack prepare pnpm@11.13.1 --activate
 WORKDIR /app
@@ -40,7 +41,11 @@ ENV NEXT_PUBLIC_SNS_APP_URL=${NEXT_PUBLIC_SNS_APP_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=deps /app/ ./
-COPY . .
+COPY apps/web/sns/ apps/web/sns/
+COPY packages/types/ packages/types/
+COPY packages/web-ui/ packages/web-ui/
+COPY packages/web-shell/ packages/web-shell/
+COPY packages/web-auth/ packages/web-auth/
 
 RUN --mount=type=secret,id=ssoo_tls_ca,required=false \
     if [ -s /run/secrets/ssoo_tls_ca ]; then \
@@ -52,7 +57,9 @@ RUN --mount=type=secret,id=ssoo_tls_ca,required=false \
     pnpm --filter @ssoo/web-auth build && \
     pnpm --filter web-sns build
 
-FROM node:22 AS runner
+FROM ${SSOO_NODE_IMAGE} AS runner
+ARG SSOO_RELEASE_SHA=local-development
+ENV SSOO_RELEASE_SHA=${SSOO_RELEASE_SHA}
 WORKDIR /app
 
 ENV NODE_ENV=production

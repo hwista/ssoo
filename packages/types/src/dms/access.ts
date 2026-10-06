@@ -86,6 +86,7 @@ export interface DmsManagedDocumentSummary {
   documentTitle: string;
   owner: DmsDocumentAccessRequestActor;
   visibilityScope: DocumentVisibilityScope | 'legacy';
+  targetOrgId?: string;
   syncStatusCode: 'synced' | 'repair_needed';
   repairReason?: string;
   updatedAt?: string;
@@ -118,6 +119,7 @@ export interface RejectDmsDocumentAccessRequestPayload {
 
 export interface UpdateDocumentVisibilityPayload {
   visibilityScope: DocumentVisibilityScope;
+  targetOrgId?: string;
 }
 
 export interface TransferDocumentOwnershipPayload {

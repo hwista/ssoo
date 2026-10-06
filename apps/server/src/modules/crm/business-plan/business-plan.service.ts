@@ -32,6 +32,8 @@ import type {
   CrmContractPerformanceRow,
   CrmOpportunity,
 } from '@ssoo/types/crm';
+import { CrmAccessService, type CrmDomainAccessCapabilityKey } from '../access/access.service.js';
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { DatabaseService } from '../../../database/database.service.js';
 import { ContractService } from '../contract/contract.service.js';
 import { OpportunityService } from '../opportunity/opportunity.service.js';
@@ -151,6 +153,7 @@ interface RawBusinessPlanWriter {
 }
 
 interface CrmBusinessPlanLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   code: string;
   planName: string;
@@ -215,6 +218,7 @@ interface CrmBusinessPlanConfirmedCostLedgerRow {
 }
 
 interface CrmBusinessPlanPerformanceActualLedgerRow {
+  ownerOrganizationId: bigint | null;
   id: bigint;
   targetYear: number;
   businessType: string;
@@ -250,14 +254,18 @@ export class BusinessPlanService {
     private readonly opportunityService: OpportunityService,
     private readonly contractService: ContractService,
     @Optional() private readonly db?: DatabaseService,
+    private readonly crmAccess?: CrmAccessService,
   ) {}
 
-  async listPlans(query: CrmBusinessPlanListQuery = {}): Promise<CrmBusinessPlanListResponse> {
+  async listPlans(query: CrmBusinessPlanListQuery = {}, currentUser?: TokenPayload): Promise<CrmBusinessPlanListResponse> {
     const db = this.requireDb();
-    const normalized = this.normalizeListQuery(query);
+    const organizationId = currentUser ? await this.crmAccess!.resolveReadOrganization(currentUser, query.ownerOrganizationId) : query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null;
+    if (currentUser) await this.crmAccess!.assertOrganizationCapability(currentUser, 'canReadBusinessPlan', organizationId);
+    const normalized = this.normalizeListQuery({ ...query, ownerOrganizationId: organizationId?.toString() });
     const [rows, lineRows] = await Promise.all([
       db.$queryRaw<CrmBusinessPlanLedgerRow[]>`
         select business_plan_id as "id",
+               owner_organization_id as "ownerOrganizationId",
                business_plan_code as "code",
                plan_name as "planName",
                base_year as "baseYear",
@@ -278,7 +286,8 @@ export class BusinessPlanService {
                memo,
                updated_at as "updatedAt"
           from crm.crm_business_plan_m
-         where is_active = true
+         where owner_organization_id is not distinct from ${organizationId}
+           and is_active = true
          order by base_year desc, version_no desc
       `,
       db.$queryRaw<CrmBusinessPlanLineLedgerRow[]>`
@@ -303,7 +312,8 @@ export class BusinessPlanService {
                actual_gap_amount as "actualGapAmount",
                sort_order as "sortOrder"
           from crm.crm_business_plan_line_d
-         where is_active = true
+         where business_plan_id in (select business_plan_id from crm.crm_business_plan_m where is_active = true and owner_organization_id is not distinct from ${organizationId})
+           and is_active = true
          order by business_plan_id, sort_order, target_year
       `,
     ]);
@@ -322,9 +332,10 @@ export class BusinessPlanService {
     currentUserId?: bigint,
   ): Promise<CrmBusinessPlan> {
     const db = this.requireDb();
-    const normalized = this.normalizeQuery(dto);
-    const preview = await this.getPreview(dto);
-    if (preview.rows.length === 0) {
+    const { user, organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, dto.ownerOrganizationId, 'canWriteBusinessPlan');
+    const normalized = this.normalizeQuery({ ...dto, ownerOrganizationId: organizationId.toString() });
+    const preview = dto.empty ? { rows: [] } : await this.getPreview({ ...dto, ownerOrganizationId: organizationId.toString() }, user);
+    if (!dto.empty && preview.rows.length === 0) {
       throw new BadRequestException('저장할 사업계획 후보가 없습니다.');
     }
 
@@ -340,7 +351,7 @@ export class BusinessPlanService {
       'snapshot',
     );
 
-    return this.getPlan(inserted.code);
+    return this.getPlan(inserted.code, organizationId);
   }
 
   async createCarryForwardSnapshot(
@@ -348,14 +359,15 @@ export class BusinessPlanService {
     currentUserId?: bigint,
   ): Promise<CrmBusinessPlan> {
     const db = this.requireDb();
-    const normalized = this.normalizeQuery(dto);
+    const { user, organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, dto.ownerOrganizationId, 'canWriteBusinessPlan');
+    const normalized = this.normalizeQuery({ ...dto, ownerOrganizationId: organizationId.toString() });
     const sourceBaseYear = this.normalizeCarryForwardSourceBaseYear(dto.sourceBaseYear, normalized.baseYear);
-    const sourcePlan = await this.loadConfirmedPlan(sourceBaseYear);
+    const sourcePlan = await this.loadConfirmedPlan(sourceBaseYear, organizationId, user);
     if (!sourcePlan) {
       throw new BadRequestException(`${sourceBaseYear}년 확정 사업계획이 없어 전년 이월을 만들 수 없습니다.`);
     }
 
-    const preview = await this.getPreview(dto);
+    const preview = await this.getPreview({ ...dto, ownerOrganizationId: organizationId.toString() }, user);
     const rows = this.buildCarryForwardRows(sourcePlan, preview.rows, normalized);
     if (rows.length === 0) {
       throw new BadRequestException('이월할 전년도 사업계획 상세가 없습니다.');
@@ -376,38 +388,65 @@ export class BusinessPlanService {
       'carry-forward',
     );
 
-    return this.getPlan(inserted.code);
+    return this.getPlan(inserted.code, organizationId);
+  }
+
+  async getCarryContracts(query: CrmBusinessPlanPreviewQuery & { method?: 'billing' | 'progress' }, currentUser: TokenPayload) {
+    const organizationId = await this.crmAccess!.resolveReadOrganization(currentUser, query.ownerOrganizationId);
+    await this.crmAccess!.assertOrganizationCapability(currentUser, 'canReadBusinessPlan', organizationId);
+    const { baseYear } = this.normalizeQuery(query);
+    const yearStart = `${baseYear}-01-01`;
+    const contracts = await this.contractService.listContracts({}, currentUser, organizationId ?? undefined);
+    return contracts.filter((contract) => contract.confirmed && contract.contractStartDate && contract.contractEndDate
+      && contract.contractStartDate < yearStart && contract.contractEndDate >= yearStart).map((contract) => {
+      const months = Math.ceil((Date.parse(contract.contractEndDate) - Date.parse(contract.contractStartDate)) / (86400000 * 30.4375));
+      const monthly = Array.from({ length: 12 }, (_, index) => {
+        const month = `${baseYear}-${String(index + 1).padStart(2, '0')}`;
+        if (query.method === 'progress') {
+          const active = `${month}-01` <= contract.contractEndDate && months > 0;
+          return { revenue: active ? Math.round(contract.revenueTotal / months) : 0, cost: active ? Math.round(contract.externalCostTotal / months) : 0 };
+        }
+        const billing = contract.billingPlan.filter((line) => line.billingYm.replace('/', '-').slice(0, 7) === month);
+        return { revenue: billing.reduce((sum, line) => sum + line.revenueAmount, 0), cost: billing.reduce((sum, line) => sum + line.externalCostAmount, 0) };
+      });
+      return {
+        contractId: contract.id, startDate: contract.contractStartDate, endDate: contract.contractEndDate,
+        row: {
+          businessType: contract.businessType, industryLine: contract.industryLine, ownerName: contract.ownerName,
+          region: contract.region, businessName: contract.contractName, wbsCode: contract.wbsCode,
+          monthlyRevenueAmounts: monthly.map((month) => month.revenue), monthlyExternalCostAmounts: monthly.map((month) => month.cost),
+          nextYearRevenueAmount: 0, nextYearExternalCostAmount: 0, followingYearRevenueAmount: 0, followingYearExternalCostAmount: 0,
+        } satisfies CrmBusinessPlanRowUpsertRequest,
+      };
+    });
   }
 
   async createPlanVersion(id: string, currentUserId?: bigint): Promise<CrmBusinessPlan> {
     const db = this.requireDb();
-    const existing = await this.findPlanWriteRow(id);
+    const existing = await this.findPlanWriteRow(id, currentUserId);
     if (!existing) {
       throw new NotFoundException('CRM business plan not found');
     }
     this.assertLatestPlanVersion(existing);
-    if (!existing.confirmed) {
-      throw new BadRequestException('최신 확정 사업계획 차수만 다음 차수로 복사할 수 있습니다.');
-    }
-    const source = await this.getPlan(existing.code);
+    const source = await this.getPlan(existing.code, existing.ownerOrganizationId);
     if (source.lines.length === 0) {
       throw new BadRequestException('복사할 사업계획 상세가 없습니다.');
     }
     const transactionId = randomUUID();
     const inserted = await db.client.$transaction(async (tx) => {
       const writer = tx as unknown as RawBusinessPlanWriter;
-      const nextVersion = await this.resolveNextVersion(writer, existing.baseYear);
+      const nextVersion = await this.resolveNextVersion(writer, existing.baseYear, existing.ownerOrganizationId, true);
       const planCode = this.createBusinessPlanCode(existing.baseYear, nextVersion);
       const createdRows = await writer.$queryRaw<CrmBusinessPlanInsertedRow[]>`
         insert into crm.crm_business_plan_m (
-          business_plan_code, plan_name, base_year, version_no, status_code, confirmed,
+          owner_organization_id, business_plan_code, plan_name, base_year, version_no, status_code, confirmed,
           business_type_filter, industry_line_filter, region_filter, search_filter,
           pipeline_amount_total, contract_plan_amount_total, contract_actual_amount_total,
           plan_candidate_amount_total, actual_gap_amount_total, row_count,
           memo, created_by, updated_by, last_source, last_activity, transaction_id
         )
         values (
-          ${planCode}, ${`${existing.baseYear} 사업계획 ${nextVersion}차`}, ${existing.baseYear}, ${nextVersion}, 'draft', false,
+          ${existing.ownerOrganizationId ?? null}, ${planCode}, ${`${existing.baseYear} 사업계획 ${nextVersion}차`}, ${existing.baseYear}, ${nextVersion}, 'draft', false,
           ${existing.businessTypeFilter}, ${existing.industryLineFilter}, ${existing.regionFilter}, ${existing.searchFilter},
           ${existing.pipelineAmountTotal}, ${existing.contractPlanAmountTotal}, ${existing.contractActualAmountTotal},
           ${existing.planCandidateAmountTotal}, ${existing.actualGapAmountTotal}, ${source.rows.length},
@@ -453,7 +492,7 @@ export class BusinessPlanService {
       }
       return created;
     });
-    return this.getPlan(inserted.code);
+    return this.getPlan(inserted.code, existing.ownerOrganizationId);
   }
 
   async updateMonthlyPlanLine(
@@ -463,7 +502,7 @@ export class BusinessPlanService {
     currentUserId?: bigint,
   ): Promise<CrmBusinessPlanMonthlyPlanInputResult> {
     const db = this.requireDb();
-    const existing = await this.findPlanWriteRow(id);
+    const existing = await this.findPlanWriteRow(id, currentUserId);
     if (!existing) {
       throw new NotFoundException('CRM business plan not found');
     }
@@ -529,7 +568,7 @@ export class BusinessPlanService {
       `;
     });
 
-    const plan = await this.getPlan(existing.code);
+    const plan = await this.getPlan(existing.code, existing.ownerOrganizationId);
     const updatedLine = plan.lines.find((candidate) => candidate.id === line.id.toString());
     if (!updatedLine) {
       throw new NotFoundException('CRM business plan line not found');
@@ -567,7 +606,7 @@ export class BusinessPlanService {
     currentUserId?: bigint,
   ): Promise<CrmBusinessPlanRowMutationResult> {
     const db = this.requireDb();
-    const existing = await this.findPlanWriteRow(id);
+    const existing = await this.findPlanWriteRow(id, currentUserId);
     if (!existing) {
       throw new NotFoundException('CRM business plan not found');
     }
@@ -586,7 +625,7 @@ export class BusinessPlanService {
          and row_code = ${rowCode}
          and is_active = true
     `;
-    return { plan: await this.getPlan(existing.code), rowCode };
+    return { plan: await this.getPlan(existing.code, existing.ownerOrganizationId), rowCode };
   }
 
   async deletePlanRow(
@@ -595,7 +634,7 @@ export class BusinessPlanService {
     currentUserId?: bigint,
   ): Promise<CrmBusinessPlanRowMutationResult> {
     const db = this.requireDb();
-    const existing = await this.findPlanWriteRow(id);
+    const existing = await this.findPlanWriteRow(id, currentUserId);
     if (!existing) {
       throw new NotFoundException('CRM business plan not found');
     }
@@ -615,12 +654,12 @@ export class BusinessPlanService {
       `;
       await this.recalculatePlanTotals(writer, existing.id, currentUserId, transactionId, 'row-delete');
     });
-    return { plan: await this.getPlan(existing.code), rowCode };
+    return { plan: await this.getPlan(existing.code, existing.ownerOrganizationId), rowCode };
   }
 
   async deletePlan(id: string, currentUserId?: bigint): Promise<CrmBusinessPlanDeleteResult> {
     const db = this.requireDb();
-    const existing = await this.findPlanWriteRow(id);
+    const existing = await this.findPlanWriteRow(id, currentUserId, 'canDeleteBusinessPlan');
     if (!existing) {
       throw new NotFoundException('CRM business plan not found');
     }
@@ -643,7 +682,7 @@ export class BusinessPlanService {
          where business_plan_id = ${existing.id}
       `;
     });
-    const previous = (await this.listPlans({ baseYear: existing.baseYear })).items[0];
+    const previous = (await this.listPlans({ baseYear: existing.baseYear, ownerOrganizationId: existing.ownerOrganizationId?.toString() })).items[0];
     return {
       deletedPlanId: existing.id.toString(),
       deletedPlanCode: existing.code,
@@ -660,7 +699,7 @@ export class BusinessPlanService {
     requireExisting: boolean,
   ): Promise<CrmBusinessPlanRowMutationResult> {
     const db = this.requireDb();
-    const existing = await this.findPlanWriteRow(id);
+    const existing = await this.findPlanWriteRow(id, currentUserId);
     if (!existing) {
       throw new NotFoundException('CRM business plan not found');
     }
@@ -673,6 +712,34 @@ export class BusinessPlanService {
     }
     const input = this.normalizePlanRowInput(dto);
     const transactionId = randomUUID();
+    await db.client.$transaction(async (tx) => {
+      const writer = tx as unknown as RawBusinessPlanWriter;
+      await this.writePlanRow(writer, existing, rowCode, input, currentUserId, transactionId);
+      await this.recalculatePlanTotals(writer, existing.id, currentUserId, transactionId, 'row-upsert');
+    });
+    return { plan: await this.getPlan(existing.code, existing.ownerOrganizationId), rowCode };
+  }
+
+  async savePlanRows(id: string, rows: (CrmBusinessPlanRowUpsertRequest & { rowCode?: string })[], currentUserId?: bigint): Promise<CrmBusinessPlan> {
+    const db = this.requireDb();
+    const existing = await this.findPlanWriteRow(id, currentUserId);
+    if (!existing) throw new NotFoundException('CRM business plan not found');
+    this.assertLatestPlanVersion(existing);
+    if (existing.confirmed) throw new BadRequestException('확정된 사업계획 차수의 행은 수정할 수 없습니다.');
+    const codes = rows.flatMap((row) => row.rowCode ? [row.rowCode] : []);
+    if (new Set(codes).size !== codes.length) throw new BadRequestException('중복된 사업계획 행 코드입니다.');
+    const inputs = rows.map((row) => ({ rowCode: row.rowCode ?? `ROW-${randomUUID().toUpperCase()}`, input: this.normalizePlanRowInput(row) }));
+    for (const code of codes) await this.assertPlanRowExists(existing.id, code);
+    const transactionId = randomUUID();
+    await db.client.$transaction(async (tx) => {
+      const writer = tx as unknown as RawBusinessPlanWriter;
+      for (const row of inputs) await this.writePlanRow(writer, existing, row.rowCode, row.input, currentUserId, transactionId);
+      await this.recalculatePlanTotals(writer, existing.id, currentUserId, transactionId, 'row-upsert');
+    });
+    return this.getPlan(existing.code, existing.ownerOrganizationId);
+  }
+
+  private async writePlanRow(writer: RawBusinessPlanWriter, existing: CrmBusinessPlanLedgerRow, rowCode: string, input: NormalizedBusinessPlanRowInput, currentUserId: bigint | undefined, transactionId: string): Promise<void> {
     const annualInputs = [
       {
         targetYear: existing.baseYear,
@@ -697,68 +764,63 @@ export class BusinessPlanService {
       },
     ];
 
-    await db.client.$transaction(async (tx) => {
-      const writer = tx as unknown as RawBusinessPlanWriter;
-      for (const yearInput of annualInputs) {
-        const monthlyRevenueJson = yearInput.monthlyRevenueAmounts
-          ? JSON.stringify(yearInput.monthlyRevenueAmounts)
-          : null;
-        const monthlyExternalCostJson = yearInput.monthlyExternalCostAmounts
-          ? JSON.stringify(yearInput.monthlyExternalCostAmounts)
-          : null;
-        const updated = await writer.$executeRaw`
-          update crm.crm_business_plan_line_d
-             set business_type = ${input.businessType},
-                 industry_line = ${input.industryLine},
-                 owner_name = ${input.ownerName},
-                 region_code = ${input.region},
-                 business_name = ${input.businessName},
-                 wbs_code = ${input.wbsCode},
-                 plan_candidate_amount = ${BigInt(yearInput.revenueAmount)},
-                 plan_external_cost_amount = ${BigInt(yearInput.externalCostAmount)},
-                 plan_monthly_revenue_amounts = ${monthlyRevenueJson}::jsonb,
-                 plan_monthly_external_cost_amounts = ${monthlyExternalCostJson}::jsonb,
-                 actual_gap_amount = contract_actual_amount - ${BigInt(yearInput.revenueAmount)},
-                 memo = coalesce(${input.memo ?? null}, memo),
-                 updated_by = ${currentUserId ?? null},
-                 updated_at = now(),
-                 last_source = 'crm.business-plan',
-                 last_activity = 'row-upsert',
-                 transaction_id = ${transactionId}::uuid
-           where business_plan_id = ${existing.id}
-             and row_code = ${rowCode}
-             and target_year = ${yearInput.targetYear}
-             and is_active = true
+    for (const yearInput of annualInputs) {
+      const monthlyRevenueJson = yearInput.monthlyRevenueAmounts
+        ? JSON.stringify(yearInput.monthlyRevenueAmounts)
+        : null;
+      const monthlyExternalCostJson = yearInput.monthlyExternalCostAmounts
+        ? JSON.stringify(yearInput.monthlyExternalCostAmounts)
+        : null;
+      const updated = await writer.$executeRaw`
+        update crm.crm_business_plan_line_d
+           set business_type = ${input.businessType},
+               industry_line = ${input.industryLine},
+               owner_name = ${input.ownerName},
+               region_code = ${input.region},
+               business_name = ${input.businessName},
+               wbs_code = ${input.wbsCode},
+               plan_candidate_amount = ${BigInt(yearInput.revenueAmount)},
+               plan_external_cost_amount = ${BigInt(yearInput.externalCostAmount)},
+               plan_monthly_revenue_amounts = ${monthlyRevenueJson}::jsonb,
+               plan_monthly_external_cost_amounts = ${monthlyExternalCostJson}::jsonb,
+               actual_gap_amount = contract_actual_amount - ${BigInt(yearInput.revenueAmount)},
+               memo = coalesce(${input.memo ?? null}, memo),
+               updated_by = ${currentUserId ?? null},
+               updated_at = now(),
+               last_source = 'crm.business-plan',
+               last_activity = 'row-upsert',
+               transaction_id = ${transactionId}::uuid
+         where business_plan_id = ${existing.id}
+           and row_code = ${rowCode}
+           and target_year = ${yearInput.targetYear}
+           and is_active = true
+      `;
+      if (updated === 0) {
+        const lineCode = this.createBusinessPlanLineCode(rowCode, yearInput.targetYear);
+        await writer.$executeRaw`
+          insert into crm.crm_business_plan_line_d (
+            business_plan_id, line_code, row_code, target_year,
+            business_type, industry_line, owner_name, region_code, business_name, wbs_code,
+            pipeline_amount, contract_plan_amount, contract_actual_amount,
+            plan_candidate_amount, plan_external_cost_amount,
+            plan_monthly_revenue_amounts, plan_monthly_external_cost_amounts,
+            actual_gap_amount, sort_order, memo, created_by, updated_by,
+            last_source, last_activity, transaction_id
+          )
+          values (
+            ${existing.id}, ${lineCode}, ${rowCode}, ${yearInput.targetYear},
+            ${input.businessType}, ${input.industryLine}, ${input.ownerName}, ${input.region}, ${input.businessName}, ${input.wbsCode},
+            0, 0, 0,
+            ${BigInt(yearInput.revenueAmount)}, ${BigInt(yearInput.externalCostAmount)},
+            ${monthlyRevenueJson}::jsonb, ${monthlyExternalCostJson}::jsonb,
+            ${BigInt(-yearInput.revenueAmount)},
+            (select coalesce(max(sort_order), 0) + 10 from crm.crm_business_plan_line_d where business_plan_id = ${existing.id}),
+            ${input.memo ?? null}, ${currentUserId ?? null}, ${currentUserId ?? null},
+            'crm.business-plan', 'row-upsert', ${transactionId}::uuid
+          )
         `;
-        if (updated === 0) {
-          const lineCode = this.createBusinessPlanLineCode(rowCode, yearInput.targetYear);
-          await writer.$executeRaw`
-            insert into crm.crm_business_plan_line_d (
-              business_plan_id, line_code, row_code, target_year,
-              business_type, industry_line, owner_name, region_code, business_name, wbs_code,
-              pipeline_amount, contract_plan_amount, contract_actual_amount,
-              plan_candidate_amount, plan_external_cost_amount,
-              plan_monthly_revenue_amounts, plan_monthly_external_cost_amounts,
-              actual_gap_amount, sort_order, memo, created_by, updated_by,
-              last_source, last_activity, transaction_id
-            )
-            values (
-              ${existing.id}, ${lineCode}, ${rowCode}, ${yearInput.targetYear},
-              ${input.businessType}, ${input.industryLine}, ${input.ownerName}, ${input.region}, ${input.businessName}, ${input.wbsCode},
-              0, 0, 0,
-              ${BigInt(yearInput.revenueAmount)}, ${BigInt(yearInput.externalCostAmount)},
-              ${monthlyRevenueJson}::jsonb, ${monthlyExternalCostJson}::jsonb,
-              ${BigInt(-yearInput.revenueAmount)},
-              (select coalesce(max(sort_order), 0) + 10 from crm.crm_business_plan_line_d where business_plan_id = ${existing.id}),
-              ${input.memo ?? null}, ${currentUserId ?? null}, ${currentUserId ?? null},
-              'crm.business-plan', 'row-upsert', ${transactionId}::uuid
-            )
-          `;
-        }
       }
-      await this.recalculatePlanTotals(writer, existing.id, currentUserId, transactionId, 'row-upsert');
-    });
-    return { plan: await this.getPlan(existing.code), rowCode };
+    }
   }
 
   async savePerformanceActualInput(
@@ -766,18 +828,19 @@ export class BusinessPlanService {
     currentUserId?: bigint,
   ): Promise<CrmBusinessPlanPerformanceActualInputResult> {
     const db = this.requireDb();
+    const { organizationId } = await this.crmAccess!.resolveWriteOrganization(currentUserId, dto.ownerOrganizationId, 'canWriteBusinessPlan');
     const normalized = this.normalizePerformanceActualInput(dto);
     const revenueAmountTotal = normalized.monthlyRevenueAmounts.reduce((sum, amount) => sum + amount, 0);
     const costAmountTotal = normalized.monthlyCostAmounts.reduce((sum, amount) => sum + amount, 0);
     const transactionId = randomUUID();
     const rows = await db.$queryRaw<CrmBusinessPlanPerformanceActualLedgerRow[]>`
       insert into crm.crm_business_plan_performance_actual_d (
-        target_year, business_type, industry_line, owner_name, region_code, wbs_code,
+        owner_organization_id, target_year, business_type, industry_line, owner_name, region_code, wbs_code,
         monthly_revenue_amounts, monthly_cost_amounts, revenue_amount_total, cost_amount_total,
         memo, created_by, updated_by, last_source, last_activity, transaction_id
       )
       values (
-        ${normalized.year}, ${normalized.businessType}, ${normalized.industryLine}, ${normalized.ownerName},
+        ${organizationId}, ${normalized.year}, ${normalized.businessType}, ${normalized.industryLine}, ${normalized.ownerName},
         ${normalized.region}, ${normalized.wbsCode},
         ${JSON.stringify(normalized.monthlyRevenueAmounts)}::jsonb,
         ${JSON.stringify(normalized.monthlyCostAmounts)}::jsonb,
@@ -785,7 +848,7 @@ export class BusinessPlanService {
         ${normalized.memo ?? null}, ${currentUserId ?? null}, ${currentUserId ?? null},
         'crm.business-plan-performance', 'performance-actual-input', ${transactionId}::uuid
       )
-      on conflict (target_year, business_type, industry_line, owner_name, region_code, wbs_code)
+      on conflict (owner_organization_id, target_year, business_type, industry_line, owner_name, region_code, wbs_code)
       do update set
         monthly_revenue_amounts = excluded.monthly_revenue_amounts,
         monthly_cost_amounts = excluded.monthly_cost_amounts,
@@ -800,6 +863,7 @@ export class BusinessPlanService {
         transaction_id = excluded.transaction_id
       returning
         business_plan_performance_actual_id as "id",
+        owner_organization_id as "ownerOrganizationId",
         target_year as "targetYear",
         business_type as "businessType",
         industry_line as "industryLine",
@@ -825,12 +889,12 @@ export class BusinessPlanService {
 
   async confirmPlan(id: string, currentUserId?: bigint): Promise<CrmBusinessPlan> {
     const db = this.requireDb();
-    const existing = await this.findPlanWriteRow(id);
+    const existing = await this.findPlanWriteRow(id, currentUserId, 'canConfirmBusinessPlan');
     if (!existing) {
       throw new NotFoundException('CRM business plan not found');
     }
     if (existing.confirmed) {
-      return this.getPlan(existing.code);
+      return this.getPlan(existing.code, existing.ownerOrganizationId);
     }
     this.assertLatestPlanVersion(existing);
     await this.assertPlanHasLines(existing.id);
@@ -847,12 +911,12 @@ export class BusinessPlanService {
          and is_active = true
     `;
 
-    return this.getPlan(existing.code);
+    return this.getPlan(existing.code, existing.ownerOrganizationId);
   }
 
   async reopenPlan(id: string, currentUserId?: bigint): Promise<CrmBusinessPlan> {
     const db = this.requireDb();
-    const existing = await this.findPlanWriteRow(id);
+    const existing = await this.findPlanWriteRow(id, currentUserId, 'canConfirmBusinessPlan');
     if (!existing) {
       throw new NotFoundException('CRM business plan not found');
     }
@@ -874,11 +938,11 @@ export class BusinessPlanService {
          and is_active = true
     `;
 
-    return this.getPlan(existing.code);
+    return this.getPlan(existing.code, existing.ownerOrganizationId);
   }
 
-  async getPlan(id: string): Promise<CrmBusinessPlan> {
-    const response = await this.listPlans();
+  async getPlan(id: string, organizationId?: bigint | null): Promise<CrmBusinessPlan> {
+    const response = await this.listPlans({ ownerOrganizationId: organizationId?.toString() });
     const plan = response.items.find((candidate) => candidate.id === id || candidate.code === id);
     if (!plan) {
       throw new NotFoundException('CRM business plan not found');
@@ -886,17 +950,19 @@ export class BusinessPlanService {
     return plan;
   }
 
-  async getPreview(query: CrmBusinessPlanPreviewQuery = {}): Promise<CrmBusinessPlanPreviewResponse> {
-    const normalized = this.normalizeQuery(query);
+  async getPreview(query: CrmBusinessPlanPreviewQuery = {}, currentUser?: TokenPayload): Promise<CrmBusinessPlanPreviewResponse> {
+    const organizationId = currentUser ? await this.crmAccess!.resolveReadOrganization(currentUser, query.ownerOrganizationId) : query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null;
+    if (currentUser) await this.crmAccess!.assertOrganizationCapability(currentUser, 'canReadBusinessPlan', organizationId);
+    const normalized = this.normalizeQuery({ ...query, ownerOrganizationId: organizationId?.toString() });
     const [opportunityResponse, performanceResponses] = await Promise.all([
-      this.opportunityService.listResponse({ sort: 'updated-desc' }),
+      this.opportunityService.listResponse({ sort: 'updated-desc' }, currentUser, organizationId ?? undefined),
       Promise.all(normalized.years.map((year) => this.contractService.getMonthlyPerformance({
         year,
         businessType: normalized.businessType || undefined,
         industryLine: normalized.industryLine || undefined,
         region: normalized.region,
         search: normalized.search || undefined,
-      }))),
+      }, currentUser, organizationId ?? undefined))),
     ]);
     const opportunities = this.filterOpportunities(opportunityResponse.items, normalized);
     const performanceRows = performanceResponses.flatMap((response, index) => (
@@ -968,25 +1034,28 @@ export class BusinessPlanService {
     };
   }
 
-  async getPerformancePreview(query: CrmBusinessPlanPerformanceQuery = {}): Promise<CrmBusinessPlanPerformanceResponse> {
-    const normalized = this.normalizePerformanceQuery(query);
+  async getPerformancePreview(query: CrmBusinessPlanPerformanceQuery = {}, currentUser?: TokenPayload): Promise<CrmBusinessPlanPerformanceResponse> {
+    const organizationId = currentUser ? await this.crmAccess!.resolveReadOrganization(currentUser, query.ownerOrganizationId) : query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null;
+    if (currentUser) await this.crmAccess!.assertOrganizationCapability(currentUser, 'canReadBusinessPlan', organizationId);
+    const normalized = this.normalizePerformanceQuery({ ...query, ownerOrganizationId: organizationId?.toString() });
+    const sourceCompatible = normalized.mode === 'source-compatible';
     const [opportunityResponse, performanceResponse, confirmedPlan] = await Promise.all([
-      this.opportunityService.listResponse({ sort: 'updated-desc' }),
+      sourceCompatible ? Promise.resolve({ items: [] as CrmOpportunity[] }) : this.opportunityService.listResponse({ sort: 'updated-desc' }, currentUser, organizationId ?? undefined),
       this.contractService.getMonthlyPerformance({
         year: normalized.year,
         businessType: normalized.businessType || undefined,
         industryLine: normalized.industryLine || undefined,
         region: normalized.region,
         search: normalized.search || undefined,
-      }),
-      this.loadConfirmedPlan(normalized.year),
+      }, currentUser, organizationId ?? undefined),
+      this.loadConfirmedPlan(normalized.year, organizationId, currentUser),
     ]);
     const groups = new Map<string, BusinessPlanPerformanceGroup>();
     const opportunities = this.filterPerformanceOpportunities(opportunityResponse.items, normalized);
     const confirmedPlanLines = confirmedPlan
       ? this.filterConfirmedPlanPerformanceLines(confirmedPlan.lines, normalized)
       : [];
-    const sourceCompatible = normalized.mode === 'source-compatible';
+    const contractRows = performanceResponse.items.filter((row) => !sourceCompatible || row.hasBillingPlanInYear !== false);
     const [confirmedCostRows, directActualRows]: [
       CrmBusinessPlanConfirmedCostLedgerRow[],
       CrmBusinessPlanPerformanceActualLedgerRow[],
@@ -1017,14 +1086,14 @@ export class BusinessPlanService {
 
     if (confirmedPlan) {
       confirmedPlanLines.forEach((line) => this.addConfirmedPlanPerformanceGroup(groups, confirmedPlan, line));
-      performanceResponse.items.forEach((row) => this.addContractPerformanceGroup(groups, row, {
+      contractRows.forEach((row) => this.addContractPerformanceGroup(groups, row, {
         includePlan: false,
         actualBasis: normalized.mode,
         confirmedAmsExternalWbsCodes,
         costAdjustmentStats,
       }));
     } else {
-      performanceResponse.items.forEach((row) => this.addContractPerformanceGroup(groups, row, {
+      contractRows.forEach((row) => this.addContractPerformanceGroup(groups, row, {
         includePlan: !sourceCompatible,
         actualBasis: normalized.mode,
         confirmedAmsExternalWbsCodes,
@@ -1041,8 +1110,8 @@ export class BusinessPlanService {
 
     const rows = [...groups.values()]
       .map((group) => this.toPerformanceRow(group))
-      .filter((row) => this.hasPerformanceAmount(row.total))
-      .sort((left, right) => right.total.planRevenueAmount - left.total.planRevenueAmount);
+      .filter((row) => sourceCompatible || row.months.some((month) => this.hasPerformanceAmount(month)))
+      .sort((left, right) => sourceCompatible ? 0 : right.total.planRevenueAmount - left.total.planRevenueAmount);
     const months = this.sumPerformanceMonths(rows);
 
     return {
@@ -1565,6 +1634,7 @@ export class BusinessPlanService {
     const planExternalCostAmountTotal = lines.reduce((sum, line) => sum + line.planExternalCostAmount, 0);
     return {
       id: row.id.toString(),
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       code: row.code,
       planName: row.planName,
       baseYear: row.baseYear,
@@ -1668,6 +1738,7 @@ export class BusinessPlanService {
     const monthlyCostAmounts = this.normalizeMonthlyAmounts(row.monthlyCostAmounts, row.costAmountTotal);
     return {
       id: row.id.toString(),
+      ownerOrganizationId: row.ownerOrganizationId?.toString(),
       year: row.targetYear,
       businessType: row.businessType,
       industryLine: row.industryLine,
@@ -1683,10 +1754,11 @@ export class BusinessPlanService {
     };
   }
 
-  private async findPlanWriteRow(id: string): Promise<CrmBusinessPlanLedgerRow | null> {
+  private async findPlanWriteRow(id: string, currentUserId?: bigint, capability: CrmDomainAccessCapabilityKey = 'canWriteBusinessPlan'): Promise<CrmBusinessPlanLedgerRow | null> {
     const db = this.requireDb();
     const rows = await db.$queryRaw<CrmBusinessPlanLedgerRow[]>`
       select business_plan_id as "id",
+               owner_organization_id as "ownerOrganizationId",
              business_plan_code as "code",
              plan_name as "planName",
              base_year as "baseYear",
@@ -1710,6 +1782,7 @@ export class BusinessPlanService {
                select 1
                  from crm.crm_business_plan_m newer
                 where newer.base_year = current_plan.base_year
+                  and newer.owner_organization_id is not distinct from current_plan.owner_organization_id
                   and newer.version_no > current_plan.version_no
                   and newer.is_active = true
              ) as "isLatest"
@@ -1718,14 +1791,16 @@ export class BusinessPlanService {
          and (current_plan.business_plan_code = ${id} or current_plan.business_plan_id::text = ${id})
        limit 1
     `;
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (row) await this.crmAccess!.assertOrganizationCapability(await this.crmAccess!.actorForUser(currentUserId), capability, row.ownerOrganizationId ?? null);
+    return row ?? null;
   }
 
-  private async loadConfirmedPlan(baseYear: number): Promise<CrmBusinessPlan | null> {
+  private async loadConfirmedPlan(baseYear: number, organizationId?: bigint | null, currentUser?: TokenPayload): Promise<CrmBusinessPlan | null> {
     if (!this.db) {
       return null;
     }
-    const response = await this.listPlans({ baseYear, status: 'confirmed' });
+    const response = await this.listPlans({ baseYear, status: 'confirmed', ownerOrganizationId: organizationId?.toString() }, currentUser);
     return response.items.find((plan) => plan.baseYear === baseYear && plan.confirmed) ?? null;
   }
 
@@ -1758,6 +1833,7 @@ export class BusinessPlanService {
              confirmed_at as "confirmedAt"
         from crm.crm_cost_plan_internal_monthly_d
        where target_year = ${query.year}
+         and owner_organization_id is not distinct from ${query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null}
          and is_active = true
          and confirmed = true
          and status_code = 'confirmed'
@@ -1778,6 +1854,7 @@ export class BusinessPlanService {
              confirmed_at as "confirmedAt"
         from crm.crm_cost_plan_ams_external_monthly_d
        where target_year = ${query.year}
+         and owner_organization_id is not distinct from ${query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null}
          and is_active = true
          and confirmed = true
          and status_code = 'confirmed'
@@ -1794,6 +1871,7 @@ export class BusinessPlanService {
     }
     const rows = await this.db.$queryRaw<CrmBusinessPlanPerformanceActualLedgerRow[]>`
       select business_plan_performance_actual_id as "id",
+        owner_organization_id as "ownerOrganizationId",
              target_year as "targetYear",
              business_type as "businessType",
              industry_line as "industryLine",
@@ -1808,6 +1886,7 @@ export class BusinessPlanService {
              updated_at as "updatedAt"
         from crm.crm_business_plan_performance_actual_d
        where target_year = ${query.year}
+         and owner_organization_id is not distinct from ${query.ownerOrganizationId ? BigInt(query.ownerOrganizationId) : null}
          and is_active = true
        order by business_type, industry_line, owner_name, wbs_code, business_plan_performance_actual_id
     `;
@@ -1992,19 +2071,20 @@ export class BusinessPlanService {
     }
   }
 
-  private async resolveNextVersion(writer: RawBusinessPlanWriter, baseYear: number): Promise<number> {
+  private async resolveNextVersion(writer: RawBusinessPlanWriter, baseYear: number, organizationId?: bigint | null, allowDraft = false): Promise<number> {
     const rows = await writer.$queryRaw<CrmBusinessPlanVersionRow[]>`
       select version_no + 1 as "versionNo",
              confirmed as "latestConfirmed"
         from crm.crm_business_plan_m
        where base_year = ${baseYear}
+         and owner_organization_id is not distinct from ${organizationId ?? null}
          and is_active = true
        order by version_no desc
        limit 1
     `;
     const latest = rows[0];
     const versionNo = this.toNumber(latest?.versionNo ?? 1);
-    if (versionNo > 1 && latest?.latestConfirmed === false) {
+    if (!allowDraft && versionNo > 1 && latest?.latestConfirmed === false) {
       throw new BadRequestException(`${baseYear}년 최신 사업계획 차수를 확정한 뒤 새 차수를 만들 수 있습니다. (next v${versionNo})`);
     }
     return versionNo;
@@ -2036,18 +2116,18 @@ export class BusinessPlanService {
     const transactionId = randomUUID();
     return db.client.$transaction(async (tx) => {
       const writer = tx as unknown as RawBusinessPlanWriter;
-      const nextVersion = await this.resolveNextVersion(writer, normalized.baseYear);
+      const nextVersion = await this.resolveNextVersion(writer, normalized.baseYear, BigInt(normalized.ownerOrganizationId));
       const planCode = this.createBusinessPlanCode(normalized.baseYear, nextVersion);
       const insertedRows = await writer.$queryRaw<CrmBusinessPlanInsertedRow[]>`
         insert into crm.crm_business_plan_m (
-          business_plan_code, plan_name, base_year, version_no, status_code, confirmed,
+          owner_organization_id, business_plan_code, plan_name, base_year, version_no, status_code, confirmed,
           business_type_filter, industry_line_filter, region_filter, search_filter,
           pipeline_amount_total, contract_plan_amount_total, contract_actual_amount_total,
           plan_candidate_amount_total, actual_gap_amount_total, row_count,
           memo, created_by, updated_by, last_source, last_activity, transaction_id
         )
         values (
-          ${planCode}, ${planName}, ${normalized.baseYear}, ${nextVersion}, 'draft', false,
+          ${BigInt(normalized.ownerOrganizationId)}, ${planCode}, ${planName}, ${normalized.baseYear}, ${nextVersion}, 'draft', false,
           ${normalized.businessType || null}, ${normalized.industryLine || null}, ${normalized.region}, ${normalized.search || null},
           ${BigInt(Math.round(totals.pipelineAmount))},
           ${BigInt(Math.round(totals.contractPlanAmount))},
@@ -2292,6 +2372,7 @@ export class BusinessPlanService {
       costGapTotal: total.costGapAmount,
       marginGapTotal: total.marginGapAmount,
       activeFilters: {
+        ownerOrganizationId: query.ownerOrganizationId,
         year: query.year,
         mode: query.mode,
         businessType: query.businessType,
@@ -2331,6 +2412,7 @@ export class BusinessPlanService {
       confirmedPlanId: confirmedPlan?.id,
       confirmedPlanCode: confirmedPlan?.code,
       confirmedPlanName: confirmedPlan?.planName,
+      confirmedPlanVersion: confirmedPlan?.version,
       boundaryNotice: query.mode === 'source-compatible'
         ? CRM_BUSINESS_PLAN_PERFORMANCE_SOURCE_BOUNDARY_NOTICE
         : confirmedPlan
@@ -2366,6 +2448,7 @@ export class BusinessPlanService {
       planCandidateAmountTotal: years.reduce((sum, item) => sum + item.planCandidateAmount, 0),
       actualGapAmountTotal: years.reduce((sum, item) => sum + item.actualGapAmount, 0),
       activeFilters: {
+        ownerOrganizationId: query.ownerOrganizationId,
         baseYear: query.baseYear,
         businessType: query.businessType,
         industryLine: query.industryLine,
@@ -2383,8 +2466,9 @@ export class BusinessPlanService {
   private normalizeQuery(query: CrmBusinessPlanPreviewQuery): NormalizedBusinessPlanPreviewQuery {
     const rawYear = Number(query.baseYear ?? new Date().getFullYear());
     const baseYear = Number.isFinite(rawYear) && rawYear >= 2000 ? Math.trunc(rawYear) : new Date().getFullYear();
-    const region = query.region && ['all', 'domestic', 'overseas'].includes(query.region) ? query.region : 'all';
+    const region = query.region && ['all', 'domestic', 'overseas', 'unspecified'].includes(query.region) ? query.region : 'all';
     return {
+      ownerOrganizationId: query.ownerOrganizationId ?? '',
       baseYear,
       businessType: query.businessType?.trim() ?? '',
       industryLine: query.industryLine?.trim() ?? '',
@@ -2398,8 +2482,9 @@ export class BusinessPlanService {
     const rawYear = Number(query.year ?? new Date().getFullYear());
     const year = Number.isFinite(rawYear) && rawYear >= 2000 ? Math.trunc(rawYear) : new Date().getFullYear();
     const mode = query.mode === 'source-compatible' ? 'source-compatible' : 'extended-actual';
-    const region = query.region && ['all', 'domestic', 'overseas'].includes(query.region) ? query.region : 'all';
+    const region = query.region && ['all', 'domestic', 'overseas', 'unspecified'].includes(query.region) ? query.region : 'all';
     return {
+      ownerOrganizationId: query.ownerOrganizationId ?? '',
       year,
       mode,
       businessType: query.businessType?.trim() ?? '',
@@ -2417,7 +2502,7 @@ export class BusinessPlanService {
     const businessType = this.normalizeRequiredText(dto.businessType, '사업구분', 120);
     const industryLine = this.normalizeRequiredText(dto.industryLine, '계열/산업', 120);
     const ownerName = this.normalizeRequiredText(dto.ownerName, '담당자', 120);
-    const region = dto.region === 'overseas' ? 'overseas' : 'domestic';
+    const region = dto.region === 'unspecified' ? 'unspecified' : dto.region === 'overseas' ? 'overseas' : 'domestic';
     const wbsCode = this.trimOptional(dto.wbsCode, 120) ?? '';
     return {
       year,
@@ -2435,8 +2520,8 @@ export class BusinessPlanService {
   private normalizePlanRowInput(dto: CrmBusinessPlanRowUpsertRequest): NormalizedBusinessPlanRowInput {
     const amount = (value: unknown, label: string) => {
       const normalized = Number(value);
-      if (!Number.isFinite(normalized)) {
-        throw new BadRequestException(`${label}은 숫자로 입력해야 합니다.`);
+      if (!Number.isSafeInteger(Math.round(normalized))) {
+        throw new BadRequestException(`${label}은 안전한 원 단위 금액으로 입력해야 합니다.`);
       }
       return Math.round(normalized);
     };
@@ -2444,7 +2529,7 @@ export class BusinessPlanService {
       businessType: this.normalizeRequiredText(dto.businessType, '사업구분', 120),
       industryLine: this.normalizeRequiredText(dto.industryLine, '계열/산업', 120),
       ownerName: this.normalizeRequiredText(dto.ownerName, '담당자', 100),
-      region: dto.region === 'overseas' ? 'overseas' : 'domestic',
+      region: dto.region === 'unspecified' ? 'unspecified' : dto.region === 'overseas' ? 'overseas' : 'domestic',
       businessName: this.normalizeRequiredText(dto.businessName, '사업명', 200),
       wbsCode: this.trimOptional(dto.wbsCode, 120) ?? '',
       monthlyRevenueAmounts: this.normalizeSignedMonthlyPlanAmounts(dto.monthlyRevenueAmounts, '월별 계획 매출'),
@@ -2463,6 +2548,7 @@ export class BusinessPlanService {
     const rawStatus = query.status ?? 'all';
     const status = rawStatus === 'draft' || rawStatus === 'confirmed' ? rawStatus : 'all';
     return {
+      ownerOrganizationId: query.ownerOrganizationId ?? '',
       baseYear,
       status,
       search: query.search?.trim() ?? '',
@@ -2535,11 +2621,11 @@ export class BusinessPlanService {
   }
 
   private toPreviewRegion(value: string): CrmBusinessPlanPreviewRegion {
-    return value === 'domestic' || value === 'overseas' ? value : 'all';
+    return value === 'domestic' || value === 'overseas' || value === 'unspecified' ? value : 'all';
   }
 
   private toLineRegion(value: string): Exclude<CrmBusinessPlanPreviewRegion, 'all'> {
-    return value === 'overseas' ? 'overseas' : 'domestic';
+    return value === 'unspecified' ? 'unspecified' : value === 'overseas' ? 'overseas' : 'domestic';
   }
 
   private toNumber(value: bigint | number | null | undefined): number {
@@ -2561,13 +2647,15 @@ export class BusinessPlanService {
     if (!Array.isArray(value) || value.length !== 12) {
       throw new BadRequestException(`${label}은 1월부터 12월까지 12개 숫자로 입력해야 합니다.`);
     }
-    return value.map((item) => {
+    const amounts = value.map((item) => {
       const amount = Number(item);
-      if (!Number.isFinite(amount)) {
+      if (!Number.isSafeInteger(Math.round(amount))) {
         throw new BadRequestException(`${label}은 숫자만 입력할 수 있습니다.`);
       }
       return Math.round(amount);
     });
+    if (!Number.isSafeInteger(amounts.reduce((sum, amount) => sum + amount, 0))) throw new BadRequestException(`${label} 합계가 안전한 금액 범위를 벗어났습니다.`);
+    return amounts;
   }
 
   private normalizeMonthlyInputAmounts(value: unknown, label: string): number[] {

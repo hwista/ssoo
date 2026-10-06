@@ -1,5 +1,7 @@
 'use client';
 
+import { ssooToast } from '@ssoo/web-shell';
+
 import { useEffect, useMemo, useRef } from 'react';
 import { useAssistantSessionsQuery, useSaveAssistantSessionMutation } from '@/hooks/queries/useAssistantSessions';
 import { useAssistantSessionStore } from '@/stores';
@@ -83,12 +85,14 @@ export function AssistantSessionSync() {
       }).then((response) => {
         if (!response.success) {
           console.warn('DMS assistant session auto-save failed', response);
+          ssooToast.error('대화 기록을 저장하지 못했습니다. 현재 대화 내용은 유지됩니다.', { id: `assistant-save-${activeSession.id}` });
           return;
         }
         lastSavedSignatureRef.current = signature;
         setSessionPersisted(activeSession.id, true);
       }).catch((error) => {
         console.warn('DMS assistant session auto-save failed', error);
+        ssooToast.error('대화 기록을 저장하지 못했습니다. 현재 대화 내용은 유지됩니다.', { id: `assistant-save-${activeSession.id}` });
       });
     }, AUTO_SAVE_DELAY_MS);
 

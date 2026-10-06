@@ -1,258 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
+umask 077
 job="${1:-}"
-CI_PROJECT_DIR="${CI_PROJECT_DIR:?CI_PROJECT_DIR is required}"
-APP_DIR="${APP_DIR:?APP_DIR is required}"
-COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-app}"
+: "${CI_PROJECT_DIR:?}" "${CI_COMMIT_SHA:?}" "${APP_DIR:?}"
+case "$job" in verify|ai-review|plan|build|rehearse|deploy) ;; *) echo 'Unknown CI job' >&2; exit 2 ;; esac
+[[ "$CI_COMMIT_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
 lock_file="${CI_APP_LOCK_FILE:-/tmp/ssoo-app-runtime.lock}"
 lock_timeout="${CI_APP_LOCK_TIMEOUT_SECONDS:-7200}"
-deploy_health_wait="${CI_DEPLOY_HEALTH_WAIT_SECONDS:-60}"
-backup_manifest_dir="${CI_BACKUP_MANIFEST_DIR:-/tmp}"
-last_backup_tag_file="${CI_LAST_BACKUP_TAG_FILE:-/tmp/ssoo-ci-last-backup-tag}"
-last_backup_manifest_file="${CI_LAST_BACKUP_MANIFEST_FILE:-/tmp/ssoo-ci-last-backup-manifest}"
-build_cache_keep_storage="${CI_BUILD_CACHE_KEEP_STORAGE:-8GB}"
-build_min_free_kb="${CI_BUILD_MIN_FREE_KB:-8388608}"
-build_target_min_free_kb="${CI_BUILD_TARGET_MIN_FREE_KB:-3145728}"
-build_services=(server db-init pms dms sns admin crm)
-
-if [[ ! "$deploy_health_wait" =~ ^[0-9]+$ ]]; then
-  echo "[ci-job] CI_DEPLOY_HEALTH_WAIT_SECONDS must be a non-negative integer" >&2
-  exit 1
-fi
-if [[ ! -d "$backup_manifest_dir" ]]; then
-  echo "[ci-job] backup manifest directory is missing: $backup_manifest_dir" >&2
-  exit 1
-fi
-if [[ ! "$build_cache_keep_storage" =~ ^[0-9]+([KMGT]B)?$ ]]; then
-  echo "[ci-job] CI_BUILD_CACHE_KEEP_STORAGE must be a Docker storage size such as 8GB" >&2
-  exit 1
-fi
-if [[ ! "$build_min_free_kb" =~ ^[0-9]+$ ]]; then
-  echo "[ci-job] CI_BUILD_MIN_FREE_KB must be a non-negative integer" >&2
-  exit 1
-fi
-if [[ ! "$build_target_min_free_kb" =~ ^[0-9]+$ ]]; then
-  echo "[ci-job] CI_BUILD_TARGET_MIN_FREE_KB must be a non-negative integer" >&2
-  exit 1
-fi
-case "$job" in
-  verify|ai-review|build|deploy) ;;
-  *)
-    echo "usage: $0 <verify|ai-review|build|deploy>" >&2
-    exit 2
-    ;;
-esac
-
-if ! command -v flock >/dev/null 2>&1; then
-  echo "[ci-job] flock is required on the shell runner" >&2
-  exit 1
-fi
-
-prune_unreferenced_app_latest() {
-  local service image_tag latest_id container_id
-
-  for service in "${build_services[@]}"; do
-    image_tag="app-$service:latest"
-    latest_id="$(docker image inspect "$image_tag" --format '{{.Id}}' 2>/dev/null || true)"
-    container_id="$(docker inspect "ssoo-$service" --format '{{.Image}}' 2>/dev/null || true)"
-    if [[ -z "$latest_id" || -z "$container_id" || "$latest_id" == "$container_id" ]]; then
-      continue
-    fi
-    echo "[ci-job] removing undeployed latest tag service=$service image=$image_tag id=$latest_id running_id=$container_id"
-    docker image rm "$image_tag"
-  done
-}
-
-prepare_build_capacity() {
-  local context="$1"
-  local required_kb="${2:-$build_min_free_kb}"
-  local cleanup_mode="${3:-adaptive}"
-  local docker_root capacity_probe available_kb
-
-  echo "[ci-job] Docker capacity preflight context=$context mode=$cleanup_mode cache_keep=$build_cache_keep_storage min_free_kb=$required_kb"
-  docker system df || true
-  if [[ "$cleanup_mode" == "full" ]]; then
-    docker builder prune --all --force
-  else
-    docker builder prune --all --force --keep-storage "$build_cache_keep_storage"
-  fi
-  docker image prune --force
-
-  docker_root="$(docker info --format '{{.DockerRootDir}}')"
-  if [[ -z "$docker_root" ]]; then
-    echo "[ci-job] Docker root directory is unavailable" >&2
-    return 1
-  fi
-  capacity_probe="$docker_root"
-  if ! available_kb="$(df -Pk "$capacity_probe" 2>/dev/null | awk 'NR == 2 { print $4 }')"; then
-    capacity_probe="$(dirname "$docker_root")"
-    available_kb="$(df -Pk "$capacity_probe" | awk 'NR == 2 { print $4 }')"
-  fi
-  if [[ ! "$available_kb" =~ ^[0-9]+$ ]]; then
-    echo "[ci-job] unable to determine Docker filesystem capacity root=$docker_root probe=$capacity_probe" >&2
-    return 1
-  fi
-
-  if [[ "$cleanup_mode" != "full" ]] && (( available_kb < required_kb )); then
-    echo "[ci-job] Docker capacity pressure detected; pruning all unused BuildKit cache available_kb=$available_kb required_kb=$required_kb"
-    docker builder prune --all --force
-    docker image prune --force
-
-    capacity_probe="$docker_root"
-    if ! available_kb="$(df -Pk "$capacity_probe" 2>/dev/null | awk 'NR == 2 { print $4 }')"; then
-      capacity_probe="$(dirname "$docker_root")"
-      available_kb="$(df -Pk "$capacity_probe" | awk 'NR == 2 { print $4 }')"
-    fi
-    if [[ ! "$available_kb" =~ ^[0-9]+$ ]]; then
-      echo "[ci-job] unable to determine Docker filesystem capacity after pressure cleanup root=$docker_root probe=$capacity_probe" >&2
-      return 1
-    fi
-  fi
-
-  docker system df || true
-  echo "[ci-job] Docker capacity ready context=$context root=$docker_root probe=$capacity_probe available_kb=$available_kb min_free_kb=$required_kb"
-  if (( available_kb < required_kb )); then
-    echo "[ci-job] insufficient Docker filesystem capacity after safe cache cleanup: available_kb=$available_kb required_kb=$required_kb" >&2
-    return 1
-  fi
-}
-
 exec 9>"$lock_file"
-echo "[ci-job] waiting for lock job=$job file=$lock_file timeout=${lock_timeout}s"
-if ! flock -w "$lock_timeout" 9; then
-  echo "[ci-job] timed out waiting for shared APP_DIR/Docker lock" >&2
-  exit 1
+flock -w "$lock_timeout" 9 || { echo '[ci-job] host lock timeout' >&2; exit 1; }
+export CI_RELEASE_STATE_DIR="${CI_RELEASE_STATE_DIR:-/var/lib/ssoo/releases}"
+export CI_RELEASE_RUNTIME_DIR="${CI_RELEASE_RUNTIME_DIR:-$APP_DIR}"
+export CI_RELEASE_ENV_FILE="${CI_RELEASE_ENV_FILE:-$APP_DIR/.env}"
+export CI_RELEASE_DMS_ENV_FILE="${CI_RELEASE_DMS_ENV_FILE:-$APP_DIR/apps/web/dms/.env.local}"
+source_dir="$CI_RELEASE_STATE_DIR/sources/$CI_COMMIT_SHA"
+mkdir -p "$CI_RELEASE_STATE_DIR/sources"
+if [[ ! -d "$source_dir" ]]; then
+  git -C "$CI_PROJECT_DIR" worktree add --detach "$source_dir" "$CI_COMMIT_SHA"
 fi
-
-echo "[ci-job] acquired lock job=$job"
-if [[ "$job" == "verify" || "$job" == "build" ]]; then
-  prune_unreferenced_app_latest
-  prepare_build_capacity "$job"
-fi
-bash "$CI_PROJECT_DIR/scripts/ci/prepare-app-source.sh"
+[[ "$(git -C "$source_dir" rev-parse HEAD)" == "$CI_COMMIT_SHA" ]] || exit 1
+[[ -z "$(git -C "$source_dir" status --porcelain --untracked-files=normal)" ]] || { echo '[ci-job] release checkout is dirty' >&2; exit 1; }
+export APP_DIR="$source_dir"
 cd "$APP_DIR"
-
-check_stack_health() {
-  local context="$1"
-  local health_failed=0
-  local service status
-
-  echo "[ci-job] waiting ${deploy_health_wait}s before $context health check"
-  if [[ "$deploy_health_wait" -gt 0 ]]; then
-    sleep "$deploy_health_wait"
-  fi
-  docker compose -p "$COMPOSE_PROJECT_NAME" ps || return $?
-  for service in postgres server pms dms sns admin crm; do
-    status="$(docker inspect "ssoo-$service" --format '{{.State.Health.Status}}' 2>/dev/null || echo "na")"
-    echo "[ci-job] health context=$context container=ssoo-$service status=$status"
-    if [[ "$status" != "healthy" ]]; then
-      health_failed=1
-    fi
-  done
-
-  if [[ "$health_failed" != "0" ]]; then
-    echo "[ci-job] $context health check failed" >&2
-    return 1
-  fi
-}
-
-deploy_selected_images() {
-  local backup_manifest="$1"
-
-  bash scripts/ci/image-provenance.sh prepare-deploy || return $?
-  docker compose -p "$COMPOSE_PROJECT_NAME" up -d --no-build || return $?
-  check_stack_health deployment || return $?
-  bash scripts/ci/image-provenance.sh verify-deploy || return $?
-  echo "[ci-job] deployment verification passed manifest=$backup_manifest"
-}
-
-restore_previous_images() {
-  local backup_manifest="$1"
-
-  bash scripts/ci/image-provenance.sh restore-backup "$backup_manifest" || return $?
-  docker compose -p "$COMPOSE_PROJECT_NAME" up -d --no-build || return $?
-  check_stack_health rollback || return $?
-  bash scripts/ci/image-provenance.sh verify-backup "$backup_manifest" || return $?
-  echo "[ci-job] rollback verification passed manifest=$backup_manifest"
-}
-
 case "$job" in
   verify)
-    echo "파이프라인 동작 확인"
-    echo "푸시한 사람 ${GITLAB_USER_NAME:-unknown}"
-    echo "브랜치 $CI_COMMIT_REF_NAME"
-    echo "커밋 ${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:0:8}}"
+    bash scripts/ci/release-job.sh prepare
     verify_image="app-ci-verify:$CI_COMMIT_SHA"
-    cleanup_verify_image() {
-      docker image rm "$verify_image" >/dev/null 2>&1 || true
-    }
-    trap cleanup_verify_image EXIT
-    docker build \
-      --file docker/ci-verify.Dockerfile \
-      --label "com.ssoo.ci.commit=$CI_COMMIT_SHA" \
-      --tag "$verify_image" \
-      .
-    docker run --rm \
-      --volume "$APP_DIR/.git:/app/.git:ro" \
-      "$verify_image" \
-      bash -lc '
-        pnpm run verify:gitlab-pipeline
-        pnpm run codex:preflight
-        pnpm lint
-        pnpm test:server
-      '
+    docker build --secret "id=ssoo_tls_ca,src=${CI_VERIFY_TLS_CA_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}" --file docker/ci-verify.Dockerfile --tag "$verify_image" .
+    git_common="$(git rev-parse --path-format=absolute --git-common-dir)"
+    docker run --rm --volume "$APP_DIR/.git:/app/.git:ro" --volume "$git_common:$git_common:ro" \
+      "$verify_image" bash -lc 'pnpm run verify:gitlab-pipeline && pnpm run codex:preflight && pnpm lint && pnpm test:server'
     ;;
-  ai-review)
-    bash scripts/ci/ai-review.sh
-    ;;
-  build)
-    bake_definition="$(mktemp "${TMPDIR:-/tmp}/ssoo-compose-bake.XXXXXX.json")"
-    cleanup_bake_definition() {
-      rm -f "$bake_definition"
-    }
-    trap cleanup_bake_definition EXIT
-    docker compose -p "$COMPOSE_PROJECT_NAME" build --print > "$bake_definition"
-    echo "전체 이미지 완전 순차 빌드 시작 (BuildKit, services=${build_services[*]})"
-    for service in "${build_services[@]}"; do
-      if [[ "$service" != "${build_services[0]}" ]]; then
-        prepare_build_capacity "build-$service" "$build_target_min_free_kb" full
-      fi
-      echo "[ci-job] building service=$service"
-      docker buildx bake --file "$bake_definition" --load "$service"
-      echo "[ci-job] built service=$service"
-    done
-    bash scripts/ci/image-provenance.sh tag-build
-    echo "빌드 완료"
-    ;;
-  deploy)
-    echo "development 배포 시작"
-    backup_tag="ci-backup-$(date +%Y%m%d_%H%M%S)-${CI_JOB_ID:-$$}"
-    backup_manifest="$backup_manifest_dir/ssoo-${backup_tag}.manifest"
-    echo "백업 태그 $backup_tag"
-    bash scripts/ci/image-provenance.sh backup-running "$backup_tag" "$backup_manifest"
-    echo "$backup_tag" > "$last_backup_tag_file"
-    echo "$backup_manifest" > "$last_backup_manifest_file"
-
-    set +e
-    deploy_selected_images "$backup_manifest"
-    deploy_status=$?
-    set -e
-    if [[ "$deploy_status" != "0" ]]; then
-      echo "[ci-job] deployment failed status=$deploy_status; starting automatic rollback" >&2
-      set +e
-      restore_previous_images "$backup_manifest"
-      rollback_status=$?
-      set -e
-      if [[ "$rollback_status" == "0" ]]; then
-        echo "[ci-job] deployment failed but automatic rollback succeeded" >&2
-      else
-        echo "[ci-job] deployment and automatic rollback failed rollback_status=$rollback_status; manual recovery required manifest=$backup_manifest" >&2
-      fi
-      exit 1
-    fi
-    echo "배포 완료"
-    ;;
+  ai-review) bash scripts/ci/ai-review.sh ;;
+  plan|build|rehearse|deploy) bash scripts/ci/release-job.sh "$job" ;;
 esac
-
-echo "[ci-job] completed job=$job"

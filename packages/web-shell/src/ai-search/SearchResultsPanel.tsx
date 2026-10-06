@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorPanel } from '../error-recovery';
 import type { ReactNode } from 'react';
 import { cn } from '../cn';
 import type {
@@ -29,6 +30,7 @@ export interface SsooAiSearchResultsPanelProps<T extends SsooAiSearchResultItem 
   renderResult?: (item: T, state: SsooAiSearchResultRenderState) => ReactNode;
   topSlot?: ReactNode;
   errorMessage?: string;
+  onRetry?: () => void | Promise<unknown>;
   blockedSourceNoun?: string;
 }
 
@@ -85,6 +87,7 @@ export function SsooAiSearchResultsPanel<T extends SsooAiSearchResultItem = Ssoo
   renderResult,
   topSlot,
   errorMessage,
+  onRetry,
   blockedSourceNoun = '문서',
 }: SsooAiSearchResultsPanelProps<T>) {
   return (
@@ -99,9 +102,7 @@ export function SsooAiSearchResultsPanel<T extends SsooAiSearchResultItem = Ssoo
           ) : isSearching || !hasCompletedSearch ? (
             <SsooAiSearchLoadingState message="AI 검색 결과를 불러오는 중입니다..." />
           ) : errorMessage ? (
-            <div className="flex flex-1 min-h-[240px] items-center justify-center text-body-sm text-ssoo-primary/60">
-              {errorMessage}
-            </div>
+            <SsooErrorPanel title="검색 결과를 불러오지 못했습니다" error={errorMessage} onRetry={onRetry} />
           ) : results.length === 0 ? (
             <div className="flex flex-1 min-h-[240px] items-center justify-center text-body-sm text-ssoo-primary/60">
               검색 결과가 없습니다.

@@ -1,5 +1,11 @@
 # SNS Changelog
 
+## 2026-10-02
+
+- 복구 후 실제 격리 DB의 공유·조직 경계·만료·AI 원본 재검사와 두 계정의 승인/회수 및 모바일 화면을 확인했다. 상세 카드와 공유 패널의 중복 React key를 수정해 회수 시 이전 카드가 남는 문제를 해소했다. Docker 미반영이며 [실행 증거와 한계](../common/explanation/architecture/2026-10-01-onboarding-implementation.md)에 기록했다.
+
+- 승인 조직 선택과 게시물별 읽기/수정 요청·승인·반려·철회·회수, 전체 행 이력과 검색/AI 개별 ACL을 추가했다. 기본 공개 범위와 followers는 유지한다. 단위/빌드 검증과 실제 DB·브라우저 미검증을 구분하며 Docker에는 적용하지 않았다. [공용 구현 대장](../common/explanation/architecture/2026-10-01-onboarding-implementation.md).
+
 ## 2026-09-22
 
 - 승인된 공통 검색 카드의 공개 범위·업무 명칭 표현을 적용했다. 협업 브라우저 28개 검사와 실제 서비스 간 결과 이동을 확인했다. 게시물 표시는 검증용 응답으로 확인했으며 실제 게시물 검색/열기 전체 검증과 구분한다. [핸드오프](../common/explanation/architecture/2026-09-22-search-results-handoff.md).

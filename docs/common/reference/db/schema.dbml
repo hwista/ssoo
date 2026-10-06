@@ -18,7 +18,7 @@ Table cm_code_m {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -76,7 +76,7 @@ Table cm_menu_m {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -131,7 +131,7 @@ Table cm_role_menu_r {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -180,7 +180,7 @@ Table cm_user_menu_r {
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
-  updatedAt DateTime [not null]
+  updatedAt DateTime [default: `now()`, not null]
   lastSource String
   lastActivity String
   transactionId String
@@ -237,12 +237,6 @@ Table cm_user_favorite_r {
 
 Table cm_user_m {
   id BigInt [pk, increment]
-  isSystemUser Boolean [not null, default: false]
-  isAdmin Boolean [not null, default: false]
-  userTypeCode String [not null, default: 'internal']
-  loginId String [unique]
-  passwordHash String
-  passwordSalt String
   userName String [not null]
   displayName String
   email String [unique, not null]
@@ -254,31 +248,927 @@ Table cm_user_m {
   companyName String
   customerId BigInt
   roleCode String [not null, default: 'viewer']
-  permissionCodes String[] [not null]
-  userStatusCode String [not null, default: 'registered']
-  lastLoginAt DateTime
-  loginFailCount Int [not null, default: 0]
-  lockedUntil DateTime
-  invitedAt DateTime
-  invitedBy BigInt
-  invitationTokenHash String
-  invitationExpiresAt DateTime
-  refreshTokenHash String
-  refreshTokenExpiresAt DateTime
   isActive Boolean [not null, default: true]
   memo String
   createdBy BigInt
   createdAt DateTime [default: `now()`, not null]
   updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  platformEnrollment cm_platform_enrollment_m
+  onboardingRequests cm_onboarding_request_m [not null]
+  snsPostAccessRequests sns_post_access_request_m [not null]
+  serviceGrants cm_service_grant_m [not null]
+  approvalAuthorities cm_approval_authority_m [not null]
+  authAccount cm_user_auth_m
+  authSessions cm_user_session_m [not null]
+  externalIdentities cm_user_external_identity_m [not null]
+  registrationRequests cm_user_registration_request_m [not null]
+  decidedRegistrationRequests cm_user_registration_request_m [not null]
+  passwordResetChallenges cm_user_password_reset_challenge_m [not null]
+  userInvitations cm_user_invitation_m [not null]
+  sentInvitations cm_user_invitation_m [not null]
+  organizationRelations cm_user_org_r [not null]
+  permissionExceptions cm_user_permission_exception_r [not null]
+  ownedDmsDocuments dm_document_m [not null]
+  dmsDocumentActivities dm_user_document_activity_m [not null]
+  dmsSearchQueries dm_search_query_m [not null]
+  dmsChatSessions dm_chat_session_m [not null]
+  ownedCrmContracts crm_contract_m [not null]
+  ownedProjects pr_project_m [not null]
+  projectMembers pr_project_member_r_m [not null]
+  handoffsFrom pr_handoff_m [not null]
+  handoffsTo pr_handoff_m [not null]
+  requestedProjectHandoffs pr_handoff_m [not null]
+  respondedProjectHandoffs pr_handoff_m [not null]
+  managedContracts pr_contract_m [not null]
+  requestedContractPayments pr_contract_payment_m [not null]
+  assignedTasks pr_task_m [not null]
+  reportedIssues pr_issue_m [not null]
+  assignedIssues pr_issue_m [not null]
+  reportedProjectIssues pr_project_issue_m [not null]
+  ownedProjectIssues pr_project_issue_m [not null]
+  taskEffortLogs pr_task_effort_log_m [not null]
+  userMenus cm_user_menu_r [not null]
+  userFavorites cm_user_favorite_r [not null]
+}
+
+Table cm_notification_m {
+  id BigInt [pk, increment]
+  recipientUserId BigInt [not null]
+  actorUserId BigInt
+  sourceAppCode String [not null]
+  notificationType String [not null]
+  severityCode String [not null, default: 'info']
+  title String [not null]
+  message String
+  referenceType String
+  referenceId String
+  referencePath String
+  actionType String
+  actionPayload Json
+  dedupeKey String
+  isRead Boolean [not null, default: false]
+  readAt DateTime
+  archivedAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (recipientUserId, dedupeKey) [unique]
+  }
+}
+
+Table cm_ai_source_m {
+  aiSourceId BigInt [pk, increment]
+  sourceAppCode String [unique, not null]
+  sourceName String [not null]
+  sourceKindCode String [not null, default: 'domain']
+  adapterCode String
+  embeddingProfileCode String
+  sourceStatusCode String [not null, default: 'active']
+  indexingEnabled Boolean [not null, default: true]
+  keywordSearchEnabled Boolean [not null, default: true]
+  metadataSearchEnabled Boolean [not null, default: true]
+  semanticSearchEnabled Boolean [not null, default: false]
+  vectorSearchEnabled Boolean [not null, default: false]
+  ragContextEnabled Boolean [not null, default: false]
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  objects cm_ai_object_m [not null]
+  indexJobs cm_ai_index_job_m [not null]
+  indexStates cm_ai_index_state_m [not null]
+}
+
+Table cm_ai_source_h {
+  aiSourceId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  sourceAppCode String [not null]
+  sourceName String [not null]
+  sourceKindCode String [not null]
+  adapterCode String
+  embeddingProfileCode String
+  sourceStatusCode String [not null]
+  indexingEnabled Boolean [not null]
+  keywordSearchEnabled Boolean [not null]
+  metadataSearchEnabled Boolean [not null]
+  semanticSearchEnabled Boolean [not null]
+  vectorSearchEnabled Boolean [not null]
+  ragContextEnabled Boolean [not null]
+  metadataJson Json
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
   updatedAt DateTime [not null]
   lastSource String
   lastActivity String
   transactionId String
-  inviter cm_user_m
-  invitees cm_user_m [not null]
+
+  indexes {
+    (aiSourceId, historySeq) [pk]
+  }
+}
+
+Table cm_ai_object_m {
+  aiObjectId BigInt [pk, increment]
+  aiSourceId BigInt [not null]
+  sourceAppCode String [not null]
+  entityTypeCode String [not null]
+  entityId String [not null]
+  sourceVersion String
+  title String [not null]
+  bodyText String
+  summaryText String
+  targetPath String
+  targetExternalHref String
+  sensitivityCode String [not null, default: 'internal']
+  aclPolicyCode String [not null, default: 'acl']
+  searchEligible Boolean [not null, default: true]
+  contextEligible Boolean [not null, default: false]
+  contentHash String
+  indexedAt DateTime
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  source cm_ai_source_m [not null]
+  chunks cm_ai_chunk_m [not null]
+  aclSnapshots cm_ai_acl_snapshot_m [not null]
+  indexJobs cm_ai_index_job_m [not null]
+  indexStates cm_ai_index_state_m [not null]
+  retrievalLogItems cm_ai_retrieval_log_item_m [not null]
+  references cm_ai_reference_m [not null]
+  runSources cm_ai_run_source_r [not null]
+
+  indexes {
+    (sourceAppCode, entityTypeCode, entityId) [unique]
+  }
+}
+
+Table cm_ai_object_h {
+  aiObjectId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  aiSourceId BigInt [not null]
+  sourceAppCode String [not null]
+  entityTypeCode String [not null]
+  entityId String [not null]
+  sourceVersion String
+  title String [not null]
+  bodyText String
+  summaryText String
+  targetPath String
+  targetExternalHref String
+  sensitivityCode String [not null]
+  aclPolicyCode String [not null]
+  searchEligible Boolean [not null]
+  contextEligible Boolean [not null]
+  contentHash String
+  indexedAt DateTime
+  metadataJson Json
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (aiObjectId, historySeq) [pk]
+  }
+}
+
+Table cm_ai_chunk_m {
+  aiChunkId BigInt [pk, increment]
+  aiObjectId BigInt [not null]
+  chunkSeq Int [not null]
+  chunkKey String [not null]
+  chunkText String [not null]
+  tokenCount Int
+  charStart Int
+  charEnd Int
+  citationLabel String
+  contentHash String
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  object cm_ai_object_m [not null]
+  embeddings cm_ai_embedding_m [not null]
+  retrievalLogItems cm_ai_retrieval_log_item_m [not null]
+  references cm_ai_reference_m [not null]
+  runSources cm_ai_run_source_r [not null]
+
+  indexes {
+    (aiObjectId, chunkSeq) [unique]
+    (aiObjectId, chunkKey) [unique]
+  }
+}
+
+Table cm_ai_embedding_m {
+  aiEmbeddingId BigInt [pk, increment]
+  aiChunkId BigInt [not null]
+  profileCode String [not null, default: 'default']
+  providerCode String
+  modelName String
+  deploymentName String
+  embeddingDimension Int [not null]
+  embeddingHash String
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  chunk cm_ai_chunk_m [not null]
+
+  indexes {
+    (aiChunkId, profileCode) [unique]
+  }
+}
+
+Table cm_ai_acl_snapshot_m {
+  aiAclSnapshotId BigInt [pk, increment]
+  aiObjectId BigInt [not null]
+  accessScopeCode String [not null, default: 'acl']
+  policyHash String
+  sensitivityCode String [not null, default: 'internal']
+  searchEligible Boolean [not null, default: true]
+  contextEligible Boolean [not null, default: false]
+  aclSnapshotJson Json [not null]
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  object cm_ai_object_m [not null]
+}
+
+Table cm_ai_index_job_m {
+  aiIndexJobId BigInt [pk, increment]
+  aiSourceId BigInt
+  aiObjectId BigInt
+  sourceAppCode String [not null]
+  entityTypeCode String [not null]
+  entityId String [not null]
+  jobTypeCode String [not null, default: 'upsert']
+  jobStatusCode String [not null, default: 'pending']
+  priorityNo Int [not null, default: 100]
+  attemptCount Int [not null, default: 0]
+  maxAttempts Int [not null, default: 3]
+  sourceVersion String
+  requestedBy BigInt
+  requestedAt DateTime [default: `now()`, not null]
+  startedAt DateTime
+  finishedAt DateTime
+  nextRetryAt DateTime
+  lastErrorMessage String
+  payloadJson Json
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  source cm_ai_source_m
+  object cm_ai_object_m
+}
+
+Table cm_ai_index_state_m {
+  aiIndexStateId BigInt [pk, increment]
+  aiSourceId BigInt [not null]
+  aiObjectId BigInt [not null]
+  profileCode String [not null, default: 'default']
+  indexStatusCode String [not null, default: 'pending']
+  chunkCount Int [not null, default: 0]
+  indexedChunkCount Int [not null, default: 0]
+  lastIndexedSourceVersion String
+  lastRequestedAt DateTime
+  lastIndexedAt DateTime
+  lastFailedAt DateTime
+  lastErrorMessage String
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  source cm_ai_source_m [not null]
+  object cm_ai_object_m [not null]
+
+  indexes {
+    (aiObjectId, profileCode) [unique]
+  }
+}
+
+Table cm_ai_index_state_h {
+  aiIndexStateId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  aiSourceId BigInt [not null]
+  aiObjectId BigInt [not null]
+  profileCode String [not null]
+  indexStatusCode String [not null]
+  chunkCount Int [not null]
+  indexedChunkCount Int [not null]
+  lastIndexedSourceVersion String
+  lastRequestedAt DateTime
+  lastIndexedAt DateTime
+  lastFailedAt DateTime
+  lastErrorMessage String
+  metadataJson Json
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (aiIndexStateId, historySeq) [pk]
+  }
+}
+
+Table cm_ai_retrieval_log_m {
+  aiRetrievalLogId BigInt [pk, increment]
+  requestId String
+  conversationId BigInt
+  sourceAppCode String
+  queryText String [not null]
+  retrievalModeCode String [not null, default: 'hybrid']
+  resultCount Int [not null, default: 0]
+  contextCount Int [not null, default: 0]
+  blockedCount Int [not null, default: 0]
+  statusCode String [not null, default: 'succeeded']
+  latencyMs Int
+  userId BigInt
+  metadataJson Json
+  createdAt DateTime [default: `now()`, not null]
+  items cm_ai_retrieval_log_item_m [not null]
+}
+
+Table cm_ai_retrieval_log_item_m {
+  aiRetrievalLogItemId BigInt [pk, increment]
+  aiRetrievalLogId BigInt [not null]
+  aiObjectId BigInt
+  aiChunkId BigInt
+  rankNo Int [not null]
+  score Float
+  similarity Float
+  includedInContext Boolean [not null, default: false]
+  permissionStateCode String [not null, default: 'unknown']
+  citationId String
+  metadataJson Json
+  createdAt DateTime [default: `now()`, not null]
+  retrievalLog cm_ai_retrieval_log_m [not null]
+  object cm_ai_object_m
+  chunk cm_ai_chunk_m
+}
+
+Table cm_ai_conversation_m {
+  aiConversationId BigInt [pk, increment]
+  ownerUserId BigInt
+  sourceAppCode String
+  conversationScopeCode String [not null, default: 'private']
+  conversationStatusCode String [not null, default: 'active']
+  title String
+  summary String
+  lastMessageAt DateTime
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  messages cm_ai_message_m [not null]
+  references cm_ai_reference_m [not null]
+  runs cm_ai_run_m [not null]
+}
+
+Table cm_ai_message_m {
+  aiMessageId BigInt [pk, increment]
+  aiConversationId BigInt [not null]
+  parentMessageId BigInt
+  messageSeq Int [not null]
+  roleCode String [not null]
+  messageStatusCode String [not null, default: 'completed']
+  contentText String
+  contentJson Json
+  tokenCount Int
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  conversation cm_ai_conversation_m [not null]
+  references cm_ai_reference_m [not null]
+  requestRuns cm_ai_run_m [not null]
+  responseRuns cm_ai_run_m [not null]
+
+  indexes {
+    (aiConversationId, messageSeq) [unique]
+  }
+}
+
+Table cm_ai_reference_m {
+  aiReferenceId BigInt [pk, increment]
+  aiConversationId BigInt [not null]
+  aiMessageId BigInt
+  aiObjectId BigInt
+  aiChunkId BigInt
+  sourceAppCode String
+  entityTypeCode String
+  entityId String
+  referenceKindCode String [not null, default: 'manual']
+  citationId String
+  citationLabel String
+  targetJson Json
+  metadataJson Json
+  createdAt DateTime [default: `now()`, not null]
+  conversation cm_ai_conversation_m [not null]
+  message cm_ai_message_m
+  object cm_ai_object_m
+  chunk cm_ai_chunk_m
+  runSources cm_ai_run_source_r [not null]
+}
+
+Table cm_ai_run_m {
+  aiRunId BigInt [pk, increment]
+  aiConversationId BigInt [not null]
+  requestMessageId BigInt
+  responseMessageId BigInt
+  userId BigInt
+  runTypeCode String [not null, default: 'chat']
+  runStatusCode String [not null, default: 'pending']
+  providerCode String
+  modelName String
+  deploymentName String
+  startedAt DateTime
+  finishedAt DateTime
+  latencyMs Int
+  inputTokenCount Int
+  outputTokenCount Int
+  totalTokenCount Int
+  lastErrorMessage String
+  requestJson Json
+  responseJson Json
+  metadataJson Json
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  conversation cm_ai_conversation_m [not null]
+  requestMessage cm_ai_message_m
+  responseMessage cm_ai_message_m
+  sources cm_ai_run_source_r [not null]
+}
+
+Table cm_ai_run_source_r {
+  aiRunSourceId BigInt [pk, increment]
+  aiRunId BigInt [not null]
+  aiRetrievalLogId BigInt
+  aiReferenceId BigInt
+  aiObjectId BigInt
+  aiChunkId BigInt
+  sourceKindCode String [not null, default: 'manual']
+  rankNo Int
+  includedInPrompt Boolean [not null, default: false]
+  citationId String
+  metadataJson Json
+  createdAt DateTime [default: `now()`, not null]
+  run cm_ai_run_m [not null]
+  reference cm_ai_reference_m
+  object cm_ai_object_m
+  chunk cm_ai_chunk_m
+}
+
+Table cm_user_auth_m {
+  userId BigInt [pk]
+  loginId String [unique, not null]
+  passwordHash String [not null]
+  accountStatusCode String [not null, default: 'pending_activation']
+  lastLoginAt DateTime
+  loginFailCount Int [not null, default: 0]
+  lockedUntil DateTime
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+}
+
+Table cm_user_session_m {
+  sessionId String [pk]
+  userId BigInt [not null]
+  sessionTokenHash String [not null]
+  issuedApp String [not null, default: 'unknown']
+  userAgent String
+  lastSeenAt DateTime
+  expiresAt DateTime [not null]
+  revokedAt DateTime
+  revokeReason String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+}
+
+Table cm_user_invitation_m {
+  invitationId String [pk]
+  userId BigInt [not null]
+  invitedByUserId BigInt
+  invitationTokenHash String [not null]
+  expiresAt DateTime [not null]
+  acceptedAt DateTime
+  revokedAt DateTime
+  revokeReason String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+  invitedByUser cm_user_m
+}
+
+Table cm_auth_provider_setting_m {
+  settingKey String [pk, default: 'default']
+  passwordLoginEnabled Boolean [not null, default: true]
+  passwordResetEnabled Boolean [not null, default: true]
+  passwordChangeEnabled Boolean [not null, default: true]
+  resetCodeTtlMinutes Int [not null, default: 15]
+  resetCodeLength Int [not null, default: 6]
+  internalSsoEnabled Boolean [not null, default: false]
+  internalSsoLoginUrl String
+  microsoftLoginEnabled Boolean [not null, default: false]
+  microsoftSignupRequestEnabled Boolean [not null, default: false]
+  microsoftTenantId String
+  microsoftClientId String
+  microsoftClientSecretCiphertext String
+  microsoftClientSecretNonce String
+  microsoftClientSecretTag String
+  microsoftRedirectUri String
+  microsoftScopes String[] [not null]
+  allowedTenantIds String[] [not null]
+  allowedEmailDomains String[] [not null]
+  selfSignupEnabled Boolean [not null, default: false]
+  emailDeliveryMode String [not null, default: 'outbox']
+  emailFromAddress String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table cm_user_external_identity_m {
+  externalIdentityId String [pk]
+  userId BigInt [not null]
+  providerCode String [not null]
+  tenantId String [not null, default: '']
+  subjectId String [not null]
+  email String
+  userPrincipalName String
+  displayName String
+  linkedAt DateTime [default: `now()`, not null]
+  lastLoginAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+
+  indexes {
+    (providerCode, tenantId, subjectId) [unique]
+  }
+}
+
+Table cm_user_registration_request_m {
+  registrationRequestId String [pk]
+  providerCode String [not null]
+  tenantId String [not null, default: '']
+  subjectId String [not null]
+  email String [not null]
+  userPrincipalName String
+  displayName String
+  rawClaims Json
+  statusCode String [not null, default: 'pending']
+  requestedAt DateTime [default: `now()`, not null]
+  decidedAt DateTime
+  decidedByUserId BigInt
+  decisionMemo String
+  createdUserId BigInt
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  createdUser cm_user_m
+  decider cm_user_m
+
+  indexes {
+    (providerCode, tenantId, subjectId) [unique]
+  }
+}
+
+Table cm_user_password_reset_challenge_m {
+  challengeId String [pk]
+  userId BigInt [not null]
+  email String [not null]
+  codeHash String [not null]
+  expiresAt DateTime [not null]
+  consumedAt DateTime
+  failCount Int [not null, default: 0]
+  lockedUntil DateTime
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+}
+
+Table cm_auth_email_outbox_m {
+  messageId String [pk]
+  toEmail String [not null]
+  fromEmail String
+  templateCode String [not null]
+  subject String [not null]
+  bodyText String [not null]
+  referenceType String
+  referenceId String
+  statusCode String [not null, default: 'pending']
+  sentAt DateTime
+  failedAt DateTime
+  failReason String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+}
+
+Table cm_organization_m {
+  orgId BigInt [pk, increment]
+  orgCode String [unique, not null]
+  orgName String [not null]
+  orgType String [not null]
+  orgClass String [not null, default: 'permanent']
+  scope String [not null, default: 'internal']
+  levelType String
+  parentOrgId BigInt
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  onboardingRequests cm_onboarding_request_m [not null]
+  childOrganizationRequests cm_onboarding_request_m [not null]
+  serviceGrants cm_service_grant_m [not null]
+  approvalAuthorities cm_approval_authority_m [not null]
+  parent cm_organization_m
+  children cm_organization_m [not null]
+  userRelations cm_user_org_r [not null]
+  permissionGrants cm_org_permission_r [not null]
+  targetedPermissionExceptions cm_user_permission_exception_r [not null]
+  targetedDmsDocuments dm_document_m [not null]
   ownedProjects pr_project_m [not null]
-  userMenus cm_user_menu_r [not null]
-  userFavorites cm_user_favorite_r [not null]
+  projectOrgs pr_project_org_r_m [not null]
+}
+
+Table cm_user_org_r {
+  userOrgRelationId BigInt [pk, increment]
+  userId BigInt [not null]
+  orgId BigInt [not null]
+  isPrimary Boolean [not null, default: false]
+  isLeader Boolean [not null, default: false]
+  affiliationRole String
+  positionCode String
+  employeeNumber String
+  effectiveFrom DateTime
+  effectiveTo DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+  organization cm_organization_m [not null]
+}
+
+Table cm_permission_m {
+  permissionId BigInt [pk, increment]
+  permissionCode String [unique, not null]
+  permissionName String [not null]
+  domainCode String [not null]
+  permissionAxis String [not null]
+  description String
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  rolePermissions cm_role_permission_r [not null]
+  organizationPermissions cm_org_permission_r [not null]
+  userPermissionExceptions cm_user_permission_exception_r [not null]
+  projectRolePermissions pr_project_role_permission_r [not null]
+}
+
+Table cm_role_m {
+  roleId BigInt [pk, increment]
+  roleCode String [unique, not null]
+  roleName String [not null]
+  roleScopeCode String [not null, default: 'system']
+  description String
+  sortOrder Int [not null, default: 0]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  rolePermissions cm_role_permission_r [not null]
+}
+
+Table cm_role_permission_r {
+  rolePermissionId BigInt [pk, increment]
+  roleId BigInt [not null]
+  permissionId BigInt [not null]
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  role cm_role_m [not null]
+  permission cm_permission_m [not null]
+
+  indexes {
+    (roleId, permissionId) [unique]
+  }
+}
+
+Table cm_org_permission_r {
+  orgPermissionId BigInt [pk, increment]
+  orgId BigInt [not null]
+  permissionId BigInt [not null]
+  effectiveFrom DateTime
+  effectiveTo DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  organization cm_organization_m [not null]
+  permission cm_permission_m [not null]
+
+  indexes {
+    (orgId, permissionId) [unique]
+  }
+}
+
+Table cm_user_permission_exception_r {
+  userPermissionExceptionId BigInt [pk, increment]
+  userId BigInt [not null]
+  permissionId BigInt [not null]
+  exceptionAxis String [not null, default: 'action']
+  effectType String [not null, default: 'grant']
+  targetOrgId BigInt
+  targetObjectType String
+  targetObjectId String
+  expiresAt DateTime
+  appliedByUserId BigInt
+  appliedAt DateTime
+  reason String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+  permission cm_permission_m [not null]
+  targetOrganization cm_organization_m
 }
 
 Table cm_user_h {
@@ -286,12 +1176,6 @@ Table cm_user_h {
   historySeq BigInt [not null]
   eventType String [not null]
   eventAt DateTime [not null]
-  isSystemUser Boolean [not null]
-  isAdmin Boolean [not null, default: false]
-  userTypeCode String [not null]
-  loginId String
-  passwordHash String
-  passwordSalt String
   userName String [not null]
   displayName String
   email String [not null]
@@ -303,17 +1187,6 @@ Table cm_user_h {
   companyName String
   customerId BigInt
   roleCode String [not null]
-  permissionCodes String[] [not null]
-  userStatusCode String [not null]
-  lastLoginAt DateTime
-  loginFailCount Int [not null]
-  lockedUntil DateTime
-  invitedAt DateTime
-  invitedBy BigInt
-  invitationTokenHash String
-  invitationExpiresAt DateTime
-  refreshTokenHash String
-  refreshTokenExpiresAt DateTime
   isActive Boolean [not null]
   memo String
   createdBy BigInt
@@ -329,7 +1202,711 @@ Table cm_user_h {
   }
 }
 
-Ref: cm_menu_m.parentMenuId - cm_menu_m.id [delete: Set Null]
+Table cm_notification_h {
+  notificationId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  recipientUserId BigInt [not null]
+  actorUserId BigInt
+  sourceAppCode String [not null]
+  notificationType String [not null]
+  severityCode String [not null]
+  title String [not null]
+  message String
+  referenceType String
+  referenceId String
+  referencePath String
+  actionType String
+  actionPayload Json
+  dedupeKey String
+  isRead Boolean [not null]
+  readAt DateTime
+  archivedAt DateTime
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (notificationId, historySeq) [pk]
+  }
+}
+
+Table cm_user_auth_h {
+  userId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  loginId String [not null]
+  passwordHash String [not null]
+  accountStatusCode String [not null]
+  lastLoginAt DateTime
+  loginFailCount Int [not null]
+  lockedUntil DateTime
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (userId, historySeq) [pk]
+  }
+}
+
+Table cm_user_session_h {
+  sessionId String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  userId BigInt [not null]
+  sessionTokenHash String [not null]
+  issuedApp String [not null]
+  userAgent String
+  lastSeenAt DateTime
+  expiresAt DateTime [not null]
+  revokedAt DateTime
+  revokeReason String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (sessionId, historySeq) [pk]
+  }
+}
+
+Table cm_user_invitation_h {
+  invitationId String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  userId BigInt [not null]
+  invitedByUserId BigInt
+  invitationTokenHash String [not null]
+  expiresAt DateTime [not null]
+  acceptedAt DateTime
+  revokedAt DateTime
+  revokeReason String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (invitationId, historySeq) [pk]
+  }
+}
+
+Table cm_auth_provider_setting_h {
+  settingKey String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  passwordLoginEnabled Boolean [not null]
+  passwordResetEnabled Boolean [not null]
+  passwordChangeEnabled Boolean [not null]
+  resetCodeTtlMinutes Int [not null]
+  resetCodeLength Int [not null]
+  internalSsoEnabled Boolean [not null]
+  internalSsoLoginUrl String
+  microsoftLoginEnabled Boolean [not null]
+  microsoftSignupRequestEnabled Boolean [not null]
+  microsoftTenantId String
+  microsoftClientId String
+  microsoftClientSecretCiphertext String
+  microsoftClientSecretNonce String
+  microsoftClientSecretTag String
+  microsoftRedirectUri String
+  microsoftScopes String[] [not null]
+  allowedTenantIds String[] [not null]
+  allowedEmailDomains String[] [not null]
+  selfSignupEnabled Boolean [not null]
+  emailDeliveryMode String [not null]
+  emailFromAddress String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (settingKey, historySeq) [pk]
+  }
+}
+
+Table cm_user_external_identity_h {
+  externalIdentityId String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  userId BigInt [not null]
+  providerCode String [not null]
+  tenantId String [not null]
+  subjectId String [not null]
+  email String
+  userPrincipalName String
+  displayName String
+  linkedAt DateTime [not null]
+  lastLoginAt DateTime
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (externalIdentityId, historySeq) [pk]
+  }
+}
+
+Table cm_user_registration_request_h {
+  registrationRequestId String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  providerCode String [not null]
+  tenantId String [not null]
+  subjectId String [not null]
+  email String [not null]
+  userPrincipalName String
+  displayName String
+  rawClaims Json
+  statusCode String [not null]
+  requestedAt DateTime [not null]
+  decidedAt DateTime
+  decidedByUserId BigInt
+  decisionMemo String
+  createdUserId BigInt
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (registrationRequestId, historySeq) [pk]
+  }
+}
+
+Table cm_user_password_reset_challenge_h {
+  challengeId String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  userId BigInt [not null]
+  email String [not null]
+  codeHash String [not null]
+  expiresAt DateTime [not null]
+  consumedAt DateTime
+  failCount Int [not null]
+  lockedUntil DateTime
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (challengeId, historySeq) [pk]
+  }
+}
+
+Table cm_auth_email_outbox_h {
+  messageId String [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  toEmail String [not null]
+  fromEmail String
+  templateCode String [not null]
+  subject String [not null]
+  bodyText String [not null]
+  referenceType String
+  referenceId String
+  statusCode String [not null]
+  sentAt DateTime
+  failedAt DateTime
+  failReason String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (messageId, historySeq) [pk]
+  }
+}
+
+Table cm_organization_h {
+  orgId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  orgCode String [not null]
+  orgName String [not null]
+  orgType String [not null]
+  orgClass String [not null]
+  scope String [not null]
+  levelType String
+  parentOrgId BigInt
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (orgId, historySeq) [pk]
+  }
+}
+
+Table cm_user_org_h {
+  userOrgRelationId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  userId BigInt [not null]
+  orgId BigInt [not null]
+  isPrimary Boolean [not null]
+  isLeader Boolean [not null]
+  affiliationRole String
+  positionCode String
+  employeeNumber String
+  effectiveFrom DateTime
+  effectiveTo DateTime
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (userOrgRelationId, historySeq) [pk]
+  }
+}
+
+Table cm_permission_h {
+  permissionId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  permissionCode String [not null]
+  permissionName String [not null]
+  domainCode String [not null]
+  permissionAxis String [not null]
+  description String
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (permissionId, historySeq) [pk]
+  }
+}
+
+Table cm_role_h {
+  roleId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  roleCode String [not null]
+  roleName String [not null]
+  roleScopeCode String [not null]
+  description String
+  sortOrder Int [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (roleId, historySeq) [pk]
+  }
+}
+
+Table cm_role_permission_h {
+  rolePermissionId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  roleId BigInt [not null]
+  permissionId BigInt [not null]
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (rolePermissionId, historySeq) [pk]
+  }
+}
+
+Table cm_org_permission_h {
+  orgPermissionId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  orgId BigInt [not null]
+  permissionId BigInt [not null]
+  effectiveFrom DateTime
+  effectiveTo DateTime
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (orgPermissionId, historySeq) [pk]
+  }
+}
+
+Table cm_user_permission_exception_h {
+  userPermissionExceptionId BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [not null]
+  userId BigInt [not null]
+  permissionId BigInt [not null]
+  exceptionAxis String [not null]
+  effectType String [not null]
+  targetOrgId BigInt
+  targetObjectType String
+  targetObjectId String
+  expiresAt DateTime
+  appliedByUserId BigInt
+  appliedAt DateTime
+  reason String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (userPermissionExceptionId, historySeq) [pk]
+  }
+}
+
+Table cm_customer_m {
+  id BigInt [pk, increment]
+  customerCode String [unique, not null]
+  customerName String [not null]
+  customerType String
+  industry String
+  address String
+  phone String
+  email String
+  contactPerson String
+  contactPhone String
+  website String
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  transactionId String
+}
+
+Table cm_customer_h {
+  customerId BigInt [not null]
+  historySeq Int [increment, not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  eventBy BigInt
+  customerCode String [not null]
+  customerName String [not null]
+  customerType String
+  industry String
+  address String
+  phone String
+  email String
+  contactPerson String
+  contactPhone String
+  website String
+  isActive Boolean [not null]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [not null]
+  updatedBy BigInt
+  updatedAt DateTime [not null]
+  lastSource String
+  transactionId String
+
+  indexes {
+    (customerId, historySeq) [pk]
+  }
+}
+
+Table cm_platform_enrollment_m {
+  id BigInt [pk, increment]
+  userId BigInt [unique, not null]
+  statusCode String [not null, default: 'pending']
+  sourceCode String [not null, default: 'signup']
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+}
+
+Table cm_platform_enrollment_h {
+  id BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  userId BigInt [not null]
+  statusCode String [not null, default: 'pending']
+  sourceCode String [not null, default: 'signup']
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (id, historySeq) [pk]
+  }
+}
+
+Table cm_onboarding_request_m {
+  id BigInt [pk, increment]
+  userId BigInt [not null]
+  kind String [not null]
+  statusCode String [not null, default: 'pending']
+  orgId BigInt
+  parentOrgId BigInt
+  organizationName String
+  serviceCode String
+  message String [not null]
+  decidedBy BigInt
+  decidedAt DateTime
+  decisionMessage String
+  resolvedOrgId BigInt
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+  organization cm_organization_m
+  parentOrganization cm_organization_m
+}
+
+Table cm_onboarding_request_h {
+  id BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  userId BigInt [not null]
+  kind String [not null]
+  statusCode String [not null, default: 'pending']
+  orgId BigInt
+  parentOrgId BigInt
+  organizationName String
+  serviceCode String
+  message String [not null]
+  decidedBy BigInt
+  decidedAt DateTime
+  decisionMessage String
+  resolvedOrgId BigInt
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (id, historySeq) [pk]
+  }
+}
+
+Table cm_service_grant_m {
+  id BigInt [pk, increment]
+  userId BigInt [not null]
+  orgId BigInt
+  serviceCode String [not null]
+  roleCode String [not null, default: 'user']
+  scopeKey String [not null]
+  sourceCode String [not null]
+  expiresAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+  organization cm_organization_m
+
+  indexes {
+    (userId, serviceCode, scopeKey) [unique]
+  }
+}
+
+Table cm_service_grant_h {
+  id BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  userId BigInt [not null]
+  orgId BigInt
+  serviceCode String [not null]
+  roleCode String [not null, default: 'user']
+  scopeKey String [not null]
+  sourceCode String [not null]
+  expiresAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (id, historySeq) [pk]
+  }
+}
+
+Table cm_approval_authority_m {
+  id BigInt [pk, increment]
+  userId BigInt [not null]
+  orgId BigInt
+  authorityKind String [not null]
+  serviceCode String [not null, default: '']
+  scopeKey String [not null]
+  maxRoleCode String [not null, default: 'user']
+  expiresAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+  user cm_user_m [not null]
+  organization cm_organization_m
+
+  indexes {
+    (userId, authorityKind, serviceCode, scopeKey) [unique]
+  }
+}
+
+Table cm_approval_authority_h {
+  id BigInt [not null]
+  historySeq BigInt [not null]
+  eventType String [not null]
+  eventAt DateTime [default: `now()`, not null]
+  userId BigInt [not null]
+  orgId BigInt
+  authorityKind String [not null]
+  serviceCode String [not null, default: '']
+  scopeKey String [not null]
+  maxRoleCode String [not null, default: 'user']
+  expiresAt DateTime
+  isActive Boolean [not null, default: true]
+  memo String
+  createdBy BigInt
+  createdAt DateTime [default: `now()`, not null]
+  updatedBy BigInt
+  updatedAt DateTime [default: `now()`, not null]
+  lastSource String
+  lastActivity String
+  transactionId String
+
+  indexes {
+    (id, historySeq) [pk]
+  }
+}
 
 Ref: cm_role_menu_r.menuId > cm_menu_m.id [delete: Cascade]
 
@@ -341,4 +1918,94 @@ Ref: cm_user_favorite_r.userId > cm_user_m.id [delete: Cascade]
 
 Ref: cm_user_favorite_r.menuId > cm_menu_m.id [delete: Cascade]
 
-Ref: cm_user_m.invitedBy - cm_user_m.id [delete: Set Null]
+Ref: cm_ai_object_m.aiSourceId > cm_ai_source_m.aiSourceId [delete: Cascade]
+
+Ref: cm_ai_chunk_m.aiObjectId > cm_ai_object_m.aiObjectId [delete: Cascade]
+
+Ref: cm_ai_embedding_m.aiChunkId > cm_ai_chunk_m.aiChunkId [delete: Cascade]
+
+Ref: cm_ai_acl_snapshot_m.aiObjectId > cm_ai_object_m.aiObjectId [delete: Cascade]
+
+Ref: cm_ai_index_job_m.aiSourceId > cm_ai_source_m.aiSourceId [delete: Set Null]
+
+Ref: cm_ai_index_job_m.aiObjectId > cm_ai_object_m.aiObjectId [delete: Set Null]
+
+Ref: cm_ai_index_state_m.aiSourceId > cm_ai_source_m.aiSourceId [delete: Cascade]
+
+Ref: cm_ai_index_state_m.aiObjectId > cm_ai_object_m.aiObjectId [delete: Cascade]
+
+Ref: cm_ai_retrieval_log_item_m.aiRetrievalLogId > cm_ai_retrieval_log_m.aiRetrievalLogId [delete: Cascade]
+
+Ref: cm_ai_retrieval_log_item_m.aiObjectId > cm_ai_object_m.aiObjectId [delete: Set Null]
+
+Ref: cm_ai_retrieval_log_item_m.aiChunkId > cm_ai_chunk_m.aiChunkId [delete: Set Null]
+
+Ref: cm_ai_message_m.aiConversationId > cm_ai_conversation_m.aiConversationId [delete: Cascade]
+
+Ref: cm_ai_reference_m.aiConversationId > cm_ai_conversation_m.aiConversationId [delete: Cascade]
+
+Ref: cm_ai_reference_m.aiMessageId > cm_ai_message_m.aiMessageId [delete: Set Null]
+
+Ref: cm_ai_reference_m.aiObjectId > cm_ai_object_m.aiObjectId [delete: Set Null]
+
+Ref: cm_ai_reference_m.aiChunkId > cm_ai_chunk_m.aiChunkId [delete: Set Null]
+
+Ref: cm_ai_run_m.aiConversationId > cm_ai_conversation_m.aiConversationId [delete: Cascade]
+
+Ref: cm_ai_run_m.requestMessageId > cm_ai_message_m.aiMessageId [delete: Set Null]
+
+Ref: cm_ai_run_m.responseMessageId > cm_ai_message_m.aiMessageId [delete: Set Null]
+
+Ref: cm_ai_run_source_r.aiRunId > cm_ai_run_m.aiRunId [delete: Cascade]
+
+Ref: cm_ai_run_source_r.aiReferenceId > cm_ai_reference_m.aiReferenceId [delete: Set Null]
+
+Ref: cm_ai_run_source_r.aiObjectId > cm_ai_object_m.aiObjectId [delete: Set Null]
+
+Ref: cm_ai_run_source_r.aiChunkId > cm_ai_chunk_m.aiChunkId [delete: Set Null]
+
+Ref: cm_user_session_m.userId > cm_user_m.id [delete: Cascade]
+
+Ref: cm_user_invitation_m.userId > cm_user_m.id [delete: Cascade]
+
+Ref: cm_user_invitation_m.invitedByUserId > cm_user_m.id [delete: Cascade]
+
+Ref: cm_user_external_identity_m.userId > cm_user_m.id [delete: Cascade]
+
+Ref: cm_user_registration_request_m.createdUserId > cm_user_m.id [delete: Set Null]
+
+Ref: cm_user_registration_request_m.decidedByUserId > cm_user_m.id [delete: Set Null]
+
+Ref: cm_user_password_reset_challenge_m.userId > cm_user_m.id [delete: Cascade]
+
+Ref: cm_user_org_r.userId > cm_user_m.id [delete: Cascade]
+
+Ref: cm_user_org_r.orgId > cm_organization_m.orgId [delete: Cascade]
+
+Ref: cm_role_permission_r.roleId > cm_role_m.roleId [delete: Cascade]
+
+Ref: cm_role_permission_r.permissionId > cm_permission_m.permissionId [delete: Cascade]
+
+Ref: cm_org_permission_r.orgId > cm_organization_m.orgId [delete: Cascade]
+
+Ref: cm_org_permission_r.permissionId > cm_permission_m.permissionId [delete: Cascade]
+
+Ref: cm_user_permission_exception_r.userId > cm_user_m.id [delete: Cascade]
+
+Ref: cm_user_permission_exception_r.permissionId > cm_permission_m.permissionId [delete: Cascade]
+
+Ref: cm_user_permission_exception_r.targetOrgId > cm_organization_m.orgId [delete: Set Null]
+
+Ref: cm_onboarding_request_m.userId > cm_user_m.id [delete: Restrict]
+
+Ref: cm_onboarding_request_m.orgId > cm_organization_m.orgId [delete: Restrict]
+
+Ref: cm_onboarding_request_m.parentOrgId > cm_organization_m.orgId [delete: Restrict]
+
+Ref: cm_service_grant_m.userId > cm_user_m.id [delete: Restrict]
+
+Ref: cm_service_grant_m.orgId > cm_organization_m.orgId [delete: Restrict]
+
+Ref: cm_approval_authority_m.userId > cm_user_m.id [delete: Restrict]
+
+Ref: cm_approval_authority_m.orgId > cm_organization_m.orgId [delete: Restrict]

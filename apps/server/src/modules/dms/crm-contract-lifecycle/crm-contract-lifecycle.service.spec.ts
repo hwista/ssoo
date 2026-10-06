@@ -1,3 +1,6 @@
+import type { CrmAccessService } from '../../crm/access/access.service.js';
+import type { AccessRequestService } from '../access/access-request.service.js';
+import type { AccessService } from '../access/access.service.js';
 import {
   DEFAULT_DMS_CRM_CONTRACT_APPROVAL_ROUTE_POLICY,
   DEFAULT_DMS_CRM_CONTRACT_EXPORT_POLICY,
@@ -137,6 +140,8 @@ function createDatabaseMock(): DatabaseMock {
   return {
     userFindFirstCalls,
     client: {
+      crmContract: { findFirst: async () => ({ id: 10n, contractCode: 'CRM-CT-001', ownerOrganizationId: 13n }) },
+      crmContractDmsHandoff: { findFirst: async () => ({ id: 1n }) },
       user: {
         findFirst: async (args: unknown) => {
           userFindFirstCalls.push(args);
@@ -276,6 +281,9 @@ describe('DmsCrmContractLifecycleService', () => {
       templateService as unknown as TemplateService,
       db as unknown as DatabaseService,
       storage,
+      { assertContractCapability: async () => undefined } as unknown as CrmAccessService,
+      { syncDocumentProjection: async () => undefined } as unknown as AccessRequestService,
+      { assertFeatures: async () => undefined } as unknown as AccessService,
     );
     const currentUser: TokenPayload = { userId: '77', loginId: 'sales' };
 
@@ -284,6 +292,7 @@ describe('DmsCrmContractLifecycleService', () => {
     expect(templateService.getCalls).toEqual([['crm-contract-v1', 'global', 'system']]);
     expect(templateService.readDocxBinaryCalls).toHaveLength(1);
     expect(db.userFindFirstCalls).toHaveLength(1);
+    expect(fileCrud.writeCalls.every(call => call[3]?.businessOrganizationId === '13')).toBe(true);
     expect(fileCrud.readCalls[0]?.[0]).toBe('crm/contracts/CRM-CT-001.md');
     expect(fileCrud.writeCalls.map((call) => call[0])).toEqual([
       '_generated/crm-contract-lifecycle/global/CRM-CT-001/export-policy.md',
@@ -420,6 +429,9 @@ describe('DmsCrmContractLifecycleService', () => {
       templateService as unknown as TemplateService,
       db as unknown as DatabaseService,
       storage,
+      { assertContractCapability: async () => undefined } as unknown as CrmAccessService,
+      { syncDocumentProjection: async () => undefined } as unknown as AccessRequestService,
+      { assertFeatures: async () => undefined } as unknown as AccessService,
     );
 
     const result = await service.execute(createRequest(), { userId: '77', loginId: 'sales' });
@@ -471,6 +483,9 @@ describe('DmsCrmContractLifecycleService', () => {
       templateService as unknown as TemplateService,
       db as unknown as DatabaseService,
       storage,
+      { assertContractCapability: async () => undefined } as unknown as CrmAccessService,
+      { syncDocumentProjection: async () => undefined } as unknown as AccessRequestService,
+      { assertFeatures: async () => undefined } as unknown as AccessService,
     );
 
     const result = await service.execute(createRequest(), { userId: '77', loginId: 'sales' });
@@ -521,6 +536,9 @@ describe('DmsCrmContractLifecycleService', () => {
       templateService as unknown as TemplateService,
       db as unknown as DatabaseService,
       storage,
+      { assertContractCapability: async () => undefined } as unknown as CrmAccessService,
+      { syncDocumentProjection: async () => undefined } as unknown as AccessRequestService,
+      { assertFeatures: async () => undefined } as unknown as AccessService,
     );
     const request = createRequest();
     request.attachments = [{
@@ -546,6 +564,9 @@ describe('DmsCrmContractLifecycleService', () => {
       templateService as unknown as TemplateService,
       db as unknown as DatabaseService,
       storage,
+      { assertContractCapability: async () => undefined } as unknown as CrmAccessService,
+      { syncDocumentProjection: async () => undefined } as unknown as AccessRequestService,
+      { assertFeatures: async () => undefined } as unknown as AccessService,
     );
 
     await expect(service.execute(createRequest(), { userId: '77', loginId: 'sales' }))

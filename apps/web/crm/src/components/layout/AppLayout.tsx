@@ -1,5 +1,8 @@
 'use client';
 
+import { isSsooHomeEntry, isSsooSidebarDestination } from '@ssoo/web-shell';
+import { CRM_OPPORTUNITY_WORKSPACE_PATH, CRM_OPPORTUNITY_WORKSPACE_TITLE } from '@/lib/crmNavigation';
+
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -61,11 +64,11 @@ import { Header } from './Header';
 const CRM_APP_IDENTITY = getSsooAppIdentity('crm');
 
 const menuItems = [
-  { label: '대시보드', path: '/?sourceSurface=dashboard', icon: BarChart3, hasChildren: false, disabled: false },
-  { label: '영업기회 현황', path: '/?sourceSurface=list', icon: List, hasChildren: false, disabled: false },
-  { label: '영업기회 등록', path: '/?sourceSurface=form&create=opportunity', icon: FilePlus2, hasChildren: false, disabled: false },
-  { label: '계약서 생성', path: '/?sourceSurface=contract-document', icon: FileText, hasChildren: false, disabled: false },
-  { label: '영업기회 작업공간', path: '/', icon: Layers, hasChildren: false, disabled: false },
+  { label: CRM_HOME_TAB.pageTitle, path: CRM_HOME_TAB.path, icon: BarChart3, hasChildren: false, disabled: false },
+  { label: '영업기회 현황', path: '/opportunities?sourceSurface=list', icon: List, hasChildren: false, disabled: false },
+  { label: '영업기회 등록', path: '/opportunities?sourceSurface=form&create=opportunity', icon: FilePlus2, hasChildren: false, disabled: false },
+  { label: '계약서 생성', path: '/opportunities?sourceSurface=contract-document', icon: FileText, hasChildren: false, disabled: false },
+  { label: CRM_OPPORTUNITY_WORKSPACE_TITLE, path: CRM_OPPORTUNITY_WORKSPACE_PATH, icon: Layers, hasChildren: false, disabled: false },
   { label: '고객/활동', path: '/customers', icon: UsersRound, hasChildren: false, disabled: false },
   { label: '회사 정보', path: '/quote-settings?mode=source-compatible', icon: FolderTree, hasChildren: false, disabled: false },
   { label: '견적 설정', path: '/quote-settings', icon: FileText, hasChildren: false, disabled: false },
@@ -76,6 +79,7 @@ const menuItems = [
   { label: '계약대비실적(월별)', path: '/contract-performance?mode=source-compatible', icon: BarChart3, hasChildren: false, disabled: false },
   { label: '계약대비실적', path: '/contract-performance', icon: BarChart3, hasChildren: false, disabled: false },
   { label: '보고 Preview', path: '/reports', icon: PieChart, hasChildren: false, disabled: false },
+  { label: '사업연도 관리', path: '/business-years', icon: ClipboardList, hasChildren: false, disabled: false },
   { label: '사업계획 등록', path: '/business-plan?mode=source-compatible', icon: ClipboardList, hasChildren: false, disabled: false },
   { label: '사업계획 Preview', path: '/business-plan', icon: ClipboardList, hasChildren: false, disabled: false },
   { label: '사업계획대비실적(월별)', path: '/business-plan-performance?mode=source-compatible', icon: LineChart, hasChildren: false, disabled: false },
@@ -129,6 +133,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
       const { tabs, activeTabId } = useTabStore.getState();
       const activeTab = tabs.find((tab) => tab.id === activeTabId);
       router.replace(activeTab?.path ?? CRM_HOME_TAB.path, { scroll: false });
+    } else if (requestedTab.path !== currentPath) {
+      router.replace(requestedTab.path, { scroll: false });
     }
   }, [currentPath, openTab, router, tabsHydrated]);
 
@@ -247,7 +253,7 @@ function CrmSidebar({
     return () => controller.abort();
   }, [accessToken]);
 
-  const visibleMenuItems = menuItems.filter((item) => !('path' in item) || item.path !== '/operations/settings' || canReadOperations);
+  const visibleMenuItems = menuItems.filter((item) => isSsooSidebarDestination('path' in item ? item.path : undefined, CRM_HOME_TAB) && (!('path' in item) || item.path !== '/operations/settings' || canReadOperations));
 
   return (
     <SsooSidebarSurface
@@ -293,9 +299,9 @@ function CrmSidebar({
           icon: Layers,
           expanded: expandedSections.openTabs,
           onToggle: () => toggleSection('openTabs'),
-          children: tabs.filter((tab) => tab.id !== CRM_HOME_TAB.id).length > 0 ? (
+          children: tabs.filter((tab) => !isSsooHomeEntry(tab, CRM_HOME_TAB)).length > 0 ? (
             <SsooSidebarSearchableTree<(typeof tabs)[number]>
-              nodes={tabs.filter((tab) => tab.id !== CRM_HOME_TAB.id)}
+              nodes={tabs.filter((tab) => !isSsooHomeEntry(tab, CRM_HOME_TAB))}
               getNodeId={(tab) => tab.id}
               getNodeLabel={(tab) => tab.title}
               getNodeTitle={(tab) => tab.title}

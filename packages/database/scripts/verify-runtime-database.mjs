@@ -86,6 +86,10 @@ try {
 
   const nativeContract = await client.query(
     `SELECT
+       to_regclass('common.cm_code_m') IS NOT NULL
+         AND to_regclass('common.cm_code_h') IS NOT NULL
+         AND to_regclass('pms.cm_code_m') IS NULL
+         AND to_regclass('pms.cm_code_h') IS NULL AS platform_code_storage_exists,
        to_regclass('dms.dm_chat_session_m') IS NOT NULL AS chat_session_table_exists,
        to_regclass('crm.crm_business_plan_performance_actual_d') IS NOT NULL AS performance_table_exists,
        to_regclass('crm.crm_report_confirmation_m') IS NOT NULL AS confirmation_table_exists,

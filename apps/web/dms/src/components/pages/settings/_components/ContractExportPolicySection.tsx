@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useMemo, useState } from 'react';
 import { Check, RotateCcw, Save } from 'lucide-react';
 import {
@@ -164,7 +165,7 @@ export function ContractExportPolicySection({
               </span>
             )}
             {saveState === 'failed' && (
-              <span className="rounded-full border px-2 py-0.5 text-caption ssoo-tone-danger-surface">저장 실패</span>
+              <SsooErrorNotice as="span" compact className="rounded-full border px-2 py-0.5 text-caption ssoo-tone-danger-surface">저장 실패</SsooErrorNotice>
             )}
           </div>
         </div>
@@ -230,7 +231,7 @@ export function ContractExportPolicySection({
           </div>
         </dl>
 
-        {validationError && <p className="mt-3 text-caption text-destructive">{validationError}</p>}
+        {validationError && <SsooErrorNotice as="p" compact className="mt-3" error={validationError} />}
 
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <Button

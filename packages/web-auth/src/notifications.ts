@@ -1,3 +1,4 @@
+import { getSsooErrorMessage, readSsooErrorMetadata, parseSsooRetryAfter, type SsooErrorMetadata } from '@ssoo/web-shell';
 import { useEffect, useRef } from 'react';
 import type {
   CommonNotificationItem,
@@ -16,7 +17,7 @@ import {
   SSOO_STATE_CHANGE_CSRF_HEADER_VALUE,
 } from './state-changing-proxy';
 
-export interface CommonNotificationApiResult<T> {
+export interface CommonNotificationApiResult<T> extends SsooErrorMetadata {
   success: boolean;
   data?: T;
   error?: string;
@@ -142,8 +143,10 @@ async function requestJson<T>(
   if (!response.ok) {
     return {
       success: false,
+      ...readSsooErrorMetadata(payload),
+      retryAfterSeconds: parseSsooRetryAfter(response.headers.get('retry-after')),
       status: response.status,
-      error: getErrorMessage(payload, response.statusText || '알림 요청에 실패했습니다.'),
+      error: getSsooErrorMessage({ message: getErrorMessage(payload, '알림 요청에 실패했습니다.'), status: response.status }),
     };
   }
 

@@ -13,11 +13,15 @@ import { DmsFeatureGuard } from './dms-feature.guard.js';
 import { DocumentAclService } from './document-acl.service.js';
 import { DocumentProjectionService } from './document-projection.service.js';
 import { DocumentRecordService } from './document-record.service.js';
+import { DocumentVisibilityService } from './document-visibility.service.js';
+import { DocumentNotificationPolicyService } from './document-notification-policy.service.js';
 
 @Module({
   imports: [DatabaseModule, AccessFoundationModule, CommonNotificationModule],
   controllers: [DmsAccessController, AccessRequestController, AccessGrantController],
   providers: [
+    DocumentNotificationPolicyService,
+    DocumentVisibilityService,
     AccessService,
     AccessRequestService,
     ControlPlaneSyncService,
@@ -28,6 +32,7 @@ import { DocumentRecordService } from './document-record.service.js';
     DocumentRecordService,
   ],
   exports: [
+    DocumentVisibilityService,
     AccessService,
     AccessRequestService,
     ControlPlaneSyncService,

@@ -8,6 +8,7 @@ export const BUSINESS_PLAN_AMOUNT_CELL_COUNT = 28;
 
 export interface BusinessPlanGridDraft {
   rowCode?: string;
+  carriedContractId?: string;
   businessType: string;
   industryLine: string;
   ownerName: string;
@@ -22,14 +23,14 @@ export function createEmptyBusinessPlanGridDraft(): BusinessPlanGridDraft {
     businessType: '',
     industryLine: '',
     ownerName: '담당 미지정',
-    region: 'domestic',
+    region: 'unspecified',
     businessName: '',
     wbsCode: '',
     amounts: Array.from({ length: BUSINESS_PLAN_AMOUNT_CELL_COUNT }, () => '0'),
   };
 }
 
-export function toBusinessPlanGridDraft(row: CrmBusinessPlanRow, baseYear: number): BusinessPlanGridDraft {
+export function toBusinessPlanGridDraft(row: CrmBusinessPlanRow, baseYear: number, unit = 1): BusinessPlanGridDraft {
   const base = row.years.find((year) => year.targetYear === baseYear);
   const next = row.years.find((year) => year.targetYear === baseYear + 1);
   const following = row.years.find((year) => year.targetYear === baseYear + 2);
@@ -50,11 +51,11 @@ export function toBusinessPlanGridDraft(row: CrmBusinessPlanRow, baseYear: numbe
     region: row.region,
     businessName: row.businessName,
     wbsCode: row.wbsCode ?? '',
-    amounts,
+    amounts: amounts.map((value) => String(Number(value) / unit)),
   };
 }
 
-export function parseBusinessPlanAmount(value: string): number | null {
+export function parseBusinessPlanAmount(value: string, unit = 1): number | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed === '-') {
     return 0;
@@ -69,7 +70,8 @@ export function parseBusinessPlanAmount(value: string): number | null {
   if (!Number.isFinite(parsed)) {
     return null;
   }
-  return Math.round((isParenthesized || isTriangleNegative) ? -Math.abs(parsed) : parsed);
+  const amount = Math.round(((isParenthesized || isTriangleNegative) ? -Math.abs(parsed) : parsed) * unit);
+  return Number.isSafeInteger(amount) ? amount : null;
 }
 
 export function applyBusinessPlanGridPaste(
@@ -77,6 +79,7 @@ export function applyBusinessPlanGridPaste(
   startRowIndex: number,
   startCellIndex: number,
   clipboardText: string,
+  unit = 1,
 ): { drafts: BusinessPlanGridDraft[]; invalidCells: string[] } {
   const rows = clipboardText.replace(/\r\n?/g, '\n').split('\n');
   if (rows.at(-1) === '') rows.pop();
@@ -88,18 +91,18 @@ export function applyBusinessPlanGridPaste(
     rowText.split('\t').forEach((cell, columnOffset) => {
       const targetCell = startCellIndex + columnOffset;
       if (targetCell >= BUSINESS_PLAN_AMOUNT_CELL_COUNT) return;
-      const parsed = parseBusinessPlanAmount(cell);
+      const parsed = parseBusinessPlanAmount(cell, unit);
       if (parsed === null) {
         invalidCells.push(`${startRowIndex + rowOffset + 1}행 ${targetCell + 1}열`);
         return;
       }
-      target.amounts[targetCell] = String(parsed);
+      target.amounts[targetCell] = String(parsed / unit);
     });
   });
   return { drafts: next, invalidCells };
 }
 
-export function toBusinessPlanRowRequest(draft: BusinessPlanGridDraft): CrmBusinessPlanRowUpsertRequest {
+export function toBusinessPlanRowRequest(draft: BusinessPlanGridDraft, unit = 1): CrmBusinessPlanRowUpsertRequest {
   const required = [
     ['사업구분', draft.businessType],
     ['계열/산업', draft.industryLine],
@@ -111,7 +114,7 @@ export function toBusinessPlanRowRequest(draft: BusinessPlanGridDraft): CrmBusin
     throw new Error(`${missing[0]}을 입력해 주세요.`);
   }
   const amounts = draft.amounts.map((value, index) => {
-    const parsed = parseBusinessPlanAmount(value);
+    const parsed = parseBusinessPlanAmount(value, unit);
     if (parsed === null) {
       throw new Error(`${index + 1}번째 금액 셀은 숫자로 입력해 주세요.`);
     }

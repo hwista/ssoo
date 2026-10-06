@@ -519,7 +519,7 @@ export function SettingsPage() {
         headerActions={{ viewerRightSlot: <SettingsAssistantAction /> }}
         compactMode={isCompactMode}
         stateSlot={error ? (
-          <ErrorState error={error} />
+          <ErrorState error={error} onRetry={() => void loadSettings()} />
         ) : (
           <LoadingSpinner message="설정을 불러오는 중입니다." className="text-ssoo-primary/70" />
         )}
@@ -536,7 +536,7 @@ export function SettingsPage() {
         title={<span className={headerStyles.title}>설정</span>}
         headerActions={{ viewerRightSlot: <SettingsAssistantAction /> }}
         compactMode={isCompactMode}
-        stateSlot={<ErrorState error="사용 가능한 설정 메뉴가 없습니다." />}
+        stateSlot={<ErrorState kind="forbidden" error="사용 가능한 설정 메뉴가 없습니다." />}
       >
         {null}
       </SsooSettingsPage>
@@ -550,7 +550,7 @@ export function SettingsPage() {
         title={<span className={headerStyles.title}>설정</span>}
         headerActions={{ viewerRightSlot: <SettingsAssistantAction /> }}
         compactMode={isCompactMode}
-        stateSlot={<ErrorState error="설정을 관리할 권한이 없습니다." />}
+        stateSlot={<ErrorState kind="forbidden" error="설정을 관리할 권한이 없습니다." />}
       >
         {null}
       </SsooSettingsPage>

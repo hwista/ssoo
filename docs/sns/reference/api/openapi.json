@@ -68,6 +68,113 @@
         ]
       }
     },
+    "/api/sns/post-access/{postId}": {
+      "get": {
+        "operationId": "PostAccessController_state",
+        "parameters": [
+          {
+            "name": "postId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "게시물 개별 공유 상태와 내 신청/소유자 승인함",
+        "tags": [
+          "sns-post-access"
+        ]
+      }
+    },
+    "/api/sns/post-access/{postId}/requests": {
+      "post": {
+        "operationId": "PostAccessController_request",
+        "parameters": [
+          {
+            "name": "postId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPostAccessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "게시물 개별 읽기/수정 권한 신청",
+        "tags": [
+          "sns-post-access"
+        ]
+      }
+    },
+    "/api/sns/post-access/requests/{requestId}/decision": {
+      "post": {
+        "operationId": "PostAccessController_decide",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecidePostAccessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "게시물 권한 승인·반려·철회·회수",
+        "tags": [
+          "sns-post-access"
+        ]
+      }
+    },
     "/api/sns/posts/with-images": {
       "post": {
         "operationId": "PostImagesController_create",
@@ -2954,6 +3061,52 @@
           "error"
         ]
       },
+      "RequestPostAccessDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "role",
+          "message"
+        ]
+      },
+      "DecidePostAccessDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject",
+              "cancel",
+              "revoke"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "승인 권한 만료 시각",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
       "ApiSuccess": {
         "type": "object",
         "properties": {
@@ -3136,6 +3289,11 @@
             ],
             "default": "public"
           },
+          "targetOrgId": {
+            "type": "string",
+            "description": "공개 대상 조직 ID",
+            "maxLength": 19
+          },
           "tagNames": {
             "description": "태그 이름 목록",
             "type": "array",
@@ -3180,6 +3338,11 @@
               "followers",
               "self"
             ]
+          },
+          "targetOrgId": {
+            "type": "string",
+            "description": "공개 대상 조직 ID",
+            "maxLength": 19
           },
           "tagNames": {
             "description": "태그 이름 목록",
@@ -3799,6 +3962,111 @@
             "default": "like"
           }
         }
+      },
+      "CreateOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "membership",
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "parentOrganizationId": {
+            "type": "string"
+          },
+          "organizationName": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "message"
+        ]
+      },
+      "DecideOnboardingRequestDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "message"
+        ]
+      },
+      "SetApprovalAuthorityDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "authorityKind": {
+            "type": "string",
+            "enum": [
+              "organization",
+              "service"
+            ]
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "serviceCode": {
+            "type": "string",
+            "enum": [
+              "crm",
+              "pms",
+              "dms",
+              "sns"
+            ]
+          },
+          "maxRoleCode": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "user",
+              "manager"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "authorityKind",
+          "maxRoleCode"
+        ]
       },
       "UpdateRolePermissionsDto": {
         "type": "object",

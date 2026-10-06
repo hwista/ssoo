@@ -1,3 +1,4 @@
+import { SharedApiError } from './axios-api-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CommonNotificationItem,
@@ -93,7 +94,7 @@ function unwrapNotificationResult<T>(
   fallbackMessage: string,
 ): T {
   if (!result.success || result.data === undefined) {
-    throw new Error(result.error || result.message || fallbackMessage);
+    throw new SharedApiError(result.error || result.message || fallbackMessage, result.status, result);
   }
 
   return result.data;
@@ -304,12 +305,24 @@ export function useCommonNotificationCenter(
     onRefreshRef.current?.(event);
   }, [refresh]);
 
+  const handleDomainEvent = useCallback((event: CommonNotificationStreamEvent) => {
+    if ((event.sourceApp === 'dms' && event.domainEvent?.type === 'dms.document-access.changed')
+      || (event.sourceApp === 'sns' && ['sns.post-access.changed', 'sns.feed.changed'].includes(event.domainEvent?.type ?? ''))) {
+      // A failed refresh must not leave previously authorized object text on screen.
+      // Keep read state/counts and other sources; the fresh response restores safe items.
+      setUnreadState(current => ({ ...current, items: current.items.filter(item => item.sourceApp !== event.sourceApp) }));
+      setReadState(current => ({ ...current, items: current.items.filter(item => item.sourceApp !== event.sourceApp) }));
+      void refresh();
+    }
+    onDomainEvent?.(event);
+  }, [onDomainEvent, refresh]);
+
   useCommonNotificationEventStream(sourceApp, {
     enabled,
     eventsPath,
     onRefresh: handleStreamRefresh,
     onNotification,
-    onDomainEvent,
+    onDomainEvent: handleDomainEvent,
   });
 
   const withReadStateChange = useCallback(async <T,>(operation: () => Promise<T>): Promise<T | null> => {

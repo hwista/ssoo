@@ -19,7 +19,11 @@ export function middleware(request: NextRequest) {
   const decision = resolveSsooRoutePolicyDecision(request.nextUrl.pathname, {
     allowedPaths: ROOT_ENTRY_PATHS,
     allowedPrefixes: ALLOWED_PATH_PREFIXES,
-    fallbackPath: APP_HOME_PATH,
+    fallbackPath: '/not-found',
+    mode: 'rewrite',
+    legacyPaths: ['/home', '/access-requests', '/my-access-requests'],
+    legacyPrefixes: ['/doc', '/ai'],
+    legacyRedirectPath: APP_HOME_PATH,
     sharedUserSurfaceRewritePath: APP_HOME_PATH,
   });
 
@@ -27,7 +31,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 그 외 페이지 경로는 내부 화면 경로로 간주하고 루트 셸로 되돌린다.
+  // 알려진 virtual path만 기존 루트 복귀를 유지하고, 미등록 주소는 404로 안내한다.
   if (decision.action === 'rewrite') {
     return NextResponse.rewrite(new URL(decision.path, request.url));
   }

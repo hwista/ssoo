@@ -1,3 +1,4 @@
+import type { TokenPayload } from '../../common/auth/interfaces/auth.interface.js';
 import { Injectable } from '@nestjs/common';
 import type {
   CrmContract,
@@ -28,7 +29,7 @@ const OPPORTUNITY_STATUS_LABELS: Record<CrmOpportunityStatus, string> = {
 };
 
 const SOURCE_STATUS_ORDER: CrmSourceOpportunityStatus[] = ['진행중', '검토중', '계약완료', '실패'];
-const SOURCE_CALCULATION_NOTICE = '원천 화면의 최신차수·확정 분모를 유지하되, 금액은 DC·절사를 반영한 SSOO 정본 합계를 사용합니다.';
+const SOURCE_CALCULATION_NOTICE = '각 영업기회의 확정된 차수 중 최신 차수를 집계합니다. 원천 대시보드와 동일하게 DC·절사 전 수량×단가 합계를 사용합니다.';
 
 @Injectable()
 export class DashboardService {
@@ -38,11 +39,12 @@ export class DashboardService {
     private readonly quoteSettingsService: QuoteSettingsService,
   ) {}
 
-  async getDashboard(): Promise<CrmDashboardResponse> {
-    const [opportunityResponse, contractResponse, sellerProfile] = await Promise.all([
-      this.opportunityService.listResponse({ sort: 'updated-desc' }),
-      this.contractService.listResponse({ sort: 'updated-desc' }),
+  async getDashboard(currentUser?: TokenPayload): Promise<CrmDashboardResponse> {
+    const [opportunityResponse, contractResponse, sellerProfile, sourceOpportunities] = await Promise.all([
+      this.opportunityService.listResponse({ sort: 'updated-desc' }, currentUser),
+      this.contractService.listResponse({ sort: 'updated-desc' }, currentUser),
       this.quoteSettingsService.getSellerProfile(),
+      this.opportunityService.listSourceDashboardOpportunities(currentUser),
     ]);
     const sellerInfoStatus = this.quoteSettingsService.toSellerInfoStatus(sellerProfile);
     const opportunities = opportunityResponse.items;
@@ -58,7 +60,7 @@ export class DashboardService {
       pipeline: this.buildPipeline(opportunities),
       queues,
       nextActions: this.buildNextActions(opportunities, contracts),
-      sourceCompatibility: this.buildSourceCompatibility(opportunities),
+      sourceCompatibility: this.buildSourceCompatibility(sourceOpportunities.latest, sourceOpportunities.confirmed),
       unimplementedIntegrations: this.mergeUnique([
         ...opportunityResponse.summary.unimplementedIntegrations,
         ...contractResponse.summary.unimplementedIntegrations,
@@ -66,14 +68,14 @@ export class DashboardService {
     };
   }
 
-  private buildSourceCompatibility(opportunities: CrmOpportunity[]): CrmDashboardResponse['sourceCompatibility'] {
-    const confirmedLatest = opportunities.filter((item) => item.confirmed);
-    const revenueTotal = confirmedLatest.reduce((sum, item) => sum + item.revenueTotal, 0);
-    const costTotal = confirmedLatest.reduce((sum, item) => sum + item.costTotal, 0);
+  private buildSourceCompatibility(opportunities: CrmOpportunity[], confirmedLatest: CrmOpportunity[]): CrmDashboardResponse['sourceCompatibility'] {
+    const rawTotal = (lines: CrmOpportunity['revenueLines']) => lines.reduce((sum, line) => sum + (line.quantity ?? 0) * (line.unitPrice ?? 0), 0);
+    const revenueTotal = confirmedLatest.reduce((sum, item) => sum + rawTotal(item.revenueLines), 0);
+    const costTotal = confirmedLatest.reduce((sum, item) => sum + rawTotal(item.costLines), 0);
     const marginTotal = revenueTotal - costTotal;
 
     return {
-      calculationBasis: 'latest-version-canonical-total',
+      calculationBasis: 'latest-confirmed-version-raw-total',
       calculationNotice: SOURCE_CALCULATION_NOTICE,
       confirmedSummary: {
         totalGroupCount: opportunities.length,
@@ -91,14 +93,14 @@ export class DashboardService {
           percentage: opportunities.length > 0 ? Math.round((count / opportunities.length) * 100) : 0,
         };
       }),
-      recentOpportunities: opportunities.slice(0, 5).map((item) => ({
+      recentOpportunities: [...opportunities].reverse().slice(0, 5).map((item) => ({
         id: item.id,
         customerName: item.customerName,
         opportunityName: item.opportunityName,
         ownerName: item.ownerName,
         status: this.toSourceStatus(item.status),
         updatedAt: item.updatedAt,
-        href: `/?selected=${encodeURIComponent(item.id)}`,
+        href: `/opportunities?selected=${encodeURIComponent(item.id)}`,
       })),
     };
   }
@@ -146,7 +148,7 @@ export class DashboardService {
         readyCount: quoteCandidates.length,
         blockedCount: opportunities.length - quoteCandidates.length,
         amountTotal: quoteCandidates.reduce((sum, item) => sum + item.revenueTotal, 0),
-        href: '/',
+        href: '/opportunities',
         state: this.toQueueState(quoteCandidates.length, opportunities.length - quoteCandidates.length),
         description: '영업기회 원장 기반 읽기 전용 견적 후보',
       },
@@ -157,7 +159,7 @@ export class DashboardService {
         readyCount: contractConversionCandidates.length,
         blockedCount: opportunities.filter((item) => item.confirmed && item.contractCreated).length,
         amountTotal: contractConversionCandidates.reduce((sum, item) => sum + item.revenueTotal, 0),
-        href: '/',
+        href: '/opportunities',
         state: this.toQueueState(contractConversionCandidates.length, 0),
         description: '최신 확정 영업기회 중 계약 원장 전환 대기',
       },
@@ -201,7 +203,7 @@ export class DashboardService {
         statusLabel: OPPORTUNITY_STATUS_LABELS[item.status],
         nextAction: item.nextAction,
         amount: item.revenueTotal,
-        href: `/?selected=${encodeURIComponent(item.id)}`,
+        href: `/opportunities?selected=${encodeURIComponent(item.id)}`,
         updatedAt: item.updatedAt,
       }));
     const contractActions = contracts.map((item): CrmDashboardNextAction => ({

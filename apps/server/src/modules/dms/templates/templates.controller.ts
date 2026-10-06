@@ -34,6 +34,7 @@ import { AccessRequestService } from '../access/access-request.service.js';
 import { DocumentAclService } from '../access/document-acl.service.js';
 import { RequireDmsFeature } from '../access/require-dms-feature.decorator.js';
 import { contentService } from '../runtime/content.service.js';
+import { normalizeDmsFileName } from '../runtime/file-utils.js';
 import { TemplateConvertService } from './template-convert.service.js';
 import { TemplateService } from './template.service.js';
 
@@ -238,7 +239,7 @@ export class TemplatesController {
       id.trim(),
       scope,
       getRequestUserId(request),
-      { buffer: file.buffer, originalName: file.originalname },
+      { buffer: file.buffer, originalName: normalizeDmsFileName(file.originalname) },
       currentUser,
     );
     return success(this.sanitizeTemplate(saved, currentUser));

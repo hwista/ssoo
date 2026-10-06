@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import { SsooErrorPanel } from './error-recovery';
 
 export type SsooContentAreaPadding = 'none' | 'md' | 'lg';
 export type SsooContentAreaScroll = 'auto' | 'hidden' | 'visible';
@@ -79,6 +80,10 @@ export function SsooContentAreaState({
 }: SsooContentAreaStateProps) {
   const resolvedTitle = title ?? children;
 
+  if (variant === 'error') {
+    return <SsooErrorPanel title={typeof resolvedTitle === 'string' ? resolvedTitle : undefined} description={description ?? resolvedTitle} />;
+  }
+
   return (
     <div
       className={cn(
@@ -97,7 +102,7 @@ export function SsooContentAreaState({
         <p
           className={cn(
             'text-sm',
-            variant === 'error' ? 'font-medium text-destructive' : 'text-muted-foreground'
+            'text-muted-foreground'
           )}
         >
           {resolvedTitle}

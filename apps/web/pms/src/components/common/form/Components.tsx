@@ -1,5 +1,6 @@
 'use client';
 
+import { SsooErrorNotice } from '@ssoo/web-shell';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,8 @@ export function FormSection({
 export interface FormActionsProps {
   /** 저장 핸들러 */
   onSubmit?: () => void;
+  /** 상위 form의 native submit 사용 */
+  submitForm?: boolean;
   /** 취소 핸들러 */
   onCancel?: () => void;
   /** 삭제 핸들러 */
@@ -76,6 +79,7 @@ export interface FormActionsProps {
  */
 export function FormActions({
   onSubmit,
+  submitForm = false,
   onCancel,
   onDelete,
   submitLabel = '저장',
@@ -119,10 +123,10 @@ export function FormActions({
             {cancelLabel}
           </Button>
         )}
-        {onSubmit && (
+        {(onSubmit || submitForm) && (
           <Button
             type="submit"
-            onClick={onSubmit}
+            onClick={submitForm ? undefined : onSubmit}
             disabled={loading || submitDisabled}
           >
             {loading && <LoadingSpinner className="icon-body" />}
@@ -172,7 +176,7 @@ export function FormField({
         {required && <span className="text-destructive ml-1">*</span>}
       </label>
       {children}
-      {error && <p className="body-text text-destructive">{error}</p>}
+      {error && <SsooErrorNotice as="p" compact error={error} />}
       {!error && hint && (
         <p className="body-text-muted">{hint}</p>
       )}

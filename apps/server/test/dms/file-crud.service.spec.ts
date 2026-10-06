@@ -97,4 +97,26 @@ describe('FileCrudService locked preview', () => {
       status: 403,
     });
   });
+
+  it('writes business documents with the individual owner and keeps the source organization on regeneration', async () => {
+    let metadata: Record<string, unknown> | null = null;
+    const businessFiles = new FileCrudService({
+      buildOwnerAcl: () => ({ owners: [currentUser.userId], editors: [], viewers: [] }),
+      assertCanWriteAbsolutePath: () => undefined,
+    } as never, {
+      getProjectedMetadataByRelativePath: async () => metadata,
+    } as never);
+    const first = await businessFiles.write('contracts/example.md', '# 업무 문서', currentUser, { businessOrganizationId: '13' });
+    expect(first.success).toBe(true);
+    if (!first.success) return;
+    expect(first.data.metadata).toMatchObject({ ownerId: '1001', visibility: { scope: 'organization', targetOrgId: '13' } });
+    metadata = first.data.metadata as unknown as Record<string, unknown>;
+    const repeat = await businessFiles.write('contracts/example.md', '# 재생성', { userId: '2002', loginId: 'cowriter' }, { businessOrganizationId: '13' });
+    expect(repeat.success).toBe(true);
+    if (!repeat.success) return;
+    expect(repeat.data.metadata).toMatchObject({ ownerId: '1001', visibility: { scope: 'organization', targetOrgId: '13' } });
+    const denied = await businessFiles.write('contracts/example.md', '다른 조직 덮어쓰기', currentUser, { businessOrganizationId: '14' });
+    expect(denied).toMatchObject({ success: false, status: 403 });
+    expect(fs.readFileSync(path.join(rootDir, 'contracts/example.md'), 'utf8')).toContain('# 재생성');
+  });
 });

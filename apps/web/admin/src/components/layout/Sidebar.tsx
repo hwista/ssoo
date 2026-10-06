@@ -1,5 +1,8 @@
 'use client';
 
+import { isSsooSidebarDestination } from '@ssoo/web-shell';
+import { ADMIN_HOME_TAB } from '@/stores/tab.store';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -79,7 +82,7 @@ export function AdminSidebar({
           onToggle: () => setIsPlatformSectionExpanded((current) => !current),
           children: (
             <SsooSidebarSearchableTree<(typeof ADMIN_NAV_ITEMS)[number]>
-              nodes={ADMIN_NAV_ITEMS}
+              nodes={ADMIN_NAV_ITEMS.filter((item) => isSsooSidebarDestination(item.href, ADMIN_HOME_TAB))}
               getNodeId={(item) => item.href}
               getNodeLabel={(item) => item.label}
               getNodeTitle={(item) => item.label}

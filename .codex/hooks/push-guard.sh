@@ -37,6 +37,9 @@ pnpm run verify:input-intent
 echo "[push-guard] running: pnpm run verify:ssoo-frame -- --skip-runtime"
 pnpm run verify:ssoo-frame -- --skip-runtime
 
+echo "[push-guard] running: pnpm run verify:error-routing"
+pnpm run verify:error-routing
+
 CHANGED="$(
   {
     git diff --name-only --cached || true

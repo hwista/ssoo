@@ -104,7 +104,7 @@ export class RejectReadAccessRequestDto
   responseMessage?: string;
 }
 
-const VALID_VISIBILITY_SCOPES = ['self', 'organization'] as const;
+const VALID_VISIBILITY_SCOPES = ['self', 'organization', 'public'] as const;
 
 export class UpdateDocumentVisibilityDto
   implements UpdateDocumentVisibilityPayload {
@@ -113,7 +113,13 @@ export class UpdateDocumentVisibilityDto
     enum: VALID_VISIBILITY_SCOPES,
   })
   @IsIn(VALID_VISIBILITY_SCOPES)
-  visibilityScope!: 'self' | 'organization';
+  visibilityScope!: 'self' | 'organization' | 'public';
+
+  @ApiPropertyOptional({ description: '조직 공개 대상 조직 ID', maxLength: 19 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(19)
+  targetOrgId?: string;
 }
 
 export class TransferDocumentOwnershipDto
