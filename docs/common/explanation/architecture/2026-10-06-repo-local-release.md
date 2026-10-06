@@ -74,3 +74,7 @@ DMS Git client는 entrypoint의 origin·count·key·고정 helper·useHttpPath�
 실제 wrapper와 임시 Git worktree를 실행하는 회귀 검사는 CA 미설정·명시 파일(공백 경로 포함)·누락·빈 파일·디렉터리 입력을 다룬다. 이번 변경은 CI 실행 경로에 한정되며 로컬 앱 이미지의 소스는 이전 검증 결과와 같다.
 
 검증: CI 계약 56개와 AI review shell 시나리오, `codex:verify-sync`, `codex:push-guard`, lint, `codex:platform-guard`(서버+5앱 빌드, 서버 100 suites/766 tests)가 통과했다. 서버 테스트 종료 시 기존 worker teardown 경고가 남았으나 테스트 실패는 없었다. 원격 성공 여부는 수정 커밋의 후속 pipeline 결과로 별도 확인한다.
+
+## GitLab #191 preflight worktree 복구
+
+`f4c2e8b7`의 #191은 추가 CA 없이 verify 이미지 빌드와 CI 계약 56개를 통과했다. 이어진 preflight가 `.git` 디렉터리만 허용해 정상 linked worktree의 `.git` 파일을 거부했다. 저장소 루트를 Git의 `rev-parse --show-toplevel`로 확인하도록 수정하고 일반 checkout·linked worktree 통과 및 저장소 없음·깨진 gitdir 거부를 검사한다. 이후 검증 단계를 생략하지 않는다.

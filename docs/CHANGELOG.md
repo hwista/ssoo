@@ -1,5 +1,7 @@
 # Changelog
 
+2026-10-06 GitLab #191에서 CA 및 CI 계약 통과 후 발견된 preflight의 linked worktree 오판을 수정했다. 실제 Git 저장소 루트를 검증하며 잘못된 Git 참조는 계속 거부한다.
+
 2026-10-06 GitLab #190의 verify CA 경로 오류를 수정했다. 추가 CA는 명시 설정일 때만 전달하며 잘못된 파일은 준비 작업 전에 거부한다. TLS 검증은 유지한다.
 
 2026-10-06 GitLab #189의 runner 상태 디렉터리 권한 실패를 사용자 소유의 영속 경로 기본값으로 복구했다. 명시 경로와 plan-only 배포 차단은 유지한다.

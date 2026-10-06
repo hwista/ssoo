@@ -32,8 +32,8 @@ changed_matches() {
 
 echo "[preflight] repo: $ROOT_DIR"
 
-if [ ! -d ".git" ]; then
-  echo "[preflight] .git not found. Run this from repository context."
+if [[ "$(git rev-parse --show-toplevel 2>/dev/null)" != "$ROOT_DIR" ]]; then
+  echo "[preflight] valid Git working tree not found at repository root."
   exit 1
 fi
 
