@@ -65,7 +65,19 @@ Platform deployment implementation — 2026-10-01 (local; remote activation pend
 GitLab staging deploy recovery — 2026-09-30 (staging restored 2026-10-06)
 -------------------------------------------------------------------------
 
-Status 2026-10-06 — READ FIRST
+End of day 2026-10-06 (17:40 KST) — READ FIRST
+- Staging still serves the morning release `4bc0af35` (3000–3004 and `/api/health` OK; DMS readiness 503 unchanged). Nothing on the runtime has changed since.
+- Pipeline #196 (`6968564f`) was running at hand-off: verify, ai_review and plan passed; build (all 7 images) then the new `db_check` job. It STOPS at manual `deploy_dev`; nothing deploys by itself.
+- Next session:
+  1. Check #196 in GitLab CI/CD → Jobs (the Pipelines list stage icons lag while a pipeline runs, a GitLab 10.4 server-side issue; Jobs is accurate).
+  2. If `db_check` passed: press `deploy_dev` (dump → compat db-init with the 7 launch migrations → server → apps → health → commit). The deploy refuses to start when the db_check is older than 24 hours; then Retry `db_check` first.
+  3. If `db_check` failed: real staging data hit a migration check (e.g. four-digit business years, duplicate CRM planning keys). Staging is untouched; read the job log and fix the data or migration with the DB owner (hwiseong).
+  4. After a successful deploy: check 3000–3004 and `/api/health`, then read DMS settings → operations (`/settings/operations/git`) for the blocked readiness check.
+  5. Clean-up agreed with the user: remove the `ai_review` job (advisory only, nobody reads the report; verify/db_check/health checks are the real gates) together with its script and contract scenarios.
+- Today's chain on the new release runner: #189/#190 runner state dir and RHEL CA path (teammate fixes), #193/#194 BuildKit cache disk pressure (full prune escalation), #195 deploy stopped safely when db push wanted to drop `cm_code_m`/`cm_code_h` → compat db-init now applies launch migrations newer than `20260917100000` (`packages/database/scripts/apply-compat-launch-migrations.sh`, shims in `prisma/compat/launch-shims/`), verified locally on a DB at the `4bc0af35` schema (7 applied, second run no-op, db push in sync).
+- Work from WSL: run Claude Code inside WSL (`~/dev/LSWIKI-src`) or VS Code Remote-WSL; Windows-side writes to `\\wsl.localhost` fail with EPERM.
+
+Status 2026-10-06 (afternoon)
 - Pipeline #187 (`4bc0af35`, old runner) restored staging: 3000–3004 and `/api/health` OK. DMS `/api/health/readiness` still 503 (DMS settings → operations shows the blocked check).
 - The new release runner (#189, #190) stopped in verify: runner-owned state dir (fixed by the teammate in `61a60516`) and the RHEL CA path (fixed here). By user decision staging deploys with `CI_DEPLOY_MODE=staging` and no `rehearse` stage: pre-deploy DB/DMS dump in the release dir `staging-backup/`, compat db-init without stopping the running apps, then server/app replacement and Docker health checks. The production `apply` path (verified backup evidence, isolated rehearsal, smoke token, `strict` db-init + `db:runtime:verify`) is unchanged; it cannot run on staging until the DB is moved to the launch baseline (`public._prisma_migrations` missing).
 - Release state lives in the runner account at `${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases/<pipeline>-<sha>/`. A failed staging db-init leaves the old apps serving; restore from `staging-backup/database.dump` (pg_restore) and `dms-runtime.tar.gz` by hand if needed.
