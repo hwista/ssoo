@@ -53,8 +53,15 @@ bash -n "$image_provenance"
 bash -n "$job_runner"
 bash -n "$runtime_diagnose"
 bash -n "$build_inputs"
+bash -n "$repo_root/scripts/ci/ai-review.sh"
 
 assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 4
+# No job carries the "allowed to fail" badge: ai_review handles AI/network problems itself,
+# and diagnose_runtime runs only after a failure.
+assert_not_contains "$pipeline" 'allow_failure: true'
+last_stage="$(awk '/^stages:/ { in_stages = 1; next } in_stages && /^  - / { last = $2; next } in_stages { exit } END { print last }' "$pipeline")"
+[[ "$last_stage" == "diagnose" ]] || fail "diagnose must be the last pipeline stage, found $last_stage"
+assert_contains "$pipeline" 'when: on_failure'
 assert_contains "$staging_compose_file" "fetch('http://127.0.0.1:4000/api/health')"
 assert_not_contains "$staging_compose_file" '/api/health/readiness'
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"'
@@ -534,7 +541,7 @@ run_build_contract() {
   CI_PROJECT_DIR="$repo_root" \
     APP_DIR="$app" \
     CI_COMMIT_REF_NAME=development \
-    CI_COMMIT_SHA="$second_sha" \
+    CI_COMMIT_SHA="${BUILD_CONTRACT_SHA:-$second_sha}" \
     CI_COMMIT_SHORT_SHA="${second_sha:0:8}" \
     CI_APP_LOCK_FILE="$test_root/$scenario.lock" \
     CI_BACKUP_MANIFEST_DIR="$test_root" \
@@ -627,6 +634,26 @@ if CI_FORCE_FULL_BUILD=yes run_build_contract forced-full-build-invalid 0; then
   fail "build job accepted an invalid CI_FORCE_FULL_BUILD value"
 fi
 assert_contains "$fake_state" 'buildx:bake-count|0'
+
+# Only a commit message line that is exactly "[full build]" forces a full build.
+commit_build_marker() {
+  printf '%s\n' "$1" > "$seed/version.txt"
+  git -C "$seed" commit -qam "$2"
+  git -C "$seed" push -q origin development
+  git -C "$seed" rev-parse HEAD
+}
+marker_sha="$(commit_build_marker marker $'ci: rebuild every service\n\n[full build]')"
+mention_sha="$(commit_build_marker mention $'docs: explain the build marker\n\nPut "[full build]" on its own line to force a full build.')"
+
+seed_selective_build_state
+BUILD_CONTRACT_SHA="$marker_sha" run_build_contract marker-full-build 0
+assert_contains "$fake_state" 'buildx:bake-count|7'
+assert_contains "$test_root/marker-full-build.log" 'force_full_build=1'
+
+seed_selective_build_state
+BUILD_CONTRACT_SHA="$mention_sha" run_build_contract marker-mention 0
+assert_contains "$fake_state" 'buildx:bake-count|6'
+assert_contains "$test_root/marker-mention.log" 'force_full_build=0'
 
 seed_selective_build_state
 if FAKE_DOCKER_SKIP_BAKE_LABELS=1 run_build_contract unlabeled-build 0; then
@@ -921,4 +948,129 @@ if run_deploy_contract rollback-failed env FAKE_DOCKER_FAIL_FIRST_DEPLOY_HEALTH=
 fi
 assert_contains "$test_root/rollback-failed.log" 'manual recovery required'
 
-echo "[gitlab-pipeline-test] exact source, selective build, backup recovery, deploy, and rollback contracts passed"
+# AI review: newest successful development deployment as the base, lockfile excluded,
+# whole-file diffs in priority order within the budget, partial coverage reported.
+command -v jq >/dev/null 2>&1 || fail "jq is required for the ai-review contract (the CI verify image installs it)"
+review_repo="$test_root/review"
+review_out="$test_root/review-out"
+deployments_dir="$test_root/deployments"
+fake_curl_bin="$test_root/curl-bin"
+mkdir -p "$review_out" "$deployments_dir" "$fake_curl_bin"
+git init -q -b development "$review_repo"
+git -C "$review_repo" config user.name "CI Contract Test"
+git -C "$review_repo" config user.email "ci-contract@example.invalid"
+
+write_review_file() {
+  mkdir -p "$review_repo/$(dirname "$1")"
+  printf '%s\n' "$2" > "$review_repo/$1"
+}
+
+write_review_file README.md base
+git -C "$review_repo" add -A
+git -C "$review_repo" commit -qm base
+review_base_sha="$(git -C "$review_repo" rev-parse HEAD)"
+write_review_file apps/server/src/review.ts "export const reviewed = 'server change';"
+write_review_file .codex/hooks/guard.sh "$(printf 'echo tooling-line-%s\n' $(seq 1 60))"
+write_review_file apps/web/pms/src/large.ts "$(printf "export const largeValue%s = 'pms';\n" $(seq 1 200))"
+write_review_file pnpm-lock.yaml lockfile-change
+git -C "$review_repo" add -A
+git -C "$review_repo" commit -qm changes
+review_head_sha="$(git -C "$review_repo" rev-parse HEAD)"
+
+deployment_json() {
+  printf '{"id":%s,"sha":"%s","environment":{"name":"%s"},"deployable":{"status":"%s"}}' "$1" "$2" "$3" "$4"
+}
+{
+  printf '['
+  for deployment_id in $(seq 1 100); do
+    if [[ "$deployment_id" -gt 1 ]]; then printf ','; fi
+    deployment_json "$deployment_id" "$(printf '%040x' "$deployment_id")" development success
+  done
+  printf ']'
+} > "$deployments_dir/page-1.json"
+{
+  printf '['
+  deployment_json 101 "$review_base_sha" development success
+  printf ','
+  deployment_json 102 "$(printf '%040x' 102)" development failed
+  printf ','
+  deployment_json 103 "$(printf '%040x' 103)" production success
+  printf ']'
+} > "$deployments_dir/page-2.json"
+
+cat > "$fake_curl_bin/curl" <<'FAKE_CURL'
+#!/usr/bin/env bash
+set -euo pipefail
+url=""
+data=""
+previous_argument=""
+for argument in "$@"; do
+  if [[ "$previous_argument" == "-d" ]]; then data="$argument"; fi
+  if [[ "$argument" == http* ]]; then url="$argument"; fi
+  previous_argument="$argument"
+done
+case "$url" in
+  */deployments\?*)
+    cat "$FAKE_CURL_DEPLOYMENTS_DIR/page-${url##*page=}.json" 2>/dev/null || printf '[]'
+    ;;
+  */chat/completions*)
+    printf '%s' "$data" > "$FAKE_CURL_REQUEST_FILE"
+    printf '{"choices":[{"message":{"content":"변경 요약\\nRISK=LOW"}}]}\n[HTTP_CODE]200'
+    ;;
+  *)
+    exit 7
+    ;;
+esac
+FAKE_CURL
+chmod +x "$fake_curl_bin/curl"
+
+run_ai_review() {
+  local scenario="$1"
+  mkdir -p "$review_out/$scenario"
+  CI_PROJECT_DIR="$review_out/$scenario" \
+    APP_DIR="$review_repo" \
+    CI_COMMIT_SHA="$review_head_sha" \
+    GITLAB_API_TOKEN=contract-token \
+    AZURE_OPENAI_ENDPOINT=https://azure.example/ \
+    AZURE_OPENAI_DEPLOYMENT=review \
+    AZURE_OPENAI_API_KEY=contract-key \
+    OPENAI_API_VERSION=2024-01-01 \
+    AI_REVIEW_DIFF_BUDGET_BYTES="$2" \
+    FAKE_CURL_DEPLOYMENTS_DIR="$deployments_dir" \
+    FAKE_CURL_REQUEST_FILE="$review_out/$scenario/request.json" \
+    PATH="$fake_curl_bin:$PATH" \
+    bash "$repo_root/scripts/ci/ai-review.sh" > "$review_out/$scenario.log" 2>&1 \
+    || fail "ai-review scenario $scenario exited non-zero"
+}
+
+run_ai_review server-only 1000
+assert_contains "$review_out/server-only.log" "마지막 배포 SHA: $review_base_sha"
+assert_contains "$review_out/server-only.log" '검토 파일: 1/3'
+assert_contains "$review_out/server-only.log" '판정 위험도: UNKNOWN (부분 검토 1/3, 모델 판정 LOW)'
+assert_contains "$review_out/server-only/request.json" 'server change'
+assert_contains "$review_out/server-only/request.json" '전체 변경 3개 파일 중 1개만'
+assert_not_contains "$review_out/server-only/request.json" 'tooling-line-1'
+assert_not_contains "$review_out/server-only/request.json" 'largeValue1'
+assert_not_contains "$review_out/server-only/request.json" 'lockfile-change'
+assert_contains "$review_out/server-only/ai-review-report.md" '## 검토하지 못한 파일 (2개, diff 한도 초과)'
+assert_contains "$review_out/server-only/ai-review-report.md" '- `.codex/hooks/guard.sh`'
+assert_contains "$review_out/server-only/ai-review-report.md" '- `apps/web/pms/src/large.ts`'
+
+run_ai_review server-and-tooling 3000
+assert_contains "$review_out/server-and-tooling.log" '검토 파일: 2/3'
+assert_contains "$review_out/server-and-tooling/request.json" 'tooling-line-1'
+assert_not_contains "$review_out/server-and-tooling/request.json" 'largeValue1'
+
+run_ai_review complete 100000
+assert_contains "$review_out/complete.log" '검토 파일: 3/3'
+assert_contains "$review_out/complete.log" '[ai-review] 판정 위험도: LOW'
+assert_contains "$review_out/complete/request.json" 'largeValue1'
+assert_not_contains "$review_out/complete/request.json" 'lockfile-change'
+assert_not_contains "$review_out/complete/request.json" '전체 변경'
+assert_not_contains "$review_out/complete/ai-review-report.md" '검토하지 못한 파일'
+
+run_ai_review over-budget 50
+assert_contains "$review_out/over-budget.log" '판정 위험도: UNKNOWN (부분 검토 0/3)'
+[[ ! -e "$review_out/over-budget/request.json" ]] || fail "ai-review called the model without any reviewable diff"
+
+echo "[gitlab-pipeline-test] exact source, selective build, ai review, backup recovery, deploy, and rollback contracts passed"

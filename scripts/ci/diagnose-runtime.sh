@@ -86,9 +86,10 @@ if [[ "$(docker inspect ssoo-server --format '{{.State.Running}}' 2>/dev/null)" 
       fi
     done
     if [ -n "$root" ] && [ -e "$root/.git" ]; then
-      git --no-optional-locks -C "$root" status --short --branch 2>&1 | head -n 5
-      git -C "$root" remote -v 2>&1
-      remote_heads="$(GIT_TERMINAL_PROMPT=0 timeout 20 git -C "$root" ls-remote --heads origin 2>&1)"
+      # Same per-command safe.directory exception as the server Git client (git-client.util.ts).
+      git -c "safe.directory=$root" --no-optional-locks -C "$root" status --short --branch 2>&1 | head -n 5
+      git -c "safe.directory=$root" -C "$root" remote -v 2>&1
+      remote_heads="$(GIT_TERMINAL_PROMPT=0 timeout 20 git -c "safe.directory=$root" -C "$root" ls-remote --heads origin 2>&1)"
       echo "git_ls_remote_exit=$?"
       printf "%s\n" "$remote_heads" | head -n 5
     else

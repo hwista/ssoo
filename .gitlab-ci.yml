@@ -3,6 +3,7 @@ stages:
   - ai_review
   - build
   - deploy
+  - diagnose
 
 variables:
   APP_DIR: "/opt/ssoo/app"
@@ -32,17 +33,6 @@ verify:
   only:
     - development
 
-diagnose_runtime:
-  stage: verify
-  tags:
-    - ssoo
-  when: manual
-  allow_failure: true
-  script:
-    - bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"
-  only:
-    - development
-
 ai_review:
   stage: ai_review
   tags:
@@ -53,7 +43,8 @@ ai_review:
     paths:
       - ai-review-report.md
     expire_in: 30 days
-  allow_failure: true
+  # ai-review.sh reports AI/network/config problems and exits 0, so only real runner
+  # failures (source sync, lock) fail this job.
   only:
     - development
 
@@ -77,5 +68,17 @@ deploy_dev:
     url: http://10.125.12.170:3003
   script:
     - bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" deploy
+  only:
+    - development
+
+# Runs automatically only when an earlier job failed, so successful pipelines show it as skipped.
+# A failed deploy also captures the pre-rollback state inside deploy_dev; this job records the state after rollback.
+diagnose_runtime:
+  stage: diagnose
+  tags:
+    - ssoo
+  when: on_failure
+  script:
+    - bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"
   only:
     - development

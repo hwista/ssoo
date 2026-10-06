@@ -400,12 +400,14 @@ case "$job" in
         if (value != "") print value
       }
     ' <<< "$compose_config" | sort -u)
-    # GitLab 10.4 ignores API pipeline variables, so a commit message marker also forces a full build.
+    # GitLab 10.4 ignores API pipeline variables, so a commit message line that is exactly
+    # "[full build]" also forces a full build. Mentioning the marker inside a sentence does not.
     force_full_build="$ci_force_full_build"
-    commit_message="$(git log -1 --format=%B "$CI_COMMIT_SHA")"
-    if [[ "$commit_message" == *"[full build]"* ]]; then
-      force_full_build=1
-    fi
+    while IFS= read -r message_line; do
+      if [[ "$message_line" =~ ^[[:space:]]*\[full\ build\][[:space:]]*$ ]]; then
+        force_full_build=1
+      fi
+    done < <(git log -1 --format=%B "$CI_COMMIT_SHA")
     echo "변경 서비스 순차 빌드 시작 (BuildKit, services=${build_services[*]}, force_full_build=$force_full_build)"
     built_count=0
     for service in "${build_services[@]}"; do

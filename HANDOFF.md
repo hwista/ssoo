@@ -10,12 +10,19 @@ Context
 - DMS is integrated as the canonical document store (git-backed working tree + DB metadata)
 - Primary goal: refactor large files, stabilize auto-commit/publish pipeline, and add tests for core DMS logic
 
-GitLab staging deploy recovery — 2026-09-30 (in progress)
----------------------------------------------------------
+GitLab staging deploy recovery — 2026-09-30 (staging restored 2026-10-06)
+-------------------------------------------------------------------------
 
-Update 2026-10-06 — READ FIRST
+Status 2026-10-06 (afternoon) — READ FIRST
+- Staging is UP: pipeline #187 (`4bc0af35`) built all 7 services (first labelled build) and `deploy_dev` succeeded at 10:44 KST. 3000–3004 return 200 and `/api/health` is ok. All containers healthy and image parity verified.
+- DMS readiness (`/api/health/readiness`) still returns 503 but no longer blocks startup (staging healthcheck is liveness). The diagnose run after deploy showed the DMS runtime paths are fine (NAS path absent but not required: provider local). Its Git lines were invalid (missing `safe.directory`, fixed in the follow-up commit). The remaining suspect is the `git-binding` parity check (fetch of `LSWIKI_DOC` without credentials). The DMS settings operations screen (admin, `http://10.125.12.170:3003/settings/operations/git`) shows the blocked check; read it before changing code.
+- Follow-up commit (this one): `ai_review` base SHA fixed (10.4 deployments API ignores order/filter; it always used deployment #1 `1aed3585` from 5/27 and reviewed only the first 50 KB = 12 tooling files of a 10 MB diff), lockfile excluded, whole-file diffs by priority within the budget, partial coverage reported as `UNKNOWN (부분 검토 N/M)`, `allow_failure` removed. `diagnose_runtime` is now `when: on_failure` in a last `diagnose` stage (no "allowed to fail" badge, verify no longer looks unfinished). `[full build]` only counts as a standalone commit message line (the #187 commit body mentioned it inline and forced a full build). CI verify image installs jq.
+- Expect the next pipeline to reuse all 7 images (no service input changed); check the build trace for `build selection built=0 reused=7`.
+- Staging security follow-up: if the staging admin still uses the documented seed password (`docs/dms/guides/operations.md`), rotate it with the other WP-5 items.
+
+Update 2026-10-06 (morning)
 - State on arrival: GitLab `development` had no new commits after `2a2fbd7a`; the staging server was still fully down (3000–3004 and 4000 not responding).
-- Implemented (user-approved), verified locally, push pending user confirmation:
+- Implemented (user-approved), verified locally, pushed as `4bc0af35`:
   - `compose.staging.yaml`: server healthcheck overridden to liveness `GET /api/health`; base/production keep the readiness gate. `docker compose config` with the overlay shows only `test` replaced.
   - `scripts/ci/diagnose-runtime.sh`: when `ssoo-server` runs, prints the in-container readiness HTTP status, DMS runtime path access, and document repo `git status`/`remote -v` (masked)/`ls-remote` exit code. Read-only.
   - WP-3 selective build: `scripts/ci/build-inputs.sh` fingerprints each service; `run-app-job.sh build` reuses a retained commit image whose `com.ssoo.ci.input-hash` label matches and builds the rest with Bake `--set` labels. Force a full build with `CI_FORCE_FULL_BUILD=1` or `[full build]` in the commit message. The first build after this change rebuilds all 7 (no labels yet).

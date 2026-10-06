@@ -1,7 +1,7 @@
 # 준운영 배포 파이프라인 재발 방지 실행 계획
 
 > 작성일: 2026-09-30  
-> 상태: WP-3 구현 완료(2026-10-06, 첫 실배포 확인 대기), WP-1·WP-2·WP-4·WP-5 구현 대기 (승인된 방향, 세부 설계는 구현자가 이 문서 기준으로 확정)  
+> 상태: WP-3 구현 완료(2026-10-06, #187에서 7개 전체 빌드·label 부여 확인, 재사용 경로는 다음 pipeline에서 확인), WP-4 구현 완료(2026-10-06), WP-1·WP-2·WP-5 구현 대기 (승인된 방향, 세부 설계는 구현자가 이 문서 기준으로 확정)  
 > 대상: GitLab `development` shell runner(`ssoo-shell-runner`, `lsiddms01`) → 준운영 서버 `10.125.12.170` (Admin/CRM/PMS/DMS/SNS `3000~3004`, API `4000`)  
 > 기준 커밋: `704ea3b1` (2026-09-30 복구 작업 종료 시점)  
 > 작업 환경: WSL `~/dev/LSWIKI-src`에서만 개발·커밋·push한다. Windows checkout은 pnpm hook이 동작하지 않는다.
@@ -66,6 +66,7 @@
 ### WP-4. 정리 항목
 
 - `diagnose_runtime`을 `verify` stage에서 별도 manual stage(`diagnose`)로 옮긴다. 읽기 전용, lock 미사용, 비밀값 마스킹을 유지한다.
+  - 구현(2026-10-06): 사용자 결정으로 manual 대신 마지막 `diagnose` stage의 `when: on_failure` job으로 바꿨다. manual job은 GitLab 10.4에서 `allow_failure: true`가 기본이라 "allowed to fail" 배지가 항상 붙고, `false`로 바꾸면 pipeline을 막기 때문이다. 앞 단계 실패 시에만 자동 실행되고 성공 pipeline에서는 skipped로 보인다. `ai_review`도 스크립트가 AI/네트워크 문제를 스스로 처리하게 하고 `allow_failure`를 제거했다.
 - `deployment.md`에 GitLab 10.4 제약을 명시한다: pipeline API `variables` 무시, `-o ci.skip` 미지원(`[ci skip]` 사용), runner는 동시에 job 하나만 실행하므로 대체된 pipeline은 취소한다.
 - 기존 실패 `node scripts/verify-pms-launch-readiness.mjs`의 "PMS mobile layout removes desktop sidebar offset"은 이번 범위와 무관한 기존 결함이므로 별도 과제로 등록한다.
 
@@ -106,5 +107,6 @@
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-10-06 | WP-4 구현: `diagnose_runtime`을 `when: on_failure` 마지막 stage로 이동, `ai_review` 기준 SHA·diff 선택 수정과 `allow_failure` 제거 |
 | 2026-10-06 | WP-3 변경 서비스 선택 빌드를 fingerprint label 방식으로 구현, 준운영 server healthcheck liveness override와 readiness 진단 추가 |
 | 2026-09-30 | 준운영 배포 장애(#176~#184) 경과와 재발 방지 작업(WP-1~WP-5)을 실행 계획으로 작성 |

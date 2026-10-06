@@ -1,5 +1,7 @@
 # DMS 변경 이력
 
+2026-10-06 준운영 배포 복구 확인과 pipeline 정리: pipeline #187 배포로 준운영 Admin/CRM/PMS/DMS/SNS(3000~3004)와 API liveness가 복구됐다(DMS readiness는 503 유지, DMS 설정 운영 상태 화면에서 확인). 후속으로 `ai_review`가 GitLab 10.4 deployments API의 정렬 무시 때문에 항상 첫 배포(5/27)를 기준으로 10MB diff의 앞 50KB(도구 파일 12개)만 검토하던 문제를 고쳤다: 최신 성공 development 배포를 직접 고르고, lockfile을 제외하고, 운영 영향 순서로 파일 단위 diff를 담으며, 부분 검토면 위험도를 `UNKNOWN (부분 검토 N/M)`으로 표시한다. `ai_review`의 `allow_failure`를 없애고 `diagnose_runtime`을 실패 시에만 자동 실행되는 마지막 stage로 옮겨 "allowed to fail" 배지와 verify stage 미완료 표시를 없앴다. 진단 Git 명령은 서버와 같은 `safe.directory`로 실행하고, `[full build]`는 단독 줄일 때만 인식한다.
+
 2026-10-06 준운영 복구 배포 준비와 변경 서비스 선택 빌드: pipeline #184에서 새 server는 정상 기동했지만 compose healthcheck `/api/health/readiness`가 DMS readiness `blocked`로 503을 반환해 웹 5개가 기동하지 못했다. 준운영 overlay(`compose.staging.yaml`)만 server healthcheck를 liveness `/api/health`로 바꾸고, `diagnose_runtime`에 서버 관점의 readiness HTTP 상태·DMS runtime 경로 접근·문서 저장소 Git 상태/remote 도달 여부(마스킹)를 추가해 차단 원인을 다음 배포에서 확인한다. 계획 WP-3도 구현했다: `scripts/ci/build-inputs.sh`가 서비스별 build input fingerprint를 계산하고, 같은 fingerprint label(`com.ssoo.ci.input-hash`)을 가진 보관 commit image가 있으면 빌드 없이 재사용한다(`CI_FORCE_FULL_BUILD=1` 또는 commit message `[full build]`로 전체 빌드). 상세는 [배포 가이드](../guides/deployment.md)의 GitLab pipeline 배포 계약에 기록한다.
 
 2026-09-30 준운영 배포 재발 방지 계획: 오늘 장애(#176~#184)에서 배포하면서 결함을 발견하던 흐름을 막기 위해 build 전 배포 리허설 stage, 무중단 배포 순서·rollback compose snapshot, 변경 서비스만 빌드, 진단 stage 정리, 준운영 보안 후속을 [실행 계획](2026-09-30-staging-deploy-hardening-plan.md)으로 정리했다. 구현 대기.
