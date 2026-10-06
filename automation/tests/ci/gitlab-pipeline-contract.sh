@@ -7,8 +7,10 @@ source_sync="$repo_root/scripts/ci/prepare-app-source.sh"
 image_provenance="$repo_root/scripts/ci/image-provenance.sh"
 job_runner="$repo_root/scripts/ci/run-app-job.sh"
 runtime_diagnose="$repo_root/scripts/ci/diagnose-runtime.sh"
+build_inputs="$repo_root/scripts/ci/build-inputs.sh"
 ci_verify_dockerfile="$repo_root/docker/ci-verify.Dockerfile"
 compose_file="$repo_root/compose.yaml"
+staging_compose_file="$repo_root/compose.staging.yaml"
 gitignore="$repo_root/.gitignore"
 dockerignore="$repo_root/.dockerignore"
 test_root="$(mktemp -d)"
@@ -50,8 +52,11 @@ bash -n "$source_sync"
 bash -n "$image_provenance"
 bash -n "$job_runner"
 bash -n "$runtime_diagnose"
+bash -n "$build_inputs"
 
 assert_count "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh"' 4
+assert_contains "$staging_compose_file" "fetch('http://127.0.0.1:4000/api/health')"
+assert_not_contains "$staging_compose_file" '/api/health/readiness'
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"'
 assert_contains "$pipeline" 'COMPOSE_FILE: "compose.yaml:compose.staging.yaml"'
 assert_contains "$job_runner" 'capturing diagnostics before automatic rollback'
@@ -91,7 +96,9 @@ assert_contains "$job_runner" 'build_services=(server db-init pms dms sns admin 
 assert_contains "$job_runner" 'prune_unreferenced_app_latest'
 assert_contains "$job_runner" 'if [[ "$job" == "verify" || "$job" == "build" ]]; then'
 assert_contains "$job_runner" 'docker compose -p "$COMPOSE_PROJECT_NAME" build --print > "$bake_definition"'
-assert_contains "$job_runner" 'docker buildx bake "${bake_allow_args[@]}" --file "$bake_definition" --load "$service"'
+assert_contains "$job_runner" 'docker buildx bake "${bake_allow_args[@]}" --file "$bake_definition" \'
+assert_contains "$job_runner" '--set "$service.labels.com.ssoo.ci.input-hash=$input_hash"'
+assert_contains "$job_runner" 'bash scripts/ci/build-inputs.sh "$service" "$compose_config_file"'
 assert_contains "$job_runner" 'prepare_build_capacity "build-$service" "$build_target_min_free_kb" full'
 assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh tag-build'
 assert_contains "$job_runner" 'bash scripts/ci/image-provenance.sh backup-running "$backup_tag" "$backup_manifest"'
@@ -142,8 +149,9 @@ cp "$gitignore" "$seed/.gitignore"
 mkdir -p "$seed/scripts/ci"
 cp "$image_provenance" "$seed/scripts/ci/image-provenance.sh"
 cp "$runtime_diagnose" "$seed/scripts/ci/diagnose-runtime.sh"
+cp "$build_inputs" "$seed/scripts/ci/build-inputs.sh"
 printf 'first\n' > "$seed/version.txt"
-git -C "$seed" add .gitignore scripts/ci/image-provenance.sh scripts/ci/diagnose-runtime.sh version.txt
+git -C "$seed" add .gitignore scripts/ci/image-provenance.sh scripts/ci/diagnose-runtime.sh scripts/ci/build-inputs.sh version.txt
 git -C "$seed" commit -m "first" >/dev/null
 git -C "$seed" remote add origin "$remote"
 git -C "$seed" push -u origin development >/dev/null
@@ -242,7 +250,13 @@ case "${1:-}" in
   image)
     case "${2:-}" in
       inspect)
-        if [[ "$*" == *'{{.Created}}'* ]]; then
+        if [[ "$*" == *'.Config.Labels'* ]]; then
+          label_name="$*"
+          label_name="${label_name##*.Config.Labels \"}"
+          label_name="${label_name%%\"*}"
+          image="$(resolve_image "$3")"
+          lookup_key "label:$image:$label_name" 2>/dev/null || printf '\n'
+        elif [[ "$*" == *'{{.Created}}'* ]]; then
           image="$(resolve_image "$3")"
           created="$(lookup_key "created:$image" 2>/dev/null || printf '2026-01-01T00:00:00Z\n')"
           printf '%s|%s\n' "$created" "$image"
@@ -277,7 +291,13 @@ case "${1:-}" in
     printf 'DMS_GIT_BOOTSTRAP_REMOTE_URL=http://doc.user%%40example.com:git-contract-secret%%21@gitlab.example:8010/doc.git\n'
     ;;
   exec)
-    printf 'schema|public|3\n'
+    if [[ "$*" == *'ls-remote'* ]]; then
+      printf 'path=/var/lib/ssoo/dms/documents exists=yes readable=yes writable=yes\n'
+      printf 'origin\thttp://doc.user%%40example.com:git-remote-secret@gitlab.example:8010/doc.git (fetch)\n'
+      printf 'git_ls_remote_exit=128\n'
+    else
+      printf 'schema|public|3\n'
+    fi
     ;;
   system)
     [[ "${2:-}" == "df" ]] || exit 2
@@ -323,6 +343,9 @@ case "${1:-}" in
     container="$2"
     if [[ "$*" == *"State.Health.Status"* ]]; then
       lookup_key "health:$container"
+    elif [[ "$*" == *"State.Running"* ]]; then
+      lookup_key "container:$container" >/dev/null
+      printf 'true\n'
     elif ! print_fake_config "$@"; then
       lookup_key "container:$container"
     else
@@ -345,10 +368,39 @@ case "${1:-}" in
 name: app
 services:
   server:
+    build:
+      context: /opt/ssoo/app
+      dockerfile: apps/server/Dockerfile
     secrets:
       - source: ssoo_tls_ca
         target: ssoo_tls_ca
         file: /service/level/ignored
+  db-init:
+    build:
+      context: /opt/ssoo/app
+      dockerfile: docker/db-init.Dockerfile
+  pms:
+    build:
+      context: /opt/ssoo/app
+      dockerfile: apps/web/pms/Dockerfile
+  dms:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: http://10.125.12.170:4000/api
+      context: /opt/ssoo/app
+      dockerfile: apps/web/dms/Dockerfile
+  sns:
+    build:
+      context: /opt/ssoo/app
+      dockerfile: apps/web/sns/Dockerfile
+  admin:
+    build:
+      context: /opt/ssoo/app
+      dockerfile: apps/web/admin/Dockerfile
+  crm:
+    build:
+      context: /opt/ssoo/app
+      dockerfile: apps/web/crm/Dockerfile
 secrets:
   dms_git_http_credentials:
     name: app_dms_git_http_credentials
@@ -395,13 +447,25 @@ FAKE_COMPOSE_CONFIG
     build_count="$(lookup_key buildx:bake-count 2>/dev/null || printf '0\n')"
     set_value buildx:bake-count "$((build_count + 1))"
     bake_allow=""
+    bake_labels=()
+    previous_argument=""
     for argument in "$@"; do
       if [[ "$argument" == --allow=* ]]; then
         bake_allow="$bake_allow[$argument]"
+      elif [[ "$previous_argument" == "--set" && "$argument" == *.labels.* ]]; then
+        bake_labels+=("${argument#*.labels.}")
       fi
+      previous_argument="$argument"
     done
     set_value buildx:bake-allow "$bake_allow"
     service="${@: -1}"
+    built_image="$(resolve_image "app-$service:latest")"
+    if [[ "${FAKE_DOCKER_SKIP_BAKE_LABELS:-}" == "1" ]]; then
+      bake_labels=()
+    fi
+    for label in "${bake_labels[@]}"; do
+      set_value "label:$built_image:${label%%=*}" "${label#*=}"
+    done
     build_sequence="$(lookup_key buildx:bake-sequence 2>/dev/null || true)"
     if [[ -n "$build_sequence" ]]; then
       build_sequence="$build_sequence,$service"
@@ -522,6 +586,141 @@ assert_contains "$fake_state" 'compose:build-print-count|0'
 assert_contains "$fake_state" 'buildx:bake-count|0'
 assert_contains "$test_root/capacity-blocked.log" 'Docker capacity pressure detected; pruning all unused BuildKit cache'
 assert_contains "$test_root/capacity-blocked.log" 'insufficient Docker filesystem capacity after safe cache cleanup'
+
+fake_compose_config="$test_root/compose-config.yaml"
+PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" docker compose -p app config > "$fake_compose_config"
+previous_sha="$(printf '%040x' 8)"
+
+seed_selective_build_state() {
+  local pms_input_hash
+  pms_input_hash="$(cd "$app" && bash scripts/ci/build-inputs.sh pms "$fake_compose_config")"
+  reset_fake_state
+  set_state image:sha256:pms-previous sha256:pms-previous
+  set_state "app-pms:$previous_sha" sha256:pms-previous
+  set_state "label:sha256:pms-previous:com.ssoo.ci.input-hash" "$pms_input_hash"
+  set_state "label:sha256:pms-previous:com.ssoo.ci.commit" "$previous_sha"
+  set_state image:sha256:dms-previous sha256:dms-previous
+  set_state "app-dms:$previous_sha" sha256:dms-previous
+  set_state "label:sha256:dms-previous:com.ssoo.ci.input-hash" stale-input-hash
+}
+
+seed_selective_build_state
+run_build_contract selective-build 0
+assert_contains "$fake_state" 'buildx:bake-count|6'
+assert_contains "$fake_state" 'buildx:bake-sequence|server,db-init,dms,sns,admin,crm'
+assert_contains "$fake_state" 'builder:prune-count|6'
+assert_contains "$fake_state" "app-pms:$second_sha|sha256:pms-previous"
+assert_contains "$fake_state" "app-dms:$second_sha|sha256:dms-built"
+assert_contains "$fake_state" "label:sha256:dms-built:com.ssoo.ci.input-hash|$(cd "$app" && bash scripts/ci/build-inputs.sh dms "$fake_compose_config")"
+assert_contains "$fake_state" "label:sha256:dms-built:com.ssoo.ci.commit|$second_sha"
+assert_contains "$test_root/selective-build.log" "reused service=pms image=app-pms:$previous_sha built_from=$previous_sha"
+assert_contains "$test_root/selective-build.log" 'build selection built=6 reused=1'
+
+seed_selective_build_state
+CI_FORCE_FULL_BUILD=1 run_build_contract forced-full-build 0
+assert_contains "$fake_state" 'buildx:bake-count|7'
+assert_contains "$fake_state" "app-pms:$second_sha|sha256:pms-built"
+assert_contains "$test_root/forced-full-build.log" 'force_full_build=1'
+
+seed_selective_build_state
+if CI_FORCE_FULL_BUILD=yes run_build_contract forced-full-build-invalid 0; then
+  fail "build job accepted an invalid CI_FORCE_FULL_BUILD value"
+fi
+assert_contains "$fake_state" 'buildx:bake-count|0'
+
+seed_selective_build_state
+if FAKE_DOCKER_SKIP_BAKE_LABELS=1 run_build_contract unlabeled-build 0; then
+  fail "build job accepted a built image without the expected input hash label"
+fi
+assert_contains "$test_root/unlabeled-build.log" 'build input label mismatch service=server'
+assert_contains "$fake_state" 'buildx:bake-count|1'
+
+# Build input fingerprints change only for the services whose inputs changed.
+inputs_repo="$test_root/inputs"
+inputs_compose="$test_root/inputs-compose.yaml"
+cp "$fake_compose_config" "$inputs_compose"
+git init -b development "$inputs_repo" >/dev/null
+git -C "$inputs_repo" config user.name "CI Contract Test"
+git -C "$inputs_repo" config user.email "ci-contract@example.invalid"
+cp "$gitignore" "$inputs_repo/.gitignore"
+
+write_input_file() {
+  mkdir -p "$inputs_repo/$(dirname "$1")"
+  printf '%s\n' "$2" > "$inputs_repo/$1"
+}
+
+commit_inputs() {
+  git -C "$inputs_repo" add -A
+  git -C "$inputs_repo" commit -qm "$1"
+}
+
+all_input_hashes() {
+  local service
+  for service in "${services[@]}"; do
+    printf '%s=%s\n' "$service" "$(cd "$inputs_repo" && bash "$build_inputs" "$service" "$inputs_compose")"
+  done
+}
+
+assert_changed_services() {
+  local description="$1"
+  local expected="$2"
+  local after changed
+  after="$(all_input_hashes)"
+  changed="$(diff <(printf '%s\n' "$input_hashes") <(printf '%s\n' "$after") \
+    | awk '/^> / { split($2, parts, "="); printf "%s%s", separator, parts[1]; separator = "," }' || true)"
+  [[ "$changed" == "$expected" ]] || fail "$description changed [$changed], expected [$expected]"
+  input_hashes="$after"
+}
+
+for input_file in package.json pnpm-lock.yaml apps/server/src/main.ts apps/web/pms/src/page.tsx \
+  apps/web/dms/src/page.tsx apps/web/crm/src/page.tsx packages/web-ui/src/index.ts \
+  packages/database/prisma/schema.prisma docs/guide.md; do
+  write_input_file "$input_file" "v1 $input_file"
+done
+commit_inputs "inputs"
+input_hashes="$(all_input_hashes)"
+
+write_input_file docs/guide.md "v2"
+commit_inputs "docs only"
+assert_changed_services "docs-only commit" ""
+
+write_input_file apps/web/pms/src/page.tsx "v2"
+commit_inputs "pms only"
+assert_changed_services "pms source commit" "pms"
+
+write_input_file packages/web-ui/src/index.ts "v2"
+commit_inputs "shared web package"
+assert_changed_services "web-ui package commit" "pms,dms,sns,admin,crm"
+
+write_input_file packages/database/prisma/schema.prisma "v2"
+commit_inputs "database package"
+assert_changed_services "database package commit" "server,db-init"
+
+write_input_file apps/web/dms/.env.local "DMS_LOCAL=1"
+assert_changed_services "ignored DMS env file in the build context" "server,dms"
+
+write_input_file apps/web/pms/node_modules/pkg/index.js "generated"
+write_input_file apps/web/pms/.next/build-manifest.json "generated"
+assert_changed_services "generated build output" ""
+
+sed -i 's#NEXT_PUBLIC_API_URL: http://10.125.12.170:4000/api#NEXT_PUBLIC_API_URL: http://10.125.12.171:4000/api#' "$inputs_compose"
+assert_changed_services "dms build argument" "dms"
+
+write_input_file apps/web/crm/package.json '{"name":"web-crm"}'
+commit_inputs "workspace manifest"
+assert_changed_services "workspace manifest commit" "server,pms,dms,sns,admin,crm,db-init"
+
+write_input_file pnpm-lock.yaml "v2"
+commit_inputs "lockfile"
+assert_changed_services "lockfile commit" "server,pms,dms,sns,admin,crm,db-init"
+
+if (cd "$inputs_repo" && bash "$build_inputs" unknown "$inputs_compose") >/dev/null 2>&1; then
+  fail "build inputs accepted an unknown service"
+fi
+printf 'name: app\nservices:\n  pms:\n    image: example\n' > "$test_root/no-build-compose.yaml"
+if (cd "$inputs_repo" && bash "$build_inputs" pms "$test_root/no-build-compose.yaml") >/dev/null 2>&1; then
+  fail "build inputs accepted a service without a resolved build section"
+fi
 
 retention_commit_sha() {
   printf '%040x\n' "$1"
@@ -694,6 +893,10 @@ assert_contains "$test_root/rollback-success.log" 'postgresql://ssoo:***@postgre
 assert_not_contains "$test_root/rollback-success.log" 'contract-secret'
 assert_contains "$test_root/rollback-success.log" 'http://doc.user%40example.com:***@gitlab.example'
 assert_not_contains "$test_root/rollback-success.log" 'git-contract-secret'
+assert_contains "$test_root/rollback-success.log" '[ci-diagnose] ===== ssoo-server DMS readiness probes'
+assert_contains "$test_root/rollback-success.log" 'http://doc.user%40example.com:***@gitlab.example:8010/doc.git (fetch)'
+assert_contains "$test_root/rollback-success.log" 'git_ls_remote_exit=128'
+assert_not_contains "$test_root/rollback-success.log" 'git-remote-secret'
 rollback_manifest="$(<"$test_root/rollback-success.last-manifest")"
 PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" CI_COMMIT_SHA="$second_sha" \
   bash "$image_provenance" verify-backup "$rollback_manifest" >/dev/null
@@ -718,4 +921,4 @@ if run_deploy_contract rollback-failed env FAKE_DOCKER_FAIL_FIRST_DEPLOY_HEALTH=
 fi
 assert_contains "$test_root/rollback-failed.log" 'manual recovery required'
 
-echo "[gitlab-pipeline-test] exact source, backup recovery, deploy, and rollback contracts passed"
+echo "[gitlab-pipeline-test] exact source, selective build, backup recovery, deploy, and rollback contracts passed"

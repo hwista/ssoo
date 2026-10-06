@@ -1,7 +1,7 @@
 # 준운영 배포 파이프라인 재발 방지 실행 계획
 
 > 작성일: 2026-09-30  
-> 상태: 구현 대기 (승인된 방향, 세부 설계는 구현자가 이 문서 기준으로 확정)  
+> 상태: WP-3 구현 완료(2026-10-06, 첫 실배포 확인 대기), WP-1·WP-2·WP-4·WP-5 구현 대기 (승인된 방향, 세부 설계는 구현자가 이 문서 기준으로 확정)  
 > 대상: GitLab `development` shell runner(`ssoo-shell-runner`, `lsiddms01`) → 준운영 서버 `10.125.12.170` (Admin/CRM/PMS/DMS/SNS `3000~3004`, API `4000`)  
 > 기준 커밋: `704ea3b1` (2026-09-30 복구 작업 종료 시점)  
 > 작업 환경: WSL `~/dev/LSWIKI-src`에서만 개발·커밋·push한다. Windows checkout은 pnpm hook이 동작하지 않는다.
@@ -61,6 +61,7 @@
 - 서비스별 입력 경로(예: `apps/<svc>/**`, 공유 `packages/**`, `pnpm-lock.yaml`, `docker/<svc>*.Dockerfile`, 루트 설정)를 정의하고, 직전에 빌드된 SHA 대비 입력이 바뀐 서비스만 빌드한다.
 - 바뀌지 않은 서비스는 직전 SHA image에 새 SHA tag를 붙이되, image label(`com.ssoo.ci.commit` 등)과 ID로 provenance를 검증하고 trace에 `reused` 사유를 남긴다. 판단이 불확실하면 빌드한다(fail-safe).
 - `image-provenance.sh tag-build`의 "7개 모두 SHA tag 존재" 계약과 retention 정책(서비스별 최근 build 3개, backup 2개)을 유지한다.
+- 구현(2026-10-06): "직전 빌드 SHA 대비 diff" 대신 내용 기반 fingerprint로 확정했다. `scripts/ci/build-inputs.sh`가 서비스별 입력(tracked blob hash, build context에 들어가는 ignored 파일 내용 hash, `docker compose config`의 해당 `build` 블록)을 SHA-256으로 계산하고, build한 image에 `com.ssoo.ci.input-hash`/`com.ssoo.ci.commit` label을 붙인다. 보관 중인 commit image 중 같은 fingerprint label이 있으면 재사용하고, 선택된 `latest` label이 fingerprint와 다르면 실패한다. 직전 SHA를 추적할 필요가 없고, 되돌림 commit·build arg 변경·host ignored 파일(`apps/web/dms/.env.local`) 변경까지 같은 규칙으로 처리된다. 전체 강제 빌드는 `CI_FORCE_FULL_BUILD=1` 또는 commit message `[full build]`. 검증은 `automation/tests/ci/gitlab-pipeline-contract.sh`의 선택 빌드·강제 빌드·label 불일치·서비스별 fingerprint 변화(문서만/단일 앱/공유 package/DB package/ignored env/생성물/build arg/workspace manifest/lockfile) 시나리오다. 적용 후 첫 build는 label이 없으므로 7개 모두 빌드한다.
 
 ### WP-4. 정리 항목
 
@@ -105,4 +106,5 @@
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-10-06 | WP-3 변경 서비스 선택 빌드를 fingerprint label 방식으로 구현, 준운영 server healthcheck liveness override와 readiness 진단 추가 |
 | 2026-09-30 | 준운영 배포 장애(#176~#184) 경과와 재발 방지 작업(WP-1~WP-5)을 실행 계획으로 작성 |

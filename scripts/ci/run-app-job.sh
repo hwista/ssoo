@@ -17,6 +17,7 @@ build_target_min_free_kb="${CI_BUILD_TARGET_MIN_FREE_KB:-3145728}"
 image_retention_commit_keep="${CI_IMAGE_RETENTION_COMMIT_KEEP:-3}"
 image_retention_backup_keep="${CI_IMAGE_RETENTION_BACKUP_KEEP:-2}"
 image_retention_dry_run="${CI_IMAGE_RETENTION_DRY_RUN:-0}"
+ci_force_full_build="${CI_FORCE_FULL_BUILD:-0}"
 build_services=(server db-init pms dms sns admin crm)
 
 if [[ ! "$deploy_health_wait" =~ ^[0-9]+$ ]]; then
@@ -49,6 +50,10 @@ if [[ ! "$image_retention_backup_keep" =~ ^[1-9][0-9]*$ ]]; then
 fi
 if [[ "$image_retention_dry_run" != "0" && "$image_retention_dry_run" != "1" ]]; then
   echo "[ci-job] CI_IMAGE_RETENTION_DRY_RUN must be 0 or 1" >&2
+  exit 1
+fi
+if [[ "$ci_force_full_build" != "0" && "$ci_force_full_build" != "1" ]]; then
+  echo "[ci-job] CI_FORCE_FULL_BUILD must be 0 or 1" >&2
   exit 1
 fi
 case "$job" in
@@ -264,6 +269,25 @@ prepare_build_capacity() {
   fi
 }
 
+image_label() {
+  docker image inspect "$1" --format "{{index .Config.Labels \"$2\"}}" 2>/dev/null || true
+}
+
+find_reusable_image() {
+  local service="$1"
+  local input_hash="$2"
+  local repository tag
+
+  # Commit-tagged images carry provenance; any of them built from the same inputs is equivalent.
+  while IFS='|' read -r repository tag; do
+    if [[ "$repository" == "app-$service" && "$tag" =~ ^[0-9a-f]{40}$ ]] \
+      && [[ "$(image_label "app-$service:$tag" com.ssoo.ci.input-hash)" == "$input_hash" ]]; then
+      printf 'app-%s:%s\n' "$service" "$tag"
+      return 0
+    fi
+  done < <(docker image ls --format '{{.Repository}}|{{.Tag}}')
+}
+
 exec 9>"$lock_file"
 echo "[ci-job] waiting for lock job=$job file=$lock_file timeout=${lock_timeout}s"
 if ! flock -w "$lock_timeout" 9; then
@@ -355,13 +379,15 @@ case "$job" in
     ;;
   build)
     bake_definition="$(mktemp "${TMPDIR:-/tmp}/ssoo-compose-bake.XXXXXX.json")"
+    compose_config_file="$(mktemp "${TMPDIR:-/tmp}/ssoo-compose-config.XXXXXX.yaml")"
     cleanup_bake_definition() {
-      rm -f "$bake_definition"
+      rm -f "$bake_definition" "$compose_config_file"
     }
     trap cleanup_bake_definition EXIT
     docker compose -p "$COMPOSE_PROJECT_NAME" build --print > "$bake_definition"
     # Bake requires explicit read entitlements for compose secret files outside the build context.
     compose_config="$(docker compose -p "$COMPOSE_PROJECT_NAME" config)"
+    printf '%s\n' "$compose_config" > "$compose_config_file"
     bake_allow_args=()
     while IFS= read -r secret_file; do
       bake_allow_args+=("--allow=fs.read=$secret_file")
@@ -374,15 +400,42 @@ case "$job" in
         if (value != "") print value
       }
     ' <<< "$compose_config" | sort -u)
-    echo "전체 이미지 완전 순차 빌드 시작 (BuildKit, services=${build_services[*]})"
+    # GitLab 10.4 ignores API pipeline variables, so a commit message marker also forces a full build.
+    force_full_build="$ci_force_full_build"
+    commit_message="$(git log -1 --format=%B "$CI_COMMIT_SHA")"
+    if [[ "$commit_message" == *"[full build]"* ]]; then
+      force_full_build=1
+    fi
+    echo "변경 서비스 순차 빌드 시작 (BuildKit, services=${build_services[*]}, force_full_build=$force_full_build)"
+    built_count=0
     for service in "${build_services[@]}"; do
-      if [[ "$service" != "${build_services[0]}" ]]; then
-        prepare_build_capacity "build-$service" "$build_target_min_free_kb" full
+      input_hash="$(bash scripts/ci/build-inputs.sh "$service" "$compose_config_file")"
+      reuse_image=""
+      if [[ "$force_full_build" == "0" ]]; then
+        reuse_image="$(find_reusable_image "$service" "$input_hash")"
       fi
-      echo "[ci-job] building service=$service"
-      docker buildx bake "${bake_allow_args[@]}" --file "$bake_definition" --load "$service"
-      echo "[ci-job] built service=$service"
+      if [[ -n "$reuse_image" ]]; then
+        docker tag "$reuse_image" "app-$service:latest"
+        echo "[ci-job] reused service=$service image=$reuse_image built_from=$(image_label "$reuse_image" com.ssoo.ci.commit) input_hash=$input_hash"
+      else
+        if (( built_count > 0 )); then
+          prepare_build_capacity "build-$service" "$build_target_min_free_kb" full
+        fi
+        echo "[ci-job] building service=$service input_hash=$input_hash"
+        docker buildx bake "${bake_allow_args[@]}" --file "$bake_definition" \
+          --set "$service.labels.com.ssoo.ci.input-hash=$input_hash" \
+          --set "$service.labels.com.ssoo.ci.commit=$CI_COMMIT_SHA" \
+          --load "$service"
+        built_count=$((built_count + 1))
+        echo "[ci-job] built service=$service"
+      fi
+      selected_hash="$(image_label "app-$service:latest" com.ssoo.ci.input-hash)"
+      if [[ "$selected_hash" != "$input_hash" ]]; then
+        echo "[ci-job] build input label mismatch service=$service expected=$input_hash actual=$selected_hash" >&2
+        exit 1
+      fi
     done
+    echo "[ci-job] build selection built=$built_count reused=$(( ${#build_services[@]} - built_count ))"
     bash scripts/ci/image-provenance.sh tag-build
     echo "빌드 완료"
     ;;

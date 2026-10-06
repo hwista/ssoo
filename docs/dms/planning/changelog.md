@@ -1,5 +1,7 @@
 # DMS 변경 이력
 
+2026-10-06 준운영 복구 배포 준비와 변경 서비스 선택 빌드: pipeline #184에서 새 server는 정상 기동했지만 compose healthcheck `/api/health/readiness`가 DMS readiness `blocked`로 503을 반환해 웹 5개가 기동하지 못했다. 준운영 overlay(`compose.staging.yaml`)만 server healthcheck를 liveness `/api/health`로 바꾸고, `diagnose_runtime`에 서버 관점의 readiness HTTP 상태·DMS runtime 경로 접근·문서 저장소 Git 상태/remote 도달 여부(마스킹)를 추가해 차단 원인을 다음 배포에서 확인한다. 계획 WP-3도 구현했다: `scripts/ci/build-inputs.sh`가 서비스별 build input fingerprint를 계산하고, 같은 fingerprint label(`com.ssoo.ci.input-hash`)을 가진 보관 commit image가 있으면 빌드 없이 재사용한다(`CI_FORCE_FULL_BUILD=1` 또는 commit message `[full build]`로 전체 빌드). 상세는 [배포 가이드](../guides/deployment.md)의 GitLab pipeline 배포 계약에 기록한다.
+
 2026-09-30 준운영 배포 재발 방지 계획: 오늘 장애(#176~#184)에서 배포하면서 결함을 발견하던 흐름을 막기 위해 build 전 배포 리허설 stage, 무중단 배포 순서·rollback compose snapshot, 변경 서비스만 빌드, 진단 stage 정리, 준운영 보안 후속을 [실행 계획](2026-09-30-staging-deploy-hardening-plan.md)으로 정리했다. 구현 대기.
 
 2026-09-30 준운영 db push 대상 host: pipeline #183 deploy에서 compat SQL·protected baseline·기본키 정규화는 통과했으나, 준운영 DB URL host가 compose `container_name`인 `ssoo-postgres`라 guarded `db push`가 거부됐다. 같은 compose postgres 컨테이너를 가리키는 `ssoo-postgres`를 허용 host에 추가하고, 리허설도 실제 host 이름으로 2회 연속 완료를 확인했다.

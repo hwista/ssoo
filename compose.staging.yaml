@@ -9,3 +9,14 @@ services:
       # Literal bindings prevent the root .env from changing the staging role.
       DMS_INSTANCE_ENV: "prod"
       DMS_GIT_BOOTSTRAP_REMOTE_URL: ""
+    # Staging starts the web apps once the API is alive. A blocked DMS readiness
+    # check (document Git remote, runtime paths) must not take Admin/CRM/PMS/SNS
+    # down; it stays visible in DMS operations settings and diagnose_runtime.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/health').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]

@@ -13,7 +13,17 @@ Context
 GitLab staging deploy recovery — 2026-09-30 (in progress)
 ---------------------------------------------------------
 
-Status at end of day (2026-09-30 21:20 KST) — READ FIRST
+Update 2026-10-06 — READ FIRST
+- State on arrival: GitLab `development` had no new commits after `2a2fbd7a`; the staging server was still fully down (3000–3004 and 4000 not responding).
+- Implemented (user-approved), verified locally, push pending user confirmation:
+  - `compose.staging.yaml`: server healthcheck overridden to liveness `GET /api/health`; base/production keep the readiness gate. `docker compose config` with the overlay shows only `test` replaced.
+  - `scripts/ci/diagnose-runtime.sh`: when `ssoo-server` runs, prints the in-container readiness HTTP status, DMS runtime path access, and document repo `git status`/`remote -v` (masked)/`ls-remote` exit code. Read-only.
+  - WP-3 selective build: `scripts/ci/build-inputs.sh` fingerprints each service; `run-app-job.sh build` reuses a retained commit image whose `com.ssoo.ci.input-hash` label matches and builds the rest with Bake `--set` labels. Force a full build with `CI_FORCE_FULL_BUILD=1` or `[full build]` in the commit message. The first build after this change rebuilds all 7 (no labels yet).
+  - Verified: `pnpm run verify:gitlab-pipeline` passes (new selective build, forced build, label mismatch, fingerprint and diagnose masking scenarios); Bake `--set target.labels.com.ssoo.ci.input-hash=...` probed with buildx v0.34.1; fingerprint parsing checked against real `docker compose config` output for all 7 services.
+- Next: push → pipeline verify → play `diagnose_runtime` right after verify (captures the readiness evidence if `ssoo-server` is still running) → build → user presses `deploy_dev` → check 3000–3004 and `/api/health` → fix the blocked DMS readiness check from the diagnose output.
+- Found, not changed: `git.service.ts` calls `tryAutoPull` before `this.initialized = true`, so the existing-repo auto-pull always returns `git-not-initialized` (the log line seen in #184). Decide separately whether to fix; it changes when staging pulls from `LSWIKI_DOC`.
+
+Status at end of day (2026-09-30 21:20 KST)
 - The staging server is fully DOWN: 3000–3004 and API 4000 do not respond.
 - Pipeline #184 (`704ea3b1`) deploy: the NEW `db-init` completed (exit 0) and upgraded the staging DB. The NEW server started normally (DMS prod role, 17 documents synced, "Nest application successfully started") but its compose healthcheck `GET /api/health/readiness` kept failing, so the five web containers were never started and the deploy failed.
 - Rollback to the old images is no longer possible: the old `db-init` (`cbd9d7e0`) runs `prisma db push` against the old schema and Prisma refuses because it would drop new columns that hold data (e.g. `pms.pr_close_condition_group_m.approval_status_code`, `version_no`). Forward-only from here, as the user decided.
