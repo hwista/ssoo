@@ -39,7 +39,7 @@ flowchart TD
 
 - `ai_review`는 기존처럼 비차단 단계로 보존한다. 실제 stage 순서는 `verify → ai_review → plan → build → rehearse → deploy → diagnose`다.
 - `deploy_dev`의 수동 실행 및 실패 시 pipeline failed 계약을 유지한다. DMS 실패를 allow_failure로 숨기지 않는다.
-- `diagnose_runtime`은 별도 diagnose stage의 수동·비차단 작업이다. 구형 GitLab에서 선행 실패 후 실행 가능 여부를 검증하고, 불가능하면 deploy 실패 처리에서 같은 읽기 전용 진단을 자동 실행한다.
+- `diagnose_runtime`은 마지막 diagnose stage에서 선행 실패 시 자동 실행(`when: on_failure`)한다. 성공 pipeline에서는 건너뛴다. deploy 실패 처리의 rollback 전 읽기 전용 진단도 유지한다.
 - GitLab 10.4 제약은 원격 운영 문서에 기록돼 있다. `only`, `when`, 단계별 artifact 전달은 실제 인스턴스에서 검증하며 최신 `rules`/`needs`/`resource_group` 문법을 전제하지 않는다. pipeline API 변수 주입으로 안전 모드를 제어하지 않는다.
 - plan/build/rehearse의 승인 입력과 산출물은 동일 pipeline ID·정확한 SHA에 결속한다. deploy에서 현재 브랜치 HEAD를 새로 따라가지 않는다.
 
@@ -623,3 +623,7 @@ private 증거 경로는 `/tmp/ssoo-gate-rehearsal-p1qhqx_b/`다. `inputs.json`�
 | 2026-10-02 | 격리 리허설 중 Docker SIGBUS/I/O 및 엔진 무응답 확인. 성공 판정·임시 자원 정리 미완료와 실서버 GitLab CI/CD 경로 기록 (§19) |
 | 2026-10-02 | 사용자 승인으로 CRM 업무 준비를 플랫폼 기술 배포 검사에서 분리. CRM 도메인 변경 없이 health/배포 smoke와 회귀 검증 적용 (§18) |
 | 2026-10-01 | 설계·로컬 구현 및 후속 실제 Docker/백업/장애 검증. CRM 업무 준비 차단 확인. 원격 배포 미실행 |
+
+### 2026-10-06 게시 직전 CI 이력 동기화
+
+GitLab `6115462b`를 통합했다. AI review는 최신 성공 development 배포를 전체 페이지에서 찾고 파일 단위 예산·우선순위·누락 파일/UNKNOWN 판정을 보고한다. AI/API 문제는 report로 남겨 비차단 처리하되 실제 runner 실패는 job 실패로 유지한다. diagnose는 마지막 stage에서 선행 실패 시 자동 실행한다. exact-commit source/manifest/rehearsal/수동 deploy 및 기본 전체 빌드는 유지하며 과거 mutable-image runner의 `[full build]` marker 코드는 다시 도입하지 않는다.

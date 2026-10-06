@@ -447,3 +447,7 @@ docker desktop status
 ### 2026-10-06 GitLab 이력 통합
 
 원격 `4bc0af35`의 선택 빌드와 liveness overlay는 현재 manifest 입력 hash와 core-readiness 분리 계약에 통합했다. DMS 경로/Git 진단은 보존했다. 과거 구현과 현재 적용 기준은 [통합 기록](../../common/explanation/architecture/2026-10-06-repo-local-release.md)을 따른다.
+
+### 2026-10-06 게시 직전 CI 이력 동기화
+
+GitLab `6115462b`를 통합했다. AI review는 최신 성공 development 배포를 전체 페이지에서 찾고 파일 단위 예산·우선순위·누락 파일/UNKNOWN 판정을 보고한다. AI/API 문제는 report로 남겨 비차단 처리하되 실제 runner 실패는 job 실패로 유지한다. diagnose는 마지막 stage에서 선행 실패 시 자동 실행한다. exact-commit source/manifest/rehearsal/수동 deploy 및 기본 전체 빌드는 유지하며 과거 mutable-image runner의 `[full build]` marker 코드는 다시 도입하지 않는다.

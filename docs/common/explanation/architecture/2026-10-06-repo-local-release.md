@@ -49,7 +49,7 @@ DMS Git client는 entrypoint의 origin·count·key·고정 helper·useHttpPath�
 - 복원 DB에서 실제 비밀번호 로그인·사용자 확인·로그아웃·세션 폐기 4개 통과. 실제 로컬 브라우저는 기존 계정의 전용 검증 세션으로 5앱 홈, Admin 사용자 관리, CRM 모바일 영업기회 7개 화면을 확인했다. runtime error 0 / HTTP 5xx 0. 화면 API mock 없음.
 - 계정·권한·업무·문서 13개 테이블과 비밀번호 지문을 대조했다. 문서의 자동 스캔 시각 3개 필드 외 업무 데이터 차이 없음. 문서 159건 유지, 파일 114개 내용 hash 불변, 다른 실행 컨테이너 12개 ID/이미지 불변. 검증 세션 폐기 확인.
 
-이미지 생성 후의 최종 문서 커밋은 제품 소스를 바꾸지 않는다. GitHub `launch/rebaseline-20260721`과 GitLab `development`에 동일 HEAD를 fast-forward push하고 원격 refs를 대조한다. 원격 준운영 수동 deploy는 실행하지 않는다.
+이미지 생성 후의 문서와 CI 병합 커밋은 제품 소스를 바꾸지 않는다. GitHub `launch/rebaseline-20260721`과 GitLab `development`에 동일 HEAD를 fast-forward push하고 원격 refs를 대조한다. 원격 준운영 수동 deploy는 실행하지 않는다.
 
 증거: `output/local-deploy/20261006-repo-refresh/`의 `release.json`, `rehearsal-smoke.json`, `live-smoke.json`, `rehearsal-login.json`, `live-browser.json`, `data-comparison.json`, `document-row-diff.json`, `live-verification.json` 및 단계별 로그. 화면은 `output/playwright/repo-release-20261006/`. 비밀 설정/백업은 제외 경로의 제한 권한 `private/`에 보관한다.
 
@@ -58,3 +58,7 @@ DMS Git client는 entrypoint의 origin·count·key·고정 helper·useHttpPath�
 초기 리허설의 host port/Origin 불일치, 브라우저 결과 수집 형식과 검증 refresh token의 jti 누락은 검사 도구에서 수정했다. 첫 로컬 Git 인증 실패·이전 서버 복구·수정 적용 로그도 보존하며 최종 통과와 구분한다. 한국어 DOM과 실제 화면 기동을 검사했으나 WSL Chromium 글꼴 제약으로 시각적 동일성은 판정하지 않았다.
 
 배포 기술 검증은 CRM 데모 전체 기능 차이 0 판정이나 운영 출시 승인과 다르다. 운영 화면에 표시되는 기존 CRM 업무 준비 조건, 메일 worker/실발송, 외부 AI 제공자와 전체 업무 쓰기 시나리오까지 이번 검사에서 완료했다고 주장하지 않는다.
+
+## 게시 직전 원격 동시 변경
+
+첫 publish는 GitLab에 새 `6115462b`가 추가돼 fast-forward 검증에서 중단됐다. GitHub push 전에 중단됐으며 강제 push 없이 해당 CI 이력을 병합했다. AI review의 최신 성공 배포 선택·파일 예산 및 누락 표시, CI 이미지의 jq, 진단 safe.directory와 실패 시 자동 진단을 보존했다. 현 immutable release runner 및 수동 deploy는 유지한다. 제품 소스는 배포본과 동일하며 CI 계약·preflight·push guard를 다시 확인한다.

@@ -42,8 +42,7 @@ diagnose_runtime:
   stage: diagnose
   tags:
     - ssoo
-  when: manual
-  allow_failure: true
+  when: on_failure
   script:
     - bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"
   only:
@@ -59,7 +58,6 @@ ai_review:
     paths:
       - ai-review-report.md
     expire_in: 30 days
-  allow_failure: true
   only:
     - development
 

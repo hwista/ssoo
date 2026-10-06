@@ -1,5 +1,7 @@
 Handoff: DMS refactor & next steps
 
+2026-10-06 게시 직전 GitLab `6115462b`의 배포 범위 AI review·실패 시 자동 진단·jq CI 의존성을 통합했다. 실제 앱 소스와 배포 이미지의 변경은 없다.
+
 2026-10-06 GitLab `4bc0af35`의 DB 복구·선택 빌드·DMS 진단 이력을 현재 immutable release 계약에 통합했다. [통합 기준](docs/common/explanation/architecture/2026-10-06-repo-local-release.md).
 
 Overview
