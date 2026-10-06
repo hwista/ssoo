@@ -1,5 +1,7 @@
 Handoff: DMS refactor & next steps
 
+2026-10-06 GitLab `4bc0af35`의 DB 복구·선택 빌드·DMS 진단 이력을 현재 immutable release 계약에 통합했다. [통합 기준](docs/common/explanation/architecture/2026-10-06-repo-local-release.md).
+
 Overview
 --------
 This document summarizes recent progress, current state, and recommended next steps for the DMS refactor work in this repository. It is intended for a maintainer to pick up work from the CLI or another environment.

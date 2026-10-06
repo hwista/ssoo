@@ -1,5 +1,7 @@
 # Changelog
 
+2026-10-06 GitLab `4bc0af35`의 DB 복구·선택 빌드·DMS 진단 이력을 현재 immutable release 계약에 통합했다. [통합 기준](common/explanation/architecture/2026-10-06-repo-local-release.md).
+
 * **workspace:** 2026-10-06 전체 레포의 로컬 Docker 갱신과 GitHub/GitLab 동기화를 준비하며 공개 전 의존성 감사 차단을 복구한다. [진행 기록](common/explanation/architecture/2026-10-06-repo-local-release.md).
 
 * **admin, web-auth, server:** 2026-10-06 CRM 사용자 관리 검수에서 전체 사용자 페이지 조회·실제 본인 보호·실패 재시도와 저장 잠금을 보완했다. 중복 계정 409/빈 이름 거부, 공용 프로필·비밀번호 변경 중 입력 잠금을 검증했다. API 33요청·브라우저 35검사·서버 759테스트·서버/5앱 플랫폼 guard 통과. 미착수 메뉴 0개, 기존 판정 대기는 별도 유지. [19차 검수 결과](crm/planning/2026-09-30-menu-functional-audit.md).

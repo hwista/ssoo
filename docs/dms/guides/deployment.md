@@ -443,3 +443,7 @@ docker desktop status
 | 2026-04-08 | full-stack compose 기준으로 `postgres + server + pms + sns + dms` 기본 배포, DMS internal server bridge, PMS/SNS browser API URL 기준으로 정리 |
 | 2026-04-07 | root compose 단일 지원 경로, workspace Dockerfile, monorepo root tracing 기준 standalone runtime, `DMS_SERVER_API_URL` 브리지 기준으로 정규화 |
 | 2026-03-17 | 초기 버전 — DMS Docker 독립 배포 가이드 |
+
+### 2026-10-06 GitLab 이력 통합
+
+원격 `4bc0af35`의 선택 빌드와 liveness overlay는 현재 manifest 입력 hash와 core-readiness 분리 계약에 통합했다. DMS 경로/Git 진단은 보존했다. 과거 구현과 현재 적용 기준은 [통합 기록](../../common/explanation/architecture/2026-10-06-repo-local-release.md)을 따른다.

@@ -108,3 +108,7 @@
 | 날짜 | 변경 내용 |
 |------|-----------|
 | 2026-09-30 | 준운영 배포 장애(#176~#184) 경과와 재발 방지 작업(WP-1~WP-5)을 실행 계획으로 작성 |
+
+### 2026-10-06 GitLab 이력 통합
+
+원격 `4bc0af35`의 선택 빌드와 liveness overlay는 현재 manifest 입력 hash와 core-readiness 분리 계약에 통합했다. DMS 경로/Git 진단은 보존했다. 과거 구현과 현재 적용 기준은 [통합 기록](../../common/explanation/architecture/2026-10-06-repo-local-release.md)을 따른다.

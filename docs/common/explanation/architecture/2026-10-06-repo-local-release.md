@@ -25,3 +25,9 @@
 ## Changelog
 
 - 2026-10-06: 전체 레포 통합·로컬 Docker 갱신·GitHub/GitLab 동기화 작업과 의존성 검사 복구를 시작했다.
+
+## GitLab 배포 이력 통합 (2026-10-06)
+
+GitLab `4bc0af35`까지의 DB 복구·진단·선택 빌드 이력을 병합했다. DB 호환 SQL과 두 번 실행 계약은 동일 구현을 유지한다. 새 DMS runtime 경로 접근과 Git 상태/remote 도달 진단은 프로젝트 label로 찾은 서버에 적용하며 비밀값을 마스킹한다.
+
+기존 원격의 `build-inputs.sh` 선택 빌드는 현재 `release-state.mjs`의 서비스별 입력·secret·base image hash 및 immutable manifest 검증으로 통합한다. 중복된 이전 실행 스크립트는 남기지 않는다. 실제 CI 승격 전 기본값은 `CI_INCREMENTAL_BUILD=false`, `CI_DEPLOY_MODE=plan-only`다. 원격의 liveness overlay가 해결하려던 DMS 장애에 의한 전체 앱 기동 차단은 현재 core-readiness와 앱별 readiness 분리로 해결하며, DB/auth 확인을 생략하지 않는다.
