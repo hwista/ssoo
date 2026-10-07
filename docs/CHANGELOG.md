@@ -1,5 +1,8 @@
 # Changelog
 
+* **onboarding, deployment:** 2026-10-07 다른 개발자의 GitLab 배포 복구 커밋 5개를 통합하고, CRM/PMS/DMS/SNS가 접속자 localhost로 온보딩 상태를 요청하던 CI 공개 API 빌드 입력을 수정한다. Admin 포함 5앱 입력을 명시하며 재배포 검증은 진행 중이다. [원인·통합·검증 기록](common/explanation/architecture/2026-10-07-onboarding-staging-api-redeploy.md).
+
+
 2026-10-06 GitLab #192에서 발견된 배포 테스트의 실제 디스크 용량 의존을 fixture로 격리하고, 공간 부족 차단·정리 후 회복 검사를 추가했다. 실제 배포 용량 검사는 유지한다.
 
 2026-10-06 GitLab #191에서 CA 및 CI 계약 통과 후 발견된 preflight의 linked worktree 오판을 수정했다. 실제 Git 저장소 루트를 검증하며 잘못된 Git 참조는 계속 거부한다.

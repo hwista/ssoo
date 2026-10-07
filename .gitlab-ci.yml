@@ -21,6 +21,13 @@ variables:
   PMS_PORT: "3002"
   DMS_PORT: "3003"
   SNS_PORT: "3004"
+  # These are build inputs: browser bundles must reach the staging API, not
+  # the workstation's localhost. Runtime-only overrides cannot change them.
+  ADMIN_NEXT_PUBLIC_API_URL: "http://10.125.12.170:4000/api"
+  CRM_NEXT_PUBLIC_API_URL: "http://10.125.12.170:4000/api"
+  PMS_NEXT_PUBLIC_API_URL: "http://10.125.12.170:4000/api"
+  DMS_NEXT_PUBLIC_API_URL: "http://10.125.12.170:4000/api"
+  SNS_NEXT_PUBLIC_API_URL: "http://10.125.12.170:4000/api"
   NEXT_PUBLIC_ADMIN_APP_URL: "http://10.125.12.170:3000"
   NEXT_PUBLIC_CRM_APP_URL: "http://10.125.12.170:3001"
   NEXT_PUBLIC_PMS_APP_URL: "http://10.125.12.170:3002"
