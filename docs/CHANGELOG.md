@@ -1,5 +1,7 @@
 # Changelog
 
+2026-10-07 GitLab #199의 이미지 정리 실패를 수정했다. 동일 이미지의 여러 태그를 inspect할 때 중복 반환되는 삭제 후보를 한 번씩 처리하고 최근 보존 수를 서로 다른 이미지로 계산한다. 실행 컨테이너와 보관 release 보호는 유지한다.
+
 * **onboarding, deployment:** 2026-10-07 다른 개발자의 GitLab 배포 복구 커밋 5개를 통합하고, CRM/PMS/DMS/SNS가 접속자 localhost로 온보딩 상태를 요청하던 CI 공개 API 빌드 입력을 수정한다. Admin 포함 5앱 입력을 명시하며 재배포 검증은 진행 중이다. [원인·통합·검증 기록](common/explanation/architecture/2026-10-07-onboarding-staging-api-redeploy.md).
 
 

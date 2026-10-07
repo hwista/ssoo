@@ -179,6 +179,21 @@ test('sealed runtime uses strict DB mode even if legacy compose was compat', () 
   assert.equal(runtimeCompose(next, sealed()).services['db-init'].environment.DB_INIT_SEED_MODE, 'upgrade');
   assert.equal(rehearsalCompose(next, sealed(), '/tmp/rehearsal').services['db-init'].environment.DB_INIT_SEED_MODE, 'upgrade');
 });
+
+test('retention handles repeated multi-tag Docker inspections without duplicate deletion or reduced image history', () => {
+  const images = Array.from({ length: 6 }, (_, i) => ({
+    Id: `sha256:${String(i).repeat(64)}`,
+    Created: new Date(2026, 0, i + 1).toISOString(),
+    RepoTags: [`app-server:${String(i).repeat(40)}`],
+  }));
+  images[1].RepoTags.push(`app-server:${'a'.repeat(40)}`);
+  images[5].RepoTags.push(`app-server:${'b'.repeat(40)}`, `app-server:${'c'.repeat(40)}`);
+  // docker image inspect <each tag> returns one complete image object per tag.
+  const inspected = images.flatMap((image) => image.RepoTags.map(() => structuredClone(image)));
+  const expected = [...images[2].RepoTags, ...images[1].RepoTags];
+  assert.deepEqual(retirementCandidates(inspected, [], [images[0].Id]), expected);
+  assert.deepEqual(retirementCandidates(images, [], [images[0].Id]), expected);
+});
 test('CLI rejects unproved commit, stale environment/rehearsal, wrong backup source and tampered archive', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'release-contract-'));
   const dir = path.join(root, `10-${sha}`); fs.mkdirSync(dir);

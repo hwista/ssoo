@@ -118,15 +118,17 @@ export function retirementCandidates(images, manifests, running, keep = 3) {
     validateManifest(manifest);
     for (const item of Object.values(manifest.services)) protectedIds.add(item.imageId);
   }
-  const remove = [];
+  const remove = new Set();
   for (const service of [...SERVICES, 'ci-verify']) {
     const entries = images.flatMap((image) => (image.RepoTags ?? []).filter((tag) =>
       new RegExp(`^app-${service}:[a-f0-9]{40}$`, 'u').test(tag)).map((tag) => ({ tag, image })));
     entries.sort((a,b) => Date.parse(b.image.Created) - Date.parse(a.image.Created));
-    const recent = new Set(entries.slice(0, service === 'ci-verify' ? 1 : keep).map((entry) => entry.image.Id));
-    for (const { tag, image } of entries) if (!protectedIds.has(image.Id) && !recent.has(image.Id)) remove.push(tag);
+    // Inspecting multiple tags of one image repeats its full RepoTags list.
+    // Retain distinct images and emit each removable tag only once.
+    const recent = new Set([...new Set(entries.map((entry) => entry.image.Id))].slice(0, service === 'ci-verify' ? 1 : keep));
+    for (const { tag, image } of entries) if (!protectedIds.has(image.Id) && !recent.has(image.Id)) remove.add(tag);
   }
-  return remove;
+  return [...remove];
 }
 export function fileHash(file) {
   const digest = createHash('sha256');

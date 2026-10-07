@@ -29,6 +29,8 @@
 
 ## 로컬 검증 결과
 
+첫 재배포 #199(`c6bc9ec5`)의 verify에서 오래된 Docker 이미지 태그가 중복 삭제되어 실패했다. 여러 태그가 같은 image ID를 가리킬 때 `docker image inspect`는 전체 RepoTags가 같은 객체를 반복 반환한다. 기존 retirement 계산이 이 중복을 그대로 삭제 목록에 넣었다. 삭제 후보를 태그별로 중복 제거하고 최근 보존 수를 서로 다른 image ID로 계산하도록 수정했다. 실행 컨테이너 및 보관 manifest의 이미지 보호는 유지한다. 동일 입력 형태와 여러 태그의 최신 이미지로 회귀 검사를 추가했다. 이 실패는 운영 앱 교체 전에 발생했다.
+
 preflight, 규칙 동기화, push guard, platform guard를 통과했다. 서버와 5개 웹 앱 production build 및 서버 Jest 100개 suite / 766개 test가 통과했다. CI 변수로 해석한 Compose의 5개 `build.args.NEXT_PUBLIC_API_URL`이 모두 운영 주소와 일치한다. 문서 구조 검사도 통과했다. GitLab 프로젝트 변수 목록은 현재 토큰에 읽기 권한이 없어 확인하지 못했으므로 최종 배포 번들로 실제 적용 값을 검증한다.
 
 ## Changelog
