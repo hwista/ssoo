@@ -59,7 +59,9 @@ assert_contains "$repo_root/scripts/ci/release-job.sh" '-e DB_INIT_BASELINE_MODE
 # Build targets escalate to a full BuildKit cache prune on the small runner disk (#193).
 assert_contains "$repo_root/scripts/ci/release-job.sh" 'docker builder prune --all --force'
 assert_contains "$repo_root/scripts/ci/release-job.sh" 'capacity "${CI_BUILD_TARGET_MIN_FREE_KB:-3145728}" full'
-assert_count "$repo_root/scripts/ci/release-job.sh" 'capacity "" full' 2
+assert_count "$repo_root/scripts/ci/release-job.sh" 'capacity "" full' 1
+assert_contains "$repo_root/scripts/ci/release-job.sh" 'capacity "${1:-}" full'
+assert_contains "$repo_root/scripts/ci/release-job.sh" 'prepare "${CI_VERIFY_MIN_FREE_KB:-10485760}"'
 # db_check (copy of the live DB, db-init twice) gates the manual staging deploy.
 assert_contains "$pipeline" 'stage: db_check'
 assert_contains "$pipeline" 'bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" db-check'

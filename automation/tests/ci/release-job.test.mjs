@@ -24,6 +24,8 @@ if(a[0]==='run' && a.includes('scripts/ci/verify-platform-release.mjs')) {
  if((!rollback&&['smoke-fail','stale-evidence-fail','rollback-fail'].includes(scenario))||(rollback&&scenario==='rollback-fail')) process.exit(1);
  fs.writeFileSync(a[i+2],JSON.stringify({status:'passed',releaseId:m.releaseId}));process.exit(0);
 }
+if(a[0]==='image'&&a[1]==='inspect'&&a[2]==='node:22') process.exit(0);
+if(a[0]==='image'&&(a[1]==='ls'||a[1]==='prune')) process.exit(0);
 if(a[0]==='image'&&a[1]==='inspect') {
  const service=SERVICES.find(s=>a[2].startsWith('app-'+s+':'));
  if(!service) process.exit(90);
@@ -81,6 +83,7 @@ function fixture(scenario, { changedDb = false, mode = 'apply', dbCheck = true }
 free=16777216
 case "$FIXTURE_SCENARIO" in
   disk-full) free=1024 ;;
+  verify-tight) free=9437184 ;;
   disk-recovered) [ -f "$FIXTURE_ROOT/cache-pruned" ] || free=1024 ;;
 esac
 printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\\nfixture 33554432 0 %s 0%% /tmp\\n' "$free"
@@ -149,6 +152,28 @@ check('full containerd layer storage blocks deployment even when DockerRootDir h
   assert.notEqual(r.status, 0); assert.match(r.stderr, /insufficient disk space/);
   assert.equal(r.last.releaseId, f.old.releaseId);
   assert.deepEqual(r.events, [{ event: 'cache-prune' }]);
+});
+test('verify prepare needs 10 GiB free while plan keeps the 8 GiB build threshold', () => {
+  for (const scenario of ['success', 'verify-tight']) {
+    const f = fixture(scenario);
+    try {
+      const r = f.run('prepare');
+      assert.match(r.stdout, /required_kb=10485760/);
+      if (scenario === 'success') {
+        assert.equal(r.status, 0, r.stderr); assert.ok(!r.events.some(e => e.event === 'cache-prune'));
+      } else {
+        assert.notEqual(r.status, 0); assert.match(r.stderr, /insufficient disk space/);
+        assert.equal(r.events.filter(e => e.event === 'cache-prune').length, 2);
+      }
+    } finally { f.cleanup(); }
+  }
+  const f = fixture('verify-tight');
+  try {
+    // 9 GiB passes plan's own capacity check; the fixture's existing plan.json then stops it.
+    const r = f.run('plan');
+    assert.match(r.stdout, /required_kb=8388608/); assert.doesNotMatch(r.stderr, /insufficient disk space/);
+    assert.match(r.stderr, /plan exists/);
+  } finally { f.cleanup(); }
 });
 for (const scenario of ['stale', 'wrong-image', 'config-check-fail']) check(`${scenario} leaves containers and DB untouched`, scenario, {}, r => {
   assert.notEqual(r.status, 0); assert.ok(!r.events.some(e => ['stop', 'db-apply', 'up'].includes(e.event)));

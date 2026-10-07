@@ -36,6 +36,7 @@ capacity() {
   root="$(docker info --format '{{.DockerRootDir}}')"
   free="$(engine_free_kb "$root")"
   [[ "$free" =~ ^[0-9]+$ ]] || return 1
+  echo "[release] disk free_kb=$free required_kb=$required"
   if (( free < required )); then
     docker builder prune --force --keep-storage "${CI_BUILD_CACHE_KEEP_STORAGE:-8GB}"
     free="$(engine_free_kb "$root")"
@@ -191,11 +192,12 @@ prepare() {
       while IFS= read -r ref; do docker image rm "$ref"; done < "$release_dir/retired-images.txt"
     fi
     # verify/plan: the verify image build leaves BuildKit cache behind on the small runner (#194 plan).
-    capacity "" full
+    # Verify passes its own threshold: building and unpacking its image needed more than 8 GiB (#203).
+    capacity "${1:-}" full
 }
 state env-overlay "$CI_RELEASE_ENV_FILE" "${CI_RELEASE_DMS_ENV_FILE:?}" "$APP_DIR"
 case "$job" in
-  prepare) prepare ;;
+  prepare) prepare "${CI_VERIFY_MIN_FREE_KB:-10485760}" ;;
   db-check)
     trap 'cleanup_db_check; finish' EXIT
     db_check
