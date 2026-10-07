@@ -4,7 +4,7 @@
 
 2026-10-07 GitLab #199의 이미지 정리 실패를 수정했다. 동일 이미지의 여러 태그를 inspect할 때 중복 반환되는 삭제 후보를 한 번씩 처리하고 최근 보존 수를 서로 다른 이미지로 계산한다. 실행 컨테이너와 보관 release 보호는 유지한다.
 
-* **onboarding, deployment:** 2026-10-07 다른 개발자의 GitLab 배포 복구 커밋 5개를 통합하고, CRM/PMS/DMS/SNS가 접속자 localhost로 온보딩 상태를 요청하던 CI 공개 API 빌드 입력을 수정한다. Admin 포함 5앱 입력을 명시하며 재배포 검증은 진행 중이다. [원인·통합·검증 기록](common/explanation/architecture/2026-10-07-onboarding-staging-api-redeploy.md).
+* **onboarding, deployment:** 2026-10-07 다른 개발자의 배포 복구 커밋 5개를 통합하고 CRM/PMS/DMS/SNS의 localhost API 빌드 오류를 수정했다. GitLab #201(`49be7ba9`) 재배포, DB 복제 초기화 2회, 서버·5앱 버전과 실제 브라우저 공개 API 연결 검증을 완료했다. 기존 DMS 내부 readiness 실패와 인증된 admin 업무 접근은 별도 확인 대상으로 기록했다. [원인·통합·검증 기록](common/explanation/architecture/2026-10-07-onboarding-staging-api-redeploy.md).
 
 
 2026-10-06 GitLab #192에서 발견된 배포 테스트의 실제 디스크 용량 의존을 fixture로 격리하고, 공간 부족 차단·정리 후 회복 검사를 추가했다. 실제 배포 용량 검사는 유지한다.
