@@ -72,7 +72,7 @@ Late evening 2026-10-06 (23:40 KST) — READ FIRST
 - Next session (from the office network):
   1. Open 3000–3004 and `http://10.125.12.170:4000/api/health`; if anything fails, restore from `staging-backup/` (see "Release state" below).
   2. Read `http://10.125.12.170:4000/api/health/readiness` and DMS settings → operations (`/settings/operations/git`) for the blocked readiness check. `diagnose_runtime` is `when: on_failure` now (`.gitlab-ci.yml`), so it is skipped on a successful pipeline and cannot be played for #196.
-  3. Clean-up agreed with the user: remove the `ai_review` job (advisory only, nobody reads the report; verify/db_check/health checks are the real gates) together with its script and contract scenarios.
+  3. (done 2026-10-07) Removed the `ai_review` job, `scripts/ci/ai-review.sh`, its contract scenarios and the CI verify image jq (advisory only, nobody read the report; verify/db_check/health checks are the real gates). Operator follow-up: delete the now-unused GitLab CI/CD variable `GITLAB_API_TOKEN` and revoke that token. Keep `AZURE_OPENAI_*` (app AI runtime).
   4. Minor follow-up: `20260930090000_move_crm_business_years` and `20260930100000_move_common_codes` print psql `WARNING: there is already a transaction in progress` / `there is no transaction in progress` (their own BEGIN/COMMIT inside the outer transaction of `apply-compat-launch-migrations.sh`), so the file's COMMIT ends the wrapper transaction early. Harmless this time (applied, in sync); check the atomicity in that script.
 - Today's chain on the new release runner: #189/#190 runner state dir and RHEL CA path (teammate fixes), #193/#194 BuildKit cache disk pressure (full prune escalation), #195 deploy stopped safely when db push wanted to drop `cm_code_m`/`cm_code_h` → compat db-init now applies launch migrations newer than `20260917100000` (`packages/database/scripts/apply-compat-launch-migrations.sh`, shims in `prisma/compat/launch-shims/`), verified locally on a DB at the `4bc0af35` schema (7 applied, second run no-op, db push in sync).
 - Work from WSL: run Claude Code inside WSL (`~/dev/LSWIKI-src`) or VS Code Remote-WSL; Windows-side writes to `\\wsl.localhost` fail with EPERM.
@@ -103,7 +103,7 @@ Root causes found today
 Next steps (in order)
 1. (done) Local db-init rehearsal. WSL has PostgreSQL 18 + pgvector (`ssoo`/`ssoo_dev_pw` superuser, DB `ssoo_dev`) and `/workspace` → `~/dev/LSWIKI-src` for re-running it.
 2. (done) Commit + push the db-init fixes.
-3. Pipeline: verify → ai_review → build (~30 min). The shell runner runs ONE job at a time — cancel superseded pipelines so the newest starts.
+3. Pipeline: verify → plan → build → db_check (~30 min). The shell runner runs ONE job at a time — cancel superseded pipelines so the newest starts.
 4. The user presses `deploy_dev`. On failure, `scripts/ci/diagnose-runtime.sh` output is in the deploy trace BEFORE the rollback section.
 5. After success: check 3000–3004 and `/api/health`, then move `diagnose_runtime` out of the `verify` stage (its manual state makes the verify stage look unfinished in the GitLab UI).
 

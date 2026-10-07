@@ -1,6 +1,5 @@
 stages:
   - verify
-  - ai_review
   - plan
   - build
   - db_check
@@ -53,19 +52,6 @@ diagnose_runtime:
   when: on_failure
   script:
     - bash "$CI_PROJECT_DIR/scripts/ci/diagnose-runtime.sh"
-  only:
-    - development
-
-ai_review:
-  stage: ai_review
-  tags:
-    - ssoo
-  script:
-    - bash "$CI_PROJECT_DIR/scripts/ci/run-app-job.sh" ai-review
-  artifacts:
-    paths:
-      - ai-review-report.md
-    expire_in: 30 days
   only:
     - development
 

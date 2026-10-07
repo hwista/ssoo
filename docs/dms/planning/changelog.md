@@ -1,5 +1,7 @@
 # DMS 변경 이력
 
+2026-10-07 GitLab `ai_review` 제거: push 이후 결과와 무관하게 성공하던 참고용 AI 리포트 job·스크립트·계약 시나리오와 CI verify 이미지의 jq를 제거했다. 배포 판단은 verify·db_check·health 검사가 맡는다. 앱 AI 기능의 `AZURE_OPENAI_*` 설정은 유지한다. 상세는 [배포 가이드](../guides/deployment.md)에 기록한다.
+
 2026-10-06 준운영 db_check와 compat launch migration: #195 staging deploy는 db push가 `common`으로 옮겨진 공통코드 테이블을 drop/create로 처리하려 해 스스로 중단했고 기존 서비스는 유지됐다. compat db-init이 db push 전에 기준선 이후 launch migration 7개를 순서대로 한 번씩 적용하도록 하고(db push 객체 이름 차이는 shim으로 보정), 배포 전 실제 DB 복제본에서 db-init을 2회 실행하는 `db_check` job을 deploy 앞의 정지 지점으로 추가했다. 로컬에서 배포본 `4bc0af35` 스키마 DB에 7개 적용 → 재실행 무변경 → 새 스키마 db push "already in sync"를 확인했다.
 
 2026-10-06 준운영 `staging` 배포 모드: 새 release pipeline(#189·#190)이 runner 권한·RHEL CA 경로로 verify에서 멈췄고, 정식 `apply`는 runner host의 복원 검증 백업·리허설·smoke token과 launch baseline DB를 요구해 준운영에 배포할 수 없었다. 사용자 결정으로 준운영은 `rehearse` 없이 배포 직전 DB/DMS 덤프 → compat db-init(기존 앱 무정지) → server·앱 교체 → health 확인으로 배포한다. 정식 `apply` 경로는 유지한다. 상세는 [배포 가이드](../guides/deployment.md)의 준운영 `staging` 배포 모드에 기록한다.

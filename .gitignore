@@ -66,5 +66,3 @@ compose.yaml.bak*
 # DMS runtime state / retired data
 .dms-collaboration-state.json
 apps/web/dms/data/
-ai-review-report.md
-scripts/ci/ai-review.sh.bak*

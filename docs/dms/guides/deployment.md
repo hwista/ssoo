@@ -357,7 +357,7 @@ server:
 
 ### GitLab pipeline 배포 계약
 
-- `development` push는 `verify -> ai_review -> build`를 자동 실행하고, `deploy_dev`는 `when: manual` + `allow_failure: false`로 유지합니다. 자동 단계가 끝난 pipeline은 배포 전까지 blocked/manual 상태이며, deploy가 성공해야 success, deploy가 실패하면 failed가 됩니다. 이 상태 계약은 배포를 자동 실행하지 않으면서도 실패한 수동 배포를 green pipeline으로 숨기지 않습니다.
+- `development` push는 `verify -> plan -> build -> db_check`를 자동 실행하고, `deploy_dev`는 `when: manual` + `allow_failure: false`로 유지합니다. 자동 단계가 끝난 pipeline은 배포 전까지 blocked/manual 상태이며, deploy가 성공해야 success, deploy가 실패하면 failed가 됩니다. 이 상태 계약은 배포를 자동 실행하지 않으면서도 실패한 수동 배포를 green pipeline으로 숨기지 않습니다.
 - shell runner의 persistent checkout은 각 job 시작 시 remote ref를 fetch한 뒤 exact `CI_COMMIT_SHA`로 reset하며, HEAD 불일치나 non-ignored 잔여 파일이 있으면 build/deploy 전에 실패합니다. 운영자가 checkout 옆에 보존하는 `.env.*`/`compose.yaml.bak*` 백업은 Git과 Docker build context에서 제외되며, 이 명시 패턴 밖의 임의 파일은 허용하지 않습니다.
 - `verify`는 shell runner host의 전역 Node/pnpm에 의존하지 않습니다. exact commit source, `pnpm install --frozen-lockfile` 의존성, generated Prisma client를 담은 저장소 정본 Node 22/pnpm 11.13.1 CI image에서 GitLab pipeline contract, Codex preflight, root lint, server test를 실제로 실행하고 Git metadata만 read-only mount합니다.
 - build image는 `app-<service>:<CI_COMMIT_SHA>` 태그로 보존합니다. 수동 deploy는 선택한 pipeline SHA의 image를 `latest`로 복원한 뒤 기존 Compose stack을 `--no-build`로 올립니다.
@@ -452,13 +452,17 @@ docker desktop status
 
 GitLab `6115462b`를 통합했다. AI review는 최신 성공 development 배포를 전체 페이지에서 찾고 파일 단위 예산·우선순위·누락 파일/UNKNOWN 판정을 보고한다. AI/API 문제는 report로 남겨 비차단 처리하되 실제 runner 실패는 job 실패로 유지한다. diagnose는 마지막 stage에서 선행 실패 시 자동 실행한다. exact-commit source/manifest/rehearsal/수동 deploy 및 기본 전체 빌드는 유지하며 과거 mutable-image runner의 `[full build]` marker 코드는 다시 도입하지 않는다.
 
+### 2026-10-07 `ai_review` 제거
+
+`ai_review` job과 `scripts/ci/ai-review.sh`, 계약 시나리오, CI verify 이미지의 jq를 제거했다. push 이후 실행되어 결과와 무관하게 성공하는 참고용 리포트였고, 큰 배포는 diff 한도로 부분 검토(UNKNOWN)에 그쳤으며 리포트를 읽는 사람이 없었다. 배포 판단은 verify·db_check·deploy health 검사가 맡는다. 앱 AI 기능이 쓰는 `AZURE_OPENAI_*` 설정은 유지하며, GitLab CI/CD 변수 `GITLAB_API_TOKEN`은 더 이상 쓰이지 않는다.
+
 ### GitLab runner 상태 디렉터리 복구
 
 양쪽 원격 `6ffc1693` 게시 후 pipeline #189의 verify가 `/var/lib/ssoo` 생성 권한 부족으로 중단됐다. 기본 release state를 runner 계정의 `${XDG_STATE_HOME:-$HOME/.local/state}/ssoo/releases`로 옮기고 명시 `CI_RELEASE_STATE_DIR`는 보존한다. 저장소 checkout/임시 경로 밖의 지속 저장소와 `umask 077`을 유지한다. root 권한이나 실서버 변경 없이 exact-commit worktree와 직접 release entrypoint의 같은 경로 선택·명시 override·plan-only 차단을 회귀 검사한다.
 
 ### 준운영 `staging` 배포 모드 (2026-10-06)
 
-준운영 GitLab pipeline은 `verify → ai_review → plan → build → deploy_dev(manual) → diagnose(on_failure)`이며 `CI_DEPLOY_MODE=staging`이다. `rehearse` stage는 실행하지 않는다. deploy는 실행 중인 postgres/server에서 DB `pg_dump`와 DMS runtime tar를 release 디렉터리 `staging-backup/`(SHA256SUMS 포함, 복원 검증 없음)에 먼저 남기고, DB 변경이 있으면 기존 앱을 정지하지 않은 채 `DB_INIT_BASELINE_MODE=compat` db-init을 실행한다. 준운영 DB는 launch baseline 이전 상태라 `strict` db-init과 `db:runtime:verify`를 쓸 수 없기 때문이다. db-init이 실패하면 이전 앱이 계속 응답하고 job은 `recovery-required`로 실패하며, 복구는 해당 덤프로 수동 수행한다. 성공하면 server(core-readiness) → 앱 순으로 교체하고 모든 컨테이너의 sealed image 일치와 Docker health `healthy`를 확인한 뒤 commit한다. 정식 `apply`(복원 검증 백업·격리 리허설·smoke token 필수)와 `plan-only`는 변경하지 않았다. 근거와 결정 경위는 `docs/common/explanation/architecture/2026-10-06-repo-local-release.md`에 기록한다.
+준운영 GitLab pipeline은 `verify → plan → build → db_check → deploy_dev(manual) → diagnose(on_failure)`이며 `CI_DEPLOY_MODE=staging`이다. `rehearse` stage는 실행하지 않는다. deploy는 실행 중인 postgres/server에서 DB `pg_dump`와 DMS runtime tar를 release 디렉터리 `staging-backup/`(SHA256SUMS 포함, 복원 검증 없음)에 먼저 남기고, DB 변경이 있으면 기존 앱을 정지하지 않은 채 `DB_INIT_BASELINE_MODE=compat` db-init을 실행한다. 준운영 DB는 launch baseline 이전 상태라 `strict` db-init과 `db:runtime:verify`를 쓸 수 없기 때문이다. db-init이 실패하면 이전 앱이 계속 응답하고 job은 `recovery-required`로 실패하며, 복구는 해당 덤프로 수동 수행한다. 성공하면 server(core-readiness) → 앱 순으로 교체하고 모든 컨테이너의 sealed image 일치와 Docker health `healthy`를 확인한 뒤 commit한다. 정식 `apply`(복원 검증 백업·격리 리허설·smoke token 필수)와 `plan-only`는 변경하지 않았다. 근거와 결정 경위는 `docs/common/explanation/architecture/2026-10-06-repo-local-release.md`에 기록한다.
 
 - 중간 정지 지점: build 다음 `db_check` job이 실행 중인 postgres를 덤프해 별도 Docker network의 임시 postgres(같은 이름 `ssoo-postgres`/`ssoo_dev`)에 복원하고, sealed db-init을 compat/upgrade로 **2회** 실행한다. 실행 중인 stack은 건드리지 않으며, 통과하면 release 디렉터리에 `db-check.json`을 남긴다. 결과를 확인한 뒤 `deploy_dev`를 누르며, deploy는 같은 release의 24시간 이내 `db-check.json`이 없으면 아무것도 바꾸지 않고 실패한다. deploy 도중 Cancel은 db-init 완료 전까지만 기존 서비스에 영향이 없다.
 - compat 경로의 launch migration: compat DB에는 `public._prisma_migrations`가 없어 데이터 이동·변환 migration(`SET SCHEMA`, backfill)이 적용되지 않으면 db push가 drop/create로 처리한다(pipeline #195 deploy에서 `cm_code_m`/`cm_code_h` 삭제 경고로 중단). db-init은 db push 전에 `packages/database/scripts/apply-compat-launch-migrations.sh`로 `prisma/launch-migrations` 중 compat 기준선(`DB_INIT_COMPAT_LAUNCH_FLOOR`, 기본 `20260917100000`) 이후 migration을 순서대로 한 번씩 적용하고 `public._ssoo_compat_launch_migrations`에 기록한다. db push로 만든 객체 이름이 정식 migration 전제와 다른 경우 `prisma/compat/launch-shims/<migration>.sql`을 같은 트랜잭션에서 먼저 실행한다(현재 `20261001120000_crm_planning_organization`: unique index → constraint 승격, 부분 unique index 자리표시).

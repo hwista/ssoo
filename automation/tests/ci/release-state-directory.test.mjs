@@ -11,7 +11,7 @@ for (const explicit of [false, true]) test(`runner creates persistent state with
   try {
     const source = path.join(root, 'source');
     fs.mkdirSync(path.join(source, 'scripts/ci'), { recursive: true });
-    fs.writeFileSync(path.join(source, 'scripts/ci/ai-review.sh'), 'printf "%s" "$PWD" > "$STATE_TEST_RESULT"\n');
+    fs.writeFileSync(path.join(source, 'scripts/ci/release-job.sh'), 'printf "%s" "$PWD" > "$STATE_TEST_RESULT"\n');
     const git = (...args) => {
       const r = spawnSync('git', ['-C', source, ...args], { encoding: 'utf8' });
       assert.equal(r.status, 0, r.stderr); return r.stdout.trim();
@@ -24,7 +24,7 @@ for (const explicit of [false, true]) test(`runner creates persistent state with
       APP_DIR: path.join(root, 'runtime'), XDG_STATE_HOME: path.join(root, 'state'),
       CI_RELEASE_STATE_DIR: explicit ? state : '', CI_APP_LOCK_FILE: path.join(root, 'runner.lock'),
       STATE_TEST_RESULT: path.join(root, 'result') };
-    const r = spawnSync('bash', [path.join(repo, 'scripts/ci/run-app-job.sh'), 'ai-review'], { env, encoding: 'utf8' });
+    const r = spawnSync('bash', [path.join(repo, 'scripts/ci/run-app-job.sh'), 'plan'], { env, encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     assert.equal(fs.readFileSync(env.STATE_TEST_RESULT, 'utf8'), path.join(state, 'sources', sha));
     assert.equal(fs.statSync(state).mode & 0o077, 0);
