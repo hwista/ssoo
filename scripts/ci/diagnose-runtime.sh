@@ -26,6 +26,11 @@ redact() {
 echo "[ci-diagnose] containers"
 docker ps -a --filter "label=com.docker.compose.project=$project" --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' 2>&1 | redact
 
+echo "[ci-diagnose] ===== disk usage"
+df -Pk 2>&1 | redact
+docker system df 2>&1 | redact
+if [[ -n "$server_container" ]]; then docker exec "$server_container" df -Pk / 2>&1 | redact; fi
+
 for container in "${containers[@]}"; do
   echo "[ci-diagnose] ===== $container state"
   if ! docker inspect "$container" >/dev/null 2>&1; then

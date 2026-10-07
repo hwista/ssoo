@@ -125,7 +125,8 @@ export function retirementCandidates(images, manifests, running, keep = 3) {
     entries.sort((a,b) => Date.parse(b.image.Created) - Date.parse(a.image.Created));
     // Inspecting multiple tags of one image repeats its full RepoTags list.
     // Retain distinct images and emit each removable tag only once.
-    const recent = new Set([...new Set(entries.map((entry) => entry.image.Id))].slice(0, service === 'ci-verify' ? 1 : keep));
+    // Verification images are disposable test tools, never rollback artifacts.
+    const recent = new Set([...new Set(entries.map((entry) => entry.image.Id))].slice(0, service === 'ci-verify' ? 0 : keep));
     for (const { tag, image } of entries) if (!protectedIds.has(image.Id) && !recent.has(image.Id)) remove.add(tag);
   }
   return [...remove];

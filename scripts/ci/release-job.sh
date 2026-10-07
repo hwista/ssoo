@@ -51,13 +51,17 @@ capacity() {
   (( free >= required )) || { echo "[release] insufficient disk space; running/recovery images preserved (free_kb=$free required_kb=$required)" >&2; return 1; }
 }
 engine_free_kb() {
+  local layer_free host_free
+  # containerd's writable layers can live on a different filesystem from
+  # DockerRootDir. Both stores must have enough space to build/unpack an image.
+  layer_free="$(docker run --rm --network none --entrypoint df "$node_image" -Pk / | awk 'NR==2 {print $4}')"
+  [[ "$layer_free" =~ ^[0-9]+$ ]] || return 1
   if [[ -d "$1" ]]; then
-    df -Pk "$1" | awk 'NR==2 {print $4}'
-  else
-    # Docker Desktop/remote engines keep their layer store outside the runner's
-    # filesystem. Measure the engine's writable-layer filesystem in that case.
-    docker run --rm --network none --entrypoint df "$node_image" -Pk / | awk 'NR==2 {print $4}'
+    host_free="$(df -Pk "$1" | awk 'NR==2 {print $4}')"
+    [[ "$host_free" =~ ^[0-9]+$ ]] || return 1
+    if (( host_free < layer_free )); then layer_free="$host_free"; fi
   fi
+  printf '%s\n' "$layer_free"
 }
 assert_images() {
   state list > "$release_dir/image-list.tsv"

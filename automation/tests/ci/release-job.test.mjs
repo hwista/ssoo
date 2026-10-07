@@ -30,6 +30,10 @@ if(a[0]==='image'&&a[1]==='inspect') {
  console.log(scenario==='wrong-image'?'sha256:'+'f'.repeat(64):manifest.services[service].imageId);process.exit(0);
 }
 if(a[0]==='info'){console.log('/tmp');process.exit(0);}
+if(a[0]==='run'&&a.includes('df')) {
+ if(scenario==='layer-disk-full') {console.log('Filesystem 1024-blocks Used Available Capacity Mounted on\\ncontainerd 33554432 0 1024 100% /');process.exit(0);}
+ const result=cp.spawnSync('df',['-Pk','/'],{stdio:'inherit'});process.exit(result.status??1);
+}
 if(a[0]==='builder'&&a[1]==='prune') {
  log({event:'cache-prune'});fs.writeFileSync(root+'/cache-pruned','1');process.exit(0);
 }
@@ -140,6 +144,11 @@ check('capacity is rechecked after cache cleanup before allowing deployment', 'd
   assert.equal(r.events[0].event, 'cache-prune');
   assert.equal(r.events.filter(e => e.event === 'cache-prune').length, 1);
   assert.deepEqual(r.events.filter(e => e.event === 'up').flatMap(e => e.services), ['crm']);
+});
+check('full containerd layer storage blocks deployment even when DockerRootDir has capacity', 'layer-disk-full', {}, (r, f) => {
+  assert.notEqual(r.status, 0); assert.match(r.stderr, /insufficient disk space/);
+  assert.equal(r.last.releaseId, f.old.releaseId);
+  assert.deepEqual(r.events, [{ event: 'cache-prune' }]);
 });
 for (const scenario of ['stale', 'wrong-image', 'config-check-fail']) check(`${scenario} leaves containers and DB untouched`, scenario, {}, r => {
   assert.notEqual(r.status, 0); assert.ok(!r.events.some(e => ['stop', 'db-apply', 'up'].includes(e.event)));

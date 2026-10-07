@@ -236,7 +236,7 @@ test('an auth proxy error or different principal cannot pass as a successful ses
   }
 });
 
-test('retention also bounds old CI verification images without deleting container references', () => {
+test('retention removes disposable CI verification images without deleting container references', () => {
   const images = Array.from({ length: 3 }, (_, i) => ({ Id: `sha256:${String(i).repeat(64)}`, Created: new Date(2026, 0, i+1).toISOString(), RepoTags: [`app-ci-verify:${String(i).repeat(40)}`] }));
-  assert.deepEqual(retirementCandidates(images, [], [images[0].Id]), [images[1].RepoTags[0]]);
+  assert.deepEqual(retirementCandidates(images, [], [images[0].Id]), [images[2].RepoTags[0], images[1].RepoTags[0]]);
 });

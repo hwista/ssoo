@@ -29,6 +29,8 @@
 
 ## 로컬 검증 결과
 
+#200(`63ddf76e`)은 중복 태그 구간을 통과했지만 검증 이미지의 containerd 레이어 unpack에서 디스크 부족으로 실패했다. 사용하지 않는 CI 검증 이미지는 배포 manifest에 포함되지 않는 도구이므로 실행 컨테이너가 참조하는 이미지를 제외하고 정리한다. 업무 서비스의 최근 이미지 및 manifest 보호는 유지한다. 검증 Dockerfile의 설치·Prisma 생성은 같은 RUN 레이어로 묶고, 용량 검사는 DockerRootDir와 실제 컨테이너 쓰기 레이어 파일시스템 모두를 반영한다. 후자는 저장소가 별도 파일시스템에 놓인 경우의 잘못된 통과를 방지하며 fixture로 검증한다. 진단 job에는 호스트/컨테이너 및 Docker 디스크 사용량을 추가했다.
+
 첫 재배포 #199(`c6bc9ec5`)의 verify에서 오래된 Docker 이미지 태그가 중복 삭제되어 실패했다. 여러 태그가 같은 image ID를 가리킬 때 `docker image inspect`는 전체 RepoTags가 같은 객체를 반복 반환한다. 기존 retirement 계산이 이 중복을 그대로 삭제 목록에 넣었다. 삭제 후보를 태그별로 중복 제거하고 최근 보존 수를 서로 다른 image ID로 계산하도록 수정했다. 실행 컨테이너 및 보관 manifest의 이미지 보호는 유지한다. 동일 입력 형태와 여러 태그의 최신 이미지로 회귀 검사를 추가했다. 이 실패는 운영 앱 교체 전에 발생했다.
 
 preflight, 규칙 동기화, push guard, platform guard를 통과했다. 서버와 5개 웹 앱 production build 및 서버 Jest 100개 suite / 766개 test가 통과했다. CI 변수로 해석한 Compose의 5개 `build.args.NEXT_PUBLIC_API_URL`이 모두 운영 주소와 일치한다. 문서 구조 검사도 통과했다. GitLab 프로젝트 변수 목록은 현재 토큰에 읽기 권한이 없어 확인하지 못했으므로 최종 배포 번들로 실제 적용 값을 검증한다.
