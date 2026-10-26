@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 
 export const policy = JSON.parse(fs.readFileSync(new URL('./policy.json', import.meta.url), 'utf8'));
-for (const key of ['previousSuccessfulReleases', 'pendingReleaseDays', 'orphanImageHours', 'cacheUnusedHours', 'minimumFreeGiB', 'windowsMinimumFreeGiB', 'reportRetentionDays']) {
+for (const key of ['previousSuccessfulReleases', 'pendingReleaseDays', 'orphanImageHours', 'cacheUnusedHours', 'minimumFreeGiB', 'deploymentMinimumFreeGiB', 'windowsMinimumFreeGiB', 'reportRetentionDays']) {
   if (!Number.isSafeInteger(policy[key]) || policy[key] < 1) throw new Error(`Invalid storage policy: ${key}`);
 }
 if (!/^[1-9][0-9]*(GB|MB|GiB|MiB)$/.test(policy.cacheKeepStorage)) throw new Error('Invalid cache retention size');

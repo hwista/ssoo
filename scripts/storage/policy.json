@@ -5,6 +5,7 @@
   "cacheKeepStorage": "8GB",
   "cacheUnusedHours": 24,
   "minimumFreeGiB": 8,
+  "deploymentMinimumFreeGiB": 3,
   "windowsMinimumFreeGiB": 60,
   "reportRetentionDays": 30
 }

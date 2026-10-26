@@ -205,7 +205,7 @@ DB 변경은 먼저 이전 앱이 사용할 수 있는 추가·데이터 이전�
 
 최적화 활성화 전에 `COPY . .`를 대상 app·필수 공유 package·runtime asset의 명시적 COPY로 바꾼다. server runner가 builder의 `/app` 전체를 포함하는 부분도 고친다. 전체 소스를 image에 포함하면서 다른 app 변경이 무관하다고 판정하지 않는다. 전체 workspace manifest 기반 pnpm install, 승인 CA secret, Prisma 생성 및 필요한 runtime 파일은 보존한다.
 
-의존성 설치 → 공유 package → app 순으로 캐시를 재사용한다. [Docker 캐시 지침](https://docs.docker.com/build/cache/optimize/)에 따라 입력 범위와 cache mount를 정리한다. target 사이의 무조건 prune을 없애고 공간이 부족할 때만 오래된 미보호 cache를 정리한다. 기존 8GiB/3GiB는 초기 임계값으로 유지하며 DB 복제본·backup 공간을 추가 계산한다. 공간 부족은 실제 DB 변경 전에 차단한다.
+의존성 설치 → 공유 package → app 순으로 캐시를 재사용한다. [Docker 캐시 지침](https://docs.docker.com/build/cache/optimize/)에 따라 입력 범위와 cache mount를 정리한다. target 사이의 무조건 prune을 없애고 공간이 부족할 때만 오래된 미보호 cache를 정리한다. 빌드의 기존 8GiB/후속 target 3GiB는 유지한다. 빌드·봉인된 이미지의 배포는 `scripts/storage/policy.json`의 `deploymentMinimumFreeGiB`(3GiB, `CI_DEPLOY_MIN_FREE_KB` override)를 별도로 사용한다. staging은 DB 크기와 DMS runtime 사용량에 10%(최소 256MiB)를 더한 백업 예산과 배포 reserve를 백업 저장 파일시스템에서 확인한다. 백업 전후 Docker와 release 저장소 공간을 다시 검사하며 부족하면 실제 DB 변경 전에 차단한다. DB 복제본의 용량 계획은 별도 계약이다.
 
 ## 9. 변경 파일과 구현 순서
 

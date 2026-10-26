@@ -69,6 +69,13 @@ engine_free_kb() {
   fi
   printf '%s\n' "$layer_free"
 }
+release_capacity() {
+  local required="$1" free
+  free="$(df -Pk "$release_dir" | awk 'NR==2 {print $4}')"
+  [[ "$free" =~ ^[0-9]+$ ]] || return 1
+  echo "[release] release storage free_kb=$free required_kb=$required"
+  (( free >= required )) || { echo '[release] insufficient release storage; runtime unchanged' >&2; return 1; }
+}
 assert_images() {
   state list > "$release_dir/image-list.tsv"
   while IFS=$'\t' read -r service image expected; do
@@ -130,13 +137,23 @@ verify_deployment() {
 # Staging mode: plain dump of the live database and DMS runtime files for manual recovery.
 # No restore drill; the archive stays in the private release directory (umask 077).
 staging_backup() {
-  local backup_dir="$release_dir/staging-backup" postgres_id server_id
+  local backup_dir="$release_dir/staging-backup" postgres_id server_id db_bytes runtime_kb estimate_kb margin_kb
   mkdir -p "$backup_dir"
   postgres_id="$("${runtime[@]}" ps -q postgres)"
   [[ -n "$postgres_id" ]] || { echo '[release] staging backup: postgres is not running' >&2; return 1; }
-  docker exec "$postgres_id" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' > "$backup_dir/database.dump"
   server_id="$("${runtime[@]}" ps -q server)"
   [[ -n "$server_id" ]] || { echo '[release] staging backup: server is not running' >&2; return 1; }
+  db_bytes="$(docker exec "$postgres_id" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "SELECT pg_database_size(current_database())"')"
+  runtime_kb="$(docker exec "$server_id" sh -c 'du -sk "$DMS_MARKDOWN_ROOT" "$DMS_INGEST_QUEUE_PATH" "$DMS_STORAGE_LOCAL_BASE_PATH"' | awk '{sum += $1} END {printf "%.0f\n", sum}')"
+  [[ "$db_bytes" =~ ^[1-9][0-9]{0,14}$ && "$runtime_kb" =~ ^[0-9]{1,12}$ ]] || { echo '[release] invalid backup size estimate' >&2; return 1; }
+  estimate_kb=$(( (db_bytes + 1023) / 1024 + runtime_kb ))
+  # Source sizes are estimates, not a promise about archive size or concurrent
+  # writes. Allow 10% (at least 256 MiB) and recheck the reserve after backup.
+  margin_kb=$(( (estimate_kb + 9) / 10 ))
+  if (( margin_kb < 262144 )); then margin_kb=262144; fi
+  echo "[release] staging backup estimate_kb=$estimate_kb margin_kb=$margin_kb reserve_kb=$deploy_min_free_kb"
+  release_capacity "$((deploy_min_free_kb + estimate_kb + margin_kb))"
+  docker exec "$postgres_id" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' > "$backup_dir/database.dump"
   docker exec "$server_id" sh -c 'tar -czf - "$DMS_MARKDOWN_ROOT" "$DMS_INGEST_QUEUE_PATH" "$DMS_STORAGE_LOCAL_BASE_PATH" 2>/dev/null' \
     > "$backup_dir/dms-runtime.tar.gz"
   [[ -s "$backup_dir/database.dump" && -s "$backup_dir/dms-runtime.tar.gz" ]] || { echo '[release] staging backup is empty' >&2; return 1; }
@@ -290,7 +307,14 @@ case "$job" in
       cmp -s "$file" "$release_dir/secrets/$name" || { echo '[release] secret changed since build' >&2; exit 1; }
     done < "$release_dir/secret-list.tsv"
     assert_images
-    capacity
+    # Images are already built and sealed. Deployment needs runtime headroom,
+    # not the first build target's 8 GiB budget. Backup space is checked separately.
+    deploy_min_gib="$(sed -n 's/.*"deploymentMinimumFreeGiB": *\([0-9]*\).*/\1/p' scripts/storage/policy.json)"
+    [[ "$deploy_min_gib" =~ ^[1-9][0-9]{0,3}$ ]] || exit 2
+    deploy_min_free_kb="${CI_DEPLOY_MIN_FREE_KB:-$((deploy_min_gib * 1024 * 1024))}"
+    [[ "$deploy_min_free_kb" =~ ^[1-9][0-9]{0,9}$ ]] || { echo '[release] invalid deployment space threshold' >&2; exit 2; }
+    capacity "$deploy_min_free_kb"
+    release_capacity "$deploy_min_free_kb"
     runtime=(docker compose -p "$project" -f "$release_dir/compose.runtime.json")
     if [[ "$deploy_mode" == apply ]]; then
       # A verified, consistent DB+files backup is an explicit prerequisite. Do not
@@ -301,6 +325,10 @@ case "$job" in
     else
       staging_backup
     fi
+    # Neither DB migration nor app replacement may start if backup consumption
+    # (or other host activity) exhausted the runtime or release-storage reserve.
+    capacity "$deploy_min_free_kb"
+    release_capacity "$deploy_min_free_kb"
     previous_dir="$(state previous)"
     state state backed-up
     "${runtime[@]}" run --rm --no-deps --entrypoint node server -e "import('/app/apps/server/dist/config/config.validation.js').then(m=>{if(m.configValidationSchema.validate(process.env,{allowUnknown:true}).error)process.exit(1)}).catch(()=>process.exit(1))"

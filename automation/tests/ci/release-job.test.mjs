@@ -48,13 +48,21 @@ if(a[0]==='run' && a[1]==='-d'){log({event:'dbcheck-postgres',alias:a[a.indexOf(
 if(a[0]==='run' && a.join(' ').includes('db-check-only')){log({event:'dbcheck-init',compat:a.includes('DB_INIT_BASELINE_MODE=compat')});process.exit(scenario==='dbcheck-fail'?1:0);}
 if(a[0]==='exec' && a.includes('pg_isready')){process.exit(0);}
 if(a[0]==='exec' && a.includes('pg_restore')){log({event:'dbcheck-restore'});process.exit(0);}
+if(a[0]==='exec' && a.join(' ').includes('pg_database_size')) {
+ if(scenario==='backup-estimate-fail') process.exit(1);
+ console.log(scenario==='backup-too-large' ? 4*1024**3 : 100*1024**2);process.exit(0);
+}
+if(a[0]==='exec' && a.join(' ').includes('du -sk')) {
+ if(scenario==='runtime-estimate-fail') process.exit(1);
+ console.log('102400 /fixture/runtime');process.exit(0);
+}
 if(a[0]==='inspect') {
  const service=SERVICES.find(s=>a[1]==='ssoo-'+s||a[1]==='fixture-'+s);
  if(!service) process.exit(91);
  console.log(manifest.services[service].imageId);process.exit(0);
 }
 if(a[0]==='exec' && a.join(' ').includes('pg_dump')){log({event:'backup-db'});process.stdout.write('fixture dump');process.exit(0);}
-if(a[0]==='exec' && a.join(' ').includes('tar -czf')){log({event:'backup-runtime'});process.stdout.write('fixture runtime');process.exit(0);}
+if(a[0]==='exec' && a.join(' ').includes('tar -czf')){log({event:'backup-runtime'});fs.writeFileSync(root+'/backup-finished','1');process.stdout.write('fixture runtime');process.exit(0);}
 if(a[0]==='exec'){log({event:'core'});process.exit(scenario==='core-fail'?1:0);}
 if(a[0]==='compose') {
  if(a.includes('config')){console.log(JSON.stringify(config));process.exit(0);}
@@ -71,7 +79,7 @@ if(a[0]==='compose') {
 console.error('unhandled fixture Docker command',a);process.exit(92);
 `.replace('const a=process.argv', `const SERVICES=${JSON.stringify(SERVICES)};\nconst a=process.argv`);
 
-function fixture(scenario, { changedDb = false, mode = 'apply', dbCheck = true } = {}) {
+function fixture(scenario, { changedDb = false, mode = 'apply', dbCheck = true, deployMinimum = '' } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ssoo-release-job-test-'));
   const source = path.join(root, 'source'); fs.mkdirSync(path.join(source, 'scripts/ci'), { recursive: true });
   for (const file of ['release-job.sh', 'release-state.mjs']) fs.copyFileSync(path.join(repo, 'scripts/ci', file), path.join(source, 'scripts/ci', file));
@@ -88,6 +96,11 @@ case "$FIXTURE_SCENARIO" in
   disk-full) free=1024 ;;
   verify-tight) free=9437184 ;;
   disk-recovered) [ -f "$FIXTURE_ROOT/cache-pruned" ] || free=1024 ;;
+  deploy-tight|backup-too-large) free=4749308 ;;
+  deploy-below-minimum) free=3145727 ;;
+  backup-storage-full) [ "$2" != "$FIXTURE_RELEASE" ] || free=1024 ;;
+  backup-drains-engine) [ ! -f "$FIXTURE_ROOT/backup-finished" ] || free=1024 ;;
+  backup-drains-release) if [ -f "$FIXTURE_ROOT/backup-finished" ] && [ "$2" = "$FIXTURE_RELEASE" ]; then free=1024; fi ;;
 esac
 printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\\nfixture 33554432 0 %s 0%% /tmp\\n' "$free"
 `, { mode: 0o755 });
@@ -117,7 +130,7 @@ printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\\nfixture 3355
   if (scenario === 'stale') write(path.join(root, 'last-successful.json'), { ...old, releaseId: '3-' + oldSha });
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, APP_DIR: source, CI_COMMIT_SHA: sha, CI_PIPELINE_ID: '2', CI_RELEASE_STATE_DIR: root,
     CI_RELEASE_RUNTIME_DIR: root, CI_RELEASE_ENV_FILE: path.join(root, '.env'), CI_RELEASE_DMS_ENV_FILE: path.join(root, 'dms.env'), CI_DEPLOY_MODE: mode,
-    CI_BUILD_MIN_FREE_KB: '8388608', CI_SMOKE_TOKEN_FILE: path.join(root, 'token'), CI_RELEASE_BACKUP_EVIDENCE: path.join(root, 'fixture-backup.json'), FIXTURE_ROOT: root, FIXTURE_RELEASE: dir, FIXTURE_SCENARIO: scenario };
+    CI_BUILD_MIN_FREE_KB: '8388608', CI_DEPLOY_MIN_FREE_KB: deployMinimum, CI_SMOKE_TOKEN_FILE: path.join(root, 'token'), CI_RELEASE_BACKUP_EVIDENCE: path.join(root, 'fixture-backup.json'), FIXTURE_ROOT: root, FIXTURE_RELEASE: dir, FIXTURE_SCENARIO: scenario };
   if (mode === 'staging') {
     // Staging needs neither a smoke token, verified backup evidence nor a rehearsal proof.
     delete env.CI_SMOKE_TOKEN_FILE; delete env.CI_RELEASE_BACKUP_EVIDENCE;
@@ -156,6 +169,42 @@ check('full containerd layer storage blocks deployment even when DockerRootDir h
   assert.equal(r.last.releaseId, f.old.releaseId);
   assert.deepEqual(r.events, [{ event: 'cache-prune' }]);
 });
+check('job 524 disk level permits sealed staging deployment with backup headroom', 'deploy-tight', { changedDb: true, mode: 'staging' }, (r, f) => {
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.state, 'committed');
+  assert.equal(r.last.releaseId, f.manifest.releaseId);
+  assert.match(r.stdout, /free_kb=4749308 required_kb=3145728/);
+  assert.match(r.stdout, /staging backup estimate_kb=204800 margin_kb=262144 reserve_kb=3145728/);
+  assert.ok(r.events.some(e => e.event === 'backup-runtime'));
+  assert.ok(r.events.some(e => e.event === 'db-apply'));
+});
+check('apply uses the independent deploy reserve and retains verified backup requirements', 'deploy-tight', {}, r => {
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.state, 'committed');
+  assert.match(r.stdout, /free_kb=4749308 required_kb=3145728/);
+});
+for (const scenario of ['deploy-below-minimum', 'backup-too-large', 'backup-storage-full', 'backup-estimate-fail', 'runtime-estimate-fail']) {
+  check(`${scenario} blocks staging before backup and runtime changes`, scenario, { changedDb: true, mode: 'staging' }, (r, f) => {
+    assert.notEqual(r.status, 0); assert.equal(r.last.releaseId, f.old.releaseId);
+    assert.ok(!r.events.some(e => ['backup-db', 'backup-runtime', 'db-apply', 'stop', 'up'].includes(e.event)));
+  });
+}
+for (const scenario of ['backup-drains-engine', 'backup-drains-release']) {
+  check(`${scenario} blocks migration after backup without replacing apps`, scenario, { changedDb: true, mode: 'staging' }, (r, f) => {
+    assert.notEqual(r.status, 0); assert.equal(r.last.releaseId, f.old.releaseId);
+    assert.ok(r.events.some(e => e.event === 'backup-runtime'));
+    assert.ok(!r.events.some(e => ['db-apply', 'stop', 'up'].includes(e.event)));
+    assert.notEqual(r.state, 'recovery-required', 'no live mutation started');
+  });
+}
+check('explicit deployment reserve is honored independently of build threshold', 'deploy-tight', { mode: 'staging', deployMinimum: '8388608' }, r => {
+  assert.notEqual(r.status, 0); assert.match(r.stdout, /required_kb=8388608/);
+  assert.ok(!r.events.some(e => ['backup-db', 'db-apply', 'up'].includes(e.event)));
+});
+for (const deployMinimum of ['0', '-1', 'invalid']) {
+  check(`invalid deployment reserve ${deployMinimum} fails closed`, 'success', { mode: 'staging', deployMinimum }, r => {
+    assert.equal(r.status, 2); assert.match(r.stderr, /invalid deployment space threshold/);
+    assert.deepEqual(r.events, []);
+  });
+}
 test('verify prepare needs 10 GiB free while plan keeps the 8 GiB build threshold', () => {
   for (const scenario of ['success', 'verify-tight']) {
     const f = fixture(scenario);
