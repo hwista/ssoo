@@ -36,6 +36,16 @@ variables:
   DOCKER_BUILDKIT: "1"
   COMPOSE_DOCKER_CLI_BUILD: "1"
 
+# Independent read-only diagnostics: no verification image build or deployment.
+storage_audit:
+  stage: verify
+  tags:
+    - ssoo
+  script:
+    - bash "$CI_PROJECT_DIR/scripts/storage/ci-audit.sh"
+  only:
+    - fix/ci-storage-maintenance
+
 verify:
   stage: verify
   tags:

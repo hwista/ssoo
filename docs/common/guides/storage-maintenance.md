@@ -36,6 +36,10 @@ CI의 오래된 manifest는 감사 기록으로 유지하고 `retired.json`으�
 
 ## Docker 사용
 
+### GitLab 러너 공간 진단
+
+`fix/ci-storage-maintenance` 유지보수 브랜치의 `storage_audit` job은 일반 development 파이프라인과 분리해 실행한다. 검증 이미지 빌드와 10GiB 사전 조건 없이 기존 `node:22` 이미지(`--pull never`)로 보존 manifest의 필요한 필드만 읽는다. 공용 호스트 잠금 아래 실제 여유 공간, 모든 이미지 태그·크기, 종료 컨테이너를 포함한 이미지 참조, release별 상태·수동 보호·배포 시도·만료 여부를 출력한다. secret/env/config 본문과 백업 내용은 출력하지 않으며 이미지·컨테이너·볼륨·release 기록을 삭제하지 않는다. SSH 없이 GitLab job trace로 정리 후보를 검토할 수 있다.
+
 ```bash
 pnpm storage:docker:status
 pnpm storage:docker:cleanup
@@ -99,6 +103,7 @@ Get-ScheduledTask -TaskName 'SSOO-Storage-*'
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-10-27 | 빌드 공간이 부족해도 실행 가능한 별도 GitLab storage_audit job과 비밀값을 제외한 읽기 전용 러너 공간/보존 이력 진단 추가 |
 | 2026-10-26 | #524 배포 공간 검사 수정: 빌드 8GiB와 배포 3GiB를 분리하고 staging 백업 크기 예산 및 백업 전후 Docker/release 파일시스템 검사를 추가 |
 | 2026-10-26 | #212 공간 부족 회귀 수정: verify 종료 정리와 잔여 검증 전용 이미지의 24시간 유예 제외, 컨테이너·복구·배포 이미지 보호 및 실패 코드 회귀 테스트 추가 |
 | 2026-10-26 | 로컬·CI 필수 Docker 정리, 배포 묶음 보존·만료, Windows 유휴 유지보수와 놓친 일정 재시도 추가 |
