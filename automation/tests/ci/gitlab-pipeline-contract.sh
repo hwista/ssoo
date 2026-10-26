@@ -533,5 +533,5 @@ if PATH="$fake_bin:$PATH" FAKE_DOCKER_STATE="$fake_state" FAKE_DOCKER_FAIL_COMMI
 fi
 [[ ! -e "$failed_manifest" ]] || fail "failed backup published a completed manifest"
 
-node --test "$repo_root/automation/tests/ci/release-state.test.mjs" "$repo_root/automation/tests/ci/release-job.test.mjs" "$repo_root/automation/tests/ci/db-init-policy.test.mjs" "$repo_root/automation/tests/ci/release-state-directory.test.mjs" "$repo_root/automation/tests/ci/verify-tls.test.mjs" "$repo_root/automation/tests/ci/preflight-worktree.test.mjs"
+node --test "$repo_root"/automation/tests/storage/*.test.mjs "$repo_root/automation/tests/ci/release-state.test.mjs" "$repo_root/automation/tests/ci/release-job.test.mjs" "$repo_root/automation/tests/ci/db-init-policy.test.mjs" "$repo_root/automation/tests/ci/release-state-directory.test.mjs" "$repo_root/automation/tests/ci/verify-tls.test.mjs" "$repo_root/automation/tests/ci/preflight-worktree.test.mjs"
 echo "[gitlab-pipeline-test] exact source, backup recovery and platform release contracts passed"

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { policy, releaseRetention } from '../storage/retention.mjs';
 
 export const SERVICES = ['server', 'db-init', 'admin', 'crm', 'pms', 'dms', 'sns'];
 export const APPS = SERVICES.slice(2);
@@ -110,7 +111,7 @@ export function runtimeCompose(config, manifest) {
   return escapeCompose(resolved);
 }
 export function retirementCandidates(images, manifests, running, keep = 3) {
-  if (!Number.isInteger(keep) || keep < 1) throw new Error('Invalid retention count');
+  if (!Number.isInteger(keep) || keep < 0) throw new Error('Invalid retention count');
   const protectedIds = new Set(running);
   // All retained manifests protect their images, including waiting/failed releases.
   // Releasing old manifests is a separate audited operation, never inferred from tags.
@@ -238,6 +239,7 @@ export function cli(command, root, dir, ...args) {
     }
     atomic(path.join(dir, 'compose.runtime.json'), runtimeCompose(config, plan));
   } else if (command === 'check' || command === 'check-staging') {
+    if (fs.existsSync(path.join(dir, 'retired.json'))) throw new Error('Release retired; create a new pipeline');
     if (fs.existsSync(path.join(dir, 'deploy-attempt.json'))) throw new Error('Deployment already attempted; inspect DB/runtime and create a new release');
     const manifest = validateManifest(read(manifestFile)); assertCurrent(manifest, previous);
     const config = read(path.join(dir, 'config.json'));
@@ -309,11 +311,29 @@ export function cli(command, root, dir, ...args) {
     if (evidence.status !== 'passed' || evidence.releaseId !== manifest.releaseId) throw new Error('Missing release verification');
     atomic(path.join(root, 'last-successful.json'), manifest);
   } else if (command === 'retired-images') {
-    const manifests = fs.readdirSync(root).filter((name) => /^\d+-[a-f0-9]{40}$/u.test(name))
-      .map((name) => path.join(root, name, 'release.json')).filter((file) => fs.existsSync(file)).map(read);
+    const records = fs.readdirSync(root).filter((name) => /^\d+-[a-f0-9]{40}$/u.test(name)).map((id) => {
+      const base = path.join(root, id);
+      const state = fs.existsSync(path.join(base, 'state.json')) ? read(path.join(base, 'state.json')) : {};
+      const file = path.join(base, 'release.json');
+      return { id, ...state, manifest: fs.existsSync(file) ? validateManifest(read(file)) : null,
+        attempted: fs.existsSync(path.join(base, 'deploy-attempt.json')),
+        retired: fs.existsSync(path.join(base, 'retired.json')),
+        pinned: id === path.basename(dir) || fs.existsSync(path.join(base, 'retain-images')) };
+    });
+    const decision = releaseRetention(records, previous?.releaseId);
+    const manifests = records.filter((r) => decision.protectedIds.includes(r.id) && r.manifest).map((r) => r.manifest);
+    if (previous) manifests.push(validateManifest(previous));
+    // Mark expiry before deleting tags: a waiting pipeline must never deploy retired artifacts.
+    for (const id of decision.retiredIds) {
+      const marker = path.join(root, id, 'retired.json');
+      if (!fs.existsSync(marker)) atomic(marker, { retiredAt: new Date().toISOString(), reason: 'storage-retention-policy' });
+    }
+    atomic(path.join(dir, 'retention-decision.json'), { ...decision, checkedAt: new Date().toISOString(), policy });
     const images = read(path.join(dir, 'retention-images.json'));
     const running = read(path.join(dir, 'retention-containers.json')).map((item) => item.Image);
-    for (const ref of retirementCandidates(images, manifests, running)) console.log(ref);
+    const young = images.filter((image) => !Number.isFinite(Date.parse(image.Created))
+      || Date.now() - Date.parse(image.Created) < policy.orphanImageHours * 3600_000).map((image) => image.Id);
+    for (const ref of retirementCandidates(images, manifests, [...running, ...young], 0)) console.log(ref);
   } else if (command === 'base-ref') {
     const images = read(path.join(dir, 'base-images.json'));
     const ref = images[0]?.RepoDigests?.find((entry) => /^node@sha256:[a-f0-9]{64}$/u.test(entry));

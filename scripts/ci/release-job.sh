@@ -19,8 +19,12 @@ node_run() {
 }
 state() { node_run scripts/ci/release-state.mjs "$1" "$release_root" "$release_dir" "${@:2}"; }
 deploy_started=false
+storage_running=false
 finish() {
   local result=$?
+  if [[ "$storage_running" == true ]]; then
+    printf '{"status":"failed","exitCode":%s}\n' "$result" > "$release_dir/storage-status.json"
+  fi
   if [[ "$result" != 0 && "$deploy_started" == true ]]; then
     local status
     status="$(state status)" || status=unknown
@@ -30,6 +34,7 @@ finish() {
 trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+source "$(dirname "${BASH_SOURCE[0]}")/../storage/cache.sh"
 capacity() {
   local root free required="${1:-${CI_BUILD_MIN_FREE_KB:-8388608}}" escalate="${2:-}"
   [[ "$required" =~ ^[0-9]+$ ]] || return 1
@@ -179,8 +184,10 @@ db_check() {
   state db-check-passed
   echo "[release] db-check passed; deploy_dev may run for this release"
 }
-prepare() {
-  docker image inspect "$node_image" >/dev/null 2>&1 || docker pull "$node_image"
+storage_cleanup() {
+    storage_running=true
+    printf '{"status":"running"}\n' > "$release_dir/storage-status.json"
+    docker system df > "$release_dir/storage-before.txt"
     mapfile -t retention_refs < <(docker image ls 'app-*' --format '{{.Repository}}:{{.Tag}}' | grep -E '^app-[a-z-]+:[a-f0-9]{40}$' || true)
     if (( ${#retention_refs[@]} > 0 )); then
       docker image inspect "${retention_refs[@]}" > "$release_dir/retention-images.json"
@@ -191,6 +198,14 @@ prepare() {
       state retired-images > "$release_dir/retired-images.txt"
       while IFS= read -r ref; do docker image rm "$ref"; done < "$release_dir/retired-images.txt"
     fi
+    storage_cache_cleanup
+    docker system df > "$release_dir/storage-after.txt"
+    printf '{"status":"passed"}\n' > "$release_dir/storage-status.json"
+    storage_running=false
+}
+prepare() {
+    docker image inspect "$node_image" >/dev/null 2>&1 || docker pull "$node_image"
+    storage_cleanup
     # verify/plan: the verify image build leaves BuildKit cache behind on the small runner (#194 plan).
     # Verify passes its own threshold: building and unpacking its image needed more than 8 GiB (#203).
     capacity "${1:-}" full
@@ -248,6 +263,7 @@ case "$job" in
     docker image inspect "${refs[@]}" > "$release_dir/images.json"
     state seal
     state state built
+    storage_cleanup
     ;;
   rehearse)
     assert_images
@@ -368,6 +384,9 @@ case "$job" in
     state state verified
     state commit
     state state committed
+    # Cleanup failure must fail the job without misclassifying a verified deployment as DB recovery.
+    deploy_started=false
+    storage_cleanup
     echo "[release] deployed $CI_PIPELINE_ID-$CI_COMMIT_SHA"
     ;;
   *) echo "unknown release stage: $job" >&2; exit 2 ;;

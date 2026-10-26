@@ -1,0 +1,10 @@
+{
+  "previousSuccessfulReleases": 3,
+  "pendingReleaseDays": 7,
+  "orphanImageHours": 24,
+  "cacheKeepStorage": "8GB",
+  "cacheUnusedHours": 24,
+  "minimumFreeGiB": 8,
+  "windowsMinimumFreeGiB": 60,
+  "reportRetentionDays": 30
+}

@@ -20,6 +20,7 @@ const lab = fs.mkdtempSync(path.join(os.tmpdir(), 'ssoo-release-docker-'));
 fs.chmodSync(lab, 0o700);
 const root = path.join(lab, 'releases'), source = path.join(lab, 'source');
 fs.mkdirSync(root); fs.mkdirSync(path.join(source, 'scripts/ci'), { recursive: true });
+fs.cpSync(path.join(repo, 'scripts/storage'), path.join(source, 'scripts/storage'), { recursive: true });
 for (const file of ['release-job.sh', 'release-state.mjs', 'verify-platform-release.mjs', 'diagnose-runtime.sh']) {
   fs.copyFileSync(path.join(repo, 'scripts/ci', file), path.join(source, 'scripts/ci', file));
 }

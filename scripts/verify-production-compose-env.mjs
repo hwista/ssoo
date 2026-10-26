@@ -863,12 +863,12 @@ function verifyRepositoryContract() {
   }
   assertIncludes(
     packageJson,
-    'docker compose -f compose.yaml -f compose.local.yaml up -d --build',
+    'pnpm run docker:local:config && bash scripts/storage/docker-job.sh local up',
     'local Docker package entrypoint must use the local overlay',
   );
   assertIncludes(
     packageJson,
-    'docker compose --env-file .env.production -f compose.yaml -f compose.production.yaml up -d --build',
+    'pnpm run docker:production:config && bash scripts/storage/docker-job.sh production up',
     'production Docker package entrypoint must use the production overlay',
   );
 }

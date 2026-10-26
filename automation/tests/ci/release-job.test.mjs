@@ -26,6 +26,7 @@ if(a[0]==='run' && a.includes('scripts/ci/verify-platform-release.mjs')) {
 }
 if(a[0]==='image'&&a[1]==='inspect'&&a[2]==='node:22') process.exit(0);
 if(a[0]==='image'&&(a[1]==='ls'||a[1]==='prune')) process.exit(0);
+if(a[0]==='system'&&a[1]==='df') { console.log('fixture storage'); process.exit(0); }
 if(a[0]==='image'&&a[1]==='inspect') {
  const service=SERVICES.find(s=>a[2].startsWith('app-'+s+':'));
  if(!service) process.exit(90);
@@ -37,6 +38,7 @@ if(a[0]==='run'&&a.includes('df')) {
  const result=cp.spawnSync('df',['-Pk','/'],{stdio:'inherit'});process.exit(result.status??1);
 }
 if(a[0]==='builder'&&a[1]==='prune') {
+ if(a.includes('--filter')) { log({event:'scheduled-cache-prune'}); if(scenario==='cleanup-fail') process.exit(1); process.exit(0); }
  log({event:'cache-prune'});fs.writeFileSync(root+'/cache-pruned','1');process.exit(0);
 }
 if(a[0]==='inspect' && a.some(x=>x.includes('State.Health'))){console.log(scenario==='staging-unhealthy'?'unhealthy':'healthy');process.exit(0);}
@@ -73,6 +75,7 @@ function fixture(scenario, { changedDb = false, mode = 'apply', dbCheck = true }
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ssoo-release-job-test-'));
   const source = path.join(root, 'source'); fs.mkdirSync(path.join(source, 'scripts/ci'), { recursive: true });
   for (const file of ['release-job.sh', 'release-state.mjs']) fs.copyFileSync(path.join(repo, 'scripts/ci', file), path.join(source, 'scripts/ci', file));
+  fs.cpSync(path.join(repo, 'scripts/storage'), path.join(source, 'scripts/storage'), { recursive: true });
   fs.writeFileSync(path.join(source, 'scripts/ci/diagnose-runtime.sh'), 'echo "diagnostics fixture"\n');
   const bin = path.join(root, 'bin'); fs.mkdirSync(bin);
   fs.writeFileSync(path.join(bin, 'docker'), dockerFixture, { mode: 0o755 });
@@ -256,4 +259,10 @@ test('SIGKILL during DB application leaves a durable marker and refuses replay b
     assert.notEqual(next.status, 0); assert.match(next.stderr, /already attempted/);
     assert.equal(next.state, 'db-applying'); assert.equal(next.events.length, before);
   } finally { f.cleanup(); }
+});
+
+check('post-deploy cleanup failure fails job but preserves committed deployment', 'cleanup-fail', {}, (r, f) => {
+  assert.notEqual(r.status, 0); assert.equal(r.state, 'committed');
+  assert.equal(r.last.releaseId, f.manifest.releaseId);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(f.dir, 'storage-status.json'))).status, 'failed');
 });

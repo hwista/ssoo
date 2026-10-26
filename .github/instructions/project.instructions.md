@@ -237,5 +237,7 @@ modules/
 
 ## 플랫폼 배포 검증
 
+- Docker 공간 관리는 `scripts/storage/policy.json`과 `docs/common/guides/storage-maintenance.md`를 따른다. 로컬·CI 빌드/배포는 공통 잠금과 필수 정리를 거치고 현재 정상 배포 + 이전 정상 배포 3개 및 복구 대상을 보호한다. Windows C: 반환은 별도 유휴 예약 작업이며 실제 C: 전후 bytes로 검증한다. `pnpm run verify:storage`는 preflight/push-guard/CI에서 정리 경로 누락과 보존·실패 처리를 검증한다.
+
 - 배포 공통 검사는 `pnpm run codex:platform-guard`로 공통 서버와 Admin/CRM/PMS/DMS/SNS 5개 앱을 함께 검증한다. DMS 소유 계약은 기존 `codex:dms-guard`로 보존한다.
 - GitLab 배포는 정확한 SHA의 별도 checkout, 7개 이미지 manifest, 구성/secret snapshot, 실제 백업 복원 리허설과 5앱 인증·도메인 검사를 요구한다. 상세 절차와 활성화 조건은 `docs/common/explanation/architecture/2026-10-01-deployment-design.md`를 따른다.

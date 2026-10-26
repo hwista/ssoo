@@ -56,6 +56,10 @@ fi
 echo "[push-guard] changed files:"
 echo "$CHANGED"
 
+if changed_matches '^scripts/(storage|ci)/|^automation/tests/(storage|ci)/|^package.json$'; then
+  pnpm run verify:storage
+fi
+
 if [ "$MATCH_TOOL" = "grep" ]; then
   echo "[push-guard] rg not found. using grep fallback."
 fi

@@ -1,0 +1,94 @@
+# Docker 및 Windows 공간 관리
+
+> 최종 업데이트: 2026-10-26
+
+## 실행 주체와 완료 기준
+
+레포의 `scripts/storage/`가 정책과 실행 코드를 소유한다. 로컬 `docker:build/up`, `docker:local-test:build/up`, `docker:production:build/up`과 GitLab release job은 정리를 필수 실행한다. CI는 기존 호스트 잠금(`/tmp/ssoo-app-runtime.lock`)을 사용한다. 직접 실행한 Docker 명령과 다른 저장소에는 이 잠금이 자동 적용되지 않는다.
+
+Docker 내부 공간과 Windows C: 여유 공간은 별도 측정한다. 캐시 삭제량을 C: 확보량으로 보고하지 않는다. 정리 실패/용량 미달은 명령 실패이며, 배포가 이미 검증·커밋됐다면 정리 실패만으로 배포 상태를 rollback/recovery-required로 바꾸지 않는다.
+
+## 보존 정책
+
+정본은 `scripts/storage/policy.json`이다.
+
+| 대상 | 정책 |
+|------|------|
+| 정상 CI 배포 | 현재 정상 배포 + 이전 정상 배포 3개 |
+| 미배포 prepared/built/rehearsed | 7일 이후 만료; 배포 시도 기록이 있으면 자동 만료 금지 |
+| 검증된 rolled-back 배포 | 7일 이후 이미지 보호 해제 |
+| 복구 중·상태 불명·중단된 배포 | 자동 만료 금지 |
+| 수동 보호 | 배포 디렉터리의 `retain-images` 파일로 보호 |
+| 컨테이너 참조 | 종료된 컨테이너도 포함해 이미지 보호 |
+| 새 이미지 | 24시간 유예; 생성 시각 불명도 보호 |
+| 빌드 캐시 | 24시간 미사용 캐시 대상으로 8GB 보존 기준의 prune; 강제적인 전체 사용량 상한은 아님 |
+| 빌드 최소 여유 공간 | CI 검증 이미지 빌드 전 10GiB(`CI_VERIFY_MIN_FREE_KB`), 일반 빌드/계획 8GiB, 후속 target 3GiB |
+| Windows C: 목표 여유 공간 | 60GiB; 실제 확보량과 목표 충족 여부 기록 |
+
+CI의 오래된 manifest는 감사 기록으로 유지하고 `retired.json`으로 이미지 보호만 해제한다. 만료된 pipeline은 재배포할 수 없으며 새 pipeline을 만들어야 한다. DB 스키마가 달라지면 이전 이미지 보존만으로 rollback을 보장하지 않는다.
+
+로컬 Compose는 정상 실행 중인 7개 서비스 이미지(DB 초기화는 정상 종료)를 묶어 보호 태그를 만든다. 현재 이미지 조합과 이전 정상 조합 3개를 유지한다. 로컬 기록은 이미지 보존용이며 CI의 환경·백업·복구 증거를 갖춘 release manifest를 대체하지 않는다. 동일 이미지 조합의 반복 실행은 중복 버전으로 세지 않는다.
+
+정리는 SSOO의 관리 태그만 삭제한다. 컨테이너·데이터 볼륨·백업·소스 checkout·검증 기록은 자동 삭제하지 않는다. 캐시는 현재 Docker builder의 공유 자원이므로 다른 프로젝트의 오래된 빌드 캐시도 회수될 수 있다. 기존 CI의 디스크 부족 시 비상 cache prune은 유지한다.
+
+## Docker 사용
+
+```bash
+pnpm storage:docker:status
+pnpm storage:docker:cleanup
+pnpm docker:build
+pnpm docker:up
+pnpm docker:production:up
+```
+
+로컬 보고서는 `~/.local/state/ssoo/storage/<엔진·프로젝트·프로필 해시>/latest-report.json`에 기록한다. `SSOO_STORAGE_STATE_DIR`로 기본 디렉터리를 바꿀 수 있다. 모든 명령은 정상 동작 검증 이후에만 새 이미지 조합을 성공 이력으로 등록한다. `up`은 Compose healthcheck를 기다리며 전체 서비스 검증이 실패하면 성공 이력으로 등록하지 않는다.
+
+CI는 verify/plan 준비, build 완료, deploy 성공 후 정리를 수행한다. release 디렉터리에 `storage-before.txt`, `storage-after.txt`, `storage-status.json`, `retention-decision.json`을 남긴다. 실제 운영 CI에 적용하려면 변경 코드를 해당 원격 브랜치에 반영해야 한다. 로컬 파일 수정만으로 원격 runner가 바뀌지는 않는다.
+
+2026-10-26 통합 기준은 GitLab `development`의 `1cff17d1`이다. 원격에서 제거한 advisory `ai_review` 작업과 `jq` 설치를 되살리지 않으며, 검증 이미지의 10GiB 사전 공간 검사와 실측 로그를 유지한다. 이 기준의 기존 원격 pipeline #204는 2026-10-08 배포까지 성공했다. 새 자동 정리가 포함된 원격 pipeline 성공 증거와는 구분한다.
+
+## Windows 예약 작업 설치
+
+Windows PowerShell에서 실행한다. 관리자 권한이 필요한 압축 작업은 설치 시 UAC 승인이 필요하다.
+
+```powershell
+& '\\wsl.localhost\Ubuntu\home\a0122024330\src\ssoo\scripts\storage\windows\install.ps1' -Elevate
+```
+
+설치 시 현재 Windows 사용자의 WSL 등록 정보와 Docker 기본 디스크 위치에서 C:의 VHDX를 탐색한다. 등록된 경로를 `%LOCALAPPDATA%\SSOO\Storage\config.json`에 기록하고 스크립트를 같은 Windows 디렉터리에 복사한다. WSL을 종료해도 Windows 작업이 계속 실행되며, 레포 변경 후에는 설치 명령을 다시 실행해 복사본을 갱신한다. 디스크 이동/새 배포판 추가 시 경로를 재검토해 재설치한다.
+
+| 작업 | 실행 조건 |
+|------|----------|
+| `SSOO-Storage-Check` | 매일 12:00 및 로그인, 실제 C: 여유 공간 점검 |
+| `SSOO-Storage-Reclaim` | 일요일 04:00부터 해당 주 작업이 미완료이면 실행 가능. 매일 04:00 및 로그인 시 재시도 |
+
+PC가 꺼져서 놓친 작업은 `StartWhenAvailable`로 다음 실행 기회에 재시도한다. PC를 깨우지 않는다. 해당 사용자 로그인 상태에서 실행하며, Windows 유휴 조건과 최근 입력 60분 경과를 모두 확인한다. C:가 목표 여유 공간 이상이면 압축을 생략한다. 실패·보류는 주간 완료로 기록하지 않는다.
+
+사용자 승인된 유지보수는 Docker와 WSL의 정상 종료를 포함한다. 모든 실행 중 배포판에서 빌드·배포 잠금과 알려진 빌드 프로세스를 확인하고, Windows 빌드 프로세스도 확인한다. 실행 컨테이너 ID와 배포판 목록을 먼저 저장하고, 일반 WSL 파일시스템 trim → 컨테이너 정상 종료 → Docker Desktop 종료 → WSL 종료 → 등록 VHDX 압축 → Docker·기존 컨테이너·배포판 재시작 순서로 실행한다. Docker는 다른 프로젝트 컨테이너도 포함하므로 유지보수 동안 모두 중단된다. 배포판 재시작은 기존 터미널/편집기 프로세스를 복원한다는 의미가 아니다.
+
+Windows의 `maintenance.json`은 WSL 종료 이후에도 남아 새 SSOO 빌드·배포를 차단한다. 관리 명령 외의 원격 빌드나 다른 프로그램의 모든 작업을 판별할 수는 없다. 잠금 획득 실패, 새 배포판 발견, 사용자의 입력 재개 시 종료 전에 보류한다. 압축 시작 이후에는 중간 종료 대신 복원을 마친다.
+
+압축은 Windows `CompactVirtualDisk` API의 오류 코드를 확인한다. 파일이 다시 사용 중이면 실패하며, `finally`에서 재시작을 시도한다. 실패 시 `recovery.json`을 남기고 다음 유지보수에서 복원을 우선한다. 복원되지 않은 marker를 임의 삭제하지 않는다.
+
+```powershell
+$root = Join-Path $env:LOCALAPPDATA 'SSOO\Storage'
+& "$root\maintain.ps1" -Mode Check
+& "$root\maintain.ps1" -Mode Reclaim -DryRun
+& "$root\maintain.ps1" -Mode Recover
+Get-ScheduledTask -TaskName 'SSOO-Storage-*'
+```
+
+보고서는 같은 디렉터리의 `latest-Check.json`, `latest-Reclaim.json`, `reports/`에 남는다. 실제 C: 전후 bytes, reclaimedBytes, targetMet, 보류/실패 사유를 기록한다. 보고서만 30일 후 정리한다. `compacted`여도 삭제 가능한 블록이 부족하면 목표 여유 공간에 도달하지 않을 수 있으므로 `targetMet`을 함께 확인한다.
+
+## 검증
+
+`pnpm verify:storage`, `pnpm verify:gitlab-pipeline`, `pnpm codex:preflight`, `pnpm codex:platform-guard`를 실행한다. Windows에서는 `automation/tests/storage/windows.test.ps1`로 일정/경로/native 오류 처리를 검증한다. 실제 시스템 종료·압축·복원 검증은 유지보수 시간에 수행하고 생성된 보고서와 복원된 서비스 상태를 확인한다. DryRun이나 단위 테스트를 실제 C: 반환 성공 증거로 취급하지 않는다.
+
+공식 근거: [Docker 캐시 GC](https://docs.docker.com/build/cache/garbage-collection/), [Docker Desktop CLI](https://docs.docker.com/desktop/features/desktop-cli/), [Windows CompactVirtualDisk](https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/nf-virtdisk-compactvirtualdisk).
+
+## Changelog
+
+| 날짜 | 변경 내용 |
+|------|----------|
+| 2026-10-26 | 로컬·CI 필수 Docker 정리, 배포 묶음 보존·만료, Windows 유휴 유지보수와 놓친 일정 재시도 추가 |
+| 2026-10-26 | 최신 GitLab의 AI 리뷰 작업 제거와 검증 이미지 10GiB 검사 위에 자동 정리 변경 통합 |

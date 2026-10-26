@@ -617,6 +617,8 @@ private 증거 경로는 `/tmp/ssoo-gate-rehearsal-p1qhqx_b/`다. `inputs.json`�
 
 ## Changelog
 
+2026-10-26 공간 관리 정책은 [Docker 및 Windows 공간 관리](../../guides/storage-maintenance.md)를 따른다. 기존 §11의 모든 보관 manifest 영구 보호를 현재 정상 배포 + 이전 정상 배포 3개, 복구·진행 중 보호, 대기 배포 7일 만료로 구체화했다. 감사 manifest는 보존하고 만료 marker로 이미지 보호를 해제한다. 로컬 빌드·배포와 CI 준비/빌드 완료/배포 성공 후 정리를 필수 실행하며 Windows 실제 공간 반환은 별도 유휴 유지보수로 관리한다.
+
 | 날짜 | 내용 |
 |---|---|
 | 2026-10-07 | `ai_review` stage·스크립트·계약 시나리오와 CI verify 이미지의 jq 제거 |
