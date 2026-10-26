@@ -59,3 +59,33 @@ test('CI retirement keeps current pointer, all containers and grace period, and 
     assert.ok(fs.existsSync(path.join(releases[1].dir, 'release.json')), 'audit manifest preserved');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test('CI retirement reclaims fresh verify images but keeps container, recovery and deployment protections', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'storage-verify-'));
+  try {
+    const image = (n, service = 'ci-verify', Created = new Date().toISOString()) => ({
+      Id: `sha256:${n.repeat(64)}`, Created, RepoTags: [`app-${service}:${n.repeat(40)}`],
+    });
+    const disposable = image('1'), running = image('2'), stopped = image('3'), recovery = image('4');
+    const mixed = image('5'); mixed.RepoTags.push(`app-server:${'5'.repeat(40)}`);
+    const youngApp = image('6', 'server'), oldApp = image('7', 'server', '2026-01-01');
+    const unknown = image('8', 'ci-verify', 'invalid');
+    const sha = '4'.repeat(40), id = `1-${sha}`, dir = path.join(root, id);
+    fs.mkdirSync(dir);
+    const manifest = { schemaVersion: 1, releaseId: id, targetCommit: sha,
+      services: Object.fromEntries(SERVICES.map((s) => [s, { imageRef: `app-${s}:${sha}`, imageId: recovery.Id,
+        sourceCommit: sha, inputHash: 'a'.repeat(64), runtimeHash: 'b'.repeat(64) }])) };
+    fs.writeFileSync(path.join(dir, 'release.json'), JSON.stringify(manifest));
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ status: 'recovery-required' }));
+    fs.writeFileSync(path.join(dir, 'retention-images.json'), JSON.stringify([
+      disposable, running, stopped, recovery, mixed, youngApp, oldApp, unknown, disposable,
+    ]));
+    fs.writeFileSync(path.join(dir, 'retention-containers.json'), JSON.stringify([
+      { Image: running.Id, State: { Running: true } }, { Image: stopped.Id, State: { Running: false } },
+    ]));
+    const lines = [], original = console.log;
+    try { console.log = (line) => lines.push(line); cli('retired-images', root, dir); } finally { console.log = original; }
+    assert.deepEqual(new Set(lines), new Set([disposable.RepoTags[0], oldApp.RepoTags[0]]));
+    assert.equal(lines.length, 2, 'duplicate inspect entries must not cause duplicate removals');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});

@@ -4,8 +4,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { runnerEnvironment, runnerFixture } from './runner-fixture.mjs';
 
 const repo = path.resolve(import.meta.dirname, '../../..');
+const fixtureEnv = runnerEnvironment();
 for (const explicit of [false, true]) test(`runner creates persistent state without /var/lib permission (explicit=${explicit})`, () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'release-state-directory-'));
   try {
@@ -13,18 +15,18 @@ for (const explicit of [false, true]) test(`runner creates persistent state with
     fs.mkdirSync(path.join(source, 'scripts/ci'), { recursive: true });
     fs.writeFileSync(path.join(source, 'scripts/ci/release-job.sh'), 'printf "%s" "$PWD" > "$STATE_TEST_RESULT"\n');
     const git = (...args) => {
-      const r = spawnSync('git', ['-C', source, ...args], { encoding: 'utf8' });
+      const r = spawnSync('git', ['-C', source, ...args], { env: fixtureEnv, encoding: 'utf8' });
       assert.equal(r.status, 0, r.stderr); return r.stdout.trim();
     };
     git('init', '-q'); git('add', '.');
     git('-c', 'user.name=CI Test', '-c', 'user.email=ci@example.invalid', 'commit', '-qm', 'fixture');
     const sha = git('rev-parse', 'HEAD');
     const state = explicit ? path.join(root, 'configured') : path.join(root, 'state/ssoo/releases');
-    const env = { ...process.env, CI_PROJECT_DIR: source, CI_COMMIT_SHA: sha, CI_PIPELINE_ID: '1',
+    const env = { ...fixtureEnv, CI_PROJECT_DIR: source, CI_COMMIT_SHA: sha, CI_PIPELINE_ID: '1',
       APP_DIR: path.join(root, 'runtime'), XDG_STATE_HOME: path.join(root, 'state'),
       CI_RELEASE_STATE_DIR: explicit ? state : '', CI_APP_LOCK_FILE: path.join(root, 'runner.lock'),
       STATE_TEST_RESULT: path.join(root, 'result') };
-    const r = spawnSync('bash', [path.join(repo, 'scripts/ci/run-app-job.sh'), 'plan'], { env, encoding: 'utf8' });
+    const r = spawnSync('bash', [runnerFixture(root), 'plan'], { env, encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     assert.equal(fs.readFileSync(env.STATE_TEST_RESULT, 'utf8'), path.join(state, 'sources', sha));
     assert.equal(fs.statSync(state).mode & 0o077, 0);

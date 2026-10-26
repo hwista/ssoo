@@ -21,6 +21,7 @@ Docker 내부 공간과 Windows C: 여유 공간은 별도 측정한다. 캐시 
 | 수동 보호 | 배포 디렉터리의 `retain-images` 파일로 보호 |
 | 컨테이너 참조 | 종료된 컨테이너도 포함해 이미지 보호 |
 | 새 이미지 | 24시간 유예; 생성 시각 불명도 보호 |
+| CI 검증 전용 이미지 (`app-ci-verify:<40자리 SHA>`) | 빌드 성공 후 verify 종료 시 해당 태그 정리; 다음 정리에서도 24시간 유예 제외. 컨테이너·보존 manifest 참조, 배포 태그 공유, 생성 시각 불명은 보호 |
 | 빌드 캐시 | 24시간 미사용 캐시 대상으로 8GB 보존 기준의 prune; 강제적인 전체 사용량 상한은 아님 |
 | 빌드 최소 여유 공간 | CI 검증 이미지 빌드 전 10GiB(`CI_VERIFY_MIN_FREE_KB`), 일반 빌드/계획 8GiB, 후속 target 3GiB |
 | Windows C: 목표 여유 공간 | 60GiB; 실제 확보량과 목표 충족 여부 기록 |
@@ -44,6 +45,10 @@ pnpm docker:production:up
 로컬 보고서는 `~/.local/state/ssoo/storage/<엔진·프로젝트·프로필 해시>/latest-report.json`에 기록한다. `SSOO_STORAGE_STATE_DIR`로 기본 디렉터리를 바꿀 수 있다. 모든 명령은 정상 동작 검증 이후에만 새 이미지 조합을 성공 이력으로 등록한다. `up`은 Compose healthcheck를 기다리며 전체 서비스 검증이 실패하면 성공 이력으로 등록하지 않는다.
 
 CI는 verify/plan 준비, build 완료, deploy 성공 후 정리를 수행한다. release 디렉터리에 `storage-before.txt`, `storage-after.txt`, `storage-status.json`, `retention-decision.json`을 남긴다. 실제 운영 CI에 적용하려면 변경 코드를 해당 원격 브랜치에 반영해야 한다. 로컬 파일 수정만으로 원격 runner가 바뀌지는 않는다.
+
+검증 이미지 빌드가 성공하면 같은 호스트 잠금을 유지한 채 EXIT trap으로 해당 SHA의 검증 태그를 정리한다. 검증 실패와 INT/TERM 종료에도 정리를 시도하고 원래 실패 코드를 유지한다. 검증 성공 뒤 정리만 실패해도 job은 실패한다. 강제 삭제는 하지 않으며, 강제 종료 등으로 남은 이미지는 다음 verify/plan 준비의 정리에서 회수한다. 이미지 태그 삭제 후에도 공유 레이어·빌드 캐시는 남을 수 있으므로 후속 공간 검사와 기존 비상 캐시 정리를 유지한다.
+
+2026-10-26 pipeline #212는 `43872fa6`의 24시간 유예가 직전에 생성한 검증 이미지에도 적용되면서 plan의 8GiB 공간 검사에서 중단됐다(제공된 로그: `free_kb=5411704`, `required_kb=8388608`). 수정 코드를 반영한 새 pipeline으로 verify 종료 정리, plan의 실제 여유 공간과 후속 배포 결과를 확인한다. 기존 #212를 단순 재시도하면 이전 SHA의 정책이 다시 실행된다.
 
 2026-10-26 통합 기준은 GitLab `development`의 `1cff17d1`이다. 원격에서 제거한 advisory `ai_review` 작업과 `jq` 설치를 되살리지 않으며, 검증 이미지의 10GiB 사전 공간 검사와 실측 로그를 유지한다. 이 기준의 기존 원격 pipeline #204는 2026-10-08 배포까지 성공했다. 새 자동 정리가 포함된 원격 pipeline 성공 증거와는 구분한다.
 
@@ -90,5 +95,6 @@ Get-ScheduledTask -TaskName 'SSOO-Storage-*'
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-10-26 | #212 공간 부족 회귀 수정: verify 종료 정리와 잔여 검증 전용 이미지의 24시간 유예 제외, 컨테이너·복구·배포 이미지 보호 및 실패 코드 회귀 테스트 추가 |
 | 2026-10-26 | 로컬·CI 필수 Docker 정리, 배포 묶음 보존·만료, Windows 유휴 유지보수와 놓친 일정 재시도 추가 |
 | 2026-10-26 | 최신 GitLab의 AI 리뷰 작업 제거와 검증 이미지 10GiB 검사 위에 자동 정리 변경 통합 |

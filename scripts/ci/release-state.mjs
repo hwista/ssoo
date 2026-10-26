@@ -331,8 +331,14 @@ export function cli(command, root, dir, ...args) {
     atomic(path.join(dir, 'retention-decision.json'), { ...decision, checkedAt: new Date().toISOString(), policy });
     const images = read(path.join(dir, 'retention-images.json'));
     const running = read(path.join(dir, 'retention-containers.json')).map((item) => item.Image);
-    const young = images.filter((image) => !Number.isFinite(Date.parse(image.Created))
-      || Date.now() - Date.parse(image.Created) < policy.orphanImageHours * 3600_000).map((image) => image.Id);
+    const young = images.filter((image) => {
+      // Verify artifacts are disposable once the host lock is acquired. A shared
+      // deployment tag still gets the grace period; unknown timestamps fail closed.
+      const verifyOnly = image.RepoTags?.length > 0
+        && image.RepoTags.every((tag) => /^app-ci-verify:[a-f0-9]{40}$/u.test(tag));
+      return !Number.isFinite(Date.parse(image.Created))
+        || (!verifyOnly && Date.now() - Date.parse(image.Created) < policy.orphanImageHours * 3600_000);
+    }).map((image) => image.Id);
     for (const ref of retirementCandidates(images, manifests, [...running, ...young], 0)) console.log(ref);
   } else if (command === 'base-ref') {
     const images = read(path.join(dir, 'base-images.json'));

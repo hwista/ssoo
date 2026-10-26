@@ -4,8 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { runnerEnvironment, runnerFixture } from './runner-fixture.mjs';
 
-const repo = path.resolve(import.meta.dirname, '../../..');
+const fixtureEnv = runnerEnvironment();
 for (const ca of ['unset', 'valid', 'missing', 'empty', 'directory']) {
   test(`verify runner TLS CA: ${ca}`, () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-tls-'));
@@ -14,7 +15,7 @@ for (const ca of ['unset', 'valid', 'missing', 'empty', 'directory']) {
       fs.mkdirSync(path.join(source, 'scripts/ci'), { recursive: true });
       fs.writeFileSync(path.join(source, 'scripts/ci/release-job.sh'), 'touch "$TLS_TEST_PREPARED"\n');
       const git = (...args) => {
-        const r = spawnSync('git', ['-C', source, ...args], { encoding: 'utf8' });
+        const r = spawnSync('git', ['-C', source, ...args], { env: fixtureEnv, encoding: 'utf8' });
         assert.equal(r.status, 0, r.stderr); return r.stdout.trim();
       };
       git('init', '-q'); git('add', '.');
@@ -24,13 +25,13 @@ for (const ca of ['unset', 'valid', 'missing', 'empty', 'directory']) {
       const cert = path.join(root, 'extra ca.pem');
       if (ca === 'valid' || ca === 'empty') fs.writeFileSync(cert, ca === 'valid' ? 'fixture CA bytes' : '');
       if (ca === 'directory') fs.mkdirSync(cert);
-      const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`,
+      const env = { ...fixtureEnv, PATH: `${bin}:${fixtureEnv.PATH}`,
         CI_PROJECT_DIR: source, CI_COMMIT_SHA: git('rev-parse', 'HEAD'), APP_DIR: root,
         CI_RELEASE_STATE_DIR: path.join(root, 'state'), CI_APP_LOCK_FILE: path.join(root, 'lock'),
         TLS_TEST_ARGS: path.join(root, 'args'), TLS_TEST_PREPARED: path.join(root, 'prepared') };
       delete env.CI_VERIFY_TLS_CA_CERT_FILE;
       if (ca !== 'unset') env.CI_VERIFY_TLS_CA_CERT_FILE = cert;
-      const r = spawnSync('bash', [path.join(repo, 'scripts/ci/run-app-job.sh'), 'verify'], { env, encoding: 'utf8' });
+      const r = spawnSync('bash', [runnerFixture(root), 'verify'], { env, encoding: 'utf8' });
       if (ca === 'unset' || ca === 'valid') {
         assert.equal(r.status, 0, r.stderr);
         assert.ok(fs.existsSync(env.TLS_TEST_PREPARED));

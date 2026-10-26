@@ -41,6 +41,19 @@ case "$job" in
     bash scripts/ci/release-job.sh prepare
     verify_image="app-ci-verify:$CI_COMMIT_SHA"
     docker build "${verify_build_args[@]}" --file docker/ci-verify.Dockerfile --tag "$verify_image" .
+    finish_verify() {
+      local result=$?
+      # Still under the host lock. Remove only this disposable tag, never force
+      # removal of an image referenced by a container or prune deployment images.
+      if ! docker image rm "$verify_image"; then
+        echo '[ci-job] verify image cleanup failed' >&2
+        if (( result == 0 )); then result=1; fi
+      fi
+      exit "$result"
+    }
+    trap finish_verify EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
     git_common="$(git rev-parse --path-format=absolute --git-common-dir)"
     docker run --rm --volume "$APP_DIR/.git:/app/.git:ro" --volume "$git_common:$git_common:ro" \
       "$verify_image" bash -lc 'pnpm run verify:gitlab-pipeline && pnpm run codex:preflight && pnpm lint && pnpm test:server'
