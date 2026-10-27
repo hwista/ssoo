@@ -105,6 +105,7 @@ Get-ScheduledTask -TaskName 'SSOO-Storage-*'
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-10-27 | 정리 job #534는 healthcheck가 없는 컨테이너의 Docker template 오류로 삭제 전에 중단됨. 선택적 Health 필드를 처리하는 JSON snapshot 비교로 수정하고 회귀 테스트 추가 |
 | 2026-10-27 | 진단 #532로 확인한 미참조 legacy 이미지 13개의 ID 고정 수동 정리, 삭제 전 보호 검사와 컨테이너 불변 검증 추가 |
 | 2026-10-27 | 빌드 공간이 부족해도 실행 가능한 별도 GitLab storage_audit job과 비밀값을 제외한 읽기 전용 러너 공간/보존 이력 진단 추가 |
 | 2026-10-26 | #524 배포 공간 검사 수정: 빌드 8GiB와 배포 3GiB를 분리하고 staging 백업 크기 예산 및 백업 전후 Docker/release 파일시스템 검사를 추가 |

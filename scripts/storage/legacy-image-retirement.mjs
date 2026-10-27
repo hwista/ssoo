@@ -3,6 +3,12 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateManifest } from '../ci/release-state.mjs';
 
+export function containerSnapshot(containers) {
+  return containers.map(item => ({ id: item.Id, image: item.Image, status: item.State.Status,
+    startedAt: item.State.StartedAt, health: item.State.Health?.Status ?? null }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
 export function planLegacyRetirement(images, containers, manifests, approved, now = Date.now()) {
   const protectedIds = new Set(containers.map(item => item.Image));
   for (const manifest of manifests) {
@@ -33,16 +39,20 @@ export function planLegacyRetirement(images, containers, manifests, approved, no
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [root, snapshot] = process.argv.slice(2);
   const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
-  const manifests = [];
-  const current = path.join(root, 'last-successful.json');
-  if (!fs.existsSync(current)) throw new Error('Missing current release; refusing legacy cleanup');
-  manifests.push(read(current));
-  for (const id of fs.readdirSync(root).filter(name => /^\d+-[a-f0-9]{40}$/u.test(name))) {
-    const file = path.join(root, id, 'release.json');
-    if (fs.existsSync(file)) manifests.push(read(file)); // Includes retired and recovery manifests.
+  if (root === '--containers') {
+    console.log(JSON.stringify(containerSnapshot(read(snapshot))));
+  } else {
+    const manifests = [];
+    const current = path.join(root, 'last-successful.json');
+    if (!fs.existsSync(current)) throw new Error('Missing current release; refusing legacy cleanup');
+    manifests.push(read(current));
+    for (const id of fs.readdirSync(root).filter(name => /^\d+-[a-f0-9]{40}$/u.test(name))) {
+      const file = path.join(root, id, 'release.json');
+      if (fs.existsSync(file)) manifests.push(read(file)); // Includes retired and recovery manifests.
+    }
+    const approved = read(new URL('./legacy-image-retirement.json', import.meta.url)).images;
+    const plan = planLegacyRetirement(read(path.join(snapshot, 'images.json')),
+      read(path.join(snapshot, 'containers.json')), manifests, approved);
+    for (const item of plan) console.log(`${item.imageRef}\t${item.imageId}`);
   }
-  const approved = read(new URL('./legacy-image-retirement.json', import.meta.url)).images;
-  const plan = planLegacyRetirement(read(path.join(snapshot, 'images.json')),
-    read(path.join(snapshot, 'containers.json')), manifests, approved);
-  for (const item of plan) console.log(`${item.imageRef}\t${item.imageId}`);
 }

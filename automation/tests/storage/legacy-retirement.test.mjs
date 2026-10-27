@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { planLegacyRetirement } from '../../../scripts/storage/legacy-image-retirement.mjs';
+import { containerSnapshot, planLegacyRetirement } from '../../../scripts/storage/legacy-image-retirement.mjs';
 import { SERVICES } from '../../../scripts/ci/release-state.mjs';
 
 const repo = path.resolve(import.meta.dirname, '../../..');
@@ -14,6 +14,17 @@ const manifest = imageId => ({ schemaVersion: 1, releaseId: `1-${'a'.repeat(40)}
   services: Object.fromEntries(SERVICES.map(service => [service, { imageRef: `app-${service}:${'a'.repeat(40)}`,
     imageId, sourceCommit: 'a'.repeat(40), inputHash: 'a'.repeat(64), runtimeHash: 'b'.repeat(64) }])) });
 
+test('container comparison accepts missing healthchecks and detects identity, restart and health changes', () => {
+  const containers = [{ Id: 'b', Image: 'image-b', State: { Status: 'exited', StartedAt: 'before' } },
+    { Id: 'a', Image: 'image-a', State: { Status: 'running', StartedAt: 'before', Health: { Status: 'healthy' } } }];
+  assert.deepEqual(containerSnapshot(containers), containerSnapshot([...containers].reverse()));
+  assert.equal(containerSnapshot(containers)[1].health, null);
+  for (const change of [item => { item.Image = 'changed'; }, item => { item.State.StartedAt = 'after'; },
+    item => { item.State.Health.Status = 'unhealthy'; }]) {
+    const changed = structuredClone(containers); change(changed[1]);
+    assert.notDeepEqual(containerSnapshot(changed), containerSnapshot(containers));
+  }
+});
 test('only the 13 audited legacy identities can be selected; interrupted cleanup is resumable', () => {
   assert.equal(approved.length, 13);
   assert.deepEqual(planLegacyRetirement(images(), [], [], approved), approved);
@@ -49,7 +60,8 @@ if(a[0]==='image' && a[1]==='inspect') {
 }
 if(a[0]==='ps') {if(!a.includes('--filter')) console.log('fixture-running');process.exit(0);}
 if(a[0]==='inspect') {
- console.log(a.includes('--format')?'fixture-running '+data.containers[0].Image+' running fixed-start healthy':JSON.stringify(data.containers));process.exit(0);
+ if(a.includes('--format')) process.exit(93);
+ console.log(JSON.stringify(data.containers));process.exit(0);
 }
 if(a[0]==='run') {
  const i=a.findIndex(x=>x.endsWith('/legacy-image-retirement.mjs'));
@@ -72,7 +84,8 @@ for (const scenario of ['success', 'container', 'manifest', 'changed', 'alias', 
       for (const dir of ['ci', 'storage']) fs.cpSync(path.join(repo, 'scripts', dir), path.join(source, 'scripts', dir), { recursive: true });
       const gate = path.join(source, 'scripts/storage/windows-gate.sh');
       fs.writeFileSync(gate, fs.readFileSync(gate, 'utf8').replace('/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe', '/nonexistent-fixture-windows'));
-      const data = { images: images(), containers: [{ Image: `sha256:${'8'.repeat(64)}` }] };
+      const data = { images: images(), containers: [{ Id: 'fixture-running', Image: `sha256:${'8'.repeat(64)}`,
+        State: { Status: 'running', StartedAt: 'before' } }] };
       if (scenario === 'container') data.containers[0].Image = approved[0].imageId;
       if (scenario === 'changed') data.images[0].Id = `sha256:${'9'.repeat(64)}`;
       if (scenario === 'alias') data.images[0].RepoTags.push('app-server:ci-backup-protected');

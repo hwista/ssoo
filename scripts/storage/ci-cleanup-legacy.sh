@@ -21,10 +21,13 @@ docker image inspect "${images[@]}" > "$report/images.json"
 mapfile -t containers < <(docker ps -aq)
 (( ${#containers[@]} > 0 )) || { echo '[storage-cleanup] no containers; refusing unexpected host state' >&2; exit 1; }
 docker inspect "${containers[@]}" > "$report/containers.json"
-docker inspect --format '{{.Id}} {{.Image}} {{.State.Status}} {{.State.StartedAt}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' "${containers[@]}" | sort > "$report/containers-before.txt"
-docker run --rm --pull never --network none --read-only --user "$(id -u):$(id -g)" \
-  --volume "$repo:$repo:ro" --volume "$release_root:$release_root:ro" \
-  --entrypoint node node:22 "$repo/scripts/storage/legacy-image-retirement.mjs" "$release_root" "$report" > "$report/plan.tsv"
+planner() {
+  docker run --rm --pull never --network none --read-only --user "$(id -u):$(id -g)" \
+    --volume "$repo:$repo:ro" --volume "$release_root:$release_root:ro" \
+    --entrypoint node node:22 "$repo/scripts/storage/legacy-image-retirement.mjs" "$@"
+}
+planner --containers "$report/containers.json" > "$report/containers-before.txt"
+planner "$release_root" "$report" > "$report/plan.tsv"
 cat "$report/plan.tsv"
 while IFS=$'\t' read -r ref expected; do
   actual="$(docker image inspect "$ref" --format '{{.Id}}')"
@@ -34,7 +37,8 @@ while IFS=$'\t' read -r ref expected; do
   docker image rm "$ref" # No force, prune, container removal or volume deletion.
 done < "$report/plan.tsv"
 mapfile -t after_containers < <(docker ps -aq)
-docker inspect --format '{{.Id}} {{.Image}} {{.State.Status}} {{.State.StartedAt}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' "${after_containers[@]}" | sort > "$report/containers-after.txt"
+docker inspect "${after_containers[@]}" > "$report/containers-after.json"
+planner --containers "$report/containers-after.json" > "$report/containers-after.txt"
 cmp "$report/containers-before.txt" "$report/containers-after.txt"
 docker system df > "$report/storage-after.txt"
 df -Pk / "$release_root" > "$report/filesystem-after.txt"
