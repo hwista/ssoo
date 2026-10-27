@@ -42,6 +42,8 @@ CI의 오래된 manifest는 감사 기록으로 유지하고 `retired.json`으�
 
 2026-10-27 진단 job #532에서 현재 #204, 이전 정상 #196/#201, 복구 #195, 미배포 #213의 보존을 확인했다. 별도 `storage_cleanup_legacy` 수동 job은 `legacy-image-retirement.json`에 고정한 13개 구형 `ssoo-*:latest`/`app-*:latest` 태그와 이미지 ID만 정리한다. 실행 중인 `app-db-init:latest`, 모든 SHA/ci-backup 태그와 CMS/모니터링/DB 이미지는 대상이 아니다. 호스트 잠금 안에서 모든 manifest(만료된 기록 포함)·모든 컨테이너·24시간 유예·추가 태그·감사 당시 ID를 다시 검사하고 불일치하면 삭제 전에 중단한다. 강제 삭제나 prune 없이 태그별 `docker image rm`만 실행하고, 실제 파일시스템 여유 공간 및 컨테이너 ID·이미지·시작 시각·health 불변을 확인한다. 상세 snapshot은 runner의 `releases/maintenance/legacy-<job ID>`에 비공개 보존하며 trace에는 필요한 필드만 출력한다.
 
+유지보수 pipeline #217의 정리 job #536이 성공했다. 실제 루트 여유 공간은 6,909,492KiB(6.59GiB)에서 13,306,148KiB(12.69GiB)로 증가해 6.10GiB를 확보했다. 태그/이미지 13개를 제거했고, 기존 컨테이너 11개의 ID·이미지·시작 시각·health 비교가 일치했다. 볼륨 8개는 그대로였다. 이 결과는 러너의 Docker/루트 공간 회수 증거이며 앱 배포 성공이나 Windows C: 반환 증거는 아니다.
+
 ```bash
 pnpm storage:docker:status
 pnpm storage:docker:cleanup
@@ -105,6 +107,7 @@ Get-ScheduledTask -TaskName 'SSOO-Storage-*'
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-10-27 | GitLab 정리 #536 성공: 미참조 legacy 이미지 13개 제거, 여유 공간 6.59→12.69GiB, 컨테이너 11개와 볼륨 보존 확인 |
 | 2026-10-27 | 정리 job #534는 healthcheck가 없는 컨테이너의 Docker template 오류로 삭제 전에 중단됨. 선택적 Health 필드를 처리하는 JSON snapshot 비교로 수정하고 회귀 테스트 추가 |
 | 2026-10-27 | 진단 #532로 확인한 미참조 legacy 이미지 13개의 ID 고정 수동 정리, 삭제 전 보호 검사와 컨테이너 불변 검증 추가 |
 | 2026-10-27 | 빌드 공간이 부족해도 실행 가능한 별도 GitLab storage_audit job과 비밀값을 제외한 읽기 전용 러너 공간/보존 이력 진단 추가 |
