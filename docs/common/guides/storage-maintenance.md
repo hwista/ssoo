@@ -40,6 +40,8 @@ CI의 오래된 manifest는 감사 기록으로 유지하고 `retired.json`으�
 
 `fix/ci-storage-maintenance` 유지보수 브랜치의 `storage_audit` job은 일반 development 파이프라인과 분리해 실행한다. 검증 이미지 빌드와 10GiB 사전 조건 없이 기존 `node:22` 이미지(`--pull never`)로 보존 manifest의 필요한 필드만 읽는다. 공용 호스트 잠금 아래 실제 여유 공간, 모든 이미지 태그·크기, 종료 컨테이너를 포함한 이미지 참조, release별 상태·수동 보호·배포 시도·만료 여부를 출력한다. secret/env/config 본문과 백업 내용은 출력하지 않으며 이미지·컨테이너·볼륨·release 기록을 삭제하지 않는다. SSH 없이 GitLab job trace로 정리 후보를 검토할 수 있다.
 
+2026-10-27 진단 job #532에서 현재 #204, 이전 정상 #196/#201, 복구 #195, 미배포 #213의 보존을 확인했다. 별도 `storage_cleanup_legacy` 수동 job은 `legacy-image-retirement.json`에 고정한 13개 구형 `ssoo-*:latest`/`app-*:latest` 태그와 이미지 ID만 정리한다. 실행 중인 `app-db-init:latest`, 모든 SHA/ci-backup 태그와 CMS/모니터링/DB 이미지는 대상이 아니다. 호스트 잠금 안에서 모든 manifest(만료된 기록 포함)·모든 컨테이너·24시간 유예·추가 태그·감사 당시 ID를 다시 검사하고 불일치하면 삭제 전에 중단한다. 강제 삭제나 prune 없이 태그별 `docker image rm`만 실행하고, 실제 파일시스템 여유 공간 및 컨테이너 ID·이미지·시작 시각·health 불변을 확인한다. 상세 snapshot은 runner의 `releases/maintenance/legacy-<job ID>`에 비공개 보존하며 trace에는 필요한 필드만 출력한다.
+
 ```bash
 pnpm storage:docker:status
 pnpm storage:docker:cleanup
@@ -103,6 +105,7 @@ Get-ScheduledTask -TaskName 'SSOO-Storage-*'
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-10-27 | 진단 #532로 확인한 미참조 legacy 이미지 13개의 ID 고정 수동 정리, 삭제 전 보호 검사와 컨테이너 불변 검증 추가 |
 | 2026-10-27 | 빌드 공간이 부족해도 실행 가능한 별도 GitLab storage_audit job과 비밀값을 제외한 읽기 전용 러너 공간/보존 이력 진단 추가 |
 | 2026-10-26 | #524 배포 공간 검사 수정: 빌드 8GiB와 배포 3GiB를 분리하고 staging 백업 크기 예산 및 백업 전후 Docker/release 파일시스템 검사를 추가 |
 | 2026-10-26 | #212 공간 부족 회귀 수정: verify 종료 정리와 잔여 검증 전용 이미지의 24시간 유예 제외, 컨테이너·복구·배포 이미지 보호 및 실패 코드 회귀 테스트 추가 |

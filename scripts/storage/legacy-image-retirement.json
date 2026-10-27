@@ -1,0 +1,57 @@
+{
+  "auditJobId": 532,
+  "images": [
+    {
+      "imageRef": "app-crm:latest",
+      "imageId": "sha256:e042ddd5c495ace6f59c510c76a51e354d62f014e967f950126e18e4a163e4df"
+    },
+    {
+      "imageRef": "app-admin:latest",
+      "imageId": "sha256:730cdfb38e1bd4357a1223cba892e710d45ee6bc7ed4ae79c422acdc3f6ffe96"
+    },
+    {
+      "imageRef": "app-sns:latest",
+      "imageId": "sha256:1bdc203fe74dcf98c70c6f0b113f6641450bed2cc1f47e79f98950a8efc2ee0b"
+    },
+    {
+      "imageRef": "app-dms:latest",
+      "imageId": "sha256:939195644f3148916bdd09ed05524149c522680e71b671220748309eddee8cf1"
+    },
+    {
+      "imageRef": "app-pms:latest",
+      "imageId": "sha256:542c96a47e46ce2ff8f51e61b125b736ceafe6f84dd5ab8f065188c8b5bb475d"
+    },
+    {
+      "imageRef": "app-server:latest",
+      "imageId": "sha256:526d3e9922094dbb71ece75bf9e05360d23362ef1a5eb315898c3511d09f2b45"
+    },
+    {
+      "imageRef": "ssoo-dms:latest",
+      "imageId": "sha256:0a821528d2ed4b241f615e4777ffb74637f2cab25ae232131b5d8cd2dd6c02be"
+    },
+    {
+      "imageRef": "ssoo-server:latest",
+      "imageId": "sha256:c90c831b8cc9ab5b806220a4b4a74127651906f47b764e1f07f8ba2029bb6a09"
+    },
+    {
+      "imageRef": "ssoo-pms:latest",
+      "imageId": "sha256:9388f862e45a73d9877bbadd37ab59cf489f5bdab8e17372d2f79fcd53b25771"
+    },
+    {
+      "imageRef": "ssoo-admin:latest",
+      "imageId": "sha256:513007e6dc36a28327193f277ad2b828329e3b9cd4ed694a19b972f480c151b5"
+    },
+    {
+      "imageRef": "ssoo-sns:latest",
+      "imageId": "sha256:ac1cf720f38c482bab4988e028fc69d77fcbaea8f170631d1d269b84a6e8f537"
+    },
+    {
+      "imageRef": "ssoo-crm:latest",
+      "imageId": "sha256:a26b7ebb6a6120edcd062b7a93db6abb2e7435b697dcf4e74bc913ea09f26f3a"
+    },
+    {
+      "imageRef": "ssoo-db-init:latest",
+      "imageId": "sha256:63799af5edac6a7a3d65f554d51397e84ae071a80c3ef9e9a33643eff65ba1e1"
+    }
+  ]
+}

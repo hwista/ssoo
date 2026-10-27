@@ -46,6 +46,17 @@ storage_audit:
   only:
     - fix/ci-storage-maintenance
 
+storage_cleanup_legacy:
+  stage: plan
+  tags:
+    - ssoo
+  when: manual
+  allow_failure: false
+  script:
+    - bash "$CI_PROJECT_DIR/scripts/storage/ci-cleanup-legacy.sh"
+  only:
+    - fix/ci-storage-maintenance
+
 verify:
   stage: verify
   tags:
