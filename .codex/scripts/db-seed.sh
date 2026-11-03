@@ -9,14 +9,15 @@ DB_USER="${POSTGRES_USER:-ssoo}"
 DB_NAME="${POSTGRES_DB:-ssoo_dev}"
 SEED_DIR="packages/database/prisma/seeds"
 
+# Same files and order as $SEED_DIR/apply_all_seeds.sql (the psql master script).
 seed_files=(
   00_user_code.sql
   01_project_status_code.sql
   02_project_deliverable_status.sql
   03_project_close_condition.sql
   04_project_handoff_type.sql
-  08_unit_code.sql
   09_project_request_sample.sql
+  08_unit_code.sql
   10_project_member_task_issue_code.sql
   05_menu_data.sql
   06_role_menu_permission.sql
@@ -29,6 +30,9 @@ seed_files=(
   15_dms_access_policy_foundation.sql
   16_sns_access_policy_foundation.sql
   18_crm_access_policy_foundation.sql
+  20_dms_config_foundation.sql
+  50_sns_boards.sql
+  51_sns_skills.sql
   52_crm_opportunities.sql
   55_crm_customer_activity.sql
   53_crm_quote_seller_profile.sql
@@ -43,7 +47,9 @@ seed_files=(
   14_demo_milestones.sql
   15_demo_issues.sql
   16_demo_deliverables_conditions.sql
+  22_pms_template_groups.sql
   07_user_menu_permission.sql
+  40_platform_onboarding_bootstrap.sql
 )
 
 for seed_file in "${seed_files[@]}"; do

@@ -18,6 +18,11 @@ until docker compose exec -T "$SERVICE_NAME" pg_isready -U "$DB_USER" -d "$DB_NA
   sleep 2
 done
 
+# db push does not create extensions; the schema uses pgvector `vector` columns.
+echo "[db-setup] ensure pgvector extension"
+docker compose exec -T "$SERVICE_NAME" \
+  psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -c 'CREATE EXTENSION IF NOT EXISTS vector'
+
 echo "[db-setup] prisma generate"
 env DATABASE_URL="$DB_URL" COREPACK_HOME="$COREPACK_HOME" \
   corepack pnpm --filter @ssoo/database db:generate

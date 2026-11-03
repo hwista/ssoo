@@ -218,6 +218,8 @@ pnpm docker:up
 pnpm db:setup
 ```
 
+`pnpm db:setup`은 Prisma `db push` 전에 pgvector 확장(`CREATE EXTENSION IF NOT EXISTS vector`)을 만들고, `pnpm db:seed`는 `apply_all_seeds.sql`과 같은 파일·순서로 시드를 적용합니다. 시드를 추가하면 두 목록을 함께 갱신합니다.
+
 `pnpm docker:*`는 로컬 전용 `compose.yaml + compose.local.yaml` 경로입니다. 실제 공개 배포는 `.env.production.example`을 복사해 비밀값과 절대 DMS 저장 경로를 채운 뒤 `pnpm docker:production:verify-env`, `pnpm docker:production:config`, `pnpm docker:production:up` 순서로 실행합니다.
 
 조직 TLS 프록시 환경에서 dependency/Prisma engine 다운로드가 사설 인증서 체인으로 종료되면, 보안팀이 승인한 PEM root CA의 절대 경로를 `SSOO_TLS_CA_CERT_FILE`에 설정합니다. Compose는 이 파일을 7개 이미지의 일시적 BuildKit secret으로 전달하고, runtime secret은 outbound Node TLS가 필요한 server/db-init에만 mount합니다. 공개 CA 환경에서는 비워 두며 TLS 검증 비활성화는 허용하지 않습니다. 각 deps stage는 전체 workspace manifest를 먼저 복사한 뒤 대상만 filtered install하고, pnpm v11 store와 lockfile-keyed verification metadata를 각각 `sharing=locked` cache로 공유합니다. 따라서 pnpm 11 pre-run 상태 검사와 최초 24시간 release-age/frozen lockfile/install-script allowlist 검증을 유지하면서, 검증된 동일 lockfile의 반복 registry 조회와 tarball 다운로드만 줄입니다.
@@ -383,18 +385,12 @@ done
 
 비밀번호는 **8자 이상, 대소문자/숫자/특수문자 각 1개 이상** 포함해야 합니다.
 
-`99_user_initial_admin.sql`의 `PLACEHOLDER_HASH`를 실제 bcrypt 해시로 교체해야 합니다:
+시드 파일에는 개발용 bcrypt 해시가 이미 들어 있습니다. 개발 환경 밖에서는 반드시 변경합니다.
 
-```bash
-# bcrypt 해시 생성 (Admin123@ 기준 - 특수문자 포함 필수)
-cd apps/server && node -e "console.log(require('bcryptjs').hashSync('Admin123@', 12))"
-```
-
-생성된 해시값을 SQL 파일의 `password_hash` 컴럼에 입력 후 실행하세요.
-
-**기본 관리자 계정:**
-- ID: `admin`
-- Password: `Admin123@` (해시 설정 후)
+**시드 계정 (개발 전용):**
+- 관리자: ID `admin` / Password `admin123!` (`99_user_initial_admin.sql`)
+- 데모 사용자(`pm.kim`, `am.park` 등)와 CRM UI/UX 참조 계정(`crm.uiux.*`): Password `user123!` (`11_demo_users_customers.sql`, `58_crm_source_uiux_reference.sql`)
+- `40_platform_onboarding_bootstrap.sql`은 `admin`과 데모 사용자 8개만 플랫폼 이용 상태로 등록하고 CRM/PMS/DMS/SNS 이용권을 부여합니다. `crm.uiux.*`와 새로 만든 계정은 온보딩 신청·승인을 거칩니다. 이 시드가 빠지면 `admin`도 승인 대기 상태가 되어 `/?onboarding=1` 승인함이 보이지 않습니다.
 
 ---
 
@@ -746,6 +742,7 @@ cat .npmrc
 
 | 날짜 | 변경 내용 |
 |------|----------|
+| 2026-11-03 | `db:setup`의 pgvector 확장 생성, `db:seed`와 `apply_all_seeds.sql` 목록 일치, 시드 계정 비밀번호(`admin123!`/`user123!`)와 온보딩 부트스트랩 안내 정정 |
 | 2026-04-07 | DMS workspace env/runtime (`.env.local`, `dev:web-dms`, port 3001) 안내를 현재 구조 기준으로 추가 |
 | 2026-02-05 | **코드 품질 보장** 섹션 추가 (자동 검증 체계, 커밋 규칙, AI 협업 가이드) |
 | 2026-02-04 | **WSL 문제 해결**: `.npmrc` script-shell 설정 가이드 추가, exit code -2 해결법 문서화 |
@@ -763,7 +760,7 @@ cat .npmrc
 개발 환경 설정이 완료되었습니다! 이제:
 
 1. **로그인 테스트**: http://localhost:3000 접속
-   - ID: `admin` / PW: `Admin123@`
+   - ID: `admin` / PW: `admin123!`
 
 2. **문서 확인**:
    - [backlog.md](./pms/planning/backlog.md) - 진행 상황
@@ -785,7 +782,7 @@ cat .npmrc
 - Throttling: default 100/min; auth login 5/min; refresh 10/min (Throttler v6).
 - Auth policy: password >=8 chars incl. upper/lower/number/special; 5 failed logins -> 30m lock; refresh-token hash stored/invalidated on logout.
 - BigInt: DB keeps bigint; API responses stringify; use common/utils/bigint.util.ts; Prisma client typed bigint.
-- Seed default: admin/Admin123@ (change for non-dev).
+- Seed default: admin/admin123! (change for non-dev).
 
 ## To keep docs in sync
 1) After backend changes, update this snapshot section with new policy values.

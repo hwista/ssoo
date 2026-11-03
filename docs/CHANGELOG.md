@@ -1,5 +1,7 @@
 # Changelog
 
+* **database:** 2026-11-03 새 로컬 DB에서 `pnpm db:setup`이 실패하거나 admin 온보딩 승인함이 보이지 않던 문제를 수정했다. `db-setup.sh`는 `db push` 전에 pgvector 확장을 만들고, `db-seed.sh`는 `apply_all_seeds.sql`과 같은 순서로 빠져 있던 DMS 설정·SNS 게시판/스킬·PMS 템플릿 그룹·플랫폼 온보딩 부트스트랩 시드를 적용한다. [시작 가이드](getting-started.md)의 시드 계정 비밀번호도 실제 값으로 정정했다.
+
 2026-10-07 GitLab #200의 검증 이미지 unpack 디스크 부족에 대응해 사용하지 않는 CI 검증 이미지를 정리하고 설치·Prisma 생성 레이어를 합쳤다. 업무 복구 이미지 보존은 유지하며 DockerRootDir와 containerd 쓰기 레이어의 용량을 함께 검사한다.
 
 2026-10-07 GitLab #199의 이미지 정리 실패를 수정했다. 동일 이미지의 여러 태그를 inspect할 때 중복 반환되는 삭제 후보를 한 번씩 처리하고 최근 보존 수를 서로 다른 이미지로 계산한다. 실행 컨테이너와 보관 release 보호는 유지한다.
