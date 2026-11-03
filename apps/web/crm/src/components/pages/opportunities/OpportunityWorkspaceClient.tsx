@@ -1715,7 +1715,7 @@ export function OpportunityWorkspaceClient({
 
   if (query.sourceSurface === 'home' || query.sourceSurface === 'dashboard') {
     return (
-      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4" style={pageStyle} data-source-surface="dashboard">
+      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4 [&>*]:shrink-0" style={pageStyle} data-source-surface="dashboard">
         <Breadcrumb items={['CRM', CRM_HOME_ENTRY.pageTitle]} />
         {dashboardError ? (
           <SsooErrorNotice className="px-3 py-2" error={dashboardError} />
@@ -1782,7 +1782,7 @@ export function OpportunityWorkspaceClient({
     const versionIndex = versions.findIndex((item) => item.id === selected?.id);
     const navigateVersion = (id: string) => { closeEditor(); router.push(buildHref(query, { selected: id })); };
     return (
-      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4" style={pageStyle} data-source-surface="form">
+      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4 [&>*]:shrink-0" style={pageStyle} data-source-surface="form">
         <Breadcrumb items={['CRM', query.create ? '영업기회 등록' : sourceReadOnly ? '영업기회 조회' : '영업기회 수정']} />
         {loadError ? <SsooErrorNotice className="px-3 py-2" error={loadError} /> : null}
         {workflowError ? <SsooErrorNotice className="px-3 py-2" error={workflowError} /> : null}
@@ -1870,7 +1870,7 @@ export function OpportunityWorkspaceClient({
     const confirmedItems = sourceItems.filter((item) => item.confirmed && item.isLatest);
     const documentItem = confirmedItems.find((item) => item.id === query.selected) ?? confirmedItems[0] ?? null;
     return (
-      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4" style={pageStyle} data-source-surface="contract-document">
+      <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-4 [&>*]:shrink-0" style={pageStyle} data-source-surface="contract-document">
         <Breadcrumb items={['CRM', '계약서 생성']} />
         <header>
           <h2 className="text-base font-semibold text-foreground">계약서 생성</h2>
