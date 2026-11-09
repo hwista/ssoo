@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from '@/lib/validations/zod';
 import { useProjectAccess, useUpdateProject } from '@/hooks/queries';
 import { useCustomerList } from '@/hooks/queries/useCustomers';
 import { usePlantSites, useSystemInstances } from '@/hooks/queries/usePmsMaster';

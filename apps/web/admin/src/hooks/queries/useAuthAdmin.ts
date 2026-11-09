@@ -62,7 +62,7 @@ export function useUpdateAuthProviderSettings() {
   return useMutation({
     mutationFn: (data: UpdateAuthProviderSettingsRequest) => authAdminApi.updateSettings(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: authAdminKeys.settings() });
+      return queryClient.invalidateQueries({ queryKey: authAdminKeys.settings() });
     },
   });
 }
@@ -81,6 +81,7 @@ function useEmailDeliveryMutation(operation: () => Promise<unknown>) {
     mutationFn: operation,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authAdminKeys.emailDelivery() });
+      queryClient.invalidateQueries({ queryKey: [...authAdminKeys.all, 'email-messages'] });
     },
   });
 }
@@ -92,9 +93,10 @@ export function useRunEmailDelivery() {
 export function useRetryEmailDelivery() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (messageId: string) => authAdminApi.retryEmailDelivery(messageId),
+    mutationFn: ({ messageId, reason, expectedUpdatedAt }: { messageId: string; reason: string; expectedUpdatedAt: string }) => authAdminApi.retryEmailDelivery(messageId, reason, expectedUpdatedAt),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authAdminKeys.emailDelivery() });
+      queryClient.invalidateQueries({ queryKey: [...authAdminKeys.all, 'email-messages'] });
     },
   });
 }
@@ -137,4 +139,8 @@ export function useRejectRegistrationRequest() {
       queryClient.invalidateQueries({ queryKey: authAdminKeys.all });
     },
   });
+}
+
+export function useEmailMessages(params: { page: number; pageSize: number; status?: string }) {
+  return useQuery({ queryKey: [...authAdminKeys.all, 'email-messages', params], queryFn: () => authAdminApi.listEmailMessages(params), staleTime: 0 });
 }

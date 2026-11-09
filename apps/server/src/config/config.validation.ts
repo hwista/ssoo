@@ -81,6 +81,7 @@ function validateProductionHardening(value: unknown, helpers: Joi.CustomHelpers)
 export const configValidationSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().port().default(4000),
+  PLATFORM_SETUP_TOKEN: Joi.string().trim().min(32).max(256).allow('').default(''),
   CORS_ORIGIN: Joi.string().allow('').default('http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004'),
   AUTH_PUBLIC_API_BASE_URL: Joi.string().uri().allow('').default(''),
   AUTH_TRUST_FORWARD_HEADERS: Joi.boolean().default(false),

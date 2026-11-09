@@ -79,7 +79,7 @@ try {
   await assert.rejects(() => admission.assertService(applicant, 'dms'));
   assert.equal(await db.client.onboardingRequestHistory.count({ where: { id: BigInt(membership.id), eventType: 'U' } }), 1);
   pass('concurrent decisions commit exactly once; membership and app permissions remain separate');
-  const authority = await onboarding.setAuthority(adminUser.id, { userId: applicant.toString(), authorityKind: 'service', organizationId: orgId, serviceCode: 'dms', maxRoleCode: 'user' });
+  const authority = await onboarding.setAuthority(adminUser.id, { userId: applicant.toString(), authorityKind: 'service', organizationId: orgId, serviceCode: 'dms', maxRoleCode: 'user', reason: '승인 위임 계약 검증' });
   const ownRequest = await onboarding.create(applicant, { kind: 'service', organizationId: orgId, serviceCode: 'dms', message: '본인 신청' });
   await assert.rejects(() => onboarding.decide(BigInt(ownRequest.id), applicant, approve));
   assert.equal(await admission.isPlatformAdmin(applicant), false);
@@ -89,10 +89,11 @@ try {
   await onboarding.decide(BigInt(colleagueMembership.id), adminUser.id, approve);
   const colleagueService = await onboarding.create(colleagueId, { kind: 'service', organizationId: orgId, serviceCode: 'dms', message: 'DMS 신청' });
   const otherService = await onboarding.create(colleagueId, { kind: 'service', organizationId: anotherOrganization.orgId.toString(), serviceCode: 'dms', message: '다른 조직' });
-  assert.deepEqual((await onboarding.reviewQueue(applicant)).map((entry) => entry.id), [colleagueService.id]);
+  assert.deepEqual((await onboarding.reviewQueue(applicant)).items.map((entry) => entry.id), [colleagueService.id]);
   await assert.rejects(() => onboarding.decide(BigInt(colleagueService.id), applicant, { ...approve, roleCode: 'manager' }));
   await assert.rejects(() => onboarding.decide(BigInt(otherService.id), applicant, approve));
-  await onboarding.revokeAuthority(BigInt(authority.id), adminUser.id);
+  const authorityRow = await db.client.approvalAuthority.findUniqueOrThrow({ where: { id: BigInt(authority.id) } });
+  await onboarding.revokeAuthority(BigInt(authority.id), adminUser.id, { reason: '위임 회수 계약 검증', expectedUpdatedAt: authorityRow.updatedAt.toISOString() });
   await assert.rejects(() => onboarding.decide(BigInt(colleagueService.id), applicant, approve));
   pass('delegation excludes self, other organizations, higher roles, and revoked authorities');
   await db.client.userOrganizationRelation.updateMany({ where: { userId: applicant, orgId: organization.orgId }, data: { isActive: false } });

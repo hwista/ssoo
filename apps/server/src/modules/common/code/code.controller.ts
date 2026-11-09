@@ -2,10 +2,11 @@ import { BadRequestException, Controller, Get, Post, Put, Delete, Param, Body, Q
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { CodeService } from './code.service.js';
 import { success } from '../../../common/index.js';
 import { serializeBigInt } from '../../../common/utils/bigint.util.js';
-import { CreateCodeDto, UpdateCodeDto } from './dto/code.dto.js';
+import { CodeMutationDto, CreateCodeDto, UpdateCodeDto } from './dto/code.dto.js';
 
 @ApiTags('codes')
 @ApiBearerAuth()
@@ -28,35 +29,42 @@ export class CodeController {
     return success(data.map((c) => serializeBigInt(c)));
   }
 
+  @Get(':id/usage')
+  @Roles('admin')
+  @ApiOperation({ summary: '코드 소유 범위와 공통 참조 영향' })
+  async usage(@Param('id') id: string) {
+    return success(await this.codeService.usage(this.parseId(id)));
+  }
+
   @Post()
   @Roles('admin')
   @ApiOperation({ summary: '코드 생성' })
-  async create(@Body() dto: CreateCodeDto) {
-    const result = await this.codeService.create(dto);
+  async create(@Body() dto: CreateCodeDto, @CurrentUser('userId') actor?: string) {
+    const result = await this.codeService.create(dto, actor === undefined ? undefined : BigInt(actor));
     return success(serializeBigInt(result));
   }
 
   @Put(':id')
   @Roles('admin')
   @ApiOperation({ summary: '코드 수정' })
-  async update(@Param('id') id: string, @Body() dto: UpdateCodeDto) {
-    const result = await this.codeService.update(this.parseId(id), dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateCodeDto, @CurrentUser('userId') actor?: string) {
+    const result = await this.codeService.update(this.parseId(id), dto, actor === undefined ? undefined : BigInt(actor));
     return success(serializeBigInt(result));
   }
 
   @Delete(':id')
   @Roles('admin')
   @ApiOperation({ summary: '코드 비활성화' })
-  async deactivate(@Param('id') id: string) {
-    const result = await this.codeService.deactivate(this.parseId(id));
+  async deactivate(@Param('id') id: string, @Body() dto: CodeMutationDto = {}, @CurrentUser('userId') actor?: string) {
+    const result = await this.codeService.deactivate(this.parseId(id), dto, actor === undefined ? undefined : BigInt(actor));
     return success(serializeBigInt(result));
   }
 
   @Delete(':id/permanent')
   @Roles('admin')
   @ApiOperation({ summary: '비활성 코드 영구 삭제' })
-  async removePermanently(@Param('id') id: string) {
-    const result = await this.codeService.removePermanently(this.parseId(id));
+  async removePermanently(@Param('id') id: string, @Body() dto: CodeMutationDto = {}, @CurrentUser('userId') actor?: string) {
+    const result = await this.codeService.removePermanently(this.parseId(id), dto, actor === undefined ? undefined : BigInt(actor));
     return success(result);
   }
 

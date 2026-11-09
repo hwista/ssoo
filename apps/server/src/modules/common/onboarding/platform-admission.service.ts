@@ -38,15 +38,28 @@ export class PlatformAdmissionService {
     const exceptions = await tx.userPermissionException.findMany({ where: {
       userId, isActive: true, exceptionAxis: 'action', targetOrgId: null,
       targetObjectType: null, targetObjectId: null,
-      permission: { permissionCode: 'system.override' },
+      permission: { permissionCode: 'system.override', isActive: true },
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     } });
     if (exceptions.some((entry) => entry.effectType === 'revoke')) return false;
     if (exceptions.some((entry) => entry.effectType === 'grant')) return true;
     return (await tx.rolePermission.count({ where: {
       isActive: true, role: { roleCode: state.user.roleCode, isActive: true },
-      permission: { permissionCode: 'system.override' },
+      permission: { permissionCode: 'system.override', isActive: true },
     } })) > 0;
+  }
+
+  /** Called inside a Serializable account/role write, after its proposed changes. */
+  async assertUsableAdministratorRemains(tx: OnboardingTransaction) {
+    const now = new Date();
+    const candidates = await tx.user.findMany({ where: {
+      isActive: true, platformEnrollment: { statusCode: 'active', isActive: true },
+      authAccount: { accountStatusCode: 'active', OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] },
+    }, select: { id: true }, orderBy: { id: 'asc' } });
+    for (const candidate of candidates) {
+      if (await this.isPlatformAdmin(candidate.id, tx)) return;
+    }
+    throw new BadRequestException('마지막 활성 관리자 계정은 비활성화하거나 관리 권한이 없는 역할로 변경할 수 없습니다. 로그인 가능한 후임 관리자를 먼저 준비해 주세요.');
   }
 
   async grants(userId: bigint, tx: OnboardingTransaction = this.db.client) {
@@ -69,7 +82,7 @@ export class PlatformAdmissionService {
     await this.assertActive(userId);
     if (await this.isPlatformAdmin(userId)) return;
     if (!(await this.grants(userId)).some((grant) => grant.serviceCode === service)) {
-      throw new ForbiddenException({ code: 'SERVICE_APPROVAL_REQUIRED', message: '서비스 이용 승인이 필요합니다. 온보딩에서 이용을 신청해 주세요.' });
+      throw new ForbiddenException({ code: 'SERVICE_APPROVAL_REQUIRED', message: '서비스 이용 승인이 필요합니다. 서비스 이용 메뉴에서 신청해 주세요.' });
     }
   }
 

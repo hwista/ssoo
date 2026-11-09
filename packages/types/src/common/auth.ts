@@ -106,6 +106,7 @@ export type AuthEmailDeliveryMode = 'outbox' | 'disabled';
 export type AuthEmailOutboxStatus = 'pending' | 'processing' | 'sent' | 'failed' | 'superseded' | 'consumed';
 
 export interface AuthEmailDeliveryMessageSummary {
+  deliveryTarget?: 'local' | 'external';
   messageId: string;
   recipient: string;
   templateCode: string;
@@ -200,6 +201,7 @@ export interface UpdateAuthProviderSettingsRequest {
 }
 
 export interface AuthRegistrationRequestItem {
+  updatedAt: string;
   registrationRequestId: string;
   providerCode: AuthIdentityProviderKey;
   tenantId: string;
@@ -230,6 +232,7 @@ export interface AuthAssignableRole {
 }
 
 export interface DecideAuthRegistrationRequest {
+  expectedUpdatedAt: string;
   roleCode?: string;
   memo?: string | null;
 }

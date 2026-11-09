@@ -19,7 +19,7 @@ let pendingTokenRequest: Promise<string | null> | null = null;
 
 export interface AiEmbeddingProviderStatus {
   profileCode: string;
-  providerCode: 'azure-openai';
+  providerCode: 'azure-openai' | 'local';
   ready: boolean;
   reasonCode?: string;
   reasonMessage?: string;

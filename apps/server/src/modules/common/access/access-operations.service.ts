@@ -1,5 +1,8 @@
+import { createHash } from 'node:crypto';
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,6 +19,8 @@ import type {
 } from '@ssoo/types/common';
 import { toIdString } from '../../../common/utils/bigint.util.js';
 import { DatabaseService } from '../../../database/database.service.js';
+import { PlatformAdmissionService, type OnboardingTransaction } from '../onboarding/platform-admission.service.js';
+import { assertParticipationReason } from '../onboarding/participation-write.service.js';
 import type { TokenPayload } from '../auth/interfaces/auth.interface.js';
 import { AccessFoundationService } from './access-foundation.service.js';
 import type { InspectAccessQueryDto } from './dto/inspect-access.query.dto.js';
@@ -59,6 +64,7 @@ export class AccessOperationsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly accessFoundationService: AccessFoundationService,
+    private readonly admission: PlatformAdmissionService,
   ) {}
 
   async inspectAccess(query: InspectAccessQueryDto): Promise<AccessInspectionResult> {
@@ -223,113 +229,87 @@ export class AccessOperationsService {
     };
   }
 
+  private roleRevision(role: { updatedAt: Date; isActive: boolean; rolePermissions: { permission: { permissionCode: string } }[] }) {
+    return createHash('sha256').update(JSON.stringify([
+      role.updatedAt.toISOString(), role.isActive,
+      role.rolePermissions.map(item => item.permission.permissionCode).sort(),
+    ])).digest('hex');
+  }
+
   async listRolesWithPermissions() {
     const roles = await this.db.client.role.findMany({
       orderBy: [{ sortOrder: 'asc' }, { roleCode: 'asc' }],
-      select: {
-        roleId: true,
-        roleCode: true,
-        roleName: true,
-        roleScopeCode: true,
-        description: true,
-        isActive: true,
-        rolePermissions: {
-          where: { isActive: true, permission: { isActive: true } },
-          select: { permission: { select: { permissionCode: true } } },
-        },
-      },
+      include: { rolePermissions: {
+        where: { isActive: true, permission: { isActive: true } },
+        select: { permission: { select: { permissionCode: true } } },
+      } },
     });
-    return roles.map((role) => ({
-      roleId: role.roleId.toString(),
-      roleCode: role.roleCode,
-      roleName: role.roleName,
-      roleScopeCode: role.roleScopeCode,
-      description: role.description,
-      isActive: role.isActive,
-      permissionCodes: role.rolePermissions
-        .map((relation) => relation.permission.permissionCode)
-        .sort((left, right) => left.localeCompare(right)),
+    const counts = await this.db.client.user.groupBy({ by: ['roleCode', 'isActive'], _count: { _all: true } });
+    return roles.map(role => ({
+      roleId: role.roleId.toString(), roleCode: role.roleCode, roleName: role.roleName,
+      roleScopeCode: role.roleScopeCode, description: role.description, isActive: role.isActive,
+      permissionCodes: role.rolePermissions.map(item => item.permission.permissionCode).sort(),
+      revision: this.roleRevision(role),
+      assignedUserCount: counts.filter(item => item.roleCode === role.roleCode).reduce((sum, item) => sum + item._count._all, 0),
+      activeUserCount: counts.filter(item => item.roleCode === role.roleCode && item.isActive).reduce((sum, item) => sum + item._count._all, 0),
     }));
   }
 
-  async updateRolePermissions(
-    roleCode: string,
-    dto: UpdateRolePermissionsDto,
-    operatorUserId: bigint,
-  ) {
-    const role = await this.db.client.role.findUnique({
-      where: { roleCode },
-      select: { roleId: true, roleCode: true, isActive: true },
-    });
-    if (!role || !role.isActive) {
-      throw new NotFoundException('활성 역할을 찾을 수 없습니다.');
-    }
-
-    const permissionCodes = Array.from(new Set(dto.permissionCodes.map((code) => code.trim()).filter(Boolean)));
+  async updateRolePermissions(roleCode: string, dto: UpdateRolePermissionsDto, operatorUserId: bigint) {
+    assertParticipationReason(dto.reason);
+    const permissionCodes = Array.from(new Set(dto.permissionCodes.map(code => code.trim()).filter(Boolean)));
     if (roleCode === 'admin' && !permissionCodes.includes('system.override')) {
       throw new BadRequestException('admin 역할에서는 system.override 권한을 제거할 수 없습니다.');
     }
-    const permissions = await this.db.client.permission.findMany({
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await this.db.client.$transaction(async tx => {
+          if (!await this.admission.isPlatformAdmin(operatorUserId, tx)) {
+            throw new ForbiddenException('플랫폼 관리자만 역할 권한을 변경할 수 있습니다.');
+          }
+          await this.writeRolePermissions(tx, roleCode, permissionCodes, dto, operatorUserId);
+          await this.admission.assertUsableAdministratorRemains(tx);
+        }, { isolationLevel: 'Serializable' });
+        break;
+      } catch (error) {
+        if (error instanceof Error && 'code' in error) {
+          if (error.code === 'P2034' && attempt < 2) continue;
+          if (error.code === 'P2034' || error.code === 'P2002') throw new ConflictException('다른 작업으로 권한이 변경됐습니다. 새로고침 후 다시 처리해 주세요.');
+        }
+        throw error;
+      }
+    }
+    return (await this.listRolesWithPermissions()).find(item => item.roleCode === roleCode)!;
+  }
+
+  private async writeRolePermissions(tx: OnboardingTransaction, roleCode: string, permissionCodes: string[], dto: UpdateRolePermissionsDto, actor: bigint) {
+    const role = await tx.role.findUnique({ where: { roleCode }, include: { rolePermissions: {
+      where: { isActive: true, permission: { isActive: true } },
+      select: { permission: { select: { permissionCode: true } } },
+    } } });
+    if (!role?.isActive) throw new NotFoundException('활성 역할을 찾을 수 없습니다.');
+    if (this.roleRevision(role) !== dto.expectedRevision) throw new ConflictException('조회 후 역할 권한이 변경됐습니다. 새로고침 후 변경 내용을 확인해 주세요.');
+    const permissions = await tx.permission.findMany({
       where: { permissionCode: { in: permissionCodes }, isActive: true },
       select: { permissionId: true, permissionCode: true },
     });
-    const foundCodes = new Set(permissions.map((permission) => permission.permissionCode));
-    const missingCodes = permissionCodes.filter((code) => !foundCodes.has(code));
-    if (missingCodes.length > 0) {
-      throw new BadRequestException(`활성 permission을 찾을 수 없습니다: ${missingCodes.join(', ')}`);
-    }
-    const permissionIds = permissions.map((permission) => permission.permissionId);
-
-    await this.db.client.$transaction(async (tx) => {
-      await tx.rolePermission.updateMany({
-        where: {
-          roleId: role.roleId,
-          isActive: true,
-          ...(permissionIds.length > 0 ? { permissionId: { notIn: permissionIds } } : {}),
-        },
-        data: {
-          isActive: false,
-          updatedBy: operatorUserId,
-          lastSource: 'admin-access-operations',
-          lastActivity: 'access.admin.role-permissions.revoke',
-        },
-      });
-
-      for (const permission of permissions) {
-        const existing = await tx.rolePermission.findFirst({
-          where: { roleId: role.roleId, permissionId: permission.permissionId },
-          select: { rolePermissionId: true },
-        });
-        if (existing) {
-          await tx.rolePermission.update({
-            where: { rolePermissionId: existing.rolePermissionId },
-            data: {
-              isActive: true,
-              updatedBy: operatorUserId,
-              lastSource: 'admin-access-operations',
-              lastActivity: 'access.admin.role-permissions.grant',
-            },
-          });
-        } else {
-          await tx.rolePermission.create({
-            data: {
-              roleId: role.roleId,
-              permissionId: permission.permissionId,
-              createdBy: operatorUserId,
-              updatedBy: operatorUserId,
-              lastSource: 'admin-access-operations',
-              lastActivity: 'access.admin.role-permissions.grant',
-            },
-          });
-        }
-      }
+    const foundCodes = new Set(permissions.map(item => item.permissionCode));
+    const missingCodes = permissionCodes.filter(code => !foundCodes.has(code));
+    if (missingCodes.length) throw new BadRequestException(`활성 permission을 찾을 수 없습니다: ${missingCodes.join(', ')}`);
+    const audit = { updatedBy: actor, memo: dto.reason.trim(), lastSource: 'admin-access-operations' };
+    const permissionIds = permissions.map(item => item.permissionId);
+    await tx.rolePermission.updateMany({
+      where: { roleId: role.roleId, isActive: true, ...(permissionIds.length ? { permissionId: { notIn: permissionIds } } : {}) },
+      data: { ...audit, isActive: false, lastActivity: 'access.admin.role-permissions.revoke' },
     });
-
-    const updated = (await this.listRolesWithPermissions()).find((item) => item.roleCode === roleCode);
-    if (!updated) {
-      throw new NotFoundException('갱신된 역할을 찾을 수 없습니다.');
+    for (const permission of permissions) {
+      const existing = await tx.rolePermission.findFirst({ where: { roleId: role.roleId, permissionId: permission.permissionId } });
+      if (existing?.isActive) continue;
+      const data = { ...audit, isActive: true, lastActivity: 'access.admin.role-permissions.grant' };
+      if (existing) await tx.rolePermission.update({ where: { rolePermissionId: existing.rolePermissionId }, data });
+      else await tx.rolePermission.create({ data: { ...data, roleId: role.roleId, permissionId: permission.permissionId, createdBy: actor } });
     }
-    return updated;
+    await tx.role.update({ where: { roleId: role.roleId }, data: { ...audit, lastActivity: 'access.admin.role-permissions.update' } });
   }
 
   async listAuditEvents(limit = 100) {
@@ -517,6 +497,7 @@ export class AccessOperationsService {
     owner: PermissionCatalogOwner,
     permissionCode: string,
   ): PermissionCatalogStatus {
+    if (permissionCode === 'common.user.manage') return 'foundation';
     if (
       owner === 'admin-platform'
       || owner === 'dms'
@@ -537,7 +518,7 @@ export class AccessOperationsService {
 
   private resolveMenuSurface(owner: PermissionCatalogOwner, permissionCode: string): string {
     if (owner === 'admin-platform') {
-      if (permissionCode === 'common.user.manage') return 'Admin > 사용자 관리 / 역할 & 권한';
+      if (permissionCode === 'common.user.manage') return '역할 & 권한 > 해석 확인 (사용자 관리 API 집행 미연결)';
       if (permissionCode === 'system.override') return 'Admin > 역할 & 권한 > 권한 해석';
       return 'Admin > 플랫폼 관리';
     }
@@ -578,6 +559,7 @@ export class AccessOperationsService {
   }
 
   private resolvePermissionNotes(owner: PermissionCatalogOwner, permissionCode: string): string {
+    if (permissionCode === 'common.user.manage') return '부여·해석만 지원합니다. 이 권한만으로 Admin 사용자 관리에 접근할 수 없으며 실제 관리는 system.override가 필요합니다.';
     if (owner === 'admin-platform') {
       return 'SSOO 공통 권한 vocabulary. Admin이 부여/해석/예외를 운영한다.';
     }

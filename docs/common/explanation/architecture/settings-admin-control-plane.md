@@ -4,6 +4,8 @@
 > Last updated: 2026-08-14
 > Scope: SSOO-wide settings, account/auth, profile, organization admin, AI control plane, and domain app settings responsibility boundaries.
 
+2026-11-04 적용 범위: 플랫폼 공통 관리를 Admin에서 먼저 검토·적용하고 도메인 특화 관리는 각 앱의 설정이 소유한다. 현재 코드에 대조한 관리 대상·운영 시나리오·우선 공백은 [Admin 공통 관리 검토안](2026-11-04-admin-common-management-scope.md)을 따른다. 아래 과거 구현 상태는 작성 당시의 기록이며 새 검토안의 구현 완료를 의미하지 않는다.
+
 ## Decision summary
 
 SSOO settings are not one large Admin page and not one large DMS settings page. The boundary is responsibility-based:
@@ -202,3 +204,7 @@ The visual settings form is platform-common even when ownership is domain-specif
 | 2026-06-11 | 설정 화면 visual form 은 `@ssoo/web-shell` 공통 primitive로 소비하고, 도메인별 schema/persistence/access/custom slot 은 각 앱이 소유한다는 기준 추가 |
 | 2026-06-10 | Admin=플랫폼/base, 도메인 앱=도메인 세부 시스템 설정/제어/운영, DMS=DMS 세부 운영 설정/제어라는 corrected ownership rule 보강 |
 | 2026-06-09 | SSOO 설정/Admin/Auth/Profile/AI/DMS 책임 경계와 DMS 설정 IA baseline 신설 |
+
+## 2026-11-05 공통 연결 설정 확장
+
+인증 관리의 메일 연결과 AI 운영의 임베딩 연결은 `cm_integration_setting_m/h`를 통해 Admin에서 저장·적용한다. 기존 환경변수 경로도 선택할 수 있다. 비밀값은 write-only AES-GCM 암호화 저장, 변경 사유·history 및 충돌 검사를 적용한다. 로컬 수신함/CPU 임베딩은 외부 제공자가 없어도 검증할 수 있으며 회사 SMTP·Microsoft Graph·Azure로 전환한다. [연결 계약·자원 제한·Ralph 증거](2026-11-05-local-runtime-integrations.md)를 따른다.

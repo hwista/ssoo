@@ -1,10 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { success } from '../../../common/index.js';
+import { success, paginated } from '../../../common/index.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { TokenPayload } from '../auth/interfaces/auth.interface.js';
 import { BadRequestException } from '@nestjs/common';
-import { CreateOnboardingRequestDto, DecideOnboardingRequestDto, SetApprovalAuthorityDto } from './onboarding.dto.js';
+import { ApprovalCandidatesQueryDto, ApprovalReviewsQueryDto, CreateOnboardingRequestDto, DecideOnboardingRequestDto, SetApprovalAuthorityDto } from './onboarding.dto.js';
 import { OnboardingService } from './onboarding.service.js';
 import { PlatformAdmissionService } from './platform-admission.service.js';
 
@@ -35,8 +35,11 @@ export class OnboardingController {
   @Delete('requests/:id') @ApiOperation({ summary: '내 대기 신청 취소' })
   async cancel(@CurrentUser() user: TokenPayload, @Param('id') id: string) { return success(await this.onboarding.cancel(parseId(id), BigInt(user.userId))); }
 
-  @Get('reviews') @ApiOperation({ summary: '담당 범위의 승인 대기 신청' })
-  async reviews(@CurrentUser() user: TokenPayload) { return success(await this.onboarding.reviewQueue(BigInt(user.userId))); }
+  @Get('reviews') @ApiOperation({ summary: '담당 범위의 신청 및 처리 내역' })
+  async reviews(@CurrentUser() user: TokenPayload, @Query() query: ApprovalReviewsQueryDto) {
+    const result = await this.onboarding.reviewQueue(BigInt(user.userId), query);
+    return paginated(result.items, query.page, result.limit, result.total);
+  }
 
   @Post('requests/:id/decision') @ApiOperation({ summary: '담당 범위의 신청 승인·반려' })
   async decide(@CurrentUser() user: TokenPayload, @Param('id') id: string, @Body() dto: DecideOnboardingRequestDto) { return success(await this.onboarding.decide(parseId(id), BigInt(user.userId), dto)); }
@@ -44,12 +47,18 @@ export class OnboardingController {
   @Get('authorities') @ApiOperation({ summary: '플랫폼 관리자의 승인 위임 조회' })
   async authorities(@CurrentUser() user: TokenPayload) { return success(await this.onboarding.listAuthorities(BigInt(user.userId))); }
 
+  @Get('approval-candidates') @ApiOperation({ summary: '승인 담당자 검색과 소속·참여 준비 상태' })
+  async candidates(@CurrentUser() user: TokenPayload, @Query() query: ApprovalCandidatesQueryDto) {
+    return success(await this.onboarding.candidates(BigInt(user.userId), query));
+  }
+
   @Post('authorities') @ApiOperation({ summary: '플랫폼 관리자의 조직·서비스 승인 위임' })
   async delegate(@CurrentUser() user: TokenPayload, @Body() dto: SetApprovalAuthorityDto) { return success(await this.onboarding.setAuthority(BigInt(user.userId), dto)); }
 
   @Delete('authorities/:id') @ApiOperation({ summary: '플랫폼 관리자의 승인 위임 회수' })
-  async revokeAuthority(@CurrentUser() user: TokenPayload, @Param('id') id: string) { return success(await this.onboarding.revokeAuthority(parseId(id), BigInt(user.userId))); }
+  async revokeAuthority(@CurrentUser() user: TokenPayload, @Param('id') id: string, @Body() dto: ParticipationRevisionDto) { return success(await this.onboarding.revokeAuthority(parseId(id), BigInt(user.userId), dto)); }
 
   @Delete('grants/:id') @ApiOperation({ summary: '담당 서비스 이용권 회수' })
   async revokeGrant(@CurrentUser() user: TokenPayload, @Param('id') id: string) { return success(await this.onboarding.revokeGrant(parseId(id), BigInt(user.userId))); }
 }
+import { ParticipationRevisionDto } from './participation-operations.dto.js';

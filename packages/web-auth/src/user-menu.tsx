@@ -8,6 +8,8 @@ import { useState, type ReactNode } from 'react';
 import { SsooErrorNotice } from '@ssoo/web-shell';
 import { resolveCurrentSsooAccountCenterHref } from './account-center';
 import { Button } from '@ssoo/web-ui';
+import { usePlatformAccess } from './platform-access';
+import { PLATFORM_ACCESS_PATHS, getPlatformAccessHref } from './platform-access-routing';
 
 const DEFAULT_AUTH_USER_MENU_DROPDOWN_WIDTH = 256;
 
@@ -64,6 +66,7 @@ export function AuthUserMenu({
   secondaryLabel,
   fallbackSecondaryLabel = null,
 }: AuthUserMenuProps) {
+  const access = usePlatformAccess();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const loginId = user?.loginId ?? fallbackLoginId;
@@ -106,7 +109,9 @@ export function AuthUserMenu({
     ]
     : [];
   const resolvedActions = [
-    { key: 'onboarding', label: '소속·서비스 신청 및 승인', icon: User, onSelect: () => { window.location.assign('/?onboarding=1'); } },
+    { key: 'my-organizations', label: '내 소속', icon: User, onSelect: () => { window.location.assign(getPlatformAccessHref(PLATFORM_ACCESS_PATHS.organizations)); } },
+    { key: 'my-services', label: '서비스 이용', icon: Settings, onSelect: () => { window.location.assign(getPlatformAccessHref(PLATFORM_ACCESS_PATHS.services)); } },
+    ...(access?.snapshot.canReview ? [{ key: 'approvals', label: '신청 승인', icon: User, onSelect: () => { window.location.assign(getPlatformAccessHref(PLATFORM_ACCESS_PATHS.approvals)); } }] : []),
     ...resolvedUserSurfaceActions,
     ...(!userSurfaces && accountCenter
       ? [{

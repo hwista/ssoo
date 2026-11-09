@@ -40,3 +40,9 @@ $failed = $false
 try { Restore-Runtime ([pscustomobject]@{ dockerRunning=$true; containers=@('container'); healthyContainers=@('container'); distros=@() }) } catch { $failed = $true }
 Assert $failed 'Unhealthy restoration must not be reported successful'
 Write-Output '14 Windows schedule/path/native/restore checks passed'
+
+# Regression: scheduled tasks invoke -File, not dot-sourcing or -Command.
+$maintainer = Join-Path $PSScriptRoot '..\..\..\scripts\storage\windows\maintain.ps1'
+$child = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -ArgumentList @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File', ('"' + $maintainer + '"'), '-LibraryOnly') -Wait -PassThru
+Assert ($child.ExitCode -eq 0) 'The scheduled -File entry must not evaluate an empty PSScriptRoot in parameter defaults'
+Write-Output 'Scheduled -File startup regression passed'

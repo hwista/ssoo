@@ -333,13 +333,13 @@ export class AiRetrievalService {
     currentUser: TokenPayload,
     limit: number,
   ): Promise<RetrievalRow[]> {
-    const providerStatus = this.embeddingProvider.getStatus(DEFAULT_PROFILE_CODE);
+    const providerStatus = await this.embeddingProvider.getStatus(DEFAULT_PROFILE_CODE);
     if (!providerStatus.ready) {
       return [];
     }
 
     try {
-      const { embedding } = await this.embeddingProvider.embedText(query, DEFAULT_PROFILE_CODE);
+      const { embedding, providerStatus: actualProvider } = await this.embeddingProvider.embedText(query, DEFAULT_PROFILE_CODE);
       const vector = vectorToSqlLiteral(embedding);
       return this.db.client.$queryRawUnsafe<RetrievalRow[]>(
         `
@@ -359,7 +359,7 @@ export class AiRetrievalService {
           c.citation_label,
           o.metadata_jsonb AS object_metadata_jsonb,
           c.metadata_jsonb AS chunk_metadata_jsonb,
-          1 - (e.embedding <=> $1::vector) AS similarity,
+          1 - (CASE WHEN e.embedding_dimension = $11 THEN e.embedding <=> $1::vector ELSE NULL END) AS similarity,
           NULL::double precision AS keyword_score
         FROM common.cm_ai_embedding_m e
         INNER JOIN common.cm_ai_chunk_m c
@@ -386,14 +386,18 @@ export class AiRetrievalService {
          AND a.search_eligible = true
          AND a.context_eligible = true
         WHERE e.profile_code = $2
+          AND e.embedding_dimension = $11
+          AND e.provider_code = $12
+          AND e.model_name IS NOT DISTINCT FROM $13
+          AND e.deployment_name IS NOT DISTINCT FROM $14
           AND e.is_active = true
           AND e.embedding IS NOT NULL
           AND e.embedding_hash = c.content_hash
-          AND 1 - (e.embedding <=> $1::vector) >= $3
+          AND 1 - (CASE WHEN e.embedding_dimension = $11 THEN e.embedding <=> $1::vector ELSE NULL END) >= $3
           AND ($4::text IS NULL OR o.source_app_code = $4::text)
           AND ($5::text[] IS NULL OR o.entity_type_code = ANY($5::text[]))
           AND ${this.aclPredicateSql()}
-        ORDER BY e.embedding <=> $1::vector ASC, c.chunk_seq ASC
+        ORDER BY CASE WHEN e.embedding_dimension = $11 THEN e.embedding <=> $1::vector ELSE NULL END ASC, c.chunk_seq ASC
         LIMIT $10
         `,
         vector,
@@ -406,6 +410,7 @@ export class AiRetrievalService {
         toOptionalStringArray(currentUser.teamIds),
         toOptionalStringArray(currentUser.groupIds),
         limit * VECTOR_PREFETCH_MULTIPLIER,
+        actualProvider.dimension, actualProvider.providerCode, actualProvider.modelName ?? null, actualProvider.deploymentName ?? null,
       );
     } catch (error) {
       this.logger.warn(`Common AI vector retrieval failed: ${error instanceof Error ? error.message : String(error)}`);

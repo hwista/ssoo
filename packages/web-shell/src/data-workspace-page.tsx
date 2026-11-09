@@ -52,6 +52,7 @@ import {
 } from '@ssoo/web-ui';
 
 import { cn } from './cn';
+import { useSsooMobileViewport } from './mobile-shell';
 import type { SsooContentPageTone } from './content-page-template';
 import {
   SSOO_PAGE_CHROME_METRICS,
@@ -61,6 +62,7 @@ import type { SsooPageBreadcrumbItem } from './page-breadcrumb';
 import {
   SsooWorkspacePage,
   type SsooWorkspaceContentWidth,
+  type SsooWorkspacePageProps,
 } from './workspace-page';
 import { SsooSearchInput } from './search-input';
 
@@ -114,8 +116,11 @@ export type SsooDataWorkspaceFilterField =
 export type SsooDataWorkspaceFilterValues = Record<string, string>;
 
 export interface SsooDataWorkspaceToolbarProps {
+  filterSummary?: string;
+  filterToggleLabel?: string;
   actions?: SsooDataWorkspaceAction[];
   filters?: SsooDataWorkspaceFilterField[];
+  filterSlot?: React.ReactNode;
   filterValues?: SsooDataWorkspaceFilterValues;
   defaultFilterValues?: SsooDataWorkspaceFilterValues;
   onFilterValuesChange?: (values: SsooDataWorkspaceFilterValues) => void;
@@ -123,10 +128,12 @@ export interface SsooDataWorkspaceToolbarProps {
   onReset?: () => void;
   collapsible?: boolean;
   defaultCollapsed?: boolean;
+  collapseOnMobile?: boolean;
   className?: string;
 }
 
 export interface SsooDataWorkspaceContentProps {
+  fitContent?: boolean;
   layout?: 'single' | 'vertical' | 'horizontal';
   ratio?: [number, number];
   children: React.ReactNode;
@@ -139,6 +146,7 @@ export interface SsooDataGridPagination {
   total: number;
   onPageChange: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
+  disabled?: boolean;
 }
 
 export interface SsooDataGridSecondPanel {
@@ -151,6 +159,9 @@ export interface SsooDataGridSecondPanel {
 }
 
 export interface SsooDataGridProps<TData, TValue> {
+  defaultColumnVisibility?: VisibilityState;
+  /** Mobile summaries reuse the same cells/actions; remaining fields stay in expandable details. */
+  mobileSummaryColumns?: string[];
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   loading?: boolean;
@@ -171,12 +182,17 @@ export interface SsooDataGridProps<TData, TValue> {
   emptyState?: React.ReactNode;
   className?: string;
   tableClassName?: string;
+  fitViewport?: boolean;
   headerClassName?: string;
   headerCellClassName?: string;
   secondGrid?: SsooDataGridSecondPanel;
 }
 
 export interface SsooDataWorkspacePageProps<TData = unknown, TValue = unknown> {
+  compact?: boolean;
+  title?: SsooWorkspacePageProps['title'];
+  description?: string;
+  headerActions?: SsooWorkspacePageProps['headerActions'];
   breadcrumb?: Array<string | SsooPageBreadcrumbItem>;
   breadcrumbItems?: SsooPageBreadcrumbItem[];
   breadcrumbRootIconSlot?: React.ReactNode;
@@ -184,6 +200,7 @@ export interface SsooDataWorkspacePageProps<TData = unknown, TValue = unknown> {
   toolbar?: SsooDataWorkspaceToolbarProps;
   content?: Omit<SsooDataWorkspaceContentProps, 'children' | 'className'>;
   table?: Omit<SsooDataGridProps<TData, TValue>, 'className'>;
+  statusSlot?: React.ReactNode;
   children?: React.ReactNode;
   contentWidth?: SsooWorkspaceContentWidth;
   pageTone?: SsooContentPageTone;
@@ -192,6 +209,10 @@ export interface SsooDataWorkspacePageProps<TData = unknown, TValue = unknown> {
 }
 
 export function SsooDataWorkspacePage<TData = unknown, TValue = unknown>({
+  compact = false,
+  title,
+  description,
+  headerActions,
   breadcrumb,
   breadcrumbItems,
   breadcrumbRootIconSlot,
@@ -199,16 +220,37 @@ export function SsooDataWorkspacePage<TData = unknown, TValue = unknown>({
   toolbar,
   content,
   table,
+  statusSlot,
   children,
   contentWidth = 'platform',
   pageTone = 'neutral',
   className,
   contentClassName,
 }: SsooDataWorkspacePageProps<TData, TValue>) {
-  const headerSlot = toolbar ? <SsooDataWorkspaceHeader {...toolbar} /> : null;
+  const mobile = useSsooMobileViewport();
+  const [collapsed, setCollapsed] = React.useState<boolean | undefined>();
+  const hasFilters = Boolean(toolbar?.filters?.length || toolbar?.filterSlot);
+  const collapsible = toolbar?.collapsible !== false;
+  const isCollapsed = collapsed ?? toolbar?.defaultCollapsed ?? (collapsible && mobile);
+  const compactControls = compact ? { collapsed: isCollapsed } : undefined;
+  const resolvedHeaderActions: SsooWorkspacePageProps['headerActions'] = compact ? {
+    ...headerActions,
+    iconSlots: { ...headerActions?.iconSlots, loading: headerActions?.iconSlots?.loading ?? <Loader2 className="h-4 w-4 animate-spin" /> },
+    extraActionsPosition: 'right',
+    extraActions: [
+      ...(toolbar?.actions ?? []).map(action => ({ ...action, variant: action.variant ?? 'default' as const })),
+      ...(headerActions?.extraActions ?? []),
+      ...(hasFilters && collapsible ? [{ label: `검색 조건 ${isCollapsed ? '펼치기' : '접기'}`, variant: 'outline' as const, ariaExpanded: !isCollapsed, onClick: () => setCollapsed(!isCollapsed) }] : []),
+    ],
+  } : headerActions;
+  const headerSlot = toolbar ? <SsooDataWorkspaceHeader collapseOnMobile={Boolean(title)} {...toolbar} compactControls={compactControls} /> : null;
 
   return (
     <SsooWorkspacePage
+      compact={compact}
+      title={title}
+      description={description}
+      headerActions={resolvedHeaderActions}
       breadcrumb={breadcrumb}
       breadcrumbItems={breadcrumbItems}
       breadcrumbRootIconSlot={breadcrumbRootIconSlot === undefined ? <Home className="h-3.5 w-3.5" /> : breadcrumbRootIconSlot}
@@ -220,7 +262,8 @@ export function SsooDataWorkspacePage<TData = unknown, TValue = unknown>({
       contentClassName={contentClassName}
       contentDataAttributes={{ 'data-ssoo-data-workspace': true }}
     >
-      <SsooDataWorkspaceContent {...content}>
+      {statusSlot ? <div className="shrink-0 text-sm" role="status">{statusSlot}</div> : null}
+      <SsooDataWorkspaceContent fitContent={compact} {...content}>
         {children ?? (table ? <SsooDataGrid {...table} /> : null)}
       </SsooDataWorkspaceContent>
     </SsooWorkspacePage>
@@ -228,22 +271,29 @@ export function SsooDataWorkspacePage<TData = unknown, TValue = unknown>({
 }
 
 function SsooDataWorkspaceHeader({
+  compactControls,
+  filterSummary,
+  filterToggleLabel,
   actions,
   filters,
+  filterSlot,
   filterValues,
   defaultFilterValues,
   onFilterValuesChange,
   onSearch,
   onReset,
   collapsible = true,
-  defaultCollapsed = false,
+  defaultCollapsed,
+  collapseOnMobile = false,
   className,
-}: SsooDataWorkspaceToolbarProps) {
-  const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
+}: SsooDataWorkspaceToolbarProps & { compactControls?: { collapsed: boolean } }) {
+  const mobile = useSsooMobileViewport();
+  const [collapsed, setCollapsed] = React.useState<boolean | undefined>(defaultCollapsed);
+  const isCollapsed = compactControls?.collapsed ?? collapsed ?? (collapseOnMobile && collapsible && mobile);
   const [internalFilterValues, setInternalFilterValues] = React.useState<SsooDataWorkspaceFilterValues>(defaultFilterValues ?? {});
   const resolvedFilterValues = filterValues ?? internalFilterValues;
   const hasActions = Boolean(actions?.length);
-  const hasFilters = Boolean(filters?.length);
+  const hasFilters = Boolean(filters?.length || filterSlot);
   const showFilterRow = hasFilters && !isCollapsed;
 
   const setNextFilterValues = React.useCallback((nextValues: SsooDataWorkspaceFilterValues) => {
@@ -270,18 +320,23 @@ function SsooDataWorkspaceHeader({
     return null;
   }
 
+  if (compactControls && (!hasFilters || isCollapsed)) {
+    return filterSummary ? <p className="px-4 text-caption text-muted-foreground" data-ssoo-filter-summary>{filterSummary}</p> : null;
+  }
+
   return (
     <section
       className={cn(
         SSOO_PAGE_CHROME_CLASSES.header,
         'flex-col items-stretch justify-start gap-0 overflow-hidden p-0',
+        collapseOnMobile && 'shrink-0',
         className,
       )}
       style={{ minHeight: SSOO_PAGE_CHROME_METRICS.headerMinHeightPx }}
       data-ssoo-data-workspace-header
       data-ssoo-data-workspace-toolbar
     >
-      <div className={cn(
+      {!compactControls ? <div className={cn(
         'flex min-h-[52px] items-center justify-between gap-3 px-4 py-2',
         showFilterRow && 'border-b border-ssoo-content-border',
       )}>
@@ -306,25 +361,28 @@ function SsooDataWorkspaceHeader({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setIsCollapsed((prev) => !prev)}
+            aria-expanded={!isCollapsed}
+            onClick={() => setCollapsed(!isCollapsed)}
             className="shrink-0"
           >
-            <span>{isCollapsed ? '펼치기' : '접기'}</span>
+            <span>{filterToggleLabel ? `${filterToggleLabel} ` : ''}{isCollapsed ? '펼치기' : '접기'}</span>
             {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
           </Button>
         ) : null}
-      </div>
+      </div> : null}
 
+      {filterSummary ? <p className="px-4 pt-2 text-caption text-muted-foreground" data-ssoo-filter-summary>{filterSummary}</p> : null}
       {showFilterRow ? (
-        <div className="flex min-h-[52px] flex-wrap items-center gap-3 px-4 py-2">
-          <SsooDataWorkspaceFilterBar
+        <div className={cn("flex min-h-[52px] flex-wrap items-center gap-3 px-4 py-2", collapseOnMobile && mobile && "max-h-[28dvh] overflow-y-auto")}>
+          {filterSlot}
+          {filters?.length ? <SsooDataWorkspaceFilterBar
             fields={filters ?? []}
             values={resolvedFilterValues}
             onChange={handleFilterChange}
             onEnterSearch={handleSearch}
             className="min-w-[min(100%,520px)] flex-1"
-          />
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          /> : null}
+          {filters?.length ? <div className="ml-auto flex shrink-0 items-center gap-2">
             <Button type="button" variant="default" size="pageAction" onClick={handleSearch}>
               <Search className="h-4 w-4" />
               <span>검색</span>
@@ -333,7 +391,7 @@ function SsooDataWorkspaceHeader({
               <RotateCcw className="h-4 w-4" />
               <span>초기화</span>
             </Button>
-          </div>
+          </div> : null}
         </div>
       ) : null}
     </section>
@@ -343,20 +401,24 @@ function SsooDataWorkspaceHeader({
 export function SsooDataWorkspaceToolbar({
   actions,
   filters,
+  filterSlot,
   filterValues,
   defaultFilterValues,
   onFilterValuesChange,
   onSearch,
   onReset,
   collapsible = true,
-  defaultCollapsed = false,
+  defaultCollapsed,
+  collapseOnMobile = false,
   className,
 }: SsooDataWorkspaceToolbarProps) {
-  const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
+  const mobile = useSsooMobileViewport();
+  const [collapsed, setCollapsed] = React.useState<boolean | undefined>(defaultCollapsed);
+  const isCollapsed = collapsed ?? (collapseOnMobile && collapsible && mobile);
   const [internalFilterValues, setInternalFilterValues] = React.useState<SsooDataWorkspaceFilterValues>(defaultFilterValues ?? {});
   const resolvedFilterValues = filterValues ?? internalFilterValues;
   const hasActions = Boolean(actions?.length);
-  const hasFilters = Boolean(filters?.length);
+  const hasFilters = Boolean(filters?.length || filterSlot);
 
   const setNextFilterValues = React.useCallback((nextValues: SsooDataWorkspaceFilterValues) => {
     if (filterValues === undefined) {
@@ -405,7 +467,8 @@ export function SsooDataWorkspaceToolbar({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setIsCollapsed((prev) => !prev)}
+            aria-expanded={!isCollapsed}
+            onClick={() => setCollapsed(!isCollapsed)}
           >
             <span>{isCollapsed ? '펼치기' : '접기'}</span>
             {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -414,15 +477,16 @@ export function SsooDataWorkspaceToolbar({
       </div>
 
       {!isCollapsed && hasFilters ? (
-        <div className="flex min-h-[52px] items-center gap-3 px-4 py-2">
-          <SsooDataWorkspaceFilterBar
+        <div className={cn("flex min-h-[52px] flex-wrap items-center gap-3 px-4 py-2", collapseOnMobile && mobile && "max-h-[28dvh] overflow-y-auto")}>
+          {filterSlot}
+          {filters?.length ? <SsooDataWorkspaceFilterBar
             fields={filters ?? []}
             values={resolvedFilterValues}
             onChange={handleFilterChange}
             onEnterSearch={handleSearch}
             className="flex-1"
-          />
-          <div className="flex shrink-0 items-center gap-2">
+          /> : null}
+          {filters?.length ? <div className="flex shrink-0 items-center gap-2">
             <Button type="button" variant="default" size="pageAction" onClick={handleSearch}>
               <Search className="h-4 w-4" />
               <span>검색</span>
@@ -431,7 +495,7 @@ export function SsooDataWorkspaceToolbar({
               <RotateCcw className="h-4 w-4" />
               <span>초기화</span>
             </Button>
-          </div>
+          </div> : null}
         </div>
       ) : null}
     </section>
@@ -477,7 +541,7 @@ export function SsooDataWorkspaceFilterBar({
                   <SelectValue placeholder={field.placeholder ?? '전체'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>전체</SelectItem>
+                  <SelectItem value={ALL_FILTER_VALUE}>{field.placeholder ?? '전체'}</SelectItem>
                   {field.options?.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -549,6 +613,7 @@ export function SsooDataWorkspaceFilterBar({
 }
 
 export function SsooDataWorkspaceContent({
+  fitContent = false,
   layout = 'single',
   ratio = [50, 50],
   children,
@@ -567,7 +632,8 @@ export function SsooDataWorkspaceContent({
   return (
     <section
       className={cn(
-        'min-h-0 flex-1 overflow-hidden rounded-lg border border-ssoo-content-border bg-card',
+        'min-h-0 overflow-hidden rounded-lg border border-ssoo-content-border bg-card',
+        fitContent ? 'max-h-full shrink' : 'flex-1',
         layout === 'single' && 'flex flex-col',
         layout === 'vertical' && 'flex flex-col gap-0',
         layout === 'horizontal' && 'flex flex-row gap-0',
@@ -593,6 +659,8 @@ export function SsooDataWorkspaceContent({
 }
 
 export function SsooDataGrid<TData, TValue>({
+  defaultColumnVisibility,
+  mobileSummaryColumns,
   columns,
   data,
   loading = false,
@@ -615,11 +683,13 @@ export function SsooDataGrid<TData, TValue>({
   emptyState,
   className,
   tableClassName,
+  fitViewport = false,
   secondGrid,
 }: SsooDataGridProps<TData, TValue>) {
+  const mobile = useSsooMobileViewport();
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(defaultColumnVisibility ?? {});
   const [rowSelection, setRowSelection] = React.useState({});
   const [paginationState, setPaginationState] = React.useState<PaginationState>({
     pageIndex: Math.max(0, (pagination?.page ?? 1) - 1),
@@ -744,36 +814,53 @@ export function SsooDataGrid<TData, TValue>({
     );
   }
 
-  const showToolbar = enableSearch || enableColumnVisibility;
+  const showColumnVisibility = enableColumnVisibility && !(mobile && mobileSummaryColumns);
+  const showToolbar = enableSearch || showColumnVisibility;
 
   return (
-    <div className={cn('flex h-full min-h-0 w-full flex-col', className)} data-ssoo-data-grid>
+    <div className={cn('flex min-h-0 w-full flex-col', fitViewport && !secondGridEnabled ? 'max-h-full' : 'h-full', className)} data-ssoo-data-grid>
       {showToolbar ? (
         <SsooDataGridToolbar
           table={table}
           enableSearch={enableSearch}
           searchField={searchField}
           searchPlaceholder={searchPlaceholder}
-          enableColumnVisibility={enableColumnVisibility}
+          enableColumnVisibility={showColumnVisibility}
         />
       ) : null}
 
       <div className="relative flex min-h-0 flex-1">
-        <SsooDataGridBody
+        {mobile && mobileSummaryColumns ? <div className="min-h-0 w-full overflow-y-auto" data-ssoo-mobile-records>
+          {table.getRowModel().rows.length ? <ul className="divide-y rounded-md border bg-card">
+            {table.getRowModel().rows.map(row => {
+              const cells = row.getAllCells();
+              const primary = cells.filter(cell => mobileSummaryColumns.includes(cell.column.id));
+              const secondary = cells.filter(cell => !mobileSummaryColumns.includes(cell.column.id));
+              const renderFields = (fields: typeof cells) => <dl className="space-y-2">{fields.map(cell => <div key={cell.id} className="min-w-0 space-y-1">
+                <dt className="text-caption text-muted-foreground">{typeof cell.column.columnDef.header === 'string' ? cell.column.columnDef.header : cell.column.id}</dt>
+                <dd className="min-w-0 break-words text-body-sm [&_p]:break-words [&_span]:break-words">{flexRender(cell.column.columnDef.cell, cell.getContext())}</dd>
+              </div>)}</dl>;
+              return <li key={row.id} className="space-y-3 p-3" data-ssoo-mobile-record>{renderFields(primary)}
+                {secondary.length ? <details><summary className="cursor-pointer py-2 text-body-sm text-muted-foreground">상세 정보</summary><div className="border-t pt-2">{renderFields(secondary)}</div></details> : null}
+              </li>;
+            })}
+          </ul> : <div className="rounded-md border bg-card p-6 text-center text-body-sm text-muted-foreground">{emptyState ?? '조회된 데이터가 없습니다'}</div>}
+        </div> : <SsooDataGridBody
           table={table}
           columns={tableColumns}
           loading={loading}
           emptyState={emptyState}
           onRowClick={onRowClick}
           tableClassName={tableClassName}
-          minRows={pagination?.pageSize ?? DEFAULT_PAGE_SIZE}
+          fitViewport={fitViewport}
+          minRows={fitViewport ? 0 : pagination?.pageSize ?? DEFAULT_PAGE_SIZE}
           rowHeight={DEFAULT_ROW_HEIGHT}
           headerHeight={DEFAULT_HEADER_HEIGHT}
           headerClassName={headerClassName}
           headerCellClassName={headerCellClassName}
           getRowId={getRowId}
           selectedRowId={selectedRowId}
-        />
+        />}
         {secondGridEnabled ? (
           <SsooDataGridSecondPanel
             isOpen={isSecondGridOpen}
@@ -838,7 +925,7 @@ function SsooDataGridToolbar<TData>({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button type="button" variant="outline" size="default" className="ml-auto">
-              컬럼
+              표시 항목
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -851,7 +938,7 @@ function SsooDataGridToolbar<TData>({
                   checked={column.getIsVisible()}
                   onCheckedChange={(value) => column.toggleVisibility(Boolean(value))}
                 >
-                  {column.id}
+                  {typeof column.columnDef.header === 'string' ? column.columnDef.header : column.id}
                 </DropdownMenuCheckboxItem>
               ))}
           </DropdownMenuContent>
@@ -868,6 +955,7 @@ interface SsooDataGridBodyProps<TData, TValue> {
   emptyState?: React.ReactNode;
   onRowClick?: (row: TData) => void;
   tableClassName?: string;
+  fitViewport?: boolean;
   headerClassName?: string;
   headerCellClassName?: string;
   getRowId?: (row: TData) => string | number;
@@ -884,6 +972,7 @@ function SsooDataGridBody<TData, TValue>({
   emptyState,
   onRowClick,
   tableClassName,
+  fitViewport = false,
   headerClassName,
   headerCellClassName,
   getRowId,
@@ -900,7 +989,7 @@ function SsooDataGridBody<TData, TValue>({
       style={minBodyHeight ? { minHeight: minBodyHeight } : undefined}
     >
       <div className="min-h-0 flex-1 overflow-auto">
-        <Table>
+        <Table style={fitViewport ? { minWidth: table.getTotalSize() } : undefined}>
           <TableHeader className={cn('shadow-sm', headerClassName ?? 'bg-ssoo-content-bg')}>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} style={{ height: headerHeight }}>
@@ -908,7 +997,7 @@ function SsooDataGridBody<TData, TValue>({
                   <TableHead
                     key={header.id}
                     className={cn('sticky top-0 z-10', headerCellClassName ?? 'bg-ssoo-content-bg')}
-                    style={{ height: headerHeight }}
+                    style={{ height: headerHeight, ...(fitViewport ? { width: header.getSize() } : {}) }}
                   >
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
@@ -946,7 +1035,7 @@ function SsooDataGridBody<TData, TValue>({
                   style={{ height: rowHeight }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} style={fitViewport ? { width: cell.column.getSize() } : undefined}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -996,7 +1085,7 @@ function SsooDataGridFooter<TData>({
   }
 
   return (
-    <div className="relative flex min-h-[52px] items-center px-4 py-2">
+    <div className="relative flex min-h-[52px] shrink-0 items-center px-4 py-2">
       {secondGrid ? (
         <div className="pointer-events-none absolute -top-3 left-1/2 z-20 -translate-x-1/2 bg-transparent">
           <SsooDataGridSecondToggleButton
@@ -1020,6 +1109,7 @@ function SsooDataGridFooter<TData>({
           total={pagination.total}
           onPageChange={pagination.onPageChange}
           onPageSizeChange={pagination.onPageSizeChange}
+          disabled={pagination.disabled}
           showTotal={!enableRowSelection}
           className={enableRowSelection ? 'ml-4 flex-1 px-0' : 'flex-1 px-0'}
         />
@@ -1055,6 +1145,7 @@ export function SsooDataGridPagination({
   total,
   onPageChange,
   onPageSizeChange,
+  disabled = false,
   pageSizeOptions = [10, 20, 30, 50, 100],
   showPageSizeSelect = true,
   showTotal = true,
@@ -1063,11 +1154,11 @@ export function SsooDataGridPagination({
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const startItem = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const endItem = Math.min(page * pageSize, total);
-  const canGoPrevious = page > 1;
-  const canGoNext = page < totalPages;
+  const canGoPrevious = !disabled && page > 1;
+  const canGoNext = !disabled && page < totalPages;
 
   return (
-    <div className={cn('flex items-center justify-between px-2', className)}>
+    <div className={cn('flex flex-wrap items-center justify-between gap-2 px-2', className)}>
       <div className="flex items-center gap-4 text-sm ssoo-text-primary-70">
         {showPageSizeSelect && onPageSizeChange ? (
           <div className="flex items-center gap-2">
@@ -1155,22 +1246,21 @@ export function SsooDataGridSecondPanel({
   children,
 }: SsooDataGridSecondPanelProps) {
   const panelHeight = typeof height === 'number' ? `${height}px` : height;
-  const maxHeight = `calc(${panelHeight} + 24px)`;
 
   return (
     <div
       className="absolute bottom-0 left-[5px] right-[5px] z-10 overflow-visible"
       data-ssoo-data-grid-second-panel
+      style={{ height: isOpen ? panelHeight : 0, maxHeight: '100%' }}
     >
       <div
         className={cn(
-          'relative overflow-hidden rounded-lg border border-ssoo-content-border bg-ssoo-content-bg shadow-[0_-4px_16px_rgba(0,0,0,0.15)] transition-all duration-300 ease-in-out',
+          'relative h-full overflow-hidden rounded-lg border border-ssoo-content-border bg-ssoo-content-bg shadow-[0_-4px_16px_rgba(0,0,0,0.15)] transition-all duration-300 ease-in-out',
           isOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0',
         )}
-        style={{ maxHeight: isOpen ? maxHeight : 0 }}
       >
-        <div className="bg-ssoo-content-bg">
-          <div className="overflow-auto" style={{ height: panelHeight }}>
+        <div className="h-full bg-ssoo-content-bg">
+          <div className="h-full overflow-auto">
             {children}
           </div>
         </div>

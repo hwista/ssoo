@@ -82,6 +82,33 @@ check('HTTP adapter retains body retry metadata when the header is absent', () =
   assert.equal(createSharedHttpError(new Response(null, { status: 429 }), { retryAfterSeconds: 7 }).retryAfterSeconds, 7);
 });
 const { SharedSessionRecovery } = authRequire('./dist/session-recovery.js');
+const { SharedAuthLoginPage } = authRequire('./dist/login-page.js');
+const { SharedAppRecovery } = authRequire('./dist/app-recovery.js');
+check('service recovery keeps a login exit while an unverified stored session cannot be logged out', () => {
+  const authStore = selector => selector({
+    user: { userId: '42' }, _hasHydrated: true, isAuthenticated: true,
+    accessToken: null, isLoading: false, sessionError: '세션 확인 실패', checkAuth: async () => {},
+  });
+  const html = renderToStaticMarkup(createElement(SharedAppRecovery, { authStore, restoreSession: true }));
+  assert.match(html, /href="\/login"/);
+  assert.match(html, /로그아웃 후 다른 계정으로 로그인/);
+});
+for (const [name, accessToken, sessionError, showForm] of [
+  ['persisted login without a restored token', null, null, true],
+  ['failed restore with a persisted login', null, '로그인 상태 확인 실패', true],
+  ['failed check with an existing token', 'stale-token', '로그인 상태 확인 실패', true],
+  ['confirmed authenticated session', 'valid-token', null, false],
+]) {
+  check(`login recovery: ${name}`, () => {
+    const authStore = selector => selector({
+      isAuthenticated: true, _hasHydrated: true, isLoading: false,
+      accessToken, sessionError, checkAuth: async () => {}, login: async () => {},
+    });
+    const html = renderToStaticMarkup(createElement(SharedAuthLoginPage, { authStore, homePath: '/', navigate: () => {} }));
+    assert.equal(html.includes('name="password"'), showForm);
+    if (sessionError) assert.match(html, /로그인 상태 확인 실패/);
+  });
+}
 check('initial session failure has an exit even with a token but no accessible content', () => {
   const authStore = selector => selector({ sessionError: '연결을 확인해 주세요.', accessToken: 'existing-token', isLoading: false, checkAuth: async () => {} });
   const html = renderToStaticMarkup(createElement(SharedSessionRecovery, { authStore }));

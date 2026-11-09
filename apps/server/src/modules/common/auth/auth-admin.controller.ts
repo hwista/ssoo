@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Put,
   Query,
@@ -27,8 +28,9 @@ import { AuthPolicyService } from './auth-policy.service.js';
 import { AuthRegistrationService } from './auth-registration.service.js';
 import { UpdateAuthProviderSettingsDto } from './dto/auth-policy.dto.js';
 import { RevokeUserSessionsDto } from './dto/auth-admin-operations.dto.js';
-import { DecideRegistrationRequestDto } from './dto/registration-request.dto.js';
+import { DecideRegistrationRequestDto, ListRegistrationRequestsQueryDto } from './dto/registration-request.dto.js';
 import { AuthAdminOperationsService } from './auth-admin-operations.service.js';
+import { EmailDeliveryListQuery, RetryEmailDeliveryDto } from './dto/email-delivery-operations.dto.js';
 import { AuthEmailOutboxWorkerService } from './auth-email-outbox-worker.service.js';
 
 @ApiTags('auth-admin')
@@ -129,9 +131,14 @@ export class AuthAdminController {
   @Roles('admin')
   @ApiOperation({ summary: '실패한 인증 메일 재시도' })
   @ApiParam({ name: 'messageId', description: '인증 메일 outbox message ID' })
-  async retryEmailDelivery(@Param('messageId') messageId: string) {
-    return success(await this.authEmailOutboxWorkerService.retry(messageId), '인증 메일 재시도 완료');
+  async retryEmailDelivery(@Param('messageId', ParseUUIDPipe) messageId: string, @Body() dto: RetryEmailDeliveryDto, @CurrentUser() user: TokenPayload) {
+    return success(await this.authEmailOutboxWorkerService.retry(messageId, dto, BigInt(user.userId)), '인증 메일 재시도 완료');
   }
+
+  @Get('email-delivery/messages')
+  @Roles('admin')
+  @ApiOperation({ summary: '인증 메일 상태별 전체 이력 목록 (본문 제외)' })
+  async emailMessages(@Query() query: EmailDeliveryListQuery) { return success(await this.authEmailOutboxWorkerService.listMessages(query)); }
 
   @Get('registration-requests')
   @Roles('admin')
@@ -140,16 +147,8 @@ export class AuthAdminController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'statusCode', required: false, enum: ['pending', 'approved', 'rejected', 'expired'] })
   @ApiOkResponse({ type: ApiSuccess })
-  async listRegistrationRequests(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('statusCode') statusCode?: string,
-  ) {
-    const result = await this.authRegistrationService.listRequests({
-      page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 20,
-      statusCode: statusCode || undefined,
-    });
+  async listRegistrationRequests(@Query() query: ListRegistrationRequestsQueryDto) {
+    const result = await this.authRegistrationService.listRequests({ page: query.page ?? 1, limit: query.limit ?? 20, statusCode: query.statusCode });
     return success(result, '가입 신청 목록 조회 성공');
   }
 

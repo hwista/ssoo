@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePlatformAccess } from '@ssoo/web-auth';
 import {
   organizationsApi,
   type CreateOrganizationRequest,
@@ -22,9 +23,15 @@ export function useOrganizationList(includeInactive: boolean) {
 
 function useOrganizationMutation<TVariables>(mutationFn: (variables: TVariables) => Promise<unknown>) {
   const queryClient = useQueryClient();
+  const access = usePlatformAccess();
   return useMutation({
     mutationFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: organizationKeys.all }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: organizationKeys.all }),
+        access?.refresh(),
+      ]);
+    },
   });
 }
 
@@ -40,4 +47,8 @@ export function useUpdateOrganization() {
 
 export function useDeactivateOrganization() {
   return useOrganizationMutation((id: string) => organizationsApi.deactivate(id));
+}
+
+export function useOrganizationImpact(id: string) {
+  return useQuery({ queryKey: [...organizationKeys.all, 'impact', id], queryFn: () => organizationsApi.impact(id), staleTime: 0 });
 }

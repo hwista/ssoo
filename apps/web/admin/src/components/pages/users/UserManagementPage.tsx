@@ -1,15 +1,25 @@
 'use client';
+import { ACCOUNT_STATUS_LABELS } from '../access/operating-labels';
+import { getAdminTabOptions } from '@/components/layout/navigation';
+import { ProgramContext } from '../access/ProgramContext';
+import { programPath } from '../access/program-context';
+import { getAdminBreadcrumb } from '@/components/layout/navigation';
+
 
 import { SsooErrorNotice, showSsooErrorAlert } from '@ssoo/web-shell';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { KeyRound, LockOpen, LogOut, Pencil, Plus, ShieldCheck, UserCheck, UserX } from 'lucide-react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { KeyRound, LockOpen, LogOut, Plus } from 'lucide-react';
+import { UserParticipationDialog } from '@/components/pages/access/UserParticipationDialog';
+import { OperationHistoryButton } from '@/components/pages/access/OperationHistoryButton';
 import {
   SsooDataWorkspacePage,
+  SsooWorkspacePage,
   SsooSearchInput,
   type SsooDataGridColumnDef,
   type SsooDataWorkspaceFilterValues,
 } from '@ssoo/web-shell';
+import { useTabStore } from '@/stores/tab.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { NativeSelect } from '@ssoo/web-ui';
 import { Button } from '@/components/ui/button';
@@ -53,14 +63,14 @@ const ROLE_OPTIONS = [
   { value: 'admin', label: '관리자' },
   { value: 'manager', label: '매니저' },
   { value: 'user', label: '사용자' },
-  { value: 'viewer', label: '뷰어' },
+  { value: 'viewer', label: '조회자' },
 ];
 
 const ROLE_LABEL: Record<string, string> = {
   admin: '관리자',
   manager: '매니저',
   user: '사용자',
-  viewer: '뷰어',
+  viewer: '조회자',
 };
 
 const PRIMARY_AFFILIATION_OPTIONS = [
@@ -79,6 +89,13 @@ function formatDateTime(dateStr?: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function UserParticipation({ user }: { user: UserItem }) {
+  return <div className="space-y-1 text-xs">
+    <p>{user.platformStatus === 'active' ? '플랫폼 참여 승인됨' : user.platformStatus === 'suspended' ? '플랫폼 참여 정지' : '소속 승인 대기'}</p>
+    <p className="whitespace-normal text-muted-foreground">{user.approvedOrganizations?.length ? user.approvedOrganizations.join(', ') : '승인된 소속 없음'}</p>
+  </div>;
 }
 
 interface UserFormData {
@@ -115,13 +132,18 @@ const INITIAL_FORM: UserFormData = {
 
 interface UserManagementPageProps {
   path?: string;
+  mode?: 'users' | 'accounts';
 }
 
-export function UserManagementPage({ path }: UserManagementPageProps) {
+export function UserManagementPage({ path, mode = 'users' }: UserManagementPageProps) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const openTab = useTabStore(state => state.openTab);
+  const activeTabPath = useTabStore((state) => state.tabs.find((tab) => tab.id === state.activeTabId)?.path);
   const currentUserId = useAuthStore((state) => state.user?.userId);
   const submitPending = useRef(false);
   const createIntentHandled = useRef(false);
+  const accountIntentHandled = useRef('');
   const pathParams = useMemo(() => new URLSearchParams(path?.split('?')[1] ?? ''), [path]);
   const sourceCompatible = searchParams.get('mode') === 'source-compatible'
     || pathParams.get('mode') === 'source-compatible';
@@ -129,7 +151,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>(mode === 'users' && !pathParams.get('search') && !pathParams.get('userId') ? 'active' : 'all');
   const [filterValues, setFilterValues] = useState<SsooDataWorkspaceFilterValues>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
@@ -137,15 +159,18 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [operationsUser, setOperationsUser] = useState<UserItem | null>(null);
+  const [participationUser, setParticipationUser] = useState<UserItem | null>(null);
   const [operationsMessage, setOperationsMessage] = useState<string | null>(null);
   const [operationsError, setOperationsError] = useState<string | null>(null);
 
   const limit = 20;
   const { data: response, isLoading, isFetching, error: listError, refetch } = useUserList({
+    userId: /^\d+$/.test(pathParams.get('userId') ?? '') ? pathParams.get('userId')! : undefined,
     page: sourceCompatible ? 1 : page,
     limit: sourceCompatible ? 100 : limit,
     search: sourceCompatible ? undefined : search || undefined,
     roleCode: sourceCompatible ? undefined : roleFilter || undefined,
+    isActive: sourceCompatible || statusFilter === 'all' ? undefined : statusFilter === 'active',
   }, sourceCompatible);
 
   const createMutation = useCreateUser();
@@ -161,7 +186,9 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   const blocked = isFetching || Boolean(listError) || mutationBusy;
   const operationsBusy = revokeSessionsMutation.isPending || unlockMutation.isPending || passwordResetMutation.isPending;
   const pathSearch = pathParams.get('search')?.trim() ?? '';
-  const shouldOpenCreateDialog = pathParams.get('create') === '1';
+  const accountUserId = pathParams.get('userId') ?? '';
+  const isActivePage = path ? activeTabPath === path : pathname === '/users';
+  const shouldOpenCreateDialog = isActivePage && (pathParams.get('create') === '1' || (!path && searchParams.get('create') === '1'));
 
   const users = useMemo(() => response?.data ?? [], [response?.data]);
   const total = response?.meta?.total ?? 0;
@@ -185,6 +212,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   const handleSearch = useCallback((values: SsooDataWorkspaceFilterValues) => {
     setSearch(values.search?.trim() ?? '');
     setRoleFilter(values.roleCode ?? '');
+    setStatusFilter((values.status as 'all' | 'active' | 'inactive') || 'all');
     setPage(1);
   }, []);
 
@@ -192,6 +220,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
     setFilterValues({});
     setSearch('');
     setRoleFilter('');
+    setStatusFilter('all');
     setPage(1);
   }, []);
 
@@ -205,10 +234,23 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   }, [blocked]);
 
   useEffect(() => {
-    setFilterValues((prev) => ({ ...prev, search: pathSearch }));
+    setFilterValues((prev) => ({ ...prev, search: pathSearch, ...(pathSearch ? { status: 'all' } : {}) }));
     setSearch(pathSearch);
+    if (pathSearch) setStatusFilter('all');
     setPage(1);
   }, [pathSearch]);
+
+  useEffect(() => {
+    const intent = mode === 'accounts' ? accountUserId : '';
+    if (!intent) { accountIntentHandled.current = ''; return; }
+    const target = users.find(user => user.id === intent);
+    if (isActivePage && target && accountIntentHandled.current !== intent) {
+      accountIntentHandled.current = intent;
+      setOperationsUser(target);
+      setOperationsMessage(null);
+      setOperationsError(null);
+    }
+  }, [accountUserId, isActivePage, mode, users]);
 
   useEffect(() => {
     if (!shouldOpenCreateDialog) createIntentHandled.current = false;
@@ -340,17 +382,6 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
     }
   }, [blocked, reactivateMutation]);
 
-  const handlePasswordReset = useCallback(async (user: UserItem) => {
-    if (blocked) return;
-    if (!window.confirm(`'${user.userName}' 사용자의 비밀번호 재설정 절차를 시작하시겠습니까?`)) return;
-    try {
-      await passwordResetMutation.mutateAsync(user.id);
-      window.alert('비밀번호 재설정 요청을 접수했습니다. 메일 outbox/delivery 상태를 확인하세요.');
-    } catch (error) {
-      showSsooErrorAlert(error instanceof Error ? error.message : '비밀번호 재설정 요청에 실패했습니다.');
-    }
-  }, [blocked, passwordResetMutation]);
-
   const openAccountOperations = useCallback((user: UserItem) => {
     setOperationsUser(user);
     setOperationsMessage(null);
@@ -359,15 +390,8 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
 
   const columns = useMemo<SsooDataGridColumnDef<UserItem>[]>(() => [
     {
-      accessorKey: 'loginId',
-      header: '로그인ID',
-      size: 120,
-      cell: ({ row }) => <span className="font-mono text-sm">{row.original.loginId}</span>,
-    },
-    {
-      accessorKey: 'userName',
-      header: '이름',
-      size: 100,
+      accessorKey: 'userName', header: '사용자', size: 200,
+      cell: ({ row }) => <div className="space-y-1"><span className="font-medium">{row.original.userName}</span><p className="break-all text-xs text-muted-foreground">{row.original.loginId}</p></div>,
     },
     {
       accessorKey: 'email',
@@ -396,24 +420,24 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
     },
     {
       accessorKey: 'departmentCode',
-      header: '부서',
+      header: '인사 부서 코드',
       size: 110,
       cell: ({ row }) => <span className="text-sm">{row.original.departmentCode ?? '-'}</span>,
     },
     {
       accessorKey: 'isActive',
-      header: '상태',
-      size: 80,
+      header: '계정 / 참여 상태',
+      size: 220,
       cell: ({ row }) => (
-        <span
+        <div className="space-y-1"><span
           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
             row.original.isActive
               ? 'bg-ssoo-success-bg text-ssoo-success'
               : 'bg-muted text-muted-foreground'
           }`}
         >
-          {row.original.isActive ? '활성' : '비활성'}
-        </span>
+          {row.original.isActive ? '계정 활성' : '계정 비활성'}
+        </span><UserParticipation user={row.original} /></div>
       ),
     },
     {
@@ -425,65 +449,23 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
     {
       id: 'actions',
       header: '작업',
-      size: 140,
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(event) => {
-              event.stopPropagation();
-              openEditDialog(row.original);
-            }}
-            title="수정"
-            disabled={blocked}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          {row.original.isSystemUser && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(event) => {
-                event.stopPropagation();
-                openAccountOperations(row.original);
-              }}
-              title="계정·세션 운영"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {row.original.isActive ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(event) => {
-                event.stopPropagation();
-                void handleDeactivate(row.original);
-              }}
-              title="비활성화"
-              disabled={blocked}
-            >
-              <UserX className="h-3.5 w-3.5 text-destructive" />
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(event) => {
-                event.stopPropagation();
-                void handleReactivate(row.original);
-              }}
-              title="재활성화"
-              disabled={blocked}
-            >
-              <UserCheck className="h-3.5 w-3.5 text-ssoo-success" />
-            </Button>
-          )}
+      size: mode === 'accounts' ? 280 : 350,
+      cell: ({ row: { original: user } }) => (
+        <div className="flex flex-wrap gap-1">
+          {mode === 'users' ? <>
+            <Button size="sm" disabled={blocked} onClick={() => openEditDialog(user)}>정보 수정</Button>
+            <Button variant="outline" size="sm" onClick={() => openTab(getAdminTabOptions(programPath('/memberships', { userId: user.id })))}>소속 관리 ↗</Button>
+            <Button variant="outline" size="sm" onClick={() => setParticipationUser(user)}>사용자 상세</Button>
+            {user.isSystemUser && <Button variant="link" size="sm" onClick={() => openTab(getAdminTabOptions(programPath('/accounts', { userId: user.id, search: user.loginId })))}>계정 복구 ↗</Button>}
+          </> : <>
+            {user.isSystemUser && <Button size="sm" onClick={() => openAccountOperations(user)}>계정 상태·복구</Button>}
+            <Button variant="outline" size="sm" disabled={blocked || user.id === currentUserId} onClick={() => void (user.isActive ? handleDeactivate(user) : handleReactivate(user))}>{user.isActive ? '계정 중지' : '계정 재활성화'}</Button>
+            <Button variant="link" size="sm" onClick={() => openTab(getAdminTabOptions(programPath('/users', { userId: user.id, search: user.loginId })))}>기본정보 ↗</Button>
+          </>}
         </div>
       ),
     },
-  ], [blocked, handleDeactivate, handleReactivate, openAccountOperations, openEditDialog]);
+  ], [blocked, handleDeactivate, handleReactivate, openAccountOperations, openEditDialog, mode, openTab, currentUserId]);
 
   const updateField = useCallback((field: keyof UserFormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -497,19 +479,10 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
   return (
     <>
       {sourceCompatible ? (
-        <main
-          className="flex min-h-full shrink-0 flex-col gap-5 bg-muted/20 p-4 sm:p-6"
-          data-testid="admin-user-management-source"
-          data-source-surface="users"
-        >
-          <header className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">계정 관리</h1>
-              <p className="mt-1 text-sm text-muted-foreground">시스템 사용자 계정을 조회하고 관리합니다.</p>
-            </div>
-            <Button onClick={openCreateDialog} disabled={blocked}>+ 신규 계정 등록</Button>
-          </header>
-
+        <SsooWorkspacePage compact title="계정 관리" description="시스템 사용자 계정을 조회하고 관리합니다. 계정 등록 후 관리자가 소속을 배치하거나 직원이 소속을 신청할 수 있습니다. 부서 코드 입력만으로 소속이나 서비스 이용 권한이 생기지 않습니다."
+          breadcrumbItems={getAdminBreadcrumb('/users')} scrollBody
+          contentDataAttributes={{ 'data-testid': 'admin-user-management-source', 'data-source-surface': 'users' }}
+          headerActions={{ extraActions: [{ label: '+ 신규 계정 등록', onClick: openCreateDialog, disabled: blocked }] }}>
           <p className="rounded-lg border border-ssoo-warning-border bg-ssoo-warning-bg px-4 py-3 text-sm text-ssoo-warning">
             ☆ &nbsp;관리자 전용 페이지입니다.
           </p>
@@ -565,7 +538,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
               <Table className="min-w-[1120px] text-sm">
                 <TableHeader className="bg-muted/60 text-xs text-muted-foreground">
                   <TableRow>
-                    <TableHead>아이디</TableHead><TableHead>이름</TableHead><TableHead>부서</TableHead>
+                    <TableHead>아이디</TableHead><TableHead>이름</TableHead><TableHead>인사 부서 코드</TableHead>
                     <TableHead>역할</TableHead><TableHead>상태</TableHead><TableHead>최근 로그인</TableHead>
                     <TableHead>연락처</TableHead><TableHead>이메일</TableHead><TableHead>계정 유형</TableHead><TableHead>작업</TableHead>
                   </TableRow>
@@ -583,23 +556,16 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                       <TableCell className="font-medium">{user.userName}</TableCell>
                       <TableCell>{user.departmentCode ?? '-'}</TableCell>
                       <TableCell>{ROLE_LABEL[user.roleCode] ?? user.roleCode}</TableCell>
-                      <TableCell><span className={user.isActive ? 'text-ssoo-success' : 'text-muted-foreground'}>{user.isActive ? '활성' : '비활성'}</span></TableCell>
+                      <TableCell><span className={user.isActive ? 'text-ssoo-success' : 'text-muted-foreground'}>{user.isActive ? '계정 활성' : '계정 비활성'}</span><UserParticipation user={user} /></TableCell>
                       <TableCell>{formatDateTime(user.lastLoginAt)}</TableCell>
                       <TableCell>{user.phone ?? '-'}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>{user.roleCode === 'admin' ? '관리자' : '일반'}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          <Button size="sm" variant="outline" onClick={() => openEditDialog(user)} disabled={blocked}>수정</Button>
-                          <Button size="sm" variant="outline" onClick={() => void handlePasswordReset(user)} disabled={blocked}>비밀번호 초기화</Button>
-                          {user.id === currentUserId ? <span className="px-2 py-1 text-xs text-muted-foreground">본인 계정</span> : user.isActive ? (
-                            <Button size="sm" variant="destructive" onClick={() => void handleDeactivate(user)} disabled={blocked}>비활성화</Button>
-                          ) : (
-                            <Button size="sm" variant="outline" onClick={() => void handleReactivate(user)} disabled={blocked}>활성화</Button>
-                          )}
-                          {user.isSystemUser ? (
-                            <Button size="sm" variant="ghost" onClick={() => openAccountOperations(user)}>계정·세션 운영</Button>
-                          ) : null}
+                          <Button size="sm" onClick={() => openEditDialog(user)} disabled={blocked}>정보 수정</Button>
+                          <Button size="sm" variant="outline" onClick={() => setParticipationUser(user)}>사용자 상세</Button>
+                          <Button size="sm" variant="outline" onClick={() => openTab(getAdminTabOptions(programPath('/accounts', { userId: user.id, search: user.loginId })))}>계정 복구 ↗</Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -609,16 +575,21 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
             </div>
           </section>
           <footer className="text-xs text-muted-foreground">{sourceUsers.length}개 표시 중 (전체 {users.length}개)</footer>
-        </main>
+        </SsooWorkspacePage>
       ) : (
-        <SsooDataWorkspacePage
-          breadcrumb={['admin', 'users']}
+        <SsooDataWorkspacePage compact
+          statusSlot={accountUserId ? <ProgramContext context={{ userId: accountUserId }} basePath={mode === 'accounts' ? '/accounts' : '/users'} /> : undefined}
+          breadcrumbItems={getAdminBreadcrumb(mode === 'accounts' ? '/accounts' : '/users')}
+          title={mode === 'accounts' ? '계정 상태·복구' : '사용자 관리'}
+          description={mode === 'accounts' ? '계정 중지·잠금 해제·세션 회수·비밀번호 복구를 처리합니다.' : '사용자 기본정보와 기본 역할을 관리합니다. 조직 소속은 소속 관리에서 배치합니다.'}
           toolbar={{
+            filterSummary: [search ? `검색: ${search}` : '전체 사용자', roleFilter ? `역할: ${ROLE_LABEL[roleFilter] ?? roleFilter}` : '', statusFilter === 'active' ? '활성 계정' : statusFilter === 'inactive' ? '중지 계정' : '전체 상태'].filter(Boolean).join(' · '),
             actions: [
               {
-                label: '사용자 추가',
-                icon: <Plus className="h-4 w-4" />,
-                onClick: openCreateDialog,
+                label: mode === 'accounts' ? '사용자 관리 ↗' : '사용자 추가',
+                variant: mode === 'accounts' ? 'outline' : 'default',
+                icon: mode === 'accounts' ? undefined : <Plus className="h-4 w-4" />,
+                onClick: mode === 'accounts' ? () => openTab(getAdminTabOptions('/users')) : openCreateDialog,
                 disabled: blocked,
               },
             ],
@@ -626,20 +597,24 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
               {
                 key: 'search',
                 type: 'text',
-                id: 'admin-user-filter-search-input',
-                name: 'admin-user-filter-search-query',
+                id: mode === 'accounts' ? 'admin-account-filter-search-input' : 'admin-user-filter-search-input',
+                name: mode === 'accounts' ? 'admin-account-filter-search-query' : 'admin-user-filter-search-query',
                 ariaLabel: '이름, 로그인ID, 이메일 검색',
                 placeholder: '이름, 로그인ID, 이메일 검색',
                 width: '280px',
               },
               { key: 'roleCode', type: 'select', placeholder: '역할 전체', options: ROLE_OPTIONS, width: '160px' },
+              { key: 'status', type: 'select', placeholder: '전체 상태', options: [{ label: '전체 상태', value: 'all' }, { label: '활성 계정', value: 'active' }, { label: '중지 계정', value: 'inactive' }], width: '150px' },
             ],
-            filterValues,
+            filterValues: { ...filterValues, status: filterValues.status ?? statusFilter },
             onFilterValuesChange: setFilterValues,
             onSearch: handleSearch,
             onReset: handleReset,
           }}
           table={{
+            fitViewport: true, mobileSummaryColumns: mode === 'accounts' ? ['userName', 'isActive', 'lastLoginAt', 'actions'] : ['userName', 'roleCode', 'isActive', 'actions'],
+            enableColumnVisibility: true,
+            defaultColumnVisibility: mode === 'accounts' ? { roleCode: false, departmentCode: false } : { email: false, departmentCode: false, lastLoginAt: false },
             columns,
             data: users,
             loading: isLoading,
@@ -708,10 +683,10 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
             </div>
 
             {/* Name row */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">이름 *</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="admin-user-userName">이름 *</label>
+                <Input id="admin-user-userName"
                   value={form.userName}
                   onChange={(e) => updateField('userName', e.target.value)}
                   placeholder="이름"
@@ -721,8 +696,8 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 )}
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">표시명</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="admin-user-displayName">표시명</label>
+                <Input id="admin-user-displayName"
                   value={form.displayName}
                   onChange={(e) => updateField('displayName', e.target.value)}
                   placeholder="표시명"
@@ -731,7 +706,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
             </div>
 
             {/* Email + Phone */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <label className="text-sm font-medium" htmlFor="managed-user-email">이메일 *</label>
                 <Input
@@ -753,8 +728,8 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 )}
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">전화번호</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="admin-user-phone">전화번호</label>
+                <Input id="admin-user-phone"
                   value={form.phone}
                   onChange={(e) => updateField('phone', e.target.value)}
                   placeholder="010-1234-5678"
@@ -763,7 +738,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
             </div>
 
             {/* Role + Department + Position */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               <div className="grid gap-1.5">
                 <label className="text-sm font-medium">역할</label>
                 <Select value={form.roleCode} onValueChange={(v) => updateField('roleCode', v)}>
@@ -780,16 +755,16 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">부서</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="admin-user-departmentCode">인사 부서 코드 (선택)</label>
+                <Input id="admin-user-departmentCode"
                   value={form.departmentCode}
                   onChange={(e) => updateField('departmentCode', e.target.value)}
                   placeholder="부서 코드"
-                />
+                /><p className="text-xs text-muted-foreground">인사 참고 정보입니다. 실제 소속은 본인 신청과 관리자 승인으로 정해집니다.</p>
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">직급</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="admin-user-positionCode">직급</label>
+                <Input id="admin-user-positionCode"
                   value={form.positionCode}
                   onChange={(e) => updateField('positionCode', e.target.value)}
                   placeholder="직급 코드"
@@ -798,9 +773,9 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
             </div>
 
             {/* Primary Affiliation + Employee Number */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">Primary 소속</label>
+                <label className="text-sm font-medium">인사 소속 구분</label>
                 <Select
                   value={form.primaryAffiliationType || EMPTY_SELECT_VALUE}
                   onValueChange={(v) =>
@@ -821,8 +796,8 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">사번</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="admin-user-employeeNumber">사번</label>
+                <Input id="admin-user-employeeNumber"
                   value={form.employeeNumber}
                   onChange={(e) => updateField('employeeNumber', e.target.value)}
                   placeholder="사번"
@@ -831,18 +806,18 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
             </div>
 
             {/* Company + Customer ID */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">외부 회사명</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="admin-user-companyName">외부 회사명</label>
+                <Input id="admin-user-companyName"
                   value={form.companyName}
                   onChange={(e) => updateField('companyName', e.target.value)}
                   placeholder="외부 회사명"
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">고객사 ID</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="admin-user-customerId">고객사 ID</label>
+                <Input id="admin-user-customerId"
                   value={form.customerId}
                   onChange={(e) => updateField('customerId', e.target.value)}
                   placeholder="고객사 ID"
@@ -866,6 +841,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
         </DialogContent>
       </Dialog>
 
+      {participationUser ? <UserParticipationDialog user={participationUser} onClose={() => setParticipationUser(null)} /> : null}
       <Dialog open={Boolean(operationsUser)} onOpenChange={(open) => {
         if (!open && !operationsBusy) setOperationsUser(null);
       }}>
@@ -890,7 +866,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-lg border p-3">
                     <p className="text-xs text-muted-foreground">계정 상태</p>
-                    <p className="mt-1 text-sm font-medium">{account.authAccount?.accountStatusCode ?? '로그인 계정 없음'}</p>
+                    <p className="mt-1 text-sm font-medium">{ACCOUNT_STATUS_LABELS[account.authAccount?.accountStatusCode ?? 'missing'] ?? account.authAccount?.accountStatusCode}</p>
                   </div>
                   <div className="rounded-lg border p-3">
                     <p className="text-xs text-muted-foreground">로그인 잠금</p>
@@ -949,7 +925,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                       setOperationsMessage(null);
                       try {
                         await passwordResetMutation.mutateAsync(operationsUser.id);
-                        setOperationsMessage('비밀번호 재설정 요청을 접수했습니다. 메일 outbox/delivery 상태를 확인하세요.');
+                        setOperationsMessage('비밀번호 재설정 요청을 접수했습니다. 인증 메일 운영에서 전달 상태를 확인하세요.');
                       } catch (error) {
                         setOperationsError(error instanceof Error ? error.message : '재설정 요청에 실패했습니다.');
                       }
@@ -959,6 +935,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                     <KeyRound className="mr-1 h-4 w-4" />
                     재설정 메일 요청
                   </Button>
+                  <OperationHistoryButton filter={{ userId: account.userId }} label="사용자 변경 이력" onNavigate={() => setOperationsUser(null)} />
                 </div>
 
                 {operationsMessage && (
@@ -973,7 +950,7 @@ export function UserManagementPage({ path }: UserManagementPageProps) {
                 <section className="rounded-lg border">
                   <div className="border-b px-4 py-3">
                     <h3 className="text-sm font-semibold">최근 세션</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">최대 50건 · 토큰 원문은 노출하지 않습니다.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">최근 최대 50건 · 활성 세션 수는 전체 기준이며 토큰 원문은 노출하지 않습니다.</p>
                   </div>
                   <div className="divide-y">
                     {account.sessions.length === 0 ? (

@@ -1,8 +1,12 @@
 'use client';
+import { ProgramContext } from '../access/ProgramContext';
+import { readProgramContext } from '../access/program-context';
+import { getAdminBreadcrumb } from '@/components/layout/navigation';
 
 import { SsooErrorNotice, showSsooErrorAlert } from '@ssoo/web-shell';
 import { useCallback, useMemo, useState } from 'react';
-import { Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Pencil, Plus, RotateCcw, Trash2, Users } from 'lucide-react';
+import { OrganizationRelationsPanel } from './OrganizationRelationsPanel';
 import { SsooDataWorkspacePage, type SsooDataGridColumnDef } from '@ssoo/web-shell';
 import { Badge, NativeSelect } from '@ssoo/web-ui';
 import { Button } from '@/components/ui/button';
@@ -56,9 +60,12 @@ const INITIAL_FORM: OrganizationForm = {
   memo: '',
 };
 
-export function OrgManagementPage() {
-  const [includeInactive, setIncludeInactive] = useState(false);
+export function OrgManagementPage({ path = '' }: { path?: string }) {
+  const { organizationId } = readProgramContext(path);
+  const [search, setSearch] = useState('');
+  const [includeInactive, setIncludeInactive] = useState(Boolean(organizationId));
   const [editing, setEditing] = useState<OrganizationItem | null>(null);
+  const [membershipOrganization, setMembershipOrganization] = useState<OrganizationItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<OrganizationForm>(INITIAL_FORM);
   const [formError, setFormError] = useState<string | null>(null);
@@ -72,12 +79,27 @@ export function OrgManagementPage() {
     [organizations],
   );
 
-  const openCreate = useCallback(() => {
+  const organizationPaths = useMemo(() => {
+    const byId = new Map(organizations.map((organization) => [organization.orgId, organization]));
+    return new Map(organizations.map((organization) => {
+      const names: string[] = [];
+      const visited = new Set<string>();
+      let current: OrganizationItem | undefined = organization;
+      while (current && !visited.has(current.orgId)) {
+        visited.add(current.orgId); names.unshift(current.orgName);
+        current = current.parentOrgId ? byId.get(current.parentOrgId) : undefined;
+      }
+      return [organization.orgId, `${names.join(' › ')} (${organization.orgCode})`];
+    }));
+  }, [organizations]);
+
+  const openCreate = useCallback((parent?: OrganizationItem) => {
     setEditing(null);
-    setForm(INITIAL_FORM);
+    const type = activeOrganizations.some((organization) => organization.orgType === 'company') ? 'team' : 'company';
+    setForm({ ...INITIAL_FORM, orgType: parent ? 'team' : type, levelType: parent ? 'team' : type, parentOrgId: parent?.orgId ?? ROOT_ORG_VALUE });
     setFormError(null);
     setDialogOpen(true);
-  }, []);
+  }, [activeOrganizations]);
 
   const openEdit = useCallback((organization: OrganizationItem) => {
     setEditing(organization);
@@ -95,7 +117,9 @@ export function OrgManagementPage() {
   }, []);
 
   const updateField = useCallback(<K extends keyof OrganizationForm>(key: K, value: OrganizationForm[K]) => {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => ({ ...current, [key]: value,
+      ...(key === 'orgType' && (!current.levelType || current.levelType === current.orgType) ? { levelType: value } : {}),
+    }));
     setFormError(null);
   }, []);
 
@@ -128,24 +152,25 @@ export function OrgManagementPage() {
   }, [createMutation, editing, form, updateMutation]);
 
   const columns = useMemo<SsooDataGridColumnDef<OrganizationItem>[]>(() => [
+    { accessorKey: 'orgName', header: '조직 · 관리 작업', size: 240, cell: ({ row }) => <div className="space-y-2 py-1"><p className="font-medium">{row.original.orgName}</p><p className="text-xs text-muted-foreground">{organizationPaths.get(row.original.orgId)}</p><Button variant="outline" size="sm" title="조직 연결 정보" aria-label="조직 연결 정보" onClick={() => setMembershipOrganization(row.original)}><Users className="h-3.5 w-3.5" />연결 정보</Button>{row.original.isActive && <Button variant="outline" size="sm" onClick={() => openCreate(row.original)}>하위 조직 추가</Button>}</div> },
     {
       accessorKey: 'orgCode',
       header: '조직 코드',
       size: 140,
       cell: ({ row }) => <span className="font-mono text-xs">{row.original.orgCode}</span>,
     },
-    { accessorKey: 'orgName', header: '조직명', size: 180 },
+
     {
       accessorKey: 'parent',
       header: '상위 조직',
       size: 180,
-      cell: ({ row }) => row.original.parent?.orgName ?? '최상위',
+      cell: ({ row }) => (row.original.parentOrgId ? organizationPaths.get(row.original.parentOrgId) : null) ?? '최상위',
     },
     {
       accessorKey: 'orgType',
       header: '유형',
       size: 110,
-      cell: ({ row }) => ORG_TYPES.find((item) => item.value === row.original.orgType)?.label ?? row.original.orgType,
+      cell: ({ row }) => ORG_TYPES.find((item) => item.value === row.original.orgType)?.label ?? ({ internal: '내부 조직', external: '외부 조직' }[row.original.orgType] ?? row.original.orgType),
     },
     {
       accessorKey: 'activeMemberCount',
@@ -171,17 +196,18 @@ export function OrgManagementPage() {
     },
     {
       id: 'actions',
-      header: '작업',
-      size: 110,
+      header: '정보·상태 변경',
+      size: 150,
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" title="수정" onClick={() => openEdit(row.original)}>
-            <Pencil className="h-3.5 w-3.5" />
+        <div className="flex flex-wrap items-center gap-1">
+
+          <Button variant="outline" size="sm" title="수정" onClick={() => openEdit(row.original)}>
+            <Pencil className="h-3.5 w-3.5" />정보 수정
           </Button>
           {row.original.isActive ? (
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               title="비활성화"
               disabled={deactivateMutation.isPending}
               onClick={async () => {
@@ -193,31 +219,34 @@ export function OrgManagementPage() {
                 }
               }}
             >
-              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />비활성화
             </Button>
           ) : (
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               title="재활성화"
               disabled={updateMutation.isPending}
               onClick={() => updateMutation.mutate({ id: row.original.orgId, data: { isActive: true } })}
             >
-              <RotateCcw className="h-3.5 w-3.5 text-ssoo-success" />
+              <RotateCcw className="h-3.5 w-3.5 text-ssoo-success" />재활성화
             </Button>
           )}
+          {!dialogOpen && updateMutation.isError && updateMutation.variables?.id === row.original.orgId && <SsooErrorNotice compact className="basis-full" error={updateMutation.error} />}
         </div>
       ),
     },
-  ], [deactivateMutation, openEdit, updateMutation]);
+  ], [deactivateMutation, dialogOpen, openCreate, openEdit, organizationPaths, updateMutation]);
 
   return (
     <>
-      <SsooDataWorkspacePage
-        breadcrumb={['admin', 'organizations']}
+      <SsooDataWorkspacePage compact
+        breadcrumbItems={getAdminBreadcrumb('/organizations')}
+        title="회사·조직 관리"
+        description="회사는 최상위 조직으로, 팀은 소속 회사를 상위 조직으로 지정합니다. 연결 정보에서 영향 범위를 확인하고 소속·이용권·권한 담당 프로그램으로 이동합니다."
         toolbar={{
-          actions: [{ label: '조직 추가', icon: <Plus className="h-4 w-4" />, onClick: openCreate }],
-          filters: [{
+          actions: [{ label: '조직 추가', icon: <Plus className="h-4 w-4" />, onClick: () => openCreate() }],
+          filters: [{ key: 'search', type: 'text', id: 'admin-org-filter-input', name: 'admin-org-filter-query', ariaLabel: '조직 이름·코드 검색', placeholder: '조직 이름·코드·상위 경로', width: '280px' }, {
             key: 'status',
             type: 'select',
             placeholder: '활성 조직',
@@ -227,13 +256,15 @@ export function OrgManagementPage() {
             ],
             width: '160px',
           }],
-          filterValues: { status: includeInactive ? 'all' : 'active' },
-          onFilterValuesChange: (values) => setIncludeInactive(values.status === 'all'),
+          filterValues: { search, status: includeInactive ? 'all' : 'active' },
+          onFilterValuesChange: (values) => { setIncludeInactive(values.status === 'all'); setSearch(String(values.search ?? '')); },
           collapsible: false,
         }}
+        statusSlot={organizationId ? <ProgramContext context={{ organizationId }} basePath="/organizations" /> : undefined}
         table={{
+          fitViewport: true, mobileSummaryColumns: ['orgName', 'parent', 'isActive', 'actions'],
           columns,
-          data: organizations,
+          data: organizations.filter(org => (!organizationId || org.orgId === organizationId) && (organizationPaths.get(org.orgId) ?? '').toLowerCase().includes(search.trim().toLowerCase())).sort((a, b) => (organizationPaths.get(a.orgId) ?? '').localeCompare(organizationPaths.get(b.orgId) ?? '', 'ko')),
           loading: listQuery.isLoading,
           error: listQuery.error,
           onRetry: () => listQuery.refetch(),
@@ -241,11 +272,12 @@ export function OrgManagementPage() {
         }}
       />
 
+      <Dialog open={Boolean(membershipOrganization)} onOpenChange={(open) => { if (!open) setMembershipOrganization(null); }}><DialogContent className="max-h-[90dvh] grid-cols-1 overflow-y-auto sm:max-w-5xl"><DialogHeader><DialogTitle>조직 연결 정보</DialogTitle><DialogDescription>{membershipOrganization?.orgName} · {membershipOrganization?.orgCode}</DialogDescription></DialogHeader>{membershipOrganization ? <OrganizationRelationsPanel key={membershipOrganization.orgId} organizationId={membershipOrganization.orgId} onNavigate={() => setMembershipOrganization(null)} /> : null}</DialogContent></Dialog>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? '조직 수정' : '조직 추가'}</DialogTitle>
-            <DialogDescription>공용 조직 마스터와 상하위 계층에 즉시 반영됩니다.</DialogDescription>
+            <DialogDescription>회사와 팀을 등록합니다. 조직 코드는 이름이 같은 조직을 구분하는 고유값이며, 등록 후 변경할 수 없습니다.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -287,17 +319,26 @@ export function OrgManagementPage() {
                 <NativeSelect value={form.parentOrgId} onChange={(event) => updateField('parentOrgId', event.target.value)}>
                   <option value={ROOT_ORG_VALUE}>최상위</option>
                   {activeOrganizations
-                    .filter((organization) => organization.orgId !== editing?.orgId)
+                    .filter((organization) => {
+                      const visited = new Set<string>();
+                      let current: OrganizationItem | undefined = organization;
+                      while (current && !visited.has(current.orgId)) {
+                        if (current.orgId === editing?.orgId) return false;
+                        visited.add(current.orgId);
+                        current = organizations.find(item => item.orgId === current?.parentOrgId);
+                      }
+                      return true;
+                    })
                     .map((organization) => (
                       <option key={organization.orgId} value={organization.orgId}>
-                        {organization.orgName} ({organization.orgCode})
+                        {organizationPaths.get(organization.orgId)}
                       </option>
                     ))}
                 </NativeSelect>
               </label>
               <label className="grid gap-1.5 text-sm font-medium">
-                레벨 유형
-                <Input value={form.levelType} onChange={(event) => updateField('levelType', event.target.value)} />
+                조직 분류 코드 (선택)
+                <Input value={form.levelType} onChange={(event) => updateField('levelType', event.target.value)} /><span className="text-xs font-normal text-muted-foreground">조직 유형에 따라 자동 입력됩니다. 별도 운영 기준이 없다면 그대로 두세요.</span>
               </label>
             </div>
             <label className="grid gap-1.5 text-sm font-medium">

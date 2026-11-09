@@ -1,6 +1,30 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength, IsInt, Min, Max, IsISO8601 } from 'class-validator';
 import type { OnboardingRequestKind, OnboardingRoleCode, OnboardingServiceCode } from '@ssoo/types/common';
+
+export class ApprovalCandidatesQueryDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100)
+  search?: string;
+
+  @ApiPropertyOptional() @IsOptional() @Matches(/^[1-9]\d{0,18}$/)
+  organizationId?: string;
+
+  @ApiPropertyOptional({ default: 1 }) @IsInt() @Min(1) @Max(100000)
+  page: number = 1;
+}
+
+export class ApprovalReviewsQueryDto {
+  @ApiPropertyOptional({ enum: ['pending', 'approved', 'rejected', 'cancelled'] })
+  @IsIn(['pending', 'approved', 'rejected', 'cancelled'])
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled' = 'pending';
+
+  @ApiPropertyOptional({ enum: ['membership', 'organization', 'service'] })
+  @IsOptional() @IsIn(['membership', 'organization', 'service'])
+  kind?: OnboardingRequestKind;
+
+  @ApiPropertyOptional({ default: 1 }) @IsInt() @Min(1) @Max(100000)
+  page: number = 1;
+}
 
 export class CreateOnboardingRequestDto {
   @ApiProperty({ enum: ['membership', 'organization', 'service'] })
@@ -37,6 +61,15 @@ export class DecideOnboardingRequestDto {
 }
 
 export class SetApprovalAuthorityDto {
+  @ApiProperty() @IsString() @MinLength(1) @MaxLength(2000)
+  reason!: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsISO8601({ strict: true })
+  expiresAt?: string | null;
+
+  @ApiPropertyOptional() @IsOptional() @IsISO8601({ strict: true })
+  expectedUpdatedAt?: string;
+
   @ApiProperty() @Matches(/^[1-9]\d{0,18}$/)
   userId!: string;
 

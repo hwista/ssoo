@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsISO8601, Matches, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ListRegistrationRequestsQueryDto {
@@ -22,6 +22,9 @@ export class ListRegistrationRequestsQueryDto {
 }
 
 export class DecideRegistrationRequestDto {
+  @ApiPropertyOptional({ description: '조회한 가입 신청 변경 시각' })
+  @IsISO8601({ strict: true })
+  expectedUpdatedAt!: string;
   @ApiPropertyOptional({ description: '승인 시 부여할 역할 코드', default: 'user' })
   @IsString()
   @MaxLength(40)
@@ -31,6 +34,6 @@ export class DecideRegistrationRequestDto {
   @ApiPropertyOptional({ description: '승인/반려 메모' })
   @IsString()
   @MaxLength(1000)
-  @IsOptional()
-  memo?: string | null;
+  @Matches(/\S/)
+  memo!: string;
 }

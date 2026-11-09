@@ -1,4 +1,5 @@
 import { defineSsooHomeEntry, isSsooHomeEntry, normalizeSsooHomeTabs } from '@ssoo/web-shell';
+import { ssooToast } from '@ssoo/web-shell';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -74,6 +75,7 @@ export const useTabStore = create<AdminTabStore>()(
         }
 
         if (get().tabs.length >= get().maxTabs) {
+          ssooToast.warning(`열린 탭이 ${get().maxTabs}개입니다. 사용하지 않는 탭을 닫은 뒤 다시 선택해 주세요.`);
           return '';
         }
 

@@ -1,7 +1,9 @@
 ````mdc
+
+- [최소 자원 로컬 연동과 Admin 전환](explanation/architecture/2026-11-05-local-runtime-integrations.md)
 # 공용 문서 (Common)
 
-> 최종 업데이트: 2026-09-17
+> 최종 업데이트: 2026-11-04
 
 PMS와 DMS 모두에 공통 적용되는 개발 표준, 가이드, 아키텍처 문서입니다.
 
@@ -31,6 +33,16 @@ PMS와 DMS 모두에 공통 적용되는 개발 표준, 가이드, 아키텍처 
 
 | 문서 | 설명 |
 |------|------|
+| [원격 반영 전 보안 패치](guides/2026-11-09-security-publish.md) | 보안 의존성 버전, Zod 호환성, 재검증과 남은 감사 항목 |
+| [Admin 공통 관리 프로그램 목록](explanation/architecture/2026-11-04-admin-program-catalog.md) | 관리 프로그램 17개 후보·보조 3개, 기존 구현과 15개 운영 시나리오의 사용 순서 |
+| [Admin 공통 프로그램 구현·검증 대장](explanation/architecture/2026-11-04-admin-program-implementation.md) | 17개 프로그램의 구현 진행, 관계 변경 규칙, 15개 시나리오의 실제 검증 증거 관리 |
+| [Admin 역할 경계·사용성 재검증](explanation/architecture/2026-11-06-admin-boundary-acceptance.md) | 17개 프로그램의 변경 책임, 담당 화면 연결, 최신 전수 검수와 실제 처리 검증 |
+| [보류한 외부 연동 설정과 재개](guides/deferred-external-integrations.md) | 예산 확보 후 SMTP·임베딩·Microsoft 연결을 적용할 어드민/서버 설정과 검증 순서 |
+| [Admin 다음 운영 시나리오](explanation/architecture/2026-11-05-admin-next-scenarios.md) | 기존 프로그램을 재사용하는 권한 회수 중 저장·시간 경계·중단 후 재개 검토 |
+| [Admin 플랫폼 공통 관리 범위](explanation/architecture/2026-11-04-admin-common-management-scope.md) | 우선 적용할 9개 공통 관리 영역, 도메인 경계, 15개 운영 검증 시나리오 |
+| [플랫폼 운영 마스터·관리 프로그램 목록](explanation/architecture/2026-11-03-master-data-program-inventory.md) | 36개 관리 책임, 데이터 연결, 기존 프로그램과 운영 공백의 코드 기반 검토안 |
+| [조직·계정·접근 권한 사용과 검증](guides/initial-operating-setup.md) | 독립 기능의 메뉴별 사용과 S01 업무 순서 |
+| [소속·서비스 접근 관리 설계](explanation/architecture/2026-10-27-functional-access-management.md) | 통합 시나리오 화면 제거, 기능별 책임과 검증 상태 |
 | [출시 준비 5단계 실행 계획](explanation/architecture/2026-09-11-launch-ralph-plan.md) | 전 서비스 검증과 CRM 선행 정리, DMS 및 공용 사용 환경 보존 경계 |
 | [알림 연결 오류 후속](explanation/architecture/2026-09-17-notification-stream-handoff.md) | 원인 재현·공통 내부 수정과 재접속/만료 검증, 승인 집계 유지 |
 | [계약 초안 내부 승인 결과](explanation/architecture/2026-09-17-contract-internal-approval-handoff.md) | 실제 지정 승인자 한 명의 요청·처리·이력 완료·19완료/3잔여 |

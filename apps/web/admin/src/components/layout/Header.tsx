@@ -7,6 +7,7 @@ import {
   getSsooUserSurfaceTabPath,
   getSsooUserSurfaceTabTitle,
   useSharedLogout,
+  usePlatformAccess,
   type SsooUserSurfaceTabKind,
 } from '@ssoo/web-auth';
 import { SsooAppHeader, SsooHeaderUserMenuLoadingState, useSsooGlobalHeaderSearch } from '@ssoo/web-shell';
@@ -29,6 +30,8 @@ export function AdminHeader({
   onMobileMenuClick,
 }: AdminHeaderProps) {
   const user = useAuthStore((s) => s.user);
+  const access = usePlatformAccess();
+  const canManage = access?.snapshot.isPlatformAdmin === true && access.snapshot.status === 'active';
   const openTab = useTabStore((s) => s.openTab);
   const router = useRouter();
   const logout = useSharedLogout({
@@ -81,8 +84,8 @@ export function AdminHeader({
         title: mobileMenuOpen ? '모바일 메뉴 닫기' : '모바일 메뉴 열기',
         onClick: onMobileMenuClick,
       } : null}
-      search={mobile ? null : globalHeaderSearch.search}
-      primaryAction={mobile ? null : {
+      search={mobile || !canManage ? null : globalHeaderSearch.search}
+      primaryAction={mobile || !canManage ? null : {
         label: '새 사용자',
         iconSlot: <Plus />,
         onClick: handleCreateUser,

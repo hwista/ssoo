@@ -33,6 +33,7 @@ import {
   Textarea,
 } from '@ssoo/web-ui';
 import { SSOO_CONTENT_PAGE_METRICS, SSOO_PAGE_CHROME_METRICS } from '@ssoo/web-shell';
+import { useTabStore } from '@/stores/tab.store';
 import { useAuthStore } from '@/stores/auth.store';
 
 interface BackendSuccessResponse<T> {
@@ -78,6 +79,7 @@ function toUpdateRequest(settings: CrmSettings): CrmSettingsUpdateRequest {
 }
 
 export function CrmSettingsWorkspaceClient() {
+  const openTab = useTabStore(state => state.openTab);
   const accessToken = useAuthStore((state) => state.accessToken);
   const [settings, setSettings] = useState<CrmSettings | null>(null);
   const [draft, setDraft] = useState<CrmSettingsUpdateRequest | null>(null);
@@ -183,7 +185,7 @@ export function CrmSettingsWorkspaceClient() {
               <p className="mt-1 text-sm text-muted-foreground">비밀정보를 저장하지 않는 문서 연동·운영 임계값 정본</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => openTab({ title: 'CRM 업무 코드', path: '/operations/settings?view=codes' })}>업무 코드 관리 ↗</Button>
             <Button variant="outline" size="sm" type="button" onClick={() => void load()} disabled={!accessToken || isLoading || isSaving}>
               <RefreshCw className="h-4 w-4" /> 새로고침
             </Button>

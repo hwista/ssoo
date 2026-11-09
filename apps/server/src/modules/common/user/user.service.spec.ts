@@ -7,7 +7,7 @@ function setup() {
   const conflict = { code: 'P2002' };
   const transaction = jest.fn(async () => { throw conflict; });
   const db = { client: { $transaction: transaction }, user: { findUnique: jest.fn(async () => null) } } as unknown as DatabaseService;
-  return { service: new UserService(db), transaction };
+  return { service: new UserService(db, {} as never), transaction };
 }
 
 describe('UserService account input recovery', () => {

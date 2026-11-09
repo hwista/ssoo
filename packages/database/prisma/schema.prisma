@@ -692,7 +692,7 @@ model AiEmbedding {
   modelName          String?                      @map("model_name") @db.VarChar(160)
   deploymentName     String?                      @map("deployment_name") @db.VarChar(160)
   embeddingDimension Int                          @map("embedding_dimension")
-  embedding          Unsupported("vector(1536)")? @map("embedding")
+  embedding          Unsupported("vector")? @map("embedding")
   embeddingHash      String?                      @map("embedding_hash") @db.VarChar(128)
   metadataJson       Json?                        @map("metadata_jsonb") @db.JsonB
 
@@ -8401,4 +8401,44 @@ model SnsPostAccessRequestHistory {
   @@id([id, historySeq])
   @@map("sns_post_access_request_h")
   @@schema("sns")
+}
+
+model IntegrationSetting {
+  kind String @id @map("kind") @db.VarChar(40)
+  config Json @map("config_jsonb") @db.JsonB
+  secretsCiphertext String? @map("secrets_ciphertext")
+  secretsNonce String? @map("secrets_nonce")
+  secretsTag String? @map("secrets_tag")
+  activatedAt DateTime? @map("activated_at")
+  createdBy BigInt? @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy BigInt? @map("updated_by")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  lastSource String? @map("last_source")
+  lastActivity String? @map("last_activity")
+  transactionId String? @map("transaction_id") @db.Uuid
+  @@map("cm_integration_setting_m")
+  @@schema("common")
+}
+
+model IntegrationSettingHistory {
+  kind String @map("kind") @db.VarChar(40)
+  config Json @map("config_jsonb") @db.JsonB
+  secretsCiphertext String? @map("secrets_ciphertext")
+  secretsNonce String? @map("secrets_nonce")
+  secretsTag String? @map("secrets_tag")
+  activatedAt DateTime? @map("activated_at")
+  createdBy BigInt? @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedBy BigInt? @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+  lastSource String? @map("last_source")
+  lastActivity String? @map("last_activity")
+  transactionId String? @map("transaction_id") @db.Uuid
+  historySeq BigInt @map("history_seq")
+  eventType String @map("event_type") @db.Char(1)
+  eventAt DateTime @map("event_at")
+  @@id([kind, historySeq])
+  @@map("cm_integration_setting_h")
+  @@schema("common")
 }

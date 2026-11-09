@@ -103,3 +103,22 @@ Get-ScheduledTask -TaskName 'SSOO-Storage-*'
 | 2026-10-26 | #212 공간 부족 회귀 수정: verify 종료 정리와 잔여 검증 전용 이미지의 24시간 유예 제외, 컨테이너·복구·배포 이미지 보호 및 실패 코드 회귀 테스트 추가 |
 | 2026-10-26 | 로컬·CI 필수 Docker 정리, 배포 묶음 보존·만료, Windows 유휴 유지보수와 놓친 일정 재시도 추가 |
 | 2026-10-26 | 최신 GitLab의 AI 리뷰 작업 제거와 검증 이미지 10GiB 검사 위에 자동 정리 변경 통합 |
+
+
+## 2026-11-09 자동 점검 진입 오류와 수동 공간 반환
+
+예약 작업의 `powershell.exe -File` 실행에서 매개변수 기본값의 `$PSScriptRoot`가 비어 `Join-Path`가 실패했다. `-Command`에서 스크립트를 호출하는 기존 점검은 이 오류를 드러내지 못했다. 설정 경로 초기화를 스크립트 본문으로 옮기고 실제 `-File` 자식 프로세스 회귀 검사를 추가했다. 설치된 복사본도 갱신했고 예약 Check 작업의 종료 코드 0을 확인했다.
+
+Docker 캐시 삭제와 C: 용량 반환은 별도 단계다. 2026-11-09 미사용 캐시 6.659GB를 삭제했지만 C: 여유 공간은 즉시 늘지 않았다. VHDX의 실제 크기와 C: 전후 값을 함께 확인해야 한다.
+
+이번 수동 유지보수는 별도 실행 기록으로 보존한다. Docker 종료 시 WSL에서 연결된 Windows 프로세스가 함께 끊겨 Windows 예약 작업으로 복원 기록을 인계했다. 운영 중인 WSL에서 직접 호출한 PowerShell 프로세스가 Docker 종료 후에도 유지된다고 가정하지 않는다. 실제 데이터 VHDX의 독점 접근 가능 여부를 검사하고, 다른 디스크의 잠금은 강제로 해제하지 않는다. 컨테이너 ID·이미지·실행/정상 상태를 확인한 뒤 복원 완료를 판정한다.
+
+자동 Reclaim의 유휴 조건과 실제 실행 이력도 구분한다. 예약 등록·DryRun 통과만으로 압축 완료를 보고하지 않는다. `latest-DockerReclaim.json`의 `runtimeRestored`, `reclaimedBytes`, `targetMet`과 현재 C: 값을 확인한다.
+
+수동 정리에서 현재·이전 정상 배포와 모든 컨테이너의 참조를 제외한 10월 초 수동 태그 28개(서로 다른 이미지 20개)를 삭제했다. 추가 캐시 정리는 12.31GB를 회수했다. 이 예전 태그는 현행 관리형 배포의 자동 보존 목록 밖에 남아 있던 자료다. 볼륨·업무 데이터·다른 프로젝트 이미지는 삭제하지 않았다.
+
+두 번째 압축은 Windows의 독립 예약 작업에서 Docker 데이터 VHDX만 대상으로 실행했다. 2026-11-09 09:14 완료 보고의 실제 C: 여유 공간은 35,375,427,584 bytes(32.9GiB), 이 실행의 반환량은 26,939,027,456 bytes다. 컨테이너 23개의 이미지와 실행 상태를 대조했고 기존 실행 20개를 복원했다. `status=compacted`, `runtimeRestored=true`이며 빌드 기준 8GiB를 충족했다. 유지보수 목표 60GiB에는 미달하므로 `targetMet=false`를 그대로 남긴다. 이는 수동 반환의 증거이며 유휴 자동 Reclaim의 실제 성공으로 확대하지 않는다. 이후 최종 앱 빌드·재배포까지 마친 실측 여유 공간은 29,209,538,560 bytes(27.2GiB)다.
+
+증거: `output/playwright/admin-boundaries-20261106/storage-final-reclaim.json`, `storage-container-baseline.json`, `legacy-image-plan.json`, `legacy-image-cleanup.json`. Windows 테스트와 실제 예약 Check 성공은 확인했지만, 전체 WSL을 종료하는 주간 자동 압축은 이번 작업 중 실행하지 않았다.
+
+캐시를 비운 뒤 재배포에서는 별도로 대형 런타임 패키지 다운로드가 60초 제한에 걸렸다. `pnpm-workspace.yaml`의 `fetchTimeout`을 600000ms, `networkConcurrency`를 8로 설정해 캐시 재구축 시 반복 중단을 줄인다. pnpm 11에서는 전체 요청 시간이 제한 대상이다([pnpm 요청 설정](https://pnpm.io/settings/network#fetchtimeout)). lockfile, 무결성·TLS 검사와 공급망 정책은 유지한다.

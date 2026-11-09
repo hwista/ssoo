@@ -3,7 +3,7 @@
 import { ReactNode, useState, type CSSProperties } from 'react';
 import { usePathname } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SharedAuthStateSync, SharedOnboardingBoundary } from '@ssoo/web-auth';
+import { SharedAuthStateSync, SharedPlatformAccessBoundary } from '@ssoo/web-auth';
 import { SSOO_SHELL_METRICS } from '@ssoo/web-shell';
 import { SsooToaster as Toaster } from '@ssoo/web-shell';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -74,7 +74,7 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <SharedAuthStateSync authStore={useAuthStore} />
-      <SharedOnboardingBoundary authStore={useAuthStore} app="dms" pathname={pathname ?? '/'}>{children}</SharedOnboardingBoundary>
+      <SharedPlatformAccessBoundary authStore={useAuthStore} app="dms" pathname={pathname ?? '/'}>{children}</SharedPlatformAccessBoundary>
       {showAssistantUi && (
         <>
           <FloatingAssistant />

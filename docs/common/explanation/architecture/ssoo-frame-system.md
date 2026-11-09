@@ -21,7 +21,7 @@ SSOO 서비스 shell은 특정 서비스 화면을 다른 서비스가 복사하
 - Tailwind theme extension 정본은 `@ssoo/web-ui/tailwind-preset`이다. 5개 웹 앱은 앱별 `tailwind.config.*`에 typography/spacing/radius/color extension을 재선언하지 않고, preset과 content scan 대상만 선언한다.
 - 내부 페이지 primitive 적용은 `apps/web`, `packages/web-shell`, `packages/web-auth` 전역 TSX surface 기준으로 강제한다. 원시 `button/input/textarea/select/table/thead/tbody/tfoot/tr/th/td` 소비는 `verify:ui-consumption`에서 실패한다.
 - 검색 입력의 목적·autofill 경계는 `packages/web-shell/src/search-input.tsx`의 `SsooSearchInput`이 소유한다. 공용 `Input`은 목적 중립으로 유지하고, header/sidebar/DataGrid/viewer와 5앱 화면별 검색·filter·lookup은 안정적인 `id/name`, accessible label, `type="search"`, intent marker와 non-credential autofill hint를 공용 계약에서 받는다. 앱은 기존 query state, GET query, API, Enter, clear, 선택 로직을 그대로 소유한다.
-- `SsooSearchInput`의 2차 guard는 앱 source와 다른 native-autofill 값만, 실제 텍스트 입력 의도가 없을 때 거부한다. 따라서 URL·persisted 초기값과 사용자가 직접 입력·paste·drop·IME로 넣은 `admin`은 보존한다. 비제어 field의 `defaultValue`가 URL·탭 상태 변경으로 바뀌면 DOM과 guard 기준값도 함께 동기화한다. 구조상 검색 시설인 header/sidebar/독립 검색 페이지만 고유 label의 search landmark를 사용하고, 화면 내부 조건·lookup에는 새 form/landmark를 만들지 않는다. 공용 DataWorkspace와 PMS page filter의 동적 text renderer를 포함한 현행 37개 inventory와 신규 raw 검색 우회는 `verify:input-intent`가 강제한다.
+- `SsooSearchInput`의 2차 guard는 앱 source와 다른 native-autofill 값만, 실제 텍스트 입력 의도가 없을 때 거부한다. 따라서 URL·persisted 초기값과 사용자가 직접 입력·paste·drop·IME로 넣은 `admin`은 보존한다. 비제어 field의 `defaultValue`가 URL·탭 상태 변경으로 바뀌면 DOM과 guard 기준값도 함께 동기화한다. 구조상 검색 시설인 header/sidebar/독립 검색 페이지만 고유 label의 search landmark를 사용하고, 화면 내부 조건·lookup에는 새 form/landmark를 만들지 않는다. 공용 DataWorkspace와 PMS page filter의 동적 text renderer를 포함한 현행 42개 inventory와 신규 raw 검색 우회는 `verify:input-intent`가 강제한다.
 - DMS의 통합 검색은 루트 `AppLayout`을 유지한 채 header 또는 홈 `AI 검색` 액션으로 여는 MDI 탭이다. 브라우저 회귀는 direct page navigation으로 이 상태를 대체하지 않고 실제 UI 액션을 사용하며, 입력 계약 변경이 DMS route/MDI 소유권을 함께 바꾸지 않게 한다.
 - 원자 UI inventory 정본은 `packages/web-ui/primitive-inventory.json`이다. inventory에 등록된 모든 원자는 `platform` 상태여야 하며, `verify:ui-primitives`는 inventory 밖 앱 로컬 primitive 추가, 중간/local-only 상태, 앱 로컬 재정의를 preflight/build/push guard에서 차단한다. 두 gate의 자세한 기준은 [UI Primitive Inventory](ui-primitive-inventory.md)를 따른다.
 - 전역 디자인 경험 표준은 `web-shell`/`web-ui`에 한정하지 않는다. app `globals.css`, 공용 원자 UI, 페이지 템플릿, shared auth surface와 도메인 앱이 보유한 `components/templates`, `components/common/{page,datagrid,form}`, DMS settings surface 같은 재사용 surface, 그리고 `apps/web/*/src/components/pages/**` 최종 페이지 내부와 주요 App Router page/error surface도 같은 표준 대상이다. 공용/도메인 surface 및 최종 페이지 style drift, raw `white`/`black` visual token 직접 사용은 `verify:ui-style-boundary`가 build/preflight/push guard에서 차단한다.
@@ -386,10 +386,19 @@ PMS는 SSOO 플랫폼의 workbench 기준 앱이다. 여기서 말하는 100%는
 
 서비스명을 `app` prop으로 받아 자체 분기하는 공용 sidebar primitive는 금지한다. 사용자 노출 서비스명은 `packages/web-shell/src/app-identity.ts`의 visible identity registry가 소유하고, sidebar primitive는 앱이 주입한 title/slot/data만 렌더링한다. 서비스별 의미/권한/데이터는 앱이 소유하고, `web-shell`의 shell primitive는 mode/slot/primitive invariant만 소유한다.
 
+## 플랫폼의 개인 업무와 관리 기능
+
+2026-10-27 기능별 접근 관리 재설계는 Admin의 기존 `SsooWorkbenchShell`과 MDI registry 안에서 `/my-organizations`, `/my-services`, `/approvals`를 독립 기능으로 제공한다. 조직·계정 관리는 기존 메뉴를 유지하고 승인 위임은 `/roles?tab=approval-authorities`에 둔다. 시나리오 전용 대시보드 카드나 단계별 통합 화면을 두지 않는다. [설계와 검증 대장](2026-10-27-functional-access-management.md)을 참조한다.
+
+`SharedPlatformAccessBoundary`는 5앱의 참여·서비스 접근 상태와 재조회만 소유한다. 미승인 서비스에서는 이유와 개인 메뉴 이동·재시도·로그아웃을 제공하며 업무 폼은 렌더하지 않는다. Admin에서는 개인 기능과 관리 기능을 화면별로 구분한다. 비관리자는 개인 메뉴와 위임받은 승인함을 사용할 수 있지만 관리 메뉴·새 사용자 액션·저장된 관리 탭·관리 컴포넌트를 노출하지 않는다. 관리 API의 서버 인가는 유지한다. 공용 사용자 메뉴는 개인 기능의 Admin 정본 주소로 이동한다.
+
+공용 로그아웃은 쿠키 세션을 확인한 뒤 반환된 Access Token으로 서버 세션을 회수하고 로컬 인증 상태를 정리한다. 30분 비활동 종료도 같은 명령을 사용한다. 쿠키 세션이 없더라도 로컬 Access Token이 있으면 그 토큰의 서버 세션 회수를 요청한다. 쿠키 세션과 로컬 토큰이 모두 없는 경우에만 서버 회수 요청을 생략한다. 세션 확인이나 서버 회수가 실패하면 기존 로그인 상태와 수동 복구 동선을 유지하고 `sessionError`를 표시한다. 비활동 콜백은 이 실패를 처리해 미처리 Promise 예외를 남기지 않는다. 다른 로그인 작업이 시작된 뒤 돌아온 오래된 로그아웃 응답은 새 인증 상태를 변경하지 않는다.
+
 ## Changelog
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-11-05 | 공용 로그아웃의 쿠키 세션 확인·서버 회수 순서와 비활동 종료 실패 시 복구 안내 계약 추가 |
 | 2026-09-22 | 사용자 승인에 따라 다섯 서비스 좁은 데스크톱의 상단 검색을 두 줄로 배치하고 PMS 중복 제목을 정리. 알림 panel은 실제 header 하단에 맞추며 모바일·검색 없는 설정 상단은 기존 기준 유지 |
 | 2026-07-16 | Admin/CRM/PMS/SNS 모바일 sidebar를 `useSsooMobileViewport` + `SsooMobileSidebarOverlay` 계약으로 통합하고 390px 실제 브라우저에서 메뉴 열기/Escape 닫기/가로 overflow 없음 기준을 검증. DMS 모바일 준비 안내는 기존 지원 게이트로 유지 |
 | 2026-07-10 | `SsooWorkspacePage`를 일반 업무/데이터 작업 surface recipe로 추가하고, `SsooDataWorkspacePage`를 데이터/grid preset 계층으로 분리 |

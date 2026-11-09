@@ -7,6 +7,7 @@ import type { AuthIdentityProviderAction, AuthLoginActionLink } from './ui';
 import { useLoginPageBootstrap } from './login-bootstrap';
 import type { AuthIdentity, AuthPublicLoginConfig } from '@ssoo/types/common';
 import type { AuthStore } from './store';
+import { SsooErrorNotice } from '@ssoo/web-shell';
 
 export interface SharedAuthLoginPageProps<TUser extends AuthIdentity = AuthIdentity> {
   appName?: string;
@@ -142,6 +143,8 @@ export function SharedAuthLoginPage<TUser extends AuthIdentity = AuthIdentity>({
   const checkAuth = authStore((state) => state.checkAuth);
   const isLoading = authStore((state) => state.isLoading);
   const isAuthenticated = authStore((state) => state.isAuthenticated);
+  const accessToken = authStore((state) => state.accessToken);
+  const sessionError = authStore((state) => state.sessionError);
   const hasHydrated = authStore((state) => state._hasHydrated);
   const effectiveReturnTo = returnTo ?? (
     typeof window === 'undefined'
@@ -184,7 +187,8 @@ export function SharedAuthLoginPage<TUser extends AuthIdentity = AuthIdentity>({
 
   const { showLoading, shouldRenderLogin } = useLoginPageBootstrap({
     hasHydrated,
-    isAuthenticated,
+    // Persisted identity is only a hint until the cookie session is restored.
+    isAuthenticated: isAuthenticated && Boolean(accessToken) && !sessionError,
     authIsLoading: isLoading && !isSubmitting,
     checkAuth,
     onAuthenticated: handleAuthenticated,
@@ -200,6 +204,7 @@ export function SharedAuthLoginPage<TUser extends AuthIdentity = AuthIdentity>({
 
   return (
     <AuthPageShell>
+      {sessionError ? <SsooErrorNotice message={sessionError} /> : null}
       <AuthStandardLoginCard
         isLoading={isLoading || isSubmitting}
         passwordLoginEnabled={resolvedPasswordLoginEnabled}

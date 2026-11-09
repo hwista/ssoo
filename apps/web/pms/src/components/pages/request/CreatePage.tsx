@@ -4,7 +4,7 @@ import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from '@/lib/validations/zod';
 import { FormPageTemplate } from '@/components/templates';
 import { FormField } from '@/components/common';
 import { Input } from '@/components/ui/input';

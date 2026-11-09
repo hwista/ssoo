@@ -1,5 +1,7 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
+import { organizationPathMap } from '../onboarding/organization-path.js';
+import { PlatformAdmissionService, type OnboardingTransaction } from '../onboarding/platform-admission.service.js';
 import type { AuthUserRecord } from '../auth/interfaces/auth.interface.js';
 import { DatabaseService } from '../../../database/database.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -60,6 +62,7 @@ interface AdminUserViewRecord {
   companyName: string | null;
   customerId: bigint | null;
   isActive: boolean;
+  platformEnrollment?: { statusCode: string; isActive: boolean } | null;
   createdAt: Date;
   updatedAt: Date;
   authAccount: {
@@ -137,6 +140,7 @@ const adminUserViewSelect = {
   companyName: true,
   customerId: true,
   isActive: true,
+  platformEnrollment: { select: { statusCode: true, isActive: true } },
   createdAt: true,
   updatedAt: true,
   authAccount: {
@@ -168,7 +172,7 @@ const profileUserViewSelect = {
 
 @Injectable()
 export class UserService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly admission: PlatformAdmissionService) {}
 
   private readonly organizationBridgeSource = 'legacy-user-bridge';
   private readonly organizationBridgeActivity = 'user.service.sync-organization-foundation';
@@ -320,6 +324,8 @@ export class UserService {
         ),
       }),
       isActive: user.isActive,
+      platformStatus: !user.isActive || user.platformEnrollment?.isActive === false || user.platformEnrollment?.statusCode === 'suspended' ? 'suspended'
+        : user.platformEnrollment?.isActive && user.platformEnrollment.statusCode === 'active' ? 'active' : 'pending',
       isSystemUser: user.authAccount !== null,
       lastLoginAt: user.authAccount?.lastLoginAt ?? null,
       createdAt: user.createdAt,
@@ -753,8 +759,9 @@ export class UserService {
     search?: string;
     roleCode?: string;
     isActive?: boolean;
+    userId?: string;
   }) {
-    const { page = 1, limit = 20, search, roleCode, isActive } = params;
+    const { page = 1, limit = 20, search, roleCode, isActive, userId } = params;
     const where: Record<string, unknown> = {};
 
     if (search) {
@@ -764,6 +771,7 @@ export class UserService {
         { email: { contains: search, mode: 'insensitive' } },
       ];
     }
+    if (userId) where.id = BigInt(userId);
     if (roleCode) where.roleCode = roleCode;
     if (isActive !== undefined) where.isActive = isActive;
 
@@ -778,7 +786,19 @@ export class UserService {
       this.db.user.count({ where }),
     ]);
 
-    return { data: data.map((user) => this.toAdminUserView(user)), total };
+    const now = new Date();
+    const [memberships, organizations] = await Promise.all([
+      this.db.client.userOrganizationRelation.findMany({ where: { userId: { in: data.map((user) => user.id) },
+        isActive: true, organization: { isActive: true, orgClass: 'permanent' },
+        AND: [{ OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }] },
+          { OR: [{ effectiveTo: null }, { effectiveTo: { gt: now } }] }] }, select: { userId: true, orgId: true } }),
+      this.db.client.organization.findMany({ select: { orgId: true, orgName: true, orgCode: true, parentOrgId: true } }),
+    ]);
+    const paths = organizationPathMap(organizations);
+    return { data: data.map((user) => ({ ...this.toAdminUserView(user),
+      approvedOrganizations: memberships.filter((membership) => membership.userId === user.id)
+        .map((membership) => paths.get(membership.orgId.toString()) ?? membership.orgId.toString()),
+    })), total };
   }
 
   /**
@@ -895,9 +915,8 @@ export class UserService {
       }
     }
 
-    await this.assertAdminContinuity(userId, dto);
-
-    await this.db.client.$transaction(async (tx) => {
+    await this.accountTransaction(async (tx) => {
+      await this.assertCurrentAdministrator(tx, operatorUserId);
       await tx.user.update({
         where: { id: userId },
         data: updateData,
@@ -941,6 +960,7 @@ export class UserService {
           },
         });
       }
+      if (dto.roleCode !== undefined || dto.isActive !== undefined) await this.admission.assertUsableAdministratorRemains(tx);
     }).catch((error: unknown) => this.rethrowUserConflict(error));
 
     await this.syncOrganizationFoundation(userId, {
@@ -959,8 +979,8 @@ export class UserService {
    * 사용자 비활성화 (관리자)
    */
   async deactivate(userId: bigint, operatorUserId?: bigint) {
-    await this.assertAdminContinuity(userId, { isActive: false });
-    await this.db.client.$transaction(async (tx) => {
+    await this.accountTransaction(async (tx) => {
+      await this.assertCurrentAdministrator(tx, operatorUserId);
       await tx.user.update({
         where: { id: userId },
         data: {
@@ -989,6 +1009,7 @@ export class UserService {
           lastActivity: 'auth.admin.revoke-sessions',
         },
       });
+      await this.admission.assertUsableAdministratorRemains(tx);
     });
     await this.syncOrganizationFoundation(userId);
 
@@ -1004,26 +1025,23 @@ export class UserService {
     return this.update(userId, { isActive: true }, operatorUserId);
   }
 
-  private async assertAdminContinuity(userId: bigint, dto: Pick<UpdateUserDto, 'roleCode' | 'isActive'>) {
-    const current = await this.db.user.findUnique({
-      where: { id: userId },
-      select: { roleCode: true, isActive: true },
-    });
-    if (!current) {
-      return;
+  private async assertCurrentAdministrator(tx: OnboardingTransaction, operatorUserId?: bigint) {
+    if (operatorUserId === undefined) return;
+    if (!await this.admission.isPlatformAdmin(operatorUserId, tx)
+      || !await tx.userAuth.count({ where: { userId: operatorUserId, accountStatusCode: 'active' } })) {
+      throw new ForbiddenException('현재 활성 플랫폼 관리자만 사용자 계정을 변경할 수 있습니다.');
     }
-    const removesActiveAdmin = current.isActive
-      && current.roleCode === 'admin'
-      && (dto.isActive === false || (dto.roleCode !== undefined && dto.roleCode !== 'admin'));
-    if (!removesActiveAdmin) {
-      return;
+  }
+
+  private async accountTransaction<T>(operation: (tx: OnboardingTransaction) => Promise<T>): Promise<T> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { return await this.db.client.$transaction(operation, { isolationLevel: 'Serializable' }); }
+      catch (error) {
+        if (!(error && typeof error === 'object' && 'code' in error && error.code === 'P2034')) throw error;
+        if (attempt === 2) throw new ConflictException('동시에 변경된 계정이 있습니다. 최신 상태를 조회한 뒤 다시 시도해 주세요.');
+      }
     }
-    const activeAdminCount = await this.db.user.count({
-      where: { roleCode: 'admin', isActive: true, platformEnrollment: { statusCode: 'active', isActive: true } },
-    });
-    if (activeAdminCount <= 1) {
-      throw new BadRequestException('마지막 활성 관리자 계정은 비활성화하거나 일반 역할로 변경할 수 없습니다.');
-    }
+    throw new ConflictException('계정 변경 충돌을 해결하지 못했습니다. 다시 조회해 주세요.');
   }
 
   async getAdminStats() {

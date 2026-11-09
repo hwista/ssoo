@@ -45,6 +45,7 @@ export function useProtectedAppBootstrap(
 
   const initialAuthCheckRef = useRef<Promise<void> | null>(null);
   const lastLifecycleCheckAt = useRef(0);
+  const redirectedToLogin = useRef(false);
   const [initialAuthCheckCompleted, setInitialAuthCheckCompleted] = useState(false);
 
   const getCurrentPathname = () => {
@@ -156,13 +157,15 @@ export function useProtectedAppBootstrap(
   ]);
 
   useEffect(() => {
-    if (!hasHydrated || !initialAuthCheckCompleted || isAuthenticated || sessionError) {
+    if (isAuthenticated) redirectedToLogin.current = false;
+    if (!hasHydrated || !initialAuthCheckCompleted || authIsLoading || isAuthenticated || sessionError || redirectedToLogin.current) {
       return;
     }
 
+    redirectedToLogin.current = true;
     resetAccess();
     onUnauthenticated(getCurrentPathname());
-  }, [hasHydrated, initialAuthCheckCompleted, isAuthenticated, sessionError, onUnauthenticated, resetAccess]);
+  }, [hasHydrated, initialAuthCheckCompleted, authIsLoading, isAuthenticated, sessionError, onUnauthenticated, resetAccess]);
 
   return {
     showLoading: !hasHydrated

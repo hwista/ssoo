@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Check', 'Reclaim', 'Recover')][string]$Mode = 'Check',
-    [string]$ConfigPath = (Join-Path $PSScriptRoot 'config.json'),
+    [string]$ConfigPath = '',
     [switch]$DryRun,
     [switch]$LibraryOnly
 )
@@ -66,6 +66,8 @@ function Restore-Runtime($Recovery) {
     }
 }
 if ($LibraryOnly) { return }
+# Windows PowerShell -File can evaluate parameter defaults before PSScriptRoot is populated.
+if (-not $ConfigPath) { $ConfigPath = Join-Path $PSScriptRoot 'config.json' }
 $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
 $root = Split-Path -Parent $ConfigPath
 $script:Wsl = Join-Path $env:SystemRoot 'System32\wsl.exe'

@@ -7,3 +7,39 @@ services:
       # Literal bindings prevent the root .env from changing the local role.
       DMS_INSTANCE_ENV: "dev"
       DMS_GIT_BOOTSTRAP_REMOTE_URL: ""
+      LOCAL_MAIL_ENABLED: "true"
+      LOCAL_MAIL_SMTP_HOST: mailpit
+      LOCAL_MAIL_HTTP_URL: http://mailpit:8025
+      LOCAL_EMBEDDING_CACHE_DIR: /var/lib/ssoo/models
+    volumes:
+      - ssoo-model-cache:/var/lib/ssoo/models
+    networks:
+      - default
+      - local-mail
+
+  # Internal capture only: no host ports and no Internet relay.
+  mailpit:
+    image: axllent/mailpit:v1.33.0
+    container_name: ssoo-mailpit
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.25
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: 100
+      MP_MAX_AGE: 24h
+      MP_MAX_MESSAGE_SIZE: 1
+      MP_SMTP_DISABLE_RDNS: "true"
+      MP_DISABLE_VERSION_CHECK: "true"
+    volumes:
+      - ssoo-local-mail:/data
+    networks:
+      - local-mail
+
+networks:
+  local-mail:
+    internal: true
+
+volumes:
+  ssoo-local-mail:
+  ssoo-model-cache:

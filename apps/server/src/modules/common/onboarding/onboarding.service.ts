@@ -1,10 +1,13 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@ssoo/database';
 import type { OnboardingTransaction } from './platform-admission.service.js';
-import type { OnboardingRequest, OnboardingRequestKind, OnboardingRequestStatus, OnboardingRoleCode, OnboardingServiceCode, OnboardingSnapshot } from '@ssoo/types/common';
+import type { ApprovalCandidatePage, OnboardingRequest, OnboardingRequestKind, OnboardingRequestStatus, OnboardingRoleCode, OnboardingServiceCode, OnboardingSnapshot } from '@ssoo/types/common';
 import { DatabaseService } from '../../../database/database.service.js';
-import { CreateOnboardingRequestDto, DecideOnboardingRequestDto, SetApprovalAuthorityDto } from './onboarding.dto.js';
+import { ApprovalCandidatesQueryDto, ApprovalReviewsQueryDto, CreateOnboardingRequestDto, DecideOnboardingRequestDto, SetApprovalAuthorityDto } from './onboarding.dto.js';
+import { organizationPathMap } from './organization-path.js';
 import { activeMembershipWhere, ONBOARDING_SERVICES, PlatformAdmissionService } from './platform-admission.service.js';
+import { assertParticipationReason, ParticipationWriteService } from './participation-write.service.js';
+import type { ParticipationRevisionDto } from './participation-operations.dto.js';
 
 type RequestRecord = Prisma.OnboardingRequestGetPayload<{ include: { user: true; organization: true } }>;
 const includeRequest = { user: true, organization: true } as const;
@@ -26,7 +29,8 @@ const item = (request: RequestRecord): OnboardingRequest => ({
 
 @Injectable()
 export class OnboardingService {
-  constructor(private readonly db: DatabaseService, private readonly admission: PlatformAdmissionService) {}
+  constructor(private readonly db: DatabaseService, private readonly admission: PlatformAdmissionService,
+    private readonly participation: ParticipationWriteService = new ParticipationWriteService(admission)) {}
 
   // Retry serialization conflicts only. A failed attempt commits neither the decision nor its grants.
   private async transaction<T>(operation: (tx: OnboardingTransaction) => Promise<T>): Promise<T> {
@@ -61,6 +65,9 @@ export class OnboardingService {
   private async reviewScope(userId: bigint, tx: OnboardingTransaction): Promise<Prisma.OnboardingRequestWhereInput> {
     if (await this.admission.isPlatformAdmin(userId, tx)) return { userId: { not: userId } };
     const authorities = await this.authorities(userId, tx);
+    // An empty logical OR can disappear when composed with an ID predicate.
+    // Keep the denied scope as a concrete, unsatisfiable field condition.
+    if (!authorities.length) return { id: { in: [] } };
     const scopes: Prisma.OnboardingRequestWhereInput[] = authorities.map((authority) => authority.authorityKind === 'organization'
       ? { OR: [{ kind: 'membership', orgId: authority.orgId }, { kind: 'organization', parentOrgId: authority.orgId }] }
       : { kind: 'service', serviceCode: authority.serviceCode, ...(authority.orgId ? { orgId: authority.orgId } : {}) });
@@ -75,9 +82,11 @@ export class OnboardingService {
       this.db.client.onboardingRequest.findMany({ where: { userId }, include: includeRequest, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.admission.grants(userId), this.admission.isPlatformAdmin(userId), this.authorities(userId, this.db.client),
     ]);
+    const paths = organizationPathMap(organizations);
     return {
       status: state.status, isPlatformAdmin, canReview: isPlatformAdmin || authorities.length > 0,
       organizations: organizations.map((organization) => ({ id: organization.orgId.toString(), name: organization.orgName,
+        path: paths.get(organization.orgId.toString()), type: organization.orgType,
         parentId: organization.parentOrgId?.toString() ?? null, member: memberships.some((membership) => membership.orgId === organization.orgId) })),
       requests: requests.map(item),
       grants: grants.map((grant) => ({ id: grant.id.toString(), serviceCode: grant.serviceCode as OnboardingServiceCode,
@@ -111,11 +120,17 @@ export class OnboardingService {
     });
   }
 
-  async reviewQueue(userId: bigint) {
-    return (await this.db.client.onboardingRequest.findMany({
-      where: { AND: [await this.reviewScope(userId, this.db.client), { statusCode: 'pending' }] },
-      include: includeRequest, orderBy: { createdAt: 'asc' }, take: 200,
-    })).map(item);
+  async reviewQueue(userId: bigint, query: ApprovalReviewsQueryDto = new ApprovalReviewsQueryDto()) {
+    const limit = 20;
+    const where: Prisma.OnboardingRequestWhereInput = {
+      AND: [await this.reviewScope(userId, this.db.client), { statusCode: query.status, ...(query.kind ? { kind: query.kind } : {}) }],
+    };
+    const [records, total] = await Promise.all([
+      this.db.client.onboardingRequest.findMany({ where, include: includeRequest,
+        orderBy: [{ createdAt: query.status === 'pending' ? 'asc' : 'desc' }, { id: 'asc' }], skip: (query.page - 1) * limit, take: limit }),
+      this.db.client.onboardingRequest.count({ where }),
+    ]);
+    return { items: records.map(item), total, limit };
   }
 
   async decide(id: bigint, userId: bigint, dto: DecideOnboardingRequestDto) {
@@ -141,10 +156,9 @@ export class OnboardingService {
               throw new ForbiddenException('위임받은 범위를 넘는 서비스 역할은 부여할 수 없습니다.');
             }
           }
-          await tx.serviceGrant.upsert({ where: { userId_serviceCode_scopeKey: { userId: request.userId, serviceCode: request.serviceCode!, scopeKey: orgId.toString() } },
-            create: { userId: request.userId, orgId, serviceCode: request.serviceCode!, roleCode, scopeKey: orgId.toString(), sourceCode: 'approval', createdBy: userId, ...audit(userId, `onboarding.approve.${id}`) },
-            update: { roleCode, isActive: true, expiresAt: null, ...audit(userId, `onboarding.approve.${id}`) },
-          });
+          await this.participation.setGrant(tx, {
+            userId: request.userId, orgId, serviceCode: request.serviceCode!, roleCode, expiresAt: null, reason: dto.message,
+          }, userId, `onboarding.approve.${id}`);
         } else {
           let orgId = request.orgId;
           if (request.kind === 'organization') {
@@ -160,11 +174,9 @@ export class OnboardingService {
             orgId = organization.orgId; resolvedOrgId = orgId;
           } else await this.assertOrganization(orgId!, tx);
           if (!await tx.userOrganizationRelation.count({ where: { ...activeMembershipWhere(request.userId), orgId: orgId! } })) {
-            const existing = await tx.userOrganizationRelation.count({ where: activeMembershipWhere(request.userId) });
-            await tx.userOrganizationRelation.create({ data: {
-              userId: request.userId, orgId: orgId!, isPrimary: existing === 0, isLeader: false,
-              createdBy: userId, ...audit(userId, `onboarding.approve.${id}`),
-            } });
+            await this.participation.createMembership(tx, {
+              userId: request.userId, orgId: orgId!, reason: dto.message,
+            }, userId, `onboarding.approve.${id}`);
           }
           await tx.platformEnrollment.upsert({ where: { userId: request.userId },
             create: { userId: request.userId, statusCode: 'active', sourceCode: 'approval', createdBy: userId, ...audit(userId, `onboarding.approve.${id}`) },
@@ -198,17 +210,76 @@ export class OnboardingService {
 
   async listAuthorities(userId: bigint) {
     await this.assertAdmin(userId, this.db.client);
-    const records = await this.db.client.approvalAuthority.findMany({ include: { user: true, organization: true }, orderBy: { id: 'desc' } });
-    return records.map((entry) => ({ id: entry.id.toString(), userId: entry.userId.toString(), userName: entry.user.userName,
-      organizationId: entry.orgId?.toString() ?? null, organizationName: entry.organization?.orgName ?? null,
-      authorityKind: entry.authorityKind, serviceCode: entry.serviceCode, maxRoleCode: entry.maxRoleCode, isActive: entry.isActive }));
+    const now = new Date();
+    const records = await this.db.client.approvalAuthority.findMany({ include: {
+      user: { include: { authAccount: { select: { accountStatusCode: true } }, platformEnrollment: true,
+        organizationRelations: { where: { isActive: true, organization: { isActive: true, orgClass: 'permanent' },
+          AND: [{ OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }] }, { OR: [{ effectiveTo: null }, { effectiveTo: { gt: now } }] }] }, select: { orgId: true } } } },
+      organization: true,
+    }, orderBy: { id: 'desc' } });
+    return Promise.all(records.map(async (entry) => {
+      const inactiveReason = !entry.isActive ? '회수됨' : entry.expiresAt && entry.expiresAt <= now ? '기간 만료'
+        : !entry.user.isActive || entry.user.authAccount?.accountStatusCode !== 'active' ? '계정 이용 불가'
+          : !entry.user.platformEnrollment?.isActive || entry.user.platformEnrollment.statusCode !== 'active' ? '참여 비활성'
+            : entry.orgId && !entry.user.organizationRelations.some(relation => relation.orgId === entry.orgId) ? '유효 소속 없음' : null;
+      const pendingCount = await this.db.client.onboardingRequest.count({ where: { statusCode: 'pending', userId: { not: entry.userId },
+        ...(entry.authorityKind === 'organization' ? { OR: [{ kind: 'membership', orgId: entry.orgId }, { kind: 'organization', parentOrgId: entry.orgId }] }
+          : { kind: 'service', serviceCode: entry.serviceCode, ...(entry.orgId ? { orgId: entry.orgId } : {}) }) } });
+      return { id: entry.id.toString(), userId: entry.userId.toString(), userName: entry.user.userName,
+        organizationId: entry.orgId?.toString() ?? null, organizationName: entry.organization?.orgName ?? null,
+        authorityKind: entry.authorityKind, serviceCode: entry.serviceCode, maxRoleCode: entry.maxRoleCode, isActive: entry.isActive,
+        expiresAt: entry.expiresAt?.toISOString() ?? null, updatedAt: entry.updatedAt.toISOString(), reason: entry.memo,
+        effective: inactiveReason === null, inactiveReason, pendingCount };
+    }));
+  }
+
+  async candidates(userId: bigint, query: ApprovalCandidatesQueryDto): Promise<ApprovalCandidatePage> {
+    await this.assertAdmin(userId, this.db.client);
+    const orgId = query.organizationId ? inputId(query.organizationId) : null;
+    if (orgId) await this.assertOrganization(orgId, this.db.client);
+    const search = query.search?.trim();
+    const where: Prisma.UserWhereInput = search ? { OR: [
+      { userName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+      { authAccount: { is: { loginId: { contains: search, mode: 'insensitive' } } } },
+    ] } : {};
+    const pageSize = 10;
+    const now = new Date();
+    const [users, total, organizations] = await Promise.all([
+      this.db.client.user.findMany({ where, skip: (query.page - 1) * pageSize, take: pageSize,
+        orderBy: [{ userName: 'asc' }, { id: 'asc' }],
+        select: { id: true, userName: true, email: true, isActive: true,
+          authAccount: { select: { loginId: true, accountStatusCode: true } },
+          platformEnrollment: { select: { statusCode: true, isActive: true } },
+          organizationRelations: { where: { isActive: true, organization: { isActive: true, orgClass: 'permanent' },
+            AND: [{ OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }] },
+              { OR: [{ effectiveTo: null }, { effectiveTo: { gt: now } }] }] }, select: { orgId: true } },
+        } }),
+      this.db.client.user.count({ where }),
+      this.db.client.organization.findMany({ select: { orgId: true, orgName: true, orgCode: true, parentOrgId: true } }),
+    ]);
+    const paths = organizationPathMap(organizations);
+    return { total, page: query.page, pageSize, items: users.map((user) => {
+      const reason = !user.isActive || user.authAccount?.accountStatusCode !== 'active'
+        ? '로그인 가능한 활성 계정이 필요합니다. 사용자 관리에서 계정 상태를 확인해 주세요.'
+        : user.platformEnrollment?.statusCode !== 'active' || !user.platformEnrollment.isActive
+          ? '소속 승인 대기: 본인이 소속을 신청한 뒤 승인함에서 먼저 승인해 주세요.'
+          : orgId && !user.organizationRelations.some((relation) => relation.orgId === orgId)
+            ? '이 조직의 소속 승인이 필요합니다. 본인에게 해당 조직 소속 신청을 안내해 주세요.' : null;
+      return { id: user.id.toString(), name: user.userName, email: user.email, loginId: user.authAccount?.loginId ?? '',
+        eligible: reason === null, reason, organizations: user.organizationRelations.map((relation) => paths.get(relation.orgId.toString()) ?? relation.orgId.toString()) };
+    }) };
   }
 
   async setAuthority(userId: bigint, dto: SetApprovalAuthorityDto) {
+    assertParticipationReason(dto.reason);
+    const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
+    if (expiresAt && (!Number.isFinite(expiresAt.getTime()) || expiresAt <= new Date())) throw new BadRequestException('위임 종료일은 현재 시각보다 이후여야 합니다.');
     return this.transaction(async (tx) => {
       await this.assertAdmin(userId, tx);
       const targetUserId = inputId(dto.userId);
       if ((await this.admission.state(targetUserId, tx)).status !== 'active') throw new BadRequestException('참여 승인된 사용자에게만 승인 권한을 위임할 수 있습니다.');
+      if (!await tx.userAuth.count({ where: { userId: targetUserId, accountStatusCode: 'active' } })) throw new BadRequestException('로그인 가능한 활성 계정에 위임해 주세요.');
       const orgId = dto.organizationId ? inputId(dto.organizationId) : null;
       if (dto.authorityKind === 'organization' ? !orgId || dto.serviceCode : !dto.serviceCode) throw new BadRequestException('승인 유형과 조직·서비스 범위를 확인해 주세요.');
       if (orgId) {
@@ -216,18 +287,26 @@ export class OnboardingService {
         if (!await tx.userOrganizationRelation.count({ where: { ...activeMembershipWhere(targetUserId), orgId } })) throw new BadRequestException('해당 조직에 소속된 사용자에게 위임해 주세요.');
       }
       const key = { userId: targetUserId, authorityKind: dto.authorityKind, serviceCode: dto.serviceCode ?? '', scopeKey: orgId?.toString() ?? 'platform' };
+      const existing = await tx.approvalAuthority.findUnique({ where: { userId_authorityKind_serviceCode_scopeKey: key } });
+      if (existing && (!dto.expectedUpdatedAt || existing.updatedAt.getTime() !== new Date(dto.expectedUpdatedAt).getTime())) throw new ConflictException('위임 기록이 변경됐습니다. 새로 조회한 후 다시 저장해 주세요.');
+      if (!existing && dto.expectedUpdatedAt) throw new ConflictException('수정할 위임 기록이 없습니다. 다시 조회해 주세요.');
+      const metadata = { ...audit(userId, 'onboarding.delegate'), memo: dto.reason.trim() };
       const record = await tx.approvalAuthority.upsert({ where: { userId_authorityKind_serviceCode_scopeKey: key },
-        create: { ...key, orgId, maxRoleCode: dto.maxRoleCode, createdBy: userId, ...audit(userId, 'onboarding.delegate') },
-        update: { maxRoleCode: dto.maxRoleCode, isActive: true, expiresAt: null, ...audit(userId, 'onboarding.delegate') },
+        create: { ...key, orgId, maxRoleCode: dto.maxRoleCode, expiresAt, createdBy: userId, ...metadata },
+        update: { maxRoleCode: dto.maxRoleCode, isActive: true, expiresAt, ...metadata },
       });
       return { id: record.id.toString() };
     });
   }
 
-  async revokeAuthority(id: bigint, userId: bigint) {
+  async revokeAuthority(id: bigint, userId: bigint, dto: ParticipationRevisionDto) {
+    assertParticipationReason(dto.reason);
     return this.transaction(async (tx) => {
       await this.assertAdmin(userId, tx);
-      if (!(await tx.approvalAuthority.updateMany({ where: { id }, data: { isActive: false, ...audit(userId, 'onboarding.revoke-authority') } })).count) throw new NotFoundException('승인 위임을 찾을 수 없습니다.');
+      const entry = await tx.approvalAuthority.findUnique({ where: { id } });
+      if (!entry) throw new NotFoundException('승인 위임을 찾을 수 없습니다.');
+      if (!entry.isActive || entry.updatedAt.getTime() !== new Date(dto.expectedUpdatedAt).getTime()) throw new ConflictException('위임이 변경되거나 이미 회수됐습니다. 새로 조회해 주세요.');
+      await tx.approvalAuthority.update({ where: { id }, data: { isActive: false, memo: dto.reason.trim(), ...audit(userId, 'onboarding.revoke-authority') } });
       return { id: id.toString() };
     });
   }

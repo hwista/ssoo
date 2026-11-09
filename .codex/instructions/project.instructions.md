@@ -4,7 +4,7 @@ applyTo: "**"
 
 # SSOO Codex Project Instructions
 
-> 최종 업데이트: 2026-09-11
+> 최종 업데이트: 2026-11-09
 
 ## 프로젝트 정보
 
@@ -62,7 +62,7 @@ apps/web/dms ──→ packages/types, packages/web-auth, packages/web-shell, pa
 - 각 웹 앱의 `components/ui/*`는 앱별 Button/Badge/Card/Input/Table/Dialog/Select 등 primitive recipe를 새로 정의하지 않는다.
 - `apps/web`, `packages/web-shell`, `packages/web-auth`의 TSX surface는 원시 `button/input/textarea/select/table/thead/tbody/tfoot/tr/th/td`를 직접 렌더링하지 않고 `@ssoo/web-ui` primitive 또는 앱 thin adapter를 소비한다.
 - `@ssoo/web-ui`의 `Input`은 목적 중립 원자다. 검색·필터·lookup 입력은 `@ssoo/web-shell`의 `SsooSearchInput`으로 `id/name/ariaLabel/intent`를 선언하고, query state·URL·API·선택 로직은 화면 소유로 유지한다. 로그인·재설정·비밀번호 변경·관리 대상 사용자·비자격증명 secret은 각 목적에 맞는 `name/id/autocomplete`와 `data-ssoo-input-intent`를 명시한다.
-- header/sidebar/독립 검색 페이지처럼 구조상 검색 시설인 표면만 고유 이름의 `role="search"` landmark를 사용한다. 화면 내부 조건·lookup마다 form/landmark를 추가하거나 기존 submit/DOM 경계를 바꾸지 않는다. 이 계약과 37개 입력 inventory는 `pnpm run verify:input-intent`가 build/preflight/push guard/PR validation에서 검사한다.
+- header/sidebar/독립 검색 페이지처럼 구조상 검색 시설인 표면만 고유 이름의 `role="search"` landmark를 사용한다. 화면 내부 조건·lookup마다 form/landmark를 추가하거나 기존 submit/DOM 경계를 바꾸지 않는다. 이 계약과 42개 입력 inventory는 `pnpm run verify:input-intent`가 build/preflight/push guard/PR validation에서 검사한다.
 - 입력 의도 회귀 계약의 앱 범위는 Admin/CRM/PMS/DMS/SNS 고정 5앱이며 앱 선택·제외 분기를 두지 않는다. 비의도 autofill 차단은 `admin` 같은 값의 내용이나 앱 이름을 판별하지 않고, 앱 소유값과의 불일치·브라우저 native autofill 상태·최근 실제 입력 의도만으로 결정한다.
 - 정적 intrinsic 태그에 `role=button/tab/checkbox/...`, `onClick+tabIndex`, `onClick+onKeyDown`을 붙여 interactive primitive처럼 쓰는 pseudo-control은 금지한다.
 - `@ssoo/web-ui` 원자 컴포넌트 사용처의 `className`에는 배치/간격 같은 문맥 override만 허용한다. Button/Input/NativeSelect/SelectTrigger/Textarea/Checkbox의 색상, 높이, radius, border, typography, focus recipe를 다시 조합하면 `pnpm run verify:ui-consumption`에서 실패한다.
@@ -124,7 +124,7 @@ modules/
 - 루트 `packageManager`의 pnpm 11.13.1과 Node.js 22.13+ 기준을 유지한다. Docker base/runner도 Node.js 22 LTS를 사용한다.
 - `pnpm-workspace.yaml`은 24시간 release-age strict gate와 package/version 단위 `allowBuilds`를 사용한다. 리뷰되지 않은 dependency install script를 일괄 허용하지 않는다.
 - 공개 전 `pnpm security:audit`로 production high/critical 0을 확인하며, registry 연결 실패는 통과로 간주하지 않는다.
-- Next.js의 optional image runtime이 요구하는 `sharp`는 취약한 `<0.35.4` 요청을 검증된 `0.35.4`으로 override한다. 변경 시 5개 웹 production build와 Linux native image 변환 smoke를 함께 통과시킨다.
+- Next.js의 optional image runtime이 요구하는 `sharp`는 취약한 `<0.35.5` 요청을 검증된 `0.35.5`으로 override한다. 변경 시 5개 웹 production build와 Linux native image 변환 smoke를 함께 통과시킨다.
 - 스타일 선택자 처리 6.x의 보안 수정은 `6.1.4`를 기준으로 고정하고, 변경 시 `pnpm security:style-runtime`과 다섯 웹 빌드·실제 hover 동작을 검증한다. `6.1.3`에서 기존 group-hover 규칙 누락을 재현했으므로 감사 통과만으로 호환성을 판단하지 않는다. 의존성 교체 후에는 웹의 생성 산출물과 캐시를 제거한 뒤 빌드해 이전 CSS 재사용을 배제한다.
 - 서버 spreadsheet extraction은 SheetJS 공식 CDN tarball을 사용하고, 브라우저 앱에는 실제 사용하지 않는 `xlsx` 의존성을 선언하지 않는다.
 
@@ -168,9 +168,10 @@ modules/
 | 날짜 | 변경 내용 |
 |------|-----------|
 | 2026-09-30 | 공용 오류 처리 경계와 `verify:error-routing` 강제 검사 추가 |
+| 2026-11-09 | 사용자 승인 보안 패치: sharp 0.35.5/libvips 8.18.7 기준으로 갱신, 기존 5앱 빌드·네이티브 변환 검증 유지 |
 | 2026-09-11 | 사용자 승인 보안 수정: sharp 0.35.4/libvips 8.18.6, 스타일 선택자 6.1.4 기준과 실제 hover·캐시 없는 웹 빌드 검증 추가 |
 | 2026-08-21 | 외부 원본 문서의 exact visual/print 패리티용 `design/source-fidelity-override`를 final-page renderer와 reference/evidence marker에 한정하고 style-boundary에서 fail-closed 검증하도록 추가 |
-| 2026-08-20 | 검색·필터·lookup 입력의 공용 의미/비의도 autofill 차단 계약과 동적 filter renderer를 포함한 37개 입력 inventory, 자격증명 입력 분리, 정적·브라우저 회귀 게이트를 추가 |
+| 2026-08-20 | 검색·필터·lookup 입력의 공용 의미/비의도 autofill 차단 계약과 동적 filter renderer를 포함한 38개 입력 inventory, 자격증명 입력 분리, 정적·브라우저 회귀 게이트를 추가 |
 | 2026-07-22 | Next.js optional image runtime의 취약한 sharp <0.35.0을 0.35.3으로 override하고 웹 production build/Linux native image smoke를 검증 기준으로 추가 |
 | 2026-07-16 | Node.js 22.13+/NestJS 11/pnpm 11.13.1 기준, release-age strict gate, install-script allowlist, production dependency audit와 SheetJS 공식 배포 경로를 공급망 표준으로 추가 |
 | 2026-07-08 | SSOO 커스텀 typography token과 color token이 같이 보존되도록 `@ssoo/web-ui` class merge 정본을 고정하고, DMS 문서 page action 리듬(36px/12px/13px medium)을 공용 Button role size 기준선으로 추가 |

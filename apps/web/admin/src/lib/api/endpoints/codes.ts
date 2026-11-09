@@ -1,47 +1,14 @@
 import { apiClient } from '../client';
 import type { ApiResponse } from '../types';
 
-export interface CodeGroup {
-  codeGroup: string;
-  count: number;
-}
-
-export interface CodeItem {
-  id: string;
-  codeGroup: string;
-  codeValue: string;
-  parentCode: string | null;
-  displayNameKo: string;
-  displayNameEn: string | null;
-  description: string | null;
-  sortOrder: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateCodeRequest {
-  codeGroup: string;
-  codeValue: string;
-  parentCode?: string;
-  displayNameKo: string;
-  displayNameEn?: string;
-  description?: string;
-  sortOrder?: number;
-}
-
-export interface UpdateCodeRequest {
-  codeGroup?: string;
-  codeValue?: string;
-  parentCode?: string;
-  displayNameKo?: string;
-  displayNameEn?: string;
-  description?: string;
-  sortOrder?: number;
-  isActive?: boolean;
-}
+import type { CodeGroup, CodeItem, CodeMutationRequest, CreateCodeRequest, UpdateCodeRequest, CodeUsage } from '@ssoo/types/common';
+export type { CodeGroup, CodeItem, CodeMutationRequest, CreateCodeRequest, UpdateCodeRequest, CodeUsage } from '@ssoo/types/common';
 
 export const codesApi = {
+  usage: async (id: string): Promise<CodeUsage> => {
+    const response = await apiClient.get<ApiResponse<CodeUsage>>(`/codes/${id}/usage`);
+    return response.data.data!;
+  },
   getGroups: async (): Promise<ApiResponse<CodeGroup[]>> => {
     const response = await apiClient.get<ApiResponse<CodeGroup[]>>('/codes/groups');
     return response.data;
@@ -64,13 +31,13 @@ export const codesApi = {
     return response.data;
   },
 
-  deactivate: async (id: string): Promise<ApiResponse<CodeItem>> => {
-    const response = await apiClient.delete<ApiResponse<CodeItem>>(`/codes/${id}`);
+  deactivate: async (id: string, data: CodeMutationRequest): Promise<ApiResponse<CodeItem>> => {
+    const response = await apiClient.delete<ApiResponse<CodeItem>>(`/codes/${id}`, { data });
     return response.data;
   },
 
-  removePermanently: async (id: string): Promise<ApiResponse<{ id: string }>> => {
-    const response = await apiClient.delete<ApiResponse<{ id: string }>>(`/codes/${id}/permanent`);
+  removePermanently: async (id: string, data: CodeMutationRequest): Promise<ApiResponse<{ id: string }>> => {
+    const response = await apiClient.delete<ApiResponse<{ id: string }>>(`/codes/${id}/permanent`, { data });
     return response.data;
   },
 };

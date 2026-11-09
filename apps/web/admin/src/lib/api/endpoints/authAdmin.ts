@@ -3,6 +3,8 @@ import type { ApiResponse } from '../types';
 import type {
   AuthAssignableRole,
   AuthEmailDeliveryStatus,
+  AuthEmailDeliveryMessageSummary,
+  ParticipationPage,
   AuthProviderSettings,
   AuthRegistrationRequestListResult,
   DecideAuthRegistrationRequest,
@@ -103,8 +105,10 @@ export const authAdminApi = {
       .post<ApiResponse<AuthEmailDeliveryStatus>>('/auth/admin/email-delivery/run')
       .then((response) => response.data),
 
-  retryEmailDelivery: (messageId: string) =>
+  listEmailMessages: (params: { page: number; pageSize: number; status?: string }) => apiClient.get<ApiResponse<ParticipationPage<AuthEmailDeliveryMessageSummary>>>('/auth/admin/email-delivery/messages', { params }).then(response => response.data.data!),
+
+  retryEmailDelivery: (messageId: string, reason: string, expectedUpdatedAt: string) =>
     apiClient
-      .post<ApiResponse<AuthEmailDeliveryStatus>>(`/auth/admin/email-delivery/${messageId}/retry`)
+      .post<ApiResponse<AuthEmailDeliveryStatus>>(`/auth/admin/email-delivery/${messageId}/retry`, { reason, expectedUpdatedAt })
       .then((response) => response.data),
 };

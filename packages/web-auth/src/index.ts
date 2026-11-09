@@ -298,6 +298,7 @@ export type {
 export { createSharedHttpError } from './http-error';
 export { SharedSessionRecovery } from './session-recovery';
 
-export { SharedOnboardingBoundary } from './onboarding';
+export { SharedPlatformAccessBoundary, usePlatformAccess } from './platform-access';
+export { PLATFORM_ACCESS_PATHS, getPlatformAccessHref } from './platform-access-routing';
 export { ServiceOrganizationSelect } from './service-organization-select';
-export type { SharedOnboardingBoundaryProps } from './onboarding';
+export type { SharedPlatformAccessBoundaryProps } from './platform-access';

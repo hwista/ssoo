@@ -1,3 +1,6 @@
+import { IntegrationSettingsModule } from '../integrations/integration-settings.module.js';
+import { MailDeliveryService } from './mail-delivery.service.js';
+import { MailSettingsController } from './mail-settings.controller.js';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -20,6 +23,7 @@ import { getRequiredJwtExpiry, getRequiredJwtSecret } from './jwt-config.js';
 @Module({
   imports: [
     ConfigModule,
+    IntegrationSettingsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -35,9 +39,10 @@ import { getRequiredJwtExpiry, getRequiredJwtSecret } from './jwt-config.js';
     AccessFoundationModule,
     DatabaseModule,
   ],
-  controllers: [AuthController, AuthAdminController],
+  controllers: [AuthController, AuthAdminController, MailSettingsController],
   providers: [
     AuthService,
+    MailDeliveryService,
     AuthPolicyService,
     AuthRegistrationService,
     MicrosoftIdentityService,

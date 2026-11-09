@@ -1,3 +1,8 @@
+import { IntegrationSettingsModule } from '../integrations/integration-settings.module.js';
+import { LocalEmbeddingService } from './local-embedding.service.js';
+import { EmbeddingSettingsController } from './embedding-settings.controller.js';
+import { EmbeddingReindexService } from './embedding-reindex.service.js';
+import { AiJobOperationsService } from './ai-job-operations.service.js';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../../database/database.module.js';
 import { AiIndexController } from './ai-index.controller.js';
@@ -11,9 +16,12 @@ import { AiModelGatewayService } from './ai-model-gateway.service.js';
 import { AiRetrievalService } from './ai-retrieval.service.js';
 
 @Module({
-  imports: [DatabaseModule],
-  controllers: [AiIndexController],
+  imports: [DatabaseModule, IntegrationSettingsModule],
+  controllers: [AiIndexController, EmbeddingSettingsController],
   providers: [
+    LocalEmbeddingService,
+    EmbeddingReindexService,
+    AiJobOperationsService,
     AiConversationService,
     AiEmbeddingProviderService,
     AiIndexRegistryService,

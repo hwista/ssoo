@@ -1,7 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsInt, IsBoolean, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean, MaxLength, IsISO8601, Matches } from 'class-validator';
 
-export class CreateCodeDto {
+export class CodeMutationDto {
+  @IsOptional() @IsString() @Matches(/\S/) @MaxLength(2000)
+  reason?: string;
+
+  @IsOptional() @IsISO8601({ strict: true })
+  expectedUpdatedAt?: string;
+}
+
+export class CreateCodeDto extends CodeMutationDto {
   @ApiProperty({ description: '코드 그룹' })
   @IsString()
   @MaxLength(100)
@@ -37,7 +45,7 @@ export class CreateCodeDto {
   sortOrder?: number;
 }
 
-export class UpdateCodeDto {
+export class UpdateCodeDto extends CodeMutationDto {
   @ApiPropertyOptional({ description: '코드 그룹' })
   @IsString()
   @IsOptional()

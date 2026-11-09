@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import type {
@@ -8,6 +8,7 @@ import type {
   AuthRegistrationRequestStatus,
 } from '@ssoo/types/common';
 import { DatabaseService } from '../../../database/database.service.js';
+import { PlatformAdmissionService, type OnboardingTransaction } from '../onboarding/platform-admission.service.js';
 import { DecideRegistrationRequestDto } from './dto/registration-request.dto.js';
 
 export interface VerifiedMicrosoftIdentity {
@@ -33,6 +34,7 @@ interface RegistrationRequestRecord {
   decidedByUserId: bigint | null;
   decisionMemo: string | null;
   createdUserId: bigint | null;
+  updatedAt: Date;
 }
 
 function normalizeEmail(email: string): string {
@@ -58,7 +60,7 @@ function resolveUserName(identity: Pick<VerifiedMicrosoftIdentity, 'displayName'
 
 @Injectable()
 export class AuthRegistrationService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly admission: PlatformAdmissionService) {}
 
   async listAssignableRoles(): Promise<AuthAssignableRole[]> {
     const roles = await this.db.client.role.findMany({
@@ -83,8 +85,8 @@ export class AuthRegistrationService {
     }));
   }
 
-  private async assertActiveRole(roleCode: string): Promise<void> {
-    const role = await this.db.client.role.findUnique({
+  private async assertActiveRole(roleCode: string, tx: OnboardingTransaction): Promise<void> {
+    const role = await tx.role.findUnique({
       where: { roleCode },
       select: { isActive: true },
     });
@@ -97,6 +99,7 @@ export class AuthRegistrationService {
   private toItem(record: RegistrationRequestRecord): AuthRegistrationRequestItem {
     return {
       registrationRequestId: record.registrationRequestId,
+      updatedAt: record.updatedAt.toISOString(),
       providerCode: record.providerCode === 'microsoft' ? 'microsoft' : 'sso',
       tenantId: record.tenantId,
       subjectId: record.subjectId,
@@ -126,7 +129,7 @@ export class AuthRegistrationService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { requestedAt: 'desc' },
+        orderBy: [{ requestedAt: 'desc' }, { registrationRequestId: 'desc' }],
       }),
       this.db.client.userRegistrationRequest.count({ where }),
     ]);
@@ -196,23 +199,11 @@ export class AuthRegistrationService {
     dto: DecideRegistrationRequestDto,
     currentUserId: bigint,
   ): Promise<AuthRegistrationRequestItem> {
-    const request = await this.db.client.userRegistrationRequest.findUnique({
-      where: { registrationRequestId },
-    });
-
-    if (!request) {
-      throw new NotFoundException('가입 신청을 찾을 수 없습니다.');
-    }
-    if (request.statusCode !== 'pending') {
-      throw new BadRequestException('대기 중인 가입 신청만 승인할 수 있습니다.');
-    }
-
     const roleCode = dto.roleCode?.trim() || 'user';
-    await this.assertActiveRole(roleCode);
-    const memo = dto.memo?.trim() || null;
     const passwordHash = await bcrypt.hash(`external:${randomBytes(32).toString('base64url')}`, 12);
-
-    const approved = await this.db.client.$transaction(async (tx) => {
+    const approved = await this.decide(currentUserId, async tx => {
+      const request = await this.claimDecision(tx, registrationRequestId, dto, currentUserId, 'approved');
+      await this.assertActiveRole(roleCode, tx);
       let user = await tx.user.findUnique({
         where: { email: request.email },
       });
@@ -231,6 +222,7 @@ export class AuthRegistrationService {
         });
       }
 
+      if (!user.isActive) throw new BadRequestException('중지된 기존 사용자입니다. 사용자 관리에서 계정 상태를 먼저 확인해 주세요.');
       await tx.platformEnrollment.upsert({ where: { userId: user.id }, create: { userId: user.id, createdBy: currentUserId, updatedBy: currentUserId, lastSource: 'auth-registration', lastActivity: 'onboarding.account-created' }, update: {} });
 
       const authAccount = await tx.userAuth.findUnique({
@@ -247,10 +239,7 @@ export class AuthRegistrationService {
           },
         });
       } else if (authAccount.accountStatusCode !== 'active') {
-        await tx.userAuth.update({
-          where: { userId: user.id },
-          data: { accountStatusCode: 'active' },
-        });
+        throw new BadRequestException('중지된 기존 로그인 계정입니다. 사용자 관리에서 계정 상태를 먼저 확인해 주세요.');
       }
 
       const existingIdentity = await tx.userExternalIdentity.findFirst({
@@ -292,7 +281,7 @@ export class AuthRegistrationService {
           statusCode: 'approved',
           decidedAt: new Date(),
           decidedByUserId: currentUserId,
-          decisionMemo: memo,
+          decisionMemo: dto.memo.trim(),
           createdUserId: user.id,
         },
       });
@@ -306,27 +295,42 @@ export class AuthRegistrationService {
     dto: DecideRegistrationRequestDto,
     currentUserId: bigint,
   ): Promise<AuthRegistrationRequestItem> {
-    const request = await this.db.client.userRegistrationRequest.findUnique({
-      where: { registrationRequestId },
+    const rejected = await this.decide(currentUserId, async tx => {
+      await this.claimDecision(tx, registrationRequestId, dto, currentUserId, 'rejected');
+      return tx.userRegistrationRequest.findUniqueOrThrow({ where: { registrationRequestId } });
     });
-
-    if (!request) {
-      throw new NotFoundException('가입 신청을 찾을 수 없습니다.');
-    }
-    if (request.statusCode !== 'pending') {
-      throw new BadRequestException('대기 중인 가입 신청만 반려할 수 있습니다.');
-    }
-
-    const rejected = await this.db.client.userRegistrationRequest.update({
-      where: { registrationRequestId },
-      data: {
-        statusCode: 'rejected',
-        decidedAt: new Date(),
-        decidedByUserId: currentUserId,
-        decisionMemo: dto.memo?.trim() || null,
-      },
-    });
-
     return this.toItem(rejected);
+  }
+
+  private async decide<T>(actor: bigint, operation: (tx: OnboardingTransaction) => Promise<T>) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.db.client.$transaction(async tx => {
+          if (!await this.admission.isPlatformAdmin(actor, tx)) throw new ForbiddenException('플랫폼 관리자만 가입 신청을 처리할 수 있습니다.');
+          return operation(tx);
+        }, { isolationLevel: 'Serializable' });
+      } catch (error) {
+        if (error instanceof Error && 'code' in error) {
+          if (error.code === 'P2034' && attempt < 2) continue;
+          if (error.code === 'P2034' || error.code === 'P2002') throw new ConflictException('다른 작업으로 가입 상태가 변경됐습니다. 다시 조회해 주세요.');
+        }
+        throw error;
+      }
+    }
+  }
+
+  private async claimDecision(tx: OnboardingTransaction, id: string, dto: DecideRegistrationRequestDto, actor: bigint, status: 'approved' | 'rejected') {
+    if (!dto.memo?.trim()) throw new BadRequestException('가입 처리 사유를 입력해 주세요.');
+    const request = await tx.userRegistrationRequest.findUnique({ where: { registrationRequestId: id } });
+    if (!request) throw new NotFoundException('가입 신청을 찾을 수 없습니다.');
+    if (request.statusCode !== 'pending' || request.updatedAt.getTime() !== new Date(dto.expectedUpdatedAt).getTime()) {
+      throw new ConflictException('조회 후 가입 신청이 변경됐습니다. 다시 조회해 주세요.');
+    }
+    const claimed = await tx.userRegistrationRequest.updateMany({
+      where: { registrationRequestId: id, statusCode: 'pending', updatedAt: request.updatedAt },
+      data: { statusCode: status, decidedAt: new Date(), decidedByUserId: actor, decisionMemo: dto.memo.trim(), updatedBy: actor, lastSource: 'admin-registration', lastActivity: `registration.${status}` },
+    });
+    if (claimed.count !== 1) throw new ConflictException('다른 운영자가 이미 처리한 가입 신청입니다. 다시 조회해 주세요.');
+    return request;
   }
 }

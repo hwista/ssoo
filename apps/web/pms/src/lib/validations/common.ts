@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './zod';
 
 /**
  * 공통 유효성 검증 스키마
@@ -12,7 +12,7 @@ import { z } from 'zod';
 
 /** 필수 문자열 (빈 값 불허) */
 export const requiredString = z
-  .string({ required_error: '필수 입력입니다.' })
+  .string({ error: (issue) => issue.input === undefined ? '필수 입력입니다.' : undefined })
   .min(1, '필수 입력입니다.');
 
 /** 선택 문자열 (빈 값 → undefined) */
@@ -47,7 +47,7 @@ export const emailField = z
 
 /** 필수 이메일 */
 export const requiredEmail = z
-  .string({ required_error: '이메일을 입력하세요.' })
+  .string({ error: (issue) => issue.input === undefined ? '이메일을 입력하세요.' : undefined })
   .min(1, '이메일을 입력하세요.')
   .email('올바른 이메일 형식이 아닙니다.');
 
@@ -71,7 +71,7 @@ export const mobileField = z
 
 /** 필수 숫자 (양수) */
 export const requiredPositiveNumber = z
-  .number({ required_error: '숫자를 입력하세요.' })
+  .number({ error: (issue) => issue.input === undefined ? '숫자를 입력하세요.' : undefined })
   .positive('0보다 큰 값을 입력하세요.');
 
 /** 선택 숫자 */
@@ -115,7 +115,7 @@ export const dateField = z
 
 /** 필수 날짜 */
 export const requiredDate = z
-  .string({ required_error: '날짜를 선택하세요.' })
+  .string({ error: (issue) => issue.input === undefined ? '날짜를 선택하세요.' : undefined })
   .min(1, '날짜를 선택하세요.')
   .regex(/^\d{4}-\d{2}-\d{2}$/, '올바른 날짜 형식이 아닙니다.');
 
@@ -161,7 +161,7 @@ export const checkboxField = z
 
 /** 필수 선택 */
 export const requiredSelect = z
-  .string({ required_error: '선택하세요.' })
+  .string({ error: (issue) => issue.input === undefined ? '선택하세요.' : undefined })
   .min(1, '선택하세요.');
 
 /** 선택 (빈 값 → undefined) */

@@ -55,7 +55,9 @@ export function SharedAuthStateSync<TUser extends AuthIdentity = AuthIdentity>({
       if (timeoutId !== null) clearTimeout(timeoutId);
       const remaining = Math.max(0, SHARED_AUTH_IDLE_TIMEOUT_MS - (Date.now() - readLastActivity()));
       timeoutId = setTimeout(() => {
-        void logout();
+        // The store exposes a retryable session notice on failure. An idle
+        // callback has no caller to handle a rejected logout promise.
+        void logout().catch(() => undefined);
       }, remaining);
     };
 

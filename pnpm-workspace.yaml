@@ -12,10 +12,18 @@ minimumReleaseAgeStrict: true
 nodeVersion: 22.13.0
 engineStrict: true
 
+# Native runtime tarballs need more time when rebuilding an empty Docker cache.
+fetchTimeout: 600000
+networkConcurrency: 8
+
 overrides:
+  'zod@<4.6.6': 4.6.6
+  'body-parser@>=2.0.0 <2.4.0': 2.4.0
+  'follow-redirects@<1.16.2': 1.16.2
+  'onnxruntime-web>protobufjs': 7.6.5
   'proxy-addr@<2.0.8': 2.0.8
   'source-map-js@<1.2.2': 1.2.2
-  'dompurify@<3.4.13': 3.4.13
+  'dompurify@<3.4.17': 3.4.17
   'browserslist@<4.28.7': 4.28.7
   'baseline-browser-mapping@>=2.0.0 <2.11.0': 2.11.0
   'postcss-selector-parser@>=6.1.0 <6.1.4': 6.1.4
@@ -35,13 +43,13 @@ overrides:
   'lodash-es@<=4.17.23': 4.18.1
   'minimatch@<3.1.4': 3.1.4
   'minimatch@>=9.0.0 <9.0.7': 9.0.7
-  'multer@<2.3.0': 2.3.0
+  'multer@<2.5.0': 2.5.0
   'path-to-regexp@<0.1.13': 0.1.13
   'picomatch@<2.3.2': 2.3.2
   'picomatch@>=4.0.0 <4.0.4': 4.0.4
   'postcss@<8.5.18': 8.5.26
   'qs@>=6.11.1 <6.16.0': 6.16.0
-  'sharp@<0.35.4': 0.35.4
+  'sharp@<0.35.5': 0.35.5
   'socket.io-parser@>=4.0.0 <4.2.7': 4.2.7
   'nanoid@<3.3.17': 3.3.17
   'nanoid@>=4.0.0 <5.1.16': 5.1.16
@@ -51,6 +59,8 @@ overrides:
   'yaml@>=2.0.0 <2.8.3': 2.8.3
 
 allowBuilds:
+  # CPU binaries are bundled; disallow the optional multi-GB CUDA download.
+  'onnxruntime-node@1.21.0': false
   '@prisma/client@6.19.2': true
   '@prisma/engines@5.0.0 || 6.19.2': true
   '@scarf/scarf@1.4.0': false
@@ -59,5 +69,5 @@ allowBuilds:
   'esbuild@0.25.12 || 0.27.2': true
   'oracledb@6.10.0': false
   'prisma@6.19.2': true
-  'protobufjs@7.5.4': false
+  'protobufjs@7.5.4 || 7.6.1 || 7.6.5': false
   'unrs-resolver@1.11.1': true

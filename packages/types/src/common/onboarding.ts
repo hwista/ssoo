@@ -9,6 +9,25 @@ export interface OnboardingOrganization {
   name: string;
   parentId: string | null;
   member: boolean;
+  path?: string;
+  type?: string;
+}
+
+export interface ApprovalCandidate {
+  id: string;
+  name: string;
+  loginId: string;
+  email: string;
+  eligible: boolean;
+  reason: string | null;
+  organizations: string[];
+}
+
+export interface ApprovalCandidatePage {
+  items: ApprovalCandidate[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface OnboardingRequest {

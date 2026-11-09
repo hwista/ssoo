@@ -27,6 +27,7 @@ import { CustomerWorkspaceMdiPage } from '@/components/pages/customers/CustomerW
 import { OperationsPreviewWorkspaceMdiPage } from '@/components/pages/operations/OperationsPreviewWorkspaceMdiPage';
 import { QuoteSellerProfileWorkspaceMdiPage } from '@/components/pages/quote-settings/QuoteSellerProfileWorkspaceMdiPage';
 import { ReportsPreviewWorkspaceMdiPage } from '@/components/pages/reports/ReportsPreviewWorkspaceMdiPage';
+import { CrmCodeManagement } from '@/components/pages/settings/CrmCodeManagement';
 import { CrmSettingsWorkspaceMdiPage } from '@/components/pages/settings/CrmSettingsWorkspaceMdiPage';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
@@ -93,6 +94,7 @@ function renderCrmPage(tab: CrmTabItem, active = true) {
   }
 
   if (pathname === '/operations/settings' || pathname === '/settings') {
+    if (new URLSearchParams(tab.path.split('?')[1]).get('view') === 'codes') return <CrmCodeManagement key={tab.path} path={tab.path} />;
     return <CrmSettingsWorkspaceMdiPage />;
   }
 

@@ -58,10 +58,10 @@ export function useRolePermissions(enabled: boolean = true) {
 export function useUpdateRolePermissions() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ roleCode, permissionCodes }: { roleCode: string; permissionCodes: string[] }) =>
-      accessOpsApi.updateRolePermissions(roleCode, permissionCodes),
+    mutationFn: ({ roleCode, permissionCodes, reason, expectedRevision }: { roleCode: string; permissionCodes: string[]; reason: string; expectedRevision: string }) =>
+      accessOpsApi.updateRolePermissions(roleCode, permissionCodes, reason, expectedRevision),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accessOpsKeys.roles() });
+      queryClient.invalidateQueries({ queryKey: accessOpsKeys.all });
       queryClient.invalidateQueries({ queryKey: accessOpsKeys.audit(100) });
     },
   });

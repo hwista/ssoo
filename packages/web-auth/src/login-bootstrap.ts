@@ -24,6 +24,7 @@ export function useLoginPageBootstrap(
     onAuthenticated,
   } = options;
   const restoreCalled = useRef(false);
+  const navigated = useRef(false);
 
   useEffect(() => {
     if (!hasHydrated || isAuthenticated || authIsLoading || restoreCalled.current) {
@@ -35,12 +36,14 @@ export function useLoginPageBootstrap(
   }, [authIsLoading, checkAuth, hasHydrated, isAuthenticated]);
 
   useEffect(() => {
-    if (!hasHydrated || !isAuthenticated) {
+    if (!isAuthenticated) navigated.current = false;
+    if (!hasHydrated || authIsLoading || !isAuthenticated || navigated.current) {
       return;
     }
 
+    navigated.current = true;
     onAuthenticated();
-  }, [hasHydrated, isAuthenticated, onAuthenticated]);
+  }, [authIsLoading, hasHydrated, isAuthenticated, onAuthenticated]);
 
   return {
     showLoading: !hasHydrated || authIsLoading || isAuthenticated,

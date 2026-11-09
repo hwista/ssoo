@@ -130,9 +130,10 @@ test('TC-DB-06: repository launch migrations and triggers form the expected cont
       '20261001110000_crm_contract_draft_dates',
       '20261001120000_crm_planning_organization',
       '20261002090000_sns_post_access_requests',
+      '20261105090000_runtime_integrations',
     ],
   );
-  assert.equal(triggers.length, 90);
+  assert.equal(triggers.length, 91);
   assert.deepEqual(triggers.find((trigger) => trigger.name === 'trg_cm_code_h'), {
     name: 'trg_cm_code_h', schema: 'common', table: 'cm_code_m',
   });
@@ -142,6 +143,7 @@ test('TC-DB-06: repository launch migrations and triggers form the expected cont
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_config_m_h_record'));
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_crm_operation_attempt_m_h_record'));
   assert.ok(triggers.some((trigger) => trigger.name === 'trg_dm_user_document_activity_h'));
+  assert.ok(triggers.some((trigger) => trigger.name === 'trg_cm_integration_setting_h'));
 });
 
 test('TC-DB-07: runtime verification is wired into managed init, production, and CI', () => {

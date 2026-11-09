@@ -4,6 +4,7 @@ import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { input } from 'zod';
 import { upsertExecutionDetailSchema } from '@/lib/validations/project';
 import type { UpsertExecutionDetailInput } from '@/lib/validations/project';
 import { useProjectAccess, useProjectList, useUpsertExecutionDetail } from '@/hooks/queries';
@@ -54,7 +55,7 @@ export function ExecutionDetailTab({ projectId, detail, onSaved }: Props) {
   const { data: accessResponse } = useProjectAccess(projectId);
   const canEditProject = accessResponse?.data?.features.canEditProject ?? false;
 
-  const form = useForm<ExecutionEditableInput>({
+  const form = useForm<input<typeof executionEditableSchema>, unknown, ExecutionEditableInput>({
     resolver: zodResolver(executionEditableSchema),
     defaultValues: {
       deliveryMethodCode: detail?.deliveryMethodCode ?? '',

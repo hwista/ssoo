@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './zod';
 import {
   requiredStringMax,
   optionalStringMax,
@@ -18,19 +18,19 @@ import {
 
 /** 프로젝트 상태 코드 */
 export const projectStatusCodeSchema = z.enum(['request', 'proposal', 'execution', 'transition'], {
-  errorMap: () => ({ message: '유효한 상태를 선택하세요.' }),
+  error: '유효한 상태를 선택하세요.',
 });
 
 /** 프로젝트 단계 코드 */
 export const projectStageCodeSchema = z.enum(['waiting', 'in_progress', 'done'], {
-  errorMap: () => ({ message: '유효한 단계를 선택하세요.' }),
+  error: '유효한 단계를 선택하세요.',
 });
 
 /** 프로젝트 완료 결과 코드 */
 export const projectDoneResultCodeSchema = z.enum(
   ['accepted', 'rejected', 'won', 'lost', 'completed', 'transfer_pending', 'linked', 'cancelled', 'transferred', 'hold'],
   {
-   errorMap: () => ({ message: '유효한 결과를 선택하세요.' }),
+   error: '유효한 결과를 선택하세요.',
 });
 
 // ========================================
@@ -50,6 +50,9 @@ export const createProjectSchema = z.object({
 
 /** 프로젝트 수정 스키마 */
 export const updateProjectSchema = createProjectSchema.partial().extend({
+  // Updates must not apply the creation defaults to omitted fields.
+  statusCode: projectStatusCodeSchema.optional(),
+  stageCode: projectStageCodeSchema.optional(),
   doneResultCode: projectDoneResultCodeSchema.optional(),
 });
 

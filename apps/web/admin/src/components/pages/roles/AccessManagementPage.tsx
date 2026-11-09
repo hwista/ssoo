@@ -1,9 +1,18 @@
 'use client';
+import { ProgramContext } from '../access/ProgramContext';
+import { readProgramContext } from '../access/program-context';
+import { getAdminBreadcrumb } from '@/components/layout/navigation';
 
-import { SsooErrorNotice } from '@ssoo/web-shell';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { SsooDataGrid, SsooErrorNotice } from '@ssoo/web-shell';
+import { getAdminTabOptions } from '@/components/layout/navigation';
+import { useTabStore } from '@/stores/tab.store';
+import { ApprovalAuthoritiesTab } from './ApprovalAuthoritiesTab';
+import { CommonPermissionsPanel } from './CommonPermissionsPanel';
+import { PlatformAccessDiagnosisPanel } from './PlatformAccessDiagnosisPanel';
+import { OperationHistoryButton } from '../access/OperationHistoryButton';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { RefreshCcw, Search, Shield, AlertTriangle, Users, Save, ScrollText } from 'lucide-react';
-import { SsooSearchInput, SsooSettingsPage } from '@ssoo/web-shell';
+import { SsooSearchInput, SsooWorkspacePage } from '@ssoo/web-shell';
 import type {
   AccessInspectionResult,
   PermissionCatalogGroup,
@@ -30,9 +39,9 @@ import {
 } from '@/hooks/queries/useAccessOps';
 import { useUserList } from '@/hooks/queries/useUsers';
 import type { InspectAccessParams, ListExceptionsParams } from '@/lib/api/endpoints/accessOps';
-import { Checkbox, NativeSelect } from '@ssoo/web-ui';
+import { Checkbox, NativeSelect, Textarea } from '@ssoo/web-ui';
 
-type TabId = 'grants' | 'catalog' | 'inspect' | 'exceptions' | 'audit';
+type TabId = 'approval-authorities' | 'grants' | 'catalog' | 'inspect' | 'exceptions' | 'audit' | 'organization-permissions' | 'user-permissions';
 
 interface InspectDraft {
   targetObjectType: string;
@@ -59,6 +68,17 @@ function formatDateTime(value?: string | null): string {
   });
 }
 
+const OWNER_LABELS: Record<PermissionCatalogGroup['owner'], { title: string; description: string }> = {
+  'admin-platform': { title: '플랫폼 공통 관리', description: '사용자·조직·역할과 플랫폼 관리 기능' },
+  dms: { title: 'DMS · 문서 관리', description: '문서 조회·작성·검색·공유와 문서 관리 기능' },
+  crm: { title: 'CRM · 고객·영업 관리', description: '고객·영업 업무와 관리 기능' },
+  pms: { title: 'PMS · 프로젝트 관리', description: '프로젝트 업무와 관리 기능' },
+  sns: { title: 'SNS · 협업', description: '협업 업무와 관리 기능' },
+  cms: { title: 'CMS · 콘텐츠 관리', description: '콘텐츠 업무와 관리 기능' },
+  unknown: { title: '미분류 기능', description: '관리 책임 분류 확인이 필요한 기능' },
+};
+const CATALOG_STATUS_LABELS = { 'launch-active': '사용 중', foundation: '기반 기능', planned: '준비 중' };
+
 function CodeList({
   title,
   codes,
@@ -68,6 +88,8 @@ function CodeList({
   codes: string[];
   emptyText?: string;
 }) {
+  const catalog = usePermissionCatalog();
+  const names = new Map(catalog.data?.groups.flatMap(group => group.items.map(item => [item.permissionCode, item.permissionCode === 'system.override' ? '플랫폼 전체 관리' : item.permissionName] as const)) ?? []);
   return (
     <div className="space-y-2 rounded-md border p-3">
       <div className="flex items-center justify-between gap-3">
@@ -81,13 +103,14 @@ function CodeList({
               key={code}
               className="rounded-full border bg-muted/50 px-2 py-0.5 text-caption-2xs font-medium"
             >
-              {code}
+              {names.get(code) ?? code}
             </span>
           ))}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">{emptyText}</p>
       )}
+      {codes.length ? <details className="text-xs text-muted-foreground"><summary className="cursor-pointer py-1">권한 코드 보기</summary><p className="mt-1 break-all">{codes.join(', ')}</p></details> : null}
     </div>
   );
 }
@@ -107,7 +130,7 @@ function PolicyTraceSection({
         <div>
           <h3 className="text-sm font-semibold">{title}</h3>
           <p className="text-xs text-muted-foreground">
-            granted {snapshot.grantedPermissionCodes.length} / system.override{' '}
+            허용 기능 {snapshot.grantedPermissionCodes.length}개 · 관리자 전체 권한{' '}
             {policy.hasSystemOverride ? '적용' : '미적용'}
           </p>
         </div>
@@ -118,19 +141,19 @@ function PolicyTraceSection({
         ) : null}
       </div>
 
-      <CodeList title="최종 granted permission" codes={snapshot.grantedPermissionCodes} />
+      <CodeList title="최종 허용 기능" codes={snapshot.grantedPermissionCodes} />
 
       {'targetObjectType' in snapshot ? (
         <CodeList
-          title="입력된 domain permission"
+          title="입력한 업무 권한"
           codes={snapshot.domainPermissionCodes}
-          emptyText="추가 domain permission 입력이 없습니다."
+          emptyText="추가 업무 권한 입력이 없습니다."
         />
       ) : null}
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <CodeList title="Role baseline" codes={policy.rolePermissionCodes} />
-        <CodeList title="Organization baseline" codes={policy.organizationPermissionCodes} />
+        <CodeList title="기본 역할 권한" codes={policy.rolePermissionCodes} />
+        <CodeList title="조직 기본 권한" codes={policy.organizationPermissionCodes} />
         <CodeList title="User grant" codes={policy.userGrantedPermissionCodes} />
         <CodeList title="User revoke" codes={policy.userRevokedPermissionCodes} />
         <CodeList title="Domain grant" codes={policy.domainGrantedPermissionCodes} />
@@ -146,7 +169,7 @@ function ExceptionRow({ item }: { item: PermissionExceptionRecord }) {
     <TableRow>
       <TableCell>
         <div className="font-medium text-sm">{item.permissionCode}</div>
-        <div className="text-xs text-muted-foreground">{item.permissionName}</div>
+        <div className="text-xs text-muted-foreground">{item.permissionCode === 'system.override' ? '플랫폼 전체 관리' : item.permissionName}</div>
       </TableCell>
       <TableCell>
         <span className="text-sm">{item.userName}</span>
@@ -160,11 +183,11 @@ function ExceptionRow({ item }: { item: PermissionExceptionRecord }) {
               : 'rounded-full bg-ssoo-danger-bg px-2 py-0.5 text-xs font-medium text-ssoo-danger'
           }
         >
-          {item.effectType}
+          {item.effectType === 'grant' ? '허용' : '차단'}
         </span>
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">
-        {item.exceptionAxis}
+        {item.exceptionAxis === 'action' ? '기능' : item.exceptionAxis === 'object' ? '자료' : item.exceptionAxis}
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">
         {item.targetObjectType && item.targetObjectId
@@ -183,7 +206,7 @@ function ExceptionRow({ item }: { item: PermissionExceptionRecord }) {
             item.isActive ? 'text-xs text-ssoo-success' : 'text-xs text-muted-foreground'
           }
         >
-          {item.isActive ? 'active' : 'inactive'}
+          {!item.isActive ? '회수됨' : item.expiresAt && new Date(item.expiresAt).getTime() <= Date.now() ? '만료' : '미회수'}
         </span>
       </TableCell>
     </TableRow>
@@ -210,7 +233,7 @@ function ExceptionTable({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-xs">Permission</TableHead>
+                <TableHead className="text-xs">기능 권한</TableHead>
                 <TableHead className="text-xs">효과</TableHead>
                 <TableHead className="text-xs">대상</TableHead>
                 <TableHead className="text-xs">사유</TableHead>
@@ -223,7 +246,7 @@ function ExceptionTable({
                 <TableRow key={item.id}>
                   <TableCell>
                     <div className="font-medium text-sm">{item.permissionCode}</div>
-                    <div className="text-xs text-muted-foreground">{item.permissionName}</div>
+                    <div className="text-xs text-muted-foreground">{item.permissionCode === 'system.override' ? '플랫폼 전체 관리' : item.permissionName}</div>
                   </TableCell>
                   <TableCell>
                     <span
@@ -231,7 +254,7 @@ function ExceptionTable({
                         item.effectType === 'grant' ? 'text-ssoo-success' : 'text-destructive'
                       }
                     >
-                      {item.effectType}
+                      {item.effectType === 'grant' ? '허용' : '차단'}
                     </span>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
@@ -253,7 +276,7 @@ function ExceptionTable({
                           : 'text-xs text-muted-foreground'
                       }
                     >
-                      {item.isActive ? 'active' : 'inactive'}
+                      {!item.isActive ? '회수됨' : item.expiresAt && new Date(item.expiresAt).getTime() <= Date.now() ? '만료' : '미회수'}
                     </span>
                   </TableCell>
                 </TableRow>
@@ -295,8 +318,8 @@ function CatalogGroupCard({ group }: { group: PermissionCatalogGroup }) {
     <section className="space-y-3 rounded-lg border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold">{group.title}</h3>
-          <p className="mt-1 text-xs text-muted-foreground">{group.responsibility}</p>
+          <h3 className="text-sm font-semibold">{OWNER_LABELS[group.owner].title}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">{OWNER_LABELS[group.owner].description}</p>
         </div>
         <span
           className={
@@ -305,48 +328,17 @@ function CatalogGroupCard({ group }: { group: PermissionCatalogGroup }) {
               : 'rounded-full border px-2 py-0.5 text-xs text-muted-foreground'
           }
         >
-          {group.launchFocus ? 'launch 검증 대상' : '개발 진행/후순위'}
+          {group.launchFocus ? '운영 검증 대상' : '준비 중인 기능 포함'}
         </span>
       </div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-xs">Permission</TableHead>
-              <TableHead className="text-xs">기능</TableHead>
-              <TableHead className="text-xs">메뉴/노출 위치</TableHead>
-              <TableHead className="text-xs">운영 책임</TableHead>
-              <TableHead className="text-xs">상태</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {group.items.map((item) => (
-              <TableRow key={item.permissionCode}>
-                <TableCell>
-                  <div className="font-mono text-xs font-medium">{item.permissionCode}</div>
-                  <div className="text-xs text-muted-foreground">{item.permissionName}</div>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">{item.capability}</TableCell>
-                <TableCell className="max-w-xs text-xs text-muted-foreground">{item.menuSurface}</TableCell>
-                <TableCell className="max-w-sm text-xs text-muted-foreground">{item.operationSurface}</TableCell>
-                <TableCell>
-                  <span
-                    className={
-                      item.status === 'launch-active'
-                        ? 'rounded-full bg-ssoo-success-bg px-2 py-0.5 text-xs font-medium text-ssoo-success'
-                        : item.status === 'foundation'
-                          ? 'rounded-full bg-ssoo-warning-bg px-2 py-0.5 text-xs font-medium text-ssoo-warning'
-                          : 'rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground'
-                    }
-                  >
-                    {item.status}
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <SsooDataGrid fitViewport enableSorting={false} mobileSummaryColumns={['permission', 'status']}
+        data={group.items} columns={[
+          { id: 'permission', header: '기능 권한', size: 220, cell: ({row:{original:item}}) => <><strong>{item.permissionCode === 'system.override' ? '플랫폼 전체 관리' : item.permissionName}</strong><p className="break-all text-xs text-muted-foreground">{item.permissionCode}</p></> },
+          { accessorKey: 'capability', header: '기능 설명', size: 220 },
+          { accessorKey: 'menuSurface', header: '메뉴 위치', size: 220 },
+          { accessorKey: 'operationSurface', header: '운영 책임', size: 220 },
+          { id: 'status', header: '상태', size: 100, cell: ({row:{original:item}}) => CATALOG_STATUS_LABELS[item.status] },
+        ]} />
     </section>
   );
 }
@@ -362,7 +354,7 @@ function CatalogTab() {
           <div>
             <h3 className="text-sm font-semibold">플랫폼/앱별 권한 기능 명세</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Admin은 SSOT 플랫폼/base 권한을 운영합니다. DMS와 CRM의 런칭 권한은 각 소유 앱의 API guard가 집행하고, 이 화면은 같은 permission snapshot의 부여·감사를 담당합니다. PMS/SNS는 앱 개발 진행에 맞춰 같은 분류로 이어갑니다.
+              플랫폼과 각 앱의 기능 권한을 확인합니다. 이 화면에서 역할별 허용 기능을 관리하고, 실제 접근은 각 앱의 이용 자격과 개별 자료 권한을 함께 적용해 판단합니다.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => catalogQuery.refetch()}>
@@ -373,9 +365,9 @@ function CatalogTab() {
         {catalog ? (
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             <AdminSummaryCard title="전체 권한" value={catalog.summary.total} icon={<Shield className="h-4 w-4" />} />
-            <AdminSummaryCard title="런칭 검증" value={catalog.summary.launchActive} icon={<CheckIcon />} />
-            <AdminSummaryCard title="Foundation" value={catalog.summary.foundation} icon={<Users className="h-4 w-4" />} />
-            <AdminSummaryCard title="Planned" value={catalog.summary.planned} icon={<AlertTriangle className="h-4 w-4" />} />
+            <AdminSummaryCard title="사용 중인 기능" value={catalog.summary.launchActive} icon={<CheckIcon />} />
+            <AdminSummaryCard title="기반 기능" value={catalog.summary.foundation} icon={<Users className="h-4 w-4" />} />
+            <AdminSummaryCard title="준비 중" value={catalog.summary.planned} icon={<AlertTriangle className="h-4 w-4" />} />
           </div>
         ) : null}
       </div>
@@ -402,13 +394,14 @@ function CheckIcon() {
 }
 
 /* ────────────── Inspect Tab ────────────── */
-function InspectTab() {
-  const [selectedUserId, setSelectedUserId] = useState('');
+function InspectTab({ initialUserId = '' }: { initialUserId?: string }) {
+  const [selectedUserId, setSelectedUserId] = useState(initialUserId);
+  useEffect(() => { if (initialUserId) setSelectedUserId(initialUserId); }, [initialUserId]);
   const [userSearch, setUserSearch] = useState('');
   const [draft, setDraft] = useState<InspectDraft>(INITIAL_DRAFT);
   const [inspectParams, setInspectParams] = useState<InspectAccessParams | null>(null);
 
-  const usersQuery = useUserList();
+  const usersQuery = useUserList({ page: 1, limit: 100 }, true);
   const users = useMemo(() => usersQuery.data?.data ?? [], [usersQuery.data?.data]);
 
   const filteredUsers = useMemo(() => {
@@ -454,8 +447,8 @@ function InspectTab() {
   return (
     <div className="space-y-4">
       {/* User selector */}
-      <div className="rounded-lg border bg-card p-4">
-        <h3 className="mb-3 text-sm font-semibold">대상 사용자 선택</h3>
+      <details open={!selectedUser} className="rounded-lg border bg-card p-4">
+        <summary className="cursor-pointer text-sm font-semibold">{selectedUser ? `대상: ${selectedUser.userName} · ${selectedUser.loginId} — 사용자 변경` : '대상 사용자 선택'}</summary>
 
         {usersQuery.isLoading && (
           <p className="text-sm text-muted-foreground">사용자 목록을 불러오는 중...</p>
@@ -499,7 +492,7 @@ function InspectTab() {
                 <span className="min-w-0 flex-1 truncate">{u.userName}</span>
                 <span className="text-xs text-muted-foreground">{u.loginId}</span>
                 <span className="rounded-full border px-1.5 py-0.5 text-caption-xs text-muted-foreground">
-                  {u.roleCode}
+                  {({ admin: '플랫폼 관리자', manager: '매니저', user: '사용자', viewer: '조회자' } as Record<string, string>)[u.roleCode] ?? u.roleCode}
                 </span>
               </Button>
             ))}
@@ -507,24 +500,25 @@ function InspectTab() {
         )}
           </>
         )}
-      </div>
+      </details>
 
       {/* Inspect parameters */}
+      {selectedUser ? <PlatformAccessDiagnosisPanel user={selectedUser} /> : null}
       {selectedUser && (
-        <div className="rounded-lg border bg-card p-4">
+        <details className="rounded-lg border bg-card p-4"><summary className="cursor-pointer text-sm font-semibold">세부 자료 권한 조회 (선택)</summary><div className="pt-3">
           <div className="mb-3 flex items-center gap-2">
             <Shield className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold">
               {selectedUser.userName} ({selectedUser.loginId})
             </h3>
             <span className="rounded-full border px-2 py-0.5 text-caption-xs text-muted-foreground">
-              {selectedUser.roleCode}
+              {({ admin: '플랫폼 관리자', manager: '매니저', user: '사용자', viewer: '조회자' } as Record<string, string>)[selectedUser.roleCode] ?? selectedUser.roleCode}
             </span>
           </div>
 
           <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1.4fr_auto]">
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Object type</label>
+              <label className="text-xs font-medium text-muted-foreground">자료 유형</label>
               <Input
                 value={draft.targetObjectType}
                 onChange={(e) =>
@@ -534,7 +528,7 @@ function InspectTab() {
               />
             </div>
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Object id</label>
+              <label className="text-xs font-medium text-muted-foreground">자료 식별자</label>
               <Input
                 value={draft.targetObjectId}
                 onChange={(e) =>
@@ -545,14 +539,14 @@ function InspectTab() {
             </div>
             <div className="grid gap-1.5">
               <label className="text-xs font-medium text-muted-foreground">
-                Domain permission codes
+                추가 업무 권한 코드
               </label>
               <Input
                 value={draft.domainPermissionCodes}
                 onChange={(e) =>
                   setDraft((prev) => ({ ...prev, domainPermissionCodes: e.target.value }))
                 }
-                placeholder="comma-separated"
+                placeholder="여러 코드는 쉼표로 구분"
               />
             </div>
             <div className="flex items-end gap-2">
@@ -573,7 +567,7 @@ function InspectTab() {
               </Button>
             </div>
           </div>
-        </div>
+        </div></details>
       )}
 
       {/* Results */}
@@ -588,7 +582,7 @@ function InspectTab() {
           <p className="text-sm text-destructive">
             {inspectQuery.error instanceof Error
               ? inspectQuery.error.message
-              : '권한 inspect 조회에 실패했습니다.'}
+              : '권한 진단 조회에 실패했습니다.'}
           </p>
           <Button variant="outline" onClick={() => inspectQuery.refetch()}>
             <RefreshCcw className="mr-1 h-4 w-4" />
@@ -601,7 +595,7 @@ function InspectTab() {
         <div className="space-y-4">
           <section className="grid gap-3 lg:grid-cols-4">
             <div className="rounded-lg border bg-card p-4">
-              <div className="text-xs text-muted-foreground">Subject</div>
+              <div className="text-xs text-muted-foreground">대상 사용자</div>
               <div className="mt-1 text-sm font-medium">{result.subject.userName}</div>
               <div className="mt-1 text-xs text-muted-foreground">{result.subject.loginId}</div>
             </div>
@@ -613,32 +607,32 @@ function InspectTab() {
               </div>
             </div>
             <div className="rounded-lg border bg-card p-4">
-              <div className="text-xs text-muted-foreground">Role baseline</div>
-              <div className="mt-1 text-sm font-medium">{result.subject.roleCode}</div>
+              <div className="text-xs text-muted-foreground">기본 역할 권한</div>
+              <div className="mt-1 text-sm font-medium">{({ admin: '플랫폼 관리자', manager: '매니저', user: '사용자', viewer: '조회자' } as Record<string, string>)[result.subject.roleCode] ?? result.subject.roleCode}</div>
             </div>
             <div className="rounded-lg border bg-card p-4">
-              <div className="text-xs text-muted-foreground">system.override</div>
+              <div className="text-xs text-muted-foreground">관리자 전체 권한</div>
               <div className="mt-1 text-sm font-medium">
                 {result.action.policy.hasSystemOverride ? '허용' : '미허용'}
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                includeInactive: {result.input.includeInactive ? 'true' : 'false'}
+                비활성 기록 {result.input.includeInactive ? '포함' : '제외'}
               </div>
             </div>
           </section>
 
-          <PolicyTraceSection title="Action policy" snapshot={result.action} />
+          <PolicyTraceSection title="기능 권한 판정" snapshot={result.action} />
           {result.object ? (
-            <PolicyTraceSection title="Object policy" snapshot={result.object} />
+            <PolicyTraceSection title="자료 권한 판정" snapshot={result.object} />
           ) : null}
 
           <div className="grid gap-4 xl:grid-cols-2">
             <ExceptionTable
-              title="Action exceptions"
+              title="기능 권한 예외"
               items={result.permissionExceptions.action}
             />
             <ExceptionTable
-              title="Object exceptions"
+              title="자료 권한 예외"
               items={result.permissionExceptions.object}
             />
           </div>
@@ -649,8 +643,9 @@ function InspectTab() {
 }
 
 /* ────────────── Exceptions Tab ────────────── */
-function ExceptionsTab() {
+function ExceptionsTab({ userId }: { userId?: string }) {
   const [filters, setFilters] = useState<ListExceptionsParams>({
+    userId,
     includeInactive: false,
     limit: 100,
   });
@@ -668,6 +663,7 @@ function ExceptionsTab() {
 
   return (
     <div className="space-y-4">
+      {userId && <ProgramContext context={{ userId }} basePath="/user-permissions?tab=exceptions" />}
       <div className="rounded-lg border bg-card p-4">
         <h3 className="mb-3 text-sm font-semibold">예외 검색</h3>
         <div className="flex flex-wrap gap-3">
@@ -675,6 +671,7 @@ function ExceptionsTab() {
             id="admin-access-login-id-filter-input"
             name="admin-access-login-id-filter-query"
             ariaLabel="권한 예외 로그인 ID 필터"
+            disabled={Boolean(userId)}
             intent="data-filter"
             placeholder="로그인 ID 필터..."
             value={loginIdSearch}
@@ -691,9 +688,9 @@ function ExceptionsTab() {
             }
             className="h-9 rounded-md border bg-background px-3 text-sm"
           >
-            <option value="">전체 axis</option>
-            <option value="action">action</option>
-            <option value="object">object</option>
+            <option value="">전체 적용 범위</option>
+            <option value="action">기능 권한</option>
+            <option value="object">자료 권한</option>
           </NativeSelect>
           <label className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
             <Input
@@ -749,10 +746,10 @@ function ExceptionsTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs">Permission</TableHead>
+                    <TableHead className="text-xs">기능 권한</TableHead>
                     <TableHead className="text-xs">사용자</TableHead>
                     <TableHead className="text-xs">효과</TableHead>
-                    <TableHead className="text-xs">Axis</TableHead>
+                    <TableHead className="text-xs">적용 범위</TableHead>
                     <TableHead className="text-xs">대상</TableHead>
                     <TableHead className="text-xs">사유</TableHead>
                     <TableHead className="text-xs">만료</TableHead>
@@ -774,23 +771,38 @@ function ExceptionsTab() {
 }
 
 /* ────────────── Role Grants Tab ────────────── */
-function RoleGrantsTab() {
+function RoleGrantsTab({ initialRoleId, onInspect }: { initialRoleId?: string; onInspect: (userId: string) => void }) {
+  const openTab = useTabStore(state => state.openTab);
   const rolesQuery = useRolePermissions();
   const catalogQuery = usePermissionCatalog();
   const updateMutation = useUpdateRolePermissions();
   const [selectedRoleCode, setSelectedRoleCode] = useState('');
   const [draftCodes, setDraftCodes] = useState<string[]>([]);
+  const [baseCodes, setBaseCodes] = useState<string[]>([]);
+  const [draftRevision, setDraftRevision] = useState('');
+  const edited = useRef(false);
+  const loadedRole = useRef('');
   const [searchText, setSearchText] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [reason, setReason] = useState('');
+  const [impactPage, setImpactPage] = useState(1);
 
   const roles = rolesQuery.data ?? [];
-  const selectedRole = roles.find((role) => role.roleCode === selectedRoleCode) ?? roles[0];
+  const selectedRole = roles.find((role) => role.roleCode === selectedRoleCode && role.isActive)
+    ?? (initialRoleId ? roles.find(role => role.roleId === initialRoleId && role.isActive)
+      : roles.find(role => role.roleCode === 'user' && role.isActive) ?? roles.find(role => role.isActive));
+
+  const impactUsers = useUserList({ roleCode: selectedRole?.roleCode, page: impactPage, limit: 20 });
 
   useEffect(() => {
-    if (!selectedRole) return;
+    if (!selectedRole || (edited.current && loadedRole.current === selectedRole.roleCode)) return;
+    loadedRole.current = selectedRole.roleCode;
+    setBaseCodes(selectedRole.permissionCodes);
+    setDraftRevision(selectedRole.revision);
     setSelectedRoleCode(selectedRole.roleCode);
     setDraftCodes(selectedRole.permissionCodes);
-    setSuccessMessage('');
+    setReason('');
+    setImpactPage(1);
   }, [selectedRole]);
 
   const catalogGroups = useMemo(() => {
@@ -808,10 +820,15 @@ function RoleGrantsTab() {
   }, [catalogQuery.data, searchText]);
 
   const isDirty = selectedRole
-    ? [...draftCodes].sort().join('|') !== [...selectedRole.permissionCodes].sort().join('|')
+    ? [...draftCodes].sort().join('|') !== [...baseCodes].sort().join('|')
     : false;
 
+  const addedCodes = draftCodes.filter(code => !baseCodes.includes(code));
+  const removedCodes = baseCodes.filter(code => !draftCodes.includes(code));
+  const permissionName = (code: string) => catalogQuery.data?.groups.flatMap(group => group.items).find(item => item.permissionCode === code)?.permissionName ?? code;
+
   const togglePermission = (permissionCode: string, checked: boolean) => {
+    edited.current = true;
     setDraftCodes((current) => (
       checked
         ? Array.from(new Set([...current, permissionCode]))
@@ -821,16 +838,23 @@ function RoleGrantsTab() {
   };
 
   const save = async () => {
-    if (!selectedRole || !isDirty) return;
+    if (!selectedRole || !isDirty || !reason.trim()) return;
     const confirmed = window.confirm(
-      `${selectedRole.roleName} 역할의 권한을 ${draftCodes.length}개 항목으로 갱신할까요?`,
+      `${selectedRole.roleName} 역할의 권한을 ${draftCodes.length}개 항목으로 갱신할까요? 이 역할을 가진 ${selectedRole.assignedUserCount}명(활성 ${selectedRole.activeUserCount}명)에 영향을 줍니다.`,
     );
     if (!confirmed) return;
     try {
-      await updateMutation.mutateAsync({
+      const saved = await updateMutation.mutateAsync({
         roleCode: selectedRole.roleCode,
         permissionCodes: draftCodes,
+        reason: reason.trim(),
+        expectedRevision: draftRevision,
       });
+      edited.current = false;
+      setBaseCodes(saved.permissionCodes);
+      setDraftCodes(saved.permissionCodes);
+      setDraftRevision(saved.revision);
+      setReason('');
       setSuccessMessage(`${selectedRole.roleName} 역할 권한을 저장했습니다.`);
     } catch {
       setSuccessMessage('');
@@ -855,16 +879,22 @@ function RoleGrantsTab() {
     );
   }
 
+  if (initialRoleId && !selectedRole) {
+    const requested = roles.find(role => role.roleId === initialRoleId);
+    return <section className="space-y-3 rounded-lg border p-4" aria-label="요청한 역할 상태"><h2 className="font-semibold">{requested?.roleName ?? `역할 #${initialRoleId}`}</h2><p className="text-sm">{requested ? '비활성 역할입니다. 변경 이력은 확인할 수 있습니다.' : '요청한 역할을 찾을 수 없습니다.'}</p><div className="flex flex-wrap gap-2"><OperationHistoryButton filter={{ roleId: initialRoleId }} label="역할 변경 이력" /><Button variant="outline" onClick={() => openTab(getAdminTabOptions('/roles'))}>역할 대상 조건 해제</Button></div></section>;
+  }
+
   return (
     <div className="space-y-4">
       <section className="rounded-lg border bg-card p-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="min-w-64 space-y-1 text-sm">
+          <label className="min-w-0 w-full sm:w-64 space-y-1 text-sm">
             <span className="font-medium">편집할 역할</span>
             <NativeSelect
               value={selectedRole?.roleCode ?? ''}
-              onChange={(event) => setSelectedRoleCode(event.target.value)}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              disabled={updateMutation.isPending}
+              onChange={(event) => { if (!isDirty || window.confirm('저장하지 않은 권한 변경을 버리고 다른 역할을 편집할까요?')) { edited.current = false; setSuccessMessage(''); updateMutation.reset(); setSelectedRoleCode(event.target.value); } }}
+              className="w-full"
             >
               {roles.map((role) => (
                 <option key={role.roleCode} value={role.roleCode} disabled={!role.isActive}>
@@ -873,8 +903,8 @@ function RoleGrantsTab() {
               ))}
             </NativeSelect>
           </label>
-          <label className="min-w-64 flex-1 space-y-1 text-sm">
-            <span className="font-medium">Permission 검색</span>
+          <label className="min-w-0 w-full sm:w-64 flex-1 space-y-1 text-sm">
+            <span className="font-medium">기능 권한 검색</span>
             <SsooSearchInput
               id="admin-permission-catalog-filter-input"
               name="admin-permission-catalog-filter-query"
@@ -882,22 +912,31 @@ function RoleGrantsTab() {
               intent="data-filter"
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
-              placeholder="permission code 또는 이름"
+              placeholder="기능 이름 또는 권한 코드"
             />
           </label>
-          <Button onClick={save} disabled={!isDirty || updateMutation.isPending}>
+          <Button onClick={save} disabled={!isDirty || !reason.trim() || updateMutation.isPending}>
             <Save className="mr-1 h-4 w-4" />
             {updateMutation.isPending ? '저장 중...' : '변경 저장'}
           </Button>
         </div>
+        {isDirty && <div role="status" className="mt-3 space-y-1 rounded-md border p-3 text-sm"><p className="font-medium">저장 전 변경 확인 · 추가 {addedCodes.length}개 / 제거 {removedCodes.length}개</p>{addedCodes.length > 0 && <p>추가: {addedCodes.map(permissionName).join(", ")}</p>}{removedCodes.length > 0 && <p>제거: {removedCodes.map(permissionName).join(", ")}</p>}</div>}
+        <label className="mt-3 block space-y-1 text-sm">
+          <span>역할 권한 변경 사유</span>
+          <Textarea value={reason} onChange={event => setReason(event.target.value)} maxLength={1000} disabled={updateMutation.isPending} />
+        </label>
         <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
           <span>선택 {draftCodes.length}개</span>
-          <span>범위 {selectedRole?.roleScopeCode ?? '-'}</span>
+          <span>범위 {selectedRole?.roleScopeCode === 'system' ? '플랫폼 공통' : selectedRole?.roleScopeCode ?? '-'}</span>
           <span>{selectedRole?.description ?? '설명 없음'}</span>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => { if (!isDirty || window.confirm('저장하지 않은 권한 선택을 버리고 최신 상태를 조회할까요?')) { edited.current = false; updateMutation.reset(); void rolesQuery.refetch().then(result => { const current = result.data?.find(role => role.roleCode === selectedRole?.roleCode); if (current) { setDraftCodes(current.permissionCodes); setBaseCodes(current.permissionCodes); setDraftRevision(current.revision); setReason(''); } }); void impactUsers.refetch(); } }}>역할 권한 새로고침</Button>
+          {selectedRole && <OperationHistoryButton label="역할 변경 이력" filter={{ roleId: selectedRole.roleId }} />}
         </div>
         {selectedRole?.roleCode === 'admin' && (
           <p className="mt-3 rounded-md bg-ssoo-warning-bg px-3 py-2 text-xs text-ssoo-warning">
-            admin의 system.override는 런칭 안전장치로 제거할 수 없습니다.
+            관리자 계정의 전체 관리 권한은 운영 복구를 위해 해제할 수 없습니다.
           </p>
         )}
         {successMessage && <p className="mt-3 text-sm text-ssoo-success">{successMessage}</p>}
@@ -906,28 +945,43 @@ function RoleGrantsTab() {
         )}
       </section>
 
+      <details className="space-y-3 rounded-lg border p-4" aria-label="역할 변경 영향 사용자">
+        <summary className="cursor-pointer text-sm font-semibold">변경 영향: {selectedRole?.assignedUserCount ?? 0}명 · 사용자 확인</summary>
+        <p className="text-xs text-muted-foreground">플랫폼 기본 역할이 같은 사용자입니다. 실제 허용 권한은 조직 권한·개인 예외·서비스 이용 자격을 함께 조회해 확인하세요.</p>
+        {impactUsers.isLoading ? <p>사용자를 불러오는 중...</p> : impactUsers.isError ? <SsooErrorNotice error={impactUsers.error} ><Button variant="outline" onClick={() => impactUsers.refetch()}>사용자 다시 조회</Button></SsooErrorNotice> : <>
+          <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>사용자</TableHead><TableHead>계정</TableHead><TableHead>확인</TableHead></TableRow></TableHeader><TableBody>
+            {impactUsers.data?.data.map(user => <TableRow key={user.id}><TableCell>{user.displayName || user.userName} ({user.loginId})</TableCell><TableCell>{user.isActive ? '활성' : '중지'}</TableCell><TableCell><Button variant="outline" size="sm" onClick={() => onInspect(user.id)}>권한·이용 자격 조회</Button></TableCell></TableRow>)}
+          </TableBody></Table></div>
+          {!impactUsers.data?.data.length && <p className="text-sm text-muted-foreground">이 역할을 가진 사용자가 없습니다.</p>}
+          <div className="flex items-center justify-end gap-2"><span className="text-xs">{impactPage}페이지 · 총 {impactUsers.data?.meta.total ?? 0}명</span><Button variant="outline" size="sm" disabled={impactPage === 1} onClick={() => setImpactPage(page => page - 1)}>영향 사용자 이전</Button><Button variant="outline" size="sm" disabled={impactPage * 20 >= (impactUsers.data?.meta.total ?? 0)} onClick={() => setImpactPage(page => page + 1)}>영향 사용자 다음</Button></div>
+        </>}
+      </details>
+
       {catalogGroups.map((group) => (
         <section key={group.owner} className="rounded-lg border bg-card">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
             <div>
-              <h3 className="text-sm font-semibold">{group.title}</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">{group.responsibility}</p>
+              <h3 className="text-sm font-semibold">{OWNER_LABELS[group.owner].title}</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">{OWNER_LABELS[group.owner].description}</p>
             </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setDraftCodes((current) => Array.from(new Set([
+                disabled={updateMutation.isPending}
+                onClick={() => { edited.current = true; setDraftCodes((current) => Array.from(new Set([
                   ...current,
                   ...group.items.map((item) => item.permissionCode),
-                ])))}
+                ]))); }}
               >
                 표시 항목 전체 선택
               </Button>
               <Button
                 variant="outline"
                 size="sm"
+                disabled={updateMutation.isPending}
                 onClick={() => {
+                  edited.current = true;
                   const removable = new Set(group.items
                     .map((item) => item.permissionCode)
                     .filter((code) => !(selectedRole?.roleCode === 'admin' && code === 'system.override')));
@@ -950,8 +1004,8 @@ function RoleGrantsTab() {
                     aria-label={`${item.permissionCode} 권한`}
                   />
                   <span className="min-w-0">
-                    <span className="block break-all font-medium">{item.permissionCode}</span>
-                    <span className="block text-xs text-muted-foreground">{item.permissionName} · {item.status}</span>
+                    <span className="block font-medium">{item.permissionCode === 'system.override' ? '플랫폼 전체 관리' : item.permissionName}</span>
+                    <span title={item.permissionCode} className="block text-xs text-muted-foreground">{CATALOG_STATUS_LABELS[item.status]}</span>
                   </span>
                 </label>
               );
@@ -964,7 +1018,7 @@ function RoleGrantsTab() {
 }
 
 /* ────────────── Audit Tab ────────────── */
-function AuditTab() {
+export function AuditTab() {
   const auditQuery = useAccessAudit(100);
   const events = auditQuery.data ?? [];
 
@@ -974,6 +1028,7 @@ function AuditTab() {
         <div>
           <h3 className="text-sm font-semibold">플랫폼 운영 감사 이벤트</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">사용자·로그인·세션·조직·역할 권한 이력의 최신 100건</p>
+          <div className="mt-2"><OperationHistoryButton label="기간·대상별 이력 조회" /></div>
         </div>
         <Button variant="outline" size="sm" onClick={() => auditQuery.refetch()} disabled={auditQuery.isFetching}>
           <RefreshCcw className={`mr-1 h-4 w-4 ${auditQuery.isFetching ? 'animate-spin' : ''}`} /> 새로고침
@@ -1024,62 +1079,79 @@ function AuditTab() {
 }
 
 /* ────────────── Main Page ────────────── */
-export function AccessManagementPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('grants');
+export function AccessManagementPage({ path = '/roles', section = 'grants' }: { path?: string; section?: TabId }) {
+  const openTab = useTabStore(state => state.openTab);
+  const requestedTab = new URLSearchParams(path.split('?')[1] ?? '').get('tab');
+  const context = readProgramContext(path);
+  const inspectUserId = new URLSearchParams(path.split('?')[1] ?? '').get('userId') ?? '';
+  const requestedSection = ['approval-authorities', 'grants', 'catalog', 'inspect', 'exceptions', 'audit', 'organization-permissions', 'user-permissions'].includes(requestedTab ?? '') ? requestedTab as TabId : null;
+  const [activeTab, setActiveTab] = useState<TabId>(requestedSection ?? section);
+  useEffect(() => { setActiveTab(requestedSection ?? section); }, [requestedSection, section]);
 
   const tabItems: Array<{ id: TabId; label: string; icon: typeof Shield }> = [
     { id: 'grants', label: '역할 권한 편집', icon: Shield },
+    { id: 'organization-permissions', label: '조직 공통 권한', icon: Users },
+    { id: 'user-permissions', label: '사용자 공통 예외', icon: Users },
+    { id: 'approval-authorities', label: '승인 권한 위임', icon: Users },
     { id: 'catalog', label: '권한 기능 명세', icon: Shield },
     { id: 'inspect', label: '권한 조회', icon: Search },
     { id: 'exceptions', label: '예외 내역', icon: Users },
     { id: 'audit', label: '감사 이벤트', icon: ScrollText },
   ];
 
+  const visibleTabs = tabItems.filter(item => item.id === section
+    || (section === 'grants' && item.id === 'catalog')
+    || (section === 'user-permissions' && item.id === 'exceptions')
+    || item.id === requestedSection);
+  const titles: Record<TabId, string> = {
+    grants: '역할·기능 권한', catalog: '권한 기능 명세',
+    'organization-permissions': '조직 공통 권한', 'user-permissions': '사용자 권한 예외',
+    'approval-authorities': '승인 담당자·위임', inspect: '유효 권한 진단',
+    exceptions: '예외 내역', audit: '감사 이벤트',
+  };
+  if (activeTab === 'organization-permissions' || activeTab === 'user-permissions') {
+    return <CommonPermissionsPanel key={`${activeTab}:${path}`} fixedTargetId={activeTab === 'organization-permissions' ? context.organizationId : context.userId} standalone kind={activeTab === 'organization-permissions' ? 'organization' : 'user'}
+      viewActions={activeTab === 'user-permissions' ? [
+        { label: '사용자 공통 예외', onClick: () => setActiveTab('user-permissions') },
+        { label: '예외 내역', variant: 'outline', onClick: () => setActiveTab('exceptions') },
+      ] : []} />;
+  }
   return (
-    <SsooSettingsPage
-      filePath="admin/roles"
-      index={{
-        ariaLabel: '역할과 권한 항목 색인',
-        activeItemId: activeTab,
-        items: tabItems.map((item) => ({ id: item.id, label: item.label })),
-        onItemSelect: (item) => {
-          setActiveTab(item.id as TabId);
-          document.getElementById(`admin-roles-${item.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        },
-      }}
+    <SsooWorkspacePage compact
+      title={titles[section]}
+      description={section === 'inspect' ? '사용자를 선택해 앱 이용 자격과 실제 권한의 판정 근거를 확인합니다.' : section === 'grants' ? '역할별 허용 기능을 편집하고 변경 영향과 이력을 확인합니다.' : section === 'approval-authorities' ? '승인 담당자의 조직·서비스 범위와 위임 기간을 관리합니다.' : '공통 권한의 적용 대상·효과·기간과 변경 이력을 관리합니다.'}
+      breadcrumbItems={getAdminBreadcrumb(path)}
+      scrollBody
+
     >
-      <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/30 p-1">
-        {tabItems.map((item) => {
+      {visibleTabs.length > 1 ? <div className="flex flex-wrap gap-2">
+        {visibleTabs.map((item) => {
           const Icon = item.icon;
           return (
-            <Button variant="plain" size="plain"
-              key={item.id}
-              type="button"
+            <Button variant={activeTab === item.id ? 'default' : 'outline'}
+              key={item.id} type="button" aria-pressed={activeTab === item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === item.id
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
             >
               <Icon className="h-4 w-4" />
               {item.label}
             </Button>
           );
         })}
-      </div>
+      </div> : null}
 
       <div id={`admin-roles-${activeTab}`} className="scroll-mt-4">
         {activeTab === 'grants'
-          ? <RoleGrantsTab />
+          ? <RoleGrantsTab key={path} initialRoleId={new URLSearchParams(path.split('?')[1]).get('roleId') ?? undefined} onInspect={userId => { openTab(getAdminTabOptions(`/access-diagnosis?userId=${encodeURIComponent(userId)}`)); }} />
+        : activeTab === 'approval-authorities'
+          ? <ApprovalAuthoritiesTab key={path} organizationFilter={context.organizationId} />
         : activeTab === 'catalog'
           ? <CatalogTab />
         : activeTab === 'inspect'
-          ? <InspectTab />
+          ? <InspectTab initialUserId={inspectUserId} />
         : activeTab === 'exceptions'
-          ? <ExceptionsTab />
+          ? <ExceptionsTab key={context.userId} userId={context.userId} />
           : <AuditTab />}
       </div>
-    </SsooSettingsPage>
+    </SsooWorkspacePage>
   );
 }

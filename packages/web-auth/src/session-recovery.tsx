@@ -18,7 +18,7 @@ export function SharedSessionRecovery<TUser extends AuthIdentity>({ authStore, c
     description={error} onRetry={() => checkAuth()} retrying={loading}
     actions={[{ label: '로그인 화면으로 이동', href: '/login' }, { label: '서비스 복귀 안내', href: '/recovery' }]} />;
   return <div className="flex min-h-0 flex-1 flex-col">
-    {error ? <SsooErrorNotice message={error} actions={[{ label: '로그인 상태 다시 확인', onClick: () => checkAuth({ mode: 'background' }) }, { label: '서비스 복귀 안내', href: '/recovery' }]} /> : null}
+    {error ? <SsooErrorNotice className="relative z-50 shrink-0 bg-background" message={error} actions={[{ label: '로그인 상태 다시 확인', onClick: () => checkAuth({ mode: 'background' }) }, { label: '서비스 복귀 안내', href: '/recovery' }]} /> : null}
     {Children.toArray(children)}
   </div>;
 }

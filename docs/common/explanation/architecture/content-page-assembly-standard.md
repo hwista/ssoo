@@ -93,6 +93,12 @@ PMS 요청 목록에서 검증한 업무 데이터 화면 패턴은 `SsooDataWor
 
 데이터 워크스페이스의 action/filter controls 는 별도 본문 card/section 이 아니라 page header chrome 의 일부다. header 는 플랫폼 page chrome 의 full-width 흐름을 따르며, `contentWidth` 또는 데이터 본문 폭 제한을 header 에 적용하지 않는다. `contentWidth`는 grid/form/chart 가 들어가는 main content lane 에만 적용한다.
 
+### Admin 공통 관리 적용
+
+[운영 사용성 개선](2026-11-06-admin-operating-ux.md)은 같은 recipe의 opt-in `compact`와 DataGrid `mobileSummaryColumns`를 사용한다. `compact` 화면의 설명은 ‘사용 안내’로 보존하며 색인은 가로 배치한다. 데이터 본문 `fitContent`는 짧은 목록을 실제 높이로 표시한다. 모바일 요약은 앱이 지정한 열과 작업을 우선 노출하고 나머지 열은 상세 정보에 보존한다. 별도 모바일 업무 로직이나 화면별 recipe를 복제하지 않는다.
+
+[17개 프로그램 전수 적용표](2026-11-05-admin-page-templates.md)를 기준으로 일반 운영과 설정을 구분한다. `SsooWorkspacePage`의 선택적 `title`/`description`/`headerActions`는 공용 `SsooPageHeader`로 조립하고, `index`는 `SsooPageIndexRail`, `scrollBody`는 업무 본문 내부 스크롤을 사용한다. 데이터 preset도 같은 제목 계약을 따르며 `filterSlot`에 도메인 조건, `statusSlot`에 조회 안내를 주입한다. `SsooDataGrid`의 opt-in `fitViewport`는 화면 높이에 맞춘 행 스크롤과 열 최소 폭을 보존한다. 기존 소비처의 기본 동작은 유지한다.
+
 ## Web-ui 재료
 
 이미 공용화된 재료:
@@ -233,6 +239,7 @@ DMS 기준 분류:
 
 | 날짜 | 변경 내용 |
 | --- | --- |
+| 2026-11-06 | Admin 17개 프로그램별 책임·인수 기준 연결. 공용 second panel의 높이를 위치 기준 부모에 제한하고 내부 스크롤을 유지해 긴 상세의 버튼 가림을 해소 |
 | 2026-07-10 | `SsooWorkspacePage`를 범용 업무/데이터 작업 surface recipe로 추가하고, `SsooDataWorkspacePage`를 이 recipe 위의 데이터/grid preset으로 분리 |
 | 2026-07-08 | app globals와 최종 페이지 내부 raw visual token 및 raw `white`/`black` token도 `verify:ui-style-boundary` 기준에 포함하고 도메인 책임/스타일 책임 경계를 보강 |
 | 2026-07-07 | 공용 원자/페이지 템플릿/auth surface와 도메인 reusable surface까지 전역 디자인 경험 표준 대상으로 명시하고 `verify:ui-style-boundary` gate를 추가 |
@@ -260,3 +267,7 @@ DMS 기준 분류:
 | 2026-06-17 | `SsooContentPageTemplate`을 `@ssoo/web-shell` recipe 정본으로 추가하고, DMS `PageTemplate`을 breadcrumb/header adapter로 축소 |
 | 2026-06-17 | `@ssoo/web-ui`의 Tailwind preset과 기본 UI primitive를 내부 페이지 조립 재료 계층에 추가 |
 | 2026-06-17 | DMS 문서 페이지를 content-area 내부 페이지 조립 골든 이그잼플로 정하고, PageTemplate 계층을 web-shell recipe 승격 대상으로 정의 |
+
+## Admin 프로그램별 설계와 기능 인수
+
+17개 공통 프로그램의 데이터·처리 책임과 연결 기준은 [프로그램별 설계](2026-11-06-admin-program-design.md), 실제 처리와 회귀 기준은 [인수 테스트](2026-11-06-admin-program-test-spec.md)를 따른다. 사용자·조직 상세에는 관계 요약과 담당 화면 링크만 배치하며 다른 프로그램의 편집을 중첩하지 않는다.

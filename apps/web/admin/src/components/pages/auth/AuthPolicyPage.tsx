@@ -1,8 +1,12 @@
 'use client';
+import { getAdminBreadcrumb } from '@/components/layout/navigation';
 
+import { useTabStore } from '@/stores/tab.store';
+import { getAdminTabOptions } from '@/components/layout/navigation';
+import { OperationHistoryButton } from '../access/OperationHistoryButton';
 import { SsooErrorNotice } from '@ssoo/web-shell';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, MailCheck, RefreshCw, RotateCcw, Save, Send, ShieldCheck, X } from 'lucide-react';
+import { RefreshCw, Save, ShieldCheck } from 'lucide-react';
 import { SsooSettingsPage, type SsooPageHeaderAction } from '@ssoo/web-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,22 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  useApproveRegistrationRequest,
-  useAssignableRoles,
   useAuthProviderSettings,
-  useEmailDeliveryStatus,
-  useRegistrationRequests,
-  useRejectRegistrationRequest,
-  useRetryEmailDelivery,
-  useRunEmailDelivery,
   useUpdateAuthProviderSettings,
 } from '@/hooks/queries/useAuthAdmin';
 import type { AuthProviderSettings, UpdateAuthProviderSettingsRequest } from '@ssoo/types/common';
@@ -148,34 +137,6 @@ function toRequest(form: SettingsForm): UpdateAuthProviderSettingsRequest {
   return request;
 }
 
-function formatDateTime(value?: string | null): string {
-  if (!value) {
-    return '-';
-  }
-
-  return new Date(value).toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function StatusBadge({ value }: { value: string }) {
-  const tone = value === 'pending'
-    ? 'bg-ssoo-warning-bg text-ssoo-warning'
-    : value === 'approved'
-      ? 'bg-ssoo-success-bg text-ssoo-success'
-      : 'bg-muted text-muted-foreground';
-
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>
-      {value}
-    </span>
-  );
-}
-
 function ToggleField({
   label,
   checked,
@@ -202,39 +163,19 @@ function ToggleField({
 }
 
 export function AuthPolicyPage() {
+  const openTab = useTabStore(state => state.openTab);
   const [form, setForm] = useState<SettingsForm>(INITIAL_FORM);
+  const [hasEdits, setHasEdits] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState('pending');
-  const [approvalRoleByRequestId, setApprovalRoleByRequestId] = useState<Record<string, string>>({});
 
   const settingsQuery = useAuthProviderSettings();
   const updateSettingsMutation = useUpdateAuthProviderSettings();
-  const emailDeliveryQuery = useEmailDeliveryStatus();
-  const runEmailDeliveryMutation = useRunEmailDelivery();
-  const retryEmailDeliveryMutation = useRetryEmailDelivery();
-  const rolesQuery = useAssignableRoles();
-  const requestsQuery = useRegistrationRequests({
-    page: 1,
-    limit: 20,
-    statusCode: statusFilter === 'all' ? undefined : statusFilter,
-  });
-  const approveMutation = useApproveRegistrationRequest();
-  const rejectMutation = useRejectRegistrationRequest();
-
   const settings = settingsQuery.data?.data;
-  const requests = requestsQuery.data?.data?.data ?? [];
-  const total = requestsQuery.data?.data?.total ?? 0;
-  const roles = rolesQuery.data?.data ?? [];
-  const emailDelivery = emailDeliveryQuery.data?.data;
-  const defaultApprovalRole = roles.find((role) => role.roleCode === 'user')?.roleCode
-    ?? roles[0]?.roleCode
-    ?? 'user';
-
   useEffect(() => {
-    if (settings) {
+    if (settings && !hasEdits) {
       setForm(toForm(settings));
     }
-  }, [settings]);
+  }, [settings, hasEdits]);
 
   const runtimeReady = useMemo(() => {
     return Boolean(
@@ -246,6 +187,7 @@ export function AuthPolicyPage() {
   }, [form.microsoftClientId, form.microsoftRedirectUri, form.microsoftTenantId, settings?.microsoftClientSecretConfigured]);
 
   const updateField = <K extends keyof SettingsForm>(field: K, value: SettingsForm[K]) => {
+    setHasEdits(true);
     setForm((current) => ({ ...current, [field]: value }));
   };
 
@@ -255,29 +197,14 @@ export function AuthPolicyPage() {
     try {
       await updateSettingsMutation.mutateAsync(toRequest(form));
       setForm((current) => ({ ...current, microsoftClientSecret: '' }));
+      setHasEdits(false);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : '인증 설정 저장에 실패했습니다.');
     }
   }, [form, updateSettingsMutation]);
 
-  const updateApprovalRole = (id: string, roleCode: string) => {
-    setApprovalRoleByRequestId((current) => ({ ...current, [id]: roleCode }));
-  };
-
-  const approve = async (id: string) => {
-    const roleCode = approvalRoleByRequestId[id] || defaultApprovalRole;
-    await approveMutation.mutateAsync({ id, data: { roleCode } });
-    setApprovalRoleByRequestId((current) => {
-      const next = { ...current };
-      delete next[id];
-      return next;
-    });
-  };
-
-  const reject = async (id: string) => {
-    const memo = window.prompt('반려 메모를 입력하세요.', '') || null;
-    await rejectMutation.mutateAsync({ id, data: { memo } });
-  };
+  const changedFields = settings ? (Object.keys(form) as (keyof SettingsForm)[]).filter(key => form[key] !== toForm(settings)[key]) : [];
+  const fieldLabels: Record<keyof SettingsForm, string> = { passwordLoginEnabled: '비밀번호 로그인', passwordResetEnabled: '비밀번호 재설정', passwordChangeEnabled: '비밀번호 변경', resetCodeTtlMinutes: '재설정 코드 유효 시간', resetCodeLength: '재설정 코드 길이', internalSsoEnabled: '내부 SSO', internalSsoLoginUrl: '내부 SSO 주소', microsoftLoginEnabled: 'Microsoft 로그인', microsoftSignupRequestEnabled: 'Microsoft 가입 신청', microsoftTenantId: 'Microsoft 테넌트', microsoftClientId: 'Microsoft 클라이언트', microsoftClientSecret: 'Microsoft 비밀값', microsoftRedirectUri: 'Microsoft 콜백 주소', microsoftScopes: 'Microsoft 범위', allowedTenantIds: '허용 테넌트', allowedEmailDomains: '허용 이메일 도메인', selfSignupEnabled: '자체 가입', emailDeliveryMode: '메일 전달 방식', emailFromAddress: '발신 주소' };
 
   const headerActions: SsooPageHeaderAction[] = [
     {
@@ -285,7 +212,7 @@ export function AuthPolicyPage() {
       icon: <RefreshCw className="h-4 w-4" />,
       variant: 'outline',
       onClick: () => {
-        void settingsQuery.refetch();
+        if (!hasEdits || window.confirm('저장하지 않은 정책 변경을 버리고 적용된 값을 다시 조회할까요?')) { setHasEdits(false); void settingsQuery.refetch(); }
       },
       disabled: settingsQuery.isFetching,
     },
@@ -296,36 +223,29 @@ export function AuthPolicyPage() {
       onClick: () => {
         void handleSave();
       },
-      disabled: settingsQuery.isLoading || updateSettingsMutation.isPending,
+      disabled: settingsQuery.isLoading || settingsQuery.isError || !settings || updateSettingsMutation.isPending,
     },
   ];
 
   return (
     <SsooSettingsPage
-      filePath="admin/auth"
-      headerActions={{
+      breadcrumbItems={getAdminBreadcrumb("/auth")}
+      title="인증 정책"
+      description="로그인 방식과 가입·비밀번호 복구 정책을 관리합니다."
+      headerActions={{ wrapContent: true, compact: true,
         extraActions: headerActions,
         extraActionsPosition: 'right',
       }}
-      index={{
-        ariaLabel: '인증 정책 항목 색인',
-        items: [
-          { id: 'admin-auth-login-settings', label: '로그인 설정' },
-          { id: 'admin-auth-email-delivery', label: '메일 전달' },
-          { id: 'admin-auth-registration-requests', label: '가입 신청' },
-        ],
-        onItemSelect: (item) => {
-          document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        },
-      }}
+
     >
+      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => openTab(getAdminTabOptions('/email-operations'))}>인증 메일 운영 열기</Button><Button variant="outline" onClick={() => openTab(getAdminTabOptions('/approvals?view=registration'))}>계정 가입 신청 처리</Button></div>
+      {hasEdits && <div role="status" className="rounded-md border p-3 text-sm"><p>미저장 변경 {changedFields.length}개: {changedFields.map(key => fieldLabels[key]).join(", ") || "적용값과 동일"}</p><Button variant="outline" disabled={updateSettingsMutation.isPending} onClick={() => { if (window.confirm("입력한 변경을 버리고 현재 적용값으로 되돌릴까요?")) { setHasEdits(false); setSaveError(null); } }}>적용값으로 되돌리기</Button></div>}
+      {settingsQuery.isError ? <SsooErrorNotice error={settingsQuery.error} actions={[{label:'인증 정책 다시 조회',onClick:() => settingsQuery.refetch()}]} /> : null}
       <div id="admin-auth-login-settings" className="scroll-mt-4 rounded-lg border bg-card p-5">
         <div className="mb-5 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">로그인 설정</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Microsoft OAuth 버튼은 tenant/client/redirect/secret이 모두 준비된 경우에만 공개 로그인 화면에 노출됩니다.
-            </p>
+            <h2 className="text-base font-semibold text-foreground">로그인 설정</h2>
+
           </div>
           <span
             className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -333,14 +253,14 @@ export function AuthPolicyPage() {
             }`}
           >
             <ShieldCheck className="mr-1 h-3.5 w-3.5" />
-            {runtimeReady ? 'MS runtime ready' : 'MS runtime pending'}
+            {runtimeReady ? 'Microsoft 연결 준비됨' : 'Microsoft 설정 필요'}
           </span>
         </div>
 
         {settingsQuery.isLoading ? (
           <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">로딩 중...</div>
         ) : (
-          <div className="space-y-5">
+          <fieldset disabled={updateSettingsMutation.isPending} className="min-w-0 space-y-5">
             <div className="grid gap-3 md:grid-cols-3">
               <ToggleField
                 label="비밀번호 로그인"
@@ -359,18 +279,19 @@ export function AuthPolicyPage() {
               />
             </div>
 
+            <h3 className="text-sm font-semibold">비밀번호 복구</h3>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">재설정 코드 TTL(분)</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-resetCodeTtlMinutes">복구 코드 유효 시간(분)</label>
+                <Input id="auth-policy-resetCodeTtlMinutes"
                   type="number"
                   value={form.resetCodeTtlMinutes}
                   onChange={(event) => updateField('resetCodeTtlMinutes', event.target.value)}
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">재설정 코드 길이</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-resetCodeLength">재설정 코드 길이</label>
+                <Input id="auth-policy-resetCodeLength"
                   type="number"
                   value={form.resetCodeLength}
                   onChange={(event) => updateField('resetCodeLength', event.target.value)}
@@ -378,6 +299,7 @@ export function AuthPolicyPage() {
               </div>
             </div>
 
+            <h3 className="text-sm font-semibold">사내 로그인</h3>
             <div className="grid gap-3 md:grid-cols-2">
               <ToggleField
                 label="사내 SSO"
@@ -385,8 +307,8 @@ export function AuthPolicyPage() {
                 onChange={(value) => updateField('internalSsoEnabled', value)}
               />
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">사내 SSO URL</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-internalSsoLoginUrl">사내 SSO URL</label>
+                <Input id="auth-policy-internalSsoLoginUrl"
                   value={form.internalSsoLoginUrl}
                   onChange={(event) => updateField('internalSsoLoginUrl', event.target.value)}
                   placeholder="https://sso.example.com/login"
@@ -394,6 +316,7 @@ export function AuthPolicyPage() {
               </div>
             </div>
 
+            <h3 className="text-sm font-semibold">Microsoft 로그인·가입</h3>
             <div className="grid gap-3 md:grid-cols-3">
               <ToggleField
                 label="Microsoft 로그인"
@@ -415,21 +338,21 @@ export function AuthPolicyPage() {
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">Tenant ID</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-microsoftTenantId">테넌트 ID</label>
+                <Input id="auth-policy-microsoftTenantId"
                   value={form.microsoftTenantId}
                   onChange={(event) => updateField('microsoftTenantId', event.target.value)}
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">Client ID</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-microsoftClientId">애플리케이션 ID</label>
+                <Input id="auth-policy-microsoftClientId"
                   value={form.microsoftClientId}
                   onChange={(event) => updateField('microsoftClientId', event.target.value)}
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium" htmlFor="microsoft-client-secret">Client Secret</label>
+                <label className="text-sm font-medium" htmlFor="microsoft-client-secret">클라이언트 비밀값</label>
                 <Input
                   id="microsoft-client-secret"
                   name="microsoft-client-secret"
@@ -446,8 +369,8 @@ export function AuthPolicyPage() {
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">Redirect URI</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-microsoftRedirectUri">로그인 콜백 주소</label>
+                <Input id="auth-policy-microsoftRedirectUri"
                   value={form.microsoftRedirectUri}
                   onChange={(event) => updateField('microsoftRedirectUri', event.target.value)}
                   placeholder="http://localhost:4000/api/auth/microsoft/callback"
@@ -455,24 +378,26 @@ export function AuthPolicyPage() {
               </div>
             </div>
 
+            <p className="text-xs text-muted-foreground">필수 연결값을 저장하면 Microsoft 로그인 버튼에 반영됩니다. 비밀값은 암호화해 보관하며 빈 입력은 기존 값을 유지합니다.</p>
+
             <div className="grid gap-3 md:grid-cols-3">
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">Scopes</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-microsoftScopes">요청 권한 범위</label>
+                <Input id="auth-policy-microsoftScopes"
                   value={form.microsoftScopes}
                   onChange={(event) => updateField('microsoftScopes', event.target.value)}
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">허용 Tenant</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-allowedTenantIds">허용 테넌트</label>
+                <Input id="auth-policy-allowedTenantIds"
                   value={form.allowedTenantIds}
                   onChange={(event) => updateField('allowedTenantIds', event.target.value)}
                 />
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">허용 도메인</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-allowedEmailDomains">허용 도메인</label>
+                <Input id="auth-policy-allowedEmailDomains"
                   value={form.allowedEmailDomains}
                   onChange={(event) => updateField('allowedEmailDomains', event.target.value)}
                   placeholder="example.com"
@@ -480,6 +405,7 @@ export function AuthPolicyPage() {
               </div>
             </div>
 
+            <h3 className="text-sm font-semibold">인증 메일 정책</h3>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="grid gap-1.5">
                 <label className="text-sm font-medium">메일 전달 모드</label>
@@ -491,14 +417,14 @@ export function AuthPolicyPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="outbox">outbox</SelectItem>
-                    <SelectItem value="disabled">disabled</SelectItem>
+                    <SelectItem value="outbox">발송 대기열 사용</SelectItem>
+                    <SelectItem value="disabled">전달 중지</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">발신 주소</label>
-                <Input
+                <label className="text-sm font-medium" htmlFor="auth-policy-emailFromAddress">발신 주소</label>
+                <Input id="auth-policy-emailFromAddress"
                   value={form.emailFromAddress}
                   onChange={(event) => updateField('emailFromAddress', event.target.value)}
                   placeholder="no-reply@example.com"
@@ -508,208 +434,13 @@ export function AuthPolicyPage() {
 
             {saveError ? <SsooErrorNotice as="p" compact error={saveError} /> : null}
 
-          </div>
+          </fieldset>
         )}
       </div>
 
-      <div id="admin-auth-email-delivery" className="scroll-mt-4 rounded-lg border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <MailCheck className="h-5 w-5" />
-              비밀번호 재설정 메일 전달
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              outbox 적재부터 SMTP 전달·실패·재시도까지 운영 상태를 확인합니다. 수신 주소는 마스킹됩니다.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                form.emailDeliveryMode === 'disabled'
-                  ? 'bg-muted text-muted-foreground'
-                  : emailDelivery?.state === 'ready'
-                    ? 'bg-ssoo-success-bg text-ssoo-success'
-                    : 'bg-destructive/10 text-destructive'
-              }`}
-            >
-              {form.emailDeliveryMode === 'disabled'
-                ? '정책 비활성'
-                : emailDelivery?.state === 'ready' ? '전달 준비됨' : '전달 차단'}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={runEmailDeliveryMutation.isPending || form.emailDeliveryMode === 'disabled'}
-              onClick={() => runEmailDeliveryMutation.mutate()}
-            >
-              <Send className="mr-1 h-4 w-4" />
-              지금 처리
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => emailDeliveryQuery.refetch()}>
-              <RefreshCw className="mr-1 h-4 w-4" />
-              새로고침
-            </Button>
-          </div>
-        </div>
 
-        {emailDeliveryQuery.isLoading ? (
-          <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">로딩 중...</div>
-        ) : emailDeliveryQuery.isError || !emailDelivery ? (
-          <SsooErrorNotice className="px-5 py-6">메일 전달 상태를 조회하지 못했습니다.</SsooErrorNotice>
-        ) : (
-          <div className="space-y-4 p-5">
-            <div className="grid gap-3 md:grid-cols-4">
-              <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Pending</p><p className="mt-1 text-xl font-semibold">{emailDelivery.counts.pending ?? 0}</p></div>
-              <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Processing</p><p className="mt-1 text-xl font-semibold">{emailDelivery.counts.processing ?? 0}</p></div>
-              <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Sent</p><p className="mt-1 text-xl font-semibold">{emailDelivery.counts.sent ?? 0}</p></div>
-              <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Failed</p><p className="mt-1 text-xl font-semibold">{emailDelivery.counts.failed ?? 0}</p></div>
-            </div>
-            <p className={`text-sm ${emailDelivery.state === 'blocked' ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {emailDelivery.reason}
-            </p>
+      <OperationHistoryButton filter={{ category: 'auth-policy' }} label="인증 정책 변경 이력" />
 
-            {emailDelivery.recent.length === 0 ? (
-              <div className="rounded-md border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">메일 이력이 없습니다.</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>상태</TableHead>
-                    <TableHead>수신자</TableHead>
-                    <TableHead>템플릿</TableHead>
-                    <TableHead>생성일</TableHead>
-                    <TableHead>실패 사유</TableHead>
-                    <TableHead className="w-[80px]">작업</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {emailDelivery.recent.map((message) => (
-                    <TableRow key={message.messageId}>
-                      <TableCell><StatusBadge value={message.statusCode} /></TableCell>
-                      <TableCell className="font-mono text-sm">{message.recipient}</TableCell>
-                      <TableCell>{message.templateCode}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDateTime(message.createdAt)}</TableCell>
-                      <TableCell className="max-w-[280px] truncate text-xs text-destructive" title={message.failReason ?? undefined}>{message.failReason ? <SsooErrorNotice compact error={message.failReason} /> : '-'}</TableCell>
-                      <TableCell>
-                        {message.statusCode === 'failed' ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="재시도"
-                            disabled={retryEmailDeliveryMutation.isPending}
-                            onClick={() => retryEmailDeliveryMutation.mutate(message.messageId)}
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                        ) : '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div id="admin-auth-registration-requests" className="scroll-mt-4 rounded-lg border bg-card">
-        <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">가입 신청</h2>
-            <p className="mt-1 text-sm text-muted-foreground">총 {total}건</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">pending</SelectItem>
-                <SelectItem value="approved">approved</SelectItem>
-                <SelectItem value="rejected">rejected</SelectItem>
-                <SelectItem value="all">all</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" onClick={() => requestsQuery.refetch()}>
-              <RefreshCw className="mr-1 h-4 w-4" />
-              새로고침
-            </Button>
-          </div>
-        </div>
-
-        {requestsQuery.isLoading ? (
-          <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">로딩 중...</div>
-        ) : requests.length === 0 ? (
-          <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">신청이 없습니다.</div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>상태</TableHead>
-                <TableHead>이메일</TableHead>
-                <TableHead>표시명</TableHead>
-                <TableHead>Tenant</TableHead>
-                <TableHead>신청일</TableHead>
-                <TableHead className="w-[220px]">작업</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request.registrationRequestId}>
-                  <TableCell><StatusBadge value={request.statusCode} /></TableCell>
-                  <TableCell className="font-mono text-sm">{request.email}</TableCell>
-                  <TableCell>{request.displayName ?? '-'}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{request.tenantId || '-'}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{formatDateTime(request.requestedAt)}</TableCell>
-                  <TableCell>
-                    {request.statusCode === 'pending' ? (
-                      <div className="flex items-center gap-1">
-                        <Select
-                          value={approvalRoleByRequestId[request.registrationRequestId] || defaultApprovalRole}
-                          onValueChange={(value) => updateApprovalRole(request.registrationRequestId, value)}
-                          disabled={rolesQuery.isLoading || roles.length === 0}
-                        >
-                          <SelectTrigger className="h-8 w-[126px] text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roles.map((role) => (
-                              <SelectItem key={role.roleCode} value={role.roleCode}>
-                                {role.roleName || role.roleCode}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="승인"
-                          disabled={approveMutation.isPending || rolesQuery.isLoading || roles.length === 0}
-                          onClick={() => approve(request.registrationRequestId)}
-                        >
-                          <Check className="h-4 w-4 text-ssoo-success" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="반려"
-                          disabled={rejectMutation.isPending}
-                          onClick={() => reject(request.registrationRequestId)}
-                        >
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
     </SsooSettingsPage>
   );
 }

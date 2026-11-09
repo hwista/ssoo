@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { SharedAuthStateSync, SharedOnboardingBoundary } from '@ssoo/web-auth';
+import { SharedAuthStateSync, SharedPlatformAccessBoundary } from '@ssoo/web-auth';
 import { SsooToaster as Toaster } from '@ssoo/web-shell';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { usePmsUserScopeQueryCacheReset } from '@/lib/user-scope';
@@ -64,7 +64,7 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <SharedAuthStateSync authStore={useAuthStore} />
-      <SharedOnboardingBoundary authStore={useAuthStore} app="pms" pathname={pathname ?? '/'}>{children}</SharedOnboardingBoundary>
+      <SharedPlatformAccessBoundary authStore={useAuthStore} app="pms" pathname={pathname ?? '/'}>{children}</SharedPlatformAccessBoundary>
       {/* 전역 Confirm Dialog */}
       <ConfirmDialog />
       {/* 전역 Toast */}

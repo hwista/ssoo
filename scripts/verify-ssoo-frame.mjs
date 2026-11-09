@@ -29,6 +29,7 @@ const checks = {
 
 async function main() {
   await import('./verify-home-navigation.mjs');
+  await import('./verify-admin-program-navigation.mjs');
   await verifyCanonicalDocs();
   await verifyCurrentLayoutDocs();
   await verifySharedFrameSource();
@@ -701,7 +702,7 @@ async function verifySharedPageFrameSource() {
   assertIncludes(header, 'iconSlots?: SsooPageHeaderIconSlots', 'shared page header receives icons through slots');
   assertIncludes(header, 'title?: ReactNode;', 'shared page header owns standard page title rendering');
   assertIncludes(header, 'data-ssoo-page-header', 'shared page header marks the standard page header surface for browser verification');
-  assertIncludes(header, '<h1 className="truncate text-title-card text-ssoo-primary">{title}</h1>', 'shared page header renders the standard page title');
+  assertIncludes(header, '<h1 className={cn("text-title-card text-ssoo-primary", wrapContent ? "break-words" : "truncate")}>{title}</h1>', 'shared page header renders the standard page title');
   assertIncludes(header, 'extraActions?: SsooPageHeaderAction[]', 'shared page header owns common action button layout');
   assertIncludes(header, 'SSOO_PAGE_CHROME_CLASSES.header', 'shared page header consumes the platform page chrome class contract');
   assertIncludes(header, 'SSOO_PAGE_CHROME_METRICS.headerMinHeightPx', 'shared page header consumes the platform page chrome metric contract');
@@ -744,7 +745,7 @@ async function verifySharedPageFrameSource() {
     assertExcludes(contentPageTemplate, needle, `shared content page template does not expose raw page layout escape prop ${needle}`);
   }
   assertIncludes(workspacePage, 'SsooContentPageTemplate', 'shared workspace page composes the canonical content page template');
-  assertIncludes(workspacePage, 'headerSlot={headerSlot ?? null}', 'shared workspace page forwards header chrome without content-width wrapping');
+  assertIncludes(workspacePage, 'headerSlot={title || description || headerActions ? <>', 'shared workspace page forwards header chrome without content-width wrapping');
   assertIncludes(workspacePage, 'pageVariant="fluid"', 'shared workspace page keeps page chrome full-width');
   assertIncludes(workspacePage, 'contentSurface="plain"', 'shared workspace page does not add an extra main surface');
   assertIncludes(workspacePage, 'sidecarMode="hidden"', 'shared workspace page is a main-slot recipe, not a sidecar recipe');
@@ -1645,8 +1646,9 @@ function assertUsesSharedAppHeader(source, app) {
   assertIncludes(source, 'const globalHeaderSearch = useSsooGlobalHeaderSearch', `${app} main header creates the shared global search adapter`);
   assertIncludesOneOf(
     source,
-    ['search={globalHeaderSearch.search}', 'search={mobile ? null : globalHeaderSearch.search}'],
-    `${app} main header injects only the shared search config into SsooAppHeader and may hide it on mobile`
+    ['search={globalHeaderSearch.search}', 'search={mobile ? null : globalHeaderSearch.search}',
+      ...(app === 'Admin' ? ['search={mobile || !canManage ? null : globalHeaderSearch.search}'] : [])],
+    `${app} main header injects only the shared search config and may hide it for mobile or unauthorized users`
   );
   assertIncludes(source, 'onOpenSearch:', `${app} main header keeps only the navigation adapter for the shared global search tab`);
   assertIncludes(source, 'iconSlot: <Plus />', `${app} main header primary CTA is a create/new domain action surface`);

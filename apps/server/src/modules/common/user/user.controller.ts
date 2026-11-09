@@ -1,4 +1,4 @@
-﻿import { Controller, Get, Post, Put, Delete, Query, Body, Param, UseGuards, NotFoundException } from "@nestjs/common";
+﻿import { Controller, Get, Post, Put, Delete, Query, Body, Param, UseGuards, NotFoundException, BadRequestException } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -16,7 +16,7 @@ import { UserService } from './user.service.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
-import { TokenPayload } from '../auth/interfaces/auth.interface.js';
+import type { TokenPayload } from '../auth/interfaces/auth.interface.js';
 import { success, paginated } from '../../../common/index.js';
 import { serializeBigInt } from '../../../common/utils/bigint.util.js';
 import { UserProfileDto } from './dto/user-profile.dto.js';
@@ -106,6 +106,8 @@ export class UserController {
   @ApiQuery({ name: 'page', required: false, type: Number, description: '페이지 번호' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: '페이지당 항목 수' })
   @ApiQuery({ name: 'search', required: false, type: String, description: '검색어 (이름, 로그인ID, 이메일)' })
+  @ApiQuery({ name: 'userId', required: false, type: String, description: '관리 대상 사용자 ID' })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean, description: '계정 활성 여부' })
   @ApiQuery({ name: 'roleCode', required: false, type: String, description: '역할 코드 필터' })
   @ApiOkResponse({ description: '사용자 목록 조회 성공' })
   @ApiForbiddenResponse({ type: ApiError })
@@ -114,7 +116,11 @@ export class UserController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('roleCode') roleCode?: string,
+    @Query('isActive') isActive?: string,
+    @Query('userId') userId?: string,
   ) {
+    if (userId !== undefined && (!/^[1-9]\d{0,18}$/.test(userId) || BigInt(userId) > 9223372036854775807n)) throw new BadRequestException('올바른 사용자 ID가 필요합니다.');
+    if (isActive !== undefined && isActive !== 'true' && isActive !== 'false') throw new BadRequestException('계정 활성 조건은 true 또는 false여야 합니다.');
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
 
@@ -122,7 +128,7 @@ export class UserController {
       page: pageNum,
       limit: limitNum,
       search,
-      roleCode });
+      roleCode, userId, isActive: isActive === undefined ? undefined : isActive === 'true' });
 
     const serialized = result.data.map((u) => serializeBigInt(u));
     return paginated(serialized, pageNum, limitNum, result.total);

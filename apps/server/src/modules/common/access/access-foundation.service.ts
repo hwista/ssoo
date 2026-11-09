@@ -64,7 +64,7 @@ export class AccessFoundationService {
             OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }],
           },
           {
-            OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+            OR: [{ effectiveTo: null }, { effectiveTo: { gt: now } }],
           },
         ],
       },
@@ -248,6 +248,7 @@ export class AccessFoundationService {
     const rolePermissions = await this.db.client.rolePermission.findMany({
       where: {
         isActive: true,
+        permission: { isActive: true },
         role: {
           roleCode,
           isActive: true,
@@ -275,6 +276,7 @@ export class AccessFoundationService {
       where: {
         orgId: { in: orgIds },
         isActive: true,
+        permission: { isActive: true },
         organization: {
           isActive: true,
           orgClass: 'permanent',
@@ -284,7 +286,7 @@ export class AccessFoundationService {
             OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: now } }],
           },
           {
-            OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+            OR: [{ effectiveTo: null }, { effectiveTo: { gt: now } }],
           },
         ],
       },
@@ -313,6 +315,7 @@ export class AccessFoundationService {
       where: {
         userId: options.userId,
         isActive: true,
+        permission: { isActive: true },
         exceptionAxis: options.exceptionAxis,
         targetOrgId: options.exceptionAxis === 'action' ? null : undefined,
         targetObjectType:

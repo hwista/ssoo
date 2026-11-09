@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { input } from 'zod';
 import { upsertTransitionDetailSchema } from '@/lib/validations/project';
 import type { UpsertTransitionDetailInput } from '@/lib/validations/project';
 import { useProjectAccess, useProjectMembers, useUpsertTransitionDetail } from '@/hooks/queries';
@@ -31,7 +32,7 @@ export function TransitionDetailTab({ projectId, detail, onSaved }: Props) {
   const { data: membersResponse } = useProjectMembers(projectId);
   const canEditProject = accessResponse?.data?.features.canEditProject ?? false;
 
-  const form = useForm<UpsertTransitionDetailInput>({
+  const form = useForm<input<typeof upsertTransitionDetailSchema>, unknown, UpsertTransitionDetailInput>({
     resolver: zodResolver(upsertTransitionDetailSchema),
     defaultValues: {
       operationOwnerUserId: detail?.operationOwnerUserId ? Number(detail.operationOwnerUserId) : undefined,

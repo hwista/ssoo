@@ -16,7 +16,7 @@ const localStorage = {
   removeItem: (key) => values.delete(key),
 };
 const context = vm.createContext({
-  console, Headers, Request, Response, ReadableStream, TextEncoder, URL, Event, AbortController, setTimeout,
+  console, Headers, Request, Response, ReadableStream, TextEncoder, URL, Event, AbortController, setTimeout, clearTimeout,
   localStorage, window: { localStorage, dispatchEvent: () => true },
   fetch: (...args) => globalThis.fetch(...args),
 });
@@ -165,20 +165,25 @@ await check('cookie exchange survives document navigation but remains explicitly
 for (const action of ['checkAuth', 'refreshTokens']) {
   await check(`${action}: response after logout cannot resurrect authentication`, async () => {
     const response = deferred();
+    const restoring = deferred();
+    let restores = 0;
     const instance = createAuthStore({ authApi: {
-      me: async () => ({ success: false, status: 401 }), restoreSession: () => response.promise,
+      me: async () => ({ success: false, status: 401 }), restoreSession: () => {
+        if (++restores === 1) { restoring.resolve(); return response.promise; }
+        return Promise.resolve({ success: true, data: authenticated });
+      },
       logout: async () => ({ success: true }),
     }, normalizeUser: (value) => value });
     instance.getState().setTokens('old'); instance.getState().setUser(user);
     const pending = instance.getState()[action]();
-    await Promise.resolve(); await instance.getState().logout();
+    await restoring.promise; await instance.getState().logout();
     response.resolve({ success: true, data: authenticated }); await pending;
     assert.equal(instance.getState().isAuthenticated, false); assert.equal(storage.getSharedAccessToken(), null);
   });
 }
 await check('late identity response cannot resurrect logged-out state', async () => {
   const response = deferred();
-  const instance = createAuthStore({ authApi: { me: () => response.promise, logout: async () => ({ success: true }) }, normalizeUser: (value) => value });
+  const instance = createAuthStore({ authApi: { me: () => response.promise, restoreSession: async () => ({ success: true, data: authenticated }), logout: async () => ({ success: true }) }, normalizeUser: (value) => value });
   instance.getState().setTokens('old'); const pending = instance.getState().checkAuth();
   await instance.getState().logout(); response.resolve({ success: true, data: user }); await pending;
   assert.equal(instance.getState().isAuthenticated, false);
@@ -325,14 +330,99 @@ await check('successful retry clears transient session notice', async () => {
 });
 await check('logout failure preserves account and rejects navigation contract; retry clears it', async () => {
   let success = false;
-  const instance = createAuthStore({ authApi: { logout: async () => ({ success, status: success ? 200 : 503 }) }, normalizeUser: value => value });
+  const instance = createAuthStore({ authApi: { restoreSession: async () => ({ success: true, data: authenticated }), logout: async () => ({ success, status: success ? 200 : 503 }) }, normalizeUser: value => value });
   instance.getState().setTokens('test-token'); instance.getState().setUser(user);
   await assert.rejects(instance.getState().logout(), /로그아웃하지 못했습니다/);
   assert.equal(instance.getState().isAuthenticated, true);
   assert.equal(instance.getState().user.userId, user.userId);
   assert.equal(storage.getSharedAccessToken(), 'test-token');
+  assert.match(instance.getState().sessionError, /로그아웃하지 못했습니다/);
   success = true; await instance.getState().logout();
   assert.equal(instance.getState().isAuthenticated, false);
   assert.equal(storage.getSharedAccessToken(), null);
+});
+await check('logout uses a restored access token and waits for server revocation', async () => {
+  const calls = [];
+  const instance = createAuthStore({ authApi: {
+    restoreSession: async () => { calls.push('restore'); return { success: true, data: authenticated }; },
+    logout: async (token) => { calls.push(token); assert.equal(instance.getState().isAuthenticated, true); return { success: true }; },
+  }, normalizeUser: value => value });
+  instance.getState().setTokens('expired-access'); instance.getState().setUser(user);
+  await instance.getState().logout();
+  assert.deepEqual(calls, ['restore', 'test-access']);
+  assert.equal(instance.getState().isAuthenticated, false);
+  assert.equal(storage.getSharedAccessToken(), null);
+});
+await check('logout of an absent cookie session still revokes a known bearer session', async () => {
+  let revoked = false;
+  const instance = createAuthStore({ authApi: {
+    restoreSession: async () => ({ success: true, data: anonymous }),
+    logout: async (token) => { assert.equal(token, 'known-access'); revoked = true; return { success: true }; },
+  }, normalizeUser: value => value });
+  instance.getState().setTokens('known-access'); instance.getState().setUser(user);
+  await instance.getState().logout();
+  assert.equal(revoked, true);
+  assert.equal(instance.getState().isAuthenticated, false);
+});
+await check('logout without either a cookie session or local bearer needs no revocation request', async () => {
+  const instance = createAuthStore({ authApi: {
+    restoreSession: async () => ({ success: true, data: anonymous }),
+    logout: async () => { assert.fail('no known session to revoke'); },
+  }, normalizeUser: value => value });
+  await instance.getState().logout();
+  assert.equal(instance.getState().isAuthenticated, false);
+});
+await check('logout session lookup failure keeps authentication and exposes recovery', async () => {
+  const instance = createAuthStore({ authApi: {
+    restoreSession: async () => ({ success: false, status: 503 }),
+    logout: async () => { assert.fail('session lookup failed'); },
+  }, normalizeUser: value => value });
+  instance.getState().setTokens('stale-access'); instance.getState().setUser(user);
+  instance.setState({ isLoading: true });
+  await assert.rejects(instance.getState().logout(), /로그아웃하지 못했습니다/);
+  assert.equal(instance.getState().isLoading, false);
+  assert.equal(instance.getState().isAuthenticated, true);
+  assert.equal(storage.getSharedAccessToken(), 'stale-access');
+  assert.match(instance.getState().sessionError, /로그아웃하지 못했습니다/);
+});
+await check('a superseding authentication change prevents a delayed logout from revoking the newer session', async () => {
+  const response = deferred();
+  const instance = createAuthStore({ authApi: {
+    restoreSession: () => response.promise,
+    logout: async () => { assert.fail('the old logout must not revoke a newer session'); },
+  }, normalizeUser: value => value });
+  instance.getState().setTokens('old-access');
+  const pending = instance.getState().logout();
+  storage.invalidateSharedAuthRequests();
+  instance.getState().setTokens('new-access');
+  response.resolve({ success: true, data: authenticated });
+  await pending;
+  assert.equal(instance.getState().isAuthenticated, true);
+  assert.equal(storage.getSharedAccessToken(), 'new-access');
+});
+await check('a stalled auth request releases loading and a later session retry recovers', async () => {
+  const { createAuthApiAdapter } = load('auth-api');
+  const realTimer = context.setTimeout;
+  let stalled = true;
+  context.setTimeout = (callback, delay) => {
+    assert.equal(delay, 15_000);
+    return setTimeout(callback, 1);
+  };
+  try {
+    const authApi = createAuthApiAdapter({ fetchImpl: async (_url, init) => {
+      if (!stalled) return Response.json(authenticated);
+      return new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(new Error('request aborted')), { once: true });
+      });
+    } });
+    const instance = createAuthStore({ authApi, normalizeUser: value => value });
+    await instance.getState().checkAuth();
+    assert.equal(instance.getState().isLoading, false);
+    assert.ok(instance.getState().sessionError);
+    stalled = false;
+    await instance.getState().checkAuth();
+    assert.equal(instance.getState().sessionError, null);
+    assert.equal(instance.getState().isAuthenticated, true);
+  } finally { context.setTimeout = realTimer; }
 });
 console.log(`[session-recovery] ${results.length} checks passed including transient bootstrap and failed logout.`);

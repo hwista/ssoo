@@ -34,6 +34,9 @@ export interface RolePermissionItem {
   description?: string | null;
   isActive: boolean;
   permissionCodes: string[];
+  revision: string;
+  assignedUserCount: number;
+  activeUserCount: number;
 }
 
 export interface AccessAuditEvent {
@@ -90,10 +93,10 @@ export const accessOpsApi = {
     return response.data.data;
   },
 
-  updateRolePermissions: async (roleCode: string, permissionCodes: string[]) => {
+  updateRolePermissions: async (roleCode: string, permissionCodes: string[], reason: string, expectedRevision: string) => {
     const response = await apiClient.put<ApiResponse<RolePermissionItem>>(
       `/access/ops/roles/${encodeURIComponent(roleCode)}/permissions`,
-      { permissionCodes },
+      { permissionCodes, reason, expectedRevision },
     );
     if (!response.data.data) {
       throw new Error('역할 권한 갱신 응답이 비어 있습니다.');

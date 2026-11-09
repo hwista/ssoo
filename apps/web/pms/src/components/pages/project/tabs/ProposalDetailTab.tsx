@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { input } from 'zod';
 import { upsertProposalDetailSchema } from '@/lib/validations/project';
 import type { UpsertProposalDetailInput } from '@/lib/validations/project';
 import { useProjectAccess, useProjectMembers, useUpsertProposalDetail } from '@/hooks/queries';
@@ -31,7 +32,7 @@ export function ProposalDetailTab({ projectId, detail, onSaved }: Props) {
   const { data: membersResponse } = useProjectMembers(projectId);
   const canEditProject = accessResponse?.data?.features.canEditProject ?? false;
 
-  const form = useForm<UpsertProposalDetailInput>({
+  const form = useForm<input<typeof upsertProposalDetailSchema>, unknown, UpsertProposalDetailInput>({
     resolver: zodResolver(upsertProposalDetailSchema),
     defaultValues: {
       proposalOwnerUserId: detail?.proposalOwnerUserId ? Number(detail.proposalOwnerUserId) : undefined,

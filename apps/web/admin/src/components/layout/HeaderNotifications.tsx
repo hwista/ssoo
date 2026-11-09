@@ -7,6 +7,7 @@ import {
   getCommonNotificationSourceLabel,
   resolveCommonNotificationHref,
   useCommonNotificationCenter,
+  usePlatformAccess,
   type SsooNotificationAppUrls,
 } from '@ssoo/web-auth';
 import {
@@ -47,6 +48,11 @@ function getPrimaryActionLabel(item: CommonNotificationItem): string {
 }
 
 export function HeaderNotifications() {
+  const access = usePlatformAccess();
+  return access?.snapshot.status === 'active' ? <ActiveHeaderNotifications /> : null;
+}
+
+function ActiveHeaderNotifications() {
   const openTab = useTabStore((state) => state.openTab);
   const notificationCenter = useCommonNotificationCenter({
     pageSize: NOTIFICATION_PAGE_SIZE,

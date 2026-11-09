@@ -1,3 +1,5 @@
+import { AiJobOperationsService } from './ai-job-operations.service.js';
+import { AiJobListQuery, RetryAiJobDto } from './dto/ai-job-operations.dto.js';
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type {
@@ -37,6 +39,7 @@ function normalizeSourceApp(sourceApp?: string): AiIndexSourceApp | undefined {
 @Controller('ai-index')
 export class AiIndexController {
   constructor(
+    private readonly jobs: AiJobOperationsService,
     private readonly aiIndexingService: AiIndexingService,
     private readonly aiIndexSchedulerService: AiIndexSchedulerService,
     private readonly aiIndexWorkerService: AiIndexWorkerService,
@@ -96,7 +99,7 @@ export class AiIndexController {
   @ApiOperation({ summary: '공용 AI provider와 scheduler 운영 준비 상태 조회' })
   @ApiOkResponse({ description: '비밀값을 제외한 AI provider와 worker 준비 상태 반환' })
   async getOperationsReadiness() {
-    const embedding = this.aiEmbeddingProviderService.getStatus();
+    const embedding = await this.aiEmbeddingProviderService.getStatus();
     const chat = this.aiModelGatewayService.getStatus();
     const scheduler = this.aiIndexSchedulerService.getStatus();
     return success({
@@ -106,9 +109,9 @@ export class AiIndexController {
       chat,
       scheduler,
       configurationBoundary: {
-        mode: 'deployment-secret',
-        mutableInAdmin: false,
-        message: 'Provider endpoint, deployment, credential은 배포 환경/secret에서 관리합니다.',
+        mode: 'admin-settings',
+        mutableInAdmin: true,
+        message: '임베딩은 Admin에서 설정·전환할 수 있습니다. 채팅 모델은 배포 환경에서 관리합니다.',
       },
     });
   }
@@ -122,6 +125,26 @@ export class AiIndexController {
   async runJobs(@Query('limit') limit?: string) {
     const data = await this.aiIndexWorkerService.runPendingJobs(limit ? Number(limit) : undefined);
     return success(data);
+  }
+
+  @Get('jobs')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({ summary: 'AI 작업 목록·상태 조회' })
+  async listJobs(@Query() query: AiJobListQuery) { return success(await this.jobs.list(query)); }
+
+  @Get('jobs/:id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({ summary: 'AI 작업 상세 조회 (payload 제외)' })
+  async jobDetail(@Param('id') id: string) { return success(await this.jobs.detail(id)); }
+
+  @Post('jobs/:id/retry')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOperation({ summary: '실패한 AI 작업의 후속 실행 등록' })
+  async retryJob(@Param('id') id: string, @Body() dto: RetryAiJobDto, @CurrentUser() user: TokenPayload) {
+    return success(await this.jobs.retry(id, dto, BigInt(user.userId)));
   }
 
   @Post('retrieval/query')

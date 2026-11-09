@@ -216,6 +216,8 @@ if [ "$NEED_WEB_CRM" -eq 1 ]; then
 fi
 
 if [ "$NEED_WEB_PMS" -eq 1 ]; then
+  echo "[push-guard] running: pnpm run verify:pms-validation"
+  pnpm run verify:pms-validation
   echo "[push-guard] running: pnpm run build:web-pms"
   pnpm run build:web-pms
 fi

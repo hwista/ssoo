@@ -17,6 +17,7 @@ export interface SsooPageIndexRailProps {
   description?: ReactNode;
   ariaLabel?: string;
   className?: string;
+  layout?: 'vertical' | 'horizontal';
   showItemMeta?: boolean;
   onItemSelect: (item: SsooPageIndexRailItem) => void;
 }
@@ -28,13 +29,14 @@ export function SsooPageIndexRail({
   description,
   ariaLabel = '페이지 항목 색인',
   className,
+  layout = 'vertical',
   showItemMeta = false,
   onItemSelect,
 }: SsooPageIndexRailProps) {
   const hasHeader = Boolean(title || description);
 
   return (
-    <nav className={cn('flex h-full min-h-0 flex-col text-ssoo-primary', className)} aria-label={ariaLabel}>
+    <nav className={cn('flex min-h-0 flex-col text-ssoo-primary', layout === 'vertical' && 'h-full', className)} aria-label={ariaLabel}>
       {hasHeader ? (
         <div className="shrink-0 border-b border-ssoo-content-border ssoo-border-content-70 px-1 pb-2">
           {title ? <p className="text-sm font-medium text-ssoo-primary">{title}</p> : null}
@@ -46,7 +48,7 @@ export function SsooPageIndexRail({
         </div>
       ) : null}
       <div className={cn('min-h-0 flex-1 overflow-y-auto', hasHeader ? 'pt-2' : 'pt-0')}>
-        <div className="flex flex-col gap-1">
+        <div className={cn("flex gap-1", layout === "horizontal" ? "flex-wrap" : "flex-col")}>
           {items.map((item) => {
             const active = activeItemId === item.id;
 
@@ -59,7 +61,8 @@ export function SsooPageIndexRail({
                 title={item.description}
                 onClick={() => onItemSelect(item)}
                 className={cn(
-                  'flex min-h-8 w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                  'flex min-h-8 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                  layout === 'vertical' && 'w-full',
                   active
                     ? 'bg-ssoo-content-border font-medium text-ssoo-primary'
                     : 'ssoo-text-primary-80 hover:bg-ssoo-sitemap-bg hover:text-ssoo-primary',

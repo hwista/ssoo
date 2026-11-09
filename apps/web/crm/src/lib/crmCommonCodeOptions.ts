@@ -72,9 +72,11 @@ export function useCrmCommonCodeOptions(groups: CrmSourceCodeGroup[]) {
     void reload(false);
     const handleFocus = () => void reload();
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('crm-common-codes-changed', handleFocus);
     return () => {
       requestVersion.current += 1;
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('crm-common-codes-changed', handleFocus);
     };
   }, [reload]);
 

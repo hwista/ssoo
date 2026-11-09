@@ -33,7 +33,19 @@ export type UpdateOrganizationRequest = Omit<Partial<CreateOrganizationRequest>,
   isActive?: boolean;
 };
 
+export interface OrganizationImpact {
+  organizationId: string;
+  children: Array<{ id: string; name: string }>;
+  memberships: number;
+  grants: number;
+  authorities: number;
+  permissions: number;
+  requests: number;
+  canDeactivate: boolean;
+}
+
 export const organizationsApi = {
+  impact: (id: string) => apiClient.get<ApiResponse<OrganizationImpact>>(`/organizations/${id}/impact`).then(response => response.data.data!),
   list: (includeInactive = false) =>
     apiClient
       .get<ApiResponse<OrganizationItem[]>>('/organizations', { params: { includeInactive } })

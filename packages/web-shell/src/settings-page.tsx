@@ -38,6 +38,8 @@ import {
 export type SsooSettingsPageHeaderActions = Partial<
   Pick<
     SsooPageHeaderProps,
+    | 'wrapContent'
+    | 'compact'
     | 'mode'
     | 'onEdit'
     | 'onDelete'
@@ -160,6 +162,8 @@ function SsooSettingsPageHeader({
 
   return (
     <SsooPageHeader
+      wrapContent={resolvedActions.wrapContent}
+      compact={resolvedActions.compact}
       mode={resolvedActions.mode ?? 'viewer'}
       title={title}
       description={description}

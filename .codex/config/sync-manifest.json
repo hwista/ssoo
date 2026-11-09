@@ -54,8 +54,8 @@
       "id": "project-input-intent-inventory",
       "source": ".github/instructions/project.instructions.md",
       "target": ".codex/instructions/project.instructions.md",
-      "sourcePattern": "37개 입력 inventory",
-      "targetPattern": "37개 입력 inventory",
+      "sourcePattern": "42개 입력 inventory",
+      "targetPattern": "42개 입력 inventory",
       "severity": "error"
     },
     {

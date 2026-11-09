@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { cn } from './cn';
 import {
   SSOO_PAGE_CHROME_CLASSES,
@@ -12,7 +12,8 @@ export type SsooPageHeaderMode = 'viewer' | 'editor' | 'create';
 export type SsooPageHeaderActionVariant = 'default' | 'secondary' | 'outline' | 'destructive' | 'ghost';
 
 export interface SsooPageHeaderAction {
-  label: string;
+  ariaExpanded?: boolean;
+  label: ReactNode;
   icon?: ReactNode;
   variant?: SsooPageHeaderActionVariant;
   onClick: () => void;
@@ -48,6 +49,9 @@ export interface SsooPageHeaderProps {
   viewerRightSlot?: ReactNode;
   editorPreviewSlot?: ReactNode;
   iconSlots?: SsooPageHeaderIconSlots;
+  wrapContent?: boolean;
+  /** Keep operating guidance available without displacing the working area. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -86,8 +90,12 @@ export function SsooPageHeader({
   viewerRightSlot,
   editorPreviewSlot,
   iconSlots,
+  wrapContent = false,
+  compact = false,
   className,
 }: SsooPageHeaderProps) {
+  const [guidanceOpen, setGuidanceOpen] = useState(false);
+  const guidanceId = useId();
   const renderActionButton = (action: SsooPageHeaderAction, index: number) => {
     const variant = action.variant ?? 'ghost';
     const icon = action.loading ? iconSlots?.loading : action.icon;
@@ -100,6 +108,7 @@ export function SsooPageHeader({
         size="pageAction"
         onClick={action.onClick}
         disabled={action.disabled || action.loading}
+        aria-expanded={action.ariaExpanded}
         className={pageHeaderButtonFocusClass}
       >
         <IconText icon={icon}>{action.label}</IconText>
@@ -111,24 +120,28 @@ export function SsooPageHeader({
     <div
       className={cn(
         SSOO_PAGE_CHROME_CLASSES.header,
+        wrapContent && 'flex-wrap gap-2',
+        compact && 'flex-wrap gap-2 py-2',
         className
       )}
       style={{ minHeight: SSOO_PAGE_CHROME_METRICS.headerMinHeightPx }}
       data-ssoo-page-header
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className={cn("flex min-w-0 flex-1 items-center gap-3", wrapContent && !compact && "basis-full sm:basis-0", compact && "basis-full sm:basis-0 sm:min-w-64")}>
         {title || description ? (
-          <div className="min-w-0">
+          <div className={cn("min-w-0", compact && 'flex-1')}>
             {title ? (
-              <h1 className="truncate text-title-card text-ssoo-primary">{title}</h1>
+              <h1 className={cn("text-title-card text-ssoo-primary", wrapContent ? "break-words" : "truncate")}>{title}</h1>
             ) : null}
-            {description ? (
-              <p className={cn(title ? 'mt-0.5 truncate' : '', 'text-body-sm ssoo-text-primary-70')}>
+            {description && !compact ? (
+              <p className={cn(title ? (wrapContent ? 'mt-0.5 break-words' : 'mt-0.5 truncate') : '', 'text-body-sm ssoo-text-primary-70')}>
                 {description}
               </p>
             ) : null}
           </div>
         ) : null}
+
+        {compact && description ? <Button type="button" variant="ghost" size="pageAction" aria-expanded={guidanceOpen} aria-controls={guidanceId} onClick={() => setGuidanceOpen(open => !open)}>사용 안내</Button> : null}
 
         {mode === 'viewer' && onEdit ? (
           <Button variant="default" size="pageAction" type="button" onClick={onEdit} className={pageHeaderButtonFocusClass}>
@@ -161,7 +174,7 @@ export function SsooPageHeader({
         {extraActionsPosition === 'left' ? extraActions?.map(renderActionButton) : null}
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
+      <div className={cn("flex shrink-0 items-center gap-3", wrapContent && "max-w-full flex-wrap")}>
         {mode === 'viewer' ? (
           <>
             {viewerRightSlot}
@@ -211,6 +224,7 @@ export function SsooPageHeader({
 
         {extraActionsPosition === 'right' ? extraActions?.map(renderActionButton) : null}
       </div>
+      {compact && description && guidanceOpen ? <p id={guidanceId} className="w-full border-t pt-2 text-body-sm ssoo-text-primary-70">{description}</p> : null}
     </div>
   );
 }

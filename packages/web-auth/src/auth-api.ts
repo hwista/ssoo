@@ -46,6 +46,7 @@ async function authProxyPost<T>(
   extraHeaders?: Record<string, string>,
 ): Promise<AuthApiResult<T>> {
   const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
   const unregister = action === 'session' || action === 'me'
     ? registerSharedAuthRequest(controller) : () => {};
   try {
@@ -83,6 +84,7 @@ async function authProxyPost<T>(
       error: error instanceof Error ? error.message : '인증 요청에 실패했습니다.',
     };
   } finally {
+    clearTimeout(timeout);
     unregister();
   }
 }

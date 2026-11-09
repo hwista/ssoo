@@ -355,7 +355,7 @@ pnpm run codex:dms-guard
 
 ## 14. 검색 inventory freeze
 
-직접 JSX에서 식별된 32곳과 별도 공용 sidebar 구현, 완료성 감사에서 동적 props 때문에 최초 AST 탐지를 우회했던 공용 DataWorkspace filter renderer와 PMS page FilterBar, 동시 개발 중 추가된 CRM 계약청구실적 검색을 다음 37개 구현 지점으로 고정한다. 실행 도중 CRM source-compatible 계약/실적 조회 3곳과 Admin source-compatible 계정 검색 1곳이 추가된 것을 정적 gate가 감지해 inventory와 공용 계약에 함께 편입했다. 동적 text filter는 이제 타입 수준에서 stable `id/name/ariaLabel`을 필수로 요구하며, 이후 차이가 생기면 `verify:input-intent`가 실패한다.
+직접 JSX에서 식별된 32곳과 별도 공용 sidebar 구현, 완료성 감사에서 동적 props 때문에 최초 AST 탐지를 우회했던 공용 DataWorkspace filter renderer와 PMS page FilterBar, 동시 개발 중 추가된 CRM 계약청구실적 검색과 Admin 소속·이용권 검색을 다음 42개 구현 지점으로 고정한다. 실행 도중 CRM source-compatible 계약/실적 조회 3곳과 Admin source-compatible 계정 검색 1곳이 추가된 것을 정적 gate가 감지해 inventory와 공용 계약에 함께 편입했다. 2026-11-04에는 공통 관리 프로그램의 소속·이용권 검색 2곳을 추가했다. 2026-11-06에는 소속·이용권 대상 선택의 사용자·조직 검색 2곳을 추가했다. 동적 text filter는 이제 타입 수준에서 stable `id/name/ariaLabel`을 필수로 요구하며, 이후 차이가 생기면 `verify:input-intent`가 실패한다.
 
 | 영역 | 소스 | 수량 | 목적 |
 |---|---|---:|---|
@@ -363,6 +363,10 @@ pnpm run codex:dms-guard
 | web-shell | `src/sidebar.tsx` | 1 | navigation search; 별도 집계 |
 | web-shell | `src/data-workspace-page.tsx` | 2 | DataGrid filter, 동적 DataWorkspace text filter renderer |
 | web-shell | `src/ai-search/toolbar/SearchControls.tsx` | 1 | in-view search |
+| admin | `src/components/pages/roles/ApprovalAuthoritiesTab.tsx` | 1 | 승인 담당자 서버 검색(2026-10-27 기능별 권한 관리로 이동) |
+| admin | `src/components/pages/access/MembershipManagementPanel.tsx` | 1 | 소속 사용자·조직 검색 |
+| admin | `src/components/pages/access/ServiceGrantManagementPanel.tsx` | 1 | 서비스 이용권 사용자 검색 |
+| admin | `src/components/pages/access/ParticipationTargets.tsx` | 2 | 사용자·조직 대상 선택 검색 |
 | Admin | `pages/roles/AccessManagementPage.tsx` | 3 | user/login ID/permission filter |
 | Admin | `pages/users/UserManagementPage.tsx` | 1 | account directory filter |
 | CRM | `BusinessPlanPreviewWorkspaceClient.tsx` | 1 | URL query |

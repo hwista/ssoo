@@ -1,5 +1,11 @@
 // Common Types
 
+export type {
+  ParticipationPage, ParticipationFilter, ManagedMembership, ManagedServiceGrant,
+  MembershipFields, CreateMembership, UpdateMembership, ParticipationRevision,
+  TransferMembership, ServiceGrantFields, CreateServiceGrant, UpdateServiceGrant,
+} from './participation-management';
+
 // API
 export type {
   ApiResponse,
@@ -205,6 +211,7 @@ export type {
   CreateOnboardingRequest,
   DecideOnboardingRequest,
 } from './onboarding';
+export type { ApprovalCandidate, ApprovalCandidatePage } from './onboarding';
 
 export type {
   UserRole,
@@ -212,3 +219,12 @@ export type {
   CreateUserDto,
   UpdateUserDto,
 } from './user';
+export type { CommonPermissionTarget, ManagedCommonPermission, CommonPermissionWrite, CommonPermissionRevision } from './permission-management';
+export type { PlatformAccessDiagnosis } from './participation-management';
+export type { CommonOperationEvent, CommonOperationHistoryPage, CommonOperationHistoryFilter, CommonOperationHistoryDetail } from './operation-history';
+
+export type { ManagedAiJob } from './ai-operations';
+
+export type { IntegrationKind, MailIntegrationConfig, EmbeddingIntegrationConfig, IntegrationConfigMap, IntegrationSettings, UpdateIntegrationSettings, IntegrationProbeResult, LocalMailboxMessage } from './integration-settings.js';
+
+export type { CodeGroup, CodeItem, CodeMutationRequest, CreateCodeRequest, UpdateCodeRequest, CodeUsage } from './codes';

@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 
 import { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SharedAuthStateSync, SharedOnboardingBoundary } from '@ssoo/web-auth';
+import { SharedAuthStateSync, SharedPlatformAccessBoundary } from '@ssoo/web-auth';
 import { SsooToaster as Toaster } from '@ssoo/web-shell';
 import { useAdminUserScopeQueryCacheReset } from '@/lib/user-scope';
 import { useAuthStore } from '@/stores/auth.store';
@@ -44,7 +44,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <SharedAuthStateSync authStore={useAuthStore} />
-      <SharedOnboardingBoundary authStore={useAuthStore} app="admin" pathname={pathname ?? '/'}>{children}</SharedOnboardingBoundary>
+      <SharedPlatformAccessBoundary authStore={useAuthStore} app="admin" pathname={pathname ?? '/'}>{children}</SharedPlatformAccessBoundary>
       <Toaster position="top-right" richColors closeButton duration={4000} />
     </QueryClientProvider>
   );

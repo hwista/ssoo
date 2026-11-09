@@ -181,10 +181,26 @@ export function createAuthStore<TUser extends AuthIdentity>(
             const { accessToken } = get();
             invalidateSharedAuthRequests();
             const version = getAuthRequestVersion();
-
-            const result = await authApi.logout(accessToken);
-            if (!result.success) throw new Error('로그아웃하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.');
-            if (version === getAuthRequestVersion()) clearAuthState('logout');
+            const message = '로그아웃하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.';
+            try {
+              // The idle timeout can outlive the access token. Resolve the cookie
+              // session before revoking it rather than sending an expired bearer.
+              const restored = await authApi.restoreSession();
+              if (version !== getAuthRequestVersion()) return;
+              if (!restored.success || !restored.data) throw new Error(message);
+              // A missing cookie does not prove that a known bearer session was
+              // revoked. Preserve the existing server-revocation requirement.
+              const logoutToken = restored.data.accessToken ?? accessToken;
+              if (logoutToken !== null) {
+                const result = await authApi.logout(logoutToken);
+                if (!result.success) throw new Error(message);
+              }
+              if (version === getAuthRequestVersion()) clearAuthState('logout');
+            } catch {
+              if (version !== getAuthRequestVersion()) return;
+              set({ sessionError: message, isLoading: false });
+              throw new Error(message);
+            }
           },
 
           checkAuth: async (options?: CheckAuthOptions) => {

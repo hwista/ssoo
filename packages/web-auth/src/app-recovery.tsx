@@ -66,6 +66,9 @@ export function SharedAppRecovery<TUser extends AuthIdentity>({ authStore, kind,
       } catch { setActionError('로그아웃하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.'); }
     },
   }] : [{ label: '로그인 화면으로 이동', href: '/login' }];
+  if (authenticated && (!accessToken || sessionError)) {
+    actions.push({ label: '로그인 화면으로 이동', href: '/login' });
+  }
   if (onRetry || authenticated || restoreSession) actions.push({
     label: retrying || loading ? '확인 중...' : '접근 권한 다시 확인', intent: 'retry', disabled: retrying || loading,
     onClick: async () => {

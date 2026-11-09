@@ -1,10 +1,27 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type { ExtendedPrismaClient } from '@ssoo/database';
 import { DatabaseService } from '../../../database/database.service.js';
 import type { CreateOrganizationDto, UpdateOrganizationDto } from './dto/organization-operations.dto.js';
+
+type OrganizationTransaction = Parameters<Parameters<ExtendedPrismaClient['$transaction']>[0]>[0];
 
 @Injectable()
 export class OrganizationOperationsService {
   constructor(private readonly db: DatabaseService) {}
+
+  private async write<T>(operation: (tx: OrganizationTransaction) => Promise<T>): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      try { return await this.db.client.$transaction(operation, { isolationLevel: 'Serializable' }); }
+      catch (error) {
+        if (error instanceof Error && 'code' in error) {
+          if (error.code === 'P2034' && attempt < 2) continue;
+          if (error.code === 'P2034') throw new ConflictException('조직 또는 연결 정보가 변경됐습니다. 새로고침 후 다시 처리해 주세요.');
+          if (error.code === 'P2002') throw new ConflictException('이미 사용 중인 조직 코드입니다.');
+        }
+        throw error;
+      }
+    }
+  }
 
   async list(includeInactive = false) {
     const organizations = await this.db.client.organization.findMany({
@@ -31,60 +48,93 @@ export class OrganizationOperationsService {
     return organizations.map((organization) => this.toSnapshot(organization));
   }
 
+  async impact(orgId: bigint) {
+    await this.assertExists(orgId, this.db.client);
+    const [children, memberships, grants, authorities, permissions, requests] = await Promise.all([
+      this.db.client.organization.findMany({ where: { parentOrgId: orgId, isActive: true }, select: { orgId: true, orgName: true } }),
+      this.db.client.userOrganizationRelation.count({ where: { orgId, isActive: true } }),
+      this.db.client.serviceGrant.count({ where: { orgId, isActive: true } }),
+      this.db.client.approvalAuthority.count({ where: { orgId, isActive: true } }),
+      this.db.client.organizationPermission.count({ where: { orgId, isActive: true } }),
+      this.db.client.onboardingRequest.count({ where: { statusCode: 'pending', OR: [{ orgId }, { parentOrgId: orgId }] } }),
+    ]);
+    return { organizationId: orgId.toString(), children: children.map(item => ({ id: item.orgId.toString(), name: item.orgName })), memberships, grants, authorities, permissions, requests, canDeactivate: children.length === 0 && memberships === 0 };
+  }
+
   async create(dto: CreateOrganizationDto, operatorUserId: bigint) {
     const parentOrgId = this.toOptionalId(dto.parentOrgId);
-    await this.assertParentIsUsable(parentOrgId);
-    const created = await this.db.client.organization.create({
-      data: {
-        orgCode: dto.orgCode.trim(),
-        orgName: dto.orgName.trim(),
-        orgType: dto.orgType,
-        orgClass: 'permanent',
-        scope: dto.scope ?? (dto.orgType === 'external' ? 'external' : 'internal'),
-        levelType: this.normalizeOptionalText(dto.levelType),
-        parentOrgId,
-        memo: this.normalizeOptionalText(dto.memo),
-        createdBy: operatorUserId,
-        updatedBy: operatorUserId,
-        lastSource: 'admin-organization-operations',
-        lastActivity: 'organization.admin.create',
-      },
+    if (!dto.orgName.trim()) throw new BadRequestException('조직명을 입력해 주세요.');
+    const created = await this.write(async (tx) => {
+      await this.assertParentIsUsable(parentOrgId, tx);
+      return tx.organization.create({
+        data: {
+          orgCode: dto.orgCode.trim(),
+          orgName: dto.orgName.trim(),
+          orgType: dto.orgType,
+          orgClass: 'permanent',
+          scope: dto.scope ?? (dto.orgType === 'external' ? 'external' : 'internal'),
+          levelType: this.normalizeOptionalText(dto.levelType),
+          parentOrgId,
+          memo: this.normalizeOptionalText(dto.memo),
+          createdBy: operatorUserId,
+          updatedBy: operatorUserId,
+          lastSource: 'admin-organization-operations',
+          lastActivity: 'organization.admin.create',
+        },
+      });
     });
     return this.getById(created.orgId);
   }
 
   async update(orgId: bigint, dto: UpdateOrganizationDto, operatorUserId: bigint) {
-    await this.assertExists(orgId);
-    let parentOrgId: bigint | null | undefined;
-    if (dto.parentOrgId !== undefined) {
-      parentOrgId = this.toOptionalId(dto.parentOrgId);
-      await this.assertParentIsUsable(parentOrgId);
-      await this.assertNoHierarchyCycle(orgId, parentOrgId);
-    }
+    if (dto.orgName !== undefined && !dto.orgName.trim()) throw new BadRequestException('조직명을 입력해 주세요.');
+    await this.write(async (tx) => {
+      const current = await this.assertExists(orgId, tx);
+      let parentOrgId: bigint | null | undefined;
+      if (dto.parentOrgId !== undefined) {
+        parentOrgId = this.toOptionalId(dto.parentOrgId);
+        await this.assertParentIsUsable(parentOrgId, tx);
+        await this.assertNoHierarchyCycle(orgId, parentOrgId, tx);
+      }
+      if (dto.isActive === true) await this.assertParentIsUsable(parentOrgId === undefined ? current.parentOrgId : parentOrgId, tx);
+      if (dto.isActive === false) await this.assertCanDeactivate(orgId, tx);
 
-    await this.db.client.organization.update({
-      where: { orgId },
-      data: {
-        ...(dto.orgName !== undefined ? { orgName: dto.orgName.trim() } : {}),
-        ...(dto.orgType !== undefined ? { orgType: dto.orgType } : {}),
-        ...(dto.scope !== undefined ? { scope: dto.scope } : {}),
-        ...(dto.levelType !== undefined ? { levelType: this.normalizeOptionalText(dto.levelType) } : {}),
-        ...(parentOrgId !== undefined ? { parentOrgId } : {}),
-        ...(dto.memo !== undefined ? { memo: this.normalizeOptionalText(dto.memo) } : {}),
-        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-        updatedBy: operatorUserId,
-        lastSource: 'admin-organization-operations',
-        lastActivity: dto.isActive === true ? 'organization.admin.reactivate' : 'organization.admin.update',
-      },
+      await tx.organization.update({
+        where: { orgId },
+        data: {
+          ...(dto.orgName !== undefined ? { orgName: dto.orgName.trim() } : {}),
+          ...(dto.orgType !== undefined ? { orgType: dto.orgType } : {}),
+          ...(dto.scope !== undefined ? { scope: dto.scope } : {}),
+          ...(dto.levelType !== undefined ? { levelType: this.normalizeOptionalText(dto.levelType) } : {}),
+          ...(parentOrgId !== undefined ? { parentOrgId } : {}),
+          ...(dto.memo !== undefined ? { memo: this.normalizeOptionalText(dto.memo) } : {}),
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+          updatedBy: operatorUserId,
+          lastSource: 'admin-organization-operations',
+          lastActivity: dto.isActive === false ? 'organization.admin.deactivate' : dto.isActive === true ? 'organization.admin.reactivate' : 'organization.admin.update',
+        },
+      });
+      if (dto.isActive === false) await this.revokeOrganizationRelations(orgId, operatorUserId, tx);
     });
     return this.getById(orgId);
   }
 
   async deactivate(orgId: bigint, operatorUserId: bigint) {
-    await this.assertExists(orgId);
+    await this.write(async (tx) => {
+      await this.assertExists(orgId, tx);
+      await this.assertCanDeactivate(orgId, tx);
+      await tx.organization.update({ where: { orgId }, data: {
+        isActive: false, updatedBy: operatorUserId, lastSource: 'admin-organization-operations', lastActivity: 'organization.admin.deactivate',
+      } });
+      await this.revokeOrganizationRelations(orgId, operatorUserId, tx);
+    });
+    return this.getById(orgId);
+  }
+
+  private async assertCanDeactivate(orgId: bigint, tx: OrganizationTransaction) {
     const [activeChildren, activeMemberships] = await Promise.all([
-      this.db.client.organization.count({ where: { parentOrgId: orgId, isActive: true } }),
-      this.db.client.userOrganizationRelation.count({ where: { orgId, isActive: true } }),
+      tx.organization.count({ where: { parentOrgId: orgId, isActive: true } }),
+      tx.userOrganizationRelation.count({ where: { orgId, isActive: true } }),
     ]);
     if (activeChildren > 0 || activeMemberships > 0) {
       throw new ConflictException(
@@ -92,28 +142,19 @@ export class OrganizationOperationsService {
       );
     }
 
-    await this.db.client.$transaction(async (tx) => {
-      await tx.organization.update({
-        where: { orgId },
-        data: {
-          isActive: false,
-          updatedBy: operatorUserId,
-          lastSource: 'admin-organization-operations',
-          lastActivity: 'organization.admin.deactivate',
-        },
-      });
-      await tx.organizationPermission.updateMany({
-        where: { orgId, isActive: true },
-        data: {
-          isActive: false,
-          effectiveTo: new Date(),
-          updatedBy: operatorUserId,
-          lastSource: 'admin-organization-operations',
-          lastActivity: 'organization.admin.deactivate-permissions',
-        },
-      });
+  }
+
+  private async revokeOrganizationRelations(orgId: bigint, operatorUserId: bigint, tx: OrganizationTransaction) {
+    const metadata = { updatedBy: operatorUserId, lastSource: 'admin-organization-operations', lastActivity: 'organization.admin.deactivate-relations' };
+    await tx.organizationPermission.updateMany({
+      where: { orgId, isActive: true },
+      data: {
+        isActive: false,
+        ...metadata,
+      },
     });
-    return this.getById(orgId);
+    await tx.serviceGrant.updateMany({ where: { orgId, isActive: true }, data: { isActive: false, ...metadata } });
+    await tx.approvalAuthority.updateMany({ where: { orgId, isActive: true }, data: { isActive: false, ...metadata } });
   }
 
   private async getById(orgId: bigint) {
@@ -174,19 +215,20 @@ export class OrganizationOperationsService {
     };
   }
 
-  private async assertExists(orgId: bigint): Promise<void> {
-    const organization = await this.db.client.organization.findUnique({
+  private async assertExists(orgId: bigint, tx: OrganizationTransaction) {
+    const organization = await tx.organization.findUnique({
       where: { orgId },
-      select: { orgId: true },
+      select: { orgId: true, parentOrgId: true },
     });
     if (!organization) {
       throw new NotFoundException('조직을 찾을 수 없습니다.');
     }
+    return organization;
   }
 
-  private async assertParentIsUsable(parentOrgId: bigint | null): Promise<void> {
+  private async assertParentIsUsable(parentOrgId: bigint | null, tx: OrganizationTransaction): Promise<void> {
     if (parentOrgId === null) return;
-    const parent = await this.db.client.organization.findUnique({
+    const parent = await tx.organization.findUnique({
       where: { orgId: parentOrgId },
       select: { isActive: true, orgClass: true },
     });
@@ -195,7 +237,7 @@ export class OrganizationOperationsService {
     }
   }
 
-  private async assertNoHierarchyCycle(orgId: bigint, parentOrgId: bigint | null): Promise<void> {
+  private async assertNoHierarchyCycle(orgId: bigint, parentOrgId: bigint | null, tx: OrganizationTransaction): Promise<void> {
     let cursor = parentOrgId;
     const visited = new Set<string>();
     while (cursor !== null) {
@@ -207,7 +249,7 @@ export class OrganizationOperationsService {
         throw new BadRequestException('기존 조직 계층에 순환 관계가 있습니다.');
       }
       visited.add(key);
-      const parent = await this.db.client.organization.findUnique({
+      const parent = await tx.organization.findUnique({
         where: { orgId: cursor },
         select: { parentOrgId: true },
       });
@@ -218,7 +260,9 @@ export class OrganizationOperationsService {
   private toOptionalId(value: string | null | undefined): bigint | null {
     if (value === null || value === undefined || value.trim() === '') return null;
     try {
-      return BigInt(value);
+      const id = BigInt(value);
+      if (id < 1n || id > 9223372036854775807n) throw new Error('Invalid organization ID');
+      return id;
     } catch {
       throw new BadRequestException('조직 ID 형식이 올바르지 않습니다.');
     }

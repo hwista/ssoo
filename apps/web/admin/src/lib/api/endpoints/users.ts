@@ -16,6 +16,8 @@ export interface UserItem {
   customerId?: string;
   primaryAffiliationType?: 'internal' | 'external' | null;
   isActive: boolean;
+  platformStatus?: 'active' | 'pending' | 'suspended';
+  approvedOrganizations?: string[];
   isSystemUser: boolean;
   lastLoginAt?: string;
   createdAt: string;
@@ -65,6 +67,8 @@ export interface UpdateUserRequest {
 }
 
 export interface UserListParams {
+  userId?: string;
+  isActive?: boolean;
   page?: number;
   limit?: number;
   search?: string;

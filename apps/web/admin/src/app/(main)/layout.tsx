@@ -8,6 +8,7 @@ import {
   getSsooUserSurfaceTabId,
   parseSsooUserSurfaceRouteEntry,
   useProtectedAppBootstrap,
+  usePlatformAccess,
 } from '@ssoo/web-auth';
 import {
   SsooErrorNotice,
@@ -29,6 +30,8 @@ import { AccessRecovery } from '@/components/layout/AccessRecovery';
 const LOGIN_PATH = '/login';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  const access = usePlatformAccess();
+  const canManage = access?.snapshot.isPlatformAdmin === true && access.snapshot.status === 'active';
   const sessionError = useAuthStore(state => state.sessionError);
   const accessToken = useAuthStore(state => state.accessToken);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -76,7 +79,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     resetAccess: () => {},
     onUnauthenticated: redirectToLogin,
   });
-  const adminAccess = usePermissionCatalog(shouldRender);
+  const adminAccess = usePermissionCatalog(shouldRender && canManage);
 
   useEffect(() => {
     if (shouldRender && tabsHydrated) {
@@ -95,6 +98,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
   }, [currentPath, openTab, shouldRender, tabsHydrated]);
 
+  // The route opens a tab; tab selection also keeps the reload/share address current.
+  useEffect(() => useTabStore.subscribe((state, previous) => {
+    const active = state.tabs.find(tab => tab.id === state.activeTabId);
+    const prior = previous.tabs.find(tab => tab.id === previous.activeTabId);
+    if (active && active.path !== prior?.path) {
+      window.history.replaceState(window.history.state, '', active.path);
+    }
+  }), []);
+
   useEffect(() => {
     if (!isMobileViewport && isMobileMenuOpen) {
       closeMobileMenu();
@@ -105,7 +117,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   if (sessionError && !accessToken) return <SharedSessionRecovery authStore={useAuthStore} />;
 
-  if (showLoading || (shouldRender && adminAccess.isLoading)) {
+  if (showLoading || (shouldRender && canManage && adminAccess.isLoading)) {
     return <AuthLoadingScreen />;
   }
 
@@ -114,7 +126,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   const accessDenied = adminAccess.error instanceof ApiError && adminAccess.error.status === 403;
-  if (adminAccess.isError && (!adminAccess.data || accessDenied)) {
+  if (canManage && adminAccess.isError && (!adminAccess.data || accessDenied)) {
     return (
       <AccessRecovery
         accessDenied={accessDenied}
@@ -126,7 +138,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <SharedSessionRecovery authStore={useAuthStore}>
-    {adminAccess.isError ? <SsooErrorNotice message="최신 접근 권한을 확인하지 못했습니다. 이전에 확인한 화면을 유지하고 있습니다."
+    {canManage && adminAccess.isError ? <SsooErrorNotice message="최신 접근 권한을 확인하지 못했습니다. 이전에 확인한 화면을 유지하고 있습니다."
       actions={[{ label: '접근 권한 다시 확인', onClick: () => adminAccess.refetch(), disabled: adminAccess.isFetching }, { label: '다른 서비스·계정으로 이동', href: '/recovery' }]} /> : null}
     <SsooWorkbenchShell
       sidebarMode={isMobileViewport ? 'none' : 'collapsible'}
@@ -141,6 +153,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             isCollapsed={false}
             onToggleCollapse={closeMobileMenu}
             toggleLabel="모바일 메뉴 닫기"
+            onNavigate={closeMobileMenu}
           />
         </SsooMobileSidebarOverlay>
       ) : null) : (

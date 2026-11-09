@@ -566,6 +566,7 @@ export class AiIndexingService {
       FROM common.cm_ai_index_job_m
       WHERE job_status_code = 'pending'
         AND is_active = true
+        AND attempt_count < max_attempts
         AND (next_retry_at IS NULL OR next_retry_at <= NOW())
       ORDER BY priority_no ASC, requested_at ASC
       LIMIT $1
@@ -575,7 +576,8 @@ export class AiIndexingService {
 
     const results: AiIndexJobRunResult[] = [];
     for (const row of rows) {
-      results.push(await this.runJob(row));
+      const result = await this.runJob(row);
+      if (result) results.push(result);
     }
 
     return {
@@ -609,10 +611,10 @@ export class AiIndexingService {
     return this.applyProjection(result.projection, result.status, safety);
   }
 
-  private async runJob(row: JobRow): Promise<AiIndexJobRunResult> {
+  private async runJob(row: JobRow): Promise<AiIndexJobRunResult | null> {
     const safety = extractJobSafety(row);
     const startedAt = new Date().toISOString();
-    await this.db.client.$executeRawUnsafe(
+    const claimed = await this.db.client.$executeRawUnsafe(
       `
       UPDATE common.cm_ai_index_job_m
       SET job_status_code = 'running',
@@ -622,6 +624,9 @@ export class AiIndexingService {
           updated_at = NOW(),
           last_activity = 'run-job'
       WHERE ai_index_job_id = $1
+        AND job_status_code = 'pending' AND is_active = true
+        AND attempt_count < max_attempts
+        AND (next_retry_at IS NULL OR next_retry_at <= NOW())
       `,
       row.ai_index_job_id,
       stringifyJson(mergeMetadata(row.metadata_jsonb, {
@@ -633,6 +638,8 @@ export class AiIndexingService {
         },
       })),
     );
+
+    if (claimed !== 1) return null;
 
     try {
       const applyResult = await this.syncObject({
@@ -935,7 +942,7 @@ export class AiIndexingService {
       stringifyJson({
         registeredBy: adapter.adapterCode,
         capabilities,
-        embeddingProvider: this.embeddingProvider.getStatus(projection?.embeddingProfileCode ?? DEFAULT_PROFILE_CODE),
+        embeddingProvider: await this.embeddingProvider.getStatus(projection?.embeddingProfileCode ?? DEFAULT_PROFILE_CODE),
       }),
     );
 
@@ -1137,11 +1144,11 @@ export class AiIndexingService {
     safety: AiIndexJobSafetySnapshot,
   ): Promise<AiEmbeddingSyncSummary> {
     const profileCode = projection.embeddingProfileCode ?? DEFAULT_PROFILE_CODE;
-    const providerStatus = this.embeddingProvider.getStatus(profileCode);
+    const providerStatus = await this.embeddingProvider.getStatus(profileCode);
     const activeChunkCount = activeChunks.length;
     const batchSize = safety.embeddingBatchSize;
 
-    const profileMismatchReindex = await this.deactivateProfileMismatchEmbeddings(objectId, profileCode);
+    const profileMismatchReindex = await this.deactivateProfileMismatchEmbeddings(objectId, profileCode, providerStatus);
     await this.deactivateStaleEmbeddings(objectId, profileCode);
 
     if (!providerStatus.ready) {
@@ -1195,11 +1202,14 @@ export class AiIndexingService {
       try {
         for (let offset = 0; offset < changedChunks.length; offset += batchSize) {
           const batch = changedChunks.slice(offset, offset + batchSize);
-          const { embeddings } = await this.embeddingProvider.embedTexts(
+          const { embeddings, providerStatus: actualProvider } = await this.embeddingProvider.embedTexts(
             batch.map((row) => row.chunk_text),
             profileCode,
           );
 
+          if (actualProvider.providerCode !== providerStatus.providerCode || actualProvider.modelName !== providerStatus.modelName || actualProvider.deploymentName !== providerStatus.deploymentName || actualProvider.dimension !== providerStatus.dimension) {
+            throw new Error('임베딩 설정이 처리 중 변경됐습니다. 새 설정으로 다시 색인해 주세요.');
+          }
           for (let index = 0; index < batch.length; index += 1) {
             const chunk = batch[index];
             const embedding = embeddings[index];
@@ -1253,7 +1263,7 @@ export class AiIndexingService {
     };
   }
 
-  private async deactivateProfileMismatchEmbeddings(objectId: bigint, profileCode: string): Promise<boolean> {
+  private async deactivateProfileMismatchEmbeddings(objectId: bigint, profileCode: string, provider: Awaited<ReturnType<AiEmbeddingProviderService['getStatus']>>): Promise<boolean> {
     const rows = await this.db.client.$queryRawUnsafe<CountRow[]>(
       `
       WITH updated AS (
@@ -1265,7 +1275,8 @@ export class AiIndexingService {
         WHERE e.ai_chunk_id = c.ai_chunk_id
           AND c.ai_object_id = $1
           AND c.is_active = true
-          AND e.profile_code <> $2
+          AND (e.profile_code <> $2 OR e.provider_code IS DISTINCT FROM $3 OR e.model_name IS DISTINCT FROM $4
+            OR e.deployment_name IS DISTINCT FROM $5 OR e.embedding_dimension <> $6)
           AND e.is_active = true
         RETURNING e.ai_embedding_id
       )
@@ -1273,7 +1284,7 @@ export class AiIndexingService {
       FROM updated
       `,
       objectId,
-      profileCode,
+      profileCode, provider.providerCode, provider.modelName ?? null, provider.deploymentName ?? null, provider.dimension,
     );
 
     return rows[0] ? toNumber(rows[0].count) > 0 : false;
@@ -1322,7 +1333,7 @@ export class AiIndexingService {
     projection: AiIndexObjectProjection,
     chunk: EmbeddingCandidateRow,
     embedding: number[],
-    providerStatus: ReturnType<AiEmbeddingProviderService['getStatus']>,
+    providerStatus: Awaited<ReturnType<AiEmbeddingProviderService['getStatus']>>,
   ): Promise<void> {
     await this.db.client.$executeRawUnsafe(
       `
@@ -1454,7 +1465,7 @@ export class AiIndexingService {
         sourceApp: projection.sourceApp,
         entityType: projection.entityType,
         entityId: projection.entityId,
-        embeddingProvider: this.embeddingProvider.getStatus(projection.embeddingProfileCode ?? DEFAULT_PROFILE_CODE),
+        embeddingProvider: await this.embeddingProvider.getStatus(projection.embeddingProfileCode ?? DEFAULT_PROFILE_CODE),
         embedding: embeddingSummary,
         safety: {
           embeddingBatchSize: embeddingSummary.batchSize,

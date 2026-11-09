@@ -21,6 +21,10 @@ const allowedSearchIntents = new Set([
 ]);
 
 const expectedSearchInventory = new Map(Object.entries({
+  'apps/web/admin/src/components/pages/access/ParticipationTargets.tsx': 2,
+  'apps/web/admin/src/components/pages/access/MembershipManagementPanel.tsx': 1,
+  'apps/web/admin/src/components/pages/access/ServiceGrantManagementPanel.tsx': 1,
+  'apps/web/admin/src/components/pages/roles/ApprovalAuthoritiesTab.tsx': 1,
   'packages/web-shell/src/header.tsx': 1,
   'packages/web-shell/src/sidebar.tsx': 1,
   'packages/web-shell/src/data-workspace-page.tsx': 2,
@@ -58,6 +62,10 @@ const sourceRoots = [
 ];
 
 const credentialSourceRequirements = new Map(Object.entries({
+  'apps/web/admin/src/components/pages/setup/InitialSetupPage.tsx': [
+    'name="ssoo-initial-setup"', 'name="username"', 'autoComplete="username"',
+    'name="new-password"', 'name="confirm-password"', 'data-ssoo-input-intent="noncredential-secret"',
+  ],
   'packages/web-auth/src/ui.tsx': [
     'name="ssoo-login"',
     'name="username"',

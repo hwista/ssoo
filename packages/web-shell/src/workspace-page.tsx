@@ -4,6 +4,9 @@ import * as React from 'react';
 import { Home } from 'lucide-react';
 
 import { cn } from './cn';
+import { useSsooMobileViewport } from './mobile-shell';
+import { SsooPageHeader, type SsooPageHeaderProps } from './page-header';
+import { SsooPageIndexRail, type SsooPageIndexRailProps } from './page-index-rail';
 import {
   SSOO_CONTENT_PAGE_METRICS,
   SsooContentPageTemplate,
@@ -30,7 +33,14 @@ export interface SsooWorkspacePageProps {
   breadcrumbItems?: SsooPageBreadcrumbItem[];
   breadcrumbRootIconSlot?: React.ReactNode;
   breadcrumbAriaLabel?: string;
+  title?: React.ReactNode;
+  compact?: boolean;
+  description?: string;
+  headerActions?: Partial<Omit<SsooPageHeaderProps, 'title' | 'description' | 'className'>>;
   headerSlot?: React.ReactNode;
+  index?: Omit<SsooPageIndexRailProps, 'className'>;
+  /** Scroll a form/operations body; grids keep their own scrolling. */
+  scrollBody?: boolean;
   children?: React.ReactNode;
   contentWidth?: SsooWorkspaceContentWidth;
   pageTone?: SsooContentPageTone;
@@ -88,7 +98,13 @@ export function SsooWorkspacePage({
   breadcrumbItems,
   breadcrumbRootIconSlot,
   breadcrumbAriaLabel,
+  title,
+  compact = false,
+  description,
+  headerActions,
   headerSlot,
+  index,
+  scrollBody = false,
   children,
   contentWidth = 'platform',
   pageTone = 'neutral',
@@ -96,14 +112,16 @@ export function SsooWorkspacePage({
   contentClassName,
   contentDataAttributes,
 }: SsooWorkspacePageProps) {
+  const mobile = useSsooMobileViewport();
   const mainContentSlot = (
     <div className={cn('flex h-full min-h-0 justify-center overflow-hidden px-3', className)} data-ssoo-workspace-page>
       <div
         {...contentDataAttributes}
-        className={cn('flex h-full min-h-0 w-full flex-col gap-3 overflow-hidden', contentClassName)}
+        className={cn('flex h-full min-h-0 w-full flex-col gap-3', scrollBody ? 'overflow-auto rounded-lg border border-ssoo-content-border bg-card p-4 [&>*]:shrink-0' : 'overflow-hidden', contentClassName)}
         style={getWorkspaceContentWidthStyle(contentWidth)}
         data-ssoo-workspace-content-lane
       >
+        {index && (mobile || compact) ? <SsooPageIndexRail {...index} layout="horizontal" /> : null}
         {children}
       </div>
     </div>
@@ -117,7 +135,11 @@ export function SsooWorkspacePage({
         breadcrumbRootIconSlot,
         breadcrumbAriaLabel,
       })}
-      headerSlot={headerSlot ?? null}
+      headerSlot={title || description || headerActions ? <>
+        <SsooPageHeader mode="viewer" extraActionsPosition="right" {...headerActions} title={title} description={description} wrapContent compact={compact} />
+        {headerSlot}
+      </> : headerSlot ?? null}
+      leftSubContentSlot={index && !mobile && !compact ? <SsooPageIndexRail {...index} /> : null}
       mainContentSlot={mainContentSlot}
       pageTone={pageTone}
       pageVariant="fluid"

@@ -59,6 +59,11 @@ export class AuthAdminOperationsService {
       ...session,
       active: !session.revokedAt && session.expiresAt > now,
     }));
+    const [active, revoked, expired] = await Promise.all([
+      this.db.client.userSession.count({ where: { userId, revokedAt: null, expiresAt: { gt: now } } }),
+      this.db.client.userSession.count({ where: { userId, revokedAt: { not: null } } }),
+      this.db.client.userSession.count({ where: { userId, revokedAt: null, expiresAt: { lte: now } } }),
+    ]);
     return {
       userId: user.id.toString(),
       userName: user.userName,
@@ -66,11 +71,7 @@ export class AuthAdminOperationsService {
       isActive: user.isActive,
       authAccount: user.authAccount,
       externalIdentities: user.externalIdentities,
-      sessionSummary: {
-        active: sessions.filter((session) => session.active).length,
-        revoked: sessions.filter((session) => Boolean(session.revokedAt)).length,
-        expired: sessions.filter((session) => !session.revokedAt && session.expiresAt <= now).length,
-      },
+      sessionSummary: { active, revoked, expired },
       sessions,
     };
   }
